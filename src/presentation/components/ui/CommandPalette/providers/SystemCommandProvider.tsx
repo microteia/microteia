@@ -5,6 +5,8 @@ import {
   RiUserLine,
   RiRobot2Line,
   RiPaletteLine,
+  RiTeamLine,
+  RiMailLine,
 } from 'react-icons/ri';
 import type { ICommandPaletteProvider, CommandPaletteAppContext, CommandPaletteItem } from './ICommandPaletteProvider';
 import type { ThemeMode } from '../../../../../shared/types';
@@ -43,6 +45,16 @@ export const SystemCommandProvider: ICommandPaletteProvider = {
       });
     }
 
+    if (tenantRole === 'admin' && (!query || contains('membros', query) || contains('equipe', query) || contains('team', query) || contains('usuários', query))) {
+      items.push({
+        id: 'sys:members',
+        title: 'Membros',
+        group: 'Sistema',
+        icon: <RiTeamLine size={16} />,
+        onSelect: () => { openTab('tenant-settings:members'); close(); },
+      });
+    }
+
     if (tenantRole === 'admin' && (!query || contains('ia', query) || contains('ai', query) || contains('inteligência', query) || contains('conexão', query))) {
       items.push({
         id: 'sys:ai',
@@ -50,6 +62,16 @@ export const SystemCommandProvider: ICommandPaletteProvider = {
         group: 'Sistema',
         icon: <RiRobot2Line size={16} />,
         onSelect: () => { openTab('tenant-settings:ai'); close(); },
+      });
+    }
+
+    if (tenantRole === 'admin' && (!query || contains('push', query) || contains('gmail', query) || contains('email', query) || contains('notificações', query) || contains('configuração', query))) {
+      items.push({
+        id: 'sys:push',
+        title: 'Configuração de Push',
+        group: 'Sistema',
+        icon: <RiMailLine size={16} />,
+        onSelect: () => { openTab('tenant-settings:push'); close(); },
       });
     }
 
