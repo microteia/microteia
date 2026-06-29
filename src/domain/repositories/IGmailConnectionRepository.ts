@@ -13,4 +13,5 @@ export interface IGmailConnectionRepository {
     connectionId: string,
     tokenData: Omit<GmailToken, 'id' | 'connectionId' | 'tenantId'>,
   ): Promise<void>;
+  updateConnectionAuthorizedAt(tenantId: string, connectionId: string): Promise<void>;
 }

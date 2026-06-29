@@ -76,4 +76,9 @@ export class FirebaseGmailConnectionRepository implements IGmailConnectionReposi
       ...tokenData,
     });
   }
+
+  async updateConnectionAuthorizedAt(tenantId: string, connectionId: string): Promise<void> {
+    const docRef = gmailDoc(tenantId, connectionId);
+    await setDoc(docRef, { authorizedAt: new Date() }, { merge: true });
+  }
 }

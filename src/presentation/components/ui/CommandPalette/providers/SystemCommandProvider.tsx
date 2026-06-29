@@ -46,7 +46,7 @@ export const SystemCommandProvider: ICommandPaletteProvider = {
     if (tenantRole === 'admin' && (!query || contains('ia', query) || contains('ai', query) || contains('inteligência', query) || contains('conexão', query))) {
       items.push({
         id: 'sys:ai',
-        title: 'Conexões de IA',
+        title: 'Conexão de IA',
         group: 'Sistema',
         icon: <RiRobot2Line size={16} />,
         onSelect: () => { openTab('tenant-settings:ai'); close(); },
