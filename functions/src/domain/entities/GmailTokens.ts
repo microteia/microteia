@@ -1,0 +1,13 @@
+export interface GmailTokens {
+  email: string;
+  accessToken: string;
+  refreshToken: string;
+  expiresIn: number;
+  scopes: string[];
+}
+
+export interface GmailAuthConfig {
+  clientId: string;
+  clientSecret: string;
+  redirectUri: string;
+}
