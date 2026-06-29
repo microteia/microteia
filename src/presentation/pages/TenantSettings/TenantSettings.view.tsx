@@ -56,7 +56,9 @@ export const TenantSettingsView: React.FC<{ tabKey?: string }> = ({ tabKey }) =>
 
         {vm.activeTab === 'members' && vm.isAdmin && (
           <S.Section>
-            <MembersTab />
+            <S.SectionBody>
+              <MembersTab />
+            </S.SectionBody>
           </S.Section>
         )}
 
