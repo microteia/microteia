@@ -3,6 +3,7 @@ import type { IAuthRepository } from '../../domain/repositories/IAuthRepository'
 import type { IUserRepository } from '../../domain/repositories/IUserRepository';
 import type { IUserProfileRepository } from '../../domain/repositories/IUserProfileRepository';
 import type { IAIConnectionRepository } from '../../domain/repositories/IAIConnectionRepository';
+import type { IGmailConnectionRepository } from '../../domain/repositories/IGmailConnectionRepository';
 import type { INewsRepository } from '../../domain/repositories/INewsRepository';
 import type { INewsInteractionRepository } from '../../domain/repositories/INewsInteractionRepository';
 import type { INewsTagRepository } from '../../domain/repositories/INewsTagRepository';
@@ -39,6 +40,7 @@ export interface DIContainer {
   userRepository: IUserRepository;
   userProfileRepository: IUserProfileRepository;
   aiConnectionRepository: IAIConnectionRepository;
+  gmailConnectionRepository: IGmailConnectionRepository;
   newsRepository: INewsRepository;
   newsInteractionRepository: INewsInteractionRepository;
   newsTagRepository: INewsTagRepository;

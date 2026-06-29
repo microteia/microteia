@@ -9,6 +9,9 @@ import {
   RiEyeOffLine,
   RiStarLine,
   RiRobot2Line,
+  RiMailLine,
+  RiLinkUnlink,
+  RiRefreshLine,
 } from 'react-icons/ri';
 import { SiOpenai, SiGoogle } from 'react-icons/si';
 import { S } from './TenantSettings.styles';
@@ -225,7 +228,11 @@ const AIConnectionModal: React.FC<AIModalProps> = ({
 };
 
 export const TenantSettingsView: React.FC<{ tabKey?: string }> = ({ tabKey }) => {
-  const initialTab = tabKey === 'tenant-settings:ai' ? 'ai' : tabKey === 'tenant-settings:members' ? 'members' : 'office';
+  const initialTab = 
+    tabKey === 'tenant-settings:ai' ? 'ai' : 
+    tabKey === 'tenant-settings:members' ? 'members' : 
+    tabKey === 'tenant-settings:push' ? 'push' : 
+    'office';
   const vm = useTenantSettingsViewModel(initialTab);
   const theme = useTheme();
 
@@ -273,6 +280,11 @@ export const TenantSettingsView: React.FC<{ tabKey?: string }> = ({ tabKey }) =>
         {vm.isAdmin && (
           <S.Tab $active={vm.activeTab === 'ai'} onClick={() => vm.setActiveTab('ai')}>
             Conexão IA
+          </S.Tab>
+        )}
+        {vm.isAdmin && (
+          <S.Tab $active={vm.activeTab === 'push'} onClick={() => vm.setActiveTab('push')}>
+            Push
           </S.Tab>
         )}
       </S.TabsBar>
@@ -480,6 +492,76 @@ export const TenantSettingsView: React.FC<{ tabKey?: string }> = ({ tabKey }) =>
             </S.SectionBody>
           </S.Section>
         )}
+
+        {vm.activeTab === 'push' && vm.isAdmin && (
+          <S.Section>
+            <S.SectionBody>
+              <S.SectionTitle>Monitoramento Gmail</S.SectionTitle>
+
+              {vm.gmailLoading ? (
+                <Spinner />
+              ) : (
+                <>
+                  {vm.gmailError && (
+                    <S.Feedback $type="error" style={{ marginBottom: 12 }}>{vm.gmailError}</S.Feedback>
+                  )}
+
+                  {vm.gmailConnections.length === 0 ? (
+                    <S.EmptyState>
+                      <RiMailLine size={32} style={{ marginBottom: 8, opacity: 0.4 }} />
+                      <p>Nenhuma conta Gmail autorizada para este escritório.</p>
+                    </S.EmptyState>
+                  ) : (
+                    <S.AIList>
+                      {vm.gmailConnections.map((conn) => (
+                        <S.AICard key={conn.id} $isDefault={false}>
+                          <S.AIProviderIcon $color={theme.colors.primary}>
+                            <RiMailLine size={18} />
+                          </S.AIProviderIcon>
+                          <S.AICardBody>
+                            <S.AICardName>{conn.email}</S.AICardName>
+                            <S.AICardMeta>
+                              Autorizado por {conn.authorizedByName} em {new Date(conn.authorizedAt).toLocaleDateString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                            </S.AICardMeta>
+                          </S.AICardBody>
+                          <S.AICardActions>
+                            <Button 
+                              size="sm" 
+                              variant="ghost" 
+                              onClick={() => void vm.handleAuthorizeGmail()} 
+                              title="Reautorizar"
+                              disabled={vm.isAuthorizingGmail}
+                            >
+                              <RiRefreshLine size={16} />
+                            </Button>
+                            <Button 
+                              size="sm" 
+                              variant="ghost" 
+                              onClick={() => vm.handleDeleteGmailConnection(conn.id)} 
+                              title="Revogar acesso"
+                            >
+                              <RiLinkUnlink size={16} />
+                            </Button>
+                          </S.AICardActions>
+                        </S.AICard>
+                      ))}
+                    </S.AIList>
+                  )}
+
+                  <S.AIAddRow>
+                    <Button 
+                      onClick={() => void vm.handleAuthorizeGmail()} 
+                      disabled={vm.isAuthorizingGmail}
+                    >
+                      <RiAddLine size={16} />
+                      {vm.isAuthorizingGmail ? 'Autorizando...' : 'Autorizar Conta Gmail'}
+                    </Button>
+                  </S.AIAddRow>
+                </>
+              )}
+            </S.SectionBody>
+          </S.Section>
+        )}
       </S.Content>
 
       <ConfirmModal
@@ -500,6 +582,16 @@ export const TenantSettingsView: React.FC<{ tabKey?: string }> = ({ tabKey }) =>
         variant="danger"
         onConfirm={() => void vm.runDeleteAI()}
         onCancel={vm.cancelDeleteAI}
+      />
+
+      <ConfirmModal
+        isOpen={vm.confirmGmailDelete.open}
+        title="Remover conta Gmail"
+        message={`Deseja remover a autorização da conta "${vm.confirmGmailDelete.email}"? Esta ação não pode ser desfeita.`}
+        confirmLabel="Remover"
+        variant="danger"
+        onConfirm={() => void vm.runDeleteGmail()}
+        onCancel={vm.cancelDeleteGmail}
       />
 
       {vm.showAIModal && (

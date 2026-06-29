@@ -1,8 +1,14 @@
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { initializeApp, getApps } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
+import { defineString } from 'firebase-functions/params';
 
 if (!getApps().length) initializeApp();
+
+// Gmail OAuth configuration (migrado de functions.config() para params)
+const googleClientId = defineString('GOOGLE_CLIENT_ID');
+const googleClientSecret = defineString('GOOGLE_CLIENT_SECRET');
+const googleRedirectUri = defineString('GOOGLE_REDIRECT_URI', { default: 'postmessage' });
 
 type Provider = 'openai' | 'anthropic' | 'google' | 'mistral' | 'cohere' | 'ollama' | 'other';
 
@@ -472,5 +478,109 @@ export const claimNickname = onCall(
     });
 
     return { success: true };
+  },
+);
+
+// ─── Gmail OAuth Code Exchange ────────────────────────────────────────────────
+
+interface ExchangeGmailCodeRequest {
+  code: string;
+  tenantId: string;
+}
+
+interface TokenResponse {
+  access_token: string;
+  refresh_token?: string;
+  expires_in: number;
+  scope: string;
+}
+
+export const exchangeGmailCode = onCall(
+  { region: 'us-central1', cors: true },
+  async (request) => {
+    if (!request.auth) {
+      throw new HttpsError('unauthenticated', 'Autenticação necessária.');
+    }
+
+    const { code, tenantId } = request.data as ExchangeGmailCodeRequest;
+
+    if (!code || !tenantId) {
+      throw new HttpsError('invalid-argument', 'code e tenantId são obrigatórios.');
+    }
+
+    // Verifica se o usuário é admin do tenant
+    const db = getFirestore();
+    const memberSnap = await db
+      .collection('tenants')
+      .doc(tenantId)
+      .collection('members')
+      .doc(request.auth.uid)
+      .get();
+
+    if (!memberSnap.exists) {
+      throw new HttpsError('permission-denied', 'Você não é membro deste escritório.');
+    }
+
+    const memberData = memberSnap.data() as { role?: string };
+    if (memberData.role !== 'admin') {
+      throw new HttpsError('permission-denied', 'Apenas administradores podem autorizar contas Gmail.');
+    }
+
+    // Credenciais OAuth do Google (Client Secret fica APENAS no backend)
+    const clientId = googleClientId.value();
+    const clientSecret = googleClientSecret.value();
+    const redirectUri = googleRedirectUri.value();
+
+    if (!clientId || !clientSecret) {
+      throw new HttpsError('failed-precondition', 'Credenciais OAuth não configuradas no backend.');
+    }
+
+    // Troca o código pelos tokens
+    try {
+      const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+          code,
+          client_id: clientId,
+          client_secret: clientSecret,
+          redirect_uri: redirectUri,
+          grant_type: 'authorization_code',
+        }),
+      });
+
+      if (!tokenResponse.ok) {
+        const error = await tokenResponse.json().catch(() => ({})) as Record<string, unknown>;
+        throw new HttpsError('internal', `Erro ao trocar código: ${JSON.stringify(error)}`);
+      }
+
+      const tokens = await tokenResponse.json() as TokenResponse;
+
+      if (!tokens.access_token) {
+        throw new HttpsError('internal', 'Token de acesso não retornado pelo Google.');
+      }
+
+      // Busca o email da conta autorizada
+      const profileResponse = await fetch('https://www.googleapis.com/gmail/v1/users/me/profile', {
+        headers: { Authorization: `Bearer ${tokens.access_token}` },
+      });
+
+      if (!profileResponse.ok) {
+        throw new HttpsError('internal', 'Erro ao buscar perfil Gmail.');
+      }
+
+      const profileData = await profileResponse.json() as { emailAddress?: string };
+
+      return {
+        email: profileData.emailAddress ?? 'desconhecido',
+        accessToken: tokens.access_token,
+        refreshToken: tokens.refresh_token ?? '',
+        expiresIn: tokens.expires_in,
+        scopes: tokens.scope.split(' '),
+      };
+    } catch (error) {
+      if (error instanceof HttpsError) throw error;
+      throw new HttpsError('internal', `Erro na troca de tokens: ${String(error)}`);
+    }
   },
 );

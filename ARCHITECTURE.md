@@ -46,6 +46,8 @@ O projeto usa **Clean Architecture + MVVM** com separação estrita em camadas. 
 | `User` | `users/{uid}` | Não |
 | `UserProfile` | `userProfiles/{uid}` | Não |
 | `AIConnection` | `tenants/{tenantId}/aiConnections/{id}` | Sim |
+| `GmailConnection` | `tenants/{tenantId}/gmailConnections/{id}` | Sim |
+| `GmailToken` | `tenants/{tenantId}/gmailConnections/{connectionId}/tokens/current` | Sim |
 | `Tenant` | `tenants/{tenantId}` | — |
 | `TenantMember` | `tenants/{tenantId}/members/{uid}` | Sim |
 | `Person` | `tenants/{tenantId}/persons/{id}` | Sim |
@@ -79,6 +81,96 @@ type TenantRole = 'admin' | 'lawyer' | 'secretary' | 'user';
 type ThemeMode = 'dark' | 'light' | 'claude' | 'teams' | 'bruma' | 'kindle';
 ```
 
+### Entidade GmailConnection
+
+Conexões OAuth do Gmail para monitoramento Push de e-mails do escritório. Armazenadas por tenant. Somente administradores do tenant podem gerenciar.
+
+```typescript
+interface GmailConnection {
+  id: string;
+  tenantId: string;
+  email: string;               // conta Gmail autorizada
+  scopes: string[];            // escopos OAuth concedidos
+  authorizedBy: string;        // userId que autorizou
+  authorizedByName: string;    // nome de exibição
+  authorizedAt: Date;
+}
+```
+
+Coleção Firestore: `tenants/{tenantId}/gmailConnections/{id}`
+
+### Entidade GmailToken
+
+Tokens de acesso OAuth armazenados em subcoleção protegida. **Não retornam na listagem** — acessados apenas por Cloud Functions para renovação e uso.
+
+```typescript
+interface GmailToken {
+  id: string;
+  connectionId: string;
+  tenantId: string;
+  accessToken: string;
+  refreshToken: string;
+  expiresAt: Date;
+}
+```
+
+Coleção Firestore: `tenants/{tenantId}/gmailConnections/{connectionId}/tokens/current`
+
+**Fluxo OAuth do Gmail (Authorization Code Flow com Cloud Function):**
+
+O Curatino implementa o **Authorization Code Flow** do Google OAuth para obter tokens de acesso offline (com `refresh_token`). Este é o fluxo correto para SaaS que precisam acessar APIs em background sem o usuário presente.
+
+**Por que NÃO usar `initTokenClient`:**
+- `initTokenClient` implementa o **Implicit Flow** (tokens na memória do navegador)
+- **Nunca retorna `refresh_token`**, mesmo com `access_type: 'offline'` ou `prompt: 'consent'`
+- Inadequado para acesso offline — tokens expiram em 1 hora e não podem ser renovados
+
+**Solução: `initCodeClient` + Cloud Function**
+
+1. **Frontend** (`initCodeClient`):
+   - Abre popup OAuth do Google
+   - Recebe um **código de autorização** (`response.code`)
+   - Envia código para Cloud Function `exchangeGmailCode`
+
+2. **Backend** (Cloud Function):
+   - Recebe código do frontend
+   - Usa **Client Secret** (seguro no backend) para trocar código por tokens
+   - Retorna `{ access_token, refresh_token, expires_in, email, scopes }`
+   - **Client Secret nunca exposto ao frontend**
+
+3. **Frontend salva tokens**:
+   - Grava em `gmailConnections/{id}/tokens/current`
+   - Security Rules: `allow write: if isTenantAdmin(tenantId)` (primeira gravação)
+   - Security Rules: `allow read: if false` (nunca lê de volta)
+
+4. **Cloud Functions renovam tokens**:
+   - Leem tokens usando Admin SDK (ignora Security Rules)
+   - Quando `access_token` expira, usam `refresh_token` para obter novo
+   - Atualizam subcoleção `tokens/current` automaticamente
+
+**Configuração necessária:**
+
+```bash
+# Firebase Functions (não commitar!)
+firebase functions:config:set \
+  google.client_id="..." \
+  google.client_secret="..." \
+  google.redirect_uri="postmessage"
+
+# Frontend (.env)
+VITE_GOOGLE_CLIENT_ID=...
+```
+
+**Segurança:**
+- ✅ `refresh_token` **sempre** retornado (Authorization Code Flow)
+- ✅ Client Secret protegido no backend
+- ✅ Tokens nunca trafegam de volta ao frontend após salvos
+- ✅ Cloud Functions gerenciam renovação sem interação do usuário
+- ✅ Subcoleções `tokens/` isoladas (não retornam com `gmailConnections`)
+
+**Prevenção de duplicatas:**
+- Ao autorizar email já existente, atualiza tokens da conexão existente (não cria duplicata)
+- Lógica de deduplicação no frontend antes de chamar `createGmailConnectionUC` vs `updateGmailTokenUC`
 ### Entidade Tenant
 
 ```typescript
@@ -901,6 +993,18 @@ service cloud.firestore {
       // Conexões de IA do escritório — somente admin lê e escreve
       match /aiConnections/{connectionId} {
         allow read, write: if isTenantAdmin(tenantId);
+      }
+
+      // Conexões Gmail (Push) — somente admin lê e escreve conexões
+      match /gmailConnections/{connectionId} {
+        allow read, write: if isTenantAdmin(tenantId);
+        
+        // Tokens OAuth: admin pode ESCREVER (autorização inicial), mas NUNCA LER
+        // Cloud Functions (Admin SDK) leem/renovam tokens, ignorando estas regras
+        match /tokens/{tokenId} {
+          allow read: if false;                    // Frontend NUNCA lê tokens
+          allow write: if isTenantAdmin(tenantId); // Mas pode salvar na autorização inicial
+        }
       }
 
       // Membros do tenant

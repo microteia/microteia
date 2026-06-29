@@ -1,11 +1,16 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.claimNickname = exports.checkNicknameAvailability = exports.getUserInfo = exports.callAIProxy = void 0;
+exports.exchangeGmailCode = exports.claimNickname = exports.checkNicknameAvailability = exports.getUserInfo = exports.callAIProxy = void 0;
 const https_1 = require("firebase-functions/v2/https");
 const app_1 = require("firebase-admin/app");
 const firestore_1 = require("firebase-admin/firestore");
+const params_1 = require("firebase-functions/params");
 if (!(0, app_1.getApps)().length)
     (0, app_1.initializeApp)();
+// Gmail OAuth configuration (migrado de functions.config() para params)
+const googleClientId = (0, params_1.defineString)('GOOGLE_CLIENT_ID');
+const googleClientSecret = (0, params_1.defineString)('GOOGLE_CLIENT_SECRET');
+const googleRedirectUri = (0, params_1.defineString)('GOOGLE_REDIRECT_URI', { default: 'postmessage' });
 const ANALYSIS_PROMPT = `Você é um Professor Adjunto de Direito e Especialista em Didática para Concursos Públicos Jurídicos de Alto Nível (Magistratura, Ministério Público e Defensoria).
 
 Sua função é analisar um julgado (jurisprudência, informativo, acórdão, tema repetitivo, repercussão geral ou inteiro teor) fornecido pelo usuário e desconstruí-lo de forma extremamente didática, técnica, objetiva e voltada para revisão de concursos jurídicos.
@@ -395,5 +400,79 @@ exports.claimNickname = (0, https_1.onCall)({ region: 'us-central1', cors: true 
         tx.set(profileRef, { userId: uid, nickname, nicknameSetAt: now }, { merge: true });
     });
     return { success: true };
+});
+exports.exchangeGmailCode = (0, https_1.onCall)({ region: 'us-central1', cors: true }, async (request) => {
+    var _a, _b;
+    if (!request.auth) {
+        throw new https_1.HttpsError('unauthenticated', 'Autenticação necessária.');
+    }
+    const { code, tenantId } = request.data;
+    if (!code || !tenantId) {
+        throw new https_1.HttpsError('invalid-argument', 'code e tenantId são obrigatórios.');
+    }
+    // Verifica se o usuário é admin do tenant
+    const db = (0, firestore_1.getFirestore)();
+    const memberSnap = await db
+        .collection('tenants')
+        .doc(tenantId)
+        .collection('members')
+        .doc(request.auth.uid)
+        .get();
+    if (!memberSnap.exists) {
+        throw new https_1.HttpsError('permission-denied', 'Você não é membro deste escritório.');
+    }
+    const memberData = memberSnap.data();
+    if (memberData.role !== 'admin') {
+        throw new https_1.HttpsError('permission-denied', 'Apenas administradores podem autorizar contas Gmail.');
+    }
+    // Credenciais OAuth do Google (Client Secret fica APENAS no backend)
+    const clientId = googleClientId.value();
+    const clientSecret = googleClientSecret.value();
+    const redirectUri = googleRedirectUri.value();
+    if (!clientId || !clientSecret) {
+        throw new https_1.HttpsError('failed-precondition', 'Credenciais OAuth não configuradas no backend.');
+    }
+    // Troca o código pelos tokens
+    try {
+        const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: new URLSearchParams({
+                code,
+                client_id: clientId,
+                client_secret: clientSecret,
+                redirect_uri: redirectUri,
+                grant_type: 'authorization_code',
+            }),
+        });
+        if (!tokenResponse.ok) {
+            const error = await tokenResponse.json().catch(() => ({}));
+            throw new https_1.HttpsError('internal', `Erro ao trocar código: ${JSON.stringify(error)}`);
+        }
+        const tokens = await tokenResponse.json();
+        if (!tokens.access_token) {
+            throw new https_1.HttpsError('internal', 'Token de acesso não retornado pelo Google.');
+        }
+        // Busca o email da conta autorizada
+        const profileResponse = await fetch('https://www.googleapis.com/gmail/v1/users/me/profile', {
+            headers: { Authorization: `Bearer ${tokens.access_token}` },
+        });
+        if (!profileResponse.ok) {
+            throw new https_1.HttpsError('internal', 'Erro ao buscar perfil Gmail.');
+        }
+        const profileData = await profileResponse.json();
+        return {
+            email: (_a = profileData.emailAddress) !== null && _a !== void 0 ? _a : 'desconhecido',
+            accessToken: tokens.access_token,
+            refreshToken: (_b = tokens.refresh_token) !== null && _b !== void 0 ? _b : '',
+            expiresIn: tokens.expires_in,
+            scopes: tokens.scope.split(' '),
+        };
+    }
+    catch (error) {
+        if (error instanceof https_1.HttpsError)
+            throw error;
+        throw new https_1.HttpsError('internal', `Erro na troca de tokens: ${String(error)}`);
+    }
 });
 //# sourceMappingURL=index.js.map

@@ -3,6 +3,7 @@ import { FirebaseAuthRepository } from '../../data/repositories/FirebaseAuthRepo
 import { FirebaseUserRepository } from '../../data/repositories/FirebaseUserRepository';
 import { FirebaseUserProfileRepository } from '../../data/repositories/FirebaseUserProfileRepository';
 import { FirebaseAIConnectionRepository } from '../../data/repositories/FirebaseAIConnectionRepository';
+import { FirebaseGmailConnectionRepository } from '../../data/repositories/FirebaseGmailConnectionRepository';
 import { FirebaseNewsRepository } from '../../data/repositories/FirebaseNewsRepository';
 import { FirebaseNewsInteractionRepository } from '../../data/repositories/FirebaseNewsInteractionRepository';
 import { FirebaseNewsTagRepository } from '../../data/repositories/FirebaseNewsTagRepository';
@@ -42,6 +43,7 @@ export const DIProvider: React.FC<{ children: React.ReactNode }> = ({ children }
     userRepository:           new FirebaseUserRepository(),
     userProfileRepository:    new FirebaseUserProfileRepository(),
     aiConnectionRepository:   new FirebaseAIConnectionRepository(),
+    gmailConnectionRepository: new FirebaseGmailConnectionRepository(),
     newsRepository:           new FirebaseNewsRepository(),
     newsInteractionRepository: new FirebaseNewsInteractionRepository(),
     newsTagRepository:        new FirebaseNewsTagRepository(),

@@ -8,8 +8,12 @@ import { makeCreateAIConnectionUseCase } from '../../../domain/usecases/aiconnec
 import { makeUpdateAIConnectionUseCase } from '../../../domain/usecases/aiconnections/UpdateAIConnectionUseCase';
 import { makeDeleteAIConnectionUseCase } from '../../../domain/usecases/aiconnections/DeleteAIConnectionUseCase';
 import { makeSetDefaultAIConnectionUseCase } from '../../../domain/usecases/aiconnections/SetDefaultAIConnectionUseCase';
+import { makeGetGmailConnectionsUseCase } from '../../../domain/usecases/gmailconnections/GetGmailConnectionsUseCase';
+import { makeCreateGmailConnectionUseCase } from '../../../domain/usecases/gmailconnections/CreateGmailConnectionUseCase';
+import { makeDeleteGmailConnectionUseCase } from '../../../domain/usecases/gmailconnections/DeleteGmailConnectionUseCase';
+import { makeUpdateGmailTokenUseCase } from '../../../domain/usecases/gmailconnections/UpdateGmailTokenUseCase';
 import { useEffect } from 'react';
-import type { AIConnection, AIProvider, TenantMember, TenantRole } from '../../../domain/entities';
+import type { AIConnection, AIProvider, TenantMember, TenantRole, GmailConnection } from '../../../domain/entities';
 
 export const TENANT_ROLE_LABELS: Record<TenantRole, string> = {
   admin: 'Administrador',
@@ -35,7 +39,7 @@ export interface AIConnectionForm {
   maxTokens: string;
 }
 
-export type TenantSettingsTab = 'office' | 'members' | 'ai';
+export type TenantSettingsTab = 'office' | 'members' | 'ai' | 'push';
 
 export interface TenantSettingsViewModel {
   isAdmin: boolean;
@@ -82,6 +86,16 @@ export interface TenantSettingsViewModel {
   confirmAIDelete: { open: boolean; id: string; name: string };
   runDeleteAI: () => Promise<void>;
   cancelDeleteAI: () => void;
+
+  gmailLoading: boolean;
+  gmailConnections: GmailConnection[];
+  gmailError: string | null;
+  isAuthorizingGmail: boolean;
+  handleAuthorizeGmail: () => Promise<void>;
+  handleDeleteGmailConnection: (id: string) => void;
+  confirmGmailDelete: { open: boolean; id: string; email: string };
+  runDeleteGmail: () => Promise<void>;
+  cancelDeleteGmail: () => void;
 }
 
 const EMPTY_AI_FORM: AIConnectionForm = {
@@ -107,7 +121,7 @@ export const useTenantSettingsViewModel = (initialTab: TenantSettingsTab = 'offi
   const { currentTenant, members, isLoading, tenantRole, updateTenant, addMember, updateMemberRole, removeMember } = useTenant();
   const { user } = useAuth();
   const { notify } = useNotification();
-  const { userRepository, aiConnectionRepository } = useDI();
+  const { userRepository, aiConnectionRepository, gmailConnectionRepository } = useDI();
 
   const isAdmin = tenantRole === 'admin';
 
@@ -116,6 +130,11 @@ export const useTenantSettingsViewModel = (initialTab: TenantSettingsTab = 'offi
   const updateConnectionUC = useMemo(() => makeUpdateAIConnectionUseCase(aiConnectionRepository), [aiConnectionRepository]);
   const deleteConnectionUC = useMemo(() => makeDeleteAIConnectionUseCase(aiConnectionRepository), [aiConnectionRepository]);
   const setDefaultConnectionUC = useMemo(() => makeSetDefaultAIConnectionUseCase(aiConnectionRepository), [aiConnectionRepository]);
+
+  const getGmailConnectionsUC = useMemo(() => makeGetGmailConnectionsUseCase(gmailConnectionRepository), [gmailConnectionRepository]);
+  const createGmailConnectionUC = useMemo(() => makeCreateGmailConnectionUseCase(gmailConnectionRepository), [gmailConnectionRepository]);
+  const updateGmailTokenUC = useMemo(() => makeUpdateGmailTokenUseCase(gmailConnectionRepository), [gmailConnectionRepository]);
+  const deleteGmailConnectionUC = useMemo(() => makeDeleteGmailConnectionUseCase(gmailConnectionRepository), [gmailConnectionRepository]);
 
   const [activeTab, setActiveTab] = useState<TenantSettingsTab>(initialTab);
   const [officeForm, setOfficeFormState] = useState<OfficeFormData>({
@@ -141,6 +160,12 @@ export const useTenantSettingsViewModel = (initialTab: TenantSettingsTab = 'offi
   const [showApiKey, setShowApiKey] = useState(false);
   const [confirmAIDelete, setConfirmAIDelete] = useState({ open: false, id: '', name: '' });
 
+  const [gmailConnections, setGmailConnections] = useState<GmailConnection[]>([]);
+  const [gmailLoading, setGmailLoading] = useState(false);
+  const [gmailError, setGmailError] = useState<string | null>(null);
+  const [isAuthorizingGmail, setIsAuthorizingGmail] = useState(false);
+  const [confirmGmailDelete, setConfirmGmailDelete] = useState({ open: false, id: '', email: '' });
+
   useEffect(() => {
     if (!currentTenant || !isAdmin) return;
     // eslint-disable-next-line react-hooks/set-state-in-effect -- initializing loading state before async operation is architecturally required
@@ -162,6 +187,23 @@ export const useTenantSettingsViewModel = (initialTab: TenantSettingsTab = 'offi
     };
     void load();
   }, [currentTenant, isAdmin, getConnectionsUC, setDefaultConnectionUC]);
+
+  useEffect(() => {
+    if (!currentTenant || !isAdmin) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- initializing loading state before async operation is architecturally required
+    setGmailLoading(true);
+    const loadGmail = async () => {
+      try {
+        const connections = await getGmailConnectionsUC.execute(currentTenant.id);
+        setGmailConnections(connections);
+      } catch {
+        setGmailError('Erro ao carregar conexões Gmail.');
+      } finally {
+        setGmailLoading(false);
+      }
+    };
+    void loadGmail();
+  }, [currentTenant, isAdmin, getGmailConnectionsUC]);
 
   const setOfficeForm = useCallback((data: Partial<OfficeFormData>) => {
     setOfficeFormState((prev) => ({ ...prev, ...data }));
@@ -356,6 +398,147 @@ export const useTenantSettingsViewModel = (initialTab: TenantSettingsTab = 'offi
 
   const handleToggleShowApiKey = useCallback(() => setShowApiKey((v) => !v), []);
 
+  const handleAuthorizeGmail = useCallback(async () => {
+    if (!currentTenant || !user) return;
+    setIsAuthorizingGmail(true);
+    setGmailError(null);
+    try {
+      const client = (window as typeof window & { 
+        google?: { 
+          accounts: { 
+            oauth2: { 
+              initCodeClient: (config: { 
+                client_id: string; 
+                scope: string; 
+                ux_mode?: 'popup' | 'redirect';
+                callback: (response: { code?: string; error?: string }) => void;
+              }) => { requestCode: () => void };
+            };
+          };
+        };
+      }).google;
+      
+      if (!client?.accounts?.oauth2) {
+        notify('Google Identity Services não está disponível. Verifique a conexão.', 'error');
+        setIsAuthorizingGmail(false);
+        return;
+      }
+
+      const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID as string | undefined;
+      if (!clientId) {
+        notify('Client ID do Google não configurado.', 'error');
+        setIsAuthorizingGmail(false);
+        return;
+      }
+
+      const codeClient = client.accounts.oauth2.initCodeClient({
+        client_id: clientId,
+        scope: 'https://www.googleapis.com/auth/gmail.readonly https://www.googleapis.com/auth/gmail.modify',
+        ux_mode: 'popup',
+        callback: async (response) => {
+          if (response.error) {
+            notify(`Erro na autorização: ${response.error}`, 'error');
+            setIsAuthorizingGmail(false);
+            return;
+          }
+
+          if (!response.code) {
+            notify('Código de autorização não recebido.', 'error');
+            setIsAuthorizingGmail(false);
+            return;
+          }
+
+          try {
+            // Chama Cloud Function para trocar código por tokens
+            const { getFunctions, httpsCallable } = await import('firebase/functions');
+            const functions = getFunctions();
+            const exchangeCode = httpsCallable<
+              { code: string; tenantId: string },
+              { 
+                email: string; 
+                accessToken: string; 
+                refreshToken: string; 
+                expiresIn: number; 
+                scopes: string[];
+              }
+            >(functions, 'exchangeGmailCode');
+
+            const result = await exchangeCode({ 
+              code: response.code, 
+              tenantId: currentTenant.id,
+            });
+
+            const { email, accessToken, refreshToken, expiresIn, scopes } = result.data;
+
+            const expiresAt = new Date(Date.now() + expiresIn * 1000);
+            const tokenData = {
+              accessToken,
+              refreshToken,
+              expiresAt,
+            };
+
+            // Verifica se já existe conexão para este email
+            const existingConnection = gmailConnections.find((c) => c.email === email);
+
+            if (existingConnection) {
+              // Atualiza apenas os tokens da conexão existente
+              await updateGmailTokenUC.execute(currentTenant.id, existingConnection.id, tokenData);
+              notify('Autorização Gmail atualizada com sucesso!', 'success');
+            } else {
+              // Cria nova conexão
+              const created = await createGmailConnectionUC.execute(
+                currentTenant.id,
+                {
+                  email,
+                  scopes,
+                  authorizedBy: user.id,
+                  authorizedByName: user.displayName,
+                },
+                tokenData,
+              );
+              setGmailConnections((prev) => [created, ...prev]);
+              notify('Conta Gmail autorizada com sucesso!', 'success');
+            }
+          } catch (error) {
+            const message = error instanceof Error ? error.message : 'Erro desconhecido';
+            notify(`Erro ao processar autorização: ${message}`, 'error');
+          } finally {
+            setIsAuthorizingGmail(false);
+          }
+        },
+      });
+
+      codeClient.requestCode();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Erro desconhecido';
+      notify(`Erro ao iniciar autorização Gmail: ${message}`, 'error');
+      setIsAuthorizingGmail(false);
+    }
+  }, [currentTenant, user, notify, createGmailConnectionUC, updateGmailTokenUC, gmailConnections]);
+
+  const handleDeleteGmailConnection = useCallback((id: string) => {
+    const conn = gmailConnections.find((c) => c.id === id);
+    if (conn) setConfirmGmailDelete({ open: true, id, email: conn.email });
+  }, [gmailConnections]);
+
+  const runDeleteGmail = useCallback(async () => {
+    if (!currentTenant) return;
+    const { id } = confirmGmailDelete;
+    try {
+      await deleteGmailConnectionUC.execute(currentTenant.id, id);
+      setGmailConnections((prev) => prev.filter((c) => c.id !== id));
+      notify('Conexão Gmail removida.', 'success');
+    } catch {
+      setGmailError('Erro ao excluir conexão.');
+    } finally {
+      setConfirmGmailDelete({ open: false, id: '', email: '' });
+    }
+  }, [currentTenant, confirmGmailDelete, deleteGmailConnectionUC, notify]);
+
+  const cancelDeleteGmail = useCallback(() => {
+    setConfirmGmailDelete({ open: false, id: '', email: '' });
+  }, []);
+
   return {
     isAdmin,
     activeTab,
@@ -401,5 +584,15 @@ export const useTenantSettingsViewModel = (initialTab: TenantSettingsTab = 'offi
     confirmAIDelete,
     runDeleteAI,
     cancelDeleteAI,
+
+    gmailLoading,
+    gmailConnections,
+    gmailError,
+    isAuthorizingGmail,
+    handleAuthorizeGmail,
+    handleDeleteGmailConnection,
+    confirmGmailDelete,
+    runDeleteGmail,
+    cancelDeleteGmail,
   };
 };
