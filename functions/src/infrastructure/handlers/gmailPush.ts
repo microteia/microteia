@@ -26,9 +26,16 @@ export const gmailPush = onMessagePublished(
   async (event) => {
 
     const extractEmail = (from: string): string => {
-      const match = from.match(/<([^>]+)>/);
-      return match ? match[1] : from;
+    const angle = from.match(/<([^>]+)>/);
+    if (angle) {
+      return angle[1].toLowerCase();
     }
+    const email = from.match(/[^\s<>]+@[^\s<>]+/);
+    if (email) {
+      return email[0].toLowerCase();
+    }
+    return from.toLowerCase();
+  }
 
     const isTrustedSource = (from: string): boolean => {
         const email = extractEmail(from);

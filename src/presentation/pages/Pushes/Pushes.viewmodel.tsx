@@ -57,13 +57,21 @@ const sanitizeHtml = (html: string): string => {
     .replace(/<object[^>]*>.*?<\/object>/gis, '')
     .replace(/<embed[^>]*>/gi, '');
 };
-
-const isTrustedSource = (from: string): boolean => {
-  // Extrair email de formatos como "Nome" <email@domain.com>
-  const match = from.match(/<([^>]+)>/);
-  const email = match ? match[1] : from;
-  return email.toLowerCase().endsWith('.jus.br');
-};
+  const extractEmail = (from: string): string => {
+    const angle = from.match(/<([^>]+)>/);
+    if (angle) {
+      return angle[1].toLowerCase();
+    }
+    const email = from.match(/[^\s<>]+@[^\s<>]+/);
+    if (email) {
+      return email[0].toLowerCase();
+    }
+    return from.toLowerCase();
+  }
+  const isTrustedSource = (from: string): boolean => {
+  const email = extractEmail(from);
+  return email.endsWith('.jus.br');
+  };
 
 export const usePushesViewModel = (): PushesViewModel => {
   const { pushes, updateStatus, deletePush } = usePush();
