@@ -31,6 +31,8 @@ const mapTenant = (id: string, d: Record<string, unknown>): Tenant => ({
   phone: (d.phone as string | null) ?? null,
   address: (d.address as string | null) ?? null,
   logoURL: (d.logoURL as string | null) ?? null,
+  allowedSenders: (d.allowedSenders as string[] | undefined) ?? [],
+  allowedSubjects: (d.allowedSubjects as string[] | undefined) ?? [],
   createdAt: toDate(d.createdAt),
   updatedAt: toDate(d.updatedAt),
 });
