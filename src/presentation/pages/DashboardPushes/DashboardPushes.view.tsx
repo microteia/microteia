@@ -67,7 +67,7 @@ export const DashboardPushesView: React.FC = () => {
         </S.MetricCard>
 
         <S.MetricCard $variant="danger">
-          <S.MetricLabel>Falhas de Parsing</S.MetricLabel>
+          <S.MetricLabel>Falhas de Extração</S.MetricLabel>
           <S.MetricValue>{vm.metrics.fault}</S.MetricValue>
           <S.MetricSubtext>
             {vm.metrics.total > 0
@@ -95,7 +95,7 @@ export const DashboardPushesView: React.FC = () => {
         </S.ChartCard>
 
         <S.ChartCard>
-          <S.ChartTitle>Método de Parsing</S.ChartTitle>
+          <S.ChartTitle>Método de Extração</S.ChartTitle>
           <S.BarChart>
             {vm.parsingData.map(item => (
               <S.BarRow key={item.label}>

@@ -120,7 +120,7 @@ export const useDashboardPushesViewModel = (): DashboardPushesViewModel => {
       { label: 'Pendente', count: metrics.pending, percent: metrics.total > 0 ? (metrics.pending / metrics.total) * 100 : 0, color: '#F59E0B' },
       { label: 'Revisado', count: metrics.reviewed, percent: metrics.total > 0 ? (metrics.reviewed / metrics.total) * 100 : 0, color: '#10B981' },
       { label: 'Arquivado', count: metrics.archived, percent: metrics.total > 0 ? (metrics.archived / metrics.total) * 100 : 0, color: '#6B7280' },
-      { label: 'Erro de Parsing', count: metrics.fault, percent: metrics.total > 0 ? (metrics.fault / metrics.total) * 100 : 0, color: '#EF4444' },
+      { label: 'Falha', count: metrics.fault, percent: metrics.total > 0 ? (metrics.fault / metrics.total) * 100 : 0, color: '#EF4444' },
     ];
   }, [metrics]);
 

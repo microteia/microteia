@@ -137,6 +137,9 @@ export const gmailPush = onMessagePublished(
           console.log(`${courtMessages.length} email(s) de tribunais encontrado(s)`);
 
           for (const message of courtMessages) {
+            
+            console.log(`Processando email ID: ${message.id}, Assunto: ${message.subject}`);
+            
             // Fazer parsing do email
             const parsedData = await emailParserService.parse(
               message.bodyText || '',
@@ -176,20 +179,20 @@ export const gmailPush = onMessagePublished(
               to: message.to,
               subject,
               receivedAt: message.receivedAt,
-              emailBodyHtml: message.bodyHtml,
-              emailBodyText: message.bodyText,
-              processNumber: parsedData.processNumber,
-              court: parsedData.court,
-              activeParty: parsedData.activeParty,
-              passiveParty: parsedData.passiveParty,
-              legalClass: parsedData.legalClass,
-              filingDate: parsedData.filingDate,
-              distributionType: parsedData.distributionType,
-              processSubject: parsedData.processSubject,
-              movements: parsedData.movements,
+              emailBodyHtml: message.bodyHtml ?? '',
+              emailBodyText: message.bodyText ?? '',
+              processNumber: parsedData.processNumber ?? '',
+              court: parsedData.court ?? '',
+              activeParty: parsedData.activeParty ?? '',
+              passiveParty: parsedData.passiveParty ?? '',
+              legalClass: parsedData.legalClass ?? '',
+              filingDate: parsedData.filingDate ?? new Date(),
+              distributionType: parsedData.distributionType ?? '',
+              processSubject: parsedData.processSubject ?? '',
+              movements: parsedData.movements ?? [],
               status,
-              parsedByAI: parsedData.parsedByAI,
-              parsingError: parsedData.parsingError,
+              parsedByAI: parsedData.parsedByAI ?? false,
+              parsingError: parsedData.parsingError ?? '',
               createdBy: 'system',
             });
 

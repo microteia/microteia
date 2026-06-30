@@ -11,7 +11,7 @@ const STATUS_LABELS: Record<'pending' | 'reviewed' | 'archived' | 'fault', strin
   pending: 'Pendente',
   reviewed: 'Revisado',
   archived: 'Arquivado',
-  fault: 'Erro de Parsing',
+  fault: 'Falha',
 };
 
 const formatDate = (date: Date): string => {
@@ -68,14 +68,8 @@ export const PushesView: React.FC = () => {
                   <S.From>De: {row.push.from}</S.From>
                 </S.CardTitle>
                 <S.Meta>
-                  {row.push.status === 'fault' && (
-                    <S.ErrorBadge>
-                      <RiErrorWarningLine size={14} />
-                      Erro de Parsing
-                    </S.ErrorBadge>
-                  )}
                   <S.StatusBadge $status={row.push.status}>
-                    {STATUS_LABELS[row.push.status]}
+                    {row.push.status === 'fault' && <RiErrorWarningLine size={14} />} {STATUS_LABELS[row.push.status]}
                   </S.StatusBadge>
                   {!row.isRead && <S.UnreadBadge>Não lido</S.UnreadBadge>}
                   <span>{formatDate(row.push.receivedAt)}</span>
