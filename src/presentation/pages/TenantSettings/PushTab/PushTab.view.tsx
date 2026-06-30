@@ -1,6 +1,6 @@
 import React from 'react';
 import { useTheme } from 'styled-components';
-import { RiMailLine, RiLinkUnlink, RiRefreshLine, RiAddLine, RiShieldCheckLine } from 'react-icons/ri';
+import { RiMailLine, RiLinkUnlink, RiRefreshLine, RiAddLine, RiShieldCheckLine, RiMailOpenLine } from 'react-icons/ri';
 import { usePushTabViewModel } from './PushTab.viewmodel';
 import { S } from './PushTab.styles.tsx';
 import { Button } from '../../../components/ui/Button';
@@ -17,7 +17,7 @@ export const PushTabView: React.FC = () => {
       <S.Section>
         <S.SectionTitle>Remetentes Permitidos</S.SectionTitle>
         <S.SectionDescription>
-          Configure os e-mails de tribunais autorizados a enviar notificações. 
+          Configure os e-mails de tribunais autorizados a enviar notificações.
           Apenas mensagens destes remetentes serão processadas pelo monitoramento Gmail.
         </S.SectionDescription>
         <S.AllowedSendersCard>
@@ -35,6 +35,27 @@ export const PushTabView: React.FC = () => {
                 return emailRegex.test(email);
               }}
               normalizer={(email) => email.toLowerCase()}
+            />
+          </S.InputWrapper>
+        </S.AllowedSendersCard>
+      </S.Section>
+
+      <S.Section>
+        <S.SectionTitle>Assuntos Permitidos</S.SectionTitle>
+        <S.SectionDescription>
+          Configure textos que devem estar presentes no assunto dos e-mails.
+          Se nenhum assunto for informado, todos os e-mails dos remetentes permitidos serão processados.
+        </S.SectionDescription>
+        <S.AllowedSendersCard>
+          <S.IconWrapper $color={theme.colors.info}>
+            <RiMailOpenLine size={20} />
+          </S.IconWrapper>
+          <S.InputWrapper>
+            <TagInput
+              value={vm.allowedSubjects}
+              onChange={(subjects) => void vm.handleAllowedSubjectsChange(subjects)}
+              placeholder="Digite um texto e pressione Enter (ex: intimação, citação)"
+              hint="Pressione Enter para adicionar. Clique no × para remover."
             />
           </S.InputWrapper>
         </S.AllowedSendersCard>

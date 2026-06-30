@@ -15,7 +15,9 @@ export interface PushTabViewModel {
   isAuthorizing: boolean;
   confirmDelete: { open: boolean; id: string; email: string };
   allowedSenders: string[];
+  allowedSubjects: string[];
   handleAllowedSendersChange: (senders: string[]) => Promise<void>;
+  handleAllowedSubjectsChange: (subjects: string[]) => Promise<void>;
   handleAuthorize: () => Promise<void>;
   handleDelete: (id: string) => void;
   runDelete: () => Promise<void>;
@@ -215,6 +217,7 @@ export const usePushTabViewModel = (): PushTabViewModel => {
   }, []);
 
   const allowedSenders = useMemo(() => currentTenant?.allowedSenders ?? [], [currentTenant]);
+  const allowedSubjects = useMemo(() => currentTenant?.allowedSubjects ?? [], [currentTenant]);
 
   const handleAllowedSendersChange = useCallback(
     async (senders: string[]) => {
@@ -228,6 +231,18 @@ export const usePushTabViewModel = (): PushTabViewModel => {
     [currentTenant, updateTenant, notify],
   );
 
+  const handleAllowedSubjectsChange = useCallback(
+    async (subjects: string[]) => {
+      if (!currentTenant) return;
+      try {
+        await updateTenant({ allowedSubjects: subjects });
+      } catch {
+        notify('Erro ao atualizar assuntos permitidos.', 'error');
+      }
+    },
+    [currentTenant, updateTenant, notify],
+  );
+
   return {
     loading,
     connections,
@@ -235,7 +250,9 @@ export const usePushTabViewModel = (): PushTabViewModel => {
     isAuthorizing,
     confirmDelete,
     allowedSenders,
+    allowedSubjects,
     handleAllowedSendersChange,
+    handleAllowedSubjectsChange,
     handleAuthorize,
     handleDelete,
     runDelete,

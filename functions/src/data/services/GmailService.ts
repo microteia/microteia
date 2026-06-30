@@ -16,6 +16,8 @@ export interface IGmailService {
   getMessagesSince(
     accessToken: string,
     historyId: string,
+    labelId?: string,
+    allowedSubjects?: string[],
   ): Promise<GmailMessage[]>;
 }
 
@@ -24,7 +26,7 @@ export class GmailService implements IGmailService {
     accessToken: string,
     startHistoryId: string,
     labelId?: string,
-    subjectFilter?: string[],
+    allowedSubjects?: string[],
   ): Promise<GmailMessage[]> {
     const gmail = google.gmail({ version: 'v1' });
     
@@ -83,9 +85,9 @@ export class GmailService implements IGmailService {
             continue;
           }
 
-          if (subjectFilter && subjectFilter.length > 0) {
+          if (allowedSubjects && allowedSubjects.length > 0) {
             const subjectLower = subject.toLowerCase();
-            const matchesFilter = subjectFilter.some(filter =>
+            const matchesFilter = allowedSubjects.some(filter =>
               subjectLower.includes(filter.toLowerCase())
             );
             if (!matchesFilter) {

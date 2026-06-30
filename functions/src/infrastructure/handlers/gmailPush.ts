@@ -77,13 +77,17 @@ export const gmailPush = onMessagePublished(
         }
         
         const allowedSenders = tenant.allowedSenders ?? [];
+        const allowedSubjects = tenant.allowedSubjects ?? [];
         
         if (allowedSenders.length === 0) {
           console.warn(`Tenant ${connection.tenantId} não possui remetentes permitidos configurados`);
           continue;
         }
-        
+        if (allowedSubjects.length === 0) {
+          console.warn(`Tenant ${connection.tenantId} não possui assuntos permitidos configurados`);
+        }
         console.log(`Remetentes permitidos para tenant ${connection.tenantId}:`, allowedSenders);
+        console.log(`Assuntos permitidos para tenant ${connection.tenantId}:`, allowedSubjects);
         
         const startHistoryId = connection.historyId || historyId;
         console.log(`Buscando emails desde historyId: ${startHistoryId}`);
@@ -133,7 +137,9 @@ export const gmailPush = onMessagePublished(
           // Buscar emails novos desde o último historyId
           const newMessages = await gmailService.getMessagesSince(
             currentAccessToken,
-            startHistoryId
+            startHistoryId,
+            "INBOX",
+            allowedSubjects
           );
 
           console.log(`${newMessages.length} email(s) novo(s) encontrado(s)`);

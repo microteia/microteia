@@ -8,6 +8,7 @@ export interface Tenant {
   address?: string | null;
   logoURL?: string | null;
   allowedSenders?: string[];
+  allowedSubjects?: string[];
   createdAt: Date;
   updatedAt: Date;
 }
