@@ -1,5 +1,4 @@
 import type { IEmailParser, ParsedEmailData } from '../../../domain/services/IEmailParser';
-import type { PushMovement } from '../../../domain/entities/Push';
 
 /**
  * Parser específico para emails do PJe do Tribunal de Justiça do Maranhão
@@ -8,7 +7,7 @@ import type { PushMovement } from '../../../domain/entities/Push';
 export class TJMAEmailParser implements IEmailParser {
   readonly name = 'TJMA';
 
-  tryParse(emailText: string, emailHtml?: string): Omit<ParsedEmailData, 'parsedByAI'> | null {
+  tryParse(emailText: string, _emailHtml?: string): Omit<ParsedEmailData, 'parsedByAI'> | null {
     // Verificar se é realmente do TJMA
     if (!this.isTJMAEmail(emailText)) {
       return null;

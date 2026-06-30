@@ -57,7 +57,7 @@ export class FirebasePushRepository implements IPushRepository {
       filingDate: data.filingDate?.toDate(),
       distributionType: data.distributionType,
       processSubject: data.processSubject,
-      movements: data.movements?.map((m: any) => ({
+      movements: data.movements?.map((m: { date?: { toDate: () => Date }; type: string; description: string; documentUrl?: string }) => ({
         date: m.date?.toDate() ?? new Date(),
         type: m.type,
         description: m.description,

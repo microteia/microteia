@@ -8,7 +8,7 @@ import type { PushMovement } from '../../../domain/entities/Push';
 export class TJBAEmailParser implements IEmailParser {
   readonly name = 'TJBA';
 
-  tryParse(emailText: string, emailHtml?: string): Omit<ParsedEmailData, 'parsedByAI'> | null {
+  tryParse(emailText: string, _emailHtml?: string): Omit<ParsedEmailData, 'parsedByAI'> | null {
     // Verificar se é realmente do TJBA (padrões conhecidos)
     if (!this.isTJBAEmail(emailText)) {
       return null;
@@ -90,7 +90,7 @@ export class TJBAEmailParser implements IEmailParser {
     const movements: PushMovement[] = [];
 
     // Padrão TJBA: DataMovimentoDocumento DD/MM/YYYY HH:MM Tipo [Link]
-    const movementPattern = /DataMovimentoDocumento(\d{2}\/\d{2}\/\d{4})\s+(\d{2}:\d{2})([^\[]*)\[([^\]]+)\]\(([^)]+)\)/g;
+    const movementPattern = /DataMovimentoDocumento(\d{2}\/\d{2}\/\d{4})\s+(\d{2}:\d{2})([^[]*)\[([^\]]+)\]\(([^)]+)\)/g;
     
     let match;
     while ((match = movementPattern.exec(text)) !== null) {

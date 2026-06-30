@@ -1,5 +1,5 @@
 import React from 'react';
-import { RiInboxLine, RiCheckLine, RiArchiveLine, RiDeleteBinLine, RiEyeLine } from 'react-icons/ri';
+import { RiInboxLine, RiCheckLine, RiArchiveLine, RiDeleteBinLine, RiEyeLine, RiBarChartBoxLine } from 'react-icons/ri';
 import { usePushesViewModel } from './Pushes.viewmodel';
 import { S } from './Pushes.styles';
 import { Button } from '../../components/ui/Button';
@@ -28,6 +28,10 @@ export const PushesView: React.FC = () => {
             <S.UnreadBadge>{vm.unreadCount}</S.UnreadBadge>
           )}
         </S.TitleRow>
+        <Button onClick={vm.handleOpenDashboard} variant="secondary">
+          <RiBarChartBoxLine size={18} />
+          Dashboard
+        </Button>
       </S.Header>
 
       <S.FilterBar>

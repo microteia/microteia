@@ -52,24 +52,24 @@ const App: React.FC = () => {
                               <PushStoreProvider>
                                 <PushInteractionStoreProvider>
                                   <NewsStoreProvider>
-                                <NewsTagStoreProvider>
-                                  <NewsInteractionStoreProvider>
-                                    <SavedFilterStoreProvider>
-                                      <WorkspaceStoreProvider>
-                                        <NotificationProvider>
-                                          <CommandPaletteProvider>
-                                            <TextAnnotationStoreProvider>
-                                              <WorkspaceShell />
-                                            </TextAnnotationStoreProvider>
-                                          </CommandPaletteProvider>
-                                        </NotificationProvider>
-                                      </WorkspaceStoreProvider>
-                                    </SavedFilterStoreProvider>
+                                    <NewsTagStoreProvider>
+                                      <NewsInteractionStoreProvider>
+                                        <SavedFilterStoreProvider>
+                                          <WorkspaceStoreProvider>
+                                            <NotificationProvider>
+                                              <CommandPaletteProvider>
+                                                <TextAnnotationStoreProvider>
+                                                  <WorkspaceShell />
+                                                </TextAnnotationStoreProvider>
+                                              </CommandPaletteProvider>
+                                            </NotificationProvider>
+                                          </WorkspaceStoreProvider>
+                                        </SavedFilterStoreProvider>
+                                      </NewsInteractionStoreProvider>
+                                    </NewsTagStoreProvider>
                                   </NewsStoreProvider>
                                 </PushInteractionStoreProvider>
-                              </PushNewsInteractionStoreProvider>
-                                </NewsTagStoreProvider>
-                              </NewsStoreProvider>
+                              </PushStoreProvider>
                             </FinancialStoreProvider>
                             </DeadlineLookupStoreProvider>
                           </DeadlineStoreProvider>

@@ -23,6 +23,7 @@ export interface PushesViewModel {
   handleMarkAsRead: (push: Push) => Promise<void>;
   handleUpdateStatus: (push: Push, status: PushStatus) => Promise<void>;
   handleDelete: (push: Push) => Promise<void>;
+  handleOpenDashboard: () => void;
 }
 
 const STATUS_OPTIONS: FilterDef['options'] = [
@@ -136,6 +137,10 @@ export const usePushesViewModel = (): PushesViewModel => {
     await deletePush(push.id);
   }, [deletePush]);
 
+  const handleOpenDashboard = useCallback(() => {
+    openTab('dashboard-pushes');
+  }, [openTab]);
+
   return {
     rows,
     filterTokens,
@@ -147,5 +152,7 @@ export const usePushesViewModel = (): PushesViewModel => {
     handleMarkAsRead,
     handleUpdateStatus,
     handleDelete,
+    handleOpenDashboard,
+    handleOpenDashboard,
   };
 };

@@ -11,6 +11,7 @@ import {
   RiBuilding2Line,
   RiTeamLine,
   RiInboxLine,
+  RiBarChartBoxLine,
 } from 'react-icons/ri';
 import type { UserRole } from '../../domain/entities';
 import { DashboardView } from './Dashboard/Dashboard.view';
@@ -22,6 +23,7 @@ import { DeadlinesView } from './Deadlines/Deadlines.view';
 import { FinancialsView } from './Financials/Financials.view';
 import { NewsView } from './News/News.view';
 import { PushesView } from './Pushes/Pushes.view';
+import { DashboardPushesView } from './DashboardPushes/DashboardPushes.view';
 import { AddNewsView } from './AddNews/AddNews.view';
 import { ViewNewsView } from './ViewNews/ViewNews.view';
 import { ViewCaseView } from './ViewCase/ViewCase.view';
@@ -62,6 +64,7 @@ export const PAGE_REGISTRY: PageDefinition[] = [
   { key: 'deadlines',        title: 'Prazos',              icon: <RiTimeLine size={20} />,               component: DeadlinesView        },
   { key: 'financials',       title: 'Financeiro',          icon: <RiMoneyDollarCircleLine size={20} />,  component: FinancialsView       },
   { key: 'pushes',           title: 'Pushes do Tribunal',  icon: <RiInboxLine size={20} />,              component: PushesView           },
+  { key: 'dashboard-pushes', title: 'Dashboard de Pushes', icon: <RiBarChartBoxLine size={20} />,        component: DashboardPushesView  },
   { key: 'news',             title: 'Notícias',            icon: <RiNewspaperLine size={20} />,          component: NewsView             },
   { key: 'tenant-settings',  title: 'Escritório',          icon: <RiBuilding2Line size={20} />,          component: TenantSettingsView,  fullBleed: true },
   { key: '', keyPrefix: 'tenant-settings:', title: 'Escritório', icon: <RiBuilding2Line size={20} />, component: TenantSettingsView, fullBleed: true },
