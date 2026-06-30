@@ -59,7 +59,10 @@ const sanitizeHtml = (html: string): string => {
 };
 
 const isTrustedSource = (from: string): boolean => {
-  return from.toLowerCase().endsWith('.jus.br');
+  // Extrair email de formatos como "Nome" <email@domain.com>
+  const match = from.match(/<([^>]+)>/);
+  const email = match ? match[1] : from;
+  return email.toLowerCase().endsWith('.jus.br');
 };
 
 export const usePushesViewModel = (): PushesViewModel => {

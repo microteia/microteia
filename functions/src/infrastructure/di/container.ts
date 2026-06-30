@@ -5,6 +5,7 @@ import { FirebaseUserRepository } from '../../data/repositories/FirebaseUserRepo
 import { FirebaseNicknameRepository } from '../../data/repositories/FirebaseNicknameRepository';
 import { FirebaseGmailConnectionRepository } from '../../data/repositories/FirebaseGmailConnectionRepository';
 import { FirebasePushRepository } from '../../data/repositories/FirebasePushRepository';
+import { FirebaseTenantRepository } from '../../data/repositories/FirebaseTenantRepository';
 import { OpenAIService } from '../../data/services/OpenAIService';
 import { AnthropicService } from '../../data/services/AnthropicService';
 import { GoogleAIService } from '../../data/services/GoogleAIService';
@@ -36,6 +37,7 @@ import type { IAIProviderService } from '../../domain/repositories/IAIProviderSe
 import type { IAIConnectionRepository } from '../../domain/repositories/IAIConnectionRepository';
 import type { IGmailConnectionRepository } from '../../domain/repositories/IGmailConnectionRepository';
 import type { IPushRepository } from '../../domain/repositories/IPushRepository';
+import type { ITenantRepository } from '../../domain/repositories/ITenantRepository';
 import type { IGmailService } from '../../data/services/GmailService';
 import type { IEmailParserService } from '../../data/services/EmailParserService';
 import type { IGmailAuthService } from '../../domain/repositories/IGmailAuthService';
@@ -47,6 +49,7 @@ class DIContainer {
   private aiConnectionRepo?: IAIConnectionRepository;
   private gmailConnectionRepo?: IGmailConnectionRepository;
   private pushRepo?: IPushRepository;
+  private tenantRepo?: ITenantRepository;
   private gmailService?: IGmailService;
   private emailParserService?: IEmailParserService;
   private googleAuthService?: IGmailAuthService;
@@ -198,6 +201,13 @@ class DIContainer {
       this.googleAuthService = new GoogleAuthService();
     }
     return this.googleAuthService;
+  }
+
+  getTenantRepository(): ITenantRepository {
+    if (!this.tenantRepo) {
+      this.tenantRepo = new FirebaseTenantRepository();
+    }
+    return this.tenantRepo;
   }
 }
 

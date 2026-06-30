@@ -79,7 +79,7 @@ export class GmailService implements IGmailService {
           // Ignorar mensagens que não possuem o rótulo especificado
           const labels = msg.labelIds || [];
           if (!labels.includes(label)){
-            console.log(`Mensagem ${messageId} ${subject} não possui o rótulo ${label}, ignorando.`);
+            console.log(`Mensagem [${messageId} ${subject}] não possui o rótulo [${label}], ignorando.`);
             continue;
           }
 
@@ -89,7 +89,7 @@ export class GmailService implements IGmailService {
               subjectLower.includes(filter.toLowerCase())
             );
             if (!matchesFilter) {
-              console.log(`Mensagem ${messageId} ${subject} não corresponde ao filtro de assunto, ignorando.`);
+              console.log(`Mensagem [${messageId} ${subject}] não corresponde ao filtro de assunto, ignorando.`);
               continue; // Pula mensagens que não correspondem ao filtro de assunto
             }
           }

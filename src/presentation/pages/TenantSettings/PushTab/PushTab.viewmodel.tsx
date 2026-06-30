@@ -221,7 +221,6 @@ export const usePushTabViewModel = (): PushTabViewModel => {
       if (!currentTenant) return;
       try {
         await updateTenant({ allowedSenders: senders });
-        notify('E-mails permitidos atualizados com sucesso!', 'success');
       } catch {
         notify('Erro ao atualizar e-mails permitidos.', 'error');
       }

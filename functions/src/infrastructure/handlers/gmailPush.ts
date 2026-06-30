@@ -6,15 +6,6 @@ const googleClientId = defineString('GOOGLE_CLIENT_ID');
 const googleClientSecret = defineString('GOOGLE_CLIENT_SECRET');
 const googleRedirectUri = defineString('GOOGLE_REDIRECT_URI', { default: 'postmessage' });
 
-// Remetentes permitidos (tribunais de justiça)
-// TODO: Expandir conforme necessário
-const ALLOWED_SENDERS = [
-  'g-assistencia.qualidade.pje@cnj.jus.br', // CNJ
-  'pje@tjba.jus.br',          // TJ Bahia
-  'contatopje@tjma.jus.br',   // TJ Maranhão
-  'alexnaldocs@hotmail.com',  // Placeholder para testes
-];
-
 /**
  * Cloud Function que recebe notificações do Gmail via Pub/Sub.
  * Esta função é acionada quando o Gmail envia uma notificação sobre
@@ -61,6 +52,7 @@ export const gmailPush = onMessagePublished(
       const gmailService = di.getGmailService();
       const emailParserService = di.getEmailParserService();
       const createOrUpdatePushUC = di.getCreateOrUpdatePushUseCase();
+      const tenantRepo = di.getTenantRepository();
       
       // Buscar todas as conexões Gmail com este email
       const connections = await gmailConnectionRepo.getConnectionsByEmail(emailAddress);
@@ -75,6 +67,23 @@ export const gmailPush = onMessagePublished(
       // Processar notificação para cada tenant que possui este email
       for (const connection of connections) {
         console.log(`Processando notificação para tenant ${connection.tenantId}`);
+        
+        // Buscar dados do tenant para obter allowedSenders
+        const tenant = await tenantRepo.getById(connection.tenantId);
+        
+        if (!tenant) {
+          console.warn(`Tenant ${connection.tenantId} não encontrado`);
+          continue;
+        }
+        
+        const allowedSenders = tenant.allowedSenders ?? [];
+        
+        if (allowedSenders.length === 0) {
+          console.warn(`Tenant ${connection.tenantId} não possui remetentes permitidos configurados`);
+          continue;
+        }
+        
+        console.log(`Remetentes permitidos para tenant ${connection.tenantId}:`, allowedSenders);
         
         const startHistoryId = connection.historyId || historyId;
         console.log(`Buscando emails desde historyId: ${startHistoryId}`);
@@ -131,7 +140,7 @@ export const gmailPush = onMessagePublished(
 
           // Filtrar apenas emails de remetentes permitidos (tribunais)
           const courtMessages = newMessages.filter(msg =>
-            ALLOWED_SENDERS.some(sender => msg.from.toLowerCase().includes(sender.toLowerCase()))
+            allowedSenders.some(sender => msg.from.toLowerCase().includes(sender.toLowerCase()))
           );
 
           console.log(`${courtMessages.length} email(s) de tribunais encontrado(s)`);
