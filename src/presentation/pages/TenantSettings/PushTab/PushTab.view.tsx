@@ -12,12 +12,6 @@ export const PushTabView: React.FC = () => {
   const vm = usePushTabViewModel();
   const theme = useTheme();
 
-  console.log('🔍 PushTab Debug:', {
-    allowedSenders: vm.allowedSenders,
-    loading: vm.loading,
-    connectionsCount: vm.connections.length,
-  });
-
   return (
     <S.Container>
       <S.Section>
