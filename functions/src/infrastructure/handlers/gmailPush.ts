@@ -115,6 +115,7 @@ export const gmailPush = onMessagePublished(
             // Fazer parsing do email
             const parsedData = await emailParserService.parse(
               message.bodyText || '',
+              message.from,
               message.bodyHtml
             );
 

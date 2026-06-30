@@ -1,128 +1,87 @@
-import type { PushMovement } from '../../domain/entities/Push';
-
-export interface ParsedEmailData {
-  processNumber?: string;
-  court?: string;
-  activeParty?: string;
-  passiveParty?: string;
-  legalClass?: string;
-  filingDate?: Date;
-  distributionType?: string;
-  processSubject?: string;
-  movements?: PushMovement[];
-  parsedByAI: boolean;
-  parsingError?: string;
-}
+import type { ParsedEmailData } from '../../domain/services/IEmailParser';
+import type { IEmailParser } from '../../domain/services/IEmailParser';
+import { TJBAEmailParser } from './parsers/TJBAEmailParser';
+import { TJMAEmailParser } from './parsers/TJMAEmailParser';
 
 export interface IEmailParserService {
-  parse(emailText: string, emailHtml?: string): Promise<ParsedEmailData>;
+  parse(emailText: string, emailFrom: string, emailHtml?: string): Promise<ParsedEmailData>;
 }
 
+/**
+ * Serviço de parsing de emails com padrão Strategy.
+ * Mantém múltiplos parsers (um por tribunal) e escolhe o mais adequado.
+ */
 export class EmailParserService implements IEmailParserService {
-  async parse(emailText: string, emailHtml?: string): Promise<ParsedEmailData> {
-    // Tentar parsing com regex primeiro (padrões conhecidos)
-    const regexResult = this.parseWithRegex(emailText);
+  private parsers: IEmailParser[];
+  private parserByEmail: Map<string, IEmailParser>;
+
+  constructor() {
+    // Registrar todos os parsers disponíveis
+    this.parsers = [
+      new TJBAEmailParser(),
+      new TJMAEmailParser(),
+      // TODO: Adicionar mais parsers conforme necessário
+      // new TRTEmailParser(),
+      // new TRFEmailParser(),
+    ];
+
+    // Mapa de email → parser para lookup rápido
+    this.parserByEmail = new Map([
+      ['pje@tjba.jus.br', this.parsers.find(p => p.name === 'TJBA')!],
+      ['contatopje@tjma.jus.br', this.parsers.find(p => p.name === 'TJMA')!],
+      // TODO: Adicionar mais mapeamentos
+    ]);
+  }
+
+  async parse(emailText: string, emailFrom: string, emailHtml?: string): Promise<ParsedEmailData> {
+    // Normalizar email (extrair domínio)
+    const normalizedFrom = this.normalizeEmail(emailFrom);
     
-    // Se conseguiu extrair dados suficientes com regex, retorna
-    if (this.isCompleteEnough(regexResult)) {
-      return {
-        ...regexResult,
-        parsedByAI: false,
-      };
+    // Estratégia 1: Tentar parser específico baseado no remetente
+    const specificParser = this.parserByEmail.get(normalizedFrom);
+    if (specificParser) {
+      console.log(`Usando parser específico: ${specificParser.name}`);
+      const result = specificParser.tryParse(emailText, emailHtml);
+      if (result) {
+        return {
+          ...result,
+          parsedByAI: false,
+        };
+      }
     }
 
-    // TODO: Se regex falhou ou ficou incompleto, usar IA (GPT/Claude)
-    // Por enquanto, retorna o que conseguiu com regex
+    // Estratégia 2: Fallback - tentar todos os parsers disponíveis
+    console.log('Parser específico não encontrado ou falhou, tentando fallback...');
+    for (const parser of this.parsers) {
+      const result = parser.tryParse(emailText, emailHtml);
+      if (result && result.processNumber) {
+        console.log(`Parsing bem-sucedido com parser: ${parser.name}`);
+        return {
+          ...result,
+          parsedByAI: false,
+        };
+      }
+    }
+
+    // Estratégia 3: Se nenhum parser funcionou, tentar IA (TODO)
+    console.warn('Nenhum parser conseguiu extrair dados, tentando IA...');
+    // TODO: Implementar parsing com IA (GPT/Claude)
+    
+    // Por enquanto, retorna vazio com erro
     return {
-      ...regexResult,
       parsedByAI: false,
-      parsingError: regexResult.processNumber ? undefined : 'Número do processo não encontrado',
+      parsingError: 'Nenhum parser compatível encontrado para este email',
     };
   }
 
-  private parseWithRegex(text: string): Omit<ParsedEmailData, 'parsedByAI'> {
-    const result: Omit<ParsedEmailData, 'parsedByAI'> = {};
-
-    // Número do processo (formato CNJ: NNNNNNN-DD.AAAA.J.TR.OOOO)
-    const processNumberMatch = text.match(/(\d{7}-\d{2}\.\d{4}\.\d\.\d{2}\.\d{4})/);
-    if (processNumberMatch) {
-      result.processNumber = processNumberMatch[1];
-    }
-
-    // Polo Ativo
-    const activePoleMatch = text.match(/Polo Ativo:\s*([^\n]+)/i);
-    if (activePoleMatch) {
-      result.activeParty = activePoleMatch[1].trim();
-    }
-
-    // Polo Passivo
-    const passivePoleMatch = text.match(/Polo Passivo:\s*([^\n]+)/i);
-    if (passivePoleMatch) {
-      result.passiveParty = passivePoleMatch[1].trim();
-    }
-
-    // Classe Judicial
-    const legalClassMatch = text.match(/Classe Judicial:\s*([^\n]+)/i);
-    if (legalClassMatch) {
-      result.legalClass = legalClassMatch[1].trim();
-    }
-
-    // Órgão
-    const courtMatch = text.match(/Órgão:\s*([^\n]+)/i);
-    if (courtMatch) {
-      result.court = courtMatch[1].trim();
-    }
-
-    // Data de Autuação
-    const filingDateMatch = text.match(/Data de Autuação:\s*(\d{2}\/\d{2}\/\d{4})/i);
-    if (filingDateMatch) {
-      const [day, month, year] = filingDateMatch[1].split('/');
-      result.filingDate = new Date(Number(year), Number(month) - 1, Number(day));
-    }
-
-    // Tipo de Distribuição
-    const distTypeMatch = text.match(/Tipo de Distribuição:\s*([^\n]+)/i);
-    if (distTypeMatch) {
-      result.distributionType = distTypeMatch[1].trim();
-    }
-
-    // Assunto
-    const subjectMatch = text.match(/Assunto:\s*([^\n]+)/i);
-    if (subjectMatch) {
-      result.processSubject = subjectMatch[1].trim();
-    }
-
-    // Movimentações
-    result.movements = this.parseMovements(text);
-
-    return result;
-  }
-
-  private parseMovements(text: string): PushMovement[] {
-    const movements: PushMovement[] = [];
-
-    // Padrão: DataMovimentoDocumento DD/MM/YYYY HH:MM Tipo [Link]
-    const movementPattern = /DataMovimentoDocumento(\d{2}\/\d{2}\/\d{4})\s+(\d{2}:\d{2})([^\[]*)\[([^\]]+)\]\(([^)]+)\)/g;
-    
-    let match;
-    while ((match = movementPattern.exec(text)) !== null) {
-      const [, dateStr, timeStr, description, docType, url] = match;
-      const [day, month, year] = dateStr.split('/');
-      const [hour, minute] = timeStr.split(':');
-      
-      movements.push({
-        date: new Date(Number(year), Number(month) - 1, Number(day), Number(hour), Number(minute)),
-        type: docType.trim(),
-        description: description.trim(),
-        documentUrl: url,
-      });
-    }
-
-    return movements;
-  }
-
-  private isCompleteEnough(data: Omit<ParsedEmailData, 'parsedByAI'>): boolean {
-    // Considera completo se pelo menos tem número do processo
-    return !!data.processNumber;
+  /**
+   * Extrai o email completo do campo "from" (remove nome se houver)
+   * Exemplo: "PJe TJBA <pje@tjba.jus.br>" → "pje@tjba.jus.br"
+   */
+  private normalizeEmail(from: string): string {
+    const emailMatch = from.match(/<(.+?)>/) || from.match(/([^\s<>]+@[^\s<>]+)/);
+    return emailMatch ? emailMatch[1].toLowerCase() : from.toLowerCase();
   }
 }
+
+export { ParsedEmailData };
