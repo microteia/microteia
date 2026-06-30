@@ -70,4 +70,17 @@ export class FirebasePushRepository implements IPushRepository {
       createdBy: data.createdBy,
     };
   }
+
+  async update(
+    tenantId: string,
+    pushId: string,
+    updates: Partial<Omit<Push, 'id' | 'tenantId' | 'createdAt' | 'createdBy'>>
+  ): Promise<void> {
+    await this.db
+      .collection('tenants')
+      .doc(tenantId)
+      .collection('pushes')
+      .doc(pushId)
+      .update(updates);
+  }
 }

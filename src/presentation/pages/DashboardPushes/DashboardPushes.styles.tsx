@@ -41,15 +41,19 @@ export const S = {
     margin-bottom: 2rem;
   `,
 
-  MetricCard: styled.div`
+  MetricCard: styled.div<{ $variant?: 'danger' }>`
     background: ${({ theme }) => theme.colors.surface};
-    border: 1px solid ${({ theme }) => theme.colors.border};
+    border: 1px solid ${({ theme, $variant }) => $variant === 'danger' ? theme.colors.danger : theme.colors.border};
     border-radius: ${({ theme }) => theme.borderRadius.lg};
     padding: 1.5rem;
     transition: all 0.2s;
 
+    ${({ $variant, theme }) => $variant === 'danger' && `
+      background: ${theme.colors.danger}10;
+    `}
+
     &:hover {
-      border-color: ${({ theme }) => theme.colors.primary}40;
+      border-color: ${({ theme, $variant }) => $variant === 'danger' ? theme.colors.danger : `${theme.colors.primary}40`};
       box-shadow: 0 4px 12px ${({ theme }) => theme.colors.shadow};
     }
   `,

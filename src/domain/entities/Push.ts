@@ -7,7 +7,7 @@ export interface PushMovement {
   documentUrl?: string;
 }
 
-export type PushStatus = 'pending' | 'reviewed' | 'archived';
+export type PushStatus = 'pending' | 'reviewed' | 'archived' | 'fault';
 
 export interface Push {
   id: string;

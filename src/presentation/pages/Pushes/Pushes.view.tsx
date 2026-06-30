@@ -1,5 +1,5 @@
 import React from 'react';
-import { RiInboxLine, RiCheckLine, RiArchiveLine, RiDeleteBinLine, RiBarChartBoxLine } from 'react-icons/ri';
+import { RiInboxLine, RiCheckLine, RiArchiveLine, RiDeleteBinLine, RiBarChartBoxLine, RiErrorWarningLine } from 'react-icons/ri';
 import { usePushesViewModel } from './Pushes.viewmodel';
 import { S } from './Pushes.styles';
 import { Button } from '../../components/ui/Button';
@@ -7,10 +7,11 @@ import { Spinner } from '../../components/ui/Spinner';
 import { CompositeFilter } from '../../components/ui/CompositeFilter';
 import { usePush } from '../../../stores/usePush';
 
-const STATUS_LABELS: Record<'pending' | 'reviewed' | 'archived', string> = {
+const STATUS_LABELS: Record<'pending' | 'reviewed' | 'archived' | 'fault', string> = {
   pending: 'Pendente',
   reviewed: 'Revisado',
   archived: 'Arquivado',
+  fault: 'Erro de Parsing',
 };
 
 const formatDate = (date: Date): string => {
@@ -67,6 +68,12 @@ export const PushesView: React.FC = () => {
                   <S.From>De: {row.push.from}</S.From>
                 </S.CardTitle>
                 <S.Meta>
+                  {row.push.status === 'fault' && (
+                    <S.ErrorBadge>
+                      <RiErrorWarningLine size={14} />
+                      Erro de Parsing
+                    </S.ErrorBadge>
+                  )}
                   <S.StatusBadge $status={row.push.status}>
                     {STATUS_LABELS[row.push.status]}
                   </S.StatusBadge>

@@ -40,7 +40,6 @@ export class FirebaseAIConnectionRepository implements IAIConnectionRepository {
       return [];
     }
 
-    const credentials: AICredentials[] = [];
     const defaultCreds: AICredentials[] = [];
     const otherCreds: AICredentials[] = [];
 

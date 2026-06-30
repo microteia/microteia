@@ -29,6 +29,7 @@ const STATUS_OPTIONS: FilterDef['options'] = [
   { value: 'pending', label: 'Pendente' },
   { value: 'reviewed', label: 'Revisado' },
   { value: 'archived', label: 'Arquivado' },
+  { value: 'fault', label: 'Erro de Parsing' },
 ];
 
 const READ_STATUS_OPTIONS: FilterDef['options'] = [

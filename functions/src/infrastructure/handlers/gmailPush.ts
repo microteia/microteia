@@ -142,7 +142,54 @@ export const gmailPush = onMessagePublished(
             const existing = await pushRepo.getByEmailId(connection.tenantId, message.id);
             
             if (existing) {
-              console.log(`Email ${message.id} já processado, pulando`);
+              // Se o push existente tem status 'fault', tentar reprocessar
+              if (existing.status === 'fault') {
+                console.log(`Email ${message.id} com status 'fault', tentando reprocessar...`);
+                
+                // Tentar fazer parsing novamente
+                const parsedData = await emailParserService.parse(
+                  message.bodyText || '',
+                  message.from,
+                  connection.tenantId,
+                  message.bodyHtml
+                );
+
+                // Verificar se parsing funcionou desta vez
+                const parsingSucceeded = !parsedData.parsingError || parsedData.processNumber;
+
+                if (parsingSucceeded) {
+                  console.log(`✓ Reprocessamento bem-sucedido! Atualizando push ${existing.id}`);
+                  
+                  // Atualizar TODOS os campos com os novos valores corretos
+                  await pushRepo.update(connection.tenantId, existing.id, {
+                    subject: message.subject, // Remover prefixo [ERRO DE PARSING] se tinha
+                    processNumber: parsedData.processNumber,
+                    court: parsedData.court,
+                    activeParty: parsedData.activeParty,
+                    passiveParty: parsedData.passiveParty,
+                    legalClass: parsedData.legalClass,
+                    filingDate: parsedData.filingDate,
+                    distributionType: parsedData.distributionType,
+                    processSubject: parsedData.processSubject,
+                    movements: parsedData.movements,
+                    status: 'pending',
+                    parsedByAI: parsedData.parsedByAI,
+                    parsingError: parsedData.parsingError, // Pode ser undefined agora
+                  });
+
+                  console.log(`✓ Push ${existing.id} atualizado com sucesso (status: fault → pending)`);
+                } else {
+                  console.warn(`⚠️ Reprocessamento falhou novamente para push ${existing.id}`);
+                  console.warn(`Erro: ${parsedData.parsingError}`);
+                  // Mantém o push com status 'fault' para próxima tentativa
+                }
+                
+                // Já processamos (ou tentamos), continuar para próxima mensagem
+                continue;
+              }
+              
+              // Push já processado com sucesso, pular
+              console.log(`Email ${message.id} já processado com sucesso, pulando`);
               continue;
             }
 
@@ -177,7 +224,7 @@ export const gmailPush = onMessagePublished(
                 receivedAt: message.receivedAt,
                 emailBodyHtml: message.bodyHtml,
                 emailBodyText: message.bodyText,
-                status: 'pending',
+                status: 'fault',
                 parsedByAI: false,
                 parsingError: parsedData.parsingError,
                 createdBy: 'system',

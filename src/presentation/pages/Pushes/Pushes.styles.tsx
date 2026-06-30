@@ -114,7 +114,7 @@ export const S = {
     color: ${({ theme }) => theme.colors.textSecondary};
   `,
 
-  StatusBadge: styled.span<{ $status: 'pending' | 'reviewed' | 'archived' }>`
+  StatusBadge: styled.span<{ $status: 'pending' | 'reviewed' | 'archived' | 'fault' }>`
     display: inline-flex;
     align-items: center;
     gap: 0.25rem;
@@ -127,6 +127,7 @@ export const S = {
       case 'pending': return `${theme.colors.warning}20`;
       case 'reviewed': return `${theme.colors.success}20`;
       case 'archived': return `${theme.colors.textSecondary}20`;
+      case 'fault': return `${theme.colors.danger}20`;
     }
   }};
     color: ${({ $status, theme }) => {
@@ -134,8 +135,21 @@ export const S = {
       case 'pending': return theme.colors.warning;
       case 'reviewed': return theme.colors.success;
       case 'archived': return theme.colors.textSecondary;
+      case 'fault': return theme.colors.danger;
     }
   }};
+  `,
+
+  ErrorBadge: styled.span`
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.375rem 0.75rem;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    background: ${({ theme }) => theme.colors.danger};
+    color: white;
   `,
 
   ProcessInfo: styled.div`

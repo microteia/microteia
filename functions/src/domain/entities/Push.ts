@@ -32,7 +32,7 @@ export interface Push {
   movements?: PushMovement[];
   
   // Status e controle
-  status: 'pending' | 'reviewed' | 'archived';
+  status: 'pending' | 'reviewed' | 'archived' | 'fault';
   parsedByAI: boolean;       // Se precisou de IA para extrair dados
   parsingError?: string;     // Erro no parsing, se houver
   

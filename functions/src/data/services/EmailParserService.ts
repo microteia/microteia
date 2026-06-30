@@ -94,7 +94,7 @@ export class EmailParserService implements IEmailParserService {
     const allCredentials = await this.aiConnectionRepo.getAllCredentials(tenantId);
     
     if (allCredentials.length === 0) {
-      throw new Error('Nenhuma conexão de IA configurada para este tenant');
+      throw new Error('Nenhuma conexão de IA configurada para este escritório. Configure ao menos uma conexão de IA para permitir parsing automático. Vá para o menu "Escritórios/Conexão de IA"');
     }
 
     console.log(`Encontradas ${allCredentials.length} conexão(ões) de IA para tenant ${tenantId}`);

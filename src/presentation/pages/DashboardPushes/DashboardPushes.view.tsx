@@ -66,12 +66,12 @@ export const DashboardPushesView: React.FC = () => {
           <S.MetricSubtext>Aguardando revisão</S.MetricSubtext>
         </S.MetricCard>
 
-        <S.MetricCard>
-          <S.MetricLabel>Erros de Parse</S.MetricLabel>
-          <S.MetricValue>{vm.metrics.withErrors}</S.MetricValue>
+        <S.MetricCard $variant="danger">
+          <S.MetricLabel>Falhas de Parsing</S.MetricLabel>
+          <S.MetricValue>{vm.metrics.fault}</S.MetricValue>
           <S.MetricSubtext>
             {vm.metrics.total > 0
-              ? `${Math.round((vm.metrics.withErrors / vm.metrics.total) * 100)}% do total`
+              ? `${Math.round((vm.metrics.fault / vm.metrics.total) * 100)}% do total`
               : '0% do total'}
           </S.MetricSubtext>
         </S.MetricCard>
