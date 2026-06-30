@@ -62,6 +62,8 @@ O projeto usa **Clean Architecture + MVVM** com separação estrita em camadas. 
 | `Deadline` | `tenants/{tenantId}/deadlines/{id}` | Sim |
 | `DeadlineTypeConfig` | `tenants/{tenantId}/deadlineTypes/{id}` | Sim |
 | `Financial` | `tenants/{tenantId}/financials/{id}` | Sim |
+| `Push` | `tenants/{tenantId}/pushes/{id}` | Sim |
+| `PushInteraction` | `pushInteractions/{uid}_{pushId}` | Não |
 | `News` | `news/{id}` | Parcial: `tenantId=null` = Sistema (global); `tenantId=string` = Escritório |
 | `NewsTag` | `newsTags/{id}` | Não |
 | `NewsInteraction` | `newsInteractions/{uid}_{newsId}` | Não |
@@ -362,6 +364,69 @@ interface Financial {
 }
 ```
 
+### Entidade Push
+
+Notificações de e-mail recebidas de tribunais (PJe) processadas automaticamente pela Cloud Function `gmailPush`. Armazenadas por tenant para isolamento de dados. Contém dados processuais extraídos via regex ou IA.
+
+```typescript
+interface Push {
+  id: string;
+  tenantId: string;
+  emailId: string;              // ID único do email no Gmail (evita duplicatas)
+  from: string;
+  to: string;
+  subject: string;
+  receivedAt: Date;
+  emailBodyHtml?: string;
+  emailBodyText?: string;
+  // Dados processuais extraídos
+  processNumber?: string;       // Número CNJ do processo
+  court?: string;               // TJBA, TJMA, etc.
+  activeParty?: string;         // Polo ativo
+  passiveParty?: string;        // Polo passivo
+  legalClass?: string;          // Classe processual
+  filingDate?: Date;            // Data de distribuição
+  distributionType?: string;    // Tipo de distribuição
+  processSubject?: string;      // Assunto do processo
+  movements?: PushMovement[];   // Movimentações do processo
+  status: 'pending' | 'reviewed' | 'archived';
+  parsedByAI: boolean;          // true se foi parseado por IA (fallback)
+  parsingError?: string;        // Erro de parsing se houver
+  createdAt: Date;
+  createdBy: string;            // 'system' para pushes criados pela Cloud Function
+}
+
+interface PushMovement {
+  date: Date;
+  type: string;
+  description: string;
+  documentUrl?: string;
+}
+```
+
+Coleção Firestore: `tenants/{tenantId}/pushes/{id}`
+
+**Cloud Function:** `gmailPush` (Pub/Sub trigger) processa notificações do Gmail, extrai dados via parsers específicos por tribunal (TJBAEmailParser, TJMAEmailParser), e cria registros de Push. Parsers usam regex para extração estruturada; fallback para IA (GPT/Claude) se regex falhar.
+
+### Entidade PushInteraction
+
+Rastreamento de interação do usuário com pushes (lido/não lido). Estrutura similar a `NewsInteraction` para consistência.
+
+```typescript
+interface PushInteraction {
+  id: string;               // Formato: {userId}_{pushId}
+  userId: string;
+  pushId: string;
+  isRead: boolean;
+  readAt?: Date;
+  createdAt: Date;
+}
+```
+
+Coleção Firestore: `pushInteractions/{uid}_{pushId}` (raiz)
+
+**Motivação da estrutura raiz:** Permite query eficiente por `userId` para calcular contador de não lidos sem carregar todos os pushes do tenant.
+
 ---
 
 ## Fluxo Multi-Tenant
@@ -429,6 +494,8 @@ src/
 │   │   ├── ICaseRepository.ts
 │   │   ├── IDeadlineRepository.ts
 │   │   ├── IFinancialRepository.ts
+│   │   ├── IPushRepository.ts
+│   │   ├── IPushInteractionRepository.ts
 │   │   ├── INewsRepository.ts
 │   │   ├── INewsTagRepository.ts
 │   │   ├── INewsInteractionRepository.ts
@@ -443,6 +510,8 @@ src/
 │       ├── cases/
 │       ├── deadlines/
 │       ├── financials/
+│       ├── pushes/
+│       ├── pushinteractions/
 │       ├── news/
 │       ├── newstags/
 │       ├── newsinteractions/
@@ -458,6 +527,8 @@ src/
 │   │   ├── FirebaseCaseRepository.ts
 │   │   ├── FirebaseDeadlineRepository.ts
 │   │   ├── FirebaseFinancialRepository.ts
+│   │   ├── FirebasePushRepository.ts
+│   │   ├── FirebasePushInteractionRepository.ts
 │   │   ├── FirebaseNewsRepository.ts
 │   │   ├── FirebaseNewsTagRepository.ts
 │   │   ├── FirebaseNewsInteractionRepository.ts
@@ -492,6 +563,8 @@ src/
 │   ├── CaseStore.tsx + useCaseStore.ts
 │   ├── DeadlineStore.tsx + useDeadlineStore.ts
 │   ├── FinancialStore.tsx + useFinancialStore.ts
+│   ├── PushStore.tsx + usePush.ts
+│   ├── PushInteractionStore.tsx + usePushInteraction.ts
 │   ├── NewsStore.tsx + useNews.ts
 │   ├── NewsTagStore.tsx + useNewsTag.ts
 │   ├── NewsInteractionStore.tsx + useNewsInteraction.ts
@@ -510,6 +583,8 @@ src/
     │   ├── Cases/
     │   ├── Deadlines/
     │   ├── Financials/
+    │   ├── Pushes/
+    │   ├── DashboardPushes/
     │   ├── News/
     │   ├── AddNews/
     │   ├── ViewNews/
@@ -760,6 +835,8 @@ Arquivos `.tsx` exportam **apenas** componentes React. Hooks e tipos ficam em `.
 | `CaseStore` | Processos do tenant atual, CRUD de processos |
 | `DeadlineStore` | Prazos do tenant atual, CRUD + `completeDeadline` |
 | `FinancialStore` | Receitas/despesas do tenant atual, CRUD + `markPaid` |
+| `PushStore` | Pushes do tribunal do tenant atual, CRUD + `updateStatus` |
+| `PushInteractionStore` | Rastreamento de leitura de pushes por usuário |
 | `NewsStore` | Notícias do sistema + do tenant atual, CRUD + curtidas |
 | `NewsTagStore` | Etiquetas de boletins |
 | `NewsInteractionStore` | Leitura, salvos, curtidas por usuário |
@@ -768,7 +845,7 @@ Arquivos `.tsx` exportam **apenas** componentes React. Hooks e tipos ficam em `.
 
 ### Stores que dependem do tenant
 
-`PersonStore`, `CaseStore`, `DeadlineStore`, `FinancialStore` escutam `currentTenant` via `useTenant()`. Se `currentTenant` for `null`, limpam o estado e não fazem queries.
+`PersonStore`, `CaseStore`, `DeadlineStore`, `FinancialStore`, `PushStore` escutam `currentTenant` via `useTenant()`. Se `currentTenant` for `null`, limpam o estado e não fazem queries.
 
 ---
 
@@ -784,6 +861,7 @@ Arquivos `.tsx` exportam **apenas** componentes React. Hooks e tipos ficam em `.
 | `CASES_UPDATED` | `CaseStore` | `DeadlineStore` (atualiza nomes de processo nos prazos) |
 | `DEADLINES_UPDATED` | `DeadlineStore` | — |
 | `FINANCIALS_UPDATED` | `FinancialStore` | — |
+| `PUSH_UPDATED` | `PushStore` | `PushInteractionStore` (re-sincroniza contadores) |
 | `NEWS_UPDATED` | `NewsStore` | `NewsTagStore`, `NewsInteractionStore` |
 
 ### Regra para nova entidade com store próprio
@@ -814,11 +892,13 @@ useEffect(() => {
 
 | Entidade excluída | O use case deve remover |
 |---|---|
-| `Tenant` | Todos os members, persons, cases, deadlines, financials do tenant |
+| `Tenant` | Todos os members, persons, cases, deadlines, financials, pushes do tenant |
 | `Person` | Todos os processos (`cases`) onde `personId === id`; todos os prazos e financeiros vinculados |
 | `Case` | Todos os `deadlines` onde `caseId === id`; todos os `financials` onde `caseId === id` |
 | `Deadline` | — (folha) |
 | `Financial` | — (folha) |
+| `Push` | Todos os `pushInteractions` onde `pushId === id` |
+| `PushInteraction` | — (folha) |
 
 ---
 
@@ -1205,6 +1285,17 @@ service cloud.firestore {
         allow create, update: if isTenantLawyerOrAdmin(tenantId);
         allow delete: if isTenantAdmin(tenantId);
       }
+
+      // Pushes do Tribunal (notificações de email processadas)
+      match /pushes/{pushId} {
+        allow read: if isMember(tenantId);
+        // Cloud Functions criam pushes (via Admin SDK, ignora estas regras)
+        // Membros podem atualizar status
+        allow update: if isMember(tenantId)
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status']);
+        // Somente admin pode deletar
+        allow delete: if isTenantAdmin(tenantId);
+      }
     }
 
     // ─── Notícias ─────────────────────────────────────────────────────────────
@@ -1272,6 +1363,14 @@ service cloud.firestore {
     // ─── Interações com boletins ──────────────────────────────────────────────
 
     match /newsInteractions/{interactionId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null
+        && request.resource.data.userId == request.auth.uid;
+    }
+
+    // ─── Interações com pushes ────────────────────────────────────────────────
+
+    match /pushInteractions/{interactionId} {
       allow read: if request.auth != null;
       allow write: if request.auth != null
         && request.resource.data.userId == request.auth.uid;
@@ -1376,8 +1475,11 @@ service firebase.storage {
 | `tenants/{id}/deadlines` | `status` ASC, `dueDate` ASC | Para filtrar prazos pendentes |
 | `tenants/{id}/financials` | `type` ASC, `dueDate` ASC | Para separar receitas/despesas |
 | `tenants/{id}/cases` | `status` ASC, `createdAt` DESC | Para listar processos ativos |
+| `tenants/{id}/pushes` | `tenantId` ASC, `receivedAt` DESC | Para ordenar pushes por data de recebimento |
+| `tenants/{id}/pushes` | `status` ASC, `receivedAt` DESC | Para filtrar pushes por status |
 | `news` | `tenantId` ASC, `createdAt` DESC | Para listar notícias por escopo (sistema ou tenant) |
 | `members` (collectionGroup) | `userId` ASC | Para descobrir tenants de um usuário |
+| `gmailConnections` | `email` ASC, `tenantId` ASC | Para buscar conexões Gmail por email na Cloud Function |
 
 ---
 
