@@ -34,6 +34,7 @@ import type { ICaseDistrictRepository } from '../../domain/repositories/ICaseDis
 import type { ICaseJudgeRepository } from '../../domain/repositories/ICaseJudgeRepository';
 import type { IPersonLookupRepository } from '../../domain/repositories/IPersonLookupRepository';
 import type { IDeadlineTypeRepository } from '../../domain/repositories/IDeadlineTypeRepository';
+import type { IPushRepository, IPushInteractionRepository } from '../../domain/repositories/IPushRepository';
 
 export interface DIContainer {
   authRepository: IAuthRepository;
@@ -71,6 +72,8 @@ export interface DIContainer {
   deadlineTypeRepository: IDeadlineTypeRepository;
   financialRepository: IFinancialRepository;
   textAnnotationRepository: ITextAnnotationRepository;
+  pushRepository: IPushRepository;
+  pushInteractionRepository: IPushInteractionRepository;
 }
 
 export const DIContext = createContext<DIContainer | null>(null);

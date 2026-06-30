@@ -597,3 +597,7 @@ export interface CaseLookupItem {
   createdAt: Date;
   createdBy: string;
 }
+
+// ─── Push ─────────────────────────────────────────────────────────────────────
+
+export type { Push, PushMovement, PushStatus, PushInteraction } from './Push';

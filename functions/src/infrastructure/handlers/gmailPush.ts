@@ -9,6 +9,7 @@ const googleRedirectUri = defineString('GOOGLE_REDIRECT_URI', { default: 'postme
 // Remetentes permitidos (tribunais de justiça)
 // TODO: Expandir conforme necessário
 const ALLOWED_SENDERS = [
+  'g-assistencia.qualidade.pje@cnj.jus.br', // CNJ
   'pje@tjba.jus.br',          // TJ Bahia
   'contatopje@tjma.jus.br',   // TJ Maranhão
   'alexnaldocs@hotmail.com',  // Placeholder para testes

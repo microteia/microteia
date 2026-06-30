@@ -35,6 +35,7 @@ export class EmailParserService implements IEmailParserService {
     this.parserByEmail = new Map([
       ['pje@tjba.jus.br', this.parsers.find(p => p.name === 'TJBA')!],
       ['contatopje@tjma.jus.br', this.parsers.find(p => p.name === 'TJMA')!],
+      ['g-assistencia.qualidade.pje@cnj.jus.br', this.parsers.find(p => p.name === 'TJBA')!],
       // TODO: Adicionar mais mapeamentos
     ]);
   }

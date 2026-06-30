@@ -33,5 +33,6 @@ export const StoreEvents = {
   FINANCIALS_UPDATED: 'financials:updated',
   NEWS_UPDATED: 'news:updated',
   NEWS_TAG_UPDATED: 'news_tag:updated',
+  PUSH_UPDATED: 'push:updated',
   SAVED_FILTER_UPDATED: 'saved_filter:updated',
 } as const;

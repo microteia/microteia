@@ -13,6 +13,8 @@ import { CaseLookupStoreProvider } from './stores/CaseLookupStore';
 import { DeadlineStoreProvider } from './stores/DeadlineStore';
 import { DeadlineLookupStoreProvider } from './stores/DeadlineLookupStore';
 import { FinancialStoreProvider } from './stores/FinancialStore';
+import { PushStoreProvider } from './stores/PushStore';
+import { PushInteractionStoreProvider } from './stores/PushInteractionStore';
 import { NewsStoreProvider } from './stores/NewsStore';
 import { NewsTagStoreProvider } from './stores/NewsTagStore';
 import { NewsInteractionStoreProvider } from './stores/NewsInteractionStore';
@@ -47,7 +49,9 @@ const App: React.FC = () => {
                           <DeadlineStoreProvider>
                             <DeadlineLookupStoreProvider>
                             <FinancialStoreProvider>
-                              <NewsStoreProvider>
+                              <PushStoreProvider>
+                                <PushInteractionStoreProvider>
+                                  <NewsStoreProvider>
                                 <NewsTagStoreProvider>
                                   <NewsInteractionStoreProvider>
                                     <SavedFilterStoreProvider>
@@ -61,7 +65,9 @@ const App: React.FC = () => {
                                         </NotificationProvider>
                                       </WorkspaceStoreProvider>
                                     </SavedFilterStoreProvider>
-                                  </NewsInteractionStoreProvider>
+                                  </NewsStoreProvider>
+                                </PushInteractionStoreProvider>
+                              </PushNewsInteractionStoreProvider>
                                 </NewsTagStoreProvider>
                               </NewsStoreProvider>
                             </FinancialStoreProvider>

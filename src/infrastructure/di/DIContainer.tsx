@@ -74,6 +74,8 @@ export const DIProvider: React.FC<{ children: React.ReactNode }> = ({ children }
     deadlineTypeRepository:   new FirebaseDeadlineTypeRepository(),
     financialRepository:      new FirebaseFinancialRepository(),
     textAnnotationRepository: new FirebaseTextAnnotationRepository(),
+    pushRepository:           new FirebasePushRepository(),
+    pushInteractionRepository: new FirebasePushInteractionRepository(),
   }), []);
 
   return <DIContext.Provider value={container}>{children}</DIContext.Provider>;
