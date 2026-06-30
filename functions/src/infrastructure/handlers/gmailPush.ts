@@ -1,5 +1,10 @@
 import { onMessagePublished } from 'firebase-functions/v2/pubsub';
+import { defineString } from 'firebase-functions/params';
 import { getDI } from '../di/container';
+
+const googleClientId = defineString('GOOGLE_CLIENT_ID');
+const googleClientSecret = defineString('GOOGLE_CLIENT_SECRET');
+const googleRedirectUri = defineString('GOOGLE_REDIRECT_URI', { default: 'postmessage' });
 
 // Remetentes permitidos (tribunais de justiça)
 // TODO: Expandir conforme necessário
@@ -89,9 +94,9 @@ export const gmailPush = onMessagePublished(
             try {
               const authService = di.getGoogleAuthService();
               const config = {
-                clientId: process.env.GMAIL_CLIENT_ID || '',
-                clientSecret: process.env.GMAIL_CLIENT_SECRET || '',
-                redirectUri: process.env.GMAIL_REDIRECT_URI || '',
+                clientId: googleClientId.value(),
+                clientSecret: googleClientSecret.value(),
+                redirectUri: googleRedirectUri.value(),
               };
               
               const refreshed = await authService.refreshAccessToken(tokenData.refreshToken, config);
