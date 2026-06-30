@@ -2,7 +2,7 @@ import { useState, useMemo, useCallback } from 'react';
 import { usePush } from '../../../stores/usePush';
 import { usePushInteraction } from '../../../stores/usePushInteraction';
 import { useWorkspace } from '../../../stores/useWorkspace';
-import type { Push, PushStatus } from '../../../domain/entities';
+import type { Push } from '../../../domain/entities';
 import type { FilterDef, FilterToken } from '../../components/ui/CompositeFilter';
 
 export interface PushRow {
@@ -10,6 +10,10 @@ export interface PushRow {
   isRead: boolean;
   courtLabel: string;
   hasProcessData: boolean;
+  isBodyVisible: boolean;
+  isTrustedSource: boolean;
+  sanitizedHtml?: string;
+  plainText?: string;
 }
 
 export interface PushesViewModel {
@@ -20,9 +24,10 @@ export interface PushesViewModel {
   unreadCount: number;
   setFilterTokens: (tokens: FilterToken[]) => void;
   handleMarkAsRead: (push: Push) => Promise<void>;
-  handleUpdateStatus: (push: Push, status: PushStatus) => Promise<void>;
+  handleUpdateStatus: (push: Push, status: 'pending' | 'reviewed' | 'archived') => Promise<void>;
   handleDelete: (push: Push) => Promise<void>;
   handleOpenDashboard: () => void;
+  handleToggleBody: (pushId: string) => void;
 }
 
 const STATUS_OPTIONS: FilterDef['options'] = [
@@ -42,12 +47,28 @@ const PARSED_BY_OPTIONS: FilterDef['options'] = [
   { value: 'ai', label: 'IA' },
 ];
 
+const sanitizeHtml = (html: string): string => {
+  return html
+    .replace(/<script[^>]*>.*?<\/script>/gis, '')
+    .replace(/on\w+\s*=\s*["'][^"']*["']/gi, '')
+    .replace(/on\w+\s*=\s*[^\s>]*/gi, '')
+    .replace(/javascript:/gi, '')
+    .replace(/<iframe[^>]*>.*?<\/iframe>/gis, '')
+    .replace(/<object[^>]*>.*?<\/object>/gis, '')
+    .replace(/<embed[^>]*>/gi, '');
+};
+
+const isTrustedSource = (from: string): boolean => {
+  return from.toLowerCase().endsWith('.jus.br');
+};
+
 export const usePushesViewModel = (): PushesViewModel => {
   const { pushes, updateStatus, deletePush } = usePush();
   const { getInteraction, markAsRead, unreadCount } = usePushInteraction();
   const { openTab } = useWorkspace();
 
   const [filterTokens, setFilterTokens] = useState<FilterToken[]>([]);
+  const [expandedBodies, setExpandedBodies] = useState<Set<string>>(new Set());
 
   const filterDefs = useMemo<FilterDef[]>(() => [
     { key: 'search', label: 'Busca', type: 'text', placeholder: 'Pesquisar em assunto, processo...' },
@@ -107,19 +128,28 @@ export const usePushesViewModel = (): PushesViewModel => {
       );
     }
 
-    return filtered.map((push) => ({
-      push,
-      isRead: getInteraction(push.id)?.isRead ?? false,
-      courtLabel: push.court || 'Não identificado',
-      hasProcessData: Boolean(push.processNumber),
-    }));
-  }, [pushes, tokenMap, getInteraction]);
+    return filtered.map((push) => {
+      const isBodyVisible = expandedBodies.has(push.id);
+      const trusted = isTrustedSource(push.from);
+      
+      return {
+        push,
+        isRead: getInteraction(push.id)?.isRead ?? false,
+        courtLabel: push.court || 'Não identificado',
+        hasProcessData: Boolean(push.processNumber),
+        isBodyVisible,
+        isTrustedSource: trusted,
+        sanitizedHtml: trusted && push.emailBodyHtml ? sanitizeHtml(push.emailBodyHtml) : undefined,
+        plainText: push.emailBodyText || push.emailBodyHtml?.replace(/<[^>]*>/g, ''),
+      };
+    });
+  }, [pushes, tokenMap, getInteraction, expandedBodies]);
 
   const handleMarkAsRead = useCallback(async (push: Push) => {
     await markAsRead(push.id);
   }, [markAsRead]);
 
-  const handleUpdateStatus = useCallback(async (push: Push, status: PushStatus) => {
+  const handleUpdateStatus = useCallback(async (push: Push, status: 'pending' | 'reviewed' | 'archived') => {
     await updateStatus(push.id, status);
   }, [updateStatus]);
 
@@ -130,6 +160,18 @@ export const usePushesViewModel = (): PushesViewModel => {
   const handleOpenDashboard = useCallback(() => {
     openTab('dashboard-pushes');
   }, [openTab]);
+
+  const handleToggleBody = useCallback((pushId: string) => {
+    setExpandedBodies((prev) => {
+      const next = new Set(prev);
+      if (next.has(pushId)) {
+        next.delete(pushId);
+      } else {
+        next.add(pushId);
+      }
+      return next;
+    });
+  }, []);
 
   return {
     rows,
@@ -142,6 +184,6 @@ export const usePushesViewModel = (): PushesViewModel => {
     handleUpdateStatus,
     handleDelete,
     handleOpenDashboard,
-    handleOpenDashboard,
+    handleToggleBody,
   };
 };

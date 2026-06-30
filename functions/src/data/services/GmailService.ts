@@ -23,15 +23,18 @@ export class GmailService implements IGmailService {
   async getMessagesSince(
     accessToken: string,
     startHistoryId: string,
+    labelId?: string,
+    subjectFilter?: string[],
   ): Promise<GmailMessage[]> {
     const gmail = google.gmail({ version: 'v1' });
     
     try {
+      const label = labelId ?? 'INBOX';
       // Buscar histórico de mudanças desde o último historyId
       const historyResponse = await gmail.users.history.list({
         userId: 'me',
         startHistoryId,
-        historyTypes: ['messageAdded'],
+        labelId: label,
         access_token: accessToken,
       });
 
@@ -72,6 +75,24 @@ export class GmailService implements IGmailService {
           const to = headers.find(h => h.name === 'To')?.value || '';
           const subject = headers.find(h => h.name === 'Subject')?.value || '';
           const dateStr = headers.find(h => h.name === 'Date')?.value || '';
+
+          // Ignorar mensagens que não possuem o rótulo especificado
+          const labels = msg.labelIds || [];
+          if (!labels.includes(label)){
+            console.log(`Mensagem ${messageId} ${subject} não possui o rótulo ${label}, ignorando.`);
+            continue;
+          }
+
+          if (subjectFilter && subjectFilter.length > 0) {
+            const subjectLower = subject.toLowerCase();
+            const matchesFilter = subjectFilter.some(filter =>
+              subjectLower.includes(filter.toLowerCase())
+            );
+            if (!matchesFilter) {
+              console.log(`Mensagem ${messageId} ${subject} não corresponde ao filtro de assunto, ignorando.`);
+              continue; // Pula mensagens que não correspondem ao filtro de assunto
+            }
+          }
           
           let bodyHtml = '';
           let bodyText = '';
@@ -109,11 +130,10 @@ export class GmailService implements IGmailService {
           });
         } catch (error) {
           // Mensagem pode ter sido deletada entre listar historyId e buscar detalhes
-          // Isso é normal, apenas logamos e continuamos para próxima mensagem
+          // Isso é normal, ignoramos silenciosamente e continuamos
           const isNotFound = error && typeof error === 'object' && 'code' in error && error.code === 404;
           
           if (isNotFound) {
-            console.warn(`Mensagem ${messageId} não encontrada (provavelmente deletada), pulando...`);
             continue;
           }
           

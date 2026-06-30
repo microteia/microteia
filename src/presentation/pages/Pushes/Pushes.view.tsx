@@ -1,5 +1,5 @@
 import React from 'react';
-import { RiInboxLine, RiCheckLine, RiArchiveLine, RiDeleteBinLine, RiBarChartBoxLine, RiErrorWarningLine } from 'react-icons/ri';
+import { RiInboxLine, RiCheckLine, RiArchiveLine, RiDeleteBinLine, RiBarChartBoxLine, RiErrorWarningLine, RiEyeLine, RiEyeOffLine, RiShieldCheckLine } from 'react-icons/ri';
 import { usePushesViewModel } from './Pushes.viewmodel';
 import { S } from './Pushes.styles';
 import { Button } from '../../components/ui/Button';
@@ -66,12 +66,14 @@ export const PushesView: React.FC = () => {
                 <S.CardTitle>
                   <S.Subject>{row.push.subject}</S.Subject>
                   <S.From>De: {row.push.from}</S.From>
+                  <S.From>Para: {row.push.to}</S.From>
                 </S.CardTitle>
                 <S.Meta>
                   <S.StatusBadge $status={row.push.status}>
                     {row.push.status === 'fault' && <RiErrorWarningLine size={14} />} {STATUS_LABELS[row.push.status]}
                   </S.StatusBadge>
                   {!row.isRead && <S.UnreadBadge>Não lido</S.UnreadBadge>}
+                  <S.ExtractionTag>{row.push.parsedByAI ? 'IA' : 'Regex'}</S.ExtractionTag>
                   <span>{formatDate(row.push.receivedAt)}</span>
                 </S.Meta>
               </S.CardHeader>
@@ -124,10 +126,38 @@ export const PushesView: React.FC = () => {
                 </S.InfoItem>
               )}
 
+              <S.EmailBodyToggle>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => vm.handleToggleBody(row.push.id)}
+                >
+                  {row.isBodyVisible ? <RiEyeOffLine size={14} /> : <RiEyeLine size={14} />}
+                  {row.isBodyVisible ? 'Ocultar email' : 'Ver email completo'}
+                </Button>
+                {row.isTrustedSource && (
+                  <S.TrustedBadge>
+                    <RiShieldCheckLine size={12} />
+                  </S.TrustedBadge>
+                )}
+              </S.EmailBodyToggle>
+
+              {row.isBodyVisible && (
+                <S.EmailBodyContainer>
+                  {row.isTrustedSource && row.sanitizedHtml ? (
+                    <S.EmailBodyHtml
+                      dangerouslySetInnerHTML={{ __html: (row.sanitizedHtml ?? '').trim().length > 0 ? row.sanitizedHtml : '<p>Sem conteúdo disponível</p>' }}
+                    />
+                  ) : (
+                    <S.EmailBodyText>{(row.plainText ?? '')?.trim().length === 0 ? 'Sem conteúdo disponível' : row.plainText}</S.EmailBodyText>
+                  )}
+                </S.EmailBodyContainer>
+              )}
+
               <S.Actions>
                 {!row.isRead && (
                   <Button
-                    size="small"
+                    size="sm"
                     variant="ghost"
                     onClick={() => vm.handleMarkAsRead(row.push)}
                   >
@@ -138,7 +168,7 @@ export const PushesView: React.FC = () => {
 
                 {row.push.status === 'pending' && (
                   <Button
-                    size="small"
+                    size="sm"
                     variant="ghost"
                     onClick={() => vm.handleUpdateStatus(row.push, 'reviewed')}
                   >
@@ -149,7 +179,7 @@ export const PushesView: React.FC = () => {
 
                 {row.push.status !== 'archived' && (
                   <Button
-                    size="small"
+                    size="sm"
                     variant="ghost"
                     onClick={() => vm.handleUpdateStatus(row.push, 'archived')}
                   >
@@ -159,7 +189,7 @@ export const PushesView: React.FC = () => {
                 )}
 
                 <Button
-                  size="small"
+                  size="sm"
                   variant="ghost"
                   onClick={() => vm.handleDelete(row.push)}
                 >

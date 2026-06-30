@@ -73,7 +73,7 @@ export const S = {
     transition: all 0.2s;
     ${({ $unread, theme }) => $unread && `
       border-left: 3px solid ${theme.colors.primary};
-      background: ${theme.colors.backgroundSecondary};
+      background: ${theme.colors.surface};
     `}
 
     &:hover {
@@ -140,6 +140,18 @@ export const S = {
   }};
   `,
 
+  ExtractionTag: styled.span`
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.625rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    background: ${({ theme }) => theme.colors.surface};
+    color: ${({ theme }) => theme.colors.textSecondary};
+    opacity: 0.6;
+  `,
+
   ErrorBadge: styled.span`
     display: inline-flex;
     align-items: center;
@@ -178,6 +190,80 @@ export const S = {
     font-size: 0.875rem;
     color: ${({ theme }) => theme.colors.text};
     font-weight: 500;
+  `,
+
+  EmailBodyToggle: styled.div`
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid ${({ theme }) => theme.colors.border};
+  `,
+
+  TrustedBadge: styled.span`
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.25rem 0.625rem;
+    border-radius: 12px;
+    font-size: 0.625rem;
+    font-weight: 500;
+    background: ${({ theme }) => theme.colors.success}20;
+    color: ${({ theme }) => theme.colors.success};
+  `,
+
+  EmailBodyContainer: styled.div`
+    margin-top: 1rem;
+    padding: 1rem;
+    background: ${({ theme }) => theme.colors.inputBackground};
+    border: 1px solid ${({ theme }) => theme.colors.border};
+    border-radius: ${({ theme }) => theme.borderRadius.md};
+    max-height: 500px;
+    overflow-y: auto;
+  `,
+
+  EmailBodyHtml: styled.div`
+    font-size: 0.875rem;
+    line-height: 1.6;
+    color: ${({ theme }) => theme.colors.text};
+    word-wrap: break-word;
+    
+    * {
+      max-width: 100%;
+    }
+    
+    img {
+      max-width: 100%;
+      height: auto;
+    }
+    
+    a {
+      color: ${({ theme }) => theme.colors.primary};
+      text-decoration: underline;
+    }
+    
+    table {
+      border-collapse: collapse;
+      width: 100%;
+      margin: 0.5rem 0;
+    }
+    
+    th, td {
+      border: 1px solid ${({ theme }) => theme.colors.border};
+      padding: 0.5rem;
+      text-align: left;
+    }
+  `,
+
+  EmailBodyText: styled.pre`
+    font-family: ${({ theme }) => theme.fonts.body};
+    font-size: 0.875rem;
+    line-height: 1.6;
+    color: ${({ theme }) => theme.colors.text};
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    margin: 0;
   `,
 
   Actions: styled.div`
