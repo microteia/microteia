@@ -124,6 +124,7 @@ export const TenantStoreProvider: React.FC<{ children: React.ReactNode }> = ({ c
             phone: null,
             address: null,
             logoURL: null,
+            allowedSubjects: ['Movimentação processual do processo'],
           });
           await uc.addMember.execute(newTenant.id, {
             userId: user.id,

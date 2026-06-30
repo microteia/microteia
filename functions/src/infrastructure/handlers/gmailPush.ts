@@ -24,6 +24,17 @@ const googleRedirectUri = defineString('GOOGLE_REDIRECT_URI', { default: 'postme
 export const gmailPush = onMessagePublished(
   { topic: 'gmail', region: 'us-central1' },
   async (event) => {
+
+    const extractEmail = (from: string): string => {
+      const match = from.match(/<([^>]+)>/);
+      return match ? match[1] : from;
+    }
+
+    const isTrustedSource = (from: string): boolean => {
+        const email = extractEmail(from);
+        return email.toLowerCase().endsWith('.jus.br');
+    };
+
     console.log('Notificação do Gmail recebida!');
     
     const messageData = event.data.message.json;
@@ -80,8 +91,7 @@ export const gmailPush = onMessagePublished(
         const allowedSubjects = tenant.allowedSubjects ?? [];
         
         if (allowedSenders.length === 0) {
-          console.warn(`Tenant ${connection.tenantId} não possui remetentes permitidos configurados`);
-          continue;
+          console.warn(`Tenant ${connection.tenantId} não possui remetentes permitidos configurados. Somente emails de tribunais (.jus.br) serão processados.`);
         }
         if (allowedSubjects.length === 0) {
           console.warn(`Tenant ${connection.tenantId} não possui assuntos permitidos configurados`);
@@ -145,9 +155,12 @@ export const gmailPush = onMessagePublished(
           console.log(`${newMessages.length} email(s) novo(s) encontrado(s)`);
 
           // Filtrar apenas emails de remetentes permitidos (tribunais)
-          const courtMessages = newMessages.filter(msg =>
-            allowedSenders.some(sender => msg.from.toLowerCase().includes(sender.toLowerCase()))
-          );
+          const courtMessages = newMessages.filter( (msg) => {
+            const from = extractEmail(msg.from);
+            return allowedSenders.length === 0
+              ? isTrustedSource(from)
+              : allowedSenders.some(sender => from.toLowerCase().includes(sender.toLowerCase()));
+          });
 
           console.log(`${courtMessages.length} email(s) de tribunais encontrado(s)`);
 
