@@ -8,3 +8,4 @@ export { checkNicknameAvailability } from './infrastructure/handlers/checkNickna
 export { claimNickname } from './infrastructure/handlers/claimNickname';
 export { exchangeGmailCode } from './infrastructure/handlers/exchangeGmailCode';
 export { gmailPush } from './infrastructure/handlers/gmailPush';
+export { renewGmailWatches } from './infrastructure/handlers/renewGmailWatches';

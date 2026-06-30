@@ -41,6 +41,7 @@ import type { ITenantRepository } from '../../domain/repositories/ITenantReposit
 import type { IGmailService } from '../../data/services/GmailService';
 import type { IEmailParserService } from '../../data/services/EmailParserService';
 import type { IGmailAuthService } from '../../domain/repositories/IGmailAuthService';
+import type { IGmailWatchService } from '../../domain/repositories/IGmailWatchService';
 
 class DIContainer {
   private static instance: DIContainer;
@@ -53,6 +54,7 @@ class DIContainer {
   private gmailService?: IGmailService;
   private emailParserService?: IEmailParserService;
   private googleAuthService?: IGmailAuthService;
+  private gmailWatchService?: IGmailWatchService;
   private getDefaultAICredentialsUC?: GetDefaultAICredentialsUseCase;
   private callAIAnalysisUC?: CallAIAnalysisUseCase;
   private getUserInfoUC?: GetUserInfoUseCase;
@@ -208,6 +210,13 @@ class DIContainer {
       this.tenantRepo = new FirebaseTenantRepository();
     }
     return this.tenantRepo;
+  }
+
+  getGmailWatchService(): IGmailWatchService {
+    if (!this.gmailWatchService) {
+      this.gmailWatchService = new GmailWatchService();
+    }
+    return this.gmailWatchService;
   }
 }
 
