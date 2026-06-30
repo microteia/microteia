@@ -5,6 +5,7 @@ import { getDI } from '../di/container';
 const googleClientId = defineString('GOOGLE_CLIENT_ID');
 const googleClientSecret = defineString('GOOGLE_CLIENT_SECRET');
 const googleRedirectUri = defineString('GOOGLE_REDIRECT_URI', { default: 'postmessage' });
+const googleGmailTopic = defineString('GOOGLE_GMAIL_TOPIC');
 
 interface ExchangeGmailCodeRequest {
   code: string;
@@ -27,9 +28,14 @@ export const exchangeGmailCode = onCall(
     const clientId = googleClientId.value();
     const clientSecret = googleClientSecret.value();
     const redirectUri = googleRedirectUri.value();
+    const topicName = googleGmailTopic.value();
 
     if (!clientId || !clientSecret) {
       throw new HttpsError('failed-precondition', 'Credenciais OAuth não configuradas no backend.');
+    }
+
+    if (!topicName) {
+      throw new HttpsError('failed-precondition', 'Tópico Gmail não configurado no backend.');
     }
 
     try {
@@ -40,7 +46,7 @@ export const exchangeGmailCode = onCall(
         clientId,
         clientSecret,
         redirectUri,
-      });
+      }, topicName);
 
       return {
         email: tokens.email,
@@ -48,6 +54,8 @@ export const exchangeGmailCode = onCall(
         refreshToken: tokens.refreshToken,
         expiresIn: tokens.expiresIn,
         scopes: tokens.scopes,
+        historyId: tokens.historyId,
+        expiration: tokens.expiration,
       };
     } catch (err) {
       if (err instanceof HttpsError) throw err;

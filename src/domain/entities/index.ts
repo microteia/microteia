@@ -72,6 +72,8 @@ export interface GmailConnection {
   authorizedBy: string;
   authorizedByName: string;
   authorizedAt: Date;
+  historyId?: string;
+  expiration?: string;
 }
 
 export interface GmailToken {

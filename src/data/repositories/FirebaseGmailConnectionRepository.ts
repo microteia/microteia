@@ -24,6 +24,8 @@ const fromDoc = (id: string, tenantId: string, data: Record<string, unknown>): G
   authorizedBy: data.authorizedBy as string,
   authorizedByName: data.authorizedByName as string,
   authorizedAt: data.authorizedAt instanceof Timestamp ? data.authorizedAt.toDate() : new Date(),
+  historyId: data.historyId as string | undefined,
+  expiration: data.expiration as string | undefined,
 });
 
 export class FirebaseGmailConnectionRepository implements IGmailConnectionRepository {
@@ -80,5 +82,15 @@ export class FirebaseGmailConnectionRepository implements IGmailConnectionReposi
   async updateConnectionAuthorizedAt(tenantId: string, connectionId: string): Promise<void> {
     const docRef = gmailDoc(tenantId, connectionId);
     await setDoc(docRef, { authorizedAt: new Date() }, { merge: true });
+  }
+
+  async updateConnectionWatchData(
+    tenantId: string,
+    connectionId: string,
+    historyId: string,
+    expiration: string,
+  ): Promise<void> {
+    const docRef = gmailDoc(tenantId, connectionId);
+    await setDoc(docRef, { historyId, expiration }, { merge: true });
   }
 }

@@ -4,10 +4,8 @@ import { useAuth } from '../../../../stores/useAuth';
 import { useNotification } from '../../../../stores/useNotification';
 import { useDI } from '../../../../infrastructure/di/useDI';
 import { makeGetGmailConnectionsUseCase } from '../../../../domain/usecases/gmailconnections/GetGmailConnectionsUseCase';
-import { makeCreateGmailConnectionUseCase } from '../../../../domain/usecases/gmailconnections/CreateGmailConnectionUseCase';
+import { makeCreateOrUpdateGmailConnectionUseCase } from '../../../../domain/usecases/gmailconnections/CreateOrUpdateGmailConnectionUseCase';
 import { makeDeleteGmailConnectionUseCase } from '../../../../domain/usecases/gmailconnections/DeleteGmailConnectionUseCase';
-import { makeUpdateGmailTokenUseCase } from '../../../../domain/usecases/gmailconnections/UpdateGmailTokenUseCase';
-import { makeUpdateGmailConnectionAuthorizedAtUseCase } from '../../../../domain/usecases/gmailconnections/UpdateGmailConnectionAuthorizedAtUseCase';
 import type { GmailConnection } from '../../../../domain/entities';
 
 export interface PushTabViewModel {
@@ -32,16 +30,8 @@ export const usePushTabViewModel = (): PushTabViewModel => {
     () => makeGetGmailConnectionsUseCase(gmailConnectionRepository),
     [gmailConnectionRepository],
   );
-  const createGmailConnectionUC = useMemo(
-    () => makeCreateGmailConnectionUseCase(gmailConnectionRepository),
-    [gmailConnectionRepository],
-  );
-  const updateGmailTokenUC = useMemo(
-    () => makeUpdateGmailTokenUseCase(gmailConnectionRepository),
-    [gmailConnectionRepository],
-  );
-  const updateGmailConnectionAuthorizedAtUC = useMemo(
-    () => makeUpdateGmailConnectionAuthorizedAtUseCase(gmailConnectionRepository),
+  const createOrUpdateGmailConnectionUC = useMemo(
+    () => makeCreateOrUpdateGmailConnectionUseCase(gmailConnectionRepository),
     [gmailConnectionRepository],
   );
   const deleteGmailConnectionUC = useMemo(
@@ -136,6 +126,8 @@ export const usePushTabViewModel = (): PushTabViewModel => {
                 refreshToken: string;
                 expiresIn: number;
                 scopes: string[];
+                historyId?: string;
+                expiration?: string;
               }
             >(functions, 'exchangeGmailCode');
 
@@ -144,7 +136,7 @@ export const usePushTabViewModel = (): PushTabViewModel => {
               tenantId: currentTenant.id,
             });
 
-            const { email, accessToken, refreshToken, expiresIn, scopes } = result.data;
+            const { email, accessToken, refreshToken, expiresIn, scopes, historyId, expiration } = result.data;
 
             const expiresAt = new Date(Date.now() + expiresIn * 1000);
             const tokenData = {
@@ -155,28 +147,26 @@ export const usePushTabViewModel = (): PushTabViewModel => {
 
             const existingConnection = connections.find((c) => c.email === email);
 
+            const connection = await createOrUpdateGmailConnectionUC.execute(
+              currentTenant.id,
+              {
+                email,
+                scopes,
+                authorizedBy: user.id,
+                authorizedByName: user.displayName,
+                historyId,
+                expiration,
+              },
+              tokenData,
+            );
+
             if (existingConnection) {
-              await updateGmailTokenUC.execute(currentTenant.id, existingConnection.id, tokenData);
-              await updateGmailConnectionAuthorizedAtUC.execute(currentTenant.id, existingConnection.id);
-              notify('Autorização Gmail atualizada com sucesso!', 'success');
-              // Atualiza a conexão localmente com o novo authorizedAt
               setConnections((prev) =>
-                prev.map((c) =>
-                  c.id === existingConnection.id ? { ...c, authorizedAt: new Date() } : c,
-                ),
+                prev.map((c) => (c.id === connection.id ? connection : c)),
               );
+              notify('Autorização Gmail atualizada com sucesso!', 'success');
             } else {
-              const created = await createGmailConnectionUC.execute(
-                currentTenant.id,
-                {
-                  email,
-                  scopes,
-                  authorizedBy: user.id,
-                  authorizedByName: user.displayName,
-                },
-                tokenData,
-              );
-              setConnections((prev) => [created, ...prev]);
+              setConnections((prev) => [connection, ...prev]);
               notify('Conta Gmail autorizada com sucesso!', 'success');
             }
           } catch (err) {
@@ -194,7 +184,7 @@ export const usePushTabViewModel = (): PushTabViewModel => {
       notify(`Erro ao iniciar autorização Gmail: ${message}`, 'error');
       setIsAuthorizing(false);
     }
-  }, [currentTenant, user, notify, createGmailConnectionUC, updateGmailTokenUC, updateGmailConnectionAuthorizedAtUC, connections]);
+  }, [currentTenant, user, notify, createOrUpdateGmailConnectionUC, connections]);
 
   const handleDelete = useCallback(
     (id: string) => {

@@ -4,6 +4,8 @@ export interface GmailTokens {
   refreshToken: string;
   expiresIn: number;
   scopes: string[];
+  historyId?: string;
+  expiration?: string;
 }
 
 export interface GmailAuthConfig {

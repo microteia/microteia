@@ -9,6 +9,7 @@ import { GoogleAIService } from '../../data/services/GoogleAIService';
 import { MistralService } from '../../data/services/MistralService';
 import { CohereService } from '../../data/services/CohereService';
 import { GoogleAuthService } from '../../data/services/GoogleAuthService';
+import { GmailWatchService } from '../../data/services/GmailWatchService';
 import { makeGetDefaultAICredentialsUseCase } from '../../domain/usecases/GetDefaultAICredentialsUseCase';
 import { makeCallAIAnalysisUseCase } from '../../domain/usecases/CallAIAnalysisUseCase';
 import { makeGetUserInfoUseCase } from '../../domain/usecases/GetUserInfoUseCase';
@@ -99,8 +100,9 @@ class DIContainer {
     if (!this.exchangeGmailCodeUC) {
       const db = getDb();
       const gmailAuthService = new GoogleAuthService();
+      const gmailWatchService = new GmailWatchService();
       const tenantMemberRepo = new FirebaseTenantMemberRepository(db);
-      this.exchangeGmailCodeUC = makeExchangeGmailCodeUseCase(gmailAuthService, tenantMemberRepo);
+      this.exchangeGmailCodeUC = makeExchangeGmailCodeUseCase(gmailAuthService, gmailWatchService, tenantMemberRepo);
     }
     return this.exchangeGmailCodeUC;
   }
