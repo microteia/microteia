@@ -82,14 +82,39 @@ export const gmailPush = onMessagePublished(
             continue;
           }
 
-          // TODO: Renovar token se expirado
-          // if (tokenData.expiresAt < new Date()) {
-          //   tokenData = await renewToken(tokenData.refreshToken);
-          // }
+          // Renovar token se expirado
+          let currentAccessToken = tokenData.accessToken;
+          if (tokenData.expiresAt < new Date()) {
+            console.log(`Token expirado para conexão ${connection.id}, renovando...`);
+            try {
+              const authService = di.getGoogleAuthService();
+              const config = {
+                clientId: process.env.GMAIL_CLIENT_ID || '',
+                clientSecret: process.env.GMAIL_CLIENT_SECRET || '',
+                redirectUri: process.env.GMAIL_REDIRECT_URI || '',
+              };
+              
+              const refreshed = await authService.refreshAccessToken(tokenData.refreshToken, config);
+              currentAccessToken = refreshed.accessToken;
+              
+              // Atualizar token no Firestore
+              await gmailConnectionRepo.updateAccessToken(
+                connection.id,
+                refreshed.accessToken,
+                refreshed.expiresAt,
+                refreshed.refreshToken
+              );
+              
+              console.log(`Token renovado com sucesso para conexão ${connection.id}`);
+            } catch (error) {
+              console.error(`Erro ao renovar token para conexão ${connection.id}:`, error);
+              continue;
+            }
+          }
 
           // Buscar emails novos desde o último historyId
           const newMessages = await gmailService.getMessagesSince(
-            tokenData.accessToken,
+            currentAccessToken,
             startHistoryId
           );
 

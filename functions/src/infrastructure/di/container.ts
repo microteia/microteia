@@ -33,6 +33,7 @@ import type { IGmailConnectionRepository } from '../../domain/repositories/IGmai
 import type { IPushRepository } from '../../domain/repositories/IPushRepository';
 import type { IGmailService } from '../../data/services/GmailService';
 import type { IEmailParserService } from '../../data/services/EmailParserService';
+import type { IGmailAuthService } from '../../domain/repositories/IGmailAuthService';
 
 class DIContainer {
   private static instance: DIContainer;
@@ -42,6 +43,7 @@ class DIContainer {
   private pushRepo?: IPushRepository;
   private gmailService?: IGmailService;
   private emailParserService?: IEmailParserService;
+  private googleAuthService?: IGmailAuthService;
   private getDefaultAICredentialsUC?: GetDefaultAICredentialsUseCase;
   private callAIAnalysisUC?: CallAIAnalysisUseCase;
   private getUserInfoUC?: GetUserInfoUseCase;
@@ -156,6 +158,13 @@ class DIContainer {
       this.createPushUC = makeCreatePushUseCase(pushRepo);
     }
     return this.createPushUC;
+  }
+
+  getGoogleAuthService(): IGmailAuthService {
+    if (!this.googleAuthService) {
+      this.googleAuthService = new GoogleAuthService();
+    }
+    return this.googleAuthService;
   }
 }
 

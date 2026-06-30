@@ -10,4 +10,5 @@ export interface IGmailConnectionRepository {
   getConnectionsByEmail(email: string): Promise<GmailConnection[]>;
   getAccessToken(connectionId: string): Promise<GmailToken | null>;
   updateHistoryId(connectionId: string, historyId: string): Promise<void>;
+  updateAccessToken(connectionId: string, accessToken: string, expiresAt: Date, refreshToken?: string): Promise<void>;
 }

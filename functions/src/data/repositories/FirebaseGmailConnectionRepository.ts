@@ -58,4 +58,27 @@ export class FirebaseGmailConnectionRepository implements IGmailConnectionReposi
       .doc(connectionId)
       .update({ historyId });
   }
+
+  async updateAccessToken(
+    connectionId: string,
+    accessToken: string,
+    expiresAt: Date,
+    refreshToken?: string
+  ): Promise<void> {
+    const updateData: Record<string, unknown> = {
+      accessToken,
+      expiresAt,
+    };
+
+    if (refreshToken) {
+      updateData.refreshToken = refreshToken;
+    }
+
+    await this.db
+      .collection('gmailConnections')
+      .doc(connectionId)
+      .collection('tokens')
+      .doc('current')
+      .update(updateData);
+  }
 }
