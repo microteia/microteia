@@ -1,5 +1,5 @@
-import type { IEmailParser, ParsedEmailData } from '../../domain/services/IEmailParser';
-import type { PushMovement } from '../../domain/entities/Push';
+import type { IEmailParser, ParsedEmailData } from '../../../domain/services/IEmailParser';
+import type { PushMovement } from '../../../domain/entities/Push';
 
 /**
  * Parser específico para emails do PJe do Tribunal de Justiça do Maranhão
