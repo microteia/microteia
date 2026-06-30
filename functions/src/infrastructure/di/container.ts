@@ -145,7 +145,7 @@ class DIContainer {
 
   getEmailParserService(): IEmailParserService {
     if (!this.emailParserService) {
-      this.emailParserService = new EmailParserService();
+      this.emailParserService = new EmailParserService(this.aiProviders);
     }
     return this.emailParserService;
   }
