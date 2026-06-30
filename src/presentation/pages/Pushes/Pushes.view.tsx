@@ -1,10 +1,11 @@
 import React from 'react';
-import { RiInboxLine, RiCheckLine, RiArchiveLine, RiDeleteBinLine, RiBarChartBoxLine, RiErrorWarningLine, RiEyeLine, RiEyeOffLine, RiShieldCheckLine } from 'react-icons/ri';
+import { RiInboxLine, RiCheckLine, RiArchiveLine, RiDeleteBinLine, RiBarChartBoxLine, RiErrorWarningLine, RiEyeLine, RiEyeOffLine, RiShieldCheckLine, RiMore2Line } from 'react-icons/ri';
 import { usePushesViewModel } from './Pushes.viewmodel';
 import { S } from './Pushes.styles';
 import { Button } from '../../components/ui/Button';
 import { Spinner } from '../../components/ui/Spinner';
 import { CompositeFilter } from '../../components/ui/CompositeFilter';
+import { Dropdown, type DropdownItem } from '../../components/ui/Dropdown';
 import { usePush } from '../../../stores/usePush';
 
 const STATUS_LABELS: Record<'pending' | 'reviewed' | 'archived' | 'fault', string> = {
@@ -127,19 +128,70 @@ export const PushesView: React.FC = () => {
               )}
 
               <S.EmailBodyToggle>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={() => vm.handleToggleBody(row.push.id)}
-                >
-                  {row.isBodyVisible ? <RiEyeOffLine size={14} /> : <RiEyeLine size={14} />}
-                  {row.isBodyVisible ? 'Ocultar email' : 'Ver email completo'}
-                </Button>
-                {row.isTrustedSource && (
-                  <S.TrustedBadge>
-                    <RiShieldCheckLine size={12} />
-                  </S.TrustedBadge>
-                )}
+                <S.EmailBodyToggleLeft>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => vm.handleToggleBody(row.push.id)}
+                  >
+                    {row.isBodyVisible ? <RiEyeOffLine size={14} /> : <RiEyeLine size={14} />}
+                    {row.isBodyVisible ? 'Ocultar email' : 'Ver email completo'}
+                  </Button>
+                  {row.isTrustedSource && (
+                    <S.TrustedBadge>
+                      <RiShieldCheckLine size={12} />
+                    </S.TrustedBadge>
+                  )}
+                </S.EmailBodyToggleLeft>
+                <Dropdown
+                  align="right"
+                  trigger={
+                    <S.ActionsButton>
+                      <RiMore2Line size={16} />
+                      <span>Ações</span>
+                    </S.ActionsButton>
+                  }
+                  items={(() => {
+                    const items: DropdownItem[] = [];
+
+                    if (!row.isRead) {
+                      items.push({
+                        id: 'mark-read',
+                        label: 'Marcar como lido',
+                        icon: <RiCheckLine size={14} />,
+                        onClick: () => vm.handleMarkAsRead(row.push),
+                      });
+                    }
+
+                    if (row.push.status === 'pending') {
+                      items.push({
+                        id: 'review',
+                        label: 'Revisar',
+                        icon: <RiCheckLine size={14} />,
+                        onClick: () => vm.handleUpdateStatus(row.push, 'reviewed'),
+                      });
+                    }
+
+                    if (row.push.status !== 'archived') {
+                      items.push({
+                        id: 'archive',
+                        label: 'Arquivar',
+                        icon: <RiArchiveLine size={14} />,
+                        onClick: () => vm.handleUpdateStatus(row.push, 'archived'),
+                      });
+                    }
+
+                    items.push({
+                      id: 'delete',
+                      label: 'Excluir',
+                      icon: <RiDeleteBinLine size={14} />,
+                      onClick: () => vm.handleDelete(row.push),
+                      variant: 'danger',
+                    });
+
+                    return items;
+                  })()}
+                />
               </S.EmailBodyToggle>
 
               {row.isBodyVisible && (
@@ -153,50 +205,6 @@ export const PushesView: React.FC = () => {
                   )}
                 </S.EmailBodyContainer>
               )}
-
-              <S.Actions>
-                {!row.isRead && (
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => vm.handleMarkAsRead(row.push)}
-                  >
-                    <RiCheckLine size={14} />
-                    Marcar como lido
-                  </Button>
-                )}
-
-                {row.push.status === 'pending' && (
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => vm.handleUpdateStatus(row.push, 'reviewed')}
-                  >
-                    <RiCheckLine size={14} />
-                    Revisar
-                  </Button>
-                )}
-
-                {row.push.status !== 'archived' && (
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => vm.handleUpdateStatus(row.push, 'archived')}
-                  >
-                    <RiArchiveLine size={14} />
-                    Arquivar
-                  </Button>
-                )}
-
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={() => vm.handleDelete(row.push)}
-                >
-                  <RiDeleteBinLine size={14} />
-                  Excluir
-                </Button>
-              </S.Actions>
             </S.Card>
           ))}
         </S.List>

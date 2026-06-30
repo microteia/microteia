@@ -195,10 +195,34 @@ export const S = {
   EmailBodyToggle: styled.div`
     display: flex;
     align-items: center;
+    justify-content: space-between;
     gap: 0.75rem;
     margin-top: 1rem;
     padding-top: 1rem;
     border-top: 1px solid ${({ theme }) => theme.colors.border};
+  `,
+
+  EmailBodyToggleLeft: styled.div`
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+  `,
+
+  ActionsButton: styled.div`
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 0.75rem;
+    border-radius: ${({ theme }) => theme.borderRadius.sm};
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: ${({ theme }) => theme.colors.text};
+    background: transparent;
+    transition: background 0.2s;
+
+    &:hover {
+      background: ${({ theme }) => theme.colors.surface};
+    }
   `,
 
   TrustedBadge: styled.span`
@@ -264,11 +288,5 @@ export const S = {
     white-space: pre-wrap;
     word-wrap: break-word;
     margin: 0;
-  `,
-
-  Actions: styled.div`
-    display: flex;
-    gap: 0.5rem;
-    margin-top: 1rem;
   `,
 };
