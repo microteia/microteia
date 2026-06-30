@@ -149,7 +149,7 @@ export const gmailPush = onMessagePublished(
               message.bodyHtml
             );
 
-            // Criar push no tenant
+            // Criar push no tenant (omite campos undefined para Firestore)
             const push = await createPushUC.execute(connection.tenantId, {
               emailId: message.id,
               from: message.from,
@@ -169,7 +169,7 @@ export const gmailPush = onMessagePublished(
               movements: parsedData.movements,
               status: 'pending',
               parsedByAI: parsedData.parsedByAI,
-              parsingError: parsedData.parsingError,
+              ...(parsedData.parsingError ? { parsingError: parsedData.parsingError } : {}),
               createdBy: 'system',
             });
 
