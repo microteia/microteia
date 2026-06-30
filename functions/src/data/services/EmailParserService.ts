@@ -1,12 +1,12 @@
 import type { ParsedEmailData } from '../../domain/services/IEmailParser';
 import type { IEmailParser } from '../../domain/services/IEmailParser';
 import type { IAIProviderService } from '../../domain/repositories/IAIProviderService';
-import type { AICredentials } from '../../domain/entities/AICredentials';
+import type { IAIConnectionRepository } from '../../domain/repositories/IAIConnectionRepository';
 import { TJBAEmailParser } from './parsers/TJBAEmailParser';
 import { TJMAEmailParser } from './parsers/TJMAEmailParser';
 
 export interface IEmailParserService {
-  parse(emailText: string, emailFrom: string, emailHtml?: string): Promise<ParsedEmailData>;
+  parse(emailText: string, emailFrom: string, tenantId: string, emailHtml?: string): Promise<ParsedEmailData>;
 }
 
 /**
@@ -18,9 +18,11 @@ export class EmailParserService implements IEmailParserService {
   private parsers: IEmailParser[];
   private parserByEmail: Map<string, IEmailParser>;
   private aiProviders: IAIProviderService[];
+  private aiConnectionRepo: IAIConnectionRepository;
 
-  constructor(aiProviders: IAIProviderService[]) {
+  constructor(aiProviders: IAIProviderService[], aiConnectionRepo: IAIConnectionRepository) {
     this.aiProviders = aiProviders;
+    this.aiConnectionRepo = aiConnectionRepo;
     
     // Registrar todos os parsers disponíveis
     this.parsers = [
@@ -40,7 +42,7 @@ export class EmailParserService implements IEmailParserService {
     ]);
   }
 
-  async parse(emailText: string, emailFrom: string, emailHtml?: string): Promise<ParsedEmailData> {
+  async parse(emailText: string, emailFrom: string, tenantId: string, emailHtml?: string): Promise<ParsedEmailData> {
     // Normalizar email (extrair domínio)
     const normalizedFrom = this.normalizeEmail(emailFrom);
     
@@ -73,7 +75,7 @@ export class EmailParserService implements IEmailParserService {
     // Estratégia 3: Se nenhum parser funcionou, tentar IA
     console.warn('Nenhum parser conseguiu extrair dados, tentando IA...');
     try {
-      return await this.parseWithAI(emailText, emailFrom, emailHtml);
+      return await this.parseWithAI(emailText, emailFrom, tenantId, emailHtml);
     } catch (error) {
       console.error('Erro ao tentar parsing com IA:', error);
       return {
@@ -85,71 +87,81 @@ export class EmailParserService implements IEmailParserService {
 
   /**
    * Parsing com IA quando regex falha.
-   * Usa credenciais de environment variables.
+   * Tenta todas as IAs configuradas no tenant (padrão primeiro).
    */
-  private async parseWithAI(emailText: string, emailFrom: string, emailHtml?: string): Promise<ParsedEmailData> {
-    // Buscar credenciais de variáveis de ambiente
-    const credentials = this.getAICredentialsFromEnv();
-    if (!credentials) {
-      throw new Error('Credenciais de IA não configuradas (env vars AI_PROVIDER, AI_API_KEY, AI_MODEL)');
+  private async parseWithAI(emailText: string, emailFrom: string, tenantId: string, emailHtml?: string): Promise<ParsedEmailData> {
+    // Buscar todas as credenciais do tenant (padrão vem primeiro)
+    const allCredentials = await this.aiConnectionRepo.getAllCredentials(tenantId);
+    
+    if (allCredentials.length === 0) {
+      throw new Error('Nenhuma conexão de IA configurada para este tenant');
     }
 
-    // Encontrar provider adequado
-    const provider = this.aiProviders.find(p => p.canHandle(credentials.provider));
-    if (!provider) {
-      throw new Error(`Provider de IA não suportado: ${credentials.provider}`);
+    console.log(`Encontradas ${allCredentials.length} conexão(ões) de IA para tenant ${tenantId}`);
+
+    const errors: string[] = [];
+
+    // Tentar cada IA (padrão vem primeiro no array)
+    for (let i = 0; i < allCredentials.length; i++) {
+      const credentials = allCredentials[i];
+      const isDefault = i === 0; // Primeira é sempre a padrão
+      
+      console.log(`Tentando IA ${i + 1}/${allCredentials.length}: ${credentials.provider}/${credentials.model}${isDefault ? ' (padrão)' : ''}`);
+
+      try {
+        // Encontrar provider adequado
+        const provider = this.aiProviders.find(p => p.canHandle(credentials.provider));
+        if (!provider) {
+          const error = `Provider de IA não suportado: ${credentials.provider}`;
+          console.warn(error);
+          errors.push(error);
+          continue;
+        }
+
+        // Criar prompt para extração de dados processuais
+        const prompt = this.buildParsingPrompt(emailText, emailFrom, emailHtml);
+
+        // Chamar IA
+        const rawResponse = await provider.call(credentials, prompt);
+
+        // Extrair JSON da resposta
+        const jsonData = this.extractJSON(rawResponse);
+
+        // Parse e validação
+        const parsed = JSON.parse(jsonData) as Partial<ParsedEmailData>;
+        
+        // Verificar se conseguiu extrair ao menos o número do processo
+        if (!parsed.processNumber) {
+          const error = `IA ${credentials.provider}/${credentials.model} não extraiu número de processo`;
+          console.warn(error);
+          errors.push(error);
+          continue;
+        }
+
+        console.log(`✓ Parsing bem-sucedido com IA: ${credentials.provider}/${credentials.model}`);
+        
+        return {
+          processNumber: parsed.processNumber,
+          court: parsed.court,
+          activeParty: parsed.activeParty,
+          passiveParty: parsed.passiveParty,
+          legalClass: parsed.legalClass,
+          filingDate: parsed.filingDate ? new Date(parsed.filingDate) : undefined,
+          distributionType: parsed.distributionType,
+          processSubject: parsed.processSubject,
+          movements: parsed.movements,
+          parsedByAI: true,
+        };
+      } catch (error) {
+        const errorMsg = `IA ${credentials.provider}/${credentials.model} falhou: ${error instanceof Error ? error.message : 'Erro desconhecido'}`;
+        console.error(errorMsg);
+        errors.push(errorMsg);
+        // Continua para próxima IA
+      }
     }
 
-    // Criar prompt para extração de dados processuais
-    const prompt = this.buildParsingPrompt(emailText, emailFrom, emailHtml);
-
-    // Chamar IA
-    const rawResponse = await provider.call(credentials, prompt);
-
-    // Extrair JSON da resposta
-    const jsonData = this.extractJSON(rawResponse);
-
-    // Parse e validação
-    try {
-      const parsed = JSON.parse(jsonData) as Partial<ParsedEmailData>;
-      return {
-        processNumber: parsed.processNumber,
-        court: parsed.court,
-        activeParty: parsed.activeParty,
-        passiveParty: parsed.passiveParty,
-        legalClass: parsed.legalClass,
-        filingDate: parsed.filingDate ? new Date(parsed.filingDate) : undefined,
-        distributionType: parsed.distributionType,
-        processSubject: parsed.processSubject,
-        movements: parsed.movements,
-        parsedByAI: true,
-      };
-    } catch (error) {
-      throw new Error(`IA retornou JSON inválido: ${error instanceof Error ? error.message : 'Erro desconhecido'}`, {
-        cause: error,
-      });
-    }
-  }
-
-  /**
-   * Busca credenciais de IA a partir de variáveis de ambiente
-   */
-  private getAICredentialsFromEnv(): AICredentials | null {
-    const provider = process.env.AI_PROVIDER;
-    const apiKey = process.env.AI_API_KEY;
-    const model = process.env.AI_MODEL;
-
-    if (!provider || !apiKey || !model) {
-      return null;
-    }
-
-    return {
-      provider: provider as AICredentials['provider'],
-      apiKey,
-      model,
-      temperature: parseFloat(process.env.AI_TEMPERATURE || '0.3'),
-      maxTokens: parseInt(process.env.AI_MAX_TOKENS || '2000', 10),
-    };
+    // Se todas falharam, lançar erro com resumo
+    throw new Error(`Todas as ${allCredentials.length} IA(s) falharam. Erros: ${errors.join('; ')}`);
   }
 
   /**

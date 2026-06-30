@@ -29,6 +29,7 @@ import type { ClaimNicknameUseCase } from '../../domain/usecases/ClaimNicknameUs
 import type { ExchangeGmailCodeUseCase } from '../../domain/usecases/ExchangeGmailCodeUseCase';
 import type { CreatePushUseCase } from '../../domain/usecases/CreatePushUseCase';
 import type { IAIProviderService } from '../../domain/repositories/IAIProviderService';
+import type { IAIConnectionRepository } from '../../domain/repositories/IAIConnectionRepository';
 import type { IGmailConnectionRepository } from '../../domain/repositories/IGmailConnectionRepository';
 import type { IPushRepository } from '../../domain/repositories/IPushRepository';
 import type { IGmailService } from '../../data/services/GmailService';
@@ -39,6 +40,7 @@ class DIContainer {
   private static instance: DIContainer;
 
   private aiProviders: IAIProviderService[];
+  private aiConnectionRepo?: IAIConnectionRepository;
   private gmailConnectionRepo?: IGmailConnectionRepository;
   private pushRepo?: IPushRepository;
   private gmailService?: IGmailService;
@@ -147,9 +149,18 @@ class DIContainer {
 
   getEmailParserService(): IEmailParserService {
     if (!this.emailParserService) {
-      this.emailParserService = new EmailParserService(this.aiProviders);
+      const aiConnectionRepo = this.getAIConnectionRepository();
+      this.emailParserService = new EmailParserService(this.aiProviders, aiConnectionRepo);
     }
     return this.emailParserService;
+  }
+
+  getAIConnectionRepository(): IAIConnectionRepository {
+    if (!this.aiConnectionRepo) {
+      const db = getDb();
+      this.aiConnectionRepo = new FirebaseAIConnectionRepository(db);
+    }
+    return this.aiConnectionRepo;
   }
 
   getCreatePushUseCase(): CreatePushUseCase {

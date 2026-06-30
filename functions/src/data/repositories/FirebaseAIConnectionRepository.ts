@@ -28,4 +28,41 @@ export class FirebaseAIConnectionRepository implements IAIConnectionRepository {
       maxTokens: (data.maxTokens as number) ?? 2048,
     };
   }
+
+  async getAllCredentials(tenantId: string): Promise<AICredentials[]> {
+    const connectionsSnap = await this.db
+      .collection('tenants')
+      .doc(tenantId)
+      .collection('aiConnections')
+      .get();
+
+    if (connectionsSnap.empty) {
+      return [];
+    }
+
+    const credentials: AICredentials[] = [];
+    const defaultCreds: AICredentials[] = [];
+    const otherCreds: AICredentials[] = [];
+
+    // Separar default das outras
+    for (const doc of connectionsSnap.docs) {
+      const data = doc.data();
+      const cred: AICredentials = {
+        provider: data.provider as Provider,
+        apiKey: data.apiKey as string,
+        model: data.model as string,
+        temperature: (data.temperature as number) ?? 0.7,
+        maxTokens: (data.maxTokens as number) ?? 2048,
+      };
+
+      if (data.isDefault === true) {
+        defaultCreds.push(cred);
+      } else {
+        otherCreds.push(cred);
+      }
+    }
+
+    // Retornar com default primeiro
+    return [...defaultCreds, ...otherCreds];
+  }
 }

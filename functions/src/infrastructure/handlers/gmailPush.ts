@@ -79,6 +79,9 @@ export const gmailPush = onMessagePublished(
         const startHistoryId = connection.historyId || historyId;
         console.log(`Buscando emails desde historyId: ${startHistoryId}`);
 
+        // Flag para rastrear se alguma mensagem falhou neste tenant
+        let hasFailedMessage = false;
+
         try {
           // Buscar token de acesso da conexão
           const tokenData = await gmailConnectionRepo.getAccessToken(connection.id);
@@ -147,8 +150,47 @@ export const gmailPush = onMessagePublished(
             const parsedData = await emailParserService.parse(
               message.bodyText || '',
               message.from,
+              connection.tenantId,
               message.bodyHtml
             );
+
+            // Verificar se parsing falhou completamente
+            const parsingFailed = parsedData.parsingError && !parsedData.processNumber;
+
+            if (parsingFailed) {
+              console.error('❌ ERRO CRÍTICO: Parsing falhou completamente para email:');
+              console.error(`  Email ID: ${message.id}`);
+              console.error(`  De: ${message.from}`);
+              console.error(`  Assunto: ${message.subject}`);
+              console.error(`  Erro: ${parsedData.parsingError}`);
+              console.error(`  Body Text (primeiros 500 chars): ${(message.bodyText || '').substring(0, 500)}`);
+              if (message.bodyHtml) {
+                console.error(`  Body HTML (primeiros 500 chars): ${message.bodyHtml.substring(0, 500)}`);
+              }
+
+              // Criar push fictício para usuário ver que algo deu errado
+              await createPushUC.execute(connection.tenantId, {
+                emailId: message.id,
+                from: message.from,
+                to: message.to,
+                subject: `[ERRO DE PARSING] ${message.subject}`,
+                receivedAt: message.receivedAt,
+                emailBodyHtml: message.bodyHtml,
+                emailBodyText: message.bodyText,
+                status: 'pending',
+                parsedByAI: false,
+                parsingError: parsedData.parsingError,
+                createdBy: 'system',
+              });
+
+              console.log('⚠️ Push fictício criado para notificar usuário do erro');
+              
+              // Marcar que esta mensagem falhou
+              hasFailedMessage = true;
+              
+              // Continuar para próxima mensagem
+              continue;
+            }
 
             // Criar push no tenant (omite campos undefined para Firestore)
             const push = await createPushUC.execute(connection.tenantId, {
@@ -177,9 +219,15 @@ export const gmailPush = onMessagePublished(
             console.log(`Push criado: ${push.id} (Processo: ${push.processNumber || 'N/A'})`);
           }
 
-          // Atualizar historyId da conexão para o novo valor
-          await gmailConnectionRepo.updateHistoryId(connection.id, historyId);
-          console.log(`HistoryId atualizado para ${historyId}`);
+          // Atualizar historyId APENAS se nenhuma mensagem falhou
+          if (hasFailedMessage) {
+            console.warn(`⚠️ Pelo menos uma mensagem falhou. HistoryId NÃO será atualizado para permitir reprocessamento.`);
+            console.warn(`Tenant: ${connection.tenantId}, Connection: ${connection.id}`);
+            console.warn(`O usuário deve corrigir o problema e a próxima notificação tentará processar novamente.`);
+          } else {
+            await gmailConnectionRepo.updateHistoryId(connection.id, historyId);
+            console.log(`✓ HistoryId atualizado para ${historyId} (todas as mensagens processadas com sucesso)`);
+          }
 
         } catch (error) {
           console.error(`Erro ao processar tenant ${connection.tenantId}:`, error);
