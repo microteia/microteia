@@ -14,6 +14,8 @@ export interface PushTabViewModel {
   error: string | null;
   isAuthorizing: boolean;
   confirmDelete: { open: boolean; id: string; email: string };
+  allowedSenders: string[];
+  handleAllowedSendersChange: (senders: string[]) => Promise<void>;
   handleAuthorize: () => Promise<void>;
   handleDelete: (id: string) => void;
   runDelete: () => Promise<void>;
@@ -21,7 +23,7 @@ export interface PushTabViewModel {
 }
 
 export const usePushTabViewModel = (): PushTabViewModel => {
-  const { currentTenant } = useTenant();
+  const { currentTenant, updateTenant } = useTenant();
   const { user } = useAuth();
   const { notify } = useNotification();
   const { gmailConnectionRepository } = useDI();
@@ -212,12 +214,28 @@ export const usePushTabViewModel = (): PushTabViewModel => {
     setConfirmDelete({ open: false, id: '', email: '' });
   }, []);
 
+  const allowedSenders = useMemo(() => currentTenant?.allowedSenders ?? [], [currentTenant]);
+
+  const handleAllowedSendersChange = useCallback(
+    async (senders: string[]) => {
+      if (!currentTenant) return;
+      try {
+        await updateTenant({ allowedSenders: senders });
+      } catch {
+        notify('Erro ao atualizar e-mails permitidos.', 'error');
+      }
+    },
+    [currentTenant, updateTenant, notify],
+  );
+
   return {
     loading,
     connections,
     error,
     isAuthorizing,
     confirmDelete,
+    allowedSenders,
+    handleAllowedSendersChange,
     handleAuthorize,
     handleDelete,
     runDelete,

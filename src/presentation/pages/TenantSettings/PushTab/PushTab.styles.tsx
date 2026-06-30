@@ -3,7 +3,13 @@ import styled from 'styled-components';
 const Container = styled.div`
   display: flex;
   flex-direction: column;
-  gap: ${({ theme }) => theme.spacing.lg};
+  gap: ${({ theme }) => theme.spacing.xl};
+`;
+
+const Section = styled.section`
+  display: flex;
+  flex-direction: column;
+  gap: ${({ theme }) => theme.spacing.md};
 `;
 
 const SectionTitle = styled.h2`
@@ -11,6 +17,39 @@ const SectionTitle = styled.h2`
   font-weight: 600;
   color: ${({ theme }) => theme.colors.text};
   margin: 0;
+`;
+
+const SectionDescription = styled.p`
+  font-size: ${({ theme }) => theme.fontSizes.sm};
+  color: ${({ theme }) => theme.colors.textSecondary};
+  margin: 0;
+  line-height: 1.5;
+`;
+
+const AllowedSendersCard = styled.div`
+  display: flex;
+  gap: ${({ theme }) => theme.spacing.md};
+  padding: ${({ theme }) => theme.spacing.md};
+  background: ${({ theme }) => theme.colors.surface};
+  border-radius: ${({ theme }) => theme.borderRadius.md};
+  border: 1px solid ${({ theme }) => theme.colors.border};
+`;
+
+const IconWrapper = styled.div<{ $color: string }>`
+  width: 40px;
+  height: 40px;
+  border-radius: ${({ theme }) => theme.borderRadius.md};
+  background: ${({ $color }) => `${$color}15`};
+  color: ${({ $color }) => $color};
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+`;
+
+const InputWrapper = styled.div`
+  flex: 1;
+  min-width: 0;
 `;
 
 const Feedback = styled.div<{ $type: 'error' | 'success' }>`
@@ -94,7 +133,12 @@ const AddRow = styled.div`
 
 export const S = {
   Container,
+  Section,
   SectionTitle,
+  SectionDescription,
+  AllowedSendersCard,
+  IconWrapper,
+  InputWrapper,
   Feedback,
   EmptyState,
   ConnectionList,

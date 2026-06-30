@@ -98,6 +98,7 @@ export interface Tenant {
   phone?: string | null;
   address?: string | null;
   logoURL?: string | null;
+  allowedSenders?: string[];
   createdAt: Date;
   updatedAt: Date;
 }

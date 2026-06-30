@@ -1,80 +1,118 @@
 import React from 'react';
 import { useTheme } from 'styled-components';
-import { RiMailLine, RiLinkUnlink, RiRefreshLine, RiAddLine } from 'react-icons/ri';
+import { RiMailLine, RiLinkUnlink, RiRefreshLine, RiAddLine, RiShieldCheckLine } from 'react-icons/ri';
 import { usePushTabViewModel } from './PushTab.viewmodel';
 import { S } from './PushTab.styles.tsx';
 import { Button } from '../../../components/ui/Button';
 import { ConfirmModal } from '../../../components/ui/ConfirmModal';
 import { Spinner } from '../../../components/ui/Spinner';
+import { TagInput } from '../../../components/ui/TagInput';
 
 export const PushTabView: React.FC = () => {
   const vm = usePushTabViewModel();
   const theme = useTheme();
 
+  console.log('🔍 PushTab Debug:', {
+    allowedSenders: vm.allowedSenders,
+    loading: vm.loading,
+    connectionsCount: vm.connections.length,
+  });
+
   return (
     <S.Container>
-      <S.SectionTitle>Monitoramento Gmail</S.SectionTitle>
+      <S.Section>
+        <S.SectionTitle>Remetentes Permitidos</S.SectionTitle>
+        <S.SectionDescription>
+          Configure os e-mails de tribunais autorizados a enviar notificações. 
+          Apenas mensagens destes remetentes serão processadas pelo monitoramento Gmail.
+        </S.SectionDescription>
+        <S.AllowedSendersCard>
+          <S.IconWrapper $color={theme.colors.success}>
+            <RiShieldCheckLine size={20} />
+          </S.IconWrapper>
+          <S.InputWrapper>
+            <TagInput
+              value={vm.allowedSenders}
+              onChange={(senders) => void vm.handleAllowedSendersChange(senders)}
+              placeholder="Digite um e-mail e pressione Enter (ex: pje@tjba.jus.br)"
+              hint="Pressione Enter para adicionar. Clique no × para remover."
+              validator={(email) => {
+                const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                return emailRegex.test(email);
+              }}
+              normalizer={(email) => email.toLowerCase()}
+            />
+          </S.InputWrapper>
+        </S.AllowedSendersCard>
+      </S.Section>
 
-      {vm.loading ? (
-        <Spinner />
-      ) : (
-        <>
-          {vm.error && <S.Feedback $type="error">{vm.error}</S.Feedback>}
+      <S.Section>
+        <S.SectionTitle>Monitoramento Gmail</S.SectionTitle>
+        <S.SectionDescription>
+          Autorize contas Gmail para monitoramento automático de e-mails dos tribunais.
+        </S.SectionDescription>
 
-          {vm.connections.length === 0 ? (
-            <S.EmptyState>
-              <RiMailLine size={32} style={{ marginBottom: 8, opacity: 0.4 }} />
-              <p>Nenhuma conta Gmail autorizada para este escritório.</p>
-            </S.EmptyState>
-          ) : (
-            <S.ConnectionList>
-              {vm.connections.map((conn) => (
-                <S.ConnectionCard key={conn.id}>
-                  <S.ProviderIcon $color={theme.colors.primary}>
-                    <RiMailLine size={18} />
-                  </S.ProviderIcon>
-                  <S.CardBody>
-                    <S.CardName>{conn.email}</S.CardName>
-                    <S.CardMeta>
-                      Autorizado por {conn.authorizedByName} em{' '}
-                      {new Date(conn.authorizedAt).toLocaleDateString('pt-BR', {
-                        hour: '2-digit',
-                        minute: '2-digit',
-                      })}
-                    </S.CardMeta>
-                  </S.CardBody>
-                  <S.CardActions>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => void vm.handleAuthorize()}
-                      title="Reautorizar"
-                      disabled={vm.isAuthorizing}
-                    >
-                      <RiRefreshLine size={16} />
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => vm.handleDelete(conn.id)}
-                      title="Revogar acesso"
-                    >
-                      <RiLinkUnlink size={16} />
-                    </Button>
-                  </S.CardActions>
-                </S.ConnectionCard>
-              ))}
-            </S.ConnectionList>
-          )}
+        {vm.loading ? (
+          <Spinner />
+        ) : (
+          <>
+            {vm.error && <S.Feedback $type="error">{vm.error}</S.Feedback>}
 
-          <S.AddRow>
-            <Button onClick={() => void vm.handleAuthorize()} disabled={vm.isAuthorizing}>
-              <RiAddLine size={16} />
-              {vm.isAuthorizing ? 'Autorizando...' : 'Autorizar Conta Gmail'}
-            </Button>
-          </S.AddRow>
-        </>
-      )}
+            {vm.connections.length === 0 ? (
+              <S.EmptyState>
+                <RiMailLine size={32} style={{ marginBottom: 8, opacity: 0.4 }} />
+                <p>Nenhuma conta Gmail autorizada para este escritório.</p>
+              </S.EmptyState>
+            ) : (
+              <S.ConnectionList>
+                {vm.connections.map((conn) => (
+                  <S.ConnectionCard key={conn.id}>
+                    <S.ProviderIcon $color={theme.colors.primary}>
+                      <RiMailLine size={18} />
+                    </S.ProviderIcon>
+                    <S.CardBody>
+                      <S.CardName>{conn.email}</S.CardName>
+                      <S.CardMeta>
+                        Autorizado por {conn.authorizedByName} em{' '}
+                        {new Date(conn.authorizedAt).toLocaleDateString('pt-BR', {
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })}
+                      </S.CardMeta>
+                    </S.CardBody>
+                    <S.CardActions>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => void vm.handleAuthorize()}
+                        title="Reautorizar"
+                        disabled={vm.isAuthorizing}
+                      >
+                        <RiRefreshLine size={16} />
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => vm.handleDelete(conn.id)}
+                        title="Revogar acesso"
+                      >
+                        <RiLinkUnlink size={16} />
+                      </Button>
+                    </S.CardActions>
+                  </S.ConnectionCard>
+                ))}
+              </S.ConnectionList>
+            )}
+
+            <S.AddRow>
+              <Button onClick={() => void vm.handleAuthorize()} disabled={vm.isAuthorizing}>
+                <RiAddLine size={16} />
+                {vm.isAuthorizing ? 'Autorizando...' : 'Autorizar Conta Gmail'}
+              </Button>
+            </S.AddRow>
+          </>
+        )}
+      </S.Section>
 
       <ConfirmModal
         isOpen={vm.confirmDelete.open}
