@@ -60,7 +60,7 @@ export const gmailPush = onMessagePublished(
       const gmailConnectionRepo = di.getGmailConnectionRepository();
       const gmailService = di.getGmailService();
       const emailParserService = di.getEmailParserService();
-      const createPushUC = di.getCreatePushUseCase();
+      const createOrUpdatePushUC = di.getCreateOrUpdatePushUseCase();
       
       // Buscar todas as conexões Gmail com este email
       const connections = await gmailConnectionRepo.getConnectionsByEmail(emailAddress);
@@ -137,62 +137,6 @@ export const gmailPush = onMessagePublished(
           console.log(`${courtMessages.length} email(s) de tribunais encontrado(s)`);
 
           for (const message of courtMessages) {
-            // Verificar se já processamos este email
-            const pushRepo = di.getPushRepository();
-            const existing = await pushRepo.getByEmailId(connection.tenantId, message.id);
-            
-            if (existing) {
-              // Se o push existente tem status 'fault', tentar reprocessar
-              if (existing.status === 'fault') {
-                console.log(`Email ${message.id} com status 'fault', tentando reprocessar...`);
-                
-                // Tentar fazer parsing novamente
-                const parsedData = await emailParserService.parse(
-                  message.bodyText || '',
-                  message.from,
-                  connection.tenantId,
-                  message.bodyHtml
-                );
-
-                // Verificar se parsing funcionou desta vez
-                const parsingSucceeded = !parsedData.parsingError || parsedData.processNumber;
-
-                if (parsingSucceeded) {
-                  console.log(`✓ Reprocessamento bem-sucedido! Atualizando push ${existing.id}`);
-                  
-                  // Atualizar TODOS os campos com os novos valores corretos
-                  await pushRepo.update(connection.tenantId, existing.id, {
-                    subject: message.subject, // Remover prefixo [ERRO DE PARSING] se tinha
-                    processNumber: parsedData.processNumber,
-                    court: parsedData.court,
-                    activeParty: parsedData.activeParty,
-                    passiveParty: parsedData.passiveParty,
-                    legalClass: parsedData.legalClass,
-                    filingDate: parsedData.filingDate,
-                    distributionType: parsedData.distributionType,
-                    processSubject: parsedData.processSubject,
-                    movements: parsedData.movements,
-                    status: 'pending',
-                    parsedByAI: parsedData.parsedByAI,
-                    parsingError: parsedData.parsingError, // Pode ser undefined agora
-                  });
-
-                  console.log(`✓ Push ${existing.id} atualizado com sucesso (status: fault → pending)`);
-                } else {
-                  console.warn(`⚠️ Reprocessamento falhou novamente para push ${existing.id}`);
-                  console.warn(`Erro: ${parsedData.parsingError}`);
-                  // Mantém o push com status 'fault' para próxima tentativa
-                }
-                
-                // Já processamos (ou tentamos), continuar para próxima mensagem
-                continue;
-              }
-              
-              // Push já processado com sucesso, pular
-              console.log(`Email ${message.id} já processado com sucesso, pulando`);
-              continue;
-            }
-
             // Fazer parsing do email
             const parsedData = await emailParserService.parse(
               message.bodyText || '',
@@ -204,6 +148,12 @@ export const gmailPush = onMessagePublished(
             // Verificar se parsing falhou completamente
             const parsingFailed = parsedData.parsingError && !parsedData.processNumber;
 
+            // Determinar status e subject baseado no resultado do parsing
+            const status = parsingFailed ? 'fault' : 'pending';
+            const subject = parsingFailed 
+              ? `[ERRO DE PARSING] ${message.subject}` 
+              : message.subject;
+
             if (parsingFailed) {
               console.error('❌ ERRO CRÍTICO: Parsing falhou completamente para email:');
               console.error(`  Email ID: ${message.id}`);
@@ -214,37 +164,17 @@ export const gmailPush = onMessagePublished(
               if (message.bodyHtml) {
                 console.error(`  Body HTML (primeiros 500 chars): ${message.bodyHtml.substring(0, 500)}`);
               }
-
-              // Criar push fictício para usuário ver que algo deu errado
-              await createPushUC.execute(connection.tenantId, {
-                emailId: message.id,
-                from: message.from,
-                to: message.to,
-                subject: `[ERRO DE PARSING] ${message.subject}`,
-                receivedAt: message.receivedAt,
-                emailBodyHtml: message.bodyHtml,
-                emailBodyText: message.bodyText,
-                status: 'fault',
-                parsedByAI: false,
-                parsingError: parsedData.parsingError,
-                createdBy: 'system',
-              });
-
-              console.log('⚠️ Push fictício criado para notificar usuário do erro');
               
               // Marcar que esta mensagem falhou
               hasFailedMessage = true;
-              
-              // Continuar para próxima mensagem
-              continue;
             }
 
-            // Criar push no tenant (omite campos undefined para Firestore)
-            const push = await createPushUC.execute(connection.tenantId, {
+            // Criar ou atualizar push (lógica unificada no Use Case)
+            const result = await createOrUpdatePushUC.execute(connection.tenantId, {
               emailId: message.id,
               from: message.from,
               to: message.to,
-              subject: message.subject,
+              subject,
               receivedAt: message.receivedAt,
               emailBodyHtml: message.bodyHtml,
               emailBodyText: message.bodyText,
@@ -257,13 +187,19 @@ export const gmailPush = onMessagePublished(
               distributionType: parsedData.distributionType,
               processSubject: parsedData.processSubject,
               movements: parsedData.movements,
-              status: 'pending',
+              status,
               parsedByAI: parsedData.parsedByAI,
-              ...(parsedData.parsingError ? { parsingError: parsedData.parsingError } : {}),
+              parsingError: parsedData.parsingError,
               createdBy: 'system',
             });
 
-            console.log(`Push criado: ${push.id} (Processo: ${push.processNumber || 'N/A'})`);
+            if (result.wasUpdated) {
+              console.log(`✓ Push ${result.push.id} atualizado com sucesso (reprocessamento)`);
+            } else if (parsingFailed) {
+              console.log(`⚠️ Push fictício criado: ${result.push.id} (status: fault)`);
+            } else {
+              console.log(`✓ Push criado: ${result.push.id} (Processo: ${result.push.processNumber || 'N/A'})`);
+            }
           }
 
           // Atualizar historyId APENAS se nenhuma mensagem falhou

@@ -7,7 +7,7 @@ import type { IEmailParser, ParsedEmailData } from '../../../domain/services/IEm
 export class TJMAEmailParser implements IEmailParser {
   readonly name = 'TJMA';
 
-  tryParse(emailText: string, _emailHtml?: string): Omit<ParsedEmailData, 'parsedByAI'> | null {
+  tryParse(emailText: string): Omit<ParsedEmailData, 'parsedByAI'> | null {
     // Verificar se é realmente do TJMA
     if (!this.isTJMAEmail(emailText)) {
       return null;

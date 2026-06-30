@@ -8,7 +8,7 @@ import type { PushMovement } from '../../../domain/entities/Push';
 export class TJBAEmailParser implements IEmailParser {
   readonly name = 'TJBA';
 
-  tryParse(emailText: string, _emailHtml?: string): Omit<ParsedEmailData, 'parsedByAI'> | null {
+  tryParse(emailText: string): Omit<ParsedEmailData, 'parsedByAI'> | null {
     // Verificar se é realmente do TJBA (padrões conhecidos)
     if (!this.isTJBAEmail(emailText)) {
       return null;

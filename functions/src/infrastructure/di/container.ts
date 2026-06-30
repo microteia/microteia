@@ -21,6 +21,8 @@ import { makeCheckNicknameAvailabilityUseCase } from '../../domain/usecases/Chec
 import { makeClaimNicknameUseCase } from '../../domain/usecases/ClaimNicknameUseCase';
 import { makeExchangeGmailCodeUseCase } from '../../domain/usecases/ExchangeGmailCodeUseCase';
 import { makeCreatePushUseCase } from '../../domain/usecases/CreatePushUseCase';
+import { makeUpdatePushUseCase } from '../../domain/usecases/UpdatePushUseCase';
+import { makeCreateOrUpdatePushUseCase } from '../../domain/usecases/CreateOrUpdatePushUseCase';
 import type { GetDefaultAICredentialsUseCase } from '../../domain/usecases/GetDefaultAICredentialsUseCase';
 import type { CallAIAnalysisUseCase } from '../../domain/usecases/CallAIAnalysisUseCase';
 import type { GetUserInfoUseCase } from '../../domain/usecases/GetUserInfoUseCase';
@@ -28,6 +30,8 @@ import type { CheckNicknameAvailabilityUseCase } from '../../domain/usecases/Che
 import type { ClaimNicknameUseCase } from '../../domain/usecases/ClaimNicknameUseCase';
 import type { ExchangeGmailCodeUseCase } from '../../domain/usecases/ExchangeGmailCodeUseCase';
 import type { CreatePushUseCase } from '../../domain/usecases/CreatePushUseCase';
+import type { UpdatePushUseCase } from '../../domain/usecases/UpdatePushUseCase';
+import type { CreateOrUpdatePushUseCase } from '../../domain/usecases/CreateOrUpdatePushUseCase';
 import type { IAIProviderService } from '../../domain/repositories/IAIProviderService';
 import type { IAIConnectionRepository } from '../../domain/repositories/IAIConnectionRepository';
 import type { IGmailConnectionRepository } from '../../domain/repositories/IGmailConnectionRepository';
@@ -53,6 +57,8 @@ class DIContainer {
   private claimNicknameUC?: ClaimNicknameUseCase;
   private exchangeGmailCodeUC?: ExchangeGmailCodeUseCase;
   private createPushUC?: CreatePushUseCase;
+  private updatePushUC?: UpdatePushUseCase;
+  private createOrUpdatePushUC?: CreateOrUpdatePushUseCase;
 
   private constructor() {
     this.aiProviders = [
@@ -169,6 +175,22 @@ class DIContainer {
       this.createPushUC = makeCreatePushUseCase(pushRepo);
     }
     return this.createPushUC;
+  }
+
+  getUpdatePushUseCase(): UpdatePushUseCase {
+    if (!this.updatePushUC) {
+      const pushRepo = this.getPushRepository();
+      this.updatePushUC = makeUpdatePushUseCase(pushRepo);
+    }
+    return this.updatePushUC;
+  }
+
+  getCreateOrUpdatePushUseCase(): CreateOrUpdatePushUseCase {
+    if (!this.createOrUpdatePushUC) {
+      const pushRepo = this.getPushRepository();
+      this.createOrUpdatePushUC = makeCreateOrUpdatePushUseCase(pushRepo);
+    }
+    return this.createOrUpdatePushUC;
   }
 
   getGoogleAuthService(): IGmailAuthService {
