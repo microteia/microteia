@@ -14,12 +14,12 @@ export interface IPushRepository {
   /**
    * Atualiza o status de um push
    */
-  updatePushStatus(pushId: string, status: 'pending' | 'reviewed' | 'archived'): Promise<void>;
+  updatePushStatus(pushId: string, status: 'pending' | 'reviewed' | 'archived' | 'fault'): Promise<void>;
 
   /**
    * Deleta um push
    */
-  deletePush(pushId: string): Promise<void>;
+  deletePush(tenantId: string, pushId: string): Promise<void>;
 
   /**
    * Subscreve para mudanças em tempo real

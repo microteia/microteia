@@ -28,8 +28,8 @@ export const S = {
     cursor: text;
 
     &:hover {
-      border-color: ${({ theme, $focused }) => 
-        $focused ? theme.colors.primary : theme.colors.borderHover};
+      border-color: ${({ theme, $focused }) =>
+        $focused ? theme.colors.primary : theme.colors.border};
     }
   `,
 

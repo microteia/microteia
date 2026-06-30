@@ -71,7 +71,7 @@ export class FirebaseGmailConnectionRepository implements IGmailConnectionReposi
     };
   }
 
-  async deleteConnection(tenantId: string, connectionId: string): Promise<void> {
+  async deleteConnection(_tenantId: string, connectionId: string): Promise<void> {
     await deleteDoc(tokenDoc(connectionId));
     await deleteDoc(gmailDoc(connectionId));
   }
@@ -88,13 +88,13 @@ export class FirebaseGmailConnectionRepository implements IGmailConnectionReposi
     });
   }
 
-  async updateConnectionAuthorizedAt(tenantId: string, connectionId: string): Promise<void> {
+  async updateConnectionAuthorizedAt(_tenantId: string, connectionId: string): Promise<void> {
     const docRef = gmailDoc(connectionId);
     await setDoc(docRef, { authorizedAt: new Date() }, { merge: true });
   }
 
   async updateConnectionWatchData(
-    tenantId: string,
+    _tenantId: string,
     connectionId: string,
     historyId: string,
     expiration: string,
