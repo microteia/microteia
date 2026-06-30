@@ -4,6 +4,8 @@ import type { IAIProviderService } from '../../domain/repositories/IAIProviderSe
 import type { IAIConnectionRepository } from '../../domain/repositories/IAIConnectionRepository';
 import { TJBAEmailParser } from './parsers/TJBAEmailParser';
 import { TJMAEmailParser } from './parsers/TJMAEmailParser';
+import { ProjudiTJBAEmailParser } from './parsers/ProjudiTJBAEmailParser';
+import { CNJEmailParser } from './parsers/CNJEmailParser';
 
 export interface IEmailParserService {
   parse(emailText: string, emailFrom: string, tenantId: string, emailHtml?: string): Promise<ParsedEmailData>;
@@ -28,16 +30,19 @@ export class EmailParserService implements IEmailParserService {
     this.parsers = [
       new TJBAEmailParser(),
       new TJMAEmailParser(),
+      new ProjudiTJBAEmailParser(),
+      new CNJEmailParser(),
       // TODO: Adicionar mais parsers conforme necessário
       // new TRTEmailParser(),
       // new TRFEmailParser(),
     ];
 
-    // Mapa de email → parser para lookup rápido
+    // Mapa de email → parser para lookup rápido de remetentes específicos
     this.parserByEmail = new Map([
       ['pje@tjba.jus.br', this.parsers.find(p => p.name === 'TJBA')!],
       ['contatopje@tjma.jus.br', this.parsers.find(p => p.name === 'TJMA')!],
-      ['g-assistencia.qualidade.pje@cnj.jus.br', this.parsers.find(p => p.name === 'TJBA')!],
+      ['g-assistencia.qualidade.pje@cnj.jus.br', this.parsers.find(p => p.name === 'CNJ')!],
+      ['projudi@tjba.jus.br', this.parsers.find(p => p.name === 'ProjudiTJBA')!],
       // TODO: Adicionar mais mapeamentos
     ]);
   }
@@ -229,8 +234,17 @@ IMPORTANTE: Retorne APENAS o JSON, sem texto adicional antes ou depois.`;
    * Exemplo: "PJe TJBA <pje@tjba.jus.br>" → "pje@tjba.jus.br"
    */
   private normalizeEmail(from: string): string {
-    const emailMatch = from.match(/<(.+?)>/) || from.match(/([^\s<>]+@[^\s<>]+)/);
-    return emailMatch ? emailMatch[1].toLowerCase() : from.toLowerCase();
+    const angle = from.match(/<([^>]+)>/);
+    if (angle) {
+      return angle[1].toLowerCase();
+    }
+
+    const email = from.match(/[^\s<>]+@[^\s<>]+/);
+    if (email) {
+      return email[0].toLowerCase();
+    }
+
+    return from.toLowerCase();
   }
 }
 

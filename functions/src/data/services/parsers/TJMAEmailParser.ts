@@ -1,4 +1,5 @@
 import type { IEmailParser, ParsedEmailData } from '../../../domain/services/IEmailParser';
+import type { PushMovement } from '../../../domain/entities/Push';
 
 /**
  * Parser específico para emails do PJe do Tribunal de Justiça do Maranhão
@@ -16,13 +17,10 @@ export class TJMAEmailParser implements IEmailParser {
     const result: Omit<ParsedEmailData, 'parsedByAI'> = {};
 
     // Número do processo (formato CNJ)
-    const processNumberMatch = emailText.match(/(\d{7}-\d{2}\.\d{4}\.\d\.\d{2}\.\d{4})/);
+    const processNumberMatch = emailText.match(/Número do Processo:\s*(\d{7}-\d{2}\.\d{4}\.\d\.\d{2}\.\d{4})/i);
     if (processNumberMatch) {
       result.processNumber = processNumberMatch[1];
     }
-
-    // TODO: Adicionar padrões específicos do TJMA quando conhecidos
-    // Por enquanto, tenta padrões genéricos do PJe
 
     // Polo Ativo
     const activePoleMatch = emailText.match(/Polo Ativo:\s*([^\n]+)/i);
@@ -48,12 +46,21 @@ export class TJMAEmailParser implements IEmailParser {
       result.court = courtMatch[1].trim();
     }
 
-    // Data de Autuação
-    const filingDateMatch = emailText.match(/Data de Autuação:\s*(\d{2}\/\d{2}\/\d{4})/i);
+    // Data de Autuação (com hora)
+    const filingDateMatch = emailText.match(/Data de Autuação:\s*(\d{2})\/(\d{2})\/(\d{4})\s+(\d{2}):(\d{2})/i);
     if (filingDateMatch) {
-      const [day, month, year] = filingDateMatch[1].split('/');
-      result.filingDate = new Date(Number(year), Number(month) - 1, Number(day));
+      const [, day, month, year, hour, minute] = filingDateMatch;
+      result.filingDate = new Date(Number(year), Number(month) - 1, Number(day), Number(hour), Number(minute));
     }
+
+    // Assunto
+    const subjectMatch = emailText.match(/Assunto:\s*([^\n]+)/i);
+    if (subjectMatch) {
+      result.processSubject = subjectMatch[1].trim();
+    }
+
+    // Movimentações
+    result.movements = this.parseMovements(emailText);
 
     if (!result.processNumber) {
       result.parsingError = 'Número do processo não encontrado';
@@ -67,7 +74,28 @@ export class TJMAEmailParser implements IEmailParser {
       text.includes('TJMA') ||
       text.includes('Maranhão') ||
       text.includes('contatopje@tjma.jus.br') ||
-      text.includes('PJe Push')
+      text.includes('PJe Push') ||
+      text.includes('Número do Processo:')
     );
+  }
+
+  private parseMovements(text: string): PushMovement[] {
+    const movements: PushMovement[] = [];
+
+    // Padrão TJMA: Data - Movimento DD/MM/YYYY HH:MM - descrição
+    const movementPattern = /Data - Movimento\s*(\d{2})\/(\d{2})\/(\d{4})\s+(\d{2}):(\d{2})\s*-\s*([^\n]+)/gi;
+
+    let match;
+    while ((match = movementPattern.exec(text)) !== null) {
+      const [, day, month, year, hour, minute, description] = match;
+
+      movements.push({
+        date: new Date(Number(year), Number(month) - 1, Number(day), Number(hour), Number(minute)),
+        type: 'Movimentação',
+        description: description.trim(),
+      });
+    }
+
+    return movements;
   }
 }
