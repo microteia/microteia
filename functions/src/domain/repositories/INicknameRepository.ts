@@ -1,4 +1,4 @@
-import type { NicknameAvailability, NicknameData } from '../entities/NicknameInfo';
+import type { NicknameAvailability } from '../entities/NicknameInfo';
 
 export interface INicknameRepository {
   checkAvailability(nickname: string, userId: string): Promise<NicknameAvailability>;

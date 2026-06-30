@@ -2,6 +2,7 @@ import type { GmailConnection, GmailToken } from '../entities';
 
 export interface IGmailConnectionRepository {
   getConnections(tenantId: string): Promise<GmailConnection[]>;
+  getConnectionsByEmail(email: string): Promise<GmailConnection[]>;
   createConnection(
     tenantId: string,
     data: Omit<GmailConnection, 'id' | 'tenantId' | 'authorizedAt'>,

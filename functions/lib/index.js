@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.exchangeGmailCode = exports.claimNickname = exports.checkNicknameAvailability = exports.getUserInfo = exports.callAIProxy = void 0;
+exports.gmailPush = exports.exchangeGmailCode = exports.claimNickname = exports.checkNicknameAvailability = exports.getUserInfo = exports.callAIProxy = void 0;
 const initFirebase_1 = require("./infrastructure/firebase/initFirebase");
 (0, initFirebase_1.initFirebase)();
 var callAIProxy_1 = require("./infrastructure/handlers/callAIProxy");
@@ -13,4 +13,6 @@ var claimNickname_1 = require("./infrastructure/handlers/claimNickname");
 Object.defineProperty(exports, "claimNickname", { enumerable: true, get: function () { return claimNickname_1.claimNickname; } });
 var exchangeGmailCode_1 = require("./infrastructure/handlers/exchangeGmailCode");
 Object.defineProperty(exports, "exchangeGmailCode", { enumerable: true, get: function () { return exchangeGmailCode_1.exchangeGmailCode; } });
+var gmailPush_1 = require("./infrastructure/handlers/gmailPush");
+Object.defineProperty(exports, "gmailPush", { enumerable: true, get: function () { return gmailPush_1.gmailPush; } });
 //# sourceMappingURL=index.js.map

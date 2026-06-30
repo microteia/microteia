@@ -46,8 +46,8 @@ O projeto usa **Clean Architecture + MVVM** com separação estrita em camadas. 
 | `User` | `users/{uid}` | Não |
 | `UserProfile` | `userProfiles/{uid}` | Não |
 | `AIConnection` | `tenants/{tenantId}/aiConnections/{id}` | Sim |
-| `GmailConnection` | `tenants/{tenantId}/gmailConnections/{id}` | Sim |
-| `GmailToken` | `tenants/{tenantId}/gmailConnections/{connectionId}/tokens/current` | Sim |
+| `GmailConnection` | `gmailConnections/{id}` | **Não** (mas possui campo `tenantId`) |
+| `GmailToken` | `gmailConnections/{connectionId}/tokens/current` | **Não** (mas possui campo `tenantId`) |
 | `Tenant` | `tenants/{tenantId}` | — |
 | `TenantMember` | `tenants/{tenantId}/members/{uid}` | Sim |
 | `Person` | `tenants/{tenantId}/persons/{id}` | Sim |
@@ -83,21 +83,37 @@ type ThemeMode = 'dark' | 'light' | 'claude' | 'teams' | 'bruma' | 'kindle';
 
 ### Entidade GmailConnection
 
-Conexões OAuth do Gmail para monitoramento Push de e-mails do escritório. Armazenadas por tenant. Somente administradores do tenant podem gerenciar.
+Conexões OAuth do Gmail para monitoramento Push de e-mails do escritório. **Armazenadas no nível raiz (não subcoleção de tenant)** para permitir que Cloud Functions busquem conexões por email sem varrer todos os tenants. Somente administradores do tenant podem gerenciar.
 
 ```typescript
 interface GmailConnection {
   id: string;
-  tenantId: string;
+  tenantId: string;            // tenant dono desta conexão
   email: string;               // conta Gmail autorizada
   scopes: string[];            // escopos OAuth concedidos
   authorizedBy: string;        // userId que autorizou
   authorizedByName: string;    // nome de exibição
   authorizedAt: Date;
+  historyId?: string;          // último historyId processado (Gmail Push)
+  expiration?: string;         // data de expiração da watch (Gmail Push)
 }
 ```
 
-Coleção Firestore: `tenants/{tenantId}/gmailConnections/{id}`
+Coleção Firestore: `gmailConnections/{id}` (raiz)
+
+**Motivação da estrutura:**
+Quando o Gmail envia notificação Pub/Sub com `{ emailAddress, historyId }`, a Cloud Function precisa descobrir **qual(is) tenant(s)** possui esse email. Com a coleção no nível raiz, basta fazer:
+```javascript
+db.collection('gmailConnections').where('email', '==', emailAddress).get()
+```
+Com subcoleção por tenant seria necessário varrer **todos** os tenants, o que é impraticável.
+
+**Índice composto necessário:**
+```
+Coleção: gmailConnections
+Campos indexados: email (Ascending), tenantId (Ascending)
+```
+Crie no Firebase Console → Firestore → Índices.
 
 ### Entidade GmailToken
 
@@ -114,7 +130,7 @@ interface GmailToken {
 }
 ```
 
-Coleção Firestore: `tenants/{tenantId}/gmailConnections/{connectionId}/tokens/current`
+Coleção Firestore: `gmailConnections/{connectionId}/tokens/current` (subcoleção de gmailConnections)
 
 **Fluxo OAuth do Gmail (Authorization Code Flow com Cloud Function):**
 
@@ -995,16 +1011,41 @@ service cloud.firestore {
         allow read, write: if isTenantAdmin(tenantId);
       }
 
-      // Conexões Gmail (Push) — somente admin lê e escreve conexões
-      match /gmailConnections/{connectionId} {
+    }
+
+    // ─── Conexões Gmail (Push) — nível raiz ──────────────────────────────────
+    // Armazenadas fora de tenants/{tenantId} para permitir query por email
+    // na Cloud Function sem precisar varrer todos os tenants.
+    // SOMENTE admin do tenant dono pode ler/escrever.
+
+    match /gmailConnections/{connectionId} {
+      allow read, update, delete: if request.auth != null
+        && isTenantAdmin(resource.data.tenantId);
+      allow create: if request.auth != null
+        && isTenantAdmin(request.resource.data.tenantId);
+      
+      // Tokens OAuth: admin pode ESCREVER (autorização inicial), mas NUNCA LER
+      // Cloud Functions (Admin SDK) leem/renovam tokens, ignorando estas regras
+      match /tokens/{tokenId} {
+        allow read: if false;                                // Frontend NUNCA lê tokens
+        allow write: if request.auth != null                 // Admin do tenant dono pode salvar
+          && isTenantAdmin(get(/databases/$(database)/documents/gmailConnections/$(connectionId)).data.tenantId);
+      }
+    }
+
+    match /tenants/{tenantId} {
+      // Qualquer membro pode ler o tenant
+      allow get: if isMember(tenantId);
+      // Somente admin do tenant pode atualizar dados do escritório
+      allow update: if isTenantAdmin(tenantId);
+      // Qualquer usuário autenticado pode criar um tenant (cria o próprio escritório)
+      allow create: if request.auth != null;
+      // Somente admin global pode deletar
+      allow delete: if isSystemAdmin();
+
+      // Conexões de IA do escritório — somente admin lê e escreve
+      match /aiConnections/{connectionId} {
         allow read, write: if isTenantAdmin(tenantId);
-        
-        // Tokens OAuth: admin pode ESCREVER (autorização inicial), mas NUNCA LER
-        // Cloud Functions (Admin SDK) leem/renovam tokens, ignorando estas regras
-        match /tokens/{tokenId} {
-          allow read: if false;                    // Frontend NUNCA lê tokens
-          allow write: if isTenantAdmin(tenantId); // Mas pode salvar na autorização inicial
-        }
       }
 
       // Membros do tenant

@@ -7,3 +7,4 @@ export { getUserInfo } from './infrastructure/handlers/getUserInfo';
 export { checkNicknameAvailability } from './infrastructure/handlers/checkNicknameAvailability';
 export { claimNickname } from './infrastructure/handlers/claimNickname';
 export { exchangeGmailCode } from './infrastructure/handlers/exchangeGmailCode';
+export { gmailPush } from './infrastructure/handlers/gmailPush';

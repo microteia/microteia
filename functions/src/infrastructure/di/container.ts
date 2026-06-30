@@ -3,6 +3,7 @@ import { FirebaseAIConnectionRepository } from '../../data/repositories/Firebase
 import { FirebaseTenantMemberRepository } from '../../data/repositories/FirebaseTenantMemberRepository';
 import { FirebaseUserRepository } from '../../data/repositories/FirebaseUserRepository';
 import { FirebaseNicknameRepository } from '../../data/repositories/FirebaseNicknameRepository';
+import { FirebaseGmailConnectionRepository } from '../../data/repositories/FirebaseGmailConnectionRepository';
 import { OpenAIService } from '../../data/services/OpenAIService';
 import { AnthropicService } from '../../data/services/AnthropicService';
 import { GoogleAIService } from '../../data/services/GoogleAIService';
@@ -23,11 +24,13 @@ import type { CheckNicknameAvailabilityUseCase } from '../../domain/usecases/Che
 import type { ClaimNicknameUseCase } from '../../domain/usecases/ClaimNicknameUseCase';
 import type { ExchangeGmailCodeUseCase } from '../../domain/usecases/ExchangeGmailCodeUseCase';
 import type { IAIProviderService } from '../../domain/repositories/IAIProviderService';
+import type { IGmailConnectionRepository } from '../../domain/repositories/IGmailConnectionRepository';
 
 class DIContainer {
   private static instance: DIContainer;
 
   private aiProviders: IAIProviderService[];
+  private gmailConnectionRepo?: IGmailConnectionRepository;
   private getDefaultAICredentialsUC?: GetDefaultAICredentialsUseCase;
   private callAIAnalysisUC?: CallAIAnalysisUseCase;
   private getUserInfoUC?: GetUserInfoUseCase;
@@ -105,6 +108,13 @@ class DIContainer {
       this.exchangeGmailCodeUC = makeExchangeGmailCodeUseCase(gmailAuthService, gmailWatchService, tenantMemberRepo);
     }
     return this.exchangeGmailCodeUC;
+  }
+
+  getGmailConnectionRepository(): IGmailConnectionRepository {
+    if (!this.gmailConnectionRepo) {
+      this.gmailConnectionRepo = new FirebaseGmailConnectionRepository();
+    }
+    return this.gmailConnectionRepo;
   }
 }
 
