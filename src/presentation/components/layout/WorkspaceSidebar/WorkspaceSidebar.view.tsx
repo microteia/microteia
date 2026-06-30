@@ -61,7 +61,10 @@ export const WorkspaceSidebar: React.FC = () => {
       <S.Nav>
         {!vm.collapsed && <S.NavLabel>Menu</S.NavLabel>}
         {vm.navItems.map(({ key, label, icon }) => {
-          const badge = key === 'news' && vm.unreadNewsCount > 0 ? vm.unreadNewsCount : 0;
+          const badge = 
+            (key === 'news' && vm.unreadNewsCount > 0) ? vm.unreadNewsCount :
+            (key === 'pushes' && vm.unreadPushCount > 0) ? vm.unreadPushCount :
+            0;
           return (
             <S.NavItem
               key={key}

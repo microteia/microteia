@@ -8,12 +8,14 @@ import {
   RiMoneyDollarCircleLine,
   RiNewspaperLine,
   RiBuilding2Line,
+  RiInboxLine,
 } from 'react-icons/ri';
 import { useWorkspace } from '../../../../stores/useWorkspace';
 import { useAuth } from '../../../../stores/useAuth';
 import { useTheme } from '../../../../stores/useTheme';
 import { useCommandPalette } from '../../../../stores/useCommandPalette';
 import { useNewsInteraction } from '../../../../stores/useNewsInteraction';
+import { usePushInteraction } from '../../../../stores/usePushInteraction';
 import type { User } from '../../../../domain/entities';
 import type { ThemeMode } from '../../../../shared/types';
 
@@ -31,14 +33,15 @@ export interface ThemeOption {
 }
 
 const NAV_ITEMS: NavItem[] = [
-  { key: 'dashboard',       label: 'Dashboard',   icon: <RiDashboardLine />          },
-  { key: 'calendar',        label: 'Calendário',  icon: <RiCalendar2Line />          },
-  { key: 'persons',         label: 'Pessoas',     icon: <RiTeamLine />               },
-  { key: 'cases',           label: 'Processos',   icon: <RiFolderLine />             },
-  { key: 'deadlines',       label: 'Prazos',      icon: <RiTimeLine />               },
-  { key: 'financials',      label: 'Financeiro',  icon: <RiMoneyDollarCircleLine />  },
-  { key: 'news',            label: 'Notícias',    icon: <RiNewspaperLine />          },
-  { key: 'tenant-settings', label: 'Escritório',  icon: <RiBuilding2Line />          },
+  { key: 'dashboard',       label: 'Dashboard',           icon: <RiDashboardLine />          },
+  { key: 'calendar',        label: 'Calendário',          icon: <RiCalendar2Line />          },
+  { key: 'persons',         label: 'Pessoas',             icon: <RiTeamLine />               },
+  { key: 'cases',           label: 'Processos',           icon: <RiFolderLine />             },
+  { key: 'deadlines',       label: 'Prazos',              icon: <RiTimeLine />               },
+  { key: 'financials',      label: 'Financeiro',          icon: <RiMoneyDollarCircleLine />  },
+  { key: 'pushes',          label: 'Pushes do Tribunal',  icon: <RiInboxLine />              },
+  { key: 'news',            label: 'Notícias',            icon: <RiNewspaperLine />          },
+  { key: 'tenant-settings', label: 'Escritório',          icon: <RiBuilding2Line />          },
 ];
 
 const THEME_OPTIONS: ThemeOption[] = [
@@ -55,6 +58,7 @@ export interface WorkspaceSidebarViewModel {
   collapsed: boolean;
   navItems: NavItem[];
   unreadNewsCount: number;
+  unreadPushCount: number;
   activeKey: string | null;
   isMenuOpen: boolean;
   isThemeSubOpen: boolean;
@@ -87,6 +91,7 @@ export const useWorkspaceSidebarViewModel = (): WorkspaceSidebarViewModel => {
   const { mode, setTheme } = useTheme();
   const { open: openCommandPalette } = useCommandPalette();
   const { unreadCount: unreadNewsCount } = useNewsInteraction();
+  const { unreadCount: unreadPushCount } = usePushInteraction();
 
   const searchShortcut = /Mac|iPhone|iPod|iPad/.test(navigator.platform) ? '⌘K' : 'Ctrl K';
 
@@ -138,6 +143,7 @@ export const useWorkspaceSidebarViewModel = (): WorkspaceSidebarViewModel => {
     collapsed,
     navItems: NAV_ITEMS,
     unreadNewsCount,
+    unreadPushCount,
     activeKey,
     isMenuOpen,
     isThemeSubOpen,
