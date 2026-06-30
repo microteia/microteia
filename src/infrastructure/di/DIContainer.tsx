@@ -16,6 +16,8 @@ import { FirebasePersonRepository } from '../../data/repositories/FirebasePerson
 import { FirebaseCaseRepository } from '../../data/repositories/FirebaseCaseRepository';
 import { FirebaseDeadlineRepository } from '../../data/repositories/FirebaseDeadlineRepository';
 import { FirebaseFinancialRepository } from '../../data/repositories/FirebaseFinancialRepository';
+import { FirebasePushRepository } from '../../data/repositories/FirebasePushRepository';
+import { FirebasePushInteractionRepository } from '../../data/repositories/FirebasePushInteractionRepository';
 import { FirebaseTextAnnotationRepository } from '../../data/repositories/FirebaseTextAnnotationRepository';
 import { FirebasePersonTagRepository } from '../../data/repositories/FirebasePersonTagRepository';
 import { FirebasePersonNoteRepository } from '../../data/repositories/FirebasePersonNoteRepository';

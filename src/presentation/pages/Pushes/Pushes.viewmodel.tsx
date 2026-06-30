@@ -19,7 +19,6 @@ export interface PushesViewModel {
   savedFiltersScreenKey: string;
   unreadCount: number;
   setFilterTokens: (tokens: FilterToken[]) => void;
-  handleViewPush: (push: Push) => void;
   handleMarkAsRead: (push: Push) => Promise<void>;
   handleUpdateStatus: (push: Push, status: PushStatus) => Promise<void>;
   handleDelete: (push: Push) => Promise<void>;
@@ -115,16 +114,6 @@ export const usePushesViewModel = (): PushesViewModel => {
     }));
   }, [pushes, tokenMap, getInteraction]);
 
-  const handleViewPush = useCallback((push: Push) => {
-    openTab({
-      id: `push-${push.id}`,
-      type: 'push',
-      title: push.subject,
-      data: { pushId: push.id },
-    });
-    void markAsRead(push.id);
-  }, [openTab, markAsRead]);
-
   const handleMarkAsRead = useCallback(async (push: Push) => {
     await markAsRead(push.id);
   }, [markAsRead]);
@@ -148,7 +137,6 @@ export const usePushesViewModel = (): PushesViewModel => {
     savedFiltersScreenKey: 'pushes',
     unreadCount,
     setFilterTokens,
-    handleViewPush,
     handleMarkAsRead,
     handleUpdateStatus,
     handleDelete,

@@ -1,6 +1,7 @@
 import React from 'react';
 import {
   RiNewspaperLine,
+  RiInboxLine,
   RiBuildingLine,
   RiArrowDownSLine,
   RiCheckLine,
@@ -71,6 +72,17 @@ export const TopBar: React.FC = () => {
       </S.Left>
 
       <S.Right>
+        <S.IconButton
+          onClick={vm.handlePushClick}
+          title="Pushes do Tribunal"
+          $active={vm.unreadPushCount > 0}
+        >
+          <RiInboxLine size={18} />
+          {vm.unreadPushCount > 0 && (
+            <S.Badge>{vm.unreadPushCount > 99 ? '99+' : vm.unreadPushCount}</S.Badge>
+          )}
+        </S.IconButton>
+
         <S.IconButton
           onClick={vm.handleNewsClick}
           title="Notícias"

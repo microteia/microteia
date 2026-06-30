@@ -2,7 +2,7 @@ import React from 'react';
 import { RiBarChartBoxLine, RiInboxLine } from 'react-icons/ri';
 import { S } from './DashboardPushes.styles';
 import { useDashboardPushesViewModel } from './DashboardPushes.viewmodel';
-import { Spinner } from '../../components/ui/Spinner/Spinner.view';
+import { Spinner } from '../../components/ui/Spinner';
 
 export const DashboardPushesView: React.FC = () => {
   const vm = useDashboardPushesViewModel();

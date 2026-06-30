@@ -1,12 +1,15 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useWorkspace } from '../../../../stores/useWorkspace';
 import { useNewsInteraction } from '../../../../stores/useNewsInteraction';
+import { usePushInteraction } from '../../../../stores/usePushInteraction';
 import { useTenant } from '../../../../stores/useTenant';
 import type { Tenant } from '../../../../domain/entities';
 
 export interface TopBarViewModel {
   unreadNewsCount: number;
+  unreadPushCount: number;
   handleNewsClick: () => void;
+  handlePushClick: () => void;
   currentTenant: Tenant | null;
   availableTenants: Tenant[];
   isDropdownOpen: boolean;
@@ -20,6 +23,7 @@ export interface TopBarViewModel {
 export const useTopBarViewModel = (): TopBarViewModel => {
   const { openTab } = useWorkspace();
   const { unreadCount } = useNewsInteraction();
+  const { unreadCount: unreadPushCount } = usePushInteraction();
   const { currentTenant, availableTenants, selectTenant } = useTenant();
 
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -30,6 +34,10 @@ export const useTopBarViewModel = (): TopBarViewModel => {
 
   const handleNewsClick = useCallback(() => {
     openTab('news');
+  }, [openTab]);
+
+  const handlePushClick = useCallback(() => {
+    openTab('pushes');
   }, [openTab]);
 
   const handleTenantButtonClick = useCallback(() => {
@@ -77,7 +85,9 @@ export const useTopBarViewModel = (): TopBarViewModel => {
 
   return {
     unreadNewsCount: unreadCount,
+    unreadPushCount,
     handleNewsClick,
+    handlePushClick,
     currentTenant,
     availableTenants,
     isDropdownOpen,

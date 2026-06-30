@@ -1,17 +1,26 @@
 import React from 'react';
-import { RiInboxLine, RiCheckLine, RiArchiveLine, RiDeleteBinLine, RiEyeLine, RiBarChartBoxLine } from 'react-icons/ri';
+import { RiInboxLine, RiCheckLine, RiArchiveLine, RiDeleteBinLine, RiBarChartBoxLine } from 'react-icons/ri';
 import { usePushesViewModel } from './Pushes.viewmodel';
 import { S } from './Pushes.styles';
 import { Button } from '../../components/ui/Button';
 import { Spinner } from '../../components/ui/Spinner';
 import { CompositeFilter } from '../../components/ui/CompositeFilter';
 import { usePush } from '../../../stores/usePush';
-import { formatDistanceToNow } from '../../../utils/formatters';
 
 const STATUS_LABELS: Record<'pending' | 'reviewed' | 'archived', string> = {
   pending: 'Pendente',
   reviewed: 'Revisado',
   archived: 'Arquivado',
+};
+
+const formatDate = (date: Date): string => {
+  return date.toLocaleString('pt-BR', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
 };
 
 export const PushesView: React.FC = () => {
@@ -62,7 +71,7 @@ export const PushesView: React.FC = () => {
                     {STATUS_LABELS[row.push.status]}
                   </S.StatusBadge>
                   {!row.isRead && <S.UnreadBadge>Não lido</S.UnreadBadge>}
-                  <span>{formatDistanceToNow(row.push.receivedAt)}</span>
+                  <span>{formatDate(row.push.receivedAt)}</span>
                 </S.Meta>
               </S.CardHeader>
 
@@ -115,15 +124,6 @@ export const PushesView: React.FC = () => {
               )}
 
               <S.Actions>
-                <Button
-                  size="small"
-                  variant="secondary"
-                  onClick={() => vm.handleViewPush(row.push)}
-                >
-                  <RiEyeLine size={14} />
-                  Visualizar
-                </Button>
-
                 {!row.isRead && (
                   <Button
                     size="small"
