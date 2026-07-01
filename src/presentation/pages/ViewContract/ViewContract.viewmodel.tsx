@@ -2,6 +2,8 @@ import { useState, useMemo, useCallback, useEffect } from 'react';
 import { useTheme } from 'styled-components';
 import { useContractStore } from '../../../stores/useContractStore';
 import { useContractTagStore } from '../../../stores/useContractTagStore';
+import { useCaseStore } from '../../../stores/useCaseStore';
+import { useCaseLookup } from '../../../stores/useCaseLookup';
 import { useContractLookup } from '../../../stores/useContractLookup';
 import { useDocumentTypeLookup } from '../../../stores/useDocumentTypeLookup';
 import { usePersonStore } from '../../../stores/usePersonStore';
@@ -22,10 +24,10 @@ import { makeGetContractDocumentsUseCase } from '../../../domain/usecases/contra
 import { makeUploadContractDocumentUseCase } from '../../../domain/usecases/contractdocuments/UploadContractDocumentUseCase';
 import { makeAddContractDocumentUseCase } from '../../../domain/usecases/contractdocuments/AddContractDocumentUseCase';
 import { makeDeleteContractDocumentUseCase } from '../../../domain/usecases/contractdocuments/DeleteContractDocumentUseCase';
-import type { Contract, ContractNote, ContractDocument } from '../../../domain/entities';
+import type { Contract, ContractNote, ContractDocument, Case } from '../../../domain/entities';
 import type { TagStoreAdapter } from '../../components/ui/TagManager/TagManager.viewmodel';
 
-export type ViewContractTab = 'data' | 'notes' | 'documents';
+export type ViewContractTab = 'data' | 'notes' | 'documents' | 'cases';
 
 const LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
 
@@ -126,6 +128,15 @@ export interface ViewContractViewModel {
 
   personOptions: MultiSearchSelectOption[];
   personSearchOptions: SearchSelectOption[];
+
+  linkedCases: Case[];
+  unlinkedCaseOptions: SearchSelectOption[];
+  caseToAdd: string;
+  setCaseToAdd: (v: string) => void;
+  handleLinkCase: (caseId: string) => Promise<void>;
+  handleOpenCase: (c: Case) => void;
+  handleUnlinkCase: (c: Case) => Promise<void>;
+  getCaseStatusColor: (status: string) => string;
 
   tagAdapter: TagStoreAdapter;
   isTagManagerOpen: boolean;
@@ -230,6 +241,8 @@ export const useViewContractViewModel = (tabKey: string): ViewContractViewModel 
   } = useContractLookup();
   const { typeConfigs: documentTypeConfigs, addItem: addDocumentType, removeItem: removeDocumentType } = useDocumentTypeLookup();
   const { persons } = usePersonStore();
+  const { cases, updateCase } = useCaseStore();
+  const { statusConfigs: caseStatusConfigs } = useCaseLookup();
   const { user } = useAuth();
   const { tenantRole, currentTenant } = useTenant();
   const { setTabTitle, closeTab, openTab, activePanelId } = useWorkspace();
@@ -285,7 +298,7 @@ export const useViewContractViewModel = (tabKey: string): ViewContractViewModel 
     if (contract) {
       // eslint-disable-next-line react-hooks/set-state-in-effect -- sincroniza formulário ao carregar/atualizar dados do contrato
       setFormDataState(buildFormData(contract));
-      setTabTitle(tabKey, contract.title);
+      setTabTitle(tabKey, contract.number ?? contract.title);
     }
   }, [contract, tabKey, setTabTitle]);
 
@@ -328,6 +341,47 @@ export const useViewContractViewModel = (tabKey: string): ViewContractViewModel 
     persons.map((p) => ({ value: p.id, label: p.name })).sort((a, b) => a.label.localeCompare(b.label)),
     [persons],
   );
+
+  const [caseToAdd, setCaseToAdd] = useState('');
+
+  const linkedCases = useMemo(
+    () => (contract ? cases.filter((c) => c.contractId === contract.id) : []),
+    [cases, contract],
+  );
+
+  const unlinkedCaseOptions = useMemo<SearchSelectOption[]>(
+    () => cases.filter((c) => !c.contractId).map((c) => ({ value: c.id, label: `${c.caseNumber} — ${c.title}` })),
+    [cases],
+  );
+
+  const handleLinkCase = useCallback(async (caseId: string) => {
+    if (!contract) return;
+    try {
+      await updateCase(caseId, { contractId: contract.id, contractNumber: contract.number });
+      notify('Processo vinculado ao contrato.', 'success');
+    } catch {
+      notify('Erro ao vincular processo.', 'error');
+    } finally {
+      setCaseToAdd('');
+    }
+  }, [contract, updateCase, notify]);
+
+  const handleOpenCase = useCallback((c: Case) => {
+    openTab(`view-case:${c.id}`);
+  }, [openTab]);
+
+  const getCaseStatusColor = useCallback((status: string): string => {
+    return getConfigColor(caseStatusConfigs, status, theme);
+  }, [caseStatusConfigs, theme]);
+
+  const handleUnlinkCase = useCallback(async (c: Case) => {
+    try {
+      await updateCase(c.id, { contractId: null, contractNumber: null });
+      notify('Processo desvinculado do contrato.', 'success');
+    } catch {
+      notify('Erro ao desvincular processo.', 'error');
+    }
+  }, [updateCase, notify]);
 
   const handleSave = useCallback(async () => {
     if (!formData.number.trim()) { notify('Número do contrato é obrigatório.', 'error'); return; }
@@ -667,6 +721,14 @@ export const useViewContractViewModel = (tabKey: string): ViewContractViewModel 
     handleSave,
     personOptions,
     personSearchOptions,
+    linkedCases,
+    unlinkedCaseOptions,
+    caseToAdd,
+    setCaseToAdd,
+    handleLinkCase,
+    handleOpenCase,
+    handleUnlinkCase,
+    getCaseStatusColor,
     tagAdapter,
     isTagManagerOpen,
     openTagManager,

@@ -363,6 +363,8 @@ export interface Case {
   status: CaseStatus;
   responsibleLawyerId: string;
   responsibleLawyerName: string;
+  contractId?: string | null;
+  contractNumber?: string | null;
   activePoleIds?: string[];
   passivePoleIds?: string[];
   opposingParties?: CaseParty[];

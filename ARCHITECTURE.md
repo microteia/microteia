@@ -312,6 +312,8 @@ interface Case {
   opposingParty?: string;
   responsibleLawyerId?: string;
   responsibleLawyerName?: string;
+  contractId?: string | null;      // Contrato vinculado — Contract (único; um Processo pertence a no máximo 1 Contrato)
+  contractNumber?: string | null;  // denormalizado, mesmo padrão de responsibleLawyerName
   parties: CaseParty[];
   description?: string;
   openedAt?: Date;
@@ -386,6 +388,8 @@ interface Contract {
 **Cores de status:** tokens `contractStatus*` em `shared/styles/theme.ts` (replicados nos 7 temas, mesmo padrão de `caseStatus*`).
 
 Coleções Firestore: `tenants/{tenantId}/contracts/{id}`, `tenants/{tenantId}/contractTags/{id}`, `tenants/{tenantId}/contractTypes`, `contractCategories`, `contractStatuses`, `contractObjects`, `contractAdjustmentIndexes`, `contractAdjustmentPeriodicities`, `contractCurrencies`, `contractPaymentMethods`, `contractBanks`, `contractCostCenters`.
+
+**Relação Processo ↔ Contrato:** um `Contract` pode ter vários `Case` vinculados, mas cada `Case` pertence a no máximo 1 `Contract`. A chave estrangeira vive no lado "muitos" (`Case.contractId` + `Case.contractNumber` denormalizado, mesmo padrão de `responsibleLawyerId`/`responsibleLawyerName`) — não existe array `caseIds` em `Contract`. A aba "Processos" de `ViewContract` deriva a lista de processos vinculados filtrando `useCaseStore().cases` por `contractId` em memória (via `useMemo`), sem query Firestore adicional nem índice composto, já que `CaseStore` carrega a lista de `cases` do tenant inteira. Vincular/desvincular é um `updateCase(caseId, { contractId, contractNumber })` comum. Ao excluir um `Contract`, `DeleteContractUseCase` desvincula (não exclui) os `cases` filhos antes de apagar o contrato (ver "Cascata de Exclusão").
 
 ### Entidade ContractNote
 
@@ -1018,7 +1022,7 @@ useEffect(() => {
 | `Tenant` | Todos os members, persons, cases, deadlines, financials, pushes do tenant |
 | `Person` | Todos os processos (`cases`) onde `personId === id`; todos os prazos e financeiros vinculados |
 | `Case` | Todos os `deadlines` onde `caseId === id`; todos os `financials` onde `caseId === id` |
-| `Contract` | — (folha) |
+| `Contract` | Desvincula (não exclui) todos os `cases` onde `contractId === id`, limpando `contractId`/`contractNumber` |
 | `Deadline` | — (folha) |
 | `Financial` | — (folha) |
 | `Push` | Todos os `pushInteractions` onde `pushId === id` |

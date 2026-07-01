@@ -54,6 +54,7 @@ export const ViewCaseView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
 
   const personOptions: SearchSelectOption[] = vm.personOptions.map((o) => ({ value: o.value, label: o.label }));
   const memberOptions: SearchSelectOption[] = vm.memberOptions.map((o) => ({ value: o.value, label: o.label }));
+  const contractOptions: SearchSelectOption[] = vm.contractOptions.map((o) => ({ value: o.value, label: o.label }));
 
   return (
     <S.Page>
@@ -297,6 +298,19 @@ export const ViewCaseView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
                   vm.setFormData({ responsibleLawyerId: val, responsibleLawyerName: member?.label ?? '' });
                 }}
                 placeholder="Selecione o responsável..."
+              />
+            </S.FormGroup>
+
+            <S.FormGroup $fullWidth>
+              <Label>Contrato Vinculado</Label>
+              <SearchSelect
+                options={contractOptions}
+                value={vm.formData.contractId}
+                onChange={(val) => {
+                  const contract = vm.contractOptions.find((c) => c.value === val);
+                  vm.setFormData({ contractId: val, contractNumber: contract?.label ?? '' });
+                }}
+                placeholder="Nenhum contrato vinculado"
               />
             </S.FormGroup>
 

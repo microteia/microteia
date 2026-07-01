@@ -8,4 +8,5 @@ export interface ICaseRepository {
   updateCase(tenantId: string, caseId: string, data: Partial<Omit<Case, 'id' | 'tenantId' | 'createdAt' | 'createdBy'>>): Promise<void>;
   updateCaseStatus(tenantId: string, caseId: string, status: CaseStatus): Promise<void>;
   deleteCase(tenantId: string, caseId: string): Promise<void>;
+  unlinkCasesFromContract(tenantId: string, contractId: string): Promise<void>;
 }

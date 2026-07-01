@@ -285,6 +285,32 @@ export const S = {
     flex-shrink: 0;
   `,
 
+  CaseLinkControl: styled.div`
+    width: 100%;
+    max-width: 360px;
+    margin-bottom: ${({ theme }) => theme.spacing.md};
+  `,
+
+  CaseLink: styled.button`
+    background: none;
+    border: none;
+    padding: 0;
+    margin: 0;
+    text-align: left;
+    cursor: pointer;
+    font-size: ${({ theme }) => theme.fontSizes.sm};
+    font-weight: 500;
+    font-family: inherit;
+    color: ${({ theme }) => theme.colors.text};
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: block;
+    width: 100%;
+
+    &:hover { color: ${({ theme }) => theme.colors.primary}; text-decoration: underline; }
+  `,
+
   NoteEditorCard: styled.div`
     background: ${({ theme }) => theme.colors.surface};
     border: 1px solid ${({ theme }) => theme.colors.border};

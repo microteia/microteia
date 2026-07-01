@@ -10,10 +10,13 @@ import {
   RiExternalLinkLine,
   RiCloseLine,
   RiArrowDownSLine,
+  RiFolderLine,
+  RiLinkUnlinkM,
 } from 'react-icons/ri';
 import { S } from './ViewContract.styles';
 import { useViewContractViewModel } from './ViewContract.viewmodel';
 import { Button } from '../../components/ui/Button';
+import { Badge } from '../../components/ui/Badge';
 import { Spinner } from '../../components/ui/Spinner';
 import { Input, Label } from '../../components/ui/Input';
 import { SearchSelect } from '../../components/ui/SearchSelect';
@@ -83,6 +86,7 @@ export const ViewContractView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
           <S.TabBtn $active={vm.activeTab === 'data'} onClick={() => vm.setActiveTab('data')}>Dados</S.TabBtn>
           <S.TabBtn $active={vm.activeTab === 'notes'} onClick={() => vm.setActiveTab('notes')}>Anotações</S.TabBtn>
           <S.TabBtn $active={vm.activeTab === 'documents'} onClick={() => vm.setActiveTab('documents')}>Documentos</S.TabBtn>
+          <S.TabBtn $active={vm.activeTab === 'cases'} onClick={() => vm.setActiveTab('cases')}>Processos</S.TabBtn>
         </S.TabBar>
       )}
 
@@ -561,6 +565,51 @@ export const ViewContractView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
                       {vm.isAdmin && (
                         <Button variant="ghost" size="sm" onClick={() => vm.requestDeleteDoc(docItem)} title="Excluir documento">
                           <RiDeleteBinLine size={13} />
+                        </Button>
+                      )}
+                    </S.DocActions>
+                  </S.DocRow>
+                ))}
+              </S.DocList>
+            )}
+          </>
+        )}
+
+        {vm.activeTab === 'cases' && !vm.isNew && (
+          <>
+            <S.CaseLinkControl>
+              <SearchSelect
+                options={vm.unlinkedCaseOptions}
+                value={vm.caseToAdd}
+                onChange={(val) => void vm.handleLinkCase(val)}
+                placeholder="Vincular um processo..."
+              />
+            </S.CaseLinkControl>
+
+            {vm.linkedCases.length === 0 ? (
+              <S.EmptyState>
+                <S.EmptyIcon><RiFolderLine /></S.EmptyIcon>
+                <div>Nenhum processo vinculado a este contrato.</div>
+              </S.EmptyState>
+            ) : (
+              <S.DocList>
+                {vm.linkedCases.map((c) => (
+                  <S.DocRow key={c.id}>
+                    <S.DocIcon><RiFolderLine /></S.DocIcon>
+                    <S.DocContent>
+                      <S.CaseLink type="button" onClick={() => vm.handleOpenCase(c)} title={c.title}>
+                        {c.caseNumber}
+                      </S.CaseLink>
+                      <S.DocMeta>{c.title}</S.DocMeta>
+                    </S.DocContent>
+                    <Badge color={vm.getCaseStatusColor(c.status)}>{c.status}</Badge>
+                    <S.DocActions>
+                      <Button variant="ghost" size="sm" onClick={() => vm.handleOpenCase(c)} title="Abrir processo">
+                        <RiExternalLinkLine size={14} />
+                      </Button>
+                      {vm.isAdmin && (
+                        <Button variant="ghost" size="sm" onClick={() => void vm.handleUnlinkCase(c)} title="Desvincular processo">
+                          <RiLinkUnlinkM size={14} />
                         </Button>
                       )}
                     </S.DocActions>

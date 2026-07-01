@@ -11,7 +11,7 @@ import type { Contract } from '../domain/entities';
 
 export const ContractStoreProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { currentTenant } = useTenant();
-  const { contractRepository } = useDI();
+  const { contractRepository, caseRepository } = useDI();
 
   const [contracts, setContracts] = useState<Contract[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -20,8 +20,8 @@ export const ContractStoreProvider: React.FC<{ children: React.ReactNode }> = ({
     get: makeGetContractsUseCase(contractRepository),
     create: makeCreateContractUseCase(contractRepository),
     update: makeUpdateContractUseCase(contractRepository),
-    delete: makeDeleteContractUseCase(contractRepository),
-  }), [contractRepository]);
+    delete: makeDeleteContractUseCase(contractRepository, caseRepository),
+  }), [contractRepository, caseRepository]);
 
   const refresh = useCallback(async () => {
     if (!currentTenant) return;
@@ -70,6 +70,7 @@ export const ContractStoreProvider: React.FC<{ children: React.ReactNode }> = ({
     await uc.delete.execute(currentTenant.id, contractId);
     setContracts((prev) => prev.filter((c) => c.id !== contractId));
     storeEvents.emit(StoreEvents.CONTRACTS_UPDATED);
+    storeEvents.emit(StoreEvents.CASES_UPDATED);
   }, [currentTenant, uc.delete]);
 
   return (

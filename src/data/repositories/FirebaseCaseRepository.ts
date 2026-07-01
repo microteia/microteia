@@ -10,6 +10,7 @@ import {
   where,
   orderBy,
   limit,
+  writeBatch,
   Timestamp,
   serverTimestamp,
 } from 'firebase/firestore';
@@ -45,6 +46,8 @@ const mapCase = (id: string, d: Record<string, unknown>, tenantId: string): Case
   status: (d.status as CaseStatus) ?? 'Em Andamento',
   responsibleLawyerId: d.responsibleLawyerId as string,
   responsibleLawyerName: d.responsibleLawyerName as string,
+  contractId: (d.contractId as string | null) ?? null,
+  contractNumber: (d.contractNumber as string | null) ?? null,
   activePoleIds: (d.activePoleIds as string[] | undefined) ?? [],
   passivePoleIds: (d.passivePoleIds as string[] | undefined) ?? [],
   opposingParties: (d.opposingParties as Case['opposingParties']) ?? [],
@@ -101,5 +104,16 @@ export class FirebaseCaseRepository implements ICaseRepository {
 
   async deleteCase(tenantId: string, caseId: string): Promise<void> {
     await deleteDoc(doc(casesRef(tenantId), caseId));
+  }
+
+  async unlinkCasesFromContract(tenantId: string, contractId: string): Promise<void> {
+    const q = query(casesRef(tenantId), where('contractId', '==', contractId));
+    const snap = await getDocs(q);
+    if (snap.empty) return;
+    const batch = writeBatch(db);
+    for (const d of snap.docs) {
+      batch.update(d.ref, { contractId: null, contractNumber: null, updatedAt: serverTimestamp() });
+    }
+    await batch.commit();
   }
 }

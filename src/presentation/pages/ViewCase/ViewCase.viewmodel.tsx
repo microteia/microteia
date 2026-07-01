@@ -2,6 +2,7 @@ import { useState, useMemo, useCallback, useEffect } from 'react';
 import { useTheme } from 'styled-components';
 import { useCaseStore } from '../../../stores/useCaseStore';
 import { useCaseTagStore } from '../../../stores/useCaseTagStore';
+import { useContractStore } from '../../../stores/useContractStore';
 import { useCaseLookup } from '../../../stores/useCaseLookup';
 import { useDocumentTypeLookup } from '../../../stores/useDocumentTypeLookup';
 import { usePersonStore } from '../../../stores/usePersonStore';
@@ -40,6 +41,8 @@ export interface CaseFormData {
   status: string;
   responsibleLawyerId: string;
   responsibleLawyerName: string;
+  contractId: string;
+  contractNumber: string;
   notes: string;
   causeValue: string;
   filedAt: string;
@@ -60,6 +63,8 @@ const buildFormData = (c: Case | null, userId: string, displayName: string): Cas
   status: c?.status ?? 'Em Andamento',
   responsibleLawyerId: c?.responsibleLawyerId ?? userId,
   responsibleLawyerName: c?.responsibleLawyerName ?? displayName,
+  contractId: c?.contractId ?? '',
+  contractNumber: c?.contractNumber ?? '',
   notes: c?.notes ?? '',
   causeValue: c?.causeValue?.toString() ?? '',
   filedAt: c?.filedAt ? c.filedAt.toISOString().slice(0, 10) : '',
@@ -83,6 +88,7 @@ export interface ViewCaseViewModel {
 
   personOptions: { value: string; label: string }[];
   memberOptions: { value: string; label: string }[];
+  contractOptions: { value: string; label: string }[];
 
   notes: CaseNote[];
   notesLoading: boolean;
@@ -170,6 +176,7 @@ export const useViewCaseViewModel = (tabKey: string): ViewCaseViewModel => {
   const { areaConfigs, phaseConfigs, statusConfigs, instanceConfigs, actionTypeConfigs, courtConfigs, districtConfigs, judgeConfigs, addItem, removeItem } = useCaseLookup();
   const { typeConfigs, addItem: addDocumentType, removeItem: removeDocumentType } = useDocumentTypeLookup();
   const { persons } = usePersonStore();
+  const { contracts } = useContractStore();
   const { user } = useAuth();
   const { tenantRole, currentTenant, members } = useTenant();
   const { setTabTitle, closeTab, openTab, activePanelId } = useWorkspace();
@@ -230,6 +237,11 @@ export const useViewCaseViewModel = (tabKey: string): ViewCaseViewModel => {
     [members],
   );
 
+  const contractOptions = useMemo(() =>
+    contracts.map((c) => ({ value: c.id, label: `${c.number} — ${c.title}` })),
+    [contracts],
+  );
+
   useEffect(() => {
     if (case_) {
       // eslint-disable-next-line react-hooks/set-state-in-effect -- sincroniza formulário ao carregar/atualizar dados do processo
@@ -266,6 +278,7 @@ export const useViewCaseViewModel = (tabKey: string): ViewCaseViewModel => {
     if (!currentTenant) return;
 
     const selectedMember = members.find((m) => m.userId === formData.responsibleLawyerId);
+    const selectedContract = contracts.find((c) => c.id === formData.contractId);
 
     setIsSaving(true);
     try {
@@ -282,6 +295,8 @@ export const useViewCaseViewModel = (tabKey: string): ViewCaseViewModel => {
         status: formData.status as CaseStatus,
         responsibleLawyerId: formData.responsibleLawyerId || (user?.id ?? ''),
         responsibleLawyerName: (selectedMember?.displayName ?? formData.responsibleLawyerName) || (user?.displayName ?? ''),
+        contractId: formData.contractId || null,
+        contractNumber: formData.contractId ? (selectedContract?.number ?? formData.contractNumber) : null,
         activePoleIds: formData.activePoleIds,
         passivePoleIds: formData.passivePoleIds,
         opposingParties: case_?.opposingParties ?? [],
@@ -309,7 +324,7 @@ export const useViewCaseViewModel = (tabKey: string): ViewCaseViewModel => {
     } finally {
       setIsSaving(false);
     }
-  }, [formData, isNew, case_, members, createCase, updateCase, currentTenant, notify, user, tabKey, setTabTitle, closeTab, openTab, activePanelId]);
+  }, [formData, isNew, case_, members, contracts, createCase, updateCase, currentTenant, notify, user, tabKey, setTabTitle, closeTab, openTab, activePanelId]);
 
   const appliedTags = useMemo(
     () => (case_ ? getTagsForCase(case_.id, case_.tagIds ?? []) : []),
@@ -574,6 +589,7 @@ export const useViewCaseViewModel = (tabKey: string): ViewCaseViewModel => {
     appliedTags,
     personOptions,
     memberOptions,
+    contractOptions,
     notes,
     notesLoading,
     newNoteTitle,
