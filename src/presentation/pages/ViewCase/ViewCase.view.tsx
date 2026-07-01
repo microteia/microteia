@@ -23,6 +23,7 @@ import { MultiSearchSelect } from '../../components/ui/MultiSearchSelect';
 import { TagManager } from '../../components/ui/TagManager';
 import { MarkdownEditor } from '../../components/ui/MarkdownEditor';
 import { MarkdownContent } from '../../components/ui/MarkdownContent';
+import { ConfirmModal } from '../../components/ui/ConfirmModal';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import type { SearchSelectOption } from '../../components/ui/SearchSelect';
