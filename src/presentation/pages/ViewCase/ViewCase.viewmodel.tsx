@@ -3,6 +3,7 @@ import { useTheme } from 'styled-components';
 import { useCaseStore } from '../../../stores/useCaseStore';
 import { useCaseTagStore } from '../../../stores/useCaseTagStore';
 import { useCaseLookup } from '../../../stores/useCaseLookup';
+import { useDocumentTypeLookup } from '../../../stores/useDocumentTypeLookup';
 import { usePersonStore } from '../../../stores/usePersonStore';
 import { useAuth } from '../../../stores/useAuth';
 import { useTenant } from '../../../stores/useTenant';
@@ -109,8 +110,14 @@ export interface ViewCaseViewModel {
   docsLoading: boolean;
   isUploadingDoc: boolean;
   pendingFile: File | null;
+  pendingType: string;
+  setPendingType: (v: string) => void;
   pendingDescription: string;
   setPendingDescription: (v: string) => void;
+  documentTypeOptions: DynamicSelectOption[];
+  documentTypeDynamicOptions: DynamicSelectOption[];
+  handleAddDocumentType: (name: string) => Promise<void>;
+  handleDeleteDocumentType: (key: string) => Promise<void>;
   handleSelectFile: (e: React.ChangeEvent<HTMLInputElement>) => void;
   handleConfirmUpload: () => Promise<void>;
   handleCancelPendingUpload: () => void;
@@ -167,6 +174,7 @@ export const useViewCaseViewModel = (tabKey: string): ViewCaseViewModel => {
   const { cases, createCase, updateCase, deleteCase } = useCaseStore();
   const { tags, getTagsForCase, setTagsForCase, createTag, updateTag, deleteTag } = useCaseTagStore();
   const { areaConfigs, phaseConfigs, statusConfigs, instanceConfigs, actionTypeConfigs, courtConfigs, districtConfigs, judgeConfigs, addItem, removeItem } = useCaseLookup();
+  const { typeConfigs, addItem: addDocumentType, removeItem: removeDocumentType } = useDocumentTypeLookup();
   const { persons } = usePersonStore();
   const { user } = useAuth();
   const { tenantRole, currentTenant, members } = useTenant();
@@ -203,6 +211,7 @@ export const useViewCaseViewModel = (tabKey: string): ViewCaseViewModel => {
   const [isUploadingDoc, setIsUploadingDoc] = useState(false);
   const [docToDelete, setDocToDelete] = useState<CaseDocument | null>(null);
   const [pendingFile, setPendingFile] = useState<File | null>(null);
+  const [pendingType, setPendingType] = useState('');
   const [pendingDescription, setPendingDescription] = useState('');
 
   const noteUC = useMemo(() => ({
@@ -391,6 +400,7 @@ export const useViewCaseViewModel = (tabKey: string): ViewCaseViewModel => {
 
   const handleCancelPendingUpload = useCallback(() => {
     setPendingFile(null);
+    setPendingType('');
     setPendingDescription('');
   }, []);
 
@@ -402,6 +412,7 @@ export const useViewCaseViewModel = (tabKey: string): ViewCaseViewModel => {
       const { url, storagePath } = JSON.parse(raw) as { url: string; storagePath: string };
       const addedDoc = await docUC.add.execute(currentTenant.id, case_.id, {
         name: pendingFile.name,
+        type: pendingType.trim() || undefined,
         description: pendingDescription.trim() || undefined,
         url,
         storagePath,
@@ -411,6 +422,7 @@ export const useViewCaseViewModel = (tabKey: string): ViewCaseViewModel => {
       });
       setDocuments((prev) => [addedDoc, ...prev]);
       setPendingFile(null);
+      setPendingType('');
       setPendingDescription('');
       notify('Documento enviado com sucesso.', 'success');
     } catch {
@@ -418,7 +430,7 @@ export const useViewCaseViewModel = (tabKey: string): ViewCaseViewModel => {
     } finally {
       setIsUploadingDoc(false);
     }
-  }, [pendingFile, pendingDescription, case_, currentTenant, user, docUC, notify]);
+  }, [pendingFile, pendingType, pendingDescription, case_, currentTenant, user, docUC, notify]);
 
   const requestDeleteDoc = useCallback((doc: CaseDocument) => setDocToDelete(doc), []);
   const cancelDeleteDoc = useCallback(() => setDocToDelete(null), []);
@@ -521,6 +533,15 @@ export const useViewCaseViewModel = (tabKey: string): ViewCaseViewModel => {
     [judgeConfigs],
   );
 
+  const documentTypeOptions = useMemo<DynamicSelectOption[]>(() =>
+    typeConfigs.filter(t => t.isStatic !== false).map((t) => ({ value: t.key, label: t.label })),
+    [typeConfigs],
+  );
+  const documentTypeDynamicOptions = useMemo<DynamicSelectOption[]>(() =>
+    typeConfigs.filter(t => t.isStatic === false).map((t) => ({ value: t.key, label: t.label })),
+    [typeConfigs],
+  );
+
   const handleAddArea = useCallback(async (name: string) => { await addItem('areas', name); }, [addItem]);
   const handleDeleteArea = useCallback(async (key: string) => { await removeItem('areas', key); }, [removeItem]);
 
@@ -544,6 +565,9 @@ export const useViewCaseViewModel = (tabKey: string): ViewCaseViewModel => {
 
   const handleAddJudge = useCallback(async (name: string) => { await addItem('judges', name); }, [addItem]);
   const handleDeleteJudge = useCallback(async (key: string) => { await removeItem('judges', key); }, [removeItem]);
+
+  const handleAddDocumentType = useCallback(async (name: string) => { await addDocumentType(name); }, [addDocumentType]);
+  const handleDeleteDocumentType = useCallback(async (key: string) => { await removeDocumentType(key); }, [removeDocumentType]);
 
   return {
     isNew,
@@ -582,8 +606,14 @@ export const useViewCaseViewModel = (tabKey: string): ViewCaseViewModel => {
     docsLoading,
     isUploadingDoc,
     pendingFile,
+    pendingType,
+    setPendingType,
     pendingDescription,
     setPendingDescription,
+    documentTypeOptions,
+    documentTypeDynamicOptions,
+    handleAddDocumentType,
+    handleDeleteDocumentType,
     handleSelectFile,
     handleConfirmUpload,
     handleCancelPendingUpload,

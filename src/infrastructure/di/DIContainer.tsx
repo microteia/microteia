@@ -36,6 +36,7 @@ import { FirebaseCaseDistrictRepository } from '../../data/repositories/Firebase
 import { FirebaseCaseJudgeRepository } from '../../data/repositories/FirebaseCaseJudgeRepository';
 import { FirebasePersonLookupRepository } from '../../data/repositories/FirebasePersonLookupRepository';
 import { FirebaseDeadlineTypeRepository } from '../../data/repositories/FirebaseDeadlineTypeRepository';
+import { FirebaseDocumentTypeRepository } from '../../data/repositories/FirebaseDocumentTypeRepository';
 import { DIContext } from './useDI';
 import type { DIContainer } from './useDI';
 
@@ -78,6 +79,7 @@ export const DIProvider: React.FC<{ children: React.ReactNode }> = ({ children }
     textAnnotationRepository: new FirebaseTextAnnotationRepository(),
     pushRepository:           new FirebasePushRepository(),
     pushInteractionRepository: new FirebasePushInteractionRepository(),
+    documentTypeRepository:   new FirebaseDocumentTypeRepository(),
   }), []);
 
   return <DIContext.Provider value={container}>{children}</DIContext.Provider>;

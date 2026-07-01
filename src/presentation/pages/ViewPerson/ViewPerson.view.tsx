@@ -404,10 +404,23 @@ export const ViewPersonView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
                 <S.DocIcon><RiFileTextLine /></S.DocIcon>
                 <S.PendingFileContent>
                   <S.PendingFileName title={vm.pendingFile.name}>{vm.pendingFile.name}</S.PendingFileName>
+                  <DynamicSelect
+                    staticOptions={vm.documentTypeOptions}
+                    dynamicOptions={vm.documentTypeDynamicOptions}
+                    value={vm.pendingType}
+                    onChange={vm.setPendingType}
+                    placeholder="Tipo (opcional)"
+                    onAdd={vm.handleAddDocumentType}
+                    onDelete={vm.handleDeleteDocumentType}
+                    deleteConfirmTitle="Excluir tipo de documento"
+                    deleteConfirmMessage="Tem certeza que deseja excluir este tipo de documento?"
+                    disabled={vm.isUploadingDoc}
+                  />
                   <Input
                     value={vm.pendingDescription}
                     onChange={(e) => vm.setPendingDescription(e.target.value)}
                     placeholder="Descrição (opcional)"
+                    disabled={vm.isUploadingDoc}
                   />
                 </S.PendingFileContent>
                 <S.PendingFileActions>
@@ -440,6 +453,9 @@ export const ViewPersonView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
                       <S.DocName href={docItem.url} target="_blank" rel="noopener noreferrer" title={docItem.name}>
                         {docItem.name}
                       </S.DocName>
+                      {docItem.type && (
+                        <S.DocMeta><strong>Tipo:</strong> {docItem.type}</S.DocMeta>
+                      )}
                       {docItem.description && (
                         <S.DocMeta>{docItem.description}</S.DocMeta>
                       )}

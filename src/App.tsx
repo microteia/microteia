@@ -10,6 +10,7 @@ import { PersonLookupStoreProvider } from './stores/PersonLookupStore';
 import { CaseStoreProvider } from './stores/CaseStore';
 import { CaseTagStoreProvider } from './stores/CaseTagStore';
 import { CaseLookupStoreProvider } from './stores/CaseLookupStore';
+import { DocumentTypeLookupStoreProvider } from './stores/DocumentTypeLookupStore';
 import { DeadlineStoreProvider } from './stores/DeadlineStore';
 import { DeadlineLookupStoreProvider } from './stores/DeadlineLookupStore';
 import { FinancialStoreProvider } from './stores/FinancialStore';
@@ -45,6 +46,7 @@ const App: React.FC = () => {
                         <PersonLookupStoreProvider>
                         <CaseStoreProvider>
                           <CaseLookupStoreProvider>
+                          <DocumentTypeLookupStoreProvider>
                           <CaseTagStoreProvider>
                           <DeadlineStoreProvider>
                             <DeadlineLookupStoreProvider>
@@ -74,6 +76,7 @@ const App: React.FC = () => {
                             </DeadlineLookupStoreProvider>
                           </DeadlineStoreProvider>
                           </CaseTagStoreProvider>
+                          </DocumentTypeLookupStoreProvider>
                           </CaseLookupStoreProvider>
                         </CaseStoreProvider>
                         </PersonLookupStoreProvider>

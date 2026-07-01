@@ -1254,6 +1254,12 @@ service cloud.firestore {
         allow delete: if isTenantLawyerOrAdmin(tenantId);
       }
 
+      // Tipos de documento — compartilhado entre pessoas e processos
+      match /documentTypes/{id} {
+        allow read: if isMember(tenantId);
+        allow create, delete: if canWriteInTenant(tenantId);
+      }
+
       // Processos
       match /cases/{caseId} {
         allow read: if isMember(tenantId);

@@ -3,6 +3,7 @@ import { useTheme } from 'styled-components';
 import { usePersonStore } from '../../../stores/usePersonStore';
 import { usePersonTagStore } from '../../../stores/usePersonTagStore';
 import { usePersonLookup } from '../../../stores/usePersonLookup';
+import { useDocumentTypeLookup } from '../../../stores/useDocumentTypeLookup';
 import { useAuth } from '../../../stores/useAuth';
 import { useTenant } from '../../../stores/useTenant';
 import { useWorkspace } from '../../../stores/useWorkspace';
@@ -130,8 +131,14 @@ export interface ViewPersonViewModel {
   docsLoading: boolean;
   isUploadingDoc: boolean;
   pendingFile: File | null;
+  pendingType: string;
+  setPendingType: (v: string) => void;
   pendingDescription: string;
   setPendingDescription: (v: string) => void;
+  documentTypeOptions: DynamicSelectOption[];
+  documentTypeDynamicOptions: DynamicSelectOption[];
+  handleAddDocumentType: (name: string) => Promise<void>;
+  handleDeleteDocumentType: (key: string) => Promise<void>;
   handleSelectFile: (e: React.ChangeEvent<HTMLInputElement>) => void;
   handleConfirmUpload: () => Promise<void>;
   handleCancelPendingUpload: () => void;
@@ -182,6 +189,7 @@ export const useViewPersonViewModel = (tabKey: string): ViewPersonViewModel => {
   const { persons, createPerson, updatePerson, updatePersonStatus, deletePerson } = usePersonStore();
   const { tags, getTagsForPerson, setTagsForPerson, createTag, updateTag, deleteTag } = usePersonTagStore();
   const { typeConfigs, occupationConfigs, nationalityConfigs, maritalStatusConfigs, cityConfigs, relationshipConfigs, addItem, removeItem } = usePersonLookup();
+  const { typeConfigs: documentTypeConfigs, addItem: addDocumentType, removeItem: removeDocumentType } = useDocumentTypeLookup();
   const { user } = useAuth();
   const { tenantRole, currentTenant } = useTenant();
   const { setTabTitle, closeTab, activePanelId } = useWorkspace();
@@ -221,6 +229,7 @@ export const useViewPersonViewModel = (tabKey: string): ViewPersonViewModel => {
   const [isUploadingDoc, setIsUploadingDoc] = useState(false);
   const [docToDelete, setDocToDelete] = useState<PersonDocument | null>(null);
   const [pendingFile, setPendingFile] = useState<File | null>(null);
+  const [pendingType, setPendingType] = useState('');
   const [pendingDescription, setPendingDescription] = useState('');
 
   const noteUC = useMemo(() => ({
@@ -511,6 +520,7 @@ export const useViewPersonViewModel = (tabKey: string): ViewPersonViewModel => {
     const file = e.target.files?.[0];
     if (file) {
       setPendingFile(file);
+      setPendingType('');
       setPendingDescription('');
     }
     e.target.value = '';
@@ -518,6 +528,7 @@ export const useViewPersonViewModel = (tabKey: string): ViewPersonViewModel => {
 
   const handleCancelPendingUpload = useCallback(() => {
     setPendingFile(null);
+    setPendingType('');
     setPendingDescription('');
   }, []);
 
@@ -529,6 +540,7 @@ export const useViewPersonViewModel = (tabKey: string): ViewPersonViewModel => {
       const { url, storagePath } = JSON.parse(raw) as { url: string; storagePath: string };
       const addedDoc = await docUC.add.execute(currentTenant.id, person.id, {
         name: pendingFile.name,
+        type: pendingType.trim() || undefined,
         description: pendingDescription.trim() || undefined,
         url,
         storagePath,
@@ -538,6 +550,7 @@ export const useViewPersonViewModel = (tabKey: string): ViewPersonViewModel => {
       });
       setDocuments((prev) => [addedDoc, ...prev]);
       setPendingFile(null);
+      setPendingType('');
       setPendingDescription('');
       notify('Documento enviado com sucesso.', 'success');
     } catch {
@@ -545,7 +558,7 @@ export const useViewPersonViewModel = (tabKey: string): ViewPersonViewModel => {
     } finally {
       setIsUploadingDoc(false);
     }
-  }, [pendingFile, pendingDescription, person, currentTenant, user, docUC, notify]);
+  }, [pendingFile, pendingType, pendingDescription, person, currentTenant, user, docUC, notify]);
 
   const requestDeleteDoc = useCallback((doc: PersonDocument) => setDocToDelete(doc), []);
   const cancelDeleteDoc = useCallback(() => setDocToDelete(null), []);
@@ -649,6 +662,15 @@ export const useViewPersonViewModel = (tabKey: string): ViewPersonViewModel => {
     [relationshipConfigs, theme],
   );
 
+  const documentTypeOptions = useMemo<DynamicSelectOption[]>(() =>
+    documentTypeConfigs.filter(t => t.isStatic !== false).map((t) => ({ value: t.key, label: t.label })),
+    [documentTypeConfigs],
+  );
+  const documentTypeDynamicOptions = useMemo<DynamicSelectOption[]>(() =>
+    documentTypeConfigs.filter(t => t.isStatic === false).map((t) => ({ value: t.key, label: t.label })),
+    [documentTypeConfigs],
+  );
+
   const handleAddType            = useCallback(async (name: string) => { await addItem('types', name); },           [addItem]);
   const handleDeleteType         = useCallback(async (key: string)  => { await removeItem('types', key); },         [removeItem]);
   const handleAddOccupation      = useCallback(async (name: string) => { await addItem('occupations', name); },     [addItem]);
@@ -661,6 +683,9 @@ export const useViewPersonViewModel = (tabKey: string): ViewPersonViewModel => {
   const handleDeleteCity         = useCallback(async (key: string)  => { await removeItem('cities', key); },        [removeItem]);
   const handleAddRelationship    = useCallback(async (name: string) => { await addItem('relationships', name); },   [addItem]);
   const handleDeleteRelationship = useCallback(async (key: string)  => { await removeItem('relationships', key); }, [removeItem]);
+
+  const handleAddDocumentType = useCallback(async (name: string) => { await addDocumentType(name); }, [addDocumentType]);
+  const handleDeleteDocumentType = useCallback(async (key: string) => { await removeDocumentType(key); }, [removeDocumentType]);
 
   return {
     isNew,
@@ -705,8 +730,14 @@ export const useViewPersonViewModel = (tabKey: string): ViewPersonViewModel => {
     docsLoading,
     isUploadingDoc,
     pendingFile,
+    pendingType,
+    setPendingType,
     pendingDescription,
     setPendingDescription,
+    documentTypeOptions,
+    documentTypeDynamicOptions,
+    handleAddDocumentType,
+    handleDeleteDocumentType,
     handleSelectFile,
     handleConfirmUpload,
     handleCancelPendingUpload,

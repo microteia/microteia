@@ -195,6 +195,7 @@ export interface PersonDocument {
   personId: string;
   tenantId: string;
   name: string;
+  type?: string;
   description?: string;
   url: string;
   storagePath: string;
@@ -236,6 +237,7 @@ export interface CaseDocument {
   caseId: string;
   tenantId: string;
   name: string;
+  type?: string;
   description?: string;
   url: string;
   storagePath: string;
@@ -326,6 +328,12 @@ export interface CaseDistrictConfig {
 }
 
 export interface CaseJudgeConfig {
+  key: string;
+  label: string;
+  isStatic?: boolean;
+}
+
+export interface DocumentTypeConfig {
   key: string;
   label: string;
   isStatic?: boolean;
