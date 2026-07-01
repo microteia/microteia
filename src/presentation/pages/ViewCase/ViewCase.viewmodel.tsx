@@ -390,7 +390,7 @@ export const useViewCaseViewModel = (tabKey: string): ViewCaseViewModel => {
     const file = e.target.files?.[0];
     if (file) {
       setPendingFile(file);
-      setPendingDescription('');
+      setPendingType('');
     }
     e.target.value = '';
   }, []);
