@@ -413,6 +413,17 @@ export const S = {
     color: ${({ theme }) => theme.colors.textMuted};
   `,
 
+  DocTypeBadge: styled.span`
+    font-size: ${({ theme }) => theme.fontSizes.xs};
+    color: ${({ theme }) => theme.colors.textSecondary};
+    padding: 2px 8px;
+    border: 1px solid ${({ theme }) => theme.colors.border};
+    border-radius: ${({ theme }) => theme.borderRadius.md};
+    background: transparent;
+    white-space: nowrap;
+    flex-shrink: 0;
+  `,
+
   DocActions: styled.div`
     display: flex;
     align-items: center;

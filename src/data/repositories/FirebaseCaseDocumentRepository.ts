@@ -22,6 +22,7 @@ const mapDoc = (id: string, d: Record<string, unknown>, tenantId: string, caseId
   caseId,
   tenantId,
   name: d.name as string,
+  type: (d.type as string | undefined) ?? undefined,
   description: (d.description as string | undefined) ?? undefined,
   url: d.url as string,
   storagePath: d.storagePath as string,

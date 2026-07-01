@@ -489,9 +489,6 @@ export const ViewCaseView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
                       <S.DocName href={docItem.url} target="_blank" rel="noopener noreferrer" title={docItem.name}>
                         {docItem.name}
                       </S.DocName>
-                      {docItem.type && (
-                        <S.DocMeta><strong>Tipo:</strong> {docItem.type}</S.DocMeta>
-                      )}
                       {docItem.description && (
                         <S.DocMeta>{docItem.description}</S.DocMeta>
                       )}
@@ -506,6 +503,7 @@ export const ViewCaseView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
                         </S.DocMeta>
                       </S.DocUploaderRow>
                     </S.DocContent>
+                    {docItem.type && <S.DocTypeBadge>{docItem.type}</S.DocTypeBadge>}
                     <S.DocActions>
                       <Button variant="ghost" size="sm" onClick={() => window.open(docItem.url, '_blank', 'noopener,noreferrer')} title="Abrir documento">
                         <RiExternalLinkLine size={14} />
