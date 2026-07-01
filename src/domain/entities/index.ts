@@ -356,7 +356,7 @@ export interface Case {
   personId: string;
   personName: string;
   area: CaseArea;
-  type?: string;
+  type?: string[];
   court?: string | null;
   courtDistrict?: string | null;
   judge?: string | null;

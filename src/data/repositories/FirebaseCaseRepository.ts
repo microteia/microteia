@@ -36,7 +36,9 @@ const mapCase = (id: string, d: Record<string, unknown>, tenantId: string): Case
   personId: d.personId as string,
   personName: d.personName as string,
   area: d.area as Case['area'],
-  type: (d.type as string) ?? undefined,
+  type: d.type
+    ? (Array.isArray(d.type) ? d.type as string[] : [d.type as string])
+    : undefined,
   court: (d.court as string | null) ?? null,
   courtDistrict: (d.courtDistrict as string | null) ?? null,
   judge: (d.judge as string | null) ?? null,

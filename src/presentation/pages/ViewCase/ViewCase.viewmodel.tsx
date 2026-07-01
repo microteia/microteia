@@ -32,7 +32,7 @@ export interface CaseFormData {
   activePoleIds: string[];
   passivePoleIds: string[];
   area: string;
-  type: string;
+  type: string[];
   court: string;
   courtDistrict: string;
   judge: string;
@@ -54,7 +54,7 @@ const buildFormData = (c: Case | null, userId: string, displayName: string): Cas
   activePoleIds: c?.activePoleIds ?? [],
   passivePoleIds: c?.passivePoleIds ?? [],
   area: c?.area ?? 'Cível',
-  type: c?.type ?? '',
+  type: c?.type ?? [],
   court: c?.court ?? '',
   courtDistrict: c?.courtDistrict ?? '',
   judge: c?.judge ?? '',
@@ -281,7 +281,7 @@ export const useViewCaseViewModel = (tabKey: string): ViewCaseViewModel => {
         personId: formData.personId,
         personName: selectedPerson?.name ?? '',
         area: formData.area as CaseArea,
-        type: formData.type || undefined,
+        type: formData.type.length > 0 ? formData.type : undefined,
         court: formData.court || null,
         courtDistrict: formData.courtDistrict || null,
         judge: formData.judge || null,

@@ -162,7 +162,7 @@ export const useCasesViewModel = (): CasesViewModel => {
         !c.caseNumber.toLowerCase().includes(searchQ)) return false;
       if (statusFilter.length > 0 && !statusFilter.includes(c.status)) return false;
       if (areaFilter.length > 0 && !areaFilter.includes(c.area)) return false;
-      if (typeFilter.length > 0 && !typeFilter.includes(c.type ?? '')) return false;
+      if (typeFilter.length > 0 && !typeFilter.some((t) => (c.type ?? []).includes(t))) return false;
       if (phaseFilter.length > 0 && !phaseFilter.includes(c.phase)) return false;
       if (instanceFilter.length > 0 && (c.instance == null || !instanceFilter.includes(c.instance))) return false;
       if (courtFilter.length > 0 && !courtFilter.includes(c.court ?? '')) return false;

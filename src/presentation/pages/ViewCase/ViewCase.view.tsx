@@ -191,10 +191,11 @@ export const ViewCaseView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
             <S.FormGroup>
               <Label>Tipo de Ação</Label>
               <DynamicSelect
+                multiSelect
                 dynamicOptions={actionTypeOptions}
-                value={vm.formData.type}
-                onChange={(val) => vm.setFormData({ type: val })}
-                placeholder="Selecione ou adicione..."
+                values={vm.formData.type}
+                onChangeMulti={(vals) => vm.setFormData({ type: vals })}
+                placeholder="Selecione os tipos..."
                 onAdd={handleAddActionType}
                 onDelete={handleDeleteActionType}
                 deleteConfirmTitle="Excluir tipo de ação"

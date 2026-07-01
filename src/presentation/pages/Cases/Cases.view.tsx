@@ -127,10 +127,10 @@ export const CasesView: React.FC = () => {
                         <S.MetaText>{c.instance} - {c.court}</S.MetaText>
                       </S.MetaRow>
                     )}
-                    {c.type && (
+                    {c.type && c.type.length > 0 && (
                       <S.MetaRow>
                         <RiScalesLine size={12} />
-                        <S.MetaText>{c.area} - {c.type}</S.MetaText>
+                        <S.MetaText>{c.area} - {Array.isArray(c.type) ? c.type.join(', ') : c.type}</S.MetaText>
                       </S.MetaRow>
                     )}
                     {c.causeValue != null && (
