@@ -3,14 +3,20 @@ import { useTheme } from 'styled-components';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isToday, addMonths, subMonths } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useDeadlineStore } from '../../../stores/useDeadlineStore';
+import { useCaseStore } from '../../../stores/useCaseStore';
 import { useWorkspace } from '../../../stores/useWorkspace';
-import type { Deadline, DeadlinePriority } from '../../../domain/entities';
+import { useAuth } from '../../../stores/useAuth';
+import { useNotification } from '../../../stores/useNotification';
+import type { Deadline, DeadlinePriority, DeadlineStatus } from '../../../domain/entities';
 
 export interface DayDeadlineItem {
   deadline: Deadline;
   color: string;
   isOverdue: boolean;
   isCompleted: boolean;
+  caseId: string;
+  statusColor: string;
+  caseExists: boolean;
 }
 
 export interface CalendarDayColumn {
@@ -42,13 +48,21 @@ export interface CalendarViewModel {
   goToNextMonth: () => void;
   goToToday: () => void;
   openDeadlines: () => void;
+  handleCompleteDeadline: (deadlineId: string) => Promise<void>;
+  handleOpenDeadline: (deadlineId: string) => void;
+  handleOpenCase: (caseId: string) => void;
+  getStatusColor: (status: string) => string;
+  getPriorityColor: (priority: string) => string;
 }
 
 const PRIORITIES: DeadlinePriority[] = ['Baixa', 'Média', 'Alta', 'Crítica'];
 
 export const useCalendarViewModel = (): CalendarViewModel => {
-  const { deadlines } = useDeadlineStore();
+  const { deadlines, completeDeadline } = useDeadlineStore();
+  const { cases } = useCaseStore();
   const { openTab } = useWorkspace();
+  const { user } = useAuth();
+  const { notify } = useNotification();
   const theme = useTheme();
 
   const [currentMonth, setCurrentMonth] = useState<Date>(() => startOfMonth(new Date()));
@@ -58,6 +72,26 @@ export const useCalendarViewModel = (): CalendarViewModel => {
     () => format(currentMonth, 'MMMM yyyy', { locale: ptBR }),
     [currentMonth],
   );
+
+  const getStatusColor = useCallback((status: string): string => {
+    const map: Record<DeadlineStatus, string> = {
+      'Pendente':  theme.colors.info,
+      'Concluído': theme.colors.success,
+      'Vencido':   theme.colors.danger,
+      'Cancelado': theme.colors.textSecondary,
+    };
+    return map[status as DeadlineStatus] ?? theme.colors.textSecondary;
+  }, [theme]);
+
+  const getPriorityColor = useCallback((priority: string): string => {
+    const map: Record<DeadlinePriority, string> = {
+      'Baixa':   theme.colors.success,
+      'Média':   theme.colors.warning,
+      'Alta':    theme.colors.secondary,
+      'Crítica': theme.colors.danger,
+    };
+    return map[priority as DeadlinePriority] ?? theme.colors.textSecondary;
+  }, [theme]);
 
   const priorityColorMap = useMemo(() => ({
     'Baixa':   theme.colors.success,
@@ -93,12 +127,18 @@ export const useCalendarViewModel = (): CalendarViewModel => {
           const pri: DeadlinePriority[] = ['Crítica', 'Alta', 'Média', 'Baixa'];
           return pri.indexOf(a.priority) - pri.indexOf(b.priority);
         })
-        .map((d) => ({
-          deadline: d,
-          color: priorityColorMap[d.priority] ?? theme.colors.textSecondary,
-          isOverdue: d.status === 'Pendente' && d.dueDate.getTime() < now.getTime() && !isToday(d.dueDate),
-          isCompleted: d.status === 'Concluído',
-        }));
+        .map((d) => {
+          const caseExists = cases.some((c) => c.id === d.caseId);
+          return {
+            deadline: d,
+            color: getPriorityColor(d.priority),
+            isOverdue: d.status === 'Pendente' && d.dueDate.getTime() < now.getTime() && !isToday(d.dueDate),
+            isCompleted: d.status === 'Concluído',
+            caseId: d.caseId,
+            statusColor: getStatusColor(d.status),
+            caseExists,
+          };
+        });
 
       return {
         date,
@@ -108,7 +148,7 @@ export const useCalendarViewModel = (): CalendarViewModel => {
         items,
       };
     });
-  }, [currentMonth, filteredDeadlines, priorityColorMap, theme]);
+  }, [currentMonth, filteredDeadlines, getPriorityColor, getStatusColor, cases]);
 
   const stats = useMemo<CalendarStats>(() => {
     const monthKey = currentMonth.toISOString().slice(0, 7);
@@ -141,6 +181,24 @@ export const useCalendarViewModel = (): CalendarViewModel => {
   const goToToday    = useCallback(() => setCurrentMonth(startOfMonth(new Date())), []);
   const openDeadlines = useCallback(() => openTab('deadlines'), [openTab]);
 
+  const handleCompleteDeadline = useCallback(async (deadlineId: string) => {
+    if (!user) return;
+    try {
+      await completeDeadline(deadlineId, user.id);
+      notify('Prazo marcado como concluído.', 'success');
+    } catch {
+      notify('Erro ao concluir prazo.', 'error');
+    }
+  }, [completeDeadline, user, notify]);
+
+  const handleOpenDeadline = useCallback((deadlineId: string) => {
+    openTab(`view-deadline:${deadlineId}`);
+  }, [openTab]);
+
+  const handleOpenCase = useCallback((caseId: string) => {
+    openTab(`view-case:${caseId}`);
+  }, [openTab]);
+
   return {
     currentMonth,
     monthLabel,
@@ -153,5 +211,10 @@ export const useCalendarViewModel = (): CalendarViewModel => {
     goToNextMonth,
     goToToday,
     openDeadlines,
+    handleCompleteDeadline,
+    handleOpenDeadline,
+    handleOpenCase,
+    getStatusColor,
+    getPriorityColor,
   };
 };

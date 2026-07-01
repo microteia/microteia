@@ -1,5 +1,5 @@
 import React from 'react';
-import { RiArrowLeftSLine, RiArrowRightSLine } from 'react-icons/ri';
+import { RiArrowLeftSLine, RiArrowRightSLine, RiScalesLine, RiCheckLine } from 'react-icons/ri';
 import { useCalendarViewModel } from './Calendar.viewmodel';
 import { S } from './Calendar.styles';
 import type { DeadlinePriority } from '../../../domain/entities';
@@ -54,14 +54,63 @@ export const CalendarView: React.FC = () => {
               </S.DayHeader>
 
               <S.DayEvents>
-                {day.items.map(({ deadline, color, isOverdue, isCompleted }) => (
-                  <S.SideEventCard key={deadline.id} $color={isOverdue ? '#ef4444' : color} $done={isCompleted}>
-                    <S.SideEventTitle>{deadline.description || deadline.type}</S.SideEventTitle>
+                {day.items.map((item) => (
+                  <S.SideEventCard
+                    key={item.deadline.id}
+                    $color={item.isOverdue ? '#ef4444' : item.color}
+                    $done={item.isCompleted}
+                    onClick={() => vm.handleOpenDeadline(item.deadline.id)}
+                  >
+                    <S.SideEventType>{item.deadline.type}</S.SideEventType>
+
                     <S.SideEventMeta>
-                      <span>{deadline.caseNumber}</span>
-                      <span>{deadline.status}</span>
-                      {deadline.responsibleLawyerName && <span>{deadline.responsibleLawyerName}</span>}
+                      {item.caseExists && (
+                        <S.SideEventCaseLink
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            vm.handleOpenCase(item.caseId);
+                          }}
+                          title={`Abrir processo ${item.deadline.caseNumber}`}
+                        >
+                          {item.deadline.caseNumber}
+                        </S.SideEventCaseLink>
+                      )}
+
+                      <S.SideEventBadgeRow>
+                        <S.SideEventBadge $color={item.statusColor}>
+                          {item.deadline.status}
+                        </S.SideEventBadge>
+                        <S.SideEventBadge $color={item.color}>
+                          {item.deadline.priority}
+                        </S.SideEventBadge>
+                      </S.SideEventBadgeRow>
+
+                      {item.deadline.responsibleLawyerName && (
+                        <S.SideEventLawyer>
+                          <RiScalesLine size={10} />
+                          <span>{item.deadline.responsibleLawyerName}</span>
+                        </S.SideEventLawyer>
+                      )}
+
+                      {item.deadline.description && (
+                        <S.SideEventDescription>
+                          {item.deadline.description}
+                        </S.SideEventDescription>
+                      )}
                     </S.SideEventMeta>
+
+                    {item.deadline.status !== 'Concluído' && item.deadline.status !== 'Cancelado' && (
+                      <S.SideEventCompleteBtn
+                        className="calendar-complete-btn"
+                        title="Marcar como concluído"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          void vm.handleCompleteDeadline(item.deadline.id);
+                        }}
+                      >
+                        <RiCheckLine size={11} />
+                      </S.SideEventCompleteBtn>
+                    )}
                   </S.SideEventCard>
                 ))}
               </S.DayEvents>

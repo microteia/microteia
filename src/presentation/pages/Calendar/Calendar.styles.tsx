@@ -168,6 +168,7 @@ export const S = {
   `,
 
   SideEventCard: styled.div<{ $color: string; $done: boolean }>`
+    position: relative;
     display: flex;
     flex-direction: column;
     gap: 4px;
@@ -177,13 +178,29 @@ export const S = {
     border-right: 3px solid ${({ $color }) => $color};
     background: ${({ theme, $done }) => $done ? theme.colors.background : `${theme.colors.primary}08`};
     opacity: ${({ $done }) => $done ? 0.72 : 1};
+    cursor: pointer;
+    transition: ${({ theme }) => theme.transitions.fast};
+
+    &:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 2px 8px ${({ theme }) => `${theme.colors.primary}10`};
+    }
+
+    &:hover .calendar-complete-btn {
+      opacity: 1;
+      pointer-events: auto;
+    }
   `,
 
-  SideEventTitle: styled.div`
+  SideEventType: styled.div`
     font-size: ${({ theme }) => theme.fontSizes.xs};
     font-weight: 600;
     color: ${({ theme }) => theme.colors.text};
     line-height: 1.35;
+    max-width: 150px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   `,
 
   SideEventMeta: styled.div`
@@ -191,7 +208,99 @@ export const S = {
     color: ${({ theme }) => theme.colors.textMuted};
     display: flex;
     flex-direction: column;
-    gap: 2px;
+    gap: 3px;
+  `,
+
+  SideEventCaseLink: styled.button`
+    font-size: 0.65rem;
+    color: ${({ theme }) => theme.colors.textMuted};
+    font-family: ${({ theme }) => theme.fonts.mono};
+    background: none;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+    text-align: left;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    transition: ${({ theme }) => theme.transitions.fast};
+    max-width: fit-content;
+
+    &:hover {
+      color: ${({ theme }) => theme.colors.primary};
+      text-decoration: underline;
+    }
+  `,
+
+  SideEventBadgeRow: styled.div`
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex-wrap: wrap;
+  `,
+
+  SideEventBadge: styled.span<{ $color: string }>`
+    display: inline-flex;
+    align-items: center;
+    padding: 1px 5px;
+    border-radius: ${({ theme }) => theme.borderRadius.full};
+    font-size: 9px;
+    font-weight: 500;
+    background: ${({ $color }) => `${$color}20`};
+    color: ${({ $color }) => $color};
+    border: 1px solid ${({ $color }) => `${$color}40`};
+    flex-shrink: 0;
+    white-space: nowrap;
+  `,
+
+  SideEventLawyer: styled.div`
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.65rem;
+    color: ${({ theme }) => theme.colors.textMuted};
+
+    span {
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+  `,
+
+  SideEventDescription: styled.div`
+    font-size: 0.65rem;
+    color: ${({ theme }) => theme.colors.textMuted};
+    font-style: italic;
+    max-width: 150px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  `,
+
+  SideEventCompleteBtn: styled.button`
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    width: 20px;
+    height: 20px;
+    border-radius: ${({ theme }) => theme.borderRadius.sm};
+    border: 1px solid ${({ theme }) => theme.colors.border};
+    background: ${({ theme }) => theme.colors.surface};
+    color: ${({ theme }) => theme.colors.textMuted};
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    opacity: 0;
+    pointer-events: none;
+    transition: ${({ theme }) => theme.transitions.fast};
+    z-index: 1;
+
+    &:hover {
+      background: ${({ theme }) => theme.colors.success};
+      color: #fff;
+      border-color: ${({ theme }) => theme.colors.success};
+    }
   `,
 
   SideEventActions: styled.div`
