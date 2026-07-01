@@ -6,9 +6,10 @@ import { TJBAEmailParser } from './parsers/TJBAEmailParser';
 import { TJMAEmailParser } from './parsers/TJMAEmailParser';
 import { ProjudiTJBAEmailParser } from './parsers/ProjudiTJBAEmailParser';
 import { CNJEmailParser } from './parsers/CNJEmailParser';
+import { PublicacoesOnlineParser } from './parsers/PublicacoesOnlineParser';
 
 export interface IEmailParserService {
-  parse(emailText: string, emailFrom: string, tenantId: string, emailHtml?: string): Promise<ParsedEmailData>;
+  parse(emailText: string, emailFrom: string, tenantId: string, emailHtml?: string): Promise<ParsedEmailData[]>;
 }
 
 /**
@@ -28,6 +29,7 @@ export class EmailParserService implements IEmailParserService {
     
     // Registrar todos os parsers disponíveis
     this.parsers = [
+      new PublicacoesOnlineParser(),
       new TJBAEmailParser(),
       new TJMAEmailParser(),
       new ProjudiTJBAEmailParser(),
@@ -43,50 +45,57 @@ export class EmailParserService implements IEmailParserService {
       ['contatopje@tjma.jus.br', this.parsers.find(p => p.name === 'TJMA')!],
       ['g-assistencia.qualidade.pje@cnj.jus.br', this.parsers.find(p => p.name === 'CNJ')!],
       ['projudi@tjba.jus.br', this.parsers.find(p => p.name === 'ProjudiTJBA')!],
+      ['suporte@publicacoesonline.com.br', this.parsers.find(p => p.name === 'PUBLICACOES_ONLINE')!],
       // TODO: Adicionar mais mapeamentos
     ]);
   }
 
-  async parse(emailText: string, emailFrom: string, tenantId: string, emailHtml?: string): Promise<ParsedEmailData> {
-    // Normalizar email (extrair domínio)
+  async parse(emailText: string, emailFrom: string, tenantId: string, emailHtml?: string): Promise<ParsedEmailData[]> {
     const normalizedFrom = this.normalizeEmail(emailFrom);
-    
-    // Estratégia 1: Tentar parser específico baseado no remetente
-    const specificParser = this.parserByEmail.get(normalizedFrom);
+
+    let specificParser = this.parserByEmail.get(normalizedFrom);
+
+    if (!specificParser) {
+      console.log('Parser não encontrado pelo remetente, verificando conteúdo do email...');
+      const emailContent = `${emailText} ${emailHtml || ''}`.toLowerCase();
+
+      for (const [knownEmail, parser] of this.parserByEmail.entries()) {
+        if (emailContent.includes(knownEmail.toLowerCase())) {
+          console.log(`Parser encontrado pelo conteúdo: ${parser.name} (email: ${knownEmail})`);
+          specificParser = parser;
+          break;
+        }
+      }
+    }
+
     if (specificParser) {
       console.log(`Usando parser específico: ${specificParser.name}`);
-      const result = specificParser.tryParse(emailText, emailHtml);
-      if (result) {
-        return {
-          ...result,
-          parsedByAI: false,
-        };
+      const results = specificParser.tryParse(emailText, emailHtml);
+      if (results.length > 0) {
+        return results.map(r => ({ ...r, parsedByAI: false }));
       }
     }
 
-    // Estratégia 2: Fallback - tentar todos os parsers disponíveis
     console.log('Parser específico não encontrado ou falhou, tentando fallback...');
     for (const parser of this.parsers) {
-      const result = parser.tryParse(emailText, emailHtml);
-      if (result && result.processNumber) {
+
+      const results = parser.tryParse(emailText, emailHtml);
+      if (results.length > 0 && results[0].processNumber) {
         console.log(`Parsing bem-sucedido com parser: ${parser.name}`);
-        return {
-          ...result,
-          parsedByAI: false,
-        };
+        return results.map(r => ({ ...r, parsedByAI: false }));
       }
     }
 
-    // Estratégia 3: Se nenhum parser funcionou, tentar IA
     console.warn('Nenhum parser conseguiu extrair dados, tentando IA...');
     try {
-      return await this.parseWithAI(emailText, emailFrom, tenantId, emailHtml);
+      const aiResult = await this.parseWithAI(emailText, emailFrom, tenantId, emailHtml);
+      return [aiResult];
     } catch (error) {
       console.error('Erro ao tentar parsing com IA:', error);
-      return {
+      return [{
         parsedByAI: false,
         parsingError: `Nenhum parser compatível encontrado. Erro IA: ${error instanceof Error ? error.message : 'Desconhecido'}`,
-      };
+      }];
     }
   }
 
@@ -95,9 +104,8 @@ export class EmailParserService implements IEmailParserService {
    * Tenta todas as IAs configuradas no tenant (padrão primeiro).
    */
   private async parseWithAI(emailText: string, emailFrom: string, tenantId: string, emailHtml?: string): Promise<ParsedEmailData> {
-    // Buscar todas as credenciais do tenant (padrão vem primeiro)
     const allCredentials = await this.aiConnectionRepo.getAllCredentials(tenantId);
-    
+
     if (allCredentials.length === 0) {
       throw new Error('Nenhuma conexão de IA configurada para este escritório. Configure ao menos uma conexão de IA para permitir parsing automático. Vá para o menu "Escritórios/Conexão de IA"');
     }
@@ -106,15 +114,13 @@ export class EmailParserService implements IEmailParserService {
 
     const errors: string[] = [];
 
-    // Tentar cada IA (padrão vem primeiro no array)
     for (let i = 0; i < allCredentials.length; i++) {
       const credentials = allCredentials[i];
-      const isDefault = i === 0; // Primeira é sempre a padrão
-      
+      const isDefault = i === 0;
+
       console.log(`Tentando IA ${i + 1}/${allCredentials.length}: ${credentials.provider}/${credentials.model}${isDefault ? ' (padrão)' : ''}`);
 
       try {
-        // Encontrar provider adequado
         const provider = this.aiProviders.find(p => p.canHandle(credentials.provider));
         if (!provider) {
           const error = `Provider de IA não suportado: ${credentials.provider}`;
@@ -123,49 +129,61 @@ export class EmailParserService implements IEmailParserService {
           continue;
         }
 
-        // Criar prompt para extração de dados processuais
         const prompt = this.buildParsingPrompt(emailText, emailFrom, emailHtml);
 
-        // Chamar IA
         const rawResponse = await provider.call(credentials, prompt);
 
-        // Extrair JSON da resposta
         const jsonData = this.extractJSON(rawResponse);
 
-        // Parse e validação
-        const parsed = JSON.parse(jsonData) as Partial<ParsedEmailData>;
-        
-        // Verificar se conseguiu extrair ao menos o número do processo
-        if (!parsed.processNumber) {
+        const parsed = JSON.parse(jsonData);
+
+        if (!Array.isArray(parsed)) {
+          const error = `IA ${credentials.provider}/${credentials.model} não retornou um array`;
+          console.warn(error);
+          errors.push(error);
+          continue;
+        }
+
+        if (parsed.length === 0) {
+          const error = `IA ${credentials.provider}/${credentials.model} retornou array vazio`;
+          console.warn(error);
+          errors.push(error);
+          continue;
+        }
+
+        if (!parsed[0].processNumber) {
           const error = `IA ${credentials.provider}/${credentials.model} não extraiu número de processo`;
           console.warn(error);
           errors.push(error);
           continue;
         }
 
-        console.log(`✓ Parsing bem-sucedido com IA: ${credentials.provider}/${credentials.model}`);
-        
+        console.log(`✓ Parsing bem-sucedido com IA: ${credentials.provider}/${credentials.model} (${parsed.length} intimação(ões))`);
+
         return {
-          processNumber: parsed.processNumber,
-          court: parsed.court,
-          activeParty: parsed.activeParty,
-          passiveParty: parsed.passiveParty,
-          legalClass: parsed.legalClass,
-          filingDate: parsed.filingDate ? new Date(parsed.filingDate) : undefined,
-          distributionType: parsed.distributionType,
-          processSubject: parsed.processSubject,
-          movements: parsed.movements,
+          processNumber: parsed[0].processNumber,
+          court: parsed[0].court,
+          activeParty: parsed[0].activeParty,
+          passiveParty: parsed[0].passiveParty,
+          legalClass: parsed[0].legalClass,
+          filingDate: parsed[0].filingDate ? new Date(parsed[0].filingDate) : undefined,
+          distributionType: parsed[0].distributionType,
+          processSubject: parsed[0].processSubject,
+          movements: parsed[0].movements?.map((m: { date: string; type: string; description?: string; documentUrl?: string }) => ({
+            date: new Date(m.date),
+            type: m.type,
+            description: m.description,
+            documentUrl: m.documentUrl,
+          })),
           parsedByAI: true,
         };
       } catch (error) {
         const errorMsg = `IA ${credentials.provider}/${credentials.model} falhou: ${error instanceof Error ? error.message : 'Erro desconhecido'}`;
         console.error(errorMsg);
         errors.push(errorMsg);
-        // Continua para próxima IA
       }
     }
 
-    // Se todas falharam, lançar erro com resumo
     throw new Error(`Todas as ${allCredentials.length} IA(s) falharam. Erros: ${errors.join('; ')}`);
   }
 
@@ -173,45 +191,189 @@ export class EmailParserService implements IEmailParserService {
    * Constrói prompt para IA extrair dados processuais
    */
   private buildParsingPrompt(emailText: string, emailFrom: string, emailHtml?: string): string {
-    return `Você é um assistente especializado em extrair dados processuais de emails de tribunais brasileiros.
+  return `Você é um parser especializado em documentos judiciais brasileiros.
 
-TAREFA: Analise o email abaixo e extraia TODOS os dados processuais disponíveis. Retorne APENAS um objeto JSON válido, sem explicações.
+Sua única função é converter o conteúdo do email em um JSON válido.
 
-FORMATO DE SAÍDA (JSON):
-{
-  "processNumber": "número do processo no formato CNJ (ex: 0000000-00.0000.0.00.0000)",
-  "court": "tribunal (ex: TJBA, TJMA, TRT5, TRF1)",
-  "activeParty": "nome do polo ativo/autor/requerente",
-  "passiveParty": "nome do polo passivo/réu/requerido",
-  "legalClass": "classe judicial (ex: Ação Civil, Execução Fiscal)",
-  "filingDate": "data de autuação/distribuição em formato ISO (YYYY-MM-DD)",
-  "distributionType": "tipo de distribuição",
-  "processSubject": "assunto do processo",
-  "movements": [
-    {
-      "date": "data da movimentação em ISO (YYYY-MM-DD)",
-      "description": "descrição da movimentação",
-      "documentName": "nome do documento anexado (se houver)"
-    }
-  ]
-}
+IMPORTANTE:
+- Retorne APENAS um JSON válido.
+- Não escreva explicações.
+- Não escreva comentários.
+- Não utilize markdown.
+- Não utilize \`\`\`json.
+- Não escreva qualquer texto antes ou depois do JSON.
 
-REGRAS:
-- Use null para campos não encontrados
-- Mantenha nomes exatamente como aparecem no email
-- Data no formato ISO: YYYY-MM-DD
-- Número do processo deve estar no formato CNJ quando possível
-- Movimentações devem estar ordenadas cronologicamente
+OBJETIVO
 
-EMAIL:
-Remetente: ${emailFrom}
+Analise todo o conteúdo do email e extraia TODOS os processos judiciais encontrados.
+
+O email pode ter sido enviado por qualquer sistema, incluindo, mas não se limitando a:
+
+- Tribunais de Justiça
+- Tribunais Federais
+- PJe
+- e-SAJ
+- Projudi
+- Eproc
+- Publicações Online
+- Diário da Justiça
+- Escritórios de advocacia
+- Outros sistemas judiciais
+
+Nunca assuma um formato específico. Analise o conteúdo e identifique os processos.
+
+FORMATO DA RESPOSTA (JSON):
+
+[
+  {
+    "processNumber": null,
+    "court": null,
+    "activeParty": null,
+    "passiveParty": null,
+    "legalClass": null,
+    "filingDate": null,
+    "distributionType": null,
+    "processSubject": null,
+    "movements": [
+      {
+        "date": null,
+        "type": null,
+        "description": null,
+        "documentUrl": null
+      }
+    ]
+  }
+]
+
+REGRAS
+
+- SEMPRE retorne um ARRAY.
+- Se não encontrar nenhum processo, retorne [].
+- Nunca invente informações.
+- Use null quando um campo não puder ser identificado.
+- Preserve exatamente os nomes das partes.
+- Preserve exatamente o número do processo encontrado.
+- Sempre que possível utilize o padrão CNJ.
+- Datas devem ser convertidas para YYYY-MM-DD.
+- Ordene as movimentações cronologicamente quando possível.
+
+IDENTIFICAÇÃO DOS PROCESSOS
+
+Considere que normalmente um processo possui um número CNJ.
+
+Se o email possuir vários processos independentes, retorne um objeto para cada processo.
+
+Exemplos:
+
+- 1 processo → array com 1 objeto.
+- 5 intimações de processos diferentes → array com 5 objetos.
+- Relatório contendo diversos processos → um objeto para cada processo.
+- Nenhum processo → [].
+
+EXTRAÇÃO DOS CAMPOS
+
+processNumber
+Número CNJ do processo.
+
+court
+Tribunal, Vara, Comarca ou Juízo.
+
+activeParty
+Autor, Requerente, Exequente, Impetrante, Reclamante ou Polo Ativo.
+
+passiveParty
+Réu, Requerido, Executado, Impetrado, Reclamado ou Polo Passivo.
+
+legalClass
+Classe processual.
+
+processSubject
+Assunto do processo.
+
+filingDate
+Data de distribuição ou autuação.
+
+distributionType
+Tipo de distribuição, quando existir.
+
+MOVIMENTAÇÕES
+
+Extraia todas as movimentações relevantes.
+
+Exemplos:
+
+- Intimação
+- Despacho
+- Decisão
+- Sentença
+- Ato Ordinatório
+- Acórdão
+- Certidão
+- Publicação
+- Juntada
+
+Para cada movimentação informe:
+
+- date
+- type
+- description
+- documentUrl
+
+A descrição deve conter apenas o texto da movimentação.
+
+LINKS
+
+Caso exista um link para:
+
+- Inteiro Teor
+- Documento
+- PDF
+- Consulta Processual
+- Visualizar Documento
+
+extraia para documentUrl.
+
+IGNORE COMPLETAMENTE
+
+- Cabeçalhos SMTP.
+- Received.
+- ARC.
+- DKIM.
+- SPF.
+- MIME.
+- Authentication.
+- HTML estrutural.
+- CSS.
+- JavaScript.
+- Imagens.
+- Assinaturas automáticas.
+- Avisos de confidencialidade.
+
+Considere apenas o conteúdo efetivo da comunicação judicial.
+
+EMAIL
+
+Remetente:
+${emailFrom}
 
 Conteúdo:
 ${emailText}
-${emailHtml ? `\n\nHTML:\n${emailHtml}` : ''}
 
-IMPORTANTE: Retorne APENAS o JSON, sem texto adicional antes ou depois.`;
-  }
+${emailHtml ? `HTML:\n${emailHtml}` : ''}
+
+VALIDAÇÃO FINAL
+
+Antes de responder, verifique:
+
+- A resposta contém APENAS um único JSON.
+- O JSON inicia com '['.
+- O JSON termina com ']'.
+- Não existe texto antes do '['.
+- Não existe texto depois do ']'.
+- O JSON é sintaticamente válido.
+
+Retorne somente o JSON.`;
+}
 
   /**
    * Extrai JSON de resposta de IA (pode vir em code block)

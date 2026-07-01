@@ -25,7 +25,8 @@ export interface IEmailParser {
 
   /**
    * Tenta fazer parsing do email
-   * @returns ParsedEmailData se conseguiu extrair dados, null se não é compatível
+   * @returns Array de ParsedEmailData (pode ter 1 ou mais intimações por email)
+   * Retorna array vazio se não é compatível ou não conseguiu extrair dados
    */
-  tryParse(emailText: string, emailHtml?: string): Omit<ParsedEmailData, 'parsedByAI'> | null;
+  tryParse(emailText: string, emailHtml?: string): Array<Omit<ParsedEmailData, 'parsedByAI'>>;
 }

@@ -8,65 +8,56 @@ import type { PushMovement } from '../../../domain/entities/Push';
 export class CNJEmailParser implements IEmailParser {
   readonly name = 'CNJ';
 
-  tryParse(emailText: string): Omit<ParsedEmailData, 'parsedByAI'> | null {
-    // Verificar se é realmente do CNJ
+  tryParse(emailText: string): Array<Omit<ParsedEmailData, 'parsedByAI'>> {
     if (!this.isCNJEmail(emailText)) {
-      return null;
+      return [];
     }
 
     const result: Omit<ParsedEmailData, 'parsedByAI'> = {};
 
-    // Número do processo (formato CNJ)
     const processNumberMatch = emailText.match(/Número do Processo:\s*(\d{7}-\d{2}\.\d{4}\.\d\.\d{2}\.\d{4})/i);
     if (processNumberMatch) {
       result.processNumber = processNumberMatch[1];
     }
 
-    // Polo Ativo
     const activePoleMatch = emailText.match(/Polo Ativo:\s*([^\n]+)/i);
     if (activePoleMatch) {
       result.activeParty = activePoleMatch[1].trim();
     }
 
-    // Polo Passivo
     const passivePoleMatch = emailText.match(/Polo Passivo:\s*([^\n]+)/i);
     if (passivePoleMatch) {
       result.passiveParty = passivePoleMatch[1].trim();
     }
 
-    // Classe Judicial
     const legalClassMatch = emailText.match(/Classe Judicial:\s*([^\n]+)/i);
     if (legalClassMatch) {
       result.legalClass = legalClassMatch[1].trim();
     }
 
-    // Órgão
     const courtMatch = emailText.match(/Órgão:\s*([^\n]+)/i);
     if (courtMatch) {
       result.court = courtMatch[1].trim();
     }
 
-    // Data de Autuação (com hora)
     const filingDateMatch = emailText.match(/Data de Autuação:\s*(\d{2})\/(\d{2})\/(\d{4})\s+(\d{2}):(\d{2})/i);
     if (filingDateMatch) {
       const [, day, month, year, hour, minute] = filingDateMatch;
       result.filingDate = new Date(Number(year), Number(month) - 1, Number(day), Number(hour), Number(minute));
     }
 
-    // Assunto
     const subjectMatch = emailText.match(/Assunto:\s*([^\n]+)/i);
     if (subjectMatch) {
       result.processSubject = subjectMatch[1].trim();
     }
 
-    // Movimentações
     result.movements = this.parseMovements(emailText);
 
     if (!result.processNumber) {
       result.parsingError = 'Número do processo não encontrado';
     }
 
-    return result;
+    return [result];
   }
 
   private isCNJEmail(text: string): boolean {

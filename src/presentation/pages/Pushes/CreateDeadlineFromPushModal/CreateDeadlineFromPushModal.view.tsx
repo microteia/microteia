@@ -31,7 +31,6 @@ export const CreateDeadlineFromPushModal: React.FC<CreateDeadlineFromPushModalPr
               {vm.processNumber || 'Número do processo não identificado'}
             </S.ProcessNumber>
             <S.ProcessStatus $exists={vm.caseExists}>
-              {!vm.caseExists ? 'Processo inexistente' : ''}
             </S.ProcessStatus>
           </S.ProcessLabel>
           {vm.caseExists ? (

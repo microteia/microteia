@@ -406,6 +406,15 @@ interface PushMovement {
 
 Coleção Firestore: `tenants/{tenantId}/pushes/{id}`
 
+**Índice composto necessário:**
+```
+Coleção: pushes (subcoleção de tenants)
+Campos indexados: emailId (Ascending), processNumber (Ascending)
+```
+**Motivo:** Um único email pode conter múltiplas intimações (múltiplos processos). A verificação de duplicação usa `emailId + processNumber` para identificar pushes únicos. Sem este índice, a query com dois `where` falhará.
+
+Crie no Firebase Console → Firestore → Índices.
+
 **Cloud Function:** `gmailPush` (Pub/Sub trigger) processa notificações do Gmail, extrai dados via parsers específicos por tribunal (TJBAEmailParser, TJMAEmailParser), e cria registros de Push. Parsers usam regex para extração estruturada; fallback para IA (GPT/Claude) se regex falhar.
 
 ### Entidade PushInteraction

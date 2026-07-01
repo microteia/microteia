@@ -79,7 +79,7 @@ const sanitizeHtml = (html: string): string => {
   }
   const isTrustedSource = (from: string): boolean => {
   const email = extractEmail(from);
-  return email.endsWith('.jus.br');
+  return email.endsWith('.jus.br') || email.endsWith('@publicacoesonline.com.br');
   };
 
 export const usePushesViewModel = (): PushesViewModel => {

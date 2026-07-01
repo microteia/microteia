@@ -8,21 +8,18 @@ import type { PushMovement } from '../../../domain/entities/Push';
 export class ProjudiTJBAEmailParser implements IEmailParser {
   readonly name = 'ProjudiTJBA';
 
-  tryParse(emailText: string): Omit<ParsedEmailData, 'parsedByAI'> | null {
-    // Verificar se é realmente do Projudi TJBA
+  tryParse(emailText: string): Array<Omit<ParsedEmailData, 'parsedByAI'>> {
     if (!this.isProjudiTJBAEmail(emailText)) {
-      return null;
+      return [];
     }
 
     const result: Omit<ParsedEmailData, 'parsedByAI'> = {};
 
-    // Número do processo (formato CNJ: NNNNNNN-DD.AAAA.J.TR.OOOO)
     const processNumberMatch = emailText.match(/PROCESSO JUDICIAL Nº\s*(\d{7}-\d{2}\.\d{4}\.\d\.\d{2}\.\d{4})/i);
     if (processNumberMatch) {
       result.processNumber = processNumberMatch[1];
     }
 
-    // Data de Distribuição (ex: "28 de Julho de 2014 às 16:42 h")
     const distributionMatch = emailText.match(/DISTRIBUIÇÃO:\s*(\d{1,2})\s+de\s+(\w+)\s+de\s+(\d{4})\s+às?\s+(\d{1,2}):(\d{2})/i);
     if (distributionMatch) {
       const [, day, monthName, year, hour, minute] = distributionMatch;
@@ -32,39 +29,33 @@ export class ProjudiTJBAEmailParser implements IEmailParser {
       }
     }
 
-    // Juízo
     const courtMatch = emailText.match(/JUÍZO:\s*([^\n]+)/i);
     if (courtMatch) {
       result.court = courtMatch[1].trim();
     }
 
-    // Tipo de Ação (classe judicial)
     const legalClassMatch = emailText.match(/TIPO DE AÇÃO:\s*([^\n]+)/i);
     if (legalClassMatch) {
       result.legalClass = legalClassMatch[1].trim();
     }
 
-    // Promovente(s) - Polo Ativo
     const activePartyMatch = emailText.match(/PROMOVENTE\(S\):\s*([^\n]+)/i);
     if (activePartyMatch) {
       result.activeParty = activePartyMatch[1].trim();
     }
 
-    // Promovido(s) - Polo Passivo
     const passivePartyMatch = emailText.match(/PROMOVIDO\(S\):\s*([^\n]+)/i);
     if (passivePartyMatch) {
       result.passiveParty = passivePartyMatch[1].trim();
     }
 
-    // Movimentações (se houver)
     result.movements = this.parseMovements(emailText);
 
-    // Se não conseguiu extrair pelo menos o número do processo, considera falha
     if (!result.processNumber) {
       result.parsingError = 'Número do processo não encontrado';
     }
 
-    return result;
+    return [result];
   }
 
   private isProjudiTJBAEmail(text: string): boolean {

@@ -172,71 +172,104 @@ export const gmailPush = onMessagePublished(
           console.log(`${courtMessages.length} email(s) de tribunais encontrado(s)`);
 
           for (const message of courtMessages) {
-            
+
             console.log(`Processando email ID: ${message.id}, Assunto: ${message.subject}`);
-            
-            // Fazer parsing do email
-            const parsedData = await emailParserService.parse(
+
+            const parsedDataArray = await emailParserService.parse(
               message.bodyText || '',
               message.from,
               connection.tenantId,
               message.bodyHtml
             );
 
-            // Verificar se parsing falhou completamente
-            const parsingFailed = parsedData.parsingError && !parsedData.processNumber;
-
-            // Determinar status e subject baseado no resultado do parsing
-            const status = parsingFailed ? 'fault' : 'pending';
-            const subject = parsingFailed 
-              ? `[ERRO DE PARSING] ${message.subject}` 
-              : message.subject;
-
-            if (parsingFailed) {
-              console.error('❌ ERRO CRÍTICO: Parsing falhou completamente para email:');
+            if (parsedDataArray.length === 0) {
+              console.error('❌ ERRO CRÍTICO: Parser não retornou dados para email:');
               console.error(`  Email ID: ${message.id}`);
               console.error(`  De: ${message.from}`);
               console.error(`  Assunto: ${message.subject}`);
-              console.error(`  Erro: ${parsedData.parsingError}`);
               console.error(`  Body Text (primeiros 500 chars): ${(message.bodyText || '').substring(0, 500)}`);
               if (message.bodyHtml) {
                 console.error(`  Body HTML (primeiros 500 chars): ${message.bodyHtml.substring(0, 500)}`);
               }
-              
-              // Marcar que esta mensagem falhou
+
               hasFailedMessage = true;
+
+              await createOrUpdatePushUC.execute(connection.tenantId, {
+                emailId: message.id,
+                from: message.from,
+                to: message.to,
+                subject: `[ERRO DE PARSING] ${message.subject}`,
+                receivedAt: message.receivedAt,
+                emailBodyHtml: message.bodyHtml ?? '',
+                emailBodyText: message.bodyText ?? '',
+                processNumber: '',
+                court: '',
+                activeParty: '',
+                passiveParty: '',
+                legalClass: '',
+                filingDate: new Date(),
+                distributionType: '',
+                processSubject: '',
+                movements: [],
+                status: 'fault',
+                parsedByAI: false,
+                parsingError: 'Nenhum dado extraído do email',
+                createdBy: 'system',
+              });
+
+              continue;
             }
 
-            // Criar ou atualizar push (lógica unificada no Use Case)
-            const result = await createOrUpdatePushUC.execute(connection.tenantId, {
-              emailId: message.id,
-              from: message.from,
-              to: message.to,
-              subject,
-              receivedAt: message.receivedAt,
-              emailBodyHtml: message.bodyHtml ?? '',
-              emailBodyText: message.bodyText ?? '',
-              processNumber: parsedData.processNumber ?? '',
-              court: parsedData.court ?? '',
-              activeParty: parsedData.activeParty ?? '',
-              passiveParty: parsedData.passiveParty ?? '',
-              legalClass: parsedData.legalClass ?? '',
-              filingDate: parsedData.filingDate ?? new Date(),
-              distributionType: parsedData.distributionType ?? '',
-              processSubject: parsedData.processSubject ?? '',
-              movements: parsedData.movements ?? [],
-              status,
-              parsedByAI: parsedData.parsedByAI ?? false,
-              parsingError: parsedData.parsingError ?? '',
-              createdBy: 'system',
-            });
+            console.log(`${parsedDataArray.length} intimação(ões) encontrada(s) no email`);
 
-            if (result.wasUpdated) {
-              console.log(`✓ Push ${result.push.id} atualizado com sucesso (reprocessamento)`);
-            } else if (parsingFailed) {
-              console.log(`⚠️ Push fictício criado: ${result.push.id} (status: fault)`);
-            } else {
-              console.log(`✓ Push criado: ${result.push.id} (Processo: ${result.push.processNumber || 'N/A'})`);
+            for (const parsedData of parsedDataArray) {
+              const parsingFailed = parsedData.parsingError && !parsedData.processNumber;
+
+              const status = parsingFailed ? 'fault' : 'pending';
+              const subject = parsingFailed
+                ? `[ERRO DE PARSING] ${message.subject}`
+                : message.subject;
+
+              if (parsingFailed) {
+                console.error('❌ ERRO CRÍTICO: Parsing falhou para intimação:');
+                console.error(`  Email ID: ${message.id}`);
+                console.error(`  De: ${message.from}`);
+                console.error(`  Assunto: ${message.subject}`);
+                console.error(`  Erro: ${parsedData.parsingError}`);
+
+                hasFailedMessage = true;
+              }
+
+              const result = await createOrUpdatePushUC.execute(connection.tenantId, {
+                emailId: message.id,
+                from: message.from,
+                to: message.to,
+                subject,
+                receivedAt: message.receivedAt,
+                emailBodyHtml: message.bodyHtml ?? '',
+                emailBodyText: message.bodyText ?? '',
+                processNumber: parsedData.processNumber ?? '',
+                court: parsedData.court ?? '',
+                activeParty: parsedData.activeParty ?? '',
+                passiveParty: parsedData.passiveParty ?? '',
+                legalClass: parsedData.legalClass ?? '',
+                filingDate: parsedData.filingDate ?? new Date(),
+                distributionType: parsedData.distributionType ?? '',
+                processSubject: parsedData.processSubject ?? '',
+                movements: parsedData.movements ?? [],
+                status,
+                parsedByAI: parsedData.parsedByAI ?? false,
+                parsingError: parsedData.parsingError ?? '',
+                createdBy: 'system',
+              });
+
+              if (result.wasUpdated) {
+                console.log(`✓ Push ${result.push.id} atualizado com sucesso (reprocessamento)`);
+              } else if (parsingFailed) {
+                console.log(`⚠️ Push fictício criado: ${result.push.id} (status: fault)`);
+              } else {
+                console.log(`✓ Push criado: ${result.push.id} (Processo: ${result.push.processNumber || 'N/A'})`);
+              }
             }
           }
 

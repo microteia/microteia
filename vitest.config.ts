@@ -4,10 +4,10 @@ export default defineConfig({
   test: {
     globals: true,
     environment: 'node',
-    include: ['src/**/*.test.ts'],
+    include: ['src/**/*.test.ts', 'functions/**/*.test.ts'],
     coverage: {
       provider: 'v8',
-      include: ['src/domain/services/**'],
+      include: ['src/domain/services/**', 'functions/src/**'],
       thresholds: { lines: 80, functions: 80, branches: 80 },
     },
   },

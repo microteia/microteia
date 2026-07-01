@@ -40,17 +40,17 @@ export type CreateOrUpdatePushUseCase = {
 
 /**
  * Use Case que cria um novo push ou atualiza um existente.
- * Verifica se já existe um push com o mesmo emailId.
+ * Verifica se já existe um push com o mesmo emailId E processNumber.
  * - Se não existe: cria um novo
  * - Se existe com status 'fault': atualiza todos os campos
  * - Se existe com outro status: não faz nada (retorna o existente)
  */
 export const makeCreateOrUpdatePushUseCase = (repo: IPushRepository): CreateOrUpdatePushUseCase => ({
   execute: async (tenantId, input) => {
-    // Buscar push existente pelo emailId
-    const existing = await repo.getByEmailId(tenantId, input.emailId);
+    const processNumber = input.processNumber || '';
 
-    // Se não existe, criar novo
+    const existing = await repo.getByEmailIdAndProcessNumber(tenantId, input.emailId, processNumber);
+
     if (!existing) {
       const newPush = await repo.create(tenantId, {
         emailId: input.emailId,
@@ -81,7 +81,6 @@ export const makeCreateOrUpdatePushUseCase = (repo: IPushRepository): CreateOrUp
       };
     }
 
-    // Se existe com status 'fault', atualizar
     if (existing.status === 'fault') {
       await repo.update(tenantId, existing.id, {
         subject: input.subject,
@@ -99,15 +98,12 @@ export const makeCreateOrUpdatePushUseCase = (repo: IPushRepository): CreateOrUp
         parsingError: input.parsingError,
       });
 
-      // Retornar push atualizado
-      const updated = await repo.getByEmailId(tenantId, input.emailId);
       return {
-        push: updated!,
+        push: existing,
         wasUpdated: true,
       };
     }
 
-    // Se existe com outro status, retornar o existente sem modificar
     return {
       push: existing,
       wasUpdated: false,
