@@ -84,7 +84,8 @@ export const PushStoreProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   }, [refresh, user, tenantId]);
 
   const updateStatus = async (pushId: string, status: PushStatus) => {
-    await uc.updateStatus.execute(pushId, status);
+    if (!tenantId) throw new Error('No tenant selected');
+    await uc.updateStatus.execute(tenantId, pushId, status);
     setPushes((prev) => prev.map((p) => (p.id === pushId ? { ...p, status } : p)));
     storeEvents.emit(StoreEvents.PUSH_UPDATED);
   };

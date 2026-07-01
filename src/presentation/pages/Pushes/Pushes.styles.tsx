@@ -289,4 +289,44 @@ export const S = {
     word-wrap: break-word;
     margin: 0;
   `,
+
+  LinkedDeadlinesSection: styled.div`
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid ${({ theme }) => theme.colors.border};
+  `,
+
+  LinkedDeadlineLabel: styled.span`
+    font-size: 0.75rem;
+    color: ${({ theme }) => theme.colors.textSecondary};
+    letter-spacing: 0.5px;
+    font-weight: 500;
+  `,
+
+  LinkedDeadlineLink: styled.button`
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.375rem 0.75rem;
+    border: none;
+    border-radius: ${({ theme }) => theme.borderRadius.sm};
+    font-size: 0.75rem;
+    font-weight: 500;
+    background: ${({ theme }) => theme.colors.primary}15;
+    color: ${({ theme }) => theme.colors.primary};
+    cursor: pointer;
+    transition: all 0.2s;
+
+    &:hover {
+      background: ${({ theme }) => theme.colors.primary}25;
+      transform: translateY(-1px);
+    }
+
+    svg {
+      flex-shrink: 0;
+    }
+  `,
 };

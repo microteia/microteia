@@ -68,22 +68,9 @@ export class FirebasePushRepository implements IPushRepository {
     return toPush(snap.id, snap.data() as Record<string, unknown>);
   }
 
-  async updatePushStatus(pushId: string, status: PushStatus): Promise<void> {
-    // Precisamos do tenantId para acessar a subcoleção, mas não temos na assinatura
-    // Por isso vamos buscar o documento primeiro para pegar o tenantId
-    const tenantsRef = collection(db, 'tenants');
-    const tenantsSnap = await getDocs(tenantsRef);
-    
-    for (const tenantDoc of tenantsSnap.docs) {
-      const pushRef = doc(db, 'tenants', tenantDoc.id, 'pushes', pushId);
-      const pushSnap = await getDoc(pushRef);
-      if (pushSnap.exists()) {
-        await updateDoc(pushRef, { status });
-        return;
-      }
-    }
-    
-    throw new Error(`Push ${pushId} não encontrado`);
+  async updatePushStatus(tenantId: string, pushId: string, status: PushStatus): Promise<void> {
+    const pushRef = doc(db, 'tenants', tenantId, 'pushes', pushId);
+    await updateDoc(pushRef, { status });
   }
 
   async deletePush(tenantId: string, pushId: string): Promise<void> {

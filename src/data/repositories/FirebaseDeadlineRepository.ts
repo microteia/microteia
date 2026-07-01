@@ -45,6 +45,7 @@ const mapDeadline = (id: string, d: Record<string, unknown>, tenantId: string): 
   completedAt: toDateOrNull(d.completedAt),
   completedBy: (d.completedBy as string | null) ?? null,
   notes: (d.notes as string | null) ?? null,
+  pushIds: (d.pushIds as string[]) ?? undefined,
   createdAt: toDate(d.createdAt),
   createdBy: d.createdBy as string,
   updatedAt: toDate(d.updatedAt),

@@ -1,11 +1,12 @@
 import React from 'react';
-import { RiInboxLine, RiCheckLine, RiArchiveLine, RiDeleteBinLine, RiBarChartBoxLine, RiErrorWarningLine, RiEyeLine, RiEyeOffLine, RiShieldCheckLine, RiMore2Line } from 'react-icons/ri';
+import { RiInboxLine, RiCheckLine, RiArchiveLine, RiDeleteBinLine, RiBarChartBoxLine, RiErrorWarningLine, RiEyeLine, RiEyeOffLine, RiShieldCheckLine, RiMore2Line, RiTimeLine } from 'react-icons/ri';
 import { usePushesViewModel } from './Pushes.viewmodel';
 import { S } from './Pushes.styles';
 import { Button } from '../../components/ui/Button';
 import { Spinner } from '../../components/ui/Spinner';
 import { CompositeFilter } from '../../components/ui/CompositeFilter';
 import { Dropdown, type DropdownItem } from '../../components/ui/Dropdown';
+import { CreateDeadlineFromPushModal } from './CreateDeadlineFromPushModal';
 import { usePush } from '../../../stores/usePush';
 
 const STATUS_LABELS: Record<'pending' | 'reviewed' | 'archived' | 'fault', string> = {
@@ -127,6 +128,17 @@ export const PushesView: React.FC = () => {
                 </S.InfoItem>
               )}
 
+              {row.linkedDeadlineIds.length > 0 && (
+                <S.LinkedDeadlinesSection>
+                  {row.mostRecentDeadlineId && (
+                    <S.LinkedDeadlineLink onClick={() => vm.handleOpenDeadline(row.mostRecentDeadlineId!)}>
+                      <RiTimeLine size={14} />
+                      {row.linkedDeadlineIds.length === 1 ? 'Prazo criado' : `${row.linkedDeadlineIds.length} prazos criados`}
+                    </S.LinkedDeadlineLink>
+                  )}
+                </S.LinkedDeadlinesSection>
+              )}
+
               <S.EmailBodyToggle>
                 <S.EmailBodyToggleLeft>
                   <Button
@@ -153,6 +165,13 @@ export const PushesView: React.FC = () => {
                   }
                   items={(() => {
                     const items: DropdownItem[] = [];
+
+                    items.push({
+                      id: 'create-deadline',
+                      label: 'Gerar prazo',
+                      icon: <RiTimeLine size={14} />,
+                      onClick: () => vm.handleOpenCreateDeadlineModal(row.push),
+                    });
 
                     if (!row.isRead) {
                       items.push({
@@ -208,6 +227,13 @@ export const PushesView: React.FC = () => {
             </S.Card>
           ))}
         </S.List>
+      )}
+
+      {vm.createDeadlineModalPush && (
+        <CreateDeadlineFromPushModal
+          push={vm.createDeadlineModalPush}
+          onClose={vm.handleCloseCreateDeadlineModal}
+        />
       )}
     </S.Page>
   );

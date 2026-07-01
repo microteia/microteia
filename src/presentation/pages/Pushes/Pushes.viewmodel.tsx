@@ -2,6 +2,9 @@ import { useState, useMemo, useCallback } from 'react';
 import { usePush } from '../../../stores/usePush';
 import { usePushInteraction } from '../../../stores/usePushInteraction';
 import { useWorkspace } from '../../../stores/useWorkspace';
+import { useDeadlineStore } from '../../../stores/useDeadlineStore';
+import { useTenant } from '../../../stores/useTenant';
+import { setNavigationIntent } from '../../../infrastructure/navigation/navigationIntent';
 import type { Push } from '../../../domain/entities';
 import type { FilterDef, FilterToken } from '../../components/ui/CompositeFilter';
 
@@ -14,6 +17,8 @@ export interface PushRow {
   isTrustedSource: boolean;
   sanitizedHtml?: string;
   plainText?: string;
+  linkedDeadlineIds: string[];
+  mostRecentDeadlineId?: string;
 }
 
 export interface PushesViewModel {
@@ -22,12 +27,16 @@ export interface PushesViewModel {
   filterDefs: FilterDef[];
   savedFiltersScreenKey: string;
   unreadCount: number;
+  createDeadlineModalPush: Push | null;
   setFilterTokens: (tokens: FilterToken[]) => void;
   handleMarkAsRead: (push: Push) => Promise<void>;
   handleUpdateStatus: (push: Push, status: 'pending' | 'reviewed' | 'archived') => Promise<void>;
   handleDelete: (push: Push) => Promise<void>;
   handleOpenDashboard: () => void;
   handleToggleBody: (pushId: string) => void;
+  handleOpenCreateDeadlineModal: (push: Push) => void;
+  handleCloseCreateDeadlineModal: () => void;
+  handleOpenDeadline: (deadlineId: string) => void;
 }
 
 const STATUS_OPTIONS: FilterDef['options'] = [
@@ -77,9 +86,12 @@ export const usePushesViewModel = (): PushesViewModel => {
   const { pushes, updateStatus, deletePush } = usePush();
   const { getInteraction, markAsRead, unreadCount } = usePushInteraction();
   const { openTab } = useWorkspace();
+  const { deadlines } = useDeadlineStore();
+  const { currentTenant } = useTenant();
 
   const [filterTokens, setFilterTokens] = useState<FilterToken[]>([]);
   const [expandedBodies, setExpandedBodies] = useState<Set<string>>(new Set());
+  const [createDeadlineModalPush, setCreateDeadlineModalPush] = useState<Push | null>(null);
 
   const filterDefs = useMemo<FilterDef[]>(() => [
     { key: 'search', label: 'Busca', type: 'text', placeholder: 'Pesquisar em assunto, processo...' },
@@ -142,7 +154,14 @@ export const usePushesViewModel = (): PushesViewModel => {
     return filtered.map((push) => {
       const isBodyVisible = expandedBodies.has(push.id);
       const trusted = isTrustedSource(push.from);
-      
+
+      // Buscar prazos vinculados a este push
+      const linkedDeadlines = deadlines.filter((d) => d.pushIds?.includes(push.id));
+      const linkedDeadlineIds = linkedDeadlines.map((d) => d.id);
+      const mostRecentDeadlineId = linkedDeadlines.length > 0
+        ? linkedDeadlines.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())[0].id
+        : undefined;
+
       return {
         push,
         isRead: getInteraction(push.id)?.isRead ?? false,
@@ -152,17 +171,20 @@ export const usePushesViewModel = (): PushesViewModel => {
         isTrustedSource: trusted,
         sanitizedHtml: trusted && push.emailBodyHtml ? sanitizeHtml(push.emailBodyHtml) : undefined,
         plainText: push.emailBodyText || push.emailBodyHtml?.replace(/<[^>]*>/g, ''),
+        linkedDeadlineIds,
+        mostRecentDeadlineId,
       };
     });
-  }, [pushes, tokenMap, getInteraction, expandedBodies]);
+  }, [pushes, tokenMap, getInteraction, expandedBodies, deadlines]);
 
   const handleMarkAsRead = useCallback(async (push: Push) => {
     await markAsRead(push.id);
   }, [markAsRead]);
 
   const handleUpdateStatus = useCallback(async (push: Push, status: 'pending' | 'reviewed' | 'archived') => {
+    if (!currentTenant) return;
     await updateStatus(push.id, status);
-  }, [updateStatus]);
+  }, [updateStatus, currentTenant]);
 
   const handleDelete = useCallback(async (push: Push) => {
     await deletePush(push.id);
@@ -184,17 +206,39 @@ export const usePushesViewModel = (): PushesViewModel => {
     });
   }, []);
 
+  const handleOpenCreateDeadlineModal = useCallback((push: Push) => {
+    setCreateDeadlineModalPush(push);
+  }, []);
+
+  const handleCloseCreateDeadlineModal = useCallback(() => {
+    setCreateDeadlineModalPush(null);
+  }, []);
+
+  const handleOpenDeadline = useCallback((deadlineId: string) => {
+    // Buscar o deadline para pegar o caseId
+    const deadline = deadlines.find((d) => d.id === deadlineId);
+    if (deadline?.caseId) {
+      // Configurar filtro de processo e abrir página de Deadlines
+      setNavigationIntent('deadlines', [{ key: 'case', values: [deadline.caseId] }]);
+      openTab('deadlines');
+    }
+  }, [deadlines, openTab]);
+
   return {
     rows,
     filterTokens,
     filterDefs,
     savedFiltersScreenKey: 'pushes',
     unreadCount,
+    createDeadlineModalPush,
     setFilterTokens,
     handleMarkAsRead,
     handleUpdateStatus,
     handleDelete,
     handleOpenDashboard,
     handleToggleBody,
+    handleOpenCreateDeadlineModal,
+    handleCloseCreateDeadlineModal,
+    handleOpenDeadline,
   };
 };

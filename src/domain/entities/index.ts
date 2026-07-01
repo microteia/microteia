@@ -399,6 +399,7 @@ export interface Deadline {
   completedAt?: Date | null;
   completedBy?: string | null;
   notes?: string | null;
+  pushIds?: string[];
   createdAt: Date;
   createdBy: string;
   updatedAt: Date;
