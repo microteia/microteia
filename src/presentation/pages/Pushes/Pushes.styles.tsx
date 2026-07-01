@@ -192,6 +192,80 @@ export const S = {
     font-weight: 500;
   `,
 
+  ProcessNumberLink: styled.button`
+    font-size: 0.875rem;
+    color: ${({ theme }) => theme.colors.textMuted};
+    font-family: ${({ theme }) => theme.fonts.mono};
+    font-weight: 500;
+    background: none;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+    text-align: left;
+    transition: ${({ theme }) => theme.transitions.fast};
+
+    &:hover {
+      color: ${({ theme }) => theme.colors.primary};
+      text-decoration: underline;
+    }
+  `,
+
+  ProcessNotFoundBadge: styled.div`
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    margin-top: 0.375rem;
+    padding: 0.25rem 0.625rem;
+    border-radius: ${({ theme }) => theme.borderRadius.sm};
+    font-size: 0.625rem;
+    font-weight: 500;
+    background: ${({ theme }) => theme.colors.warning}15;
+    color: ${({ theme }) => theme.colors.warning};
+    border: 1px solid ${({ theme }) => theme.colors.warning}30;
+    width: fit-content;
+
+    svg {
+      flex-shrink: 0;
+      opacity: 0.8;
+    }
+  `,
+
+  CaseInfoSection: styled.div`
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid ${({ theme }) => theme.colors.border};
+    flex-wrap: wrap;
+  `,
+
+  CaseInfoLabel: styled.span`
+    font-size: 0.75rem;
+    color: ${({ theme }) => theme.colors.textSecondary};
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+
+    svg {
+      flex-shrink: 0;
+    }
+  `,
+
+  CaseInfoBadge: styled.span<{ $color?: string }>`
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.375rem 0.75rem;
+    border-radius: ${({ theme }) => theme.borderRadius.sm};
+    font-size: 0.75rem;
+    font-weight: 500;
+    background: ${({ $color }) => $color ? `${$color}20` : 'rgba(0, 0, 0, 0.05)'};
+    color: ${({ $color, theme }) => $color || theme.colors.text};
+    border: 1px solid ${({ $color }) => $color ? `${$color}40` : 'rgba(0, 0, 0, 0.1)'};
+  `,
+
   EmailBodyToggle: styled.div`
     display: flex;
     align-items: center;

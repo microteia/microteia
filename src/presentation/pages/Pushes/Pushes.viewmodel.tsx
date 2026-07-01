@@ -1,8 +1,11 @@
 import { useState, useMemo, useCallback } from 'react';
+import { useTheme } from 'styled-components';
 import { usePush } from '../../../stores/usePush';
 import { usePushInteraction } from '../../../stores/usePushInteraction';
 import { useWorkspace } from '../../../stores/useWorkspace';
 import { useDeadlineStore } from '../../../stores/useDeadlineStore';
+import { useCaseStore } from '../../../stores/useCaseStore';
+import { useCaseLookup } from '../../../stores/useCaseLookup';
 import { useTenant } from '../../../stores/useTenant';
 import { setNavigationIntent } from '../../../infrastructure/navigation/navigationIntent';
 import type { Push } from '../../../domain/entities';
@@ -19,6 +22,15 @@ export interface PushRow {
   plainText?: string;
   linkedDeadlineIds: string[];
   mostRecentDeadlineId?: string;
+  caseId?: string;
+  displayCourt?: string;
+  displayActiveParty?: string;
+  displayPassiveParty?: string;
+  displayLegalClass?: string;
+  displayFilingDate?: Date;
+  casePhase?: string;
+  caseStatus?: string;
+  caseCauseValue?: number;
 }
 
 export interface PushesViewModel {
@@ -37,6 +49,9 @@ export interface PushesViewModel {
   handleOpenCreateDeadlineModal: (push: Push) => void;
   handleCloseCreateDeadlineModal: () => void;
   handleOpenDeadline: (deadlineId: string) => void;
+  handleOpenCase: (caseId: string) => void;
+  getPhaseColor: (phase: string) => string;
+  getStatusColor: (status: string) => string;
 }
 
 const STATUS_OPTIONS: FilterDef['options'] = [
@@ -87,7 +102,10 @@ export const usePushesViewModel = (): PushesViewModel => {
   const { getInteraction, markAsRead, unreadCount } = usePushInteraction();
   const { openTab } = useWorkspace();
   const { deadlines } = useDeadlineStore();
+  const { cases } = useCaseStore();
+  const { phaseConfigs, statusConfigs } = useCaseLookup();
   const { currentTenant } = useTenant();
+  const theme = useTheme();
 
   const [filterTokens, setFilterTokens] = useState<FilterToken[]>([]);
   const [expandedBodies, setExpandedBodies] = useState<Set<string>>(new Set());
@@ -162,10 +180,25 @@ export const usePushesViewModel = (): PushesViewModel => {
         ? linkedDeadlines.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())[0].id
         : undefined;
 
+      // Buscar o case correspondente ao número do processo
+      const matchingCase = push.processNumber
+        ? cases.find((c) => c.caseNumber === push.processNumber)
+        : undefined;
+
+      // Campos com fallback para dados do Case quando vazios no Push
+      const displayCourt = push.court || matchingCase?.court || undefined;
+      const displayActiveParty = push.activeParty || matchingCase?.personName || undefined;
+      const displayPassiveParty = push.passiveParty ||
+        (matchingCase?.opposingParties && matchingCase.opposingParties.length > 0
+          ? matchingCase.opposingParties.map(p => p.name).join(', ')
+          : undefined);
+      const displayLegalClass = push.legalClass || matchingCase?.type || undefined;
+      const displayFilingDate = push.filingDate || matchingCase?.filedAt || undefined;
+
       return {
         push,
         isRead: getInteraction(push.id)?.isRead ?? false,
-        courtLabel: push.court || 'Não identificado',
+        courtLabel: displayCourt || 'Não identificado',
         hasProcessData: Boolean(push.processNumber),
         isBodyVisible,
         isTrustedSource: trusted,
@@ -173,9 +206,18 @@ export const usePushesViewModel = (): PushesViewModel => {
         plainText: push.emailBodyText || push.emailBodyHtml?.replace(/<[^>]*>/g, ''),
         linkedDeadlineIds,
         mostRecentDeadlineId,
+        caseId: matchingCase?.id,
+        displayCourt,
+        displayActiveParty,
+        displayPassiveParty,
+        displayLegalClass,
+        displayFilingDate,
+        casePhase: matchingCase?.phase,
+        caseStatus: matchingCase?.status,
+        caseCauseValue: matchingCase?.causeValue ?? undefined,
       };
     });
-  }, [pushes, tokenMap, getInteraction, expandedBodies, deadlines]);
+  }, [pushes, tokenMap, getInteraction, expandedBodies, deadlines, cases]);
 
   const handleMarkAsRead = useCallback(async (push: Push) => {
     await markAsRead(push.id);
@@ -224,6 +266,22 @@ export const usePushesViewModel = (): PushesViewModel => {
     }
   }, [deadlines, openTab]);
 
+  const handleOpenCase = useCallback((caseId: string) => {
+    openTab(`view-case:${caseId}`);
+  }, [openTab]);
+
+  const getPhaseColor = useCallback((phase: string): string => {
+    const config = phaseConfigs.find((p) => p.key === phase);
+    const colorValue = config?.color ?? 'textSecondary';
+    return colorValue.startsWith('#') ? colorValue : (theme.colors as Record<string, string>)[colorValue] ?? theme.colors.textSecondary;
+  }, [phaseConfigs, theme]);
+
+  const getStatusColor = useCallback((status: string): string => {
+    const config = statusConfigs.find((s) => s.key === status);
+    const colorValue = config?.color ?? 'textSecondary';
+    return colorValue.startsWith('#') ? colorValue : (theme.colors as Record<string, string>)[colorValue] ?? theme.colors.textSecondary;
+  }, [statusConfigs, theme]);
+
   return {
     rows,
     filterTokens,
@@ -240,5 +298,8 @@ export const usePushesViewModel = (): PushesViewModel => {
     handleOpenCreateDeadlineModal,
     handleCloseCreateDeadlineModal,
     handleOpenDeadline,
+    handleOpenCase,
+    getPhaseColor,
+    getStatusColor,
   };
 };

@@ -1,5 +1,5 @@
 import React from 'react';
-import { RiInboxLine, RiCheckLine, RiArchiveLine, RiDeleteBinLine, RiBarChartBoxLine, RiErrorWarningLine, RiEyeLine, RiEyeOffLine, RiShieldCheckLine, RiMore2Line, RiTimeLine } from 'react-icons/ri';
+import { RiInboxLine, RiCheckLine, RiArchiveLine, RiDeleteBinLine, RiBarChartBoxLine, RiErrorWarningLine, RiEyeLine, RiEyeOffLine, RiShieldCheckLine, RiMore2Line, RiTimeLine, RiAlertLine, RiFileList3Line, RiPriceTag3Line, RiMoneyDollarCircleLine } from 'react-icons/ri';
 import { usePushesViewModel } from './Pushes.viewmodel';
 import { S } from './Pushes.styles';
 import { Button } from '../../components/ui/Button';
@@ -85,40 +85,81 @@ export const PushesView: React.FC = () => {
                   {row.push.processNumber && (
                     <S.InfoItem>
                       <S.InfoLabel>Processo</S.InfoLabel>
-                      <S.InfoValue>{row.push.processNumber}</S.InfoValue>
+                      <div>
+                        {row.caseId ? (
+                          <S.ProcessNumberLink
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              vm.handleOpenCase(row.caseId!);
+                            }}
+                            title={`Abrir processo ${row.push.processNumber}`}
+                          >
+                            {row.push.processNumber}
+                          </S.ProcessNumberLink>
+                        ) : (
+                          <>
+                            <S.InfoValue>{row.push.processNumber}</S.InfoValue>
+                            <S.ProcessNotFoundBadge>
+                              <RiAlertLine size={10} />
+                              Processo não cadastrado
+                            </S.ProcessNotFoundBadge>
+                          </>
+                        )}
+                      </div>
                     </S.InfoItem>
                   )}
-                  {row.push.court && (
+                  {row.displayCourt && (
                     <S.InfoItem>
                       <S.InfoLabel>Tribunal</S.InfoLabel>
-                      <S.InfoValue>{row.courtLabel}</S.InfoValue>
+                      <S.InfoValue>{row.displayCourt}</S.InfoValue>
                     </S.InfoItem>
                   )}
-                  {row.push.activeParty && (
+                  {row.displayActiveParty && (
                     <S.InfoItem>
                       <S.InfoLabel>Polo Ativo</S.InfoLabel>
-                      <S.InfoValue>{row.push.activeParty}</S.InfoValue>
+                      <S.InfoValue>{row.displayActiveParty}</S.InfoValue>
                     </S.InfoItem>
                   )}
-                  {row.push.passiveParty && (
+                  {row.displayPassiveParty && (
                     <S.InfoItem>
                       <S.InfoLabel>Polo Passivo</S.InfoLabel>
-                      <S.InfoValue>{row.push.passiveParty}</S.InfoValue>
+                      <S.InfoValue>{row.displayPassiveParty}</S.InfoValue>
                     </S.InfoItem>
                   )}
-                  {row.push.legalClass && (
+                  {row.displayLegalClass && (
                     <S.InfoItem>
                       <S.InfoLabel>Classe</S.InfoLabel>
-                      <S.InfoValue>{row.push.legalClass}</S.InfoValue>
+                      <S.InfoValue>{row.displayLegalClass}</S.InfoValue>
                     </S.InfoItem>
                   )}
-                  {row.push.filingDate && (
+                  {row.displayFilingDate && (
                     <S.InfoItem>
                       <S.InfoLabel>Data de Autuação</S.InfoLabel>
-                      <S.InfoValue>{new Date(row.push.filingDate).toLocaleDateString()}</S.InfoValue>
+                      <S.InfoValue>{row.displayFilingDate.toLocaleDateString()}</S.InfoValue>
                     </S.InfoItem>
                   )}
                 </S.ProcessInfo>
+              )}
+
+              {row.caseId && (row.casePhase || row.caseStatus || row.caseCauseValue) && (
+                <S.CaseInfoSection>
+                  {row.casePhase && (
+                    <S.CaseInfoBadge $color={vm.getPhaseColor(row.casePhase)}>
+                      {row.casePhase}
+                    </S.CaseInfoBadge>
+                  )}
+                  {row.caseStatus && (
+                    <S.CaseInfoBadge $color={vm.getStatusColor(row.caseStatus)}>
+                      {row.caseStatus}
+                    </S.CaseInfoBadge>
+                  )}
+                  {row.caseCauseValue && (
+                    <S.CaseInfoBadge>
+                      <RiMoneyDollarCircleLine size={12} />
+                      {row.caseCauseValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                    </S.CaseInfoBadge>
+                  )}
+                </S.CaseInfoSection>
               )}
 
               {row.push.parsingError && (
