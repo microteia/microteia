@@ -11,6 +11,9 @@ import { CaseStoreProvider } from './stores/CaseStore';
 import { CaseTagStoreProvider } from './stores/CaseTagStore';
 import { CaseLookupStoreProvider } from './stores/CaseLookupStore';
 import { DocumentTypeLookupStoreProvider } from './stores/DocumentTypeLookupStore';
+import { ContractStoreProvider } from './stores/ContractStore';
+import { ContractLookupStoreProvider } from './stores/ContractLookupStore';
+import { ContractTagStoreProvider } from './stores/ContractTagStore';
 import { DeadlineStoreProvider } from './stores/DeadlineStore';
 import { DeadlineLookupStoreProvider } from './stores/DeadlineLookupStore';
 import { FinancialStoreProvider } from './stores/FinancialStore';
@@ -48,6 +51,9 @@ const App: React.FC = () => {
                           <CaseLookupStoreProvider>
                           <DocumentTypeLookupStoreProvider>
                           <CaseTagStoreProvider>
+                          <ContractStoreProvider>
+                          <ContractLookupStoreProvider>
+                          <ContractTagStoreProvider>
                           <DeadlineStoreProvider>
                             <DeadlineLookupStoreProvider>
                             <FinancialStoreProvider>
@@ -75,6 +81,9 @@ const App: React.FC = () => {
                             </FinancialStoreProvider>
                             </DeadlineLookupStoreProvider>
                           </DeadlineStoreProvider>
+                          </ContractTagStoreProvider>
+                          </ContractLookupStoreProvider>
+                          </ContractStoreProvider>
                           </CaseTagStoreProvider>
                           </DocumentTypeLookupStoreProvider>
                           </CaseLookupStoreProvider>

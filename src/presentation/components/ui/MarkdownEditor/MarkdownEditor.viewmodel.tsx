@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef, useMemo } from 'react';
-import type { News, Case, Person } from '../../../../domain/entities';
+import type { News, Case, Person, Contract } from '../../../../domain/entities';
 import { MENTION_COMMANDS } from '../MentionMenu/MentionMenu.viewmodel';
 
 export type EditorMode = 'edit' | 'split' | 'preview';
@@ -52,6 +52,9 @@ export interface MarkdownEditorViewModel {
   personPickerOpen: boolean;
   closePersonPicker: () => void;
   insertPersonLink: (c: Person) => void;
+  contractPickerOpen: boolean;
+  closeContractPicker: () => void;
+  insertContractLink: (c: Contract) => void;
 }
 
 const computeMentionPosition = (
@@ -96,6 +99,7 @@ export const useMarkdownEditorViewModel = (
   const [newsPickerOpen, setNewsPickerOpen] = useState(false);
   const [casePickerOpen, setCasePickerOpen] = useState(false);
   const [personPickerOpen, setPersonPickerOpen] = useState(false);
+  const [contractPickerOpen, setContractPickerOpen] = useState(false);
 
   const mentionRangeRef = useRef<{ start: number; end: number }>({ start: -1, end: -1 });
 
@@ -118,6 +122,7 @@ export const useMarkdownEditorViewModel = (
       if (key === 'news') setNewsPickerOpen(true);
       if (key === 'case') setCasePickerOpen(true);
       if (key === 'person') setPersonPickerOpen(true);
+      if (key === 'contract') setContractPickerOpen(true);
     },
     [mentionState, closeMention],
   );
@@ -166,11 +171,20 @@ export const useMarkdownEditorViewModel = (
   const closeNewsPicker = useCallback(() => setNewsPickerOpen(false), []);
   const closeCasePicker = useCallback(() => setCasePickerOpen(false), []);
   const closePersonPicker = useCallback(() => setPersonPickerOpen(false), []);
+  const closeContractPicker = useCallback(() => setContractPickerOpen(false), []);
 
   const insertPersonLink = useCallback(
     (c: Person) => {
       insertLink(c.name, `/curatino/view-person:${c.id}`);
       setPersonPickerOpen(false);
+    },
+    [insertLink],
+  );
+
+  const insertContractLink = useCallback(
+    (c: Contract) => {
+      insertLink(c.title, `/curatino/view-contract:${c.id}`);
+      setContractPickerOpen(false);
     },
     [insertLink],
   );
@@ -326,5 +340,8 @@ export const useMarkdownEditorViewModel = (
     personPickerOpen,
     closePersonPicker,
     insertPersonLink,
+    contractPickerOpen,
+    closeContractPicker,
+    insertContractLink,
   };
 };

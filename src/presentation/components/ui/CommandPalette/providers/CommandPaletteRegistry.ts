@@ -3,6 +3,7 @@ import { NavigationCommandProvider } from './NavigationCommandProvider';
 import { NewsCommandProvider } from './NewsCommandProvider';
 import { PersonCommandProvider } from './PersonCommandProvider';
 import { CaseCommandProvider } from './CaseCommandProvider';
+import { ContractCommandProvider } from './ContractCommandProvider';
 import { SystemCommandProvider } from './SystemCommandProvider';
 
 export const COMMAND_PALETTE_PROVIDERS: ICommandPaletteProvider[] = [
@@ -10,5 +11,6 @@ export const COMMAND_PALETTE_PROVIDERS: ICommandPaletteProvider[] = [
   NewsCommandProvider,
   PersonCommandProvider,
   CaseCommandProvider,
+  ContractCommandProvider,
   SystemCommandProvider,
 ];

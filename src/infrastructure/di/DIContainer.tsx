@@ -35,6 +35,11 @@ import { FirebaseCaseCourtRepository } from '../../data/repositories/FirebaseCas
 import { FirebaseCaseDistrictRepository } from '../../data/repositories/FirebaseCaseDistrictRepository';
 import { FirebaseCaseJudgeRepository } from '../../data/repositories/FirebaseCaseJudgeRepository';
 import { FirebasePersonLookupRepository } from '../../data/repositories/FirebasePersonLookupRepository';
+import { FirebaseContractRepository } from '../../data/repositories/FirebaseContractRepository';
+import { FirebaseContractTagRepository } from '../../data/repositories/FirebaseContractTagRepository';
+import { FirebaseContractNoteRepository } from '../../data/repositories/FirebaseContractNoteRepository';
+import { FirebaseContractDocumentRepository } from '../../data/repositories/FirebaseContractDocumentRepository';
+import { FirebaseContractLookupRepository } from '../../data/repositories/FirebaseContractLookupRepository';
 import { FirebaseDeadlineTypeRepository } from '../../data/repositories/FirebaseDeadlineTypeRepository';
 import { FirebaseDocumentTypeRepository } from '../../data/repositories/FirebaseDocumentTypeRepository';
 import { DIContext } from './useDI';
@@ -73,6 +78,11 @@ export const DIProvider: React.FC<{ children: React.ReactNode }> = ({ children }
     caseCourtRepository:      new FirebaseCaseCourtRepository(),
     caseDistrictRepository:   new FirebaseCaseDistrictRepository(),
     caseJudgeRepository:      new FirebaseCaseJudgeRepository(),
+    contractRepository:         new FirebaseContractRepository(),
+    contractTagRepository:      new FirebaseContractTagRepository(),
+    contractNoteRepository:     new FirebaseContractNoteRepository(),
+    contractDocumentRepository: new FirebaseContractDocumentRepository(),
+    contractLookupRepository:   new FirebaseContractLookupRepository(),
     deadlineRepository:       new FirebaseDeadlineRepository(),
     deadlineTypeRepository:   new FirebaseDeadlineTypeRepository(),
     financialRepository:      new FirebaseFinancialRepository(),

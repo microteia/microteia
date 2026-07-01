@@ -33,6 +33,11 @@ import type { ICaseCourtRepository } from '../../domain/repositories/ICaseCourtR
 import type { ICaseDistrictRepository } from '../../domain/repositories/ICaseDistrictRepository';
 import type { ICaseJudgeRepository } from '../../domain/repositories/ICaseJudgeRepository';
 import type { IPersonLookupRepository } from '../../domain/repositories/IPersonLookupRepository';
+import type { IContractRepository } from '../../domain/repositories/IContractRepository';
+import type { IContractTagRepository } from '../../domain/repositories/IContractTagRepository';
+import type { IContractNoteRepository } from '../../domain/repositories/IContractNoteRepository';
+import type { IContractDocumentRepository } from '../../domain/repositories/IContractDocumentRepository';
+import type { IContractLookupRepository } from '../../domain/repositories/IContractLookupRepository';
 import type { IDeadlineTypeRepository } from '../../domain/repositories/IDeadlineTypeRepository';
 import type { IPushRepository, IPushInteractionRepository } from '../../domain/repositories/IPushRepository';
 import type { IDocumentTypeRepository } from '../../domain/repositories/IDocumentTypeRepository';
@@ -69,6 +74,11 @@ export interface DIContainer {
   caseCourtRepository: ICaseCourtRepository;
   caseDistrictRepository: ICaseDistrictRepository;
   caseJudgeRepository: ICaseJudgeRepository;
+  contractRepository: IContractRepository;
+  contractTagRepository: IContractTagRepository;
+  contractNoteRepository: IContractNoteRepository;
+  contractDocumentRepository: IContractDocumentRepository;
+  contractLookupRepository: IContractLookupRepository;
   deadlineRepository: IDeadlineRepository;
   deadlineTypeRepository: IDeadlineTypeRepository;
   financialRepository: IFinancialRepository;

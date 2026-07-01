@@ -59,6 +59,11 @@ O projeto usa **Clean Architecture + MVVM** com separação estrita em camadas. 
 | `CaseLookupItem` | `tenants/{tenantId}/caseAreas/{id}`, `casePhases`, `caseStatuses`, `caseInstances`, `caseActionTypes`, `caseCourts`, `caseDistricts`, `caseJudges` | Sim |
 | `CaseNote` | `tenants/{tenantId}/cases/{caseId}/notes/{id}` | Sim |
 | `CaseDocument` | `tenants/{tenantId}/cases/{caseId}/documents/{id}` | Sim |
+| `Contract` | `tenants/{tenantId}/contracts/{id}` | Sim |
+| `ContractTag` | `tenants/{tenantId}/contractTags/{id}` | Sim |
+| `ContractLookupConfig` | `tenants/{tenantId}/contractTypes/{id}`, `contractCategories`, `contractStatuses`, `contractObjects`, `contractAdjustmentIndexes`, `contractAdjustmentPeriodicities`, `contractCurrencies`, `contractPaymentMethods`, `contractBanks`, `contractCostCenters` | Sim |
+| `ContractNote` | `tenants/{tenantId}/contracts/{contractId}/notes/{id}` | Sim |
+| `ContractDocument` | `tenants/{tenantId}/contracts/{contractId}/documents/{id}` | Sim |
 | `Deadline` | `tenants/{tenantId}/deadlines/{id}` | Sim |
 | `DeadlineTypeConfig` | `tenants/{tenantId}/deadlineTypes/{id}` | Sim |
 | `Financial` | `tenants/{tenantId}/financials/{id}` | Sim |
@@ -316,6 +321,89 @@ interface Case {
 }
 ```
 
+### Entidade Contract (Contrato)
+
+```typescript
+type ContractLookupKind =
+  | 'types' | 'categories' | 'statuses' | 'objects'
+  | 'adjustmentIndexes' | 'adjustmentPeriodicities'
+  | 'currencies' | 'paymentMethods' | 'banks' | 'costCenters';
+
+interface ContractLookupConfig {
+  key: string;
+  label: string;
+  color?: string;  // usado por 'statuses'
+  isStatic?: boolean;
+}
+
+interface Contract {
+  id: string;
+  tenantId: string;
+  number: string;                 // "AB1234" — sugerido automaticamente, editável, único por tenant
+  title: string;
+  type: string;                   // lookup 'types'
+  category: string;               // lookup 'categories'
+  status: string;                 // lookup 'statuses' (com cor)
+  object?: string | null;         // lookup 'objects' (só dinâmico)
+  contractorIds: string[];        // Contratante — Pessoa[]
+  contracteeIds: string[];        // Contratado — Pessoa[]
+  witnessIds: string[];           // Testemunhas — Pessoa[]
+  contractorLawyerIds: string[];  // Advogado do Contratante — Pessoa[]
+  contracteeLawyerIds: string[];  // Advogado do Contratado — Pessoa[]
+  clientId?: string | null;       // Cliente — Pessoa (única)
+  responsibleId?: string | null;  // Responsável — Pessoa (única)
+  draftedAt?: Date | null;
+  signedAt?: Date | null;
+  effectiveStart?: Date | null;
+  effectiveEnd?: Date | null;
+  autoRenewal: boolean;
+  renewalDate?: Date | null;
+  terminationDate?: Date | null;
+  initialValue?: number | null;
+  monthlyValue?: number | null;
+  totalValue?: number | null;
+  adjustmentIndex?: string | null;        // lookup
+  adjustmentPeriodicity?: string | null;  // lookup
+  currency?: string | null;               // lookup
+  paymentMethod?: string | null;          // lookup
+  dueDay?: number | null;         // 1-31
+  installments?: number | null;
+  bank?: string | null;           // lookup (só dinâmico)
+  bankAccount?: string | null;    // texto livre "agência / número"
+  pixKey?: string | null;
+  costCenter?: string | null;     // lookup (só dinâmico)
+  tagIds?: string[];
+  createdAt: Date;
+  createdBy: string;
+  updatedAt: Date;
+}
+```
+
+**Padrão de lookups:** ao contrário de `Case` (um repositório Firebase por kind), `Contract` usa o **padrão genérico de `Person`**: uma única `IContractLookupRepository`/`FirebaseContractLookupRepository` parametrizada por `ContractLookupKind`, com `COLLECTION_NAMES` e `STATIC_DEFAULTS` mapeados por kind. Motivo: `Contract` tem 10 kinds de lookup — replicar o padrão de `Case` geraria 10 pares de interface/implementação redundantes. `ContractLookupStore` guarda os 10 arrays num único `useState<Record<ContractLookupKind, ContractLookupConfig[]>>` internamente, mas expõe getters nomeados individualmente (`typeConfigs`, `categoryConfigs`, etc.) para manter a mesma ergonomia de uso nos ViewModels.
+
+**Valores estáticos por kind:** `types` (13 valores: Prestação de serviços, Compra e venda, Locação, ...), `categories` (15 valores: Cível, Empresarial, ...), `statuses` (8 valores com cor: Em elaboração, Em revisão, Aguardando assinatura, Vigente, Suspenso, Encerrado, Cancelado, Rescindido), `adjustmentIndexes` (INPC, IPCA), `adjustmentPeriodicities` (Anual), `currencies` (Real), `paymentMethods` (À vista, À prazo, Boleto, Cartão de Crédito). `objects`, `banks` e `costCenters` não têm valores estáticos — são só dinâmicos por tenant.
+
+**Cores de status:** tokens `contractStatus*` em `shared/styles/theme.ts` (replicados nos 7 temas, mesmo padrão de `caseStatus*`).
+
+Coleções Firestore: `tenants/{tenantId}/contracts/{id}`, `tenants/{tenantId}/contractTags/{id}`, `tenants/{tenantId}/contractTypes`, `contractCategories`, `contractStatuses`, `contractObjects`, `contractAdjustmentIndexes`, `contractAdjustmentPeriodicities`, `contractCurrencies`, `contractPaymentMethods`, `contractBanks`, `contractCostCenters`.
+
+### Entidade ContractNote
+
+Anotações vinculadas a um contrato. Mesmo padrão de `PersonNote`/`CaseNote`. Coleção: `tenants/{tenantId}/contracts/{contractId}/notes/{id}`.
+
+### Entidade ContractDocument
+
+Documentos anexados a um contrato. Mesmo padrão de `PersonDocument`/`CaseDocument`. Coleção: `tenants/{tenantId}/contracts/{contractId}/documents/{id}`. Storage path: `tenants/{tenantId}/contracts/{contractId}/{timestamp}_{filename}`.
+
+### Componente CurrencyInput — máscara monetária PT-BR
+
+`presentation/components/ui/CurrencyInput.tsx` é um componente reutilizável para campos de valor monetário (usado nos campos "Valor inicial", "Valor mensal" e "Valor total" de `Contract`; disponível para reuso em `Financial` e futuras entidades).
+
+- Props: `value: number | null`, `onChange: (value: number | null) => void`, `placeholder?`, `disabled?`, `id?`.
+- Totalmente controlado, sem estado interno: a cada tecla extrai os dígitos do input e os interpreta como centavos (mesmo padrão de apps bancários — digita-se da direita para a esquerda). O texto exibido é sempre `formatCurrencyBRL(value)`.
+- Helpers em `utils/formatters.ts`: `formatCurrencyBRL(value)` (`Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' })`) e `parseCurrencyDigits(raw)`.
+- Reutiliza o styled-component `Input` de `ui/Input.tsx` — nenhum CSS duplicado.
+
 ### Entidade Deadline (Prazo)
 
 ```typescript
@@ -501,6 +589,11 @@ src/
 │   │   ├── ITenantRepository.ts
 │   │   ├── IPersonRepository.ts
 │   │   ├── ICaseRepository.ts
+│   │   ├── IContractRepository.ts
+│   │   ├── IContractTagRepository.ts
+│   │   ├── IContractNoteRepository.ts
+│   │   ├── IContractDocumentRepository.ts
+│   │   ├── IContractLookupRepository.ts   # genérico, parametrizado por ContractLookupKind
 │   │   ├── IDeadlineRepository.ts
 │   │   ├── IFinancialRepository.ts
 │   │   ├── IPushRepository.ts
@@ -517,6 +610,10 @@ src/
 │       ├── tenants/
 │       ├── persons/
 │       ├── cases/
+│       ├── contracts/
+│       ├── contracttags/
+│       ├── contractnotes/
+│       ├── contractdocuments/
 │       ├── deadlines/
 │       ├── financials/
 │       ├── pushes/
@@ -534,6 +631,11 @@ src/
 │   │   ├── FirebaseTenantRepository.ts
 │   │   ├── FirebasePersonRepository.ts
 │   │   ├── FirebaseCaseRepository.ts
+│   │   ├── FirebaseContractRepository.ts
+│   │   ├── FirebaseContractTagRepository.ts
+│   │   ├── FirebaseContractNoteRepository.ts
+│   │   ├── FirebaseContractDocumentRepository.ts
+│   │   ├── FirebaseContractLookupRepository.ts
 │   │   ├── FirebaseDeadlineRepository.ts
 │   │   ├── FirebaseFinancialRepository.ts
 │   │   ├── FirebasePushRepository.ts
@@ -570,6 +672,9 @@ src/
 │   ├── TenantStore.tsx + useTenant.ts
 │   ├── PersonStore.tsx + usePersonStore.ts
 │   ├── CaseStore.tsx + useCaseStore.ts
+│   ├── ContractStore.tsx + useContractStore.ts
+│   ├── ContractTagStore.tsx + useContractTagStore.ts
+│   ├── ContractLookupStore.tsx + useContractLookup.ts
 │   ├── DeadlineStore.tsx + useDeadlineStore.ts
 │   ├── FinancialStore.tsx + useFinancialStore.ts
 │   ├── PushStore.tsx + usePush.ts
@@ -589,7 +694,11 @@ src/
     │   ├── Dashboard/
     │   ├── Calendar/
     │   ├── Persons/
+    │   ├── ViewPerson/
     │   ├── Cases/
+    │   ├── ViewCase/
+    │   ├── Contracts/
+    │   ├── ViewContract/
     │   ├── Deadlines/
     │   ├── Financials/
     │   ├── Pushes/
@@ -842,6 +951,9 @@ Arquivos `.tsx` exportam **apenas** componentes React. Hooks e tipos ficam em `.
 | `PersonStore` | Pessoas do tenant atual, CRUD de pessoas |
 | `PersonTagStore` | Etiquetas de pessoas do tenant atual, CRUD de tags, aplicação de tags em pessoas |
 | `CaseStore` | Processos do tenant atual, CRUD de processos |
+| `ContractStore` | Contratos do tenant atual, CRUD de contratos |
+| `ContractTagStore` | Etiquetas de contratos do tenant atual, CRUD de tags, aplicação de tags em contratos |
+| `ContractLookupStore` | Configs estático+dinâmico dos 10 lookups de contrato (tipo, categoria, status, objeto, índice/periodicidade de reajuste, moeda, forma de pagamento, banco, centro de custo) |
 | `DeadlineStore` | Prazos do tenant atual, CRUD + `completeDeadline` |
 | `FinancialStore` | Receitas/despesas do tenant atual, CRUD + `markPaid` |
 | `PushStore` | Pushes do tribunal do tenant atual, CRUD + `updateStatus` |
@@ -854,7 +966,7 @@ Arquivos `.tsx` exportam **apenas** componentes React. Hooks e tipos ficam em `.
 
 ### Stores que dependem do tenant
 
-`PersonStore`, `CaseStore`, `DeadlineStore`, `FinancialStore`, `PushStore` escutam `currentTenant` via `useTenant()`. Se `currentTenant` for `null`, limpam o estado e não fazem queries.
+`PersonStore`, `CaseStore`, `ContractStore`, `DeadlineStore`, `FinancialStore`, `PushStore` escutam `currentTenant` via `useTenant()`. Se `currentTenant` for `null`, limpam o estado e não fazem queries.
 
 ---
 
@@ -868,6 +980,8 @@ Arquivos `.tsx` exportam **apenas** componentes React. Hooks e tipos ficam em `.
 |---|---|---|
 | `PERSONS_UPDATED` | `PersonStore` | — |
 | `CASES_UPDATED` | `CaseStore` | `DeadlineStore` (atualiza nomes de processo nos prazos) |
+| `CONTRACTS_UPDATED` | `ContractStore` | — |
+| `CONTRACT_TAG_UPDATED` | `ContractTagStore` | — |
 | `DEADLINES_UPDATED` | `DeadlineStore` | — |
 | `FINANCIALS_UPDATED` | `FinancialStore` | — |
 | `PUSH_UPDATED` | `PushStore` | `PushInteractionStore` (re-sincroniza contadores) |
@@ -904,6 +1018,7 @@ useEffect(() => {
 | `Tenant` | Todos os members, persons, cases, deadlines, financials, pushes do tenant |
 | `Person` | Todos os processos (`cases`) onde `personId === id`; todos os prazos e financeiros vinculados |
 | `Case` | Todos os `deadlines` onde `caseId === id`; todos os `financials` onde `caseId === id` |
+| `Contract` | — (folha) |
 | `Deadline` | — (folha) |
 | `Financial` | — (folha) |
 | `Push` | Todos os `pushInteractions` onde `pushId === id` |
@@ -1212,6 +1327,13 @@ service cloud.firestore {
         allow delete: if isTenantAdmin(tenantId);
       }
 
+      // Etiquetas de contratos (tenant-scoped) — qualquer membro com escrita cria; só admin deleta
+      match /contractTags/{tagId} {
+        allow read: if isMember(tenantId);
+        allow create, update: if canWriteInTenant(tenantId);
+        allow delete: if isTenantAdmin(tenantId);
+      }
+
       // Lookups de processo — qualquer membro lê; advogado/admin cria e deleta
       match /caseAreas/{id} {
         allow read: if isMember(tenantId);
@@ -1254,7 +1376,7 @@ service cloud.firestore {
         allow delete: if isTenantLawyerOrAdmin(tenantId);
       }
 
-      // Tipos de documento — compartilhado entre pessoas e processos
+      // Tipos de documento — compartilhado entre pessoas, processos e contratos
       match /documentTypes/{id} {
         allow read: if isMember(tenantId);
         allow create, delete: if canWriteInTenant(tenantId);
@@ -1274,6 +1396,69 @@ service cloud.firestore {
         }
 
         // Documentos do processo — upload por qualquer membro com escrita; exclusão só admin
+        match /documents/{documentId} {
+          allow read: if isMember(tenantId);
+          allow create: if canWriteInTenant(tenantId);
+          allow delete: if isTenantAdmin(tenantId);
+        }
+      }
+
+      // Lookups de contrato — qualquer membro lê; qualquer membro com escrita cria e deleta
+      match /contractTypes/{id} {
+        allow read: if isMember(tenantId);
+        allow create, delete: if canWriteInTenant(tenantId);
+      }
+      match /contractCategories/{id} {
+        allow read: if isMember(tenantId);
+        allow create, delete: if canWriteInTenant(tenantId);
+      }
+      match /contractStatuses/{id} {
+        allow read: if isMember(tenantId);
+        allow create, delete: if canWriteInTenant(tenantId);
+      }
+      match /contractObjects/{id} {
+        allow read: if isMember(tenantId);
+        allow create, delete: if canWriteInTenant(tenantId);
+      }
+      match /contractAdjustmentIndexes/{id} {
+        allow read: if isMember(tenantId);
+        allow create, delete: if canWriteInTenant(tenantId);
+      }
+      match /contractAdjustmentPeriodicities/{id} {
+        allow read: if isMember(tenantId);
+        allow create, delete: if canWriteInTenant(tenantId);
+      }
+      match /contractCurrencies/{id} {
+        allow read: if isMember(tenantId);
+        allow create, delete: if canWriteInTenant(tenantId);
+      }
+      match /contractPaymentMethods/{id} {
+        allow read: if isMember(tenantId);
+        allow create, delete: if canWriteInTenant(tenantId);
+      }
+      match /contractBanks/{id} {
+        allow read: if isMember(tenantId);
+        allow create, delete: if canWriteInTenant(tenantId);
+      }
+      match /contractCostCenters/{id} {
+        allow read: if isMember(tenantId);
+        allow create, delete: if canWriteInTenant(tenantId);
+      }
+
+      // Contratos
+      match /contracts/{contractId} {
+        allow read: if isMember(tenantId);
+        allow create, update: if isTenantLawyerOrAdmin(tenantId);
+        allow delete: if isTenantAdmin(tenantId);
+
+        // Anotações do contrato — criação por qualquer membro com escrita; exclusão só admin
+        match /notes/{noteId} {
+          allow read: if isMember(tenantId);
+          allow create: if canWriteInTenant(tenantId);
+          allow delete: if isTenantAdmin(tenantId);
+        }
+
+        // Documentos do contrato — upload por qualquer membro com escrita; exclusão só admin
         match /documents/{documentId} {
           allow read: if isMember(tenantId);
           allow create: if canWriteInTenant(tenantId);
@@ -1462,6 +1647,18 @@ service firebase.storage {
         && firestore.get(/databases/(default)/documents/tenants/$(tenantId)/members/$(request.auth.uid)).data.role == 'admin';
     }
 
+    // ─── Documentos de contratos ──────────────────────────────────────────────
+    // Path: tenants/{tenantId}/contracts/{contractId}/{filename}
+    match /tenants/{tenantId}/contracts/{contractId}/{allPaths=**} {
+      allow read: if request.auth != null
+        && firestore.exists(/databases/(default)/documents/tenants/$(tenantId)/members/$(request.auth.uid));
+      allow create: if request.auth != null
+        && firestore.exists(/databases/(default)/documents/tenants/$(tenantId)/members/$(request.auth.uid))
+        && request.resource.size < 20 * 1024 * 1024;     // máximo 20 MB
+      allow delete: if request.auth != null
+        && firestore.get(/databases/(default)/documents/tenants/$(tenantId)/members/$(request.auth.uid)).data.role == 'admin';
+    }
+
     // Bloqueia tudo o mais
     match /{allPaths=**} {
       allow read, write: if false;
@@ -1583,6 +1780,9 @@ Acessado via `Cmd+K` (Mac) ou `Ctrl+K` (Windows). Providers registrados em `Comm
 |---|---|
 | `NavigationCommandProvider` | Navega para páginas do `pageRegistry` |
 | `NewsCommandProvider` | Busca boletins pelo título/resumo |
+| `PersonCommandProvider` | Busca pessoas por nome/CPF/CNPJ/email/telefone |
+| `CaseCommandProvider` | Busca processos por título/número |
+| `ContractCommandProvider` | Busca contratos por título/número |
 | `SystemCommandProvider` | Alterar tema, acessar perfil, sair |
 
 Para adicionar um provider de nova entidade (ex: Pessoas):

@@ -51,3 +51,23 @@ export const formatCEP = (value: string): string => {
   if (numbers.length <= 5) return numbers;
   return `${numbers.slice(0, 5)}-${numbers.slice(5, 8)}`;
 };
+
+const brlFormatter = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
+
+/**
+ * Formata um valor numérico como moeda BRL: R$ 1.234,56
+ */
+export const formatCurrencyBRL = (value: number | null | undefined): string => {
+  if (value === null || value === undefined) return '';
+  return brlFormatter.format(value);
+};
+
+/**
+ * Converte os dígitos digitados por último em um input de moeda (interpretados
+ * como centavos, da direita para a esquerda) no valor numérico correspondente.
+ */
+export const parseCurrencyDigits = (raw: string): number | null => {
+  const digits = onlyNumbers(raw);
+  if (digits.length === 0) return null;
+  return Number(digits) / 100;
+};

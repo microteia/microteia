@@ -12,6 +12,7 @@ import {
   RiTeamLine,
   RiInboxLine,
   RiBarChartBoxLine,
+  RiFileTextLine,
 } from 'react-icons/ri';
 import type { UserRole } from '../../domain/entities';
 import { DashboardView } from './Dashboard/Dashboard.view';
@@ -19,6 +20,8 @@ import { CalendarView } from './Calendar/Calendar.view';
 import { PersonsView } from './Persons/Persons.view';
 import { ViewPersonView } from './ViewPerson/ViewPerson.view';
 import { CasesView } from './Cases/Cases.view';
+import { ContractsView } from './Contracts/Contracts.view';
+import { ViewContractView } from './ViewContract/ViewContract.view';
 import { DeadlinesView } from './Deadlines/Deadlines.view';
 import { FinancialsView } from './Financials/Financials.view';
 import { NewsView } from './News/News.view';
@@ -61,6 +64,20 @@ export const PAGE_REGISTRY: PageDefinition[] = [
     component: ViewPersonView,
   },
   { key: 'cases',            title: 'Processos',           icon: <RiFolderLine size={20} />,             component: CasesView            },
+  { key: 'contracts',        title: 'Contratos',           icon: <RiFileTextLine size={20} />,           component: ContractsView        },
+  {
+    key: 'new-contract',
+    title: 'Novo Contrato',
+    icon: <RiFileTextLine size={20} />,
+    component: ViewContractView,
+  },
+  {
+    key: '',
+    keyPrefix: 'view-contract:',
+    title: 'Contrato',
+    icon: <RiFileTextLine size={20} />,
+    component: ViewContractView,
+  },
   { key: 'deadlines',        title: 'Prazos',              icon: <RiTimeLine size={20} />,               component: DeadlinesView        },
   { key: 'financials',       title: 'Financeiro',          icon: <RiMoneyDollarCircleLine size={20} />,  component: FinancialsView       },
   { key: 'pushes',           title: 'Pushes do Tribunal',  icon: <RiInboxLine size={20} />,              component: PushesView           },
