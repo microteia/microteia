@@ -20,8 +20,6 @@ import { Input, Label, Textarea } from '../../components/ui/Input';
 import { SearchSelect } from '../../components/ui/SearchSelect';
 import { DynamicSelect } from '../../components/ui/DynamicSelect';
 import { MultiSearchSelect } from '../../components/ui/MultiSearchSelect';
-import { DynamicSelect } from '../../components/ui/DynamicSelect';
-import { ConfirmModal } from '../../components/ui/ConfirmModal';
 import { TagManager } from '../../components/ui/TagManager';
 import { MarkdownEditor } from '../../components/ui/MarkdownEditor';
 import { MarkdownContent } from '../../components/ui/MarkdownContent';

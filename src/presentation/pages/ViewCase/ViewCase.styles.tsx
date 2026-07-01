@@ -288,9 +288,9 @@ export const S = {
 
   PendingFileCard: styled.div`
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     gap: ${({ theme }) => theme.spacing.md};
-    padding: ${({ theme }) => theme.spacing.md};
+    padding: ${({ theme }) => theme.spacing.lg};
     background: ${({ theme }) => theme.colors.surface};
     border: 1px solid ${({ theme }) => theme.colors.border};
     border-radius: ${({ theme }) => theme.borderRadius.lg};
@@ -303,7 +303,7 @@ export const S = {
     min-width: 0;
     display: flex;
     flex-direction: column;
-    gap: ${({ theme }) => theme.spacing.xs};
+    gap: ${({ theme }) => theme.spacing.md};
   `,
 
   PendingFileName: styled.span`
