@@ -459,7 +459,7 @@ export const ViewPersonView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
                             : (docItem.createdByName || 'U').charAt(0).toUpperCase()}
                         </S.DocUploaderAvatar>
                         <S.DocMeta>
-                          {docItem.createdByName} · {format(docItem.createdAt, "d 'de' MMM 'de' yyyy", { locale: ptBR })}
+                          {docItem.createdByName} · {format(docItem.createdAt, "d 'de' MMM 'de' yyyy 'às' HH:mm", { locale: ptBR })}
                         </S.DocMeta>
                       </S.DocUploaderRow>
                     </S.DocContent>
