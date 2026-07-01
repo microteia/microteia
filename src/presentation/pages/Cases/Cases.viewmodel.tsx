@@ -3,6 +3,7 @@ import { useTheme } from 'styled-components';
 import { useCaseStore } from '../../../stores/useCaseStore';
 import { useCaseTagStore } from '../../../stores/useCaseTagStore';
 import { useCaseLookup } from '../../../stores/useCaseLookup';
+import { useContractStore } from '../../../stores/useContractStore';
 import { usePersonStore } from '../../../stores/usePersonStore';
 import { useTenant } from '../../../stores/useTenant';
 import { useWorkspace } from '../../../stores/useWorkspace';
@@ -40,6 +41,7 @@ export interface CasesViewModel {
 export const useCasesViewModel = (): CasesViewModel => {
   const { cases, isLoading } = useCaseStore();
   const { tags } = useCaseTagStore();
+  const { contracts } = useContractStore();
   const { persons } = usePersonStore();
   const { tenantRole, members } = useTenant();
   const { areaConfigs, phaseConfigs, statusConfigs, instanceConfigs, actionTypeConfigs, courtConfigs, districtConfigs, judgeConfigs } = useCaseLookup();
@@ -112,6 +114,13 @@ export const useCasesViewModel = (): CasesViewModel => {
     [persons],
   );
 
+  const contractOptions = useMemo<FilterOption[]>(() =>
+    contracts
+      .map((c) => ({ value: c.id, label: `${c.number} — ${c.title}` }))
+      .sort((a, b) => a.label.localeCompare(b.label)),
+    [contracts],
+  );
+
   const filterDefs = useMemo<FilterDef[]>(() => [
     { key: 'search', label: 'Busca', type: 'text', placeholder: 'Título, número...' },
     ...(personOptions.length > 0 ? [{ key: 'parties', label: 'Partes', type: 'select' as const, options: personOptions }] : []),
@@ -126,8 +135,9 @@ export const useCasesViewModel = (): CasesViewModel => {
     { key: 'filedAtFrom', label: 'Distribuição (de)', type: 'text', placeholder: 'dd/mm/aaaa' },
     { key: 'filedAtTo', label: 'Distribuição (até)', type: 'text', placeholder: 'dd/mm/aaaa' },
     ...(lawyerOptions.length > 0 ? [{ key: 'lawyer', label: 'Advogado', type: 'select' as const, options: lawyerOptions }] : []),
+    ...(contractOptions.length > 0 ? [{ key: 'contract', label: 'Contrato', type: 'select' as const, options: contractOptions }] : []),
     ...(tagOptions.length > 0 ? [{ key: 'tag', label: 'Etiqueta', type: 'select' as const, options: tagOptions }] : []),
-  ], [statusOptions, areaOptions, phaseOptions, instanceOptions, actionTypeOptions, courtOptions, districtOptions, judgeOptions, lawyerOptions, tagOptions, personOptions]);
+  ], [statusOptions, areaOptions, phaseOptions, instanceOptions, actionTypeOptions, courtOptions, districtOptions, judgeOptions, lawyerOptions, contractOptions, tagOptions, personOptions]);
 
   const tokenMap = useMemo(() => {
     const map: Record<string, string[]> = {};
@@ -148,6 +158,7 @@ export const useCasesViewModel = (): CasesViewModel => {
     const filedAtFromStr = tokenMap['filedAtFrom']?.[0] ?? '';
     const filedAtToStr = tokenMap['filedAtTo']?.[0] ?? '';
     const lawyerFilter = tokenMap['lawyer'] ?? [];
+    const contractFilter = tokenMap['contract'] ?? [];
     const tagFilter = tokenMap['tag'] ?? [];
     const partiesFilter = tokenMap['parties'] ?? [];
 
@@ -169,6 +180,7 @@ export const useCasesViewModel = (): CasesViewModel => {
       if (districtFilter.length > 0 && !districtFilter.includes(c.courtDistrict ?? '')) return false;
       if (judgeFilter.length > 0 && !judgeFilter.includes(c.judge ?? '')) return false;
       if (lawyerFilter.length > 0 && !lawyerFilter.includes(c.responsibleLawyerId)) return false;
+      if (contractFilter.length > 0 && !contractFilter.includes(c.contractId ?? '')) return false;
       if (tagFilter.length > 0 && !tagFilter.some((tid) => c.tagIds?.includes(tid))) return false;
       if (partiesFilter.length > 0 && !partiesFilter.some((id) =>
         (c.activePoleIds ?? []).includes(id) || (c.passivePoleIds ?? []).includes(id)
