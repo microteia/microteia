@@ -6,7 +6,7 @@ import { useCaseLookup } from '../../../stores/useCaseLookup';
 import { usePersonStore } from '../../../stores/usePersonStore';
 import { useTenant } from '../../../stores/useTenant';
 import { useWorkspace } from '../../../stores/useWorkspace';
-import { resolveColor } from '../../../shared/styles/colorUtils';
+import { resolveColor, getConfigColor } from '../../../shared/styles/colorUtils';
 import { consumeNavigationIntent } from '../../../infrastructure/navigation/navigationIntent';
 import type { Case } from '../../../domain/entities';
 import type { FilterDef, FilterToken, FilterOption } from '../../components/ui/CompositeFilter';
@@ -202,15 +202,11 @@ export const useCasesViewModel = (): CasesViewModel => {
   const openCase = useCallback((c: Case) => openTab(`view-case:${c.id}`), [openTab]);
 
   const getStatusColor = useCallback((status: string): string => {
-    const config = statusConfigs.find((s) => s.key === status);
-    const colorValue = config?.color ?? 'textSecondary';
-    return colorValue.startsWith('#') ? colorValue : (theme.colors as Record<string, string>)[colorValue] ?? theme.colors.textSecondary;
+    return getConfigColor(statusConfigs, status, theme);
   }, [statusConfigs, theme]);
 
   const getPhaseColor = useCallback((phase: string): string => {
-    const config = phaseConfigs.find((p) => p.key === phase);
-    const colorValue = config?.color ?? 'textSecondary';
-    return colorValue.startsWith('#') ? colorValue : (theme.colors as Record<string, string>)[colorValue] ?? theme.colors.textSecondary;
+    return getConfigColor(phaseConfigs, phase, theme);
   }, [phaseConfigs, theme]);
 
   return {

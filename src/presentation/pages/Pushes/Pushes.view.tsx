@@ -128,7 +128,7 @@ export const PushesView: React.FC = () => {
                   )}
                   {row.displayLegalClass && (
                     <S.InfoItem>
-                      <S.InfoLabel>Classe</S.InfoLabel>
+                      <S.InfoLabel>Título</S.InfoLabel>
                       <S.InfoValue>{row.displayLegalClass}</S.InfoValue>
                     </S.InfoItem>
                   )}

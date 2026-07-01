@@ -8,3 +8,21 @@ export const resolveColor = (colorValue: string | undefined, theme: DefaultTheme
   if (!colorValue) return forceColor ?  theme.colors.textSecondary : undefined;
   return colorValue.startsWith('#') ? colorValue : (theme.colors as Record<string, string>)[colorValue] ?? (forceColor ? theme.colors.textSecondary : undefined);
 };
+
+/**
+ * Busca a cor de uma entidade em uma lista de configs e resolve (hex ou token do tema).
+ * @param configs Lista de configurações com `key` e `color`
+ * @param key Chave da entidade a buscar
+ * @param theme Tema do styled-components
+ * @param fallback Cor de fallback se não encontrar (padrão: theme.colors.textSecondary)
+ * @returns Cor resolvida (hex ou do tema)
+ */
+export const getConfigColor = <T extends { key: string; color?: string }>(
+  configs: T[],
+  key: string,
+  theme: DefaultTheme,
+  fallback?: string
+): string => {
+  const config = configs.find((c) => c.key === key);
+  return resolveColor(config?.color, theme) ?? fallback ?? theme.colors.textSecondary;
+};

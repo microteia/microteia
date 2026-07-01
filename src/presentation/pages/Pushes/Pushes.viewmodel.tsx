@@ -8,6 +8,7 @@ import { useCaseStore } from '../../../stores/useCaseStore';
 import { useCaseLookup } from '../../../stores/useCaseLookup';
 import { useTenant } from '../../../stores/useTenant';
 import { setNavigationIntent } from '../../../infrastructure/navigation/navigationIntent';
+import { getConfigColor } from '../../../shared/styles/colorUtils';
 import type { Push } from '../../../domain/entities';
 import type { FilterDef, FilterToken } from '../../components/ui/CompositeFilter';
 
@@ -192,7 +193,7 @@ export const usePushesViewModel = (): PushesViewModel => {
         (matchingCase?.opposingParties && matchingCase.opposingParties.length > 0
           ? matchingCase.opposingParties.map(p => p.name).join(', ')
           : undefined);
-      const displayLegalClass = push.legalClass || matchingCase?.type || undefined;
+      const displayLegalClass = push.legalClass || matchingCase?.title || undefined;
       const displayFilingDate = push.filingDate || matchingCase?.filedAt || undefined;
       const displayCauseValue = matchingCase?.causeValue ?? undefined;
 
@@ -272,15 +273,11 @@ export const usePushesViewModel = (): PushesViewModel => {
   }, [openTab]);
 
   const getPhaseColor = useCallback((phase: string): string => {
-    const config = phaseConfigs.find((p) => p.key === phase);
-    const colorValue = config?.color ?? 'textSecondary';
-    return colorValue.startsWith('#') ? colorValue : (theme.colors as Record<string, string>)[colorValue] ?? theme.colors.textSecondary;
+    return getConfigColor(phaseConfigs, phase, theme);
   }, [phaseConfigs, theme]);
 
   const getStatusColor = useCallback((status: string): string => {
-    const config = statusConfigs.find((s) => s.key === status);
-    const colorValue = config?.color ?? 'textSecondary';
-    return colorValue.startsWith('#') ? colorValue : (theme.colors as Record<string, string>)[colorValue] ?? theme.colors.textSecondary;
+    return getConfigColor(statusConfigs, status, theme);
   }, [statusConfigs, theme]);
 
   return {

@@ -9,7 +9,7 @@ import { useTenant } from '../../../stores/useTenant';
 import { useWorkspace } from '../../../stores/useWorkspace';
 import { useNotification } from '../../../stores/useNotification';
 import { useDI } from '../../../infrastructure/di/useDI';
-import { resolveColor } from '../../../shared/styles/colorUtils';
+import { resolveColor, getConfigColor } from '../../../shared/styles/colorUtils';
 import { generateDeepLink } from '../../../infrastructure/deeplink/deepLinkUtils';
 import { makeGetCaseNotesUseCase } from '../../../domain/usecases/casenotes/GetCaseNotesUseCase';
 import { makeAddCaseNoteUseCase } from '../../../domain/usecases/casenotes/AddCaseNoteUseCase';
@@ -462,9 +462,7 @@ export const useViewCaseViewModel = (tabKey: string): ViewCaseViewModel => {
   const cancelDeleteCase = useCallback(() => setCaseToDelete(null), []);
 
   const getStatusColor = useCallback((status: string): string => {
-    const config = statusConfigs.find((s) => s.key === status);
-    const colorValue = config?.color ?? 'textSecondary';
-    return colorValue.startsWith('#') ? colorValue : (theme.colors as Record<string, string>)[colorValue] ?? theme.colors.textSecondary;
+    return getConfigColor(statusConfigs, status, theme);
   }, [statusConfigs, theme]);
 
   const areaOptions = useMemo<DynamicSelectOption[]>(() =>

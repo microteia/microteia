@@ -5,7 +5,7 @@ import { usePersonTagStore } from '../../../stores/usePersonTagStore';
 import { usePersonLookup } from '../../../stores/usePersonLookup';
 import { useTenant } from '../../../stores/useTenant';
 import { useWorkspace } from '../../../stores/useWorkspace';
-import { resolveColor } from '../../../shared/styles/colorUtils';
+import { resolveColor, getConfigColor } from '../../../shared/styles/colorUtils';
 import type { Person } from '../../../domain/entities';
 import type { FilterDef, FilterToken } from '../../components/ui/CompositeFilter';
 
@@ -127,9 +127,7 @@ export const usePersonsViewModel = (): PersonsViewModel => {
 
   const getRelationshipColor = useCallback((relationship?: string | null): string => {
     if (!relationship) return theme.colors.relationshipDefault;
-    const config = relationshipConfigs.find((c) => c.key === relationship);
-    if (!config?.color) return theme.colors.relationshipDefault;
-    return (theme.colors as Record<string, string>)[config.color] ?? theme.colors.relationshipDefault;
+    return getConfigColor(relationshipConfigs, relationship, theme, theme.colors.relationshipDefault);
   }, [relationshipConfigs, theme]);
 
   return {

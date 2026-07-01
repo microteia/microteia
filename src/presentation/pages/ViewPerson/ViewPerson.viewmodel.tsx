@@ -9,7 +9,7 @@ import { useWorkspace } from '../../../stores/useWorkspace';
 import { useNotification } from '../../../stores/useNotification';
 import { useDI } from '../../../infrastructure/di/useDI';
 import { generateDeepLink } from '../../../infrastructure/deeplink/deepLinkUtils';
-import { resolveColor } from '../../../shared/styles/colorUtils';
+import { resolveColor, getConfigColor } from '../../../shared/styles/colorUtils';
 import type { DynamicSelectOption } from '../../components/ui/DynamicSelect';
 import { makeGetPersonNotesUseCase } from '../../../domain/usecases/personnotes/GetPersonNotesUseCase';
 import { makeAddPersonNoteUseCase } from '../../../domain/usecases/personnotes/AddPersonNoteUseCase';
@@ -574,9 +574,7 @@ export const useViewPersonViewModel = (tabKey: string): ViewPersonViewModel => {
   const relationshipColor = useMemo(() => {
     const rel = formData.relationship;
     if (!rel) return theme.colors.relationshipDefault;
-    const config = relationshipConfigs.find((c) => c.key === rel);
-    if (!config?.color) return theme.colors.relationshipDefault;
-    return (theme.colors as Record<string, string>)[config.color] ?? theme.colors.relationshipDefault;
+    return getConfigColor(relationshipConfigs, rel, theme, theme.colors.relationshipDefault);
   }, [formData.relationship, relationshipConfigs, theme]);
 
   const handleToggleStatus = useCallback(async () => {
