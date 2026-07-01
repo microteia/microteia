@@ -288,8 +288,8 @@ export const S = {
 
   PendingFileCard: styled.div`
     display: flex;
-    align-items: flex-start;
-    gap: ${({ theme }) => theme.spacing.md};
+    flex-direction: column;
+    gap: ${({ theme }) => theme.spacing.sm};
     padding: ${({ theme }) => theme.spacing.lg};
     background: ${({ theme }) => theme.colors.surface};
     border: 1px solid ${({ theme }) => theme.colors.border};
@@ -298,12 +298,15 @@ export const S = {
     max-width: 720px;
   `,
 
+  PendingFileTopRow: styled.div`
+    display: flex;
+    align-items: center;
+    gap: ${({ theme }) => theme.spacing.md};
+  `,
+
   PendingFileContent: styled.div`
     flex: 1;
     min-width: 0;
-    display: flex;
-    flex-direction: column;
-    gap: ${({ theme }) => theme.spacing.md};
   `,
 
   PendingFileName: styled.span`
@@ -313,6 +316,8 @@ export const S = {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    display: block;
+    padding-left: calc(36px + ${({ theme }) => theme.spacing.md});
   `,
 
   PendingFileActions: styled.div`

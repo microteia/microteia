@@ -401,31 +401,33 @@ export const ViewPersonView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
 
             {vm.pendingFile && (
               <S.PendingFileCard>
-                <S.DocIcon><RiFileTextLine /></S.DocIcon>
-                <S.PendingFileContent>
-                  <S.PendingFileName title={vm.pendingFile.name}>{vm.pendingFile.name}</S.PendingFileName>
-                  <DynamicSelect
-                    staticOptions={vm.documentTypeOptions}
-                    dynamicOptions={vm.documentTypeDynamicOptions}
-                    value={vm.pendingType}
-                    onChange={vm.setPendingType}
-                    placeholder="Tipo (opcional)"
-                    onAdd={vm.handleAddDocumentType}
-                    onDelete={vm.handleDeleteDocumentType}
-                    deleteConfirmTitle="Excluir tipo de documento"
-                    deleteConfirmMessage="Tem certeza que deseja excluir este tipo de documento?"
-                    disabled={vm.isUploadingDoc}
-                  />
-                </S.PendingFileContent>
-                <S.PendingFileActions>
-                  <Button variant="ghost" size="sm" onClick={vm.handleCancelPendingUpload} disabled={vm.isUploadingDoc}>
-                    <RiCloseLine size={14} />
-                    Cancelar
-                  </Button>
-                  <Button size="sm" onClick={() => void vm.handleConfirmUpload()} disabled={vm.isUploadingDoc}>
-                    {vm.isUploadingDoc ? 'Enviando...' : 'Confirmar Envio'}
-                  </Button>
-                </S.PendingFileActions>
+                <S.PendingFileTopRow>
+                  <S.DocIcon><RiFileTextLine /></S.DocIcon>
+                  <S.PendingFileContent>
+                    <DynamicSelect
+                      staticOptions={vm.documentTypeOptions}
+                      dynamicOptions={vm.documentTypeDynamicOptions}
+                      value={vm.pendingType}
+                      onChange={vm.setPendingType}
+                      placeholder="Tipo (opcional)"
+                      onAdd={vm.handleAddDocumentType}
+                      onDelete={vm.handleDeleteDocumentType}
+                      deleteConfirmTitle="Excluir tipo de documento"
+                      deleteConfirmMessage="Tem certeza que deseja excluir este tipo de documento?"
+                      disabled={vm.isUploadingDoc}
+                    />
+                  </S.PendingFileContent>
+                  <S.PendingFileActions>
+                    <Button variant="ghost" size="sm" onClick={vm.handleCancelPendingUpload} disabled={vm.isUploadingDoc}>
+                      <RiCloseLine size={14} />
+                      Cancelar
+                    </Button>
+                    <Button size="sm" onClick={() => void vm.handleConfirmUpload()} disabled={vm.isUploadingDoc}>
+                      {vm.isUploadingDoc ? 'Enviando...' : 'Confirmar Envio'}
+                    </Button>
+                  </S.PendingFileActions>
+                </S.PendingFileTopRow>
+                <S.PendingFileName title={vm.pendingFile.name}>{vm.pendingFile.name}</S.PendingFileName>
               </S.PendingFileCard>
             )}
 
