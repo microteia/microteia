@@ -32,6 +32,7 @@ export interface PushRow {
   displayCauseValue?: number;
   casePhase?: string;
   caseStatus?: string;
+  earliestDueDate?: Date;
 }
 
 export interface PushesViewModel {
@@ -170,7 +171,7 @@ export const usePushesViewModel = (): PushesViewModel => {
       );
     }
 
-    return filtered.map((push) => {
+    const mapped = filtered.map((push) => {
       const isBodyVisible = expandedBodies.has(push.id);
       const trusted = isTrustedSource(push.from);
 
@@ -197,6 +198,14 @@ export const usePushesViewModel = (): PushesViewModel => {
       const displayFilingDate = push.filingDate || matchingCase?.filedAt || undefined;
       const displayCauseValue = matchingCase?.causeValue ?? undefined;
 
+      // Encontrar o prazo mais próximo do vencimento (menor dueDate)
+      const earliestDueDate = linkedDeadlines.length > 0
+        ? linkedDeadlines.reduce((earliest, d) =>
+            !earliest || d.dueDate.getTime() < earliest.getTime() ? d.dueDate : earliest,
+            undefined as Date | undefined
+          )
+        : undefined;
+
       return {
         push,
         isRead: getInteraction(push.id)?.isRead ?? false,
@@ -217,7 +226,15 @@ export const usePushesViewModel = (): PushesViewModel => {
         displayCauseValue,
         casePhase: matchingCase?.phase,
         caseStatus: matchingCase?.status,
+        earliestDueDate,
       };
+    });
+
+    // Ordenar por vencimento do prazo mais próximo (ascendente), pushes sem prazo por último
+    return mapped.sort((a, b) => {
+      const aDate = a.earliestDueDate?.getTime() ?? Infinity;
+      const bDate = b.earliestDueDate?.getTime() ?? Infinity;
+      return aDate - bDate;
     });
   }, [pushes, tokenMap, getInteraction, expandedBodies, deadlines, cases]);
 
