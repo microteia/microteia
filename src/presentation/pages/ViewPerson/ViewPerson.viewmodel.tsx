@@ -190,7 +190,7 @@ export const useViewPersonViewModel = (tabKey: string): ViewPersonViewModel => {
   const { typeConfigs: documentTypeConfigs, addItem: addDocumentType, removeItem: removeDocumentType } = useDocumentTypeLookup();
   const { user } = useAuth();
   const { tenantRole, currentTenant } = useTenant();
-  const { setTabTitle, closeTab, activePanelId } = useWorkspace();
+  const { setTabTitle, closeTab, openTab, activePanelId } = useWorkspace();
   const { notify } = useNotification();
   const theme = useTheme();
   const { personNoteRepository, personDocumentRepository } = useDI();
@@ -435,7 +435,11 @@ export const useViewPersonViewModel = (tabKey: string): ViewPersonViewModel => {
       if (isNew) {
         const created = await createPerson({ ...payload, status: 'Ativo', createdBy: user?.id ?? '', tagIds: [] });
         notify('Pessoa cadastrada com sucesso!', 'success');
-        setTabTitle(tabKey, created.name);
+        // Transição automática para modo de edição
+        const newTabKey = `view-person:${created.id}`;
+        closeTab(tabKey, activePanelId ?? 'main');
+        openTab(newTabKey);
+        setTabTitle(newTabKey, created.name);
       } else if (person) {
         await updatePerson(person.id, payload);
         notify('Pessoa atualizada com sucesso!', 'success');
@@ -446,7 +450,7 @@ export const useViewPersonViewModel = (tabKey: string): ViewPersonViewModel => {
     } finally {
       setIsSaving(false);
     }
-  }, [formData, isNew, person, createPerson, updatePerson, currentTenant, notify, user, tabKey, setTabTitle]);
+  }, [formData, isNew, person, createPerson, updatePerson, currentTenant, notify, user, tabKey, setTabTitle, closeTab, openTab, activePanelId]);
 
   const tagAdapter: TagStoreAdapter = useMemo(() => ({
     tags,

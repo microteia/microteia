@@ -172,7 +172,7 @@ export const useViewCaseViewModel = (tabKey: string): ViewCaseViewModel => {
   const { persons } = usePersonStore();
   const { user } = useAuth();
   const { tenantRole, currentTenant, members } = useTenant();
-  const { setTabTitle, closeTab, activePanelId } = useWorkspace();
+  const { setTabTitle, closeTab, openTab, activePanelId } = useWorkspace();
   const { notify } = useNotification();
   const { caseNoteRepository, caseDocumentRepository } = useDI();
   const theme = useTheme();
@@ -295,7 +295,11 @@ export const useViewCaseViewModel = (tabKey: string): ViewCaseViewModel => {
       if (isNew) {
         const created = await createCase({ ...payload, createdBy: user?.id ?? '' });
         notify('Processo cadastrado com sucesso!', 'success');
-        setTabTitle(tabKey, created.title);
+        // Transição automática para modo de edição
+        const newTabKey = `view-case:${created.id}`;
+        closeTab(tabKey, activePanelId ?? 'main');
+        openTab(newTabKey);
+        setTabTitle(newTabKey, created.caseNumber ?? created.title);
       } else if (case_) {
         await updateCase(case_.id, payload);
         notify('Processo atualizado com sucesso!', 'success');
@@ -305,7 +309,7 @@ export const useViewCaseViewModel = (tabKey: string): ViewCaseViewModel => {
     } finally {
       setIsSaving(false);
     }
-  }, [formData, isNew, case_, members, createCase, updateCase, currentTenant, notify, user, tabKey, setTabTitle]);
+  }, [formData, isNew, case_, members, createCase, updateCase, currentTenant, notify, user, tabKey, setTabTitle, closeTab, openTab, activePanelId]);
 
   const appliedTags = useMemo(
     () => (case_ ? getTagsForCase(case_.id, case_.tagIds ?? []) : []),
