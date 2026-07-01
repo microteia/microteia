@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTheme } from 'styled-components';
 import { RiArrowLeftSLine, RiArrowRightSLine, RiScalesLine, RiCheckLine } from 'react-icons/ri';
 import { useCalendarViewModel } from './Calendar.viewmodel';
 import { S } from './Calendar.styles';
@@ -7,6 +8,7 @@ import type { PriorityFilter } from './Calendar.viewmodel';
 
 export const CalendarView: React.FC = () => {
   const vm = useCalendarViewModel();
+  const theme = useTheme();
 
   return (
     <>
@@ -57,7 +59,7 @@ export const CalendarView: React.FC = () => {
                 {day.items.map((item) => (
                   <S.SideEventCard
                     key={item.deadline.id}
-                    $color={item.isOverdue ? '#ef4444' : item.color}
+                    $color={item.isOverdue ? theme.colors.deadlineStatusOverdue : item.color}
                     $done={item.isCompleted}
                     onClick={() => vm.handleOpenDeadline(item.deadline.id)}
                   >

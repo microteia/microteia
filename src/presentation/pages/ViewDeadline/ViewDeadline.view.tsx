@@ -17,13 +17,6 @@ export const ViewDeadlineView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
 
   const priorityColor = vm.getPriorityColor(vm.formData.priority);
 
-  const statusColors: Record<string, string> = {
-    'Pendente': '#6b7280',
-    'Concluído': '#22c55e',
-    'Vencido': '#ef4444',
-    'Cancelado': '#9ca3af',
-  };
-
   return (
     <S.Page>
       <S.Header>
@@ -44,7 +37,7 @@ export const ViewDeadlineView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
         </S.HeaderLeft>
 
         <S.HeaderActions>
-          <S.StatusChip $color={statusColors[vm.derivedStatus] ?? '#6b7280'}>
+          <S.StatusChip $color={vm.getDeadlineStatusColor(vm.derivedStatus)}>
             {vm.derivedStatus}
           </S.StatusChip>
         </S.HeaderActions>

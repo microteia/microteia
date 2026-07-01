@@ -51,6 +51,7 @@ export interface ViewDeadlineViewModel {
 
   derivedStatus: DeadlineStatus;
   getPriorityColor: (priority: string) => string;
+  getDeadlineStatusColor: (status: DeadlineStatus) => string;
 }
 
 export const useViewDeadlineViewModel = (tabKey: string): ViewDeadlineViewModel => {
@@ -96,6 +97,16 @@ export const useViewDeadlineViewModel = (tabKey: string): ViewDeadlineViewModel 
       'Crítica': theme.colors.danger,
     };
     return map[priority as DeadlinePriority] ?? theme.colors.textSecondary;
+  }, [theme]);
+
+  const getDeadlineStatusColor = useCallback((status: DeadlineStatus): string => {
+    const map: Record<DeadlineStatus, string> = {
+      'Pendente':  theme.colors.deadlineStatusPending,
+      'Concluído': theme.colors.deadlineStatusCompleted,
+      'Vencido':   theme.colors.deadlineStatusOverdue,
+      'Cancelado': theme.colors.deadlineStatusCanceled,
+    };
+    return map[status] ?? theme.colors.deadlineStatusPending;
   }, [theme]);
 
   const typeOptions = useMemo<DynamicSelectOption[]>(() =>
@@ -205,5 +216,6 @@ export const useViewDeadlineViewModel = (tabKey: string): ViewDeadlineViewModel 
     memberOptions,
     derivedStatus,
     getPriorityColor,
+    getDeadlineStatusColor,
   };
 };

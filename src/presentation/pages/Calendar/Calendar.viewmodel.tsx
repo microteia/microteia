@@ -75,12 +75,12 @@ export const useCalendarViewModel = (): CalendarViewModel => {
 
   const getStatusColor = useCallback((status: string): string => {
     const map: Record<DeadlineStatus, string> = {
-      'Pendente':  theme.colors.info,
-      'Concluído': theme.colors.success,
-      'Vencido':   theme.colors.danger,
-      'Cancelado': theme.colors.textSecondary,
+      'Pendente':  theme.colors.deadlineStatusPending,
+      'Concluído': theme.colors.deadlineStatusCompleted,
+      'Vencido':   theme.colors.deadlineStatusOverdue,
+      'Cancelado': theme.colors.deadlineStatusCanceled,
     };
-    return map[status as DeadlineStatus] ?? theme.colors.textSecondary;
+    return map[status as DeadlineStatus] ?? theme.colors.deadlineStatusPending;
   }, [theme]);
 
   const getPriorityColor = useCallback((priority: string): string => {
