@@ -112,8 +112,6 @@ export interface ViewCaseViewModel {
   pendingFile: File | null;
   pendingType: string;
   setPendingType: (v: string) => void;
-  pendingDescription: string;
-  setPendingDescription: (v: string) => void;
   documentTypeOptions: DynamicSelectOption[];
   documentTypeDynamicOptions: DynamicSelectOption[];
   handleAddDocumentType: (name: string) => Promise<void>;
@@ -212,7 +210,6 @@ export const useViewCaseViewModel = (tabKey: string): ViewCaseViewModel => {
   const [docToDelete, setDocToDelete] = useState<CaseDocument | null>(null);
   const [pendingFile, setPendingFile] = useState<File | null>(null);
   const [pendingType, setPendingType] = useState('');
-  const [pendingDescription, setPendingDescription] = useState('');
 
   const noteUC = useMemo(() => ({
     get:    makeGetCaseNotesUseCase(caseNoteRepository),
@@ -401,7 +398,6 @@ export const useViewCaseViewModel = (tabKey: string): ViewCaseViewModel => {
   const handleCancelPendingUpload = useCallback(() => {
     setPendingFile(null);
     setPendingType('');
-    setPendingDescription('');
   }, []);
 
   const handleConfirmUpload = useCallback(async () => {
@@ -413,7 +409,6 @@ export const useViewCaseViewModel = (tabKey: string): ViewCaseViewModel => {
       const addedDoc = await docUC.add.execute(currentTenant.id, case_.id, {
         name: pendingFile.name,
         type: pendingType.trim() || undefined,
-        description: pendingDescription.trim() || undefined,
         url,
         storagePath,
         createdBy: user.id,
@@ -423,14 +418,13 @@ export const useViewCaseViewModel = (tabKey: string): ViewCaseViewModel => {
       setDocuments((prev) => [addedDoc, ...prev]);
       setPendingFile(null);
       setPendingType('');
-      setPendingDescription('');
       notify('Documento enviado com sucesso.', 'success');
     } catch {
       notify('Erro ao enviar documento.', 'error');
     } finally {
       setIsUploadingDoc(false);
     }
-  }, [pendingFile, pendingType, pendingDescription, case_, currentTenant, user, docUC, notify]);
+  }, [pendingFile, pendingType, case_, currentTenant, user, docUC, notify]);
 
   const requestDeleteDoc = useCallback((doc: CaseDocument) => setDocToDelete(doc), []);
   const cancelDeleteDoc = useCallback(() => setDocToDelete(null), []);
@@ -608,8 +602,6 @@ export const useViewCaseViewModel = (tabKey: string): ViewCaseViewModel => {
     pendingFile,
     pendingType,
     setPendingType,
-    pendingDescription,
-    setPendingDescription,
     documentTypeOptions,
     documentTypeDynamicOptions,
     handleAddDocumentType,

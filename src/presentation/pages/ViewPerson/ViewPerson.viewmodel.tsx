@@ -133,8 +133,6 @@ export interface ViewPersonViewModel {
   pendingFile: File | null;
   pendingType: string;
   setPendingType: (v: string) => void;
-  pendingDescription: string;
-  setPendingDescription: (v: string) => void;
   documentTypeOptions: DynamicSelectOption[];
   documentTypeDynamicOptions: DynamicSelectOption[];
   handleAddDocumentType: (name: string) => Promise<void>;
@@ -230,7 +228,6 @@ export const useViewPersonViewModel = (tabKey: string): ViewPersonViewModel => {
   const [docToDelete, setDocToDelete] = useState<PersonDocument | null>(null);
   const [pendingFile, setPendingFile] = useState<File | null>(null);
   const [pendingType, setPendingType] = useState('');
-  const [pendingDescription, setPendingDescription] = useState('');
 
   const noteUC = useMemo(() => ({
     get:    makeGetPersonNotesUseCase(personNoteRepository),
@@ -521,7 +518,6 @@ export const useViewPersonViewModel = (tabKey: string): ViewPersonViewModel => {
     if (file) {
       setPendingFile(file);
       setPendingType('');
-      setPendingDescription('');
     }
     e.target.value = '';
   }, []);
@@ -529,7 +525,6 @@ export const useViewPersonViewModel = (tabKey: string): ViewPersonViewModel => {
   const handleCancelPendingUpload = useCallback(() => {
     setPendingFile(null);
     setPendingType('');
-    setPendingDescription('');
   }, []);
 
   const handleConfirmUpload = useCallback(async () => {
@@ -541,7 +536,6 @@ export const useViewPersonViewModel = (tabKey: string): ViewPersonViewModel => {
       const addedDoc = await docUC.add.execute(currentTenant.id, person.id, {
         name: pendingFile.name,
         type: pendingType.trim() || undefined,
-        description: pendingDescription.trim() || undefined,
         url,
         storagePath,
         createdBy: user.id,
@@ -551,14 +545,13 @@ export const useViewPersonViewModel = (tabKey: string): ViewPersonViewModel => {
       setDocuments((prev) => [addedDoc, ...prev]);
       setPendingFile(null);
       setPendingType('');
-      setPendingDescription('');
       notify('Documento enviado com sucesso.', 'success');
     } catch {
       notify('Erro ao enviar documento.', 'error');
     } finally {
       setIsUploadingDoc(false);
     }
-  }, [pendingFile, pendingType, pendingDescription, person, currentTenant, user, docUC, notify]);
+  }, [pendingFile, pendingType, person, currentTenant, user, docUC, notify]);
 
   const requestDeleteDoc = useCallback((doc: PersonDocument) => setDocToDelete(doc), []);
   const cancelDeleteDoc = useCallback(() => setDocToDelete(null), []);
@@ -732,8 +725,6 @@ export const useViewPersonViewModel = (tabKey: string): ViewPersonViewModel => {
     pendingFile,
     pendingType,
     setPendingType,
-    pendingDescription,
-    setPendingDescription,
     documentTypeOptions,
     documentTypeDynamicOptions,
     handleAddDocumentType,

@@ -416,12 +416,6 @@ export const ViewPersonView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
                     deleteConfirmMessage="Tem certeza que deseja excluir este tipo de documento?"
                     disabled={vm.isUploadingDoc}
                   />
-                  <Input
-                    value={vm.pendingDescription}
-                    onChange={(e) => vm.setPendingDescription(e.target.value)}
-                    placeholder="Descrição (opcional)"
-                    disabled={vm.isUploadingDoc}
-                  />
                 </S.PendingFileContent>
                 <S.PendingFileActions>
                   <Button variant="ghost" size="sm" onClick={vm.handleCancelPendingUpload} disabled={vm.isUploadingDoc}>
