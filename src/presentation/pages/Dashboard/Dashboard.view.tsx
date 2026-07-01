@@ -11,6 +11,7 @@ import { useDashboardViewModel } from './Dashboard.viewmodel';
 import { Card, CardHeader, CardTitle } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Spinner } from '../../components/ui/Spinner';
+import { DeadlineCharts } from '../../components/ui/DeadlineCharts';
 import { S } from './Dashboard.styles';
 import { useTheme } from 'styled-components';
 
@@ -46,6 +47,8 @@ export const DashboardView: React.FC = () => {
           </S.KPICard>
         ))}
       </S.KPIGrid>
+
+      <DeadlineCharts deadlines={vm.allDeadlines} />
 
       <S.BottomGrid>
         <Card>

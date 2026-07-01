@@ -36,6 +36,7 @@ export interface DashboardViewModel {
   upcomingDeadlines: UpcomingDeadline[];
   overdueDeadlines: OverdueDeadline[];
   recentCases: Case[];
+  allDeadlines: Deadline[];
   pendingIncome: number;
   pendingExpense: number;
   formatAmount: (v: number) => string;
@@ -168,6 +169,7 @@ export const useDashboardViewModel = (): DashboardViewModel => {
     upcomingDeadlines,
     overdueDeadlines,
     recentCases,
+    allDeadlines: deadlines,
     pendingIncome,
     pendingExpense,
     formatAmount,

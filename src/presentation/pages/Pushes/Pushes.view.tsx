@@ -217,7 +217,7 @@ export const PushesView: React.FC = () => {
                     if (!row.isRead) {
                       items.push({
                         id: 'mark-read',
-                        label: 'Marcar como lido',
+                        label: 'Lido',
                         icon: <RiCheckLine size={14} />,
                         onClick: () => vm.handleMarkAsRead(row.push),
                       });
@@ -226,7 +226,7 @@ export const PushesView: React.FC = () => {
                     if (row.push.status === 'pending') {
                       items.push({
                         id: 'review',
-                        label: 'Revisar',
+                        label: 'Revisado',
                         icon: <RiCheckLine size={14} />,
                         onClick: () => vm.handleUpdateStatus(row.push, 'reviewed'),
                       });

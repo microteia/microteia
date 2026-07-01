@@ -234,7 +234,7 @@ export const useViewCaseViewModel = (tabKey: string): ViewCaseViewModel => {
     if (case_) {
       // eslint-disable-next-line react-hooks/set-state-in-effect -- sincroniza formulário ao carregar/atualizar dados do processo
       setFormDataState(buildFormData(case_, user?.id ?? '', user?.displayName ?? ''));
-      setTabTitle(tabKey, case_.title);
+      setTabTitle(tabKey, case_.caseNumber ?? case_.title);
     }
   }, [case_, tabKey, setTabTitle, user]);
 
