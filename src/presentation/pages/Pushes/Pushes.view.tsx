@@ -1,5 +1,5 @@
 import React from 'react';
-import { RiInboxLine, RiCheckLine, RiArchiveLine, RiDeleteBinLine, RiBarChartBoxLine, RiErrorWarningLine, RiEyeLine, RiEyeOffLine, RiShieldCheckLine, RiMore2Line, RiTimeLine, RiAlertLine, RiFileList3Line, RiPriceTag3Line, RiMoneyDollarCircleLine } from 'react-icons/ri';
+import { RiInboxLine, RiCheckLine, RiArchiveLine, RiDeleteBinLine, RiBarChartBoxLine, RiErrorWarningLine, RiEyeLine, RiEyeOffLine, RiShieldCheckLine, RiMore2Line, RiTimeLine, RiAlertLine } from 'react-icons/ri';
 import { usePushesViewModel } from './Pushes.viewmodel';
 import { S } from './Pushes.styles';
 import { Button } from '../../components/ui/Button';
@@ -138,10 +138,16 @@ export const PushesView: React.FC = () => {
                       <S.InfoValue>{row.displayFilingDate.toLocaleDateString()}</S.InfoValue>
                     </S.InfoItem>
                   )}
+                  {row.displayCauseValue && (
+                    <S.InfoItem>
+                      <S.InfoLabel>Valor da Causa</S.InfoLabel>
+                      <S.InfoValue>{row.displayCauseValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</S.InfoValue>
+                    </S.InfoItem>
+                  )}
                 </S.ProcessInfo>
               )}
 
-              {row.caseId && (row.casePhase || row.caseStatus || row.caseCauseValue) && (
+              {row.caseId && (row.casePhase || row.caseStatus) && (
                 <S.CaseInfoSection>
                   {row.casePhase && (
                     <S.CaseInfoBadge $color={vm.getPhaseColor(row.casePhase)}>
@@ -151,12 +157,6 @@ export const PushesView: React.FC = () => {
                   {row.caseStatus && (
                     <S.CaseInfoBadge $color={vm.getStatusColor(row.caseStatus)}>
                       {row.caseStatus}
-                    </S.CaseInfoBadge>
-                  )}
-                  {row.caseCauseValue && (
-                    <S.CaseInfoBadge>
-                      <RiMoneyDollarCircleLine size={12} />
-                      {row.caseCauseValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                     </S.CaseInfoBadge>
                   )}
                 </S.CaseInfoSection>

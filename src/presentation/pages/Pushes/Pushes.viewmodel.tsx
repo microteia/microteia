@@ -28,9 +28,9 @@ export interface PushRow {
   displayPassiveParty?: string;
   displayLegalClass?: string;
   displayFilingDate?: Date;
+  displayCauseValue?: number;
   casePhase?: string;
   caseStatus?: string;
-  caseCauseValue?: number;
 }
 
 export interface PushesViewModel {
@@ -194,6 +194,7 @@ export const usePushesViewModel = (): PushesViewModel => {
           : undefined);
       const displayLegalClass = push.legalClass || matchingCase?.type || undefined;
       const displayFilingDate = push.filingDate || matchingCase?.filedAt || undefined;
+      const displayCauseValue = matchingCase?.causeValue ?? undefined;
 
       return {
         push,
@@ -212,9 +213,9 @@ export const usePushesViewModel = (): PushesViewModel => {
         displayPassiveParty,
         displayLegalClass,
         displayFilingDate,
+        displayCauseValue,
         casePhase: matchingCase?.phase,
         caseStatus: matchingCase?.status,
-        caseCauseValue: matchingCase?.causeValue ?? undefined,
       };
     });
   }, [pushes, tokenMap, getInteraction, expandedBodies, deadlines, cases]);
