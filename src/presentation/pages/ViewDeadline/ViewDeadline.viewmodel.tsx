@@ -162,7 +162,7 @@ export const useViewDeadlineViewModel = (tabKey: string): ViewDeadlineViewModel 
         caseId: formData.caseId,
         caseNumber: selectedCase?.caseNumber ?? '',
         caseTitle: selectedCase?.title ?? '',
-        personName: selectedCase?.personName ?? '',
+        personName: '',
         dueDate,
         priority: formData.priority,
         status,

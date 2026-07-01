@@ -188,7 +188,7 @@ export const usePushesViewModel = (): PushesViewModel => {
 
       // Campos com fallback para dados do Case quando vazios no Push
       const displayCourt = push.court || matchingCase?.court || undefined;
-      const displayActiveParty = push.activeParty || matchingCase?.personName || undefined;
+      const displayActiveParty = push.activeParty || undefined;
       const displayPassiveParty = push.passiveParty ||
         (matchingCase?.opposingParties && matchingCase.opposingParties.length > 0
           ? matchingCase.opposingParties.map(p => p.name).join(', ')

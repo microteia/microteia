@@ -162,16 +162,6 @@ export const ViewCaseView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
               />
             </S.FormGroup>
 
-            <S.FormGroup $fullWidth>
-              <Label>Cliente *</Label>
-              <SearchSelect
-                options={personOptions}
-                value={vm.formData.personId}
-                onChange={(val) => vm.setFormData({ personId: val })}
-                placeholder="Selecione a pessoa..."
-              />
-            </S.FormGroup>
-
             <S.SectionTitle>Classificação</S.SectionTitle>
 
             <S.FormGroup>
@@ -295,11 +285,6 @@ export const ViewCaseView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
             <S.FormGroup>
               <Label>Valor da Causa (R$)</Label>
               <Input type="number" value={vm.formData.causeValue} onChange={(e) => vm.setFormData({ causeValue: e.target.value })} placeholder="0,00" />
-            </S.FormGroup>
-
-            <S.FormGroup>
-              <Label>Valor do Contrato (R$)</Label>
-              <Input type="number" value={vm.formData.contractValue} onChange={(e) => vm.setFormData({ contractValue: e.target.value })} placeholder="0,00" />
             </S.FormGroup>
 
             <S.FormGroup $fullWidth>

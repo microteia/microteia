@@ -26,8 +26,7 @@ export const useCaseMentionModalViewModel = (
     return cases.filter(
       (c) =>
         c.title.toLowerCase().includes(q) ||
-        c.caseNumber.toLowerCase().includes(q) ||
-        c.personName.toLowerCase().includes(q),
+        c.caseNumber.toLowerCase().includes(q),
     );
   }, [cases, keyword]);
 

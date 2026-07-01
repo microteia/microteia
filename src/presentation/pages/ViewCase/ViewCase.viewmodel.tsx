@@ -28,7 +28,6 @@ export type ViewCaseTab = 'data' | 'notes' | 'documents';
 export interface CaseFormData {
   caseNumber: string;
   title: string;
-  personId: string;
   activePoleIds: string[];
   passivePoleIds: string[];
   area: string;
@@ -42,7 +41,6 @@ export interface CaseFormData {
   responsibleLawyerId: string;
   responsibleLawyerName: string;
   notes: string;
-  contractValue: string;
   causeValue: string;
   filedAt: string;
 }
@@ -50,7 +48,6 @@ export interface CaseFormData {
 const buildFormData = (c: Case | null, userId: string, displayName: string): CaseFormData => ({
   caseNumber: c?.caseNumber ?? '',
   title: c?.title ?? '',
-  personId: c?.personId ?? '',
   activePoleIds: c?.activePoleIds ?? [],
   passivePoleIds: c?.passivePoleIds ?? [],
   area: c?.area ?? 'Cível',
@@ -64,7 +61,6 @@ const buildFormData = (c: Case | null, userId: string, displayName: string): Cas
   responsibleLawyerId: c?.responsibleLawyerId ?? userId,
   responsibleLawyerName: c?.responsibleLawyerName ?? displayName,
   notes: c?.notes ?? '',
-  contractValue: c?.contractValue?.toString() ?? '',
   causeValue: c?.causeValue?.toString() ?? '',
   filedAt: c?.filedAt ? c.filedAt.toISOString().slice(0, 10) : '',
 });
@@ -267,10 +263,8 @@ export const useViewCaseViewModel = (tabKey: string): ViewCaseViewModel => {
   const handleSave = useCallback(async () => {
     if (!formData.title.trim()) { notify('Título é obrigatório.', 'error'); return; }
     if (!formData.caseNumber.trim()) { notify('Número do processo é obrigatório.', 'error'); return; }
-    if (!formData.personId) { notify('Selecione uma pessoa.', 'error'); return; }
     if (!currentTenant) return;
 
-    const selectedPerson = persons.find((c) => c.id === formData.personId);
     const selectedMember = members.find((m) => m.userId === formData.responsibleLawyerId);
 
     setIsSaving(true);
@@ -278,8 +272,6 @@ export const useViewCaseViewModel = (tabKey: string): ViewCaseViewModel => {
       const payload = {
         caseNumber: formData.caseNumber.trim(),
         title: formData.title.trim(),
-        personId: formData.personId,
-        personName: selectedPerson?.name ?? '',
         area: formData.area as CaseArea,
         type: formData.type.length > 0 ? formData.type : undefined,
         court: formData.court || null,
@@ -294,7 +286,6 @@ export const useViewCaseViewModel = (tabKey: string): ViewCaseViewModel => {
         passivePoleIds: formData.passivePoleIds,
         opposingParties: case_?.opposingParties ?? [],
         filedAt: formData.filedAt ? new Date(formData.filedAt) : null,
-        contractValue: formData.contractValue ? parseFloat(formData.contractValue) : null,
         causeValue: formData.causeValue ? parseFloat(formData.causeValue) : null,
         notes: formData.notes || null,
         tags: case_?.tags ?? [],
@@ -314,7 +305,7 @@ export const useViewCaseViewModel = (tabKey: string): ViewCaseViewModel => {
     } finally {
       setIsSaving(false);
     }
-  }, [formData, isNew, case_, persons, members, createCase, updateCase, currentTenant, notify, user, tabKey, setTabTitle]);
+  }, [formData, isNew, case_, members, createCase, updateCase, currentTenant, notify, user, tabKey, setTabTitle]);
 
   const appliedTags = useMemo(
     () => (case_ ? getTagsForCase(case_.id, case_.tagIds ?? []) : []),

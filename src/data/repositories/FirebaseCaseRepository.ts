@@ -33,8 +33,6 @@ const mapCase = (id: string, d: Record<string, unknown>, tenantId: string): Case
   tenantId,
   caseNumber: d.caseNumber as string,
   title: d.title as string,
-  personId: d.personId as string,
-  personName: d.personName as string,
   area: d.area as Case['area'],
   type: d.type
     ? (Array.isArray(d.type) ? d.type as string[] : [d.type as string])
@@ -51,7 +49,6 @@ const mapCase = (id: string, d: Record<string, unknown>, tenantId: string): Case
   passivePoleIds: (d.passivePoleIds as string[] | undefined) ?? [],
   opposingParties: (d.opposingParties as Case['opposingParties']) ?? [],
   filedAt: toDateOrNull(d.filedAt),
-  contractValue: (d.contractValue as number | null) ?? null,
   causeValue: (d.causeValue as number | null) ?? null,
   notes: (d.notes as string | null) ?? null,
   tags: (d.tags as string[] | undefined) ?? [],

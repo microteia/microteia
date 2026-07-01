@@ -2,7 +2,6 @@ import React from 'react';
 import {
   RiFolderAddLine,
   RiFolderLine,
-  RiUserLine,
   RiScalesLine,
   RiMoneyDollarCircleLine,
 } from 'react-icons/ri';
@@ -109,12 +108,6 @@ export const CasesView: React.FC = () => {
                   })()}
 
                   <S.CaseMeta>
-                    {c.personName && !(c.activePoleIds ?? []).includes(c.personId) && !(c.passivePoleIds ?? []).includes(c.personId) && (
-                      <S.MetaRow>
-                        <RiUserLine size={12} />
-                        <S.MetaText>{c.personName}</S.MetaText>
-                      </S.MetaRow>
-                    )}
                     {c.responsibleLawyerName && (
                       <S.MetaRow>
                         <RiScalesLine size={12} />

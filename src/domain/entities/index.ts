@@ -353,8 +353,6 @@ export interface Case {
   tenantId: string;
   caseNumber: string;
   title: string;
-  personId: string;
-  personName: string;
   area: CaseArea;
   type?: string[];
   court?: string | null;
@@ -369,7 +367,6 @@ export interface Case {
   passivePoleIds?: string[];
   opposingParties?: CaseParty[];
   filedAt?: Date | null;
-  contractValue?: number | null;
   causeValue?: number | null;
   notes?: string | null;
   tags?: string[];

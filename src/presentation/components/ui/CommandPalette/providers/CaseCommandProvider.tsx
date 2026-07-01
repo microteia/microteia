@@ -13,14 +13,13 @@ export const CaseCommandProvider: ICommandPaletteProvider = {
       .filter(
         (c) =>
           contains(c.title, query) ||
-          contains(c.caseNumber, query) ||
-          contains(c.personName, query),
+          contains(c.caseNumber, query),
       )
       .slice(0, 8)
       .map((c) => ({
         id: `case:${c.id}`,
         title: c.title,
-        subtitle: [c.caseNumber, c.personName].filter(Boolean).join(' · '),
+        subtitle: c.caseNumber,
         group: 'Processos',
         icon: <RiFolderLine size={16} />,
         onSelect: () => {

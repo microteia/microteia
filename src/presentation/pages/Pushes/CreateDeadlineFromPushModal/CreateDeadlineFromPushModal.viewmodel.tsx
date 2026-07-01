@@ -158,7 +158,7 @@ export const useCreateDeadlineFromPushViewModel = (
         caseId: matchingCase.id,
         caseNumber: matchingCase.caseNumber,
         caseTitle: matchingCase.title,
-        personName: matchingCase.personName,
+        personName: '',
         dueDate,
         priority: formData.priority,
         status,

@@ -91,7 +91,7 @@ export const CaseMentionModal: React.FC<CaseMentionModalProps> = (props) => {
         <Content>
           <S.FilterBar>
             <S.KeywordInput
-              placeholder="Número, título ou pessoa do processo..."
+              placeholder="Número ou título do processo..."
               value={vm.keyword}
               onChange={(e) => vm.setKeyword(e.target.value)}
               autoFocus
@@ -107,7 +107,6 @@ export const CaseMentionModal: React.FC<CaseMentionModalProps> = (props) => {
                   <S.CaseTitle>{c.title}</S.CaseTitle>
                   <S.CaseMeta>
                     <S.CaseNumber>{c.caseNumber}</S.CaseNumber>
-                    <S.PersonName>{c.personName}</S.PersonName>
                   </S.CaseMeta>
                 </S.PickerCard>
               ))}
