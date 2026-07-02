@@ -2,7 +2,7 @@ import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import { useSavedFilter } from '../../../../stores/useSavedFilter';
 import type { SavedFilter } from '../../../../domain/entities';
 
-export type FilterType = 'select' | 'multiselect' | 'text';
+export type FilterType = 'select' | 'multiselect' | 'text' | 'date';
 
 export interface FilterOption {
   value: string;
@@ -36,6 +36,7 @@ export interface CompositeFilterViewModel {
   filteredDefs: FilterDef[];
   filteredOptions: FilterOption[];
   inputRef: React.RefObject<HTMLInputElement | null>;
+  dateInputRef: React.RefObject<HTMLInputElement | null>;
   containerRef: React.RefObject<HTMLDivElement | null>;
   dropdownRef: React.RefObject<HTMLDivElement | null>;
   dropPos: { top: number; left: number; minWidth: number };
@@ -49,6 +50,7 @@ export interface CompositeFilterViewModel {
   onInputKeyDown: (e: React.KeyboardEvent) => void;
   onSelectDef: (def: FilterDef) => void;
   onToggleMulti: (value: string) => void;
+  onDateChange: (value: string) => void;
   onConfirmMulti: () => void;
   onRemoveToken: (key: string, value?: string) => void;
   onEditToken: (key: string) => void;
@@ -81,6 +83,7 @@ export const useCompositeFilterViewModel = (
   const [lastAppliedFilter, setLastAppliedFilter] = useState<{ id: string; name: string } | null>(null);
   const [dropPos, setDropPos] = useState({ top: 0, left: 0, minWidth: 0 });
   const inputRef = useRef<HTMLInputElement>(null);
+  const dateInputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const saveInputRef = useRef<HTMLInputElement>(null);
@@ -136,7 +139,8 @@ export const useCompositeFilterViewModel = (
 
   const applyPending = useCallback(() => {
     if (!activeDef || activeDef.type === 'text') return;
-    if (pendingMulti.length > 0) {
+    const hasValue = activeDef.type === 'date' ? Boolean(pendingMulti[0]) : pendingMulti.length > 0;
+    if (hasValue) {
       upsertToken(activeDef.key, pendingMulti);
     } else {
       onChange(tokens.filter((t) => t.key !== activeDef.key));
@@ -151,16 +155,23 @@ export const useCompositeFilterViewModel = (
   const enterValueSelect = useCallback(
     (def: FilterDef) => {
       const currentValues = tokens.find((t) => t.key === def.key)?.values ?? [];
-      if (def.type !== 'text') {
-        setPendingMulti([...currentValues]);
+      if (def.type === 'text') {
+        setInputValue(currentValues[0] ?? '');
+      } else if (def.type === 'date') {
+        setPendingMulti(currentValues.length === 1 ? [...currentValues] : ['']);
         setInputValue('');
       } else {
-        setInputValue(currentValues[0] ?? '');
+        setPendingMulti([...currentValues]);
+        setInputValue('');
       }
       setActiveDef(def);
       setPhase('value-select');
       setActiveIdx(0);
-      setTimeout(() => inputRef.current?.focus(), 20);
+      if (def.type === 'date') {
+        setTimeout(() => dateInputRef.current?.focus(), 20);
+      } else {
+        setTimeout(() => inputRef.current?.focus(), 20);
+      }
     },
     [tokens],
   );
@@ -285,6 +296,10 @@ export const useCompositeFilterViewModel = (
     ],
   );
 
+  const onDateChange = useCallback((value: string) => {
+    setPendingMulti([value]);
+  }, []);
+
   const onMouseEnterOption = useCallback((idx: number) => setActiveIdx(idx), []);
 
   const onStartSave = useCallback(() => {
@@ -388,6 +403,7 @@ export const useCompositeFilterViewModel = (
     filteredDefs,
     filteredOptions,
     inputRef,
+    dateInputRef,
     containerRef,
     dropdownRef,
     dropPos,
@@ -401,6 +417,7 @@ export const useCompositeFilterViewModel = (
     onInputKeyDown,
     onSelectDef,
     onToggleMulti,
+    onDateChange,
     onConfirmMulti,
     onRemoveToken,
     onEditToken,

@@ -38,6 +38,7 @@ import type { IContractTagRepository } from '../../domain/repositories/IContract
 import type { IContractNoteRepository } from '../../domain/repositories/IContractNoteRepository';
 import type { IContractDocumentRepository } from '../../domain/repositories/IContractDocumentRepository';
 import type { IContractLookupRepository } from '../../domain/repositories/IContractLookupRepository';
+import type { IFinancialLookupRepository } from '../../domain/repositories/IFinancialLookupRepository';
 import type { IDeadlineTypeRepository } from '../../domain/repositories/IDeadlineTypeRepository';
 import type { IPushRepository, IPushInteractionRepository } from '../../domain/repositories/IPushRepository';
 import type { IDocumentTypeRepository } from '../../domain/repositories/IDocumentTypeRepository';
@@ -82,6 +83,7 @@ export interface DIContainer {
   deadlineRepository: IDeadlineRepository;
   deadlineTypeRepository: IDeadlineTypeRepository;
   financialRepository: IFinancialRepository;
+  financialLookupRepository: IFinancialLookupRepository;
   textAnnotationRepository: ITextAnnotationRepository;
   pushRepository: IPushRepository;
   pushInteractionRepository: IPushInteractionRepository;

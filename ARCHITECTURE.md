@@ -67,6 +67,7 @@ O projeto usa **Clean Architecture + MVVM** com separação estrita em camadas. 
 | `Deadline` | `tenants/{tenantId}/deadlines/{id}` | Sim |
 | `DeadlineTypeConfig` | `tenants/{tenantId}/deadlineTypes/{id}` | Sim |
 | `Financial` | `tenants/{tenantId}/financials/{id}` | Sim |
+| `FinancialLookupConfig` | `tenants/{tenantId}/financialCategories/{id}`, `financialStatuses` | Sim |
 | `Push` | `tenants/{tenantId}/pushes/{id}` | Sim |
 | `PushInteraction` | `pushInteractions/{uid}_{pushId}` | Não |
 | `News` | `news/{id}` | Parcial: `tenantId=null` = Sistema (global); `tenantId=string` = Escritório |
@@ -436,25 +437,35 @@ interface Deadline {
 ### Entidade Financial (Financeiro)
 
 ```typescript
+type FinancialType = 'Receita' | 'Despesa';
+type PaymentMethod = 'PIX' | 'Transferência' | 'Dinheiro' | 'Cartão' | 'Cheque' | 'Outro';
+
 interface Financial {
   id: string;
   tenantId: string;
-  type: 'income' | 'expense';
-  category: FinancialCategory;
-  description: string;
-  amount: number;           // Sempre positivo; type determina se é entrada ou saída
-  status: 'pending' | 'paid' | 'overdue' | 'cancelled';
-  caseId?: string;
-  personId?: string;
-  personName?: string;
-  dueDate?: Date;
-  paidAt?: Date;
-  paymentMethod?: PaymentMethod;
-  notes?: string;
+  caseId?: string | null;
+  caseNumber?: string | null;
+  personId?: string | null;
+  personName?: string | null;
+  contractId?: string | null;
+  contractNumber?: string | null;
+  type: FinancialType;
+  category: string;          // dinâmico via FinancialLookupConfig (kind: 'categories')
+  costCenter?: string | null; // dinâmico, reaproveita o mesmo lookup de Centro de Custo de Contract (kind: 'costCenters')
+  amount: number;            // Sempre positivo; type determina se é entrada ou saída
+  dueDate: Date;
+  paymentDate?: Date | null;
+  status: string;            // dinâmico via FinancialLookupConfig (kind: 'statuses')
+  paymentMethod?: PaymentMethod | null;
+  invoiceNumber?: string | null;
+  notes?: string | null;
   createdAt: Date;
+  createdBy: string;
   updatedAt: Date;
 }
 ```
+
+`category` e `status` seguem o mesmo padrão Estático + Dinâmico de `Contract` (ver "Valores Estáticos e Dinâmicos"), com lookup próprio (`FinancialLookupConfig`/`FinancialLookupKind`, coleções `financialCategories`/`financialStatuses`). `costCenter` **não** tem coleção própria: reaproveita o lookup `costCenters` de `useContractLookup()`, para que Contratos e Financeiro compartilhem a mesma lista de centros de custo do escritório. `contractId`/`contractNumber` seguem o mesmo padrão denormalizado de `caseId`/`caseNumber`; ao excluir um `Contract`, os `financials` vinculados são desvinculados (ver "Cascata de Exclusão"). Não há campo de descrição livre: `category` é o identificador principal exibido nos cards e nas abas.
 
 ### Entidade Push
 
@@ -1022,7 +1033,7 @@ useEffect(() => {
 | `Tenant` | Todos os members, persons, cases, deadlines, financials, pushes do tenant |
 | `Person` | Todos os processos (`cases`) onde `personId === id`; todos os prazos e financeiros vinculados |
 | `Case` | Todos os `deadlines` onde `caseId === id`; todos os `financials` onde `caseId === id` |
-| `Contract` | Desvincula (não exclui) todos os `cases` onde `contractId === id`, limpando `contractId`/`contractNumber` |
+| `Contract` | Desvincula (não exclui) todos os `cases` onde `contractId === id`, limpando `contractId`/`contractNumber`; desvincula (não exclui) todos os `financials` onde `contractId === id`, limpando `contractId`/`contractNumber` |
 | `Deadline` | — (folha) |
 | `Financial` | — (folha) |
 | `Push` | Todos os `pushInteractions` onde `pushId === id` |
@@ -1490,6 +1501,16 @@ service cloud.firestore {
         allow delete: if isTenantAdmin(tenantId);
       }
 
+      // Lookups de financeiro — qualquer membro lê; qualquer membro com escrita cria e deleta
+      match /financialCategories/{id} {
+        allow read: if isMember(tenantId);
+        allow create, delete: if canWriteInTenant(tenantId);
+      }
+      match /financialStatuses/{id} {
+        allow read: if isMember(tenantId);
+        allow create, delete: if canWriteInTenant(tenantId);
+      }
+
       // Pushes do Tribunal (notificações de email processadas)
       match /pushes/{pushId} {
         allow read: if isMember(tenantId);
@@ -1773,6 +1794,19 @@ const filterDefs = useMemo<FilterDef[]>(() => [
 ```
 
 **Seleção única** → `SearchSelect`; **múltipla** → `MultiSearchSelect`; **nunca** `<select>` nativo.
+
+### Filtro de data única (`type: 'date'`)
+
+`FilterType` inclui `'date'` para filtros de uma única data (ex: Vencimento (de) / Vencimento (até) em `Financials`). Não recebe `options`; o `FilterToken.values` guarda sempre `[dataISO]`. Diferente de `select`/`multiselect`/`text`, o `<input type="date">` de edição aparece **inline na barra principal do filtro** (no lugar do input de busca genérico), não dentro do dropdown — evita o input de texto piscando atrás do calendário. O dropdown abaixo só mostra uma dica e o botão "Aplicar". O chip exibe a data formatada (`dd/mm/aaaa`). Um período (De/Até) é modelado como **dois** `FilterDef` independentes — não como um único filtro de intervalo — para que cada ponta seja editável separadamente. Para pré-popular um período ao abrir a tela (ex: mês corrente), semeie o `useState<FilterToken[]>` inicial no ViewModel — não use `useEffect`, já que é um valor inicial e não uma sincronização:
+
+```typescript
+const [filterTokens, setFilterTokens] = useState<FilterToken[]>(() => [
+  { key: 'dueDateFrom', values: [toISODate(startOfMonth)] },
+  { key: 'dueDateTo', values: [toISODate(endOfMonth)] },
+]);
+```
+
+O usuário pode remover o chip a qualquer momento como qualquer outro filtro.
 
 ---
 

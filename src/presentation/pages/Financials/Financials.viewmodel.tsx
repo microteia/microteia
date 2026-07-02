@@ -1,48 +1,15 @@
 import { useState, useMemo, useCallback } from 'react';
 import { useTheme } from 'styled-components';
 import { useFinancialStore } from '../../../stores/useFinancialStore';
+import { useFinancialLookup } from '../../../stores/useFinancialLookup';
 import { useCaseStore } from '../../../stores/useCaseStore';
 import { usePersonStore } from '../../../stores/usePersonStore';
-import { useAuth } from '../../../stores/useAuth';
+import { useContractStore } from '../../../stores/useContractStore';
+import { useWorkspace } from '../../../stores/useWorkspace';
 import { useNotification } from '../../../stores/useNotification';
-import type {
-  Financial,
-  FinancialType,
-  FinancialStatus,
-  FinancialCategory,
-  PaymentMethod,
-} from '../../../domain/entities';
+import { getConfigColor } from '../../../shared/styles/colorUtils';
+import type { Financial, FinancialType } from '../../../domain/entities';
 import type { FilterDef, FilterToken } from '../../components/ui/CompositeFilter';
-
-export interface FinancialFormData {
-  type: FinancialType;
-  category: FinancialCategory;
-  description: string;
-  amount: string;
-  dueDate: string;
-  paymentDate: string;
-  status: FinancialStatus;
-  paymentMethod: PaymentMethod | '';
-  caseId: string;
-  personId: string;
-  invoiceNumber: string;
-  notes: string;
-}
-
-const EMPTY_FORM: FinancialFormData = {
-  type: 'Receita',
-  category: 'Honorários',
-  description: '',
-  amount: '',
-  dueDate: '',
-  paymentDate: '',
-  status: 'Pendente',
-  paymentMethod: '',
-  caseId: '',
-  personId: '',
-  invoiceNumber: '',
-  notes: '',
-};
 
 export interface FinancialSummary {
   totalIncome: number;
@@ -50,27 +17,40 @@ export interface FinancialSummary {
   balance: number;
 }
 
+const toISODate = (d: Date): string => {
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+const buildDefaultMonthTokens = (): FilterToken[] => {
+  const now = new Date();
+  const start = new Date(now.getFullYear(), now.getMonth(), 1);
+  const end = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+  return [
+    { key: 'dueDateFrom', values: [toISODate(start)] },
+    { key: 'dueDateTo', values: [toISODate(end)] },
+  ];
+};
+
 export interface FinancialsViewModel {
   financials: Financial[];
   filteredFinancials: Financial[];
   isLoading: boolean;
   summary: FinancialSummary;
+  isSummaryVisible: boolean;
+  toggleSummaryVisible: () => void;
   filterTokens: FilterToken[];
   filterDefs: FilterDef[];
   savedFiltersScreenKey: string;
-  isModalOpen: boolean;
-  editingFinancial: Financial | null;
-  formData: FinancialFormData;
-  isSaving: boolean;
   financialToDelete: Financial | null;
-  caseOptions: { value: string; label: string }[];
-  personOptions: { value: string; label: string }[];
   setFilterTokens: (tokens: FilterToken[]) => void;
-  openCreateModal: (type?: FinancialType) => void;
-  openEditModal: (f: Financial) => void;
-  closeModal: () => void;
-  setFormData: (data: Partial<FinancialFormData>) => void;
-  handleSave: () => Promise<void>;
+  openCreateTab: () => void;
+  openFinancial: (f: Financial) => void;
+  openPerson: (personId: string | null | undefined) => void;
+  openCase: (caseId: string | null | undefined) => void;
+  openContract: (contractId: string | null | undefined) => void;
   handleDelete: (f: Financial) => void;
   confirmDelete: () => Promise<void>;
   cancelDelete: () => void;
@@ -84,18 +64,17 @@ export interface FinancialsViewModel {
 const fmt = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
 
 export const useFinancialsViewModel = (): FinancialsViewModel => {
-  const { financials, isLoading, createFinancial, updateFinancial, markPaid, deleteFinancial } = useFinancialStore();
+  const { financials, isLoading, deleteFinancial, markPaid } = useFinancialStore();
+  const { statusConfigs } = useFinancialLookup();
   const { cases } = useCaseStore();
   const { persons } = usePersonStore();
-  const { user } = useAuth();
+  const { contracts } = useContractStore();
+  const { openTab } = useWorkspace();
   const { notify } = useNotification();
   const theme = useTheme();
 
-  const [filterTokens, setFilterTokens] = useState<FilterToken[]>([]);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingFinancial, setEditingFinancial] = useState<Financial | null>(null);
-  const [formData, setFormDataState] = useState<FinancialFormData>(EMPTY_FORM);
-  const [isSaving, setIsSaving] = useState(false);
+  const [filterTokens, setFilterTokens] = useState<FilterToken[]>(buildDefaultMonthTokens);
+  const [isSummaryVisible, setIsSummaryVisible] = useState(true);
   const [financialToDelete, setFinancialToDelete] = useState<Financial | null>(null);
 
   const caseOptions = useMemo(() =>
@@ -104,40 +83,42 @@ export const useFinancialsViewModel = (): FinancialsViewModel => {
   );
 
   const personOptions = useMemo(() =>
-    persons.map((c) => ({ value: c.id, label: c.name })),
+    persons.map((p) => ({ value: p.id, label: p.name })).sort((a, b) => a.label.localeCompare(b.label)),
     [persons],
   );
 
+  const contractOptions = useMemo(() =>
+    contracts.map((c) => ({ value: c.id, label: `${c.number} — ${c.title}` })),
+    [contracts],
+  );
+
   const getStatusColor = useCallback((status: string): string => {
-    const map: Record<FinancialStatus, string> = {
-      'Pendente':  theme.colors.warning,
-      'Pago':      theme.colors.success,
-      'Vencido':   theme.colors.danger,
-      'Cancelado': theme.colors.textSecondary,
-    };
-    return map[status as FinancialStatus] ?? theme.colors.textSecondary;
-  }, [theme]);
+    return getConfigColor(statusConfigs, status, theme);
+  }, [statusConfigs, theme]);
 
   const getTypeColor = useCallback((type: string): string => {
     return type === 'Receita' ? theme.colors.success : theme.colors.danger;
   }, [theme]);
 
   const filterDefs = useMemo<FilterDef[]>(() => [
-    { key: 'search', label: 'Busca', type: 'text', placeholder: 'Descrição, pessoa ou processo...' },
-    { key: 'type', label: 'Tipo', type: 'select', options: (['Receita','Despesa'] as FinancialType[]).map((t) => ({ value: t, label: t })) },
-    { key: 'status', label: 'Status', type: 'select', options: (['Pendente','Pago','Vencido','Cancelado'] as FinancialStatus[]).map((s) => ({ value: s, label: s })) },
+    { key: 'search', label: 'Busca', type: 'text', placeholder: 'Categoria, pessoa, processo ou contrato...' },
+    { key: 'type', label: 'Tipo', type: 'select', options: (['Receita', 'Despesa'] as FinancialType[]).map((t) => ({ value: t, label: t })) },
+    {
+      key: 'status', label: 'Status', type: 'select',
+      options: statusConfigs.map((s) => ({ value: s.key, label: s.label, color: getConfigColor(statusConfigs, s.key, theme) })),
+    },
     { key: 'case', label: 'Processo', type: 'select', options: caseOptions },
-  ], [caseOptions]);
+    { key: 'person', label: 'Pessoa', type: 'select', options: personOptions },
+    { key: 'contract', label: 'Contrato', type: 'select', options: contractOptions },
+    { key: 'dueDateFrom', label: 'Vencimento (de)', type: 'date' },
+    { key: 'dueDateTo', label: 'Vencimento (até)', type: 'date' },
+  ], [caseOptions, personOptions, contractOptions, statusConfigs, theme]);
 
   const tokenMap = useMemo(() => {
     const map: Record<string, string[]> = {};
     filterTokens.forEach((t) => { map[t.key] = t.values; });
     return map;
   }, [filterTokens]);
-
-  const setFormData = useCallback((data: Partial<FinancialFormData>) => {
-    setFormDataState((prev) => ({ ...prev, ...data }));
-  }, []);
 
   const isOverdue = useCallback((f: Financial) => {
     if (f.status !== 'Pendente') return false;
@@ -151,16 +132,28 @@ export const useFinancialsViewModel = (): FinancialsViewModel => {
     const typeFilter = tokenMap['type'] ?? [];
     const statusFilter = tokenMap['status'] ?? [];
     const caseFilter = tokenMap['case'] ?? [];
+    const personFilter = tokenMap['person'] ?? [];
+    const contractFilter = tokenMap['contract'] ?? [];
+    const dueDateStart = tokenMap['dueDateFrom']?.[0];
+    const dueDateEnd = tokenMap['dueDateTo']?.[0];
+
+    const periodStartDate = dueDateStart ? new Date(`${dueDateStart}T00:00:00`) : null;
+    const periodEndDate = dueDateEnd ? new Date(`${dueDateEnd}T23:59:59`) : null;
 
     return [...financials]
       .sort((a, b) => b.dueDate.getTime() - a.dueDate.getTime())
       .filter((f) => {
-        if (searchQ && !f.description.toLowerCase().includes(searchQ) &&
+        if (searchQ && !f.category.toLowerCase().includes(searchQ) &&
           !(f.personName?.toLowerCase().includes(searchQ)) &&
-          !(f.caseNumber?.toLowerCase().includes(searchQ))) return false;
+          !(f.caseNumber?.toLowerCase().includes(searchQ)) &&
+          !(f.contractNumber?.toLowerCase().includes(searchQ))) return false;
         if (typeFilter.length > 0 && !typeFilter.includes(f.type)) return false;
         if (statusFilter.length > 0 && !statusFilter.includes(f.status)) return false;
         if (caseFilter.length > 0 && !caseFilter.includes(f.caseId ?? '')) return false;
+        if (personFilter.length > 0 && !personFilter.includes(f.personId ?? '')) return false;
+        if (contractFilter.length > 0 && !contractFilter.includes(f.contractId ?? '')) return false;
+        if (periodStartDate && f.dueDate.getTime() < periodStartDate.getTime()) return false;
+        if (periodEndDate && f.dueDate.getTime() > periodEndDate.getTime()) return false;
         return true;
       });
   }, [financials, tokenMap]);
@@ -171,78 +164,13 @@ export const useFinancialsViewModel = (): FinancialsViewModel => {
     return { totalIncome, totalExpense, balance: totalIncome - totalExpense };
   }, [filteredFinancials]);
 
-  const openCreateModal = useCallback((type: FinancialType = 'Receita') => {
-    setEditingFinancial(null);
-    setFormDataState({ ...EMPTY_FORM, type });
-    setIsModalOpen(true);
-  }, []);
+  const toggleSummaryVisible = useCallback(() => setIsSummaryVisible((prev) => !prev), []);
 
-  const openEditModal = useCallback((f: Financial) => {
-    setEditingFinancial(f);
-    setFormDataState({
-      type: f.type,
-      category: f.category,
-      description: f.description,
-      amount: f.amount.toString(),
-      dueDate: f.dueDate.toISOString().slice(0, 10),
-      paymentDate: f.paymentDate ? f.paymentDate.toISOString().slice(0, 10) : '',
-      status: f.status,
-      paymentMethod: f.paymentMethod ?? '',
-      caseId: f.caseId ?? '',
-      personId: f.personId ?? '',
-      invoiceNumber: f.invoiceNumber ?? '',
-      notes: f.notes ?? '',
-    });
-    setIsModalOpen(true);
-  }, []);
-
-  const closeModal = useCallback(() => {
-    setIsModalOpen(false);
-    setEditingFinancial(null);
-    setFormDataState(EMPTY_FORM);
-  }, []);
-
-  const handleSave = useCallback(async () => {
-    if (!formData.description.trim()) { notify('Descrição é obrigatória.', 'error'); return; }
-    if (!formData.amount || parseFloat(formData.amount) <= 0) { notify('Informe um valor válido.', 'error'); return; }
-    if (!formData.dueDate) { notify('Informe a data de vencimento.', 'error'); return; }
-
-    const selectedCase = cases.find((c) => c.id === formData.caseId);
-    const selectedPerson = persons.find((c) => c.id === formData.personId);
-
-    setIsSaving(true);
-    try {
-      const payload = {
-        type: formData.type,
-        category: formData.category,
-        description: formData.description.trim(),
-        amount: parseFloat(formData.amount),
-        dueDate: new Date(`${formData.dueDate}T12:00:00`),
-        paymentDate: formData.paymentDate ? new Date(`${formData.paymentDate}T12:00:00`) : null,
-        status: formData.status,
-        paymentMethod: (formData.paymentMethod as PaymentMethod) || null,
-        caseId: formData.caseId || null,
-        caseNumber: selectedCase?.caseNumber ?? null,
-        personId: formData.personId || null,
-        personName: selectedPerson?.name ?? null,
-        invoiceNumber: formData.invoiceNumber || null,
-        notes: formData.notes || null,
-      };
-
-      if (editingFinancial) {
-        await updateFinancial(editingFinancial.id, payload);
-        notify('Lançamento atualizado com sucesso!', 'success');
-      } else {
-        await createFinancial({ ...payload, createdBy: user?.id ?? '' });
-        notify('Lançamento criado com sucesso!', 'success');
-      }
-      closeModal();
-    } catch {
-      notify('Erro ao salvar lançamento.', 'error');
-    } finally {
-      setIsSaving(false);
-    }
-  }, [formData, editingFinancial, cases, persons, createFinancial, updateFinancial, closeModal, notify, user]);
+  const openCreateTab = useCallback(() => openTab('new-financial'), [openTab]);
+  const openFinancial = useCallback((f: Financial) => openTab(`view-financial:${f.id}`), [openTab]);
+  const openPerson = useCallback((personId: string | null | undefined) => { if (personId) openTab(`view-person:${personId}`); }, [openTab]);
+  const openCase = useCallback((caseId: string | null | undefined) => { if (caseId) openTab(`view-case:${caseId}`); }, [openTab]);
+  const openContract = useCallback((contractId: string | null | undefined) => { if (contractId) openTab(`view-contract:${contractId}`); }, [openTab]);
 
   const handleDelete = useCallback((f: Financial) => { setFinancialToDelete(f); }, []);
 
@@ -274,22 +202,18 @@ export const useFinancialsViewModel = (): FinancialsViewModel => {
     filteredFinancials,
     isLoading,
     summary,
+    isSummaryVisible,
+    toggleSummaryVisible,
     filterTokens,
     filterDefs,
     savedFiltersScreenKey: 'financials',
-    isModalOpen,
-    editingFinancial,
-    formData,
-    isSaving,
     financialToDelete,
-    caseOptions,
-    personOptions,
     setFilterTokens,
-    openCreateModal,
-    openEditModal,
-    closeModal,
-    setFormData,
-    handleSave,
+    openCreateTab,
+    openFinancial,
+    openPerson,
+    openCase,
+    openContract,
     handleDelete,
     confirmDelete,
     cancelDelete,

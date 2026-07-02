@@ -24,6 +24,7 @@ import { ContractsView } from './Contracts/Contracts.view';
 import { ViewContractView } from './ViewContract/ViewContract.view';
 import { DeadlinesView } from './Deadlines/Deadlines.view';
 import { FinancialsView } from './Financials/Financials.view';
+import { ViewFinancialView } from './ViewFinancial/ViewFinancial.view';
 import { NewsView } from './News/News.view';
 import { PushesView } from './Pushes/Pushes.view';
 import { DashboardPushesView } from './DashboardPushes/DashboardPushes.view';
@@ -80,6 +81,19 @@ export const PAGE_REGISTRY: PageDefinition[] = [
   },
   { key: 'deadlines',        title: 'Prazos',              icon: <RiTimeLine size={20} />,               component: DeadlinesView        },
   { key: 'financials',       title: 'Financeiro',          icon: <RiMoneyDollarCircleLine size={20} />,  component: FinancialsView       },
+  {
+    key: 'new-financial',
+    title: 'Novo Lançamento',
+    icon: <RiMoneyDollarCircleLine size={20} />,
+    component: ViewFinancialView,
+  },
+  {
+    key: '',
+    keyPrefix: 'view-financial:',
+    title: 'Lançamento',
+    icon: <RiMoneyDollarCircleLine size={20} />,
+    component: ViewFinancialView,
+  },
   { key: 'pushes',           title: 'Pushes do Tribunal',  icon: <RiInboxLine size={20} />,              component: PushesView           },
   { key: 'dashboard-pushes', title: 'Dashboard de Pushes', icon: <RiBarChartBoxLine size={20} />,        component: DashboardPushesView  },
   { key: 'news',             title: 'Notícias',            icon: <RiNewspaperLine size={20} />,          component: NewsView             },

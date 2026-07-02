@@ -9,4 +9,5 @@ export interface IFinancialRepository {
   updateFinancial(tenantId: string, financialId: string, data: Partial<Omit<Financial, 'id' | 'tenantId' | 'createdAt' | 'createdBy'>>): Promise<void>;
   updateFinancialStatus(tenantId: string, financialId: string, status: FinancialStatus, paymentDate?: Date): Promise<void>;
   deleteFinancial(tenantId: string, financialId: string): Promise<void>;
+  unlinkFinancialsFromContract(tenantId: string, contractId: string): Promise<void>;
 }

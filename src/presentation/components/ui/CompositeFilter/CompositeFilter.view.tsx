@@ -27,10 +27,14 @@ export const CompositeFilter: React.FC<CompositeFilterProps> = ({
   const defMap = Object.fromEntries(defs.map((d) => [d.key, d]));
   const isOpen = vm.phase !== 'idle' || vm.isSaving;
 
+  const formatDateBR = (iso: string): string =>
+    iso ? new Date(`${iso}T12:00:00`).toLocaleDateString('pt-BR') : '';
+
   const getChipDisplayValue = (token: FilterToken): string => {
     const def = defMap[token.key];
     if (!def) return token.values.join(', ');
     if (def.type === 'text') return token.values[0] ?? '';
+    if (def.type === 'date') return formatDateBR(token.values[0] ?? '');
     return token.values
       .map((v) => def.options?.find((o) => o.value === v)?.label ?? v)
       .join(', ');
@@ -130,6 +134,9 @@ export const CompositeFilter: React.FC<CompositeFilterProps> = ({
                       {def.type === 'text' && (
                         <S.OptionTypeBadge>texto</S.OptionTypeBadge>
                       )}
+                      {def.type === 'date' && (
+                        <S.OptionTypeBadge>data</S.OptionTypeBadge>
+                      )}
                     </S.OptionItem>
                   ))
                 )}
@@ -151,6 +158,27 @@ export const CompositeFilter: React.FC<CompositeFilterProps> = ({
                 <RiCornerDownLeftLine size={14} />
                 Pressione Enter para aplicar
               </S.TextHint>
+            ) : vm.activeDef.type === 'date' ? (
+              <>
+                <S.TextHint>
+                  <RiCornerDownLeftLine size={14} />
+                  Selecione a data no campo acima
+                </S.TextHint>
+                <S.DropdownFooter>
+                  <S.FooterCount>
+                    {vm.pendingMulti[0] ? 'Data definida' : 'Nenhuma data definida'}
+                  </S.FooterCount>
+                  <S.FooterActions>
+                    <S.FooterBtn
+                      type="button"
+                      onClick={(e) => { e.stopPropagation(); vm.onConfirmMulti(); }}
+                      $variant="primary"
+                    >
+                      Aplicar
+                    </S.FooterBtn>
+                  </S.FooterActions>
+                </S.DropdownFooter>
+              </>
             ) : (
               <>
                 <S.OptionList>
@@ -216,7 +244,7 @@ export const CompositeFilter: React.FC<CompositeFilterProps> = ({
           const def = defMap[token.key];
           if (!def) return null;
 
-          if (token.values.length > 1) {
+          if (def.type === 'multiselect' && token.values.length > 1) {
             return (
               <S.Chip key={token.key} onClick={(e) => e.stopPropagation()}>
                 <S.ChipBody
@@ -273,15 +301,26 @@ export const CompositeFilter: React.FC<CompositeFilterProps> = ({
           <S.ActiveDefBadge>{vm.activeDef.label}:</S.ActiveDefBadge>
         )}
 
-        <S.Input
-          ref={vm.inputRef}
-          value={vm.inputValue}
-          placeholder={inputPlaceholder}
-          onChange={(e) => vm.onInputChange(e.target.value)}
-          onKeyDown={vm.onInputKeyDown}
-          onFocus={vm.onInputFocus}
-          onClick={(e) => e.stopPropagation()}
-        />
+        {vm.phase === 'value-select' && vm.activeDef?.type === 'date' ? (
+          <S.InlineDateInput
+            ref={vm.dateInputRef}
+            type="date"
+            value={vm.pendingMulti[0] ?? ''}
+            onChange={(e) => vm.onDateChange(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); vm.onConfirmMulti(); } }}
+            onClick={(e) => e.stopPropagation()}
+          />
+        ) : (
+          <S.Input
+            ref={vm.inputRef}
+            value={vm.inputValue}
+            placeholder={inputPlaceholder}
+            onChange={(e) => vm.onInputChange(e.target.value)}
+            onKeyDown={vm.onInputKeyDown}
+            onFocus={vm.onInputFocus}
+            onClick={(e) => e.stopPropagation()}
+          />
+        )}
       </S.TokensRow>
 
       {screenKey && tokens.length > 0 && (

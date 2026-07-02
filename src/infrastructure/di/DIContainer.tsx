@@ -40,6 +40,7 @@ import { FirebaseContractTagRepository } from '../../data/repositories/FirebaseC
 import { FirebaseContractNoteRepository } from '../../data/repositories/FirebaseContractNoteRepository';
 import { FirebaseContractDocumentRepository } from '../../data/repositories/FirebaseContractDocumentRepository';
 import { FirebaseContractLookupRepository } from '../../data/repositories/FirebaseContractLookupRepository';
+import { FirebaseFinancialLookupRepository } from '../../data/repositories/FirebaseFinancialLookupRepository';
 import { FirebaseDeadlineTypeRepository } from '../../data/repositories/FirebaseDeadlineTypeRepository';
 import { FirebaseDocumentTypeRepository } from '../../data/repositories/FirebaseDocumentTypeRepository';
 import { DIContext } from './useDI';
@@ -86,6 +87,7 @@ export const DIProvider: React.FC<{ children: React.ReactNode }> = ({ children }
     deadlineRepository:       new FirebaseDeadlineRepository(),
     deadlineTypeRepository:   new FirebaseDeadlineTypeRepository(),
     financialRepository:      new FirebaseFinancialRepository(),
+    financialLookupRepository: new FirebaseFinancialLookupRepository(),
     textAnnotationRepository: new FirebaseTextAnnotationRepository(),
     pushRepository:           new FirebasePushRepository(),
     pushInteractionRepository: new FirebasePushInteractionRepository(),

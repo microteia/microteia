@@ -12,6 +12,7 @@ import {
   limit,
   Timestamp,
   serverTimestamp,
+  writeBatch,
 } from 'firebase/firestore';
 import { db } from '../../infrastructure/firebase/config';
 import type { IFinancialRepository } from '../../domain/repositories/IFinancialRepository';
@@ -35,13 +36,15 @@ const mapFinancial = (id: string, d: Record<string, unknown>, tenantId: string):
   caseNumber: (d.caseNumber as string | null) ?? null,
   personId: (d.personId as string | null) ?? null,
   personName: (d.personName as string | null) ?? null,
+  contractId: (d.contractId as string | null) ?? null,
+  contractNumber: (d.contractNumber as string | null) ?? null,
   type: d.type as FinancialType,
   category: d.category as Financial['category'],
-  description: d.description as string,
+  costCenter: (d.costCenter as string | null) ?? null,
   amount: d.amount as number,
   dueDate: toDate(d.dueDate),
   paymentDate: toDateOrNull(d.paymentDate),
-  status: (d.status as FinancialStatus) ?? 'pending',
+  status: (d.status as Financial['status']) ?? 'Pendente',
   paymentMethod: (d.paymentMethod as Financial['paymentMethod']) ?? null,
   invoiceNumber: (d.invoiceNumber as string | null) ?? null,
   notes: (d.notes as string | null) ?? null,
@@ -105,5 +108,16 @@ export class FirebaseFinancialRepository implements IFinancialRepository {
 
   async deleteFinancial(tenantId: string, financialId: string): Promise<void> {
     await deleteDoc(doc(financialsRef(tenantId), financialId));
+  }
+
+  async unlinkFinancialsFromContract(tenantId: string, contractId: string): Promise<void> {
+    const q = query(financialsRef(tenantId), where('contractId', '==', contractId));
+    const snap = await getDocs(q);
+    if (snap.empty) return;
+    const batch = writeBatch(db);
+    for (const d of snap.docs) {
+      batch.update(d.ref, { contractId: null, contractNumber: null, updatedAt: serverTimestamp() });
+    }
+    await batch.commit();
   }
 }

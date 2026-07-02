@@ -167,6 +167,18 @@ export const S = {
     &::placeholder { color: ${({ theme }) => theme.colors.textMuted}; }
   `,
 
+  InlineDateInput: styled.input`
+    flex: 1;
+    min-width: 130px;
+    border: none;
+    outline: none;
+    background: transparent;
+    font-size: ${({ theme }) => theme.fontSizes.sm};
+    color: ${({ theme }) => theme.colors.text};
+    font-family: ${({ theme }) => theme.fonts.body};
+    padding: 2px 0;
+  `,
+
   SaveBtn: styled.button`
     display: flex;
     align-items: center;

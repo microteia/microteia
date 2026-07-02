@@ -5,6 +5,7 @@ import { useNews } from '../../../../stores/useNews';
 import { usePersonStore } from '../../../../stores/usePersonStore';
 import { useCaseStore } from '../../../../stores/useCaseStore';
 import { useContractStore } from '../../../../stores/useContractStore';
+import { useFinancialStore } from '../../../../stores/useFinancialStore';
 import { useTheme } from '../../../../stores/useTheme';
 import { useAuth } from '../../../../stores/useAuth';
 import { useTenant } from '../../../../stores/useTenant';
@@ -34,6 +35,7 @@ export const useCommandPaletteViewModel = (): CommandPaletteViewModel => {
   const { persons } = usePersonStore();
   const { cases } = useCaseStore();
   const { contracts } = useContractStore();
+  const { financials } = useFinancialStore();
   const { mode, setTheme } = useTheme();
   const { signOut, userRole } = useAuth();
   const { tenantRole } = useTenant();
@@ -54,13 +56,14 @@ export const useCommandPaletteViewModel = (): CommandPaletteViewModel => {
       persons,
       cases,
       contracts,
+      financials,
       mode,
       setTheme,
       signOut,
       userRole,
       tenantRole,
     }),
-    [openTab, close, news, persons, cases, contracts, mode, setTheme, signOut, userRole, tenantRole],
+    [openTab, close, news, persons, cases, contracts, financials, mode, setTheme, signOut, userRole, tenantRole],
   );
 
   const groups = useMemo<CommandPaletteGroup[]>(() => {

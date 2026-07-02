@@ -1,5 +1,5 @@
 import type React from 'react';
-import type { News, Person, Case, Contract, TenantRole, UserRole } from '../../../../../domain/entities';
+import type { News, Person, Case, Contract, Financial, TenantRole, UserRole } from '../../../../../domain/entities';
 import type { ThemeMode } from '../../../../../shared/types';
 
 export interface CommandPaletteItem {
@@ -19,6 +19,7 @@ export interface CommandPaletteAppContext {
   persons: Person[];
   cases: Case[];
   contracts: Contract[];
+  financials: Financial[];
   mode: ThemeMode;
   setTheme: (mode: ThemeMode) => void;
   signOut: () => Promise<void>;

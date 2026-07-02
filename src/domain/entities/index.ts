@@ -416,16 +416,6 @@ export interface Deadline {
 
 export type FinancialType = 'Receita' | 'Despesa';
 export type FinancialStatus = 'Pendente' | 'Pago' | 'Vencido' | 'Cancelado';
-export type FinancialCategory =
-  | 'Honorários'
-  | 'Êxito'
-  | 'Mensalidade'
-  | 'Custas Judiciais'
-  | 'Perícia'
-  | 'Deslocamento'
-  | 'Escritório'
-  | 'Impostos'
-  | 'Outros';
 export type PaymentMethod = 'PIX' | 'Transferência' | 'Dinheiro' | 'Cartão' | 'Cheque' | 'Outro';
 
 export interface Financial {
@@ -435,19 +425,32 @@ export interface Financial {
   caseNumber?: string | null;
   personId?: string | null;
   personName?: string | null;
+  contractId?: string | null;
+  contractNumber?: string | null;
   type: FinancialType;
-  category: FinancialCategory;
-  description: string;
+  category: string;
+  costCenter?: string | null;
   amount: number;
   dueDate: Date;
   paymentDate?: Date | null;
-  status: FinancialStatus;
+  status: string;
   paymentMethod?: PaymentMethod | null;
   invoiceNumber?: string | null;
   notes?: string | null;
   createdAt: Date;
   createdBy: string;
   updatedAt: Date;
+}
+
+// ─── Financial Lookups ────────────────────────────────────────────────────────
+
+export type FinancialLookupKind = 'categories' | 'statuses';
+
+export interface FinancialLookupConfig {
+  key: string;
+  label: string;
+  color?: string;
+  isStatic?: boolean;
 }
 
 // ─── Contract Tags ────────────────────────────────────────────────────────────
