@@ -95,8 +95,8 @@ export const FinancialDashboardView: React.FC = () => {
                       fontSize: 12,
                     }}
                   />
-                  <Bar dataKey="Receita" fill={theme.colors.success} radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="Despesa" fill={theme.colors.danger} radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="Receita" fill={theme.colors.revenue} radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="Despesa" fill={theme.colors.expense} radius={[4, 4, 0, 0]} />
                   <Line type="monotone" dataKey="Saldo" stroke={theme.colors.primary} strokeWidth={2} dot={{ r: 3 }} activeDot={{ r: 5 }} />
                 </ComposedChart>
               </ResponsiveContainer>
@@ -108,10 +108,10 @@ export const FinancialDashboardView: React.FC = () => {
               <S.ChartCardHeader>
                 <S.ChartTitle>Distribuição por Categoria</S.ChartTitle>
                 <S.ModeGroup>
-                  <S.ModeButton $active={vm.categoryType === 'Receita'} onClick={() => vm.setCategoryType('Receita')}>
+                  <S.ModeButton $type="Receita" $active={vm.categoryType === 'Receita'} onClick={() => vm.setCategoryType('Receita')}>
                     Receitas
                   </S.ModeButton>
-                  <S.ModeButton $active={vm.categoryType === 'Despesa'} onClick={() => vm.setCategoryType('Despesa')}>
+                  <S.ModeButton $type="Despesa" $active={vm.categoryType === 'Despesa'} onClick={() => vm.setCategoryType('Despesa')}>
                     Despesas
                   </S.ModeButton>
                 </S.ModeGroup>
@@ -255,8 +255,8 @@ export const FinancialDashboardView: React.FC = () => {
                         fontSize: 12,
                       }}
                     />
-                    <Bar dataKey="Receita" fill={theme.colors.success} radius={[4, 4, 0, 0]} />
-                    <Bar dataKey="Despesa" fill={theme.colors.danger} radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="Receita" fill={theme.colors.revenue} radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="Despesa" fill={theme.colors.expense} radius={[4, 4, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               </S.ChartWrapper>

@@ -1,4 +1,5 @@
 import styled from 'styled-components';
+import type { FinancialType } from '../../../domain/entities';
 
 export const S = {
   Page: styled.div`
@@ -113,9 +114,9 @@ export const S = {
     gap: ${({ theme }) => theme.spacing.xs};
   `,
 
-  ModeButton: styled.button<{ $active?: boolean }>`
-    background: ${({ $active, theme }) => ($active ? theme.colors.primary : theme.colors.surface)};
-    border: 1px solid ${({ $active, theme }) => ($active ? theme.colors.primary : theme.colors.border)};
+  ModeButton: styled.button<{ $active?: boolean; $type: FinancialType }>`
+    background: ${({ $active, $type, theme }) => ($active ? ($type === 'Receita' ? theme.colors.revenue : theme.colors.expense) : theme.colors.surface)};
+    border: 1px solid ${({ $active, $type, theme }) => ($active ? ($type === 'Receita' ? theme.colors.revenue : theme.colors.expense) : theme.colors.border)};
     border-radius: ${({ theme }) => theme.borderRadius.md};
     padding: ${({ theme }) => theme.spacing.xs} ${({ theme }) => theme.spacing.md};
     font-size: ${({ theme }) => theme.fontSizes.sm};
@@ -125,8 +126,7 @@ export const S = {
     transition: ${({ theme }) => theme.transitions.fast};
 
     &:hover {
-      background: ${({ $active, theme }) => ($active ? theme.colors.primaryHover : theme.colors.surfaceHover)};
-      border-color: ${({ theme }) => theme.colors.primary};
+      border-color: ${({ $type, theme }) => ($type === 'Receita' ? theme.colors.revenue : theme.colors.expense)};
     }
   `,
 

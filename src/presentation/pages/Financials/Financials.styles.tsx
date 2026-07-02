@@ -228,7 +228,7 @@ export const S = {
     font-size: ${({ theme }) => theme.fontSizes.md};
     font-weight: 700;
     font-family: ${({ theme }) => theme.fonts.mono};
-    color: ${({ theme, $type }) => $type === 'Receita' ? theme.colors.success : theme.colors.danger};
+    color: ${({ theme, $type }) => $type === 'Receita' ? theme.colors.revenue : theme.colors.expense};
     white-space: nowrap;
     flex-shrink: 0;
   `,

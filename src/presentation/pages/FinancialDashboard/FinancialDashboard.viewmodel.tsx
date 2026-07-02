@@ -15,6 +15,7 @@ import {
 import { ptBR } from 'date-fns/locale';
 import { useFinancialStore } from '../../../stores/useFinancialStore';
 import { useFinancialLookup } from '../../../stores/useFinancialLookup';
+import { useFinancialTagStore } from '../../../stores/useFinancialTagStore';
 import { useCaseStore } from '../../../stores/useCaseStore';
 import { usePersonStore } from '../../../stores/usePersonStore';
 import { useContractStore } from '../../../stores/useContractStore';
@@ -28,7 +29,7 @@ import {
   filterFinancialsByTokens,
 } from '../../shared/financials/financialFilters';
 import type { Financial, FinancialType } from '../../../domain/entities';
-import type { FilterDef, FilterToken } from '../../components/ui/CompositeFilter';
+import type { FilterDef, FilterOption, FilterToken } from '../../components/ui/CompositeFilter';
 
 export interface FinancialDashboardKPI {
   label: string;
@@ -98,6 +99,7 @@ const AGING_BUCKET_DAYS = [7, 15, 30] as const;
 export const useFinancialDashboardViewModel = (): FinancialDashboardViewModel => {
   const { financials, isLoading } = useFinancialStore();
   const { statusConfigs, categoryConfigs } = useFinancialLookup();
+  const { tags } = useFinancialTagStore();
   const { cases } = useCaseStore();
   const { persons } = usePersonStore();
   const { contracts } = useContractStore();
@@ -130,9 +132,14 @@ export const useFinancialDashboardViewModel = (): FinancialDashboardViewModel =>
     [contracts],
   );
 
+  const tagOptions = useMemo<FilterOption[]>(() =>
+    tags.map((t) => ({ value: t.id, label: t.name, color: t.color })),
+    [tags],
+  );
+
   const filterDefs = useMemo<FilterDef[]>(
-    () => buildFinancialFilterDefs({ caseOptions, personOptions, contractOptions, statusConfigs, theme }),
-    [caseOptions, personOptions, contractOptions, statusConfigs, theme],
+    () => buildFinancialFilterDefs({ caseOptions, personOptions, contractOptions, tagOptions, statusConfigs, theme }),
+    [caseOptions, personOptions, contractOptions, tagOptions, statusConfigs, theme],
   );
 
   const filteredFinancials = useMemo(
@@ -144,7 +151,7 @@ export const useFinancialDashboardViewModel = (): FinancialDashboardViewModel =>
   const formatCompactAmount = useCallback((v: number) => compactFmt.format(v), []);
 
   const getTypeColor = useCallback((type: FinancialType): string => (
-    type === 'Receita' ? theme.colors.success : theme.colors.danger
+    type === 'Receita' ? theme.colors.revenue : theme.colors.expense
   ), [theme]);
 
   const openFinancials = useCallback(() => {

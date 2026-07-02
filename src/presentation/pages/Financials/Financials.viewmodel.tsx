@@ -106,7 +106,7 @@ export const useFinancialsViewModel = (): FinancialsViewModel => {
   }, [statusConfigs, theme]);
 
   const getTypeColor = useCallback((type: string): string => {
-    return type === 'Receita' ? theme.colors.success : theme.colors.danger;
+    return type === 'Receita' ? theme.colors.revenue : theme.colors.expense;
   }, [theme]);
 
   const filterDefs = useMemo<FilterDef[]>(

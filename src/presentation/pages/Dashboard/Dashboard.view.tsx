@@ -179,15 +179,15 @@ export const DashboardView: React.FC = () => {
           </CardHeader>
           <S.FinancialRow>
             <S.FinancialLabel>Receitas a receber</S.FinancialLabel>
-            <S.FinancialValue $color={theme.colors.success}>{vm.formatAmount(vm.pendingIncome)}</S.FinancialValue>
+            <S.FinancialValue $color={theme.colors.revenue}>{vm.formatAmount(vm.pendingIncome)}</S.FinancialValue>
           </S.FinancialRow>
           <S.FinancialRow>
             <S.FinancialLabel>Despesas a pagar</S.FinancialLabel>
-            <S.FinancialValue $color={theme.colors.danger}>{vm.formatAmount(vm.pendingExpense)}</S.FinancialValue>
+            <S.FinancialValue $color={theme.colors.expense}>{vm.formatAmount(vm.pendingExpense)}</S.FinancialValue>
           </S.FinancialRow>
           <S.FinancialRow>
             <S.FinancialLabel>Saldo projetado</S.FinancialLabel>
-            <S.FinancialValue $color={vm.pendingIncome - vm.pendingExpense >= 0 ? theme.colors.success : theme.colors.danger}>
+            <S.FinancialValue $color={vm.pendingIncome - vm.pendingExpense >= 0 ? theme.colors.revenue : theme.colors.expense}>
               {vm.formatAmount(vm.pendingIncome - vm.pendingExpense)}
             </S.FinancialValue>
           </S.FinancialRow>

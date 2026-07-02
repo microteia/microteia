@@ -30,7 +30,7 @@ export const S = {
     width: 48px;
     height: 48px;
     border-radius: ${({ theme }) => theme.borderRadius.full};
-    background: ${({ theme, $type }) => $type === 'Receita' ? theme.colors.success : theme.colors.danger};
+    background: ${({ theme, $type }) => $type === 'Receita' ? theme.colors.revenue : theme.colors.expense};
     display: flex;
     align-items: center;
     justify-content: center;
@@ -54,7 +54,7 @@ export const S = {
 
   SubTitle: styled.div<{ $type?: FinancialType }>`
     font-size: ${({ theme }) => theme.fontSizes.sm};
-    color: ${({ theme, $type }) => $type === 'Receita' ? theme.colors.success : $type === 'Despesa' ? theme.colors.danger : theme.colors.textMuted};
+    color: ${({ theme, $type }) => $type === 'Receita' ? theme.colors.revenue : $type === 'Despesa' ? theme.colors.expense : theme.colors.textMuted};
     display: flex;
     align-items: center;
     gap: ${({ theme }) => theme.spacing.xs};
@@ -344,8 +344,8 @@ export const S = {
     background: ${({ $active, $income, theme }) =>
       $active
         ? $income
-          ? theme.colors.success
-          : theme.colors.danger
+          ? theme.colors.revenue
+          : theme.colors.expense
         : 'transparent'};
     color: ${({ $active, theme }) => $active ? theme.colors.white : theme.colors.textSecondary};
     transition: all ${({ theme }) => theme.transitions.fast};
