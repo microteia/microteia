@@ -79,7 +79,6 @@ export const S = {
     color: ${({ theme }) => theme.colors.primary};
     border-radius: ${({ theme }) => theme.borderRadius.full};
     padding: 2px 8px;
-    text-transform: uppercase;
     letter-spacing: 0.03em;
   `,
 

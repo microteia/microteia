@@ -109,7 +109,6 @@ export const S = {
     color: ${({ theme }) => theme.colors.primary};
     border-radius: ${({ theme }) => theme.borderRadius.full};
     padding: 3px 10px;
-    text-transform: uppercase;
     letter-spacing: 0.04em;
   `,
 
