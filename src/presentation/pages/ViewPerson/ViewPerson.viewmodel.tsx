@@ -19,10 +19,11 @@ import { makeGetPersonDocumentsUseCase } from '../../../domain/usecases/persondo
 import { makeUploadPersonDocumentUseCase } from '../../../domain/usecases/persondocuments/UploadPersonDocumentUseCase';
 import { makeAddPersonDocumentUseCase } from '../../../domain/usecases/persondocuments/AddPersonDocumentUseCase';
 import { makeDeletePersonDocumentUseCase } from '../../../domain/usecases/persondocuments/DeletePersonDocumentUseCase';
-import type { Person, PersonNote, PersonDocument, PersonType, PersonAddress } from '../../../domain/entities';
+import type { Person, PersonNote, PersonDocument, PersonType, PersonAddress, Gender } from '../../../domain/entities';
 import type { TagStoreAdapter } from '../../components/ui/TagManager/TagManager.viewmodel';
 import { formatCPF, formatCNPJ, formatPhone, formatCEP, onlyNumbers } from '../../../utils/formatters';
 import { validateCPF, validateCNPJ } from '../../../utils/validators';
+import { format, parseISO } from 'date-fns';
 
 export type ViewPersonTab = 'data' | 'notes' | 'documents';
 
@@ -38,6 +39,8 @@ export interface PersonFormData {
   nationality: string;
   maritalStatus: string;
   relationship: string;
+  birthDate: string;
+  gender: string;
   notes: string;
   addressStreet: string;
   addressNumber: string;
@@ -75,6 +78,8 @@ const buildFormData = (person: Person | null): PersonFormData => ({
   nationality: person?.nationality ?? '',
   maritalStatus: person?.maritalStatus ?? '',
   relationship: person?.relationship ?? '',
+  birthDate: person?.birthDate ? format(person.birthDate, 'yyyy-MM-dd') : '',
+  gender: person?.gender ?? '',
   notes: person?.notes ?? '',
   addressStreet: person?.address?.street ?? '',
   addressNumber: person?.address?.number ?? '',
@@ -428,6 +433,8 @@ export const useViewPersonViewModel = (tabKey: string): ViewPersonViewModel => {
         nationality: formData.nationality || null,
         maritalStatus: formData.maritalStatus || null,
         relationship: formData.relationship || null,
+        birthDate: formData.birthDate ? parseISO(formData.birthDate) : null,
+        gender: (formData.gender as Gender) || null,
         notes: formData.notes || null,
         address: hasAddress ? address : null,
       };

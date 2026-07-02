@@ -155,6 +155,7 @@ export interface Person {
   maritalStatus?: string | null;
   relationship?: string | null;
   birthDate?: Date | null;
+  gender?: Gender | null;
   notes?: string | null;
   tagIds?: string[];
   status: PersonStatus;

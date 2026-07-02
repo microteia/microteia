@@ -21,6 +21,7 @@ import { Spinner } from '../../components/ui/Spinner';
 import { Input, Label, Textarea, ErrorMessage } from '../../components/ui/Input';
 import { SearchSelect } from '../../components/ui/SearchSelect';
 import { DynamicSelect } from '../../components/ui/DynamicSelect';
+import { DateInput } from '../../components/ui/DateInput';
 import { ConfirmModal } from '../../components/ui/ConfirmModal';
 import { TagManager } from '../../components/ui/TagManager';
 import { MarkdownEditor } from '../../components/ui/MarkdownEditor';
@@ -32,6 +33,12 @@ import type { SearchSelectOption } from '../../components/ui/SearchSelect';
 const STATES = ['AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG','PA','PB','PR','PE','PI','RJ','RN','RS','RO','RR','SC','SP','SE','TO'];
 
 const STATE_OPTIONS: SearchSelectOption[] = STATES.map((uf) => ({ value: uf, label: uf }));
+
+const GENDER_OPTIONS: SearchSelectOption[] = [
+  { value: 'M', label: 'Masculino' },
+  { value: 'F', label: 'Feminino' },
+  { value: 'N', label: 'Não Informado' },
+];
 
 export const ViewPersonView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
   const vm = useViewPersonViewModel(tabKey);
@@ -223,6 +230,22 @@ export const ViewPersonView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
                     onAdd={vm.handleAddMaritalStatus}
                     onDelete={vm.handleDeleteMaritalStatus}
                     deleteConfirmTitle="Excluir estado civil"
+                  />
+                </S.FormGroup>
+                <S.FormGroup>
+                  <Label>Data de Nascimento</Label>
+                  <DateInput
+                    value={vm.formData.birthDate}
+                    onChange={(val) => vm.setFormData({ birthDate: val })}
+                  />
+                </S.FormGroup>
+                <S.FormGroup>
+                  <Label>Sexo</Label>
+                  <SearchSelect
+                    options={GENDER_OPTIONS}
+                    value={vm.formData.gender}
+                    onChange={(val) => vm.setFormData({ gender: val })}
+                    placeholder="Selecione..."
                   />
                 </S.FormGroup>
               </>

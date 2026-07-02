@@ -14,7 +14,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '../../infrastructure/firebase/config';
 import type { IPersonRepository } from '../../domain/repositories/IPersonRepository';
-import type { Person, PersonStatus } from '../../domain/entities';
+import type { Person, PersonStatus, Gender } from '../../domain/entities';
 
 const toDate = (v: unknown): Date =>
   v instanceof Timestamp ? v.toDate() : (v as Date);
@@ -43,6 +43,7 @@ const mapPerson = (id: string, d: Record<string, unknown>, tenantId: string): Pe
   maritalStatus: (d.maritalStatus as string | null) ?? null,
   relationship: (d.relationship as string | null) ?? null,
   birthDate: toDateOrNull(d.birthDate),
+  gender: (d.gender as Gender | null) ?? null,
   notes: (d.notes as string | null) ?? null,
   tagIds: (d.tagIds as string[] | undefined) ?? [],
   status: (d.status as PersonStatus) ?? 'Ativo',
