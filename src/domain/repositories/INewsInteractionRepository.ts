@@ -7,4 +7,5 @@ export interface INewsInteractionRepository {
     newsId: string,
     data: Partial<Pick<NewsInteraction, 'isRead' | 'savedForLater' | 'readAt' | 'savedAt'>>,
   ): Promise<NewsInteraction>;
+  resetReadStatusForNews(newsId: string, excludeUserId?: string): Promise<void>;
 }

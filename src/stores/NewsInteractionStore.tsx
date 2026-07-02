@@ -4,6 +4,7 @@ import { useAuth } from './useAuth';
 import { useNews } from './useNews';
 import { makeGetNewsInteractionsUseCase } from '../domain/usecases/newsinteractions/GetNewsInteractionsUseCase';
 import { makeUpsertNewsInteractionUseCase } from '../domain/usecases/newsinteractions/UpsertNewsInteractionUseCase';
+import { makeResetNewsReadStatusUseCase } from '../domain/usecases/newsinteractions/ResetNewsReadStatusUseCase';
 import { makeIncrementNewsViewUseCase } from '../domain/usecases/news/IncrementNewsViewUseCase';
 import type { NewsInteraction } from '../domain/entities';
 import { NewsInteractionContext } from './useNewsInteraction';
@@ -20,6 +21,7 @@ export const NewsInteractionStoreProvider: React.FC<{ children: React.ReactNode 
   const uc = useMemo(() => ({
     get:         makeGetNewsInteractionsUseCase(newsInteractionRepository),
     upsert:      makeUpsertNewsInteractionUseCase(newsInteractionRepository),
+    reset:       makeResetNewsReadStatusUseCase(newsInteractionRepository),
     incrView:    makeIncrementNewsViewUseCase(newsRepository),
   }), [newsInteractionRepository, newsRepository]);
 
@@ -80,6 +82,11 @@ export const NewsInteractionStoreProvider: React.FC<{ children: React.ReactNode 
     });
   }, [user, uc]);
 
+  const resetReadStatus = useCallback(async (newsId: string) => {
+    if (!user) return;
+    await uc.reset.execute(newsId, user.id);
+  }, [user, uc]);
+
   const unreadCount = useMemo(() => {
     const readIds = new Set(interactions.filter((i) => i.isRead).map((i) => i.newsId));
     return news.filter((n) => !readIds.has(n.id) && n.createdBy !== user?.id).length;
@@ -88,7 +95,7 @@ export const NewsInteractionStoreProvider: React.FC<{ children: React.ReactNode 
   return (
     <NewsInteractionContext.Provider value={{
       interactions, loading,
-      getInteraction, markAsRead, toggleSavedForLater,
+      getInteraction, markAsRead, toggleSavedForLater, resetReadStatus,
       unreadCount,
     }}>
       {children}

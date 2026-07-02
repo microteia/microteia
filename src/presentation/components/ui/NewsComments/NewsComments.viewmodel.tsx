@@ -1,5 +1,6 @@
 import { useState, useMemo, useCallback, useEffect } from 'react';
 import { useAuth } from '../../../../stores/useAuth';
+import { useNewsInteraction } from '../../../../stores/useNewsInteraction';
 import { useDI } from '../../../../infrastructure/di/useDI';
 import { makeGetNewsCommentsUseCase } from '../../../../domain/usecases/newscomments/GetNewsCommentsUseCase';
 import { makeCreateNewsCommentUseCase } from '../../../../domain/usecases/newscomments/CreateNewsCommentUseCase';
@@ -48,6 +49,7 @@ export const useNewsCommentsViewModel = (
   props: NewsCommentsProps,
 ): NewsCommentsViewModel => {
   const { user, userRole, effectiveName, effectivePhotoURL } = useAuth();
+  const { resetReadStatus } = useNewsInteraction();
   const { newsCommentRepository } = useDI();
 
   const getUC    = useMemo(() => makeGetNewsCommentsUseCase(newsCommentRepository), [newsCommentRepository]);
@@ -137,10 +139,11 @@ export const useNewsCommentsViewModel = (
       setComments((prev) => [created, ...prev]);
       setNewContent('');
       setEditorOpen(false);
+      await resetReadStatus(props.newsId);
     } finally {
       setSubmitting(false);
     }
-  }, [user, newContent, props.newsId, createUC, effectiveName, effectivePhotoURL]);
+  }, [user, newContent, props.newsId, createUC, effectiveName, effectivePhotoURL, resetReadStatus]);
 
   const handleStartEdit = useCallback((comment: NewsComment) => {
     setEditingId(comment.id);
@@ -166,10 +169,11 @@ export const useNewsCommentsViewModel = (
       );
       setEditingId(null);
       setEditContent('');
+      await resetReadStatus(props.newsId);
     } finally {
       setSubmitting(false);
     }
-  }, [user, editingId, editContent, updateUC, effectiveName]);
+  }, [user, editingId, editContent, updateUC, effectiveName, props.newsId, resetReadStatus]);
 
   const handleCancelEdit = useCallback(() => {
     setEditingId(null);
@@ -184,10 +188,11 @@ export const useNewsCommentsViewModel = (
     try {
       await deleteUC.execute(confirmDeleteId, props.newsId);
       setComments((prev) => prev.filter((c) => c.id !== confirmDeleteId));
+      await resetReadStatus(props.newsId);
     } finally {
       setConfirmDeleteId(null);
     }
-  }, [confirmDeleteId, deleteUC, props.newsId]);
+  }, [confirmDeleteId, deleteUC, props.newsId, resetReadStatus]);
 
   const handleToggleLike = useCallback(async (comment: NewsComment) => {
     if (!user) return;

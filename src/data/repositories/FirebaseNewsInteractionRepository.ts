@@ -1,5 +1,5 @@
 import {
-  collection, getDocs, query, where, Timestamp, doc, setDoc, getDoc,
+  collection, getDocs, query, where, Timestamp, doc, setDoc, getDoc, writeBatch,
 } from 'firebase/firestore';
 import { db } from '../../infrastructure/firebase/config';
 import type { INewsInteractionRepository } from '../../domain/repositories/INewsInteractionRepository';
@@ -71,5 +71,22 @@ export class FirebaseNewsInteractionRepository implements INewsInteractionReposi
       savedAt: data.savedAt ?? existing?.savedAt,
       updatedAt: now.toDate(),
     };
+  }
+
+  async resetReadStatusForNews(newsId: string, excludeUserId?: string): Promise<void> {
+    const q = query(
+      collection(db, COLLECTION),
+      where('newsId', '==', newsId),
+      where('isRead', '==', true),
+    );
+    const snap = await getDocs(q);
+    const docsToReset = snap.docs.filter((d) => (d.data().userId as string) !== excludeUserId);
+    if (docsToReset.length === 0) return;
+
+    const batch = writeBatch(db);
+    docsToReset.forEach((d) => {
+      batch.update(d.ref, { isRead: false, updatedAt: Timestamp.now() });
+    });
+    await batch.commit();
   }
 }

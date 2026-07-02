@@ -74,7 +74,9 @@ export const useNewsViewModel = (): NewsViewModel => {
   const { getInteraction, toggleSavedForLater, unreadCount } = useNewsInteraction();
   const { categoryConfigs } = useNewsCategoryLookup();
 
-  const [filterTokens, setFilterTokens] = useState<FilterToken[]>([]);
+  const [filterTokens, setFilterTokens] = useState<FilterToken[]>([
+    { key: 'readStatus', values: ['UNREAD'] },
+  ]);
   const [confirm, setConfirm] = useState<ConfirmState>(closedConfirm());
 
   const categoryOptions = useMemo<FilterDef['options']>(

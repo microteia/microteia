@@ -1703,8 +1703,18 @@ service cloud.firestore {
 
     match /newsInteractions/{interactionId} {
       allow read: if request.auth != null;
-      allow write: if request.auth != null
+      allow create: if request.auth != null
         && request.resource.data.userId == request.auth.uid;
+      // Update: o dono altera livremente seu próprio registro; qualquer outro
+      // autenticado pode SOMENTE resetar isRead para false (nunca para true, nem
+      // outros campos) — usado quando alguém comenta/edita/exclui um comentário
+      // para que quem já tinha lido a notícia volte a vê-la como não lida.
+      allow update: if request.auth != null
+        && (resource.data.userId == request.auth.uid
+            || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['isRead', 'updatedAt'])
+                && request.resource.data.isRead == false));
+      allow delete: if request.auth != null
+        && resource.data.userId == request.auth.uid;
     }
 
     // ─── Interações com pushes ────────────────────────────────────────────────
