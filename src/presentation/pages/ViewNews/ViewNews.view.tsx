@@ -3,7 +3,7 @@ import {
   RiHeart3Line, RiHeart3Fill, RiEyeLine,
   RiBookmarkLine, RiBookmarkFill, RiExternalLinkLine, RiEditLine,
   RiLinkM, RiCheckLine, RiFileTextLine, RiUploadLine, RiCloseLine,
-  RiDeleteBinLine,
+  RiDeleteBinLine, RiMailUnreadLine,
 } from 'react-icons/ri';
 import { useViewNewsViewModel } from './ViewNews.viewmodel';
 import { S } from './ViewNews.styles';
@@ -130,6 +130,15 @@ export const ViewNewsView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
                       <RiEyeLine size={16} />
                       {n.viewCount} {n.viewCount === 1 ? 'visualização' : 'visualizações'}
                     </S.StatItem>
+                    {vm.isRead && (
+                      <S.StatItem
+                        onClick={vm.handleMarkAsUnread}
+                        title="Marcar como não lida"
+                      >
+                        <RiMailUnreadLine size={16} />
+                        Marcar como não lida
+                      </S.StatItem>
+                    )}
                     <S.SaveBtn
                       $active={vm.savedForLater}
                       onClick={vm.handleToggleSaved}

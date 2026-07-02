@@ -58,6 +58,7 @@ export const NewsView: React.FC = () => {
               onDelete={() => vm.askDelete(row.news.id)}
               onToggleLike={() => vm.handleToggleLike(row.news)}
               onToggleSaved={() => vm.handleToggleSaved(row.news)}
+              onMarkAsUnread={() => vm.handleMarkAsUnread(row.news)}
             />
           ))}
         </S.List>

@@ -1,7 +1,7 @@
 import React from 'react';
 import {
   RiHeart3Line, RiHeart3Fill, RiEyeLine, RiChat3Line,
-  RiBookmarkLine, RiBookmarkFill,
+  RiBookmarkLine, RiBookmarkFill, RiMailUnreadLine,
   RiEditLine, RiDeleteBinLine,
 } from 'react-icons/ri';
 import { UserAvatar } from '../../components/ui/UserAvatar';
@@ -22,11 +22,12 @@ interface NewsCardProps {
   onDelete: () => void;
   onToggleLike: () => void;
   onToggleSaved: () => void;
+  onMarkAsUnread: () => void;
 }
 
 export const NewsCardView: React.FC<NewsCardProps> = ({
   row, onView, onEdit, onDelete,
-  onToggleLike, onToggleSaved,
+  onToggleLike, onToggleSaved, onMarkAsUnread,
 }) => {
   const n = row.news;
 
@@ -98,6 +99,14 @@ export const NewsCardView: React.FC<NewsCardProps> = ({
               >
                 {row.savedForLater ? <RiBookmarkFill size={15} /> : <RiBookmarkLine size={15} />}
               </S.IconBtn>
+              {row.isRead && (
+                <S.IconBtn
+                  onClick={(e) => { e.stopPropagation(); onMarkAsUnread(); }}
+                  title="Marcar como não lida"
+                >
+                  <RiMailUnreadLine size={15} />
+                </S.IconBtn>
+              )}
               {row.canEdit && (
                 <S.IconBtn onClick={(e) => { e.stopPropagation(); onEdit(); }} title="Editar">
                   <RiEditLine size={15} />

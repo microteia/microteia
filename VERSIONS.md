@@ -11,6 +11,15 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [0.4.2] — 2026-07-02
+
+- O botão "Marcar como não lida" agora também aparece na listagem de Notícias, direto no card de cada notícia lida.
+- Corrigido o contador de notícias não lidas (no topo e no menu lateral), que não refletia quando uma notícia própria era marcada como não lida.
+
+#### [0.4.1] — 2026-07-02
+
+- Adicionado o botão "Marcar como não lida" na tela de uma notícia, para você sinalizar que quer voltar a vê-la depois.
+
 #### [0.4.0] — 2026-07-02
 
 - A tela de Notícias agora abre já filtrada pelas notícias não lidas, para você ver primeiro o que ainda não viu.

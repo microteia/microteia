@@ -6,6 +6,7 @@ export interface NewsInteractionContextValue {
   loading: boolean;
   getInteraction: (newsId: string) => NewsInteraction | undefined;
   markAsRead: (newsId: string) => Promise<void>;
+  markAsUnread: (newsId: string) => Promise<void>;
   toggleSavedForLater: (newsId: string, currentlySaved: boolean) => Promise<void>;
   resetReadStatus: (newsId: string) => Promise<void>;
   unreadCount: number;

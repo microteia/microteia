@@ -52,6 +52,7 @@ export interface NewsViewModel {
   openView: (id: string) => void;
   handleToggleLike: (n: News) => Promise<void>;
   handleToggleSaved: (n: News) => Promise<void>;
+  handleMarkAsUnread: (n: News) => Promise<void>;
 }
 
 const ORIGIN_OPTIONS: FilterDef['options'] = [
@@ -71,7 +72,7 @@ export const useNewsViewModel = (): NewsViewModel => {
   const { user, userRole } = useAuth();
   const { currentTenant } = useTenant();
   const { getTagsForNews } = useNewsTag();
-  const { getInteraction, toggleSavedForLater, unreadCount } = useNewsInteraction();
+  const { getInteraction, toggleSavedForLater, markAsUnread, unreadCount } = useNewsInteraction();
   const { categoryConfigs } = useNewsCategoryLookup();
 
   const [filterTokens, setFilterTokens] = useState<FilterToken[]>([
@@ -194,6 +195,10 @@ export const useNewsViewModel = (): NewsViewModel => {
     await toggleSavedForLater(n.id, interaction?.savedForLater ?? false);
   }, [getInteraction, toggleSavedForLater]);
 
+  const handleMarkAsUnread = useCallback(async (n: News) => {
+    await markAsUnread(n.id);
+  }, [markAsUnread]);
+
   // Qualquer usuário autenticado com acesso ao escritório pode criar notícias
   const canCreate = !!user;
 
@@ -212,6 +217,6 @@ export const useNewsViewModel = (): NewsViewModel => {
     setFilterTokens,
     openCreate, openEdit, openView,
     askDelete, cancelConfirm, runConfirm,
-    handleToggleLike, handleToggleSaved,
+    handleToggleLike, handleToggleSaved, handleMarkAsUnread,
   };
 };

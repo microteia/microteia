@@ -35,6 +35,7 @@ export interface ViewNewsViewModel {
   closeTagManager: () => void;
   handleToggleLike: () => Promise<void>;
   handleToggleSaved: () => Promise<void>;
+  handleMarkAsUnread: () => Promise<void>;
   handleEdit: () => void;
   handleCopyDeepLink: () => void;
 
@@ -64,7 +65,7 @@ export const useViewNewsViewModel = (tabKey: string): ViewNewsViewModel => {
   const newsId = tabKey.replace('view-news:', '');
   const { news, toggleLike } = useNews();
   const { tags, getTagsForNews, setTagsForNews, createTag, updateTag, deleteTag } = useNewsTag();
-  const { getInteraction, markAsRead, toggleSavedForLater } = useNewsInteraction();
+  const { getInteraction, markAsRead, markAsUnread, toggleSavedForLater } = useNewsInteraction();
   const { categoryConfigs } = useNewsCategoryLookup();
   const { typeConfigs: documentTypeConfigs, addItem: addDocumentType, removeItem: removeDocumentType } = useDocumentTypeLookup();
   const { user, userRole } = useAuth();
@@ -148,6 +149,10 @@ export const useViewNewsViewModel = (tabKey: string): ViewNewsViewModel => {
   const handleToggleSaved = useCallback(async () => {
     await toggleSavedForLater(newsId, savedForLater);
   }, [newsId, savedForLater, toggleSavedForLater]);
+
+  const handleMarkAsUnread = useCallback(async () => {
+    await markAsUnread(newsId);
+  }, [newsId, markAsUnread]);
 
   const canEdit = useMemo(() => {
     if (!item) return false;
@@ -260,6 +265,7 @@ export const useViewNewsViewModel = (tabKey: string): ViewNewsViewModel => {
     closeTagManager,
     handleToggleLike,
     handleToggleSaved,
+    handleMarkAsUnread,
     handleEdit,
     handleCopyDeepLink,
     activeTab,

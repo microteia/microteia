@@ -70,6 +70,15 @@ export const NewsInteractionStoreProvider: React.FC<{ children: React.ReactNode 
     await uc.incrView.execute(newsId);
   }, [user, interactions, uc]);
 
+  const markAsUnread = useCallback(async (newsId: string) => {
+    if (!user) return;
+    const updated = await uc.upsert.execute(user.id, newsId, { isRead: false });
+    setInteractions((prev) => {
+      const without = prev.filter((i) => i.newsId !== newsId);
+      return [...without, updated];
+    });
+  }, [user, uc]);
+
   const toggleSavedForLater = useCallback(async (newsId: string, currentlySaved: boolean) => {
     if (!user) return;
     const updated = await uc.upsert.execute(user.id, newsId, {
@@ -88,14 +97,22 @@ export const NewsInteractionStoreProvider: React.FC<{ children: React.ReactNode 
   }, [user, uc]);
 
   const unreadCount = useMemo(() => {
-    const readIds = new Set(interactions.filter((i) => i.isRead).map((i) => i.newsId));
-    return news.filter((n) => !readIds.has(n.id) && n.createdBy !== user?.id).length;
+    const interactionByNewsId = new Map(interactions.map((i) => [i.newsId, i]));
+    return news.filter((n) => {
+      const interaction = interactionByNewsId.get(n.id);
+      // Notícia com interação registrada: o status explícito de leitura manda,
+      // mesmo para o autor (permite "marcar como não lida" na própria notícia).
+      if (interaction) return !interaction.isRead;
+      // Sem interação: notícia própria nunca conta como não lida por padrão
+      // (o autor já sabe do que escreveu ao criá-la).
+      return n.createdBy !== user?.id;
+    }).length;
   }, [news, interactions, user]);
 
   return (
     <NewsInteractionContext.Provider value={{
       interactions, loading,
-      getInteraction, markAsRead, toggleSavedForLater, resetReadStatus,
+      getInteraction, markAsRead, markAsUnread, toggleSavedForLater, resetReadStatus,
       unreadCount,
     }}>
       {children}
