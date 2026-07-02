@@ -8,6 +8,7 @@ export interface FinancialStoreContextValue {
   updateFinancial: (financialId: string, data: Partial<Omit<Financial, 'id' | 'tenantId' | 'createdAt' | 'createdBy'>>) => Promise<void>;
   markPaid: (financialId: string, paymentDate: Date) => Promise<void>;
   updateFinancialStatus: (financialId: string, status: FinancialStatus, paymentDate?: Date) => Promise<void>;
+  cancelFinancial: (financialId: string, cancelDate: Date) => Promise<void>;
   deleteFinancial: (financialId: string) => Promise<void>;
   refresh: () => Promise<void>;
 }

@@ -1,4 +1,5 @@
 import styled from 'styled-components';
+import type { FinancialType } from '../../../domain/entities';
 
 export const S = {
   Page: styled.div`
@@ -102,11 +103,13 @@ export const S = {
 
     &:hover {
       border-color: ${({ theme }) => theme.colors.primary};
-      box-shadow: 0 4px 16px ${({ theme }) => `${theme.colors.primary}15`};
+      box-shadow: 0 4px 16px ${({ theme }) => theme.colors.primaryLight};
       transform: translateY(-1px);
     }
 
     &:hover .financial-complete-btn,
+    &:hover .financial-cancel-payment-btn,
+    &:hover .financial-cancel-financial-btn,
     &:hover .financial-delete-btn {
       opacity: 1;
       pointer-events: auto;
@@ -156,11 +159,12 @@ export const S = {
     overflow: hidden;
   `,
 
-  MetaText: styled.span`
+  MetaText: styled.span<{ $color?: string }>`
     min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+    color: ${({ $color, theme }) => $color ?? theme.colors.textMuted};
   `,
 
   MetaLink: styled.button`
@@ -186,11 +190,11 @@ export const S = {
     padding-top: ${({ theme }) => theme.spacing.xs};
   `,
 
-  Amount: styled.div<{ $type: 'income' | 'expense' }>`
+  Amount: styled.div<{ $type: FinancialType }>`
     font-size: ${({ theme }) => theme.fontSizes.md};
     font-weight: 700;
     font-family: ${({ theme }) => theme.fonts.mono};
-    color: ${({ theme, $type }) => $type === 'income' ? theme.colors.success : theme.colors.danger};
+    color: ${({ theme, $type }) => $type === 'Receita' ? theme.colors.success : theme.colors.danger};
     white-space: nowrap;
     flex-shrink: 0;
   `,
@@ -216,8 +220,60 @@ export const S = {
 
     &:hover {
       background: ${({ theme }) => theme.colors.success};
-      color: #fff;
+      color: ${({ theme }) => theme.colors.white};
       border-color: ${({ theme }) => theme.colors.success};
+    }
+  `,
+
+  CancelPaymentBtn: styled.button`
+    position: absolute;
+    top: ${({ theme }) => theme.spacing.sm};
+    right: calc(${({ theme }) => theme.spacing.sm} + 34px);
+    width: 28px;
+    height: 28px;
+    border-radius: ${({ theme }) => theme.borderRadius.md};
+    border: 1px solid ${({ theme }) => theme.colors.border};
+    background: ${({ theme }) => theme.colors.surface};
+    color: ${({ theme }) => theme.colors.textMuted};
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    opacity: 0;
+    pointer-events: none;
+    transition: ${({ theme }) => theme.transitions.fast};
+    z-index: 1;
+
+    &:hover {
+      background: ${({ theme }) => theme.colors.warning};
+      color: ${({ theme }) => theme.colors.white};
+      border-color: ${({ theme }) => theme.colors.warning};
+    }
+  `,
+
+  CancelFinancialBtn: styled.button`
+    position: absolute;
+    top: ${({ theme }) => theme.spacing.sm};
+    right: calc(${({ theme }) => theme.spacing.sm} + 68px);
+    width: 28px;
+    height: 28px;
+    border-radius: ${({ theme }) => theme.borderRadius.md};
+    border: 1px solid ${({ theme }) => theme.colors.border};
+    background: ${({ theme }) => theme.colors.surface};
+    color: ${({ theme }) => theme.colors.textMuted};
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    opacity: 0;
+    pointer-events: none;
+    transition: ${({ theme }) => theme.transitions.fast};
+    z-index: 1;
+
+    &:hover {
+      background: ${({ theme }) => theme.colors.textSecondary};
+      color: ${({ theme }) => theme.colors.white};
+      border-color: ${({ theme }) => theme.colors.textSecondary};
     }
   `,
 
@@ -242,7 +298,7 @@ export const S = {
 
     &:hover {
       background: ${({ theme }) => theme.colors.danger};
-      color: #fff;
+      color: ${({ theme }) => theme.colors.white};
       border-color: ${({ theme }) => theme.colors.danger};
     }
   `,

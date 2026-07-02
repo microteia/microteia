@@ -415,7 +415,7 @@ export interface Deadline {
 // ─── Financials (Financeiro) ──────────────────────────────────────────────────
 
 export type FinancialType = 'Receita' | 'Despesa';
-export type FinancialStatus = 'Pendente' | 'Pago' | 'Vencido' | 'Cancelado';
+export type FinancialStatus = 'Aberto' | 'Pago' | 'Cancelado';
 export type PaymentMethod = 'PIX' | 'Transferência' | 'Dinheiro' | 'Cartão' | 'Cheque' | 'Outro';
 
 export interface Financial {
@@ -433,6 +433,7 @@ export interface Financial {
   amount: number;
   dueDate: Date;
   paymentDate?: Date | null;
+  cancelDate?: Date | null;
   status: string;
   paymentMethod?: PaymentMethod | null;
   invoiceNumber?: string | null;

@@ -12,11 +12,10 @@ import { useWorkspace } from '../../../stores/useWorkspace';
 import { useNotification } from '../../../stores/useNotification';
 import { generateDeepLink } from '../../../infrastructure/deeplink/deepLinkUtils';
 import { resolveColor, getConfigColor } from '../../../shared/styles/colorUtils';
+import { toDateInputValue as toDateInput } from '../../../utils/formatters';
 import type { DynamicSelectOption } from '../../components/ui/DynamicSelect';
 import type { SearchSelectOption } from '../../components/ui/SearchSelect';
 import type { Financial, FinancialType, PaymentMethod } from '../../../domain/entities';
-
-const toDateInput = (d: Date | null | undefined): string => d ? d.toISOString().slice(0, 10) : '';
 
 export interface FinancialFormData {
   type: FinancialType;
@@ -24,6 +23,7 @@ export interface FinancialFormData {
   amount: number | null;
   dueDate: string;
   paymentDate: string;
+  cancelDate: string;
   status: string;
   paymentMethod: PaymentMethod | '';
   caseId: string;
@@ -40,7 +40,8 @@ const buildFormData = (financial: Financial | null): FinancialFormData => ({
   amount: financial?.amount ?? null,
   dueDate: toDateInput(financial?.dueDate),
   paymentDate: toDateInput(financial?.paymentDate),
-  status: financial?.status ?? 'Pendente',
+  cancelDate: toDateInput(financial?.cancelDate),
+  status: financial?.status ?? 'Aberto',
   paymentMethod: financial?.paymentMethod ?? '',
   caseId: financial?.caseId ?? '',
   personId: financial?.personId ?? '',
@@ -193,6 +194,7 @@ export const useViewFinancialViewModel = (tabKey: string): ViewFinancialViewMode
         amount: formData.amount,
         dueDate: new Date(`${formData.dueDate}T12:00:00`),
         paymentDate: formData.paymentDate ? new Date(`${formData.paymentDate}T12:00:00`) : null,
+        cancelDate: formData.cancelDate ? new Date(`${formData.cancelDate}T12:00:00`) : null,
         status: formData.status,
         paymentMethod: (formData.paymentMethod as PaymentMethod) || null,
         caseId: formData.caseId || null,

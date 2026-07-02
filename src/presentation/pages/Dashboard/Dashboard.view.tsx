@@ -153,7 +153,7 @@ export const DashboardView: React.FC = () => {
 
         <Card>
           <CardHeader>
-            <CardTitle>Financeiro Pendente</CardTitle>
+            <CardTitle>Financeiro em Aberto</CardTitle>
             <Button size="sm" variant="ghost" onClick={vm.openFinancials}>
               <RiMoneyDollarCircleLine size={14} /> Ver tudo
             </Button>

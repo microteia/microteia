@@ -119,7 +119,7 @@ export const useDashboardViewModel = (): DashboardViewModel => {
   }, [pendingDeadlines, todayStart, sevenDaysMs, priorityColorMap, theme]);
 
   const pendingFinancials = useMemo(() =>
-    financials.filter((f) => f.status === 'Pendente'),
+    financials.filter((f) => f.status === 'Aberto'),
     [financials],
   );
 

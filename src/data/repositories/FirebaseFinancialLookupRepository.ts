@@ -21,9 +21,8 @@ const STATIC_DEFAULTS: Record<FinancialLookupKind, FinancialLookupConfig[]> = {
     { key: 'Outros',           label: 'Outros',           isStatic: true },
   ],
   statuses: [
-    { key: 'Pendente',  label: 'Pendente',  color: 'warning',       isStatic: true },
+    { key: 'Aberto',    label: 'Aberto',    color: 'warning',       isStatic: true },
     { key: 'Pago',      label: 'Pago',      color: 'success',       isStatic: true },
-    { key: 'Vencido',   label: 'Vencido',   color: 'danger',        isStatic: true },
     { key: 'Cancelado', label: 'Cancelado', color: 'textSecondary', isStatic: true },
   ],
 };

@@ -1,4 +1,5 @@
 import styled from 'styled-components';
+import type { FinancialType } from '../../../domain/entities';
 
 export const S = {
   Page: styled.div`
@@ -25,15 +26,15 @@ export const S = {
     gap: ${({ theme }) => theme.spacing.md};
   `,
 
-  Avatar: styled.div<{ $type: 'income' | 'expense' }>`
+  Avatar: styled.div<{ $type: FinancialType }>`
     width: 48px;
     height: 48px;
     border-radius: ${({ theme }) => theme.borderRadius.full};
-    background: ${({ theme, $type }) => $type === 'income' ? theme.colors.success : theme.colors.danger};
+    background: ${({ theme, $type }) => $type === 'Receita' ? theme.colors.success : theme.colors.danger};
     display: flex;
     align-items: center;
     justify-content: center;
-    color: #fff;
+    color: ${({ theme }) => theme.colors.white};
     font-size: ${({ theme }) => theme.fontSizes.xl};
     font-weight: 700;
     flex-shrink: 0;
@@ -51,9 +52,9 @@ export const S = {
     color: ${({ theme }) => theme.colors.text};
   `,
 
-  SubTitle: styled.div<{ $type?: 'income' | 'expense' }>`
+  SubTitle: styled.div<{ $type?: FinancialType }>`
     font-size: ${({ theme }) => theme.fontSizes.sm};
-    color: ${({ theme, $type }) => $type === 'income' ? theme.colors.success : $type === 'expense' ? theme.colors.danger : theme.colors.textMuted};
+    color: ${({ theme, $type }) => $type === 'Receita' ? theme.colors.success : $type === 'Despesa' ? theme.colors.danger : theme.colors.textMuted};
     display: flex;
     align-items: center;
     gap: ${({ theme }) => theme.spacing.xs};
@@ -130,7 +131,7 @@ export const S = {
           ? theme.colors.success
           : theme.colors.danger
         : 'transparent'};
-    color: ${({ $active, theme }) => $active ? '#fff' : theme.colors.textSecondary};
+    color: ${({ $active, theme }) => $active ? theme.colors.white : theme.colors.textSecondary};
     transition: all ${({ theme }) => theme.transitions.fast};
 
     &:not(:last-child) { border-right: 1px solid ${({ theme }) => theme.colors.border}; }

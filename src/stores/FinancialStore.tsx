@@ -9,6 +9,7 @@ import {
   makeUpdateFinancialUseCase,
   makeMarkFinancialPaidUseCase,
   makeUpdateFinancialStatusUseCase,
+  makeCancelFinancialUseCase,
 } from '../domain/usecases/financials/UpdateFinancialUseCase';
 import { makeDeleteFinancialUseCase } from '../domain/usecases/financials/DeleteFinancialUseCase';
 import type { Financial, FinancialStatus } from '../domain/entities';
@@ -26,6 +27,7 @@ export const FinancialStoreProvider: React.FC<{ children: React.ReactNode }> = (
     update: makeUpdateFinancialUseCase(financialRepository),
     markPaid: makeMarkFinancialPaidUseCase(financialRepository),
     updateStatus: makeUpdateFinancialStatusUseCase(financialRepository),
+    cancel: makeCancelFinancialUseCase(financialRepository),
     delete: makeDeleteFinancialUseCase(financialRepository),
   }), [financialRepository]);
 
@@ -84,10 +86,21 @@ export const FinancialStoreProvider: React.FC<{ children: React.ReactNode }> = (
     if (!currentTenant) return;
     await uc.updateStatus.execute(currentTenant.id, financialId, status, paymentDate);
     setFinancials((prev) => prev.map((f) =>
-      f.id === financialId ? { ...f, status, ...(paymentDate ? { paymentDate } : {}) } : f,
+      f.id === financialId
+        ? { ...f, status, paymentDate: status === 'Pago' && paymentDate ? paymentDate : status !== 'Pago' ? null : f.paymentDate }
+        : f,
     ));
     storeEvents.emit(StoreEvents.FINANCIALS_UPDATED);
   }, [currentTenant, uc.updateStatus]);
+
+  const cancelFinancial = useCallback(async (financialId: string, cancelDate: Date) => {
+    if (!currentTenant) return;
+    await uc.cancel.execute(currentTenant.id, financialId, cancelDate);
+    setFinancials((prev) => prev.map((f) =>
+      f.id === financialId ? { ...f, status: 'Cancelado' as FinancialStatus, cancelDate } : f,
+    ));
+    storeEvents.emit(StoreEvents.FINANCIALS_UPDATED);
+  }, [currentTenant, uc.cancel]);
 
   const deleteFinancial = useCallback(async (financialId: string) => {
     if (!currentTenant) return;
@@ -99,7 +112,7 @@ export const FinancialStoreProvider: React.FC<{ children: React.ReactNode }> = (
   return (
     <FinancialStoreContext.Provider value={{
       financials, isLoading, createFinancial, updateFinancial,
-      markPaid, updateFinancialStatus, deleteFinancial, refresh,
+      markPaid, updateFinancialStatus, cancelFinancial, deleteFinancial, refresh,
     }}>
       {children}
     </FinancialStoreContext.Provider>

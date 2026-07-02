@@ -44,7 +44,8 @@ const mapFinancial = (id: string, d: Record<string, unknown>, tenantId: string):
   amount: d.amount as number,
   dueDate: toDate(d.dueDate),
   paymentDate: toDateOrNull(d.paymentDate),
-  status: (d.status as Financial['status']) ?? 'Pendente',
+  cancelDate: toDateOrNull(d.cancelDate),
+  status: (d.status as Financial['status']) ?? 'Aberto',
   paymentMethod: (d.paymentMethod as Financial['paymentMethod']) ?? null,
   invoiceNumber: (d.invoiceNumber as string | null) ?? null,
   notes: (d.notes as string | null) ?? null,
@@ -103,7 +104,16 @@ export class FirebaseFinancialRepository implements IFinancialRepository {
   async updateFinancialStatus(tenantId: string, financialId: string, status: FinancialStatus, paymentDate?: Date): Promise<void> {
     const payload: Record<string, unknown> = { status, updatedAt: serverTimestamp() };
     if (status === 'Pago' && paymentDate) payload.paymentDate = paymentDate;
+    else if (status !== 'Pago') payload.paymentDate = null;
     await updateDoc(doc(financialsRef(tenantId), financialId), payload);
+  }
+
+  async cancelFinancial(tenantId: string, financialId: string, cancelDate: Date): Promise<void> {
+    await updateDoc(doc(financialsRef(tenantId), financialId), {
+      status: 'Cancelado',
+      cancelDate,
+      updatedAt: serverTimestamp(),
+    });
   }
 
   async deleteFinancial(tenantId: string, financialId: string): Promise<void> {

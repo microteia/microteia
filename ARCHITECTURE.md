@@ -455,7 +455,8 @@ interface Financial {
   amount: number;            // Sempre positivo; type determina se é entrada ou saída
   dueDate: Date;
   paymentDate?: Date | null;
-  status: string;            // dinâmico via FinancialLookupConfig (kind: 'statuses')
+  cancelDate?: Date | null;
+  status: string;            // dinâmico via FinancialLookupConfig (kind: 'statuses'); valores: 'Aberto', 'Pago', 'Cancelado'
   paymentMethod?: PaymentMethod | null;
   invoiceNumber?: string | null;
   notes?: string | null;

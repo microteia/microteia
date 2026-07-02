@@ -12,25 +12,24 @@ import { Input, Label, Textarea } from '../../components/ui/Input';
 import { SearchSelect } from '../../components/ui/SearchSelect';
 import { DynamicSelect } from '../../components/ui/DynamicSelect';
 import { CurrencyInput } from '../../components/ui/CurrencyInput';
+import { DateInput } from '../../components/ui/DateInput';
 import { ConfirmModal } from '../../components/ui/ConfirmModal';
 import type { FinancialType } from '../../../domain/entities';
 
 export const ViewFinancialView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
   const vm = useViewFinancialViewModel(tabKey);
 
-  const isIncome = vm.formData.type === 'Receita';
-
   return (
     <S.Page>
       <S.Header>
         <S.HeaderLeft>
-          <S.Avatar $type={isIncome ? 'income' : 'expense'}>
+          <S.Avatar $type={vm.formData.type}>
             <RiMoneyDollarCircleLine size={22} />
           </S.Avatar>
           <S.HeaderInfo>
             <S.Title>{vm.isNew ? 'Novo Lançamento' : (vm.financial?.category ?? 'Lançamento')}</S.Title>
             {!vm.isNew && vm.financial && (
-              <S.SubTitle $type={vm.financial.type === 'Receita' ? 'income' : 'expense'}>
+              <S.SubTitle $type={vm.financial.type}>
                 {vm.financial.type === 'Receita' ? '+' : '-'}{' '}
                 {vm.financial.amount.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
               </S.SubTitle>
@@ -103,10 +102,9 @@ export const ViewFinancialView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
 
           <S.FormGroup>
             <Label>Data de Vencimento *</Label>
-            <Input
-              type="date"
+            <DateInput
               value={vm.formData.dueDate}
-              onChange={(e) => vm.setFormData({ dueDate: e.target.value })}
+              onChange={(val) => vm.setFormData({ dueDate: val })}
             />
           </S.FormGroup>
 
@@ -126,10 +124,17 @@ export const ViewFinancialView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
 
           <S.FormGroup>
             <Label>Data de Pagamento</Label>
-            <Input
-              type="date"
+            <DateInput
               value={vm.formData.paymentDate}
-              onChange={(e) => vm.setFormData({ paymentDate: e.target.value })}
+              onChange={(val) => vm.setFormData({ paymentDate: val })}
+            />
+          </S.FormGroup>
+
+          <S.FormGroup>
+            <Label>Data de Cancelamento</Label>
+            <DateInput
+              value={vm.formData.cancelDate}
+              onChange={(val) => vm.setFormData({ cancelDate: val })}
             />
           </S.FormGroup>
 

@@ -55,16 +55,18 @@ export interface FinancialsViewModel {
   confirmDelete: () => Promise<void>;
   cancelDelete: () => void;
   handleMarkPaid: (f: Financial) => Promise<void>;
+  handleCancelPayment: (f: Financial) => Promise<void>;
+  handleRegisterCancellation: (f: Financial) => Promise<void>;
   formatAmount: (amount: number) => string;
-  isOverdue: (f: Financial) => boolean;
   getStatusColor: (status: string) => string;
+  getCardStatusColor: (f: Financial) => string;
   getTypeColor: (type: string) => string;
 }
 
 const fmt = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
 
 export const useFinancialsViewModel = (): FinancialsViewModel => {
-  const { financials, isLoading, deleteFinancial, markPaid } = useFinancialStore();
+  const { financials, isLoading, deleteFinancial, markPaid, updateFinancialStatus, cancelFinancial } = useFinancialStore();
   const { statusConfigs } = useFinancialLookup();
   const { cases } = useCaseStore();
   const { persons } = usePersonStore();
@@ -96,6 +98,11 @@ export const useFinancialsViewModel = (): FinancialsViewModel => {
     return getConfigColor(statusConfigs, status, theme);
   }, [statusConfigs, theme]);
 
+  const getCardStatusColor = useCallback((f: Financial): string => {
+    if (f.status === 'Aberto' && f.dueDate.getTime() < Date.now()) return theme.colors.danger;
+    return getConfigColor(statusConfigs, f.status, theme);
+  }, [statusConfigs, theme]);
+
   const getTypeColor = useCallback((type: string): string => {
     return type === 'Receita' ? theme.colors.success : theme.colors.danger;
   }, [theme]);
@@ -112,6 +119,10 @@ export const useFinancialsViewModel = (): FinancialsViewModel => {
     { key: 'contract', label: 'Contrato', type: 'select', options: contractOptions },
     { key: 'dueDateFrom', label: 'Vencimento (de)', type: 'date' },
     { key: 'dueDateTo', label: 'Vencimento (até)', type: 'date' },
+    { key: 'paymentDateFrom', label: 'Pagamento (de)', type: 'date' },
+    { key: 'paymentDateTo', label: 'Pagamento (até)', type: 'date' },
+    { key: 'periodFrom', label: 'Período (de)', type: 'date' },
+    { key: 'periodTo', label: 'Período (até)', type: 'date' },
   ], [caseOptions, personOptions, contractOptions, statusConfigs, theme]);
 
   const tokenMap = useMemo(() => {
@@ -119,11 +130,6 @@ export const useFinancialsViewModel = (): FinancialsViewModel => {
     filterTokens.forEach((t) => { map[t.key] = t.values; });
     return map;
   }, [filterTokens]);
-
-  const isOverdue = useCallback((f: Financial) => {
-    if (f.status !== 'Pendente') return false;
-    return f.dueDate.getTime() < Date.now();
-  }, []);
 
   const formatAmount = useCallback((amount: number) => fmt.format(amount), []);
 
@@ -136,9 +142,17 @@ export const useFinancialsViewModel = (): FinancialsViewModel => {
     const contractFilter = tokenMap['contract'] ?? [];
     const dueDateStart = tokenMap['dueDateFrom']?.[0];
     const dueDateEnd = tokenMap['dueDateTo']?.[0];
+    const paymentDateStart = tokenMap['paymentDateFrom']?.[0];
+    const paymentDateEnd = tokenMap['paymentDateTo']?.[0];
+    const periodStart = tokenMap['periodFrom']?.[0];
+    const periodEnd = tokenMap['periodTo']?.[0];
 
-    const periodStartDate = dueDateStart ? new Date(`${dueDateStart}T00:00:00`) : null;
-    const periodEndDate = dueDateEnd ? new Date(`${dueDateEnd}T23:59:59`) : null;
+    const dueDateStartAt = dueDateStart ? new Date(`${dueDateStart}T00:00:00`) : null;
+    const dueDateEndAt = dueDateEnd ? new Date(`${dueDateEnd}T23:59:59`) : null;
+    const paymentDateStartAt = paymentDateStart ? new Date(`${paymentDateStart}T00:00:00`) : null;
+    const paymentDateEndAt = paymentDateEnd ? new Date(`${paymentDateEnd}T23:59:59`) : null;
+    const periodStartAt = periodStart ? new Date(`${periodStart}T00:00:00`) : null;
+    const periodEndAt = periodEnd ? new Date(`${periodEnd}T23:59:59`) : null;
 
     return [...financials]
       .sort((a, b) => b.dueDate.getTime() - a.dueDate.getTime())
@@ -152,8 +166,20 @@ export const useFinancialsViewModel = (): FinancialsViewModel => {
         if (caseFilter.length > 0 && !caseFilter.includes(f.caseId ?? '')) return false;
         if (personFilter.length > 0 && !personFilter.includes(f.personId ?? '')) return false;
         if (contractFilter.length > 0 && !contractFilter.includes(f.contractId ?? '')) return false;
-        if (periodStartDate && f.dueDate.getTime() < periodStartDate.getTime()) return false;
-        if (periodEndDate && f.dueDate.getTime() > periodEndDate.getTime()) return false;
+        if (dueDateStartAt && f.dueDate.getTime() < dueDateStartAt.getTime()) return false;
+        if (dueDateEndAt && f.dueDate.getTime() > dueDateEndAt.getTime()) return false;
+        if (paymentDateStartAt && (!f.paymentDate || f.paymentDate.getTime() < paymentDateStartAt.getTime())) return false;
+        if (paymentDateEndAt && (!f.paymentDate || f.paymentDate.getTime() > paymentDateEndAt.getTime())) return false;
+        if (periodStartAt) {
+          const dueOk = f.dueDate.getTime() >= periodStartAt.getTime();
+          const paidOk = !!f.paymentDate && f.paymentDate.getTime() >= periodStartAt.getTime();
+          if (!dueOk && !paidOk) return false;
+        }
+        if (periodEndAt) {
+          const dueOk = f.dueDate.getTime() <= periodEndAt.getTime();
+          const paidOk = !!f.paymentDate && f.paymentDate.getTime() <= periodEndAt.getTime();
+          if (!dueOk && !paidOk) return false;
+        }
         return true;
       });
   }, [financials, tokenMap]);
@@ -197,6 +223,24 @@ export const useFinancialsViewModel = (): FinancialsViewModel => {
     }
   }, [markPaid, notify]);
 
+  const handleCancelPayment = useCallback(async (f: Financial) => {
+    try {
+      await updateFinancialStatus(f.id, 'Aberto');
+      notify('Pagamento cancelado.', 'success');
+    } catch {
+      notify('Erro ao cancelar pagamento.', 'error');
+    }
+  }, [updateFinancialStatus, notify]);
+
+  const handleRegisterCancellation = useCallback(async (f: Financial) => {
+    try {
+      await cancelFinancial(f.id, new Date());
+      notify('Cancelamento registrado.', 'success');
+    } catch {
+      notify('Erro ao registrar cancelamento.', 'error');
+    }
+  }, [cancelFinancial, notify]);
+
   return {
     financials,
     filteredFinancials,
@@ -218,9 +262,11 @@ export const useFinancialsViewModel = (): FinancialsViewModel => {
     confirmDelete,
     cancelDelete,
     handleMarkPaid,
+    handleCancelPayment,
+    handleRegisterCancellation,
     formatAmount,
-    isOverdue,
     getStatusColor,
+    getCardStatusColor,
     getTypeColor,
   };
 };

@@ -13,6 +13,10 @@ export type UpdateFinancialStatusUseCase = {
   execute: (tenantId: string, financialId: string, status: FinancialStatus, paymentDate?: Date) => Promise<void>;
 };
 
+export type CancelFinancialUseCase = {
+  execute: (tenantId: string, financialId: string, cancelDate: Date) => Promise<void>;
+};
+
 export const makeUpdateFinancialUseCase = (repo: IFinancialRepository): UpdateFinancialUseCase => ({
   execute: (tenantId, financialId, data) => repo.updateFinancial(tenantId, financialId, data),
 });
@@ -25,4 +29,9 @@ export const makeMarkFinancialPaidUseCase = (repo: IFinancialRepository): MarkFi
 export const makeUpdateFinancialStatusUseCase = (repo: IFinancialRepository): UpdateFinancialStatusUseCase => ({
   execute: (tenantId, financialId, status, paymentDate) =>
     repo.updateFinancialStatus(tenantId, financialId, status, paymentDate),
+});
+
+export const makeCancelFinancialUseCase = (repo: IFinancialRepository): CancelFinancialUseCase => ({
+  execute: (tenantId, financialId, cancelDate) =>
+    repo.cancelFinancial(tenantId, financialId, cancelDate),
 });

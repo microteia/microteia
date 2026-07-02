@@ -4,6 +4,8 @@ import {
   RiAddLine,
   RiDeleteBinLine,
   RiCheckLine,
+  RiArrowGoBackLine,
+  RiCloseCircleLine,
   RiCalendarCheckLine,
   RiTeamLine,
   RiFolderLine,
@@ -41,17 +43,17 @@ export const FinancialsView: React.FC = () => {
 
       {vm.isSummaryVisible && (
         <S.SummaryBar>
-          <S.SummaryCard $color="#22c55e">
+          <S.SummaryCard $color={vm.getTypeColor('Receita')}>
             <S.SummaryLabel>Receitas Pagas</S.SummaryLabel>
-            <S.SummaryValue $color="#22c55e">{vm.formatAmount(vm.summary.totalIncome)}</S.SummaryValue>
+            <S.SummaryValue $color={vm.getTypeColor('Receita')}>{vm.formatAmount(vm.summary.totalIncome)}</S.SummaryValue>
           </S.SummaryCard>
-          <S.SummaryCard $color="#ef4444">
+          <S.SummaryCard $color={vm.getTypeColor('Despesa')}>
             <S.SummaryLabel>Despesas Pagas</S.SummaryLabel>
-            <S.SummaryValue $color="#ef4444">{vm.formatAmount(vm.summary.totalExpense)}</S.SummaryValue>
+            <S.SummaryValue $color={vm.getTypeColor('Despesa')}>{vm.formatAmount(vm.summary.totalExpense)}</S.SummaryValue>
           </S.SummaryCard>
-          <S.SummaryCard $color={vm.summary.balance >= 0 ? '#22c55e' : '#ef4444'}>
+          <S.SummaryCard $color={vm.summary.balance >= 0 ? vm.getTypeColor('Receita') : vm.getTypeColor('Despesa')}>
             <S.SummaryLabel>Saldo</S.SummaryLabel>
-            <S.SummaryValue $color={vm.summary.balance >= 0 ? '#22c55e' : '#ef4444'}>
+            <S.SummaryValue $color={vm.summary.balance >= 0 ? vm.getTypeColor('Receita') : vm.getTypeColor('Despesa')}>
               {vm.formatAmount(vm.summary.balance)}
             </S.SummaryValue>
           </S.SummaryCard>
@@ -85,8 +87,6 @@ export const FinancialsView: React.FC = () => {
         ) : (
           <S.Grid>
             {vm.filteredFinancials.map((f) => {
-              const overdue = vm.isOverdue(f);
-              const status = overdue ? 'Vencido' : f.status;
               return (
                 <S.FinancialCard key={f.id} onClick={() => vm.openFinancial(f)}>
                   <S.CardHeader>
@@ -94,14 +94,15 @@ export const FinancialsView: React.FC = () => {
                   </S.CardHeader>
 
                   <S.Badges>
-                    <Badge color={vm.getStatusColor(status)}>{status}</Badge>
+                    <Badge color={vm.getCardStatusColor(f)}>{f.status}</Badge>
                   </S.Badges>
 
                   <S.CardMeta>
                     <S.MetaRow>
                       <RiCalendarCheckLine size={12} />
-                      <S.MetaText>Venc: {f.dueDate.toLocaleDateString('pt-BR')}</S.MetaText>
-                      {f.paymentDate && <S.MetaText>· Pago: {f.paymentDate.toLocaleDateString('pt-BR')}</S.MetaText>}
+                      <S.MetaText title="Data de vencimento" $color={vm.getStatusColor('Aberto')}>{f.dueDate.toLocaleDateString('pt-BR')}</S.MetaText>
+                      {f.paymentDate && <S.MetaText title="Data de pagamento" $color={vm.getStatusColor('Pago')}>· {f.paymentDate.toLocaleDateString('pt-BR')}</S.MetaText>}
+                      {f.cancelDate && <S.MetaText title="Data de cancelamento" $color={vm.getStatusColor('Cancelado')}>· {f.cancelDate.toLocaleDateString('pt-BR')}</S.MetaText>}
                     </S.MetaRow>
                     {f.personName && (
                       <S.MetaRow>
@@ -145,12 +146,12 @@ export const FinancialsView: React.FC = () => {
                   </S.CardMeta>
 
                   <S.BottomRow>
-                    <S.Amount $type={f.type === 'Receita' ? 'income' : 'expense'}>
+                    <S.Amount $type={f.type}>
                       {f.type === 'Receita' ? '+' : '-'} {vm.formatAmount(f.amount)}
                     </S.Amount>
                   </S.BottomRow>
 
-                  {f.status === 'Pendente' && (
+                  {f.status === 'Aberto' && (
                     <S.CompleteBtn
                       className="financial-complete-btn"
                       title="Registrar pagamento"
@@ -158,6 +159,26 @@ export const FinancialsView: React.FC = () => {
                     >
                       <RiCheckLine size={13} />
                     </S.CompleteBtn>
+                  )}
+
+                  {f.status === 'Pago' && (
+                    <S.CancelPaymentBtn
+                      className="financial-cancel-payment-btn"
+                      title="Cancelar pagamento"
+                      onClick={(e) => { e.stopPropagation(); void vm.handleCancelPayment(f); }}
+                    >
+                      <RiArrowGoBackLine size={13} />
+                    </S.CancelPaymentBtn>
+                  )}
+
+                  {f.status !== 'Cancelado' && (
+                    <S.CancelFinancialBtn
+                      className="financial-cancel-financial-btn"
+                      title="Registrar cancelamento"
+                      onClick={(e) => { e.stopPropagation(); void vm.handleRegisterCancellation(f); }}
+                    >
+                      <RiCloseCircleLine size={13} />
+                    </S.CancelFinancialBtn>
                   )}
 
                   <S.DeleteBtn
