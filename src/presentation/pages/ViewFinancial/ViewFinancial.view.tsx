@@ -8,6 +8,7 @@ import {
   RiUploadLine,
   RiExternalLinkLine,
   RiCloseLine,
+  RiPriceTag3Line,
 } from 'react-icons/ri';
 import { S } from './ViewFinancial.styles';
 import { useViewFinancialViewModel } from './ViewFinancial.viewmodel';
@@ -19,6 +20,7 @@ import { DynamicSelect } from '../../components/ui/DynamicSelect';
 import { CurrencyInput } from '../../components/ui/CurrencyInput';
 import { DateInput } from '../../components/ui/DateInput';
 import { ConfirmModal } from '../../components/ui/ConfirmModal';
+import { TagManager } from '../../components/ui/TagManager';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import type { FinancialType } from '../../../domain/entities';
@@ -26,6 +28,8 @@ import type { FinancialType } from '../../../domain/entities';
 export const ViewFinancialView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
   const vm = useViewFinancialViewModel(tabKey);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const appliedTags = vm.financial ? vm.tagAdapter.getAppliedTags(vm.financial.id) : [];
 
   return (
     <S.Page>
@@ -42,6 +46,16 @@ export const ViewFinancialView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
                 {vm.financial.amount.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
               </S.SubTitle>
             )}
+            {!vm.isNew && appliedTags.length > 0 && (
+              <S.Tags>
+                {appliedTags.map((t) => (
+                  <S.TagPill key={t.id} $color={t.color}>
+                    <S.TagDot $color={t.color} />
+                    {t.name}
+                  </S.TagPill>
+                ))}
+              </S.Tags>
+            )}
           </S.HeaderInfo>
         </S.HeaderLeft>
 
@@ -51,6 +65,10 @@ export const ViewFinancialView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
               <Button variant="ghost" size="sm" onClick={vm.handleCopyDeepLink} title="Copiar link">
                 {vm.copyLinkDone ? <RiCheckLine size={14} /> : <RiLinkM size={14} />}
                 {vm.copyLinkDone ? 'Copiado!' : 'Copiar link'}
+              </Button>
+              <Button variant="ghost" size="sm" onClick={vm.openTagManager}>
+                <RiPriceTag3Line size={14} />
+                Etiquetas
               </Button>
               {vm.isAdmin && (
                 <Button variant="danger" size="sm" onClick={vm.handleDeleteFinancial}>
@@ -337,6 +355,14 @@ export const ViewFinancialView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
           </>
         )}
       </S.Content>
+
+      {vm.isTagManagerOpen && vm.financial && (
+        <TagManager
+          entityId={vm.financial.id}
+          onClose={vm.closeTagManager}
+          adapter={vm.tagAdapter}
+        />
+      )}
 
       <ConfirmModal
         isOpen={!!vm.docToDelete}

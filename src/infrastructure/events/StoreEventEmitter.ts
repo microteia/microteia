@@ -33,6 +33,7 @@ export const StoreEvents = {
   CONTRACT_TAG_UPDATED: 'contract_tag:updated',
   DEADLINES_UPDATED: 'deadlines:updated',
   FINANCIALS_UPDATED: 'financials:updated',
+  FINANCIAL_TAG_UPDATED: 'financial_tag:updated',
   NEWS_UPDATED: 'news:updated',
   NEWS_TAG_UPDATED: 'news_tag:updated',
   PUSH_UPDATED: 'push:updated',

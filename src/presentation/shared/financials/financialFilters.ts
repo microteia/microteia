@@ -7,6 +7,7 @@ export interface FinancialFilterOptions {
   caseOptions: FilterOption[];
   personOptions: FilterOption[];
   contractOptions: FilterOption[];
+  tagOptions: FilterOption[];
   statusConfigs: FinancialLookupConfig[];
   theme: DefaultTheme;
 }
@@ -32,6 +33,7 @@ export const buildFinancialFilterDefs = ({
   caseOptions,
   personOptions,
   contractOptions,
+  tagOptions,
   statusConfigs,
   theme,
 }: FinancialFilterOptions): FilterDef[] => [
@@ -44,6 +46,7 @@ export const buildFinancialFilterDefs = ({
   { key: 'case', label: 'Processo', type: 'select', options: caseOptions },
   { key: 'person', label: 'Pessoa', type: 'select', options: personOptions },
   { key: 'contract', label: 'Contrato', type: 'select', options: contractOptions },
+  ...(tagOptions.length > 0 ? [{ key: 'tag', label: 'Etiqueta', type: 'select' as const, options: tagOptions }] : []),
   { key: 'dueDateFrom', label: 'Vencimento (de)', type: 'date' },
   { key: 'dueDateTo', label: 'Vencimento (até)', type: 'date' },
   { key: 'paymentDateFrom', label: 'Pagamento (de)', type: 'date' },
@@ -66,6 +69,7 @@ export const filterFinancialsByTokens = (financials: Financial[], tokens: Filter
   const caseFilter = tokenMap['case'] ?? [];
   const personFilter = tokenMap['person'] ?? [];
   const contractFilter = tokenMap['contract'] ?? [];
+  const tagFilter = tokenMap['tag'] ?? [];
   const dueDateStart = tokenMap['dueDateFrom']?.[0];
   const dueDateEnd = tokenMap['dueDateTo']?.[0];
   const paymentDateStart = tokenMap['paymentDateFrom']?.[0];
@@ -90,6 +94,7 @@ export const filterFinancialsByTokens = (financials: Financial[], tokens: Filter
     if (caseFilter.length > 0 && !caseFilter.includes(f.caseId ?? '')) return false;
     if (personFilter.length > 0 && !personFilter.includes(f.personId ?? '')) return false;
     if (contractFilter.length > 0 && !contractFilter.includes(f.contractId ?? '')) return false;
+    if (tagFilter.length > 0 && !tagFilter.some((tid) => f.tagIds?.includes(tid))) return false;
     if (dueDateStartAt && f.dueDate.getTime() < dueDateStartAt.getTime()) return false;
     if (dueDateEndAt && f.dueDate.getTime() > dueDateEndAt.getTime()) return false;
     if (paymentDateStartAt && (!f.paymentDate || f.paymentDate.getTime() < paymentDateStartAt.getTime())) return false;

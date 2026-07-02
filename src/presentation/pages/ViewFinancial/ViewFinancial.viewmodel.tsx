@@ -1,6 +1,7 @@
 import { useState, useMemo, useCallback, useEffect } from 'react';
 import { useTheme } from 'styled-components';
 import { useFinancialStore } from '../../../stores/useFinancialStore';
+import { useFinancialTagStore } from '../../../stores/useFinancialTagStore';
 import { useFinancialLookup } from '../../../stores/useFinancialLookup';
 import { useContractLookup } from '../../../stores/useContractLookup';
 import { useCaseStore } from '../../../stores/useCaseStore';
@@ -22,6 +23,7 @@ import { makeUploadFinancialDocumentUseCase } from '../../../domain/usecases/fin
 import { makeAddFinancialDocumentUseCase } from '../../../domain/usecases/financialdocuments/AddFinancialDocumentUseCase';
 import { makeDeleteFinancialDocumentUseCase } from '../../../domain/usecases/financialdocuments/DeleteFinancialDocumentUseCase';
 import type { Financial, FinancialType, FinancialDocument, PaymentMethod } from '../../../domain/entities';
+import type { TagStoreAdapter } from '../../components/ui/TagManager/TagManager.viewmodel';
 
 export type ViewFinancialTab = 'data' | 'documents';
 
@@ -90,6 +92,11 @@ export interface ViewFinancialViewModel {
   confirmDeleteDoc: () => Promise<void>;
   cancelDeleteDoc: () => void;
 
+  tagAdapter: TagStoreAdapter;
+  isTagManagerOpen: boolean;
+  openTagManager: () => void;
+  closeTagManager: () => void;
+
   caseOptions: SearchSelectOption[];
   personOptions: SearchSelectOption[];
   contractOptions: SearchSelectOption[];
@@ -123,6 +130,7 @@ export const useViewFinancialViewModel = (tabKey: string): ViewFinancialViewMode
   const financialId = isNew ? '' : tabKey.replace('view-financial:', '');
 
   const { financials, createFinancial, updateFinancial, deleteFinancial } = useFinancialStore();
+  const { tags, getTagsForFinancial, setTagsForFinancial, createTag, updateTag, deleteTag } = useFinancialTagStore();
   const { categoryConfigs, statusConfigs, addItem, removeItem } = useFinancialLookup();
   const { costCenterConfigs, addItem: addContractLookupItem, removeItem: removeContractLookupItem } = useContractLookup();
   const { cases } = useCaseStore();
@@ -146,6 +154,7 @@ export const useViewFinancialViewModel = (tabKey: string): ViewFinancialViewMode
   const [activeTab, setActiveTab] = useState<ViewFinancialTab>('data');
   const [formData, setFormDataState] = useState<FinancialFormData>(() => buildFormData(financial));
   const [isSaving, setIsSaving] = useState(false);
+  const [isTagManagerOpen, setIsTagManagerOpen] = useState(false);
   const [copyLinkDone, setCopyLinkDone] = useState(false);
   const [financialToDelete, setFinancialToDelete] = useState<Financial | null>(null);
 
@@ -329,7 +338,7 @@ export const useViewFinancialViewModel = (tabKey: string): ViewFinancialViewMode
       };
 
       if (isNew) {
-        const created = await createFinancial({ ...payload, createdBy: user?.id ?? '' });
+        const created = await createFinancial({ ...payload, createdBy: user?.id ?? '', tagIds: [] });
         notify('Lançamento criado com sucesso!', 'success');
         const newTabKey = `view-financial:${created.id}`;
         closeTab(tabKey, activePanelId ?? 'main');
@@ -346,6 +355,18 @@ export const useViewFinancialViewModel = (tabKey: string): ViewFinancialViewMode
       setIsSaving(false);
     }
   }, [formData, isNew, financial, cases, persons, contracts, createFinancial, updateFinancial, notify, user, tabKey, setTabTitle, closeTab, openTab, activePanelId]);
+
+  const tagAdapter: TagStoreAdapter = useMemo(() => ({
+    tags,
+    getAppliedTags: (entityId: string) => getTagsForFinancial(entityId, financial?.tagIds ?? []),
+    setTags: (entityId: string, tagIds: string[]) => setTagsForFinancial(entityId, tagIds),
+    createTag: (name: string, color: string) => createTag(name, color),
+    updateTag: (id: string, data: { name: string; color: string }) => updateTag(id, data),
+    deleteTag: (id: string) => deleteTag(id),
+  }), [tags, financial, getTagsForFinancial, setTagsForFinancial, createTag, updateTag, deleteTag]);
+
+  const openTagManager = useCallback(() => setIsTagManagerOpen(true), []);
+  const closeTagManager = useCallback(() => setIsTagManagerOpen(false), []);
 
   const handleCopyDeepLink = useCallback(() => {
     if (!financial) return;
@@ -387,6 +408,10 @@ export const useViewFinancialViewModel = (tabKey: string): ViewFinancialViewMode
     setFormData,
     isSaving,
     handleSave,
+    tagAdapter,
+    isTagManagerOpen,
+    openTagManager,
+    closeTagManager,
     caseOptions,
     personOptions,
     contractOptions,

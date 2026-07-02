@@ -69,6 +69,34 @@ export const S = {
     flex-wrap: wrap;
   `,
 
+  Tags: styled.div`
+    display: flex;
+    flex-wrap: wrap;
+    gap: ${({ theme }) => theme.spacing.xs};
+    margin-top: ${({ theme }) => theme.spacing.xs};
+  `,
+
+  TagPill: styled.span<{ $color: string }>`
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 8px;
+    border-radius: ${({ theme }) => theme.borderRadius.full};
+    font-size: ${({ theme }) => theme.fontSizes.xs};
+    font-weight: 500;
+    background: ${({ $color }) => `${$color}22`};
+    color: ${({ $color }) => $color};
+    border: 1px solid ${({ $color }) => `${$color}44`};
+  `,
+
+  TagDot: styled.span<{ $color: string }>`
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: ${({ $color }) => $color};
+    flex-shrink: 0;
+  `,
+
   TabBar: styled.div`
     display: flex;
     border-bottom: 1px solid ${({ theme }) => theme.colors.border};

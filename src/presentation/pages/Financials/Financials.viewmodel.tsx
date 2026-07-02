@@ -1,6 +1,7 @@
 import { useState, useMemo, useCallback, useEffect } from 'react';
 import { useTheme } from 'styled-components';
 import { useFinancialStore } from '../../../stores/useFinancialStore';
+import { useFinancialTagStore } from '../../../stores/useFinancialTagStore';
 import { useFinancialLookup } from '../../../stores/useFinancialLookup';
 import { useCaseStore } from '../../../stores/useCaseStore';
 import { usePersonStore } from '../../../stores/usePersonStore';
@@ -17,7 +18,7 @@ import {
   type FinancialSummary,
 } from '../../shared/financials/financialFilters';
 import type { Financial } from '../../../domain/entities';
-import type { FilterDef, FilterToken } from '../../components/ui/CompositeFilter';
+import type { FilterDef, FilterOption, FilterToken } from '../../components/ui/CompositeFilter';
 
 export type { FinancialSummary };
 
@@ -55,6 +56,7 @@ const fmt = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' 
 
 export const useFinancialsViewModel = (): FinancialsViewModel => {
   const { financials, isLoading, deleteFinancial, markPaid, updateFinancialStatus, cancelFinancial } = useFinancialStore();
+  const { tags } = useFinancialTagStore();
   const { statusConfigs } = useFinancialLookup();
   const { cases } = useCaseStore();
   const { persons } = usePersonStore();
@@ -89,6 +91,11 @@ export const useFinancialsViewModel = (): FinancialsViewModel => {
     [contracts],
   );
 
+  const tagOptions = useMemo<FilterOption[]>(() =>
+    tags.map((t) => ({ value: t.id, label: t.name, color: t.color })),
+    [tags],
+  );
+
   const getStatusColor = useCallback((status: string): string => {
     return getConfigColor(statusConfigs, status, theme);
   }, [statusConfigs, theme]);
@@ -103,8 +110,8 @@ export const useFinancialsViewModel = (): FinancialsViewModel => {
   }, [theme]);
 
   const filterDefs = useMemo<FilterDef[]>(
-    () => buildFinancialFilterDefs({ caseOptions, personOptions, contractOptions, statusConfigs, theme }),
-    [caseOptions, personOptions, contractOptions, statusConfigs, theme],
+    () => buildFinancialFilterDefs({ caseOptions, personOptions, contractOptions, tagOptions, statusConfigs, theme }),
+    [caseOptions, personOptions, contractOptions, tagOptions, statusConfigs, theme],
   );
 
   const formatAmount = useCallback((amount: number) => fmt.format(amount), []);

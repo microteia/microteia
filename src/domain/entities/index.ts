@@ -439,9 +439,21 @@ export interface Financial {
   paymentMethod?: PaymentMethod | null;
   invoiceNumber?: string | null;
   notes?: string | null;
+  tagIds?: string[];
   createdAt: Date;
   createdBy: string;
   updatedAt: Date;
+}
+
+// ─── Financial Tags ───────────────────────────────────────────────────────────
+
+export interface FinancialTag {
+  id: string;
+  tenantId: string;
+  name: string;
+  color: string;
+  createdAt: Date;
+  createdBy: string;
 }
 
 // ─── Financial Lookups ────────────────────────────────────────────────────────

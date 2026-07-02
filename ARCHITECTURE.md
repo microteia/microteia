@@ -67,6 +67,7 @@ O projeto usa **Clean Architecture + MVVM** com separação estrita em camadas. 
 | `Deadline` | `tenants/{tenantId}/deadlines/{id}` | Sim |
 | `DeadlineTypeConfig` | `tenants/{tenantId}/deadlineTypes/{id}` | Sim |
 | `Financial` | `tenants/{tenantId}/financials/{id}` | Sim |
+| `FinancialTag` | `tenants/{tenantId}/financialTags/{id}` | Sim |
 | `FinancialDocument` | `tenants/{tenantId}/financials/{financialId}/documents/{id}` | Sim |
 | `FinancialLookupConfig` | `tenants/{tenantId}/financialCategories/{id}`, `financialStatuses` | Sim |
 | `DocumentTypeConfig` (compartilhado) | `tenants/{tenantId}/documentTypes/{id}` | Sim |
@@ -471,6 +472,7 @@ interface Financial {
   paymentMethod?: PaymentMethod | null;
   invoiceNumber?: string | null;
   notes?: string | null;
+  tagIds?: string[];
   createdAt: Date;
   createdBy: string;
   updatedAt: Date;
@@ -478,6 +480,23 @@ interface Financial {
 ```
 
 `category` e `status` seguem o mesmo padrão Estático + Dinâmico de `Contract` (ver "Valores Estáticos e Dinâmicos"), com lookup próprio (`FinancialLookupConfig`/`FinancialLookupKind`, coleções `financialCategories`/`financialStatuses`). `costCenter` **não** tem coleção própria: reaproveita o lookup `costCenters` de `useContractLookup()`, para que Contratos e Financeiro compartilhem a mesma lista de centros de custo do escritório. `contractId`/`contractNumber` seguem o mesmo padrão denormalizado de `caseId`/`caseNumber`; ao excluir um `Contract`, os `financials` vinculados são desvinculados (ver "Cascata de Exclusão"). Não há campo de descrição livre: `category` é o identificador principal exibido nos cards e nas abas.
+
+### Entidade FinancialTag
+
+Tags de tenant para classificação de lançamentos financeiros. Mesmo padrão de `PersonTag`/`CaseTag`/`ContractTag`: repositório, usecases (`financialtags/`) e store (`FinancialTagStore`/`useFinancialTagStore`) próprios, sem entidade `Tag` genérica compartilhada.
+
+```typescript
+interface FinancialTag {
+  id: string;
+  tenantId: string;
+  name: string;
+  color: string;
+  createdAt: Date;
+  createdBy: string;
+}
+```
+
+Coleção Firestore: `tenants/{tenantId}/financialTags/{id}`
 
 ### Entidade FinancialDocument
 
@@ -629,6 +648,7 @@ src/
 │   │   ├── IContractLookupRepository.ts   # genérico, parametrizado por ContractLookupKind
 │   │   ├── IDeadlineRepository.ts
 │   │   ├── IFinancialRepository.ts
+│   │   ├── IFinancialTagRepository.ts
 │   │   ├── IPushRepository.ts
 │   │   ├── IPushInteractionRepository.ts
 │   │   ├── INewsRepository.ts
@@ -649,6 +669,7 @@ src/
 │       ├── contractdocuments/
 │       ├── deadlines/
 │       ├── financials/
+│       ├── financialtags/
 │       ├── pushes/
 │       ├── pushinteractions/
 │       ├── news/
@@ -671,6 +692,7 @@ src/
 │   │   ├── FirebaseContractLookupRepository.ts
 │   │   ├── FirebaseDeadlineRepository.ts
 │   │   ├── FirebaseFinancialRepository.ts
+│   │   ├── FirebaseFinancialTagRepository.ts
 │   │   ├── FirebasePushRepository.ts
 │   │   ├── FirebasePushInteractionRepository.ts
 │   │   ├── FirebaseNewsRepository.ts
@@ -710,6 +732,7 @@ src/
 │   ├── ContractLookupStore.tsx + useContractLookup.ts
 │   ├── DeadlineStore.tsx + useDeadlineStore.ts
 │   ├── FinancialStore.tsx + useFinancialStore.ts
+│   ├── FinancialTagStore.tsx + useFinancialTagStore.ts
 │   ├── PushStore.tsx + usePush.ts
 │   ├── PushInteractionStore.tsx + usePushInteraction.ts
 │   ├── NewsStore.tsx + useNews.ts
@@ -989,6 +1012,7 @@ Arquivos `.tsx` exportam **apenas** componentes React. Hooks e tipos ficam em `.
 | `ContractLookupStore` | Configs estático+dinâmico dos 10 lookups de contrato (tipo, categoria, status, objeto, índice/periodicidade de reajuste, moeda, forma de pagamento, banco, centro de custo) |
 | `DeadlineStore` | Prazos do tenant atual, CRUD + `completeDeadline` |
 | `FinancialStore` | Receitas/despesas do tenant atual, CRUD + `markPaid` |
+| `FinancialTagStore` | Etiquetas de lançamentos financeiros do tenant atual, CRUD de tags, aplicação de tags em lançamentos |
 | `PushStore` | Pushes do tribunal do tenant atual, CRUD + `updateStatus` |
 | `PushInteractionStore` | Rastreamento de leitura de pushes por usuário |
 | `NewsStore` | Notícias do sistema + do tenant atual, CRUD + curtidas |
@@ -1017,6 +1041,7 @@ Arquivos `.tsx` exportam **apenas** componentes React. Hooks e tipos ficam em `.
 | `CONTRACT_TAG_UPDATED` | `ContractTagStore` | — |
 | `DEADLINES_UPDATED` | `DeadlineStore` | — |
 | `FINANCIALS_UPDATED` | `FinancialStore` | — |
+| `FINANCIAL_TAG_UPDATED` | `FinancialTagStore` | — |
 | `PUSH_UPDATED` | `PushStore` | `PushInteractionStore` (re-sincroniza contadores) |
 | `NEWS_UPDATED` | `NewsStore` | `NewsTagStore`, `NewsInteractionStore` |
 
@@ -1524,6 +1549,13 @@ service cloud.firestore {
           allow create: if canWriteInTenant(tenantId);
           allow delete: if isTenantAdmin(tenantId);
         }
+      }
+
+      // Etiquetas de lançamentos financeiros (tenant-scoped) — qualquer membro com escrita cria; só admin deleta
+      match /financialTags/{tagId} {
+        allow read: if isMember(tenantId);
+        allow create, update: if canWriteInTenant(tenantId);
+        allow delete: if isTenantAdmin(tenantId);
       }
 
       // Lookups de financeiro — qualquer membro lê; qualquer membro com escrita cria e deleta

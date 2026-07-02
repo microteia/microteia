@@ -190,6 +190,34 @@ export const S = {
     &:hover { color: ${({ theme }) => theme.colors.primary}; text-decoration: underline; }
   `,
 
+  Tags: styled.div`
+    display: flex;
+    flex-wrap: wrap;
+    gap: ${({ theme }) => theme.spacing.xs};
+    padding-top: ${({ theme }) => theme.spacing.xs};
+  `,
+
+  TagPill: styled.span<{ $color: string }>`
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 7px;
+    border-radius: ${({ theme }) => theme.borderRadius.full};
+    font-size: 10px;
+    font-weight: 500;
+    background: ${({ $color }) => `${$color}20`};
+    color: ${({ $color }) => $color};
+    border: 1px solid ${({ $color }) => `${$color}40`};
+  `,
+
+  TagDot: styled.span<{ $color: string }>`
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: ${({ $color }) => $color};
+    flex-shrink: 0;
+  `,
+
   BottomRow: styled.div`
     display: flex;
     justify-content: flex-end;

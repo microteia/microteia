@@ -49,6 +49,7 @@ const mapFinancial = (id: string, d: Record<string, unknown>, tenantId: string):
   paymentMethod: (d.paymentMethod as Financial['paymentMethod']) ?? null,
   invoiceNumber: (d.invoiceNumber as string | null) ?? null,
   notes: (d.notes as string | null) ?? null,
+  tagIds: (d.tagIds as string[] | undefined) ?? [],
   createdAt: toDate(d.createdAt),
   createdBy: d.createdBy as string,
   updatedAt: toDate(d.updatedAt),
@@ -106,6 +107,10 @@ export class FirebaseFinancialRepository implements IFinancialRepository {
     if (status === 'Pago' && paymentDate) payload.paymentDate = paymentDate;
     else if (status !== 'Pago') payload.paymentDate = null;
     await updateDoc(doc(financialsRef(tenantId), financialId), payload);
+  }
+
+  async updateFinancialTags(tenantId: string, financialId: string, tagIds: string[]): Promise<void> {
+    await updateDoc(doc(financialsRef(tenantId), financialId), { tagIds, updatedAt: serverTimestamp() });
   }
 
   async cancelFinancial(tenantId: string, financialId: string, cancelDate: Date): Promise<void> {

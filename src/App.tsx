@@ -17,6 +17,7 @@ import { ContractTagStoreProvider } from './stores/ContractTagStore';
 import { DeadlineStoreProvider } from './stores/DeadlineStore';
 import { DeadlineLookupStoreProvider } from './stores/DeadlineLookupStore';
 import { FinancialStoreProvider } from './stores/FinancialStore';
+import { FinancialTagStoreProvider } from './stores/FinancialTagStore';
 import { FinancialLookupStoreProvider } from './stores/FinancialLookupStore';
 import { PushStoreProvider } from './stores/PushStore';
 import { PushInteractionStoreProvider } from './stores/PushInteractionStore';
@@ -58,6 +59,7 @@ const App: React.FC = () => {
                           <DeadlineStoreProvider>
                             <DeadlineLookupStoreProvider>
                             <FinancialStoreProvider>
+                            <FinancialTagStoreProvider>
                             <FinancialLookupStoreProvider>
                               <PushStoreProvider>
                                 <PushInteractionStoreProvider>
@@ -81,6 +83,7 @@ const App: React.FC = () => {
                                 </PushInteractionStoreProvider>
                               </PushStoreProvider>
                             </FinancialLookupStoreProvider>
+                            </FinancialTagStoreProvider>
                             </FinancialStoreProvider>
                             </DeadlineLookupStoreProvider>
                           </DeadlineStoreProvider>

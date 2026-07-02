@@ -22,9 +22,11 @@ import { Button } from '../../components/ui/Button';
 import { ConfirmModal } from '../../components/ui/ConfirmModal';
 import { Badge } from '../../components/ui/Badge';
 import { Spinner } from '../../components/ui/Spinner';
+import { useFinancialTagStore } from '../../../stores/useFinancialTagStore';
 
 export const FinancialsView: React.FC = () => {
   const vm = useFinancialsViewModel();
+  const { tags } = useFinancialTagStore();
 
   return (
     <S.Page>
@@ -108,6 +110,7 @@ export const FinancialsView: React.FC = () => {
         ) : (
           <S.Grid>
             {vm.filteredFinancials.map((f) => {
+              const financialTags = tags.filter((t) => f.tagIds?.includes(t.id));
               return (
                 <S.FinancialCard key={f.id} onClick={() => vm.openFinancial(f)}>
                   <S.CardHeader>
@@ -165,6 +168,17 @@ export const FinancialsView: React.FC = () => {
                       </S.MetaRow>
                     )}
                   </S.CardMeta>
+
+                  {financialTags.length > 0 && (
+                    <S.Tags onClick={(e) => e.stopPropagation()}>
+                      {financialTags.map((t) => (
+                        <S.TagPill key={t.id} $color={t.color}>
+                          <S.TagDot $color={t.color} />
+                          {t.name}
+                        </S.TagPill>
+                      ))}
+                    </S.Tags>
+                  )}
 
                   <S.BottomRow>
                     <S.Amount $type={f.type}>
