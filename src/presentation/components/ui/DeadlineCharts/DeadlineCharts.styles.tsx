@@ -142,25 +142,6 @@ export const S = {
     gap: ${({ theme }) => theme.spacing.xs};
   `,
 
-  TypeChip: styled.button<{ $color: string; $active: boolean }>`
-    background: ${({ $active, $color }) => ($active ? $color : 'transparent')};
-    border: 1px solid ${({ $color }) => $color};
-    border-radius: ${({ theme }) => theme.borderRadius.full};
-    padding: ${({ theme }) => theme.spacing.xs} ${({ theme }) => theme.spacing.sm};
-    font-size: ${({ theme }) => theme.fontSizes.xs};
-    font-weight: 500;
-    color: ${({ $active }) => ($active ? '#fff' : 'inherit')};
-    cursor: pointer;
-    transition: all 0.2s;
-    opacity: ${({ $active }) => ($active ? 1 : 0.5)};
-
-    &:hover {
-      opacity: 1;
-      background: ${({ $color }) => $color};
-      color: #fff;
-    }
-  `,
-
   ChartWrapper: styled.div`
     width: 100%;
     height: 300px;

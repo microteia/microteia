@@ -15,6 +15,7 @@ import { RiBarChartFill, RiEyeOffLine, RiEyeLine } from 'react-icons/ri';
 import { useTheme } from 'styled-components';
 import { useDeadlineChartsViewModel, type PeriodDays } from './DeadlineCharts.viewmodel';
 import { S } from './DeadlineCharts.styles';
+import { MarkerChip } from '../MarkerChip';
 import type { Deadline } from '../../../../domain/entities';
 
 export interface DeadlineChartsProps {
@@ -76,14 +77,14 @@ export const DeadlineCharts: React.FC<DeadlineChartsProps> = ({ deadlines }) => 
             {vm.allTypes.length > 0 && (
               <S.TypeChipsContainer>
                 {vm.allTypes.map((type) => (
-                  <S.TypeChip
+                  <MarkerChip
                     key={type}
-                    $color={vm.typeColorMap[type]}
-                    $active={vm.visibleTypes.includes(type)}
+                    color={vm.typeColorMap[type]}
+                    active={vm.visibleTypes.includes(type)}
                     onClick={() => vm.toggleTypeVisibility(type)}
                   >
                     {type}
-                  </S.TypeChip>
+                  </MarkerChip>
                 ))}
               </S.TypeChipsContainer>
             )}

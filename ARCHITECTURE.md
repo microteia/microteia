@@ -421,6 +421,16 @@ Documentos anexados a um contrato. Mesmo padrão de `PersonDocument`/`CaseDocume
 - Estilização já usa o tema (`theme.colors.inputBackground`, `theme.colors.border`, etc.) — não duplique o CSS de input de data em outro lugar.
 - Ao adicionar uma entidade com campo de data (ex: `dueDate`, `completedAt`, data de vencimento), o formulário correspondente (`.view.tsx`) deve renderizar `<DateInput value={...} onChange={...} />`, com a conversão de/para `Date` feita no ViewModel.
 
+### Componente MarkerChip — badge de seleção com marcador lateral
+
+`presentation/components/ui/MarkerChip/` é o componente padrão para chips coloridos e clicáveis que alternam a visibilidade de uma série/categoria em legendas de gráfico (ex.: tipos de prazo em "Análise de Prazos", categorias em "Distribuição por Categoria" do Financeiro). Substitui o padrão antigo de preencher o badge inteiro com a cor quando selecionado.
+
+- Props: `color: string` (hex ou token resolvido do tema), `active: boolean`, `onClick?: () => void`, `children: React.ReactNode`.
+- **Selecionado (`active=true`)**: fundo transparente, sem borda ao redor — a cor aparece só como um marcador discreto na borda esquerda (3px). Texto em `theme.colors.text`.
+- **Não selecionado (`active=false`)**: mantém o badge "cheio" tradicional — borda de 1px na cor, fundo transparente, opacidade reduzida (`0.5`), preenchendo com a cor no hover. Esse é o estado "como já era antes" preservado de propósito para diferenciar visualmente o que está oculto.
+- Puro átomo de apresentação (sem `useState`/efeitos) — não tem `.viewmodel.tsx`, só `.view.tsx` + `.styles.tsx`, no padrão de `TagIconButton`.
+- Ao adicionar uma nova legenda de gráfico com toggle de série, use `<MarkerChip color={...} active={...} onClick={...}>{label}</MarkerChip>` em vez de criar um styled-component de badge ad-hoc.
+
 ### Entidade Deadline (Prazo)
 
 ```typescript

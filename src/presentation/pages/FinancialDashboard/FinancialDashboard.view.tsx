@@ -21,6 +21,7 @@ import { useFinancialDashboardViewModel } from './FinancialDashboard.viewmodel';
 import { Button } from '../../components/ui/Button';
 import { Spinner } from '../../components/ui/Spinner';
 import { CompositeFilter } from '../../components/ui/CompositeFilter';
+import { MarkerChip } from '../../components/ui/MarkerChip';
 import { S } from './FinancialDashboard.styles';
 
 export const FinancialDashboardView: React.FC = () => {
@@ -119,14 +120,14 @@ export const FinancialDashboardView: React.FC = () => {
               {vm.allCategories.length > 0 && (
                 <S.TypeChipsContainer>
                   {vm.allCategories.map((category) => (
-                    <S.TypeChip
+                    <MarkerChip
                       key={category}
-                      $color={vm.categoryColorMap[category]}
-                      $active={vm.visibleCategories.includes(category)}
+                      color={vm.categoryColorMap[category]}
+                      active={vm.visibleCategories.includes(category)}
                       onClick={() => vm.toggleCategoryVisibility(category)}
                     >
                       {vm.categoryLabelMap[category]}
-                    </S.TypeChip>
+                    </MarkerChip>
                   ))}
                 </S.TypeChipsContainer>
               )}
