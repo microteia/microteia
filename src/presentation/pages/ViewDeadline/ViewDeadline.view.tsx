@@ -3,9 +3,10 @@ import { RiTimeLine } from 'react-icons/ri';
 import { S } from './ViewDeadline.styles';
 import { useViewDeadlineViewModel } from './ViewDeadline.viewmodel';
 import { Button } from '../../components/ui/Button';
-import { Input, Label, Textarea } from '../../components/ui/Input';
+import { Label, Textarea } from '../../components/ui/Input';
 import { SearchSelect } from '../../components/ui/SearchSelect';
 import { DynamicSelect } from '../../components/ui/DynamicSelect';
+import { DateInput } from '../../components/ui/DateInput';
 import type { SearchSelectOption } from '../../components/ui/SearchSelect';
 
 export const ViewDeadlineView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
@@ -85,19 +86,17 @@ export const ViewDeadlineView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
 
           <S.FormGroup>
             <Label>Data de Vencimento *</Label>
-            <Input
-              type="date"
+            <DateInput
               value={vm.formData.dueDate}
-              onChange={(e) => vm.setFormData({ dueDate: e.target.value })}
+              onChange={(val) => vm.setFormData({ dueDate: val })}
             />
           </S.FormGroup>
 
           <S.FormGroup>
             <Label>Data de Conclusão</Label>
-            <Input
-              type="date"
+            <DateInput
               value={vm.formData.completedAt}
-              onChange={(e) => vm.setFormData({ completedAt: e.target.value })}
+              onChange={(val) => vm.setFormData({ completedAt: val })}
             />
           </S.FormGroup>
 

@@ -9,6 +9,7 @@ import {
 } from 'react-icons/ri';
 import { Button } from '../../components/ui/Button';
 import { SearchSelect } from '../../components/ui/SearchSelect';
+import { DateInput } from '../../components/ui/DateInput';
 import { ImageCropModal } from '../../components/ui/ImageCropModal';
 import { Spinner } from '../../components/ui/Spinner';
 import { useProfileViewModel, PROFILE_PHOTO_INPUT_ID } from './Profile.viewmodel';
@@ -221,11 +222,10 @@ export const ProfileView: React.FC = () => {
 
               <S.FormGroup>
                 <S.Label htmlFor="birthDate">Data de Nascimento</S.Label>
-                <S.Input
+                <DateInput
                   id="birthDate"
-                  type="date"
                   value={vm.form.birthDate}
-                  onChange={(e) => vm.handleFormChange('birthDate', e.target.value)}
+                  onChange={(val) => vm.handleFormChange('birthDate', val)}
                 />
               </S.FormGroup>
 

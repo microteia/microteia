@@ -20,6 +20,7 @@ import { Input, Label, Textarea } from '../../components/ui/Input';
 import { SearchSelect } from '../../components/ui/SearchSelect';
 import { DynamicSelect } from '../../components/ui/DynamicSelect';
 import { MultiSearchSelect } from '../../components/ui/MultiSearchSelect';
+import { DateInput } from '../../components/ui/DateInput';
 import { TagManager } from '../../components/ui/TagManager';
 import { MarkdownEditor } from '../../components/ui/MarkdownEditor';
 import { MarkdownContent } from '../../components/ui/MarkdownContent';
@@ -278,7 +279,7 @@ export const ViewCaseView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
 
             <S.FormGroup>
               <Label>Data de Distribuição</Label>
-              <Input type="date" value={vm.formData.filedAt} onChange={(e) => vm.setFormData({ filedAt: e.target.value })} />
+              <DateInput value={vm.formData.filedAt} onChange={(val) => vm.setFormData({ filedAt: val })} />
             </S.FormGroup>
 
             <S.SectionTitle>Financeiro e Responsável</S.SectionTitle>

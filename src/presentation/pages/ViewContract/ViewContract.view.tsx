@@ -23,6 +23,7 @@ import { SearchSelect } from '../../components/ui/SearchSelect';
 import { MultiSearchSelect } from '../../components/ui/MultiSearchSelect';
 import { DynamicSelect } from '../../components/ui/DynamicSelect';
 import { CurrencyInput } from '../../components/ui/CurrencyInput';
+import { DateInput } from '../../components/ui/DateInput';
 import { ConfirmModal } from '../../components/ui/ConfirmModal';
 import { TagManager } from '../../components/ui/TagManager';
 import { MarkdownEditor } from '../../components/ui/MarkdownEditor';
@@ -230,19 +231,19 @@ export const ViewContractView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
             <S.SectionTitle>Datas e vigência</S.SectionTitle>
             <S.FormGroup>
               <Label>Data da elaboração</Label>
-              <Input type="date" value={vm.formData.draftedAt} onChange={(e) => vm.setFormData({ draftedAt: e.target.value })} />
+              <DateInput value={vm.formData.draftedAt} onChange={(val) => vm.setFormData({ draftedAt: val })} />
             </S.FormGroup>
             <S.FormGroup>
               <Label>Data da assinatura</Label>
-              <Input type="date" value={vm.formData.signedAt} onChange={(e) => vm.setFormData({ signedAt: e.target.value })} />
+              <DateInput value={vm.formData.signedAt} onChange={(val) => vm.setFormData({ signedAt: val })} />
             </S.FormGroup>
             <S.FormGroup>
               <Label>Início da vigência</Label>
-              <Input type="date" value={vm.formData.effectiveStart} onChange={(e) => vm.setFormData({ effectiveStart: e.target.value })} />
+              <DateInput value={vm.formData.effectiveStart} onChange={(val) => vm.setFormData({ effectiveStart: val })} />
             </S.FormGroup>
             <S.FormGroup>
               <Label>Fim da vigência</Label>
-              <Input type="date" value={vm.formData.effectiveEnd} onChange={(e) => vm.setFormData({ effectiveEnd: e.target.value })} />
+              <DateInput value={vm.formData.effectiveEnd} onChange={(val) => vm.setFormData({ effectiveEnd: val })} />
             </S.FormGroup>
             <S.FormGroup>
               <Label>Renovação automática?</Label>
@@ -257,11 +258,11 @@ export const ViewContractView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
             </S.FormGroup>
             <S.FormGroup>
               <Label>Data da renovação</Label>
-              <Input type="date" value={vm.formData.renewalDate} onChange={(e) => vm.setFormData({ renewalDate: e.target.value })} />
+              <DateInput value={vm.formData.renewalDate} onChange={(val) => vm.setFormData({ renewalDate: val })} />
             </S.FormGroup>
             <S.FormGroup>
               <Label>Data do encerramento</Label>
-              <Input type="date" value={vm.formData.terminationDate} onChange={(e) => vm.setFormData({ terminationDate: e.target.value })} />
+              <DateInput value={vm.formData.terminationDate} onChange={(val) => vm.setFormData({ terminationDate: val })} />
             </S.FormGroup>
 
             <S.SectionTitle>Condições financeiras</S.SectionTitle>
