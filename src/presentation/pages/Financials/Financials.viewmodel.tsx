@@ -16,6 +16,9 @@ export interface FinancialSummary {
   totalIncome: number;
   totalExpense: number;
   balance: number;
+  pendingIncome: number;
+  pendingExpense: number;
+  projectedBalance: number;
 }
 
 const toISODate = (d: Date): string => {
@@ -79,7 +82,7 @@ export const useFinancialsViewModel = (): FinancialsViewModel => {
   const [filterTokens, setFilterTokens] = useState<FilterToken[]>(
     () => consumeNavigationIntent('financials') as FilterToken[] | undefined ?? buildDefaultMonthTokens(),
   );
-  const [isSummaryVisible, setIsSummaryVisible] = useState(true);
+  const [isSummaryVisible, setIsSummaryVisible] = useState(false);
   const [financialToDelete, setFinancialToDelete] = useState<Financial | null>(null);
 
   const caseOptions = useMemo(() =>
@@ -190,7 +193,16 @@ export const useFinancialsViewModel = (): FinancialsViewModel => {
   const summary = useMemo<FinancialSummary>(() => {
     const totalIncome = filteredFinancials.filter((f) => f.type === 'Receita' && f.status === 'Pago').reduce((s, f) => s + f.amount, 0);
     const totalExpense = filteredFinancials.filter((f) => f.type === 'Despesa' && f.status === 'Pago').reduce((s, f) => s + f.amount, 0);
-    return { totalIncome, totalExpense, balance: totalIncome - totalExpense };
+    const pendingIncome = filteredFinancials.filter((f) => f.type === 'Receita' && f.status === 'Aberto').reduce((s, f) => s + f.amount, 0);
+    const pendingExpense = filteredFinancials.filter((f) => f.type === 'Despesa' && f.status === 'Aberto').reduce((s, f) => s + f.amount, 0);
+    return {
+      totalIncome,
+      totalExpense,
+      balance: totalIncome - totalExpense,
+      pendingIncome,
+      pendingExpense,
+      projectedBalance: pendingIncome - pendingExpense,
+    };
   }, [filteredFinancials]);
 
   const toggleSummaryVisible = useCallback(() => setIsSummaryVisible((prev) => !prev), []);

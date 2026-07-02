@@ -57,6 +57,20 @@ export const FinancialsView: React.FC = () => {
               {vm.formatAmount(vm.summary.balance)}
             </S.SummaryValue>
           </S.SummaryCard>
+          <S.SummaryCard $color={vm.getTypeColor('Receita')}>
+            <S.SummaryLabel>Receitas a Receber</S.SummaryLabel>
+            <S.SummaryValue $color={vm.getTypeColor('Receita')}>{vm.formatAmount(vm.summary.pendingIncome)}</S.SummaryValue>
+          </S.SummaryCard>
+          <S.SummaryCard $color={vm.getTypeColor('Despesa')}>
+            <S.SummaryLabel>Despesas a Pagar</S.SummaryLabel>
+            <S.SummaryValue $color={vm.getTypeColor('Despesa')}>{vm.formatAmount(vm.summary.pendingExpense)}</S.SummaryValue>
+          </S.SummaryCard>
+          <S.SummaryCard $color={vm.summary.projectedBalance >= 0 ? vm.getTypeColor('Receita') : vm.getTypeColor('Despesa')}>
+            <S.SummaryLabel>Saldo Projetado</S.SummaryLabel>
+            <S.SummaryValue $color={vm.summary.projectedBalance >= 0 ? vm.getTypeColor('Receita') : vm.getTypeColor('Despesa')}>
+              {vm.formatAmount(vm.summary.projectedBalance)}
+            </S.SummaryValue>
+          </S.SummaryCard>
         </S.SummaryBar>
       )}
 
