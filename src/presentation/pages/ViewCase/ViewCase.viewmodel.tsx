@@ -44,7 +44,7 @@ export interface CaseFormData {
   contractId: string;
   contractNumber: string;
   notes: string;
-  causeValue: string;
+  causeValue: number | null;
   filedAt: string;
 }
 
@@ -66,7 +66,7 @@ const buildFormData = (c: Case | null, userId: string, displayName: string): Cas
   contractId: c?.contractId ?? '',
   contractNumber: c?.contractNumber ?? '',
   notes: c?.notes ?? '',
-  causeValue: c?.causeValue?.toString() ?? '',
+  causeValue: c?.causeValue ?? null,
   filedAt: c?.filedAt ? c.filedAt.toISOString().slice(0, 10) : '',
 });
 
@@ -301,7 +301,7 @@ export const useViewCaseViewModel = (tabKey: string): ViewCaseViewModel => {
         passivePoleIds: formData.passivePoleIds,
         opposingParties: case_?.opposingParties ?? [],
         filedAt: formData.filedAt ? new Date(formData.filedAt) : null,
-        causeValue: formData.causeValue ? parseFloat(formData.causeValue) : null,
+        causeValue: formData.causeValue,
         notes: formData.notes || null,
         tags: case_?.tags ?? [],
         tagIds: case_?.tagIds ?? [],

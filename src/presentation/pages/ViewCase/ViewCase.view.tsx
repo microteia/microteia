@@ -21,6 +21,7 @@ import { SearchSelect } from '../../components/ui/SearchSelect';
 import { DynamicSelect } from '../../components/ui/DynamicSelect';
 import { MultiSearchSelect } from '../../components/ui/MultiSearchSelect';
 import { DateInput } from '../../components/ui/DateInput';
+import { CurrencyInput } from '../../components/ui/CurrencyInput';
 import { TagManager } from '../../components/ui/TagManager';
 import { MarkdownEditor } from '../../components/ui/MarkdownEditor';
 import { MarkdownContent } from '../../components/ui/MarkdownContent';
@@ -286,7 +287,10 @@ export const ViewCaseView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
 
             <S.FormGroup>
               <Label>Valor da Causa (R$)</Label>
-              <Input type="number" value={vm.formData.causeValue} onChange={(e) => vm.setFormData({ causeValue: e.target.value })} placeholder="0,00" />
+              <CurrencyInput
+                value={vm.formData.causeValue}
+                onChange={(val) => vm.setFormData({ causeValue: val })}
+              />
             </S.FormGroup>
 
             <S.FormGroup $fullWidth>
