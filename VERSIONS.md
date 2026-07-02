@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [0.4.3] — 2026-07-02
+
+- Correção interna de estabilidade nas cores do sistema, sem impacto visível no dia a dia.
+
 #### [0.4.2] — 2026-07-02
 
 - O botão "Marcar como não lida" agora também aparece na listagem de Notícias, direto no card de cada notícia lida.
