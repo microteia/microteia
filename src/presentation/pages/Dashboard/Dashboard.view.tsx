@@ -6,6 +6,7 @@ import {
   RiAlertLine,
   RiArrowRightLine,
   RiMoneyDollarCircleLine,
+  RiLineChartLine,
 } from 'react-icons/ri';
 import { useDashboardViewModel, type FinancialPeriodDays } from './Dashboard.viewmodel';
 import { Card, CardHeader, CardTitle } from '../../components/ui/Card';
@@ -155,7 +156,7 @@ export const DashboardView: React.FC = () => {
 
         <Card>
           <CardHeader>
-            <CardTitle>Financeiro em Aberto</CardTitle>
+            <CardTitle>Financeiro</CardTitle>
             <S.FinancialHeaderControls>
               <S.PeriodGroup>
                 {FINANCIAL_PERIOD_OPTIONS.map((days) => (
@@ -168,6 +169,9 @@ export const DashboardView: React.FC = () => {
                   </S.PeriodButton>
                 ))}
               </S.PeriodGroup>
+              <Button size="sm" variant="ghost" onClick={vm.openFinancialDashboard}>
+                <RiLineChartLine size={14} /> Dashboard
+              </Button>
               <Button size="sm" variant="ghost" onClick={vm.openFinancials}>
                 <RiMoneyDollarCircleLine size={14} /> Ver tudo
               </Button>

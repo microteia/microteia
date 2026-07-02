@@ -13,6 +13,7 @@ import {
   RiWalletLine,
   RiEyeLine,
   RiEyeOffLine,
+  RiLineChartLine,
 } from 'react-icons/ri';
 import { S } from './Financials.styles';
 import { useFinancialsViewModel } from './Financials.viewmodel';
@@ -35,10 +36,16 @@ export const FinancialsView: React.FC = () => {
             {vm.isSummaryVisible ? 'Ocultar totais' : 'Mostrar totais'}
           </Button>
         </S.HeaderLeft>
-        <Button onClick={vm.openCreateTab}>
-          <RiAddLine size={16} />
-          Novo Lançamento
-        </Button>
+        <S.HeaderRight>
+          <Button variant="secondary" onClick={vm.openFinancialDashboard}>
+            <RiLineChartLine size={16} />
+            Dashboard
+          </Button>
+          <Button onClick={vm.openCreateTab}>
+            <RiAddLine size={16} />
+            Novo Lançamento
+          </Button>
+        </S.HeaderRight>
       </S.Header>
 
       {vm.isSummaryVisible && (

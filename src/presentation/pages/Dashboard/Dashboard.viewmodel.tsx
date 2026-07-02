@@ -7,6 +7,7 @@ import { usePersonStore } from '../../../stores/usePersonStore';
 import { useWorkspace } from '../../../stores/useWorkspace';
 import { setNavigationIntent } from '../../../infrastructure/navigation/navigationIntent';
 import type { Deadline, Case, DeadlinePriority } from '../../../domain/entities';
+import type { FilterToken } from '../../components/ui/CompositeFilter';
 
 export interface KPIStat {
   label: string;
@@ -49,6 +50,7 @@ export interface DashboardViewModel {
   openDeadlines: () => void;
   openDeadlinesOverdue: () => void;
   openFinancials: () => void;
+  openFinancialDashboard: () => void;
   openCase: (caseId: string) => void;
   openDeadline: (deadline: Deadline) => void;
   getPriorityColor: (priority: DeadlinePriority) => string;
@@ -175,12 +177,17 @@ export const useDashboardViewModel = (): DashboardViewModel => {
     setNavigationIntent('deadlines', [{ key: 'status', values: ['Vencido'] }]);
     openTab('deadlines');
   };
+  const financialOpenFilterTokens = (): FilterToken[] => [
+    { key: 'status', values: ['Aberto'] },
+    { key: 'dueDateTo', values: [toISODate(financialCutoffDay)] },
+  ];
   const openFinancials = () => {
-    setNavigationIntent('financials', [
-      { key: 'status', values: ['Aberto'] },
-      { key: 'dueDateTo', values: [toISODate(financialCutoffDay)] },
-    ]);
+    setNavigationIntent('financials', financialOpenFilterTokens());
     openTab('financials');
+  };
+  const openFinancialDashboard = () => {
+    setNavigationIntent('financial-dashboard', financialOpenFilterTokens());
+    openTab('financial-dashboard');
   };
   const openCase = (caseId: string) => openTab(`view-case:${caseId}`);
   const openDeadline = (deadline: Deadline) => openTab(`view-deadline:${deadline.id}`);
@@ -204,6 +211,7 @@ export const useDashboardViewModel = (): DashboardViewModel => {
     openDeadlines,
     openDeadlinesOverdue,
     openFinancials,
+    openFinancialDashboard,
     openCase,
     openDeadline,
     getPriorityColor,

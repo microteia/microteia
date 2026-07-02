@@ -25,6 +25,12 @@ export const S = {
     gap: ${({ theme }) => theme.spacing.sm};
   `,
 
+  HeaderRight: styled.div`
+    display: flex;
+    align-items: center;
+    gap: ${({ theme }) => theme.spacing.sm};
+  `,
+
   Title: styled.h1`
     font-size: ${({ theme }) => theme.fontSizes.xl};
     font-weight: 700;

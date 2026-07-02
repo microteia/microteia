@@ -13,6 +13,7 @@ import {
   RiInboxLine,
   RiBarChartBoxLine,
   RiFileTextLine,
+  RiLineChartLine,
 } from 'react-icons/ri';
 import type { UserRole } from '../../domain/entities';
 import { DashboardView } from './Dashboard/Dashboard.view';
@@ -25,6 +26,7 @@ import { ViewContractView } from './ViewContract/ViewContract.view';
 import { DeadlinesView } from './Deadlines/Deadlines.view';
 import { FinancialsView } from './Financials/Financials.view';
 import { ViewFinancialView } from './ViewFinancial/ViewFinancial.view';
+import { FinancialDashboardView } from './FinancialDashboard/FinancialDashboard.view';
 import { NewsView } from './News/News.view';
 import { PushesView } from './Pushes/Pushes.view';
 import { DashboardPushesView } from './DashboardPushes/DashboardPushes.view';
@@ -81,6 +83,7 @@ export const PAGE_REGISTRY: PageDefinition[] = [
   },
   { key: 'deadlines',        title: 'Prazos',              icon: <RiTimeLine size={20} />,               component: DeadlinesView        },
   { key: 'financials',       title: 'Financeiro',          icon: <RiMoneyDollarCircleLine size={20} />,  component: FinancialsView       },
+  { key: 'financial-dashboard', title: 'Dashboard Financeiro', icon: <RiLineChartLine size={20} />,      component: FinancialDashboardView },
   {
     key: 'new-financial',
     title: 'Novo Lançamento',
