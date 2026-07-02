@@ -67,7 +67,9 @@ O projeto usa **Clean Architecture + MVVM** com separação estrita em camadas. 
 | `Deadline` | `tenants/{tenantId}/deadlines/{id}` | Sim |
 | `DeadlineTypeConfig` | `tenants/{tenantId}/deadlineTypes/{id}` | Sim |
 | `Financial` | `tenants/{tenantId}/financials/{id}` | Sim |
+| `FinancialDocument` | `tenants/{tenantId}/financials/{financialId}/documents/{id}` | Sim |
 | `FinancialLookupConfig` | `tenants/{tenantId}/financialCategories/{id}`, `financialStatuses` | Sim |
+| `DocumentTypeConfig` (compartilhado) | `tenants/{tenantId}/documentTypes/{id}` | Sim |
 | `Push` | `tenants/{tenantId}/pushes/{id}` | Sim |
 | `PushInteraction` | `pushInteractions/{uid}_{pushId}` | Não |
 | `News` | `news/{id}` | Parcial: `tenantId=null` = Sistema (global); `tenantId=string` = Escritório |
@@ -476,6 +478,12 @@ interface Financial {
 ```
 
 `category` e `status` seguem o mesmo padrão Estático + Dinâmico de `Contract` (ver "Valores Estáticos e Dinâmicos"), com lookup próprio (`FinancialLookupConfig`/`FinancialLookupKind`, coleções `financialCategories`/`financialStatuses`). `costCenter` **não** tem coleção própria: reaproveita o lookup `costCenters` de `useContractLookup()`, para que Contratos e Financeiro compartilhem a mesma lista de centros de custo do escritório. `contractId`/`contractNumber` seguem o mesmo padrão denormalizado de `caseId`/`caseNumber`; ao excluir um `Contract`, os `financials` vinculados são desvinculados (ver "Cascata de Exclusão"). Não há campo de descrição livre: `category` é o identificador principal exibido nos cards e nas abas.
+
+### Entidade FinancialDocument
+
+Documentos anexados a um lançamento financeiro. Mesmo padrão de `PersonDocument`/`CaseDocument`/`ContractDocument`. Coleção: `tenants/{tenantId}/financials/{financialId}/documents/{id}`. Storage path: `tenants/{tenantId}/financials/{financialId}/{timestamp}_{filename}`.
+
+`type` referencia a `key` de um `DocumentTypeConfig` — o catálogo de tipos de documento (coleção `tenants/{tenantId}/documentTypes`, acessado via `useDocumentTypeLookup()`) é **compartilhado por tenant** entre Pessoa, Processo, Contrato e Financeiro: um tipo criado em qualquer uma dessas telas aparece nas demais. O documento em si, porém, é sempre filho de uma única entidade — não há coleção `documents` genérica.
 
 ### Entidade Push
 
@@ -1509,6 +1517,13 @@ service cloud.firestore {
         allow read: if isMember(tenantId);
         allow create, update: if isTenantLawyerOrAdmin(tenantId);
         allow delete: if isTenantAdmin(tenantId);
+
+        // Documentos do lançamento financeiro — upload por qualquer membro com escrita; exclusão só admin
+        match /documents/{documentId} {
+          allow read: if isMember(tenantId);
+          allow create: if canWriteInTenant(tenantId);
+          allow delete: if isTenantAdmin(tenantId);
+        }
       }
 
       // Lookups de financeiro — qualquer membro lê; qualquer membro com escrita cria e deleta
@@ -1685,6 +1700,18 @@ service firebase.storage {
     // ─── Documentos de contratos ──────────────────────────────────────────────
     // Path: tenants/{tenantId}/contracts/{contractId}/{filename}
     match /tenants/{tenantId}/contracts/{contractId}/{allPaths=**} {
+      allow read: if request.auth != null
+        && firestore.exists(/databases/(default)/documents/tenants/$(tenantId)/members/$(request.auth.uid));
+      allow create: if request.auth != null
+        && firestore.exists(/databases/(default)/documents/tenants/$(tenantId)/members/$(request.auth.uid))
+        && request.resource.size < 20 * 1024 * 1024;     // máximo 20 MB
+      allow delete: if request.auth != null
+        && firestore.get(/databases/(default)/documents/tenants/$(tenantId)/members/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    // ─── Documentos de lançamentos financeiros ───────────────────────────────
+    // Path: tenants/{tenantId}/financials/{financialId}/{filename}
+    match /tenants/{tenantId}/financials/{financialId}/{allPaths=**} {
       allow read: if request.auth != null
         && firestore.exists(/databases/(default)/documents/tenants/$(tenantId)/members/$(request.auth.uid));
       allow create: if request.auth != null

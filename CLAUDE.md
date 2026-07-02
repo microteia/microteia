@@ -38,6 +38,33 @@ Use o atalho do `package.json` quando existir: `npm run verify` (= `typecheck` +
 
 ---
 
+## Versionamento — NÃO-NEGOCIÁVEL
+
+**Todo commit é precedido, sem exceção, por dois passos:**
+
+1. Incrementar `version` em `package.json` (SemVer: `patch` para correções, `minor` para funcionalidades novas, `major` para mudanças que quebram compatibilidade).
+2. Adicionar uma entrada nova no **topo** de `VERSIONS.md` (raiz do projeto) para essa versão.
+
+A entrada em `VERSIONS.md` é **escrita para o usuário comum do escritório**, não para desenvolvedores — e é sempre **diferente** da mensagem de commit do git:
+
+| | Público | Tom |
+|---|---|---|
+| Mensagem de commit (git) | Desenvolvedores | Técnico, Conventional Commits (`feat:`, `fix:`, `docs:`…) |
+| Entrada em `VERSIONS.md` | Usuário do escritório | Elegante, direto, sem jargão de código |
+
+Formato de cada entrada (mais recente no topo do arquivo):
+
+```markdown
+## [0.0.9] — 2026-07-02
+
+- Adicionada a aba de Documentos na tela de Financeiro, para anexar recibos e notas fiscais aos lançamentos.
+- Corrigido um problema que impedia a análise de intimações recebidas por e-mail.
+```
+
+Cada item descreve o **benefício ou a mudança percebida**, não a implementação (nunca cite nomes de arquivo, componente, hook ou camada). Se `VERSIONS.md` não existir, crie-o com esse formato antes da primeira entrada.
+
+---
+
 ## Hierarquia de camadas — dependências
 
 ```
@@ -176,6 +203,7 @@ Arquivos `.tsx` exportam **apenas** componentes React. Hooks e tipos ficam em `.
 - [ ] Nenhum comentário desnecessário no código
 - [ ] `npx tsc --noEmit` sem erros
 - [ ] `npx eslint . --max-warnings 0` sem erros **nem warnings**
+- [ ] **Antes de commitar:** `version` incrementada em `package.json` + entrada nova no topo de `VERSIONS.md` (linguagem de usuário, diferente da mensagem de commit)
 - [ ] **Nova coleção Firestore ou permissão alterada:** atualizar "Firestore Security Rules — Conjunto Completo" no `ARCHITECTURE.md` e apresentar o bloco completo ao usuário para colar no Firebase Console
 - [ ] **Novo path no Storage:** atualizar "Firebase Storage Rules — Conjunto Completo" e apresentar o bloco
 - [ ] **Nova query Firestore:** `where` máximo + `orderBy` no servidor + `limit()` + índice composto documentado; coleções de crescimento ilimitado exigem paginação por cursor

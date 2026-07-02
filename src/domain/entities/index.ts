@@ -455,6 +455,23 @@ export interface FinancialLookupConfig {
   isStatic?: boolean;
 }
 
+// ─── Financial Documents ──────────────────────────────────────────────────────
+
+export interface FinancialDocument {
+  id: string;
+  financialId: string;
+  tenantId: string;
+  name: string;
+  type?: string;
+  description?: string;
+  url: string;
+  storagePath: string;
+  createdBy: string;
+  createdByName: string;
+  createdByPhotoUrl?: string;
+  createdAt: Date;
+}
+
 // ─── Contract Tags ────────────────────────────────────────────────────────────
 
 export interface ContractTag {

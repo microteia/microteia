@@ -16,6 +16,7 @@ import type { IPersonRepository } from '../../domain/repositories/IPersonReposit
 import type { ICaseRepository } from '../../domain/repositories/ICaseRepository';
 import type { IDeadlineRepository } from '../../domain/repositories/IDeadlineRepository';
 import type { IFinancialRepository } from '../../domain/repositories/IFinancialRepository';
+import type { IFinancialDocumentRepository } from '../../domain/repositories/IFinancialDocumentRepository';
 import type { ITextAnnotationRepository } from '../../domain/repositories/ITextAnnotationRepository';
 import type { IPersonTagRepository } from '../../domain/repositories/IPersonTagRepository';
 import type { IPersonNoteRepository } from '../../domain/repositories/IPersonNoteRepository';
@@ -83,6 +84,7 @@ export interface DIContainer {
   deadlineRepository: IDeadlineRepository;
   deadlineTypeRepository: IDeadlineTypeRepository;
   financialRepository: IFinancialRepository;
+  financialDocumentRepository: IFinancialDocumentRepository;
   financialLookupRepository: IFinancialLookupRepository;
   textAnnotationRepository: ITextAnnotationRepository;
   pushRepository: IPushRepository;

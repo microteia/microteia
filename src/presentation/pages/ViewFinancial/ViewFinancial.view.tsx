@@ -1,23 +1,31 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import {
   RiMoneyDollarCircleLine,
   RiDeleteBinLine,
   RiLinkM,
   RiCheckLine,
+  RiFileTextLine,
+  RiUploadLine,
+  RiExternalLinkLine,
+  RiCloseLine,
 } from 'react-icons/ri';
 import { S } from './ViewFinancial.styles';
 import { useViewFinancialViewModel } from './ViewFinancial.viewmodel';
 import { Button } from '../../components/ui/Button';
+import { Spinner } from '../../components/ui/Spinner';
 import { Input, Label, Textarea } from '../../components/ui/Input';
 import { SearchSelect } from '../../components/ui/SearchSelect';
 import { DynamicSelect } from '../../components/ui/DynamicSelect';
 import { CurrencyInput } from '../../components/ui/CurrencyInput';
 import { DateInput } from '../../components/ui/DateInput';
 import { ConfirmModal } from '../../components/ui/ConfirmModal';
+import { format } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 import type { FinancialType } from '../../../domain/entities';
 
 export const ViewFinancialView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
   const vm = useViewFinancialViewModel(tabKey);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   return (
     <S.Page>
@@ -55,7 +63,15 @@ export const ViewFinancialView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
         </S.HeaderActions>
       </S.Header>
 
+      {!vm.isNew && (
+        <S.TabBar>
+          <S.TabBtn $active={vm.activeTab === 'data'} onClick={() => vm.setActiveTab('data')}>Dados</S.TabBtn>
+          <S.TabBtn $active={vm.activeTab === 'documents'} onClick={() => vm.setActiveTab('documents')}>Documentos</S.TabBtn>
+        </S.TabBar>
+      )}
+
       <S.Content>
+        {(vm.activeTab === 'data' || vm.isNew) && (
         <S.FormGrid>
           <S.FormGroup $fullWidth>
             <Label>Tipo</Label>
@@ -216,7 +232,121 @@ export const ViewFinancialView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
             </Button>
           </S.FormActions>
         </S.FormGrid>
+        )}
+
+        {vm.activeTab === 'documents' && !vm.isNew && (
+          <>
+            <input
+              ref={fileInputRef}
+              type="file"
+              style={{ display: 'none' }}
+              onChange={vm.handleSelectFile}
+            />
+
+            <S.TabSectionHeader>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={vm.isUploadingDoc || !!vm.pendingFile}
+              >
+                <RiUploadLine size={14} />
+                Anexar Documento
+              </Button>
+            </S.TabSectionHeader>
+
+            {vm.pendingFile && (
+              <S.PendingFileCard>
+                <S.PendingFileTopRow>
+                  <S.DocIcon><RiFileTextLine /></S.DocIcon>
+                  <S.PendingFileContent>
+                    <DynamicSelect
+                      staticOptions={vm.documentTypeOptions}
+                      dynamicOptions={vm.documentTypeDynamicOptions}
+                      value={vm.pendingType}
+                      onChange={vm.setPendingType}
+                      placeholder="Tipo (opcional)"
+                      onAdd={vm.handleAddDocumentType}
+                      onDelete={vm.handleDeleteDocumentType}
+                      deleteConfirmTitle="Excluir tipo de documento"
+                      deleteConfirmMessage="Tem certeza que deseja excluir este tipo de documento?"
+                      disabled={vm.isUploadingDoc}
+                    />
+                  </S.PendingFileContent>
+                  <S.PendingFileActions>
+                    <Button variant="ghost" size="sm" onClick={vm.handleCancelPendingUpload} disabled={vm.isUploadingDoc}>
+                      <RiCloseLine size={14} />
+                      Cancelar
+                    </Button>
+                    <Button size="sm" onClick={() => void vm.handleConfirmUpload()} disabled={vm.isUploadingDoc}>
+                      {vm.isUploadingDoc ? 'Enviando...' : 'Confirmar Envio'}
+                    </Button>
+                  </S.PendingFileActions>
+                </S.PendingFileTopRow>
+                <S.PendingFileName title={vm.pendingFile.name}>{vm.pendingFile.name}</S.PendingFileName>
+              </S.PendingFileCard>
+            )}
+
+            {vm.docsLoading ? (
+              <div style={{ display: 'flex', justifyContent: 'center', padding: '32px' }}>
+                <Spinner />
+              </div>
+            ) : vm.documents.length === 0 ? (
+              <S.EmptyState>
+                <S.EmptyIcon><RiFileTextLine /></S.EmptyIcon>
+                <div>Nenhum documento anexado.</div>
+              </S.EmptyState>
+            ) : (
+              <S.DocList>
+                {vm.documents.map((docItem) => (
+                  <S.DocRow key={docItem.id}>
+                    <S.DocIcon><RiFileTextLine /></S.DocIcon>
+                    <S.DocContent>
+                      <S.DocName href={docItem.url} target="_blank" rel="noopener noreferrer" title={docItem.name}>
+                        {docItem.name}
+                      </S.DocName>
+                      {docItem.description && (
+                        <S.DocMeta>{docItem.description}</S.DocMeta>
+                      )}
+                      <S.DocUploaderRow>
+                        <S.DocUploaderAvatar>
+                          {docItem.createdByPhotoUrl
+                            ? <S.DocUploaderImg src={docItem.createdByPhotoUrl} alt={docItem.createdByName} />
+                            : (docItem.createdByName || 'U').charAt(0).toUpperCase()}
+                        </S.DocUploaderAvatar>
+                        <S.DocMeta>
+                          {docItem.createdByName} · {format(docItem.createdAt, "d 'de' MMM 'de' yyyy 'às' HH:mm", { locale: ptBR })}
+                        </S.DocMeta>
+                      </S.DocUploaderRow>
+                    </S.DocContent>
+                    {docItem.type && <S.DocTypeBadge>{docItem.type}</S.DocTypeBadge>}
+                    <S.DocActions>
+                      <Button variant="ghost" size="sm" onClick={() => window.open(docItem.url, '_blank', 'noopener,noreferrer')} title="Abrir documento">
+                        <RiExternalLinkLine size={14} />
+                      </Button>
+                      {vm.isAdmin && (
+                        <Button variant="ghost" size="sm" onClick={() => vm.requestDeleteDoc(docItem)} title="Excluir documento">
+                          <RiDeleteBinLine size={13} />
+                        </Button>
+                      )}
+                    </S.DocActions>
+                  </S.DocRow>
+                ))}
+              </S.DocList>
+            )}
+          </>
+        )}
       </S.Content>
+
+      <ConfirmModal
+        isOpen={!!vm.docToDelete}
+        onConfirm={() => void vm.confirmDeleteDoc()}
+        onCancel={vm.cancelDeleteDoc}
+        title="Excluir Documento"
+        message={`Tem certeza que deseja excluir "${vm.docToDelete?.name}"? Esta ação não pode ser desfeita.`}
+        confirmLabel="Excluir"
+        variant="danger"
+      />
 
       <ConfirmModal
         isOpen={!!vm.financialToDelete}

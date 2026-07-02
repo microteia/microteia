@@ -6,16 +6,24 @@ import { useContractLookup } from '../../../stores/useContractLookup';
 import { useCaseStore } from '../../../stores/useCaseStore';
 import { usePersonStore } from '../../../stores/usePersonStore';
 import { useContractStore } from '../../../stores/useContractStore';
+import { useDocumentTypeLookup } from '../../../stores/useDocumentTypeLookup';
 import { useAuth } from '../../../stores/useAuth';
 import { useTenant } from '../../../stores/useTenant';
 import { useWorkspace } from '../../../stores/useWorkspace';
 import { useNotification } from '../../../stores/useNotification';
+import { useDI } from '../../../infrastructure/di/useDI';
 import { generateDeepLink } from '../../../infrastructure/deeplink/deepLinkUtils';
 import { resolveColor, getConfigColor } from '../../../shared/styles/colorUtils';
 import { toDateInputValue as toDateInput } from '../../../utils/formatters';
 import type { DynamicSelectOption } from '../../components/ui/DynamicSelect';
 import type { SearchSelectOption } from '../../components/ui/SearchSelect';
-import type { Financial, FinancialType, PaymentMethod } from '../../../domain/entities';
+import { makeGetFinancialDocumentsUseCase } from '../../../domain/usecases/financialdocuments/GetFinancialDocumentsUseCase';
+import { makeUploadFinancialDocumentUseCase } from '../../../domain/usecases/financialdocuments/UploadFinancialDocumentUseCase';
+import { makeAddFinancialDocumentUseCase } from '../../../domain/usecases/financialdocuments/AddFinancialDocumentUseCase';
+import { makeDeleteFinancialDocumentUseCase } from '../../../domain/usecases/financialdocuments/DeleteFinancialDocumentUseCase';
+import type { Financial, FinancialType, FinancialDocument, PaymentMethod } from '../../../domain/entities';
+
+export type ViewFinancialTab = 'data' | 'documents';
 
 export interface FinancialFormData {
   type: FinancialType;
@@ -57,10 +65,30 @@ const PAYMENT_METHOD_OPTIONS: SearchSelectOption[] = (['PIX', 'Transferência', 
 export interface ViewFinancialViewModel {
   isNew: boolean;
   financial: Financial | null;
+  activeTab: ViewFinancialTab;
+  setActiveTab: (tab: ViewFinancialTab) => void;
   formData: FinancialFormData;
   setFormData: (data: Partial<FinancialFormData>) => void;
   isSaving: boolean;
   handleSave: () => Promise<void>;
+
+  documents: FinancialDocument[];
+  docsLoading: boolean;
+  isUploadingDoc: boolean;
+  pendingFile: File | null;
+  pendingType: string;
+  setPendingType: (v: string) => void;
+  documentTypeOptions: DynamicSelectOption[];
+  documentTypeDynamicOptions: DynamicSelectOption[];
+  handleAddDocumentType: (name: string) => Promise<void>;
+  handleDeleteDocumentType: (key: string) => Promise<void>;
+  handleSelectFile: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  handleConfirmUpload: () => Promise<void>;
+  handleCancelPendingUpload: () => void;
+  docToDelete: FinancialDocument | null;
+  requestDeleteDoc: (doc: FinancialDocument) => void;
+  confirmDeleteDoc: () => Promise<void>;
+  cancelDeleteDoc: () => void;
 
   caseOptions: SearchSelectOption[];
   personOptions: SearchSelectOption[];
@@ -100,11 +128,13 @@ export const useViewFinancialViewModel = (tabKey: string): ViewFinancialViewMode
   const { cases } = useCaseStore();
   const { persons } = usePersonStore();
   const { contracts } = useContractStore();
+  const { typeConfigs: documentTypeConfigs, addItem: addDocumentType, removeItem: removeDocumentType } = useDocumentTypeLookup();
   const { user } = useAuth();
-  const { tenantRole } = useTenant();
+  const { tenantRole, currentTenant } = useTenant();
   const { setTabTitle, closeTab, openTab, activePanelId } = useWorkspace();
   const { notify } = useNotification();
   const theme = useTheme();
+  const { financialDocumentRepository } = useDI();
 
   const financial = useMemo(
     () => (isNew ? null : (financials.find((f) => f.id === financialId) ?? null)),
@@ -113,10 +143,34 @@ export const useViewFinancialViewModel = (tabKey: string): ViewFinancialViewMode
 
   const isAdmin = tenantRole === 'admin';
 
+  const [activeTab, setActiveTab] = useState<ViewFinancialTab>('data');
   const [formData, setFormDataState] = useState<FinancialFormData>(() => buildFormData(financial));
   const [isSaving, setIsSaving] = useState(false);
   const [copyLinkDone, setCopyLinkDone] = useState(false);
   const [financialToDelete, setFinancialToDelete] = useState<Financial | null>(null);
+
+  const [documents, setDocuments] = useState<FinancialDocument[]>([]);
+  const [docsLoading, setDocsLoading] = useState(false);
+  const [isUploadingDoc, setIsUploadingDoc] = useState(false);
+  const [docToDelete, setDocToDelete] = useState<FinancialDocument | null>(null);
+  const [pendingFile, setPendingFile] = useState<File | null>(null);
+  const [pendingType, setPendingType] = useState('');
+
+  const docUC = useMemo(() => ({
+    get:    makeGetFinancialDocumentsUseCase(financialDocumentRepository),
+    upload: makeUploadFinancialDocumentUseCase(financialDocumentRepository),
+    add:    makeAddFinancialDocumentUseCase(financialDocumentRepository),
+    delete: makeDeleteFinancialDocumentUseCase(financialDocumentRepository),
+  }), [financialDocumentRepository]);
+
+  useEffect(() => {
+    if (!financial || !currentTenant) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- carregamento inicial após navegação para aba
+    setDocsLoading(true);
+    docUC.get.execute(currentTenant.id, financial.id)
+      .then(setDocuments)
+      .finally(() => setDocsLoading(false));
+  }, [financial, currentTenant, docUC]);
 
   useEffect(() => {
     if (financial) {
@@ -168,12 +222,79 @@ export const useViewFinancialViewModel = (tabKey: string): ViewFinancialViewMode
     [costCenterConfigs],
   );
 
+  const documentTypeOptions = useMemo<DynamicSelectOption[]>(() =>
+    documentTypeConfigs.filter((t) => t.isStatic !== false).map((t) => ({ value: t.key, label: t.label })),
+    [documentTypeConfigs],
+  );
+  const documentTypeDynamicOptions = useMemo<DynamicSelectOption[]>(() =>
+    documentTypeConfigs.filter((t) => t.isStatic === false).map((t) => ({ value: t.key, label: t.label })),
+    [documentTypeConfigs],
+  );
+
   const handleAddCategory = useCallback(async (name: string) => { await addItem('categories', name); }, [addItem]);
   const handleDeleteCategory = useCallback(async (key: string) => { await removeItem('categories', key); }, [removeItem]);
   const handleAddStatus = useCallback(async (name: string) => { await addItem('statuses', name); }, [addItem]);
   const handleDeleteStatus = useCallback(async (key: string) => { await removeItem('statuses', key); }, [removeItem]);
   const handleAddCostCenter = useCallback(async (name: string) => { await addContractLookupItem('costCenters', name); }, [addContractLookupItem]);
   const handleDeleteCostCenter = useCallback(async (key: string) => { await removeContractLookupItem('costCenters', key); }, [removeContractLookupItem]);
+
+  const handleAddDocumentType = useCallback(async (name: string) => { await addDocumentType(name); }, [addDocumentType]);
+  const handleDeleteDocumentType = useCallback(async (key: string) => { await removeDocumentType(key); }, [removeDocumentType]);
+
+  const handleSelectFile = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setPendingFile(file);
+      setPendingType('');
+    }
+    e.target.value = '';
+  }, []);
+
+  const handleCancelPendingUpload = useCallback(() => {
+    setPendingFile(null);
+    setPendingType('');
+  }, []);
+
+  const handleConfirmUpload = useCallback(async () => {
+    if (!pendingFile || !financial || !currentTenant || !user) return;
+    setIsUploadingDoc(true);
+    try {
+      const raw = await docUC.upload.execute(currentTenant.id, financial.id, pendingFile);
+      const { url, storagePath } = JSON.parse(raw) as { url: string; storagePath: string };
+      const addedDoc = await docUC.add.execute(currentTenant.id, financial.id, {
+        name: pendingFile.name,
+        type: pendingType.trim() || undefined,
+        url,
+        storagePath,
+        createdBy: user.id,
+        createdByName: user.displayName,
+        createdByPhotoUrl: user.photoURL ?? undefined,
+      });
+      setDocuments((prev) => [addedDoc, ...prev]);
+      setPendingFile(null);
+      setPendingType('');
+      notify('Documento enviado com sucesso.', 'success');
+    } catch {
+      notify('Erro ao enviar documento.', 'error');
+    } finally {
+      setIsUploadingDoc(false);
+    }
+  }, [pendingFile, pendingType, financial, currentTenant, user, docUC, notify]);
+
+  const requestDeleteDoc = useCallback((doc: FinancialDocument) => setDocToDelete(doc), []);
+  const cancelDeleteDoc = useCallback(() => setDocToDelete(null), []);
+  const confirmDeleteDoc = useCallback(async () => {
+    if (!docToDelete || !financial || !currentTenant) return;
+    try {
+      await docUC.delete.execute(currentTenant.id, financial.id, docToDelete.id, docToDelete.storagePath);
+      setDocuments((prev) => prev.filter((d) => d.id !== docToDelete.id));
+      notify('Documento excluído.', 'success');
+    } catch {
+      notify('Erro ao excluir documento.', 'error');
+    } finally {
+      setDocToDelete(null);
+    }
+  }, [docToDelete, financial, currentTenant, docUC, notify]);
 
   const handleSave = useCallback(async () => {
     if (!formData.amount || formData.amount <= 0) { notify('Informe um valor válido.', 'error'); return; }
@@ -260,6 +381,8 @@ export const useViewFinancialViewModel = (tabKey: string): ViewFinancialViewMode
   return {
     isNew,
     financial,
+    activeTab,
+    setActiveTab,
     formData,
     setFormData,
     isSaving,
@@ -279,6 +402,23 @@ export const useViewFinancialViewModel = (tabKey: string): ViewFinancialViewMode
     handleDeleteStatus,
     handleAddCostCenter,
     handleDeleteCostCenter,
+    documents,
+    docsLoading,
+    isUploadingDoc,
+    pendingFile,
+    pendingType,
+    setPendingType,
+    documentTypeOptions,
+    documentTypeDynamicOptions,
+    handleAddDocumentType,
+    handleDeleteDocumentType,
+    handleSelectFile,
+    handleConfirmUpload,
+    handleCancelPendingUpload,
+    docToDelete,
+    requestDeleteDoc,
+    confirmDeleteDoc,
+    cancelDeleteDoc,
     isAdmin,
     copyLinkDone,
     handleCopyDeepLink,

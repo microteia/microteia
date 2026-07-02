@@ -16,6 +16,7 @@ import { FirebasePersonRepository } from '../../data/repositories/FirebasePerson
 import { FirebaseCaseRepository } from '../../data/repositories/FirebaseCaseRepository';
 import { FirebaseDeadlineRepository } from '../../data/repositories/FirebaseDeadlineRepository';
 import { FirebaseFinancialRepository } from '../../data/repositories/FirebaseFinancialRepository';
+import { FirebaseFinancialDocumentRepository } from '../../data/repositories/FirebaseFinancialDocumentRepository';
 import { FirebasePushRepository } from '../../data/repositories/FirebasePushRepository';
 import { FirebasePushInteractionRepository } from '../../data/repositories/FirebasePushInteractionRepository';
 import { FirebaseTextAnnotationRepository } from '../../data/repositories/FirebaseTextAnnotationRepository';
@@ -87,6 +88,7 @@ export const DIProvider: React.FC<{ children: React.ReactNode }> = ({ children }
     deadlineRepository:       new FirebaseDeadlineRepository(),
     deadlineTypeRepository:   new FirebaseDeadlineTypeRepository(),
     financialRepository:      new FirebaseFinancialRepository(),
+    financialDocumentRepository: new FirebaseFinancialDocumentRepository(),
     financialLookupRepository: new FirebaseFinancialLookupRepository(),
     textAnnotationRepository: new FirebaseTextAnnotationRepository(),
     pushRepository:           new FirebasePushRepository(),
