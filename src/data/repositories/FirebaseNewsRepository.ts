@@ -5,7 +5,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '../../infrastructure/firebase/config';
 import type { INewsRepository } from '../../domain/repositories/INewsRepository';
-import type { News, NewsCategory } from '../../domain/entities';
+import type { News } from '../../domain/entities';
 
 const COLLECTION = 'news';
 
@@ -25,7 +25,7 @@ const mapDoc = (d: { id: string; data: () => Record<string, unknown> }): News =>
     title: data.title as string,
     summary: data.summary as string,
     content: data.content as string | undefined,
-    category: (data.category as NewsCategory) ?? 'GENERAL',
+    category: (data.category as string) ?? 'GENERAL',
     sourceURL: data.sourceURL as string | undefined,
     imageURL: data.imageURL as string | undefined,
     likeCount: (data.likeCount as number) ?? 0,

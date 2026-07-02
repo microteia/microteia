@@ -2,7 +2,7 @@ import React from 'react';
 import { useAddNewsViewModel } from './AddNews.viewmodel';
 import { Button } from '../../components/ui/Button';
 import { Label, InputGroup, Input, Textarea } from '../../components/ui/Input';
-import { SearchSelect } from '../../components/ui/SearchSelect';
+import { DynamicSelect } from '../../components/ui/DynamicSelect';
 import { MarkdownEditor } from '../../components/ui/MarkdownEditor';
 import { InfoBanner } from '../../components/ui/InfoBanner';
 import { S } from './AddNews.styles';
@@ -35,11 +35,15 @@ export const AddNewsView: React.FC<AddNewsViewProps> = ({ tabKey }) => {
 
           <InputGroup>
             <Label>Categoria</Label>
-            <SearchSelect
-              options={vm.categoryOptions}
+            <DynamicSelect
+              staticOptions={vm.categoryOptions}
+              dynamicOptions={vm.isSystemScope ? [] : vm.categoryDynamicOptions}
               value={vm.category}
-              onChange={(v) => vm.setCategory(v as Parameters<typeof vm.setCategory>[0])}
+              onChange={vm.setCategory}
               placeholder="Selecione a categoria..."
+              onAdd={vm.isSystemScope ? undefined : vm.handleAddCategory}
+              onDelete={vm.isSystemScope ? undefined : vm.handleDeleteCategory}
+              deleteConfirmTitle="Excluir categoria"
             />
           </InputGroup>
 

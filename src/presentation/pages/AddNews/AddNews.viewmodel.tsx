@@ -1,42 +1,37 @@
 import { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { useNews } from '../../../stores/useNews';
 import { useNewsInteraction } from '../../../stores/useNewsInteraction';
+import { useNewsCategoryLookup } from '../../../stores/useNewsCategoryLookup';
 import { useWorkspace } from '../../../stores/useWorkspace';
 import { useAuth } from '../../../stores/useAuth';
 import { useTenant } from '../../../stores/useTenant';
-import type { NewsCategory } from '../../../domain/entities';
-import type { SearchSelectOption } from '../../components/ui/SearchSelect';
+import type { DynamicSelectOption } from '../../components/ui/DynamicSelect';
 
 export interface AddNewsViewModel {
   isEdit: boolean;
   title: string;
   summary: string;
   content: string;
-  category: NewsCategory;
+  category: string;
   // true = notícia do Sistema (tenantId null), false = notícia do escritório
   isSystemScope: boolean;
   canChooseScope: boolean;
   sourceURL: string;
   saving: boolean;
   canSave: boolean;
-  categoryOptions: SearchSelectOption[];
+  categoryOptions: DynamicSelectOption[];
+  categoryDynamicOptions: DynamicSelectOption[];
   setTitle: (v: string) => void;
   setSummary: (v: string) => void;
   setContent: (v: string) => void;
-  setCategory: (v: NewsCategory) => void;
+  setCategory: (v: string) => void;
   setIsSystemScope: (v: boolean) => void;
   setSourceURL: (v: string) => void;
+  handleAddCategory: (name: string) => Promise<void>;
+  handleDeleteCategory: (key: string) => Promise<void>;
   handleSave: () => Promise<void>;
   handleCancel: () => void;
 }
-
-const CATEGORY_OPTIONS: SearchSelectOption[] = [
-  { value: 'GENERAL', label: 'Geral' },
-  { value: 'JURISPRUDENCE', label: 'Jurisprudência' },
-  { value: 'LEGISLATION', label: 'Legislação' },
-  { value: 'ANNOUNCEMENT', label: 'Comunicado' },
-  { value: 'CIRCULAR', label: 'Circular' },
-];
 
 export const useAddNewsViewModel = (tabKey: string): AddNewsViewModel => {
   const isEdit = tabKey.startsWith('edit-news:');
@@ -44,6 +39,7 @@ export const useAddNewsViewModel = (tabKey: string): AddNewsViewModel => {
 
   const { news, createNews, updateNews } = useNews();
   const { markAsRead } = useNewsInteraction();
+  const { categoryConfigs, addItem, removeItem } = useNewsCategoryLookup();
   const { panels, closeTab } = useWorkspace();
   const { userRole, effectiveName, effectivePhotoURL } = useAuth();
   const { currentTenant } = useTenant();
@@ -51,7 +47,7 @@ export const useAddNewsViewModel = (tabKey: string): AddNewsViewModel => {
   const [title, setTitle]         = useState('');
   const [summary, setSummary]     = useState('');
   const [content, setContent]     = useState('');
-  const [category, setCategory]   = useState<NewsCategory>('GENERAL');
+  const [category, setCategory]   = useState('GENERAL');
   // ADMIN começa com escopo do escritório por padrão; pode trocar para Sistema
   const [isSystemScope, setIsSystemScope] = useState(false);
   const [sourceURL, setSourceURL] = useState('');
@@ -81,6 +77,18 @@ export const useAddNewsViewModel = (tabKey: string): AddNewsViewModel => {
     const panelId = Object.entries(panels).find(([, p]) => p.tabKeys.includes(tabKey))?.[0];
     if (panelId) closeTab(tabKey, panelId);
   }, [panels, closeTab, tabKey]);
+
+  const categoryOptions = useMemo<DynamicSelectOption[]>(
+    () => categoryConfigs.filter((c) => c.isStatic !== false).map((c) => ({ value: c.key, label: c.label })),
+    [categoryConfigs],
+  );
+  const categoryDynamicOptions = useMemo<DynamicSelectOption[]>(
+    () => categoryConfigs.filter((c) => c.isStatic === false).map((c) => ({ value: c.key, label: c.label })),
+    [categoryConfigs],
+  );
+
+  const handleAddCategory = useCallback(async (name: string) => { await addItem(name); }, [addItem]);
+  const handleDeleteCategory = useCallback(async (key: string) => { await removeItem(key); }, [removeItem]);
 
   const handleSave = async () => {
     if (!title.trim() || !summary.trim()) return;
@@ -130,11 +138,14 @@ export const useAddNewsViewModel = (tabKey: string): AddNewsViewModel => {
     sourceURL,
     saving,
     canSave: title.trim().length > 0 && summary.trim().length > 0,
-    categoryOptions: CATEGORY_OPTIONS,
+    categoryOptions,
+    categoryDynamicOptions,
     setTitle, setSummary, setContent,
-    setCategory: setCategory as (v: NewsCategory) => void,
+    setCategory,
     setIsSystemScope,
     setSourceURL,
+    handleAddCategory,
+    handleDeleteCategory,
     handleSave,
     handleCancel: closeThisTab,
   };

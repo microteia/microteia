@@ -22,6 +22,7 @@ import { FinancialLookupStoreProvider } from './stores/FinancialLookupStore';
 import { PushStoreProvider } from './stores/PushStore';
 import { PushInteractionStoreProvider } from './stores/PushInteractionStore';
 import { NewsStoreProvider } from './stores/NewsStore';
+import { NewsCategoryLookupStoreProvider } from './stores/NewsCategoryLookupStore';
 import { NewsTagStoreProvider } from './stores/NewsTagStore';
 import { NewsInteractionStoreProvider } from './stores/NewsInteractionStore';
 import { SavedFilterStoreProvider } from './stores/SavedFilterStore';
@@ -64,6 +65,7 @@ const App: React.FC = () => {
                               <PushStoreProvider>
                                 <PushInteractionStoreProvider>
                                   <NewsStoreProvider>
+                                    <NewsCategoryLookupStoreProvider>
                                     <NewsTagStoreProvider>
                                       <NewsInteractionStoreProvider>
                                         <SavedFilterStoreProvider>
@@ -79,6 +81,7 @@ const App: React.FC = () => {
                                         </SavedFilterStoreProvider>
                                       </NewsInteractionStoreProvider>
                                     </NewsTagStoreProvider>
+                                    </NewsCategoryLookupStoreProvider>
                                   </NewsStoreProvider>
                                 </PushInteractionStoreProvider>
                               </PushStoreProvider>

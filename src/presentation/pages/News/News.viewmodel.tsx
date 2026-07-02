@@ -2,10 +2,11 @@ import { useState, useMemo, useCallback } from 'react';
 import { useNews } from '../../../stores/useNews';
 import { useNewsTag } from '../../../stores/useNewsTag';
 import { useNewsInteraction } from '../../../stores/useNewsInteraction';
+import { useNewsCategoryLookup } from '../../../stores/useNewsCategoryLookup';
 import { useWorkspace } from '../../../stores/useWorkspace';
 import { useAuth } from '../../../stores/useAuth';
 import { useTenant } from '../../../stores/useTenant';
-import type { News, NewsTag, NewsCategory, UserRole } from '../../../domain/entities';
+import type { News, NewsTag, UserRole } from '../../../domain/entities';
 import type { FilterDef, FilterToken } from '../../components/ui/CompositeFilter';
 
 export interface ConfirmState {
@@ -53,17 +54,6 @@ export interface NewsViewModel {
   handleToggleSaved: (n: News) => Promise<void>;
 }
 
-const NEWS_CATEGORY_LABELS: Record<NewsCategory, string> = {
-  GENERAL: 'Geral',
-  JURISPRUDENCE: 'Jurisprudência',
-  LEGISLATION: 'Legislação',
-  ANNOUNCEMENT: 'Comunicado',
-  CIRCULAR: 'Circular',
-};
-
-const CATEGORY_OPTIONS: FilterDef['options'] = Object.entries(NEWS_CATEGORY_LABELS)
-  .map(([value, label]) => ({ value, label }));
-
 const ORIGIN_OPTIONS: FilterDef['options'] = [
   { value: 'SYSTEM', label: 'Sistema' },
   { value: 'TENANT', label: 'Escritório' },
@@ -82,16 +72,22 @@ export const useNewsViewModel = (): NewsViewModel => {
   const { currentTenant } = useTenant();
   const { getTagsForNews } = useNewsTag();
   const { getInteraction, toggleSavedForLater, unreadCount } = useNewsInteraction();
+  const { categoryConfigs } = useNewsCategoryLookup();
 
   const [filterTokens, setFilterTokens] = useState<FilterToken[]>([]);
   const [confirm, setConfirm] = useState<ConfirmState>(closedConfirm());
 
+  const categoryOptions = useMemo<FilterDef['options']>(
+    () => categoryConfigs.map((c) => ({ value: c.key, label: c.label })),
+    [categoryConfigs],
+  );
+
   const filterDefs = useMemo<FilterDef[]>(() => [
     { key: 'search', label: 'Busca', type: 'text', placeholder: 'Pesquisar no conteúdo...' },
-    { key: 'category', label: 'Categoria', type: 'select', options: CATEGORY_OPTIONS },
+    { key: 'category', label: 'Categoria', type: 'select', options: categoryOptions },
     { key: 'origin', label: 'Origem', type: 'select', options: ORIGIN_OPTIONS },
     { key: 'readStatus', label: 'Status de leitura', type: 'select', options: READ_STATUS_OPTIONS },
-  ], []);
+  ], [categoryOptions]);
 
   const tokenMap = useMemo(() => {
     const map: Record<string, string[]> = {};
@@ -158,7 +154,7 @@ export const useNewsViewModel = (): NewsViewModel => {
 
       return {
         news: n,
-        categoryLabel: NEWS_CATEGORY_LABELS[n.category as NewsCategory] ?? n.category,
+        categoryLabel: categoryConfigs.find((c) => c.key === n.category)?.label ?? n.category,
         isOwner: isCreator,
         isSystemNews,
         canEdit,
@@ -170,7 +166,7 @@ export const useNewsViewModel = (): NewsViewModel => {
         commentCount: commentCounts[n.id] ?? n.commentCount,
       };
     });
-  }, [filteredNews, user, userRole, currentTenant, getTagsForNews, getInteraction, commentCounts]);
+  }, [filteredNews, user, userRole, currentTenant, getTagsForNews, getInteraction, commentCounts, categoryConfigs]);
 
   const openCreate  = useCallback(() => openTab('add-news'), [openTab]);
   const openEdit    = useCallback((n: News) => openTab(`edit-news:${n.id}`), [openTab]);

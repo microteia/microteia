@@ -2,20 +2,13 @@ import { useState, useMemo, useCallback, useEffect } from 'react';
 import { useNews } from '../../../stores/useNews';
 import { useNewsTag } from '../../../stores/useNewsTag';
 import { useNewsInteraction } from '../../../stores/useNewsInteraction';
+import { useNewsCategoryLookup } from '../../../stores/useNewsCategoryLookup';
 import { useAuth } from '../../../stores/useAuth';
 import { useTenant } from '../../../stores/useTenant';
 import { useWorkspace } from '../../../stores/useWorkspace';
 import { generateDeepLink } from '../../../infrastructure/deeplink/deepLinkUtils';
 import type { TagStoreAdapter } from '../../components/ui/TagManager';
-import type { News, NewsTag, NewsCategory } from '../../../domain/entities';
-
-const NEWS_CATEGORY_LABELS: Record<NewsCategory, string> = {
-  GENERAL: 'Geral',
-  JURISPRUDENCE: 'Jurisprudência',
-  LEGISLATION: 'Legislação',
-  ANNOUNCEMENT: 'Comunicado',
-  CIRCULAR: 'Circular',
-};
+import type { News, NewsTag } from '../../../domain/entities';
 
 export interface ViewNewsViewModel {
   news: News | null;
@@ -41,6 +34,7 @@ export const useViewNewsViewModel = (tabKey: string): ViewNewsViewModel => {
   const { news, toggleLike } = useNews();
   const { tags, getTagsForNews, setTagsForNews, createTag, updateTag, deleteTag } = useNewsTag();
   const { getInteraction, markAsRead, toggleSavedForLater } = useNewsInteraction();
+  const { categoryConfigs } = useNewsCategoryLookup();
   const { user, userRole } = useAuth();
   const { currentTenant } = useTenant();
   const { setTabTitle, openTab } = useWorkspace();
@@ -122,8 +116,8 @@ export const useViewNewsViewModel = (tabKey: string): ViewNewsViewModel => {
   }, [newsId]);
 
   const getCategoryLabel = useCallback(
-    (category: string) => NEWS_CATEGORY_LABELS[category as NewsCategory] ?? category,
-    [],
+    (category: string) => categoryConfigs.find((c) => c.key === category)?.label ?? category,
+    [categoryConfigs],
   );
 
   return {

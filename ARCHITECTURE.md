@@ -74,6 +74,7 @@ O projeto usa **Clean Architecture + MVVM** com separação estrita em camadas. 
 | `Push` | `tenants/{tenantId}/pushes/{id}` | Sim |
 | `PushInteraction` | `pushInteractions/{uid}_{pushId}` | Não |
 | `News` | `news/{id}` | Parcial: `tenantId=null` = Sistema (global); `tenantId=string` = Escritório |
+| `NewsCategoryConfig` | `tenants/{tenantId}/newsCategories/{id}` | Sim |
 | `NewsTag` | `newsTags/{id}` | Não |
 | `NewsInteraction` | `newsInteractions/{uid}_{newsId}` | Não |
 | `NewsComment` | `newsComments/{id}` | Não |
@@ -1446,6 +1447,12 @@ service cloud.firestore {
 
       // Tipos de documento — compartilhado entre pessoas, processos e contratos
       match /documentTypes/{id} {
+        allow read: if isMember(tenantId);
+        allow create, delete: if canWriteInTenant(tenantId);
+      }
+
+      // Categorias de notícias do escritório (parte dinâmica do campo Categoria em Notícias)
+      match /newsCategories/{id} {
         allow read: if isMember(tenantId);
         allow create, delete: if canWriteInTenant(tenantId);
       }

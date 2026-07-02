@@ -1,14 +1,7 @@
 import { useState, useMemo, useCallback } from 'react';
 import { useNews } from '../../../../stores/useNews';
-import type { News, NewsCategory } from '../../../../domain/entities';
-
-const NEWS_CATEGORY_LABELS: Record<NewsCategory, string> = {
-  GENERAL: 'Geral',
-  JURISPRUDENCE: 'Jurisprudência',
-  LEGISLATION: 'Legislação',
-  ANNOUNCEMENT: 'Comunicado',
-  CIRCULAR: 'Circular',
-};
+import { useNewsCategoryLookup } from '../../../../stores/useNewsCategoryLookup';
+import type { News } from '../../../../domain/entities';
 
 export interface NewsMentionModalProps {
   onSelect: (news: News) => void;
@@ -27,6 +20,7 @@ export const useNewsMentionModalViewModel = (
   props: NewsMentionModalProps,
 ): NewsMentionModalViewModel => {
   const { news } = useNews();
+  const { categoryConfigs } = useNewsCategoryLookup();
 
   const [keyword, setKeyword] = useState('');
 
@@ -45,8 +39,8 @@ export const useNewsMentionModalViewModel = (
   }, [visibleNews, keyword]);
 
   const getCategoryLabel = useCallback(
-    (category: string) => NEWS_CATEGORY_LABELS[category as NewsCategory] ?? category,
-    [],
+    (category: string) => categoryConfigs.find((c) => c.key === category)?.label ?? category,
+    [categoryConfigs],
   );
 
   const handleSelect = useCallback(

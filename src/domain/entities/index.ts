@@ -612,16 +612,10 @@ export interface CalendarEvent {
 
 // ─── News (Notícias) ──────────────────────────────────────────────────────────
 
-export type NewsCategory =
-  | 'GENERAL'
-  | 'JURISPRUDENCE'
-  | 'LEGISLATION'
-  | 'ANNOUNCEMENT'
-  | 'CIRCULAR';
-
 export interface NewsCategoryConfig {
   key: string;
   label: string;
+  isStatic?: boolean;
 }
 
 export interface News {
@@ -634,7 +628,7 @@ export interface News {
   title: string;
   summary: string;
   content?: string;
-  category: NewsCategory;
+  category: string;
   sourceURL?: string;
   imageURL?: string;
   likeCount: number;
