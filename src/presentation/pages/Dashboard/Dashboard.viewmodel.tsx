@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useTheme } from 'styled-components';
 import { useDeadlineStore } from '../../../stores/useDeadlineStore';
 import { useCaseStore } from '../../../stores/useCaseStore';
@@ -30,6 +30,8 @@ export interface OverdueDeadline {
   priorityColor: string;
 }
 
+export type FinancialPeriodDays = 7 | 15 | 30;
+
 export interface DashboardViewModel {
   isLoading: boolean;
   kpis: KPIStat[];
@@ -39,6 +41,8 @@ export interface DashboardViewModel {
   allDeadlines: Deadline[];
   pendingIncome: number;
   pendingExpense: number;
+  financialPeriodDays: FinancialPeriodDays;
+  setFinancialPeriodDays: (days: FinancialPeriodDays) => void;
   formatAmount: (v: number) => string;
   openCases: () => void;
   openCasesActive: () => void;
@@ -54,6 +58,13 @@ const fmt = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' 
 
 const msInDay = 1000 * 60 * 60 * 24;
 
+const toISODate = (d: Date): string => {
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
 export const useDashboardViewModel = (): DashboardViewModel => {
   const { deadlines, isLoading: loadingDeadlines } = useDeadlineStore();
   const { cases, isLoading: loadingCases } = useCaseStore();
@@ -61,6 +72,8 @@ export const useDashboardViewModel = (): DashboardViewModel => {
   const { persons, isLoading: loadingPersons } = usePersonStore();
   const { openTab } = useWorkspace();
   const theme = useTheme();
+
+  const [financialPeriodDays, setFinancialPeriodDays] = useState<FinancialPeriodDays>(30);
 
   const priorityColorMap = useMemo<Record<DeadlinePriority, string>>(() => ({
     'Baixa':   theme.colors.success,
@@ -118,10 +131,15 @@ export const useDashboardViewModel = (): DashboardViewModel => {
       });
   }, [pendingDeadlines, todayStart, sevenDaysMs, priorityColorMap, theme]);
 
-  const pendingFinancials = useMemo(() =>
-    financials.filter((f) => f.status === 'Aberto'),
-    [financials],
+  const financialCutoffDay = useMemo(() =>
+    new Date(todayStart.getFullYear(), todayStart.getMonth(), todayStart.getDate() + financialPeriodDays),
+    [todayStart, financialPeriodDays],
   );
+
+  const pendingFinancials = useMemo(() => {
+    const cutoffMs = financialCutoffDay.getTime() + msInDay - 1;
+    return financials.filter((f) => f.status === 'Aberto' && f.dueDate.getTime() <= cutoffMs);
+  }, [financials, financialCutoffDay]);
 
   const pendingIncome = useMemo(() =>
     pendingFinancials.filter((f) => f.type === 'Receita').reduce((s, f) => s + f.amount, 0),
@@ -157,7 +175,13 @@ export const useDashboardViewModel = (): DashboardViewModel => {
     setNavigationIntent('deadlines', [{ key: 'status', values: ['Vencido'] }]);
     openTab('deadlines');
   };
-  const openFinancials = () => openTab('financials');
+  const openFinancials = () => {
+    setNavigationIntent('financials', [
+      { key: 'status', values: ['Aberto'] },
+      { key: 'dueDateTo', values: [toISODate(financialCutoffDay)] },
+    ]);
+    openTab('financials');
+  };
   const openCase = (caseId: string) => openTab(`view-case:${caseId}`);
   const openDeadline = (deadline: Deadline) => openTab(`view-deadline:${deadline.id}`);
   const getPriorityColor = (priority: DeadlinePriority) => priorityColorMap[priority] ?? theme.colors.textSecondary;
@@ -172,6 +196,8 @@ export const useDashboardViewModel = (): DashboardViewModel => {
     allDeadlines: deadlines,
     pendingIncome,
     pendingExpense,
+    financialPeriodDays,
+    setFinancialPeriodDays,
     formatAmount,
     openCases,
     openCasesActive,

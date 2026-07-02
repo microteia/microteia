@@ -7,13 +7,15 @@ import {
   RiArrowRightLine,
   RiMoneyDollarCircleLine,
 } from 'react-icons/ri';
-import { useDashboardViewModel } from './Dashboard.viewmodel';
+import { useDashboardViewModel, type FinancialPeriodDays } from './Dashboard.viewmodel';
 import { Card, CardHeader, CardTitle } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Spinner } from '../../components/ui/Spinner';
 import { DeadlineCharts } from '../../components/ui/DeadlineCharts';
 import { S } from './Dashboard.styles';
 import { useTheme } from 'styled-components';
+
+const FINANCIAL_PERIOD_OPTIONS: FinancialPeriodDays[] = [7, 15, 30];
 
 const KPI_ICONS = [
   <RiFolderLine size={22} />,
@@ -154,21 +156,34 @@ export const DashboardView: React.FC = () => {
         <Card>
           <CardHeader>
             <CardTitle>Financeiro em Aberto</CardTitle>
-            <Button size="sm" variant="ghost" onClick={vm.openFinancials}>
-              <RiMoneyDollarCircleLine size={14} /> Ver tudo
-            </Button>
+            <S.FinancialHeaderControls>
+              <S.PeriodGroup>
+                {FINANCIAL_PERIOD_OPTIONS.map((days) => (
+                  <S.PeriodButton
+                    key={days}
+                    $active={vm.financialPeriodDays === days}
+                    onClick={() => vm.setFinancialPeriodDays(days)}
+                  >
+                    {days}d
+                  </S.PeriodButton>
+                ))}
+              </S.PeriodGroup>
+              <Button size="sm" variant="ghost" onClick={vm.openFinancials}>
+                <RiMoneyDollarCircleLine size={14} /> Ver tudo
+              </Button>
+            </S.FinancialHeaderControls>
           </CardHeader>
           <S.FinancialRow>
             <S.FinancialLabel>Receitas a receber</S.FinancialLabel>
-            <S.FinancialValue $color="#22c55e">{vm.formatAmount(vm.pendingIncome)}</S.FinancialValue>
+            <S.FinancialValue $color={theme.colors.success}>{vm.formatAmount(vm.pendingIncome)}</S.FinancialValue>
           </S.FinancialRow>
           <S.FinancialRow>
             <S.FinancialLabel>Despesas a pagar</S.FinancialLabel>
-            <S.FinancialValue $color="#ef4444">{vm.formatAmount(vm.pendingExpense)}</S.FinancialValue>
+            <S.FinancialValue $color={theme.colors.danger}>{vm.formatAmount(vm.pendingExpense)}</S.FinancialValue>
           </S.FinancialRow>
           <S.FinancialRow>
             <S.FinancialLabel>Saldo projetado</S.FinancialLabel>
-            <S.FinancialValue $color={vm.pendingIncome - vm.pendingExpense >= 0 ? '#22c55e' : '#ef4444'}>
+            <S.FinancialValue $color={vm.pendingIncome - vm.pendingExpense >= 0 ? theme.colors.success : theme.colors.danger}>
               {vm.formatAmount(vm.pendingIncome - vm.pendingExpense)}
             </S.FinancialValue>
           </S.FinancialRow>

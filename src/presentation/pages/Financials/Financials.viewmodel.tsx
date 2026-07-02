@@ -7,6 +7,7 @@ import { usePersonStore } from '../../../stores/usePersonStore';
 import { useContractStore } from '../../../stores/useContractStore';
 import { useWorkspace } from '../../../stores/useWorkspace';
 import { useNotification } from '../../../stores/useNotification';
+import { consumeNavigationIntent } from '../../../infrastructure/navigation/navigationIntent';
 import { getConfigColor } from '../../../shared/styles/colorUtils';
 import type { Financial, FinancialType } from '../../../domain/entities';
 import type { FilterDef, FilterToken } from '../../components/ui/CompositeFilter';
@@ -75,7 +76,9 @@ export const useFinancialsViewModel = (): FinancialsViewModel => {
   const { notify } = useNotification();
   const theme = useTheme();
 
-  const [filterTokens, setFilterTokens] = useState<FilterToken[]>(buildDefaultMonthTokens);
+  const [filterTokens, setFilterTokens] = useState<FilterToken[]>(
+    () => consumeNavigationIntent('financials') as FilterToken[] | undefined ?? buildDefaultMonthTokens(),
+  );
   const [isSummaryVisible, setIsSummaryVisible] = useState(true);
   const [financialToDelete, setFinancialToDelete] = useState<Financial | null>(null);
 

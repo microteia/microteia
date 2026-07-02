@@ -59,6 +59,40 @@ export const S = {
     @media (max-width: 900px) { grid-template-columns: 1fr; }
   `,
 
+  FinancialHeaderControls: styled.div`
+    display: flex;
+    align-items: center;
+    gap: ${({ theme }) => theme.spacing.sm};
+  `,
+
+  PeriodGroup: styled.div`
+    display: flex;
+    gap: ${({ theme }) => theme.spacing.xs};
+    background: ${({ theme }) => theme.colors.surface};
+    border: 1px solid ${({ theme }) => theme.colors.border};
+    border-radius: ${({ theme }) => theme.borderRadius.md};
+    padding: 2px;
+  `,
+
+  PeriodButton: styled.button<{ $active?: boolean }>`
+    background: ${({ $active, theme }) =>
+      $active ? theme.colors.primary : 'transparent'};
+    border: none;
+    border-radius: ${({ theme }) => theme.borderRadius.sm};
+    padding: ${({ theme }) => theme.spacing.xs} ${({ theme }) => theme.spacing.sm};
+    font-size: ${({ theme }) => theme.fontSizes.sm};
+    font-weight: 500;
+    color: ${({ $active, theme }) => ($active ? '#fff' : theme.colors.textSecondary)};
+    cursor: pointer;
+    transition: all 0.2s;
+    min-width: 36px;
+
+    &:hover {
+      background: ${({ $active, theme }) =>
+        $active ? theme.colors.primaryHover : theme.colors.surfaceHover};
+    }
+  `,
+
   FinancialRow: styled.div`
     display: flex;
     align-items: center;
