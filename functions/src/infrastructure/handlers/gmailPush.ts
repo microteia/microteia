@@ -109,9 +109,6 @@ export const gmailPush = onMessagePublished(
         const startHistoryId = connection.historyId || historyId;
         console.log(`Buscando emails desde historyId: ${startHistoryId}`);
 
-        // Flag para rastrear se alguma mensagem falhou neste tenant
-        let hasFailedMessage = false;
-
         try {
           // Buscar token de acesso da conexão
           const tokenData = await gmailConnectionRepo.getAccessToken(connection.id);
@@ -192,8 +189,6 @@ export const gmailPush = onMessagePublished(
                 console.error(`  Body HTML (primeiros 500 chars): ${message.bodyHtml.substring(0, 500)}`);
               }
 
-              hasFailedMessage = true;
-
               await createOrUpdatePushUC.execute(connection.tenantId, {
                 emailId: message.id,
                 from: message.from,
@@ -236,8 +231,6 @@ export const gmailPush = onMessagePublished(
                 console.error(`  De: ${message.from}`);
                 console.error(`  Assunto: ${message.subject}`);
                 console.error(`  Erro: ${parsedData.parsingError}`);
-
-                hasFailedMessage = true;
               }
 
               const result = await createOrUpdatePushUC.execute(connection.tenantId, {
@@ -273,15 +266,8 @@ export const gmailPush = onMessagePublished(
             }
           }
 
-          // Atualizar historyId APENAS se nenhuma mensagem falhou
-          if (hasFailedMessage) {
-            console.warn(`⚠️ Pelo menos uma mensagem falhou. HistoryId NÃO será atualizado para permitir reprocessamento.`);
-            console.warn(`Tenant: ${connection.tenantId}, Connection: ${connection.id}`);
-            console.warn(`O usuário deve corrigir o problema e a próxima notificação tentará processar novamente.`);
-          } else {
-            await gmailConnectionRepo.updateHistoryId(connection.id, historyId);
-            console.log(`✓ HistoryId atualizado para ${historyId} (todas as mensagens processadas com sucesso)`);
-          }
+          await gmailConnectionRepo.updateHistoryId(connection.id, historyId);
+          console.log(`✓ HistoryId atualizado para ${historyId} (todas as mensagens processadas com sucesso)`);
 
         } catch (error) {
           console.error(`Erro ao processar tenant ${connection.tenantId}:`, error);

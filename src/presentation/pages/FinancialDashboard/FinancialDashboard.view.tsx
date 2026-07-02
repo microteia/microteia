@@ -14,6 +14,7 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from 'recharts';
+import type { ValueType } from 'recharts/types/component/DefaultTooltipContent';
 import { RiLineChartLine, RiMoneyDollarCircleLine, RiInboxLine } from 'react-icons/ri';
 import { useTheme } from 'styled-components';
 import { useFinancialDashboardViewModel } from './FinancialDashboard.viewmodel';
@@ -86,7 +87,7 @@ export const FinancialDashboardView: React.FC = () => {
                   <XAxis dataKey="month" stroke={theme.colors.textSecondary} style={{ fontSize: 12 }} />
                   <YAxis stroke={theme.colors.textSecondary} style={{ fontSize: 12 }} tickFormatter={vm.formatCompactAmount} />
                   <Tooltip
-                    formatter={(value: number) => vm.formatAmount(value)}
+                    formatter={(value: ValueType | undefined) => vm.formatAmount(Number(value))}
                     contentStyle={{
                       backgroundColor: theme.colors.surface,
                       border: `1px solid ${theme.colors.border}`,
@@ -139,7 +140,7 @@ export const FinancialDashboardView: React.FC = () => {
                       <XAxis dataKey="date" stroke={theme.colors.textSecondary} style={{ fontSize: 12 }} />
                       <YAxis stroke={theme.colors.textSecondary} style={{ fontSize: 12 }} tickFormatter={vm.formatCompactAmount} />
                       <Tooltip
-                        formatter={(value: number) => vm.formatAmount(value)}
+                        formatter={(value: ValueType | undefined) => vm.formatAmount(Number(value))}
                         contentStyle={{
                           backgroundColor: theme.colors.surface,
                           border: `1px solid ${theme.colors.border}`,
@@ -181,7 +182,7 @@ export const FinancialDashboardView: React.FC = () => {
                             <Cell key={`ie-${index}`} fill={entry.color} />
                           ))}
                         </Pie>
-                        <Tooltip formatter={(value: number) => vm.formatAmount(value)} />
+                        <Tooltip formatter={(value: ValueType | undefined) => vm.formatAmount(Number(value))} />
                       </PieChart>
                     </ResponsiveContainer>
                   </S.ChartWrapper>
@@ -217,7 +218,7 @@ export const FinancialDashboardView: React.FC = () => {
                             <Cell key={`status-${index}`} fill={entry.color} />
                           ))}
                         </Pie>
-                        <Tooltip formatter={(value: number) => vm.formatAmount(value)} />
+                        <Tooltip formatter={(value: ValueType | undefined) => vm.formatAmount(Number(value))} />
                       </PieChart>
                     </ResponsiveContainer>
                   </S.ChartWrapper>
@@ -246,7 +247,7 @@ export const FinancialDashboardView: React.FC = () => {
                     <XAxis dataKey="label" stroke={theme.colors.textSecondary} style={{ fontSize: 11 }} />
                     <YAxis stroke={theme.colors.textSecondary} style={{ fontSize: 12 }} tickFormatter={vm.formatCompactAmount} />
                     <Tooltip
-                      formatter={(value: number) => vm.formatAmount(value)}
+                      formatter={(value: ValueType | undefined) => vm.formatAmount(Number(value))}
                       contentStyle={{
                         backgroundColor: theme.colors.surface,
                         border: `1px solid ${theme.colors.border}`,
