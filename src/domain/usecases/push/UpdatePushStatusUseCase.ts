@@ -1,10 +1,12 @@
 import type { IPushRepository } from '../../repositories/IPushRepository';
 import type { PushStatus } from '../../entities';
 
+type PushStatusActor = { updatedBy: string; updatedByName: string; updatedByPhotoURL: string };
+
 export type UpdatePushStatusUseCase = {
-  execute: (tenantId: string, pushId: string, status: PushStatus) => Promise<void>;
+  execute: (tenantId: string, pushId: string, status: PushStatus, actor: PushStatusActor) => Promise<void>;
 };
 
 export const makeUpdatePushStatusUseCase = (repo: IPushRepository): UpdatePushStatusUseCase => ({
-  execute: (tenantId, pushId, status) => repo.updatePushStatus(tenantId, pushId, status),
+  execute: (tenantId, pushId, status, actor) => repo.updatePushStatus(tenantId, pushId, status, actor),
 });

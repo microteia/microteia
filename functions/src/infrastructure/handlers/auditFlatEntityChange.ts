@@ -8,8 +8,10 @@ import type { AuditAction } from '../../domain/entities/AuditLog';
 /**
  * Escuta qualquer escrita em `tenants/{tenantId}/{collection}/{docId}` e gera um AuditLog
  * quando a coleção está na allowlist de `getFlatEntityConfig` (persons, cases, contracts,
- * deadlines, financials, members, *Tags). Coleções fora da allowlist (lookups, aiConnections,
- * pushes, etc.) são ignoradas rapidamente.
+ * deadlines, financials, members, *Tags, pushes). Coleções fora da allowlist (lookups,
+ * aiConnections, etc.) são ignoradas rapidamente. Uma entrada da allowlist pode restringir
+ * quais ações audita via `auditActions` (ex: pushes só audita UPDATE/DELETE, pois a criação
+ * é automática).
  */
 export const auditFlatEntityChange = onDocumentWritten(
   { document: 'tenants/{tenantId}/{collection}/{docId}', region: 'us-central1' },
@@ -26,6 +28,8 @@ export const auditFlatEntityChange = onDocumentWritten(
       if (!beforeExists && !afterExists) return;
 
       const action: AuditAction = !beforeExists ? 'CREATE' : !afterExists ? 'DELETE' : 'UPDATE';
+      if (config.auditActions && !config.auditActions.includes(action)) return;
+
       const beforeData = (before?.data() as Record<string, unknown>) ?? {};
       const afterData = (after?.data() as Record<string, unknown>) ?? {};
 

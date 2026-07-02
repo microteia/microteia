@@ -647,14 +647,17 @@ Coleção Firestore: `auditLogs/{id}` (raiz, flat — isolamento via campo `tena
 
 ### Captura automática — Cloud Functions
 
-Em vez de uma Cloud Function por coleção monitorada (o que exigiria ~17 deploys), o Curatino usa **duas triggers com wildcard no nome da coleção**, cada uma com uma tabela de configuração interna (`functions/src/domain/services/auditableEntities.ts`) decidindo o que é auditável — coleções fora da allowlist (lookups, `aiConnections`, `pushes`, etc.) são ignoradas rapidamente:
+Em vez de uma Cloud Function por coleção monitorada (o que exigiria ~17 deploys), o Curatino usa **duas triggers com wildcard no nome da coleção**, cada uma com uma tabela de configuração interna (`functions/src/domain/services/auditableEntities.ts`) decidindo o que é auditável — coleções fora da allowlist (lookups, `aiConnections`, etc.) são ignoradas rapidamente:
 
 | Handler | Trigger | Cobre |
 |---|---|---|
-| `auditFlatEntityChange` | `onDocumentWritten('tenants/{tenantId}/{collection}/{docId}')` | `persons`, `cases`, `contracts`, `deadlines`, `financials`, `members`, `personTags`, `caseTags`, `contractTags`, `financialTags` |
+| `auditFlatEntityChange` | `onDocumentWritten('tenants/{tenantId}/{collection}/{docId}')` | `persons`, `cases`, `contracts`, `deadlines`, `financials`, `members`, `personTags`, `caseTags`, `contractTags`, `financialTags`, `pushes` |
 | `auditNestedEntityChange` | `onDocumentWritten('tenants/{tenantId}/{parent}/{parentId}/{sub}/{docId}')` | `notes`/`documents` de `persons`/`cases`/`contracts` (+ `documents` de `financials`) |
 | `auditTenantDeleted` | `onDocumentDeleted('tenants/{tenantId}')` | Exclusão do escritório inteiro — sempre `severity: 'CRITICAL'` |
+| `auditNewsChange` / `auditNewsCommentChange` / `auditNewsTagChange` | `onDocumentWritten('news/{docId}')` / `'newsComments/{docId}'` / `'newsTags/{docId}'` | Notícias, Comentários de Notícias e Etiquetas de Notícias — ver subseção própria abaixo |
 | `backupDeletedAuditLog` | `onDocumentDeleted('auditLogs/{logId}')` | Backup frio no Storage (ver abaixo) |
+
+Uma entrada de `auditableEntities.ts` pode restringir quais ações geram log via `auditActions?: AuditAction[]`. Único caso hoje: `pushes` audita só `['UPDATE', 'DELETE']` — a criação é automática (Cloud Function do webhook do Gmail), então não é um evento administrativo digno de log; a triagem manual do status e a exclusão são.
 
 **Diff e Markdown** (`functions/src/domain/services/auditDiff.ts`): `computeChangedFields` retorna um `FieldDiff { before, after }` com os valores **antigos e novos** de cada campo alterado (UPDATE); `normalizeAllFields` retorna todos os campos do documento (DELETE). Ambos normalizam `Timestamp`/`Date` para o formato brasileiro `dd/mm/aaaa` (ou `dd/mm/aaaa HH:mm` quando o horário não é meia-noite), para o JSON ficar legível em português. `buildAuditText` monta a frase + bloco **Antes:** (UPDATE e DELETE) + bloco **Depois:** (só UPDATE) em \`\`\`json\`\`\`; CREATE não inclui bloco (nada "mudou" ainda).
 
@@ -665,6 +668,15 @@ Em vez de uma Cloud Function por coleção monitorada (o que exigiria ~17 deploy
 **Severidade:** `DELETE` → `HIGH`; mudança do campo `role` em `members` → `HIGH`; exclusão de `Tenant` → `CRITICAL`; erro não tratado no próprio pipeline → `type: 'ERROR'` + `severity: 'CRITICAL'` (auto-monitoramento, escrito com try/catch próprio que nunca lança — ver `logAuditError`); tudo mais fica no default `LOW`/`AUDIT`.
 
 **Filtro de ruído:** updates onde só mudaram campos de bookkeeping (`updatedAt`, `updatedBy*`) não geram log — evita entradas vazias quando um formulário é salvo sem alteração real.
+
+### Auditoria de Notícias, Comentários de Notícias e Etiquetas de Notícias
+
+`news/{id}`, `newsComments/{id}` e `newsTags/{id}` são coleções **raiz** (fora de `tenants/{tenantId}/...`), então não são cobertas pelas triggers genéricas — ganham três triggers dedicadas em `functions/src/infrastructure/handlers/auditNewsEntityChange.ts`, todas auditando CREATE/UPDATE/DELETE:
+
+- **`tenantId` do log:** `News.tenantId` já existe no documento (`null` = notícia do Sistema, string = notícia do escritório) — usa-se `?? 'SYSTEM'`. `NewsComment` não guarda `tenantId` próprio — a trigger busca o `news/{newsId}` pai para herdar o valor. `NewsTag` não tem conceito de tenant (etiqueta é por usuário) — sempre `'SYSTEM'`. Um log com `tenantId: 'SYSTEM'` só aparece para o papel `SYSTEM` (mesmo mecanismo de "Todas os Escritórios" já usado pelo erro global do pipeline).
+- **Ator:** nenhuma das três entidades tem um uid de editor denormalizado — `News`/`NewsComment` guardam `authorName`/`authorPhotoURL` na criação e só `editedByName` (sem uid) na edição. O log usa esse nome quando presente; o `userId` do log usa o `userId` do autor original como aproximação (mesmo espírito da aproximação de ator do DELETE genérico). `NewsTag` não denormaliza nada — sempre resolve via `UserProfileLookupService`.
+- **Filtro de ruído próprio:** além dos campos de bookkeeping padrão, essas triggers ignoram `likeCount`/`likedBy`/`viewCount`/`commentCount` (News) e `likeCount`/`likedBy` (NewsComment) — são escritas de engajamento do usuário (curtir, visualizar, contador de comentários), não uma ação administrativa. Por isso `computeChangedFields`/`normalizeAllFields` aceitam um terceiro parâmetro opcional `extraIgnoredKeys: string[]`.
+- **`entityLink`:** `view-news:{id}` para Notícias e para Comentários (aponta para o post pai via `newsId`); Etiquetas não têm link, igual às demais `*Tags`.
 
 ### Retenção (TTL) e backup frio
 
@@ -1705,9 +1717,9 @@ service cloud.firestore {
       match /pushes/{pushId} {
         allow read: if isMember(tenantId);
         // Cloud Functions criam pushes (via Admin SDK, ignora estas regras)
-        // Membros podem atualizar status
+        // Membros podem atualizar status; updatedBy* é o carimbo de autoria (auditoria)
         allow update: if isMember(tenantId)
-          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status']);
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedBy', 'updatedByName', 'updatedByPhotoURL']);
         // Somente admin pode deletar
         allow delete: if isTenantAdmin(tenantId);
       }

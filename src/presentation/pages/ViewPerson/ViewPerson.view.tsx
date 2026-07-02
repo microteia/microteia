@@ -78,20 +78,16 @@ export const ViewPersonView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
             <>
               <Button variant="ghost" size="sm" onClick={vm.handleCopyDeepLink} title="Copiar link">
                 {vm.copyLinkDone ? <RiCheckLine size={14} /> : <RiLinkM size={14} />}
-                {vm.copyLinkDone ? 'Copiado!' : 'Copiar link'}
               </Button>
-              <Button variant="ghost" size="sm" onClick={() => void vm.handleToggleStatus()}>
+              <Button variant="ghost" size="sm" title={vm.person?.status === 'Ativo' ? 'Inativar' : 'Ativar'} onClick={() => void vm.handleToggleStatus()}>
                 <RiToggleLine size={14} />
-                {vm.person?.status === 'Ativo' ? 'Inativar' : 'Ativar'}
               </Button>
-              <Button variant="ghost" size="sm" onClick={vm.openTagManager}>
+              <Button variant="ghost" size="sm" title="Gerenciar etiquetas" onClick={vm.openTagManager}>
                 <RiPriceTag3Line size={14} />
-                Etiquetas
               </Button>
               {vm.isAdmin && (
-                <Button variant="danger" size="sm" onClick={vm.handleDeletePerson}>
+                <Button variant="danger" size="sm" onClick={vm.handleDeletePerson} title="Excluir Pessoa">
                   <RiDeleteBinLine size={14} />
-                  Excluir
                 </Button>
               )}
             </>

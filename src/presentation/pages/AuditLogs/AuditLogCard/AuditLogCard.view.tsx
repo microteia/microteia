@@ -58,7 +58,7 @@ export const AuditLogCardView: React.FC<AuditLogCardProps> = ({ row, onToggleExp
             <MarkdownContent>{log.text}</MarkdownContent>
           </S.Body>
 
-          {entityLink && (
+          {entityLink && !(log.action === 'DELETE') && (
             <S.LinkButton onClick={() => onOpenEntity(entityLink)}>
               Ir para o registro
             </S.LinkButton>

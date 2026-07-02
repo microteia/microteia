@@ -16,6 +16,7 @@ export const initFirebase = (): void => {
 export const getDb = (): Firestore => {
   if (!firestore) {
     firestore = getFirestore();
+    firestore.settings({ ignoreUndefinedProperties: true });
   }
   return firestore;
 };

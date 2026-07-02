@@ -33,13 +33,18 @@ const normalizeValue = (v: unknown): unknown => {
   return v;
 };
 
-/** Retorna os valores ANTIGOS e NOVOS dos campos que mudaram entre before/after, ignorando campos de bookkeeping. */
-export const computeChangedFields = (before: EntityData, after: EntityData): FieldDiff => {
+/**
+ * Retorna os valores ANTIGOS e NOVOS dos campos que mudaram entre before/after, ignorando
+ * campos de bookkeeping. `extraIgnoredKeys` cobre campos de engajamento (curtidas, visualizações,
+ * contadores denormalizados) que mudam sem representar uma ação administrativa real.
+ */
+export const computeChangedFields = (before: EntityData, after: EntityData, extraIgnoredKeys: string[] = []): FieldDiff => {
+  const ignoredKeys = extraIgnoredKeys.length > 0 ? new Set([...IGNORED_KEYS, ...extraIgnoredKeys]) : IGNORED_KEYS;
   const keys = new Set([...Object.keys(before), ...Object.keys(after)]);
   const beforeOut: EntityData = {};
   const afterOut: EntityData = {};
   for (const key of keys) {
-    if (IGNORED_KEYS.has(key)) continue;
+    if (ignoredKeys.has(key)) continue;
     const beforeVal = normalizeValue(before[key]);
     const afterVal = normalizeValue(after[key]);
     if (JSON.stringify(beforeVal) !== JSON.stringify(afterVal)) {
@@ -51,10 +56,11 @@ export const computeChangedFields = (before: EntityData, after: EntityData): Fie
 };
 
 /** Retorna todos os campos de um documento (usado no DELETE), ignorando campos de bookkeeping. */
-export const normalizeAllFields = (data: EntityData): EntityData => {
+export const normalizeAllFields = (data: EntityData, extraIgnoredKeys: string[] = []): EntityData => {
+  const ignoredKeys = extraIgnoredKeys.length > 0 ? new Set([...IGNORED_KEYS, ...extraIgnoredKeys]) : IGNORED_KEYS;
   const out: EntityData = {};
   for (const [k, v] of Object.entries(data)) {
-    if (IGNORED_KEYS.has(k)) continue;
+    if (ignoredKeys.has(k)) continue;
     out[k] = normalizeValue(v);
   }
   return out;

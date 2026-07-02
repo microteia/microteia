@@ -14,7 +14,12 @@ export interface IPushRepository {
   /**
    * Atualiza o status de um push
    */
-  updatePushStatus(tenantId: string, pushId: string, status: 'pending' | 'reviewed' | 'archived' | 'fault'): Promise<void>;
+  updatePushStatus(
+    tenantId: string,
+    pushId: string,
+    status: 'pending' | 'reviewed' | 'archived' | 'fault',
+    actor: { updatedBy: string; updatedByName: string; updatedByPhotoURL: string },
+  ): Promise<void>;
 
   /**
    * Deleta um push

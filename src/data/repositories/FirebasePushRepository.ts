@@ -6,6 +6,8 @@ import { db } from '../../infrastructure/firebase/config';
 import type { IPushRepository } from '../../domain/repositories/IPushRepository';
 import type { Push, PushStatus } from '../../domain/entities';
 
+type PushStatusActor = { updatedBy: string; updatedByName: string; updatedByPhotoURL: string };
+
 const toPush = (pushId: string, data: Record<string, unknown>): Push => {
   const toDate = (value: unknown): Date | undefined => {
     if (!value) return undefined;
@@ -48,6 +50,9 @@ const toPush = (pushId: string, data: Record<string, unknown>): Push => {
     parsingError: data.parsingError as string | undefined,
     createdAt: toDate(data.createdAt) ?? new Date(),
     createdBy: (data.createdBy as string) ?? 'system',
+    updatedBy: data.updatedBy as string | undefined,
+    updatedByName: data.updatedByName as string | undefined,
+    updatedByPhotoURL: data.updatedByPhotoURL as string | undefined,
   };
 };
 
@@ -68,9 +73,9 @@ export class FirebasePushRepository implements IPushRepository {
     return toPush(snap.id, snap.data() as Record<string, unknown>);
   }
 
-  async updatePushStatus(tenantId: string, pushId: string, status: PushStatus): Promise<void> {
+  async updatePushStatus(tenantId: string, pushId: string, status: PushStatus, actor: PushStatusActor): Promise<void> {
     const pushRef = doc(db, 'tenants', tenantId, 'pushes', pushId);
-    await updateDoc(pushRef, { status });
+    await updateDoc(pushRef, { status, ...actor });
   }
 
   async deletePush(tenantId: string, pushId: string): Promise<void> {

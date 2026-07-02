@@ -1,3 +1,5 @@
+import type { AuditAction } from '../entities/AuditLog';
+
 type EntityData = Record<string, unknown>;
 
 export interface AuditableEntityConfig {
@@ -6,12 +8,14 @@ export interface AuditableEntityConfig {
   entityLabelPlural: string;
   getDisplayName: (data: EntityData) => string;
   getEntityLink?: (tenantId: string, docId: string, parentId?: string) => string;
+  /** Restringe quais ações geram log (ex: Pushes só audita UPDATE/DELETE). Sem isso, audita CREATE/UPDATE/DELETE. */
+  auditActions?: AuditAction[];
 }
 
-const truncate = (text: string, max: number): string =>
+export const truncate = (text: string, max: number): string =>
   text.length > max ? `${text.slice(0, max)}…` : text;
 
-const asString = (v: unknown, fallback = 'sem nome'): string =>
+export const asString = (v: unknown, fallback = 'sem nome'): string =>
   typeof v === 'string' && v.trim() ? v.trim() : fallback;
 
 const FLAT_ENTITY_CONFIG: Record<string, AuditableEntityConfig> = {
@@ -79,6 +83,15 @@ const FLAT_ENTITY_CONFIG: Record<string, AuditableEntityConfig> = {
     entityLabel: 'Etiqueta de Financeiro',
     entityLabelPlural: 'Etiquetas de Financeiro',
     getDisplayName: (d) => asString(d.name),
+  },
+  pushes: {
+    entityKey: 'Push',
+    entityLabel: 'Push do Tribunal',
+    entityLabelPlural: 'Pushes do Tribunal',
+    getDisplayName: (d) => asString(d.subject ?? d.processNumber, 'Push'),
+    // Criação é automática (Cloud Function do webhook do Gmail) — só interessa auditar
+    // a triagem manual (mudança de status) e a exclusão.
+    auditActions: ['UPDATE', 'DELETE'],
   },
 };
 

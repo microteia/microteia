@@ -64,16 +64,13 @@ export const ViewFinancialView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
             <>
               <Button variant="ghost" size="sm" onClick={vm.handleCopyDeepLink} title="Copiar link">
                 {vm.copyLinkDone ? <RiCheckLine size={14} /> : <RiLinkM size={14} />}
-                {vm.copyLinkDone ? 'Copiado!' : 'Copiar link'}
               </Button>
-              <Button variant="ghost" size="sm" onClick={vm.openTagManager}>
+              <Button variant="ghost" size="sm" onClick={vm.openTagManager} title="Gerenciar etiquetas">
                 <RiPriceTag3Line size={14} />
-                Etiquetas
               </Button>
               {vm.isAdmin && (
-                <Button variant="danger" size="sm" onClick={vm.handleDeleteFinancial}>
+                <Button variant="danger" size="sm" onClick={vm.handleDeleteFinancial} title="Excluir Lançamento">
                   <RiDeleteBinLine size={14} />
-                  Excluir
                 </Button>
               )}
             </>

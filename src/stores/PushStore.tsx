@@ -11,7 +11,7 @@ import { storeEvents, StoreEvents } from '../infrastructure/events/StoreEventEmi
 
 export const PushStoreProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { pushRepository } = useDI();
-  const { user } = useAuth();
+  const { user, effectiveName, effectivePhotoURL } = useAuth();
   const { currentTenant } = useTenant();
 
   const [pushes, setPushes] = useState<Push[]>([]);
@@ -85,8 +85,13 @@ export const PushStoreProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
   const updateStatus = async (pushId: string, status: PushStatus) => {
     if (!tenantId) throw new Error('No tenant selected');
-    await uc.updateStatus.execute(tenantId, pushId, status);
-    setPushes((prev) => prev.map((p) => (p.id === pushId ? { ...p, status } : p)));
+    const actor = {
+      updatedBy: user?.id ?? '',
+      updatedByName: effectiveName,
+      updatedByPhotoURL: effectivePhotoURL ?? '',
+    };
+    await uc.updateStatus.execute(tenantId, pushId, status, actor);
+    setPushes((prev) => prev.map((p) => (p.id === pushId ? { ...p, status, ...actor } : p)));
     storeEvents.emit(StoreEvents.PUSH_UPDATED);
   };
 

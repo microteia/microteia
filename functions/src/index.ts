@@ -12,4 +12,5 @@ export { renewGmailWatches } from './infrastructure/handlers/renewGmailWatches';
 export { auditFlatEntityChange } from './infrastructure/handlers/auditFlatEntityChange';
 export { auditNestedEntityChange } from './infrastructure/handlers/auditNestedEntityChange';
 export { auditTenantDeleted } from './infrastructure/handlers/auditTenantDeleted';
+export { auditNewsChange, auditNewsCommentChange, auditNewsTagChange } from './infrastructure/handlers/auditNewsEntityChange';
 export { backupDeletedAuditLog } from './infrastructure/handlers/backupDeletedAuditLog';

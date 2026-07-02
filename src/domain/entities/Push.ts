@@ -42,6 +42,11 @@ export interface Push {
   
   createdAt: Date;
   createdBy: string;         // 'system' para criação automática
+
+  // Última triagem manual (mudança de status) — usado pela auditoria
+  updatedBy?: string;
+  updatedByName?: string;
+  updatedByPhotoURL?: string;
 }
 
 // ─── Push Interaction ─────────────────────────────────────────────────────────
