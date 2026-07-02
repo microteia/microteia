@@ -409,6 +409,15 @@ Documentos anexados a um contrato. Mesmo padrão de `PersonDocument`/`CaseDocume
 - Helpers em `utils/formatters.ts`: `formatCurrencyBRL(value)` (`Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' })`) e `parseCurrencyDigits(raw)`.
 - Reutiliza o styled-component `Input` de `ui/Input.tsx` — nenhum CSS duplicado.
 
+### Componente DateInput — campo de data padrão
+
+`presentation/components/ui/DateInput.tsx` é o **único** componente permitido para campos de data em todo o sistema. Nunca use `<input type="date">` diretamente nem crie outro wrapper — todo formulário, filtro ou edição inline que capture uma data usa `DateInput`.
+
+- Props: `value: string` (formato `YYYY-MM-DD`, o mesmo de `<input type="date">`), `onChange: (value: string) => void`, `disabled?`, `id?`.
+- Totalmente controlado, sem estado interno. Exibe um botão de limpar (`×`) quando há valor e o campo não está desabilitado.
+- Estilização já usa o tema (`theme.colors.inputBackground`, `theme.colors.border`, etc.) — não duplique o CSS de input de data em outro lugar.
+- Ao adicionar uma entidade com campo de data (ex: `dueDate`, `completedAt`, data de vencimento), o formulário correspondente (`.view.tsx`) deve renderizar `<DateInput value={...} onChange={...} />`, com a conversão de/para `Date` feita no ViewModel.
+
 ### Entidade Deadline (Prazo)
 
 ```typescript
