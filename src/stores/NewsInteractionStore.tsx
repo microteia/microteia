@@ -2,13 +2,11 @@ import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { useDI } from '../infrastructure/di/useDI';
 import { useAuth } from './useAuth';
 import { useNews } from './useNews';
-import { makeGetNewsInteractionsUseCase } from '../domain/usecases/newsinteractions/GetNewsInteractionsUseCase';
 import { makeUpsertNewsInteractionUseCase } from '../domain/usecases/newsinteractions/UpsertNewsInteractionUseCase';
 import { makeResetNewsReadStatusUseCase } from '../domain/usecases/newsinteractions/ResetNewsReadStatusUseCase';
 import { makeIncrementNewsViewUseCase } from '../domain/usecases/news/IncrementNewsViewUseCase';
 import type { NewsInteraction } from '../domain/entities';
 import { NewsInteractionContext } from './useNewsInteraction';
-import { storeEvents, StoreEvents } from '../infrastructure/events/StoreEventEmitter';
 
 export const NewsInteractionStoreProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { newsInteractionRepository, newsRepository } = useDI();
@@ -19,35 +17,24 @@ export const NewsInteractionStoreProvider: React.FC<{ children: React.ReactNode 
   const [loading, setLoading] = useState(false);
 
   const uc = useMemo(() => ({
-    get:         makeGetNewsInteractionsUseCase(newsInteractionRepository),
     upsert:      makeUpsertNewsInteractionUseCase(newsInteractionRepository),
     reset:       makeResetNewsReadStatusUseCase(newsInteractionRepository),
     incrView:    makeIncrementNewsViewUseCase(newsRepository),
   }), [newsInteractionRepository, newsRepository]);
 
-  const refresh = useCallback(async () => {
-    if (!user) return;
-    const list = await uc.get.execute(user.id);
-    setInteractions(list);
-  }, [user, uc]);
-
+  // Subscription em tempo real — garante que a leitura de uma notícia seja
+  // refletida imediatamente para os demais usuários (ex: ao comentar, editar
+  // ou excluir um comentário, que reseta o status de leitura de todos).
   useEffect(() => {
-    if (!user) return;
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- initializing loading state before async subscription is architecturally required
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- clearing interactions synchronously when user logs out is architecturally required
+    if (!user) { setInteractions([]); return; }
     setLoading(true);
-    refresh().finally(() => setLoading(false));
-  }, [user, refresh]);
-
-  useEffect(() => {
-    const unsub = storeEvents.on(StoreEvents.NEWS_UPDATED, () => void refresh());
+    const unsub = newsInteractionRepository.subscribeToInteractionsForUser(user.id, (fresh) => {
+      setInteractions(fresh);
+      setLoading(false);
+    });
     return () => unsub();
-  }, [refresh]);
-
-  useEffect(() => {
-    const handle = () => { if (!document.hidden && user) void refresh(); };
-    document.addEventListener('visibilitychange', handle);
-    return () => document.removeEventListener('visibilitychange', handle);
-  }, [refresh, user]);
+  }, [user, newsInteractionRepository]);
 
   const getInteraction = useCallback(
     (newsId: string) => interactions.find((i) => i.newsId === newsId),

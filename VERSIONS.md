@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [0.4.4] — 2026-07-02
+
+- Corrigido: ao comentar, editar ou excluir um comentário em uma notícia, os demais usuários agora veem na hora o status voltar para "não lida", sem precisar recarregar a página.
+
 #### [0.4.3] — 2026-07-02
 
 - Correção interna de estabilidade nas cores do sistema, sem impacto visível no dia a dia.

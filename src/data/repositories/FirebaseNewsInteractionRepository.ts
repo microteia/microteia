@@ -1,5 +1,5 @@
 import {
-  collection, getDocs, query, where, Timestamp, doc, setDoc, getDoc, writeBatch,
+  collection, getDocs, query, where, Timestamp, doc, setDoc, getDoc, writeBatch, onSnapshot,
 } from 'firebase/firestore';
 import { db } from '../../infrastructure/firebase/config';
 import type { INewsInteractionRepository } from '../../domain/repositories/INewsInteractionRepository';
@@ -24,12 +24,6 @@ const mapDoc = (d: { id: string; data: () => Record<string, unknown> }): NewsInt
 };
 
 export class FirebaseNewsInteractionRepository implements INewsInteractionRepository {
-  async getInteractionsForUser(userId: string): Promise<NewsInteraction[]> {
-    const q = query(collection(db, COLLECTION), where('userId', '==', userId));
-    const snap = await getDocs(q);
-    return snap.docs.map((d) => mapDoc({ id: d.id, data: () => d.data() as Record<string, unknown> }));
-  }
-
   async upsertInteraction(
     userId: string,
     newsId: string,
@@ -88,5 +82,21 @@ export class FirebaseNewsInteractionRepository implements INewsInteractionReposi
       batch.update(d.ref, { isRead: false, updatedAt: Timestamp.now() });
     });
     await batch.commit();
+  }
+
+  subscribeToInteractionsForUser(
+    userId: string,
+    onUpdate: (interactions: NewsInteraction[]) => void,
+  ): () => void {
+    const q = query(collection(db, COLLECTION), where('userId', '==', userId));
+    return onSnapshot(
+      q,
+      (snap) => {
+        onUpdate(snap.docs.map((d) => mapDoc({ id: d.id, data: () => d.data() as Record<string, unknown> })));
+      },
+      (error) => {
+        console.error('[NewsInteractionRepository] subscribeToInteractionsForUser:', error.message);
+      },
+    );
   }
 }
