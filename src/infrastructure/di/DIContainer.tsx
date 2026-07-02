@@ -9,6 +9,7 @@ import { FirebaseNewsInteractionRepository } from '../../data/repositories/Fireb
 import { FirebaseNewsTagRepository } from '../../data/repositories/FirebaseNewsTagRepository';
 import { FirebaseNewsTagLinkRepository } from '../../data/repositories/FirebaseNewsTagLinkRepository';
 import { FirebaseNewsCommentRepository } from '../../data/repositories/FirebaseNewsCommentRepository';
+import { FirebaseNewsDocumentRepository } from '../../data/repositories/FirebaseNewsDocumentRepository';
 import { FirebaseNewsCategoryRepository } from '../../data/repositories/FirebaseNewsCategoryRepository';
 import { FirebaseSavedFilterRepository } from '../../data/repositories/FirebaseSavedFilterRepository';
 import { FirebaseTenantRepository } from '../../data/repositories/FirebaseTenantRepository';
@@ -60,6 +61,7 @@ export const DIProvider: React.FC<{ children: React.ReactNode }> = ({ children }
     newsTagRepository:        new FirebaseNewsTagRepository(),
     newsTagLinkRepository:    new FirebaseNewsTagLinkRepository(),
     newsCommentRepository:    new FirebaseNewsCommentRepository(),
+    newsDocumentRepository:   new FirebaseNewsDocumentRepository(),
     newsCategoryRepository:   new FirebaseNewsCategoryRepository(),
     savedFilterRepository:    new FirebaseSavedFilterRepository(),
     tenantRepository:         new FirebaseTenantRepository(),

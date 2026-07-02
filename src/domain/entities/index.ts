@@ -683,6 +683,20 @@ export interface NewsComment {
   likedBy: string[];
 }
 
+export interface NewsDocument {
+  id: string;
+  newsId: string;
+  name: string;
+  type?: string;
+  description?: string;
+  url: string;
+  storagePath: string;
+  createdBy: string;
+  createdByName: string;
+  createdByPhotoUrl?: string;
+  createdAt: Date;
+}
+
 // ─── Saved Filters ────────────────────────────────────────────────────────────
 
 export interface SavedFilterToken {

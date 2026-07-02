@@ -222,4 +222,188 @@ export const S = {
 
     &:hover { color: ${({ theme }) => theme.colors.secondary}; }
   `,
+
+  TabBar: styled.div`
+    display: flex;
+    border-bottom: 1px solid ${({ theme }) => theme.colors.border};
+    flex-shrink: 0;
+  `,
+
+  TabBtn: styled.button<{ $active: boolean }>`
+    padding: ${({ theme }) => `${theme.spacing.md} ${theme.spacing.lg}`};
+    font-size: ${({ theme }) => theme.fontSizes.sm};
+    font-weight: 500;
+    color: ${({ $active, theme }) => $active ? theme.colors.primary : theme.colors.textSecondary};
+    border-bottom: 2px solid ${({ $active, theme }) => $active ? theme.colors.primary : 'transparent'};
+    transition: all ${({ theme }) => theme.transitions.fast};
+    white-space: nowrap;
+
+    &:hover { color: ${({ theme }) => theme.colors.text}; }
+  `,
+
+  TabSectionHeader: styled.div`
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    margin-bottom: ${({ theme }) => theme.spacing.md};
+    flex-shrink: 0;
+  `,
+
+  PendingFileCard: styled.div`
+    display: flex;
+    flex-direction: column;
+    gap: ${({ theme }) => theme.spacing.sm};
+    padding: ${({ theme }) => theme.spacing.lg};
+    background: ${({ theme }) => theme.colors.surface};
+    border: 1px solid ${({ theme }) => theme.colors.border};
+    border-radius: ${({ theme }) => theme.borderRadius.lg};
+    margin-bottom: ${({ theme }) => theme.spacing.md};
+  `,
+
+  PendingFileTopRow: styled.div`
+    display: flex;
+    align-items: center;
+    gap: ${({ theme }) => theme.spacing.md};
+  `,
+
+  PendingFileContent: styled.div`
+    flex: 1;
+    min-width: 0;
+  `,
+
+  PendingFileName: styled.span`
+    font-size: ${({ theme }) => theme.fontSizes.sm};
+    font-weight: 500;
+    color: ${({ theme }) => theme.colors.text};
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: block;
+    padding-left: calc(36px + ${({ theme }) => theme.spacing.md});
+  `,
+
+  PendingFileActions: styled.div`
+    display: flex;
+    align-items: center;
+    gap: ${({ theme }) => theme.spacing.xs};
+    flex-shrink: 0;
+  `,
+
+  DocList: styled.div`
+    display: flex;
+    flex-direction: column;
+    gap: ${({ theme }) => theme.spacing.sm};
+  `,
+
+  DocRow: styled.div`
+    display: flex;
+    align-items: center;
+    gap: ${({ theme }) => theme.spacing.md};
+    padding: ${({ theme }) => `${theme.spacing.sm} ${theme.spacing.md}`};
+    background: ${({ theme }) => theme.colors.surface};
+    border: 1px solid ${({ theme }) => theme.colors.border};
+    border-radius: ${({ theme }) => theme.borderRadius.lg};
+    transition: box-shadow ${({ theme }) => theme.transitions.fast};
+
+    &:hover { box-shadow: 0 2px 8px ${({ theme }) => theme.colors.shadow}; }
+  `,
+
+  DocIcon: styled.div`
+    font-size: 22px;
+    color: ${({ theme }) => theme.colors.primary};
+    flex-shrink: 0;
+    width: 36px;
+    height: 36px;
+    border-radius: ${({ theme }) => theme.borderRadius.md};
+    background: ${({ theme }) => theme.colors.primaryLight};
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  `,
+
+  DocContent: styled.div`
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  `,
+
+  DocName: styled.a`
+    font-size: ${({ theme }) => theme.fontSizes.sm};
+    font-weight: 500;
+    color: ${({ theme }) => theme.colors.text};
+    text-decoration: none;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: block;
+    &:hover { color: ${({ theme }) => theme.colors.primary}; text-decoration: underline; }
+  `,
+
+  DocUploaderRow: styled.div`
+    display: flex;
+    align-items: center;
+    gap: ${({ theme }) => theme.spacing.xs};
+  `,
+
+  DocUploaderAvatar: styled.div`
+    width: 16px;
+    height: 16px;
+    border-radius: ${({ theme }) => theme.borderRadius.full};
+    background: ${({ theme }) => theme.colors.primary};
+    color: #fff;
+    font-size: 9px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    flex-shrink: 0;
+  `,
+
+  DocUploaderImg: styled.img`
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  `,
+
+  DocMeta: styled.span`
+    font-size: ${({ theme }) => theme.fontSizes.xs};
+    color: ${({ theme }) => theme.colors.textMuted};
+  `,
+
+  DocTypeBadge: styled.span`
+    font-size: ${({ theme }) => theme.fontSizes.xs};
+    color: ${({ theme }) => theme.colors.textSecondary};
+    padding: 2px 8px;
+    border: 1px solid ${({ theme }) => theme.colors.border};
+    border-radius: ${({ theme }) => theme.borderRadius.md};
+    background: transparent;
+    white-space: nowrap;
+    flex-shrink: 0;
+  `,
+
+  DocActions: styled.div`
+    display: flex;
+    align-items: center;
+    gap: ${({ theme }) => theme.spacing.xs};
+    flex-shrink: 0;
+  `,
+
+  EmptyState: styled.div`
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: ${({ theme }) => theme.spacing.md};
+    padding: ${({ theme }) => theme.spacing['2xl']};
+    color: ${({ theme }) => theme.colors.textMuted};
+    text-align: center;
+  `,
+
+  EmptyIcon: styled.div`
+    font-size: 40px;
+    opacity: 0.3;
+  `,
 };

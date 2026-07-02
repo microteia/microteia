@@ -78,6 +78,7 @@ O projeto usa **Clean Architecture + MVVM** com separação estrita em camadas. 
 | `NewsTag` | `newsTags/{id}` | Não |
 | `NewsInteraction` | `newsInteractions/{uid}_{newsId}` | Não |
 | `NewsComment` | `newsComments/{id}` | Não |
+| `NewsDocument` | `newsDocuments/{id}` | Não |
 | `SavedFilter` | `savedFilters/{uid}_{screenKey}` | Não |
 
 ### Tipos-chave
@@ -513,7 +514,29 @@ Coleção Firestore: `tenants/{tenantId}/financialTags/{id}`
 
 Documentos anexados a um lançamento financeiro. Mesmo padrão de `PersonDocument`/`CaseDocument`/`ContractDocument`. Coleção: `tenants/{tenantId}/financials/{financialId}/documents/{id}`. Storage path: `tenants/{tenantId}/financials/{financialId}/{timestamp}_{filename}`.
 
-`type` referencia a `key` de um `DocumentTypeConfig` — o catálogo de tipos de documento (coleção `tenants/{tenantId}/documentTypes`, acessado via `useDocumentTypeLookup()`) é **compartilhado por tenant** entre Pessoa, Processo, Contrato e Financeiro: um tipo criado em qualquer uma dessas telas aparece nas demais. O documento em si, porém, é sempre filho de uma única entidade — não há coleção `documents` genérica.
+`type` referencia a `key` de um `DocumentTypeConfig` — o catálogo de tipos de documento (coleção `tenants/{tenantId}/documentTypes`, acessado via `useDocumentTypeLookup()`) é **compartilhado por tenant** entre Pessoa, Processo, Contrato, Financeiro e Notícias: um tipo criado em qualquer uma dessas telas aparece nas demais. O documento em si, porém, é sempre filho de uma única entidade — não há coleção `documents` genérica.
+
+### Entidade NewsDocument
+
+Documentos anexados a uma notícia (aba "Documentos" em `ViewNews`). Mesmo padrão visual e de UX de `PersonDocument`/`CaseDocument`/`ContractDocument`/`FinancialDocument`, mas **não** é filho de subcoleção de tenant: como `News` pode ser do Sistema (`tenantId: null`, visível a todos) ou de um escritório específico, `NewsDocument` segue o mesmo padrão de `NewsComment` — coleção de topo `newsDocuments/{id}` com campo `newsId` apontando para a notícia. Storage path: `news/{newsId}/{timestamp}_{filename}` (também fora do prefixo `tenants/{tenantId}/...`).
+
+```typescript
+interface NewsDocument {
+  id: string;
+  newsId: string;
+  name: string;
+  type?: string;
+  description?: string;
+  url: string;
+  storagePath: string;
+  createdBy: string;
+  createdByName: string;
+  createdByPhotoUrl?: string;
+  createdAt: Date;
+}
+```
+
+Upload e exclusão exigem a mesma permissão de edição da notícia (`canEdit` em `ViewNews.viewmodel.tsx`: autor, admin do tenant da notícia, ou ADMIN do sistema para notícias do Sistema); leitura é aberta a qualquer autenticado, mesmo padrão de `NewsComment` — ver "Firestore Security Rules" para detalhes.
 
 ### Entidade Push
 
@@ -666,6 +689,7 @@ src/
 │   │   ├── INewsTagRepository.ts
 │   │   ├── INewsInteractionRepository.ts
 │   │   ├── INewsCommentRepository.ts
+│   │   ├── INewsDocumentRepository.ts
 │   │   └── ISavedFilterRepository.ts
 │   └── usecases/
 │       ├── auth/
@@ -686,7 +710,8 @@ src/
 │       ├── news/
 │       ├── newstags/
 │       ├── newsinteractions/
-│       └── newscomments/
+│       ├── newscomments/
+│       └── newsdocuments/
 │
 ├── data/
 │   ├── repositories/
@@ -1230,6 +1255,21 @@ service cloud.firestore {
         memberData(tenantId).role in ['admin', 'lawyer', 'secretary'];
     }
 
+    // Retorna os dados da notícia relacionada a um NewsDocument
+    function relatedNews(newsId) {
+      return get(/databases/$(database)/documents/news/$(newsId)).data;
+    }
+
+    // Espelha a permissão de edição da notícia (canEdit em ViewNews.viewmodel.tsx):
+    // ADMIN do sistema sempre; autor ou admin do tenant para notícias de escritório
+    function canEditNewsDocument(newsId) {
+      let n = relatedNews(newsId);
+      return isSystemAdmin()
+        || (n.tenantId != null
+            && isMember(n.tenantId)
+            && (n.userId == request.auth.uid || isTenantAdmin(n.tenantId)));
+    }
+
     // ─── Usuários ─────────────────────────────────────────────────────────────
 
     match /users/{userId} {
@@ -1687,6 +1727,23 @@ service cloud.firestore {
         && (resource.data.userId == request.auth.uid || isSystemAdmin());
     }
 
+    // ─── Documentos de boletins ───────────────────────────────────────────────
+    // Coleção de topo com campo newsId (mesmo padrão de newsComments) — não é
+    // subcoleção de tenant porque News pode ser do Sistema (tenantId null).
+    // Leitura segue o mesmo modelo de newsComments (qualquer autenticado): uma
+    // regra de "list" não consegue filtrar por notícia individualmente, então a
+    // restrição de visibilidade fica a cargo da escrita (só quem edita a
+    // notícia anexa documentos a ela).
+
+    match /newsDocuments/{docId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null
+        && request.resource.data.createdBy == request.auth.uid
+        && canEditNewsDocument(request.resource.data.newsId);
+      allow delete: if request.auth != null
+        && canEditNewsDocument(resource.data.newsId);
+    }
+
     // ─── Filtros salvos ───────────────────────────────────────────────────────
 
     match /savedFilters/{filterId} {
@@ -1768,6 +1825,36 @@ service firebase.storage {
         && request.resource.size < 20 * 1024 * 1024;     // máximo 20 MB
       allow delete: if request.auth != null
         && firestore.get(/databases/(default)/documents/tenants/$(tenantId)/members/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    // ─── Documentos de boletins ───────────────────────────────────────────────
+    // Path: news/{newsId}/{filename}
+    // Não é escopado por tenant (News pode ser do Sistema, tenantId null),
+    // então a permissão de escrita espelha canEdit de ViewNews.viewmodel.tsx
+    // via leitura cruzada do Firestore.
+    function newsTenantId(newsId) {
+      return firestore.get(/databases/(default)/documents/news/$(newsId)).data.tenantId;
+    }
+    function newsCreator(newsId) {
+      return firestore.get(/databases/(default)/documents/news/$(newsId)).data.userId;
+    }
+    function isSystemAdminUser() {
+      return firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role == 'SYSTEM';
+    }
+    function canEditNews(newsId) {
+      let tenantId = newsTenantId(newsId);
+      return isSystemAdminUser()
+        || (tenantId != null
+            && firestore.exists(/databases/(default)/documents/tenants/$(tenantId)/members/$(request.auth.uid))
+            && (newsCreator(newsId) == request.auth.uid
+                || firestore.get(/databases/(default)/documents/tenants/$(tenantId)/members/$(request.auth.uid)).data.role == 'admin'));
+    }
+    match /news/{newsId}/{allPaths=**} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null
+        && request.resource.size < 20 * 1024 * 1024        // máximo 20 MB
+        && canEditNews(newsId);
+      allow delete: if request.auth != null && canEditNews(newsId);
     }
 
     // Bloqueia tudo o mais

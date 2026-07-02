@@ -9,6 +9,7 @@ import type { INewsInteractionRepository } from '../../domain/repositories/INews
 import type { INewsTagRepository } from '../../domain/repositories/INewsTagRepository';
 import type { INewsTagLinkRepository } from '../../domain/repositories/INewsTagLinkRepository';
 import type { INewsCommentRepository } from '../../domain/repositories/INewsCommentRepository';
+import type { INewsDocumentRepository } from '../../domain/repositories/INewsDocumentRepository';
 import type { INewsCategoryRepository } from '../../domain/repositories/INewsCategoryRepository';
 import type { ISavedFilterRepository } from '../../domain/repositories/ISavedFilterRepository';
 import type { ITenantRepository } from '../../domain/repositories/ITenantRepository';
@@ -56,6 +57,7 @@ export interface DIContainer {
   newsTagRepository: INewsTagRepository;
   newsTagLinkRepository: INewsTagLinkRepository;
   newsCommentRepository: INewsCommentRepository;
+  newsDocumentRepository: INewsDocumentRepository;
   newsCategoryRepository: INewsCategoryRepository;
   savedFilterRepository: ISavedFilterRepository;
   tenantRepository: ITenantRepository;
