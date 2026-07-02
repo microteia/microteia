@@ -152,6 +152,7 @@ export interface ViewPersonViewModel {
 
   copyLinkDone: boolean;
   handleCopyDeepLink: () => void;
+  handleClone: () => void;
   statusLabel: string;
   relationshipColor: string;
   handleToggleStatus: () => Promise<void>;
@@ -185,8 +186,11 @@ export interface ViewPersonViewModel {
   handleDeleteRelationship:(key: string)  => Promise<void>;
 }
 
+const CLONE_PREFIX = 'new-person:clone:';
+
 export const useViewPersonViewModel = (tabKey: string): ViewPersonViewModel => {
-  const isNew = tabKey === 'new-person';
+  const cloneSourceId = tabKey.startsWith(CLONE_PREFIX) ? tabKey.slice(CLONE_PREFIX.length) : null;
+  const isNew = tabKey === 'new-person' || cloneSourceId !== null;
   const personId = isNew ? '' : tabKey.replace('view-person:', '');
 
   const { persons, createPerson, updatePerson, updatePersonStatus, deletePerson } = usePersonStore();
@@ -205,10 +209,18 @@ export const useViewPersonViewModel = (tabKey: string): ViewPersonViewModel => {
     [persons, personId, isNew],
   );
 
+  const cloneSource = useMemo(
+    () => (cloneSourceId ? (persons.find((p) => p.id === cloneSourceId) ?? null) : null),
+    [persons, cloneSourceId],
+  );
+
   const isAdmin = tenantRole === 'admin';
 
   const [activeTab, setActiveTab] = useState<ViewPersonTab>('data');
-  const [formData, setFormDataState] = useState<PersonFormData>(() => buildFormData(person));
+  const [formData, setFormDataState] = useState<PersonFormData>(() => {
+    const base = buildFormData(cloneSource);
+    return cloneSource ? { ...base, cpf: '', cnpj: '' } : base;
+  });
   const [formErrors, setFormErrors] = useState<PersonFormErrors>({});
   const [isSaving, setIsSaving] = useState(false);
   const [isFetchingAddress, setIsFetchingAddress] = useState(false);
@@ -591,6 +603,11 @@ export const useViewPersonViewModel = (tabKey: string): ViewPersonViewModel => {
     setTimeout(() => setCopyLinkDone(false), 2000);
   }, [person]);
 
+  const handleClone = useCallback(() => {
+    if (!person) return;
+    openTab(`${CLONE_PREFIX}${person.id}`);
+  }, [person, openTab]);
+
   const statusLabel = person?.status === 'Ativo' ? 'Ativo' : 'Inativo';
 
   const relationshipColor = useMemo(() => {
@@ -754,6 +771,7 @@ export const useViewPersonViewModel = (tabKey: string): ViewPersonViewModel => {
     cancelDeleteDoc,
     copyLinkDone,
     handleCopyDeepLink,
+    handleClone,
     statusLabel,
     relationshipColor,
     handleToggleStatus,

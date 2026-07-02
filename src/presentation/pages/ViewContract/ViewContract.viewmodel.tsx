@@ -182,6 +182,7 @@ export interface ViewContractViewModel {
 
   copyLinkDone: boolean;
   handleCopyDeepLink: () => void;
+  handleClone: () => void;
   statusColor: string;
   handleDeleteContract: () => void;
   contractToDelete: Contract | null;
@@ -228,8 +229,11 @@ export interface ViewContractViewModel {
   handleDeleteCostCenter: (key: string) => Promise<void>;
 }
 
+const CLONE_PREFIX = 'new-contract:clone:';
+
 export const useViewContractViewModel = (tabKey: string): ViewContractViewModel => {
-  const isNew = tabKey === 'new-contract';
+  const cloneSourceId = tabKey.startsWith(CLONE_PREFIX) ? tabKey.slice(CLONE_PREFIX.length) : null;
+  const isNew = tabKey === 'new-contract' || cloneSourceId !== null;
   const contractId = isNew ? '' : tabKey.replace('view-contract:', '');
 
   const { contracts, createContract, updateContract, deleteContract } = useContractStore();
@@ -255,10 +259,18 @@ export const useViewContractViewModel = (tabKey: string): ViewContractViewModel 
     [contracts, contractId, isNew],
   );
 
+  const cloneSource = useMemo(
+    () => (cloneSourceId ? (contracts.find((c) => c.id === cloneSourceId) ?? null) : null),
+    [contracts, cloneSourceId],
+  );
+
   const isAdmin = tenantRole === 'admin';
 
   const [activeTab, setActiveTab] = useState<ViewContractTab>('data');
-  const [formData, setFormDataState] = useState<ContractFormData>(() => buildFormData(contract));
+  const [formData, setFormDataState] = useState<ContractFormData>(() => {
+    const base = buildFormData(cloneSource);
+    return cloneSource ? { ...base, number: '' } : base;
+  });
   const [isSaving, setIsSaving] = useState(false);
   const [isTagManagerOpen, setIsTagManagerOpen] = useState(false);
   const [copyLinkDone, setCopyLinkDone] = useState(false);
@@ -580,6 +592,11 @@ export const useViewContractViewModel = (tabKey: string): ViewContractViewModel 
     setTimeout(() => setCopyLinkDone(false), 2000);
   }, [contract]);
 
+  const handleClone = useCallback(() => {
+    if (!contract) return;
+    openTab(`${CLONE_PREFIX}${contract.id}`);
+  }, [contract, openTab]);
+
   const statusColor = useMemo(() => {
     if (!formData.status) return theme.colors.textSecondary;
     return getConfigColor(statusConfigs, formData.status, theme);
@@ -775,6 +792,7 @@ export const useViewContractViewModel = (tabKey: string): ViewContractViewModel 
     cancelDeleteDoc,
     copyLinkDone,
     handleCopyDeepLink,
+    handleClone,
     statusColor,
     handleDeleteContract,
     contractToDelete,

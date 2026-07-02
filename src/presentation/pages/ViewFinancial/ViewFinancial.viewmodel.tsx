@@ -118,6 +118,7 @@ export interface ViewFinancialViewModel {
   isAdmin: boolean;
   copyLinkDone: boolean;
   handleCopyDeepLink: () => void;
+  handleClone: () => void;
   statusColor: string;
   handleDeleteFinancial: () => void;
   financialToDelete: Financial | null;
@@ -125,8 +126,11 @@ export interface ViewFinancialViewModel {
   cancelDeleteFinancial: () => void;
 }
 
+const CLONE_PREFIX = 'new-financial:clone:';
+
 export const useViewFinancialViewModel = (tabKey: string): ViewFinancialViewModel => {
-  const isNew = tabKey === 'new-financial';
+  const cloneSourceId = tabKey.startsWith(CLONE_PREFIX) ? tabKey.slice(CLONE_PREFIX.length) : null;
+  const isNew = tabKey === 'new-financial' || cloneSourceId !== null;
   const financialId = isNew ? '' : tabKey.replace('view-financial:', '');
 
   const { financials, createFinancial, updateFinancial, deleteFinancial } = useFinancialStore();
@@ -149,10 +153,18 @@ export const useViewFinancialViewModel = (tabKey: string): ViewFinancialViewMode
     [financials, financialId, isNew],
   );
 
+  const cloneSource = useMemo(
+    () => (cloneSourceId ? (financials.find((f) => f.id === cloneSourceId) ?? null) : null),
+    [financials, cloneSourceId],
+  );
+
   const isAdmin = tenantRole === 'admin';
 
   const [activeTab, setActiveTab] = useState<ViewFinancialTab>('data');
-  const [formData, setFormDataState] = useState<FinancialFormData>(() => buildFormData(financial));
+  const [formData, setFormDataState] = useState<FinancialFormData>(() => {
+    const base = buildFormData(cloneSource);
+    return cloneSource ? { ...base, status: 'Aberto', paymentDate: '', cancelDate: '', invoiceNumber: '' } : base;
+  });
   const [isSaving, setIsSaving] = useState(false);
   const [isTagManagerOpen, setIsTagManagerOpen] = useState(false);
   const [copyLinkDone, setCopyLinkDone] = useState(false);
@@ -380,6 +392,11 @@ export const useViewFinancialViewModel = (tabKey: string): ViewFinancialViewMode
     setTimeout(() => setCopyLinkDone(false), 2000);
   }, [financial]);
 
+  const handleClone = useCallback(() => {
+    if (!financial) return;
+    openTab(`${CLONE_PREFIX}${financial.id}`);
+  }, [financial, openTab]);
+
   const statusColor = useMemo(() => {
     if (!formData.status) return theme.colors.textSecondary;
     return getConfigColor(statusConfigs, formData.status, theme);
@@ -452,6 +469,7 @@ export const useViewFinancialViewModel = (tabKey: string): ViewFinancialViewMode
     isAdmin,
     copyLinkDone,
     handleCopyDeepLink,
+    handleClone,
     statusColor,
     handleDeleteFinancial,
     financialToDelete,

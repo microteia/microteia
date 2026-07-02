@@ -129,6 +129,7 @@ export interface ViewCaseViewModel {
   isAdmin: boolean;
   copyLinkDone: boolean;
   handleCopyDeepLink: () => void;
+  handleClone: () => void;
   handleDeleteCase: () => void;
   caseToDelete: Case | null;
   confirmDeleteCase: () => Promise<void>;
@@ -167,8 +168,11 @@ export interface ViewCaseViewModel {
   getStatusColor: (status: string) => string;
 }
 
+const CLONE_PREFIX = 'new-case:clone:';
+
 export const useViewCaseViewModel = (tabKey: string): ViewCaseViewModel => {
-  const isNew = tabKey === 'new-case';
+  const cloneSourceId = tabKey.startsWith(CLONE_PREFIX) ? tabKey.slice(CLONE_PREFIX.length) : null;
+  const isNew = tabKey === 'new-case' || cloneSourceId !== null;
   const caseId = isNew ? '' : tabKey.replace('view-case:', '');
 
   const { cases, createCase, updateCase, deleteCase } = useCaseStore();
@@ -189,10 +193,18 @@ export const useViewCaseViewModel = (tabKey: string): ViewCaseViewModel => {
     [cases, caseId, isNew],
   );
 
+  const cloneSource = useMemo(
+    () => (cloneSourceId ? (cases.find((c) => c.id === cloneSourceId) ?? null) : null),
+    [cases, cloneSourceId],
+  );
+
   const isAdmin = tenantRole === 'admin';
 
   const [activeTab, setActiveTab] = useState<ViewCaseTab>('data');
-  const [formData, setFormDataState] = useState<CaseFormData>(() => buildFormData(case_, user?.id ?? '', effectiveName));
+  const [formData, setFormDataState] = useState<CaseFormData>(() => {
+    const base = buildFormData(cloneSource, user?.id ?? '', effectiveName);
+    return cloneSource ? { ...base, caseNumber: '' } : base;
+  });
   const [isSaving, setIsSaving] = useState(false);
   const [isTagManagerOpen, setIsTagManagerOpen] = useState(false);
   const [copyLinkDone, setCopyLinkDone] = useState(false);
@@ -463,6 +475,11 @@ export const useViewCaseViewModel = (tabKey: string): ViewCaseViewModel => {
     setTimeout(() => setCopyLinkDone(false), 2000);
   }, [case_]);
 
+  const handleClone = useCallback(() => {
+    if (!case_) return;
+    openTab(`${CLONE_PREFIX}${case_.id}`);
+  }, [case_, openTab]);
+
   const handleDeleteCase = useCallback(() => {
     if (case_) setCaseToDelete(case_);
   }, [case_]);
@@ -632,6 +649,7 @@ export const useViewCaseViewModel = (tabKey: string): ViewCaseViewModel => {
     isAdmin,
     copyLinkDone,
     handleCopyDeepLink,
+    handleClone,
     handleDeleteCase,
     caseToDelete,
     confirmDeleteCase,

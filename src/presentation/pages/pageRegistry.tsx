@@ -63,6 +63,13 @@ export const PAGE_REGISTRY: PageDefinition[] = [
   },
   {
     key: '',
+    keyPrefix: 'new-person:clone:',
+    title: 'Nova Pessoa',
+    icon: <RiTeamLine size={20} />,
+    component: ViewPersonView,
+  },
+  {
+    key: '',
     keyPrefix: 'view-person:',
     title: 'Pessoa',
     icon: <RiTeamLine size={20} />,
@@ -72,6 +79,13 @@ export const PAGE_REGISTRY: PageDefinition[] = [
   { key: 'contracts',        title: 'Contratos',           icon: <RiFileTextLine size={20} />,           component: ContractsView        },
   {
     key: 'new-contract',
+    title: 'Novo Contrato',
+    icon: <RiFileTextLine size={20} />,
+    component: ViewContractView,
+  },
+  {
+    key: '',
+    keyPrefix: 'new-contract:clone:',
     title: 'Novo Contrato',
     icon: <RiFileTextLine size={20} />,
     component: ViewContractView,
@@ -88,6 +102,13 @@ export const PAGE_REGISTRY: PageDefinition[] = [
   { key: 'financial-dashboard', title: 'Dashboard Financeiro', icon: <RiLineChartLine size={20} />,      component: FinancialDashboardView },
   {
     key: 'new-financial',
+    title: 'Novo Lançamento',
+    icon: <RiMoneyDollarCircleLine size={20} />,
+    component: ViewFinancialView,
+  },
+  {
+    key: '',
+    keyPrefix: 'new-financial:clone:',
     title: 'Novo Lançamento',
     icon: <RiMoneyDollarCircleLine size={20} />,
     component: ViewFinancialView,
@@ -136,6 +157,13 @@ export const PAGE_REGISTRY: PageDefinition[] = [
   },
   {
     key: 'new-case',
+    title: 'Novo Processo',
+    icon: <RiFolderLine size={20} />,
+    component: ViewCaseView,
+  },
+  {
+    key: '',
+    keyPrefix: 'new-case:clone:',
     title: 'Novo Processo',
     icon: <RiFolderLine size={20} />,
     component: ViewCaseView,

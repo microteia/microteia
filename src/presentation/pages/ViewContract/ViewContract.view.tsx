@@ -4,6 +4,7 @@ import {
   RiDeleteBinLine,
   RiLinkM,
   RiCheckLine,
+  RiFileCopyLine,
   RiPriceTag3Line,
   RiAddLine,
   RiUploadLine,
@@ -65,6 +66,9 @@ export const ViewContractView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
             <>
               <Button variant="ghost" size="sm" onClick={vm.handleCopyDeepLink} title="Copiar link">
                 {vm.copyLinkDone ? <RiCheckLine size={14} /> : <RiLinkM size={14} />}
+              </Button>
+              <Button variant="ghost" size="sm" onClick={vm.handleClone} title="Clonar">
+                <RiFileCopyLine size={14} />
               </Button>
               <Button variant="ghost" size="sm" onClick={vm.openTagManager} title="Gerenciar etiquetas">
                 <RiPriceTag3Line size={14} />
