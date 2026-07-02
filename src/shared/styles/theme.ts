@@ -120,6 +120,21 @@ export const darkTheme = {
     blue: 'rgba(56, 189, 248, 0.38)',
     orange: 'rgba(251, 146, 60, 0.40)',
   },
+  tagColors: [
+    { label: 'Cinza',    value: '#6B7280' },
+    { label: 'Vermelho', value: '#DC2626' },
+    { label: 'Laranja',  value: '#EA580C' },
+    { label: 'Âmbar',    value: '#D97706' },
+    { label: 'Amarelo',  value: '#CA8A04' },
+    { label: 'Verde',    value: '#16A34A' },
+    { label: 'Verde-água', value: '#0D9488' },
+    { label: 'Ciano',    value: '#0891B2' },
+    { label: 'Azul',     value: '#2563EB' },
+    { label: 'Índigo',   value: '#4F46E5' },
+    { label: 'Violeta',  value: '#7C3AED' },
+    { label: 'Rosa',     value: '#DB2777' },
+    { label: 'Marrom',   value: '#92400E' },
+  ],
 };
 
 export const lightTheme: typeof darkTheme = {

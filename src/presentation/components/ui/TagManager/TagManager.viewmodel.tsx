@@ -1,15 +1,5 @@
 import { useState, useCallback } from 'react';
-
-export const TAG_COLORS = [
-  { label: 'Cinza',    value: '#6B7280' },
-  { label: 'Vermelho', value: '#DC2626' },
-  { label: 'Laranja',  value: '#EA580C' },
-  { label: 'Âmbar',   value: '#D97706' },
-  { label: 'Verde',    value: '#16A34A' },
-  { label: 'Azul',     value: '#2563EB' },
-  { label: 'Violeta',  value: '#7C3AED' },
-  { label: 'Rosa',     value: '#DB2777' },
-];
+import { useTheme } from 'styled-components';
 
 export type BaseTag = { id: string; name: string; color: string };
 
@@ -60,6 +50,9 @@ export interface TagManagerViewModel {
 export const useTagManagerViewModel = (props: TagManagerProps): TagManagerViewModel => {
   const { adapter, entityId } = props;
   const { tags, getAppliedTags, setTags, createTag, updateTag, deleteTag } = adapter;
+  const theme = useTheme();
+  const tagColors = theme.tagColors;
+  const defaultTagColor = tagColors.find((c) => c.label === 'Azul')?.value ?? tagColors[0].value;
 
   const appliedTags = getAppliedTags(entityId);
   const [appliedTagIds, setAppliedTagIds] = useState<string[]>(appliedTags.map((t) => t.id));
@@ -67,7 +60,7 @@ export const useTagManagerViewModel = (props: TagManagerProps): TagManagerViewMo
   const [searchFilter, setSearchFilter] = useState('');
   const [isCreating, setIsCreating] = useState(false);
   const [newTagName, setNewTagName] = useState('');
-  const [newTagColor, setNewTagColor] = useState(TAG_COLORS[5].value);
+  const [newTagColor, setNewTagColor] = useState(defaultTagColor);
 
   const [editingTag, setEditingTag] = useState<BaseTag | null>(null);
   const [editName, setEditName] = useState('');
@@ -93,7 +86,7 @@ export const useTagManagerViewModel = (props: TagManagerProps): TagManagerViewMo
   const startCreate = () => {
     setEditingTag(null);
     setNewTagName('');
-    setNewTagColor(TAG_COLORS[5].value);
+    setNewTagColor(defaultTagColor);
     setIsCreating(true);
   };
 
@@ -146,7 +139,7 @@ export const useTagManagerViewModel = (props: TagManagerProps): TagManagerViewMo
     appliedFilteredTags,
     restFilteredTags,
     searchFilter,
-    tagColors: TAG_COLORS,
+    tagColors,
     editingTag,
     isCreating,
     newTagName,

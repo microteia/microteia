@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [0.1.4] — 2026-07-02
+
+- Ampliada a paleta de cores disponíveis para etiquetas, agora com 13 opções em vez de 8.
+
 ## [0.1.3] — 2026-07-02
 
 - Corrigido um erro que impedia a abertura do Dashboard Financeiro quando o filtro de Etiquetas era exibido.
