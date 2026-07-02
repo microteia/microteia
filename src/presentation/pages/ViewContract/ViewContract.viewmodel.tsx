@@ -243,7 +243,7 @@ export const useViewContractViewModel = (tabKey: string): ViewContractViewModel 
   const { persons } = usePersonStore();
   const { cases, updateCase } = useCaseStore();
   const { statusConfigs: caseStatusConfigs } = useCaseLookup();
-  const { user } = useAuth();
+  const { user, effectiveName } = useAuth();
   const { tenantRole, currentTenant } = useTenant();
   const { setTabTitle, closeTab, openTab, activePanelId } = useWorkspace();
   const { notify } = useNotification();
@@ -437,7 +437,12 @@ export const useViewContractViewModel = (tabKey: string): ViewContractViewModel 
         openTab(newTabKey);
         setTabTitle(newTabKey, created.title);
       } else if (contract) {
-        await updateContract(contract.id, payload);
+        await updateContract(contract.id, {
+          ...payload,
+          updatedBy: user?.id ?? '',
+          updatedByName: effectiveName,
+          updatedByPhotoURL: user?.photoURL ?? '',
+        });
         notify('Contrato atualizado com sucesso!', 'success');
       }
     } catch (err) {
@@ -446,7 +451,7 @@ export const useViewContractViewModel = (tabKey: string): ViewContractViewModel 
     } finally {
       setIsSaving(false);
     }
-  }, [formData, isNew, contract, createContract, updateContract, currentTenant, notify, user, tabKey, setTabTitle, closeTab, openTab, activePanelId]);
+  }, [formData, isNew, contract, createContract, updateContract, currentTenant, notify, user, effectiveName, tabKey, setTabTitle, closeTab, openTab, activePanelId]);
 
   const tagAdapter: TagStoreAdapter = useMemo(() => ({
     tags,
@@ -483,7 +488,7 @@ export const useViewContractViewModel = (tabKey: string): ViewContractViewModel 
         title: newNoteTitle.trim(),
         text: newNoteText.trim(),
         createdBy: user.id,
-        createdByName: user.displayName,
+        createdByName: effectiveName,
         createdByPhotoUrl: user.photoURL ?? undefined,
       });
       setNotes((prev) => [note, ...prev]);
@@ -496,7 +501,7 @@ export const useViewContractViewModel = (tabKey: string): ViewContractViewModel 
     } finally {
       setIsAddingNote(false);
     }
-  }, [newNoteTitle, newNoteText, contract, currentTenant, user, noteUC, notify]);
+  }, [newNoteTitle, newNoteText, contract, currentTenant, user, effectiveName, noteUC, notify]);
 
   const requestDeleteNote = useCallback((note: ContractNote) => setNoteToDelete(note), []);
   const cancelDeleteNote = useCallback(() => setNoteToDelete(null), []);
@@ -539,7 +544,7 @@ export const useViewContractViewModel = (tabKey: string): ViewContractViewModel 
         url,
         storagePath,
         createdBy: user.id,
-        createdByName: user.displayName,
+        createdByName: effectiveName,
         createdByPhotoUrl: user.photoURL ?? undefined,
       });
       setDocuments((prev) => [addedDoc, ...prev]);
@@ -551,7 +556,7 @@ export const useViewContractViewModel = (tabKey: string): ViewContractViewModel 
     } finally {
       setIsUploadingDoc(false);
     }
-  }, [pendingFile, pendingType, contract, currentTenant, user, docUC, notify]);
+  }, [pendingFile, pendingType, contract, currentTenant, user, effectiveName, docUC, notify]);
 
   const requestDeleteDoc = useCallback((doc: ContractDocument) => setDocToDelete(doc), []);
   const cancelDeleteDoc = useCallback(() => setDocToDelete(null), []);

@@ -113,6 +113,8 @@ export interface TenantMember {
   photoURL: string | null;
   addedAt: Date;
   addedBy: string;
+  updatedAt?: Date;
+  updatedBy?: string;
 }
 
 // ─── Persons (Pessoas) ────────────────────────────────────────────────────────
@@ -162,6 +164,9 @@ export interface Person {
   createdAt: Date;
   createdBy: string;
   updatedAt: Date;
+  updatedBy?: string;
+  updatedByName?: string;
+  updatedByPhotoURL?: string;
 }
 
 // ─── Person Tags ──────────────────────────────────────────────────────────────
@@ -173,6 +178,9 @@ export interface PersonTag {
   color: string;
   createdAt: Date;
   createdBy: string;
+  updatedBy?: string;
+  updatedByName?: string;
+  updatedByPhotoURL?: string;
 }
 
 // ─── Person Notes ─────────────────────────────────────────────────────────────
@@ -215,6 +223,9 @@ export interface CaseTag {
   color: string;
   createdAt: Date;
   createdBy: string;
+  updatedBy?: string;
+  updatedByName?: string;
+  updatedByPhotoURL?: string;
 }
 
 // ─── Case Notes ───────────────────────────────────────────────────────────────
@@ -377,6 +388,9 @@ export interface Case {
   createdAt: Date;
   createdBy: string;
   updatedAt: Date;
+  updatedBy?: string;
+  updatedByName?: string;
+  updatedByPhotoURL?: string;
 }
 
 // ─── Deadlines (Prazos) ───────────────────────────────────────────────────────
@@ -411,6 +425,9 @@ export interface Deadline {
   createdAt: Date;
   createdBy: string;
   updatedAt: Date;
+  updatedBy?: string;
+  updatedByName?: string;
+  updatedByPhotoURL?: string;
 }
 
 // ─── Financials (Financeiro) ──────────────────────────────────────────────────
@@ -443,6 +460,9 @@ export interface Financial {
   createdAt: Date;
   createdBy: string;
   updatedAt: Date;
+  updatedBy?: string;
+  updatedByName?: string;
+  updatedByPhotoURL?: string;
 }
 
 // ─── Financial Tags ───────────────────────────────────────────────────────────
@@ -454,6 +474,9 @@ export interface FinancialTag {
   color: string;
   createdAt: Date;
   createdBy: string;
+  updatedBy?: string;
+  updatedByName?: string;
+  updatedByPhotoURL?: string;
 }
 
 // ─── Financial Lookups ────────────────────────────────────────────────────────
@@ -493,6 +516,9 @@ export interface ContractTag {
   color: string;
   createdAt: Date;
   createdBy: string;
+  updatedBy?: string;
+  updatedByName?: string;
+  updatedByPhotoURL?: string;
 }
 
 // ─── Contract Notes ───────────────────────────────────────────────────────────
@@ -589,6 +615,9 @@ export interface Contract {
   createdAt: Date;
   createdBy: string;
   updatedAt: Date;
+  updatedBy?: string;
+  updatedByName?: string;
+  updatedByPhotoURL?: string;
 }
 
 // ─── Calendar events ──────────────────────────────────────────────────────────
@@ -760,3 +789,7 @@ export interface CaseLookupItem {
 // ─── Push ─────────────────────────────────────────────────────────────────────
 
 export type { Push, PushMovement, PushStatus, PushInteraction } from './Push';
+
+// ─── Audit Logs ───────────────────────────────────────────────────────────────
+
+export type { AuditLog, AuditAction, AuditSeverity, AuditType } from './AuditLog';

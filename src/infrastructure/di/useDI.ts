@@ -45,6 +45,7 @@ import type { IFinancialLookupRepository } from '../../domain/repositories/IFina
 import type { IDeadlineTypeRepository } from '../../domain/repositories/IDeadlineTypeRepository';
 import type { IPushRepository, IPushInteractionRepository } from '../../domain/repositories/IPushRepository';
 import type { IDocumentTypeRepository } from '../../domain/repositories/IDocumentTypeRepository';
+import type { IAuditLogRepository } from '../../domain/repositories/IAuditLogRepository';
 
 export interface DIContainer {
   authRepository: IAuthRepository;
@@ -94,6 +95,7 @@ export interface DIContainer {
   pushRepository: IPushRepository;
   pushInteractionRepository: IPushInteractionRepository;
   documentTypeRepository: IDocumentTypeRepository;
+  auditLogRepository: IAuditLogRepository;
 }
 
 export const DIContext = createContext<DIContainer | null>(null);

@@ -16,7 +16,7 @@ import type { Tenant, TenantMember, TenantRole } from '../domain/entities';
 const TENANT_STORAGE_KEY = 'curatino:lastTenantId';
 
 export const TenantStoreProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { user } = useAuth();
+  const { user, effectiveName } = useAuth();
   const { tenantRepository } = useDI();
 
   const [availableTenants, setAvailableTenants] = useState<Tenant[]>([]);
@@ -73,10 +73,14 @@ export const TenantStoreProvider: React.FC<{ children: React.ReactNode }> = ({ c
   }, [currentTenant, uc.addMember, loadMembers]);
 
   const updateMemberRole = useCallback(async (userId: string, role: TenantRole) => {
-    if (!currentTenant) return;
-    await uc.updateRole.execute(currentTenant.id, userId, role);
+    if (!currentTenant || !user) return;
+    await uc.updateRole.execute(currentTenant.id, userId, role, {
+      uid: user.id,
+      name: effectiveName,
+      photoURL: user.photoURL,
+    });
     setMembers((prev) => prev.map((m) => m.userId === userId ? { ...m, role } : m));
-  }, [currentTenant, uc.updateRole]);
+  }, [currentTenant, user, effectiveName, uc.updateRole]);
 
   const removeMember = useCallback(async (userId: string) => {
     if (!currentTenant) return;
@@ -117,7 +121,7 @@ export const TenantStoreProvider: React.FC<{ children: React.ReactNode }> = ({ c
         const hasOwnTenant = tenants.some((t) => t.ownerId === user.id);
         if (!hasOwnTenant) {
           const newTenant = await uc.create.execute({
-            name: `Escritório de ${user.displayName}`,
+            name: `Escritório de ${effectiveName}`,
             ownerId: user.id,
             cnpj: null,
             email: user.email,
@@ -130,7 +134,7 @@ export const TenantStoreProvider: React.FC<{ children: React.ReactNode }> = ({ c
             userId: user.id,
             tenantId: newTenant.id,
             role: 'admin',
-            displayName: user.displayName,
+            displayName: effectiveName,
             email: user.email,
             photoURL: user.photoURL,
             addedBy: user.id,

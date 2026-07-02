@@ -18,6 +18,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isEmailVerified, setIsEmailVerified] = useState(false);
   const [profilePhotoURL, setProfilePhotoURL] = useState<string | null>(null);
   const [profileNickname, setProfileNickname] = useState<string | null>(null);
+  const [profileFullName, setProfileFullName] = useState<string | null>(null);
 
   const signInWithGoogleUseCase = useMemo(() => makeSignInWithGoogleUseCase(authRepository), [authRepository]);
   const signInWithFacebookUseCase = useMemo(() => makeSignInWithFacebookUseCase(authRepository), [authRepository]);
@@ -32,6 +33,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const profile = await userProfileRepository.getProfile(userId);
       setProfilePhotoURL(profile?.photoURL ?? null);
       setProfileNickname(profile?.nickname ?? null);
+      setProfileFullName(profile?.fullName ?? null);
     } catch {
       // fallback silencioso — valores do Google/email continuam sendo usados
     }
@@ -45,6 +47,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setIsEmailVerified(false);
         setProfilePhotoURL(null);
         setProfileNickname(null);
+        setProfileFullName(null);
         setLoading(false);
         return;
       }
@@ -97,9 +100,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     [profilePhotoURL, user?.photoURL],
   );
 
+  // Ordem de prioridade oficial do "nome efetivo" do usuário em todo o sistema:
+  // apelido (userProfiles.nickname) > nome completo (userProfiles.fullName) >
+  // nome do provedor de login (users.displayName) > email (users.email).
   const effectiveName = useMemo(
-    () => profileNickname ?? user?.displayName ?? '',
-    [profileNickname, user?.displayName],
+    () => profileNickname ?? profileFullName ?? user?.displayName ?? user?.email ?? '',
+    [profileNickname, profileFullName, user?.displayName, user?.email],
   );
 
   const signInWithGoogle = async () => {

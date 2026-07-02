@@ -9,3 +9,7 @@ export { claimNickname } from './infrastructure/handlers/claimNickname';
 export { exchangeGmailCode } from './infrastructure/handlers/exchangeGmailCode';
 export { gmailPush } from './infrastructure/handlers/gmailPush';
 export { renewGmailWatches } from './infrastructure/handlers/renewGmailWatches';
+export { auditFlatEntityChange } from './infrastructure/handlers/auditFlatEntityChange';
+export { auditNestedEntityChange } from './infrastructure/handlers/auditNestedEntityChange';
+export { auditTenantDeleted } from './infrastructure/handlers/auditTenantDeleted';
+export { backupDeletedAuditLog } from './infrastructure/handlers/backupDeletedAuditLog';

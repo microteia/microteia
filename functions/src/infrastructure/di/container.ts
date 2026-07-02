@@ -1,4 +1,10 @@
 import { getDb } from '../firebase/initFirebase';
+import { FirebaseAuditLogRepository } from '../../data/repositories/FirebaseAuditLogRepository';
+import { UserProfileLookupService } from '../../data/services/UserProfileLookupService';
+import { makeCreateAuditLogUseCase } from '../../domain/usecases/CreateAuditLogUseCase';
+import type { CreateAuditLogUseCase } from '../../domain/usecases/CreateAuditLogUseCase';
+import type { IAuditLogRepository } from '../../domain/repositories/IAuditLogRepository';
+import type { IUserProfileLookupService } from '../../domain/repositories/IUserProfileLookupService';
 import { FirebaseAIConnectionRepository } from '../../data/repositories/FirebaseAIConnectionRepository';
 import { FirebaseTenantMemberRepository } from '../../data/repositories/FirebaseTenantMemberRepository';
 import { FirebaseUserRepository } from '../../data/repositories/FirebaseUserRepository';
@@ -55,6 +61,9 @@ class DIContainer {
   private emailParserService?: IEmailParserService;
   private googleAuthService?: IGmailAuthService;
   private gmailWatchService?: IGmailWatchService;
+  private auditLogRepo?: IAuditLogRepository;
+  private userProfileLookupService?: IUserProfileLookupService;
+  private createAuditLogUC?: CreateAuditLogUseCase;
   private getDefaultAICredentialsUC?: GetDefaultAICredentialsUseCase;
   private callAIAnalysisUC?: CallAIAnalysisUseCase;
   private getUserInfoUC?: GetUserInfoUseCase;
@@ -217,6 +226,27 @@ class DIContainer {
       this.gmailWatchService = new GmailWatchService();
     }
     return this.gmailWatchService;
+  }
+
+  getAuditLogRepository(): IAuditLogRepository {
+    if (!this.auditLogRepo) {
+      this.auditLogRepo = new FirebaseAuditLogRepository(getDb());
+    }
+    return this.auditLogRepo;
+  }
+
+  getUserProfileLookupService(): IUserProfileLookupService {
+    if (!this.userProfileLookupService) {
+      this.userProfileLookupService = new UserProfileLookupService(getDb());
+    }
+    return this.userProfileLookupService;
+  }
+
+  getCreateAuditLogUseCase(): CreateAuditLogUseCase {
+    if (!this.createAuditLogUC) {
+      this.createAuditLogUC = makeCreateAuditLogUseCase(this.getAuditLogRepository());
+    }
+    return this.createAuditLogUC;
   }
 }
 

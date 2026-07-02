@@ -26,6 +26,7 @@ import { NewsCategoryLookupStoreProvider } from './stores/NewsCategoryLookupStor
 import { NewsTagStoreProvider } from './stores/NewsTagStore';
 import { NewsInteractionStoreProvider } from './stores/NewsInteractionStore';
 import { SavedFilterStoreProvider } from './stores/SavedFilterStore';
+import { AuditLogStoreProvider } from './stores/AuditLogStore';
 import { WorkspaceStoreProvider } from './stores/WorkspaceStore';
 import { NotificationProvider } from './stores/NotificationContext';
 import { CommandPaletteProvider } from './stores/CommandPaletteContext';
@@ -69,6 +70,7 @@ const App: React.FC = () => {
                                     <NewsTagStoreProvider>
                                       <NewsInteractionStoreProvider>
                                         <SavedFilterStoreProvider>
+                                          <AuditLogStoreProvider>
                                           <WorkspaceStoreProvider>
                                             <NotificationProvider>
                                               <CommandPaletteProvider>
@@ -78,6 +80,7 @@ const App: React.FC = () => {
                                               </CommandPaletteProvider>
                                             </NotificationProvider>
                                           </WorkspaceStoreProvider>
+                                          </AuditLogStoreProvider>
                                         </SavedFilterStoreProvider>
                                       </NewsInteractionStoreProvider>
                                     </NewsTagStoreProvider>

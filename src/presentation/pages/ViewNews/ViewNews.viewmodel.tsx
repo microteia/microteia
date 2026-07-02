@@ -68,7 +68,7 @@ export const useViewNewsViewModel = (tabKey: string): ViewNewsViewModel => {
   const { getInteraction, markAsRead, markAsUnread, toggleSavedForLater } = useNewsInteraction();
   const { categoryConfigs } = useNewsCategoryLookup();
   const { typeConfigs: documentTypeConfigs, addItem: addDocumentType, removeItem: removeDocumentType } = useDocumentTypeLookup();
-  const { user, userRole } = useAuth();
+  const { user, userRole, effectiveName } = useAuth();
   const { currentTenant } = useTenant();
   const { setTabTitle, openTab } = useWorkspace();
   const { notify } = useNotification();
@@ -221,7 +221,7 @@ export const useViewNewsViewModel = (tabKey: string): ViewNewsViewModel => {
         url,
         storagePath,
         createdBy: user.id,
-        createdByName: user.displayName,
+        createdByName: effectiveName,
         createdByPhotoUrl: user.photoURL ?? undefined,
       });
       setDocuments((prev) => [addedDoc, ...prev]);
@@ -233,7 +233,7 @@ export const useViewNewsViewModel = (tabKey: string): ViewNewsViewModel => {
     } finally {
       setIsUploadingDoc(false);
     }
-  }, [pendingFile, pendingType, item, user, docUC, notify]);
+  }, [pendingFile, pendingType, item, user, effectiveName, docUC, notify]);
 
   const requestDeleteDoc = useCallback((doc: NewsDocument) => setDocToDelete(doc), []);
   const cancelDeleteDoc = useCallback(() => setDocToDelete(null), []);

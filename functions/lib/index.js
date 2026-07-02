@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.renewGmailWatches = exports.gmailPush = exports.exchangeGmailCode = exports.claimNickname = exports.checkNicknameAvailability = exports.getUserInfo = exports.callAIProxy = void 0;
+exports.backupDeletedAuditLog = exports.auditTenantDeleted = exports.auditNestedEntityChange = exports.auditFlatEntityChange = exports.renewGmailWatches = exports.gmailPush = exports.exchangeGmailCode = exports.claimNickname = exports.checkNicknameAvailability = exports.getUserInfo = exports.callAIProxy = void 0;
 const initFirebase_1 = require("./infrastructure/firebase/initFirebase");
 (0, initFirebase_1.initFirebase)();
 var callAIProxy_1 = require("./infrastructure/handlers/callAIProxy");
@@ -17,4 +17,12 @@ var gmailPush_1 = require("./infrastructure/handlers/gmailPush");
 Object.defineProperty(exports, "gmailPush", { enumerable: true, get: function () { return gmailPush_1.gmailPush; } });
 var renewGmailWatches_1 = require("./infrastructure/handlers/renewGmailWatches");
 Object.defineProperty(exports, "renewGmailWatches", { enumerable: true, get: function () { return renewGmailWatches_1.renewGmailWatches; } });
+var auditFlatEntityChange_1 = require("./infrastructure/handlers/auditFlatEntityChange");
+Object.defineProperty(exports, "auditFlatEntityChange", { enumerable: true, get: function () { return auditFlatEntityChange_1.auditFlatEntityChange; } });
+var auditNestedEntityChange_1 = require("./infrastructure/handlers/auditNestedEntityChange");
+Object.defineProperty(exports, "auditNestedEntityChange", { enumerable: true, get: function () { return auditNestedEntityChange_1.auditNestedEntityChange; } });
+var auditTenantDeleted_1 = require("./infrastructure/handlers/auditTenantDeleted");
+Object.defineProperty(exports, "auditTenantDeleted", { enumerable: true, get: function () { return auditTenantDeleted_1.auditTenantDeleted; } });
+var backupDeletedAuditLog_1 = require("./infrastructure/handlers/backupDeletedAuditLog");
+Object.defineProperty(exports, "backupDeletedAuditLog", { enumerable: true, get: function () { return backupDeletedAuditLog_1.backupDeletedAuditLog; } });
 //# sourceMappingURL=index.js.map

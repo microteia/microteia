@@ -16,7 +16,7 @@ import {
   serverTimestamp,
 } from 'firebase/firestore';
 import { db } from '../../infrastructure/firebase/config';
-import type { ITenantRepository } from '../../domain/repositories/ITenantRepository';
+import type { ITenantRepository, TenantMemberRoleActor } from '../../domain/repositories/ITenantRepository';
 import type { Tenant, TenantMember, TenantRole } from '../../domain/entities';
 
 const toDate = (v: unknown): Date =>
@@ -83,8 +83,12 @@ export class FirebaseTenantRepository implements ITenantRepository {
     }
   }
 
-  async updateMemberRole(tenantId: string, userId: string, role: TenantRole): Promise<void> {
-    await updateDoc(doc(db, 'tenants', tenantId, 'members', userId), { role });
+  async updateMemberRole(tenantId: string, userId: string, role: TenantRole, actor: TenantMemberRoleActor): Promise<void> {
+    await updateDoc(doc(db, 'tenants', tenantId, 'members', userId), {
+      role,
+      updatedAt: serverTimestamp(),
+      updatedBy: actor.uid,
+    });
   }
 
   async removeMember(tenantId: string, userId: string): Promise<void> {
@@ -133,5 +137,10 @@ export class FirebaseTenantRepository implements ITenantRepository {
       .filter((r): r is PromiseFulfilledResult<Tenant | null> => r.status === 'fulfilled')
       .map((r) => r.value)
       .filter((t): t is Tenant => t !== null);
+  }
+
+  async getAllTenants(): Promise<Tenant[]> {
+    const snap = await getDocs(collection(db, 'tenants'));
+    return snap.docs.map((d) => mapTenant(d.id, d.data()));
   }
 }

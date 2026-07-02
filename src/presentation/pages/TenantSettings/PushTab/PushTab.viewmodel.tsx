@@ -26,7 +26,7 @@ export interface PushTabViewModel {
 
 export const usePushTabViewModel = (): PushTabViewModel => {
   const { currentTenant, updateTenant } = useTenant();
-  const { user } = useAuth();
+  const { user, effectiveName } = useAuth();
   const { notify } = useNotification();
   const { gmailConnectionRepository } = useDI();
 
@@ -157,7 +157,7 @@ export const usePushTabViewModel = (): PushTabViewModel => {
                 email,
                 scopes,
                 authorizedBy: user.id,
-                authorizedByName: user.displayName,
+                authorizedByName: effectiveName,
                 historyId,
                 expiration,
               },
@@ -188,7 +188,7 @@ export const usePushTabViewModel = (): PushTabViewModel => {
       notify(`Erro ao iniciar autorização Gmail: ${message}`, 'error');
       setIsAuthorizing(false);
     }
-  }, [currentTenant, user, notify, createOrUpdateGmailConnectionUC, connections]);
+  }, [currentTenant, user, effectiveName, notify, createOrUpdateGmailConnectionUC, connections]);
 
   const handleDelete = useCallback(
     (id: string) => {

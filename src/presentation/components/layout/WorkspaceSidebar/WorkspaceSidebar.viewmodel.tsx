@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import {
   RiDashboardLine,
   RiCalendar2Line,
@@ -10,9 +10,11 @@ import {
   RiNewspaperLine,
   RiBuilding2Line,
   RiInboxLine,
+  RiHistoryLine,
 } from 'react-icons/ri';
 import { useWorkspace } from '../../../../stores/useWorkspace';
 import { useAuth } from '../../../../stores/useAuth';
+import { useTenant } from '../../../../stores/useTenant';
 import { useTheme } from '../../../../stores/useTheme';
 import { useCommandPalette } from '../../../../stores/useCommandPalette';
 import { useNewsInteraction } from '../../../../stores/useNewsInteraction';
@@ -24,6 +26,7 @@ export interface NavItem {
   key: string;
   label: string;
   icon: React.ReactNode;
+  requiresTenantAdmin?: boolean;
 }
 
 export interface ThemeOption {
@@ -44,6 +47,7 @@ const NAV_ITEMS: NavItem[] = [
   { key: 'pushes',          label: 'Pushes do Tribunal',  icon: <RiInboxLine />              },
   { key: 'news',            label: 'Notícias',            icon: <RiNewspaperLine />          },
   { key: 'tenant-settings', label: 'Escritório',          icon: <RiBuilding2Line />          },
+  { key: 'audit-logs',      label: 'Auditoria',           icon: <RiHistoryLine />, requiresTenantAdmin: true },
 ];
 
 const THEME_OPTIONS: ThemeOption[] = [
@@ -90,6 +94,7 @@ export const useWorkspaceSidebarViewModel = (): WorkspaceSidebarViewModel => {
 
   const { openTab, panels, activePanelId } = useWorkspace();
   const { userRole, user, effectivePhotoURL, effectiveName, signOut } = useAuth();
+  const { tenantRole } = useTenant();
   const { mode, setTheme } = useTheme();
   const { open: openCommandPalette } = useCommandPalette();
   const { unreadCount: unreadNewsCount } = useNewsInteraction();
@@ -99,6 +104,11 @@ export const useWorkspaceSidebarViewModel = (): WorkspaceSidebarViewModel => {
 
   const activeKey = panels[activePanelId]?.activeTabKey ?? null;
   const isAdmin = userRole === 'SYSTEM';
+
+  const navItems = useMemo(
+    () => NAV_ITEMS.filter((item) => !item.requiresTenantAdmin || isAdmin || tenantRole === 'admin'),
+    [isAdmin, tenantRole],
+  );
 
   const toggleCollapse = useCallback(() => setCollapsed(c => !c), []);
 
@@ -143,7 +153,7 @@ export const useWorkspaceSidebarViewModel = (): WorkspaceSidebarViewModel => {
 
   return {
     collapsed,
-    navItems: NAV_ITEMS,
+    navItems,
     unreadNewsCount,
     unreadPushCount,
     activeKey,

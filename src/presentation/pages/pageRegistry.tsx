@@ -14,6 +14,7 @@ import {
   RiBarChartBoxLine,
   RiFileTextLine,
   RiLineChartLine,
+  RiHistoryLine,
 } from 'react-icons/ri';
 import type { UserRole } from '../../domain/entities';
 import { DashboardView } from './Dashboard/Dashboard.view';
@@ -37,6 +38,7 @@ import { ViewDeadlineView } from './ViewDeadline/ViewDeadline.view';
 import { AccessManagementView } from './AccessManagement/AccessManagement.view';
 import { ProfileView } from './Profile/Profile.view';
 import { TenantSettingsView } from './TenantSettings/TenantSettings.view';
+import { AuditLogsView } from './AuditLogs/AuditLogs.view';
 
 export interface PageDefinition {
   key: string;
@@ -103,6 +105,7 @@ export const PAGE_REGISTRY: PageDefinition[] = [
   { key: 'tenant-settings',  title: 'Escritório',          icon: <RiBuilding2Line size={20} />,          component: TenantSettingsView,  fullBleed: true },
   { key: '', keyPrefix: 'tenant-settings:', title: 'Escritório', icon: <RiBuilding2Line size={20} />, component: TenantSettingsView, fullBleed: true },
   { key: 'access-management', title: 'Gestão de Acessos', icon: <RiShieldUserLine size={20} />,         component: AccessManagementView, requiredRole: 'SYSTEM' },
+  { key: 'audit-logs',       title: 'Auditoria',           icon: <RiHistoryLine size={20} />,           component: AuditLogsView        },
   { key: 'profile',          title: 'Meu Perfil',          icon: <RiUserLine size={20} />,               component: ProfileView          },
   {
     key: 'add-news',

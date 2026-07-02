@@ -177,7 +177,7 @@ export const useViewCaseViewModel = (tabKey: string): ViewCaseViewModel => {
   const { typeConfigs, addItem: addDocumentType, removeItem: removeDocumentType } = useDocumentTypeLookup();
   const { persons } = usePersonStore();
   const { contracts } = useContractStore();
-  const { user } = useAuth();
+  const { user, effectiveName } = useAuth();
   const { tenantRole, currentTenant, members } = useTenant();
   const { setTabTitle, closeTab, openTab, activePanelId } = useWorkspace();
   const { notify } = useNotification();
@@ -192,7 +192,7 @@ export const useViewCaseViewModel = (tabKey: string): ViewCaseViewModel => {
   const isAdmin = tenantRole === 'admin';
 
   const [activeTab, setActiveTab] = useState<ViewCaseTab>('data');
-  const [formData, setFormDataState] = useState<CaseFormData>(() => buildFormData(case_, user?.id ?? '', user?.displayName ?? ''));
+  const [formData, setFormDataState] = useState<CaseFormData>(() => buildFormData(case_, user?.id ?? '', effectiveName));
   const [isSaving, setIsSaving] = useState(false);
   const [isTagManagerOpen, setIsTagManagerOpen] = useState(false);
   const [copyLinkDone, setCopyLinkDone] = useState(false);
@@ -245,10 +245,10 @@ export const useViewCaseViewModel = (tabKey: string): ViewCaseViewModel => {
   useEffect(() => {
     if (case_) {
       // eslint-disable-next-line react-hooks/set-state-in-effect -- sincroniza formulário ao carregar/atualizar dados do processo
-      setFormDataState(buildFormData(case_, user?.id ?? '', user?.displayName ?? ''));
+      setFormDataState(buildFormData(case_, user?.id ?? '', effectiveName));
       setTabTitle(tabKey, case_.caseNumber ?? case_.title);
     }
-  }, [case_, tabKey, setTabTitle, user]);
+  }, [case_, tabKey, setTabTitle, user, effectiveName]);
 
   useEffect(() => {
     if (!case_ || !currentTenant) return;
@@ -294,7 +294,7 @@ export const useViewCaseViewModel = (tabKey: string): ViewCaseViewModel => {
         phase: formData.phase as CasePhase,
         status: formData.status as CaseStatus,
         responsibleLawyerId: formData.responsibleLawyerId || (user?.id ?? ''),
-        responsibleLawyerName: (selectedMember?.displayName ?? formData.responsibleLawyerName) || (user?.displayName ?? ''),
+        responsibleLawyerName: (selectedMember?.displayName ?? formData.responsibleLawyerName) || effectiveName,
         contractId: formData.contractId || null,
         contractNumber: formData.contractId ? (selectedContract?.number ?? formData.contractNumber) : null,
         activePoleIds: formData.activePoleIds,
@@ -316,7 +316,12 @@ export const useViewCaseViewModel = (tabKey: string): ViewCaseViewModel => {
         openTab(newTabKey);
         setTabTitle(newTabKey, created.caseNumber ?? created.title);
       } else if (case_) {
-        await updateCase(case_.id, payload);
+        await updateCase(case_.id, {
+          ...payload,
+          updatedBy: user?.id ?? '',
+          updatedByName: effectiveName,
+          updatedByPhotoURL: user?.photoURL ?? '',
+        });
         notify('Processo atualizado com sucesso!', 'success');
       }
     } catch {
@@ -324,7 +329,7 @@ export const useViewCaseViewModel = (tabKey: string): ViewCaseViewModel => {
     } finally {
       setIsSaving(false);
     }
-  }, [formData, isNew, case_, members, contracts, createCase, updateCase, currentTenant, notify, user, tabKey, setTabTitle, closeTab, openTab, activePanelId]);
+  }, [formData, isNew, case_, members, contracts, createCase, updateCase, currentTenant, notify, user, effectiveName, tabKey, setTabTitle, closeTab, openTab, activePanelId]);
 
   const appliedTags = useMemo(
     () => (case_ ? getTagsForCase(case_.id, case_.tagIds ?? []) : []),
@@ -366,7 +371,7 @@ export const useViewCaseViewModel = (tabKey: string): ViewCaseViewModel => {
         title: newNoteTitle.trim(),
         text: newNoteText.trim(),
         createdBy: user.id,
-        createdByName: user.displayName,
+        createdByName: effectiveName,
         createdByPhotoUrl: user.photoURL ?? undefined,
       });
       setNotes((prev) => [note, ...prev]);
@@ -379,7 +384,7 @@ export const useViewCaseViewModel = (tabKey: string): ViewCaseViewModel => {
     } finally {
       setIsAddingNote(false);
     }
-  }, [newNoteTitle, newNoteText, case_, currentTenant, user, noteUC, notify]);
+  }, [newNoteTitle, newNoteText, case_, currentTenant, user, effectiveName, noteUC, notify]);
 
   const requestDeleteNote = useCallback((note: CaseNote) => setNoteToDelete(note), []);
   const cancelDeleteNote = useCallback(() => setNoteToDelete(null), []);
@@ -422,7 +427,7 @@ export const useViewCaseViewModel = (tabKey: string): ViewCaseViewModel => {
         url,
         storagePath,
         createdBy: user.id,
-        createdByName: user.displayName,
+        createdByName: effectiveName,
         createdByPhotoUrl: user.photoURL ?? undefined,
       });
       setDocuments((prev) => [addedDoc, ...prev]);
@@ -434,7 +439,7 @@ export const useViewCaseViewModel = (tabKey: string): ViewCaseViewModel => {
     } finally {
       setIsUploadingDoc(false);
     }
-  }, [pendingFile, pendingType, case_, currentTenant, user, docUC, notify]);
+  }, [pendingFile, pendingType, case_, currentTenant, user, effectiveName, docUC, notify]);
 
   const requestDeleteDoc = useCallback((doc: CaseDocument) => setDocToDelete(doc), []);
   const cancelDeleteDoc = useCallback(() => setDocToDelete(null), []);

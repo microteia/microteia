@@ -193,7 +193,7 @@ export const useViewPersonViewModel = (tabKey: string): ViewPersonViewModel => {
   const { tags, getTagsForPerson, setTagsForPerson, createTag, updateTag, deleteTag } = usePersonTagStore();
   const { typeConfigs, occupationConfigs, nationalityConfigs, maritalStatusConfigs, cityConfigs, relationshipConfigs, addItem, removeItem } = usePersonLookup();
   const { typeConfigs: documentTypeConfigs, addItem: addDocumentType, removeItem: removeDocumentType } = useDocumentTypeLookup();
-  const { user } = useAuth();
+  const { user, effectiveName } = useAuth();
   const { tenantRole, currentTenant } = useTenant();
   const { setTabTitle, closeTab, openTab, activePanelId } = useWorkspace();
   const { notify } = useNotification();
@@ -448,7 +448,12 @@ export const useViewPersonViewModel = (tabKey: string): ViewPersonViewModel => {
         openTab(newTabKey);
         setTabTitle(newTabKey, created.name);
       } else if (person) {
-        await updatePerson(person.id, payload);
+        await updatePerson(person.id, {
+          ...payload,
+          updatedBy: user?.id ?? '',
+          updatedByName: effectiveName,
+          updatedByPhotoURL: user?.photoURL ?? '',
+        });
         notify('Pessoa atualizada com sucesso!', 'success');
       }
     } catch (err) {
@@ -457,7 +462,7 @@ export const useViewPersonViewModel = (tabKey: string): ViewPersonViewModel => {
     } finally {
       setIsSaving(false);
     }
-  }, [formData, isNew, person, createPerson, updatePerson, currentTenant, notify, user, tabKey, setTabTitle, closeTab, openTab, activePanelId]);
+  }, [formData, isNew, person, createPerson, updatePerson, currentTenant, notify, user, effectiveName, tabKey, setTabTitle, closeTab, openTab, activePanelId]);
 
   const tagAdapter: TagStoreAdapter = useMemo(() => ({
     tags,
@@ -494,7 +499,7 @@ export const useViewPersonViewModel = (tabKey: string): ViewPersonViewModel => {
         title: newNoteTitle.trim(),
         text: newNoteText.trim(),
         createdBy: user.id,
-        createdByName: user.displayName,
+        createdByName: effectiveName,
         createdByPhotoUrl: user.photoURL ?? undefined,
       });
       setNotes((prev) => [note, ...prev]);
@@ -507,7 +512,7 @@ export const useViewPersonViewModel = (tabKey: string): ViewPersonViewModel => {
     } finally {
       setIsAddingNote(false);
     }
-  }, [newNoteTitle, newNoteText, person, currentTenant, user, noteUC, notify]);
+  }, [newNoteTitle, newNoteText, person, currentTenant, user, effectiveName, noteUC, notify]);
 
   const requestDeleteNote = useCallback((note: PersonNote) => setNoteToDelete(note), []);
   const cancelDeleteNote = useCallback(() => setNoteToDelete(null), []);
@@ -550,7 +555,7 @@ export const useViewPersonViewModel = (tabKey: string): ViewPersonViewModel => {
         url,
         storagePath,
         createdBy: user.id,
-        createdByName: user.displayName,
+        createdByName: effectiveName,
         createdByPhotoUrl: user.photoURL ?? undefined,
       });
       setDocuments((prev) => [addedDoc, ...prev]);
@@ -562,7 +567,7 @@ export const useViewPersonViewModel = (tabKey: string): ViewPersonViewModel => {
     } finally {
       setIsUploadingDoc(false);
     }
-  }, [pendingFile, pendingType, person, currentTenant, user, docUC, notify]);
+  }, [pendingFile, pendingType, person, currentTenant, user, effectiveName, docUC, notify]);
 
   const requestDeleteDoc = useCallback((doc: PersonDocument) => setDocToDelete(doc), []);
   const cancelDeleteDoc = useCallback(() => setDocToDelete(null), []);

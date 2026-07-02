@@ -137,7 +137,7 @@ export const useViewFinancialViewModel = (tabKey: string): ViewFinancialViewMode
   const { persons } = usePersonStore();
   const { contracts } = useContractStore();
   const { typeConfigs: documentTypeConfigs, addItem: addDocumentType, removeItem: removeDocumentType } = useDocumentTypeLookup();
-  const { user } = useAuth();
+  const { user, effectiveName } = useAuth();
   const { tenantRole, currentTenant } = useTenant();
   const { setTabTitle, closeTab, openTab, activePanelId } = useWorkspace();
   const { notify } = useNotification();
@@ -276,7 +276,7 @@ export const useViewFinancialViewModel = (tabKey: string): ViewFinancialViewMode
         url,
         storagePath,
         createdBy: user.id,
-        createdByName: user.displayName,
+        createdByName: effectiveName,
         createdByPhotoUrl: user.photoURL ?? undefined,
       });
       setDocuments((prev) => [addedDoc, ...prev]);
@@ -288,7 +288,7 @@ export const useViewFinancialViewModel = (tabKey: string): ViewFinancialViewMode
     } finally {
       setIsUploadingDoc(false);
     }
-  }, [pendingFile, pendingType, financial, currentTenant, user, docUC, notify]);
+  }, [pendingFile, pendingType, financial, currentTenant, user, effectiveName, docUC, notify]);
 
   const requestDeleteDoc = useCallback((doc: FinancialDocument) => setDocToDelete(doc), []);
   const cancelDeleteDoc = useCallback(() => setDocToDelete(null), []);
@@ -345,7 +345,12 @@ export const useViewFinancialViewModel = (tabKey: string): ViewFinancialViewMode
         openTab(newTabKey);
         setTabTitle(newTabKey, created.category);
       } else if (financial) {
-        await updateFinancial(financial.id, payload);
+        await updateFinancial(financial.id, {
+          ...payload,
+          updatedBy: user?.id ?? '',
+          updatedByName: effectiveName,
+          updatedByPhotoURL: user?.photoURL ?? '',
+        });
         notify('Lançamento atualizado com sucesso!', 'success');
       }
     } catch (err) {
@@ -354,7 +359,7 @@ export const useViewFinancialViewModel = (tabKey: string): ViewFinancialViewMode
     } finally {
       setIsSaving(false);
     }
-  }, [formData, isNew, financial, cases, persons, contracts, createFinancial, updateFinancial, notify, user, tabKey, setTabTitle, closeTab, openTab, activePanelId]);
+  }, [formData, isNew, financial, cases, persons, contracts, createFinancial, updateFinancial, notify, user, effectiveName, tabKey, setTabTitle, closeTab, openTab, activePanelId]);
 
   const tagAdapter: TagStoreAdapter = useMemo(() => ({
     tags,

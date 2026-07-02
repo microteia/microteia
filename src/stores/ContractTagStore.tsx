@@ -14,7 +14,7 @@ import { ContractTagContext } from './useContractTagStore';
 export const ContractTagStoreProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { contractTagRepository, contractRepository } = useDI();
   const { currentTenant } = useTenant();
-  const { user } = useAuth();
+  const { user, effectiveName } = useAuth();
   const { updateContract } = useContractStore();
 
   const [tags, setTags] = useState<ContractTag[]>([]);
@@ -76,10 +76,16 @@ export const ContractTagStoreProvider: React.FC<{ children: React.ReactNode }> =
 
   const updateTag = useCallback(async (tagId: string, data: { name: string; color: string }) => {
     if (!currentTenant) return;
-    await uc.updateTag.execute(currentTenant.id, tagId, data);
-    setTags((prev) => prev.map((t) => t.id === tagId ? { ...t, ...data } : t));
+    const payload = {
+      ...data,
+      updatedBy: user?.id ?? '',
+      updatedByName: effectiveName,
+      updatedByPhotoURL: user?.photoURL ?? '',
+    };
+    await uc.updateTag.execute(currentTenant.id, tagId, payload);
+    setTags((prev) => prev.map((t) => t.id === tagId ? { ...t, ...payload } : t));
     storeEvents.emit(StoreEvents.CONTRACT_TAG_UPDATED);
-  }, [currentTenant, uc]);
+  }, [currentTenant, user, effectiveName, uc]);
 
   const deleteTag = useCallback(async (tagId: string) => {
     if (!currentTenant) return;

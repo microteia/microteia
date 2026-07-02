@@ -46,6 +46,7 @@ import { FirebaseContractLookupRepository } from '../../data/repositories/Fireba
 import { FirebaseFinancialLookupRepository } from '../../data/repositories/FirebaseFinancialLookupRepository';
 import { FirebaseDeadlineTypeRepository } from '../../data/repositories/FirebaseDeadlineTypeRepository';
 import { FirebaseDocumentTypeRepository } from '../../data/repositories/FirebaseDocumentTypeRepository';
+import { FirebaseAuditLogRepository } from '../../data/repositories/FirebaseAuditLogRepository';
 import { DIContext } from './useDI';
 import type { DIContainer } from './useDI';
 
@@ -98,6 +99,7 @@ export const DIProvider: React.FC<{ children: React.ReactNode }> = ({ children }
     pushRepository:           new FirebasePushRepository(),
     pushInteractionRepository: new FirebasePushInteractionRepository(),
     documentTypeRepository:   new FirebaseDocumentTypeRepository(),
+    auditLogRepository:       new FirebaseAuditLogRepository(),
   }), []);
 
   return <DIContext.Provider value={container}>{children}</DIContext.Provider>;

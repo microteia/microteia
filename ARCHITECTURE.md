@@ -80,6 +80,7 @@ O projeto usa **Clean Architecture + MVVM** com separação estrita em camadas. 
 | `NewsComment` | `newsComments/{id}` | Não |
 | `NewsDocument` | `newsDocuments/{id}` | Não |
 | `SavedFilter` | `savedFilters/{uid}_{screenKey}` | Não |
+| `AuditLog` | `auditLogs/{id}` | Sim (campo `tenantId`, coleção flat) |
 
 ### Tipos-chave
 
@@ -609,6 +610,79 @@ interface PushInteraction {
 Coleção Firestore: `pushInteractions/{uid}_{pushId}` (raiz)
 
 **Motivação da estrutura raiz:** Permite query eficiente por `userId` para calcular contador de não lidos sem carregar todos os pushes do tenant.
+
+---
+
+## Módulo de Auditoria (Audit Logs)
+
+Trilha de auditoria imutável e automática das principais entidades de negócio do tenant. **Nunca é escrita pelo frontend** — só Cloud Functions (Admin SDK) criam documentos em `auditLogs`; o frontend só lê (tela "Auditoria").
+
+### Entidade AuditLog
+
+```typescript
+type AuditAction = 'CREATE' | 'UPDATE' | 'DELETE' | 'SYSTEM';
+type AuditSeverity = 'LOW' | 'HIGH' | 'CRITICAL';
+type AuditType = 'AUDIT' | 'ERROR';
+
+interface AuditLog {
+  id: string;
+  tenantId: string;        // 'SYSTEM' para eventos sem tenant (erro global do pipeline)
+  title: string;            // ex: "Alteração na entidade de Pessoas"
+  userId: string;
+  userName: string;
+  photoURL: string;
+  action: AuditAction;
+  severity: AuditSeverity;  // default 'LOW'
+  type: AuditType;          // default 'AUDIT'
+  entity: string;           // 'Person' | 'Case' | ... | 'Tenant' | 'SYSTEM'
+  entityId: string;
+  entityLink?: string;      // deeplink opcional, ex: 'view-case:abc123'
+  text: string;             // Markdown (frase + bloco json com o diff)
+  createdAt: Date;
+  expiresAt: Date;          // createdAt + 30 dias — TTL do Firestore
+}
+```
+
+Coleção Firestore: `auditLogs/{id}` (raiz, flat — isolamento via campo `tenantId` + Security Rules, não subcoleção).
+
+### Captura automática — Cloud Functions
+
+Em vez de uma Cloud Function por coleção monitorada (o que exigiria ~17 deploys), o Curatino usa **duas triggers com wildcard no nome da coleção**, cada uma com uma tabela de configuração interna (`functions/src/domain/services/auditableEntities.ts`) decidindo o que é auditável — coleções fora da allowlist (lookups, `aiConnections`, `pushes`, etc.) são ignoradas rapidamente:
+
+| Handler | Trigger | Cobre |
+|---|---|---|
+| `auditFlatEntityChange` | `onDocumentWritten('tenants/{tenantId}/{collection}/{docId}')` | `persons`, `cases`, `contracts`, `deadlines`, `financials`, `members`, `personTags`, `caseTags`, `contractTags`, `financialTags` |
+| `auditNestedEntityChange` | `onDocumentWritten('tenants/{tenantId}/{parent}/{parentId}/{sub}/{docId}')` | `notes`/`documents` de `persons`/`cases`/`contracts` (+ `documents` de `financials`) |
+| `auditTenantDeleted` | `onDocumentDeleted('tenants/{tenantId}')` | Exclusão do escritório inteiro — sempre `severity: 'CRITICAL'` |
+| `backupDeletedAuditLog` | `onDocumentDeleted('auditLogs/{logId}')` | Backup frio no Storage (ver abaixo) |
+
+**Diff e Markdown** (`functions/src/domain/services/auditDiff.ts`): `computeChangedFields` retorna um `FieldDiff { before, after }` com os valores **antigos e novos** de cada campo alterado (UPDATE); `normalizeAllFields` retorna todos os campos do documento (DELETE). Ambos normalizam `Timestamp`/`Date` para o formato brasileiro `dd/mm/aaaa` (ou `dd/mm/aaaa HH:mm` quando o horário não é meia-noite), para o JSON ficar legível em português. `buildAuditText` monta a frase + bloco **Antes:** (UPDATE e DELETE) + bloco **Depois:** (só UPDATE) em \`\`\`json\`\`\`; CREATE não inclui bloco (nada "mudou" ainda).
+
+**Autoria:** CREATE/UPDATE usam os campos denormalizados `updatedBy`/`updatedByName`/`updatedByPhotoURL` (adicionados a `Person`, `Case`, `Contract`, `Deadline`, `Financial`, `PersonTag`, `CaseTag`, `ContractTag`, `FinancialTag`, `TenantMember` — preenchidos pelo frontend a cada update) quando presentes; senão a Cloud Function resolve via `UserProfileLookupService`. **DELETE não tem stamp próprio** — usa o último editor conhecido do documento (`updatedBy`, ou `createdBy` se nunca editado), lido do snapshot `before` que a trigger já recebe. Isso é uma aproximação deliberada (evita alterar ~40 arquivos de exclusão existentes): se X editou um registro e Y o exclui depois, o log credita X, não Y.
+
+**Nome efetivo do usuário — prioridade única em todo o sistema:** `userProfiles.nickname` > `userProfiles.fullName` > `users.displayName` > `users.email`. No frontend isso é `effectiveName`, calculado em `stores/AuthContext.tsx` e usado em **todo** carimbo de autoria (`createdByName`, `updatedByName`, `authorName`, `editedByName`, `authorizedByName`, nome do membro/dono ao criar um tenant) — nunca leia `user.displayName` diretamente para gravar autoria. No backend, `UserProfileLookupService.resolveActor` (`functions/src/data/services/UserProfileLookupService.ts`) espelha exatamente a mesma ordem, lendo `userProfiles/{uid}` e `users/{uid}` em paralelo.
+
+**Severidade:** `DELETE` → `HIGH`; mudança do campo `role` em `members` → `HIGH`; exclusão de `Tenant` → `CRITICAL`; erro não tratado no próprio pipeline → `type: 'ERROR'` + `severity: 'CRITICAL'` (auto-monitoramento, escrito com try/catch próprio que nunca lança — ver `logAuditError`); tudo mais fica no default `LOW`/`AUDIT`.
+
+**Filtro de ruído:** updates onde só mudaram campos de bookkeeping (`updatedAt`, `updatedBy*`) não geram log — evita entradas vazias quando um formulário é salvo sem alteração real.
+
+### Retenção (TTL) e backup frio
+
+`expiresAt` é calculado como `createdAt + 30 dias`. **Passo manual obrigatório:** habilitar a política de TTL no Firestore Console (Firestore → TTL → coleção `auditLogs`, campo `expiresAt`) — não é configurável via código/regra.
+
+Toda exclusão de um `AuditLog` (manual ou via TTL) dispara `backupDeletedAuditLog`, que salva uma cópia em JSON no Storage antes de ser perdida:
+- `tenants/{tenantId}/logs/{entity}/{logId}.json` (um arquivo por log, pasta por entidade)
+- `systemLogs/{entity}/{logId}.json` quando `tenantId === 'SYSTEM'`
+
+O upload seta `metadata.metadata.firebaseStorageDownloadTokens` (`crypto.randomUUID()`) manualmente — diferente do SDK client-side (`uploadBytes`, usado em todo o resto do app para anexos), o Admin SDK **não** gera esse token sozinho, e sem ele o botão "Download" do Firebase Console (e `getDownloadURL()`) não consegue montar a URL do arquivo.
+
+### Tela de Auditoria (frontend)
+
+`presentation/pages/AuditLogs/` (MVVM + `AuditLogCard/`, padrão de `News/`+`NewsCard`). Somente leitura — `AuditLogStore` **não usa `onSnapshot`** (desvio deliberado do padrão dos outros stores): como `auditLogs` cresce indefinidamente, a store faz busca paginada por cursor (`limit` + `startAfter`) sob demanda via `IAuditLogRepository.getPage`. Acesso restrito a admin do tenant (e SYSTEM, que vê todos os escritórios via filtro "Todos os Escritórios" — usa `ITenantRepository.getAllTenants()`, exclusivo para SYSTEM). Item de navegação em `WorkspaceSidebar` só aparece para esses papéis (`NavItem.requiresTenantAdmin`). O card usa `MarkdownContent` para renderizar `text`, com "Ver mais/Ver menos" (estado `expandedIds` no ViewModel da página, não no card) e um botão de deeplink quando `entityLink` existe.
+
+**Filtros — só o escopo de escritório vai para o Firestore.** `IAuditLogRepository.getPage` só aceita `tenantId` (+ paginação) — é a **única** query real (`where('tenantId','==',X) + orderBy('createdAt','desc')`), exigindo um **único** índice composto (`auditLogs`: `tenantId` ASC, `createdAt` DESC — ver seção de índices). Os filtros de Entidade/Ação/Severidade/Busca do `CompositeFilter` são aplicados **client-side**, em `AuditLogs.viewmodel.tsx`, sobre a página já carregada — decisão deliberada para não exigir um índice composto por combinação de filtro (`tenantId`+`entity`, `tenantId`+`action`, etc.), o que tornaria o setup inicial muito mais frágil. Trade-off aceito: um filtro pode não encontrar resultados que existem em páginas ainda não carregadas — nesse caso, use "Carregar mais" antes de filtrar.
+
+Abaixo do `CompositeFilter`, um `<InfoBanner variant="info">` fixo avisa sobre a retenção de 30 dias (mesmo padrão de tarja informativa usado em outras telas — nunca `<p>`/`<div>` ad-hoc).
 
 ---
 
@@ -1312,6 +1386,8 @@ service cloud.firestore {
     match /tenants/{tenantId} {
       // Qualquer membro pode ler o tenant
       allow get: if isMember(tenantId);
+      // Somente admin global pode listar TODOS os tenants (filtro "Todos os Escritórios" em Auditoria)
+      allow list: if isSystemAdmin();
       // Somente admin do tenant pode atualizar dados do escritório
       allow update: if isTenantAdmin(tenantId);
       // Qualquer usuário autenticado pode criar um tenant (cria o próprio escritório)
@@ -1763,6 +1839,17 @@ service cloud.firestore {
         && request.resource.data.userId == request.auth.uid;
     }
 
+    // ─── Logs de Auditoria ────────────────────────────────────────────────────
+    // Coleção flat na raiz (não subcoleção de tenant). Escrita bloqueada para
+    // todos os clientes — somente Cloud Functions (Admin SDK) criam documentos.
+
+    match /auditLogs/{logId} {
+      allow read: if request.auth != null
+        && (isSystemAdmin()
+            || (isMember(resource.data.tenantId) && memberData(resource.data.tenantId).role == 'admin'));
+      allow write: if false;
+    }
+
   }
 }
 ```
@@ -1867,6 +1954,21 @@ service firebase.storage {
       allow delete: if request.auth != null && canEditNews(newsId);
     }
 
+    // ─── Backup frio de Logs de Auditoria ────────────────────────────────────
+    // Path: tenants/{tenantId}/logs/{entity}/{logId}.json
+    // Escrito somente pela Cloud Function backupDeletedAuditLog (Admin SDK).
+    match /tenants/{tenantId}/logs/{entity}/{allPaths=**} {
+      allow read: if request.auth != null
+        && firestore.get(/databases/(default)/documents/tenants/$(tenantId)/members/$(request.auth.uid)).data.role == 'admin';
+      allow write: if false;
+    }
+    // Path: systemLogs/{entity}/{logId}.json — logs sem tenant (erros globais do pipeline)
+    match /systemLogs/{entity}/{allPaths=**} {
+      allow read: if request.auth != null
+        && firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role == 'SYSTEM';
+      allow write: if false;
+    }
+
     // Bloqueia tudo o mais
     match /{allPaths=**} {
       allow read, write: if false;
@@ -1900,6 +2002,7 @@ service firebase.storage {
 | `news` | `tenantId` ASC, `createdAt` DESC | Para listar notícias por escopo (sistema ou tenant) |
 | `members` (collectionGroup) | `userId` ASC | Para descobrir tenants de um usuário |
 | `gmailConnections` | `email` ASC, `tenantId` ASC | Para buscar conexões Gmail por email na Cloud Function |
+| `auditLogs` | `tenantId` ASC, `createdAt` DESC | Para listar auditoria por escritório, mais recente primeiro |
 
 ---
 

@@ -50,7 +50,7 @@ export const useCreateDeadlineFromPushViewModel = (
   const { createDeadline } = useDeadlineStore();
   const { typeConfigs, addType, removeType } = useDeadlineLookup();
   const { members, currentTenant } = useTenant();
-  const { user } = useAuth();
+  const { user, effectiveName } = useAuth();
   const { updateStatus } = usePush();
   const { markAsRead } = usePushInteraction();
   const { notify } = useNotification();
@@ -61,7 +61,7 @@ export const useCreateDeadlineFromPushViewModel = (
     priority: 'Média',
     dueDate: '',
     responsibleLawyerId: user?.id ?? '',
-    responsibleLawyerName: user?.displayName ?? '',
+    responsibleLawyerName: effectiveName,
   }));
   const [isSaving, setIsSaving] = useState(false);
 

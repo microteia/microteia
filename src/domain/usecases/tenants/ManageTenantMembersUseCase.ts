@@ -1,12 +1,14 @@
 import type { TenantMember, TenantRole } from '../../entities';
-import type { ITenantRepository } from '../../repositories/ITenantRepository';
+import type { ITenantRepository, TenantMemberRoleActor } from '../../repositories/ITenantRepository';
+
+export type { TenantMemberRoleActor };
 
 export type AddTenantMemberUseCase = {
   execute: (tenantId: string, member: Omit<TenantMember, 'addedAt'>) => Promise<void>;
 };
 
 export type UpdateTenantMemberRoleUseCase = {
-  execute: (tenantId: string, userId: string, role: TenantRole) => Promise<void>;
+  execute: (tenantId: string, userId: string, role: TenantRole, actor: TenantMemberRoleActor) => Promise<void>;
 };
 
 export type RemoveTenantMemberUseCase = {
@@ -22,7 +24,7 @@ export const makeAddTenantMemberUseCase = (repo: ITenantRepository): AddTenantMe
 });
 
 export const makeUpdateTenantMemberRoleUseCase = (repo: ITenantRepository): UpdateTenantMemberRoleUseCase => ({
-  execute: (tenantId, userId, role) => repo.updateMemberRole(tenantId, userId, role),
+  execute: (tenantId, userId, role, actor) => repo.updateMemberRole(tenantId, userId, role, actor),
 });
 
 export const makeRemoveTenantMemberUseCase = (repo: ITenantRepository): RemoveTenantMemberUseCase => ({

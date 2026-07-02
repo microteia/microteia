@@ -61,7 +61,7 @@ export const useViewDeadlineViewModel = (tabKey: string): ViewDeadlineViewModel 
   const { deadlines, createDeadline, updateDeadline } = useDeadlineStore();
   const { typeConfigs, addType, removeType } = useDeadlineLookup();
   const { cases } = useCaseStore();
-  const { user } = useAuth();
+  const { user, effectiveName } = useAuth();
   const { members } = useTenant();
   const { setTabTitle, closeTab, activePanelId } = useWorkspace();
   const { notify } = useNotification();
@@ -73,14 +73,14 @@ export const useViewDeadlineViewModel = (tabKey: string): ViewDeadlineViewModel 
   );
 
   const [formData, setFormDataState] = useState<DeadlineFormData>(() =>
-    buildForm(deadline, user?.id ?? '', user?.displayName ?? ''),
+    buildForm(deadline, user?.id ?? '', effectiveName),
   );
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- re-initialise form when deadline or user loads from store
-    setFormDataState(buildForm(deadline, user?.id ?? '', user?.displayName ?? ''));
-  }, [deadline, user]);
+    setFormDataState(buildForm(deadline, user?.id ?? '', effectiveName));
+  }, [deadline, user, effectiveName]);
 
   useEffect(() => {
     if (!isNew && deadline) {
@@ -190,7 +190,12 @@ export const useViewDeadlineViewModel = (tabKey: string): ViewDeadlineViewModel 
         notify('Prazo cadastrado com sucesso!', 'success');
         closeTab(tabKey, activePanelId ?? '');
       } else {
-        await updateDeadline(deadlineId, payload);
+        await updateDeadline(deadlineId, {
+          ...payload,
+          updatedBy: user?.id ?? '',
+          updatedByName: effectiveName,
+          updatedByPhotoURL: user?.photoURL ?? '',
+        });
         notify('Prazo atualizado com sucesso!', 'success');
       }
     } catch {
@@ -198,7 +203,7 @@ export const useViewDeadlineViewModel = (tabKey: string): ViewDeadlineViewModel 
     } finally {
       setIsSaving(false);
     }
-  }, [formData, isNew, deadlineId, cases, members, createDeadline, updateDeadline, closeTab, notify, user, tabKey, activePanelId]);
+  }, [formData, isNew, deadlineId, cases, members, createDeadline, updateDeadline, closeTab, notify, user, effectiveName, tabKey, activePanelId]);
 
   return {
     isNew,
