@@ -107,14 +107,16 @@ export const S = {
     }
   `,
 
-  DayColumn: styled.div<{ $isToday: boolean }>`
+  DayColumn: styled.div<{ $isToday: boolean; $isDragOver: boolean }>`
     display: flex;
     flex-direction: column;
     min-width: 170px;
     flex-shrink: 0;
     border-right: 1px solid ${({ theme }) => theme.colors.border};
-    background: ${({ theme, $isToday }) =>
-      $isToday ? `${theme.colors.primary}06` : 'transparent'};
+    background: ${({ theme, $isToday, $isDragOver }) =>
+      $isDragOver ? `${theme.colors.primary}12` : $isToday ? `${theme.colors.primary}06` : 'transparent'};
+    box-shadow: ${({ theme, $isDragOver }) => $isDragOver ? `inset 0 0 0 2px ${theme.colors.primary}` : 'none'};
+    transition: background ${({ theme }) => theme.transitions.fast}, box-shadow ${({ theme }) => theme.transitions.fast};
 
     &:last-child { border-right: none; }
   `,
@@ -167,7 +169,7 @@ export const S = {
     }
   `,
 
-  SideEventCard: styled.div<{ $color: string; $done: boolean }>`
+  SideEventCard: styled.div<{ $color: string; $done: boolean; $dragging: boolean }>`
     position: relative;
     display: flex;
     flex-direction: column;
@@ -177,9 +179,9 @@ export const S = {
     border-left: 3px solid ${({ $color }) => $color};
     border-right: 3px solid ${({ $color }) => $color};
     background: ${({ theme, $done }) => $done ? theme.colors.background : `${theme.colors.primary}08`};
-    opacity: ${({ $done }) => $done ? 0.72 : 1};
-    cursor: pointer;
-    transition: ${({ theme }) => theme.transitions.fast};
+    opacity: ${({ $done, $dragging }) => $dragging ? 0.35 : $done ? 0.72 : 1};
+    cursor: ${({ $dragging }) => $dragging ? 'grabbing' : 'grab'};
+    transition: opacity ${({ theme }) => theme.transitions.fast}, transform ${({ theme }) => theme.transitions.fast}, box-shadow ${({ theme }) => theme.transitions.fast};
 
     &:hover {
       transform: translateY(-1px);

@@ -21,6 +21,7 @@ export interface DayDeadlineItem {
 
 export interface CalendarDayColumn {
   date: Date;
+  dateKey: string;
   dayNumber: number;
   weekdayAbbr: string;
   isToday: boolean;
@@ -53,12 +54,26 @@ export interface CalendarViewModel {
   handleOpenCase: (caseId: string) => void;
   getStatusColor: (status: string) => string;
   getPriorityColor: (priority: string) => string;
+
+  draggingDeadlineId: string | null;
+  dragOverDayKey: string | null;
+  handleDragStart: (deadlineId: string) => void;
+  handleDragEnd: () => void;
+  handleDayDragOver: (dateKey: string) => void;
+  handleDayDragLeave: (dateKey: string) => void;
+  handleDayDrop: (date: Date, deadlineId: string) => Promise<void>;
 }
 
 const PRIORITIES: DeadlinePriority[] = ['Baixa', 'Média', 'Alta', 'Crítica'];
 
+const getDisplayDate = (d: Deadline): Date =>
+  d.status === 'Concluído' && d.completedAt ? d.completedAt : d.dueDate;
+
+const atDayTime = (date: Date, hours: number, minutes: number): Date =>
+  new Date(date.getFullYear(), date.getMonth(), date.getDate(), hours, minutes, 0);
+
 export const useCalendarViewModel = (): CalendarViewModel => {
-  const { deadlines, completeDeadline } = useDeadlineStore();
+  const { deadlines, completeDeadline, updateDeadline } = useDeadlineStore();
   const { cases } = useCaseStore();
   const { openTab } = useWorkspace();
   const { user } = useAuth();
@@ -67,6 +82,8 @@ export const useCalendarViewModel = (): CalendarViewModel => {
 
   const [currentMonth, setCurrentMonth] = useState<Date>(() => startOfMonth(new Date()));
   const [filterPriority, setFilterPriority] = useState<PriorityFilter>('all');
+  const [draggingDeadlineId, setDraggingDeadlineId] = useState<string | null>(null);
+  const [dragOverDayKey, setDragOverDayKey] = useState<string | null>(null);
 
   const monthLabel = useMemo(
     () => format(currentMonth, 'MMMM yyyy', { locale: ptBR }),
@@ -120,9 +137,9 @@ export const useCalendarViewModel = (): CalendarViewModel => {
     const now = new Date();
 
     return days.map((date) => {
-      const dateKey = date.toISOString().slice(0, 10);
+      const dateKey = format(date, 'yyyy-MM-dd');
       const items: DayDeadlineItem[] = filteredDeadlines
-        .filter((d) => d.dueDate.toISOString().slice(0, 10) === dateKey)
+        .filter((d) => format(getDisplayDate(d), 'yyyy-MM-dd') === dateKey)
         .sort((a, b) => {
           const pri: DeadlinePriority[] = ['Crítica', 'Alta', 'Média', 'Baixa'];
           return pri.indexOf(a.priority) - pri.indexOf(b.priority);
@@ -142,6 +159,7 @@ export const useCalendarViewModel = (): CalendarViewModel => {
 
       return {
         date,
+        dateKey,
         dayNumber: date.getDate(),
         weekdayAbbr: format(date, 'EEE', { locale: ptBR }),
         isToday: isToday(date),
@@ -199,6 +217,46 @@ export const useCalendarViewModel = (): CalendarViewModel => {
     openTab(`view-case:${caseId}`);
   }, [openTab]);
 
+  const handleDragStart = useCallback((deadlineId: string) => {
+    setDraggingDeadlineId(deadlineId);
+  }, []);
+
+  const handleDragEnd = useCallback(() => {
+    setDraggingDeadlineId(null);
+    setDragOverDayKey(null);
+  }, []);
+
+  const handleDayDragOver = useCallback((dateKey: string) => {
+    setDragOverDayKey((prev) => (prev === dateKey ? prev : dateKey));
+  }, []);
+
+  const handleDayDragLeave = useCallback((dateKey: string) => {
+    setDragOverDayKey((prev) => (prev === dateKey ? null : prev));
+  }, []);
+
+  const handleDayDrop = useCallback(async (date: Date, deadlineId: string) => {
+    setDraggingDeadlineId(null);
+    setDragOverDayKey(null);
+    if (!deadlineId) return;
+
+    const deadline = deadlines.find((d) => d.id === deadlineId);
+    if (!deadline || format(getDisplayDate(deadline), 'yyyy-MM-dd') === format(date, 'yyyy-MM-dd')) return;
+
+    try {
+      if (deadline.status === 'Concluído') {
+        await updateDeadline(deadlineId, { completedAt: atDayTime(date, 12, 0) });
+      } else if (deadline.status === 'Cancelado') {
+        await updateDeadline(deadlineId, { dueDate: atDayTime(date, 23, 59) });
+      } else {
+        const dueDate = atDayTime(date, 23, 59);
+        const status: DeadlineStatus = dueDate.getTime() < Date.now() ? 'Vencido' : 'Pendente';
+        await updateDeadline(deadlineId, { dueDate, status });
+      }
+    } catch {
+      notify('Erro ao mover o prazo.', 'error');
+    }
+  }, [deadlines, updateDeadline, notify]);
+
   return {
     currentMonth,
     monthLabel,
@@ -216,5 +274,12 @@ export const useCalendarViewModel = (): CalendarViewModel => {
     handleOpenCase,
     getStatusColor,
     getPriorityColor,
+    draggingDeadlineId,
+    dragOverDayKey,
+    handleDragStart,
+    handleDragEnd,
+    handleDayDragOver,
+    handleDayDragLeave,
+    handleDayDrop,
   };
 };

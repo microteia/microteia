@@ -48,7 +48,11 @@ export const CalendarView: React.FC = () => {
             <S.DayColumn
               key={day.dayNumber}
               $isToday={day.isToday}
+              $isDragOver={vm.dragOverDayKey === day.dateKey}
               data-today={day.isToday ? 'true' : undefined}
+              onDragOver={(e) => { e.preventDefault(); vm.handleDayDragOver(day.dateKey); }}
+              onDragLeave={() => vm.handleDayDragLeave(day.dateKey)}
+              onDrop={(e) => { e.preventDefault(); void vm.handleDayDrop(day.date, e.dataTransfer.getData('text/plain')); }}
             >
               <S.DayHeader $isToday={day.isToday}>
                 <S.DayNumber $isToday={day.isToday}>{day.dayNumber}</S.DayNumber>
@@ -61,6 +65,14 @@ export const CalendarView: React.FC = () => {
                     key={item.deadline.id}
                     $color={item.isOverdue ? theme.colors.deadlineStatusOverdue : item.color}
                     $done={item.isCompleted}
+                    $dragging={vm.draggingDeadlineId === item.deadline.id}
+                    draggable
+                    onDragStart={(e) => {
+                      e.dataTransfer.setData('text/plain', item.deadline.id);
+                      e.dataTransfer.effectAllowed = 'move';
+                      vm.handleDragStart(item.deadline.id);
+                    }}
+                    onDragEnd={vm.handleDragEnd}
                     onClick={() => vm.handleOpenDeadline(item.deadline.id)}
                   >
                     <S.SideEventType>{item.deadline.type}</S.SideEventType>
