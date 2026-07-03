@@ -38,10 +38,17 @@ export const S = {
     align-items: stretch;
     background: ${({ theme }) => theme.colors.surface};
     border-bottom: 1px solid ${({ theme }) => theme.colors.border};
-    overflow-x: auto;
-    overflow-y: hidden;
     flex-shrink: 0;
     min-height: 38px;
+  `,
+
+  TabList: styled.div`
+    display: flex;
+    align-items: stretch;
+    flex: 1;
+    min-width: 0;
+    overflow-x: auto;
+    overflow-y: hidden;
     scrollbar-width: thin;
     scrollbar-color: ${({ theme }) => theme.colors.border} transparent;
 
@@ -54,6 +61,26 @@ export const S = {
     &::-webkit-scrollbar-thumb {
       background: ${({ theme }) => theme.colors.border};
       border-radius: 2px;
+    }
+  `,
+
+  PanelCloseBtn: styled.button<{ $active: boolean }>`
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    margin: auto ${({ theme }) => theme.spacing.xs};
+    flex-shrink: 0;
+    border-radius: ${({ theme }) => theme.borderRadius.sm};
+    background: ${({ theme, $active }) => ($active ? theme.colors.primaryLight : 'transparent')};
+    color: ${({ theme, $active }) => ($active ? theme.colors.primary : theme.colors.textMuted)};
+    transition: background ${({ theme }) => theme.transitions.fast},
+                color ${({ theme }) => theme.transitions.fast};
+
+    &:hover {
+      background: ${({ theme }) => theme.colors.dangerLight};
+      color: ${({ theme }) => theme.colors.danger};
     }
   `,
 

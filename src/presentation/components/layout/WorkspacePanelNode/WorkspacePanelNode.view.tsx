@@ -19,13 +19,14 @@ export const WorkspacePanelNode: React.FC<WorkspacePanelNodeProps> = ({ node }) 
 const PanelLeaf: React.FC<{ panelId: string }> = ({ panelId }) => {
   const { panels, activePanelId, setActivePanelId } = useWorkspace();
   const panel = panels[panelId];
-  const isActive = activePanelId === panelId;
+  const hasMultiplePanels = Object.keys(panels).length > 1;
+  const isActive = hasMultiplePanels && activePanelId === panelId;
   const activeKey = panel?.activeTabKey ?? null;
   const tabKeys = panel?.tabKeys ?? [];
   const activePage = activeKey ? getPageByKey(activeKey) : undefined;
 
   return (
-    <S.PanelLeaf $active={isActive} onClick={() => !isActive && setActivePanelId(panelId)}>
+    <S.PanelLeaf onClick={() => !isActive && setActivePanelId(panelId)}>
       <TabBar panelId={panelId} />
       <S.PanelContent $noPadding={activePage?.fullBleed}>
         {tabKeys.length === 0 ? (

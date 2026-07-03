@@ -29,6 +29,7 @@ export interface WorkspaceContextValue {
   closeOtherTabs: (keepKey: string, panelId: string) => void;
   activateTab: (key: string, panelId: string) => void;
   setActivePanelId: (id: string) => void;
+  closePanel: (panelId: string) => void;
   splitPanel: (panelId: string, direction: SplitDirection) => void;
   updateSplitRatio: (splitId: string, ratio: number) => void;
   setTabTitle: (key: string, title: string) => void;

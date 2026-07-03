@@ -2,16 +2,13 @@ import styled from 'styled-components';
 import type { SplitDirection } from '../../../../stores/useWorkspace';
 
 export const S = {
-  PanelLeaf: styled.div<{ $active: boolean }>`
+  PanelLeaf: styled.div`
     display: flex;
     flex-direction: column;
     flex: 1;
     min-width: 0;
     min-height: 0;
     overflow: hidden;
-    outline: ${({ theme, $active }) =>
-      $active ? `1px solid ${theme.colors.primary}40` : '1px solid transparent'};
-    outline-offset: -1px;
   `,
 
   PanelContent: styled.div<{ $noPadding?: boolean }>`

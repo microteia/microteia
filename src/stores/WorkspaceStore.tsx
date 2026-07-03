@@ -20,6 +20,7 @@ type WorkspaceAction =
   | { type: 'CLOSE_OTHER_TABS'; keepKey: string; panelId: string }
   | { type: 'ACTIVATE_TAB'; key: string; panelId: string }
   | { type: 'SET_ACTIVE_PANEL'; panelId: string }
+  | { type: 'CLOSE_PANEL'; panelId: string }
   | { type: 'SPLIT_PANEL'; panelId: string; direction: SplitDirection }
   | { type: 'UPDATE_SPLIT_RATIO'; splitId: string; ratio: number }
   | { type: 'SET_TAB_TITLE'; key: string; title: string };
@@ -155,6 +156,28 @@ function workspaceReducer(state: WorkspaceState, action: WorkspaceAction): Works
     case 'SET_ACTIVE_PANEL':
       return { ...state, activePanelId: action.panelId };
 
+    case 'CLOSE_PANEL': {
+      if (Object.keys(state.panels).length <= 1) return state;
+      const newLayout = removePanelFromLayout(state.layout, action.panelId);
+      if (!newLayout) return state;
+
+      const removedPanel = state.panels[action.panelId];
+      const remainingPanels = { ...state.panels };
+      delete remainingPanels[action.panelId];
+
+      const remainingOverrides = { ...state.tabTitleOverrides };
+      for (const key of removedPanel?.tabKeys ?? []) delete remainingOverrides[key];
+
+      return {
+        panels: remainingPanels,
+        layout: newLayout,
+        activePanelId: state.activePanelId === action.panelId
+          ? findNewActivePanelId(remainingPanels, action.panelId)
+          : state.activePanelId,
+        tabTitleOverrides: remainingOverrides,
+      };
+    }
+
     case 'SPLIT_PANEL': {
       const sourcePanel = state.panels[action.panelId];
       if (!sourcePanel) return state;
@@ -203,6 +226,7 @@ export const WorkspaceStoreProvider: React.FC<{ children: React.ReactNode }> = (
   const closeOtherTabs = useCallback((keepKey: string, panelId: string) => dispatch({ type: 'CLOSE_OTHER_TABS', keepKey, panelId }), []);
   const activateTab = useCallback((key: string, panelId: string) => dispatch({ type: 'ACTIVATE_TAB', key, panelId }), []);
   const setActivePanelId = useCallback((panelId: string) => dispatch({ type: 'SET_ACTIVE_PANEL', panelId }), []);
+  const closePanel = useCallback((panelId: string) => dispatch({ type: 'CLOSE_PANEL', panelId }), []);
   const splitPanel = useCallback((panelId: string, direction: SplitDirection) => dispatch({ type: 'SPLIT_PANEL', panelId, direction }), []);
   const updateSplitRatio = useCallback((splitId: string, ratio: number) => dispatch({ type: 'UPDATE_SPLIT_RATIO', splitId, ratio }), []);
   const setTabTitle = useCallback((key: string, title: string) => dispatch({ type: 'SET_TAB_TITLE', key, title }), []);
@@ -218,6 +242,7 @@ export const WorkspaceStoreProvider: React.FC<{ children: React.ReactNode }> = (
       closeOtherTabs,
       activateTab,
       setActivePanelId,
+      closePanel,
       splitPanel,
       updateSplitRatio,
       setTabTitle,

@@ -11,27 +11,34 @@ export const TabBar: React.FC<TabBarProps> = ({ panelId }) => {
   return (
     <>
       <S.Bar>
-        {vm.tabs.map(tab => (
-          <S.Tab
-            key={tab.key}
-            $active={tab.isActive}
-            data-tabkey={tab.key}
-            data-panelid={panelId}
-            onClick={() => vm.handleTabClick(tab.key)}
-            onContextMenu={e => vm.handleTabContextMenu(e, tab.key)}
-            title={tab.title}
-          >
-            <span className="tab-icon">{tab.icon}</span>
-            <S.TabTitle>{tab.title}</S.TabTitle>
-            <S.CloseBtn
+        <S.TabList>
+          {vm.tabs.map(tab => (
+            <S.Tab
+              key={tab.key}
               $active={tab.isActive}
-              onClick={e => vm.handleTabClose(e, tab.key)}
-              title="Fechar"
+              data-tabkey={tab.key}
+              data-panelid={panelId}
+              onClick={() => vm.handleTabClick(tab.key)}
+              onContextMenu={e => vm.handleTabContextMenu(e, tab.key)}
+              title={tab.title}
             >
-              <RiCloseLine size={13} />
-            </S.CloseBtn>
-          </S.Tab>
-        ))}
+              <span className="tab-icon">{tab.icon}</span>
+              <S.TabTitle>{tab.title}</S.TabTitle>
+              <S.CloseBtn
+                $active={tab.isActive}
+                onClick={e => vm.handleTabClose(e, tab.key)}
+                title="Fechar"
+              >
+                <RiCloseLine size={13} />
+              </S.CloseBtn>
+            </S.Tab>
+          ))}
+        </S.TabList>
+        {vm.canClosePanel && (
+          <S.PanelCloseBtn $active={vm.isPanelActive} onClick={vm.handleClosePanel} title="Fechar painel">
+            <RiCloseLine size={15} />
+          </S.PanelCloseBtn>
+        )}
       </S.Bar>
 
       {vm.contextMenu.visible && createPortal(

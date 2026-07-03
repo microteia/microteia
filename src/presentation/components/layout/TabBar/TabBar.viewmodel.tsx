@@ -19,6 +19,7 @@ export interface TabBarViewModel {
   contextMenu: ContextMenuState;
   canSplit: boolean;
   canCloseOthers: boolean;
+  canClosePanel: boolean;
   isPanelActive: boolean;
   handleTabClick: (key: string) => void;
   handleTabClose: (e: React.MouseEvent, key: string) => void;
@@ -26,12 +27,15 @@ export interface TabBarViewModel {
   handleSplitFromMenu: (direction: SplitDirection) => void;
   handleCloseFromMenu: () => void;
   handleCloseOthersFromMenu: () => void;
+  handleClosePanel: () => void;
   handleMenuMouseDown: (e: React.MouseEvent) => void;
 }
 
 export const useTabBarViewModel = ({ panelId }: TabBarProps): TabBarViewModel => {
-  const { panels, tabTitleOverrides, activateTab, closeTab, closeOtherTabs, splitPanel } = useWorkspace();
+  const { panels, activePanelId, tabTitleOverrides, activateTab, closeTab, closeOtherTabs, closePanel, splitPanel } = useWorkspace();
   const panel = panels[panelId];
+  const hasMultiplePanels = Object.keys(panels).length > 1;
+  const isPanelActive = hasMultiplePanels && activePanelId === panelId;
 
   const [contextMenu, setContextMenu] = useState<ContextMenuState>({
     visible: false, x: 0, y: 0, tabKey: '',
@@ -88,6 +92,10 @@ export const useTabBarViewModel = ({ panelId }: TabBarProps): TabBarViewModel =>
     if (key) closeOtherTabs(key, panelId);
   }, [closeOtherTabs, contextMenu.tabKey, panelId]);
 
+  const handleClosePanel = useCallback(() => {
+    closePanel(panelId);
+  }, [closePanel, panelId]);
+
   // Prevent mousedown inside the menu from triggering the outside-click dismiss
   const handleMenuMouseDown = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
@@ -114,12 +122,15 @@ export const useTabBarViewModel = ({ panelId }: TabBarProps): TabBarViewModel =>
     contextMenu,
     canSplit,
     canCloseOthers,
+    canClosePanel: hasMultiplePanels,
+    isPanelActive,
     handleTabClick,
     handleTabClose,
     handleTabContextMenu,
     handleSplitFromMenu,
     handleCloseFromMenu,
     handleCloseOthersFromMenu,
+    handleClosePanel,
     handleMenuMouseDown,
   };
 };
