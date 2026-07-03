@@ -3,6 +3,8 @@ import { FirebaseAuditLogRepository } from '../../data/repositories/FirebaseAudi
 import { UserProfileLookupService } from '../../data/services/UserProfileLookupService';
 import { makeCreateAuditLogUseCase } from '../../domain/usecases/CreateAuditLogUseCase';
 import type { CreateAuditLogUseCase } from '../../domain/usecases/CreateAuditLogUseCase';
+import { makeLogClientErrorUseCase } from '../../domain/usecases/LogClientErrorUseCase';
+import type { LogClientErrorUseCase } from '../../domain/usecases/LogClientErrorUseCase';
 import type { IAuditLogRepository } from '../../domain/repositories/IAuditLogRepository';
 import type { IUserProfileLookupService } from '../../domain/repositories/IUserProfileLookupService';
 import { FirebaseAIConnectionRepository } from '../../data/repositories/FirebaseAIConnectionRepository';
@@ -72,6 +74,7 @@ class DIContainer {
   private auditLogRepo?: IAuditLogRepository;
   private userProfileLookupService?: IUserProfileLookupService;
   private createAuditLogUC?: CreateAuditLogUseCase;
+  private logClientErrorUC?: LogClientErrorUseCase;
   private getDefaultAICredentialsUC?: GetDefaultAICredentialsUseCase;
   private callAIAnalysisUC?: CallAIAnalysisUseCase;
   private getUserInfoUC?: GetUserInfoUseCase;
@@ -293,6 +296,17 @@ class DIContainer {
       this.createAuditLogUC = makeCreateAuditLogUseCase(this.getAuditLogRepository());
     }
     return this.createAuditLogUC;
+  }
+
+  getLogClientErrorUseCase(): LogClientErrorUseCase {
+    if (!this.logClientErrorUC) {
+      this.logClientErrorUC = makeLogClientErrorUseCase(
+        this.getTenantMemberRepository(),
+        this.getUserProfileLookupService(),
+        this.getCreateAuditLogUseCase(),
+      );
+    }
+    return this.logClientErrorUC;
   }
 }
 

@@ -115,7 +115,7 @@ export const DynamicSelect: React.FC<DynamicSelectProps> = (props) => {
               value={query}
               onChange={e => onQueryChange(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="Buscar..."
+              placeholder="Digite para buscar ou adicionar..."
               disabled={addLoading}
             />
           </S.SearchRow>
@@ -163,7 +163,7 @@ export const DynamicSelect: React.FC<DynamicSelectProps> = (props) => {
               >
                 <RiAddLine size={14} />
                 <S.AddLabel>
-                  Adicionar <S.AddQueryText>"{query.trim()}"</S.AddQueryText>
+                  Adicionar <S.AddQueryText>"{query.trim()}" ?</S.AddQueryText>
                 </S.AddLabel>
               </S.AddRow>
             )}

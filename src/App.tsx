@@ -27,6 +27,7 @@ import { NewsTagStoreProvider } from './stores/NewsTagStore';
 import { NewsInteractionStoreProvider } from './stores/NewsInteractionStore';
 import { SavedFilterStoreProvider } from './stores/SavedFilterStore';
 import { AuditLogStoreProvider } from './stores/AuditLogStore';
+import { AuditLogAlertStoreProvider } from './stores/AuditLogAlertStore';
 import { WorkspaceStoreProvider } from './stores/WorkspaceStore';
 import { NotificationProvider } from './stores/NotificationContext';
 import { CommandPaletteProvider } from './stores/CommandPaletteContext';
@@ -34,6 +35,7 @@ import { TextAnnotationStoreProvider } from './stores/TextAnnotationStore';
 import { ProtectedRoute } from './routes/ProtectedRoute';
 import { LoginView } from './presentation/pages/Login/Login.view';
 import { WorkspaceShell } from './presentation/components/layout/WorkspaceShell';
+import { AppErrorBoundary } from './presentation/components/layout/AppErrorBoundary';
 
 const App: React.FC = () => {
   return (
@@ -71,15 +73,19 @@ const App: React.FC = () => {
                                       <NewsInteractionStoreProvider>
                                         <SavedFilterStoreProvider>
                                           <AuditLogStoreProvider>
+                                          <AuditLogAlertStoreProvider>
                                           <WorkspaceStoreProvider>
                                             <NotificationProvider>
                                               <CommandPaletteProvider>
                                                 <TextAnnotationStoreProvider>
-                                                  <WorkspaceShell />
+                                                  <AppErrorBoundary>
+                                                    <WorkspaceShell />
+                                                  </AppErrorBoundary>
                                                 </TextAnnotationStoreProvider>
                                               </CommandPaletteProvider>
                                             </NotificationProvider>
                                           </WorkspaceStoreProvider>
+                                          </AuditLogAlertStoreProvider>
                                           </AuditLogStoreProvider>
                                         </SavedFilterStoreProvider>
                                       </NewsInteractionStoreProvider>

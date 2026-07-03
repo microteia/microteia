@@ -1,4 +1,4 @@
-import type { AuditLog } from '../entities';
+import type { AuditLog, AuditLogReadCursor } from '../entities';
 
 export interface AuditLogQuery {
   /** null = todos os escritórios (somente para usuários SYSTEM) */
@@ -15,4 +15,7 @@ export interface AuditLogPage {
 
 export interface IAuditLogRepository {
   getPage(query: AuditLogQuery): Promise<AuditLogPage>;
+  getReadCursor(userId: string, tenantId: string): Promise<AuditLogReadCursor | null>;
+  markAllCriticalAsRead(userId: string, tenantId: string): Promise<AuditLogReadCursor>;
+  subscribeToCriticalUnread(tenantId: string, since: Date, callback: (count: number) => void): () => void;
 }

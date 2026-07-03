@@ -794,4 +794,4 @@ export type { Push, PushMovement, PushStatus, PushInteraction } from './Push';
 
 // ─── Audit Logs ───────────────────────────────────────────────────────────────
 
-export type { AuditLog, AuditAction, AuditSeverity, AuditType } from './AuditLog';
+export type { AuditLog, AuditAction, AuditSeverity, AuditType, AuditLogReadCursor } from './AuditLog';

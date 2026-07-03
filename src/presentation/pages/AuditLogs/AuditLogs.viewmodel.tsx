@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useTheme } from 'styled-components';
 import { useAuditLogStore } from '../../../stores/useAuditLogStore';
+import { useAuditLogAlert } from '../../../stores/useAuditLogAlert';
 import { useAuth } from '../../../stores/useAuth';
 import { useTenant } from '../../../stores/useTenant';
 import { useWorkspace } from '../../../stores/useWorkspace';
@@ -42,6 +43,7 @@ export const useAuditLogsViewModel = (): AuditLogsViewModel => {
   const { openTab } = useWorkspace();
   const { tenantRepository } = useDI();
   const { logs, loading, hasMore, error, search, loadMore } = useAuditLogStore();
+  const { markAllAsRead } = useAuditLogAlert();
   const theme = useTheme();
 
   const isSystem = userRole === 'SYSTEM';
@@ -127,6 +129,13 @@ export const useAuditLogsViewModel = (): AuditLogsViewModel => {
     if (isUnauthorized) return;
     void search({ tenantId: resolvedTenantId });
   }, [resolvedTenantId, isUnauthorized, search]);
+
+  // Abrir a tela de Auditoria marca as falhas CRITICAL do escritório atual como lidas,
+  // zerando o badge no WorkspaceSidebar (ver AuditLogAlertStore).
+  useEffect(() => {
+    if (isUnauthorized || !currentTenant) return;
+    void markAllAsRead();
+  }, [isUnauthorized, currentTenant, markAllAsRead]);
 
   const rows = useMemo<AuditLogRow[]>(() => {
     const searchQ = (tokenMap['search']?.[0] ?? '').toLowerCase();

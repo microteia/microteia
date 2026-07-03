@@ -46,6 +46,7 @@ import type { IDeadlineTypeRepository } from '../../domain/repositories/IDeadlin
 import type { IPushRepository, IPushInteractionRepository } from '../../domain/repositories/IPushRepository';
 import type { IDocumentTypeRepository } from '../../domain/repositories/IDocumentTypeRepository';
 import type { IAuditLogRepository } from '../../domain/repositories/IAuditLogRepository';
+import type { IAuditLogService } from '../../domain/repositories/IAuditLogService';
 
 export interface DIContainer {
   authRepository: IAuthRepository;
@@ -96,6 +97,7 @@ export interface DIContainer {
   pushInteractionRepository: IPushInteractionRepository;
   documentTypeRepository: IDocumentTypeRepository;
   auditLogRepository: IAuditLogRepository;
+  auditLogService: IAuditLogService;
 }
 
 export const DIContext = createContext<DIContainer | null>(null);

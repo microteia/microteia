@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.backupDeletedAuditLog = exports.auditNewsTagChange = exports.auditNewsCommentChange = exports.auditNewsChange = exports.auditTenantDeleted = exports.auditNestedEntityChange = exports.auditFlatEntityChange = exports.renewGmailWatches = exports.gmailPush = exports.onUserCreated = exports.removeTenantMember = exports.addTenantMember = exports.exchangeGmailCode = exports.claimNickname = exports.checkNicknameAvailability = exports.getUserInfo = exports.callAIProxy = void 0;
+exports.logClientError = exports.backupDeletedAuditLog = exports.auditNewsTagChange = exports.auditNewsCommentChange = exports.auditNewsChange = exports.auditTenantDeleted = exports.auditNestedEntityChange = exports.auditFlatEntityChange = exports.renewGmailWatches = exports.gmailPush = exports.onUserCreated = exports.removeTenantMember = exports.addTenantMember = exports.exchangeGmailCode = exports.claimNickname = exports.checkNicknameAvailability = exports.getUserInfo = exports.callAIProxy = void 0;
 const initFirebase_1 = require("./infrastructure/firebase/initFirebase");
 (0, initFirebase_1.initFirebase)();
 var callAIProxy_1 = require("./infrastructure/handlers/callAIProxy");
@@ -35,4 +35,6 @@ Object.defineProperty(exports, "auditNewsCommentChange", { enumerable: true, get
 Object.defineProperty(exports, "auditNewsTagChange", { enumerable: true, get: function () { return auditNewsEntityChange_1.auditNewsTagChange; } });
 var backupDeletedAuditLog_1 = require("./infrastructure/handlers/backupDeletedAuditLog");
 Object.defineProperty(exports, "backupDeletedAuditLog", { enumerable: true, get: function () { return backupDeletedAuditLog_1.backupDeletedAuditLog; } });
+var logClientError_1 = require("./infrastructure/handlers/logClientError");
+Object.defineProperty(exports, "logClientError", { enumerable: true, get: function () { return logClientError_1.logClientError; } });
 //# sourceMappingURL=index.js.map

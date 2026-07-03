@@ -719,6 +719,34 @@ O upload seta `metadata.metadata.firebaseStorageDownloadTokens` (`crypto.randomU
 
 Abaixo do `CompositeFilter`, um `<InfoBanner variant="info">` fixo avisa sobre a retenção de 30 dias (mesmo padrão de tarja informativa usado em outras telas — nunca `<p>`/`<div>` ad-hoc).
 
+### Registro de falhas do frontend (`IAuditLogService`)
+
+Único canal pelo qual o **frontend** contribui para `auditLogs` — preserva a invariante "nunca é escrita pelo frontend" porque não escreve direto no Firestore: chama a Cloud Function callable `logClientError` (`functions/src/infrastructure/handlers/logClientError.ts`), que valida que o chamador é membro do tenant (`ITenantMemberRepository.isMember`), resolve o autor via `UserProfileLookupService.resolveActor` (nunca confia em nome/foto vindos do cliente) e grava com Admin SDK através do `LogClientErrorUseCase` → `CreateAuditLogUseCase` já existente. `severity: 'CRITICAL'` e `type: 'ERROR'` são fixados no backend, não configuráveis pelo chamador.
+
+**Quando usar:** só para **exceptions não tratadas** — um `catch` genérico de uma operação inesperada (ex: falha ao decodificar uma resposta que deveria ser sempre válida), ou o `ErrorBoundary` global (`presentation/components/layout/AppErrorBoundary/`, que envolve `WorkspaceShell` em `App.tsx` e chama o serviço em `componentDidCatch`). **Nunca** para validação de campo/formulário nem para erros de negócio esperados (ex: "e-mail já cadastrado", limite de membros atingido) — esses continuam usando `notify(...)`.
+
+**Como usar:**
+```typescript
+const { auditLogService } = useDI();
+await auditLogService.logError({
+  tenantId: currentTenant.id,
+  title: 'Título curto do que falhou',
+  entity: 'NOME_DA_ENTIDADE_OU_FRONTEND',
+  entityId: opcional,
+  entityLink: opcional,
+  error, // o Error capturado, ou qualquer valor de um catch
+});
+```
+`FirebaseAuditLogService` (`data/services/FirebaseAuditLogService.ts`) **nunca lança** — qualquer falha na própria chamada é só logada no console — por isso é seguro chamar de dentro de um `catch`/boundary sem `try/catch` adicional (mesmo espírito do `logAuditError` do backend, que "nunca lança").
+
+### Badge de falhas críticas não lidas
+
+Ao lado do item "Auditoria" no `WorkspaceSidebar` aparece um badge com a contagem de logs `severity: 'CRITICAL'` não lidos do tenant atual — mesmo mecanismo visual de News/Pushes (`S.NavBadge`/`S.NavBadgeDot`). Só é controlado leitura/não-lida para `CRITICAL`; os demais tipos de log não têm esse conceito.
+
+Em vez de replicar o padrão de interação por item (`pushInteractions`/`newsInteractions`, um doc por usuário+item com toggle individual), usa-se um **cursor de leitura**: um único doc por `(userId, tenantId)` em `auditLogReadCursors/{userId}_{tenantId}` guardando `lastReadAt`. Não lidas = logs `CRITICAL` do tenant com `createdAt > lastReadAt` (`IAuditLogRepository.subscribeToCriticalUnread`, `onSnapshot` com `limit(100)` como teto de segurança). Abrir a tela de Auditoria (`AuditLogs.viewmodel.tsx`) chama `markAllCriticalAsRead`, que avança o cursor para "agora" e zera o badge — não há como marcar um log individual como não lido de novo. Essa escolha é deliberada: é mais simples, gera menos escritas que um doc por log, e reflete exatamente o comportamento pedido ("marcar como lida ao abrir a tela"), diferente de News/Pushes onde cada item é lido individualmente.
+
+`AuditLogAlertStore`/`useAuditLogAlert` só assina a query de não lidas quando há `currentTenant` **e** o usuário é admin do tenant ou `SYSTEM` — mesma condição de visibilidade do item de menu, e também a única em que a Security Rule de `auditLogs` permite a leitura.
+
 ---
 
 ## Fluxo Multi-Tenant
@@ -1897,6 +1925,18 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // ─── Cursor de leitura da Auditoria ───────────────────────────────────────
+    // Doc id: `${userId}_${tenantId}`. Guarda só `lastReadAt` — usado para
+    // calcular o badge de falhas CRITICAL não lidas (ver "Badge de falhas
+    // críticas não lidas" no módulo de Auditoria). Mesmo padrão de savedFilters.
+
+    match /auditLogReadCursors/{cursorId} {
+      allow read, write: if request.auth != null
+        && request.auth.uid == resource.data.userId;
+      allow create: if request.auth != null
+        && request.resource.data.userId == request.auth.uid;
+    }
+
   }
 }
 ```
@@ -2050,6 +2090,7 @@ service firebase.storage {
 | `members` (collectionGroup) | `userId` ASC | Para descobrir tenants de um usuário |
 | `gmailConnections` | `email` ASC, `tenantId` ASC | Para buscar conexões Gmail por email na Cloud Function |
 | `auditLogs` | `tenantId` ASC, `createdAt` DESC | Para listar auditoria por escritório, mais recente primeiro |
+| `auditLogs` | `tenantId` ASC, `severity` ASC, `createdAt` ASC | Para contar falhas CRITICAL não lidas (badge da Auditoria) |
 
 ---
 

@@ -1,10 +1,19 @@
 import {
-  collection, getDocs, query, where, orderBy, limit, startAfter, Timestamp,
+  collection, getDocs, getDoc, setDoc, doc, query, where, orderBy, limit, startAfter, onSnapshot, Timestamp,
 } from 'firebase/firestore';
 import type { QueryDocumentSnapshot, DocumentData, QueryConstraint } from 'firebase/firestore';
 import { db } from '../../infrastructure/firebase/config';
 import type { IAuditLogRepository, AuditLogQuery, AuditLogPage } from '../../domain/repositories/IAuditLogRepository';
-import type { AuditLog, AuditAction, AuditSeverity, AuditType } from '../../domain/entities';
+import type { AuditLog, AuditAction, AuditSeverity, AuditType, AuditLogReadCursor } from '../../domain/entities';
+
+const READ_CURSOR_COLLECTION = 'auditLogReadCursors';
+const UNREAD_CRITICAL_CAP = 100;
+
+const toReadCursor = (d: Record<string, unknown>): AuditLogReadCursor => ({
+  userId: d.userId as string,
+  tenantId: d.tenantId as string,
+  lastReadAt: (d.lastReadAt as Timestamp).toDate(),
+});
 
 const toDate = (v: unknown): Date =>
   v instanceof Timestamp ? v.toDate() : (v as Date);
@@ -46,5 +55,30 @@ export class FirebaseAuditLogRepository implements IAuditLogRepository {
       nextCursor: lastDoc ?? null,
       hasMore: snap.docs.length === q.pageSize,
     };
+  }
+
+  async getReadCursor(userId: string, tenantId: string): Promise<AuditLogReadCursor | null> {
+    const ref = doc(db, READ_CURSOR_COLLECTION, `${userId}_${tenantId}`);
+    const snap = await getDoc(ref);
+    return snap.exists() ? toReadCursor(snap.data() as Record<string, unknown>) : null;
+  }
+
+  async markAllCriticalAsRead(userId: string, tenantId: string): Promise<AuditLogReadCursor> {
+    const ref = doc(db, READ_CURSOR_COLLECTION, `${userId}_${tenantId}`);
+    const lastReadAt = Timestamp.now();
+    await setDoc(ref, { userId, tenantId, lastReadAt });
+    return { userId, tenantId, lastReadAt: lastReadAt.toDate() };
+  }
+
+  subscribeToCriticalUnread(tenantId: string, since: Date, callback: (count: number) => void): () => void {
+    const q = query(
+      collection(db, 'auditLogs'),
+      where('tenantId', '==', tenantId),
+      where('severity', '==', 'CRITICAL'),
+      where('createdAt', '>', Timestamp.fromDate(since)),
+      limit(UNREAD_CRITICAL_CAP),
+    );
+
+    return onSnapshot(q, (snap) => callback(snap.size));
   }
 }

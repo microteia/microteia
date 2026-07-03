@@ -19,6 +19,7 @@ import { useTheme } from '../../../../stores/useTheme';
 import { useCommandPalette } from '../../../../stores/useCommandPalette';
 import { useNewsInteraction } from '../../../../stores/useNewsInteraction';
 import { usePushInteraction } from '../../../../stores/usePushInteraction';
+import { useAuditLogAlert } from '../../../../stores/useAuditLogAlert';
 import type { User } from '../../../../domain/entities';
 import type { ThemeMode } from '../../../../shared/types';
 
@@ -65,6 +66,7 @@ export interface WorkspaceSidebarViewModel {
   navItems: NavItem[];
   unreadNewsCount: number;
   unreadPushCount: number;
+  unreadCriticalAuditCount: number;
   activeKey: string | null;
   isMenuOpen: boolean;
   isThemeSubOpen: boolean;
@@ -99,6 +101,7 @@ export const useWorkspaceSidebarViewModel = (): WorkspaceSidebarViewModel => {
   const { open: openCommandPalette } = useCommandPalette();
   const { unreadCount: unreadNewsCount } = useNewsInteraction();
   const { unreadCount: unreadPushCount } = usePushInteraction();
+  const { unreadCriticalCount: unreadCriticalAuditCount } = useAuditLogAlert();
 
   const searchShortcut = /Mac|iPhone|iPod|iPad/.test(navigator.platform) ? '⌘K' : 'Ctrl K';
 
@@ -156,6 +159,7 @@ export const useWorkspaceSidebarViewModel = (): WorkspaceSidebarViewModel => {
     navItems,
     unreadNewsCount,
     unreadPushCount,
+    unreadCriticalAuditCount,
     activeKey,
     isMenuOpen,
     isThemeSubOpen,

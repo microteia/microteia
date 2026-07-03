@@ -19,3 +19,9 @@ export interface AuditLog {
   createdAt: Date;
   expiresAt: Date;
 }
+
+export interface AuditLogReadCursor {
+  userId: string;
+  tenantId: string;
+  lastReadAt: Date;
+}
