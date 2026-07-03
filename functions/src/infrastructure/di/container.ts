@@ -30,6 +30,9 @@ import { makeExchangeGmailCodeUseCase } from '../../domain/usecases/ExchangeGmai
 import { makeCreatePushUseCase } from '../../domain/usecases/CreatePushUseCase';
 import { makeUpdatePushUseCase } from '../../domain/usecases/UpdatePushUseCase';
 import { makeCreateOrUpdatePushUseCase } from '../../domain/usecases/CreateOrUpdatePushUseCase';
+import { makeAddTenantMemberUseCase } from '../../domain/usecases/AddTenantMemberUseCase';
+import { makeRemoveTenantMemberUseCase } from '../../domain/usecases/RemoveTenantMemberUseCase';
+import { makeBootstrapUserUseCase } from '../../domain/usecases/BootstrapUserUseCase';
 import type { GetDefaultAICredentialsUseCase } from '../../domain/usecases/GetDefaultAICredentialsUseCase';
 import type { CallAIAnalysisUseCase } from '../../domain/usecases/CallAIAnalysisUseCase';
 import type { GetUserInfoUseCase } from '../../domain/usecases/GetUserInfoUseCase';
@@ -39,11 +42,16 @@ import type { ExchangeGmailCodeUseCase } from '../../domain/usecases/ExchangeGma
 import type { CreatePushUseCase } from '../../domain/usecases/CreatePushUseCase';
 import type { UpdatePushUseCase } from '../../domain/usecases/UpdatePushUseCase';
 import type { CreateOrUpdatePushUseCase } from '../../domain/usecases/CreateOrUpdatePushUseCase';
+import type { AddTenantMemberUseCase } from '../../domain/usecases/AddTenantMemberUseCase';
+import type { RemoveTenantMemberUseCase } from '../../domain/usecases/RemoveTenantMemberUseCase';
+import type { BootstrapUserUseCase } from '../../domain/usecases/BootstrapUserUseCase';
 import type { IAIProviderService } from '../../domain/repositories/IAIProviderService';
 import type { IAIConnectionRepository } from '../../domain/repositories/IAIConnectionRepository';
 import type { IGmailConnectionRepository } from '../../domain/repositories/IGmailConnectionRepository';
 import type { IPushRepository } from '../../domain/repositories/IPushRepository';
 import type { ITenantRepository } from '../../domain/repositories/ITenantRepository';
+import type { ITenantMemberRepository } from '../../domain/repositories/ITenantMemberRepository';
+import type { IUserRepository } from '../../domain/repositories/IUserRepository';
 import type { IGmailService } from '../../data/services/GmailService';
 import type { IEmailParserService } from '../../data/services/EmailParserService';
 import type { IGmailAuthService } from '../../domain/repositories/IGmailAuthService';
@@ -73,6 +81,11 @@ class DIContainer {
   private createPushUC?: CreatePushUseCase;
   private updatePushUC?: UpdatePushUseCase;
   private createOrUpdatePushUC?: CreateOrUpdatePushUseCase;
+  private tenantMemberRepo?: ITenantMemberRepository;
+  private addTenantMemberUC?: AddTenantMemberUseCase;
+  private removeTenantMemberUC?: RemoveTenantMemberUseCase;
+  private userRepo?: IUserRepository;
+  private bootstrapUserUC?: BootstrapUserUseCase;
 
   private constructor() {
     this.aiProviders = [
@@ -108,13 +121,25 @@ class DIContainer {
     return this.callAIAnalysisUC;
   }
 
+  getUserRepository(): IUserRepository {
+    if (!this.userRepo) {
+      this.userRepo = new FirebaseUserRepository(getDb());
+    }
+    return this.userRepo;
+  }
+
   getUserInfoUseCase(): GetUserInfoUseCase {
     if (!this.getUserInfoUC) {
-      const db = getDb();
-      const userRepo = new FirebaseUserRepository(db);
-      this.getUserInfoUC = makeGetUserInfoUseCase(userRepo);
+      this.getUserInfoUC = makeGetUserInfoUseCase(this.getUserRepository());
     }
     return this.getUserInfoUC;
+  }
+
+  getBootstrapUserUseCase(): BootstrapUserUseCase {
+    if (!this.bootstrapUserUC) {
+      this.bootstrapUserUC = makeBootstrapUserUseCase(this.getUserRepository(), this.getTenantRepository());
+    }
+    return this.bootstrapUserUC;
   }
 
   getCheckNicknameAvailabilityUseCase(): CheckNicknameAvailabilityUseCase {
@@ -219,6 +244,27 @@ class DIContainer {
       this.tenantRepo = new FirebaseTenantRepository();
     }
     return this.tenantRepo;
+  }
+
+  getTenantMemberRepository(): ITenantMemberRepository {
+    if (!this.tenantMemberRepo) {
+      this.tenantMemberRepo = new FirebaseTenantMemberRepository(getDb());
+    }
+    return this.tenantMemberRepo;
+  }
+
+  getAddTenantMemberUseCase(): AddTenantMemberUseCase {
+    if (!this.addTenantMemberUC) {
+      this.addTenantMemberUC = makeAddTenantMemberUseCase(this.getTenantRepository(), this.getTenantMemberRepository());
+    }
+    return this.addTenantMemberUC;
+  }
+
+  getRemoveTenantMemberUseCase(): RemoveTenantMemberUseCase {
+    if (!this.removeTenantMemberUC) {
+      this.removeTenantMemberUC = makeRemoveTenantMemberUseCase(this.getTenantRepository(), this.getTenantMemberRepository());
+    }
+    return this.removeTenantMemberUC;
   }
 
   getGmailWatchService(): IGmailWatchService {

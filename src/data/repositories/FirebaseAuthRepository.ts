@@ -59,6 +59,12 @@ export class FirebaseAuthRepository implements IAuthRepository {
     return auth.currentUser?.emailVerified ?? false;
   }
 
+  async refreshEmailVerification(): Promise<boolean> {
+    if (!auth.currentUser) return false;
+    await auth.currentUser.reload();
+    return auth.currentUser.emailVerified;
+  }
+
   async signOut(): Promise<void> {
     await firebaseSignOut(auth);
   }

@@ -206,17 +206,40 @@ VITE_GOOGLE_CLIENT_ID=...
 ```typescript
 interface Tenant {
   id: string;
-  name: string;           // "Escritório Silva & Associados"
-  oab?: string;           // Número da OAB
-  cnpj?: string;
-  phone?: string;
-  email?: string;
-  address?: string;
+  name: string;              // "Escritório Silva & Associados"
+  ownerId: string;           // userId do criador/dono
+  cnpj?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  address?: string | null;
+  logoURL?: string | null;
+  allowedSenders?: string[];
+  allowedSubjects?: string[];
+  memberLimit: number | null; // null = sem limite; padrão 1 no bootstrap (só o dono); só SYSTEM altera depois (aba "Escritórios" de Gestão de Acessos)
+  memberCount: number;        // denormalizado, mantido pelas Cloud Functions addTenantMember/removeTenantMember/onUserCreated
   createdAt: Date;
-  createdBy: string;      // userId do criador
-  memberCount: number;
+  updatedAt: Date;
 }
 ```
+
+### Bootstrap do usuário — Cloud Function `onUserCreated`
+
+Todo o onboarding de um usuário novo (`users/{uid}`, `userProfiles/{uid}` e o tenant próprio com o usuário como `admin`) é feito **inteiramente no servidor**, nunca pelo client:
+
+- `functions/src/infrastructure/handlers/onUserCreated.ts` — trigger `functions.auth.user().onCreate()` (API **v1** do `firebase-functions`; triggers de Auth `onCreate`/`onDelete` ainda não têm equivalente em v2). Dispara automaticamente logo após a criação da conta no Firebase Auth (Google, Facebook ou e-mail/senha — antes mesmo da verificação de e-mail).
+- `BootstrapUserUseCase` (`functions/src/domain/usecases/BootstrapUserUseCase.ts`), idempotente: `createUserIfMissing` cria `users/{uid}` (role `USER`) só se ainda não existir — se já existir (reexecução do trigger), a função **retorna sem fazer nada**, para não duplicar tenant; `createUserProfileIfMissing` cria `userProfiles/{uid}` vazio; em seguida cria o tenant (`ITenantRepository.createTenant`, com `memberLimit: 1, memberCount: 0`) e adiciona o próprio usuário como `admin` via `addMemberIfWithinLimit` (mesma transação atômica descrita abaixo) — resultado final: `memberLimit: 1`, `memberCount: 1`. Todo usuário sempre tem exatamente 1 tenant (o seu) ao final do bootstrap; todo tenant sempre tem um `ownerId`.
+- **Client não cria mais nada disso.** `users`/`tenants` negam `create` do client nas Security Rules (`allow create: if false`). O `AuthContext` (`src/stores/AuthContext.tsx`) não faz mais `createUserProfile` — em vez disso, `IUserRepository.waitForProvisioning` (`src/data/repositories/FirebaseUserRepository.ts`) abre um `onSnapshot` em `users/{uid}` e só resolve quando o documento existir **e** `tenantIds` não estiver vazio (sinal de que o bootstrap terminou), com timeout de 20s. Para quem já loga há tempos isso resolve quase instantaneamente (documento já existe); no primeiro login, cobre a espera pela Cloud Function. `TenantStore` (`src/stores/TenantStore.tsx`) não cria mais tenant algum — se `getTenantsForUser` retornar vazio nesse ponto (não deveria, dado o `waitForProvisioning`), trata como falha de provisionamento (`initError`) em vez de criar um tenant no client.
+
+### Limite de membros — adição atômica via Cloud Function
+
+`TenantMember` é criado/removido por duas Cloud Functions callable, **não** por escrita direta do client no Firestore (`match /tenants/{tenantId}/members/{memberId}` nega `create`/`delete` para qualquer client nas Security Rules):
+
+- `addTenantMember` (`functions/src/infrastructure/handlers/addTenantMember.ts`): recebe `{ tenantId, userId, role, displayName, email, photoURL }`, exige que o chamador seja admin do tenant (`AddTenantMemberUseCase`) e delega a `FirebaseTenantRepository.addMemberIfWithinLimit` (Admin SDK), que roda uma `db.runTransaction` lendo `tenant.memberCount`/`memberLimit`, valida o limite e escreve o membro + incrementa o contador **na mesma transação**. Se o tenant foi criado antes desta feature (sem `memberCount`), a primeira chamada faz um `count()` na subcoleção `members` como baseline (self-heal). Lança `MEMBER_LIMIT_REACHED` → `HttpsError('resource-exhausted', ...)` quando o limite já foi atingido. O primeiro membro (dono) de um tenant novo **não** passa por aqui — é adicionado pelo bootstrap (`onUserCreated`, ver acima), que chama `addMemberIfWithinLimit` diretamente.
+- `removeTenantMember`: simétrica, decrementa `memberCount` (floor em 0) na mesma transação da exclusão.
+
+Rodar a lógica no Admin SDK (em vez de `runTransaction` do client + Security Rules) é o que garante que **duas adições concorrentes** (ex: dois admins em computadores diferentes clicando "Adicionar" para a última vaga) nunca ultrapassem o limite: o protocolo de transação do Firestore serializa as duas chamadas no servidor, e não existe nenhuma escrita direta que um client possa fazer para bypassar a checagem. `updateMemberRole` continua sendo escrita direta do client (não mexe no contador, sem risco de corrida).
+
+Client: `src/data/repositories/FirebaseTenantRepository.ts` chama as duas functions via `httpsCallable` (mesmo padrão de `claimNickname`, ver "Fluxo OAuth do Gmail" para outro exemplo de Cloud Function callable); `resource-exhausted` é convertido em `TenantMemberLimitReachedError` (`src/domain/errors/index.ts`) para o ViewModel de `TenantSettings/MembersTab` mostrar uma mensagem específica e desabilitar o formulário quando `memberCount >= memberLimit`.
 
 ### Entidade Person
 
@@ -1360,20 +1383,20 @@ service cloud.firestore {
 
     match /users/{userId} {
       allow get: if request.auth != null && request.auth.uid == userId;
-      // list necessário para busca por email ao convidar membros para um tenant
-      allow list: if request.auth != null;
-      allow create: if request.auth != null
-        && request.auth.uid == userId
-        && request.resource.data.role == 'USER';
-      allow update: if isSystemAdmin()
-        || (request.auth != null && request.auth.uid == userId
-            && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role']))
-        // Qualquer usuário autenticado pode atualizar SOMENTE o campo tenantIds de outro usuário.
-        // Necessário para que addMember funcione entre tenants distintos (regras bloqueiam cross-user).
-        // Seguro porque o acesso real aos dados do tenant exige registro em tenants/{id}/members.
-        || (request.auth != null
-            && request.resource.data.diff(resource.data).affectedKeys().hasAll(['tenantIds'])
-            && request.resource.data.diff(resource.data).affectedKeys().size() == 1);
+      // list: SYSTEM lista livremente (Gestão de Acessos, getUsers() sem limit()).
+      // Qualquer outro autenticado só pode rodar consultas com limit() <= 1 — cobre a busca
+      // exata por e-mail ao convidar membros (getUserByEmail usa limit(1)) sem permitir
+      // dump da coleção inteira (emails/roles de todos os usuários) por um usuário comum.
+      allow list: if isSystemAdmin()
+        || (request.auth != null && request.query.limit <= 1);
+      // O próprio documento é criado pela Cloud Function onUserCreated (Admin SDK,
+      // trigger de Auth), nunca pelo client — por isso create é sempre negado aqui.
+      allow create: if false;
+      // Nenhum campo é editável pelo frontend fora da role, e só por SYSTEM. tenantIds e
+      // qualquer outro campo são mantidos pelas Cloud Functions addTenantMember/removeTenantMember
+      // (Admin SDK, ignoram estas regras) — o client não tem mais nenhum caminho de escrita
+      // cross-user em users/{userId}.
+      allow update: if isSystemAdmin();
     }
 
     // ─── Perfis de usuário ────────────────────────────────────────────────────
@@ -1398,12 +1421,18 @@ service cloud.firestore {
     match /tenants/{tenantId} {
       // Qualquer membro pode ler o tenant
       allow get: if isMember(tenantId);
-      // Somente admin global pode listar TODOS os tenants (filtro "Todos os Escritórios" em Auditoria)
+      // Somente admin global pode listar TODOS os tenants (filtro "Todos os Escritórios" em Auditoria
+      // e aba "Escritórios" de Gestão de Acessos)
       allow list: if isSystemAdmin();
-      // Somente admin do tenant pode atualizar dados do escritório
-      allow update: if isTenantAdmin(tenantId);
-      // Qualquer usuário autenticado pode criar um tenant (cria o próprio escritório)
-      allow create: if request.auth != null;
+      // Admin do tenant atualiza os dados do escritório, mas nunca memberCount/memberLimit/ownerId
+      // (ver regra completa mais abaixo, no segundo match /tenants/{tenantId} — Firestore combina
+      // múltiplos blocos allow do mesmo path com OR, então as duas declarações precisam ficar em sincronia).
+      allow update: if isSystemAdmin()
+        || (isTenantAdmin(tenantId)
+            && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['memberCount', 'memberLimit', 'ownerId']));
+      // Tenant é criado pela Cloud Function onUserCreated (Admin SDK, trigger de Auth)
+      // junto com o bootstrap do usuário — nunca pelo client.
+      allow create: if false;
       // Somente admin global pode deletar
       allow delete: if isSystemAdmin();
 
@@ -1437,10 +1466,15 @@ service cloud.firestore {
     match /tenants/{tenantId} {
       // Qualquer membro pode ler o tenant
       allow get: if isMember(tenantId);
-      // Somente admin do tenant pode atualizar dados do escritório
-      allow update: if isTenantAdmin(tenantId);
-      // Qualquer usuário autenticado pode criar um tenant (cria o próprio escritório)
-      allow create: if request.auth != null;
+      // Admin do tenant atualiza os dados do escritório, mas nunca memberCount/memberLimit/ownerId.
+      // memberCount só é escrito pelas Cloud Functions addTenantMember/removeTenantMember (Admin SDK,
+      // ignora estas regras); memberLimit só por admin global (SYSTEM), na aba "Escritórios" de Gestão de Acessos.
+      allow update: if isSystemAdmin()
+        || (isTenantAdmin(tenantId)
+            && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['memberCount', 'memberLimit', 'ownerId']));
+      // Tenant é criado pela Cloud Function onUserCreated (Admin SDK, trigger de Auth)
+      // junto com o bootstrap do usuário — nunca pelo client.
+      allow create: if false;
       // Somente admin global pode deletar
       allow delete: if isSystemAdmin();
 
@@ -1453,14 +1487,13 @@ service cloud.firestore {
       match /members/{memberId} {
         // Membros leem a lista de membros do próprio tenant
         allow read: if isMember(tenantId);
-        // Admin do tenant adiciona/altera/remove membros.
-        // Exceção de bootstrap: o dono do tenant pode se adicionar como primeiro membro
-        // (necessário pois isTenantAdmin exige que o usuário já seja membro — deadlock sem esta regra).
-        allow create: if isTenantAdmin(tenantId)
-          || (request.auth != null
-              && request.auth.uid == memberId
-              && get(/databases/$(database)/documents/tenants/$(tenantId)).data.ownerId == request.auth.uid);
-        allow update, delete: if isTenantAdmin(tenantId);
+        // Criação e exclusão passam pelas Cloud Functions addTenantMember/removeTenantMember
+        // (Admin SDK, ignoram estas regras) — garante que o limite de membros do tenant
+        // (memberLimit/memberCount) nunca seja ultrapassado, mesmo por escritas diretas do client
+        // ou por duas adições concorrentes (dois admins, dois computadores, ao mesmo tempo).
+        allow create, delete: if false;
+        // Alteração de role continua direta do client — não mexe no contador de membros.
+        allow update: if isTenantAdmin(tenantId);
       }
 
       // Lookups de pessoa — qualquer membro lê; qualquer membro com escrita cria e deleta
@@ -1778,8 +1811,10 @@ service cloud.firestore {
 
     match /newsTags/{tagId} {
       allow read: if request.auth != null;
-      allow create, update, delete: if request.auth != null
+      allow create, update: if request.auth != null
         && request.resource.data.userId == request.auth.uid;
+      allow delete: if request.auth != null
+        && resource.data.userId == request.auth.uid;
     }
 
     match /newsTagLinks/{linkId} {

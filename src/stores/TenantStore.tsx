@@ -3,7 +3,6 @@ import { TenantContext } from './useTenant';
 import { useAuth } from './useAuth';
 import { useDI } from '../infrastructure/di/useDI';
 import { makeGetTenantsForUserUseCase } from '../domain/usecases/tenants/GetTenantsForUserUseCase';
-import { makeCreateTenantUseCase } from '../domain/usecases/tenants/CreateTenantUseCase';
 import {
   makeAddTenantMemberUseCase,
   makeUpdateTenantMemberRoleUseCase,
@@ -28,7 +27,6 @@ export const TenantStoreProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
   const uc = useMemo(() => ({
     getForUser: makeGetTenantsForUserUseCase(tenantRepository),
-    create: makeCreateTenantUseCase(tenantRepository),
     update: makeUpdateTenantUseCase(tenantRepository),
     addMember: makeAddTenantMemberUseCase(tenantRepository),
     updateRole: makeUpdateTenantMemberRoleUseCase(tenantRepository),
@@ -116,30 +114,13 @@ export const TenantStoreProvider: React.FC<{ children: React.ReactNode }> = ({ c
       setIsLoading(true);
       setInitError(null);
       try {
-        let tenants = await uc.getForUser.execute(user.id);
+        const tenants = await uc.getForUser.execute(user.id);
 
-        const hasOwnTenant = tenants.some((t) => t.ownerId === user.id);
-        if (!hasOwnTenant) {
-          const newTenant = await uc.create.execute({
-            name: `Escritório de ${effectiveName}`,
-            ownerId: user.id,
-            cnpj: null,
-            email: user.email,
-            phone: null,
-            address: null,
-            logoURL: null,
-            allowedSubjects: ['Movimentação processual do processo','Processo Judicial Digital'],
-          });
-          await uc.addMember.execute(newTenant.id, {
-            userId: user.id,
-            tenantId: newTenant.id,
-            role: 'admin',
-            displayName: effectiveName,
-            email: user.email,
-            photoURL: user.photoURL,
-            addedBy: user.id,
-          });
-          tenants = [...tenants, newTenant];
+        // O onboarding (users/, userProfiles/ e o tenant próprio) é feito inteiramente
+        // pela Cloud Function onUserCreated antes do AuthContext liberar o usuário —
+        // chegar aqui sem nenhum tenant indica falha no provisionamento server-side.
+        if (tenants.length === 0) {
+          throw new Error('Nenhum escritório encontrado para este usuário. Recarregue a página; se o problema persistir, contate o suporte.');
         }
 
         setAvailableTenants(tenants);

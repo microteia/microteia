@@ -1,7 +1,6 @@
 import {
   doc,
   getDoc,
-  setDoc,
   getDocs,
   updateDoc,
   collection,
@@ -9,7 +8,7 @@ import {
   where,
   orderBy,
   limit,
-  serverTimestamp,
+  onSnapshot,
 } from 'firebase/firestore';
 import { db } from '../../infrastructure/firebase/config';
 import type { AppUser, UserRole } from '../../domain/entities';
@@ -31,19 +30,37 @@ export class FirebaseUserRepository implements IUserRepository {
     return fromDoc(snap.id, snap.data());
   }
 
-  async createUserProfile(
-    userId: string,
-    data: Pick<AppUser, 'email' | 'displayName' | 'photoURL'>,
-  ): Promise<AppUser> {
-    const ref = doc(db, 'users', userId);
-    await setDoc(ref, {
-      email: data.email,
-      displayName: data.displayName,
-      photoURL: data.photoURL,
-      role: 'USER' as UserRole,
-      createdAt: serverTimestamp(),
+  async waitForProvisioning(userId: string, timeoutMs = 20000): Promise<AppUser> {
+    return new Promise((resolve, reject) => {
+      let settled = false;
+      const timeoutId = setTimeout(() => {
+        if (settled) return;
+        settled = true;
+        unsubscribe();
+        reject(new Error('Tempo esgotado ao configurar sua conta. Recarregue a página para tentar novamente.'));
+      }, timeoutMs);
+
+      const unsubscribe = onSnapshot(
+        doc(db, 'users', userId),
+        (snap) => {
+          if (settled || !snap.exists()) return;
+          const data = snap.data();
+          const tenantIds = (data.tenantIds as string[] | undefined) ?? [];
+          if (tenantIds.length === 0) return;
+          settled = true;
+          clearTimeout(timeoutId);
+          unsubscribe();
+          resolve(fromDoc(snap.id, data));
+        },
+        (err) => {
+          if (settled) return;
+          settled = true;
+          clearTimeout(timeoutId);
+          unsubscribe();
+          reject(err);
+        },
+      );
     });
-    return { id: userId, ...data, role: 'USER', createdAt: new Date() };
   }
 
   async getUserByEmail(email: string): Promise<AppUser | null> {

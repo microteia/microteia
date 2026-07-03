@@ -18,7 +18,7 @@ export const PushTabView: React.FC = () => {
         <S.SectionTitle>Remetentes Permitidos</S.SectionTitle>
         <S.SectionDescription>
           Configure os e-mails de tribunais autorizados a enviar notificações.
-          Apenas mensagens destes remetentes serão processadas pelo monitoramento Gmail. Se nenhum remetente for informado, somente os e-mails do domínio (.jus.br) serão processados.
+          Apenas mensagens destes remetentes serão processadas pelo monitoramento Gmail. Se nenhum remetente for informado, somente os e-mails do domínio (.jus.br, @publicacoesonline.com.br) serão processados.
         </S.SectionDescription>
         <S.AllowedSendersCard>
           <S.IconWrapper $color={theme.colors.success}>

@@ -3,6 +3,7 @@ import { useTenant } from '../../../../stores/useTenant';
 import { useAuth } from '../../../../stores/useAuth';
 import { useNotification } from '../../../../stores/useNotification';
 import { useDI } from '../../../../infrastructure/di/useDI';
+import { TenantMemberLimitReachedError } from '../../../../domain/errors';
 import type { TenantMember, TenantRole } from '../../../../domain/entities';
 
 export const TENANT_ROLE_LABELS: Record<TenantRole, string> = {
@@ -21,6 +22,9 @@ export interface MembersTabViewModel {
   addRole: TenantRole;
   isAddingMember: boolean;
   memberToRemove: TenantMember | null;
+  memberLimit: number | null;
+  memberCount: number;
+  canAddMore: boolean;
   setAddEmail: (v: string) => void;
   setAddRole: (v: TenantRole) => void;
   handleAddMember: () => Promise<void>;
@@ -41,7 +45,16 @@ export const useMembersTabViewModel = (): MembersTabViewModel => {
   const [isAddingMember, setIsAddingMember] = useState(false);
   const [memberToRemove, setMemberToRemove] = useState<TenantMember | null>(null);
 
+  const memberLimit = currentTenant?.memberLimit ?? null;
+  const memberCount = members.length;
+  const canAddMore = memberLimit === null || memberCount < memberLimit;
+
   const handleAddMember = useCallback(async () => {
+    if (!canAddMore) {
+      notify('Limite de membros do escritório atingido.', 'error');
+      return;
+    }
+
     const email = addEmail.trim().toLowerCase();
     if (!email) {
       notify('Informe o e-mail do usuário.', 'error');
@@ -76,12 +89,15 @@ export const useMembersTabViewModel = (): MembersTabViewModel => {
       notify('Membro adicionado com sucesso!', 'success');
       setAddEmail('');
       setAddRole('user');
-    } catch {
-      notify('Erro ao adicionar membro.', 'error');
+    } catch (err) {
+      notify(
+        err instanceof TenantMemberLimitReachedError ? err.message : 'Erro ao adicionar membro.',
+        'error',
+      );
     } finally {
       setIsAddingMember(false);
     }
-  }, [addEmail, addRole, addMember, currentTenant, user, members, userRepository, notify]);
+  }, [canAddMore, addEmail, addRole, addMember, currentTenant, user, members, userRepository, notify]);
 
   const handleRoleChange = useCallback(async (member: TenantMember, role: TenantRole) => {
     try {
@@ -119,6 +135,9 @@ export const useMembersTabViewModel = (): MembersTabViewModel => {
     addRole,
     isAddingMember,
     memberToRemove,
+    memberLimit,
+    memberCount,
+    canAddMore,
     setAddEmail,
     setAddRole,
     handleAddMember,

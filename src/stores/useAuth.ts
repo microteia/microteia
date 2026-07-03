@@ -15,7 +15,7 @@ export interface AuthContextValue {
   signUpWithEmail: (email: string, password: string, displayName: string) => Promise<void>;
   sendEmailVerification: () => Promise<void>;
   sendPasswordResetEmail: (email: string) => Promise<void>;
-  checkEmailVerification: () => void;
+  checkEmailVerification: () => Promise<boolean>;
   signOut: () => Promise<void>;
 }
 

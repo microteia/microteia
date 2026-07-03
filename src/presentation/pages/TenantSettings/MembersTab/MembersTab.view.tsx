@@ -10,6 +10,7 @@ import { ConfirmModal } from '../../../components/ui/ConfirmModal';
 import { Spinner } from '../../../components/ui/Spinner';
 import { SearchSelect } from '../../../components/ui/SearchSelect';
 import type { SearchSelectOption } from '../../../components/ui/SearchSelect';
+import { InfoBanner } from '../../../components/ui/InfoBanner';
 import type { TenantRole } from '../../../../domain/entities';
 
 const ROLES: TenantRole[] = ['admin', 'lawyer', 'secretary', 'user'];
@@ -33,6 +34,13 @@ export const MembersTabView: React.FC = () => {
 
   return (
     <S.Container>
+      {!vm.canAddMore && (
+        <InfoBanner
+          variant="warning"
+          message={`Limite de membros atingido (${vm.memberLimit}) para este escritório. Remova um membro ou peça ao administrador do sistema para aumentar o limite.`}
+        />
+      )}
+
       <S.AddMemberRow>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
           <Label>E-mail do novo membro</Label>
@@ -41,6 +49,7 @@ export const MembersTabView: React.FC = () => {
             value={vm.addEmail}
             onChange={(e) => vm.setAddEmail(e.target.value)}
             placeholder="email@usuario.com"
+            disabled={!vm.canAddMore}
             onKeyDown={(e) => {
               if (e.key === 'Enter') void vm.handleAddMember();
             }}
@@ -55,10 +64,11 @@ export const MembersTabView: React.FC = () => {
               if (val) vm.setAddRole(val as TenantRole);
             }}
             placeholder="Perfil..."
+            disabled={!vm.canAddMore}
           />
         </div>
         <div style={{ display: 'flex', alignItems: 'flex-end' }}>
-          <Button onClick={() => void vm.handleAddMember()} disabled={vm.isAddingMember}>
+          <Button onClick={() => void vm.handleAddMember()} disabled={vm.isAddingMember || !vm.canAddMore}>
             {vm.isAddingMember ? 'Adicionando...' : 'Adicionar'}
           </Button>
         </div>

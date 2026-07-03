@@ -8,6 +8,7 @@ export interface IAuthRepository {
   sendEmailVerification(): Promise<void>;
   sendPasswordResetEmail(email: string): Promise<void>;
   isEmailVerified(): boolean;
+  refreshEmailVerification(): Promise<boolean>;
   signOut(): Promise<void>;
   onAuthStateChanged(callback: (user: User | null) => void): () => void;
 }

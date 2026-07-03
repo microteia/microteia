@@ -23,7 +23,7 @@ export const LoginView: React.FC = () => {
           <S.Title>Verifique seu e-mail</S.Title>
           <S.VerifyEmailText>
             Enviamos um link de verificação para <strong>{vm.emailField}</strong>.
-            Clique nele para ativar sua conta.
+            Clique nele para ativar sua conta. Olhe a caixa de entrada e a pasta de spam.
           </S.VerifyEmailText>
           <S.ButtonGroup>
             <Button $fullWidth size="lg" onClick={vm.handleCheckVerification} $isLoading={vm.loading} disabled={vm.loading}>

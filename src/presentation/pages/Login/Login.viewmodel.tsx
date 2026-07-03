@@ -23,7 +23,7 @@ export interface LoginViewModel {
   handleFacebookLogin: () => Promise<void>;
   handleForgotPassword: () => Promise<void>;
   handleResendVerification: () => Promise<void>;
-  handleCheckVerification: () => void;
+  handleCheckVerification: () => Promise<void>;
   handleCancelVerification: () => Promise<void>;
   goToSignUp: () => void;
   goToLogin: () => void;
@@ -196,8 +196,19 @@ export const useLoginViewModel = (): LoginViewModel => {
     }
   }, [sendEmailVerification]);
 
-  const handleCheckVerification = useCallback(() => {
-    checkEmailVerification();
+  const handleCheckVerification = useCallback(async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const verified = await checkEmailVerification();
+      if (!verified) {
+        setError('Ainda não identificamos a verificação. Clique no link do e-mail e tente novamente.');
+      }
+    } catch {
+      setError('Não foi possível verificar agora. Tente novamente.');
+    } finally {
+      setLoading(false);
+    }
   }, [checkEmailVerification]);
 
   const handleCancelVerification = useCallback(async () => {

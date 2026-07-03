@@ -9,6 +9,8 @@ export interface Tenant {
   logoURL?: string | null;
   allowedSenders?: string[];
   allowedSubjects?: string[];
+  memberLimit: number | null;
+  memberCount: number;
   createdAt: Date;
   updatedAt: Date;
 }

@@ -4,20 +4,17 @@ import {
   doc,
   getDoc,
   getDocs,
-  addDoc,
-  setDoc,
   updateDoc,
-  deleteDoc,
-  arrayUnion,
-  arrayRemove,
   query,
   where,
   Timestamp,
   serverTimestamp,
 } from 'firebase/firestore';
-import { db } from '../../infrastructure/firebase/config';
+import { httpsCallable, FunctionsError } from 'firebase/functions';
+import { db, functions } from '../../infrastructure/firebase/config';
 import type { ITenantRepository, TenantMemberRoleActor } from '../../domain/repositories/ITenantRepository';
 import type { Tenant, TenantMember, TenantRole } from '../../domain/entities';
+import { TenantMemberLimitReachedError } from '../../domain/errors';
 
 const toDate = (v: unknown): Date =>
   v instanceof Timestamp ? v.toDate() : (v as Date);
@@ -33,6 +30,8 @@ const mapTenant = (id: string, d: Record<string, unknown>): Tenant => ({
   logoURL: (d.logoURL as string | null) ?? null,
   allowedSenders: (d.allowedSenders as string[] | undefined) ?? [],
   allowedSubjects: (d.allowedSubjects as string[] | undefined) ?? [],
+  memberLimit: (d.memberLimit as number | null | undefined) ?? null,
+  memberCount: (d.memberCount as number | undefined) ?? 0,
   createdAt: toDate(d.createdAt),
   updatedAt: toDate(d.updatedAt),
 });
@@ -49,18 +48,6 @@ const mapMember = (d: Record<string, unknown>): TenantMember => ({
 });
 
 export class FirebaseTenantRepository implements ITenantRepository {
-  async createTenant(data: Omit<Tenant, 'id' | 'createdAt' | 'updatedAt'>): Promise<Tenant> {
-    const now = new Date();
-    const ref = await addDoc(collection(db, 'tenants'), {
-      ...data,
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
-    });
-    // GET exige isMember(tenantId), mas o usuário ainda não é membro neste momento.
-    // Retornamos a partir dos dados locais para evitar a permissão negada.
-    return { id: ref.id, ...data, createdAt: now, updatedAt: now };
-  }
-
   async getTenantById(tenantId: string): Promise<Tenant | null> {
     const snap = await getDoc(doc(db, 'tenants', tenantId));
     if (!snap.exists()) return null;
@@ -71,15 +58,29 @@ export class FirebaseTenantRepository implements ITenantRepository {
     await updateDoc(doc(db, 'tenants', tenantId), { ...data, updatedAt: serverTimestamp() });
   }
 
+  async updateMemberLimit(tenantId: string, memberLimit: number | null): Promise<void> {
+    await updateDoc(doc(db, 'tenants', tenantId), { memberLimit, updatedAt: serverTimestamp() });
+  }
+
   async addMember(tenantId: string, member: Omit<TenantMember, 'addedAt'>): Promise<void> {
-    await setDoc(doc(db, 'tenants', tenantId, 'members', member.userId), {
-      ...member,
-      addedAt: serverTimestamp(),
-    });
+    const call = httpsCallable<
+      { tenantId: string; userId: string; role: TenantRole; displayName: string; email: string; photoURL: string | null },
+      { success: boolean }
+    >(functions, 'addTenantMember');
     try {
-      await setDoc(doc(db, 'users', member.userId), { tenantIds: arrayUnion(tenantId) }, { merge: true });
-    } catch {
-      // Non-critical: documento do usuário pode não existir ainda; getTenantsForUser tem fallback via collectionGroup.
+      await call({
+        tenantId,
+        userId: member.userId,
+        role: member.role,
+        displayName: member.displayName,
+        email: member.email,
+        photoURL: member.photoURL,
+      });
+    } catch (err) {
+      if (err instanceof FunctionsError && err.code === 'functions/resource-exhausted') {
+        throw new TenantMemberLimitReachedError();
+      }
+      throw err;
     }
   }
 
@@ -92,12 +93,8 @@ export class FirebaseTenantRepository implements ITenantRepository {
   }
 
   async removeMember(tenantId: string, userId: string): Promise<void> {
-    await deleteDoc(doc(db, 'tenants', tenantId, 'members', userId));
-    try {
-      await updateDoc(doc(db, 'users', userId), { tenantIds: arrayRemove(tenantId) });
-    } catch {
-      // Non-critical: same cross-user write limitation as addMember.
-    }
+    const call = httpsCallable<{ tenantId: string; userId: string }, { success: boolean }>(functions, 'removeTenantMember');
+    await call({ tenantId, userId });
   }
 
   async getMembers(tenantId: string): Promise<TenantMember[]> {
