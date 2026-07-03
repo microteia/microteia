@@ -28,7 +28,7 @@ const resolveNewsActor = async (data: EntityData): Promise<{ name: string; photo
  * pelas triggers genéricas — por isso ganham triggers dedicadas aqui.
  */
 export const auditNewsChange = onDocumentWritten(
-  { document: 'news/{docId}', region: 'us-central1' },
+  { document: 'news/{docId}', region: 'southamerica-east1' },
   async (event) => {
     const { docId } = event.params;
     let tenantId = 'SYSTEM';
@@ -81,7 +81,7 @@ export const auditNewsChange = onDocumentWritten(
 );
 
 export const auditNewsCommentChange = onDocumentWritten(
-  { document: 'newsComments/{docId}', region: 'us-central1' },
+  { document: 'newsComments/{docId}', region: 'southamerica-east1' },
   async (event) => {
     const { docId } = event.params;
     let tenantId = 'SYSTEM';
@@ -138,7 +138,7 @@ export const auditNewsCommentChange = onDocumentWritten(
 );
 
 export const auditNewsTagChange = onDocumentWritten(
-  { document: 'newsTags/{docId}', region: 'us-central1' },
+  { document: 'newsTags/{docId}', region: 'southamerica-east1' },
   async (event) => {
     const { docId } = event.params;
     const tenantId = 'SYSTEM';

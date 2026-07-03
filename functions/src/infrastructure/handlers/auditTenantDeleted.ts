@@ -9,7 +9,7 @@ import { logAuditError } from './shared/logAuditError';
  * genérica de `auditFlatEntityChange`.
  */
 export const auditTenantDeleted = onDocumentDeleted(
-  { document: 'tenants/{tenantId}', region: 'us-central1' },
+  { document: 'tenants/{tenantId}', region: 'southamerica-east1' },
   async (event) => {
     const { tenantId } = event.params;
     try {

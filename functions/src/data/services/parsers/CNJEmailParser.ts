@@ -8,14 +8,18 @@ import type { PushMovement } from '../../../domain/entities/Push';
 export class CNJEmailParser implements IEmailParser {
   readonly name = 'CNJ';
 
-  tryParse(emailText: string): Array<Omit<ParsedEmailData, 'parsedByAI'>> {
-    if (!this.isCNJEmail(emailText)) {
+  tryParse(emailText: string, emailHtml?: string): Array<Omit<ParsedEmailData, 'parsedByAI'>> {
+    const textContent = emailText || '';
+    const htmlContent = emailHtml ? this.cleanHtml(emailHtml) : '';
+    const content = `${textContent}\n${htmlContent}`;
+
+    if (!this.isCNJEmail(content)) {
       return [];
     }
 
     const result: Omit<ParsedEmailData, 'parsedByAI'> = {};
 
-    const processNumberMatch = emailText.match(/Número do Processo:\s*(\d{7}-\d{2}\.\d{4}\.\d\.\d{2}\.\d{4})/i);
+    const processNumberMatch = content.match(/Número do Processo:\s*(\d{7}-\d{2}\.\d{4}\.\d\.\d{2}\.\d{4})/i);
     if (processNumberMatch) {
       result.processNumber = processNumberMatch[1];
     }
@@ -46,18 +50,31 @@ export class CNJEmailParser implements IEmailParser {
       result.filingDate = new Date(Number(year), Number(month) - 1, Number(day), Number(hour), Number(minute));
     }
 
-    const subjectMatch = emailText.match(/Assunto:\s*([^\n]+)/i);
+    const subjectMatch = content.match(/Assunto:\s*([^\n]+)/i);
     if (subjectMatch) {
       result.processSubject = subjectMatch[1].trim();
     }
 
-    result.movements = this.parseMovements(emailText);
+    result.movements = this.parseMovements(content);
 
     if (!result.processNumber) {
       result.parsingError = 'Número do processo não encontrado';
     }
 
     return [result];
+  }
+
+  private cleanHtml(html: string): string {
+    return html
+      .replace(/<br\s*\/?>/gi, '\n')
+      .replace(/<\/?( p|div|tr|td|th)[^>]*>/gi, '\n')
+      .replace(/<[^>]+>/g, '')
+      .replace(/&nbsp;/gi, ' ')
+      .replace(/&amp;/gi, '&')
+      .replace(/&lt;/gi, '<')
+      .replace(/&gt;/gi, '>')
+      .replace(/&quot;/gi, '"')
+      .replace(/\n\s*\n/g, '\n');
   }
 
   private isCNJEmail(text: string): boolean {

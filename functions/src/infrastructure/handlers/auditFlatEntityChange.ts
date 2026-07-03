@@ -14,7 +14,7 @@ import type { AuditAction } from '../../domain/entities/AuditLog';
  * é automática).
  */
 export const auditFlatEntityChange = onDocumentWritten(
-  { document: 'tenants/{tenantId}/{collection}/{docId}', region: 'us-central1' },
+  { document: 'tenants/{tenantId}/{collection}/{docId}', region: 'southamerica-east1' },
   async (event) => {
     const { tenantId, collection, docId } = event.params;
     const config = getFlatEntityConfig(collection);

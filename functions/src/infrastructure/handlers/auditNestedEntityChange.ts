@@ -11,7 +11,7 @@ import type { AuditAction } from '../../domain/entities/AuditLog';
  * Mesma allowlist interna de `auditFlatEntityChange`, para pares (parent, sub).
  */
 export const auditNestedEntityChange = onDocumentWritten(
-  { document: 'tenants/{tenantId}/{parent}/{parentId}/{sub}/{docId}', region: 'us-central1' },
+  { document: 'tenants/{tenantId}/{parent}/{parentId}/{sub}/{docId}', region: 'southamerica-east1' },
   async (event) => {
     const { tenantId, parent, parentId, sub, docId } = event.params;
     const config = getNestedEntityConfig(parent, sub);

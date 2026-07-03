@@ -30,51 +30,58 @@ export class OpenAIService implements IAIProviderService {
         name: "judicial_processes",
         strict: true,
         schema: {
-          type: "array",
-          items: {
-            type: "object",
-            properties: {
-              processNumber: { type: ["string", "null"] },
-              court: { type: ["string", "null"] },
-              activeParty: { type: ["string", "null"] },
-              passiveParty: { type: ["string", "null"] },
-              legalClass: { type: ["string", "null"] },
-              filingDate: { type: ["string", "null"] },
-              distributionType: { type: ["string", "null"] },
-              processSubject: { type: ["string", "null"] },
-              movements: {
-                type: "array",
-                items: {
-                  type: "object",
-                  properties: {
-                    date: { type: ["string", "null"] },
-                    type: { type: ["string", "null"] },
-                    description: { type: ["string", "null"] },
-                    documentUrl: { type: ["string", "null"] }
-                  },
-                  required: [
-                    "date",
-                    "type",
-                    "description",
-                    "documentUrl"
-                  ],
-                  additionalProperties: false
-                }
+          type: "object",
+          properties: {
+            processes: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: {
+                  processNumber: { type: ["string", "null"] },
+                  court: { type: ["string", "null"] },
+                  activeParty: { type: ["string", "null"] },
+                  passiveParty: { type: ["string", "null"] },
+                  legalClass: { type: ["string", "null"] },
+                  filingDate: { type: ["string", "null"] },
+                  distributionType: { type: ["string", "null"] },
+                  processSubject: { type: ["string", "null"] },
+                  movements: {
+                    type: "array",
+                    items: {
+                      type: "object",
+                      properties: {
+                        date: { type: ["string", "null"] },
+                        type: { type: ["string", "null"] },
+                        description: { type: ["string", "null"] },
+                        documentUrl: { type: ["string", "null"] }
+                      },
+                      required: [
+                        "date",
+                        "type",
+                        "description",
+                        "documentUrl"
+                      ],
+                      additionalProperties: false
+                    }
+                  }
+                },
+                required: [
+                  "processNumber",
+                  "court",
+                  "activeParty",
+                  "passiveParty",
+                  "legalClass",
+                  "filingDate",
+                  "distributionType",
+                  "processSubject",
+                  "movements"
+                ],
+                additionalProperties: false
               }
-            },
-            required: [
-              "processNumber",
-              "court",
-              "activeParty",
-              "passiveParty",
-              "legalClass",
-              "filingDate",
-              "distributionType",
-              "processSubject",
-              "movements"
-            ],
-            additionalProperties: false
-          }
+            }
+          },
+          required: ["processes"],
+          additionalProperties: false
         }
       }
     }

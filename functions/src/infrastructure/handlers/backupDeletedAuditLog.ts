@@ -8,7 +8,7 @@ import { getBucket } from '../firebase/initFirebase';
  * Storage antes de ser perdido definitivamente. Um arquivo por log, pasta por entidade.
  */
 export const backupDeletedAuditLog = onDocumentDeleted(
-  { document: 'auditLogs/{logId}', region: 'us-central1' },
+  { document: 'auditLogs/{logId}', region: 'southamerica-east1' },
   async (event) => {
     const { logId } = event.params;
     try {

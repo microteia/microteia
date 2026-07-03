@@ -8,19 +8,23 @@ import type { PushMovement } from '../../../domain/entities/Push';
 export class ProjudiTJBAEmailParser implements IEmailParser {
   readonly name = 'ProjudiTJBA';
 
-  tryParse(emailText: string): Array<Omit<ParsedEmailData, 'parsedByAI'>> {
-    if (!this.isProjudiTJBAEmail(emailText)) {
+  tryParse(emailText: string, emailHtml?: string): Array<Omit<ParsedEmailData, 'parsedByAI'>> {
+    const textContent = emailText || '';
+    const htmlContent = emailHtml ? this.cleanHtml(emailHtml) : '';
+    const content = `${textContent}\n${htmlContent}`;
+
+    if (!this.isProjudiTJBAEmail(content)) {
       return [];
     }
 
     const result: Omit<ParsedEmailData, 'parsedByAI'> = {};
 
-    const processNumberMatch = emailText.match(/PROCESSO JUDICIAL Nº\s*(\d{7}-\d{2}\.\d{4}\.\d\.\d{2}\.\d{4})/i);
+    const processNumberMatch = content.match(/PROCESSO JUDICIAL Nº\s*(\d{7}-\d{2}\.\d{4}\.\d\.\d{2}\.\d{4})/i);
     if (processNumberMatch) {
       result.processNumber = processNumberMatch[1];
     }
 
-    const distributionMatch = emailText.match(/DISTRIBUIÇÃO:\s*(\d{1,2})\s+de\s+(\w+)\s+de\s+(\d{4})\s+às?\s+(\d{1,2}):(\d{2})/i);
+    const distributionMatch = content.match(/DISTRIBUIÇÃO:\s*(\d{1,2})\s+de\s+(\w+)\s+de\s+(\d{4})\s+às?\s+(\d{1,2}):(\d{2})/i);
     if (distributionMatch) {
       const [, day, monthName, year, hour, minute] = distributionMatch;
       const month = this.parseMonthName(monthName);
@@ -29,33 +33,46 @@ export class ProjudiTJBAEmailParser implements IEmailParser {
       }
     }
 
-    const courtMatch = emailText.match(/JUÍZO:\s*([^\n]+)/i);
+    const courtMatch = content.match(/JUÍZO:\s*([^\n]+)/i);
     if (courtMatch) {
       result.court = courtMatch[1].trim();
     }
 
-    const legalClassMatch = emailText.match(/TIPO DE AÇÃO:\s*([^\n]+)/i);
+    const legalClassMatch = content.match(/TIPO DE AÇÃO:\s*([^\n]+)/i);
     if (legalClassMatch) {
       result.legalClass = legalClassMatch[1].trim();
     }
 
-    const activePartyMatch = emailText.match(/PROMOVENTE\(S\):\s*([^\n]+)/i);
+    const activePartyMatch = content.match(/PROMOVENTE\(S\):\s*([^\n]+)/i);
     if (activePartyMatch) {
       result.activeParty = activePartyMatch[1].trim();
     }
 
-    const passivePartyMatch = emailText.match(/PROMOVIDO\(S\):\s*([^\n]+)/i);
+    const passivePartyMatch = content.match(/PROMOVIDO\(S\):\s*([^\n]+)/i);
     if (passivePartyMatch) {
       result.passiveParty = passivePartyMatch[1].trim();
     }
 
-    result.movements = this.parseMovements(emailText);
+    result.movements = this.parseMovements(content);
 
     if (!result.processNumber) {
       result.parsingError = 'Número do processo não encontrado';
     }
 
     return [result];
+  }
+
+  private cleanHtml(html: string): string {
+    return html
+      .replace(/<br\s*\/?>/gi, '\n')
+      .replace(/<\/?( p|div|tr|td|th)[^>]*>/gi, '\n')
+      .replace(/<[^>]+>/g, '')
+      .replace(/&nbsp;/gi, ' ')
+      .replace(/&amp;/gi, '&')
+      .replace(/&lt;/gi, '<')
+      .replace(/&gt;/gi, '>')
+      .replace(/&quot;/gi, '"')
+      .replace(/\n\s*\n/g, '\n');
   }
 
   private isProjudiTJBAEmail(text: string): boolean {

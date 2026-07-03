@@ -53,11 +53,15 @@ export class EmailParserService implements IEmailParserService {
   async parse(emailText: string, emailFrom: string, tenantId: string, emailHtml?: string): Promise<ParsedEmailData[]> {
     const normalizedFrom = this.normalizeEmail(emailFrom);
 
+    console.log(`Iniciando parsing de email de: ${normalizedFrom}`);
+    console.log(`Conteúdo do email (texto): ${emailText.substring(0, 200)}...`);
+    console.log(`Conteúdo do email (HTML): ${emailHtml ? emailHtml.substring(0, 200) + '...' : 'N/A'}`);
+
     let specificParser = this.parserByEmail.get(normalizedFrom);
 
     if (!specificParser) {
       console.log('Parser não encontrado pelo remetente, verificando conteúdo do email...');
-      const emailContent = `${emailText} ${emailHtml || ''}`.toLowerCase();
+      const emailContent = `text:${emailText} html:${emailHtml || ''}`.toLowerCase();
 
       for (const [knownEmail, parser] of this.parserByEmail.entries()) {
         if (emailContent.includes(knownEmail.toLowerCase())) {
@@ -135,41 +139,42 @@ export class EmailParserService implements IEmailParserService {
 
         const jsonData = this.extractJSON(rawResponse);
 
-        const parsed = JSON.parse(jsonData);
+        const parsed = JSON.parse(jsonData) as { processes?: unknown[] };
 
-        if (!Array.isArray(parsed)) {
-          const error = `IA ${credentials.provider}/${credentials.model} não retornou um array`;
+        if (!parsed.processes || !Array.isArray(parsed.processes)) {
+          const error = `IA ${credentials.provider}/${credentials.model} não retornou um objeto com array de processes`;
           console.warn(error);
           errors.push(error);
           continue;
         }
 
-        if (parsed.length === 0) {
+        if (parsed.processes.length === 0) {
           const error = `IA ${credentials.provider}/${credentials.model} retornou array vazio`;
           console.warn(error);
           errors.push(error);
           continue;
         }
 
-        if (!parsed[0].processNumber) {
+        const firstProcess = parsed.processes[0] as Record<string, unknown>;
+        if (!firstProcess.processNumber) {
           const error = `IA ${credentials.provider}/${credentials.model} não extraiu número de processo`;
           console.warn(error);
           errors.push(error);
           continue;
         }
 
-        console.log(`✓ Parsing bem-sucedido com IA: ${credentials.provider}/${credentials.model} (${parsed.length} intimação(ões))`);
+        console.log(`✓ Parsing bem-sucedido com IA: ${credentials.provider}/${credentials.model} (${parsed.processes.length} intimação(ões))`);
 
         return {
-          processNumber: parsed[0].processNumber,
-          court: parsed[0].court,
-          activeParty: parsed[0].activeParty,
-          passiveParty: parsed[0].passiveParty,
-          legalClass: parsed[0].legalClass,
-          filingDate: parsed[0].filingDate ? new Date(parsed[0].filingDate) : undefined,
-          distributionType: parsed[0].distributionType,
-          processSubject: parsed[0].processSubject,
-          movements: parsed[0].movements?.map((m: { date: string; type: string; description?: string; documentUrl?: string }) => ({
+          processNumber: firstProcess.processNumber as string,
+          court: firstProcess.court as string | undefined,
+          activeParty: firstProcess.activeParty as string | undefined,
+          passiveParty: firstProcess.passiveParty as string | undefined,
+          legalClass: firstProcess.legalClass as string | undefined,
+          filingDate: firstProcess.filingDate ? new Date(firstProcess.filingDate as string) : undefined,
+          distributionType: firstProcess.distributionType as string | undefined,
+          processSubject: firstProcess.processSubject as string | undefined,
+          movements: (firstProcess.movements as Array<{ date: string; type: string; description?: string; documentUrl?: string }> | undefined)?.map((m) => ({
             date: new Date(m.date),
             type: m.type,
             description: m.description,
@@ -224,31 +229,33 @@ Nunca assuma um formato específico. Analise o conteúdo e identifique os proces
 
 FORMATO DA RESPOSTA (JSON):
 
-[
-  {
-    "processNumber": null,
-    "court": null,
-    "activeParty": null,
-    "passiveParty": null,
-    "legalClass": null,
-    "filingDate": null,
-    "distributionType": null,
-    "processSubject": null,
-    "movements": [
-      {
-        "date": null,
-        "type": null,
-        "description": null,
-        "documentUrl": null
-      }
-    ]
-  }
-]
+{
+  "processes": [
+    {
+      "processNumber": null,
+      "court": null,
+      "activeParty": null,
+      "passiveParty": null,
+      "legalClass": null,
+      "filingDate": null,
+      "distributionType": null,
+      "processSubject": null,
+      "movements": [
+        {
+          "date": null,
+          "type": null,
+          "description": null,
+          "documentUrl": null
+        }
+      ]
+    }
+  ]
+}
 
 REGRAS
 
-- SEMPRE retorne um ARRAY.
-- Se não encontrar nenhum processo, retorne [].
+- SEMPRE retorne um objeto JSON com a propriedade "processes" contendo um array.
+- Se não encontrar nenhum processo, retorne {"processes": []}.
 - Nunca invente informações.
 - Use null quando um campo não puder ser identificado.
 - Preserve exatamente os nomes das partes.
@@ -261,14 +268,14 @@ IDENTIFICAÇÃO DOS PROCESSOS
 
 Considere que normalmente um processo possui um número CNJ.
 
-Se o email possuir vários processos independentes, retorne um objeto para cada processo.
+Se o email possuir vários processos independentes, retorne um objeto para cada processo dentro do array "processes".
 
 Exemplos:
 
-- 1 processo → array com 1 objeto.
-- 5 intimações de processos diferentes → array com 5 objetos.
-- Relatório contendo diversos processos → um objeto para cada processo.
-- Nenhum processo → [].
+- 1 processo → {"processes": [objeto do processo]}.
+- 5 intimações de processos diferentes → {"processes": [5 objetos]}.
+- Relatório contendo diversos processos → um objeto para cada processo no array.
+- Nenhum processo → {"processes": []}.
 
 EXTRAÇÃO DOS CAMPOS
 
@@ -366,10 +373,11 @@ VALIDAÇÃO FINAL
 Antes de responder, verifique:
 
 - A resposta contém APENAS um único JSON.
-- O JSON inicia com '['.
-- O JSON termina com ']'.
-- Não existe texto antes do '['.
-- Não existe texto depois do ']'.
+- O JSON inicia com '{'.
+- O JSON termina com '}'.
+- Não existe texto antes do '{'.
+- Não existe texto depois do '}'.
+- O JSON possui a propriedade "processes" com um array.
 - O JSON é sintaticamente válido.
 
 Retorne somente o JSON.`;

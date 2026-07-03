@@ -39,7 +39,8 @@ export const gmailPush = onMessagePublished(
 
     const isTrustedSource = (from: string): boolean => {
         const email = extractEmail(from);
-        return email.toLowerCase().endsWith('.jus.br');
+        return email.toLowerCase().endsWith('.jus.br') || 
+        email.toLowerCase().endsWith('@publicacoesonline.com.br');
     };
 
     console.log('Notificação do Gmail recebida!');
@@ -93,18 +94,14 @@ export const gmailPush = onMessagePublished(
           console.warn(`Tenant ${connection.tenantId} não encontrado`);
           continue;
         }
+
+        console.log(`Processando Tenant: ${tenant.name}`);
         
         const allowedSenders = tenant.allowedSenders ?? [];
         const allowedSubjects = tenant.allowedSubjects ?? [];
         
-        if (allowedSenders.length === 0) {
-          console.warn(`Tenant ${connection.tenantId} não possui remetentes permitidos configurados. Somente emails de tribunais (.jus.br) serão processados.`);
-        }
-        if (allowedSubjects.length === 0) {
-          console.warn(`Tenant ${connection.tenantId} não possui assuntos permitidos configurados`);
-        }
-        console.log(`Remetentes permitidos para tenant ${connection.tenantId}:`, allowedSenders);
-        console.log(`Assuntos permitidos para tenant ${connection.tenantId}:`, allowedSubjects);
+        console.log(`Remetentes permitidos:`, allowedSenders);
+        console.log(`Assuntos permitidos:`, allowedSubjects);
         
         const startHistoryId = connection.historyId || historyId;
         console.log(`Buscando emails desde historyId: ${startHistoryId}`);
@@ -158,7 +155,7 @@ export const gmailPush = onMessagePublished(
 
           console.log(`${newMessages.length} email(s) novo(s) encontrado(s)`);
 
-          // Filtrar apenas emails de remetentes permitidos (tribunais)
+          // Filtrar apenas emails de remetentes permitidos
           const courtMessages = newMessages.filter( (msg) => {
             const from = extractEmail(msg.from);
             return allowedSenders.length === 0
@@ -231,6 +228,10 @@ export const gmailPush = onMessagePublished(
                 console.error(`  De: ${message.from}`);
                 console.error(`  Assunto: ${message.subject}`);
                 console.error(`  Erro: ${parsedData.parsingError}`);
+                console.error(`  Body Text (primeiros 500 chars): ${(message.bodyText || '').substring(0, 500)}`);
+                if (message.bodyHtml) {
+                  console.error(`  Body HTML (primeiros 500 chars): ${message.bodyHtml.substring(0, 500)}`);
+                }
               }
 
               const result = await createOrUpdatePushUC.execute(connection.tenantId, {
