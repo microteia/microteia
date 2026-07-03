@@ -1,6 +1,7 @@
 import { onMessagePublished } from 'firebase-functions/v2/pubsub';
 import { defineString } from 'firebase-functions/params';
 import { getDI } from '../di/container';
+import { GmailPushRunLogger } from './shared/gmailPushRunLogger';
 
 const googleClientId = defineString('GOOGLE_CLIENT_ID');
 const googleClientSecret = defineString('GOOGLE_CLIENT_SECRET');
@@ -85,40 +86,45 @@ export const gmailPush = onMessagePublished(
 
       // Processar notificação para cada tenant que possui este email
       for (const connection of connections) {
-        console.log(`Processando notificação para tenant ${connection.tenantId}`);
+        console.log(`Processando notificação para escritório ${connection.tenantId}`);
         
         // Buscar dados do tenant para obter allowedSenders
         const tenant = await tenantRepo.getById(connection.tenantId);
         
         if (!tenant) {
-          console.warn(`Tenant ${connection.tenantId} não encontrado`);
+          console.warn(`Escritório ${connection.tenantId} não encontrado`);
           continue;
         }
 
-        console.log(`Processando Tenant: ${tenant.name}`);
-        
+        const runLogger = new GmailPushRunLogger(connection.tenantId, tenant.name);
+
+        runLogger.log('info', `Processando : ${tenant.name}`);
+
         const allowedSenders = tenant.allowedSenders ?? [];
         const allowedSubjects = tenant.allowedSubjects ?? [];
-        
-        console.log(`Remetentes permitidos:`, allowedSenders);
-        console.log(`Assuntos permitidos:`, allowedSubjects);
-        
+
+        runLogger.log('info', `Remetentes permitidos: ${JSON.stringify(allowedSenders)}`);
+        runLogger.log('info', `Assuntos permitidos: ${JSON.stringify(allowedSubjects)}`);
+
         const startHistoryId = connection.historyId || historyId;
-        console.log(`Buscando emails desde historyId: ${startHistoryId}`);
+        runLogger.log('info', `Buscando emails desde historyId: ${startHistoryId}`);
+
+        let fatalError: string | undefined;
+        let historyIdUpdated = false;
 
         try {
           // Buscar token de acesso da conexão
           const tokenData = await gmailConnectionRepo.getAccessToken(connection.id);
-          
+
           if (!tokenData) {
-            console.warn(`Token não encontrado para conexão ${connection.id}`);
+            runLogger.log('warn', `Token não encontrado para conexão ${connection.id}`);
             continue;
           }
 
           // Renovar token se expirado
           let currentAccessToken = tokenData.accessToken;
           if (tokenData.expiresAt < new Date()) {
-            console.log(`Token expirado para conexão ${connection.id}, renovando...`);
+            runLogger.log('info', `Token expirado para conexão ${connection.id}, renovando...`);
             try {
               const authService = di.getGoogleAuthService();
               const config = {
@@ -126,10 +132,10 @@ export const gmailPush = onMessagePublished(
                 clientSecret: googleClientSecret.value(),
                 redirectUri: googleRedirectUri.value(),
               };
-              
+
               const refreshed = await authService.refreshAccessToken(tokenData.refreshToken, config);
               currentAccessToken = refreshed.accessToken;
-              
+
               // Atualizar token no Firestore
               await gmailConnectionRepo.updateAccessToken(
                 connection.id,
@@ -137,10 +143,11 @@ export const gmailPush = onMessagePublished(
                 refreshed.expiresAt,
                 refreshed.refreshToken
               );
-              
-              console.log(`Token renovado com sucesso para conexão ${connection.id}`);
+
+              runLogger.log('info', `Token renovado com sucesso para conexão ${connection.id}`);
             } catch (error) {
-              console.error(`Erro ao renovar token para conexão ${connection.id}:`, error);
+              const message = error instanceof Error ? error.message : String(error);
+              runLogger.log('error', `Erro ao renovar token para conexão ${connection.id}: ${message}`);
               continue;
             }
           }
@@ -153,7 +160,7 @@ export const gmailPush = onMessagePublished(
             allowedSubjects
           );
 
-          console.log(`${newMessages.length} email(s) novo(s) encontrado(s)`);
+          runLogger.log('info', `${newMessages.length} email(s) novo(s) encontrado(s)`);
 
           // Filtrar apenas emails de remetentes permitidos
           const courtMessages = newMessages.filter( (msg) => {
@@ -163,11 +170,12 @@ export const gmailPush = onMessagePublished(
               : allowedSenders.some(sender => from.toLowerCase().includes(sender.toLowerCase()));
           });
 
-          console.log(`${courtMessages.length} email(s) de tribunais encontrado(s)`);
+          runLogger.setEmailsFound(newMessages.length, courtMessages.length);
+          runLogger.log('info', `${courtMessages.length} email(s) de tribunais encontrado(s)`);
 
           for (const message of courtMessages) {
 
-            console.log(`Processando email ID: ${message.id}, Assunto: ${message.subject}`);
+            runLogger.log('info', `Processando email ID: ${message.id}, Assunto: ${message.subject}`);
 
             const parsedDataArray = await emailParserService.parse(
               message.bodyText || '',
@@ -177,14 +185,16 @@ export const gmailPush = onMessagePublished(
             );
 
             if (parsedDataArray.length === 0) {
-              console.error('❌ ERRO CRÍTICO: Parser não retornou dados para email:');
-              console.error(`  Email ID: ${message.id}`);
-              console.error(`  De: ${message.from}`);
-              console.error(`  Assunto: ${message.subject}`);
-              console.error(`  Body Text (primeiros 500 chars): ${(message.bodyText || '').substring(0, 500)}`);
-              if (message.bodyHtml) {
-                console.error(`  Body HTML (primeiros 500 chars): ${message.bodyHtml.substring(0, 500)}`);
-              }
+              await runLogger.recordEmailFailure({
+                reason: 'parser',
+                emailId: message.id,
+                from: message.from,
+                to: message.to,
+                subject: message.subject,
+                errorMessage: 'Parser não retornou dados para o e-mail (nenhuma intimação extraída).',
+                bodyText: message.bodyText,
+                bodyHtml: message.bodyHtml,
+              });
 
               await createOrUpdatePushUC.execute(connection.tenantId, {
                 emailId: message.id,
@@ -212,7 +222,7 @@ export const gmailPush = onMessagePublished(
               continue;
             }
 
-            console.log(`${parsedDataArray.length} intimação(ões) encontrada(s) no email`);
+            runLogger.log('info', `${parsedDataArray.length} intimação(ões) encontrada(s) no email`);
 
             for (const parsedData of parsedDataArray) {
               const parsingFailed = parsedData.parsingError && !parsedData.processNumber;
@@ -223,15 +233,16 @@ export const gmailPush = onMessagePublished(
                 : message.subject;
 
               if (parsingFailed) {
-                console.error('❌ ERRO CRÍTICO: Parsing falhou para intimação:');
-                console.error(`  Email ID: ${message.id}`);
-                console.error(`  De: ${message.from}`);
-                console.error(`  Assunto: ${message.subject}`);
-                console.error(`  Erro: ${parsedData.parsingError}`);
-                console.error(`  Body Text (primeiros 500 chars): ${(message.bodyText || '').substring(0, 500)}`);
-                if (message.bodyHtml) {
-                  console.error(`  Body HTML (primeiros 500 chars): ${message.bodyHtml.substring(0, 500)}`);
-                }
+                await runLogger.recordEmailFailure({
+                  reason: parsedData.parsedByAI ? 'ia' : 'parser',
+                  emailId: message.id,
+                  from: message.from,
+                  to: message.to,
+                  subject: message.subject,
+                  errorMessage: parsedData.parsingError ?? 'Erro de parsing não especificado',
+                  bodyText: message.bodyText,
+                  bodyHtml: message.bodyHtml,
+                });
               }
 
               const result = await createOrUpdatePushUC.execute(connection.tenantId, {
@@ -258,21 +269,30 @@ export const gmailPush = onMessagePublished(
               });
 
               if (result.wasUpdated) {
-                console.log(`✓ Push ${result.push.id} atualizado com sucesso (reprocessamento)`);
+                runLogger.log('info', `✓ Push ${result.push.id} atualizado com sucesso (reprocessamento)`);
+                runLogger.recordEmailProcessed();
               } else if (parsingFailed) {
-                console.log(`⚠️ Push fictício criado: ${result.push.id} (status: fault)`);
+                runLogger.log('warn', `⚠️ Push fictício criado: ${result.push.id} (status: fault)`);
               } else {
-                console.log(`✓ Push criado: ${result.push.id} (Processo: ${result.push.processNumber || 'N/A'})`);
+                runLogger.log('info', `Push criado: ${result.push.id} (Processo: ${result.push.processNumber || 'N/A'})`);
+                runLogger.recordEmailProcessed();
               }
             }
           }
 
           await gmailConnectionRepo.updateHistoryId(connection.id, historyId);
-          console.log(`✓ HistoryId atualizado para ${historyId} (todas as mensagens processadas com sucesso)`);
+          historyIdUpdated = true;
+          runLogger.log('info', `✓ HistoryId atualizado para ${historyId} (todas as mensagens processadas com sucesso)`);
 
         } catch (error) {
-          console.error(`Erro ao processar tenant ${connection.tenantId}:`, error);
+          fatalError = error instanceof Error ? error.message : String(error);
+          runLogger.log('error', `Erro ao processar o escritório ${connection.tenantId}: ${fatalError}`);
           // Continua para próximo tenant mesmo se este falhar
+        } finally {
+          runLogger.finish({
+            newHistoryId: historyIdUpdated ? historyId : undefined,
+            fatalError,
+          });
         }
       }
       
