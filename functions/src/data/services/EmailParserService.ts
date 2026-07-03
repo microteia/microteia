@@ -7,6 +7,7 @@ import { TJMAEmailParser } from './parsers/TJMAEmailParser';
 import { ProjudiTJBAEmailParser } from './parsers/ProjudiTJBAEmailParser';
 import { CNJEmailParser } from './parsers/CNJEmailParser';
 import { PublicacoesOnlineParser } from './parsers/PublicacoesOnlineParser';
+import { TRTEmailParser } from './parsers/TRTEmailParser';
 
 export interface IEmailParserService {
   parse(emailText: string, emailFrom: string, tenantId: string, emailHtml?: string): Promise<ParsedEmailData[]>;
@@ -20,13 +21,14 @@ export interface IEmailParserService {
 export class EmailParserService implements IEmailParserService {
   private parsers: IEmailParser[];
   private parserByEmail: Map<string, IEmailParser>;
+  private parserByPattern: Array<{ pattern: RegExp; parser: IEmailParser }>;
   private aiProviders: IAIProviderService[];
   private aiConnectionRepo: IAIConnectionRepository;
 
   constructor(aiProviders: IAIProviderService[], aiConnectionRepo: IAIConnectionRepository) {
     this.aiProviders = aiProviders;
     this.aiConnectionRepo = aiConnectionRepo;
-    
+
     // Registrar todos os parsers disponíveis
     this.parsers = [
       new PublicacoesOnlineParser(),
@@ -34,20 +36,30 @@ export class EmailParserService implements IEmailParserService {
       new TJMAEmailParser(),
       new ProjudiTJBAEmailParser(),
       new CNJEmailParser(),
+      new TRTEmailParser(),
       // TODO: Adicionar mais parsers conforme necessário
-      // new TRTEmailParser(),
       // new TRFEmailParser(),
     ];
 
-    // Mapa de email → parser para lookup rápido de remetentes específicos
+    // Mapa de email → parser para lookup rápido de remetentes com endereço fixo
     this.parserByEmail = new Map([
       ['pje@tjba.jus.br', this.parsers.find(p => p.name === 'TJBA')!],
       ['contatopje@tjma.jus.br', this.parsers.find(p => p.name === 'TJMA')!],
       ['g-assistencia.qualidade.pje@cnj.jus.br', this.parsers.find(p => p.name === 'CNJ')!],
       ['projudi@tjba.jus.br', this.parsers.find(p => p.name === 'ProjudiTJBA')!],
       ['suporte@publicacoesonline.com.br', this.parsers.find(p => p.name === 'PUBLICACOES_ONLINE')!],
-      // TODO: Adicionar mais mapeamentos
     ]);
+
+    // Regras por padrão para remetentes cujo domínio varia previsivelmente
+    // (ex: os 24 TRTs, um por região: trt1.jus.br ... trt24.jus.br)
+    this.parserByPattern = [
+      { pattern: /@trt\d{1,2}\.jus\.br\b/i, parser: this.parsers.find(p => p.name === 'TRT')! },
+      // TODO: Adicionar mais regras conforme necessário
+    ];
+  }
+
+  private findParserByPattern(text: string): IEmailParser | undefined {
+    return this.parserByPattern.find(({ pattern }) => pattern.test(text))?.parser;
   }
 
   async parse(emailText: string, emailFrom: string, tenantId: string, emailHtml?: string): Promise<ParsedEmailData[]> {
@@ -57,7 +69,7 @@ export class EmailParserService implements IEmailParserService {
     console.log(`Conteúdo do email (texto): ${emailText.substring(0, 200)}...`);
     console.log(`Conteúdo do email (HTML): ${emailHtml ? emailHtml.substring(0, 200) + '...' : 'N/A'}`);
 
-    let specificParser = this.parserByEmail.get(normalizedFrom);
+    let specificParser = this.parserByEmail.get(normalizedFrom) ?? this.findParserByPattern(normalizedFrom);
 
     if (!specificParser) {
       console.log('Parser não encontrado pelo remetente, verificando conteúdo do email...');
@@ -69,6 +81,10 @@ export class EmailParserService implements IEmailParserService {
           specificParser = parser;
           break;
         }
+      }
+
+      if (!specificParser) {
+        specificParser = this.findParserByPattern(emailContent);
       }
     }
 
