@@ -21,11 +21,18 @@ export interface DeadlineFormData {
   description: string;
 }
 
+const toDateInputValue = (date: Date): string => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
 const buildForm = (d: Deadline | null, userId: string, displayName: string): DeadlineFormData => ({
   type: d?.type ?? 'Outro',
   caseId: d?.caseId ?? '',
-  dueDate: d?.dueDate ? d.dueDate.toISOString().slice(0, 10) : '',
-  completedAt: d?.completedAt ? d.completedAt.toISOString().slice(0, 10) : '',
+  dueDate: d?.dueDate ? toDateInputValue(d.dueDate) : '',
+  completedAt: d?.completedAt ? toDateInputValue(d.completedAt) : '',
   priority: d?.priority ?? 'Média',
   responsibleLawyerId: d?.responsibleLawyerId ?? userId,
   responsibleLawyerName: d?.responsibleLawyerName ?? displayName,

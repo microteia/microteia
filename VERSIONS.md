@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [0.16.2] — 2026-07-03
+
+- Corrigido um problema que fazia a data de vencimento do prazo avançar um dia a cada vez que a tela era salva.
+
 #### [0.16.1] — 2026-07-03
 
 - Corrigido: o menu lateral estava ficando abaixo da nova barra de status fina no rodapé do sistema, em vez de ao lado dela.
