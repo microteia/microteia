@@ -50,7 +50,7 @@ export const auditFlatEntityChange = onDocumentWritten(
 
       const actorUid = action === 'DELETE'
         ? ((beforeData.deletedBy as string | undefined) || (beforeData.updatedBy as string | undefined) || (beforeData.createdBy as string | undefined) || '')
-        : ((afterData.updatedBy as string | undefined) || (afterData.createdBy as string | undefined) || '');
+        : ((afterData.updatedBy as string | undefined) || (afterData.createdBy as string | undefined) || (afterData.addedBy as string | undefined) || '');
 
       const denormalizedName = action === 'DELETE'
         ? (beforeData.deletedByName as string | undefined)
