@@ -8,7 +8,7 @@ import { makeCreatePersonTagUseCase } from '../domain/usecases/persontags/Create
 import { makeUpdatePersonTagUseCase } from '../domain/usecases/persontags/UpdatePersonTagUseCase';
 import { makeDeletePersonTagUseCase } from '../domain/usecases/persontags/DeletePersonTagUseCase';
 import { storeEvents, StoreEvents } from '../infrastructure/events/StoreEventEmitter';
-import type { PersonTag } from '../domain/entities';
+import type { PersonTag, DeletionActor } from '../domain/entities';
 import { PersonTagContext } from './usePersonTagStore';
 
 export const PersonTagStoreProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -89,10 +89,11 @@ export const PersonTagStoreProvider: React.FC<{ children: React.ReactNode }> = (
 
   const deleteTag = useCallback(async (tagId: string) => {
     if (!currentTenant) return;
-    await uc.deleteTag.execute(currentTenant.id, tagId);
+    const actor: DeletionActor = { uid: user?.id ?? '', name: effectiveName, photoURL: user?.photoURL ?? '' };
+    await uc.deleteTag.execute(currentTenant.id, tagId, actor);
     setTags((prev) => prev.filter((t) => t.id !== tagId));
     storeEvents.emit(StoreEvents.PERSON_TAG_UPDATED);
-  }, [currentTenant, uc]);
+  }, [currentTenant, uc, user, effectiveName]);
 
   return (
     <PersonTagContext.Provider value={{ tags, loading, getTagsForPerson, setTagsForPerson, createTag, updateTag, deleteTag }}>

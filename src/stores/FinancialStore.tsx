@@ -1,6 +1,7 @@
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { FinancialStoreContext } from './useFinancialStore';
 import { useTenant } from './useTenant';
+import { useAuth } from './useAuth';
 import { useDI } from '../infrastructure/di/useDI';
 import { storeEvents, StoreEvents } from '../infrastructure/events/StoreEventEmitter';
 import { makeGetFinancialsUseCase } from '../domain/usecases/financials/GetFinancialsUseCase';
@@ -12,10 +13,11 @@ import {
   makeCancelFinancialUseCase,
 } from '../domain/usecases/financials/UpdateFinancialUseCase';
 import { makeDeleteFinancialUseCase } from '../domain/usecases/financials/DeleteFinancialUseCase';
-import type { Financial, FinancialStatus } from '../domain/entities';
+import type { Financial, FinancialStatus, DeletionActor } from '../domain/entities';
 
 export const FinancialStoreProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { currentTenant } = useTenant();
+  const { user, effectiveName } = useAuth();
   const { financialRepository } = useDI();
 
   const [financials, setFinancials] = useState<Financial[]>([]);
@@ -104,10 +106,11 @@ export const FinancialStoreProvider: React.FC<{ children: React.ReactNode }> = (
 
   const deleteFinancial = useCallback(async (financialId: string) => {
     if (!currentTenant) return;
-    await uc.delete.execute(currentTenant.id, financialId);
+    const actor: DeletionActor = { uid: user?.id ?? '', name: effectiveName, photoURL: user?.photoURL ?? '' };
+    await uc.delete.execute(currentTenant.id, financialId, actor);
     setFinancials((prev) => prev.filter((f) => f.id !== financialId));
     storeEvents.emit(StoreEvents.FINANCIALS_UPDATED);
-  }, [currentTenant, uc.delete]);
+  }, [currentTenant, uc.delete, user, effectiveName]);
 
   return (
     <FinancialStoreContext.Provider value={{

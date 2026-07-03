@@ -8,7 +8,7 @@ import { makeCreateCaseTagUseCase } from '../domain/usecases/casetags/CreateCase
 import { makeUpdateCaseTagUseCase } from '../domain/usecases/casetags/UpdateCaseTagUseCase';
 import { makeDeleteCaseTagUseCase } from '../domain/usecases/casetags/DeleteCaseTagUseCase';
 import { storeEvents, StoreEvents } from '../infrastructure/events/StoreEventEmitter';
-import type { CaseTag } from '../domain/entities';
+import type { CaseTag, DeletionActor } from '../domain/entities';
 import { CaseTagContext } from './useCaseTagStore';
 
 export const CaseTagStoreProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -83,10 +83,11 @@ export const CaseTagStoreProvider: React.FC<{ children: React.ReactNode }> = ({ 
 
   const deleteTag = useCallback(async (tagId: string) => {
     if (!currentTenant) return;
-    await uc.deleteTag.execute(currentTenant.id, tagId);
+    const actor: DeletionActor = { uid: user?.id ?? '', name: effectiveName, photoURL: user?.photoURL ?? '' };
+    await uc.deleteTag.execute(currentTenant.id, tagId, actor);
     setTags((prev) => prev.filter((t) => t.id !== tagId));
     storeEvents.emit(StoreEvents.CASE_TAG_UPDATED);
-  }, [currentTenant, uc]);
+  }, [currentTenant, uc, user, effectiveName]);
 
   return (
     <CaseTagContext.Provider value={{ tags, loading, getTagsForCase, setTagsForCase, createTag, updateTag, deleteTag }}>

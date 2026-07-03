@@ -12,7 +12,8 @@ import {
 } from 'firebase/firestore';
 import { db } from '../../infrastructure/firebase/config';
 import type { ICaseTagRepository } from '../../domain/repositories/ICaseTagRepository';
-import type { CaseTag } from '../../domain/entities';
+import type { CaseTag, DeletionActor } from '../../domain/entities';
+import { stampDeletionActor } from '../utils/stampDeletionActor';
 
 const tagsRef = (tenantId: string) =>
   collection(db, 'tenants', tenantId, 'caseTags');
@@ -42,7 +43,9 @@ export class FirebaseCaseTagRepository implements ICaseTagRepository {
     await updateDoc(doc(tagsRef(tenantId), tagId), data);
   }
 
-  async deleteCaseTag(tenantId: string, tagId: string): Promise<void> {
-    await deleteDoc(doc(tagsRef(tenantId), tagId));
+  async deleteCaseTag(tenantId: string, tagId: string, actor: DeletionActor): Promise<void> {
+    const ref = doc(tagsRef(tenantId), tagId);
+    await stampDeletionActor(ref, actor);
+    await deleteDoc(ref);
   }
 }

@@ -7,7 +7,7 @@ import { makeCreateNewsCommentUseCase } from '../../../../domain/usecases/newsco
 import { makeUpdateNewsCommentUseCase } from '../../../../domain/usecases/newscomments/UpdateNewsCommentUseCase';
 import { makeDeleteNewsCommentUseCase } from '../../../../domain/usecases/newscomments/DeleteNewsCommentUseCase';
 import { makeToggleNewsCommentLikeUseCase } from '../../../../domain/usecases/newscomments/ToggleNewsCommentLikeUseCase';
-import type { NewsComment } from '../../../../domain/entities';
+import type { NewsComment, DeletionActor } from '../../../../domain/entities';
 
 export const CONTENT_TRUNCATE_THRESHOLD = 500;
 
@@ -186,13 +186,14 @@ export const useNewsCommentsViewModel = (
   const handleConfirmDelete = useCallback(async () => {
     if (!confirmDeleteId) return;
     try {
-      await deleteUC.execute(confirmDeleteId, props.newsId);
+      const actor: DeletionActor = { uid: user?.id ?? '', name: effectiveName, photoURL: effectivePhotoURL ?? '' };
+      await deleteUC.execute(confirmDeleteId, props.newsId, actor);
       setComments((prev) => prev.filter((c) => c.id !== confirmDeleteId));
       await resetReadStatus(props.newsId);
     } finally {
       setConfirmDeleteId(null);
     }
-  }, [confirmDeleteId, deleteUC, props.newsId, resetReadStatus]);
+  }, [confirmDeleteId, deleteUC, props.newsId, resetReadStatus, user, effectiveName, effectivePhotoURL]);
 
   const handleToggleLike = useCallback(async (comment: NewsComment) => {
     if (!user) return;

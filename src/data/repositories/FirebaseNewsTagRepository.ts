@@ -3,7 +3,8 @@ import {
 } from 'firebase/firestore';
 import { db } from '../../infrastructure/firebase/config';
 import type { INewsTagRepository } from '../../domain/repositories/INewsTagRepository';
-import type { NewsTag } from '../../domain/entities';
+import type { NewsTag, DeletionActor } from '../../domain/entities';
+import { stampDeletionActor } from '../utils/stampDeletionActor';
 
 const COLLECTION = 'newsTags';
 
@@ -35,7 +36,9 @@ export class FirebaseNewsTagRepository implements INewsTagRepository {
     await updateDoc(doc(db, COLLECTION, id), data);
   }
 
-  async deleteTag(id: string): Promise<void> {
-    await deleteDoc(doc(db, COLLECTION, id));
+  async deleteTag(id: string, actor: DeletionActor): Promise<void> {
+    const ref = doc(db, COLLECTION, id);
+    await stampDeletionActor(ref, actor);
+    await deleteDoc(ref);
   }
 }

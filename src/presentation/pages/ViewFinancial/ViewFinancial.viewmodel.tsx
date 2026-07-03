@@ -22,7 +22,7 @@ import { makeGetFinancialDocumentsUseCase } from '../../../domain/usecases/finan
 import { makeUploadFinancialDocumentUseCase } from '../../../domain/usecases/financialdocuments/UploadFinancialDocumentUseCase';
 import { makeAddFinancialDocumentUseCase } from '../../../domain/usecases/financialdocuments/AddFinancialDocumentUseCase';
 import { makeDeleteFinancialDocumentUseCase } from '../../../domain/usecases/financialdocuments/DeleteFinancialDocumentUseCase';
-import type { Financial, FinancialType, FinancialDocument, PaymentMethod } from '../../../domain/entities';
+import type { Financial, FinancialType, FinancialDocument, PaymentMethod, DeletionActor } from '../../../domain/entities';
 import type { TagStoreAdapter } from '../../components/ui/TagManager/TagManager.viewmodel';
 
 export type ViewFinancialTab = 'data' | 'documents';
@@ -307,7 +307,8 @@ export const useViewFinancialViewModel = (tabKey: string): ViewFinancialViewMode
   const confirmDeleteDoc = useCallback(async () => {
     if (!docToDelete || !financial || !currentTenant) return;
     try {
-      await docUC.delete.execute(currentTenant.id, financial.id, docToDelete.id, docToDelete.storagePath);
+      const actor: DeletionActor = { uid: user?.id ?? '', name: effectiveName, photoURL: user?.photoURL ?? '' };
+      await docUC.delete.execute(currentTenant.id, financial.id, docToDelete.id, docToDelete.storagePath, actor);
       setDocuments((prev) => prev.filter((d) => d.id !== docToDelete.id));
       notify('Documento excluído.', 'success');
     } catch {
@@ -315,7 +316,7 @@ export const useViewFinancialViewModel = (tabKey: string): ViewFinancialViewMode
     } finally {
       setDocToDelete(null);
     }
-  }, [docToDelete, financial, currentTenant, docUC, notify]);
+  }, [docToDelete, financial, currentTenant, docUC, notify, user, effectiveName]);
 
   const handleSave = useCallback(async () => {
     if (!formData.amount || formData.amount <= 0) { notify('Informe um valor válido.', 'error'); return; }

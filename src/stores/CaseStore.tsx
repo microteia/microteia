@@ -1,17 +1,19 @@
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { CaseStoreContext } from './useCaseStore';
 import { useTenant } from './useTenant';
+import { useAuth } from './useAuth';
 import { useDI } from '../infrastructure/di/useDI';
 import { storeEvents, StoreEvents } from '../infrastructure/events/StoreEventEmitter';
 import { makeGetCasesUseCase } from '../domain/usecases/cases/GetCasesUseCase';
 import { makeCreateCaseUseCase } from '../domain/usecases/cases/CreateCaseUseCase';
 import { makeUpdateCaseUseCase, makeUpdateCaseStatusUseCase } from '../domain/usecases/cases/UpdateCaseUseCase';
 import { makeDeleteCaseUseCase } from '../domain/usecases/cases/DeleteCaseUseCase';
-import type { Case, CaseStatus } from '../domain/entities';
+import type { Case, CaseStatus, DeletionActor } from '../domain/entities';
 
 export const CaseStoreProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { currentTenant } = useTenant();
-  const { caseRepository } = useDI();
+  const { user, effectiveName } = useAuth();
+  const { caseRepository, deadlineRepository, financialRepository } = useDI();
 
   const [cases, setCases] = useState<Case[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -21,8 +23,8 @@ export const CaseStoreProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     create: makeCreateCaseUseCase(caseRepository),
     update: makeUpdateCaseUseCase(caseRepository),
     updateStatus: makeUpdateCaseStatusUseCase(caseRepository),
-    delete: makeDeleteCaseUseCase(caseRepository),
-  }), [caseRepository]);
+    delete: makeDeleteCaseUseCase(caseRepository, deadlineRepository, financialRepository),
+  }), [caseRepository, deadlineRepository, financialRepository]);
 
   const refresh = useCallback(async () => {
     if (!currentTenant) return;
@@ -75,11 +77,13 @@ export const CaseStoreProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
   const deleteCase = useCallback(async (caseId: string) => {
     if (!currentTenant) return;
-    await uc.delete.execute(currentTenant.id, caseId);
+    const actor: DeletionActor = { uid: user?.id ?? '', name: effectiveName, photoURL: user?.photoURL ?? '' };
+    await uc.delete.execute(currentTenant.id, caseId, actor);
     setCases((prev) => prev.filter((c) => c.id !== caseId));
     storeEvents.emit(StoreEvents.CASES_UPDATED);
     storeEvents.emit(StoreEvents.DEADLINES_UPDATED);
-  }, [currentTenant, uc.delete]);
+    storeEvents.emit(StoreEvents.FINANCIALS_UPDATED);
+  }, [currentTenant, uc.delete, user, effectiveName]);
 
   return (
     <CaseStoreContext.Provider value={{ cases, isLoading, createCase, updateCase, updateCaseStatus, deleteCase, refresh }}>

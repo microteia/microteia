@@ -45,10 +45,14 @@ export const auditNestedEntityChange = onDocumentWritten(
       const severity = resolveSeverity(action, sub, changedKeys);
 
       const actorUid = action === 'DELETE'
-        ? ((beforeData.createdBy as string | undefined) || '')
+        ? ((beforeData.deletedBy as string | undefined) || (beforeData.createdBy as string | undefined) || '')
         : ((afterData.createdBy as string | undefined) || '');
-      const denormalizedName = afterData.createdByName as string | undefined;
-      const denormalizedPhoto = afterData.createdByPhotoUrl as string | undefined;
+      const denormalizedName = action === 'DELETE'
+        ? (beforeData.deletedByName as string | undefined)
+        : (afterData.createdByName as string | undefined);
+      const denormalizedPhoto = action === 'DELETE'
+        ? (beforeData.deletedByPhotoURL as string | undefined)
+        : (afterData.createdByPhotoUrl as string | undefined);
 
       const actor = denormalizedName
         ? { name: denormalizedName, photoURL: denormalizedPhoto ?? '' }

@@ -7,7 +7,11 @@ export interface FieldDiff {
   after: EntityData;
 }
 
-const IGNORED_KEYS = new Set(['updatedAt', 'updatedBy', 'updatedByName', 'updatedByPhotoURL', 'id', 'tenantId']);
+const IGNORED_KEYS = new Set([
+  'updatedAt', 'updatedBy', 'updatedByName', 'updatedByPhotoURL',
+  'deletedBy', 'deletedByName', 'deletedByPhotoURL',
+  'id', 'tenantId',
+]);
 
 const isTimestampLike = (v: unknown): v is { toDate: () => Date } =>
   !!v && typeof v === 'object' && typeof (v as { toDate?: unknown }).toDate === 'function';

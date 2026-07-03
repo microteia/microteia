@@ -12,7 +12,8 @@ import {
 } from 'firebase/firestore';
 import { db } from '../../infrastructure/firebase/config';
 import type { IPersonTagRepository } from '../../domain/repositories/IPersonTagRepository';
-import type { PersonTag } from '../../domain/entities';
+import type { PersonTag, DeletionActor } from '../../domain/entities';
+import { stampDeletionActor } from '../utils/stampDeletionActor';
 
 const tagsRef = (tenantId: string) =>
   collection(db, 'tenants', tenantId, 'personTags');
@@ -42,7 +43,9 @@ export class FirebasePersonTagRepository implements IPersonTagRepository {
     await updateDoc(doc(tagsRef(tenantId), tagId), data);
   }
 
-  async deletePersonTag(tenantId: string, tagId: string): Promise<void> {
-    await deleteDoc(doc(tagsRef(tenantId), tagId));
+  async deletePersonTag(tenantId: string, tagId: string, actor: DeletionActor): Promise<void> {
+    const ref = doc(tagsRef(tenantId), tagId);
+    await stampDeletionActor(ref, actor);
+    await deleteDoc(ref);
   }
 }

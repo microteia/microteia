@@ -16,7 +16,8 @@ import {
 } from 'firebase/firestore';
 import { db } from '../../infrastructure/firebase/config';
 import type { IFinancialRepository } from '../../domain/repositories/IFinancialRepository';
-import type { Financial, FinancialStatus, FinancialType } from '../../domain/entities';
+import type { Financial, FinancialStatus, FinancialType, DeletionActor } from '../../domain/entities';
+import { stampDeletionActor } from '../utils/stampDeletionActor';
 
 const toDate = (v: unknown): Date =>
   v instanceof Timestamp ? v.toDate() : (v as Date);
@@ -72,6 +73,16 @@ export class FirebaseFinancialRepository implements IFinancialRepository {
     return snap.docs.map((d) => mapFinancial(d.id, d.data(), tenantId));
   }
 
+  async getFinancialsByPerson(tenantId: string, personId: string): Promise<Financial[]> {
+    const q = query(
+      financialsRef(tenantId),
+      where('personId', '==', personId),
+      orderBy('dueDate', 'desc'),
+    );
+    const snap = await getDocs(q);
+    return snap.docs.map((d) => mapFinancial(d.id, d.data(), tenantId));
+  }
+
   async getFinancialsByType(tenantId: string, type: FinancialType): Promise<Financial[]> {
     const q = query(
       financialsRef(tenantId),
@@ -121,8 +132,10 @@ export class FirebaseFinancialRepository implements IFinancialRepository {
     });
   }
 
-  async deleteFinancial(tenantId: string, financialId: string): Promise<void> {
-    await deleteDoc(doc(financialsRef(tenantId), financialId));
+  async deleteFinancial(tenantId: string, financialId: string, actor: DeletionActor): Promise<void> {
+    const ref = doc(financialsRef(tenantId), financialId);
+    await stampDeletionActor(ref, actor);
+    await deleteDoc(ref);
   }
 
   async unlinkFinancialsFromContract(tenantId: string, contractId: string): Promise<void> {

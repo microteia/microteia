@@ -4,7 +4,8 @@ import {
 } from 'firebase/firestore';
 import { db } from '../../infrastructure/firebase/config';
 import type { INewsCommentRepository } from '../../domain/repositories/INewsCommentRepository';
-import type { NewsComment } from '../../domain/entities';
+import type { NewsComment, DeletionActor } from '../../domain/entities';
+import { stampDeletionActor } from '../utils/stampDeletionActor';
 
 const COL = 'newsComments';
 
@@ -76,8 +77,10 @@ export class FirebaseNewsCommentRepository implements INewsCommentRepository {
     });
   }
 
-  async deleteComment(id: string, newsId: string): Promise<void> {
-    await deleteDoc(doc(db, COL, id));
+  async deleteComment(id: string, newsId: string, actor: DeletionActor): Promise<void> {
+    const ref = doc(db, COL, id);
+    await stampDeletionActor(ref, actor);
+    await deleteDoc(ref);
     await updateDoc(doc(db, 'news', newsId), { commentCount: increment(-1) });
   }
 

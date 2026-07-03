@@ -11,7 +11,8 @@ import {
 } from 'firebase/firestore';
 import { db } from '../../infrastructure/firebase/config';
 import type { IPersonNoteRepository } from '../../domain/repositories/IPersonNoteRepository';
-import type { PersonNote } from '../../domain/entities';
+import type { PersonNote, DeletionActor } from '../../domain/entities';
+import { stampDeletionActor } from '../utils/stampDeletionActor';
 
 const notesRef = (tenantId: string, personId: string) =>
   collection(db, 'tenants', tenantId, 'persons', personId, 'notes');
@@ -44,7 +45,9 @@ export class FirebasePersonNoteRepository implements IPersonNoteRepository {
     return { id: ref.id, personId, tenantId, ...data, createdAt: new Date() };
   }
 
-  async deleteNote(tenantId: string, personId: string, noteId: string): Promise<void> {
-    await deleteDoc(doc(notesRef(tenantId, personId), noteId));
+  async deleteNote(tenantId: string, personId: string, noteId: string, actor: DeletionActor): Promise<void> {
+    const ref = doc(notesRef(tenantId, personId), noteId);
+    await stampDeletionActor(ref, actor);
+    await deleteDoc(ref);
   }
 }

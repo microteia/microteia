@@ -24,7 +24,7 @@ import { makeGetContractDocumentsUseCase } from '../../../domain/usecases/contra
 import { makeUploadContractDocumentUseCase } from '../../../domain/usecases/contractdocuments/UploadContractDocumentUseCase';
 import { makeAddContractDocumentUseCase } from '../../../domain/usecases/contractdocuments/AddContractDocumentUseCase';
 import { makeDeleteContractDocumentUseCase } from '../../../domain/usecases/contractdocuments/DeleteContractDocumentUseCase';
-import type { Contract, ContractNote, ContractDocument, Case } from '../../../domain/entities';
+import type { Contract, ContractNote, ContractDocument, Case, DeletionActor } from '../../../domain/entities';
 import type { TagStoreAdapter } from '../../components/ui/TagManager/TagManager.viewmodel';
 
 export type ViewContractTab = 'data' | 'notes' | 'documents' | 'cases';
@@ -520,7 +520,8 @@ export const useViewContractViewModel = (tabKey: string): ViewContractViewModel 
   const confirmDeleteNote = useCallback(async () => {
     if (!noteToDelete || !contract || !currentTenant) return;
     try {
-      await noteUC.delete.execute(currentTenant.id, contract.id, noteToDelete.id);
+      const actor: DeletionActor = { uid: user?.id ?? '', name: effectiveName, photoURL: user?.photoURL ?? '' };
+      await noteUC.delete.execute(currentTenant.id, contract.id, noteToDelete.id, actor);
       setNotes((prev) => prev.filter((n) => n.id !== noteToDelete.id));
       notify('Anotação excluída.', 'success');
     } catch {
@@ -528,7 +529,7 @@ export const useViewContractViewModel = (tabKey: string): ViewContractViewModel 
     } finally {
       setNoteToDelete(null);
     }
-  }, [noteToDelete, contract, currentTenant, noteUC, notify]);
+  }, [noteToDelete, contract, currentTenant, noteUC, notify, user, effectiveName]);
 
   const handleSelectFile = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -575,7 +576,8 @@ export const useViewContractViewModel = (tabKey: string): ViewContractViewModel 
   const confirmDeleteDoc = useCallback(async () => {
     if (!docToDelete || !contract || !currentTenant) return;
     try {
-      await docUC.delete.execute(currentTenant.id, contract.id, docToDelete.id, docToDelete.storagePath);
+      const actor: DeletionActor = { uid: user?.id ?? '', name: effectiveName, photoURL: user?.photoURL ?? '' };
+      await docUC.delete.execute(currentTenant.id, contract.id, docToDelete.id, docToDelete.storagePath, actor);
       setDocuments((prev) => prev.filter((d) => d.id !== docToDelete.id));
       notify('Documento excluído.', 'success');
     } catch {
@@ -583,7 +585,7 @@ export const useViewContractViewModel = (tabKey: string): ViewContractViewModel 
     } finally {
       setDocToDelete(null);
     }
-  }, [docToDelete, contract, currentTenant, docUC, notify]);
+  }, [docToDelete, contract, currentTenant, docUC, notify, user, effectiveName]);
 
   const handleCopyDeepLink = useCallback(() => {
     if (!contract) return;

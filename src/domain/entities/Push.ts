@@ -47,6 +47,10 @@ export interface Push {
   updatedBy?: string;
   updatedByName?: string;
   updatedByPhotoURL?: string;
+
+  deletedBy?: string;
+  deletedByName?: string;
+  deletedByPhotoURL?: string;
 }
 
 // ─── Push Interaction ─────────────────────────────────────────────────────────

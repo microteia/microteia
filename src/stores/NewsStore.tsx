@@ -7,13 +7,13 @@ import { makeCreateNewsUseCase } from '../domain/usecases/news/CreateNewsUseCase
 import { makeUpdateNewsUseCase } from '../domain/usecases/news/UpdateNewsUseCase';
 import { makeDeleteNewsUseCase } from '../domain/usecases/news/DeleteNewsUseCase';
 import { makeToggleNewsLikeUseCase } from '../domain/usecases/news/ToggleNewsLikeUseCase';
-import type { News } from '../domain/entities';
+import type { News, DeletionActor } from '../domain/entities';
 import { NewsContext } from './useNews';
 import { storeEvents, StoreEvents } from '../infrastructure/events/StoreEventEmitter';
 
 export const NewsStoreProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { newsRepository, newsCommentRepository } = useDI();
-  const { user, userRole } = useAuth();
+  const { user, userRole, effectiveName } = useAuth();
   const { currentTenant } = useTenant();
 
   const [news, setNews] = useState<News[]>([]);
@@ -117,7 +117,8 @@ export const NewsStoreProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   };
 
   const deleteNews = async (id: string) => {
-    await uc.delete.execute(id);
+    const actor: DeletionActor = { uid: user?.id ?? '', name: effectiveName, photoURL: user?.photoURL ?? '' };
+    await uc.delete.execute(id, actor);
     setNews((prev) => prev.filter((n) => n.id !== id));
     storeEvents.emit(StoreEvents.NEWS_UPDATED);
   };

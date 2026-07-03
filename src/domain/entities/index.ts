@@ -7,6 +7,14 @@ export interface User {
   photoURL: string | null;
 }
 
+// ─── Autoria de exclusão ──────────────────────────────────────────────────────
+
+export interface DeletionActor {
+  uid: string;
+  name: string;
+  photoURL: string;
+}
+
 export type ThemeMode = 'dark' | 'light' | 'claude' | 'teams' | 'bruma' | 'kindle' | 'curatino';
 
 // ─── RBAC global ─────────────────────────────────────────────────────────────
@@ -117,6 +125,9 @@ export interface TenantMember {
   addedBy: string;
   updatedAt?: Date;
   updatedBy?: string;
+  deletedBy?: string;
+  deletedByName?: string;
+  deletedByPhotoURL?: string;
 }
 
 // ─── Persons (Pessoas) ────────────────────────────────────────────────────────
@@ -169,6 +180,9 @@ export interface Person {
   updatedBy?: string;
   updatedByName?: string;
   updatedByPhotoURL?: string;
+  deletedBy?: string;
+  deletedByName?: string;
+  deletedByPhotoURL?: string;
 }
 
 // ─── Person Tags ──────────────────────────────────────────────────────────────
@@ -183,6 +197,9 @@ export interface PersonTag {
   updatedBy?: string;
   updatedByName?: string;
   updatedByPhotoURL?: string;
+  deletedBy?: string;
+  deletedByName?: string;
+  deletedByPhotoURL?: string;
 }
 
 // ─── Person Notes ─────────────────────────────────────────────────────────────
@@ -197,6 +214,9 @@ export interface PersonNote {
   createdByName: string;
   createdByPhotoUrl?: string;
   createdAt: Date;
+  deletedBy?: string;
+  deletedByName?: string;
+  deletedByPhotoURL?: string;
 }
 
 // ─── Person Documents ─────────────────────────────────────────────────────────
@@ -214,6 +234,9 @@ export interface PersonDocument {
   createdByName: string;
   createdByPhotoUrl?: string;
   createdAt: Date;
+  deletedBy?: string;
+  deletedByName?: string;
+  deletedByPhotoURL?: string;
 }
 
 // ─── Case Tags ────────────────────────────────────────────────────────────────
@@ -228,6 +251,9 @@ export interface CaseTag {
   updatedBy?: string;
   updatedByName?: string;
   updatedByPhotoURL?: string;
+  deletedBy?: string;
+  deletedByName?: string;
+  deletedByPhotoURL?: string;
 }
 
 // ─── Case Notes ───────────────────────────────────────────────────────────────
@@ -242,6 +268,9 @@ export interface CaseNote {
   createdByName: string;
   createdByPhotoUrl?: string;
   createdAt: Date;
+  deletedBy?: string;
+  deletedByName?: string;
+  deletedByPhotoURL?: string;
 }
 
 // ─── Case Documents ───────────────────────────────────────────────────────────
@@ -259,6 +288,9 @@ export interface CaseDocument {
   createdByName: string;
   createdByPhotoUrl?: string;
   createdAt: Date;
+  deletedBy?: string;
+  deletedByName?: string;
+  deletedByPhotoURL?: string;
 }
 
 // ─── Cases (Processos) ────────────────────────────────────────────────────────
@@ -393,6 +425,9 @@ export interface Case {
   updatedBy?: string;
   updatedByName?: string;
   updatedByPhotoURL?: string;
+  deletedBy?: string;
+  deletedByName?: string;
+  deletedByPhotoURL?: string;
 }
 
 // ─── Deadlines (Prazos) ───────────────────────────────────────────────────────
@@ -430,6 +465,9 @@ export interface Deadline {
   updatedBy?: string;
   updatedByName?: string;
   updatedByPhotoURL?: string;
+  deletedBy?: string;
+  deletedByName?: string;
+  deletedByPhotoURL?: string;
 }
 
 // ─── Financials (Financeiro) ──────────────────────────────────────────────────
@@ -465,6 +503,9 @@ export interface Financial {
   updatedBy?: string;
   updatedByName?: string;
   updatedByPhotoURL?: string;
+  deletedBy?: string;
+  deletedByName?: string;
+  deletedByPhotoURL?: string;
 }
 
 // ─── Financial Tags ───────────────────────────────────────────────────────────
@@ -479,6 +520,9 @@ export interface FinancialTag {
   updatedBy?: string;
   updatedByName?: string;
   updatedByPhotoURL?: string;
+  deletedBy?: string;
+  deletedByName?: string;
+  deletedByPhotoURL?: string;
 }
 
 // ─── Financial Lookups ────────────────────────────────────────────────────────
@@ -507,6 +551,9 @@ export interface FinancialDocument {
   createdByName: string;
   createdByPhotoUrl?: string;
   createdAt: Date;
+  deletedBy?: string;
+  deletedByName?: string;
+  deletedByPhotoURL?: string;
 }
 
 // ─── Contract Tags ────────────────────────────────────────────────────────────
@@ -521,6 +568,9 @@ export interface ContractTag {
   updatedBy?: string;
   updatedByName?: string;
   updatedByPhotoURL?: string;
+  deletedBy?: string;
+  deletedByName?: string;
+  deletedByPhotoURL?: string;
 }
 
 // ─── Contract Notes ───────────────────────────────────────────────────────────
@@ -535,6 +585,9 @@ export interface ContractNote {
   createdByName: string;
   createdByPhotoUrl?: string;
   createdAt: Date;
+  deletedBy?: string;
+  deletedByName?: string;
+  deletedByPhotoURL?: string;
 }
 
 // ─── Contract Documents ───────────────────────────────────────────────────────
@@ -552,6 +605,9 @@ export interface ContractDocument {
   createdByName: string;
   createdByPhotoUrl?: string;
   createdAt: Date;
+  deletedBy?: string;
+  deletedByName?: string;
+  deletedByPhotoURL?: string;
 }
 
 // ─── Contract Lookups ─────────────────────────────────────────────────────────
@@ -620,6 +676,9 @@ export interface Contract {
   updatedBy?: string;
   updatedByName?: string;
   updatedByPhotoURL?: string;
+  deletedBy?: string;
+  deletedByName?: string;
+  deletedByPhotoURL?: string;
 }
 
 // ─── Calendar events ──────────────────────────────────────────────────────────
@@ -672,6 +731,9 @@ export interface News {
   editedByName?: string;
   createdAt: Date;
   updatedAt: Date;
+  deletedBy?: string;
+  deletedByName?: string;
+  deletedByPhotoURL?: string;
 }
 
 export interface NewsInteraction {
@@ -691,6 +753,9 @@ export interface NewsTag {
   name: string;
   color: string;
   createdAt: Date;
+  deletedBy?: string;
+  deletedByName?: string;
+  deletedByPhotoURL?: string;
 }
 
 export interface NewsTagLink {
@@ -712,6 +777,9 @@ export interface NewsComment {
   editedByName?: string;
   likeCount: number;
   likedBy: string[];
+  deletedBy?: string;
+  deletedByName?: string;
+  deletedByPhotoURL?: string;
 }
 
 export interface NewsDocument {

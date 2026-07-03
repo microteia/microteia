@@ -12,7 +12,8 @@ import {
 } from 'firebase/firestore';
 import { db } from '../../infrastructure/firebase/config';
 import type { IFinancialTagRepository } from '../../domain/repositories/IFinancialTagRepository';
-import type { FinancialTag } from '../../domain/entities';
+import type { FinancialTag, DeletionActor } from '../../domain/entities';
+import { stampDeletionActor } from '../utils/stampDeletionActor';
 
 const tagsRef = (tenantId: string) =>
   collection(db, 'tenants', tenantId, 'financialTags');
@@ -42,7 +43,9 @@ export class FirebaseFinancialTagRepository implements IFinancialTagRepository {
     await updateDoc(doc(tagsRef(tenantId), tagId), data);
   }
 
-  async deleteFinancialTag(tenantId: string, tagId: string): Promise<void> {
-    await deleteDoc(doc(tagsRef(tenantId), tagId));
+  async deleteFinancialTag(tenantId: string, tagId: string, actor: DeletionActor): Promise<void> {
+    const ref = doc(tagsRef(tenantId), tagId);
+    await stampDeletionActor(ref, actor);
+    await deleteDoc(ref);
   }
 }

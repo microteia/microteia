@@ -1,16 +1,18 @@
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { ContractStoreContext } from './useContractStore';
 import { useTenant } from './useTenant';
+import { useAuth } from './useAuth';
 import { useDI } from '../infrastructure/di/useDI';
 import { storeEvents, StoreEvents } from '../infrastructure/events/StoreEventEmitter';
 import { makeGetContractsUseCase } from '../domain/usecases/contracts/GetContractsUseCase';
 import { makeCreateContractUseCase } from '../domain/usecases/contracts/CreateContractUseCase';
 import { makeUpdateContractUseCase } from '../domain/usecases/contracts/UpdateContractUseCase';
 import { makeDeleteContractUseCase } from '../domain/usecases/contracts/DeleteContractUseCase';
-import type { Contract } from '../domain/entities';
+import type { Contract, DeletionActor } from '../domain/entities';
 
 export const ContractStoreProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { currentTenant } = useTenant();
+  const { user, effectiveName } = useAuth();
   const { contractRepository, caseRepository, financialRepository } = useDI();
 
   const [contracts, setContracts] = useState<Contract[]>([]);
@@ -67,11 +69,12 @@ export const ContractStoreProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const deleteContract = useCallback(async (contractId: string) => {
     if (!currentTenant) return;
-    await uc.delete.execute(currentTenant.id, contractId);
+    const actor: DeletionActor = { uid: user?.id ?? '', name: effectiveName, photoURL: user?.photoURL ?? '' };
+    await uc.delete.execute(currentTenant.id, contractId, actor);
     setContracts((prev) => prev.filter((c) => c.id !== contractId));
     storeEvents.emit(StoreEvents.CONTRACTS_UPDATED);
     storeEvents.emit(StoreEvents.CASES_UPDATED);
-  }, [currentTenant, uc.delete]);
+  }, [currentTenant, uc.delete, user, effectiveName]);
 
   return (
     <ContractStoreContext.Provider value={{ contracts, isLoading, createContract, updateContract, deleteContract, refresh }}>

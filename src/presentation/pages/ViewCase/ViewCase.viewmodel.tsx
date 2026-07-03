@@ -20,7 +20,7 @@ import { makeGetCaseDocumentsUseCase } from '../../../domain/usecases/casedocume
 import { makeUploadCaseDocumentUseCase } from '../../../domain/usecases/casedocuments/UploadCaseDocumentUseCase';
 import { makeAddCaseDocumentUseCase } from '../../../domain/usecases/casedocuments/AddCaseDocumentUseCase';
 import { makeDeleteCaseDocumentUseCase } from '../../../domain/usecases/casedocuments/DeleteCaseDocumentUseCase';
-import type { Case, CaseNote, CaseDocument, CaseStatus, CaseArea, CasePhase, CaseInstance } from '../../../domain/entities';
+import type { Case, CaseNote, CaseDocument, CaseStatus, CaseArea, CasePhase, CaseInstance, DeletionActor } from '../../../domain/entities';
 import type { TagStoreAdapter } from '../../components/ui/TagManager/TagManager.viewmodel';
 import type { DynamicSelectOption } from '../../components/ui/DynamicSelect';
 
@@ -403,7 +403,8 @@ export const useViewCaseViewModel = (tabKey: string): ViewCaseViewModel => {
   const confirmDeleteNote = useCallback(async () => {
     if (!noteToDelete || !case_ || !currentTenant) return;
     try {
-      await noteUC.delete.execute(currentTenant.id, case_.id, noteToDelete.id);
+      const actor: DeletionActor = { uid: user?.id ?? '', name: effectiveName, photoURL: user?.photoURL ?? '' };
+      await noteUC.delete.execute(currentTenant.id, case_.id, noteToDelete.id, actor);
       setNotes((prev) => prev.filter((n) => n.id !== noteToDelete.id));
       notify('Anotação excluída.', 'success');
     } catch {
@@ -411,7 +412,7 @@ export const useViewCaseViewModel = (tabKey: string): ViewCaseViewModel => {
     } finally {
       setNoteToDelete(null);
     }
-  }, [noteToDelete, case_, currentTenant, noteUC, notify]);
+  }, [noteToDelete, case_, currentTenant, noteUC, notify, user, effectiveName]);
 
   const handleSelectFile = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -458,7 +459,8 @@ export const useViewCaseViewModel = (tabKey: string): ViewCaseViewModel => {
   const confirmDeleteDoc = useCallback(async () => {
     if (!docToDelete || !case_ || !currentTenant) return;
     try {
-      await docUC.delete.execute(currentTenant.id, case_.id, docToDelete.id, docToDelete.storagePath);
+      const actor: DeletionActor = { uid: user?.id ?? '', name: effectiveName, photoURL: user?.photoURL ?? '' };
+      await docUC.delete.execute(currentTenant.id, case_.id, docToDelete.id, docToDelete.storagePath, actor);
       setDocuments((prev) => prev.filter((d) => d.id !== docToDelete.id));
       notify('Documento excluído.', 'success');
     } catch {
@@ -466,7 +468,7 @@ export const useViewCaseViewModel = (tabKey: string): ViewCaseViewModel => {
     } finally {
       setDocToDelete(null);
     }
-  }, [docToDelete, case_, currentTenant, docUC, notify]);
+  }, [docToDelete, case_, currentTenant, docUC, notify, user, effectiveName]);
 
   const handleCopyDeepLink = useCallback(() => {
     if (!case_) return;

@@ -1,17 +1,19 @@
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { PersonStoreContext } from './usePersonStore';
 import { useTenant } from './useTenant';
+import { useAuth } from './useAuth';
 import { useDI } from '../infrastructure/di/useDI';
 import { storeEvents, StoreEvents } from '../infrastructure/events/StoreEventEmitter';
 import { makeGetPersonsUseCase } from '../domain/usecases/persons/GetPersonsUseCase';
 import { makeCreatePersonUseCase } from '../domain/usecases/persons/CreatePersonUseCase';
 import { makeUpdatePersonUseCase } from '../domain/usecases/persons/UpdatePersonUseCase';
 import { makeDeletePersonUseCase } from '../domain/usecases/persons/DeletePersonUseCase';
-import type { Person, PersonStatus } from '../domain/entities';
+import type { DeletionActor, Person, PersonStatus } from '../domain/entities';
 
 export const PersonStoreProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { currentTenant } = useTenant();
-  const { personRepository } = useDI();
+  const { user, effectiveName } = useAuth();
+  const { personRepository, caseRepository, deadlineRepository, financialRepository } = useDI();
 
   const [persons, setPersons] = useState<Person[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -20,8 +22,8 @@ export const PersonStoreProvider: React.FC<{ children: React.ReactNode }> = ({ c
     get: makeGetPersonsUseCase(personRepository),
     create: makeCreatePersonUseCase(personRepository),
     update: makeUpdatePersonUseCase(personRepository),
-    delete: makeDeletePersonUseCase(personRepository),
-  }), [personRepository]);
+    delete: makeDeletePersonUseCase(personRepository, caseRepository, deadlineRepository, financialRepository),
+  }), [personRepository, caseRepository, deadlineRepository, financialRepository]);
 
   const refresh = useCallback(async () => {
     if (!currentTenant) return;
@@ -74,10 +76,14 @@ export const PersonStoreProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
   const deletePerson = useCallback(async (personId: string) => {
     if (!currentTenant) return;
-    await uc.delete.execute(currentTenant.id, personId);
+    const actor: DeletionActor = { uid: user?.id ?? '', name: effectiveName, photoURL: user?.photoURL ?? '' };
+    await uc.delete.execute(currentTenant.id, personId, actor);
     setPersons((prev) => prev.filter((c) => c.id !== personId));
     storeEvents.emit(StoreEvents.PERSONS_UPDATED);
-  }, [currentTenant, uc.delete]);
+    storeEvents.emit(StoreEvents.CASES_UPDATED);
+    storeEvents.emit(StoreEvents.DEADLINES_UPDATED);
+    storeEvents.emit(StoreEvents.FINANCIALS_UPDATED);
+  }, [currentTenant, uc.delete, user, effectiveName]);
 
   return (
     <PersonStoreContext.Provider value={{ persons, isLoading, createPerson, updatePerson, updatePersonStatus, deletePerson, refresh }}>

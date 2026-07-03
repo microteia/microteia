@@ -107,9 +107,13 @@ export class FirebaseTenantRepository implements ITenantRepository {
     }
   }
 
-  async removeMember(tenantId: string, userId: string): Promise<void> {
+  async removeMember(tenantId: string, userId: string, removedBy: string): Promise<void> {
     const tenantRef = this.db.collection('tenants').doc(tenantId);
     const memberRef = tenantRef.collection('members').doc(userId);
+
+    // Stamp separado da transação: um único commit não pode ter update() e delete() no mesmo doc
+    // (o segundo sobrescreveria o primeiro) — a trigger de auditoria lê este campo no snapshot "before".
+    await memberRef.update({ deletedBy: removedBy }).catch(() => undefined);
 
     await this.db.runTransaction(async (tx) => {
       const tenantSnap = await tx.get(tenantRef);

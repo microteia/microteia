@@ -12,7 +12,8 @@ import {
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import { db, storage } from '../../infrastructure/firebase/config';
 import type { ICaseDocumentRepository } from '../../domain/repositories/ICaseDocumentRepository';
-import type { CaseDocument } from '../../domain/entities';
+import type { CaseDocument, DeletionActor } from '../../domain/entities';
+import { stampDeletionActor } from '../utils/stampDeletionActor';
 
 const docsRef = (tenantId: string, caseId: string) =>
   collection(db, 'tenants', tenantId, 'cases', caseId, 'documents');
@@ -57,8 +58,10 @@ export class FirebaseCaseDocumentRepository implements ICaseDocumentRepository {
     return { id: docRef.id, caseId, tenantId, ...data, createdAt: new Date() };
   }
 
-  async deleteDocument(tenantId: string, caseId: string, documentId: string, storagePath: string): Promise<void> {
-    await deleteDoc(doc(docsRef(tenantId, caseId), documentId));
+  async deleteDocument(tenantId: string, caseId: string, documentId: string, storagePath: string, actor: DeletionActor): Promise<void> {
+    const docRef = doc(docsRef(tenantId, caseId), documentId);
+    await stampDeletionActor(docRef, actor);
+    await deleteDoc(docRef);
     try {
       await deleteObject(ref(storage, storagePath));
     } catch {

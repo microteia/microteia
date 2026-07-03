@@ -97,7 +97,8 @@ export const PushStoreProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
   const deletePush = async (pushId: string) => {
     if (!tenantId) return;
-    await uc.delete.execute(tenantId, pushId);
+    const actor = { uid: user?.id ?? '', name: effectiveName, photoURL: effectivePhotoURL ?? '' };
+    await uc.delete.execute(tenantId, pushId, actor);
     setPushes((prev) => prev.filter((p) => p.id !== pushId));
     storeEvents.emit(StoreEvents.PUSH_UPDATED);
   };

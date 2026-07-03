@@ -7,13 +7,13 @@ import { makeUpdateNewsTagUseCase } from '../domain/usecases/newstags/UpdateNews
 import { makeDeleteNewsTagUseCase } from '../domain/usecases/newstags/DeleteNewsTagUseCase';
 import { makeGetNewsTagLinksUseCase } from '../domain/usecases/newstags/GetNewsTagLinksUseCase';
 import { makeSetNewsTagLinksUseCase } from '../domain/usecases/newstags/SetNewsTagLinksUseCase';
-import type { NewsTag } from '../domain/entities';
+import type { NewsTag, DeletionActor } from '../domain/entities';
 import { NewsTagContext } from './useNewsTag';
 import { storeEvents, StoreEvents } from '../infrastructure/events/StoreEventEmitter';
 
 export const NewsTagStoreProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { newsTagRepository, newsTagLinkRepository } = useDI();
-  const { user } = useAuth();
+  const { user, effectiveName } = useAuth();
 
   const [tags, setTags] = useState<NewsTag[]>([]);
   const [links, setLinks] = useState<Map<string, string[]>>(new Map());
@@ -93,7 +93,8 @@ export const NewsTagStoreProvider: React.FC<{ children: React.ReactNode }> = ({ 
   }, [uc]);
 
   const deleteTag = useCallback(async (id: string) => {
-    await uc.deleteTag.execute(id);
+    const actor: DeletionActor = { uid: user?.id ?? '', name: effectiveName, photoURL: user?.photoURL ?? '' };
+    await uc.deleteTag.execute(id, actor);
     setTags((prev) => prev.filter((t) => t.id !== id));
     setLinks((prev) => {
       const next = new Map(prev);
@@ -105,7 +106,7 @@ export const NewsTagStoreProvider: React.FC<{ children: React.ReactNode }> = ({ 
       return next;
     });
     storeEvents.emit(StoreEvents.NEWS_TAG_UPDATED);
-  }, [uc]);
+  }, [uc, user, effectiveName]);
 
   return (
     <NewsTagContext.Provider value={{

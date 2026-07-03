@@ -49,11 +49,15 @@ export const auditFlatEntityChange = onDocumentWritten(
       const severity = resolveSeverity(action, collection, changedKeys);
 
       const actorUid = action === 'DELETE'
-        ? ((beforeData.updatedBy as string | undefined) || (beforeData.createdBy as string | undefined) || '')
+        ? ((beforeData.deletedBy as string | undefined) || (beforeData.updatedBy as string | undefined) || (beforeData.createdBy as string | undefined) || '')
         : ((afterData.updatedBy as string | undefined) || (afterData.createdBy as string | undefined) || '');
 
-      const denormalizedName = action !== 'DELETE' ? (afterData.updatedByName as string | undefined) : undefined;
-      const denormalizedPhoto = action !== 'DELETE' ? (afterData.updatedByPhotoURL as string | undefined) : undefined;
+      const denormalizedName = action === 'DELETE'
+        ? (beforeData.deletedByName as string | undefined)
+        : (afterData.updatedByName as string | undefined);
+      const denormalizedPhoto = action === 'DELETE'
+        ? (beforeData.deletedByPhotoURL as string | undefined)
+        : (afterData.updatedByPhotoURL as string | undefined);
 
       const actor = denormalizedName
         ? { name: denormalizedName, photoURL: denormalizedPhoto ?? '' }

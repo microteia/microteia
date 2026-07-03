@@ -15,7 +15,8 @@ import {
 } from 'firebase/firestore';
 import { db } from '../../infrastructure/firebase/config';
 import type { IDeadlineRepository } from '../../domain/repositories/IDeadlineRepository';
-import type { Deadline, DeadlineStatus } from '../../domain/entities';
+import type { Deadline, DeadlineStatus, DeletionActor } from '../../domain/entities';
+import { stampDeletionActor } from '../utils/stampDeletionActor';
 
 const toDate = (v: unknown): Date =>
   v instanceof Timestamp ? v.toDate() : (v as Date);
@@ -102,7 +103,9 @@ export class FirebaseDeadlineRepository implements IDeadlineRepository {
     await updateDoc(doc(deadlinesRef(tenantId), deadlineId), payload);
   }
 
-  async deleteDeadline(tenantId: string, deadlineId: string): Promise<void> {
-    await deleteDoc(doc(deadlinesRef(tenantId), deadlineId));
+  async deleteDeadline(tenantId: string, deadlineId: string, actor: DeletionActor): Promise<void> {
+    const ref = doc(deadlinesRef(tenantId), deadlineId);
+    await stampDeletionActor(ref, actor);
+    await deleteDoc(ref);
   }
 }

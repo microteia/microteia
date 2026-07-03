@@ -16,7 +16,8 @@ import {
 } from 'firebase/firestore';
 import { db } from '../../infrastructure/firebase/config';
 import type { ICaseRepository } from '../../domain/repositories/ICaseRepository';
-import type { Case, CaseInstance, CaseStatus } from '../../domain/entities';
+import type { Case, CaseInstance, CaseStatus, DeletionActor } from '../../domain/entities';
+import { stampDeletionActor } from '../utils/stampDeletionActor';
 
 const toDate = (v: unknown): Date =>
   v instanceof Timestamp ? v.toDate() : (v as Date);
@@ -69,13 +70,15 @@ export class FirebaseCaseRepository implements ICaseRepository {
   }
 
   async getCasesByPerson(tenantId: string, personId: string): Promise<Case[]> {
-    const q = query(
-      casesRef(tenantId),
-      where('personId', '==', personId),
-      orderBy('createdAt', 'desc'),
-    );
-    const snap = await getDocs(q);
-    return snap.docs.map((d) => mapCase(d.id, d.data(), tenantId));
+    const [activeSnap, passiveSnap] = await Promise.all([
+      getDocs(query(casesRef(tenantId), where('activePoleIds', 'array-contains', personId))),
+      getDocs(query(casesRef(tenantId), where('passivePoleIds', 'array-contains', personId))),
+    ]);
+    const byId = new Map<string, Case>();
+    for (const d of [...activeSnap.docs, ...passiveSnap.docs]) {
+      byId.set(d.id, mapCase(d.id, d.data(), tenantId));
+    }
+    return Array.from(byId.values());
   }
 
   async getCaseById(tenantId: string, caseId: string): Promise<Case | null> {
@@ -102,8 +105,10 @@ export class FirebaseCaseRepository implements ICaseRepository {
     await updateDoc(doc(casesRef(tenantId), caseId), { status, updatedAt: serverTimestamp() });
   }
 
-  async deleteCase(tenantId: string, caseId: string): Promise<void> {
-    await deleteDoc(doc(casesRef(tenantId), caseId));
+  async deleteCase(tenantId: string, caseId: string, actor: DeletionActor): Promise<void> {
+    const ref = doc(casesRef(tenantId), caseId);
+    await stampDeletionActor(ref, actor);
+    await deleteDoc(ref);
   }
 
   async unlinkCasesFromContract(tenantId: string, contractId: string): Promise<void> {

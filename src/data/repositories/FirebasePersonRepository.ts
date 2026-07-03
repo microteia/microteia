@@ -14,7 +14,8 @@ import {
 } from 'firebase/firestore';
 import { db } from '../../infrastructure/firebase/config';
 import type { IPersonRepository } from '../../domain/repositories/IPersonRepository';
-import type { Person, PersonStatus, Gender } from '../../domain/entities';
+import type { Person, PersonStatus, Gender, DeletionActor } from '../../domain/entities';
+import { stampDeletionActor } from '../utils/stampDeletionActor';
 
 const toDate = (v: unknown): Date =>
   v instanceof Timestamp ? v.toDate() : (v as Date);
@@ -87,7 +88,9 @@ export class FirebasePersonRepository implements IPersonRepository {
     await updateDoc(doc(personsRef(tenantId), personId), { tagIds, updatedAt: serverTimestamp() });
   }
 
-  async deletePerson(tenantId: string, personId: string): Promise<void> {
-    await deleteDoc(doc(personsRef(tenantId), personId));
+  async deletePerson(tenantId: string, personId: string, actor: DeletionActor): Promise<void> {
+    const ref = doc(personsRef(tenantId), personId);
+    await stampDeletionActor(ref, actor);
+    await deleteDoc(ref);
   }
 }

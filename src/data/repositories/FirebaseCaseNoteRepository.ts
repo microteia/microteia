@@ -11,7 +11,8 @@ import {
 } from 'firebase/firestore';
 import { db } from '../../infrastructure/firebase/config';
 import type { ICaseNoteRepository } from '../../domain/repositories/ICaseNoteRepository';
-import type { CaseNote } from '../../domain/entities';
+import type { CaseNote, DeletionActor } from '../../domain/entities';
+import { stampDeletionActor } from '../utils/stampDeletionActor';
 
 const notesRef = (tenantId: string, caseId: string) =>
   collection(db, 'tenants', tenantId, 'cases', caseId, 'notes');
@@ -44,7 +45,9 @@ export class FirebaseCaseNoteRepository implements ICaseNoteRepository {
     return { id: ref.id, caseId, tenantId, ...data, createdAt: new Date() };
   }
 
-  async deleteNote(tenantId: string, caseId: string, noteId: string): Promise<void> {
-    await deleteDoc(doc(notesRef(tenantId, caseId), noteId));
+  async deleteNote(tenantId: string, caseId: string, noteId: string, actor: DeletionActor): Promise<void> {
+    const ref = doc(notesRef(tenantId, caseId), noteId);
+    await stampDeletionActor(ref, actor);
+    await deleteDoc(ref);
   }
 }

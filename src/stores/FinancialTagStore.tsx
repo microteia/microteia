@@ -8,7 +8,7 @@ import { makeCreateFinancialTagUseCase } from '../domain/usecases/financialtags/
 import { makeUpdateFinancialTagUseCase } from '../domain/usecases/financialtags/UpdateFinancialTagUseCase';
 import { makeDeleteFinancialTagUseCase } from '../domain/usecases/financialtags/DeleteFinancialTagUseCase';
 import { storeEvents, StoreEvents } from '../infrastructure/events/StoreEventEmitter';
-import type { FinancialTag } from '../domain/entities';
+import type { FinancialTag, DeletionActor } from '../domain/entities';
 import { FinancialTagContext } from './useFinancialTagStore';
 
 export const FinancialTagStoreProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -89,10 +89,11 @@ export const FinancialTagStoreProvider: React.FC<{ children: React.ReactNode }> 
 
   const deleteTag = useCallback(async (tagId: string) => {
     if (!currentTenant) return;
-    await uc.deleteTag.execute(currentTenant.id, tagId);
+    const actor: DeletionActor = { uid: user?.id ?? '', name: effectiveName, photoURL: user?.photoURL ?? '' };
+    await uc.deleteTag.execute(currentTenant.id, tagId, actor);
     setTags((prev) => prev.filter((t) => t.id !== tagId));
     storeEvents.emit(StoreEvents.FINANCIAL_TAG_UPDATED);
-  }, [currentTenant, uc]);
+  }, [currentTenant, uc, user, effectiveName]);
 
   return (
     <FinancialTagContext.Provider value={{ tags, loading, getTagsForFinancial, setTagsForFinancial, createTag, updateTag, deleteTag }}>

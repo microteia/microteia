@@ -1,9 +1,10 @@
 import type { IPersonTagRepository } from '../../repositories/IPersonTagRepository';
+import type { DeletionActor } from '../../entities';
 
 export type DeletePersonTagUseCase = {
-  execute: (tenantId: string, tagId: string) => Promise<void>;
+  execute: (tenantId: string, tagId: string, actor: DeletionActor) => Promise<void>;
 };
 
 export const makeDeletePersonTagUseCase = (repo: IPersonTagRepository): DeletePersonTagUseCase => ({
-  execute: (tenantId, tagId) => repo.deletePersonTag(tenantId, tagId),
+  execute: (tenantId, tagId, actor) => repo.deletePersonTag(tenantId, tagId, actor),
 });

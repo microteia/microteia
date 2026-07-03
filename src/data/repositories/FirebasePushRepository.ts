@@ -4,7 +4,8 @@ import {
 } from 'firebase/firestore';
 import { db } from '../../infrastructure/firebase/config';
 import type { IPushRepository } from '../../domain/repositories/IPushRepository';
-import type { Push, PushStatus } from '../../domain/entities';
+import type { Push, PushStatus, DeletionActor } from '../../domain/entities';
+import { stampDeletionActor } from '../utils/stampDeletionActor';
 
 type PushStatusActor = { updatedBy: string; updatedByName: string; updatedByPhotoURL: string };
 
@@ -78,8 +79,10 @@ export class FirebasePushRepository implements IPushRepository {
     await updateDoc(pushRef, { status, ...actor });
   }
 
-  async deletePush(tenantId: string, pushId: string): Promise<void> {
-    await deleteDoc(doc(db, 'tenants', tenantId, 'pushes', pushId));
+  async deletePush(tenantId: string, pushId: string, actor: DeletionActor): Promise<void> {
+    const ref = doc(db, 'tenants', tenantId, 'pushes', pushId);
+    await stampDeletionActor(ref, actor);
+    await deleteDoc(ref);
   }
 
   subscribeToPushes(tenantId: string, callback: (pushes: Push[]) => void): () => void {

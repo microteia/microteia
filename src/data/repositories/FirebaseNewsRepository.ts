@@ -5,7 +5,8 @@ import {
 } from 'firebase/firestore';
 import { db } from '../../infrastructure/firebase/config';
 import type { INewsRepository } from '../../domain/repositories/INewsRepository';
-import type { News } from '../../domain/entities';
+import type { News, DeletionActor } from '../../domain/entities';
+import { stampDeletionActor } from '../utils/stampDeletionActor';
 
 const COLLECTION = 'news';
 
@@ -126,8 +127,10 @@ export class FirebaseNewsRepository implements INewsRepository {
     await updateDoc(doc(db, COLLECTION, id), payload);
   }
 
-  async deleteNews(id: string): Promise<void> {
-    await deleteDoc(doc(db, COLLECTION, id));
+  async deleteNews(id: string, actor: DeletionActor): Promise<void> {
+    const ref = doc(db, COLLECTION, id);
+    await stampDeletionActor(ref, actor);
+    await deleteDoc(ref);
   }
 
   async toggleLike(id: string, userId: string, hasLiked: boolean): Promise<void> {

@@ -1,4 +1,4 @@
-import type { Push, PushInteraction } from '../entities';
+import type { Push, PushInteraction, DeletionActor } from '../entities';
 
 export interface IPushRepository {
   /**
@@ -24,7 +24,7 @@ export interface IPushRepository {
   /**
    * Deleta um push
    */
-  deletePush(tenantId: string, pushId: string): Promise<void>;
+  deletePush(tenantId: string, pushId: string, actor: DeletionActor): Promise<void>;
 
   /**
    * Subscreve para mudanças em tempo real

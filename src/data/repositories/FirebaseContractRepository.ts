@@ -14,7 +14,8 @@ import {
 } from 'firebase/firestore';
 import { db } from '../../infrastructure/firebase/config';
 import type { IContractRepository } from '../../domain/repositories/IContractRepository';
-import type { Contract } from '../../domain/entities';
+import type { Contract, DeletionActor } from '../../domain/entities';
+import { stampDeletionActor } from '../utils/stampDeletionActor';
 
 const toDate = (v: unknown): Date =>
   v instanceof Timestamp ? v.toDate() : (v as Date);
@@ -100,7 +101,9 @@ export class FirebaseContractRepository implements IContractRepository {
     await updateDoc(doc(contractsRef(tenantId), contractId), { tagIds, updatedAt: serverTimestamp() });
   }
 
-  async deleteContract(tenantId: string, contractId: string): Promise<void> {
-    await deleteDoc(doc(contractsRef(tenantId), contractId));
+  async deleteContract(tenantId: string, contractId: string, actor: DeletionActor): Promise<void> {
+    const ref = doc(contractsRef(tenantId), contractId);
+    await stampDeletionActor(ref, actor);
+    await deleteDoc(ref);
   }
 }

@@ -10,17 +10,30 @@ type EntityData = Record<string, unknown>;
 
 /**
  * Notícias, Comentários de Notícias e Etiquetas de Notícias denormalizam `authorName`/
- * `authorPhotoURL` na criação e `editedByName` (sem uid) na edição. Sem um uid de editor,
- * o `userId` do log usa o autor original — a mesma aproximação já aceita para o ator de
- * DELETE nas demais entidades (ver `auditFlatEntityChange`).
+ * `authorPhotoURL` na criação e `editedByName` (sem uid) na edição. Para DELETE, usa o
+ * stamp `deletedBy`/`deletedByName`/`deletedByPhotoURL` (gravado por `stampDeletionActor`
+ * logo antes do `deleteDoc`, mesmo padrão de `auditFlatEntityChange`) — sem ele, creditaria
+ * sempre o autor/editor original, nunca quem de fato excluiu.
  */
-const resolveNewsActor = async (data: EntityData): Promise<{ name: string; photoURL: string }> => {
+const resolveNewsActor = async (data: EntityData, isDelete: boolean): Promise<{ name: string; photoURL: string }> => {
+  if (isDelete) {
+    const deletedByName = data.deletedByName as string | undefined;
+    if (deletedByName) return { name: deletedByName, photoURL: (data.deletedByPhotoURL as string | undefined) ?? '' };
+    return getDI().getUserProfileLookupService().resolveActor(
+      (data.deletedBy as string | undefined) || (data.userId as string | undefined) || '',
+    );
+  }
   const editedByName = data.editedByName as string | undefined;
   const authorName = data.authorName as string | undefined;
   if (editedByName) return { name: editedByName, photoURL: '' };
   if (authorName) return { name: authorName, photoURL: (data.authorPhotoURL as string | undefined) ?? '' };
   return getDI().getUserProfileLookupService().resolveActor((data.userId as string | undefined) || '');
 };
+
+const resolveNewsActorUid = (data: EntityData, isDelete: boolean): string =>
+  (isDelete ? (data.deletedBy as string | undefined) : undefined)
+    || (data.userId as string | undefined)
+    || '';
 
 /**
  * Notícias, Comentários de Notícias e Etiquetas de Notícias vivem em coleções raiz
@@ -59,12 +72,13 @@ export const auditNewsChange = onDocumentWritten(
 
       const displayName = truncate(asString(referenceData.title, 'Notícia'), 80);
       const severity = resolveSeverity(action, 'news', diff?.after ?? {});
-      const actor = await resolveNewsActor(referenceData);
+      const actorUid = resolveNewsActorUid(referenceData, action === 'DELETE');
+      const actor = await resolveNewsActor(referenceData, action === 'DELETE');
 
       await getDI().getCreateAuditLogUseCase().execute({
         tenantId,
         title: `${ACTION_TITLE[action]} na entidade de Notícias`,
-        userId: (referenceData.userId as string | undefined) || 'system',
+        userId: actorUid || 'system',
         userName: actor.name,
         photoURL: actor.photoURL,
         action,
@@ -116,12 +130,13 @@ export const auditNewsCommentChange = onDocumentWritten(
 
       const displayName = truncate(asString(referenceData.content, 'Comentário'), 60);
       const severity = resolveSeverity(action, 'newsComments', diff?.after ?? {});
-      const actor = await resolveNewsActor(referenceData);
+      const actorUid = resolveNewsActorUid(referenceData, action === 'DELETE');
+      const actor = await resolveNewsActor(referenceData, action === 'DELETE');
 
       await getDI().getCreateAuditLogUseCase().execute({
         tenantId,
         title: `${ACTION_TITLE[action]} na entidade de Comentários de Notícias`,
-        userId: (referenceData.userId as string | undefined) || 'system',
+        userId: actorUid || 'system',
         userName: actor.name,
         photoURL: actor.photoURL,
         action,
@@ -165,13 +180,15 @@ export const auditNewsTagChange = onDocumentWritten(
 
       const displayName = asString(referenceData.name, 'Etiqueta');
       const severity = resolveSeverity(action, 'newsTags', diff?.after ?? {});
-      // Etiquetas não denormalizam nome de autor — sempre resolve via lookup.
-      const actor = await getDI().getUserProfileLookupService().resolveActor((referenceData.userId as string | undefined) || '');
+      // Etiquetas não denormalizam nome de autor — sempre resolve via lookup. Em DELETE,
+      // prefere o uid de quem excluiu (deletedBy) ao uid do criador (userId).
+      const actorUid = resolveNewsActorUid(referenceData, action === 'DELETE');
+      const actor = await getDI().getUserProfileLookupService().resolveActor(actorUid);
 
       await getDI().getCreateAuditLogUseCase().execute({
         tenantId,
         title: `${ACTION_TITLE[action]} na entidade de Etiquetas de Notícias`,
-        userId: (referenceData.userId as string | undefined) || 'system',
+        userId: actorUid || 'system',
         userName: actor.name,
         photoURL: actor.photoURL,
         action,

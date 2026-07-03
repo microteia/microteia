@@ -1,6 +1,7 @@
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { DeadlineStoreContext } from './useDeadlineStore';
 import { useTenant } from './useTenant';
+import { useAuth } from './useAuth';
 import { useDI } from '../infrastructure/di/useDI';
 import { storeEvents, StoreEvents } from '../infrastructure/events/StoreEventEmitter';
 import { makeGetDeadlinesUseCase } from '../domain/usecases/deadlines/GetDeadlinesUseCase';
@@ -11,10 +12,11 @@ import {
   makeUpdateDeadlineStatusUseCase,
 } from '../domain/usecases/deadlines/UpdateDeadlineUseCase';
 import { makeDeleteDeadlineUseCase } from '../domain/usecases/deadlines/DeleteDeadlineUseCase';
-import type { Deadline, DeadlineStatus } from '../domain/entities';
+import type { Deadline, DeadlineStatus, DeletionActor } from '../domain/entities';
 
 export const DeadlineStoreProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { currentTenant } = useTenant();
+  const { user, effectiveName } = useAuth();
   const { deadlineRepository } = useDI();
 
   const [deadlines, setDeadlines] = useState<Deadline[]>([]);
@@ -87,10 +89,11 @@ export const DeadlineStoreProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const deleteDeadline = useCallback(async (deadlineId: string) => {
     if (!currentTenant) return;
-    await uc.delete.execute(currentTenant.id, deadlineId);
+    const actor: DeletionActor = { uid: user?.id ?? '', name: effectiveName, photoURL: user?.photoURL ?? '' };
+    await uc.delete.execute(currentTenant.id, deadlineId, actor);
     setDeadlines((prev) => prev.filter((d) => d.id !== deadlineId));
     storeEvents.emit(StoreEvents.DEADLINES_UPDATED);
-  }, [currentTenant, uc.delete]);
+  }, [currentTenant, uc.delete, user, effectiveName]);
 
   return (
     <DeadlineStoreContext.Provider value={{

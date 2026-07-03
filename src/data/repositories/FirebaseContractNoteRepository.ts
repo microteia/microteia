@@ -11,7 +11,8 @@ import {
 } from 'firebase/firestore';
 import { db } from '../../infrastructure/firebase/config';
 import type { IContractNoteRepository } from '../../domain/repositories/IContractNoteRepository';
-import type { ContractNote } from '../../domain/entities';
+import type { ContractNote, DeletionActor } from '../../domain/entities';
+import { stampDeletionActor } from '../utils/stampDeletionActor';
 
 const notesRef = (tenantId: string, contractId: string) =>
   collection(db, 'tenants', tenantId, 'contracts', contractId, 'notes');
@@ -44,7 +45,9 @@ export class FirebaseContractNoteRepository implements IContractNoteRepository {
     return { id: ref.id, contractId, tenantId, ...data, createdAt: new Date() };
   }
 
-  async deleteNote(tenantId: string, contractId: string, noteId: string): Promise<void> {
-    await deleteDoc(doc(notesRef(tenantId, contractId), noteId));
+  async deleteNote(tenantId: string, contractId: string, noteId: string, actor: DeletionActor): Promise<void> {
+    const ref = doc(notesRef(tenantId, contractId), noteId);
+    await stampDeletionActor(ref, actor);
+    await deleteDoc(ref);
   }
 }

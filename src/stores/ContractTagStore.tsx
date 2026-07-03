@@ -8,7 +8,7 @@ import { makeCreateContractTagUseCase } from '../domain/usecases/contracttags/Cr
 import { makeUpdateContractTagUseCase } from '../domain/usecases/contracttags/UpdateContractTagUseCase';
 import { makeDeleteContractTagUseCase } from '../domain/usecases/contracttags/DeleteContractTagUseCase';
 import { storeEvents, StoreEvents } from '../infrastructure/events/StoreEventEmitter';
-import type { ContractTag } from '../domain/entities';
+import type { ContractTag, DeletionActor } from '../domain/entities';
 import { ContractTagContext } from './useContractTagStore';
 
 export const ContractTagStoreProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -89,10 +89,11 @@ export const ContractTagStoreProvider: React.FC<{ children: React.ReactNode }> =
 
   const deleteTag = useCallback(async (tagId: string) => {
     if (!currentTenant) return;
-    await uc.deleteTag.execute(currentTenant.id, tagId);
+    const actor: DeletionActor = { uid: user?.id ?? '', name: effectiveName, photoURL: user?.photoURL ?? '' };
+    await uc.deleteTag.execute(currentTenant.id, tagId, actor);
     setTags((prev) => prev.filter((t) => t.id !== tagId));
     storeEvents.emit(StoreEvents.CONTRACT_TAG_UPDATED);
-  }, [currentTenant, uc]);
+  }, [currentTenant, uc, user, effectiveName]);
 
   return (
     <ContractTagContext.Provider value={{ tags, loading, getTagsForContract, setTagsForContract, createTag, updateTag, deleteTag }}>

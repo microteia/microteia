@@ -19,7 +19,7 @@ import { makeGetPersonDocumentsUseCase } from '../../../domain/usecases/persondo
 import { makeUploadPersonDocumentUseCase } from '../../../domain/usecases/persondocuments/UploadPersonDocumentUseCase';
 import { makeAddPersonDocumentUseCase } from '../../../domain/usecases/persondocuments/AddPersonDocumentUseCase';
 import { makeDeletePersonDocumentUseCase } from '../../../domain/usecases/persondocuments/DeletePersonDocumentUseCase';
-import type { Person, PersonNote, PersonDocument, PersonType, PersonAddress, Gender } from '../../../domain/entities';
+import type { Person, PersonNote, PersonDocument, PersonType, PersonAddress, Gender, DeletionActor } from '../../../domain/entities';
 import type { TagStoreAdapter } from '../../components/ui/TagManager/TagManager.viewmodel';
 import { formatCPF, formatCNPJ, formatPhone, formatCEP, onlyNumbers } from '../../../utils/formatters';
 import { validateCPF, validateCNPJ } from '../../../utils/validators';
@@ -531,7 +531,8 @@ export const useViewPersonViewModel = (tabKey: string): ViewPersonViewModel => {
   const confirmDeleteNote = useCallback(async () => {
     if (!noteToDelete || !person || !currentTenant) return;
     try {
-      await noteUC.delete.execute(currentTenant.id, person.id, noteToDelete.id);
+      const actor: DeletionActor = { uid: user?.id ?? '', name: effectiveName, photoURL: user?.photoURL ?? '' };
+      await noteUC.delete.execute(currentTenant.id, person.id, noteToDelete.id, actor);
       setNotes((prev) => prev.filter((n) => n.id !== noteToDelete.id));
       notify('Anotação excluída.', 'success');
     } catch {
@@ -539,7 +540,7 @@ export const useViewPersonViewModel = (tabKey: string): ViewPersonViewModel => {
     } finally {
       setNoteToDelete(null);
     }
-  }, [noteToDelete, person, currentTenant, noteUC, notify]);
+  }, [noteToDelete, person, currentTenant, noteUC, notify, user, effectiveName]);
 
   const handleSelectFile = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -586,7 +587,8 @@ export const useViewPersonViewModel = (tabKey: string): ViewPersonViewModel => {
   const confirmDeleteDoc = useCallback(async () => {
     if (!docToDelete || !person || !currentTenant) return;
     try {
-      await docUC.delete.execute(currentTenant.id, person.id, docToDelete.id, docToDelete.storagePath);
+      const actor: DeletionActor = { uid: user?.id ?? '', name: effectiveName, photoURL: user?.photoURL ?? '' };
+      await docUC.delete.execute(currentTenant.id, person.id, docToDelete.id, docToDelete.storagePath, actor);
       setDocuments((prev) => prev.filter((d) => d.id !== docToDelete.id));
       notify('Documento excluído.', 'success');
     } catch {
@@ -594,7 +596,7 @@ export const useViewPersonViewModel = (tabKey: string): ViewPersonViewModel => {
     } finally {
       setDocToDelete(null);
     }
-  }, [docToDelete, person, currentTenant, docUC, notify]);
+  }, [docToDelete, person, currentTenant, docUC, notify, user, effectiveName]);
 
   const handleCopyDeepLink = useCallback(() => {
     if (!person) return;

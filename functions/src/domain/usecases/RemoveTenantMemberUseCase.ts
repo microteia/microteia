@@ -15,6 +15,6 @@ export const makeRemoveTenantMemberUseCase = (
       throw new Error('Somente administradores do escritório podem remover membros.');
     }
 
-    await tenantRepo.removeMember(tenantId, userId);
+    await tenantRepo.removeMember(tenantId, userId, requesterId);
   },
 });

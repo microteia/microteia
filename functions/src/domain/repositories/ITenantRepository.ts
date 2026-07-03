@@ -20,5 +20,5 @@ export interface ITenantRepository {
   getById(tenantId: string): Promise<Tenant | null>;
   createTenant(data: CreateTenantInput): Promise<Tenant>;
   addMemberIfWithinLimit(tenantId: string, member: AddTenantMemberInput): Promise<void>;
-  removeMember(tenantId: string, userId: string): Promise<void>;
+  removeMember(tenantId: string, userId: string, removedBy: string): Promise<void>;
 }

@@ -12,7 +12,8 @@ import {
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import { db, storage } from '../../infrastructure/firebase/config';
 import type { IFinancialDocumentRepository } from '../../domain/repositories/IFinancialDocumentRepository';
-import type { FinancialDocument } from '../../domain/entities';
+import type { FinancialDocument, DeletionActor } from '../../domain/entities';
+import { stampDeletionActor } from '../utils/stampDeletionActor';
 
 const docsRef = (tenantId: string, financialId: string) =>
   collection(db, 'tenants', tenantId, 'financials', financialId, 'documents');
@@ -57,8 +58,10 @@ export class FirebaseFinancialDocumentRepository implements IFinancialDocumentRe
     return { id: docRef.id, financialId, tenantId, ...data, createdAt: new Date() };
   }
 
-  async deleteDocument(tenantId: string, financialId: string, documentId: string, storagePath: string): Promise<void> {
-    await deleteDoc(doc(docsRef(tenantId, financialId), documentId));
+  async deleteDocument(tenantId: string, financialId: string, documentId: string, storagePath: string, actor: DeletionActor): Promise<void> {
+    const docRef = doc(docsRef(tenantId, financialId), documentId);
+    await stampDeletionActor(docRef, actor);
+    await deleteDoc(docRef);
     try {
       await deleteObject(ref(storage, storagePath));
     } catch {

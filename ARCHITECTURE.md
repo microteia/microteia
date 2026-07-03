@@ -684,7 +684,11 @@ Uma entrada de `auditableEntities.ts` pode restringir quais ações geram log vi
 
 **Diff e Markdown** (`functions/src/domain/services/auditDiff.ts`): `computeChangedFields` retorna um `FieldDiff { before, after }` com os valores **antigos e novos** de cada campo alterado (UPDATE); `normalizeAllFields` retorna todos os campos do documento (DELETE). Ambos normalizam `Timestamp`/`Date` para o formato brasileiro `dd/mm/aaaa` (ou `dd/mm/aaaa HH:mm` quando o horário não é meia-noite), para o JSON ficar legível em português. `buildAuditText` monta a frase + bloco **Antes:** (UPDATE e DELETE) + bloco **Depois:** (só UPDATE) em \`\`\`json\`\`\`; CREATE não inclui bloco (nada "mudou" ainda).
 
-**Autoria:** CREATE/UPDATE usam os campos denormalizados `updatedBy`/`updatedByName`/`updatedByPhotoURL` (adicionados a `Person`, `Case`, `Contract`, `Deadline`, `Financial`, `PersonTag`, `CaseTag`, `ContractTag`, `FinancialTag`, `TenantMember` — preenchidos pelo frontend a cada update) quando presentes; senão a Cloud Function resolve via `UserProfileLookupService`. **DELETE não tem stamp próprio** — usa o último editor conhecido do documento (`updatedBy`, ou `createdBy` se nunca editado), lido do snapshot `before` que a trigger já recebe. Isso é uma aproximação deliberada (evita alterar ~40 arquivos de exclusão existentes): se X editou um registro e Y o exclui depois, o log credita X, não Y.
+**Autoria:** CREATE/UPDATE usam os campos denormalizados `updatedBy`/`updatedByName`/`updatedByPhotoURL` (adicionados a `Person`, `Case`, `Contract`, `Deadline`, `Financial`, `PersonTag`, `CaseTag`, `ContractTag`, `FinancialTag`, `TenantMember` — preenchidos pelo frontend a cada update) quando presentes; senão a Cloud Function resolve via `UserProfileLookupService`.
+
+**DELETE tem stamp próprio** (`deletedBy`/`deletedByName`/`deletedByPhotoURL`, mesmo padrão de `updatedBy*`), gravado por um `updateDoc` que antecede o `deleteDoc` — ver `stampDeletionActor` (`src/data/utils/stampDeletionActor.ts`), chamado por todo `Firebase[Entidade]Repository.delete*` das entidades auditadas (flat e nested). O tipo `DeletionActor` (`domain/entities/index.ts`) e o `actor` são montados no Store (via `useAuth()`) para entidades com Store próprio, ou no ViewModel para notes/documents (que não têm Store, chamam o UseCase direto) — nunca no Repository, que não tem acesso a `AuthContext`. As triggers (`auditFlatEntityChange`/`auditNestedEntityChange`) preferem `deletedBy*` do snapshot `before`; só caem no fallback antigo (`updatedBy`/`createdBy`, para flat, ou só `createdBy`, para nested) se o documento não tiver o stamp — caso de documentos já apagados antes desta mudança.
+
+Membro de tenant (`TenantMember`) é removido via Cloud Function callable (`removeTenantMember`), não pelo client — o stamp é gravado direto pelo Admin SDK em `FirebaseTenantRepository.removeMember`, num `update` separado da transação de exclusão (um único commit não aceita `update` e `delete` no mesmo documento — o segundo sobrescreve o primeiro).
 
 **Nome efetivo do usuário — prioridade única em todo o sistema:** `userProfiles.nickname` > `userProfiles.fullName` > `users.displayName` > `users.email`. No frontend isso é `effectiveName`, calculado em `stores/AuthContext.tsx` e usado em **todo** carimbo de autoria (`createdByName`, `updatedByName`, `authorName`, `editedByName`, `authorizedByName`, nome do membro/dono ao criar um tenant) — nunca leia `user.displayName` diretamente para gravar autoria. No backend, `UserProfileLookupService.resolveActor` (`functions/src/data/services/UserProfileLookupService.ts`) espelha exatamente a mesma ordem, lendo `userProfiles/{uid}` e `users/{uid}` em paralelo.
 
@@ -697,7 +701,8 @@ Uma entrada de `auditableEntities.ts` pode restringir quais ações geram log vi
 `news/{id}`, `newsComments/{id}` e `newsTags/{id}` são coleções **raiz** (fora de `tenants/{tenantId}/...`), então não são cobertas pelas triggers genéricas — ganham três triggers dedicadas em `functions/src/infrastructure/handlers/auditNewsEntityChange.ts`, todas auditando CREATE/UPDATE/DELETE:
 
 - **`tenantId` do log:** `News.tenantId` já existe no documento (`null` = notícia do Sistema, string = notícia do escritório) — usa-se `?? 'SYSTEM'`. `NewsComment` não guarda `tenantId` próprio — a trigger busca o `news/{newsId}` pai para herdar o valor. `NewsTag` não tem conceito de tenant (etiqueta é por usuário) — sempre `'SYSTEM'`. Um log com `tenantId: 'SYSTEM'` só aparece para o papel `SYSTEM` (mesmo mecanismo de "Todas os Escritórios" já usado pelo erro global do pipeline).
-- **Ator:** nenhuma das três entidades tem um uid de editor denormalizado — `News`/`NewsComment` guardam `authorName`/`authorPhotoURL` na criação e só `editedByName` (sem uid) na edição. O log usa esse nome quando presente; o `userId` do log usa o `userId` do autor original como aproximação (mesmo espírito da aproximação de ator do DELETE genérico). `NewsTag` não denormaliza nada — sempre resolve via `UserProfileLookupService`.
+- **Ator (CREATE/UPDATE):** nenhuma das três entidades tem um uid de editor denormalizado — `News`/`NewsComment` guardam `authorName`/`authorPhotoURL` na criação e só `editedByName` (sem uid) na edição. O log usa esse nome quando presente; o `userId` do log usa o `userId` do autor original. `NewsTag` não denormaliza nada — sempre resolve via `UserProfileLookupService`.
+- **Ator (DELETE):** as três entidades têm o mesmo stamp `deletedBy`/`deletedByName`/`deletedByPhotoURL` das demais entidades auditadas (ver "Autoria de exclusão"), gravado por `stampDeletionActor` antes do `deleteDoc` em `FirebaseNewsRepository`/`FirebaseNewsCommentRepository`/`FirebaseNewsTagRepository`. `resolveNewsActor`/`resolveNewsActorUid` (`auditNewsEntityChange.ts`) preferem esse stamp; só caem para `userId`/`resolveActor` se o documento não tiver `deletedBy` (legado).
 - **Filtro de ruído próprio:** além dos campos de bookkeeping padrão, essas triggers ignoram `likeCount`/`likedBy`/`viewCount`/`commentCount` (News) e `likeCount`/`likedBy` (NewsComment) — são escritas de engajamento do usuário (curtir, visualizar, contador de comentários), não uma ação administrativa. Por isso `computeChangedFields`/`normalizeAllFields` aceitam um terceiro parâmetro opcional `extraIgnoredKeys: string[]`.
 - **`entityLink`:** `view-news:{id}` para Notícias e para Comentários (aponta para o post pai via `newsId`); Etiquetas não têm link, igual às demais `*Tags`.
 
@@ -1247,13 +1252,17 @@ useEffect(() => {
 | Entidade excluída | O use case deve remover |
 |---|---|
 | `Tenant` | Todos os members, persons, cases, deadlines, financials, pushes do tenant |
-| `Person` | Todos os processos (`cases`) onde `personId === id`; todos os prazos e financeiros vinculados |
+| `Person` | Todos os `cases` onde a pessoa está em `activePoleIds` ou `passivePoleIds` (cada um cascateando como a linha `Case` abaixo); todos os `financials` onde `personId === id` |
 | `Case` | Todos os `deadlines` onde `caseId === id`; todos os `financials` onde `caseId === id` |
 | `Contract` | Desvincula (não exclui) todos os `cases` onde `contractId === id`, limpando `contractId`/`contractNumber`; desvincula (não exclui) todos os `financials` onde `contractId === id`, limpando `contractId`/`contractNumber` |
 | `Deadline` | — (folha) |
 | `Financial` | — (folha) |
-| `Push` | Todos os `pushInteractions` onde `pushId === id` |
+| `Push` | Todos os `pushInteractions` onde `pushId === id` — **cascata roda no backend** (ver nota abaixo) |
 | `PushInteraction` | — (folha) |
+
+`makeDeletePersonUseCase`/`makeDeleteCaseUseCase` (`domain/usecases/persons/DeletePersonUseCase.ts`, `domain/usecases/cases/DeleteCaseUseCase.ts`) implementam a cascata acima, no mesmo padrão factory multi-repositório já usado por `makeDeleteContractUseCase`. `Person` → `Case` usa `ICaseRepository.getCasesByPerson`, que busca por `array-contains` em `activePoleIds` e `passivePoleIds` (duas queries, mescladas e deduplicadas em memória — Firestore não faz OR entre dois campos array numa única query). Todo `delete*` cascateado recebe o mesmo `DeletionActor` do disparo original, para a auditoria creditar corretamente quem excluiu, mesmo nos filhos.
+
+**Exceção — cascata de `Push` roda na Cloud Function, não no use case:** `pushInteractions` é coleção raiz (não tenant-scoped) e sua Security Rule só permite que cada usuário escreva/apague a própria interação (`request.resource.data.userId == request.auth.uid`) — não haveria como o `DeletePushUseCase` do client (rodando como o admin que está excluindo o `Push`, não como cada usuário que leu/interagiu com ele) apagar as interações de outras pessoas. Por isso a cascata é feita por `cascadeDeletePushInteractions` (`functions/src/infrastructure/handlers/cascadeDeletePushInteractions.ts`), um `onDocumentDeleted('tenants/{tenantId}/pushes/{pushId}')` que usa Admin SDK (ignora as regras) para apagar todos os `pushInteractions` daquele `pushId`. `PushInteraction` não é uma entidade auditada (fora da allowlist de `auditableEntities.ts`), então essa cascata não gera entradas em `auditLogs`.
 
 ---
 
@@ -1428,9 +1437,11 @@ service cloud.firestore {
     }
 
     // ─── Perfis de usuário ────────────────────────────────────────────────────
-
+    
     match /userProfiles/{userId} {
       allow read: if request.auth != null;
+      allow list: if isSystemAdmin()
+        || (request.auth != null && request.query.limit <= 1);
       allow write: if request.auth != null && request.auth.uid == userId;
     }
 
@@ -1442,33 +1453,6 @@ service cloud.firestore {
         && request.resource.data.userId == request.auth.uid;
       allow delete: if request.auth != null
         && resource.data.userId == request.auth.uid;
-    }
-
-    // ─── Tenants (escritórios) ────────────────────────────────────────────────
-
-    match /tenants/{tenantId} {
-      // Qualquer membro pode ler o tenant
-      allow get: if isMember(tenantId);
-      // Somente admin global pode listar TODOS os tenants (filtro "Todos os Escritórios" em Auditoria
-      // e aba "Escritórios" de Gestão de Acessos)
-      allow list: if isSystemAdmin();
-      // Admin do tenant atualiza os dados do escritório, mas nunca memberCount/memberLimit/ownerId
-      // (ver regra completa mais abaixo, no segundo match /tenants/{tenantId} — Firestore combina
-      // múltiplos blocos allow do mesmo path com OR, então as duas declarações precisam ficar em sincronia).
-      allow update: if isSystemAdmin()
-        || (isTenantAdmin(tenantId)
-            && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['memberCount', 'memberLimit', 'ownerId']));
-      // Tenant é criado pela Cloud Function onUserCreated (Admin SDK, trigger de Auth)
-      // junto com o bootstrap do usuário — nunca pelo client.
-      allow create: if false;
-      // Somente admin global pode deletar
-      allow delete: if isSystemAdmin();
-
-      // Conexões de IA do escritório — somente admin lê e escreve
-      match /aiConnections/{connectionId} {
-        allow read, write: if isTenantAdmin(tenantId);
-      }
-
     }
 
     // ─── Conexões Gmail (Push) — nível raiz ──────────────────────────────────
@@ -1491,6 +1475,8 @@ service cloud.firestore {
       }
     }
 
+    // ─── Tenants (escritórios) ────────────────────────────────────────────────  
+
     match /tenants/{tenantId} {
       // Qualquer membro pode ler o tenant
       allow get: if isMember(tenantId);
@@ -1503,8 +1489,7 @@ service cloud.firestore {
       // Tenant é criado pela Cloud Function onUserCreated (Admin SDK, trigger de Auth)
       // junto com o bootstrap do usuário — nunca pelo client.
       allow create: if false;
-      // Somente admin global pode deletar
-      allow delete: if isSystemAdmin();
+      allow delete: false;
 
       // Conexões de IA do escritório — somente admin lê e escreve
       match /aiConnections/{connectionId} {
@@ -1556,17 +1541,26 @@ service cloud.firestore {
         allow create, update: if canWriteInTenant(tenantId);
         allow delete: if isTenantAdmin(tenantId);
 
-        // Anotações da pessoa — criação por qualquer membro com escrita; exclusão só admin
+        // Anotações da pessoa — criação por qualquer membro com escrita; exclusão só admin.
+        // update só é usado para o stamp de autoria de exclusão (deletedBy*), gravado logo
+        // antes do delete (ver "Autoria de exclusão").
         match /notes/{noteId} {
           allow read: if isMember(tenantId);
           allow create: if canWriteInTenant(tenantId);
+          allow update: if isTenantAdmin(tenantId)
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['deletedBy', 'deletedByName', 'deletedByPhotoURL'])
+            && request.resource.data.deletedBy == request.auth.uid;
           allow delete: if isTenantAdmin(tenantId);
         }
 
-        // Documentos da pessoa — upload por qualquer membro com escrita; exclusão só admin
+        // Documentos da pessoa — upload por qualquer membro com escrita; exclusão só admin.
+        // update só é usado para o stamp de autoria de exclusão (deletedBy*).
         match /documents/{documentId} {
           allow read: if isMember(tenantId);
           allow create: if canWriteInTenant(tenantId);
+          allow update: if isTenantAdmin(tenantId)
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['deletedBy', 'deletedByName', 'deletedByPhotoURL'])
+            && request.resource.data.deletedBy == request.auth.uid;
           allow delete: if isTenantAdmin(tenantId);
         }
       }
@@ -1652,17 +1646,25 @@ service cloud.firestore {
         allow create, update: if isTenantLawyerOrAdmin(tenantId);
         allow delete: if isTenantAdmin(tenantId);
 
-        // Anotações do processo — criação por qualquer membro com escrita; exclusão só admin
+        // Anotações do processo — criação por qualquer membro com escrita; exclusão só admin.
+        // update só é usado para o stamp de autoria de exclusão (deletedBy*).
         match /notes/{noteId} {
           allow read: if isMember(tenantId);
           allow create: if canWriteInTenant(tenantId);
+          allow update: if isTenantAdmin(tenantId)
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['deletedBy', 'deletedByName', 'deletedByPhotoURL'])
+            && request.resource.data.deletedBy == request.auth.uid;
           allow delete: if isTenantAdmin(tenantId);
         }
 
-        // Documentos do processo — upload por qualquer membro com escrita; exclusão só admin
+        // Documentos do processo — upload por qualquer membro com escrita; exclusão só admin.
+        // update só é usado para o stamp de autoria de exclusão (deletedBy*).
         match /documents/{documentId} {
           allow read: if isMember(tenantId);
           allow create: if canWriteInTenant(tenantId);
+          allow update: if isTenantAdmin(tenantId)
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['deletedBy', 'deletedByName', 'deletedByPhotoURL'])
+            && request.resource.data.deletedBy == request.auth.uid;
           allow delete: if isTenantAdmin(tenantId);
         }
       }
@@ -1715,17 +1717,25 @@ service cloud.firestore {
         allow create, update: if isTenantLawyerOrAdmin(tenantId);
         allow delete: if isTenantAdmin(tenantId);
 
-        // Anotações do contrato — criação por qualquer membro com escrita; exclusão só admin
+        // Anotações do contrato — criação por qualquer membro com escrita; exclusão só admin.
+        // update só é usado para o stamp de autoria de exclusão (deletedBy*).
         match /notes/{noteId} {
           allow read: if isMember(tenantId);
           allow create: if canWriteInTenant(tenantId);
+          allow update: if isTenantAdmin(tenantId)
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['deletedBy', 'deletedByName', 'deletedByPhotoURL'])
+            && request.resource.data.deletedBy == request.auth.uid;
           allow delete: if isTenantAdmin(tenantId);
         }
 
-        // Documentos do contrato — upload por qualquer membro com escrita; exclusão só admin
+        // Documentos do contrato — upload por qualquer membro com escrita; exclusão só admin.
+        // update só é usado para o stamp de autoria de exclusão (deletedBy*).
         match /documents/{documentId} {
           allow read: if isMember(tenantId);
           allow create: if canWriteInTenant(tenantId);
+          allow update: if isTenantAdmin(tenantId)
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['deletedBy', 'deletedByName', 'deletedByPhotoURL'])
+            && request.resource.data.deletedBy == request.auth.uid;
           allow delete: if isTenantAdmin(tenantId);
         }
       }
@@ -1749,10 +1759,14 @@ service cloud.firestore {
         allow create, update: if isTenantLawyerOrAdmin(tenantId);
         allow delete: if isTenantAdmin(tenantId);
 
-        // Documentos do lançamento financeiro — upload por qualquer membro com escrita; exclusão só admin
+        // Documentos do lançamento financeiro — upload por qualquer membro com escrita; exclusão só admin.
+        // update só é usado para o stamp de autoria de exclusão (deletedBy*).
         match /documents/{documentId} {
           allow read: if isMember(tenantId);
           allow create: if canWriteInTenant(tenantId);
+          allow update: if isTenantAdmin(tenantId)
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['deletedBy', 'deletedByName', 'deletedByPhotoURL'])
+            && request.resource.data.deletedBy == request.auth.uid;
           allow delete: if isTenantAdmin(tenantId);
         }
       }
@@ -1781,6 +1795,11 @@ service cloud.firestore {
         // Membros podem atualizar status; updatedBy* é o carimbo de autoria (auditoria)
         allow update: if isMember(tenantId)
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedBy', 'updatedByName', 'updatedByPhotoURL']);
+        // Stamp de autoria de exclusão (deletedBy*), gravado logo antes do delete — só quem
+        // pode de fato deletar (admin) pode gravar esse stamp.
+        allow update: if isTenantAdmin(tenantId)
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['deletedBy', 'deletedByName', 'deletedByPhotoURL'])
+          && request.resource.data.deletedBy == request.auth.uid;
         // Somente admin pode deletar
         allow delete: if isTenantAdmin(tenantId);
       }
@@ -1966,13 +1985,14 @@ service firebase.storage {
 
     // ─── Documentos de processos ──────────────────────────────────────────────
     // Path: tenants/{tenantId}/cases/{caseId}/{filename}
-    // (reservado para uso futuro — uploads de documentos de processos)
     match /tenants/{tenantId}/cases/{caseId}/{allPaths=**} {
       allow read: if request.auth != null
         && firestore.exists(/databases/(default)/documents/tenants/$(tenantId)/members/$(request.auth.uid));
       allow write: if request.auth != null
         && firestore.exists(/databases/(default)/documents/tenants/$(tenantId)/members/$(request.auth.uid))
-        && request.resource.size < 20 * 1024 * 1024;     // máximo 20 MB
+        && request.resource.size < 20 * 1024 * 1024;    // máximo 20 MB
+      allow delete: if request.auth != null
+        && firestore.get(/databases/(default)/documents/tenants/$(tenantId)/members/$(request.auth.uid)).data.role == 'admin';        
     }
 
     // ─── Documentos de pessoas ───────────────────────────────────────────────
@@ -2025,6 +2045,12 @@ service firebase.storage {
     function isSystemAdminUser() {
       return firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role == 'SYSTEM';
     }
+    function canViewNews(newsId) {
+      let tenantId = newsTenantId(newsId);
+      return isSystemAdminUser()
+        || (tenantId != null
+            && firestore.exists(/databases/(default)/documents/tenants/$(tenantId)/members/$(request.auth.uid)));
+    }
     function canEditNews(newsId) {
       let tenantId = newsTenantId(newsId);
       return isSystemAdminUser()
@@ -2034,7 +2060,7 @@ service firebase.storage {
                 || firestore.get(/databases/(default)/documents/tenants/$(tenantId)/members/$(request.auth.uid)).data.role == 'admin'));
     }
     match /news/{newsId}/{allPaths=**} {
-      allow read: if request.auth != null;
+      allow read: if request.auth != null && canViewNews(newsId);
       allow create: if request.auth != null
         && request.resource.size < 20 * 1024 * 1024        // máximo 20 MB
         && canEditNews(newsId);
@@ -2083,6 +2109,7 @@ service firebase.storage {
 | `tenants/{id}/deadlines` | `tenantId` ASC, `dueDate` ASC | Para ordenar prazos por data |
 | `tenants/{id}/deadlines` | `status` ASC, `dueDate` ASC | Para filtrar prazos pendentes |
 | `tenants/{id}/financials` | `type` ASC, `dueDate` ASC | Para separar receitas/despesas |
+| `tenants/{id}/financials` | `personId` ASC, `dueDate` DESC | Para `getFinancialsByPerson` (cascata de exclusão de `Person`) |
 | `tenants/{id}/cases` | `status` ASC, `createdAt` DESC | Para listar processos ativos |
 | `tenants/{id}/pushes` | `tenantId` ASC, `receivedAt` DESC | Para ordenar pushes por data de recebimento |
 | `tenants/{id}/pushes` | `status` ASC, `receivedAt` DESC | Para filtrar pushes por status |
