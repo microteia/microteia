@@ -13,10 +13,12 @@ export interface LoginViewModel {
   passwordField: string;
   displayNameField: string;
   confirmPasswordField: string;
+  termsAccepted: boolean;
   handleEmailChange: (val: string) => void;
   handlePasswordChange: (val: string) => void;
   handleDisplayNameChange: (val: string) => void;
   handleConfirmPasswordChange: (val: string) => void;
+  handleTermsAcceptedChange: (val: boolean) => void;
   handleEmailLogin: () => Promise<void>;
   handleEmailSignUp: () => Promise<void>;
   handleGoogleLogin: () => Promise<void>;
@@ -29,6 +31,8 @@ export interface LoginViewModel {
   goToLogin: () => void;
   goToForgotPassword: () => void;
 }
+
+const TERMS_NOT_ACCEPTED_ERROR = 'Você precisa aceitar os Termos de Uso e a Política de Privacidade para continuar.';
 
 const mapAuthError = (error: unknown): string => {
   if (error && typeof error === 'object' && 'code' in error) {
@@ -70,6 +74,7 @@ export const useLoginViewModel = (): LoginViewModel => {
   const [passwordField, setPasswordField] = useState('');
   const [displayNameField, setDisplayNameField] = useState('');
   const [confirmPasswordField, setConfirmPasswordField] = useState('');
+  const [termsAccepted, setTermsAccepted] = useState(false);
 
   useEffect(() => {
     if (user && isEmailVerified) navigate('/', { replace: true });
@@ -89,6 +94,7 @@ export const useLoginViewModel = (): LoginViewModel => {
     clearMessages();
     setPasswordField('');
     setConfirmPasswordField('');
+    setTermsAccepted(false);
     setMode('signup');
   }, [clearMessages]);
 
@@ -96,6 +102,7 @@ export const useLoginViewModel = (): LoginViewModel => {
     clearMessages();
     setPasswordField('');
     setConfirmPasswordField('');
+    setTermsAccepted(false);
     setMode('login');
   }, [clearMessages]);
 
@@ -103,6 +110,7 @@ export const useLoginViewModel = (): LoginViewModel => {
     clearMessages();
     setPasswordField('');
     setConfirmPasswordField('');
+    setTermsAccepted(false);
     setMode('forgot-password');
   }, [clearMessages]);
 
@@ -119,6 +127,10 @@ export const useLoginViewModel = (): LoginViewModel => {
   }, [signInWithEmail, emailField, passwordField]);
 
   const handleEmailSignUp = useCallback(async () => {
+    if (!termsAccepted) {
+      setError(TERMS_NOT_ACCEPTED_ERROR);
+      return;
+    }
     if (!displayNameField.trim()) {
       setError('Informe seu nome completo.');
       return;
@@ -140,9 +152,13 @@ export const useLoginViewModel = (): LoginViewModel => {
     } finally {
       setLoading(false);
     }
-  }, [signUpWithEmail, emailField, passwordField, confirmPasswordField, displayNameField]);
+  }, [signUpWithEmail, emailField, passwordField, confirmPasswordField, displayNameField, termsAccepted]);
 
   const handleGoogleLogin = useCallback(async () => {
+    if (!termsAccepted) {
+      setError(TERMS_NOT_ACCEPTED_ERROR);
+      return;
+    }
     setLoading(true);
     setError('');
     try {
@@ -152,9 +168,13 @@ export const useLoginViewModel = (): LoginViewModel => {
     } finally {
       setLoading(false);
     }
-  }, [signInWithGoogle]);
+  }, [signInWithGoogle, termsAccepted]);
 
   const handleFacebookLogin = useCallback(async () => {
+    if (!termsAccepted) {
+      setError(TERMS_NOT_ACCEPTED_ERROR);
+      return;
+    }
     setLoading(true);
     setError('');
     try {
@@ -164,7 +184,7 @@ export const useLoginViewModel = (): LoginViewModel => {
     } finally {
       setLoading(false);
     }
-  }, [signInWithFacebook]);
+  }, [signInWithFacebook, termsAccepted]);
 
   const handleForgotPassword = useCallback(async () => {
     if (!emailField.trim()) {
@@ -233,10 +253,12 @@ export const useLoginViewModel = (): LoginViewModel => {
     passwordField,
     displayNameField,
     confirmPasswordField,
+    termsAccepted,
     handleEmailChange: setEmailField,
     handlePasswordChange: setPasswordField,
     handleDisplayNameChange: setDisplayNameField,
     handleConfirmPasswordChange: setConfirmPasswordField,
+    handleTermsAcceptedChange: setTermsAccepted,
     handleEmailLogin,
     handleEmailSignUp,
     handleGoogleLogin,

@@ -192,4 +192,36 @@ export const S = {
     flex-direction: column;
     gap: ${({ theme }) => theme.spacing.sm};
   `,
+
+  TermsRow: styled.label`
+    display: flex;
+    align-items: flex-start;
+    gap: ${({ theme }) => theme.spacing.sm};
+    cursor: pointer;
+    margin-bottom: ${({ theme }) => theme.spacing.md};
+  `,
+
+  TermsCheckbox: styled.input.attrs({ type: 'checkbox' })`
+    width: 16px;
+    height: 16px;
+    margin-top: 2px;
+    flex-shrink: 0;
+    cursor: pointer;
+    accent-color: ${({ theme }) => theme.colors.primary};
+  `,
+
+  TermsText: styled.span`
+    font-size: ${({ theme }) => theme.fontSizes.sm};
+    color: ${({ theme }) => theme.colors.textSecondary};
+    line-height: 1.5;
+    text-align: left;
+  `,
+
+  TermsLink: styled.a`
+    color: ${({ theme }) => theme.colors.primary};
+    font-weight: 600;
+    text-decoration: underline;
+    transition: opacity ${({ theme }) => theme.transitions.fast};
+    &:hover { opacity: 0.75; }
+  `,
 };

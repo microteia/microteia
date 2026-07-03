@@ -138,7 +138,21 @@ export const LoginView: React.FC = () => {
                 disabled={vm.loading}
               />
             </S.InputGroup>
-            <Button $fullWidth size="lg" onClick={vm.handleEmailSignUp} $isLoading={vm.loading} disabled={vm.loading}>
+            <S.TermsRow>
+              <S.TermsCheckbox
+                checked={vm.termsAccepted}
+                onChange={(e) => vm.handleTermsAcceptedChange(e.target.checked)}
+                disabled={vm.loading}
+              />
+              <S.TermsText>
+                Li e aceito os{' '}
+                <S.TermsLink href="/license?from=login" target="_blank" rel="noopener noreferrer">
+                  Termos de Uso e a Política de Privacidade
+                </S.TermsLink>
+                .
+              </S.TermsText>
+            </S.TermsRow>
+            <Button $fullWidth size="lg" onClick={vm.handleEmailSignUp} $isLoading={vm.loading} disabled={vm.loading || !vm.termsAccepted}>
               {vm.loading ? <Spinner size={18} /> : null}
               Criar conta
             </Button>
@@ -197,13 +211,28 @@ export const LoginView: React.FC = () => {
 
         <S.Divider>ou</S.Divider>
 
+        <S.TermsRow>
+          <S.TermsCheckbox
+            checked={vm.termsAccepted}
+            onChange={(e) => vm.handleTermsAcceptedChange(e.target.checked)}
+            disabled={vm.loading}
+          />
+          <S.TermsText>
+            Li e aceito os{' '}
+            <S.TermsLink href="/license?from=login" target="_blank" rel="noopener noreferrer">
+              Termos de Uso e a Política de Privacidade
+            </S.TermsLink>
+            .
+          </S.TermsText>
+        </S.TermsRow>
+
         <Button
           $fullWidth
           size="lg"
           variant="secondary"
           onClick={vm.handleGoogleLogin}
           $isLoading={vm.loading}
-          disabled={vm.loading}
+          disabled={vm.loading || !vm.termsAccepted}
         >
           {vm.loading ? <Spinner size={18} /> : <FcGoogle size={20} />}
           {vm.loading ? 'Entrando...' : 'Continuar com Google'}

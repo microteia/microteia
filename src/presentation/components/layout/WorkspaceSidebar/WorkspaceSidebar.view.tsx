@@ -29,7 +29,6 @@ export const WorkspaceSidebar: React.FC = () => {
             <S.LogoText>
               <S.AppNameRow>
                 <S.AppName>Curatino</S.AppName>
-                <S.VersionBadge>ver.{__APP_VERSION__}</S.VersionBadge>
               </S.AppNameRow>
               <S.AppTagline>Curador da Advocacia</S.AppTagline>
             </S.LogoText>

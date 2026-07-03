@@ -6,6 +6,7 @@ import { WorkspaceSidebar } from '../WorkspaceSidebar';
 import { WorkspacePanelNode } from '../WorkspacePanelNode';
 import { NotificationBanner } from '../NotificationBanner';
 import { TopBar } from '../TopBar';
+import { WorkspaceStatusBar } from '../WorkspaceStatusBar';
 import { CommandPalette } from '../../ui/CommandPalette';
 import { useWorkspaceShellViewModel } from './WorkspaceShell.viewmodel';
 import { S } from './WorkspaceShell.styles';
@@ -17,29 +18,33 @@ export const WorkspaceShell: React.FC = () => {
   const { initError } = useTenant();
 
   return (
-    <S.Root>
-      <WorkspaceSidebar />
+    <S.Shell>
+      <S.Root>
+        <WorkspaceSidebar />
 
-      <S.WorkspaceArea>
-        <TopBar />
-        {initError ? (
-          <S.ErrorBanner>
-            <S.ErrorTitle>Falha ao conectar ao banco de dados</S.ErrorTitle>
-            <S.ErrorDetail>
-              {initError.includes('permission') || initError.includes('insufficient')
-                ? 'Permissões do Firestore não configuradas. Configure as regras de segurança no Firebase Console e recarregue a página.'
-                : initError}
-            </S.ErrorDetail>
-          </S.ErrorBanner>
-        ) : (
-          <S.PanelArea>
-            <WorkspacePanelNode node={layout} />
-          </S.PanelArea>
-        )}
-      </S.WorkspaceArea>
+        <S.WorkspaceArea>
+          <TopBar />
+          {initError ? (
+            <S.ErrorBanner>
+              <S.ErrorTitle>Falha ao conectar ao banco de dados</S.ErrorTitle>
+              <S.ErrorDetail>
+                {initError.includes('permission') || initError.includes('insufficient')
+                  ? 'Permissões do Firestore não configuradas. Configure as regras de segurança no Firebase Console e recarregue a página.'
+                  : initError}
+              </S.ErrorDetail>
+            </S.ErrorBanner>
+          ) : (
+            <S.PanelArea>
+              <WorkspacePanelNode node={layout} />
+            </S.PanelArea>
+          )}
+        </S.WorkspaceArea>
 
-      <NotificationBanner />
-      {isCommandPaletteOpen && <CommandPalette />}
-    </S.Root>
+        <NotificationBanner />
+        {isCommandPaletteOpen && <CommandPalette />}
+      </S.Root>
+
+      <WorkspaceStatusBar />
+    </S.Shell>
   );
 };

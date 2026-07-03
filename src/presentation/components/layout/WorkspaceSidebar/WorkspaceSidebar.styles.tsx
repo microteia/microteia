@@ -9,7 +9,6 @@ export const S = {
   Container: styled.aside<{ $collapsed: boolean }>`
     width: ${({ $collapsed, theme }) =>
       $collapsed ? theme.sidebar.collapsedWidth : theme.sidebar.width};
-    height: 100vh;
     flex-shrink: 0;
     background: ${({ theme }) => theme.colors.surface};
     border-right: 1px solid ${({ theme }) => theme.colors.border};

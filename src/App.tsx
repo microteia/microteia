@@ -34,6 +34,7 @@ import { CommandPaletteProvider } from './stores/CommandPaletteContext';
 import { TextAnnotationStoreProvider } from './stores/TextAnnotationStore';
 import { ProtectedRoute } from './routes/ProtectedRoute';
 import { LoginView } from './presentation/pages/Login/Login.view';
+import { LicenseView } from './presentation/pages/License/License.view';
 import { WorkspaceShell } from './presentation/components/layout/WorkspaceShell';
 import { AppErrorBoundary } from './presentation/components/layout/AppErrorBoundary';
 
@@ -45,6 +46,7 @@ const App: React.FC = () => {
           <BrowserRouter>
             <Routes>
               <Route path="/login" element={<LoginView />} />
+              <Route path="/license" element={<LicenseView />} />
               <Route
                 path="/*"
                 element={
