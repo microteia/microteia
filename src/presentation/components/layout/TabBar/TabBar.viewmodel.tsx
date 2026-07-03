@@ -19,6 +19,7 @@ export interface TabBarViewModel {
   contextMenu: ContextMenuState;
   canSplit: boolean;
   canCloseOthers: boolean;
+  isPanelActive: boolean;
   handleTabClick: (key: string) => void;
   handleTabClose: (e: React.MouseEvent, key: string) => void;
   handleTabContextMenu: (e: React.MouseEvent, key: string) => void;
