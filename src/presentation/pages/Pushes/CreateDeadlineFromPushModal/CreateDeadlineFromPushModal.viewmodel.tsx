@@ -34,6 +34,7 @@ export interface CreateDeadlineFromPushViewModel {
   typeDynamicOptions: DynamicSelectOption[];
   handleAddType: (name: string) => Promise<void>;
   handleDeleteType: (key: string) => Promise<void>;
+  isAdmin: boolean;
 
   priorityOptions: { value: string; label: string; color: string }[];
   memberOptions: { value: string; label: string }[];
@@ -49,7 +50,8 @@ export const useCreateDeadlineFromPushViewModel = (
   const { cases } = useCaseStore();
   const { createDeadline } = useDeadlineStore();
   const { typeConfigs, addType, removeType } = useDeadlineLookup();
-  const { members, currentTenant } = useTenant();
+  const { members, currentTenant, tenantRole } = useTenant();
+  const isAdmin = tenantRole === 'admin';
   const { user, effectiveName } = useAuth();
   const { updateStatus } = usePush();
   const { markAsRead } = usePushInteraction();
@@ -229,6 +231,7 @@ export const useCreateDeadlineFromPushViewModel = (
     typeDynamicOptions,
     handleAddType,
     handleDeleteType,
+    isAdmin,
     priorityOptions,
     memberOptions,
     getPriorityColor,

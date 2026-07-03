@@ -1489,7 +1489,7 @@ service cloud.firestore {
       // Tenant é criado pela Cloud Function onUserCreated (Admin SDK, trigger de Auth)
       // junto com o bootstrap do usuário — nunca pelo client.
       allow create: if false;
-      allow delete: false;
+      allow delete: if false;
 
       // Conexões de IA do escritório — somente admin lê e escreve
       match /aiConnections/{connectionId} {
@@ -1509,30 +1509,36 @@ service cloud.firestore {
         allow update: if isTenantAdmin(tenantId);
       }
 
-      // Lookups de pessoa — qualquer membro lê; qualquer membro com escrita cria e deleta
+      // Lookups de pessoa — qualquer membro lê; qualquer membro com escrita cria; só admin deleta
       match /personTypes/{id} {
         allow read: if isMember(tenantId);
-        allow create, delete: if canWriteInTenant(tenantId);
+        allow create: if canWriteInTenant(tenantId);
+        allow delete: if isTenantAdmin(tenantId);
       }
       match /personOccupations/{id} {
         allow read: if isMember(tenantId);
-        allow create, delete: if canWriteInTenant(tenantId);
+        allow create: if canWriteInTenant(tenantId);
+        allow delete: if isTenantAdmin(tenantId);
       }
       match /personNationalities/{id} {
         allow read: if isMember(tenantId);
-        allow create, delete: if canWriteInTenant(tenantId);
+        allow create: if canWriteInTenant(tenantId);
+        allow delete: if isTenantAdmin(tenantId);
       }
       match /personMaritalStatuses/{id} {
         allow read: if isMember(tenantId);
-        allow create, delete: if canWriteInTenant(tenantId);
+        allow create: if canWriteInTenant(tenantId);
+        allow delete: if isTenantAdmin(tenantId);
       }
       match /personCities/{id} {
         allow read: if isMember(tenantId);
-        allow create, delete: if canWriteInTenant(tenantId);
+        allow create: if canWriteInTenant(tenantId);
+        allow delete: if isTenantAdmin(tenantId);
       }
       match /personRelationships/{id} {
         allow read: if isMember(tenantId);
-        allow create, delete: if canWriteInTenant(tenantId);
+        allow create: if canWriteInTenant(tenantId);
+        allow delete: if isTenantAdmin(tenantId);
       }
 
       // Pessoas
@@ -1586,58 +1592,60 @@ service cloud.firestore {
         allow delete: if isTenantAdmin(tenantId);
       }
 
-      // Lookups de processo — qualquer membro lê; advogado/admin cria e deleta
+      // Lookups de processo — qualquer membro lê; qualquer membro com escrita cria; só admin deleta
       match /caseAreas/{id} {
         allow read: if isMember(tenantId);
         allow create: if canWriteInTenant(tenantId);
-        allow delete: if isTenantLawyerOrAdmin(tenantId);
+        allow delete: if isTenantAdmin(tenantId);
       }
       match /casePhases/{id} {
         allow read: if isMember(tenantId);
         allow create: if canWriteInTenant(tenantId);
-        allow delete: if isTenantLawyerOrAdmin(tenantId);
+        allow delete: if isTenantAdmin(tenantId);
       }
       match /caseStatuses/{id} {
         allow read: if isMember(tenantId);
         allow create: if canWriteInTenant(tenantId);
-        allow delete: if isTenantLawyerOrAdmin(tenantId);
+        allow delete: if isTenantAdmin(tenantId);
       }
       match /caseInstances/{id} {
         allow read: if isMember(tenantId);
         allow create: if canWriteInTenant(tenantId);
-        allow delete: if isTenantLawyerOrAdmin(tenantId);
+        allow delete: if isTenantAdmin(tenantId);
       }
       match /caseActionTypes/{id} {
         allow read: if isMember(tenantId);
         allow create: if canWriteInTenant(tenantId);
-        allow delete: if isTenantLawyerOrAdmin(tenantId);
+        allow delete: if isTenantAdmin(tenantId);
       }
       match /caseCourts/{id} {
         allow read: if isMember(tenantId);
         allow create: if canWriteInTenant(tenantId);
-        allow delete: if isTenantLawyerOrAdmin(tenantId);
+        allow delete: if isTenantAdmin(tenantId);
       }
       match /caseDistricts/{id} {
         allow read: if isMember(tenantId);
         allow create: if canWriteInTenant(tenantId);
-        allow delete: if isTenantLawyerOrAdmin(tenantId);
+        allow delete: if isTenantAdmin(tenantId);
       }
       match /caseJudges/{id} {
         allow read: if isMember(tenantId);
         allow create: if canWriteInTenant(tenantId);
-        allow delete: if isTenantLawyerOrAdmin(tenantId);
+        allow delete: if isTenantAdmin(tenantId);
       }
 
       // Tipos de documento — compartilhado entre pessoas, processos e contratos
       match /documentTypes/{id} {
         allow read: if isMember(tenantId);
-        allow create, delete: if canWriteInTenant(tenantId);
+        allow create: if canWriteInTenant(tenantId);
+        allow delete: if isTenantAdmin(tenantId);
       }
 
       // Categorias de notícias do escritório (parte dinâmica do campo Categoria em Notícias)
       match /newsCategories/{id} {
         allow read: if isMember(tenantId);
-        allow create, delete: if canWriteInTenant(tenantId);
+        allow create: if canWriteInTenant(tenantId);
+        allow delete: if isTenantAdmin(tenantId);
       }
 
       // Processos
@@ -1669,46 +1677,56 @@ service cloud.firestore {
         }
       }
 
-      // Lookups de contrato — qualquer membro lê; qualquer membro com escrita cria e deleta
+      // Lookups de contrato — qualquer membro lê; qualquer membro com escrita cria; só admin deleta
       match /contractTypes/{id} {
         allow read: if isMember(tenantId);
-        allow create, delete: if canWriteInTenant(tenantId);
+        allow create: if canWriteInTenant(tenantId);
+        allow delete: if isTenantAdmin(tenantId);
       }
       match /contractCategories/{id} {
         allow read: if isMember(tenantId);
-        allow create, delete: if canWriteInTenant(tenantId);
+        allow create: if canWriteInTenant(tenantId);
+        allow delete: if isTenantAdmin(tenantId);
       }
       match /contractStatuses/{id} {
         allow read: if isMember(tenantId);
-        allow create, delete: if canWriteInTenant(tenantId);
+        allow create: if canWriteInTenant(tenantId);
+        allow delete: if isTenantAdmin(tenantId);
       }
       match /contractObjects/{id} {
         allow read: if isMember(tenantId);
-        allow create, delete: if canWriteInTenant(tenantId);
+        allow create: if canWriteInTenant(tenantId);
+        allow delete: if isTenantAdmin(tenantId);
       }
       match /contractAdjustmentIndexes/{id} {
         allow read: if isMember(tenantId);
-        allow create, delete: if canWriteInTenant(tenantId);
+        allow create: if canWriteInTenant(tenantId);
+        allow delete: if isTenantAdmin(tenantId);
       }
       match /contractAdjustmentPeriodicities/{id} {
         allow read: if isMember(tenantId);
-        allow create, delete: if canWriteInTenant(tenantId);
+        allow create: if canWriteInTenant(tenantId);
+        allow delete: if isTenantAdmin(tenantId);
       }
       match /contractCurrencies/{id} {
         allow read: if isMember(tenantId);
-        allow create, delete: if canWriteInTenant(tenantId);
+        allow create: if canWriteInTenant(tenantId);
+        allow delete: if isTenantAdmin(tenantId);
       }
       match /contractPaymentMethods/{id} {
         allow read: if isMember(tenantId);
-        allow create, delete: if canWriteInTenant(tenantId);
+        allow create: if canWriteInTenant(tenantId);
+        allow delete: if isTenantAdmin(tenantId);
       }
       match /contractBanks/{id} {
         allow read: if isMember(tenantId);
-        allow create, delete: if canWriteInTenant(tenantId);
+        allow create: if canWriteInTenant(tenantId);
+        allow delete: if isTenantAdmin(tenantId);
       }
       match /contractCostCenters/{id} {
         allow read: if isMember(tenantId);
-        allow create, delete: if canWriteInTenant(tenantId);
+        allow create: if canWriteInTenant(tenantId);
+        allow delete: if isTenantAdmin(tenantId);
       }
 
       // Contratos
@@ -1740,10 +1758,11 @@ service cloud.firestore {
         }
       }
 
-      // Tipos de prazo (lookup dinâmico por tenant)
+      // Tipos de prazo (lookup dinâmico por tenant) — qualquer membro com escrita cria; só admin deleta
       match /deadlineTypes/{id} {
         allow read: if isMember(tenantId);
-        allow create, delete: if canWriteInTenant(tenantId);
+        allow create: if canWriteInTenant(tenantId);
+        allow delete: if isTenantAdmin(tenantId);
       }
 
       // Prazos
@@ -1778,14 +1797,16 @@ service cloud.firestore {
         allow delete: if isTenantAdmin(tenantId);
       }
 
-      // Lookups de financeiro — qualquer membro lê; qualquer membro com escrita cria e deleta
+      // Lookups de financeiro — qualquer membro lê; qualquer membro com escrita cria; só admin deleta
       match /financialCategories/{id} {
         allow read: if isMember(tenantId);
-        allow create, delete: if canWriteInTenant(tenantId);
+        allow create: if canWriteInTenant(tenantId);
+        allow delete: if isTenantAdmin(tenantId);
       }
       match /financialStatuses/{id} {
         allow read: if isMember(tenantId);
-        allow create, delete: if canWriteInTenant(tenantId);
+        allow create: if canWriteInTenant(tenantId);
+        allow delete: if isTenantAdmin(tenantId);
       }
 
       // Pushes do Tribunal (notificações de email processadas)

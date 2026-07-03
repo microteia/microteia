@@ -119,7 +119,7 @@ export const ViewPersonView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
                 onChange={(val) => vm.setFormData({ type: val as 'Pessoa Física' | 'Pessoa Jurídica' })}
                 placeholder="Selecione o tipo..."
                 onAdd={vm.handleAddType}
-                onDelete={vm.handleDeleteType}
+                onDelete={vm.isAdmin ? vm.handleDeleteType : undefined}
                 deleteConfirmTitle="Excluir tipo de pessoa"
               />
             </S.FormGroup>
@@ -187,7 +187,7 @@ export const ViewPersonView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
                 onChange={(val) => vm.setFormData({ relationship: val })}
                 placeholder="Selecione ou adicione..."
                 onAdd={vm.handleAddRelationship}
-                onDelete={vm.handleDeleteRelationship}
+                onDelete={vm.isAdmin ? vm.handleDeleteRelationship : undefined}
                 deleteConfirmTitle="Excluir tipo de relacionamento"
               />
             </S.FormGroup>
@@ -202,7 +202,7 @@ export const ViewPersonView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
                     onChange={(val) => vm.setFormData({ occupation: val })}
                     placeholder="Selecione ou adicione..."
                     onAdd={vm.handleAddOccupation}
-                    onDelete={vm.handleDeleteOccupation}
+                    onDelete={vm.isAdmin ? vm.handleDeleteOccupation : undefined}
                     deleteConfirmTitle="Excluir profissão"
                   />
                 </S.FormGroup>
@@ -215,7 +215,7 @@ export const ViewPersonView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
                     onChange={(val) => vm.setFormData({ nationality: val })}
                     placeholder="Selecione ou adicione..."
                     onAdd={vm.handleAddNationality}
-                    onDelete={vm.handleDeleteNationality}
+                    onDelete={vm.isAdmin ? vm.handleDeleteNationality : undefined}
                     deleteConfirmTitle="Excluir nacionalidade"
                   />
                 </S.FormGroup>
@@ -228,7 +228,7 @@ export const ViewPersonView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
                     onChange={(val) => vm.setFormData({ maritalStatus: val })}
                     placeholder="Selecione ou adicione..."
                     onAdd={vm.handleAddMaritalStatus}
-                    onDelete={vm.handleDeleteMaritalStatus}
+                    onDelete={vm.isAdmin ? vm.handleDeleteMaritalStatus : undefined}
                     deleteConfirmTitle="Excluir estado civil"
                   />
                 </S.FormGroup>
@@ -287,7 +287,7 @@ export const ViewPersonView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
                 onChange={(val) => vm.setFormData({ addressCity: val })}
                 placeholder="Selecione ou adicione..."
                 onAdd={vm.handleAddCity}
-                onDelete={vm.handleDeleteCity}
+                onDelete={vm.isAdmin ? vm.handleDeleteCity : undefined}
                 deleteConfirmTitle="Excluir cidade"
               />
             </S.FormGroup>
@@ -434,7 +434,7 @@ export const ViewPersonView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
                       onChange={vm.setPendingType}
                       placeholder="Tipo (opcional)"
                       onAdd={vm.handleAddDocumentType}
-                      onDelete={vm.handleDeleteDocumentType}
+                      onDelete={vm.isAdmin ? vm.handleDeleteDocumentType : undefined}
                       deleteConfirmTitle="Excluir tipo de documento"
                       deleteConfirmMessage="Tem certeza que deseja excluir este tipo de documento?"
                       disabled={vm.isUploadingDoc}

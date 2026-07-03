@@ -191,7 +191,7 @@ export const ViewNewsView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
                       onChange={vm.setPendingType}
                       placeholder="Tipo (opcional)"
                       onAdd={vm.handleAddDocumentType}
-                      onDelete={vm.handleDeleteDocumentType}
+                      onDelete={vm.isAdmin ? vm.handleDeleteDocumentType : undefined}
                       deleteConfirmTitle="Excluir tipo de documento"
                       deleteConfirmMessage="Tem certeza que deseja excluir este tipo de documento?"
                       disabled={vm.isUploadingDoc}

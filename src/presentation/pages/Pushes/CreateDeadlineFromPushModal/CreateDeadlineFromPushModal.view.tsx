@@ -58,7 +58,7 @@ export const CreateDeadlineFromPushModal: React.FC<CreateDeadlineFromPushModalPr
             onChange={(val) => vm.setFormData({ type: val })}
             placeholder="Selecione o tipo..."
             onAdd={vm.handleAddType}
-            onDelete={vm.handleDeleteType}
+            onDelete={vm.isAdmin ? vm.handleDeleteType : undefined}
             deleteConfirmTitle="Excluir tipo de prazo"
           />
         </S.FormGroup>

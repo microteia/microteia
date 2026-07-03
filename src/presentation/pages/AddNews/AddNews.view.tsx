@@ -42,7 +42,7 @@ export const AddNewsView: React.FC<AddNewsViewProps> = ({ tabKey }) => {
               onChange={vm.setCategory}
               placeholder="Selecione a categoria..."
               onAdd={vm.isSystemScope ? undefined : vm.handleAddCategory}
-              onDelete={vm.isSystemScope ? undefined : vm.handleDeleteCategory}
+              onDelete={vm.isSystemScope || !vm.isAdmin ? undefined : vm.handleDeleteCategory}
               deleteConfirmTitle="Excluir categoria"
             />
           </InputGroup>

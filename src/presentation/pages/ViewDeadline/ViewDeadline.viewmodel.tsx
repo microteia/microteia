@@ -44,6 +44,7 @@ export interface ViewDeadlineViewModel {
   typeDynamicOptions: DynamicSelectOption[];
   handleAddType: (name: string) => Promise<void>;
   handleDeleteType: (key: string) => Promise<void>;
+  isAdmin: boolean;
 
   priorityOptions: { value: string; label: string; color: string }[];
   caseOptions: { value: string; label: string }[];
@@ -62,7 +63,8 @@ export const useViewDeadlineViewModel = (tabKey: string): ViewDeadlineViewModel 
   const { typeConfigs, addType, removeType } = useDeadlineLookup();
   const { cases } = useCaseStore();
   const { user, effectiveName } = useAuth();
-  const { members } = useTenant();
+  const { members, tenantRole } = useTenant();
+  const isAdmin = tenantRole === 'admin';
   const { setTabTitle, closeTab, activePanelId } = useWorkspace();
   const { notify } = useNotification();
   const theme = useTheme();
@@ -216,6 +218,7 @@ export const useViewDeadlineViewModel = (tabKey: string): ViewDeadlineViewModel 
     typeDynamicOptions,
     handleAddType,
     handleDeleteType,
+    isAdmin,
     priorityOptions,
     caseOptions,
     memberOptions,

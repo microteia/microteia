@@ -122,7 +122,7 @@ export const ViewFinancialView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
               onChange={(val) => vm.setFormData({ category: val })}
               placeholder="Selecione a categoria..."
               onAdd={vm.handleAddCategory}
-              onDelete={vm.handleDeleteCategory}
+              onDelete={vm.isAdmin ? vm.handleDeleteCategory : undefined}
               deleteConfirmTitle="Excluir categoria"
             />
           </S.FormGroup>
@@ -152,7 +152,7 @@ export const ViewFinancialView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
               onChange={(val) => vm.setFormData({ status: val })}
               placeholder="Selecione o status..."
               onAdd={vm.handleAddStatus}
-              onDelete={vm.handleDeleteStatus}
+              onDelete={vm.isAdmin ? vm.handleDeleteStatus : undefined}
               deleteConfirmTitle="Excluir status"
             />
           </S.FormGroup>
@@ -191,7 +191,7 @@ export const ViewFinancialView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
               onChange={(val) => vm.setFormData({ costCenter: val })}
               placeholder="Selecione ou adicione..."
               onAdd={vm.handleAddCostCenter}
-              onDelete={vm.handleDeleteCostCenter}
+              onDelete={vm.isAdmin ? vm.handleDeleteCostCenter : undefined}
               deleteConfirmTitle="Excluir centro de custo"
             />
           </S.FormGroup>
@@ -286,7 +286,7 @@ export const ViewFinancialView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
                       onChange={vm.setPendingType}
                       placeholder="Tipo (opcional)"
                       onAdd={vm.handleAddDocumentType}
-                      onDelete={vm.handleDeleteDocumentType}
+                      onDelete={vm.isAdmin ? vm.handleDeleteDocumentType : undefined}
                       deleteConfirmTitle="Excluir tipo de documento"
                       deleteConfirmMessage="Tem certeza que deseja excluir este tipo de documento?"
                       disabled={vm.isUploadingDoc}

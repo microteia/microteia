@@ -121,7 +121,7 @@ export const ViewContractView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
                 onChange={(val) => vm.setFormData({ type: val })}
                 placeholder="Selecione o tipo..."
                 onAdd={vm.handleAddType}
-                onDelete={vm.handleDeleteType}
+                onDelete={vm.isAdmin ? vm.handleDeleteType : undefined}
                 deleteConfirmTitle="Excluir tipo de contrato"
               />
             </S.FormGroup>
@@ -134,7 +134,7 @@ export const ViewContractView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
                 onChange={(val) => vm.setFormData({ category: val })}
                 placeholder="Selecione a categoria..."
                 onAdd={vm.handleAddCategory}
-                onDelete={vm.handleDeleteCategory}
+                onDelete={vm.isAdmin ? vm.handleDeleteCategory : undefined}
                 deleteConfirmTitle="Excluir categoria"
               />
             </S.FormGroup>
@@ -147,7 +147,7 @@ export const ViewContractView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
                 onChange={(val) => vm.setFormData({ status: val })}
                 placeholder="Selecione o status..."
                 onAdd={vm.handleAddStatus}
-                onDelete={vm.handleDeleteStatus}
+                onDelete={vm.isAdmin ? vm.handleDeleteStatus : undefined}
                 deleteConfirmTitle="Excluir status"
               />
             </S.FormGroup>
@@ -159,7 +159,7 @@ export const ViewContractView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
                 onChange={(val) => vm.setFormData({ object: val })}
                 placeholder="Selecione ou adicione..."
                 onAdd={vm.handleAddObject}
-                onDelete={vm.handleDeleteObject}
+                onDelete={vm.isAdmin ? vm.handleDeleteObject : undefined}
                 deleteConfirmTitle="Excluir objeto do contrato"
               />
             </S.FormGroup>
@@ -288,7 +288,7 @@ export const ViewContractView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
                 onChange={(val) => vm.setFormData({ adjustmentIndex: val })}
                 placeholder="Selecione ou adicione..."
                 onAdd={vm.handleAddAdjustmentIndex}
-                onDelete={vm.handleDeleteAdjustmentIndex}
+                onDelete={vm.isAdmin ? vm.handleDeleteAdjustmentIndex : undefined}
                 deleteConfirmTitle="Excluir índice de reajuste"
               />
             </S.FormGroup>
@@ -301,7 +301,7 @@ export const ViewContractView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
                 onChange={(val) => vm.setFormData({ adjustmentPeriodicity: val })}
                 placeholder="Selecione ou adicione..."
                 onAdd={vm.handleAddAdjustmentPeriodicity}
-                onDelete={vm.handleDeleteAdjustmentPeriodicity}
+                onDelete={vm.isAdmin ? vm.handleDeleteAdjustmentPeriodicity : undefined}
                 deleteConfirmTitle="Excluir periodicidade de reajuste"
               />
             </S.FormGroup>
@@ -314,7 +314,7 @@ export const ViewContractView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
                 onChange={(val) => vm.setFormData({ currency: val })}
                 placeholder="Selecione ou adicione..."
                 onAdd={vm.handleAddCurrency}
-                onDelete={vm.handleDeleteCurrency}
+                onDelete={vm.isAdmin ? vm.handleDeleteCurrency : undefined}
                 deleteConfirmTitle="Excluir moeda"
               />
             </S.FormGroup>
@@ -327,7 +327,7 @@ export const ViewContractView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
                 onChange={(val) => vm.setFormData({ paymentMethod: val })}
                 placeholder="Selecione ou adicione..."
                 onAdd={vm.handleAddPaymentMethod}
-                onDelete={vm.handleDeletePaymentMethod}
+                onDelete={vm.isAdmin ? vm.handleDeletePaymentMethod : undefined}
                 deleteConfirmTitle="Excluir forma de pagamento"
               />
             </S.FormGroup>
@@ -349,7 +349,7 @@ export const ViewContractView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
                 onChange={(val) => vm.setFormData({ bank: val })}
                 placeholder="Selecione ou adicione..."
                 onAdd={vm.handleAddBank}
-                onDelete={vm.handleDeleteBank}
+                onDelete={vm.isAdmin ? vm.handleDeleteBank : undefined}
                 deleteConfirmTitle="Excluir banco"
               />
             </S.FormGroup>
@@ -369,7 +369,7 @@ export const ViewContractView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
                 onChange={(val) => vm.setFormData({ costCenter: val })}
                 placeholder="Selecione ou adicione..."
                 onAdd={vm.handleAddCostCenter}
-                onDelete={vm.handleDeleteCostCenter}
+                onDelete={vm.isAdmin ? vm.handleDeleteCostCenter : undefined}
                 deleteConfirmTitle="Excluir centro de custo"
               />
             </S.FormGroup>
@@ -507,7 +507,7 @@ export const ViewContractView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
                       onChange={vm.setPendingType}
                       placeholder="Tipo (opcional)"
                       onAdd={vm.handleAddDocumentType}
-                      onDelete={vm.handleDeleteDocumentType}
+                      onDelete={vm.isAdmin ? vm.handleDeleteDocumentType : undefined}
                       deleteConfirmTitle="Excluir tipo de documento"
                       deleteConfirmMessage="Tem certeza que deseja excluir este tipo de documento?"
                       disabled={vm.isUploadingDoc}

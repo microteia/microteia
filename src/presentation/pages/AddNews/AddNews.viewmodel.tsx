@@ -29,6 +29,7 @@ export interface AddNewsViewModel {
   setSourceURL: (v: string) => void;
   handleAddCategory: (name: string) => Promise<void>;
   handleDeleteCategory: (key: string) => Promise<void>;
+  isAdmin: boolean;
   handleSave: () => Promise<void>;
   handleCancel: () => void;
 }
@@ -42,7 +43,8 @@ export const useAddNewsViewModel = (tabKey: string): AddNewsViewModel => {
   const { categoryConfigs, addItem, removeItem } = useNewsCategoryLookup();
   const { panels, closeTab } = useWorkspace();
   const { userRole, effectiveName, effectivePhotoURL } = useAuth();
-  const { currentTenant } = useTenant();
+  const { currentTenant, tenantRole } = useTenant();
+  const isAdmin = tenantRole === 'admin';
 
   const [title, setTitle]         = useState('');
   const [summary, setSummary]     = useState('');
@@ -146,6 +148,7 @@ export const useAddNewsViewModel = (tabKey: string): AddNewsViewModel => {
     setSourceURL,
     handleAddCategory,
     handleDeleteCategory,
+    isAdmin,
     handleSave,
     handleCancel: closeThisTab,
   };

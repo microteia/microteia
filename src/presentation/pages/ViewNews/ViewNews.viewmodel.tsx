@@ -52,6 +52,7 @@ export interface ViewNewsViewModel {
   documentTypeDynamicOptions: DynamicSelectOption[];
   handleAddDocumentType: (name: string) => Promise<void>;
   handleDeleteDocumentType: (key: string) => Promise<void>;
+  isAdmin: boolean;
   handleSelectFile: (e: React.ChangeEvent<HTMLInputElement>) => void;
   handleConfirmUpload: () => Promise<void>;
   handleCancelPendingUpload: () => void;
@@ -69,7 +70,8 @@ export const useViewNewsViewModel = (tabKey: string): ViewNewsViewModel => {
   const { categoryConfigs } = useNewsCategoryLookup();
   const { typeConfigs: documentTypeConfigs, addItem: addDocumentType, removeItem: removeDocumentType } = useDocumentTypeLookup();
   const { user, userRole, effectiveName } = useAuth();
-  const { currentTenant } = useTenant();
+  const { currentTenant, tenantRole } = useTenant();
+  const isAdmin = tenantRole === 'admin';
   const { setTabTitle, openTab } = useWorkspace();
   const { notify } = useNotification();
   const { newsDocumentRepository } = useDI();
@@ -280,6 +282,7 @@ export const useViewNewsViewModel = (tabKey: string): ViewNewsViewModel => {
     documentTypeDynamicOptions,
     handleAddDocumentType,
     handleDeleteDocumentType,
+    isAdmin,
     handleSelectFile,
     handleConfirmUpload,
     handleCancelPendingUpload,

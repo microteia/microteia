@@ -177,7 +177,7 @@ export const ViewCaseView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
                 onChange={(val) => vm.setFormData({ area: val })}
                 placeholder="Selecione a área..."
                 onAdd={handleAddArea}
-                onDelete={handleDeleteArea}
+                onDelete={vm.isAdmin ? handleDeleteArea : undefined}
                 deleteConfirmTitle="Excluir área do direito"
               />
             </S.FormGroup>
@@ -191,7 +191,7 @@ export const ViewCaseView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
                 onChangeMulti={(vals) => vm.setFormData({ type: vals })}
                 placeholder="Selecione os tipos..."
                 onAdd={handleAddActionType}
-                onDelete={handleDeleteActionType}
+                onDelete={vm.isAdmin ? handleDeleteActionType : undefined}
                 deleteConfirmTitle="Excluir tipo de ação"
               />
             </S.FormGroup>
@@ -205,7 +205,7 @@ export const ViewCaseView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
                 onChange={(val) => vm.setFormData({ phase: val })}
                 placeholder="Selecione a fase..."
                 onAdd={handleAddPhase}
-                onDelete={handleDeletePhase}
+                onDelete={vm.isAdmin ? handleDeletePhase : undefined}
                 deleteConfirmTitle="Excluir fase processual"
               />
             </S.FormGroup>
@@ -219,7 +219,7 @@ export const ViewCaseView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
                 onChange={(val) => vm.setFormData({ status: val })}
                 placeholder="Selecione o status..."
                 onAdd={handleAddStatus}
-                onDelete={handleDeleteStatus}
+                onDelete={vm.isAdmin ? handleDeleteStatus : undefined}
                 deleteConfirmTitle="Excluir status"
               />
             </S.FormGroup>
@@ -235,7 +235,7 @@ export const ViewCaseView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
                 onChange={(val) => vm.setFormData({ instance: val })}
                 placeholder="Selecione a instância..."
                 onAdd={handleAddInstance}
-                onDelete={handleDeleteInstance}
+                onDelete={vm.isAdmin ? handleDeleteInstance : undefined}
                 deleteConfirmTitle="Excluir instância"
               />
             </S.FormGroup>
@@ -248,7 +248,7 @@ export const ViewCaseView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
                 onChange={(val) => vm.setFormData({ court: val })}
                 placeholder="Selecione ou adicione..."
                 onAdd={handleAddCourt}
-                onDelete={handleDeleteCourt}
+                onDelete={vm.isAdmin ? handleDeleteCourt : undefined}
                 deleteConfirmTitle="Excluir vara/tribunal"
               />
             </S.FormGroup>
@@ -261,7 +261,7 @@ export const ViewCaseView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
                 onChange={(val) => vm.setFormData({ courtDistrict: val })}
                 placeholder="Selecione ou adicione..."
                 onAdd={handleAddDistrict}
-                onDelete={handleDeleteDistrict}
+                onDelete={vm.isAdmin ? handleDeleteDistrict : undefined}
                 deleteConfirmTitle="Excluir comarca"
               />
             </S.FormGroup>
@@ -274,7 +274,7 @@ export const ViewCaseView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
                 onChange={(val) => vm.setFormData({ judge: val })}
                 placeholder="Selecione ou adicione..."
                 onAdd={handleAddJudge}
-                onDelete={handleDeleteJudge}
+                onDelete={vm.isAdmin ? handleDeleteJudge : undefined}
                 deleteConfirmTitle="Excluir juiz(a)"
               />
             </S.FormGroup>
@@ -458,7 +458,7 @@ export const ViewCaseView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
                       onChange={vm.setPendingType}
                       placeholder="Tipo (opcional)"
                       onAdd={vm.handleAddDocumentType}
-                      onDelete={vm.handleDeleteDocumentType}
+                      onDelete={vm.isAdmin ? vm.handleDeleteDocumentType : undefined}
                       deleteConfirmTitle="Excluir tipo de documento"
                       deleteConfirmMessage="Tem certeza que deseja excluir este tipo de documento?"
                       disabled={vm.isUploadingDoc}
