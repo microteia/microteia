@@ -19,6 +19,9 @@ import { useTenant } from '../../../../stores/useTenant';
 import { useTheme } from '../../../../stores/useTheme';
 import { useCommandPalette } from '../../../../stores/useCommandPalette';
 import { useNewsInteraction } from '../../../../stores/useNewsInteraction';
+import { useScreenDefinitions } from '../../../../stores/useScreenDefinitions';
+import { buildListTabKey } from '../../../../shared/constants/dynamicScreenKeys';
+import { getScreenIcon } from '../../../shared/screenIcons';
 import { usePushInteraction } from '../../../../stores/usePushInteraction';
 import { useAuditLogAlert } from '../../../../stores/useAuditLogAlert';
 import type { User } from '../../../../domain/entities';
@@ -104,16 +107,25 @@ export const useWorkspaceSidebarViewModel = (): WorkspaceSidebarViewModel => {
   const { unreadCount: unreadNewsCount } = useNewsInteraction();
   const { unreadCount: unreadPushCount } = usePushInteraction();
   const { unreadCriticalCount: unreadCriticalAuditCount } = useAuditLogAlert();
+  const { dynamicScreens } = useScreenDefinitions();
 
   const searchShortcut = /Mac|iPhone|iPod|iPad/.test(navigator.platform) ? '⌘K' : 'Ctrl K';
 
   const activeKey = panels[activePanelId]?.activeTabKey ?? null;
   const isAdmin = userRole === 'SYSTEM';
 
-  const navItems = useMemo(
-    () => NAV_ITEMS.filter((item) => !item.requiresTenantAdmin || isAdmin || tenantRole === 'admin'),
-    [isAdmin, tenantRole],
-  );
+  const navItems = useMemo(() => {
+    const base = NAV_ITEMS.filter((item) => !item.requiresTenantAdmin || isAdmin || tenantRole === 'admin');
+    const dynamicItems: NavItem[] = dynamicScreens.map((def) => ({
+      key: buildListTabKey(def.id),
+      label: def.titlePlural,
+      icon: getScreenIcon(def.icon, 18),
+    }));
+    if (dynamicItems.length === 0) return base;
+    const settingsIndex = base.findIndex((item) => item.key === 'tenant-settings');
+    if (settingsIndex === -1) return [...base, ...dynamicItems];
+    return [...base.slice(0, settingsIndex), ...dynamicItems, ...base.slice(settingsIndex)];
+  }, [isAdmin, tenantRole, dynamicScreens]);
 
   const toggleCollapse = useCallback(() => setCollapsed(c => !c), []);
 

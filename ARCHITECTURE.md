@@ -1378,6 +1378,13 @@ Toda tela dinâmica consulta por `where('screenKey','==',X) + orderBy('createdAt
 - Repositórios: `FirebaseScreenDefinitionRepository` (upsert preserva `createdAt/createdBy`; delete remove antes a subcoleção `fieldOptions` e grava o stamp `deletedBy*`) e `FirebaseCustomRecordRepository`.
 - Stores: `ScreenDefinitionStore` (definições + `fieldOptionsByField`, eventos `SCREEN_DEFINITIONS_UPDATED`) e `CustomRecordStore` (registros por tela, `allRecords` para o ⌘K, eventos `CUSTOM_RECORDS_UPDATED`; depende do `ScreenDefinitionStore` — ordem dos providers em `App.tsx`).
 
+### Navegação e renderização
+
+- **tabKeys** (builders/parser em `shared/constants/dynamicScreenKeys.ts`): `dyn:{screenKey}` (listagem), `new-dyn:{screenKey}`, `new-dyn:{screenKey}:clone:{recordId}` e `view-dyn:{screenKey}:{recordId}`. Os três prefixos estão registrados no `pageRegistry` apontando para `DynamicRecordList` e `ViewDynamicRecord`; o título real da aba é definido em runtime via `setTabTitle` (o ícone da aba é o genérico — o ícone escolhido pelo admin aparece no Sidebar).
+- **Motor de renderização:** `ui/CustomFieldsSection` renderiza qualquer `FieldDefinition[]` (agrupado por `section`) a partir de `values` + `onChange(fieldKey, value)`. Mapa de tipo→componente: text/number→`Input`, textarea→`Textarea`, currency→`CurrencyInput`, date→`DateInput`, checkbox nativo estilizado, select→`DynamicSelect` (opções estáticas da definição + dinâmicas de `fieldOptions`, com `onAdd`/`onDelete`), masked→`ui/MaskedInput` (novo wrapper das máscaras de `utils/formatters.ts`), reference→`SearchSelect`/`MultiSearchSelect` com opções de `presentation/hooks/useReferenceOptions.ts` (mapeia `refEntity` → registros do store correspondente, incluindo outras telas dinâmicas).
+- **Listagem dinâmica:** `DynamicRecordList` gera os `FilterDef` do `CompositeFilter` a partir dos campos `filterable` (select/reference→multiselect, checkbox→Sim/Não, date→date com igualdade exata, demais→texto) e usa `savedFiltersScreenKey = tabKey`. Tela desativada/excluída renderiza `InfoBanner`, nunca quebra.
+- **Deeplink de registro fora das 500 carregadas:** `ViewDynamicRecord` faz fallback de busca por id (`GetCustomRecordByIdUseCase`).
+
 ### Regras de integridade
 
 - **Exclusão de tela é soft-block:** `DeleteScreenDefinitionUseCase` recusa excluir se houver registros (`hasRecords` com `limit(1)`); a alternativa oferecida é desativar (`enabled: false`).

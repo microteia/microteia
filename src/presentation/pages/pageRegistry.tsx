@@ -41,6 +41,8 @@ import { ProfileView } from './Profile/Profile.view';
 import { TenantSettingsView } from './TenantSettings/TenantSettings.view';
 import { AuditLogsView } from './AuditLogs/AuditLogs.view';
 import { ScreenBuilderView } from './ScreenBuilder/ScreenBuilder.view';
+import { DynamicRecordListView } from './DynamicRecordList/DynamicRecordList.view';
+import { ViewDynamicRecordView } from './ViewDynamicRecord/ViewDynamicRecord.view';
 
 export interface PageDefinition {
   key: string;
@@ -130,6 +132,27 @@ export const PAGE_REGISTRY: PageDefinition[] = [
   { key: 'access-management', title: 'Gestão de Acessos', icon: <RiShieldUserLine size={20} />,         component: AccessManagementView, requiredRole: 'SYSTEM' },
   { key: 'audit-logs',       title: 'Auditoria',           icon: <RiHistoryLine size={20} />,           component: AuditLogsView        },
   { key: 'screen-builder',   title: 'Personalização',      icon: <RiLayoutGridLine size={20} />,        component: ScreenBuilderView    },
+  {
+    key: '',
+    keyPrefix: 'dyn:',
+    title: 'Tela personalizada',
+    icon: <RiLayoutGridLine size={20} />,
+    component: DynamicRecordListView,
+  },
+  {
+    key: '',
+    keyPrefix: 'new-dyn:',
+    title: 'Novo registro',
+    icon: <RiLayoutGridLine size={20} />,
+    component: ViewDynamicRecordView,
+  },
+  {
+    key: '',
+    keyPrefix: 'view-dyn:',
+    title: 'Registro',
+    icon: <RiLayoutGridLine size={20} />,
+    component: ViewDynamicRecordView,
+  },
   { key: 'profile',          title: 'Meu Perfil',          icon: <RiUserLine size={20} />,               component: ProfileView          },
   {
     key: 'add-news',
