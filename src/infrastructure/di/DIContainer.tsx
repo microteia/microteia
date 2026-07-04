@@ -50,6 +50,8 @@ import { FirebaseAuditLogRepository } from '../../data/repositories/FirebaseAudi
 import { FirebaseAuditLogService } from '../../data/services/FirebaseAuditLogService';
 import { FirebaseScreenDefinitionRepository } from '../../data/repositories/FirebaseScreenDefinitionRepository';
 import { FirebaseCustomRecordRepository } from '../../data/repositories/FirebaseCustomRecordRepository';
+import { FirebaseCustomRecordNoteRepository } from '../../data/repositories/FirebaseCustomRecordNoteRepository';
+import { FirebaseCustomRecordDocumentRepository } from '../../data/repositories/FirebaseCustomRecordDocumentRepository';
 import { DIContext } from './useDI';
 import type { DIContainer } from './useDI';
 
@@ -106,6 +108,8 @@ export const DIProvider: React.FC<{ children: React.ReactNode }> = ({ children }
     auditLogService:          new FirebaseAuditLogService(),
     screenDefinitionRepository: new FirebaseScreenDefinitionRepository(),
     customRecordRepository:   new FirebaseCustomRecordRepository(),
+    customRecordNoteRepository: new FirebaseCustomRecordNoteRepository(),
+    customRecordDocumentRepository: new FirebaseCustomRecordDocumentRepository(),
   }), []);
 
   return <DIContext.Provider value={container}>{children}</DIContext.Provider>;

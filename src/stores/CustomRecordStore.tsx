@@ -15,7 +15,7 @@ export const CustomRecordStoreProvider: React.FC<{ children: React.ReactNode }> 
   const { currentTenant } = useTenant();
   const { user, effectiveName } = useAuth();
   const { dynamicScreens } = useScreenDefinitions();
-  const { customRecordRepository } = useDI();
+  const { customRecordRepository, customRecordNoteRepository, customRecordDocumentRepository } = useDI();
 
   const [recordsByScreen, setRecordsByScreen] = useState<Record<string, CustomRecord[]>>({});
   const [isLoading, setIsLoading] = useState(false);
@@ -24,8 +24,8 @@ export const CustomRecordStoreProvider: React.FC<{ children: React.ReactNode }> 
     get: makeGetCustomRecordsUseCase(customRecordRepository),
     create: makeCreateCustomRecordUseCase(customRecordRepository),
     update: makeUpdateCustomRecordUseCase(customRecordRepository),
-    delete: makeDeleteCustomRecordUseCase(customRecordRepository),
-  }), [customRecordRepository]);
+    delete: makeDeleteCustomRecordUseCase(customRecordRepository, customRecordNoteRepository, customRecordDocumentRepository),
+  }), [customRecordRepository, customRecordNoteRepository, customRecordDocumentRepository]);
 
   const screenKeys = useMemo(() => dynamicScreens.map((def) => def.id), [dynamicScreens]);
 

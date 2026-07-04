@@ -168,6 +168,24 @@ const NESTED_ENTITY_CONFIG: Record<string, Record<string, AuditableEntityConfig>
       getEntityLink: (_tenantId, _docId, parentId) => `view-financial:${parentId}`,
     },
   },
+  customRecords: {
+    notes: {
+      entityKey: 'CustomRecordNote',
+      entityLabel: 'Nota de Registro Personalizado',
+      entityLabelPlural: 'Notas de Registros Personalizados',
+      getDisplayName: (d) => truncate(asString(d.title ?? d.text, 'Nota'), 60),
+      getEntityLink: (_tenantId, _docId, parentId, data) =>
+        `view-dyn:${asString(data?.screenKey, '')}:${parentId}`,
+    },
+    documents: {
+      entityKey: 'CustomRecordDocument',
+      entityLabel: 'Documento de Registro Personalizado',
+      entityLabelPlural: 'Documentos de Registros Personalizados',
+      getDisplayName: (d) => asString(d.name),
+      getEntityLink: (_tenantId, _docId, parentId, data) =>
+        `view-dyn:${asString(data?.screenKey, '')}:${parentId}`,
+    },
+  },
 };
 
 export const getFlatEntityConfig = (collection: string): AuditableEntityConfig | null =>

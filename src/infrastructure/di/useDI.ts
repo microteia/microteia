@@ -49,6 +49,8 @@ import type { IAuditLogRepository } from '../../domain/repositories/IAuditLogRep
 import type { IAuditLogService } from '../../domain/repositories/IAuditLogService';
 import type { IScreenDefinitionRepository } from '../../domain/repositories/IScreenDefinitionRepository';
 import type { ICustomRecordRepository } from '../../domain/repositories/ICustomRecordRepository';
+import type { ICustomRecordNoteRepository } from '../../domain/repositories/ICustomRecordNoteRepository';
+import type { ICustomRecordDocumentRepository } from '../../domain/repositories/ICustomRecordDocumentRepository';
 
 export interface DIContainer {
   authRepository: IAuthRepository;
@@ -102,6 +104,8 @@ export interface DIContainer {
   auditLogService: IAuditLogService;
   screenDefinitionRepository: IScreenDefinitionRepository;
   customRecordRepository: ICustomRecordRepository;
+  customRecordNoteRepository: ICustomRecordNoteRepository;
+  customRecordDocumentRepository: ICustomRecordDocumentRepository;
 }
 
 export const DIContext = createContext<DIContainer | null>(null);

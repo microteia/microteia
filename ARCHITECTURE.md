@@ -1378,6 +1378,14 @@ Toda tela dinâmica consulta por `where('screenKey','==',X) + orderBy('createdAt
 - Repositórios: `FirebaseScreenDefinitionRepository` (upsert preserva `createdAt/createdBy`; delete remove antes a subcoleção `fieldOptions` e grava o stamp `deletedBy*`) e `FirebaseCustomRecordRepository`.
 - Stores: `ScreenDefinitionStore` (definições + `fieldOptionsByField`, eventos `SCREEN_DEFINITIONS_UPDATED`) e `CustomRecordStore` (registros por tela, `allRecords` para o ⌘K, eventos `CUSTOM_RECORDS_UPDATED`; depende do `ScreenDefinitionStore` — ordem dos providers em `App.tsx`).
 
+### Anotações e Documentos em telas dinâmicas
+
+- Habilitados por tela via `hasNotes`/`hasDocuments` na definição; aparecem como abas em `ViewDynamicRecord` (padrão idêntico ao `ViewContract`).
+- Subcoleções `tenants/{tid}/customRecords/{recordId}/notes|documents`, com `screenKey` **denormalizado em cada doc** (usado pelo link da auditoria nested). Arquivos no Storage em `tenants/{tid}/customRecords/{recordId}/{ts}_{arquivo}` (máx. 20 MB).
+- Repositórios `FirebaseCustomRecordNote/DocumentRepository` + use cases `customrecordnotes/`/`customrecorddocuments/` — gerenciados direto no ViewModel (sem store global), tipo de documento via `useDocumentTypeLookup`.
+- `DeleteCustomRecordUseCase` cascateia: exclui notas, documentos (incluindo arquivos do Storage) e então o registro.
+- Auditoria: pares `customRecords/notes` e `customRecords/documents` no `NESTED_ENTITY_CONFIG`.
+
 ### Auditoria e ⌘K
 
 - `screenDefinitions` e `customRecords` estão na allowlist de `functions/src/domain/services/auditableEntities.ts` ("Tela Personalizada" e "Registro Personalizado"). O link da entidade de um registro usa o `screenKey` do próprio doc (`view-dyn:{screenKey}:{docId}`) — para isso, `getEntityLink` ganhou um 4º parâmetro opcional com os dados do documento, preenchido por `auditFlatEntityChange`.
@@ -1896,6 +1904,27 @@ service cloud.firestore {
         allow read: if isMember(tenantId);
         allow create, update: if canWriteInTenant(tenantId);
         allow delete: if isTenantAdmin(tenantId);
+
+        // Anotações do registro — qualquer membro com escrita cria; exclusão só admin.
+        // update só é usado para o stamp de autoria de exclusão (deletedBy*).
+        match /notes/{noteId} {
+          allow read: if isMember(tenantId);
+          allow create: if canWriteInTenant(tenantId);
+          allow update: if isTenantAdmin(tenantId)
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['deletedBy', 'deletedByName', 'deletedByPhotoURL'])
+            && request.resource.data.deletedBy == request.auth.uid;
+          allow delete: if isTenantAdmin(tenantId);
+        }
+
+        // Documentos do registro — mesmo modelo das anotações
+        match /documents/{documentId} {
+          allow read: if isMember(tenantId);
+          allow create: if canWriteInTenant(tenantId);
+          allow update: if isTenantAdmin(tenantId)
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['deletedBy', 'deletedByName', 'deletedByPhotoURL'])
+            && request.resource.data.deletedBy == request.auth.uid;
+          allow delete: if isTenantAdmin(tenantId);
+        }
       }
     }
 
@@ -2116,6 +2145,18 @@ service firebase.storage {
     // ─── Documentos de lançamentos financeiros ───────────────────────────────
     // Path: tenants/{tenantId}/financials/{financialId}/{filename}
     match /tenants/{tenantId}/financials/{financialId}/{allPaths=**} {
+      allow read: if request.auth != null
+        && firestore.exists(/databases/(default)/documents/tenants/$(tenantId)/members/$(request.auth.uid));
+      allow create: if request.auth != null
+        && firestore.exists(/databases/(default)/documents/tenants/$(tenantId)/members/$(request.auth.uid))
+        && request.resource.size < 20 * 1024 * 1024;     // máximo 20 MB
+      allow delete: if request.auth != null
+        && firestore.get(/databases/(default)/documents/tenants/$(tenantId)/members/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    // ─── Documentos de registros de telas dinâmicas ──────────────────────────
+    // Path: tenants/{tenantId}/customRecords/{recordId}/{filename}
+    match /tenants/{tenantId}/customRecords/{recordId}/{allPaths=**} {
       allow read: if request.auth != null
         && firestore.exists(/databases/(default)/documents/tenants/$(tenantId)/members/$(request.auth.uid));
       allow create: if request.auth != null
