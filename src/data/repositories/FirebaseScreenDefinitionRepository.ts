@@ -14,7 +14,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '../../infrastructure/firebase/config';
 import type { IScreenDefinitionRepository, ScreenDefinitionInput } from '../../domain/repositories/IScreenDefinitionRepository';
-import type { DeletionActor, FieldDefinition, ScreenDefinition, ScreenFieldOption } from '../../domain/entities';
+import type { CustomRecordTag, DeletionActor, FieldDefinition, ScreenDefinition, ScreenFieldOption } from '../../domain/entities';
 import { stampDeletionActor } from '../utils/stampDeletionActor';
 
 const toDate = (v: unknown): Date =>
@@ -25,6 +25,9 @@ const definitionsRef = (tenantId: string) =>
 
 const fieldOptionsRef = (tenantId: string, screenKey: string) =>
   collection(db, 'tenants', tenantId, 'screenDefinitions', screenKey, 'fieldOptions');
+
+const tagsRef = (tenantId: string, screenKey: string) =>
+  collection(db, 'tenants', tenantId, 'screenDefinitions', screenKey, 'tags');
 
 const mapScreenDefinition = (id: string, d: Record<string, unknown>, tenantId: string): ScreenDefinition => ({
   id,
@@ -37,6 +40,7 @@ const mapScreenDefinition = (id: string, d: Record<string, unknown>, tenantId: s
   titleFieldKey: (d.titleFieldKey as string | undefined) ?? '',
   hasNotes: (d.hasNotes as boolean | undefined) ?? false,
   hasDocuments: (d.hasDocuments as boolean | undefined) ?? false,
+  hasTags: (d.hasTags as boolean | undefined) ?? false,
   sidebarOrder: (d.sidebarOrder as number | undefined) ?? 0,
   enabled: (d.enabled as boolean | undefined) ?? true,
   createdAt: toDate(d.createdAt),
@@ -56,6 +60,16 @@ const mapFieldOption = (id: string, d: Record<string, unknown>, tenantId: string
   label: d.label as string,
   createdAt: toDate(d.createdAt),
   createdBy: (d.createdBy as string | undefined) ?? '',
+});
+
+const mapTag = (id: string, d: Record<string, unknown>, tenantId: string, screenKey: string): CustomRecordTag => ({
+  id,
+  tenantId,
+  screenKey,
+  name: d.name as string,
+  color: d.color as string,
+  createdBy: d.createdBy as string,
+  createdAt: d.createdAt instanceof Timestamp ? d.createdAt.toDate() : (d.createdAt as Date),
 });
 
 export class FirebaseScreenDefinitionRepository implements IScreenDefinitionRepository {
@@ -81,6 +95,8 @@ export class FirebaseScreenDefinitionRepository implements IScreenDefinitionRepo
   async delete(tenantId: string, screenKey: string, actor: DeletionActor): Promise<void> {
     const optionsSnap = await getDocs(fieldOptionsRef(tenantId, screenKey));
     await Promise.all(optionsSnap.docs.map((d) => deleteDoc(d.ref)));
+    const tagsSnap = await getDocs(tagsRef(tenantId, screenKey));
+    await Promise.all(tagsSnap.docs.map((d) => deleteDoc(d.ref)));
     const ref = doc(definitionsRef(tenantId), screenKey);
     await stampDeletionActor(ref, actor);
     await deleteDoc(ref);
@@ -105,5 +121,26 @@ export class FirebaseScreenDefinitionRepository implements IScreenDefinitionRepo
 
   async removeFieldOption(tenantId: string, screenKey: string, optionId: string): Promise<void> {
     await deleteDoc(doc(fieldOptionsRef(tenantId, screenKey), optionId));
+  }
+
+  async getTags(tenantId: string, screenKey: string): Promise<CustomRecordTag[]> {
+    const q = query(tagsRef(tenantId, screenKey), orderBy('name', 'asc'));
+    const snap = await getDocs(q);
+    return snap.docs.map((d) => mapTag(d.id, d.data(), tenantId, screenKey));
+  }
+
+  async createTag(tenantId: string, screenKey: string, data: Omit<CustomRecordTag, 'id' | 'tenantId' | 'screenKey' | 'createdAt'>): Promise<CustomRecordTag> {
+    const ref = await addDoc(tagsRef(tenantId, screenKey), { ...data, createdAt: serverTimestamp() });
+    return { id: ref.id, tenantId, screenKey, ...data, createdAt: new Date() };
+  }
+
+  async updateTag(tenantId: string, screenKey: string, tagId: string, data: { name: string; color: string }): Promise<void> {
+    await updateDoc(doc(tagsRef(tenantId, screenKey), tagId), data);
+  }
+
+  async deleteTag(tenantId: string, screenKey: string, tagId: string, actor: DeletionActor): Promise<void> {
+    const ref = doc(tagsRef(tenantId, screenKey), tagId);
+    await stampDeletionActor(ref, actor);
+    await deleteDoc(ref);
   }
 }

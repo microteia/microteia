@@ -29,6 +29,7 @@ import {
   validateRequiredFields,
 } from '../../../domain/services/customFieldValues';
 import type { DynamicSelectOption } from '../../components/ui/DynamicSelect';
+import type { TagStoreAdapter } from '../../components/ui/TagManager';
 import type {
   CustomFieldValue,
   CustomRecord,
@@ -48,6 +49,7 @@ export interface ViewDynamicRecordViewModel {
   isNew: boolean;
   isAdmin: boolean;
   screenKey: string;
+  recordId: string | null;
   activeTab: ViewDynamicRecordTab;
   setActiveTab: (tab: ViewDynamicRecordTab) => void;
   sortedFields: FieldDefinition[];
@@ -98,10 +100,14 @@ export interface ViewDynamicRecordViewModel {
   documentTypeDynamicOptions: DynamicSelectOption[];
   handleAddDocumentType: (name: string) => Promise<void>;
   handleDeleteDocumentType: (key: string) => Promise<void>;
+  tagAdapter: TagStoreAdapter;
+  isTagManagerOpen: boolean;
+  openTagManager: () => void;
+  closeTagManager: () => void;
 }
 
 export const useViewDynamicRecordViewModel = (tabKey: string): ViewDynamicRecordViewModel => {
-  const { getDefinition, isLoading: isLoadingDefinition } = useScreenDefinitions();
+  const { getDefinition, isLoading: isLoadingDefinition, tagsByScreen, createTag, updateTag, deleteTag } = useScreenDefinitions();
   const { recordsByScreen, createRecord, updateRecord, deleteRecord } = useCustomRecords();
   const { typeConfigs: documentTypeConfigs, addItem: addDocumentType, removeItem: removeDocumentType } = useDocumentTypeLookup();
   const { currentTenant, tenantRole } = useTenant();
@@ -189,6 +195,8 @@ export const useViewDynamicRecordViewModel = (tabKey: string): ViewDynamicRecord
   const [pendingFile, setPendingFile] = useState<File | null>(null);
   const [pendingType, setPendingType] = useState('');
   const [docToDelete, setDocToDelete] = useState<CustomRecordDocument | null>(null);
+
+  const [isTagManagerOpen, setIsTagManagerOpen] = useState(false);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- sincroniza formulário ao carregar definição/registro
@@ -423,6 +431,20 @@ export const useViewDynamicRecordViewModel = (tabKey: string): ViewDynamicRecord
   const handleAddDocumentType = useCallback(async (name: string) => { await addDocumentType(name); }, [addDocumentType]);
   const handleDeleteDocumentType = useCallback(async (key: string) => { await removeDocumentType(key); }, [removeDocumentType]);
 
+  const screenTags = useMemo(() => tagsByScreen[screenKey] ?? [], [tagsByScreen, screenKey]);
+
+  const tagAdapter: TagStoreAdapter = useMemo(() => ({
+    tags: screenTags,
+    getAppliedTags: (entityId: string) => { void entityId; return screenTags.filter((t) => sourceRecord?.tagIds?.includes(t.id)); },
+    setTags: (entityId: string, tagIds: string[]) => updateRecord(entityId, screenKey, { tagIds }),
+    createTag: (name: string, color: string) => createTag(screenKey, name, color),
+    updateTag: (id: string, data: { name: string; color: string }) => updateTag(screenKey, id, data),
+    deleteTag: (id: string) => deleteTag(screenKey, id),
+  }), [screenTags, sourceRecord, updateRecord, screenKey, createTag, updateTag, deleteTag]);
+
+  const openTagManager = useCallback(() => setIsTagManagerOpen(true), []);
+  const closeTagManager = useCallback(() => setIsTagManagerOpen(false), []);
+
   const recordNotFound = !isNew && !sourceRecord && fetchAttempted;
 
   return {
@@ -432,6 +454,7 @@ export const useViewDynamicRecordViewModel = (tabKey: string): ViewDynamicRecord
     isNew,
     isAdmin,
     screenKey,
+    recordId,
     activeTab,
     setActiveTab,
     sortedFields,
@@ -482,5 +505,9 @@ export const useViewDynamicRecordViewModel = (tabKey: string): ViewDynamicRecord
     documentTypeDynamicOptions,
     handleAddDocumentType,
     handleDeleteDocumentType,
+    tagAdapter,
+    isTagManagerOpen,
+    openTagManager,
+    closeTagManager,
   };
 };

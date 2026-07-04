@@ -241,29 +241,6 @@ export const S = {
     }
   `,
 
-  IconGrid: styled.div`
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(40px, 1fr));
-    gap: ${({ theme }) => theme.spacing.xs};
-  `,
-
-  IconOption: styled.button<{ $active?: boolean }>`
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    height: 40px;
-    border-radius: ${({ theme }) => theme.borderRadius.md};
-    border: 1px solid ${({ theme, $active }) => ($active ? theme.colors.primary : theme.colors.border)};
-    background: ${({ theme, $active }) => ($active ? theme.colors.primaryLight : theme.colors.inputBackground)};
-    color: ${({ theme, $active }) => ($active ? theme.colors.primary : theme.colors.textSecondary)};
-    transition: ${({ theme }) => theme.transitions.fast};
-
-    &:hover {
-      border-color: ${({ theme }) => theme.colors.primary};
-      color: ${({ theme }) => theme.colors.primary};
-    }
-  `,
-
   OptionInputRow: styled.div`
     display: flex;
     gap: ${({ theme }) => theme.spacing.sm};

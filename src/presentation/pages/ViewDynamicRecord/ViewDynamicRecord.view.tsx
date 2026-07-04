@@ -9,6 +9,7 @@ import {
   RiFileCopyLine,
   RiFileTextLine,
   RiLinkM,
+  RiPriceTag3Line,
   RiSaveLine,
   RiUploadLine,
 } from 'react-icons/ri';
@@ -23,6 +24,7 @@ import { CustomFieldsSection } from '../../components/ui/CustomFieldsSection';
 import { DynamicSelect } from '../../components/ui/DynamicSelect';
 import { MarkdownEditor } from '../../components/ui/MarkdownEditor';
 import { MarkdownContent } from '../../components/ui/MarkdownContent';
+import { TagManager } from '../../components/ui/TagManager';
 import { getScreenIcon } from '../../shared/screenIcons';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -66,14 +68,27 @@ export const ViewDynamicRecordView: React.FC<{ tabKey: string }> = ({ tabKey }) 
   }
 
   const showTabs = !vm.isNew && (definition.hasNotes || definition.hasDocuments);
+  const appliedTags = !vm.isNew ? vm.tagAdapter.getAppliedTags(vm.recordId ?? '') : [];
 
   return (
     <S.Page>
       <S.Header>
-        <S.TitleRow>
-          {getScreenIcon(definition.icon, 22)}
-          <S.Title>{vm.isNew ? `Novo ${definition.titleSingular}` : definition.titleSingular}</S.Title>
-        </S.TitleRow>
+        <S.HeaderLeft>
+          <S.TitleRow>
+            {getScreenIcon(definition.icon, 22)}
+            <S.Title>{vm.isNew ? `Novo ${definition.titleSingular}` : definition.titleSingular}</S.Title>
+          </S.TitleRow>
+          {!vm.isNew && definition.hasTags && appliedTags.length > 0 && (
+            <S.Tags>
+              {appliedTags.map((t) => (
+                <S.TagPill key={t.id} $color={t.color}>
+                  <S.TagDot $color={t.color} />
+                  {t.name}
+                </S.TagPill>
+              ))}
+            </S.Tags>
+          )}
+        </S.HeaderLeft>
         <S.HeaderActions>
           {!vm.isNew && (
             <Button variant="ghost" size="sm" onClick={vm.handleCopyDeepLink} title="Copiar link">
@@ -83,6 +98,11 @@ export const ViewDynamicRecordView: React.FC<{ tabKey: string }> = ({ tabKey }) 
           {!vm.isNew && (
             <Button variant="ghost" size="sm" onClick={vm.handleClone} title="Clonar">
               <RiFileCopyLine size={14} />
+            </Button>
+          )}
+          {!vm.isNew && definition.hasTags && (
+            <Button variant="ghost" size="sm" onClick={vm.openTagManager} title="Gerenciar etiquetas">
+              <RiPriceTag3Line size={14} />
             </Button>
           )}
           {(vm.activeTab === 'data' || vm.isNew) && (
@@ -310,6 +330,14 @@ export const ViewDynamicRecordView: React.FC<{ tabKey: string }> = ({ tabKey }) 
           </>
         )}
       </S.Content>
+
+      {vm.isTagManagerOpen && vm.recordId && (
+        <TagManager
+          entityId={vm.recordId}
+          onClose={vm.closeTagManager}
+          adapter={vm.tagAdapter}
+        />
+      )}
 
       <ConfirmModal
         isOpen={vm.recordToDelete !== null}

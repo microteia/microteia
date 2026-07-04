@@ -70,15 +70,28 @@ export const DynamicRecordListView: React.FC<{ tabKey: string }> = ({ tabKey }) 
           </S.EmptyState>
         ) : (
           <S.Grid>
-            {vm.filteredRecords.map((record) => (
-              <S.RecordCard key={record.id} onClick={() => vm.openRecord(record)}>
-                <S.RecordHeader>
-                  <S.RecordAvatar>{getScreenIcon(definition.icon, 20)}</S.RecordAvatar>
-                  <S.RecordTitle>{record.title}</S.RecordTitle>
-                </S.RecordHeader>
-                <CustomFieldMetaRows items={vm.getCardItems(record)} />
-              </S.RecordCard>
-            ))}
+            {vm.filteredRecords.map((record) => {
+              const recordTags = vm.tags.filter((t) => record.tagIds?.includes(t.id));
+              return (
+                <S.RecordCard key={record.id} onClick={() => vm.openRecord(record)}>
+                  <S.RecordHeader>
+                    <S.RecordAvatar>{getScreenIcon(definition.icon, 20)}</S.RecordAvatar>
+                    <S.RecordTitle>{record.title}</S.RecordTitle>
+                  </S.RecordHeader>
+                  <CustomFieldMetaRows items={vm.getCardItems(record)} />
+                  {recordTags.length > 0 && (
+                    <S.Tags onClick={(e) => e.stopPropagation()}>
+                      {recordTags.map((t) => (
+                        <S.TagPill key={t.id} $color={t.color}>
+                          <S.TagDot $color={t.color} />
+                          {t.name}
+                        </S.TagPill>
+                      ))}
+                    </S.Tags>
+                  )}
+                </S.RecordCard>
+              );
+            })}
           </S.Grid>
         )}
       </S.Content>

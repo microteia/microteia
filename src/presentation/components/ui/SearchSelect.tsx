@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import ReactDOM from 'react-dom';
 import styled from 'styled-components';
+import type { IconType } from 'react-icons';
 import { RiSearchLine, RiCloseLine, RiCheckLine } from 'react-icons/ri';
 
 export interface SearchSelectOption {
@@ -8,6 +9,7 @@ export interface SearchSelectOption {
   label: string;
   meta?: string;
   color?: string;
+  icon?: IconType;
 }
 
 interface SearchSelectProps {
@@ -55,6 +57,14 @@ const ColorDot = styled.span<{ $color: string }>`
   border-radius: 50%;
   background: ${({ $color }) => $color};
   flex-shrink: 0;
+`;
+
+const OptionIcon = styled.span`
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: ${({ theme }) => theme.colors.textSecondary};
 `;
 
 const TriggerLabel = styled.span`
@@ -254,6 +264,7 @@ export const SearchSelect: React.FC<SearchSelectProps> = ({
         disabled={disabled}
       >
         {selected?.color && <ColorDot $color={selected.color} />}
+        {selected?.icon && <OptionIcon><selected.icon size={14} /></OptionIcon>}
         <TriggerLabel>{selected ? selected.label : placeholder}</TriggerLabel>
         {selected && !disabled && (
           <ClearBtn onClick={handleClear} title="Limpar">
@@ -287,6 +298,7 @@ export const SearchSelect: React.FC<SearchSelectProps> = ({
                   onMouseEnter={() => setActiveIdx(idx)}
                 >
                   {opt.color && <ColorDot $color={opt.color} />}
+                  {opt.icon && <OptionIcon><opt.icon size={16} /></OptionIcon>}
                   <OptionText>
                     <OptionLabel>{opt.label}</OptionLabel>
                     {opt.meta && <OptionMeta>{opt.meta}</OptionMeta>}

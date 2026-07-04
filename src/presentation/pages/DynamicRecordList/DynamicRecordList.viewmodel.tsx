@@ -6,7 +6,7 @@ import { useCustomFieldListing } from '../../hooks/useCustomFieldListing';
 import type { CustomFieldCardItem } from '../../hooks/useCustomFieldListing';
 import { parseDynamicTabKey, buildNewTabKey, buildViewTabKey } from '../../../shared/constants/dynamicScreenKeys';
 import { sortFieldsByOrder } from '../../../domain/services/customFieldValues';
-import type { CustomRecord, ScreenDefinition } from '../../../domain/entities';
+import type { CustomRecord, CustomRecordTag, ScreenDefinition } from '../../../domain/entities';
 import type { FilterDef, FilterToken } from '../../components/ui/CompositeFilter';
 
 export interface DynamicRecordListViewModel {
@@ -18,6 +18,7 @@ export interface DynamicRecordListViewModel {
   filterTokens: FilterToken[];
   filterDefs: FilterDef[];
   savedFiltersScreenKey: string;
+  tags: CustomRecordTag[];
   setFilterTokens: (tokens: FilterToken[]) => void;
   openNewRecord: () => void;
   openRecord: (record: CustomRecord) => void;
@@ -25,7 +26,7 @@ export interface DynamicRecordListViewModel {
 }
 
 export const useDynamicRecordListViewModel = (tabKey: string): DynamicRecordListViewModel => {
-  const { getDefinition, isLoading: definitionsLoading } = useScreenDefinitions();
+  const { getDefinition, isLoading: definitionsLoading, tagsByScreen } = useScreenDefinitions();
   const { recordsByScreen, isLoading: recordsLoading } = useCustomRecords();
   const { openTab, setTabTitle } = useWorkspace();
 
@@ -48,10 +49,18 @@ export const useDynamicRecordListViewModel = (tabKey: string): DynamicRecordList
 
   const records = useMemo(() => recordsByScreen[screenKey] ?? [], [recordsByScreen, screenKey]);
 
+  const tags = useMemo(() => tagsByScreen[screenKey] ?? [], [tagsByScreen, screenKey]);
+
+  const tagOptions = useMemo<FilterDef['options']>(() =>
+    tags.map((t) => ({ value: t.id, label: t.name, color: t.color })),
+    [tags],
+  );
+
   const filterDefs = useMemo<FilterDef[]>(() => [
     { key: 'search', label: 'Busca', type: 'text', placeholder: 'Buscar...' },
+    ...((tagOptions ?? []).length > 0 ? [{ key: 'tag', label: 'Etiqueta', type: 'select' as const, options: tagOptions }] : []),
     ...listing.filterDefs,
-  ], [listing.filterDefs]);
+  ], [tagOptions, listing.filterDefs]);
 
   const tokenMap = useMemo(() => {
     const map: Record<string, string[]> = {};
@@ -61,6 +70,7 @@ export const useDynamicRecordListViewModel = (tabKey: string): DynamicRecordList
 
   const filteredRecords = useMemo(() => {
     const searchQ = (tokenMap['search']?.[0] ?? '').toLowerCase();
+    const tagFilter = tokenMap['tag'] ?? [];
     return records.filter((record) => {
       if (searchQ) {
         const haystack = [
@@ -69,6 +79,7 @@ export const useDynamicRecordListViewModel = (tabKey: string): DynamicRecordList
         ].join(' ').toLowerCase();
         if (!haystack.includes(searchQ)) return false;
       }
+      if (tagFilter.length > 0 && !tagFilter.some((tid) => record.tagIds?.includes(tid))) return false;
       return listing.matchesFilters(record.values, tokenMap);
     });
   }, [records, tokenMap, listing]);
@@ -94,6 +105,7 @@ export const useDynamicRecordListViewModel = (tabKey: string): DynamicRecordList
     filterTokens,
     filterDefs,
     savedFiltersScreenKey: tabKey,
+    tags,
     setFilterTokens,
     openNewRecord,
     openRecord,

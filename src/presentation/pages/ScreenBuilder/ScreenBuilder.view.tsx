@@ -120,6 +120,7 @@ export const ScreenBuilderView: React.FC = () => {
                     {(vm.fieldsByScreen[def.id] ?? []).length} campo(s)
                     {def.hasNotes ? ' · Anotações' : ''}
                     {def.hasDocuments ? ' · Documentos' : ''}
+                    {def.hasTags ? ' · Etiquetas' : ''}
                   </S.ScreenMeta>
                 </S.ScreenInfo>
                 <S.CardActions>
@@ -210,18 +211,12 @@ export const ScreenBuilderView: React.FC = () => {
             </InputGroup>
             <InputGroup>
               <Label>Ícone</Label>
-              <S.IconGrid>
-                {vm.iconKeys.map((key) => (
-                  <S.IconOption
-                    key={key}
-                    type="button"
-                    $active={vm.screenForm.icon === key}
-                    onClick={() => vm.updateScreenForm({ icon: key })}
-                  >
-                    {getScreenIcon(key, 18)}
-                  </S.IconOption>
-                ))}
-              </S.IconGrid>
+              <SearchSelect
+                options={vm.iconOptions}
+                value={vm.screenForm.icon}
+                onChange={(value) => vm.updateScreenForm({ icon: value })}
+                placeholder="Escolha um ícone"
+              />
             </InputGroup>
             {vm.screenModalIsEdit && vm.titleFieldOptions.length > 0 && (
               <InputGroup>
@@ -249,6 +244,14 @@ export const ScreenBuilderView: React.FC = () => {
                 onChange={(e) => vm.updateScreenForm({ hasDocuments: e.target.checked })}
               />
               Habilitar aba de Documentos
+            </S.CheckboxRow>
+            <S.CheckboxRow>
+              <input
+                type="checkbox"
+                checked={vm.screenForm.hasTags}
+                onChange={(e) => vm.updateScreenForm({ hasTags: e.target.checked })}
+              />
+              Habilitar Etiquetas
             </S.CheckboxRow>
             {vm.screenModalIsEdit && (
               <S.CheckboxRow>

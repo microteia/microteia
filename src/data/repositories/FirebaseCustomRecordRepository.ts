@@ -30,6 +30,7 @@ const mapCustomRecord = (id: string, d: Record<string, unknown>, tenantId: strin
   screenKey: d.screenKey as string,
   title: (d.title as string | undefined) ?? '',
   values: (d.values as Record<string, CustomFieldValue> | undefined) ?? {},
+  tagIds: (d.tagIds as string[] | undefined) ?? [],
   createdAt: toDate(d.createdAt),
   createdBy: (d.createdBy as string | undefined) ?? '',
   updatedAt: toDate(d.updatedAt),

@@ -1359,7 +1359,7 @@ Recurso que permite ao **admin do tenant** criar telas próprias em runtime e ad
 
 Um único doc `ScreenDefinition` em `tenants/{tenantId}/screenDefinitions/{screenKey}` descreve tanto telas dinâmicas quanto os campos extras das telas padrão:
 
-- **Tela dinâmica:** `builtin: false`. O doc id (`screenKey`) é o slug do título plural, gerado na criação e imutável. Possui `titleSingular/titlePlural`, `icon` (chave do set curado em `presentation/shared/screenIcons.tsx`), `fields`, `titleFieldKey` (campo texto obrigatório usado como título do registro na aba e no ⌘K), `hasNotes`/`hasDocuments` (abas opcionais), `sidebarOrder` e `enabled` (desativa sem excluir).
+- **Tela dinâmica:** `builtin: false`. O doc id (`screenKey`) é o slug do título plural, gerado na criação e imutável. Possui `titleSingular/titlePlural`, `icon` (chave do set curado em `presentation/shared/screenIcons.tsx`), `fields`, `titleFieldKey` (campo texto obrigatório usado como título do registro na aba e no ⌘K), `hasNotes`/`hasDocuments`/`hasTags` (recursos opcionais), `sidebarOrder` e `enabled` (desativa sem excluir).
 - **Campos das telas padrão:** `builtin: true` com doc id fixo igual à coleção da entidade (`persons`, `cases`, `contracts`, `financials`, `deadlines`). Criado lazy no primeiro save. Somente `fields` é relevante.
 
 `FieldDefinition`: `key` (slug do label na criação; **imutável** — renomear o label não altera a key, preservando dados e histórico de auditoria), `label`, `type` (`text | textarea | number | currency | date | checkbox | select | masked | reference` — **type também é imutável** após criação), `required`, `order`, `section`, `options` (estáticas, para `select`), `optionsAllowUserAdd`, `multi`, `mask` (`cpf | cnpj | phone | cep`), `refEntity` (coleção padrão ou screenKey dinâmico), `placeholder`, `showInList`, `filterable`.
@@ -1375,8 +1375,8 @@ Toda tela dinâmica consulta por `where('screenKey','==',X) + orderBy('createdAt
 ### Camadas
 
 - Conversões e validações puras: `domain/services/customFieldValues.ts` (`slugifyFieldKey`, `ensureUniqueKey`, `buildInitialFormValues`, `formValuesToStoredValues`, `validateRequiredFields`, `resolveRecordTitle`, `sortFieldsByOrder`).
-- Repositórios: `FirebaseScreenDefinitionRepository` (upsert preserva `createdAt/createdBy`; delete remove antes a subcoleção `fieldOptions` e grava o stamp `deletedBy*`) e `FirebaseCustomRecordRepository`.
-- Stores: `ScreenDefinitionStore` (definições + `fieldOptionsByField`, eventos `SCREEN_DEFINITIONS_UPDATED`) e `CustomRecordStore` (registros por tela, `allRecords` para o ⌘K, eventos `CUSTOM_RECORDS_UPDATED`; depende do `ScreenDefinitionStore` — ordem dos providers em `App.tsx`).
+- Repositórios: `FirebaseScreenDefinitionRepository` (upsert preserva `createdAt/createdBy`; delete remove antes as subcoleções `fieldOptions` e `tags` e grava o stamp `deletedBy*`) e `FirebaseCustomRecordRepository`.
+- Stores: `ScreenDefinitionStore` (definições + `fieldOptionsByField` + `tagsByScreen`, eventos `SCREEN_DEFINITIONS_UPDATED`) e `CustomRecordStore` (registros por tela, `allRecords` para o ⌘K, eventos `CUSTOM_RECORDS_UPDATED`; depende do `ScreenDefinitionStore` — ordem dos providers em `App.tsx`).
 
 ### Anotações e Documentos em telas dinâmicas
 
@@ -1385,6 +1385,17 @@ Toda tela dinâmica consulta por `where('screenKey','==',X) + orderBy('createdAt
 - Repositórios `FirebaseCustomRecordNote/DocumentRepository` + use cases `customrecordnotes/`/`customrecorddocuments/` — gerenciados direto no ViewModel (sem store global), tipo de documento via `useDocumentTypeLookup`.
 - `DeleteCustomRecordUseCase` cascateia: exclui notas, documentos (incluindo arquivos do Storage) e então o registro.
 - Auditoria: pares `customRecords/notes` e `customRecords/documents` no `NESTED_ENTITY_CONFIG`.
+
+Nota: a subcoleção `fieldOptions` (opções dinâmicas de selects) **não** está no `NESTED_ENTITY_CONFIG` — não gera log de auditoria hoje.
+
+### Etiquetas em telas dinâmicas
+
+- Habilitadas por tela via `hasTags` na definição; a tela de detalhe (`ViewDynamicRecord`) exibe um botão "Gerenciar etiquetas" no cabeçalho (mesmo ícone/posição do `ViewPerson`/`ViewContract`), as etiquetas aplicadas como pills abaixo do título, um filtro "Etiqueta" na listagem (`DynamicRecordList`) e as pills no card da listagem — tudo condicionado a `definition.hasTags`.
+- Diferente de `PersonTag`/`ContractTag` (tenant-scoped, uma coleção por tela padrão), a etiqueta de tela dinâmica é **exclusiva por `screenKey`**: `CustomRecordTag` (`{ name, color, createdBy, createdAt, ... }`) vive na subcoleção `tenants/{tid}/screenDefinitions/{screenKey}/tags/{id}` — mesmo racional de isolamento do `fieldOptions` (não afrouxar a rule de update da definição).
+- `CustomRecord.tagIds?: string[]` guarda as etiquetas aplicadas a cada registro (mesmo padrão de `Person.tagIds`/`Contract.tagIds`); atualizado via `useCustomRecords().updateRecord(recordId, screenKey, { tagIds })`.
+- CRUD de etiquetas: `IScreenDefinitionRepository.getTags/createTag/updateTag/deleteTag` (mesmo repositório de `fieldOptions`, por serem ambos filhos de `screenDefinitions`) + use cases `screendefinitions/{Get,Create,Update,Delete}ScreenTagUseCase` + `ScreenDefinitionStore.tagsByScreen`/`createTag`/`updateTag`/`deleteTag`.
+- UI reaproveita o componente genérico `ui/TagManager` (já usado por Pessoa/Contrato) via um `TagStoreAdapter` construído em `ViewDynamicRecord.viewmodel` — nenhum componente de UI novo foi necessário.
+- Auditoria: par `screenDefinitions/tags` no `NESTED_ENTITY_CONFIG` (`functions/src/domain/services/auditableEntities.ts`), `entityKey: 'CustomRecordTag'`; como o pai já é o próprio `screenKey` (diferente de `customRecords/notes`, que precisa de `screenKey` denormalizado), `getEntityLink` usa `parentId` direto para montar `dyn:{screenKey}` (abre a listagem da tela).
 
 ### Auditoria e ⌘K
 
@@ -1896,6 +1907,14 @@ service cloud.firestore {
         match /fieldOptions/{optionId} {
           allow read: if isMember(tenantId);
           allow create: if canWriteInTenant(tenantId);
+          allow delete: if isTenantAdmin(tenantId);
+        }
+
+        // Etiquetas da tela dinâmica (exclusivas por screenKey) — mesmo modelo das
+        // demais etiquetas (personTags, contractTags...): membro com escrita cria/edita; só admin deleta
+        match /tags/{tagId} {
+          allow read: if isMember(tenantId);
+          allow create, update: if canWriteInTenant(tenantId);
           allow delete: if isTenantAdmin(tenantId);
         }
       }

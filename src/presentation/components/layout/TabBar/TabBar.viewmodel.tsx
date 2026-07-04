@@ -1,7 +1,10 @@
 import { useState, useCallback, useEffect, useMemo } from 'react';
 import { useWorkspace } from '../../../../stores/useWorkspace';
 import type { SplitDirection } from '../../../../stores/useWorkspace';
+import { useScreenDefinitions } from '../../../../stores/useScreenDefinitions';
 import { getPageByKey } from '../../../pages/pageRegistry';
+import { parseDynamicTabKey } from '../../../../shared/constants/dynamicScreenKeys';
+import { getScreenIcon } from '../../../shared/screenIcons';
 
 export interface ContextMenuState {
   visible: boolean;
@@ -33,6 +36,7 @@ export interface TabBarViewModel {
 
 export const useTabBarViewModel = ({ panelId }: TabBarProps): TabBarViewModel => {
   const { panels, activePanelId, tabTitleOverrides, activateTab, closeTab, closeOtherTabs, closePanel, splitPanel } = useWorkspace();
+  const { definitions } = useScreenDefinitions();
   const panel = panels[panelId];
   const hasMultiplePanels = Object.keys(panels).length > 1;
   const isPanelActive = hasMultiplePanels && activePanelId === panelId;
@@ -45,10 +49,13 @@ export const useTabBarViewModel = ({ panelId }: TabBarProps): TabBarViewModel =>
     const def = getPageByKey(key);
     const registryTitle = typeof def?.title === 'function' ? def.title(key) : (def?.title ?? key);
     const title = tabTitleOverrides[key] ?? registryTitle;
+    const dynamicInfo = parseDynamicTabKey(key);
+    const dynamicScreen = dynamicInfo ? definitions.find((d) => d.id === dynamicInfo.screenKey) : undefined;
+    const icon = dynamicScreen ? getScreenIcon(dynamicScreen.icon, 20) : (def?.icon ?? null);
     return {
       key,
       title,
-      icon: def?.icon ?? null,
+      icon,
       isActive: panel?.activeTabKey === key,
     };
   });

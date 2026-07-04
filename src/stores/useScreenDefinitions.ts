@@ -1,5 +1,5 @@
 import { createContext, useContext } from 'react';
-import type { FieldDefinition, ScreenDefinition, ScreenFieldOption } from '../domain/entities';
+import type { CustomRecordTag, FieldDefinition, ScreenDefinition, ScreenFieldOption } from '../domain/entities';
 import type { ScreenDefinitionInput } from '../domain/repositories/IScreenDefinitionRepository';
 
 export type ScreenDefinitionSaveInput = Omit<ScreenDefinitionInput, 'createdBy' | 'updatedBy' | 'updatedByName' | 'updatedByPhotoURL'>;
@@ -10,11 +10,15 @@ export interface ScreenDefinitionStoreState {
   getDefinition: (screenKey: string) => ScreenDefinition | undefined;
   getCustomFieldsFor: (entityKey: string) => FieldDefinition[];
   fieldOptionsByField: Record<string, ScreenFieldOption[]>;
+  tagsByScreen: Record<string, CustomRecordTag[]>;
   isLoading: boolean;
   saveDefinition: (screenKey: string, data: ScreenDefinitionSaveInput) => Promise<ScreenDefinition>;
   deleteDefinition: (screenKey: string) => Promise<void>;
   addFieldOption: (screenKey: string, fieldKey: string, label: string) => Promise<void>;
   removeFieldOption: (screenKey: string, fieldKey: string, optionKey: string) => Promise<void>;
+  createTag: (screenKey: string, name: string, color: string) => Promise<CustomRecordTag>;
+  updateTag: (screenKey: string, tagId: string, data: { name: string; color: string }) => Promise<void>;
+  deleteTag: (screenKey: string, tagId: string) => Promise<void>;
   refresh: () => Promise<void>;
 }
 

@@ -6,7 +6,7 @@ import type { ScreenDefinitionSaveInput } from '../../../stores/useScreenDefinit
 import { useNotification } from '../../../stores/useNotification';
 import { ensureUniqueKey, slugifyFieldKey, sortFieldsByOrder } from '../../../domain/services/customFieldValues';
 import { getDefaultTagColor } from '../../../shared/styles/colorUtils';
-import { SCREEN_ICON_KEYS } from '../../shared/screenIcons';
+import { getScreenIconOptions } from '../../shared/screenIcons';
 import type { CustomFieldMask, CustomFieldType, FieldDefinition, ScreenDefinition } from '../../../domain/entities';
 import type { SearchSelectOption } from '../../components/ui/SearchSelect';
 import type { ColorSwatchOption } from '../../components/ui/ColorSwatchPicker';
@@ -23,6 +23,7 @@ export interface ScreenFormState {
   icon: string;
   hasNotes: boolean;
   hasDocuments: boolean;
+  hasTags: boolean;
   enabled: boolean;
   titleFieldKey: string;
 }
@@ -63,7 +64,7 @@ export interface ScreenBuilderViewModel {
   screenForm: ScreenFormState;
   updateScreenForm: (patch: Partial<ScreenFormState>) => void;
   titleFieldOptions: SearchSelectOption[];
-  iconKeys: string[];
+  iconOptions: SearchSelectOption[];
   openCreateScreen: () => void;
   openEditScreen: (screenKey: string) => void;
   closeScreenModal: () => void;
@@ -133,6 +134,7 @@ const EMPTY_SCREEN_FORM: ScreenFormState = {
   icon: 'apps',
   hasNotes: false,
   hasDocuments: false,
+  hasTags: false,
   enabled: true,
   titleFieldKey: '',
 };
@@ -164,6 +166,7 @@ const toSaveInput = (def: ScreenDefinition): ScreenDefinitionSaveInput => ({
   titleFieldKey: def.titleFieldKey,
   hasNotes: def.hasNotes,
   hasDocuments: def.hasDocuments,
+  hasTags: def.hasTags,
   sidebarOrder: def.sidebarOrder,
   enabled: def.enabled,
 });
@@ -179,6 +182,7 @@ const builtinSaveInput = (key: string): ScreenDefinitionSaveInput => {
     titleFieldKey: '',
     hasNotes: false,
     hasDocuments: false,
+    hasTags: false,
     sidebarOrder: 0,
     enabled: true,
   };
@@ -262,6 +266,7 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
       icon: def.icon,
       hasNotes: def.hasNotes,
       hasDocuments: def.hasDocuments,
+      hasTags: def.hasTags,
       enabled: def.enabled,
       titleFieldKey: def.titleFieldKey,
     });
@@ -269,6 +274,15 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
   }, [getDefinitionByKey]);
 
   const closeScreenModal = useCallback(() => setScreenModal(null), []);
+
+  const iconOptions = useMemo<SearchSelectOption[]>(
+    () => getScreenIconOptions().map((option) => ({
+      value: option.key,
+      label: option.label,
+      icon: option.Icon,
+    })),
+    [],
+  );
 
   const titleFieldOptions = useMemo<SearchSelectOption[]>(() => {
     if (!screenModal?.screenKey) return [];
@@ -297,6 +311,7 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
           icon: screenForm.icon,
           hasNotes: screenForm.hasNotes,
           hasDocuments: screenForm.hasDocuments,
+          hasTags: screenForm.hasTags,
           enabled: screenForm.enabled,
           titleFieldKey,
         });
@@ -326,6 +341,7 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
           titleFieldKey: nameField.key,
           hasNotes: screenForm.hasNotes,
           hasDocuments: screenForm.hasDocuments,
+          hasTags: screenForm.hasTags,
           sidebarOrder: maxOrder + 1,
           enabled: true,
         });
@@ -603,7 +619,7 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
     screenForm,
     updateScreenForm,
     titleFieldOptions,
-    iconKeys: SCREEN_ICON_KEYS,
+    iconOptions,
     openCreateScreen,
     openEditScreen,
     closeScreenModal,

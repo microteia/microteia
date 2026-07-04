@@ -186,6 +186,15 @@ const NESTED_ENTITY_CONFIG: Record<string, Record<string, AuditableEntityConfig>
         `view-dyn:${asString(data?.screenKey, '')}:${parentId}`,
     },
   },
+  screenDefinitions: {
+    tags: {
+      entityKey: 'CustomRecordTag',
+      entityLabel: 'Etiqueta de Tela Personalizada',
+      entityLabelPlural: 'Etiquetas de Telas Personalizadas',
+      getDisplayName: (d) => asString(d.name),
+      getEntityLink: (_tenantId, _docId, parentId) => `dyn:${parentId}`,
+    },
+  },
 };
 
 export const getFlatEntityConfig = (collection: string): AuditableEntityConfig | null =>

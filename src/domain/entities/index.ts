@@ -912,6 +912,7 @@ export interface ScreenDefinition {
   titleFieldKey: string;
   hasNotes: boolean;
   hasDocuments: boolean;
+  hasTags: boolean;
   sidebarOrder: number;
   enabled: boolean;
   createdAt: Date;
@@ -936,6 +937,24 @@ export interface ScreenFieldOption {
   createdBy: string;
 }
 
+// ─── Custom Record Tags ───────────────────────────────────────────────────────
+
+export interface CustomRecordTag {
+  id: string;
+  tenantId: string;
+  screenKey: string;
+  name: string;
+  color: string;
+  createdAt: Date;
+  createdBy: string;
+  updatedBy?: string;
+  updatedByName?: string;
+  updatedByPhotoURL?: string;
+  deletedBy?: string;
+  deletedByName?: string;
+  deletedByPhotoURL?: string;
+}
+
 export type CustomFieldValue = string | string[] | number | boolean | null;
 
 export interface CustomRecord {
@@ -944,6 +963,7 @@ export interface CustomRecord {
   screenKey: string;
   title: string;
   values: Record<string, CustomFieldValue>;
+  tagIds?: string[];
   createdAt: Date;
   createdBy: string;
   updatedAt: Date;

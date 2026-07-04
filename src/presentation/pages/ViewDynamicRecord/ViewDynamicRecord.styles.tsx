@@ -18,6 +18,13 @@ export const S = {
     flex-shrink: 0;
   `,
 
+  HeaderLeft: styled.div`
+    display: flex;
+    flex-direction: column;
+    gap: ${({ theme }) => theme.spacing.xs};
+    min-width: 0;
+  `,
+
   TitleRow: styled.div`
     display: flex;
     align-items: center;
@@ -39,6 +46,33 @@ export const S = {
     display: flex;
     align-items: center;
     gap: ${({ theme }) => theme.spacing.sm};
+    flex-shrink: 0;
+  `,
+
+  Tags: styled.div`
+    display: flex;
+    flex-wrap: wrap;
+    gap: ${({ theme }) => theme.spacing.xs};
+  `,
+
+  TagPill: styled.span<{ $color: string }>`
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 8px;
+    border-radius: ${({ theme }) => theme.borderRadius.full};
+    font-size: ${({ theme }) => theme.fontSizes.xs};
+    font-weight: 500;
+    background: ${({ $color }) => `${$color}22`};
+    color: ${({ $color }) => $color};
+    border: 1px solid ${({ $color }) => `${$color}44`};
+  `,
+
+  TagDot: styled.span<{ $color: string }>`
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: ${({ $color }) => $color};
     flex-shrink: 0;
   `,
 
