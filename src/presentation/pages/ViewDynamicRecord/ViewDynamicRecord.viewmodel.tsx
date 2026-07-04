@@ -7,6 +7,7 @@ import { useAuth } from '../../../stores/useAuth';
 import { useWorkspace } from '../../../stores/useWorkspace';
 import { useNotification } from '../../../stores/useNotification';
 import { useDI } from '../../../infrastructure/di/useDI';
+import { generateDeepLink } from '../../../infrastructure/deeplink/deepLinkUtils';
 import { makeGetCustomRecordByIdUseCase } from '../../../domain/usecases/customrecords/GetCustomRecordByIdUseCase';
 import { makeGetCustomRecordNotesUseCase } from '../../../domain/usecases/customrecordnotes/GetCustomRecordNotesUseCase';
 import { makeAddCustomRecordNoteUseCase } from '../../../domain/usecases/customrecordnotes/AddCustomRecordNoteUseCase';
@@ -55,6 +56,8 @@ export interface ViewDynamicRecordViewModel {
   isSaving: boolean;
   handleSave: () => Promise<void>;
   handleClone: () => void;
+  copyLinkDone: boolean;
+  handleCopyDeepLink: () => void;
   recordToDelete: CustomRecord | null;
   requestDelete: () => void;
   cancelDelete: () => void;
@@ -167,6 +170,7 @@ export const useViewDynamicRecordViewModel = (tabKey: string): ViewDynamicRecord
   const [activeTab, setActiveTab] = useState<ViewDynamicRecordTab>('data');
   const [formValues, setFormValues] = useState<Record<string, CustomFieldValue>>({});
   const [isSaving, setIsSaving] = useState(false);
+  const [copyLinkDone, setCopyLinkDone] = useState(false);
   const [recordToDelete, setRecordToDelete] = useState<CustomRecord | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
@@ -267,6 +271,13 @@ export const useViewDynamicRecordViewModel = (tabKey: string): ViewDynamicRecord
     if (!recordId) return;
     openTab(buildCloneTabKey(screenKey, recordId));
   }, [openTab, screenKey, recordId]);
+
+  const handleCopyDeepLink = useCallback(() => {
+    if (!recordId) return;
+    void navigator.clipboard.writeText(generateDeepLink(buildViewTabKey(screenKey, recordId)));
+    setCopyLinkDone(true);
+    setTimeout(() => setCopyLinkDone(false), 2000);
+  }, [screenKey, recordId]);
 
   const requestDelete = useCallback(() => {
     if (sourceRecord && recordId) setRecordToDelete(sourceRecord);
@@ -429,6 +440,8 @@ export const useViewDynamicRecordViewModel = (tabKey: string): ViewDynamicRecord
     isSaving,
     handleSave,
     handleClone,
+    copyLinkDone,
+    handleCopyDeepLink,
     recordToDelete,
     requestDelete,
     cancelDelete,

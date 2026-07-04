@@ -2,11 +2,13 @@ import React, { useRef } from 'react';
 import {
   RiAddLine,
   RiArrowDownSLine,
+  RiCheckLine,
   RiCloseLine,
   RiDeleteBinLine,
   RiExternalLinkLine,
   RiFileCopyLine,
   RiFileTextLine,
+  RiLinkM,
   RiSaveLine,
   RiUploadLine,
 } from 'react-icons/ri';
@@ -74,18 +76,23 @@ export const ViewDynamicRecordView: React.FC<{ tabKey: string }> = ({ tabKey }) 
         </S.TitleRow>
         <S.HeaderActions>
           {!vm.isNew && (
-            <Button variant="ghost" size="sm" onClick={vm.handleClone} title="Clonar">
-              <RiFileCopyLine size={14} />
+            <Button variant="ghost" size="sm" onClick={vm.handleCopyDeepLink} title="Copiar link">
+              {vm.copyLinkDone ? <RiCheckLine size={14} /> : <RiLinkM size={14} />}
             </Button>
           )}
-          {!vm.isNew && vm.isAdmin && (
-            <Button variant="danger" size="sm" onClick={vm.requestDelete} title="Excluir">
-              <RiDeleteBinLine size={14} />
+          {!vm.isNew && (
+            <Button variant="ghost" size="sm" onClick={vm.handleClone} title="Clonar">
+              <RiFileCopyLine size={14} />
             </Button>
           )}
           {(vm.activeTab === 'data' || vm.isNew) && (
             <Button size="sm" onClick={() => void vm.handleSave()} disabled={vm.isSaving} $isLoading={vm.isSaving} title="Salvar">
               <RiSaveLine size={14} />
+            </Button>
+          )}
+          {!vm.isNew && vm.isAdmin && (
+            <Button variant="danger" size="sm" onClick={vm.requestDelete} title="Excluir">
+              <RiDeleteBinLine size={14} />
             </Button>
           )}
         </S.HeaderActions>
