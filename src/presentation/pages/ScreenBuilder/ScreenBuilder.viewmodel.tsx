@@ -1,12 +1,15 @@
 import { useCallback, useMemo, useState } from 'react';
+import { useTheme } from 'styled-components';
 import { useTenant } from '../../../stores/useTenant';
 import { useScreenDefinitions } from '../../../stores/useScreenDefinitions';
 import type { ScreenDefinitionSaveInput } from '../../../stores/useScreenDefinitions';
 import { useNotification } from '../../../stores/useNotification';
 import { ensureUniqueKey, slugifyFieldKey, sortFieldsByOrder } from '../../../domain/services/customFieldValues';
+import { getDefaultTagColor } from '../../../shared/styles/colorUtils';
 import { SCREEN_ICON_KEYS } from '../../shared/screenIcons';
 import type { CustomFieldMask, CustomFieldType, FieldDefinition, ScreenDefinition } from '../../../domain/entities';
 import type { SearchSelectOption } from '../../components/ui/SearchSelect';
+import type { ColorSwatchOption } from '../../components/ui/ColorSwatchPicker';
 
 export interface BuiltinScreenRow {
   key: string;
@@ -24,6 +27,11 @@ export interface ScreenFormState {
   titleFieldKey: string;
 }
 
+export interface FieldOptionFormItem {
+  label: string;
+  color?: string;
+}
+
 export interface FieldFormState {
   label: string;
   type: CustomFieldType;
@@ -34,8 +42,10 @@ export interface FieldFormState {
   mask: CustomFieldMask | '';
   refEntity: string;
   optionsAllowUserAdd: boolean;
-  staticOptions: string[];
+  optionsColored: boolean;
+  staticOptions: FieldOptionFormItem[];
   optionInput: string;
+  optionColorInput: string;
   showInList: boolean;
   filterable: boolean;
 }
@@ -74,8 +84,9 @@ export interface ScreenBuilderViewModel {
   typeOptions: SearchSelectOption[];
   maskOptions: SearchSelectOption[];
   refEntityOptions: SearchSelectOption[];
+  tagColors: ColorSwatchOption[];
   addStaticOption: () => void;
-  removeStaticOption: (option: string) => void;
+  removeStaticOption: (label: string) => void;
   openCreateField: (screenKey: string) => void;
   openEditField: (screenKey: string, fieldKey: string) => void;
   closeFieldModal: () => void;
@@ -136,8 +147,10 @@ const EMPTY_FIELD_FORM: FieldFormState = {
   mask: '',
   refEntity: '',
   optionsAllowUserAdd: false,
+  optionsColored: false,
   staticOptions: [],
   optionInput: '',
+  optionColorInput: '',
   showInList: false,
   filterable: false,
 };
@@ -175,8 +188,11 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
   const { tenantRole } = useTenant();
   const { definitions, dynamicScreens, isLoading, saveDefinition, deleteDefinition } = useScreenDefinitions();
   const { notify } = useNotification();
+  const theme = useTheme();
 
   const isAdmin = tenantRole === 'admin';
+  const tagColors = theme.tagColors;
+  const defaultTagColor = useMemo(() => getDefaultTagColor(theme), [theme]);
 
   const [screenModal, setScreenModal] = useState<{ screenKey: string | null } | null>(null);
   const [screenForm, setScreenForm] = useState<ScreenFormState>(EMPTY_SCREEN_FORM);
@@ -375,9 +391,9 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
   }, [deleteScreenTarget, deleteDefinition, notify]);
 
   const openCreateField = useCallback((screenKey: string) => {
-    setFieldForm(EMPTY_FIELD_FORM);
+    setFieldForm({ ...EMPTY_FIELD_FORM, optionColorInput: defaultTagColor });
     setFieldModal({ screenKey, fieldKey: null });
-  }, []);
+  }, [defaultTagColor]);
 
   const openEditField = useCallback((screenKey: string, fieldKey: string) => {
     const def = getDefinitionByKey(screenKey);
@@ -393,13 +409,15 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
       mask: field.mask ?? '',
       refEntity: field.refEntity ?? '',
       optionsAllowUserAdd: field.optionsAllowUserAdd ?? false,
-      staticOptions: (field.options ?? []).map((o) => o.label),
+      optionsColored: field.optionsColored ?? false,
+      staticOptions: (field.options ?? []).map((o) => ({ label: o.label, color: o.color })),
       optionInput: '',
+      optionColorInput: defaultTagColor,
       showInList: field.showInList ?? false,
       filterable: field.filterable ?? false,
     });
     setFieldModal({ screenKey, fieldKey });
-  }, [getDefinitionByKey]);
+  }, [getDefinitionByKey, defaultTagColor]);
 
   const closeFieldModal = useCallback(() => setFieldModal(null), []);
 
@@ -432,13 +450,17 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
   const addStaticOption = useCallback(() => {
     setFieldForm((prev) => {
       const value = prev.optionInput.trim();
-      if (!value || prev.staticOptions.includes(value)) return { ...prev, optionInput: '' };
-      return { ...prev, staticOptions: [...prev.staticOptions, value], optionInput: '' };
+      if (!value || prev.staticOptions.some((o) => o.label === value)) return { ...prev, optionInput: '' };
+      const newOption: FieldOptionFormItem = {
+        label: value,
+        color: prev.optionsColored ? prev.optionColorInput : undefined,
+      };
+      return { ...prev, staticOptions: [...prev.staticOptions, newOption], optionInput: '' };
     });
   }, []);
 
-  const removeStaticOption = useCallback((option: string) => {
-    setFieldForm((prev) => ({ ...prev, staticOptions: prev.staticOptions.filter((o) => o !== option) }));
+  const removeStaticOption = useCallback((label: string) => {
+    setFieldForm((prev) => ({ ...prev, staticOptions: prev.staticOptions.filter((o) => o.label !== label) }));
   }, []);
 
   const fieldModalIsTitleField = useMemo(
@@ -484,8 +506,9 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
             mask: fieldForm.type === 'masked' && fieldForm.mask !== '' ? fieldForm.mask : null,
             refEntity: fieldForm.type === 'reference' ? fieldForm.refEntity : null,
             optionsAllowUserAdd: fieldForm.optionsAllowUserAdd,
+            optionsColored: fieldForm.type === 'select' ? fieldForm.optionsColored : false,
             options: fieldForm.type === 'select'
-              ? fieldForm.staticOptions.map((o) => ({ key: o, label: o, isStatic: true }))
+              ? fieldForm.staticOptions.map((o) => ({ key: o.label, label: o.label, isStatic: true, color: o.color }))
               : [],
             showInList: fieldForm.showInList,
             filterable: fieldForm.filterable,
@@ -507,8 +530,9 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
           mask: fieldForm.type === 'masked' && fieldForm.mask !== '' ? fieldForm.mask : null,
           refEntity: fieldForm.type === 'reference' ? fieldForm.refEntity : null,
           optionsAllowUserAdd: fieldForm.optionsAllowUserAdd,
+          optionsColored: fieldForm.type === 'select' ? fieldForm.optionsColored : false,
           options: fieldForm.type === 'select'
-            ? fieldForm.staticOptions.map((o) => ({ key: o, label: o, isStatic: true }))
+            ? fieldForm.staticOptions.map((o) => ({ key: o.label, label: o.label, isStatic: true, color: o.color }))
             : [],
           showInList: fieldForm.showInList,
           filterable: fieldForm.filterable,
@@ -600,6 +624,7 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
     typeOptions,
     maskOptions,
     refEntityOptions,
+    tagColors,
     addStaticOption,
     removeStaticOption,
     openCreateField,

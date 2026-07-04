@@ -1,7 +1,9 @@
 import { useCallback, useMemo } from 'react';
+import { useTheme } from 'styled-components';
 import { useScreenDefinitions, fieldOptionsKey } from '../../stores/useScreenDefinitions';
 import { useReferenceOptions } from './useReferenceOptions';
 import { formatCurrencyBRL } from '../../utils/formatters';
+import { resolveFieldOptionColor } from '../../shared/styles/colorUtils';
 import type { CustomFieldValue, FieldDefinition } from '../../domain/entities';
 import type { FilterDef, FilterOption } from '../components/ui/CompositeFilter';
 
@@ -9,10 +11,16 @@ export const CUSTOM_FIELD_FILTER_PREFIX = 'cf-';
 
 export type CustomValuesMap = Record<string, CustomFieldValue>;
 
+export interface CustomFieldBadgeItem {
+  label: string;
+  color?: string;
+}
+
 export interface CustomFieldCardItem {
   key: string;
   label: string;
   value: string;
+  badges?: CustomFieldBadgeItem[];
 }
 
 export interface CustomFieldListing {
@@ -36,16 +44,25 @@ export const useCustomFieldListing = (
 ): CustomFieldListing => {
   const { fieldOptionsByField } = useScreenDefinitions();
   const referenceOptionsByEntity = useReferenceOptions();
+  const theme = useTheme();
 
   const listFields = useMemo(() => fields.filter((f) => f.showInList), [fields]);
   const filterableFields = useMemo(() => fields.filter((f) => f.filterable), [fields]);
 
   const selectOptionLabels = useCallback((field: FieldDefinition): FilterOption[] => {
-    const staticOptions = (field.options ?? []).map((o) => ({ value: o.key, label: o.label }));
+    const staticOptions = (field.options ?? []).map((o) => ({
+      value: o.key,
+      label: o.label,
+      color: resolveFieldOptionColor(o.color, field.optionsColored, theme),
+    }));
     const dynamicOptions = (fieldOptionsByField[fieldOptionsKey(screenKey, field.key)] ?? [])
-      .map((o) => ({ value: o.key, label: o.label }));
+      .map((o) => ({
+        value: o.key,
+        label: o.label,
+        color: resolveFieldOptionColor(undefined, field.optionsColored, theme),
+      }));
     return [...staticOptions, ...dynamicOptions];
-  }, [fieldOptionsByField, screenKey]);
+  }, [fieldOptionsByField, screenKey, theme]);
 
   const filterDefs = useMemo<FilterDef[]>(() => {
     const defs: FilterDef[] = [];
@@ -146,9 +163,24 @@ export const useCustomFieldListing = (
     }
   }, [selectOptionLabels, referenceOptionsByEntity]);
 
+  const selectBadges = useCallback((values: CustomValuesMap | undefined, field: FieldDefinition): CustomFieldBadgeItem[] => {
+    const value = values?.[field.key];
+    const selectedKeys = Array.isArray(value) ? value : (typeof value === 'string' && value ? [value] : []);
+    const options = new Map(selectOptionLabels(field).map((o) => [o.value, o]));
+    return selectedKeys.map((key) => {
+      const option = options.get(key);
+      return { label: option?.label ?? key, color: option?.color };
+    });
+  }, [selectOptionLabels]);
+
   const cardItems = useCallback((values: CustomValuesMap | undefined): CustomFieldCardItem[] =>
-    listFields.map((field) => ({ key: field.key, label: field.label, value: displayValue(values, field) })),
-    [listFields, displayValue],
+    listFields.map((field) => ({
+      key: field.key,
+      label: field.label,
+      value: displayValue(values, field),
+      badges: field.type === 'select' && field.optionsColored ? selectBadges(values, field) : undefined,
+    })),
+    [listFields, displayValue, selectBadges],
   );
 
   return useMemo(() => ({

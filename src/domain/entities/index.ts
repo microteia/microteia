@@ -880,6 +880,7 @@ export interface CustomFieldOption {
   key: string;
   label: string;
   isStatic?: boolean;
+  color?: string;
 }
 
 export interface FieldDefinition {
@@ -891,6 +892,7 @@ export interface FieldDefinition {
   section?: string | null;
   options?: CustomFieldOption[];
   optionsAllowUserAdd?: boolean;
+  optionsColored?: boolean;
   multi?: boolean;
   mask?: CustomFieldMask | null;
   refEntity?: string | null;

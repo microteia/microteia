@@ -1,8 +1,10 @@
 import { useCallback, useMemo } from 'react';
+import { useTheme } from 'styled-components';
 import { useScreenDefinitions, fieldOptionsKey } from '../../../../stores/useScreenDefinitions';
 import { useTenant } from '../../../../stores/useTenant';
 import { useReferenceOptions } from '../../../hooks/useReferenceOptions';
 import { sortFieldsByOrder } from '../../../../domain/services/customFieldValues';
+import { resolveFieldOptionColor } from '../../../../shared/styles/colorUtils';
 import type { CustomFieldValue, FieldDefinition } from '../../../../domain/entities';
 import type { DynamicSelectOption } from '../DynamicSelect';
 import type { ReferenceOption } from '../../../hooks/useReferenceOptions';
@@ -41,6 +43,7 @@ export const useCustomFieldsSectionViewModel = (props: CustomFieldsSectionProps)
   const { fieldOptionsByField, addFieldOption, removeFieldOption } = useScreenDefinitions();
   const { tenantRole } = useTenant();
   const referenceOptionsByEntity = useReferenceOptions();
+  const theme = useTheme();
 
   const canDeleteOption = tenantRole === 'admin';
 
@@ -82,8 +85,12 @@ export const useCustomFieldsSectionViewModel = (props: CustomFieldsSectionProps)
 
   const staticSelectOptions = useCallback(
     (field: FieldDefinition): DynamicSelectOption[] =>
-      (field.options ?? []).map((o) => ({ value: o.key, label: o.label })),
-    [],
+      (field.options ?? []).map((o) => ({
+        value: o.key,
+        label: o.label,
+        color: resolveFieldOptionColor(o.color, field.optionsColored, theme),
+      })),
+    [theme],
   );
 
   const dynamicSelectOptions = useCallback(
@@ -91,8 +98,9 @@ export const useCustomFieldsSectionViewModel = (props: CustomFieldsSectionProps)
       (fieldOptionsByField[fieldOptionsKey(screenKey, field.key)] ?? []).map((o) => ({
         value: o.key,
         label: o.label,
+        color: resolveFieldOptionColor(undefined, field.optionsColored, theme),
       })),
-    [fieldOptionsByField, screenKey],
+    [fieldOptionsByField, screenKey, theme],
   );
 
   const handleAddOption = useCallback(

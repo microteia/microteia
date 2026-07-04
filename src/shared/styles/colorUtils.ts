@@ -26,3 +26,22 @@ export const getConfigColor = <T extends { key: string; color?: string }>(
   const config = configs.find((c) => c.key === key);
   return resolveColor(config?.color, theme) ?? fallback ?? theme.colors.textSecondary;
 };
+
+/**
+ * Cor padrão usada como pré-seleção em paletas de cor (etiquetas, opções de campos customizados).
+ * Usa "Azul" se existir no tema, senão a primeira cor da paleta.
+ */
+export const getDefaultTagColor = (theme: DefaultTheme): string => {
+  const tagColors = theme.tagColors;
+  return tagColors.find((c) => c.label === 'Azul')?.value ?? tagColors[0].value;
+};
+
+/**
+ * Resolve a cor de uma opção de campo customizado apenas quando o campo tem "Opções com cor"
+ * habilitado; caso contrário retorna undefined para preservar o comportamento sem cor.
+ */
+export const resolveFieldOptionColor = (
+  color: string | undefined,
+  optionsColored: boolean | undefined,
+  theme: DefaultTheme,
+): string | undefined => (optionsColored ? resolveColor(color, theme) : undefined);

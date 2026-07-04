@@ -2,6 +2,7 @@ import React from 'react';
 import { RiAddLine, RiEditLine, RiDeleteBinLine, RiCheckLine, RiSearchLine } from 'react-icons/ri';
 import { Modal } from '../Modal';
 import { Button } from '../Button';
+import { ColorSwatchPicker } from '../ColorSwatchPicker';
 import { S } from './TagManager.styles';
 import { useTagManagerViewModel, type TagManagerProps } from './TagManager.viewmodel';
 
@@ -42,18 +43,7 @@ export const TagManager: React.FC<TagManagerProps> = (props) => {
               onKeyDown={(e) => { if (e.key === 'Enter') void vm.handleCreate(); if (e.key === 'Escape') vm.cancelCreate(); }}
               autoFocus
             />
-            <S.ColorPalette>
-              {vm.tagColors.map((c) => (
-                <S.ColorSwatch
-                  key={c.value}
-                  type="button"
-                  $color={c.value}
-                  $selected={vm.newTagColor === c.value}
-                  title={c.label}
-                  onClick={() => vm.setNewTagColor(c.value)}
-                />
-              ))}
-            </S.ColorPalette>
+            <ColorSwatchPicker colors={vm.tagColors} value={vm.newTagColor} onChange={vm.setNewTagColor} />
             <S.FormActions>
               <Button variant="secondary" size="sm" onClick={vm.cancelCreate}>Cancelar</Button>
               <Button size="sm" onClick={() => void vm.handleCreate()} disabled={vm.saving || !vm.newTagName.trim()}>
@@ -76,18 +66,7 @@ export const TagManager: React.FC<TagManagerProps> = (props) => {
               onKeyDown={(e) => { if (e.key === 'Enter') void vm.handleSaveEdit(); if (e.key === 'Escape') vm.cancelEdit(); }}
               autoFocus
             />
-            <S.ColorPalette>
-              {vm.tagColors.map((c) => (
-                <S.ColorSwatch
-                  key={c.value}
-                  type="button"
-                  $color={c.value}
-                  $selected={vm.editColor === c.value}
-                  title={c.label}
-                  onClick={() => vm.setEditColor(c.value)}
-                />
-              ))}
-            </S.ColorPalette>
+            <ColorSwatchPicker colors={vm.tagColors} value={vm.editColor} onChange={vm.setEditColor} />
             <S.FormActions>
               <Button variant="secondary" size="sm" onClick={vm.cancelEdit}>Cancelar</Button>
               <Button size="sm" onClick={() => void vm.handleSaveEdit()} disabled={vm.saving || !vm.editName.trim()}>

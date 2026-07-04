@@ -17,6 +17,8 @@ import { SearchSelect } from '../../components/ui/SearchSelect';
 import { Modal } from '../../components/ui/Modal';
 import { ConfirmModal } from '../../components/ui/ConfirmModal';
 import { InfoBanner } from '../../components/ui/InfoBanner';
+import { ColorSwatchPicker } from '../../components/ui/ColorSwatchPicker';
+import { ColorDot } from '../../components/ui/Badge';
 import { getScreenIcon } from '../../shared/screenIcons';
 import type { FieldDefinition } from '../../../domain/entities';
 
@@ -314,8 +316,23 @@ export const ScreenBuilderView: React.FC = () => {
             )}
             {vm.fieldForm.type === 'select' && (
               <>
+                <S.CheckboxRow>
+                  <input
+                    type="checkbox"
+                    checked={vm.fieldForm.optionsColored}
+                    onChange={(e) => vm.updateFieldForm({ optionsColored: e.target.checked })}
+                  />
+                  Opções com cor
+                </S.CheckboxRow>
                 <InputGroup>
                   <Label>Opções</Label>
+                  {vm.fieldForm.optionsColored && (
+                    <ColorSwatchPicker
+                      colors={vm.tagColors}
+                      value={vm.fieldForm.optionColorInput}
+                      onChange={(color) => vm.updateFieldForm({ optionColorInput: color })}
+                    />
+                  )}
                   <S.OptionInputRow>
                     <Input
                       value={vm.fieldForm.optionInput}
@@ -333,9 +350,10 @@ export const ScreenBuilderView: React.FC = () => {
                   {vm.fieldForm.staticOptions.length > 0 && (
                     <S.OptionChips>
                       {vm.fieldForm.staticOptions.map((option) => (
-                        <S.Chip key={option}>
-                          {option}
-                          <S.ChipRemove type="button" onClick={() => vm.removeStaticOption(option)}>×</S.ChipRemove>
+                        <S.Chip key={option.label}>
+                          {option.color && <ColorDot color={option.color} />}
+                          {option.label}
+                          <S.ChipRemove type="button" onClick={() => vm.removeStaticOption(option.label)}>×</S.ChipRemove>
                         </S.Chip>
                       ))}
                     </S.OptionChips>

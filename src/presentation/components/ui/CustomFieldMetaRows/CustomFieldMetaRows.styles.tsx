@@ -24,4 +24,10 @@ export const S = {
     text-overflow: ellipsis;
     white-space: nowrap;
   `,
+
+  BadgeWrap: styled.span`
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+  `,
 };

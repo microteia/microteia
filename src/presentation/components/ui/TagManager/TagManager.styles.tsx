@@ -98,26 +98,6 @@ export const S = {
     &:focus { border-color: ${({ theme }) => theme.colors.primary}; }
   `,
 
-  ColorPalette: styled.div`
-    display: flex;
-    gap: 8px;
-    flex-wrap: wrap;
-  `,
-
-  ColorSwatch: styled.button<{ $color: string; $selected: boolean }>`
-    width: 24px;
-    height: 24px;
-    border-radius: 50%;
-    background: ${({ $color }) => $color};
-    border: 3px solid ${({ $selected, theme }) =>
-      $selected ? theme.colors.text : 'transparent'};
-    outline: 2px solid ${({ $selected, $color }) => $selected ? $color : 'transparent'};
-    outline-offset: 1px;
-    transition: transform 150ms ease, outline 150ms ease;
-    cursor: pointer;
-    &:hover { transform: scale(1.15); }
-  `,
-
   FormActions: styled.div`
     display: flex;
     gap: ${({ theme }) => theme.spacing.sm};
