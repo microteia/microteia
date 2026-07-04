@@ -48,6 +48,7 @@ export interface FieldFormState {
   optionInput: string;
   optionColorInput: string;
   showInList: boolean;
+  listLabel: string;
   filterable: boolean;
 }
 
@@ -154,6 +155,7 @@ const EMPTY_FIELD_FORM: FieldFormState = {
   optionInput: '',
   optionColorInput: '',
   showInList: false,
+  listLabel: '',
   filterable: false,
 };
 
@@ -249,7 +251,13 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
   }, []);
 
   const updateFieldForm = useCallback((patch: Partial<FieldFormState>) => {
-    setFieldForm((prev) => ({ ...prev, ...patch }));
+    setFieldForm((prev) => {
+      const next = { ...prev, ...patch };
+      if (patch.label !== undefined && prev.listLabel === prev.label) {
+        next.listLabel = patch.label;
+      }
+      return next;
+    });
   }, []);
 
   const openCreateScreen = useCallback(() => {
@@ -430,6 +438,7 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
       optionInput: '',
       optionColorInput: defaultTagColor,
       showInList: field.showInList ?? false,
+      listLabel: field.listLabel ?? '',
       filterable: field.filterable ?? false,
     });
     setFieldModal({ screenKey, fieldKey });
@@ -527,6 +536,7 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
               ? fieldForm.staticOptions.map((o) => ({ key: o.label, label: o.label, isStatic: true, color: o.color }))
               : [],
             showInList: fieldForm.showInList,
+            listLabel: fieldForm.showInList ? (fieldForm.listLabel.trim() || null) : null,
             filterable: fieldForm.filterable,
           };
         });
@@ -551,6 +561,7 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
             ? fieldForm.staticOptions.map((o) => ({ key: o.label, label: o.label, isStatic: true, color: o.color }))
             : [],
           showInList: fieldForm.showInList,
+          listLabel: fieldForm.showInList ? (fieldForm.listLabel.trim() || null) : null,
           filterable: fieldForm.filterable,
         }];
       }

@@ -415,6 +415,16 @@ export const ScreenBuilderView: React.FC = () => {
               />
               Exibir na listagem
             </S.CheckboxRow>
+            {vm.fieldForm.showInList && (
+              <InputGroup>
+                <Label>Título no card da listagem</Label>
+                <Input
+                  value={vm.fieldForm.listLabel}
+                  onChange={(e) => vm.updateFieldForm({ listLabel: e.target.value })}
+                  placeholder="Opcional — se vazio, o valor aparece sem título no card"
+                />
+              </InputGroup>
+            )}
             <S.CheckboxRow>
               <input
                 type="checkbox"

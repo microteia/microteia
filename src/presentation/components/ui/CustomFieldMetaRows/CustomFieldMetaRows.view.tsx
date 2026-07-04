@@ -13,7 +13,7 @@ export const CustomFieldMetaRows: React.FC<CustomFieldMetaRowsProps> = ({ items 
     <S.Container>
       {items.map((item) => (
         <S.Row key={item.key}>
-          <S.Label>{item.label}:</S.Label>
+          {item.label && <S.Label>{item.label}:</S.Label>}
           {item.badges && item.badges.length > 0 ? (
             <S.BadgeWrap>
               {item.badges.map((badge, index) => (

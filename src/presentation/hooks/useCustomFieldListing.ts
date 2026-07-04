@@ -18,7 +18,7 @@ export interface CustomFieldBadgeItem {
 
 export interface CustomFieldCardItem {
   key: string;
-  label: string;
+  label?: string;
   value: string;
   badges?: CustomFieldBadgeItem[];
 }
@@ -176,7 +176,7 @@ export const useCustomFieldListing = (
   const cardItems = useCallback((values: CustomValuesMap | undefined): CustomFieldCardItem[] =>
     listFields.map((field) => ({
       key: field.key,
-      label: field.label,
+      label: field.listLabel || undefined,
       value: displayValue(values, field),
       badges: field.type === 'select' && field.optionsColored ? selectBadges(values, field) : undefined,
     })),

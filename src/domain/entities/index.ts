@@ -898,6 +898,7 @@ export interface FieldDefinition {
   refEntity?: string | null;
   placeholder?: string | null;
   showInList?: boolean;
+  listLabel?: string | null;
   filterable?: boolean;
 }
 
