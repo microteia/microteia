@@ -15,6 +15,7 @@ import { CompositeFilter } from '../../components/ui/CompositeFilter';
 import { Button } from '../../components/ui/Button';
 import { ConfirmModal } from '../../components/ui/ConfirmModal';
 import { Spinner } from '../../components/ui/Spinner';
+import { CustomFieldMetaRows } from '../../components/ui/CustomFieldMetaRows';
 import type { Deadline } from '../../../domain/entities';
 
 export const DeadlinesView: React.FC = () => {
@@ -149,6 +150,8 @@ export const DeadlinesView: React.FC = () => {
                       </S.MetaRow>
                     )}
                   </S.CardMeta>
+
+                  <CustomFieldMetaRows items={vm.getCustomFieldItems(d)} />
 
                   {d.status !== 'Concluído' && d.status !== 'Cancelado' && (
                     <S.CompleteBtn

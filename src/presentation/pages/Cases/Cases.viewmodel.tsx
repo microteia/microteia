@@ -7,6 +7,9 @@ import { useContractStore } from '../../../stores/useContractStore';
 import { usePersonStore } from '../../../stores/usePersonStore';
 import { useTenant } from '../../../stores/useTenant';
 import { useWorkspace } from '../../../stores/useWorkspace';
+import { useScreenDefinitions } from '../../../stores/useScreenDefinitions';
+import { useCustomFieldListing, CUSTOM_FIELD_FILTER_PREFIX } from '../../hooks/useCustomFieldListing';
+import type { CustomFieldCardItem } from '../../hooks/useCustomFieldListing';
 import { resolveColor, getConfigColor } from '../../../shared/styles/colorUtils';
 import { consumeNavigationIntent } from '../../../infrastructure/navigation/navigationIntent';
 import type { Case } from '../../../domain/entities';
@@ -36,6 +39,7 @@ export interface CasesViewModel {
   getPhaseColor: (phase: string) => string;
   getPartyNames: (ids: string[]) => string[];
   getDaysInTramitation: (c: Case) => number | null;
+  getCustomFieldItems: (c: Case) => CustomFieldCardItem[];
 }
 
 export const useCasesViewModel = (): CasesViewModel => {
@@ -46,7 +50,11 @@ export const useCasesViewModel = (): CasesViewModel => {
   const { tenantRole, members } = useTenant();
   const { areaConfigs, phaseConfigs, statusConfigs, instanceConfigs, actionTypeConfigs, courtConfigs, districtConfigs, judgeConfigs } = useCaseLookup();
   const { openTab } = useWorkspace();
+  const { getCustomFieldsFor } = useScreenDefinitions();
   const theme = useTheme();
+
+  const customFields = useMemo(() => getCustomFieldsFor('cases'), [getCustomFieldsFor]);
+  const customListing = useCustomFieldListing('cases', customFields, CUSTOM_FIELD_FILTER_PREFIX);
 
   const [filterTokens, setFilterTokens] = useState<FilterToken[]>(
     () => consumeNavigationIntent('cases') as FilterToken[] | undefined ?? [],
@@ -137,7 +145,8 @@ export const useCasesViewModel = (): CasesViewModel => {
     ...(lawyerOptions.length > 0 ? [{ key: 'lawyer', label: 'Advogado', type: 'select' as const, options: lawyerOptions }] : []),
     ...(contractOptions.length > 0 ? [{ key: 'contract', label: 'Contrato', type: 'select' as const, options: contractOptions }] : []),
     ...(tagOptions.length > 0 ? [{ key: 'tag', label: 'Etiqueta', type: 'select' as const, options: tagOptions }] : []),
-  ], [statusOptions, areaOptions, phaseOptions, instanceOptions, actionTypeOptions, courtOptions, districtOptions, judgeOptions, lawyerOptions, contractOptions, tagOptions, personOptions]);
+    ...customListing.filterDefs,
+  ], [statusOptions, areaOptions, phaseOptions, instanceOptions, actionTypeOptions, courtOptions, districtOptions, judgeOptions, lawyerOptions, contractOptions, tagOptions, personOptions, customListing.filterDefs]);
 
   const tokenMap = useMemo(() => {
     const map: Record<string, string[]> = {};
@@ -187,9 +196,9 @@ export const useCasesViewModel = (): CasesViewModel => {
       )) return false;
       if (filedAtFrom && (!c.filedAt || c.filedAt < filedAtFrom)) return false;
       if (filedAtTo && (!c.filedAt || c.filedAt >= filedAtTo)) return false;
-      return true;
+      return customListing.matchesFilters(c.customValues, tokenMap);
     });
-  }, [cases, tokenMap]);
+  }, [cases, tokenMap, customListing]);
 
   const personMap = useMemo(() => {
     const map: Record<string, string> = {};
@@ -221,6 +230,11 @@ export const useCasesViewModel = (): CasesViewModel => {
     return getConfigColor(phaseConfigs, phase, theme);
   }, [phaseConfigs, theme]);
 
+  const getCustomFieldItems = useCallback(
+    (c: Case): CustomFieldCardItem[] => customListing.cardItems(c.customValues),
+    [customListing],
+  );
+
   return {
     cases,
     filteredCases,
@@ -236,5 +250,6 @@ export const useCasesViewModel = (): CasesViewModel => {
     getPhaseColor,
     getPartyNames,
     getDaysInTramitation,
+    getCustomFieldItems,
   };
 };

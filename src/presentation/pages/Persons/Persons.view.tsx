@@ -13,6 +13,7 @@ import { S } from './Persons.styles';
 import { usePersonsViewModel } from './Persons.viewmodel';
 import { CompositeFilter } from '../../components/ui/CompositeFilter';
 import { Button } from '../../components/ui/Button';
+import { CustomFieldMetaRows } from '../../components/ui/CustomFieldMetaRows';
 
 import { Spinner } from '../../components/ui/Spinner';
 import { usePersonTagStore } from '../../../stores/usePersonTagStore';
@@ -117,6 +118,8 @@ export const PersonsView: React.FC = () => {
                       </S.MetaRow>
                     )}
                   </S.PersonMeta>
+
+                  <CustomFieldMetaRows items={vm.getCustomFieldItems(person)} />
 
                   {personTags.length > 0 && (
                     <S.Tags onClick={(e) => e.stopPropagation()}>

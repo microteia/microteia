@@ -8,11 +8,15 @@ import { usePersonStore } from '../../../stores/usePersonStore';
 import { useContractStore } from '../../../stores/useContractStore';
 import { useWorkspace } from '../../../stores/useWorkspace';
 import { useNotification } from '../../../stores/useNotification';
+import { useScreenDefinitions } from '../../../stores/useScreenDefinitions';
+import { useCustomFieldListing, CUSTOM_FIELD_FILTER_PREFIX } from '../../hooks/useCustomFieldListing';
+import type { CustomFieldCardItem } from '../../hooks/useCustomFieldListing';
 import { consumeNavigationIntent, setNavigationIntent, subscribeNavigationIntent } from '../../../infrastructure/navigation/navigationIntent';
 import { getConfigColor } from '../../../shared/styles/colorUtils';
 import {
   buildDefaultMonthTokens,
   buildFinancialFilterDefs,
+  buildTokenMap,
   computeFinancialSummary,
   filterFinancialsByTokens,
   type FinancialSummary,
@@ -50,6 +54,7 @@ export interface FinancialsViewModel {
   getStatusColor: (status: string) => string;
   getCardStatusColor: (f: Financial) => string;
   getTypeColor: (type: string) => string;
+  getCustomFieldItems: (f: Financial) => CustomFieldCardItem[];
 }
 
 const fmt = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -63,7 +68,11 @@ export const useFinancialsViewModel = (): FinancialsViewModel => {
   const { contracts } = useContractStore();
   const { openTab } = useWorkspace();
   const { notify } = useNotification();
+  const { getCustomFieldsFor } = useScreenDefinitions();
   const theme = useTheme();
+
+  const customFields = useMemo(() => getCustomFieldsFor('financials'), [getCustomFieldsFor]);
+  const customListing = useCustomFieldListing('financials', customFields, CUSTOM_FIELD_FILTER_PREFIX);
 
   const [filterTokens, setFilterTokens] = useState<FilterToken[]>(
     () => consumeNavigationIntent('financials') as FilterToken[] | undefined ?? buildDefaultMonthTokens(),
@@ -110,16 +119,21 @@ export const useFinancialsViewModel = (): FinancialsViewModel => {
   }, [theme]);
 
   const filterDefs = useMemo<FilterDef[]>(
-    () => buildFinancialFilterDefs({ caseOptions, personOptions, contractOptions, tagOptions, statusConfigs, theme }),
-    [caseOptions, personOptions, contractOptions, tagOptions, statusConfigs, theme],
+    () => [
+      ...buildFinancialFilterDefs({ caseOptions, personOptions, contractOptions, tagOptions, statusConfigs, theme }),
+      ...customListing.filterDefs,
+    ],
+    [caseOptions, personOptions, contractOptions, tagOptions, statusConfigs, theme, customListing.filterDefs],
   );
 
   const formatAmount = useCallback((amount: number) => fmt.format(amount), []);
 
-  const filteredFinancials = useMemo(
-    () => [...filterFinancialsByTokens(financials, filterTokens)].sort((a, b) => b.dueDate.getTime() - a.dueDate.getTime()),
-    [financials, filterTokens],
-  );
+  const filteredFinancials = useMemo(() => {
+    const tokenMap = buildTokenMap(filterTokens);
+    return filterFinancialsByTokens(financials, filterTokens)
+      .filter((f) => customListing.matchesFilters(f.customValues, tokenMap))
+      .sort((a, b) => b.dueDate.getTime() - a.dueDate.getTime());
+  }, [financials, filterTokens, customListing]);
 
   const summary = useMemo<FinancialSummary>(() => computeFinancialSummary(filteredFinancials), [filteredFinancials]);
 
@@ -150,6 +164,11 @@ export const useFinancialsViewModel = (): FinancialsViewModel => {
   }, [financialToDelete, deleteFinancial, notify]);
 
   const cancelDelete = useCallback(() => setFinancialToDelete(null), []);
+
+  const getCustomFieldItems = useCallback(
+    (f: Financial): CustomFieldCardItem[] => customListing.cardItems(f.customValues),
+    [customListing],
+  );
 
   const handleMarkPaid = useCallback(async (f: Financial) => {
     try {
@@ -206,5 +225,6 @@ export const useFinancialsViewModel = (): FinancialsViewModel => {
     getStatusColor,
     getCardStatusColor,
     getTypeColor,
+    getCustomFieldItems,
   };
 };

@@ -100,30 +100,6 @@ export const S = {
     text-overflow: ellipsis;
   `,
 
-  RecordMeta: styled.div`
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-  `,
-
-  MetaRow: styled.div`
-    display: flex;
-    gap: ${({ theme }) => theme.spacing.xs};
-    font-size: ${({ theme }) => theme.fontSizes.xs};
-    color: ${({ theme }) => theme.colors.textSecondary};
-  `,
-
-  MetaLabel: styled.span`
-    color: ${({ theme }) => theme.colors.textMuted};
-    flex-shrink: 0;
-  `,
-
-  MetaValue: styled.span`
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  `,
-
   EmptyState: styled.div`
     display: flex;
     flex-direction: column;

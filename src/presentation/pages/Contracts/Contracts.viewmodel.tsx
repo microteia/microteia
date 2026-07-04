@@ -6,6 +6,9 @@ import { useContractLookup } from '../../../stores/useContractLookup';
 import { usePersonStore } from '../../../stores/usePersonStore';
 import { useTenant } from '../../../stores/useTenant';
 import { useWorkspace } from '../../../stores/useWorkspace';
+import { useScreenDefinitions } from '../../../stores/useScreenDefinitions';
+import { useCustomFieldListing, CUSTOM_FIELD_FILTER_PREFIX } from '../../hooks/useCustomFieldListing';
+import type { CustomFieldCardItem } from '../../hooks/useCustomFieldListing';
 import { resolveColor, getConfigColor } from '../../../shared/styles/colorUtils';
 import type { Contract } from '../../../domain/entities';
 import type { FilterDef, FilterToken, FilterOption } from '../../components/ui/CompositeFilter';
@@ -23,6 +26,7 @@ export interface ContractsViewModel {
   openContract: (c: Contract) => void;
   getStatusColor: (status: string) => string;
   getPersonNames: (ids: string[]) => string[];
+  getCustomFieldItems: (c: Contract) => CustomFieldCardItem[];
 }
 
 export const useContractsViewModel = (): ContractsViewModel => {
@@ -32,7 +36,11 @@ export const useContractsViewModel = (): ContractsViewModel => {
   const { tenantRole } = useTenant();
   const { typeConfigs, categoryConfigs, statusConfigs } = useContractLookup();
   const { openTab } = useWorkspace();
+  const { getCustomFieldsFor } = useScreenDefinitions();
   const theme = useTheme();
+
+  const customFields = useMemo(() => getCustomFieldsFor('contracts'), [getCustomFieldsFor]);
+  const customListing = useCustomFieldListing('contracts', customFields, CUSTOM_FIELD_FILTER_PREFIX);
 
   const [filterTokens, setFilterTokens] = useState<FilterToken[]>([]);
 
@@ -73,7 +81,8 @@ export const useContractsViewModel = (): ContractsViewModel => {
     ...(personOptions.length > 0 ? [{ key: 'client', label: 'Cliente', type: 'select' as const, options: personOptions }] : []),
     ...(personOptions.length > 0 ? [{ key: 'parties', label: 'Contratante/Contratado', type: 'select' as const, options: personOptions }] : []),
     ...(tagOptions.length > 0 ? [{ key: 'tag', label: 'Etiqueta', type: 'select' as const, options: tagOptions }] : []),
-  ], [statusOptions, typeOptions, categoryOptions, personOptions, tagOptions]);
+    ...customListing.filterDefs,
+  ], [statusOptions, typeOptions, categoryOptions, personOptions, tagOptions, customListing.filterDefs]);
 
   const tokenMap = useMemo(() => {
     const map: Record<string, string[]> = {};
@@ -101,9 +110,9 @@ export const useContractsViewModel = (): ContractsViewModel => {
         c.contractorIds.includes(id) || c.contracteeIds.includes(id)
       )) return false;
       if (tagFilter.length > 0 && !tagFilter.some((tid) => c.tagIds?.includes(tid))) return false;
-      return true;
+      return customListing.matchesFilters(c.customValues, tokenMap);
     });
-  }, [contracts, tokenMap]);
+  }, [contracts, tokenMap, customListing]);
 
   const personMap = useMemo(() => {
     const map: Record<string, string> = {};
@@ -123,6 +132,11 @@ export const useContractsViewModel = (): ContractsViewModel => {
     return getConfigColor(statusConfigs, status, theme);
   }, [statusConfigs, theme]);
 
+  const getCustomFieldItems = useCallback(
+    (c: Contract): CustomFieldCardItem[] => customListing.cardItems(c.customValues),
+    [customListing],
+  );
+
   return {
     contracts,
     filteredContracts,
@@ -136,5 +150,6 @@ export const useContractsViewModel = (): ContractsViewModel => {
     openContract,
     getStatusColor,
     getPersonNames,
+    getCustomFieldItems,
   };
 };

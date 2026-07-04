@@ -11,6 +11,7 @@ import { CompositeFilter } from '../../components/ui/CompositeFilter';
 import { Button } from '../../components/ui/Button';
 import { Badge } from '../../components/ui/Badge';
 import { Spinner } from '../../components/ui/Spinner';
+import { CustomFieldMetaRows } from '../../components/ui/CustomFieldMetaRows';
 import { useCaseTagStore } from '../../../stores/useCaseTagStore';
 
 export const CasesView: React.FC = () => {
@@ -135,6 +136,8 @@ export const CasesView: React.FC = () => {
                       </S.MetaRow>
                     )}
                   </S.CaseMeta>
+
+                  <CustomFieldMetaRows items={vm.getCustomFieldItems(c)} />
 
                   {caseTags.length > 0 && (
                     <S.Tags onClick={(e) => e.stopPropagation()}>

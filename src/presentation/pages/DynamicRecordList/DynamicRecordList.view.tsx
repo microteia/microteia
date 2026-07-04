@@ -6,6 +6,7 @@ import { CompositeFilter } from '../../components/ui/CompositeFilter';
 import { Button } from '../../components/ui/Button';
 import { Spinner } from '../../components/ui/Spinner';
 import { InfoBanner } from '../../components/ui/InfoBanner';
+import { CustomFieldMetaRows } from '../../components/ui/CustomFieldMetaRows';
 import { getScreenIcon } from '../../shared/screenIcons';
 
 export const DynamicRecordListView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
@@ -75,16 +76,7 @@ export const DynamicRecordListView: React.FC<{ tabKey: string }> = ({ tabKey }) 
                   <S.RecordAvatar>{getScreenIcon(definition.icon, 20)}</S.RecordAvatar>
                   <S.RecordTitle>{record.title}</S.RecordTitle>
                 </S.RecordHeader>
-                {vm.listFields.length > 0 && (
-                  <S.RecordMeta>
-                    {vm.listFields.map((field) => (
-                      <S.MetaRow key={field.key}>
-                        <S.MetaLabel>{field.label}:</S.MetaLabel>
-                        <S.MetaValue>{vm.displayValue(record, field)}</S.MetaValue>
-                      </S.MetaRow>
-                    ))}
-                  </S.RecordMeta>
-                )}
+                <CustomFieldMetaRows items={vm.getCardItems(record)} />
               </S.RecordCard>
             ))}
           </S.Grid>

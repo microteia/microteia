@@ -22,6 +22,7 @@ import { Button } from '../../components/ui/Button';
 import { ConfirmModal } from '../../components/ui/ConfirmModal';
 import { Badge } from '../../components/ui/Badge';
 import { Spinner } from '../../components/ui/Spinner';
+import { CustomFieldMetaRows } from '../../components/ui/CustomFieldMetaRows';
 import { useFinancialTagStore } from '../../../stores/useFinancialTagStore';
 
 export const FinancialsView: React.FC = () => {
@@ -168,6 +169,8 @@ export const FinancialsView: React.FC = () => {
                       </S.MetaRow>
                     )}
                   </S.CardMeta>
+
+                  <CustomFieldMetaRows items={vm.getCustomFieldItems(f)} />
 
                   {financialTags.length > 0 && (
                     <S.Tags onClick={(e) => e.stopPropagation()}>

@@ -11,6 +11,7 @@ import { CompositeFilter } from '../../components/ui/CompositeFilter';
 import { Button } from '../../components/ui/Button';
 import { Badge } from '../../components/ui/Badge';
 import { Spinner } from '../../components/ui/Spinner';
+import { CustomFieldMetaRows } from '../../components/ui/CustomFieldMetaRows';
 import { useContractTagStore } from '../../../stores/useContractTagStore';
 import { formatCurrencyBRL } from '../../../utils/formatters';
 
@@ -110,6 +111,8 @@ export const ContractsView: React.FC = () => {
                       </S.MetaRow>
                     )}
                   </S.Meta>
+
+                  <CustomFieldMetaRows items={vm.getCustomFieldItems(c)} />
 
                   {contractTags.length > 0 && (
                     <S.Tags onClick={(e) => e.stopPropagation()}>

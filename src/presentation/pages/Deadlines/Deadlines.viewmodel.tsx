@@ -6,6 +6,9 @@ import { useDeadlineLookup } from '../../../stores/useDeadlineLookup';
 import { useCaseStore } from '../../../stores/useCaseStore';
 import { useWorkspace } from '../../../stores/useWorkspace';
 import { useNotification } from '../../../stores/useNotification';
+import { useScreenDefinitions } from '../../../stores/useScreenDefinitions';
+import { useCustomFieldListing, CUSTOM_FIELD_FILTER_PREFIX } from '../../hooks/useCustomFieldListing';
+import type { CustomFieldCardItem } from '../../hooks/useCustomFieldListing';
 import { consumeNavigationIntent } from '../../../infrastructure/navigation/navigationIntent';
 import type { Deadline, DeadlineStatus, DeadlinePriority } from '../../../domain/entities';
 import type { FilterDef, FilterToken, FilterOption } from '../../components/ui/CompositeFilter';
@@ -39,6 +42,7 @@ export interface DeadlinesViewModel {
   getDaysUntilDue: (d: Deadline) => number;
   getStatusColor: (status: string) => string;
   getPriorityColor: (priority: string) => string;
+  getCustomFieldItems: (d: Deadline) => CustomFieldCardItem[];
 }
 
 export const useDeadlinesViewModel = (): DeadlinesViewModel => {
@@ -48,7 +52,11 @@ export const useDeadlinesViewModel = (): DeadlinesViewModel => {
   const { cases } = useCaseStore();
   const { openTab } = useWorkspace();
   const { notify } = useNotification();
+  const { getCustomFieldsFor } = useScreenDefinitions();
   const theme = useTheme();
+
+  const customFields = useMemo(() => getCustomFieldsFor('deadlines'), [getCustomFieldsFor]);
+  const customListing = useCustomFieldListing('deadlines', customFields, CUSTOM_FIELD_FILTER_PREFIX);
 
   const [filterTokens, setFilterTokens] = useState<FilterToken[]>(
     () => consumeNavigationIntent('deadlines') as FilterToken[] | undefined ?? [{ key: 'status', values: ['Pendente'] }],
@@ -106,7 +114,8 @@ export const useDeadlinesViewModel = (): DeadlinesViewModel => {
     { key: 'priority', label: 'Prioridade', type: 'select', options: priorityOptions },
     ...(typeOptions.length > 0 ? [{ key: 'type', label: 'Tipo', type: 'select' as const, options: typeOptions }] : []),
     { key: 'case', label: 'Processo', type: 'select', options: caseOptions },
-  ], [statusOptions, priorityOptions, typeOptions, caseOptions]);
+    ...customListing.filterDefs,
+  ], [statusOptions, priorityOptions, typeOptions, caseOptions, customListing.filterDefs]);
 
   const tokenMap = useMemo(() => {
     const map: Record<string, string[]> = {};
@@ -152,14 +161,14 @@ export const useDeadlinesViewModel = (): DeadlinesViewModel => {
         if (priorityFilter.length > 0 && !priorityFilter.includes(d.priority)) return false;
         if (typeFilter.length > 0 && !typeFilter.includes(d.type)) return false;
         if (caseFilter.length > 0 && !caseFilter.includes(d.caseId)) return false;
-        return true;
+        return customListing.matchesFilters(d.customValues, tokenMap);
       })
       .sort((a, b) => {
         const dateDiff = a.dueDate.getTime() - b.dueDate.getTime();
         if (dateDiff !== 0) return dateDiff;
         return PRIORITY_ORDER[b.priority as DeadlinePriority] - PRIORITY_ORDER[a.priority as DeadlinePriority];
       });
-  }, [deadlines, tokenMap]);
+  }, [deadlines, tokenMap, customListing]);
 
   const openNewDeadline = useCallback(() => openTab('new-deadline'), [openTab]);
   const openDeadline = useCallback((d: Deadline) => openTab(`view-deadline:${d.id}`), [openTab]);
@@ -199,6 +208,11 @@ export const useDeadlinesViewModel = (): DeadlinesViewModel => {
 
   const cancelComplete = useCallback(() => setDeadlineToComplete(null), []);
 
+  const getCustomFieldItems = useCallback(
+    (d: Deadline): CustomFieldCardItem[] => customListing.cardItems(d.customValues),
+    [customListing],
+  );
+
   return {
     deadlines,
     filteredDeadlines,
@@ -224,5 +238,6 @@ export const useDeadlinesViewModel = (): DeadlinesViewModel => {
     getDaysUntilDue,
     getStatusColor,
     getPriorityColor,
+    getCustomFieldItems,
   };
 };

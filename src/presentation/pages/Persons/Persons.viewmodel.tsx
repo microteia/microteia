@@ -5,6 +5,9 @@ import { usePersonTagStore } from '../../../stores/usePersonTagStore';
 import { usePersonLookup } from '../../../stores/usePersonLookup';
 import { useTenant } from '../../../stores/useTenant';
 import { useWorkspace } from '../../../stores/useWorkspace';
+import { useScreenDefinitions } from '../../../stores/useScreenDefinitions';
+import { useCustomFieldListing, CUSTOM_FIELD_FILTER_PREFIX } from '../../hooks/useCustomFieldListing';
+import type { CustomFieldCardItem } from '../../hooks/useCustomFieldListing';
 import { resolveColor, getConfigColor } from '../../../shared/styles/colorUtils';
 import type { Person } from '../../../domain/entities';
 import type { FilterDef, FilterToken } from '../../components/ui/CompositeFilter';
@@ -26,6 +29,7 @@ export interface PersonsViewModel {
   openNewPerson: () => void;
   openPerson: (person: Person) => void;
   getRelationshipColor: (relationship?: string | null) => string;
+  getCustomFieldItems: (person: Person) => CustomFieldCardItem[];
 }
 
 export const usePersonsViewModel = (): PersonsViewModel => {
@@ -34,7 +38,11 @@ export const usePersonsViewModel = (): PersonsViewModel => {
   const { typeConfigs, occupationConfigs, nationalityConfigs, maritalStatusConfigs, cityConfigs, relationshipConfigs } = usePersonLookup();
   const { tenantRole } = useTenant();
   const { openTab } = useWorkspace();
+  const { getCustomFieldsFor } = useScreenDefinitions();
   const theme = useTheme();
+
+  const customFields = useMemo(() => getCustomFieldsFor('persons'), [getCustomFieldsFor]);
+  const customListing = useCustomFieldListing('persons', customFields, CUSTOM_FIELD_FILTER_PREFIX);
 
   const [filterTokens, setFilterTokens] = useState<FilterToken[]>([]);
 
@@ -85,7 +93,8 @@ export const usePersonsViewModel = (): PersonsViewModel => {
     { key: 'city',         label: 'Cidade',          type: 'select', options: cityOptions },
     { key: 'relationship', label: 'Relacionamento',  type: 'select', options: relationshipOptions },
     ...((tagOptions ?? []).length > 0 ? [{ key: 'tag', label: 'Etiqueta', type: 'select' as const, options: tagOptions }] : []),
-  ], [typeOptions, occupationOptions, nationalityOptions, maritalStatusOptions, cityOptions, relationshipOptions, tagOptions]);
+    ...customListing.filterDefs,
+  ], [typeOptions, occupationOptions, nationalityOptions, maritalStatusOptions, cityOptions, relationshipOptions, tagOptions, customListing.filterDefs]);
 
   const tokenMap = useMemo(() => {
     const map: Record<string, string[]> = {};
@@ -118,9 +127,9 @@ export const usePersonsViewModel = (): PersonsViewModel => {
       if (cityFilter.length     > 0 && !cityFilter.includes(c.address?.city ?? '')) return false;
       if (relFilter.length      > 0 && !relFilter.includes(c.relationship ?? '')) return false;
       if (tagFilter.length      > 0 && !tagFilter.some((tid) => c.tagIds?.includes(tid))) return false;
-      return true;
+      return customListing.matchesFilters(c.customValues, tokenMap);
     });
-  }, [persons, tokenMap]);
+  }, [persons, tokenMap, customListing]);
 
   const openNewPerson = useCallback(() => openTab('new-person'), [openTab]);
   const openPerson = useCallback((person: Person) => openTab(`view-person:${person.id}`), [openTab]);
@@ -129,6 +138,11 @@ export const usePersonsViewModel = (): PersonsViewModel => {
     if (!relationship) return theme.colors.relationshipDefault;
     return getConfigColor(relationshipConfigs, relationship, theme, theme.colors.relationshipDefault);
   }, [relationshipConfigs, theme]);
+
+  const getCustomFieldItems = useCallback(
+    (person: Person): CustomFieldCardItem[] => customListing.cardItems(person.customValues),
+    [customListing],
+  );
 
   return {
     persons,
@@ -142,5 +156,6 @@ export const usePersonsViewModel = (): PersonsViewModel => {
     openNewPerson,
     openPerson,
     getRelationshipColor,
+    getCustomFieldItems,
   };
 };
