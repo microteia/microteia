@@ -77,7 +77,7 @@ export const useLoginViewModel = (): LoginViewModel => {
   const [termsAccepted, setTermsAccepted] = useState(false);
 
   useEffect(() => {
-    if (user && isEmailVerified) navigate('/', { replace: true });
+    if (user && isEmailVerified) navigate('/app', { replace: true });
   }, [user, isEmailVerified, navigate]);
 
   useEffect(() => {

@@ -30,7 +30,7 @@ export const LicenseView: React.FC = () => {
           />
           <InfoBanner
             variant="warning"
-            message="O monitor de e-mails é uma ferramenta de apoio que identifica e sugere prazos e movimentações automaticamente. A conferência e a confirmação de todas as informações extraídas — datas, prazos e teor das intimações — são de responsabilidade exclusiva do advogado responsável pelo processo. O Curatino não substitui a conferência humana e não garante que nenhum prazo será perdido."
+            message="O monitor de e-mails é uma ferramenta de apoio que identifica e permite que você defina os prazos de forma personalizada. A conferência e a confirmação de todas as informações extraídas — datas, prazos e teor das intimações — são de responsabilidade exclusiva do advogado responsável pelo processo. O Curatino não substitui a conferência humana e não garante que nenhum prazo será perdido."
           />
         </S.BannerGroup>
 
