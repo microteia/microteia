@@ -15,7 +15,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '../../infrastructure/firebase/config';
 import type { IDeadlineRepository } from '../../domain/repositories/IDeadlineRepository';
-import type { Deadline, DeadlineStatus, DeletionActor } from '../../domain/entities';
+import type { Deadline, DeadlineStatus, DeletionActor, CustomFieldValue } from '../../domain/entities';
 import { stampDeletionActor } from '../utils/stampDeletionActor';
 
 const toDate = (v: unknown): Date =>
@@ -47,6 +47,7 @@ const mapDeadline = (id: string, d: Record<string, unknown>, tenantId: string): 
   completedBy: (d.completedBy as string | null) ?? null,
   notes: (d.notes as string | null) ?? null,
   pushIds: (d.pushIds as string[]) ?? undefined,
+  customValues: (d.customValues as Record<string, CustomFieldValue> | undefined) ?? {},
   createdAt: toDate(d.createdAt),
   createdBy: d.createdBy as string,
   updatedAt: toDate(d.updatedAt),

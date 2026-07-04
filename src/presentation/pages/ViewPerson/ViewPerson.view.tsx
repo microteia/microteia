@@ -27,6 +27,7 @@ import { ConfirmModal } from '../../components/ui/ConfirmModal';
 import { TagManager } from '../../components/ui/TagManager';
 import { MarkdownEditor } from '../../components/ui/MarkdownEditor';
 import { MarkdownContent } from '../../components/ui/MarkdownContent';
+import { CustomFieldsSection } from '../../components/ui/CustomFieldsSection';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import type { SearchSelectOption } from '../../components/ui/SearchSelect';
@@ -300,6 +301,20 @@ export const ViewPersonView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
               <Label>Observações</Label>
               <Textarea value={vm.formData.notes} onChange={(e) => vm.setFormData({ notes: e.target.value })} placeholder="Informações adicionais sobre a pessoa" />
             </S.FormGroup>
+
+            {vm.customFields.length > 0 && (
+              <>
+                <S.SectionTitle>Campos adicionais</S.SectionTitle>
+                <S.FormGroup $fullWidth>
+                  <CustomFieldsSection
+                    screenKey="persons"
+                    fields={vm.customFields}
+                    values={vm.customValues}
+                    onChange={vm.setCustomValue}
+                  />
+                </S.FormGroup>
+              </>
+            )}
 
             <S.FormActions>
               <Button onClick={() => void vm.handleSave()} disabled={vm.isSaving}>

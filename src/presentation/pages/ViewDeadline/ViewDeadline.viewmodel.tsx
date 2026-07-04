@@ -7,8 +7,10 @@ import { useAuth } from '../../../stores/useAuth';
 import { useTenant } from '../../../stores/useTenant';
 import { useWorkspace } from '../../../stores/useWorkspace';
 import { useNotification } from '../../../stores/useNotification';
-import type { Deadline, DeadlinePriority, DeadlineStatus } from '../../../domain/entities';
+import type { CustomFieldValue, Deadline, DeadlinePriority, DeadlineStatus, FieldDefinition } from '../../../domain/entities';
 import type { DynamicSelectOption } from '../../components/ui/DynamicSelect';
+import { useScreenDefinitions } from '../../../stores/useScreenDefinitions';
+import { buildInitialFormValues, formValuesToStoredValues, validateRequiredFields } from '../../../domain/services/customFieldValues';
 
 export interface DeadlineFormData {
   type: string;
@@ -44,6 +46,9 @@ export interface ViewDeadlineViewModel {
   deadline: Deadline | null;
   formData: DeadlineFormData;
   setFormData: (data: Partial<DeadlineFormData>) => void;
+  customFields: FieldDefinition[];
+  customValues: Record<string, CustomFieldValue>;
+  setCustomValue: (fieldKey: string, value: CustomFieldValue) => void;
   isSaving: boolean;
   handleSave: () => Promise<void>;
 
@@ -85,11 +90,23 @@ export const useViewDeadlineViewModel = (tabKey: string): ViewDeadlineViewModel 
     buildForm(deadline, user?.id ?? '', effectiveName),
   );
   const [isSaving, setIsSaving] = useState(false);
+  const { getCustomFieldsFor } = useScreenDefinitions();
+  const customFields = useMemo(() => getCustomFieldsFor('deadlines'), [getCustomFieldsFor]);
+  const [customValues, setCustomValues] = useState<Record<string, CustomFieldValue>>({});
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- re-initialise form when deadline or user loads from store
     setFormDataState(buildForm(deadline, user?.id ?? '', effectiveName));
   }, [deadline, user, effectiveName]);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- sincroniza campos adicionais ao carregar/atualizar dados
+    setCustomValues(buildInitialFormValues(customFields, deadline?.customValues ?? null));
+  }, [deadline, customFields]);
+
+  const setCustomValue = useCallback((fieldKey: string, value: CustomFieldValue) => {
+    setCustomValues((prev) => ({ ...prev, [fieldKey]: value }));
+  }, []);
 
   useEffect(() => {
     if (!isNew && deadline) {
@@ -167,6 +184,8 @@ export const useViewDeadlineViewModel = (tabKey: string): ViewDeadlineViewModel 
     if (!formData.type.trim()) { notify('Selecione o tipo do prazo.', 'error'); return; }
     if (!formData.caseId) { notify('Selecione um processo.', 'error'); return; }
     if (!formData.dueDate) { notify('Informe a data de vencimento.', 'error'); return; }
+    const customFieldsError = validateRequiredFields(customFields, customValues);
+    if (customFieldsError) { notify(customFieldsError, 'error'); return; }
 
     const selectedCase = cases.find((c) => c.id === formData.caseId);
     const selectedMember = members.find((m) => m.userId === formData.responsibleLawyerId);
@@ -192,6 +211,7 @@ export const useViewDeadlineViewModel = (tabKey: string): ViewDeadlineViewModel 
         completedAt,
         completedBy: completedAt ? (user?.id ?? null) : null,
         notes: null,
+        customValues: formValuesToStoredValues(customFields, customValues),
       };
 
       if (isNew) {
@@ -212,13 +232,16 @@ export const useViewDeadlineViewModel = (tabKey: string): ViewDeadlineViewModel 
     } finally {
       setIsSaving(false);
     }
-  }, [formData, isNew, deadlineId, cases, members, createDeadline, updateDeadline, closeTab, notify, user, effectiveName, tabKey, activePanelId]);
+  }, [formData, customFields, customValues, isNew, deadlineId, cases, members, createDeadline, updateDeadline, closeTab, notify, user, effectiveName, tabKey, activePanelId]);
 
   return {
     isNew,
     deadline,
     formData,
     setFormData,
+    customFields,
+    customValues,
+    setCustomValue,
     isSaving,
     handleSave,
     typeOptions,

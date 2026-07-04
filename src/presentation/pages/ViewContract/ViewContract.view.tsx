@@ -29,6 +29,7 @@ import { ConfirmModal } from '../../components/ui/ConfirmModal';
 import { TagManager } from '../../components/ui/TagManager';
 import { MarkdownEditor } from '../../components/ui/MarkdownEditor';
 import { MarkdownContent } from '../../components/ui/MarkdownContent';
+import { CustomFieldsSection } from '../../components/ui/CustomFieldsSection';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
@@ -373,6 +374,20 @@ export const ViewContractView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
                 deleteConfirmTitle="Excluir centro de custo"
               />
             </S.FormGroup>
+
+            {vm.customFields.length > 0 && (
+              <>
+                <S.SectionTitle>Campos adicionais</S.SectionTitle>
+                <S.FormGroup $fullWidth>
+                  <CustomFieldsSection
+                    screenKey="contracts"
+                    fields={vm.customFields}
+                    values={vm.customValues}
+                    onChange={vm.setCustomValue}
+                  />
+                </S.FormGroup>
+              </>
+            )}
 
             <S.FormActions>
               <Button onClick={() => void vm.handleSave()} disabled={vm.isSaving}>

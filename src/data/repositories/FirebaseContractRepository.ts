@@ -14,7 +14,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '../../infrastructure/firebase/config';
 import type { IContractRepository } from '../../domain/repositories/IContractRepository';
-import type { Contract, DeletionActor } from '../../domain/entities';
+import type { Contract, DeletionActor, CustomFieldValue } from '../../domain/entities';
 import { stampDeletionActor } from '../utils/stampDeletionActor';
 
 const toDate = (v: unknown): Date =>
@@ -65,6 +65,7 @@ const mapContract = (id: string, d: Record<string, unknown>, tenantId: string): 
   pixKey: (d.pixKey as string | null) ?? null,
   costCenter: (d.costCenter as string | null) ?? null,
   tagIds: (d.tagIds as string[] | undefined) ?? [],
+  customValues: (d.customValues as Record<string, CustomFieldValue> | undefined) ?? {},
   createdAt: toDate(d.createdAt),
   createdBy: d.createdBy as string,
   updatedAt: toDate(d.updatedAt),

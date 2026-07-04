@@ -16,7 +16,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '../../infrastructure/firebase/config';
 import type { IFinancialRepository } from '../../domain/repositories/IFinancialRepository';
-import type { Financial, FinancialStatus, FinancialType, DeletionActor } from '../../domain/entities';
+import type { Financial, FinancialStatus, FinancialType, DeletionActor, CustomFieldValue } from '../../domain/entities';
 import { stampDeletionActor } from '../utils/stampDeletionActor';
 
 const toDate = (v: unknown): Date =>
@@ -51,6 +51,7 @@ const mapFinancial = (id: string, d: Record<string, unknown>, tenantId: string):
   invoiceNumber: (d.invoiceNumber as string | null) ?? null,
   notes: (d.notes as string | null) ?? null,
   tagIds: (d.tagIds as string[] | undefined) ?? [],
+  customValues: (d.customValues as Record<string, CustomFieldValue> | undefined) ?? {},
   createdAt: toDate(d.createdAt),
   createdBy: d.createdBy as string,
   updatedAt: toDate(d.updatedAt),

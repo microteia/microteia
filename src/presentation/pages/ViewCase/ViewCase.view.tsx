@@ -27,6 +27,7 @@ import { TagManager } from '../../components/ui/TagManager';
 import { MarkdownEditor } from '../../components/ui/MarkdownEditor';
 import { MarkdownContent } from '../../components/ui/MarkdownContent';
 import { ConfirmModal } from '../../components/ui/ConfirmModal';
+import { CustomFieldsSection } from '../../components/ui/CustomFieldsSection';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import type { SearchSelectOption } from '../../components/ui/SearchSelect';
@@ -324,6 +325,20 @@ export const ViewCaseView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
               <Label>Observações</Label>
               <Textarea value={vm.formData.notes} onChange={(e) => vm.setFormData({ notes: e.target.value })} placeholder="Anotações sobre o processo" />
             </S.FormGroup>
+
+            {vm.customFields.length > 0 && (
+              <>
+                <S.SectionTitle>Campos adicionais</S.SectionTitle>
+                <S.FormGroup $fullWidth>
+                  <CustomFieldsSection
+                    screenKey="cases"
+                    fields={vm.customFields}
+                    values={vm.customValues}
+                    onChange={vm.setCustomValue}
+                  />
+                </S.FormGroup>
+              </>
+            )}
 
             <S.FormActions>
               <Button onClick={() => void vm.handleSave()} disabled={vm.isSaving}>

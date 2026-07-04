@@ -22,6 +22,7 @@ import { CurrencyInput } from '../../components/ui/CurrencyInput';
 import { DateInput } from '../../components/ui/DateInput';
 import { ConfirmModal } from '../../components/ui/ConfirmModal';
 import { TagManager } from '../../components/ui/TagManager';
+import { CustomFieldsSection } from '../../components/ui/CustomFieldsSection';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import type { FinancialType } from '../../../domain/entities';
@@ -244,6 +245,20 @@ export const ViewFinancialView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
               placeholder="Informações adicionais"
             />
           </S.FormGroup>
+
+          {vm.customFields.length > 0 && (
+            <>
+              <S.SectionTitle>Campos adicionais</S.SectionTitle>
+              <S.FormGroup $fullWidth>
+                <CustomFieldsSection
+                  screenKey="financials"
+                  fields={vm.customFields}
+                  values={vm.customValues}
+                  onChange={vm.setCustomValue}
+                />
+              </S.FormGroup>
+            </>
+          )}
 
           <S.FormActions>
             <Button onClick={() => void vm.handleSave()} disabled={vm.isSaving}>

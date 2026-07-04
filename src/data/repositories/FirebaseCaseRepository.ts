@@ -16,7 +16,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '../../infrastructure/firebase/config';
 import type { ICaseRepository } from '../../domain/repositories/ICaseRepository';
-import type { Case, CaseInstance, CaseStatus, DeletionActor } from '../../domain/entities';
+import type { Case, CaseInstance, CaseStatus, DeletionActor, CustomFieldValue } from '../../domain/entities';
 import { stampDeletionActor } from '../utils/stampDeletionActor';
 
 const toDate = (v: unknown): Date =>
@@ -57,6 +57,7 @@ const mapCase = (id: string, d: Record<string, unknown>, tenantId: string): Case
   notes: (d.notes as string | null) ?? null,
   tags: (d.tags as string[] | undefined) ?? [],
   tagIds: (d.tagIds as string[] | undefined) ?? [],
+  customValues: (d.customValues as Record<string, CustomFieldValue> | undefined) ?? {},
   createdAt: toDate(d.createdAt),
   createdBy: d.createdBy as string,
   updatedAt: toDate(d.updatedAt),

@@ -22,8 +22,10 @@ import { makeGetFinancialDocumentsUseCase } from '../../../domain/usecases/finan
 import { makeUploadFinancialDocumentUseCase } from '../../../domain/usecases/financialdocuments/UploadFinancialDocumentUseCase';
 import { makeAddFinancialDocumentUseCase } from '../../../domain/usecases/financialdocuments/AddFinancialDocumentUseCase';
 import { makeDeleteFinancialDocumentUseCase } from '../../../domain/usecases/financialdocuments/DeleteFinancialDocumentUseCase';
-import type { Financial, FinancialType, FinancialDocument, PaymentMethod, DeletionActor } from '../../../domain/entities';
+import type { Financial, FinancialType, FinancialDocument, PaymentMethod, CustomFieldValue, DeletionActor, FieldDefinition } from '../../../domain/entities';
 import type { TagStoreAdapter } from '../../components/ui/TagManager/TagManager.viewmodel';
+import { useScreenDefinitions } from '../../../stores/useScreenDefinitions';
+import { buildInitialFormValues, formValuesToStoredValues, validateRequiredFields } from '../../../domain/services/customFieldValues';
 
 export type ViewFinancialTab = 'data' | 'documents';
 
@@ -71,6 +73,9 @@ export interface ViewFinancialViewModel {
   setActiveTab: (tab: ViewFinancialTab) => void;
   formData: FinancialFormData;
   setFormData: (data: Partial<FinancialFormData>) => void;
+  customFields: FieldDefinition[];
+  customValues: Record<string, CustomFieldValue>;
+  setCustomValue: (fieldKey: string, value: CustomFieldValue) => void;
   isSaving: boolean;
   handleSave: () => Promise<void>;
 
@@ -166,6 +171,9 @@ export const useViewFinancialViewModel = (tabKey: string): ViewFinancialViewMode
     return cloneSource ? { ...base, status: 'Aberto', paymentDate: '', cancelDate: '', invoiceNumber: '' } : base;
   });
   const [isSaving, setIsSaving] = useState(false);
+  const { getCustomFieldsFor } = useScreenDefinitions();
+  const customFields = useMemo(() => getCustomFieldsFor('financials'), [getCustomFieldsFor]);
+  const [customValues, setCustomValues] = useState<Record<string, CustomFieldValue>>({});
   const [isTagManagerOpen, setIsTagManagerOpen] = useState(false);
   const [copyLinkDone, setCopyLinkDone] = useState(false);
   const [financialToDelete, setFinancialToDelete] = useState<Financial | null>(null);
@@ -203,6 +211,15 @@ export const useViewFinancialViewModel = (tabKey: string): ViewFinancialViewMode
 
   const setFormData = useCallback((data: Partial<FinancialFormData>) => {
     setFormDataState((prev) => ({ ...prev, ...data }));
+  }, []);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- sincroniza campos adicionais ao carregar/atualizar dados
+    setCustomValues(buildInitialFormValues(customFields, (financial ?? cloneSource)?.customValues ?? null));
+  }, [financial, cloneSource, customFields]);
+
+  const setCustomValue = useCallback((fieldKey: string, value: CustomFieldValue) => {
+    setCustomValues((prev) => ({ ...prev, [fieldKey]: value }));
   }, []);
 
   const caseOptions = useMemo<SearchSelectOption[]>(
@@ -323,6 +340,8 @@ export const useViewFinancialViewModel = (tabKey: string): ViewFinancialViewMode
     if (!formData.dueDate) { notify('Informe a data de vencimento.', 'error'); return; }
     if (!formData.category) { notify('Categoria é obrigatória.', 'error'); return; }
     if (!formData.status) { notify('Status é obrigatório.', 'error'); return; }
+    const customFieldsError = validateRequiredFields(customFields, customValues);
+    if (customFieldsError) { notify(customFieldsError, 'error'); return; }
 
     const selectedCase = cases.find((c) => c.id === formData.caseId);
     const selectedPerson = persons.find((p) => p.id === formData.personId);
@@ -348,6 +367,7 @@ export const useViewFinancialViewModel = (tabKey: string): ViewFinancialViewMode
         contractNumber: selectedContract?.number ?? null,
         invoiceNumber: formData.invoiceNumber || null,
         notes: formData.notes || null,
+        customValues: formValuesToStoredValues(customFields, customValues),
       };
 
       if (isNew) {
@@ -372,7 +392,7 @@ export const useViewFinancialViewModel = (tabKey: string): ViewFinancialViewMode
     } finally {
       setIsSaving(false);
     }
-  }, [formData, isNew, financial, cases, persons, contracts, createFinancial, updateFinancial, notify, user, effectiveName, tabKey, setTabTitle, closeTab, openTab, activePanelId]);
+  }, [formData, customFields, customValues, isNew, financial, cases, persons, contracts, createFinancial, updateFinancial, notify, user, effectiveName, tabKey, setTabTitle, closeTab, openTab, activePanelId]);
 
   const tagAdapter: TagStoreAdapter = useMemo(() => ({
     tags,
@@ -429,6 +449,9 @@ export const useViewFinancialViewModel = (tabKey: string): ViewFinancialViewMode
     setActiveTab,
     formData,
     setFormData,
+    customFields,
+    customValues,
+    setCustomValue,
     isSaving,
     handleSave,
     tagAdapter,

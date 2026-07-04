@@ -20,9 +20,11 @@ import { makeGetCaseDocumentsUseCase } from '../../../domain/usecases/casedocume
 import { makeUploadCaseDocumentUseCase } from '../../../domain/usecases/casedocuments/UploadCaseDocumentUseCase';
 import { makeAddCaseDocumentUseCase } from '../../../domain/usecases/casedocuments/AddCaseDocumentUseCase';
 import { makeDeleteCaseDocumentUseCase } from '../../../domain/usecases/casedocuments/DeleteCaseDocumentUseCase';
-import type { Case, CaseNote, CaseDocument, CaseStatus, CaseArea, CasePhase, CaseInstance, DeletionActor } from '../../../domain/entities';
+import type { Case, CaseNote, CaseDocument, CaseStatus, CaseArea, CasePhase, CaseInstance, CustomFieldValue, DeletionActor, FieldDefinition } from '../../../domain/entities';
 import type { TagStoreAdapter } from '../../components/ui/TagManager/TagManager.viewmodel';
 import type { DynamicSelectOption } from '../../components/ui/DynamicSelect';
+import { useScreenDefinitions } from '../../../stores/useScreenDefinitions';
+import { buildInitialFormValues, formValuesToStoredValues, validateRequiredFields } from '../../../domain/services/customFieldValues';
 
 export type ViewCaseTab = 'data' | 'notes' | 'documents';
 
@@ -77,6 +79,9 @@ export interface ViewCaseViewModel {
   setActiveTab: (tab: ViewCaseTab) => void;
   formData: CaseFormData;
   setFormData: (data: Partial<CaseFormData>) => void;
+  customFields: FieldDefinition[];
+  customValues: Record<string, CustomFieldValue>;
+  setCustomValue: (fieldKey: string, value: CustomFieldValue) => void;
   isSaving: boolean;
   handleSave: () => Promise<void>;
 
@@ -206,6 +211,9 @@ export const useViewCaseViewModel = (tabKey: string): ViewCaseViewModel => {
     return cloneSource ? { ...base, caseNumber: '' } : base;
   });
   const [isSaving, setIsSaving] = useState(false);
+  const { getCustomFieldsFor } = useScreenDefinitions();
+  const customFields = useMemo(() => getCustomFieldsFor('cases'), [getCustomFieldsFor]);
+  const [customValues, setCustomValues] = useState<Record<string, CustomFieldValue>>({});
   const [isTagManagerOpen, setIsTagManagerOpen] = useState(false);
   const [copyLinkDone, setCopyLinkDone] = useState(false);
   const [caseToDelete, setCaseToDelete] = useState<Case | null>(null);
@@ -284,9 +292,20 @@ export const useViewCaseViewModel = (tabKey: string): ViewCaseViewModel => {
     setFormDataState((prev) => ({ ...prev, ...data }));
   }, []);
 
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- sincroniza campos adicionais ao carregar/atualizar dados
+    setCustomValues(buildInitialFormValues(customFields, (case_ ?? cloneSource)?.customValues ?? null));
+  }, [case_, cloneSource, customFields]);
+
+  const setCustomValue = useCallback((fieldKey: string, value: CustomFieldValue) => {
+    setCustomValues((prev) => ({ ...prev, [fieldKey]: value }));
+  }, []);
+
   const handleSave = useCallback(async () => {
     if (!formData.title.trim()) { notify('Título é obrigatório.', 'error'); return; }
     if (!formData.caseNumber.trim()) { notify('Número do processo é obrigatório.', 'error'); return; }
+    const customFieldsError = validateRequiredFields(customFields, customValues);
+    if (customFieldsError) { notify(customFieldsError, 'error'); return; }
     if (!currentTenant) return;
 
     const selectedMember = members.find((m) => m.userId === formData.responsibleLawyerId);
@@ -317,6 +336,7 @@ export const useViewCaseViewModel = (tabKey: string): ViewCaseViewModel => {
         notes: formData.notes || null,
         tags: case_?.tags ?? [],
         tagIds: case_?.tagIds ?? [],
+        customValues: formValuesToStoredValues(customFields, customValues),
       };
 
       if (isNew) {
@@ -341,7 +361,7 @@ export const useViewCaseViewModel = (tabKey: string): ViewCaseViewModel => {
     } finally {
       setIsSaving(false);
     }
-  }, [formData, isNew, case_, members, contracts, createCase, updateCase, currentTenant, notify, user, effectiveName, tabKey, setTabTitle, closeTab, openTab, activePanelId]);
+  }, [formData, customFields, customValues, isNew, case_, members, contracts, createCase, updateCase, currentTenant, notify, user, effectiveName, tabKey, setTabTitle, closeTab, openTab, activePanelId]);
 
   const appliedTags = useMemo(
     () => (case_ ? getTagsForCase(case_.id, case_.tagIds ?? []) : []),
@@ -604,6 +624,9 @@ export const useViewCaseViewModel = (tabKey: string): ViewCaseViewModel => {
     setActiveTab,
     formData,
     setFormData,
+    customFields,
+    customValues,
+    setCustomValue,
     isSaving,
     handleSave,
     tagAdapter,

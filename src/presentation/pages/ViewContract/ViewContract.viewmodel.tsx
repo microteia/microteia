@@ -24,8 +24,10 @@ import { makeGetContractDocumentsUseCase } from '../../../domain/usecases/contra
 import { makeUploadContractDocumentUseCase } from '../../../domain/usecases/contractdocuments/UploadContractDocumentUseCase';
 import { makeAddContractDocumentUseCase } from '../../../domain/usecases/contractdocuments/AddContractDocumentUseCase';
 import { makeDeleteContractDocumentUseCase } from '../../../domain/usecases/contractdocuments/DeleteContractDocumentUseCase';
-import type { Contract, ContractNote, ContractDocument, Case, DeletionActor } from '../../../domain/entities';
+import type { Contract, ContractNote, ContractDocument, Case, CustomFieldValue, DeletionActor, FieldDefinition } from '../../../domain/entities';
 import type { TagStoreAdapter } from '../../components/ui/TagManager/TagManager.viewmodel';
+import { useScreenDefinitions } from '../../../stores/useScreenDefinitions';
+import { buildInitialFormValues, formValuesToStoredValues, validateRequiredFields } from '../../../domain/services/customFieldValues';
 
 export type ViewContractTab = 'data' | 'notes' | 'documents' | 'cases';
 
@@ -123,6 +125,9 @@ export interface ViewContractViewModel {
   setActiveTab: (tab: ViewContractTab) => void;
   formData: ContractFormData;
   setFormData: (data: Partial<ContractFormData>) => void;
+  customFields: FieldDefinition[];
+  customValues: Record<string, CustomFieldValue>;
+  setCustomValue: (fieldKey: string, value: CustomFieldValue) => void;
   isSaving: boolean;
   handleSave: () => Promise<void>;
 
@@ -253,6 +258,7 @@ export const useViewContractViewModel = (tabKey: string): ViewContractViewModel 
   const { notify } = useNotification();
   const theme = useTheme();
   const { contractNoteRepository, contractDocumentRepository } = useDI();
+  const { getCustomFieldsFor } = useScreenDefinitions();
 
   const contract = useMemo(
     () => (isNew ? null : (contracts.find((c) => c.id === contractId) ?? null)),
@@ -272,6 +278,8 @@ export const useViewContractViewModel = (tabKey: string): ViewContractViewModel 
     return cloneSource ? { ...base, number: '' } : base;
   });
   const [isSaving, setIsSaving] = useState(false);
+  const customFields = useMemo(() => getCustomFieldsFor('contracts'), [getCustomFieldsFor]);
+  const [customValues, setCustomValues] = useState<Record<string, CustomFieldValue>>({});
   const [isTagManagerOpen, setIsTagManagerOpen] = useState(false);
   const [copyLinkDone, setCopyLinkDone] = useState(false);
   const [contractToDelete, setContractToDelete] = useState<Contract | null>(null);
@@ -344,6 +352,15 @@ export const useViewContractViewModel = (tabKey: string): ViewContractViewModel 
     setFormDataState((prev) => ({ ...prev, ...data }));
   }, []);
 
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- sincroniza campos adicionais ao carregar/atualizar dados
+    setCustomValues(buildInitialFormValues(customFields, (contract ?? cloneSource)?.customValues ?? null));
+  }, [contract, cloneSource, customFields]);
+
+  const setCustomValue = useCallback((fieldKey: string, value: CustomFieldValue) => {
+    setCustomValues((prev) => ({ ...prev, [fieldKey]: value }));
+  }, []);
+
   const personOptions = useMemo<MultiSearchSelectOption[]>(() =>
     persons.map((p) => ({ value: p.id, label: p.name })).sort((a, b) => a.label.localeCompare(b.label)),
     [persons],
@@ -401,6 +418,8 @@ export const useViewContractViewModel = (tabKey: string): ViewContractViewModel 
     if (!formData.type) { notify('Tipo de contrato é obrigatório.', 'error'); return; }
     if (!formData.category) { notify('Categoria é obrigatória.', 'error'); return; }
     if (!formData.status) { notify('Status é obrigatório.', 'error'); return; }
+    const customFieldsError = validateRequiredFields(customFields, customValues);
+    if (customFieldsError) { notify(customFieldsError, 'error'); return; }
     if (!currentTenant) return;
 
     setIsSaving(true);
@@ -439,6 +458,7 @@ export const useViewContractViewModel = (tabKey: string): ViewContractViewModel 
         bankAccount: formData.bankAccount || null,
         pixKey: formData.pixKey || null,
         costCenter: formData.costCenter || null,
+        customValues: formValuesToStoredValues(customFields, customValues),
       };
 
       if (isNew) {
@@ -463,7 +483,7 @@ export const useViewContractViewModel = (tabKey: string): ViewContractViewModel 
     } finally {
       setIsSaving(false);
     }
-  }, [formData, isNew, contract, createContract, updateContract, currentTenant, notify, user, effectiveName, tabKey, setTabTitle, closeTab, openTab, activePanelId]);
+  }, [formData, customFields, customValues, isNew, contract, createContract, updateContract, currentTenant, notify, user, effectiveName, tabKey, setTabTitle, closeTab, openTab, activePanelId]);
 
   const tagAdapter: TagStoreAdapter = useMemo(() => ({
     tags,
@@ -741,6 +761,9 @@ export const useViewContractViewModel = (tabKey: string): ViewContractViewModel 
     setActiveTab,
     formData,
     setFormData,
+    customFields,
+    customValues,
+    setCustomValue,
     isSaving,
     handleSave,
     personOptions,

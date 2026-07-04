@@ -19,8 +19,10 @@ import { makeGetPersonDocumentsUseCase } from '../../../domain/usecases/persondo
 import { makeUploadPersonDocumentUseCase } from '../../../domain/usecases/persondocuments/UploadPersonDocumentUseCase';
 import { makeAddPersonDocumentUseCase } from '../../../domain/usecases/persondocuments/AddPersonDocumentUseCase';
 import { makeDeletePersonDocumentUseCase } from '../../../domain/usecases/persondocuments/DeletePersonDocumentUseCase';
-import type { Person, PersonNote, PersonDocument, PersonType, PersonAddress, Gender, DeletionActor } from '../../../domain/entities';
+import type { Person, PersonNote, PersonDocument, PersonType, PersonAddress, Gender, CustomFieldValue, DeletionActor, FieldDefinition } from '../../../domain/entities';
 import type { TagStoreAdapter } from '../../components/ui/TagManager/TagManager.viewmodel';
+import { useScreenDefinitions } from '../../../stores/useScreenDefinitions';
+import { buildInitialFormValues, formValuesToStoredValues, validateRequiredFields } from '../../../domain/services/customFieldValues';
 import { formatCPF, formatCNPJ, formatPhone, formatCEP, onlyNumbers } from '../../../utils/formatters';
 import { validateCPF, validateCNPJ } from '../../../utils/validators';
 import { format, parseISO } from 'date-fns';
@@ -105,6 +107,9 @@ export interface ViewPersonViewModel {
   handleCEPChange: (value: string) => void;
   isFetchingAddress: boolean;
   addressFetchError: string;
+  customFields: FieldDefinition[];
+  customValues: Record<string, CustomFieldValue>;
+  setCustomValue: (fieldKey: string, value: CustomFieldValue) => void;
   isSaving: boolean;
   handleSave: () => Promise<void>;
 
@@ -223,6 +228,9 @@ export const useViewPersonViewModel = (tabKey: string): ViewPersonViewModel => {
   });
   const [formErrors, setFormErrors] = useState<PersonFormErrors>({});
   const [isSaving, setIsSaving] = useState(false);
+  const { getCustomFieldsFor } = useScreenDefinitions();
+  const customFields = useMemo(() => getCustomFieldsFor('persons'), [getCustomFieldsFor]);
+  const [customValues, setCustomValues] = useState<Record<string, CustomFieldValue>>({});
   const [isFetchingAddress, setIsFetchingAddress] = useState(false);
   const [addressFetchError, setAddressFetchError] = useState('');
   const [isTagManagerOpen, setIsTagManagerOpen] = useState(false);
@@ -258,6 +266,15 @@ export const useViewPersonViewModel = (tabKey: string): ViewPersonViewModel => {
     add:    makeAddPersonDocumentUseCase(personDocumentRepository),
     delete: makeDeletePersonDocumentUseCase(personDocumentRepository),
   }), [personDocumentRepository]);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- sincroniza campos adicionais ao carregar/atualizar dados
+    setCustomValues(buildInitialFormValues(customFields, (person ?? cloneSource)?.customValues ?? null));
+  }, [person, cloneSource, customFields]);
+
+  const setCustomValue = useCallback((fieldKey: string, value: CustomFieldValue) => {
+    setCustomValues((prev) => ({ ...prev, [fieldKey]: value }));
+  }, []);
 
   useEffect(() => {
     if (person) {
@@ -395,6 +412,8 @@ export const useViewPersonViewModel = (tabKey: string): ViewPersonViewModel => {
 
   const handleSave = useCallback(async () => {
     if (!formData.name.trim()) { notify('Nome é obrigatório.', 'error'); return; }
+    const customFieldsError = validateRequiredFields(customFields, customValues);
+    if (customFieldsError) { notify(customFieldsError, 'error'); return; }
     if (!currentTenant) return;
 
     // Valida CPF/CNPJ se preenchidos
@@ -449,6 +468,7 @@ export const useViewPersonViewModel = (tabKey: string): ViewPersonViewModel => {
         gender: (formData.gender as Gender) || null,
         notes: formData.notes || null,
         address: hasAddress ? address : null,
+        customValues: formValuesToStoredValues(customFields, customValues),
       };
 
       if (isNew) {
@@ -474,7 +494,7 @@ export const useViewPersonViewModel = (tabKey: string): ViewPersonViewModel => {
     } finally {
       setIsSaving(false);
     }
-  }, [formData, isNew, person, createPerson, updatePerson, currentTenant, notify, user, effectiveName, tabKey, setTabTitle, closeTab, openTab, activePanelId]);
+  }, [formData, customFields, customValues, isNew, person, createPerson, updatePerson, currentTenant, notify, user, effectiveName, tabKey, setTabTitle, closeTab, openTab, activePanelId]);
 
   const tagAdapter: TagStoreAdapter = useMemo(() => ({
     tags,
@@ -722,6 +742,9 @@ export const useViewPersonViewModel = (tabKey: string): ViewPersonViewModel => {
     setActiveTab,
     formData,
     setFormData,
+    customFields,
+    customValues,
+    setCustomValue,
     formErrors,
     handleCPFChange,
     handleCNPJChange,

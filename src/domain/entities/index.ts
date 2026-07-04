@@ -174,6 +174,7 @@ export interface Person {
   notes?: string | null;
   tagIds?: string[];
   status: PersonStatus;
+  customValues?: Record<string, CustomFieldValue>;
   createdAt: Date;
   createdBy: string;
   updatedAt: Date;
@@ -419,6 +420,7 @@ export interface Case {
   notes?: string | null;
   tags?: string[];
   tagIds?: string[];
+  customValues?: Record<string, CustomFieldValue>;
   createdAt: Date;
   createdBy: string;
   updatedAt: Date;
@@ -459,6 +461,7 @@ export interface Deadline {
   completedBy?: string | null;
   notes?: string | null;
   pushIds?: string[];
+  customValues?: Record<string, CustomFieldValue>;
   createdAt: Date;
   createdBy: string;
   updatedAt: Date;
@@ -497,6 +500,7 @@ export interface Financial {
   invoiceNumber?: string | null;
   notes?: string | null;
   tagIds?: string[];
+  customValues?: Record<string, CustomFieldValue>;
   createdAt: Date;
   createdBy: string;
   updatedAt: Date;
@@ -670,6 +674,7 @@ export interface Contract {
   pixKey?: string | null;
   costCenter?: string | null;
   tagIds?: string[];
+  customValues?: Record<string, CustomFieldValue>;
   createdAt: Date;
   createdBy: string;
   updatedAt: Date;

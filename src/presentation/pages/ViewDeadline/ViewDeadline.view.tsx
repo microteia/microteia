@@ -7,6 +7,7 @@ import { Label, Textarea } from '../../components/ui/Input';
 import { SearchSelect } from '../../components/ui/SearchSelect';
 import { DynamicSelect } from '../../components/ui/DynamicSelect';
 import { DateInput } from '../../components/ui/DateInput';
+import { CustomFieldsSection } from '../../components/ui/CustomFieldsSection';
 import type { SearchSelectOption } from '../../components/ui/SearchSelect';
 
 export const ViewDeadlineView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
@@ -123,6 +124,20 @@ export const ViewDeadlineView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
               placeholder="Detalhes sobre o prazo, documentos necessários, etc."
             />
           </S.FormGroup>
+
+          {vm.customFields.length > 0 && (
+            <>
+              <S.SectionTitle>Campos adicionais</S.SectionTitle>
+              <S.FormGroup $fullWidth>
+                <CustomFieldsSection
+                  screenKey="deadlines"
+                  fields={vm.customFields}
+                  values={vm.customValues}
+                  onChange={vm.setCustomValue}
+                />
+              </S.FormGroup>
+            </>
+          )}
 
           <S.FormActions>
             <Button onClick={() => void vm.handleSave()} disabled={vm.isSaving}>
