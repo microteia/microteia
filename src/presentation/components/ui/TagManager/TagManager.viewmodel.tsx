@@ -1,5 +1,7 @@
 import { useState, useCallback } from 'react';
 import { useTheme } from 'styled-components';
+import { useTenant } from '../../../../stores/useTenant';
+import { useNotification } from '../../../../stores/useNotification';
 
 export type BaseTag = { id: string; name: string; color: string };
 
@@ -19,6 +21,7 @@ export interface TagManagerProps {
 }
 
 export interface TagManagerViewModel {
+  isAdmin: boolean;
   appliedTagIds: string[];
   allTags: BaseTag[];
   appliedFilteredTags: BaseTag[];
@@ -50,6 +53,9 @@ export interface TagManagerViewModel {
 export const useTagManagerViewModel = (props: TagManagerProps): TagManagerViewModel => {
   const { adapter, entityId } = props;
   const { tags, getAppliedTags, setTags, createTag, updateTag, deleteTag } = adapter;
+  const { tenantRole } = useTenant();
+  const { notify } = useNotification();
+  const isAdmin = tenantRole === 'admin';
   const theme = useTheme();
   const tagColors = theme.tagColors;
   const defaultTagColor = tagColors.find((c) => c.label === 'Azul')?.value ?? tagColors[0].value;
@@ -102,6 +108,8 @@ export const useTagManagerViewModel = (props: TagManagerProps): TagManagerViewMo
       await setTags(entityId, next);
       setIsCreating(false);
       setNewTagName('');
+    } catch {
+      notify('Erro ao criar etiqueta.', 'error');
     } finally {
       setSaving(false);
     }
@@ -122,18 +130,25 @@ export const useTagManagerViewModel = (props: TagManagerProps): TagManagerViewMo
     try {
       await updateTag(editingTag.id, { name: editName.trim(), color: editColor });
       setEditingTag(null);
+    } catch {
+      notify('Erro ao salvar etiqueta.', 'error');
     } finally {
       setSaving(false);
     }
   };
 
   const handleDelete = async (id: string) => {
-    await deleteTag(id);
-    const next = appliedTagIds.filter((tid) => tid !== id);
-    setAppliedTagIds(next);
+    try {
+      await deleteTag(id);
+      const next = appliedTagIds.filter((tid) => tid !== id);
+      setAppliedTagIds(next);
+    } catch {
+      notify('Erro ao excluir etiqueta.', 'error');
+    }
   };
 
   return {
+    isAdmin,
     appliedTagIds,
     allTags: tags,
     appliedFilteredTags,

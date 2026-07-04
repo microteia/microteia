@@ -116,9 +116,11 @@ export const TagManager: React.FC<TagManagerProps> = (props) => {
                   <S.ActionBtn type="button" title="Editar etiqueta" onClick={(e) => { e.stopPropagation(); vm.startEdit(tag); }}>
                     <RiEditLine size={13} />
                   </S.ActionBtn>
-                  <S.DangerBtn type="button" title="Excluir etiqueta" onClick={(e) => { e.stopPropagation(); void vm.handleDelete(tag.id); }}>
-                    <RiDeleteBinLine size={13} />
-                  </S.DangerBtn>
+                  {vm.isAdmin && (
+                    <S.DangerBtn type="button" title="Excluir etiqueta" onClick={(e) => { e.stopPropagation(); void vm.handleDelete(tag.id); }}>
+                      <RiDeleteBinLine size={13} />
+                    </S.DangerBtn>
+                  )}
                 </S.TagActions>
               </S.TagRowWrapper>
             ))}
@@ -140,9 +142,11 @@ export const TagManager: React.FC<TagManagerProps> = (props) => {
                   <S.ActionBtn type="button" title="Editar etiqueta" onClick={(e) => { e.stopPropagation(); vm.startEdit(tag); }}>
                     <RiEditLine size={13} />
                   </S.ActionBtn>
-                  <S.DangerBtn type="button" title="Excluir etiqueta" onClick={(e) => { e.stopPropagation(); void vm.handleDelete(tag.id); }}>
-                    <RiDeleteBinLine size={13} />
-                  </S.DangerBtn>
+                  {vm.isAdmin && (
+                    <S.DangerBtn type="button" title="Excluir etiqueta" onClick={(e) => { e.stopPropagation(); void vm.handleDelete(tag.id); }}>
+                      <RiDeleteBinLine size={13} />
+                    </S.DangerBtn>
+                  )}
                 </S.TagActions>
               </S.TagRowWrapper>
             ))}

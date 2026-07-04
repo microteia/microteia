@@ -11,6 +11,11 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [0.18.1] — 2026-07-03
+
+- Corrigido: o botão de excluir etiqueta não aparece mais para usuários sem perfil de administrador do escritório.
+- Adicionado um aviso claro quando alguma ação com etiquetas não pode ser concluída, em vez de falhar silenciosamente.
+
 #### [0.18.0] — 2026-07-03
 
 - Lançado o site institucional do Curatino, com apresentação das funcionalidades, planos e uma página de contato — acessível para qualquer visitante, sem precisar de login.
