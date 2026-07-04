@@ -8,6 +8,7 @@ import {
   RiLogoutBoxLine,
   RiMoreLine,
   RiPaletteLine,
+  RiLayoutGridLine,
   RiArrowRightSLine,
   RiSearchLine,
 } from 'react-icons/ri';
@@ -97,6 +98,12 @@ export const WorkspaceSidebar: React.FC = () => {
                   <S.MenuItem onClick={vm.handleAccessManagementClick}>
                     <RiShieldUserLine size={16} />
                     Gestão de Acessos
+                  </S.MenuItem>
+                )}
+                {vm.canAccessScreenBuilder && (
+                  <S.MenuItem onClick={vm.handleScreenBuilderClick}>
+                    <RiLayoutGridLine size={16} />
+                    Personalização
                   </S.MenuItem>
                 )}
               </S.MenuGroup>

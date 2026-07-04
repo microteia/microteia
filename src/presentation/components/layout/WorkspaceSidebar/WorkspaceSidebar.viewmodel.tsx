@@ -11,7 +11,6 @@ import {
   RiBuilding2Line,
   RiInboxLine,
   RiHistoryLine,
-  RiLayoutGridLine,
 } from 'react-icons/ri';
 import { useWorkspace } from '../../../../stores/useWorkspace';
 import { useAuth } from '../../../../stores/useAuth';
@@ -53,7 +52,6 @@ const NAV_ITEMS: NavItem[] = [
   { key: 'news',            label: 'Notícias',            icon: <RiNewspaperLine />          },
   { key: 'tenant-settings', label: 'Escritório',          icon: <RiBuilding2Line />          },
   { key: 'audit-logs',      label: 'Auditoria',           icon: <RiHistoryLine />, requiresTenantAdmin: true },
-  { key: 'screen-builder',  label: 'Personalização',      icon: <RiLayoutGridLine />, requiresTenantAdmin: true },
 ];
 
 const THEME_OPTIONS: ThemeOption[] = [
@@ -76,6 +74,7 @@ export interface WorkspaceSidebarViewModel {
   isMenuOpen: boolean;
   isThemeSubOpen: boolean;
   isAdmin: boolean;
+  canAccessScreenBuilder: boolean;
   user: User | null;
   effectivePhotoURL: string | null;
   effectiveName: string;
@@ -90,6 +89,7 @@ export interface WorkspaceSidebarViewModel {
   toggleThemeSub: () => void;
   handleProfileClick: () => void;
   handleAccessManagementClick: () => void;
+  handleScreenBuilderClick: () => void;
   handleSetTheme: (mode: ThemeMode) => void;
   handleSignOut: () => void;
 }
@@ -113,6 +113,7 @@ export const useWorkspaceSidebarViewModel = (): WorkspaceSidebarViewModel => {
 
   const activeKey = panels[activePanelId]?.activeTabKey ?? null;
   const isAdmin = userRole === 'SYSTEM';
+  const canAccessScreenBuilder = isAdmin || tenantRole === 'admin';
 
   const navItems = useMemo(() => {
     const base = NAV_ITEMS.filter((item) => !item.requiresTenantAdmin || isAdmin || tenantRole === 'admin');
@@ -158,6 +159,11 @@ export const useWorkspaceSidebarViewModel = (): WorkspaceSidebarViewModel => {
     closeMenu();
   }, [openTab, closeMenu]);
 
+  const handleScreenBuilderClick = useCallback(() => {
+    openTab('screen-builder');
+    closeMenu();
+  }, [openTab, closeMenu]);
+
   const handleSetTheme = useCallback((newMode: ThemeMode) => {
     setTheme(newMode);
     closeMenu();
@@ -178,6 +184,7 @@ export const useWorkspaceSidebarViewModel = (): WorkspaceSidebarViewModel => {
     isMenuOpen,
     isThemeSubOpen,
     isAdmin,
+    canAccessScreenBuilder,
     user,
     effectivePhotoURL,
     effectiveName,
@@ -192,6 +199,7 @@ export const useWorkspaceSidebarViewModel = (): WorkspaceSidebarViewModel => {
     toggleThemeSub,
     handleProfileClick,
     handleAccessManagementClick,
+    handleScreenBuilderClick,
     handleSetTheme,
     handleSignOut,
   };
