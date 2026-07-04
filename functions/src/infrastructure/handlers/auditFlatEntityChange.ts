@@ -64,7 +64,7 @@ export const auditFlatEntityChange = onDocumentWritten(
         : await getDI().getUserProfileLookupService().resolveActor(actorUid);
 
       const text = buildAuditText(action, config.entityLabel, displayName, actor.name, diff);
-      const entityLink = config.getEntityLink?.(tenantId, docId);
+      const entityLink = config.getEntityLink?.(tenantId, docId, undefined, referenceData);
 
       await getDI().getCreateAuditLogUseCase().execute({
         tenantId,

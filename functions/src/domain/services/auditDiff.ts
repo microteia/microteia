@@ -24,6 +24,11 @@ const formatDateBR = (date: Date): string => {
   return `${datePart} ${pad(date.getUTCHours())}:${pad(date.getUTCMinutes())}`;
 };
 
+const FLATTENED_MAP_KEYS = new Set(['values', 'customValues']);
+
+const isPlainObject = (v: unknown): v is EntityData =>
+  !!v && typeof v === 'object' && !Array.isArray(v) && !isTimestampLike(v) && !(v instanceof Date);
+
 const normalizeValue = (v: unknown): unknown => {
   if (v === null || v === undefined) return v;
   if (isTimestampLike(v)) return formatDateBR(v.toDate());
@@ -49,6 +54,20 @@ export const computeChangedFields = (before: EntityData, after: EntityData, extr
   const afterOut: EntityData = {};
   for (const key of keys) {
     if (ignoredKeys.has(key)) continue;
+    if (FLATTENED_MAP_KEYS.has(key) && (isPlainObject(before[key]) || isPlainObject(after[key]))) {
+      const beforeMap = isPlainObject(before[key]) ? (before[key] as EntityData) : {};
+      const afterMap = isPlainObject(after[key]) ? (after[key] as EntityData) : {};
+      const subKeys = new Set([...Object.keys(beforeMap), ...Object.keys(afterMap)]);
+      for (const subKey of subKeys) {
+        const beforeSub = normalizeValue(beforeMap[subKey]) ?? null;
+        const afterSub = normalizeValue(afterMap[subKey]) ?? null;
+        if (JSON.stringify(beforeSub) !== JSON.stringify(afterSub)) {
+          beforeOut[`${key}.${subKey}`] = beforeSub;
+          afterOut[`${key}.${subKey}`] = afterSub;
+        }
+      }
+      continue;
+    }
     const beforeVal = normalizeValue(before[key]);
     const afterVal = normalizeValue(after[key]);
     if (JSON.stringify(beforeVal) !== JSON.stringify(afterVal)) {
@@ -65,6 +84,12 @@ export const normalizeAllFields = (data: EntityData, extraIgnoredKeys: string[] 
   const out: EntityData = {};
   for (const [k, v] of Object.entries(data)) {
     if (ignoredKeys.has(k)) continue;
+    if (FLATTENED_MAP_KEYS.has(k) && isPlainObject(v)) {
+      for (const [subKey, subValue] of Object.entries(v)) {
+        out[`${k}.${subKey}`] = normalizeValue(subValue) ?? null;
+      }
+      continue;
+    }
     out[k] = normalizeValue(v);
   }
   return out;

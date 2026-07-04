@@ -1378,6 +1378,13 @@ Toda tela dinâmica consulta por `where('screenKey','==',X) + orderBy('createdAt
 - Repositórios: `FirebaseScreenDefinitionRepository` (upsert preserva `createdAt/createdBy`; delete remove antes a subcoleção `fieldOptions` e grava o stamp `deletedBy*`) e `FirebaseCustomRecordRepository`.
 - Stores: `ScreenDefinitionStore` (definições + `fieldOptionsByField`, eventos `SCREEN_DEFINITIONS_UPDATED`) e `CustomRecordStore` (registros por tela, `allRecords` para o ⌘K, eventos `CUSTOM_RECORDS_UPDATED`; depende do `ScreenDefinitionStore` — ordem dos providers em `App.tsx`).
 
+### Auditoria e ⌘K
+
+- `screenDefinitions` e `customRecords` estão na allowlist de `functions/src/domain/services/auditableEntities.ts` ("Tela Personalizada" e "Registro Personalizado"). O link da entidade de um registro usa o `screenKey` do próprio doc (`view-dyn:{screenKey}:{docId}`) — para isso, `getEntityLink` ganhou um 4º parâmetro opcional com os dados do documento, preenchido por `auditFlatEntityChange`.
+- O diff de auditoria (`auditDiff.ts`) **achata um nível** os mapas `values` e `customValues`: alterações aparecem como `values.data-de-aniversario` no Antes/Depois, em vez do mapa inteiro.
+- Busca no ⌘K: `DynamicRecordCommandProvider` (grupo "Telas Personalizadas") busca registros por título e oferece "Abrir {titlePlural}" por tela; os dados entram no `CommandPaletteAppContext` via `useCustomRecords().allRecords` e `useScreenDefinitions().definitions`.
+- **Deploy:** as entradas de allowlist e o flatten do diff exigem deploy das Cloud Functions junto do release correspondente.
+
 ### Navegação e renderização
 
 - **tabKeys** (builders/parser em `shared/constants/dynamicScreenKeys.ts`): `dyn:{screenKey}` (listagem), `new-dyn:{screenKey}`, `new-dyn:{screenKey}:clone:{recordId}` e `view-dyn:{screenKey}:{recordId}`. Os três prefixos estão registrados no `pageRegistry` apontando para `DynamicRecordList` e `ViewDynamicRecord`; o título real da aba é definido em runtime via `setTabTitle` (o ícone da aba é o genérico — o ícone escolhido pelo admin aparece no Sidebar).

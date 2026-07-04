@@ -7,7 +7,7 @@ export interface AuditableEntityConfig {
   entityLabel: string;
   entityLabelPlural: string;
   getDisplayName: (data: EntityData) => string;
-  getEntityLink?: (tenantId: string, docId: string, parentId?: string) => string;
+  getEntityLink?: (tenantId: string, docId: string, parentId?: string, data?: EntityData) => string;
   /** Restringe quais ações geram log (ex: Pushes só audita UPDATE/DELETE). Sem isso, audita CREATE/UPDATE/DELETE. */
   auditActions?: AuditAction[];
 }
@@ -92,6 +92,21 @@ const FLAT_ENTITY_CONFIG: Record<string, AuditableEntityConfig> = {
     // Criação é automática (Cloud Function do webhook do Gmail) — só interessa auditar
     // a triagem manual (mudança de status) e a exclusão.
     auditActions: ['UPDATE', 'DELETE'],
+  },
+  screenDefinitions: {
+    entityKey: 'ScreenDefinition',
+    entityLabel: 'Tela Personalizada',
+    entityLabelPlural: 'Telas Personalizadas',
+    getDisplayName: (d) => asString(d.titlePlural ?? d.titleSingular),
+    getEntityLink: () => 'screen-builder',
+  },
+  customRecords: {
+    entityKey: 'CustomRecord',
+    entityLabel: 'Registro Personalizado',
+    entityLabelPlural: 'Registros Personalizados',
+    getDisplayName: (d) => asString(d.title),
+    getEntityLink: (_tenantId, docId, _parentId, data) =>
+      `view-dyn:${asString(data?.screenKey, '')}:${docId}`,
   },
 };
 
