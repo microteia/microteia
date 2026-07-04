@@ -1351,6 +1351,42 @@ Nunca commite `.env`. O arquivo `.env.example` documenta as chaves sem valores.
 
 ---
 
+## Telas Dinâmicas e Campos Customizados (Personalização)
+
+Recurso que permite ao **admin do tenant** criar telas próprias em runtime e adicionar campos personalizados às telas padrão (Pessoas, Processos, Contratos, Financeiro, Prazos). Página de configuração: `presentation/pages/ScreenBuilder` (chave `screen-builder`, visível só para admin do tenant).
+
+### Modelo de metadados
+
+Um único doc `ScreenDefinition` em `tenants/{tenantId}/screenDefinitions/{screenKey}` descreve tanto telas dinâmicas quanto os campos extras das telas padrão:
+
+- **Tela dinâmica:** `builtin: false`. O doc id (`screenKey`) é o slug do título plural, gerado na criação e imutável. Possui `titleSingular/titlePlural`, `icon` (chave do set curado em `presentation/shared/screenIcons.tsx`), `fields`, `titleFieldKey` (campo texto obrigatório usado como título do registro na aba e no ⌘K), `hasNotes`/`hasDocuments` (abas opcionais), `sidebarOrder` e `enabled` (desativa sem excluir).
+- **Campos das telas padrão:** `builtin: true` com doc id fixo igual à coleção da entidade (`persons`, `cases`, `contracts`, `financials`, `deadlines`). Criado lazy no primeiro save. Somente `fields` é relevante.
+
+`FieldDefinition`: `key` (slug do label na criação; **imutável** — renomear o label não altera a key, preservando dados e histórico de auditoria), `label`, `type` (`text | textarea | number | currency | date | checkbox | select | masked | reference` — **type também é imutável** após criação), `required`, `order`, `section`, `options` (estáticas, para `select`), `optionsAllowUserAdd`, `multi`, `mask` (`cpf | cnpj | phone | cep`), `refEntity` (coleção padrão ou screenKey dinâmico), `placeholder`, `showInList`, `filterable`.
+
+**Opções dinâmicas de selects** (adicionadas inline por usuários com escrita, padrão `DynamicSelect`) vivem na subcoleção `tenants/{tid}/screenDefinitions/{screenKey}/fieldOptions/{id}` (`{ fieldKey, key, label, createdBy, createdAt }`) — fora do doc da definição para não afrouxar a rule de update (só admin edita a definição) e evitar corrida de escrita no array `fields`.
+
+### Registros das telas dinâmicas
+
+Coleção única `tenants/{tenantId}/customRecords/{id}` com discriminador `screenKey`, `title` denormalizado (valor do `titleFieldKey`, recalculado a cada save) e `values: Record<fieldKey, valor>`. Convenção de tipos em `values` (e em `customValues` das entidades padrão): text/textarea/masked → `string` (masked guarda formatado); number/currency → `number | null`; date → `string 'YYYY-MM-DD'`; checkbox → `boolean`; select/reference single → `string | null`; multi → `string[]`.
+
+Toda tela dinâmica consulta por `where('screenKey','==',X) + orderBy('createdAt','desc') + limit(500)` — exige o índice composto documentado abaixo.
+
+### Camadas
+
+- Conversões e validações puras: `domain/services/customFieldValues.ts` (`slugifyFieldKey`, `ensureUniqueKey`, `buildInitialFormValues`, `formValuesToStoredValues`, `validateRequiredFields`, `resolveRecordTitle`, `sortFieldsByOrder`).
+- Repositórios: `FirebaseScreenDefinitionRepository` (upsert preserva `createdAt/createdBy`; delete remove antes a subcoleção `fieldOptions` e grava o stamp `deletedBy*`) e `FirebaseCustomRecordRepository`.
+- Stores: `ScreenDefinitionStore` (definições + `fieldOptionsByField`, eventos `SCREEN_DEFINITIONS_UPDATED`) e `CustomRecordStore` (registros por tela, `allRecords` para o ⌘K, eventos `CUSTOM_RECORDS_UPDATED`; depende do `ScreenDefinitionStore` — ordem dos providers em `App.tsx`).
+
+### Regras de integridade
+
+- **Exclusão de tela é soft-block:** `DeleteScreenDefinitionUseCase` recusa excluir se houver registros (`hasRecords` com `limit(1)`); a alternativa oferecida é desativar (`enabled: false`).
+- Toda tela dinâmica nova nasce com um campo `Nome` (`text`, obrigatório) definido como `titleFieldKey`; o ScreenBuilder impede excluir o campo-título ou torná-lo opcional.
+- Excluir um campo deixa valores órfãos nos docs — inofensivo: o motor de renderização ignora chaves sem definição correspondente.
+- Registro referenciado por campo `reference` que foi excluído: renderiza fallback "—", sem cascata (v1).
+
+---
+
 ## Firestore Security Rules — Conjunto Completo
 
 > **Copie o bloco abaixo integralmente no Firebase Console → Firestore → Regras.**
@@ -1824,6 +1860,29 @@ service cloud.firestore {
         // Somente admin pode deletar
         allow delete: if isTenantAdmin(tenantId);
       }
+
+      // ─── Telas Dinâmicas (Personalização) ────────────────────────────────────
+      // Definições de telas e campos customizados — membro lê; só admin configura
+      match /screenDefinitions/{screenId} {
+        allow read: if isMember(tenantId);
+        allow create, update, delete: if isTenantAdmin(tenantId);
+
+        // Opções adicionadas inline nos selects de campos customizados
+        // (mesmo modelo dos lookups: membro com escrita cria; só admin deleta)
+        match /fieldOptions/{optionId} {
+          allow read: if isMember(tenantId);
+          allow create: if canWriteInTenant(tenantId);
+          allow delete: if isTenantAdmin(tenantId);
+        }
+      }
+
+      // Registros das telas dinâmicas — mesmo modelo de acesso das entidades padrão.
+      // update por canWriteInTenant também cobre o stamp de autoria de exclusão (deletedBy*).
+      match /customRecords/{recordId} {
+        allow read: if isMember(tenantId);
+        allow create, update: if canWriteInTenant(tenantId);
+        allow delete: if isTenantAdmin(tenantId);
+      }
     }
 
     // ─── Notícias ─────────────────────────────────────────────────────────────
@@ -2139,6 +2198,7 @@ service firebase.storage {
 | `gmailConnections` | `email` ASC, `tenantId` ASC | Para buscar conexões Gmail por email na Cloud Function |
 | `auditLogs` | `tenantId` ASC, `createdAt` DESC | Para listar auditoria por escritório, mais recente primeiro |
 | `auditLogs` | `tenantId` ASC, `severity` ASC, `createdAt` ASC | Para contar falhas CRITICAL não lidas (badge da Auditoria) |
+| `tenants/{id}/customRecords` | `screenKey` ASC, `createdAt` DESC | Para listar registros de cada tela dinâmica |
 
 ---
 

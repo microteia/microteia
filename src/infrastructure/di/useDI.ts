@@ -47,6 +47,8 @@ import type { IPushRepository, IPushInteractionRepository } from '../../domain/r
 import type { IDocumentTypeRepository } from '../../domain/repositories/IDocumentTypeRepository';
 import type { IAuditLogRepository } from '../../domain/repositories/IAuditLogRepository';
 import type { IAuditLogService } from '../../domain/repositories/IAuditLogService';
+import type { IScreenDefinitionRepository } from '../../domain/repositories/IScreenDefinitionRepository';
+import type { ICustomRecordRepository } from '../../domain/repositories/ICustomRecordRepository';
 
 export interface DIContainer {
   authRepository: IAuthRepository;
@@ -98,6 +100,8 @@ export interface DIContainer {
   documentTypeRepository: IDocumentTypeRepository;
   auditLogRepository: IAuditLogRepository;
   auditLogService: IAuditLogService;
+  screenDefinitionRepository: IScreenDefinitionRepository;
+  customRecordRepository: ICustomRecordRepository;
 }
 
 export const DIContext = createContext<DIContainer | null>(null);

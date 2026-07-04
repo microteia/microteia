@@ -48,6 +48,8 @@ import { FirebaseDeadlineTypeRepository } from '../../data/repositories/Firebase
 import { FirebaseDocumentTypeRepository } from '../../data/repositories/FirebaseDocumentTypeRepository';
 import { FirebaseAuditLogRepository } from '../../data/repositories/FirebaseAuditLogRepository';
 import { FirebaseAuditLogService } from '../../data/services/FirebaseAuditLogService';
+import { FirebaseScreenDefinitionRepository } from '../../data/repositories/FirebaseScreenDefinitionRepository';
+import { FirebaseCustomRecordRepository } from '../../data/repositories/FirebaseCustomRecordRepository';
 import { DIContext } from './useDI';
 import type { DIContainer } from './useDI';
 
@@ -102,6 +104,8 @@ export const DIProvider: React.FC<{ children: React.ReactNode }> = ({ children }
     documentTypeRepository:   new FirebaseDocumentTypeRepository(),
     auditLogRepository:       new FirebaseAuditLogRepository(),
     auditLogService:          new FirebaseAuditLogService(),
+    screenDefinitionRepository: new FirebaseScreenDefinitionRepository(),
+    customRecordRepository:   new FirebaseCustomRecordRepository(),
   }), []);
 
   return <DIContext.Provider value={container}>{children}</DIContext.Provider>;

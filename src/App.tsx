@@ -26,6 +26,8 @@ import { NewsCategoryLookupStoreProvider } from './stores/NewsCategoryLookupStor
 import { NewsTagStoreProvider } from './stores/NewsTagStore';
 import { NewsInteractionStoreProvider } from './stores/NewsInteractionStore';
 import { SavedFilterStoreProvider } from './stores/SavedFilterStore';
+import { ScreenDefinitionStoreProvider } from './stores/ScreenDefinitionStore';
+import { CustomRecordStoreProvider } from './stores/CustomRecordStore';
 import { AuditLogStoreProvider } from './stores/AuditLogStore';
 import { AuditLogAlertStoreProvider } from './stores/AuditLogAlertStore';
 import { WorkspaceStoreProvider } from './stores/WorkspaceStore';
@@ -82,6 +84,8 @@ const App: React.FC = () => {
                                     <NewsTagStoreProvider>
                                       <NewsInteractionStoreProvider>
                                         <SavedFilterStoreProvider>
+                                          <ScreenDefinitionStoreProvider>
+                                          <CustomRecordStoreProvider>
                                           <AuditLogStoreProvider>
                                           <AuditLogAlertStoreProvider>
                                           <WorkspaceStoreProvider>
@@ -97,6 +101,8 @@ const App: React.FC = () => {
                                           </WorkspaceStoreProvider>
                                           </AuditLogAlertStoreProvider>
                                           </AuditLogStoreProvider>
+                                          </CustomRecordStoreProvider>
+                                          </ScreenDefinitionStoreProvider>
                                         </SavedFilterStoreProvider>
                                       </NewsInteractionStoreProvider>
                                     </NewsTagStoreProvider>

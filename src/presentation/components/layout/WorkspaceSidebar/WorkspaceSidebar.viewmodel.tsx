@@ -11,6 +11,7 @@ import {
   RiBuilding2Line,
   RiInboxLine,
   RiHistoryLine,
+  RiLayoutGridLine,
 } from 'react-icons/ri';
 import { useWorkspace } from '../../../../stores/useWorkspace';
 import { useAuth } from '../../../../stores/useAuth';
@@ -49,6 +50,7 @@ const NAV_ITEMS: NavItem[] = [
   { key: 'news',            label: 'Notícias',            icon: <RiNewspaperLine />          },
   { key: 'tenant-settings', label: 'Escritório',          icon: <RiBuilding2Line />          },
   { key: 'audit-logs',      label: 'Auditoria',           icon: <RiHistoryLine />, requiresTenantAdmin: true },
+  { key: 'screen-builder',  label: 'Personalização',      icon: <RiLayoutGridLine />, requiresTenantAdmin: true },
 ];
 
 const THEME_OPTIONS: ThemeOption[] = [

@@ -856,6 +856,133 @@ export interface CaseLookupItem {
   createdBy: string;
 }
 
+// ─── Custom Screens (Telas Dinâmicas) ────────────────────────────────────────
+
+export type CustomFieldType =
+  | 'text'
+  | 'textarea'
+  | 'number'
+  | 'currency'
+  | 'date'
+  | 'checkbox'
+  | 'select'
+  | 'masked'
+  | 'reference';
+
+export type CustomFieldMask = 'cpf' | 'cnpj' | 'phone' | 'cep';
+
+export interface CustomFieldOption {
+  key: string;
+  label: string;
+  isStatic?: boolean;
+}
+
+export interface FieldDefinition {
+  key: string;
+  label: string;
+  type: CustomFieldType;
+  required: boolean;
+  order: number;
+  section?: string | null;
+  options?: CustomFieldOption[];
+  optionsAllowUserAdd?: boolean;
+  multi?: boolean;
+  mask?: CustomFieldMask | null;
+  refEntity?: string | null;
+  placeholder?: string | null;
+  showInList?: boolean;
+  filterable?: boolean;
+}
+
+export interface ScreenDefinition {
+  id: string;
+  tenantId: string;
+  builtin: boolean;
+  titleSingular: string;
+  titlePlural: string;
+  icon: string;
+  fields: FieldDefinition[];
+  titleFieldKey: string;
+  hasNotes: boolean;
+  hasDocuments: boolean;
+  sidebarOrder: number;
+  enabled: boolean;
+  createdAt: Date;
+  createdBy: string;
+  updatedAt: Date;
+  updatedBy?: string;
+  updatedByName?: string;
+  updatedByPhotoURL?: string;
+  deletedBy?: string;
+  deletedByName?: string;
+  deletedByPhotoURL?: string;
+}
+
+export interface ScreenFieldOption {
+  id: string;
+  tenantId: string;
+  screenKey: string;
+  fieldKey: string;
+  key: string;
+  label: string;
+  createdAt: Date;
+  createdBy: string;
+}
+
+export type CustomFieldValue = string | string[] | number | boolean | null;
+
+export interface CustomRecord {
+  id: string;
+  tenantId: string;
+  screenKey: string;
+  title: string;
+  values: Record<string, CustomFieldValue>;
+  createdAt: Date;
+  createdBy: string;
+  updatedAt: Date;
+  updatedBy?: string;
+  updatedByName?: string;
+  updatedByPhotoURL?: string;
+  deletedBy?: string;
+  deletedByName?: string;
+  deletedByPhotoURL?: string;
+}
+
+export interface CustomRecordNote {
+  id: string;
+  recordId: string;
+  screenKey: string;
+  tenantId: string;
+  title: string;
+  text: string;
+  createdBy: string;
+  createdByName: string;
+  createdByPhotoUrl?: string;
+  createdAt: Date;
+  deletedBy?: string;
+  deletedByName?: string;
+  deletedByPhotoURL?: string;
+}
+
+export interface CustomRecordDocument {
+  id: string;
+  recordId: string;
+  screenKey: string;
+  tenantId: string;
+  name: string;
+  type?: string;
+  description?: string;
+  url: string;
+  storagePath: string;
+  createdBy: string;
+  createdByName: string;
+  createdByPhotoUrl?: string;
+  createdAt: Date;
+  deletedBy?: string;
+  deletedByName?: string;
+  deletedByPhotoURL?: string;
+}
+
 // ─── Push ─────────────────────────────────────────────────────────────────────
 
 export type { Push, PushMovement, PushStatus, PushInteraction } from './Push';
