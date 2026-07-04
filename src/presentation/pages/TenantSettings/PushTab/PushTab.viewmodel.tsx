@@ -103,8 +103,7 @@ export const usePushTabViewModel = (): PushTabViewModel => {
 
       const codeClient = client.accounts.oauth2.initCodeClient({
         client_id: clientId,
-        scope:
-          'https://www.googleapis.com/auth/gmail.readonly https://www.googleapis.com/auth/gmail.modify',
+        scope: 'https://www.googleapis.com/auth/gmail.readonly',
         ux_mode: 'popup',
         callback: async (response) => {
           if (response.error) {

@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [0.18.2] — 2026-07-03
+
+- Reduzido o nível de acesso solicitado ao conectar uma conta do Gmail: o sistema agora pede apenas permissão de leitura dos e-mails, sem poder alterá-los.
+
 #### [0.18.1] — 2026-07-03
 
 - Corrigido: o botão de excluir etiqueta não aparece mais para usuários sem perfil de administrador do escritório.
