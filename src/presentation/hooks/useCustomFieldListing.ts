@@ -21,6 +21,7 @@ export interface CustomFieldCardItem {
   label?: string;
   value: string;
   badges?: CustomFieldBadgeItem[];
+  type: 'text' | 'markdown';
 }
 
 export interface CustomFieldListing {
@@ -179,6 +180,7 @@ export const useCustomFieldListing = (
       label: field.listLabel || undefined,
       value: displayValue(values, field),
       badges: field.type === 'select' && field.optionsColored ? selectBadges(values, field) : undefined,
+      type: field.type === 'markdown' ? 'markdown' : 'text',
     })),
     [listFields, displayValue, selectBadges],
   );

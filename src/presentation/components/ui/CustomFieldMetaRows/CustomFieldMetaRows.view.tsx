@@ -1,5 +1,6 @@
 import React from 'react';
 import { Badge } from '../Badge';
+import { MarkdownContent } from '../MarkdownContent';
 import { S } from './CustomFieldMetaRows.styles';
 import type { CustomFieldCardItem } from '../../../hooks/useCustomFieldListing';
 
@@ -20,6 +21,8 @@ export const CustomFieldMetaRows: React.FC<CustomFieldMetaRowsProps> = ({ items 
                 <Badge key={`${item.key}-${index}`} color={badge.color}>{badge.label}</Badge>
               ))}
             </S.BadgeWrap>
+          ) : item.type === 'markdown' ? (
+            <S.Value><MarkdownContent>{item.value}</MarkdownContent></S.Value>
           ) : (
             <S.Value>{item.value}</S.Value>
           )}

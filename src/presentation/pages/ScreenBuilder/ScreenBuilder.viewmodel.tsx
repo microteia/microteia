@@ -151,6 +151,7 @@ const FIELD_TYPE_LABELS: Record<CustomFieldType, string> = {
   select: 'Seleção',
   masked: 'Com máscara',
   reference: 'Vínculo com registro',
+  markdown: 'Markdown',
 };
 
 const MASK_LABELS: Record<CustomFieldMask, string> = {

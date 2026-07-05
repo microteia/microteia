@@ -9,6 +9,7 @@ import { MaskedInput } from '../MaskedInput';
 import { DynamicSelect } from '../DynamicSelect';
 import { SearchSelect } from '../SearchSelect';
 import { MultiSearchSelect } from '../MultiSearchSelect';
+import { MarkdownEditor } from '../MarkdownEditor';
 import type { FieldDefinition } from '../../../../domain/entities';
 
 export const CustomFieldsSection: React.FC<CustomFieldsSectionProps> = (props) => {
@@ -112,6 +113,15 @@ export const CustomFieldsSection: React.FC<CustomFieldsSectionProps> = (props) =
             disabled={vm.disabled}
           />
         );
+      case 'markdown':
+        return (
+          <MarkdownEditor
+            value={vm.getString(field.key)}
+            onChange={(value) => vm.setValue(field.key, value)}
+            placeholder={field.placeholder ?? undefined}
+            readOnly={vm.disabled}
+          />
+        );
       default:
         return (
           <Input
@@ -132,7 +142,7 @@ export const CustomFieldsSection: React.FC<CustomFieldsSectionProps> = (props) =
           {group.section && <S.SectionTitle>{group.section}</S.SectionTitle>}
           <S.Grid>
             {group.fields.map((field) => (
-              <S.FormGroup key={field.key} $fullWidth={field.type === 'textarea'}>
+              <S.FormGroup key={field.key} $fullWidth={field.type === 'textarea' || field.type === 'markdown'}>
                 <Label>{field.label}{field.required ? ' *' : ''}</Label>
                 {renderControl(field)}
               </S.FormGroup>

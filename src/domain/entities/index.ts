@@ -891,7 +891,8 @@ export type CustomFieldType =
   | 'checkbox'
   | 'select'
   | 'masked'
-  | 'reference';
+  | 'reference'
+  | 'markdown';
 
 export type CustomFieldMask = 'cpf' | 'cnpj' | 'phone' | 'cep';
 
