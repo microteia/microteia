@@ -143,8 +143,8 @@ export const useFinancialDashboardViewModel = (): FinancialDashboardViewModel =>
   );
 
   const filteredFinancials = useMemo(
-    () => filterFinancialsByTokens(financials, filterTokens),
-    [financials, filterTokens],
+    () => filterFinancialsByTokens(financials, filterTokens, { cases, persons, contracts }),
+    [financials, filterTokens, cases, persons, contracts],
   );
 
   const formatAmount = useCallback((v: number) => currencyFmt.format(v), []);

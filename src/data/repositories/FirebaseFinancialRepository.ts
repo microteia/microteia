@@ -35,11 +35,8 @@ const mapFinancial = (id: string, d: Record<string, unknown>, tenantId: string):
   id,
   tenantId,
   caseId: (d.caseId as string | null) ?? null,
-  caseNumber: (d.caseNumber as string | null) ?? null,
   personId: (d.personId as string | null) ?? null,
-  personName: (d.personName as string | null) ?? null,
   contractId: (d.contractId as string | null) ?? null,
-  contractNumber: (d.contractNumber as string | null) ?? null,
   type: d.type as FinancialType,
   category: d.category as Financial['category'],
   costCenter: (d.costCenter as string | null) ?? null,
@@ -159,7 +156,7 @@ export class FirebaseFinancialRepository implements IFinancialRepository {
     if (snap.empty) return;
     const batch = writeBatch(db);
     for (const d of snap.docs) {
-      batch.update(d.ref, { contractId: null, contractNumber: null, updatedAt: serverTimestamp() });
+      batch.update(d.ref, { contractId: null, updatedAt: serverTimestamp() });
     }
     await batch.commit();
   }

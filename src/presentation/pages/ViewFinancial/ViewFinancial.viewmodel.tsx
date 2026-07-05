@@ -343,10 +343,6 @@ export const useViewFinancialViewModel = (tabKey: string): ViewFinancialViewMode
     const customFieldsError = validateRequiredFields(customFields, customValues);
     if (customFieldsError) { notify(customFieldsError, 'error'); return; }
 
-    const selectedCase = cases.find((c) => c.id === formData.caseId);
-    const selectedPerson = persons.find((p) => p.id === formData.personId);
-    const selectedContract = contracts.find((c) => c.id === formData.contractId);
-
     setIsSaving(true);
     try {
       const payload = {
@@ -360,11 +356,8 @@ export const useViewFinancialViewModel = (tabKey: string): ViewFinancialViewMode
         status: formData.status,
         paymentMethod: (formData.paymentMethod as PaymentMethod) || null,
         caseId: formData.caseId || null,
-        caseNumber: selectedCase?.caseNumber ?? null,
         personId: formData.personId || null,
-        personName: selectedPerson?.name ?? null,
         contractId: formData.contractId || null,
-        contractNumber: selectedContract?.number ?? null,
         invoiceNumber: formData.invoiceNumber || null,
         notes: formData.notes || null,
         customValues: formValuesToStoredValues(customFields, customValues),
@@ -392,7 +385,7 @@ export const useViewFinancialViewModel = (tabKey: string): ViewFinancialViewMode
     } finally {
       setIsSaving(false);
     }
-  }, [formData, customFields, customValues, isNew, financial, cases, persons, contracts, createFinancial, updateFinancial, notify, user, effectiveName, tabKey, setTabTitle, closeTab, openTab, activePanelId]);
+  }, [formData, customFields, customValues, isNew, financial, createFinancial, updateFinancial, notify, user, effectiveName, tabKey, setTabTitle, closeTab, openTab, activePanelId]);
 
   const tagAdapter: TagStoreAdapter = useMemo(() => ({
     tags,

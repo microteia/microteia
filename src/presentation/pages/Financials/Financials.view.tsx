@@ -111,6 +111,9 @@ export const FinancialsView: React.FC = () => {
           <S.Grid>
             {vm.filteredFinancials.map((f) => {
               const financialTags = tags.filter((t) => f.tagIds?.includes(t.id));
+              const personName = vm.getPersonName(f);
+              const caseNumber = vm.getCaseNumber(f);
+              const contractNumber = vm.getContractNumber(f);
               return (
                 <S.FinancialCard key={f.id} onClick={() => vm.openFinancial(f)}>
                   <S.CardHeader>
@@ -128,36 +131,36 @@ export const FinancialsView: React.FC = () => {
                       {f.paymentDate && <S.MetaText title="Data de pagamento" $color={vm.getStatusColor('Pago')}>· {f.paymentDate.toLocaleDateString('pt-BR')}</S.MetaText>}
                       {f.cancelDate && <S.MetaText title="Data de cancelamento" $color={vm.getStatusColor('Cancelado')}>· {f.cancelDate.toLocaleDateString('pt-BR')}</S.MetaText>}
                     </S.MetaRow>
-                    {f.personName && (
+                    {personName && (
                       <S.MetaRow>
                         <RiTeamLine size={12} />
                         <S.MetaLink
-                          title={`Abrir pessoa ${f.personName}`}
+                          title={`Abrir pessoa ${personName}`}
                           onClick={(e) => { e.stopPropagation(); vm.openPerson(f.personId); }}
                         >
-                          {f.personName}
+                          {personName}
                         </S.MetaLink>
                       </S.MetaRow>
                     )}
-                    {f.caseNumber && (
+                    {caseNumber && (
                       <S.MetaRow>
                         <RiFolderLine size={12} />
                         <S.MetaLink
-                          title={`Abrir processo ${f.caseNumber}`}
+                          title={`Abrir processo ${caseNumber}`}
                           onClick={(e) => { e.stopPropagation(); vm.openCase(f.caseId); }}
                         >
-                          {f.caseNumber}
+                          {caseNumber}
                         </S.MetaLink>
                       </S.MetaRow>
                     )}
-                    {f.contractNumber && (
+                    {contractNumber && (
                       <S.MetaRow>
                         <RiFileTextLine size={12} />
                         <S.MetaLink
-                          title={`Abrir contrato ${f.contractNumber}`}
+                          title={`Abrir contrato ${contractNumber}`}
                           onClick={(e) => { e.stopPropagation(); vm.openContract(f.contractId); }}
                         >
-                          {f.contractNumber}
+                          {contractNumber}
                         </S.MetaLink>
                       </S.MetaRow>
                     )}

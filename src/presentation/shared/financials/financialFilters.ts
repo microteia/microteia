@@ -1,7 +1,13 @@
 import type { DefaultTheme } from 'styled-components';
 import { getConfigColor } from '../../../shared/styles/colorUtils';
-import type { Financial, FinancialLookupConfig } from '../../../domain/entities';
+import type { Case, Contract, Financial, FinancialLookupConfig, Person } from '../../../domain/entities';
 import type { FilterDef, FilterOption, FilterToken } from '../../components/ui/CompositeFilter';
+
+export interface FinancialSearchLookups {
+  cases: Case[];
+  persons: Person[];
+  contracts: Contract[];
+}
 
 export interface FinancialFilterOptions {
   caseOptions: FilterOption[];
@@ -61,8 +67,14 @@ export const buildTokenMap = (tokens: FilterToken[]): Record<string, string[]> =
   return map;
 };
 
-export const filterFinancialsByTokens = (financials: Financial[], tokens: FilterToken[]): Financial[] => {
+export const filterFinancialsByTokens = (financials: Financial[], tokens: FilterToken[], lookups: FinancialSearchLookups): Financial[] => {
   const tokenMap = buildTokenMap(tokens);
+  const caseById: Record<string, Case> = {};
+  lookups.cases.forEach((c) => { caseById[c.id] = c; });
+  const personById: Record<string, Person> = {};
+  lookups.persons.forEach((p) => { personById[p.id] = p; });
+  const contractById: Record<string, Contract> = {};
+  lookups.contracts.forEach((c) => { contractById[c.id] = c; });
   const searchQ = (tokenMap['search']?.[0] ?? '').toLowerCase();
   const typeFilter = tokenMap['type'] ?? [];
   const statusFilter = tokenMap['status'] ?? [];
@@ -85,10 +97,15 @@ export const filterFinancialsByTokens = (financials: Financial[], tokens: Filter
   const periodEndAt = periodEnd ? new Date(`${periodEnd}T23:59:59`) : null;
 
   return financials.filter((f) => {
-    if (searchQ && !f.category.toLowerCase().includes(searchQ) &&
-      !(f.personName?.toLowerCase().includes(searchQ)) &&
-      !(f.caseNumber?.toLowerCase().includes(searchQ)) &&
-      !(f.contractNumber?.toLowerCase().includes(searchQ))) return false;
+    if (searchQ) {
+      const personName = f.personId ? personById[f.personId]?.name : undefined;
+      const caseNumber = f.caseId ? caseById[f.caseId]?.caseNumber : undefined;
+      const contractNumber = f.contractId ? contractById[f.contractId]?.number : undefined;
+      if (!f.category.toLowerCase().includes(searchQ) &&
+        !(personName?.toLowerCase().includes(searchQ)) &&
+        !(caseNumber?.toLowerCase().includes(searchQ)) &&
+        !(contractNumber?.toLowerCase().includes(searchQ))) return false;
+    }
     if (typeFilter.length > 0 && !typeFilter.includes(f.type)) return false;
     if (statusFilter.length > 0 && !statusFilter.includes(f.status)) return false;
     if (caseFilter.length > 0 && !caseFilter.includes(f.caseId ?? '')) return false;

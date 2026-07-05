@@ -36,7 +36,7 @@ export const useReferenceOptions = (): Record<string, ReferenceOption[]> => {
         .map((f) => ({
           value: f.id,
           label: `${f.category} — ${formatCurrencyBRL(f.amount)}`,
-          meta: f.personName ?? undefined,
+          meta: (f.personId ? persons.find((p) => p.id === f.personId)?.name : undefined) ?? undefined,
         }))
         .sort((a, b) => a.label.localeCompare(b.label)),
       deadlines: deadlines

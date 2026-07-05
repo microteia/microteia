@@ -502,11 +502,8 @@ export interface Financial {
   id: string;
   tenantId: string;
   caseId?: string | null;
-  caseNumber?: string | null;
   personId?: string | null;
-  personName?: string | null;
   contractId?: string | null;
-  contractNumber?: string | null;
   type: FinancialType;
   category: string;
   costCenter?: string | null;

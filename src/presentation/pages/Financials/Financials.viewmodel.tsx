@@ -44,6 +44,9 @@ export interface FinancialsViewModel {
   openPerson: (personId: string | null | undefined) => void;
   openCase: (caseId: string | null | undefined) => void;
   openContract: (contractId: string | null | undefined) => void;
+  getPersonName: (f: Financial) => string | null;
+  getCaseNumber: (f: Financial) => string | null;
+  getContractNumber: (f: Financial) => string | null;
   handleDelete: (f: Financial) => void;
   confirmDelete: () => Promise<void>;
   cancelDelete: () => void;
@@ -130,10 +133,32 @@ export const useFinancialsViewModel = (): FinancialsViewModel => {
 
   const filteredFinancials = useMemo(() => {
     const tokenMap = buildTokenMap(filterTokens);
-    return filterFinancialsByTokens(financials, filterTokens)
+    return filterFinancialsByTokens(financials, filterTokens, { cases, persons, contracts })
       .filter((f) => customListing.matchesFilters(f.customValues, tokenMap))
       .sort((a, b) => b.dueDate.getTime() - a.dueDate.getTime());
-  }, [financials, filterTokens, customListing]);
+  }, [financials, filterTokens, customListing, cases, persons, contracts]);
+
+  const personById = useMemo(() => {
+    const map: Record<string, string> = {};
+    persons.forEach((p) => { map[p.id] = p.name; });
+    return map;
+  }, [persons]);
+
+  const caseById = useMemo(() => {
+    const map: Record<string, string> = {};
+    cases.forEach((c) => { map[c.id] = c.caseNumber; });
+    return map;
+  }, [cases]);
+
+  const contractById = useMemo(() => {
+    const map: Record<string, string> = {};
+    contracts.forEach((c) => { map[c.id] = c.number; });
+    return map;
+  }, [contracts]);
+
+  const getPersonName = useCallback((f: Financial): string | null => (f.personId ? (personById[f.personId] ?? null) : null), [personById]);
+  const getCaseNumber = useCallback((f: Financial): string | null => (f.caseId ? (caseById[f.caseId] ?? null) : null), [caseById]);
+  const getContractNumber = useCallback((f: Financial): string | null => (f.contractId ? (contractById[f.contractId] ?? null) : null), [contractById]);
 
   const summary = useMemo<FinancialSummary>(() => computeFinancialSummary(filteredFinancials), [filteredFinancials]);
 
@@ -215,6 +240,9 @@ export const useFinancialsViewModel = (): FinancialsViewModel => {
     openPerson,
     openCase,
     openContract,
+    getPersonName,
+    getCaseNumber,
+    getContractNumber,
     handleDelete,
     confirmDelete,
     cancelDelete,
