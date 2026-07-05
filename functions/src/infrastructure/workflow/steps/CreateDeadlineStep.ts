@@ -2,11 +2,19 @@ import type { StepDefinition, WorkflowStepExecutor } from '../../../domain/engin
 import type { IDeadlineRepository } from '../../../domain/repositories/IDeadlineRepository';
 import type { DeadlinePriority } from '../../../domain/entities/Deadline';
 
+const DATE_ONLY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+
+const parseDueDate = (value: unknown): Date => {
+  if (value instanceof Date) return value;
+  const raw = String(value);
+  return DATE_ONLY_PATTERN.test(raw) ? new Date(`${raw}T23:59:00`) : new Date(raw);
+};
+
 export const makeCreateDeadlineStepDefinition = (deadlineRepository: IDeadlineRepository): StepDefinition => ({
   id: 'create-deadline',
   version: 1,
   name: 'Criar Prazo',
-  description: 'Cria um novo prazo vinculado a um processo.',
+  description: 'Cria um novo prazo para um processo.',
   icon: 'RiCalendarEventLine',
   category: 'Action',
   configurable: true,
@@ -26,7 +34,7 @@ export const makeCreateDeadlineStepDefinition = (deadlineRepository: IDeadlineRe
       const deadlineId = await deadlineRepository.createDeadline(context.execution.tenantId, {
         caseId: String(inputs.caseId),
         description: inputs.description ? String(inputs.description) : null,
-        dueDate: inputs.dueDate instanceof Date ? inputs.dueDate : new Date(String(inputs.dueDate)),
+        dueDate: parseDueDate(inputs.dueDate),
         type: String(inputs.type),
         priority: (inputs.priority as DeadlinePriority) ?? 'Média',
         responsibleLawyerId: inputs.responsibleLawyerId ? String(inputs.responsibleLawyerId) : null,
