@@ -345,10 +345,8 @@ interface Case {
   court?: string;
   judge?: string;
   opposingParty?: string;
-  responsibleLawyerId?: string;
-  responsibleLawyerName?: string;
-  contractId?: string | null;      // Contrato vinculado — Contract (único; um Processo pertence a no máximo 1 Contrato)
-  contractNumber?: string | null;  // denormalizado, mesmo padrão de responsibleLawyerName
+  responsibleLawyerId?: string;    // nome do advogado é resolvido em tempo de renderização via useTenant().members
+  contractId?: string | null;      // Contrato vinculado — Contract (único; um Processo pertence a no máximo 1 Contrato); número resolvido via useContractStore()
   parties: CaseParty[];
   description?: string;
   openedAt?: Date;
@@ -424,7 +422,7 @@ interface Contract {
 
 Coleções Firestore: `tenants/{tenantId}/contracts/{id}`, `tenants/{tenantId}/contractTags/{id}`, `tenants/{tenantId}/contractTypes`, `contractCategories`, `contractStatuses`, `contractObjects`, `contractAdjustmentIndexes`, `contractAdjustmentPeriodicities`, `contractCurrencies`, `contractPaymentMethods`, `contractBanks`, `contractCostCenters`.
 
-**Relação Processo ↔ Contrato:** um `Contract` pode ter vários `Case` vinculados, mas cada `Case` pertence a no máximo 1 `Contract`. A chave estrangeira vive no lado "muitos" (`Case.contractId` + `Case.contractNumber` denormalizado, mesmo padrão de `responsibleLawyerId`/`responsibleLawyerName`) — não existe array `caseIds` em `Contract`. A aba "Processos" de `ViewContract` deriva a lista de processos vinculados filtrando `useCaseStore().cases` por `contractId` em memória (via `useMemo`), sem query Firestore adicional nem índice composto, já que `CaseStore` carrega a lista de `cases` do tenant inteira. Vincular/desvincular é um `updateCase(caseId, { contractId, contractNumber })` comum. Ao excluir um `Contract`, `DeleteContractUseCase` desvincula (não exclui) os `cases` filhos antes de apagar o contrato (ver "Cascata de Exclusão").
+**Relação Processo ↔ Contrato:** um `Contract` pode ter vários `Case` vinculados, mas cada `Case` pertence a no máximo 1 `Contract`. A chave estrangeira vive no lado "muitos" (`Case.contractId`, sem espelho de número — o número do contrato é resolvido em tempo de renderização via `useContractStore()`, mesmo padrão de `responsibleLawyerId`) — não existe array `caseIds` em `Contract`. A aba "Processos" de `ViewContract` deriva a lista de processos vinculados filtrando `useCaseStore().cases` por `contractId` em memória (via `useMemo`), sem query Firestore adicional nem índice composto, já que `CaseStore` carrega a lista de `cases` do tenant inteira. Vincular/desvincular é um `updateCase(caseId, { contractId })` comum. Ao excluir um `Contract`, `DeleteContractUseCase` desvincula (não exclui) os `cases` filhos antes de apagar o contrato (ver "Cascata de Exclusão").
 
 ### Entidade ContractNote
 
@@ -470,15 +468,11 @@ interface Deadline {
   tenantId: string;
   title: string;
   type: DeadlineType;       // 'judicial' | 'extrajudicial' | 'internal' | 'hearing' | 'meeting'
-  caseId?: string;
-  caseTitle?: string;
-  caseNumber?: string;
-  personName?: string;
+  caseId?: string;                 // título/número do processo resolvidos em tempo de renderização via useCaseStore()
   dueDate: Date;
   priority: 'low' | 'medium' | 'high' | 'critical';
   status: 'pending' | 'completed' | 'expired' | 'cancelled';
-  responsibleLawyerId?: string;
-  responsibleLawyerName?: string;
+  responsibleLawyerId?: string;    // nome do advogado resolvido em tempo de renderização via useTenant().members
   description?: string;
   completedAt?: Date;
   completedBy?: string;
@@ -496,12 +490,9 @@ type PaymentMethod = 'PIX' | 'Transferência' | 'Dinheiro' | 'Cartão' | 'Cheque
 interface Financial {
   id: string;
   tenantId: string;
-  caseId?: string | null;
-  caseNumber?: string | null;
-  personId?: string | null;
-  personName?: string | null;
-  contractId?: string | null;
-  contractNumber?: string | null;
+  caseId?: string | null;          // número do processo resolvido em tempo de renderização via useCaseStore()
+  personId?: string | null;        // nome da pessoa resolvido em tempo de renderização via usePersonStore()
+  contractId?: string | null;      // número do contrato resolvido em tempo de renderização via useContractStore()
   type: FinancialType;
   category: string;          // dinâmico via FinancialLookupConfig (kind: 'categories')
   costCenter?: string | null; // dinâmico, reaproveita o mesmo lookup de Centro de Custo de Contract (kind: 'costCenters')
@@ -520,7 +511,7 @@ interface Financial {
 }
 ```
 
-`category` e `status` seguem o mesmo padrão Estático + Dinâmico de `Contract` (ver "Valores Estáticos e Dinâmicos"), com lookup próprio (`FinancialLookupConfig`/`FinancialLookupKind`, coleções `financialCategories`/`financialStatuses`). `costCenter` **não** tem coleção própria: reaproveita o lookup `costCenters` de `useContractLookup()`, para que Contratos e Financeiro compartilhem a mesma lista de centros de custo do escritório. `contractId`/`contractNumber` seguem o mesmo padrão denormalizado de `caseId`/`caseNumber`; ao excluir um `Contract`, os `financials` vinculados são desvinculados (ver "Cascata de Exclusão"). Não há campo de descrição livre: `category` é o identificador principal exibido nos cards e nas abas.
+`category` e `status` seguem o mesmo padrão Estático + Dinâmico de `Contract` (ver "Valores Estáticos e Dinâmicos"), com lookup próprio (`FinancialLookupConfig`/`FinancialLookupKind`, coleções `financialCategories`/`financialStatuses`). `costCenter` **não** tem coleção própria: reaproveita o lookup `costCenters` de `useContractLookup()`, para que Contratos e Financeiro compartilhem a mesma lista de centros de custo do escritório. `caseId`/`personId`/`contractId` não guardam nome/número espelhado — são resolvidos em tempo de renderização a partir dos respectivos stores (`useCaseStore`/`usePersonStore`/`useContractStore`); ao excluir um `Contract`, os `financials` vinculados são desvinculados (ver "Cascata de Exclusão"). Não há campo de descrição livre: `category` é o identificador principal exibido nos cards e nas abas.
 
 ### Entidade FinancialTag
 
@@ -1277,7 +1268,7 @@ useEffect(() => {
 | `Tenant` | Todos os members, persons, cases, deadlines, financials, pushes do tenant |
 | `Person` | Todos os `cases` onde a pessoa está em `activePoleIds` ou `passivePoleIds` (cada um cascateando como a linha `Case` abaixo); todos os `financials` onde `personId === id` |
 | `Case` | Todos os `deadlines` onde `caseId === id`; todos os `financials` onde `caseId === id` |
-| `Contract` | Desvincula (não exclui) todos os `cases` onde `contractId === id`, limpando `contractId`/`contractNumber`; desvincula (não exclui) todos os `financials` onde `contractId === id`, limpando `contractId`/`contractNumber` |
+| `Contract` | Desvincula (não exclui) todos os `cases` onde `contractId === id`, limpando `contractId`; desvincula (não exclui) todos os `financials` onde `contractId === id`, limpando `contractId` |
 | `Deadline` | — (folha) |
 | `Financial` | — (folha) |
 | `Push` | Todos os `pushInteractions` onde `pushId === id` — **cascata roda no backend** (ver nota abaixo) |
@@ -1544,7 +1535,7 @@ mantém sua própria cópia estática em `src/domain/services/workflowEventCatal
 (1) o seletor de evento na aba Geral, com rótulos em PT-BR (`"Ao salvar: Processo"`, `"Ao
 excluir: Contrato"`, ordenados por ação e depois por entidade) e (2) a lista de campos conhecidos
 de cada evento, usada pelo `StepEditorModal` quando o usuário escolhe mapping "Do evento": em vez
-de digitar o caminho à mão, ele escolhe de uma lista (`caseNumber`, `personName`, etc.). Entidades
+de digitar o caminho à mão, ele escolhe de uma lista (`caseId`, `responsibleLawyerId`, etc.). Entidades
 customizadas e itens de lista não têm campos fixos conhecíveis estaticamente — o picker cai de
 volta para texto livre nesses dois casos.
 
