@@ -1,0 +1,91 @@
+import type {
+  WorkflowDefinition,
+  WorkflowEvent,
+  WorkflowExecution,
+  WorkflowExecutionLogEntry,
+} from '../entities/Workflow';
+import type { WorkflowContext, WorkflowServices } from '../entities/WorkflowContext';
+import type { StepRegistry } from './StepRegistry';
+import { evaluateCondition } from './ConditionEvaluator';
+import { resolveInputs } from './InputMapping';
+
+export interface RunWorkflowParams {
+  definition: WorkflowDefinition;
+  event: WorkflowEvent;
+  registry: StepRegistry;
+  services: WorkflowServices;
+}
+
+export const runWorkflow = async ({ definition, event, registry, services }: RunWorkflowParams): Promise<WorkflowExecution> => {
+  const executionId = crypto.randomUUID();
+  const startedAt = services.now();
+  const logs: WorkflowExecutionLogEntry[] = [];
+
+  const log = (level: WorkflowExecutionLogEntry['level'], message: string, stepId?: string, stepDefinitionId?: string): void => {
+    logs.push({ stepId, stepDefinitionId, level, message, at: services.now() });
+  };
+
+  const finish = (status: WorkflowExecution['status'], outputs: Record<string, Record<string, unknown>>): WorkflowExecution => ({
+    id: executionId,
+    tenantId: definition.tenantId,
+    workflowDefinitionId: definition.id,
+    eventId: event.id,
+    status,
+    startedAt,
+    finishedAt: services.now(),
+    logs,
+    outputs,
+  });
+
+  let conditionResult: boolean;
+  try {
+    conditionResult = evaluateCondition(definition.condition);
+  } catch (error) {
+    log('WARN', error instanceof Error ? error.message : String(error));
+    return finish('PARTIAL', {});
+  }
+
+  if (!conditionResult) {
+    log('INFO', 'Condição avaliada como falsa, execução ignorada');
+    return finish('SUCCESS', {});
+  }
+
+  const context: WorkflowContext = {
+    event,
+    outputs: {},
+    variables: {},
+    services,
+    logger: services.logger,
+    execution: { id: executionId, workflowDefinitionId: definition.id, tenantId: definition.tenantId },
+  };
+
+  const steps = definition.steps
+    .filter((step) => step.enabled)
+    .sort((a, b) => a.order - b.order);
+
+  for (const step of steps) {
+    const stepDefinition = registry.resolve(step.stepDefinitionId);
+    if (!stepDefinition) {
+      log('ERROR', `StepDefinition desconhecida: "${step.stepDefinitionId}"`, step.id);
+      return finish('FAILED', context.outputs);
+    }
+
+    try {
+      const inputs = resolveInputs(stepDefinition.inputs, step.configuration, context);
+      const result = await stepDefinition.createExecutor().execute(inputs, context);
+
+      if (!result.success) {
+        log('ERROR', result.message ?? 'Step falhou sem mensagem', step.id, step.stepDefinitionId);
+        return finish('FAILED', context.outputs);
+      }
+
+      context.outputs[step.id] = result.outputs ?? {};
+      log('INFO', result.message ?? `Step "${stepDefinition.name}" concluído`, step.id, step.stepDefinitionId);
+    } catch (error) {
+      log('ERROR', error instanceof Error ? error.message : String(error), step.id, step.stepDefinitionId);
+      return finish('FAILED', context.outputs);
+    }
+  }
+
+  return finish('SUCCESS', context.outputs);
+};

@@ -51,6 +51,9 @@ import type { IScreenDefinitionRepository } from '../../domain/repositories/IScr
 import type { ICustomRecordRepository } from '../../domain/repositories/ICustomRecordRepository';
 import type { ICustomRecordNoteRepository } from '../../domain/repositories/ICustomRecordNoteRepository';
 import type { ICustomRecordDocumentRepository } from '../../domain/repositories/ICustomRecordDocumentRepository';
+import type { IWorkflowDefinitionRepository } from '../../domain/repositories/IWorkflowDefinitionRepository';
+import type { IWorkflowExecutionRepository } from '../../domain/repositories/IWorkflowExecutionRepository';
+import type { IStepCatalogRepository } from '../../domain/repositories/IStepCatalogRepository';
 
 export interface DIContainer {
   authRepository: IAuthRepository;
@@ -106,6 +109,9 @@ export interface DIContainer {
   customRecordRepository: ICustomRecordRepository;
   customRecordNoteRepository: ICustomRecordNoteRepository;
   customRecordDocumentRepository: ICustomRecordDocumentRepository;
+  workflowDefinitionRepository: IWorkflowDefinitionRepository;
+  workflowExecutionRepository: IWorkflowExecutionRepository;
+  stepCatalogRepository: IStepCatalogRepository;
 }
 
 export const DIContext = createContext<DIContainer | null>(null);

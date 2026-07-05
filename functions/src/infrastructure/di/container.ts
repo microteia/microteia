@@ -60,6 +60,18 @@ import type { IGmailService } from '../../data/services/GmailService';
 import type { IEmailParserService } from '../../data/services/EmailParserService';
 import type { IGmailAuthService } from '../../domain/repositories/IGmailAuthService';
 import type { IGmailWatchService } from '../../domain/repositories/IGmailWatchService';
+import { FirebaseDeadlineRepository } from '../../data/repositories/FirebaseDeadlineRepository';
+import { FirebaseWorkflowDefinitionRepository } from '../../data/repositories/FirebaseWorkflowDefinitionRepository';
+import { FirebaseWorkflowExecutionRepository } from '../../data/repositories/FirebaseWorkflowExecutionRepository';
+import type { IDeadlineRepository } from '../../domain/repositories/IDeadlineRepository';
+import type { IWorkflowDefinitionRepository } from '../../domain/repositories/IWorkflowDefinitionRepository';
+import type { IWorkflowExecutionRepository } from '../../domain/repositories/IWorkflowExecutionRepository';
+import { makeRunWorkflowsForEventUseCase } from '../../domain/usecases/RunWorkflowsForEventUseCase';
+import type { RunWorkflowsForEventUseCase } from '../../domain/usecases/RunWorkflowsForEventUseCase';
+import type { WorkflowServices } from '../../domain/entities/WorkflowContext';
+import { stepRegistry } from '../../domain/engine/StepRegistry';
+import { registerSteps } from '../workflow/registerSteps';
+import { syncStepCatalog } from '../workflow/syncStepCatalog';
 
 class DIContainer {
   private static instance: DIContainer;
@@ -92,6 +104,11 @@ class DIContainer {
   private removeTenantMemberUC?: RemoveTenantMemberUseCase;
   private userRepo?: IUserRepository;
   private bootstrapUserUC?: BootstrapUserUseCase;
+  private deadlineRepo?: IDeadlineRepository;
+  private workflowDefinitionRepo?: IWorkflowDefinitionRepository;
+  private workflowExecutionRepo?: IWorkflowExecutionRepository;
+  private runWorkflowsForEventUC?: RunWorkflowsForEventUseCase;
+  private workflowStepsRegistered = false;
 
   private constructor() {
     this.aiProviders = [
@@ -325,6 +342,65 @@ class DIContainer {
       );
     }
     return this.logClientErrorUC;
+  }
+
+  getDeadlineRepository(): IDeadlineRepository {
+    if (!this.deadlineRepo) {
+      this.deadlineRepo = new FirebaseDeadlineRepository(getDb());
+    }
+    return this.deadlineRepo;
+  }
+
+  getWorkflowDefinitionRepository(): IWorkflowDefinitionRepository {
+    if (!this.workflowDefinitionRepo) {
+      this.workflowDefinitionRepo = new FirebaseWorkflowDefinitionRepository(getDb());
+    }
+    return this.workflowDefinitionRepo;
+  }
+
+  getWorkflowExecutionRepository(): IWorkflowExecutionRepository {
+    if (!this.workflowExecutionRepo) {
+      this.workflowExecutionRepo = new FirebaseWorkflowExecutionRepository(getDb());
+    }
+    return this.workflowExecutionRepo;
+  }
+
+  getWorkflowServices(): WorkflowServices {
+    return {
+      logger: {
+        info: (message) => console.log(`[workflow] ${message}`),
+        warn: (message) => console.warn(`[workflow] ${message}`),
+        error: (message) => console.error(`[workflow] ${message}`),
+      },
+      now: () => new Date(),
+    };
+  }
+
+  getRunWorkflowsForEventUseCase(): RunWorkflowsForEventUseCase {
+    if (!this.runWorkflowsForEventUC) {
+      this.runWorkflowsForEventUC = makeRunWorkflowsForEventUseCase(
+        this.getWorkflowDefinitionRepository(),
+        this.getWorkflowExecutionRepository(),
+        stepRegistry,
+        this.getWorkflowServices(),
+      );
+    }
+    return this.runWorkflowsForEventUC;
+  }
+
+  /**
+   * Composition root do Workflow Engine: registra os Steps concretos no StepRegistry e
+   * espelha o catálogo em Firestore. Idempotente e chamado uma única vez por instância da
+   * function (guardado por `workflowStepsRegistered`), tipicamente no cold start.
+   */
+  async ensureWorkflowStepsRegistered(): Promise<void> {
+    if (this.workflowStepsRegistered) return;
+    registerSteps({
+      deadlineRepository: this.getDeadlineRepository(),
+      createAuditLogUseCase: this.getCreateAuditLogUseCase(),
+    });
+    await syncStepCatalog(getDb(), stepRegistry);
+    this.workflowStepsRegistered = true;
   }
 }
 

@@ -1,0 +1,68 @@
+import styled from 'styled-components';
+import { Textarea } from '../../../../components/ui/Input';
+
+export const S = {
+  ExpressionInput: styled(Textarea)`
+    font-family: ${({ theme }) => theme.fonts.mono};
+  `,
+
+  Form: styled.div`
+    display: flex;
+    flex-direction: column;
+    gap: ${({ theme }) => theme.spacing.lg};
+  `,
+
+  Field: styled.div`
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  `,
+
+  FieldHeader: styled.div`
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+  `,
+
+  Required: styled.span`
+    color: ${({ theme }) => theme.colors.danger};
+    font-size: ${({ theme }) => theme.fontSizes.xs};
+  `,
+
+  HelpText: styled.p`
+    font-size: ${({ theme }) => theme.fontSizes.xs};
+    color: ${({ theme }) => theme.colors.textMuted};
+    margin: 0;
+  `,
+
+  StepsDivider: styled.div`
+    height: 1px;
+    background: ${({ theme }) => theme.colors.border};
+    margin: ${({ theme }) => theme.spacing.sm} 0;
+  `,
+
+  MappingRow: styled.div`
+    display: grid;
+    grid-template-columns: 160px 1fr;
+    gap: ${({ theme }) => theme.spacing.sm};
+    align-items: start;
+
+    @media (max-width: 480px) {
+      grid-template-columns: 1fr;
+    }
+  `,
+
+  OutputPickerRow: styled.div`
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: ${({ theme }) => theme.spacing.sm};
+  `,
+
+  Footer: styled.div`
+    display: flex;
+    justify-content: flex-end;
+    gap: ${({ theme }) => theme.spacing.sm};
+    padding-top: ${({ theme }) => theme.spacing.md};
+    border-top: 1px solid ${({ theme }) => theme.colors.border};
+  `,
+};

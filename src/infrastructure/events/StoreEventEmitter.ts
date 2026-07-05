@@ -40,4 +40,5 @@ export const StoreEvents = {
   SAVED_FILTER_UPDATED: 'saved_filter:updated',
   SCREEN_DEFINITIONS_UPDATED: 'screen_definitions:updated',
   CUSTOM_RECORDS_UPDATED: 'custom_records:updated',
+  WORKFLOWS_UPDATED: 'workflows:updated',
 } as const;

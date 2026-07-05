@@ -19,3 +19,6 @@ export { auditNewsChange, auditNewsCommentChange, auditNewsTagChange } from './i
 export { backupDeletedAuditLog } from './infrastructure/handlers/backupDeletedAuditLog';
 export { logClientError } from './infrastructure/handlers/logClientError';
 export { cascadeDeletePushInteractions } from './infrastructure/handlers/cascadeDeletePushInteractions';
+export { onWorkflowEventCreated } from './infrastructure/handlers/onWorkflowEventCreated';
+export { syncWorkflowStepCatalog } from './infrastructure/handlers/syncWorkflowStepCatalog';
+export { publishWorkflowEventOnEntityChange } from './infrastructure/handlers/publishWorkflowEventOnEntityChange';

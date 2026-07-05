@@ -1,0 +1,219 @@
+import styled from 'styled-components';
+
+export const S = {
+  Page: styled.div`
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    overflow: hidden;
+  `,
+
+  Header: styled.div`
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: ${({ theme }) => theme.spacing.lg} ${({ theme }) => theme.spacing.xl};
+    border-bottom: 1px solid ${({ theme }) => theme.colors.border};
+    flex-shrink: 0;
+    gap: ${({ theme }) => theme.spacing.md};
+  `,
+
+  Title: styled.h1`
+    font-size: ${({ theme }) => theme.fontSizes.xl};
+    font-weight: 700;
+    color: ${({ theme }) => theme.colors.text};
+  `,
+
+  HeaderActions: styled.div`
+    display: flex;
+    align-items: center;
+    gap: ${({ theme }) => theme.spacing.sm};
+    flex-shrink: 0;
+  `,
+
+  EnabledBadge: styled.button<{ $enabled: boolean }>`
+    display: inline-flex;
+    align-items: center;
+    cursor: pointer;
+    padding: 5px 12px;
+    border-radius: ${({ theme }) => theme.borderRadius.full};
+    font-size: ${({ theme }) => theme.fontSizes.xs};
+    font-weight: 600;
+    background: ${({ $enabled, theme }) => ($enabled ? `${theme.colors.success}20` : theme.colors.surfaceHover)};
+    color: ${({ $enabled, theme }) => ($enabled ? theme.colors.success : theme.colors.textMuted)};
+    border: 1px solid ${({ $enabled, theme }) => ($enabled ? `${theme.colors.success}44` : theme.colors.border)};
+  `,
+
+  TabBar: styled.div`
+    display: flex;
+    border-bottom: 1px solid ${({ theme }) => theme.colors.border};
+    flex-shrink: 0;
+    padding: 0 ${({ theme }) => theme.spacing.xl};
+  `,
+
+  TabBtn: styled.button<{ $active: boolean }>`
+    padding: ${({ theme }) => `${theme.spacing.md} ${theme.spacing.lg}`};
+    font-size: ${({ theme }) => theme.fontSizes.sm};
+    font-weight: 500;
+    color: ${({ $active, theme }) => ($active ? theme.colors.primary : theme.colors.textSecondary)};
+    border-bottom: 2px solid ${({ $active, theme }) => ($active ? theme.colors.primary : 'transparent')};
+    transition: all ${({ theme }) => theme.transitions.fast};
+    white-space: nowrap;
+
+    &:hover { color: ${({ theme }) => theme.colors.text}; }
+  `,
+
+  Content: styled.div`
+    flex: 1;
+    overflow-y: auto;
+    padding: ${({ theme }) => theme.spacing.xl};
+    max-width: 720px;
+  `,
+
+  Form: styled.div`
+    display: flex;
+    flex-direction: column;
+    gap: ${({ theme }) => theme.spacing.lg};
+  `,
+
+  FormActions: styled.div`
+    display: flex;
+    justify-content: flex-end;
+  `,
+
+  StepsToolbar: styled.div`
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: ${({ theme }) => theme.spacing.md};
+  `,
+
+  StepRow: styled.div`
+    display: flex;
+    align-items: center;
+    gap: ${({ theme }) => theme.spacing.md};
+    background: ${({ theme }) => theme.colors.surface};
+    border: 1px solid ${({ theme }) => theme.colors.border};
+    border-radius: ${({ theme }) => theme.borderRadius.lg};
+    padding: ${({ theme }) => theme.spacing.md};
+  `,
+
+  StepOrder: styled.div`
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: ${({ theme }) => theme.colors.surfaceHover};
+    color: ${({ theme }) => theme.colors.textMuted};
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: ${({ theme }) => theme.fontSizes.xs};
+    font-weight: 600;
+    flex-shrink: 0;
+  `,
+
+  StepInfo: styled.div`
+    flex: 1;
+    min-width: 0;
+  `,
+
+  StepName: styled.div`
+    font-size: ${({ theme }) => theme.fontSizes.sm};
+    font-weight: 600;
+    color: ${({ theme }) => theme.colors.text};
+  `,
+
+  StepDescription: styled.div`
+    font-size: ${({ theme }) => theme.fontSizes.xs};
+    color: ${({ theme }) => theme.colors.textMuted};
+  `,
+
+  StepActions: styled.div`
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex-shrink: 0;
+  `,
+
+  IconBtn: styled.button`
+    width: 28px;
+    height: 28px;
+    border-radius: ${({ theme }) => theme.borderRadius.md};
+    border: 1px solid ${({ theme }) => theme.colors.border};
+    background: ${({ theme }) => theme.colors.surface};
+    color: ${({ theme }) => theme.colors.textMuted};
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: ${({ theme }) => theme.transitions.fast};
+
+    &:hover:not(:disabled) { border-color: ${({ theme }) => theme.colors.primary}; color: ${({ theme }) => theme.colors.primary}; }
+    &:disabled { opacity: 0.4; cursor: not-allowed; }
+  `,
+
+  List: styled.div`
+    display: flex;
+    flex-direction: column;
+    gap: ${({ theme }) => theme.spacing.sm};
+  `,
+
+  EmptyState: styled.div`
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: ${({ theme }) => theme.spacing.md};
+    padding: ${({ theme }) => theme.spacing['2xl']};
+    color: ${({ theme }) => theme.colors.textMuted};
+    text-align: center;
+  `,
+
+  ExecutionRow: styled.details`
+    background: ${({ theme }) => theme.colors.surface};
+    border: 1px solid ${({ theme }) => theme.colors.border};
+    border-radius: ${({ theme }) => theme.borderRadius.lg};
+    padding: ${({ theme }) => theme.spacing.md};
+  `,
+
+  ExecutionSummary: styled.summary`
+    display: flex;
+    align-items: center;
+    gap: ${({ theme }) => theme.spacing.sm};
+    cursor: pointer;
+    font-size: ${({ theme }) => theme.fontSizes.sm};
+    color: ${({ theme }) => theme.colors.text};
+  `,
+
+  StatusBadge: styled.span<{ $status: 'RUNNING' | 'SUCCESS' | 'FAILED' | 'PARTIAL' }>`
+    display: inline-flex;
+    padding: 2px 8px;
+    border-radius: ${({ theme }) => theme.borderRadius.full};
+    font-size: ${({ theme }) => theme.fontSizes.xs};
+    font-weight: 600;
+    background: ${({ $status, theme }) => (
+    $status === 'SUCCESS' ? `${theme.colors.success}20` :
+      $status === 'FAILED' ? `${theme.colors.danger}20` :
+        `${theme.colors.warning}20`
+  )};
+    color: ${({ $status, theme }) => (
+    $status === 'SUCCESS' ? theme.colors.success :
+      $status === 'FAILED' ? theme.colors.danger :
+        theme.colors.warning
+  )};
+  `,
+
+  LogList: styled.div`
+    margin-top: ${({ theme }) => theme.spacing.sm};
+    padding-top: ${({ theme }) => theme.spacing.sm};
+    border-top: 1px solid ${({ theme }) => theme.colors.border};
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  `,
+
+  LogEntry: styled.div`
+    font-size: ${({ theme }) => theme.fontSizes.xs};
+    font-family: ${({ theme }) => theme.fonts.mono};
+    color: ${({ theme }) => theme.colors.textMuted};
+  `,
+};

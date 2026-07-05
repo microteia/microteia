@@ -16,6 +16,7 @@ import {
   RiLineChartLine,
   RiHistoryLine,
   RiLayoutGridLine,
+  RiFlowChart,
 } from 'react-icons/ri';
 import type { UserRole } from '../../domain/entities';
 import { DashboardView } from './Dashboard/Dashboard.view';
@@ -43,6 +44,8 @@ import { AuditLogsView } from './AuditLogs/AuditLogs.view';
 import { ScreenBuilderView } from './ScreenBuilder/ScreenBuilder.view';
 import { DynamicRecordListView } from './DynamicRecordList/DynamicRecordList.view';
 import { ViewDynamicRecordView } from './ViewDynamicRecord/ViewDynamicRecord.view';
+import { WorkflowsView } from './Workflows/Workflows.view';
+import { ViewWorkflowView } from './ViewWorkflow/ViewWorkflow.view';
 
 export interface PageDefinition {
   key: string;
@@ -206,6 +209,20 @@ export const PAGE_REGISTRY: PageDefinition[] = [
     title: 'Prazo',
     icon: <RiTimeLine size={20} />,
     component: ViewDeadlineView,
+  },
+  { key: 'workflows',        title: 'Automações',          icon: <RiFlowChart size={20} />,             component: WorkflowsView        },
+  {
+    key: 'new-workflow',
+    title: 'Nova Automação',
+    icon: <RiFlowChart size={20} />,
+    component: ViewWorkflowView,
+  },
+  {
+    key: '',
+    keyPrefix: 'view-workflow:',
+    title: 'Automação',
+    icon: <RiFlowChart size={20} />,
+    component: ViewWorkflowView,
   },
 ];
 

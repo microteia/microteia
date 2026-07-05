@@ -81,6 +81,10 @@ O projeto usa **Clean Architecture + MVVM** com separação estrita em camadas. 
 | `NewsDocument` | `newsDocuments/{id}` | Não |
 | `SavedFilter` | `savedFilters/{uid}_{screenKey}` | Não |
 | `AuditLog` | `auditLogs/{id}` | Sim (campo `tenantId`, coleção flat) |
+| `WorkflowDefinition` | `tenants/{tenantId}/workflow_definitions/{id}` (steps embutidos como array) | Sim |
+| `WorkflowEvent` | `tenants/{tenantId}/workflow_events/{id}` (append-only, sem leitura pelo cliente) | Sim |
+| `WorkflowExecution` | `tenants/{tenantId}/workflow_executions/{id}` (somente leitura pelo cliente) | Sim |
+| `StepDefinition` (catálogo, espelho somente-leitura) | `workflow_step_catalog/{id}` | Não |
 
 ### Tipos-chave
 
@@ -843,7 +847,10 @@ src/
 │   │   ├── INewsInteractionRepository.ts
 │   │   ├── INewsCommentRepository.ts
 │   │   ├── INewsDocumentRepository.ts
-│   │   └── ISavedFilterRepository.ts
+│   │   ├── ISavedFilterRepository.ts
+│   │   ├── IWorkflowDefinitionRepository.ts
+│   │   ├── IWorkflowExecutionRepository.ts
+│   │   └── IStepCatalogRepository.ts
 │   └── usecases/
 │       ├── auth/
 │       ├── userprofile/
@@ -864,7 +871,10 @@ src/
 │       ├── newstags/
 │       ├── newsinteractions/
 │       ├── newscomments/
-│       └── newsdocuments/
+│       ├── newsdocuments/
+│       ├── workflows/
+│       ├── workflowexecutions/
+│       └── stepcatalog/
 │
 ├── data/
 │   ├── repositories/
@@ -1209,10 +1219,11 @@ Arquivos `.tsx` exportam **apenas** componentes React. Hooks e tipos ficam em `.
 | `NewsInteractionStore` | Leitura, salvos, curtidas por usuário |
 | `WorkspaceStore` | Tabs abertas no shell, tab ativa |
 | `ThemeStore` | Tema visual com persistência em localStorage (`'curatino-theme'`) |
+| `WorkflowStore` | Automações (`WorkflowDefinition`) do tenant atual — CRUD de definição + steps embutidos. Execuções (`WorkflowExecution`) e catálogo de Steps são lidos direto via `useDI()` nas viewmodels de `ViewWorkflow`, sem store próprio (dado local à página, não compartilhado entre telas) |
 
 ### Stores que dependem do tenant
 
-`PersonStore`, `CaseStore`, `ContractStore`, `DeadlineStore`, `FinancialStore`, `PushStore` escutam `currentTenant` via `useTenant()`. Se `currentTenant` for `null`, limpam o estado e não fazem queries.
+`PersonStore`, `CaseStore`, `ContractStore`, `DeadlineStore`, `FinancialStore`, `PushStore`, `WorkflowStore` escutam `currentTenant` via `useTenant()`. Se `currentTenant` for `null`, limpam o estado e não fazem queries.
 
 ---
 
@@ -1233,6 +1244,7 @@ Arquivos `.tsx` exportam **apenas** componentes React. Hooks e tipos ficam em `.
 | `FINANCIAL_TAG_UPDATED` | `FinancialTagStore` | — |
 | `PUSH_UPDATED` | `PushStore` | `PushInteractionStore` (re-sincroniza contadores) |
 | `NEWS_UPDATED` | `NewsStore` | `NewsTagStore`, `NewsInteractionStore` |
+| `WORKFLOWS_UPDATED` | `WorkflowStore` | — |
 
 ### Regra para nova entidade com store próprio
 
@@ -1430,6 +1442,131 @@ Nota: a subcoleção `fieldOptions` (opções dinâmicas de selects) **não** es
 - Toda tela dinâmica nova nasce com um campo `Nome` (`text`, obrigatório) definido como `titleFieldKey`; o ScreenBuilder impede excluir o campo-título ou torná-lo opcional.
 - Excluir um campo deixa valores órfãos nos docs — inofensivo: o motor de renderização ignora chaves sem definição correspondente.
 - Registro referenciado por campo `reference` que foi excluído: renderiza fallback "—", sem cascata (v1).
+
+---
+
+## Workflow Engine — Motor de Automação (Automações)
+
+Motor de automação genérico, desacoplado de qualquer módulo de domínio, que reage a eventos
+publicados por qualquer parte do sistema (`deadline.created`, `process.saved`, `financial.paid`...)
+e executa Steps configuráveis pelo builder visual em "Automações". Vive na feature
+`workflow_engine`, espelhada em dois lugares que **não compartilham código** — `src/` e
+`functions/` são projetos TypeScript separados nesta base, sem import cruzado:
+
+- **`src/`** — só o plano de controle: CRUD de `WorkflowDefinition` (builder visual), leitura
+  do histórico de `WorkflowExecution` e do catálogo de Steps. **Nunca executa** um workflow.
+- **`functions/`** — o motor de verdade, rodando em Cloud Functions.
+
+### Por que Cloud Functions, e não o `StoreEventEmitter` do cliente
+
+O `StoreEventEmitter` (ver seção própria) é em memória, existe só enquanto a aba está aberta e
+não carrega payload — inadequado para automações de negócio, que precisam disparar mesmo sem
+ninguém logado. O Event Bus do motor é o próprio Firestore: qualquer módulo publica um evento
+gravando um documento em `tenants/{tenantId}/workflow_events`; uma única Cloud Function
+(`onWorkflowEventCreated`, modelada sobre `auditFlatEntityChange`) é a única assinante e roda o
+motor com Admin SDK. Nenhum módulo importa ou conhece o motor.
+
+### Os "3 anéis" de desacoplamento
+
+1. **Núcleo** (`functions/src/domain/engine/`: `WorkflowExecutor`, `StepRegistry`,
+   `ExpressionEngine`, `InputMapping`, `ConditionEvaluator`) — zero import de qualquer módulo
+   de domínio nomeado (Prazo, Processo, Financeiro, etc).
+2. **Steps-plugin** (`functions/src/infrastructure/workflow/steps/`) — cada Step depende
+   exatamente do repositório de domínio que precisa: `CreateDeadlineStep` → `IDeadlineRepository`
+   (mínimo, próprio do motor); `NotifyStep`/`RegisterAuditStep` → `IAuditLogRepository` (já
+   existente, reaproveitado); `SetVariableStep` → nenhuma dependência externa.
+3. **Composition root** (`functions/src/infrastructure/workflow/registerSteps.ts`) — único
+   arquivo que conhece o `StepRegistry` **e** os plugins concretos, ligando os dois no cold
+   start (`ensureWorkflowStepsRegistered` no DI container). Adicionar um Step novo nunca exige
+   alterar o núcleo.
+
+Localização de Step é **sempre** via `stepRegistry.resolve(stepDefinitionId)` — nunca
+`switch`/`if` sobre o tipo.
+
+### Catálogo de Steps no cliente
+
+`src/` não pode importar os executores de `functions/`. Por isso o composition root também
+espelha cada `StepDefinition` (todos os campos exceto `createExecutor`) em
+`workflow_step_catalog/{id}` — coleção global, não por tenant, já que o catálogo de Steps
+disponíveis é o mesmo para todos os escritórios. O builder (`StepEditorModal`) renderiza a UI
+de configuração **exclusivamente** a partir de `InputDefinition[]` lido dali — nunca conhece um
+Step por nome (ex: `"CreateDeadline"`).
+
+### InputMapping — 5 tipos, nunca string genérica
+
+Cada campo configurável de um Step é uma de cinco formas, discriminadas por `kind`:
+`LiteralInputMapping` (valor fixo), `EventInputMapping` (dot-path no payload do evento),
+`ExpressionInputMapping` (roda no `ExpressionEngine`: `today()`, `now()`, `if()`, `concat()`,
+`lower()`, `upper()`, `length()`, `+`/`-` em datas — extensível via `FunctionRegistry` próprio,
+mesmo padrão do `StepRegistry`), `OutputInputMapping` (lê a saída de um step anterior,
+namespaced por `{stepId, outputId}` — não por `stepDefinitionId` — para não colidir quando a
+mesma `StepDefinition` é usada duas vezes no mesmo workflow) e `VariableInputMapping` (lê
+`context.variables`, escrito por `SetVariableStep`).
+
+### Fluxo de execução
+
+Escrita em `workflow_events` → `onWorkflowEventCreated` dispara → carrega
+`WorkflowDefinition`s habilitadas para aquele `eventName` (`findEnabledByEvent`) → para cada
+uma: avalia a `Condition` → roda os `steps` em ordem (`order` crescente), resolvendo os inputs
+de cada um via `InputMapping` e despachando o executor via `StepRegistry` → grava um
+`WorkflowExecution` com `logs[]` em `tenants/{tenantId}/workflow_executions`. Falha de um step
+para o restante daquele workflow (fail-fast, sem retry na v1) mas nunca derruba os demais
+workflows nem a Cloud Function.
+
+### Publicação automática de eventos
+
+Nenhum módulo de domínio chama `publishEvent()` diretamente. Em vez disso, a Cloud Function
+`publishWorkflowEventOnEntityChange` (`onDocumentWritten`, mesmo escopo de
+`auditFlatEntityChange`: `tenants/{tenantId}/{collection}/{docId}`) observa a escrita de fora e
+publica o evento correspondente — o próprio módulo nem sabe que o motor existe. O mapeamento
+coleção → prefixo de evento fica em `functions/src/domain/services/workflowEventEntities.ts`:
+
+| Entidade | Coleção Firestore | Prefixo do evento |
+|---|---|---|
+| Pessoa | `persons` | `person` |
+| Contrato | `contracts` | `contract` |
+| Processo | `cases` | `case` |
+| Prazo | `deadlines` | `deadline` |
+| Financeiro | `financials` | `financial` |
+| Push | `pushes` | `push` |
+| Entidade Customizada | `customRecords` | `custom_record` |
+| Item de Lista (qualquer lookup) | `personTypes`, `caseAreas`, `contractTypes`, `deadlineTypes`, `financialCategories`, etc. (lista fechada em `LOOKUP_COLLECTIONS`) | `lookup` |
+
+Toda entidade tem exatamente dois eventos: `<prefixo>.saved` (criação **ou** atualização — o
+motor não distingue as duas) e `<prefixo>.deleted`. O `payload` publicado é `{ id, ...dados_do_documento }`
+— os dados de depois da escrita (`saved`) ou de antes (`deleted`).
+
+Coleções fora desse mapa (tags, `members`, `aiConnections`, subcoleções aninhadas como
+`notes`/`documents`) são ignoradas — mesmo padrão de allowlist do `auditFlatEntityChange`.
+
+**Catálogo de eventos no cliente:** como `src/` não pode importar o mapa de `functions/`, ele
+mantém sua própria cópia estática em `src/domain/services/workflowEventCatalog.ts` — usada para
+(1) o seletor de evento na aba Geral, com rótulos em PT-BR (`"Ao salvar: Processo"`, `"Ao
+excluir: Contrato"`, ordenados por ação e depois por entidade) e (2) a lista de campos conhecidos
+de cada evento, usada pelo `StepEditorModal` quando o usuário escolhe mapping "Do evento": em vez
+de digitar o caminho à mão, ele escolhe de uma lista (`caseNumber`, `personName`, etc.). Entidades
+customizadas e itens de lista não têm campos fixos conhecíveis estaticamente — o picker cai de
+volta para texto livre nesses dois casos.
+
+### v1 — implementado vs preparado
+
+**Implementado:** `ActionStep` com 4 Steps reais (`CreateDeadlineStep`, `NotifyStep`,
+`RegisterAuditStep`, `SetVariableStep`), execução sequencial fail-fast, uma única `Condition`
+(`AlwaysTrue`), builder visual (lista + detalhe com abas Geral/Condições/Steps/Execuções),
+publicação automática de eventos `saved`/`deleted` para as 8 entidades da tabela acima.
+**Preparado só como shape, nunca registrado no `StepRegistry`** (adicionar não exige tocar no
+motor): `ConditionStep`, `DelayStep`, `ScriptStep`, `SubWorkflowStep`, retry/compensação/rollback,
+execução síncrona, construtor de condições completo (E/OU/comparação de campo).
+
+### Arquivos-chave
+
+- `functions/src/domain/engine/WorkflowExecutor.ts` — orquestrador
+- `functions/src/infrastructure/handlers/onWorkflowEventCreated.ts` — gatilho do motor (Event Bus)
+- `functions/src/infrastructure/handlers/publishWorkflowEventOnEntityChange.ts` — publica os eventos `saved`/`deleted`
+- `functions/src/infrastructure/handlers/syncWorkflowStepCatalog.ts` — `onCall` que sincroniza `workflow_step_catalog` sob demanda (chamado pelo builder ao abrir uma automação, já que o catálogo não pode depender de um evento real ter ocorrido)
+- `functions/src/infrastructure/workflow/registerSteps.ts` — composition root
+- `src/domain/services/workflowEventCatalog.ts` — catálogo de eventos e campos, espelho do lado cliente
+- `src/presentation/pages/ViewWorkflow/components/StepEditorModal/` — UI genérica dirigida por `InputDefinition[]`
 
 ---
 
@@ -1920,6 +2057,28 @@ service cloud.firestore {
         allow delete: if isTenantAdmin(tenantId);
       }
 
+      // ─── Workflow Engine (Automações) ────────────────────────────────────────
+      // Definições de automação — feature administrativa; só admin cria/edita/exclui.
+      // `steps` fica embutido no próprio documento (ver "Workflow Engine" no corpo do doc).
+      match /workflow_definitions/{workflowId} {
+        allow read: if isMember(tenantId);
+        allow create, update, delete: if isTenantAdmin(tenantId);
+      }
+
+      // Event Bus do motor — qualquer membro com escrita pode publicar um evento;
+      // coleção append-only, ninguém lê/edita/exclui pelo client (só a Cloud Function
+      // onWorkflowEventCreated, via Admin SDK, que ignora estas regras).
+      match /workflow_events/{eventId} {
+        allow create: if canWriteInTenant(tenantId);
+        allow read, update, delete: if false;
+      }
+
+      // Histórico de execução — só a Cloud Function grava (Admin SDK); membros só leem.
+      match /workflow_executions/{executionId} {
+        allow read: if isMember(tenantId);
+        allow write: if false;
+      }
+
       // ─── Telas Dinâmicas (Personalização) ────────────────────────────────────
       // Definições de telas e campos customizados — membro lê; só admin configura
       match /screenDefinitions/{screenId} {
@@ -2122,6 +2281,15 @@ service cloud.firestore {
         && request.resource.data.userId == request.auth.uid;
     }
 
+    // ─── Catálogo de Steps do Workflow Engine ─────────────────────────────────
+    // Coleção flat na raiz, global (não por tenant) — o catálogo de Steps disponíveis é o
+    // mesmo para todos os escritórios. Espelho somente-leitura de StepDefinition (sem
+    // `createExecutor`), escrito só pelo composition root em functions/ (Admin SDK).
+    match /workflow_step_catalog/{stepDefinitionId} {
+      allow read: if request.auth != null;
+      allow write: if false;
+    }
+
   }
 }
 ```
@@ -2299,6 +2467,8 @@ service firebase.storage {
 | `auditLogs` | `tenantId` ASC, `createdAt` DESC | Para listar auditoria por escritório, mais recente primeiro |
 | `auditLogs` | `tenantId` ASC, `severity` ASC, `createdAt` ASC | Para contar falhas CRITICAL não lidas (badge da Auditoria) |
 | `tenants/{id}/customRecords` | `screenKey` ASC, `createdAt` DESC | Para listar registros de cada tela dinâmica |
+| `tenants/{id}/workflow_definitions` | `eventName` ASC, `enabled` ASC | Para `findEnabledByEvent` — o gatilho do motor localiza workflows habilitados por evento |
+| `tenants/{id}/workflow_executions` | `workflowDefinitionId` ASC, `startedAt` DESC | Para listar execuções de um workflow na aba "Execuções", mais recente primeiro |
 
 ---
 
