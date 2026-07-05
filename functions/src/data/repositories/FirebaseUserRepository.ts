@@ -21,6 +21,12 @@ export class FirebaseUserRepository implements IUserRepository {
     };
   }
 
+  async getUserRole(userId: string): Promise<string | null> {
+    const snap = await this.db.collection('users').doc(userId).get();
+    if (!snap.exists) return null;
+    return (snap.data()?.role as string | undefined) ?? null;
+  }
+
   async createUserIfMissing(userId: string, data: CreateUserInput): Promise<boolean> {
     const ref = this.db.collection('users').doc(userId);
     const snap = await ref.get();

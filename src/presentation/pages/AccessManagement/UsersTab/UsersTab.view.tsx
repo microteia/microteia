@@ -10,8 +10,9 @@ import { S } from './UsersTab.styles';
 import type { UserRole } from '../../../../domain/entities';
 
 const ROLE_OPTIONS: SearchSelectOption[] = [
-  { value: 'SYSTEM', label: 'Sistema' },
-  { value: 'USER',   label: 'Usuário' },
+  { value: 'SYSTEM',  label: 'Sistema' },
+  { value: 'SUPPORT', label: 'Suporte' },
+  { value: 'USER',    label: 'Usuário' },
 ];
 
 const formatDate = (date: Date) =>
@@ -123,6 +124,7 @@ const RoleCellContent: React.FC<RoleCellContentProps> = ({
 
   const roleColors: Record<string, string> = {
     SYSTEM: theme.colors.danger,
+    SUPPORT: theme.colors.warning,
     USER: theme.colors.textSecondary,
   };
 
@@ -139,6 +141,7 @@ const RoleCellContent: React.FC<RoleCellContentProps> = ({
 };
 
 const ROLE_LABELS: Record<UserRole, string> = {
-  SYSTEM: 'Sistema',
-  USER:   'Usuário',
+  SYSTEM:  'Sistema',
+  SUPPORT: 'Suporte',
+  USER:    'Usuário',
 };

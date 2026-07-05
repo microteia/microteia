@@ -1,5 +1,6 @@
 import type { ITenantRepository } from '../repositories/ITenantRepository';
 import type { ITenantMemberRepository } from '../repositories/ITenantMemberRepository';
+import type { IUserRepository } from '../repositories/IUserRepository';
 
 export type RemoveTenantMemberUseCase = {
   execute: (tenantId: string, userId: string, requesterId: string) => Promise<void>;
@@ -8,11 +9,15 @@ export type RemoveTenantMemberUseCase = {
 export const makeRemoveTenantMemberUseCase = (
   tenantRepo: ITenantRepository,
   tenantMemberRepo: ITenantMemberRepository,
+  userRepo: IUserRepository,
 ): RemoveTenantMemberUseCase => ({
   execute: async (tenantId, userId, requesterId) => {
     const requesterRole = await tenantMemberRepo.getMemberRole(tenantId, requesterId);
     if (requesterRole !== 'admin') {
-      throw new Error('Somente administradores do escritório podem remover membros.');
+      const globalRole = await userRepo.getUserRole(requesterId);
+      if (globalRole !== 'SYSTEM' && globalRole !== 'SUPPORT') {
+        throw new Error('Somente administradores do escritório podem remover membros.');
+      }
     }
 
     await tenantRepo.removeMember(tenantId, userId, requesterId);

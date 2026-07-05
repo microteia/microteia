@@ -793,7 +793,8 @@ setCurrentTenant(tenant)
 
 | Role | Descrição |
 |---|---|
-| `SYSTEM` | Acesso total ao sistema. Gerencia usuários na tela de Gestão de Acessos. Apenas outro `SYSTEM` pode atribuir esta role. |
+| `SYSTEM` | Acesso total ao sistema. Gerencia usuários e escritórios na tela de Gestão de Acessos. Age como admin em qualquer tenant, mesmo sem ser membro (ver todos no seletor de tenant). Apenas outro `SYSTEM` pode atribuir esta role. |
+| `SUPPORT` | Age como admin em qualquer tenant, mesmo sem ser membro — vê todos os escritórios no seletor de tenant e pode operar seus dados para dar suporte. **Não** tem acesso à tela de Gestão de Acessos (não gerencia roles globais nem plano/limite de escritórios). Só `SYSTEM` atribui esta role. |
 | `USER` | Papel padrão atribuído no primeiro login. |
 
 ### Papéis por tenant (`TenantRole`)
@@ -1454,32 +1455,40 @@ service cloud.firestore {
       return request.auth != null && userData().role == 'SYSTEM';
     }
 
+    // Verifica se o usuário autenticado é SYSTEM ou SUPPORT — ambos agem como
+    // admin em QUALQUER tenant, mesmo sem um doc em members/{uid} daquele tenant
+    // (usado pela equipe para prestar suporte a um escritório sem precisar de convite).
+    function isSystemOrSupport() {
+      return request.auth != null && userData().role in ['SYSTEM', 'SUPPORT'];
+    }
+
     // Retorna os dados do membro do tenant
     function memberData(tenantId) {
       return get(/databases/$(database)/documents/tenants/$(tenantId)/members/$(request.auth.uid)).data;
     }
 
-    // Verifica se o usuário é membro do tenant
+    // Verifica se o usuário é membro do tenant (ou SYSTEM/SUPPORT, que contam como membro de todos)
     function isMember(tenantId) {
       return request.auth != null &&
-        exists(/databases/$(database)/documents/tenants/$(tenantId)/members/$(request.auth.uid));
+        (isSystemOrSupport() ||
+         exists(/databases/$(database)/documents/tenants/$(tenantId)/members/$(request.auth.uid)));
     }
 
-    // Verifica se o usuário tem role de admin no tenant
+    // Verifica se o usuário tem role de admin no tenant (ou é SYSTEM/SUPPORT)
     function isTenantAdmin(tenantId) {
-      return isMember(tenantId) && memberData(tenantId).role == 'admin';
+      return isSystemOrSupport() || (isMember(tenantId) && memberData(tenantId).role == 'admin');
     }
 
-    // Verifica se o usuário tem role de advogado ou admin no tenant
+    // Verifica se o usuário tem role de advogado ou admin no tenant (ou é SYSTEM/SUPPORT)
     function isTenantLawyerOrAdmin(tenantId) {
-      return isMember(tenantId) &&
-        memberData(tenantId).role in ['admin', 'lawyer'];
+      return isSystemOrSupport() ||
+        (isMember(tenantId) && memberData(tenantId).role in ['admin', 'lawyer']);
     }
 
-    // Verifica se o usuário pode escrever dados no tenant (admin, lawyer, secretary)
+    // Verifica se o usuário pode escrever dados no tenant (admin, lawyer, secretary, ou SYSTEM/SUPPORT)
     function canWriteInTenant(tenantId) {
-      return isMember(tenantId) &&
-        memberData(tenantId).role in ['admin', 'lawyer', 'secretary'];
+      return isSystemOrSupport() ||
+        (isMember(tenantId) && memberData(tenantId).role in ['admin', 'lawyer', 'secretary']);
     }
 
     // Retorna os dados da notícia relacionada a um NewsDocument
@@ -1561,10 +1570,11 @@ service cloud.firestore {
     match /tenants/{tenantId} {
       // Qualquer membro pode ler o tenant
       allow get: if isMember(tenantId);
-      // list: só SYSTEM lista a coleção inteira (aba "Escritórios" de Gestão de Acessos,
-      // getAllTenants() sem where). Sem esta regra, getDocs(collection('tenants')) é negado
-      // mesmo para SYSTEM — "get" não cobre consultas de coleção.
-      allow list: if isSystemAdmin();
+      // list: SYSTEM e SUPPORT listam a coleção inteira — usado tanto pela aba "Escritórios"
+      // de Gestão de Acessos (SYSTEM) quanto pelo seletor de tenant no TopBar, que para esses
+      // dois roles exibe todos os escritórios em vez de só os que o usuário é membro.
+      // Sem esta regra, getDocs(collection('tenants')) é negado — "get" não cobre consultas de coleção.
+      allow list: if isSystemOrSupport();
       // Admin do tenant atualiza os dados do escritório, mas nunca memberCount/memberLimit/ownerId/plan.
       // memberCount só é escrito pelas Cloud Functions addTenantMember/removeTenantMember (Admin SDK,
       // ignora estas regras); memberLimit e plan só por admin global (SYSTEM), na aba "Escritórios" de Gestão de Acessos.
@@ -1991,7 +2001,7 @@ service cloud.firestore {
             || (resource.data.tenantId != null
                 && isMember(resource.data.tenantId)
                 && (resource.data.userId == request.auth.uid
-                    || memberData(resource.data.tenantId).role == 'admin'))
+                    || isTenantAdmin(resource.data.tenantId)))
             || (request.resource.data.diff(resource.data).affectedKeys()
                   .hasOnly(['likedBy', 'likeCount'])
                 && (resource.data.tenantId == null
@@ -2096,9 +2106,7 @@ service cloud.firestore {
     // todos os clientes — somente Cloud Functions (Admin SDK) criam documentos.
 
     match /auditLogs/{logId} {
-      allow read: if request.auth != null
-        && (isSystemAdmin()
-            || (isMember(resource.data.tenantId) && memberData(resource.data.tenantId).role == 'admin'));
+      allow read: if request.auth != null && isTenantAdmin(resource.data.tenantId);
       allow write: if false;
     }
 
@@ -2141,64 +2149,69 @@ service firebase.storage {
         && request.resource.contentType.matches('image/.*');
     }
 
+    // Verifica se o usuário autenticado é SYSTEM ou SUPPORT — ambos agem como
+    // admin em qualquer tenant nas regras de Storage abaixo (mesmo racional de
+    // isSystemOrSupport() nas regras do Firestore).
+    function isSystemOrSupportUser() {
+      return firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role in ['SYSTEM', 'SUPPORT'];
+    }
+    function isTenantMemberOrElevated(tenantId) {
+      return isSystemOrSupportUser()
+        || firestore.exists(/databases/(default)/documents/tenants/$(tenantId)/members/$(request.auth.uid));
+    }
+    function isTenantAdminOrElevated(tenantId) {
+      return isSystemOrSupportUser()
+        || firestore.get(/databases/(default)/documents/tenants/$(tenantId)/members/$(request.auth.uid)).data.role == 'admin';
+    }
+
     // ─── Documentos de processos ──────────────────────────────────────────────
     // Path: tenants/{tenantId}/cases/{caseId}/{filename}
     match /tenants/{tenantId}/cases/{caseId}/{allPaths=**} {
-      allow read: if request.auth != null
-        && firestore.exists(/databases/(default)/documents/tenants/$(tenantId)/members/$(request.auth.uid));
+      allow read: if request.auth != null && isTenantMemberOrElevated(tenantId);
       allow write: if request.auth != null
-        && firestore.exists(/databases/(default)/documents/tenants/$(tenantId)/members/$(request.auth.uid))
+        && isTenantMemberOrElevated(tenantId)
         && request.resource.size < 20 * 1024 * 1024;    // máximo 20 MB
-      allow delete: if request.auth != null
-        && firestore.get(/databases/(default)/documents/tenants/$(tenantId)/members/$(request.auth.uid)).data.role == 'admin';        
+      allow delete: if request.auth != null && isTenantAdminOrElevated(tenantId);
     }
 
     // ─── Documentos de pessoas ───────────────────────────────────────────────
     // Path: tenants/{tenantId}/persons/{personId}/{filename}
     match /tenants/{tenantId}/persons/{personId}/{allPaths=**} {
-      allow read: if request.auth != null
-        && firestore.exists(/databases/(default)/documents/tenants/$(tenantId)/members/$(request.auth.uid));
+      allow read: if request.auth != null && isTenantMemberOrElevated(tenantId);
       allow create: if request.auth != null
-        && firestore.exists(/databases/(default)/documents/tenants/$(tenantId)/members/$(request.auth.uid))
+        && isTenantMemberOrElevated(tenantId)
         && request.resource.size < 20 * 1024 * 1024;     // máximo 20 MB
-      allow delete: if request.auth != null
-        && firestore.get(/databases/(default)/documents/tenants/$(tenantId)/members/$(request.auth.uid)).data.role == 'admin';
+      allow delete: if request.auth != null && isTenantAdminOrElevated(tenantId);
     }
 
     // ─── Documentos de contratos ──────────────────────────────────────────────
     // Path: tenants/{tenantId}/contracts/{contractId}/{filename}
     match /tenants/{tenantId}/contracts/{contractId}/{allPaths=**} {
-      allow read: if request.auth != null
-        && firestore.exists(/databases/(default)/documents/tenants/$(tenantId)/members/$(request.auth.uid));
+      allow read: if request.auth != null && isTenantMemberOrElevated(tenantId);
       allow create: if request.auth != null
-        && firestore.exists(/databases/(default)/documents/tenants/$(tenantId)/members/$(request.auth.uid))
+        && isTenantMemberOrElevated(tenantId)
         && request.resource.size < 20 * 1024 * 1024;     // máximo 20 MB
-      allow delete: if request.auth != null
-        && firestore.get(/databases/(default)/documents/tenants/$(tenantId)/members/$(request.auth.uid)).data.role == 'admin';
+      allow delete: if request.auth != null && isTenantAdminOrElevated(tenantId);
     }
 
     // ─── Documentos de lançamentos financeiros ───────────────────────────────
     // Path: tenants/{tenantId}/financials/{financialId}/{filename}
     match /tenants/{tenantId}/financials/{financialId}/{allPaths=**} {
-      allow read: if request.auth != null
-        && firestore.exists(/databases/(default)/documents/tenants/$(tenantId)/members/$(request.auth.uid));
+      allow read: if request.auth != null && isTenantMemberOrElevated(tenantId);
       allow create: if request.auth != null
-        && firestore.exists(/databases/(default)/documents/tenants/$(tenantId)/members/$(request.auth.uid))
+        && isTenantMemberOrElevated(tenantId)
         && request.resource.size < 20 * 1024 * 1024;     // máximo 20 MB
-      allow delete: if request.auth != null
-        && firestore.get(/databases/(default)/documents/tenants/$(tenantId)/members/$(request.auth.uid)).data.role == 'admin';
+      allow delete: if request.auth != null && isTenantAdminOrElevated(tenantId);
     }
 
     // ─── Documentos de registros de telas dinâmicas ──────────────────────────
     // Path: tenants/{tenantId}/customRecords/{recordId}/{filename}
     match /tenants/{tenantId}/customRecords/{recordId}/{allPaths=**} {
-      allow read: if request.auth != null
-        && firestore.exists(/databases/(default)/documents/tenants/$(tenantId)/members/$(request.auth.uid));
+      allow read: if request.auth != null && isTenantMemberOrElevated(tenantId);
       allow create: if request.auth != null
-        && firestore.exists(/databases/(default)/documents/tenants/$(tenantId)/members/$(request.auth.uid))
+        && isTenantMemberOrElevated(tenantId)
         && request.resource.size < 20 * 1024 * 1024;     // máximo 20 MB
-      allow delete: if request.auth != null
-        && firestore.get(/databases/(default)/documents/tenants/$(tenantId)/members/$(request.auth.uid)).data.role == 'admin';
+      allow delete: if request.auth != null && isTenantAdminOrElevated(tenantId);
     }
 
     // ─── Documentos de boletins ───────────────────────────────────────────────
@@ -2218,16 +2231,14 @@ service firebase.storage {
     function canViewNews(newsId) {
       let tenantId = newsTenantId(newsId);
       return isSystemAdminUser()
-        || (tenantId != null
-            && firestore.exists(/databases/(default)/documents/tenants/$(tenantId)/members/$(request.auth.uid)));
+        || (tenantId != null && isTenantMemberOrElevated(tenantId));
     }
     function canEditNews(newsId) {
       let tenantId = newsTenantId(newsId);
       return isSystemAdminUser()
         || (tenantId != null
-            && firestore.exists(/databases/(default)/documents/tenants/$(tenantId)/members/$(request.auth.uid))
-            && (newsCreator(newsId) == request.auth.uid
-                || firestore.get(/databases/(default)/documents/tenants/$(tenantId)/members/$(request.auth.uid)).data.role == 'admin'));
+            && isTenantMemberOrElevated(tenantId)
+            && (newsCreator(newsId) == request.auth.uid || isTenantAdminOrElevated(tenantId)));
     }
     match /news/{newsId}/{allPaths=**} {
       allow read: if request.auth != null && canViewNews(newsId);
@@ -2241,8 +2252,7 @@ service firebase.storage {
     // Path: tenants/{tenantId}/logs/{entity}/{logId}.json
     // Escrito somente pela Cloud Function backupDeletedAuditLog (Admin SDK).
     match /tenants/{tenantId}/logs/{entity}/{allPaths=**} {
-      allow read: if request.auth != null
-        && firestore.get(/databases/(default)/documents/tenants/$(tenantId)/members/$(request.auth.uid)).data.role == 'admin';
+      allow read: if request.auth != null && isTenantAdminOrElevated(tenantId);
       allow write: if false;
     }
     // Path: systemLogs/{entity}/{logId}.json — logs sem tenant (erros globais do pipeline)

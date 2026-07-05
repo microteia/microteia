@@ -261,14 +261,22 @@ class DIContainer {
 
   getAddTenantMemberUseCase(): AddTenantMemberUseCase {
     if (!this.addTenantMemberUC) {
-      this.addTenantMemberUC = makeAddTenantMemberUseCase(this.getTenantRepository(), this.getTenantMemberRepository());
+      this.addTenantMemberUC = makeAddTenantMemberUseCase(
+        this.getTenantRepository(),
+        this.getTenantMemberRepository(),
+        this.getUserRepository(),
+      );
     }
     return this.addTenantMemberUC;
   }
 
   getRemoveTenantMemberUseCase(): RemoveTenantMemberUseCase {
     if (!this.removeTenantMemberUC) {
-      this.removeTenantMemberUC = makeRemoveTenantMemberUseCase(this.getTenantRepository(), this.getTenantMemberRepository());
+      this.removeTenantMemberUC = makeRemoveTenantMemberUseCase(
+        this.getTenantRepository(),
+        this.getTenantMemberRepository(),
+        this.getUserRepository(),
+      );
     }
     return this.removeTenantMemberUC;
   }

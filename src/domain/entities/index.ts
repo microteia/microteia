@@ -19,7 +19,7 @@ export type ThemeMode = 'dark' | 'light' | 'claude' | 'teams' | 'bruma' | 'kindl
 
 // ─── RBAC global ─────────────────────────────────────────────────────────────
 
-export type UserRole = 'SYSTEM' | 'USER';
+export type UserRole = 'SYSTEM' | 'USER' | 'SUPPORT';
 
 export interface AppUser {
   id: string;

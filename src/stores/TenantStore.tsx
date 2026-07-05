@@ -3,6 +3,7 @@ import { TenantContext } from './useTenant';
 import { useAuth } from './useAuth';
 import { useDI } from '../infrastructure/di/useDI';
 import { makeGetTenantsForUserUseCase } from '../domain/usecases/tenants/GetTenantsForUserUseCase';
+import { makeGetAllTenantsUseCase } from '../domain/usecases/tenants/GetAllTenantsUseCase';
 import {
   makeAddTenantMemberUseCase,
   makeUpdateTenantMemberRoleUseCase,
@@ -15,8 +16,11 @@ import type { Tenant, TenantMember, TenantRole } from '../domain/entities';
 const TENANT_STORAGE_KEY = 'curatino:lastTenantId';
 
 export const TenantStoreProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { user, effectiveName } = useAuth();
+  const { user, userRole, effectiveName } = useAuth();
   const { tenantRepository } = useDI();
+
+  // SYSTEM e SUPPORT enxergam e administram todos os tenants, mesmo sem ser membro.
+  const isElevated = userRole === 'SYSTEM' || userRole === 'SUPPORT';
 
   const [availableTenants, setAvailableTenants] = useState<Tenant[]>([]);
   const [currentTenant, setCurrentTenant] = useState<Tenant | null>(null);
@@ -27,6 +31,7 @@ export const TenantStoreProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
   const uc = useMemo(() => ({
     getForUser: makeGetTenantsForUserUseCase(tenantRepository),
+    getAll: makeGetAllTenantsUseCase(tenantRepository),
     update: makeUpdateTenantUseCase(tenantRepository),
     addMember: makeAddTenantMemberUseCase(tenantRepository),
     updateRole: makeUpdateTenantMemberRoleUseCase(tenantRepository),
@@ -43,11 +48,11 @@ export const TenantStoreProvider: React.FC<{ children: React.ReactNode }> = ({ c
     setCurrentTenant(tenant);
     localStorage.setItem(TENANT_STORAGE_KEY, tenant.id);
     if (user) {
-      const role = await tenantRepository.getMemberRole(tenant.id, user.id);
+      const role = isElevated ? 'admin' : await tenantRepository.getMemberRole(tenant.id, user.id);
       setTenantRole(role);
       await loadMembers(tenant.id);
     }
-  }, [tenantRepository, user, loadMembers]);
+  }, [tenantRepository, user, loadMembers, isElevated]);
 
   const selectTenant = useCallback(async (tenantId: string) => {
     const tenant = availableTenants.find((t) => t.id === tenantId) ??
@@ -114,7 +119,10 @@ export const TenantStoreProvider: React.FC<{ children: React.ReactNode }> = ({ c
       setIsLoading(true);
       setInitError(null);
       try {
-        const tenants = await uc.getForUser.execute(user.id);
+        const tenants = isElevated
+          ? await uc.getAll.execute()
+          : await uc.getForUser.execute(user.id);
+        tenants.sort((a, b) => a.name.localeCompare(b.name));
 
         // O onboarding (users/, userProfiles/ e o tenant próprio) é feito inteiramente
         // pela Cloud Function onUserCreated antes do AuthContext liberar o usuário —
@@ -142,7 +150,7 @@ export const TenantStoreProvider: React.FC<{ children: React.ReactNode }> = ({ c
     };
 
     void init();
-  }, [user]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [user, isElevated]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <TenantContext.Provider value={{

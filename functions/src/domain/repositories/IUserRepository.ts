@@ -8,6 +8,7 @@ export interface CreateUserInput {
 
 export interface IUserRepository {
   getUserInfo(userId: string): Promise<UserInfo>;
+  getUserRole(userId: string): Promise<string | null>;
   /** Idempotente — não sobrescreve e retorna false se o documento já existir. */
   createUserIfMissing(userId: string, data: CreateUserInput): Promise<boolean>;
   /** Idempotente — não sobrescreve se o documento já existir. */

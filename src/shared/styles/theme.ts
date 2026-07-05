@@ -14,6 +14,7 @@ export const darkTheme = {
     secondary: '#f97316',
     success: '#22c55e',
     warning: '#f59e0b',
+    warningLight: 'rgba(245, 158, 11, 0.12)',
     danger: '#ef4444',
     dangerLight: 'rgba(239, 68, 68, 0.12)',
     revenue: '#16A34A',
