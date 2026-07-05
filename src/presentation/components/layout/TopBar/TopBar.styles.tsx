@@ -116,6 +116,36 @@ export const S = {
     border-bottom: 1px solid ${({ theme }) => theme.colors.border};
   `,
 
+  SearchInputWrapper: styled.div`
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    border-bottom: 1px solid ${({ theme }) => theme.colors.border};
+    color: ${({ theme }) => theme.colors.textMuted};
+  `,
+
+  SearchInput: styled.input`
+    flex: 1;
+    border: none;
+    background: transparent;
+    color: ${({ theme }) => theme.colors.text};
+    font-size: ${({ theme }) => theme.fontSizes.sm};
+    font-family: inherit;
+    outline: none;
+
+    &::placeholder {
+      color: ${({ theme }) => theme.colors.textMuted};
+    }
+  `,
+
+  EmptyState: styled.div`
+    padding: 24px 12px;
+    text-align: center;
+    font-size: ${({ theme }) => theme.fontSizes.sm};
+    color: ${({ theme }) => theme.colors.textMuted};
+  `,
+
   DropdownItem: styled.button<{ $active: boolean }>`
     display: flex;
     align-items: center;

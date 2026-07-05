@@ -6,6 +6,7 @@ import {
   RiArrowDownSLine,
   RiCheckLine,
   RiLoaderLine,
+  RiSearchLine,
 } from 'react-icons/ri';
 import { useTopBarViewModel } from './TopBar.viewmodel';
 import { S } from './TopBar.styles';
@@ -47,24 +48,40 @@ export const TopBar: React.FC = () => {
             {vm.isDropdownOpen && (
               <S.Dropdown ref={vm.dropdownRef}>
                 <S.DropdownHeader>Escritórios</S.DropdownHeader>
-                {vm.availableTenants.map((tenant) => {
-                  const isActive = tenant.id === vm.currentTenant?.id;
-                  return (
-                    <S.DropdownItem
-                      key={tenant.id}
-                      $active={isActive}
-                      onClick={() => vm.handleSelectTenant(tenant.id)}
-                    >
-                      <RiBuildingLine size={15} />
-                      <S.DropdownItemName>{tenant.name}</S.DropdownItemName>
-                      {isActive && (
-                        <S.DropdownItemCheck>
-                          <RiCheckLine size={14} />
-                        </S.DropdownItemCheck>
-                      )}
-                    </S.DropdownItem>
-                  );
-                })}
+                {vm.availableTenants.length > 3 && (
+                  <S.SearchInputWrapper>
+                    <RiSearchLine size={14} />
+                    <S.SearchInput
+                      ref={vm.searchInputRef}
+                      type="text"
+                      placeholder="Pesquisar..."
+                      value={vm.searchQuery}
+                      onChange={vm.handleSearchChange}
+                    />
+                  </S.SearchInputWrapper>
+                )}
+                {vm.filteredTenants.length === 0 ? (
+                  <S.EmptyState>Nenhum escritório encontrado</S.EmptyState>
+                ) : (
+                  vm.filteredTenants.map((tenant) => {
+                    const isActive = tenant.id === vm.currentTenant?.id;
+                    return (
+                      <S.DropdownItem
+                        key={tenant.id}
+                        $active={isActive}
+                        onClick={() => vm.handleSelectTenant(tenant.id)}
+                      >
+                        <RiBuildingLine size={15} />
+                        <S.DropdownItemName>{tenant.name}</S.DropdownItemName>
+                        {isActive && (
+                          <S.DropdownItemCheck>
+                            <RiCheckLine size={14} />
+                          </S.DropdownItemCheck>
+                        )}
+                      </S.DropdownItem>
+                    );
+                  })
+                )}
               </S.Dropdown>
             )}
           </>
