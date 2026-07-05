@@ -25,12 +25,12 @@ export const S = {
 
   Content: styled.div`
     flex: 1;
-    overflow-y: auto;
+    overflow: hidden;
     padding: ${({ theme }) => theme.spacing.lg} ${({ theme }) => theme.spacing.xl};
     display: flex;
-    flex-direction: column;
+    align-items: stretch;
     gap: ${({ theme }) => theme.spacing.xl};
-    max-width: 960px;
+    max-width: 1200px;
   `,
 
   BannerWrapper: styled.div`
@@ -41,6 +41,105 @@ export const S = {
     display: flex;
     flex-direction: column;
     gap: ${({ theme }) => theme.spacing.md};
+  `,
+
+  Sidebar: styled.div`
+    width: 320px;
+    flex-shrink: 0;
+    height: 100%;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: ${({ theme }) => theme.spacing.xl};
+    padding-right: ${({ theme }) => theme.spacing.sm};
+  `,
+
+  SidebarSection: styled.section`
+    display: flex;
+    flex-direction: column;
+    gap: ${({ theme }) => theme.spacing.sm};
+  `,
+
+  ScreenList: styled.div`
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  `,
+
+  ScreenListItem: styled.button<{ $active?: boolean }>`
+    display: flex;
+    align-items: center;
+    gap: ${({ theme }) => theme.spacing.sm};
+    padding: ${({ theme }) => theme.spacing.sm};
+    border-radius: ${({ theme }) => theme.borderRadius.md};
+    text-align: left;
+    width: 100%;
+    background: ${({ theme, $active }) => ($active ? theme.colors.primaryLight : 'transparent')};
+    transition: ${({ theme }) => theme.transitions.fast};
+
+    &:hover {
+      background: ${({ theme, $active }) => ($active ? theme.colors.primaryLight : theme.colors.surfaceHover)};
+    }
+  `,
+
+  ScreenListIcon: styled.div`
+    width: 32px;
+    height: 32px;
+    border-radius: ${({ theme }) => theme.borderRadius.md};
+    background: ${({ theme }) => theme.colors.primaryLight};
+    color: ${({ theme }) => theme.colors.primary};
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+
+    svg {
+      width: 16px;
+      height: 16px;
+    }
+  `,
+
+  ScreenListInfo: styled.div`
+    flex: 1;
+    min-width: 0;
+  `,
+
+  ScreenListName: styled.div`
+    font-size: ${({ theme }) => theme.fontSizes.sm};
+    font-weight: 600;
+    color: ${({ theme }) => theme.colors.text};
+    display: flex;
+    align-items: center;
+    gap: ${({ theme }) => theme.spacing.sm};
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  `,
+
+  ScreenListMeta: styled.div`
+    font-size: ${({ theme }) => theme.fontSizes.xs};
+    color: ${({ theme }) => theme.colors.textMuted};
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  `,
+
+  Detail: styled.div`
+    flex: 1;
+    min-width: 0;
+    height: 100%;
+    overflow-y: auto;
+  `,
+
+  DetailCard: styled.div<{ $disabled?: boolean }>`
+    background: ${({ theme }) => theme.colors.surface};
+    border: 1px solid ${({ theme }) => theme.colors.border};
+    border-radius: ${({ theme }) => theme.borderRadius.lg};
+    padding: ${({ theme }) => theme.spacing.lg};
+    display: flex;
+    flex-direction: column;
+    gap: ${({ theme }) => theme.spacing.md};
+    opacity: ${({ $disabled }) => ($disabled ? 0.6 : 1)};
   `,
 
   SectionTitle: styled.h2`
@@ -173,14 +272,30 @@ export const S = {
     overflow: hidden;
   `,
 
-  FieldRow: styled.div`
+  FieldRow: styled.div<{ $dragging?: boolean; $dragOver?: boolean }>`
     display: flex;
     align-items: center;
     gap: ${({ theme }) => theme.spacing.sm};
     padding: ${({ theme }) => theme.spacing.sm} ${({ theme }) => theme.spacing.md};
+    background: ${({ theme, $dragOver }) => ($dragOver ? theme.colors.surfaceHover : 'transparent')};
+    opacity: ${({ $dragging }) => ($dragging ? 0.4 : 1)};
+    box-shadow: ${({ theme, $dragOver }) => ($dragOver ? `inset 0 2px 0 ${theme.colors.primary}` : 'none')};
 
     & + & {
       border-top: 1px solid ${({ theme }) => theme.colors.border};
+    }
+  `,
+
+  DragHandle: styled.div`
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: ${({ theme }) => theme.colors.textMuted};
+    cursor: grab;
+    flex-shrink: 0;
+
+    &:active {
+      cursor: grabbing;
     }
   `,
 

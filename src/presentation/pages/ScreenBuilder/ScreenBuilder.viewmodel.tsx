@@ -17,6 +17,26 @@ export interface BuiltinScreenRow {
   fields: FieldDefinition[];
 }
 
+export interface ScreenListEntry {
+  key: string;
+  icon: string;
+  title: string;
+  meta: string;
+  disabled: boolean;
+}
+
+export interface SelectedScreenState {
+  kind: 'dynamic' | 'builtin';
+  key: string;
+  icon: string;
+  title: string;
+  meta: string;
+  enabled: boolean;
+  canMoveUp: boolean;
+  canMoveDown: boolean;
+  fields: FieldDefinition[];
+}
+
 export interface ScreenFormState {
   titleSingular: string;
   titlePlural: string;
@@ -58,6 +78,11 @@ export interface ScreenBuilderViewModel {
   dynamicDefinitions: ScreenDefinition[];
   fieldsByScreen: Record<string, FieldDefinition[]>;
   builtinRows: BuiltinScreenRow[];
+  dynamicListEntries: ScreenListEntry[];
+  builtinListEntries: ScreenListEntry[];
+  selectedKey: string | null;
+  selectScreen: (key: string) => void;
+  selectedScreen: SelectedScreenState | null;
   fieldTypeLabel: (type: CustomFieldType) => string;
   isTitleField: (screenKey: string, fieldKey: string) => boolean;
   screenModalOpen: boolean;
@@ -95,6 +120,12 @@ export interface ScreenBuilderViewModel {
   handleSaveField: () => Promise<void>;
   savingField: boolean;
   moveField: (screenKey: string, fieldKey: string, direction: -1 | 1) => Promise<void>;
+  draggedFieldKey: string | null;
+  dragOverFieldKey: string | null;
+  handleFieldDragStart: (fieldKey: string) => void;
+  handleFieldDragOver: (fieldKey: string) => void;
+  handleFieldDragEnd: () => void;
+  handleFieldDrop: (screenKey: string, targetFieldKey: string) => Promise<void>;
   requestDeleteField: (screenKey: string, fieldKey: string) => void;
   deleteFieldTarget: { screenKey: string; field: FieldDefinition } | null;
   cancelDeleteField: () => void;
@@ -173,6 +204,14 @@ const toSaveInput = (def: ScreenDefinition): ScreenDefinitionSaveInput => ({
   enabled: def.enabled,
 });
 
+const buildDynamicMeta = (def: ScreenDefinition, fieldCount: number): string => {
+  const parts = [`${fieldCount} campo(s)`];
+  if (def.hasNotes) parts.push('Anotações');
+  if (def.hasDocuments) parts.push('Documentos');
+  if (def.hasTags) parts.push('Etiquetas');
+  return parts.join(' · ');
+};
+
 const builtinSaveInput = (key: string): ScreenDefinitionSaveInput => {
   const label = BUILTIN_SCREENS.find((b) => b.key === key)?.label ?? key;
   return {
@@ -212,6 +251,10 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
   const [deleteFieldTarget, setDeleteFieldTarget] = useState<{ screenKey: string; field: FieldDefinition } | null>(null);
   const [deletingField, setDeletingField] = useState(false);
 
+  const [selectedKeyState, setSelectedKeyState] = useState<string | null>(null);
+  const [draggedFieldKey, setDraggedFieldKey] = useState<string | null>(null);
+  const [dragOverFieldKey, setDragOverFieldKey] = useState<string | null>(null);
+
   const dynamicDefinitions = useMemo(
     () => definitions
       .filter((def) => !def.builtin)
@@ -233,6 +276,70 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
     })),
     [fieldsByScreen],
   );
+
+  const dynamicListEntries = useMemo<ScreenListEntry[]>(
+    () => dynamicDefinitions.map((def) => ({
+      key: def.id,
+      icon: def.icon,
+      title: def.titlePlural,
+      meta: buildDynamicMeta(def, fieldsByScreen[def.id]?.length ?? 0),
+      disabled: !def.enabled,
+    })),
+    [dynamicDefinitions, fieldsByScreen],
+  );
+
+  const builtinListEntries = useMemo<ScreenListEntry[]>(
+    () => builtinRows.map((row) => ({
+      key: row.key,
+      icon: 'apps',
+      title: row.label,
+      meta: `${row.fields.length} campo(s) adicional(is)`,
+      disabled: false,
+    })),
+    [builtinRows],
+  );
+
+  const selectedKey = useMemo(() => {
+    const allKeys = [...dynamicListEntries.map((e) => e.key), ...builtinListEntries.map((e) => e.key)];
+    if (selectedKeyState && allKeys.includes(selectedKeyState)) return selectedKeyState;
+    return allKeys[0] ?? null;
+  }, [selectedKeyState, dynamicListEntries, builtinListEntries]);
+
+  const selectScreen = useCallback((key: string) => setSelectedKeyState(key), []);
+
+  const selectedScreen = useMemo<SelectedScreenState | null>(() => {
+    if (!selectedKey) return null;
+    const dynIndex = dynamicDefinitions.findIndex((def) => def.id === selectedKey);
+    if (dynIndex >= 0) {
+      const def = dynamicDefinitions[dynIndex];
+      return {
+        kind: 'dynamic',
+        key: def.id,
+        icon: def.icon,
+        title: def.titlePlural,
+        meta: buildDynamicMeta(def, fieldsByScreen[def.id]?.length ?? 0),
+        enabled: def.enabled,
+        canMoveUp: dynIndex > 0,
+        canMoveDown: dynIndex < dynamicDefinitions.length - 1,
+        fields: fieldsByScreen[def.id] ?? [],
+      };
+    }
+    const row = builtinRows.find((r) => r.key === selectedKey);
+    if (row) {
+      return {
+        kind: 'builtin',
+        key: row.key,
+        icon: 'apps',
+        title: row.label,
+        meta: `${row.fields.length} campo(s) adicional(is)`,
+        enabled: true,
+        canMoveUp: false,
+        canMoveDown: false,
+        fields: row.fields,
+      };
+    }
+    return null;
+  }, [selectedKey, dynamicDefinitions, builtinRows, fieldsByScreen]);
 
   const getDefinitionByKey = useCallback(
     (screenKey: string) => definitions.find((def) => def.id === screenKey),
@@ -354,6 +461,7 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
           enabled: true,
         });
         notify('Tela criada com sucesso! Um campo "Nome" foi adicionado como título.', 'success');
+        setSelectedKeyState(screenKey);
       }
       setScreenModal(null);
     } catch {
@@ -575,6 +683,17 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
     }
   }, [fieldModal, fieldForm, fieldModalIsTitleField, getDefinitionByKey, saveDefinition, notify]);
 
+  const applyFieldOrder = useCallback(async (screenKey: string, fields: FieldDefinition[]) => {
+    const def = getDefinitionByKey(screenKey);
+    if (!def) return;
+    const reordered = fields.map((f, idx) => ({ ...f, order: idx }));
+    try {
+      await saveDefinition(screenKey, { ...toSaveInput(def), fields: reordered });
+    } catch {
+      notify('Erro ao reordenar os campos.', 'error');
+    }
+  }, [getDefinitionByKey, saveDefinition, notify]);
+
   const moveField = useCallback(async (screenKey: string, fieldKey: string, direction: -1 | 1) => {
     const def = getDefinitionByKey(screenKey);
     if (!def) return;
@@ -584,13 +703,37 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
     if (index < 0 || targetIndex < 0 || targetIndex >= fields.length) return;
     const [moved] = fields.splice(index, 1);
     fields.splice(targetIndex, 0, moved);
-    const reordered = fields.map((f, idx) => ({ ...f, order: idx }));
-    try {
-      await saveDefinition(screenKey, { ...toSaveInput(def), fields: reordered });
-    } catch {
-      notify('Erro ao reordenar os campos.', 'error');
-    }
-  }, [getDefinitionByKey, saveDefinition, notify]);
+    await applyFieldOrder(screenKey, fields);
+  }, [getDefinitionByKey, applyFieldOrder]);
+
+  const handleFieldDragStart = useCallback((fieldKey: string) => {
+    setDraggedFieldKey(fieldKey);
+  }, []);
+
+  const handleFieldDragOver = useCallback((fieldKey: string) => {
+    setDragOverFieldKey((prev) => (prev === fieldKey ? prev : fieldKey));
+  }, []);
+
+  const handleFieldDragEnd = useCallback(() => {
+    setDraggedFieldKey(null);
+    setDragOverFieldKey(null);
+  }, []);
+
+  const handleFieldDrop = useCallback(async (screenKey: string, targetFieldKey: string) => {
+    const sourceKey = draggedFieldKey;
+    setDraggedFieldKey(null);
+    setDragOverFieldKey(null);
+    if (!sourceKey || sourceKey === targetFieldKey) return;
+    const def = getDefinitionByKey(screenKey);
+    if (!def) return;
+    const fields = sortFieldsByOrder(def.fields);
+    const fromIndex = fields.findIndex((f) => f.key === sourceKey);
+    const toIndex = fields.findIndex((f) => f.key === targetFieldKey);
+    if (fromIndex < 0 || toIndex < 0) return;
+    const [moved] = fields.splice(fromIndex, 1);
+    fields.splice(toIndex, 0, moved);
+    await applyFieldOrder(screenKey, fields);
+  }, [draggedFieldKey, getDefinitionByKey, applyFieldOrder]);
 
   const requestDeleteField = useCallback((screenKey: string, fieldKey: string) => {
     const def = getDefinitionByKey(screenKey);
@@ -623,6 +766,11 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
     dynamicDefinitions,
     fieldsByScreen,
     builtinRows,
+    dynamicListEntries,
+    builtinListEntries,
+    selectedKey,
+    selectScreen,
+    selectedScreen,
     fieldTypeLabel,
     isTitleField,
     screenModalOpen: screenModal !== null,
@@ -660,6 +808,12 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
     handleSaveField,
     savingField,
     moveField,
+    draggedFieldKey,
+    dragOverFieldKey,
+    handleFieldDragStart,
+    handleFieldDragOver,
+    handleFieldDragEnd,
+    handleFieldDrop,
     requestDeleteField,
     deleteFieldTarget,
     cancelDeleteField,

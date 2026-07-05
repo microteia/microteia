@@ -4,13 +4,14 @@ import {
   RiArrowDownSLine,
   RiArrowUpSLine,
   RiDeleteBinLine,
+  RiDraggable,
   RiEyeLine,
   RiEyeOffLine,
   RiPencilLine,
 } from 'react-icons/ri';
 import { S } from './ScreenBuilder.styles';
 import { useScreenBuilderViewModel } from './ScreenBuilder.viewmodel';
-import type { ScreenBuilderViewModel } from './ScreenBuilder.viewmodel';
+import type { ScreenBuilderViewModel, SelectedScreenState } from './ScreenBuilder.viewmodel';
 import { Button } from '../../components/ui/Button';
 import { Input, InputGroup, Label } from '../../components/ui/Input';
 import { SearchSelect } from '../../components/ui/SearchSelect';
@@ -26,7 +27,25 @@ const FieldRows: React.FC<{ vm: ScreenBuilderViewModel; screenKey: string; field
   <S.FieldList>
     {fields.length === 0 && <S.EmptyHint>Nenhum campo adicional definido.</S.EmptyHint>}
     {fields.map((field, index) => (
-      <S.FieldRow key={field.key}>
+      <S.FieldRow
+        key={field.key}
+        draggable
+        $dragging={vm.draggedFieldKey === field.key}
+        $dragOver={vm.dragOverFieldKey === field.key && vm.draggedFieldKey !== field.key}
+        onDragStart={() => vm.handleFieldDragStart(field.key)}
+        onDragOver={(e) => {
+          e.preventDefault();
+          vm.handleFieldDragOver(field.key);
+        }}
+        onDrop={(e) => {
+          e.preventDefault();
+          void vm.handleFieldDrop(screenKey, field.key);
+        }}
+        onDragEnd={vm.handleFieldDragEnd}
+      >
+        <S.DragHandle title="Arrastar para reordenar">
+          <RiDraggable size={16} />
+        </S.DragHandle>
         <S.FieldInfo>
           <S.FieldName>
             {field.label}
@@ -69,6 +88,58 @@ const FieldRows: React.FC<{ vm: ScreenBuilderViewModel; screenKey: string; field
   </S.FieldList>
 );
 
+const ScreenDetailPane: React.FC<{ vm: ScreenBuilderViewModel; screen: SelectedScreenState }> = ({ vm, screen }) => (
+  <S.DetailCard $disabled={!screen.enabled}>
+    <S.ScreenCardHeader>
+      <S.ScreenIcon>{getScreenIcon(screen.icon)}</S.ScreenIcon>
+      <S.ScreenInfo>
+        <S.ScreenName>
+          {screen.title}
+          {!screen.enabled && <S.DisabledBadge>Desativada</S.DisabledBadge>}
+        </S.ScreenName>
+        <S.ScreenMeta>{screen.meta}</S.ScreenMeta>
+      </S.ScreenInfo>
+      {screen.kind === 'dynamic' && (
+        <S.CardActions>
+          <S.IconButton
+            title="Mover para cima"
+            disabled={!screen.canMoveUp}
+            onClick={() => void vm.moveScreen(screen.key, -1)}
+          >
+            <RiArrowUpSLine size={18} />
+          </S.IconButton>
+          <S.IconButton
+            title="Mover para baixo"
+            disabled={!screen.canMoveDown}
+            onClick={() => void vm.moveScreen(screen.key, 1)}
+          >
+            <RiArrowDownSLine size={18} />
+          </S.IconButton>
+          <S.IconButton
+            title={screen.enabled ? 'Desativar tela' : 'Ativar tela'}
+            onClick={() => void vm.toggleScreenEnabled(screen.key)}
+          >
+            {screen.enabled ? <RiEyeLine size={16} /> : <RiEyeOffLine size={16} />}
+          </S.IconButton>
+          <S.IconButton title="Editar tela" onClick={() => vm.openEditScreen(screen.key)}>
+            <RiPencilLine size={16} />
+          </S.IconButton>
+          <S.DangerIconButton title="Excluir tela" onClick={() => vm.requestDeleteScreen(screen.key)}>
+            <RiDeleteBinLine size={16} />
+          </S.DangerIconButton>
+        </S.CardActions>
+      )}
+    </S.ScreenCardHeader>
+    <FieldRows vm={vm} screenKey={screen.key} fields={screen.fields} />
+    <S.CardFooter>
+      <Button variant="secondary" size="sm" onClick={() => vm.openCreateField(screen.key)}>
+        <RiAddLine size={16} />
+        Adicionar campo
+      </Button>
+    </S.CardFooter>
+  </S.DetailCard>
+);
+
 export const ScreenBuilderView: React.FC = () => {
   const vm = useScreenBuilderViewModel();
 
@@ -98,95 +169,68 @@ export const ScreenBuilderView: React.FC = () => {
       </S.Header>
 
       <S.Content>
-        <S.Section>
-          <S.SectionTitle>Telas personalizadas</S.SectionTitle>
-          <S.SectionHint>
-            Crie telas próprias do escritório, com campos, listagem, filtros e busca no atalho ⌘K.
-          </S.SectionHint>
-          {vm.dynamicDefinitions.length === 0 && (
-            <S.EmptyHint>Nenhuma tela personalizada criada ainda.</S.EmptyHint>
-          )}
-          {vm.dynamicDefinitions.map((def, index) => (
-            <S.ScreenCard key={def.id} $disabled={!def.enabled}>
-              <S.ScreenCardHeader>
-                <S.ScreenIcon>{getScreenIcon(def.icon)}</S.ScreenIcon>
-                <S.ScreenInfo>
-                  <S.ScreenName>
-                    {def.titlePlural}
-                    {!def.enabled && <S.DisabledBadge>Desativada</S.DisabledBadge>}
-                  </S.ScreenName>
-                  <S.ScreenMeta>
-                    {(vm.fieldsByScreen[def.id] ?? []).length} campo(s)
-                    {def.hasNotes ? ' · Anotações' : ''}
-                    {def.hasDocuments ? ' · Documentos' : ''}
-                    {def.hasTags ? ' · Etiquetas' : ''}
-                  </S.ScreenMeta>
-                </S.ScreenInfo>
-                <S.CardActions>
-                  <S.IconButton
-                    title="Mover para cima"
-                    disabled={index === 0}
-                    onClick={() => void vm.moveScreen(def.id, -1)}
-                  >
-                    <RiArrowUpSLine size={18} />
-                  </S.IconButton>
-                  <S.IconButton
-                    title="Mover para baixo"
-                    disabled={index === vm.dynamicDefinitions.length - 1}
-                    onClick={() => void vm.moveScreen(def.id, 1)}
-                  >
-                    <RiArrowDownSLine size={18} />
-                  </S.IconButton>
-                  <S.IconButton
-                    title={def.enabled ? 'Desativar tela' : 'Ativar tela'}
-                    onClick={() => void vm.toggleScreenEnabled(def.id)}
-                  >
-                    {def.enabled ? <RiEyeLine size={16} /> : <RiEyeOffLine size={16} />}
-                  </S.IconButton>
-                  <S.IconButton title="Editar tela" onClick={() => vm.openEditScreen(def.id)}>
-                    <RiPencilLine size={16} />
-                  </S.IconButton>
-                  <S.DangerIconButton title="Excluir tela" onClick={() => vm.requestDeleteScreen(def.id)}>
-                    <RiDeleteBinLine size={16} />
-                  </S.DangerIconButton>
-                </S.CardActions>
-              </S.ScreenCardHeader>
-              <FieldRows vm={vm} screenKey={def.id} fields={vm.fieldsByScreen[def.id] ?? []} />
-              <S.CardFooter>
-                <Button variant="secondary" size="sm" onClick={() => vm.openCreateField(def.id)}>
-                  <RiAddLine size={16} />
-                  Adicionar campo
-                </Button>
-              </S.CardFooter>
-            </S.ScreenCard>
-          ))}
-        </S.Section>
+        <S.Sidebar>
+          <S.SidebarSection>
+            <S.SectionTitle>Telas personalizadas</S.SectionTitle>
+            <S.SectionHint>
+              Crie telas próprias do escritório, com campos, listagem, filtros e busca no atalho ⌘K.
+            </S.SectionHint>
+            {vm.dynamicListEntries.length === 0 && (
+              <S.EmptyHint>Nenhuma tela personalizada criada ainda.</S.EmptyHint>
+            )}
+            <S.ScreenList>
+              {vm.dynamicListEntries.map((entry) => (
+                <S.ScreenListItem
+                  key={entry.key}
+                  type="button"
+                  $active={vm.selectedKey === entry.key}
+                  onClick={() => vm.selectScreen(entry.key)}
+                >
+                  <S.ScreenListIcon>{getScreenIcon(entry.icon)}</S.ScreenListIcon>
+                  <S.ScreenListInfo>
+                    <S.ScreenListName>
+                      {entry.title}
+                      {entry.disabled && <S.DisabledBadge>Desativada</S.DisabledBadge>}
+                    </S.ScreenListName>
+                    <S.ScreenListMeta>{entry.meta}</S.ScreenListMeta>
+                  </S.ScreenListInfo>
+                </S.ScreenListItem>
+              ))}
+            </S.ScreenList>
+          </S.SidebarSection>
 
-        <S.Section>
-          <S.SectionTitle>Campos adicionais das telas padrão</S.SectionTitle>
-          <S.SectionHint>
-            Adicione campos personalizados às telas já existentes do sistema. Eles aparecem na seção
-            "Campos adicionais" do formulário de cada tela.
-          </S.SectionHint>
-          {vm.builtinRows.map((row) => (
-            <S.ScreenCard key={row.key}>
-              <S.ScreenCardHeader>
-                <S.ScreenIcon>{getScreenIcon('apps')}</S.ScreenIcon>
-                <S.ScreenInfo>
-                  <S.ScreenName>{row.label}</S.ScreenName>
-                  <S.ScreenMeta>{row.fields.length} campo(s) adicional(is)</S.ScreenMeta>
-                </S.ScreenInfo>
-              </S.ScreenCardHeader>
-              <FieldRows vm={vm} screenKey={row.key} fields={row.fields} />
-              <S.CardFooter>
-                <Button variant="secondary" size="sm" onClick={() => vm.openCreateField(row.key)}>
-                  <RiAddLine size={16} />
-                  Adicionar campo
-                </Button>
-              </S.CardFooter>
-            </S.ScreenCard>
-          ))}
-        </S.Section>
+          <S.SidebarSection>
+            <S.SectionTitle>Campos adicionais das telas padrão</S.SectionTitle>
+            <S.SectionHint>
+              Adicione campos personalizados às telas já existentes do sistema. Eles aparecem na seção
+              "Campos adicionais" do formulário de cada tela.
+            </S.SectionHint>
+            <S.ScreenList>
+              {vm.builtinListEntries.map((entry) => (
+                <S.ScreenListItem
+                  key={entry.key}
+                  type="button"
+                  $active={vm.selectedKey === entry.key}
+                  onClick={() => vm.selectScreen(entry.key)}
+                >
+                  <S.ScreenListIcon>{getScreenIcon(entry.icon)}</S.ScreenListIcon>
+                  <S.ScreenListInfo>
+                    <S.ScreenListName>{entry.title}</S.ScreenListName>
+                    <S.ScreenListMeta>{entry.meta}</S.ScreenListMeta>
+                  </S.ScreenListInfo>
+                </S.ScreenListItem>
+              ))}
+            </S.ScreenList>
+          </S.SidebarSection>
+        </S.Sidebar>
+
+        <S.Detail>
+          {vm.selectedScreen ? (
+            <ScreenDetailPane vm={vm} screen={vm.selectedScreen} />
+          ) : (
+            <S.EmptyHint>Selecione uma tela ao lado para ver seus campos.</S.EmptyHint>
+          )}
+        </S.Detail>
       </S.Content>
 
       {vm.screenModalOpen && (
