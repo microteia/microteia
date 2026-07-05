@@ -42,15 +42,13 @@ export interface CaseFormData {
   phase: string;
   status: string;
   responsibleLawyerId: string;
-  responsibleLawyerName: string;
   contractId: string;
-  contractNumber: string;
   notes: string;
   causeValue: number | null;
   filedAt: string;
 }
 
-const buildFormData = (c: Case | null, userId: string, displayName: string): CaseFormData => ({
+const buildFormData = (c: Case | null, userId: string): CaseFormData => ({
   caseNumber: c?.caseNumber ?? '',
   title: c?.title ?? '',
   activePoleIds: c?.activePoleIds ?? [],
@@ -64,9 +62,7 @@ const buildFormData = (c: Case | null, userId: string, displayName: string): Cas
   phase: c?.phase ?? 'Fase Inicial',
   status: c?.status ?? 'Em Andamento',
   responsibleLawyerId: c?.responsibleLawyerId ?? userId,
-  responsibleLawyerName: c?.responsibleLawyerName ?? displayName,
   contractId: c?.contractId ?? '',
-  contractNumber: c?.contractNumber ?? '',
   notes: c?.notes ?? '',
   causeValue: c?.causeValue ?? null,
   filedAt: c?.filedAt ? c.filedAt.toISOString().slice(0, 10) : '',
@@ -207,7 +203,7 @@ export const useViewCaseViewModel = (tabKey: string): ViewCaseViewModel => {
 
   const [activeTab, setActiveTab] = useState<ViewCaseTab>('data');
   const [formData, setFormDataState] = useState<CaseFormData>(() => {
-    const base = buildFormData(cloneSource, user?.id ?? '', effectiveName);
+    const base = buildFormData(cloneSource, user?.id ?? '');
     return cloneSource ? { ...base, caseNumber: '' } : base;
   });
   const [isSaving, setIsSaving] = useState(false);
@@ -265,10 +261,10 @@ export const useViewCaseViewModel = (tabKey: string): ViewCaseViewModel => {
   useEffect(() => {
     if (case_) {
       // eslint-disable-next-line react-hooks/set-state-in-effect -- sincroniza formulário ao carregar/atualizar dados do processo
-      setFormDataState(buildFormData(case_, user?.id ?? '', effectiveName));
+      setFormDataState(buildFormData(case_, user?.id ?? ''));
       setTabTitle(tabKey, case_.caseNumber ?? case_.title);
     }
-  }, [case_, tabKey, setTabTitle, user, effectiveName]);
+  }, [case_, tabKey, setTabTitle, user]);
 
   useEffect(() => {
     if (!case_ || !currentTenant) return;
@@ -308,9 +304,6 @@ export const useViewCaseViewModel = (tabKey: string): ViewCaseViewModel => {
     if (customFieldsError) { notify(customFieldsError, 'error'); return; }
     if (!currentTenant) return;
 
-    const selectedMember = members.find((m) => m.userId === formData.responsibleLawyerId);
-    const selectedContract = contracts.find((c) => c.id === formData.contractId);
-
     setIsSaving(true);
     try {
       const payload = {
@@ -325,16 +318,13 @@ export const useViewCaseViewModel = (tabKey: string): ViewCaseViewModel => {
         phase: formData.phase as CasePhase,
         status: formData.status as CaseStatus,
         responsibleLawyerId: formData.responsibleLawyerId || (user?.id ?? ''),
-        responsibleLawyerName: (selectedMember?.displayName ?? formData.responsibleLawyerName) || effectiveName,
         contractId: formData.contractId || null,
-        contractNumber: formData.contractId ? (selectedContract?.number ?? formData.contractNumber) : null,
         activePoleIds: formData.activePoleIds,
         passivePoleIds: formData.passivePoleIds,
         opposingParties: case_?.opposingParties ?? [],
         filedAt: formData.filedAt ? new Date(formData.filedAt) : null,
         causeValue: formData.causeValue,
         notes: formData.notes || null,
-        tags: case_?.tags ?? [],
         tagIds: case_?.tagIds ?? [],
         customValues: formValuesToStoredValues(customFields, customValues),
       };
@@ -361,7 +351,7 @@ export const useViewCaseViewModel = (tabKey: string): ViewCaseViewModel => {
     } finally {
       setIsSaving(false);
     }
-  }, [formData, customFields, customValues, isNew, case_, members, contracts, createCase, updateCase, currentTenant, notify, user, effectiveName, tabKey, setTabTitle, closeTab, openTab, activePanelId]);
+  }, [formData, customFields, customValues, isNew, case_, createCase, updateCase, currentTenant, notify, user, effectiveName, tabKey, setTabTitle, closeTab, openTab, activePanelId]);
 
   const appliedTags = useMemo(
     () => (case_ ? getTagsForCase(case_.id, case_.tagIds ?? []) : []),

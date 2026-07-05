@@ -428,16 +428,13 @@ export interface Case {
   phase: CasePhase;
   status: CaseStatus;
   responsibleLawyerId: string;
-  responsibleLawyerName: string;
   contractId?: string | null;
-  contractNumber?: string | null;
   activePoleIds?: string[];
   passivePoleIds?: string[];
   opposingParties?: CaseParty[];
   filedAt?: Date | null;
   causeValue?: number | null;
   notes?: string | null;
-  tags?: string[];
   tagIds?: string[];
   customValues?: Record<string, CustomFieldValue>;
   createdAt: Date;

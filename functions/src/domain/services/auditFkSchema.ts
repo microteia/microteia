@@ -15,6 +15,7 @@ export const STATIC_FK_SCHEMA: Record<string, Record<string, FkFieldSpec>> = {
   },
   cases: {
     contractId: { targetCollection: 'contracts' },
+    responsibleLawyerId: { targetCollection: 'members' },
     activePoleIds: { targetCollection: 'persons', multi: true },
     passivePoleIds: { targetCollection: 'persons', multi: true },
     tagIds: { targetCollection: 'caseTags', multi: true },

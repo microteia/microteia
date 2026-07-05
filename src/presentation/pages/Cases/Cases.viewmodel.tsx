@@ -38,6 +38,7 @@ export interface CasesViewModel {
   getStatusColor: (status: string) => string;
   getPhaseColor: (phase: string) => string;
   getPartyNames: (ids: string[]) => string[];
+  getLawyerName: (lawyerId: string) => string | null;
   getDaysInTramitation: (c: Case) => number | null;
   getCustomFieldItems: (c: Case) => CustomFieldCardItem[];
 }
@@ -211,6 +212,14 @@ export const useCasesViewModel = (): CasesViewModel => {
     [personMap],
   );
 
+  const memberMap = useMemo(() => {
+    const map: Record<string, string> = {};
+    members.forEach((m) => { map[m.userId] = m.displayName; });
+    return map;
+  }, [members]);
+
+  const getLawyerName = useCallback((lawyerId: string): string | null => memberMap[lawyerId] ?? null, [memberMap]);
+
   const today = useMemo(() => new Date(), []);
 
   const getDaysInTramitation = useCallback((c: Case): number | null => {
@@ -249,6 +258,7 @@ export const useCasesViewModel = (): CasesViewModel => {
     getStatusColor,
     getPhaseColor,
     getPartyNames,
+    getLawyerName,
     getDaysInTramitation,
     getCustomFieldItems,
   };

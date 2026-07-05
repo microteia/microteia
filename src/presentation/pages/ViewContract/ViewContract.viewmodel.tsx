@@ -386,7 +386,7 @@ export const useViewContractViewModel = (tabKey: string): ViewContractViewModel 
   const handleLinkCase = useCallback(async (caseId: string) => {
     if (!contract) return;
     try {
-      await updateCase(caseId, { contractId: contract.id, contractNumber: contract.number });
+      await updateCase(caseId, { contractId: contract.id });
       notify('Processo vinculado ao contrato.', 'success');
     } catch {
       notify('Erro ao vincular processo.', 'error');
@@ -405,7 +405,7 @@ export const useViewContractViewModel = (tabKey: string): ViewContractViewModel 
 
   const handleUnlinkCase = useCallback(async (c: Case) => {
     try {
-      await updateCase(c.id, { contractId: null, contractNumber: null });
+      await updateCase(c.id, { contractId: null });
       notify('Processo desvinculado do contrato.', 'success');
     } catch {
       notify('Erro ao desvincular processo.', 'error');

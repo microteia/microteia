@@ -55,6 +55,7 @@ export const CasesView: React.FC = () => {
           <S.Grid>
             {vm.filteredCases.map((c) => {
               const caseTags = tags.filter((t) => c.tagIds?.includes(t.id));
+              const lawyerName = vm.getLawyerName(c.responsibleLawyerId);
               return (
                 <S.CaseCard key={c.id} onClick={() => vm.openCase(c)}>
                   <S.CaseHeader>
@@ -108,10 +109,10 @@ export const CasesView: React.FC = () => {
                   })()}
 
                   <S.CaseMeta>
-                    {c.responsibleLawyerName && (
+                    {lawyerName && (
                       <S.MetaRow>
                         <RiScalesLine size={12} />
-                        <S.MetaText>{c.responsibleLawyerName}</S.MetaText>
+                        <S.MetaText>{lawyerName}</S.MetaText>
                       </S.MetaRow>
                     )}
                     {c.instance && (

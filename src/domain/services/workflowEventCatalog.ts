@@ -48,7 +48,6 @@ const ENTITY_EVENTS: { prefix: string; entityLabel: string; fields: WorkflowEven
       { path: 'phase', label: 'Fase' },
       { path: 'status', label: 'Status' },
       { path: 'responsibleLawyerId', label: 'Id do advogado responsável' },
-      { path: 'responsibleLawyerName', label: 'Nome do advogado responsável' },
       { path: 'contractId', label: 'Id do contrato' },
     ],
   },

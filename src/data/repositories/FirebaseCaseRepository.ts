@@ -47,16 +47,13 @@ const mapCase = (id: string, d: Record<string, unknown>, tenantId: string): Case
   phase: d.phase as Case['phase'],
   status: (d.status as CaseStatus) ?? 'Em Andamento',
   responsibleLawyerId: d.responsibleLawyerId as string,
-  responsibleLawyerName: d.responsibleLawyerName as string,
   contractId: (d.contractId as string | null) ?? null,
-  contractNumber: (d.contractNumber as string | null) ?? null,
   activePoleIds: (d.activePoleIds as string[] | undefined) ?? [],
   passivePoleIds: (d.passivePoleIds as string[] | undefined) ?? [],
   opposingParties: (d.opposingParties as Case['opposingParties']) ?? [],
   filedAt: toDateOrNull(d.filedAt),
   causeValue: (d.causeValue as number | null) ?? null,
   notes: (d.notes as string | null) ?? null,
-  tags: (d.tags as string[] | undefined) ?? [],
   tagIds: (d.tagIds as string[] | undefined) ?? [],
   customValues: (d.customValues as Record<string, CustomFieldValue> | undefined) ?? {},
   createdAt: toDate(d.createdAt),
@@ -132,7 +129,7 @@ export class FirebaseCaseRepository implements ICaseRepository {
     if (snap.empty) return;
     const batch = writeBatch(db);
     for (const d of snap.docs) {
-      batch.update(d.ref, { contractId: null, contractNumber: null, updatedAt: serverTimestamp() });
+      batch.update(d.ref, { contractId: null, updatedAt: serverTimestamp() });
     }
     await batch.commit();
   }
