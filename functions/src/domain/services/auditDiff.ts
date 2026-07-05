@@ -1,6 +1,6 @@
 import type { AuditAction, AuditSeverity } from '../entities/AuditLog';
 
-type EntityData = Record<string, unknown>;
+export type EntityData = Record<string, unknown>;
 
 export interface FieldDiff {
   before: EntityData;

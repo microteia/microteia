@@ -32,6 +32,7 @@ export const auditFlatEntityChange = onDocumentWritten(
 
       const beforeData = (before?.data() as Record<string, unknown>) ?? {};
       const afterData = (after?.data() as Record<string, unknown>) ?? {};
+      const referenceData = action === 'DELETE' ? beforeData : afterData;
 
       let diff: { before?: Record<string, unknown>; after?: Record<string, unknown> } | undefined;
       let changedKeys: Record<string, unknown> = {};
@@ -44,7 +45,11 @@ export const auditFlatEntityChange = onDocumentWritten(
         diff = { before: normalizeAllFields(beforeData) };
       }
 
-      const referenceData = action === 'DELETE' ? beforeData : afterData;
+      if (diff) {
+        const screenKey = collection === 'customRecords' ? (referenceData.screenKey as string | undefined) : collection;
+        diff = await getDI().getFkNameEnricherService().enrichDiff(tenantId, collection, screenKey, diff);
+      }
+
       const displayName = config.getDisplayName(referenceData);
       const severity = resolveSeverity(action, collection, changedKeys);
 

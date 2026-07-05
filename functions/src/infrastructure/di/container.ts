@@ -1,12 +1,14 @@
 import { getDb } from '../firebase/initFirebase';
 import { FirebaseAuditLogRepository } from '../../data/repositories/FirebaseAuditLogRepository';
 import { UserProfileLookupService } from '../../data/services/UserProfileLookupService';
+import { FkNameEnricherService } from '../../data/services/FkNameEnricherService';
 import { makeCreateAuditLogUseCase } from '../../domain/usecases/CreateAuditLogUseCase';
 import type { CreateAuditLogUseCase } from '../../domain/usecases/CreateAuditLogUseCase';
 import { makeLogClientErrorUseCase } from '../../domain/usecases/LogClientErrorUseCase';
 import type { LogClientErrorUseCase } from '../../domain/usecases/LogClientErrorUseCase';
 import type { IAuditLogRepository } from '../../domain/repositories/IAuditLogRepository';
 import type { IUserProfileLookupService } from '../../domain/repositories/IUserProfileLookupService';
+import type { IFkNameEnricherService } from '../../domain/repositories/IFkNameEnricherService';
 import { FirebaseAIConnectionRepository } from '../../data/repositories/FirebaseAIConnectionRepository';
 import { FirebaseTenantMemberRepository } from '../../data/repositories/FirebaseTenantMemberRepository';
 import { FirebaseUserRepository } from '../../data/repositories/FirebaseUserRepository';
@@ -73,6 +75,7 @@ class DIContainer {
   private gmailWatchService?: IGmailWatchService;
   private auditLogRepo?: IAuditLogRepository;
   private userProfileLookupService?: IUserProfileLookupService;
+  private fkNameEnricherService?: IFkNameEnricherService;
   private createAuditLogUC?: CreateAuditLogUseCase;
   private logClientErrorUC?: LogClientErrorUseCase;
   private getDefaultAICredentialsUC?: GetDefaultAICredentialsUseCase;
@@ -289,6 +292,13 @@ class DIContainer {
       this.userProfileLookupService = new UserProfileLookupService(getDb());
     }
     return this.userProfileLookupService;
+  }
+
+  getFkNameEnricherService(): IFkNameEnricherService {
+    if (!this.fkNameEnricherService) {
+      this.fkNameEnricherService = new FkNameEnricherService(getDb());
+    }
+    return this.fkNameEnricherService;
   }
 
   getCreateAuditLogUseCase(): CreateAuditLogUseCase {

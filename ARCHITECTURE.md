@@ -696,6 +696,15 @@ Membro de tenant (`TenantMember`) é removido via Cloud Function callable (`remo
 
 **Filtro de ruído:** updates onde só mudaram campos de bookkeeping (`updatedAt`, `updatedBy*`) não geram log — evita entradas vazias quando um formulário é salvo sem alteração real.
 
+**Resolução de nomes de FK.** Sem tratamento, um campo que guarda o id de outra entidade (ex: `clientId` de Contrato, `activePoleIds` de Processo, ou um campo personalizado do tipo "Referência" criado no Screen Builder) apareceria no bloco JSON só como id cru — ilegível para o usuário do escritório. `auditFlatEntityChange` resolve isso **no momento da escrita**, antes de `buildAuditText`, chamando `IFkNameEnricherService.enrichDiff(tenantId, collection, screenKey, diff)` (`data/services/FkNameEnricherService.ts`), que:
+
+1. Consulta `STATIC_FK_SCHEMA` (`domain/services/auditFkSchema.ts`) — tabela declarativa dos campos FK "de código" das entidades fixas (ex: `financials.caseId → cases`, `contracts.contractorIds → persons`, `*.tagIds → *Tags`). Só entram aqui campos **sem** um irmão já desnormalizado no próprio diff (`caseId`+`caseNumber` juntos, por exemplo, não precisam de resolução extra).
+2. Para coleções que suportam campos personalizados (`persons`, `cases`, `deadlines`, `financials`, `contracts`, `customRecords`), busca o `ScreenDefinition` do `screenKey` (o nome da própria coleção para as fixas; `data.screenKey` para Registros Personalizados) e monta o mesmo tipo de schema para todo `FieldDefinition` com `type === 'reference'` — cobrindo tanto referências a entidades fixas quanto a **outra tela dinâmica** (nesse caso `refEntity` não é uma das 5 chaves fixas, e o alvo cai sempre em `customRecords`, já que todo registro de tela personalizada mora nessa única coleção, diferenciado por `screenKey`).
+3. Coleta todos os ids referenciados em `before`/`after`, deduplica por `(coleção, id)` e busca todos de uma vez com `Firestore.getAll(...refs)` — uma única chamada em lote, não uma query por campo.
+4. Substitui cada id (ou cada item de um array de ids) pelo nome de exibição (`AuditableEntityConfig.getDisplayName`, a mesma função já usada para nomear a entidade principal do log) — mantendo o id como fallback se o documento referenciado não existir mais (ex: já excluído).
+
+O nome fica **congelado no `text` do log como era no momento do evento** — se a entidade referenciada for renomeada depois, o histórico não muda retroativamente (comportamento correto para uma trilha de auditoria). Coleções sem nenhum campo FK conhecido (`members`, `*Tags`, `pushes`, `screenDefinitions`) não disparam nenhuma leitura extra — `enrichDiff` retorna o diff inalterado assim que a tabela de schema resolvida está vazia.
+
 ### Auditoria de Notícias, Comentários de Notícias e Etiquetas de Notícias
 
 `news/{id}`, `newsComments/{id}` e `newsTags/{id}` são coleções **raiz** (fora de `tenants/{tenantId}/...`), então não são cobertas pelas triggers genéricas — ganham três triggers dedicadas em `functions/src/infrastructure/handlers/auditNewsEntityChange.ts`, todas auditando CREATE/UPDATE/DELETE:
