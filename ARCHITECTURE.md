@@ -1551,6 +1551,10 @@ service cloud.firestore {
     match /tenants/{tenantId} {
       // Qualquer membro pode ler o tenant
       allow get: if isMember(tenantId);
+      // list: só SYSTEM lista a coleção inteira (aba "Escritórios" de Gestão de Acessos,
+      // getAllTenants() sem where). Sem esta regra, getDocs(collection('tenants')) é negado
+      // mesmo para SYSTEM — "get" não cobre consultas de coleção.
+      allow list: if isSystemAdmin();
       // Admin do tenant atualiza os dados do escritório, mas nunca memberCount/memberLimit/ownerId.
       // memberCount só é escrito pelas Cloud Functions addTenantMember/removeTenantMember (Admin SDK,
       // ignora estas regras); memberLimit só por admin global (SYSTEM), na aba "Escritórios" de Gestão de Acessos.

@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useTenant } from '../../../../stores/useTenant';
 import { useNotification } from '../../../../stores/useNotification';
 
@@ -24,14 +24,26 @@ export const useOfficeTabViewModel = (): OfficeTabViewModel => {
   
   const isAdmin = tenantRole === 'admin';
 
-  const [officeForm, setOfficeFormState] = useState<OfficeFormData>(() => ({
-    name: currentTenant?.name ?? '',
-    cnpj: currentTenant?.cnpj ?? '',
-    email: currentTenant?.email ?? '',
-    phone: currentTenant?.phone ?? '',
-    address: currentTenant?.address ?? '',
-  }));
+  const [officeForm, setOfficeFormState] = useState<OfficeFormData>({
+    name: '',
+    cnpj: '',
+    email: '',
+    phone: '',
+    address: '',
+  });
   const [isSaving, setIsSaving] = useState(false);
+
+  useEffect(() => {
+    if (!currentTenant) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- syncing local form state when the async-loaded tenant becomes available/changes is architecturally required
+    setOfficeFormState({
+      name: currentTenant.name ?? '',
+      cnpj: currentTenant.cnpj ?? '',
+      email: currentTenant.email ?? '',
+      phone: currentTenant.phone ?? '',
+      address: currentTenant.address ?? '',
+    });
+  }, [currentTenant]);
 
   const setOfficeForm = useCallback((data: Partial<OfficeFormData>) => {
     setOfficeFormState((prev) => ({ ...prev, ...data }));
