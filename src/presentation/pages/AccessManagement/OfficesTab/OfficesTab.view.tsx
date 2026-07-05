@@ -3,6 +3,8 @@ import { RiBuilding2Line } from 'react-icons/ri';
 import { Spinner } from '../../../components/ui/Spinner';
 import { useOfficesTabViewModel } from './OfficesTab.viewmodel';
 import { CompositeFilter } from '../../../components/ui/CompositeFilter';
+import { SearchSelect } from '../../../components/ui/SearchSelect';
+import type { TenantPlan } from '../../../../domain/entities';
 import { S } from './OfficesTab.styles';
 
 const formatDate = (date: Date) =>
@@ -48,6 +50,7 @@ export const OfficesTabView: React.FC = () => {
               <tr>
                 <S.Th>Escritório</S.Th>
                 <S.Th>Criado em</S.Th>
+                <S.Th>Plano</S.Th>
                 <S.Th>Membros atuais</S.Th>
                 <S.Th>Limite de membros</S.Th>
               </tr>
@@ -60,6 +63,18 @@ export const OfficesTabView: React.FC = () => {
                   </S.Td>
                   <S.Td>
                     <S.DateText>{formatDate(t.createdAt)}</S.DateText>
+                  </S.Td>
+                  <S.Td>
+                    <S.PlanCell>
+                      <SearchSelect
+                        options={vm.planOptions}
+                        value={vm.planDrafts[t.id] ?? t.plan}
+                        onChange={(val) => {
+                          if (val) void vm.handlePlanChange(t.id, val as TenantPlan);
+                        }}
+                        placeholder="Plano..."
+                      />
+                    </S.PlanCell>
                   </S.Td>
                   <S.Td>
                     <S.MemberCount>{t.memberCount}</S.MemberCount>

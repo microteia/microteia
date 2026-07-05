@@ -30,6 +30,7 @@ export const makeBootstrapUserUseCase = (
       name: `Escritório de ${displayName}`,
       ownerId: userId,
       email,
+      plan: 'solo',
       memberLimit: 1,
     });
 

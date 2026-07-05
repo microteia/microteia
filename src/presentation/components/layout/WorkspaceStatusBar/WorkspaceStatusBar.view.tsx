@@ -1,5 +1,5 @@
 import React from 'react';
-import { RiBuilding2Line, RiKeyboardLine, RiShieldCheckLine } from 'react-icons/ri';
+import { RiBuilding2Line, RiKeyboardLine, RiShieldCheckLine, RiVipCrownLine } from 'react-icons/ri';
 import { useWorkspaceStatusBarViewModel } from './WorkspaceStatusBar.viewmodel';
 import { S } from './WorkspaceStatusBar.styles';
 
@@ -14,6 +14,15 @@ export const WorkspaceStatusBar: React.FC = () => {
             <RiBuilding2Line />
             {vm.tenantName}
           </S.Item>
+        )}
+        {vm.planLabel && (
+          <S.PlanBadge>
+            <RiVipCrownLine />
+            {vm.planLabel}
+            <S.PlanUsage>
+              {vm.memberCount}/{vm.memberLimit ?? '∞'}
+            </S.PlanUsage>
+          </S.PlanBadge>
         )}
       </S.Side>
 

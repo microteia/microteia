@@ -13,6 +13,7 @@ export interface CreateTenantInput {
   name: string;
   ownerId: string;
   email: string;
+  plan: string;
   memberLimit: number | null;
 }
 

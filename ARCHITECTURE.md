@@ -215,7 +215,8 @@ interface Tenant {
   logoURL?: string | null;
   allowedSenders?: string[];
   allowedSubjects?: string[];
-  memberLimit: number | null; // null = sem limite; padrão 1 no bootstrap (só o dono); só SYSTEM altera depois (aba "Escritórios" de Gestão de Acessos)
+  plan: 'solo' | 'office' | 'professional' | 'enterprise'; // valor gravado em inglês; exibição em pt-BR via TENANT_PLAN_LABELS ('Solo'/'Escritório'/'Professional'/'Enterprise'). Padrão 'solo' no bootstrap; só SYSTEM altera depois (aba "Escritórios" de Gestão de Acessos)
+  memberLimit: number | null; // null = sem limite; padrão 1 no bootstrap (só o dono); mudar o plano sugere um novo limite (TENANT_PLAN_MEMBER_LIMITS), mas o valor continua editável manualmente; só SYSTEM altera (aba "Escritórios" de Gestão de Acessos)
   memberCount: number;        // denormalizado, mantido pelas Cloud Functions addTenantMember/removeTenantMember/onUserCreated
   createdAt: Date;
   updatedAt: Date;
@@ -1564,12 +1565,12 @@ service cloud.firestore {
       // getAllTenants() sem where). Sem esta regra, getDocs(collection('tenants')) é negado
       // mesmo para SYSTEM — "get" não cobre consultas de coleção.
       allow list: if isSystemAdmin();
-      // Admin do tenant atualiza os dados do escritório, mas nunca memberCount/memberLimit/ownerId.
+      // Admin do tenant atualiza os dados do escritório, mas nunca memberCount/memberLimit/ownerId/plan.
       // memberCount só é escrito pelas Cloud Functions addTenantMember/removeTenantMember (Admin SDK,
-      // ignora estas regras); memberLimit só por admin global (SYSTEM), na aba "Escritórios" de Gestão de Acessos.
+      // ignora estas regras); memberLimit e plan só por admin global (SYSTEM), na aba "Escritórios" de Gestão de Acessos.
       allow update: if isSystemAdmin()
         || (isTenantAdmin(tenantId)
-            && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['memberCount', 'memberLimit', 'ownerId']));
+            && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['memberCount', 'memberLimit', 'ownerId', 'plan']));
       // Tenant é criado pela Cloud Function onUserCreated (Admin SDK, trigger de Auth)
       // junto com o bootstrap do usuário — nunca pelo client.
       allow create: if false;

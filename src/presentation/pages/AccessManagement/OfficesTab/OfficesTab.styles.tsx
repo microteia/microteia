@@ -83,6 +83,10 @@ export const S = {
     color: ${({ theme }) => theme.colors.textSecondary};
   `,
 
+  PlanCell: styled.div`
+    width: 180px;
+  `,
+
   LimitCell: styled.div`
     display: flex;
     align-items: center;

@@ -36,6 +36,28 @@ export const S = {
     }
   `,
 
+  PlanBadge: styled.span`
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 1px 8px;
+    border-radius: ${({ theme }) => theme.borderRadius.full};
+    background: ${({ theme }) => theme.colors.primaryLight};
+    color: ${({ theme }) => theme.colors.primary};
+    font-weight: 600;
+    white-space: nowrap;
+
+    svg {
+      flex-shrink: 0;
+      font-size: 12px;
+    }
+  `,
+
+  PlanUsage: styled.span`
+    font-weight: 400;
+    opacity: 0.75;
+  `,
+
   Link: styled.a`
     display: flex;
     align-items: center;

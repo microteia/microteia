@@ -97,6 +97,24 @@ export interface GmailToken {
 
 export type TenantRole = 'admin' | 'lawyer' | 'secretary' | 'user';
 
+export type TenantPlan = 'solo' | 'office' | 'professional' | 'enterprise';
+
+export const TENANT_PLANS: TenantPlan[] = ['solo', 'office', 'professional', 'enterprise'];
+
+export const TENANT_PLAN_LABELS: Record<TenantPlan, string> = {
+  solo: 'Solo',
+  office: 'Escritório',
+  professional: 'Professional',
+  enterprise: 'Enterprise',
+};
+
+export const TENANT_PLAN_MEMBER_LIMITS: Record<TenantPlan, number> = {
+  solo: 1,
+  office: 5,
+  professional: 15,
+  enterprise: 100,
+};
+
 export interface Tenant {
   id: string;
   name: string;
@@ -108,6 +126,7 @@ export interface Tenant {
   logoURL?: string | null;
   allowedSenders?: string[];
   allowedSubjects?: string[];
+  plan: TenantPlan;
   memberLimit: number | null;
   memberCount: number;
   createdAt: Date;
