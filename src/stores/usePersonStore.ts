@@ -8,7 +8,6 @@ export interface PersonStoreContextValue {
   updatePerson: (personId: string, data: Partial<Omit<Person, 'id' | 'tenantId' | 'createdAt' | 'createdBy'>>) => Promise<void>;
   updatePersonStatus: (personId: string, status: PersonStatus) => Promise<void>;
   deletePerson: (personId: string) => Promise<void>;
-  refresh: () => Promise<void>;
 }
 
 export const PersonStoreContext = createContext<PersonStoreContextValue | null>(null);

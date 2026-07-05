@@ -4,7 +4,7 @@ import { useTenant } from './useTenant';
 import { useAuth } from './useAuth';
 import { useDI } from '../infrastructure/di/useDI';
 import { storeEvents, StoreEvents } from '../infrastructure/events/StoreEventEmitter';
-import { makeGetDeadlinesUseCase } from '../domain/usecases/deadlines/GetDeadlinesUseCase';
+import { makeSubscribeToDeadlinesUseCase } from '../domain/usecases/deadlines/SubscribeToDeadlinesUseCase';
 import { makeCreateDeadlineUseCase } from '../domain/usecases/deadlines/CreateDeadlineUseCase';
 import {
   makeUpdateDeadlineUseCase,
@@ -23,7 +23,7 @@ export const DeadlineStoreProvider: React.FC<{ children: React.ReactNode }> = ({
   const [isLoading, setIsLoading] = useState(false);
 
   const uc = useMemo(() => ({
-    get: makeGetDeadlinesUseCase(deadlineRepository),
+    subscribe: makeSubscribeToDeadlinesUseCase(deadlineRepository),
     create: makeCreateDeadlineUseCase(deadlineRepository),
     update: makeUpdateDeadlineUseCase(deadlineRepository),
     complete: makeCompleteDeadlineUseCase(deadlineRepository),
@@ -31,32 +31,19 @@ export const DeadlineStoreProvider: React.FC<{ children: React.ReactNode }> = ({
     delete: makeDeleteDeadlineUseCase(deadlineRepository),
   }), [deadlineRepository]);
 
-  const refresh = useCallback(async () => {
-    if (!currentTenant) return;
-    setIsLoading(true);
-    try {
-      const list = await uc.get.execute(currentTenant.id);
-      setDeadlines(list);
-    } finally {
-      setIsLoading(false);
+  useEffect(() => {
+    if (!currentTenant) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- clearing local state on tenant change is architecturally required
+      setDeadlines([]);
+      return;
     }
-  }, [currentTenant, uc.get]);
-
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- triggering async refresh on mount/tenant change is architecturally required
-    void refresh();
-  }, [refresh]);
-
-  useEffect(() => {
-    const unsub = storeEvents.on(StoreEvents.DEADLINES_UPDATED, () => void refresh());
-    return () => unsub();
-  }, [refresh]);
-
-  useEffect(() => {
-    const handleVisibility = () => { if (!document.hidden) void refresh(); };
-    document.addEventListener('visibilitychange', handleVisibility);
-    return () => document.removeEventListener('visibilitychange', handleVisibility);
-  }, [refresh]);
+    setIsLoading(true);
+    const unsubscribe = uc.subscribe.execute(currentTenant.id, (list) => {
+      setDeadlines(list);
+      setIsLoading(false);
+    });
+    return () => unsubscribe();
+  }, [currentTenant, uc.subscribe]);
 
   const createDeadline = useCallback(async (data: Omit<Deadline, 'id' | 'tenantId' | 'createdAt' | 'updatedAt'>) => {
     if (!currentTenant) throw new Error('No tenant selected');
@@ -98,7 +85,7 @@ export const DeadlineStoreProvider: React.FC<{ children: React.ReactNode }> = ({
   return (
     <DeadlineStoreContext.Provider value={{
       deadlines, isLoading, createDeadline, updateDeadline,
-      completeDeadline, updateDeadlineStatus, deleteDeadline, refresh,
+      completeDeadline, updateDeadlineStatus, deleteDeadline,
     }}>
       {children}
     </DeadlineStoreContext.Provider>

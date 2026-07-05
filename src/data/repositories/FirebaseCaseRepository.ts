@@ -13,6 +13,7 @@ import {
   writeBatch,
   Timestamp,
   serverTimestamp,
+  onSnapshot,
 } from 'firebase/firestore';
 import { db } from '../../infrastructure/firebase/config';
 import type { ICaseRepository } from '../../domain/repositories/ICaseRepository';
@@ -68,6 +69,19 @@ export class FirebaseCaseRepository implements ICaseRepository {
     const q = query(casesRef(tenantId), orderBy('createdAt', 'desc'), limit(500));
     const snap = await getDocs(q);
     return snap.docs.map((d) => mapCase(d.id, d.data(), tenantId));
+  }
+
+  subscribeToCases(tenantId: string, onUpdate: (cases: Case[]) => void): () => void {
+    const q = query(casesRef(tenantId), orderBy('createdAt', 'desc'), limit(500));
+    return onSnapshot(
+      q,
+      (snap) => {
+        onUpdate(snap.docs.map((d) => mapCase(d.id, d.data(), tenantId)));
+      },
+      (error) => {
+        console.error('[CaseRepository] subscribeToCases:', error.message);
+      },
+    );
   }
 
   async getCasesByPerson(tenantId: string, personId: string): Promise<Case[]> {

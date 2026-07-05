@@ -9,7 +9,6 @@ export interface DeadlineStoreContextValue {
   completeDeadline: (deadlineId: string, completedBy: string) => Promise<void>;
   updateDeadlineStatus: (deadlineId: string, status: DeadlineStatus) => Promise<void>;
   deleteDeadline: (deadlineId: string) => Promise<void>;
-  refresh: () => Promise<void>;
 }
 
 export const DeadlineStoreContext = createContext<DeadlineStoreContextValue | null>(null);

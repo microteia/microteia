@@ -4,7 +4,7 @@ import { useTenant } from './useTenant';
 import { useAuth } from './useAuth';
 import { useDI } from '../infrastructure/di/useDI';
 import { storeEvents, StoreEvents } from '../infrastructure/events/StoreEventEmitter';
-import { makeGetPersonsUseCase } from '../domain/usecases/persons/GetPersonsUseCase';
+import { makeSubscribeToPersonsUseCase } from '../domain/usecases/persons/SubscribeToPersonsUseCase';
 import { makeCreatePersonUseCase } from '../domain/usecases/persons/CreatePersonUseCase';
 import { makeUpdatePersonUseCase } from '../domain/usecases/persons/UpdatePersonUseCase';
 import { makeDeletePersonUseCase } from '../domain/usecases/persons/DeletePersonUseCase';
@@ -19,38 +19,25 @@ export const PersonStoreProvider: React.FC<{ children: React.ReactNode }> = ({ c
   const [isLoading, setIsLoading] = useState(false);
 
   const uc = useMemo(() => ({
-    get: makeGetPersonsUseCase(personRepository),
+    subscribe: makeSubscribeToPersonsUseCase(personRepository),
     create: makeCreatePersonUseCase(personRepository),
     update: makeUpdatePersonUseCase(personRepository),
     delete: makeDeletePersonUseCase(personRepository, caseRepository, deadlineRepository, financialRepository),
   }), [personRepository, caseRepository, deadlineRepository, financialRepository]);
 
-  const refresh = useCallback(async () => {
-    if (!currentTenant) return;
-    setIsLoading(true);
-    try {
-      const list = await uc.get.execute(currentTenant.id);
-      setPersons(list);
-    } finally {
-      setIsLoading(false);
+  useEffect(() => {
+    if (!currentTenant) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- clearing local state on tenant change is architecturally required
+      setPersons([]);
+      return;
     }
-  }, [currentTenant, uc.get]);
-
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- triggering async refresh on mount/tenant change is architecturally required
-    void refresh();
-  }, [refresh]);
-
-  useEffect(() => {
-    const unsub = storeEvents.on(StoreEvents.PERSONS_UPDATED, () => void refresh());
-    return () => unsub();
-  }, [refresh]);
-
-  useEffect(() => {
-    const handleVisibility = () => { if (!document.hidden) void refresh(); };
-    document.addEventListener('visibilitychange', handleVisibility);
-    return () => document.removeEventListener('visibilitychange', handleVisibility);
-  }, [refresh]);
+    setIsLoading(true);
+    const unsubscribe = uc.subscribe.execute(currentTenant.id, (list) => {
+      setPersons(list);
+      setIsLoading(false);
+    });
+    return () => unsubscribe();
+  }, [currentTenant, uc.subscribe]);
 
   const createPerson = useCallback(async (data: Omit<Person, 'id' | 'tenantId' | 'createdAt' | 'updatedAt'>) => {
     if (!currentTenant) throw new Error('No tenant selected');
@@ -86,7 +73,7 @@ export const PersonStoreProvider: React.FC<{ children: React.ReactNode }> = ({ c
   }, [currentTenant, uc.delete, user, effectiveName]);
 
   return (
-    <PersonStoreContext.Provider value={{ persons, isLoading, createPerson, updatePerson, updatePersonStatus, deletePerson, refresh }}>
+    <PersonStoreContext.Provider value={{ persons, isLoading, createPerson, updatePerson, updatePersonStatus, deletePerson }}>
       {children}
     </PersonStoreContext.Provider>
   );

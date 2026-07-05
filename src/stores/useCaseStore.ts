@@ -8,7 +8,6 @@ export interface CaseStoreContextValue {
   updateCase: (caseId: string, data: Partial<Omit<Case, 'id' | 'tenantId' | 'createdAt' | 'createdBy'>>) => Promise<void>;
   updateCaseStatus: (caseId: string, status: CaseStatus) => Promise<void>;
   deleteCase: (caseId: string) => Promise<void>;
-  refresh: () => Promise<void>;
 }
 
 export const CaseStoreContext = createContext<CaseStoreContextValue | null>(null);

@@ -5,7 +5,7 @@ import { useAuth } from './useAuth';
 import { useScreenDefinitions } from './useScreenDefinitions';
 import { useDI } from '../infrastructure/di/useDI';
 import { storeEvents, StoreEvents } from '../infrastructure/events/StoreEventEmitter';
-import { makeGetCustomRecordsUseCase } from '../domain/usecases/customrecords/GetCustomRecordsUseCase';
+import { makeSubscribeToCustomRecordsUseCase } from '../domain/usecases/customrecords/SubscribeToCustomRecordsUseCase';
 import { makeCreateCustomRecordUseCase } from '../domain/usecases/customrecords/CreateCustomRecordUseCase';
 import { makeUpdateCustomRecordUseCase } from '../domain/usecases/customrecords/UpdateCustomRecordUseCase';
 import { makeDeleteCustomRecordUseCase } from '../domain/usecases/customrecords/DeleteCustomRecordUseCase';
@@ -21,7 +21,7 @@ export const CustomRecordStoreProvider: React.FC<{ children: React.ReactNode }> 
   const [isLoading, setIsLoading] = useState(false);
 
   const uc = useMemo(() => ({
-    get: makeGetCustomRecordsUseCase(customRecordRepository),
+    subscribe: makeSubscribeToCustomRecordsUseCase(customRecordRepository),
     create: makeCreateCustomRecordUseCase(customRecordRepository),
     update: makeUpdateCustomRecordUseCase(customRecordRepository),
     delete: makeDeleteCustomRecordUseCase(customRecordRepository, customRecordNoteRepository, customRecordDocumentRepository),
@@ -29,34 +29,24 @@ export const CustomRecordStoreProvider: React.FC<{ children: React.ReactNode }> 
 
   const screenKeys = useMemo(() => dynamicScreens.map((def) => def.id), [dynamicScreens]);
 
-  const refresh = useCallback(async () => {
-    if (!currentTenant) return;
-    setIsLoading(true);
-    try {
-      const lists = await Promise.all(screenKeys.map((key) => uc.get.execute(currentTenant.id, key)));
-      const next: Record<string, CustomRecord[]> = {};
-      screenKeys.forEach((key, idx) => { next[key] = lists[idx]; });
-      setRecordsByScreen(next);
-    } finally {
-      setIsLoading(false);
+  useEffect(() => {
+    if (!currentTenant) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- clearing local state on tenant change is architecturally required
+      setRecordsByScreen({});
+      return;
     }
-  }, [currentTenant, screenKeys, uc.get]);
-
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- triggering async refresh on mount/tenant/screen change is architecturally required
-    void refresh();
-  }, [refresh]);
-
-  useEffect(() => {
-    const unsub = storeEvents.on(StoreEvents.CUSTOM_RECORDS_UPDATED, () => void refresh());
-    return () => unsub();
-  }, [refresh]);
-
-  useEffect(() => {
-    const handleVisibility = () => { if (!document.hidden) void refresh(); };
-    document.addEventListener('visibilitychange', handleVisibility);
-    return () => document.removeEventListener('visibilitychange', handleVisibility);
-  }, [refresh]);
+    setIsLoading(true);
+    let pendingScreens = screenKeys.length;
+    if (pendingScreens === 0) setIsLoading(false);
+    const unsubscribers = screenKeys.map((key) =>
+      uc.subscribe.execute(currentTenant.id, key, (records) => {
+        setRecordsByScreen((prev) => ({ ...prev, [key]: records }));
+        pendingScreens -= 1;
+        if (pendingScreens <= 0) setIsLoading(false);
+      }),
+    );
+    return () => unsubscribers.forEach((unsub) => unsub());
+  }, [currentTenant, screenKeys, uc.subscribe]);
 
   const allRecords = useMemo(
     () => Object.values(recordsByScreen).flat(),
@@ -103,7 +93,6 @@ export const CustomRecordStoreProvider: React.FC<{ children: React.ReactNode }> 
       createRecord,
       updateRecord,
       deleteRecord,
-      refresh,
     }}>
       {children}
     </CustomRecordContext.Provider>

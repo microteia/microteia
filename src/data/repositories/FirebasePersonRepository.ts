@@ -11,6 +11,7 @@ import {
   limit,
   Timestamp,
   serverTimestamp,
+  onSnapshot,
 } from 'firebase/firestore';
 import { db } from '../../infrastructure/firebase/config';
 import type { IPersonRepository } from '../../domain/repositories/IPersonRepository';
@@ -59,6 +60,19 @@ export class FirebasePersonRepository implements IPersonRepository {
     const q = query(personsRef(tenantId), orderBy('name', 'asc'), limit(500));
     const snap = await getDocs(q);
     return snap.docs.map((d) => mapPerson(d.id, d.data(), tenantId));
+  }
+
+  subscribeToPersons(tenantId: string, onUpdate: (persons: Person[]) => void): () => void {
+    const q = query(personsRef(tenantId), orderBy('name', 'asc'), limit(500));
+    return onSnapshot(
+      q,
+      (snap) => {
+        onUpdate(snap.docs.map((d) => mapPerson(d.id, d.data(), tenantId)));
+      },
+      (error) => {
+        console.error('[PersonRepository] subscribeToPersons:', error.message);
+      },
+    );
   }
 
   async getPersonById(tenantId: string, personId: string): Promise<Person | null> {

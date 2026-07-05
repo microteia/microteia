@@ -2,6 +2,7 @@ import type { Case, CaseStatus, DeletionActor } from '../entities';
 
 export interface ICaseRepository {
   getCases(tenantId: string): Promise<Case[]>;
+  subscribeToCases(tenantId: string, onUpdate: (cases: Case[]) => void): () => void;
   getCasesByPerson(tenantId: string, personId: string): Promise<Case[]>;
   getCaseById(tenantId: string, caseId: string): Promise<Case | null>;
   createCase(tenantId: string, data: Omit<Case, 'id' | 'tenantId' | 'createdAt' | 'updatedAt'>): Promise<Case>;

@@ -12,6 +12,7 @@ import {
   limit,
   Timestamp,
   serverTimestamp,
+  onSnapshot,
 } from 'firebase/firestore';
 import { db } from '../../infrastructure/firebase/config';
 import type { IDeadlineRepository } from '../../domain/repositories/IDeadlineRepository';
@@ -58,6 +59,19 @@ export class FirebaseDeadlineRepository implements IDeadlineRepository {
     const q = query(deadlinesRef(tenantId), orderBy('dueDate', 'asc'), limit(500));
     const snap = await getDocs(q);
     return snap.docs.map((d) => mapDeadline(d.id, d.data(), tenantId));
+  }
+
+  subscribeToDeadlines(tenantId: string, onUpdate: (deadlines: Deadline[]) => void): () => void {
+    const q = query(deadlinesRef(tenantId), orderBy('dueDate', 'asc'), limit(500));
+    return onSnapshot(
+      q,
+      (snap) => {
+        onUpdate(snap.docs.map((d) => mapDeadline(d.id, d.data(), tenantId)));
+      },
+      (error) => {
+        console.error('[DeadlineRepository] subscribeToDeadlines:', error.message);
+      },
+    );
   }
 
   async getDeadlinesByCase(tenantId: string, caseId: string): Promise<Deadline[]> {

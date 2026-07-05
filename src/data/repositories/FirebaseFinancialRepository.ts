@@ -13,6 +13,7 @@ import {
   Timestamp,
   serverTimestamp,
   writeBatch,
+  onSnapshot,
 } from 'firebase/firestore';
 import { db } from '../../infrastructure/firebase/config';
 import type { IFinancialRepository } from '../../domain/repositories/IFinancialRepository';
@@ -62,6 +63,19 @@ export class FirebaseFinancialRepository implements IFinancialRepository {
     const q = query(financialsRef(tenantId), orderBy('dueDate', 'desc'), limit(500));
     const snap = await getDocs(q);
     return snap.docs.map((d) => mapFinancial(d.id, d.data(), tenantId));
+  }
+
+  subscribeToFinancials(tenantId: string, onUpdate: (financials: Financial[]) => void): () => void {
+    const q = query(financialsRef(tenantId), orderBy('dueDate', 'desc'), limit(500));
+    return onSnapshot(
+      q,
+      (snap) => {
+        onUpdate(snap.docs.map((d) => mapFinancial(d.id, d.data(), tenantId)));
+      },
+      (error) => {
+        console.error('[FinancialRepository] subscribeToFinancials:', error.message);
+      },
+    );
   }
 
   async getFinancialsByCase(tenantId: string, caseId: string): Promise<Financial[]> {

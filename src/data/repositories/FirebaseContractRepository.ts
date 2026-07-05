@@ -11,6 +11,7 @@ import {
   limit,
   Timestamp,
   serverTimestamp,
+  onSnapshot,
 } from 'firebase/firestore';
 import { db } from '../../infrastructure/firebase/config';
 import type { IContractRepository } from '../../domain/repositories/IContractRepository';
@@ -76,6 +77,19 @@ export class FirebaseContractRepository implements IContractRepository {
     const q = query(contractsRef(tenantId), orderBy('createdAt', 'desc'), limit(500));
     const snap = await getDocs(q);
     return snap.docs.map((d) => mapContract(d.id, d.data(), tenantId));
+  }
+
+  subscribeToContracts(tenantId: string, onUpdate: (contracts: Contract[]) => void): () => void {
+    const q = query(contractsRef(tenantId), orderBy('createdAt', 'desc'), limit(500));
+    return onSnapshot(
+      q,
+      (snap) => {
+        onUpdate(snap.docs.map((d) => mapContract(d.id, d.data(), tenantId)));
+      },
+      (error) => {
+        console.error('[ContractRepository] subscribeToContracts:', error.message);
+      },
+    );
   }
 
   async getContractById(tenantId: string, contractId: string): Promise<Contract | null> {

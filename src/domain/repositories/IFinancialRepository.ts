@@ -2,6 +2,7 @@ import type { Financial, FinancialStatus, FinancialType, DeletionActor } from '.
 
 export interface IFinancialRepository {
   getFinancials(tenantId: string): Promise<Financial[]>;
+  subscribeToFinancials(tenantId: string, onUpdate: (financials: Financial[]) => void): () => void;
   getFinancialsByCase(tenantId: string, caseId: string): Promise<Financial[]>;
   getFinancialsByPerson(tenantId: string, personId: string): Promise<Financial[]>;
   getFinancialsByType(tenantId: string, type: FinancialType): Promise<Financial[]>;

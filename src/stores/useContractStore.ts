@@ -7,7 +7,6 @@ export interface ContractStoreContextValue {
   createContract: (data: Omit<Contract, 'id' | 'tenantId' | 'createdAt' | 'updatedAt'>) => Promise<Contract>;
   updateContract: (contractId: string, data: Partial<Omit<Contract, 'id' | 'tenantId' | 'createdAt' | 'createdBy'>>) => Promise<void>;
   deleteContract: (contractId: string) => Promise<void>;
-  refresh: () => Promise<void>;
 }
 
 export const ContractStoreContext = createContext<ContractStoreContextValue | null>(null);

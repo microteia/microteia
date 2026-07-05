@@ -4,7 +4,7 @@ import { useTenant } from './useTenant';
 import { useAuth } from './useAuth';
 import { useDI } from '../infrastructure/di/useDI';
 import { storeEvents, StoreEvents } from '../infrastructure/events/StoreEventEmitter';
-import { makeGetFinancialsUseCase } from '../domain/usecases/financials/GetFinancialsUseCase';
+import { makeSubscribeToFinancialsUseCase } from '../domain/usecases/financials/SubscribeToFinancialsUseCase';
 import { makeCreateFinancialUseCase } from '../domain/usecases/financials/CreateFinancialUseCase';
 import {
   makeUpdateFinancialUseCase,
@@ -24,7 +24,7 @@ export const FinancialStoreProvider: React.FC<{ children: React.ReactNode }> = (
   const [isLoading, setIsLoading] = useState(false);
 
   const uc = useMemo(() => ({
-    get: makeGetFinancialsUseCase(financialRepository),
+    subscribe: makeSubscribeToFinancialsUseCase(financialRepository),
     create: makeCreateFinancialUseCase(financialRepository),
     update: makeUpdateFinancialUseCase(financialRepository),
     markPaid: makeMarkFinancialPaidUseCase(financialRepository),
@@ -33,32 +33,19 @@ export const FinancialStoreProvider: React.FC<{ children: React.ReactNode }> = (
     delete: makeDeleteFinancialUseCase(financialRepository),
   }), [financialRepository]);
 
-  const refresh = useCallback(async () => {
-    if (!currentTenant) return;
-    setIsLoading(true);
-    try {
-      const list = await uc.get.execute(currentTenant.id);
-      setFinancials(list);
-    } finally {
-      setIsLoading(false);
+  useEffect(() => {
+    if (!currentTenant) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- clearing local state on tenant change is architecturally required
+      setFinancials([]);
+      return;
     }
-  }, [currentTenant, uc.get]);
-
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- triggering async refresh on mount/tenant change is architecturally required
-    void refresh();
-  }, [refresh]);
-
-  useEffect(() => {
-    const unsub = storeEvents.on(StoreEvents.FINANCIALS_UPDATED, () => void refresh());
-    return () => unsub();
-  }, [refresh]);
-
-  useEffect(() => {
-    const handleVisibility = () => { if (!document.hidden) void refresh(); };
-    document.addEventListener('visibilitychange', handleVisibility);
-    return () => document.removeEventListener('visibilitychange', handleVisibility);
-  }, [refresh]);
+    setIsLoading(true);
+    const unsubscribe = uc.subscribe.execute(currentTenant.id, (list) => {
+      setFinancials(list);
+      setIsLoading(false);
+    });
+    return () => unsubscribe();
+  }, [currentTenant, uc.subscribe]);
 
   const createFinancial = useCallback(async (data: Omit<Financial, 'id' | 'tenantId' | 'createdAt' | 'updatedAt'>) => {
     if (!currentTenant) throw new Error('No tenant selected');
@@ -115,7 +102,7 @@ export const FinancialStoreProvider: React.FC<{ children: React.ReactNode }> = (
   return (
     <FinancialStoreContext.Provider value={{
       financials, isLoading, createFinancial, updateFinancial,
-      markPaid, updateFinancialStatus, cancelFinancial, deleteFinancial, refresh,
+      markPaid, updateFinancialStatus, cancelFinancial, deleteFinancial,
     }}>
       {children}
     </FinancialStoreContext.Provider>

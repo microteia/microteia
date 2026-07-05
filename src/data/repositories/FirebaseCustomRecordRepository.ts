@@ -6,6 +6,7 @@ import {
   getDoc,
   getDocs,
   limit,
+  onSnapshot,
   orderBy,
   query,
   serverTimestamp,
@@ -49,6 +50,24 @@ export class FirebaseCustomRecordRepository implements ICustomRecordRepository {
     );
     const snap = await getDocs(q);
     return snap.docs.map((d) => mapCustomRecord(d.id, d.data(), tenantId));
+  }
+
+  subscribeByScreen(tenantId: string, screenKey: string, onUpdate: (records: CustomRecord[]) => void): () => void {
+    const q = query(
+      recordsRef(tenantId),
+      where('screenKey', '==', screenKey),
+      orderBy('createdAt', 'desc'),
+      limit(500),
+    );
+    return onSnapshot(
+      q,
+      (snap) => {
+        onUpdate(snap.docs.map((d) => mapCustomRecord(d.id, d.data(), tenantId)));
+      },
+      (error) => {
+        console.error('[CustomRecordRepository] subscribeByScreen:', error.message);
+      },
+    );
   }
 
   async getById(tenantId: string, recordId: string): Promise<CustomRecord | null> {

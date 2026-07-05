@@ -10,7 +10,6 @@ export interface FinancialStoreContextValue {
   updateFinancialStatus: (financialId: string, status: FinancialStatus, paymentDate?: Date) => Promise<void>;
   cancelFinancial: (financialId: string, cancelDate: Date) => Promise<void>;
   deleteFinancial: (financialId: string) => Promise<void>;
-  refresh: () => Promise<void>;
 }
 
 export const FinancialStoreContext = createContext<FinancialStoreContextValue | null>(null);
