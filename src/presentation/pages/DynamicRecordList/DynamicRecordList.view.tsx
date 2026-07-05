@@ -40,9 +40,8 @@ export const DynamicRecordListView: React.FC<{ tabKey: string }> = ({ tabKey }) 
           {getScreenIcon(definition.icon, 22)}
           <S.Title>{definition.titlePlural}</S.Title>
         </S.TitleRow>
-        <Button onClick={vm.openNewRecord}>
+        <Button onClick={vm.openNewRecord} title={`Novo ${definition.titleSingular}`}>
           <RiAddLine size={16} />
-          {`Novo ${definition.titleSingular}`}
         </Button>
       </S.Header>
 

@@ -22,9 +22,8 @@ export const CasesView: React.FC = () => {
     <S.Page>
       <S.Header>
         <S.Title>Processos</S.Title>
-        <Button onClick={vm.openNewCase}>
+        <Button onClick={vm.openNewCase} title="Novo Processo">
           <RiFolderAddLine size={16} />
-          Novo Processo
         </Button>
       </S.Header>
 

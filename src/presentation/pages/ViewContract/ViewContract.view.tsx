@@ -13,6 +13,7 @@ import {
   RiArrowDownSLine,
   RiFolderLine,
   RiLinkUnlinkM,
+  RiSaveLine,
 } from 'react-icons/ri';
 import { S } from './ViewContract.styles';
 import { useViewContractViewModel } from './ViewContract.viewmodel';
@@ -74,12 +75,17 @@ export const ViewContractView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
               <Button variant="ghost" size="sm" onClick={vm.openTagManager} title="Gerenciar etiquetas">
                 <RiPriceTag3Line size={14} />
               </Button>
-              {vm.isAdmin && (
-                <Button variant="danger" size="sm" onClick={vm.handleDeleteContract} title="Excluir Contrato">
-                  <RiDeleteBinLine size={14} />
-                </Button>
-              )}
             </>
+          )}
+          {(vm.activeTab === 'data' || vm.isNew) && (
+            <Button size="sm" onClick={() => void vm.handleSave()} disabled={vm.isSaving} $isLoading={vm.isSaving} title={vm.isSaving ? 'Salvando...' : 'Salvar'}>
+              <RiSaveLine size={14} />
+            </Button>
+          )}
+          {!vm.isNew && vm.isAdmin && (
+            <Button variant="danger" size="sm" onClick={vm.handleDeleteContract} title="Excluir Contrato">
+              <RiDeleteBinLine size={14} />
+            </Button>
           )}
         </S.HeaderActions>
       </S.Header>
@@ -388,12 +394,6 @@ export const ViewContractView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
                 </S.FormGroup>
               </>
             )}
-
-            <S.FormActions>
-              <Button onClick={() => void vm.handleSave()} disabled={vm.isSaving}>
-                {vm.isSaving ? 'Salvando...' : 'Salvar'}
-              </Button>
-            </S.FormActions>
           </S.FormGrid>
         )}
 

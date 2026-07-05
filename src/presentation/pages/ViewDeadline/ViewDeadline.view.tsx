@@ -1,5 +1,5 @@
 import React from 'react';
-import { RiTimeLine } from 'react-icons/ri';
+import { RiTimeLine, RiSaveLine } from 'react-icons/ri';
 import { S } from './ViewDeadline.styles';
 import { useViewDeadlineViewModel } from './ViewDeadline.viewmodel';
 import { Button } from '../../components/ui/Button';
@@ -42,6 +42,15 @@ export const ViewDeadlineView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
           <S.StatusChip $color={vm.getDeadlineStatusColor(vm.derivedStatus)}>
             {vm.derivedStatus}
           </S.StatusChip>
+          <Button
+            size="sm"
+            onClick={() => void vm.handleSave()}
+            disabled={vm.isSaving}
+            $isLoading={vm.isSaving}
+            title={vm.isSaving ? 'Salvando...' : vm.isNew ? 'Cadastrar Prazo' : 'Salvar Alterações'}
+          >
+            <RiSaveLine size={14} />
+          </Button>
         </S.HeaderActions>
       </S.Header>
 
@@ -138,12 +147,6 @@ export const ViewDeadlineView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
               </S.FormGroup>
             </>
           )}
-
-          <S.FormActions>
-            <Button onClick={() => void vm.handleSave()} disabled={vm.isSaving}>
-              {vm.isSaving ? 'Salvando...' : vm.isNew ? 'Cadastrar Prazo' : 'Salvar Alterações'}
-            </Button>
-          </S.FormActions>
         </S.FormGrid>
       </S.Content>
     </S.Page>

@@ -26,9 +26,8 @@ export const PersonsView: React.FC = () => {
     <S.Page>
       <S.Header>
         <S.Title>Pessoas</S.Title>
-        <Button onClick={vm.openNewPerson}>
+        <Button onClick={vm.openNewPerson} title="Nova Pessoa">
           <RiUserAddLine size={16} />
-          Nova Pessoa
         </Button>
       </S.Header>
 

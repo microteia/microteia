@@ -150,13 +150,6 @@ export const S = {
     &:first-child { margin-top: 0; }
   `,
 
-  FormActions: styled.div`
-    display: flex;
-    gap: ${({ theme }) => theme.spacing.sm};
-    justify-content: flex-end;
-    margin-top: ${({ theme }) => theme.spacing.lg};
-    grid-column: 1 / -1;
-  `,
 
   BoolToggle: styled.div`
     display: flex;

@@ -147,13 +147,6 @@ export const S = {
     grid-column: 1 / -1;
   `,
 
-  FormActions: styled.div`
-    display: flex;
-    gap: ${({ theme }) => theme.spacing.sm};
-    justify-content: flex-end;
-    margin-top: ${({ theme }) => theme.spacing.lg};
-    grid-column: 1 / -1;
-  `,
 
   NoteList: styled.div`
     display: flex;

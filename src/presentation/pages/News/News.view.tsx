@@ -25,9 +25,8 @@ export const NewsView: React.FC = () => {
         </S.TitleRow>
         <S.HeaderActions>
           {vm.canCreate && (
-            <Button onClick={vm.openCreate}>
+            <Button onClick={vm.openCreate} title="Nova Notícia">
               <RiAddLine size={16} />
-              Nova Notícia
             </Button>
           )}
         </S.HeaderActions>

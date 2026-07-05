@@ -23,9 +23,8 @@ export const ContractsView: React.FC = () => {
     <S.Page>
       <S.Header>
         <S.Title>Contratos</S.Title>
-        <Button onClick={vm.openNewContract}>
+        <Button onClick={vm.openNewContract} title="Novo Contrato">
           <RiFileAddLine size={16} />
-          Novo Contrato
         </Button>
       </S.Header>
 

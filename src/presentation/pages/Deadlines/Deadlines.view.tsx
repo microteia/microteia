@@ -49,9 +49,8 @@ export const DeadlinesView: React.FC = () => {
     <S.Page>
       <S.Header>
         <S.Title>Prazos</S.Title>
-        <Button onClick={vm.openNewDeadline}>
+        <Button onClick={vm.openNewDeadline} title="Novo Prazo">
           <RiAddLine size={16} />
-          Novo Prazo
         </Button>
       </S.Header>
 

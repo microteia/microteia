@@ -96,15 +96,6 @@ export const S = {
     margin-top: ${({ theme }) => theme.spacing.xs};
   `,
 
-  FormActions: styled.div`
-    grid-column: 1 / -1;
-    display: flex;
-    justify-content: flex-end;
-    gap: ${({ theme }) => theme.spacing.sm};
-    padding-top: ${({ theme }) => theme.spacing.md};
-    border-top: 1px solid ${({ theme }) => theme.colors.border};
-    margin-top: ${({ theme }) => theme.spacing.sm};
-  `,
 
   StatusChip: styled.span<{ $color: string }>`
     display: inline-flex;

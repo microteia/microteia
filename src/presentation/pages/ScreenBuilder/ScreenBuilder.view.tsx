@@ -92,9 +92,8 @@ export const ScreenBuilderView: React.FC = () => {
     <S.Page>
       <S.Header>
         <S.Title>Personalização</S.Title>
-        <Button onClick={vm.openCreateScreen}>
+        <Button onClick={vm.openCreateScreen} title="Nova Tela">
           <RiAddLine size={18} />
-          Nova Tela
         </Button>
       </S.Header>
 

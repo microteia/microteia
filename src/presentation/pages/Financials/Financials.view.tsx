@@ -44,9 +44,8 @@ export const FinancialsView: React.FC = () => {
             <RiLineChartLine size={16} />
             Dashboard
           </Button>
-          <Button onClick={vm.openCreateTab}>
+          <Button onClick={vm.openCreateTab} title="Novo Lançamento">
             <RiAddLine size={16} />
-            Novo Lançamento
           </Button>
         </S.HeaderRight>
       </S.Header>
