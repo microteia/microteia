@@ -19,7 +19,6 @@ export interface DeadlineFormData {
   completedAt: string;
   priority: DeadlinePriority;
   responsibleLawyerId: string;
-  responsibleLawyerName: string;
   description: string;
 }
 
@@ -30,14 +29,13 @@ const toDateInputValue = (date: Date): string => {
   return `${year}-${month}-${day}`;
 };
 
-const buildForm = (d: Deadline | null, userId: string, displayName: string): DeadlineFormData => ({
+const buildForm = (d: Deadline | null, userId: string): DeadlineFormData => ({
   type: d?.type ?? 'Outro',
   caseId: d?.caseId ?? '',
   dueDate: d?.dueDate ? toDateInputValue(d.dueDate) : '',
   completedAt: d?.completedAt ? toDateInputValue(d.completedAt) : '',
   priority: d?.priority ?? 'Média',
   responsibleLawyerId: d?.responsibleLawyerId ?? userId,
-  responsibleLawyerName: d?.responsibleLawyerName ?? displayName,
   description: d?.description ?? '',
 });
 
@@ -63,6 +61,7 @@ export interface ViewDeadlineViewModel {
   memberOptions: { value: string; label: string }[];
 
   derivedStatus: DeadlineStatus;
+  caseDisplay: string;
   getPriorityColor: (priority: string) => string;
   getDeadlineStatusColor: (status: DeadlineStatus) => string;
 }
@@ -87,7 +86,7 @@ export const useViewDeadlineViewModel = (tabKey: string): ViewDeadlineViewModel 
   );
 
   const [formData, setFormDataState] = useState<DeadlineFormData>(() =>
-    buildForm(deadline, user?.id ?? '', effectiveName),
+    buildForm(deadline, user?.id ?? ''),
   );
   const [isSaving, setIsSaving] = useState(false);
   const { getCustomFieldsFor } = useScreenDefinitions();
@@ -96,8 +95,8 @@ export const useViewDeadlineViewModel = (tabKey: string): ViewDeadlineViewModel 
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- re-initialise form when deadline or user loads from store
-    setFormDataState(buildForm(deadline, user?.id ?? '', effectiveName));
-  }, [deadline, user, effectiveName]);
+    setFormDataState(buildForm(deadline, user?.id ?? ''));
+  }, [deadline, user]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- sincroniza campos adicionais ao carregar/atualizar dados
@@ -162,6 +161,13 @@ export const useViewDeadlineViewModel = (tabKey: string): ViewDeadlineViewModel 
     [members],
   );
 
+  const caseDisplay = useMemo(() => {
+    if (!deadline) return '';
+    const c = cases.find((cc) => cc.id === deadline.caseId);
+    if (!c) return '—';
+    return c.caseNumber ? `${c.caseNumber} — ${c.title}` : c.title;
+  }, [deadline, cases]);
+
   const derivedStatus = useMemo<DeadlineStatus>(() => {
     if (formData.completedAt) return 'Concluído';
     if (formData.dueDate && new Date(`${formData.dueDate}T23:59:00`) < new Date()) return 'Vencido';
@@ -187,9 +193,6 @@ export const useViewDeadlineViewModel = (tabKey: string): ViewDeadlineViewModel 
     const customFieldsError = validateRequiredFields(customFields, customValues);
     if (customFieldsError) { notify(customFieldsError, 'error'); return; }
 
-    const selectedCase = cases.find((c) => c.id === formData.caseId);
-    const selectedMember = members.find((m) => m.userId === formData.responsibleLawyerId);
-
     setIsSaving(true);
     try {
       const dueDate = new Date(`${formData.dueDate}T23:59:00`);
@@ -199,14 +202,10 @@ export const useViewDeadlineViewModel = (tabKey: string): ViewDeadlineViewModel 
       const payload = {
         type: formData.type,
         caseId: formData.caseId,
-        caseNumber: selectedCase?.caseNumber ?? '',
-        caseTitle: selectedCase?.title ?? '',
-        personName: '',
         dueDate,
         priority: formData.priority,
         status,
         responsibleLawyerId: formData.responsibleLawyerId || null,
-        responsibleLawyerName: (selectedMember?.displayName ?? formData.responsibleLawyerName) || null,
         description: formData.description || null,
         completedAt,
         completedBy: completedAt ? (user?.id ?? null) : null,
@@ -232,7 +231,7 @@ export const useViewDeadlineViewModel = (tabKey: string): ViewDeadlineViewModel 
     } finally {
       setIsSaving(false);
     }
-  }, [formData, customFields, customValues, isNew, deadlineId, cases, members, createDeadline, updateDeadline, closeTab, notify, user, effectiveName, tabKey, activePanelId]);
+  }, [formData, customFields, customValues, isNew, deadlineId, createDeadline, updateDeadline, closeTab, notify, user, effectiveName, tabKey, activePanelId]);
 
   return {
     isNew,
@@ -253,6 +252,7 @@ export const useViewDeadlineViewModel = (tabKey: string): ViewDeadlineViewModel 
     caseOptions,
     memberOptions,
     derivedStatus,
+    caseDisplay,
     getPriorityColor,
     getDeadlineStatusColor,
   };

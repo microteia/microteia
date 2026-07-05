@@ -4,6 +4,7 @@ import { useAuth } from '../../../stores/useAuth';
 import { useDeadlineStore } from '../../../stores/useDeadlineStore';
 import { useDeadlineLookup } from '../../../stores/useDeadlineLookup';
 import { useCaseStore } from '../../../stores/useCaseStore';
+import { useTenant } from '../../../stores/useTenant';
 import { useWorkspace } from '../../../stores/useWorkspace';
 import { useNotification } from '../../../stores/useNotification';
 import { useScreenDefinitions } from '../../../stores/useScreenDefinitions';
@@ -27,6 +28,8 @@ export interface DeadlinesViewModel {
   deadlineToDelete: Deadline | null;
   deadlineToComplete: Deadline | null;
   caseOptions: { value: string; label: string }[];
+  getCaseInfo: (d: Deadline) => { number: string; title: string } | null;
+  getLawyerName: (d: Deadline) => string | null;
   setFilterTokens: (tokens: FilterToken[]) => void;
   openNewDeadline: () => void;
   openDeadline: (d: Deadline) => void;
@@ -50,6 +53,7 @@ export const useDeadlinesViewModel = (): DeadlinesViewModel => {
   const { user } = useAuth();
   const { typeConfigs } = useDeadlineLookup();
   const { cases } = useCaseStore();
+  const { members } = useTenant();
   const { openTab } = useWorkspace();
   const { notify } = useNotification();
   const { getCustomFieldsFor } = useScreenDefinitions();
@@ -68,6 +72,21 @@ export const useDeadlinesViewModel = (): DeadlinesViewModel => {
     cases.map((c) => ({ value: c.id, label: c.caseNumber ? `${c.caseNumber} — ${c.title}` : c.title })),
     [cases],
   );
+
+  const caseById = useMemo(() => {
+    const map: Record<string, { number: string; title: string }> = {};
+    cases.forEach((c) => { map[c.id] = { number: c.caseNumber, title: c.title }; });
+    return map;
+  }, [cases]);
+
+  const memberById = useMemo(() => {
+    const map: Record<string, string> = {};
+    members.forEach((m) => { map[m.userId] = m.displayName; });
+    return map;
+  }, [members]);
+
+  const getCaseInfo = useCallback((d: Deadline) => caseById[d.caseId] ?? null, [caseById]);
+  const getLawyerName = useCallback((d: Deadline) => (d.responsibleLawyerId ? (memberById[d.responsibleLawyerId] ?? null) : null), [memberById]);
 
   const getStatusColor = useCallback((status: string): string => {
     const map: Record<DeadlineStatus, string> = {
@@ -154,9 +173,12 @@ export const useDeadlinesViewModel = (): DeadlinesViewModel => {
 
     return [...deadlines]
       .filter((d) => {
-        if (searchQ && !d.type.toLowerCase().includes(searchQ) &&
-          !d.caseTitle.toLowerCase().includes(searchQ) &&
-          !d.caseNumber.toLowerCase().includes(searchQ)) return false;
+        if (searchQ) {
+          const caseInfo = caseById[d.caseId];
+          if (!d.type.toLowerCase().includes(searchQ) &&
+            !(caseInfo?.title.toLowerCase().includes(searchQ)) &&
+            !(caseInfo?.number.toLowerCase().includes(searchQ))) return false;
+        }
         if (statusFilter.length > 0 && !statusFilter.includes(d.status)) return false;
         if (priorityFilter.length > 0 && !priorityFilter.includes(d.priority)) return false;
         if (typeFilter.length > 0 && !typeFilter.includes(d.type)) return false;
@@ -168,7 +190,7 @@ export const useDeadlinesViewModel = (): DeadlinesViewModel => {
         if (dateDiff !== 0) return dateDiff;
         return PRIORITY_ORDER[b.priority as DeadlinePriority] - PRIORITY_ORDER[a.priority as DeadlinePriority];
       });
-  }, [deadlines, tokenMap, customListing]);
+  }, [deadlines, tokenMap, customListing, caseById]);
 
   const openNewDeadline = useCallback(() => openTab('new-deadline'), [openTab]);
   const openDeadline = useCallback((d: Deadline) => openTab(`view-deadline:${d.id}`), [openTab]);
@@ -223,6 +245,8 @@ export const useDeadlinesViewModel = (): DeadlinesViewModel => {
     deadlineToDelete,
     deadlineToComplete,
     caseOptions,
+    getCaseInfo,
+    getLawyerName,
     setFilterTokens,
     openNewDeadline,
     openDeadline,

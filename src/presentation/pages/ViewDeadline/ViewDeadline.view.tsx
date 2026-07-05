@@ -29,11 +29,7 @@ export const ViewDeadlineView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
           <S.HeaderInfo>
             <S.Title>{vm.isNew ? 'Novo Prazo' : (vm.formData.type || 'Prazo')}</S.Title>
             {!vm.isNew && vm.deadline && (
-              <S.SubTitle>
-                {vm.deadline.caseNumber}
-                {vm.deadline.caseNumber && vm.deadline.caseTitle ? ' — ' : ''}
-                {vm.deadline.caseTitle}
-              </S.SubTitle>
+              <S.SubTitle>{vm.caseDisplay}</S.SubTitle>
             )}
           </S.HeaderInfo>
         </S.HeaderLeft>
@@ -117,10 +113,7 @@ export const ViewDeadlineView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
             <SearchSelect
               options={memberOptions}
               value={vm.formData.responsibleLawyerId}
-              onChange={(val) => {
-                const member = vm.memberOptions.find((m) => m.value === val);
-                vm.setFormData({ responsibleLawyerId: val, responsibleLawyerName: member?.label ?? '' });
-              }}
+              onChange={(val) => vm.setFormData({ responsibleLawyerId: val })}
               placeholder="Selecione o responsável..."
             />
           </S.FormGroup>

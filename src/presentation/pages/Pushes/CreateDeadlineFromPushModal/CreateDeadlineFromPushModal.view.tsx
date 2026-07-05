@@ -87,10 +87,7 @@ export const CreateDeadlineFromPushModal: React.FC<CreateDeadlineFromPushModalPr
           <SearchSelect
             options={memberOptions}
             value={vm.formData.responsibleLawyerId}
-            onChange={(val) => {
-              const member = vm.memberOptions.find((m) => m.value === val);
-              vm.setFormData({ responsibleLawyerId: val, responsibleLawyerName: member?.label ?? '' });
-            }}
+            onChange={(val) => vm.setFormData({ responsibleLawyerId: val })}
             placeholder="Selecione o responsável..."
           />
         </S.FormGroup>

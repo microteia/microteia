@@ -23,12 +23,14 @@ export interface UpcomingDeadline {
   isTomorrow: boolean;
   isOverdue: boolean;
   priorityColor: string;
+  caseNumberDisplay: string;
 }
 
 export interface OverdueDeadline {
   deadline: Deadline;
   daysOverdue: number;
   priorityColor: string;
+  caseNumberDisplay: string;
 }
 
 export type FinancialPeriodDays = 7 | 15 | 30;
@@ -111,8 +113,9 @@ export const useDashboardViewModel = (): DashboardViewModel => {
         deadline: d,
         daysOverdue: Math.floor((todayStart.getTime() - d.dueDate.getTime()) / msInDay),
         priorityColor: priorityColorMap[d.priority] ?? theme.colors.textSecondary,
+        caseNumberDisplay: cases.find((c) => c.id === d.caseId)?.caseNumber ?? '—',
       })),
-    [deadlines, todayStart, priorityColorMap, theme],
+    [deadlines, todayStart, priorityColorMap, theme, cases],
   );
 
   const upcomingDeadlines = useMemo<UpcomingDeadline[]>(() => {
@@ -129,9 +132,10 @@ export const useDashboardViewModel = (): DashboardViewModel => {
           isTomorrow: daysDiff === 1,
           isOverdue: false,
           priorityColor: priorityColorMap[d.priority] ?? theme.colors.textSecondary,
+          caseNumberDisplay: cases.find((c) => c.id === d.caseId)?.caseNumber ?? '—',
         };
       });
-  }, [pendingDeadlines, todayStart, sevenDaysMs, priorityColorMap, theme]);
+  }, [pendingDeadlines, todayStart, sevenDaysMs, priorityColorMap, theme, cases]);
 
   const financialCutoffDay = useMemo(() =>
     new Date(todayStart.getFullYear(), todayStart.getMonth(), todayStart.getDate() + financialPeriodDays),

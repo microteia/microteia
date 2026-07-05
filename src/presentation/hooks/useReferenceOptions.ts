@@ -40,7 +40,7 @@ export const useReferenceOptions = (): Record<string, ReferenceOption[]> => {
         }))
         .sort((a, b) => a.label.localeCompare(b.label)),
       deadlines: deadlines
-        .map((d) => ({ value: d.id, label: `${d.type} — ${d.caseTitle}` }))
+        .map((d) => ({ value: d.id, label: `${d.type} — ${cases.find((c) => c.id === d.caseId)?.title ?? '—'}` }))
         .sort((a, b) => a.label.localeCompare(b.label)),
     };
     Object.entries(recordsByScreen).forEach(([screenKey, records]) => {

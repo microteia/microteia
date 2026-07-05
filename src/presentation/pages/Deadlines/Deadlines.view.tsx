@@ -84,6 +84,8 @@ export const DeadlinesView: React.FC = () => {
               const priorityColor = vm.getPriorityColor(d.priority);
               const overdue = vm.isOverdue(d);
               const today = vm.isToday(d);
+              const caseInfo = vm.getCaseInfo(d);
+              const lawyerName = vm.getLawyerName(d);
 
               return (
                 <S.DeadlineCard key={d.id} onClick={() => vm.openDeadline(d)}>
@@ -98,12 +100,12 @@ export const DeadlinesView: React.FC = () => {
                       <S.CardInfo>
                         <S.CardType>{d.type}</S.CardType>
                         <S.CardCaseRow>
-                          {d.caseNumber && (
+                          {caseInfo?.number && (
                             <S.CardCaseNumber
-                              title={`Abrir processo ${d.caseNumber}`}
+                              title={`Abrir processo ${caseInfo.number}`}
                               onClick={(e) => { e.stopPropagation(); vm.openCase(d.caseId); }}
                             >
-                              {d.caseNumber}
+                              {caseInfo.number}
                             </S.CardCaseNumber>
                           )}
                           {renderDaysChip(d)}
@@ -121,10 +123,10 @@ export const DeadlinesView: React.FC = () => {
                       <S.MetaBadge $color={priorityColor}>{d.priority}</S.MetaBadge>
                     </S.MetaRow>
 
-                    {d.caseTitle && (
+                    {caseInfo?.title && (
                       <S.MetaRow>
                         <RiExternalLinkLine size={12} />
-                        <S.MetaText>{d.caseTitle}</S.MetaText>
+                        <S.MetaText>{caseInfo.title}</S.MetaText>
                       </S.MetaRow>
                     )}
 
@@ -136,10 +138,10 @@ export const DeadlinesView: React.FC = () => {
                       </S.MetaText>
                     </S.MetaRow>
 
-                    {d.responsibleLawyerName && (
+                    {lawyerName && (
                       <S.MetaRow>
                         <RiScalesLine size={12} />
-                        <S.MetaText>{d.responsibleLawyerName}</S.MetaText>
+                        <S.MetaText>{lawyerName}</S.MetaText>
                       </S.MetaRow>
                     )}
 

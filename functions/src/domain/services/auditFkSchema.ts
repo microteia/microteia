@@ -4,10 +4,10 @@ export interface FkFieldSpec {
 }
 
 /**
- * Campos das entidades fixas que guardam id (ou array de ids) de outra entidade sem um
- * campo irmão já desnormalizado (ex: `caseId` de Financial já tem `caseNumber` ao lado —
- * só entram aqui os que não têm equivalente legível, como arrays de partes de um Contrato).
- * `targetCollection` é sempre uma chave de `FLAT_ENTITY_CONFIG` (auditableEntities.ts).
+ * Campos das entidades fixas que guardam id (ou array de ids) de outra entidade — nenhuma
+ * delas mantém mais um nome espelhado localmente, então toda FK precisa de resolução ao vivo
+ * aqui para aparecer legível no diff de auditoria. `targetCollection` é sempre uma chave de
+ * `FLAT_ENTITY_CONFIG` (auditableEntities.ts).
  */
 export const STATIC_FK_SCHEMA: Record<string, Record<string, FkFieldSpec>> = {
   persons: {
@@ -22,6 +22,7 @@ export const STATIC_FK_SCHEMA: Record<string, Record<string, FkFieldSpec>> = {
   },
   deadlines: {
     caseId: { targetCollection: 'cases' },
+    responsibleLawyerId: { targetCollection: 'members' },
   },
   financials: {
     caseId: { targetCollection: 'cases' },

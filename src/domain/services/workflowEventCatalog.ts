@@ -57,9 +57,6 @@ const ENTITY_EVENTS: { prefix: string; entityLabel: string; fields: WorkflowEven
     fields: [
       { path: 'type', label: 'Tipo' },
       { path: 'caseId', label: 'Id do processo' },
-      { path: 'caseNumber', label: 'Número do processo' },
-      { path: 'caseTitle', label: 'Título do processo' },
-      { path: 'personName', label: 'Nome do cliente' },
       { path: 'dueDate', label: 'Data de vencimento' },
       { path: 'priority', label: 'Prioridade' },
       { path: 'status', label: 'Status' },

@@ -16,7 +16,6 @@ export interface CreateDeadlineFromPushFormData {
   priority: DeadlinePriority;
   dueDate: string;
   responsibleLawyerId: string;
-  responsibleLawyerName: string;
 }
 
 export interface CreateDeadlineFromPushViewModel {
@@ -52,7 +51,7 @@ export const useCreateDeadlineFromPushViewModel = (
   const { typeConfigs, addType, removeType } = useDeadlineLookup();
   const { members, currentTenant, tenantRole } = useTenant();
   const isAdmin = tenantRole === 'admin';
-  const { user, effectiveName } = useAuth();
+  const { user } = useAuth();
   const { updateStatus } = usePush();
   const { markAsRead } = usePushInteraction();
   const { notify } = useNotification();
@@ -63,7 +62,6 @@ export const useCreateDeadlineFromPushViewModel = (
     priority: 'Média',
     dueDate: '',
     responsibleLawyerId: user?.id ?? '',
-    responsibleLawyerName: effectiveName,
   }));
   const [isSaving, setIsSaving] = useState(false);
 
@@ -148,8 +146,6 @@ export const useCreateDeadlineFromPushViewModel = (
       return;
     }
 
-    const selectedMember = members.find((m) => m.userId === formData.responsibleLawyerId);
-
     setIsSaving(true);
     try {
       const dueDate = new Date(`${formData.dueDate}T23:59:00`);
@@ -158,14 +154,10 @@ export const useCreateDeadlineFromPushViewModel = (
       const payload = {
         type: formData.type,
         caseId: matchingCase.id,
-        caseNumber: matchingCase.caseNumber,
-        caseTitle: matchingCase.title,
-        personName: '',
         dueDate,
         priority: formData.priority,
         status,
         responsibleLawyerId: formData.responsibleLawyerId || null,
-        responsibleLawyerName: (selectedMember?.displayName ?? formData.responsibleLawyerName) || null,
         description: `Gerado a partir do push: ${push.subject}`,
         completedAt: null,
         completedBy: null,
@@ -206,7 +198,6 @@ export const useCreateDeadlineFromPushViewModel = (
     canCreate,
     processNumber,
     cases,
-    members,
     push,
     user,
     currentTenant,

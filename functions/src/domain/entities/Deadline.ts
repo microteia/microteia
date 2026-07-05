@@ -6,14 +6,10 @@ export type DeadlinePriority = 'Baixa' | 'Média' | 'Alta' | 'Crítica';
  */
 export interface DeadlineToCreate {
   caseId: string;
-  caseNumber: string;
-  caseTitle: string;
-  personName: string;
   description?: string | null;
   dueDate: Date;
   type: string;
   priority: DeadlinePriority;
   responsibleLawyerId?: string | null;
-  responsibleLawyerName?: string | null;
   createdBy: string;
 }

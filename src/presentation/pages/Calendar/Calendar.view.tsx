@@ -84,9 +84,9 @@ export const CalendarView: React.FC = () => {
                             e.stopPropagation();
                             vm.handleOpenCase(item.caseId);
                           }}
-                          title={`Abrir processo ${item.deadline.caseNumber}`}
+                          title={`Abrir processo ${item.caseNumber}`}
                         >
-                          {item.deadline.caseNumber}
+                          {item.caseNumber}
                         </S.SideEventCaseLink>
                       )}
 
@@ -99,10 +99,10 @@ export const CalendarView: React.FC = () => {
                         </S.SideEventBadge>
                       </S.SideEventBadgeRow>
 
-                      {item.deadline.responsibleLawyerName && (
+                      {item.lawyerName && (
                         <S.SideEventLawyer>
                           <RiScalesLine size={10} />
-                          <span>{item.deadline.responsibleLawyerName}</span>
+                          <span>{item.lawyerName}</span>
                         </S.SideEventLawyer>
                       )}
 

@@ -4,6 +4,7 @@ import { format, startOfMonth, endOfMonth, eachDayOfInterval, isToday, addMonths
 import { ptBR } from 'date-fns/locale';
 import { useDeadlineStore } from '../../../stores/useDeadlineStore';
 import { useCaseStore } from '../../../stores/useCaseStore';
+import { useTenant } from '../../../stores/useTenant';
 import { useWorkspace } from '../../../stores/useWorkspace';
 import { useAuth } from '../../../stores/useAuth';
 import { useNotification } from '../../../stores/useNotification';
@@ -17,6 +18,8 @@ export interface DayDeadlineItem {
   caseId: string;
   statusColor: string;
   caseExists: boolean;
+  caseNumber: string | null;
+  lawyerName: string | null;
 }
 
 export interface CalendarDayColumn {
@@ -75,6 +78,7 @@ const atDayTime = (date: Date, hours: number, minutes: number): Date =>
 export const useCalendarViewModel = (): CalendarViewModel => {
   const { deadlines, completeDeadline, updateDeadline } = useDeadlineStore();
   const { cases } = useCaseStore();
+  const { members } = useTenant();
   const { openTab } = useWorkspace();
   const { user } = useAuth();
   const { notify } = useNotification();
@@ -145,7 +149,8 @@ export const useCalendarViewModel = (): CalendarViewModel => {
           return pri.indexOf(a.priority) - pri.indexOf(b.priority);
         })
         .map((d) => {
-          const caseExists = cases.some((c) => c.id === d.caseId);
+          const matchedCase = cases.find((c) => c.id === d.caseId);
+          const matchedLawyer = d.responsibleLawyerId ? members.find((m) => m.userId === d.responsibleLawyerId) : undefined;
           return {
             deadline: d,
             color: getPriorityColor(d.priority),
@@ -153,7 +158,9 @@ export const useCalendarViewModel = (): CalendarViewModel => {
             isCompleted: d.status === 'Concluído',
             caseId: d.caseId,
             statusColor: getStatusColor(d.status),
-            caseExists,
+            caseExists: !!matchedCase,
+            caseNumber: matchedCase?.caseNumber ?? null,
+            lawyerName: matchedLawyer?.displayName ?? null,
           };
         });
 
@@ -166,7 +173,7 @@ export const useCalendarViewModel = (): CalendarViewModel => {
         items,
       };
     });
-  }, [currentMonth, filteredDeadlines, getPriorityColor, getStatusColor, cases]);
+  }, [currentMonth, filteredDeadlines, getPriorityColor, getStatusColor, cases, members]);
 
   const stats = useMemo<CalendarStats>(() => {
     const monthKey = currentMonth.toISOString().slice(0, 7);

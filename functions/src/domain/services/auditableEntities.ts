@@ -44,7 +44,7 @@ const FLAT_ENTITY_CONFIG: Record<string, AuditableEntityConfig> = {
     entityKey: 'Deadline',
     entityLabel: 'Prazo',
     entityLabelPlural: 'Prazos',
-    getDisplayName: (d) => asString(d.description ?? d.caseTitle),
+    getDisplayName: (d) => asString(d.description, 'Prazo'),
     getEntityLink: (_tenantId, docId) => `view-deadline:${docId}`,
   },
   financials: {

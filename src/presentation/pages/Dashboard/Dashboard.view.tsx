@@ -72,7 +72,7 @@ export const DashboardView: React.FC = () => {
                     <S.DeadlineTitle>{item.deadline.type}</S.DeadlineTitle>
                     <S.DeadlineSub>
                       <S.DeadlineCaseLink onClick={(e) => { e.stopPropagation(); vm.openCase(item.deadline.caseId); }}>
-                        {item.deadline.caseNumber}
+                        {item.caseNumberDisplay}
                       </S.DeadlineCaseLink>
                     </S.DeadlineSub>
                   </S.DeadlineInfo>
@@ -104,7 +104,7 @@ export const DashboardView: React.FC = () => {
                     <S.DeadlineTitle>{item.deadline.type}</S.DeadlineTitle>
                     <S.DeadlineSub>
                       <S.DeadlineCaseLink onClick={(e) => { e.stopPropagation(); vm.openCase(item.deadline.caseId); }}>
-                        {item.deadline.caseNumber}
+                        {item.caseNumberDisplay}
                       </S.DeadlineCaseLink>
                     </S.DeadlineSub>
                   </S.DeadlineInfo>

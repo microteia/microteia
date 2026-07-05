@@ -463,16 +463,12 @@ export interface Deadline {
   id: string;
   tenantId: string;
   caseId: string;
-  caseNumber: string;
-  caseTitle: string;
-  personName: string;
   description?: string | null;
   dueDate: Date;
   type: string;
   priority: DeadlinePriority;
   status: DeadlineStatus;
   responsibleLawyerId?: string | null;
-  responsibleLawyerName?: string | null;
   completedAt?: Date | null;
   completedBy?: string | null;
   notes?: string | null;
