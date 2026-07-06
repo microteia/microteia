@@ -23,6 +23,9 @@ export interface InputDefinition {
   defaultValue?: unknown;
   validator?: (value: unknown) => string | undefined;
   options?: InputOptionsSource;
+  // Só relevante quando type === 'EntityReference'. Mesma chave de FieldDefinition.refEntity:
+  // 'cases' | 'persons' | 'contracts' | 'financials' | 'deadlines' | 'members' ou um screenKey de entidade customizada.
+  entityType?: string;
 }
 
 export interface OutputDefinition {

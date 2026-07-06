@@ -6,6 +6,7 @@ import { SearchSelect } from '../../../../components/ui/SearchSelect';
 import { DateInput } from '../../../../components/ui/DateInput';
 import { InfoBanner } from '../../../../components/ui/InfoBanner';
 import { LiteralOptionsControl } from './components/LiteralOptionsControl';
+import { EntityReferenceControl } from './components/EntityReferenceControl';
 import { S } from './StepEditorModal.styles';
 import { useStepEditorModalViewModel } from './StepEditorModal.viewmodel';
 import type { StepEditorModalProps } from './StepEditorModal.viewmodel';
@@ -28,6 +29,15 @@ export const StepEditorModalView: React.FC<StepEditorModalProps> = (props) => {
     if (input.options) {
       return (
         <LiteralOptionsControl
+          input={input}
+          value={String(mapping.value ?? '')}
+          onChange={(v) => vm.setMapping(input.id, { kind: 'Literal', value: v })}
+        />
+      );
+    }
+    if (input.type === 'EntityReference') {
+      return (
+        <EntityReferenceControl
           input={input}
           value={String(mapping.value ?? '')}
           onChange={(v) => vm.setMapping(input.id, { kind: 'Literal', value: v })}

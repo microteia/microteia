@@ -20,6 +20,9 @@ export interface InputDefinition {
   type: InputType;
   defaultValue?: unknown;
   options?: InputOptionsSource;
+  // Só relevante quando type === 'EntityReference'. Mesma chave de FieldDefinition.refEntity:
+  // 'cases' | 'persons' | 'contracts' | 'financials' | 'deadlines' | 'members' ou um screenKey de entidade customizada.
+  entityType?: string;
 }
 
 export interface OutputDefinition {

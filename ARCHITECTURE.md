@@ -1494,6 +1494,19 @@ namespaced por `{stepId, outputId}` — não por `stepDefinitionId` — para nã
 mesma `StepDefinition` é usada duas vezes no mesmo workflow) e `VariableInputMapping` (lê
 `context.variables`, escrito por `SetVariableStep`).
 
+### Campo `EntityReference` — seletor de entidade em "Valor fixo"
+
+Um input de Step com `type: 'EntityReference'` (ex: `caseId` e `responsibleLawyerId` do
+`CreateDeadlineStep`) declara também `entityType?: string` — a mesma chave usada por
+`FieldDefinition.refEntity` nos Custom Fields do ScreenBuilder: `'cases'`, `'persons'`,
+`'contracts'`, `'financials'`, `'deadlines'`, `'members'` (usuários do tenant, não é uma
+coleção de domínio) ou o `id` de uma `ScreenDefinition` de entidade customizada. Quando o
+usuário escolhe mapping "Valor fixo" para esse campo, o `StepEditorModal`
+(`renderLiteralControl`) renderiza `EntityReferenceControl`, que resolve as opções via
+`useReferenceOptions()` (mesmo hook do `useCustomFieldListing`) filtrado por `entityType` — sem
+duplicar a lógica de carregar cada store de entidade. Sem `entityType` declarado, cai no
+fallback de texto livre (comportamento anterior).
+
 ### Fluxo de execução
 
 Escrita em `workflow_events` → `onWorkflowEventCreated` dispara → carrega

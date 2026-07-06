@@ -5,6 +5,7 @@ import { useContractStore } from '../../stores/useContractStore';
 import { useFinancialStore } from '../../stores/useFinancialStore';
 import { useDeadlineStore } from '../../stores/useDeadlineStore';
 import { useCustomRecords } from '../../stores/useCustomRecords';
+import { useTenant } from '../../stores/useTenant';
 import { formatCurrencyBRL } from '../../utils/formatters';
 
 export interface ReferenceOption {
@@ -20,11 +21,15 @@ export const useReferenceOptions = (): Record<string, ReferenceOption[]> => {
   const { financials } = useFinancialStore();
   const { deadlines } = useDeadlineStore();
   const { recordsByScreen } = useCustomRecords();
+  const { members } = useTenant();
 
   return useMemo(() => {
     const map: Record<string, ReferenceOption[]> = {
       persons: persons
         .map((p) => ({ value: p.id, label: p.name }))
+        .sort((a, b) => a.label.localeCompare(b.label)),
+      members: members
+        .map((m) => ({ value: m.userId, label: m.displayName }))
         .sort((a, b) => a.label.localeCompare(b.label)),
       cases: cases
         .map((c) => ({ value: c.id, label: c.title, meta: c.caseNumber }))
@@ -49,5 +54,5 @@ export const useReferenceOptions = (): Record<string, ReferenceOption[]> => {
         .sort((a, b) => a.label.localeCompare(b.label));
     });
     return map;
-  }, [persons, cases, contracts, financials, deadlines, recordsByScreen]);
+  }, [persons, cases, contracts, financials, deadlines, recordsByScreen, members]);
 };

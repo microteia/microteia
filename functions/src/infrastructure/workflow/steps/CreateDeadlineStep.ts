@@ -29,12 +29,12 @@ export const makeCreateDeadlineStepDefinition = (deadlineRepository: IDeadlineRe
   category: 'Action',
   configurable: true,
   inputs: [
-    { id: 'caseId', label: 'Processo', required: true, type: 'EntityReference' },
+    { id: 'caseId', label: 'Processo', required: true, type: 'EntityReference', entityType: 'cases' },
     { id: 'dueDate', label: 'Data de vencimento', required: true, type: 'Date' },
     { id: 'type', label: 'Tipo de prazo', required: true, type: 'String',defaultValue: 'Petição',  options: { kind: 'Lookup', lookup: 'deadlineTypes' } },
     { id: 'priority', label: 'Prioridade', required: true, type: 'String', defaultValue: 'Média' as DeadlinePriority, options: { kind: 'Static', options: PRIORITY_OPTIONS } },
     { id: 'description', label: 'Descrição', required: false, type: 'String' },
-    { id: 'responsibleLawyerId', label: 'Advogado responsável', required: false, type: 'EntityReference' },
+    { id: 'responsibleLawyerId', label: 'Advogado responsável', required: false, type: 'EntityReference', entityType: 'members' },
   ],
   outputDefinitions: [
     { id: 'deadlineId', label: 'Id do prazo criado', type: 'String' },

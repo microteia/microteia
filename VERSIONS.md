@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [0.39.0] — 2026-07-05
+
+- Ao configurar um Step de Automação com valor fixo em um campo que referencia Processo, Advogado ou outra entidade, agora aparece uma lista para escolher diretamente o registro desejado, em vez de precisar digitar o identificador manualmente.
+
 #### [0.38.0] — 2026-07-05
 
 - Na Automação, o evento que dispara o gatilho agora mostra o ícone da tela correspondente (Pessoas, Processos, Contratos etc.), com um ícone genérico para "Entidade Customizada" e "Item de Lista". O mesmo ícone passa a aparecer também na listagem de Automações.
