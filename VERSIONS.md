@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [0.44.13] — 2026-07-06
+
+- Corrigido problema que impedia a visualização de campos customizados ao configurar steps de automações. Agora todos os campos customizados criados para processos, pessoas, contratos e outras entidades aparecem corretamente nas opções de configuração.
+
 #### [0.44.12] — 2026-07-06
 
 - Corrigido erro que impedia salvar automações quando o evento selecionado não requer entidade customizada ou lista. O sistema agora remove corretamente campos opcionais vazios antes de salvar.

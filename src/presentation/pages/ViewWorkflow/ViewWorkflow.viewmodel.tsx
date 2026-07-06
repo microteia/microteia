@@ -8,7 +8,7 @@ import { useDI } from '../../../infrastructure/di/useDI';
 import { useScreenDefinitions } from '../../../stores/useScreenDefinitions';
 import { sortFieldsByOrder } from '../../../domain/services/customFieldValues';
 import { syncWorkflowStepCatalog } from '../../../data/services/syncWorkflowStepCatalog';
-import { WORKFLOW_EVENT_CATALOG, getWorkflowEventFields } from '../../../domain/services/workflowEventCatalog';
+import { WORKFLOW_EVENT_CATALOG, getWorkflowEventFields, eventNameToEntityKey } from '../../../domain/services/workflowEventCatalog';
 import type { WorkflowEventFieldOption } from '../../../domain/services/workflowEventCatalog';
 import { WORKFLOW_LOOKUP_COLLECTIONS } from '../../../domain/services/workflowLookupCatalog';
 import { getWorkflowEventIcon, getWorkflowLookupGroupIcon } from '../../shared/workflowEventIcons';
@@ -187,11 +187,32 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
   );
 
   const dynamicEventFields = useMemo(() => {
-    if (!workflow?.screenKey || !isCustomRecordEventName(workflow.eventName)) return [];
-    const definition = getDefinition(workflow.screenKey);
-    return definition
-      ? sortFieldsByOrder(definition.fields).map((field) => ({ path: `values.${field.key}`, label: field.label }))
-      : [];
+    if (!workflow) return [];
+
+    // Para custom_record, usa screenKey para buscar a definição de tela customizada
+    if (isCustomRecordEventName(workflow.eventName) && workflow.screenKey) {
+      const definition = getDefinition(workflow.screenKey);
+      if (definition) {
+        return sortFieldsByOrder(definition.fields).map((field) => ({
+          path: field.key,
+          label: field.label,
+        }));
+      }
+    }
+
+    // Para entidades built-in (case, person, contract, etc.), busca campos customizados
+    const entityKey = eventNameToEntityKey(workflow.eventName);
+    if (entityKey) {
+      const customFields = getDefinition(entityKey);
+      if (customFields) {
+        return sortFieldsByOrder(customFields.fields).map((field) => ({
+          path: field.key,
+          label: field.label,
+        }));
+      }
+    }
+
+    return [];
   }, [workflow, getDefinition]);
 
   const eventFields = useMemo(

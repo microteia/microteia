@@ -293,6 +293,26 @@ export const WORKFLOW_EVENT_CATALOG: WorkflowEventCatalogEntry[] = [
   ...buildDocumentEvents(),
 ];
 
+/**
+ * Mapeia o nome de um evento de workflow para o entityKey correspondente.
+ * Ex: 'case.saved' → 'cases', 'person.deleted' → 'persons'
+ */
+export const eventNameToEntityKey = (eventName: string): string | null => {
+  const mapping: Record<string, string> = {
+    'person': 'persons',
+    'contract': 'contracts',
+    'case': 'cases',
+    'deadline': 'deadlines',
+    'financial': 'financials',
+    'push': 'pushes',
+    'news': 'news',
+    'lookup': 'lookups',
+  };
+
+  const prefix = eventName.split('.')[0];
+  return prefix ? (mapping[prefix] ?? null) : null;
+};
+
 export const getWorkflowEventFields = (
   eventName: string,
   dynamicFields: WorkflowEventFieldOption[] = [],

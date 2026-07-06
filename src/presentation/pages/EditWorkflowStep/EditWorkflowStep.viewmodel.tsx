@@ -2,9 +2,10 @@ import { useState, useMemo, useCallback, useEffect } from 'react';
 import { useWorkflowStore } from '../../../stores/useWorkflowStore';
 import { useWorkspace } from '../../../stores/useWorkspace';
 import { useNotification } from '../../../stores/useNotification';
+import { useScreenDefinitions } from '../../../stores/useScreenDefinitions';
 import { useDI } from '../../../infrastructure/di/useDI';
 import { syncWorkflowStepCatalog } from '../../../data/services/syncWorkflowStepCatalog';
-import { getWorkflowEventFields } from '../../../domain/services/workflowEventCatalog';
+import { getWorkflowEventFields, eventNameToEntityKey } from '../../../domain/services/workflowEventCatalog';
 import type { WorkflowEventFieldOption } from '../../../domain/services/workflowEventCatalog';
 import type { InputMapping, WorkflowStep } from '../../../domain/entities/Workflow';
 import type { StepDefinitionSummary } from '../../../domain/entities/WorkflowStepCatalog';
@@ -50,6 +51,7 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
   const { workflows, updateWorkflowSteps } = useWorkflowStore();
   const { closeTab, setTabTitle } = useWorkspace();
   const { notify } = useNotification();
+  const { getCustomFieldsFor } = useScreenDefinitions();
   const { stepCatalogRepository } = useDI();
 
   const workflow = useMemo(
@@ -100,8 +102,19 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
 
   const eventFields = useMemo<WorkflowEventFieldOption[]>(() => {
     if (!workflow) return [];
-    return getWorkflowEventFields(workflow.eventName, workflow.screenKey, workflow.lookupCollection);
-  }, [workflow]);
+
+    // Busca campos customizados da entidade, se houver
+    const entityKey = eventNameToEntityKey(workflow.eventName);
+    const customFields = entityKey ? getCustomFieldsFor(entityKey) : [];
+
+    // Mapeia FieldDefinition[] para WorkflowEventFieldOption[]
+    const dynamicFields: WorkflowEventFieldOption[] = customFields.map((field) => ({
+      path: field.key,
+      label: field.label,
+    }));
+
+    return getWorkflowEventFields(workflow.eventName, dynamicFields);
+  }, [workflow, getCustomFieldsFor]);
 
   useEffect(() => {
     const stepTypeName = selectedDefinition?.name ?? 'Novo Step';
