@@ -11,6 +11,15 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [0.44.11] — 2026-07-06
+
+- Corrigido problema que impedia a visualização de erros ao salvar, excluir ou modificar automações. Agora todos os erros são registrados no console do navegador, facilitando a identificação e correção de problemas.
+
+#### [0.44.10] — 2026-07-06
+
+- Corrigido problema que impedia expressões nas automações de acessarem dados de steps anteriores usando a sintaxe `input.campo`. Agora é possível usar tanto `input.campo` quanto `output.stepId.campo` nas expressões.
+- Corrigida falha que ocultava os dados de entrada quando um step de automação apresentava erro. Agora os dados de entrada são sempre exibidos, facilitando a identificação do problema.
+
 #### [0.44.9] — 2026-07-06
 
 - Reorganizada a visualização de execuções de automações: agora cada execução mostra uma hierarquia clara com cards expansíveis para cada step, contendo a mensagem de resultado, entrada e saída. A "Saída geral" fica destacada ao final, facilitando a compreensão do fluxo e a depuração.

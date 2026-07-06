@@ -275,7 +275,8 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
         });
         notify('Automação salva.', 'success');
       }
-    } catch {
+    } catch (error) {
+      console.error('[ViewWorkflow] handleSaveGeneral:', error);
       notify('Erro ao salvar automação.', 'error');
     } finally {
       setIsSaving(false);
@@ -287,7 +288,10 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
     const next = !workflow.enabled;
     updateWorkflow(workflow.id, { enabled: next })
       .then(() => notify(`Automação ${next ? 'ativada' : 'inativada'}.`, 'success'))
-      .catch(() => notify('Erro ao atualizar automação.', 'error'));
+      .catch((error) => {
+        console.error('[ViewWorkflow] toggleEnabled:', error);
+        notify('Erro ao atualizar automação.', 'error');
+      });
   }, [workflow, updateWorkflow, notify]);
 
   const handleCopyDeepLink = useCallback(() => {
@@ -312,7 +316,8 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
       await deleteWorkflow(workflowToDelete.id);
       notify('Automação excluída.', 'success');
       closeTab(tabKey, activePanelId);
-    } catch {
+    } catch (error) {
+      console.error('[ViewWorkflow] confirmDeleteWorkflow:', error);
       notify('Erro ao excluir automação.', 'error');
     } finally {
       setWorkflowToDelete(null);
@@ -395,7 +400,8 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
     try {
       await updateWorkflowSteps(workflow.id, nextSteps);
       notify('Step excluído.', 'success');
-    } catch {
+    } catch (error) {
+      console.error('[ViewWorkflow] confirmDeleteStep:', error);
       notify('Erro ao excluir step.', 'error');
     } finally {
       setStepToDelete(null);
@@ -410,13 +416,19 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
     if (swapWith < 0 || swapWith >= sorted.length) return;
     [sorted[index], sorted[swapWith]] = [sorted[swapWith], sorted[index]];
     const reordered = sorted.map((s, i) => ({ ...s, order: i }));
-    await updateWorkflowSteps(workflow.id, reordered).catch(() => notify('Erro ao reordenar steps.', 'error'));
+    await updateWorkflowSteps(workflow.id, reordered).catch((error) => {
+      console.error('[ViewWorkflow] moveStep:', error);
+      notify('Erro ao reordenar steps.', 'error');
+    });
   }, [workflow, updateWorkflowSteps, notify]);
 
   const toggleStepEnabled = useCallback(async (step: WorkflowStep) => {
     if (!workflow) return;
     const nextSteps = workflow.steps.map((s) => (s.id === step.id ? { ...s, enabled: !s.enabled } : s));
-    await updateWorkflowSteps(workflow.id, nextSteps).catch(() => notify('Erro ao atualizar step.', 'error'));
+    await updateWorkflowSteps(workflow.id, nextSteps).catch((error) => {
+      console.error('[ViewWorkflow] toggleStepEnabled:', error);
+      notify('Erro ao atualizar step.', 'error');
+    });
   }, [workflow, updateWorkflowSteps, notify]);
 
   return {
