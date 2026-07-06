@@ -11,7 +11,7 @@ export interface WorkflowEventCatalogEntry {
 
 const ID_FIELD: WorkflowEventFieldOption = { path: 'id', label: 'Id' };
 const OLD_FIELD: WorkflowEventFieldOption = { path: 'old', label: 'Dados anteriores (objeto)' };
-const VALUES_FIELD: WorkflowEventFieldOption = { path: 'values', label: 'Campos dinâmicos (objeto)' };
+const CUSTOM_VALUES_FIELD: WorkflowEventFieldOption = { path: 'customValues', label: 'Campos customizados (objeto)' };
 
 const ENTITY_EVENTS: { prefix: string; entityLabel: string; fields: WorkflowEventFieldOption[]; denormalizedFields?: WorkflowEventFieldOption[] }[] = [
   {
@@ -179,7 +179,7 @@ const buildEntry = (
     allFields.push(...denormalizedFields);
   }
 
-  allFields.push(VALUES_FIELD);
+  allFields.push(CUSTOM_VALUES_FIELD);
 
   return {
     name: `${prefix}.${action}`,
@@ -321,15 +321,15 @@ export const getWorkflowEventFields = (
   if (!entry) return [];
 
   if (eventName.startsWith('custom_record.')) {
-    const baseFields = entry.fields.filter(f => f.path !== 'values');
-    const valuesFields = dynamicFields.map(f => ({ ...f, path: `values.${f.path}` }));
-    return [...baseFields, ...valuesFields];
+    const baseFields = entry.fields.filter(f => f.path !== 'customValues');
+    const customValuesFields = dynamicFields.map(f => ({ ...f, path: `customValues.${f.path}` }));
+    return [...baseFields, ...customValuesFields];
   }
 
-  const baseFields = entry.fields.filter(f => f.path !== 'values');
+  const baseFields = entry.fields.filter(f => f.path !== 'customValues');
   if (dynamicFields.length > 0) {
-    const valuesFields = dynamicFields.map(f => ({ ...f, path: `values.${f.path}` }));
-    return [...baseFields, ...valuesFields];
+    const customValuesFields = dynamicFields.map(f => ({ ...f, path: `customValues.${f.path}` }));
+    return [...baseFields, ...customValuesFields];
   }
 
   return baseFields;

@@ -74,12 +74,6 @@ export const publishWorkflowEventOnEntityChange = onDocumentWritten(
 
       Object.assign(payload, referenceData);
 
-      // Normaliza customValues → values para uniformizar API de eventos
-      if ('customValues' in payload && payload.customValues) {
-        payload.values = payload.customValues;
-        delete payload.customValues;
-      }
-
       if (prefix === 'lookup') {
         payload.collection = collection;
       }

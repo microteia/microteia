@@ -13,7 +13,7 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 
 #### [0.44.14] — 2026-07-06
 
-- Corrigido acesso a campos customizados em expressões de automações. Agora é possível usar `event.values.seuCampo` para acessar campos customizados criados nas entidades.
+- Campos customizados agora podem ser acessados em expressões de automações usando `event.customValues.seuCampo`, mantendo consistência com a forma como são armazenados no banco de dados.
 - Mensagens de erro em automações agora são muito mais descritivas, mostrando qual campo falhou, qual expressão foi usada e o motivo exato do erro.
 - Corrigido problema que impedia a visualização de dados de entrada (inputs) no log de execuções quando ocorria erro. Agora todos os campos configurados até o ponto do erro aparecem no log, facilitando muito a identificação do problema.
 
