@@ -43,10 +43,10 @@ export const ExpressionEditor: React.FC<ExpressionEditorProps> = (props) => {
 
       <FunctionMenu
         active={vm.autocompleteState.active}
-        functions={vm.filteredFunctions}
+        items={vm.autocompleteItems}
         highlightedIndex={vm.highlightedIndex}
         position={vm.autocompleteState.position}
-        onSelect={vm.selectFunction}
+        onSelect={vm.selectItem}
         onHover={vm.onAutocompleteHover}
       />
 

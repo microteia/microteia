@@ -1,37 +1,37 @@
 import React from 'react';
 import { S } from './FunctionMenu.styles';
-import type { ExpressionFunction } from '../../ExpressionEditor.viewmodel';
+import type { AutocompleteItem } from '../../ExpressionEditor.viewmodel';
 
 export interface FunctionMenuProps {
   active: boolean;
-  functions: ExpressionFunction[];
+  items: AutocompleteItem[];
   highlightedIndex: number;
   position: { top: number; left: number } | null;
-  onSelect: (fn: ExpressionFunction) => void;
+  onSelect: (item: AutocompleteItem) => void;
   onHover: (index: number) => void;
 }
 
 export const FunctionMenu: React.FC<FunctionMenuProps> = ({
   active,
-  functions,
+  items,
   highlightedIndex,
   position,
   onSelect,
   onHover,
 }) => {
-  if (!active || !position || functions.length === 0) return null;
+  if (!active || !position || items.length === 0) return null;
 
   return (
     <S.Container $top={position.top} $left={position.left}>
-      {functions.map((fn, i) => (
+      {items.map((item, i) => (
         <S.Item
-          key={fn.name}
+          key={item.value}
           $highlighted={i === highlightedIndex}
-          onClick={() => onSelect(fn)}
+          onClick={() => onSelect(item)}
           onMouseEnter={() => onHover(i)}
         >
-          <S.FunctionName>{fn.label}</S.FunctionName>
-          <S.Description>{fn.description}</S.Description>
+          <S.FunctionName>{item.label}</S.FunctionName>
+          {item.description && <S.Description>{item.description}</S.Description>}
         </S.Item>
       ))}
     </S.Container>

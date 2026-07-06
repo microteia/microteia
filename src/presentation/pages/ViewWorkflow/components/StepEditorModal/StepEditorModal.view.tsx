@@ -95,7 +95,8 @@ export const StepEditorModalView: React.FC<StepEditorModalProps> = (props) => {
           <ExpressionEditor
             value={mapping.expression}
             onChange={(expression) => vm.setMapping(input.id, { kind: 'Expression', expression })}
-            placeholder="ex: today() + 5"
+            placeholder="ex: today() + 5 ou input.caseId"
+            eventFields={props.eventFields}
           />
         );
       case 'Output': {

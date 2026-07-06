@@ -11,6 +11,11 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [0.41.1] — 2026-07-06
+
+- Ao digitar `input.` no editor de expressões, o sistema agora mostra automaticamente os campos disponíveis do evento que dispara a automação, facilitando a referência a dados do gatilho.
+- A validação de expressões foi aprimorada: detecta strings não fechadas, campos inexistentes em `input.xxx`, e garante que a expressão só será aceita se estiver sintaticamente correta.
+
 #### [0.41.0] — 2026-07-06
 
 - Ao configurar steps de automação com origem "Expressão", o sistema agora oferece um editor elegante com chaves `{ }`, validação em tempo real (indicador verde/vermelho), sugestões automáticas conforme você digita, e um guia completo de todas as funções disponíveis (datas, textos, condicionais e operadores).
