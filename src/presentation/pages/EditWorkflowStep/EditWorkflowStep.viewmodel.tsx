@@ -35,7 +35,10 @@ export interface EditWorkflowStepViewModel {
   setEnabled: (enabled: boolean) => void;
   canSave: boolean;
   handleSave: () => Promise<void>;
-  handleCancel: () => void;
+  handleDelete: () => void;
+  confirmDelete: () => Promise<void>;
+  cancelDelete: () => void;
+  stepToDelete: WorkflowStep | null;
   priorSteps: WorkflowStep[];
   stepCatalog: StepDefinitionSummary[];
   eventFields: WorkflowEventFieldOption[];
@@ -74,6 +77,7 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
   const [enabled, setEnabled] = useState(true);
   const [stepCatalog, setStepCatalog] = useState<StepDefinitionSummary[]>([]);
   const [isSaving, setIsSaving] = useState(false);
+  const [stepToDelete, setStepToDelete] = useState<WorkflowStep | null>(null);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- reinicializa o form ao montar ou mudar de step
@@ -186,9 +190,29 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
     tabKey,
   ]);
 
-  const handleCancel = useCallback(() => {
-    closeTab(tabKey);
-  }, [closeTab, tabKey]);
+  const handleDelete = useCallback(() => {
+    if (editingStep) setStepToDelete(editingStep);
+  }, [editingStep]);
+
+  const cancelDelete = useCallback(() => setStepToDelete(null), []);
+
+  const confirmDelete = useCallback(async () => {
+    if (!workflow || !stepToDelete) return;
+    const nextSteps = existingSteps
+      .filter((s) => s.id !== stepToDelete.id)
+      .sort((a, b) => a.order - b.order)
+      .map((s, index) => ({ ...s, order: index }));
+    try {
+      await updateWorkflowSteps(workflow.id, nextSteps);
+      notify('Step excluído.', 'success');
+      closeTab(tabKey);
+    } catch (error) {
+      console.error('[EditWorkflowStep] confirmDelete:', error);
+      notify('Erro ao excluir step.', 'error');
+    } finally {
+      setStepToDelete(null);
+    }
+  }, [workflow, stepToDelete, existingSteps, updateWorkflowSteps, notify, closeTab, tabKey]);
 
   return {
     workflowName,
@@ -204,7 +228,10 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
     setEnabled,
     canSave,
     handleSave,
-    handleCancel,
+    handleDelete,
+    confirmDelete,
+    cancelDelete,
+    stepToDelete,
     priorSteps,
     stepCatalog,
     eventFields,

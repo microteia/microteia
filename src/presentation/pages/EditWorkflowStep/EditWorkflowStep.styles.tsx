@@ -114,7 +114,7 @@ export const S = {
     }
   `,
 
-  CancelBtn: styled.button`
+  DeleteBtn: styled.button`
     width: 30px;
     height: 30px;
     border-radius: ${({ theme }) => theme.borderRadius.md};

@@ -1,9 +1,10 @@
 import React from 'react';
-import { RiSaveLine, RiCloseLine } from 'react-icons/ri';
+import { RiSaveLine, RiDeleteBinLine } from 'react-icons/ri';
 import { InputGroup, Label, Input } from '../../components/ui/Input';
 import { SearchSelect } from '../../components/ui/SearchSelect';
 import { DateInput } from '../../components/ui/DateInput';
 import { InfoBanner } from '../../components/ui/InfoBanner';
+import { ConfirmModal } from '../../components/ui/ConfirmModal';
 import { ExpressionEditor } from '../../components/ui/ExpressionEditor';
 import { LiteralOptionsControl } from '../ViewWorkflow/components/StepEditorModal/components/LiteralOptionsControl';
 import { EntityReferenceControl } from '../ViewWorkflow/components/StepEditorModal/components/EntityReferenceControl';
@@ -142,9 +143,11 @@ export const EditWorkflowStepView: React.FC<{ tabKey: string }> = ({ tabKey }) =
           >
             <RiSaveLine size={14} />
           </S.SaveBtn>
-          <S.CancelBtn onClick={vm.handleCancel} disabled={vm.isSaving} title="Cancelar">
-            <RiCloseLine size={14} />
-          </S.CancelBtn>
+          {vm.isDefinitionLocked && (
+            <S.DeleteBtn onClick={vm.handleDelete} disabled={vm.isSaving} title="Excluir Step">
+              <RiDeleteBinLine size={14} />
+            </S.DeleteBtn>
+          )}
         </S.HeaderActions>
       </S.Header>
 
@@ -188,6 +191,16 @@ export const EditWorkflowStepView: React.FC<{ tabKey: string }> = ({ tabKey }) =
           )}
         </S.Form>
       </S.Content>
+
+      <ConfirmModal
+        isOpen={!!vm.stepToDelete}
+        onConfirm={() => void vm.confirmDelete()}
+        onCancel={vm.cancelDelete}
+        title="Excluir Step"
+        message="Tem certeza que deseja excluir este step? Esta ação não pode ser desfeita."
+        confirmLabel="Excluir"
+        variant="danger"
+      />
     </S.Page>
   );
 };
