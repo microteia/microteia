@@ -39,9 +39,9 @@ export const S = {
     border-radius: ${({ theme }) => theme.borderRadius.full};
     font-size: ${({ theme }) => theme.fontSizes.xs};
     font-weight: 600;
-    background: ${({ $enabled, theme }) => ($enabled ? `${theme.colors.success}20` : theme.colors.surfaceHover)};
-    color: ${({ $enabled, theme }) => ($enabled ? theme.colors.success : theme.colors.textMuted)};
-    border: 1px solid ${({ $enabled, theme }) => ($enabled ? `${theme.colors.success}44` : theme.colors.border)};
+    background: ${({ $enabled, theme }) => ($enabled ? `${theme.colors.success}20` : `${theme.colors.danger}20`)};
+    color: ${({ $enabled, theme }) => ($enabled ? theme.colors.success : theme.colors.danger)};
+    border: 1px solid ${({ $enabled, theme }) => ($enabled ? `${theme.colors.success}44` : `${theme.colors.danger}44`)};
   `,
 
   TabBar: styled.div`

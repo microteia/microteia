@@ -179,7 +179,7 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
           description: formData.description || undefined,
           eventName: formData.eventName,
           screenKey,
-          enabled: false,
+          enabled: true,
           version: 1,
           condition: { kind: 'AlwaysTrue' },
           steps: [],
