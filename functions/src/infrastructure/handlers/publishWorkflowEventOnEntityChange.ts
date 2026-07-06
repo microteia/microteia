@@ -2,39 +2,15 @@ import { onDocumentWritten } from 'firebase-functions/v2/firestore';
 import { getDb } from '../firebase/initFirebase';
 import { getWorkflowEventPrefix } from '../../domain/services/workflowEventEntities';
 import { publishEvent } from '../workflow/publishEvent';
-
-interface DenormConfig {
-  fkField: string;
-  collection: string;
-  outputKey: string;
-  fields: string[];
-}
-
-const ENTITY_DENORMALIZATIONS: Record<string, DenormConfig[]> = {
-  cases: [
-    { fkField: 'contractId', collection: 'contracts', outputKey: 'contract', fields: ['number', 'title', 'type', 'status'] },
-    { fkField: 'responsibleLawyerId', collection: 'members', outputKey: 'responsibleLawyer', fields: ['name', 'email'] },
-  ],
-  contracts: [
-    { fkField: 'clientId', collection: 'persons', outputKey: 'client', fields: ['name', 'type', 'email'] },
-    { fkField: 'responsibleId', collection: 'members', outputKey: 'responsible', fields: ['name', 'email'] },
-  ],
-  deadlines: [
-    { fkField: 'caseId', collection: 'cases', outputKey: 'case', fields: ['caseNumber', 'title', 'area'] },
-    { fkField: 'responsibleLawyerId', collection: 'members', outputKey: 'responsibleLawyer', fields: ['name', 'email'] },
-  ],
-  financials: [
-    { fkField: 'caseId', collection: 'cases', outputKey: 'case', fields: ['caseNumber', 'title'] },
-    { fkField: 'personId', collection: 'persons', outputKey: 'person', fields: ['name', 'type'] },
-    { fkField: 'contractId', collection: 'contracts', outputKey: 'contract', fields: ['number', 'title'] },
-  ],
-};
+import { FkEnricher } from '../workflow/FkEnricher';
+import { CUSTOM_FIELD_ENABLED_ENTITIES } from '../../domain/entities/entitySchemas';
+import type { FieldDefinition } from '../../domain/entities/entitySchemas';
 
 /**
- * Publica eventos de entidades com payload completo:
- * - Campos estáticos e dinâmicos (values.xxx)
+ * Publica eventos de entidades com payload completo e FKs enriquecidas:
+ * - Campos estáticos e dinâmicos (customValues.xxx)
  * - old: dados antes da alteração (apenas para .saved)
- * - FKs denormalizadas com dados principais
+ * - FKs denormalizadas automaticamente (campos fixos + customizados)
  *
  * Suporta: persons, cases, contracts, deadlines, financials, pushes, news, custom_records e lookups
  */
@@ -78,34 +54,47 @@ export const publishWorkflowEventOnEntityChange = onDocumentWritten(
         payload.collection = collection;
       }
 
-      const denormalizations = ENTITY_DENORMALIZATIONS[collection];
-      if (denormalizations) {
-        const db = getDb();
-        for (const config of denormalizations) {
-          const fkId = referenceData[config.fkField];
-          if (fkId && typeof fkId === 'string') {
-            const fkDoc = await db
-              .collection('tenants')
-              .doc(tenantId)
-              .collection(config.collection)
-              .doc(fkId)
-              .get();
+      // Enriquecimento automático de FKs usando FkEnricher
+      const db = getDb();
+      const enricher = new FkEnricher(db, tenantId);
 
-            if (fkDoc.exists) {
-              const fkData = fkDoc.data() as Record<string, unknown>;
-              const denormalized: Record<string, unknown> = { id: fkDoc.id };
-              for (const field of config.fields) {
-                if (field in fkData) {
-                  denormalized[field] = fkData[field];
-                }
-              }
-              payload[config.outputKey] = denormalized;
-            }
-          }
+      console.log(`[publishWorkflowEvent] Processando ${collection}/${docId} para tenant ${tenantId}`);
+      console.log(`[publishWorkflowEvent] Suporta custom fields? ${CUSTOM_FIELD_ENABLED_ENTITIES.has(collection)}`);
+
+      // Carregar ScreenDefinition se a entidade suportar campos customizados
+      let screenDefinition: { fields: FieldDefinition[] } | undefined;
+      if (CUSTOM_FIELD_ENABLED_ENTITIES.has(collection)) {
+        const screenDoc = await db
+          .collection('tenants')
+          .doc(tenantId)
+          .collection('screenDefinitions')
+          .doc(collection)
+          .get();
+
+        console.log(`[publishWorkflowEvent] ScreenDoc existe? ${screenDoc.exists}`);
+
+        if (screenDoc.exists) {
+          const screenData = screenDoc.data();
+          console.log(`[publishWorkflowEvent] ScreenData:`, JSON.stringify(screenData, null, 2));
+          screenDefinition = {
+            fields: (screenData?.fields as FieldDefinition[]) || [],
+          };
+          console.log(`[publishWorkflowEvent] ScreenDefinition carregado com ${screenDefinition.fields.length} campos`);
+        } else {
+          console.log(`[publishWorkflowEvent] ScreenDefinition NÃO encontrado para collection="${collection}"`);
         }
       }
 
-      await publishEvent(getDb(), tenantId, eventName, payload);
+      // Enriquecer payload com FKs
+      const enrichedPayload = await enricher.enrichPayload(
+        collection,
+        payload,
+        screenDefinition,
+      );
+
+      console.log(`[publishWorkflowEvent] Publicando evento "${eventName}" com payload enriquecido`);
+
+      await publishEvent(db, tenantId, eventName, enrichedPayload);
     } catch (error) {
       console.error(`[workflow] Falha ao publicar evento para ${tenantId}/${collection}/${docId}:`, error);
     }

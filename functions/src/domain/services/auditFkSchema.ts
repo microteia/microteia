@@ -1,56 +1,29 @@
-export interface FkFieldSpec {
-  targetCollection: string;
-  multi?: boolean;
-}
+// ═══════════════════════════════════════════════════════════════════════════════
+// DEPRECADO: Use entitySchemas.ts
+// ═══════════════════════════════════════════════════════════════════════════════
+// Este arquivo é mantido apenas para compatibilidade temporária.
+// Migre para: import { ENTITY_FK_SCHEMA, ... } from '../entities/entitySchemas'
+//
+// Os exports abaixo são re-exports do entitySchemas para manter compatibilidade.
+// ═══════════════════════════════════════════════════════════════════════════════
+
+import type { FkFieldSpec } from '../entities/entitySchemas';
+import {
+  ENTITY_FK_SCHEMA,
+  CUSTOM_FIELD_ENABLED_ENTITIES,
+  BUILTIN_REF_ENTITIES,
+  resolveRefEntityCollection,
+} from '../entities/entitySchemas';
+
+// Re-exports para compatibilidade
+export type { FkFieldSpec };
+export { CUSTOM_FIELD_ENABLED_ENTITIES, BUILTIN_REF_ENTITIES, resolveRefEntityCollection };
 
 /**
- * Campos das entidades fixas que guardam id (ou array de ids) de outra entidade — nenhuma
- * delas mantém mais um nome espelhado localmente, então toda FK precisa de resolução ao vivo
- * aqui para aparecer legível no diff de auditoria. `targetCollection` é sempre uma chave de
- * `FLAT_ENTITY_CONFIG` (auditableEntities.ts).
+ * @deprecated Use ENTITY_FK_SCHEMA de entitySchemas.ts
  */
-export const STATIC_FK_SCHEMA: Record<string, Record<string, FkFieldSpec>> = {
-  persons: {
-    tagIds: { targetCollection: 'personTags', multi: true },
-  },
-  cases: {
-    contractId: { targetCollection: 'contracts' },
-    responsibleLawyerId: { targetCollection: 'members' },
-    activePoleIds: { targetCollection: 'persons', multi: true },
-    passivePoleIds: { targetCollection: 'persons', multi: true },
-    tagIds: { targetCollection: 'caseTags', multi: true },
-  },
-  deadlines: {
-    caseId: { targetCollection: 'cases' },
-    responsibleLawyerId: { targetCollection: 'members' },
-  },
-  financials: {
-    caseId: { targetCollection: 'cases' },
-    personId: { targetCollection: 'persons' },
-    contractId: { targetCollection: 'contracts' },
-    tagIds: { targetCollection: 'financialTags', multi: true },
-  },
-  contracts: {
-    clientId: { targetCollection: 'persons' },
-    responsibleId: { targetCollection: 'persons' },
-    contractorIds: { targetCollection: 'persons', multi: true },
-    contracteeIds: { targetCollection: 'persons', multi: true },
-    witnessIds: { targetCollection: 'persons', multi: true },
-    contractorLawyerIds: { targetCollection: 'persons', multi: true },
-    contracteeLawyerIds: { targetCollection: 'persons', multi: true },
-    tagIds: { targetCollection: 'contractTags', multi: true },
-  },
-};
+export const STATIC_FK_SCHEMA = ENTITY_FK_SCHEMA;
 
-/**
- * Coleções fixas cujo `customValues` pode conter campos do tipo "reference" criados no
- * Screen Builder. Para essas, o `screenKey` do próprio `ScreenDefinition` é o nome da coleção
- * (ex: `tenants/{tenantId}/screenDefinitions/cases`).
- */
-export const CUSTOM_FIELD_COLLECTIONS = new Set(['persons', 'cases', 'deadlines', 'financials', 'contracts']);
+// Aliases antigos para compatibilidade
+export { CUSTOM_FIELD_ENABLED_ENTITIES as CUSTOM_FIELD_COLLECTIONS };
 
-/** Único destino possível para um `refEntity` que não é uma entidade fixa: os Registros Personalizados. */
-export const BUILTIN_REF_ENTITIES = new Set(['persons', 'cases', 'contracts', 'deadlines', 'financials']);
-
-export const resolveRefEntityCollection = (refEntity: string): string =>
-  BUILTIN_REF_ENTITIES.has(refEntity) ? refEntity : 'customRecords';

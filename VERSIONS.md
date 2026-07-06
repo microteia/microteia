@@ -11,6 +11,20 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [0.44.24] — 2026-07-06
+
+- Adicionados logs de diagnóstico detalhados ao sistema de enriquecimento de foreign keys para facilitar a identificação de problemas quando campos de referência não são enriquecidos corretamente em workflows.
+
+#### [0.44.23] — 2026-07-06
+
+- Implementado enriquecimento automático de foreign keys em workflows: campos de referência (tanto fixos quanto customizados) agora são automaticamente enriquecidos com os dados do registro vinculado ao publicar eventos de workflow. Isso permite que expressões como `event.customValues.tarefa.nome` funcionem naturalmente, acessando propriedades do registro referenciado em vez de apenas o ID.
+- Criado serviço `FkEnricher` no backend que centraliza a lógica de denormalização de FKs, usando o schema compartilhado (`ENTITY_FK_SCHEMA`) para determinar quais campos enriquecer e quais dados buscar.
+- Refatorado `publishWorkflowEventOnEntityChange` para usar o novo serviço de enriquecimento em vez de código hardcoded, tornando a solução escalável para novas entidades e campos customizados.
+
+#### [0.44.22] — 2026-07-06
+
+- Implementado sistema de schema compartilhado entre frontend e backend: criados arquivos `entitySchemas.ts` idênticos em ambas as plataformas, contendo definições de campos customizados, telas, e foreign keys. Adicionado script de verificação automática (`npm run verify-schemas`) que garante sincronização antes de cada commit, evitando divergências e bugs silenciosos entre as duas partes do sistema.
+
 #### [0.44.21] — 2026-07-06
 
 - Corrigido problema crítico em workflows: o objeto de entrada (input) em expressões agora sempre aponta para o registro que disparou a automação (processo, pessoa, contrato, etc.), independentemente de haver steps executados anteriormente. Antes, quando um step anterior executava com sucesso, o input mudava para os dados daquele step, causando erros de referência em expressões.

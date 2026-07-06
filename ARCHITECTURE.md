@@ -37,6 +37,140 @@ O projeto usa **Clean Architecture + MVVM** com separação estrita em camadas. 
 
 ---
 
+## Schema Duplicado — Regra Absoluta
+
+### Arquivos Espelho Obrigatórios
+
+Os seguintes arquivos **DEVEM** ser **IDÊNTICOS** entre frontend e backend:
+
+| Frontend | Backend | Conteúdo |
+|---|---|---|
+| `src/domain/entities/entitySchemas.ts` | `functions/src/domain/entities/entitySchemas.ts` | Schemas de entidades, tipos de campos customizados, FKs |
+
+### Regra Absoluta — NÃO-NEGOCIÁVEL
+
+⚠️ **NUNCA** altere apenas um dos arquivos. **SEMPRE** copie o conteúdo EXATO para ambos.
+
+**Por quê duplicação controlada em vez de shared package?**
+
+- **Pragmatismo**: Sem complexidade de workspace/monorepo
+- **Build simples**: Sem etapas adicionais ou dependências cruzadas
+- **Manutenibilidade**: 1 arquivo centralizado por plataforma (frontend e backend)
+- **IA-friendly**: Comandos de IA podem sincronizar facilmente com instrução clara
+- **Verificação automática**: Script garante consistência antes de cada commit
+
+**Trade-off aceito**: Duplicação controlada + verificação automática > Complexidade de build/monorepo
+
+### Verificação Obrigatória
+
+Antes de cada commit, execute:
+
+```bash
+npm run verify-schemas
+```
+
+Este comando:
+1. Compara `src/domain/entities/entitySchemas.ts` com `functions/src/domain/entities/entitySchemas.ts`
+2. Normaliza whitespace e comentários
+3. **Falha** se houver qualquer divergência no conteúdo
+
+O gate `npm run verify` (usado antes de commits) inclui automaticamente `verify-schemas`:
+
+```bash
+npm run verify  # executa: typecheck + lint + verify-schemas
+```
+
+### Ao Adicionar Nova Entidade Fixa
+
+1. Adicione a entidade em `ENTITY_FK_SCHEMA` em **ambos** os `entitySchemas.ts`
+2. Defina quais campos são FKs e quais dados devem ser denormalizados (`denormalizedFields`)
+3. Execute `npm run verify-schemas` para confirmar sincronização
+4. Commit **somente** após verificação passar
+
+**Exemplo**:
+
+```typescript
+// Em AMBOS os arquivos (frontend e backend)
+export const ENTITY_FK_SCHEMA: Record<string, Record<string, FkFieldSpec>> = {
+  // ... entidades existentes
+  
+  audiencias: {  // NOVA ENTIDADE
+    caseId: {
+      targetCollection: 'cases',
+      denormalizedFields: ['caseNumber', 'title']
+    },
+    judgeName: {
+      targetCollection: 'judges',
+      denormalizedFields: ['name', 'court']
+    },
+  },
+};
+```
+
+### Ao Adicionar Campo em FieldDefinition
+
+1. Adicione o campo em **ambos** os `entitySchemas.ts`
+2. Execute `npm run verify-schemas`
+3. Atualize tipos derivados se necessário (ex: formulários, validações)
+4. Commit após verificação passar
+
+### Comando para IA (Claude, Copilot, etc.)
+
+Ao usar assistentes de IA para modificar schemas:
+
+> **Instrução**: "Ao alterar `entitySchemas.ts`, SEMPRE sincronize frontend e backend. Copie o conteúdo EXATO entre `src/domain/entities/entitySchemas.ts` e `functions/src/domain/entities/entitySchemas.ts`, depois execute `npm run verify-schemas` para confirmar."
+
+### Estrutura do entitySchemas.ts
+
+```typescript
+// ═══════════════════════════════════════════════════════════════════════════════
+// ⚠️  REGRA ABSOLUTA - NÃO-NEGOCIÁVEL
+// Este arquivo DEVE ser IDÊNTICO entre frontend e backend
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// Tipos de campos customizados
+export type CustomFieldType = 'text' | 'textarea' | 'number' | ...;
+export interface FieldDefinition { ... }
+export interface ScreenDefinition { ... }
+
+// Schema de Foreign Keys para entidades fixas
+export interface FkFieldSpec {
+  targetCollection: string;
+  multi?: boolean;
+  denormalizedFields?: string[]; // Campos a buscar no lookup
+}
+
+export const ENTITY_FK_SCHEMA: Record<string, Record<string, FkFieldSpec>> = {
+  cases: { contractId: { ... }, responsibleLawyerId: { ... } },
+  deadlines: { caseId: { ... } },
+  // ... outras entidades
+};
+
+// Sets de entidades
+export const CUSTOM_FIELD_ENABLED_ENTITIES = new Set([...]);
+export const BUILTIN_REF_ENTITIES = new Set([...]);
+export const resolveRefEntityCollection = (refEntity: string) => ...;
+```
+
+### Troubleshooting
+
+**Erro: "entitySchemas.ts DIVERGENTE"**
+
+1. Compare os dois arquivos:
+   ```bash
+   diff src/domain/entities/entitySchemas.ts functions/src/domain/entities/entitySchemas.ts
+   ```
+
+2. Identifique qual arquivo tem a versão correta
+
+3. Copie o conteúdo EXATO para o outro arquivo
+
+4. Execute novamente: `npm run verify-schemas`
+
+**Lembre-se**: O script ignora diferenças de whitespace e comentários, então a divergência é no **conteúdo real**.
+
+---
+
 ## Entidades do Domínio
 
 ### Coleções Firestore

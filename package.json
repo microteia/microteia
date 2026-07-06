@@ -1,12 +1,15 @@
 {
   "name": "curatino",
   "private": true,
-  "version": "0.44.21",
+  "version": "0.44.24",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "verify-schemas": "node scripts/verify-schemas.cjs",
+    "verify": "npm run typecheck && npm run lint && npm run verify-schemas",
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
