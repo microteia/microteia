@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [0.37.2] — 2026-07-05
+
+- Corrigido: o selo "Desabilitado" também não estava em vermelho na listagem de Fluxos de Trabalho.
+
 #### [0.37.1] — 2026-07-05
 
 - Nova automação de Fluxo de Trabalho já nasce Habilitada. O selo "Desabilitado" agora aparece em vermelho, para ficar mais fácil notar quando uma automação está parada.
