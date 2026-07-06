@@ -23,7 +23,7 @@ export const onDocumentChange = onDocumentWritten(
   async (event) => {
     const { tenantId, parent, parentId, documentId } = event.params;
 
-    const allowedParents = ['cases', 'people', 'contracts', 'financials'];
+    const allowedParents = ['cases', 'persons', 'contracts', 'financials'];
     if (!allowedParents.includes(parent)) return;
 
     const before = event.data?.before;
@@ -74,7 +74,7 @@ export const onDocumentChange = onDocumentWritten(
       if (parent === 'cases') {
         parentPayload.caseNumber = parentData.caseNumber;
         parentPayload.title = parentData.title;
-      } else if (parent === 'people' || parent === 'contracts') {
+      } else if (parent === 'persons' || parent === 'contracts') {
         parentPayload.name = parentData.name ?? parentData.title;
       } else if (parent === 'financials') {
         parentPayload.type = parentData.type;

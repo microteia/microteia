@@ -16,7 +16,7 @@ const ENTITY_DENORMALIZATIONS: Record<string, DenormConfig[]> = {
     { fkField: 'responsibleLawyerId', collection: 'members', outputKey: 'responsibleLawyer', fields: ['name', 'email'] },
   ],
   contracts: [
-    { fkField: 'clientId', collection: 'people', outputKey: 'client', fields: ['name', 'type', 'email'] },
+    { fkField: 'clientId', collection: 'persons', outputKey: 'client', fields: ['name', 'type', 'email'] },
     { fkField: 'responsibleId', collection: 'members', outputKey: 'responsible', fields: ['name', 'email'] },
   ],
   deadlines: [
@@ -25,7 +25,7 @@ const ENTITY_DENORMALIZATIONS: Record<string, DenormConfig[]> = {
   ],
   financials: [
     { fkField: 'caseId', collection: 'cases', outputKey: 'case', fields: ['caseNumber', 'title'] },
-    { fkField: 'personId', collection: 'people', outputKey: 'person', fields: ['name', 'type'] },
+    { fkField: 'personId', collection: 'persons', outputKey: 'person', fields: ['name', 'type'] },
     { fkField: 'contractId', collection: 'contracts', outputKey: 'contract', fields: ['number', 'title'] },
   ],
 };
