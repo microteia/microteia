@@ -22,3 +22,5 @@ export { cascadeDeletePushInteractions } from './infrastructure/handlers/cascade
 export { onWorkflowEventCreated } from './infrastructure/handlers/onWorkflowEventCreated';
 export { syncWorkflowStepCatalog } from './infrastructure/handlers/syncWorkflowStepCatalog';
 export { publishWorkflowEventOnEntityChange } from './infrastructure/handlers/publishWorkflowEventOnEntityChange';
+export { onNoteChange } from './infrastructure/handlers/workflow/onNoteChange';
+export { onDocumentChange } from './infrastructure/handlers/workflow/onDocumentChange';

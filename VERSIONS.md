@@ -11,6 +11,12 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [0.43.0] — 2026-07-06
+
+- Implementado sistema completo de eventos para automações: agora todas as entidades (Processo, Pessoa, Contrato, Prazo, Financeiro, Push, Comunicado, Entidades Dinâmicas, Anotações e Documentos) disparam eventos automaticamente ao serem salvas ou excluídas.
+- Os eventos incluem o conteúdo antigo (antes da alteração) e dados principais das entidades relacionadas (ex: ao salvar um Prazo, o evento inclui dados do Processo vinculado).
+- Campos dinâmicos (personalizados) de todas as entidades agora estão disponíveis nos eventos de automação.
+
 #### [0.42.1] — 2026-07-06
 
 - Corrigido problema de timezone em expressões com datas: `today()` e `today() + N` agora gravam a data correta no timezone local (GMT-3), sem perder 1 dia.
