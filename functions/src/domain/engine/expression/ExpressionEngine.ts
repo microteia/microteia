@@ -158,6 +158,8 @@ const evaluateNode = (node: Ast, context: WorkflowContext): unknown => {
       const [root, ...rest] = node.path;
       let value: unknown;
 
+      console.log(`[ExpressionEngine] Avaliando propriedade: ${node.path.join('.')}`);
+
       if (root === 'event') {
         value = context.event.payload;
       } else if (root === 'input') {
@@ -167,6 +169,8 @@ const evaluateNode = (node: Ast, context: WorkflowContext): unknown => {
       } else {
         throw new Error(`Expressão inválida: raiz "${root}" desconhecida (use "event", "input" ou "output")`);
       }
+
+      console.log(`[ExpressionEngine] Valor inicial (${root}):`, JSON.stringify(value, null, 2));
 
       for (const key of rest) {
         if (value === null || value === undefined) {
@@ -183,9 +187,13 @@ const evaluateNode = (node: Ast, context: WorkflowContext): unknown => {
           }
           throw new Error(`Expressão inválida: tentativa de acessar propriedade "${key}" em valor não-objeto`);
         }
-        value = (value as Record<string, unknown>)[key];
+
+        const nextValue = (value as Record<string, unknown>)[key];
+        console.log(`[ExpressionEngine] Acessando "${key}":`, JSON.stringify(nextValue, null, 2));
+        value = nextValue;
       }
 
+      console.log(`[ExpressionEngine] Valor final:`, value);
       return value;
     }
     case 'binop': {

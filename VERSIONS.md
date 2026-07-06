@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [0.44.25] — 2026-07-06
+
+- Adicionados logs detalhados no motor de expressões para rastrear cada etapa da navegação de propriedades em workflows, permitindo diagnóstico preciso quando valores inesperados aparecem em expressões.
+
 #### [0.44.24] — 2026-07-06
 
 - Adicionados logs de diagnóstico detalhados ao sistema de enriquecimento de foreign keys para facilitar a identificação de problemas quando campos de referência não são enriquecidos corretamente em workflows.
