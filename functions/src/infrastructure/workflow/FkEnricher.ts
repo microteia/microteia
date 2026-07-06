@@ -180,13 +180,16 @@ export class FkEnricher {
     // Para customRecords, inclui valores principais
     if (collection === 'customRecords') {
       const values = data.values as Record<string, unknown> | undefined;
-      // Tenta pegar um campo "nome" ou "title" comum
+      // Tenta pegar um campo "nome" ou "title" comum para o título
       const title = values?.nome || values?.title || values?.name || id;
+
+      // Espalha os campos de values diretamente no objeto raiz
+      // para facilitar acesso em expressões (ex: event.customValues.tarefa.nome)
       return {
         id,
         title: typeof title === 'string' ? title : String(title),
         screenKey: data.screenKey,
-        values,
+        ...(values || {}), // Espalha todos os campos customizados
       };
     }
 
