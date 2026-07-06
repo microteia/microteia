@@ -55,6 +55,11 @@ export const runWorkflow = async ({ definition, event, registry, services }: Run
     return finish('SUCCESS', {});
   }
 
+  if (definition.lookupCollection && event.payload.collection !== definition.lookupCollection) {
+    log('INFO', 'Execução ignorada: lista do evento não corresponde à lista configurada no gatilho');
+    return finish('SUCCESS', {});
+  }
+
   const context: WorkflowContext = {
     event,
     outputs: {},

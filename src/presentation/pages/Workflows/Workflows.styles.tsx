@@ -60,6 +60,18 @@ export const S = {
     }
   `,
 
+  RowIcon: styled.div`
+    width: 36px;
+    height: 36px;
+    border-radius: ${({ theme }) => theme.borderRadius.md};
+    background: ${({ theme }) => theme.colors.primaryLight};
+    color: ${({ theme }) => theme.colors.primary};
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  `,
+
   RowInfo: styled.div`
     flex: 1;
     min-width: 0;

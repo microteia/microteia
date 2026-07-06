@@ -29,7 +29,13 @@ export const publishWorkflowEventOnEntityChange = onDocumentWritten(
       const eventName = `${prefix}.${isDelete ? 'deleted' : 'saved'}`;
       const referenceData = (isDelete ? before?.data() : after?.data()) as Record<string, unknown> | undefined;
 
-      await publishEvent(getDb(), tenantId, eventName, { id: docId, ...referenceData });
+      // "lookup" é um prefixo genérico compartilhado por dezenas de coleções (ver
+      // LOOKUP_COLLECTIONS em workflowEventEntities.ts) — o nome da coleção precisa viajar no
+      // payload para que o gatilho do Workflow (WorkflowExecutor.lookupCollection) saiba
+      // distinguir, por exemplo, "personTypes" de "caseAreas".
+      const extra = prefix === 'lookup' ? { collection } : {};
+
+      await publishEvent(getDb(), tenantId, eventName, { id: docId, ...referenceData, ...extra });
     } catch (error) {
       console.error(`[workflow] Falha ao publicar evento para ${tenantId}/${collection}/${docId}:`, error);
     }

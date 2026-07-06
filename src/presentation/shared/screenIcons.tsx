@@ -522,7 +522,9 @@ export const SCREEN_ICON_KEYS = SCREEN_ICON_OPTIONS.map((option) => option.key);
 
 export const getScreenIconOptions = (): ScreenIconOption[] => SCREEN_ICON_OPTIONS;
 
+export const getScreenIconType = (key: string): IconType => SCREEN_ICONS[key] ?? RiApps2Line;
+
 export const getScreenIcon = (key: string, size = 20): React.ReactNode => {
-  const Icon = SCREEN_ICONS[key] ?? RiApps2Line;
+  const Icon = getScreenIconType(key);
   return <Icon size={size} />;
 };

@@ -12,6 +12,7 @@ const mapWorkflowDefinition = (id: string, tenantId: string, data: DocumentData)
   description: data.description ?? undefined,
   eventName: data.eventName,
   screenKey: data.screenKey ?? undefined,
+  lookupCollection: data.lookupCollection ?? undefined,
   enabled: data.enabled ?? false,
   version: data.version ?? 1,
   condition: data.condition ?? { kind: 'AlwaysTrue' },

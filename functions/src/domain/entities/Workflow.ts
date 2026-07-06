@@ -57,6 +57,10 @@ export interface WorkflowDefinition {
   // qual ScreenDefinition (entidade customizada) dispara o gatilho, já que todos os registros
   // dessas entidades ficam numa única coleção Firestore discriminada por screenKey.
   screenKey?: string;
+  // Só relevante quando eventName é "lookup.saved"/"lookup.deleted": identifica qual coleção de
+  // lookup (ex: "personTypes", "caseAreas") dispara o gatilho, já que o evento genérico "lookup.*"
+  // não distingue sozinho qual lista mudou.
+  lookupCollection?: string;
   enabled: boolean;
   version: number;
   condition: Condition;

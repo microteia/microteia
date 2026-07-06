@@ -2,6 +2,7 @@ import React from 'react';
 import { RiFlowChart, RiAddLine, RiDeleteBinLine } from 'react-icons/ri';
 import { S } from './Workflows.styles';
 import { useWorkflowsViewModel } from './Workflows.viewmodel';
+import { getWorkflowEventIcon } from '../../shared/workflowEventIcons';
 import { CompositeFilter } from '../../components/ui/CompositeFilter';
 import { Button } from '../../components/ui/Button';
 import { ConfirmModal } from '../../components/ui/ConfirmModal';
@@ -45,26 +46,30 @@ export const WorkflowsView: React.FC = () => {
           </S.EmptyState>
         ) : (
           <S.List>
-            {vm.filteredWorkflows.map((w) => (
-              <S.Row key={w.id} onClick={() => vm.openWorkflow(w)}>
-                <S.RowInfo>
-                  <S.RowName>{w.name}</S.RowName>
-                  <S.RowEvent>{w.eventName}</S.RowEvent>
-                </S.RowInfo>
-                <S.EnabledBadge
-                  $enabled={w.enabled}
-                  onClick={(e) => { e.stopPropagation(); vm.toggleEnabled(w); }}
-                >
-                  {w.enabled ? 'Habilitado' : 'Desabilitado'}
-                </S.EnabledBadge>
-                <S.DeleteBtn
-                  title="Excluir automação"
-                  onClick={(e) => { e.stopPropagation(); vm.handleDelete(w); }}
-                >
-                  <RiDeleteBinLine size={14} />
-                </S.DeleteBtn>
-              </S.Row>
-            ))}
+            {vm.filteredWorkflows.map((w) => {
+              const EventIcon = getWorkflowEventIcon(w.eventName);
+              return (
+                <S.Row key={w.id} onClick={() => vm.openWorkflow(w)}>
+                  <S.RowIcon><EventIcon size={18} /></S.RowIcon>
+                  <S.RowInfo>
+                    <S.RowName>{w.name}</S.RowName>
+                    <S.RowEvent>{w.eventName}</S.RowEvent>
+                  </S.RowInfo>
+                  <S.EnabledBadge
+                    $enabled={w.enabled}
+                    onClick={(e) => { e.stopPropagation(); vm.toggleEnabled(w); }}
+                  >
+                    {w.enabled ? 'Habilitado' : 'Desabilitado'}
+                  </S.EnabledBadge>
+                  <S.DeleteBtn
+                    title="Excluir automação"
+                    onClick={(e) => { e.stopPropagation(); vm.handleDelete(w); }}
+                  >
+                    <RiDeleteBinLine size={14} />
+                  </S.DeleteBtn>
+                </S.Row>
+              );
+            })}
           </S.List>
         )}
       </S.Content>

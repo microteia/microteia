@@ -11,6 +11,12 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [0.38.0] — 2026-07-05
+
+- Na Automação, o evento que dispara o gatilho agora mostra o ícone da tela correspondente (Pessoas, Processos, Contratos etc.), com um ícone genérico para "Entidade Customizada" e "Item de Lista". O mesmo ícone passa a aparecer também na listagem de Automações.
+- Ao escolher "Entidade Customizada" como gatilho, a lista de entidades agora mostra o ícone configurado para cada uma.
+- Ao escolher "Item de Lista" como gatilho, agora é possível indicar exatamente qual lista (ex: "Pessoa:Tipo", "Pessoa:Relacionamento"), evitando ambiguidade entre listas de nomes parecidos em telas diferentes.
+
 #### [0.37.2] — 2026-07-05
 
 - Corrigido: o selo "Desabilitado" também não estava em vermelho na listagem de Fluxos de Trabalho.

@@ -29,6 +29,7 @@ const mapDefinition = (id: string, d: Record<string, unknown>, tenantId: string)
   description: (d.description as string | undefined) ?? undefined,
   eventName: d.eventName as string,
   screenKey: (d.screenKey as string | undefined) ?? undefined,
+  lookupCollection: (d.lookupCollection as string | undefined) ?? undefined,
   enabled: (d.enabled as boolean) ?? false,
   version: (d.version as number) ?? 1,
   condition: (d.condition as WorkflowDefinition['condition']) ?? { kind: 'AlwaysTrue' },

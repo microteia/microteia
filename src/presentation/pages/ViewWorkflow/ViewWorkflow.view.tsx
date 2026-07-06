@@ -1,7 +1,7 @@
 import React from 'react';
 import { RiFlowChart, RiAddLine, RiDeleteBinLine, RiArrowUpLine, RiArrowDownLine, RiEditLine } from 'react-icons/ri';
 import { S } from './ViewWorkflow.styles';
-import { useViewWorkflowViewModel, EVENT_NAME_OPTIONS } from './ViewWorkflow.viewmodel';
+import { useViewWorkflowViewModel, EVENT_NAME_OPTIONS, LOOKUP_COLLECTION_OPTIONS } from './ViewWorkflow.viewmodel';
 import { Button } from '../../components/ui/Button';
 import { InputGroup, Label, Input, Textarea } from '../../components/ui/Input';
 import { SearchSelect } from '../../components/ui/SearchSelect';
@@ -89,10 +89,34 @@ export const ViewWorkflowView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
               </InputGroup>
             )}
 
+            {vm.isLookupEvent && (
+              <InputGroup>
+                <Label>Lista</Label>
+                {!vm.isLookupCollectionRecognized && (
+                  <InfoBanner
+                    variant="warning"
+                    message="A lista salva neste gatilho não existe mais. Selecione a lista novamente e salve."
+                  />
+                )}
+                <SearchSelect
+                  options={LOOKUP_COLLECTION_OPTIONS}
+                  value={vm.formData.lookupCollection}
+                  onChange={(lookupCollection) => vm.setFormData({ lookupCollection })}
+                  placeholder="Selecione a lista..."
+                />
+              </InputGroup>
+            )}
+
             <S.FormActions>
               <Button
                 onClick={() => void vm.handleSaveGeneral()}
-                disabled={vm.isSaving || !vm.formData.name || !vm.formData.eventName || (vm.isCustomRecordEvent && !vm.formData.screenKey)}
+                disabled={
+                  vm.isSaving ||
+                  !vm.formData.name ||
+                  !vm.formData.eventName ||
+                  (vm.isCustomRecordEvent && !vm.formData.screenKey) ||
+                  (vm.isLookupEvent && !vm.formData.lookupCollection)
+                }
               >
                 {vm.isNew ? 'Criar Automação' : 'Salvar'}
               </Button>
