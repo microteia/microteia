@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [0.37.0] — 2026-07-05
+
+- Ao criar uma automação de Fluxo de Trabalho para uma Entidade Customizada, agora é possível escolher qual entidade específica (ex: Contrato de Locação, Imóvel) dispara o gatilho, e os campos dela ficam disponíveis para uso nos passos da automação.
+
 #### [0.36.0] — 2026-07-05
 
 - Ao configurar um valor fixo para o Tipo de Prazo ou a Prioridade num passo "Criar Prazo" de um Fluxo de Trabalho, agora é possível escolher a partir da mesma lista usada na tela de Prazos, em vez de digitar o valor manualmente.

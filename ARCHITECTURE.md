@@ -1498,11 +1498,13 @@ mesma `StepDefinition` é usada duas vezes no mesmo workflow) e `VariableInputMa
 
 Escrita em `workflow_events` → `onWorkflowEventCreated` dispara → carrega
 `WorkflowDefinition`s habilitadas para aquele `eventName` (`findEnabledByEvent`) → para cada
-uma: avalia a `Condition` → roda os `steps` em ordem (`order` crescente), resolvendo os inputs
-de cada um via `InputMapping` e despachando o executor via `StepRegistry` → grava um
-`WorkflowExecution` com `logs[]` em `tenants/{tenantId}/workflow_executions`. Falha de um step
-para o restante daquele workflow (fail-fast, sem retry na v1) mas nunca derruba os demais
-workflows nem a Cloud Function.
+uma: avalia a `Condition` → se `screenKey` estiver definido no `WorkflowDefinition` (só se aplica
+a `custom_record.saved`/`custom_record.deleted`, ver abaixo) e não bater com o `screenKey` do
+`payload`, ignora a execução sem rodar nenhum step → roda os `steps` em ordem (`order`
+crescente), resolvendo os inputs de cada um via `InputMapping` e despachando o executor via
+`StepRegistry` → grava um `WorkflowExecution` com `logs[]` em
+`tenants/{tenantId}/workflow_executions`. Falha de um step para o restante daquele workflow
+(fail-fast, sem retry na v1) mas nunca derruba os demais workflows nem a Cloud Function.
 
 ### Publicação automática de eventos
 
@@ -1535,9 +1537,23 @@ mantém sua própria cópia estática em `src/domain/services/workflowEventCatal
 (1) o seletor de evento na aba Geral, com rótulos em PT-BR (`"Ao salvar: Processo"`, `"Ao
 excluir: Contrato"`, ordenados por ação e depois por entidade) e (2) a lista de campos conhecidos
 de cada evento, usada pelo `StepEditorModal` quando o usuário escolhe mapping "Do evento": em vez
-de digitar o caminho à mão, ele escolhe de uma lista (`caseId`, `responsibleLawyerId`, etc.). Entidades
-customizadas e itens de lista não têm campos fixos conhecíveis estaticamente — o picker cai de
-volta para texto livre nesses dois casos.
+de digitar o caminho à mão, ele escolhe de uma lista (`caseId`, `responsibleLawyerId`, etc.). Itens
+de lista não têm campos fixos conhecíveis estaticamente — o picker cai de volta para texto livre
+nesse caso.
+
+**Gatilho de Entidade Customizada — seletor de tela.** Como toda entidade customizada mora na
+mesma coleção `customRecords` discriminada por `screenKey`, escolher `custom_record.saved`/
+`custom_record.deleted` sozinho não identifica *qual* entidade (ex: "Contrato de Locação" vs
+"Imóvel"). Por isso `WorkflowDefinition.screenKey` (opcional, só usado por esses dois eventos)
+guarda o id da `ScreenDefinition` escolhida na aba Geral (`ViewWorkflow.view.tsx`, seletor
+populado por `useScreenDefinitions().dynamicScreens`). Esse campo cumpre dois papéis: (1) filtro
+de execução no backend (seção "Fluxo de execução" acima) e (2) fonte dos campos dinâmicos do
+"Do evento" — `getWorkflowEventFields(eventName, dynamicFields)` recebe, só para
+`custom_record.*`, os campos da `ScreenDefinition` selecionada mapeados para `values.<fieldKey>`
+(calculados em `ViewWorkflow.viewmodel.tsx` a partir de `sortFieldsByOrder(definition.fields)`).
+Sem `screenKey` escolhido, a automação roda para qualquer entidade customizada do tenant e o
+picker de "Do evento" só oferece `id`/`screenKey` (comportamento anterior, preservado para
+compatibilidade com automações já existentes).
 
 ### v1 — implementado vs preparado
 

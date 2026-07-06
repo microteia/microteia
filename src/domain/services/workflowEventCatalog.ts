@@ -123,5 +123,11 @@ export const WORKFLOW_EVENT_CATALOG: WorkflowEventCatalogEntry[] = [
   ...ENTITY_EVENTS.map(({ prefix, entityLabel, fields }) => buildEntry(prefix, entityLabel, 'deleted', fields)),
 ];
 
-export const getWorkflowEventFields = (eventName: string): WorkflowEventFieldOption[] =>
-  WORKFLOW_EVENT_CATALOG.find((entry) => entry.name === eventName)?.fields ?? [];
+export const getWorkflowEventFields = (
+  eventName: string,
+  dynamicFields: WorkflowEventFieldOption[] = [],
+): WorkflowEventFieldOption[] => {
+  const entry = WORKFLOW_EVENT_CATALOG.find((e) => e.name === eventName);
+  if (!entry) return [];
+  return eventName.startsWith('custom_record.') ? [...entry.fields, ...dynamicFields] : entry.fields;
+};

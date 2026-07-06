@@ -53,6 +53,10 @@ export interface WorkflowDefinition {
   name: string;
   description?: string;
   eventName: string;
+  // Só relevante quando eventName é "custom_record.saved"/"custom_record.deleted": identifica
+  // qual ScreenDefinition (entidade customizada) dispara o gatilho, já que todos os registros
+  // dessas entidades ficam numa única coleção Firestore discriminada por screenKey.
+  screenKey?: string;
   enabled: boolean;
   version: number;
   condition: Condition;

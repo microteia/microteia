@@ -71,8 +71,29 @@ export const ViewWorkflowView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
               />
             </InputGroup>
 
+            {vm.isCustomRecordEvent && (
+              <InputGroup>
+                <Label>Entidade customizada</Label>
+                {!vm.isScreenKeyRecognized && (
+                  <InfoBanner
+                    variant="warning"
+                    message="A entidade customizada salva neste gatilho não existe mais. Selecione a entidade novamente e salve."
+                  />
+                )}
+                <SearchSelect
+                  options={vm.screenOptions}
+                  value={vm.formData.screenKey}
+                  onChange={(screenKey) => vm.setFormData({ screenKey })}
+                  placeholder="Selecione a entidade customizada..."
+                />
+              </InputGroup>
+            )}
+
             <S.FormActions>
-              <Button onClick={() => void vm.handleSaveGeneral()} disabled={vm.isSaving || !vm.formData.name || !vm.formData.eventName}>
+              <Button
+                onClick={() => void vm.handleSaveGeneral()}
+                disabled={vm.isSaving || !vm.formData.name || !vm.formData.eventName || (vm.isCustomRecordEvent && !vm.formData.screenKey)}
+              >
                 {vm.isNew ? 'Criar Automação' : 'Salvar'}
               </Button>
             </S.FormActions>

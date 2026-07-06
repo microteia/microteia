@@ -50,6 +50,11 @@ export const runWorkflow = async ({ definition, event, registry, services }: Run
     return finish('SUCCESS', {});
   }
 
+  if (definition.screenKey && event.payload.screenKey !== definition.screenKey) {
+    log('INFO', 'Execução ignorada: entidade customizada do evento não corresponde à tela configurada no gatilho');
+    return finish('SUCCESS', {});
+  }
+
   const context: WorkflowContext = {
     event,
     outputs: {},

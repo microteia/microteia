@@ -4,6 +4,8 @@ import { useTenant } from '../../../stores/useTenant';
 import { useWorkspace } from '../../../stores/useWorkspace';
 import { useNotification } from '../../../stores/useNotification';
 import { useDI } from '../../../infrastructure/di/useDI';
+import { useScreenDefinitions } from '../../../stores/useScreenDefinitions';
+import { sortFieldsByOrder } from '../../../domain/services/customFieldValues';
 import { syncWorkflowStepCatalog } from '../../../data/services/syncWorkflowStepCatalog';
 import { WORKFLOW_EVENT_CATALOG, getWorkflowEventFields } from '../../../domain/services/workflowEventCatalog';
 import type { WorkflowEventFieldOption } from '../../../domain/services/workflowEventCatalog';
@@ -12,16 +14,20 @@ import type { StepDefinitionSummary } from '../../../domain/entities/WorkflowSte
 
 export type ViewWorkflowTab = 'general' | 'conditions' | 'steps' | 'executions';
 
+const isCustomRecordEventName = (eventName: string): boolean => eventName.startsWith('custom_record.');
+
 export interface WorkflowFormData {
   name: string;
   description: string;
   eventName: string;
+  screenKey: string;
 }
 
 const buildForm = (w: WorkflowDefinition | null): WorkflowFormData => ({
   name: w?.name ?? '',
   description: w?.description ?? '',
   eventName: w?.eventName ?? '',
+  screenKey: w?.screenKey ?? '',
 });
 
 export const EVENT_NAME_OPTIONS = WORKFLOW_EVENT_CATALOG.map((entry) => ({ value: entry.name, label: entry.label }));
@@ -55,6 +61,9 @@ export interface ViewWorkflowViewModel {
   executionsError: string | null;
   eventFields: WorkflowEventFieldOption[];
   isEventNameRecognized: boolean;
+  isCustomRecordEvent: boolean;
+  screenOptions: { value: string; label: string }[];
+  isScreenKeyRecognized: boolean;
 }
 
 export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel => {
@@ -66,6 +75,7 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
   const { setTabTitle, closeTab, openTab, activePanelId } = useWorkspace();
   const { notify } = useNotification();
   const { stepCatalogRepository, workflowExecutionRepository } = useDI();
+  const { dynamicScreens, getDefinition } = useScreenDefinitions();
 
   const workflow = useMemo(
     () => (isNew ? null : (workflows.find((w) => w.id === workflowId) ?? null)),
@@ -123,9 +133,17 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
     [stepCatalog],
   );
 
+  const dynamicEventFields = useMemo(() => {
+    if (!workflow?.screenKey || !isCustomRecordEventName(workflow.eventName)) return [];
+    const definition = getDefinition(workflow.screenKey);
+    return definition
+      ? sortFieldsByOrder(definition.fields).map((field) => ({ path: `values.${field.key}`, label: field.label }))
+      : [];
+  }, [workflow, getDefinition]);
+
   const eventFields = useMemo(
-    () => (workflow ? getWorkflowEventFields(workflow.eventName) : []),
-    [workflow],
+    () => (workflow ? getWorkflowEventFields(workflow.eventName, dynamicEventFields) : []),
+    [workflow, dynamicEventFields],
   );
 
   // Se o eventName gravado não corresponde a nenhum evento do catálogo atual (ex: automação
@@ -136,15 +154,31 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
     [workflow],
   );
 
+  const isCustomRecordEvent = useMemo(() => isCustomRecordEventName(formData.eventName), [formData.eventName]);
+
+  const screenOptions = useMemo(
+    () => dynamicScreens.map((def) => ({ value: def.id, label: def.titleSingular })),
+    [dynamicScreens],
+  );
+
+  // Mesma ideia de isEventNameRecognized, mas para a entidade customizada escolhida: se ela foi
+  // excluída depois que o gatilho foi configurado, avisa o usuário a escolher de novo.
+  const isScreenKeyRecognized = useMemo(
+    () => !isCustomRecordEvent || !formData.screenKey || dynamicScreens.some((def) => def.id === formData.screenKey),
+    [isCustomRecordEvent, formData.screenKey, dynamicScreens],
+  );
+
   const handleSaveGeneral = useCallback(async () => {
     if (!currentTenant) return;
     setIsSaving(true);
     try {
+      const screenKey = isCustomRecordEvent ? (formData.screenKey || undefined) : undefined;
       if (isNew) {
         const created = await createWorkflow({
           name: formData.name,
           description: formData.description || undefined,
           eventName: formData.eventName,
+          screenKey,
           enabled: false,
           version: 1,
           condition: { kind: 'AlwaysTrue' },
@@ -158,6 +192,7 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
           name: formData.name,
           description: formData.description || undefined,
           eventName: formData.eventName,
+          screenKey,
         });
         notify('Automação salva.', 'success');
       }
@@ -166,7 +201,7 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
     } finally {
       setIsSaving(false);
     }
-  }, [currentTenant, isNew, formData, createWorkflow, updateWorkflow, workflow, notify, closeTab, tabKey, activePanelId, openTab]);
+  }, [currentTenant, isNew, formData, isCustomRecordEvent, createWorkflow, updateWorkflow, workflow, notify, closeTab, tabKey, activePanelId, openTab]);
 
   const toggleEnabled = useCallback(() => {
     if (!workflow) return;
@@ -257,5 +292,8 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
     executionsError,
     eventFields,
     isEventNameRecognized,
+    isCustomRecordEvent,
+    screenOptions,
+    isScreenKeyRecognized,
   };
 };
