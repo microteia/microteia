@@ -83,7 +83,7 @@ export type WorkflowExecutionStatus = 'RUNNING' | 'SUCCESS' | 'FAILED' | 'PARTIA
 export interface WorkflowExecutionLogEntry {
   stepId?: string;
   stepDefinitionId?: string;
-  level: 'INFO' | 'WARN' | 'ERROR';
+  level: 'SUCCESS' | 'INFO' | 'WARN' | 'ERROR';
   message: string;
   at: Date;
 }

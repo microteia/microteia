@@ -11,6 +11,12 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [0.44.6] — 2026-07-06
+
+- Expressões em automações agora podem referenciar outputs de steps anteriores usando `output.stepId.campo` (exemplo: `concat("Prazo: ", output.createDeadlineStepId.deadline.description)`).
+- Logs de execução de automações agora marcam steps bem-sucedidos com [SUCCESS] ao invés de [INFO], facilitando a identificação visual.
+- Aba "Execuções" das automações agora exibe os outputs de cada step de forma elegante: clique em "▶ Outputs (N)" para expandir e ver o JSON completo de cada execução.
+
 #### [0.44.5] — 2026-07-06
 
 - Corrigido o acesso a campos aninhados nos outputs de Steps (como `deadline.description` do Step "Criar Prazo"): agora os valores são corretamente extraídos quando usados em Steps seguintes.

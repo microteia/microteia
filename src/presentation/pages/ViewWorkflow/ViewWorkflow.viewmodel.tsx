@@ -75,6 +75,8 @@ export interface ViewWorkflowViewModel {
   toggleStepEnabled: (step: WorkflowStep) => Promise<void>;
   executions: WorkflowExecution[];
   executionsError: string | null;
+  toggleExecutionOutputs: (executionId: string) => void;
+  isExecutionOutputsExpanded: (executionId: string) => boolean;
   eventFields: WorkflowEventFieldOption[];
   isEventNameRecognized: boolean;
   isCustomRecordEvent: boolean;
@@ -125,6 +127,7 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
   const [stepToDelete, setStepToDelete] = useState<WorkflowStep | null>(null);
   const [copyLinkDone, setCopyLinkDone] = useState(false);
   const [workflowToDelete, setWorkflowToDelete] = useState<WorkflowDefinition | null>(null);
+  const [expandedExecutionOutputs, setExpandedExecutionOutputs] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     if (workflow) {
@@ -312,6 +315,22 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
 
   const cancelDeleteWorkflow = useCallback(() => setWorkflowToDelete(null), []);
 
+  const toggleExecutionOutputs = useCallback((executionId: string) => {
+    setExpandedExecutionOutputs((prev) => {
+      const next = new Set(prev);
+      if (next.has(executionId)) {
+        next.delete(executionId);
+      } else {
+        next.add(executionId);
+      }
+      return next;
+    });
+  }, []);
+
+  const isExecutionOutputsExpanded = useCallback((executionId: string) => {
+    return expandedExecutionOutputs.has(executionId);
+  }, [expandedExecutionOutputs]);
+
   const openAddStep = useCallback(() => {
     if (!workflow) return;
     openTab(`edit-workflow-step:${workflow.id}`);
@@ -382,6 +401,8 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
     toggleStepEnabled,
     executions,
     executionsError,
+    toggleExecutionOutputs,
+    isExecutionOutputsExpanded,
     eventFields,
     isEventNameRecognized,
     isCustomRecordEvent,

@@ -245,9 +245,19 @@ export const ViewWorkflowView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
                   </S.ExecutionSummary>
                   <S.LogList>
                     {execution.logs.map((log, i) => (
-                      <S.LogEntry key={i}>[{log.level}] {log.message}</S.LogEntry>
+                      <S.LogEntry key={i} $level={log.level}>[{log.level}] {log.message}</S.LogEntry>
                     ))}
                   </S.LogList>
+                  {Object.keys(execution.outputs).length > 0 && (
+                    <S.OutputsSection>
+                      <S.OutputsToggle onClick={() => vm.toggleExecutionOutputs(execution.id)}>
+                        {vm.isExecutionOutputsExpanded(execution.id) ? '▼' : '▶'} Outputs ({Object.keys(execution.outputs).length})
+                      </S.OutputsToggle>
+                      {vm.isExecutionOutputsExpanded(execution.id) && (
+                        <S.OutputsJson>{JSON.stringify(execution.outputs, null, 2)}</S.OutputsJson>
+                      )}
+                    </S.OutputsSection>
+                  )}
                 </S.ExecutionRow>
               ))}
             </S.List>

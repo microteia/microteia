@@ -266,9 +266,51 @@ export const S = {
     gap: 4px;
   `,
 
-  LogEntry: styled.div`
+  LogEntry: styled.div<{ $level?: string }>`
     font-size: ${({ theme }) => theme.fontSizes.xs};
     font-family: ${({ theme }) => theme.fonts.mono};
-    color: ${({ theme }) => theme.colors.textMuted};
+    color: ${({ $level, theme }) => (
+    $level === 'ERROR' ? theme.colors.danger :
+      $level === 'SUCCESS' ? theme.colors.success :
+        $level === 'WARN' ? theme.colors.warning :
+          theme.colors.textMuted
+  )};
+  `,
+
+  OutputsSection: styled.div`
+    margin-top: ${({ theme }) => theme.spacing.sm};
+    padding-top: ${({ theme }) => theme.spacing.sm};
+    border-top: 1px solid ${({ theme }) => theme.colors.border};
+  `,
+
+  OutputsToggle: styled.button`
+    background: none;
+    border: none;
+    color: ${({ theme }) => theme.colors.primary};
+    cursor: pointer;
+    font-size: ${({ theme }) => theme.fontSizes.sm};
+    padding: ${({ theme }) => theme.spacing.xs} 0;
+    display: flex;
+    align-items: center;
+    gap: ${({ theme }) => theme.spacing.xs};
+    transition: ${({ theme }) => theme.transitions.fast};
+
+    &:hover {
+      opacity: 0.8;
+    }
+  `,
+
+  OutputsJson: styled.pre`
+    margin: ${({ theme }) => theme.spacing.sm} 0 0 0;
+    padding: ${({ theme }) => theme.spacing.md};
+    background: ${({ theme }) => theme.colors.background};
+    border: 1px solid ${({ theme }) => theme.colors.border};
+    border-radius: ${({ theme }) => theme.borderRadius.md};
+    font-size: ${({ theme }) => theme.fontSizes.xs};
+    font-family: ${({ theme }) => theme.fonts.mono};
+    color: ${({ theme }) => theme.colors.text};
+    overflow-x: auto;
+    max-height: 400px;
+    overflow-y: auto;
   `,
 };

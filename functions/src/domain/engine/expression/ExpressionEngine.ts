@@ -162,8 +162,10 @@ const evaluateNode = (node: Ast, context: WorkflowContext): unknown => {
         value = context.event.payload;
       } else if (root === 'input') {
         value = context.input ?? {};
+      } else if (root === 'output') {
+        value = context.outputs;
       } else {
-        throw new Error(`Expressão inválida: raiz "${root}" desconhecida (use "event" ou "input")`);
+        throw new Error(`Expressão inválida: raiz "${root}" desconhecida (use "event", "input" ou "output")`);
       }
 
       for (const key of rest) {
