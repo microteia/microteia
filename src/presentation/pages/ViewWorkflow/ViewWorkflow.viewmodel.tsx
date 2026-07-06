@@ -13,6 +13,7 @@ import type { WorkflowEventFieldOption } from '../../../domain/services/workflow
 import { WORKFLOW_LOOKUP_COLLECTIONS } from '../../../domain/services/workflowLookupCatalog';
 import { getWorkflowEventIcon, getWorkflowLookupGroupIcon } from '../../shared/workflowEventIcons';
 import { getScreenIconType } from '../../shared/screenIcons';
+import { generateDeepLink } from '../../../infrastructure/deeplink/deepLinkUtils';
 import type { WorkflowDefinition, WorkflowExecution, WorkflowStep } from '../../../domain/entities/Workflow';
 import type { StepDefinitionSummary } from '../../../domain/entities/WorkflowStepCatalog';
 
@@ -83,13 +84,24 @@ export interface ViewWorkflowViewModel {
   isScreenKeyRecognized: boolean;
   isLookupEvent: boolean;
   isLookupCollectionRecognized: boolean;
+  headerIcon: IconType | null;
+  copyLinkDone: boolean;
+  handleCopyDeepLink: () => void;
+  handleClone: () => void;
+  handleDeleteWorkflow: () => void;
+  workflowToDelete: WorkflowDefinition | null;
+  confirmDeleteWorkflow: () => Promise<void>;
+  cancelDeleteWorkflow: () => void;
 }
 
+const CLONE_PREFIX = 'new-workflow:clone:';
+
 export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel => {
-  const isNew = tabKey === 'new-workflow';
+  const cloneSourceId = tabKey.startsWith(CLONE_PREFIX) ? tabKey.slice(CLONE_PREFIX.length) : null;
+  const isNew = tabKey === 'new-workflow' || cloneSourceId !== null;
   const workflowId = isNew ? '' : tabKey.replace('view-workflow:', '');
 
-  const { workflows, createWorkflow, updateWorkflow, updateWorkflowSteps } = useWorkflowStore();
+  const { workflows, createWorkflow, updateWorkflow, updateWorkflowSteps, deleteWorkflow } = useWorkflowStore();
   const { currentTenant } = useTenant();
   const { setTabTitle, closeTab, openTab, activePanelId } = useWorkspace();
   const { notify } = useNotification();
@@ -101,8 +113,13 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
     [isNew, workflows, workflowId],
   );
 
+  const cloneSource = useMemo(
+    () => (cloneSourceId ? (workflows.find((w) => w.id === cloneSourceId) ?? null) : null),
+    [workflows, cloneSourceId],
+  );
+
   const [activeTab, setActiveTab] = useState<ViewWorkflowTab>('general');
-  const [formData, setFormDataState] = useState<WorkflowFormData>(() => buildForm(workflow));
+  const [formData, setFormDataState] = useState<WorkflowFormData>(() => buildForm(cloneSource));
   const [isSaving, setIsSaving] = useState(false);
   const [stepCatalog, setStepCatalog] = useState<StepDefinitionSummary[]>([]);
   const [executions, setExecutions] = useState<WorkflowExecution[]>([]);
@@ -110,10 +127,14 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
   const [isStepModalOpen, setIsStepModalOpen] = useState(false);
   const [editingStep, setEditingStep] = useState<WorkflowStep | null>(null);
   const [stepToDelete, setStepToDelete] = useState<WorkflowStep | null>(null);
+  const [copyLinkDone, setCopyLinkDone] = useState(false);
+  const [workflowToDelete, setWorkflowToDelete] = useState<WorkflowDefinition | null>(null);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- re-inicializa o formulário quando o workflow carrega da store
-    setFormDataState(buildForm(workflow));
+    if (workflow) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- re-inicializa o formulário quando o workflow carrega da store
+      setFormDataState(buildForm(workflow));
+    }
   }, [workflow]);
 
   useEffect(() => {
@@ -195,6 +216,21 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
     [isLookupEvent, formData.lookupCollection],
   );
 
+  // Ícone exibido ao lado do título: usa o ícone da tela/lista específica quando reconhecida,
+  // caindo para o ícone genérico do evento (a mesma lógica do card em Automações).
+  const headerIcon = useMemo<IconType | null>(() => {
+    if (!formData.eventName) return null;
+    if (isCustomRecordEvent && formData.screenKey) {
+      const definition = getDefinition(formData.screenKey);
+      if (definition) return getScreenIconType(definition.icon);
+    }
+    if (isLookupEvent && formData.lookupCollection) {
+      const entry = WORKFLOW_LOOKUP_COLLECTIONS.find((e) => e.collection === formData.lookupCollection);
+      if (entry) return getWorkflowLookupGroupIcon(entry.group);
+    }
+    return getWorkflowEventIcon(formData.eventName);
+  }, [formData.eventName, formData.screenKey, formData.lookupCollection, isCustomRecordEvent, isLookupEvent, getDefinition]);
+
   const handleSaveGeneral = useCallback(async () => {
     if (!currentTenant) return;
     setIsSaving(true);
@@ -211,7 +247,7 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
           enabled: true,
           version: 1,
           condition: { kind: 'AlwaysTrue' },
-          steps: [],
+          steps: cloneSource ? cloneSource.steps.map((step) => ({ ...step, id: crypto.randomUUID() })) : [],
         });
         notify('Automação criada.', 'success');
         closeTab(tabKey, activePanelId ?? 'main');
@@ -231,12 +267,46 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
     } finally {
       setIsSaving(false);
     }
-  }, [currentTenant, isNew, formData, isCustomRecordEvent, isLookupEvent, createWorkflow, updateWorkflow, workflow, notify, closeTab, tabKey, activePanelId, openTab]);
+  }, [currentTenant, isNew, formData, isCustomRecordEvent, isLookupEvent, cloneSource, createWorkflow, updateWorkflow, workflow, notify, closeTab, tabKey, activePanelId, openTab]);
 
   const toggleEnabled = useCallback(() => {
     if (!workflow) return;
-    void updateWorkflow(workflow.id, { enabled: !workflow.enabled }).catch(() => notify('Erro ao atualizar automação.', 'error'));
+    const next = !workflow.enabled;
+    updateWorkflow(workflow.id, { enabled: next })
+      .then(() => notify(`Automação ${next ? 'ativada' : 'inativada'}.`, 'success'))
+      .catch(() => notify('Erro ao atualizar automação.', 'error'));
   }, [workflow, updateWorkflow, notify]);
+
+  const handleCopyDeepLink = useCallback(() => {
+    if (!workflow) return;
+    void navigator.clipboard.writeText(generateDeepLink(`view-workflow:${workflow.id}`));
+    setCopyLinkDone(true);
+    setTimeout(() => setCopyLinkDone(false), 2000);
+  }, [workflow]);
+
+  const handleClone = useCallback(() => {
+    if (!workflow) return;
+    openTab(`${CLONE_PREFIX}${workflow.id}`);
+  }, [workflow, openTab]);
+
+  const handleDeleteWorkflow = useCallback(() => {
+    if (workflow) setWorkflowToDelete(workflow);
+  }, [workflow]);
+
+  const confirmDeleteWorkflow = useCallback(async () => {
+    if (!workflowToDelete) return;
+    try {
+      await deleteWorkflow(workflowToDelete.id);
+      notify('Automação excluída.', 'success');
+      closeTab(tabKey, activePanelId);
+    } catch {
+      notify('Erro ao excluir automação.', 'error');
+    } finally {
+      setWorkflowToDelete(null);
+    }
+  }, [workflowToDelete, deleteWorkflow, notify, closeTab, tabKey, activePanelId]);
+
+  const cancelDeleteWorkflow = useCallback(() => setWorkflowToDelete(null), []);
 
   const openAddStep = useCallback(() => { setEditingStep(null); setIsStepModalOpen(true); }, []);
   const openEditStep = useCallback((step: WorkflowStep) => { setEditingStep(step); setIsStepModalOpen(true); }, []);
@@ -327,5 +397,13 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
     isScreenKeyRecognized,
     isLookupEvent,
     isLookupCollectionRecognized,
+    headerIcon,
+    copyLinkDone,
+    handleCopyDeepLink,
+    handleClone,
+    handleDeleteWorkflow,
+    workflowToDelete,
+    confirmDeleteWorkflow,
+    cancelDeleteWorkflow,
   };
 };

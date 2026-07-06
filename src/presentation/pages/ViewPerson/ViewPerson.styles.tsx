@@ -66,6 +66,11 @@ export const S = {
     flex-wrap: wrap;
   `,
 
+  ToggleIcon: styled.span<{ $enabled: boolean }>`
+    display: inline-flex;
+    color: ${({ $enabled, theme }) => ($enabled ? theme.colors.success : theme.colors.danger)};
+  `,
+
   Tags: styled.div`
     display: flex;
     flex-wrap: wrap;

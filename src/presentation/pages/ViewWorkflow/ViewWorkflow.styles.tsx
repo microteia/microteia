@@ -18,6 +18,14 @@ export const S = {
     gap: ${({ theme }) => theme.spacing.md};
   `,
 
+  TitleRow: styled.div`
+    display: flex;
+    align-items: center;
+    gap: ${({ theme }) => theme.spacing.sm};
+    color: ${({ theme }) => theme.colors.primary};
+    min-width: 0;
+  `,
+
   Title: styled.h1`
     font-size: ${({ theme }) => theme.fontSizes.xl};
     font-weight: 700;
@@ -31,17 +39,9 @@ export const S = {
     flex-shrink: 0;
   `,
 
-  EnabledBadge: styled.button<{ $enabled: boolean }>`
+  ToggleIcon: styled.span<{ $enabled: boolean }>`
     display: inline-flex;
-    align-items: center;
-    cursor: pointer;
-    padding: 5px 12px;
-    border-radius: ${({ theme }) => theme.borderRadius.full};
-    font-size: ${({ theme }) => theme.fontSizes.xs};
-    font-weight: 600;
-    background: ${({ $enabled, theme }) => ($enabled ? `${theme.colors.success}20` : `${theme.colors.danger}20`)};
     color: ${({ $enabled, theme }) => ($enabled ? theme.colors.success : theme.colors.danger)};
-    border: 1px solid ${({ $enabled, theme }) => ($enabled ? `${theme.colors.success}44` : `${theme.colors.danger}44`)};
   `,
 
   TabBar: styled.div`
@@ -74,11 +74,6 @@ export const S = {
     display: flex;
     flex-direction: column;
     gap: ${({ theme }) => theme.spacing.lg};
-  `,
-
-  FormActions: styled.div`
-    display: flex;
-    justify-content: flex-end;
   `,
 
   StepsToolbar: styled.div`

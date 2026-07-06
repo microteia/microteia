@@ -219,6 +219,13 @@ export const PAGE_REGISTRY: PageDefinition[] = [
   },
   {
     key: '',
+    keyPrefix: 'new-workflow:clone:',
+    title: 'Nova Automação',
+    icon: <RiFlowChart size={20} />,
+    component: ViewWorkflowView,
+  },
+  {
+    key: '',
     keyPrefix: 'view-workflow:',
     title: 'Automação',
     icon: <RiFlowChart size={20} />,

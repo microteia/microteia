@@ -11,6 +11,22 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [0.39.4] — 2026-07-05
+
+- O botão de ativar/inativar na tela de Pessoa agora também muda de cor (verde/vermelho) conforme o estado, igual à automação.
+
+#### [0.39.3] — 2026-07-05
+
+- Corrigido o botão de ativar/inativar automação, que não dava nenhum retorno visual ao ser clicado. Agora ele muda de cor (verde/vermelho) conforme o estado e confirma a ação com uma mensagem.
+
+#### [0.39.2] — 2026-07-05
+
+- A tela de automação agora segue o mesmo padrão das demais telas de cadastro: botão de salvar como ícone no topo, além de copiar link, clonar, ativar/inativar e excluir.
+
+#### [0.39.1] — 2026-07-05
+
+- Adicionado o ícone da entidade ou lista escolhida ao lado do nome, no topo da tela de edição de uma automação.
+
 #### [0.39.0] — 2026-07-05
 
 - Ao configurar um Step de Automação com valor fixo em um campo que referencia Processo, Advogado ou outra entidade, agora aparece uma lista para escolher diretamente o registro desejado, em vez de precisar digitar o identificador manualmente.

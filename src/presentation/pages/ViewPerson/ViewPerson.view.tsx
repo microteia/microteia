@@ -86,7 +86,9 @@ export const ViewPersonView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
                 <RiFileCopyLine size={14} />
               </Button>
               <Button variant="ghost" size="sm" title={vm.person?.status === 'Ativo' ? 'Inativar' : 'Ativar'} onClick={() => void vm.handleToggleStatus()}>
-                <RiToggleLine size={14} />
+                <S.ToggleIcon $enabled={vm.person?.status === 'Ativo'}>
+                  <RiToggleLine size={14} />
+                </S.ToggleIcon>
               </Button>
               <Button variant="ghost" size="sm" title="Gerenciar etiquetas" onClick={vm.openTagManager}>
                 <RiPriceTag3Line size={14} />

@@ -1,5 +1,17 @@
 import React from 'react';
-import { RiFlowChart, RiAddLine, RiDeleteBinLine, RiArrowUpLine, RiArrowDownLine, RiEditLine } from 'react-icons/ri';
+import {
+  RiFlowChart,
+  RiAddLine,
+  RiDeleteBinLine,
+  RiArrowUpLine,
+  RiArrowDownLine,
+  RiEditLine,
+  RiLinkM,
+  RiCheckLine,
+  RiFileCopyLine,
+  RiToggleLine,
+  RiSaveLine,
+} from 'react-icons/ri';
 import { S } from './ViewWorkflow.styles';
 import { useViewWorkflowViewModel, EVENT_NAME_OPTIONS, LOOKUP_COLLECTION_OPTIONS } from './ViewWorkflow.viewmodel';
 import { Button } from '../../components/ui/Button';
@@ -15,14 +27,49 @@ export const ViewWorkflowView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
   return (
     <S.Page>
       <S.Header>
-        <S.Title>{vm.isNew ? 'Nova Automação' : (vm.workflow?.name || 'Automação')}</S.Title>
-        {!vm.isNew && vm.workflow && (
-          <S.HeaderActions>
-            <S.EnabledBadge $enabled={vm.workflow.enabled} onClick={vm.toggleEnabled}>
-              {vm.workflow.enabled ? 'Habilitado' : 'Desabilitado'}
-            </S.EnabledBadge>
-          </S.HeaderActions>
-        )}
+        <S.TitleRow>
+          {vm.headerIcon && <vm.headerIcon size={22} />}
+          <S.Title>{vm.isNew ? 'Nova Automação' : (vm.workflow?.name || 'Automação')}</S.Title>
+        </S.TitleRow>
+        <S.HeaderActions>
+          {!vm.isNew && vm.workflow && (
+            <>
+              <Button variant="ghost" size="sm" onClick={vm.handleCopyDeepLink} title="Copiar link">
+                {vm.copyLinkDone ? <RiCheckLine size={14} /> : <RiLinkM size={14} />}
+              </Button>
+              <Button variant="ghost" size="sm" onClick={vm.handleClone} title="Clonar">
+                <RiFileCopyLine size={14} />
+              </Button>
+              <Button variant="ghost" size="sm" title={vm.workflow.enabled ? 'Inativar' : 'Ativar'} onClick={vm.toggleEnabled}>
+                <S.ToggleIcon $enabled={vm.workflow.enabled}>
+                  <RiToggleLine size={14} />
+                </S.ToggleIcon>
+              </Button>
+            </>
+          )}
+          {(vm.activeTab === 'general' || vm.isNew) && (
+            <Button
+              size="sm"
+              onClick={() => void vm.handleSaveGeneral()}
+              disabled={
+                vm.isSaving ||
+                !vm.formData.name ||
+                !vm.formData.eventName ||
+                (vm.isCustomRecordEvent && !vm.formData.screenKey) ||
+                (vm.isLookupEvent && !vm.formData.lookupCollection)
+              }
+              $isLoading={vm.isSaving}
+              title={vm.isSaving ? 'Salvando...' : 'Salvar'}
+            >
+              <RiSaveLine size={14} />
+            </Button>
+          )}
+          {!vm.isNew && vm.workflow && (
+            <Button variant="danger" size="sm" onClick={vm.handleDeleteWorkflow} title="Excluir Automação">
+              <RiDeleteBinLine size={14} />
+            </Button>
+          )}
+        </S.HeaderActions>
       </S.Header>
 
       {!vm.isNew && (
@@ -106,21 +153,6 @@ export const ViewWorkflowView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
                 />
               </InputGroup>
             )}
-
-            <S.FormActions>
-              <Button
-                onClick={() => void vm.handleSaveGeneral()}
-                disabled={
-                  vm.isSaving ||
-                  !vm.formData.name ||
-                  !vm.formData.eventName ||
-                  (vm.isCustomRecordEvent && !vm.formData.screenKey) ||
-                  (vm.isLookupEvent && !vm.formData.lookupCollection)
-                }
-              >
-                {vm.isNew ? 'Criar Automação' : 'Salvar'}
-              </Button>
-            </S.FormActions>
           </S.Form>
         </S.Content>
       )}
@@ -232,6 +264,16 @@ export const ViewWorkflowView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
           )}
         </S.Content>
       )}
+
+      <ConfirmModal
+        isOpen={!!vm.workflowToDelete}
+        onConfirm={() => void vm.confirmDeleteWorkflow()}
+        onCancel={vm.cancelDeleteWorkflow}
+        title="Excluir Automação"
+        message={`Tem certeza que deseja excluir a automação "${vm.workflowToDelete?.name}"? Esta ação não pode ser desfeita.`}
+        confirmLabel="Excluir"
+        variant="danger"
+      />
     </S.Page>
   );
 };
