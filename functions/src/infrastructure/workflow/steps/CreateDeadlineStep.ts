@@ -49,6 +49,20 @@ export const makeCreateDeadlineStepDefinition = (deadlineRepository: IDeadlineRe
   ],
   outputDefinitions: [
     { id: 'deadlineId', label: 'Id do prazo criado', type: 'String' },
+    { id: 'deadline.id', label: 'Prazo: Id', type: 'String' },
+    { id: 'deadline.caseId', label: 'Prazo: Id do processo', type: 'String' },
+    { id: 'deadline.description', label: 'Prazo: Descrição', type: 'String' },
+    { id: 'deadline.dueDate', label: 'Prazo: Data de vencimento', type: 'Date' },
+    { id: 'deadline.type', label: 'Prazo: Tipo', type: 'String' },
+    { id: 'deadline.priority', label: 'Prazo: Prioridade', type: 'String' },
+    { id: 'deadline.responsibleLawyerId', label: 'Prazo: Id do advogado responsável', type: 'String' },
+    { id: 'deadline.case.id', label: 'Prazo: Processo - Id', type: 'String' },
+    { id: 'deadline.case.caseNumber', label: 'Prazo: Processo - Número', type: 'String' },
+    { id: 'deadline.case.title', label: 'Prazo: Processo - Título', type: 'String' },
+    { id: 'deadline.case.area', label: 'Prazo: Processo - Área', type: 'String' },
+    { id: 'deadline.responsibleLawyer.id', label: 'Prazo: Advogado - Id', type: 'String' },
+    { id: 'deadline.responsibleLawyer.name', label: 'Prazo: Advogado - Nome', type: 'String' },
+    { id: 'deadline.responsibleLawyer.email', label: 'Prazo: Advogado - Email', type: 'String' },
   ],
   createExecutor: (): WorkflowStepExecutor => ({
     execute: async (inputs, context) => {

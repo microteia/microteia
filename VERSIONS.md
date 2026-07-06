@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [0.44.4] — 2026-07-06
+
+- O Step "Criar Prazo" nas automações agora expõe todos os campos do prazo criado como saídas disponíveis para Steps seguintes, incluindo dados do processo e advogado responsável vinculados. Isso permite usar essas informações em próximas etapas da automação.
+
 #### [0.44.3] — 2026-07-06
 
 - O editor de Steps em automações agora abre em uma aba dedicada no workspace, proporcionando mais espaço e conforto para configurar cada etapa. O título da aba mostra o nome da automação, o número de ordem do step e o tipo escolhido.
