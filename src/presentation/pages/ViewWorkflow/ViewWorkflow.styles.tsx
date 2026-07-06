@@ -313,4 +313,86 @@ export const S = {
     max-height: 400px;
     overflow-y: auto;
   `,
+
+  StepResultCard: styled.div`
+    margin-top: ${({ theme }) => theme.spacing.md};
+    padding: ${({ theme }) => theme.spacing.md};
+    background: ${({ theme }) => theme.colors.surfaceHover};
+    border: 1px solid ${({ theme }) => theme.colors.border};
+    border-radius: ${({ theme }) => theme.borderRadius.md};
+  `,
+
+  StepResultHeader: styled.div`
+    display: flex;
+    align-items: center;
+    gap: ${({ theme }) => theme.spacing.sm};
+    cursor: pointer;
+    font-size: ${({ theme }) => theme.fontSizes.sm};
+    font-weight: 600;
+    color: ${({ theme }) => theme.colors.text};
+    user-select: none;
+
+    &:hover {
+      color: ${({ theme }) => theme.colors.primary};
+    }
+  `,
+
+  StepResultBody: styled.div`
+    margin-top: ${({ theme }) => theme.spacing.sm};
+    padding-top: ${({ theme }) => theme.spacing.sm};
+    border-top: 1px solid ${({ theme }) => theme.colors.border};
+  `,
+
+  StepMessage: styled.div<{ $level?: string }>`
+    font-size: ${({ theme }) => theme.fontSizes.xs};
+    font-family: ${({ theme }) => theme.fonts.mono};
+    margin-bottom: ${({ theme }) => theme.spacing.sm};
+    color: ${({ $level, theme }) => (
+      $level === 'ERROR' ? theme.colors.danger :
+        $level === 'SUCCESS' ? theme.colors.success :
+          $level === 'WARN' ? theme.colors.warning :
+            theme.colors.textMuted
+    )};
+  `,
+
+  DataSection: styled.div`
+    margin-top: ${({ theme }) => theme.spacing.xs};
+  `,
+
+  DataToggle: styled.button`
+    background: none;
+    border: none;
+    color: ${({ theme }) => theme.colors.textSecondary};
+    cursor: pointer;
+    font-size: ${({ theme }) => theme.fontSizes.xs};
+    padding: ${({ theme }) => theme.spacing.xs} 0;
+    display: flex;
+    align-items: center;
+    gap: ${({ theme }) => theme.spacing.xs};
+    transition: ${({ theme }) => theme.transitions.fast};
+
+    &:hover {
+      color: ${({ theme }) => theme.colors.primary};
+    }
+  `,
+
+  DataJson: styled.pre`
+    margin: ${({ theme }) => theme.spacing.xs} 0 0 0;
+    padding: ${({ theme }) => theme.spacing.sm};
+    background: ${({ theme }) => theme.colors.background};
+    border: 1px solid ${({ theme }) => theme.colors.border};
+    border-radius: ${({ theme }) => theme.borderRadius.sm};
+    font-size: ${({ theme }) => theme.fontSizes.xs};
+    font-family: ${({ theme }) => theme.fonts.mono};
+    color: ${({ theme }) => theme.colors.text};
+    overflow-x: auto;
+    max-height: 300px;
+    overflow-y: auto;
+  `,
+
+  GeneralOutputsSection: styled.div`
+    margin-top: ${({ theme }) => theme.spacing.md};
+    padding-top: ${({ theme }) => theme.spacing.md};
+    border-top: 2px solid ${({ theme }) => theme.colors.border};
+  `,
 };

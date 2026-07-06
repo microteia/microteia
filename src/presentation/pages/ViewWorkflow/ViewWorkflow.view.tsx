@@ -237,29 +237,80 @@ export const ViewWorkflowView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
             </S.EmptyState>
           ) : (
             <S.List>
-              {vm.executions.map((execution) => (
-                <S.ExecutionRow key={execution.id}>
-                  <S.ExecutionSummary>
-                    <S.StatusBadge $status={execution.status}>{execution.status}</S.StatusBadge>
-                    {execution.startedAt.toLocaleString('pt-BR')}
-                  </S.ExecutionSummary>
-                  <S.LogList>
-                    {execution.logs.map((log, i) => (
-                      <S.LogEntry key={i} $level={log.level}>[{log.level}] {log.message}</S.LogEntry>
-                    ))}
-                  </S.LogList>
-                  {Object.keys(execution.outputs).length > 0 && (
-                    <S.OutputsSection>
-                      <S.OutputsToggle onClick={() => vm.toggleExecutionOutputs(execution.id)}>
-                        {vm.isExecutionOutputsExpanded(execution.id) ? '▼' : '▶'} Outputs ({Object.keys(execution.outputs).length})
-                      </S.OutputsToggle>
-                      {vm.isExecutionOutputsExpanded(execution.id) && (
-                        <S.OutputsJson>{JSON.stringify(execution.outputs, null, 2)}</S.OutputsJson>
-                      )}
-                    </S.OutputsSection>
-                  )}
-                </S.ExecutionRow>
-              ))}
+              {vm.executions.map((execution) => {
+                const stepLogs = execution.logs.filter((log) => log.stepId);
+                const generalLogs = execution.logs.filter((log) => !log.stepId);
+
+                return (
+                  <S.ExecutionRow key={execution.id}>
+                    <S.ExecutionSummary>
+                      <S.StatusBadge $status={execution.status}>{execution.status}</S.StatusBadge>
+                      {execution.startedAt.toLocaleString('pt-BR')}
+                    </S.ExecutionSummary>
+
+                    {stepLogs.map((log, i) => {
+                      const definition = log.stepDefinitionId ? vm.getStepDefinition(log.stepDefinitionId) : undefined;
+                      const stepName = definition?.name || log.stepDefinitionId || 'Step';
+                      const isExpanded = vm.isStepResultExpanded(execution.id, log.stepId || String(i));
+
+                      return (
+                        <S.StepResultCard key={i}>
+                          <S.StepResultHeader onClick={() => vm.toggleStepResult(execution.id, log.stepId || String(i))}>
+                            <span>{isExpanded ? '▼' : '▶'}</span>
+                            <span>{stepName}</span>
+                          </S.StepResultHeader>
+                          {isExpanded && (
+                            <S.StepResultBody>
+                              <S.StepMessage $level={log.level}>[{log.level}] {log.message}</S.StepMessage>
+
+                              {log.inputs && Object.keys(log.inputs).length > 0 && (
+                                <S.DataSection>
+                                  <S.DataToggle onClick={() => vm.toggleLogData(execution.id, i, 'inputs')}>
+                                    {vm.isLogDataExpanded(execution.id, i, 'inputs') ? '▼' : '▶'} Entrada ({Object.keys(log.inputs).length})
+                                  </S.DataToggle>
+                                  {vm.isLogDataExpanded(execution.id, i, 'inputs') && (
+                                    <S.DataJson>{JSON.stringify(log.inputs, null, 2)}</S.DataJson>
+                                  )}
+                                </S.DataSection>
+                              )}
+
+                              {log.outputs && Object.keys(log.outputs).length > 0 && (
+                                <S.DataSection>
+                                  <S.DataToggle onClick={() => vm.toggleLogData(execution.id, i, 'outputs')}>
+                                    {vm.isLogDataExpanded(execution.id, i, 'outputs') ? '▼' : '▶'} Saída ({Object.keys(log.outputs).length})
+                                  </S.DataToggle>
+                                  {vm.isLogDataExpanded(execution.id, i, 'outputs') && (
+                                    <S.DataJson>{JSON.stringify(log.outputs, null, 2)}</S.DataJson>
+                                  )}
+                                </S.DataSection>
+                              )}
+                            </S.StepResultBody>
+                          )}
+                        </S.StepResultCard>
+                      );
+                    })}
+
+                    {generalLogs.length > 0 && (
+                      <S.LogList>
+                        {generalLogs.map((log, i) => (
+                          <S.LogEntry key={i} $level={log.level}>[{log.level}] {log.message}</S.LogEntry>
+                        ))}
+                      </S.LogList>
+                    )}
+
+                    {Object.keys(execution.outputs).length > 0 && (
+                      <S.GeneralOutputsSection>
+                        <S.OutputsToggle onClick={() => vm.toggleExecutionOutputs(execution.id)}>
+                          {vm.isExecutionOutputsExpanded(execution.id) ? '▼' : '▶'} Saída geral ({Object.keys(execution.outputs).length})
+                        </S.OutputsToggle>
+                        {vm.isExecutionOutputsExpanded(execution.id) && (
+                          <S.OutputsJson>{JSON.stringify(execution.outputs, null, 2)}</S.OutputsJson>
+                        )}
+                      </S.GeneralOutputsSection>
+                    )}
+                  </S.ExecutionRow>
+                );
+              })}
             </S.List>
           )}
         </S.Content>

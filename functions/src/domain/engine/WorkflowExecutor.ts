@@ -21,8 +21,15 @@ export const runWorkflow = async ({ definition, event, registry, services }: Run
   const startedAt = services.now();
   const logs: WorkflowExecutionLogEntry[] = [];
 
-  const log = (level: WorkflowExecutionLogEntry['level'], message: string, stepId?: string, stepDefinitionId?: string): void => {
-    logs.push({ stepId, stepDefinitionId, level, message, at: services.now() });
+  const log = (
+    level: WorkflowExecutionLogEntry['level'],
+    message: string,
+    stepId?: string,
+    stepDefinitionId?: string,
+    inputs?: Record<string, unknown>,
+    outputs?: Record<string, unknown>
+  ): void => {
+    logs.push({ stepId, stepDefinitionId, level, message, at: services.now(), inputs, outputs });
   };
 
   const finish = (status: WorkflowExecution['status'], outputs: Record<string, Record<string, unknown>>): WorkflowExecution => ({
@@ -85,15 +92,15 @@ export const runWorkflow = async ({ definition, event, registry, services }: Run
       const result = await stepDefinition.createExecutor().execute(inputs, context);
 
       if (!result.success) {
-        log('ERROR', result.message ?? 'Step falhou sem mensagem', step.id, step.stepDefinitionId);
+        log('ERROR', result.message ?? 'Step falhou sem mensagem', step.id, step.stepDefinitionId, inputs, undefined);
         return finish('FAILED', context.outputs);
       }
 
       context.outputs[step.id] = result.outputs ?? {};
-      log('SUCCESS', result.message ?? `Step "${stepDefinition.name}" concluído`, step.id, step.stepDefinitionId);
+      log('SUCCESS', result.message ?? `Step "${stepDefinition.name}" concluído`, step.id, step.stepDefinitionId, inputs, result.outputs);
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      log('ERROR', `[Step "${stepDefinition.name}"] ${errorMessage}`, step.id, step.stepDefinitionId);
+      log('ERROR', `[Step "${stepDefinition.name}"] ${errorMessage}`, step.id, step.stepDefinitionId, undefined, undefined);
       return finish('FAILED', context.outputs);
     }
   }

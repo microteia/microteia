@@ -77,6 +77,10 @@ export interface ViewWorkflowViewModel {
   executionsError: string | null;
   toggleExecutionOutputs: (executionId: string) => void;
   isExecutionOutputsExpanded: (executionId: string) => boolean;
+  toggleLogData: (executionId: string, logIndex: number, type: 'inputs' | 'outputs') => void;
+  isLogDataExpanded: (executionId: string, logIndex: number, type: 'inputs' | 'outputs') => boolean;
+  toggleStepResult: (executionId: string, stepId: string) => void;
+  isStepResultExpanded: (executionId: string, stepId: string) => boolean;
   eventFields: WorkflowEventFieldOption[];
   isEventNameRecognized: boolean;
   isCustomRecordEvent: boolean;
@@ -128,6 +132,8 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
   const [copyLinkDone, setCopyLinkDone] = useState(false);
   const [workflowToDelete, setWorkflowToDelete] = useState<WorkflowDefinition | null>(null);
   const [expandedExecutionOutputs, setExpandedExecutionOutputs] = useState<Set<string>>(new Set());
+  const [expandedLogData, setExpandedLogData] = useState<Set<string>>(new Set());
+  const [expandedStepResults, setExpandedStepResults] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     if (workflow) {
@@ -331,6 +337,42 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
     return expandedExecutionOutputs.has(executionId);
   }, [expandedExecutionOutputs]);
 
+  const toggleLogData = useCallback((executionId: string, logIndex: number, type: 'inputs' | 'outputs') => {
+    const key = `${executionId}:${logIndex}:${type}`;
+    setExpandedLogData((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) {
+        next.delete(key);
+      } else {
+        next.add(key);
+      }
+      return next;
+    });
+  }, []);
+
+  const isLogDataExpanded = useCallback((executionId: string, logIndex: number, type: 'inputs' | 'outputs') => {
+    const key = `${executionId}:${logIndex}:${type}`;
+    return expandedLogData.has(key);
+  }, [expandedLogData]);
+
+  const toggleStepResult = useCallback((executionId: string, stepId: string) => {
+    const key = `${executionId}:${stepId}`;
+    setExpandedStepResults((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) {
+        next.delete(key);
+      } else {
+        next.add(key);
+      }
+      return next;
+    });
+  }, []);
+
+  const isStepResultExpanded = useCallback((executionId: string, stepId: string) => {
+    const key = `${executionId}:${stepId}`;
+    return expandedStepResults.has(key);
+  }, [expandedStepResults]);
+
   const openAddStep = useCallback(() => {
     if (!workflow) return;
     openTab(`edit-workflow-step:${workflow.id}`);
@@ -403,6 +445,10 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
     executionsError,
     toggleExecutionOutputs,
     isExecutionOutputsExpanded,
+    toggleLogData,
+    isLogDataExpanded,
+    toggleStepResult,
+    isStepResultExpanded,
     eventFields,
     isEventNameRecognized,
     isCustomRecordEvent,

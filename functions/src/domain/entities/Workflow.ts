@@ -86,6 +86,8 @@ export interface WorkflowExecutionLogEntry {
   level: 'SUCCESS' | 'INFO' | 'WARN' | 'ERROR';
   message: string;
   at: Date;
+  inputs?: Record<string, unknown>;
+  outputs?: Record<string, unknown>;
 }
 
 export interface WorkflowExecution {

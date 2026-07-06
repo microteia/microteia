@@ -11,6 +11,14 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [0.44.9] — 2026-07-06
+
+- Reorganizada a visualização de execuções de automações: agora cada execução mostra uma hierarquia clara com cards expansíveis para cada step, contendo a mensagem de resultado, entrada e saída. A "Saída geral" fica destacada ao final, facilitando a compreensão do fluxo e a depuração.
+
+#### [0.44.8] — 2026-07-06
+
+- Aba "Execuções" das automações agora exibe, para cada step bem-sucedido ou falhado, os dados de entrada e saída utilizados. Clique em "▶ Entrada" e "▶ Saída" ao lado de cada log para visualizar o JSON completo, facilitando a depuração e auditoria das automações.
+
 #### [0.44.7] — 2026-07-06
 
 - Aprimorada a documentação técnica do projeto para esclarecer o processo de criação de novas funções no servidor, assegurando que todas as configurações necessárias sejam atualizadas corretamente.
