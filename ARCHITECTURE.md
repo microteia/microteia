@@ -962,6 +962,106 @@ src/
 
 ---
 
+## Cloud Functions — Organização e Deploy
+
+### Estrutura
+
+```
+functions/
+├── src/
+│   ├── index.ts                        # Exporta todas as funções (SEM prefixos)
+│   └── infrastructure/
+│       └── handlers/
+│           ├── callAIProxy.ts
+│           ├── getUserInfo.ts
+│           ├── onUserCreated.ts
+│           ├── addTenantMember.ts
+│           ├── gmailPush.ts
+│           ├── auditFlatEntityChange.ts
+│           ├── onWorkflowEventCreated.ts
+│           └── workflow/
+│               ├── onNoteChange.ts
+│               └── onDocumentChange.ts
+├── package.json                        # Scripts de build
+└── tsconfig.json
+```
+
+### Grupos Funcionais
+
+As Cloud Functions são organizadas em **6 grupos** para facilitar deploys seletivos:
+
+| Grupo | Funções | Quando alterar |
+|---|---|---|
+| **workflow** | Motor de automações | Mais frequente |
+| **audit** | Sistema de auditoria | Quando adicionar nova entidade auditada |
+| **auth** | Autenticação e usuários | Raras alterações |
+| **tenant** | Gestão de membros | Raras alterações |
+| **gmail** | Integração Gmail | Quando alterar push notifications |
+| **util** | Utilitários gerais | Proxy AI, logs de erro, cascata |
+
+### Regras para Adicionar Nova Cloud Function
+
+1. **Criar o handler** em `functions/src/infrastructure/handlers/[nome].ts`
+2. **Exportar em `functions/src/index.ts`** sem prefixo:
+   ```typescript
+   export { minhaNovaFuncao } from './infrastructure/handlers/minhaNovaFuncao';
+   ```
+3. **Adicionar ao grupo correto no `package.json` raiz:**
+   - Identificar o grupo funcional (workflow, audit, auth, tenant, gmail ou util)
+   - Adicionar a função no script `deploy:[grupo]` correspondente
+   - Nome EXATO como exportado no `index.ts` (sem prefixos `auth_`, `workflow_`, etc)
+4. **Documentar no `functions/DEPLOY.md`:**
+   - Adicionar a função na seção do grupo correspondente
+   - Incluir breve descrição do propósito da função
+   - Mencionar dependências ou triggers (Firestore, Pub/Sub, onCall, etc)
+
+**Exemplo:** nova função de workflow `executeCustomAction`
+
+```typescript
+// functions/src/infrastructure/handlers/executeCustomAction.ts
+export const executeCustomAction = onCall(async (request) => {
+  // implementação
+});
+
+// functions/src/index.ts
+export { executeCustomAction } from './infrastructure/handlers/executeCustomAction';
+```
+
+**Atualizar `package.json` raiz:**
+```json
+"deploy:workflow": "npm run build:functions && firebase deploy --only functions:onWorkflowEventCreated,functions:syncWorkflowStepCatalog,functions:publishWorkflowEventOnEntityChange,functions:onNoteChange,functions:onDocumentChange,functions:executeCustomAction --project curatino"
+```
+
+### Deploy
+
+```bash
+# Deploy apenas do grupo alterado (mais rápido: 1-2min)
+npm run deploy:workflow
+npm run deploy:audit
+npm run deploy:auth
+# ... etc
+
+# Deploy de todas as functions (5-8min)
+npm run deploy:functions
+
+# Deploy completo (functions + hosting)
+npm run deploy
+```
+
+**IMPORTANTE:** O script `deploy:[grupo]` já executa `npm run build:functions` automaticamente — nunca rode deploy sem compilar o TypeScript.
+
+### Checklist ao Criar Cloud Function
+
+- [ ] Handler criado em `functions/src/infrastructure/handlers/`
+- [ ] Exportado em `functions/src/index.ts` **sem prefixo**
+- [ ] Adicionado ao script `deploy:[grupo]` correto no `package.json` raiz
+- [ ] Nome no `package.json` idêntico à exportação do `index.ts`
+- [ ] **Documentado em `functions/DEPLOY.md`** na seção do grupo correspondente (workflow, audit, auth, tenant, gmail, util)
+- [ ] Se usa triggers Firestore, índices compostos documentados (se necessário)
+- [ ] Se altera Security Rules, atualizar seção "Firestore Security Rules" deste arquivo
+
+---
+
 ## Padrão MVVM por Pasta
 
 **REGRA OBRIGATÓRIA:** Toda página e todo componente com estado é uma pasta com 3 arquivos.

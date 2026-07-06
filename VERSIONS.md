@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [0.44.7] — 2026-07-06
+
+- Aprimorada a documentação técnica do projeto para esclarecer o processo de criação de novas funções no servidor, assegurando que todas as configurações necessárias sejam atualizadas corretamente.
+
 #### [0.44.6] — 2026-07-06
 
 - Expressões em automações agora podem referenciar outputs de steps anteriores usando `output.stepId.campo` (exemplo: `concat("Prazo: ", output.createDeadlineStepId.deadline.description)`).
