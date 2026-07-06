@@ -7,7 +7,7 @@ import type {
 import type { WorkflowContext, WorkflowServices } from '../entities/WorkflowContext';
 import type { StepRegistry } from './StepRegistry';
 import { evaluateCondition } from './ConditionEvaluator';
-import { resolveInputs } from './InputMapping';
+import { resolveInputsSafe } from './InputMapping';
 
 export interface RunWorkflowParams {
   definition: WorkflowDefinition;
@@ -87,8 +87,24 @@ export const runWorkflow = async ({ definition, event, registry, services }: Run
       return finish('FAILED', context.outputs);
     }
 
+    const flattenedOutputs: Record<string, unknown> = {};
+    for (const stepOutputs of Object.values(context.outputs)) {
+      Object.assign(flattenedOutputs, stepOutputs);
+    }
+    context.input = flattenedOutputs;
+
+    // Usa resolveInputsSafe para garantir que inputs parciais sejam sempre registrados
+    const resolveResult = resolveInputsSafe(stepDefinition.inputs, step.configuration, context);
+
+    if (!resolveResult.success) {
+      // Log com inputs parcialmente resolvidos e mensagem de erro enriquecida
+      log('ERROR', `[Step "${stepDefinition.name}"] ${resolveResult.error}`, step.id, step.stepDefinitionId, resolveResult.inputs, undefined);
+      return finish('FAILED', context.outputs);
+    }
+
+    const inputs = resolveResult.inputs;
+
     try {
-      const inputs = resolveInputs(stepDefinition.inputs, step.configuration, context);
       const result = await stepDefinition.createExecutor().execute(inputs, context);
 
       if (!result.success) {
@@ -100,7 +116,7 @@ export const runWorkflow = async ({ definition, event, registry, services }: Run
       log('SUCCESS', result.message ?? `Step "${stepDefinition.name}" concluído`, step.id, step.stepDefinitionId, inputs, result.outputs);
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      log('ERROR', `[Step "${stepDefinition.name}"] ${errorMessage}`, step.id, step.stepDefinitionId, undefined, undefined);
+      log('ERROR', `[Step "${stepDefinition.name}"] ${errorMessage}`, step.id, step.stepDefinitionId, inputs, undefined);
       return finish('FAILED', context.outputs);
     }
   }

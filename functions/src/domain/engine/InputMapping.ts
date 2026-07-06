@@ -38,24 +38,60 @@ const resolveMapping = (mapping: InputMapping, context: WorkflowContext): unknow
   }
 };
 
+// Resultado de resolveInputs que pode incluir inputs parcialmente resolvidos
+export interface ResolveInputsResult {
+  success: boolean;
+  inputs: Record<string, unknown>;
+  error?: string;
+}
+
+export const resolveInputsSafe = (
+  inputs: InputDefinition[],
+  configuration: Record<string, InputMapping>,
+  context: WorkflowContext,
+): ResolveInputsResult => {
+  const resolved: Record<string, unknown> = {};
+  for (const input of inputs) {
+    const mapping = configuration[input.id];
+    let value: unknown;
+    try {
+      value = mapping ? resolveMapping(mapping, context) : undefined;
+      if (value === undefined) value = input.defaultValue;
+      if (input.required && value === undefined) {
+        throw new Error(`Entrada obrigatória "${input.label}" não foi informada`);
+      }
+      const validationError = input.validator?.(value);
+      if (validationError) {
+        throw new Error(`Entrada "${input.label}" inválida: ${validationError}`);
+      }
+      resolved[input.id] = value;
+    } catch (error) {
+      // Enriquece a mensagem de erro com contexto do campo e expressão
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      let enrichedMessage = `[Campo: ${input.label}]`;
+
+      if (mapping?.kind === 'Expression') {
+        enrichedMessage += ` [Expressão: ${mapping.expression}]`;
+      } else if (mapping?.kind === 'Event') {
+        enrichedMessage += ` [Caminho do evento: ${mapping.path}]`;
+      }
+
+      enrichedMessage += ` ${errorMessage}`;
+      // Retorna inputs parcialmente resolvidos até o ponto do erro
+      return { success: false, inputs: resolved, error: enrichedMessage };
+    }
+  }
+  return { success: true, inputs: resolved };
+};
+
 export const resolveInputs = (
   inputs: InputDefinition[],
   configuration: Record<string, InputMapping>,
   context: WorkflowContext,
 ): Record<string, unknown> => {
-  const resolved: Record<string, unknown> = {};
-  for (const input of inputs) {
-    const mapping = configuration[input.id];
-    let value = mapping ? resolveMapping(mapping, context) : undefined;
-    if (value === undefined) value = input.defaultValue;
-    if (input.required && value === undefined) {
-      throw new Error(`Entrada obrigatória "${input.label}" não foi informada`);
-    }
-    const validationError = input.validator?.(value);
-    if (validationError) {
-      throw new Error(`Entrada "${input.label}" inválida: ${validationError}`);
-    }
-    resolved[input.id] = value;
+  const result = resolveInputsSafe(inputs, configuration, context);
+  if (!result.success) {
+    throw new Error(result.error);
   }
-  return resolved;
+  return result.inputs;
 };
