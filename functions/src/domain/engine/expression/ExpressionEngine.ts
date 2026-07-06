@@ -173,6 +173,14 @@ const evaluateNode = (node: Ast, context: WorkflowContext): unknown => {
           throw new Error(`Expressão inválida: propriedade "${key}" de valor nulo/indefinido`);
         }
         if (typeof value !== 'object') {
+          // Mensagem especial para quando tenta acessar propriedades de strings (comum em campos de referência)
+          if (typeof value === 'string') {
+            throw new Error(
+              `Expressão inválida: tentativa de acessar propriedade "${key}" em valor não-objeto. ` +
+              `ATENÇÃO: Campos do tipo "referência" armazenam apenas o ID (string), não o objeto completo. ` +
+              `Se "${node.path[node.path.length - 2]}" é um campo de referência, use-o diretamente como ID em vez de tentar acessar suas propriedades.`
+            );
+          }
           throw new Error(`Expressão inválida: tentativa de acessar propriedade "${key}" em valor não-objeto`);
         }
         value = (value as Record<string, unknown>)[key];

@@ -87,11 +87,11 @@ export const runWorkflow = async ({ definition, event, registry, services }: Run
       return finish('FAILED', context.outputs);
     }
 
-    const flattenedOutputs: Record<string, unknown> = {};
+   const flattenedOutputs: Record<string, unknown> = {};
     for (const stepOutputs of Object.values(context.outputs)) {
       Object.assign(flattenedOutputs, stepOutputs);
     }
-    context.input = flattenedOutputs;
+    context.input = Object.keys(flattenedOutputs).length > 0 ? flattenedOutputs : event.payload ?? {};
 
     // Usa resolveInputsSafe para garantir que inputs parciais sejam sempre registrados
     const resolveResult = resolveInputsSafe(stepDefinition.inputs, step.configuration, context);

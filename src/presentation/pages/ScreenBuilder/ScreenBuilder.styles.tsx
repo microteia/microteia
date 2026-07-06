@@ -315,6 +315,12 @@ export const S = {
     color: ${({ theme }) => theme.colors.textMuted};
   `,
 
+  FieldHint: styled.p`
+    font-size: ${({ theme }) => theme.fontSizes.xs};
+    color: ${({ theme }) => theme.colors.textMuted};
+    margin-top: ${({ theme }) => theme.spacing.xs};
+  `,
+
   EmptyHint: styled.div`
     font-size: ${({ theme }) => theme.fontSizes.sm};
     color: ${({ theme }) => theme.colors.textMuted};

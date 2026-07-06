@@ -55,6 +55,7 @@ const FieldRows: React.FC<{ vm: ScreenBuilderViewModel; screenKey: string; field
           <S.FieldMeta>
             {vm.fieldTypeLabel(field.type)}
             {field.section ? ` · ${field.section}` : ''}
+            {` · fieldName: ${field.key}`}
           </S.FieldMeta>
         </S.FieldInfo>
         <S.CardActions>
@@ -326,6 +327,21 @@ export const ScreenBuilderView: React.FC = () => {
                 onChange={(e) => vm.updateFieldForm({ label: e.target.value })}
                 placeholder="Ex: Data de aniversário"
               />
+            </InputGroup>
+            <InputGroup>
+              <Label>Nome na base de dados (fieldName) *</Label>
+              <Input
+                value={vm.fieldForm.fieldKey}
+                onChange={(e) => vm.updateFieldForm({ fieldKey: e.target.value })}
+                placeholder="Ex: data-aniversario"
+                disabled={vm.fieldModalIsEdit}
+                title={vm.fieldModalIsEdit ? 'O nome do campo na base não pode ser alterado após criação' : 'Use apenas letras minúsculas, números e hífens. Este é o nome usado em workflows e integrações.'}
+              />
+              {!vm.fieldModalIsEdit && (
+                <S.FieldHint>
+                  Use apenas letras minúsculas, números e hífens. Este é o nome usado em workflows e integrações.
+                </S.FieldHint>
+              )}
             </InputGroup>
             {!vm.fieldModalIsEdit && (
               <InputGroup>

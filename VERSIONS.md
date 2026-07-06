@@ -11,6 +11,12 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [0.44.21] — 2026-07-06
+
+- Corrigido problema crítico em workflows: o objeto de entrada (input) em expressões agora sempre aponta para o registro que disparou a automação (processo, pessoa, contrato, etc.), independentemente de haver steps executados anteriormente. Antes, quando um step anterior executava com sucesso, o input mudava para os dados daquele step, causando erros de referência em expressões.
+- Adicionado campo "Nome na base de dados (fieldName)" visível durante a criação e edição de campos customizados, mostrando o nome técnico que deve ser usado em workflows e integrações. O fieldName é gerado automaticamente a partir do nome do campo, mas pode ser editado antes de salvar. Na lista de campos, o fieldName agora aparece junto ao tipo do campo.
+- Melhorada a mensagem de erro quando se tenta acessar propriedades de campos de referência em expressões: agora explica que campos do tipo "referência" armazenam apenas o ID do registro vinculado (string), não o objeto completo, orientando o uso correto em workflows.
+
 #### [0.44.20] — 2026-07-06
 
 - Adicionados ícones visuais na tela de edição de steps: o ícone do tipo de step aparece ao lado do título da janela e também ao lado de cada tipo na lista de seleção, facilitando a identificação rápida dos tipos de step disponíveis.

@@ -55,6 +55,7 @@ export interface FieldOptionFormItem {
 
 export interface FieldFormState {
   label: string;
+  fieldKey: string;
   type: CustomFieldType;
   required: boolean;
   section: string;
@@ -174,6 +175,7 @@ const EMPTY_SCREEN_FORM: ScreenFormState = {
 
 const EMPTY_FIELD_FORM: FieldFormState = {
   label: '',
+  fieldKey: '',
   type: 'text',
   required: false,
   section: '',
@@ -364,9 +366,13 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
       if (patch.label !== undefined && prev.listLabel === prev.label) {
         next.listLabel = patch.label;
       }
+      // Auto-atualiza fieldKey quando label muda (apenas durante criação, não edição)
+      if (patch.label !== undefined && !fieldModal?.fieldKey && patch.fieldKey === undefined) {
+        next.fieldKey = slugifyFieldKey(patch.label);
+      }
       return next;
     });
-  }, []);
+  }, [fieldModal]);
 
   const openCreateScreen = useCallback(() => {
     setScreenForm(EMPTY_SCREEN_FORM);
@@ -534,6 +540,7 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
     if (!field) return;
     setFieldForm({
       label: field.label,
+      fieldKey: field.key,
       type: field.type,
       required: field.required,
       section: field.section ?? '',
@@ -651,7 +658,9 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
         });
       } else {
         const existingKeys = new Set(fields.map((f) => f.key));
-        const key = ensureUniqueKey(slugifyFieldKey(label), existingKeys);
+        // Usa o fieldKey do form (preenchido automaticamente ou editado pelo usuário)
+        const baseKey = fieldForm.fieldKey.trim() || slugifyFieldKey(label);
+        const key = ensureUniqueKey(baseKey, existingKeys);
         const maxOrder = fields.reduce((max, f) => Math.max(max, f.order), -1);
         nextFields = [...fields, {
           key,
