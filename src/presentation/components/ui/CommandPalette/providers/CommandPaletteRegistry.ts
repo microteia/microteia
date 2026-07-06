@@ -6,6 +6,7 @@ import { CaseCommandProvider } from './CaseCommandProvider';
 import { ContractCommandProvider } from './ContractCommandProvider';
 import { FinancialCommandProvider } from './FinancialCommandProvider';
 import { DynamicRecordCommandProvider } from './DynamicRecordCommandProvider';
+import { WorkflowCommandProvider } from './WorkflowCommandProvider';
 import { SystemCommandProvider } from './SystemCommandProvider';
 
 export const COMMAND_PALETTE_PROVIDERS: ICommandPaletteProvider[] = [
@@ -16,5 +17,6 @@ export const COMMAND_PALETTE_PROVIDERS: ICommandPaletteProvider[] = [
   ContractCommandProvider,
   FinancialCommandProvider,
   DynamicRecordCommandProvider,
+  WorkflowCommandProvider,
   SystemCommandProvider,
 ];

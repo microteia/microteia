@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef, useMemo } from 'react';
 import type { News, Case, Person, Contract } from '../../../../domain/entities';
+import type { WorkflowDefinition } from '../../../../domain/entities/Workflow';
 import { MENTION_COMMANDS } from '../MentionMenu/MentionMenu.viewmodel';
 
 export type EditorMode = 'edit' | 'split' | 'preview';
@@ -55,6 +56,9 @@ export interface MarkdownEditorViewModel {
   contractPickerOpen: boolean;
   closeContractPicker: () => void;
   insertContractLink: (c: Contract) => void;
+  workflowPickerOpen: boolean;
+  closeWorkflowPicker: () => void;
+  insertWorkflowLink: (w: WorkflowDefinition) => void;
 }
 
 const computeMentionPosition = (
@@ -100,6 +104,7 @@ export const useMarkdownEditorViewModel = (
   const [casePickerOpen, setCasePickerOpen] = useState(false);
   const [personPickerOpen, setPersonPickerOpen] = useState(false);
   const [contractPickerOpen, setContractPickerOpen] = useState(false);
+  const [workflowPickerOpen, setWorkflowPickerOpen] = useState(false);
 
   const mentionRangeRef = useRef<{ start: number; end: number }>({ start: -1, end: -1 });
 
@@ -123,6 +128,7 @@ export const useMarkdownEditorViewModel = (
       if (key === 'case') setCasePickerOpen(true);
       if (key === 'person') setPersonPickerOpen(true);
       if (key === 'contract') setContractPickerOpen(true);
+      if (key === 'workflow') setWorkflowPickerOpen(true);
     },
     [mentionState, closeMention],
   );
@@ -172,6 +178,7 @@ export const useMarkdownEditorViewModel = (
   const closeCasePicker = useCallback(() => setCasePickerOpen(false), []);
   const closePersonPicker = useCallback(() => setPersonPickerOpen(false), []);
   const closeContractPicker = useCallback(() => setContractPickerOpen(false), []);
+  const closeWorkflowPicker = useCallback(() => setWorkflowPickerOpen(false), []);
 
   const insertPersonLink = useCallback(
     (c: Person) => {
@@ -185,6 +192,14 @@ export const useMarkdownEditorViewModel = (
     (c: Contract) => {
       insertLink(c.title, `/curatino/view-contract:${c.id}`);
       setContractPickerOpen(false);
+    },
+    [insertLink],
+  );
+
+  const insertWorkflowLink = useCallback(
+    (w: WorkflowDefinition) => {
+      insertLink(w.name, `/curatino/view-workflow:${w.id}`);
+      setWorkflowPickerOpen(false);
     },
     [insertLink],
   );
@@ -343,5 +358,8 @@ export const useMarkdownEditorViewModel = (
     contractPickerOpen,
     closeContractPicker,
     insertContractLink,
+    workflowPickerOpen,
+    closeWorkflowPicker,
+    insertWorkflowLink,
   };
 };

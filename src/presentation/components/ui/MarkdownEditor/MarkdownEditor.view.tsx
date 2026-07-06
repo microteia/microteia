@@ -18,6 +18,7 @@ import { NewsMentionModal } from '../NewsMentionModal';
 import { CaseMentionModal } from '../CaseMentionModal';
 import { ClientMentionModal } from '../PersonMentionModal';
 import { ContractMentionModal } from '../ContractMentionModal';
+import { WorkflowMentionModal } from '../WorkflowMentionModal';
 import { MarkdownContent } from '../MarkdownContent';
 
 export type { MarkdownEditorProps };
@@ -148,6 +149,13 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = (props) => {
         <ContractMentionModal
           onClose={vm.closeContractPicker}
           onSelect={vm.insertContractLink}
+        />
+      )}
+
+      {vm.workflowPickerOpen && (
+        <WorkflowMentionModal
+          onClose={vm.closeWorkflowPicker}
+          onSelect={vm.insertWorkflowLink}
         />
       )}
     </>

@@ -11,6 +11,11 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [0.40.0] — 2026-07-06
+
+- A busca rápida (Cmd+K) agora encontra automações pelo nome ou evento, abrindo direto a automação escolhida.
+- O editor de texto (em anotações, por exemplo) ganhou a opção "Automação" no menu de "@", permitindo inserir um link para uma automação específica.
+
 #### [0.39.4] — 2026-07-05
 
 - O botão de ativar/inativar na tela de Pessoa agora também muda de cor (verde/vermelho) conforme o estado, igual à automação.

@@ -1,5 +1,6 @@
 import type React from 'react';
 import type { News, Person, Case, Contract, Financial, CustomRecord, ScreenDefinition, TenantRole, UserRole } from '../../../../../domain/entities';
+import type { WorkflowDefinition } from '../../../../../domain/entities/Workflow';
 import type { ThemeMode } from '../../../../../shared/types';
 
 export interface CommandPaletteItem {
@@ -22,6 +23,7 @@ export interface CommandPaletteAppContext {
   financials: Financial[];
   customRecords: CustomRecord[];
   screenDefinitions: ScreenDefinition[];
+  workflows: WorkflowDefinition[];
   mode: ThemeMode;
   setTheme: (mode: ThemeMode) => void;
   signOut: () => Promise<void>;
