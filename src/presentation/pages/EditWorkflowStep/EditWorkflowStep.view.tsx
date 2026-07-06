@@ -1,5 +1,5 @@
 import React from 'react';
-import { Button } from '../../components/ui/Button';
+import { RiSaveLine, RiCloseLine } from 'react-icons/ri';
 import { InputGroup, Label, Input } from '../../components/ui/Input';
 import { SearchSelect } from '../../components/ui/SearchSelect';
 import { DateInput } from '../../components/ui/DateInput';
@@ -135,12 +135,16 @@ export const EditWorkflowStepView: React.FC<{ tabKey: string }> = ({ tabKey }) =
       <S.Header>
         <S.Title>{vm.isDefinitionLocked ? 'Editar Step' : 'Adicionar Step'}</S.Title>
         <S.HeaderActions>
-          <Button variant="secondary" onClick={vm.handleCancel} disabled={vm.isSaving}>
-            Cancelar
-          </Button>
-          <Button onClick={() => void vm.handleSave()} disabled={!vm.canSave || vm.isSaving}>
-            {vm.isSaving ? 'Salvando...' : 'Salvar'}
-          </Button>
+          <S.SaveBtn
+            onClick={() => void vm.handleSave()}
+            disabled={!vm.canSave || vm.isSaving}
+            title={vm.isSaving ? 'Salvando...' : 'Salvar'}
+          >
+            <RiSaveLine size={14} />
+          </S.SaveBtn>
+          <S.CancelBtn onClick={vm.handleCancel} disabled={vm.isSaving} title="Cancelar">
+            <RiCloseLine size={14} />
+          </S.CancelBtn>
         </S.HeaderActions>
       </S.Header>
 

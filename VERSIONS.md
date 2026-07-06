@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [0.44.18] — 2026-07-06
+
+- Uniformizado o design dos botões na tela de edição de steps de automação: agora usa ícones elegantes (Salvar e Fechar) em vez de botões com texto, seguindo o padrão visual do resto do sistema.
+
 #### [0.44.17] — 2026-07-06
 
 - Corrigido problema que impedia a abertura da página de Referência de Expressões (tela aparecia vazia).
