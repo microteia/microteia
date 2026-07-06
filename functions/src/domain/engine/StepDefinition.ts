@@ -10,6 +10,10 @@ export type InputType =
   | 'OutputReference'
   | 'VariableReference';
 
+export type InputOptionsSource =
+  | { kind: 'Static'; options: { value: string; label: string; color?: string }[] }
+  | { kind: 'Lookup'; lookup: string };
+
 export interface InputDefinition {
   id: string;
   label: string;
@@ -18,6 +22,7 @@ export interface InputDefinition {
   type: InputType;
   defaultValue?: unknown;
   validator?: (value: unknown) => string | undefined;
+  options?: InputOptionsSource;
 }
 
 export interface OutputDefinition {
