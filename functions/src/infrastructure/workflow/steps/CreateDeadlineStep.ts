@@ -14,8 +14,18 @@ const PRIORITY_COLORS: Record<DeadlinePriority, string> = {
 const PRIORITY_OPTIONS = (['Baixa', 'Média', 'Alta', 'Crítica'] as DeadlinePriority[])
   .map((p) => ({ value: p, label: p, color: PRIORITY_COLORS[p] }));
 
+const toLocalDateString = (date: Date): string => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
 const parseDueDate = (value: unknown): Date => {
-  if (value instanceof Date) return value;
+  if (value instanceof Date) {
+    const localDateStr = toLocalDateString(value);
+    return new Date(`${localDateStr}T23:59:00`);
+  }
   const raw = String(value);
   return DATE_ONLY_PATTERN.test(raw) ? new Date(`${raw}T23:59:00`) : new Date(raw);
 };

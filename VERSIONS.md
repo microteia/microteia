@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [0.42.1] — 2026-07-06
+
+- Corrigido problema de timezone em expressões com datas: `today()` e `today() + N` agora gravam a data correta no timezone local (GMT-3), sem perder 1 dia.
+
 #### [0.42.0] — 2026-07-06
 
 - Corrigida a semântica de expressões: agora use `event.campo` para acessar dados do evento que dispara a automação (ex: `event.area` em "Ao salvar: Processo"), e `input.xxx` para dados de steps anteriores.
