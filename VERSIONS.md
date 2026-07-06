@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [0.40.1] — 2026-07-06
+
+- Corrigido um problema que fazia os cards de step das automações exibirem sem o ícone correspondente.
+
 #### [0.40.0] — 2026-07-06
 
 - A busca rápida (Cmd+K) agora encontra automações pelo nome ou evento, abrindo direto a automação escolhida.

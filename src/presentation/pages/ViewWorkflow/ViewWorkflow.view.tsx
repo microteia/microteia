@@ -184,9 +184,13 @@ export const ViewWorkflowView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
             <S.List>
               {vm.steps.map((step, index) => {
                 const definition = vm.getStepDefinition(step.stepDefinitionId);
+                const StepIcon = vm.getStepIcon(step.stepDefinitionId);
                 return (
                   <S.StepRow key={step.id}>
                     <S.StepOrder>{index + 1}</S.StepOrder>
+                    <S.StepIcon>
+                      <StepIcon size={18} />
+                    </S.StepIcon>
                     <S.StepInfo>
                       <S.StepName>{step.name || definition?.name || step.stepDefinitionId}</S.StepName>
                       {definition?.description && <S.StepDescription>{definition.description}</S.StepDescription>}

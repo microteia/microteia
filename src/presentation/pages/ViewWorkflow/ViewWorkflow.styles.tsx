@@ -106,6 +106,14 @@ export const S = {
     flex-shrink: 0;
   `,
 
+  StepIcon: styled.div`
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: ${({ theme }) => theme.colors.textMuted};
+    flex-shrink: 0;
+  `,
+
   StepInfo: styled.div`
     flex: 1;
     min-width: 0;

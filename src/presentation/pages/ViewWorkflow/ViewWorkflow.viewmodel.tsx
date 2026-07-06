@@ -13,6 +13,7 @@ import type { WorkflowEventFieldOption } from '../../../domain/services/workflow
 import { WORKFLOW_LOOKUP_COLLECTIONS } from '../../../domain/services/workflowLookupCatalog';
 import { getWorkflowEventIcon, getWorkflowLookupGroupIcon } from '../../shared/workflowEventIcons';
 import { getScreenIconType } from '../../shared/screenIcons';
+import { getStepIcon as getStepIconType } from '../../shared/stepIcons';
 import { generateDeepLink } from '../../../infrastructure/deeplink/deepLinkUtils';
 import type { WorkflowDefinition, WorkflowExecution, WorkflowStep } from '../../../domain/entities/Workflow';
 import type { StepDefinitionSummary } from '../../../domain/entities/WorkflowStepCatalog';
@@ -63,6 +64,7 @@ export interface ViewWorkflowViewModel {
   steps: WorkflowStep[];
   stepCatalog: StepDefinitionSummary[];
   getStepDefinition: (stepDefinitionId: string) => StepDefinitionSummary | undefined;
+  getStepIcon: (stepDefinitionId: string) => IconType;
   isStepModalOpen: boolean;
   editingStep: WorkflowStep | null;
   openAddStep: () => void;
@@ -170,6 +172,14 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
 
   const getStepDefinition = useCallback(
     (stepDefinitionId: string) => stepCatalog.find((s) => s.id === stepDefinitionId),
+    [stepCatalog],
+  );
+
+  const getStepIcon = useCallback(
+    (stepDefinitionId: string): IconType => {
+      const definition = stepCatalog.find((s) => s.id === stepDefinitionId);
+      return getStepIconType(definition?.icon ?? '');
+    },
     [stepCatalog],
   );
 
@@ -376,6 +386,7 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
     steps,
     stepCatalog,
     getStepDefinition,
+    getStepIcon,
     isStepModalOpen,
     editingStep,
     openAddStep,
