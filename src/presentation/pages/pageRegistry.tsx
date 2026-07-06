@@ -46,6 +46,7 @@ import { DynamicRecordListView } from './DynamicRecordList/DynamicRecordList.vie
 import { ViewDynamicRecordView } from './ViewDynamicRecord/ViewDynamicRecord.view';
 import { WorkflowsView } from './Workflows/Workflows.view';
 import { ViewWorkflowView } from './ViewWorkflow/ViewWorkflow.view';
+import { EditWorkflowStepView } from './EditWorkflowStep/EditWorkflowStep.view';
 
 export interface PageDefinition {
   key: string;
@@ -230,6 +231,13 @@ export const PAGE_REGISTRY: PageDefinition[] = [
     title: 'Automação',
     icon: <RiFlowChart size={20} />,
     component: ViewWorkflowView,
+  },
+  {
+    key: '',
+    keyPrefix: 'edit-workflow-step:',
+    title: 'Editar Step',
+    icon: <RiFlowChart size={20} />,
+    component: EditWorkflowStepView,
   },
 ];
 

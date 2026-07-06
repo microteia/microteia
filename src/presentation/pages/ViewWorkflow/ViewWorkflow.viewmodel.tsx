@@ -65,12 +65,8 @@ export interface ViewWorkflowViewModel {
   stepCatalog: StepDefinitionSummary[];
   getStepDefinition: (stepDefinitionId: string) => StepDefinitionSummary | undefined;
   getStepIcon: (stepDefinitionId: string) => IconType;
-  isStepModalOpen: boolean;
-  editingStep: WorkflowStep | null;
   openAddStep: () => void;
   openEditStep: (step: WorkflowStep) => void;
-  closeStepModal: () => void;
-  saveStep: (step: WorkflowStep) => Promise<void>;
   stepToDelete: WorkflowStep | null;
   handleDeleteStep: (step: WorkflowStep) => void;
   confirmDeleteStep: () => Promise<void>;
@@ -126,8 +122,6 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
   const [stepCatalog, setStepCatalog] = useState<StepDefinitionSummary[]>([]);
   const [executions, setExecutions] = useState<WorkflowExecution[]>([]);
   const [executionsError, setExecutionsError] = useState<string | null>(null);
-  const [isStepModalOpen, setIsStepModalOpen] = useState(false);
-  const [editingStep, setEditingStep] = useState<WorkflowStep | null>(null);
   const [stepToDelete, setStepToDelete] = useState<WorkflowStep | null>(null);
   const [copyLinkDone, setCopyLinkDone] = useState(false);
   const [workflowToDelete, setWorkflowToDelete] = useState<WorkflowDefinition | null>(null);
@@ -318,24 +312,15 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
 
   const cancelDeleteWorkflow = useCallback(() => setWorkflowToDelete(null), []);
 
-  const openAddStep = useCallback(() => { setEditingStep(null); setIsStepModalOpen(true); }, []);
-  const openEditStep = useCallback((step: WorkflowStep) => { setEditingStep(step); setIsStepModalOpen(true); }, []);
-  const closeStepModal = useCallback(() => setIsStepModalOpen(false), []);
-
-  const saveStep = useCallback(async (step: WorkflowStep) => {
+  const openAddStep = useCallback(() => {
     if (!workflow) return;
-    const exists = workflow.steps.some((s) => s.id === step.id);
-    const nextSteps = exists
-      ? workflow.steps.map((s) => (s.id === step.id ? step : s))
-      : [...workflow.steps, { ...step, order: workflow.steps.length }];
-    try {
-      await updateWorkflowSteps(workflow.id, nextSteps);
-      notify('Step salvo.', 'success');
-      setIsStepModalOpen(false);
-    } catch {
-      notify('Erro ao salvar step.', 'error');
-    }
-  }, [workflow, updateWorkflowSteps, notify]);
+    openTab(`edit-workflow-step:${workflow.id}`);
+  }, [workflow, openTab]);
+
+  const openEditStep = useCallback((step: WorkflowStep) => {
+    if (!workflow) return;
+    openTab(`edit-workflow-step:${workflow.id}:${step.id}`);
+  }, [workflow, openTab]);
 
   const handleDeleteStep = useCallback((step: WorkflowStep) => setStepToDelete(step), []);
   const cancelDeleteStep = useCallback(() => setStepToDelete(null), []);
@@ -387,12 +372,8 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
     stepCatalog,
     getStepDefinition,
     getStepIcon,
-    isStepModalOpen,
-    editingStep,
     openAddStep,
     openEditStep,
-    closeStepModal,
-    saveStep,
     stepToDelete,
     handleDeleteStep,
     confirmDeleteStep,

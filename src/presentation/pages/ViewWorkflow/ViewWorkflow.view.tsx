@@ -19,7 +19,6 @@ import { InputGroup, Label, Input, Textarea } from '../../components/ui/Input';
 import { SearchSelect } from '../../components/ui/SearchSelect';
 import { InfoBanner } from '../../components/ui/InfoBanner';
 import { ConfirmModal } from '../../components/ui/ConfirmModal';
-import { StepEditorModalView } from './components/StepEditorModal/StepEditorModal.view';
 
 export const ViewWorkflowView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
   const vm = useViewWorkflowViewModel(tabKey);
@@ -169,7 +168,6 @@ export const ViewWorkflowView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
           <S.StepsToolbar>
             <Button onClick={vm.openAddStep}>
               <RiAddLine size={14} />
-              Adicionar Step
             </Button>
           </S.StepsToolbar>
 
@@ -212,16 +210,6 @@ export const ViewWorkflowView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
               })}
             </S.List>
           )}
-
-          <StepEditorModalView
-            isOpen={vm.isStepModalOpen}
-            stepCatalog={vm.stepCatalog}
-            existingSteps={vm.steps}
-            editingStep={vm.editingStep}
-            eventFields={vm.eventFields}
-            onSave={(step) => void vm.saveStep(step)}
-            onClose={vm.closeStepModal}
-          />
 
           <ConfirmModal
             isOpen={!!vm.stepToDelete}

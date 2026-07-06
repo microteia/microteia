@@ -11,6 +11,15 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [0.44.3] — 2026-07-06
+
+- O editor de Steps em automações agora abre em uma aba dedicada no workspace, proporcionando mais espaço e conforto para configurar cada etapa. O título da aba mostra o nome da automação, o número de ordem do step e o tipo escolhido.
+
+#### [0.44.2] — 2026-07-06
+
+- Corrigidos os processos internos de publicação de atualizações: agora os deploys de funcionalidades específicas (como automações ou sistema de auditoria) são mais rápidos e confiáveis.
+- Adicionada documentação técnica completa sobre organização das funcionalidades do servidor, facilitando manutenções futuras.
+
 #### [0.44.1] — 2026-07-06
 
 - Corrigido problema crítico nas expressões de automações: campos do evento que dispara o workflow (como `event.title` em "Ao salvar: Processo") agora são acessados corretamente, resolvendo o erro que causava valores UNDEFINED nos campos calculados.
