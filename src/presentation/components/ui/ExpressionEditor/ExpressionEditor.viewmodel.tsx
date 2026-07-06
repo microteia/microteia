@@ -1,4 +1,5 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
+import { useWorkspace } from '../../../../stores/useWorkspace';
 
 export interface ExpressionFunction {
   name: string;
@@ -97,14 +98,12 @@ export interface ExpressionEditorViewModel {
   autocompleteState: AutocompleteState;
   highlightedIndex: number;
   autocompleteItems: AutocompleteItem[];
-  functionRefOpen: boolean;
   handleChange: (e: React.ChangeEvent<HTMLTextAreaElement>) => void;
   handleKeyDown: (e: React.KeyboardEvent<HTMLTextAreaElement>) => void;
   selectItem: (item: AutocompleteItem) => void;
   onAutocompleteHover: (index: number) => void;
   closeAutocomplete: () => void;
   openFunctionRef: () => void;
-  closeFunctionRef: () => void;
 }
 
 const validateExpression = (expression: string, eventFields: EventField[]): ValidationResult => {
@@ -220,6 +219,7 @@ export const useExpressionEditorViewModel = (
   props: ExpressionEditorProps,
   textareaRef: React.RefObject<HTMLTextAreaElement | null>,
 ): ExpressionEditorViewModel => {
+  const { openTab } = useWorkspace();
   const [validationResult, setValidationResult] = useState<ValidationResult>({ isValid: null });
   const [autocompleteState, setAutocompleteState] = useState<AutocompleteState>({
     active: false,
@@ -229,7 +229,6 @@ export const useExpressionEditorViewModel = (
     position: null,
   });
   const [highlightedIndex, setHighlightedIndex] = useState(0);
-  const [functionRefOpen, setFunctionRefOpen] = useState(false);
 
   const validationTimerRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -390,8 +389,9 @@ export const useExpressionEditorViewModel = (
     [autocompleteState.active, autocompleteItems, highlightedIndex, selectItem, closeAutocomplete],
   );
 
-  const openFunctionRef = useCallback(() => setFunctionRefOpen(true), []);
-  const closeFunctionRef = useCallback(() => setFunctionRefOpen(false), []);
+  const openFunctionRef = useCallback(() => {
+    openTab('function-reference', 'Referência de Expressões');
+  }, [openTab]);
 
   return {
     isValid: validationResult.isValid,
@@ -399,13 +399,11 @@ export const useExpressionEditorViewModel = (
     autocompleteState,
     highlightedIndex,
     autocompleteItems,
-    functionRefOpen,
     handleChange,
     handleKeyDown,
     selectItem,
     onAutocompleteHover,
     closeAutocomplete,
     openFunctionRef,
-    closeFunctionRef,
   };
 };

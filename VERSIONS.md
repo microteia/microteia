@@ -11,6 +11,20 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [0.44.17] — 2026-07-06
+
+- Corrigido problema que impedia a abertura da página de Referência de Expressões (tela aparecia vazia).
+- Adicionado logging para diagnóstico de problemas na Referência de Expressões.
+
+#### [0.44.16] — 2026-07-06
+
+- Transformada a Referência de Expressões em uma janela independente: agora ao clicar em "Ver funções disponíveis", a referência abre em uma aba separada que pode ser mantida aberta enquanto você trabalha em outras partes do sistema, facilitando a consulta durante a criação de expressões.
+
+#### [0.44.15] — 2026-07-06
+
+- Melhorado o editor de steps de automação com botões de ação visuais: agora os botões de salvar e excluir aparecem como ícones elegantes que mudam de cor ao passar o mouse (verde para salvar, vermelho para excluir).
+- Adicionada lista filtrável de funções disponíveis nas expressões: ao clicar em "Ver funções disponíveis", as funções aparecem organizadas em cards visuais com busca por nome e filtro por categoria (Data, Texto, Condicional, Operador), facilitando muito a descoberta e uso correto das funções.
+
 #### [0.44.14] — 2026-07-06
 
 - Campos customizados agora podem ser acessados em expressões de automações usando `event.customValues.seuCampo`, mantendo consistência com a forma como são armazenados no banco de dados.

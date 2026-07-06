@@ -1,6 +1,6 @@
 import React from 'react';
+import { RiSaveLine, RiDeleteBinLine } from 'react-icons/ri';
 import { Modal } from '../../../../components/ui/Modal';
-import { Button } from '../../../../components/ui/Button';
 import { InputGroup, Label, Input } from '../../../../components/ui/Input';
 import { SearchSelect } from '../../../../components/ui/SearchSelect';
 import { DateInput } from '../../../../components/ui/DateInput';
@@ -174,8 +174,16 @@ export const StepEditorModalView: React.FC<StepEditorModalProps> = (props) => {
         )}
 
         <S.Footer>
-          <Button variant="secondary" onClick={props.onClose}>Cancelar</Button>
-          <Button onClick={vm.handleSave} disabled={!vm.canSave}>Salvar</Button>
+          <S.ActionButtons>
+            <S.SaveBtn onClick={vm.handleSave} disabled={!vm.canSave} title="Salvar">
+              <RiSaveLine size={14} />
+            </S.SaveBtn>
+            {!vm.isNew && (
+              <S.DeleteBtn onClick={vm.handleDelete} title="Excluir Step">
+                <RiDeleteBinLine size={14} />
+              </S.DeleteBtn>
+            )}
+          </S.ActionButtons>
         </S.Footer>
       </S.Form>
     </Modal>

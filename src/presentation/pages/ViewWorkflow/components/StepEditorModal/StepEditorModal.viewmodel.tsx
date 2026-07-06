@@ -10,6 +10,7 @@ export interface StepEditorModalProps {
   editingStep: WorkflowStep | null;
   eventFields: WorkflowEventFieldOption[];
   onSave: (step: WorkflowStep) => void;
+  onDelete?: (stepId: string) => void;
   onClose: () => void;
 }
 
@@ -28,6 +29,7 @@ export interface StepEditorModalViewModel {
   selectedDefinitionId: string;
   selectedDefinition: StepDefinitionSummary | undefined;
   isDefinitionLocked: boolean;
+  isNew: boolean;
   selectDefinition: (stepDefinitionId: string) => void;
   configuration: Record<string, InputMapping>;
   setMappingKind: (inputId: string, kind: InputMapping['kind']) => void;
@@ -36,6 +38,7 @@ export interface StepEditorModalViewModel {
   setEnabled: (enabled: boolean) => void;
   canSave: boolean;
   handleSave: () => void;
+  handleDelete: () => void;
   priorSteps: WorkflowStep[];
 }
 
@@ -44,6 +47,8 @@ export const useStepEditorModalViewModel = ({
   existingSteps,
   editingStep,
   onSave,
+  onDelete,
+  onClose,
 }: StepEditorModalProps): StepEditorModalViewModel => {
   const [selectedDefinitionId, setSelectedDefinitionId] = useState('');
   const [configuration, setConfiguration] = useState<Record<string, InputMapping>>({});
@@ -86,6 +91,8 @@ export const useStepEditorModalViewModel = ({
       .every((input) => configuration[input.id] !== undefined);
   }, [selectedDefinition, configuration]);
 
+  const isNew = useMemo(() => !editingStep, [editingStep]);
+
   const handleSave = useCallback(() => {
     if (!selectedDefinition) return;
     const step: WorkflowStep = {
@@ -99,10 +106,17 @@ export const useStepEditorModalViewModel = ({
     onSave(step);
   }, [selectedDefinition, editingStep, configuration, enabled, onSave]);
 
+  const handleDelete = useCallback(() => {
+    if (!editingStep?.id) return;
+    onDelete?.(editingStep.id);
+    onClose();
+  }, [editingStep, onDelete, onClose]);
+
   return {
     selectedDefinitionId,
     selectedDefinition,
     isDefinitionLocked: !!editingStep,
+    isNew,
     selectDefinition,
     configuration,
     setMappingKind,
@@ -111,6 +125,7 @@ export const useStepEditorModalViewModel = ({
     setEnabled,
     canSave,
     handleSave,
+    handleDelete,
     priorSteps,
   };
 };

@@ -4,7 +4,6 @@ import { S } from './ExpressionEditor.styles';
 import { useExpressionEditorViewModel } from './ExpressionEditor.viewmodel';
 import type { ExpressionEditorProps } from './ExpressionEditor.viewmodel';
 import { FunctionMenu } from './components/FunctionMenu/FunctionMenu.view';
-import { FunctionReferenceModal } from './components/FunctionReferenceModal/FunctionReferenceModal.view';
 
 export type { ExpressionEditorProps };
 
@@ -48,11 +47,6 @@ export const ExpressionEditor: React.FC<ExpressionEditorProps> = (props) => {
         position={vm.autocompleteState.position}
         onSelect={vm.selectItem}
         onHover={vm.onAutocompleteHover}
-      />
-
-      <FunctionReferenceModal
-        isOpen={vm.functionRefOpen}
-        onClose={vm.closeFunctionRef}
       />
     </>
   );

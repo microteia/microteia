@@ -17,6 +17,7 @@ import {
   RiHistoryLine,
   RiLayoutGridLine,
   RiFlowChart,
+  RiBookLine,
 } from 'react-icons/ri';
 import type { UserRole } from '../../domain/entities';
 import { DashboardView } from './Dashboard/Dashboard.view';
@@ -47,6 +48,7 @@ import { ViewDynamicRecordView } from './ViewDynamicRecord/ViewDynamicRecord.vie
 import { WorkflowsView } from './Workflows/Workflows.view';
 import { ViewWorkflowView } from './ViewWorkflow/ViewWorkflow.view';
 import { EditWorkflowStepView } from './EditWorkflowStep/EditWorkflowStep.view';
+import { FunctionReferenceView } from './FunctionReference/FunctionReference.view';
 
 export interface PageDefinition {
   key: string;
@@ -238,6 +240,12 @@ export const PAGE_REGISTRY: PageDefinition[] = [
     title: 'Editar Step',
     icon: <RiFlowChart size={20} />,
     component: EditWorkflowStepView,
+  },
+  {
+    key: 'function-reference',
+    title: 'Referência de Expressões',
+    icon: <RiBookLine size={20} />,
+    component: FunctionReferenceView,
   },
 ];
 
