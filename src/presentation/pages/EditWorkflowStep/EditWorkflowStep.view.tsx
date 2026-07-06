@@ -134,7 +134,10 @@ export const EditWorkflowStepView: React.FC<{ tabKey: string }> = ({ tabKey }) =
   return (
     <S.Page>
       <S.Header>
-        <S.Title>{vm.isDefinitionLocked ? 'Editar Step' : 'Adicionar Step'}</S.Title>
+        <S.TitleRow>
+          {vm.selectedStepIcon && <vm.selectedStepIcon size={22} />}
+          <S.Title>{vm.isDefinitionLocked ? 'Editar Step' : 'Adicionar Step'}</S.Title>
+        </S.TitleRow>
         <S.HeaderActions>
           <S.SaveBtn
             onClick={() => void vm.handleSave()}
@@ -156,7 +159,7 @@ export const EditWorkflowStepView: React.FC<{ tabKey: string }> = ({ tabKey }) =
           <InputGroup>
             <Label>Tipo de Step</Label>
             <SearchSelect
-              options={vm.stepCatalog.map((s) => ({ value: s.id, label: s.name }))}
+              options={vm.stepCatalogOptions}
               value={vm.selectedDefinitionId}
               onChange={vm.selectDefinition}
               disabled={vm.isDefinitionLocked}

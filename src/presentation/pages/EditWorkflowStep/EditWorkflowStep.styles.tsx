@@ -17,6 +17,14 @@ export const S = {
     background: ${({ theme }) => theme.colors.surface};
   `,
 
+  TitleRow: styled.div`
+    display: flex;
+    align-items: center;
+    gap: ${({ theme }) => theme.spacing.sm};
+    color: ${({ theme }) => theme.colors.primary};
+    min-width: 0;
+  `,
+
   Title: styled.h1`
     margin: 0;
     font-size: ${({ theme }) => theme.fontSizes.xl};

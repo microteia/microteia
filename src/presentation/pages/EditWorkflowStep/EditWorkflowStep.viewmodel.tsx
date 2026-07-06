@@ -1,4 +1,5 @@
 import { useState, useMemo, useCallback, useEffect } from 'react';
+import type { IconType } from 'react-icons';
 import { useWorkflowStore } from '../../../stores/useWorkflowStore';
 import { useWorkspace } from '../../../stores/useWorkspace';
 import { useNotification } from '../../../stores/useNotification';
@@ -6,6 +7,7 @@ import { useScreenDefinitions } from '../../../stores/useScreenDefinitions';
 import { useDI } from '../../../infrastructure/di/useDI';
 import { syncWorkflowStepCatalog } from '../../../data/services/syncWorkflowStepCatalog';
 import { getWorkflowEventFields, eventNameToEntityKey } from '../../../domain/services/workflowEventCatalog';
+import { getStepIcon } from '../../shared/stepIcons';
 import type { WorkflowEventFieldOption } from '../../../domain/services/workflowEventCatalog';
 import type { InputMapping, WorkflowStep } from '../../../domain/entities/Workflow';
 import type { StepDefinitionSummary } from '../../../domain/entities/WorkflowStepCatalog';
@@ -26,6 +28,7 @@ export interface EditWorkflowStepViewModel {
   stepOrder: number;
   selectedDefinitionId: string;
   selectedDefinition: StepDefinitionSummary | undefined;
+  selectedStepIcon: IconType | null;
   isDefinitionLocked: boolean;
   selectDefinition: (stepDefinitionId: string) => void;
   configuration: Record<string, InputMapping>;
@@ -41,6 +44,7 @@ export interface EditWorkflowStepViewModel {
   stepToDelete: WorkflowStep | null;
   priorSteps: WorkflowStep[];
   stepCatalog: StepDefinitionSummary[];
+  stepCatalogOptions: { value: string; label: string; icon: IconType }[];
   eventFields: WorkflowEventFieldOption[];
   isSaving: boolean;
 }
@@ -95,6 +99,16 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
   const selectedDefinition = useMemo(
     () => stepCatalog.find((s) => s.id === selectedDefinitionId),
     [stepCatalog, selectedDefinitionId],
+  );
+
+  const selectedStepIcon = useMemo(
+    () => (selectedDefinition ? getStepIcon(selectedDefinition.icon) : null),
+    [selectedDefinition],
+  );
+
+  const stepCatalogOptions = useMemo(
+    () => stepCatalog.map((s) => ({ value: s.id, label: s.name, icon: getStepIcon(s.icon) })),
+    [stepCatalog],
   );
 
   const stepOrder = useMemo(() => {
@@ -219,6 +233,7 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
     stepOrder,
     selectedDefinitionId,
     selectedDefinition,
+    selectedStepIcon,
     isDefinitionLocked: !!editingStep,
     selectDefinition,
     configuration,
@@ -234,6 +249,7 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
     stepToDelete,
     priorSteps,
     stepCatalog,
+    stepCatalogOptions,
     eventFields,
     isSaving,
   };

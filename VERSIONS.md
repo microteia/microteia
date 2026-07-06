@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [0.44.20] — 2026-07-06
+
+- Adicionados ícones visuais na tela de edição de steps: o ícone do tipo de step aparece ao lado do título da janela e também ao lado de cada tipo na lista de seleção, facilitando a identificação rápida dos tipos de step disponíveis.
+
 #### [0.44.19] — 2026-07-06
 
 - Corrigido o botão de ação na edição de steps: agora exibe o botão Excluir (em vez de Cancelar) ao editar um step existente, permitindo remover o step diretamente da tela de edição com confirmação de segurança.
