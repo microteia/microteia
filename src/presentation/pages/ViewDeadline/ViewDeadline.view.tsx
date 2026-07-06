@@ -2,7 +2,6 @@ import React from 'react';
 import { RiTimeLine, RiSaveLine } from 'react-icons/ri';
 import { S } from './ViewDeadline.styles';
 import { useViewDeadlineViewModel } from './ViewDeadline.viewmodel';
-import { Button } from '../../components/ui/Button';
 import { Label, Textarea } from '../../components/ui/Input';
 import { SearchSelect } from '../../components/ui/SearchSelect';
 import { DynamicSelect } from '../../components/ui/DynamicSelect';
@@ -38,15 +37,13 @@ export const ViewDeadlineView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
           <S.StatusChip $color={vm.getDeadlineStatusColor(vm.derivedStatus)}>
             {vm.derivedStatus}
           </S.StatusChip>
-          <Button
-            size="sm"
+          <S.SaveBtn
             onClick={() => void vm.handleSave()}
             disabled={vm.isSaving}
-            $isLoading={vm.isSaving}
             title={vm.isSaving ? 'Salvando...' : vm.isNew ? 'Cadastrar Prazo' : 'Salvar Alterações'}
           >
             <RiSaveLine size={14} />
-          </Button>
+          </S.SaveBtn>
         </S.HeaderActions>
       </S.Header>
 

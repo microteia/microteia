@@ -77,20 +77,18 @@ export const ViewFinancialView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
             </>
           )}
           {(vm.activeTab === 'data' || vm.isNew) && (
-            <Button
-              size="sm"
+            <S.SaveBtn
               onClick={() => void vm.handleSave()}
               disabled={vm.isSaving}
-              $isLoading={vm.isSaving}
               title={vm.isSaving ? 'Salvando...' : vm.isNew ? 'Criar Lançamento' : 'Salvar Alterações'}
             >
               <RiSaveLine size={14} />
-            </Button>
+            </S.SaveBtn>
           )}
           {!vm.isNew && vm.isAdmin && (
-            <Button variant="danger" size="sm" onClick={vm.handleDeleteFinancial} title="Excluir Lançamento">
+            <S.DeleteBtn onClick={vm.handleDeleteFinancial} title="Excluir Lançamento">
               <RiDeleteBinLine size={14} />
-            </Button>
+            </S.DeleteBtn>
           )}
         </S.HeaderActions>
       </S.Header>

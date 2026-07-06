@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [0.40.2] — 2026-07-06
+
+- Nas telas de Automação, Pessoa, Contrato, Processo, Financeiro e Prazo, os botões de Salvar e Excluir do topo agora ficam com contorno discreto e acendem (Salvar em verde, Excluir em vermelho) ao passar o mouse sobre cada um individualmente.
+
 #### [0.40.1] — 2026-07-06
 
 - Corrigido um problema que fazia os cards de step das automações exibirem sem o ícone correspondente.

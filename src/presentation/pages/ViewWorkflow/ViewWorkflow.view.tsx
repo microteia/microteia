@@ -48,8 +48,7 @@ export const ViewWorkflowView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
             </>
           )}
           {(vm.activeTab === 'general' || vm.isNew) && (
-            <Button
-              size="sm"
+            <S.SaveBtn
               onClick={() => void vm.handleSaveGeneral()}
               disabled={
                 vm.isSaving ||
@@ -58,16 +57,15 @@ export const ViewWorkflowView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
                 (vm.isCustomRecordEvent && !vm.formData.screenKey) ||
                 (vm.isLookupEvent && !vm.formData.lookupCollection)
               }
-              $isLoading={vm.isSaving}
               title={vm.isSaving ? 'Salvando...' : 'Salvar'}
             >
               <RiSaveLine size={14} />
-            </Button>
+            </S.SaveBtn>
           )}
           {!vm.isNew && vm.workflow && (
-            <Button variant="danger" size="sm" onClick={vm.handleDeleteWorkflow} title="Excluir Automação">
+            <S.DeleteBtn onClick={vm.handleDeleteWorkflow} title="Excluir Automação">
               <RiDeleteBinLine size={14} />
-            </Button>
+            </S.DeleteBtn>
           )}
         </S.HeaderActions>
       </S.Header>

@@ -78,14 +78,14 @@ export const ViewContractView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
             </>
           )}
           {(vm.activeTab === 'data' || vm.isNew) && (
-            <Button size="sm" onClick={() => void vm.handleSave()} disabled={vm.isSaving} $isLoading={vm.isSaving} title={vm.isSaving ? 'Salvando...' : 'Salvar'}>
+            <S.SaveBtn onClick={() => void vm.handleSave()} disabled={vm.isSaving} title={vm.isSaving ? 'Salvando...' : 'Salvar'}>
               <RiSaveLine size={14} />
-            </Button>
+            </S.SaveBtn>
           )}
           {!vm.isNew && vm.isAdmin && (
-            <Button variant="danger" size="sm" onClick={vm.handleDeleteContract} title="Excluir Contrato">
+            <S.DeleteBtn onClick={vm.handleDeleteContract} title="Excluir Contrato">
               <RiDeleteBinLine size={14} />
-            </Button>
+            </S.DeleteBtn>
           )}
         </S.HeaderActions>
       </S.Header>
