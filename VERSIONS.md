@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [0.44.27] — 2026-07-06
+
+- Corrigida visualização de "Entrada" nos logs de execução de workflows: agora mostra o contexto de entrada do step (output do step anterior ou evento original), em vez dos parâmetros configurados internamente.
+
 #### [0.44.26] — 2026-07-06
 
 - Corrigido enriquecimento de campos customizados em workflows: os campos do registro vinculado agora são espalhados diretamente no objeto, permitindo acesso direto como `event.customValues.tarefa.nome` em vez de `event.customValues.tarefa.values.nome`.

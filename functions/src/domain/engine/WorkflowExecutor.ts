@@ -26,10 +26,11 @@ export const runWorkflow = async ({ definition, event, registry, services }: Run
     message: string,
     stepId?: string,
     stepDefinitionId?: string,
+    contextInput?: Record<string, unknown>,
     inputs?: Record<string, unknown>,
     outputs?: Record<string, unknown>
   ): void => {
-    logs.push({ stepId, stepDefinitionId, level, message, at: services.now(), inputs, outputs });
+    logs.push({ stepId, stepDefinitionId, level, message, at: services.now(), contextInput, inputs, outputs });
   };
 
   const finish = (status: WorkflowExecution['status'], outputs: Record<string, Record<string, unknown>>): WorkflowExecution => ({
@@ -98,7 +99,7 @@ export const runWorkflow = async ({ definition, event, registry, services }: Run
 
     if (!resolveResult.success) {
       // Log com inputs parcialmente resolvidos e mensagem de erro enriquecida
-      log('ERROR', `[Step "${stepDefinition.name}"] ${resolveResult.error}`, step.id, step.stepDefinitionId, resolveResult.inputs, undefined);
+      log('ERROR', `[Step "${stepDefinition.name}"] ${resolveResult.error}`, step.id, step.stepDefinitionId, context.input, resolveResult.inputs, undefined);
       return finish('FAILED', context.outputs);
     }
 
@@ -108,15 +109,15 @@ export const runWorkflow = async ({ definition, event, registry, services }: Run
       const result = await stepDefinition.createExecutor().execute(inputs, context);
 
       if (!result.success) {
-        log('ERROR', result.message ?? 'Step falhou sem mensagem', step.id, step.stepDefinitionId, inputs, undefined);
+        log('ERROR', result.message ?? 'Step falhou sem mensagem', step.id, step.stepDefinitionId, context.input, inputs, undefined);
         return finish('FAILED', context.outputs);
       }
 
       context.outputs[step.id] = result.outputs ?? {};
-      log('SUCCESS', result.message ?? `Step "${stepDefinition.name}" concluído`, step.id, step.stepDefinitionId, inputs, result.outputs);
+      log('SUCCESS', result.message ?? `Step "${stepDefinition.name}" concluído`, step.id, step.stepDefinitionId, context.input, inputs, result.outputs);
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      log('ERROR', `[Step "${stepDefinition.name}"] ${errorMessage}`, step.id, step.stepDefinitionId, inputs, undefined);
+      log('ERROR', `[Step "${stepDefinition.name}"] ${errorMessage}`, step.id, step.stepDefinitionId, context.input, inputs, undefined);
       return finish('FAILED', context.outputs);
     }
   }

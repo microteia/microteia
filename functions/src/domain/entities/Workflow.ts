@@ -86,7 +86,8 @@ export interface WorkflowExecutionLogEntry {
   level: 'SUCCESS' | 'INFO' | 'WARN' | 'ERROR';
   message: string;
   at: Date;
-  inputs?: Record<string, unknown>;
+  contextInput?: Record<string, unknown>; // Contexto de entrada do step (output do step anterior ou evento)
+  inputs?: Record<string, unknown>; // Parâmetros configurados e resolvidos do step
   outputs?: Record<string, unknown>;
 }
 

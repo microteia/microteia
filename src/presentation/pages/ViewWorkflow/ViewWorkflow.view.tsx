@@ -263,13 +263,13 @@ export const ViewWorkflowView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
                             <S.StepResultBody>
                               <S.StepMessage $level={log.level}>[{log.level}] {log.message}</S.StepMessage>
 
-                              {log.inputs && Object.keys(log.inputs).length > 0 && (
+                              {log.contextInput && Object.keys(log.contextInput).length > 0 && (
                                 <S.DataSection>
-                                  <S.DataToggle onClick={() => vm.toggleLogData(execution.id, i, 'inputs')}>
-                                    {vm.isLogDataExpanded(execution.id, i, 'inputs') ? '▼' : '▶'} Entrada ({Object.keys(log.inputs).length})
+                                  <S.DataToggle onClick={() => vm.toggleLogData(execution.id, i, 'contextInput')}>
+                                    {vm.isLogDataExpanded(execution.id, i, 'contextInput') ? '▼' : '▶'} Entrada ({Object.keys(log.contextInput).length})
                                   </S.DataToggle>
-                                  {vm.isLogDataExpanded(execution.id, i, 'inputs') && (
-                                    <S.DataJson>{JSON.stringify(log.inputs, null, 2)}</S.DataJson>
+                                  {vm.isLogDataExpanded(execution.id, i, 'contextInput') && (
+                                    <S.DataJson>{JSON.stringify(log.contextInput, null, 2)}</S.DataJson>
                                   )}
                                 </S.DataSection>
                               )}
