@@ -11,6 +11,11 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [0.44.0] — 2026-07-06
+
+- Adicionados eventos de Anotações e Documentos ao catálogo de automações: agora é possível criar regras que reagem quando anotações ou documentos são adicionados/removidos em Processos, Pessoas, Contratos, Prazos e Financeiro.
+- O Step "Criar Prazo" nas automações agora retorna o prazo criado completo, incluindo dados do processo e advogado responsável vinculados, para uso em Steps seguintes.
+
 #### [0.43.0] — 2026-07-06
 
 - Implementado sistema completo de eventos para automações: agora todas as entidades (Processo, Pessoa, Contrato, Prazo, Financeiro, Push, Comunicado, Entidades Dinâmicas, Anotações e Documentos) disparam eventos automaticamente ao serem salvas ou excluídas.

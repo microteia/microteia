@@ -1,6 +1,7 @@
 import type { StepDefinition, WorkflowStepExecutor } from '../../../domain/engine/StepDefinition';
 import type { IDeadlineRepository } from '../../../domain/repositories/IDeadlineRepository';
 import type { DeadlinePriority } from '../../../domain/entities/Deadline';
+import { getDb } from '../../firebase/initFirebase';
 
 const DATE_ONLY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -60,7 +61,65 @@ export const makeCreateDeadlineStepDefinition = (deadlineRepository: IDeadlineRe
         responsibleLawyerId: inputs.responsibleLawyerId ? String(inputs.responsibleLawyerId) : null,
         createdBy: 'workflow-engine',
       });
-      return { success: true, message: `Prazo "${String(inputs.type)}" criado`, outputs: { deadlineId } };
+
+      const db = getDb();
+      const tenantId = context.execution.tenantId;
+
+      const deadlineDoc = await db
+        .collection('tenants')
+        .doc(tenantId)
+        .collection('deadlines')
+        .doc(deadlineId)
+        .get();
+
+      const deadlineData = deadlineDoc.data() as Record<string, unknown>;
+      const deadline: Record<string, unknown> = {
+        id: deadlineId,
+        ...deadlineData,
+      };
+
+      if (deadlineData.caseId) {
+        const caseDoc = await db
+          .collection('tenants')
+          .doc(tenantId)
+          .collection('cases')
+          .doc(String(deadlineData.caseId))
+          .get();
+
+        if (caseDoc.exists) {
+          const caseData = caseDoc.data() as Record<string, unknown>;
+          deadline.case = {
+            id: caseDoc.id,
+            caseNumber: caseData.caseNumber,
+            title: caseData.title,
+            area: caseData.area,
+          };
+        }
+      }
+
+      if (deadlineData.responsibleLawyerId) {
+        const memberDoc = await db
+          .collection('tenants')
+          .doc(tenantId)
+          .collection('members')
+          .doc(String(deadlineData.responsibleLawyerId))
+          .get();
+
+        if (memberDoc.exists) {
+          const memberData = memberDoc.data() as Record<string, unknown>;
+          deadline.responsibleLawyer = {
+            id: memberDoc.id,
+            name: memberData.name,
+            email: memberData.email,
+          };
+        }
+      }
+
+      return {
+        success: true,
+        message: `Prazo "${String(inputs.type)}" criado`,
+        outputs: { deadlineId, deadline }
+      };
     },
   }),
 });
