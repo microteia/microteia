@@ -248,31 +248,36 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
     if (!currentTenant) return;
     setIsSaving(true);
     try {
-      const screenKey = isCustomRecordEvent ? (formData.screenKey || undefined) : undefined;
-      const lookupCollection = isLookupEvent ? (formData.lookupCollection || undefined) : undefined;
+      const screenKey = isCustomRecordEvent && formData.screenKey ? formData.screenKey : undefined;
+      const lookupCollection = isLookupEvent && formData.lookupCollection ? formData.lookupCollection : undefined;
+
       if (isNew) {
-        const created = await createWorkflow({
+        const createData: Record<string, unknown> = {
           name: formData.name,
-          description: formData.description || undefined,
           eventName: formData.eventName,
-          screenKey,
-          lookupCollection,
           enabled: true,
           version: 1,
           condition: { kind: 'AlwaysTrue' },
           steps: cloneSource ? cloneSource.steps.map((step) => ({ ...step, id: crypto.randomUUID() })) : [],
-        });
+        };
+        if (formData.description) createData.description = formData.description;
+        if (screenKey) createData.screenKey = screenKey;
+        if (lookupCollection) createData.lookupCollection = lookupCollection;
+
+        const created = await createWorkflow(createData as Parameters<typeof createWorkflow>[0]);
         notify('Automação criada.', 'success');
         closeTab(tabKey, activePanelId ?? 'main');
         openTab(`view-workflow:${created.id}`);
       } else if (workflow) {
-        await updateWorkflow(workflow.id, {
+        const updateData: Record<string, unknown> = {
           name: formData.name,
-          description: formData.description || undefined,
           eventName: formData.eventName,
-          screenKey,
-          lookupCollection,
-        });
+        };
+        if (formData.description) updateData.description = formData.description;
+        if (screenKey) updateData.screenKey = screenKey;
+        if (lookupCollection) updateData.lookupCollection = lookupCollection;
+
+        await updateWorkflow(workflow.id, updateData as Parameters<typeof updateWorkflow>[1]);
         notify('Automação salva.', 'success');
       }
     } catch (error) {
