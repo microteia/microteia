@@ -11,6 +11,12 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [0.42.0] — 2026-07-06
+
+- Corrigida a semântica de expressões: agora use `event.campo` para acessar dados do evento que dispara a automação (ex: `event.area` em "Ao salvar: Processo"), e `input.xxx` para dados de steps anteriores.
+- O editor de expressões agora interpreta corretamente acesso a propriedades com ponto, permitindo expressões como `upper(event.title)` funcionarem sem erros.
+- Autocomplete de campos do evento atualizado para sugerir `event.` ao invés de `input.`.
+
 #### [0.41.1] — 2026-07-06
 
 - Ao digitar `input.` no editor de expressões, o sistema agora mostra automaticamente os campos disponíveis do evento que dispara a automação, facilitando a referência a dados do gatilho.

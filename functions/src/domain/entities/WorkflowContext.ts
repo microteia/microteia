@@ -22,6 +22,7 @@ export interface WorkflowContext {
     workflowDefinitionId: string;
     tenantId: string;
   };
+  input?: Record<string, unknown>;
 }
 
 export interface WorkflowResult {

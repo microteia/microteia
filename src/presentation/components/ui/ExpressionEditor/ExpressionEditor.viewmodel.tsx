@@ -162,15 +162,15 @@ const validateExpression = (expression: string, eventFields: EventField[]): Vali
       }
     }
 
-    const inputPattern = /input\.([a-zA-Z_][a-zA-Z0-9_]*)/g;
-    const inputMatches = [...expression.matchAll(inputPattern)];
+    const eventPattern = /event\.([a-zA-Z_][a-zA-Z0-9_.]*)/g;
+    const eventMatches = [...expression.matchAll(eventPattern)];
 
-    for (const match of inputMatches) {
+    for (const match of eventMatches) {
       const fieldPath = match[1];
       if (!validFieldPaths.includes(fieldPath)) {
         return {
           isValid: false,
-          message: `Campo do evento desconhecido: "input.${fieldPath}"`,
+          message: `Campo do evento desconhecido: "event.${fieldPath}"`,
         };
       }
     }
@@ -318,10 +318,10 @@ export const useExpressionEditorViewModel = (
       const pos = e.target.selectionStart;
       const textBefore = value.slice(0, pos);
 
-      const inputDotMatch = textBefore.match(/input\.([a-zA-Z_][a-zA-Z0-9_]*)$/);
-      if (inputDotMatch) {
-        const triggerStart = pos - inputDotMatch[1].length;
-        const query = inputDotMatch[1];
+      const eventDotMatch = textBefore.match(/event\.([a-zA-Z_][a-zA-Z0-9_.]*)$/);
+      if (eventDotMatch) {
+        const triggerStart = pos - eventDotMatch[1].length;
+        const query = eventDotMatch[1];
         const textarea = e.target;
 
         setAutocompleteState({
@@ -334,7 +334,7 @@ export const useExpressionEditorViewModel = (
         return;
       }
 
-      if (textBefore.endsWith('input.')) {
+      if (textBefore.endsWith('event.')) {
         const triggerStart = pos;
         const textarea = e.target;
 

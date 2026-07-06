@@ -6,7 +6,7 @@ import { concatFn, lowerFn, upperFn, lengthFn } from './builtins/stringFns';
 
 [todayFn, nowFn, ifFn, concatFn, lowerFn, upperFn, lengthFn].forEach((fn) => expressionFunctions.register(fn));
 
-type TokenType = 'ident' | 'number' | 'string' | 'lparen' | 'rparen' | 'comma' | 'plus' | 'minus';
+type TokenType = 'ident' | 'number' | 'string' | 'lparen' | 'rparen' | 'comma' | 'plus' | 'minus' | 'dot';
 
 interface Token {
   type: TokenType;
@@ -49,6 +49,7 @@ const tokenize = (expression: string): Token[] => {
       i = j;
       continue;
     }
+    if (char === '.') { tokens.push({ type: 'dot', value: char }); i += 1; continue; }
     throw new Error(`Expressão inválida: caractere inesperado "${char}"`);
   }
   return tokens;
@@ -58,6 +59,7 @@ type Ast =
   | { type: 'number'; value: number }
   | { type: 'string'; value: string }
   | { type: 'call'; name: string; args: Ast[] }
+  | { type: 'property'; path: string[] }
   | { type: 'binop'; op: '+' | '-'; left: Ast; right: Ast };
 
 class Parser {
@@ -101,18 +103,34 @@ class Parser {
       return { type: 'string', value: token.value };
     }
     if (token.type === 'ident') {
+      const identName = token.value;
       this.consume('ident');
-      this.consume('lparen');
-      const args: Ast[] = [];
-      if (this.peek()?.type !== 'rparen') {
-        args.push(this.parseExpression());
-        while (this.peek()?.type === 'comma') {
-          this.consume('comma');
+
+      if (this.peek()?.type === 'lparen') {
+        this.consume('lparen');
+        const args: Ast[] = [];
+        if (this.peek()?.type !== 'rparen') {
           args.push(this.parseExpression());
+          while (this.peek()?.type === 'comma') {
+            this.consume('comma');
+            args.push(this.parseExpression());
+          }
         }
+        this.consume('rparen');
+        return { type: 'call', name: identName, args };
       }
-      this.consume('rparen');
-      return { type: 'call', name: token.value, args };
+
+      if (this.peek()?.type === 'dot') {
+        const path: string[] = [identName];
+        while (this.peek()?.type === 'dot') {
+          this.consume('dot');
+          const propToken = this.consume('ident');
+          path.push(propToken.value);
+        }
+        return { type: 'property', path };
+      }
+
+      throw new Error(`Expressão inválida: identificador "${identName}" sem chamada ou acesso a propriedade`);
     }
     throw new Error(`Expressão inválida: token inesperado "${token.value}"`);
   }
@@ -135,6 +153,30 @@ const evaluateNode = (node: Ast, context: WorkflowContext): unknown => {
       if (!fn) throw new Error(`Função de expressão desconhecida: "${node.name}"`);
       const args = node.args.map((arg) => evaluateNode(arg, context));
       return fn.call(args, context);
+    }
+    case 'property': {
+      const [root, ...rest] = node.path;
+      let value: unknown;
+
+      if (root === 'event') {
+        value = context.event;
+      } else if (root === 'input') {
+        value = context.input ?? {};
+      } else {
+        throw new Error(`Expressão inválida: raiz "${root}" desconhecida (use "event" ou "input")`);
+      }
+
+      for (const key of rest) {
+        if (value === null || value === undefined) {
+          throw new Error(`Expressão inválida: propriedade "${key}" de valor nulo/indefinido`);
+        }
+        if (typeof value !== 'object') {
+          throw new Error(`Expressão inválida: tentativa de acessar propriedade "${key}" em valor não-objeto`);
+        }
+        value = (value as Record<string, unknown>)[key];
+      }
+
+      return value;
     }
     case 'binop': {
       const left = evaluateNode(node.left, context);
