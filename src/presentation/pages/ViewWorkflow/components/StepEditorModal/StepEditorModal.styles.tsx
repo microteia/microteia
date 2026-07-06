@@ -1,11 +1,6 @@
 import styled from 'styled-components';
-import { Textarea } from '../../../../components/ui/Input';
 
 export const S = {
-  ExpressionInput: styled(Textarea)`
-    font-family: ${({ theme }) => theme.fonts.mono};
-  `,
-
   Form: styled.div`
     display: flex;
     flex-direction: column;

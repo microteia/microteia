@@ -5,6 +5,7 @@ import { InputGroup, Label, Input } from '../../../../components/ui/Input';
 import { SearchSelect } from '../../../../components/ui/SearchSelect';
 import { DateInput } from '../../../../components/ui/DateInput';
 import { InfoBanner } from '../../../../components/ui/InfoBanner';
+import { ExpressionEditor } from '../../../../components/ui/ExpressionEditor';
 import { LiteralOptionsControl } from './components/LiteralOptionsControl';
 import { EntityReferenceControl } from './components/EntityReferenceControl';
 import { S } from './StepEditorModal.styles';
@@ -91,11 +92,10 @@ export const StepEditorModalView: React.FC<StepEditorModalProps> = (props) => {
         );
       case 'Expression':
         return (
-          <S.ExpressionInput
+          <ExpressionEditor
             value={mapping.expression}
-            onChange={(e) => vm.setMapping(input.id, { kind: 'Expression', expression: e.target.value })}
-            placeholder="ex: today()+5"
-            rows={2}
+            onChange={(expression) => vm.setMapping(input.id, { kind: 'Expression', expression })}
+            placeholder="ex: today() + 5"
           />
         );
       case 'Output': {

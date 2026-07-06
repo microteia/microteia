@@ -21,12 +21,13 @@ const Overlay = styled.div`
   }
 `;
 
-const Container = styled.div`
+const Container = styled.div<{ $size: 'small' | 'medium' | 'large' }>`
   background: ${({ theme }) => theme.colors.surface};
   border: 1px solid ${({ theme }) => theme.colors.border};
   border-radius: ${({ theme }) => theme.borderRadius.lg};
   width: 100%;
-  max-width: 520px;
+  max-width: ${({ $size }) =>
+    $size === 'small' ? '420px' : $size === 'medium' ? '640px' : '800px'};
   max-height: 90vh;
   display: flex;
   flex-direction: column;
@@ -69,9 +70,10 @@ interface ModalProps {
   title: string;
   onClose: () => void;
   children: React.ReactNode;
+  size?: 'small' | 'medium' | 'large';
 }
 
-export const Modal: React.FC<ModalProps> = ({ title, onClose, children }) => {
+export const Modal: React.FC<ModalProps> = ({ title, onClose, children, size = 'small' }) => {
   useEffect(() => {
     const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
     window.addEventListener('keydown', handler);
@@ -80,7 +82,7 @@ export const Modal: React.FC<ModalProps> = ({ title, onClose, children }) => {
 
   return (
     <Overlay onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <Container>
+      <Container $size={size}>
         <Header>
           <Title>{title}</Title>
           <CloseButton variant="ghost" onClick={onClose}>
