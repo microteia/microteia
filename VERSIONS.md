@@ -11,6 +11,11 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [0.44.5] — 2026-07-06
+
+- Corrigido o acesso a campos aninhados nos outputs de Steps (como `deadline.description` do Step "Criar Prazo"): agora os valores são corretamente extraídos quando usados em Steps seguintes.
+- Mensagens de erro nas automações agora identificam claramente qual Step falhou, facilitando a identificação de problemas na configuração.
+
 #### [0.44.4] — 2026-07-06
 
 - O Step "Criar Prazo" nas automações agora expõe todos os campos do prazo criado como saídas disponíveis para Steps seguintes, incluindo dados do processo e advogado responsável vinculados. Isso permite usar essas informações em próximas etapas da automação.

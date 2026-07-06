@@ -11,6 +11,12 @@ const resolveEventPath = (payload: Record<string, unknown>, path: string): unkno
     return undefined;
   }, payload);
 
+const resolveOutputPath = (outputs: Record<string, unknown>, stepId: string, outputId: string): unknown => {
+  const stepOutputs = outputs[stepId];
+  if (!stepOutputs || typeof stepOutputs !== 'object') return undefined;
+  return resolveEventPath(stepOutputs as Record<string, unknown>, outputId);
+};
+
 // As 5 variantes de InputMapping são o vocabulário fechado do próprio motor (não são
 // extensíveis por plugins), diferente do StepType — por isso um switch aqui não viola a
 // exigência de "nunca switch(stepType)"; adicionar um novo tipo de mapping é uma mudança de
@@ -24,7 +30,7 @@ const resolveMapping = (mapping: InputMapping, context: WorkflowContext): unknow
     case 'Expression':
       return expressionEngine.evaluate(mapping.expression, context);
     case 'Output':
-      return context.outputs[mapping.stepId]?.[mapping.outputId];
+      return resolveOutputPath(context.outputs, mapping.stepId, mapping.outputId);
     case 'Variable':
       return context.variables[mapping.name];
     default:

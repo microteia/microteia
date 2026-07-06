@@ -92,7 +92,8 @@ export const runWorkflow = async ({ definition, event, registry, services }: Run
       context.outputs[step.id] = result.outputs ?? {};
       log('INFO', result.message ?? `Step "${stepDefinition.name}" concluído`, step.id, step.stepDefinitionId);
     } catch (error) {
-      log('ERROR', error instanceof Error ? error.message : String(error), step.id, step.stepDefinitionId);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      log('ERROR', `[Step "${stepDefinition.name}"] ${errorMessage}`, step.id, step.stepDefinitionId);
       return finish('FAILED', context.outputs);
     }
   }

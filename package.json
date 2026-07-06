@@ -1,24 +1,23 @@
 {
   "name": "curatino",
   "private": true,
-  "version": "0.44.4",
+  "version": "0.44.5",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
-    "build:functions": "cd functions && npm run build",
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
     "deploy": "npm run build && firebase deploy --project curatino",
-    "deploy:workflow": "npm run build:functions && firebase deploy --only functions:onWorkflowEventCreated,functions:syncWorkflowStepCatalog,functions:publishWorkflowEventOnEntityChange,functions:onNoteChange,functions:onDocumentChange --project curatino",
-    "deploy:audit": "npm run build:functions && firebase deploy --only functions:auditFlatEntityChange,functions:auditNestedEntityChange,functions:auditTenantDeleted,functions:auditNewsChange,functions:auditNewsCommentChange,functions:auditNewsTagChange,functions:backupDeletedAuditLog --project curatino",
-    "deploy:auth": "npm run build:functions && firebase deploy --only functions:getUserInfo,functions:checkNicknameAvailability,functions:claimNickname,functions:onUserCreated --project curatino",
-    "deploy:tenant": "npm run build:functions && firebase deploy --only functions:addTenantMember,functions:removeTenantMember --project curatino",
-    "deploy:gmail": "npm run build:functions && firebase deploy --only functions:gmailPush,functions:renewGmailWatches,functions:exchangeGmailCode --project curatino",
-    "deploy:util": "npm run build:functions && firebase deploy --only functions:callAIProxy,functions:logClientError,functions:cascadeDeletePushInteractions --project curatino",
-    "deploy:functions": "npm run build:functions && firebase deploy --only functions --project curatino"
+    "deploy:workflow": "firebase deploy --only functions:onWorkflowEventCreated,functions:syncWorkflowStepCatalog,functions:publishWorkflowEventOnEntityChange,functions:onNoteChange,functions:onDocumentChange --project curatino",
+    "deploy:audit": "firebase deploy --only functions:auditFlatEntityChange,functions:auditNestedEntityChange,functions:auditTenantDeleted,functions:auditNewsChange,functions:auditNewsCommentChange,functions:auditNewsTagChange,functions:backupDeletedAuditLog --project curatino",
+    "deploy:auth": "firebase deploy --only functions:getUserInfo,functions:checkNicknameAvailability,functions:claimNickname,functions:onUserCreated --project curatino",
+    "deploy:tenant": "firebase deploy --only functions:addTenantMember,functions:removeTenantMember --project curatino",
+    "deploy:gmail": "firebase deploy --only functions:gmailPush,functions:renewGmailWatches,functions:exchangeGmailCode --project curatino",
+    "deploy:util": "firebase deploy --only functions:callAIProxy,functions:logClientError,functions:cascadeDeletePushInteractions --project curatino",
+    "deploy:functions": "firebase deploy --only functions --project curatino"
   },
   "dependencies": {
     "@types/react-big-calendar": "^1.16.3",
