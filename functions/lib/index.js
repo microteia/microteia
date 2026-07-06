@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.publishWorkflowEventOnEntityChange = exports.syncWorkflowStepCatalog = exports.onWorkflowEventCreated = exports.cascadeDeletePushInteractions = exports.logClientError = exports.backupDeletedAuditLog = exports.auditNewsTagChange = exports.auditNewsCommentChange = exports.auditNewsChange = exports.auditTenantDeleted = exports.auditNestedEntityChange = exports.auditFlatEntityChange = exports.renewGmailWatches = exports.gmailPush = exports.onUserCreated = exports.removeTenantMember = exports.addTenantMember = exports.exchangeGmailCode = exports.claimNickname = exports.checkNicknameAvailability = exports.getUserInfo = exports.callAIProxy = void 0;
+exports.onDocumentChange = exports.onNoteChange = exports.publishWorkflowEventOnEntityChange = exports.syncWorkflowStepCatalog = exports.onWorkflowEventCreated = exports.cascadeDeletePushInteractions = exports.logClientError = exports.backupDeletedAuditLog = exports.auditNewsTagChange = exports.auditNewsCommentChange = exports.auditNewsChange = exports.auditTenantDeleted = exports.auditNestedEntityChange = exports.auditFlatEntityChange = exports.renewGmailWatches = exports.gmailPush = exports.onUserCreated = exports.removeTenantMember = exports.addTenantMember = exports.exchangeGmailCode = exports.claimNickname = exports.checkNicknameAvailability = exports.getUserInfo = exports.callAIProxy = void 0;
 const initFirebase_1 = require("./infrastructure/firebase/initFirebase");
 (0, initFirebase_1.initFirebase)();
 var callAIProxy_1 = require("./infrastructure/handlers/callAIProxy");
@@ -45,4 +45,8 @@ var syncWorkflowStepCatalog_1 = require("./infrastructure/handlers/syncWorkflowS
 Object.defineProperty(exports, "syncWorkflowStepCatalog", { enumerable: true, get: function () { return syncWorkflowStepCatalog_1.syncWorkflowStepCatalog; } });
 var publishWorkflowEventOnEntityChange_1 = require("./infrastructure/handlers/publishWorkflowEventOnEntityChange");
 Object.defineProperty(exports, "publishWorkflowEventOnEntityChange", { enumerable: true, get: function () { return publishWorkflowEventOnEntityChange_1.publishWorkflowEventOnEntityChange; } });
+var onNoteChange_1 = require("./infrastructure/handlers/workflow/onNoteChange");
+Object.defineProperty(exports, "onNoteChange", { enumerable: true, get: function () { return onNoteChange_1.onNoteChange; } });
+var onDocumentChange_1 = require("./infrastructure/handlers/workflow/onDocumentChange");
+Object.defineProperty(exports, "onDocumentChange", { enumerable: true, get: function () { return onDocumentChange_1.onDocumentChange; } });
 //# sourceMappingURL=index.js.map

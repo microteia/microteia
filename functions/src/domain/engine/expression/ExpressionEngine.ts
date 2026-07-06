@@ -159,7 +159,7 @@ const evaluateNode = (node: Ast, context: WorkflowContext): unknown => {
       let value: unknown;
 
       if (root === 'event') {
-        value = context.event;
+        value = context.event.payload;
       } else if (root === 'input') {
         value = context.input ?? {};
       } else {
