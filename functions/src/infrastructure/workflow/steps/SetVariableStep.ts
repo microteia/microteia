@@ -3,7 +3,7 @@ import type { StepDefinition, WorkflowStepExecutor } from '../../../domain/engin
 export const makeSetVariableStepDefinition = (): StepDefinition => ({
   id: 'set-variable',
   version: 2,
-  name: 'Definir Variável',
+  name: 'Variável',
   description: 'Grava um valor em uma variável do workflow, para ser lido por steps seguintes.',
   icon: 'RiBracesLine',
   category: 'Data',

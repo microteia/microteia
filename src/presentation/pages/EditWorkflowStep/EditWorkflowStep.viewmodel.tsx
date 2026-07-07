@@ -192,30 +192,10 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
   const workflowVariables = useMemo(() => {
     const variables: WorkflowVariable[] = [];
     
-    console.log('[EditWorkflowStep] Calculando workflowVariables:', { 
-      priorStepsCount: priorSteps.length, 
-      priorSteps,
-      stepCatalogCount: stepCatalog.length 
-    });
-    
     priorSteps.forEach((step) => {
       const definition = stepCatalog.find((d) => d.id === step.stepDefinitionId);
-      console.log('[EditWorkflowStep] Step:', { 
-        stepId: step.id, 
-        stepDefinitionId: step.stepDefinitionId,
-        definition: definition ? {
-          id: definition.id,
-          name: definition.name,
-          dynamicOutputs: definition.dynamicOutputs,
-          hasDynamicOutputs: !!definition.dynamicOutputs
-        } : null
-      });
       
       if (!definition || !definition.dynamicOutputs) {
-        console.log('[EditWorkflowStep] Skipping - no definition or no dynamicOutputs:', {
-          hasDefinition: !!definition,
-          hasDynamicOutputs: !!definition?.dynamicOutputs
-        });
         return;
       }
 
@@ -229,11 +209,6 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
 
         sourceIds.forEach((sourceInputId) => {
           const mapping = step.configuration[sourceInputId];
-          console.log('[EditWorkflowStep] Checking sourceInputId:', { 
-            sourceInputId, 
-            mapping,
-            configuration: step.configuration 
-          });
           
           if (mapping && mapping.kind === 'Literal' && mapping.value) {
             const stepName = step.name ?? definition.name;
@@ -241,14 +216,12 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
               name: String(mapping.value),
               definedBy: stepName,
             };
-            console.log('[EditWorkflowStep] Adding variable:', variable);
             variables.push(variable);
           }
         });
       }
     });
     
-    console.log('[EditWorkflowStep] Final workflowVariables:', variables);
     return variables;
   }, [priorSteps, stepCatalog]);
 

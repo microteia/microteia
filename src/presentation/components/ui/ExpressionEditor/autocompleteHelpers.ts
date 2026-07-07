@@ -103,16 +103,6 @@ export const buildAutocompleteItems = (
   const q = query.toLowerCase();
   const items: AutocompleteItem[] = [];
 
-  console.log('[ExpressionEditor] buildAutocompleteItems:', {
-    mode,
-    query,
-    functionsCount: functions.length,
-    eventFieldsCount: eventFields.length,
-    stepOutputFieldsCount: stepOutputFields.length,
-    workflowVariablesCount: workflowVariables.length,
-    workflowVariables,
-  });
-
   if (mode === 'function') {
     // Funções e operadores (operadores vêm junto em 'functions')
     const matchingFunctions = functions.filter(
@@ -133,7 +123,6 @@ export const buildAutocompleteItems = (
 
     // Variáveis do workflow
     const matchingVariables = workflowVariables.filter((v) => v.name.toLowerCase().includes(q));
-    console.log('[ExpressionEditor] matchingVariables:', matchingVariables);
     items.push(
       ...matchingVariables.map((v) => ({
         value: v.name,
@@ -147,7 +136,6 @@ export const buildAutocompleteItems = (
     const matchingContexts = CONTEXT_VARIABLES.filter(
       (c) => !q || c.value.toLowerCase().includes(q) || c.label.toLowerCase().includes(q)
     );
-    console.log('[ExpressionEditor] matchingContexts:', matchingContexts);
     items.push(...matchingContexts);
 
     if (includeSnippets) {

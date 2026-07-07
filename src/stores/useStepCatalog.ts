@@ -22,3 +22,4 @@ export const useStepCatalog = (): StepCatalogContextValue => {
   }
   return context;
 };
+
