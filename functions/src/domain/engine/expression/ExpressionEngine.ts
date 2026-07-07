@@ -1,216 +1,75 @@
+import { Parser } from 'expr-eval';
 import type { WorkflowContext } from '../../entities/WorkflowContext';
 import { expressionFunctions } from './FunctionRegistry';
-import { todayFn, nowFn } from './builtins/dateFns';
+import { operatorRegistry } from './OperatorRegistry';
+import { todayFn, nowFn, formatDateFn, dayOfWeekFn, isWeekendFn, dateDiffFn, yearFn, monthFn, dayFn } from './builtins/dateFns';
+import { addDaysFn } from './builtins/addDaysFn';
 import { ifFn } from './builtins/ifFn';
-import { concatFn, lowerFn, upperFn, lengthFn } from './builtins/stringFns';
+import { concatFn, lowerFn, upperFn, lengthFn, trimFn, replaceFn, substringFn, startsWithFn, endsWithFn, splitFn, joinFn, interpolateFn } from './builtins/stringFns';
 import { getVarFn } from './builtins/getVarFn';
+import { roundFn, floorFn, ceilFn, absFn, minFn, maxFn, sumFn, avgFn } from './builtins/mathFns';
+import { firstFn, lastFn, containsFn, indexOfFn } from './builtins/arrayFns';
+import { andFn, orFn, notFn, isEmptyFn, isNullFn, isNotNullFn, coalesceFn } from './builtins/logicFns';
+import { isCPFFn, isCNPJFn, isEmailFn, formatCPFFn, formatCNPJFn } from './builtins/validationFns';
+import {
+  addOperator, subtractOperator, multiplyOperator, divideOperator, remainderOperator, powerOperator, factorialOperator,
+  equalOperator, notEqualOperator, lessThanOperator, lessOrEqualOperator, greaterThanOperator, greaterOrEqualOperator,
+  andOperator, orOperator, notOperatorSymbol, ternaryOperator, concatenateOperator, inOperator,
+  sinFunction, cosFunction, tanFunction, asinFunction, acosFunction, atanFunction,
+  sinhFunction, coshFunction, tanhFunction, asinhFunction, acoshFunction, atanhFunction,
+  sqrtFunction, cbrtFunction, logFunction, lnFunction, log10Function, log2Function, lgFunction, log1pFunction,
+  expFunction, expm1Function, absFunction, ceilFunction, floorFunction, roundFunction, truncFunction,
+  signFunction, minFunction, maxFunction, randomFunction, lengthFunction,
+} from './builtins/operators';
 
-[todayFn, nowFn, ifFn, concatFn, lowerFn, upperFn, lengthFn, getVarFn].forEach((fn) => expressionFunctions.register(fn));
+[
+  todayFn, nowFn, formatDateFn, dayOfWeekFn, isWeekendFn, dateDiffFn, yearFn, monthFn, dayFn,
+  addDaysFn,
+  ifFn,
+  concatFn, lowerFn, upperFn, lengthFn, trimFn, replaceFn, substringFn, startsWithFn, endsWithFn, splitFn, joinFn, interpolateFn,
+  getVarFn,
+  roundFn, floorFn, ceilFn, absFn, minFn, maxFn, sumFn, avgFn,
+  firstFn, lastFn, containsFn, indexOfFn,
+  andFn, orFn, notFn, isEmptyFn, isNullFn, isNotNullFn, coalesceFn,
+  isCPFFn, isCNPJFn, isEmailFn, formatCPFFn, formatCNPJFn,
+].forEach((fn) => expressionFunctions.register(fn));
 
-type TokenType = 'ident' | 'number' | 'string' | 'lparen' | 'rparen' | 'comma' | 'plus' | 'minus' | 'dot';
+// Registra operadores built-in do expr-eval para documentação
+[
+  addOperator, subtractOperator, multiplyOperator, divideOperator, remainderOperator, powerOperator, factorialOperator,
+  equalOperator, notEqualOperator, lessThanOperator, lessOrEqualOperator, greaterThanOperator, greaterOrEqualOperator,
+  andOperator, orOperator, notOperatorSymbol, ternaryOperator, concatenateOperator, inOperator,
+  sinFunction, cosFunction, tanFunction, asinFunction, acosFunction, atanFunction,
+  sinhFunction, coshFunction, tanhFunction, asinhFunction, acoshFunction, atanhFunction,
+  sqrtFunction, cbrtFunction, logFunction, lnFunction, log10Function, log2Function, lgFunction, log1pFunction,
+  expFunction, expm1Function, absFunction, ceilFunction, floorFunction, roundFunction, truncFunction,
+  signFunction, minFunction, maxFunction, randomFunction, lengthFunction,
+].forEach((op) => operatorRegistry.register(op));
 
-interface Token {
-  type: TokenType;
-  value: string;
-}
+const buildVariablesContext = (context: WorkflowContext): Record<string, unknown> => {
+  const variables: Record<string, unknown> = {
+    event: context.event.payload,
+    input: context.input ?? {},
+    output: context.outputs,
+    ...context.variables,
+  };
 
-const tokenize = (expression: string): Token[] => {
-  const tokens: Token[] = [];
-  let i = 0;
-  while (i < expression.length) {
-    const char = expression[i];
-    if (/\s/.test(char)) { i += 1; continue; }
-    if (char === '(') { tokens.push({ type: 'lparen', value: char }); i += 1; continue; }
-    if (char === ')') { tokens.push({ type: 'rparen', value: char }); i += 1; continue; }
-    if (char === ',') { tokens.push({ type: 'comma', value: char }); i += 1; continue; }
-    if (char === '+') { tokens.push({ type: 'plus', value: char }); i += 1; continue; }
-    if (char === '-') { tokens.push({ type: 'minus', value: char }); i += 1; continue; }
-    if (char === '"' || char === "'") {
-      const quote = char;
-      let j = i + 1;
-      let value = '';
-      while (j < expression.length && expression[j] !== quote) { value += expression[j]; j += 1; }
-      tokens.push({ type: 'string', value });
-      i = j + 1;
-      continue;
-    }
-    if (/[0-9]/.test(char)) {
-      let j = i;
-      let value = '';
-      while (j < expression.length && /[0-9.]/.test(expression[j])) { value += expression[j]; j += 1; }
-      tokens.push({ type: 'number', value });
-      i = j;
-      continue;
-    }
-    if (/[a-zA-Z_]/.test(char)) {
-      let j = i;
-      let value = '';
-      while (j < expression.length && /[a-zA-Z0-9_]/.test(expression[j])) { value += expression[j]; j += 1; }
-      tokens.push({ type: 'ident', value });
-      i = j;
-      continue;
-    }
-    if (char === '.') { tokens.push({ type: 'dot', value: char }); i += 1; continue; }
-    throw new Error(`Expressão inválida: caractere inesperado "${char}"`);
-  }
-  return tokens;
+  console.log('[ExpressionEngine] Contexto de variáveis:', JSON.stringify(variables, null, 2));
+  return variables;
 };
 
-type Ast =
-  | { type: 'number'; value: number }
-  | { type: 'string'; value: string }
-  | { type: 'call'; name: string; args: Ast[] }
-  | { type: 'property'; path: string[] }
-  | { type: 'binop'; op: '+' | '-'; left: Ast; right: Ast };
+const buildFunctionsContext = (context: WorkflowContext): Record<string, (...args: unknown[]) => unknown> => {
+  const functions: Record<string, (...args: unknown[]) => unknown> = {};
 
-class Parser {
-  private position = 0;
-
-  constructor(private readonly tokens: Token[]) {}
-
-  private peek(): Token | undefined {
-    return this.tokens[this.position];
-  }
-
-  private consume(type: TokenType): Token {
-    const token = this.tokens[this.position];
-    if (!token || token.type !== type) {
-      throw new Error(`Expressão inválida: esperava "${type}"`);
+  const allFunctions = expressionFunctions.getAllDefinitions();
+  allFunctions.forEach((fnDef) => {
+    const fn = expressionFunctions.resolve(fnDef.name);
+    if (fn) {
+      functions[fnDef.name] = (...args: unknown[]) => fn.call(args, context);
     }
-    this.position += 1;
-    return token;
-  }
+  });
 
-  parseExpression(): Ast {
-    let node = this.parseTerm();
-    while (this.peek()?.type === 'plus' || this.peek()?.type === 'minus') {
-      const op = this.consume(this.peek()!.type).type === 'plus' ? '+' : '-';
-      const right = this.parseTerm();
-      node = { type: 'binop', op, left: node, right };
-    }
-    return node;
-  }
-
-  private parseTerm(): Ast {
-    const token = this.peek();
-    if (!token) throw new Error('Expressão inválida: fim inesperado');
-
-    if (token.type === 'number') {
-      this.consume('number');
-      return { type: 'number', value: Number(token.value) };
-    }
-    if (token.type === 'string') {
-      this.consume('string');
-      return { type: 'string', value: token.value };
-    }
-    if (token.type === 'ident') {
-      const identName = token.value;
-      this.consume('ident');
-
-      if (this.peek()?.type === 'lparen') {
-        this.consume('lparen');
-        const args: Ast[] = [];
-        if (this.peek()?.type !== 'rparen') {
-          args.push(this.parseExpression());
-          while (this.peek()?.type === 'comma') {
-            this.consume('comma');
-            args.push(this.parseExpression());
-          }
-        }
-        this.consume('rparen');
-        return { type: 'call', name: identName, args };
-      }
-
-      if (this.peek()?.type === 'dot') {
-        const path: string[] = [identName];
-        while (this.peek()?.type === 'dot') {
-          this.consume('dot');
-          const propToken = this.consume('ident');
-          path.push(propToken.value);
-        }
-        return { type: 'property', path };
-      }
-
-      throw new Error(`Expressão inválida: identificador "${identName}" sem chamada ou acesso a propriedade`);
-    }
-    throw new Error(`Expressão inválida: token inesperado "${token.value}"`);
-  }
-}
-
-const addDays = (date: Date, days: number): Date => {
-  const copy = new Date(date);
-  copy.setDate(copy.getDate() + days);
-  return copy;
-};
-
-const evaluateNode = (node: Ast, context: WorkflowContext): unknown => {
-  switch (node.type) {
-    case 'number':
-      return node.value;
-    case 'string':
-      return node.value;
-    case 'call': {
-      const fn = expressionFunctions.resolve(node.name);
-      if (!fn) throw new Error(`Função de expressão desconhecida: "${node.name}"`);
-      const args = node.args.map((arg) => evaluateNode(arg, context));
-      return fn.call(args, context);
-    }
-    case 'property': {
-      const [root, ...rest] = node.path;
-      let value: unknown;
-
-      console.log(`[ExpressionEngine] Avaliando propriedade: ${node.path.join('.')}`);
-
-      if (root === 'event') {
-        value = context.event.payload;
-      } else if (root === 'input') {
-        value = context.input ?? {};
-      } else if (root === 'output') {
-        value = context.outputs;
-      } else {
-        throw new Error(`Expressão inválida: raiz "${root}" desconhecida (use "event", "input" ou "output")`);
-      }
-
-      console.log(`[ExpressionEngine] Valor inicial (${root}):`, JSON.stringify(value, null, 2));
-
-      for (const key of rest) {
-        if (value === null || value === undefined) {
-          throw new Error(`Expressão inválida: propriedade "${key}" de valor nulo/indefinido`);
-        }
-        if (typeof value !== 'object') {
-          // Mensagem especial para quando tenta acessar propriedades de strings (comum em campos de referência)
-          if (typeof value === 'string') {
-            throw new Error(
-              `Expressão inválida: tentativa de acessar propriedade "${key}" em valor não-objeto. ` +
-              `ATENÇÃO: Campos do tipo "referência" armazenam apenas o ID (string), não o objeto completo. ` +
-              `Se "${node.path[node.path.length - 2]}" é um campo de referência, use-o diretamente como ID em vez de tentar acessar suas propriedades.`
-            );
-          }
-          throw new Error(`Expressão inválida: tentativa de acessar propriedade "${key}" em valor não-objeto`);
-        }
-
-        const nextValue = (value as Record<string, unknown>)[key];
-        console.log(`[ExpressionEngine] Acessando "${key}":`, JSON.stringify(nextValue, null, 2));
-        value = nextValue;
-      }
-
-      console.log(`[ExpressionEngine] Valor final:`, value);
-      return value;
-    }
-    case 'binop': {
-      const left = evaluateNode(node.left, context);
-      const right = evaluateNode(node.right, context);
-      if (left instanceof Date && typeof right === 'number') {
-        return addDays(left, node.op === '+' ? right : -right);
-      }
-      if (typeof left === 'number' && typeof right === 'number') {
-        return node.op === '+' ? left + right : left - right;
-      }
-      throw new Error('Expressão inválida: operandos incompatíveis para "+"/"-"');
-    }
-    default:
-      throw new Error('Expressão inválida');
-  }
+  return functions;
 };
 
 export interface ExpressionEngine {
@@ -219,10 +78,216 @@ export interface ExpressionEngine {
 
 class ExpressionEngineImpl implements ExpressionEngine {
   evaluate(expression: string, context: WorkflowContext): unknown {
-    const tokens = tokenize(expression);
-    const ast = new Parser(tokens).parseExpression();
-    return evaluateNode(ast, context);
+    try {
+      // Validações pré-parser para mensagens mais amigáveis
+      const openParens = (expression.match(/\(/g) || []).length;
+      const closeParens = (expression.match(/\)/g) || []).length;
+      
+      if (openParens > closeParens) {
+        throw new Error(`Falta fechar ${openParens - closeParens} parêntese${openParens - closeParens > 1 ? 's' : ''}`);
+      }
+
+      if (closeParens > openParens) {
+        throw new Error(`Parêntese${closeParens - openParens > 1 ? 's' : ''} de fechamento sem abertura`);
+      }
+
+      // Verifica strings não fechadas
+      let inString = false;
+      let stringChar: '"' | "'" | null = null;
+      let escaped = false;
+
+      for (let i = 0; i < expression.length; i += 1) {
+        const char = expression[i];
+
+        if (escaped) {
+          escaped = false;
+          continue;
+        }
+
+        if (char === '\\' && inString) {
+          escaped = true;
+          continue;
+        }
+
+        if ((char === '"' || char === "'") && !inString) {
+          inString = true;
+          stringChar = char;
+          continue;
+        }
+
+        if (char === stringChar && inString) {
+          inString = false;
+          stringChar = null;
+        }
+      }
+
+      if (inString) {
+        throw new Error(`Falta fechar aspas (${stringChar === '"' ? 'aspas duplas "' : "aspas simples '"})`);
+      }
+
+      const parser = new Parser(
+        { 
+          allowMemberAccess: true,
+          operators: {
+                    add: true,
+                    comparison: true,
+                    concatenate: true,
+                    conditional: true,
+                    divide: true,
+                    factorial: true,
+                    logical: true,
+                    multiply: true,
+                    power: true,
+                    remainder: true,
+                    subtract: true,
+                    sin: true,
+                    cos: true,
+                    tan: true,
+                    asin: true,
+                    acos: true,
+                    atan: true,
+                    sinh: true,
+                    cosh: true,
+                    tanh: true,
+                    asinh: true,
+                    acosh: true,
+                    atanh: true,
+                    sqrt: true,
+                    log: true,
+                    ln: true,
+                    lg: true,
+                    log10: true,
+                    abs: true,
+                    ceil: true,
+                    floor: true,
+                    round: true,
+                    trunc: true,
+                    exp: true,
+                    length: true,
+                    in: true,
+                    random: true,
+                    min: true,
+                    max: true,
+                    cbrt: true,
+                    expm1: true,
+                    log1p: true,
+                    sign: true,
+                    log2: true,
+                    // Desativados por segurança para manter o Step puramente avaliativo:
+                    assignment: false, 
+                    fndef: false
+                  }
+        });
+      const variables = buildVariablesContext(context);
+      const functions = buildFunctionsContext(context);
+
+      Object.entries(functions).forEach(([name, fn]) => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (parser.functions as any)[name] = fn;
+      });
+
+      // expr-eval originalmente suporta apenas number/string/function/object
+      // mas estendemos para Date, boolean e outros tipos via nossas funções customizadas
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const result = parser.evaluate(expression, variables as any);
+      console.log('[ExpressionEngine] Resultado da avaliação:', result);
+      return result;
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      
+      // Erros já tratados pelas validações pré-parser
+      if (errorMessage.includes('Falta fechar') || errorMessage.includes('sem abertura')) {
+        throw new Error(errorMessage, { cause: error });
+      }
+
+      // Erros comuns do expr-eval traduzidos
+      if (errorMessage.includes('TEOF') || errorMessage.includes('EOF')) {
+        throw new Error(
+          'Expressão incompleta. Verifique se faltam argumentos ou parênteses de fechamento.',
+          { cause: error }
+        );
+      }
+
+      if (errorMessage.includes('unexpected TNAME')) {
+        throw new Error(
+          'Nome inesperado na expressão. Verifique a sintaxe.',
+          { cause: error }
+        );
+      }
+
+      if (errorMessage.includes('unexpected TNUMBER')) {
+        throw new Error(
+          'Número em posição incorreta. Verifique operadores e vírgulas.',
+          { cause: error }
+        );
+      }
+
+      if (errorMessage.includes('unexpected TSTRING')) {
+        throw new Error(
+          'Texto em posição incorreta. Verifique operadores e vírgulas.',
+          { cause: error }
+        );
+      }
+
+      if (errorMessage.includes('unexpected TCOMMA')) {
+        throw new Error(
+          'Vírgula em posição incorreta. Verifique os argumentos da função.',
+          { cause: error }
+        );
+      }
+      
+      if (errorMessage.includes('not a valid integer') || errorMessage.includes('not a number')) {
+        throw new Error(
+          `Operação aritmética inválida. ${errorMessage}. ` +
+          `Verifique se está tentando somar/subtrair tipos incompatíveis (ex: Date + número).`,
+          { cause: error }
+        );
+      }
+
+      if (errorMessage.includes('undefined') || errorMessage.includes('is not defined')) {
+        const undefinedVar = errorMessage.match(/["']?(\w+)["']?\s+is not defined/)?.[1];
+        if (undefinedVar) {
+          throw new Error(
+            `Variável ou função "${undefinedVar}" não encontrada. ` +
+            `Verifique se digitou corretamente ou se a função existe.`,
+            { cause: error }
+          );
+        }
+      }
+
+      if (errorMessage.includes('Função de expressão desconhecida')) {
+        const match = errorMessage.match(/desconhecida:\s*["']([^"']+)["']/);
+        if (match) {
+          throw new Error(
+            `Função "${match[1]}" não existe. Consulte a lista de funções disponíveis.`,
+            { cause: error }
+          );
+        }
+      }
+
+      if (errorMessage.toLowerCase().includes('parse error') || errorMessage.includes('unexpected')) {
+        const token = errorMessage.match(/unexpected\s+(\w+)/)?.[1];
+        if (token) {
+          throw new Error(
+            `Símbolo inesperado na expressão. Verifique a sintaxe próximo a "${token}".`,
+            { cause: error }
+          );
+        }
+        throw new Error(
+          'Erro de sintaxe. Verifique a estrutura da expressão.',
+          { cause: error }
+        );
+      }
+
+      throw new Error(`Erro ao avaliar expressão: ${errorMessage}`, { cause: error });
+    }
   }
 }
 
 export const expressionEngine: ExpressionEngine = new ExpressionEngineImpl();
+
+// Exporta registries para uso no frontend (autocomplete/validação)
+export { expressionFunctions } from './FunctionRegistry';
+export { operatorRegistry } from './OperatorRegistry';
+export type { ExpressionFunction } from './FunctionRegistry';
+export type { ExpressionOperator } from './OperatorRegistry';

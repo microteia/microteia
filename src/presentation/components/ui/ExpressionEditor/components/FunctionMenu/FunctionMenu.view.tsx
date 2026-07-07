@@ -1,6 +1,6 @@
 import React from 'react';
 import { S } from './FunctionMenu.styles';
-import type { AutocompleteItem } from '../../ExpressionEditor.viewmodel';
+import type { AutocompleteItem } from '../../autocompleteHelpers';
 
 export interface FunctionMenuProps {
   active: boolean;
@@ -25,12 +25,16 @@ export const FunctionMenu: React.FC<FunctionMenuProps> = ({
     <S.Container $top={position.top} $left={position.left}>
       {items.map((item, i) => (
         <S.Item
-          key={item.value}
+          key={`${item.category ?? 'default'}-${item.value}`}
           $highlighted={i === highlightedIndex}
           onClick={() => onSelect(item)}
           onMouseEnter={() => onHover(i)}
         >
-          <S.FunctionName>{item.label}</S.FunctionName>
+          <S.Header>
+            <S.FunctionName>{item.label}</S.FunctionName>
+            {item.category && <S.Category>{item.category}</S.Category>}
+          </S.Header>
+          {item.detail && <S.Detail>{item.detail}</S.Detail>}
           {item.description && <S.Description>{item.description}</S.Description>}
         </S.Item>
       ))}

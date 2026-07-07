@@ -1,6 +1,9 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { useWorkspace } from '../../../../stores/useWorkspace';
 import { useExpressionFunctions } from '../../../../stores/useExpressionFunctions';
+import { validateExpressionWithParser } from './expressionValidator';
+import { buildAutocompleteItems, insertSnippet } from './autocompleteHelpers';
+import type { AutocompleteItem } from './autocompleteHelpers';
 
 export interface EventField {
   path: string;
@@ -16,7 +19,7 @@ export interface ExpressionEditorProps {
 
 export interface AutocompleteState {
   active: boolean;
-  mode: 'function' | 'field';
+  mode: 'function' | 'field' | 'context';
   query: string;
   triggerStart: number;
   position: { top: number; left: number } | null;
@@ -25,12 +28,6 @@ export interface AutocompleteState {
 interface ValidationResult {
   isValid: boolean | null;
   message?: string;
-}
-
-export interface AutocompleteItem {
-  value: string;
-  label: string;
-  description?: string;
 }
 
 export interface ExpressionEditorViewModel {
@@ -47,96 +44,6 @@ export interface ExpressionEditorViewModel {
   openFunctionRef: () => void;
 }
 
-const validateExpression = (
-  expression: string,
-  eventFields: EventField[],
-  functionNames: string[],
-): ValidationResult => {
-  if (!expression.trim()) {
-    return { isValid: true };
-  }
-
-  try {
-    const validFunctionNames = functionNames;
-    const validFieldPaths = eventFields.map((f) => f.path);
-
-    let inString = false;
-    let stringChar: '"' | "'" | null = null;
-    let escaped = false;
-
-    for (let i = 0; i < expression.length; i += 1) {
-      const char = expression[i];
-
-      if (escaped) {
-        escaped = false;
-        continue;
-      }
-
-      if (char === '\\' && inString) {
-        escaped = true;
-        continue;
-      }
-
-      if ((char === '"' || char === "'") && !inString) {
-        inString = true;
-        stringChar = char;
-        continue;
-      }
-
-      if (char === stringChar && inString) {
-        inString = false;
-        stringChar = null;
-      }
-    }
-
-    if (inString) {
-      return { isValid: false, message: 'String não fechada' };
-    }
-
-    const functionPattern = /([a-zA-Z_][a-zA-Z0-9_]*)\s*\(/g;
-    const matches = [...expression.matchAll(functionPattern)];
-
-    for (const match of matches) {
-      const fnName = match[1];
-      if (!validFunctionNames.includes(fnName)) {
-        return {
-          isValid: false,
-          message: `Função desconhecida: "${fnName}"`,
-        };
-      }
-    }
-
-    const eventPattern = /event\.([a-zA-Z_][a-zA-Z0-9_.]*)/g;
-    const eventMatches = [...expression.matchAll(eventPattern)];
-
-    for (const match of eventMatches) {
-      const fieldPath = match[1];
-      if (!validFieldPaths.includes(fieldPath)) {
-        return {
-          isValid: false,
-          message: `Campo do evento desconhecido: "event.${fieldPath}"`,
-        };
-      }
-    }
-
-    let parenCount = 0;
-    for (const char of expression) {
-      if (char === '(') parenCount += 1;
-      if (char === ')') parenCount -= 1;
-      if (parenCount < 0) {
-        return { isValid: false, message: 'Parênteses não balanceados' };
-      }
-    }
-    if (parenCount !== 0) {
-      return { isValid: false, message: 'Parênteses não balanceados' };
-    }
-
-    return { isValid: true, message: 'Expressão válida' };
-  } catch {
-    return { isValid: false, message: 'Erro ao validar expressão' };
-  }
-};
-
 const computeAutocompletePosition = (
   textarea: HTMLTextAreaElement,
   triggerStart: number,
@@ -151,7 +58,7 @@ const computeAutocompletePosition = (
   const estimatedTop =
     rect.top + paddingTop + (linesBefore + 1) * lineHeight - textarea.scrollTop;
 
-  const menuHeight = 200;
+  const menuHeight = 300;
   const top =
     estimatedTop + menuHeight > window.innerHeight
       ? estimatedTop - lineHeight - menuHeight - 4
@@ -186,36 +93,28 @@ export const useExpressionEditorViewModel = (
     }
 
     validationTimerRef.current = setTimeout(() => {
-      const result = validateExpression(props.value, props.eventFields ?? [], functionNames);
+      const result = validateExpressionWithParser(props.value, functionNames);
       setValidationResult(result);
-    }, 300);
+    }, 400);
 
     return () => {
       if (validationTimerRef.current) {
         clearTimeout(validationTimerRef.current);
       }
     };
-  }, [props.value, props.eventFields, functionNames]);
+  }, [props.value, functionNames]);
 
-  const autocompleteItems = useMemo((): AutocompleteItem[] => {
-    if (autocompleteState.mode === 'function') {
-      const q = autocompleteState.query.toLowerCase();
-      const filtered = functions.filter((f) => f.name.toLowerCase().startsWith(q));
-      return filtered.map((f) => ({
-        value: f.name,
-        label: `${f.name}()`,
-        description: f.description,
-      }));
-    } else {
-      const q = autocompleteState.query.toLowerCase();
-      const filtered = (props.eventFields ?? []).filter((f) => f.path.toLowerCase().startsWith(q));
-      return filtered.map((f) => ({
-        value: f.path,
-        label: f.path,
-        description: f.label,
-      }));
-    }
-  }, [autocompleteState.mode, autocompleteState.query, props.eventFields, functions]);
+  const autocompleteItems = useMemo(
+    (): AutocompleteItem[] =>
+      buildAutocompleteItems(
+        autocompleteState.mode,
+        autocompleteState.query,
+        functions,
+        props.eventFields ?? [],
+        true,
+      ),
+    [autocompleteState.mode, autocompleteState.query, props.eventFields, functions],
+  );
 
   const closeAutocomplete = useCallback(() => {
     setAutocompleteState({ active: false, mode: 'function', query: '', triggerStart: -1, position: null });
@@ -230,23 +129,33 @@ export const useExpressionEditorViewModel = (
       const before = props.value.slice(0, autocompleteState.triggerStart);
       const after = props.value.slice(textarea.selectionStart);
 
-      let insertion: string;
-      if (autocompleteState.mode === 'function') {
-        insertion = `${item.value}()`;
+      let newValue: string;
+      let cursorPos: number;
+
+      if (item.snippet) {
+        const { text: insertion, newCursor } = insertSnippet(before, item.snippet, before.length);
+        newValue = `${insertion}${after}`;
+        cursorPos = newCursor;
       } else {
-        insertion = item.value;
+        let insertion: string;
+        if (autocompleteState.mode === 'function' && !item.value.endsWith(')')) {
+          insertion = `${item.value}()`;
+          cursorPos = before.length + item.value.length + 1;
+        } else if (item.value === 'event.' || item.value === 'input.' || item.value === 'output.') {
+          insertion = item.value;
+          cursorPos = before.length + item.value.length;
+        } else {
+          insertion = item.value;
+          cursorPos = before.length + item.value.length;
+        }
+        newValue = `${before}${insertion}${after}`;
       }
 
-      const newValue = `${before}${insertion}${after}`;
       props.onChange(newValue);
       closeAutocomplete();
 
       setTimeout(() => {
         textarea.focus();
-        const cursorPos =
-          autocompleteState.mode === 'function'
-            ? before.length + item.value.length + 1
-            : before.length + item.value.length;
         textarea.setSelectionRange(cursorPos, cursorPos);
       }, 0);
     },
@@ -278,6 +187,7 @@ export const useExpressionEditorViewModel = (
           triggerStart,
           position: computeAutocompletePosition(textarea, triggerStart),
         });
+        setHighlightedIndex(0);
         return;
       }
 
@@ -292,6 +202,41 @@ export const useExpressionEditorViewModel = (
           triggerStart,
           position: computeAutocompletePosition(textarea, triggerStart),
         });
+        setHighlightedIndex(0);
+        return;
+      }
+
+      const inputDotMatch = textBefore.match(/input\.([a-zA-Z_][a-zA-Z0-9_.]*)$/);
+      if (inputDotMatch || textBefore.endsWith('input.')) {
+        const triggerStart = inputDotMatch ? pos - inputDotMatch[1].length : pos;
+        const query = inputDotMatch ? inputDotMatch[1] : '';
+        const textarea = e.target;
+
+        setAutocompleteState({
+          active: true,
+          mode: 'context',
+          query,
+          triggerStart,
+          position: computeAutocompletePosition(textarea, triggerStart),
+        });
+        setHighlightedIndex(0);
+        return;
+      }
+
+      const outputDotMatch = textBefore.match(/output\.([a-zA-Z_][a-zA-Z0-9_.]*)$/);
+      if (outputDotMatch || textBefore.endsWith('output.')) {
+        const triggerStart = outputDotMatch ? pos - outputDotMatch[1].length : pos;
+        const query = outputDotMatch ? outputDotMatch[1] : '';
+        const textarea = e.target;
+
+        setAutocompleteState({
+          active: true,
+          mode: 'context',
+          query,
+          triggerStart,
+          position: computeAutocompletePosition(textarea, triggerStart),
+        });
+        setHighlightedIndex(0);
         return;
       }
 
@@ -308,6 +253,7 @@ export const useExpressionEditorViewModel = (
           triggerStart,
           position: computeAutocompletePosition(textarea, triggerStart),
         });
+        setHighlightedIndex(0);
         return;
       }
 

@@ -11,6 +11,38 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [0.47.5] — 2026-07-07
+
+- O editor de expressões agora documenta e sugere automaticamente mais de 50 operadores matemáticos e lógicos já disponíveis no sistema (como +, -, *, /, ==, !=, sin, cos, sqrt, log, etc.), facilitando a criação de expressões complexas sem precisar decorar a sintaxe.
+
+#### [0.47.4] — 2026-07-07
+
+- As melhorias nas mensagens de erro de expressões agora funcionam tanto na validação em tempo real (enquanto digita) quanto na execução efetiva dos workflows, garantindo consistência e clareza em toda a plataforma.
+
+#### [0.47.3] — 2026-07-07
+
+- A validação em tempo real no editor de expressões agora mostra mensagens muito mais claras e úteis, como "Falta fechar 1 parêntese" ou "Expressão incompleta. Verifique se faltam argumentos", em vez de mensagens técnicas como "unexpected TEOF: EOF".
+
+#### [0.47.2] — 2026-07-07
+
+- As mensagens de erro em expressões de workflow agora são muito mais descritivas: identificam o campo que falhou, mostram a expressão usada e dão sugestões práticas de correção. Por exemplo, ao tentar usar "today() + 5", o sistema indica que a forma correta é "addDays(today(), 5)".
+
+#### [0.47.1] — 2026-07-07
+
+- O editor de expressões agora oferece validação mais rigorosa, detectando erros de sintaxe, funções com número incorreto de argumentos e parênteses não balanceados. O IntelliSense foi expandido para sugerir snippets comuns (como formatação de data brasileira e valores padrão), mostrar categorias de funções e assinaturas, além de reconhecer contextos como `input.` e `output.` para facilitar a construção de expressões.
+
+#### [0.47.0] — 2026-07-07
+
+- Adicionadas 40+ funções de expressão para workflows, cobrindo operações com datas (formatação, diferença, extração de partes), textos (substituição, divisão, pesquisa), números (arredondamento, mínimo/máximo, média), arrays (primeiro, último, contém), lógica (and, or, not, isEmpty, coalesce) e validação brasileira (CPF, CNPJ, e-mail com formatação).
+
+#### [0.46.9] — 2026-07-07
+
+- A função `addDays` agora está disponível nas expressões de workflow, permitindo somar dias a uma data de forma explícita (exemplo: `addDays(today(), 5)`).
+
+#### [0.46.8] — 2026-07-07
+
+- O motor de avaliação de expressões nos workflows foi modernizado para usar uma biblioteca especializada, tornando-o mais seguro, rápido e confiável.
+
 #### [0.46.7] — 2026-07-07
 
 - As funções de expressão disponíveis nos workflows agora são carregadas automaticamente do servidor, eliminando a necessidade de atualizar o frontend sempre que uma nova função for adicionada.
