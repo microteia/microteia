@@ -78,3 +78,42 @@ export const buildEmailFailureAuditText = (input: GmailPushEmailFailureInput): s
 
   return lines.join('\n');
 };
+
+export interface GmailPushTokenRefreshFailureInput {
+  tenantName: string;
+  connectionId: string;
+  emailAddress: string;
+  errorMessage: string;
+}
+
+export const buildTokenRefreshFailureAuditTitle = (): string =>
+  'Falha crítica ao renovar token de acesso do Gmail';
+
+export const buildTokenRefreshFailureAuditText = (input: GmailPushTokenRefreshFailureInput): string => {
+  const lines = [
+    '## Falha crítica na renovação do token de acesso do Gmail',
+    '',
+    `**Escritório:** ${sanitizeForMarkdown(input.tenantName, 200)}`,
+    `**Conexão Gmail ID:** \`${sanitizeForMarkdown(input.connectionId, 200)}\``,
+    `**E-mail conectado:** \`${sanitizeForMarkdown(input.emailAddress, 300)}\``,
+    '',
+    '**Erro:**',
+    '```',
+    sanitizeForMarkdown(input.errorMessage, 2000) || '_(sem mensagem de erro)_',
+    '```',
+    '',
+    '**Ação necessária:**',
+    '',
+    'O token de acesso do Gmail expirou e não foi possível renová-lo automaticamente. ',
+    'Isso impedirá o recebimento de novas intimações por e-mail até que a conexão seja reautorizada.',
+    '',
+    '**Como resolver:**',
+    '',
+    '1. Acesse as configurações do escritório',
+    '2. Vá para a seção de Integrações → Gmail',
+    '3. Remova a conexão atual',
+    '4. Conecte novamente com a conta do Gmail',
+  ];
+
+  return lines.join('\n');
+};

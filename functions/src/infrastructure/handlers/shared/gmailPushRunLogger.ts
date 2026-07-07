@@ -2,7 +2,10 @@ import { getDI } from '../../di/container';
 import {
   buildEmailFailureAuditText,
   buildEmailFailureAuditTitle,
+  buildTokenRefreshFailureAuditText,
+  buildTokenRefreshFailureAuditTitle,
   type GmailPushEmailFailureInput,
+  type GmailPushTokenRefreshFailureInput,
 } from '../../../domain/services/gmailPushAuditText';
 
 type LogLevel = 'info' | 'warn' | 'error';
@@ -57,6 +60,28 @@ export class GmailPushRunLogger {
       });
     } catch (loggingError) {
       console.error('[gmailPush] Falha ao registrar auditLog crítico de e-mail:', loggingError);
+    }
+  }
+
+  async recordTokenRefreshFailure(input: Omit<GmailPushTokenRefreshFailureInput, 'tenantName'>): Promise<void> {
+    this.log('error', `Falha crítica ao renovar token para conexão ${input.connectionId}: ${input.errorMessage}`);
+
+    try {
+      await getDI().getCreateAuditLogUseCase().execute({
+        tenantId: this.tenantId,
+        title: buildTokenRefreshFailureAuditTitle(),
+        userId: 'system',
+        userName: 'Sistema',
+        photoURL: '',
+        action: 'SYSTEM',
+        severity: 'CRITICAL',
+        type: 'ERROR',
+        entity: 'SYSTEM',
+        entityId: input.connectionId,
+        text: buildTokenRefreshFailureAuditText({ ...input, tenantName: this.tenantName }),
+      });
+    } catch (loggingError) {
+      console.error('[gmailPush] Falha ao registrar auditLog crítico de renovação de token:', loggingError);
     }
   }
 

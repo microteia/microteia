@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [0.46.4] — 2026-07-07
+
+- Corrigido um problema crítico que impedia o registro de falhas de renovação de token do Gmail no log de auditoria, garantindo que você seja notificado quando a conexão com o Gmail precisar ser reautorizada.
+
 #### [0.46.3] — 2026-07-06
 
 - Padronizados os botões de salvar e excluir nas telas customizadas, seguindo o mesmo padrão visual das demais telas do sistema para garantir consistência na interface.

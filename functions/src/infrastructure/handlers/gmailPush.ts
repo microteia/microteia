@@ -148,6 +148,13 @@ export const gmailPush = onMessagePublished(
             } catch (error) {
               const message = error instanceof Error ? error.message : String(error);
               runLogger.log('error', `Erro ao renovar token para conexão ${connection.id}: ${message}`);
+              
+              await runLogger.recordTokenRefreshFailure({
+                connectionId: connection.id,
+                emailAddress,
+                errorMessage: message,
+              });
+              
               continue;
             }
           }
