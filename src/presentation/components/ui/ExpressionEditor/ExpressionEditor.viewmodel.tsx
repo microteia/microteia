@@ -1,65 +1,6 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { useWorkspace } from '../../../../stores/useWorkspace';
-
-export interface ExpressionFunction {
-  name: string;
-  label: string;
-  description: string;
-  example: string;
-  signature: string;
-}
-
-export const EXPRESSION_FUNCTIONS: ExpressionFunction[] = [
-  {
-    name: 'today',
-    label: 'today()',
-    description: 'Retorna a data de hoje (início do dia)',
-    example: 'today() + 5',
-    signature: 'today()',
-  },
-  {
-    name: 'now',
-    label: 'now()',
-    description: 'Retorna a data e hora atual',
-    example: 'now()',
-    signature: 'now()',
-  },
-  {
-    name: 'if',
-    label: 'if()',
-    description: 'Retorna um valor baseado em uma condição',
-    example: 'if(5 > 3, "sim", "não")',
-    signature: 'if(condição, valorSeVerdadeiro, valorSeFalso)',
-  },
-  {
-    name: 'concat',
-    label: 'concat()',
-    description: 'Concatena valores em uma string',
-    example: 'concat("Processo ", "123")',
-    signature: 'concat(valor1, valor2, ...)',
-  },
-  {
-    name: 'lower',
-    label: 'lower()',
-    description: 'Converte texto para minúsculas',
-    example: 'lower("TEXTO")',
-    signature: 'lower(texto)',
-  },
-  {
-    name: 'upper',
-    label: 'upper()',
-    description: 'Converte texto para MAIÚSCULAS',
-    example: 'upper("texto")',
-    signature: 'upper(texto)',
-  },
-  {
-    name: 'length',
-    label: 'length()',
-    description: 'Retorna o tamanho de um texto ou array',
-    example: 'length("texto")',
-    signature: 'length(valor)',
-  },
-];
+import { useExpressionFunctions } from '../../../../stores/useExpressionFunctions';
 
 export interface EventField {
   path: string;
@@ -106,13 +47,17 @@ export interface ExpressionEditorViewModel {
   openFunctionRef: () => void;
 }
 
-const validateExpression = (expression: string, eventFields: EventField[]): ValidationResult => {
+const validateExpression = (
+  expression: string,
+  eventFields: EventField[],
+  functionNames: string[],
+): ValidationResult => {
   if (!expression.trim()) {
     return { isValid: true };
   }
 
   try {
-    const validFunctionNames = EXPRESSION_FUNCTIONS.map((f) => f.name);
+    const validFunctionNames = functionNames;
     const validFieldPaths = eventFields.map((f) => f.path);
 
     let inString = false;
@@ -220,6 +165,7 @@ export const useExpressionEditorViewModel = (
   textareaRef: React.RefObject<HTMLTextAreaElement | null>,
 ): ExpressionEditorViewModel => {
   const { openTab } = useWorkspace();
+  const { functions } = useExpressionFunctions();
   const [validationResult, setValidationResult] = useState<ValidationResult>({ isValid: null });
   const [autocompleteState, setAutocompleteState] = useState<AutocompleteState>({
     active: false,
@@ -232,13 +178,15 @@ export const useExpressionEditorViewModel = (
 
   const validationTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  const functionNames = useMemo(() => functions.map((f) => f.name), [functions]);
+
   useEffect(() => {
     if (validationTimerRef.current) {
       clearTimeout(validationTimerRef.current);
     }
 
     validationTimerRef.current = setTimeout(() => {
-      const result = validateExpression(props.value, props.eventFields ?? []);
+      const result = validateExpression(props.value, props.eventFields ?? [], functionNames);
       setValidationResult(result);
     }, 300);
 
@@ -247,15 +195,15 @@ export const useExpressionEditorViewModel = (
         clearTimeout(validationTimerRef.current);
       }
     };
-  }, [props.value, props.eventFields]);
+  }, [props.value, props.eventFields, functionNames]);
 
   const autocompleteItems = useMemo((): AutocompleteItem[] => {
     if (autocompleteState.mode === 'function') {
       const q = autocompleteState.query.toLowerCase();
-      const filtered = EXPRESSION_FUNCTIONS.filter((f) => f.name.toLowerCase().startsWith(q));
+      const filtered = functions.filter((f) => f.name.toLowerCase().startsWith(q));
       return filtered.map((f) => ({
         value: f.name,
-        label: f.label,
+        label: `${f.name}()`,
         description: f.description,
       }));
     } else {
@@ -267,7 +215,7 @@ export const useExpressionEditorViewModel = (
         description: f.label,
       }));
     }
-  }, [autocompleteState.mode, autocompleteState.query, props.eventFields]);
+  }, [autocompleteState.mode, autocompleteState.query, props.eventFields, functions]);
 
   const closeAutocomplete = useCallback(() => {
     setAutocompleteState({ active: false, mode: 'function', query: '', triggerStart: -1, position: null });

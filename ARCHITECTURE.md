@@ -1741,6 +1741,92 @@ usuário escolhe mapping "Valor fixo" para esse campo, o `StepEditorModal`
 duplicar a lógica de carregar cada store de entidade. Sem `entityType` declarado, cai no
 fallback de texto livre (comportamento anterior).
 
+### Como Adicionar uma Função de Expressão
+
+As expressões (`ExpressionInputMapping`) são processadas pelo `ExpressionEngine` no backend
+(`functions/src/domain/engine/expression/`). As funções disponíveis são gerenciadas por um
+`FunctionRegistry` extensível — mesmo padrão arquitetural do `StepRegistry` dos Steps. Adicionar
+uma nova função **nunca** exige alterar o `ExpressionEngine.ts` nem a `FunctionReference.view.tsx`
+do frontend.
+
+#### Padrão de uma Função de Expressão
+
+Toda função de expressão é um objeto que implementa a interface `ExpressionFunction` definida em
+`functions/src/domain/engine/expression/FunctionRegistry.ts`:
+
+```typescript
+export interface ExpressionFunction {
+  name: string;                        // Nome da função (ex: 'today', 'concat')
+  call(args: unknown[], context: WorkflowContext): unknown;  // Implementação
+  description: string;                 // Descrição em PT-BR para o usuário
+  signature: string;                   // Assinatura/sintaxe (ex: 'concat(valor1, valor2, ...)')
+  example: string;                     // Exemplo de uso (ex: 'concat("Processo ", "123")')
+  category: 'Data' | 'Texto' | 'Condicional' | 'Variável' | 'Operador';
+}
+```
+
+**Localização:** funções builtin ficam em `functions/src/domain/engine/expression/builtins/`,
+agrupadas por categoria (ex: `dateFns.ts`, `stringFns.ts`, `ifFn.ts`).
+
+**Exemplo completo (função `upper`):**
+
+```typescript
+import type { ExpressionFunction } from '../FunctionRegistry';
+
+export const upperFn: ExpressionFunction = {
+  name: 'upper',
+  call: ([value]) => String(value).toUpperCase(),
+  description: 'Converte texto para MAIÚSCULAS',
+  signature: 'upper(texto)',
+  example: 'upper("texto")',
+  category: 'Texto',
+};
+```
+
+**Validação de argumentos:** se a função exige um tipo ou número específico de argumentos, valide
+dentro de `call()` lançando `Error` com mensagem descritiva em PT-BR — será capturada pelo
+`WorkflowExecutor` e gravada no log da execução.
+
+#### Passos para Adicionar uma Nova Função
+
+1. **Criar o arquivo da função** em `functions/src/domain/engine/expression/builtins/`, seguindo
+   o padrão acima. Se for de uma categoria existente (Data, Texto), adicione-a ao arquivo
+   correspondente (`dateFns.ts`, `stringFns.ts`); senão, crie um novo arquivo (ex: `mathFns.ts`).
+
+2. **Registrar no motor** em `functions/src/domain/engine/expression/ExpressionEngine.ts`:
+   - Importe a função no topo: `import { nomeDaFn } from './builtins/seuArquivo';`
+   - Adicione-a ao array de registro: `[todayFn, nowFn, ..., nomeDaFn].forEach(...)`
+
+3. **Pronto!** A função estará disponível automaticamente:
+   - **No backend:** `ExpressionEngine` já a resolve via `FunctionRegistry`.
+   - **No frontend:** a Cloud Function `getExpressionFunctions` (`functions/src/infrastructure/handlers/getExpressionFunctions.ts`)
+     retorna todas as funções registradas; o `ExpressionFunctionStore` (`src/stores/ExpressionFunctionStore.tsx`)
+     as carrega na inicialização; e o `ExpressionEditor`, `FunctionReference` e `FunctionReferenceModal`
+     renderizam a lista dinamicamente via `useExpressionFunctions()`.
+
+**Não é necessário:**
+- ❌ Atualizar arrays hardcoded no frontend (removidos desde v0.46.7)
+- ❌ Modificar o `ExpressionEngine.ts` além do import e registro
+- ❌ Tocar no `FunctionRegistry.ts` (exceto se precisar adicionar uma nova categoria)
+
+**Deploy:** a Cloud Function `getExpressionFunctions` faz parte do grupo `deploy:workflow`
+(`package.json`). Rode `npm run deploy:workflow` (só as functions de automação) ou
+`npm run deploy:functions` (todas).
+
+#### Categorias Predefinidas
+
+- **Data:** funções que retornam ou manipulam datas (`today`, `now`, operadores `+`/`-` com
+  números de dias)
+- **Texto:** transformação e concatenação de strings (`concat`, `lower`, `upper`, `length`)
+- **Condicional:** controle de fluxo (`if`)
+- **Variável:** acesso ao contexto do workflow (`getVar`)
+- **Operador:** operadores matemáticos ou lógicos (`+`, `-` — esses não ficam no `FunctionRegistry`,
+  são tratados como tokens especiais pelo `ExpressionEngine`)
+
+Adicionar uma categoria nova: editar o tipo union em `FunctionRegistry.ts` e incluir a string
+literal. A UI do frontend (`FunctionReference`, `FunctionReferenceModal`) renderiza badges de
+categoria automaticamente a partir dos dados retornados pela API.
+
 ### Fluxo de execução
 
 Escrita em `workflow_events` → `onWorkflowEventCreated` dispara → carrega
@@ -1815,12 +1901,17 @@ execução síncrona, construtor de condições completo (E/OU/comparação de c
 ### Arquivos-chave
 
 - `functions/src/domain/engine/WorkflowExecutor.ts` — orquestrador
+- `functions/src/domain/engine/expression/ExpressionEngine.ts` — motor de avaliação de expressões
+- `functions/src/domain/engine/expression/FunctionRegistry.ts` — registry de funções de expressão
 - `functions/src/infrastructure/handlers/onWorkflowEventCreated.ts` — gatilho do motor (Event Bus)
 - `functions/src/infrastructure/handlers/publishWorkflowEventOnEntityChange.ts` — publica os eventos `saved`/`deleted`
 - `functions/src/infrastructure/handlers/syncWorkflowStepCatalog.ts` — `onCall` que sincroniza `workflow_step_catalog` sob demanda (chamado pelo builder ao abrir uma automação, já que o catálogo não pode depender de um evento real ter ocorrido)
+- `functions/src/infrastructure/handlers/getExpressionFunctions.ts` — `onCall` que retorna todas as funções de expressão disponíveis para o frontend
 - `functions/src/infrastructure/workflow/registerSteps.ts` — composition root
+- `src/stores/ExpressionFunctionStore.tsx` — store que carrega as funções de expressão do backend
 - `src/domain/services/workflowEventCatalog.ts` — catálogo de eventos e campos, espelho do lado cliente
 - `src/presentation/pages/ViewWorkflow/components/StepEditorModal/` — UI genérica dirigida por `InputDefinition[]`
+- `src/presentation/components/ui/ExpressionEditor/` — editor de expressões com autocomplete
 
 ---
 

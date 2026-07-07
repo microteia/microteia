@@ -3,11 +3,24 @@ import type { WorkflowContext } from '../../entities/WorkflowContext';
 export interface ExpressionFunction {
   name: string;
   call(args: unknown[], context: WorkflowContext): unknown;
+  description: string;
+  signature: string;
+  example: string;
+  category: 'Data' | 'Texto' | 'Condicional' | 'Variável' | 'Operador';
+}
+
+export interface FunctionDefinition {
+  name: string;
+  description: string;
+  signature: string;
+  example: string;
+  category: string;
 }
 
 export interface FunctionRegistry {
   register(fn: ExpressionFunction): void;
   resolve(name: string): ExpressionFunction | undefined;
+  getAllDefinitions(): FunctionDefinition[];
 }
 
 class FunctionRegistryImpl implements FunctionRegistry {
@@ -19,6 +32,16 @@ class FunctionRegistryImpl implements FunctionRegistry {
 
   resolve(name: string): ExpressionFunction | undefined {
     return this.functions.get(name);
+  }
+
+  getAllDefinitions(): FunctionDefinition[] {
+    return Array.from(this.functions.values()).map((fn) => ({
+      name: fn.name,
+      description: fn.description,
+      signature: fn.signature,
+      example: fn.example,
+      category: fn.category,
+    }));
   }
 }
 

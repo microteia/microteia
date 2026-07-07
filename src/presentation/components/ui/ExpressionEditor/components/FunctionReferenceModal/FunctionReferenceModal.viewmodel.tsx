@@ -1,38 +1,28 @@
 import { useState, useMemo } from 'react';
-import { EXPRESSION_FUNCTIONS } from '../../ExpressionEditor.viewmodel';
-import type { ExpressionFunction } from '../../ExpressionEditor.viewmodel';
+import { useExpressionFunctions } from '../../../../../../stores/useExpressionFunctions';
 import type { FilterDef, FilterToken } from '../../../CompositeFilter';
-
-export interface FunctionWithCategory extends ExpressionFunction {
-  category: string;
-}
-
-const FUNCTIONS_WITH_CATEGORIES: FunctionWithCategory[] = [
-  { ...EXPRESSION_FUNCTIONS[0], category: 'Data' },
-  { ...EXPRESSION_FUNCTIONS[1], category: 'Data' },
-  { ...EXPRESSION_FUNCTIONS[2], category: 'Condicional' },
-  { ...EXPRESSION_FUNCTIONS[3], category: 'Texto' },
-  { ...EXPRESSION_FUNCTIONS[4], category: 'Texto' },
-  { ...EXPRESSION_FUNCTIONS[5], category: 'Texto' },
-  { ...EXPRESSION_FUNCTIONS[6], category: 'Texto' },
-  { name: '+', label: '+', signature: 'a + b', description: 'Soma números ou adiciona dias a uma data', example: 'today() + 5', category: 'Operador' },
-  { name: '-', label: '-', signature: 'a - b', description: 'Subtrai números ou remove dias de uma data', example: 'today() - 3', category: 'Operador' },
-];
 
 export interface FunctionReferenceModalViewModel {
   filterDefs: FilterDef[];
   filterTokens: FilterToken[];
   setFilterTokens: (tokens: FilterToken[]) => void;
-  filteredFunctions: FunctionWithCategory[];
+  filteredFunctions: Array<{
+    name: string;
+    description: string;
+    signature: string;
+    example: string;
+    category: string;
+  }>;
 }
 
 export const useFunctionReferenceModalViewModel = (): FunctionReferenceModalViewModel => {
+  const { functions } = useExpressionFunctions();
   const [filterTokens, setFilterTokens] = useState<FilterToken[]>([]);
 
   const categoryOptions = useMemo(() => {
-    const categories = Array.from(new Set(FUNCTIONS_WITH_CATEGORIES.map((fn) => fn.category)));
+    const categories = Array.from(new Set(functions.map((fn) => fn.category)));
     return categories.map((cat) => ({ value: cat, label: cat }));
-  }, []);
+  }, [functions]);
 
   const filterDefs = useMemo<FilterDef[]>(() => [
     { key: 'search', label: 'Busca', type: 'text', placeholder: 'Nome da função...' },
@@ -49,7 +39,7 @@ export const useFunctionReferenceModalViewModel = (): FunctionReferenceModalView
     const searchQ = (tokenMap['search']?.[0] ?? '').toLowerCase();
     const categoryFilter = tokenMap['category'] ?? [];
 
-    return FUNCTIONS_WITH_CATEGORIES.filter((fn) => {
+    return functions.filter((fn) => {
       if (searchQ && !fn.name.toLowerCase().includes(searchQ) && !fn.description.toLowerCase().includes(searchQ)) {
         return false;
       }
@@ -58,7 +48,7 @@ export const useFunctionReferenceModalViewModel = (): FunctionReferenceModalView
       }
       return true;
     });
-  }, [tokenMap]);
+  }, [functions, tokenMap]);
 
   return {
     filterDefs,

@@ -1,7 +1,7 @@
 {
   "name": "curatino",
   "private": true,
-  "version": "0.46.6",
+  "version": "0.46.7",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -15,7 +15,7 @@
     "test:watch": "vitest",
     "deploy": "npm run build && firebase deploy --project curatino",
     "deploy:hosting": "npm run build && firebase deploy --only hosting --project curatino",
-    "deploy:workflow": "firebase deploy --only functions:onWorkflowEventCreated,functions:syncWorkflowStepCatalog,functions:publishWorkflowEventOnEntityChange,functions:onNoteChange,functions:onDocumentChange --project curatino",
+    "deploy:workflow": "firebase deploy --only functions:onWorkflowEventCreated,functions:syncWorkflowStepCatalog,functions:publishWorkflowEventOnEntityChange,functions:onNoteChange,functions:onDocumentChange,functions:getExpressionFunctions --project curatino",
     "deploy:audit": "firebase deploy --only functions:auditFlatEntityChange,functions:auditNestedEntityChange,functions:auditTenantDeleted,functions:auditNewsChange,functions:auditNewsCommentChange,functions:auditNewsTagChange,functions:backupDeletedAuditLog --project curatino",
     "deploy:auth": "firebase deploy --only functions:getUserInfo,functions:checkNicknameAvailability,functions:claimNickname,functions:onUserCreated --project curatino",
     "deploy:tenant": "firebase deploy --only functions:addTenantMember,functions:removeTenantMember --project curatino",

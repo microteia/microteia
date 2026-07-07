@@ -15,4 +15,8 @@ export const getVarFn: ExpressionFunction = {
     
     return value;
   },
+  description: 'Obtém o valor de uma variável do contexto do workflow',
+  signature: 'getVar(nomeVariavel)',
+  example: 'getVar("valorAnterior")',
+  category: 'Variável',
 };

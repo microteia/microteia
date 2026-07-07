@@ -24,3 +24,4 @@ export { syncWorkflowStepCatalog } from './infrastructure/handlers/syncWorkflowS
 export { publishWorkflowEventOnEntityChange } from './infrastructure/handlers/publishWorkflowEventOnEntityChange';
 export { onNoteChange } from './infrastructure/handlers/workflow/onNoteChange';
 export { onDocumentChange } from './infrastructure/handlers/workflow/onDocumentChange';
+export { getExpressionFunctions } from './infrastructure/handlers/getExpressionFunctions';

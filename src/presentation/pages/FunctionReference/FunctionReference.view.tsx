@@ -7,10 +7,37 @@ import { useFunctionReferenceViewModel } from './FunctionReference.viewmodel';
 export const FunctionReferenceView: React.FC = () => {
   const vm = useFunctionReferenceViewModel();
 
-  console.log('[FunctionReference] Rendering:', {
-    filterDefs: vm.filterDefs.length,
-    filteredFunctions: vm.filteredFunctions.length
-  });
+  if (vm.loading) {
+    return (
+      <S.Page>
+        <S.Header>
+          <S.Title>
+            <RiBookLine size={22} />
+            Referência de Expressões
+          </S.Title>
+        </S.Header>
+        <S.Content>
+          <S.EmptyState>Carregando funções...</S.EmptyState>
+        </S.Content>
+      </S.Page>
+    );
+  }
+
+  if (vm.error) {
+    return (
+      <S.Page>
+        <S.Header>
+          <S.Title>
+            <RiBookLine size={22} />
+            Referência de Expressões
+          </S.Title>
+        </S.Header>
+        <S.Content>
+          <S.EmptyState>Erro ao carregar funções: {vm.error}</S.EmptyState>
+        </S.Content>
+      </S.Page>
+    );
+  }
 
   return (
     <S.Page>
