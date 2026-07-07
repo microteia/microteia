@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [0.50.1] — 2026-07-07
+
+- Corrigida a posição do menu de sugestões de funções e variáveis no editor de expressões: quando há poucas opções, o menu agora aparece logo abaixo do cursor, em vez de saltar para cima da tela.
+
 #### [0.50.0] — 2026-07-07
 
 - Simplificada a arquitetura de carregamento das automações: o catálogo de ações disponíveis agora é obtido diretamente do servidor, sem persistência intermediária, tornando o sistema mais rápido e confiável.

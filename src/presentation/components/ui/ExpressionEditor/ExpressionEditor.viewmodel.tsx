@@ -46,9 +46,13 @@ export interface ExpressionEditorViewModel {
   openFunctionRef: () => void;
 }
 
+const AUTOCOMPLETE_ITEM_HEIGHT = 56;
+const AUTOCOMPLETE_MAX_MENU_HEIGHT = 300;
+
 const computeAutocompletePosition = (
   textarea: HTMLTextAreaElement,
   triggerStart: number,
+  itemCount: number,
 ): { top: number; left: number } => {
   const rect = textarea.getBoundingClientRect();
   const styles = window.getComputedStyle(textarea);
@@ -60,7 +64,10 @@ const computeAutocompletePosition = (
   const estimatedTop =
     rect.top + paddingTop + (linesBefore + 1) * lineHeight - textarea.scrollTop;
 
-  const menuHeight = 300;
+  const menuHeight = Math.min(
+    Math.max(itemCount, 1) * AUTOCOMPLETE_ITEM_HEIGHT,
+    AUTOCOMPLETE_MAX_MENU_HEIGHT,
+  );
   const top =
     estimatedTop + menuHeight > window.innerHeight
       ? estimatedTop - lineHeight - menuHeight - 4
@@ -118,6 +125,27 @@ export const useExpressionEditorViewModel = (
         true,
       ),
     [autocompleteState.mode, autocompleteState.query, props.eventFields, props.stepOutputFields, props.workflowVariables, functions],
+  );
+
+  const computePosition = useCallback(
+    (
+      textarea: HTMLTextAreaElement,
+      triggerStart: number,
+      mode: AutocompleteState['mode'],
+      query: string,
+    ): { top: number; left: number } => {
+      const items = buildAutocompleteItems(
+        mode,
+        query,
+        functions,
+        props.eventFields ?? [],
+        props.stepOutputFields ?? [],
+        props.workflowVariables ?? [],
+        true,
+      );
+      return computeAutocompletePosition(textarea, triggerStart, items.length);
+    },
+    [functions, props.eventFields, props.stepOutputFields, props.workflowVariables],
   );
 
   const closeAutocomplete = useCallback(() => {
@@ -190,7 +218,7 @@ export const useExpressionEditorViewModel = (
           mode: 'field',
           query,
           triggerStart,
-          position: computeAutocompletePosition(textarea, triggerStart),
+          position: computePosition(textarea, triggerStart, 'field', query),
         });
         setHighlightedIndex(0);
         return;
@@ -205,7 +233,7 @@ export const useExpressionEditorViewModel = (
           mode: 'field',
           query: '',
           triggerStart,
-          position: computeAutocompletePosition(textarea, triggerStart),
+          position: computePosition(textarea, triggerStart, 'field', ''),
         });
         setHighlightedIndex(0);
         return;
@@ -223,7 +251,7 @@ export const useExpressionEditorViewModel = (
           mode: 'field',
           query,
           triggerStart,
-          position: computeAutocompletePosition(textarea, triggerStart),
+          position: computePosition(textarea, triggerStart, 'field', query),
         });
         setHighlightedIndex(0);
         return;
@@ -238,7 +266,7 @@ export const useExpressionEditorViewModel = (
           mode: 'field',
           query: '',
           triggerStart,
-          position: computeAutocompletePosition(textarea, triggerStart),
+          position: computePosition(textarea, triggerStart, 'field', ''),
         });
         setHighlightedIndex(0);
         return;
@@ -256,7 +284,7 @@ export const useExpressionEditorViewModel = (
           mode: 'input',
           query,
           triggerStart,
-          position: computeAutocompletePosition(textarea, triggerStart),
+          position: computePosition(textarea, triggerStart, 'input', query),
         });
         setHighlightedIndex(0);
         return;
@@ -273,7 +301,7 @@ export const useExpressionEditorViewModel = (
           mode: 'context',
           query,
           triggerStart,
-          position: computeAutocompletePosition(textarea, triggerStart),
+          position: computePosition(textarea, triggerStart, 'context', query),
         });
         setHighlightedIndex(0);
         return;
@@ -290,7 +318,7 @@ export const useExpressionEditorViewModel = (
           mode: 'function',
           query,
           triggerStart,
-          position: computeAutocompletePosition(textarea, triggerStart),
+          position: computePosition(textarea, triggerStart, 'function', query),
         });
         setHighlightedIndex(0);
         return;
@@ -298,7 +326,7 @@ export const useExpressionEditorViewModel = (
 
       if (autocompleteState.active) closeAutocomplete();
     },
-    [props, autocompleteState.active, closeAutocomplete],
+    [props, autocompleteState.active, closeAutocomplete, computePosition],
   );
 
   const handleKeyDown = useCallback(
