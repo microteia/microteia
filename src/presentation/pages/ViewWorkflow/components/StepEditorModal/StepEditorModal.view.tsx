@@ -97,6 +97,8 @@ export const StepEditorModalView: React.FC<StepEditorModalProps> = (props) => {
             onChange={(expression) => vm.setMapping(input.id, { kind: 'Expression', expression })}
             placeholder="ex: event.campo || input.campo || variavel"
             eventFields={props.eventFields}
+            stepOutputFields={vm.stepOutputFields}
+            workflowVariables={vm.workflowVariables}
           />
         );
       case 'Output': {

@@ -54,7 +54,6 @@ import { FirebaseCustomRecordNoteRepository } from '../../data/repositories/Fire
 import { FirebaseCustomRecordDocumentRepository } from '../../data/repositories/FirebaseCustomRecordDocumentRepository';
 import { FirebaseWorkflowDefinitionRepository } from '../../data/repositories/FirebaseWorkflowDefinitionRepository';
 import { FirebaseWorkflowExecutionRepository } from '../../data/repositories/FirebaseWorkflowExecutionRepository';
-import { FirebaseStepCatalogRepository } from '../../data/repositories/FirebaseStepCatalogRepository';
 import { DIContext } from './useDI';
 import type { DIContainer } from './useDI';
 
@@ -115,7 +114,6 @@ export const DIProvider: React.FC<{ children: React.ReactNode }> = ({ children }
     customRecordDocumentRepository: new FirebaseCustomRecordDocumentRepository(),
     workflowDefinitionRepository: new FirebaseWorkflowDefinitionRepository(),
     workflowExecutionRepository: new FirebaseWorkflowExecutionRepository(),
-    stepCatalogRepository: new FirebaseStepCatalogRepository(),
   }), []);
 
   return <DIContext.Provider value={container}>{children}</DIContext.Provider>;

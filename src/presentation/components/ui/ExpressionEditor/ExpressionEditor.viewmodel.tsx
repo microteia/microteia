@@ -3,7 +3,7 @@ import { useWorkspace } from '../../../../stores/useWorkspace';
 import { useExpressionFunctions } from '../../../../stores/useExpressionFunctions';
 import { validateExpressionWithParser } from './expressionValidator';
 import { buildAutocompleteItems, insertSnippet } from './autocompleteHelpers';
-import type { AutocompleteItem } from './autocompleteHelpers';
+import type { AutocompleteItem, StepOutputField, WorkflowVariable } from './autocompleteHelpers';
 
 export interface EventField {
   path: string;
@@ -15,11 +15,13 @@ export interface ExpressionEditorProps {
   onChange: (value: string) => void;
   placeholder?: string;
   eventFields?: EventField[];
+  stepOutputFields?: StepOutputField[];
+  workflowVariables?: WorkflowVariable[];
 }
 
 export interface AutocompleteState {
   active: boolean;
-  mode: 'function' | 'field' | 'context';
+  mode: 'function' | 'field' | 'context' | 'input';
   query: string;
   triggerStart: number;
   position: { top: number; left: number } | null;
@@ -111,9 +113,11 @@ export const useExpressionEditorViewModel = (
         autocompleteState.query,
         functions,
         props.eventFields ?? [],
+        props.stepOutputFields ?? [],
+        props.workflowVariables ?? [],
         true,
       ),
-    [autocompleteState.mode, autocompleteState.query, props.eventFields, functions],
+    [autocompleteState.mode, autocompleteState.query, props.eventFields, props.stepOutputFields, props.workflowVariables, functions],
   );
 
   const closeAutocomplete = useCallback(() => {
@@ -174,6 +178,40 @@ export const useExpressionEditorViewModel = (
       const pos = e.target.selectionStart;
       const textBefore = value.slice(0, pos);
 
+      // Detecta "event.old.campo" → mesmos campos do evento
+      const eventOldDotMatch = textBefore.match(/event\.old\.([a-zA-Z_][a-zA-Z0-9_.]*)$/);
+      if (eventOldDotMatch) {
+        const triggerStart = pos - eventOldDotMatch[1].length;
+        const query = eventOldDotMatch[1];
+        const textarea = e.target;
+
+        setAutocompleteState({
+          active: true,
+          mode: 'field',
+          query,
+          triggerStart,
+          position: computeAutocompletePosition(textarea, triggerStart),
+        });
+        setHighlightedIndex(0);
+        return;
+      }
+
+      if (textBefore.endsWith('event.old.')) {
+        const triggerStart = pos;
+        const textarea = e.target;
+
+        setAutocompleteState({
+          active: true,
+          mode: 'field',
+          query: '',
+          triggerStart,
+          position: computeAutocompletePosition(textarea, triggerStart),
+        });
+        setHighlightedIndex(0);
+        return;
+      }
+
+      // Detecta "event.campo"
       const eventDotMatch = textBefore.match(/event\.([a-zA-Z_][a-zA-Z0-9_.]*)$/);
       if (eventDotMatch) {
         const triggerStart = pos - eventDotMatch[1].length;
@@ -206,6 +244,7 @@ export const useExpressionEditorViewModel = (
         return;
       }
 
+      // Detecta "input.campo" → outputs de steps anteriores
       const inputDotMatch = textBefore.match(/input\.([a-zA-Z_][a-zA-Z0-9_.]*)$/);
       if (inputDotMatch || textBefore.endsWith('input.')) {
         const triggerStart = inputDotMatch ? pos - inputDotMatch[1].length : pos;
@@ -214,7 +253,7 @@ export const useExpressionEditorViewModel = (
 
         setAutocompleteState({
           active: true,
-          mode: 'context',
+          mode: 'input',
           query,
           triggerStart,
           position: computeAutocompletePosition(textarea, triggerStart),

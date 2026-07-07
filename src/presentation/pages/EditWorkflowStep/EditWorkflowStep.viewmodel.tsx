@@ -4,13 +4,13 @@ import { useWorkflowStore } from '../../../stores/useWorkflowStore';
 import { useWorkspace } from '../../../stores/useWorkspace';
 import { useNotification } from '../../../stores/useNotification';
 import { useScreenDefinitions } from '../../../stores/useScreenDefinitions';
-import { useDI } from '../../../infrastructure/di/useDI';
-import { syncWorkflowStepCatalog } from '../../../data/services/syncWorkflowStepCatalog';
+import { useStepCatalog } from '../../../stores/useStepCatalog';
 import { getWorkflowEventFields, eventNameToEntityKey } from '../../../domain/services/workflowEventCatalog';
 import { getStepIcon } from '../../shared/stepIcons';
 import type { WorkflowEventFieldOption } from '../../../domain/services/workflowEventCatalog';
 import type { InputMapping, WorkflowStep } from '../../../domain/entities/Workflow';
 import type { StepDefinitionSummary } from '../../../domain/entities/WorkflowStepCatalog';
+import type { StepOutputField, WorkflowVariable } from '../../components/ui/ExpressionEditor/autocompleteHelpers';
 
 const emptyMappingFor = (kind: InputMapping['kind']): InputMapping => {
   switch (kind) {
@@ -46,6 +46,8 @@ export interface EditWorkflowStepViewModel {
   stepCatalog: StepDefinitionSummary[];
   stepCatalogOptions: { value: string; label: string; icon: IconType }[];
   eventFields: WorkflowEventFieldOption[];
+  stepOutputFields: StepOutputField[];
+  workflowVariables: WorkflowVariable[];
   isSaving: boolean;
 }
 
@@ -59,7 +61,7 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
   const { closeTab, setTabTitle, activePanelId } = useWorkspace();
   const { notify } = useNotification();
   const { getCustomFieldsFor } = useScreenDefinitions();
-  const { stepCatalogRepository } = useDI();
+  const { stepCatalog, loadCatalog } = useStepCatalog();
 
   const workflow = useMemo(
     () => workflows.find((w) => w.id === workflowId) ?? null,
@@ -79,9 +81,13 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
   const [selectedDefinitionId, setSelectedDefinitionId] = useState('');
   const [configuration, setConfiguration] = useState<Record<string, InputMapping>>({});
   const [enabled, setEnabled] = useState(true);
-  const [stepCatalog, setStepCatalog] = useState<StepDefinitionSummary[]>([]);
   const [isSaving, setIsSaving] = useState(false);
   const [stepToDelete, setStepToDelete] = useState<WorkflowStep | null>(null);
+
+  // Carrega o catálogo de steps uma vez (idempotente)
+  useEffect(() => {
+    void loadCatalog().catch((error) => console.error('[EditWorkflowStep] loadCatalog:', error));
+  }, [loadCatalog]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- reinicializa o form ao montar ou mudar de step
@@ -89,12 +95,6 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
     setConfiguration(editingStep?.configuration ?? {});
     setEnabled(editingStep?.enabled ?? true);
   }, [editingStep]);
-
-  useEffect(() => {
-    void syncWorkflowStepCatalog().catch((error) => console.error('[EditWorkflowStep] syncWorkflowStepCatalog:', error));
-  }, []);
-
-  useEffect(() => stepCatalogRepository.subscribeToStepCatalog(setStepCatalog), [stepCatalogRepository]);
 
   const selectedDefinition = useMemo(
     () => stepCatalog.find((s) => s.id === selectedDefinitionId),
@@ -142,8 +142,20 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
 
   const selectDefinition = useCallback((stepDefinitionId: string) => {
     setSelectedDefinitionId(stepDefinitionId);
-    setConfiguration({});
-  }, []);
+    
+    const definition = stepCatalog.find((s) => s.id === stepDefinitionId);
+    if (definition) {
+      const initialConfig: Record<string, InputMapping> = {};
+      definition.inputs.forEach((input) => {
+        if (input.allowedMappingKinds && input.allowedMappingKinds.length === 1) {
+          initialConfig[input.id] = emptyMappingFor(input.allowedMappingKinds[0]);
+        }
+      });
+      setConfiguration(initialConfig);
+    } else {
+      setConfiguration({});
+    }
+  }, [stepCatalog]);
 
   const setMapping = useCallback((inputId: string, mapping: InputMapping) => {
     setConfiguration((prev) => ({ ...prev, [inputId]: mapping }));
@@ -157,6 +169,88 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
     () => existingSteps.filter((s) => s.order < (editingStep?.order ?? Infinity)),
     [existingSteps, editingStep],
   );
+
+  const stepOutputFields = useMemo(() => {
+    const fields: StepOutputField[] = [];
+    priorSteps.forEach((step) => {
+      const definition = stepCatalog.find((d) => d.id === step.stepDefinitionId);
+      if (!definition) return;
+
+      const stepName = step.name ?? definition.name;
+      definition.outputDefinitions.forEach((output) => {
+        fields.push({
+          stepId: step.id,
+          stepName,
+          outputId: output.id,
+          outputLabel: output.label,
+        });
+      });
+    });
+    return fields;
+  }, [priorSteps, stepCatalog]);
+
+  const workflowVariables = useMemo(() => {
+    const variables: WorkflowVariable[] = [];
+    
+    console.log('[EditWorkflowStep] Calculando workflowVariables:', { 
+      priorStepsCount: priorSteps.length, 
+      priorSteps,
+      stepCatalogCount: stepCatalog.length 
+    });
+    
+    priorSteps.forEach((step) => {
+      const definition = stepCatalog.find((d) => d.id === step.stepDefinitionId);
+      console.log('[EditWorkflowStep] Step:', { 
+        stepId: step.id, 
+        stepDefinitionId: step.stepDefinitionId,
+        definition: definition ? {
+          id: definition.id,
+          name: definition.name,
+          dynamicOutputs: definition.dynamicOutputs,
+          hasDynamicOutputs: !!definition.dynamicOutputs
+        } : null
+      });
+      
+      if (!definition || !definition.dynamicOutputs) {
+        console.log('[EditWorkflowStep] Skipping - no definition or no dynamicOutputs:', {
+          hasDefinition: !!definition,
+          hasDynamicOutputs: !!definition?.dynamicOutputs
+        });
+        return;
+      }
+
+      const { dynamicOutputs } = definition;
+      
+      // Só processa 'from-input-field' por enquanto
+      if (dynamicOutputs.kind === 'from-input-field') {
+        const sourceIds = Array.isArray(dynamicOutputs.sourceInputId) 
+          ? dynamicOutputs.sourceInputId 
+          : [dynamicOutputs.sourceInputId];
+
+        sourceIds.forEach((sourceInputId) => {
+          const mapping = step.configuration[sourceInputId];
+          console.log('[EditWorkflowStep] Checking sourceInputId:', { 
+            sourceInputId, 
+            mapping,
+            configuration: step.configuration 
+          });
+          
+          if (mapping && mapping.kind === 'Literal' && mapping.value) {
+            const stepName = step.name ?? definition.name;
+            const variable = {
+              name: String(mapping.value),
+              definedBy: stepName,
+            };
+            console.log('[EditWorkflowStep] Adding variable:', variable);
+            variables.push(variable);
+          }
+        });
+      }
+    });
+    
+    console.log('[EditWorkflowStep] Final workflowVariables:', variables);
+    return variables;
+  }, [priorSteps, stepCatalog]);
 
   const canSave = useMemo(() => {
     if (!selectedDefinition) return false;
@@ -252,6 +346,8 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
     stepCatalog,
     stepCatalogOptions,
     eventFields,
+    stepOutputFields,
+    workflowVariables,
     isSaving,
   };
 };

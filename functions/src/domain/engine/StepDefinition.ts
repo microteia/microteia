@@ -26,6 +26,11 @@ export interface InputDefinition {
   // Só relevante quando type === 'EntityReference'. Mesma chave de FieldDefinition.refEntity:
   // 'cases' | 'persons' | 'contracts' | 'financials' | 'deadlines' | 'members' ou um screenKey de entidade customizada.
   entityType?: string;
+  // Restringe os tipos de mapping permitidos. Se undefined, todos são permitidos.
+  allowedMappingKinds?: Array<'Literal' | 'Event' | 'Expression' | 'Output' | 'Variable'>;
+  // Validação via regex (somente para Literal string)
+  pattern?: string;
+  patternMessage?: string;
 }
 
 export interface OutputDefinition {
@@ -35,6 +40,22 @@ export interface OutputDefinition {
 }
 
 export type StepCategory = 'Action' | 'Data' | 'Notification' | 'Integration';
+
+/**
+ * Define se e como os outputs são dinâmicos (conhecidos apenas em runtime).
+ * Usado pelo IntelliSense para sugerir variáveis mesmo quando o nome não é conhecido em design-time.
+ */
+export type DynamicOutputsMetadata =
+  | {
+      kind: 'from-input-field';
+      /** ID(s) do(s) input(s) que definem o(s) nome(s) do(s) output(s). Ex: 'name' ou ['key1', 'key2'] */
+      sourceInputId: string | string[];
+      description?: string;
+    }
+  | {
+      kind: 'runtime-only';
+      description?: string;
+    };
 
 export interface WorkflowStepExecutor {
   execute(inputs: Record<string, unknown>, context: WorkflowContext): Promise<WorkflowResult>;
@@ -50,5 +71,10 @@ export interface StepDefinition {
   configurable: boolean;
   inputs: InputDefinition[];
   outputDefinitions: OutputDefinition[];
+  /**
+   * Define se este step gera outputs dinâmicos (nomes conhecidos apenas em runtime).
+   * Ex: SetVariable gera output com nome definido pelo input 'name'.
+   */
+  dynamicOutputs?: DynamicOutputsMetadata;
   createExecutor(): WorkflowStepExecutor;
 }

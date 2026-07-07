@@ -71,7 +71,6 @@ import type { RunWorkflowsForEventUseCase } from '../../domain/usecases/RunWorkf
 import type { WorkflowServices } from '../../domain/entities/WorkflowContext';
 import { stepRegistry } from '../../domain/engine/StepRegistry';
 import { registerSteps } from '../workflow/registerSteps';
-import { syncStepCatalog } from '../workflow/syncStepCatalog';
 
 class DIContainer {
   private static instance: DIContainer;
@@ -389,9 +388,10 @@ class DIContainer {
   }
 
   /**
-   * Composition root do Workflow Engine: registra os Steps concretos no StepRegistry e
-   * espelha o catálogo em Firestore. Idempotente e chamado uma única vez por instância da
-   * function (guardado por `workflowStepsRegistered`), tipicamente no cold start.
+   * Composition root do Workflow Engine: registra os Steps concretos no StepRegistry.
+   * Idempotente e chamado uma única vez por instância da function (guardado por
+   * `workflowStepsRegistered`), tipicamente no cold start.
+   * Não persiste mais no Firestore — o catálogo é servido diretamente via getWorkflowStepCatalog.
    */
   async ensureWorkflowStepsRegistered(): Promise<void> {
     if (this.workflowStepsRegistered) return;
@@ -399,7 +399,6 @@ class DIContainer {
       deadlineRepository: this.getDeadlineRepository(),
       createAuditLogUseCase: this.getCreateAuditLogUseCase(),
     });
-    await syncStepCatalog(getDb(), stepRegistry);
     this.workflowStepsRegistered = true;
   }
 }

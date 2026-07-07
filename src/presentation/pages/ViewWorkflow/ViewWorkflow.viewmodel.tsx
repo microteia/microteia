@@ -6,8 +6,8 @@ import { useWorkspace } from '../../../stores/useWorkspace';
 import { useNotification } from '../../../stores/useNotification';
 import { useDI } from '../../../infrastructure/di/useDI';
 import { useScreenDefinitions } from '../../../stores/useScreenDefinitions';
+import { useStepCatalog } from '../../../stores/useStepCatalog';
 import { sortFieldsByOrder } from '../../../domain/services/customFieldValues';
-import { syncWorkflowStepCatalog } from '../../../data/services/syncWorkflowStepCatalog';
 import { WORKFLOW_EVENT_CATALOG, getWorkflowEventFields, eventNameToEntityKey } from '../../../domain/services/workflowEventCatalog';
 import type { WorkflowEventFieldOption } from '../../../domain/services/workflowEventCatalog';
 import { WORKFLOW_LOOKUP_COLLECTIONS } from '../../../domain/services/workflowLookupCatalog';
@@ -109,8 +109,9 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
   const { currentTenant } = useTenant();
   const { setTabTitle, closeTab, openTab, activePanelId } = useWorkspace();
   const { notify } = useNotification();
-  const { stepCatalogRepository, workflowExecutionRepository } = useDI();
+  const { workflowExecutionRepository } = useDI();
   const { dynamicScreens, getDefinition } = useScreenDefinitions();
+  const { stepCatalog, loadCatalog } = useStepCatalog();
 
   const workflow = useMemo(
     () => (isNew ? null : (workflows.find((w) => w.id === workflowId) ?? null)),
@@ -125,7 +126,6 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
   const [activeTab, setActiveTab] = useState<ViewWorkflowTab>('general');
   const [formData, setFormDataState] = useState<WorkflowFormData>(() => buildForm(cloneSource));
   const [isSaving, setIsSaving] = useState(false);
-  const [stepCatalog, setStepCatalog] = useState<StepDefinitionSummary[]>([]);
   const [executions, setExecutions] = useState<WorkflowExecution[]>([]);
   const [executionsError, setExecutionsError] = useState<string | null>(null);
   const [stepToDelete, setStepToDelete] = useState<WorkflowStep | null>(null);
@@ -134,6 +134,11 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
   const [expandedExecutionOutputs, setExpandedExecutionOutputs] = useState<Set<string>>(new Set());
   const [expandedLogData, setExpandedLogData] = useState<Set<string>>(new Set());
   const [expandedStepResults, setExpandedStepResults] = useState<Set<string>>(new Set());
+
+  // Carrega o catálogo de steps uma vez (idempotente)
+  useEffect(() => {
+    void loadCatalog().catch((error) => console.error('[ViewWorkflow] loadCatalog:', error));
+  }, [loadCatalog]);
 
   useEffect(() => {
     if (workflow) {
@@ -145,12 +150,6 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
   useEffect(() => {
     if (workflow) setTabTitle(tabKey, workflow.name || 'Automação');
   }, [workflow, tabKey, setTabTitle]);
-
-  useEffect(() => {
-    void syncWorkflowStepCatalog().catch((error) => console.error('[ViewWorkflow] syncWorkflowStepCatalog:', error));
-  }, []);
-
-  useEffect(() => stepCatalogRepository.subscribeToStepCatalog(setStepCatalog), [stepCatalogRepository]);
 
   useEffect(() => {
     if (!currentTenant || isNew) return;

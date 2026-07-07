@@ -11,6 +11,35 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [0.50.0] — 2026-07-07
+
+- Simplificada a arquitetura de carregamento das automações: o catálogo de ações disponíveis agora é obtido diretamente do servidor, sem persistência intermediária, tornando o sistema mais rápido e confiável.
+- O catálogo de ações é carregado apenas uma vez por sessão e mantido em memória, reduzindo o tempo de abertura de telas de automação.
+
+#### [0.49.1] — 2026-07-07
+
+- Corrigido o autocomplete de expressões para exibir corretamente as variáveis dinâmicas (criadas via "Definir Variável") ao digitar "input.", além dos outputs estáticos dos steps.
+- O autocomplete agora sempre sugere os contextos "event", "input" e "output" ao começar a digitar, facilitando a descoberta das opções disponíveis.
+
+#### [0.49.0] — 2026-07-07
+
+- O sistema de workflows agora suporta outputs dinâmicos: steps como "Definir Variável" geram saídas com nomes definidos apenas durante a execução, permitindo que você use diretamente "input.minhaVariavel" nos steps seguintes sem precisar referenciar nomes fixos de outputs.
+- O autocomplete de expressões agora detecta automaticamente qualquer step que gere outputs dinâmicos (não apenas "Definir Variável"), tornando o sistema extensível para futuros steps como "Script TypeScript".
+
+#### [0.48.0] — 2026-07-07
+
+- O editor de workflows agora permite restringir o tipo de origem de dados para cada campo de configuração de um step (por exemplo, o nome de uma variável deve ser sempre um valor fixo, não podendo vir de expressões ou do evento), garantindo consistência e evitando erros de configuração.
+- Campos de texto em steps podem agora ter validação por padrão (regex), exibindo mensagens de erro personalizadas quando o formato digitado não está correto — útil para nomes de variáveis, códigos e outros campos com formato específico.
+- O autocomplete de expressões agora sugere automaticamente as variáveis definidas por steps anteriores (via "Definir Variável"), facilitando o reuso de valores calculados ao longo do workflow sem precisar memorizar os nomes.
+
+#### [0.47.7] — 2026-07-07
+
+- Corrigida a forma como o autocomplete de expressões sugere campos ao digitar "input.": agora mostra corretamente os outputs de todos os steps anteriores de forma direta (ex: "clienteId", "valorTotal"), refletindo exatamente como o servidor mescla os dados durante a execução do workflow.
+
+#### [0.47.6] — 2026-07-07
+
+- O editor de expressões em workflows agora oferece sugestões inteligentes ao digitar "event.old." (mostrando os campos disponíveis com valores antigos) e "input." (exibindo automaticamente as saídas dos steps anteriores), facilitando a construção de expressões dinâmicas sem precisar consultar documentação externa.
+
 #### [0.47.5] — 2026-07-07
 
 - O editor de expressões agora documenta e sugere automaticamente mais de 50 operadores matemáticos e lógicos já disponíveis no sistema (como +, -, *, /, ==, !=, sin, cos, sqrt, log, etc.), facilitando a criação de expressões complexas sem precisar decorar a sintaxe.

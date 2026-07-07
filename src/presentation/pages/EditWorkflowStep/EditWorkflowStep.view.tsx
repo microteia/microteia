@@ -21,8 +21,26 @@ const MAPPING_KIND_OPTIONS = [
   { value: 'Variable', label: 'Variável' },
 ];
 
+const getMappingKindOptions = (input: InputDefinition) => {
+  if (!input.allowedMappingKinds || input.allowedMappingKinds.length === 0) {
+    return MAPPING_KIND_OPTIONS;
+  }
+  return MAPPING_KIND_OPTIONS.filter(opt => input.allowedMappingKinds?.includes(opt.value as InputMapping['kind']));
+};
+
+const validatePattern = (value: string, pattern?: string): boolean => {
+  if (!pattern) return true;
+  try {
+    const regex = new RegExp(pattern);
+    return regex.test(value);
+  } catch {
+    return true;
+  }
+};
+
 export const EditWorkflowStepView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
   const vm = useEditWorkflowStepViewModel(tabKey);
+  const [validationErrors, setValidationErrors] = React.useState<Record<string, string>>({});
 
   const renderLiteralControl = (input: InputDefinition, mapping: Extract<InputMapping, { kind: 'Literal' }>) => {
     if (input.options) {
@@ -56,13 +74,45 @@ export const EditWorkflowStepView: React.FC<{ tabKey: string }> = ({ tabKey }) =
         />
       );
     }
+
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+      const newValue = e.target.value;
+      vm.setMapping(input.id, { kind: 'Literal', value: newValue });
+
+      if (input.pattern && newValue) {
+        const isValid = validatePattern(newValue, input.pattern);
+        setValidationErrors(prev => {
+          const next = { ...prev };
+          if (isValid) {
+            delete next[input.id];
+          } else {
+            next[input.id] = input.patternMessage ?? 'Formato inválido';
+          }
+          return next;
+        });
+      } else {
+        setValidationErrors(prev => {
+          const next = { ...prev };
+          delete next[input.id];
+          return next;
+        });
+      }
+    };
+
     return (
-      <Input
-        type={input.type === 'Number' ? 'number' : 'text'}
-        value={String(mapping.value ?? '')}
-        onChange={(e) => vm.setMapping(input.id, { kind: 'Literal', value: e.target.value })}
-        placeholder={input.description}
-      />
+      <>
+        <Input
+          type={input.type === 'Number' ? 'number' : 'text'}
+          value={String(mapping.value ?? '')}
+          onChange={handleChange}
+          placeholder={input.description}
+        />
+        {validationErrors[input.id] && (
+          <S.HelpText style={{ color: 'var(--color-danger)' }}>
+            {validationErrors[input.id]}
+          </S.HelpText>
+        )}
+      </>
     );
   };
 
@@ -95,6 +145,8 @@ export const EditWorkflowStepView: React.FC<{ tabKey: string }> = ({ tabKey }) =
             onChange={(expression) => vm.setMapping(input.id, { kind: 'Expression', expression })}
             placeholder="ex: event.campo || input.campo || variavel"
             eventFields={vm.eventFields}
+            stepOutputFields={vm.stepOutputFields}
+            workflowVariables={vm.workflowVariables}
           />
         );
       case 'Output': {
@@ -170,24 +222,30 @@ export const EditWorkflowStepView: React.FC<{ tabKey: string }> = ({ tabKey }) =
 
           {vm.selectedDefinition && vm.selectedDefinition.inputs.length > 0 && <S.StepsDivider />}
 
-          {vm.selectedDefinition?.inputs.map((input) => (
-            <S.Field key={input.id}>
-              <S.FieldHeader>
-                <Label>{input.label}</Label>
-                {input.required && <S.Required>*</S.Required>}
-              </S.FieldHeader>
-              {input.description && <S.HelpText>{input.description}</S.HelpText>}
-              <S.MappingRow>
-                <SearchSelect
-                  options={MAPPING_KIND_OPTIONS}
-                  value={vm.configuration[input.id]?.kind ?? ''}
-                  onChange={(kind) => vm.setMappingKind(input.id, kind as InputMapping['kind'])}
-                  placeholder="Origem..."
-                />
-                {renderMappingControl(input)}
-              </S.MappingRow>
-            </S.Field>
-          ))}
+          {vm.selectedDefinition?.inputs.map((input) => {
+            const mappingKindOptions = getMappingKindOptions(input);
+            const isMappingKindLocked = mappingKindOptions.length === 1;
+
+            return (
+              <S.Field key={input.id}>
+                <S.FieldHeader>
+                  <Label>{input.label}</Label>
+                  {input.required && <S.Required>*</S.Required>}
+                </S.FieldHeader>
+                {input.description && <S.HelpText>{input.description}</S.HelpText>}
+                <S.MappingRow>
+                  <SearchSelect
+                    options={mappingKindOptions}
+                    value={vm.configuration[input.id]?.kind ?? ''}
+                    onChange={(kind) => vm.setMappingKind(input.id, kind as InputMapping['kind'])}
+                    placeholder="Origem..."
+                    disabled={isMappingKindLocked}
+                  />
+                  {renderMappingControl(input)}
+                </S.MappingRow>
+              </S.Field>
+            );
+          })}
 
           {vm.selectedDefinition && vm.priorSteps.length === 0 && (
             <InfoBanner variant="info" message="Não há steps anteriores neste workflow para usar como origem de 'Saída de outro step'." />

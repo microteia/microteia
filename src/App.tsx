@@ -36,6 +36,7 @@ import { NotificationProvider } from './stores/NotificationContext';
 import { CommandPaletteProvider } from './stores/CommandPaletteContext';
 import { TextAnnotationStoreProvider } from './stores/TextAnnotationStore';
 import { ExpressionFunctionStoreProvider } from './stores/ExpressionFunctionStore';
+import { StepCatalogProvider } from './stores/StepCatalogStore';
 import { ProtectedRoute } from './routes/ProtectedRoute';
 import { HomeView } from './presentation/pages/Home/Home.view';
 import { FeaturesView } from './presentation/pages/Features/Features.view';
@@ -94,6 +95,7 @@ const App: React.FC = () => {
                                           <AuditLogAlertStoreProvider>
                                           <WorkspaceStoreProvider>
                                             <NotificationProvider>
+                                              <StepCatalogProvider>
                                               <CommandPaletteProvider>
                                                 <TextAnnotationStoreProvider>
                                                   <AppErrorBoundary>
@@ -101,6 +103,7 @@ const App: React.FC = () => {
                                                   </AppErrorBoundary>
                                                 </TextAnnotationStoreProvider>
                                               </CommandPaletteProvider>
+                                              </StepCatalogProvider>
                                             </NotificationProvider>
                                           </WorkspaceStoreProvider>
                                           </AuditLogAlertStoreProvider>

@@ -12,6 +12,7 @@ const toCatalogEntry = (definition: StepDefinition) => ({
   configurable: definition.configurable,
   inputs: definition.inputs,
   outputDefinitions: definition.outputDefinitions,
+  dynamicOutputs: definition.dynamicOutputs,
 });
 
 /**

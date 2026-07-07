@@ -2,6 +2,7 @@ import { useState, useMemo, useCallback, useEffect } from 'react';
 import type { InputMapping, WorkflowStep } from '../../../../../domain/entities/Workflow';
 import type { StepDefinitionSummary } from '../../../../../domain/entities/WorkflowStepCatalog';
 import type { WorkflowEventFieldOption } from '../../../../../domain/services/workflowEventCatalog';
+import type { StepOutputField, WorkflowVariable } from '../../../../components/ui/ExpressionEditor/autocompleteHelpers';
 
 export interface StepEditorModalProps {
   isOpen: boolean;
@@ -40,6 +41,8 @@ export interface StepEditorModalViewModel {
   handleSave: () => void;
   handleDelete: () => void;
   priorSteps: WorkflowStep[];
+  stepOutputFields: StepOutputField[];
+  workflowVariables: WorkflowVariable[];
 }
 
 export const useStepEditorModalViewModel = ({
@@ -68,8 +71,20 @@ export const useStepEditorModalViewModel = ({
 
   const selectDefinition = useCallback((stepDefinitionId: string) => {
     setSelectedDefinitionId(stepDefinitionId);
-    setConfiguration({});
-  }, []);
+    
+    const definition = stepCatalog.find((s) => s.id === stepDefinitionId);
+    if (definition) {
+      const initialConfig: Record<string, InputMapping> = {};
+      definition.inputs.forEach((input) => {
+        if (input.allowedMappingKinds && input.allowedMappingKinds.length === 1) {
+          initialConfig[input.id] = emptyMappingFor(input.allowedMappingKinds[0]);
+        }
+      });
+      setConfiguration(initialConfig);
+    } else {
+      setConfiguration({});
+    }
+  }, [stepCatalog]);
 
   const setMapping = useCallback((inputId: string, mapping: InputMapping) => {
     setConfiguration((prev) => ({ ...prev, [inputId]: mapping }));
@@ -83,6 +98,56 @@ export const useStepEditorModalViewModel = ({
     () => existingSteps.filter((s) => s.order < (editingStep?.order ?? Infinity)),
     [existingSteps, editingStep],
   );
+
+  const stepOutputFields = useMemo(() => {
+    const fields: StepOutputField[] = [];
+    priorSteps.forEach((step) => {
+      const definition = stepCatalog.find((d) => d.id === step.stepDefinitionId);
+      if (!definition) return;
+
+      const stepName = step.name ?? definition.name;
+      definition.outputDefinitions.forEach((output) => {
+        fields.push({
+          stepId: step.id,
+          stepName,
+          outputId: output.id,
+          outputLabel: output.label,
+        });
+      });
+    });
+    return fields;
+  }, [priorSteps, stepCatalog]);
+
+  const workflowVariables = useMemo(() => {
+    const variables: WorkflowVariable[] = [];
+    
+    priorSteps.forEach((step) => {
+      const definition = stepCatalog.find((d) => d.id === step.stepDefinitionId);
+      if (!definition || !definition.dynamicOutputs) return;
+
+      const { dynamicOutputs } = definition;
+      
+      // Só processa 'from-input-field' por enquanto
+      if (dynamicOutputs.kind === 'from-input-field') {
+        const sourceIds = Array.isArray(dynamicOutputs.sourceInputId) 
+          ? dynamicOutputs.sourceInputId 
+          : [dynamicOutputs.sourceInputId];
+
+        sourceIds.forEach((sourceInputId) => {
+          const mapping = step.configuration[sourceInputId];
+          if (mapping && mapping.kind === 'Literal' && mapping.value) {
+            const stepName = step.name ?? definition.name;
+            variables.push({
+              name: String(mapping.value),
+              definedBy: stepName,
+            });
+          }
+        });
+      }
+    });
+    
+    return variables;
+  }, [priorSteps, stepCatalog]);
 
   const canSave = useMemo(() => {
     if (!selectedDefinition) return false;
@@ -127,5 +192,7 @@ export const useStepEditorModalViewModel = ({
     handleSave,
     handleDelete,
     priorSteps,
+    stepOutputFields,
+    workflowVariables,
   };
 };

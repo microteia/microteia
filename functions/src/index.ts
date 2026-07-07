@@ -20,7 +20,7 @@ export { backupDeletedAuditLog } from './infrastructure/handlers/backupDeletedAu
 export { logClientError } from './infrastructure/handlers/logClientError';
 export { cascadeDeletePushInteractions } from './infrastructure/handlers/cascadeDeletePushInteractions';
 export { onWorkflowEventCreated } from './infrastructure/handlers/onWorkflowEventCreated';
-export { syncWorkflowStepCatalog } from './infrastructure/handlers/syncWorkflowStepCatalog';
+export { getWorkflowStepCatalog } from './infrastructure/handlers/getWorkflowStepCatalog';
 export { publishWorkflowEventOnEntityChange } from './infrastructure/handlers/publishWorkflowEventOnEntityChange';
 export { onNoteChange } from './infrastructure/handlers/workflow/onNoteChange';
 export { onDocumentChange } from './infrastructure/handlers/workflow/onDocumentChange';

@@ -20,6 +20,18 @@ export interface FunctionDefinition {
   category: string;
 }
 
+export interface StepOutputField {
+  stepId: string;
+  stepName: string;
+  outputId: string;
+  outputLabel: string;
+}
+
+export interface WorkflowVariable {
+  name: string;
+  definedBy: string;
+}
+
 const COMMON_SNIPPETS: AutocompleteItem[] = [
   {
     value: 'if(condition, trueValue, falseValue)',
@@ -80,14 +92,26 @@ const CONTEXT_VARIABLES: AutocompleteItem[] = [
 ];
 
 export const buildAutocompleteItems = (
-  mode: 'function' | 'field' | 'context',
+  mode: 'function' | 'field' | 'context' | 'input',
   query: string,
   functions: FunctionDefinition[],
   eventFields: EventField[],
+  stepOutputFields: StepOutputField[],
+  workflowVariables: WorkflowVariable[],
   includeSnippets = true,
 ): AutocompleteItem[] => {
   const q = query.toLowerCase();
   const items: AutocompleteItem[] = [];
+
+  console.log('[ExpressionEditor] buildAutocompleteItems:', {
+    mode,
+    query,
+    functionsCount: functions.length,
+    eventFieldsCount: eventFields.length,
+    stepOutputFieldsCount: stepOutputFields.length,
+    workflowVariablesCount: workflowVariables.length,
+    workflowVariables,
+  });
 
   if (mode === 'function') {
     // Funções e operadores (operadores vêm junto em 'functions')
@@ -107,15 +131,30 @@ export const buildAutocompleteItems = (
       })),
     );
 
+    // Variáveis do workflow
+    const matchingVariables = workflowVariables.filter((v) => v.name.toLowerCase().includes(q));
+    console.log('[ExpressionEditor] matchingVariables:', matchingVariables);
+    items.push(
+      ...matchingVariables.map((v) => ({
+        value: v.name,
+        label: v.name,
+        description: `Variável definida por: ${v.definedBy}`,
+        category: 'Variável',
+      })),
+    );
+
+    // Contextos (event, input, output)
+    const matchingContexts = CONTEXT_VARIABLES.filter(
+      (c) => !q || c.value.toLowerCase().includes(q) || c.label.toLowerCase().includes(q)
+    );
+    console.log('[ExpressionEditor] matchingContexts:', matchingContexts);
+    items.push(...matchingContexts);
+
     if (includeSnippets) {
       const matchingSnippets = COMMON_SNIPPETS.filter(
         (s) => s.label.toLowerCase().includes(q) || s.value.toLowerCase().includes(q),
       );
       items.push(...matchingSnippets);
-    }
-
-    if (q.length <= 2) {
-      items.push(...CONTEXT_VARIABLES.filter((c) => c.value.toLowerCase().startsWith(q)));
     }
   } else if (mode === 'field') {
     const matchingFields = eventFields.filter((f) => f.path.toLowerCase().includes(q));
@@ -125,6 +164,28 @@ export const buildAutocompleteItems = (
         label: f.path,
         description: f.label,
         category: 'Campo',
+      })),
+    );
+  } else if (mode === 'input') {
+    // Outputs estáticos dos steps anteriores
+    const matchingOutputs = stepOutputFields.filter((f) => f.outputId.toLowerCase().includes(q));
+    items.push(
+      ...matchingOutputs.map((f) => ({
+        value: f.outputId,
+        label: f.outputId,
+        description: `${f.stepName} → ${f.outputLabel}`,
+        category: 'Output',
+      })),
+    );
+
+    // Variáveis dinâmicas (ex: SetVariable)
+    const matchingVariables = workflowVariables.filter((v) => v.name.toLowerCase().includes(q));
+    items.push(
+      ...matchingVariables.map((v) => ({
+        value: v.name,
+        label: v.name,
+        description: `Variável: ${v.definedBy}`,
+        category: 'Variável',
       })),
     );
   } else if (mode === 'context') {
