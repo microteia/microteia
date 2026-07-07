@@ -3,8 +3,9 @@ import { expressionFunctions } from './FunctionRegistry';
 import { todayFn, nowFn } from './builtins/dateFns';
 import { ifFn } from './builtins/ifFn';
 import { concatFn, lowerFn, upperFn, lengthFn } from './builtins/stringFns';
+import { getVarFn } from './builtins/getVarFn';
 
-[todayFn, nowFn, ifFn, concatFn, lowerFn, upperFn, lengthFn].forEach((fn) => expressionFunctions.register(fn));
+[todayFn, nowFn, ifFn, concatFn, lowerFn, upperFn, lengthFn, getVarFn].forEach((fn) => expressionFunctions.register(fn));
 
 type TokenType = 'ident' | 'number' | 'string' | 'lparen' | 'rparen' | 'comma' | 'plus' | 'minus' | 'dot';
 

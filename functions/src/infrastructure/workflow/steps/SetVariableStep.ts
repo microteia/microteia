@@ -17,7 +17,7 @@ export const makeSetVariableStepDefinition = (): StepDefinition => ({
     execute: async (inputs, context) => {
       const name = String(inputs.name);
       context.variables[name] = inputs.value;
-      return { success: true, message: `Variável "${name}" definida` };
+      return { success: true, message: `Variável "${name}" definida com valor "${inputs.value}"` };
     },
   }),
 });

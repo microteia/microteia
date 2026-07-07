@@ -11,6 +11,14 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [0.46.6] — 2026-07-07
+
+- Adicionada a função de expressão `getVar` para workflows, permitindo que steps recuperem valores de variáveis definidas anteriormente no fluxo.
+
+#### [0.46.5] — 2026-07-07
+
+- Corrigida a exibição de cores nas opções de severidade ao configurar steps de auditoria em workflows.
+
 #### [0.46.4] — 2026-07-07
 
 - Corrigido um problema crítico que impedia o registro de falhas de renovação de token do Gmail no log de auditoria, garantindo que você seja notificado quando a conexão com o Gmail precisar ser reautorizada.

@@ -21,9 +21,9 @@ export const makeRegisterAuditStepDefinition = (createAuditLogUseCase: CreateAud
       options: {
         kind: 'Static',
         options: [
-          { value: 'LOW', label: 'Baixa', colorToken: 'info' },
-          { value: 'HIGH', label: 'Alta', colorToken: 'warning' },
-          { value: 'CRITICAL', label: 'Crítica', colorToken: 'danger' },
+          { value: 'LOW', label: 'Baixa', color: 'info' },
+          { value: 'HIGH', label: 'Alta', color: 'warning' },
+          { value: 'CRITICAL', label: 'Crítica', color: 'danger' },
         ]
       },
       defaultValue: 'LOW',

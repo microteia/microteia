@@ -11,7 +11,7 @@ export type InputType =
   | 'VariableReference';
 
 export type InputOptionsSource =
-  | { kind: 'Static'; options: { value: string; label: string; colorToken?: string; color?: string }[] }
+  | { kind: 'Static'; options: { value: string; label: string; color?: string }[] }
   | { kind: 'Lookup'; lookup: string };
 
 export interface InputDefinition {
