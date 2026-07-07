@@ -102,8 +102,6 @@ export const StepEditorModalView: React.FC<StepEditorModalProps> = (props) => {
           />
         );
       case 'Output': {
-        const priorStep = vm.priorSteps.find((s) => s.id === mapping.stepId);
-        const priorDefinition = priorStep ? props.stepCatalog.find((s) => s.id === priorStep.stepDefinitionId) : undefined;
         return (
           <S.OutputPickerRow>
             <SearchSelect
@@ -113,7 +111,7 @@ export const StepEditorModalView: React.FC<StepEditorModalProps> = (props) => {
               placeholder="Step anterior..."
             />
             <SearchSelect
-              options={(priorDefinition?.outputDefinitions ?? []).map((o) => ({ value: o.id, label: o.label }))}
+              options={vm.getStepOutputs(mapping.stepId)}
               value={mapping.outputId}
               onChange={(outputId) => vm.setMapping(input.id, { kind: 'Output', stepId: mapping.stepId, outputId })}
               placeholder="Saída..."

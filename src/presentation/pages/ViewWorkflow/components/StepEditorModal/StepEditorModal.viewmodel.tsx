@@ -43,6 +43,7 @@ export interface StepEditorModalViewModel {
   priorSteps: WorkflowStep[];
   stepOutputFields: StepOutputField[];
   workflowVariables: WorkflowVariable[];
+  getStepOutputs: (stepId: string) => { value: string; label: string }[];
 }
 
 export const useStepEditorModalViewModel = ({
@@ -116,6 +117,41 @@ export const useStepEditorModalViewModel = ({
       });
     });
     return fields;
+  }, [priorSteps, stepCatalog]);
+
+  const getStepOutputs = useCallback((stepId: string) => {
+    const step = priorSteps.find((s) => s.id === stepId);
+    if (!step) return [];
+
+    const definition = stepCatalog.find((d) => d.id === step.stepDefinitionId);
+    if (!definition) return [];
+
+    const outputs: { value: string; label: string }[] = [];
+
+    // Outputs estáticos
+    definition.outputDefinitions.forEach((output) => {
+      outputs.push({ value: output.id, label: output.label });
+    });
+
+    // Outputs dinâmicos
+    if (definition.dynamicOutputs && definition.dynamicOutputs.kind === 'from-input-field') {
+      const sourceIds = Array.isArray(definition.dynamicOutputs.sourceInputId)
+        ? definition.dynamicOutputs.sourceInputId
+        : [definition.dynamicOutputs.sourceInputId];
+
+      sourceIds.forEach((sourceInputId) => {
+        const mapping = step.configuration[sourceInputId];
+        if (mapping && mapping.kind === 'Literal' && mapping.value) {
+          const outputId = String(mapping.value);
+          outputs.push({ 
+            value: outputId, 
+            label: `${outputId} (dinâmico)` 
+          });
+        }
+      });
+    }
+
+    return outputs;
   }, [priorSteps, stepCatalog]);
 
   const workflowVariables = useMemo(() => {
@@ -194,5 +230,6 @@ export const useStepEditorModalViewModel = ({
     priorSteps,
     stepOutputFields,
     workflowVariables,
+    getStepOutputs,
   };
 };
