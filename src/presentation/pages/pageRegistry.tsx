@@ -137,7 +137,7 @@ export const PAGE_REGISTRY: PageDefinition[] = [
   { key: '', keyPrefix: 'tenant-settings:', title: 'Escritório', icon: <RiBuilding2Line size={20} />, component: TenantSettingsView, fullBleed: true },
   { key: 'access-management', title: 'Gestão de Acessos', icon: <RiShieldUserLine size={20} />,         component: AccessManagementView, requiredRole: 'SYSTEM' },
   { key: 'audit-logs',       title: 'Auditoria',           icon: <RiHistoryLine size={20} />,           component: AuditLogsView        },
-  { key: 'screen-builder',   title: 'Personalização',      icon: <RiLayoutGridLine size={20} />,        component: ScreenBuilderView    },
+  { key: 'screen-builder',   title: 'Form Design',      icon: <RiLayoutGridLine size={20} />,        component: ScreenBuilderView    },
   {
     key: '',
     keyPrefix: 'dyn:',

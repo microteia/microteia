@@ -56,7 +56,7 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
   const stepId = parts[1] ?? null;
 
   const { workflows, updateWorkflowSteps } = useWorkflowStore();
-  const { closeTab, setTabTitle } = useWorkspace();
+  const { closeTab, setTabTitle, activePanelId } = useWorkspace();
   const { notify } = useNotification();
   const { getCustomFieldsFor } = useScreenDefinitions();
   const { stepCatalogRepository } = useDI();
@@ -185,7 +185,7 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
 
       await updateWorkflowSteps(workflow.id, updatedSteps);
       notify('Step salvo com sucesso.', 'success');
-      closeTab(tabKey);
+      closeTab(tabKey, activePanelId ?? 'main');
     } catch (error) {
       notify(`Erro ao salvar step: ${String(error)}`, 'error');
     } finally {
@@ -202,6 +202,7 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
     notify,
     closeTab,
     tabKey,
+    activePanelId,
   ]);
 
   const handleDelete = useCallback(() => {
@@ -219,14 +220,14 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
     try {
       await updateWorkflowSteps(workflow.id, nextSteps);
       notify('Step excluído.', 'success');
-      closeTab(tabKey);
+      closeTab(tabKey, activePanelId ?? 'main');
     } catch (error) {
       console.error('[EditWorkflowStep] confirmDelete:', error);
       notify('Erro ao excluir step.', 'error');
     } finally {
       setStepToDelete(null);
     }
-  }, [workflow, stepToDelete, existingSteps, updateWorkflowSteps, notify, closeTab, tabKey]);
+  }, [workflow, stepToDelete, existingSteps, updateWorkflowSteps, notify, closeTab, tabKey, activePanelId]);
 
   return {
     workflowName,

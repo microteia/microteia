@@ -11,7 +11,6 @@ import {
   RiBuilding2Line,
   RiInboxLine,
   RiHistoryLine,
-  RiFlowChart,
 } from 'react-icons/ri';
 import { useWorkspace } from '../../../../stores/useWorkspace';
 import { useAuth } from '../../../../stores/useAuth';
@@ -53,7 +52,6 @@ const NAV_ITEMS: NavItem[] = [
   { key: 'news',            label: 'Notícias',            icon: <RiNewspaperLine />          },
   { key: 'tenant-settings', label: 'Escritório',          icon: <RiBuilding2Line />          },
   { key: 'audit-logs',      label: 'Auditoria',           icon: <RiHistoryLine />, requiresTenantAdmin: true },
-  { key: 'workflows',       label: 'Automações',          icon: <RiFlowChart />,   requiresTenantAdmin: true },
 ];
 
 const THEME_OPTIONS: ThemeOption[] = [
@@ -92,6 +90,7 @@ export interface WorkspaceSidebarViewModel {
   handleProfileClick: () => void;
   handleAccessManagementClick: () => void;
   handleScreenBuilderClick: () => void;
+  handleWorkflowsClick: () => void;
   handleSetTheme: (mode: ThemeMode) => void;
   handleSignOut: () => void;
 }
@@ -166,6 +165,11 @@ export const useWorkspaceSidebarViewModel = (): WorkspaceSidebarViewModel => {
     closeMenu();
   }, [openTab, closeMenu]);
 
+  const handleWorkflowsClick = useCallback(() => {
+    openTab('workflows');
+    closeMenu();
+  }, [openTab, closeMenu]);
+
   const handleSetTheme = useCallback((newMode: ThemeMode) => {
     setTheme(newMode);
     closeMenu();
@@ -202,6 +206,7 @@ export const useWorkspaceSidebarViewModel = (): WorkspaceSidebarViewModel => {
     handleProfileClick,
     handleAccessManagementClick,
     handleScreenBuilderClick,
+    handleWorkflowsClick,
     handleSetTheme,
     handleSignOut,
   };

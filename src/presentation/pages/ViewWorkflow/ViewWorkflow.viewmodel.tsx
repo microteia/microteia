@@ -77,8 +77,8 @@ export interface ViewWorkflowViewModel {
   executionsError: string | null;
   toggleExecutionOutputs: (executionId: string) => void;
   isExecutionOutputsExpanded: (executionId: string) => boolean;
-  toggleLogData: (executionId: string, logIndex: number, type: 'inputs' | 'outputs') => void;
-  isLogDataExpanded: (executionId: string, logIndex: number, type: 'inputs' | 'outputs') => boolean;
+  toggleLogData: (executionId: string, logIndex: number, type: 'inputs' | 'outputs' | 'contextInput') => void;
+  isLogDataExpanded: (executionId: string, logIndex: number, type: 'inputs' | 'outputs' | 'contextInput') => boolean;
   toggleStepResult: (executionId: string, stepId: string) => void;
   isStepResultExpanded: (executionId: string, stepId: string) => boolean;
   eventFields: WorkflowEventFieldOption[];
@@ -368,7 +368,7 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
     return expandedExecutionOutputs.has(executionId);
   }, [expandedExecutionOutputs]);
 
-  const toggleLogData = useCallback((executionId: string, logIndex: number, type: 'inputs' | 'outputs') => {
+  const toggleLogData = useCallback((executionId: string, logIndex: number, type: 'inputs' | 'outputs' | 'contextInput') => {
     const key = `${executionId}:${logIndex}:${type}`;
     setExpandedLogData((prev) => {
       const next = new Set(prev);
@@ -381,7 +381,7 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
     });
   }, []);
 
-  const isLogDataExpanded = useCallback((executionId: string, logIndex: number, type: 'inputs' | 'outputs') => {
+  const isLogDataExpanded = useCallback((executionId: string, logIndex: number, type: 'inputs' | 'outputs' | 'contextInput') => {
     const key = `${executionId}:${logIndex}:${type}`;
     return expandedLogData.has(key);
   }, [expandedLogData]);

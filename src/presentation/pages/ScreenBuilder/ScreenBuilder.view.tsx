@@ -148,7 +148,7 @@ export const ScreenBuilderView: React.FC = () => {
     return (
       <S.Page>
         <S.Header>
-          <S.Title>Personalização</S.Title>
+          <S.Title>Form Design</S.Title>
         </S.Header>
         <S.BannerWrapper>
           <InfoBanner
@@ -163,7 +163,7 @@ export const ScreenBuilderView: React.FC = () => {
   return (
     <S.Page>
       <S.Header>
-        <S.Title>Personalização</S.Title>
+        <S.Title>Form Design</S.Title>
         <Button onClick={vm.openCreateScreen} title="Nova Tela">
           <RiAddLine size={18} />
         </Button>
@@ -172,12 +172,12 @@ export const ScreenBuilderView: React.FC = () => {
       <S.Content>
         <S.Sidebar>
           <S.SidebarSection>
-            <S.SectionTitle>Telas personalizadas</S.SectionTitle>
+            <S.SectionTitle>Telas customizadas</S.SectionTitle>
             <S.SectionHint>
               Crie telas próprias do escritório, com campos, listagem, filtros e busca no atalho ⌘K.
             </S.SectionHint>
             {vm.dynamicListEntries.length === 0 && (
-              <S.EmptyHint>Nenhuma tela personalizada criada ainda.</S.EmptyHint>
+              <S.EmptyHint>Nenhuma tela customizada criada ainda.</S.EmptyHint>
             )}
             <S.ScreenList>
               {vm.dynamicListEntries.map((entry) => (

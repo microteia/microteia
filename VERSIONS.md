@@ -11,6 +11,14 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [0.46.2] — 2026-07-06
+
+- Reorganizado o menu de navegação: as opções "Workflow" (antigo "Automações") e "Form Design" (antigo "Personalização") agora ficam agrupadas no menu do usuário, facilitando o acesso às ferramentas de configuração avançada do sistema.
+
+#### [0.46.1] — 2026-07-06
+
+- Corrigidas inconsistências técnicas que melhoram a estabilidade do editor de expressões e da visualização de logs de execução das automações.
+
 #### [0.46.0] — 2026-07-06
 
 - Adicionado botão para ativar ou desativar steps individuais na lista de steps das automações, permitindo que você mantenha a configuração dos steps mas controle quais são executados sem precisar excluí-los.

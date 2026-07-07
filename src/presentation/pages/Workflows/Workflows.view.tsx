@@ -14,7 +14,7 @@ export const WorkflowsView: React.FC = () => {
   return (
     <S.Page>
       <S.Header>
-        <S.Title>Automações</S.Title>
+        <S.Title>Workflow</S.Title>
         <Button onClick={vm.openNewWorkflow} title="Nova Automação">
           <RiAddLine size={16} />
         </Button>
@@ -25,7 +25,7 @@ export const WorkflowsView: React.FC = () => {
           defs={vm.filterDefs}
           tokens={vm.filterTokens}
           onChange={vm.setFilterTokens}
-          placeholder="Filtrar automações..."
+          placeholder="Filtrar workflows..."
           screenKey={vm.savedFiltersScreenKey}
         />
       </S.Toolbar>

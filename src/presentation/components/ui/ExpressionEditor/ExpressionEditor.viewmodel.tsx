@@ -82,7 +82,7 @@ export interface AutocompleteState {
 }
 
 interface ValidationResult {
-  isValid: boolean;
+  isValid: boolean | null;
   message?: string;
 }
 
@@ -230,7 +230,7 @@ export const useExpressionEditorViewModel = (
   });
   const [highlightedIndex, setHighlightedIndex] = useState(0);
 
-  const validationTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const validationTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (validationTimerRef.current) {
@@ -390,7 +390,7 @@ export const useExpressionEditorViewModel = (
   );
 
   const openFunctionRef = useCallback(() => {
-    openTab('function-reference', 'Referência de Expressões');
+    openTab('function-reference');
   }, [openTab]);
 
   return {
