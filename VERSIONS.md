@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [0.46.3] — 2026-07-06
+
+- Padronizados os botões de salvar e excluir nas telas customizadas, seguindo o mesmo padrão visual das demais telas do sistema para garantir consistência na interface.
+
 #### [0.46.2] — 2026-07-06
 
 - Reorganizado o menu de navegação: as opções "Workflow" (antigo "Automações") e "Form Design" (antigo "Personalização") agora ficam agrupadas no menu do usuário, facilitando o acesso às ferramentas de configuração avançada do sistema.

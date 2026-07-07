@@ -106,14 +106,14 @@ export const ViewDynamicRecordView: React.FC<{ tabKey: string }> = ({ tabKey }) 
             </Button>
           )}
           {(vm.activeTab === 'data' || vm.isNew) && (
-            <Button size="sm" onClick={() => void vm.handleSave()} disabled={vm.isSaving} $isLoading={vm.isSaving} title="Salvar">
+            <S.SaveBtn onClick={() => void vm.handleSave()} disabled={vm.isSaving} title={vm.isSaving ? 'Salvando...' : 'Salvar'}>
               <RiSaveLine size={14} />
-            </Button>
+            </S.SaveBtn>
           )}
           {!vm.isNew && vm.isAdmin && (
-            <Button variant="danger" size="sm" onClick={vm.requestDelete} title="Excluir">
+            <S.DeleteBtn onClick={vm.requestDelete} title="Excluir">
               <RiDeleteBinLine size={14} />
-            </Button>
+            </S.DeleteBtn>
           )}
         </S.HeaderActions>
       </S.Header>
