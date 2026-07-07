@@ -62,7 +62,7 @@ export const S = {
     font-size: 0.625rem;
     font-weight: 500;
     color: ${({ theme }) => theme.colors.textSecondary};
-    background: ${({ theme }) => theme.colors.backgroundSecondary};
+    background: ${({ theme }) => theme.colors.surfaceHover};
     padding: 2px 6px;
     border-radius: ${({ theme }) => theme.borderRadius.sm};
     text-transform: uppercase;

@@ -146,7 +146,7 @@ export const buildAutocompleteItems = (
   });
 };
 
-export const insertSnippet = (text: string, snippet: string, cursorPos: number): { text: string; newCursor: number } => {
+export const insertSnippet = (snippet: string, cursorPos: number): { text: string; newCursor: number } => {
   const placeholderPattern = /\$\{(\d+):([^}]*)\}/g;
   let result = snippet;
   let firstPlaceholderPos = -1;

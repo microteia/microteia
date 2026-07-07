@@ -74,7 +74,7 @@ const FUNCTION_SIGNATURES: Record<string, FunctionSignature> = {
   getVar: { name: 'getVar', minArgs: 1, maxArgs: 1 },
 };
 
-const countFunctionArguments = (expression: string, fnName: string, openParenIndex: number): number => {
+const countFunctionArguments = (expression: string, openParenIndex: number): number => {
   let depth = 0;
   let argCount = 0;
   let hasContent = false;
@@ -239,7 +239,7 @@ export const validateExpressionWithParser = (expression: string, availableFuncti
         continue;
       }
 
-      const argCount = countFunctionArguments(expression, fnName, match.index + match[0].length - 1);
+      const argCount = countFunctionArguments(expression, match.index + match[0].length - 1);
 
       if (argCount < 0) {
         return {

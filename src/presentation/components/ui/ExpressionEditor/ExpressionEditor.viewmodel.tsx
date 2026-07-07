@@ -133,7 +133,7 @@ export const useExpressionEditorViewModel = (
       let cursorPos: number;
 
       if (item.snippet) {
-        const { text: insertion, newCursor } = insertSnippet(before, item.snippet, before.length);
+        const { text: insertion, newCursor } = insertSnippet(item.snippet, before.length);
         newValue = `${insertion}${after}`;
         cursorPos = newCursor;
       } else {
