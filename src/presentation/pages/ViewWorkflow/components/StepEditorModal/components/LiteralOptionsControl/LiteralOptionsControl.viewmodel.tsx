@@ -39,7 +39,7 @@ export const useLiteralOptionsViewModel = (input: InputDefinition): LiteralOptio
       options: input.options.options.map((opt) => ({
         value: opt.value,
         label: opt.label,
-        color: resolveColor(opt.color, theme, false),
+        color: resolveColor(opt.colorToken ?? opt.color, theme, false),
       })),
     };
   }

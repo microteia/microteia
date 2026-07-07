@@ -11,10 +11,7 @@ export const makeNotifyStepDefinition = (createAuditLogUseCase: CreateAuditLogUs
   configurable: true,
   inputs: [
     { id: 'title', label: 'Título', required: true, type: 'String' },
-    { id: 'message', label: 'Mensagem', required: true, type: 'String' },
-    { id: 'entity', label: 'Entidade relacionada', required: false, type: 'String', defaultValue: 'workflow' },
-    { id: 'entityId', label: 'Id da entidade relacionada', required: false, type: 'String' },
-    { id: 'entityLink', label: 'Link da entidade relacionada', required: false, type: 'String' },
+    { id: 'message', label: 'Mensagem', required: true, type: 'String' },    
   ],
   outputDefinitions: [],
   createExecutor: (): WorkflowStepExecutor => ({
@@ -28,9 +25,9 @@ export const makeNotifyStepDefinition = (createAuditLogUseCase: CreateAuditLogUs
         action: 'SYSTEM',
         severity: 'CRITICAL',
         type: 'AUDIT',
-        entity: inputs.entity ? String(inputs.entity) : 'workflow',
-        entityId: inputs.entityId ? String(inputs.entityId) : context.execution.workflowDefinitionId,
-        entityLink: inputs.entityLink ? String(inputs.entityLink) : undefined,
+        entity: 'workflow',
+        entityId: context.execution.workflowDefinitionId,
+        entityLink: undefined,
         text: String(inputs.message),
       });
       return { success: true, message: 'Notificação registrada' };

@@ -192,6 +192,11 @@ export const ViewWorkflowView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
                       {definition?.description && <S.StepDescription>{definition.description}</S.StepDescription>}
                     </S.StepInfo>
                     <S.StepActions>
+                      <S.IconBtn title={step.enabled ? 'Inativar' : 'Ativar'} onClick={() => void vm.toggleStepEnabled(step)}>
+                        <S.ToggleIcon $enabled={step.enabled}>
+                          <RiToggleLine size={14} />
+                        </S.ToggleIcon>
+                      </S.IconBtn>
                       <S.IconBtn title="Mover para cima" disabled={index === 0} onClick={() => void vm.moveStep(step, 'up')}>
                         <RiArrowUpLine size={14} />
                       </S.IconBtn>

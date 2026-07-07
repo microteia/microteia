@@ -11,6 +11,15 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [0.46.0] — 2026-07-06
+
+- Adicionado botão para ativar ou desativar steps individuais na lista de steps das automações, permitindo que você mantenha a configuração dos steps mas controle quais são executados sem precisar excluí-los.
+
+#### [0.45.0] — 2026-07-06
+
+- Adicionado suporte a cores do tema nas opções de seleção de workflows: agora é possível usar tokens de cor (como 'success', 'warning', 'danger') em vez de códigos de cor fixos, garantindo consistência visual com o restante do sistema.
+- Corrigida a tipagem do campo de severidade no step de notificação de workflows.
+
 #### [0.44.28] — 2026-07-06
 
 - Adicionado comando `npm run deploy:hosting` para fazer deploy apenas do frontend, sem recompilar e fazer deploy das Cloud Functions.
