@@ -56,8 +56,8 @@ export type DynamicOutputsMetadata =
 
 /**
  * Espelho somente-leitura de StepDefinition (sem `createExecutor`, que só existe em
- * functions/) — lido de `workflow_step_catalog`, alimenta o builder visual. A UI nunca
- * conhece um Step por nome (ex: "CreateDeadline"), só renderiza a partir destes campos.
+ * functions/) — carregado via cloud function getWorkflowStepCatalog, alimenta o builder visual.
+ * A UI nunca conhece um Step por nome (ex: "CreateDeadline"), só renderiza a partir destes campos.
  */
 export interface StepDefinitionSummary {
   id: string;

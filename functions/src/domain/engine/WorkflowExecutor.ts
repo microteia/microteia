@@ -33,7 +33,7 @@ export const runWorkflow = async ({ definition, event, registry, services }: Run
     logs.push({ stepId, stepDefinitionId, level, message, at: services.now(), contextInput, inputs, outputs });
   };
 
-  const finish = (status: WorkflowExecution['status'], outputs: Record<string, Record<string, unknown>>): WorkflowExecution => ({
+  const finish = (status: WorkflowExecution['status'], outputs: Record<string, unknown>): WorkflowExecution => ({
     id: executionId,
     tenantId: definition.tenantId,
     workflowDefinitionId: definition.id,
@@ -95,7 +95,7 @@ export const runWorkflow = async ({ definition, event, registry, services }: Run
     const stepDefinition = registry.resolve(step.stepDefinitionId);
     if (!stepDefinition) {
       log('ERROR', `StepDefinition desconhecida: "${step.stepDefinitionId}"`, step.id);
-      return finish('FAILED', context.outputs);
+      return finish('FAILED', {});
     }
 
    const flattenedOutputs: Record<string, unknown> = {};
@@ -110,7 +110,7 @@ export const runWorkflow = async ({ definition, event, registry, services }: Run
     if (!resolveResult.success) {
       // Log com inputs parcialmente resolvidos e mensagem de erro enriquecida
       log('ERROR', `[Step "${stepDefinition.name}"] ${resolveResult.error}`, step.id, step.stepDefinitionId, context.input, resolveResult.inputs, undefined);
-      return finish('FAILED', context.outputs);
+      return finish('FAILED', {});
     }
 
     const inputs = resolveResult.inputs;
@@ -120,7 +120,7 @@ export const runWorkflow = async ({ definition, event, registry, services }: Run
 
       if (!result.success) {
         log('ERROR', result.message ?? 'Step falhou sem mensagem', step.id, step.stepDefinitionId, context.input, inputs, undefined);
-        return finish('FAILED', context.outputs);
+        return finish('FAILED', {});
       }
 
       context.outputs[step.id] = result.outputs ?? {};
@@ -128,9 +128,12 @@ export const runWorkflow = async ({ definition, event, registry, services }: Run
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       log('ERROR', `[Step "${stepDefinition.name}"] ${errorMessage}`, step.id, step.stepDefinitionId, context.input, inputs, undefined);
-      return finish('FAILED', context.outputs);
+      return finish('FAILED', {});
     }
   }
 
-  return finish('SUCCESS', context.outputs);
+  // Retorna apenas os outputs do último step executado
+  const lastStep = steps[steps.length - 1];
+  const finalOutputs = lastStep ? context.outputs[lastStep.id] ?? {} : {};
+  return finish('SUCCESS', finalOutputs);
 };

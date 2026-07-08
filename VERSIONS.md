@@ -11,6 +11,14 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [0.54.1] — 2026-07-07
+
+- Otimização interna no carregamento do catálogo de steps de workflows, para melhor desempenho após deploys.
+
+#### [0.54.0] — 2026-07-07
+
+- Adicionado o passo "Saída do Workflow" para workflows, permitindo definir exatamente quais dados serão retornados ao final da execução, facilitando o controle do que cada automação produz como resultado.
+
 #### [0.53.1] — 2026-07-07
 
 - Melhorada a experiência de edição de condições em automações: agora você edita as condições livremente e clica no botão "Salvar" quando quiser salvar as alterações, igual à aba "Geral". O botão "Salvar" só fica habilitado quando há mudanças pendentes, e a notificação de sucesso aparece apenas ao salvar.

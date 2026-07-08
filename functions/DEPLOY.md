@@ -58,10 +58,11 @@ npm run deploy:audit
 
 **Functions:**
 - `onWorkflowEventCreated` - Executa workflows quando eventos são criados
-- `syncWorkflowStepCatalog` - Sincroniza catálogo de steps disponíveis
 - `publishWorkflowEventOnEntityChange` - Publica eventos de entidades (cases, contracts, etc)
 - `onNoteChange` - Publica eventos de notas (case_note, person_note, etc)
 - `onDocumentChange` - Publica eventos de documentos
+- `getExpressionFunctions` - Retorna catálogo de funções disponíveis para expressões
+- `getWorkflowStepCatalog` - Retorna catálogo de steps disponíveis para workflows
 
 **Deploy:**
 ```bash

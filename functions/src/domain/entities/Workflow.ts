@@ -138,5 +138,5 @@ export interface WorkflowExecution {
   startedAt: Date;
   finishedAt?: Date;
   logs: WorkflowExecutionLogEntry[];
-  outputs: Record<string, Record<string, unknown>>;
+  outputs: Record<string, unknown>;
 }

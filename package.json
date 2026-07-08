@@ -1,7 +1,7 @@
 {
   "name": "curatino",
   "private": true,
-  "version": "0.53.1",
+  "version": "0.54.1",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -16,7 +16,7 @@
     "build:functions": "tsc -b functions",
     "deploy": "npm run build:functions && firebase deploy --project curatino",
     "deploy:hosting": "npm run build && npm run build:functions && firebase deploy --only hosting --project curatino",
-    "deploy:workflow": "npm run build:functions && firebase deploy --only functions:onWorkflowEventCreated,functions:publishWorkflowEventOnEntityChange,functions:onNoteChange,functions:onDocumentChange,functions:getExpressionFunctions --project curatino",
+    "deploy:workflow": "npm run build:functions && firebase deploy --only functions:onWorkflowEventCreated,functions:publishWorkflowEventOnEntityChange,functions:onNoteChange,functions:onDocumentChange,functions:getExpressionFunctions,functions:getWorkflowStepCatalog --project curatino",
     "deploy:audit": "npm run build:functions && firebase deploy --only functions:auditFlatEntityChange,functions:auditNestedEntityChange,functions:auditTenantDeleted,functions:auditNewsChange,functions:auditNewsCommentChange,functions:auditNewsTagChange,functions:backupDeletedAuditLog --project curatino",
     "deploy:auth": "npm run build:functions && firebase deploy --only functions:getUserInfo,functions:checkNicknameAvailability,functions:claimNickname,functions:onUserCreated --project curatino",
     "deploy:tenant": "npm run build:functions && firebase deploy --only functions:addTenantMember,functions:removeTenantMember --project curatino",

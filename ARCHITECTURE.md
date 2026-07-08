@@ -1135,6 +1135,8 @@ As Cloud Functions são organizadas em **6 grupos** para facilitar deploys selet
 
 ### Regras para Adicionar Nova Cloud Function
 
+**⚠️ OBRIGATÓRIO:** Toda nova Cloud Function **DEVE** ser adicionada ao grupo correto no `package.json` raiz. Functions não incluídas nos scripts de deploy não serão implantadas nos ambientes de produção.
+
 1. **Criar o handler** em `functions/src/infrastructure/handlers/[nome].ts`
 2. **Exportar em `functions/src/index.ts`** sem prefixo:
    ```typescript
@@ -1163,7 +1165,7 @@ export { executeCustomAction } from './infrastructure/handlers/executeCustomActi
 
 **Atualizar `package.json` raiz:**
 ```json
-"deploy:workflow": "npm run build:functions && firebase deploy --only functions:onWorkflowEventCreated,functions:syncWorkflowStepCatalog,functions:publishWorkflowEventOnEntityChange,functions:onNoteChange,functions:onDocumentChange,functions:executeCustomAction --project curatino"
+"deploy:workflow": "npm run build:functions && firebase deploy --only functions:onWorkflowEventCreated,functions:publishWorkflowEventOnEntityChange,functions:onNoteChange,functions:onDocumentChange,functions:getExpressionFunctions,functions:getWorkflowStepCatalog --project curatino"
 ```
 
 ### Deploy

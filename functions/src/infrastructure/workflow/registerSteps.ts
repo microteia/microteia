@@ -3,6 +3,7 @@ import type { IDeadlineRepository } from '../../domain/repositories/IDeadlineRep
 import type { CreateAuditLogUseCase } from '../../domain/usecases/CreateAuditLogUseCase';
 import { makeCreateDeadlineStepDefinition } from './steps/CreateDeadlineStep';
 import { makeNotifyStepDefinition } from './steps/NotifyStep';
+import { makeOutputStepDefinition } from './steps/OutputStep';
 import { makeRegisterAuditStepDefinition } from './steps/RegisterAuditStep';
 import { makeSetVariableStepDefinition } from './steps/SetVariableStep';
 
@@ -22,4 +23,5 @@ export const registerSteps = (deps: RegisterStepsDeps): void => {
   stepRegistry.register(makeNotifyStepDefinition(deps.createAuditLogUseCase));
   stepRegistry.register(makeRegisterAuditStepDefinition(deps.createAuditLogUseCase));
   stepRegistry.register(makeSetVariableStepDefinition());
+  stepRegistry.register(makeOutputStepDefinition());
 };
