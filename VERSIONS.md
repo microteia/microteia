@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [0.57.1] — 2026-07-08
+
+- Melhoria interna na consistência entre o aplicativo e o servidor, garantindo que as automações e a auditoria usem sempre as mesmas definições de dados.
+
 #### [0.57.0] — 2026-07-08
 
 - As condições das Automações agora suportam lógicas complexas: combine regras com E/OU, agrupe condições dentro de condições (ex: "(A e B) ou C") e inverta qualquer regra ou grupo com NÃO. O botão "Agrupar" envolve as regras existentes de um grupo em um subgrupo, facilitando reestruturar a lógica sem recriar nada.

@@ -1,17 +1,6 @@
 // ═══════════════════════════════════════════════════════════════════════════════
-// ⚠️  REGRA ABSOLUTA - NÃO-NEGOCIÁVEL
-// ═══════════════════════════════════════════════════════════════════════════════
-// Este arquivo DEVE ser IDÊNTICO entre frontend e backend:
-// - Frontend: src/domain/entities/entitySchemas.ts
-// - Backend:  functions/src/domain/entities/entitySchemas.ts
-//
-// SEMPRE que alterar este arquivo:
-// 1. Copie o conteúdo EXATO para o arquivo correspondente
-// 2. Execute `npm run verify-schemas` para confirmar sincronização
-// 3. Não commite sem passar na verificação
-//
-// Para comandos de IA: "Ao alterar entitySchemas.ts, SEMPRE sincronize entre
-// src/domain/entities/entitySchemas.ts e functions/src/domain/entities/entitySchemas.ts"
+// FONTE ÚNICA — a cópia em functions/src/domain/entities/entitySchemas.ts é
+// GERADA por scripts/sync-schemas.cjs (npm run sync-schemas). Nunca edite a cópia.
 // ═══════════════════════════════════════════════════════════════════════════════
 
 // ─── Tipos de Campos Customizados ─────────────────────────────────────────────
