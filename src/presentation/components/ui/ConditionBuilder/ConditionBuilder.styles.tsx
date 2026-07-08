@@ -20,29 +20,6 @@ export const S = {
     margin: 0;
   `,
 
-  RadioGroup: styled.div`
-    display: flex;
-    flex-direction: column;
-    gap: ${({ theme }) => theme.spacing.sm};
-  `,
-
-  RadioOption: styled.label`
-    display: flex;
-    align-items: center;
-    gap: ${({ theme }) => theme.spacing.sm};
-    cursor: pointer;
-    font-size: ${({ theme }) => theme.fontSizes.sm};
-    color: ${({ theme }) => theme.colors.text};
-
-    input[type='radio'] {
-      cursor: pointer;
-    }
-
-    label {
-      cursor: pointer;
-    }
-  `,
-
   ConditionsContainer: styled.div`
     display: flex;
     flex-direction: column;
@@ -53,7 +30,7 @@ export const S = {
     border: 1px solid ${({ theme }) => theme.colors.border};
     border-radius: ${({ theme }) => theme.borderRadius.md};
     padding: ${({ theme }) => theme.spacing.md};
-    background: ${({ theme }) => theme.colors.backgroundSecondary};
+    background: ${({ theme }) => theme.colors.surface};
     display: flex;
     flex-direction: column;
     gap: ${({ theme }) => theme.spacing.md};
@@ -72,19 +49,26 @@ export const S = {
   `,
 
   RemoveButton: styled.button`
-    background: transparent;
-    border: none;
-    padding: ${({ theme }) => theme.spacing.xs};
-    cursor: pointer;
-    color: ${({ theme }) => theme.colors.danger};
+    width: 28px;
+    height: 28px;
+    border-radius: ${({ theme }) => theme.borderRadius.md};
+    border: 1px solid ${({ theme }) => theme.colors.border};
+    background: ${({ theme }) => theme.colors.surface};
+    color: ${({ theme }) => theme.colors.textMuted};
     display: flex;
     align-items: center;
     justify-content: center;
-    border-radius: ${({ theme }) => theme.borderRadius.sm};
-    transition: background-color 0.2s;
+    cursor: pointer;
+    transition: ${({ theme }) => theme.transitions.fast};
 
-    &:hover {
-      background: ${({ theme }) => theme.colors.dangerLight};
+    &:hover:not(:disabled) {
+      border-color: ${({ theme }) => theme.colors.danger};
+      color: ${({ theme }) => theme.colors.danger};
+    }
+
+    &:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
     }
   `,
 

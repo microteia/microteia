@@ -6,6 +6,7 @@ import type { Condition } from '../../../../domain/entities/Workflow';
 import { SearchSelect } from '../SearchSelect';
 import { Input } from '../Input';
 import { ExpressionEditor } from '../ExpressionEditor';
+import { RadioGroup } from '../RadioButton';
 
 export interface ConditionBuilderProps {
   value: Condition;
@@ -22,25 +23,15 @@ export const ConditionBuilder: React.FC<ConditionBuilderProps> = ({ value, onCha
       <S.Section>
         <S.SectionTitle>Quando executar esta automação?</S.SectionTitle>
 
-        <S.RadioGroup>
-          <S.RadioOption>
-            <input
-              type="radio"
-              checked={vm.mode === 'always'}
-              onChange={() => vm.setMode('always')}
-            />
-            <label>Sempre que o evento ocorrer</label>
-          </S.RadioOption>
-
-          <S.RadioOption>
-            <input
-              type="radio"
-              checked={vm.mode === 'custom'}
-              onChange={() => vm.setMode('custom')}
-            />
-            <label>Apenas quando as seguintes condições forem atendidas</label>
-          </S.RadioOption>
-        </S.RadioGroup>
+        <RadioGroup
+          name="execution-mode"
+          value={vm.mode}
+          onChange={(value) => vm.setMode(value as 'always' | 'custom')}
+          options={[
+            { label: 'Sempre que o evento ocorrer', value: 'always' },
+            { label: 'Apenas quando as seguintes condições forem atendidas', value: 'custom' },
+          ]}
+        />
       </S.Section>
 
       {vm.mode === 'custom' && (
@@ -82,32 +73,16 @@ export const ConditionBuilder: React.FC<ConditionBuilderProps> = ({ value, onCha
                 {condition.operator !== 'isEmpty' && condition.operator !== 'isNotEmpty' && (
                   <>
                     <S.ValueTypeRow>
-                      <S.RadioOption>
-                        <input
-                          type="radio"
-                          checked={condition.valueType === 'literal'}
-                          onChange={() => vm.updateCondition(index, { valueType: 'literal' })}
-                        />
-                        <label>Valor fixo</label>
-                      </S.RadioOption>
-
-                      <S.RadioOption>
-                        <input
-                          type="radio"
-                          checked={condition.valueType === 'expression'}
-                          onChange={() => vm.updateCondition(index, { valueType: 'expression' })}
-                        />
-                        <label>Expressão</label>
-                      </S.RadioOption>
-
-                      <S.RadioOption>
-                        <input
-                          type="radio"
-                          checked={condition.valueType === 'eventField'}
-                          onChange={() => vm.updateCondition(index, { valueType: 'eventField' })}
-                        />
-                        <label>Outro campo do evento</label>
-                      </S.RadioOption>
+                      <RadioGroup
+                        name={`value-type-${index}`}
+                        value={condition.valueType}
+                        onChange={(value) => vm.updateCondition(index, { valueType: value as typeof condition.valueType })}
+                        options={[
+                          { label: 'Valor fixo', value: 'literal' },
+                          { label: 'Expressão', value: 'expression' },
+                          { label: 'Outro campo do evento', value: 'eventField' },
+                        ]}
+                      />
                     </S.ValueTypeRow>
 
                     <S.FieldGroup>

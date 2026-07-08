@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [0.54.2] — 2026-07-08
+
+- Aprimorada a aparência visual da aba de Condições nas automações: os botões de opção agora seguem o tema do sistema, com design moderno e consistente, e o botão de excluir condição aparece apenas com contorno sutil, ficando destacado somente ao passar o mouse.
+
 #### [0.54.1] — 2026-07-07
 
 - Otimização interna no carregamento do catálogo de steps de workflows, para melhor desempenho após deploys.

@@ -88,12 +88,12 @@ export const useConditionBuilderViewModel = (
   // Opções de campos disponíveis do evento
   const fieldOptions = useMemo((): SearchSelectOption[] => {
     // Campos dinâmicos se for custom_record e screenKey definido
-    let dynamicFields: { key: string; label: string }[] = [];
+    let dynamicFields: { path: string; label: string }[] = [];
     if (eventName.startsWith('custom_record.') && screenKey) {
       const definition = dynamicScreens.find((s) => s.id === screenKey);
       if (definition) {
         const sorted = sortFieldsByOrder(definition.fields);
-        dynamicFields = sorted.map((f) => ({ key: f.key, label: f.label }));
+        dynamicFields = sorted.map((f) => ({ path: f.key, label: f.label }));
       }
     }
 
