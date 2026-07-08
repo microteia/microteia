@@ -11,6 +11,14 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [0.56.0] — 2026-07-08
+
+- A aba Steps das Automações ganhou uma visualização em fluxo: o gatilho aparece no topo e cada passo é um cartão conectado por linhas, mostrando ícone, nome, tipo, ordem e se está ativo.
+- Agora é possível reordenar os passos arrastando e soltando os cartões na visualização em fluxo.
+- Um botão de adição no fim do fluxo permite incluir um novo passo diretamente na sequência.
+- Um seletor permite alternar entre a visualização em fluxo e a lista tradicional — a escolha fica memorizada.
+- Corrigida a barra de rolagem que aparecia no meio da tela nas abas de Automações; agora ela fica na borda direita, como esperado.
+
 #### [0.55.0] — 2026-07-08
 
 - Novo tema exclusivo **Themis**, criado especialmente para escritórios de advocacia: tons de bordô institucional, dourado envelhecido e fundo marfim, com tipografia serifada clássica que remete a peças jurídicas.

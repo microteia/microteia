@@ -1,5 +1,38 @@
 import styled from 'styled-components';
 
+const NodeActions = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+  opacity: 0;
+  transition: opacity ${({ theme }) => theme.transitions.fast};
+`;
+
+const FlowNode = styled.div<{ $disabled?: boolean; $dragging?: boolean }>`
+  width: 100%;
+  max-width: 520px;
+  display: flex;
+  align-items: center;
+  gap: ${({ theme }) => theme.spacing.md};
+  background: ${({ theme }) => theme.colors.surface};
+  border: 1px ${({ $disabled }) => ($disabled ? 'dashed' : 'solid')} ${({ theme }) => theme.colors.border};
+  border-radius: ${({ theme }) => theme.borderRadius.lg};
+  padding: ${({ theme }) => theme.spacing.md};
+  cursor: grab;
+  opacity: ${({ $dragging, $disabled }) => ($dragging ? 0.4 : $disabled ? 0.65 : 1)};
+  transition: border-color ${({ theme }) => theme.transitions.fast}, box-shadow ${({ theme }) => theme.transitions.fast};
+
+  &:hover {
+    border-color: ${({ theme }) => theme.colors.primary};
+    box-shadow: 0 2px 8px ${({ theme }) => theme.colors.shadow};
+  }
+
+  &:hover ${NodeActions}, &:focus-within ${NodeActions} {
+    opacity: 1;
+  }
+`;
+
 export const S = {
   Page: styled.div`
     display: flex;
@@ -119,6 +152,9 @@ export const S = {
     flex: 1;
     overflow-y: auto;
     padding: ${({ theme }) => theme.spacing.xl};
+  `,
+
+  ContentInner: styled.div`
     max-width: 720px;
   `,
 
@@ -130,8 +166,162 @@ export const S = {
 
   StepsToolbar: styled.div`
     display: flex;
-    justify-content: flex-end;
+    align-items: center;
+    justify-content: space-between;
     margin-bottom: ${({ theme }) => theme.spacing.md};
+  `,
+
+  ViewToggle: styled.div`
+    display: inline-flex;
+    border: 1px solid ${({ theme }) => theme.colors.border};
+    border-radius: ${({ theme }) => theme.borderRadius.md};
+    overflow: hidden;
+  `,
+
+  ViewToggleBtn: styled.button<{ $active: boolean }>`
+    width: 34px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: ${({ $active, theme }) => ($active ? theme.colors.primaryLight : theme.colors.surface)};
+    color: ${({ $active, theme }) => ($active ? theme.colors.primary : theme.colors.textMuted)};
+    cursor: pointer;
+    transition: ${({ theme }) => theme.transitions.fast};
+
+    & + & {
+      border-left: 1px solid ${({ theme }) => theme.colors.border};
+    }
+
+    &:hover {
+      color: ${({ theme }) => theme.colors.primary};
+    }
+  `,
+
+  FlowCanvas: styled.div`
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: ${({ theme }) => theme.spacing.md} 0 ${({ theme }) => theme.spacing['2xl']};
+  `,
+
+  TriggerNode: styled.div`
+    display: flex;
+    align-items: center;
+    gap: ${({ theme }) => theme.spacing.sm};
+    padding: ${({ theme }) => theme.spacing.sm} ${({ theme }) => theme.spacing.md};
+    background: ${({ theme }) => theme.colors.primaryLight};
+    border: 1px solid ${({ theme }) => theme.colors.primary};
+    border-radius: ${({ theme }) => theme.borderRadius.lg};
+    color: ${({ theme }) => theme.colors.primary};
+  `,
+
+  TriggerText: styled.div`
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  `,
+
+  TriggerKicker: styled.span`
+    font-size: ${({ theme }) => theme.fontSizes.xs};
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: ${({ theme }) => theme.colors.primary};
+  `,
+
+  TriggerLabel: styled.span`
+    font-size: ${({ theme }) => theme.fontSizes.sm};
+    font-weight: 600;
+    color: ${({ theme }) => theme.colors.text};
+  `,
+
+  FlowConnector: styled.div<{ $active?: boolean; $dashed?: boolean }>`
+    width: 48px;
+    height: 28px;
+    display: flex;
+    justify-content: center;
+    flex-shrink: 0;
+
+    &::after {
+      content: '';
+      border-left: 2px ${({ $dashed }) => ($dashed ? 'dashed' : 'solid')}
+        ${({ $active, theme }) => ($active ? theme.colors.primary : theme.colors.border)};
+    }
+  `,
+
+  FlowNode,
+  NodeActions,
+
+  NodeIconBox: styled.div`
+    width: 36px;
+    height: 36px;
+    border-radius: ${({ theme }) => theme.borderRadius.md};
+    background: ${({ theme }) => theme.colors.primaryLight};
+    color: ${({ theme }) => theme.colors.primary};
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  `,
+
+  NodeBody: styled.div`
+    flex: 1;
+    min-width: 0;
+  `,
+
+  NodeTitle: styled.div`
+    font-size: ${({ theme }) => theme.fontSizes.sm};
+    font-weight: 600;
+    color: ${({ theme }) => theme.colors.text};
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  `,
+
+  NodeType: styled.div`
+    font-size: ${({ theme }) => theme.fontSizes.xs};
+    color: ${({ theme }) => theme.colors.textMuted};
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  `,
+
+  NodeStatusDot: styled.span<{ $enabled: boolean }>`
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: ${({ $enabled, theme }) => ($enabled ? theme.colors.success : theme.colors.danger)};
+    flex-shrink: 0;
+  `,
+
+  DragHandle: styled.span`
+    display: flex;
+    align-items: center;
+    color: ${({ theme }) => theme.colors.textMuted};
+    cursor: grab;
+    flex-shrink: 0;
+  `,
+
+  AddNodeBtn: styled.button`
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    border: 1px dashed ${({ theme }) => theme.colors.border};
+    background: ${({ theme }) => theme.colors.surface};
+    color: ${({ theme }) => theme.colors.textMuted};
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: ${({ theme }) => theme.transitions.fast};
+
+    &:hover {
+      border-style: solid;
+      border-color: ${({ theme }) => theme.colors.primary};
+      background: ${({ theme }) => theme.colors.primaryLight};
+      color: ${({ theme }) => theme.colors.primary};
+    }
   `,
 
   StepRow: styled.div`

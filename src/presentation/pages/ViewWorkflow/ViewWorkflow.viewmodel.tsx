@@ -1,4 +1,5 @@
 import { useState, useMemo, useCallback, useEffect } from 'react';
+import type { DragEvent } from 'react';
 import type { IconType } from 'react-icons';
 import { useWorkflowStore } from '../../../stores/useWorkflowStore';
 import { useTenant } from '../../../stores/useTenant';
@@ -15,10 +16,38 @@ import { getWorkflowEventIcon, getWorkflowLookupGroupIcon } from '../../shared/w
 import { getScreenIconType } from '../../shared/screenIcons';
 import { getStepIcon as getStepIconType } from '../../shared/stepIcons';
 import { generateDeepLink } from '../../../infrastructure/deeplink/deepLinkUtils';
+import { getStepDisplayName } from '../../shared/workflowHelpers';
 import type { WorkflowDefinition, WorkflowExecution, WorkflowStep, Condition } from '../../../domain/entities/Workflow';
-import type { StepDefinitionSummary } from '../../../domain/entities/WorkflowStepCatalog';
+import type { StepDefinitionSummary, StepCategory } from '../../../domain/entities/WorkflowStepCatalog';
 
 export type ViewWorkflowTab = 'general' | 'conditions' | 'steps' | 'executions';
+
+export type StepsViewMode = 'flow' | 'list';
+
+const STEPS_VIEW_MODE_KEY = 'curatino:workflowStepsViewMode';
+
+const loadStepsViewMode = (): StepsViewMode => {
+  try {
+    return localStorage.getItem(STEPS_VIEW_MODE_KEY) === 'list' ? 'list' : 'flow';
+  } catch {
+    return 'flow';
+  }
+};
+
+const saveStepsViewMode = (mode: StepsViewMode): void => {
+  try {
+    localStorage.setItem(STEPS_VIEW_MODE_KEY, mode);
+  } catch {
+    // ignore
+  }
+};
+
+const STEP_CATEGORY_LABELS: Record<StepCategory, string> = {
+  Action: 'Ação',
+  Data: 'Dados',
+  Notification: 'Notificação',
+  Integration: 'Integração',
+};
 
 const isCustomRecordEventName = (eventName: string): boolean => eventName.startsWith('custom_record.');
 const isLookupEventName = (eventName: string): boolean => eventName.startsWith('lookup.');
@@ -73,6 +102,17 @@ export interface ViewWorkflowViewModel {
   cancelDeleteStep: () => void;
   moveStep: (step: WorkflowStep, direction: 'up' | 'down') => Promise<void>;
   toggleStepEnabled: (step: WorkflowStep) => Promise<void>;
+  stepsViewMode: StepsViewMode;
+  setStepsViewMode: (mode: StepsViewMode) => void;
+  eventLabel: string;
+  getStepTypeLabel: (step: WorkflowStep) => string;
+  draggingStepId: string | null;
+  dropTargetIndex: number | null;
+  handleStepDragStart: (event: DragEvent<HTMLElement>, stepId: string) => void;
+  handleStepDragEnd: () => void;
+  handleStepDragOverNode: (event: DragEvent<HTMLElement>, index: number) => void;
+  handleStepDragOverGap: (event: DragEvent<HTMLElement>, gapIndex: number) => void;
+  handleStepDrop: (event: DragEvent<HTMLElement>) => void;
   executions: WorkflowExecution[];
   executionsError: string | null;
   toggleExecutionOutputs: (executionId: string) => void;
@@ -141,6 +181,9 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
   const [expandedStepResults, setExpandedStepResults] = useState<Set<string>>(new Set());
   const [pendingCondition, setPendingCondition] = useState<Condition>({ kind: 'AlwaysTrue' });
   const [conditionChanged, setConditionChanged] = useState(false);
+  const [stepsViewMode, setStepsViewModeState] = useState<StepsViewMode>(loadStepsViewMode);
+  const [draggingStepId, setDraggingStepId] = useState<string | null>(null);
+  const [dropTargetIndex, setDropTargetIndex] = useState<number | null>(null);
 
   // Carrega o catálogo de steps uma vez (idempotente)
   useEffect(() => {
@@ -499,6 +542,68 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
     });
   }, [workflow, updateWorkflowSteps, notify]);
 
+  const setStepsViewMode = useCallback((mode: StepsViewMode) => {
+    setStepsViewModeState(mode);
+    saveStepsViewMode(mode);
+  }, []);
+
+  const eventLabel = useMemo(() => {
+    if (!workflow) return '';
+    return WORKFLOW_EVENT_CATALOG.find((entry) => entry.name === workflow.eventName)?.label ?? workflow.eventName;
+  }, [workflow]);
+
+  const getStepTypeLabel = useCallback((step: WorkflowStep): string => {
+    const definition = getStepDefinition(step.stepDefinitionId);
+    if (!definition) return step.stepDefinitionId;
+    const categoryLabel = STEP_CATEGORY_LABELS[definition.category] ?? definition.category;
+    return getStepDisplayName(step, definition) === definition.name
+      ? categoryLabel
+      : `${categoryLabel} · ${definition.name}`;
+  }, [getStepDefinition]);
+
+  const handleStepDragStart = useCallback((event: DragEvent<HTMLElement>, stepId: string) => {
+    event.dataTransfer.setData('text/plain', stepId);
+    event.dataTransfer.effectAllowed = 'move';
+    setDraggingStepId(stepId);
+  }, []);
+
+  const handleStepDragEnd = useCallback(() => {
+    setDraggingStepId(null);
+    setDropTargetIndex(null);
+  }, []);
+
+  const handleStepDragOverGap = useCallback((event: DragEvent<HTMLElement>, gapIndex: number) => {
+    event.preventDefault();
+    setDropTargetIndex(gapIndex);
+  }, []);
+
+  const handleStepDragOverNode = useCallback((event: DragEvent<HTMLElement>, index: number) => {
+    event.preventDefault();
+    const rect = event.currentTarget.getBoundingClientRect();
+    setDropTargetIndex(event.clientY < rect.top + rect.height / 2 ? index : index + 1);
+  }, []);
+
+  const handleStepDrop = useCallback((event: DragEvent<HTMLElement>) => {
+    event.preventDefault();
+    const draggedId = draggingStepId;
+    const targetIndex = dropTargetIndex;
+    setDraggingStepId(null);
+    setDropTargetIndex(null);
+    if (!workflow || !draggedId || targetIndex === null) return;
+    const fromIndex = steps.findIndex((s) => s.id === draggedId);
+    if (fromIndex === -1) return;
+    const toIndex = fromIndex < targetIndex ? targetIndex - 1 : targetIndex;
+    if (toIndex === fromIndex) return;
+    const next = [...steps];
+    const [moved] = next.splice(fromIndex, 1);
+    next.splice(toIndex, 0, moved);
+    const reordered = next.map((s, i) => ({ ...s, order: i }));
+    updateWorkflowSteps(workflow.id, reordered).catch((error) => {
+      console.error('[ViewWorkflow] handleStepDrop:', error);
+      notify('Erro ao reordenar steps.', 'error');
+    });
+  }, [draggingStepId, dropTargetIndex, workflow, steps, updateWorkflowSteps, notify]);
+
   const getStepLogStatus = useCallback((log: { level: string }): 'SUCCESS' | 'ERROR' | 'WARN' | 'INFO' => {
     if (log.level === 'ERROR') return 'ERROR';
     if (log.level === 'SUCCESS') return 'SUCCESS';
@@ -528,6 +633,17 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
     cancelDeleteStep,
     moveStep,
     toggleStepEnabled,
+    stepsViewMode,
+    setStepsViewMode,
+    eventLabel,
+    getStepTypeLabel,
+    draggingStepId,
+    dropTargetIndex,
+    handleStepDragStart,
+    handleStepDragEnd,
+    handleStepDragOverNode,
+    handleStepDragOverGap,
+    handleStepDrop,
     executions,
     executionsError,
     toggleExecutionOutputs,
