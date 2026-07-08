@@ -8,6 +8,7 @@ import { ConfirmModal } from '../../components/ui/ConfirmModal';
 import { ExpressionEditor } from '../../components/ui/ExpressionEditor';
 import { LiteralOptionsControl } from '../ViewWorkflow/components/StepEditorModal/components/LiteralOptionsControl';
 import { EntityReferenceControl } from '../ViewWorkflow/components/StepEditorModal/components/EntityReferenceControl';
+import { getStepDisplayName } from '../../shared/workflowHelpers';
 import { S } from './EditWorkflowStep.styles';
 import { useEditWorkflowStepViewModel } from './EditWorkflowStep.viewmodel';
 import type { InputDefinition } from '../../../domain/entities/WorkflowStepCatalog';
@@ -153,7 +154,10 @@ export const EditWorkflowStepView: React.FC<{ tabKey: string }> = ({ tabKey }) =
         return (
           <S.OutputPickerRow>
             <SearchSelect
-              options={vm.priorSteps.map((s) => ({ value: s.id, label: s.name ?? s.stepDefinitionId }))}
+              options={vm.priorSteps.map((s) => ({
+                value: s.id,
+                label: getStepDisplayName(s, vm.stepCatalog.find((d) => d.id === s.stepDefinitionId))
+              }))}
               value={mapping.stepId}
               onChange={(stepId) => vm.setMapping(input.id, { kind: 'Output', stepId, outputId: '' })}
               placeholder="Step anterior..."
@@ -216,6 +220,18 @@ export const EditWorkflowStepView: React.FC<{ tabKey: string }> = ({ tabKey }) =
               placeholder="Selecione um tipo de step..."
             />
             {vm.selectedDefinition && <S.HelpText>{vm.selectedDefinition.description}</S.HelpText>}
+          </InputGroup>
+
+          <InputGroup>
+            <Label>Nome (opcional)</Label>
+            <Input
+              value={vm.signature}
+              onChange={(e) => vm.setSignature(e.target.value)}
+              placeholder="ex: Criar prazo de contestação"
+            />
+            <S.HelpText>
+              Use para diferenciar steps do mesmo tipo. Se deixar em branco, será usado o nome padrão do step.
+            </S.HelpText>
           </InputGroup>
 
           {vm.selectedDefinition && vm.selectedDefinition.inputs.length > 0 && <S.StepsDivider />}

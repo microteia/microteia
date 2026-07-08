@@ -3,6 +3,7 @@ import type { InputMapping, WorkflowStep } from '../../../../../domain/entities/
 import type { StepDefinitionSummary } from '../../../../../domain/entities/WorkflowStepCatalog';
 import type { WorkflowEventFieldOption } from '../../../../../domain/services/workflowEventCatalog';
 import type { StepOutputField, WorkflowVariable } from '../../../../components/ui/ExpressionEditor/autocompleteHelpers';
+import { getStepDisplayName } from '../../../../shared/workflowHelpers';
 
 export interface StepEditorModalProps {
   isOpen: boolean;
@@ -106,7 +107,7 @@ export const useStepEditorModalViewModel = ({
       const definition = stepCatalog.find((d) => d.id === step.stepDefinitionId);
       if (!definition) return;
 
-      const stepName = step.name ?? definition.name;
+      const stepName = getStepDisplayName(step, definition);
       definition.outputDefinitions.forEach((output) => {
         fields.push({
           stepId: step.id,
@@ -172,7 +173,7 @@ export const useStepEditorModalViewModel = ({
         sourceIds.forEach((sourceInputId) => {
           const mapping = step.configuration[sourceInputId];
           if (mapping && mapping.kind === 'Literal' && mapping.value) {
-            const stepName = step.name ?? definition.name;
+            const stepName = getStepDisplayName(step, definition);
             variables.push({
               name: String(mapping.value),
               definedBy: stepName,

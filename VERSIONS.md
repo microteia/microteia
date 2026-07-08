@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [0.52.0] — 2026-07-07
+
+- Adicionado campo de nome personalizado nos steps de automações: agora é possível dar um nome único a cada step, facilitando a identificação quando há múltiplos steps do mesmo tipo no mesmo workflow. O nome personalizado aparece em todos os lugares onde o step é exibido, incluindo na seleção de saídas de steps anteriores e nos logs de execução.
+
 #### [0.51.0] — 2026-07-07
 
 - Melhorada a validação de expressões em automações: o editor agora valida automaticamente o número de parâmetros de cada função, indicando quando faltam ou sobram argumentos. As regras de validação agora vem diretamente do servidor, garantindo consistência e eliminação de duplicação de código.

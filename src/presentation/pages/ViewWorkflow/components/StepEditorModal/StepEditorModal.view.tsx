@@ -8,6 +8,7 @@ import { InfoBanner } from '../../../../components/ui/InfoBanner';
 import { ExpressionEditor } from '../../../../components/ui/ExpressionEditor';
 import { LiteralOptionsControl } from './components/LiteralOptionsControl';
 import { EntityReferenceControl } from './components/EntityReferenceControl';
+import { getStepDisplayName } from '../../../../shared/workflowHelpers';
 import { S } from './StepEditorModal.styles';
 import { useStepEditorModalViewModel } from './StepEditorModal.viewmodel';
 import type { StepEditorModalProps } from './StepEditorModal.viewmodel';
@@ -105,7 +106,10 @@ export const StepEditorModalView: React.FC<StepEditorModalProps> = (props) => {
         return (
           <S.OutputPickerRow>
             <SearchSelect
-              options={vm.priorSteps.map((s) => ({ value: s.id, label: s.name ?? s.stepDefinitionId }))}
+              options={vm.priorSteps.map((s) => ({
+                value: s.id,
+                label: getStepDisplayName(s, props.stepCatalog.find((d) => d.id === s.stepDefinitionId))
+              }))}
               value={mapping.stepId}
               onChange={(stepId) => vm.setMapping(input.id, { kind: 'Output', stepId, outputId: '' })}
               placeholder="Step anterior..."

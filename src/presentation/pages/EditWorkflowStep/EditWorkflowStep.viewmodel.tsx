@@ -7,6 +7,7 @@ import { useScreenDefinitions } from '../../../stores/useScreenDefinitions';
 import { useStepCatalog } from '../../../stores/useStepCatalog';
 import { getWorkflowEventFields, eventNameToEntityKey } from '../../../domain/services/workflowEventCatalog';
 import { getStepIcon } from '../../shared/stepIcons';
+import { getStepDisplayName } from '../../shared/workflowHelpers';
 import type { WorkflowEventFieldOption } from '../../../domain/services/workflowEventCatalog';
 import type { InputMapping, WorkflowStep } from '../../../domain/entities/Workflow';
 import type { StepDefinitionSummary } from '../../../domain/entities/WorkflowStepCatalog';
@@ -31,6 +32,8 @@ export interface EditWorkflowStepViewModel {
   selectedStepIcon: IconType | null;
   isDefinitionLocked: boolean;
   selectDefinition: (stepDefinitionId: string) => void;
+  signature: string;
+  setSignature: (signature: string) => void;
   configuration: Record<string, InputMapping>;
   setMappingKind: (inputId: string, kind: InputMapping['kind']) => void;
   setMapping: (inputId: string, mapping: InputMapping) => void;
@@ -80,6 +83,7 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
   );
 
   const [selectedDefinitionId, setSelectedDefinitionId] = useState('');
+  const [signature, setSignature] = useState('');
   const [configuration, setConfiguration] = useState<Record<string, InputMapping>>({});
   const [enabled, setEnabled] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -93,6 +97,7 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- reinicializa o form ao montar ou mudar de step
     setSelectedDefinitionId(editingStep?.stepDefinitionId ?? '');
+    setSignature(editingStep?.signature ?? '');
     setConfiguration(editingStep?.configuration ?? {});
     setEnabled(editingStep?.enabled ?? true);
   }, [editingStep]);
@@ -177,7 +182,7 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
       const definition = stepCatalog.find((d) => d.id === step.stepDefinitionId);
       if (!definition) return;
 
-      const stepName = step.name ?? definition.name;
+      const stepName = getStepDisplayName(step, definition);
       definition.outputDefinitions.forEach((output) => {
         fields.push({
           stepId: step.id,
@@ -247,7 +252,7 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
           const mapping = step.configuration[sourceInputId];
           
           if (mapping && mapping.kind === 'Literal' && mapping.value) {
-            const stepName = step.name ?? definition.name;
+            const stepName = getStepDisplayName(step, definition);
             const variable = {
               name: String(mapping.value),
               definedBy: stepName,
@@ -278,6 +283,7 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
         stepDefinitionId: selectedDefinition.id,
         type: 'Action',
         order: editingStep?.order ?? existingSteps.length,
+        ...(signature.trim() ? { signature: signature.trim() } : {}),
         configuration,
         enabled,
       };
@@ -299,6 +305,7 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
     workflow,
     editingStep,
     existingSteps,
+    signature,
     configuration,
     enabled,
     updateWorkflowSteps,
@@ -340,6 +347,8 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
     selectedStepIcon,
     isDefinitionLocked: !!editingStep,
     selectDefinition,
+    signature,
+    setSignature,
     configuration,
     setMappingKind,
     setMapping,

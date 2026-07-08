@@ -19,6 +19,7 @@ import { InputGroup, Label, Input, Textarea } from '../../components/ui/Input';
 import { SearchSelect } from '../../components/ui/SearchSelect';
 import { InfoBanner } from '../../components/ui/InfoBanner';
 import { ConfirmModal } from '../../components/ui/ConfirmModal';
+import { getStepDisplayName } from '../../shared/workflowHelpers';
 
 export const ViewWorkflowView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
   const vm = useViewWorkflowViewModel(tabKey);
@@ -188,7 +189,7 @@ export const ViewWorkflowView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
                       <StepIcon size={18} />
                     </S.StepIcon>
                     <S.StepInfo>
-                      <S.StepName>{step.name || definition?.name || step.stepDefinitionId}</S.StepName>
+                      <S.StepName>{getStepDisplayName(step, definition)}</S.StepName>
                       {definition?.description && <S.StepDescription>{definition.description}</S.StepDescription>}
                     </S.StepInfo>
                     <S.StepActions>
@@ -254,8 +255,9 @@ export const ViewWorkflowView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
                     </S.ExecutionSummary>
 
                     {stepLogs.map((log, i) => {
+                      const step = log.stepId ? vm.steps.find((s) => s.id === log.stepId) : undefined;
                       const definition = log.stepDefinitionId ? vm.getStepDefinition(log.stepDefinitionId) : undefined;
-                      const stepName = definition?.name || log.stepDefinitionId || 'Step';
+                      const stepName = step ? getStepDisplayName(step, definition) : (definition?.name || log.stepDefinitionId || 'Step');
                       const isExpanded = vm.isStepResultExpanded(execution.id, log.stepId || String(i));
 
                       return (
