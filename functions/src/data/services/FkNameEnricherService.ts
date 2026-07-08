@@ -1,7 +1,12 @@
 import type { Firestore } from 'firebase-admin/firestore';
 import type { AuditFieldDiff, IFkNameEnricherService } from '../../domain/repositories/IFkNameEnricherService';
 import type { EntityData } from '../../domain/services/auditDiff';
-import { STATIC_FK_SCHEMA, CUSTOM_FIELD_COLLECTIONS, resolveRefEntityCollection, type FkFieldSpec } from '../../domain/services/auditFkSchema';
+import {
+  ENTITY_FK_SCHEMA,
+  CUSTOM_FIELD_ENABLED_ENTITIES,
+  resolveRefEntityCollection,
+  type FkFieldSpec,
+} from '../../domain/entities/entitySchemas';
 import { getFlatEntityConfig } from '../../domain/services/auditableEntities';
 
 interface EntityRef {
@@ -15,7 +20,7 @@ export class FkNameEnricherService implements IFkNameEnricherService {
   /** Campos "reference" configurados no Screen Builder para o `screenKey` da entidade auditada. */
   private async getDynamicFkSchema(tenantId: string, collection: string, screenKey?: string): Promise<Record<string, FkFieldSpec>> {
     const isCustomRecords = collection === 'customRecords';
-    if (!isCustomRecords && !CUSTOM_FIELD_COLLECTIONS.has(collection)) return {};
+    if (!isCustomRecords && !CUSTOM_FIELD_ENABLED_ENTITIES.has(collection)) return {};
 
     const effectiveScreenKey = isCustomRecords ? screenKey : collection;
     if (!effectiveScreenKey) return {};
@@ -38,7 +43,7 @@ export class FkNameEnricherService implements IFkNameEnricherService {
 
   async enrichDiff(tenantId: string, collection: string, screenKey: string | undefined, diff: AuditFieldDiff): Promise<AuditFieldDiff> {
     const dynamicSchema = await this.getDynamicFkSchema(tenantId, collection, screenKey);
-    const schema = { ...STATIC_FK_SCHEMA[collection], ...dynamicSchema };
+    const schema = { ...ENTITY_FK_SCHEMA[collection], ...dynamicSchema };
     if (Object.keys(schema).length === 0) return diff;
 
     const refs = new Map<string, EntityRef>();

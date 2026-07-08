@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [0.57.2] — 2026-07-08
+
+- Unificação interna das definições de entidades, vínculos e listas do sistema em um catálogo único, tornando as automações e a auditoria mais consistentes e preparando melhorias no editor de automações.
+
 #### [0.57.1] — 2026-07-08
 
 - Melhoria interna na consistência entre o aplicativo e o servidor, garantindo que as automações e a auditoria usem sempre as mesmas definições de dados.

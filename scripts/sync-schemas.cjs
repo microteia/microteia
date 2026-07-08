@@ -18,6 +18,8 @@ const ROOT = path.join(__dirname, '..');
 
 const SHARED_FILES = [
   'domain/entities/entitySchemas.ts',
+  'domain/schema/entityRegistry.ts',
+  'domain/schema/lookupRegistry.ts',
 ];
 
 const buildHeader = (relativePath) =>

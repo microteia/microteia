@@ -872,70 +872,13 @@ export interface CaseLookupItem {
 
 // ─── Custom Screens (Telas Dinâmicas) ────────────────────────────────────────
 
-export type CustomFieldType =
-  | 'text'
-  | 'textarea'
-  | 'number'
-  | 'currency'
-  | 'date'
-  | 'checkbox'
-  | 'select'
-  | 'masked'
-  | 'reference'
-  | 'markdown';
-
-export type CustomFieldMask = 'cpf' | 'cnpj' | 'phone' | 'cep';
-
-export interface CustomFieldOption {
-  key: string;
-  label: string;
-  isStatic?: boolean;
-  color?: string;
-}
-
-export interface FieldDefinition {
-  key: string;
-  label: string;
-  type: CustomFieldType;
-  required: boolean;
-  order: number;
-  section?: string | null;
-  options?: CustomFieldOption[];
-  optionsAllowUserAdd?: boolean;
-  optionsColored?: boolean;
-  multi?: boolean;
-  mask?: CustomFieldMask | null;
-  refEntity?: string | null;
-  placeholder?: string | null;
-  showInList?: boolean;
-  listLabel?: string | null;
-  filterable?: boolean;
-}
-
-export interface ScreenDefinition {
-  id: string;
-  tenantId: string;
-  builtin: boolean;
-  titleSingular: string;
-  titlePlural: string;
-  icon: string;
-  fields: FieldDefinition[];
-  titleFieldKey: string;
-  hasNotes: boolean;
-  hasDocuments: boolean;
-  hasTags: boolean;
-  sidebarOrder: number;
-  enabled: boolean;
-  createdAt: Date;
-  createdBy: string;
-  updatedAt: Date;
-  updatedBy?: string;
-  updatedByName?: string;
-  updatedByPhotoURL?: string;
-  deletedBy?: string;
-  deletedByName?: string;
-  deletedByPhotoURL?: string;
-}
+export type {
+  CustomFieldType,
+  CustomFieldMask,
+  CustomFieldOption,
+  FieldDefinition,
+  ScreenDefinition,
+} from './entitySchemas';
 
 export interface ScreenFieldOption {
   id: string;
