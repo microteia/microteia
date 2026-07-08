@@ -11,6 +11,28 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [0.51.0] — 2026-07-07
+
+- Melhorada a validação de expressões em automações: o editor agora valida automaticamente o número de parâmetros de cada função, indicando quando faltam ou sobram argumentos. As regras de validação agora vem diretamente do servidor, garantindo consistência e eliminação de duplicação de código.
+- Otimizado o desempenho do editor de expressões: eliminadas operações repetitivas que tornavam a digitação lenta, especialmente com muitas funções disponíveis.
+- Adicionada proteção contra falhas no carregamento de funções: o autocomplete agora funciona mesmo se houver problemas na comunicação com o servidor.
+
+#### [0.50.6] — 2026-07-07
+
+- Resolvida a causa raiz do travamento ao digitar "interpolate" no editor de expressões: a função estava faltando na lista de validação, causando execução excessiva de cálculos durante a digitação. Além disso, otimizado o cálculo de autocomplete para todas as funções, reduzindo significativamente a carga de processamento.
+
+#### [0.50.5] — 2026-07-07
+
+- Resolvido definitivamente o travamento ao digitar "interpolate" ou outras funções no editor de expressões: o cálculo de posição do menu de sugestões agora é assíncrono e otimizado, permitindo digitação fluida mesmo com muitas funções disponíveis.
+
+#### [0.50.4] — 2026-07-07
+
+- Corrigido definitivamente o travamento ao digitar a função "interpolate" no editor de expressões: a posição do menu de sugestões agora é calculada de forma otimizada e sem loops infinitos, garantindo fluidez mesmo com muitas funções disponíveis.
+
+#### [0.50.3] — 2026-07-07
+
+- Corrigido o travamento do navegador ao selecionar a função "interpolate" no editor de expressões: a lista de sugestões agora é calculada de forma mais eficiente, evitando recálculos desnecessários que tornavam o editor lento.
+
 #### [0.50.2] — 2026-07-07
 
 - Corrigida a seleção de saídas de ações dinâmicas em automações: quando uma ação anterior define variáveis ou saídas com nomes personalizados, elas agora aparecem corretamente na lista de opções para uso em ações subsequentes.

@@ -1,4 +1,5 @@
 import { Parser } from 'expr-eval';
+import type { ExpressionFunctionDef } from '../../../../stores/ExpressionFunctionStore';
 
 export interface ValidationResult {
   isValid: boolean | null;
@@ -10,69 +11,6 @@ interface FunctionSignature {
   minArgs: number;
   maxArgs?: number;
 }
-
-const FUNCTION_SIGNATURES: Record<string, FunctionSignature> = {
-  // Data
-  today: { name: 'today', minArgs: 0, maxArgs: 0 },
-  now: { name: 'now', minArgs: 0, maxArgs: 0 },
-  formatDate: { name: 'formatDate', minArgs: 2, maxArgs: 2 },
-  addDays: { name: 'addDays', minArgs: 2, maxArgs: 2 },
-  dateDiff: { name: 'dateDiff', minArgs: 2, maxArgs: 3 },
-  dayOfWeek: { name: 'dayOfWeek', minArgs: 1, maxArgs: 1 },
-  isWeekend: { name: 'isWeekend', minArgs: 1, maxArgs: 1 },
-  year: { name: 'year', minArgs: 1, maxArgs: 1 },
-  month: { name: 'month', minArgs: 1, maxArgs: 1 },
-  day: { name: 'day', minArgs: 1, maxArgs: 1 },
-  
-  // Texto
-  concat: { name: 'concat', minArgs: 1 },
-  upper: { name: 'upper', minArgs: 1, maxArgs: 1 },
-  lower: { name: 'lower', minArgs: 1, maxArgs: 1 },
-  length: { name: 'length', minArgs: 1, maxArgs: 1 },
-  trim: { name: 'trim', minArgs: 1, maxArgs: 1 },
-  replace: { name: 'replace', minArgs: 3, maxArgs: 3 },
-  substring: { name: 'substring', minArgs: 2, maxArgs: 3 },
-  startsWith: { name: 'startsWith', minArgs: 2, maxArgs: 2 },
-  endsWith: { name: 'endsWith', minArgs: 2, maxArgs: 2 },
-  split: { name: 'split', minArgs: 2, maxArgs: 2 },
-  join: { name: 'join', minArgs: 1, maxArgs: 2 },
-  
-  // Matemática
-  round: { name: 'round', minArgs: 1, maxArgs: 2 },
-  floor: { name: 'floor', minArgs: 1, maxArgs: 1 },
-  ceil: { name: 'ceil', minArgs: 1, maxArgs: 1 },
-  abs: { name: 'abs', minArgs: 1, maxArgs: 1 },
-  min: { name: 'min', minArgs: 1 },
-  max: { name: 'max', minArgs: 1 },
-  sum: { name: 'sum', minArgs: 1, maxArgs: 1 },
-  avg: { name: 'avg', minArgs: 1, maxArgs: 1 },
-  
-  // Array
-  first: { name: 'first', minArgs: 1, maxArgs: 1 },
-  last: { name: 'last', minArgs: 1, maxArgs: 1 },
-  contains: { name: 'contains', minArgs: 2, maxArgs: 2 },
-  indexOf: { name: 'indexOf', minArgs: 2, maxArgs: 2 },
-  
-  // Lógica
-  if: { name: 'if', minArgs: 3, maxArgs: 3 },
-  and: { name: 'and', minArgs: 1 },
-  or: { name: 'or', minArgs: 1 },
-  not: { name: 'not', minArgs: 1, maxArgs: 1 },
-  isEmpty: { name: 'isEmpty', minArgs: 1, maxArgs: 1 },
-  isNull: { name: 'isNull', minArgs: 1, maxArgs: 1 },
-  isNotNull: { name: 'isNotNull', minArgs: 1, maxArgs: 1 },
-  coalesce: { name: 'coalesce', minArgs: 1 },
-  
-  // Validação
-  isCPF: { name: 'isCPF', minArgs: 1, maxArgs: 1 },
-  isCNPJ: { name: 'isCNPJ', minArgs: 1, maxArgs: 1 },
-  isEmail: { name: 'isEmail', minArgs: 1, maxArgs: 1 },
-  formatCPF: { name: 'formatCPF', minArgs: 1, maxArgs: 1 },
-  formatCNPJ: { name: 'formatCNPJ', minArgs: 1, maxArgs: 1 },
-  
-  // Variável
-  getVar: { name: 'getVar', minArgs: 1, maxArgs: 1 },
-};
 
 const countFunctionArguments = (expression: string, openParenIndex: number): number => {
   let depth = 0;
@@ -100,10 +38,23 @@ const countFunctionArguments = (expression: string, openParenIndex: number): num
   return -1;
 };
 
-export const validateExpressionWithParser = (expression: string, availableFunctions: string[]): ValidationResult => {
+export const validateExpressionWithParser = (
+  expression: string, 
+  availableFunctionDefs: ExpressionFunctionDef[],
+): ValidationResult => {
   if (!expression.trim()) {
     return { isValid: true };
   }
+
+  // Constrói mapa de signatures dinâmico a partir dos dados do backend
+  const functionSignatures: Record<string, FunctionSignature> = {};
+  availableFunctionDefs.forEach((fn) => {
+    functionSignatures[fn.name] = {
+      name: fn.name,
+      minArgs: fn.minArgs,
+      maxArgs: fn.maxArgs,
+    };
+  });
 
   // Validações pré-parser para mensagens mais amigáveis
   const openParens = (expression.match(/\(/g) || []).length;
@@ -215,9 +166,9 @@ export const validateExpressionWithParser = (expression: string, availableFuncti
                   } 
         });
     
-    availableFunctions.forEach((fnName) => {
+    availableFunctionDefs.forEach((fn) => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (parser.functions as any)[fnName] = () => null;
+      (parser.functions as any)[fn.name] = () => null;
     });
 
     parser.parse(expression);
@@ -227,15 +178,18 @@ export const validateExpressionWithParser = (expression: string, availableFuncti
 
     while (match !== null) {
       const fnName = match[1];
-      const signature = FUNCTION_SIGNATURES[fnName];
+      const signature = functionSignatures[fnName];
 
       if (!signature) {
-        if (!availableFunctions.includes(fnName)) {
+        // Função não tem signature - verifica se está na lista de disponíveis
+        if (!availableFunctionDefs.some(f => f.name === fnName)) {
           return {
             isValid: false,
             message: `Função desconhecida: "${fnName}". Veja as funções disponíveis.`,
           };
         }
+        // Função está disponível mas não tem minArgs/maxArgs - pula validação de args
+        match = functionPattern.exec(expression);
         continue;
       }
 

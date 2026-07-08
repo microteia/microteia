@@ -19,4 +19,6 @@ export const getVarFn: ExpressionFunction = {
   signature: 'getVar(nomeVariavel)',
   example: 'getVar("valorAnterior")',
   category: 'Variável',
+  minArgs: 1,
+  maxArgs: 1,
 };

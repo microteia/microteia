@@ -8,6 +8,8 @@ export interface ExpressionFunctionDef {
   signature: string;
   example: string;
   category: string;
+  minArgs: number;
+  maxArgs?: number;
 }
 
 interface ExpressionFunctionStoreState {

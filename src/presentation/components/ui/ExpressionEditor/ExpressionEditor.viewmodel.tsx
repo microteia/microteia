@@ -94,15 +94,13 @@ export const useExpressionEditorViewModel = (
 
   const validationTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const functionNames = useMemo(() => functions.map((f) => f.name), [functions]);
-
   useEffect(() => {
     if (validationTimerRef.current) {
       clearTimeout(validationTimerRef.current);
     }
 
     validationTimerRef.current = setTimeout(() => {
-      const result = validateExpressionWithParser(props.value, functionNames);
+      const result = validateExpressionWithParser(props.value, functions);
       setValidationResult(result);
     }, 400);
 
@@ -111,7 +109,7 @@ export const useExpressionEditorViewModel = (
         clearTimeout(validationTimerRef.current);
       }
     };
-  }, [props.value, functionNames]);
+  }, [props.value, functions]);
 
   const autocompleteItems = useMemo(
     (): AutocompleteItem[] =>
@@ -127,26 +125,29 @@ export const useExpressionEditorViewModel = (
     [autocompleteState.mode, autocompleteState.query, props.eventFields, props.stepOutputFields, props.workflowVariables, functions],
   );
 
-  const computePosition = useCallback(
-    (
-      textarea: HTMLTextAreaElement,
-      triggerStart: number,
-      mode: AutocompleteState['mode'],
-      query: string,
-    ): { top: number; left: number } => {
-      const items = buildAutocompleteItems(
-        mode,
-        query,
-        functions,
-        props.eventFields ?? [],
-        props.stepOutputFields ?? [],
-        props.workflowVariables ?? [],
-        true,
-      );
-      return computeAutocompletePosition(textarea, triggerStart, items.length);
-    },
-    [functions, props.eventFields, props.stepOutputFields, props.workflowVariables],
-  );
+  // Calcula posição do autocomplete quando ativa ou muda de contexto
+  useEffect(() => {
+    if (!autocompleteState.active) return;
+    
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+
+    // Usa requestAnimationFrame para não bloquear a thread principal
+    requestAnimationFrame(() => {
+      setAutocompleteState((prev) => {
+        // Só calcula e atualiza se ainda está ativo e position é null
+        if (!prev.active || prev.position !== null) return prev;
+        
+        const position = computeAutocompletePosition(
+          textarea,
+          prev.triggerStart,
+          autocompleteItems.length,
+        );
+        
+        return { ...prev, position };
+      });
+    });
+  }, [autocompleteState.active, autocompleteState.triggerStart, autocompleteItems.length, textareaRef]);
 
   const closeAutocomplete = useCallback(() => {
     setAutocompleteState({ active: false, mode: 'function', query: '', triggerStart: -1, position: null });
@@ -211,14 +212,13 @@ export const useExpressionEditorViewModel = (
       if (eventOldDotMatch) {
         const triggerStart = pos - eventOldDotMatch[1].length;
         const query = eventOldDotMatch[1];
-        const textarea = e.target;
 
         setAutocompleteState({
           active: true,
           mode: 'field',
           query,
           triggerStart,
-          position: computePosition(textarea, triggerStart, 'field', query),
+          position: null,
         });
         setHighlightedIndex(0);
         return;
@@ -226,14 +226,13 @@ export const useExpressionEditorViewModel = (
 
       if (textBefore.endsWith('event.old.')) {
         const triggerStart = pos;
-        const textarea = e.target;
 
         setAutocompleteState({
           active: true,
           mode: 'field',
           query: '',
           triggerStart,
-          position: computePosition(textarea, triggerStart, 'field', ''),
+          position: null,
         });
         setHighlightedIndex(0);
         return;
@@ -244,14 +243,13 @@ export const useExpressionEditorViewModel = (
       if (eventDotMatch) {
         const triggerStart = pos - eventDotMatch[1].length;
         const query = eventDotMatch[1];
-        const textarea = e.target;
 
         setAutocompleteState({
           active: true,
           mode: 'field',
           query,
           triggerStart,
-          position: computePosition(textarea, triggerStart, 'field', query),
+          position: null,
         });
         setHighlightedIndex(0);
         return;
@@ -259,14 +257,13 @@ export const useExpressionEditorViewModel = (
 
       if (textBefore.endsWith('event.')) {
         const triggerStart = pos;
-        const textarea = e.target;
 
         setAutocompleteState({
           active: true,
           mode: 'field',
           query: '',
           triggerStart,
-          position: computePosition(textarea, triggerStart, 'field', ''),
+          position: null,
         });
         setHighlightedIndex(0);
         return;
@@ -277,14 +274,13 @@ export const useExpressionEditorViewModel = (
       if (inputDotMatch || textBefore.endsWith('input.')) {
         const triggerStart = inputDotMatch ? pos - inputDotMatch[1].length : pos;
         const query = inputDotMatch ? inputDotMatch[1] : '';
-        const textarea = e.target;
 
         setAutocompleteState({
           active: true,
           mode: 'input',
           query,
           triggerStart,
-          position: computePosition(textarea, triggerStart, 'input', query),
+          position: null,
         });
         setHighlightedIndex(0);
         return;
@@ -294,14 +290,13 @@ export const useExpressionEditorViewModel = (
       if (outputDotMatch || textBefore.endsWith('output.')) {
         const triggerStart = outputDotMatch ? pos - outputDotMatch[1].length : pos;
         const query = outputDotMatch ? outputDotMatch[1] : '';
-        const textarea = e.target;
 
         setAutocompleteState({
           active: true,
           mode: 'context',
           query,
           triggerStart,
-          position: computePosition(textarea, triggerStart, 'context', query),
+          position: null,
         });
         setHighlightedIndex(0);
         return;
@@ -311,14 +306,13 @@ export const useExpressionEditorViewModel = (
       if (lastWordMatch && !textBefore.slice(0, pos - lastWordMatch[0].length).endsWith('.')) {
         const triggerStart = pos - lastWordMatch[0].length;
         const query = lastWordMatch[0];
-        const textarea = e.target;
 
         setAutocompleteState({
           active: true,
           mode: 'function',
           query,
           triggerStart,
-          position: computePosition(textarea, triggerStart, 'function', query),
+          position: null,
         });
         setHighlightedIndex(0);
         return;
@@ -326,7 +320,7 @@ export const useExpressionEditorViewModel = (
 
       if (autocompleteState.active) closeAutocomplete();
     },
-    [props, autocompleteState.active, closeAutocomplete, computePosition],
+    [props, autocompleteState.active, closeAutocomplete],
   );
 
   const handleKeyDown = useCallback(

@@ -16,6 +16,8 @@ export const roundFn: ExpressionFunction = {
   signature: 'round(número, casasDecimais?)',
   example: 'round(3.14159, 2)',
   category: 'Operador',
+  minArgs: 1,
+  maxArgs: 2,
 };
 
 export const floorFn: ExpressionFunction = {
@@ -30,6 +32,8 @@ export const floorFn: ExpressionFunction = {
   signature: 'floor(número)',
   example: 'floor(3.7)',
   category: 'Operador',
+  minArgs: 1,
+  maxArgs: 1,
 };
 
 export const ceilFn: ExpressionFunction = {
@@ -44,6 +48,8 @@ export const ceilFn: ExpressionFunction = {
   signature: 'ceil(número)',
   example: 'ceil(3.2)',
   category: 'Operador',
+  minArgs: 1,
+  maxArgs: 1,
 };
 
 export const absFn: ExpressionFunction = {
@@ -58,6 +64,8 @@ export const absFn: ExpressionFunction = {
   signature: 'abs(número)',
   example: 'abs(-5)',
   category: 'Operador',
+  minArgs: 1,
+  maxArgs: 1,
 };
 
 export const minFn: ExpressionFunction = {
@@ -78,6 +86,7 @@ export const minFn: ExpressionFunction = {
   signature: 'min(número1, número2, ...)',
   example: 'min(10, 5, 8)',
   category: 'Operador',
+  minArgs: 1,
 };
 
 export const maxFn: ExpressionFunction = {
@@ -98,6 +107,7 @@ export const maxFn: ExpressionFunction = {
   signature: 'max(número1, número2, ...)',
   example: 'max(10, 5, 8)',
   category: 'Operador',
+  minArgs: 1,
 };
 
 export const sumFn: ExpressionFunction = {
@@ -117,6 +127,8 @@ export const sumFn: ExpressionFunction = {
   signature: 'sum(array)',
   example: 'sum([1, 2, 3, 4])',
   category: 'Operador',
+  minArgs: 1,
+  maxArgs: 1,
 };
 
 export const avgFn: ExpressionFunction = {
@@ -140,4 +152,6 @@ export const avgFn: ExpressionFunction = {
   signature: 'avg(array)',
   example: 'avg([1, 2, 3, 4])',
   category: 'Operador',
+  minArgs: 1,
+  maxArgs: 1,
 };

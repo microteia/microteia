@@ -18,6 +18,8 @@ export interface FunctionDefinition {
   signature: string;
   example: string;
   category: string;
+  minArgs: number;
+  maxArgs?: number;
 }
 
 export interface StepOutputField {
@@ -111,14 +113,28 @@ export const buildAutocompleteItems = (
         f.category.toLowerCase().includes(q) ||
         f.description.toLowerCase().includes(q),
     );
+    
+    // Regex de validação compilada uma vez (não dentro do map!)
+    const validIdentifierRegex = /^[a-zA-Z_][a-zA-Z0-9_]*$/;
+    
     items.push(
-      ...matchingFunctions.map((f) => ({
-        value: f.name,
-        label: `${f.name}${f.name.match(/^[a-zA-Z_][a-zA-Z0-9_]*$/) ? '()' : ''}`,
-        description: f.description,
-        category: f.category,
-        detail: f.signature,
-      })),
+      ...matchingFunctions
+        .map((f): AutocompleteItem | null => {
+          // Fallback seguro: se por algum motivo a função não tem 'name', pula
+          if (!f || typeof f.name !== 'string') return null;
+          
+          // Test() é mais eficiente que match() quando só precisamos de booleano
+          const hasParens = validIdentifierRegex.test(f.name);
+          
+          return {
+            value: f.name,
+            label: `${f.name}${hasParens ? '()' : ''}`,
+            description: f.description,
+            category: f.category,
+            detail: f.signature,
+          };
+        })
+        .filter((item): item is AutocompleteItem => item !== null),
     );
 
     // Variáveis do workflow

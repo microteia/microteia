@@ -7,6 +7,8 @@ export interface ExpressionFunction {
   signature: string;
   example: string;
   category: 'Data' | 'Texto' | 'Condicional' | 'Variável' | 'Operador';
+  minArgs: number;
+  maxArgs?: number; // undefined = ilimitado
 }
 
 export interface FunctionDefinition {
@@ -15,6 +17,8 @@ export interface FunctionDefinition {
   signature: string;
   example: string;
   category: string;
+  minArgs: number;
+  maxArgs?: number;
 }
 
 export interface FunctionRegistry {
@@ -41,6 +45,8 @@ class FunctionRegistryImpl implements FunctionRegistry {
       signature: fn.signature,
       example: fn.example,
       category: fn.category,
+      minArgs: fn.minArgs,
+      maxArgs: fn.maxArgs,
     }));
   }
 }

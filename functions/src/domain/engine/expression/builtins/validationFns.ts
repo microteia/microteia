@@ -61,6 +61,8 @@ export const isCPFFn: ExpressionFunction = {
   signature: 'isCPF(texto)',
   example: 'isCPF("123.456.789-10")',
   category: 'Condicional',
+  minArgs: 1,
+  maxArgs: 1,
 };
 
 export const isCNPJFn: ExpressionFunction = {
@@ -73,6 +75,8 @@ export const isCNPJFn: ExpressionFunction = {
   signature: 'isCNPJ(texto)',
   example: 'isCNPJ("12.345.678/0001-90")',
   category: 'Condicional',
+  minArgs: 1,
+  maxArgs: 1,
 };
 
 export const isEmailFn: ExpressionFunction = {
@@ -85,6 +89,8 @@ export const isEmailFn: ExpressionFunction = {
   signature: 'isEmail(texto)',
   example: 'isEmail("email@exemplo.com")',
   category: 'Condicional',
+  minArgs: 1,
+  maxArgs: 1,
 };
 
 export const formatCPFFn: ExpressionFunction = {
@@ -103,6 +109,8 @@ export const formatCPFFn: ExpressionFunction = {
   signature: 'formatCPF(texto)',
   example: 'formatCPF("12345678910")',
   category: 'Texto',
+  minArgs: 1,
+  maxArgs: 1,
 };
 
 export const formatCNPJFn: ExpressionFunction = {
@@ -121,4 +129,6 @@ export const formatCNPJFn: ExpressionFunction = {
   signature: 'formatCNPJ(texto)',
   example: 'formatCNPJ("12345678000190")',
   category: 'Texto',
+  minArgs: 1,
+  maxArgs: 1,
 };

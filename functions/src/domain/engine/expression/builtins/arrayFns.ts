@@ -12,6 +12,8 @@ export const firstFn: ExpressionFunction = {
   signature: 'first(array)',
   example: 'first([1, 2, 3])',
   category: 'Operador',
+  minArgs: 1,
+  maxArgs: 1,
 };
 
 export const lastFn: ExpressionFunction = {
@@ -26,6 +28,8 @@ export const lastFn: ExpressionFunction = {
   signature: 'last(array)',
   example: 'last([1, 2, 3])',
   category: 'Operador',
+  minArgs: 1,
+  maxArgs: 1,
 };
 
 export const containsFn: ExpressionFunction = {
@@ -40,6 +44,8 @@ export const containsFn: ExpressionFunction = {
   signature: 'contains(array, valor)',
   example: 'contains([1, 2, 3], 2)',
   category: 'Operador',
+  minArgs: 2,
+  maxArgs: 2,
 };
 
 export const indexOfFn: ExpressionFunction = {
@@ -60,4 +66,6 @@ export const indexOfFn: ExpressionFunction = {
   signature: 'indexOf(arrayOuTexto, valor)',
   example: 'indexOf([1, 2, 3], 2)',
   category: 'Operador',
+  minArgs: 2,
+  maxArgs: 2,
 };

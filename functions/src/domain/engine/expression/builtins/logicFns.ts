@@ -7,6 +7,7 @@ export const andFn: ExpressionFunction = {
   signature: 'and(condição1, condição2, ...)',
   example: 'and(5 > 3, 10 < 20)',
   category: 'Condicional',
+  minArgs: 1,
 };
 
 export const orFn: ExpressionFunction = {
@@ -16,6 +17,7 @@ export const orFn: ExpressionFunction = {
   signature: 'or(condição1, condição2, ...)',
   example: 'or(5 > 10, 10 < 20)',
   category: 'Condicional',
+  minArgs: 1,
 };
 
 export const notFn: ExpressionFunction = {
@@ -25,6 +27,8 @@ export const notFn: ExpressionFunction = {
   signature: 'not(valor)',
   example: 'not(5 > 10)',
   category: 'Condicional',
+  minArgs: 1,
+  maxArgs: 1,
 };
 
 export const isEmptyFn: ExpressionFunction = {
@@ -40,6 +44,8 @@ export const isEmptyFn: ExpressionFunction = {
   signature: 'isEmpty(valor)',
   example: 'isEmpty("")',
   category: 'Condicional',
+  minArgs: 1,
+  maxArgs: 1,
 };
 
 export const isNullFn: ExpressionFunction = {
@@ -49,6 +55,8 @@ export const isNullFn: ExpressionFunction = {
   signature: 'isNull(valor)',
   example: 'isNull(event.optionalField)',
   category: 'Condicional',
+  minArgs: 1,
+  maxArgs: 1,
 };
 
 export const isNotNullFn: ExpressionFunction = {
@@ -58,6 +66,8 @@ export const isNotNullFn: ExpressionFunction = {
   signature: 'isNotNull(valor)',
   example: 'isNotNull(event.name)',
   category: 'Condicional',
+  minArgs: 1,
+  maxArgs: 1,
 };
 
 export const coalesceFn: ExpressionFunction = {
@@ -74,4 +84,5 @@ export const coalesceFn: ExpressionFunction = {
   signature: 'coalesce(valor1, valor2, ...)',
   example: 'coalesce(event.name, "Sem nome")',
   category: 'Condicional',
+  minArgs: 1,
 };

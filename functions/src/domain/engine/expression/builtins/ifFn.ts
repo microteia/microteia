@@ -7,4 +7,6 @@ export const ifFn: ExpressionFunction = {
   signature: 'if(condição, valorSeVerdadeiro, valorSeFalso)',
   example: 'if(5 > 3, "sim", "não")',
   category: 'Condicional',
+  minArgs: 3,
+  maxArgs: 3,
 };

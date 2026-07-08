@@ -21,4 +21,6 @@ export const addDaysFn: ExpressionFunction = {
   signature: 'addDays(data, numeroDeDias)',
   example: 'addDays(today(), 5)',
   category: 'Data',
+  minArgs: 2,
+  maxArgs: 2,
 };

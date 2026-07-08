@@ -7,6 +7,7 @@ export const concatFn: ExpressionFunction = {
   signature: 'concat(valor1, valor2, ...)',
   example: 'concat("Processo ", "123")',
   category: 'Texto',
+  minArgs: 1,
 };
 
 export const lowerFn: ExpressionFunction = {
@@ -16,6 +17,8 @@ export const lowerFn: ExpressionFunction = {
   signature: 'lower(texto)',
   example: 'lower("TEXTO")',
   category: 'Texto',
+  minArgs: 1,
+  maxArgs: 1,
 };
 
 export const upperFn: ExpressionFunction = {
@@ -25,6 +28,8 @@ export const upperFn: ExpressionFunction = {
   signature: 'upper(texto)',
   example: 'upper("texto")',
   category: 'Texto',
+  minArgs: 1,
+  maxArgs: 1,
 };
 
 export const lengthFn: ExpressionFunction = {
@@ -37,6 +42,8 @@ export const lengthFn: ExpressionFunction = {
   signature: 'length(valor)',
   example: 'length("texto")',
   category: 'Texto',
+  minArgs: 1,
+  maxArgs: 1,
 };
 
 export const trimFn: ExpressionFunction = {
@@ -46,6 +53,8 @@ export const trimFn: ExpressionFunction = {
   signature: 'trim(texto)',
   example: 'trim("  texto  ")',
   category: 'Texto',
+  minArgs: 1,
+  maxArgs: 1,
 };
 
 export const replaceFn: ExpressionFunction = {
@@ -60,6 +69,8 @@ export const replaceFn: ExpressionFunction = {
   signature: 'replace(texto, busca, substituição)',
   example: 'replace("foo bar foo", "foo", "baz")',
   category: 'Texto',
+  minArgs: 3,
+  maxArgs: 3,
 };
 
 export const substringFn: ExpressionFunction = {
@@ -80,6 +91,8 @@ export const substringFn: ExpressionFunction = {
   signature: 'substring(texto, início, fim?)',
   example: 'substring("processo", 0, 4)',
   category: 'Texto',
+  minArgs: 2,
+  maxArgs: 3,
 };
 
 export const startsWithFn: ExpressionFunction = {
@@ -94,6 +107,8 @@ export const startsWithFn: ExpressionFunction = {
   signature: 'startsWith(texto, prefixo)',
   example: 'startsWith("processo", "proc")',
   category: 'Texto',
+  minArgs: 2,
+  maxArgs: 2,
 };
 
 export const endsWithFn: ExpressionFunction = {
@@ -108,6 +123,8 @@ export const endsWithFn: ExpressionFunction = {
   signature: 'endsWith(texto, sufixo)',
   example: 'endsWith("arquivo.pdf", ".pdf")',
   category: 'Texto',
+  minArgs: 2,
+  maxArgs: 2,
 };
 
 export const splitFn: ExpressionFunction = {
@@ -122,6 +139,8 @@ export const splitFn: ExpressionFunction = {
   signature: 'split(texto, separador)',
   example: 'split("a,b,c", ",")',
   category: 'Texto',
+  minArgs: 2,
+  maxArgs: 2,
 };
 
 export const joinFn: ExpressionFunction = {
@@ -139,6 +158,8 @@ export const joinFn: ExpressionFunction = {
   signature: 'join(array, separador?)',
   example: 'join(["a", "b", "c"], ", ")',
   category: 'Texto',
+  minArgs: 1,
+  maxArgs: 2,
 };
 
 export const interpolateFn: ExpressionFunction = {
@@ -180,4 +201,6 @@ export const interpolateFn: ExpressionFunction = {
   signature: 'interpolate(template, dados)',
   example: 'interpolate("Olá, {nome}!", {nome: "João"})',
   category: 'Texto',
+  minArgs: 2,
+  maxArgs: 2,
 };

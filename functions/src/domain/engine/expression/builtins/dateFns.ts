@@ -57,6 +57,8 @@ export const todayFn: ExpressionFunction = {
   signature: 'today()',
   example: 'today()',
   category: 'Data',
+  minArgs: 0,
+  maxArgs: 0,
 };
 
 export const nowFn: ExpressionFunction = {
@@ -66,6 +68,8 @@ export const nowFn: ExpressionFunction = {
   signature: 'now()',
   example: 'now()',
   category: 'Data',
+  minArgs: 0,
+  maxArgs: 0,
 };
 
 export const formatDateFn: ExpressionFunction = {
@@ -83,6 +87,8 @@ export const formatDateFn: ExpressionFunction = {
   signature: 'formatDate(data, formato)',
   example: 'formatDate(today(), "DD/MM/YYYY")',
   category: 'Data',
+  minArgs: 2,
+  maxArgs: 2,
 };
 
 export const dayOfWeekFn: ExpressionFunction = {
@@ -97,6 +103,8 @@ export const dayOfWeekFn: ExpressionFunction = {
   signature: 'dayOfWeek(data)',
   example: 'dayOfWeek(today())',
   category: 'Data',
+  minArgs: 1,
+  maxArgs: 1,
 };
 
 export const isWeekendFn: ExpressionFunction = {
@@ -111,6 +119,8 @@ export const isWeekendFn: ExpressionFunction = {
   signature: 'isWeekend(data)',
   example: 'isWeekend(today())',
   category: 'Data',
+  minArgs: 1,
+  maxArgs: 1,
 };
 
 export const dateDiffFn: ExpressionFunction = {
@@ -131,6 +141,8 @@ export const dateDiffFn: ExpressionFunction = {
   signature: 'dateDiff(data1, data2, unidade)',
   example: 'dateDiff(today(), event.deadline, "days")',
   category: 'Data',
+  minArgs: 2,
+  maxArgs: 3,
 };
 
 export const yearFn: ExpressionFunction = {
@@ -145,6 +157,8 @@ export const yearFn: ExpressionFunction = {
   signature: 'year(data)',
   example: 'year(today())',
   category: 'Data',
+  minArgs: 1,
+  maxArgs: 1,
 };
 
 export const monthFn: ExpressionFunction = {
@@ -159,6 +173,8 @@ export const monthFn: ExpressionFunction = {
   signature: 'month(data)',
   example: 'month(today())',
   category: 'Data',
+  minArgs: 1,
+  maxArgs: 1,
 };
 
 export const dayFn: ExpressionFunction = {
@@ -173,4 +189,6 @@ export const dayFn: ExpressionFunction = {
   signature: 'day(data)',
   example: 'day(today())',
   category: 'Data',
+  minArgs: 1,
+  maxArgs: 1,
 };
