@@ -314,11 +314,17 @@ export const S = {
     overflow-y: auto;
   `,
 
-  StepResultCard: styled.div`
+  StepResultCard: styled.div<{ $status?: 'SUCCESS' | 'ERROR' | 'WARN' | 'INFO' }>`
     margin-top: ${({ theme }) => theme.spacing.md};
     padding: ${({ theme }) => theme.spacing.md};
     background: ${({ theme }) => theme.colors.surfaceHover};
     border: 1px solid ${({ theme }) => theme.colors.border};
+    border-left: 3px solid ${({ $status, theme }) => (
+      $status === 'SUCCESS' ? theme.colors.success :
+        $status === 'ERROR' ? theme.colors.danger :
+          $status === 'WARN' ? theme.colors.warning :
+            theme.colors.border
+    )};
     border-radius: ${({ theme }) => theme.borderRadius.md};
   `,
 
@@ -335,6 +341,34 @@ export const S = {
     &:hover {
       color: ${({ theme }) => theme.colors.primary};
     }
+  `,
+
+  StepResultIcon: styled.div`
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: ${({ theme }) => theme.colors.textMuted};
+    flex-shrink: 0;
+  `,
+
+  StepStatusBadge: styled.span<{ $status: 'SUCCESS' | 'ERROR' | 'WARN' | 'INFO' }>`
+    display: inline-flex;
+    padding: 2px 6px;
+    border-radius: ${({ theme }) => theme.borderRadius.full};
+    font-size: ${({ theme }) => theme.fontSizes.xs};
+    font-weight: 600;
+    background: ${({ $status, theme }) => (
+      $status === 'SUCCESS' ? `${theme.colors.success}20` :
+        $status === 'ERROR' ? `${theme.colors.danger}20` :
+          $status === 'WARN' ? `${theme.colors.warning}20` :
+            `${theme.colors.textMuted}20`
+    )};
+    color: ${({ $status, theme }) => (
+      $status === 'SUCCESS' ? theme.colors.success :
+        $status === 'ERROR' ? theme.colors.danger :
+          $status === 'WARN' ? theme.colors.warning :
+            theme.colors.textMuted
+    )};
   `,
 
   StepResultBody: styled.div`
@@ -394,5 +428,35 @@ export const S = {
     margin-top: ${({ theme }) => theme.spacing.md};
     padding-top: ${({ theme }) => theme.spacing.md};
     border-top: 2px solid ${({ theme }) => theme.colors.border};
+  `,
+
+  StepProgressBar: styled.div`
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin-top: ${({ theme }) => theme.spacing.sm};
+    padding: ${({ theme }) => theme.spacing.sm};
+    background: ${({ theme }) => theme.colors.background};
+    border-radius: ${({ theme }) => theme.borderRadius.md};
+  `,
+
+  StepProgressDot: styled.div<{ $status: 'SUCCESS' | 'ERROR' | 'WARN' | 'INFO' | 'PENDING' }>`
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: ${({ $status, theme }) => (
+      $status === 'SUCCESS' ? theme.colors.success :
+        $status === 'ERROR' ? theme.colors.danger :
+          $status === 'WARN' ? theme.colors.warning :
+            $status === 'INFO' ? theme.colors.textMuted :
+              theme.colors.border
+    )};
+    flex-shrink: 0;
+  `,
+
+  StepProgressLabel: styled.div`
+    font-size: ${({ theme }) => theme.fontSizes.xs};
+    color: ${({ theme }) => theme.colors.textMuted};
+    margin-left: ${({ theme }) => theme.spacing.xs};
   `,
 };

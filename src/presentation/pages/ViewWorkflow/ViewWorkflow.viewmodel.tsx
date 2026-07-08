@@ -81,6 +81,7 @@ export interface ViewWorkflowViewModel {
   isLogDataExpanded: (executionId: string, logIndex: number, type: 'inputs' | 'outputs' | 'contextInput') => boolean;
   toggleStepResult: (executionId: string, stepId: string) => void;
   isStepResultExpanded: (executionId: string, stepId: string) => boolean;
+  getStepLogStatus: (log: { level: string }) => 'SUCCESS' | 'ERROR' | 'WARN' | 'INFO';
   eventFields: WorkflowEventFieldOption[];
   isEventNameRecognized: boolean;
   isCustomRecordEvent: boolean;
@@ -158,7 +159,21 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
     return workflowExecutionRepository.subscribeToWorkflowExecutions(
       currentTenant.id,
       workflowId,
-      setExecutions,
+      (newExecutions) => {
+        setExecutions(newExecutions);
+        // Auto-expandir steps com erro
+        setExpandedStepResults((prev) => {
+          const next = new Set(prev);
+          newExecutions.forEach((execution) => {
+            execution.logs.forEach((log) => {
+              if (log.stepId && log.level === 'ERROR') {
+                next.add(`${execution.id}:${log.stepId}`);
+              }
+            });
+          });
+          return next;
+        });
+      },
       (error) => setExecutionsError(error.message),
     );
   }, [currentTenant, isNew, workflowId, workflowExecutionRepository]);
@@ -456,6 +471,13 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
     });
   }, [workflow, updateWorkflowSteps, notify]);
 
+  const getStepLogStatus = useCallback((log: { level: string }): 'SUCCESS' | 'ERROR' | 'WARN' | 'INFO' => {
+    if (log.level === 'ERROR') return 'ERROR';
+    if (log.level === 'SUCCESS') return 'SUCCESS';
+    if (log.level === 'WARN') return 'WARN';
+    return 'INFO';
+  }, []);
+
   return {
     isNew,
     workflow,
@@ -498,6 +520,7 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
     handleCopyDeepLink,
     handleClone,
     handleDeleteWorkflow,
+    getStepLogStatus,
     workflowToDelete,
     confirmDeleteWorkflow,
     cancelDeleteWorkflow,

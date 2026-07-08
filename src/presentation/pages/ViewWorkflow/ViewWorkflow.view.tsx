@@ -254,17 +254,35 @@ export const ViewWorkflowView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
                       {execution.startedAt.toLocaleString('pt-BR')}
                     </S.ExecutionSummary>
 
+                    {stepLogs.length > 0 && (
+                      <S.StepProgressBar>
+                        {stepLogs.map((log, i) => {
+                          const status = vm.getStepLogStatus(log);
+                          return <S.StepProgressDot key={i} $status={status} title={status} />;
+                        })}
+                        <S.StepProgressLabel>
+                          {stepLogs.filter((l) => l.level === 'SUCCESS').length}/{stepLogs.length} steps
+                        </S.StepProgressLabel>
+                      </S.StepProgressBar>
+                    )}
+
                     {stepLogs.map((log, i) => {
                       const step = log.stepId ? vm.steps.find((s) => s.id === log.stepId) : undefined;
                       const definition = log.stepDefinitionId ? vm.getStepDefinition(log.stepDefinitionId) : undefined;
                       const stepName = step ? getStepDisplayName(step, definition) : (definition?.name || log.stepDefinitionId || 'Step');
                       const isExpanded = vm.isStepResultExpanded(execution.id, log.stepId || String(i));
+                      const StepIcon = log.stepDefinitionId ? vm.getStepIcon(log.stepDefinitionId) : RiFlowChart;
+                      const status = vm.getStepLogStatus(log);
 
                       return (
-                        <S.StepResultCard key={i}>
+                        <S.StepResultCard key={i} $status={status}>
                           <S.StepResultHeader onClick={() => vm.toggleStepResult(execution.id, log.stepId || String(i))}>
                             <span>{isExpanded ? '▼' : '▶'}</span>
+                            <S.StepResultIcon>
+                              <StepIcon size={16} />
+                            </S.StepResultIcon>
                             <span>{stepName}</span>
+                            <S.StepStatusBadge $status={status}>{status}</S.StepStatusBadge>
                           </S.StepResultHeader>
                           {isExpanded && (
                             <S.StepResultBody>

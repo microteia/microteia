@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [0.52.1] — 2026-07-07
+
+- Melhorada a visualização de execuções de automações: agora cada step exibe seu ícone, um badge de status (SUCCESS, ERROR, WARN) e uma barra de progresso visual mostrando o resultado de todos os steps de uma só vez. Steps com erro são expandidos automaticamente, facilitando a identificação rápida de problemas sem precisar abrir um por um.
+
 #### [0.52.0] — 2026-07-07
 
 - Adicionado campo de nome personalizado nos steps de automações: agora é possível dar um nome único a cada step, facilitando a identificação quando há múltiplos steps do mesmo tipo no mesmo workflow. O nome personalizado aparece em todos os lugares onde o step é exibido, incluindo na seleção de saídas de steps anteriores e nos logs de execução.
