@@ -1893,12 +1893,23 @@ compatibilidade com automações já existentes).
 ### v1 — implementado vs preparado
 
 **Implementado:** `ActionStep` com 4 Steps reais (`CreateDeadlineStep`, `NotifyStep`,
-`RegisterAuditStep`, `SetVariableStep`), execução sequencial fail-fast, uma única `Condition`
-(`AlwaysTrue`), builder visual (lista + detalhe com abas Geral/Condições/Steps/Execuções),
-publicação automática de eventos `saved`/`deleted` para as 8 entidades da tabela acima.
+`RegisterAuditStep`, `SetVariableStep`), execução sequencial fail-fast, publicação automática de
+eventos `saved`/`deleted` para as 8 entidades da tabela acima, e o sistema completo de condições:
+`AlwaysTrue`, `FieldComparison` (com `valueType` literal/expression/eventField), `Expression`
+(expressão pura avaliada pelo `ExpressionEngine` e convertida para booleano), `LogicalAnd`,
+`LogicalOr` e `Not`, todos aninháveis (`functions/src/domain/engine/ConditionEvaluator.ts`).
+O builder visual (`src/presentation/components/ui/ConditionBuilder/`) edita a árvore completa
+(grupos E/OU aninhados, negação por nó, comparações e expressões puras) e o
+`src/presentation/components/ui/ConditionDiagram/` renderiza a mesma árvore em diagrama — a aba
+Condições alterna entre os dois. O diagrama edita a estrutura diretamente na árvore `Condition`
+via caminhos de índices (alternar E/OU, negar, remover, adicionar condição/expressão/grupo;
+sem `onChange` ele vira somente-leitura); a edição de conteúdo (campo/operador/valor) permanece
+no builder, acessível por atalho nos cartões do diagrama. Em `FieldComparison`, tanto `fieldPath`
+quanto o valor de `valueType: 'eventField'` usam caminho absoluto no contexto
+("event.payload.status") e são resolvidos por `getValueByPath(context, ...)`.
 **Preparado só como shape, nunca registrado no `StepRegistry`** (adicionar não exige tocar no
 motor): `ConditionStep`, `DelayStep`, `ScriptStep`, `SubWorkflowStep`, retry/compensação/rollback,
-execução síncrona, construtor de condições completo (E/OU/comparação de campo).
+execução síncrona.
 
 ### Arquivos-chave
 

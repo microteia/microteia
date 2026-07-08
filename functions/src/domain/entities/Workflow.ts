@@ -78,12 +78,19 @@ export interface NotCondition {
   condition: Condition;
 }
 
+// Expressão pura avaliada pelo motor de expressões; o resultado é convertido para booleano
+export interface ExpressionCondition {
+  kind: 'Expression';
+  expression: string;
+}
+
 export type Condition =
   | AlwaysTrueCondition
   | FieldComparisonCondition
   | LogicalAndCondition
   | LogicalOrCondition
-  | NotCondition;
+  | NotCondition
+  | ExpressionCondition;
 
 export interface WorkflowDefinition {
   id: string;

@@ -13,6 +13,7 @@ import {
   RiSaveLine,
   RiListUnordered,
   RiDraggable,
+  RiNodeTree,
 } from 'react-icons/ri';
 import { S } from './ViewWorkflow.styles';
 import { useViewWorkflowViewModel, EVENT_NAME_OPTIONS, LOOKUP_COLLECTION_OPTIONS } from './ViewWorkflow.viewmodel';
@@ -22,6 +23,7 @@ import { SearchSelect } from '../../components/ui/SearchSelect';
 import { InfoBanner } from '../../components/ui/InfoBanner';
 import { ConfirmModal } from '../../components/ui/ConfirmModal';
 import { ConditionBuilder } from '../../components/ui/ConditionBuilder';
+import { ConditionDiagram } from '../../components/ui/ConditionDiagram';
 import { getStepDisplayName } from '../../shared/workflowHelpers';
 
 export const ViewWorkflowView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
@@ -172,12 +174,41 @@ export const ViewWorkflowView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
       {vm.activeTab === 'conditions' && !vm.isNew && (
         <S.Content>
           <S.ContentInner>
-            {vm.workflow && (
+            <S.StepsToolbar>
+              <S.ViewToggle>
+                <S.ViewToggleBtn
+                  $active={vm.conditionViewMode === 'editor'}
+                  onClick={() => vm.setConditionViewMode('editor')}
+                  title="Editor de condições"
+                >
+                  <RiEditLine size={14} />
+                </S.ViewToggleBtn>
+                <S.ViewToggleBtn
+                  $active={vm.conditionViewMode === 'diagram'}
+                  onClick={() => vm.setConditionViewMode('diagram')}
+                  title="Diagrama lógico"
+                >
+                  <RiNodeTree size={14} />
+                </S.ViewToggleBtn>
+              </S.ViewToggle>
+            </S.StepsToolbar>
+            {vm.workflow && vm.conditionViewMode === 'editor' && (
               <ConditionBuilder
                 value={vm.pendingCondition}
                 onChange={vm.handleConditionLocalChange}
                 eventName={vm.workflow.eventName}
                 screenKey={vm.workflow.screenKey}
+                focusPath={vm.conditionFocusPath}
+                onFocusHandled={vm.clearConditionFocusPath}
+              />
+            )}
+            {vm.workflow && vm.conditionViewMode === 'diagram' && (
+              <ConditionDiagram
+                condition={vm.pendingCondition}
+                eventName={vm.workflow.eventName}
+                screenKey={vm.workflow.screenKey}
+                onChange={vm.handleConditionLocalChange}
+                onRequestEdit={vm.handleRequestConditionEdit}
               />
             )}
           </S.ContentInner>

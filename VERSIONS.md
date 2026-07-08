@@ -11,6 +11,14 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [0.57.0] — 2026-07-08
+
+- As condições das Automações agora suportam lógicas complexas: combine regras com E/OU, agrupe condições dentro de condições (ex: "(A e B) ou C") e inverta qualquer regra ou grupo com NÃO. O botão "Agrupar" envolve as regras existentes de um grupo em um subgrupo, facilitando reestruturar a lógica sem recriar nada.
+- Uma condição agora também pode ser uma expressão pura, escrita direto no editor de expressões, sem precisar escolher campo e operador.
+- A aba Condições ganhou um diagrama lógico: uma visualização gráfica que mostra a estrutura das regras de forma clara, alternável com o editor. No próprio diagrama é possível alternar E/OU clicando no selo do grupo, negar ou remover regras e adicionar novas condições, expressões e grupos; para mudar campo, operador ou valor, um atalho leva direto ao cartão correspondente no editor, que rola até ele e o destaca por alguns segundos.
+- Condições e grupos agora podem ser recolhidos nas duas visualizações: recolhido, o cartão mostra um resumo em uma linha (campo, operador e valor), facilitando trabalhar com lógicas grandes.
+- O editor de expressões dentro das condições voltou a sugerir os campos do evento ao digitar "event.".
+
 #### [0.56.0] — 2026-07-08
 
 - A aba Steps das Automações ganhou uma visualização em fluxo: o gatilho aparece no topo e cada passo é um cartão conectado por linhas, mostrando ícone, nome, tipo, ordem e se está ativo.

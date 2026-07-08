@@ -23,8 +23,10 @@ import type { StepDefinitionSummary, StepCategory } from '../../../domain/entiti
 export type ViewWorkflowTab = 'general' | 'conditions' | 'steps' | 'executions';
 
 export type StepsViewMode = 'flow' | 'list';
+export type ConditionViewMode = 'editor' | 'diagram';
 
 const STEPS_VIEW_MODE_KEY = 'curatino:workflowStepsViewMode';
+const CONDITION_VIEW_MODE_KEY = 'curatino:workflowConditionViewMode';
 
 const loadStepsViewMode = (): StepsViewMode => {
   try {
@@ -37,6 +39,22 @@ const loadStepsViewMode = (): StepsViewMode => {
 const saveStepsViewMode = (mode: StepsViewMode): void => {
   try {
     localStorage.setItem(STEPS_VIEW_MODE_KEY, mode);
+  } catch {
+    // ignore
+  }
+};
+
+const loadConditionViewMode = (): ConditionViewMode => {
+  try {
+    return localStorage.getItem(CONDITION_VIEW_MODE_KEY) === 'diagram' ? 'diagram' : 'editor';
+  } catch {
+    return 'editor';
+  }
+};
+
+const saveConditionViewMode = (mode: ConditionViewMode): void => {
+  try {
+    localStorage.setItem(CONDITION_VIEW_MODE_KEY, mode);
   } catch {
     // ignore
   }
@@ -104,6 +122,11 @@ export interface ViewWorkflowViewModel {
   toggleStepEnabled: (step: WorkflowStep) => Promise<void>;
   stepsViewMode: StepsViewMode;
   setStepsViewMode: (mode: StepsViewMode) => void;
+  conditionViewMode: ConditionViewMode;
+  setConditionViewMode: (mode: ConditionViewMode) => void;
+  conditionFocusPath: number[] | null;
+  handleRequestConditionEdit: (path: number[]) => void;
+  clearConditionFocusPath: () => void;
   eventLabel: string;
   getStepTypeLabel: (step: WorkflowStep) => string;
   draggingStepId: string | null;
@@ -182,6 +205,8 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
   const [pendingCondition, setPendingCondition] = useState<Condition>({ kind: 'AlwaysTrue' });
   const [conditionChanged, setConditionChanged] = useState(false);
   const [stepsViewMode, setStepsViewModeState] = useState<StepsViewMode>(loadStepsViewMode);
+  const [conditionViewMode, setConditionViewModeState] = useState<ConditionViewMode>(loadConditionViewMode);
+  const [conditionFocusPath, setConditionFocusPath] = useState<number[] | null>(null);
   const [draggingStepId, setDraggingStepId] = useState<string | null>(null);
   const [dropTargetIndex, setDropTargetIndex] = useState<number | null>(null);
 
@@ -547,6 +572,18 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
     saveStepsViewMode(mode);
   }, []);
 
+  const setConditionViewMode = useCallback((mode: ConditionViewMode) => {
+    setConditionViewModeState(mode);
+    saveConditionViewMode(mode);
+  }, []);
+
+  const handleRequestConditionEdit = useCallback((path: number[]) => {
+    setConditionFocusPath(path);
+    setConditionViewMode('editor');
+  }, [setConditionViewMode]);
+
+  const clearConditionFocusPath = useCallback(() => setConditionFocusPath(null), []);
+
   const eventLabel = useMemo(() => {
     if (!workflow) return '';
     return WORKFLOW_EVENT_CATALOG.find((entry) => entry.name === workflow.eventName)?.label ?? workflow.eventName;
@@ -635,6 +672,11 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
     toggleStepEnabled,
     stepsViewMode,
     setStepsViewMode,
+    conditionViewMode,
+    setConditionViewMode,
+    conditionFocusPath,
+    handleRequestConditionEdit,
+    clearConditionFocusPath,
     eventLabel,
     getStepTypeLabel,
     draggingStepId,

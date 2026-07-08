@@ -44,7 +44,8 @@ const evaluateFieldComparison = (
       return false;
     }
   } else if (condition.valueType === 'eventField') {
-    compareValue = getValueByPath(context.event.payload, String(condition.value));
+    // Mesmo formato do fieldPath: caminho absoluto no contexto (ex: "event.payload.status")
+    compareValue = getValueByPath(context, String(condition.value));
   }
 
   // Operadores que não precisam de valor de comparação
@@ -95,6 +96,14 @@ export const evaluateCondition = (condition: Condition, context: WorkflowContext
       } catch (error) {
         // Log de debug mas não quebra a execução
         context.logger.warn(`Erro ao avaliar condição de campo: ${error instanceof Error ? error.message : String(error)}`);
+        return false;
+      }
+
+    case 'Expression':
+      try {
+        return Boolean(expressionEngine.evaluate(condition.expression, context));
+      } catch (error) {
+        context.logger.warn(`Erro ao avaliar condição de expressão: ${error instanceof Error ? error.message : String(error)}`);
         return false;
       }
 
