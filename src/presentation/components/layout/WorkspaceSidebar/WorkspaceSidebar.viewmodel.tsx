@@ -62,6 +62,8 @@ const THEME_OPTIONS: ThemeOption[] = [
   { mode: 'claude',   label: 'Claude',    primaryColor: '#DA7756', bgColor: '#F5F4EE' },
   { mode: 'teams',    label: 'Teams',     primaryColor: '#6264A7', bgColor: '#1F1F1F' },
   { mode: 'kindle',   label: 'Kindle',    primaryColor: '#8B6040', bgColor: '#F6EDD9' },
+  { mode: 'themis',     label: 'Themis',         primaryColor: '#6D2233', bgColor: '#F6F3EC' },
+  { mode: 'themisDark', label: 'Themis Noturno', primaryColor: '#B85C6E', bgColor: '#191316' },
 ];
 
 export interface WorkspaceSidebarViewModel {

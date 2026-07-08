@@ -1,6 +1,26 @@
-import { useContext } from 'react';
-import type { ExpressionFunctionDef } from './ExpressionFunctionStore';
-import { ExpressionFunctionStoreContext } from './ExpressionFunctionStore';
+import { createContext, useContext } from 'react';
+
+export interface ExpressionFunctionDef {
+  name: string;
+  description: string;
+  signature: string;
+  example: string;
+  category: string;
+  minArgs: number;
+  maxArgs?: number;
+}
+
+export interface ExpressionFunctionStoreState {
+  functions: ExpressionFunctionDef[];
+  loading: boolean;
+  error: string | null;
+}
+
+export const ExpressionFunctionStoreContext = createContext<ExpressionFunctionStoreState>({
+  functions: [],
+  loading: true,
+  error: null,
+});
 
 export interface UseExpressionFunctions {
   functions: ExpressionFunctionDef[];
@@ -10,7 +30,7 @@ export interface UseExpressionFunctions {
 
 export const useExpressionFunctions = (): UseExpressionFunctions => {
   const context = useContext(ExpressionFunctionStoreContext);
-  
+
   if (!context) {
     throw new Error('useExpressionFunctions must be used within ExpressionFunctionStoreProvider');
   }

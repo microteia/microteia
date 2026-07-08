@@ -1,5 +1,5 @@
 import { Parser } from 'expr-eval';
-import type { ExpressionFunctionDef } from '../../../../stores/ExpressionFunctionStore';
+import type { ExpressionFunctionDef } from '../../../../stores/useExpressionFunctions';
 
 export interface ValidationResult {
   isValid: boolean | null;

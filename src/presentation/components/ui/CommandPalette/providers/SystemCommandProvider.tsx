@@ -22,6 +22,8 @@ const THEME_OPTIONS: { mode: ThemeMode; label: string; light: boolean }[] = [
   { mode: 'teams',    label: 'Tema Teams',    light: false },
   { mode: 'bruma',    label: 'Tema Bruma',    light: true  },
   { mode: 'kindle',   label: 'Tema Kindle',   light: true  },
+  { mode: 'themis',     label: 'Tema Themis',         light: true  },
+  { mode: 'themisDark', label: 'Tema Themis Noturno', light: false },
 ];
 
 const THEME_KEYWORDS = ['tema', 'theme', 'aparência', 'cor', 'cores', 'escuro', 'claro', 'dark', 'light'];

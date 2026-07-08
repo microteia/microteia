@@ -11,6 +11,13 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [0.55.0] — 2026-07-08
+
+- Novo tema exclusivo **Themis**, criado especialmente para escritórios de advocacia: tons de bordô institucional, dourado envelhecido e fundo marfim, com tipografia serifada clássica que remete a peças jurídicas.
+- O tema Themis está disponível em duas versões — clara e noturna — com as mesmas cores e a mesma identidade, para trabalhar com conforto de dia ou à noite.
+- As cores de status de processos, contratos, prazos e pessoas foram harmonizadas dentro do tema Themis, deixando toda a interface visualmente uniforme e elegante.
+- Ajustes internos de estabilidade no editor de automações.
+
 #### [0.54.2] — 2026-07-08
 
 - Aprimorada a aparência visual da aba de Condições nas automações: os botões de opção agora seguem o tema do sistema, com design moderno e consistente, e o botão de excluir condição aparece apenas com contorno sutil, ficando destacado somente ao passar o mouse.

@@ -39,7 +39,7 @@ const evaluateFieldComparison = (
   if (condition.valueType === 'expression') {
     try {
       compareValue = expressionEngine.evaluate(String(condition.value), context);
-    } catch (error) {
+    } catch {
       // Se a expressão falhar, considera false sem quebrar a execução
       return false;
     }

@@ -230,7 +230,7 @@ type UserRole = 'SYSTEM' | 'USER';
 type TenantRole = 'admin' | 'lawyer' | 'secretary' | 'user';
 
 // Temas visuais disponíveis
-type ThemeMode = 'dark' | 'light' | 'claude' | 'teams' | 'bruma' | 'kindle';
+type ThemeMode = 'dark' | 'light' | 'claude' | 'teams' | 'bruma' | 'kindle' | 'curatino' | 'themis' | 'themisDark';
 ```
 
 ### Entidade GmailConnection
@@ -552,7 +552,7 @@ interface Contract {
 
 **Valores estáticos por kind:** `types` (13 valores: Prestação de serviços, Compra e venda, Locação, ...), `categories` (15 valores: Cível, Empresarial, ...), `statuses` (8 valores com cor: Em elaboração, Em revisão, Aguardando assinatura, Vigente, Suspenso, Encerrado, Cancelado, Rescindido), `adjustmentIndexes` (INPC, IPCA), `adjustmentPeriodicities` (Anual), `currencies` (Real), `paymentMethods` (À vista, À prazo, Boleto, Cartão de Crédito). `objects`, `banks` e `costCenters` não têm valores estáticos — são só dinâmicos por tenant.
 
-**Cores de status:** tokens `contractStatus*` em `shared/styles/theme.ts` (replicados nos 7 temas, mesmo padrão de `caseStatus*`).
+**Cores de status:** tokens `contractStatus*` em `shared/styles/theme.ts` (replicados nos 9 temas, mesmo padrão de `caseStatus*`).
 
 Coleções Firestore: `tenants/{tenantId}/contracts/{id}`, `tenants/{tenantId}/contractTags/{id}`, `tenants/{tenantId}/contractTypes`, `contractCategories`, `contractStatuses`, `contractObjects`, `contractAdjustmentIndexes`, `contractAdjustmentPeriodicities`, `contractCurrencies`, `contractPaymentMethods`, `contractBanks`, `contractCostCenters`.
 
@@ -1041,7 +1041,7 @@ src/
 ├── shared/
 │   ├── types/index.ts             # Re-exporta aliases de domain/entities
 │   └── styles/
-│       ├── theme.ts               # Tokens dark/light/claude/teams/bruma/kindle
+│       ├── theme.ts               # Tokens dark/light/claude/teams/bruma/kindle/curatino/themis/themisDark
 │       ├── GlobalStyles.ts
 │       └── styled.d.ts
 │

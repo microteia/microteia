@@ -1,28 +1,8 @@
-import React, { createContext, useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { httpsCallable } from 'firebase/functions';
 import { functions as firebaseFunctions } from '../infrastructure/firebase/config';
-
-export interface ExpressionFunctionDef {
-  name: string;
-  description: string;
-  signature: string;
-  example: string;
-  category: string;
-  minArgs: number;
-  maxArgs?: number;
-}
-
-interface ExpressionFunctionStoreState {
-  functions: ExpressionFunctionDef[];
-  loading: boolean;
-  error: string | null;
-}
-
-export const ExpressionFunctionStoreContext = createContext<ExpressionFunctionStoreState>({
-  functions: [],
-  loading: true,
-  error: null,
-});
+import type { ExpressionFunctionDef } from './useExpressionFunctions';
+import { ExpressionFunctionStoreContext } from './useExpressionFunctions';
 
 export const ExpressionFunctionStoreProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [functions, setFunctions] = useState<ExpressionFunctionDef[]>([]);
@@ -34,12 +14,12 @@ export const ExpressionFunctionStoreProvider: React.FC<{ children: React.ReactNo
       try {
         setLoading(true);
         setError(null);
-        
+
         const getExpressionFunctions = httpsCallable<void, { functions: ExpressionFunctionDef[] }>(
           firebaseFunctions,
           'getExpressionFunctions'
         );
-        
+
         const result = await getExpressionFunctions();
         setFunctions(result.data.functions);
       } catch (err) {

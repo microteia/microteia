@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { ThemeProvider as StyledThemeProvider } from 'styled-components';
-import { darkTheme, lightTheme, claudeTheme, teamsTheme, brumaTheme, kindleTheme, curatinoTheme } from '../shared/styles/theme';
+import { darkTheme, lightTheme, claudeTheme, teamsTheme, brumaTheme, kindleTheme, curatinoTheme, themisTheme, themisDarkTheme } from '../shared/styles/theme';
 import type { Theme } from '../shared/styles/theme';
 import { GlobalStyles } from '../shared/styles/GlobalStyles';
 import type { ThemeMode } from '../shared/types';
@@ -16,6 +16,8 @@ const THEMES: Record<ThemeMode, Theme> = {
   bruma: brumaTheme,
   kindle: kindleTheme,
   curatino: curatinoTheme,
+  themis: themisTheme,
+  themisDark: themisDarkTheme,
 };
 
 export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {

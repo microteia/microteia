@@ -15,7 +15,7 @@ type StepDefinitionSummary = Omit<StepDefinition, 'createExecutor'>;
  */
 export const getWorkflowStepCatalog = onCall(
   { region: 'us-central1', cors: true },
-  async (request) => {
+  async () => {
     // Garante que os steps estão registrados (idempotente)
     await getDI().ensureWorkflowStepsRegistered();
 
