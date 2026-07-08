@@ -78,7 +78,7 @@ export const makeOutputStepDefinition = (): StepDefinition => ({
       
       return { 
         success: true, 
-        message: `Saída retornada`,
+        message: `Saída {"${name}": ...} `,
         outputs: {
           [name]: jsonValue,
         },
