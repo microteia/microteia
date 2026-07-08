@@ -44,9 +44,46 @@ export interface WorkflowStep {
   enabled: boolean;
 }
 
-export interface Condition {
+// Condições para filtrar quando o workflow deve executar (avaliadas ANTES de qualquer Step)
+
+// Sempre executa (padrão, compatibilidade com workflows existentes)
+export interface AlwaysTrueCondition {
   kind: 'AlwaysTrue';
 }
+
+// Comparação de campo único
+export interface FieldComparisonCondition {
+  kind: 'FieldComparison';
+  fieldPath: string;         // Caminho do campo (ex: "status", "event.payload.caseId")
+  operator: '==' | '!=' | '>' | '>=' | '<' | '<=' | 'contains' | 'startsWith' | 'endsWith' | 'isEmpty' | 'isNotEmpty';
+  value: unknown;            // Valor a comparar
+  valueType: 'literal' | 'expression' | 'eventField';  // Como interpretar o valor
+}
+
+// Operador lógico AND (todas as condições devem ser verdadeiras)
+export interface LogicalAndCondition {
+  kind: 'LogicalAnd';
+  conditions: Condition[];
+}
+
+// Operador lógico OR (pelo menos uma condição deve ser verdadeira)
+export interface LogicalOrCondition {
+  kind: 'LogicalOr';
+  conditions: Condition[];
+}
+
+// Negação (inverte o resultado da condição)
+export interface NotCondition {
+  kind: 'Not';
+  condition: Condition;
+}
+
+export type Condition =
+  | AlwaysTrueCondition
+  | FieldComparisonCondition
+  | LogicalAndCondition
+  | LogicalOrCondition
+  | NotCondition;
 
 export interface WorkflowDefinition {
   id: string;

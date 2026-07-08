@@ -19,6 +19,7 @@ import { InputGroup, Label, Input, Textarea } from '../../components/ui/Input';
 import { SearchSelect } from '../../components/ui/SearchSelect';
 import { InfoBanner } from '../../components/ui/InfoBanner';
 import { ConfirmModal } from '../../components/ui/ConfirmModal';
+import { ConditionBuilder } from '../../components/ui/ConditionBuilder';
 import { getStepDisplayName } from '../../shared/workflowHelpers';
 
 export const ViewWorkflowView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
@@ -57,6 +58,15 @@ export const ViewWorkflowView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
                 (vm.isCustomRecordEvent && !vm.formData.screenKey) ||
                 (vm.isLookupEvent && !vm.formData.lookupCollection)
               }
+              title={vm.isSaving ? 'Salvando...' : 'Salvar'}
+            >
+              <RiSaveLine size={14} />
+            </S.SaveBtn>
+          )}
+          {vm.activeTab === 'conditions' && !vm.isNew && (
+            <S.SaveBtn
+              onClick={() => void vm.handleSaveCondition()}
+              disabled={vm.isSaving || !vm.conditionChanged}
               title={vm.isSaving ? 'Salvando...' : 'Salvar'}
             >
               <RiSaveLine size={14} />
@@ -157,10 +167,14 @@ export const ViewWorkflowView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
 
       {vm.activeTab === 'conditions' && !vm.isNew && (
         <S.Content>
-          <InfoBanner
-            variant="info"
-            message="Construtor de condições completo chega em uma versão futura. Hoje toda automação é executada sempre que o evento ocorre."
-          />
+          {vm.workflow && (
+            <ConditionBuilder
+              value={vm.pendingCondition}
+              onChange={vm.handleConditionLocalChange}
+              eventName={vm.workflow.eventName}
+              screenKey={vm.workflow.screenKey}
+            />
+          )}
         </S.Content>
       )}
 

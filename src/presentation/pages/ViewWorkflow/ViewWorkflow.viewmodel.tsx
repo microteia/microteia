@@ -15,7 +15,7 @@ import { getWorkflowEventIcon, getWorkflowLookupGroupIcon } from '../../shared/w
 import { getScreenIconType } from '../../shared/screenIcons';
 import { getStepIcon as getStepIconType } from '../../shared/stepIcons';
 import { generateDeepLink } from '../../../infrastructure/deeplink/deepLinkUtils';
-import type { WorkflowDefinition, WorkflowExecution, WorkflowStep } from '../../../domain/entities/Workflow';
+import type { WorkflowDefinition, WorkflowExecution, WorkflowStep, Condition } from '../../../domain/entities/Workflow';
 import type { StepDefinitionSummary } from '../../../domain/entities/WorkflowStepCatalog';
 
 export type ViewWorkflowTab = 'general' | 'conditions' | 'steps' | 'executions';
@@ -97,6 +97,10 @@ export interface ViewWorkflowViewModel {
   workflowToDelete: WorkflowDefinition | null;
   confirmDeleteWorkflow: () => Promise<void>;
   cancelDeleteWorkflow: () => void;
+  pendingCondition: Condition;
+  conditionChanged: boolean;
+  handleConditionLocalChange: (condition: Condition) => void;
+  handleSaveCondition: () => Promise<void>;
 }
 
 const CLONE_PREFIX = 'new-workflow:clone:';
@@ -135,6 +139,8 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
   const [expandedExecutionOutputs, setExpandedExecutionOutputs] = useState<Set<string>>(new Set());
   const [expandedLogData, setExpandedLogData] = useState<Set<string>>(new Set());
   const [expandedStepResults, setExpandedStepResults] = useState<Set<string>>(new Set());
+  const [pendingCondition, setPendingCondition] = useState<Condition>({ kind: 'AlwaysTrue' });
+  const [conditionChanged, setConditionChanged] = useState(false);
 
   // Carrega o catálogo de steps uma vez (idempotente)
   useEffect(() => {
@@ -143,8 +149,10 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
 
   useEffect(() => {
     if (workflow) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- re-inicializa o formulário quando o workflow carrega da store
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- sincroniza formulário e condição com workflow carregado da store
       setFormDataState(buildForm(workflow));
+      setPendingCondition(workflow.condition);
+      setConditionChanged(false);
     }
   }, [workflow]);
 
@@ -330,9 +338,29 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
       .then(() => notify(`Automação ${next ? 'ativada' : 'inativada'}.`, 'success'))
       .catch((error) => {
         console.error('[ViewWorkflow] toggleEnabled:', error);
-        notify('Erro ao atualizar automação.', 'error');
+        notify('Erro ao alterar status.', 'error');
       });
   }, [workflow, updateWorkflow, notify]);
+
+  const handleConditionLocalChange = useCallback((condition: Condition) => {
+    setPendingCondition(condition);
+    setConditionChanged(true);
+  }, []);
+
+  const handleSaveCondition = useCallback(async () => {
+    if (!workflow || !conditionChanged) return;
+    setIsSaving(true);
+    try {
+      await updateWorkflow(workflow.id, { condition: pendingCondition });
+      setConditionChanged(false);
+      notify('Condição salva.', 'success');
+    } catch (error) {
+      console.error('[ViewWorkflow] handleSaveCondition:', error);
+      notify('Erro ao salvar condição.', 'error');
+    } finally {
+      setIsSaving(false);
+    }
+  }, [workflow, conditionChanged, pendingCondition, updateWorkflow, notify]);
 
   const handleCopyDeepLink = useCallback(() => {
     if (!workflow) return;
@@ -524,5 +552,9 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
     workflowToDelete,
     confirmDeleteWorkflow,
     cancelDeleteWorkflow,
+    pendingCondition,
+    conditionChanged,
+    handleConditionLocalChange,
+    handleSaveCondition,
   };
 };

@@ -45,9 +45,19 @@ export const runWorkflow = async ({ definition, event, registry, services }: Run
     outputs,
   });
 
+  // Context parcial para avaliação da condição (antes de executar steps)
+  const conditionContext: WorkflowContext = {
+    event,
+    outputs: {},
+    variables: {},
+    services,
+    logger: services.logger,
+    execution: { id: executionId, workflowDefinitionId: definition.id, tenantId: definition.tenantId },
+  };
+
   let conditionResult: boolean;
   try {
-    conditionResult = evaluateCondition(definition.condition);
+    conditionResult = evaluateCondition(definition.condition, conditionContext);
   } catch (error) {
     log('WARN', error instanceof Error ? error.message : String(error));
     return finish('PARTIAL', {});

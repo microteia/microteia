@@ -11,6 +11,15 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [0.53.1] — 2026-07-07
+
+- Melhorada a experiência de edição de condições em automações: agora você edita as condições livremente e clica no botão "Salvar" quando quiser salvar as alterações, igual à aba "Geral". O botão "Salvar" só fica habilitado quando há mudanças pendentes, e a notificação de sucesso aparece apenas ao salvar.
+
+#### [0.53.0] — 2026-07-07
+
+- Lançado o construtor visual de condições para automações: agora é possível definir quando um workflow deve executar com base em comparações de campos do evento. Configure múltiplas condições que devem ser atendidas simultaneamente (operador E/AND), usando os campos da entidade do evento e operadores como "igual a", "maior que", "contém", entre outros. Valores de comparação podem ser fixos, expressões dinâmicas (usando funções como `today()`, `now()`) ou outros campos do evento.
+- A aba "Condições" da tela de automação agora oferece uma interface intuitiva para escolher entre "Sempre executar" ou "Executar apenas quando condições forem atendidas", eliminando a mensagem de recurso futuro.
+
 #### [0.52.1] — 2026-07-07
 
 - Melhorada a visualização de execuções de automações: agora cada step exibe seu ícone, um badge de status (SUCCESS, ERROR, WARN) e uma barra de progresso visual mostrando o resultado de todos os steps de uma só vez. Steps com erro são expandidos automaticamente, facilitando a identificação rápida de problemas sem precisar abrir um por um.
