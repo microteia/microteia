@@ -20,6 +20,8 @@ const SHARED_FILES = [
   'domain/entities/entitySchemas.ts',
   'domain/schema/entityRegistry.ts',
   'domain/schema/lookupRegistry.ts',
+  'domain/schema/pathResolver.ts',
+  'domain/schema/expressionPaths.ts',
 ];
 
 const buildHeader = (relativePath) =>

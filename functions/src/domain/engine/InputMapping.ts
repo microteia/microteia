@@ -2,14 +2,10 @@ import type { InputMapping } from '../entities/Workflow';
 import type { WorkflowContext } from '../entities/WorkflowContext';
 import type { InputDefinition } from './StepDefinition';
 import { expressionEngine } from './expression/ExpressionEngine';
+import { getValueAtPath, parsePath } from '../schema/pathResolver';
 
 const resolveEventPath = (payload: Record<string, unknown>, path: string): unknown =>
-  path.split('.').reduce<unknown>((value, key) => {
-    if (value && typeof value === 'object' && key in (value as Record<string, unknown>)) {
-      return (value as Record<string, unknown>)[key];
-    }
-    return undefined;
-  }, payload);
+  getValueAtPath(payload, parsePath(path));
 
 const resolveOutputPath = (outputs: Record<string, unknown>, stepId: string, outputId: string): unknown => {
   const stepOutputs = outputs[stepId];

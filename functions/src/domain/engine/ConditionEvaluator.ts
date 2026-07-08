@@ -1,28 +1,9 @@
 import type { Condition } from '../entities/Workflow';
 import type { WorkflowContext } from '../entities/WorkflowContext';
 import { expressionEngine } from './expression/ExpressionEngine';
+import { getValueAtPath, parsePath } from '../schema/pathResolver';
 
-/**
- * Acessa campos aninhados via dot-path (ex: "event.payload.status")
- * Suporta navegação em objetos e arrays.
- */
-const getValueByPath = (obj: unknown, path: string): unknown => {
-  const keys = path.split('.');
-  let value: unknown = obj;
-  
-  for (const key of keys) {
-    if (value === null || value === undefined) {
-      return undefined;
-    }
-    if (typeof value === 'object' && key in (value as Record<string, unknown>)) {
-      value = (value as Record<string, unknown>)[key];
-    } else {
-      return undefined;
-    }
-  }
-  
-  return value;
-};
+const getValueByPath = (obj: unknown, path: string): unknown => getValueAtPath(obj, parsePath(path));
 
 /**
  * Avalia uma comparação de campo único

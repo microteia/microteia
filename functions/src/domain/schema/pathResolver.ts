@@ -1,0 +1,547 @@
+// ═══════════════════════════════════════════════════════════════════════════
+// ⚠️  ARQUIVO GERADO POR scripts/sync-schemas.cjs — NÃO EDITE.
+// Fonte única: src/domain/schema/pathResolver.ts
+// Para alterar, edite a fonte e rode: npm run sync-schemas
+// ═══════════════════════════════════════════════════════════════════════════
+
+import type { EntityKey, EntityMetadata, NativeFieldSpec, NativeFieldType } from './entityRegistry';
+import { ENTITY_REGISTRY, SCHEMA_VERSION, getEntityByCollection } from './entityRegistry';
+import { LOOKUP_REGISTRY, getLookupLabel } from './lookupRegistry';
+import type { CustomFieldType, FieldDefinition } from '../entities/entitySchemas';
+import { BUILTIN_REF_ENTITIES, resolveRefEntityCollection } from '../entities/entitySchemas';
+
+export const DEFAULT_MAX_FK_DEPTH = 3;
+
+export interface SchemaScreen {
+  id: string;
+  titleSingular: string;
+  titleFieldKey: string;
+  fields: FieldDefinition[];
+}
+
+export interface SchemaContext {
+  registry: Record<EntityKey, EntityMetadata>;
+  screens: ReadonlyMap<string, SchemaScreen>;
+  version: number;
+}
+
+export const createSchemaContext = (screens: Iterable<SchemaScreen> = []): SchemaContext => ({
+  registry: ENTITY_REGISTRY,
+  screens: new Map([...screens].map((screen) => [screen.id, screen])),
+  version: SCHEMA_VERSION,
+});
+
+export type PathRoot =
+  | { kind: 'entity'; entityKey: EntityKey; screenKey?: string; hasOld: boolean }
+  | { kind: 'fields'; fields: NativeFieldSpec[]; hasOld: boolean };
+
+export type PathSegment = { kind: 'key'; name: string } | { kind: 'index'; index: number };
+
+export type MaterializationMode = 'denormKey' | 'replaceValue';
+
+export interface FkHop {
+  atPath: string;
+  targetCollection: string;
+  materializeAt: string;
+  mode: MaterializationMode;
+  multi: boolean;
+  fields: string[] | 'all';
+}
+
+export type PathNode =
+  | { kind: 'scalar'; type: NativeFieldType; lookupCollection?: string }
+  | { kind: 'entity'; collection: string; screenKey?: string }
+  | { kind: 'entityList'; collection: string; screenKey?: string }
+  | { kind: 'customValuesBag'; screenKey: string }
+  | { kind: 'object' }
+  | { kind: 'unknown' };
+
+export interface PathResolution {
+  valid: boolean;
+  error?: string;
+  node: PathNode;
+  hops: FkHop[];
+  depth: number;
+}
+
+export interface ResolveOptions {
+  maxFkDepth?: number;
+}
+
+export type PathSuggestionKind =
+  | 'field'
+  | 'fk'
+  | 'fkList'
+  | 'customField'
+  | 'reference'
+  | 'referenceList'
+  | 'index'
+  | 'special';
+
+export interface PathSuggestion {
+  insertText: string;
+  label: string;
+  kind: PathSuggestionKind;
+  detail?: string;
+  isLeaf: boolean;
+}
+
+export const parsePath = (raw: string): PathSegment[] => {
+  const segments: PathSegment[] = [];
+  const normalized = raw.trim().replace(/\[(\d+)\]/g, '.$1');
+  if (!normalized) return segments;
+  for (const part of normalized.split('.')) {
+    if (!part) continue;
+    if (/^\d+$/.test(part)) segments.push({ kind: 'index', index: Number(part) });
+    else segments.push({ kind: 'key', name: part });
+  }
+  return segments;
+};
+
+export const stripEventPrefix = (raw: string): PathSegment[] | null => {
+  const trimmed = raw.trim();
+  if (trimmed === 'event' || trimmed === 'event.payload') return [];
+  if (trimmed.startsWith('event.payload.')) return parsePath(trimmed.slice('event.payload.'.length));
+  if (trimmed.startsWith('event.')) return parsePath(trimmed.slice('event.'.length));
+  return null;
+};
+
+export const joinSegments = (segments: PathSegment[]): string =>
+  segments.map((segment) => (segment.kind === 'key' ? segment.name : String(segment.index))).join('.');
+
+export const getValueAtPath = (obj: unknown, segments: PathSegment[]): unknown => {
+  let value: unknown = obj;
+  for (const segment of segments) {
+    if (value === null || value === undefined) return undefined;
+    if (segment.kind === 'index') {
+      if (Array.isArray(value)) {
+        value = value[segment.index];
+        continue;
+      }
+      if (typeof value === 'object' && String(segment.index) in (value as Record<string, unknown>)) {
+        value = (value as Record<string, unknown>)[String(segment.index)];
+        continue;
+      }
+      return undefined;
+    }
+    if (typeof value === 'object' && segment.name in (value as Record<string, unknown>)) {
+      value = (value as Record<string, unknown>)[segment.name];
+    } else {
+      return undefined;
+    }
+  }
+  return value;
+};
+
+const CUSTOM_FIELD_SCALAR_TYPES: Record<Exclude<CustomFieldType, 'reference'>, NativeFieldType> = {
+  text: 'string',
+  textarea: 'string',
+  masked: 'string',
+  markdown: 'string',
+  select: 'string',
+  number: 'number',
+  currency: 'number',
+  date: 'date',
+  checkbox: 'boolean',
+};
+
+type Cursor =
+  | { kind: 'entity'; entity: EntityMetadata; screenKey?: string; valuesInline: boolean }
+  | { kind: 'entityList'; entity?: EntityMetadata; screenKey?: string; valuesInline: boolean; collection: string }
+  | { kind: 'externalRecord'; collection: string }
+  | { kind: 'bag'; screenKey: string }
+  | { kind: 'object'; fields: NativeFieldSpec[] }
+  | { kind: 'scalar'; type: NativeFieldType; lookupCollection?: string }
+  | { kind: 'unknown' };
+
+interface WalkState {
+  cursor: Cursor;
+  hops: FkHop[];
+  depth: number;
+  path: PathSegment[];
+  error?: string;
+}
+
+const rootCursor = (ctx: SchemaContext, root: PathRoot): Cursor => {
+  if (root.kind === 'fields') return { kind: 'object', fields: root.fields };
+  const entity = ctx.registry[root.entityKey];
+  return { kind: 'entity', entity, screenKey: root.screenKey, valuesInline: false };
+};
+
+const invalid = (state: WalkState, error: string): WalkState => ({ ...state, error });
+
+const referenceTargetState = (
+  ctx: SchemaContext,
+  state: WalkState,
+  field: FieldDefinition,
+  segment: PathSegment,
+  maxFkDepth: number,
+): WalkState => {
+  const refEntity = field.refEntity as string;
+  const targetCollection = resolveRefEntityCollection(refEntity);
+  const builtin = BUILTIN_REF_ENTITIES.has(refEntity);
+  const depth = state.depth + 1;
+  if (depth > maxFkDepth) {
+    return invalid(state, `Profundidade máxima de ${maxFkDepth} referências excedida`);
+  }
+  const path = [...state.path, segment];
+  const pathText = joinSegments(path);
+  const target = builtin ? getEntityByCollection(targetCollection) : ctx.registry.customRecords;
+  const hop: FkHop = {
+    atPath: pathText,
+    targetCollection,
+    materializeAt: pathText,
+    mode: 'replaceValue',
+    multi: field.multi === true,
+    fields: builtin ? (target?.referenceDenormFields ?? 'all') : 'all',
+  };
+  const screenKey = builtin ? undefined : refEntity;
+  const cursor: Cursor = field.multi
+    ? { kind: 'entityList', entity: target, screenKey, valuesInline: !builtin, collection: targetCollection }
+    : target
+      ? { kind: 'entity', entity: target, screenKey, valuesInline: !builtin }
+      : { kind: 'externalRecord', collection: targetCollection };
+  return { cursor, hops: [...state.hops, hop], depth, path };
+};
+
+const stepBagField = (
+  ctx: SchemaContext,
+  state: WalkState,
+  screenKey: string,
+  segment: Extract<PathSegment, { kind: 'key' }>,
+  maxFkDepth: number,
+): WalkState => {
+  const screen = ctx.screens.get(screenKey);
+  if (!screen) {
+    return { ...state, cursor: { kind: 'unknown' }, path: [...state.path, segment] };
+  }
+  const field = screen.fields.find((f) => f.key === segment.name);
+  if (!field) {
+    return { ...state, cursor: { kind: 'unknown' }, path: [...state.path, segment] };
+  }
+  if (field.type === 'reference' && field.refEntity) {
+    return referenceTargetState(ctx, state, field, segment, maxFkDepth);
+  }
+  const scalarType = CUSTOM_FIELD_SCALAR_TYPES[field.type as Exclude<CustomFieldType, 'reference'>] ?? 'string';
+  const cursor: Cursor =
+    field.multi && field.type === 'select'
+      ? { kind: 'scalar', type: 'stringArray' }
+      : { kind: 'scalar', type: scalarType };
+  return { ...state, cursor, path: [...state.path, segment] };
+};
+
+const stepEntity = (
+  ctx: SchemaContext,
+  state: WalkState,
+  cursor: Extract<Cursor, { kind: 'entity' }>,
+  segment: Extract<PathSegment, { kind: 'key' }>,
+  hasOld: boolean,
+  maxFkDepth: number,
+): WalkState => {
+  const { entity, screenKey, valuesInline } = cursor;
+  const name = segment.name;
+
+  if (name === 'old' && hasOld && state.path.length === 0) {
+    return { ...state, path: [segment] };
+  }
+  if (name === 'id') {
+    return { ...state, cursor: { kind: 'scalar', type: 'string' }, path: [...state.path, segment] };
+  }
+  if (entity.key === 'customRecords' && !valuesInline && name === 'values') {
+    if (!screenKey) {
+      return { ...state, cursor: { kind: 'unknown' }, path: [...state.path, segment] };
+    }
+    return { ...state, cursor: { kind: 'bag', screenKey }, path: [...state.path, segment] };
+  }
+  if (entity.supportsCustomFields && name === 'customValues') {
+    return { ...state, cursor: { kind: 'bag', screenKey: entity.collection }, path: [...state.path, segment] };
+  }
+  if (valuesInline && screenKey) {
+    const screen = ctx.screens.get(screenKey);
+    const field = screen?.fields.find((f) => f.key === name);
+    if (field) {
+      return stepBagField(ctx, state, screenKey, segment, maxFkDepth);
+    }
+  }
+
+  const nativeField = entity.fields.find((f) => f.key === name);
+  if (nativeField) {
+    const path = [...state.path, segment];
+    if (nativeField.type === 'object' && nativeField.objectFields) {
+      return { ...state, cursor: { kind: 'object', fields: nativeField.objectFields }, path };
+    }
+    return {
+      ...state,
+      cursor: { kind: 'scalar', type: nativeField.type, lookupCollection: nativeField.lookupCollection },
+      path,
+    };
+  }
+
+  const fkByKey = entity.fks.find((fk) => fk.key === name);
+  if (fkByKey) {
+    return {
+      ...state,
+      cursor: { kind: 'scalar', type: fkByKey.multi ? 'stringArray' : 'string' },
+      path: [...state.path, segment],
+    };
+  }
+
+  const fkByDenormKey = entity.fks.find((fk) => fk.denormKey === name);
+  if (fkByDenormKey) {
+    const depth = state.depth + 1;
+    if (depth > maxFkDepth) {
+      return invalid(state, `Profundidade máxima de ${maxFkDepth} referências excedida`);
+    }
+    const parentPath = joinSegments(state.path);
+    const prefix = parentPath ? `${parentPath}.` : '';
+    const path = [...state.path, segment];
+    const target = getEntityByCollection(fkByDenormKey.targetCollection);
+    const hop: FkHop = {
+      atPath: `${prefix}${fkByDenormKey.key}`,
+      targetCollection: fkByDenormKey.targetCollection,
+      materializeAt: `${prefix}${fkByDenormKey.denormKey}`,
+      mode: 'denormKey',
+      multi: fkByDenormKey.multi === true,
+      fields: fkByDenormKey.denormalizedFields ?? 'all',
+    };
+    const nextCursor: Cursor = fkByDenormKey.multi
+      ? { kind: 'entityList', entity: target, valuesInline: false, collection: fkByDenormKey.targetCollection }
+      : target
+        ? { kind: 'entity', entity: target, valuesInline: false }
+        : { kind: 'externalRecord', collection: fkByDenormKey.targetCollection };
+    return { cursor: nextCursor, hops: [...state.hops, hop], depth, path };
+  }
+
+  return { ...state, cursor: { kind: 'unknown' }, path: [...state.path, segment] };
+};
+
+const stepCursor = (
+  ctx: SchemaContext,
+  state: WalkState,
+  segment: PathSegment,
+  hasOld: boolean,
+  maxFkDepth: number,
+): WalkState => {
+  const cursor = state.cursor;
+
+  if (cursor.kind === 'unknown' || cursor.kind === 'externalRecord') {
+    return { ...state, cursor: { kind: 'unknown' }, path: [...state.path, segment] };
+  }
+
+  if (cursor.kind === 'entityList') {
+    if (segment.kind !== 'index') {
+      return invalid(state, `"${joinSegments(state.path)}" é uma lista: informe a posição do item (ex: 0)`);
+    }
+    const nextCursor: Cursor = cursor.entity
+      ? { kind: 'entity', entity: cursor.entity, screenKey: cursor.screenKey, valuesInline: cursor.valuesInline }
+      : { kind: 'externalRecord', collection: cursor.collection };
+    return { ...state, cursor: nextCursor, path: [...state.path, segment] };
+  }
+
+  if (segment.kind === 'index') {
+    if (cursor.kind === 'scalar' && cursor.type === 'stringArray') {
+      return { ...state, cursor: { kind: 'scalar', type: 'string' }, path: [...state.path, segment] };
+    }
+    return invalid(state, `"${joinSegments(state.path)}" não é uma lista`);
+  }
+
+  switch (cursor.kind) {
+    case 'entity':
+      return stepEntity(ctx, state, cursor, segment, hasOld, maxFkDepth);
+    case 'bag':
+      return stepBagField(ctx, state, cursor.screenKey, segment, maxFkDepth);
+    case 'object': {
+      if (segment.name === 'old' && hasOld && state.path.length === 0) {
+        return { ...state, path: [segment] };
+      }
+      const atObjectRoot =
+        state.path.length === 0 ||
+        (state.path.length === 1 && state.path[0].kind === 'key' && state.path[0].name === 'old');
+      if (segment.name === 'id' && atObjectRoot) {
+        return { ...state, cursor: { kind: 'scalar', type: 'string' }, path: [...state.path, segment] };
+      }
+      const field = cursor.fields.find((f) => f.key === segment.name);
+      if (!field) {
+        return { ...state, cursor: { kind: 'unknown' }, path: [...state.path, segment] };
+      }
+      const path = [...state.path, segment];
+      if (field.type === 'object' && field.objectFields) {
+        return { ...state, cursor: { kind: 'object', fields: field.objectFields }, path };
+      }
+      return { ...state, cursor: { kind: 'scalar', type: field.type, lookupCollection: field.lookupCollection }, path };
+    }
+    case 'scalar':
+      return invalid(state, `"${joinSegments(state.path)}" é um valor simples e não possui "${segment.name}"`);
+  }
+};
+
+const walk = (
+  ctx: SchemaContext,
+  root: PathRoot,
+  segments: PathSegment[],
+  options?: ResolveOptions,
+): WalkState => {
+  const maxFkDepth = options?.maxFkDepth ?? DEFAULT_MAX_FK_DEPTH;
+  let state: WalkState = { cursor: rootCursor(ctx, root), hops: [], depth: 0, path: [] };
+  for (const segment of segments) {
+    state = stepCursor(ctx, state, segment, root.hasOld, maxFkDepth);
+    if (state.error) return state;
+  }
+  return state;
+};
+
+const cursorToNode = (cursor: Cursor): PathNode => {
+  switch (cursor.kind) {
+    case 'entity':
+      return { kind: 'entity', collection: cursor.entity.collection, screenKey: cursor.screenKey };
+    case 'entityList':
+      return { kind: 'entityList', collection: cursor.collection, screenKey: cursor.screenKey };
+    case 'externalRecord':
+      return { kind: 'entity', collection: cursor.collection };
+    case 'bag':
+      return { kind: 'customValuesBag', screenKey: cursor.screenKey };
+    case 'object':
+      return { kind: 'object' };
+    case 'scalar':
+      return { kind: 'scalar', type: cursor.type, lookupCollection: cursor.lookupCollection };
+    case 'unknown':
+      return { kind: 'unknown' };
+  }
+};
+
+export const resolvePath = (
+  ctx: SchemaContext,
+  root: PathRoot,
+  segments: PathSegment[],
+  options?: ResolveOptions,
+): PathResolution => {
+  const state = walk(ctx, root, segments, options);
+  if (state.error) {
+    return { valid: false, error: state.error, node: { kind: 'unknown' }, hops: state.hops, depth: state.depth };
+  }
+  return { valid: true, node: cursorToNode(state.cursor), hops: state.hops, depth: state.depth };
+};
+
+const scalarDetail = (lookupCollection?: string): string | undefined =>
+  lookupCollection && LOOKUP_REGISTRY[lookupCollection] ? `Lista: ${getLookupLabel(lookupCollection)}` : undefined;
+
+const nativeFieldSuggestion = (field: NativeFieldSpec): PathSuggestion => ({
+  insertText: field.key,
+  label: field.label,
+  kind: 'field',
+  detail: field.type === 'object' ? 'Objeto' : scalarDetail(field.lookupCollection),
+  isLeaf: field.type !== 'object',
+});
+
+const screenFieldSuggestions = (ctx: SchemaContext, screenKey: string): PathSuggestion[] => {
+  const screen = ctx.screens.get(screenKey);
+  if (!screen) return [];
+  return screen.fields.map((field) => {
+    if (field.type === 'reference' && field.refEntity) {
+      const refEntity = field.refEntity;
+      const builtin = BUILTIN_REF_ENTITIES.has(refEntity);
+      const detail = builtin
+        ? getEntityByCollection(refEntity)?.labelSingular
+        : ctx.screens.get(refEntity)?.titleSingular ?? refEntity;
+      return {
+        insertText: field.key,
+        label: field.label,
+        kind: field.multi ? ('referenceList' as const) : ('reference' as const),
+        detail,
+        isLeaf: false,
+      };
+    }
+    return {
+      insertText: field.key,
+      label: field.label,
+      kind: 'customField' as const,
+      isLeaf: true,
+    };
+  });
+};
+
+const entitySuggestions = (
+  ctx: SchemaContext,
+  cursor: Extract<Cursor, { kind: 'entity' }>,
+  atRoot: boolean,
+  hasOld: boolean,
+): PathSuggestion[] => {
+  const { entity, screenKey, valuesInline } = cursor;
+  const suggestions: PathSuggestion[] = [];
+
+  if (atRoot && hasOld) {
+    suggestions.push({ insertText: 'old', label: 'Dados anteriores', kind: 'special', isLeaf: false });
+  }
+  suggestions.push({ insertText: 'id', label: 'Id', kind: 'field', isLeaf: true });
+
+  if (valuesInline && screenKey) {
+    suggestions.push(
+      { insertText: 'title', label: 'Título', kind: 'field', isLeaf: true },
+      { insertText: 'screenKey', label: 'Tela', kind: 'field', isLeaf: true },
+      ...screenFieldSuggestions(ctx, screenKey),
+    );
+    return suggestions;
+  }
+
+  for (const field of entity.fields) {
+    suggestions.push(nativeFieldSuggestion(field));
+  }
+
+  for (const fk of entity.fks) {
+    suggestions.push({
+      insertText: fk.key,
+      label: `${fk.label} (Id)`,
+      kind: 'field',
+      isLeaf: true,
+    });
+    const targetLabel = getEntityByCollection(fk.targetCollection)?.labelSingular ?? fk.targetCollection;
+    suggestions.push({
+      insertText: fk.denormKey,
+      label: fk.label,
+      kind: fk.multi ? 'fkList' : 'fk',
+      detail: targetLabel,
+      isLeaf: false,
+    });
+  }
+
+  if (entity.key === 'customRecords' && screenKey) {
+    suggestions.push({ insertText: 'values', label: 'Campos da tela', kind: 'special', isLeaf: false });
+  }
+  if (entity.supportsCustomFields) {
+    suggestions.push({ insertText: 'customValues', label: 'Campos customizados', kind: 'special', isLeaf: false });
+  }
+
+  return suggestions;
+};
+
+export const suggestNextSegments = (
+  ctx: SchemaContext,
+  root: PathRoot,
+  segments: PathSegment[],
+  options?: ResolveOptions,
+): PathSuggestion[] => {
+  const state = walk(ctx, root, segments, options);
+  if (state.error) return [];
+  const cursor = state.cursor;
+  const atRoot = state.path.length === 0;
+
+  switch (cursor.kind) {
+    case 'entity':
+      return entitySuggestions(ctx, cursor, atRoot, root.hasOld);
+    case 'entityList':
+      return [{ insertText: '0', label: 'Primeiro item da lista', kind: 'index', isLeaf: false }];
+    case 'bag':
+      return screenFieldSuggestions(ctx, cursor.screenKey);
+    case 'object': {
+      if (atRoot && root.hasOld) {
+        return [
+          { insertText: 'old', label: 'Dados anteriores', kind: 'special', isLeaf: false },
+          ...cursor.fields.map(nativeFieldSuggestion),
+        ];
+      }
+      return cursor.fields.map(nativeFieldSuggestion);
+    }
+    default:
+      return [];
+  }
+};

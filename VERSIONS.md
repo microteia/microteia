@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [0.57.3] — 2026-07-08
+
+- Base interna que entende os vínculos entre registros (processo → contrato → cliente), preparando o preenchimento automático de campos aninhados nas automações.
+
 #### [0.57.2] — 2026-07-08
 
 - Unificação interna das definições de entidades, vínculos e listas do sistema em um catálogo único, tornando as automações e a auditoria mais consistentes e preparando melhorias no editor de automações.
