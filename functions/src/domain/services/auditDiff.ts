@@ -1,4 +1,5 @@
 import type { AuditAction, AuditSeverity } from '../entities/AuditLog';
+import { isTimestampLike } from './normalizeFirestoreValue';
 
 export type EntityData = Record<string, unknown>;
 
@@ -12,9 +13,6 @@ const IGNORED_KEYS = new Set([
   'deletedBy', 'deletedByName', 'deletedByPhotoURL',
   'id', 'tenantId',
 ]);
-
-const isTimestampLike = (v: unknown): v is { toDate: () => Date } =>
-  !!v && typeof v === 'object' && typeof (v as { toDate?: unknown }).toDate === 'function';
 
 const formatDateBR = (date: Date): string => {
   const pad = (n: number) => String(n).padStart(2, '0');

@@ -1,5 +1,6 @@
 import type { Firestore } from 'firebase-admin/firestore';
 import type { IWorkflowRecordFetcher } from '../../domain/repositories/IWorkflowRecordFetcher';
+import { normalizeFirestoreValue } from '../../domain/services/normalizeFirestoreValue';
 
 export class FirestoreWorkflowRecordFetcher implements IWorkflowRecordFetcher {
   constructor(private readonly db: Firestore) {}
@@ -19,7 +20,7 @@ export class FirestoreWorkflowRecordFetcher implements IWorkflowRecordFetcher {
     return new Map(
       snapshots.map((snapshot, index) => [
         uniqueIds[index],
-        snapshot.exists ? (snapshot.data() as Record<string, unknown>) : null,
+        snapshot.exists ? normalizeFirestoreValue(snapshot.data() as Record<string, unknown>) : null,
       ]),
     );
   }

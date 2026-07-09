@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [0.59.2] — 2026-07-09
+
+- Corrigido um problema que impedia usar datas de eventos (por exemplo, a data de um contrato ou processo) em fórmulas de automação, como somar dias a uma data recebida.
+
 #### [0.59.1] — 2026-07-09
 
 - Publicação de eventos das automações mais leve: os dados vinculados passam a ser buscados apenas quando alguma automação realmente precisa deles, reduzindo processamento em toda gravação de registro.
