@@ -1,5 +1,14 @@
-import type { FkHop, PathRoot, ResolveOptions, SchemaContext } from './pathResolver';
+import type { FkHop, PathRoot, PathSegment, ResolveOptions, SchemaContext } from './pathResolver';
 import { parsePath, resolvePath } from './pathResolver';
+
+const fieldAccessedAfterHop = (pathSegments: PathSegment[], hop: FkHop): string | undefined => {
+  const start = parsePath(hop.materializeAt).length;
+  for (let i = start; i < pathSegments.length; i += 1) {
+    const segment = pathSegments[i];
+    if (segment.kind === 'key') return segment.name;
+  }
+  return undefined;
+};
 
 export interface HydrationPlanIssue {
   path: string;
@@ -18,10 +27,12 @@ export const buildHydrationPlan = (
   options?: ResolveOptions,
 ): HydrationPlan => {
   const hopsByTarget = new Map<string, { hop: FkHop; level: number }>();
+  const accessedByTarget = new Map<string, Set<string>>();
   const issues: HydrationPlanIssue[] = [];
 
   for (const path of paths) {
-    const resolution = resolvePath(ctx, root, parsePath(path), options);
+    const pathSegments = parsePath(path);
+    const resolution = resolvePath(ctx, root, pathSegments, options);
     if (!resolution.valid) {
       issues.push({ path, error: resolution.error ?? 'caminho inválido' });
       continue;
@@ -29,6 +40,12 @@ export const buildHydrationPlan = (
     resolution.hops.forEach((hop, index) => {
       if (!hopsByTarget.has(hop.materializeAt)) {
         hopsByTarget.set(hop.materializeAt, { hop, level: index + 1 });
+      }
+      const accessed = fieldAccessedAfterHop(pathSegments, hop);
+      if (accessed) {
+        const set = accessedByTarget.get(hop.materializeAt) ?? new Set<string>();
+        set.add(accessed);
+        accessedByTarget.set(hop.materializeAt, set);
       }
     });
   }
@@ -44,6 +61,18 @@ export const buildHydrationPlan = (
     const parent = hopsByTarget.get(parentPath);
     if (!parent || parent.hop.fields === 'all' || parent.hop.fields.includes(fkKey)) continue;
     parent.hop = { ...parent.hop, fields: [...parent.hop.fields, fkKey] };
+  }
+
+  for (const [materializeAt, entry] of hopsByTarget) {
+    const accessed = accessedByTarget.get(materializeAt);
+    if (!accessed) continue;
+    const nativeFields = [...accessed].filter((field) => !hopsByTarget.has(`${materializeAt}.${field}`));
+    if (nativeFields.length === 0) continue;
+    const fields =
+      entry.hop.fields === 'all'
+        ? entry.hop.fields
+        : [...new Set([...entry.hop.fields, ...nativeFields])];
+    entry.hop = { ...entry.hop, fields, requiredFields: nativeFields };
   }
 
   const maxLevel = Math.max(0, ...[...hopsByTarget.values()].map((entry) => entry.level));

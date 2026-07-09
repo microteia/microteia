@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [0.59.3] — 2026-07-09
+
+- Corrigido um problema nas automações que impedia acessar campos mais internos de um registro vinculado (por exemplo, a cidade do endereço do cliente de um contrato). Agora esses dados são buscados automaticamente quando a automação precisa deles.
+
 #### [0.59.2] — 2026-07-09
 
 - Corrigido um problema que impedia usar datas de eventos (por exemplo, a data de um contrato ou processo) em fórmulas de automação, como somar dias a uma data recebida.

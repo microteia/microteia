@@ -27,12 +27,25 @@ const idsAtHop = (payload: Record<string, unknown>, hop: FkHop): string[] => {
   return typeof raw === 'string' && raw ? [raw] : [];
 };
 
+const hasAllFields = (value: unknown, requiredFields: string[]): boolean =>
+  value !== null && typeof value === 'object' && requiredFields.every((field) => field in (value as Record<string, unknown>));
+
+const denormValueSatisfies = (value: unknown, hop: FkHop): boolean => {
+  if (value === undefined || value === null || typeof value !== 'object') return false;
+  const requiredFields = hop.requiredFields;
+  if (!requiredFields || requiredFields.length === 0) return true;
+  if (hop.multi) {
+    return Array.isArray(value) && value.length > 0 && value.every((item) => hasAllFields(item, requiredFields));
+  }
+  return hasAllFields(value, requiredFields);
+};
+
 export const collectHopRecordRefs = (payload: Record<string, unknown>, hops: FkHop[]): RecordRef[] => {
   const refs = new Map<string, RecordRef>();
   for (const hop of hops) {
     if (hop.mode === 'denormKey') {
       const existing = getValueAtPath(payload, parsePath(hop.materializeAt));
-      if (existing !== undefined && existing !== null && typeof existing === 'object') continue;
+      if (denormValueSatisfies(existing, hop)) continue;
     }
     for (const id of idsAtHop(payload, hop)) {
       refs.set(recordKey(hop.targetCollection, id), { collection: hop.targetCollection, id });
@@ -100,12 +113,21 @@ export const materializeHops = (
 
     if (hop.mode === 'denormKey') {
       const existing = getValueAtPath(result, materializeSegments);
-      if (existing !== undefined && existing !== null && typeof existing === 'object') continue;
+      if (denormValueSatisfies(existing, hop)) continue;
       const ids = idsAtHop(result, hop);
       if (ids.length === 0) continue;
+      const merge = (previous: unknown, built: Record<string, unknown>): Record<string, unknown> =>
+        previous && typeof previous === 'object' && !Array.isArray(previous)
+          ? { ...(previous as Record<string, unknown>), ...built }
+          : built;
       const value = hop.multi
-        ? ids.map((id) => buildRecordValue(hop, id, records.get(recordKey(hop.targetCollection, id))))
-        : buildRecordValue(hop, ids[0], records.get(recordKey(hop.targetCollection, ids[0])));
+        ? ids.map((id, index) =>
+            merge(
+              Array.isArray(existing) ? existing[index] : undefined,
+              buildRecordValue(hop, id, records.get(recordKey(hop.targetCollection, id))),
+            ),
+          )
+        : merge(existing, buildRecordValue(hop, ids[0], records.get(recordKey(hop.targetCollection, ids[0]))));
       result = setValueAtPath(result, materializeSegments, value) as Record<string, unknown>;
       continue;
     }

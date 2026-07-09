@@ -20,6 +20,12 @@ const screens: SchemaScreen[] = [
     titleFieldKey: 'nome',
     fields: [{ key: 'nome', label: 'Nome', type: 'text', required: false, order: 0 }],
   },
+  {
+    id: 'persons',
+    titleSingular: 'Pessoa',
+    titleFieldKey: 'name',
+    fields: [{ key: 'apelido', label: 'Apelido', type: 'text', required: false, order: 0 }],
+  },
 ];
 
 const database: Record<string, Record<string, Record<string, unknown>>> = {
@@ -28,7 +34,13 @@ const database: Record<string, Record<string, Record<string, unknown>>> = {
     c2: { number: '099/2020', title: 'Contrato Antigo', type: 'Honorários', status: 'Encerrado' },
   },
   persons: {
-    p1: { name: 'Maria Silva', type: 'Pessoa Física', email: 'maria@x.com' },
+    p1: {
+      name: 'Maria Silva',
+      type: 'Pessoa Física',
+      email: 'maria@x.com',
+      address: { city: 'São Paulo', state: 'SP' },
+      customValues: { apelido: 'Mari' },
+    },
     p2: { name: 'João Souza', type: 'Pessoa Física' },
   },
   customRecords: {
@@ -140,6 +152,49 @@ describe('hydrate', () => {
     expect((payload.old as Record<string, unknown>).contract).toMatchObject({ id: 'c2', number: '099/2020' });
 
     expect(calls).toStrictEqual(['contracts:c1,c2', 'customRecords:t1', 'persons:p1']);
+  });
+
+  it('busca o registro completo quando o caminho acessa campo fora do conjunto denormalizado', async () => {
+    const { fetcher, calls } = createFakeFetcher();
+    const hydrator = new WorkflowContextHydrator(fetcher, screenProvider);
+    const event = makeEvent({ id: 'case1', contractId: 'c1' });
+
+    const hydrated = await hydrator.hydrate(event, ['contract.client.address.city'], createHydrationCache());
+
+    const contract = hydrated.payload.contract as Record<string, unknown>;
+    const client = contract.client as Record<string, unknown>;
+    expect(client).toMatchObject({ id: 'p1', name: 'Maria Silva', address: { city: 'São Paulo' } });
+    expect(calls).toStrictEqual(['contracts:c1', 'persons:p1']);
+  });
+
+  it('completa denormalização parcial já presente no payload buscando campo ausente', async () => {
+    const { fetcher, calls } = createFakeFetcher();
+    const hydrator = new WorkflowContextHydrator(fetcher, screenProvider);
+    const event = makeEvent({
+      id: 'case1',
+      contractId: 'c1',
+      contract: { id: 'c1', number: '001/2026', clientId: 'p1', client: { id: 'p1', name: 'Maria Silva' } },
+    });
+
+    const hydrated = await hydrator.hydrate(event, ['contract.client.address.city'], createHydrationCache());
+
+    const contract = hydrated.payload.contract as Record<string, unknown>;
+    const client = contract.client as Record<string, unknown>;
+    expect(client).toMatchObject({ id: 'p1', name: 'Maria Silva', address: { city: 'São Paulo' } });
+    expect(calls).toStrictEqual(['persons:p1']);
+  });
+
+  it('hidrata campos customizados de um registro vinculado', async () => {
+    const { fetcher, calls } = createFakeFetcher();
+    const hydrator = new WorkflowContextHydrator(fetcher, screenProvider);
+    const event = makeEvent({ id: 'case1', contractId: 'c1' });
+
+    const hydrated = await hydrator.hydrate(event, ['contract.client.customValues.apelido'], createHydrationCache());
+
+    const contract = hydrated.payload.contract as Record<string, unknown>;
+    const client = contract.client as Record<string, unknown>;
+    expect(client).toMatchObject({ id: 'p1', name: 'Maria Silva', customValues: { apelido: 'Mari' } });
+    expect(calls).toStrictEqual(['contracts:c1', 'persons:p1']);
   });
 
   it('reutiliza o cache entre hidratações do mesmo evento', async () => {

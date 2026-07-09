@@ -40,6 +40,7 @@ export interface FkHop {
   mode: MaterializationMode;
   multi: boolean;
   fields: string[] | 'all';
+  requiredFields?: string[];
 }
 
 export type PathNode =
