@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [0.61.0] — 2026-07-09
+
+- Nas expressões de automação, agora é possível montar um objeto de dados combinando informações de diferentes campos e também remover um campo de um objeto — assim você prepara exatamente as informações que o próximo passo precisa receber.
+
 #### [0.60.3] — 2026-07-09
 
 - Os campos de seleção agora abrem para cima quando estão perto do rodapé da tela, e a lista rola normalmente mesmo com muitas opções — não é mais preciso digitar uma busca para alcançar os últimos itens. Também deixaram de aparecer cortados "por baixo" da tela quando usados dentro de janelas e painéis.

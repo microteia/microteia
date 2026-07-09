@@ -9,6 +9,7 @@ import { concatFn, lowerFn, upperFn, lengthFn, trimFn, replaceFn, substringFn, s
 import { getVarFn } from './builtins/getVarFn';
 import { roundFn, floorFn, ceilFn, absFn, minFn, maxFn, sumFn, avgFn } from './builtins/mathFns';
 import { firstFn, lastFn, containsFn, indexOfFn } from './builtins/arrayFns';
+import { objectFn, deleteFn } from './builtins/objectFns';
 import { andFn, orFn, notFn, isEmptyFn, isNullFn, isNotNullFn, coalesceFn } from './builtins/logicFns';
 import { isCPFFn, isCNPJFn, isEmailFn, formatCPFFn, formatCNPJFn } from './builtins/validationFns';
 import {
@@ -30,6 +31,7 @@ import {
   getVarFn,
   roundFn, floorFn, ceilFn, absFn, minFn, maxFn, sumFn, avgFn,
   firstFn, lastFn, containsFn, indexOfFn,
+  objectFn, deleteFn,
   andFn, orFn, notFn, isEmptyFn, isNullFn, isNotNullFn, coalesceFn,
   isCPFFn, isCNPJFn, isEmailFn, formatCPFFn, formatCNPJFn,
 ].forEach((fn) => expressionFunctions.register(fn));
