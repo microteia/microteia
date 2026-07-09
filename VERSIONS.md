@@ -11,6 +11,13 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [0.59.0] — 2026-07-09
+
+- As automações agora conseguem usar dados de registros vinculados em vários níveis (ex.: processo → contrato → cliente), incluindo listas (polo ativo, contratantes), telas personalizadas e os dados anteriores à alteração.
+- Execução das automações mais eficiente: os dados vinculados são buscados de uma só vez e reaproveitados entre automações do mesmo evento.
+- Caminhos de campo inválidos em automações agora aparecem como aviso no histórico de execução, em vez de falharem em silêncio.
+- Removidos registros técnicos que expunham dados de clientes nos logs internos do servidor.
+
 #### [0.58.0] — 2026-07-08
 
 - O editor de automações agora sugere campos passo a passo ao digitar, navegando pelos vínculos entre registros (ex.: processo → contrato → cliente), incluindo campos de telas personalizadas.

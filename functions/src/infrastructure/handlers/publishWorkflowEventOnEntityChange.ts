@@ -1,5 +1,6 @@
 import { onDocumentWritten } from 'firebase-functions/v2/firestore';
 import { getDb } from '../firebase/initFirebase';
+import { getDI } from '../di/container';
 import { getWorkflowEventPrefix } from '../../domain/services/workflowEventEntities';
 import { publishEvent } from '../workflow/publishEvent';
 import { FkEnricher } from '../workflow/FkEnricher';
@@ -18,6 +19,9 @@ export const publishWorkflowEventOnEntityChange = onDocumentWritten(
   { document: 'tenants/{tenantId}/{collection}/{docId}', region: 'southamerica-east1' },
   async (event) => {
     const { tenantId, collection, docId } = event.params;
+    if (collection === 'screenDefinitions') {
+      getDI().getScreenDefinitionCache().invalidate(tenantId);
+    }
     const prefix = getWorkflowEventPrefix(collection);
     if (!prefix) return;
 
@@ -54,45 +58,18 @@ export const publishWorkflowEventOnEntityChange = onDocumentWritten(
         payload.collection = collection;
       }
 
-      // Enriquecimento automático de FKs usando FkEnricher
       const db = getDb();
       const enricher = new FkEnricher(db, tenantId);
 
-      console.log(`[publishWorkflowEvent] Processando ${collection}/${docId} para tenant ${tenantId}`);
-      console.log(`[publishWorkflowEvent] Suporta custom fields? ${CUSTOM_FIELD_ENABLED_ENTITIES.has(collection)}`);
-
-      // Carregar ScreenDefinition se a entidade suportar campos customizados
       let screenDefinition: { fields: FieldDefinition[] } | undefined;
       if (CUSTOM_FIELD_ENABLED_ENTITIES.has(collection)) {
-        const screenDoc = await db
-          .collection('tenants')
-          .doc(tenantId)
-          .collection('screenDefinitions')
-          .doc(collection)
-          .get();
-
-        console.log(`[publishWorkflowEvent] ScreenDoc existe? ${screenDoc.exists}`);
-
-        if (screenDoc.exists) {
-          const screenData = screenDoc.data();
-          console.log(`[publishWorkflowEvent] ScreenData:`, JSON.stringify(screenData, null, 2));
-          screenDefinition = {
-            fields: (screenData?.fields as FieldDefinition[]) || [],
-          };
-          console.log(`[publishWorkflowEvent] ScreenDefinition carregado com ${screenDefinition.fields.length} campos`);
-        } else {
-          console.log(`[publishWorkflowEvent] ScreenDefinition NÃO encontrado para collection="${collection}"`);
+        const screen = await getDI().getScreenDefinitionCache().getScreen(tenantId, collection);
+        if (screen) {
+          screenDefinition = { fields: screen.fields };
         }
       }
 
-      // Enriquecer payload com FKs
-      const enrichedPayload = await enricher.enrichPayload(
-        collection,
-        payload,
-        screenDefinition,
-      );
-
-      console.log(`[publishWorkflowEvent] Publicando evento "${eventName}" com payload enriquecido`);
+      const enrichedPayload = await enricher.enrichPayload(collection, payload, screenDefinition);
 
       await publishEvent(db, tenantId, eventName, enrichedPayload);
     } catch (error) {

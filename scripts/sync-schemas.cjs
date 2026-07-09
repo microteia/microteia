@@ -23,6 +23,8 @@ const SHARED_FILES = [
   'domain/schema/pathResolver.ts',
   'domain/schema/expressionPaths.ts',
   'domain/schema/eventCatalog.ts',
+  'domain/schema/hydrationPlan.ts',
+  'domain/schema/materialize.ts',
 ];
 
 const buildHeader = (relativePath) =>

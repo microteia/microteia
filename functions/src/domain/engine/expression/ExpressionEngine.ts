@@ -54,7 +54,6 @@ const buildVariablesContext = (context: WorkflowContext): Record<string, unknown
     ...context.variables,
   };
 
-  console.log('[ExpressionEngine] Contexto de variáveis:', JSON.stringify(variables, null, 2));
   return variables;
 };
 
@@ -190,7 +189,6 @@ class ExpressionEngineImpl implements ExpressionEngine {
       // mas estendemos para Date, boolean e outros tipos via nossas funções customizadas
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const result = parser.evaluate(expression, variables as any);
-      console.log('[ExpressionEngine] Resultado da avaliação:', result);
       return result;
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);

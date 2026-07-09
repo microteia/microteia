@@ -71,6 +71,9 @@ import type { RunWorkflowsForEventUseCase } from '../../domain/usecases/RunWorkf
 import type { WorkflowServices } from '../../domain/entities/WorkflowContext';
 import { stepRegistry } from '../../domain/engine/StepRegistry';
 import { registerSteps } from '../workflow/registerSteps';
+import { WorkflowContextHydrator } from '../../domain/engine/WorkflowContextHydrator';
+import { FirestoreWorkflowRecordFetcher } from '../../data/services/FirestoreWorkflowRecordFetcher';
+import { ScreenDefinitionCache } from '../../data/services/ScreenDefinitionCache';
 
 class DIContainer {
   private static instance: DIContainer;
@@ -107,6 +110,8 @@ class DIContainer {
   private workflowDefinitionRepo?: IWorkflowDefinitionRepository;
   private workflowExecutionRepo?: IWorkflowExecutionRepository;
   private runWorkflowsForEventUC?: RunWorkflowsForEventUseCase;
+  private screenDefinitionCache?: ScreenDefinitionCache;
+  private workflowContextHydrator?: WorkflowContextHydrator;
   private workflowStepsRegistered = false;
 
   private constructor() {
@@ -375,6 +380,23 @@ class DIContainer {
     };
   }
 
+  getScreenDefinitionCache(): ScreenDefinitionCache {
+    if (!this.screenDefinitionCache) {
+      this.screenDefinitionCache = new ScreenDefinitionCache(getDb());
+    }
+    return this.screenDefinitionCache;
+  }
+
+  getWorkflowContextHydrator(): WorkflowContextHydrator {
+    if (!this.workflowContextHydrator) {
+      this.workflowContextHydrator = new WorkflowContextHydrator(
+        new FirestoreWorkflowRecordFetcher(getDb()),
+        this.getScreenDefinitionCache(),
+      );
+    }
+    return this.workflowContextHydrator;
+  }
+
   getRunWorkflowsForEventUseCase(): RunWorkflowsForEventUseCase {
     if (!this.runWorkflowsForEventUC) {
       this.runWorkflowsForEventUC = makeRunWorkflowsForEventUseCase(
@@ -382,6 +404,7 @@ class DIContainer {
         this.getWorkflowExecutionRepository(),
         stepRegistry,
         this.getWorkflowServices(),
+        this.getWorkflowContextHydrator(),
       );
     }
     return this.runWorkflowsForEventUC;
