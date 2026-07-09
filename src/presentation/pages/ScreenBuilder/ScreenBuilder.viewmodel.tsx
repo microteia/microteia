@@ -4,7 +4,7 @@ import { useTenant } from '../../../stores/useTenant';
 import { useScreenDefinitions } from '../../../stores/useScreenDefinitions';
 import type { ScreenDefinitionSaveInput } from '../../../stores/useScreenDefinitions';
 import { useNotification } from '../../../stores/useNotification';
-import { ensureUniqueKey, slugifyFieldKey, sortFieldsByOrder } from '../../../domain/services/customFieldValues';
+import { ensureUniqueKey, slugifyFieldKey, sortFieldsByOrder, validateFieldKey } from '../../../domain/services/customFieldValues';
 import { getDefaultTagColor } from '../../../shared/styles/colorUtils';
 import { getScreenIconOptions } from '../../shared/screenIcons';
 import type { CustomFieldMask, CustomFieldType, FieldDefinition, ScreenDefinition } from '../../../domain/entities';
@@ -616,6 +616,17 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
       notify('Informe o nome do campo.', 'error');
       return;
     }
+    
+    // Validação do fieldKey (apenas em criação, não edição)
+    if (!fieldModal.fieldKey) {
+      const fieldKeyToValidate = fieldForm.fieldKey.trim() || slugifyFieldKey(label);
+      const validationError = validateFieldKey(fieldKeyToValidate);
+      if (validationError) {
+        notify(validationError, 'error');
+        return;
+      }
+    }
+    
     if (fieldForm.type === 'select' && fieldForm.staticOptions.length === 0 && !fieldForm.optionsAllowUserAdd) {
       notify('Adicione ao menos uma opção ou permita que usuários criem opções.', 'error');
       return;

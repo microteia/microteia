@@ -1,12 +1,48 @@
 import type { CustomFieldValue, FieldDefinition } from '../entities';
 
+// Palavras reservadas do JavaScript que não podem ser usadas como nomes de campos
+const JS_RESERVED_WORDS = new Set([
+  'await', 'break', 'case', 'catch', 'class', 'const', 'continue', 'debugger',
+  'default', 'delete', 'do', 'else', 'enum', 'export', 'extends', 'false',
+  'finally', 'for', 'function', 'if', 'import', 'in', 'instanceof', 'let',
+  'new', 'null', 'return', 'static', 'super', 'switch', 'this', 'throw',
+  'true', 'try', 'typeof', 'var', 'void', 'while', 'with', 'yield',
+]);
+
+const VALID_FIELD_KEY_PATTERN = /^[a-z_$][a-z0-9_$]*$/;
+
+/**
+ * Valida se um fieldKey é compatível com JavaScript.
+ * Retorna mensagem de erro se inválido, undefined se válido.
+ */
+export const validateFieldKey = (key: string): string | undefined => {
+  if (!key) {
+    return 'Nome do campo não pode ser vazio';
+  }
+  
+  if (!VALID_FIELD_KEY_PATTERN.test(key)) {
+    return 'Nome inválido: deve começar com letra minúscula, underscore ou $ e conter apenas letras minúsculas, números, underscore ou $';
+  }
+  
+  if (JS_RESERVED_WORDS.has(key)) {
+    return `"${key}" é uma palavra reservada do JavaScript e não pode ser usada como nome de campo`;
+  }
+  
+  return undefined;
+};
+
+/**
+ * Converte um label em um fieldKey válido para JavaScript.
+ * Usa underscore no lugar de hífens para compatibilidade total.
+ */
 export const slugifyFieldKey = (label: string): string =>
   label
     .normalize('NFD')
     .replace(/[̀-ͯ]/g, '')
     .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '');
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '')
+    .replace(/^(\d)/, '_$1'); // Se começar com número, adiciona underscore
 
 export const ensureUniqueKey = (base: string, existingKeys: Set<string>): string => {
   const safeBase = base || 'campo';

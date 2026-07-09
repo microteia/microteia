@@ -333,13 +333,13 @@ export const ScreenBuilderView: React.FC = () => {
               <Input
                 value={vm.fieldForm.fieldKey}
                 onChange={(e) => vm.updateFieldForm({ fieldKey: e.target.value })}
-                placeholder="Ex: data-aniversario"
+                placeholder="Ex: data_nascimento"
                 disabled={vm.fieldModalIsEdit}
-                title={vm.fieldModalIsEdit ? 'O nome do campo na base não pode ser alterado após criação' : 'Use apenas letras minúsculas, números e hífens. Este é o nome usado em workflows e integrações.'}
+                title={vm.fieldModalIsEdit ? 'O nome do campo na base não pode ser alterado após criação' : 'Use apenas letras minúsculas, números, underscore (_) ou $. Deve começar com letra, underscore ou $. Este é o nome usado em workflows e integrações.'}
               />
               {!vm.fieldModalIsEdit && (
                 <S.FieldHint>
-                  Use apenas letras minúsculas, números e hífens. Este é o nome usado em workflows e integrações.
+                  Use apenas letras minúsculas, números, underscore (_) ou $. Deve começar com letra, underscore ou $. Este é o nome usado em workflows e integrações.
                 </S.FieldHint>
               )}
             </InputGroup>

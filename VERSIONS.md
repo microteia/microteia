@@ -11,6 +11,14 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [0.60.2] — 2026-07-09
+
+- Aprimorada a validação de nomes de campos customizados no Form Design: agora são aceitos apenas nomes totalmente compatíveis com JavaScript (letras minúsculas, números, underscore e $), e palavras reservadas da linguagem são bloqueadas. Nomes de campos gerados automaticamente agora usam underscore em vez de hífen (exemplo: `data_nascimento` em vez de `data-nascimento`), garantindo uso direto em automações e integrações.
+
+#### [0.60.1] — 2026-07-09
+
+- Aprimorada a validação de nomes de variáveis e saídas em automações: agora são aceitos apenas nomes compatíveis com JavaScript (letras, números, underscore e $) e palavras reservadas da linguagem são bloqueadas, garantindo que as automações funcionem corretamente.
+
 #### [0.60.0] — 2026-07-09
 
 - Novo passo de automação "Buscar Registros": suas automações agora podem pesquisar clientes, processos, contratos, financeiro, listas e cadastros personalizados do escritório e usar os dados encontrados nos passos seguintes.
