@@ -1652,6 +1652,51 @@ usuário escolhe mapping "Valor fixo" para esse campo, o `StepEditorModal`
 duplicar a lógica de carregar cada store de entidade. Sem `entityType` declarado, cai no
 fallback de texto livre (comportamento anterior).
 
+### Passo "Buscar Registros" (Query) — consulta tipada à base do tenant
+
+O passo `query` (`functions/src/infrastructure/workflow/steps/QueryStep.ts`) permite que um
+workflow **pesquise** registros de qualquer cadastro do tenant e use o resultado nos passos
+seguintes. É a única capacidade do motor que lê dados fora do payload pré-hidratado — e o faz
+como um passo (assíncrono por natureza), não como função de expressão (o `ExpressionEngine` é
+síncrono).
+
+**Especificação (`QuerySpec`)** — tipo compartilhado em `src/domain/schema/querySpec.ts`
+(sincronizado para `functions/`): `{ table, where: QueryPredicate[], orderBy?, limit, projections }`.
+É gravado como valor de um único input de `type: 'Query'` (`allowedMappingKinds: ['Literal']`); os
+**valores dos filtros** (`QueryPredicate.value`) são `InputMapping`s aninhados, resolvidos em runtime
+via `resolveMapping` (habilita filtro por evento/expressão/variável/saída de step).
+
+**Tabela tipada e validada nos dois lados** — `resolveQueryTable` mapeia o nome para: entidade fixa
+(`getEntityByCollection`), tela dinâmica (`ctx.screens` → `customRecords` + filtro `screenKey`) ou
+lista/lookup (`isLookupCollection`). `validateQuerySpec` confirma a tabela e cada caminho de
+`where`/`orderBy`/`projections` via `resolvePath`. Roda no front (`QueryBuilderControl`, antes de
+salvar) e no back (antes de executar) — mesma função.
+
+**Projeção por caminho** (ex: `client.name`, `client.customValues.apelido`, `values.prioridade`)
+reaproveita o pipeline de hidratação de FKs: `buildHydrationPlan` + `materializeHops` +
+`IWorkflowRecordFetcher`, materializando cada linha do resultado. Os `projections` também limitam
+quais FKs são carregadas (evita over-fetch).
+
+**Isolamento e segurança** — o `tenantId` (`context.execution.tenantId`) é SEMPRE injetado no path
+(`tenants/{tenantId}/...`), então uma consulta nunca cruza escritórios. Nesta versão não há checagem
+de role por usuário: o workflow é tratado como automação de nível administrativo do tenant.
+
+**Estratégia índice-free (evita a exigência de índice composto do Firestore)** — o Firestore exige
+índice composto ao misturar `==` com range/`orderBy` em outro campo, ou `array-contains`/`in` com
+outro filtro. Como o usuário escolhe campos arbitrários (inclusive `customValues.*`), pré-criar esses
+índices é inviável. Por isso:
+- **Servidor:** apenas predicados `eq` (mais o `screenKey ==` das telas dinâmicas), servidos por
+  índices single-field automáticos → **nunca** exige índice composto. Consultado com
+  `limit(MAX_SCAN = 300)`.
+- **Memória:** `neq`, ranges (`lt/lte/gt/gte`), `in`, `contains`, `exists`, a **ordenação** e o
+  **`limit` final** (cap `MAX_QUERY_LIMIT = 100`) são aplicados sobre a janela varrida — depois da
+  materialização, para permitir filtro em caminhos de FK (ex: `client.customValues.apelido`).
+- **Trade-off:** ranges/ordenação operam sobre a janela varrida, não sobre a coleção inteira —
+  adequado à escala por-tenant. Evolução futura: paginação por cursor.
+
+**Saídas:** `results` (lista de registros materializados), `count` e `first`. Passos seguintes leem
+via `output.<stepId>.results` / `.first.client.name` etc. (`dynamicOutputs: runtime-only`).
+
 ### Como Adicionar uma Função de Expressão
 
 As expressões (`ExpressionInputMapping`) são processadas pelo `ExpressionEngine` no backend

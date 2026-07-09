@@ -17,7 +17,7 @@ const resolveOutputPath = (outputs: Record<string, unknown>, stepId: string, out
 // extensíveis por plugins), diferente do StepType — por isso um switch aqui não viola a
 // exigência de "nunca switch(stepType)"; adicionar um novo tipo de mapping é uma mudança de
 // linguagem do engine, não uma integração de módulo.
-const resolveMapping = (mapping: InputMapping, context: WorkflowContext): unknown => {
+export const resolveMapping = (mapping: InputMapping, context: WorkflowContext): unknown => {
   switch (mapping.kind) {
     case 'Literal':
       return mapping.value;

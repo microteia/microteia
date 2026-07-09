@@ -1,15 +1,22 @@
 import { stepRegistry } from '../../domain/engine/StepRegistry';
 import type { IDeadlineRepository } from '../../domain/repositories/IDeadlineRepository';
+import type { IWorkflowQueryRepository } from '../../domain/repositories/IWorkflowQueryRepository';
+import type { IWorkflowRecordFetcher } from '../../domain/repositories/IWorkflowRecordFetcher';
+import type { IScreenDefinitionProvider } from '../../domain/repositories/IScreenDefinitionProvider';
 import type { CreateAuditLogUseCase } from '../../domain/usecases/CreateAuditLogUseCase';
 import { makeCreateDeadlineStepDefinition } from './steps/CreateDeadlineStep';
 import { makeNotifyStepDefinition } from './steps/NotifyStep';
 import { makeOutputStepDefinition } from './steps/OutputStep';
+import { makeQueryStepDefinition } from './steps/QueryStep';
 import { makeRegisterAuditStepDefinition } from './steps/RegisterAuditStep';
 import { makeSetVariableStepDefinition } from './steps/SetVariableStep';
 
 export interface RegisterStepsDeps {
   deadlineRepository: IDeadlineRepository;
   createAuditLogUseCase: CreateAuditLogUseCase;
+  workflowQueryRepository: IWorkflowQueryRepository;
+  workflowRecordFetcher: IWorkflowRecordFetcher;
+  screenDefinitionProvider: IScreenDefinitionProvider;
 }
 
 /**
@@ -24,4 +31,7 @@ export const registerSteps = (deps: RegisterStepsDeps): void => {
   stepRegistry.register(makeRegisterAuditStepDefinition(deps.createAuditLogUseCase));
   stepRegistry.register(makeSetVariableStepDefinition());
   stepRegistry.register(makeOutputStepDefinition());
+  stepRegistry.register(
+    makeQueryStepDefinition(deps.workflowQueryRepository, deps.workflowRecordFetcher, deps.screenDefinitionProvider),
+  );
 };

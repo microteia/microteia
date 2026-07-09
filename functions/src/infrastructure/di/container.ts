@@ -73,6 +73,7 @@ import { stepRegistry } from '../../domain/engine/StepRegistry';
 import { registerSteps } from '../workflow/registerSteps';
 import { WorkflowContextHydrator } from '../../domain/engine/WorkflowContextHydrator';
 import { FirestoreWorkflowRecordFetcher } from '../../data/services/FirestoreWorkflowRecordFetcher';
+import { FirestoreWorkflowQueryRepository } from '../../data/services/FirestoreWorkflowQueryRepository';
 import { ScreenDefinitionCache } from '../../data/services/ScreenDefinitionCache';
 
 class DIContainer {
@@ -421,6 +422,9 @@ class DIContainer {
     registerSteps({
       deadlineRepository: this.getDeadlineRepository(),
       createAuditLogUseCase: this.getCreateAuditLogUseCase(),
+      workflowQueryRepository: new FirestoreWorkflowQueryRepository(getDb()),
+      workflowRecordFetcher: new FirestoreWorkflowRecordFetcher(getDb()),
+      screenDefinitionProvider: this.getScreenDefinitionCache(),
     });
     this.workflowStepsRegistered = true;
   }

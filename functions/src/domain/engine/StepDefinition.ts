@@ -8,7 +8,8 @@ export type InputType =
   | 'EntityReference'
   | 'Expression'
   | 'OutputReference'
-  | 'VariableReference';
+  | 'VariableReference'
+  | 'Query';
 
 export type InputOptionsSource =
   | { kind: 'Static'; options: { value: string; label: string; color?: string }[] }
@@ -54,6 +55,12 @@ export type DynamicOutputsMetadata =
     }
   | {
       kind: 'runtime-only';
+      description?: string;
+    }
+  | {
+      kind: 'from-query-projections';
+      /** ID do input do tipo 'Query' cujas projeções viram saídas `first.<projeção>`. */
+      sourceInputId: string;
       description?: string;
     };
 

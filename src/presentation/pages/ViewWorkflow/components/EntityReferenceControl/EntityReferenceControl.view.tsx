@@ -1,6 +1,6 @@
 import React from 'react';
-import { Input } from '../../../../../../components/ui/Input';
-import { SearchSelect } from '../../../../../../components/ui/SearchSelect';
+import { Input } from '../../../../components/ui/Input';
+import { SearchSelect } from '../../../../components/ui/SearchSelect';
 import { useEntityReferenceControlViewModel } from './EntityReferenceControl.viewmodel';
 import type { EntityReferenceControlProps } from './EntityReferenceControl.viewmodel';
 

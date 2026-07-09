@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
-import { useReferenceOptions } from '../../../../../../hooks/useReferenceOptions';
-import type { InputDefinition } from '../../../../../../../domain/entities/WorkflowStepCatalog';
-import type { SearchSelectOption } from '../../../../../../components/ui/SearchSelect';
+import { useReferenceOptions } from '../../../../hooks/useReferenceOptions';
+import type { InputDefinition } from '../../../../../domain/entities/WorkflowStepCatalog';
+import type { SearchSelectOption } from '../../../../components/ui/SearchSelect';
 
 export interface EntityReferenceControlProps {
   input: InputDefinition;

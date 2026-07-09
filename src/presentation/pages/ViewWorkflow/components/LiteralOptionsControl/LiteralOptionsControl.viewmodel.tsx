@@ -1,9 +1,9 @@
 import { useTheme } from 'styled-components';
-import { useDeadlineLookup } from '../../../../../../../stores/useDeadlineLookup';
-import { resolveColor } from '../../../../../../../shared/styles/colorUtils';
-import type { InputDefinition } from '../../../../../../../domain/entities/WorkflowStepCatalog';
-import type { DynamicSelectOption } from '../../../../../../components/ui/DynamicSelect';
-import type { SearchSelectOption } from '../../../../../../components/ui/SearchSelect';
+import { useDeadlineLookup } from '../../../../../stores/useDeadlineLookup';
+import { resolveColor } from '../../../../../shared/styles/colorUtils';
+import type { InputDefinition } from '../../../../../domain/entities/WorkflowStepCatalog';
+import type { DynamicSelectOption } from '../../../../components/ui/DynamicSelect';
+import type { SearchSelectOption } from '../../../../components/ui/SearchSelect';
 
 export interface LiteralOptionsControlProps {
   input: InputDefinition;

@@ -6,13 +6,15 @@ import { DateInput } from '../../components/ui/DateInput';
 import { InfoBanner } from '../../components/ui/InfoBanner';
 import { ConfirmModal } from '../../components/ui/ConfirmModal';
 import { ExpressionEditor } from '../../components/ui/ExpressionEditor';
-import { LiteralOptionsControl } from '../ViewWorkflow/components/StepEditorModal/components/LiteralOptionsControl';
-import { EntityReferenceControl } from '../ViewWorkflow/components/StepEditorModal/components/EntityReferenceControl';
+import { LiteralOptionsControl } from '../ViewWorkflow/components/LiteralOptionsControl';
+import { EntityReferenceControl } from '../ViewWorkflow/components/EntityReferenceControl';
+import { QueryBuilderControl } from '../ViewWorkflow/components/QueryBuilderControl';
 import { getStepDisplayName } from '../../shared/workflowHelpers';
 import { S } from './EditWorkflowStep.styles';
 import { useEditWorkflowStepViewModel } from './EditWorkflowStep.viewmodel';
 import type { InputDefinition } from '../../../domain/entities/WorkflowStepCatalog';
 import type { InputMapping } from '../../../domain/entities/Workflow';
+import type { QuerySpec } from '../../../domain/schema/querySpec';
 
 const MAPPING_KIND_OPTIONS = [
   { value: 'Literal', label: 'Valor fixo' },
@@ -114,6 +116,24 @@ export const EditWorkflowStepView: React.FC<{ tabKey: string }> = ({ tabKey }) =
           </S.HelpText>
         )}
       </>
+    );
+  };
+
+  const renderQueryControl = (input: InputDefinition) => {
+    const mapping = vm.configuration[input.id];
+    const spec =
+      mapping?.kind === 'Literal' && mapping.value && typeof mapping.value === 'object'
+        ? (mapping.value as QuerySpec)
+        : undefined;
+    return (
+      <QueryBuilderControl
+        value={spec}
+        onChange={(next) => vm.setMapping(input.id, { kind: 'Literal', value: next })}
+        eventFields={vm.eventFields}
+        pathRoot={vm.pathRoot}
+        stepOutputFields={vm.stepOutputFields}
+        workflowVariables={vm.workflowVariables}
+      />
     );
   };
 
@@ -248,16 +268,20 @@ export const EditWorkflowStepView: React.FC<{ tabKey: string }> = ({ tabKey }) =
                   {input.required && <S.Required>*</S.Required>}
                 </S.FieldHeader>
                 {input.description && <S.HelpText>{input.description}</S.HelpText>}
-                <S.MappingRow>
-                  <SearchSelect
-                    options={mappingKindOptions}
-                    value={vm.configuration[input.id]?.kind ?? ''}
-                    onChange={(kind) => vm.setMappingKind(input.id, kind as InputMapping['kind'])}
-                    placeholder="Origem..."
-                    disabled={isMappingKindLocked}
-                  />
-                  {renderMappingControl(input)}
-                </S.MappingRow>
+                {input.type === 'Query' ? (
+                  renderQueryControl(input)
+                ) : (
+                  <S.MappingRow>
+                    <SearchSelect
+                      options={mappingKindOptions}
+                      value={vm.configuration[input.id]?.kind ?? ''}
+                      onChange={(kind) => vm.setMappingKind(input.id, kind as InputMapping['kind'])}
+                      placeholder="Origem..."
+                      disabled={isMappingKindLocked}
+                    />
+                    {renderMappingControl(input)}
+                  </S.MappingRow>
+                )}
               </S.Field>
             );
           })}

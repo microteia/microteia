@@ -12,7 +12,20 @@ import { getStepDisplayName } from '../../shared/workflowHelpers';
 import type { WorkflowEventFieldOption } from '../../../domain/services/workflowEventCatalog';
 import type { InputMapping, WorkflowStep } from '../../../domain/entities/Workflow';
 import type { StepDefinitionSummary } from '../../../domain/entities/WorkflowStepCatalog';
+import type { QuerySpec } from '../../../domain/schema/querySpec';
 import type { StepOutputField, WorkflowVariable } from '../../components/ui/ExpressionEditor/autocompleteHelpers';
+
+const queryProjectionOutputs = (
+  step: WorkflowStep,
+  definition: StepDefinitionSummary,
+): { id: string; label: string }[] => {
+  if (definition.dynamicOutputs?.kind !== 'from-query-projections') return [];
+  const mapping = step.configuration[definition.dynamicOutputs.sourceInputId];
+  if (!mapping || mapping.kind !== 'Literal' || !mapping.value || typeof mapping.value !== 'object') return [];
+  return ((mapping.value as QuerySpec).projections ?? [])
+    .filter((path) => path.trim())
+    .map((path) => ({ id: `first.${path}`, label: `${path} (1º resultado)` }));
+};
 
 const emptyMappingFor = (kind: InputMapping['kind']): InputMapping => {
   switch (kind) {
@@ -198,6 +211,9 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
           outputLabel: output.label,
         });
       });
+      queryProjectionOutputs(step, definition).forEach((output) => {
+        fields.push({ stepId: step.id, stepName, outputId: output.id, outputLabel: output.label });
+      });
     });
     return fields;
   }, [priorSteps, stepCatalog]);
@@ -226,13 +242,17 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
         const mapping = step.configuration[sourceInputId];
         if (mapping && mapping.kind === 'Literal' && mapping.value) {
           const outputId = String(mapping.value);
-          outputs.push({ 
-            value: outputId, 
-            label: `${outputId} (dinâmico)` 
+          outputs.push({
+            value: outputId,
+            label: `${outputId} (dinâmico)`
           });
         }
       });
     }
+
+    queryProjectionOutputs(step, definition).forEach((output) => {
+      outputs.push({ value: output.id, label: output.label });
+    });
 
     return outputs;
   }, [priorSteps, stepCatalog]);

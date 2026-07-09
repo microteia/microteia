@@ -11,6 +11,11 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [0.60.0] — 2026-07-09
+
+- Novo passo de automação "Buscar Registros": suas automações agora podem pesquisar clientes, processos, contratos, financeiro, listas e cadastros personalizados do escritório e usar os dados encontrados nos passos seguintes.
+- A busca é montada de forma visual — escolha a tabela, os filtros, os campos que deseja trazer (inclusive campos relacionados, como o nome do cliente de um contrato) e a ordenação — e sempre respeita os dados do seu escritório.
+
 #### [0.59.4] — 2026-07-09
 
 - As automações agora carregam de forma confiável os campos customizados de um registro vinculado (ex.: um campo personalizado do cliente de um contrato). Quando esse campo ainda não foi preenchido, a automação continua normalmente, sem ser interrompida por erro.
