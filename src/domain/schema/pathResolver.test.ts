@@ -107,6 +107,7 @@ describe('resolvePath — FKs fixas', () => {
         mode: 'denormKey',
         multi: false,
         fields: ['number', 'title', 'type', 'status'],
+        bagKeys: ['customValues'],
       },
     ]);
   });
@@ -122,6 +123,7 @@ describe('resolvePath — FKs fixas', () => {
       mode: 'denormKey',
       multi: false,
       fields: ['name', 'type', 'email'],
+      bagKeys: ['customValues'],
     });
   });
 

@@ -47,7 +47,13 @@ export interface FkHop {
   multi: boolean;
   fields: string[] | 'all';
   requiredFields?: string[];
+  bagKeys?: string[];
 }
+
+export const CUSTOM_VALUES_KEY = 'customValues';
+
+export const customValueBagKeys = (target: EntityMetadata | undefined): string[] | undefined =>
+  target?.supportsCustomFields ? [CUSTOM_VALUES_KEY] : undefined;
 
 export type PathNode =
   | { kind: 'scalar'; type: NativeFieldType; lookupCollection?: string }
@@ -188,6 +194,7 @@ const referenceTargetState = (
   const path = [...state.path, segment];
   const pathText = joinSegments(path);
   const target = builtin ? getEntityByCollection(targetCollection) : ctx.registry.customRecords;
+  const bagKeys = customValueBagKeys(target);
   const hop: FkHop = {
     atPath: pathText,
     targetCollection,
@@ -195,6 +202,7 @@ const referenceTargetState = (
     mode: 'replaceValue',
     multi: field.multi === true,
     fields: builtin ? (target?.referenceDenormFields ?? 'all') : 'all',
+    ...(bagKeys ? { bagKeys } : {}),
   };
   const screenKey = builtin ? undefined : refEntity;
   const cursor: Cursor = field.multi
@@ -297,6 +305,7 @@ const stepEntity = (
     const prefix = parentPath ? `${parentPath}.` : '';
     const path = [...state.path, segment];
     const target = getEntityByCollection(fkByDenormKey.targetCollection);
+    const bagKeys = customValueBagKeys(target);
     const hop: FkHop = {
       atPath: `${prefix}${fkByDenormKey.key}`,
       targetCollection: fkByDenormKey.targetCollection,
@@ -304,6 +313,7 @@ const stepEntity = (
       mode: 'denormKey',
       multi: fkByDenormKey.multi === true,
       fields: fkByDenormKey.denormalizedFields ?? 'all',
+      ...(bagKeys ? { bagKeys } : {}),
     };
     const nextCursor: Cursor = fkByDenormKey.multi
       ? { kind: 'entityList', entity: target, valuesInline: false, collection: fkByDenormKey.targetCollection }

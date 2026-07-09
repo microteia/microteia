@@ -197,6 +197,21 @@ describe('hydrate', () => {
     expect(calls).toStrictEqual(['contracts:c1', 'persons:p1']);
   });
 
+  it('garante customValues como objeto vazio quando a pessoa vinculada não tem campos customizados', async () => {
+    const { fetcher } = createFakeFetcher();
+    const hydrator = new WorkflowContextHydrator(fetcher, screenProvider);
+    const event = makeEvent({ id: 'case1', contractId: 'c1' });
+    database.contracts.c1.clientId = 'p2';
+
+    const hydrated = await hydrator.hydrate(event, ['contract.client.customValues.apelido'], createHydrationCache());
+
+    const contract = hydrated.payload.contract as Record<string, unknown>;
+    const client = contract.client as Record<string, unknown>;
+    expect(client.customValues).toStrictEqual({});
+
+    database.contracts.c1.clientId = 'p1';
+  });
+
   it('reutiliza o cache entre hidratações do mesmo evento', async () => {
     const { fetcher, calls } = createFakeFetcher();
     const hydrator = new WorkflowContextHydrator(fetcher, screenProvider);

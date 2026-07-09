@@ -63,12 +63,23 @@ const pickFields = (
   return result;
 };
 
+const withBagDefaults = (record: Record<string, unknown>, hop: FkHop): Record<string, unknown> => {
+  const required = hop.requiredFields;
+  if (!required) return record;
+  for (const key of hop.bagKeys ?? []) {
+    if (!required.includes(key)) continue;
+    const value = record[key];
+    if (value === undefined || value === null || typeof value !== 'object') record[key] = {};
+  }
+  return record;
+};
+
 const buildRecordValue = (
   hop: FkHop,
   id: string,
   data: Record<string, unknown> | null | undefined,
 ): Record<string, unknown> => {
-  if (!data) return { id };
+  if (!data) return withBagDefaults({ id }, hop);
   if (hop.targetCollection === 'customRecords') {
     const values = data.values as Record<string, unknown> | undefined;
     const title = values?.nome || values?.title || values?.name || id;
@@ -79,7 +90,7 @@ const buildRecordValue = (
       ...(values ?? {}),
     };
   }
-  return pickFields(data, hop.fields, id);
+  return withBagDefaults(pickFields(data, hop.fields, id), hop);
 };
 
 const setValueAtPath = (target: unknown, segments: PathSegment[], value: unknown): unknown => {

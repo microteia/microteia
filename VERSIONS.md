@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [0.59.4] — 2026-07-09
+
+- As automações agora carregam de forma confiável os campos customizados de um registro vinculado (ex.: um campo personalizado do cliente de um contrato). Quando esse campo ainda não foi preenchido, a automação continua normalmente, sem ser interrompida por erro.
+
 #### [0.59.3] — 2026-07-09
 
 - Corrigido um problema nas automações que impedia acessar campos mais internos de um registro vinculado (por exemplo, a cidade do endereço do cliente de um contrato). Agora esses dados são buscados automaticamente quando a automação precisa deles.
