@@ -37,137 +37,46 @@ O projeto usa **Clean Architecture + MVVM** com separação estrita em camadas. 
 
 ---
 
-## Schema Duplicado — Regra Absoluta
+## Schema Compartilhado Gerado — Regra Absoluta
 
-### Arquivos Espelho Obrigatórios
+Os metadados de entidades são **compartilhados** entre frontend e Cloud Functions por **geração de código**, não por cópia manual. A fonte única editável vive em `src/`; as cópias em `functions/src/` são **geradas** por `scripts/sync-schemas.cjs` e trazem o cabeçalho "ARQUIVO GERADO — NÃO EDITE".
 
-Os seguintes arquivos **DEVEM** ser **IDÊNTICOS** entre frontend e backend:
+### Arquivos compartilhados (fonte em `src/`, cópia gerada em `functions/src/`)
 
-| Frontend | Backend | Conteúdo |
-|---|---|---|
-| `src/domain/entities/entitySchemas.ts` | `functions/src/domain/entities/entitySchemas.ts` | Schemas de entidades, tipos de campos customizados, FKs |
+| Arquivo | Conteúdo |
+|---|---|
+| `domain/schema/entityRegistry.ts` | **Fonte única de metadados por entidade**: coleção, `eventPrefix`, labels, `displayNameFields`, `referenceDenormFields`, campos nativos (com `lookupCollection` e `objectFields`), FKs (`FkSpec` com `denormKey` explícito) e flags `supportsCustomFields`/`referenceable`. Exporta `SCHEMA_VERSION`. |
+| `domain/schema/lookupRegistry.ts` | Catálogo das coleções de lookup (listas configuráveis) com grupo e labels. |
+| `domain/schema/pathResolver.ts` | Gramática única de caminhos: `parsePath`, `stripEventPrefix`, `resolvePath` (valida, tipa o nó e devolve o plano de saltos `FkHop[]`), `suggestNextSegments` (autocomplete) e `getValueAtPath`. `DEFAULT_MAX_FK_DEPTH = 3`, sobreponível por `options.maxFkDepth`. |
+| `domain/schema/expressionPaths.ts` | `extractExpressionPaths` — extrai caminhos `event.*` de expressões via expr-eval. |
+| `domain/schema/eventCatalog.ts` | Catálogo de eventos do Workflow **derivado do registry** (EntityEvents) ∪ eventos de sistema declarados (`SYSTEM_EVENTS`: notas/documentos, lookup). `eventNameToRoot` produz a raiz de navegação. |
+| `domain/schema/hydrationPlan.ts` | Planner puro: caminhos → `FkHop[]` deduplicados em níveis BFS (propaga a chave FK do salto seguinte para os fields do hop pai). |
+| `domain/schema/materialize.ts` | Materializer puro: aplica cada `MaterializationMode` (`denormKey` para FKs fixas, `replaceValue` para references de campos customizados) sobre o payload. |
+| `domain/entities/entitySchemas.ts` | Tipos (`FieldDefinition`, `ScreenDefinition`, `CustomFieldType`…) e derivações do registry (`ENTITY_FK_SCHEMA`, `CUSTOM_FIELD_ENABLED_ENTITIES`, `BUILTIN_REF_ENTITIES`, `resolveRefEntityCollection`). |
 
-### Regra Absoluta — NÃO-NEGOCIÁVEL
+### Regras — NÃO-NEGOCIÁVEIS
 
-⚠️ **NUNCA** altere apenas um dos arquivos. **SEMPRE** copie o conteúdo EXATO para ambos.
-
-**Por quê duplicação controlada em vez de shared package?**
-
-- **Pragmatismo**: Sem complexidade de workspace/monorepo
-- **Build simples**: Sem etapas adicionais ou dependências cruzadas
-- **Manutenibilidade**: 1 arquivo centralizado por plataforma (frontend e backend)
-- **IA-friendly**: Comandos de IA podem sincronizar facilmente com instrução clara
-- **Verificação automática**: Script garante consistência antes de cada commit
-
-**Trade-off aceito**: Duplicação controlada + verificação automática > Complexidade de build/monorepo
-
-### Verificação Obrigatória
-
-Antes de cada commit, execute:
+- **NUNCA** edite os arquivos gerados em `functions/src/domain/schema/**` nem `functions/src/domain/entities/entitySchemas.ts`. Toda alteração é feita na fonte em `src/` seguida de `npm run sync-schemas`.
+- O manifesto de arquivos compartilhados vive em `scripts/sync-schemas.cjs` (`SHARED_FILES`). Novo arquivo compartilhado = adicionar ao manifesto.
+- Arquivos de teste (`*.test.ts`) ficam ao lado da fonte e **não** entram no manifesto.
+- A geração roda automaticamente em `predev`, `prebuild` e `build:functions`; o gate `npm run verify` executa `verify-schemas` (`sync-schemas --check`), que **falha** se alguma cópia estiver desatualizada.
 
 ```bash
-npm run verify-schemas
+npm run sync-schemas    # regenera as cópias em functions/src
+npm run verify-schemas  # (--check) falha se houver cópia desatualizada
+npm run verify          # typecheck + lint + verify-schemas
 ```
 
-Este comando:
-1. Compara `src/domain/entities/entitySchemas.ts` com `functions/src/domain/entities/entitySchemas.ts`
-2. Normaliza whitespace e comentários
-3. **Falha** se houver qualquer divergência no conteúdo
+### Ao adicionar uma nova entidade fixa
 
-O gate `npm run verify` (usado antes de commits) inclui automaticamente `verify-schemas`:
-
-```bash
-npm run verify  # executa: typecheck + lint + verify-schemas
-```
-
-### Ao Adicionar Nova Entidade Fixa
-
-1. Adicione a entidade em `ENTITY_FK_SCHEMA` em **ambos** os `entitySchemas.ts`
-2. Defina quais campos são FKs e quais dados devem ser denormalizados (`denormalizedFields`)
-3. Execute `npm run verify-schemas` para confirmar sincronização
-4. Commit **somente** após verificação passar
-
-**Exemplo**:
-
-```typescript
-// Em AMBOS os arquivos (frontend e backend)
-export const ENTITY_FK_SCHEMA: Record<string, Record<string, FkFieldSpec>> = {
-  // ... entidades existentes
-  
-  audiencias: {  // NOVA ENTIDADE
-    caseId: {
-      targetCollection: 'cases',
-      denormalizedFields: ['caseNumber', 'title']
-    },
-    judgeName: {
-      targetCollection: 'judges',
-      denormalizedFields: ['name', 'court']
-    },
-  },
-};
-```
-
-### Ao Adicionar Campo em FieldDefinition
-
-1. Adicione o campo em **ambos** os `entitySchemas.ts`
-2. Execute `npm run verify-schemas`
-3. Atualize tipos derivados se necessário (ex: formulários, validações)
-4. Commit após verificação passar
+1. Adicione a entrada em `ENTITY_REGISTRY` (`src/domain/schema/entityRegistry.ts`): coleção, labels, `displayNameFields`, `referenceDenormFields`, campos nativos (marcando `lookupCollection` nos campos de lista) e FKs com `denormKey` explícito e `denormalizedFields`.
+2. `ENTITY_FK_SCHEMA`, o catálogo de eventos, o autocomplete do editor e a hidratação lazy derivam automaticamente do registry.
+3. Rode `npm run sync-schemas` e depois `npm run verify`.
+4. Ajuste os testes de snapshot em `src/domain/schema/entityRegistry.test.ts` se a mudança for intencional.
 
 ### Comando para IA (Claude, Copilot, etc.)
 
-Ao usar assistentes de IA para modificar schemas:
-
-> **Instrução**: "Ao alterar `entitySchemas.ts`, SEMPRE sincronize frontend e backend. Copie o conteúdo EXATO entre `src/domain/entities/entitySchemas.ts` e `functions/src/domain/entities/entitySchemas.ts`, depois execute `npm run verify-schemas` para confirmar."
-
-### Estrutura do entitySchemas.ts
-
-```typescript
-// ═══════════════════════════════════════════════════════════════════════════════
-// ⚠️  REGRA ABSOLUTA - NÃO-NEGOCIÁVEL
-// Este arquivo DEVE ser IDÊNTICO entre frontend e backend
-// ═══════════════════════════════════════════════════════════════════════════════
-
-// Tipos de campos customizados
-export type CustomFieldType = 'text' | 'textarea' | 'number' | ...;
-export interface FieldDefinition { ... }
-export interface ScreenDefinition { ... }
-
-// Schema de Foreign Keys para entidades fixas
-export interface FkFieldSpec {
-  targetCollection: string;
-  multi?: boolean;
-  denormalizedFields?: string[]; // Campos a buscar no lookup
-}
-
-export const ENTITY_FK_SCHEMA: Record<string, Record<string, FkFieldSpec>> = {
-  cases: { contractId: { ... }, responsibleLawyerId: { ... } },
-  deadlines: { caseId: { ... } },
-  // ... outras entidades
-};
-
-// Sets de entidades
-export const CUSTOM_FIELD_ENABLED_ENTITIES = new Set([...]);
-export const BUILTIN_REF_ENTITIES = new Set([...]);
-export const resolveRefEntityCollection = (refEntity: string) => ...;
-```
-
-### Troubleshooting
-
-**Erro: "entitySchemas.ts DIVERGENTE"**
-
-1. Compare os dois arquivos:
-   ```bash
-   diff src/domain/entities/entitySchemas.ts functions/src/domain/entities/entitySchemas.ts
-   ```
-
-2. Identifique qual arquivo tem a versão correta
-
-3. Copie o conteúdo EXATO para o outro arquivo
-
-4. Execute novamente: `npm run verify-schemas`
-
-**Lembre-se**: O script ignora diferenças de whitespace e comentários, então a divergência é no **conteúdo real**.
+> **Instrução**: "Os schemas compartilhados têm fonte única em `src/domain/schema/` e `src/domain/entities/entitySchemas.ts`. NUNCA edite as cópias em `functions/src` — altere a fonte e rode `npm run sync-schemas`."
 
 ---
 
@@ -1833,7 +1742,8 @@ categoria automaticamente a partir dos dados retornados pela API.
 
 Escrita em `workflow_events` → `onWorkflowEventCreated` dispara → carrega
 `WorkflowDefinition`s habilitadas para aquele `eventName` (`findEnabledByEvent`) → para cada
-uma: avalia a `Condition` → se `screenKey` estiver definido no `WorkflowDefinition` (só se aplica
+uma: **hidrata o payload** (resolução lazy de FKs, ver abaixo) → avalia a `Condition` → se
+`screenKey` estiver definido no `WorkflowDefinition` (só se aplica
 a `custom_record.saved`/`custom_record.deleted`, ver abaixo) e não bater com o `screenKey` do
 `payload`, ignora a execução sem rodar nenhum step → roda os `steps` em ordem (`order`
 crescente), resolvendo os inputs de cada um via `InputMapping` e despachando o executor via
@@ -1841,13 +1751,45 @@ crescente), resolvendo os inputs de cada um via `InputMapping` e despachando o e
 `tenants/{tenantId}/workflow_executions`. Falha de um step para o restante daquele workflow
 (fail-fast, sem retry na v1) mas nunca derruba os demais workflows nem a Cloud Function.
 
+### Resolução lazy de FKs — WorkflowContextHydrator
+
+O payload publicado é **cru** (só os dados do documento). Quem materializa FKs é o
+`WorkflowContextHydrator` (`functions/src/domain/engine/WorkflowContextHydrator.ts`), no momento
+da execução e **apenas para os caminhos que a automação realmente referencia**:
+
+1. `collectReferencedPaths(definition)` varre a árvore de `Condition` (fieldPath, eventField,
+   expressões), os `InputMapping`s `Event` e as expressões dos steps, normalizando as três
+   convenções de endereçamento (`event.payload.x`, `event.x`, `x`) via `stripEventPrefix`.
+2. `buildHydrationPlan` (compartilhado, `domain/schema/hydrationPlan.ts`) resolve cada caminho
+   contra o schema (`resolvePath`) e produz os saltos `FkHop[]` deduplicados em **níveis BFS**
+   (1..`maxFkDepth`, default 3). A chave FK do salto seguinte é propagada para os campos do hop
+   pai (ex: `contract.client.name` garante `clientId` na materialização de `contract`).
+3. Por nível: um `db.getAll` em lote por coleção via `IWorkflowRecordFetcher`
+   (`FirestoreWorkflowRecordFetcher`), com `HydrationCache` (`coleção:id`) **compartilhado entre
+   todos os workflows do mesmo evento**.
+4. `materializeHops` (compartilhado, `domain/schema/materialize.ts`) aplica cada
+   `MaterializationMode`: FK fixa materializa sob o `denormKey` (`contractId` → `contract`, com
+   os `denormalizedFields` do registry); reference de campo customizado **substitui** o ID em
+   `customValues.<key>`/`values.<key>` espalhando os `values` do registro alvo — os mesmos nomes
+   do antigo enriquecimento eager, preservando expressões existentes (`event.contract.number`,
+   `event.customValues.tarefa.nome`). FKs múltiplas materializam arrays (cap de 50 itens,
+   navegáveis por índice: `event.activePole.0.name`); `old.*` também é hidratado.
+
+As `ScreenDefinition`s do tenant vêm do `ScreenDefinitionCache` (`functions/src/data/services/`),
+cache em memória da instância com TTL de 5 min + invalidação best-effort quando o trigger de
+escrita observa mudança em `screenDefinitions`. Caminho que não resolve no schema gera `WARN`
+no log (fim da falha silenciosa); documento inexistente materializa `{ id }`. O log da execução
+registra a `SCHEMA_VERSION` usada na hidratação. Profundidade além do limite é rejeitada no
+plano e também protegida no editor.
+
 ### Publicação automática de eventos
 
 Nenhum módulo de domínio chama `publishEvent()` diretamente. Em vez disso, a Cloud Function
 `publishWorkflowEventOnEntityChange` (`onDocumentWritten`, mesmo escopo de
 `auditFlatEntityChange`: `tenants/{tenantId}/{collection}/{docId}`) observa a escrita de fora e
 publica o evento correspondente — o próprio módulo nem sabe que o motor existe. O mapeamento
-coleção → prefixo de evento fica em `functions/src/domain/services/workflowEventEntities.ts`:
+coleção → prefixo de evento é **derivado do `ENTITY_REGISTRY`/`LOOKUP_REGISTRY`** em
+`functions/src/domain/services/workflowEventEntities.ts`:
 
 | Entidade | Coleção Firestore | Prefixo do evento |
 |---|---|---|
@@ -1862,19 +1804,20 @@ coleção → prefixo de evento fica em `functions/src/domain/services/workflowE
 
 Toda entidade tem exatamente dois eventos: `<prefixo>.saved` (criação **ou** atualização — o
 motor não distingue as duas) e `<prefixo>.deleted`. O `payload` publicado é `{ id, ...dados_do_documento }`
-— os dados de depois da escrita (`saved`) ou de antes (`deleted`).
+— os dados de depois da escrita (`saved`) ou de antes (`deleted`), **sem denormalização de FKs**
+(a resolução é lazy, na execução — seção "Resolução lazy de FKs").
 
 Coleções fora desse mapa (tags, `members`, `aiConnections`, subcoleções aninhadas como
 `notes`/`documents`) são ignoradas — mesmo padrão de allowlist do `auditFlatEntityChange`.
 
-**Catálogo de eventos no cliente:** como `src/` não pode importar o mapa de `functions/`, ele
-mantém sua própria cópia estática em `src/domain/services/workflowEventCatalog.ts` — usada para
-(1) o seletor de evento na aba Geral, com rótulos em PT-BR (`"Ao salvar: Processo"`, `"Ao
-excluir: Contrato"`, ordenados por ação e depois por entidade) e (2) a lista de campos conhecidos
-de cada evento, usada pelo `StepEditorModal` quando o usuário escolhe mapping "Do evento": em vez
-de digitar o caminho à mão, ele escolhe de uma lista (`caseId`, `responsibleLawyerId`, etc.). Itens
-de lista não têm campos fixos conhecíveis estaticamente — o picker cai de volta para texto livre
-nesse caso.
+**Catálogo de eventos:** derivado do `ENTITY_REGISTRY` no arquivo compartilhado
+`domain/schema/eventCatalog.ts` (fonte em `src/`, cópia gerada em `functions/`) — eventos de
+entidade (campos nativos, FKs e caminhos denormalizados derivados de `FkSpec`) ∪ eventos de
+sistema declarados (`SYSTEM_EVENTS`: notas/documentos com pai denormalizado do registry, lookup).
+`src/domain/services/workflowEventCatalog.ts` é um adapter fino que re-exporta o catálogo — usado
+para (1) o seletor de evento na aba Geral, com rótulos em PT-BR (`"Ao salvar: Processo"`) e (2) a
+lista de campos do mapping "Do evento". O mesmo catálogo fornece `eventNameToRoot`, a raiz de
+navegação usada pelo autocomplete do `ExpressionEditor` e pela hidratação lazy.
 
 **Gatilho de Entidade Customizada — seletor de tela.** Como toda entidade customizada mora na
 mesma coleção `customRecords` discriminada por `screenKey`, escolher `custom_record.saved`/
@@ -1914,17 +1857,22 @@ execução síncrona.
 ### Arquivos-chave
 
 - `functions/src/domain/engine/WorkflowExecutor.ts` — orquestrador
+- `functions/src/domain/engine/WorkflowContextHydrator.ts` — hidratação lazy de FKs por execução
 - `functions/src/domain/engine/expression/ExpressionEngine.ts` — motor de avaliação de expressões
 - `functions/src/domain/engine/expression/FunctionRegistry.ts` — registry de funções de expressão
+- `functions/src/data/services/FirestoreWorkflowRecordFetcher.ts` — fetch em lote (`db.getAll`) para a hidratação
+- `functions/src/data/services/ScreenDefinitionCache.ts` — cache de `ScreenDefinition` (TTL + invalidação)
 - `functions/src/infrastructure/handlers/onWorkflowEventCreated.ts` — gatilho do motor (Event Bus)
-- `functions/src/infrastructure/handlers/publishWorkflowEventOnEntityChange.ts` — publica os eventos `saved`/`deleted`
+- `functions/src/infrastructure/handlers/publishWorkflowEventOnEntityChange.ts` — publica os eventos `saved`/`deleted` com payload cru
 - `functions/src/infrastructure/handlers/syncWorkflowStepCatalog.ts` — `onCall` que sincroniza `workflow_step_catalog` sob demanda (chamado pelo builder ao abrir uma automação, já que o catálogo não pode depender de um evento real ter ocorrido)
 - `functions/src/infrastructure/handlers/getExpressionFunctions.ts` — `onCall` que retorna todas as funções de expressão disponíveis para o frontend
 - `functions/src/infrastructure/workflow/registerSteps.ts` — composition root
+- `src/domain/schema/` — registry, resolvedor de caminhos, catálogo de eventos, planner e materializer compartilhados (fonte única; ver "Schema Compartilhado Gerado")
 - `src/stores/ExpressionFunctionStore.tsx` — store que carrega as funções de expressão do backend
-- `src/domain/services/workflowEventCatalog.ts` — catálogo de eventos e campos, espelho do lado cliente
+- `src/domain/services/workflowEventCatalog.ts` — adapter fino do catálogo derivado (`domain/schema/eventCatalog.ts`)
 - `src/presentation/pages/ViewWorkflow/components/StepEditorModal/` — UI genérica dirigida por `InputDefinition[]`
-- `src/presentation/components/ui/ExpressionEditor/` — editor de expressões com autocomplete
+- `src/presentation/components/ui/ExpressionEditor/` — editor de expressões com autocomplete segmento-a-segmento (`pathRoot` + `suggestNextSegments`) e validação semântica de caminhos
+- `src/presentation/shared/useSchemaContext.ts` / `useLookupValues.ts` — pontes dos stores para o resolvedor (screens dinâmicas e valores de lookup)
 
 ---
 

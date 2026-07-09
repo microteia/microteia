@@ -3,17 +3,17 @@ import { getDb } from '../firebase/initFirebase';
 import { getDI } from '../di/container';
 import { getWorkflowEventPrefix } from '../../domain/services/workflowEventEntities';
 import { publishEvent } from '../workflow/publishEvent';
-import { FkEnricher } from '../workflow/FkEnricher';
-import { CUSTOM_FIELD_ENABLED_ENTITIES } from '../../domain/entities/entitySchemas';
-import type { FieldDefinition } from '../../domain/entities/entitySchemas';
 
 /**
- * Publica eventos de entidades com payload completo e FKs enriquecidas:
- * - Campos estáticos e dinâmicos (customValues.xxx)
+ * Publica eventos de entidades com o payload cru do documento:
+ * - Campos estáticos e dinâmicos (customValues/values)
  * - old: dados antes da alteração (apenas para .saved)
- * - FKs denormalizadas automaticamente (campos fixos + customizados)
  *
- * Suporta: persons, cases, contracts, deadlines, financials, pushes, news, custom_records e lookups
+ * FKs NÃO são denormalizadas aqui: a resolução é lazy, feita pelo
+ * WorkflowContextHydrator no momento da execução dos workflows, guiada pelos
+ * caminhos que cada automação realmente referencia.
+ *
+ * Suporta: persons, cases, contracts, deadlines, financials, pushes, custom_records e lookups
  */
 export const publishWorkflowEventOnEntityChange = onDocumentWritten(
   { document: 'tenants/{tenantId}/{collection}/{docId}', region: 'southamerica-east1' },
@@ -58,20 +58,7 @@ export const publishWorkflowEventOnEntityChange = onDocumentWritten(
         payload.collection = collection;
       }
 
-      const db = getDb();
-      const enricher = new FkEnricher(db, tenantId);
-
-      let screenDefinition: { fields: FieldDefinition[] } | undefined;
-      if (CUSTOM_FIELD_ENABLED_ENTITIES.has(collection)) {
-        const screen = await getDI().getScreenDefinitionCache().getScreen(tenantId, collection);
-        if (screen) {
-          screenDefinition = { fields: screen.fields };
-        }
-      }
-
-      const enrichedPayload = await enricher.enrichPayload(collection, payload, screenDefinition);
-
-      await publishEvent(db, tenantId, eventName, enrichedPayload);
+      await publishEvent(getDb(), tenantId, eventName, payload);
     } catch (error) {
       console.error(`[workflow] Falha ao publicar evento para ${tenantId}/${collection}/${docId}:`, error);
     }

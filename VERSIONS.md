@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [0.59.1] — 2026-07-09
+
+- Publicação de eventos das automações mais leve: os dados vinculados passam a ser buscados apenas quando alguma automação realmente precisa deles, reduzindo processamento em toda gravação de registro.
+
 #### [0.59.0] — 2026-07-09
 
 - As automações agora conseguem usar dados de registros vinculados em vários níveis (ex.: processo → contrato → cliente), incluindo listas (polo ativo, contratantes), telas personalizadas e os dados anteriores à alteração.

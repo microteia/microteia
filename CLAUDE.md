@@ -34,7 +34,9 @@ Por que **duas** e não só `tsc`:
 
 O erro frequente **"Cannot access refs during render"** é a regra `react-hooks/refs` (React Compiler). A correção é **arquitetural** (ver "Hooks, refs e pureza" abaixo), nunca `// @ts-ignore` nem desabilitar a regra no arquivo. Detalhes completos: seção **"Conformidade com ESLint e React Compiler"** do `ARCHITECTURE.md`.
 
-Use o atalho do `package.json` quando existir: `npm run verify` (= `typecheck` + `lint`).
+Use o atalho do `package.json` quando existir: `npm run verify` (= `typecheck` + `lint` + `verify-schemas`).
+
+> **Schemas compartilhados:** a fonte única vive em `src/domain/schema/` e `src/domain/entities/entitySchemas.ts`; as cópias em `functions/src` são **geradas** por `npm run sync-schemas` — nunca as edite. Ver "Schema Compartilhado Gerado" no `ARCHITECTURE.md`.
 
 ---
 
