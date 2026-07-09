@@ -146,6 +146,7 @@ export const EditWorkflowStepView: React.FC<{ tabKey: string }> = ({ tabKey }) =
             onChange={(expression) => vm.setMapping(input.id, { kind: 'Expression', expression })}
             placeholder="ex: event.campo || input.campo || variavel"
             eventFields={vm.eventFields}
+            pathRoot={vm.pathRoot}
             stepOutputFields={vm.stepOutputFields}
             workflowVariables={vm.workflowVariables}
           />

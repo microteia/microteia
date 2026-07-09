@@ -1,9 +1,12 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { useWorkspace } from '../../../../stores/useWorkspace';
 import { useExpressionFunctions } from '../../../../stores/useExpressionFunctions';
+import { useSchemaContext } from '../../../shared/useSchemaContext';
+import type { PathRoot } from '../../../../domain/schema/pathResolver';
 import { validateExpressionWithParser } from './expressionValidator';
 import { buildAutocompleteItems, insertSnippet } from './autocompleteHelpers';
 import type { AutocompleteItem, StepOutputField, WorkflowVariable } from './autocompleteHelpers';
+import { buildPathAutocompleteItems, extractActiveEventPath, findInvalidEventPath } from './pathAutocomplete';
 
 export interface EventField {
   path: string;
@@ -17,12 +20,14 @@ export interface ExpressionEditorProps {
   eventFields?: EventField[];
   stepOutputFields?: StepOutputField[];
   workflowVariables?: WorkflowVariable[];
+  pathRoot?: PathRoot | null;
 }
 
 export interface AutocompleteState {
   active: boolean;
   mode: 'function' | 'field' | 'context' | 'input';
   query: string;
+  pathBase: string;
   triggerStart: number;
   position: { top: number; left: number } | null;
 }
@@ -82,17 +87,21 @@ export const useExpressionEditorViewModel = (
 ): ExpressionEditorViewModel => {
   const { openTab } = useWorkspace();
   const { functions } = useExpressionFunctions();
+  const schemaContext = useSchemaContext();
   const [validationResult, setValidationResult] = useState<ValidationResult>({ isValid: null });
   const [autocompleteState, setAutocompleteState] = useState<AutocompleteState>({
     active: false,
     mode: 'function',
     query: '',
+    pathBase: '',
     triggerStart: -1,
     position: null,
   });
   const [highlightedIndex, setHighlightedIndex] = useState(0);
 
   const validationTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const pathRoot = props.pathRoot ?? null;
 
   useEffect(() => {
     if (validationTimerRef.current) {
@@ -101,6 +110,13 @@ export const useExpressionEditorViewModel = (
 
     validationTimerRef.current = setTimeout(() => {
       const result = validateExpressionWithParser(props.value, functions);
+      if (result.isValid && pathRoot) {
+        const issue = findInvalidEventPath(schemaContext, pathRoot, props.value);
+        if (issue) {
+          setValidationResult({ isValid: false, message: `Caminho "${issue.path}": ${issue.error}` });
+          return;
+        }
+      }
       setValidationResult(result);
     }, 400);
 
@@ -109,21 +125,37 @@ export const useExpressionEditorViewModel = (
         clearTimeout(validationTimerRef.current);
       }
     };
-  }, [props.value, functions]);
+  }, [props.value, functions, pathRoot, schemaContext]);
 
-  const autocompleteItems = useMemo(
-    (): AutocompleteItem[] =>
-      buildAutocompleteItems(
-        autocompleteState.mode,
-        autocompleteState.query,
-        functions,
-        props.eventFields ?? [],
-        props.stepOutputFields ?? [],
-        props.workflowVariables ?? [],
-        true,
-      ),
-    [autocompleteState.mode, autocompleteState.query, props.eventFields, props.stepOutputFields, props.workflowVariables, functions],
-  );
+  const autocompleteItems = useMemo((): AutocompleteItem[] => {
+    if (autocompleteState.mode === 'field' && pathRoot) {
+      return buildPathAutocompleteItems(schemaContext, pathRoot, {
+        completedPath: autocompleteState.pathBase,
+        query: autocompleteState.query,
+        queryStart: autocompleteState.triggerStart,
+      });
+    }
+    return buildAutocompleteItems(
+      autocompleteState.mode,
+      autocompleteState.query,
+      functions,
+      props.eventFields ?? [],
+      props.stepOutputFields ?? [],
+      props.workflowVariables ?? [],
+      true,
+    );
+  }, [
+    autocompleteState.mode,
+    autocompleteState.query,
+    autocompleteState.pathBase,
+    autocompleteState.triggerStart,
+    pathRoot,
+    schemaContext,
+    props.eventFields,
+    props.stepOutputFields,
+    props.workflowVariables,
+    functions,
+  ]);
 
   // Calcula posição do autocomplete quando ativa ou muda de contexto
   useEffect(() => {
@@ -150,7 +182,7 @@ export const useExpressionEditorViewModel = (
   }, [autocompleteState.active, autocompleteState.triggerStart, autocompleteItems.length, textareaRef]);
 
   const closeAutocomplete = useCallback(() => {
-    setAutocompleteState({ active: false, mode: 'function', query: '', triggerStart: -1, position: null });
+    setAutocompleteState({ active: false, mode: 'function', query: '', pathBase: '', triggerStart: -1, position: null });
     setHighlightedIndex(0);
   }, []);
 
@@ -171,12 +203,9 @@ export const useExpressionEditorViewModel = (
         cursorPos = newCursor;
       } else {
         let insertion: string;
-        if (autocompleteState.mode === 'function' && !item.value.endsWith(')')) {
+        if (autocompleteState.mode === 'function' && !item.value.endsWith(')') && !item.value.endsWith('.')) {
           insertion = `${item.value}()`;
           cursorPos = before.length + item.value.length + 1;
-        } else if (item.value === 'event.' || item.value === 'input.' || item.value === 'output.') {
-          insertion = item.value;
-          cursorPos = before.length + item.value.length;
         } else {
           insertion = item.value;
           cursorPos = before.length + item.value.length;
@@ -185,14 +214,31 @@ export const useExpressionEditorViewModel = (
       }
 
       props.onChange(newValue);
-      closeAutocomplete();
+
+      const reopened =
+        pathRoot && !item.snippet && item.value.endsWith('.')
+          ? extractActiveEventPath(newValue.slice(0, cursorPos))
+          : null;
+      if (reopened) {
+        setAutocompleteState({
+          active: true,
+          mode: 'field',
+          query: reopened.query,
+          pathBase: reopened.completedPath,
+          triggerStart: reopened.queryStart,
+          position: null,
+        });
+        setHighlightedIndex(0);
+      } else {
+        closeAutocomplete();
+      }
 
       setTimeout(() => {
         textarea.focus();
         textarea.setSelectionRange(cursorPos, cursorPos);
       }, 0);
     },
-    [props, textareaRef, autocompleteState.triggerStart, autocompleteState.mode, closeAutocomplete],
+    [props, textareaRef, autocompleteState.triggerStart, autocompleteState.mode, pathRoot, closeAutocomplete],
   );
 
   const onAutocompleteHover = useCallback((index: number) => {
@@ -207,66 +253,74 @@ export const useExpressionEditorViewModel = (
       const pos = e.target.selectionStart;
       const textBefore = value.slice(0, pos);
 
-      // Detecta "event.old.campo" → mesmos campos do evento
-      const eventOldDotMatch = textBefore.match(/event\.old\.([a-zA-Z_][a-zA-Z0-9_.]*)$/);
-      if (eventOldDotMatch) {
-        const triggerStart = pos - eventOldDotMatch[1].length;
-        const query = eventOldDotMatch[1];
+      if (pathRoot) {
+        const activePath = extractActiveEventPath(textBefore);
+        if (activePath) {
+          setAutocompleteState({
+            active: true,
+            mode: 'field',
+            query: activePath.query,
+            pathBase: activePath.completedPath,
+            triggerStart: activePath.queryStart,
+            position: null,
+          });
+          setHighlightedIndex(0);
+          return;
+        }
+      } else {
+        const eventOldDotMatch = textBefore.match(/event\.old\.([a-zA-Z_][a-zA-Z0-9_.]*)$/);
+        if (eventOldDotMatch) {
+          setAutocompleteState({
+            active: true,
+            mode: 'field',
+            query: eventOldDotMatch[1],
+            pathBase: '',
+            triggerStart: pos - eventOldDotMatch[1].length,
+            position: null,
+          });
+          setHighlightedIndex(0);
+          return;
+        }
 
-        setAutocompleteState({
-          active: true,
-          mode: 'field',
-          query,
-          triggerStart,
-          position: null,
-        });
-        setHighlightedIndex(0);
-        return;
-      }
+        if (textBefore.endsWith('event.old.')) {
+          setAutocompleteState({
+            active: true,
+            mode: 'field',
+            query: '',
+            pathBase: '',
+            triggerStart: pos,
+            position: null,
+          });
+          setHighlightedIndex(0);
+          return;
+        }
 
-      if (textBefore.endsWith('event.old.')) {
-        const triggerStart = pos;
+        const eventDotMatch = textBefore.match(/event\.([a-zA-Z_][a-zA-Z0-9_.]*)$/);
+        if (eventDotMatch) {
+          setAutocompleteState({
+            active: true,
+            mode: 'field',
+            query: eventDotMatch[1],
+            pathBase: '',
+            triggerStart: pos - eventDotMatch[1].length,
+            position: null,
+          });
+          setHighlightedIndex(0);
+          return;
+        }
 
-        setAutocompleteState({
-          active: true,
-          mode: 'field',
-          query: '',
-          triggerStart,
-          position: null,
-        });
-        setHighlightedIndex(0);
-        return;
-      }
-
-      // Detecta "event.campo"
-      const eventDotMatch = textBefore.match(/event\.([a-zA-Z_][a-zA-Z0-9_.]*)$/);
-      if (eventDotMatch) {
-        const triggerStart = pos - eventDotMatch[1].length;
-        const query = eventDotMatch[1];
-
-        setAutocompleteState({
-          active: true,
-          mode: 'field',
-          query,
-          triggerStart,
-          position: null,
-        });
-        setHighlightedIndex(0);
-        return;
-      }
-
-      if (textBefore.endsWith('event.')) {
-        const triggerStart = pos;
-
-        setAutocompleteState({
-          active: true,
-          mode: 'field',
-          query: '',
-          triggerStart,
-          position: null,
-        });
-        setHighlightedIndex(0);
-        return;
+        if (textBefore.endsWith('event.')) {
+          setAutocompleteState({
+            active: true,
+            mode: 'field',
+            query: '',
+            pathBase: '',
+            triggerStart: pos,
+            position: null,
+          });
+          setHighlightedIndex(0);
+          return;
+        }
       }
 
       // Detecta "input.campo" → outputs de steps anteriores
@@ -279,6 +333,7 @@ export const useExpressionEditorViewModel = (
           active: true,
           mode: 'input',
           query,
+          pathBase: '',
           triggerStart,
           position: null,
         });
@@ -295,6 +350,7 @@ export const useExpressionEditorViewModel = (
           active: true,
           mode: 'context',
           query,
+          pathBase: '',
           triggerStart,
           position: null,
         });
@@ -311,6 +367,7 @@ export const useExpressionEditorViewModel = (
           active: true,
           mode: 'function',
           query,
+          pathBase: '',
           triggerStart,
           position: null,
         });
@@ -320,7 +377,7 @@ export const useExpressionEditorViewModel = (
 
       if (autocompleteState.active) closeAutocomplete();
     },
-    [props, autocompleteState.active, closeAutocomplete],
+    [props, pathRoot, autocompleteState.active, closeAutocomplete],
   );
 
   const handleKeyDown = useCallback(

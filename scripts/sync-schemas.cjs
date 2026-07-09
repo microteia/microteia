@@ -22,6 +22,7 @@ const SHARED_FILES = [
   'domain/schema/lookupRegistry.ts',
   'domain/schema/pathResolver.ts',
   'domain/schema/expressionPaths.ts',
+  'domain/schema/eventCatalog.ts',
 ];
 
 const buildHeader = (relativePath) =>

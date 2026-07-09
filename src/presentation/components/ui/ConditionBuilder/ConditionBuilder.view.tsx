@@ -113,6 +113,7 @@ const ConditionNode: React.FC<{ node: BuilderNode; vm: ConditionBuilderViewModel
               onChange={(expression) => vm.updateExpression(node.id, expression)}
               placeholder="Ex: event.valor > 1000 and isWeekend(today()) == false"
               eventFields={vm.eventFields}
+              pathRoot={vm.pathRoot}
             />
             <S.HelpText>A expressão deve resultar em verdadeiro ou falso.</S.HelpText>
           </>
@@ -180,19 +181,30 @@ const ConditionNode: React.FC<{ node: BuilderNode; vm: ConditionBuilderViewModel
 
           <S.FieldGroup>
             <S.Label>Valor</S.Label>
-            {node.valueType === 'literal' && (
-              <Input
-                value={node.value}
-                onChange={(e) => vm.updateComparison(node.id, { value: e.target.value })}
-                placeholder='Ex: "Ativo", 1000, etc.'
-              />
-            )}
+            {node.valueType === 'literal' && (() => {
+              const lookupOptions = vm.getLookupValueOptions(node.fieldPath);
+              return lookupOptions ? (
+                <SearchSelect
+                  options={lookupOptions}
+                  value={node.value}
+                  onChange={(value) => vm.updateComparison(node.id, { value })}
+                  placeholder="Selecione um valor..."
+                />
+              ) : (
+                <Input
+                  value={node.value}
+                  onChange={(e) => vm.updateComparison(node.id, { value: e.target.value })}
+                  placeholder='Ex: "Ativo", 1000, etc.'
+                />
+              );
+            })()}
             {node.valueType === 'expression' && (
               <ExpressionEditor
                 value={node.value}
                 onChange={(value) => vm.updateComparison(node.id, { value })}
                 placeholder='Ex: today(), now(), concat("Texto", campo)'
                 eventFields={vm.eventFields}
+                pathRoot={vm.pathRoot}
               />
             )}
             {node.valueType === 'eventField' && (

@@ -2,6 +2,7 @@ import { useState, useMemo, useCallback, useEffect } from 'react';
 import type { InputMapping, WorkflowStep } from '../../../../../domain/entities/Workflow';
 import type { StepDefinitionSummary } from '../../../../../domain/entities/WorkflowStepCatalog';
 import type { WorkflowEventFieldOption } from '../../../../../domain/services/workflowEventCatalog';
+import type { PathRoot } from '../../../../../domain/schema/pathResolver';
 import type { StepOutputField, WorkflowVariable } from '../../../../components/ui/ExpressionEditor/autocompleteHelpers';
 import { getStepDisplayName } from '../../../../shared/workflowHelpers';
 
@@ -11,6 +12,7 @@ export interface StepEditorModalProps {
   existingSteps: WorkflowStep[];
   editingStep: WorkflowStep | null;
   eventFields: WorkflowEventFieldOption[];
+  pathRoot?: PathRoot | null;
   onSave: (step: WorkflowStep) => void;
   onDelete?: (stepId: string) => void;
   onClose: () => void;

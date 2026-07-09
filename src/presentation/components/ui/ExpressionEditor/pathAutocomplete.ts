@@ -1,0 +1,70 @@
+import type { PathRoot, SchemaContext } from '../../../../domain/schema/pathResolver';
+import { parsePath, resolvePath, stripEventPrefix, suggestNextSegments } from '../../../../domain/schema/pathResolver';
+import { extractExpressionPaths } from '../../../../domain/schema/expressionPaths';
+import type { AutocompleteItem } from './autocompleteHelpers';
+
+export interface ActiveEventPath {
+  completedPath: string;
+  query: string;
+  queryStart: number;
+}
+
+export const extractActiveEventPath = (textBefore: string): ActiveEventPath | null => {
+  const match = textBefore.match(/(?:^|[^a-zA-Z0-9_.])event\.((?:[a-zA-Z0-9_]+\.)*)([a-zA-Z0-9_]*)$/);
+  if (!match) return null;
+  return {
+    completedPath: match[1].endsWith('.') ? match[1].slice(0, -1) : match[1],
+    query: match[2],
+    queryStart: textBefore.length - match[2].length,
+  };
+};
+
+export const buildPathAutocompleteItems = (
+  ctx: SchemaContext,
+  root: PathRoot,
+  active: ActiveEventPath,
+): AutocompleteItem[] => {
+  const suggestions = suggestNextSegments(ctx, root, parsePath(active.completedPath));
+  const query = active.query.toLowerCase();
+  return suggestions
+    .filter(
+      (suggestion) =>
+        !query ||
+        suggestion.insertText.toLowerCase().includes(query) ||
+        suggestion.label.toLowerCase().includes(query),
+    )
+    .sort((a, b) => {
+      const aStarts = a.insertText.toLowerCase().startsWith(query);
+      const bStarts = b.insertText.toLowerCase().startsWith(query);
+      if (aStarts && !bStarts) return -1;
+      if (!aStarts && bStarts) return 1;
+      return a.insertText.localeCompare(b.insertText);
+    })
+    .map((suggestion) => ({
+      value: suggestion.isLeaf ? suggestion.insertText : `${suggestion.insertText}.`,
+      label: suggestion.isLeaf ? suggestion.insertText : `${suggestion.insertText}…`,
+      description: suggestion.detail ? `${suggestion.label} — ${suggestion.detail}` : suggestion.label,
+      category: 'Campo',
+    }));
+};
+
+export interface EventPathIssue {
+  path: string;
+  error: string;
+}
+
+export const findInvalidEventPath = (
+  ctx: SchemaContext,
+  root: PathRoot,
+  expression: string,
+): EventPathIssue | null => {
+  for (const path of extractExpressionPaths(expression)) {
+    const segments = stripEventPrefix(path);
+    if (!segments) continue;
+    const resolution = resolvePath(ctx, root, segments);
+    if (!resolution.valid && resolution.error) {
+      return { path, error: resolution.error };
+    }
+  }
+  return null;
+};

@@ -11,6 +11,13 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [0.58.0] — 2026-07-08
+
+- O editor de automações agora sugere campos passo a passo ao digitar, navegando pelos vínculos entre registros (ex.: processo → contrato → cliente), incluindo campos de telas personalizadas.
+- Expressões com caminhos de campos inexistentes passam a ser sinalizadas na hora, em vez de falharem silenciosamente na execução.
+- Nas condições das automações, campos de listas configuráveis (área, status, tipo etc.) agora oferecem a seleção dos valores cadastrados, em vez de digitação livre.
+- Corrigido: os campos sugeridos para automações de telas personalizadas apontavam para um caminho que não existia nos dados do evento.
+
 #### [0.57.3] — 2026-07-08
 
 - Base interna que entende os vínculos entre registros (processo → contrato → cliente), preparando o preenchimento automático de campos aninhados nas automações.

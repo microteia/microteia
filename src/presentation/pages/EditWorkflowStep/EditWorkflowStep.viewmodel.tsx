@@ -5,7 +5,8 @@ import { useWorkspace } from '../../../stores/useWorkspace';
 import { useNotification } from '../../../stores/useNotification';
 import { useScreenDefinitions } from '../../../stores/useScreenDefinitions';
 import { useStepCatalog } from '../../../stores/useStepCatalog';
-import { getWorkflowEventFields, eventNameToEntityKey } from '../../../domain/services/workflowEventCatalog';
+import { getWorkflowEventFields, eventNameToEntityKey, eventNameToRoot } from '../../../domain/services/workflowEventCatalog';
+import type { PathRoot } from '../../../domain/schema/pathResolver';
 import { getStepIcon } from '../../shared/stepIcons';
 import { getStepDisplayName } from '../../shared/workflowHelpers';
 import type { WorkflowEventFieldOption } from '../../../domain/services/workflowEventCatalog';
@@ -49,6 +50,7 @@ export interface EditWorkflowStepViewModel {
   stepCatalog: StepDefinitionSummary[];
   stepCatalogOptions: { value: string; label: string; icon: IconType }[];
   eventFields: WorkflowEventFieldOption[];
+  pathRoot: PathRoot | null;
   stepOutputFields: StepOutputField[];
   workflowVariables: WorkflowVariable[];
   isSaving: boolean;
@@ -139,6 +141,11 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
 
     return getWorkflowEventFields(workflow.eventName, dynamicFields);
   }, [workflow, getCustomFieldsFor]);
+
+  const pathRoot = useMemo(
+    () => (workflow ? eventNameToRoot(workflow.eventName, workflow.screenKey) : null),
+    [workflow],
+  );
 
   useEffect(() => {
     const stepTypeName = selectedDefinition?.name ?? 'Novo Step';
@@ -364,6 +371,7 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
     stepCatalog,
     stepCatalogOptions,
     eventFields,
+    pathRoot,
     stepOutputFields,
     workflowVariables,
     isSaving,

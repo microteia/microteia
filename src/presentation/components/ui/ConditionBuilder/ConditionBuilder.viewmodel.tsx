@@ -1,8 +1,13 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import type { Condition, FieldComparisonCondition } from '../../../../domain/entities/Workflow';
 import type { WorkflowEventFieldOption } from '../../../../domain/services/workflowEventCatalog';
+import { eventNameToRoot } from '../../../../domain/services/workflowEventCatalog';
+import type { PathRoot } from '../../../../domain/schema/pathResolver';
+import { resolvePath, stripEventPrefix } from '../../../../domain/schema/pathResolver';
 import type { SearchSelectOption } from '../SearchSelect';
 import { useScreenDefinitions } from '../../../../stores/useScreenDefinitions';
+import { useSchemaContext } from '../../../shared/useSchemaContext';
+import { useLookupValues } from '../../../shared/useLookupValues';
 import {
   CONDITION_OPERATOR_LABELS,
   EVENT_FIELD_PATH_PREFIX,
@@ -46,6 +51,8 @@ export interface ConditionBuilderViewModel {
   fieldOptions: SearchSelectOption[];
   operatorOptions: SearchSelectOption[];
   eventFields: WorkflowEventFieldOption[];
+  pathRoot: PathRoot | null;
+  getLookupValueOptions: (fieldPath: string) => SearchSelectOption[] | null;
   setGroupOperator: (groupId: string, operator: GroupOperator) => void;
   toggleNegated: (nodeId: string) => void;
   updateComparison: (nodeId: string, updates: Partial<Omit<BuilderComparisonNode, 'id' | 'type'>>) => void;
@@ -259,6 +266,24 @@ export const useConditionBuilderViewModel = (
     [eventName, screenKey, dynamicScreens],
   );
 
+  const pathRoot = useMemo(() => eventNameToRoot(eventName, screenKey), [eventName, screenKey]);
+
+  const schemaContext = useSchemaContext();
+  const { getLookupOptions } = useLookupValues();
+
+  const getLookupValueOptions = useCallback(
+    (fieldPath: string): SearchSelectOption[] | null => {
+      if (!pathRoot || !fieldPath) return null;
+      const segments = stripEventPrefix(fieldPath);
+      if (!segments) return null;
+      const resolution = resolvePath(schemaContext, pathRoot, segments);
+      if (!resolution.valid || resolution.node.kind !== 'scalar' || !resolution.node.lookupCollection) return null;
+      const options = getLookupOptions(resolution.node.lookupCollection);
+      return options.length > 0 ? options : null;
+    },
+    [pathRoot, schemaContext, getLookupOptions],
+  );
+
   const fieldOptions = useMemo(
     (): SearchSelectOption[] =>
       eventFields.map((f) => ({ value: `${EVENT_FIELD_PATH_PREFIX}${f.path}`, label: f.label })),
@@ -374,6 +399,8 @@ export const useConditionBuilderViewModel = (
     fieldOptions,
     operatorOptions: OPERATOR_OPTIONS,
     eventFields,
+    pathRoot,
+    getLookupValueOptions,
     setGroupOperator,
     toggleNegated,
     updateComparison,
