@@ -239,12 +239,13 @@ export const S = {
     }
   `,
 
-  PortalDropdown: styled.div<{ $top: number; $left: number; $minWidth: number }>`
+  PortalDropdown: styled.div<{ $top: number | null; $bottom: number | null; $left: number; $minWidth: number; $maxHeight: number }>`
     position: fixed;
-    top: ${({ $top }) => $top}px;
+    top: ${({ $top }) => ($top != null ? `${$top}px` : 'auto')};
+    bottom: ${({ $bottom }) => ($bottom != null ? `${$bottom}px` : 'auto')};
     left: ${({ $left }) => $left}px;
     min-width: ${({ $minWidth }) => $minWidth}px;
-    max-height: min(480px, 70vh);
+    max-height: ${({ $maxHeight }) => $maxHeight}px;
     display: flex;
     flex-direction: column;
     background: ${({ theme }) => theme.colors.surface};

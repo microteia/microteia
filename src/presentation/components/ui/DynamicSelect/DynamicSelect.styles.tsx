@@ -103,13 +103,17 @@ export const ChevronIcon = styled.span<{ $open: boolean }>`
   transform: rotate(${({ $open }) => $open ? '180deg' : '0deg'});
 `;
 
-export const Dropdown = styled.div<{ $top: number; $left: number; $minWidth: number }>`
+export const Dropdown = styled.div<{ $top: number | null; $bottom: number | null; $left: number; $minWidth: number; $maxHeight: number }>`
   position: fixed;
-  top: ${({ $top }) => $top}px;
+  top: ${({ $top }) => ($top != null ? `${$top}px` : 'auto')};
+  bottom: ${({ $bottom }) => ($bottom != null ? `${$bottom}px` : 'auto')};
   left: ${({ $left }) => $left}px;
   min-width: ${({ $minWidth }) => $minWidth}px;
   width: max-content;
   max-width: 420px;
+  max-height: ${({ $maxHeight }) => $maxHeight}px;
+  display: flex;
+  flex-direction: column;
   background: ${({ theme }) => theme.colors.surface};
   border: 1px solid ${({ theme }) => theme.colors.border};
   border-radius: ${({ theme }) => theme.borderRadius.md};
@@ -131,6 +135,7 @@ export const SearchRow = styled.div`
   padding: 10px 14px;
   border-bottom: 1px solid ${({ theme }) => theme.colors.border};
   color: ${({ theme }) => theme.colors.textMuted};
+  flex-shrink: 0;
 `;
 
 export const SearchInput = styled.input`
@@ -145,7 +150,8 @@ export const SearchInput = styled.input`
 `;
 
 export const OptionList = styled.ul`
-  max-height: 220px;
+  flex: 1 1 auto;
+  min-height: 0;
   overflow-y: auto;
 `;
 

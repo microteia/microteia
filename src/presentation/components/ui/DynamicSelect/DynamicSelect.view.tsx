@@ -105,8 +105,10 @@ export const DynamicSelect: React.FC<DynamicSelectProps> = (props) => {
         <S.Dropdown
           ref={dropdownRef}
           $top={dropPos.top}
+          $bottom={dropPos.bottom}
           $left={dropPos.left}
           $minWidth={dropPos.minWidth}
+          $maxHeight={dropPos.maxHeight}
         >
           <S.SearchRow>
             <RiSearchLine size={16} />

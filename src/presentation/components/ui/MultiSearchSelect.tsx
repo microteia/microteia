@@ -1,6 +1,8 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
+import ReactDOM from 'react-dom';
 import styled from 'styled-components';
 import { RiSearchLine, RiCloseLine, RiCheckLine, RiArrowDownSLine } from 'react-icons/ri';
+import { useAnchoredDropdown } from '../../hooks/useAnchoredDropdown';
 
 export interface MultiSearchSelectOption {
   value: string;
@@ -102,16 +104,22 @@ const ChevronIcon = styled.span<{ $open: boolean }>`
   transform: rotate(${({ $open }) => $open ? '180deg' : '0deg'});
 `;
 
-const Dropdown = styled.div`
-  position: absolute;
-  top: calc(100% + 6px);
-  left: 0;
-  right: 0;
+const Dropdown = styled.div<{ $top: number | null; $bottom: number | null; $left: number; $minWidth: number; $maxHeight: number }>`
+  position: fixed;
+  top: ${({ $top }) => ($top != null ? `${$top}px` : 'auto')};
+  bottom: ${({ $bottom }) => ($bottom != null ? `${$bottom}px` : 'auto')};
+  left: ${({ $left }) => $left}px;
+  min-width: ${({ $minWidth }) => $minWidth}px;
+  width: max-content;
+  max-width: 420px;
+  max-height: ${({ $maxHeight }) => $maxHeight}px;
+  display: flex;
+  flex-direction: column;
   background: ${({ theme }) => theme.colors.surface};
   border: 1px solid ${({ theme }) => theme.colors.border};
   border-radius: ${({ theme }) => theme.borderRadius.md};
   box-shadow: 0 12px 32px ${({ theme }) => theme.colors.shadow};
-  z-index: 200;
+  z-index: 9999;
   overflow: hidden;
   animation: dropIn 120ms ease;
 
@@ -128,6 +136,7 @@ const SearchRow = styled.div`
   padding: 10px 14px;
   border-bottom: 1px solid ${({ theme }) => theme.colors.border};
   color: ${({ theme }) => theme.colors.textMuted};
+  flex-shrink: 0;
 `;
 
 const SearchInput = styled.input`
@@ -141,7 +150,8 @@ const SearchInput = styled.input`
 `;
 
 const OptionList = styled.ul`
-  max-height: 220px;
+  flex: 1 1 auto;
+  min-height: 0;
   overflow-y: auto;
 `;
 
@@ -198,7 +208,9 @@ export const MultiSearchSelect: React.FC<MultiSearchSelectProps> = ({
   const [query, setQuery] = useState('');
   const [activeIdx, setActiveIdx] = useState(0);
   const wrapperRef = useRef<HTMLDivElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
+  const { dropPos, reposition } = useAnchoredDropdown({ open, anchorRef: wrapperRef, dropdownRef });
 
   const filtered = options.filter((o) =>
     o.label.toLowerCase().includes(query.toLowerCase())
@@ -208,6 +220,7 @@ export const MultiSearchSelect: React.FC<MultiSearchSelectProps> = ({
 
   const handleOpen = () => {
     if (disabled) return;
+    reposition();
     setQuery('');
     setActiveIdx(0);
     setOpen(true);
@@ -235,9 +248,9 @@ export const MultiSearchSelect: React.FC<MultiSearchSelectProps> = ({
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
-      if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
+      const inWrapper = wrapperRef.current?.contains(e.target as Node);
+      const inDropdown = dropdownRef.current?.contains(e.target as Node);
+      if (!inWrapper && !inDropdown) setOpen(false);
     };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
@@ -280,8 +293,15 @@ export const MultiSearchSelect: React.FC<MultiSearchSelectProps> = ({
         </TriggerRight>
       </TriggerButton>
 
-      {open && (
-        <Dropdown>
+      {open && ReactDOM.createPortal(
+        <Dropdown
+          ref={dropdownRef}
+          $top={dropPos.top}
+          $bottom={dropPos.bottom}
+          $left={dropPos.left}
+          $minWidth={dropPos.minWidth}
+          $maxHeight={dropPos.maxHeight}
+        >
           <SearchRow>
             <RiSearchLine size={16} />
             <SearchInput
@@ -314,7 +334,8 @@ export const MultiSearchSelect: React.FC<MultiSearchSelectProps> = ({
               })
             )}
           </OptionList>
-        </Dropdown>
+        </Dropdown>,
+        document.body
       )}
     </Wrapper>
   );

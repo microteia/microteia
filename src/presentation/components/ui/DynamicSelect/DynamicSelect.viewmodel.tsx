@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import type React from 'react';
+import { useAnchoredDropdown, type AnchoredDropdownPosition } from '../../../hooks/useAnchoredDropdown';
 
 export interface DynamicSelectOption {
   value: string;
@@ -32,7 +33,7 @@ export interface DynamicSelectViewModel {
   open: boolean;
   query: string;
   activeIdx: number;
-  dropPos: { top: number; left: number; minWidth: number };
+  dropPos: AnchoredDropdownPosition;
   pendingDelete: InternalOption | null;
   deleteLoading: boolean;
   addLoading: boolean;
@@ -84,7 +85,6 @@ export const useDynamicSelectViewModel = (props: DynamicSelectProps): DynamicSel
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [activeIdx, setActiveIdx] = useState(0);
-  const [dropPos, setDropPos] = useState({ top: 0, left: 0, minWidth: 0 });
   const [pendingDelete, setPendingDelete] = useState<InternalOption | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [addLoading, setAddLoading] = useState(false);
@@ -92,6 +92,7 @@ export const useDynamicSelectViewModel = (props: DynamicSelectProps): DynamicSel
   const wrapperRef = useRef<HTMLDivElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
+  const { dropPos, reposition } = useAnchoredDropdown({ open, anchorRef: wrapperRef, dropdownRef });
 
   const allOptions = useMemo<InternalOption[]>(() => [
     ...staticOptions.map(o => ({ ...o, isDynamic: false })),
@@ -138,13 +139,12 @@ export const useDynamicSelectViewModel = (props: DynamicSelectProps): DynamicSel
 
   const handleOpen = useCallback(() => {
     if (disabled) return;
-    const rect = wrapperRef.current?.getBoundingClientRect();
-    if (rect) setDropPos({ top: rect.bottom + 6, left: rect.left, minWidth: rect.width });
+    reposition();
     setQuery('');
     setActiveIdx(0);
     setOpen(true);
     setTimeout(() => searchRef.current?.focus(), 50);
-  }, [disabled]);
+  }, [disabled, reposition]);
 
   const handleSelect = useCallback((val: string) => {
     if (multiSelect) {
@@ -227,19 +227,6 @@ export const useDynamicSelectViewModel = (props: DynamicSelectProps): DynamicSel
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
   }, []);
-
-  useEffect(() => {
-    if (!open) return;
-    const handleScroll = (e: Event) => {
-      if (dropdownRef.current?.contains(e.target as Node)) return;
-      setOpen(false);
-    };
-    const timer = setTimeout(() => window.addEventListener('scroll', handleScroll, true), 100);
-    return () => {
-      clearTimeout(timer);
-      window.removeEventListener('scroll', handleScroll, true);
-    };
-  }, [open]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- resetting cursor index synchronously when search input changes is architecturally required

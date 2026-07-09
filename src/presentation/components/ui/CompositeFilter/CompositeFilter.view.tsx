@@ -347,8 +347,10 @@ export const CompositeFilter: React.FC<CompositeFilterProps> = ({
         <S.PortalDropdown
           ref={vm.dropdownRef}
           $top={vm.dropPos.top}
+          $bottom={vm.dropPos.bottom}
           $left={vm.dropPos.left}
           $minWidth={vm.dropPos.minWidth}
+          $maxHeight={vm.dropPos.maxHeight}
         >
           {dropdownContent}
         </S.PortalDropdown>,

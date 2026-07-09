@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [0.60.3] — 2026-07-09
+
+- Os campos de seleção agora abrem para cima quando estão perto do rodapé da tela, e a lista rola normalmente mesmo com muitas opções — não é mais preciso digitar uma busca para alcançar os últimos itens. Também deixaram de aparecer cortados "por baixo" da tela quando usados dentro de janelas e painéis.
+
 #### [0.60.2] — 2026-07-09
 
 - Aprimorada a validação de nomes de campos customizados no Form Design: agora são aceitos apenas nomes totalmente compatíveis com JavaScript (letras minúsculas, números, underscore e $), e palavras reservadas da linguagem são bloqueadas. Nomes de campos gerados automaticamente agora usam underscore em vez de hífen (exemplo: `data_nascimento` em vez de `data-nascimento`), garantindo uso direto em automações e integrações.

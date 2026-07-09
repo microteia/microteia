@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import { useSavedFilter } from '../../../../stores/useSavedFilter';
 import type { SavedFilter } from '../../../../domain/entities';
+import { useAnchoredDropdown, type AnchoredDropdownPosition } from '../../../hooks/useAnchoredDropdown';
 
 export type FilterType = 'select' | 'multiselect' | 'text' | 'date';
 
@@ -39,7 +40,7 @@ export interface CompositeFilterViewModel {
   dateInputRef: React.RefObject<HTMLInputElement | null>;
   containerRef: React.RefObject<HTMLDivElement | null>;
   dropdownRef: React.RefObject<HTMLDivElement | null>;
-  dropPos: { top: number; left: number; minWidth: number };
+  dropPos: AnchoredDropdownPosition;
   screenFilters: SavedFilter[];
   isSaving: boolean;
   saveName: string;
@@ -81,12 +82,19 @@ export const useCompositeFilterViewModel = (
   const [isSaving, setIsSaving] = useState(false);
   const [saveName, setSaveName] = useState('');
   const [lastAppliedFilter, setLastAppliedFilter] = useState<{ id: string; name: string } | null>(null);
-  const [dropPos, setDropPos] = useState({ top: 0, left: 0, minWidth: 0 });
   const inputRef = useRef<HTMLInputElement>(null);
   const dateInputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const saveInputRef = useRef<HTMLInputElement>(null);
+
+  const isOpen = phase !== 'idle' || isSaving;
+  const { dropPos, reposition } = useAnchoredDropdown({
+    open: isOpen,
+    anchorRef: containerRef,
+    dropdownRef,
+    desiredMaxHeight: 480,
+  });
 
   const screenFilters = useMemo(
     () => (screenKey ? filters.filter((f) => f.screenKey === screenKey) : []),
@@ -101,11 +109,6 @@ export const useCompositeFilterViewModel = (
     o.label.toLowerCase().includes(inputValue.toLowerCase()),
   );
 
-  const computeDropPos = useCallback(() => {
-    const rect = containerRef.current?.getBoundingClientRect();
-    if (rect) setDropPos({ top: rect.bottom + 6, left: rect.left, minWidth: rect.width });
-  }, []);
-
   const close = useCallback(() => {
     setPhase('idle');
     setInputValue('');
@@ -118,12 +121,12 @@ export const useCompositeFilterViewModel = (
   }, []);
 
   const open = useCallback(() => {
-    computeDropPos();
+    reposition();
     setPhase('filter-select');
     setInputValue('');
     setActiveIdx(0);
     setTimeout(() => inputRef.current?.focus(), 20);
-  }, [computeDropPos]);
+  }, [reposition]);
 
   const upsertToken = useCallback(
     (key: string, values: string[]) => {
@@ -192,9 +195,9 @@ export const useCompositeFilterViewModel = (
   }, [phase, open]);
 
   const onInputFocus = useCallback(() => {
-    if (phase === 'idle') computeDropPos();
+    if (phase === 'idle') reposition();
     setPhase((prev) => (prev === 'idle' ? 'filter-select' : prev));
-  }, [phase, computeDropPos]);
+  }, [phase, reposition]);
 
   const onInputChange = useCallback((v: string) => {
     setInputValue(v);
@@ -378,21 +381,6 @@ export const useCompositeFilterViewModel = (
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
   }, [phase, activeDef, close, applyPending]);
-
-  // Close dropdown when the page scrolls (outside the portal dropdown itself)
-  useEffect(() => {
-    if (phase === 'idle' && !isSaving) return;
-    const handleScroll = (e: Event) => {
-      if (dropdownRef.current?.contains(e.target as Node)) return;
-      if (phase === 'value-select' && activeDef?.type !== 'text') applyPending();
-      close();
-    };
-    const timer = setTimeout(() => window.addEventListener('scroll', handleScroll, true), 100);
-    return () => {
-      clearTimeout(timer);
-      window.removeEventListener('scroll', handleScroll, true);
-    };
-  }, [phase, isSaving, activeDef, close, applyPending]);
 
   return {
     phase,

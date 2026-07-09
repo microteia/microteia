@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom';
 import styled from 'styled-components';
 import type { IconType } from 'react-icons';
 import { RiSearchLine, RiCloseLine, RiCheckLine } from 'react-icons/ri';
+import { useAnchoredDropdown } from '../../hooks/useAnchoredDropdown';
 
 export interface SearchSelectOption {
   value: string;
@@ -86,12 +87,16 @@ const ClearBtn = styled.span`
   &:hover { color: ${({ theme }) => theme.colors.text}; }
 `;
 
-const Dropdown = styled.div<{ $top: number; $left: number; $minWidth: number }>`
+const Dropdown = styled.div<{ $top: number | null; $bottom: number | null; $left: number; $minWidth: number; $maxHeight: number }>`
   position: fixed;
-  top: ${({ $top }) => $top}px;
+  top: ${({ $top }) => ($top != null ? `${$top}px` : 'auto')};
+  bottom: ${({ $bottom }) => ($bottom != null ? `${$bottom}px` : 'auto')};
   left: ${({ $left }) => $left}px;
   min-width: ${({ $minWidth }) => $minWidth}px;
   width: max-content;
+  max-height: ${({ $maxHeight }) => $maxHeight}px;
+  display: flex;
+  flex-direction: column;
   background: ${({ theme }) => theme.colors.surface};
   border: 1px solid ${({ theme }) => theme.colors.border};
   border-radius: ${({ theme }) => theme.borderRadius.md};
@@ -113,6 +118,7 @@ const SearchRow = styled.div`
   padding: 10px 14px;
   border-bottom: 1px solid ${({ theme }) => theme.colors.border};
   color: ${({ theme }) => theme.colors.textMuted};
+  flex-shrink: 0;
 `;
 
 const SearchInput = styled.input`
@@ -127,7 +133,8 @@ const SearchInput = styled.input`
 `;
 
 const OptionList = styled.ul`
-  max-height: 220px;
+  flex: 1 1 auto;
+  min-height: 0;
   overflow-y: auto;
 `;
 
@@ -182,10 +189,10 @@ export const SearchSelect: React.FC<SearchSelectProps> = ({
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [activeIdx, setActiveIdx] = useState(0);
-  const [dropPos, setDropPos] = useState({ top: 0, left: 0, minWidth: 0 });
   const wrapperRef = useRef<HTMLDivElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
+  const { dropPos, reposition } = useAnchoredDropdown({ open, anchorRef: wrapperRef, dropdownRef });
 
   const selected = options.find((o) => o.value === value);
 
@@ -196,10 +203,7 @@ export const SearchSelect: React.FC<SearchSelectProps> = ({
 
   const handleOpen = () => {
     if (disabled) return;
-    const rect = wrapperRef.current?.getBoundingClientRect();
-    if (rect) {
-      setDropPos({ top: rect.bottom + 6, left: rect.left, minWidth: rect.width });
-    }
+    reposition();
     setQuery('');
     setActiveIdx(0);
     setOpen(true);
@@ -235,21 +239,6 @@ export const SearchSelect: React.FC<SearchSelectProps> = ({
   }, []);
 
   useEffect(() => {
-    if (!open) return;
-    const handleScroll = (e: Event) => {
-      if (dropdownRef.current?.contains(e.target as Node)) return;
-      setOpen(false);
-    };
-    const timer = setTimeout(() => {
-      window.addEventListener('scroll', handleScroll, true);
-    }, 100);
-    return () => {
-      clearTimeout(timer);
-      window.removeEventListener('scroll', handleScroll, true);
-    };
-  }, [open]);
-
-  useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- resetting cursor index synchronously when search input changes is architecturally required
     setActiveIdx(0);
   }, [query]);
@@ -274,7 +263,7 @@ export const SearchSelect: React.FC<SearchSelectProps> = ({
       </TriggerButton>
 
       {open && ReactDOM.createPortal(
-        <Dropdown ref={dropdownRef} $top={dropPos.top} $left={dropPos.left} $minWidth={dropPos.minWidth}>
+        <Dropdown ref={dropdownRef} $top={dropPos.top} $bottom={dropPos.bottom} $left={dropPos.left} $minWidth={dropPos.minWidth} $maxHeight={dropPos.maxHeight}>
           <SearchRow>
             <RiSearchLine size={16} />
             <SearchInput
