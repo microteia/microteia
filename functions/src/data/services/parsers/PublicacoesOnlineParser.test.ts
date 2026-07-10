@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { PublicacoesOnlineParser } from './PublicacoesOnlineParser';
+import { PUBLICACOES_HTML } from './__fixtures__/emails';
 
 describe('PublicacoesOnlineParser', () => {
   const parser = new PublicacoesOnlineParser();
@@ -311,30 +312,25 @@ Inteiro Teor: <a href="https://pje2g.tjba.jus.br/pje/Processo/ConsultaDocumento/
       expect(result[3].court).toBe('Des.');
     });
 
-    it('deve ter movimentação com data de publicação (se extraída)', () => {
+    it('deve extrair classe, assunto e polos do bloco livre', () => {
       const result = parser.tryParse('', emailHtmlWith4Intimacoes);
 
-      if (result[0].movements && result[0].movements.length > 0) {
-        const movement = result[0].movements[0];
-        expect(movement.type).toBe('Intimação - Diário Oficial');
-        expect(movement.date).toBeInstanceOf(Date);
-        expect(movement.date.getDate()).toBe(1);
-        expect(movement.date.getMonth()).toBe(6);
-        expect(movement.date.getFullYear()).toBe(2026);
-      } else {
-        expect(result[0].processNumber).toBeDefined();
-      }
+      expect(result[0].legalClass).toBe('PROCEDIMENTO COMUM CÍVEL');
+      expect(result[0].processSubject).toBe('Ato ordinatório');
+      expect(result[0].activeParty).toContain('CARLOS EDUARDO TORRES');
+      expect(result[0].passiveParty).toContain('BANCO MASTER S/A');
     });
 
-    it('deve ter URL do inteiro teor (se extraída)', () => {
+    it('deve ter movimentação com data de publicação e URL do inteiro teor', () => {
       const result = parser.tryParse('', emailHtmlWith4Intimacoes);
 
-      if (result[0].movements && result[0].movements.length > 0) {
-        expect(result[0].movements[0].documentUrl).toContain('pje.tjba.jus.br');
-        expect(result[0].movements[0].documentUrl).toContain('ConsultaDocumento');
-      } else {
-        expect(result[0].processNumber).toBeDefined();
-      }
+      const movement = result[0].movements?.[0];
+      expect(movement).toBeDefined();
+      expect(movement?.date.getDate()).toBe(1);
+      expect(movement?.date.getMonth()).toBe(6);
+      expect(movement?.date.getFullYear()).toBe(2026);
+      expect(movement?.documentUrl).toContain('pje.tjba.jus.br');
+      expect(movement?.documentUrl).toContain('ConsultaDocumento');
     });
 
     it('cada intimação deve ter processNumber definido', () => {
@@ -358,6 +354,19 @@ Inteiro Teor: <a href="https://pje2g.tjba.jus.br/pje/Processo/ConsultaDocumento/
       expect(result.length).toBe(4);
       expect(result[0].processNumber).toBeDefined();
       expect(result[0].court).toBeDefined();
+    });
+  });
+
+  describe('e-mail real (entidades HTML nomeadas)', () => {
+    it('decodifica entidades e extrai as 2 intimações', () => {
+      const result = parser.tryParse('', PUBLICACOES_HTML);
+
+      expect(result).toHaveLength(2);
+      expect(result[0].processNumber).toBe('8122422-12.2026.8.05.0001');
+      expect(result[1].processNumber).toBe('0007042-77.2026.8.05.0001');
+      expect(result[0].court).toBe('9ª Vara da Família');
+      expect(result[0].activeParty).toContain('MINISTÉRIO PÚBLICO DO ESTADO DA BAHIA');
+      expect(result[1].legalClass).toBe('CUMPRIMENTO DE SENTENçA');
     });
   });
 });

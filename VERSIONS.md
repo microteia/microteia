@@ -11,6 +11,12 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [0.65.0] — 2026-07-10
+
+- A leitura automática das intimações recebidas por e-mail ficou bem mais precisa. O sistema agora reconhece corretamente os formatos do PJe, do Projudi, das Publicações Online e do Recorte Digital da OAB — incluindo e-mails com **várias intimações**, em que cada processo vira um registro separado.
+- Textos com acentos (ç, ã, é…) e caracteres especiais deixam de aparecer corrompidos: número do processo, partes, classe, vara e o resumo da notificação são extraídos como devem.
+- A inteligência artificial passou a ser acionada apenas como último recurso e somente quando o e-mail realmente contém um número de processo — evitando análises desnecessárias em mensagens sem conteúdo jurídico.
+
 #### [0.64.0] — 2026-07-09
 
 - Nas automações disparadas ao salvar um registro, agora é possível distinguir com clareza se foi uma **inclusão** ou uma **alteração**: o evento traz o campo "Tipo da mudança" com o valor "created" (novo registro) ou "updated" (registro existente). Antes era preciso deduzir isso pela presença dos dados anteriores.

@@ -7,7 +7,9 @@ import { TJMAEmailParser } from './parsers/TJMAEmailParser';
 import { ProjudiTJBAEmailParser } from './parsers/ProjudiTJBAEmailParser';
 import { CNJEmailParser } from './parsers/CNJEmailParser';
 import { PublicacoesOnlineParser } from './parsers/PublicacoesOnlineParser';
+import { RecorteDigitalEmailParser } from './parsers/RecorteDigitalEmailParser';
 import { TRTEmailParser } from './parsers/TRTEmailParser';
+import { hasCNJ } from './parsers/emailParsingUtils';
 
 export interface IEmailParserService {
   parse(emailText: string, emailFrom: string, tenantId: string, emailHtml?: string): Promise<ParsedEmailData[]>;
@@ -29,14 +31,17 @@ export class EmailParserService implements IEmailParserService {
     this.aiProviders = aiProviders;
     this.aiConnectionRepo = aiConnectionRepo;
 
-    // Registrar todos os parsers disponíveis
+    // Registrar todos os parsers disponíveis.
+    // Ordem importa no fallback por conteúdo: parsers específicos primeiro; o
+    // CNJEmailParser (genérico) fica por último para não "sequestrar" e-mails.
     this.parsers = [
       new PublicacoesOnlineParser(),
+      new RecorteDigitalEmailParser(),
       new TJBAEmailParser(),
       new TJMAEmailParser(),
       new ProjudiTJBAEmailParser(),
-      new CNJEmailParser(),
       new TRTEmailParser(),
+      new CNJEmailParser(),
       // TODO: Adicionar mais parsers conforme necessário
       // new TRFEmailParser(),
     ];
@@ -48,6 +53,7 @@ export class EmailParserService implements IEmailParserService {
       ['g-assistencia.qualidade.pje@cnj.jus.br', this.parsers.find(p => p.name === 'CNJ')!],
       ['projudi@tjba.jus.br', this.parsers.find(p => p.name === 'ProjudiTJBA')!],
       ['suporte@publicacoesonline.com.br', this.parsers.find(p => p.name === 'PUBLICACOES_ONLINE')!],
+      ['oabba@recortedigital.adv.br', this.parsers.find(p => p.name === 'RECORTE_DIGITAL')!],
     ]);
 
     // Regras por padrão para remetentes cujo domínio varia previsivelmente
@@ -106,10 +112,19 @@ export class EmailParserService implements IEmailParserService {
       }
     }
 
+    // Portão da IA: só aciona a IA se houver ao menos um número CNJ no conteúdo,
+    // evitando chamadas (e custo) para e-mails sem qualquer informação jurídica.
+    if (!hasCNJ(`${emailText}\n${emailHtml ?? ''}`)) {
+      console.warn('Nenhum número de processo (CNJ) encontrado — IA não acionada.');
+      return [{
+        parsedByAI: false,
+        parsingError: 'Sem número de processo (CNJ) — IA não acionada.',
+      }];
+    }
+
     console.warn('Nenhum parser conseguiu extrair dados, tentando IA...');
     try {
-      const aiResult = await this.parseWithAI(emailText, emailFrom, tenantId, emailHtml);
-      return [aiResult];
+      return await this.parseWithAI(emailText, emailFrom, tenantId, emailHtml);
     } catch (error) {
       console.error('Erro ao tentar parsing com IA:', error);
       return [{
@@ -123,7 +138,7 @@ export class EmailParserService implements IEmailParserService {
    * Parsing com IA quando regex falha.
    * Tenta todas as IAs configuradas no tenant (padrão primeiro).
    */
-  private async parseWithAI(emailText: string, emailFrom: string, tenantId: string, emailHtml?: string): Promise<ParsedEmailData> {
+  private async parseWithAI(emailText: string, emailFrom: string, tenantId: string, emailHtml?: string): Promise<ParsedEmailData[]> {
     const allCredentials = await this.aiConnectionRepo.getAllCredentials(tenantId);
 
     if (allCredentials.length === 0) {
@@ -171,33 +186,37 @@ export class EmailParserService implements IEmailParserService {
           continue;
         }
 
-        const firstProcess = parsed.processes[0] as Record<string, unknown>;
-        if (!firstProcess.processNumber) {
+        const results = parsed.processes
+          .map((p) => p as Record<string, unknown>)
+          .filter((p) => Boolean(p.processNumber))
+          .map((p): ParsedEmailData => ({
+            processNumber: p.processNumber as string,
+            court: p.court as string | undefined,
+            activeParty: p.activeParty as string | undefined,
+            passiveParty: p.passiveParty as string | undefined,
+            legalClass: p.legalClass as string | undefined,
+            filingDate: p.filingDate ? new Date(p.filingDate as string) : undefined,
+            distributionType: p.distributionType as string | undefined,
+            processSubject: p.processSubject as string | undefined,
+            movements: (p.movements as Array<{ date: string; type: string; description?: string; documentUrl?: string }> | undefined)?.map((m) => ({
+              date: new Date(m.date),
+              type: m.type,
+              description: m.description,
+              documentUrl: m.documentUrl,
+            })),
+            parsedByAI: true,
+          }));
+
+        if (results.length === 0) {
           const error = `IA ${credentials.provider}/${credentials.model} não extraiu número de processo`;
           console.warn(error);
           errors.push(error);
           continue;
         }
 
-        console.log(`✓ Parsing bem-sucedido com IA: ${credentials.provider}/${credentials.model} (${parsed.processes.length} intimação(ões))`);
+        console.log(`✓ Parsing bem-sucedido com IA: ${credentials.provider}/${credentials.model} (${results.length} intimação(ões))`);
 
-        return {
-          processNumber: firstProcess.processNumber as string,
-          court: firstProcess.court as string | undefined,
-          activeParty: firstProcess.activeParty as string | undefined,
-          passiveParty: firstProcess.passiveParty as string | undefined,
-          legalClass: firstProcess.legalClass as string | undefined,
-          filingDate: firstProcess.filingDate ? new Date(firstProcess.filingDate as string) : undefined,
-          distributionType: firstProcess.distributionType as string | undefined,
-          processSubject: firstProcess.processSubject as string | undefined,
-          movements: (firstProcess.movements as Array<{ date: string; type: string; description?: string; documentUrl?: string }> | undefined)?.map((m) => ({
-            date: new Date(m.date),
-            type: m.type,
-            description: m.description,
-            documentUrl: m.documentUrl,
-          })),
-          parsedByAI: true,
-        };
+        return results;
       } catch (error) {
         const errorMsg = `IA ${credentials.provider}/${credentials.model} falhou: ${error instanceof Error ? error.message : 'Erro desconhecido'}`;
         console.error(errorMsg);

@@ -1,8 +1,33 @@
 import { describe, it, expect } from 'vitest';
 import { TJBAEmailParser } from './TJBAEmailParser';
+import { PJE_HTML } from './__fixtures__/emails';
 
 describe('TJBAEmailParser', () => {
   const parser = new TJBAEmailParser();
+
+  describe('e-mail real (PJe Push, HTML ISO-8859-1)', () => {
+    it('extrai todos os campos e a tabela de movimentações', () => {
+      const results = parser.tryParse('', PJE_HTML);
+
+      expect(results).toHaveLength(1);
+      const r = results[0];
+      expect(r.processNumber).toBe('8052066-63.2024.8.05.0000');
+      expect(r.activeParty).toBe('ANTONIO VALDEMAR DOS SANTOS SOBRINHO');
+      expect(r.passiveParty).toBe('SECRETARIO DE ADMINISTRAÇAO DO ESTADO DA BAHIA, ESTADO DA BAHIA');
+      expect(r.legalClass).toBe('MANDADO DE SEGURANÇA CÍVEL');
+      expect(r.court).toBe('Des. Cássio José Barbosa Miranda');
+      expect(r.distributionType).toBe('sorteio');
+      expect(r.processSubject).toBe('Liminar');
+      expect(r.filingDate?.getFullYear()).toBe(2024);
+      expect(r.filingDate?.getMonth()).toBe(7);
+      expect(r.filingDate?.getDate()).toBe(19);
+
+      expect(r.movements).toHaveLength(2);
+      expect(r.movements?.[0].type).toContain('Conclusos');
+      expect(r.movements?.[0].date.getFullYear()).toBe(2026);
+      expect(r.movements?.[1].type).toContain('Expedição de Certidão');
+    });
+  });
 
   describe('name', () => {
     it('deve ter o nome correto', () => {

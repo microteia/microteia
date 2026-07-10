@@ -1,4 +1,34 @@
-import { google } from 'googleapis';
+import { google, gmail_v1 } from 'googleapis';
+
+function charsetFor(part: gmail_v1.Schema$MessagePart): BufferEncoding {
+  const contentType = part.headers?.find((h) => h.name?.toLowerCase() === 'content-type')?.value ?? '';
+  const charset = contentType.match(/charset="?([\w-]+)"?/i)?.[1]?.toLowerCase() ?? '';
+  if (['iso-8859-1', 'iso8859-1', 'latin1', 'windows-1252'].includes(charset)) {
+    return 'latin1';
+  }
+  return 'utf-8';
+}
+
+function decodePartData(part: gmail_v1.Schema$MessagePart): string {
+  if (!part.body?.data) return '';
+  return Buffer.from(part.body.data, 'base64').toString(charsetFor(part));
+}
+
+function collectBodies(
+  part: gmail_v1.Schema$MessagePart | undefined,
+  out: { html: string; text: string },
+): void {
+  if (!part) return;
+  const mime = part.mimeType ?? '';
+  if (mime === 'text/html' && !out.html && part.body?.data) {
+    out.html = decodePartData(part);
+  } else if (mime === 'text/plain' && !out.text && part.body?.data) {
+    out.text = decodePartData(part);
+  }
+  for (const child of part.parts ?? []) {
+    collectBodies(child, out);
+  }
+}
 
 export interface GmailMessage {
   id: string;
@@ -89,28 +119,12 @@ export class GmailService implements IGmailService {
             }
           }
           
-          let bodyHtml = '';
-          let bodyText = '';
-
-          // Extrair corpo do email (pode estar em partes)
-          const parts = msg.payload?.parts || [];
-          for (const part of parts) {
-            if (part.mimeType === 'text/html' && part.body?.data) {
-              bodyHtml = Buffer.from(part.body.data, 'base64').toString('utf-8');
-            } else if (part.mimeType === 'text/plain' && part.body?.data) {
-              bodyText = Buffer.from(part.body.data, 'base64').toString('utf-8');
-            }
-          }
-
-          // Se não houver partes, tenta o corpo direto
-          if (!bodyHtml && !bodyText && msg.payload?.body?.data) {
-            const decoded = Buffer.from(msg.payload.body.data, 'base64').toString('utf-8');
-            if (msg.payload.mimeType === 'text/html') {
-              bodyHtml = decoded;
-            } else {
-              bodyText = decoded;
-            }
-          }
+          // Extrair corpo do email respeitando o charset declarado em cada parte MIME.
+          // Percorre partes aninhadas (multipart/alternative dentro de multipart/mixed).
+          const collected = { html: '', text: '' };
+          collectBodies(msg.payload, collected);
+          const bodyHtml = collected.html;
+          const bodyText = collected.text;
 
           messages.push({
             id: msg.id || '',

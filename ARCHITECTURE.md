@@ -652,7 +652,15 @@ Campos indexados: emailId (Ascending), processNumber (Ascending)
 
 Crie no Firebase Console → Firestore → Índices.
 
-**Cloud Function:** `gmailPush` (Pub/Sub trigger) processa notificações do Gmail, extrai dados via parsers específicos por tribunal (TJBAEmailParser, TJMAEmailParser), e cria registros de Push. Parsers usam regex para extração estruturada; fallback para IA (GPT/Claude) se regex falhar.
+**Cloud Function:** `gmailPush` (Pub/Sub trigger) processa notificações do Gmail, extrai dados via parsers específicos por formato e cria registros de Push. Um único e-mail pode conter várias intimações (uma por processo) — cada parser retorna um array e a Cloud Function cria um Push por item.
+
+**Pipeline de extração (`functions/src/data/services/`):**
+
+1. **Decodificação do corpo (`GmailService`).** Cada parte MIME é decodificada respeitando o `charset` declarado (`iso-8859-1`/`windows-1252` → `latin1`; senão `utf-8`) e o percurso é recursivo (cobre `multipart/alternative` dentro de `multipart/mixed`). Isso evita mojibake em e-mails Latin-1 (Projudi, PJe).
+2. **Utilitário compartilhado (`parsers/emailParsingUtils.ts`).** Fonte única para: `decodeHtmlEntities` (entidades nomeadas + numéricas), `htmlToText`, `labeledValue` (rótulo→valor, mesma linha ou linha seguinte, tolerante a acento/mojibake e ancorado ao início da linha), `formatCNJ`/`findCNJ`/`hasCNJ` e parsing de datas (BR e por extenso). Todo parser reutiliza esses helpers — não há mais `cleanHtml` duplicado por parser.
+3. **Parsers por formato (`parsers/*.ts`).** `ProjudiTJBAEmailParser` (texto, 1 intimação), `TJBAEmailParser` (PJe Push, 1 processo + tabela de movimentações), `PublicacoesOnlineParser` e `RecorteDigitalEmailParser` (agregadores do DJEN/TJBA, **N** intimações por e-mail, com formatos textuais distintos), além de `TJMAEmailParser`, `TRTEmailParser` e o genérico `CNJEmailParser`. Cada parser se auto-filtra por assinatura de conteúdo.
+4. **Detecção (`EmailParserService`).** Primeiro por remetente (`parserByEmail`/`parserByPattern`); se não casar, por **conteúdo** (percorre os parsers e aceita o primeiro que extrair dados — vários remetentes compartilham o mesmo formato de tribunal). O `CNJEmailParser` genérico fica por último para não sequestrar e-mails.
+5. **Fallback de IA (com portão de CNJ).** Só é acionado se nenhum parser extraiu dados **e** o conteúdo contém ao menos um número CNJ (`hasCNJ`) — evita chamadas (e custo) de IA em e-mails sem informação jurídica. A IA é provider-agnóstica (credenciais do tenant) e retorna **todos** os processos do e-mail (não só o primeiro). Sem CNJ, gera um Push `status: 'fault'` com a mensagem "Sem número de processo (CNJ) — IA não acionada".
 
 ### Entidade PushInteraction
 
