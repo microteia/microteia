@@ -209,7 +209,7 @@ export const validateExpressionWithParser = (
         };
       }
 
-      if (signature.maxArgs !== undefined && argCount > signature.maxArgs) {
+      if (signature.maxArgs != null && argCount > signature.maxArgs) {
         return {
           isValid: false,
           message: `Função "${fnName}" aceita no máximo ${signature.maxArgs} argumento${signature.maxArgs > 1 ? 's' : ''}, mas recebeu ${argCount}`,

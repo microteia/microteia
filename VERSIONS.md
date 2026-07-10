@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [0.62.1] — 2026-07-09
+
+- Corrigida uma mensagem de erro incorreta ao usar as funções `object`, `and`, `or`, `coalesce`, `min`, `max` e `concat` no construtor de expressões, que indicava um limite inexistente de argumentos.
+
 #### [0.62.0] — 2026-07-09
 
 - Uma automação agora pode disparar outra. Ao criar uma automação, escolha o gatilho "Chamado por outro workflow" e defina os parâmetros que ela espera receber (textos, números, datas, listas ou até uma referência a um Processo, Cliente e afins). Em outra automação, use o passo "Chamar Workflow", selecione a automação de destino e preencha esses parâmetros — os dados são entregues prontos, com as informações relacionadas já carregadas para uso nos próximos passos.
