@@ -1,11 +1,19 @@
 import { getQuickJS, shouldInterruptAfterDeadline } from 'quickjs-emscripten';
-import type { QuickJSWASMModule, QuickJSContext, QuickJSHandle } from 'quickjs-emscripten';
+import type { QuickJSWASMModule, QuickJSContext, QuickJSHandle, QuickJSDeferredPromise } from 'quickjs-emscripten';
 import { expressionFunctions } from '../../../domain/engine/expression/ExpressionEngine';
 import type { WorkflowContext } from '../../../domain/entities/WorkflowContext';
+import type { QueryOperator, QueryOrderBy, QueryPredicate, QuerySpec } from '../../../domain/schema/querySpec';
+import { runWorkflowQuery } from '../query/runWorkflowQuery';
+import type { WorkflowQueryDeps } from '../query/runWorkflowQuery';
 
-const VM_DEADLINE_MS = 3000;
+const VM_SYNC_BURST_MS = 3000;
+const VM_TOTAL_DEADLINE_MS = 10000;
+const VM_POLL_TICK_MS = 15;
 const VM_MEMORY_LIMIT_BYTES = 32 * 1024 * 1024;
 const VM_STACK_SIZE_BYTES = 512 * 1024;
+const MAX_QUERIES = 25;
+
+const delay = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
 
 let modulePromise: Promise<QuickJSWASMModule> | null = null;
 const getModule = (): Promise<QuickJSWASMModule> => {
@@ -50,14 +58,47 @@ const friendlyError = (detail: unknown): string => {
   return `Erro de execução no Script: ${message}`;
 };
 
+const buildQuerySpec = (raw: unknown): QuerySpec => {
+  const obj = (typeof raw === 'object' && raw !== null ? raw : {}) as Record<string, unknown>;
+
+  const whereRaw = Array.isArray(obj.where) ? obj.where : [];
+  const where: QueryPredicate[] = whereRaw.map((entry) => {
+    const pred = (typeof entry === 'object' && entry !== null ? entry : {}) as Record<string, unknown>;
+    const predicate: QueryPredicate = {
+      path: typeof pred.path === 'string' ? pred.path : '',
+      op: pred.op as QueryOperator,
+    };
+    if (pred.value !== undefined) predicate.value = { kind: 'Literal', value: pred.value };
+    return predicate;
+  });
+
+  const orderByRaw = Array.isArray(obj.orderBy) ? obj.orderBy : undefined;
+  const orderBy: QueryOrderBy[] | undefined = orderByRaw?.map((entry) => {
+    const ord = (typeof entry === 'object' && entry !== null ? entry : {}) as Record<string, unknown>;
+    return { path: typeof ord.path === 'string' ? ord.path : '', dir: ord.dir === 'desc' ? 'desc' : 'asc' };
+  });
+
+  return {
+    table: typeof obj.table === 'string' ? obj.table : '',
+    where,
+    orderBy,
+    limit: typeof obj.limit === 'number' ? obj.limit : 50,
+    projections: Array.isArray(obj.projections) ? obj.projections.filter((x): x is string => typeof x === 'string') : [],
+  };
+};
+
 export async function runScriptSandbox(
   compiledJs: string,
   input: Record<string, unknown>,
   context: WorkflowContext,
+  deps: WorkflowQueryDeps,
 ): Promise<Record<string, unknown>> {
   const quickJS = await getModule();
   const vm: QuickJSContext = quickJS.newContext();
   const owned: QuickJSHandle[] = [];
+  const inflight = new Set<Promise<void>>();
+  const pendingDeferreds = new Set<QuickJSDeferredPromise>();
+  let queryCount = 0;
 
   const evalStatement = (code: string): void => {
     vm.unwrapResult(vm.evalCode(code)).dispose();
@@ -92,7 +133,7 @@ export async function runScriptSandbox(
   try {
     vm.runtime.setMemoryLimit(VM_MEMORY_LIMIT_BYTES);
     vm.runtime.setMaxStackSize(VM_STACK_SIZE_BYTES);
-    vm.runtime.setInterruptHandler(shouldInterruptAfterDeadline(Date.now() + VM_DEADLINE_MS));
+    vm.runtime.setInterruptHandler(shouldInterruptAfterDeadline(Date.now() + VM_SYNC_BURST_MS));
 
     evalStatement(VM_HELPERS);
     serHandle = vm.getProp(vm.global, '__ser');
@@ -114,6 +155,52 @@ export async function runScriptSandbox(
     });
     vm.setProp(vm.global, 'log', logHandle);
     logHandle.dispose();
+
+    const queryHandle = vm.newFunction('query', (specHandle) => {
+      const deferred = vm.newPromise();
+      pendingDeferreds.add(deferred);
+      void deferred.settled.then(() => {
+        pendingDeferreds.delete(deferred);
+        if (vm.alive) vm.runtime.executePendingJobs();
+      });
+
+      queryCount += 1;
+      if (queryCount > MAX_QUERIES) {
+        const errHandle = vm.newString('Limite de consultas do Script excedido.');
+        deferred.reject(errHandle);
+        errHandle.dispose();
+        return deferred.handle;
+      }
+
+      const spec = buildQuerySpec(vmValueToHost(specHandle));
+      const work = runWorkflowQuery(spec, context, deps)
+        .then((outcome) => {
+          if (!vm.alive) return;
+          if (outcome.ok) {
+            const valueHandle = hostValueToVm(outcome.value);
+            deferred.resolve(valueHandle);
+            valueHandle.dispose();
+          } else {
+            const errHandle = vm.newString(outcome.error);
+            deferred.reject(errHandle);
+            errHandle.dispose();
+          }
+        })
+        .catch((error: unknown) => {
+          if (!vm.alive) return;
+          const errHandle = vm.newString(error instanceof Error ? error.message : String(error));
+          deferred.reject(errHandle);
+          errHandle.dispose();
+        })
+        .finally(() => {
+          inflight.delete(work);
+        });
+      inflight.add(work);
+
+      return deferred.handle;
+    });
+    vm.setProp(vm.global, 'query', queryHandle);
+    queryHandle.dispose();
 
     const fnObject = vm.newObject();
     for (const definition of expressionFunctions.getAllDefinitions()) {
@@ -149,15 +236,40 @@ export async function runScriptSandbox(
       throw new Error(friendlyError(detail));
     }
 
-    const settled = vm.resolvePromise(wrapped.value);
+    const settledPromise = vm.resolvePromise(wrapped.value);
     wrapped.value.dispose();
 
-    let executed = vm.unwrapResult(vm.runtime.executePendingJobs());
-    while (executed > 0) {
-      executed = vm.unwrapResult(vm.runtime.executePendingJobs());
+    let finished = false;
+    void settledPromise.finally(() => {
+      finished = true;
+    });
+
+    const deadline = Date.now() + VM_TOTAL_DEADLINE_MS;
+    while (!finished) {
+      if (Date.now() > deadline) throw new Error('Tempo de execução do Script excedido.');
+
+      vm.runtime.setInterruptHandler(shouldInterruptAfterDeadline(Date.now() + VM_SYNC_BURST_MS));
+      const executed = vm.unwrapResult(vm.runtime.executePendingJobs());
+      if (finished) break;
+
+      if (inflight.size > 0) {
+        // Aguarda uma consulta liquidar OU um tick de timer. O `delay` via setTimeout cede à
+        // fase de I/O do event loop — sem ele, um `await` só de microtask deixaria o Node preso
+        // na fila de microtasks e a resposta real do Firestore nunca seria processada (starvation).
+        await Promise.race([...inflight, delay(VM_POLL_TICK_MS)]);
+      } else if (executed === 0) {
+        await Promise.resolve();
+        if (!finished && inflight.size === 0) break;
+      } else {
+        await Promise.resolve();
+      }
     }
 
-    const resolved = await settled;
+    if (!finished) {
+      throw new Error('O Script não concluiu: a função principal retornou uma promessa não resolvida.');
+    }
+
+    const resolved = await settledPromise;
     if (resolved.error) {
       const detail = vm.dump(resolved.error);
       resolved.error.dispose();
@@ -172,6 +284,30 @@ export async function runScriptSandbox(
     }
     return output as Record<string, unknown>;
   } finally {
+    // Rejeita deferreds de query em voo (ex.: deadline estourou com consulta pendente ou
+    // query fire-and-forget) e bombeia jobs para desenrolar as async functions suspensas.
+    // Sem isso, sobrariam objetos vivos na VM e o vm.dispose() aborta o processo QuickJS.
+    if (vm.alive) {
+      for (let round = 0; round < 5 && pendingDeferreds.size > 0; round++) {
+        for (const deferred of [...pendingDeferreds]) {
+          pendingDeferreds.delete(deferred);
+          try {
+            if (deferred.alive) {
+              const errHandle = vm.newString('Script encerrado antes de concluir a consulta.');
+              deferred.reject(errHandle);
+              errHandle.dispose();
+            }
+          } catch {
+            // ignora — estamos em cleanup
+          }
+        }
+        try {
+          vm.runtime.executePendingJobs();
+        } catch {
+          // ignora — estamos em cleanup
+        }
+      }
+    }
     for (const handle of owned) {
       if (handle.alive) handle.dispose();
     }

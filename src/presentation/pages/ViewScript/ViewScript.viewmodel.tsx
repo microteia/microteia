@@ -13,6 +13,11 @@ import type { WorkflowParameter } from '../../../domain/entities/Workflow';
 const DEFAULT_SOURCE = `async function main() {
   // 'input' contém os parâmetros de entrada configurados no Step.
   // 'fn.*' expõe as funções de expressão (ex: fn.formatDate, fn.dateDiff).
+  // 'query(...)' consulta os cadastros do escritório (assíncrono):
+  //   const r = await query({ table: 'cases',
+  //     where: [{ path: 'clientId', op: 'eq', value: input.clientId }],
+  //     projections: ['title'], limit: 10 });
+  //   // r = { count, results, first }
   return {
     // preencha aqui os parâmetros de saída declarados
   };

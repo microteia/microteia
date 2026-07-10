@@ -36,7 +36,13 @@ export const registerSteps = (deps: RegisterStepsDeps): void => {
   stepRegistry.register(makeSetVariableStepDefinition());
   stepRegistry.register(makeOutputStepDefinition());
   stepRegistry.register(makeCallWorkflowStepDefinition());
-  stepRegistry.register(makeScriptStepDefinition(deps.scriptRepository));
+  stepRegistry.register(
+    makeScriptStepDefinition(deps.scriptRepository, {
+      queryRepository: deps.workflowQueryRepository,
+      fetcher: deps.workflowRecordFetcher,
+      screenProvider: deps.screenDefinitionProvider,
+    }),
+  );
   stepRegistry.register(
     makeQueryStepDefinition(deps.workflowQueryRepository, deps.workflowRecordFetcher, deps.screenDefinitionProvider),
   );

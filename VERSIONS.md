@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [0.67.0] — 2026-07-10
+
+- Os Scripts agora podem **consultar os cadastros do escritório** diretamente (clientes, processos, prazos e cadastros personalizados), sem precisar de um passo de busca antes. A pesquisa respeita sempre o escritório atual e tem limites de tempo e de quantidade para manter tudo rápido e seguro.
+
 #### [0.66.0] — 2026-07-10
 
 - Nova área de **Scripts**: agora é possível criar pequenos scripts reutilizáveis para processar dados com regras personalizadas, definindo os campos que ele recebe e os que ele devolve.

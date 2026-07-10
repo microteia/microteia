@@ -2,10 +2,14 @@ import type { StepDefinition, WorkflowStepExecutor } from '../../../domain/engin
 import type { IScriptRepository } from '../../../domain/repositories/IScriptRepository';
 import { resolveMapping } from '../../../domain/engine/InputMapping';
 import { runScriptSandbox } from '../sandbox/runScriptSandbox';
+import type { WorkflowQueryDeps } from '../query/runWorkflowQuery';
 
 const PARAM_PREFIX = 'param.';
 
-export const makeScriptStepDefinition = (scriptRepository: IScriptRepository): StepDefinition => ({
+export const makeScriptStepDefinition = (
+  scriptRepository: IScriptRepository,
+  queryDeps: WorkflowQueryDeps,
+): StepDefinition => ({
   id: 'script',
   version: 1,
   name: 'Script',
@@ -47,7 +51,7 @@ export const makeScriptStepDefinition = (scriptRepository: IScriptRepository): S
       }
 
       try {
-        const output = await runScriptSandbox(script.compiledJs, scriptInput, context);
+        const output = await runScriptSandbox(script.compiledJs, scriptInput, context, queryDeps);
         return { success: true, message: `Script "${script.name}" executado`, outputs: output };
       } catch (error) {
         return { success: false, message: error instanceof Error ? error.message : String(error) };
