@@ -7,6 +7,7 @@ import {
   RiSearchLine,
   RiExternalLinkLine,
   RiFlowChart,
+  RiCodeBoxLine,
   RiToolsLine,
 } from 'react-icons/ri';
 
@@ -18,6 +19,7 @@ const STEP_ICONS: Record<string, IconType> = {
   RiSearchLine,
   RiExternalLinkLine,
   RiFlowChart,
+  RiCodeBoxLine,
 };
 
 export const getStepIcon = (icon: string): IconType => STEP_ICONS[icon] ?? RiToolsLine;

@@ -3,8 +3,10 @@ import type { IDeadlineRepository } from '../../domain/repositories/IDeadlineRep
 import type { IWorkflowQueryRepository } from '../../domain/repositories/IWorkflowQueryRepository';
 import type { IWorkflowRecordFetcher } from '../../domain/repositories/IWorkflowRecordFetcher';
 import type { IScreenDefinitionProvider } from '../../domain/repositories/IScreenDefinitionProvider';
+import type { IScriptRepository } from '../../domain/repositories/IScriptRepository';
 import type { CreateAuditLogUseCase } from '../../domain/usecases/CreateAuditLogUseCase';
 import { makeCallWorkflowStepDefinition } from './steps/CallWorkflowStep';
+import { makeScriptStepDefinition } from './steps/ScriptStep';
 import { makeCreateDeadlineStepDefinition } from './steps/CreateDeadlineStep';
 import { makeNotifyStepDefinition } from './steps/NotifyStep';
 import { makeOutputStepDefinition } from './steps/OutputStep';
@@ -18,6 +20,7 @@ export interface RegisterStepsDeps {
   workflowQueryRepository: IWorkflowQueryRepository;
   workflowRecordFetcher: IWorkflowRecordFetcher;
   screenDefinitionProvider: IScreenDefinitionProvider;
+  scriptRepository: IScriptRepository;
 }
 
 /**
@@ -33,6 +36,7 @@ export const registerSteps = (deps: RegisterStepsDeps): void => {
   stepRegistry.register(makeSetVariableStepDefinition());
   stepRegistry.register(makeOutputStepDefinition());
   stepRegistry.register(makeCallWorkflowStepDefinition());
+  stepRegistry.register(makeScriptStepDefinition(deps.scriptRepository));
   stepRegistry.register(
     makeQueryStepDefinition(deps.workflowQueryRepository, deps.workflowRecordFetcher, deps.screenDefinitionProvider),
   );

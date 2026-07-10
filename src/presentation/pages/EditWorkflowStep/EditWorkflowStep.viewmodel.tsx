@@ -1,6 +1,7 @@
 import { useState, useMemo, useCallback, useEffect } from 'react';
 import type { IconType } from 'react-icons';
 import { useWorkflowStore } from '../../../stores/useWorkflowStore';
+import { useScriptStore } from '../../../stores/useScriptStore';
 import { useWorkspace } from '../../../stores/useWorkspace';
 import { useNotification } from '../../../stores/useNotification';
 import { useScreenDefinitions } from '../../../stores/useScreenDefinitions';
@@ -69,7 +70,9 @@ export interface EditWorkflowStepViewModel {
   configuration: Record<string, InputMapping>;
   effectiveInputs: InputDefinition[];
   dynamicInputsSourceId: string | null;
+  dynamicTargetKind: 'workflow' | 'script' | null;
   callableWorkflowOptions: { value: string; label: string }[];
+  callableScriptOptions: { value: string; label: string }[];
   setTargetWorkflow: (sourceInputId: string, targetWorkflowId: string) => void;
   setMappingKind: (inputId: string, kind: InputMapping['kind']) => void;
   setMapping: (inputId: string, mapping: InputMapping) => void;
@@ -99,6 +102,7 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
   const stepId = parts[1] ?? null;
 
   const { workflows, updateWorkflowSteps } = useWorkflowStore();
+  const { scripts } = useScriptStore();
   const { closeTab, setTabTitle, activePanelId } = useWorkspace();
   const { notify } = useNotification();
   const { getCustomFieldsFor } = useScreenDefinitions();
@@ -154,28 +158,43 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
     [stepCatalog],
   );
 
+  const dynamicTargetKind = useMemo<'workflow' | 'script' | null>(() => {
+    const kind = selectedDefinition?.dynamicInputs?.kind;
+    if (kind === 'from-target-workflow-parameters') return 'workflow';
+    if (kind === 'from-target-script-parameters') return 'script';
+    return null;
+  }, [selectedDefinition]);
+
   const dynamicInputsSourceId = useMemo(
-    () =>
-      selectedDefinition?.dynamicInputs?.kind === 'from-target-workflow-parameters'
-        ? selectedDefinition.dynamicInputs.sourceInputId
-        : null,
-    [selectedDefinition],
+    () => (dynamicTargetKind ? selectedDefinition?.dynamicInputs?.sourceInputId ?? null : null),
+    [dynamicTargetKind, selectedDefinition],
   );
 
   const targetWorkflow = useMemo(() => {
-    if (!dynamicInputsSourceId) return null;
+    if (dynamicTargetKind !== 'workflow' || !dynamicInputsSourceId) return null;
     const mapping = configuration[dynamicInputsSourceId];
     const id = mapping?.kind === 'Literal' ? String(mapping.value ?? '') : '';
     if (!id) return null;
     return workflows.find((w) => w.id === id && w.eventName === WORKFLOW_CALLED_EVENT) ?? null;
-  }, [dynamicInputsSourceId, configuration, workflows]);
+  }, [dynamicTargetKind, dynamicInputsSourceId, configuration, workflows]);
+
+  const targetScript = useMemo(() => {
+    if (dynamicTargetKind !== 'script' || !dynamicInputsSourceId) return null;
+    const mapping = configuration[dynamicInputsSourceId];
+    const id = mapping?.kind === 'Literal' ? String(mapping.value ?? '') : '';
+    if (!id) return null;
+    return scripts.find((s) => s.id === id) ?? null;
+  }, [dynamicTargetKind, dynamicInputsSourceId, configuration, scripts]);
 
   const effectiveInputs = useMemo<InputDefinition[]>(() => {
     if (!selectedDefinition) return [];
     if (!dynamicInputsSourceId) return selectedDefinition.inputs;
-    const paramInputs = (targetWorkflow?.parameters ?? []).map(parameterToInputDefinition);
+    const source = dynamicTargetKind === 'script'
+      ? (targetScript?.inputParams ?? [])
+      : (targetWorkflow?.parameters ?? []);
+    const paramInputs = source.map(parameterToInputDefinition);
     return [...selectedDefinition.inputs, ...paramInputs];
-  }, [selectedDefinition, dynamicInputsSourceId, targetWorkflow]);
+  }, [selectedDefinition, dynamicInputsSourceId, dynamicTargetKind, targetWorkflow, targetScript]);
 
   const callableWorkflowOptions = useMemo(
     () =>
@@ -183,6 +202,11 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
         .filter((w) => w.eventName === WORKFLOW_CALLED_EVENT && w.id !== workflowId)
         .map((w) => ({ value: w.id, label: w.name })),
     [workflows, workflowId],
+  );
+
+  const callableScriptOptions = useMemo(
+    () => scripts.map((s) => ({ value: s.id, label: s.name })),
+    [scripts],
   );
 
   const setTargetWorkflow = useCallback((sourceInputId: string, targetWorkflowId: string) => {
@@ -267,6 +291,18 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
     [existingSteps, editingStep],
   );
 
+  const scriptOutputsFor = useCallback(
+    (step: WorkflowStep, definition: StepDefinitionSummary): { id: string; label: string }[] => {
+      if (definition.dynamicOutputs?.kind !== 'from-target-script-outputs') return [];
+      const mapping = step.configuration[definition.dynamicOutputs.sourceInputId];
+      const id = mapping?.kind === 'Literal' ? String(mapping.value ?? '') : '';
+      if (!id) return [];
+      const script = scripts.find((s) => s.id === id);
+      return (script?.outputParams ?? []).map((param) => ({ id: param.key, label: param.label || param.key }));
+    },
+    [scripts],
+  );
+
   const stepOutputFields = useMemo(() => {
     const fields: StepOutputField[] = [];
     priorSteps.forEach((step) => {
@@ -285,9 +321,12 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
       queryProjectionOutputs(step, definition).forEach((output) => {
         fields.push({ stepId: step.id, stepName, outputId: output.id, outputLabel: output.label });
       });
+      scriptOutputsFor(step, definition).forEach((output) => {
+        fields.push({ stepId: step.id, stepName, outputId: output.id, outputLabel: output.label });
+      });
     });
     return fields;
-  }, [priorSteps, stepCatalog]);
+  }, [priorSteps, stepCatalog, scriptOutputsFor]);
 
   const getStepOutputs = useCallback((stepId: string) => {
     const step = priorSteps.find((s) => s.id === stepId);
@@ -325,8 +364,12 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
       outputs.push({ value: output.id, label: output.label });
     });
 
+    scriptOutputsFor(step, definition).forEach((output) => {
+      outputs.push({ value: output.id, label: output.label });
+    });
+
     return outputs;
-  }, [priorSteps, stepCatalog]);
+  }, [priorSteps, stepCatalog, scriptOutputsFor]);
 
   const workflowVariables = useMemo(() => {
     const variables: WorkflowVariable[] = [];
@@ -450,7 +493,9 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
     configuration,
     effectiveInputs,
     dynamicInputsSourceId,
+    dynamicTargetKind,
     callableWorkflowOptions,
+    callableScriptOptions,
     setTargetWorkflow,
     setMappingKind,
     setMapping,

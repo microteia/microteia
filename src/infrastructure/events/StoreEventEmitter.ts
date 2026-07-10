@@ -41,4 +41,5 @@ export const StoreEvents = {
   SCREEN_DEFINITIONS_UPDATED: 'screen_definitions:updated',
   CUSTOM_RECORDS_UPDATED: 'custom_records:updated',
   WORKFLOWS_UPDATED: 'workflows:updated',
+  SCRIPTS_UPDATED: 'scripts:updated',
 } as const;

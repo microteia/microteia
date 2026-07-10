@@ -11,6 +11,12 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [0.66.0] — 2026-07-10
+
+- Nova área de **Scripts**: agora é possível criar pequenos scripts reutilizáveis para processar dados com regras personalizadas, definindo os campos que ele recebe e os que ele devolve.
+- As automações ganharam um novo passo do tipo **Script**: basta escolher um script já criado e preencher os campos de entrada. O que o script devolve fica disponível para os passos seguintes.
+- Os scripts rodam em um ambiente isolado e seguro, sem acesso à internet ou aos seus dados, e podem usar as mesmas funções já disponíveis nas expressões.
+
 #### [0.65.0] — 2026-07-10
 
 - A leitura automática das intimações recebidas por e-mail ficou bem mais precisa. O sistema agora reconhece corretamente os formatos do PJe, do Projudi, das Publicações Online e do Recorte Digital da OAB — incluindo e-mails com **várias intimações**, em que cada processo vira um registro separado.

@@ -55,6 +55,12 @@ export type DynamicOutputsMetadata =
       description?: string;
     }
   | {
+      kind: 'from-target-script-outputs';
+      /** ID do input (Literal) que guarda o id do Script cujos outputParams viram saídas. */
+      sourceInputId: string;
+      description?: string;
+    }
+  | {
       kind: 'from-query-projections';
       /** ID do input do tipo 'Query' cujas projeções viram saídas `first.<projeção>`. */
       sourceInputId: string;
@@ -65,12 +71,19 @@ export type DynamicOutputsMetadata =
  * Define se este step ganha inputs dinâmicos a partir de um alvo escolhido em design-time.
  * Ex: 'Chamar Workflow' expõe os parâmetros do workflow-alvo como inputs `param.<chave>`.
  */
-export type DynamicInputsMetadata = {
-  kind: 'from-target-workflow-parameters';
-  /** ID do input (Literal) que guarda o id do workflow-alvo cujos parâmetros viram inputs. */
-  sourceInputId: string;
-  description?: string;
-};
+export type DynamicInputsMetadata =
+  | {
+      kind: 'from-target-workflow-parameters';
+      /** ID do input (Literal) que guarda o id do workflow-alvo cujos parâmetros viram inputs. */
+      sourceInputId: string;
+      description?: string;
+    }
+  | {
+      kind: 'from-target-script-parameters';
+      /** ID do input (Literal) que guarda o id do Script cujos inputParams viram inputs `param.<chave>`. */
+      sourceInputId: string;
+      description?: string;
+    };
 
 /**
  * Espelho somente-leitura de StepDefinition (sem `createExecutor`, que só existe em

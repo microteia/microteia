@@ -271,10 +271,10 @@ export const EditWorkflowStepView: React.FC<{ tabKey: string }> = ({ tabKey }) =
                 {input.description && <S.HelpText>{input.description}</S.HelpText>}
                 {isTargetPicker ? (
                   <SearchSelect
-                    options={vm.callableWorkflowOptions}
+                    options={vm.dynamicTargetKind === 'script' ? vm.callableScriptOptions : vm.callableWorkflowOptions}
                     value={vm.configuration[input.id]?.kind === 'Literal' ? String((vm.configuration[input.id] as Extract<InputMapping, { kind: 'Literal' }>).value ?? '') : ''}
                     onChange={(value) => vm.setTargetWorkflow(input.id, value)}
-                    placeholder="Selecione o workflow a chamar..."
+                    placeholder={vm.dynamicTargetKind === 'script' ? 'Selecione o script...' : 'Selecione o workflow a chamar...'}
                   />
                 ) : input.type === 'Query' ? (
                   renderQueryControl(input)

@@ -1,4 +1,7 @@
-# Arquitetura das Cloud Functions - Curatino
+# Cloud Functions — Guia Local (SOLID por camadas)
+
+> Guia **local** da pasta `functions/`. A fonte de verdade da arquitetura do projeto é o
+> `ARCHITECTURE.md` **na raiz** — em caso de divergência, a raiz vence.
 
 ## Estrutura SOLID Refatorada
 

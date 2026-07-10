@@ -29,6 +29,7 @@ import { SavedFilterStoreProvider } from './stores/SavedFilterStore';
 import { ScreenDefinitionStoreProvider } from './stores/ScreenDefinitionStore';
 import { CustomRecordStoreProvider } from './stores/CustomRecordStore';
 import { WorkflowStoreProvider } from './stores/WorkflowStore';
+import { ScriptStoreProvider } from './stores/ScriptStore';
 import { AuditLogStoreProvider } from './stores/AuditLogStore';
 import { AuditLogAlertStoreProvider } from './stores/AuditLogAlertStore';
 import { WorkspaceStoreProvider } from './stores/WorkspaceStore';
@@ -91,6 +92,7 @@ const App: React.FC = () => {
                                           <ScreenDefinitionStoreProvider>
                                           <CustomRecordStoreProvider>
                                           <WorkflowStoreProvider>
+                                          <ScriptStoreProvider>
                                           <AuditLogStoreProvider>
                                           <AuditLogAlertStoreProvider>
                                           <WorkspaceStoreProvider>
@@ -108,6 +110,7 @@ const App: React.FC = () => {
                                           </WorkspaceStoreProvider>
                                           </AuditLogAlertStoreProvider>
                                           </AuditLogStoreProvider>
+                                          </ScriptStoreProvider>
                                           </WorkflowStoreProvider>
                                           </CustomRecordStoreProvider>
                                           </ScreenDefinitionStoreProvider>

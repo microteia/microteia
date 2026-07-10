@@ -128,6 +128,7 @@ npm run verify          # typecheck + lint + verify-schemas
 | `WorkflowEvent` | `tenants/{tenantId}/workflow_events/{id}` (append-only, sem leitura pelo cliente) | Sim |
 | `WorkflowExecution` | `tenants/{tenantId}/workflow_executions/{id}` (somente leitura pelo cliente) | Sim |
 | `StepDefinition` (catálogo, espelho somente-leitura) | `workflow_step_catalog/{id}` | Não |
+| `Script` (código reutilizável do Step "Script") | `tenants/{tenantId}/scripts/{id}` | Sim |
 
 ### Tipos-chave
 
@@ -1937,6 +1938,23 @@ execução síncrona.
 - `src/presentation/components/ui/ExpressionEditor/` — editor de expressões com autocomplete segmento-a-segmento (`pathRoot` + `suggestNextSegments`) e validação semântica de caminhos
 - `src/presentation/shared/useSchemaContext.ts` / `useLookupValues.ts` — pontes dos stores para o resolvedor (screens dinâmicas e valores de lookup)
 
+### Step "Script" — código do usuário em sandbox QuickJS
+
+O Step `script` executa **código JavaScript do usuário** dentro de um sandbox **QuickJS-Emscripten** (WebAssembly). Todo código é tratado como **hostil por padrão**: sem acesso ao Firebase Admin SDK, rede, filesystem ou credenciais do host.
+
+**Entidade `Script` (reutilizável e desacoplada do Workflow).** Vive em `tenants/{tenantId}/scripts/{id}` — feature administrativa, como `WorkflowDefinition`. Não entra no `ENTITY_REGISTRY` (não é event-triggerable/referenciável). Campos: `inputParams: WorkflowParameter[]` e `outputParams: ScriptOutputParam[]` (só para ergonomia/IntelliSense do editor de Steps), `sourceTs` (editado) e `compiledJs` (executado). A transpilação TS→JS acontece **no frontend, ao salvar** (via `sucrase`), rejeitando `import`/`export`/`require`; a Cloud Function nunca transpila — só executa `compiledJs`.
+
+**O Step espelha o padrão "Chamar Workflow".** Input estático `scriptId` (Literal) + `dynamicInputs: { kind: 'from-target-script-parameters' }` (que expõe os `inputParams` do Script como inputs `param.<chave>`) e `dynamicOutputs: { kind: 'from-target-script-outputs' }` (que expõe os `outputParams` como saídas para o IntelliSense dos Steps seguintes). Essas duas variantes de metadata são espelhadas manualmente em `functions/src/domain/engine/StepDefinition.ts` **e** `src/domain/entities/WorkflowStepCatalog.ts`.
+
+**Sandbox — `functions/src/infrastructure/workflow/sandbox/runScriptSandbox.ts`** (fronteira única de segurança; o `compiledJs` é não-confiável mesmo transpilado no cliente):
+- **Least privilege:** no sandbox só existem `input` (params mapeados via `resolveMapping`), `fn.*` (todas as funções de expressão) e `log(...)`. Sem `import`/`require`/`fetch`/`process`/`fs` (inexistentes no QuickJS; ainda assim rejeitados na validação de save).
+- **Limites por execução:** `setMemoryLimit` (~32MB), `setMaxStackSize`, e `setInterruptHandler(shouldInterruptAfterDeadline(~3s))` que interrompe loops infinitos — bem abaixo do timeout da function.
+- **Escopo de tenant:** sempre `context.execution.tenantId` (não forjável pelo script).
+- **Memória:** todo handle do QuickJS tem `.dispose()` garantido em `finally`; o módulo WASM é cacheado entre invocações.
+- **Marshalling Host↔VM:** JSON com sentinela `{ __date__: ms }` preserva `Date` nos dois sentidos, para que as funções de data em `fn.*` funcionem corretamente.
+
+O script do usuário retorna um objeto (ex.: `main()` no final) que vira os `outputs` do Step. **Busca no banco de dados fica fora do v1** (Script é computacional); como Steps são `async`, uma ponte `await query(...)` pode ser adicionada depois sem reescrita. Deps novas: `quickjs-emscripten` (functions) e `sucrase` (frontend). Registro do Step em `registerSteps.ts` + `container.ts` (recebe `IScriptRepository`).
+
 ---
 
 ## Firestore Security Rules — Conjunto Completo
@@ -2430,6 +2448,13 @@ service cloud.firestore {
       // Definições de automação — feature administrativa; só admin cria/edita/exclui.
       // `steps` fica embutido no próprio documento (ver "Workflow Engine" no corpo do doc).
       match /workflow_definitions/{workflowId} {
+        allow read: if isMember(tenantId);
+        allow create, update, delete: if isTenantAdmin(tenantId);
+      }
+
+      // Scripts reutilizáveis executados pelo Step "Script" (sandbox QuickJS) — feature
+      // administrativa; só admin cria/edita/exclui. Ver "Step Script" no corpo do doc.
+      match /scripts/{scriptId} {
         allow read: if isMember(tenantId);
         allow create, update, delete: if isTenantAdmin(tenantId);
       }

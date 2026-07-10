@@ -74,6 +74,7 @@ import { registerSteps } from '../workflow/registerSteps';
 import { WorkflowContextHydrator } from '../../domain/engine/WorkflowContextHydrator';
 import { FirestoreWorkflowRecordFetcher } from '../../data/services/FirestoreWorkflowRecordFetcher';
 import { FirestoreWorkflowQueryRepository } from '../../data/services/FirestoreWorkflowQueryRepository';
+import { FirebaseScriptRepository } from '../../data/repositories/FirebaseScriptRepository';
 import { ScreenDefinitionCache } from '../../data/services/ScreenDefinitionCache';
 
 class DIContainer {
@@ -425,6 +426,7 @@ class DIContainer {
       workflowQueryRepository: new FirestoreWorkflowQueryRepository(getDb()),
       workflowRecordFetcher: new FirestoreWorkflowRecordFetcher(getDb()),
       screenDefinitionProvider: this.getScreenDefinitionCache(),
+      scriptRepository: new FirebaseScriptRepository(getDb()),
     });
     this.workflowStepsRegistered = true;
   }

@@ -58,6 +58,11 @@ export type DynamicOutputsMetadata =
       description?: string;
     }
   | {
+      kind: 'from-target-script-outputs';
+      sourceInputId: string;
+      description?: string;
+    }
+  | {
       kind: 'from-query-projections';
       /** ID do input do tipo 'Query' cujas projeções viram saídas `first.<projeção>`. */
       sourceInputId: string;
@@ -68,12 +73,18 @@ export type DynamicOutputsMetadata =
  * Define se e como os inputs são dinâmicos (conhecidos apenas depois que o usuário escolhe um
  * alvo em design-time). Usado pelo editor para renderizar campos extras e pelo IntelliSense.
  */
-export type DynamicInputsMetadata = {
-  kind: 'from-target-workflow-parameters';
-  /** ID do input (Literal) que guarda o id do workflow-alvo cujos parâmetros viram inputs. */
-  sourceInputId: string;
-  description?: string;
-};
+export type DynamicInputsMetadata =
+  | {
+      kind: 'from-target-script-parameters';
+      sourceInputId: string;
+      description?: string;
+    }
+  | {
+      kind: 'from-target-workflow-parameters';
+      /** ID do input (Literal) que guarda o id do workflow-alvo cujos parâmetros viram inputs. */
+      sourceInputId: string;
+      description?: string;
+    };
 
 export interface WorkflowStepExecutor {
   execute(inputs: Record<string, unknown>, context: WorkflowContext): Promise<WorkflowResult>;
