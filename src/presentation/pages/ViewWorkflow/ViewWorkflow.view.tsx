@@ -24,6 +24,8 @@ import { InfoBanner } from '../../components/ui/InfoBanner';
 import { ConfirmModal } from '../../components/ui/ConfirmModal';
 import { ConditionBuilder } from '../../components/ui/ConditionBuilder';
 import { ConditionDiagram } from '../../components/ui/ConditionDiagram';
+import { WorkflowParametersEditor } from './components/WorkflowParametersEditor';
+import { PARAMETER_TYPE_OPTIONS } from './ViewWorkflow.viewmodel';
 import { getStepDisplayName } from '../../shared/workflowHelpers';
 
 export const ViewWorkflowView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
@@ -60,7 +62,8 @@ export const ViewWorkflowView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
                 !vm.formData.name ||
                 !vm.formData.eventName ||
                 (vm.isCustomRecordEvent && !vm.formData.screenKey) ||
-                (vm.isLookupEvent && !vm.formData.lookupCollection)
+                (vm.isLookupEvent && !vm.formData.lookupCollection) ||
+                (vm.isCalledEvent && vm.hasParameterErrors)
               }
               title={vm.isSaving ? 'Salvando...' : 'Salvar'}
             >
@@ -166,6 +169,21 @@ export const ViewWorkflowView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
                   />
                 </InputGroup>
               )}
+
+              {vm.isCalledEvent && (
+                <InputGroup>
+                  <Label>Parâmetros</Label>
+                  <WorkflowParametersEditor
+                    parameters={vm.formData.parameters}
+                    errors={vm.parameterErrors}
+                    typeOptions={PARAMETER_TYPE_OPTIONS}
+                    entityOptions={vm.parameterEntityOptions}
+                    onAdd={vm.addParameter}
+                    onUpdate={vm.updateParameter}
+                    onRemove={vm.removeParameter}
+                  />
+                </InputGroup>
+              )}
             </S.Form>
           </S.ContentInner>
         </S.Content>
@@ -198,6 +216,7 @@ export const ViewWorkflowView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
                 onChange={vm.handleConditionLocalChange}
                 eventName={vm.workflow.eventName}
                 screenKey={vm.workflow.screenKey}
+                parameters={vm.workflow.parameters}
                 focusPath={vm.conditionFocusPath}
                 onFocusHandled={vm.clearConditionFocusPath}
               />
@@ -207,6 +226,7 @@ export const ViewWorkflowView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
                 condition={vm.pendingCondition}
                 eventName={vm.workflow.eventName}
                 screenKey={vm.workflow.screenKey}
+                parameters={vm.workflow.parameters}
                 onChange={vm.handleConditionLocalChange}
                 onRequestEdit={vm.handleRequestConditionEdit}
               />

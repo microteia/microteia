@@ -4,6 +4,7 @@ import type { IWorkflowQueryRepository } from '../../domain/repositories/IWorkfl
 import type { IWorkflowRecordFetcher } from '../../domain/repositories/IWorkflowRecordFetcher';
 import type { IScreenDefinitionProvider } from '../../domain/repositories/IScreenDefinitionProvider';
 import type { CreateAuditLogUseCase } from '../../domain/usecases/CreateAuditLogUseCase';
+import { makeCallWorkflowStepDefinition } from './steps/CallWorkflowStep';
 import { makeCreateDeadlineStepDefinition } from './steps/CreateDeadlineStep';
 import { makeNotifyStepDefinition } from './steps/NotifyStep';
 import { makeOutputStepDefinition } from './steps/OutputStep';
@@ -31,6 +32,7 @@ export const registerSteps = (deps: RegisterStepsDeps): void => {
   stepRegistry.register(makeRegisterAuditStepDefinition(deps.createAuditLogUseCase));
   stepRegistry.register(makeSetVariableStepDefinition());
   stepRegistry.register(makeOutputStepDefinition());
+  stepRegistry.register(makeCallWorkflowStepDefinition());
   stepRegistry.register(
     makeQueryStepDefinition(deps.workflowQueryRepository, deps.workflowRecordFetcher, deps.screenDefinitionProvider),
   );

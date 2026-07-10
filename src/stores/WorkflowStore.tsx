@@ -42,7 +42,9 @@ export const WorkflowStoreProvider: React.FC<{ children: React.ReactNode }> = ({
   const createWorkflow = useCallback(async (data: Omit<WorkflowDefinition, 'id' | 'tenantId' | 'createdAt' | 'updatedAt'>) => {
     if (!currentTenant) throw new Error('No tenant selected');
     const item = await uc.create.execute(currentTenant.id, data);
-    setWorkflows((prev) => [...prev, item]);
+    setWorkflows((prev) =>
+      prev.some((w) => w.id === item.id) ? prev.map((w) => (w.id === item.id ? item : w)) : [...prev, item],
+    );
     storeEvents.emit(StoreEvents.WORKFLOWS_UPDATED);
     return item;
   }, [currentTenant, uc.create]);

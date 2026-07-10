@@ -171,14 +171,14 @@ const rootCursor = (ctx: SchemaContext, root: PathRoot): Cursor => {
 
 const invalid = (state: WalkState, error: string): WalkState => ({ ...state, error });
 
-const referenceTargetState = (
+const buildReferenceHopState = (
   ctx: SchemaContext,
   state: WalkState,
-  field: FieldDefinition,
+  refEntity: string,
+  multi: boolean,
   segment: PathSegment,
   maxFkDepth: number,
 ): WalkState => {
-  const refEntity = field.refEntity as string;
   const targetCollection = resolveRefEntityCollection(refEntity);
   const builtin = BUILTIN_REF_ENTITIES.has(refEntity);
   const depth = state.depth + 1;
@@ -194,18 +194,26 @@ const referenceTargetState = (
     targetCollection,
     materializeAt: pathText,
     mode: 'replaceValue',
-    multi: field.multi === true,
+    multi,
     fields: builtin ? (target?.referenceDenormFields ?? 'all') : 'all',
     ...(bagKeys ? { bagKeys } : {}),
   };
   const screenKey = builtin ? undefined : refEntity;
-  const cursor: Cursor = field.multi
+  const cursor: Cursor = multi
     ? { kind: 'entityList', entity: target, screenKey, valuesInline: !builtin, collection: targetCollection }
     : target
       ? { kind: 'entity', entity: target, screenKey, valuesInline: !builtin }
       : { kind: 'externalRecord', collection: targetCollection };
   return { cursor, hops: [...state.hops, hop], depth, path };
 };
+
+const referenceTargetState = (
+  ctx: SchemaContext,
+  state: WalkState,
+  field: FieldDefinition,
+  segment: PathSegment,
+  maxFkDepth: number,
+): WalkState => buildReferenceHopState(ctx, state, field.refEntity as string, field.multi === true, segment, maxFkDepth);
 
 const stepBagField = (
   ctx: SchemaContext,
@@ -369,6 +377,9 @@ const stepCursor = (
       if (!field) {
         return { ...state, cursor: { kind: 'unknown' }, path: [...state.path, segment] };
       }
+      if (field.refEntity) {
+        return buildReferenceHopState(ctx, state, field.refEntity, field.multi === true, segment, maxFkDepth);
+      }
       const path = [...state.path, segment];
       if (field.type === 'object' && field.objectFields) {
         return { ...state, cursor: { kind: 'object', fields: field.objectFields }, path };
@@ -430,13 +441,24 @@ export const resolvePath = (
 const scalarDetail = (lookupCollection?: string): string | undefined =>
   lookupCollection && LOOKUP_REGISTRY[lookupCollection] ? `Lista: ${getLookupLabel(lookupCollection)}` : undefined;
 
-const nativeFieldSuggestion = (field: NativeFieldSpec): PathSuggestion => ({
-  insertText: field.key,
-  label: field.label,
-  kind: 'field',
-  detail: field.type === 'object' ? 'Objeto' : scalarDetail(field.lookupCollection),
-  isLeaf: field.type !== 'object',
-});
+const nativeFieldSuggestion = (field: NativeFieldSpec): PathSuggestion => {
+  if (field.refEntity) {
+    return {
+      insertText: field.key,
+      label: field.label,
+      kind: field.multi ? 'referenceList' : 'reference',
+      detail: getEntityByCollection(resolveRefEntityCollection(field.refEntity))?.labelSingular ?? field.refEntity,
+      isLeaf: false,
+    };
+  }
+  return {
+    insertText: field.key,
+    label: field.label,
+    kind: 'field',
+    detail: field.type === 'object' ? 'Objeto' : scalarDetail(field.lookupCollection),
+    isLeaf: field.type !== 'object',
+  };
+};
 
 const screenFieldSuggestions = (ctx: SchemaContext, screenKey: string): PathSuggestion[] => {
   const screen = ctx.screens.get(screenKey);

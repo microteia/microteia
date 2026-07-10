@@ -1,6 +1,10 @@
-import type { EntityKey, EntityMetadata, NativeFieldSpec } from './entityRegistry';
+import type { EntityKey, EntityMetadata, NativeFieldSpec, NativeFieldType } from './entityRegistry';
 import { ENTITY_REGISTRY, getEntityByCollection, getEntityByEventPrefix } from './entityRegistry';
 import type { PathRoot } from './pathResolver';
+import type { WorkflowParameter } from '../entities/Workflow';
+import { resolveRefEntityCollection } from '../entities/entitySchemas';
+
+export const WORKFLOW_CALLED_EVENT = 'workflow.called';
 
 export interface WorkflowEventFieldOption {
   path: string;
@@ -171,6 +175,13 @@ const nestedEntries = (
 
 const orderedEntities = ENTITY_EVENT_ORDER.map((key) => ENTITY_REGISTRY[key]).filter((entity) => entity.eventPrefix);
 
+const workflowCalledEntry: WorkflowEventCatalogEntry = {
+  name: WORKFLOW_CALLED_EVENT,
+  label: 'Chamado por outro workflow',
+  fields: [],
+  root: { kind: 'fields', fields: [], hasOld: false },
+};
+
 export const WORKFLOW_EVENT_CATALOG: WorkflowEventCatalogEntry[] = [
   ...orderedEntities.map((entity) => entityEntry(entity, 'saved')),
   lookupEntry('saved'),
@@ -178,7 +189,52 @@ export const WORKFLOW_EVENT_CATALOG: WorkflowEventCatalogEntry[] = [
   lookupEntry('deleted'),
   ...nestedEntries(NOTE_PARENTS, 'note', 'Nota', NOTE_FIELDS),
   ...nestedEntries(DOCUMENT_PARENTS, 'document', 'Documento', DOCUMENT_FIELDS),
+  workflowCalledEntry,
 ];
+
+const WORKFLOW_PARAM_TYPE_MAP: Record<Exclude<WorkflowParameter['type'], 'EntityReference'>, NativeFieldType> = {
+  String: 'string',
+  Number: 'number',
+  Date: 'date',
+  Boolean: 'boolean',
+  select: 'string',
+};
+
+export const workflowParameterToNativeField = (parameter: WorkflowParameter): NativeFieldSpec => {
+  if (parameter.type === 'EntityReference') {
+    return parameter.entityType
+      ? { key: parameter.key, label: parameter.label, type: 'string', refEntity: parameter.entityType, multi: parameter.multi }
+      : { key: parameter.key, label: parameter.label, type: 'string' };
+  }
+  return { key: parameter.key, label: parameter.label, type: WORKFLOW_PARAM_TYPE_MAP[parameter.type] ?? 'string' };
+};
+
+export const workflowParametersToRoot = (parameters: WorkflowParameter[] = []): PathRoot => ({
+  kind: 'fields',
+  fields: parameters.map(workflowParameterToNativeField),
+  hasOld: false,
+});
+
+export const workflowParametersToFieldOptions = (
+  parameters: WorkflowParameter[] = [],
+): WorkflowEventFieldOption[] =>
+  parameters.flatMap((parameter) => {
+    if (parameter.type === 'EntityReference' && parameter.entityType) {
+      const options: WorkflowEventFieldOption[] = [{ path: parameter.key, label: `${parameter.label} (Id)` }];
+      if (!parameter.multi) {
+        const target = getEntityByCollection(resolveRefEntityCollection(parameter.entityType));
+        options.push({ path: `${parameter.key}.id`, label: `${parameter.label}: Id` });
+        for (const denormField of target?.referenceDenormFields ?? []) {
+          options.push({
+            path: `${parameter.key}.${denormField}`,
+            label: `${parameter.label}: ${targetFieldLabel(target?.collection ?? '', denormField)}`,
+          });
+        }
+      }
+      return options;
+    }
+    return [{ path: parameter.key, label: parameter.label }];
+  });
 
 export const findEventCatalogEntry = (eventName: string): WorkflowEventCatalogEntry | undefined =>
   WORKFLOW_EVENT_CATALOG.find((entry) => entry.name === eventName);

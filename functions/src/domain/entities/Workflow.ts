@@ -92,6 +92,18 @@ export type Condition =
   | NotCondition
   | ExpressionCondition;
 
+export type WorkflowParameterType = 'String' | 'Number' | 'Date' | 'Boolean' | 'select' | 'EntityReference';
+
+export interface WorkflowParameter {
+  key: string;
+  label: string;
+  type: WorkflowParameterType;
+  required?: boolean;
+  entityType?: string;
+  multi?: boolean;
+  options?: { value: string; label: string }[];
+}
+
 export interface WorkflowDefinition {
   id: string;
   tenantId: string;
@@ -106,6 +118,7 @@ export interface WorkflowDefinition {
   // lookup (ex: "personTypes", "caseAreas") dispara o gatilho, já que o evento genérico "lookup.*"
   // não distingue sozinho qual lista mudou.
   lookupCollection?: string;
+  parameters?: WorkflowParameter[];
   enabled: boolean;
   version: number;
   condition: Condition;

@@ -1,7 +1,7 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
-import type { Condition, FieldComparisonCondition } from '../../../../domain/entities/Workflow';
+import type { Condition, FieldComparisonCondition, WorkflowParameter } from '../../../../domain/entities/Workflow';
 import type { WorkflowEventFieldOption } from '../../../../domain/services/workflowEventCatalog';
-import { eventNameToRoot } from '../../../../domain/services/workflowEventCatalog';
+import { eventNameToRoot, WORKFLOW_CALLED_EVENT, workflowParametersToRoot } from '../../../../domain/services/workflowEventCatalog';
 import type { PathRoot } from '../../../../domain/schema/pathResolver';
 import { resolvePath, stripEventPrefix } from '../../../../domain/schema/pathResolver';
 import type { SearchSelectOption } from '../SearchSelect';
@@ -211,6 +211,7 @@ export const useConditionBuilderViewModel = (
   screenKey?: string,
   focusPath?: number[] | null,
   onFocusHandled?: () => void,
+  parameters?: WorkflowParameter[],
 ): ConditionBuilderViewModel => {
   const { dynamicScreens } = useScreenDefinitions();
 
@@ -262,11 +263,17 @@ export const useConditionBuilderViewModel = (
   const isCollapsed = useCallback((nodeId: string) => collapsedIds.has(nodeId), [collapsedIds]);
 
   const eventFields = useMemo(
-    () => buildConditionEventFields(eventName, screenKey, dynamicScreens),
-    [eventName, screenKey, dynamicScreens],
+    () => buildConditionEventFields(eventName, screenKey, dynamicScreens, parameters),
+    [eventName, screenKey, dynamicScreens, parameters],
   );
 
-  const pathRoot = useMemo(() => eventNameToRoot(eventName, screenKey), [eventName, screenKey]);
+  const pathRoot = useMemo(
+    () =>
+      eventName === WORKFLOW_CALLED_EVENT
+        ? workflowParametersToRoot(parameters)
+        : eventNameToRoot(eventName, screenKey),
+    [eventName, screenKey, parameters],
+  );
 
   const schemaContext = useSchemaContext();
   const { getLookupOptions } = useLookupValues();

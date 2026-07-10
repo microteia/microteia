@@ -15,7 +15,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '../../infrastructure/firebase/config';
 import type { IWorkflowDefinitionRepository } from '../../domain/repositories/IWorkflowDefinitionRepository';
-import type { WorkflowDefinition, WorkflowStep } from '../../domain/entities/Workflow';
+import type { WorkflowDefinition, WorkflowParameter, WorkflowStep } from '../../domain/entities/Workflow';
 
 const toDate = (v: unknown): Date => (v instanceof Timestamp ? v.toDate() : (v as Date));
 
@@ -30,6 +30,7 @@ const mapDefinition = (id: string, d: Record<string, unknown>, tenantId: string)
   eventName: d.eventName as string,
   screenKey: (d.screenKey as string | undefined) ?? undefined,
   lookupCollection: (d.lookupCollection as string | undefined) ?? undefined,
+  parameters: (d.parameters as WorkflowParameter[] | undefined) ?? undefined,
   enabled: (d.enabled as boolean) ?? false,
   version: (d.version as number) ?? 1,
   condition: (d.condition as WorkflowDefinition['condition']) ?? { kind: 'AlwaysTrue' },

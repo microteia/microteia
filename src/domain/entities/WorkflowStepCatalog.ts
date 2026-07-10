@@ -62,6 +62,17 @@ export type DynamicOutputsMetadata =
     };
 
 /**
+ * Define se este step ganha inputs dinâmicos a partir de um alvo escolhido em design-time.
+ * Ex: 'Chamar Workflow' expõe os parâmetros do workflow-alvo como inputs `param.<chave>`.
+ */
+export type DynamicInputsMetadata = {
+  kind: 'from-target-workflow-parameters';
+  /** ID do input (Literal) que guarda o id do workflow-alvo cujos parâmetros viram inputs. */
+  sourceInputId: string;
+  description?: string;
+};
+
+/**
  * Espelho somente-leitura de StepDefinition (sem `createExecutor`, que só existe em
  * functions/) — carregado via cloud function getWorkflowStepCatalog, alimenta o builder visual.
  * A UI nunca conhece um Step por nome (ex: "CreateDeadline"), só renderiza a partir destes campos.
@@ -81,4 +92,9 @@ export interface StepDefinitionSummary {
    * Ex: SetVariable gera output com nome definido pelo input 'name'.
    */
   dynamicOutputs?: DynamicOutputsMetadata;
+  /**
+   * Define se este step ganha inputs dinâmicos a partir de um alvo escolhido em design-time.
+   * Ex: 'Chamar Workflow' expõe os parâmetros do workflow-alvo como inputs `param.<chave>`.
+   */
+  dynamicInputs?: DynamicInputsMetadata;
 }

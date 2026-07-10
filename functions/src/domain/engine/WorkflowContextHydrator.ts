@@ -3,7 +3,7 @@ import type { WorkflowLogger } from '../entities/WorkflowContext';
 import type { IWorkflowRecordFetcher } from '../repositories/IWorkflowRecordFetcher';
 import type { IScreenDefinitionProvider } from '../repositories/IScreenDefinitionProvider';
 import { createSchemaContext, joinSegments, parsePath, stripEventPrefix } from '../schema/pathResolver';
-import type { ResolveOptions } from '../schema/pathResolver';
+import type { PathRoot, ResolveOptions } from '../schema/pathResolver';
 import { buildHydrationPlan } from '../schema/hydrationPlan';
 import { collectHopRecordRefs, materializeHops, recordKey } from '../schema/materialize';
 import { eventNameToRoot } from '../schema/eventCatalog';
@@ -74,12 +74,13 @@ export class WorkflowContextHydrator {
     cache: HydrationCache,
     logger?: WorkflowLogger,
     options?: ResolveOptions,
+    rootOverride?: PathRoot,
   ): Promise<WorkflowEvent> {
     if (paths.length === 0) return event;
 
     const payload = event.payload ?? {};
     const screenKey = typeof payload.screenKey === 'string' ? payload.screenKey : undefined;
-    const root = eventNameToRoot(event.name, screenKey);
+    const root = rootOverride ?? eventNameToRoot(event.name, screenKey);
     if (!root) return event;
 
     const screens = await this.screenProvider.getScreens(event.tenantId);

@@ -1,6 +1,6 @@
-import type { ExpressionCondition, FieldComparisonCondition } from '../../domain/entities/Workflow';
+import type { ExpressionCondition, FieldComparisonCondition, WorkflowParameter } from '../../domain/entities/Workflow';
 import type { ScreenDefinition } from '../../domain/entities';
-import { getWorkflowEventFields } from '../../domain/services/workflowEventCatalog';
+import { getWorkflowEventFields, WORKFLOW_CALLED_EVENT, workflowParametersToFieldOptions } from '../../domain/services/workflowEventCatalog';
 import type { WorkflowEventFieldOption } from '../../domain/services/workflowEventCatalog';
 import { sortFieldsByOrder } from '../../domain/services/customFieldValues';
 
@@ -37,7 +37,9 @@ export const buildConditionEventFields = (
   eventName: string,
   screenKey: string | undefined,
   dynamicScreens: ScreenDefinition[],
+  parameters?: WorkflowParameter[],
 ): WorkflowEventFieldOption[] => {
+  if (eventName === WORKFLOW_CALLED_EVENT) return workflowParametersToFieldOptions(parameters);
   let dynamicFields: WorkflowEventFieldOption[] = [];
   if (eventName.startsWith('custom_record.') && screenKey) {
     const definition = dynamicScreens.find((s) => s.id === screenKey);

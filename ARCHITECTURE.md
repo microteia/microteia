@@ -1619,6 +1619,16 @@ motor com Admin SDK. Nenhum módulo importa ou conhece o motor.
 Localização de Step é **sempre** via `stepRegistry.resolve(stepDefinitionId)` — nunca
 `switch`/`if` sobre o tipo.
 
+### Ícone de um Step — registrar no whitelist do cliente
+
+O campo `icon` de uma `StepDefinition` é o **nome** de um ícone de `react-icons/ri` (ex:
+`'RiFlowChart'`), trafegado como string no catálogo. O cliente resolve esse nome em
+`getStepIcon` (`src/presentation/shared/stepIcons.ts`), que mantém um **whitelist explícito**
+(imports nomeados) — isso é obrigatório para o tree-shaking: importar o namespace inteiro de
+`react-icons/ri` infla o bundle principal em ~394 KB gzip (medido). Por isso, **ao criar um Step
+novo ou trocar o `icon` de um existente, registre o ícone escolhido nesse whitelist**. Se não
+registrar, o Step cai silenciosamente no ícone padrão (`RiToolsLine`) — nenhum erro é lançado.
+
 ### Catálogo de Steps no cliente
 
 `src/` não pode importar os executores de `functions/`. Por isso o composition root também

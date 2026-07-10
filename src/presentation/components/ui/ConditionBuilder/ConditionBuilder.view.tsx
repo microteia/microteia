@@ -3,7 +3,7 @@ import { RiDeleteBinLine, RiAddLine, RiFunctionLine, RiBracesLine, RiParentheses
 import { S } from './ConditionBuilder.styles';
 import { useConditionBuilderViewModel } from './ConditionBuilder.viewmodel';
 import type { BuilderNode, ConditionBuilderViewModel } from './ConditionBuilder.viewmodel';
-import type { Condition } from '../../../../domain/entities/Workflow';
+import type { Condition, WorkflowParameter } from '../../../../domain/entities/Workflow';
 import { SearchSelect } from '../SearchSelect';
 import { Input } from '../Input';
 import { ExpressionEditor } from '../ExpressionEditor';
@@ -16,6 +16,7 @@ export interface ConditionBuilderProps {
   screenKey?: string;
   focusPath?: number[] | null;
   onFocusHandled?: () => void;
+  parameters?: WorkflowParameter[];
 }
 
 const ConditionNode: React.FC<{ node: BuilderNode; vm: ConditionBuilderViewModel; isRoot?: boolean }> = ({ node, vm, isRoot = false }) => {
@@ -223,8 +224,8 @@ const ConditionNode: React.FC<{ node: BuilderNode; vm: ConditionBuilderViewModel
   );
 };
 
-export const ConditionBuilder: React.FC<ConditionBuilderProps> = ({ value, onChange, eventName, screenKey, focusPath, onFocusHandled }) => {
-  const vm = useConditionBuilderViewModel(value, onChange, eventName, screenKey, focusPath, onFocusHandled);
+export const ConditionBuilder: React.FC<ConditionBuilderProps> = ({ value, onChange, eventName, screenKey, focusPath, onFocusHandled, parameters }) => {
+  const vm = useConditionBuilderViewModel(value, onChange, eventName, screenKey, focusPath, onFocusHandled, parameters);
 
   return (
     <S.Container>

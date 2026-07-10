@@ -255,11 +255,12 @@ export const EditWorkflowStepView: React.FC<{ tabKey: string }> = ({ tabKey }) =
             </S.HelpText>
           </InputGroup>
 
-          {vm.selectedDefinition && vm.selectedDefinition.inputs.length > 0 && <S.StepsDivider />}
+          {vm.selectedDefinition && vm.effectiveInputs.length > 0 && <S.StepsDivider />}
 
-          {vm.selectedDefinition?.inputs.map((input) => {
+          {vm.effectiveInputs.map((input) => {
             const mappingKindOptions = getMappingKindOptions(input);
             const isMappingKindLocked = mappingKindOptions.length === 1;
+            const isTargetPicker = input.id === vm.dynamicInputsSourceId;
 
             return (
               <S.Field key={input.id}>
@@ -268,7 +269,14 @@ export const EditWorkflowStepView: React.FC<{ tabKey: string }> = ({ tabKey }) =
                   {input.required && <S.Required>*</S.Required>}
                 </S.FieldHeader>
                 {input.description && <S.HelpText>{input.description}</S.HelpText>}
-                {input.type === 'Query' ? (
+                {isTargetPicker ? (
+                  <SearchSelect
+                    options={vm.callableWorkflowOptions}
+                    value={vm.configuration[input.id]?.kind === 'Literal' ? String((vm.configuration[input.id] as Extract<InputMapping, { kind: 'Literal' }>).value ?? '') : ''}
+                    onChange={(value) => vm.setTargetWorkflow(input.id, value)}
+                    placeholder="Selecione o workflow a chamar..."
+                  />
+                ) : input.type === 'Query' ? (
                   renderQueryControl(input)
                 ) : (
                   <S.MappingRow>

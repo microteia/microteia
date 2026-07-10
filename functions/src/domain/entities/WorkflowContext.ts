@@ -1,4 +1,4 @@
-import type { WorkflowEvent } from './Workflow';
+import type { InputMapping, WorkflowEvent } from './Workflow';
 
 export interface WorkflowLogger {
   info(message: string): void;
@@ -23,6 +23,9 @@ export interface WorkflowContext {
     tenantId: string;
   };
   input?: Record<string, unknown>;
+  // Configuração bruta do step em execução. Permite que um step com inputs dinâmicos (ex:
+  // 'Chamar Workflow') resolva chaves de configuração que resolveInputsSafe não conhece.
+  stepConfiguration?: Record<string, InputMapping>;
 }
 
 export interface WorkflowResult {

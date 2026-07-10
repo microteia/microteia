@@ -1,5 +1,5 @@
 import { useMemo, useCallback, useState } from 'react';
-import type { Condition, FieldComparisonCondition } from '../../../../domain/entities/Workflow';
+import type { Condition, FieldComparisonCondition, WorkflowParameter } from '../../../../domain/entities/Workflow';
 import { useScreenDefinitions } from '../../../../stores/useScreenDefinitions';
 import {
   CONDITION_OPERATOR_LABELS,
@@ -15,6 +15,7 @@ export interface ConditionDiagramProps {
   condition: Condition;
   eventName: string;
   screenKey?: string;
+  parameters?: WorkflowParameter[];
   onChange?: (condition: Condition) => void;
   onRequestEdit?: (path: ConditionPath) => void;
 }
@@ -72,18 +73,18 @@ const updateAtPath = (
 };
 
 export const useConditionDiagramViewModel = (props: ConditionDiagramProps): ConditionDiagramViewModel => {
-  const { condition, eventName, screenKey, onChange, onRequestEdit } = props;
+  const { condition, eventName, screenKey, parameters, onChange, onRequestEdit } = props;
   const { dynamicScreens } = useScreenDefinitions();
 
   const fieldLabelByPath = useMemo(() => {
-    const eventFields = buildConditionEventFields(eventName, screenKey, dynamicScreens);
+    const eventFields = buildConditionEventFields(eventName, screenKey, dynamicScreens, parameters);
     const map = new Map<string, string>();
     eventFields.forEach((field) => {
       map.set(field.path, field.label);
       map.set(`${EVENT_FIELD_PATH_PREFIX}${field.path}`, field.label);
     });
     return map;
-  }, [eventName, screenKey, dynamicScreens]);
+  }, [eventName, screenKey, dynamicScreens, parameters]);
 
   const getFieldLabel = useCallback(
     (fieldPath: string) => fieldLabelByPath.get(fieldPath) ?? fieldPath,

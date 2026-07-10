@@ -13,6 +13,7 @@ const mapWorkflowDefinition = (id: string, tenantId: string, data: DocumentData)
   eventName: data.eventName,
   screenKey: data.screenKey ?? undefined,
   lookupCollection: data.lookupCollection ?? undefined,
+  parameters: data.parameters ?? undefined,
   enabled: data.enabled ?? false,
   version: data.version ?? 1,
   condition: data.condition ?? { kind: 'AlwaysTrue' },
@@ -33,5 +34,16 @@ export class FirebaseWorkflowDefinitionRepository implements IWorkflowDefinition
       .where('eventName', '==', eventName)
       .get();
     return snap.docs.map((doc) => mapWorkflowDefinition(doc.id, tenantId, doc.data()));
+  }
+
+  async findById(tenantId: string, id: string): Promise<WorkflowDefinition | null> {
+    const snap = await this.db
+      .collection('tenants')
+      .doc(tenantId)
+      .collection('workflow_definitions')
+      .doc(id)
+      .get();
+    if (!snap.exists) return null;
+    return mapWorkflowDefinition(snap.id, tenantId, snap.data() as DocumentData);
   }
 }

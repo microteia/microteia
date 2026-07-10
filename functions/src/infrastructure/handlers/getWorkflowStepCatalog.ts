@@ -32,6 +32,7 @@ export const getWorkflowStepCatalog = onCall(
       inputs: def.inputs,
       outputDefinitions: def.outputDefinitions,
       dynamicOutputs: def.dynamicOutputs,
+      dynamicInputs: def.dynamicInputs,
     }));
 
     return { steps };

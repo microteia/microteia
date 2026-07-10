@@ -28,6 +28,8 @@ export interface NativeFieldSpec {
   type: NativeFieldType;
   lookupCollection?: string;
   objectFields?: NativeFieldSpec[];
+  refEntity?: string;
+  multi?: boolean;
 }
 
 export interface FkSpec {

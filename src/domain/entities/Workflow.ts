@@ -92,6 +92,18 @@ export type Condition =
   | NotCondition
   | ExpressionCondition;
 
+export type WorkflowParameterType = 'String' | 'Number' | 'Date' | 'Boolean' | 'select' | 'EntityReference';
+
+export interface WorkflowParameter {
+  key: string;
+  label: string;
+  type: WorkflowParameterType;
+  required?: boolean;
+  entityType?: string;
+  multi?: boolean;
+  options?: { value: string; label: string }[];
+}
+
 export interface WorkflowDefinition {
   id: string;
   tenantId: string;
@@ -106,6 +118,9 @@ export interface WorkflowDefinition {
   // lookup (ex: "personTypes", "caseAreas") dispara o gatilho, já que o evento genérico "lookup.*"
   // não distingue sozinho qual lista mudou (ver domain/services/workflowLookupCatalog.ts).
   lookupCollection?: string;
+  // Só relevante quando eventName é "workflow.called": parâmetros que este workflow espera receber
+  // de quem o chamar. Definem o schema de `event.` (intellisense e hidratação) do workflow chamado.
+  parameters?: WorkflowParameter[];
   enabled: boolean;
   version: number;
   condition: Condition;

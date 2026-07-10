@@ -5,13 +5,13 @@ import { useWorkspace } from '../../../stores/useWorkspace';
 import { useNotification } from '../../../stores/useNotification';
 import { useScreenDefinitions } from '../../../stores/useScreenDefinitions';
 import { useStepCatalog } from '../../../stores/useStepCatalog';
-import { getWorkflowEventFields, eventNameToEntityKey, eventNameToRoot } from '../../../domain/services/workflowEventCatalog';
+import { getWorkflowEventFields, eventNameToEntityKey, eventNameToRoot, WORKFLOW_CALLED_EVENT, workflowParametersToRoot, workflowParametersToFieldOptions } from '../../../domain/services/workflowEventCatalog';
 import type { PathRoot } from '../../../domain/schema/pathResolver';
 import { getStepIcon } from '../../shared/stepIcons';
 import { getStepDisplayName } from '../../shared/workflowHelpers';
 import type { WorkflowEventFieldOption } from '../../../domain/services/workflowEventCatalog';
-import type { InputMapping, WorkflowStep } from '../../../domain/entities/Workflow';
-import type { StepDefinitionSummary } from '../../../domain/entities/WorkflowStepCatalog';
+import type { InputMapping, WorkflowParameter, WorkflowStep } from '../../../domain/entities/Workflow';
+import type { InputDefinition, StepDefinitionSummary } from '../../../domain/entities/WorkflowStepCatalog';
 import type { QuerySpec } from '../../../domain/schema/querySpec';
 import type { StepOutputField, WorkflowVariable } from '../../components/ui/ExpressionEditor/autocompleteHelpers';
 
@@ -25,6 +25,24 @@ const queryProjectionOutputs = (
   return ((mapping.value as QuerySpec).projections ?? [])
     .filter((path) => path.trim())
     .map((path) => ({ id: `first.${path}`, label: `${path} (1º resultado)` }));
+};
+
+const parameterToInputDefinition = (parameter: WorkflowParameter): InputDefinition => {
+  const base = { id: `param.${parameter.key}`, label: parameter.label, required: parameter.required ?? false };
+  switch (parameter.type) {
+    case 'EntityReference':
+      return { ...base, type: 'EntityReference', entityType: parameter.entityType };
+    case 'select':
+      return { ...base, type: 'String', options: { kind: 'Static', options: parameter.options ?? [] } };
+    case 'Number':
+      return { ...base, type: 'Number' };
+    case 'Date':
+      return { ...base, type: 'Date' };
+    case 'Boolean':
+      return { ...base, type: 'Boolean' };
+    default:
+      return { ...base, type: 'String' };
+  }
 };
 
 const emptyMappingFor = (kind: InputMapping['kind']): InputMapping => {
@@ -49,6 +67,10 @@ export interface EditWorkflowStepViewModel {
   signature: string;
   setSignature: (signature: string) => void;
   configuration: Record<string, InputMapping>;
+  effectiveInputs: InputDefinition[];
+  dynamicInputsSourceId: string | null;
+  callableWorkflowOptions: { value: string; label: string }[];
+  setTargetWorkflow: (sourceInputId: string, targetWorkflowId: string) => void;
   setMappingKind: (inputId: string, kind: InputMapping['kind']) => void;
   setMapping: (inputId: string, mapping: InputMapping) => void;
   enabled: boolean;
@@ -132,6 +154,48 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
     [stepCatalog],
   );
 
+  const dynamicInputsSourceId = useMemo(
+    () =>
+      selectedDefinition?.dynamicInputs?.kind === 'from-target-workflow-parameters'
+        ? selectedDefinition.dynamicInputs.sourceInputId
+        : null,
+    [selectedDefinition],
+  );
+
+  const targetWorkflow = useMemo(() => {
+    if (!dynamicInputsSourceId) return null;
+    const mapping = configuration[dynamicInputsSourceId];
+    const id = mapping?.kind === 'Literal' ? String(mapping.value ?? '') : '';
+    if (!id) return null;
+    return workflows.find((w) => w.id === id && w.eventName === WORKFLOW_CALLED_EVENT) ?? null;
+  }, [dynamicInputsSourceId, configuration, workflows]);
+
+  const effectiveInputs = useMemo<InputDefinition[]>(() => {
+    if (!selectedDefinition) return [];
+    if (!dynamicInputsSourceId) return selectedDefinition.inputs;
+    const paramInputs = (targetWorkflow?.parameters ?? []).map(parameterToInputDefinition);
+    return [...selectedDefinition.inputs, ...paramInputs];
+  }, [selectedDefinition, dynamicInputsSourceId, targetWorkflow]);
+
+  const callableWorkflowOptions = useMemo(
+    () =>
+      workflows
+        .filter((w) => w.eventName === WORKFLOW_CALLED_EVENT && w.id !== workflowId)
+        .map((w) => ({ value: w.id, label: w.name })),
+    [workflows, workflowId],
+  );
+
+  const setTargetWorkflow = useCallback((sourceInputId: string, targetWorkflowId: string) => {
+    setConfiguration((prev) => {
+      const next: Record<string, InputMapping> = {};
+      for (const [key, mapping] of Object.entries(prev)) {
+        if (!key.startsWith('param.')) next[key] = mapping;
+      }
+      next[sourceInputId] = { kind: 'Literal', value: targetWorkflowId };
+      return next;
+    });
+  }, []);
+
   const stepOrder = useMemo(() => {
     if (editingStep) return editingStep.order + 1;
     return existingSteps.length + 1;
@@ -141,6 +205,8 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
 
   const eventFields = useMemo<WorkflowEventFieldOption[]>(() => {
     if (!workflow) return [];
+
+    if (workflow.eventName === WORKFLOW_CALLED_EVENT) return workflowParametersToFieldOptions(workflow.parameters);
 
     // Busca campos customizados da entidade, se houver
     const entityKey = eventNameToEntityKey(workflow.eventName);
@@ -156,7 +222,12 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
   }, [workflow, getCustomFieldsFor]);
 
   const pathRoot = useMemo(
-    () => (workflow ? eventNameToRoot(workflow.eventName, workflow.screenKey) : null),
+    () =>
+      workflow
+        ? workflow.eventName === WORKFLOW_CALLED_EVENT
+          ? workflowParametersToRoot(workflow.parameters)
+          : eventNameToRoot(workflow.eventName, workflow.screenKey)
+        : null,
     [workflow],
   );
 
@@ -295,10 +366,10 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
 
   const canSave = useMemo(() => {
     if (!selectedDefinition) return false;
-    return selectedDefinition.inputs
+    return effectiveInputs
       .filter((input) => input.required)
       .every((input) => configuration[input.id] !== undefined);
-  }, [selectedDefinition, configuration]);
+  }, [selectedDefinition, effectiveInputs, configuration]);
 
   const handleSave = useCallback(async () => {
     if (!selectedDefinition || !workflow) return;
@@ -377,6 +448,10 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
     signature,
     setSignature,
     configuration,
+    effectiveInputs,
+    dynamicInputsSourceId,
+    callableWorkflowOptions,
+    setTargetWorkflow,
     setMappingKind,
     setMapping,
     enabled,

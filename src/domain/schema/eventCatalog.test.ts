@@ -1,10 +1,15 @@
 import { describe, it, expect } from 'vitest';
 import {
   WORKFLOW_EVENT_CATALOG,
+  WORKFLOW_CALLED_EVENT,
   eventNameToEntityKey,
   eventNameToRoot,
   getWorkflowEventFields,
+  workflowParametersToRoot,
+  workflowParametersToFieldOptions,
 } from './eventCatalog';
+import { createSchemaContext, resolvePath, parsePath } from './pathResolver';
+import type { WorkflowParameter } from '../entities/Workflow';
 
 const entry = (name: string) => WORKFLOW_EVENT_CATALOG.find((e) => e.name === name);
 const paths = (name: string) => (entry(name)?.fields ?? []).map((f) => f.path);
@@ -86,5 +91,44 @@ describe('eventNameToRoot / eventNameToEntityKey', () => {
     expect(eventNameToEntityKey('case.saved')).toBe('cases');
     expect(eventNameToEntityKey('lookup.saved')).toBe('lookups');
     expect(eventNameToEntityKey('custom_record.saved')).toBeNull();
+  });
+});
+
+describe('workflow.called — parâmetros dinâmicos', () => {
+  const parameters: WorkflowParameter[] = [
+    { key: 'titulo', label: 'Título', type: 'String' },
+    { key: 'processo', label: 'Processo', type: 'EntityReference', entityType: 'cases' },
+  ];
+
+  it('oferece o evento "Chamado por outro workflow" com raiz de campos', () => {
+    const entry = WORKFLOW_EVENT_CATALOG.find((e) => e.name === WORKFLOW_CALLED_EVENT);
+    expect(entry?.label).toBe('Chamado por outro workflow');
+    expect(eventNameToRoot(WORKFLOW_CALLED_EVENT)?.kind).toBe('fields');
+  });
+
+  it('constrói a raiz a partir dos parâmetros declarados', () => {
+    const root = workflowParametersToRoot(parameters);
+    expect(root.kind).toBe('fields');
+    if (root.kind !== 'fields') return;
+    expect(root.fields.map((f) => f.key)).toEqual(['titulo', 'processo']);
+    expect(root.fields.find((f) => f.key === 'processo')).toMatchObject({ refEntity: 'cases' });
+  });
+
+  it('hidrata um parâmetro-referência: event.processo.title gera hop para cases', () => {
+    const ctx = createSchemaContext();
+    const root = workflowParametersToRoot(parameters);
+    const resolution = resolvePath(ctx, root, parsePath('processo.title'));
+    expect(resolution.valid).toBe(true);
+    expect(resolution.node.kind).toBe('scalar');
+    expect(resolution.hops).toEqual(
+      expect.arrayContaining([expect.objectContaining({ targetCollection: 'cases', materializeAt: 'processo' })]),
+    );
+  });
+
+  it('lista opções de campo com drill nas referências', () => {
+    const options = workflowParametersToFieldOptions(parameters).map((o) => o.path);
+    expect(options).toContain('titulo');
+    expect(options).toContain('processo');
+    expect(options).toContain('processo.id');
   });
 });

@@ -64,6 +64,17 @@ export type DynamicOutputsMetadata =
       description?: string;
     };
 
+/**
+ * Define se e como os inputs são dinâmicos (conhecidos apenas depois que o usuário escolhe um
+ * alvo em design-time). Usado pelo editor para renderizar campos extras e pelo IntelliSense.
+ */
+export type DynamicInputsMetadata = {
+  kind: 'from-target-workflow-parameters';
+  /** ID do input (Literal) que guarda o id do workflow-alvo cujos parâmetros viram inputs. */
+  sourceInputId: string;
+  description?: string;
+};
+
 export interface WorkflowStepExecutor {
   execute(inputs: Record<string, unknown>, context: WorkflowContext): Promise<WorkflowResult>;
 }
@@ -83,5 +94,10 @@ export interface StepDefinition {
    * Ex: SetVariable gera output com nome definido pelo input 'name'.
    */
   dynamicOutputs?: DynamicOutputsMetadata;
+  /**
+   * Define se este step ganha inputs dinâmicos a partir de um alvo escolhido em design-time.
+   * Ex: 'Chamar Workflow' expõe os parâmetros do workflow-alvo como inputs `param.<chave>`.
+   */
+  dynamicInputs?: DynamicInputsMetadata;
   createExecutor(): WorkflowStepExecutor;
 }
