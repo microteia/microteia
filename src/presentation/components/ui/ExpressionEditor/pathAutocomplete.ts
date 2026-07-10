@@ -9,15 +9,22 @@ export interface ActiveEventPath {
   queryStart: number;
 }
 
-export const extractActiveEventPath = (textBefore: string): ActiveEventPath | null => {
-  const match = textBefore.match(/(?:^|[^a-zA-Z0-9_.])event\.((?:[a-zA-Z0-9_]+\.)*)([a-zA-Z0-9_]*)$/);
-  if (!match) return null;
-  return {
-    completedPath: match[1].endsWith('.') ? match[1].slice(0, -1) : match[1],
-    query: match[2],
-    queryStart: textBefore.length - match[2].length,
+const buildActivePathExtractor =
+  (prefix: string) =>
+  (textBefore: string): ActiveEventPath | null => {
+    const match = textBefore.match(
+      new RegExp(`(?:^|[^a-zA-Z0-9_.])${prefix}\\.((?:[a-zA-Z0-9_]+\\.)*)([a-zA-Z0-9_]*)$`),
+    );
+    if (!match) return null;
+    return {
+      completedPath: match[1].endsWith('.') ? match[1].slice(0, -1) : match[1],
+      query: match[2],
+      queryStart: textBefore.length - match[2].length,
+    };
   };
-};
+
+export const extractActiveEventPath = buildActivePathExtractor('event');
+export const extractActiveInputPath = buildActivePathExtractor('input');
 
 export const buildPathAutocompleteItems = (
   ctx: SchemaContext,

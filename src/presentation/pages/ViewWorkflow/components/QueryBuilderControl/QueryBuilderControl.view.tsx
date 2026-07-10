@@ -47,6 +47,7 @@ export const QueryBuilderControl: React.FC<QueryBuilderControlProps> = (props) =
               placeholder="ex: event.status"
               eventFields={props.eventFields}
               pathRoot={props.pathRoot}
+              inputRoot={props.inputRoot}
               stepOutputFields={props.stepOutputFields}
               workflowVariables={props.workflowVariables}
             />

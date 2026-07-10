@@ -20,6 +20,7 @@ export interface QueryBuilderControlProps {
   onChange: (spec: QuerySpec) => void;
   eventFields: WorkflowEventFieldOption[];
   pathRoot?: PathRoot | null;
+  inputRoot?: PathRoot | null;
   stepOutputFields: StepOutputField[];
   workflowVariables: WorkflowVariable[];
 }

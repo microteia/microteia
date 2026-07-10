@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [0.67.2] — 2026-07-10
+
+- Quando um Script devolve uma saída do tipo "Referência a entidade", os passos seguintes agora conseguem acessar as propriedades dela pelo autocomplete (ex: `input.pessoa.nome`), e não apenas a referência inteira.
+
 #### [0.67.1] — 2026-07-10
 
 - Os botões de salvar e excluir na tela de edição de Script agora seguem o mesmo visual discreto das demais telas.

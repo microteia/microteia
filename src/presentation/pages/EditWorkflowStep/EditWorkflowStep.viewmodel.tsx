@@ -7,7 +7,9 @@ import { useNotification } from '../../../stores/useNotification';
 import { useScreenDefinitions } from '../../../stores/useScreenDefinitions';
 import { useStepCatalog } from '../../../stores/useStepCatalog';
 import { getWorkflowEventFields, eventNameToEntityKey, eventNameToRoot, WORKFLOW_CALLED_EVENT, workflowParametersToRoot, workflowParametersToFieldOptions } from '../../../domain/services/workflowEventCatalog';
+import { workflowParameterToNativeField } from '../../../domain/schema/eventCatalog';
 import type { PathRoot } from '../../../domain/schema/pathResolver';
+import type { NativeFieldSpec } from '../../../domain/schema/entityRegistry';
 import { getStepIcon } from '../../shared/stepIcons';
 import { getStepDisplayName } from '../../shared/workflowHelpers';
 import type { WorkflowEventFieldOption } from '../../../domain/services/workflowEventCatalog';
@@ -89,6 +91,7 @@ export interface EditWorkflowStepViewModel {
   stepCatalogOptions: { value: string; label: string; icon: IconType }[];
   eventFields: WorkflowEventFieldOption[];
   pathRoot: PathRoot | null;
+  inputRoot: PathRoot;
   stepOutputFields: StepOutputField[];
   workflowVariables: WorkflowVariable[];
   isSaving: boolean;
@@ -328,6 +331,26 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
     return fields;
   }, [priorSteps, stepCatalog, scriptOutputsFor]);
 
+  // Descreve a "forma" do `input` (saídas dos steps anteriores) como um PathRoot de schema, para
+  // que o autocomplete de `input.<saída>.` navegue nas propriedades de saídas do tipo
+  // EntityReference — exatamente como `event.<campo>.` faz. Reusa workflowParameterToNativeField
+  // (ScriptOutputParam tem o mesmo formato de WorkflowParameter: key/label/type/entityType).
+  const inputRoot = useMemo<PathRoot>(() => {
+    const fields: NativeFieldSpec[] = [];
+    priorSteps.forEach((step) => {
+      const definition = stepCatalog.find((d) => d.id === step.stepDefinitionId);
+      if (!definition || definition.dynamicOutputs?.kind !== 'from-target-script-outputs') return;
+      const mapping = step.configuration[definition.dynamicOutputs.sourceInputId];
+      const id = mapping?.kind === 'Literal' ? String(mapping.value ?? '') : '';
+      if (!id) return;
+      const script = scripts.find((s) => s.id === id);
+      (script?.outputParams ?? []).forEach((param) => {
+        fields.push(workflowParameterToNativeField(param as WorkflowParameter));
+      });
+    });
+    return { kind: 'fields', fields, hasOld: false };
+  }, [priorSteps, stepCatalog, scripts]);
+
   const getStepOutputs = useCallback((stepId: string) => {
     const step = priorSteps.find((s) => s.id === stepId);
     if (!step) return [];
@@ -512,6 +535,7 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
     stepCatalogOptions,
     eventFields,
     pathRoot,
+    inputRoot,
     stepOutputFields,
     workflowVariables,
     isSaving,

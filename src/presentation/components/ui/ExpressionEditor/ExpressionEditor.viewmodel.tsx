@@ -3,10 +3,11 @@ import { useWorkspace } from '../../../../stores/useWorkspace';
 import { useExpressionFunctions } from '../../../../stores/useExpressionFunctions';
 import { useSchemaContext } from '../../../shared/useSchemaContext';
 import type { PathRoot } from '../../../../domain/schema/pathResolver';
+import { parsePath, suggestNextSegments } from '../../../../domain/schema/pathResolver';
 import { validateExpressionWithParser } from './expressionValidator';
 import { buildAutocompleteItems, insertSnippet } from './autocompleteHelpers';
 import type { AutocompleteItem, StepOutputField, WorkflowVariable } from './autocompleteHelpers';
-import { buildPathAutocompleteItems, extractActiveEventPath, findInvalidEventPath } from './pathAutocomplete';
+import { buildPathAutocompleteItems, extractActiveEventPath, extractActiveInputPath, findInvalidEventPath } from './pathAutocomplete';
 
 export interface EventField {
   path: string;
@@ -21,11 +22,12 @@ export interface ExpressionEditorProps {
   stepOutputFields?: StepOutputField[];
   workflowVariables?: WorkflowVariable[];
   pathRoot?: PathRoot | null;
+  inputRoot?: PathRoot | null;
 }
 
 export interface AutocompleteState {
   active: boolean;
-  mode: 'function' | 'field' | 'context' | 'input';
+  mode: 'function' | 'field' | 'context' | 'input' | 'input-field';
   query: string;
   pathBase: string;
   triggerStart: number;
@@ -102,6 +104,7 @@ export const useExpressionEditorViewModel = (
   const validationTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const pathRoot = props.pathRoot ?? null;
+  const inputRoot = props.inputRoot ?? null;
 
   useEffect(() => {
     if (validationTimerRef.current) {
@@ -135,8 +138,15 @@ export const useExpressionEditorViewModel = (
         queryStart: autocompleteState.triggerStart,
       });
     }
+    if (autocompleteState.mode === 'input-field' && inputRoot) {
+      return buildPathAutocompleteItems(schemaContext, inputRoot, {
+        completedPath: autocompleteState.pathBase,
+        query: autocompleteState.query,
+        queryStart: autocompleteState.triggerStart,
+      });
+    }
     return buildAutocompleteItems(
-      autocompleteState.mode,
+      autocompleteState.mode === 'input-field' ? 'input' : autocompleteState.mode,
       autocompleteState.query,
       functions,
       props.eventFields ?? [],
@@ -150,6 +160,7 @@ export const useExpressionEditorViewModel = (
     autocompleteState.pathBase,
     autocompleteState.triggerStart,
     pathRoot,
+    inputRoot,
     schemaContext,
     props.eventFields,
     props.stepOutputFields,
@@ -215,17 +226,21 @@ export const useExpressionEditorViewModel = (
 
       props.onChange(newValue);
 
-      const reopened =
-        pathRoot && !item.snippet && item.value.endsWith('.')
-          ? extractActiveEventPath(newValue.slice(0, cursorPos))
-          : null;
-      if (reopened) {
+      const canReopen = !item.snippet && item.value.endsWith('.');
+      const reopened = canReopen
+        ? autocompleteState.mode === 'input-field' && inputRoot
+          ? { path: extractActiveInputPath(newValue.slice(0, cursorPos)), mode: 'input-field' as const }
+          : pathRoot
+            ? { path: extractActiveEventPath(newValue.slice(0, cursorPos)), mode: 'field' as const }
+            : null
+        : null;
+      if (reopened && reopened.path) {
         setAutocompleteState({
           active: true,
-          mode: 'field',
-          query: reopened.query,
-          pathBase: reopened.completedPath,
-          triggerStart: reopened.queryStart,
+          mode: reopened.mode,
+          query: reopened.path.query,
+          pathBase: reopened.path.completedPath,
+          triggerStart: reopened.path.queryStart,
           position: null,
         });
         setHighlightedIndex(0);
@@ -238,7 +253,7 @@ export const useExpressionEditorViewModel = (
         textarea.setSelectionRange(cursorPos, cursorPos);
       }, 0);
     },
-    [props, textareaRef, autocompleteState.triggerStart, autocompleteState.mode, pathRoot, closeAutocomplete],
+    [props, textareaRef, autocompleteState.triggerStart, autocompleteState.mode, pathRoot, inputRoot, closeAutocomplete],
   );
 
   const onAutocompleteHover = useCallback((index: number) => {
@@ -323,6 +338,26 @@ export const useExpressionEditorViewModel = (
         }
       }
 
+      // Detecta "input.pessoa.<campo>" → expande as propriedades da entidade referenciada,
+      // seguindo o mesmo mecanismo de schema usado por "event.". Só entra aqui quando o
+      // caminho já percorrido resolve para algo navegável (ex: uma saída EntityReference);
+      // caso contrário, cai no modo plano abaixo (que lista as saídas dos steps anteriores).
+      if (inputRoot) {
+        const nested = extractActiveInputPath(textBefore);
+        if (nested && nested.completedPath && suggestNextSegments(schemaContext, inputRoot, parsePath(nested.completedPath)).length > 0) {
+          setAutocompleteState({
+            active: true,
+            mode: 'input-field',
+            query: nested.query,
+            pathBase: nested.completedPath,
+            triggerStart: nested.queryStart,
+            position: null,
+          });
+          setHighlightedIndex(0);
+          return;
+        }
+      }
+
       // Detecta "input.campo" → outputs de steps anteriores
       const inputDotMatch = textBefore.match(/input\.([a-zA-Z_][a-zA-Z0-9_.]*)$/);
       if (inputDotMatch || textBefore.endsWith('input.')) {
@@ -377,7 +412,7 @@ export const useExpressionEditorViewModel = (
 
       if (autocompleteState.active) closeAutocomplete();
     },
-    [props, pathRoot, autocompleteState.active, closeAutocomplete],
+    [props, pathRoot, inputRoot, schemaContext, autocompleteState.active, closeAutocomplete],
   );
 
   const handleKeyDown = useCallback(
