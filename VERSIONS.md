@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [0.64.0] — 2026-07-09
+
+- Nas automações disparadas ao salvar um registro, agora é possível distinguir com clareza se foi uma **inclusão** ou uma **alteração**: o evento traz o campo "Tipo da mudança" com o valor "created" (novo registro) ou "updated" (registro existente). Antes era preciso deduzir isso pela presença dos dados anteriores.
+
 #### [0.63.0] — 2026-07-09
 
 - A função `interpolate` do construtor de expressões agora aceita valores por posição: escreva `{0}`, `{1}` no texto e informe os valores na ordem, sem precisar montar um objeto. O modo por nome de campo continua disponível.

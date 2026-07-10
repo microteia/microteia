@@ -255,6 +255,9 @@ const stepEntity = (
   if (name === 'old' && hasOld && state.path.length === 0) {
     return { ...state, path: [segment] };
   }
+  if (name === 'changeType' && hasOld && state.path.length === 0) {
+    return { ...state, cursor: { kind: 'scalar', type: 'string' }, path: [...state.path, segment] };
+  }
   if (name === 'id') {
     return { ...state, cursor: { kind: 'scalar', type: 'string' }, path: [...state.path, segment] };
   }
@@ -371,6 +374,9 @@ const stepCursor = (
         state.path.length === 0 ||
         (state.path.length === 1 && state.path[0].kind === 'key' && state.path[0].name === 'old');
       if (segment.name === 'id' && atObjectRoot) {
+        return { ...state, cursor: { kind: 'scalar', type: 'string' }, path: [...state.path, segment] };
+      }
+      if (segment.name === 'changeType' && hasOld && state.path.length === 0) {
         return { ...state, cursor: { kind: 'scalar', type: 'string' }, path: [...state.path, segment] };
       }
       const field = cursor.fields.find((f) => f.key === segment.name);
@@ -497,6 +503,7 @@ const entitySuggestions = (
   const suggestions: PathSuggestion[] = [];
 
   if (atRoot && hasOld) {
+    suggestions.push({ insertText: 'changeType', label: 'Tipo da mudança', kind: 'field', isLeaf: true });
     suggestions.push({ insertText: 'old', label: 'Dados anteriores', kind: 'special', isLeaf: false });
   }
   suggestions.push({ insertText: 'id', label: 'Id', kind: 'field', isLeaf: true });
@@ -562,6 +569,7 @@ export const suggestNextSegments = (
     case 'object': {
       if (atRoot && root.hasOld) {
         return [
+          { insertText: 'changeType', label: 'Tipo da mudança', kind: 'field', isLeaf: true },
           { insertText: 'old', label: 'Dados anteriores', kind: 'special', isLeaf: false },
           ...cursor.fields.map(nativeFieldSuggestion),
         ];

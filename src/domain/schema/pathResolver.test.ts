@@ -153,6 +153,15 @@ describe('resolvePath — FKs fixas', () => {
     expect(resolvePath(ctx, casesRoot, parsePath('contractId')).node).toMatchObject({ kind: 'scalar', type: 'string' });
     expect(resolvePath(ctx, casesRoot, parsePath('activePoleIds')).node).toMatchObject({ kind: 'scalar', type: 'stringArray' });
   });
+
+  it('resolve changeType como string em evento com old', () => {
+    expect(resolvePath(ctx, casesRoot, parsePath('changeType')).node).toMatchObject({ kind: 'scalar', type: 'string' });
+  });
+
+  it('não expõe changeType em evento sem old (.deleted)', () => {
+    const deletedRoot: PathRoot = { kind: 'entity', entityKey: 'cases', hasOld: false };
+    expect(resolvePath(ctx, deletedRoot, parsePath('changeType')).node).toMatchObject({ kind: 'unknown' });
+  });
 });
 
 describe('resolvePath — campos customizados e telas dinâmicas', () => {

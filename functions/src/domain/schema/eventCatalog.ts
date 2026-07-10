@@ -25,6 +25,7 @@ export interface WorkflowEventCatalogEntry {
 }
 
 const ID_FIELD: WorkflowEventFieldOption = { path: 'id', label: 'Id' };
+const CHANGE_TYPE_FIELD: WorkflowEventFieldOption = { path: 'changeType', label: 'Tipo da mudança ("created" ou "updated")' };
 const OLD_FIELD: WorkflowEventFieldOption = { path: 'old', label: 'Dados anteriores (objeto)' };
 const CUSTOM_VALUES_FIELD: WorkflowEventFieldOption = { path: 'customValues', label: 'Campos customizados (objeto)' };
 const VALUES_FIELD: WorkflowEventFieldOption = { path: 'values', label: 'Campos da tela (objeto)' };
@@ -92,7 +93,7 @@ const buildEntry = (
   return {
     name,
     label,
-    fields: [ID_FIELD, ...(hasOld ? [OLD_FIELD] : []), ...fields, ...(placeholder ? [placeholder] : [])],
+    fields: [ID_FIELD, ...(hasOld ? [CHANGE_TYPE_FIELD, OLD_FIELD] : []), ...fields, ...(placeholder ? [placeholder] : [])],
     root,
   };
 };

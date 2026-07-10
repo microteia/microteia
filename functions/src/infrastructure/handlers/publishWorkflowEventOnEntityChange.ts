@@ -7,7 +7,8 @@ import { publishEvent } from '../workflow/publishEvent';
 /**
  * Publica eventos de entidades com o payload cru do documento:
  * - Campos estáticos e dinâmicos (customValues/values)
- * - old: dados antes da alteração (apenas para .saved)
+ * - changeType: 'created' | 'updated' (apenas para .saved)
+ * - old: dados antes da alteração (apenas para .saved, ausente na inclusão)
  *
  * FKs NÃO são denormalizadas aqui: a resolução é lazy, feita pelo
  * WorkflowContextHydrator no momento da execução dos workflows, guiada pelos
@@ -47,6 +48,10 @@ export const publishWorkflowEventOnEntityChange = onDocumentWritten(
       if (!referenceData) return;
 
       const payload: Record<string, unknown> = { id: docId };
+
+      if (!isDelete) {
+        payload.changeType = isCreate ? 'created' : 'updated';
+      }
 
       if (!isDelete && beforeData) {
         payload.old = beforeData;
