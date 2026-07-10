@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [0.67.1] — 2026-07-10
+
+- Os botões de salvar e excluir na tela de edição de Script agora seguem o mesmo visual discreto das demais telas.
+
 #### [0.67.0] — 2026-07-10
 
 - Os Scripts agora podem **consultar os cadastros do escritório** diretamente (clientes, processos, prazos e cadastros personalizados), sem precisar de um passo de busca antes. A pesquisa respeita sempre o escritório atual e tem limites de tempo e de quantidade para manter tudo rápido e seguro.

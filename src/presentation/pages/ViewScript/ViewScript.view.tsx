@@ -3,7 +3,6 @@ import { RiCodeBoxLine, RiSave3Line, RiDeleteBinLine, RiAddLine, RiArrowRightSLi
 import { S } from './ViewScript.styles';
 import { useViewScriptViewModel } from './ViewScript.viewmodel';
 import { Input, Label, Textarea } from '../../components/ui/Input';
-import { Button } from '../../components/ui/Button';
 import { SearchSelect } from '../../components/ui/SearchSelect';
 import { ConfirmModal } from '../../components/ui/ConfirmModal';
 import { InfoBanner } from '../../components/ui/InfoBanner';
@@ -21,15 +20,18 @@ export const ViewScriptView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
           {vm.isNew ? 'Novo Script' : (vm.formData.name || 'Script')}
         </S.HeaderTitle>
         <S.HeaderActions>
+          <S.SaveBtn
+            onClick={() => void vm.handleSave()}
+            disabled={!vm.canSave}
+            title={vm.isSaving ? 'Salvando...' : 'Salvar'}
+          >
+            <RiSave3Line size={14} />
+          </S.SaveBtn>
           {!vm.isNew && (
-            <Button variant="danger" onClick={vm.handleDelete} title="Excluir script">
-              <RiDeleteBinLine size={16} />
-            </Button>
+            <S.DeleteBtn onClick={vm.handleDelete} title="Excluir script">
+              <RiDeleteBinLine size={14} />
+            </S.DeleteBtn>
           )}
-          <Button onClick={() => void vm.handleSave()} disabled={!vm.canSave}>
-            <RiSave3Line size={16} />
-            {vm.isSaving ? 'Salvando...' : 'Salvar'}
-          </Button>
         </S.HeaderActions>
       </S.Header>
 

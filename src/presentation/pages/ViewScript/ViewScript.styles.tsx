@@ -31,6 +31,59 @@ export const S = {
     display: flex;
     align-items: center;
     gap: ${({ theme }) => theme.spacing.sm};
+    flex-shrink: 0;
+  `,
+
+  SaveBtn: styled.button`
+    width: 30px;
+    height: 30px;
+    border-radius: ${({ theme }) => theme.borderRadius.md};
+    border: 1px solid ${({ theme }) => theme.colors.border};
+    background: ${({ theme }) => theme.colors.surface};
+    color: ${({ theme }) => theme.colors.textMuted};
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: ${({ theme }) => theme.transitions.fast};
+    flex-shrink: 0;
+
+    &:hover:not(:disabled) {
+      background: ${({ theme }) => theme.colors.success};
+      color: ${({ theme }) => theme.colors.white};
+      border-color: ${({ theme }) => theme.colors.success};
+    }
+
+    &:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+  `,
+
+  DeleteBtn: styled.button`
+    width: 30px;
+    height: 30px;
+    border-radius: ${({ theme }) => theme.borderRadius.md};
+    border: 1px solid ${({ theme }) => theme.colors.border};
+    background: ${({ theme }) => theme.colors.surface};
+    color: ${({ theme }) => theme.colors.textMuted};
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: ${({ theme }) => theme.transitions.fast};
+    flex-shrink: 0;
+
+    &:hover:not(:disabled) {
+      background: ${({ theme }) => theme.colors.danger};
+      color: ${({ theme }) => theme.colors.white};
+      border-color: ${({ theme }) => theme.colors.danger};
+    }
+
+    &:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
   `,
 
   Content: styled.div`
