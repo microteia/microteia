@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [0.68.0] — 2026-07-10
+
+- A tela de Script agora traz um guia integrado de como usar a consulta ao banco de dados: explicação de cada configuração, a lista de operadores disponíveis e exemplos prontos para copiar, facilitando montar consultas sem precisar decorar o formato.
+
 #### [0.67.2] — 2026-07-10
 
 - Quando um Script devolve uma saída do tipo "Referência a entidade", os passos seguintes agora conseguem acessar as propriedades dela pelo autocomplete (ex: `input.pessoa.nome`), e não apenas a referência inteira.

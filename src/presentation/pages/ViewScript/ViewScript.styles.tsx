@@ -250,4 +250,185 @@ export const S = {
       border-color: ${({ theme }) => theme.colors.primary};
     }
   `,
+
+  Doc: styled.div`
+    display: flex;
+    flex-direction: column;
+    gap: ${({ theme }) => theme.spacing.lg};
+  `,
+
+  DocLead: styled.p`
+    font-size: ${({ theme }) => theme.fontSizes.sm};
+    line-height: 1.6;
+    color: ${({ theme }) => theme.colors.textSecondary};
+  `,
+
+  DocGroup: styled.div`
+    display: flex;
+    flex-direction: column;
+    gap: ${({ theme }) => theme.spacing.sm};
+  `,
+
+  DocGroupTitle: styled.h3`
+    font-size: ${({ theme }) => theme.fontSizes.xs};
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: ${({ theme }) => theme.colors.textMuted};
+  `,
+
+  Code: styled.code`
+    font-family: ${({ theme }) => theme.fonts.mono};
+    font-size: 0.85em;
+    padding: 0.1em 0.4em;
+    border-radius: ${({ theme }) => theme.borderRadius.sm};
+    background: ${({ theme }) => theme.colors.primaryLight};
+    color: ${({ theme }) => theme.colors.primary};
+    white-space: nowrap;
+  `,
+
+  Pre: styled.pre`
+    margin: 0;
+    overflow-x: auto;
+    padding: ${({ theme }) => theme.spacing.md};
+    border: 1px solid ${({ theme }) => theme.colors.border};
+    border-radius: ${({ theme }) => theme.borderRadius.md};
+    background: ${({ theme }) => theme.colors.inputBackground};
+    color: ${({ theme }) => theme.colors.text};
+    font-family: ${({ theme }) => theme.fonts.mono};
+    font-size: ${({ theme }) => theme.fontSizes.xs};
+    line-height: 1.7;
+    tab-size: 2;
+  `,
+
+  Signature: styled.pre`
+    margin: 0;
+    overflow-x: auto;
+    padding: ${({ theme }) => theme.spacing.md};
+    border-left: 3px solid ${({ theme }) => theme.colors.primary};
+    border-radius: ${({ theme }) => theme.borderRadius.sm};
+    background: ${({ theme }) => theme.colors.inputBackground};
+    color: ${({ theme }) => theme.colors.text};
+    font-family: ${({ theme }) => theme.fonts.mono};
+    font-size: ${({ theme }) => theme.fontSizes.sm};
+  `,
+
+  ParamList: styled.div`
+    display: flex;
+    flex-direction: column;
+    gap: ${({ theme }) => theme.spacing.md};
+  `,
+
+  ParamRow: styled.div`
+    display: flex;
+    flex-direction: column;
+    gap: ${({ theme }) => theme.spacing.xs};
+    padding-left: ${({ theme }) => theme.spacing.md};
+    border-left: 2px solid ${({ theme }) => theme.colors.border};
+  `,
+
+  ParamHead: styled.div`
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: ${({ theme }) => theme.spacing.sm};
+  `,
+
+  ParamName: styled.span`
+    font-family: ${({ theme }) => theme.fonts.mono};
+    font-size: ${({ theme }) => theme.fontSizes.sm};
+    font-weight: 600;
+    color: ${({ theme }) => theme.colors.text};
+  `,
+
+  Pill: styled.span<{ $required?: boolean }>`
+    font-size: 0.65rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding: 0.15em 0.55em;
+    border-radius: ${({ theme }) => theme.borderRadius.full};
+    background: ${({ theme, $required }) =>
+      $required ? theme.colors.warningLight : theme.colors.surfaceHover};
+    color: ${({ theme, $required }) =>
+      $required ? theme.colors.warning : theme.colors.textMuted};
+  `,
+
+  ParamDesc: styled.p`
+    font-size: ${({ theme }) => theme.fontSizes.sm};
+    line-height: 1.55;
+    color: ${({ theme }) => theme.colors.textSecondary};
+  `,
+
+  OpGrid: styled.div`
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: ${({ theme }) => theme.spacing.sm};
+  `,
+
+  OpChip: styled.div`
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: ${({ theme }) => theme.spacing.sm} ${({ theme }) => theme.spacing.md};
+    border: 1px solid ${({ theme }) => theme.colors.border};
+    border-radius: ${({ theme }) => theme.borderRadius.md};
+    background: ${({ theme }) => theme.colors.surface};
+  `,
+
+  OpName: styled.span`
+    font-family: ${({ theme }) => theme.fonts.mono};
+    font-size: ${({ theme }) => theme.fontSizes.sm};
+    font-weight: 600;
+    color: ${({ theme }) => theme.colors.primary};
+  `,
+
+  OpLabel: styled.span`
+    font-size: ${({ theme }) => theme.fontSizes.xs};
+    color: ${({ theme }) => theme.colors.textMuted};
+  `,
+
+  Examples: styled.div`
+    display: flex;
+    flex-direction: column;
+    gap: ${({ theme }) => theme.spacing.md};
+  `,
+
+  Example: styled.div`
+    display: flex;
+    flex-direction: column;
+    gap: ${({ theme }) => theme.spacing.sm};
+  `,
+
+  ExampleTitle: styled.h4`
+    font-size: ${({ theme }) => theme.fontSizes.sm};
+    font-weight: 600;
+    color: ${({ theme }) => theme.colors.text};
+  `,
+
+  NoteList: styled.ul`
+    display: flex;
+    flex-direction: column;
+    gap: ${({ theme }) => theme.spacing.xs};
+    list-style: none;
+  `,
+
+  Note: styled.li`
+    position: relative;
+    padding-left: ${({ theme }) => theme.spacing.md};
+    font-size: ${({ theme }) => theme.fontSizes.sm};
+    line-height: 1.55;
+    color: ${({ theme }) => theme.colors.textSecondary};
+
+    &::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 0.6em;
+      width: 5px;
+      height: 5px;
+      border-radius: ${({ theme }) => theme.borderRadius.full};
+      background: ${({ theme }) => theme.colors.primary};
+    }
+  `,
 };

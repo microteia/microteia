@@ -127,7 +127,7 @@ export const useViewScriptViewModel = (tabKey: string): ViewScriptViewModel => {
   const [formData, setFormDataState] = useState<ScriptFormData>(() => buildForm(null));
   const [isSaving, setIsSaving] = useState(false);
   const [scriptToDelete, setScriptToDelete] = useState<Script | null>(null);
-  const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set());
+  const [collapsedSections, setCollapsedSections] = useState<Set<string>>(() => new Set(['queryDoc']));
 
   const isSectionCollapsed = useCallback((key: string) => collapsedSections.has(key), [collapsedSections]);
 

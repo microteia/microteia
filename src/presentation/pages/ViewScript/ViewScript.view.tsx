@@ -96,13 +96,161 @@ export const ViewScriptView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
             <S.SectionBody>
               <InfoBanner
                 variant="info"
-                message="O código roda em um ambiente isolado e seguro. Sem acesso à internet, ao banco de dados ou a bibliotecas externas. Use o objeto input e as funções fn.*. Retorne um objeto com os parâmetros de saída."
+                message="O código roda em um ambiente isolado e seguro, sem acesso à internet nem a bibliotecas externas. Use o objeto input, as funções fn.* e a função query(...) para consultar os cadastros do escritório. Retorne um objeto com os parâmetros de saída."
               />
               <S.CodeArea
                 value={vm.formData.sourceTs}
                 onChange={(e) => vm.setFormData({ sourceTs: e.target.value })}
                 spellCheck={false}
               />
+            </S.SectionBody>
+          )}
+        </S.Section>
+
+        <S.Section>
+          <S.SectionHeader type="button" onClick={() => vm.toggleSection('queryDoc')}>
+            <S.SectionChevron $open={!vm.isSectionCollapsed('queryDoc')}><RiArrowRightSLine size={18} /></S.SectionChevron>
+            <S.SectionTitle>Como consultar o banco (função query)</S.SectionTitle>
+          </S.SectionHeader>
+          {!vm.isSectionCollapsed('queryDoc') && (
+            <S.SectionBody>
+              <S.Doc>
+                <S.DocLead>
+                  A função <S.Code>query</S.Code> busca registros dos cadastros do escritório. Ela é
+                  assíncrona: use sempre <S.Code>await</S.Code>. Recebe um objeto de configuração e
+                  devolve <S.Code>{'{ count, results, first }'}</S.Code>.
+                </S.DocLead>
+
+                <S.Signature>{`const resultado = await query({ table: 'cases', where: [...] });
+// resultado.count   → quantos registros vieram
+// resultado.results → a lista de registros
+// resultado.first   → o primeiro registro (ou null)`}</S.Signature>
+
+                <S.DocGroup>
+                  <S.DocGroupTitle>Configurações</S.DocGroupTitle>
+                  <S.ParamList>
+                    <S.ParamRow>
+                      <S.ParamHead>
+                        <S.ParamName>table</S.ParamName>
+                        <S.Pill $required>Obrigatório</S.Pill>
+                      </S.ParamHead>
+                      <S.ParamDesc>
+                        A tabela a consultar: <S.Code>persons</S.Code> (pessoas),{' '}
+                        <S.Code>cases</S.Code> (processos), <S.Code>contracts</S.Code> (contratos),{' '}
+                        <S.Code>deadlines</S.Code> (prazos), <S.Code>financials</S.Code> (financeiro)
+                        ou o identificador de uma tela personalizada.
+                      </S.ParamDesc>
+                    </S.ParamRow>
+                    <S.ParamRow>
+                      <S.ParamHead>
+                        <S.ParamName>where</S.ParamName>
+                        <S.Pill>Opcional</S.Pill>
+                      </S.ParamHead>
+                      <S.ParamDesc>
+                        Lista de filtros, cada um no formato{' '}
+                        <S.Code>{'{ path, op, value }'}</S.Code>. Todos são combinados com E (todos
+                        precisam ser verdadeiros). <S.Code>path</S.Code> é o campo, aceitando ponto
+                        para campos aninhados (ex: <S.Code>address.city</S.Code>).
+                      </S.ParamDesc>
+                    </S.ParamRow>
+                    <S.ParamRow>
+                      <S.ParamHead>
+                        <S.ParamName>orderBy</S.ParamName>
+                        <S.Pill>Opcional</S.Pill>
+                      </S.ParamHead>
+                      <S.ParamDesc>
+                        Ordenação, no formato <S.Code>{"{ path, dir }"}</S.Code>, com{' '}
+                        <S.Code>dir</S.Code> igual a <S.Code>'asc'</S.Code> (crescente) ou{' '}
+                        <S.Code>'desc'</S.Code> (decrescente).
+                      </S.ParamDesc>
+                    </S.ParamRow>
+                    <S.ParamRow>
+                      <S.ParamHead>
+                        <S.ParamName>limit</S.ParamName>
+                        <S.Pill>Opcional</S.Pill>
+                      </S.ParamHead>
+                      <S.ParamDesc>
+                        Quantidade máxima de registros retornados. Padrão 50, teto de 100.
+                      </S.ParamDesc>
+                    </S.ParamRow>
+                    <S.ParamRow>
+                      <S.ParamHead>
+                        <S.ParamName>projections</S.ParamName>
+                        <S.Pill>Opcional</S.Pill>
+                      </S.ParamHead>
+                      <S.ParamDesc>
+                        Lista de campos a carregar por completo, inclusive dados de entidades
+                        referenciadas usando ponto (ex: <S.Code>client.name</S.Code>). Sem
+                        projeções, cada registro traz apenas seus campos diretos.
+                      </S.ParamDesc>
+                    </S.ParamRow>
+                  </S.ParamList>
+                </S.DocGroup>
+
+                <S.DocGroup>
+                  <S.DocGroupTitle>Operadores (op)</S.DocGroupTitle>
+                  <S.OpGrid>
+                    <S.OpChip><S.OpName>eq</S.OpName><S.OpLabel>igual a</S.OpLabel></S.OpChip>
+                    <S.OpChip><S.OpName>neq</S.OpName><S.OpLabel>diferente de</S.OpLabel></S.OpChip>
+                    <S.OpChip><S.OpName>lt</S.OpName><S.OpLabel>menor que</S.OpLabel></S.OpChip>
+                    <S.OpChip><S.OpName>lte</S.OpName><S.OpLabel>menor ou igual a</S.OpLabel></S.OpChip>
+                    <S.OpChip><S.OpName>gt</S.OpName><S.OpLabel>maior que</S.OpLabel></S.OpChip>
+                    <S.OpChip><S.OpName>gte</S.OpName><S.OpLabel>maior ou igual a</S.OpLabel></S.OpChip>
+                    <S.OpChip><S.OpName>in</S.OpName><S.OpLabel>está na lista</S.OpLabel></S.OpChip>
+                    <S.OpChip><S.OpName>contains</S.OpName><S.OpLabel>contém</S.OpLabel></S.OpChip>
+                    <S.OpChip><S.OpName>exists</S.OpName><S.OpLabel>está preenchido</S.OpLabel></S.OpChip>
+                  </S.OpGrid>
+                  <S.DocLead>
+                    <S.Code>exists</S.Code> não usa <S.Code>value</S.Code>. Para <S.Code>in</S.Code>,{' '}
+                    <S.Code>value</S.Code> é uma lista.
+                  </S.DocLead>
+                </S.DocGroup>
+
+                <S.DocGroup>
+                  <S.DocGroupTitle>Exemplos</S.DocGroupTitle>
+                  <S.Examples>
+                    <S.Example>
+                      <S.ExampleTitle>Processos ativos, do mais recente ao mais antigo</S.ExampleTitle>
+                      <S.Pre>{`const r = await query({
+  table: 'cases',
+  where: [{ path: 'status', op: 'eq', value: 'ativo' }],
+  orderBy: [{ path: 'filedAt', dir: 'desc' }],
+  limit: 10,
+});
+log('Encontrados:', r.count);`}</S.Pre>
+                    </S.Example>
+                    <S.Example>
+                      <S.ExampleTitle>Contar processos com valor de causa acima de R$ 10.000</S.ExampleTitle>
+                      <S.Pre>{`const r = await query({
+  table: 'cases',
+  where: [{ path: 'causeValue', op: 'gte', value: 10000 }],
+});
+return { totalAltoValor: r.count };`}</S.Pre>
+                    </S.Example>
+                    <S.Example>
+                      <S.ExampleTitle>Pessoas de uma cidade que tenham e-mail cadastrado</S.ExampleTitle>
+                      <S.Pre>{`const r = await query({
+  table: 'persons',
+  where: [
+    { path: 'address.city', op: 'eq', value: 'São Paulo' },
+    { path: 'email', op: 'exists' },
+  ],
+  projections: ['name', 'email'],
+});
+const nomes = r.results.map((p) => p.name);`}</S.Pre>
+                    </S.Example>
+                  </S.Examples>
+                </S.DocGroup>
+
+                <S.DocGroup>
+                  <S.DocGroupTitle>Limites</S.DocGroupTitle>
+                  <S.NoteList>
+                    <S.Note>Sempre use <S.Code>await</S.Code> ao chamar <S.Code>query</S.Code>.</S.Note>
+                    <S.Note>No máximo 25 consultas por execução do script.</S.Note>
+                    <S.Note>Os filtros e a ordenação percorrem até 300 registros por consulta.</S.Note>
+                  </S.NoteList>
+                </S.DocGroup>
+              </S.Doc>
             </S.SectionBody>
           )}
         </S.Section>
