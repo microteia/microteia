@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [0.63.0] — 2026-07-09
+
+- A função `interpolate` do construtor de expressões agora aceita valores por posição: escreva `{0}`, `{1}` no texto e informe os valores na ordem, sem precisar montar um objeto. O modo por nome de campo continua disponível.
+
 #### [0.62.1] — 2026-07-09
 
 - Corrigida uma mensagem de erro incorreta ao usar as funções `object`, `and`, `or`, `coalesce`, `min`, `max` e `concat` no construtor de expressões, que indicava um limite inexistente de argumentos.

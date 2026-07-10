@@ -164,43 +164,40 @@ export const joinFn: ExpressionFunction = {
 
 export const interpolateFn: ExpressionFunction = {
   name: 'interpolate',
-  call: ([template, data]) => {
+  call: ([template, ...values]) => {
     if (typeof template !== 'string') {
       throw new Error('interpolate: primeiro argumento deve ser uma string (template)');
     }
-    
-    if (data === null || data === undefined) {
-      throw new Error('interpolate: segundo argumento (dados) não pode ser nulo ou indefinido');
-    }
-    
-    if (typeof data !== 'object' || Array.isArray(data)) {
-      throw new Error('interpolate: segundo argumento deve ser um objeto com propriedades');
-    }
 
-    return template.replace(/\{([\w.]+)\}/g, (match, key: string) => {
-      // Resolve caminhos aninhados como 'user.name' ou 'event.payload.id'
-      const value = key.split('.').reduce<unknown>((obj, prop) => {
-        if (obj === null || obj === undefined) return undefined;
-        if (typeof obj !== 'object') return undefined;
-        return (obj as Record<string, unknown>)[prop];
-      }, data);
+    const namedSource =
+      values.length === 1 && values[0] !== null && typeof values[0] === 'object' && !Array.isArray(values[0])
+        ? (values[0] as Record<string, unknown>)
+        : null;
 
-      // Converte para string, tratando valores especiais
+    return template.replace(/\{([\w.]+)\}/g, (_match, token: string) => {
+      const value = /^\d+$/.test(token)
+        ? values[Number(token)]
+        : token.split('.').reduce<unknown>((obj, prop) => {
+            if (obj === null || typeof obj !== 'object') return undefined;
+            return (obj as Record<string, unknown>)[prop];
+          }, namedSource);
+
       if (value === null || value === undefined) {
-        return ''; // Substitui por string vazia se não encontrado
+        return '';
       }
-      
+
       if (typeof value === 'object') {
-        return JSON.stringify(value); // Serializa objetos/arrays
+        return JSON.stringify(value);
       }
-      
+
       return String(value);
     });
   },
-  description: 'Substitui {chaves} em um template pelos valores correspondentes de um objeto',
-  signature: 'interpolate(template, dados)',
-  example: 'interpolate("Olá, {nome}!", {nome: "João"})',
+  description:
+    'Preenche um template: {0}, {1}… pegam os valores seguintes na ordem; {chave} pega o campo de um objeto passado como único valor',
+  signature: 'interpolate(template, valor0, valor1, ...)',
+  example:
+    'interpolate("Tarefa {0} criada, ID: {1}", event.values.nome, event.values.id) ou interpolate("Olá {nome}", object("nome", "João"))',
   category: 'Texto',
-  minArgs: 2,
-  maxArgs: 2,
+  minArgs: 1,
 };
