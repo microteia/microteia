@@ -1,4 +1,4 @@
-import type { Firestore } from 'firebase-admin/firestore';
+import type { DocumentData, Firestore } from 'firebase-admin/firestore';
 import type { IAIConnectionRepository } from '../../domain/repositories/IAIConnectionRepository';
 import type { AICredentials } from '../../domain/entities/AICredentials';
 import type { Provider } from '../../domain/entities/Provider';
@@ -19,7 +19,25 @@ export class FirebaseAIConnectionRepository implements IAIConnectionRepository {
       throw new Error('Nenhuma conexão IA padrão configurada para este escritório.');
     }
 
-    const data = connectionsSnap.docs[0].data();
+    return this.toCredentials(connectionsSnap.docs[0].data());
+  }
+
+  async getCredentialsById(tenantId: string, connectionId: string): Promise<AICredentials> {
+    const snap = await this.db
+      .collection('tenants')
+      .doc(tenantId)
+      .collection('aiConnections')
+      .doc(connectionId)
+      .get();
+
+    if (!snap.exists) {
+      throw new Error('Conexão de IA não encontrada para este escritório.');
+    }
+
+    return this.toCredentials(snap.data() ?? {});
+  }
+
+  private toCredentials(data: DocumentData): AICredentials {
     return {
       provider: data.provider as Provider,
       apiKey: data.apiKey as string,

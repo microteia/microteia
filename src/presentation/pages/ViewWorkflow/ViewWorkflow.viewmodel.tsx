@@ -203,7 +203,9 @@ const CLONE_PREFIX = 'new-workflow:clone:';
 export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel => {
   const cloneSourceId = tabKey.startsWith(CLONE_PREFIX) ? tabKey.slice(CLONE_PREFIX.length) : null;
   const isNew = tabKey === 'new-workflow' || cloneSourceId !== null;
-  const workflowId = isNew ? '' : tabKey.replace('view-workflow:', '');
+  const [workflowIdRaw, initialTabRaw] = isNew ? ['', undefined] : tabKey.replace('view-workflow:', '').split('::');
+  const workflowId = workflowIdRaw;
+  const initialTab: ViewWorkflowTab = initialTabRaw === 'executions' ? 'executions' : 'general';
 
   const { workflows, createWorkflow, updateWorkflow, updateWorkflowSteps, deleteWorkflow } = useWorkflowStore();
   const { currentTenant } = useTenant();
@@ -223,7 +225,7 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
     [workflows, cloneSourceId],
   );
 
-  const [activeTab, setActiveTab] = useState<ViewWorkflowTab>('general');
+  const [activeTab, setActiveTab] = useState<ViewWorkflowTab>(initialTab);
   const [formData, setFormDataState] = useState<WorkflowFormData>(() => buildForm(cloneSource));
   const [isSaving, setIsSaving] = useState(false);
   const [executions, setExecutions] = useState<WorkflowExecution[]>([]);

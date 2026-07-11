@@ -3,6 +3,8 @@ import { initFirebase } from './infrastructure/firebase/initFirebase';
 initFirebase();
 
 export { callAIProxy } from './infrastructure/handlers/callAIProxy';
+export { detectWorkflows } from './infrastructure/handlers/detectWorkflows';
+export { runWorkflow } from './infrastructure/handlers/runWorkflow';
 export { getUserInfo } from './infrastructure/handlers/getUserInfo';
 export { checkNicknameAvailability } from './infrastructure/handlers/checkNicknameAvailability';
 export { claimNickname } from './infrastructure/handlers/claimNickname';

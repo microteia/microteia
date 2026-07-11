@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [0.70.0] — 2026-07-11
+
+- Nova tela **Processador de Dados**: cole um texto livre ou envie um PDF (o sistema lê a primeira página automaticamente), escolha qual inteligência artificial usar e execute uma automação já com os campos preenchidos a partir do conteúdo. Um botão detecta por IA quais automações combinam com o texto, e a tela acompanha cada etapa da execução — mostrando sucesso ou falha, com um atalho direto para a aba de Execuções quando algo dá errado. Disponível para administradores e advogados do escritório.
+
 #### [0.69.1] — 2026-07-10
 
 - Corrigido: quando um e-mail de intimações trazia **várias publicações do mesmo processo**, o sistema registrava apenas uma. Agora cada intimação vira um registro próprio, sem perder as demais — e o reprocessamento do mesmo e-mail continua sem gerar duplicatas.

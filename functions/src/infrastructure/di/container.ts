@@ -27,6 +27,7 @@ import { GmailService } from '../../data/services/GmailService';
 import { EmailParserService } from '../../data/services/EmailParserService';
 import { makeGetDefaultAICredentialsUseCase } from '../../domain/usecases/GetDefaultAICredentialsUseCase';
 import { makeCallAIAnalysisUseCase } from '../../domain/usecases/CallAIAnalysisUseCase';
+import { makeCallAIUseCase } from '../../domain/usecases/CallAIUseCase';
 import { makeGetUserInfoUseCase } from '../../domain/usecases/GetUserInfoUseCase';
 import { makeCheckNicknameAvailabilityUseCase } from '../../domain/usecases/CheckNicknameAvailabilityUseCase';
 import { makeClaimNicknameUseCase } from '../../domain/usecases/ClaimNicknameUseCase';
@@ -39,6 +40,7 @@ import { makeRemoveTenantMemberUseCase } from '../../domain/usecases/RemoveTenan
 import { makeBootstrapUserUseCase } from '../../domain/usecases/BootstrapUserUseCase';
 import type { GetDefaultAICredentialsUseCase } from '../../domain/usecases/GetDefaultAICredentialsUseCase';
 import type { CallAIAnalysisUseCase } from '../../domain/usecases/CallAIAnalysisUseCase';
+import type { CallAIUseCase } from '../../domain/usecases/CallAIUseCase';
 import type { GetUserInfoUseCase } from '../../domain/usecases/GetUserInfoUseCase';
 import type { CheckNicknameAvailabilityUseCase } from '../../domain/usecases/CheckNicknameAvailabilityUseCase';
 import type { ClaimNicknameUseCase } from '../../domain/usecases/ClaimNicknameUseCase';
@@ -96,6 +98,7 @@ class DIContainer {
   private logClientErrorUC?: LogClientErrorUseCase;
   private getDefaultAICredentialsUC?: GetDefaultAICredentialsUseCase;
   private callAIAnalysisUC?: CallAIAnalysisUseCase;
+  private callAIUC?: CallAIUseCase;
   private getUserInfoUC?: GetUserInfoUseCase;
   private checkNicknameAvailabilityUC?: CheckNicknameAvailabilityUseCase;
   private claimNicknameUC?: ClaimNicknameUseCase;
@@ -148,6 +151,13 @@ class DIContainer {
       this.callAIAnalysisUC = makeCallAIAnalysisUseCase(this.aiProviders);
     }
     return this.callAIAnalysisUC;
+  }
+
+  getCallAIUseCase(): CallAIUseCase {
+    if (!this.callAIUC) {
+      this.callAIUC = makeCallAIUseCase(this.aiProviders);
+    }
+    return this.callAIUC;
   }
 
   getUserRepository(): IUserRepository {

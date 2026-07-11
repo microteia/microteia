@@ -54,6 +54,7 @@ import type { ICustomRecordDocumentRepository } from '../../domain/repositories/
 import type { IWorkflowDefinitionRepository } from '../../domain/repositories/IWorkflowDefinitionRepository';
 import type { IWorkflowExecutionRepository } from '../../domain/repositories/IWorkflowExecutionRepository';
 import type { IScriptRepository } from '../../domain/repositories/IScriptRepository';
+import type { IDataProcessorRepository } from '../../domain/repositories/IDataProcessorRepository';
 
 export interface DIContainer {
   authRepository: IAuthRepository;
@@ -112,6 +113,7 @@ export interface DIContainer {
   workflowDefinitionRepository: IWorkflowDefinitionRepository;
   workflowExecutionRepository: IWorkflowExecutionRepository;
   scriptRepository: IScriptRepository;
+  dataProcessorRepository: IDataProcessorRepository;
 }
 
 export const DIContext = createContext<DIContainer | null>(null);

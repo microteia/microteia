@@ -15,6 +15,56 @@ export interface IEmailParserService {
   parse(emailText: string, emailFrom: string, tenantId: string, emailHtml?: string): Promise<ParsedEmailData[]>;
 }
 
+const JUDICIAL_PROCESSES_SCHEMA = {
+  type: 'object',
+  properties: {
+    processes: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          processNumber: { type: ['string', 'null'] },
+          court: { type: ['string', 'null'] },
+          activeParty: { type: ['string', 'null'] },
+          passiveParty: { type: ['string', 'null'] },
+          legalClass: { type: ['string', 'null'] },
+          filingDate: { type: ['string', 'null'] },
+          distributionType: { type: ['string', 'null'] },
+          processSubject: { type: ['string', 'null'] },
+          movements: {
+            type: 'array',
+            items: {
+              type: 'object',
+              properties: {
+                date: { type: ['string', 'null'] },
+                type: { type: ['string', 'null'] },
+                description: { type: ['string', 'null'] },
+                documentUrl: { type: ['string', 'null'] },
+              },
+              required: ['date', 'type', 'description', 'documentUrl'],
+              additionalProperties: false,
+            },
+          },
+        },
+        required: [
+          'processNumber',
+          'court',
+          'activeParty',
+          'passiveParty',
+          'legalClass',
+          'filingDate',
+          'distributionType',
+          'processSubject',
+          'movements',
+        ],
+        additionalProperties: false,
+      },
+    },
+  },
+  required: ['processes'],
+  additionalProperties: false,
+} as const satisfies Record<string, unknown>;
+
 /**
  * Serviço de parsing de emails com padrão Strategy.
  * Mantém múltiplos parsers (um por tribunal) e escolhe o mais adequado.
@@ -166,7 +216,9 @@ export class EmailParserService implements IEmailParserService {
 
         const prompt = this.buildParsingPrompt(emailText, emailFrom, emailHtml);
 
-        const rawResponse = await provider.call(credentials, prompt);
+        const rawResponse = await provider.call(credentials, prompt, {
+          jsonSchema: { name: 'judicial_processes', schema: JUDICIAL_PROCESSES_SCHEMA },
+        });
 
         const jsonData = this.extractJSON(rawResponse);
 

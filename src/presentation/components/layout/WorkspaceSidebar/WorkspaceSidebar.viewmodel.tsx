@@ -77,6 +77,7 @@ export interface WorkspaceSidebarViewModel {
   isThemeSubOpen: boolean;
   isAdmin: boolean;
   canAccessScreenBuilder: boolean;
+  canAccessDataProcessor: boolean;
   user: User | null;
   effectivePhotoURL: string | null;
   effectiveName: string;
@@ -94,6 +95,7 @@ export interface WorkspaceSidebarViewModel {
   handleScreenBuilderClick: () => void;
   handleWorkflowsClick: () => void;
   handleScriptsClick: () => void;
+  handleDataProcessorClick: () => void;
   handleSetTheme: (mode: ThemeMode) => void;
   handleSignOut: () => void;
 }
@@ -118,6 +120,7 @@ export const useWorkspaceSidebarViewModel = (): WorkspaceSidebarViewModel => {
   const activeKey = panels[activePanelId]?.activeTabKey ?? null;
   const isAdmin = userRole === 'SYSTEM';
   const canAccessScreenBuilder = isAdmin || tenantRole === 'admin';
+  const canAccessDataProcessor = isAdmin || tenantRole === 'admin' || tenantRole === 'lawyer';
 
   const navItems = useMemo(() => {
     const base = NAV_ITEMS.filter((item) => !item.requiresTenantAdmin || isAdmin || tenantRole === 'admin');
@@ -178,6 +181,11 @@ export const useWorkspaceSidebarViewModel = (): WorkspaceSidebarViewModel => {
     closeMenu();
   }, [openTab, closeMenu]);
 
+  const handleDataProcessorClick = useCallback(() => {
+    openTab('data-processor');
+    closeMenu();
+  }, [openTab, closeMenu]);
+
   const handleSetTheme = useCallback((newMode: ThemeMode) => {
     setTheme(newMode);
     closeMenu();
@@ -199,6 +207,7 @@ export const useWorkspaceSidebarViewModel = (): WorkspaceSidebarViewModel => {
     isThemeSubOpen,
     isAdmin,
     canAccessScreenBuilder,
+    canAccessDataProcessor,
     user,
     effectivePhotoURL,
     effectiveName,
@@ -216,6 +225,7 @@ export const useWorkspaceSidebarViewModel = (): WorkspaceSidebarViewModel => {
     handleScreenBuilderClick,
     handleWorkflowsClick,
     handleScriptsClick,
+    handleDataProcessorClick,
     handleSetTheme,
     handleSignOut,
   };

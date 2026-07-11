@@ -19,6 +19,7 @@ import {
   RiFlowChart,
   RiCodeBoxLine,
   RiBookLine,
+  RiSparkling2Line,
 } from 'react-icons/ri';
 import type { UserRole } from '../../domain/entities';
 import { DashboardView } from './Dashboard/Dashboard.view';
@@ -51,6 +52,7 @@ import { ViewWorkflowView } from './ViewWorkflow/ViewWorkflow.view';
 import { EditWorkflowStepView } from './EditWorkflowStep/EditWorkflowStep.view';
 import { ScriptsView } from './Scripts/Scripts.view';
 import { ViewScriptView } from './ViewScript/ViewScript.view';
+import { DataProcessorView } from './DataProcessor';
 import { FunctionReferenceView } from './FunctionReference/FunctionReference.view';
 
 export interface PageDefinition {
@@ -263,6 +265,12 @@ export const PAGE_REGISTRY: PageDefinition[] = [
     title: 'Referência de Expressões',
     icon: <RiBookLine size={20} />,
     component: FunctionReferenceView,
+  },
+  {
+    key: 'data-processor',
+    title: 'Processador de Dados',
+    icon: <RiSparkling2Line size={20} />,
+    component: DataProcessorView,
   },
 ];
 

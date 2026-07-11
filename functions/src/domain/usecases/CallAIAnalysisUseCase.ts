@@ -30,7 +30,7 @@ export const makeCallAIAnalysisUseCase = (
       throw new Error('Provedor de IA não suportado.');
     }
 
-    const rawText = await provider.call(credentials, prompt);
+    const rawText = await provider.call(credentials, prompt, { expectJson: true });
     const jsonText = extractJSON(rawText.trim());
 
     try {
