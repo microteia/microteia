@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [0.71.1] — 2026-07-11
+
+- Corrigido: nos editores de código (Script e o modo JSON de parâmetros), o texto selecionado agora fica destacado visualmente. Antes a seleção funcionava, mas ficava invisível.
+
 #### [0.71.0] — 2026-07-11
 
 - Os parâmetros das automações "Chamado por Workflow" e dos Scripts agora aceitam **estruturas aninhadas**: um parâmetro do tipo **Objeto** pode conter outros campos dentro dele (por exemplo, um "Endereço" com "Cidade" e "Estado"). Essas estruturas aparecem naturalmente no preenchimento e nas sugestões automáticas de quem usa a automação ou o script, campo por campo.

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { useTheme } from 'styled-components';
 import type * as Monaco from 'monaco-editor';
 import type { OnChange, OnMount } from '@monaco-editor/react';
@@ -6,8 +6,13 @@ import type { Theme } from '../../../../shared/styles/theme';
 
 const AUTO_FORMAT_KEY = 'curatino:scriptEditorAutoFormat';
 const THEME_NAME = 'curatino-script';
-const MODEL_PATH = 'file:///curatino-script.ts';
-const JSON_MODEL_PATH = 'file:///curatino-params.json';
+
+const hexWithAlpha = (hex: string, alpha: number): string => {
+  const a = Math.round(Math.min(1, Math.max(0, alpha)) * 255)
+    .toString(16)
+    .padStart(2, '0');
+  return `${hex}${a}`;
+};
 
 const isDarkColor = (hex: string): boolean => {
   const clean = hex.replace('#', '');
@@ -29,7 +34,9 @@ const buildMonacoTheme = (theme: Theme): Monaco.editor.IStandaloneThemeData => (
     'editorLineNumber.foreground': theme.colors.textMuted,
     'editorLineNumber.activeForeground': theme.colors.textSecondary,
     'editor.lineHighlightBackground': theme.colors.surfaceHover,
-    'editor.selectionBackground': theme.colors.surfaceHover,
+    'editor.selectionBackground': hexWithAlpha(theme.colors.primary, 0.35),
+    'editor.inactiveSelectionBackground': hexWithAlpha(theme.colors.primary, 0.2),
+    'editor.selectionHighlightBackground': hexWithAlpha(theme.colors.primary, 0.18),
     'editorCursor.foreground': theme.colors.primary,
     'editorIndentGuide.background': theme.colors.border,
     'editorWidget.background': theme.colors.surface,
@@ -80,6 +87,12 @@ export const useCodeEditorViewModel = (props: CodeEditorProps): CodeEditorViewMo
   const { value, onChange, extraLib, minHeight = '420px', language = 'typescript' } = props;
   const theme = useTheme();
 
+  const instanceId = useId().replace(/[^a-zA-Z0-9]/g, '');
+  const modelPath =
+    language === 'json'
+      ? `file:///curatino-params-${instanceId}.json`
+      : `file:///curatino-script-${instanceId}.ts`;
+
   const editorRef = useRef<Monaco.editor.IStandaloneCodeEditor | null>(null);
   const monacoRef = useRef<typeof Monaco | null>(null);
   const extraLibRef = useRef<Monaco.IDisposable | null>(null);
@@ -95,9 +108,9 @@ export const useCodeEditorViewModel = (props: CodeEditorProps): CodeEditorViewMo
   const applyExtraLib = useCallback((monaco: typeof Monaco, lib: string | undefined) => {
     extraLibRef.current?.dispose();
     extraLibRef.current = lib
-      ? monaco.typescript.typescriptDefaults.addExtraLib(lib, 'file:///curatino-globals.d.ts')
+      ? monaco.typescript.typescriptDefaults.addExtraLib(lib, `file:///curatino-globals-${instanceId}.d.ts`)
       : null;
-  }, []);
+  }, [instanceId]);
 
   const handleMount = useCallback<OnMount>(
     (editor, monaco) => {
@@ -159,7 +172,7 @@ export const useCodeEditorViewModel = (props: CodeEditorProps): CodeEditorViewMo
 
   return {
     value,
-    modelPath: language === 'json' ? JSON_MODEL_PATH : MODEL_PATH,
+    modelPath,
     language,
     autoFormat,
     toggleAutoFormat,
