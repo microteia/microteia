@@ -649,7 +649,7 @@ Coleção Firestore: `tenants/{tenantId}/pushes/{id}`
 Coleção: pushes (subcoleção de tenants)
 Campos indexados: emailId (Ascending), processNumber (Ascending)
 ```
-**Motivo:** Um único email pode conter múltiplas intimações (múltiplos processos). A verificação de duplicação usa `emailId + processNumber` para identificar pushes únicos. Sem este índice, a query com dois `where` falhará.
+**Motivo:** Um único email pode conter múltiplas intimações. A query de deduplicação (`getByEmailIdAndProcessNumber`) usa `emailId + processNumber` e precisa deste índice. **Um mesmo processo pode aparecer várias vezes no mesmo e-mail** (publicações/documentos diferentes) — por isso a query retorna **todos** os candidatos e o `CreateOrUpdatePushUseCase` desempata por uma `notificationKey` por intimação (URL do documento; na falta dela, composição de `court`/`processSubject`/`activeParty`/data). Assim cada intimação vira um push próprio, mantendo a idempotência no reprocessamento.
 
 Crie no Firebase Console → Firestore → Índices.
 

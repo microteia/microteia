@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [0.69.1] — 2026-07-10
+
+- Corrigido: quando um e-mail de intimações trazia **várias publicações do mesmo processo**, o sistema registrava apenas uma. Agora cada intimação vira um registro próprio, sem perder as demais — e o reprocessamento do mesmo e-mail continua sem gerar duplicatas.
+
 #### [0.69.0] — 2026-07-10
 
 - O editor de código dos Scripts foi modernizado: agora tem realce de sintaxe, sugestões automáticas enquanto você digita (incluindo as funções `fn.`, a consulta `query` e os parâmetros de `input`), destaque de erros e formatação automática do código. Um botão "Formatar" arruma a indentação a qualquer momento, e há um interruptor para ligar ou desligar a formatação automática — sua preferência fica salva.

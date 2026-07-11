@@ -39,8 +39,27 @@ export type CreateOrUpdatePushUseCase = {
 };
 
 /**
+ * Chave que distingue intimações dentro de um mesmo e-mail e processo.
+ * Um e-mail pode trazer VÁRIAS intimações do MESMO processo (publicações
+ * diferentes) — cada uma deve virar um push próprio. Usa a URL do documento
+ * (única por intimação) e, na falta dela, uma composição de campos estáveis.
+ */
+const notificationKey = (input: Pick<CreateOrUpdatePushInput, 'court' | 'processSubject' | 'activeParty' | 'movements'>): string => {
+  const movement = input.movements?.[0];
+  if (movement?.documentUrl) return movement.documentUrl;
+  return [
+    input.court,
+    input.processSubject,
+    input.activeParty,
+    movement?.date instanceof Date ? movement.date.toISOString() : undefined,
+    movement?.type,
+  ].filter(Boolean).join('|');
+};
+
+/**
  * Use Case que cria um novo push ou atualiza um existente.
- * Verifica se já existe um push com o mesmo emailId E processNumber.
+ * Verifica se já existe um push com o mesmo emailId + processNumber + intimação
+ * (ver notificationKey — um processo pode ter várias intimações no mesmo e-mail).
  * - Se não existe: cria um novo
  * - Se existe com status 'fault': atualiza todos os campos
  * - Se existe com outro status: não faz nada (retorna o existente)
@@ -49,7 +68,9 @@ export const makeCreateOrUpdatePushUseCase = (repo: IPushRepository): CreateOrUp
   execute: async (tenantId, input) => {
     const processNumber = input.processNumber || '';
 
-    const existing = await repo.getByEmailIdAndProcessNumber(tenantId, input.emailId, processNumber);
+    const candidates = await repo.getByEmailIdAndProcessNumber(tenantId, input.emailId, processNumber);
+    const key = notificationKey(input);
+    const existing = candidates.find((candidate) => notificationKey(candidate) === key) ?? null;
 
     if (!existing) {
       const newPush = await repo.create(tenantId, {
