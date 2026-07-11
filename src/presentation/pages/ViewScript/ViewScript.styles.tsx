@@ -148,24 +148,18 @@ export const S = {
     gap: ${({ theme }) => theme.spacing.xs};
   `,
 
-  CodeArea: styled.textarea`
+  EditorLoading: styled.div`
+    display: flex;
+    align-items: center;
+    justify-content: center;
     width: 100%;
-    min-height: 320px;
-    resize: vertical;
-    padding: ${({ theme }) => theme.spacing.md};
+    min-height: 420px;
     border: 1px solid ${({ theme }) => theme.colors.border};
     border-radius: ${({ theme }) => theme.borderRadius.md};
-    background: ${({ theme }) => theme.colors.surface};
-    color: ${({ theme }) => theme.colors.text};
+    background: ${({ theme }) => theme.colors.inputBackground};
+    color: ${({ theme }) => theme.colors.textMuted};
     font-family: ${({ theme }) => theme.fonts.mono};
     font-size: ${({ theme }) => theme.fontSizes.sm};
-    line-height: 1.6;
-    tab-size: 2;
-
-    &:focus {
-      outline: none;
-      border-color: ${({ theme }) => theme.colors.primary};
-    }
   `,
 
   OutputRows: styled.div`

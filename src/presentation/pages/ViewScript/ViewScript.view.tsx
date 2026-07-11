@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { Suspense, lazy } from 'react';
 import { RiCodeBoxLine, RiSave3Line, RiDeleteBinLine, RiAddLine, RiArrowRightSLine } from 'react-icons/ri';
 import { S } from './ViewScript.styles';
 import { useViewScriptViewModel } from './ViewScript.viewmodel';
@@ -8,6 +8,10 @@ import { ConfirmModal } from '../../components/ui/ConfirmModal';
 import { InfoBanner } from '../../components/ui/InfoBanner';
 import { WorkflowParametersEditor } from '../ViewWorkflow/components/WorkflowParametersEditor';
 import type { ScriptOutputParam } from '../../../domain/entities/Script';
+
+const CodeEditor = lazy(() =>
+  import('../../components/ui/CodeEditor').then((m) => ({ default: m.CodeEditor })),
+);
 
 export const ViewScriptView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
   const vm = useViewScriptViewModel(tabKey);
@@ -98,11 +102,13 @@ export const ViewScriptView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
                 variant="info"
                 message="O código roda em um ambiente isolado e seguro, sem acesso à internet nem a bibliotecas externas. Use o objeto input, as funções fn.* e a função query(...) para consultar os cadastros do escritório. Retorne um objeto com os parâmetros de saída."
               />
-              <S.CodeArea
-                value={vm.formData.sourceTs}
-                onChange={(e) => vm.setFormData({ sourceTs: e.target.value })}
-                spellCheck={false}
-              />
+              <Suspense fallback={<S.EditorLoading>Carregando editor…</S.EditorLoading>}>
+                <CodeEditor
+                  value={vm.formData.sourceTs}
+                  onChange={(sourceTs) => vm.setFormData({ sourceTs })}
+                  extraLib={vm.scriptTypeDefs}
+                />
+              </Suspense>
             </S.SectionBody>
           )}
         </S.Section>

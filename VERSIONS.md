@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [0.69.0] — 2026-07-10
+
+- O editor de código dos Scripts foi modernizado: agora tem realce de sintaxe, sugestões automáticas enquanto você digita (incluindo as funções `fn.`, a consulta `query` e os parâmetros de `input`), destaque de erros e formatação automática do código. Um botão "Formatar" arruma a indentação a qualquer momento, e há um interruptor para ligar ou desligar a formatação automática — sua preferência fica salva.
+
 #### [0.68.0] — 2026-07-10
 
 - A tela de Script agora traz um guia integrado de como usar a consulta ao banco de dados: explicação de cada configuração, a lista de operadores disponíveis e exemplos prontos para copiar, facilitando montar consultas sem precisar decorar o formato.

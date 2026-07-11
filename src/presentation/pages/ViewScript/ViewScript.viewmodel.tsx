@@ -5,8 +5,10 @@ import { useTenant } from '../../../stores/useTenant';
 import { useWorkspace } from '../../../stores/useWorkspace';
 import { useNotification } from '../../../stores/useNotification';
 import { useScreenDefinitions } from '../../../stores/useScreenDefinitions';
+import { useExpressionFunctions } from '../../../stores/useExpressionFunctions';
 import { validateFieldKey } from '../../../domain/services/customFieldValues';
 import { ENTITY_REGISTRY } from '../../../domain/schema/entityRegistry';
+import { buildScriptTypeDefs } from './scriptTypeDefs';
 import type { Script, ScriptOutputParam } from '../../../domain/entities/Script';
 import type { WorkflowParameter } from '../../../domain/entities/Workflow';
 
@@ -87,6 +89,7 @@ export interface ViewScriptViewModel {
   isNew: boolean;
   script: Script | null;
   formData: ScriptFormData;
+  scriptTypeDefs: string;
   setFormData: (data: Partial<ScriptFormData>) => void;
   typeOptions: { value: WorkflowParameter['type']; label: string }[];
   entityOptions: { value: string; label: string }[];
@@ -118,6 +121,7 @@ export const useViewScriptViewModel = (tabKey: string): ViewScriptViewModel => {
   const { setTabTitle, closeTab, openTab, activePanelId } = useWorkspace();
   const { notify } = useNotification();
   const { dynamicScreens } = useScreenDefinitions();
+  const { functions: expressionFunctions } = useExpressionFunctions();
 
   const script = useMemo(
     () => (isNew ? null : (scripts.find((s) => s.id === scriptId) ?? null)),
@@ -162,6 +166,11 @@ export const useViewScriptViewModel = (tabKey: string): ViewScriptViewModel => {
     const custom = dynamicScreens.map((def) => ({ value: def.id, label: def.titlePlural }));
     return [...builtin, ...custom];
   }, [dynamicScreens]);
+
+  const scriptTypeDefs = useMemo(
+    () => buildScriptTypeDefs(formData.inputParams, expressionFunctions),
+    [formData.inputParams, expressionFunctions],
+  );
 
   const buildKeyErrors = useCallback(
     (keys: { key: string; entityType?: string; type: string }[], requireEntity: boolean): (string | undefined)[] => {
@@ -284,6 +293,7 @@ export const useViewScriptViewModel = (tabKey: string): ViewScriptViewModel => {
     isNew,
     script,
     formData,
+    scriptTypeDefs,
     setFormData,
     typeOptions: SCRIPT_PARAMETER_TYPE_OPTIONS,
     entityOptions,
