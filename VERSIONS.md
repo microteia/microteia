@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [0.72.2] — 2026-07-11
+
+- Melhoria interna no processo de qualidade do desenvolvimento, para evitar que erros no backend passem despercebidos. Sem mudanças perceptíveis no uso do sistema.
+
 #### [0.72.1] — 2026-07-11
 
 - Corrigido: a função **substituir** (usada em Scripts e em expressões) agora troca exatamente o texto informado. Antes, buscar por caracteres como ".", "(" ou "$" apagava ou alterava trechos inesperados — por exemplo, remover os pontos de um CPF acabava esvaziando o valor inteiro.

@@ -36,6 +36,8 @@ O erro frequente **"Cannot access refs during render"** é a regra `react-hooks/
 
 Use o atalho do `package.json` quando existir: `npm run verify` (= `typecheck` + `lint` + `verify-schemas`).
 
+> **Alterou algo em `functions/`?** O `tsc --noEmit` do root **não** valida o backend com o tsconfig das functions (mais estrito, `strict`, e que inclui os `*.test.ts` das functions). Um erro de tipo em `functions/src` pode passar no gate do root e só aparecer no build/deploy ou no IDE. Rode **também** `npx tsc -b functions` (ou `npm run build:functions`) antes de commitar mudanças no backend.
+
 > **Schemas compartilhados:** a fonte única vive em `src/domain/schema/` e `src/domain/entities/entitySchemas.ts`; as cópias em `functions/src` são **geradas** por `npm run sync-schemas` — nunca as edite. Ver "Schema Compartilhado Gerado" no `ARCHITECTURE.md`.
 
 ---
