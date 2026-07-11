@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [0.72.0] — 2026-07-11
+
+- O Processador de Dados agora funciona com automações que têm campos **agrupados em objetos** (por exemplo, um "Reclamante" com nome, CPF, endereço e outros dados dentro dele). A inteligência artificial preenche esses grupos aninhados a partir do texto ou do PDF, campo por campo, respeitando os valores padrão definidos na automação.
+
 #### [0.71.1] — 2026-07-11
 
 - Corrigido: nos editores de código (Script e o modo JSON de parâmetros), o texto selecionado agora fica destacado visualmente. Antes a seleção funcionava, mas ficava invisível.

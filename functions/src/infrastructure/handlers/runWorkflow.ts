@@ -13,8 +13,6 @@ interface RunWorkflowRequest {
   providedParams?: Record<string, unknown>;
 }
 
-const SCALAR_TYPES = new Set(['String', 'Number', 'Date', 'Boolean', 'select']);
-
 const FILL_SYSTEM_PROMPT = `Você é um extrator de dados estruturados. A partir de um documento de texto,
 preencha os campos descritos no ESQUEMA.
 
@@ -24,17 +22,49 @@ Regras invioláveis:
 - Se um campo não puder ser determinado a partir do documento, use null.
 - Datas no formato ISO (YYYY-MM-DD). Números como número puro. Booleanos como true/false. Para campos do
   tipo "select", use exatamente um dos valores permitidos listados.
+- Campos do tipo "Object" são estruturas aninhadas: retorne um objeto JSON com exatamente as mesmas chaves
+  descritas em "fields", preenchendo cada subcampo recursivamente.
 - Responda EXCLUSIVAMENTE com um objeto JSON no formato: {"values": { ...campos... }}.`;
 
-const buildSchemaForPrompt = (params: WorkflowParameter[]): string => {
-  const lines = params.map((p) => {
-    const base = `- ${p.key} (tipo: ${p.type}, rótulo: ${p.label})`;
-    if (p.type === 'select' && p.options?.length) {
-      return `${base} — valores permitidos: ${p.options.map((o) => o.value).join(', ')}`;
+const isPlainObject = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null && !Array.isArray(value);
+
+const hasEntityReferenceDeep = (params: WorkflowParameter[]): boolean =>
+  params.some((p) =>
+    p.type === 'EntityReference' || (p.type === 'Object' && hasEntityReferenceDeep(p.fields ?? [])),
+  );
+
+const buildSchemaMap = (params: WorkflowParameter[]): Record<string, unknown> => {
+  const map: Record<string, unknown> = {};
+  for (const p of params) {
+    if (p.type === 'Object') {
+      map[p.key] = { type: 'Object', label: p.label, fields: buildSchemaMap(p.fields ?? []) };
+    } else {
+      const node: Record<string, unknown> = { type: p.type, label: p.label };
+      if (p.type === 'select' && p.options?.length) node.values = p.options.map((o) => o.value);
+      map[p.key] = node;
     }
-    return base;
-  });
-  return lines.join('\n');
+  }
+  return map;
+};
+
+const buildSchemaForPrompt = (params: WorkflowParameter[]): string =>
+  JSON.stringify(buildSchemaMap(params), null, 2);
+
+const notEmpty = (value: unknown): boolean => value !== undefined && value !== null && value !== '';
+
+const resolveParam = (param: WorkflowParameter, provided: unknown, ai: unknown): unknown => {
+  if (param.type === 'Object') {
+    const providedObj = isPlainObject(provided) ? provided : {};
+    const aiObj = isPlainObject(ai) ? ai : {};
+    const out: Record<string, unknown> = {};
+    for (const field of param.fields ?? []) {
+      out[field.key] = resolveParam(field, providedObj[field.key], aiObj[field.key]);
+    }
+    return out;
+  }
+  const source = notEmpty(provided) ? provided : notEmpty(ai) ? ai : param.defaultValue;
+  return coerce(param, source);
 };
 
 const coerce = (param: WorkflowParameter, value: unknown): unknown => {
@@ -93,7 +123,7 @@ export const runWorkflow = onCall(
       }
 
       const params = definition.parameters ?? [];
-      if (params.some((p) => !SCALAR_TYPES.has(p.type))) {
+      if (hasEntityReferenceDeep(params)) {
         throw new HttpsError(
           'failed-precondition',
           'Esta automação possui parâmetros de Referência, ainda não suportados pelo Processador.',
@@ -117,15 +147,7 @@ export const runWorkflow = onCall(
 
       const resolvedParams: Record<string, unknown> = {};
       for (const param of params) {
-        const provided = providedParams?.[param.key];
-        const fromValues = values[param.key];
-        const source =
-          provided !== undefined && provided !== null && provided !== ''
-            ? provided
-            : fromValues !== undefined && fromValues !== null && fromValues !== ''
-              ? fromValues
-              : param.defaultValue;
-        resolvedParams[param.key] = coerce(param, source);
+        resolvedParams[param.key] = resolveParam(param, providedParams?.[param.key], values[param.key]);
       }
 
       const eventId = await publishEvent(getDb(), tenantId, WORKFLOW_CALLED_EVENT, {

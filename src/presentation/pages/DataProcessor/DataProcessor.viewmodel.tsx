@@ -9,11 +9,10 @@ import { useWorkflowStore } from '../../../stores/useWorkflowStore';
 import { makeGetAIConnectionsUseCase } from '../../../domain/usecases/aiconnections/GetAIConnectionsUseCase';
 import { WORKFLOW_CALLED_EVENT } from '../../../domain/schema/eventCatalog';
 import type { AIConnection } from '../../../domain/entities';
-import type { WorkflowDefinition, WorkflowExecution } from '../../../domain/entities/Workflow';
+import type { WorkflowDefinition, WorkflowExecution, WorkflowParameter } from '../../../domain/entities/Workflow';
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
 
-const SCALAR_PARAM_TYPES = new Set(['String', 'Number', 'Date', 'Boolean', 'select']);
 const EXECUTION_TIMEOUT_MS = 60000;
 
 export type StageStatus = 'idle' | 'running' | 'success' | 'error';
@@ -82,8 +81,11 @@ export interface DataProcessorViewModel {
   openResultExecutions: () => void;
 }
 
+const isParamProcessable = (p: WorkflowParameter): boolean =>
+  p.type === 'Object' ? (p.fields ?? []).every(isParamProcessable) : p.type !== 'EntityReference';
+
 const isEligible = (w: WorkflowDefinition): boolean =>
-  (w.parameters ?? []).every((p) => SCALAR_PARAM_TYPES.has(p.type));
+  (w.parameters ?? []).every(isParamProcessable);
 
 let logSeq = 0;
 const makeLog = (level: ProcessorLogLevel, message: string, workflowId?: string): ProcessorLogEntry => {
