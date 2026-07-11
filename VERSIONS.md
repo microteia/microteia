@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [0.73.0] — 2026-07-11
+
+- Novas funções para usar em expressões e Scripts: **onlyNumber**, que extrai apenas os números de um valor (útil para limpar CPF, CNPJ ou telefone — ex.: "123.aaa.bb-fff.45" vira "12345"), e **formatMoney**, que exibe um número como valor monetário (ex.: 123,90 vira "R$ 123,90"), com o formato brasileiro como padrão.
+
 #### [0.72.2] — 2026-07-11
 
 - Melhoria interna no processo de qualidade do desenvolvimento, para evitar que erros no backend passem despercebidos. Sem mudanças perceptíveis no uso do sistema.

@@ -163,6 +163,50 @@ export const joinFn: ExpressionFunction = {
   maxArgs: 2,
 };
 
+export const onlyNumberFn: ExpressionFunction = {
+  name: 'onlyNumber',
+  call: ([value]) => {
+    if (value === null || value === undefined) return '';
+    return String(value).replace(/\D/g, '');
+  },
+  description: 'Retorna apenas os dígitos de um valor (texto ou número)',
+  signature: 'onlyNumber(valor)',
+  example: 'onlyNumber("123.aaa.bb-fff.45")',
+  category: 'Texto',
+  minArgs: 1,
+  maxArgs: 1,
+};
+
+const moneyLocales: Record<string, { locale: string; currency: string }> = {
+  'pt-br': { locale: 'pt-BR', currency: 'BRL' },
+  'en-us': { locale: 'en-US', currency: 'USD' },
+  'en-gb': { locale: 'en-GB', currency: 'GBP' },
+  'es-es': { locale: 'es-ES', currency: 'EUR' },
+};
+
+export const formatMoneyFn: ExpressionFunction = {
+  name: 'formatMoney',
+  call: ([value, locale = 'pt-br']) => {
+    const amount = typeof value === 'number' ? value : Number(String(value).replace(',', '.'));
+    if (!Number.isFinite(amount)) {
+      throw new Error('formatMoney: primeiro argumento deve ser um número');
+    }
+    if (typeof locale !== 'string') {
+      throw new Error('formatMoney: segundo argumento deve ser uma string');
+    }
+    const config = moneyLocales[locale.toLowerCase()] ?? moneyLocales['pt-br'];
+    return new Intl.NumberFormat(config.locale, { style: 'currency', currency: config.currency })
+      .format(amount)
+      .replace(/[\u00A0\u202F]/g, ' ');
+  },
+  description: 'Formata um número como moeda; o padrão é pt-br (R$)',
+  signature: 'formatMoney(valor, locale?)',
+  example: 'formatMoney(123.90, "pt-br")',
+  category: 'Texto',
+  minArgs: 1,
+  maxArgs: 2,
+};
+
 export const interpolateFn: ExpressionFunction = {
   name: 'interpolate',
   call: ([template, ...values]) => {

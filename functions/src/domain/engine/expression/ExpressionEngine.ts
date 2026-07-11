@@ -5,7 +5,7 @@ import { operatorRegistry } from './OperatorRegistry';
 import { todayFn, nowFn, formatDateFn, dayOfWeekFn, isWeekendFn, dateDiffFn, yearFn, monthFn, dayFn } from './builtins/dateFns';
 import { addDaysFn } from './builtins/addDaysFn';
 import { ifFn } from './builtins/ifFn';
-import { concatFn, lowerFn, upperFn, lengthFn, trimFn, replaceFn, substringFn, startsWithFn, endsWithFn, splitFn, joinFn, interpolateFn } from './builtins/stringFns';
+import { concatFn, lowerFn, upperFn, lengthFn, trimFn, replaceFn, substringFn, startsWithFn, endsWithFn, splitFn, joinFn, interpolateFn, onlyNumberFn, formatMoneyFn } from './builtins/stringFns';
 import { getVarFn } from './builtins/getVarFn';
 import { roundFn, floorFn, ceilFn, absFn, minFn, maxFn, sumFn, avgFn } from './builtins/mathFns';
 import { firstFn, lastFn, containsFn, indexOfFn } from './builtins/arrayFns';
@@ -27,7 +27,7 @@ import {
   todayFn, nowFn, formatDateFn, dayOfWeekFn, isWeekendFn, dateDiffFn, yearFn, monthFn, dayFn,
   addDaysFn,
   ifFn,
-  concatFn, lowerFn, upperFn, lengthFn, trimFn, replaceFn, substringFn, startsWithFn, endsWithFn, splitFn, joinFn, interpolateFn,
+  concatFn, lowerFn, upperFn, lengthFn, trimFn, replaceFn, substringFn, startsWithFn, endsWithFn, splitFn, joinFn, interpolateFn, onlyNumberFn, formatMoneyFn,
   getVarFn,
   roundFn, floorFn, ceilFn, absFn, minFn, maxFn, sumFn, avgFn,
   firstFn, lastFn, containsFn, indexOfFn,
