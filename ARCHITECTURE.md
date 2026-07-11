@@ -1779,6 +1779,30 @@ dentro de `call()` lançando `Error` com mensagem descritiva em PT-BR — será 
      as carrega na inicialização; e o `ExpressionEditor`, `FunctionReference` e `FunctionReferenceModal`
      renderizam a lista dinamicamente via `useExpressionFunctions()`.
 
+#### Compatibilidade com o sandbox QuickJS — OBRIGATÓRIO
+
+Toda função de expressão é exposta **também** dentro do Step "Script" como `fn.<nome>`, atravessando a
+ponte host↔VM do QuickJS (`runScriptSandbox.ts`). Isso impõe restrições **inegociáveis** ao corpo de `call()`:
+
+- **Só valores serializáveis atravessam a ponte:** `string`, `number`, `boolean`, `null`, `Date`, objetos
+  e arrays puros desses tipos. Argumentos e retorno passam por `JSON.stringify`/`parse` (com sentinela
+  `__date__` para `Date`). **Nunca** retorne `function`, `symbol`, `undefined` aninhado, `Map`/`Set`,
+  `RegExp`, `BigInt` ou instâncias de classe — o outro lado receberá `undefined` ou dado corrompido.
+- **`call()` é puro e síncrono:** sem I/O, sem `Promise`, sem acesso a estado externo além do `context`
+  recebido. Consulta ao banco é responsabilidade do `query(...)` do sandbox, não de uma `fn.*`.
+- **Trate a entrada como texto literal, não como código.** O bug histórico do `replace` (usava
+  `new RegExp(search)`, fazendo `fn.replace(cpf, ".", "")` apagar a string inteira) veio de interpretar
+  um argumento do usuário como regex. Se precisar de regex, exponha-o como parâmetro explícito e separado.
+- **Falha via `throw new Error(...)` em PT-BR.** No sandbox, o erro é convertido em rejeição da VM e
+  **aborta o Script inteiro** (nenhum output é retornado) — então valide tipos antes de operar.
+
+**Testes de prova são obrigatórios.** Nenhuma função nova de expressão entra sem um teste que a exercite
+**dentro do sandbox QuickJS real** (não só chamando `call()` direto). Adicione o caso em
+`functions/src/infrastructure/workflow/sandbox/runScriptSandbox.test.ts`, cobrindo: caminho feliz,
+travessia de tipos não-triviais (ex: `Date`, objeto, array) e o comportamento de erro. O teste roda com
+`npx vitest run functions/src/infrastructure/workflow/sandbox/runScriptSandbox.test.ts` e faz parte do
+gate antes do commit.
+
 **Não é necessário:**
 - ❌ Atualizar arrays hardcoded no frontend (removidos desde v0.46.7)
 - ❌ Modificar o `ExpressionEngine.ts` além do import e registro

@@ -63,7 +63,8 @@ export const replaceFn: ExpressionFunction = {
     if (typeof text !== 'string' || typeof search !== 'string' || typeof replacement !== 'string') {
       throw new Error('replace: todos os argumentos devem ser strings');
     }
-    return text.replace(new RegExp(search, 'g'), replacement);
+    if (search === '') return text;
+    return text.split(search).join(replacement);
   },
   description: 'Substitui todas as ocorrências de um texto por outro',
   signature: 'replace(texto, busca, substituição)',

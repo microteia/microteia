@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [0.72.1] — 2026-07-11
+
+- Corrigido: a função **substituir** (usada em Scripts e em expressões) agora troca exatamente o texto informado. Antes, buscar por caracteres como ".", "(" ou "$" apagava ou alterava trechos inesperados — por exemplo, remover os pontos de um CPF acabava esvaziando o valor inteiro.
+
 #### [0.72.0] — 2026-07-11
 
 - O Processador de Dados agora funciona com automações que têm campos **agrupados em objetos** (por exemplo, um "Reclamante" com nome, CPF, endereço e outros dados dentro dele). A inteligência artificial preenche esses grupos aninhados a partir do texto ou do PDF, campo por campo, respeitando os valores padrão definidos na automação.
