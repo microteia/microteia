@@ -119,10 +119,45 @@ export const S = {
     }
   `,
 
+  CloneBtn: styled.button`
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    border: none;
+    border-radius: ${({ theme }) => theme.borderRadius.sm};
+    background: transparent;
+    color: ${({ theme }) => theme.colors.textMuted};
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: ${({ theme }) => theme.transitions.fast};
+
+    &:hover {
+      color: ${({ theme }) => theme.colors.primary};
+      background: ${({ theme }) => theme.colors.primaryLight};
+    }
+  `,
+
   OptionsBox: styled.div`
     display: flex;
     flex-direction: column;
     gap: ${({ theme }) => theme.spacing.xs};
+  `,
+
+  NestedBox: styled.div`
+    display: flex;
+    flex-direction: column;
+    gap: ${({ theme }) => theme.spacing.sm};
+    margin-left: ${({ theme }) => theme.spacing.md};
+    padding-left: ${({ theme }) => theme.spacing.md};
+    border-left: 2px solid ${({ theme }) => theme.colors.border};
+  `,
+
+  NestedLabel: styled.span`
+    font-size: ${({ theme }) => theme.fontSizes.xs};
+    font-weight: 600;
+    color: ${({ theme }) => theme.colors.textSecondary};
   `,
 
   OptionRow: styled.div`

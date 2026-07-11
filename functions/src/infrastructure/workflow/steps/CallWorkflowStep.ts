@@ -1,5 +1,6 @@
 import type { StepDefinition, WorkflowStepExecutor } from '../../../domain/engine/StepDefinition';
 import { resolveMapping } from '../../../domain/engine/InputMapping';
+import { buildNestedParams } from '../../../domain/engine/nestedParams';
 import { WORKFLOW_CALLED_EVENT } from '../../../domain/schema/eventCatalog';
 import { getDb } from '../../firebase/initFirebase';
 import { publishEvent } from '../publishEvent';
@@ -38,11 +39,12 @@ export const makeCallWorkflowStepDefinition = (): StepDefinition => ({
         return { success: false, message: `Profundidade máxima de ${MAX_CALL_DEPTH} chamadas de workflow excedida` };
       }
 
-      const resolvedParams: Record<string, unknown> = {};
+      const paramEntries: [string, unknown][] = [];
       for (const [key, mapping] of Object.entries(context.stepConfiguration ?? {})) {
         if (!key.startsWith(PARAM_PREFIX)) continue;
-        resolvedParams[key.slice(PARAM_PREFIX.length)] = resolveMapping(mapping, context);
+        paramEntries.push([key.slice(PARAM_PREFIX.length), resolveMapping(mapping, context)]);
       }
+      const resolvedParams = buildNestedParams(paramEntries);
 
       await publishEvent(getDb(), context.execution.tenantId, WORKFLOW_CALLED_EVENT, {
         __targetWorkflowId: targetWorkflowId,

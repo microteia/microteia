@@ -118,7 +118,13 @@ export const runWorkflow = onCall(
       const resolvedParams: Record<string, unknown> = {};
       for (const param of params) {
         const provided = providedParams?.[param.key];
-        const source = provided !== undefined && provided !== null && provided !== '' ? provided : values[param.key];
+        const fromValues = values[param.key];
+        const source =
+          provided !== undefined && provided !== null && provided !== ''
+            ? provided
+            : fromValues !== undefined && fromValues !== null && fromValues !== ''
+              ? fromValues
+              : param.defaultValue;
         resolvedParams[param.key] = coerce(param, source);
       }
 

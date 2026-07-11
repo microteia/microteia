@@ -8,11 +8,12 @@ import { useNotification } from '../../../stores/useNotification';
 import { useDI } from '../../../infrastructure/di/useDI';
 import { useScreenDefinitions } from '../../../stores/useScreenDefinitions';
 import { useStepCatalog } from '../../../stores/useStepCatalog';
-import { sortFieldsByOrder, validateFieldKey } from '../../../domain/services/customFieldValues';
+import { sortFieldsByOrder } from '../../../domain/services/customFieldValues';
 import { WORKFLOW_EVENT_CATALOG, WORKFLOW_CALLED_EVENT, getWorkflowEventFields, eventNameToEntityKey, workflowParametersToFieldOptions } from '../../../domain/services/workflowEventCatalog';
 import type { WorkflowEventFieldOption } from '../../../domain/services/workflowEventCatalog';
 import { WORKFLOW_LOOKUP_COLLECTIONS } from '../../../domain/services/workflowLookupCatalog';
 import { ENTITY_REGISTRY } from '../../../domain/schema/entityRegistry';
+import { siblingParameterErrors, hasParameterErrorsDeep, sanitizeWorkflowParameters, cloneParameterInList } from '../../../domain/schema/workflowParameters';
 import { getWorkflowEventIcon, getWorkflowLookupGroupIcon } from '../../shared/workflowEventIcons';
 import { getScreenIconType } from '../../shared/screenIcons';
 import { getStepIcon as getStepIconType } from '../../shared/stepIcons';
@@ -79,6 +80,7 @@ export const PARAMETER_TYPE_OPTIONS: { value: WorkflowParameter['type']; label: 
   { value: 'Boolean', label: 'Booleano' },
   { value: 'select', label: 'Lista de opções' },
   { value: 'EntityReference', label: 'Referência a entidade' },
+  { value: 'Object', label: 'Objeto (aninhado)' },
 ];
 
 export interface WorkflowFormData {
@@ -90,17 +92,7 @@ export interface WorkflowFormData {
   parameters: WorkflowParameter[];
 }
 
-const sanitizeParameters = (parameters: WorkflowParameter[]): WorkflowParameter[] =>
-  parameters.map((parameter) => {
-    const clean: WorkflowParameter = { key: parameter.key, label: parameter.label, type: parameter.type };
-    if (parameter.required) clean.required = true;
-    if (parameter.type === 'EntityReference') {
-      if (parameter.entityType) clean.entityType = parameter.entityType;
-      if (parameter.multi) clean.multi = true;
-    }
-    if (parameter.type === 'select' && parameter.options) clean.options = parameter.options;
-    return clean;
-  });
+const sanitizeParameters = sanitizeWorkflowParameters;
 
 const buildForm = (w: WorkflowDefinition | null): WorkflowFormData => ({
   name: w?.name ?? '',
@@ -184,6 +176,8 @@ export interface ViewWorkflowViewModel {
   addParameter: () => void;
   updateParameter: (index: number, patch: Partial<WorkflowParameter>) => void;
   removeParameter: (index: number) => void;
+  cloneParameter: (index: number) => void;
+  replaceParameters: (parameters: WorkflowParameter[]) => void;
   headerIcon: IconType | null;
   copyLinkDone: boolean;
   handleCopyDeepLink: () => void;
@@ -385,20 +379,15 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
     return [...builtin, ...custom];
   }, [dynamicScreens]);
 
-  const parameterErrors = useMemo<(string | undefined)[]>(() => {
-    if (!isCalledEvent) return [];
-    const seen = new Set<string>();
-    return formData.parameters.map((parameter) => {
-      const keyError = validateFieldKey(parameter.key);
-      if (keyError) return keyError;
-      if (seen.has(parameter.key)) return 'Chave duplicada';
-      seen.add(parameter.key);
-      if (parameter.type === 'EntityReference' && !parameter.entityType) return 'Selecione a entidade referenciada';
-      return undefined;
-    });
-  }, [isCalledEvent, formData.parameters]);
+  const parameterErrors = useMemo<(string | undefined)[]>(
+    () => (isCalledEvent ? siblingParameterErrors(formData.parameters) : []),
+    [isCalledEvent, formData.parameters],
+  );
 
-  const hasParameterErrors = useMemo(() => parameterErrors.some((error) => error !== undefined), [parameterErrors]);
+  const hasParameterErrors = useMemo(
+    () => isCalledEvent && hasParameterErrorsDeep(formData.parameters),
+    [isCalledEvent, formData.parameters],
+  );
 
   const addParameter = useCallback(() => {
     setFormDataState((prev) => ({
@@ -419,6 +408,14 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
       ...prev,
       parameters: prev.parameters.filter((_, i) => i !== index),
     }));
+  }, []);
+
+  const replaceParameters = useCallback((parameters: WorkflowParameter[]) => {
+    setFormDataState((prev) => ({ ...prev, parameters }));
+  }, []);
+
+  const cloneParameter = useCallback((index: number) => {
+    setFormDataState((prev) => ({ ...prev, parameters: cloneParameterInList(prev.parameters, index) }));
   }, []);
 
   // Ícone exibido ao lado do título: usa o ícone da tela/lista específica quando reconhecida,
@@ -792,6 +789,8 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
     addParameter,
     updateParameter,
     removeParameter,
+    cloneParameter,
+    replaceParameters,
     headerIcon,
     copyLinkDone,
     handleCopyDeepLink,

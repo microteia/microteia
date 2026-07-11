@@ -30,21 +30,30 @@ const queryProjectionOutputs = (
     .map((path) => ({ id: `first.${path}`, label: `${path} (1º resultado)` }));
 };
 
-const parameterToInputDefinition = (parameter: WorkflowParameter): InputDefinition => {
-  const base = { id: `param.${parameter.key}`, label: parameter.label, required: parameter.required ?? false };
+const parameterToInputDefinitions = (
+  parameter: WorkflowParameter,
+  idPrefix = 'param',
+  labelPrefix = '',
+): InputDefinition[] => {
+  const id = `${idPrefix}.${parameter.key}`;
+  const label = labelPrefix ? `${labelPrefix} › ${parameter.label}` : parameter.label;
+  if (parameter.type === 'Object') {
+    return (parameter.fields ?? []).flatMap((child) => parameterToInputDefinitions(child, id, label));
+  }
+  const base = { id, label, required: parameter.required ?? false };
   switch (parameter.type) {
     case 'EntityReference':
-      return { ...base, type: 'EntityReference', entityType: parameter.entityType };
+      return [{ ...base, type: 'EntityReference', entityType: parameter.entityType }];
     case 'select':
-      return { ...base, type: 'String', options: { kind: 'Static', options: parameter.options ?? [] } };
+      return [{ ...base, type: 'String', options: { kind: 'Static', options: parameter.options ?? [] } }];
     case 'Number':
-      return { ...base, type: 'Number' };
+      return [{ ...base, type: 'Number' }];
     case 'Date':
-      return { ...base, type: 'Date' };
+      return [{ ...base, type: 'Date' }];
     case 'Boolean':
-      return { ...base, type: 'Boolean' };
+      return [{ ...base, type: 'Boolean' }];
     default:
-      return { ...base, type: 'String' };
+      return [{ ...base, type: 'String' }];
   }
 };
 
@@ -195,7 +204,7 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
     const source = dynamicTargetKind === 'script'
       ? (targetScript?.inputParams ?? [])
       : (targetWorkflow?.parameters ?? []);
-    const paramInputs = source.map(parameterToInputDefinition);
+    const paramInputs = source.flatMap((parameter) => parameterToInputDefinitions(parameter));
     return [...selectedDefinition.inputs, ...paramInputs];
   }, [selectedDefinition, dynamicInputsSourceId, dynamicTargetKind, targetWorkflow, targetScript]);
 

@@ -199,7 +199,7 @@ export const WORKFLOW_EVENT_CATALOG: WorkflowEventCatalogEntry[] = [
   workflowCalledEntry,
 ];
 
-const WORKFLOW_PARAM_TYPE_MAP: Record<Exclude<WorkflowParameter['type'], 'EntityReference'>, NativeFieldType> = {
+const WORKFLOW_PARAM_TYPE_MAP: Record<Exclude<WorkflowParameter['type'], 'EntityReference' | 'Object'>, NativeFieldType> = {
   String: 'string',
   Number: 'number',
   Date: 'date',
@@ -207,11 +207,22 @@ const WORKFLOW_PARAM_TYPE_MAP: Record<Exclude<WorkflowParameter['type'], 'Entity
   select: 'string',
 };
 
+export const isScalarParameterType = (type: WorkflowParameter['type']): boolean =>
+  type !== 'EntityReference' && type !== 'Object';
+
 export const workflowParameterToNativeField = (parameter: WorkflowParameter): NativeFieldSpec => {
   if (parameter.type === 'EntityReference') {
     return parameter.entityType
       ? { key: parameter.key, label: parameter.label, type: 'string', refEntity: parameter.entityType, multi: parameter.multi }
       : { key: parameter.key, label: parameter.label, type: 'string' };
+  }
+  if (parameter.type === 'Object') {
+    return {
+      key: parameter.key,
+      label: parameter.label,
+      type: 'object',
+      objectFields: (parameter.fields ?? []).map(workflowParameterToNativeField),
+    };
   }
   return { key: parameter.key, label: parameter.label, type: WORKFLOW_PARAM_TYPE_MAP[parameter.type] ?? 'string' };
 };
@@ -240,8 +251,37 @@ export const workflowParametersToFieldOptions = (
       }
       return options;
     }
+    if (parameter.type === 'Object') {
+      return workflowParametersToFieldOptions(parameter.fields ?? []).map((option) => ({
+        path: `${parameter.key}.${option.path}`,
+        label: `${parameter.label}: ${option.label}`,
+      }));
+    }
     return [{ path: parameter.key, label: parameter.label }];
   });
+
+const isEmptyValue = (value: unknown): boolean => value === undefined || value === null || value === '';
+
+export const applyParameterDefaults = (
+  parameters: WorkflowParameter[] = [],
+  values: Record<string, unknown> = {},
+): Record<string, unknown> => {
+  const result: Record<string, unknown> = { ...values };
+  for (const parameter of parameters) {
+    if (parameter.type === 'Object') {
+      const current = result[parameter.key];
+      const wasPresent = current && typeof current === 'object' && !Array.isArray(current);
+      const nested = wasPresent ? (current as Record<string, unknown>) : {};
+      const filled = applyParameterDefaults(parameter.fields ?? [], nested);
+      if (wasPresent || Object.keys(filled).length > 0) result[parameter.key] = filled;
+      continue;
+    }
+    if (isScalarParameterType(parameter.type) && isEmptyValue(result[parameter.key]) && parameter.defaultValue !== undefined) {
+      result[parameter.key] = parameter.defaultValue;
+    }
+  }
+  return result;
+};
 
 export const findEventCatalogEntry = (eventName: string): WorkflowEventCatalogEntry | undefined =>
   WORKFLOW_EVENT_CATALOG.find((entry) => entry.name === eventName);

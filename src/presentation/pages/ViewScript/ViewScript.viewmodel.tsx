@@ -6,8 +6,14 @@ import { useWorkspace } from '../../../stores/useWorkspace';
 import { useNotification } from '../../../stores/useNotification';
 import { useScreenDefinitions } from '../../../stores/useScreenDefinitions';
 import { useExpressionFunctions } from '../../../stores/useExpressionFunctions';
-import { validateFieldKey } from '../../../domain/services/customFieldValues';
 import { ENTITY_REGISTRY } from '../../../domain/schema/entityRegistry';
+import {
+  siblingParameterErrors,
+  hasParameterErrorsDeep,
+  sanitizeWorkflowParameters,
+  sanitizeScriptOutputParams,
+  cloneParameterInList,
+} from '../../../domain/schema/workflowParameters';
 import { buildScriptTypeDefs } from './scriptTypeDefs';
 import type { Script, ScriptOutputParam } from '../../../domain/entities/Script';
 import type { WorkflowParameter } from '../../../domain/entities/Workflow';
@@ -35,26 +41,11 @@ export const SCRIPT_PARAMETER_TYPE_OPTIONS: { value: WorkflowParameter['type']; 
   { value: 'Boolean', label: 'Booleano' },
   { value: 'select', label: 'Lista de opções' },
   { value: 'EntityReference', label: 'Referência a entidade' },
+  { value: 'Object', label: 'Objeto (aninhado)' },
 ];
 
-const sanitizeInputParams = (parameters: WorkflowParameter[]): WorkflowParameter[] =>
-  parameters.map((parameter) => {
-    const clean: WorkflowParameter = { key: parameter.key, label: parameter.label, type: parameter.type };
-    if (parameter.required) clean.required = true;
-    if (parameter.type === 'EntityReference') {
-      if (parameter.entityType) clean.entityType = parameter.entityType;
-      if (parameter.multi) clean.multi = true;
-    }
-    if (parameter.type === 'select' && parameter.options) clean.options = parameter.options;
-    return clean;
-  });
-
-const sanitizeOutputParams = (parameters: ScriptOutputParam[]): ScriptOutputParam[] =>
-  parameters.map((parameter) => {
-    const clean: ScriptOutputParam = { key: parameter.key, label: parameter.label, type: parameter.type };
-    if (parameter.type === 'EntityReference' && parameter.entityType) clean.entityType = parameter.entityType;
-    return clean;
-  });
+const sanitizeInputParams = sanitizeWorkflowParameters;
+const sanitizeOutputParams = sanitizeScriptOutputParams;
 
 const transpile = (sourceTs: string): { compiledJs: string } | { error: string } => {
   if (/\b(import|export)\b/.test(sourceTs) || /\brequire\s*\(/.test(sourceTs)) {
@@ -101,6 +92,10 @@ export interface ViewScriptViewModel {
   addOutputParam: () => void;
   updateOutputParam: (index: number, patch: Partial<ScriptOutputParam>) => void;
   removeOutputParam: (index: number) => void;
+  replaceInputParams: (inputParams: WorkflowParameter[]) => void;
+  replaceOutputParams: (outputParams: ScriptOutputParam[]) => void;
+  cloneInputParam: (index: number) => void;
+  cloneOutputParam: (index: number) => void;
   isSectionCollapsed: (key: string) => boolean;
   toggleSection: (key: string) => void;
   isSaving: boolean;
@@ -172,25 +167,8 @@ export const useViewScriptViewModel = (tabKey: string): ViewScriptViewModel => {
     [formData.inputParams, expressionFunctions],
   );
 
-  const buildKeyErrors = useCallback(
-    (keys: { key: string; entityType?: string; type: string }[], requireEntity: boolean): (string | undefined)[] => {
-      const seen = new Set<string>();
-      return keys.map((param) => {
-        const keyError = validateFieldKey(param.key);
-        if (keyError) return keyError;
-        if (seen.has(param.key)) return 'Chave duplicada';
-        seen.add(param.key);
-        if (requireEntity && param.type === 'EntityReference' && !param.entityType) {
-          return 'Selecione a entidade referenciada';
-        }
-        return undefined;
-      });
-    },
-    [],
-  );
-
-  const inputParamErrors = useMemo(() => buildKeyErrors(formData.inputParams, true), [buildKeyErrors, formData.inputParams]);
-  const outputParamErrors = useMemo(() => buildKeyErrors(formData.outputParams, true), [buildKeyErrors, formData.outputParams]);
+  const inputParamErrors = useMemo(() => siblingParameterErrors(formData.inputParams), [formData.inputParams]);
+  const outputParamErrors = useMemo(() => siblingParameterErrors(formData.outputParams), [formData.outputParams]);
 
   const addInputParam = useCallback(() => {
     setFormDataState((prev) => ({ ...prev, inputParams: [...prev.inputParams, { key: '', label: '', type: 'String' }] }));
@@ -222,9 +200,25 @@ export const useViewScriptViewModel = (tabKey: string): ViewScriptViewModel => {
     setFormDataState((prev) => ({ ...prev, outputParams: prev.outputParams.filter((_, i) => i !== index) }));
   }, []);
 
+  const replaceInputParams = useCallback((inputParams: WorkflowParameter[]) => {
+    setFormDataState((prev) => ({ ...prev, inputParams }));
+  }, []);
+
+  const replaceOutputParams = useCallback((outputParams: ScriptOutputParam[]) => {
+    setFormDataState((prev) => ({ ...prev, outputParams }));
+  }, []);
+
+  const cloneInputParam = useCallback((index: number) => {
+    setFormDataState((prev) => ({ ...prev, inputParams: cloneParameterInList(prev.inputParams, index) }));
+  }, []);
+
+  const cloneOutputParam = useCallback((index: number) => {
+    setFormDataState((prev) => ({ ...prev, outputParams: cloneParameterInList(prev.outputParams, index) }));
+  }, []);
+
   const hasParamErrors = useMemo(
-    () => inputParamErrors.some((e) => e) || outputParamErrors.some((e) => e),
-    [inputParamErrors, outputParamErrors],
+    () => hasParameterErrorsDeep(formData.inputParams) || hasParameterErrorsDeep(formData.outputParams),
+    [formData.inputParams, formData.outputParams],
   );
 
   const canSave = useMemo(
@@ -305,6 +299,10 @@ export const useViewScriptViewModel = (tabKey: string): ViewScriptViewModel => {
     addOutputParam,
     updateOutputParam,
     removeOutputParam,
+    replaceInputParams,
+    replaceOutputParams,
+    cloneInputParam,
+    cloneOutputParam,
     isSectionCollapsed,
     toggleSection,
     isSaving,

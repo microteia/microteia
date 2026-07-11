@@ -7,6 +7,7 @@ import type { Theme } from '../../../../shared/styles/theme';
 const AUTO_FORMAT_KEY = 'curatino:scriptEditorAutoFormat';
 const THEME_NAME = 'curatino-script';
 const MODEL_PATH = 'file:///curatino-script.ts';
+const JSON_MODEL_PATH = 'file:///curatino-params.json';
 
 const isDarkColor = (hex: string): boolean => {
   const clean = hex.replace('#', '');
@@ -59,11 +60,13 @@ export interface CodeEditorProps {
   onChange: (value: string) => void;
   extraLib?: string;
   minHeight?: string;
+  language?: 'typescript' | 'json';
 }
 
 export interface CodeEditorViewModel {
   value: string;
   modelPath: string;
+  language: 'typescript' | 'json';
   autoFormat: boolean;
   toggleAutoFormat: () => void;
   handleFormat: () => void;
@@ -74,7 +77,7 @@ export interface CodeEditorViewModel {
 }
 
 export const useCodeEditorViewModel = (props: CodeEditorProps): CodeEditorViewModel => {
-  const { value, onChange, extraLib, minHeight = '420px' } = props;
+  const { value, onChange, extraLib, minHeight = '420px', language = 'typescript' } = props;
   const theme = useTheme();
 
   const editorRef = useRef<Monaco.editor.IStandaloneCodeEditor | null>(null);
@@ -156,7 +159,8 @@ export const useCodeEditorViewModel = (props: CodeEditorProps): CodeEditorViewMo
 
   return {
     value,
-    modelPath: MODEL_PATH,
+    modelPath: language === 'json' ? JSON_MODEL_PATH : MODEL_PATH,
+    language,
     autoFormat,
     toggleAutoFormat,
     handleFormat,

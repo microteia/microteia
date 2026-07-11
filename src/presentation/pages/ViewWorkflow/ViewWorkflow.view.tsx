@@ -24,7 +24,7 @@ import { InfoBanner } from '../../components/ui/InfoBanner';
 import { ConfirmModal } from '../../components/ui/ConfirmModal';
 import { ConditionBuilder } from '../../components/ui/ConditionBuilder';
 import { ConditionDiagram } from '../../components/ui/ConditionDiagram';
-import { WorkflowParametersEditor } from './components/WorkflowParametersEditor';
+import { AdvancedParametersEditor } from './components/AdvancedParametersEditor';
 import { PARAMETER_TYPE_OPTIONS } from './ViewWorkflow.viewmodel';
 import { getStepDisplayName } from '../../shared/workflowHelpers';
 
@@ -173,7 +173,7 @@ export const ViewWorkflowView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
               {vm.isCalledEvent && (
                 <InputGroup>
                   <Label>Parâmetros</Label>
-                  <WorkflowParametersEditor
+                  <AdvancedParametersEditor
                     parameters={vm.formData.parameters}
                     errors={vm.parameterErrors}
                     typeOptions={PARAMETER_TYPE_OPTIONS}
@@ -181,6 +181,8 @@ export const ViewWorkflowView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
                     onAdd={vm.addParameter}
                     onUpdate={vm.updateParameter}
                     onRemove={vm.removeParameter}
+                    onClone={vm.cloneParameter}
+                    onReplace={vm.replaceParameters}
                   />
                 </InputGroup>
               )}

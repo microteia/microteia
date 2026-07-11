@@ -1,6 +1,8 @@
 import { useState, useCallback } from 'react';
 import type { WorkflowParameter } from '../../../../../domain/entities/Workflow';
 
+export type WorkflowParametersEditorVariant = 'input' | 'output';
+
 export interface WorkflowParametersEditorProps {
   parameters: WorkflowParameter[];
   errors: (string | undefined)[];
@@ -9,6 +11,8 @@ export interface WorkflowParametersEditorProps {
   onAdd: () => void;
   onUpdate: (index: number, patch: Partial<WorkflowParameter>) => void;
   onRemove: (index: number) => void;
+  onClone: (index: number) => void;
+  variant?: WorkflowParametersEditorVariant;
 }
 
 export interface WorkflowParametersEditorViewModel {
@@ -16,13 +20,14 @@ export interface WorkflowParametersEditorViewModel {
   toggle: (index: number) => void;
   handleAdd: () => void;
   handleRemove: (index: number) => void;
+  handleClone: (index: number) => void;
   summaryFor: (parameter: WorkflowParameter) => string;
 }
 
 export const useWorkflowParametersEditorViewModel = (
   props: WorkflowParametersEditorProps,
 ): WorkflowParametersEditorViewModel => {
-  const { parameters, typeOptions, entityOptions, onAdd, onRemove } = props;
+  const { parameters, typeOptions, entityOptions, onAdd, onRemove, onClone } = props;
   const [expanded, setExpanded] = useState<Set<number>>(new Set());
 
   const isExpanded = useCallback((index: number) => expanded.has(index), [expanded]);
@@ -54,6 +59,18 @@ export const useWorkflowParametersEditorViewModel = (
     });
   }, [onRemove]);
 
+  const handleClone = useCallback((index: number) => {
+    onClone(index);
+    setExpanded((prev) => {
+      const next = new Set<number>();
+      prev.forEach((i) => {
+        if (i <= index) next.add(i);
+        else next.add(i + 1);
+      });
+      return next;
+    });
+  }, [onClone]);
+
   const summaryFor = useCallback(
     (parameter: WorkflowParameter): string => {
       const name = parameter.label.trim() || parameter.key.trim() || 'Sem nome';
@@ -68,5 +85,5 @@ export const useWorkflowParametersEditorViewModel = (
     [typeOptions, entityOptions],
   );
 
-  return { isExpanded, toggle, handleAdd, handleRemove, summaryFor };
+  return { isExpanded, toggle, handleAdd, handleRemove, handleClone, summaryFor };
 };

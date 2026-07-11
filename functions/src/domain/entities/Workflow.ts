@@ -92,7 +92,7 @@ export type Condition =
   | NotCondition
   | ExpressionCondition;
 
-export type WorkflowParameterType = 'String' | 'Number' | 'Date' | 'Boolean' | 'select' | 'EntityReference';
+export type WorkflowParameterType = 'String' | 'Number' | 'Date' | 'Boolean' | 'select' | 'EntityReference' | 'Object';
 
 export interface WorkflowParameter {
   key: string;
@@ -102,6 +102,8 @@ export interface WorkflowParameter {
   entityType?: string;
   multi?: boolean;
   options?: { value: string; label: string }[];
+  fields?: WorkflowParameter[];
+  defaultValue?: unknown;
 }
 
 export interface WorkflowDefinition {

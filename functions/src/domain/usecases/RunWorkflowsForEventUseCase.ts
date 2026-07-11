@@ -6,7 +6,7 @@ import type { StepRegistry } from '../engine/StepRegistry';
 import { runWorkflow } from '../engine/WorkflowExecutor';
 import { WorkflowContextHydrator, createHydrationCache } from '../engine/WorkflowContextHydrator';
 import { SCHEMA_VERSION } from '../schema/entityRegistry';
-import { WORKFLOW_CALLED_EVENT, workflowParametersToRoot } from '../schema/eventCatalog';
+import { WORKFLOW_CALLED_EVENT, workflowParametersToRoot, applyParameterDefaults } from '../schema/eventCatalog';
 
 export type RunWorkflowsForEventUseCase = {
   execute: (event: WorkflowEvent) => Promise<void>;
@@ -39,15 +39,19 @@ export const makeRunWorkflowsForEventUseCase = (
           definition.eventName === WORKFLOW_CALLED_EVENT
             ? workflowParametersToRoot(definition.parameters)
             : undefined;
+        const effectiveEvent =
+          definition.eventName === WORKFLOW_CALLED_EVENT && definition.parameters?.length
+            ? { ...event, payload: applyParameterDefaults(definition.parameters, event.payload) }
+            : event;
         const hydratedEvent = await hydrator.hydrate(
-          event,
+          effectiveEvent,
           referencedPaths,
           hydrationCache,
           services.logger,
           undefined,
           rootOverride,
         );
-        if (hydratedEvent !== event) {
+        if (hydratedEvent !== effectiveEvent) {
           services.logger.info(
             `Payload hidratado (schema v${SCHEMA_VERSION}) para o workflow "${definition.id}" com ${referencedPaths.length} caminho(s)`,
           );

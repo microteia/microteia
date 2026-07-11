@@ -1,11 +1,14 @@
 import React from 'react';
-import { RiAddLine, RiDeleteBinLine, RiArrowDownSLine, RiArrowRightSLine } from 'react-icons/ri';
+import { RiAddLine, RiDeleteBinLine, RiArrowDownSLine, RiArrowRightSLine, RiFileCopyLine } from 'react-icons/ri';
 import { Input, Label } from '../../../../components/ui/Input';
 import { SearchSelect } from '../../../../components/ui/SearchSelect';
+import { DateInput } from '../../../../components/ui/DateInput';
 import { S } from './WorkflowParametersEditor.styles';
 import { useWorkflowParametersEditorViewModel } from './WorkflowParametersEditor.viewmodel';
 import type { WorkflowParametersEditorProps } from './WorkflowParametersEditor.viewmodel';
 import type { WorkflowParameter } from '../../../../../domain/entities/Workflow';
+import { siblingParameterErrors, cloneParameterInList } from '../../../../../domain/schema/workflowParameters';
+import { isScalarParameterType } from '../../../../../domain/schema/eventCatalog';
 
 const REQUIRED_OPTIONS = [
   { value: 'optional', label: 'Opcional' },
@@ -17,14 +20,79 @@ const MULTI_OPTIONS = [
   { value: 'multi', label: 'Vários' },
 ];
 
+const BOOLEAN_DEFAULT_OPTIONS = [
+  { value: '', label: 'Sem padrão' },
+  { value: 'true', label: 'Sim' },
+  { value: 'false', label: 'Não' },
+];
+
+const DefaultValueField: React.FC<{
+  parameter: WorkflowParameter;
+  index: number;
+  onUpdate: WorkflowParametersEditorProps['onUpdate'];
+}> = ({ parameter, index, onUpdate }) => {
+  const setDefault = (value: unknown) => onUpdate(index, { defaultValue: value });
+
+  if (parameter.type === 'Date') {
+    return (
+      <DateInput
+        value={typeof parameter.defaultValue === 'string' ? parameter.defaultValue : ''}
+        onChange={(value) => setDefault(value || undefined)}
+      />
+    );
+  }
+
+  if (parameter.type === 'Boolean') {
+    return (
+      <SearchSelect
+        options={BOOLEAN_DEFAULT_OPTIONS}
+        value={parameter.defaultValue === true ? 'true' : parameter.defaultValue === false ? 'false' : ''}
+        onChange={(value) => setDefault(value === '' ? undefined : value === 'true')}
+        placeholder="Sem padrão"
+      />
+    );
+  }
+
+  if (parameter.type === 'select') {
+    return (
+      <SearchSelect
+        options={[{ value: '', label: 'Sem padrão' }, ...(parameter.options ?? [])]}
+        value={typeof parameter.defaultValue === 'string' ? parameter.defaultValue : ''}
+        onChange={(value) => setDefault(value || undefined)}
+        placeholder="Sem padrão"
+      />
+    );
+  }
+
+  return (
+    <Input
+      type={parameter.type === 'Number' ? 'number' : 'text'}
+      value={parameter.defaultValue === undefined || parameter.defaultValue === null ? '' : String(parameter.defaultValue)}
+      onChange={(e) => {
+        const raw = e.target.value;
+        if (raw === '') return setDefault(undefined);
+        if (parameter.type === 'Number') {
+          const parsed = Number(raw);
+          return setDefault(Number.isNaN(parsed) ? undefined : parsed);
+        }
+        return setDefault(raw);
+      }}
+      placeholder="Sem padrão"
+    />
+  );
+};
+
 export const WorkflowParametersEditor: React.FC<WorkflowParametersEditorProps> = (props) => {
-  const { parameters, errors, typeOptions, entityOptions, onUpdate } = props;
+  const { parameters, errors, typeOptions, entityOptions, onUpdate, variant = 'input' } = props;
+  const cloneLabel = variant === 'output' ? 'Clonar parâmetro de saída' : 'Clonar parâmetro';
   const vm = useWorkflowParametersEditorViewModel(props);
 
   return (
     <S.Container>
       {parameters.length === 0 && (
-        <S.Empty>Nenhum parâmetro. Este workflow pode ser chamado sem receber dados.</S.Empty>
+        <S.Empty>
+          {variant === 'output' ? 'Nenhum parâmetro de saída declarado.' : 'Nenhum parâmetro. Este workflow pode ser chamado sem receber dados.'}
+        </S.Empty>
       )}
 
       {parameters.map((parameter, index) => {
@@ -47,20 +115,54 @@ export const WorkflowParametersEditor: React.FC<WorkflowParametersEditorProps> =
                 </S.Summary>
               )}
               {errors[index] && !expanded && <S.Error>{errors[index]}</S.Error>}
+              <S.CloneBtn type="button" onClick={() => vm.handleClone(index)} title={cloneLabel}>
+                <RiFileCopyLine size={14} />
+              </S.CloneBtn>
               <S.RemoveBtn type="button" onClick={() => vm.handleRemove(index)} title="Remover parâmetro">
                 <RiDeleteBinLine size={14} />
               </S.RemoveBtn>
             </S.RowHeader>
 
             {expanded && (
-              <ParameterFields
-                parameter={parameter}
-                error={errors[index]}
-                index={index}
-                typeOptions={typeOptions}
-                entityOptions={entityOptions}
-                onUpdate={onUpdate}
-              />
+              <>
+                <ParameterFields
+                  parameter={parameter}
+                  error={errors[index]}
+                  index={index}
+                  typeOptions={typeOptions}
+                  entityOptions={entityOptions}
+                  onUpdate={onUpdate}
+                  variant={variant}
+                />
+                {parameter.type === 'Object' && (
+                  <S.NestedBox>
+                    <S.NestedLabel>Campos do objeto</S.NestedLabel>
+                    <WorkflowParametersEditor
+                      parameters={parameter.fields ?? []}
+                      errors={siblingParameterErrors(parameter.fields ?? [])}
+                      typeOptions={typeOptions}
+                      entityOptions={entityOptions}
+                      variant={variant}
+                      onAdd={() =>
+                        onUpdate(index, { fields: [...(parameter.fields ?? []), { key: '', label: '', type: 'String' }] })
+                      }
+                      onUpdate={(childIndex, patch) =>
+                        onUpdate(index, {
+                          fields: (parameter.fields ?? []).map((field, i) =>
+                            i === childIndex ? { ...field, ...patch } : field,
+                          ),
+                        })
+                      }
+                      onRemove={(childIndex) =>
+                        onUpdate(index, { fields: (parameter.fields ?? []).filter((_, i) => i !== childIndex) })
+                      }
+                      onClone={(childIndex) =>
+                        onUpdate(index, { fields: cloneParameterInList(parameter.fields ?? [], childIndex) })
+                      }
+                    />
+                  </S.NestedBox>
+                )}
+              </>
             )}
           </S.Row>
         );
@@ -80,7 +182,11 @@ const ParameterFields: React.FC<{
   typeOptions: WorkflowParametersEditorProps['typeOptions'];
   entityOptions: WorkflowParametersEditorProps['entityOptions'];
   onUpdate: WorkflowParametersEditorProps['onUpdate'];
-}> = ({ parameter, error, index, typeOptions, entityOptions, onUpdate }) => (
+  variant: NonNullable<WorkflowParametersEditorProps['variant']>;
+}> = ({ parameter, error, index, typeOptions, entityOptions, onUpdate, variant }) => {
+  const isInput = variant === 'input';
+  const showSubLine = isInput || parameter.type === 'EntityReference';
+  return (
   <>
     <S.Line>
       <S.Cell>
@@ -111,6 +217,8 @@ const ParameterFields: React.FC<{
               entityType: undefined,
               multi: undefined,
               options: undefined,
+              defaultValue: undefined,
+              fields: type === 'Object' ? [] : undefined,
             })
           }
           placeholder="Tipo..."
@@ -118,31 +226,42 @@ const ParameterFields: React.FC<{
       </S.Cell>
     </S.Line>
 
-    <S.SubLine>
-      <S.Cell>
-        <Label>Preenchimento</Label>
-        <SearchSelect
-          options={REQUIRED_OPTIONS}
-          value={parameter.required ? 'required' : 'optional'}
-          onChange={(value) => onUpdate(index, { required: value === 'required' })}
-          placeholder="..."
-        />
-      </S.Cell>
+    {showSubLine && (
+      <S.SubLine>
+        {isInput && (
+          <S.Cell>
+            <Label>Preenchimento</Label>
+            <SearchSelect
+              options={REQUIRED_OPTIONS}
+              value={parameter.required ? 'required' : 'optional'}
+              onChange={(value) => onUpdate(index, { required: value === 'required' })}
+              placeholder="..."
+            />
+          </S.Cell>
+        )}
 
-      {parameter.type === 'EntityReference' && (
-        <S.Cell>
-          <Label>Entidade referenciada</Label>
-          <SearchSelect
-            options={entityOptions}
-            value={parameter.entityType ?? ''}
-            onChange={(entityType) => onUpdate(index, { entityType })}
-            placeholder="Selecione a entidade..."
-          />
-        </S.Cell>
-      )}
-    </S.SubLine>
+        {parameter.type === 'EntityReference' && (
+          <S.Cell>
+            <Label>Entidade referenciada</Label>
+            <SearchSelect
+              options={entityOptions}
+              value={parameter.entityType ?? ''}
+              onChange={(entityType) => onUpdate(index, { entityType })}
+              placeholder="Selecione a entidade..."
+            />
+          </S.Cell>
+        )}
 
-    {parameter.type === 'EntityReference' && (
+        {isInput && isScalarParameterType(parameter.type) && (
+          <S.Cell>
+            <Label>Valor padrão</Label>
+            <DefaultValueField parameter={parameter} index={index} onUpdate={onUpdate} />
+          </S.Cell>
+        )}
+      </S.SubLine>
+    )}
+
+    {isInput && parameter.type === 'EntityReference' && (
       <S.SubLine>
         <S.Cell>
           <Label>Quantidade</Label>
@@ -156,7 +275,7 @@ const ParameterFields: React.FC<{
       </S.SubLine>
     )}
 
-    {parameter.type === 'select' && (
+    {isInput && parameter.type === 'select' && (
       <S.Cell>
         <Label>Opções da lista</Label>
         <S.OptionsBox>
@@ -192,4 +311,5 @@ const ParameterFields: React.FC<{
       </S.Cell>
     )}
   </>
-);
+  );
+};

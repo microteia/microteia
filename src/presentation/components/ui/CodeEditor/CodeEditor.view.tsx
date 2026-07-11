@@ -28,7 +28,7 @@ export const CodeEditor: React.FC<CodeEditorProps> = (props) => {
       <S.EditorArea $minHeight={vm.minHeight}>
         <Editor
           height="100%"
-          language="typescript"
+          language={vm.language}
           path={vm.modelPath}
           value={vm.value}
           onChange={vm.handleChange}

@@ -11,6 +11,13 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [0.71.0] — 2026-07-11
+
+- Os parâmetros das automações "Chamado por Workflow" e dos Scripts agora aceitam **estruturas aninhadas**: um parâmetro do tipo **Objeto** pode conter outros campos dentro dele (por exemplo, um "Endereço" com "Cidade" e "Estado"). Essas estruturas aparecem naturalmente no preenchimento e nas sugestões automáticas de quem usa a automação ou o script, campo por campo.
+- Cada parâmetro pode ter um **valor padrão**: se, na hora de executar, o campo vier vazio, o sistema usa automaticamente o valor padrão definido.
+- Para quem prefere, há um novo modo **JSON (avançado)** de cadastrar os parâmetros: em vez de montar campo a campo na tela, você descreve toda a estrutura de uma vez em um editor de texto, com validação antes de salvar. O resultado é idêntico ao modo visual.
+- No editor visual, cada parâmetro agora tem um botão **Clonar**, que cria uma cópia dele logo abaixo — já com um nome numerado e trazendo junto todos os campos internos, no caso de objetos.
+
 #### [0.70.0] — 2026-07-11
 
 - Nova tela **Processador de Dados**: cole um texto livre ou envie um PDF (o sistema lê a primeira página automaticamente), escolha qual inteligência artificial usar e execute uma automação já com os campos preenchidos a partir do conteúdo. Um botão detecta por IA quais automações combinam com o texto, e a tela acompanha cada etapa da execução — mostrando sucesso ou falha, com um atalho direto para a aba de Execuções quando algo dá errado. Disponível para administradores e advogados do escritório.

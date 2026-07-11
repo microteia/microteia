@@ -1,6 +1,8 @@
 import type { StepDefinition, WorkflowStepExecutor } from '../../../domain/engine/StepDefinition';
 import type { IScriptRepository } from '../../../domain/repositories/IScriptRepository';
 import { resolveMapping } from '../../../domain/engine/InputMapping';
+import { buildNestedParams } from '../../../domain/engine/nestedParams';
+import { applyParameterDefaults } from '../../../domain/schema/eventCatalog';
 import { runScriptSandbox } from '../sandbox/runScriptSandbox';
 import type { WorkflowQueryDeps } from '../query/runWorkflowQuery';
 
@@ -44,11 +46,12 @@ export const makeScriptStepDefinition = (
         return { success: false, message: 'O Script selecionado está vazio' };
       }
 
-      const scriptInput: Record<string, unknown> = {};
+      const paramEntries: [string, unknown][] = [];
       for (const [key, mapping] of Object.entries(context.stepConfiguration ?? {})) {
         if (!key.startsWith(PARAM_PREFIX)) continue;
-        scriptInput[key.slice(PARAM_PREFIX.length)] = resolveMapping(mapping, context);
+        paramEntries.push([key.slice(PARAM_PREFIX.length), resolveMapping(mapping, context)]);
       }
+      const scriptInput = applyParameterDefaults(script.inputParams, buildNestedParams(paramEntries));
 
       try {
         const output = await runScriptSandbox(script.compiledJs, scriptInput, context, queryDeps);
