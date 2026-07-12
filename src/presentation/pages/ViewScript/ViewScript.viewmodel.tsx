@@ -98,6 +98,7 @@ export interface ViewScriptViewModel {
   cloneOutputParam: (index: number) => void;
   isSectionCollapsed: (key: string) => boolean;
   toggleSection: (key: string) => void;
+  openDataFunctionReference: () => void;
   isSaving: boolean;
   canSave: boolean;
   handleSave: () => Promise<void>;
@@ -129,6 +130,8 @@ export const useViewScriptViewModel = (tabKey: string): ViewScriptViewModel => {
   const [collapsedSections, setCollapsedSections] = useState<Set<string>>(() => new Set(['queryDoc']));
 
   const isSectionCollapsed = useCallback((key: string) => collapsedSections.has(key), [collapsedSections]);
+
+  const openDataFunctionReference = useCallback(() => openTab('data-function-reference'), [openTab]);
 
   const toggleSection = useCallback((key: string) => {
     setCollapsedSections((prev) => {
@@ -305,6 +308,7 @@ export const useViewScriptViewModel = (tabKey: string): ViewScriptViewModel => {
     cloneOutputParam,
     isSectionCollapsed,
     toggleSection,
+    openDataFunctionReference,
     isSaving,
     canSave,
     handleSave,

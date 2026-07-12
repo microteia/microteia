@@ -76,6 +76,7 @@ import { registerSteps } from '../workflow/registerSteps';
 import { WorkflowContextHydrator } from '../../domain/engine/WorkflowContextHydrator';
 import { FirestoreWorkflowRecordFetcher } from '../../data/services/FirestoreWorkflowRecordFetcher';
 import { FirestoreWorkflowQueryRepository } from '../../data/services/FirestoreWorkflowQueryRepository';
+import { FirestoreWorkflowMutationRepository } from '../../data/services/FirestoreWorkflowMutationRepository';
 import { FirebaseScriptRepository } from '../../data/repositories/FirebaseScriptRepository';
 import { ScreenDefinitionCache } from '../../data/services/ScreenDefinitionCache';
 
@@ -435,6 +436,7 @@ class DIContainer {
       createAuditLogUseCase: this.getCreateAuditLogUseCase(),
       workflowQueryRepository: new FirestoreWorkflowQueryRepository(getDb()),
       workflowRecordFetcher: new FirestoreWorkflowRecordFetcher(getDb()),
+      workflowMutationRepository: new FirestoreWorkflowMutationRepository(getDb()),
       screenDefinitionProvider: this.getScreenDefinitionCache(),
       scriptRepository: new FirebaseScriptRepository(getDb()),
     });

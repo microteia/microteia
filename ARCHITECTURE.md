@@ -466,7 +466,7 @@ interface Contract {
 
 Coleções Firestore: `tenants/{tenantId}/contracts/{id}`, `tenants/{tenantId}/contractTags/{id}`, `tenants/{tenantId}/contractTypes`, `contractCategories`, `contractStatuses`, `contractObjects`, `contractAdjustmentIndexes`, `contractAdjustmentPeriodicities`, `contractCurrencies`, `contractPaymentMethods`, `contractBanks`, `contractCostCenters`.
 
-**Relação Processo ↔ Contrato:** um `Contract` pode ter vários `Case` vinculados, mas cada `Case` pertence a no máximo 1 `Contract`. A chave estrangeira vive no lado "muitos" (`Case.contractId`, sem espelho de número — o número do contrato é resolvido em tempo de renderização via `useContractStore()`, mesmo padrão de `responsibleLawyerId`) — não existe array `caseIds` em `Contract`. A aba "Processos" de `ViewContract` deriva a lista de processos vinculados filtrando `useCaseStore().cases` por `contractId` em memória (via `useMemo`), sem query Firestore adicional nem índice composto, já que `CaseStore` carrega a lista de `cases` do tenant inteira. Vincular/desvincular é um `updateCase(caseId, { contractId })` comum. Ao excluir um `Contract`, `DeleteContractUseCase` desvincula (não exclui) os `cases` filhos antes de apagar o contrato (ver "Cascata de Exclusão").
+**Relação Processo ↔ Contrato:** um `Contract` pode ter vários `Case` vinculados, mas cada `Case` pertence a no máximo 1 `Contract`. A chave estrangeira vive no lado "muitos" (`Case.contractId`, sem espelho de número — o número do contrato é resolvido em tempo de renderização via `useContractStore()`, mesmo padrão de `responsibleLawyerId`) — não existe array `caseIds` em `Contract`. A aba "Processos" de `ViewContract` deriva a lista de processos vinculados filtrando `useCaseStore().cases` por `contractId` em memória (via `useMemo`), sem query Firestore adicional nem índice composto, já que `CaseStore` carrega a lista de `cases` do tenant inteira. Vincular/desvincular é um `updateCase(caseId, { contractId })` comum. Ao excluir um `Contract`, os `cases` vinculados **não** são alterados — o `contractId` fica apontando para um contrato inexistente (órfão) e simplesmente deixa de resolver o número na tela (ver "Cascata de Exclusão").
 
 ### Entidade ContractNote
 
@@ -555,7 +555,7 @@ interface Financial {
 }
 ```
 
-`category` e `status` seguem o mesmo padrão Estático + Dinâmico de `Contract` (ver "Valores Estáticos e Dinâmicos"), com lookup próprio (`FinancialLookupConfig`/`FinancialLookupKind`, coleções `financialCategories`/`financialStatuses`). `costCenter` **não** tem coleção própria: reaproveita o lookup `costCenters` de `useContractLookup()`, para que Contratos e Financeiro compartilhem a mesma lista de centros de custo do escritório. `caseId`/`personId`/`contractId` não guardam nome/número espelhado — são resolvidos em tempo de renderização a partir dos respectivos stores (`useCaseStore`/`usePersonStore`/`useContractStore`); ao excluir um `Contract`, os `financials` vinculados são desvinculados (ver "Cascata de Exclusão"). Não há campo de descrição livre: `category` é o identificador principal exibido nos cards e nas abas.
+`category` e `status` seguem o mesmo padrão Estático + Dinâmico de `Contract` (ver "Valores Estáticos e Dinâmicos"), com lookup próprio (`FinancialLookupConfig`/`FinancialLookupKind`, coleções `financialCategories`/`financialStatuses`). `costCenter` **não** tem coleção própria: reaproveita o lookup `costCenters` de `useContractLookup()`, para que Contratos e Financeiro compartilhem a mesma lista de centros de custo do escritório. `caseId`/`personId`/`contractId` não guardam nome/número espelhado — são resolvidos em tempo de renderização a partir dos respectivos stores (`useCaseStore`/`usePersonStore`/`useContractStore`); ao excluir um `Contract`/`Case`/`Person`, os `financials` vinculados **não** são alterados nem excluídos (podem ficar órfãos — ver "Cascata de Exclusão"). Não há campo de descrição livre: `category` é o identificador principal exibido nos cards e nas abas.
 
 ### Entidade FinancialTag
 
@@ -1417,18 +1417,24 @@ useEffect(() => {
 
 ## Cascata de Exclusão
 
-| Entidade excluída | O use case deve remover |
+**Regra atual: não há cascata entre entidades de negócio.** Excluir `Person`, `Case`, `Contract`,
+`Deadline` ou `Financial` apaga **apenas** o documento alvo. Filhos/relacionados podem ficar órfãos
+(ex.: prazos de um processo excluído continuam existindo, apontando para um `caseId` inexistente) — é
+uma decisão consciente: a complexidade de manter cascata consistente não compensava. Vincular por FK
+não implica exclusão em cascata; um registro órfão simplesmente deixa de resolver o nome/objeto da
+referência na tela.
+
+| Entidade excluída | O use case remove |
 |---|---|
-| `Tenant` | Todos os members, persons, cases, deadlines, financials, pushes do tenant |
-| `Person` | Todos os `cases` onde a pessoa está em `activePoleIds` ou `passivePoleIds` (cada um cascateando como a linha `Case` abaixo); todos os `financials` onde `personId === id` |
-| `Case` | Todos os `deadlines` onde `caseId === id`; todos os `financials` onde `caseId === id` |
-| `Contract` | Desvincula (não exclui) todos os `cases` onde `contractId === id`, limpando `contractId`; desvincula (não exclui) todos os `financials` onde `contractId === id`, limpando `contractId` |
-| `Deadline` | — (folha) |
-| `Financial` | — (folha) |
-| `Push` | Todos os `pushInteractions` onde `pushId === id` — **cascata roda no backend** (ver nota abaixo) |
+| `Tenant` | Toda a subárvore do tenant (operação de nível de conta, não coberta pelos `Delete*UseCase` de entidade) |
+| `Person` / `Case` / `Contract` / `Deadline` / `Financial` | — (apenas o próprio documento) |
+| `Push` | Todos os `pushInteractions` onde `pushId === id` — **infra, roda no backend** (ver nota abaixo) |
 | `PushInteraction` | — (folha) |
 
-`makeDeletePersonUseCase`/`makeDeleteCaseUseCase` (`domain/usecases/persons/DeletePersonUseCase.ts`, `domain/usecases/cases/DeleteCaseUseCase.ts`) implementam a cascata acima, no mesmo padrão factory multi-repositório já usado por `makeDeleteContractUseCase`. `Person` → `Case` usa `ICaseRepository.getCasesByPerson`, que busca por `array-contains` em `activePoleIds` e `passivePoleIds` (duas queries, mescladas e deduplicadas em memória — Firestore não faz OR entre dois campos array numa única query). Todo `delete*` cascateado recebe o mesmo `DeletionActor` do disparo original, para a auditoria creditar corretamente quem excluiu, mesmo nos filhos.
+`makeDeletePersonUseCase`/`makeDeleteCaseUseCase`/`makeDeleteContractUseCase`
+(`domain/usecases/{persons,cases,contracts}/Delete*UseCase.ts`) são hoje factories de **um único
+repositório** que apenas chamam `repo.delete[Entidade](tenantId, id, actor)`, repassando o
+`DeletionActor` para a auditoria creditar quem excluiu.
 
 **Exceção — cascata de `Push` roda na Cloud Function, não no use case:** `pushInteractions` é coleção raiz (não tenant-scoped) e sua Security Rule só permite que cada usuário escreva/apague a própria interação (`request.resource.data.userId == request.auth.uid`) — não haveria como o `DeletePushUseCase` do client (rodando como o admin que está excluindo o `Push`, não como cada usuário que leu/interagiu com ele) apagar as interações de outras pessoas. Por isso a cascata é feita por `cascadeDeletePushInteractions` (`functions/src/infrastructure/handlers/cascadeDeletePushInteractions.ts`), um `onDocumentDeleted('tenants/{tenantId}/pushes/{pushId}')` que usa Admin SDK (ignora as regras) para apagar todos os `pushInteractions` daquele `pushId`. `PushInteraction` não é uma entidade auditada (fora da allowlist de `auditableEntities.ts`), então essa cascata não gera entradas em `auditLogs`.
 
@@ -1971,7 +1977,7 @@ O Step `script` executa **código JavaScript do usuário** dentro de um sandbox 
 **O Step espelha o padrão "Chamar Workflow".** Input estático `scriptId` (Literal) + `dynamicInputs: { kind: 'from-target-script-parameters' }` (que expõe os `inputParams` do Script como inputs `param.<chave>`) e `dynamicOutputs: { kind: 'from-target-script-outputs' }` (que expõe os `outputParams` como saídas para o IntelliSense dos Steps seguintes). Essas duas variantes de metadata são espelhadas manualmente em `functions/src/domain/engine/StepDefinition.ts` **e** `src/domain/entities/WorkflowStepCatalog.ts`.
 
 **Sandbox — `functions/src/infrastructure/workflow/sandbox/runScriptSandbox.ts`** (fronteira única de segurança; o `compiledJs` é não-confiável mesmo transpilado no cliente):
-- **Least privilege:** no sandbox só existem `input` (params mapeados via `resolveMapping`), `fn.*` (todas as funções de expressão síncronas), `log(...)` e `query(...)` (ponte assíncrona de consulta ao banco). Sem `import`/`require`/`fetch`/`process`/`fs` (inexistentes no QuickJS; ainda assim rejeitados na validação de save).
+- **Least privilege:** no sandbox só existem `input` (params mapeados via `resolveMapping`), `fn.*` (todas as funções de expressão síncronas), `log(...)` e as funções de dados assíncronas `query(...)`, `upsert(...)` e `remove(...)`. Sem `import`/`require`/`fetch`/`process`/`fs` (inexistentes no QuickJS; ainda assim rejeitados na validação de save).
 - **Limites por execução:** `setMemoryLimit` (~32MB), `setMaxStackSize`, `setInterruptHandler(shouldInterruptAfterDeadline(~3s))` renovado a cada rajada síncrona (interrompe loops infinitos) e um **deadline total de parede (~10s)** que cobre também as esperas assíncronas do `query` — ambos bem abaixo do timeout da function.
 - **Escopo de tenant:** sempre `context.execution.tenantId` (não forjável pelo script).
 - **Memória:** todo handle do QuickJS tem `.dispose()` garantido em `finally`; o módulo WASM é cacheado entre invocações.
@@ -1980,6 +1986,47 @@ O Step `script` executa **código JavaScript do usuário** dentro de um sandbox 
 **Ponte de consulta `query(spec)` (assíncrona).** O global `query` aceita um `QuerySpec` (`{ table, where:[{path,op,value}], orderBy?, limit, projections }`, mesmo formato do Step "Buscar Registros") e devolve `{ count, results, first }`. Reúsa **integralmente** o pipeline do QueryStep, extraído para `functions/src/infrastructure/workflow/query/runWorkflowQuery.ts` (validação, `queryByEquality` enraizado em `tenants/{tenantId}/…`, hidratação de projeções, predicados em memória, ordenação e `limit`); a ponte apenas envolve cada `where[].value` como `InputMapping` `Literal`. Segurança: escopo por `context.execution.tenantId` (nunca vindo do script), teto de `MAX_QUERIES` consultas por execução, e o deadline total acima. Implementação com `vm.newPromise()` + um loop de bombeamento que intercala `executePendingJobs()` com o `await` das consultas em voo.
 
 O script do usuário retorna um objeto (ex.: `main()` no final) que vira os `outputs` do Step. Deps novas: `quickjs-emscripten` (functions) e `sucrase` (frontend). Registro do Step em `registerSteps.ts` + `container.ts` (recebe `IScriptRepository` e os repositórios de query já existentes).
+
+---
+
+### Passos de dados de escrita "Gravar Registro" (Upsert) e "Excluir Registro" (Remove)
+
+Contraparte de escrita do Step "Buscar Registros" e da ponte `query`. Permitem que uma automação
+**inclua/atualize** (`upsert`) e **exclua** (`remove`) registros de entidades **fixas**
+(persons, cases, contracts, deadlines, financials), **personalizadas** (`customRecords` por
+`screenKey`) e **listas** (lookups). Núcleo compartilhado em
+`functions/src/infrastructure/workflow/mutation/runWorkflowMutation.ts`
+(`runWorkflowUpsert`/`runWorkflowRemove`), sobre `IWorkflowMutationRepository`
+(`FirestoreWorkflowMutationRepository`).
+
+- **Escopo de escrita (allowlist)** — `src/domain/schema/mutationSpec.ts` (`resolveWritableTable`):
+  são graváveis persons, cases, contracts, deadlines, financials, `customRecords` e lookups.
+  **Bloqueados**: `members` (papéis/permissões), `pushes` e `news` (infra). `resolveWritableTable`
+  reúsa `resolveQueryTable` e aplica a allowlist.
+- **Segurança de tenant** — o `tenantId` vem **sempre** de `context.execution.tenantId`; o `spec`
+  nunca o contém. Em `customRecords`, o `screenKey` é forçado a partir da tabela do spec e, no
+  update, o doc existente precisa ter o mesmo `screenKey` (impede repropósito entre telas).
+- **Validação** — `validateUpsertSpec` achata o `data` em caminhos e valida cada um com
+  `resolvePath` (rejeita campos desconhecidos, campos gerenciados pelo sistema — `id`, timestamps,
+  `screenKey`/`title` — e escrita "através" de referência). Fixas gravam campos nativos + FKs
+  (id/id[]) + `customValues.*`; personalizadas gravam em `values.*` (título derivado de
+  `titleFieldKey`); listas gravam `key`/`label`/`color`. `upsert` sem `id` inclui (com `createdBy:
+  'workflow-engine'` + timestamps); com `id` existente faz merge.
+- **Eventos** — como a escrita é um `set`/`delete` em `tenants/{tenantId}/{coleção}/{doc}`, os
+  eventos `*.saved`/`*.deleted` são emitidos **automaticamente** pelo trigger
+  `publishWorkflowEventOnEntityChange`; nenhuma emissão manual. **Sem cascata** (ver "Cascata de
+  Exclusão").
+- **Config no editor** — novos `InputType` `'Upsert'`/`'Remove'` (espelhados em
+  `StepDefinition.ts` e `WorkflowStepCatalog.ts`), com editores dedicados `UpsertBuilderControl`/
+  `RemoveBuilderControl` (padrão `QueryBuilderControl`). O executor de cada Step resolve os
+  `InputMapping` da config em valores literais antes de chamar o núcleo.
+
+**Ponte no Script — `upsert(spec)` / `remove(spec)`.** Mesmo padrão assíncrono de `query` em
+`runScriptSandbox.ts` (deferred + bombeamento), com teto `MAX_MUTATIONS` por execução. `upsert`
+recebe `{ table, id?, data }` → `{ id, created, record }`; `remove` recebe `{ table, id }` →
+`{ id, removed }`. Documentadas para o usuário na tela **"Funções de Dados"**
+(`presentation/pages/DataFunctionReference`, chave `data-function-reference`, aberta pelo botão no
+editor de Script) e no IntelliSense do editor (`scriptTypeDefs.ts`).
 
 ---
 

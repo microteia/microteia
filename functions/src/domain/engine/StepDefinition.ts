@@ -9,7 +9,9 @@ export type InputType =
   | 'Expression'
   | 'OutputReference'
   | 'VariableReference'
-  | 'Query';
+  | 'Query'
+  | 'Upsert'
+  | 'Remove';
 
 export type InputOptionsSource =
   | { kind: 'Static'; options: { value: string; label: string; color?: string }[] }

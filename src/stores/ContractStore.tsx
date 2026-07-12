@@ -13,7 +13,7 @@ import type { Contract, DeletionActor } from '../domain/entities';
 export const ContractStoreProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { currentTenant } = useTenant();
   const { user, effectiveName } = useAuth();
-  const { contractRepository, caseRepository, financialRepository } = useDI();
+  const { contractRepository } = useDI();
 
   const [contracts, setContracts] = useState<Contract[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -22,8 +22,8 @@ export const ContractStoreProvider: React.FC<{ children: React.ReactNode }> = ({
     subscribe: makeSubscribeToContractsUseCase(contractRepository),
     create: makeCreateContractUseCase(contractRepository),
     update: makeUpdateContractUseCase(contractRepository),
-    delete: makeDeleteContractUseCase(contractRepository, caseRepository, financialRepository),
-  }), [contractRepository, caseRepository, financialRepository]);
+    delete: makeDeleteContractUseCase(contractRepository),
+  }), [contractRepository]);
 
   useEffect(() => {
     if (!currentTenant) {

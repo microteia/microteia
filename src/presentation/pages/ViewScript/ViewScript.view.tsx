@@ -1,5 +1,5 @@
 import React, { Suspense, lazy } from 'react';
-import { RiCodeBoxLine, RiSave3Line, RiDeleteBinLine, RiArrowRightSLine } from 'react-icons/ri';
+import { RiCodeBoxLine, RiSave3Line, RiDeleteBinLine, RiArrowRightSLine, RiDatabase2Line } from 'react-icons/ri';
 import { S } from './ViewScript.styles';
 import { useViewScriptViewModel } from './ViewScript.viewmodel';
 import { Input, Label, Textarea } from '../../components/ui/Input';
@@ -102,8 +102,11 @@ export const ViewScriptView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
             <S.SectionBody>
               <InfoBanner
                 variant="info"
-                message="O código roda em um ambiente isolado e seguro, sem acesso à internet nem a bibliotecas externas. Use o objeto input, as funções fn.* e a função query(...) para consultar os cadastros do escritório. Retorne um objeto com os parâmetros de saída."
+                message="O código roda em um ambiente isolado e seguro, sem acesso à internet nem a bibliotecas externas. Use o objeto input, as funções fn.* e as funções de dados query(...), upsert(...) e remove(...) para acessar os cadastros do escritório. Retorne um objeto com os parâmetros de saída."
               />
+              <S.DocLink type="button" onClick={vm.openDataFunctionReference}>
+                <RiDatabase2Line size={14} /> Ver funções de dados (query, upsert, remove)
+              </S.DocLink>
               <Suspense fallback={<S.EditorLoading>Carregando editor…</S.EditorLoading>}>
                 <CodeEditor
                   value={vm.formData.sourceTs}

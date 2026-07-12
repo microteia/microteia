@@ -9,12 +9,15 @@ import { ExpressionEditor } from '../../components/ui/ExpressionEditor';
 import { LiteralOptionsControl } from '../ViewWorkflow/components/LiteralOptionsControl';
 import { EntityReferenceControl } from '../ViewWorkflow/components/EntityReferenceControl';
 import { QueryBuilderControl } from '../ViewWorkflow/components/QueryBuilderControl';
+import { UpsertBuilderControl } from '../ViewWorkflow/components/UpsertBuilderControl';
+import { RemoveBuilderControl } from '../ViewWorkflow/components/RemoveBuilderControl';
 import { getStepDisplayName } from '../../shared/workflowHelpers';
 import { S } from './EditWorkflowStep.styles';
 import { useEditWorkflowStepViewModel } from './EditWorkflowStep.viewmodel';
 import type { InputDefinition } from '../../../domain/entities/WorkflowStepCatalog';
 import type { InputMapping } from '../../../domain/entities/Workflow';
 import type { QuerySpec } from '../../../domain/schema/querySpec';
+import type { RemoveStepConfig, UpsertStepConfig } from '../../../domain/schema/mutationSpec';
 
 const MAPPING_KIND_OPTIONS = [
   { value: 'Literal', label: 'Valor fixo' },
@@ -128,6 +131,44 @@ export const EditWorkflowStepView: React.FC<{ tabKey: string }> = ({ tabKey }) =
     return (
       <QueryBuilderControl
         value={spec}
+        onChange={(next) => vm.setMapping(input.id, { kind: 'Literal', value: next })}
+        eventFields={vm.eventFields}
+        pathRoot={vm.pathRoot}
+        inputRoot={vm.inputRoot}
+        stepOutputFields={vm.stepOutputFields}
+        workflowVariables={vm.workflowVariables}
+      />
+    );
+  };
+
+  const renderUpsertControl = (input: InputDefinition) => {
+    const mapping = vm.configuration[input.id];
+    const config =
+      mapping?.kind === 'Literal' && mapping.value && typeof mapping.value === 'object'
+        ? (mapping.value as UpsertStepConfig)
+        : undefined;
+    return (
+      <UpsertBuilderControl
+        value={config}
+        onChange={(next) => vm.setMapping(input.id, { kind: 'Literal', value: next })}
+        eventFields={vm.eventFields}
+        pathRoot={vm.pathRoot}
+        inputRoot={vm.inputRoot}
+        stepOutputFields={vm.stepOutputFields}
+        workflowVariables={vm.workflowVariables}
+      />
+    );
+  };
+
+  const renderRemoveControl = (input: InputDefinition) => {
+    const mapping = vm.configuration[input.id];
+    const config =
+      mapping?.kind === 'Literal' && mapping.value && typeof mapping.value === 'object'
+        ? (mapping.value as RemoveStepConfig)
+        : undefined;
+    return (
+      <RemoveBuilderControl
+        value={config}
         onChange={(next) => vm.setMapping(input.id, { kind: 'Literal', value: next })}
         eventFields={vm.eventFields}
         pathRoot={vm.pathRoot}
@@ -280,6 +321,10 @@ export const EditWorkflowStepView: React.FC<{ tabKey: string }> = ({ tabKey }) =
                   />
                 ) : input.type === 'Query' ? (
                   renderQueryControl(input)
+                ) : input.type === 'Upsert' ? (
+                  renderUpsertControl(input)
+                ) : input.type === 'Remove' ? (
+                  renderRemoveControl(input)
                 ) : (
                   <S.MappingRow>
                     <SearchSelect

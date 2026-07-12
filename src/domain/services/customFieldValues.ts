@@ -1,4 +1,4 @@
-import type { CustomFieldValue, FieldDefinition } from '../entities';
+import type { CustomFieldValue, FieldDefinition } from '../entities/entitySchemas';
 
 // Palavras reservadas do JavaScript que não podem ser usadas como nomes de campos
 const JS_RESERVED_WORDS = new Set([

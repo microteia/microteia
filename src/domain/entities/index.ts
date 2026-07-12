@@ -875,6 +875,7 @@ export interface CaseLookupItem {
 export type {
   CustomFieldType,
   CustomFieldMask,
+  CustomFieldValue,
   CustomFieldOption,
   FieldDefinition,
   ScreenDefinition,
@@ -908,8 +909,6 @@ export interface CustomRecordTag {
   deletedByName?: string;
   deletedByPhotoURL?: string;
 }
-
-export type CustomFieldValue = string | string[] | number | boolean | null;
 
 export interface CustomRecord {
   id: string;

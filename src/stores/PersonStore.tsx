@@ -13,7 +13,7 @@ import type { DeletionActor, Person, PersonStatus } from '../domain/entities';
 export const PersonStoreProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { currentTenant } = useTenant();
   const { user, effectiveName } = useAuth();
-  const { personRepository, caseRepository, deadlineRepository, financialRepository } = useDI();
+  const { personRepository } = useDI();
 
   const [persons, setPersons] = useState<Person[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -22,8 +22,8 @@ export const PersonStoreProvider: React.FC<{ children: React.ReactNode }> = ({ c
     subscribe: makeSubscribeToPersonsUseCase(personRepository),
     create: makeCreatePersonUseCase(personRepository),
     update: makeUpdatePersonUseCase(personRepository),
-    delete: makeDeletePersonUseCase(personRepository, caseRepository, deadlineRepository, financialRepository),
-  }), [personRepository, caseRepository, deadlineRepository, financialRepository]);
+    delete: makeDeletePersonUseCase(personRepository),
+  }), [personRepository]);
 
   useEffect(() => {
     if (!currentTenant) {

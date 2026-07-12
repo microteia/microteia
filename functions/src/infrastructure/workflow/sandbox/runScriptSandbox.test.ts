@@ -2,8 +2,10 @@ import { describe, it, expect } from 'vitest';
 import { runScriptSandbox } from './runScriptSandbox';
 import type { WorkflowContext } from '../../../domain/entities/WorkflowContext';
 import type { WorkflowQueryDeps } from '../query/runWorkflowQuery';
+import type { WorkflowMutationDeps } from '../mutation/runWorkflowMutation';
 import type { IWorkflowQueryRepository } from '../../../domain/repositories/IWorkflowQueryRepository';
 import type { IWorkflowRecordFetcher } from '../../../domain/repositories/IWorkflowRecordFetcher';
+import type { IWorkflowMutationRepository } from '../../../domain/repositories/IWorkflowMutationRepository';
 import type { IScreenDefinitionProvider } from '../../../domain/repositories/IScreenDefinitionProvider';
 
 const logs: string[] = [];
@@ -39,7 +41,13 @@ const deps: WorkflowQueryDeps = {
   screenProvider: {} as IScreenDefinitionProvider,
 };
 
-const run = (js: string, input: Record<string, unknown>) => runScriptSandbox(js, input, makeContext(input), deps);
+const mutationDeps: WorkflowMutationDeps = {
+  mutationRepository: {} as IWorkflowMutationRepository,
+  screenProvider: {} as IScreenDefinitionProvider,
+};
+
+const run = (js: string, input: Record<string, unknown>) =>
+  runScriptSandbox(js, input, makeContext(input), deps, mutationDeps);
 
 const wrapMain = (body: string) => `async function main() {\n${body}\n}\nmain();`;
 

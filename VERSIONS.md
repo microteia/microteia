@@ -11,6 +11,12 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [0.74.0] — 2026-07-11
+
+- As automações agora podem **criar, atualizar e excluir registros** dos cadastros do escritório — não apenas consultá-los. Há dois novos passos no editor de automações: "Gravar Registro" e "Excluir Registro", que funcionam com cadastros fixos, personalizados e listas.
+- Nos Scripts, além de `query`, ficam disponíveis as funções `upsert` (incluir/atualizar) e `remove` (excluir). Uma nova tela "Funções de Dados", acessível pelo editor de Script, reúne e explica todas essas funções com exemplos.
+- A exclusão passou a remover **apenas o registro escolhido**, sem apagar itens relacionados em cascata. Assim, excluir um processo, uma pessoa ou um contrato é mais rápido e previsível.
+
 #### [0.73.0] — 2026-07-11
 
 - Novas funções para usar em expressões e Scripts: **onlyNumber**, que extrai apenas os números de um valor (útil para limpar CPF, CNPJ ou telefone — ex.: "123.aaa.bb-fff.45" vira "12345"), e **formatMoney**, que exibe um número como valor monetário (ex.: 123,90 vira "R$ 123,90"), com o formato brasileiro como padrão.

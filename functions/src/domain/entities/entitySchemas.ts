@@ -27,6 +27,8 @@ export type CustomFieldType =
 
 export type CustomFieldMask = 'cpf' | 'cnpj' | 'phone' | 'cep';
 
+export type CustomFieldValue = string | string[] | number | boolean | null;
+
 export interface CustomFieldOption {
   key: string;
   label: string;

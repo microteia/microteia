@@ -8,6 +8,25 @@ export const S = {
     overflow: hidden;
   `,
 
+  DocLink: styled.button`
+    align-self: flex-start;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    border-radius: ${({ theme }) => theme.borderRadius.md};
+    border: 1px solid ${({ theme }) => theme.colors.border};
+    background: transparent;
+    color: ${({ theme }) => theme.colors.primary};
+    font-size: ${({ theme }) => theme.fontSizes.xs};
+    cursor: pointer;
+    transition: ${({ theme }) => theme.transitions.fast};
+
+    &:hover {
+      border-color: ${({ theme }) => theme.colors.primary};
+    }
+  `,
+
   Header: styled.div`
     display: flex;
     align-items: center;

@@ -13,7 +13,7 @@ import type { Case, CaseStatus, DeletionActor } from '../domain/entities';
 export const CaseStoreProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { currentTenant } = useTenant();
   const { user, effectiveName } = useAuth();
-  const { caseRepository, deadlineRepository, financialRepository } = useDI();
+  const { caseRepository } = useDI();
 
   const [cases, setCases] = useState<Case[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -23,8 +23,8 @@ export const CaseStoreProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     create: makeCreateCaseUseCase(caseRepository),
     update: makeUpdateCaseUseCase(caseRepository),
     updateStatus: makeUpdateCaseStatusUseCase(caseRepository),
-    delete: makeDeleteCaseUseCase(caseRepository, deadlineRepository, financialRepository),
-  }), [caseRepository, deadlineRepository, financialRepository]);
+    delete: makeDeleteCaseUseCase(caseRepository),
+  }), [caseRepository]);
 
   useEffect(() => {
     if (!currentTenant) {

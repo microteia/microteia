@@ -31,6 +31,36 @@ interface QueryResult {
 /** Consulta os cadastros do escritório. Sempre use await. */
 declare function query(spec: QuerySpec): Promise<QueryResult>;
 
+interface UpsertSpec {
+  table: 'persons' | 'cases' | 'contracts' | 'deadlines' | 'financials' | (string & {});
+  /** Informe para atualizar um registro existente; omita para incluir um novo. */
+  id?: string;
+  /** Campos a gravar. Em cadastros fixos, os campos ficam no topo (customizados em customValues); em personalizados, dentro de values. */
+  data: Record<string, unknown>;
+}
+
+interface UpsertResult {
+  id: string;
+  created: boolean;
+  record: Record<string, unknown>;
+}
+
+interface RemoveSpec {
+  table: 'persons' | 'cases' | 'contracts' | 'deadlines' | 'financials' | (string & {});
+  id: string;
+}
+
+interface RemoveResult {
+  id: string;
+  removed: boolean;
+}
+
+/** Inclui ou atualiza um registro de um cadastro do escritório. Sempre use await. */
+declare function upsert(spec: UpsertSpec): Promise<UpsertResult>;
+
+/** Exclui um registro de um cadastro do escritório pelo id (sem cascata). Sempre use await. */
+declare function remove(spec: RemoveSpec): Promise<RemoveResult>;
+
 /** Registra uma mensagem no log de execução do Step. */
 declare function log(...args: unknown[]): void;`;
 

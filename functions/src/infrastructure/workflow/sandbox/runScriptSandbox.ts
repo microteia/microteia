@@ -5,6 +5,9 @@ import type { WorkflowContext } from '../../../domain/entities/WorkflowContext';
 import type { QueryOperator, QueryOrderBy, QueryPredicate, QuerySpec } from '../../../domain/schema/querySpec';
 import { runWorkflowQuery } from '../query/runWorkflowQuery';
 import type { WorkflowQueryDeps } from '../query/runWorkflowQuery';
+import { runWorkflowRemove, runWorkflowUpsert } from '../mutation/runWorkflowMutation';
+import type { WorkflowMutationDeps } from '../mutation/runWorkflowMutation';
+import type { RemoveSpec, UpsertSpec } from '../../../domain/schema/mutationSpec';
 
 const VM_SYNC_BURST_MS = 3000;
 const VM_TOTAL_DEADLINE_MS = 10000;
@@ -12,6 +15,7 @@ const VM_POLL_TICK_MS = 15;
 const VM_MEMORY_LIMIT_BYTES = 32 * 1024 * 1024;
 const VM_STACK_SIZE_BYTES = 512 * 1024;
 const MAX_QUERIES = 25;
+const MAX_MUTATIONS = 25;
 
 const delay = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -87,11 +91,31 @@ const buildQuerySpec = (raw: unknown): QuerySpec => {
   };
 };
 
+const buildUpsertSpec = (raw: unknown): UpsertSpec => {
+  const obj = (typeof raw === 'object' && raw !== null ? raw : {}) as Record<string, unknown>;
+  const data =
+    typeof obj.data === 'object' && obj.data !== null && !Array.isArray(obj.data)
+      ? (obj.data as Record<string, unknown>)
+      : {};
+  const spec: UpsertSpec = { table: typeof obj.table === 'string' ? obj.table : '', data };
+  if (typeof obj.id === 'string' && obj.id.trim() !== '') spec.id = obj.id;
+  return spec;
+};
+
+const buildRemoveSpec = (raw: unknown): RemoveSpec => {
+  const obj = (typeof raw === 'object' && raw !== null ? raw : {}) as Record<string, unknown>;
+  return {
+    table: typeof obj.table === 'string' ? obj.table : '',
+    id: typeof obj.id === 'string' ? obj.id : '',
+  };
+};
+
 export async function runScriptSandbox(
   compiledJs: string,
   input: Record<string, unknown>,
   context: WorkflowContext,
   deps: WorkflowQueryDeps,
+  mutationDeps: WorkflowMutationDeps,
 ): Promise<Record<string, unknown>> {
   const quickJS = await getModule();
   const vm: QuickJSContext = quickJS.newContext();
@@ -99,6 +123,7 @@ export async function runScriptSandbox(
   const inflight = new Set<Promise<void>>();
   const pendingDeferreds = new Set<QuickJSDeferredPromise>();
   let queryCount = 0;
+  let mutationCount = 0;
 
   const evalStatement = (code: string): void => {
     vm.unwrapResult(vm.evalCode(code)).dispose();
@@ -201,6 +226,70 @@ export async function runScriptSandbox(
     });
     vm.setProp(vm.global, 'query', queryHandle);
     queryHandle.dispose();
+
+    const registerAsyncBridge = (
+      name: string,
+      overLimit: () => boolean,
+      limitMessage: string,
+      run: (arg: unknown) => Promise<{ ok: true; value: unknown } | { ok: false; error: string }>,
+    ): void => {
+      const handle = vm.newFunction(name, (argHandle) => {
+        const deferred = vm.newPromise();
+        pendingDeferreds.add(deferred);
+        void deferred.settled.then(() => {
+          pendingDeferreds.delete(deferred);
+          if (vm.alive) vm.runtime.executePendingJobs();
+        });
+
+        if (overLimit()) {
+          const errHandle = vm.newString(limitMessage);
+          deferred.reject(errHandle);
+          errHandle.dispose();
+          return deferred.handle;
+        }
+
+        const arg = vmValueToHost(argHandle);
+        const work = run(arg)
+          .then((outcome) => {
+            if (!vm.alive) return;
+            if (outcome.ok) {
+              const valueHandle = hostValueToVm(outcome.value);
+              deferred.resolve(valueHandle);
+              valueHandle.dispose();
+            } else {
+              const errHandle = vm.newString(outcome.error);
+              deferred.reject(errHandle);
+              errHandle.dispose();
+            }
+          })
+          .catch((error: unknown) => {
+            if (!vm.alive) return;
+            const errHandle = vm.newString(error instanceof Error ? error.message : String(error));
+            deferred.reject(errHandle);
+            errHandle.dispose();
+          })
+          .finally(() => {
+            inflight.delete(work);
+          });
+        inflight.add(work);
+
+        return deferred.handle;
+      });
+      vm.setProp(vm.global, name, handle);
+      handle.dispose();
+    };
+
+    const overMutationLimit = (): boolean => {
+      mutationCount += 1;
+      return mutationCount > MAX_MUTATIONS;
+    };
+    const MUTATION_LIMIT_MESSAGE = 'Limite de gravações/exclusões do Script excedido.';
+    registerAsyncBridge('upsert', overMutationLimit, MUTATION_LIMIT_MESSAGE, (arg) =>
+      runWorkflowUpsert(buildUpsertSpec(arg), context, mutationDeps),
+    );
+    registerAsyncBridge('remove', overMutationLimit, MUTATION_LIMIT_MESSAGE, (arg) =>
+      runWorkflowRemove(buildRemoveSpec(arg), context, mutationDeps),
+    );
 
     const fnObject = vm.newObject();
     for (const definition of expressionFunctions.getAllDefinitions()) {

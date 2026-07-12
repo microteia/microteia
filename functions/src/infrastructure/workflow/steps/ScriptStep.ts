@@ -5,12 +5,14 @@ import { buildNestedParams } from '../../../domain/engine/nestedParams';
 import { applyParameterDefaults } from '../../../domain/schema/eventCatalog';
 import { runScriptSandbox } from '../sandbox/runScriptSandbox';
 import type { WorkflowQueryDeps } from '../query/runWorkflowQuery';
+import type { WorkflowMutationDeps } from '../mutation/runWorkflowMutation';
 
 const PARAM_PREFIX = 'param.';
 
 export const makeScriptStepDefinition = (
   scriptRepository: IScriptRepository,
   queryDeps: WorkflowQueryDeps,
+  mutationDeps: WorkflowMutationDeps,
 ): StepDefinition => ({
   id: 'script',
   version: 1,
@@ -54,7 +56,7 @@ export const makeScriptStepDefinition = (
       const scriptInput = applyParameterDefaults(script.inputParams, buildNestedParams(paramEntries));
 
       try {
-        const output = await runScriptSandbox(script.compiledJs, scriptInput, context, queryDeps);
+        const output = await runScriptSandbox(script.compiledJs, scriptInput, context, queryDeps, mutationDeps);
         return { success: true, message: `Script "${script.name}" executado`, outputs: output };
       } catch (error) {
         return { success: false, message: error instanceof Error ? error.message : String(error) };

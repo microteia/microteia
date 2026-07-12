@@ -19,6 +19,7 @@ import {
   RiFlowChart,
   RiCodeBoxLine,
   RiBookLine,
+  RiDatabase2Line,
   RiSparkling2Line,
 } from 'react-icons/ri';
 import type { UserRole } from '../../domain/entities';
@@ -54,6 +55,7 @@ import { ScriptsView } from './Scripts/Scripts.view';
 import { ViewScriptView } from './ViewScript/ViewScript.view';
 import { DataProcessorView } from './DataProcessor';
 import { FunctionReferenceView } from './FunctionReference/FunctionReference.view';
+import { DataFunctionReferenceView } from './DataFunctionReference/DataFunctionReference.view';
 
 export interface PageDefinition {
   key: string;
@@ -265,6 +267,12 @@ export const PAGE_REGISTRY: PageDefinition[] = [
     title: 'Referência de Expressões',
     icon: <RiBookLine size={20} />,
     component: FunctionReferenceView,
+  },
+  {
+    key: 'data-function-reference',
+    title: 'Funções de Dados',
+    icon: <RiDatabase2Line size={20} />,
+    component: DataFunctionReferenceView,
   },
   {
     key: 'data-processor',
