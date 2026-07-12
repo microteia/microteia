@@ -22,11 +22,36 @@ export interface AdvancedParametersEditorViewModel {
   mode: AdvancedParametersMode;
   jsonText: string;
   jsonErrors: string[];
+  showReference: boolean;
   enterVisual: () => void;
   enterJson: () => void;
   setJsonText: (text: string) => void;
   applyJson: () => void;
+  toggleReference: () => void;
+  insertExample: () => void;
 }
+
+export const PARAMETERS_JSON_EXAMPLE = `{
+  "titulo": "String",
+  "valor": { "type": "Number", "label": "Valor", "required": true, "default": 0 },
+  "vencimento": { "type": "Date", "label": "Vencimento" },
+  "ativo": { "type": "Boolean", "label": "Ativo", "default": true },
+  "prioridade": {
+    "type": "select",
+    "label": "Prioridade",
+    "options": ["Alta", "Média", "Baixa"]
+  },
+  "cliente": { "type": "EntityReference", "label": "Cliente", "entityType": "clients" },
+  "envolvidos": { "type": "EntityReference", "label": "Envolvidos", "entityType": "clients", "multi": true },
+  "endereco": {
+    "type": "Object",
+    "label": "Endereço",
+    "fields": {
+      "rua": "String",
+      "numero": { "type": "Number", "label": "Número" }
+    }
+  }
+}`;
 
 export const useAdvancedParametersEditorViewModel = (
   props: AdvancedParametersEditorProps,
@@ -35,6 +60,7 @@ export const useAdvancedParametersEditorViewModel = (
   const [mode, setMode] = useState<AdvancedParametersMode>('visual');
   const [jsonText, setJsonText] = useState('');
   const [jsonErrors, setJsonErrors] = useState<string[]>([]);
+  const [showReference, setShowReference] = useState(false);
 
   const enterJson = useCallback(() => {
     setJsonText(parametersToDsl(parameters));
@@ -58,5 +84,23 @@ export const useAdvancedParametersEditorViewModel = (
     setMode('visual');
   }, [jsonText, onReplace]);
 
-  return { mode, jsonText, jsonErrors, enterVisual, enterJson, setJsonText, applyJson };
+  const toggleReference = useCallback(() => setShowReference((prev) => !prev), []);
+
+  const insertExample = useCallback(() => {
+    setJsonText(PARAMETERS_JSON_EXAMPLE);
+    setJsonErrors([]);
+  }, []);
+
+  return {
+    mode,
+    jsonText,
+    jsonErrors,
+    showReference,
+    enterVisual,
+    enterJson,
+    setJsonText,
+    applyJson,
+    toggleReference,
+    insertExample,
+  };
 };

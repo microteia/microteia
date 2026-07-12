@@ -145,6 +145,11 @@ export const S = {
     gap: ${({ theme }) => theme.spacing.xs};
   `,
 
+  OptionsHint: styled.span`
+    color: ${({ theme }) => theme.colors.textSecondary};
+    font-size: ${({ theme }) => theme.fontSizes.xs};
+  `,
+
   NestedBox: styled.div`
     display: flex;
     flex-direction: column;

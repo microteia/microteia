@@ -226,6 +226,45 @@ const ParameterFields: React.FC<{
       </S.Cell>
     </S.Line>
 
+    {isInput && parameter.type === 'select' && (
+      <S.Cell>
+        <Label>Opções da lista</Label>
+        <S.OptionsBox>
+          {(parameter.options ?? []).length === 0 && (
+            <S.OptionsHint>Adicione as opções que o usuário poderá escolher. O valor padrão é definido a partir delas.</S.OptionsHint>
+          )}
+          {(parameter.options ?? []).map((option, optionIndex) => (
+            <S.OptionRow key={optionIndex}>
+              <Input
+                value={option.label}
+                onChange={(e) => {
+                  const nextOptions = [...(parameter.options ?? [])];
+                  nextOptions[optionIndex] = { value: e.target.value, label: e.target.value };
+                  onUpdate(index, { options: nextOptions });
+                }}
+                placeholder="ex: Alta"
+              />
+              <S.RemoveBtn
+                type="button"
+                onClick={() =>
+                  onUpdate(index, { options: (parameter.options ?? []).filter((_, i) => i !== optionIndex) })
+                }
+                title="Remover opção"
+              >
+                <RiDeleteBinLine size={14} />
+              </S.RemoveBtn>
+            </S.OptionRow>
+          ))}
+          <S.AddBtn
+            type="button"
+            onClick={() => onUpdate(index, { options: [...(parameter.options ?? []), { value: '', label: '' }] })}
+          >
+            <RiAddLine size={14} /> Adicionar opção
+          </S.AddBtn>
+        </S.OptionsBox>
+      </S.Cell>
+    )}
+
     {showSubLine && (
       <S.SubLine>
         {isInput && (
@@ -275,41 +314,6 @@ const ParameterFields: React.FC<{
       </S.SubLine>
     )}
 
-    {isInput && parameter.type === 'select' && (
-      <S.Cell>
-        <Label>Opções da lista</Label>
-        <S.OptionsBox>
-          {(parameter.options ?? []).map((option, optionIndex) => (
-            <S.OptionRow key={optionIndex}>
-              <Input
-                value={option.label}
-                onChange={(e) => {
-                  const nextOptions = [...(parameter.options ?? [])];
-                  nextOptions[optionIndex] = { value: e.target.value, label: e.target.value };
-                  onUpdate(index, { options: nextOptions });
-                }}
-                placeholder="ex: Alta"
-              />
-              <S.RemoveBtn
-                type="button"
-                onClick={() =>
-                  onUpdate(index, { options: (parameter.options ?? []).filter((_, i) => i !== optionIndex) })
-                }
-                title="Remover opção"
-              >
-                <RiDeleteBinLine size={14} />
-              </S.RemoveBtn>
-            </S.OptionRow>
-          ))}
-          <S.AddBtn
-            type="button"
-            onClick={() => onUpdate(index, { options: [...(parameter.options ?? []), { value: '', label: '' }] })}
-          >
-            <RiAddLine size={14} /> Adicionar opção
-          </S.AddBtn>
-        </S.OptionsBox>
-      </S.Cell>
-    )}
   </>
   );
 };

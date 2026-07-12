@@ -11,6 +11,11 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [0.75.0] — 2026-07-11
+
+- Ao criar um parâmetro do tipo "Lista de Opções" nas automações, as opções agora aparecem logo abaixo do tipo — antes do campo de valor padrão — deixando claro que é ali que se informam as escolhas disponíveis. O valor padrão passa a ser escolhido a partir das opções cadastradas.
+- A aba "JSON (avançado)" dos parâmetros ganhou uma referência com todas as propriedades disponíveis e um exemplo completo, que pode ser inserido no editor com um clique.
+
 #### [0.74.0] — 2026-07-11
 
 - As automações agora podem **criar, atualizar e excluir registros** dos cadastros do escritório — não apenas consultá-los. Há dois novos passos no editor de automações: "Gravar Registro" e "Excluir Registro", que funcionam com cadastros fixos, personalizados e listas.
