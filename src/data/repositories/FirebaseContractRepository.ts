@@ -17,6 +17,7 @@ import { db } from '../../infrastructure/firebase/config';
 import type { IContractRepository } from '../../domain/repositories/IContractRepository';
 import type { Contract, DeletionActor, CustomFieldValue } from '../../domain/entities';
 import { stampDeletionActor } from '../utils/stampDeletionActor';
+import { applyRecordRules } from '../utils/recordRulesGate';
 
 const toDate = (v: unknown): Date =>
   v instanceof Timestamp ? v.toDate() : (v as Date);
@@ -100,7 +101,7 @@ export class FirebaseContractRepository implements IContractRepository {
 
   async createContract(tenantId: string, data: Omit<Contract, 'id' | 'tenantId' | 'createdAt' | 'updatedAt'>): Promise<Contract> {
     const ref = await addDoc(contractsRef(tenantId), {
-      ...data,
+      ...applyRecordRules('contracts', data),
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     });
@@ -109,7 +110,10 @@ export class FirebaseContractRepository implements IContractRepository {
   }
 
   async updateContract(tenantId: string, contractId: string, data: Partial<Omit<Contract, 'id' | 'tenantId' | 'createdAt' | 'createdBy'>>): Promise<void> {
-    await updateDoc(doc(contractsRef(tenantId), contractId), { ...data, updatedAt: serverTimestamp() });
+    await updateDoc(doc(contractsRef(tenantId), contractId), {
+      ...applyRecordRules('contracts', data),
+      updatedAt: serverTimestamp(),
+    });
   }
 
   async updateContractTags(tenantId: string, contractId: string, tagIds: string[]): Promise<void> {

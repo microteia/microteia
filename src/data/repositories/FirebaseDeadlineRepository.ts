@@ -18,6 +18,7 @@ import { db } from '../../infrastructure/firebase/config';
 import type { IDeadlineRepository } from '../../domain/repositories/IDeadlineRepository';
 import type { Deadline, DeadlineStatus, DeletionActor, CustomFieldValue } from '../../domain/entities';
 import { stampDeletionActor } from '../utils/stampDeletionActor';
+import { applyRecordRules } from '../utils/recordRulesGate';
 
 const toDate = (v: unknown): Date =>
   v instanceof Timestamp ? v.toDate() : (v as Date);
@@ -88,7 +89,7 @@ export class FirebaseDeadlineRepository implements IDeadlineRepository {
 
   async createDeadline(tenantId: string, data: Omit<Deadline, 'id' | 'tenantId' | 'createdAt' | 'updatedAt'>): Promise<Deadline> {
     const ref = await addDoc(deadlinesRef(tenantId), {
-      ...data,
+      ...applyRecordRules('deadlines', data),
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     });
@@ -97,7 +98,10 @@ export class FirebaseDeadlineRepository implements IDeadlineRepository {
   }
 
   async updateDeadline(tenantId: string, deadlineId: string, data: Partial<Omit<Deadline, 'id' | 'tenantId' | 'createdAt' | 'createdBy'>>): Promise<void> {
-    await updateDoc(doc(deadlinesRef(tenantId), deadlineId), { ...data, updatedAt: serverTimestamp() });
+    await updateDoc(doc(deadlinesRef(tenantId), deadlineId), {
+      ...applyRecordRules('deadlines', data),
+      updatedAt: serverTimestamp(),
+    });
   }
 
   async updateDeadlineStatus(

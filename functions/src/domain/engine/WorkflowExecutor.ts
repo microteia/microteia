@@ -8,6 +8,8 @@ import type { WorkflowContext, WorkflowServices } from '../entities/WorkflowCont
 import type { StepRegistry } from './StepRegistry';
 import { evaluateCondition } from './ConditionEvaluator';
 import { resolveInputsSafe } from './InputMapping';
+import { describeRuleIssues } from '../schema/fieldRules';
+import { formatAndValidateParameters } from '../schema/parameterRules';
 
 export interface RunWorkflowParams {
   definition: WorkflowDefinition;
@@ -78,8 +80,14 @@ export const runWorkflow = async ({ definition, event, registry, services }: Run
     return finish('SUCCESS', {});
   }
 
+  const ruledParameters = formatAndValidateParameters(definition.parameters, event.payload);
+  if (ruledParameters.issues.length > 0) {
+    log('ERROR', `Parâmetros do workflow inválidos: ${describeRuleIssues(ruledParameters.issues)}`);
+    return finish('FAILED', {});
+  }
+
   const context: WorkflowContext = {
-    event,
+    event: { ...event, payload: ruledParameters.data },
     outputs: {},
     variables: {},
     services,

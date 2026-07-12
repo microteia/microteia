@@ -19,6 +19,7 @@ import { db } from '../../infrastructure/firebase/config';
 import type { IFinancialRepository } from '../../domain/repositories/IFinancialRepository';
 import type { Financial, FinancialStatus, FinancialType, DeletionActor, CustomFieldValue } from '../../domain/entities';
 import { stampDeletionActor } from '../utils/stampDeletionActor';
+import { applyRecordRules } from '../utils/recordRulesGate';
 
 const toDate = (v: unknown): Date =>
   v instanceof Timestamp ? v.toDate() : (v as Date);
@@ -113,7 +114,7 @@ export class FirebaseFinancialRepository implements IFinancialRepository {
 
   async createFinancial(tenantId: string, data: Omit<Financial, 'id' | 'tenantId' | 'createdAt' | 'updatedAt'>): Promise<Financial> {
     const ref = await addDoc(financialsRef(tenantId), {
-      ...data,
+      ...applyRecordRules('financials', data),
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     });
@@ -122,7 +123,10 @@ export class FirebaseFinancialRepository implements IFinancialRepository {
   }
 
   async updateFinancial(tenantId: string, financialId: string, data: Partial<Omit<Financial, 'id' | 'tenantId' | 'createdAt' | 'createdBy'>>): Promise<void> {
-    await updateDoc(doc(financialsRef(tenantId), financialId), { ...data, updatedAt: serverTimestamp() });
+    await updateDoc(doc(financialsRef(tenantId), financialId), {
+      ...applyRecordRules('financials', data),
+      updatedAt: serverTimestamp(),
+    });
   }
 
   async updateFinancialStatus(tenantId: string, financialId: string, status: FinancialStatus, paymentDate?: Date): Promise<void> {

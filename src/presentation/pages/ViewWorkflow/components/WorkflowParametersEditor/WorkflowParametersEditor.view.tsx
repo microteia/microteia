@@ -9,6 +9,8 @@ import type { WorkflowParametersEditorProps } from './WorkflowParametersEditor.v
 import type { WorkflowParameter } from '../../../../../domain/entities/Workflow';
 import { siblingParameterErrors, cloneParameterInList } from '../../../../../domain/schema/workflowParameters';
 import { isScalarParameterType } from '../../../../../domain/schema/eventCatalog';
+import type { FieldRules, FormatPreset, ValidateCheck } from '../../../../../domain/schema/fieldRules';
+import { FORMAT_PRESET_LABELS, VALIDATE_CHECK_LABELS } from '../../../../../domain/schema/fieldRules';
 
 const REQUIRED_OPTIONS = [
   { value: 'optional', label: 'Opcional' },
@@ -314,6 +316,111 @@ const ParameterFields: React.FC<{
       </S.SubLine>
     )}
 
+    {isInput && RULES_SUPPORTED_PARAMETER_TYPES.includes(parameter.type) && (
+      <ParameterRulesFields parameter={parameter} index={index} onUpdate={onUpdate} />
+    )}
+
   </>
+  );
+};
+
+const RULES_SUPPORTED_PARAMETER_TYPES: WorkflowParameter['type'][] = ['String', 'Number'];
+
+const FORMAT_PRESET_OPTIONS = [
+  { value: '', label: 'Nenhuma' },
+  ...(Object.keys(FORMAT_PRESET_LABELS) as FormatPreset[]).map((preset) => ({
+    value: preset,
+    label: FORMAT_PRESET_LABELS[preset],
+  })),
+];
+
+const VALIDATE_CHECK_OPTIONS = [
+  { value: '', label: 'Nenhuma' },
+  ...(Object.keys(VALIDATE_CHECK_LABELS) as ValidateCheck[]).map((check) => ({
+    value: check,
+    label: VALIDATE_CHECK_LABELS[check],
+  })),
+];
+
+const ParameterRulesFields: React.FC<{
+  parameter: WorkflowParameter;
+  index: number;
+  onUpdate: WorkflowParametersEditorProps['onUpdate'];
+}> = ({ parameter, index, onUpdate }) => {
+  const rules = parameter.rules;
+
+  // O valor é guardado cru enquanto o usuário digita (um regex pela metade é inválido, e
+  // sanitizar a cada tecla apagaria o que ele está escrevendo). A limpeza final acontece no
+  // save, em sanitizeWorkflowParameters.
+  const patchRules = (patch: FieldRules) => {
+    const format = { ...rules?.format, ...patch.format };
+    const validate = { ...rules?.validate, ...patch.validate };
+    const next: FieldRules = {};
+    if (Object.values(format).some(Boolean)) next.format = format;
+    if (Object.values(validate).some(Boolean)) next.validate = validate;
+    onUpdate(index, { rules: Object.keys(next).length > 0 ? next : undefined });
+  };
+
+  return (
+    <>
+      <S.SubLine>
+        <S.Cell>
+          <Label>Formatação pronta</Label>
+          <SearchSelect
+            options={FORMAT_PRESET_OPTIONS}
+            value={rules?.format?.preset ?? ''}
+            onChange={(value) => patchRules({ format: { preset: (value || undefined) as FormatPreset | undefined } })}
+            placeholder="Nenhuma"
+          />
+        </S.Cell>
+        <S.Cell>
+          <Label>Validação pronta</Label>
+          <SearchSelect
+            options={VALIDATE_CHECK_OPTIONS}
+            value={rules?.validate?.check ?? ''}
+            onChange={(value) => patchRules({ validate: { check: (value || undefined) as ValidateCheck | undefined } })}
+            placeholder="Nenhuma"
+          />
+        </S.Cell>
+      </S.SubLine>
+
+      <S.SubLine>
+        <S.Cell>
+          <Label>Formatar (procurar)</Label>
+          <Input
+            value={rules?.format?.pattern ?? ''}
+            onChange={(e) => patchRules({ format: { pattern: e.target.value } })}
+            placeholder="ex: ^(\d{3})(\d{3})(\d{3})(\d{2})$"
+          />
+        </S.Cell>
+        <S.Cell>
+          <Label>Formatar (substituir por)</Label>
+          <Input
+            value={rules?.format?.replacement ?? ''}
+            onChange={(e) => patchRules({ format: { replacement: e.target.value } })}
+            placeholder="ex: $1.$2.$3-$4"
+          />
+        </S.Cell>
+      </S.SubLine>
+
+      <S.SubLine>
+        <S.Cell>
+          <Label>Validar (expressão regular)</Label>
+          <Input
+            value={rules?.validate?.pattern ?? ''}
+            onChange={(e) => patchRules({ validate: { pattern: e.target.value } })}
+            placeholder="ex: ^[A-Z]{2}\d{6}$"
+          />
+        </S.Cell>
+        <S.Cell>
+          <Label>Mensagem de erro</Label>
+          <Input
+            value={rules?.validate?.message ?? ''}
+            onChange={(e) => patchRules({ validate: { message: e.target.value } })}
+            placeholder="Exibida quando o valor não passa"
+          />
+        </S.Cell>
+      </S.SubLine>
+    </>
   );
 };

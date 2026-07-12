@@ -1,3 +1,5 @@
+import type { FieldRules } from './fieldRules';
+
 export const SCHEMA_VERSION = 1;
 
 export type EntityKey =
@@ -30,6 +32,7 @@ export interface NativeFieldSpec {
   objectFields?: NativeFieldSpec[];
   refEntity?: string;
   multi?: boolean;
+  rules?: FieldRules;
 }
 
 export interface FkSpec {
@@ -55,6 +58,21 @@ export interface EntityMetadata {
   referenceable: boolean;
 }
 
+// O formato canônico gravado no Firestore para documentos, telefones e CEP é o de DÍGITOS PUROS
+// (a máscara existe só na tela). As regras abaixo normalizam para esse formato e validam em cima
+// dele — nunca introduza aqui um preset com máscara, sob pena de mudar o shape do dado gravado.
+const EMAIL_PATTERN = '^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$';
+
+const PHONE_RULES: FieldRules = {
+  format: { preset: 'digits' },
+  validate: { pattern: '^\\d{10,11}$', message: 'Telefone deve ter DDD + 8 ou 9 dígitos' },
+};
+
+const CEP_RULES: FieldRules = {
+  format: { preset: 'digits' },
+  validate: { pattern: '^\\d{8}$', message: 'CEP deve ter 8 dígitos' },
+};
+
 export const ENTITY_REGISTRY: Record<EntityKey, EntityMetadata> = {
   persons: {
     key: 'persons',
@@ -67,11 +85,29 @@ export const ENTITY_REGISTRY: Record<EntityKey, EntityMetadata> = {
     fields: [
       { key: 'name', label: 'Nome', type: 'string' },
       { key: 'type', label: 'Tipo', type: 'string', lookupCollection: 'personTypes' },
-      { key: 'cpf', label: 'CPF', type: 'string' },
-      { key: 'cnpj', label: 'CNPJ', type: 'string' },
-      { key: 'email', label: 'E-mail', type: 'string' },
-      { key: 'phone', label: 'Telefone', type: 'string' },
-      { key: 'secondaryPhone', label: 'Telefone secundário', type: 'string' },
+      {
+        key: 'cpf',
+        label: 'CPF',
+        type: 'string',
+        rules: { format: { preset: 'digits' }, validate: { check: 'cpf' } },
+      },
+      {
+        key: 'cnpj',
+        label: 'CNPJ',
+        type: 'string',
+        rules: { format: { preset: 'digits' }, validate: { check: 'cnpj' } },
+      },
+      {
+        key: 'email',
+        label: 'E-mail',
+        type: 'string',
+        rules: {
+          format: { preset: 'trim' },
+          validate: { pattern: EMAIL_PATTERN, message: 'E-mail inválido' },
+        },
+      },
+      { key: 'phone', label: 'Telefone', type: 'string', rules: PHONE_RULES },
+      { key: 'secondaryPhone', label: 'Telefone secundário', type: 'string', rules: PHONE_RULES },
       {
         key: 'address',
         label: 'Endereço',
@@ -83,7 +119,7 @@ export const ENTITY_REGISTRY: Record<EntityKey, EntityMetadata> = {
           { key: 'neighborhood', label: 'Bairro', type: 'string' },
           { key: 'city', label: 'Cidade', type: 'string', lookupCollection: 'personCities' },
           { key: 'state', label: 'Estado', type: 'string' },
-          { key: 'zipCode', label: 'CEP', type: 'string' },
+          { key: 'zipCode', label: 'CEP', type: 'string', rules: CEP_RULES },
         ],
       },
       { key: 'occupation', label: 'Profissão', type: 'string', lookupCollection: 'personOccupations' },

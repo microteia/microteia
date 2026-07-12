@@ -3,6 +3,8 @@ import { getDI } from '../di/container';
 import { getDb } from '../firebase/initFirebase';
 import { publishEvent } from '../workflow/publishEvent';
 import { WORKFLOW_CALLED_EVENT } from '../../domain/schema/eventCatalog';
+import { describeRuleIssues } from '../../domain/schema/fieldRules';
+import { formatAndValidateParameters } from '../../domain/schema/parameterRules';
 import type { WorkflowParameter } from '../../domain/entities/Workflow';
 
 interface RunWorkflowRequest {
@@ -150,10 +152,15 @@ export const runWorkflow = onCall(
         resolvedParams[param.key] = resolveParam(param, providedParams?.[param.key], values[param.key]);
       }
 
+      const ruled = formatAndValidateParameters(params, resolvedParams);
+      if (ruled.issues.length > 0) {
+        throw new HttpsError('invalid-argument', describeRuleIssues(ruled.issues));
+      }
+
       const eventId = await publishEvent(getDb(), tenantId, WORKFLOW_CALLED_EVENT, {
         __targetWorkflowId: targetWorkflowId,
         __callDepth: 1,
-        ...resolvedParams,
+        ...ruled.data,
       });
 
       return { eventId };

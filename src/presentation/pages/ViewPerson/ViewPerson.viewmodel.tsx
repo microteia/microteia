@@ -25,6 +25,8 @@ import { useScreenDefinitions } from '../../../stores/useScreenDefinitions';
 import { buildInitialFormValues, formValuesToStoredValues, validateRequiredFields } from '../../../domain/services/customFieldValues';
 import { formatCPF, formatCNPJ, formatPhone, formatCEP, onlyNumbers } from '../../../utils/formatters';
 import { validateCPF, validateCNPJ } from '../../../utils/validators';
+import { describeRuleIssues } from '../../../domain/schema/fieldRules';
+import { validateRecordRules } from '../../../data/utils/recordRulesGate';
 import { format, parseISO } from 'date-fns';
 
 export type ViewPersonTab = 'data' | 'notes' | 'documents';
@@ -416,22 +418,6 @@ export const useViewPersonViewModel = (tabKey: string): ViewPersonViewModel => {
     if (customFieldsError) { notify(customFieldsError, 'error'); return; }
     if (!currentTenant) return;
 
-    // Valida CPF/CNPJ se preenchidos
-    if (formData.cpf) {
-      const cpfNumbers = onlyNumbers(formData.cpf);
-      if (cpfNumbers.length > 0 && !validateCPF(cpfNumbers)) {
-        notify('CPF inválido.', 'error');
-        return;
-      }
-    }
-    if (formData.cnpj) {
-      const cnpjNumbers = onlyNumbers(formData.cnpj);
-      if (cnpjNumbers.length > 0 && !validateCNPJ(cnpjNumbers)) {
-        notify('CNPJ inválido.', 'error');
-        return;
-      }
-    }
-
     setIsSaving(true);
     try {
       const address: PersonAddress = {};
@@ -470,6 +456,12 @@ export const useViewPersonViewModel = (tabKey: string): ViewPersonViewModel => {
         address: hasAddress ? address : null,
         customValues: formValuesToStoredValues(customFields, customValues),
       };
+
+      const ruleIssues = validateRecordRules('persons', payload);
+      if (ruleIssues.length > 0) {
+        notify(describeRuleIssues(ruleIssues), 'error');
+        return;
+      }
 
       if (isNew) {
         const created = await createPerson({ ...payload, status: 'Ativo', createdBy: user?.id ?? '', tagIds: [] });

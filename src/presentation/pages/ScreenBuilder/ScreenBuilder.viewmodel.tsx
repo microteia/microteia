@@ -8,6 +8,8 @@ import { ensureUniqueKey, slugifyFieldKey, sortFieldsByOrder, validateFieldKey }
 import { getDefaultTagColor } from '../../../shared/styles/colorUtils';
 import { getScreenIconOptions } from '../../shared/screenIcons';
 import type { CustomFieldMask, CustomFieldType, FieldDefinition, ScreenDefinition } from '../../../domain/entities';
+import type { FieldRules, FormatPreset, FormatRule, ValidateCheck, ValidateRule } from '../../../domain/schema/fieldRules';
+import { FORMAT_PRESET_LABELS, VALIDATE_CHECK_LABELS } from '../../../domain/schema/fieldRules';
 import type { SearchSelectOption } from '../../components/ui/SearchSelect';
 import type { ColorSwatchOption } from '../../components/ui/ColorSwatchPicker';
 
@@ -71,6 +73,12 @@ export interface FieldFormState {
   showInList: boolean;
   listLabel: string;
   filterable: boolean;
+  ruleFormatPreset: FormatPreset | '';
+  ruleFormatPattern: string;
+  ruleFormatReplacement: string;
+  ruleValidateCheck: ValidateCheck | '';
+  ruleValidatePattern: string;
+  ruleValidateMessage: string;
 }
 
 export interface ScreenBuilderViewModel {
@@ -111,6 +119,9 @@ export interface ScreenBuilderViewModel {
   updateFieldForm: (patch: Partial<FieldFormState>) => void;
   typeOptions: SearchSelectOption[];
   maskOptions: SearchSelectOption[];
+  formatPresetOptions: SearchSelectOption[];
+  validateCheckOptions: SearchSelectOption[];
+  fieldSupportsRules: boolean;
   refEntityOptions: SearchSelectOption[];
   tagColors: ColorSwatchOption[];
   addStaticOption: () => void;
@@ -191,7 +202,67 @@ const EMPTY_FIELD_FORM: FieldFormState = {
   showInList: false,
   listLabel: '',
   filterable: false,
+  ruleFormatPreset: '',
+  ruleFormatPattern: '',
+  ruleFormatReplacement: '',
+  ruleValidateCheck: '',
+  ruleValidatePattern: '',
+  ruleValidateMessage: '',
 };
+
+export const RULES_SUPPORTED_FIELD_TYPES: CustomFieldType[] = [
+  'text',
+  'textarea',
+  'masked',
+  'markdown',
+  'number',
+  'currency',
+];
+
+const isInvalidRegex = (pattern: string): boolean => {
+  if (!pattern.trim()) return false;
+  try {
+    new RegExp(pattern);
+    return false;
+  } catch {
+    return true;
+  }
+};
+
+const buildFieldRules = (form: FieldFormState): FieldRules | null => {
+  if (!RULES_SUPPORTED_FIELD_TYPES.includes(form.type)) return null;
+
+  const format: FormatRule = {};
+  if (form.ruleFormatPreset) format.preset = form.ruleFormatPreset;
+  if (form.ruleFormatPattern.trim()) {
+    format.pattern = form.ruleFormatPattern.trim();
+    format.replacement = form.ruleFormatReplacement;
+  }
+
+  const validate: ValidateRule = {};
+  if (form.ruleValidateCheck) validate.check = form.ruleValidateCheck;
+  if (form.ruleValidatePattern.trim()) validate.pattern = form.ruleValidatePattern.trim();
+  if ((validate.check || validate.pattern) && form.ruleValidateMessage.trim()) {
+    validate.message = form.ruleValidateMessage.trim();
+  }
+
+  const rules: FieldRules = {};
+  if (Object.keys(format).length > 0) rules.format = format;
+  if (Object.keys(validate).length > 0) rules.validate = validate;
+  return Object.keys(rules).length > 0 ? rules : null;
+};
+
+const fieldRulesToForm = (rules: FieldRules | null | undefined): Pick<
+  FieldFormState,
+  'ruleFormatPreset' | 'ruleFormatPattern' | 'ruleFormatReplacement' | 'ruleValidateCheck' | 'ruleValidatePattern' | 'ruleValidateMessage'
+> => ({
+  ruleFormatPreset: rules?.format?.preset ?? '',
+  ruleFormatPattern: rules?.format?.pattern ?? '',
+  ruleFormatReplacement: rules?.format?.replacement ?? '',
+  ruleValidateCheck: rules?.validate?.check ?? '',
+  ruleValidatePattern: rules?.validate?.pattern ?? '',
+  ruleValidateMessage: rules?.validate?.message ?? '',
+});
 
 const toSaveInput = (def: ScreenDefinition): ScreenDefinitionSaveInput => ({
   builtin: def.builtin,
@@ -556,6 +627,7 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
       showInList: field.showInList ?? false,
       listLabel: field.listLabel ?? '',
       filterable: field.filterable ?? false,
+      ...fieldRulesToForm(field.rules),
     });
     setFieldModal({ screenKey, fieldKey });
   }, [getDefinitionByKey, defaultTagColor]);
@@ -576,6 +648,33 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
       label: MASK_LABELS[mask],
     })),
     [],
+  );
+
+  const formatPresetOptions = useMemo<SearchSelectOption[]>(
+    () => [
+      { value: '', label: 'Nenhuma' },
+      ...(Object.keys(FORMAT_PRESET_LABELS) as FormatPreset[]).map((preset) => ({
+        value: preset,
+        label: FORMAT_PRESET_LABELS[preset],
+      })),
+    ],
+    [],
+  );
+
+  const validateCheckOptions = useMemo<SearchSelectOption[]>(
+    () => [
+      { value: '', label: 'Nenhuma' },
+      ...(Object.keys(VALIDATE_CHECK_LABELS) as ValidateCheck[]).map((check) => ({
+        value: check,
+        label: VALIDATE_CHECK_LABELS[check],
+      })),
+    ],
+    [],
+  );
+
+  const fieldSupportsRules = useMemo(
+    () => RULES_SUPPORTED_FIELD_TYPES.includes(fieldForm.type),
+    [fieldForm.type],
   );
 
   const refEntityOptions = useMemo<SearchSelectOption[]>(() => {
@@ -639,6 +738,15 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
       notify('Escolha a tela vinculada ao campo.', 'error');
       return;
     }
+    if (isInvalidRegex(fieldForm.ruleValidatePattern)) {
+      notify('A expressão regular de validação é inválida.', 'error');
+      return;
+    }
+    if (isInvalidRegex(fieldForm.ruleFormatPattern)) {
+      notify('A expressão regular de formatação é inválida.', 'error');
+      return;
+    }
+    const rules = buildFieldRules(fieldForm);
     setSavingField(true);
     try {
       const existing = getDefinitionByKey(fieldModal.screenKey);
@@ -665,6 +773,7 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
             showInList: fieldForm.showInList,
             listLabel: fieldForm.showInList ? (fieldForm.listLabel.trim() || null) : null,
             filterable: fieldForm.filterable,
+            rules,
           };
         });
       } else {
@@ -692,6 +801,7 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
           showInList: fieldForm.showInList,
           listLabel: fieldForm.showInList ? (fieldForm.listLabel.trim() || null) : null,
           filterable: fieldForm.filterable,
+          rules,
         }];
       }
       await saveDefinition(fieldModal.screenKey, { ...baseInput, fields: nextFields });
@@ -819,6 +929,9 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
     updateFieldForm,
     typeOptions,
     maskOptions,
+    formatPresetOptions,
+    validateCheckOptions,
+    fieldSupportsRules,
     refEntityOptions,
     tagColors,
     addStaticOption,

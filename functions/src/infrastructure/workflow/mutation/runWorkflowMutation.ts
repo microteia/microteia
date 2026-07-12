@@ -13,6 +13,8 @@ import {
   validateWritablePath,
 } from '../../../domain/schema/mutationSpec';
 import type { RemoveSpec, ResolvedWritableTable, UpsertSpec } from '../../../domain/schema/mutationSpec';
+import { describeRuleIssues } from '../../../domain/schema/fieldRules';
+import { formatAndValidateRecord } from '../../../domain/schema/recordRules';
 
 const WORKFLOW_ACTOR = 'workflow-engine';
 const UNTITLED_RECORD = 'Sem título';
@@ -88,6 +90,12 @@ export async function runWorkflowUpsert(
     return { ok: false, error: `Gravação inválida: ${issues.map((i) => `${i.field}: ${i.error}`).join('; ')}` };
   }
 
+  const ruled = formatAndValidateRecord(ctx, effectiveSpec.table, effectiveSpec.data);
+  if (ruled.issues.length > 0) {
+    return { ok: false, error: `Gravação inválida: ${describeRuleIssues(ruled.issues)}` };
+  }
+  const ruledSpec: UpsertSpec = { ...effectiveSpec, data: ruled.data };
+
   const resolved = resolveWritableTable(effectiveSpec.table, ctx);
   if (!resolved.ok) {
     return { ok: false, error: resolved.error };
@@ -95,7 +103,7 @@ export async function runWorkflowUpsert(
   const target = resolved.value;
   const collection = target.physicalCollection;
 
-  const payload = buildFieldPayload(effectiveSpec, target, ctx);
+  const payload = buildFieldPayload(ruledSpec, target, ctx);
 
   if (target.kind === 'custom' && target.screenKey) {
     payload.screenKey = target.screenKey;

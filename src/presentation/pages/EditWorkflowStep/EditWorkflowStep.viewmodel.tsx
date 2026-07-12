@@ -17,6 +17,7 @@ import type { InputMapping, WorkflowParameter, WorkflowStep } from '../../../dom
 import type { InputDefinition, StepDefinitionSummary } from '../../../domain/entities/WorkflowStepCatalog';
 import type { QuerySpec } from '../../../domain/schema/querySpec';
 import type { MapStepConfig } from '../../../domain/schema/mapSpec';
+import type { ValidateStepConfig } from '../../../domain/schema/validateSpec';
 import type { StepOutputField, WorkflowVariable } from '../../components/ui/ExpressionEditor/autocompleteHelpers';
 
 const queryProjectionOutputs = (
@@ -42,6 +43,31 @@ const mapConfigOf = (
   return config.name?.trim() ? config : null;
 };
 
+// O Step "Validar Objeto" tem a mesma forma de saída do "Montar Objeto" (um objeto nomeado, com
+// tipo opcional), então é normalizado para MapStepConfig e reusa o mesmo caminho de IntelliSense.
+const validateConfigOf = (
+  step: WorkflowStep,
+  definition: StepDefinitionSummary,
+): MapStepConfig | null => {
+  if (definition.dynamicOutputs?.kind !== 'from-validate-config') return null;
+  const mapping = step.configuration[definition.dynamicOutputs.sourceInputId];
+  if (!mapping || mapping.kind !== 'Literal' || !mapping.value || typeof mapping.value !== 'object') return null;
+  const config = mapping.value as ValidateStepConfig;
+  if (!config.outputName?.trim()) return null;
+  return {
+    name: config.outputName,
+    type: config.entityType,
+    fields: (config.parameters ?? [])
+      .filter((parameter) => parameter.key?.trim())
+      .map((parameter) => ({ name: parameter.key, value: { kind: 'Literal', value: '' } })),
+  };
+};
+
+const objectOutputConfigOf = (
+  step: WorkflowStep,
+  definition: StepDefinitionSummary,
+): MapStepConfig | null => mapConfigOf(step, definition) ?? validateConfigOf(step, definition);
+
 const parameterToInputDefinitions = (
   parameter: WorkflowParameter,
   idPrefix = 'param',
@@ -52,7 +78,7 @@ const parameterToInputDefinitions = (
   if (parameter.type === 'Object') {
     return (parameter.fields ?? []).flatMap((child) => parameterToInputDefinitions(child, id, label));
   }
-  const base = { id, label, required: parameter.required ?? false };
+  const base = { id, label, required: parameter.required ?? false, rules: parameter.rules };
   switch (parameter.type) {
     case 'EntityReference':
       return [{ ...base, type: 'EntityReference', entityType: parameter.entityType }];
@@ -348,7 +374,7 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
       scriptOutputsFor(step, definition).forEach((output) => {
         fields.push({ stepId: step.id, stepName, outputId: output.id, outputLabel: output.label });
       });
-      const mapConfig = mapConfigOf(step, definition);
+      const mapConfig = objectOutputConfigOf(step, definition);
       if (mapConfig) {
         fields.push({ stepId: step.id, stepName, outputId: mapConfig.name, outputLabel: mapConfig.name });
       }
@@ -377,7 +403,7 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
         return;
       }
 
-      const mapConfig = mapConfigOf(step, definition);
+      const mapConfig = objectOutputConfigOf(step, definition);
       if (mapConfig) {
         fields.push(
           mapConfig.type
@@ -441,7 +467,7 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
       outputs.push({ value: output.id, label: output.label });
     });
 
-    const mapConfig = mapConfigOf(step, definition);
+    const mapConfig = objectOutputConfigOf(step, definition);
     if (mapConfig) {
       outputs.push({ value: mapConfig.name, label: `${mapConfig.name} (objeto)` });
     }

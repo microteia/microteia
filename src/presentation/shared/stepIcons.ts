@@ -10,6 +10,7 @@ import {
   RiCodeBoxLine,
   RiToolsLine,
   RiBracketsLine,
+  RiShieldCheckLine,
   RiSaveLine
 } from 'react-icons/ri';
 
@@ -23,6 +24,7 @@ const STEP_ICONS: Record<string, IconType> = {
   RiFlowChart,
   RiCodeBoxLine,
   RiBracketsLine,
+  RiShieldCheckLine,
   RiSaveLine,
 };
 

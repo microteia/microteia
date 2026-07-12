@@ -66,7 +66,7 @@ export const CustomRecordStoreProvider: React.FC<{ children: React.ReactNode }> 
 
   const updateRecord = useCallback(async (recordId: string, screenKey: string, data: Partial<Omit<CustomRecord, 'id' | 'tenantId' | 'screenKey' | 'createdAt' | 'createdBy'>>) => {
     if (!currentTenant) return;
-    await uc.update.execute(currentTenant.id, recordId, data);
+    await uc.update.execute(currentTenant.id, recordId, screenKey, data);
     setRecordsByScreen((prev) => ({
       ...prev,
       [screenKey]: (prev[screenKey] ?? []).map((r) => (r.id === recordId ? { ...r, ...data } : r)),

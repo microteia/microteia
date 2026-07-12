@@ -3,6 +3,8 @@ import type { IScriptRepository } from '../../../domain/repositories/IScriptRepo
 import { resolveMapping } from '../../../domain/engine/InputMapping';
 import { buildNestedParams } from '../../../domain/engine/nestedParams';
 import { applyParameterDefaults } from '../../../domain/schema/eventCatalog';
+import { describeRuleIssues } from '../../../domain/schema/fieldRules';
+import { formatAndValidateParameters } from '../../../domain/schema/parameterRules';
 import { runScriptSandbox } from '../sandbox/runScriptSandbox';
 import type { WorkflowQueryDeps } from '../query/runWorkflowQuery';
 import type { WorkflowMutationDeps } from '../mutation/runWorkflowMutation';
@@ -53,7 +55,14 @@ export const makeScriptStepDefinition = (
         if (!key.startsWith(PARAM_PREFIX)) continue;
         paramEntries.push([key.slice(PARAM_PREFIX.length), resolveMapping(mapping, context)]);
       }
-      const scriptInput = applyParameterDefaults(script.inputParams, buildNestedParams(paramEntries));
+      const ruled = formatAndValidateParameters(
+        script.inputParams,
+        applyParameterDefaults(script.inputParams, buildNestedParams(paramEntries)),
+      );
+      if (ruled.issues.length > 0) {
+        return { success: false, message: `Parâmetros do Script inválidos: ${describeRuleIssues(ruled.issues)}` };
+      }
+      const scriptInput = ruled.data;
 
       try {
         const output = await runScriptSandbox(script.compiledJs, scriptInput, context, queryDeps, mutationDeps);

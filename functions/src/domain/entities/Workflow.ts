@@ -1,3 +1,5 @@
+import type { FieldRules } from '../schema/fieldRules';
+
 export type StepType = 'Action' | 'Condition' | 'Delay' | 'Script' | 'SubWorkflow';
 
 export interface LiteralInputMapping {
@@ -104,6 +106,7 @@ export interface WorkflowParameter {
   options?: { value: string; label: string }[];
   fields?: WorkflowParameter[];
   defaultValue?: unknown;
+  rules?: FieldRules;
 }
 
 export interface WorkflowDefinition {

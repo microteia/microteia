@@ -2,6 +2,71 @@ import type { WorkflowParameter, WorkflowParameterType } from '../entities/Workf
 import type { ScriptOutputParam } from '../entities/Script';
 import { validateFieldKey } from '../services/customFieldValues';
 import { isScalarParameterType } from './eventCatalog';
+import type { FieldRules, FormatPreset, FormatRule, ValidateCheck, ValidateRule } from './fieldRules';
+import { FORMAT_PRESET_LABELS, VALIDATE_CHECK_LABELS } from './fieldRules';
+
+const isValidRegex = (pattern: string): boolean => {
+  try {
+    new RegExp(pattern);
+    return true;
+  } catch {
+    return false;
+  }
+};
+
+export const sanitizeFieldRules = (rules: FieldRules | undefined): FieldRules | undefined => {
+  if (!rules) return undefined;
+
+  const format: FormatRule = {};
+  if (rules.format?.preset && rules.format.preset in FORMAT_PRESET_LABELS) format.preset = rules.format.preset;
+  if (rules.format?.pattern?.trim() && isValidRegex(rules.format.pattern)) {
+    format.pattern = rules.format.pattern.trim();
+    format.replacement = rules.format.replacement ?? '';
+    if (rules.format.flags) format.flags = rules.format.flags;
+  }
+
+  const validate: ValidateRule = {};
+  if (rules.validate?.check && rules.validate.check in VALIDATE_CHECK_LABELS) validate.check = rules.validate.check;
+  if (rules.validate?.pattern?.trim() && isValidRegex(rules.validate.pattern)) {
+    validate.pattern = rules.validate.pattern.trim();
+    if (rules.validate.flags) validate.flags = rules.validate.flags;
+  }
+  if ((validate.check || validate.pattern) && rules.validate?.message?.trim()) {
+    validate.message = rules.validate.message.trim();
+  }
+
+  const clean: FieldRules = {};
+  if (Object.keys(format).length > 0) clean.format = format;
+  if (Object.keys(validate).length > 0) clean.validate = validate;
+  return Object.keys(clean).length > 0 ? clean : undefined;
+};
+
+const parseDslRules = (value: unknown): FieldRules | undefined => {
+  if (!isPlainObject(value)) return undefined;
+
+  const rawFormat = isPlainObject(value.format) ? value.format : undefined;
+  const rawValidate = isPlainObject(value.validate) ? value.validate : undefined;
+  if (!rawFormat && !rawValidate) return undefined;
+
+  return sanitizeFieldRules({
+    format: rawFormat
+      ? {
+          preset: rawFormat.preset as FormatPreset | undefined,
+          pattern: typeof rawFormat.pattern === 'string' ? rawFormat.pattern : undefined,
+          replacement: typeof rawFormat.replacement === 'string' ? rawFormat.replacement : undefined,
+          flags: typeof rawFormat.flags === 'string' ? rawFormat.flags : undefined,
+        }
+      : undefined,
+    validate: rawValidate
+      ? {
+          check: rawValidate.check as ValidateCheck | undefined,
+          pattern: typeof rawValidate.pattern === 'string' ? rawValidate.pattern : undefined,
+          message: typeof rawValidate.message === 'string' ? rawValidate.message : undefined,
+          flags: typeof rawValidate.flags === 'string' ? rawValidate.flags : undefined,
+        }
+      : undefined,
+  });
+};
 
 export const PARAMETER_TYPE_VALUES: WorkflowParameterType[] = [
   'String',
@@ -75,6 +140,8 @@ export const sanitizeWorkflowParameters = (parameters: WorkflowParameter[]): Wor
     if (isScalarParameterType(parameter.type) && parameter.defaultValue !== undefined && parameter.defaultValue !== '') {
       clean.defaultValue = parameter.defaultValue;
     }
+    const rules = sanitizeFieldRules(parameter.rules);
+    if (rules) clean.rules = rules;
     return clean;
   });
 
@@ -94,10 +161,12 @@ const isValidType = (value: unknown): value is WorkflowParameterType =>
 
 const parameterToDslValue = (parameter: WorkflowParameter): unknown => {
   const rich: Record<string, unknown> = { type: parameter.type };
+  const rules = sanitizeFieldRules(parameter.rules);
   const hasExtras =
     (parameter.label && parameter.label !== parameter.key) ||
     parameter.required ||
     parameter.defaultValue !== undefined ||
+    rules !== undefined ||
     parameter.type === 'EntityReference' ||
     parameter.type === 'select' ||
     parameter.type === 'Object';
@@ -112,6 +181,7 @@ const parameterToDslValue = (parameter: WorkflowParameter): unknown => {
   }
   if (parameter.type === 'select' && parameter.options) rich.options = parameter.options;
   if (parameter.defaultValue !== undefined) rich.default = parameter.defaultValue;
+  if (rules) rich.rules = rules;
   if (parameter.type === 'Object') rich.fields = parametersToDslMap(parameter.fields ?? []);
   return rich;
 };
@@ -195,6 +265,9 @@ const parseDslNode = (key: string, value: unknown, path: string, errors: string[
   }
 
   if (isScalarParameterType(type) && value.default !== undefined) parameter.defaultValue = value.default;
+
+  const rules = parseDslRules(value.rules);
+  if (rules) parameter.rules = rules;
 
   return parameter;
 };

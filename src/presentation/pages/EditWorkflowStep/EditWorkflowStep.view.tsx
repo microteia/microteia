@@ -12,6 +12,7 @@ import { QueryBuilderControl } from '../ViewWorkflow/components/QueryBuilderCont
 import { UpsertBuilderControl } from '../ViewWorkflow/components/UpsertBuilderControl';
 import { RemoveBuilderControl } from '../ViewWorkflow/components/RemoveBuilderControl';
 import { MapBuilderControl } from '../ViewWorkflow/components/MapBuilderControl';
+import { ValidateBuilderControl } from '../ViewWorkflow/components/ValidateBuilderControl';
 import { getStepDisplayName } from '../../shared/workflowHelpers';
 import { S } from './EditWorkflowStep.styles';
 import { useEditWorkflowStepViewModel } from './EditWorkflowStep.viewmodel';
@@ -20,6 +21,8 @@ import type { InputMapping } from '../../../domain/entities/Workflow';
 import type { QuerySpec } from '../../../domain/schema/querySpec';
 import type { RemoveStepConfig, UpsertStepConfig } from '../../../domain/schema/mutationSpec';
 import type { MapStepConfig } from '../../../domain/schema/mapSpec';
+import type { ValidateStepConfig } from '../../../domain/schema/validateSpec';
+import { applyFormat, checkValue, toEffectiveRules } from '../../../domain/schema/fieldRules';
 
 const MAPPING_KIND_OPTIONS = [
   { value: 'Literal', label: 'Valor fixo' },
@@ -36,14 +39,10 @@ const getMappingKindOptions = (input: InputDefinition) => {
   return MAPPING_KIND_OPTIONS.filter(opt => input.allowedMappingKinds?.includes(opt.value as InputMapping['kind']));
 };
 
-const validatePattern = (value: string, pattern?: string): boolean => {
-  if (!pattern) return true;
-  try {
-    const regex = new RegExp(pattern);
-    return regex.test(value);
-  } catch {
-    return true;
-  }
+const literalRuleError = (value: string, input: InputDefinition): string | undefined => {
+  const rules = toEffectiveRules(input);
+  if (!rules) return undefined;
+  return checkValue(applyFormat(value, rules.format), rules.validate, input.label);
 };
 
 export const EditWorkflowStepView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
@@ -87,24 +86,13 @@ export const EditWorkflowStepView: React.FC<{ tabKey: string }> = ({ tabKey }) =
       const newValue = e.target.value;
       vm.setMapping(input.id, { kind: 'Literal', value: newValue });
 
-      if (input.pattern && newValue) {
-        const isValid = validatePattern(newValue, input.pattern);
-        setValidationErrors(prev => {
-          const next = { ...prev };
-          if (isValid) {
-            delete next[input.id];
-          } else {
-            next[input.id] = input.patternMessage ?? 'Formato inválido';
-          }
-          return next;
-        });
-      } else {
-        setValidationErrors(prev => {
-          const next = { ...prev };
-          delete next[input.id];
-          return next;
-        });
-      }
+      const ruleError = newValue ? literalRuleError(newValue, input) : undefined;
+      setValidationErrors(prev => {
+        const next = { ...prev };
+        if (ruleError) next[input.id] = ruleError;
+        else delete next[input.id];
+        return next;
+      });
     };
 
     return (
@@ -151,6 +139,20 @@ export const EditWorkflowStepView: React.FC<{ tabKey: string }> = ({ tabKey }) =
         : undefined;
     return (
       <UpsertBuilderControl
+        value={config}
+        onChange={(next) => vm.setMapping(input.id, { kind: 'Literal', value: next })}
+      />
+    );
+  };
+
+  const renderValidateControl = (input: InputDefinition) => {
+    const mapping = vm.configuration[input.id];
+    const config =
+      mapping?.kind === 'Literal' && mapping.value && typeof mapping.value === 'object'
+        ? (mapping.value as ValidateStepConfig)
+        : undefined;
+    return (
+      <ValidateBuilderControl
         value={config}
         onChange={(next) => vm.setMapping(input.id, { kind: 'Literal', value: next })}
       />
@@ -349,6 +351,8 @@ export const EditWorkflowStepView: React.FC<{ tabKey: string }> = ({ tabKey }) =
                   renderRemoveControl(input)
                 ) : input.type === 'Map' ? (
                   renderMapControl(input)
+                ) : input.type === 'Validate' ? (
+                  renderValidateControl(input)
                 ) : (
                   <S.MappingRow>
                     <SearchSelect

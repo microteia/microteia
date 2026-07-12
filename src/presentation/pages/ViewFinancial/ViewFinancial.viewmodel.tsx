@@ -26,6 +26,8 @@ import type { Financial, FinancialType, FinancialDocument, PaymentMethod, Custom
 import type { TagStoreAdapter } from '../../components/ui/TagManager/TagManager.viewmodel';
 import { useScreenDefinitions } from '../../../stores/useScreenDefinitions';
 import { buildInitialFormValues, formValuesToStoredValues, validateRequiredFields } from '../../../domain/services/customFieldValues';
+import { describeRuleIssues } from '../../../domain/schema/fieldRules';
+import { validateRecordRules } from '../../../data/utils/recordRulesGate';
 
 export type ViewFinancialTab = 'data' | 'documents';
 
@@ -362,6 +364,12 @@ export const useViewFinancialViewModel = (tabKey: string): ViewFinancialViewMode
         notes: formData.notes || null,
         customValues: formValuesToStoredValues(customFields, customValues),
       };
+
+      const ruleIssues = validateRecordRules('financials', payload);
+      if (ruleIssues.length > 0) {
+        notify(describeRuleIssues(ruleIssues), 'error');
+        return;
+      }
 
       if (isNew) {
         const created = await createFinancial({ ...payload, createdBy: user?.id ?? '', tagIds: [] });

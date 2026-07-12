@@ -365,6 +365,61 @@ export const ScreenBuilderView: React.FC = () => {
                 />
               </InputGroup>
             )}
+            {vm.fieldSupportsRules && (
+              <>
+                <S.RulesDivider>Formatação e validação</S.RulesDivider>
+                <InputGroup>
+                  <Label>Formatação pronta</Label>
+                  <SearchSelect
+                    options={vm.formatPresetOptions}
+                    value={vm.fieldForm.ruleFormatPreset}
+                    onChange={(value) => vm.updateFieldForm({ ruleFormatPreset: value as typeof vm.fieldForm.ruleFormatPreset })}
+                    placeholder="Nenhuma"
+                  />
+                </InputGroup>
+                <InputGroup>
+                  <Label>Formatação por expressão regular</Label>
+                  <Input
+                    value={vm.fieldForm.ruleFormatPattern}
+                    onChange={(e) => vm.updateFieldForm({ ruleFormatPattern: e.target.value })}
+                    placeholder="Procurar, ex: ^(\d{3})(\d{3})(\d{3})(\d{2})$"
+                  />
+                </InputGroup>
+                <InputGroup>
+                  <Label>Substituir por</Label>
+                  <Input
+                    value={vm.fieldForm.ruleFormatReplacement}
+                    onChange={(e) => vm.updateFieldForm({ ruleFormatReplacement: e.target.value })}
+                    placeholder="Ex: $1.$2.$3-$4"
+                  />
+                </InputGroup>
+                <InputGroup>
+                  <Label>Validação pronta</Label>
+                  <SearchSelect
+                    options={vm.validateCheckOptions}
+                    value={vm.fieldForm.ruleValidateCheck}
+                    onChange={(value) => vm.updateFieldForm({ ruleValidateCheck: value as typeof vm.fieldForm.ruleValidateCheck })}
+                    placeholder="Nenhuma"
+                  />
+                </InputGroup>
+                <InputGroup>
+                  <Label>Validação por expressão regular</Label>
+                  <Input
+                    value={vm.fieldForm.ruleValidatePattern}
+                    onChange={(e) => vm.updateFieldForm({ ruleValidatePattern: e.target.value })}
+                    placeholder="Ex: ^[A-Z]{2}\d{6}$"
+                  />
+                </InputGroup>
+                <InputGroup>
+                  <Label>Mensagem de erro</Label>
+                  <Input
+                    value={vm.fieldForm.ruleValidateMessage}
+                    onChange={(e) => vm.updateFieldForm({ ruleValidateMessage: e.target.value })}
+                    placeholder="Exibida quando o valor não passa na validação"
+                  />
+                </InputGroup>
+              </>
+            )}
             {vm.fieldForm.type === 'reference' && (
               <InputGroup>
                 <Label>Tela vinculada *</Label>

@@ -25,6 +25,8 @@ import type { TagStoreAdapter } from '../../components/ui/TagManager/TagManager.
 import type { DynamicSelectOption } from '../../components/ui/DynamicSelect';
 import { useScreenDefinitions } from '../../../stores/useScreenDefinitions';
 import { buildInitialFormValues, formValuesToStoredValues, validateRequiredFields } from '../../../domain/services/customFieldValues';
+import { describeRuleIssues } from '../../../domain/schema/fieldRules';
+import { validateRecordRules } from '../../../data/utils/recordRulesGate';
 
 export type ViewCaseTab = 'data' | 'notes' | 'documents';
 
@@ -328,6 +330,12 @@ export const useViewCaseViewModel = (tabKey: string): ViewCaseViewModel => {
         tagIds: case_?.tagIds ?? [],
         customValues: formValuesToStoredValues(customFields, customValues),
       };
+
+      const ruleIssues = validateRecordRules('cases', payload);
+      if (ruleIssues.length > 0) {
+        notify(describeRuleIssues(ruleIssues), 'error');
+        return;
+      }
 
       if (isNew) {
         const created = await createCase({ ...payload, createdBy: user?.id ?? '' });

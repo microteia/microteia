@@ -16,6 +16,7 @@ import { makeCreateScreenTagUseCase } from '../domain/usecases/screendefinitions
 import { makeUpdateScreenTagUseCase } from '../domain/usecases/screendefinitions/UpdateScreenTagUseCase';
 import { makeDeleteScreenTagUseCase } from '../domain/usecases/screendefinitions/DeleteScreenTagUseCase';
 import { sortFieldsByOrder } from '../domain/services/customFieldValues';
+import { setRecordRulesScreens, toSchemaScreens } from '../data/utils/recordRulesGate';
 import type { CustomRecordTag, DeletionActor, FieldDefinition, ScreenDefinition, ScreenFieldOption } from '../domain/entities';
 
 export const ScreenDefinitionStoreProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -67,6 +68,10 @@ export const ScreenDefinitionStoreProvider: React.FC<{ children: React.ReactNode
     // eslint-disable-next-line react-hooks/set-state-in-effect -- triggering async refresh on mount/tenant change is architecturally required
     void refresh();
   }, [refresh]);
+
+  useEffect(() => {
+    setRecordRulesScreens(toSchemaScreens(definitions));
+  }, [definitions]);
 
   useEffect(() => {
     const unsub = storeEvents.on(StoreEvents.SCREEN_DEFINITIONS_UPDATED, () => void refresh());

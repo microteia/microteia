@@ -28,6 +28,8 @@ import {
   sortFieldsByOrder,
   validateRequiredFields,
 } from '../../../domain/services/customFieldValues';
+import { describeRuleIssues } from '../../../domain/schema/fieldRules';
+import { validateRecordRules } from '../../../data/utils/recordRulesGate';
 import type { DynamicSelectOption } from '../../components/ui/DynamicSelect';
 import type { TagStoreAdapter } from '../../components/ui/TagManager';
 import type {
@@ -245,6 +247,13 @@ export const useViewDynamicRecordViewModel = (tabKey: string): ViewDynamicRecord
     try {
       const values = formValuesToStoredValues(sortedFields, formValues);
       const title = resolveRecordTitle(values, definition.titleFieldKey);
+
+      const ruleIssues = validateRecordRules(screenKey, { values });
+      if (ruleIssues.length > 0) {
+        notify(describeRuleIssues(ruleIssues), 'error');
+        return;
+      }
+
       if (isNew) {
         const created = await createRecord({
           screenKey,

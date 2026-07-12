@@ -3,6 +3,7 @@ import type { WorkflowContext } from '../entities/WorkflowContext';
 import type { InputDefinition } from './StepDefinition';
 import { expressionEngine } from './expression/ExpressionEngine';
 import { getValueAtPath, parsePath } from '../schema/pathResolver';
+import { applyFormat, checkValue, toEffectiveRules } from '../schema/fieldRules';
 
 const resolveEventPath = (payload: Record<string, unknown>, path: string): unknown =>
   getValueAtPath(payload, parsePath(path));
@@ -56,6 +57,16 @@ export const resolveInputsSafe = (
       if (input.required && value === undefined) {
         throw new Error(`Entrada obrigatória "${input.label}" não foi informada`);
       }
+
+      const rules = toEffectiveRules(input);
+      if (rules) {
+        value = applyFormat(value, rules.format);
+        const ruleError = checkValue(value, rules.validate, input.label);
+        if (ruleError) {
+          throw new Error(`Entrada "${input.label}" inválida: ${ruleError}`);
+        }
+      }
+
       const validationError = input.validator?.(value);
       if (validationError) {
         throw new Error(`Entrada "${input.label}" inválida: ${validationError}`);

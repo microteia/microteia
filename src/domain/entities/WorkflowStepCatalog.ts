@@ -1,3 +1,5 @@
+import type { FieldRules } from '../schema/fieldRules';
+
 export type InputType =
   | 'String'
   | 'Number'
@@ -10,7 +12,8 @@ export type InputType =
   | 'Query'
   | 'Upsert'
   | 'Remove'
-  | 'Map';
+  | 'Map'
+  | 'Validate';
 
 export type InputOptionsSource =
   | { kind: 'Static'; options: { value: string; label: string; color?: string }[] }
@@ -29,9 +32,12 @@ export interface InputDefinition {
   entityType?: string;
   // Restringe os tipos de mapping permitidos. Se undefined, todos são permitidos.
   allowedMappingKinds?: Array<'Literal' | 'Event' | 'Expression' | 'Output' | 'Variable'>;
-  // Validação via regex (somente para Literal string)
+  // Validação via regex (somente para Literal string). Mantido por compatibilidade: em runtime é
+  // lido como um `rules.validate` equivalente.
   pattern?: string;
   patternMessage?: string;
+  // Regras de formatação e validação aplicadas ao valor resolvido, em design-time e em runtime.
+  rules?: FieldRules;
 }
 
 export interface OutputDefinition {
@@ -66,6 +72,12 @@ export type DynamicOutputsMetadata =
   | {
       kind: 'from-query-projections';
       /** ID do input do tipo 'Query' cujas projeções viram saídas `first.<projeção>`. */
+      sourceInputId: string;
+      description?: string;
+    }
+  | {
+      kind: 'from-validate-config';
+      /** ID do input do tipo 'Validate' cujo ValidateStepConfig define a saída `<outputName>`. */
       sourceInputId: string;
       description?: string;
     }

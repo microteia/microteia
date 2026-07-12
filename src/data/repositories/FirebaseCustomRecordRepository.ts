@@ -18,6 +18,7 @@ import { db } from '../../infrastructure/firebase/config';
 import type { ICustomRecordRepository } from '../../domain/repositories/ICustomRecordRepository';
 import type { CustomFieldValue, CustomRecord, DeletionActor } from '../../domain/entities';
 import { stampDeletionActor } from '../utils/stampDeletionActor';
+import { applyRecordRules } from '../utils/recordRulesGate';
 
 const toDate = (v: unknown): Date =>
   v instanceof Timestamp ? v.toDate() : (v as Date);
@@ -78,7 +79,7 @@ export class FirebaseCustomRecordRepository implements ICustomRecordRepository {
 
   async create(tenantId: string, data: Omit<CustomRecord, 'id' | 'tenantId' | 'createdAt' | 'updatedAt'>): Promise<CustomRecord> {
     const ref = await addDoc(recordsRef(tenantId), {
-      ...data,
+      ...applyRecordRules(data.screenKey, data),
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     });
@@ -86,8 +87,11 @@ export class FirebaseCustomRecordRepository implements ICustomRecordRepository {
     return mapCustomRecord(ref.id, snap.data() as Record<string, unknown>, tenantId);
   }
 
-  async update(tenantId: string, recordId: string, data: Partial<Omit<CustomRecord, 'id' | 'tenantId' | 'screenKey' | 'createdAt' | 'createdBy'>>): Promise<void> {
-    await updateDoc(doc(recordsRef(tenantId), recordId), { ...data, updatedAt: serverTimestamp() });
+  async update(tenantId: string, recordId: string, screenKey: string, data: Partial<Omit<CustomRecord, 'id' | 'tenantId' | 'screenKey' | 'createdAt' | 'createdBy'>>): Promise<void> {
+    await updateDoc(doc(recordsRef(tenantId), recordId), {
+      ...applyRecordRules(screenKey, data),
+      updatedAt: serverTimestamp(),
+    });
   }
 
   async delete(tenantId: string, recordId: string, actor: DeletionActor): Promise<void> {

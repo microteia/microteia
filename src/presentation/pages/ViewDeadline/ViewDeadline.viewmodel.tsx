@@ -11,6 +11,8 @@ import type { CustomFieldValue, Deadline, DeadlinePriority, DeadlineStatus, Fiel
 import type { DynamicSelectOption } from '../../components/ui/DynamicSelect';
 import { useScreenDefinitions } from '../../../stores/useScreenDefinitions';
 import { buildInitialFormValues, formValuesToStoredValues, validateRequiredFields } from '../../../domain/services/customFieldValues';
+import { describeRuleIssues } from '../../../domain/schema/fieldRules';
+import { validateRecordRules } from '../../../data/utils/recordRulesGate';
 
 export interface DeadlineFormData {
   type: string;
@@ -212,6 +214,12 @@ export const useViewDeadlineViewModel = (tabKey: string): ViewDeadlineViewModel 
         notes: null,
         customValues: formValuesToStoredValues(customFields, customValues),
       };
+
+      const ruleIssues = validateRecordRules('deadlines', payload);
+      if (ruleIssues.length > 0) {
+        notify(describeRuleIssues(ruleIssues), 'error');
+        return;
+      }
 
       if (isNew) {
         await createDeadline({ ...payload, createdBy: user?.id ?? '' });

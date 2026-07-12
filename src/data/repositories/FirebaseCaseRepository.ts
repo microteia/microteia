@@ -19,6 +19,7 @@ import { db } from '../../infrastructure/firebase/config';
 import type { ICaseRepository } from '../../domain/repositories/ICaseRepository';
 import type { Case, CaseInstance, CaseStatus, DeletionActor, CustomFieldValue } from '../../domain/entities';
 import { stampDeletionActor } from '../utils/stampDeletionActor';
+import { applyRecordRules } from '../utils/recordRulesGate';
 
 const toDate = (v: unknown): Date =>
   v instanceof Timestamp ? v.toDate() : (v as Date);
@@ -101,7 +102,7 @@ export class FirebaseCaseRepository implements ICaseRepository {
 
   async createCase(tenantId: string, data: Omit<Case, 'id' | 'tenantId' | 'createdAt' | 'updatedAt'>): Promise<Case> {
     const ref = await addDoc(casesRef(tenantId), {
-      ...data,
+      ...applyRecordRules('cases', data),
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     });
@@ -110,7 +111,10 @@ export class FirebaseCaseRepository implements ICaseRepository {
   }
 
   async updateCase(tenantId: string, caseId: string, data: Partial<Omit<Case, 'id' | 'tenantId' | 'createdAt' | 'createdBy'>>): Promise<void> {
-    await updateDoc(doc(casesRef(tenantId), caseId), { ...data, updatedAt: serverTimestamp() });
+    await updateDoc(doc(casesRef(tenantId), caseId), {
+      ...applyRecordRules('cases', data),
+      updatedAt: serverTimestamp(),
+    });
   }
 
   async updateCaseStatus(tenantId: string, caseId: string, status: CaseStatus): Promise<void> {

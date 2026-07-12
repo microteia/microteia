@@ -385,6 +385,17 @@ export const S = {
     color: ${({ theme }) => theme.colors.text};
   `,
 
+  RulesDivider: styled.div`
+    margin-top: ${({ theme }) => theme.spacing.sm};
+    padding-top: ${({ theme }) => theme.spacing.sm};
+    border-top: 1px solid ${({ theme }) => theme.colors.border};
+    font-size: ${({ theme }) => theme.fontSizes.xs};
+    font-weight: 600;
+    color: ${({ theme }) => theme.colors.textMuted};
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  `,
+
   ChipRemove: styled.button`
     display: inline-flex;
     align-items: center;

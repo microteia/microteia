@@ -11,6 +11,14 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [0.78.0] — 2026-07-12
+
+- Os campos agora podem ter regras próprias de validação e de formatação, definidas uma única vez e respeitadas em todo o sistema — tanto quando você preenche um cadastro na tela quanto quando uma automação grava o registro sozinha.
+- Nos campos personalizados, além das máscaras prontas, é possível criar a sua própria regra: por exemplo, exigir que um número de registro tenha duas letras seguidas de seis dígitos, ou converter o texto para maiúsculas antes de gravar.
+- CPF, CNPJ, e-mail, telefone e CEP passam a ser conferidos e padronizados automaticamente em Pessoas, evitando que um documento inválido entre no cadastro.
+- Os parâmetros de uma automação e de um script também aceitam essas regras, e a automação avisa exatamente qual campo reprovou, com o motivo, quando algum dado chega fora do padrão.
+- Novo passo "Validar Objeto" nas automações: confere um conjunto de dados contra as regras de um cadastro conhecido (ou contra regras que você mesmo define) antes de seguir adiante.
+
 #### [0.77.0] — 2026-07-12
 
 - Nas automações, quando um registro é trazido por referência (a Pessoa de um Processo, o Processo de um Prazo, e assim por diante), ele agora chega **completo**, com todos os seus campos, e não apenas com os poucos campos de resumo. Isso vale para condições, expressões, passos e Scripts — sem nenhuma consulta extra ao banco.

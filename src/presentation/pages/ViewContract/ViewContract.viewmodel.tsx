@@ -28,6 +28,8 @@ import type { Contract, ContractNote, ContractDocument, Case, CustomFieldValue, 
 import type { TagStoreAdapter } from '../../components/ui/TagManager/TagManager.viewmodel';
 import { useScreenDefinitions } from '../../../stores/useScreenDefinitions';
 import { buildInitialFormValues, formValuesToStoredValues, validateRequiredFields } from '../../../domain/services/customFieldValues';
+import { describeRuleIssues } from '../../../domain/schema/fieldRules';
+import { validateRecordRules } from '../../../data/utils/recordRulesGate';
 
 export type ViewContractTab = 'data' | 'notes' | 'documents' | 'cases';
 
@@ -460,6 +462,12 @@ export const useViewContractViewModel = (tabKey: string): ViewContractViewModel 
         costCenter: formData.costCenter || null,
         customValues: formValuesToStoredValues(customFields, customValues),
       };
+
+      const ruleIssues = validateRecordRules('contracts', payload);
+      if (ruleIssues.length > 0) {
+        notify(describeRuleIssues(ruleIssues), 'error');
+        return;
+      }
 
       if (isNew) {
         const created = await createContract({ ...payload, createdBy: user?.id ?? '', tagIds: [] });

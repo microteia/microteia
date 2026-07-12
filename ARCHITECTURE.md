@@ -2030,6 +2030,90 @@ editor de Script) e no IntelliSense do editor (`scriptTypeDefs.ts`).
 
 ---
 
+## Camada de Regras de Campo (validação e formatação)
+
+Camada declarativa, **compartilhada entre front e backend**, que formata e valida um valor **antes
+da gravação**. Resolve a ausência de um "before save" no Firestore sem rotear as escritas por uma
+Cloud Function (que rodaria com privilégio máximo).
+
+### Núcleo — `domain/schema/fieldRules.ts` (sincronizado)
+
+```ts
+interface FieldRules {
+  validate?: { pattern?: string; flags?: string; message?: string; check?: 'cpf' | 'cnpj' | 'cpfCnpj' };
+  format?:   { preset?: FormatPreset; pattern?: string; replacement?: string; flags?: string };
+}
+```
+
+`FormatPreset`: `cpf | cnpj | cpfCnpj | phone | cep | digits | trim | upper | lower`. O `format`
+aplica o `preset` e depois a substituição por regex (`pattern` → `replacement`, com `$1`, `$2`…).
+Um regex inválido é ignorado, nunca lança.
+
+**Invariante que garante compatibilidade:** `validate` **nunca roda em valor vazio** (`null`,
+`undefined`, `''`, `[]`) — obrigatoriedade continua sendo assunto exclusivo de `required`. Sem essa
+regra, ligar uma validação quebraria todo registro e workflow que deixa o campo em branco.
+
+`src/utils/formatters.ts` e `src/utils/validators.ts` **re-exportam** deste núcleo (são a fachada de
+presentation); a implementação vive só aqui, porque `src/utils` não é sincronizado para `functions/`.
+
+### Onde `rules?` é declarado (sempre opcional)
+
+| Tipo | Arquivo | Cobre |
+|---|---|---|
+| `NativeFieldSpec` | `domain/schema/entityRegistry.ts` | campos nativos (inclusive `objectFields`) |
+| `FieldDefinition` | `domain/entities/entitySchemas.ts` | campos dinâmicos (editados no ScreenBuilder) |
+| `WorkflowParameter` | `domain/entities/Workflow.ts` (+ espelho manual em `functions/`) | parâmetros de Workflow **e** de Script |
+| `InputDefinition` | `functions/src/domain/engine/StepDefinition.ts` (+ espelho `WorkflowStepCatalog.ts`) | inputs de Step |
+
+`pattern`/`patternMessage` do `InputDefinition` antecedem esta camada e continuam válidos:
+`toEffectiveRules()` os lê como um `validate` equivalente (`rules.validate` explícito tem prioridade).
+
+> ⚠️ **O formato canônico gravado no Firestore para CPF, CNPJ, telefone e CEP é o de DÍGITOS PUROS**
+> — a máscara existe só na tela. Por isso as regras nativas em `ENTITY_REGISTRY` usam
+> `format: { preset: 'digits' }`, nunca um preset com máscara: trocar isso mudaria o shape do dado
+> gravado e quebraria comparações com os registros existentes.
+
+### Resolvedores
+
+- **`domain/schema/recordRules.ts`** — `formatAndValidateRecord(ctx, table, data)`: percorre as folhas
+  **presentes** em `data`, resolve a regra de cada uma pelo `SchemaContext` (campo nativo, campo de
+  objeto aninhado, ou campo dinâmico sob `customValues.*` / `values.*`) e devolve `{ data, issues }`.
+- **`domain/schema/parameterRules.ts`** — `formatAndValidateParameters(parameters, data)`: idem, contra
+  um `WorkflowParameter[]` (desce recursivamente em `Object.fields`).
+
+### As portas de gravação
+
+| Porta | Onde | Comportamento |
+|---|---|---|
+| **Front — garantia** | `applyRecordRules()` no `create`/`update` de cada `FirebaseXxxRepository` | formata; lança `RecordRulesError` se inválido. Nenhuma escrita escapa, venha de store, viewmodel ou importador |
+| **Front — UX** | `validateRecordRules()` no `handleSave` de cada ViewModel de formulário | mesma checagem, para exibir o erro por campo antes de tentar salvar |
+| **Backend — gravação** | `runWorkflowUpsert()` (`workflow/mutation/runWorkflowMutation.ts`) | cobre de uma vez o Step "Gravar Registro" **e** o `upsert()` do Script. Falha o step se inválido |
+| **Backend — inputs de Step** | `resolveInputsSafe()` (`engine/InputMapping.ts`) | formata o valor resolvido e falha o step se a regra não passar |
+| **Backend — parâmetros de Workflow** | `runWorkflow()` (`engine/WorkflowExecutor.ts`), antes do 1º step | execução vira `FAILED` com o campo e o motivo no log |
+| **Backend — parâmetros de Script** | `ScriptStep.ts`, após `applyParameterDefaults` | falha o step antes de entrar no sandbox |
+| **Backend — execução manual/IA** | callable `handlers/runWorkflow.ts` | `HttpsError('invalid-argument')` com as mensagens |
+
+O `SchemaContext` do front precisa das `ScreenDefinition`s do tenant, e um repositório não alcança um
+Store React — por isso `data/utils/recordRulesGate.ts` mantém um contexto de módulo que o
+`ScreenDefinitionStore` **empurra** (`setRecordRulesScreens`) a cada mudança das telas.
+
+### Step "Validar Objeto" (`validate-object`)
+
+Valida/formata um objeto vindo do `input` ou do `event` e devolve o objeto já tratado como saída
+nomeada. Config em `domain/schema/validateSpec.ts` (`ValidateStepConfig`); a lógica é
+`validateObject(ctx, config, raw)`. Três modos:
+
+| `entityType` | `parameters` | Resultado |
+|---|---|---|
+| ✔ | — | Valida pelo schema da entidade; a saída é o objeto inteiro |
+| ✔ | ✔ | A saída continua sendo a entidade, mas as regras dos parâmetros **sobrepõem** as do schema (via `skipPaths`) |
+| — | ✔ | A saída é um objeto anônimo formado **apenas** pelas chaves declaradas |
+
+É o único lugar onde `required` de um `WorkflowParameter` é exigido em runtime — de propósito, já que
+`formatAndValidateParameters` é compartilhado e precisa continuar não-quebrante.
+
+---
+
 ## Firestore Security Rules — Conjunto Completo
 
 > **Copie o bloco abaixo integralmente no Firebase Console → Firestore → Regras.**
