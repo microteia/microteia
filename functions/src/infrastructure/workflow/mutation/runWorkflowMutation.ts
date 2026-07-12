@@ -10,16 +10,38 @@ import {
   setValueAtPath,
   validateRemoveSpec,
   validateUpsertSpec,
+  validateWritablePath,
 } from '../../../domain/schema/mutationSpec';
 import type { RemoveSpec, ResolvedWritableTable, UpsertSpec } from '../../../domain/schema/mutationSpec';
 
-const CREATED_BY_WORKFLOW = 'workflow-engine';
+const WORKFLOW_ACTOR = 'workflow-engine';
 const UNTITLED_RECORD = 'Sem título';
 
 export interface WorkflowMutationDeps {
   mutationRepository: IWorkflowMutationRepository;
   screenProvider: IScreenDefinitionProvider;
 }
+
+export interface UpsertOptions {
+  // Quando true, campos não graváveis do objeto (reservados do sistema, denormalizados de
+  // referência, inexistentes) são silenciosamente descartados em vez de invalidar a gravação.
+  // Usado pelo Step "Gravar Registro", que recebe um objeto inteiro (ex.: um registro já
+  // existente) e não deve falhar por ele carregar campos que o sistema gerencia.
+  ignoreUnwritableFields?: boolean;
+}
+
+const keepWritableLeaves = (
+  spec: UpsertSpec,
+  ctx: ReturnType<typeof createSchemaContext>,
+): UpsertSpec => {
+  const data: Record<string, unknown> = {};
+  for (const leaf of flattenDataLeaves(spec.data)) {
+    if (!validateWritablePath(ctx, spec.table, leaf.path)) {
+      setValueAtPath(data, leaf.path, leaf.value);
+    }
+  }
+  return { ...spec, data };
+};
 
 export interface UpsertResult {
   id: string;
@@ -53,24 +75,27 @@ export async function runWorkflowUpsert(
   spec: UpsertSpec,
   context: WorkflowContext,
   deps: WorkflowMutationDeps,
+  options: UpsertOptions = {},
 ): Promise<WorkflowMutationOutcome<UpsertResult>> {
   const tenantId = context.execution.tenantId;
   const screens = await deps.screenProvider.getScreens(tenantId);
   const ctx = createSchemaContext(screens);
 
-  const issues = validateUpsertSpec(spec, ctx);
+  const effectiveSpec = options.ignoreUnwritableFields ? keepWritableLeaves(spec, ctx) : spec;
+
+  const issues = validateUpsertSpec(effectiveSpec, ctx);
   if (issues.length > 0) {
     return { ok: false, error: `Gravação inválida: ${issues.map((i) => `${i.field}: ${i.error}`).join('; ')}` };
   }
 
-  const resolved = resolveWritableTable(spec.table, ctx);
+  const resolved = resolveWritableTable(effectiveSpec.table, ctx);
   if (!resolved.ok) {
     return { ok: false, error: resolved.error };
   }
   const target = resolved.value;
   const collection = target.physicalCollection;
 
-  const payload = buildFieldPayload(spec, target, ctx);
+  const payload = buildFieldPayload(effectiveSpec, target, ctx);
 
   if (target.kind === 'custom' && target.screenKey) {
     payload.screenKey = target.screenKey;
@@ -80,7 +105,7 @@ export async function runWorkflowUpsert(
     payload.title = typeof titleValue === 'string' && titleValue.trim() !== '' ? titleValue.trim() : UNTITLED_RECORD;
   }
 
-  const id = spec.id?.trim();
+  const id = effectiveSpec.id?.trim();
   const existing = id ? await deps.mutationRepository.getById(tenantId, collection, id) : null;
 
   if (existing && target.kind === 'custom' && existing.screenKey !== target.screenKey) {
@@ -90,14 +115,14 @@ export async function runWorkflowUpsert(
   let created: boolean;
   let finalId: string;
   if (id && existing) {
-    await deps.mutationRepository.update(tenantId, collection, id, payload);
+    await deps.mutationRepository.update(tenantId, collection, id, { ...payload, updatedBy: WORKFLOW_ACTOR });
     created = false;
     finalId = id;
   } else {
     finalId = await deps.mutationRepository.create(
       tenantId,
       collection,
-      { ...payload, createdBy: CREATED_BY_WORKFLOW },
+      { ...payload, createdBy: WORKFLOW_ACTOR, updatedBy: WORKFLOW_ACTOR },
       id,
     );
     created = true;

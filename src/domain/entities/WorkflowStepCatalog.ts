@@ -9,7 +9,8 @@ export type InputType =
   | 'VariableReference'
   | 'Query'
   | 'Upsert'
-  | 'Remove';
+  | 'Remove'
+  | 'Map';
 
 export type InputOptionsSource =
   | { kind: 'Static'; options: { value: string; label: string; color?: string }[] }
@@ -65,6 +66,12 @@ export type DynamicOutputsMetadata =
   | {
       kind: 'from-query-projections';
       /** ID do input do tipo 'Query' cujas projeções viram saídas `first.<projeção>`. */
+      sourceInputId: string;
+      description?: string;
+    }
+  | {
+      kind: 'from-map-config';
+      /** ID do input do tipo 'Map' cujo MapStepConfig define a saída `<name>` (objeto tipado por `type`). */
       sourceInputId: string;
       description?: string;
     };

@@ -16,6 +16,7 @@ import type { WorkflowEventFieldOption } from '../../../domain/services/workflow
 import type { InputMapping, WorkflowParameter, WorkflowStep } from '../../../domain/entities/Workflow';
 import type { InputDefinition, StepDefinitionSummary } from '../../../domain/entities/WorkflowStepCatalog';
 import type { QuerySpec } from '../../../domain/schema/querySpec';
+import type { MapStepConfig } from '../../../domain/schema/mapSpec';
 import type { StepOutputField, WorkflowVariable } from '../../components/ui/ExpressionEditor/autocompleteHelpers';
 
 const queryProjectionOutputs = (
@@ -28,6 +29,17 @@ const queryProjectionOutputs = (
   return ((mapping.value as QuerySpec).projections ?? [])
     .filter((path) => path.trim())
     .map((path) => ({ id: `first.${path}`, label: `${path} (1º resultado)` }));
+};
+
+const mapConfigOf = (
+  step: WorkflowStep,
+  definition: StepDefinitionSummary,
+): MapStepConfig | null => {
+  if (definition.dynamicOutputs?.kind !== 'from-map-config') return null;
+  const mapping = step.configuration[definition.dynamicOutputs.sourceInputId];
+  if (!mapping || mapping.kind !== 'Literal' || !mapping.value || typeof mapping.value !== 'object') return null;
+  const config = mapping.value as MapStepConfig;
+  return config.name?.trim() ? config : null;
 };
 
 const parameterToInputDefinitions = (
@@ -336,6 +348,10 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
       scriptOutputsFor(step, definition).forEach((output) => {
         fields.push({ stepId: step.id, stepName, outputId: output.id, outputLabel: output.label });
       });
+      const mapConfig = mapConfigOf(step, definition);
+      if (mapConfig) {
+        fields.push({ stepId: step.id, stepName, outputId: mapConfig.name, outputLabel: mapConfig.name });
+      }
     });
     return fields;
   }, [priorSteps, stepCatalog, scriptOutputsFor]);
@@ -348,14 +364,39 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
     const fields: NativeFieldSpec[] = [];
     priorSteps.forEach((step) => {
       const definition = stepCatalog.find((d) => d.id === step.stepDefinitionId);
-      if (!definition || definition.dynamicOutputs?.kind !== 'from-target-script-outputs') return;
-      const mapping = step.configuration[definition.dynamicOutputs.sourceInputId];
-      const id = mapping?.kind === 'Literal' ? String(mapping.value ?? '') : '';
-      if (!id) return;
-      const script = scripts.find((s) => s.id === id);
-      (script?.outputParams ?? []).forEach((param) => {
-        fields.push(workflowParameterToNativeField(param as WorkflowParameter));
-      });
+      if (!definition) return;
+
+      if (definition.dynamicOutputs?.kind === 'from-target-script-outputs') {
+        const mapping = step.configuration[definition.dynamicOutputs.sourceInputId];
+        const id = mapping?.kind === 'Literal' ? String(mapping.value ?? '') : '';
+        if (!id) return;
+        const script = scripts.find((s) => s.id === id);
+        (script?.outputParams ?? []).forEach((param) => {
+          fields.push(workflowParameterToNativeField(param as WorkflowParameter));
+        });
+        return;
+      }
+
+      const mapConfig = mapConfigOf(step, definition);
+      if (mapConfig) {
+        fields.push(
+          mapConfig.type
+            ? workflowParameterToNativeField({
+                key: mapConfig.name,
+                label: mapConfig.name,
+                type: 'EntityReference',
+                entityType: mapConfig.type,
+              } as WorkflowParameter)
+            : {
+                key: mapConfig.name,
+                label: mapConfig.name,
+                type: 'object',
+                objectFields: mapConfig.fields
+                  .filter((field) => field.name?.trim())
+                  .map((field) => ({ key: field.name, label: field.name, type: 'string' as const })),
+              },
+        );
+      }
     });
     return { kind: 'fields', fields, hasOld: false };
   }, [priorSteps, stepCatalog, scripts]);
@@ -399,6 +440,11 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
     scriptOutputsFor(step, definition).forEach((output) => {
       outputs.push({ value: output.id, label: output.label });
     });
+
+    const mapConfig = mapConfigOf(step, definition);
+    if (mapConfig) {
+      outputs.push({ value: mapConfig.name, label: `${mapConfig.name} (objeto)` });
+    }
 
     return outputs;
   }, [priorSteps, stepCatalog, scriptOutputsFor]);

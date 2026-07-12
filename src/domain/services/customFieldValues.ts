@@ -9,7 +9,7 @@ const JS_RESERVED_WORDS = new Set([
   'true', 'try', 'typeof', 'var', 'void', 'while', 'with', 'yield',
 ]);
 
-const VALID_FIELD_KEY_PATTERN = /^[a-z_$][a-z0-9_$]*$/;
+const VALID_FIELD_KEY_PATTERN = /^[a-zA-Z_$][a-zA-Z0-9_$]*$/;
 
 /**
  * Valida se um fieldKey é compatível com JavaScript.
@@ -21,7 +21,7 @@ export const validateFieldKey = (key: string): string | undefined => {
   }
   
   if (!VALID_FIELD_KEY_PATTERN.test(key)) {
-    return 'Nome inválido: deve começar com letra minúscula, underscore ou $ e conter apenas letras minúsculas, números, underscore ou $';
+    return 'Nome inválido: deve começar com letra, underscore ou $ e conter apenas letras, números, underscore ou $';
   }
   
   if (JS_RESERVED_WORDS.has(key)) {

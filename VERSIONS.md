@@ -11,6 +11,13 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [0.76.0] — 2026-07-12
+
+- Novo passo **Montar Objeto** nas automações: monte um registro campo a campo (com valores fixos, do evento, de expressões, de saídas de outros passos ou de variáveis) e dê um nome a ele para reaproveitar nos passos seguintes.
+- O passo **Gravar Registro** ficou mais simples e direto: em vez de mapear campo por campo, agora você indica de onde vem o registro pronto (dos passos anteriores ou do evento), opcionalmente a propriedade desejada, e o cadastro em que ele será gravado. Se o registro já tiver um identificador, ele é atualizado; caso contrário, é incluído.
+- Os nomes de campos e parâmetros das automações e cadastros agora aceitam letras maiúsculas (por exemplo, `dataNascimento`), e não apenas minúsculas — desde que sigam o formato de um nome de variável.
+- Ao gravar um registro que já existe (por exemplo, reaproveitando um registro trazido de outro passo), o passo **Gravar Registro** agora ignora automaticamente os campos internos de controle (como datas e autoria) em vez de falhar, e registra que a atualização foi feita pela automação.
+
 #### [0.75.0] — 2026-07-11
 
 - Ao criar um parâmetro do tipo "Lista de Opções" nas automações, as opções agora aparecem logo abaixo do tipo — antes do campo de valor padrão — deixando claro que é ali que se informam as escolhas disponíveis. O valor padrão passa a ser escolhido a partir das opções cadastradas.

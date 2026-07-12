@@ -23,15 +23,10 @@ export interface RemoveSpec {
   id: string;
 }
 
-export interface UpsertFieldMapping {
-  path: string;
-  value: InputMapping;
-}
-
 export interface UpsertStepConfig {
   table: string;
-  id?: InputMapping;
-  fields: UpsertFieldMapping[];
+  source: 'input' | 'event';
+  property?: string;
 }
 
 export interface RemoveStepConfig {

@@ -11,6 +11,7 @@ import { makeScriptStepDefinition } from './steps/ScriptStep';
 import { makeCreateDeadlineStepDefinition } from './steps/CreateDeadlineStep';
 import { makeNotifyStepDefinition } from './steps/NotifyStep';
 import { makeOutputStepDefinition } from './steps/OutputStep';
+import { makeMapStepDefinition } from './steps/MapStep';
 import { makeQueryStepDefinition } from './steps/QueryStep';
 import { makeUpsertStepDefinition } from './steps/UpsertStep';
 import { makeRemoveStepDefinition } from './steps/RemoveStep';
@@ -48,6 +49,7 @@ export const registerSteps = (deps: RegisterStepsDeps): void => {
   stepRegistry.register(makeNotifyStepDefinition(deps.createAuditLogUseCase));
   stepRegistry.register(makeRegisterAuditStepDefinition(deps.createAuditLogUseCase));
   stepRegistry.register(makeSetVariableStepDefinition());
+  stepRegistry.register(makeMapStepDefinition());
   stepRegistry.register(makeOutputStepDefinition());
   stepRegistry.register(makeCallWorkflowStepDefinition());
   stepRegistry.register(makeScriptStepDefinition(deps.scriptRepository, queryDeps, mutationDeps));

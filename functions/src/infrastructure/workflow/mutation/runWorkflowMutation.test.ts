@@ -157,6 +157,45 @@ describe('runWorkflowUpsert', () => {
     expect(repo.createCalls).toHaveLength(0);
   });
 
+  it('registra updatedBy do workflow ao atualizar', async () => {
+    const repo = new FakeMutationRepository();
+    repo.seed('persons', 'p1', { name: 'Antigo' });
+    await upsert(repo, { table: 'persons', id: 'p1', data: { name: 'Novo' } });
+    expect(repo.updateCalls[0].data).toMatchObject({ name: 'Novo', updatedBy: 'workflow-engine' });
+  });
+
+  it('com ignoreUnwritableFields, descarta campos reservados/desconhecidos em vez de falhar', async () => {
+    const repo = new FakeMutationRepository();
+    repo.seed('persons', 'p1', { name: 'Antigo' });
+    const outcome = await runWorkflowUpsert(
+      {
+        table: 'persons',
+        id: 'p1',
+        data: {
+          name: 'Novo',
+          createdAt: 'x',
+          updatedAt: 'y',
+          createdBy: 'alguém',
+          title: 'z',
+          naoExiste: 'w',
+        },
+      },
+      context(),
+      deps(repo),
+      { ignoreUnwritableFields: true },
+    );
+
+    expect(outcome.ok).toBe(true);
+    if (!outcome.ok) return;
+    expect(outcome.value.created).toBe(false);
+    const written = repo.updateCalls[0].data ?? {};
+    expect(written).toMatchObject({ name: 'Novo', updatedBy: 'workflow-engine' });
+    expect(written).not.toHaveProperty('createdAt');
+    expect(written).not.toHaveProperty('createdBy');
+    expect(written).not.toHaveProperty('title');
+    expect(written).not.toHaveProperty('naoExiste');
+  });
+
   it('impede alterar registro custom de outra tela', async () => {
     const repo = new FakeMutationRepository();
     repo.seed('customRecords', 'r1', { screenKey: 'outra' });

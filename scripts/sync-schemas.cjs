@@ -27,6 +27,7 @@ const SHARED_FILES = [
   'domain/schema/materialize.ts',
   'domain/schema/querySpec.ts',
   'domain/schema/mutationSpec.ts',
+  'domain/schema/mapSpec.ts',
 ];
 
 const buildHeader = (relativePath) =>
