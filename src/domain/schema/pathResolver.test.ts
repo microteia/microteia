@@ -189,7 +189,7 @@ describe('resolvePath — campos customizados e telas dinâmicas', () => {
       atPath: 'customValues.tarefa.processo',
       targetCollection: 'cases',
       mode: 'replaceValue',
-      fields: ['caseNumber', 'title', 'area'],
+      fields: 'all',
     });
   });
 

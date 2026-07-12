@@ -1,5 +1,10 @@
 import type { WorkflowParameter } from '../../../domain/entities/Workflow';
 import type { ExpressionFunctionDef } from '../../../stores/useExpressionFunctions';
+import type { FieldDefinition } from '../../../domain/entities/entitySchemas';
+import { BUILTIN_REF_ENTITIES } from '../../../domain/entities/entitySchemas';
+import type { NativeFieldSpec } from '../../../domain/schema/entityRegistry';
+import { getEntityByCollection } from '../../../domain/schema/entityRegistry';
+import type { SchemaScreen } from '../../../domain/schema/pathResolver';
 
 const STATIC_DEFS = `type QueryOperator = 'eq' | 'neq' | 'lt' | 'lte' | 'gt' | 'gte' | 'in' | 'contains' | 'exists';
 
@@ -64,7 +69,98 @@ declare function remove(spec: RemoveSpec): Promise<RemoveResult>;
 /** Registra uma mensagem no log de execução do Step. */
 declare function log(...args: unknown[]): void;`;
 
-const mapParamType = (param: WorkflowParameter): string => {
+const INDENT_UNIT = '  ';
+
+const indentOf = (depth: number): string => INDENT_UNIT.repeat(depth);
+
+const objectLiteral = (members: string[], depth: number): string =>
+  members.length === 0
+    ? 'Record<string, unknown>'
+    : `{\n${members.join('\n')}\n${indentOf(depth)}} & Record<string, unknown>`;
+
+const nativeFieldType = (field: NativeFieldSpec, depth: number): string => {
+  if (field.refEntity) return field.multi ? 'string[]' : 'string';
+  switch (field.type) {
+    case 'number':
+      return 'number';
+    case 'boolean':
+      return 'boolean';
+    case 'date':
+      return 'Date';
+    case 'stringArray':
+      return 'string[]';
+    case 'object':
+      return objectLiteral(
+        (field.objectFields ?? []).map(
+          (nested) => `${indentOf(depth + 1)}${nested.key}?: ${nativeFieldType(nested, depth + 1)};`,
+        ),
+        depth,
+      );
+    default:
+      return 'string';
+  }
+};
+
+const customFieldType = (field: FieldDefinition): string => {
+  switch (field.type) {
+    case 'number':
+    case 'currency':
+      return 'number';
+    case 'checkbox':
+      return 'boolean';
+    case 'date':
+      return 'Date';
+    case 'select':
+    case 'reference':
+      return field.multi ? 'string[]' : 'string';
+    default:
+      return 'string';
+  }
+};
+
+const builtinReferenceType = (collection: string, depth: number): string => {
+  const entity = getEntityByCollection(collection);
+  if (!entity) return 'Record<string, unknown>';
+  const fkFields: NativeFieldSpec[] = entity.fks.map((fk) => ({
+    key: fk.key,
+    label: fk.label,
+    type: fk.multi ? 'stringArray' : 'string',
+  }));
+  const members = [
+    `${indentOf(depth + 1)}id: string;`,
+    ...[...entity.fields, ...fkFields].map(
+      (field) => `${indentOf(depth + 1)}/** ${field.label} */\n${indentOf(depth + 1)}${field.key}?: ${nativeFieldType(field, depth + 1)};`,
+    ),
+  ];
+  return objectLiteral(members, depth);
+};
+
+const customReferenceType = (screen: SchemaScreen | undefined, depth: number): string => {
+  if (!screen) return 'Record<string, unknown>';
+  const members = [
+    `${indentOf(depth + 1)}id: string;`,
+    `${indentOf(depth + 1)}title: string;`,
+    `${indentOf(depth + 1)}screenKey: string;`,
+    ...screen.fields.map(
+      (field) => `${indentOf(depth + 1)}/** ${field.label} */\n${indentOf(depth + 1)}${field.key}?: ${customFieldType(field)};`,
+    ),
+  ];
+  return objectLiteral(members, depth);
+};
+
+const referenceType = (param: WorkflowParameter, screens: SchemaScreen[], depth: number): string => {
+  const entityType = param.entityType ?? '';
+  if (!entityType) return 'Record<string, unknown>';
+  const single = BUILTIN_REF_ENTITIES.has(entityType)
+    ? builtinReferenceType(entityType, depth)
+    : customReferenceType(
+        screens.find((screen) => screen.id === entityType),
+        depth,
+      );
+  return param.multi ? `(${single})[]` : single;
+};
+
+const mapParamType = (param: WorkflowParameter, screens: SchemaScreen[], depth: number): string => {
   switch (param.type) {
     case 'Number':
       return 'number';
@@ -73,7 +169,9 @@ const mapParamType = (param: WorkflowParameter): string => {
     case 'Date':
       return 'Date';
     case 'EntityReference':
-      return param.multi ? 'string[]' : 'string';
+      return referenceType(param, screens, depth);
+    case 'Object':
+      return objectLiteral(paramMembers(param.fields ?? [], screens, depth + 1), depth);
     case 'select':
     case 'String':
     default:
@@ -81,18 +179,21 @@ const mapParamType = (param: WorkflowParameter): string => {
   }
 };
 
-const buildInputDef = (inputParams: WorkflowParameter[]): string => {
-  const named = inputParams.filter((param) => param.key.trim().length > 0);
-  if (named.length === 0) {
+function paramMembers(params: WorkflowParameter[], screens: SchemaScreen[], depth: number): string[] {
+  return params
+    .filter((param) => param.key.trim().length > 0)
+    .map((param) => {
+      const doc = param.label.trim() ? `${indentOf(depth)}/** ${param.label.trim()} */\n` : '';
+      return `${doc}${indentOf(depth)}${param.key}: ${mapParamType(param, screens, depth)};`;
+    });
+}
+
+const buildInputDef = (inputParams: WorkflowParameter[], screens: SchemaScreen[]): string => {
+  const members = paramMembers(inputParams, screens, 1);
+  if (members.length === 0) {
     return 'declare const input: Record<string, unknown>;';
   }
-  const fields = named
-    .map((param) => {
-      const doc = param.label.trim() ? `  /** ${param.label.trim()} */\n` : '';
-      return `${doc}  ${param.key}: ${mapParamType(param)};`;
-    })
-    .join('\n');
-  return `declare const input: {\n${fields}\n} & Record<string, unknown>;`;
+  return `declare const input: ${objectLiteral(members, 0)};`;
 };
 
 const parseSignatureParams = (signature: string, minArgs: number, maxArgs?: number): string => {
@@ -149,4 +250,5 @@ const buildFnDef = (functions: ExpressionFunctionDef[]): string => {
 export const buildScriptTypeDefs = (
   inputParams: WorkflowParameter[],
   functions: ExpressionFunctionDef[],
-): string => `${STATIC_DEFS}\n\n${buildInputDef(inputParams)}\n\n${buildFnDef(functions)}\n`;
+  screens: SchemaScreen[] = [],
+): string => `${STATIC_DEFS}\n\n${buildInputDef(inputParams, screens)}\n\n${buildFnDef(functions)}\n`;

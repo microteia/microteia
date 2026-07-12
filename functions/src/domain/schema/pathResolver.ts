@@ -201,7 +201,7 @@ const buildReferenceHopState = (
     materializeAt: pathText,
     mode: 'replaceValue',
     multi,
-    fields: builtin ? (target?.referenceDenormFields ?? 'all') : 'all',
+    fields: 'all',
     ...(bagKeys ? { bagKeys } : {}),
   };
   const screenKey = builtin ? undefined : refEntity;

@@ -11,6 +11,11 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [0.77.0] — 2026-07-12
+
+- Nas automações, quando um registro é trazido por referência (a Pessoa de um Processo, o Processo de um Prazo, e assim por diante), ele agora chega **completo**, com todos os seus campos, e não apenas com os poucos campos de resumo. Isso vale para condições, expressões, passos e Scripts — sem nenhuma consulta extra ao banco.
+- No editor de Script, os parâmetros que apontam para um cadastro e os parâmetros do tipo objeto passaram a ser reconhecidos com todos os seus campos: o editor sugere e valida corretamente coisas como o nome, o CPF ou o endereço da pessoa, em vez de tratar tudo como texto e marcar erro à toa.
+
 #### [0.76.0] — 2026-07-12
 
 - Novo passo **Montar Objeto** nas automações: monte um registro campo a campo (com valores fixos, do evento, de expressões, de saídas de outros passos ou de variáveis) e dê um nome a ele para reaproveitar nos passos seguintes.

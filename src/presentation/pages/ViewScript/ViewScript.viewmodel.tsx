@@ -166,8 +166,8 @@ export const useViewScriptViewModel = (tabKey: string): ViewScriptViewModel => {
   }, [dynamicScreens]);
 
   const scriptTypeDefs = useMemo(
-    () => buildScriptTypeDefs(formData.inputParams, expressionFunctions),
-    [formData.inputParams, expressionFunctions],
+    () => buildScriptTypeDefs(formData.inputParams, expressionFunctions, dynamicScreens),
+    [formData.inputParams, expressionFunctions, dynamicScreens],
   );
 
   const inputParamErrors = useMemo(() => siblingParameterErrors(formData.inputParams), [formData.inputParams]);
