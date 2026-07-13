@@ -172,6 +172,11 @@ const AILabel = styled.label`
   color: ${({ theme }) => theme.colors.text};
 `;
 
+const AIFieldHint = styled.span`
+  font-size: ${({ theme }) => theme.fontSizes.sm};
+  color: ${({ theme }) => theme.colors.textSecondary};
+`;
+
 const AIInput = styled.input`
   padding: ${({ theme }) => theme.spacing.sm};
   border: 1px solid ${({ theme }) => theme.colors.border};
@@ -284,6 +289,7 @@ export const S = {
   ModalActions,
   AIFormGroup,
   AILabel,
+  AIFieldHint,
   AIInput,
   PasswordRow,
   PasswordInput,

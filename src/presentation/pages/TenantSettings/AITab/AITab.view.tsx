@@ -84,6 +84,8 @@ interface AIModalProps {
   modalEditing: AIConnection | null;
   saving: boolean;
   showApiKey: boolean;
+  apiKeyRequired: boolean;
+  canSave: boolean;
   modelSuggestions: string[];
   handleFormChange: (field: keyof AIConnectionForm, value: string) => void;
   handleCloseModal: () => void;
@@ -96,6 +98,8 @@ const AIConnectionModal: React.FC<AIModalProps> = ({
   modalEditing,
   saving,
   showApiKey,
+  apiKeyRequired,
+  canSave,
   modelSuggestions,
   handleFormChange,
   handleCloseModal,
@@ -145,20 +149,25 @@ const AIConnectionModal: React.FC<AIModalProps> = ({
           </S.AIFormGroup>
 
           <S.AIFormGroup>
-            <S.AILabel htmlFor="ai-apikey">API Key *</S.AILabel>
+            <S.AILabel htmlFor="ai-apikey">{apiKeyRequired ? 'API Key *' : 'API Key'}</S.AILabel>
             <S.PasswordRow>
               <S.PasswordInput
                 id="ai-apikey"
                 type={showApiKey ? 'text' : 'password'}
                 value={form.apiKey}
                 onChange={(e) => handleFormChange('apiKey', e.target.value)}
-                placeholder="sk-..."
+                placeholder={apiKeyRequired ? 'sk-...' : 'Chave cadastrada — preencha para substituir'}
                 autoComplete="off"
               />
               <S.PasswordToggle type="button" onClick={handleToggleShowApiKey}>
                 {showApiKey ? <RiEyeOffLine size={16} /> : <RiEyeLine size={16} />}
               </S.PasswordToggle>
             </S.PasswordRow>
+            <S.AIFieldHint>
+              {apiKeyRequired
+                ? 'A chave fica guardada em área restrita e nunca volta para o navegador.'
+                : 'A chave atual permanece guardada em área restrita. Deixe em branco para mantê-la.'}
+            </S.AIFieldHint>
           </S.AIFormGroup>
 
           <S.AIFormGroup>
@@ -214,7 +223,7 @@ const AIConnectionModal: React.FC<AIModalProps> = ({
           <Button
             onClick={() => void handleSave()}
             $isLoading={saving}
-            disabled={saving || !form.name.trim() || !form.provider}
+            disabled={saving || !canSave}
           >
             {saving ? 'Salvando...' : modalEditing ? 'Salvar' : 'Adicionar'}
           </Button>
@@ -319,6 +328,8 @@ export const AITabView: React.FC = () => {
           modalEditing={vm.modalEditing}
           saving={vm.saving}
           showApiKey={vm.showApiKey}
+          apiKeyRequired={vm.apiKeyRequired}
+          canSave={vm.canSave}
           modelSuggestions={vm.modelSuggestions}
           handleFormChange={vm.handleFormChange}
           handleCloseModal={vm.handleCloseModal}

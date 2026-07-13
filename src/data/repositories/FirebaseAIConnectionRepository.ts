@@ -5,26 +5,30 @@ import {
   getDocs,
   updateDoc,
   deleteDoc,
+  deleteField,
+  setDoc,
   writeBatch,
   Timestamp,
 } from 'firebase/firestore';
 import { db } from '../../infrastructure/firebase/config';
 import type { AIConnection, AIProvider } from '../../domain/entities';
-import type { IAIConnectionRepository } from '../../domain/repositories/IAIConnectionRepository';
+import type { AIConnectionData, IAIConnectionRepository } from '../../domain/repositories/IAIConnectionRepository';
 
 const tenantCol = (tenantId: string) => collection(db, 'tenants', tenantId, 'aiConnections');
 const tenantDoc = (tenantId: string, id: string) => doc(db, 'tenants', tenantId, 'aiConnections', id);
+const secretDoc = (tenantId: string, id: string) =>
+  doc(db, 'tenants', tenantId, 'aiConnections', id, 'secrets', 'current');
 
 const fromDoc = (id: string, tenantId: string, data: Record<string, unknown>): AIConnection => ({
   id,
   tenantId,
   name: data.name as string,
   provider: data.provider as AIProvider,
-  apiKey: data.apiKey as string,
   model: data.model as string,
   temperature: (data.temperature as number) ?? 0.7,
   maxTokens: (data.maxTokens as number) ?? 2048,
   isDefault: (data.isDefault as boolean) ?? false,
+  hasApiKey: data.hasApiKey === true || typeof data.apiKey === 'string',
   createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toDate() : new Date(),
 });
 
@@ -38,22 +42,31 @@ export class FirebaseAIConnectionRepository implements IAIConnectionRepository {
 
   async createConnection(
     tenantId: string,
-    data: Omit<AIConnection, 'id' | 'tenantId' | 'createdAt'>,
+    data: AIConnectionData,
+    apiKey: string,
   ): Promise<AIConnection> {
     const createdAt = new Date();
-    const docRef = await addDoc(tenantCol(tenantId), { tenantId, ...data, createdAt });
-    return { id: docRef.id, tenantId, ...data, createdAt };
+    const docRef = await addDoc(tenantCol(tenantId), { tenantId, ...data, hasApiKey: true, createdAt });
+    await setDoc(secretDoc(tenantId, docRef.id), { apiKey });
+    return { id: docRef.id, tenantId, ...data, hasApiKey: true, createdAt };
   }
 
   async updateConnection(
     tenantId: string,
     id: string,
-    data: Partial<Omit<AIConnection, 'id' | 'tenantId' | 'createdAt'>>,
+    data: Partial<AIConnectionData>,
+    apiKey?: string,
   ): Promise<void> {
+    if (apiKey) {
+      await setDoc(secretDoc(tenantId, id), { apiKey });
+      await updateDoc(tenantDoc(tenantId, id), { ...data, hasApiKey: true, apiKey: deleteField() });
+      return;
+    }
     await updateDoc(tenantDoc(tenantId, id), data as Record<string, unknown>);
   }
 
   async deleteConnection(tenantId: string, id: string): Promise<void> {
+    await deleteDoc(secretDoc(tenantId, id));
     await deleteDoc(tenantDoc(tenantId, id));
   }
 

@@ -1,4 +1,4 @@
-import type { DocumentData, Firestore } from 'firebase-admin/firestore';
+import type { DocumentData, DocumentSnapshot, Firestore } from 'firebase-admin/firestore';
 import type { IAIConnectionRepository } from '../../domain/repositories/IAIConnectionRepository';
 import type { AICredentials } from '../../domain/entities/AICredentials';
 import type { Provider } from '../../domain/entities/Provider';
@@ -19,7 +19,13 @@ export class FirebaseAIConnectionRepository implements IAIConnectionRepository {
       throw new Error('Nenhuma conexão IA padrão configurada para este escritório.');
     }
 
-    return this.toCredentials(connectionsSnap.docs[0].data());
+    const credentials = await this.toCredentials(tenantId, connectionsSnap.docs[0]);
+
+    if (!credentials) {
+      throw new Error('A chave de API da conexão IA padrão não está cadastrada.');
+    }
+
+    return credentials;
   }
 
   async getCredentialsById(tenantId: string, connectionId: string): Promise<AICredentials> {
@@ -34,17 +40,13 @@ export class FirebaseAIConnectionRepository implements IAIConnectionRepository {
       throw new Error('Conexão de IA não encontrada para este escritório.');
     }
 
-    return this.toCredentials(snap.data() ?? {});
-  }
+    const credentials = await this.toCredentials(tenantId, snap);
 
-  private toCredentials(data: DocumentData): AICredentials {
-    return {
-      provider: data.provider as Provider,
-      apiKey: data.apiKey as string,
-      model: data.model as string,
-      temperature: (data.temperature as number) ?? 0.7,
-      maxTokens: (data.maxTokens as number) ?? 2048,
-    };
+    if (!credentials) {
+      throw new Error('A chave de API desta conexão de IA não está cadastrada.');
+    }
+
+    return credentials;
   }
 
   async getAllCredentials(tenantId: string): Promise<AICredentials[]> {
@@ -54,32 +56,55 @@ export class FirebaseAIConnectionRepository implements IAIConnectionRepository {
       .collection('aiConnections')
       .get();
 
-    if (connectionsSnap.empty) {
-      return [];
+    const loaded = await Promise.all(
+      connectionsSnap.docs.map(async (doc) => ({
+        isDefault: doc.data().isDefault === true,
+        credentials: await this.toCredentials(tenantId, doc),
+      })),
+    );
+
+    const usable = loaded.filter((item) => item.credentials !== null);
+
+    return [
+      ...usable.filter((item) => item.isDefault),
+      ...usable.filter((item) => !item.isDefault),
+    ].map((item) => item.credentials as AICredentials);
+  }
+
+  private async toCredentials(
+    tenantId: string,
+    connectionDoc: DocumentSnapshot<DocumentData>,
+  ): Promise<AICredentials | null> {
+    const data = connectionDoc.data() ?? {};
+    const apiKey = await this.readApiKey(tenantId, connectionDoc.id, data);
+
+    if (!apiKey) {
+      return null;
     }
 
-    const defaultCreds: AICredentials[] = [];
-    const otherCreds: AICredentials[] = [];
+    return {
+      provider: data.provider as Provider,
+      apiKey,
+      model: data.model as string,
+      temperature: (data.temperature as number) ?? 0.7,
+      maxTokens: (data.maxTokens as number) ?? 2048,
+    };
+  }
 
-    // Separar default das outras
-    for (const doc of connectionsSnap.docs) {
-      const data = doc.data();
-      const cred: AICredentials = {
-        provider: data.provider as Provider,
-        apiKey: data.apiKey as string,
-        model: data.model as string,
-        temperature: (data.temperature as number) ?? 0.7,
-        maxTokens: (data.maxTokens as number) ?? 2048,
-      };
+  private async readApiKey(
+    tenantId: string,
+    connectionId: string,
+    data: DocumentData,
+  ): Promise<string | undefined> {
+    const secretSnap = await this.db
+      .collection('tenants')
+      .doc(tenantId)
+      .collection('aiConnections')
+      .doc(connectionId)
+      .collection('secrets')
+      .doc('current')
+      .get();
 
-      if (data.isDefault === true) {
-        defaultCreds.push(cred);
-      } else {
-        otherCreds.push(cred);
-      }
-    }
-
-    // Retornar com default primeiro
-    return [...defaultCreds, ...otherCreds];
+    return (secretSnap.data()?.apiKey as string | undefined) ?? (data.apiKey as string | undefined);
   }
 }

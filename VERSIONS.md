@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [0.81.0] — 2026-07-13
+
+- As chaves de API das conexões de Inteligência Artificial passam a ser guardadas em área restrita, acessível apenas pelo sistema: uma vez cadastradas, elas nunca mais são enviadas de volta ao navegador. Ao editar uma conexão, o campo da chave aparece em branco — deixe-o assim para manter a chave atual ou preencha-o para substituí-la.
+
 ## [0.80.2] — 2026-07-13
 
 - Corrigido um problema na criação de valores personalizados que causava inconsistências ao gravar registros por meio de workflows ou scripts, impedindo que o campo personalizado fosse reconhecido corretamente pelo sistema.

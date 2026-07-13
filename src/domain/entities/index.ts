@@ -66,11 +66,11 @@ export interface AIConnection {
   tenantId: string;
   name: string;
   provider: AIProvider;
-  apiKey: string;
   model: string;
   temperature: number;
   maxTokens: number;
   isDefault: boolean;
+  hasApiKey: boolean;
   createdAt: Date;
 }
 

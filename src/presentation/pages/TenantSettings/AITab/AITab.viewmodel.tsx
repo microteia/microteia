@@ -45,6 +45,8 @@ export interface AITabViewModel {
   form: AIConnectionForm;
   saving: boolean;
   showApiKey: boolean;
+  apiKeyRequired: boolean;
+  canSave: boolean;
   modelSuggestions: string[];
   confirmDelete: { open: boolean; id: string; name: string };
   handleFormChange: (field: keyof AIConnectionForm, value: string) => void;
@@ -105,6 +107,13 @@ export const useAITabViewModel = (): AITabViewModel => {
     [form.provider],
   );
 
+  const apiKeyRequired = useMemo(() => !modalEditing || !modalEditing.hasApiKey, [modalEditing]);
+
+  const canSave = useMemo(
+    () => Boolean(form.name.trim() && form.provider && (!apiKeyRequired || form.apiKey.trim())),
+    [form.name, form.provider, form.apiKey, apiKeyRequired],
+  );
+
   const handleFormChange = useCallback((field: keyof AIConnectionForm, value: string) => {
     setForm((prev) => {
       const next = { ...prev, [field]: value };
@@ -119,7 +128,7 @@ export const useAITabViewModel = (): AITabViewModel => {
       setForm({
         name: connection.name,
         provider: connection.provider,
-        apiKey: connection.apiKey,
+        apiKey: '',
         model: connection.model,
         temperature: String(connection.temperature),
         maxTokens: String(connection.maxTokens),
@@ -138,24 +147,28 @@ export const useAITabViewModel = (): AITabViewModel => {
   }, []);
 
   const handleSave = useCallback(async () => {
-    if (!currentTenant || !form.name.trim() || !form.provider) return;
+    if (!currentTenant || !canSave) return;
     setSaving(true);
     setError(null);
     try {
+      const apiKey = form.apiKey.trim();
       const data = {
         name: form.name.trim(),
         provider: form.provider as AIProvider,
-        apiKey: form.apiKey,
         model: form.model,
         temperature: parseFloat(form.temperature) || 0.7,
         maxTokens: parseInt(form.maxTokens, 10) || 2048,
-        isDefault: connections.length === 0 && !modalEditing,
+        isDefault: modalEditing ? modalEditing.isDefault : connections.length === 0,
       };
       if (modalEditing) {
-        await updateConnectionUC.execute(currentTenant.id, modalEditing.id, data);
-        setConnections((prev) => prev.map((c) => (c.id === modalEditing.id ? { ...c, ...data } : c)));
+        await updateConnectionUC.execute(currentTenant.id, modalEditing.id, data, apiKey || undefined);
+        setConnections((prev) =>
+          prev.map((c) =>
+            c.id === modalEditing.id ? { ...c, ...data, hasApiKey: c.hasApiKey || Boolean(apiKey) } : c,
+          ),
+        );
       } else {
-        const created = await createConnectionUC.execute(currentTenant.id, data);
+        const created = await createConnectionUC.execute(currentTenant.id, data, apiKey);
         setConnections((prev) => [...prev, created]);
       }
       handleCloseModal();
@@ -164,7 +177,7 @@ export const useAITabViewModel = (): AITabViewModel => {
     } finally {
       setSaving(false);
     }
-  }, [currentTenant, form, modalEditing, connections.length, updateConnectionUC, createConnectionUC, handleCloseModal]);
+  }, [currentTenant, canSave, form, modalEditing, connections.length, updateConnectionUC, createConnectionUC, handleCloseModal]);
 
   const handleDelete = useCallback((id: string) => {
     const conn = connections.find((c) => c.id === id);
@@ -215,6 +228,8 @@ export const useAITabViewModel = (): AITabViewModel => {
     form,
     saving,
     showApiKey,
+    apiKeyRequired,
+    canSave,
     modelSuggestions,
     confirmDelete,
     handleFormChange,

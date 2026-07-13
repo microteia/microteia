@@ -89,6 +89,7 @@ npm run verify          # typecheck + lint + verify-schemas
 | `User` | `users/{uid}` | Não |
 | `UserProfile` | `userProfiles/{uid}` | Não |
 | `AIConnection` | `tenants/{tenantId}/aiConnections/{id}` | Sim |
+| `AIConnectionSecret` | `tenants/{tenantId}/aiConnections/{id}/secrets/current` | Sim (chave de API — nunca trafega para o frontend) |
 | `GmailConnection` | `gmailConnections/{id}` | **Não** (mas possui campo `tenantId`) |
 | `GmailToken` | `gmailConnections/{connectionId}/tokens/current` | **Não** (mas possui campo `tenantId`) |
 | `Tenant` | `tenants/{tenantId}` | — |
@@ -142,6 +143,17 @@ type TenantRole = 'admin' | 'lawyer' | 'secretary' | 'user';
 // Temas visuais disponíveis
 type ThemeMode = 'dark' | 'light' | 'claude' | 'teams' | 'bruma' | 'kindle' | 'curatino' | 'themis' | 'themisDark';
 ```
+
+### Entidade AIConnection
+
+Conexões de IA do escritório (`tenants/{tenantId}/aiConnections/{id}`). Somente administradores do tenant leem e escrevem.
+
+A **chave de API nunca fica no documento da conexão** — ela vive na subcoleção `secrets/current` (campo `apiKey`), no mesmo padrão de `gmailConnections/{id}/tokens/current`:
+
+- O documento da conexão guarda apenas `name`, `provider`, `model`, `temperature`, `maxTokens`, `isDefault` e o booleano `hasApiKey` (indica ao frontend que já existe chave cadastrada, sem revelá-la).
+- O frontend **escreve** a chave (cadastro e troca) e **nunca a lê** — a regra do Firestore em `secrets/{secretId}` é `allow read: if false`.
+- As Cloud Functions leem a chave pelo Admin SDK (`FirebaseAIConnectionRepository` em `functions/src`, método privado `readApiKey`), que ignora as Security Rules. Enquanto houver conexões antigas, `readApiKey` cai de volta no campo legado `apiKey` do documento da conexão; ao editar a conexão e informar uma chave nova, o frontend grava o segredo e remove o campo legado (`deleteField()`).
+- Ao editar sem preencher o campo de chave, a chave atual é mantida. Excluir a conexão apaga primeiro `secrets/current`.
 
 ### Entidade GmailConnection
 
@@ -2270,6 +2282,13 @@ service cloud.firestore {
       // Conexões de IA do escritório — somente admin lê e escreve
       match /aiConnections/{connectionId} {
         allow read, write: if isTenantAdmin(tenantId);
+
+        // Chave de API: admin pode ESCREVER (cadastro/troca), mas NUNCA LER.
+        // Cloud Functions (Admin SDK) leem a chave, ignorando estas regras.
+        match /secrets/{secretId} {
+          allow read: if false;                  // Frontend NUNCA lê a chave
+          allow write: if isTenantAdmin(tenantId);
+        }
       }
 
       // Membros do tenant
