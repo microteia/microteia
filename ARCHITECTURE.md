@@ -2042,6 +2042,59 @@ editor de Script) e no IntelliSense do editor (`scriptTypeDefs.ts`).
 
 ---
 
+### Workflows Públicos
+
+Workflows podem ser marcados como **públicos** (`isPublic: true`), permitindo que outros escritórios
+visualizem e **copiem** a automação completa, incluindo scripts associados. A edição continua
+**restrita ao tenant dono** — workflows públicos são somente-leitura para os demais tenants.
+
+- **Campo `isPublic`** — booleano opcional em `WorkflowDefinition` (padrão `false`). Controlado por
+  checkbox "Workflow Público" no formulário geral da tela de edição de workflow, com `InfoBanner`
+  explicando o comportamento.
+- **Sincronização automática via Cloud Functions** — quando um workflow é marcado como `isPublic: true`
+  (ou atualizado/excluído), duas Cloud Functions sincronizam automaticamente a coleção flat
+  `public_workflows` no root do Firestore:
+  - `syncPublicWorkflowOnWrite` (trigger `onDocumentWritten` em `workflow_definitions`) — replica o
+    workflow para `public_workflows` quando `isPublic: true`, incluindo metadados do proprietário
+    (`ownerId`, `ownerName`, `ownerPhotoURL` do dono do tenant); remove de `public_workflows` quando
+    `isPublic` se torna `false`.
+  - `syncPublicWorkflowOnDelete` (trigger `onDocumentDeleted` em `workflow_definitions`) — remove o
+    workflow de `public_workflows` quando o documento original é excluído.
+  - Ambas implementadas em `functions/src/infrastructure/handlers/workflow/syncPublicWorkflow.ts` e
+    exportadas em `functions/src/index.ts`.
+- **Entidade `PublicWorkflow`** — estende `WorkflowDefinition` (via `Omit<WorkflowDefinition, 'tenantId'>`)
+  e adiciona campos `originalWorkflowId`, `originalTenantId`, `ownerId`, `ownerName`, `ownerPhotoURL`.
+  Definida em `domain/entities/Workflow.ts`.
+- **Listagem unificada** — a tela "Workflows" (`presentation/pages/Workflows`) mescla workflows do
+  tenant atual (`useWorkflowStore().workflows`) com workflows públicos de outros tenants
+  (`useWorkflowStore().publicWorkflows`), removendo duplicatas. Workflows públicos aparecem com:
+  - Badge "Público" (ícone `RiGlobalLine`)
+  - Nome e foto do proprietário abaixo do nome do evento (componentes `S.OwnerInfo`, `S.OwnerPhoto`, `S.OwnerName`)
+  - Botão de copiar (ícone `RiFileCopyLine`) em vez do botão de exclusão
+- **Filtro "Tipo"** — `CompositeFilter` inclui opção "Tipo" com valores "Meus Workflows" / "Públicos"
+  para separar os dois grupos.
+- **Permissão de leitura** — coleção flat `public_workflows` permite leitura para qualquer autenticado;
+  escrita bloqueada (apenas Cloud Functions com Admin SDK). Firestore Security Rule:
+  ```javascript
+  match /public_workflows/{workflowId} {
+    allow read: if request.auth != null;
+    allow write: if false;
+  }
+  ```
+- **Cópia** — método `copyPublicWorkflow(originalTenantId, originalWorkflowId)` no Store:
+  1. Lê o workflow de `public_workflows/{originalWorkflowId}` (não mais do tenant original)
+  2. Copia scripts associados (Steps do tipo `'Script'`) de `tenants/{originalTenantId}/scripts` para
+     `tenants/{targetTenantId}/scripts` e atualiza as referências (`scriptId` nos Steps)
+  3. Cria o workflow no tenant destino com nome + `" (cópia)"`, `isPublic: false`, `enabled: false`, `version: 1`
+  4. Retorna `{ workflowId, copiedWorkflows: 1, copiedScripts: N }`
+  5. Notifica o usuário com mensagem de sucesso incluindo contagem de scripts copiados
+- **Interação na UI** — workflows públicos de outros tenants **não** são clicáveis/editáveis (prop
+  `$clickable={false}` no `S.Row`); badge "Habilitado/Desabilitado" e botão de exclusão aparecem
+  **apenas** para workflows do tenant atual.
+- **Índice composto** — `public_workflows` com campos `name` (ASC) para ordenação alfabética na listagem.
+
+---
+
 ## Camada de Regras de Campo (validação e formatação)
 
 Camada declarativa, **compartilhada entre front e backend**, que formata e valida um valor **antes
@@ -2628,8 +2681,11 @@ service cloud.firestore {
       // ─── Workflow Engine (Automações) ────────────────────────────────────────
       // Definições de automação — feature administrativa; só admin cria/edita/exclui.
       // `steps` fica embutido no próprio documento (ver "Workflow Engine" no corpo do doc).
+      // Workflows públicos (isPublic === true) podem ser lidos por qualquer tenant autenticado
+      // para permitir cópia (ver "Workflows Públicos" no corpo do doc).
       match /workflow_definitions/{workflowId} {
-        allow read: if isMember(tenantId);
+        allow read: if request.auth != null && 
+        (isMember(tenantId) || resource.data.isPublic == true);
         allow create, update, delete: if isTenantAdmin(tenantId);
       }
 
@@ -2865,6 +2921,17 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // ─── Workflows Públicos ───────────────────────────────────────────────────
+    // Coleção flat na raiz com réplicas dos workflows marcados isPublic=true. Sincronizada
+    // por Cloud Functions (syncPublicWorkflowOnWrite/OnDelete) a partir de
+    // tenants/{tenantId}/workflow_definitions. Leitura aberta a qualquer autenticado para
+    // permitir o marketplace de workflows entre escritórios; escrita bloqueada (apenas
+    // Cloud Functions com Admin SDK podem criar/atualizar/deletar).
+    match /public_workflows/{workflowId} {
+      allow read: if request.auth != null;
+      allow write: if false;
+    }
+
   }
 }
 ```
@@ -3043,6 +3110,7 @@ service firebase.storage {
 | `auditLogs` | `tenantId` ASC, `severity` ASC, `createdAt` ASC | Para contar falhas CRITICAL não lidas (badge da Auditoria) |
 | `tenants/{id}/customRecords` | `screenKey` ASC, `createdAt` DESC | Para listar registros de cada tela dinâmica |
 | `tenants/{id}/workflow_definitions` | `eventName` ASC, `enabled` ASC | Para `findEnabledByEvent` — o gatilho do motor localiza workflows habilitados por evento |
+| `workflow_definitions` (collectionGroup) | `isPublic` ASC, `name` ASC | Para `subscribeToPublicWorkflowDefinitions` — busca workflows públicos de todos os tenants |
 | `tenants/{id}/workflow_executions` | `workflowDefinitionId` ASC, `startedAt` DESC | Para listar execuções de um workflow na aba "Execuções", mais recente primeiro |
 
 ---

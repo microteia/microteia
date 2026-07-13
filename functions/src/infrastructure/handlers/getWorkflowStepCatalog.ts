@@ -28,6 +28,7 @@ export const getWorkflowStepCatalog = onCall(
       description: def.description,
       icon: def.icon,
       category: def.category,
+      type: def.type,
       configurable: def.configurable,
       inputs: def.inputs,
       outputDefinitions: def.outputDefinitions,

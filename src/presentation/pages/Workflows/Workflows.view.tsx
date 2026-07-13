@@ -1,5 +1,5 @@
 import React from 'react';
-import { RiFlowChart, RiAddLine, RiDeleteBinLine } from 'react-icons/ri';
+import { RiFlowChart, RiAddLine, RiDeleteBinLine, RiFileCopyLine, RiGlobalLine } from 'react-icons/ri';
 import { S } from './Workflows.styles';
 import { useWorkflowsViewModel } from './Workflows.viewmodel';
 import { getWorkflowEventIcon } from '../../shared/workflowEventIcons';
@@ -48,25 +48,51 @@ export const WorkflowsView: React.FC = () => {
           <S.List>
             {vm.filteredWorkflows.map((w) => {
               const EventIcon = getWorkflowEventIcon(w.eventName);
+              const isOwn = vm.isOwnWorkflow(w);
+              const isPublicWorkflow = 'originalTenantId' in w;
+              const rowKey = isPublicWorkflow ? `${w.originalTenantId}-${w.id}` : `${w.tenantId}-${w.id}`;
               return (
-                <S.Row key={w.id} onClick={() => vm.openWorkflow(w)}>
+                <S.Row key={rowKey} onClick={() => vm.openWorkflow(w)} $clickable={isOwn}>
                   <S.RowIcon><EventIcon size={18} /></S.RowIcon>
                   <S.RowInfo>
                     <S.RowName>{w.name}</S.RowName>
                     <S.RowEvent>{w.eventName}</S.RowEvent>
+                    {isPublicWorkflow && !isOwn && (
+                      <S.OwnerInfo>
+                        {w.ownerPhotoURL && <S.OwnerPhoto src={w.ownerPhotoURL} alt={w.ownerName} />}
+                        <S.OwnerName>por {w.ownerName}</S.OwnerName>
+                      </S.OwnerInfo>
+                    )}
                   </S.RowInfo>
-                  <S.EnabledBadge
-                    $enabled={w.enabled}
-                    onClick={(e) => { e.stopPropagation(); vm.toggleEnabled(w); }}
-                  >
-                    {w.enabled ? 'Habilitado' : 'Desabilitado'}
-                  </S.EnabledBadge>
-                  <S.DeleteBtn
-                    title="Excluir automação"
-                    onClick={(e) => { e.stopPropagation(); vm.handleDelete(w); }}
-                  >
-                    <RiDeleteBinLine size={14} />
-                  </S.DeleteBtn>
+                  {w.isPublic && (
+                    <S.PublicBadge title="Workflow Público">
+                      <RiGlobalLine size={12} />
+                      Público
+                    </S.PublicBadge>
+                  )}
+                  {isOwn && (
+                    <S.EnabledBadge
+                      $enabled={w.enabled}
+                      onClick={(e) => { e.stopPropagation(); vm.toggleEnabled(w); }}
+                    >
+                      {w.enabled ? 'Habilitado' : 'Desabilitado'}
+                    </S.EnabledBadge>
+                  )}
+                  {isOwn ? (
+                    <S.DeleteBtn
+                      title="Excluir automação"
+                      onClick={(e) => { e.stopPropagation(); vm.handleDelete(w); }}
+                    >
+                      <RiDeleteBinLine size={14} />
+                    </S.DeleteBtn>
+                  ) : (
+                    <S.CopyBtn
+                      title="Copiar workflow para meu escritório"
+                      onClick={(e) => { e.stopPropagation(); void vm.copyPublicWorkflow(w); }}
+                    >
+                      <RiFileCopyLine size={14} />
+                    </S.CopyBtn>
+                  )}
                 </S.Row>
               );
             })}

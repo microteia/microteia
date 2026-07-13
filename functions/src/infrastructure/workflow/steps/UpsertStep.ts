@@ -15,6 +15,7 @@ export const makeUpsertStepDefinition = (deps: WorkflowMutationDeps): StepDefini
     'Inclui ou atualiza um registro de qualquer cadastro do escritório (fixo, personalizado ou lista) a partir de um objeto pronto vindo dos steps anteriores ou do evento. Se o objeto tiver um id, atualiza; senão, inclui.',
   icon: 'RiSaveLine',
   category: 'Data',
+  type: 'Action',
   configurable: true,
   inputs: [
     {

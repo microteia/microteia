@@ -526,7 +526,7 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
       const step: WorkflowStep = {
         id: editingStep?.id ?? crypto.randomUUID(),
         stepDefinitionId: selectedDefinition.id,
-        type: 'Action',
+        type: selectedDefinition.type,
         order: editingStep?.order ?? existingSteps.length,
         ...(signature.trim() ? { signature: signature.trim() } : {}),
         configuration,

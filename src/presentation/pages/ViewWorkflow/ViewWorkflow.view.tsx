@@ -20,6 +20,7 @@ import { useViewWorkflowViewModel, EVENT_NAME_OPTIONS, LOOKUP_COLLECTION_OPTIONS
 import { Button } from '../../components/ui/Button';
 import { InputGroup, Label, Input, Textarea } from '../../components/ui/Input';
 import { SearchSelect } from '../../components/ui/SearchSelect';
+import { Checkbox } from '../../components/ui/Checkbox';
 import { InfoBanner } from '../../components/ui/InfoBanner';
 import { ConfirmModal } from '../../components/ui/ConfirmModal';
 import { ConditionBuilder } from '../../components/ui/ConditionBuilder';
@@ -115,6 +116,18 @@ export const ViewWorkflowView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
                   value={vm.formData.description}
                   onChange={(e) => vm.setFormData({ description: e.target.value })}
                   rows={3}
+                />
+              </InputGroup>
+
+              <InputGroup>
+                <Checkbox
+                  checked={vm.formData.isPublic}
+                  onChange={(checked) => vm.setFormData({ isPublic: checked })}
+                  label="Workflow Público"
+                />
+                <InfoBanner
+                  variant="info"
+                  message="Workflows públicos podem ser copiados por outros escritórios, mas apenas você pode editá-los."
                 />
               </InputGroup>
 

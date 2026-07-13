@@ -126,6 +126,9 @@ export interface WorkflowDefinition {
   // Só relevante quando eventName é "workflow.called": parâmetros que este workflow espera receber
   // de quem o chamar. Definem o schema de `event.` (intellisense e hidratação) do workflow chamado.
   parameters?: WorkflowParameter[];
+  // Quando true, outros escritórios enxergam o workflow e podem copiá-lo integralmente; a edição
+  // continua restrita ao tenant dono. Ver "Workflows Públicos" no ARCHITECTURE.md.
+  isPublic?: boolean;
   enabled: boolean;
   version: number;
   condition: Condition;
@@ -157,4 +160,12 @@ export interface WorkflowExecution {
   finishedAt?: Date;
   logs: WorkflowExecutionLogEntry[];
   outputs: Record<string, Record<string, unknown>>;
+}
+
+export interface PublicWorkflow extends Omit<WorkflowDefinition, 'tenantId'> {
+  originalWorkflowId: string;
+  originalTenantId: string;
+  ownerId: string;
+  ownerName: string;
+  ownerPhotoURL?: string;
 }

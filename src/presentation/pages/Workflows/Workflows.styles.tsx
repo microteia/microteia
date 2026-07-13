@@ -44,7 +44,7 @@ export const S = {
     gap: ${({ theme }) => theme.spacing.sm};
   `,
 
-  Row: styled.div`
+  Row: styled.div<{ $clickable?: boolean }>`
     display: flex;
     align-items: center;
     gap: ${({ theme }) => theme.spacing.md};
@@ -52,11 +52,11 @@ export const S = {
     border: 1px solid ${({ theme }) => theme.colors.border};
     border-radius: ${({ theme }) => theme.borderRadius.lg};
     padding: ${({ theme }) => theme.spacing.md};
-    cursor: pointer;
+    cursor: ${({ $clickable = true }) => ($clickable ? 'pointer' : 'default')};
     transition: ${({ theme }) => theme.transitions.fast};
 
     &:hover {
-      border-color: ${({ theme }) => theme.colors.primary};
+      border-color: ${({ theme, $clickable = true }) => ($clickable ? theme.colors.primary : theme.colors.border)};
     }
   `,
 
@@ -90,6 +90,26 @@ export const S = {
     margin-top: 2px;
   `,
 
+  OwnerInfo: styled.div`
+    display: flex;
+    align-items: center;
+    gap: ${({ theme }) => theme.spacing.xs};
+    margin-top: ${({ theme }) => theme.spacing.xs};
+  `,
+
+  OwnerPhoto: styled.img`
+    width: 16px;
+    height: 16px;
+    border-radius: ${({ theme }) => theme.borderRadius.full};
+    object-fit: cover;
+  `,
+
+  OwnerName: styled.div`
+    font-size: ${({ theme }) => theme.fontSizes.xs};
+    color: ${({ theme }) => theme.colors.textMuted};
+    font-style: italic;
+  `,
+
   EnabledBadge: styled.span<{ $enabled: boolean }>`
     display: inline-flex;
     align-items: center;
@@ -101,6 +121,20 @@ export const S = {
     background: ${({ $enabled, theme }) => ($enabled ? `${theme.colors.success}20` : `${theme.colors.danger}20`)};
     color: ${({ $enabled, theme }) => ($enabled ? theme.colors.success : theme.colors.danger)};
     border: 1px solid ${({ $enabled, theme }) => ($enabled ? `${theme.colors.success}44` : `${theme.colors.danger}44`)};
+    flex-shrink: 0;
+  `,
+
+  PublicBadge: styled.span`
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 10px;
+    border-radius: ${({ theme }) => theme.borderRadius.full};
+    font-size: ${({ theme }) => theme.fontSizes.xs};
+    font-weight: 600;
+    background: ${({ theme }) => `${theme.colors.primary}20`};
+    color: ${({ theme }) => theme.colors.primary};
+    border: 1px solid ${({ theme }) => `${theme.colors.primary}44`};
     flex-shrink: 0;
   `,
 
@@ -122,6 +156,27 @@ export const S = {
       background: ${({ theme }) => theme.colors.danger};
       color: #fff;
       border-color: ${({ theme }) => theme.colors.danger};
+    }
+  `,
+
+  CopyBtn: styled.button`
+    width: 32px;
+    height: 32px;
+    border-radius: ${({ theme }) => theme.borderRadius.md};
+    border: 1px solid ${({ theme }) => theme.colors.border};
+    background: ${({ theme }) => theme.colors.surface};
+    color: ${({ theme }) => theme.colors.textMuted};
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: ${({ theme }) => theme.transitions.fast};
+
+    &:hover {
+      background: ${({ theme }) => theme.colors.primary};
+      color: #fff;
+      border-color: ${({ theme }) => theme.colors.primary};
     }
   `,
 

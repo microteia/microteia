@@ -12,6 +12,7 @@ export const makeRemoveStepDefinition = (deps: WorkflowMutationDeps): StepDefini
     'Exclui um registro de qualquer cadastro do escritório (fixo, personalizado ou lista) pelo seu id. Exclui apenas o registro informado, sem cascata.',
   icon: 'RiDeleteBin6Line',
   category: 'Data',
+  type: 'Action',
   configurable: true,
   inputs: [
     {

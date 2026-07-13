@@ -90,6 +90,7 @@ export interface WorkflowFormData {
   screenKey: string;
   lookupCollection: string;
   parameters: WorkflowParameter[];
+  isPublic: boolean;
 }
 
 const sanitizeParameters = sanitizeWorkflowParameters;
@@ -101,6 +102,7 @@ const buildForm = (w: WorkflowDefinition | null): WorkflowFormData => ({
   screenKey: w?.screenKey ?? '',
   lookupCollection: w?.lookupCollection ?? '',
   parameters: w?.parameters ?? [],
+  isPublic: w?.isPublic ?? false,
 });
 
 export const EVENT_NAME_OPTIONS = WORKFLOW_EVENT_CATALOG.map((entry) => ({
@@ -449,6 +451,7 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
           version: 1,
           condition: { kind: 'AlwaysTrue' },
           steps: cloneSource ? cloneSource.steps.map((step) => ({ ...step, id: crypto.randomUUID() })) : [],
+          isPublic: formData.isPublic,
         };
         if (formData.description) createData.description = formData.description;
         if (screenKey) createData.screenKey = screenKey;
@@ -464,6 +467,7 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
           name: formData.name,
           eventName: formData.eventName,
           parameters: parameters ?? [],
+          isPublic: formData.isPublic,
         };
         if (formData.description) updateData.description = formData.description;
         if (screenKey) updateData.screenKey = screenKey;

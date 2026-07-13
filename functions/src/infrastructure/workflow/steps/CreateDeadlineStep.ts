@@ -38,6 +38,7 @@ export const makeCreateDeadlineStepDefinition = (deadlineRepository: IDeadlineRe
   description: 'Cria um prazo para um processo.',
   icon: 'RiCalendarEventLine',
   category: 'Action',
+  type: 'Action',
   configurable: true,
   inputs: [
     { id: 'caseId', label: 'Processo', required: true, type: 'EntityReference', entityType: 'cases' },

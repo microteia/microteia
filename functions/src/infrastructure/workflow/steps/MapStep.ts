@@ -10,6 +10,7 @@ export const makeMapStepDefinition = (): StepDefinition => ({
     'Monta um objeto de saída nomeado a partir de campos mapeados (nome e valor). Útil para preparar os dados de um cadastro e depois gravá-los com o step Gravar Registro.',
   icon: 'RiBracketsLine',
   category: 'Data',
+  type: 'Action',
   configurable: true,
   inputs: [
     {

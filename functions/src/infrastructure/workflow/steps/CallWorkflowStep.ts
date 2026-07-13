@@ -15,6 +15,7 @@ export const makeCallWorkflowStepDefinition = (): StepDefinition => ({
   description: 'Dispara outro workflow, passando valores para os parâmetros dele.',
   icon: 'RiFlowChart',
   category: 'Action',
+  type: 'SubWorkflow',
   configurable: true,
   inputs: [
     {

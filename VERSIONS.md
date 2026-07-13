@@ -11,6 +11,18 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [0.82.2] — 2026-07-13
+
+- Ao copiar um workflow público, todos os workflows associados (chamados por meio de etapas "Chamar Workflow") e scripts agora são copiados automaticamente de forma recursiva, garantindo que a automação funcione imediatamente. A cópia é feita pelo sistema com privilégios elevados, permitindo acesso seguro aos recursos do escritório de origem sem violar as regras de segurança.
+
+## [0.82.1] — 2026-07-13
+
+- Corrigido problema no catálogo de tipos de etapas de workflow: a propriedade "tipo" agora é transmitida corretamente para o editor visual.
+
+## [0.82.0] — 2026-07-13
+
+- Workflows agora podem ser marcados como públicos e aparecem automaticamente na lista de automações de todos os escritórios, identificados com um badge "Público" e mostrando o nome e foto do proprietário. Qualquer usuário pode copiar um workflow público para seu próprio escritório com um único clique, incluindo todos os scripts associados — perfeito para compartilhar automações úteis entre diferentes escritórios.
+
 ## [0.81.0] — 2026-07-13
 
 - As chaves de API das conexões de Inteligência Artificial passam a ser guardadas em área restrita, acessível apenas pelo sistema: uma vez cadastradas, elas nunca mais são enviadas de volta ao navegador. Ao editar uma conexão, o campo da chave aparece em branco — deixe-o assim para manter a chave atual ou preencha-o para substituí-la.

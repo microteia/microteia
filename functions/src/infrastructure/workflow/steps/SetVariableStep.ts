@@ -36,6 +36,7 @@ export const makeSetVariableStepDefinition = (): StepDefinition => ({
   description: 'Grava um valor em uma variável do workflow, para ser lido por steps seguintes.',
   icon: 'RiBracesLine',
   category: 'Data',
+  type: 'Action',
   configurable: true,
   inputs: [
     { 

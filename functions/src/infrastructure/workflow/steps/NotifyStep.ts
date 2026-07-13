@@ -8,6 +8,7 @@ export const makeNotifyStepDefinition = (createAuditLogUseCase: CreateAuditLogUs
   description: 'Gera um alerta de severidade crítica, visível no sino de notificações do escritório.',
   icon: 'RiNotification3Line',
   category: 'Notification',
+  type: 'Action',
   configurable: true,
   inputs: [
     { id: 'title', label: 'Título', required: true, type: 'String' },

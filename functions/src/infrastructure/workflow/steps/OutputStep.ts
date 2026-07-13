@@ -73,6 +73,7 @@ export const makeOutputStepDefinition = (): StepDefinition => ({
   description: 'Define um par nome-valor que será retornado como output do workflow.',
   icon: 'RiExternalLinkLine',
   category: 'Data',
+  type: 'Action',
   configurable: true,
   inputs: [
     { 

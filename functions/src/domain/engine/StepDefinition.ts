@@ -110,6 +110,8 @@ export interface WorkflowStepExecutor {
   execute(inputs: Record<string, unknown>, context: WorkflowContext): Promise<WorkflowResult>;
 }
 
+export type StepType = 'Action' | 'Script' | 'SubWorkflow';
+
 export interface StepDefinition {
   id: string;
   version: number;
@@ -117,6 +119,7 @@ export interface StepDefinition {
   description: string;
   icon: string;
   category: StepCategory;
+  type: StepType;
   configurable: boolean;
   inputs: InputDefinition[];
   outputDefinitions: OutputDefinition[];

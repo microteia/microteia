@@ -16,6 +16,7 @@ export const makeValidateStepDefinition = (screenProvider: IScreenDefinitionProv
     'Valida e formata um objeto vindo do evento ou dos steps anteriores, seja pelo schema de um cadastro conhecido, seja por parâmetros próprios. Falha o workflow quando algum campo não passa nas regras, e devolve o objeto já validado e formatado.',
   icon: 'RiShieldCheckLine',
   category: 'Data',
+  type: 'Action',
   configurable: true,
   inputs: [
     {

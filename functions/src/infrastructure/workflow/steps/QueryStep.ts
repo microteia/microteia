@@ -16,6 +16,7 @@ export const makeQueryStepDefinition = (
   description: 'Pesquisa registros de qualquer cadastro do escritório (fixo, personalizado ou lista) para usar nos próximos passos.',
   icon: 'RiSearchLine',
   category: 'Data',
+  type: 'Action',
   configurable: true,
   inputs: [
     {

@@ -9,6 +9,7 @@ export const makeRegisterAuditStepDefinition = (createAuditLogUseCase: CreateAud
   description: 'Grava uma entrada no histórico de auditoria do escritório, sem gerar alerta.',
   icon: 'RiFileHistoryLine',
   category: 'Action',
+  type: 'Action',
   configurable: true,
   inputs: [
     { id: 'title', label: 'Título', required: true, type: 'String' },

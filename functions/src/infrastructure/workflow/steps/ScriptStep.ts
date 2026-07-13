@@ -22,6 +22,7 @@ export const makeScriptStepDefinition = (
   description: 'Executa um Script (código) reutilizável dentro de um sandbox isolado.',
   icon: 'RiCodeBoxLine',
   category: 'Integration',
+  type: 'Script',
   configurable: true,
   inputs: [
     {

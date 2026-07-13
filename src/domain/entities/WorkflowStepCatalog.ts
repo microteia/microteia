@@ -1,4 +1,5 @@
 import type { FieldRules } from '../schema/fieldRules';
+import type { StepType } from './Workflow';
 
 export type InputType =
   | 'String'
@@ -118,6 +119,7 @@ export interface StepDefinitionSummary {
   description: string;
   icon: string;
   category: StepCategory;
+  type: StepType;
   configurable: boolean;
   inputs: InputDefinition[];
   outputDefinitions: OutputDefinition[];
