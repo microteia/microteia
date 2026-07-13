@@ -94,11 +94,12 @@ export const copyPublicWorkflow = onCall(
           if (sourceScriptSnap.exists) {
             const scriptData = sourceScriptSnap.data();
             if (scriptData) {
-              const newScriptRef = await db
+              await db
                 .collection("tenants")
                 .doc(targetTenantId)
                 .collection("scripts")
-                .add({
+                .doc(scriptId)
+                .set({
                   name: scriptData.name,
                   description: scriptData.description,
                   sourceTs: scriptData.sourceTs,
@@ -108,7 +109,7 @@ export const copyPublicWorkflow = onCall(
                   createdBy: "workflow-engine",
                   createdAt: FieldValue.serverTimestamp(),
                 });
-              scriptIdMap.set(scriptId, newScriptRef.id);
+              scriptIdMap.set(scriptId, scriptId);
               totalCopiedScripts++;
             }
           }
