@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [0.80.2] — 2026-07-13
+
+- Corrigido um problema na criação de valores personalizados que causava inconsistências ao gravar registros por meio de workflows ou scripts, impedindo que o campo personalizado fosse reconhecido corretamente pelo sistema.
+
 ## [0.80.1] — 2026-07-13
 
 - Corrigido um problema que impedia a exclusão imediata de valores personalizados adicionados aos campos Sexo, Estado Civil, Nacionalidade e outros lookups. Agora, ao adicionar um novo valor, o botão de exclusão aparece instantaneamente, sem precisar recarregar a página.

@@ -34,7 +34,7 @@ export class FirebaseNewsCategoryRepository implements INewsCategoryRepository {
   async create(tenantId: string, key: string, label: string, createdBy: string): Promise<NewsCategoryConfig> {
     const col = collection(db, 'tenants', tenantId, 'newsCategories');
     await addDoc(col, { key, label, createdBy, createdAt: new Date() });
-    return { key, label };
+    return { key, label, isStatic: false };
   }
 
   async delete(tenantId: string, key: string): Promise<void> {

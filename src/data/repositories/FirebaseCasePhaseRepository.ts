@@ -39,7 +39,7 @@ export class FirebaseCasePhaseRepository implements ICasePhaseRepository {
     const data: Record<string, unknown> = { key, label, createdBy, createdAt: new Date() };
     if (color) data.color = color;
     await addDoc(col, data);
-    return { key, label, color };
+    return { key, label, color, isStatic: false };
   }
 
   async delete(tenantId: string, key: string): Promise<void> {

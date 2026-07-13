@@ -38,7 +38,7 @@ export class FirebaseCaseStatusRepository implements ICaseStatusRepository {
   async create(tenantId: string, key: string, label: string, color: string, createdBy: string): Promise<CaseStatusConfig> {
     const col = collection(db, 'tenants', tenantId, 'caseStatuses');
     await addDoc(col, { key, label, color, createdBy, createdAt: new Date() });
-    return { key, label, color };
+    return { key, label, color, isStatic: false };
   }
 
   async delete(tenantId: string, key: string): Promise<void> {
