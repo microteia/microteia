@@ -10,7 +10,7 @@ export interface WorkflowStoreContextValue {
   updateWorkflow: (id: string, data: Partial<Omit<WorkflowDefinition, 'id' | 'tenantId' | 'createdAt'>>) => Promise<void>;
   updateWorkflowSteps: (id: string, steps: WorkflowStep[]) => Promise<void>;
   deleteWorkflow: (id: string) => Promise<void>;
-  copyPublicWorkflow: (sourceTenantId: string, workflowId: string) => Promise<CopyPublicWorkflowResult>;
+  copyPublicWorkflow: (workflowId: string) => Promise<CopyPublicWorkflowResult>;
 }
 
 export const WorkflowStoreContext = createContext<WorkflowStoreContextValue | null>(null);

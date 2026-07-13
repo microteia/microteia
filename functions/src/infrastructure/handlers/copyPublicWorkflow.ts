@@ -8,22 +8,15 @@ interface CopyPublicWorkflowRequest {
   targetTenantId: string;
 }
 
-interface CopyPublicWorkflowResponse {
-  workflowId: string;
-  copiedWorkflows: number;
-  copiedScripts: number;
-  copiedSubWorkflows: number;
-}
 
-export const copyPublicWorkflow = onCall<
-  CopyPublicWorkflowRequest,
-  Promise<CopyPublicWorkflowResponse>
->({ region: "southamerica-east1", cors: true }, async (request) => {
+export const copyPublicWorkflow = onCall(
+  { region: "southamerica-east1", cors: true },
+  async (request) => {
   if (!request.auth) {
     throw new HttpsError("unauthenticated", "Usuário não autenticado");
   }
 
-  const { originalWorkflowId, targetTenantId } = request.data;
+  const { originalWorkflowId, targetTenantId } = request.data as CopyPublicWorkflowRequest;
 
   if (!originalWorkflowId || !targetTenantId) {
     throw new HttpsError(

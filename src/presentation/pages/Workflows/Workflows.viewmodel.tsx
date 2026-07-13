@@ -132,12 +132,12 @@ export const useWorkflowsViewModel = (): WorkflowsViewModel => {
   const copyPublicWorkflow = useCallback(async (w: WorkflowDefinition | PublicWorkflow) => {
     if (isOwnWorkflow(w)) return;
     try {
-      const originalTenantId = 'originalTenantId' in w ? w.originalTenantId : w.tenantId;
-      const originalWorkflowId = 'originalWorkflowId' in w ? w.originalWorkflowId : w.id;
-      const result = await copyWorkflow(originalTenantId, originalWorkflowId);
-      notify(`Workflow copiado com sucesso! ${result.copiedScripts} script(s) também foram copiados.`, 'success');
-    } catch {
-      notify('Erro ao copiar workflow.', 'error');
+      const publicWorkflowId = 'originalWorkflowId' in w ? w.originalWorkflowId : w.id;
+      const result = await copyWorkflow(publicWorkflowId);
+      notify(`Workflow copiado com sucesso! ${result.copiedScripts} script(s) e ${result.copiedSubWorkflows} sub-workflow(s) também foram copiados.`, 'success');
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Erro ao copiar workflow.';
+      notify(message, 'error');
     }
   }, [copyWorkflow, notify, isOwnWorkflow]);
 

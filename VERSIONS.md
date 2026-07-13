@@ -11,6 +11,15 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [0.82.7] — 2026-07-13
+
+- Corrigido problema que impedia a cópia de workflows públicos (parâmetros eram passados na ordem errada).
+- Mensagens de erro ao copiar workflows agora mostram detalhes do problema encontrado.
+
+## [0.82.6] — 2026-07-13
+
+- Corrigido erro 404 ao copiar workflows públicos para o escritório.
+
 ## [0.82.5] — 2026-07-13
 
 - Resolvido problema de acesso ao catálogo de etapas de workflow: a região southamerica-east1 agora está totalmente configurada com permissões públicas adequadas, eliminando erros de autenticação e CORS ao carregar os recursos do sistema.
