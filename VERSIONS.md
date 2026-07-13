@@ -11,6 +11,12 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [0.79.0] — 2026-07-12
+
+- O Processador de Dados foi reorganizado em etapas guiadas: origem dos dados, inteligência artificial, automação e execução. Cada etapa aparece sozinha na tela, com o caminho percorrido sempre visível no topo.
+- Ao enviar um PDF com várias páginas, agora é possível escolher qual página processar — antes o sistema usava sempre a primeira. A página escolhida é exibida em miniatura, e seu texto entra pronto para revisão.
+- Antes de executar, a tela apresenta um resumo do que será processado (origem, inteligência escolhida e automação), e ao final é possível iniciar um novo processamento com um clique.
+
 ## [0.78.1] — 2026-07-12
 
 - Correção de um problema que impedia a geração de uma nova versão do sistema para publicação.

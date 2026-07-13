@@ -42,15 +42,42 @@ export interface WorkflowChoice {
   ranked: boolean;
 }
 
+export type StepKey = 'source' | 'ai' | 'workflow' | 'run';
+export type StepStatus = 'done' | 'current' | 'upcoming' | 'locked';
+
+export interface WizardStep {
+  key: StepKey;
+  title: string;
+  hint: string;
+  status: StepStatus;
+  reachable: boolean;
+}
+
 export interface DataProcessorViewModel {
   hasAccess: boolean;
 
+  steps: WizardStep[];
+  currentStep: StepKey;
+  currentStepTitle: string;
+  currentStepHint: string;
+  onGoToStep: (key: StepKey) => void;
+  onBack: () => void;
+  onNext: () => void;
+  canGoBack: boolean;
+  canGoNext: boolean;
+  isLastStep: boolean;
+
   freeText: string;
   onFreeTextChange: (value: string) => void;
+  textCharCount: number;
 
   pdfFileName: string | null;
   pdfExtracting: boolean;
   pdfPreviewUrl: string | null;
+  pdfPageCount: number;
+  pdfPage: number;
+  pdfPageOptions: { value: string; label: string }[];
+  onSelectPdfPage: (page: string) => void;
   onPdfSelected: (file: File) => void;
   onClearPdf: () => void;
 
@@ -58,11 +85,13 @@ export interface DataProcessorViewModel {
   hasNoConnections: boolean;
   connectionOptions: { value: string; label: string }[];
   selectedConnectionId: string;
+  selectedConnectionLabel: string;
   onSelectConnection: (id: string) => void;
   openAISettings: () => void;
 
   workflowChoices: WorkflowChoice[];
   selectedWorkflowId: string;
+  selectedWorkflowName: string;
   onSelectWorkflow: (id: string) => void;
 
   canDetect: boolean;
@@ -76,10 +105,33 @@ export interface DataProcessorViewModel {
   onRun: () => void;
   runStages: RunStage[];
   resultExecution: WorkflowExecution | null;
+  runSucceeded: boolean;
+  onRestart: () => void;
 
   openWorkflow: (id: string) => void;
   openResultExecutions: () => void;
 }
+
+const STEP_ORDER: StepKey[] = ['source', 'ai', 'workflow', 'run'];
+
+const STEP_META: Record<StepKey, { title: string; hint: string }> = {
+  source: {
+    title: 'Origem dos dados',
+    hint: 'Cole um texto livre ou envie um PDF e escolha a página que deseja processar.',
+  },
+  ai: {
+    title: 'Inteligência artificial',
+    hint: 'Escolha qual inteligência artificial vai interpretar o conteúdo.',
+  },
+  workflow: {
+    title: 'Automação',
+    hint: 'Deixe a inteligência artificial sugerir a automação ideal ou escolha uma da lista.',
+  },
+  run: {
+    title: 'Execução',
+    hint: 'Confira o resumo e execute a automação com os dados já preenchidos.',
+  },
+};
 
 const isParamProcessable = (p: WorkflowParameter): boolean =>
   p.type === 'Object' ? (p.fields ?? []).every(isParamProcessable) : p.type !== 'EntityReference';
@@ -107,11 +159,15 @@ export const useDataProcessorViewModel = (): DataProcessorViewModel => {
     [aiConnectionRepository],
   );
 
+  const [currentStep, setCurrentStep] = useState<StepKey>('source');
+
   const [freeText, setFreeText] = useState('');
   const [pdfFileName, setPdfFileName] = useState<string | null>(null);
-  const [pdfData, setPdfData] = useState<Uint8Array | null>(null);
+  const [pdfFile, setPdfFile] = useState<File | null>(null);
   const [pdfExtracting, setPdfExtracting] = useState(false);
   const [pdfPreviewUrl, setPdfPreviewUrl] = useState<string | null>(null);
+  const [pdfPageCount, setPdfPageCount] = useState(0);
+  const [pdfPage, setPdfPage] = useState(1);
 
   const [connections, setConnections] = useState<AIConnection[]>([]);
   const [connectionsLoading, setConnectionsLoading] = useState(false);
@@ -170,60 +226,85 @@ export const useDataProcessorViewModel = (): DataProcessorViewModel => {
   }, [currentTenant, hasAccess, getConnectionsUC]);
 
   useEffect(() => {
-    if (!pdfData) return;
+    if (!pdfFile) return;
     let cancelled = false;
+    let destroyTask: (() => Promise<void>) | null = null;
     // eslint-disable-next-line react-hooks/set-state-in-effect -- inicializa o estado de carregamento antes da operação assíncrona
     setPdfExtracting(true);
-    const task = pdfjsLib.getDocument({ data: pdfData });
-    task.promise
-      .then(async (pdf) => {
-        const page = await pdf.getPage(1);
-        const content = await page.getTextContent();
-        const text = content.items
-          .map((item) => ('str' in item ? item.str : ''))
-          .join(' ')
-          .replace(/\s+/g, ' ')
-          .trim();
-        if (!cancelled) setFreeText(text);
 
-        const canvas = document.createElement('canvas');
-        const viewport = page.getViewport({ scale: 1.1 });
-        const ctx = canvas.getContext('2d');
-        if (ctx) {
-          canvas.width = viewport.width;
-          canvas.height = viewport.height;
-          await page.render({ canvas, canvasContext: ctx, viewport }).promise;
-          if (!cancelled) setPdfPreviewUrl(canvas.toDataURL('image/png'));
-        }
-      })
+    const extract = async () => {
+      const buffer = await pdfFile.arrayBuffer();
+      const task = pdfjsLib.getDocument({ data: new Uint8Array(buffer) });
+      destroyTask = () => task.destroy();
+      const pdf = await task.promise;
+      if (!cancelled) setPdfPageCount(pdf.numPages);
+
+      const pageNumber = Math.min(Math.max(pdfPage, 1), pdf.numPages);
+      const page = await pdf.getPage(pageNumber);
+      const content = await page.getTextContent();
+      const text = content.items
+        .map((item) => ('str' in item ? item.str : ''))
+        .join(' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+      if (!cancelled) setFreeText(text);
+
+      const canvas = document.createElement('canvas');
+      const viewport = page.getViewport({ scale: 1.1 });
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        canvas.width = viewport.width;
+        canvas.height = viewport.height;
+        await page.render({ canvas, canvasContext: ctx, viewport }).promise;
+        if (!cancelled) setPdfPreviewUrl(canvas.toDataURL('image/png'));
+      }
+    };
+
+    extract()
       .catch(() => {
-        if (!cancelled) {
-          notify('Não foi possível ler o PDF selecionado.', 'error');
-          setPdfFileName(null);
-        }
+        if (!cancelled) notify('Não foi possível ler a página selecionada do PDF.', 'error');
       })
       .finally(() => {
-        void task.destroy();
+        void destroyTask?.();
         if (!cancelled) setPdfExtracting(false);
       });
+
     return () => {
       cancelled = true;
     };
-  }, [pdfData, notify]);
+  }, [pdfFile, pdfPage, notify]);
 
   const onFreeTextChange = useCallback((value: string) => setFreeText(value), []);
 
   const onPdfSelected = useCallback((file: File) => {
     setPdfFileName(file.name);
     setPdfPreviewUrl(null);
-    file.arrayBuffer().then((buffer) => setPdfData(new Uint8Array(buffer)));
+    setPdfPageCount(0);
+    setPdfPage(1);
+    setPdfFile(file);
   }, []);
 
   const onClearPdf = useCallback(() => {
     setPdfFileName(null);
-    setPdfData(null);
+    setPdfFile(null);
     setPdfPreviewUrl(null);
+    setPdfPageCount(0);
+    setPdfPage(1);
   }, []);
+
+  const onSelectPdfPage = useCallback((page: string) => {
+    const parsed = Number(page);
+    if (Number.isFinite(parsed) && parsed > 0) setPdfPage(parsed);
+  }, []);
+
+  const pdfPageOptions = useMemo(
+    () =>
+      Array.from({ length: pdfPageCount }, (_, index) => ({
+        value: String(index + 1),
+        label: `Página ${index + 1} de ${pdfPageCount}`,
+      })),
+    [pdfPageCount],
+  );
 
   const onSelectConnection = useCallback((id: string) => setSelectedConnectionId(id), []);
   const onSelectWorkflow = useCallback((id: string) => setSelectedWorkflowId(id), []);
@@ -268,6 +349,11 @@ export const useDataProcessorViewModel = (): DataProcessorViewModel => {
     [connections],
   );
 
+  const selectedConnectionLabel = useMemo(
+    () => connectionOptions.find((o) => o.value === selectedConnectionId)?.label ?? '',
+    [connectionOptions, selectedConnectionId],
+  );
+
   const hasNoConnections = !connectionsLoading && connections.length === 0;
   const trimmedText = freeText.trim();
 
@@ -283,6 +369,67 @@ export const useDataProcessorViewModel = (): DataProcessorViewModel => {
     !running &&
     (trimmedText.length > 0 || (selectedWorkflow.parameters ?? []).length === 0) &&
     (!!selectedConnectionId || (selectedWorkflow.parameters ?? []).length === 0);
+
+  const completedSteps = useMemo<Record<StepKey, boolean>>(
+    () => ({
+      source: trimmedText.length > 0,
+      ai: !!selectedConnectionId,
+      workflow: !!selectedWorkflow && isEligible(selectedWorkflow),
+      run: !!resultExecution && resultExecution.status === 'SUCCESS',
+    }),
+    [trimmedText, selectedConnectionId, selectedWorkflow, resultExecution],
+  );
+
+  const furthestReachableIndex = useMemo(() => {
+    let index = 0;
+    while (index < STEP_ORDER.length - 1 && completedSteps[STEP_ORDER[index]]) index += 1;
+    return index;
+  }, [completedSteps]);
+
+  const currentIndex = STEP_ORDER.indexOf(currentStep);
+
+  const steps = useMemo<WizardStep[]>(
+    () =>
+      STEP_ORDER.map((key, index) => {
+        const reachable = index <= furthestReachableIndex;
+        const status: StepStatus =
+          key === currentStep
+            ? 'current'
+            : completedSteps[key]
+              ? 'done'
+              : reachable
+                ? 'upcoming'
+                : 'locked';
+        return { key, title: STEP_META[key].title, hint: STEP_META[key].hint, status, reachable };
+      }),
+    [currentStep, completedSteps, furthestReachableIndex],
+  );
+
+  const onGoToStep = useCallback(
+    (key: StepKey) => {
+      const index = STEP_ORDER.indexOf(key);
+      if (index <= furthestReachableIndex) setCurrentStep(key);
+    },
+    [furthestReachableIndex],
+  );
+
+  const canGoBack = currentIndex > 0;
+  const canGoNext = currentIndex < STEP_ORDER.length - 1 && completedSteps[currentStep];
+  const isLastStep = currentIndex === STEP_ORDER.length - 1;
+
+  const onBack = useCallback(() => {
+    setCurrentStep((prev) => {
+      const index = STEP_ORDER.indexOf(prev);
+      return index > 0 ? STEP_ORDER[index - 1] : prev;
+    });
+  }, []);
+
+  const onNext = useCallback(() => {
+    setCurrentStep((prev) => {
+      const index = STEP_ORDER.indexOf(prev);
+      return index < STEP_ORDER.length - 1 ? STEP_ORDER[index + 1] : prev;
+    });
+  }, []);
 
   const onDetect = useCallback(async () => {
     if (!currentTenant || !selectedConnectionId || !trimmedText) return;
@@ -408,33 +555,79 @@ export const useDataProcessorViewModel = (): DataProcessorViewModel => {
     notify,
   ]);
 
+  const onRestart = useCallback(() => {
+    clearObservation();
+    setFreeText('');
+    setPdfFileName(null);
+    setPdfFile(null);
+    setPdfPreviewUrl(null);
+    setPdfPageCount(0);
+    setPdfPage(1);
+    setSelectedWorkflowId('');
+    setDetectedOrder([]);
+    setLogs([]);
+    setRunStages([]);
+    setResultExecution(null);
+    setRunWorkflowId('');
+    setRunning(false);
+    setCurrentStep('source');
+  }, [clearObservation]);
+
   return {
     hasAccess,
+
+    steps,
+    currentStep,
+    currentStepTitle: STEP_META[currentStep].title,
+    currentStepHint: STEP_META[currentStep].hint,
+    onGoToStep,
+    onBack,
+    onNext,
+    canGoBack,
+    canGoNext,
+    isLastStep,
+
     freeText,
     onFreeTextChange,
+    textCharCount: trimmedText.length,
+
     pdfFileName,
     pdfExtracting,
     pdfPreviewUrl,
+    pdfPageCount,
+    pdfPage,
+    pdfPageOptions,
+    onSelectPdfPage,
     onPdfSelected,
     onClearPdf,
+
     connectionsLoading,
     hasNoConnections,
     connectionOptions,
     selectedConnectionId,
+    selectedConnectionLabel,
     onSelectConnection,
     openAISettings,
+
     workflowChoices,
     selectedWorkflowId,
+    selectedWorkflowName: selectedWorkflow?.name ?? '',
     onSelectWorkflow,
+
     canDetect,
     detecting,
     onDetect,
+
     logs,
+
     canRun,
     running,
     onRun,
     runStages,
     resultExecution,
+    runSucceeded: !!resultExecution && resultExecution.status === 'SUCCESS',
+    onRestart,
+
     openWorkflow,
     openResultExecutions,
   };

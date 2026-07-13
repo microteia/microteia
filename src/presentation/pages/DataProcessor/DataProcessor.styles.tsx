@@ -1,5 +1,25 @@
-import styled from 'styled-components';
-import type { StageStatus, ProcessorLogLevel } from './DataProcessor.viewmodel';
+import styled, { css, keyframes } from 'styled-components';
+import type { StageStatus, ProcessorLogLevel, StepStatus } from './DataProcessor.viewmodel';
+
+const fadeIn = keyframes`
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+`;
+
+const pulse = keyframes`
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.45;
+  }
+`;
 
 export const S = {
   Page: styled.div`
@@ -7,7 +27,7 @@ export const S = {
     flex-direction: column;
     gap: ${({ theme }) => theme.spacing.lg};
     padding: ${({ theme }) => theme.spacing.xl};
-    max-width: 1080px;
+    max-width: 900px;
     margin: 0 auto;
     width: 100%;
   `,
@@ -30,51 +50,174 @@ export const S = {
     margin: 0;
   `,
 
-  Grid: styled.div`
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: ${({ theme }) => theme.spacing.lg};
+  Stepper: styled.nav`
+    display: flex;
+    align-items: flex-start;
+    gap: ${({ theme }) => theme.spacing.xs};
+  `,
 
-    @media (max-width: 900px) {
-      grid-template-columns: 1fr;
+  StepperItem: styled.div`
+    display: flex;
+    align-items: center;
+    gap: ${({ theme }) => theme.spacing.xs};
+    flex: 1;
+
+    &:last-child {
+      flex: 0 0 auto;
     }
+  `,
+
+  StepButton: styled.button<{ $status: StepStatus }>`
+    display: flex;
+    align-items: center;
+    gap: ${({ theme }) => theme.spacing.sm};
+    padding: ${({ theme }) => `${theme.spacing.xs} ${theme.spacing.sm}`};
+    border: none;
+    background: none;
+    border-radius: ${({ theme }) => theme.borderRadius.full};
+    cursor: ${({ $status }) => ($status === 'locked' ? 'not-allowed' : 'pointer')};
+    transition: ${({ theme }) => theme.transitions.fast};
+
+    &:hover:not(:disabled) {
+      background: ${({ theme }) => theme.colors.surfaceHover};
+    }
+  `,
+
+  StepMarker: styled.span<{ $status: StepStatus }>`
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 30px;
+    height: 30px;
+    border-radius: ${({ theme }) => theme.borderRadius.full};
+    font-size: ${({ theme }) => theme.fontSizes.xs};
+    font-weight: 700;
+    transition: ${({ theme }) => theme.transitions.fast};
+
+    ${({ theme, $status }) => {
+      if ($status === 'done') {
+        return css`
+          background: ${theme.colors.success};
+          color: ${theme.colors.white};
+          border: 1px solid ${theme.colors.success};
+        `;
+      }
+      if ($status === 'current') {
+        return css`
+          background: ${theme.colors.primary};
+          color: ${theme.colors.white};
+          border: 1px solid ${theme.colors.primary};
+          box-shadow: 0 0 0 4px ${theme.colors.primaryLight};
+        `;
+      }
+      return css`
+        background: ${theme.colors.inputBackground};
+        color: ${theme.colors.textMuted};
+        border: 1px solid ${theme.colors.border};
+      `;
+    }}
+  `,
+
+  StepLabel: styled.span<{ $status: StepStatus }>`
+    font-size: ${({ theme }) => theme.fontSizes.sm};
+    font-weight: 600;
+    white-space: nowrap;
+    color: ${({ theme, $status }) =>
+      $status === 'current'
+        ? theme.colors.text
+        : $status === 'locked'
+          ? theme.colors.textMuted
+          : theme.colors.textSecondary};
+
+    @media (max-width: 760px) {
+      display: none;
+    }
+  `,
+
+  StepConnector: styled.span<{ $filled: boolean }>`
+    flex: 1;
+    height: 2px;
+    min-width: ${({ theme }) => theme.spacing.sm};
+    border-radius: ${({ theme }) => theme.borderRadius.full};
+    background: ${({ theme, $filled }) => ($filled ? theme.colors.success : theme.colors.border)};
+    transition: ${({ theme }) => theme.transitions.normal};
   `,
 
   Card: styled.section`
     display: flex;
     flex-direction: column;
-    gap: ${({ theme }) => theme.spacing.md};
     background: ${({ theme }) => theme.colors.surface};
     border: 1px solid ${({ theme }) => theme.colors.border};
     border-radius: ${({ theme }) => theme.borderRadius.lg};
-    padding: ${({ theme }) => theme.spacing.lg};
+    overflow: hidden;
+  `,
+
+  CardHeader: styled.header`
+    display: flex;
+    align-items: center;
+    gap: ${({ theme }) => theme.spacing.md};
+    padding: ${({ theme }) => `${theme.spacing.lg} ${theme.spacing.lg}`};
+    border-bottom: 1px solid ${({ theme }) => theme.colors.border};
+  `,
+
+  CardIcon: styled.span`
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 42px;
+    height: 42px;
+    border-radius: ${({ theme }) => theme.borderRadius.md};
+    background: ${({ theme }) => theme.colors.primaryLight};
+    color: ${({ theme }) => theme.colors.primary};
+    font-size: ${({ theme }) => theme.fontSizes.lg};
+  `,
+
+  CardHeading: styled.div`
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
   `,
 
   CardTitle: styled.h2`
-    display: flex;
-    align-items: center;
-    gap: ${({ theme }) => theme.spacing.sm};
-    font-size: ${({ theme }) => theme.fontSizes.md};
+    font-size: ${({ theme }) => theme.fontSizes.lg};
     color: ${({ theme }) => theme.colors.text};
     margin: 0;
   `,
 
-  StepBadge: styled.span`
-    display: inline-flex;
+  CardHint: styled.p`
+    font-size: ${({ theme }) => theme.fontSizes.sm};
+    color: ${({ theme }) => theme.colors.textSecondary};
+    margin: 0;
+  `,
+
+  Panel: styled.div`
+    display: flex;
+    flex-direction: column;
+    gap: ${({ theme }) => theme.spacing.md};
+    padding: ${({ theme }) => theme.spacing.lg};
+    animation: ${fadeIn} ${({ theme }) => theme.transitions.normal};
+  `,
+
+  Footer: styled.footer`
+    display: flex;
     align-items: center;
-    justify-content: center;
-    width: 22px;
-    height: 22px;
-    border-radius: ${({ theme }) => theme.borderRadius.full};
-    background: ${({ theme }) => theme.colors.primaryLight};
-    color: ${({ theme }) => theme.colors.primary};
+    justify-content: space-between;
+    gap: ${({ theme }) => theme.spacing.md};
+    padding: ${({ theme }) => theme.spacing.md} ${({ theme }) => theme.spacing.lg};
+    border-top: 1px solid ${({ theme }) => theme.colors.border};
+    background: ${({ theme }) => theme.colors.inputBackground};
+  `,
+
+  FooterHint: styled.span`
     font-size: ${({ theme }) => theme.fontSizes.xs};
-    font-weight: 600;
+    color: ${({ theme }) => theme.colors.textSecondary};
   `,
 
   TextArea: styled.textarea`
     width: 100%;
-    min-height: 220px;
+    min-height: 200px;
     resize: vertical;
     padding: ${({ theme }) => theme.spacing.md};
     border-radius: ${({ theme }) => theme.borderRadius.md};
@@ -103,6 +246,28 @@ export const S = {
     align-items: center;
     justify-content: space-between;
     gap: ${({ theme }) => theme.spacing.sm};
+    flex-wrap: wrap;
+  `,
+
+  Dropzone: styled.div`
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: ${({ theme }) => theme.spacing.md};
+    padding: ${({ theme }) => theme.spacing.md};
+    border: 1px dashed ${({ theme }) => theme.colors.border};
+    border-radius: ${({ theme }) => theme.borderRadius.md};
+    background: ${({ theme }) => theme.colors.inputBackground};
+    flex-wrap: wrap;
+  `,
+
+  DropzoneInfo: styled.div`
+    display: flex;
+    align-items: center;
+    gap: ${({ theme }) => theme.spacing.sm};
+    color: ${({ theme }) => theme.colors.textSecondary};
+    font-size: ${({ theme }) => theme.fontSizes.sm};
+    min-width: 0;
   `,
 
   HiddenFileInput: styled.input`
@@ -118,6 +283,7 @@ export const S = {
     font-size: ${({ theme }) => theme.fontSizes.sm};
     font-weight: 600;
     cursor: pointer;
+    white-space: nowrap;
     transition: ${({ theme }) => theme.transitions.fast};
     border: 1px solid
       ${({ theme, $variant }) => ($variant === 'ghost' ? theme.colors.border : 'transparent')};
@@ -137,6 +303,9 @@ export const S = {
   `,
 
   LinkButton: styled.button`
+    display: inline-flex;
+    align-items: center;
+    gap: ${({ theme }) => theme.spacing.xs};
     background: none;
     border: none;
     padding: 0;
@@ -153,14 +322,26 @@ export const S = {
 
   FileName: styled.span`
     font-size: ${({ theme }) => theme.fontSizes.sm};
-    color: ${({ theme }) => theme.colors.textSecondary};
+    color: ${({ theme }) => theme.colors.text};
+    font-weight: 600;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
   `,
 
+  PageSelector: styled.div`
+    display: flex;
+    align-items: flex-end;
+    gap: ${({ theme }) => theme.spacing.sm};
+  `,
+
+  PageSelectorField: styled.div`
+    flex: 1;
+    min-width: 0;
+  `,
+
   CanvasWrapper: styled.div`
-    max-height: 320px;
+    max-height: 360px;
     overflow: auto;
     border: 1px solid ${({ theme }) => theme.colors.border};
     border-radius: ${({ theme }) => theme.borderRadius.md};
@@ -173,13 +354,14 @@ export const S = {
   PreviewImg: styled.img`
     max-width: 100%;
     height: auto;
+    border-radius: ${({ theme }) => theme.borderRadius.sm};
   `,
 
   WorkflowList: styled.div`
     display: flex;
     flex-direction: column;
     gap: ${({ theme }) => theme.spacing.sm};
-    max-height: 340px;
+    max-height: 380px;
     overflow-y: auto;
   `,
 
@@ -233,6 +415,50 @@ export const S = {
     margin: 0;
   `,
 
+  Loading: styled.p`
+    font-size: ${({ theme }) => theme.fontSizes.sm};
+    color: ${({ theme }) => theme.colors.textSecondary};
+    margin: 0;
+    animation: ${pulse} 1.2s ease-in-out infinite;
+  `,
+
+  Summary: styled.dl`
+    display: flex;
+    flex-direction: column;
+    gap: ${({ theme }) => theme.spacing.sm};
+    margin: 0;
+    padding: ${({ theme }) => theme.spacing.md};
+    border: 1px solid ${({ theme }) => theme.colors.border};
+    border-radius: ${({ theme }) => theme.borderRadius.md};
+    background: ${({ theme }) => theme.colors.inputBackground};
+  `,
+
+  SummaryRow: styled.div`
+    display: flex;
+    align-items: baseline;
+    gap: ${({ theme }) => theme.spacing.md};
+  `,
+
+  SummaryLabel: styled.dt`
+    flex-shrink: 0;
+    width: 140px;
+    font-size: ${({ theme }) => theme.fontSizes.xs};
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: ${({ theme }) => theme.colors.textMuted};
+  `,
+
+  SummaryValue: styled.dd`
+    margin: 0;
+    min-width: 0;
+    font-size: ${({ theme }) => theme.fontSizes.sm};
+    color: ${({ theme }) => theme.colors.text};
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  `,
+
   LogBox: styled.div`
     display: flex;
     flex-direction: column;
@@ -242,6 +468,7 @@ export const S = {
   LogLine: styled.div<{ $level: ProcessorLogLevel }>`
     display: flex;
     align-items: flex-start;
+    justify-content: space-between;
     gap: ${({ theme }) => theme.spacing.sm};
     font-size: ${({ theme }) => theme.fontSizes.xs};
     padding: ${({ theme }) => `${theme.spacing.xs} ${theme.spacing.sm}`};
@@ -263,6 +490,9 @@ export const S = {
     display: flex;
     flex-direction: column;
     gap: ${({ theme }) => theme.spacing.md};
+    padding: ${({ theme }) => theme.spacing.md};
+    border: 1px solid ${({ theme }) => theme.colors.border};
+    border-radius: ${({ theme }) => theme.borderRadius.md};
   `,
 
   Stage: styled.div`
@@ -287,6 +517,12 @@ export const S = {
             : theme.colors.border};
     box-shadow: ${({ theme, $status }) =>
       $status === 'running' ? `0 0 0 4px ${theme.colors.primaryLight}` : 'none'};
+    animation: ${({ $status }) =>
+      $status === 'running'
+        ? css`
+            ${pulse} 1.2s ease-in-out infinite
+          `
+        : 'none'};
   `,
 
   StageBody: styled.div`
@@ -314,6 +550,6 @@ export const S = {
   ResultActions: styled.div`
     display: flex;
     gap: ${({ theme }) => theme.spacing.md};
-    padding-top: ${({ theme }) => theme.spacing.sm};
+    flex-wrap: wrap;
   `,
 };
