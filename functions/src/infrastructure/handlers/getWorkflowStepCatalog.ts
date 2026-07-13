@@ -14,7 +14,10 @@ type StepDefinitionSummary = Omit<StepDefinition, 'createExecutor'>;
  * O front-end armazena em um Store para evitar múltiplas chamadas.
  */
 export const getWorkflowStepCatalog = onCall(
-  { region: 'us-central1', cors: true },
+  {
+    region: 'southamerica-east1',
+    cors: true
+  },
   async () => {
     // Garante que os steps estão registrados (idempotente)
     await getDI().ensureWorkflowStepsRegistered();

@@ -23,7 +23,7 @@ const googleRedirectUri = defineString('GOOGLE_REDIRECT_URI', { default: 'postme
  *    - Atualiza o historyId da conexão
  */
 export const gmailPush = onMessagePublished(
-  { topic: 'gmail', region: 'us-central1' },
+  { topic: 'gmail', region: 'southamerica-east1' },
   async (event) => {
 
     const extractEmail = (from: string): string => {

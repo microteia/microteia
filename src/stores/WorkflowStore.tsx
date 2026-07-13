@@ -82,9 +82,9 @@ export const WorkflowStoreProvider: React.FC<{ children: React.ReactNode }> = ({
     storeEvents.emit(StoreEvents.WORKFLOWS_UPDATED);
   }, [currentTenant, uc.delete]);
 
-  const copyPublicWorkflow = useCallback(async (sourceTenantId: string, workflowId: string) => {
+  const copyPublicWorkflow = useCallback(async (workflowId: string) => {
     if (!currentTenant) throw new Error('No tenant selected');
-    const result = await uc.copyPublic.execute(sourceTenantId, workflowId, currentTenant.id);
+    const result = await uc.copyPublic.execute(workflowId, currentTenant.id);
     storeEvents.emit(StoreEvents.WORKFLOWS_UPDATED);
     return result;
   }, [currentTenant, uc.copyPublic]);

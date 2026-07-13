@@ -1,8 +1,10 @@
 import { useState, useCallback, useMemo, useEffect } from 'react';
+import { httpsCallable } from 'firebase/functions';
 import { useTenant } from '../../../../stores/useTenant';
 import { useAuth } from '../../../../stores/useAuth';
 import { useNotification } from '../../../../stores/useNotification';
 import { useDI } from '../../../../infrastructure/di/useDI';
+import { functions } from '../../../../infrastructure/firebase/config';
 import { makeGetGmailConnectionsUseCase } from '../../../../domain/usecases/gmailconnections/GetGmailConnectionsUseCase';
 import { makeCreateOrUpdateGmailConnectionUseCase } from '../../../../domain/usecases/gmailconnections/CreateOrUpdateGmailConnectionUseCase';
 import { makeDeleteGmailConnectionUseCase } from '../../../../domain/usecases/gmailconnections/DeleteGmailConnectionUseCase';
@@ -119,8 +121,6 @@ export const usePushTabViewModel = (): PushTabViewModel => {
           }
 
           try {
-            const { getFunctions, httpsCallable } = await import('firebase/functions');
-            const functions = getFunctions();
             const exchangeCode = httpsCallable<
               { code: string; tenantId: string },
               {

@@ -1,7 +1,7 @@
 {
   "name": "curatino",
   "private": true,
-  "version": "0.82.2",
+  "version": "0.82.5",
   "type": "module",
   "scripts": {
     "predev": "npm run sync-schemas",
@@ -25,7 +25,8 @@
     "deploy:tenant": "npm run build:functions && firebase deploy --only functions:addTenantMember,functions:removeTenantMember --project curatino",
     "deploy:gmail": "npm run build:functions && firebase deploy --only functions:gmailPush,functions:renewGmailWatches,functions:exchangeGmailCode --project curatino",
     "deploy:util": "npm run build:functions && firebase deploy --only functions:callAIProxy,functions:logClientError,functions:cascadeDeletePushInteractions --project curatino",
-    "deploy:functions": "npm run build:functions && firebase deploy --only functions --project curatino"
+    "deploy:functions": "npm run build:functions && firebase deploy --only functions --project curatino",
+    "deploy:functions:individual": "node scripts/deploy-functions-individually.cjs"
   },
   "dependencies": {
     "@monaco-editor/react": "^4.7.0",

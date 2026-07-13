@@ -3,7 +3,7 @@ import { expressionFunctions } from '../../domain/engine/expression/FunctionRegi
 import { operatorRegistry } from '../../domain/engine/expression/OperatorRegistry';
 
 export const getExpressionFunctions = onCall(
-  { region: 'us-central1', cors: true },
+  { region: 'southamerica-east1', cors: true },
   async () => {
     const functionDefinitions = expressionFunctions.getAllDefinitions();
     const operatorDefinitions = operatorRegistry.getAllDefinitions();

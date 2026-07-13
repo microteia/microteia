@@ -26,7 +26,7 @@ export const auth: Auth = getAuth(app);
 export const db: Firestore = getFirestore(app);
 export const storage: FirebaseStorage = getStorage(app);
 export const analytics: Analytics = getAnalytics(app);
-export const functions: Functions = getFunctions(app, 'us-central1');
+export const functions: Functions = getFunctions(app, 'southamerica-east1');
 
 // if (import.meta.env.DEV) {
 //   connectFunctionsEmulator(functions, '127.0.0.1', 5001);

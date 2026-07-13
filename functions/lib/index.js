@@ -1,10 +1,12 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getExpressionFunctions = exports.syncPublicWorkflowOnDelete = exports.syncPublicWorkflowOnWrite = exports.onDocumentChange = exports.onNoteChange = exports.publishWorkflowEventOnEntityChange = exports.getWorkflowStepCatalog = exports.onWorkflowEventCreated = exports.cascadeDeletePushInteractions = exports.logClientError = exports.backupDeletedAuditLog = exports.auditNewsTagChange = exports.auditNewsCommentChange = exports.auditNewsChange = exports.auditTenantDeleted = exports.auditNestedEntityChange = exports.auditFlatEntityChange = exports.renewGmailWatches = exports.gmailPush = exports.onUserCreated = exports.removeTenantMember = exports.addTenantMember = exports.exchangeGmailCode = exports.claimNickname = exports.checkNicknameAvailability = exports.getUserInfo = exports.runWorkflow = exports.detectWorkflows = exports.callAIProxy = void 0;
+exports.getExpressionFunctions = exports.syncPublicWorkflowOnDelete = exports.syncPublicWorkflowOnWrite = exports.onDocumentChange = exports.onNoteChange = exports.publishWorkflowEventOnEntityChange = exports.getWorkflowStepCatalog = exports.onWorkflowEventCreated = exports.cascadeDeletePushInteractions = exports.logClientError = exports.backupDeletedAuditLog = exports.auditNewsTagChange = exports.auditNewsCommentChange = exports.auditNewsChange = exports.auditTenantDeleted = exports.auditNestedEntityChange = exports.auditFlatEntityChange = exports.renewGmailWatches = exports.gmailPush = exports.onUserCreated = exports.removeTenantMember = exports.addTenantMember = exports.exchangeGmailCode = exports.claimNickname = exports.checkNicknameAvailability = exports.getUserInfo = exports.runWorkflow = exports.detectWorkflows = exports.copyPublicWorkflow = exports.callAIProxy = void 0;
 const initFirebase_1 = require("./infrastructure/firebase/initFirebase");
 (0, initFirebase_1.initFirebase)();
 var callAIProxy_1 = require("./infrastructure/handlers/callAIProxy");
 Object.defineProperty(exports, "callAIProxy", { enumerable: true, get: function () { return callAIProxy_1.callAIProxy; } });
+var copyPublicWorkflow_1 = require("./infrastructure/handlers/copyPublicWorkflow");
+Object.defineProperty(exports, "copyPublicWorkflow", { enumerable: true, get: function () { return copyPublicWorkflow_1.copyPublicWorkflow; } });
 var detectWorkflows_1 = require("./infrastructure/handlers/detectWorkflows");
 Object.defineProperty(exports, "detectWorkflows", { enumerable: true, get: function () { return detectWorkflows_1.detectWorkflows; } });
 var runWorkflow_1 = require("./infrastructure/handlers/runWorkflow");

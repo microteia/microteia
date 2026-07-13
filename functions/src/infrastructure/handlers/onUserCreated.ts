@@ -4,7 +4,7 @@ import { getDI } from '../di/container';
 // Auth triggers (onCreate/onDelete) ainda são exclusivos da API v1 do
 // firebase-functions — não há equivalente em v2 até o momento.
 export const onUserCreated = functionsV1
-  .region('us-central1')
+  .region('southamerica-east1')
   .auth.user()
   .onCreate(async (user) => {
     const di = getDI();

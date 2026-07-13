@@ -11,6 +11,18 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [0.82.5] — 2026-07-13
+
+- Resolvido problema de acesso ao catálogo de etapas de workflow: a região southamerica-east1 agora está totalmente configurada com permissões públicas adequadas, eliminando erros de autenticação e CORS ao carregar os recursos do sistema.
+
+## [0.82.4] — 2026-07-13
+
+- Corrigida a região das Cloud Functions para southamerica-east1, eliminando erros de CORS ao carregar as funções de expressão disponíveis.
+
+## [0.82.3] — 2026-07-13
+
+- Adicionado sistema de publicação individual de funções do servidor para contornar limites de processamento durante atualizações do sistema. O processo agora ocorre de forma sequencial e controlada, evitando falhas na implantação.
+
 ## [0.82.2] — 2026-07-13
 
 - Ao copiar um workflow público, todos os workflows associados (chamados por meio de etapas "Chamar Workflow") e scripts agora são copiados automaticamente de forma recursiva, garantindo que a automação funcione imediatamente. A cópia é feita pelo sistema com privilégios elevados, permitindo acesso seguro aos recursos do escritório de origem sem violar as regras de segurança.

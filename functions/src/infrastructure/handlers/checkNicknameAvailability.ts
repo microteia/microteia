@@ -6,7 +6,7 @@ interface CheckNicknameRequest {
 }
 
 export const checkNicknameAvailability = onCall(
-  { region: 'us-central1', cors: true },
+  { region: 'southamerica-east1', cors: true },
   async (request) => {
     if (!request.auth) {
       throw new HttpsError('unauthenticated', 'Autenticação necessária.');

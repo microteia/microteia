@@ -10,7 +10,7 @@ const googleGmailTopic = defineString('GOOGLE_GMAIL_TOPIC');
 const FORTY_EIGHT_HOURS_MS = 48 * 60 * 60 * 1000;
 
 export const renewGmailWatches = onMessagePublished(
-  { topic: 'gmail-watch-renewal', region: 'us-central1' },
+  { topic: 'gmail-watch-renewal', region: 'southamerica-east1' },
   async () => {
     console.log('Iniciando renovação de Gmail watches...');
 

@@ -33,3 +33,4 @@ dist-ssr
 .claude/
 .map
 scripts/serviceAccount.json
+.deploy-log.json
