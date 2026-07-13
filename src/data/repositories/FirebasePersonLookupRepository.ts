@@ -10,6 +10,7 @@ const COLLECTION_NAMES: Record<PersonLookupKind, string> = {
   maritalStatuses:'personMaritalStatuses',
   cities:         'personCities',
   relationships:  'personRelationships',
+  genders:        'personGenders',
 };
 
 const STATIC_DEFAULTS: Record<PersonLookupKind, PersonLookupConfig[]> = {
@@ -35,6 +36,11 @@ const STATIC_DEFAULTS: Record<PersonLookupKind, PersonLookupConfig[]> = {
     { key: 'Contato',    label: 'Contato',    color: 'relationshipContato',    isStatic: true },
     { key: 'Fornecedor', label: 'Fornecedor', color: 'relationshipFornecedor', isStatic: true },
     { key: 'Sócio',      label: 'Sócio',      color: 'relationshipSocio',      isStatic: true },
+  ],
+  genders: [
+    { key: 'Masculino',      label: 'Masculino',      isStatic: true },
+    { key: 'Feminino',       label: 'Feminino',       isStatic: true },
+    { key: 'Não Informado',  label: 'Não Informado',  isStatic: true },
   ],
 };
 
@@ -63,7 +69,7 @@ export class FirebasePersonLookupRepository implements IPersonLookupRepository {
     const data: Record<string, unknown> = { key: name, label: name, createdBy, createdAt: new Date() };
     if (color) data.color = color;
     await addDoc(col, data);
-    return { key: name, label: name, color };
+    return { key: name, label: name, color, isStatic: false };
   }
 
   async delete(tenantId: string, kind: PersonLookupKind, key: string): Promise<void> {

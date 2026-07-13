@@ -11,6 +11,14 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [0.80.1] — 2026-07-13
+
+- Corrigido um problema que impedia a exclusão imediata de valores personalizados adicionados aos campos Sexo, Estado Civil, Nacionalidade e outros lookups. Agora, ao adicionar um novo valor, o botão de exclusão aparece instantaneamente, sem precisar recarregar a página.
+
+## [0.80.0] — 2026-07-13
+
+- O campo Sexo no cadastro de pessoas agora funciona como uma lista personalizável. Os valores padrões são Masculino, Feminino e Não Informado, e novos valores podem ser criados conforme necessário, seguindo o mesmo padrão de Estado Civil e Nacionalidade.
+
 ## [0.79.0] — 2026-07-12
 
 - O Processador de Dados foi reorganizado em etapas guiadas: origem dos dados, inteligência artificial, automação e execução. Cada etapa aparece sozinha na tela, com o caminho percorrido sempre visível no topo.

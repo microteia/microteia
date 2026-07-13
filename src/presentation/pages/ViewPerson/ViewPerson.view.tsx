@@ -37,12 +37,6 @@ const STATES = ['AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG'
 
 const STATE_OPTIONS: SearchSelectOption[] = STATES.map((uf) => ({ value: uf, label: uf }));
 
-const GENDER_OPTIONS: SearchSelectOption[] = [
-  { value: 'M', label: 'Masculino' },
-  { value: 'F', label: 'Feminino' },
-  { value: 'N', label: 'Não Informado' },
-];
-
 export const ViewPersonView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
   const vm = useViewPersonViewModel(tabKey);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -250,11 +244,15 @@ export const ViewPersonView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
                 </S.FormGroup>
                 <S.FormGroup>
                   <Label>Sexo</Label>
-                  <SearchSelect
-                    options={GENDER_OPTIONS}
+                  <DynamicSelect
+                    staticOptions={vm.genderOptions}
+                    dynamicOptions={vm.genderDynamicOptions}
                     value={vm.formData.gender}
                     onChange={(val) => vm.setFormData({ gender: val })}
-                    placeholder="Selecione..."
+                    placeholder="Selecione ou adicione..."
+                    onAdd={vm.handleAddGender}
+                    onDelete={vm.isAdmin ? vm.handleDeleteGender : undefined}
+                    deleteConfirmTitle="Excluir sexo"
                   />
                 </S.FormGroup>
               </>

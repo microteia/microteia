@@ -2316,6 +2316,11 @@ service cloud.firestore {
         allow create: if canWriteInTenant(tenantId);
         allow delete: if isTenantAdmin(tenantId);
       }
+      match /personGenders/{id} {
+        allow read: if isMember(tenantId);
+        allow create: if canWriteInTenant(tenantId);
+        allow delete: if isTenantAdmin(tenantId);
+      }
 
       // Pessoas
       match /persons/{personId} {

@@ -16,19 +16,21 @@ export const PersonLookupStoreProvider: React.FC<{ children: React.ReactNode }> 
   const [maritalStatusConfigs, setMaritalStatusConfigs] = useState<PersonLookupConfig[]>([]);
   const [cityConfigs,          setCityConfigs]          = useState<PersonLookupConfig[]>([]);
   const [relationshipConfigs,  setRelationshipConfigs]  = useState<PersonLookupConfig[]>([]);
+  const [genderConfigs,        setGenderConfigs]        = useState<PersonLookupConfig[]>([]);
   const [loading, setLoading] = useState(false);
 
   const refresh = useCallback(async () => {
     if (!currentTenant) return;
     setLoading(true);
     try {
-      const [types, occupations, nationalities, maritalStatuses, cities, relationships] = await Promise.all([
+      const [types, occupations, nationalities, maritalStatuses, cities, relationships, genders] = await Promise.all([
         personLookupRepository.getAll(currentTenant.id, 'types'),
         personLookupRepository.getAll(currentTenant.id, 'occupations'),
         personLookupRepository.getAll(currentTenant.id, 'nationalities'),
         personLookupRepository.getAll(currentTenant.id, 'maritalStatuses'),
         personLookupRepository.getAll(currentTenant.id, 'cities'),
         personLookupRepository.getAll(currentTenant.id, 'relationships'),
+        personLookupRepository.getAll(currentTenant.id, 'genders'),
       ]);
       setTypeConfigs(types);
       setOccupationConfigs(occupations);
@@ -36,6 +38,7 @@ export const PersonLookupStoreProvider: React.FC<{ children: React.ReactNode }> 
       setMaritalStatusConfigs(maritalStatuses);
       setCityConfigs(cities);
       setRelationshipConfigs(relationships);
+      setGenderConfigs(genders);
     } finally {
       setLoading(false);
     }
@@ -63,6 +66,7 @@ export const PersonLookupStoreProvider: React.FC<{ children: React.ReactNode }> 
       case 'maritalStatuses':setMaritalStatusConfigs(prev => [...prev, config].sort((a, b) => a.label.localeCompare(b.label))); break;
       case 'cities':         setCityConfigs(prev          => [...prev, config].sort((a, b) => a.label.localeCompare(b.label))); break;
       case 'relationships':  setRelationshipConfigs(prev  => [...prev, config].sort((a, b) => a.label.localeCompare(b.label))); break;
+      case 'genders':        setGenderConfigs(prev        => [...prev, config].sort((a, b) => a.label.localeCompare(b.label))); break;
     }
   }, [currentTenant, user, personLookupRepository]);
 
@@ -76,6 +80,7 @@ export const PersonLookupStoreProvider: React.FC<{ children: React.ReactNode }> 
       case 'maritalStatuses':setMaritalStatusConfigs(prev => prev.filter(i => i.key !== key)); break;
       case 'cities':         setCityConfigs(prev          => prev.filter(i => i.key !== key)); break;
       case 'relationships':  setRelationshipConfigs(prev  => prev.filter(i => i.key !== key)); break;
+      case 'genders':        setGenderConfigs(prev        => prev.filter(i => i.key !== key)); break;
     }
   }, [currentTenant, personLookupRepository]);
 
@@ -87,6 +92,7 @@ export const PersonLookupStoreProvider: React.FC<{ children: React.ReactNode }> 
       maritalStatusConfigs,
       cityConfigs,
       relationshipConfigs,
+      genderConfigs,
       loading,
       addItem,
       removeItem,

@@ -178,6 +178,8 @@ export interface ViewPersonViewModel {
   cityOptions:             DynamicSelectOption[];
   relationshipOptions:     DynamicSelectOption[];
   relationshipDynamicOptions: DynamicSelectOption[];
+  genderOptions:           DynamicSelectOption[];
+  genderDynamicOptions:    DynamicSelectOption[];
 
   handleAddType:           (name: string) => Promise<void>;
   handleDeleteType:        (key: string)  => Promise<void>;
@@ -191,6 +193,8 @@ export interface ViewPersonViewModel {
   handleDeleteCity:        (key: string)  => Promise<void>;
   handleAddRelationship:   (name: string) => Promise<void>;
   handleDeleteRelationship:(key: string)  => Promise<void>;
+  handleAddGender:         (name: string) => Promise<void>;
+  handleDeleteGender:      (key: string)  => Promise<void>;
 }
 
 const CLONE_PREFIX = 'new-person:clone:';
@@ -202,7 +206,7 @@ export const useViewPersonViewModel = (tabKey: string): ViewPersonViewModel => {
 
   const { persons, createPerson, updatePerson, updatePersonStatus, deletePerson } = usePersonStore();
   const { tags, getTagsForPerson, setTagsForPerson, createTag, updateTag, deleteTag } = usePersonTagStore();
-  const { typeConfigs, occupationConfigs, nationalityConfigs, maritalStatusConfigs, cityConfigs, relationshipConfigs, addItem, removeItem } = usePersonLookup();
+  const { typeConfigs, occupationConfigs, nationalityConfigs, maritalStatusConfigs, cityConfigs, relationshipConfigs, genderConfigs, addItem, removeItem } = usePersonLookup();
   const { typeConfigs: documentTypeConfigs, addItem: addDocumentType, removeItem: removeDocumentType } = useDocumentTypeLookup();
   const { user, effectiveName } = useAuth();
   const { tenantRole, currentTenant } = useTenant();
@@ -702,6 +706,15 @@ export const useViewPersonViewModel = (tabKey: string): ViewPersonViewModel => {
     [relationshipConfigs, theme],
   );
 
+  const genderOptions = useMemo<DynamicSelectOption[]>(
+    () => genderConfigs.filter(c => c.isStatic !== false).map(c => ({ value: c.key, label: c.label })),
+    [genderConfigs],
+  );
+  const genderDynamicOptions = useMemo<DynamicSelectOption[]>(
+    () => genderConfigs.filter(c => c.isStatic === false).map(c => ({ value: c.key, label: c.label })),
+    [genderConfigs],
+  );
+
   const documentTypeOptions = useMemo<DynamicSelectOption[]>(() =>
     documentTypeConfigs.filter(t => t.isStatic !== false).map((t) => ({ value: t.key, label: t.label })),
     [documentTypeConfigs],
@@ -723,6 +736,8 @@ export const useViewPersonViewModel = (tabKey: string): ViewPersonViewModel => {
   const handleDeleteCity         = useCallback(async (key: string)  => { await removeItem('cities', key); },        [removeItem]);
   const handleAddRelationship    = useCallback(async (name: string) => { await addItem('relationships', name); },   [addItem]);
   const handleDeleteRelationship = useCallback(async (key: string)  => { await removeItem('relationships', key); }, [removeItem]);
+  const handleAddGender          = useCallback(async (name: string) => { await addItem('genders', name); },         [addItem]);
+  const handleDeleteGender       = useCallback(async (key: string)  => { await removeItem('genders', key); },       [removeItem]);
 
   const handleAddDocumentType = useCallback(async (name: string) => { await addDocumentType(name); }, [addDocumentType]);
   const handleDeleteDocumentType = useCallback(async (key: string) => { await removeDocumentType(key); }, [removeDocumentType]);
@@ -806,6 +821,8 @@ export const useViewPersonViewModel = (tabKey: string): ViewPersonViewModel => {
     cityOptions,
     relationshipOptions,
     relationshipDynamicOptions,
+    genderOptions,
+    genderDynamicOptions,
     handleAddType,
     handleDeleteType,
     handleAddOccupation,
@@ -818,5 +835,7 @@ export const useViewPersonViewModel = (tabKey: string): ViewPersonViewModel => {
     handleDeleteCity,
     handleAddRelationship,
     handleDeleteRelationship,
+    handleAddGender,
+    handleDeleteGender,
   };
 };

@@ -105,7 +105,7 @@ export class FirebaseContractLookupRepository implements IContractLookupReposito
     const data: Record<string, unknown> = { key: name, label: name, createdBy, createdAt: new Date() };
     if (color) data.color = color;
     await addDoc(col, data);
-    return { key: name, label: name, color };
+    return { key: name, label: name, color, isStatic: false };
   }
 
   async delete(tenantId: string, kind: ContractLookupKind, key: string): Promise<void> {

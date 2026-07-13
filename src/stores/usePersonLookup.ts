@@ -8,6 +8,7 @@ export interface PersonLookupStoreState {
   maritalStatusConfigs: PersonLookupConfig[];
   cityConfigs:          PersonLookupConfig[];
   relationshipConfigs:  PersonLookupConfig[];
+  genderConfigs:        PersonLookupConfig[];
   loading: boolean;
   addItem:    (kind: PersonLookupKind, name: string) => Promise<void>;
   removeItem: (kind: PersonLookupKind, key: string) => Promise<void>;

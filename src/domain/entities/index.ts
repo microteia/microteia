@@ -36,7 +36,7 @@ export interface AppUser {
 
 // ─── UserProfile ──────────────────────────────────────────────────────────────
 
-export type Gender = 'M' | 'F' | 'N';
+export type Gender = 'Masculino' | 'Feminino' | 'Não Informado';
 
 export interface UserProfile {
   id: string;
@@ -158,7 +158,7 @@ export interface TenantMember {
 export type PersonType = 'Pessoa Física' | 'Pessoa Jurídica';
 export type PersonStatus = 'Ativo' | 'Inativo';
 
-export type PersonLookupKind = 'types' | 'occupations' | 'nationalities' | 'maritalStatuses' | 'cities' | 'relationships';
+export type PersonLookupKind = 'types' | 'occupations' | 'nationalities' | 'maritalStatuses' | 'cities' | 'relationships' | 'genders';
 
 export interface PersonLookupConfig {
   key: string;

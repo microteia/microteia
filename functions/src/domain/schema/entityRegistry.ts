@@ -133,6 +133,7 @@ export const ENTITY_REGISTRY: Record<EntityKey, EntityMetadata> = {
       { key: 'maritalStatus', label: 'Estado civil', type: 'string', lookupCollection: 'personMaritalStatuses' },
       { key: 'relationship', label: 'Relacionamento', type: 'string', lookupCollection: 'personRelationships' },
       { key: 'birthDate', label: 'Data de nascimento', type: 'date' },
+      { key: 'gender', label: 'Sexo', type: 'string', lookupCollection: 'personGenders' },
       { key: 'status', label: 'Status', type: 'string' },
       { key: 'notes', label: 'Observações', type: 'string' },
     ],
