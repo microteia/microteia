@@ -22,6 +22,8 @@ export interface WorkflowsViewModel {
   cancelDelete: () => void;
   copyPublicWorkflow: (w: WorkflowDefinition | PublicWorkflow) => Promise<void>;
   isOwnWorkflow: (w: WorkflowDefinition | PublicWorkflow) => boolean;
+  isCopiedWorkflow: (w: WorkflowDefinition | PublicWorkflow) => boolean;
+  isOutdatedCopy: (w: WorkflowDefinition | PublicWorkflow) => boolean;
 }
 
 export const useWorkflowsViewModel = (): WorkflowsViewModel => {
@@ -141,6 +143,20 @@ export const useWorkflowsViewModel = (): WorkflowsViewModel => {
     }
   }, [copyWorkflow, notify, isOwnWorkflow]);
 
+  const isCopiedWorkflow = useCallback((w: WorkflowDefinition | PublicWorkflow) => {
+    if ('originalTenantId' in w) return false;
+    return !!(w as WorkflowDefinition).sourceWorkflowId;
+  }, []);
+
+  const isOutdatedCopy = useCallback((w: WorkflowDefinition | PublicWorkflow) => {
+    if ('originalTenantId' in w) return false;
+    const workflow = w as WorkflowDefinition;
+    if (!workflow.sourceWorkflowId || !workflow.sourceVersion) return false;
+    const sourceWorkflow = publicWorkflows.find((pw) => pw.id === workflow.sourceWorkflowId);
+    if (!sourceWorkflow) return false;
+    return workflow.sourceVersion !== sourceWorkflow.version;
+  }, [publicWorkflows]);
+
   return {
     filteredWorkflows,
     isLoading,
@@ -157,5 +173,7 @@ export const useWorkflowsViewModel = (): WorkflowsViewModel => {
     cancelDelete,
     copyPublicWorkflow,
     isOwnWorkflow,
+    isCopiedWorkflow,
+    isOutdatedCopy,
   };
 };

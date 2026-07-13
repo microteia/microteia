@@ -4,6 +4,7 @@ initFirebase();
 
 export { callAIProxy } from './infrastructure/handlers/callAIProxy';
 export { copyPublicWorkflow } from './infrastructure/handlers/copyPublicWorkflow';
+export { updateFromSourceWorkflow } from './infrastructure/handlers/updateFromSourceWorkflow';
 export { detectWorkflows } from './infrastructure/handlers/detectWorkflows';
 export { runWorkflow } from './infrastructure/handlers/runWorkflow';
 export { getUserInfo } from './infrastructure/handlers/getUserInfo';

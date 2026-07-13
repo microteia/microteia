@@ -131,6 +131,10 @@ export interface WorkflowDefinition {
   isPublic?: boolean;
   enabled: boolean;
   version: number;
+  // ID do workflow público original (presente apenas quando este workflow foi copiado de um workflow público)
+  sourceWorkflowId?: string;
+  // Versão do workflow original no momento da cópia (usado para detectar desatualização)
+  sourceVersion?: number;
   condition: Condition;
   steps: WorkflowStep[];
   createdAt: Date;

@@ -7,6 +7,13 @@ export interface CopyPublicWorkflowResult {
   copiedSubWorkflows: number;
 }
 
+export interface UpdateFromSourceWorkflowResult {
+  updatedWorkflows: number;
+  updatedScripts: number;
+  updatedSubWorkflows: number;
+  newVersion: number;
+}
+
 export interface IWorkflowDefinitionRepository {
   getWorkflowDefinitions(tenantId: string): Promise<WorkflowDefinition[]>;
   subscribeToWorkflowDefinitions(tenantId: string, onUpdate: (definitions: WorkflowDefinition[]) => void): () => void;
@@ -27,4 +34,8 @@ export interface IWorkflowDefinitionRepository {
     originalWorkflowId: string,
     targetTenantId: string,
   ): Promise<CopyPublicWorkflowResult>;
+  updateFromSourceWorkflow(
+    workflowId: string,
+    targetTenantId: string,
+  ): Promise<UpdateFromSourceWorkflowResult>;
 }

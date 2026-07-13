@@ -138,6 +138,20 @@ export const S = {
     flex-shrink: 0;
   `,
 
+  CopyStatusBadge: styled.span<{ $outdated: boolean }>`
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 10px;
+    border-radius: ${({ theme }) => theme.borderRadius.full};
+    font-size: ${({ theme }) => theme.fontSizes.xs};
+    font-weight: 600;
+    background: ${({ $outdated, theme }) => ($outdated ? `${theme.colors.warning}20` : `${theme.colors.info}20`)};
+    color: ${({ $outdated, theme }) => ($outdated ? theme.colors.warning : theme.colors.info)};
+    border: 1px solid ${({ $outdated, theme }) => ($outdated ? `${theme.colors.warning}44` : `${theme.colors.info}44`)};
+    flex-shrink: 0;
+  `,
+
   DeleteBtn: styled.button`
     width: 32px;
     height: 32px;

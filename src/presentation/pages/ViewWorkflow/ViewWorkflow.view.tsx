@@ -53,6 +53,30 @@ export const ViewWorkflowView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
                   <RiToggleLine size={14} />
                 </S.ToggleIcon>
               </Button>
+              {vm.workflow.sourceWorkflowId && (
+                <>
+                  <S.CopyBadge
+                    $outdated={vm.isOutdated}
+                    title={vm.isOutdated
+                      ? `Versão original: ${vm.sourceWorkflowVersion} | Sua versão: ${vm.workflow.sourceVersion}`
+                      : `Cópia de workflow público (versão ${vm.workflow.sourceVersion})`
+                    }
+                  >
+                    {vm.isOutdated ? 'Desatualizado' : 'Cópia'}
+                  </S.CopyBadge>
+                  {vm.isOutdated && (
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      onClick={() => void vm.handleUpdateFromSource()}
+                      disabled={vm.isUpdating}
+                      title="Atualizar do workflow original"
+                    >
+                      {vm.isUpdating ? 'Atualizando...' : 'Atualizar'}
+                    </Button>
+                  )}
+                </>
+              )}
             </>
           )}
           {(vm.activeTab === 'general' || vm.isNew) && (
@@ -116,6 +140,17 @@ export const ViewWorkflowView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
                   value={vm.formData.description}
                   onChange={(e) => vm.setFormData({ description: e.target.value })}
                   rows={3}
+                />
+              </InputGroup>
+
+              <InputGroup>
+                <Label>Versão</Label>
+                <Input
+                  type="number"
+                  min="1"
+                  step="1"
+                  value={vm.formData.version}
+                  onChange={(e) => vm.setFormData({ version: Number(e.target.value) || 1 })}
                 />
               </InputGroup>
 

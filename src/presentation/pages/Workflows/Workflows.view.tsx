@@ -51,6 +51,9 @@ export const WorkflowsView: React.FC = () => {
               const isOwn = vm.isOwnWorkflow(w);
               const isPublicWorkflow = 'originalTenantId' in w;
               const rowKey = isPublicWorkflow ? `${w.originalTenantId}-${w.id}` : `${w.tenantId}-${w.id}`;
+              const isCopied = vm.isCopiedWorkflow(w);
+              const isOutdated = vm.isOutdatedCopy(w);
+
               return (
                 <S.Row key={rowKey} onClick={() => vm.openWorkflow(w)} $clickable={isOwn}>
                   <S.RowIcon><EventIcon size={18} /></S.RowIcon>
@@ -69,6 +72,11 @@ export const WorkflowsView: React.FC = () => {
                       <RiGlobalLine size={12} />
                       Público
                     </S.PublicBadge>
+                  )}
+                  {isOwn && isCopied && (
+                    <S.CopyStatusBadge $outdated={isOutdated} title={isOutdated ? 'Workflow desatualizado' : 'Cópia de workflow público'}>
+                      {isOutdated ? 'Desatualizado' : 'Cópia'}
+                    </S.CopyStatusBadge>
                   )}
                   {isOwn && (
                     <S.EnabledBadge

@@ -1,6 +1,6 @@
 import { createContext, useContext } from 'react';
 import type { WorkflowDefinition, WorkflowStep, PublicWorkflow } from '../domain/entities/Workflow';
-import type { CopyPublicWorkflowResult } from '../domain/repositories/IWorkflowDefinitionRepository';
+import type { CopyPublicWorkflowResult, UpdateFromSourceWorkflowResult } from '../domain/repositories/IWorkflowDefinitionRepository';
 
 export interface WorkflowStoreContextValue {
   workflows: WorkflowDefinition[];
@@ -11,6 +11,7 @@ export interface WorkflowStoreContextValue {
   updateWorkflowSteps: (id: string, steps: WorkflowStep[]) => Promise<void>;
   deleteWorkflow: (id: string) => Promise<void>;
   copyPublicWorkflow: (workflowId: string) => Promise<CopyPublicWorkflowResult>;
+  updateFromSourceWorkflow: (workflowId: string) => Promise<UpdateFromSourceWorkflowResult>;
 }
 
 export const WorkflowStoreContext = createContext<WorkflowStoreContextValue | null>(null);

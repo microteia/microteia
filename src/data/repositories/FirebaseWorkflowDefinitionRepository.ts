@@ -15,7 +15,7 @@ import {
 } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import { db, functions } from '../../infrastructure/firebase/config';
-import type { IWorkflowDefinitionRepository, CopyPublicWorkflowResult } from '../../domain/repositories/IWorkflowDefinitionRepository';
+import type { IWorkflowDefinitionRepository, CopyPublicWorkflowResult, UpdateFromSourceWorkflowResult } from '../../domain/repositories/IWorkflowDefinitionRepository';
 import type { WorkflowDefinition, WorkflowParameter, WorkflowStep, PublicWorkflow } from '../../domain/entities/Workflow';
 
 const toDate = (v: unknown): Date => (v instanceof Timestamp ? v.toDate() : (v as Date));
@@ -37,6 +37,8 @@ const mapDefinition = (id: string, d: Record<string, unknown>, tenantId: string)
   isPublic: (d.isPublic as boolean | undefined) ?? false,
   enabled: (d.enabled as boolean) ?? false,
   version: (d.version as number) ?? 1,
+  sourceWorkflowId: (d.sourceWorkflowId as string | undefined) ?? undefined,
+  sourceVersion: (d.sourceVersion as number | undefined) ?? undefined,
   condition: (d.condition as WorkflowDefinition['condition']) ?? { kind: 'AlwaysTrue' },
   steps: (d.steps as WorkflowStep[]) ?? [],
   createdAt: toDate(d.createdAt),
@@ -140,6 +142,23 @@ export class FirebaseWorkflowDefinitionRepository implements IWorkflowDefinition
 
     const result = await copyPublicWorkflowFn({
       originalWorkflowId,
+      targetTenantId,
+    });
+
+    return result.data;
+  }
+
+  async updateFromSourceWorkflow(
+    workflowId: string,
+    targetTenantId: string,
+  ): Promise<UpdateFromSourceWorkflowResult> {
+    const updateFromSourceWorkflowFn = httpsCallable<
+      { workflowId: string; targetTenantId: string },
+      UpdateFromSourceWorkflowResult
+    >(functions, 'updateFromSourceWorkflow');
+
+    const result = await updateFromSourceWorkflowFn({
+      workflowId,
       targetTenantId,
     });
 

@@ -11,6 +11,11 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [0.83.0] — 2026-07-13
+
+- Workflows copiados agora rastreiam sua origem e podem ser atualizados quando o workflow original é modificado.
+- Adicionado campo de versão editável nos workflows para melhor controle de versionamento.
+
 ## [0.82.8] — 2026-07-13
 
 - Corrigido problema de duplicação de scripts ao copiar workflows públicos. Agora, quando múltiplos workflows compartilham o mesmo script, apenas uma cópia é criada no destino.

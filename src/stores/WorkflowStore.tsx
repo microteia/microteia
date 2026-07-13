@@ -10,6 +10,7 @@ import { makeUpdateWorkflowDefinitionUseCase } from '../domain/usecases/workflow
 import { makeUpdateWorkflowStepsUseCase } from '../domain/usecases/workflows/UpdateWorkflowStepsUseCase';
 import { makeDeleteWorkflowDefinitionUseCase } from '../domain/usecases/workflows/DeleteWorkflowDefinitionUseCase';
 import { makeCopyPublicWorkflowUseCase } from '../domain/usecases/workflows/CopyPublicWorkflowUseCase';
+import { makeUpdateFromSourceWorkflowUseCase } from '../domain/usecases/workflows/UpdateFromSourceWorkflowUseCase';
 import type { WorkflowDefinition, WorkflowStep, PublicWorkflow } from '../domain/entities/Workflow';
 
 export const WorkflowStoreProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -28,6 +29,7 @@ export const WorkflowStoreProvider: React.FC<{ children: React.ReactNode }> = ({
     updateSteps: makeUpdateWorkflowStepsUseCase(workflowDefinitionRepository),
     delete: makeDeleteWorkflowDefinitionUseCase(workflowDefinitionRepository),
     copyPublic: makeCopyPublicWorkflowUseCase(workflowDefinitionRepository),
+    updateFromSource: makeUpdateFromSourceWorkflowUseCase(workflowDefinitionRepository),
   }), [workflowDefinitionRepository]);
 
   useEffect(() => {
@@ -89,9 +91,16 @@ export const WorkflowStoreProvider: React.FC<{ children: React.ReactNode }> = ({
     return result;
   }, [currentTenant, uc.copyPublic]);
 
+  const updateFromSourceWorkflow = useCallback(async (workflowId: string) => {
+    if (!currentTenant) throw new Error('No tenant selected');
+    const result = await uc.updateFromSource.execute(workflowId, currentTenant.id);
+    storeEvents.emit(StoreEvents.WORKFLOWS_UPDATED);
+    return result;
+  }, [currentTenant, uc.updateFromSource]);
+
   return (
     <WorkflowStoreContext.Provider value={{
-      workflows, publicWorkflows, isLoading, createWorkflow, updateWorkflow, updateWorkflowSteps, deleteWorkflow, copyPublicWorkflow,
+      workflows, publicWorkflows, isLoading, createWorkflow, updateWorkflow, updateWorkflowSteps, deleteWorkflow, copyPublicWorkflow, updateFromSourceWorkflow,
     }}>
       {children}
     </WorkflowStoreContext.Provider>

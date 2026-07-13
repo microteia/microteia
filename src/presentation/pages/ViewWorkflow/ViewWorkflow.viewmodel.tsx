@@ -91,6 +91,7 @@ export interface WorkflowFormData {
   lookupCollection: string;
   parameters: WorkflowParameter[];
   isPublic: boolean;
+  version: number;
 }
 
 const sanitizeParameters = sanitizeWorkflowParameters;
@@ -103,6 +104,7 @@ const buildForm = (w: WorkflowDefinition | null): WorkflowFormData => ({
   lookupCollection: w?.lookupCollection ?? '',
   parameters: w?.parameters ?? [],
   isPublic: w?.isPublic ?? false,
+  version: w?.version ?? 1,
 });
 
 export const EVENT_NAME_OPTIONS = WORKFLOW_EVENT_CATALOG.map((entry) => ({
@@ -192,6 +194,10 @@ export interface ViewWorkflowViewModel {
   conditionChanged: boolean;
   handleConditionLocalChange: (condition: Condition) => void;
   handleSaveCondition: () => Promise<void>;
+  isOutdated: boolean;
+  sourceWorkflowVersion: number | null;
+  handleUpdateFromSource: () => Promise<void>;
+  isUpdating: boolean;
 }
 
 const CLONE_PREFIX = 'new-workflow:clone:';
@@ -203,7 +209,7 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
   const workflowId = workflowIdRaw;
   const initialTab: ViewWorkflowTab = initialTabRaw === 'executions' ? 'executions' : 'general';
 
-  const { workflows, createWorkflow, updateWorkflow, updateWorkflowSteps, deleteWorkflow } = useWorkflowStore();
+  const { workflows, publicWorkflows, createWorkflow, updateWorkflow, updateWorkflowSteps, deleteWorkflow, updateFromSourceWorkflow } = useWorkflowStore();
   const { currentTenant } = useTenant();
   const { setTabTitle, closeTab, openTab, activePanelId } = useWorkspace();
   const { notify } = useNotification();
@@ -239,6 +245,7 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
   const [conditionFocusPath, setConditionFocusPath] = useState<number[] | null>(null);
   const [draggingStepId, setDraggingStepId] = useState<string | null>(null);
   const [dropTargetIndex, setDropTargetIndex] = useState<number | null>(null);
+  const [isUpdating, setIsUpdating] = useState(false);
 
   // Carrega o catálogo de steps uma vez (idempotente)
   useEffect(() => {
@@ -292,6 +299,20 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
     () => [...(workflow?.steps ?? [])].sort((a, b) => a.order - b.order),
     [workflow],
   );
+
+  const sourceWorkflow = useMemo(() => {
+    if (!workflow?.sourceWorkflowId) return null;
+    return publicWorkflows.find((w) => w.id === workflow.sourceWorkflowId) ?? null;
+  }, [workflow, publicWorkflows]);
+
+  const isOutdated = useMemo(() => {
+    if (!workflow?.sourceWorkflowId || !sourceWorkflow) return false;
+    return workflow.sourceVersion !== sourceWorkflow.version;
+  }, [workflow, sourceWorkflow]);
+
+  const sourceWorkflowVersion = useMemo(() => {
+    return sourceWorkflow?.version ?? null;
+  }, [sourceWorkflow]);
 
   const getStepDefinition = useCallback(
     (stepDefinitionId: string) => stepCatalog.find((s) => s.id === stepDefinitionId),
@@ -468,6 +489,7 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
           eventName: formData.eventName,
           parameters: parameters ?? [],
           isPublic: formData.isPublic,
+          version: formData.version,
         };
         if (formData.description) updateData.description = formData.description;
         if (screenKey) updateData.screenKey = screenKey;
@@ -514,6 +536,26 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
       setIsSaving(false);
     }
   }, [workflow, conditionChanged, pendingCondition, updateWorkflow, notify]);
+
+  const handleUpdateFromSource = useCallback(async () => {
+    if (!workflow?.id) return;
+
+    setIsUpdating(true);
+    try {
+      const result = await updateFromSourceWorkflow(workflow.id);
+      notify(
+        `Workflow atualizado! ${result.updatedScripts} script(s) e ${result.updatedSubWorkflows} sub-workflow(s) também foram atualizados. Nova versão: ${result.newVersion}`,
+        'success',
+      );
+    } catch (err) {
+      notify(
+        `Erro ao atualizar workflow: ${err instanceof Error ? err.message : String(err)}`,
+        'error',
+      );
+    } finally {
+      setIsUpdating(false);
+    }
+  }, [workflow, updateFromSourceWorkflow, notify]);
 
   const handleCopyDeepLink = useCallback(() => {
     if (!workflow) return;
@@ -808,5 +850,9 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
     conditionChanged,
     handleConditionLocalChange,
     handleSaveCondition,
+    isOutdated,
+    sourceWorkflowVersion,
+    handleUpdateFromSource,
+    isUpdating,
   };
 };
