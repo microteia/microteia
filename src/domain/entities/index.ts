@@ -1,3 +1,7 @@
+// `export type { CustomFieldValue } from './entitySchemas'` (mais abaixo) apenas reexporta o nome:
+// não o traz para o escopo deste módulo. Este import é o que permite usá-lo nas interfaces daqui.
+import type { CustomFieldValue } from './entitySchemas';
+
 // ─── Core user ───────────────────────────────────────────────────────────────
 
 export interface User {

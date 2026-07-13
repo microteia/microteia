@@ -3,7 +3,7 @@ import { useSchemaContext } from '../../../../shared/useSchemaContext';
 import { ENTITY_REGISTRY_LIST } from '../../../../../domain/schema/entityRegistry';
 import { PARAMETER_TYPE_VALUES, cloneParameterInList, siblingParameterErrors } from '../../../../../domain/schema/workflowParameters';
 import type { ValidateStepConfig } from '../../../../../domain/schema/validateSpec';
-import type { WorkflowParameter } from '../../../../../domain/entities/Workflow';
+import type { WorkflowParameter, WorkflowParameterType } from '../../../../../domain/entities/Workflow';
 import type { SearchSelectOption } from '../../../../components/ui/SearchSelect';
 
 export interface ValidateBuilderControlProps {
@@ -13,7 +13,7 @@ export interface ValidateBuilderControlProps {
 
 const EMPTY_CONFIG: ValidateStepConfig = { source: 'input', outputName: '' };
 
-const PARAMETER_TYPE_LABELS: Record<string, string> = {
+const PARAMETER_TYPE_LABELS: Record<WorkflowParameterType, string> = {
   String: 'Texto',
   Number: 'Número',
   Date: 'Data',
@@ -29,7 +29,7 @@ export interface ValidateBuilderControlViewModel {
   parameterErrors: (string | undefined)[];
   sourceOptions: SearchSelectOption[];
   entityOptions: SearchSelectOption[];
-  typeOptions: SearchSelectOption[];
+  typeOptions: { value: WorkflowParameterType; label: string }[];
   setSource: (source: string) => void;
   setProperty: (property: string) => void;
   setEntityType: (entityType: string) => void;
@@ -72,8 +72,8 @@ export const useValidateBuilderControlViewModel = (
     return [{ value: '', label: 'Nenhuma (objeto anônimo)' }, ...entities, ...screens];
   }, [ctx]);
 
-  const typeOptions = useMemo<SearchSelectOption[]>(
-    () => PARAMETER_TYPE_VALUES.map((type) => ({ value: type, label: PARAMETER_TYPE_LABELS[type] ?? type })),
+  const typeOptions = useMemo<{ value: WorkflowParameterType; label: string }[]>(
+    () => PARAMETER_TYPE_VALUES.map((type) => ({ value: type, label: PARAMETER_TYPE_LABELS[type] })),
     [],
   );
 
