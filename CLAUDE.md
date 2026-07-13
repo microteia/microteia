@@ -20,14 +20,14 @@ Se o arquivo não estiver acessível, pergunte antes de prosseguir.
 **Nenhum commit sem passar pelas DUAS verificações, nesta ordem:**
 
 ```bash
-npx tsc --noEmit && npx eslint . --max-warnings 0
+npx tsc -b --force && npx eslint . --max-warnings 0
 ```
 
 Por que **duas** e não só `tsc`:
 
 | Ferramenta | Pega | Não pega |
 |---|---|---|
-| `tsc --noEmit` | erros de **tipo** | Regras dos Hooks, refs, pureza, dependências |
+| `tsc -b --force` | erros de **tipo** | Regras dos Hooks, refs, pureza, dependências |
 | `eslint . --max-warnings 0` | Regras dos Hooks e do **React Compiler** | erros de tipo |
 
 > Muitos sublinhados vermelhos/amarelos do VSCode **não são erros de TypeScript** — são do ESLint (`eslint-plugin-react-hooks`). Por isso o `tsc` "passa" e o editor continua acusando. O `--max-warnings 0` trata warnings como bloqueantes: é o que zera os sublinhados.
@@ -36,7 +36,9 @@ O erro frequente **"Cannot access refs during render"** é a regra `react-hooks/
 
 Use o atalho do `package.json` quando existir: `npm run verify` (= `typecheck` + `lint` + `verify-schemas`).
 
-> **Alterou algo em `functions/`?** O `tsc --noEmit` do root **não** valida o backend com o tsconfig das functions (mais estrito, `strict`, e que inclui os `*.test.ts` das functions). Um erro de tipo em `functions/src` pode passar no gate do root e só aparecer no build/deploy ou no IDE. Rode **também** `npx tsc -b functions` (ou `npm run build:functions`) antes de commitar mudanças no backend.
+> **Por que `tsc -b --force` e não `tsc --noEmit`?** O root usa *project references* (`tsconfig.app.json` + `tsconfig.node.json`). O `tsc --noEmit` avalia só o tsconfig raiz e **não entra nos projetos referenciados** — havia erro de tipo real em `src/` passando batido nele e só estourando no `npm run build`. O `-b --force` percorre os projetos e não usa o cache incremental (que mascararia arquivos não alterados). Ele não emite nada: os tsconfigs têm `noEmit`.
+
+> **Alterou algo em `functions/`?** O gate do root **não** valida o backend com o tsconfig das functions (mais estrito, `strict`, e que inclui os `*.test.ts` das functions). Um erro de tipo em `functions/src` pode passar no gate do root e só aparecer no build/deploy ou no IDE. Rode **também** `npx tsc -b functions` (ou `npm run build:functions`) antes de commitar mudanças no backend.
 
 > **Schemas compartilhados:** a fonte única vive em `src/domain/schema/` e `src/domain/entities/entitySchemas.ts`; as cópias em `functions/src` são **geradas** por `npm run sync-schemas` — nunca as edite. Ver "Schema Compartilhado Gerado" no `ARCHITECTURE.md`.
 
@@ -205,7 +207,7 @@ Arquivos `.tsx` exportam **apenas** componentes React. Hooks e tipos ficam em `.
 - [ ] Styled-components com prefixo `$` nas props customizadas; zero valor hardcoded (tudo via tema)
 - [ ] Nenhum `style={{}}` inline desnecessário; nenhum `className`
 - [ ] Nenhum comentário desnecessário no código
-- [ ] `npx tsc --noEmit` sem erros
+- [ ] `npx tsc -b --force` sem erros (ou `npm run typecheck`)
 - [ ] `npx eslint . --max-warnings 0` sem erros **nem warnings**
 - [ ] **Antes de commitar:** `version` incrementada em `package.json` + entrada nova no topo de `VERSIONS.md` (linguagem de usuário, diferente da mensagem de commit)
 - [ ] **Nova coleção Firestore ou permissão alterada:** atualizar "Firestore Security Rules — Conjunto Completo" no `ARCHITECTURE.md` e apresentar o bloco completo ao usuário para colar no Firebase Console

@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [0.78.1] — 2026-07-12
+
+- Correção de um problema que impedia a geração de uma nova versão do sistema para publicação.
+
 ## [0.78.0] — 2026-07-12
 
 - Os campos agora podem ter regras próprias de validação e de formatação, definidas uma única vez e respeitadas em todo o sistema — tanto quando você preenche um cadastro na tela quanto quando uma automação grava o registro sozinha.

@@ -1,7 +1,7 @@
 {
   "name": "curatino",
   "private": true,
-  "version": "0.78.0",
+  "version": "0.78.1",
   "type": "module",
   "scripts": {
     "predev": "npm run sync-schemas",
@@ -9,7 +9,7 @@
     "prebuild": "npm run sync-schemas",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc -b --force",
     "sync-schemas": "node scripts/sync-schemas.cjs",
     "verify-schemas": "node scripts/sync-schemas.cjs --check",
     "verify": "npm run typecheck && npm run lint && npm run verify-schemas",

@@ -3181,10 +3181,10 @@ setLoading(true);
 **Nenhum commit sem passar pelas DUAS verificações:**
 
 ```bash
-npx tsc --noEmit && npx eslint . --max-warnings 0
+npx tsc -b --force && npx eslint . --max-warnings 0
 ```
 
 | Ferramenta | Pega | Não pega |
 |---|---|---|
-| `tsc --noEmit` | Erros de **tipo** | Regras dos Hooks, refs, pureza |
+| `tsc -b --force` | Erros de **tipo** (percorre os *project references*, ao contrário de `tsc --noEmit`) | Regras dos Hooks, refs, pureza |
 | `eslint . --max-warnings 0` | Regras do React Compiler | Erros de tipo |
