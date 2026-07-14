@@ -107,7 +107,7 @@ export const gmailPush = onMessagePublished(
         runLogger.log('info', `Assuntos permitidos: ${JSON.stringify(allowedSubjects)}`);
 
         const startHistoryId = connection.historyId || historyId;
-        runLogger.log('info', `Buscando emails desde historyId: ${startHistoryId}`);
+        runLogger.log('info', `Buscando emails desde historyId: ${startHistoryId}, mas o recebido foi ${historyId}`);
 
         let fatalError: string | undefined;
         let historyIdUpdated = false;
@@ -289,7 +289,7 @@ export const gmailPush = onMessagePublished(
 
           await gmailConnectionRepo.updateHistoryId(connection.id, historyId);
           historyIdUpdated = true;
-          runLogger.log('info', `✓ HistoryId atualizado para ${historyId} (todas as mensagens processadas com sucesso)`);
+          runLogger.log('info', `✓ HistoryId ${startHistoryId} atualizado para ${historyId} (todas as mensagens processadas com sucesso)`);
 
         } catch (error) {
           fatalError = error instanceof Error ? error.message : String(error);

@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [0.83.1] — 2026-07-14
+
+- Aprimorado o rastreamento de sincronização de emails do Gmail para melhor diagnóstico de problemas.
+
 ## [0.83.0] — 2026-07-13
 
 - Workflows copiados agora rastreiam sua origem e podem ser atualizados quando o workflow original é modificado.

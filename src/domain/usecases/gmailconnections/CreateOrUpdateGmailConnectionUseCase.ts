@@ -36,7 +36,6 @@ export const makeCreateOrUpdateGmailConnectionUseCase = (
       return {
         ...existing,
         authorizedAt: new Date(),
-        historyId: data.historyId,
         expiration: data.expiration,
       };
     }
@@ -48,7 +47,6 @@ export const makeCreateOrUpdateGmailConnectionUseCase = (
         scopes: data.scopes,
         authorizedBy: data.authorizedBy,
         authorizedByName: data.authorizedByName,
-        historyId: data.historyId,
         expiration: data.expiration,
       },
       tokenData,
