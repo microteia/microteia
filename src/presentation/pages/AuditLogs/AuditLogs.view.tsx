@@ -38,15 +38,6 @@ export const AuditLogsView: React.FC = () => {
         />
       </S.RetentionBar>
 
-      {vm.isSystem && (
-        <S.RetentionBar>
-          <InfoBanner
-            message="Você está vendo a Auditoria como administrador do sistema. Registros de Notícias, Comentários e Etiquetas de Notícias pertencentes ao 'Sistema' só aparecem com o filtro Escritório em 'Todos os Escritórios'."
-            variant="info"
-          />
-        </S.RetentionBar>
-      )}
-
       <S.FilterBar>
         <CompositeFilter
           defs={vm.filterDefs}
