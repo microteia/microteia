@@ -96,10 +96,9 @@ export class FirebaseGmailConnectionRepository implements IGmailConnectionReposi
   async updateConnectionWatchData(
     _tenantId: string,
     connectionId: string,
-    historyId: string,
     expiration: string,
   ): Promise<void> {
     const docRef = gmailDoc(connectionId);
-    await setDoc(docRef, { historyId, expiration }, { merge: true });
+    await setDoc(docRef, { expiration }, { merge: true });
   }
 }

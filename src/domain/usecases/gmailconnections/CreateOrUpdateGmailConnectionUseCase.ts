@@ -29,8 +29,8 @@ export const makeCreateOrUpdateGmailConnectionUseCase = (
       await repo.updateToken(tenantId, existing.id, tokenData);
       await repo.updateConnectionAuthorizedAt(tenantId, existing.id);
       
-      if (data.historyId && data.expiration) {
-        await repo.updateConnectionWatchData(tenantId, existing.id, data.historyId, data.expiration);
+      if (data.expiration) {
+        await repo.updateConnectionWatchData(tenantId, existing.id, data.expiration);
       }
 
       return {

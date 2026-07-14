@@ -18,7 +18,6 @@ export interface IGmailConnectionRepository {
   updateConnectionWatchData(
     tenantId: string,
     connectionId: string,
-    historyId: string,
     expiration: string,
   ): Promise<void>;
 }
