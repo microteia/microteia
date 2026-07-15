@@ -78,7 +78,7 @@ export const useWorkflowParametersEditorViewModel = (
       if (parameter.type === 'EntityReference' && parameter.entityType) {
         parts.push(entityOptions.find((option) => option.value === parameter.entityType)?.label ?? parameter.entityType);
       }
-      if (parameter.multi) parts.push('vários');
+      if (parameter.list) parts.push('vários');
       if (parameter.required) parts.push('obrigatório');
       return `${name} — ${parts.join(' · ')}`;
     },

@@ -17,9 +17,9 @@ const REQUIRED_OPTIONS = [
   { value: 'required', label: 'Obrigatório' },
 ];
 
-const MULTI_OPTIONS = [
+const LIST_OPTIONS = [
   { value: 'single', label: 'Único' },
-  { value: 'multi', label: 'Vários' },
+  { value: 'list', label: 'Vários' },
 ];
 
 const BOOLEAN_DEFAULT_OPTIONS = [
@@ -187,7 +187,6 @@ const ParameterFields: React.FC<{
   variant: NonNullable<WorkflowParametersEditorProps['variant']>;
 }> = ({ parameter, error, index, typeOptions, entityOptions, onUpdate, variant }) => {
   const isInput = variant === 'input';
-  const showSubLine = isInput || parameter.type === 'EntityReference';
   return (
   <>
     <S.Line>
@@ -217,7 +216,6 @@ const ParameterFields: React.FC<{
             onUpdate(index, {
               type: type as WorkflowParameter['type'],
               entityType: undefined,
-              multi: undefined,
               options: undefined,
               defaultValue: undefined,
               fields: type === 'Object' ? [] : undefined,
@@ -267,54 +265,48 @@ const ParameterFields: React.FC<{
       </S.Cell>
     )}
 
-    {showSubLine && (
-      <S.SubLine>
-        {isInput && (
-          <S.Cell>
-            <Label>Preenchimento</Label>
-            <SearchSelect
-              options={REQUIRED_OPTIONS}
-              value={parameter.required ? 'required' : 'optional'}
-              onChange={(value) => onUpdate(index, { required: value === 'required' })}
-              placeholder="..."
-            />
-          </S.Cell>
-        )}
-
-        {parameter.type === 'EntityReference' && (
-          <S.Cell>
-            <Label>Entidade referenciada</Label>
-            <SearchSelect
-              options={entityOptions}
-              value={parameter.entityType ?? ''}
-              onChange={(entityType) => onUpdate(index, { entityType })}
-              placeholder="Selecione a entidade..."
-            />
-          </S.Cell>
-        )}
-
-        {isInput && isScalarParameterType(parameter.type) && (
-          <S.Cell>
-            <Label>Valor padrão</Label>
-            <DefaultValueField parameter={parameter} index={index} onUpdate={onUpdate} />
-          </S.Cell>
-        )}
-      </S.SubLine>
-    )}
-
-    {isInput && parameter.type === 'EntityReference' && (
-      <S.SubLine>
+    <S.SubLine>
+      {isInput && (
         <S.Cell>
-          <Label>Quantidade</Label>
+          <Label>Preenchimento</Label>
           <SearchSelect
-            options={MULTI_OPTIONS}
-            value={parameter.multi ? 'multi' : 'single'}
-            onChange={(value) => onUpdate(index, { multi: value === 'multi' })}
+            options={REQUIRED_OPTIONS}
+            value={parameter.required ? 'required' : 'optional'}
+            onChange={(value) => onUpdate(index, { required: value === 'required' })}
             placeholder="..."
           />
         </S.Cell>
-      </S.SubLine>
-    )}
+      )}
+
+      <S.Cell>
+        <Label>Quantidade</Label>
+        <SearchSelect
+          options={LIST_OPTIONS}
+          value={parameter.list ? 'list' : 'single'}
+          onChange={(value) => onUpdate(index, { list: value === 'list' })}
+          placeholder="..."
+        />
+      </S.Cell>
+
+      {parameter.type === 'EntityReference' && (
+        <S.Cell>
+          <Label>Entidade referenciada</Label>
+          <SearchSelect
+            options={entityOptions}
+            value={parameter.entityType ?? ''}
+            onChange={(entityType) => onUpdate(index, { entityType })}
+            placeholder="Selecione a entidade..."
+          />
+        </S.Cell>
+      )}
+
+      {isInput && !parameter.list && isScalarParameterType(parameter.type) && (
+        <S.Cell>
+          <Label>Valor padrão</Label>
+          <DefaultValueField parameter={parameter} index={index} onUpdate={onUpdate} />
+        </S.Cell>
+      )}
+    </S.SubLine>
 
     {isInput && RULES_SUPPORTED_PARAMETER_TYPES.includes(parameter.type) && (
       <ParameterRulesFields parameter={parameter} index={index} onUpdate={onUpdate} />

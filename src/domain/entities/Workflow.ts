@@ -101,8 +101,8 @@ export interface WorkflowParameter {
   label: string;
   type: WorkflowParameterType;
   required?: boolean;
+  list?: boolean;
   entityType?: string;
-  multi?: boolean;
   options?: { value: string; label: string }[];
   fields?: WorkflowParameter[];
   defaultValue?: unknown;

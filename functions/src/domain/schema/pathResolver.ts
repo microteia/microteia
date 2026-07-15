@@ -389,6 +389,9 @@ const stepCursor = (
       if (!field) {
         return { ...state, cursor: { kind: 'unknown' }, path: [...state.path, segment] };
       }
+      if (field.list) {
+        return { ...state, cursor: { kind: 'scalar', type: 'stringArray' }, path: [...state.path, segment] };
+      }
       if (field.refEntity) {
         return buildReferenceHopState(ctx, state, field.refEntity, field.multi === true, segment, maxFkDepth);
       }
@@ -462,6 +465,9 @@ const nativeFieldSuggestion = (field: NativeFieldSpec): PathSuggestion => {
       detail: getEntityByCollection(resolveRefEntityCollection(field.refEntity))?.labelSingular ?? field.refEntity,
       isLeaf: false,
     };
+  }
+  if (field.list) {
+    return { insertText: field.key, label: field.label, kind: 'field', detail: 'Lista', isLeaf: true };
   }
   return {
     insertText: field.key,

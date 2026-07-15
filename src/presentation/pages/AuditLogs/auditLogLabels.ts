@@ -19,6 +19,7 @@ export const ENTITY_LABELS: Record<string, string> = {
   ContractDocument: 'Documento de Contrato',
   FinancialDocument: 'Documento de Financeiro',
   Tenant: 'Escritório',
+  Workflow: 'Automação',
   SYSTEM: 'Sistema',
 };
 

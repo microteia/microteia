@@ -32,6 +32,7 @@ export interface NativeFieldSpec {
   objectFields?: NativeFieldSpec[];
   refEntity?: string;
   multi?: boolean;
+  list?: boolean;
   rules?: FieldRules;
 }
 

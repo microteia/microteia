@@ -2144,7 +2144,16 @@ presentation); a implementação vive só aqui, porque `src/utils` não é sincr
   **presentes** em `data`, resolve a regra de cada uma pelo `SchemaContext` (campo nativo, campo de
   objeto aninhado, ou campo dinâmico sob `customValues.*` / `values.*`) e devolve `{ data, issues }`.
 - **`domain/schema/parameterRules.ts`** — `formatAndValidateParameters(parameters, data)`: idem, contra
-  um `WorkflowParameter[]` (desce recursivamente em `Object.fields`).
+  um `WorkflowParameter[]` (desce recursivamente em `Object.fields`; quando `list: true`, mapeia as
+  regras sobre cada elemento do array).
+
+> **Parâmetro como lista (`list: true`).** Flag ortogonal em `WorkflowParameter`/`ScriptOutputParam`: o
+> resto do parâmetro descreve **um item** e `list` diz "vários deles" (lista de escalar, de `select`, de
+> `EntityReference` ou de `Object`). Substitui o antigo `multi` do `EntityReference` (removido — um conceito
+> só). No editor visual é o seletor **Quantidade** (Único/Vários), disponível para todos os tipos; no DSL
+> JSON é a propriedade `"list": true`. Um parâmetro-lista não tem `default`. No IntelliSense de paths a
+> lista é tratada como **folha opaca** (sem indexação de elemento no autocomplete); dentro de Scripts o
+> `input.<chave>` é tipado como `T[]` e é indexável normalmente por ser apenas JS.
 
 ### As portas de gravação
 

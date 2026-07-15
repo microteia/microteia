@@ -207,18 +207,20 @@ export const isScalarParameterType = (type: WorkflowParameter['type']): boolean 
 export const workflowParameterToNativeField = (parameter: WorkflowParameter): NativeFieldSpec => {
   if (parameter.type === 'EntityReference') {
     return parameter.entityType
-      ? { key: parameter.key, label: parameter.label, type: 'string', refEntity: parameter.entityType, multi: parameter.multi }
+      ? { key: parameter.key, label: parameter.label, type: 'string', refEntity: parameter.entityType, multi: parameter.list }
       : { key: parameter.key, label: parameter.label, type: 'string' };
   }
   if (parameter.type === 'Object') {
-    return {
+    const spec: NativeFieldSpec = {
       key: parameter.key,
       label: parameter.label,
       type: 'object',
       objectFields: (parameter.fields ?? []).map(workflowParameterToNativeField),
     };
+    return parameter.list ? { ...spec, list: true } : spec;
   }
-  return { key: parameter.key, label: parameter.label, type: WORKFLOW_PARAM_TYPE_MAP[parameter.type] ?? 'string' };
+  const spec: NativeFieldSpec = { key: parameter.key, label: parameter.label, type: WORKFLOW_PARAM_TYPE_MAP[parameter.type] ?? 'string' };
+  return parameter.list ? { ...spec, list: true } : spec;
 };
 
 export const workflowParametersToRoot = (parameters: WorkflowParameter[] = []): PathRoot => ({
@@ -231,17 +233,18 @@ export const workflowParametersToFieldOptions = (
   parameters: WorkflowParameter[] = [],
 ): WorkflowEventFieldOption[] =>
   parameters.flatMap((parameter) => {
+    if (parameter.list) {
+      return [{ path: parameter.key, label: parameter.label }];
+    }
     if (parameter.type === 'EntityReference' && parameter.entityType) {
       const options: WorkflowEventFieldOption[] = [{ path: parameter.key, label: `${parameter.label} (Id)` }];
-      if (!parameter.multi) {
-        const target = getEntityByCollection(resolveRefEntityCollection(parameter.entityType));
-        options.push({ path: `${parameter.key}.id`, label: `${parameter.label}: Id` });
-        for (const denormField of target?.referenceDenormFields ?? []) {
-          options.push({
-            path: `${parameter.key}.${denormField}`,
-            label: `${parameter.label}: ${targetFieldLabel(target?.collection ?? '', denormField)}`,
-          });
-        }
+      const target = getEntityByCollection(resolveRefEntityCollection(parameter.entityType));
+      options.push({ path: `${parameter.key}.id`, label: `${parameter.label}: Id` });
+      for (const denormField of target?.referenceDenormFields ?? []) {
+        options.push({
+          path: `${parameter.key}.${denormField}`,
+          label: `${parameter.label}: ${targetFieldLabel(target?.collection ?? '', denormField)}`,
+        });
       }
       return options;
     }
@@ -262,6 +265,7 @@ export const applyParameterDefaults = (
 ): Record<string, unknown> => {
   const result: Record<string, unknown> = { ...values };
   for (const parameter of parameters) {
+    if (parameter.list) continue;
     if (parameter.type === 'Object') {
       const current = result[parameter.key];
       const wasPresent = current && typeof current === 'object' && !Array.isArray(current);

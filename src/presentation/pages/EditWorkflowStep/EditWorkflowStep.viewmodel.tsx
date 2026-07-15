@@ -75,6 +75,9 @@ const parameterToInputDefinitions = (
 ): InputDefinition[] => {
   const id = `${idPrefix}.${parameter.key}`;
   const label = labelPrefix ? `${labelPrefix} › ${parameter.label}` : parameter.label;
+  if (parameter.list) {
+    return [{ id, label: `${label} (lista)`, required: parameter.required ?? false, type: 'String' }];
+  }
   if (parameter.type === 'Object') {
     return (parameter.fields ?? []).flatMap((child) => parameterToInputDefinitions(child, id, label));
   }

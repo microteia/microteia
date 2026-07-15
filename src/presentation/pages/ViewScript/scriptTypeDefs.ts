@@ -151,16 +151,15 @@ const customReferenceType = (screen: SchemaScreen | undefined, depth: number): s
 const referenceType = (param: WorkflowParameter, screens: SchemaScreen[], depth: number): string => {
   const entityType = param.entityType ?? '';
   if (!entityType) return 'Record<string, unknown>';
-  const single = BUILTIN_REF_ENTITIES.has(entityType)
+  return BUILTIN_REF_ENTITIES.has(entityType)
     ? builtinReferenceType(entityType, depth)
     : customReferenceType(
         screens.find((screen) => screen.id === entityType),
         depth,
       );
-  return param.multi ? `(${single})[]` : single;
 };
 
-const mapParamType = (param: WorkflowParameter, screens: SchemaScreen[], depth: number): string => {
+const singleParamType = (param: WorkflowParameter, screens: SchemaScreen[], depth: number): string => {
   switch (param.type) {
     case 'Number':
       return 'number';
@@ -177,6 +176,11 @@ const mapParamType = (param: WorkflowParameter, screens: SchemaScreen[], depth: 
     default:
       return 'string';
   }
+};
+
+const mapParamType = (param: WorkflowParameter, screens: SchemaScreen[], depth: number): string => {
+  const single = singleParamType(param, screens, depth);
+  return param.list ? `(${single})[]` : single;
 };
 
 function paramMembers(params: WorkflowParameter[], screens: SchemaScreen[], depth: number): string[] {

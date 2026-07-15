@@ -5,6 +5,7 @@ import { publishEvent } from '../workflow/publishEvent';
 import { WORKFLOW_CALLED_EVENT } from '../../domain/schema/eventCatalog';
 import { describeRuleIssues } from '../../domain/schema/fieldRules';
 import { formatAndValidateParameters } from '../../domain/schema/parameterRules';
+import { AIResponseFormatError } from '../../domain/usecases/CallAIUseCase';
 import type { WorkflowParameter } from '../../domain/entities/Workflow';
 
 interface RunWorkflowRequest {
@@ -26,7 +27,58 @@ Regras invioláveis:
   tipo "select", use exatamente um dos valores permitidos listados.
 - Campos do tipo "Object" são estruturas aninhadas: retorne um objeto JSON com exatamente as mesmas chaves
   descritas em "fields", preenchendo cada subcampo recursivamente.
-- Responda EXCLUSIVAMENTE com um objeto JSON no formato: {"values": { ...campos... }}.`;
+- Campos marcados com "list": true são LISTAS: retorne um array JSON com um item por ocorrência encontrada
+  no documento, cada item no formato do tipo declarado (um valor simples, ou um objeto se for "Object").
+- JAMAIS corte ou trunque a resposta. Se o resultado completo não couber no seu limite de saída, NÃO
+  retorne um JSON parcial: responda EXCLUSIVAMENTE com {"error": "descreva por que não foi possível, ex.:
+  volume de itens excede o limite de tokens"} — sempre um JSON completo e válido, nunca cortado.
+- Respondendo com sucesso, use EXCLUSIVAMENTE um objeto JSON no formato: {"values": { ...campos... }}.`;
+
+const AI_FAILURE_USER_MESSAGE =
+  'Não foi possível processar os dados com a inteligência artificial. Os detalhes completos foram registrados nos Logs de Auditoria.';
+
+const HEAD_CHARS = 2000;
+const TAIL_CHARS = 2000;
+
+const headTail = (value: string, headMax: number, tailMax: number): string => {
+  const text = value.trim();
+  if (text.length <= headMax + tailMax) return text;
+  const omitted = text.length - headMax - tailMax;
+  return `${text.slice(0, headMax)}\n\n… (${omitted} caracteres omitidos no meio) …\n\n${text.slice(-tailMax)}`;
+};
+
+const logAIFillFailure = async (
+  tenantId: string,
+  userId: string,
+  userName: string,
+  photoURL: string,
+  targetWorkflowId: string,
+  diagnosis: string,
+  schemaJson: string,
+  rawResponse: string,
+): Promise<void> => {
+  try {
+    await getDI().getCreateAuditLogUseCase().execute({
+      tenantId,
+      title: 'Falha ao interpretar resposta da IA (Processador)',
+      userId,
+      userName,
+      photoURL,
+      action: 'SYSTEM',
+      severity: 'CRITICAL',
+      type: 'ERROR',
+      entity: 'Workflow',
+      entityId: targetWorkflowId,
+      text:
+        `**Não foi possível interpretar a resposta da inteligência artificial** ao preencher os parâmetros da automação.\n\n` +
+        `**Possível causa**\n\n${diagnosis}\n\n` +
+        `**Esquema enviado ao workflow**\n\n\`\`\`json\n${schemaJson}\n\`\`\`\n\n` +
+        `**Resposta da IA (início e fim)**\n\n\`\`\`\n${headTail(rawResponse, HEAD_CHARS, TAIL_CHARS)}\n\`\`\``,
+    });
+  } catch (loggingError) {
+    console.error('[runWorkflow] Falha ao registrar auditoria de erro da IA:', loggingError);
+  }
+};
 
 const isPlainObject = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -39,13 +91,15 @@ const hasEntityReferenceDeep = (params: WorkflowParameter[]): boolean =>
 const buildSchemaMap = (params: WorkflowParameter[]): Record<string, unknown> => {
   const map: Record<string, unknown> = {};
   for (const p of params) {
+    let node: Record<string, unknown>;
     if (p.type === 'Object') {
-      map[p.key] = { type: 'Object', label: p.label, fields: buildSchemaMap(p.fields ?? []) };
+      node = { type: 'Object', label: p.label, fields: buildSchemaMap(p.fields ?? []) };
     } else {
-      const node: Record<string, unknown> = { type: p.type, label: p.label };
+      node = { type: p.type, label: p.label };
       if (p.type === 'select' && p.options?.length) node.values = p.options.map((o) => o.value);
-      map[p.key] = node;
     }
+    if (p.list) node.list = true;
+    map[p.key] = node;
   }
   return map;
 };
@@ -55,7 +109,7 @@ const buildSchemaForPrompt = (params: WorkflowParameter[]): string =>
 
 const notEmpty = (value: unknown): boolean => value !== undefined && value !== null && value !== '';
 
-const resolveParam = (param: WorkflowParameter, provided: unknown, ai: unknown): unknown => {
+const resolveSingle = (param: WorkflowParameter, provided: unknown, ai: unknown): unknown => {
   if (param.type === 'Object') {
     const providedObj = isPlainObject(provided) ? provided : {};
     const aiObj = isPlainObject(ai) ? ai : {};
@@ -67,6 +121,18 @@ const resolveParam = (param: WorkflowParameter, provided: unknown, ai: unknown):
   }
   const source = notEmpty(provided) ? provided : notEmpty(ai) ? ai : param.defaultValue;
   return coerce(param, source);
+};
+
+const resolveParam = (param: WorkflowParameter, provided: unknown, ai: unknown): unknown => {
+  if (param.list) {
+    const providedArr = Array.isArray(provided) ? provided : [];
+    const aiArr = Array.isArray(ai) ? ai : [];
+    const length = Math.max(providedArr.length, aiArr.length);
+    const out: unknown[] = [];
+    for (let i = 0; i < length; i++) out.push(resolveSingle(param, providedArr[i], aiArr[i]));
+    return out;
+  }
+  return resolveSingle(param, provided, ai);
 };
 
 const coerce = (param: WorkflowParameter, value: unknown): unknown => {
@@ -139,12 +205,46 @@ export const runWorkflow = onCall(
           throw new HttpsError('invalid-argument', 'Nenhuma IA selecionada para extrair os dados.');
         }
         const credentials = await di.getAIConnectionRepository().getCredentialsById(tenantId, connectionId);
-        const filled = await di.getCallAIUseCase().executeJson<{ values?: Record<string, unknown> }>({
-          credentials,
-          userContent: `ESQUEMA:\n${buildSchemaForPrompt(params)}\n\n===== INÍCIO DO DOCUMENTO =====\n${text}\n===== FIM DO DOCUMENTO =====`,
-          options: { systemPrompt: FILL_SYSTEM_PROMPT, expectJson: true },
-        });
-        values = filled.values ?? {};
+        const schemaJson = buildSchemaForPrompt(params);
+        const userContent = `ESQUEMA:\n${schemaJson}\n\n===== INÍCIO DO DOCUMENTO =====\n${text}\n===== FIM DO DOCUMENTO =====`;
+        const auth = request.auth;
+        const reportFailure = async (diagnosis: string, rawResponse: string): Promise<never> => {
+          await logAIFillFailure(
+            tenantId,
+            auth.uid,
+            (auth.token.name as string | undefined) ?? 'Usuário',
+            (auth.token.picture as string | undefined) ?? '',
+            targetWorkflowId,
+            diagnosis,
+            schemaJson,
+            rawResponse,
+          );
+          throw new HttpsError('internal', AI_FAILURE_USER_MESSAGE);
+        };
+
+        try {
+          const filled = await di.getCallAIUseCase().executeJson<{ values?: Record<string, unknown>; error?: unknown }>({
+            credentials,
+            userContent,
+            options: { systemPrompt: FILL_SYSTEM_PROMPT, expectJson: true },
+          });
+          if (typeof filled.error === 'string' && filled.error.trim()) {
+            await reportFailure(
+              `A IA informou que não conseguiu concluir a extração: ${filled.error.trim()}`,
+              JSON.stringify(filled, null, 2),
+            );
+          }
+          values = filled.values ?? {};
+        } catch (aiErr) {
+          if (aiErr instanceof AIResponseFormatError) {
+            const diagnosis = aiErr.truncated
+              ? `A resposta da IA foi cortada no limite de tokens de saída (atual: ${credentials.maxTokens}). ` +
+                'Aumente o limite de tokens da conexão de IA ou processe menos itens por vez.'
+              : 'A IA retornou uma resposta que não pôde ser interpretada como JSON válido.';
+            await reportFailure(diagnosis, aiErr.raw);
+          }
+          throw aiErr;
+        }
       }
 
       const resolvedParams: Record<string, unknown> = {};

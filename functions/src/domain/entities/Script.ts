@@ -4,6 +4,7 @@ export interface ScriptOutputParam {
   key: string;
   label: string;
   type: WorkflowParameterType;
+  list?: boolean;
   entityType?: string;
   fields?: ScriptOutputParam[];
 }

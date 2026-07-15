@@ -36,22 +36,30 @@ export const formatAndValidateParameters = (
   const next: Record<string, unknown> = { ...data };
   const issues: RuleIssue[] = [];
 
+  const applyOne = (parameter: WorkflowParameter, value: unknown, path: string): unknown => {
+    if (parameter.type === 'Object') {
+      if (!isPlainObject(value)) return value;
+      const nested = formatAndValidateParameters(parameter.fields, value, path);
+      issues.push(...nested.issues);
+      return nested.data;
+    }
+    const outcome = formatAndValidate(value, parameter.rules, path, parameter.label || parameter.key);
+    if (outcome.issue) issues.push(outcome.issue);
+    return outcome.value;
+  };
+
   for (const parameter of parameters) {
     if (!(parameter.key in next)) continue;
     const path = prefix ? `${prefix}.${parameter.key}` : parameter.key;
     const value = next[parameter.key];
 
-    if (parameter.type === 'Object') {
-      if (!isPlainObject(value)) continue;
-      const nested = formatAndValidateParameters(parameter.fields, value, path);
-      next[parameter.key] = nested.data;
-      issues.push(...nested.issues);
+    if (parameter.list) {
+      if (!Array.isArray(value)) continue;
+      next[parameter.key] = value.map((item, i) => applyOne(parameter, item, `${path}[${i}]`));
       continue;
     }
 
-    const outcome = formatAndValidate(value, parameter.rules, path, parameter.label || parameter.key);
-    next[parameter.key] = outcome.value;
-    if (outcome.issue) issues.push(outcome.issue);
+    next[parameter.key] = applyOne(parameter, value, path);
   }
 
   return { data: next, issues };

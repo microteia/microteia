@@ -42,7 +42,17 @@ export const PARAMETERS_JSON_EXAMPLE = `{
     "options": ["Alta", "Média", "Baixa"]
   },
   "cliente": { "type": "EntityReference", "label": "Cliente", "entityType": "clients" },
-  "envolvidos": { "type": "EntityReference", "label": "Envolvidos", "entityType": "clients", "multi": true },
+  "envolvidos": { "type": "EntityReference", "label": "Envolvidos", "entityType": "clients", "list": true },
+  "tags": { "type": "String", "label": "Etiquetas", "list": true },
+  "itens": {
+    "type": "Object",
+    "label": "Itens",
+    "list": true,
+    "fields": {
+      "descricao": "String",
+      "valor": { "type": "Number", "label": "Valor" }
+    }
+  },
   "endereco": {
     "type": "Object",
     "label": "Endereço",

@@ -11,6 +11,11 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [0.84.0] — 2026-07-15
+
+- Os parâmetros de uma automação (e as entradas e saídas de um Script) agora podem ser marcados como "Vários", permitindo receber uma lista de valores do mesmo tipo — seja uma lista simples, como etiquetas, ou uma lista de fichas completas, como itens com descrição e valor. A opção fica disponível para todos os tipos de campo, tanto no editor visual quanto no modo avançado.
+- Quando a inteligência artificial do Processador não consegue interpretar os dados, a tela agora exibe um aviso simples e os detalhes completos ficam registrados nos Logs de Auditoria — com a possível causa (incluindo quando a resposta foi cortada por atingir o limite de tokens da conexão de IA), o esquema solicitado e o início e o fim da resposta recebida.
+
 ## [0.83.3] — 2026-07-15
 
 - Corrigido problema que causava duplicação de itens nas listas de seleção após cadastrar novas informações. Ao cadastrar um processo, pessoa ou outro registro, ele não aparecerá mais duplicado nos formulários de telas relacionadas.

@@ -131,13 +131,11 @@ export const sanitizeWorkflowParameters = (parameters: WorkflowParameter[]): Wor
   parameters.map((parameter) => {
     const clean: WorkflowParameter = { key: parameter.key, label: parameter.label, type: parameter.type };
     if (parameter.required) clean.required = true;
-    if (parameter.type === 'EntityReference') {
-      if (parameter.entityType) clean.entityType = parameter.entityType;
-      if (parameter.multi) clean.multi = true;
-    }
+    if (parameter.list) clean.list = true;
+    if (parameter.type === 'EntityReference' && parameter.entityType) clean.entityType = parameter.entityType;
     if (parameter.type === 'select' && parameter.options) clean.options = parameter.options;
     if (parameter.type === 'Object') clean.fields = sanitizeWorkflowParameters(parameter.fields ?? []);
-    if (isScalarParameterType(parameter.type) && parameter.defaultValue !== undefined && parameter.defaultValue !== '') {
+    if (!parameter.list && isScalarParameterType(parameter.type) && parameter.defaultValue !== undefined && parameter.defaultValue !== '') {
       clean.defaultValue = parameter.defaultValue;
     }
     const rules = sanitizeFieldRules(parameter.rules);
@@ -148,6 +146,7 @@ export const sanitizeWorkflowParameters = (parameters: WorkflowParameter[]): Wor
 export const sanitizeScriptOutputParams = (parameters: ScriptOutputParam[]): ScriptOutputParam[] =>
   parameters.map((parameter) => {
     const clean: ScriptOutputParam = { key: parameter.key, label: parameter.label, type: parameter.type };
+    if (parameter.list) clean.list = true;
     if (parameter.type === 'EntityReference' && parameter.entityType) clean.entityType = parameter.entityType;
     if (parameter.type === 'Object') clean.fields = sanitizeScriptOutputParams(parameter.fields ?? []);
     return clean;
@@ -165,6 +164,7 @@ const parameterToDslValue = (parameter: WorkflowParameter): unknown => {
   const hasExtras =
     (parameter.label && parameter.label !== parameter.key) ||
     parameter.required ||
+    parameter.list ||
     parameter.defaultValue !== undefined ||
     rules !== undefined ||
     parameter.type === 'EntityReference' ||
@@ -175,12 +175,10 @@ const parameterToDslValue = (parameter: WorkflowParameter): unknown => {
 
   if (parameter.label && parameter.label !== parameter.key) rich.label = parameter.label;
   if (parameter.required) rich.required = true;
-  if (parameter.type === 'EntityReference') {
-    if (parameter.entityType) rich.entityType = parameter.entityType;
-    if (parameter.multi) rich.multi = true;
-  }
+  if (parameter.list) rich.list = true;
+  if (parameter.type === 'EntityReference' && parameter.entityType) rich.entityType = parameter.entityType;
   if (parameter.type === 'select' && parameter.options) rich.options = parameter.options;
-  if (parameter.defaultValue !== undefined) rich.default = parameter.defaultValue;
+  if (!parameter.list && parameter.defaultValue !== undefined) rich.default = parameter.defaultValue;
   if (rules) rich.rules = rules;
   if (parameter.type === 'Object') rich.fields = parametersToDslMap(parameter.fields ?? []);
   return rich;
@@ -237,6 +235,7 @@ const parseDslNode = (key: string, value: unknown, path: string, errors: string[
     type,
   };
   if (value.required === true) parameter.required = true;
+  if (value.list === true) parameter.list = true;
 
   if (type === 'EntityReference') {
     if (typeof value.entityType !== 'string' || !value.entityType) {
@@ -244,7 +243,6 @@ const parseDslNode = (key: string, value: unknown, path: string, errors: string[
       return null;
     }
     parameter.entityType = value.entityType;
-    if (value.multi === true) parameter.multi = true;
   } else if (type === 'select') {
     if (!Array.isArray(value.options)) {
       errors.push(`${path}: lista de opções exige "options" (array)`);
@@ -264,7 +262,7 @@ const parseDslNode = (key: string, value: unknown, path: string, errors: string[
     parameter.fields = parseDslMap(fieldsSource, path, errors);
   }
 
-  if (isScalarParameterType(type) && value.default !== undefined) parameter.defaultValue = value.default;
+  if (!parameter.list && isScalarParameterType(type) && value.default !== undefined) parameter.defaultValue = value.default;
 
   const rules = parseDslRules(value.rules);
   if (rules) parameter.rules = rules;
