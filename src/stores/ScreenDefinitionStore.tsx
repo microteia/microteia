@@ -154,10 +154,6 @@ export const ScreenDefinitionStoreProvider: React.FC<{ children: React.ReactNode
   const createTag = useCallback(async (screenKey: string, name: string, color: string): Promise<CustomRecordTag> => {
     if (!currentTenant || !user) throw new Error('Not authenticated');
     const tag = await uc.createTag.execute(currentTenant.id, screenKey, { name, color, createdBy: user.id });
-    setTagsByScreen((prev) => ({
-      ...prev,
-      [screenKey]: [...(prev[screenKey] ?? []), tag].sort((a, b) => a.name.localeCompare(b.name)),
-    }));
     return tag;
   }, [currentTenant, user, uc.createTag]);
 

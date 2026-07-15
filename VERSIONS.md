@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [0.83.3] — 2026-07-15
+
+- Corrigido problema que causava duplicação de itens nas listas de seleção após cadastrar novas informações. Ao cadastrar um processo, pessoa ou outro registro, ele não aparecerá mais duplicado nos formulários de telas relacionadas.
+
 ## [0.83.2] — 2026-07-14
 
 - Corrigido problema crítico que poderia causar perda de emails recebidos do Gmail ao renovar a autorização. O sistema agora preserva corretamente o histórico de sincronização durante renovações de token.

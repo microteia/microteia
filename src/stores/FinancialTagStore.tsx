@@ -69,7 +69,6 @@ export const FinancialTagStoreProvider: React.FC<{ children: React.ReactNode }> 
   const createTag = useCallback(async (name: string, color: string): Promise<FinancialTag> => {
     if (!currentTenant || !user) throw new Error('Not authenticated');
     const tag = await uc.createTag.execute(currentTenant.id, { name, color, createdBy: user.id });
-    setTags((prev) => [...prev, tag].sort((a, b) => a.name.localeCompare(b.name)));
     storeEvents.emit(StoreEvents.FINANCIAL_TAG_UPDATED);
     return tag;
   }, [currentTenant, user, uc]);

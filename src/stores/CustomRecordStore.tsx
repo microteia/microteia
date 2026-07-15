@@ -56,10 +56,6 @@ export const CustomRecordStoreProvider: React.FC<{ children: React.ReactNode }> 
   const createRecord = useCallback(async (data: Omit<CustomRecord, 'id' | 'tenantId' | 'createdAt' | 'updatedAt'>) => {
     if (!currentTenant) throw new Error('No tenant selected');
     const item = await uc.create.execute(currentTenant.id, data);
-    setRecordsByScreen((prev) => ({
-      ...prev,
-      [item.screenKey]: [item, ...(prev[item.screenKey] ?? [])],
-    }));
     storeEvents.emit(StoreEvents.CUSTOM_RECORDS_UPDATED);
     return item;
   }, [currentTenant, uc.create]);

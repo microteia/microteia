@@ -42,7 +42,6 @@ export const ContractStoreProvider: React.FC<{ children: React.ReactNode }> = ({
   const createContract = useCallback(async (data: Omit<Contract, 'id' | 'tenantId' | 'createdAt' | 'updatedAt'>) => {
     if (!currentTenant) throw new Error('No tenant selected');
     const item = await uc.create.execute(currentTenant.id, data);
-    setContracts((prev) => [item, ...prev]);
     storeEvents.emit(StoreEvents.CONTRACTS_UPDATED);
     return item;
   }, [currentTenant, uc.create]);

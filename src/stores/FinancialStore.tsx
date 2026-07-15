@@ -50,7 +50,6 @@ export const FinancialStoreProvider: React.FC<{ children: React.ReactNode }> = (
   const createFinancial = useCallback(async (data: Omit<Financial, 'id' | 'tenantId' | 'createdAt' | 'updatedAt'>) => {
     if (!currentTenant) throw new Error('No tenant selected');
     const item = await uc.create.execute(currentTenant.id, data);
-    setFinancials((prev) => [item, ...prev]);
     storeEvents.emit(StoreEvents.FINANCIALS_UPDATED);
     return item;
   }, [currentTenant, uc.create]);

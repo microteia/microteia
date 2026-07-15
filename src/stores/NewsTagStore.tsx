@@ -81,7 +81,6 @@ export const NewsTagStoreProvider: React.FC<{ children: React.ReactNode }> = ({ 
   const createTag = useCallback(async (name: string, color: string) => {
     if (!user) throw new Error('Not authenticated');
     const tag = await uc.createTag.execute(user.id, { name, color });
-    setTags((prev) => [...prev, tag]);
     storeEvents.emit(StoreEvents.NEWS_TAG_UPDATED);
     return tag;
   }, [user, uc]);

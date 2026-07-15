@@ -42,7 +42,6 @@ export const PersonStoreProvider: React.FC<{ children: React.ReactNode }> = ({ c
   const createPerson = useCallback(async (data: Omit<Person, 'id' | 'tenantId' | 'createdAt' | 'updatedAt'>) => {
     if (!currentTenant) throw new Error('No tenant selected');
     const item = await uc.create.execute(currentTenant.id, data);
-    setPersons((prev) => [...prev, item].sort((a, b) => a.name.localeCompare(b.name)));
     storeEvents.emit(StoreEvents.PERSONS_UPDATED);
     return item;
   }, [currentTenant, uc.create]);

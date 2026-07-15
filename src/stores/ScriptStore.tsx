@@ -40,9 +40,6 @@ export const ScriptStoreProvider: React.FC<{ children: React.ReactNode }> = ({ c
   const createScript = useCallback(async (data: Omit<Script, 'id' | 'tenantId' | 'createdAt' | 'updatedAt'>) => {
     if (!currentTenant) throw new Error('No tenant selected');
     const item = await uc.create.execute(currentTenant.id, data);
-    setScripts((prev) =>
-      prev.some((s) => s.id === item.id) ? prev.map((s) => (s.id === item.id ? item : s)) : [...prev, item],
-    );
     storeEvents.emit(StoreEvents.SCRIPTS_UPDATED);
     return item;
   }, [currentTenant, uc.create]);

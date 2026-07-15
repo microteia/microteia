@@ -63,7 +63,6 @@ export const CaseTagStoreProvider: React.FC<{ children: React.ReactNode }> = ({ 
   const createTag = useCallback(async (name: string, color: string): Promise<CaseTag> => {
     if (!currentTenant || !user) throw new Error('Not authenticated');
     const tag = await uc.createTag.execute(currentTenant.id, { name, color, createdBy: user.id });
-    setTags((prev) => [...prev, tag].sort((a, b) => a.name.localeCompare(b.name)));
     storeEvents.emit(StoreEvents.CASE_TAG_UPDATED);
     return tag;
   }, [currentTenant, user, uc]);

@@ -43,7 +43,6 @@ export const CaseStoreProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const createCase = useCallback(async (data: Omit<Case, 'id' | 'tenantId' | 'createdAt' | 'updatedAt'>) => {
     if (!currentTenant) throw new Error('No tenant selected');
     const item = await uc.create.execute(currentTenant.id, data);
-    setCases((prev) => [item, ...prev]);
     storeEvents.emit(StoreEvents.CASES_UPDATED);
     return item;
   }, [currentTenant, uc.create]);

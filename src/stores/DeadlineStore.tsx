@@ -48,7 +48,6 @@ export const DeadlineStoreProvider: React.FC<{ children: React.ReactNode }> = ({
   const createDeadline = useCallback(async (data: Omit<Deadline, 'id' | 'tenantId' | 'createdAt' | 'updatedAt'>) => {
     if (!currentTenant) throw new Error('No tenant selected');
     const item = await uc.create.execute(currentTenant.id, data);
-    setDeadlines((prev) => [...prev, item].sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime()));
     storeEvents.emit(StoreEvents.DEADLINES_UPDATED);
     return item;
   }, [currentTenant, uc.create]);
