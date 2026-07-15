@@ -112,6 +112,9 @@ export class EmailParserService implements IEmailParserService {
       { pattern: /@trt\d{1,2}\.jus\.br\b/i, parser: this.parsers.find(p => p.name === 'TRT')! },
       { pattern: /@publicacoesonline\.com\.br\b/i, parser: this.parsers.find(p => p.name === 'PUBLICACOES_ONLINE')! },
       { pattern: /@recortedigital\.adv\.br\b/i, parser: this.parsers.find(p => p.name === 'RECORTE_DIGITAL')! },
+      { pattern: /@tjba\.jus\.br\b/i, parser: this.parsers.find(p => p.name === 'TJBA')! },
+      { pattern: /@tjma\.jus\.br\b/i, parser: this.parsers.find(p => p.name === 'TJMA')! },
+      { pattern: /@cnj\.jus\.br\b/i, parser: this.parsers.find(p => p.name === 'CNJ')! },
       // TODO: Adicionar mais regras conforme necessário
     ];
   }
