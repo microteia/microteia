@@ -41,7 +41,8 @@ export const gmailPush = onMessagePublished(
     const isTrustedSource = (from: string): boolean => {
         const email = extractEmail(from);
         return email.toLowerCase().endsWith('.jus.br') || 
-        email.toLowerCase().endsWith('@publicacoesonline.com.br');
+        email.toLowerCase().endsWith('@publicacoesonline.com.br') ||
+        email.toLowerCase().endsWith('@recortedigital.adv.br');
     };
 
     console.log('Notificação do Gmail recebida!');
@@ -172,9 +173,15 @@ export const gmailPush = onMessagePublished(
           // Filtrar apenas emails de remetentes permitidos
           const courtMessages = newMessages.filter( (msg) => {
             const from = extractEmail(msg.from);
-            return allowedSenders.length === 0
+            const isAllowed = allowedSenders.length === 0
               ? isTrustedSource(from)
               : allowedSenders.some(sender => from.toLowerCase().includes(sender.toLowerCase()));
+            if (!isAllowed) {
+              runLogger.log('warn', `Email ID: ${msg.id} de remetente NÃO permitido: ${from}`);
+            }else{
+              runLogger.log('info', `Email ID: ${msg.id} de remetente permitido: ${from}`);
+            }
+            return isAllowed;
           });
 
           runLogger.setEmailsFound(newMessages.length, courtMessages.length);

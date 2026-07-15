@@ -110,6 +110,8 @@ export class EmailParserService implements IEmailParserService {
     // (ex: os 24 TRTs, um por região: trt1.jus.br ... trt24.jus.br)
     this.parserByPattern = [
       { pattern: /@trt\d{1,2}\.jus\.br\b/i, parser: this.parsers.find(p => p.name === 'TRT')! },
+      { pattern: /@publicacoesonline\.com\.br\b/i, parser: this.parsers.find(p => p.name === 'PUBLICACOES_ONLINE')! },
+      { pattern: /@recortedigital\.adv\.br\b/i, parser: this.parsers.find(p => p.name === 'RECORTE_DIGITAL')! },
       // TODO: Adicionar mais regras conforme necessário
     ];
   }
