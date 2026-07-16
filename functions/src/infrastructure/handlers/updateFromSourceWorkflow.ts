@@ -2,6 +2,7 @@ import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { getDb } from "../firebase/initFirebase";
 import { FieldValue } from "firebase-admin/firestore";
 import type { WorkflowStep } from "../../domain/entities/Workflow";
+import { flattenSteps, mapStepTree } from "../../domain/services/stepTree";
 
 interface UpdateFromSourceWorkflowRequest {
   workflowId: string;
@@ -111,8 +112,9 @@ export const updateFromSourceWorkflow = onCall(
 
     const sourceTenantId = publicWorkflow.originalTenantId as string;
     const steps = (publicWorkflow.steps as WorkflowStep[]) ?? [];
+    const allSteps = flattenSteps(steps);
 
-    const scriptSteps = steps.filter((s) => s.type === "Script");
+    const scriptSteps = allSteps.filter((s) => s.type === "Script");
     for (const step of scriptSteps) {
       const scriptIdMapping = step.configuration.scriptId;
       if (scriptIdMapping && scriptIdMapping.kind === "Literal") {
@@ -151,7 +153,7 @@ export const updateFromSourceWorkflow = onCall(
       }
     }
 
-    const subWorkflowSteps = steps.filter((s) => s.type === "SubWorkflow");
+    const subWorkflowSteps = allSteps.filter((s) => s.type === "SubWorkflow");
     for (const step of subWorkflowSteps) {
       const targetWorkflowIdMapping = step.configuration.targetWorkflowId;
       if (
@@ -209,7 +211,7 @@ export const updateFromSourceWorkflow = onCall(
       }
     }
 
-    const updatedSteps = steps.map((step) => {
+    const updatedSteps = mapStepTree(steps, (step) => {
       let updatedStep = { ...step };
 
       if (step.type === "Script") {

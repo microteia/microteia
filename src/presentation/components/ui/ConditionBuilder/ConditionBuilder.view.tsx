@@ -4,6 +4,8 @@ import { S } from './ConditionBuilder.styles';
 import { useConditionBuilderViewModel } from './ConditionBuilder.viewmodel';
 import type { BuilderNode, ConditionBuilderViewModel } from './ConditionBuilder.viewmodel';
 import type { Condition, WorkflowParameter } from '../../../../domain/entities/Workflow';
+import type { PathRoot } from '../../../../domain/schema/pathResolver';
+import type { StepOutputField, WorkflowVariable } from '../ExpressionEditor/autocompleteHelpers';
 import { SearchSelect } from '../SearchSelect';
 import { Input } from '../Input';
 import { ExpressionEditor } from '../ExpressionEditor';
@@ -17,6 +19,11 @@ export interface ConditionBuilderProps {
   focusPath?: number[] | null;
   onFocusHandled?: () => void;
   parameters?: WorkflowParameter[];
+  // Escopo extra de intellisense para expressões (ex.: saídas de steps anteriores em um
+  // StepCondition). Quando omitido, o builder enxerga apenas event./parâmetros.
+  stepOutputFields?: StepOutputField[];
+  workflowVariables?: WorkflowVariable[];
+  inputRoot?: PathRoot | null;
 }
 
 const ConditionNode: React.FC<{ node: BuilderNode; vm: ConditionBuilderViewModel; isRoot?: boolean }> = ({ node, vm, isRoot = false }) => {
@@ -115,6 +122,9 @@ const ConditionNode: React.FC<{ node: BuilderNode; vm: ConditionBuilderViewModel
               placeholder="Ex: event.valor > 1000 and isWeekend(today()) == false"
               eventFields={vm.eventFields}
               pathRoot={vm.pathRoot}
+              stepOutputFields={vm.stepOutputFields}
+              workflowVariables={vm.workflowVariables}
+              inputRoot={vm.inputRoot}
             />
             <S.HelpText>A expressão deve resultar em verdadeiro ou falso.</S.HelpText>
           </>
@@ -206,6 +216,9 @@ const ConditionNode: React.FC<{ node: BuilderNode; vm: ConditionBuilderViewModel
                 placeholder='Ex: today(), now(), concat("Texto", campo)'
                 eventFields={vm.eventFields}
                 pathRoot={vm.pathRoot}
+                stepOutputFields={vm.stepOutputFields}
+                workflowVariables={vm.workflowVariables}
+                inputRoot={vm.inputRoot}
               />
             )}
             {node.valueType === 'eventField' && (
@@ -224,8 +237,8 @@ const ConditionNode: React.FC<{ node: BuilderNode; vm: ConditionBuilderViewModel
   );
 };
 
-export const ConditionBuilder: React.FC<ConditionBuilderProps> = ({ value, onChange, eventName, screenKey, focusPath, onFocusHandled, parameters }) => {
-  const vm = useConditionBuilderViewModel(value, onChange, eventName, screenKey, focusPath, onFocusHandled, parameters);
+export const ConditionBuilder: React.FC<ConditionBuilderProps> = ({ value, onChange, eventName, screenKey, focusPath, onFocusHandled, parameters, stepOutputFields, workflowVariables, inputRoot }) => {
+  const vm = useConditionBuilderViewModel(value, onChange, eventName, screenKey, focusPath, onFocusHandled, parameters, stepOutputFields, workflowVariables, inputRoot);
 
   return (
     <S.Container>

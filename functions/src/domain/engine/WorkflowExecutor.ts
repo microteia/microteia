@@ -3,6 +3,7 @@ import type {
   WorkflowEvent,
   WorkflowExecution,
   WorkflowExecutionLogEntry,
+  WorkflowStep,
 } from '../entities/Workflow';
 import type { WorkflowContext, WorkflowServices } from '../entities/WorkflowContext';
 import type { StepRegistry } from './StepRegistry';
@@ -95,54 +96,110 @@ export const runWorkflow = async ({ definition, event, registry, services }: Run
     execution: { id: executionId, workflowDefinitionId: definition.id, tenantId: definition.tenantId },
   };
 
-  const steps = definition.steps
-    .filter((step) => step.enabled)
-    .sort((a, b) => a.order - b.order);
-
-  for (const step of steps) {
-    const stepDefinition = registry.resolve(step.stepDefinitionId);
-    if (!stepDefinition) {
-      log('ERROR', `StepDefinition desconhecida: "${step.stepDefinitionId}"`, step.id);
-      return finish('FAILED', {});
-    }
-
-   const flattenedOutputs: Record<string, unknown> = {};
+  // Monta context.input a partir do flatten das saídas acumuladas (só Steps já executados) —
+  // igual para Steps normais e para nós de controle StepCondition.
+  const applyStepInput = (): void => {
+    const flattenedOutputs: Record<string, unknown> = {};
     for (const stepOutputs of Object.values(context.outputs)) {
       Object.assign(flattenedOutputs, stepOutputs);
     }
     context.input = Object.keys(flattenedOutputs).length > 0 ? flattenedOutputs : event.payload ?? {};
-    context.stepConfiguration = step.configuration;
+  };
 
-    // Usa resolveInputsSafe para garantir que inputs parciais sejam sempre registrados
-    const resolveResult = resolveInputsSafe(stepDefinition.inputs, step.configuration, context);
+  type StepsRunResult = { ok: true; lastStepId: string | null } | { ok: false };
 
-    if (!resolveResult.success) {
-      // Log com inputs parcialmente resolvidos e mensagem de erro enriquecida
-      log('ERROR', `[Step "${stepDefinition.name}"] ${resolveResult.error}`, step.id, step.stepDefinitionId, context.input, resolveResult.inputs, undefined);
-      return finish('FAILED', {});
-    }
+  // Executa uma sequência de Steps (um nível/ramo). Recursiva: um StepCondition avalia sua
+  // condição e desce no ramo correspondente; ao retornar, o fluxo converge para os próximos
+  // Steps deste nível. `incomingLastStepId` propaga qual foi o último Step executado, para que
+  // os outputs finais do workflow reflitam a travessia inteira, não só o último nível.
+  const executeSteps = async (branchSteps: WorkflowStep[], incomingLastStepId: string | null): Promise<StepsRunResult> => {
+    let lastStepId = incomingLastStepId;
 
-    const inputs = resolveResult.inputs;
+    const ordered = branchSteps
+      .filter((step) => step.enabled)
+      .sort((a, b) => a.order - b.order);
 
-    try {
-      const result = await stepDefinition.createExecutor().execute(inputs, context);
+    for (const step of ordered) {
+      applyStepInput();
 
-      if (!result.success) {
-        log('ERROR', result.message ?? 'Step falhou sem mensagem', step.id, step.stepDefinitionId, context.input, inputs, undefined);
-        return finish('FAILED', {});
+      if (step.type === 'Condition') {
+        let branchResult: boolean;
+        try {
+          if (!step.condition) {
+            throw new Error('StepCondition sem condição configurada');
+          }
+          branchResult = evaluateCondition(step.condition, context);
+        } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : String(error);
+          log('ERROR', `[Condição] ${errorMessage}`, step.id, undefined, context.input);
+          return { ok: false };
+        }
+
+        const branch = branchResult ? step.branches?.whenTrue : step.branches?.whenFalse;
+        log(
+          'INFO',
+          `Condição avaliada como ${branchResult ? 'verdadeira' : 'falsa'} — ramo "${branchResult ? 'Verdadeiro' : 'Falso'}"`,
+          step.id,
+          undefined,
+          context.input,
+          undefined,
+          { result: branchResult },
+        );
+
+        const recur = await executeSteps(branch ?? [], lastStepId);
+        if (!recur.ok) {
+          return { ok: false };
+        }
+        lastStepId = recur.lastStepId;
+        continue;
       }
 
-      context.outputs[step.id] = result.outputs ?? {};
-      log('SUCCESS', result.message ?? `Step "${stepDefinition.name}" concluído`, step.id, step.stepDefinitionId, context.input, inputs, result.outputs);
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      log('ERROR', `[Step "${stepDefinition.name}"] ${errorMessage}`, step.id, step.stepDefinitionId, context.input, inputs, undefined);
-      return finish('FAILED', {});
+      const stepDefinition = registry.resolve(step.stepDefinitionId);
+      if (!stepDefinition) {
+        log('ERROR', `StepDefinition desconhecida: "${step.stepDefinitionId}"`, step.id);
+        return { ok: false };
+      }
+
+      context.stepConfiguration = step.configuration;
+
+      // Usa resolveInputsSafe para garantir que inputs parciais sejam sempre registrados
+      const resolveResult = resolveInputsSafe(stepDefinition.inputs, step.configuration, context);
+
+      if (!resolveResult.success) {
+        // Log com inputs parcialmente resolvidos e mensagem de erro enriquecida
+        log('ERROR', `[Step "${stepDefinition.name}"] ${resolveResult.error}`, step.id, step.stepDefinitionId, context.input, resolveResult.inputs, undefined);
+        return { ok: false };
+      }
+
+      const inputs = resolveResult.inputs;
+
+      try {
+        const result = await stepDefinition.createExecutor().execute(inputs, context);
+
+        if (!result.success) {
+          log('ERROR', result.message ?? 'Step falhou sem mensagem', step.id, step.stepDefinitionId, context.input, inputs, undefined);
+          return { ok: false };
+        }
+
+        context.outputs[step.id] = result.outputs ?? {};
+        log('SUCCESS', result.message ?? `Step "${stepDefinition.name}" concluído`, step.id, step.stepDefinitionId, context.input, inputs, result.outputs);
+        lastStepId = step.id;
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        log('ERROR', `[Step "${stepDefinition.name}"] ${errorMessage}`, step.id, step.stepDefinitionId, context.input, inputs, undefined);
+        return { ok: false };
+      }
     }
+
+    return { ok: true, lastStepId };
+  };
+
+  const run = await executeSteps(definition.steps, null);
+  if (!run.ok) {
+    return finish('FAILED', {});
   }
 
-  // Retorna apenas os outputs do último step executado
-  const lastStep = steps[steps.length - 1];
-  const finalOutputs = lastStep ? context.outputs[lastStep.id] ?? {} : {};
+  // Retorna apenas os outputs do último step executado na travessia
+  const finalOutputs = run.lastStepId ? context.outputs[run.lastStepId] ?? {} : {};
   return finish('SUCCESS', finalOutputs);
 };

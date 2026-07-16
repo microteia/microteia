@@ -17,8 +17,19 @@ import { siblingParameterErrors, hasParameterErrorsDeep, sanitizeWorkflowParamet
 import { getWorkflowEventIcon, getWorkflowLookupGroupIcon } from '../../shared/workflowEventIcons';
 import { getScreenIconType } from '../../shared/screenIcons';
 import { getStepIcon as getStepIconType } from '../../shared/stepIcons';
+import { RiGitBranchLine } from 'react-icons/ri';
 import { generateDeepLink } from '../../../infrastructure/deeplink/deepLinkUtils';
-import { getStepDisplayName } from '../../shared/workflowHelpers';
+import {
+  getStepDisplayName,
+  describeCondition,
+  flattenSteps,
+  removeStepFromTree,
+  updateStepInTree,
+  insertStepInto,
+  moveStepWithinSiblings,
+  reorderSiblings,
+} from '../../shared/workflowHelpers';
+import type { InsertTarget } from '../../shared/workflowHelpers';
 import type { WorkflowDefinition, WorkflowExecution, WorkflowStep, Condition, WorkflowParameter } from '../../../domain/entities/Workflow';
 import type { StepDefinitionSummary, StepCategory } from '../../../domain/entities/WorkflowStepCatalog';
 
@@ -133,7 +144,10 @@ export interface ViewWorkflowViewModel {
   stepCatalog: StepDefinitionSummary[];
   getStepDefinition: (stepDefinitionId: string) => StepDefinitionSummary | undefined;
   getStepIcon: (stepDefinitionId: string) => IconType;
-  openAddStep: () => void;
+  getStepIconForStep: (step: WorkflowStep) => IconType;
+  getStepById: (id: string) => WorkflowStep | undefined;
+  openAddStep: (target?: InsertTarget) => void;
+  openAddCondition: (target?: InsertTarget) => Promise<void>;
   openEditStep: (step: WorkflowStep) => void;
   stepToDelete: WorkflowStep | null;
   handleDeleteStep: (step: WorkflowStep) => void;
@@ -150,12 +164,13 @@ export interface ViewWorkflowViewModel {
   clearConditionFocusPath: () => void;
   eventLabel: string;
   getStepTypeLabel: (step: WorkflowStep) => string;
+  getConditionSummary: (step: WorkflowStep) => string;
   draggingStepId: string | null;
-  dropTargetIndex: number | null;
-  handleStepDragStart: (event: DragEvent<HTMLElement>, stepId: string) => void;
+  dropTarget: { parentKey: string; index: number } | null;
+  handleStepDragStart: (event: DragEvent<HTMLElement>, stepId: string, parentKey: string) => void;
   handleStepDragEnd: () => void;
-  handleStepDragOverNode: (event: DragEvent<HTMLElement>, index: number) => void;
-  handleStepDragOverGap: (event: DragEvent<HTMLElement>, gapIndex: number) => void;
+  handleStepDragOverNode: (event: DragEvent<HTMLElement>, parentKey: string, index: number) => void;
+  handleStepDragOverGap: (event: DragEvent<HTMLElement>, parentKey: string, gapIndex: number) => void;
   handleStepDrop: (event: DragEvent<HTMLElement>) => void;
   executions: WorkflowExecution[];
   executionsError: string | null;
@@ -243,8 +258,8 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
   const [stepsViewMode, setStepsViewModeState] = useState<StepsViewMode>(loadStepsViewMode);
   const [conditionViewMode, setConditionViewModeState] = useState<ConditionViewMode>(loadConditionViewMode);
   const [conditionFocusPath, setConditionFocusPath] = useState<number[] | null>(null);
-  const [draggingStepId, setDraggingStepId] = useState<string | null>(null);
-  const [dropTargetIndex, setDropTargetIndex] = useState<number | null>(null);
+  const [dragging, setDragging] = useState<{ id: string; parentKey: string } | null>(null);
+  const [dropTarget, setDropTarget] = useState<{ parentKey: string; index: number } | null>(null);
   const [isUpdating, setIsUpdating] = useState(false);
 
   // Carrega o catálogo de steps uma vez (idempotente)
@@ -325,6 +340,18 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
       return getStepIconType(definition?.icon ?? '');
     },
     [stepCatalog],
+  );
+
+  const getStepIconForStep = useCallback(
+    (step: WorkflowStep): IconType => (step.type === 'Condition' ? RiGitBranchLine : getStepIcon(step.stepDefinitionId)),
+    [getStepIcon],
+  );
+
+  const flatSteps = useMemo(() => flattenSteps(workflow?.steps ?? []), [workflow]);
+
+  const getStepById = useCallback(
+    (id: string): WorkflowStep | undefined => flatSteps.find((s) => s.id === id),
+    [flatSteps],
   );
 
   const dynamicEventFields = useMemo(() => {
@@ -641,10 +668,34 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
     return expandedStepResults.has(key);
   }, [expandedStepResults]);
 
-  const openAddStep = useCallback(() => {
+  const targetSuffix = useCallback((target?: InsertTarget): string => {
+    if (!target || target.kind === 'root') return '';
+    return `:add:${target.conditionId}:${target.branch}`;
+  }, []);
+
+  const openAddStep = useCallback((target?: InsertTarget) => {
     if (!workflow) return;
-    openTab(`edit-workflow-step:${workflow.id}`);
-  }, [workflow, openTab]);
+    openTab(`edit-workflow-step:${workflow.id}${targetSuffix(target)}`);
+  }, [workflow, openTab, targetSuffix]);
+
+  const openAddCondition = useCallback(async (target?: InsertTarget) => {
+    if (!workflow) return;
+    const conditionStep: WorkflowStep = {
+      id: crypto.randomUUID(),
+      stepDefinitionId: '',
+      type: 'Condition',
+      order: 0,
+      configuration: {},
+      enabled: true,
+      condition: { kind: 'AlwaysTrue' },
+      branches: { whenTrue: [], whenFalse: [] },
+    };
+    const nextSteps = insertStepInto(workflow.steps, target ?? { kind: 'root' }, conditionStep);
+    await updateWorkflowSteps(workflow.id, nextSteps).catch((error) => {
+      console.error('[ViewWorkflow] openAddCondition:', error);
+      notify('Erro ao adicionar condição.', 'error');
+    });
+  }, [workflow, updateWorkflowSteps, notify]);
 
   const openEditStep = useCallback((step: WorkflowStep) => {
     if (!workflow) return;
@@ -656,10 +707,7 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
 
   const confirmDeleteStep = useCallback(async () => {
     if (!workflow || !stepToDelete) return;
-    const nextSteps = workflow.steps
-      .filter((s) => s.id !== stepToDelete.id)
-      .sort((a, b) => a.order - b.order)
-      .map((s, index) => ({ ...s, order: index }));
+    const nextSteps = removeStepFromTree(workflow.steps, stepToDelete.id);
     try {
       await updateWorkflowSteps(workflow.id, nextSteps);
       notify('Step excluído.', 'success');
@@ -673,13 +721,9 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
 
   const moveStep = useCallback(async (step: WorkflowStep, direction: 'up' | 'down') => {
     if (!workflow) return;
-    const sorted = [...workflow.steps].sort((a, b) => a.order - b.order);
-    const index = sorted.findIndex((s) => s.id === step.id);
-    const swapWith = direction === 'up' ? index - 1 : index + 1;
-    if (swapWith < 0 || swapWith >= sorted.length) return;
-    [sorted[index], sorted[swapWith]] = [sorted[swapWith], sorted[index]];
-    const reordered = sorted.map((s, i) => ({ ...s, order: i }));
-    await updateWorkflowSteps(workflow.id, reordered).catch((error) => {
+    const nextSteps = moveStepWithinSiblings(workflow.steps, step.id, direction);
+    if (nextSteps === workflow.steps) return;
+    await updateWorkflowSteps(workflow.id, nextSteps).catch((error) => {
       console.error('[ViewWorkflow] moveStep:', error);
       notify('Erro ao reordenar steps.', 'error');
     });
@@ -687,7 +731,7 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
 
   const toggleStepEnabled = useCallback(async (step: WorkflowStep) => {
     if (!workflow) return;
-    const nextSteps = workflow.steps.map((s) => (s.id === step.id ? { ...s, enabled: !s.enabled } : s));
+    const nextSteps = updateStepInTree(workflow.steps, step.id, (s) => ({ ...s, enabled: !s.enabled }));
     await updateWorkflowSteps(workflow.id, nextSteps).catch((error) => {
       console.error('[ViewWorkflow] toggleStepEnabled:', error);
       notify('Erro ao atualizar step.', 'error');
@@ -717,6 +761,7 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
   }, [workflow]);
 
   const getStepTypeLabel = useCallback((step: WorkflowStep): string => {
+    if (step.type === 'Condition') return 'Condição';
     const definition = getStepDefinition(step.stepDefinitionId);
     if (!definition) return step.stepDefinitionId;
     const categoryLabel = STEP_CATEGORY_LABELS[definition.category] ?? definition.category;
@@ -725,48 +770,45 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
       : `${categoryLabel} · ${definition.name}`;
   }, [getStepDefinition]);
 
-  const handleStepDragStart = useCallback((event: DragEvent<HTMLElement>, stepId: string) => {
+  const getConditionSummary = useCallback((step: WorkflowStep): string => describeCondition(step.condition), []);
+
+  const handleStepDragStart = useCallback((event: DragEvent<HTMLElement>, stepId: string, parentKey: string) => {
     event.dataTransfer.setData('text/plain', stepId);
     event.dataTransfer.effectAllowed = 'move';
-    setDraggingStepId(stepId);
+    setDragging({ id: stepId, parentKey });
   }, []);
 
   const handleStepDragEnd = useCallback(() => {
-    setDraggingStepId(null);
-    setDropTargetIndex(null);
+    setDragging(null);
+    setDropTarget(null);
   }, []);
 
-  const handleStepDragOverGap = useCallback((event: DragEvent<HTMLElement>, gapIndex: number) => {
+  const handleStepDragOverGap = useCallback((event: DragEvent<HTMLElement>, parentKey: string, gapIndex: number) => {
     event.preventDefault();
-    setDropTargetIndex(gapIndex);
+    setDropTarget({ parentKey, index: gapIndex });
   }, []);
 
-  const handleStepDragOverNode = useCallback((event: DragEvent<HTMLElement>, index: number) => {
+  const handleStepDragOverNode = useCallback((event: DragEvent<HTMLElement>, parentKey: string, index: number) => {
     event.preventDefault();
     const rect = event.currentTarget.getBoundingClientRect();
-    setDropTargetIndex(event.clientY < rect.top + rect.height / 2 ? index : index + 1);
+    setDropTarget({ parentKey, index: event.clientY < rect.top + rect.height / 2 ? index : index + 1 });
   }, []);
 
   const handleStepDrop = useCallback((event: DragEvent<HTMLElement>) => {
     event.preventDefault();
-    const draggedId = draggingStepId;
-    const targetIndex = dropTargetIndex;
-    setDraggingStepId(null);
-    setDropTargetIndex(null);
-    if (!workflow || !draggedId || targetIndex === null) return;
-    const fromIndex = steps.findIndex((s) => s.id === draggedId);
-    if (fromIndex === -1) return;
-    const toIndex = fromIndex < targetIndex ? targetIndex - 1 : targetIndex;
-    if (toIndex === fromIndex) return;
-    const next = [...steps];
-    const [moved] = next.splice(fromIndex, 1);
-    next.splice(toIndex, 0, moved);
-    const reordered = next.map((s, i) => ({ ...s, order: i }));
-    updateWorkflowSteps(workflow.id, reordered).catch((error) => {
+    const dragged = dragging;
+    const target = dropTarget;
+    setDragging(null);
+    setDropTarget(null);
+    // Reordenação só dentro do mesmo ramo (mesmo parentKey).
+    if (!workflow || !dragged || !target || dragged.parentKey !== target.parentKey) return;
+    const nextSteps = reorderSiblings(workflow.steps, dragged.id, target.index);
+    if (nextSteps === workflow.steps) return;
+    updateWorkflowSteps(workflow.id, nextSteps).catch((error) => {
       console.error('[ViewWorkflow] handleStepDrop:', error);
       notify('Erro ao reordenar steps.', 'error');
     });
-  }, [draggingStepId, dropTargetIndex, workflow, steps, updateWorkflowSteps, notify]);
+  }, [dragging, dropTarget, workflow, updateWorkflowSteps, notify]);
 
   const getStepLogStatus = useCallback((log: { level: string }): 'SUCCESS' | 'ERROR' | 'WARN' | 'INFO' => {
     if (log.level === 'ERROR') return 'ERROR';
@@ -789,7 +831,10 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
     stepCatalog,
     getStepDefinition,
     getStepIcon,
+    getStepIconForStep,
+    getStepById,
     openAddStep,
+    openAddCondition,
     openEditStep,
     stepToDelete,
     handleDeleteStep,
@@ -806,8 +851,9 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
     clearConditionFocusPath,
     eventLabel,
     getStepTypeLabel,
-    draggingStepId,
-    dropTargetIndex,
+    getConditionSummary,
+    draggingStepId: dragging?.id ?? null,
+    dropTarget,
     handleStepDragStart,
     handleStepDragEnd,
     handleStepDragOverNode,

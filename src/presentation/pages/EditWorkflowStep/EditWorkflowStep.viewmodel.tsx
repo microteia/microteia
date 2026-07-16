@@ -11,9 +11,18 @@ import { workflowParameterToNativeField } from '../../../domain/schema/eventCata
 import type { PathRoot } from '../../../domain/schema/pathResolver';
 import type { NativeFieldSpec } from '../../../domain/schema/entityRegistry';
 import { getStepIcon } from '../../shared/stepIcons';
-import { getStepDisplayName } from '../../shared/workflowHelpers';
+import {
+  getStepDisplayName,
+  findStepInTree,
+  collectPriorSteps,
+  collectPriorStepsForInsert,
+  insertStepInto,
+  replaceStepInTree,
+  removeStepFromTree,
+} from '../../shared/workflowHelpers';
+import type { InsertTarget, BranchKey } from '../../shared/workflowHelpers';
 import type { WorkflowEventFieldOption } from '../../../domain/services/workflowEventCatalog';
-import type { InputMapping, WorkflowParameter, WorkflowStep } from '../../../domain/entities/Workflow';
+import type { Condition, InputMapping, WorkflowParameter, WorkflowStep } from '../../../domain/entities/Workflow';
 import type { InputDefinition, StepDefinitionSummary } from '../../../domain/entities/WorkflowStepCatalog';
 import type { QuerySpec } from '../../../domain/schema/querySpec';
 import type { MapStepConfig } from '../../../domain/schema/mapSpec';
@@ -109,6 +118,18 @@ const emptyMappingFor = (kind: InputMapping['kind']): InputMapping => {
   }
 };
 
+export type ConditionViewMode = 'editor' | 'diagram';
+
+const CONDITION_VIEW_MODE_KEY = 'curatino:workflowConditionViewMode';
+
+const loadConditionViewMode = (): ConditionViewMode => {
+  try {
+    return localStorage.getItem(CONDITION_VIEW_MODE_KEY) === 'diagram' ? 'diagram' : 'editor';
+  } catch {
+    return 'editor';
+  }
+};
+
 export interface EditWorkflowStepViewModel {
   workflowName: string;
   stepOrder: number;
@@ -130,6 +151,17 @@ export interface EditWorkflowStepViewModel {
   setMapping: (inputId: string, mapping: InputMapping) => void;
   enabled: boolean;
   setEnabled: (enabled: boolean) => void;
+  isConditionStep: boolean;
+  pendingCondition: Condition;
+  setPendingCondition: (condition: Condition) => void;
+  conditionViewMode: ConditionViewMode;
+  setConditionViewMode: (mode: ConditionViewMode) => void;
+  conditionFocusPath: number[] | null;
+  handleRequestConditionEdit: (path: number[]) => void;
+  clearConditionFocusPath: () => void;
+  conditionEventName: string;
+  conditionScreenKey?: string;
+  conditionParameters?: WorkflowParameter[];
   canSave: boolean;
   handleSave: () => Promise<void>;
   handleDelete: () => void;
@@ -149,10 +181,20 @@ export interface EditWorkflowStepViewModel {
 }
 
 export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepViewModel => {
-  // Parse tabKey: "edit-workflow-step:workflowId" ou "edit-workflow-step:workflowId:stepId"
-  const parts = tabKey.replace('edit-workflow-step:', '').split(':');
+  // Parse tabKey:
+  //   "edit-workflow-step:{wfId}"                         → adicionar step na raiz
+  //   "edit-workflow-step:{wfId}:{stepId}"                → editar step existente
+  //   "edit-workflow-step:{wfId}:add:{condId}:{branch}"   → adicionar step num ramo de condição
+  const parts = useMemo(() => tabKey.replace('edit-workflow-step:', '').split(':'), [tabKey]);
   const workflowId = parts[0] ?? '';
-  const stepId = parts[1] ?? null;
+  const isBranchAdd = parts[1] === 'add';
+  const stepId = isBranchAdd ? null : (parts[1] ?? null);
+  const insertTarget = useMemo<InsertTarget>(
+    () => (isBranchAdd && parts[2] && parts[3]
+      ? { kind: 'branch', conditionId: parts[2], branch: parts[3] as BranchKey }
+      : { kind: 'root' }),
+    [isBranchAdd, parts],
+  );
 
   const { workflows, updateWorkflowSteps } = useWorkflowStore();
   const { scripts } = useScriptStore();
@@ -172,16 +214,37 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
   );
 
   const editingStep = useMemo(
-    () => stepId ? existingSteps.find((s) => s.id === stepId) ?? null : null,
+    () => stepId ? findStepInTree(existingSteps, stepId) : null,
     [stepId, existingSteps],
   );
+
+  const isConditionStep = editingStep?.type === 'Condition';
 
   const [selectedDefinitionId, setSelectedDefinitionId] = useState('');
   const [signature, setSignature] = useState('');
   const [configuration, setConfiguration] = useState<Record<string, InputMapping>>({});
   const [enabled, setEnabled] = useState(true);
+  const [pendingCondition, setPendingCondition] = useState<Condition>({ kind: 'AlwaysTrue' });
+  const [conditionViewMode, setConditionViewModeState] = useState<ConditionViewMode>(loadConditionViewMode);
+  const [conditionFocusPath, setConditionFocusPath] = useState<number[] | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [stepToDelete, setStepToDelete] = useState<WorkflowStep | null>(null);
+
+  const setConditionViewMode = useCallback((mode: ConditionViewMode) => {
+    setConditionViewModeState(mode);
+    try {
+      localStorage.setItem(CONDITION_VIEW_MODE_KEY, mode);
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  const handleRequestConditionEdit = useCallback((path: number[]) => {
+    setConditionFocusPath(path);
+    setConditionViewMode('editor');
+  }, [setConditionViewMode]);
+
+  const clearConditionFocusPath = useCallback(() => setConditionFocusPath(null), []);
 
   // Carrega o catálogo de steps uma vez (idempotente)
   useEffect(() => {
@@ -194,6 +257,7 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
     setSignature(editingStep?.signature ?? '');
     setConfiguration(editingStep?.configuration ?? {});
     setEnabled(editingStep?.enabled ?? true);
+    setPendingCondition(editingStep?.condition ?? { kind: 'AlwaysTrue' });
   }, [editingStep]);
 
   const selectedDefinition = useMemo(
@@ -340,8 +404,10 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
   }, [setMapping]);
 
   const priorSteps = useMemo(
-    () => existingSteps.filter((s) => s.order < (editingStep?.order ?? Infinity)),
-    [existingSteps, editingStep],
+    () => (editingStep
+      ? collectPriorSteps(existingSteps, editingStep.id)
+      : collectPriorStepsForInsert(existingSteps, insertTarget)),
+    [existingSteps, editingStep, insertTarget],
   );
 
   const scriptOutputsFor = useCallback(
@@ -515,14 +581,43 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
   }, [priorSteps, stepCatalog]);
 
   const canSave = useMemo(() => {
+    if (isConditionStep) return true;
     if (!selectedDefinition) return false;
     return effectiveInputs
       .filter((input) => input.required)
       .every((input) => configuration[input.id] !== undefined);
-  }, [selectedDefinition, effectiveInputs, configuration]);
+  }, [isConditionStep, selectedDefinition, effectiveInputs, configuration]);
 
   const handleSave = useCallback(async () => {
-    if (!selectedDefinition || !workflow) return;
+    if (!workflow) return;
+
+    // Modo Condição: edita step.condition de um nó de controle já existente.
+    if (isConditionStep && editingStep) {
+      setIsSaving(true);
+      try {
+        const updated: WorkflowStep = {
+          id: editingStep.id,
+          stepDefinitionId: '',
+          type: 'Condition',
+          order: editingStep.order,
+          ...(signature.trim() ? { signature: signature.trim() } : {}),
+          configuration: {},
+          enabled,
+          condition: pendingCondition,
+          branches: editingStep.branches ?? { whenTrue: [], whenFalse: [] },
+        };
+        await updateWorkflowSteps(workflow.id, replaceStepInTree(existingSteps, updated));
+        notify('Condição salva com sucesso.', 'success');
+        closeTab(tabKey, activePanelId ?? 'main');
+      } catch (error) {
+        notify(`Erro ao salvar condição: ${String(error)}`, 'error');
+      } finally {
+        setIsSaving(false);
+      }
+      return;
+    }
+
+    if (!selectedDefinition) return;
 
     setIsSaving(true);
     try {
@@ -530,15 +625,15 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
         id: editingStep?.id ?? crypto.randomUUID(),
         stepDefinitionId: selectedDefinition.id,
         type: selectedDefinition.type,
-        order: editingStep?.order ?? existingSteps.length,
+        order: editingStep?.order ?? 0,
         ...(signature.trim() ? { signature: signature.trim() } : {}),
         configuration,
         enabled,
       };
 
       const updatedSteps = editingStep
-        ? existingSteps.map((s) => (s.id === step.id ? step : s))
-        : [...existingSteps, step];
+        ? replaceStepInTree(existingSteps, step)
+        : insertStepInto(existingSteps, insertTarget, step);
 
       await updateWorkflowSteps(workflow.id, updatedSteps);
       notify('Step salvo com sucesso.', 'success');
@@ -549,13 +644,16 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
       setIsSaving(false);
     }
   }, [
+    isConditionStep,
     selectedDefinition,
     workflow,
     editingStep,
     existingSteps,
+    insertTarget,
     signature,
     configuration,
     enabled,
+    pendingCondition,
     updateWorkflowSteps,
     notify,
     closeTab,
@@ -571,10 +669,7 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
 
   const confirmDelete = useCallback(async () => {
     if (!workflow || !stepToDelete) return;
-    const nextSteps = existingSteps
-      .filter((s) => s.id !== stepToDelete.id)
-      .sort((a, b) => a.order - b.order)
-      .map((s, index) => ({ ...s, order: index }));
+    const nextSteps = removeStepFromTree(existingSteps, stepToDelete.id);
     try {
       await updateWorkflowSteps(workflow.id, nextSteps);
       notify('Step excluído.', 'success');
@@ -608,6 +703,17 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
     setMapping,
     enabled,
     setEnabled,
+    isConditionStep: !!isConditionStep,
+    pendingCondition,
+    setPendingCondition,
+    conditionViewMode,
+    setConditionViewMode,
+    conditionFocusPath,
+    handleRequestConditionEdit,
+    clearConditionFocusPath,
+    conditionEventName: workflow?.eventName ?? '',
+    conditionScreenKey: workflow?.screenKey,
+    conditionParameters: workflow?.parameters,
     canSave,
     handleSave,
     handleDelete,

@@ -1,11 +1,13 @@
 import React from 'react';
-import { RiSaveLine, RiDeleteBinLine } from 'react-icons/ri';
+import { RiSaveLine, RiDeleteBinLine, RiEditLine, RiNodeTree } from 'react-icons/ri';
 import { InputGroup, Label, Input } from '../../components/ui/Input';
 import { SearchSelect } from '../../components/ui/SearchSelect';
 import { DateInput } from '../../components/ui/DateInput';
 import { InfoBanner } from '../../components/ui/InfoBanner';
 import { ConfirmModal } from '../../components/ui/ConfirmModal';
 import { ExpressionEditor } from '../../components/ui/ExpressionEditor';
+import { ConditionBuilder } from '../../components/ui/ConditionBuilder';
+import { ConditionDiagram } from '../../components/ui/ConditionDiagram';
 import { LiteralOptionsControl } from '../ViewWorkflow/components/LiteralOptionsControl';
 import { EntityReferenceControl } from '../ViewWorkflow/components/EntityReferenceControl';
 import { QueryBuilderControl } from '../ViewWorkflow/components/QueryBuilderControl';
@@ -278,7 +280,7 @@ export const EditWorkflowStepView: React.FC<{ tabKey: string }> = ({ tabKey }) =
       <S.Header>
         <S.TitleRow>
           {vm.selectedStepIcon && <vm.selectedStepIcon size={22} />}
-          <S.Title>{vm.isDefinitionLocked ? 'Editar Step' : 'Adicionar Step'}</S.Title>
+          <S.Title>{vm.isConditionStep ? 'Editar Condição' : (vm.isDefinitionLocked ? 'Editar Step' : 'Adicionar Step')}</S.Title>
         </S.TitleRow>
         <S.HeaderActions>
           <S.SaveBtn
@@ -289,13 +291,71 @@ export const EditWorkflowStepView: React.FC<{ tabKey: string }> = ({ tabKey }) =
             <RiSaveLine size={14} />
           </S.SaveBtn>
           {vm.isDefinitionLocked && (
-            <S.DeleteBtn onClick={vm.handleDelete} disabled={vm.isSaving} title="Excluir Step">
+            <S.DeleteBtn onClick={vm.handleDelete} disabled={vm.isSaving} title={vm.isConditionStep ? 'Excluir Condição' : 'Excluir Step'}>
               <RiDeleteBinLine size={14} />
             </S.DeleteBtn>
           )}
         </S.HeaderActions>
       </S.Header>
 
+      {vm.isConditionStep ? (
+        <S.Content>
+          <S.Form>
+            <InputGroup>
+              <Label>Nome (opcional)</Label>
+              <Input
+                value={vm.signature}
+                onChange={(e) => vm.setSignature(e.target.value)}
+                placeholder="ex: Verificar valor da causa"
+              />
+              <S.HelpText>Nome para identificar esta condição no fluxo.</S.HelpText>
+            </InputGroup>
+            <S.StepsDivider />
+            <S.ConditionToolbar>
+              <S.ViewToggle>
+                <S.ViewToggleBtn
+                  $active={vm.conditionViewMode === 'editor'}
+                  onClick={() => vm.setConditionViewMode('editor')}
+                  title="Editor de condições"
+                >
+                  <RiEditLine size={14} />
+                </S.ViewToggleBtn>
+                <S.ViewToggleBtn
+                  $active={vm.conditionViewMode === 'diagram'}
+                  onClick={() => vm.setConditionViewMode('diagram')}
+                  title="Diagrama lógico"
+                >
+                  <RiNodeTree size={14} />
+                </S.ViewToggleBtn>
+              </S.ViewToggle>
+            </S.ConditionToolbar>
+            {vm.conditionViewMode === 'editor' && (
+              <ConditionBuilder
+                value={vm.pendingCondition}
+                onChange={vm.setPendingCondition}
+                eventName={vm.conditionEventName}
+                screenKey={vm.conditionScreenKey}
+                parameters={vm.conditionParameters}
+                stepOutputFields={vm.stepOutputFields}
+                workflowVariables={vm.workflowVariables}
+                inputRoot={vm.inputRoot}
+                focusPath={vm.conditionFocusPath}
+                onFocusHandled={vm.clearConditionFocusPath}
+              />
+            )}
+            {vm.conditionViewMode === 'diagram' && (
+              <ConditionDiagram
+                condition={vm.pendingCondition}
+                eventName={vm.conditionEventName}
+                screenKey={vm.conditionScreenKey}
+                parameters={vm.conditionParameters}
+                onChange={vm.setPendingCondition}
+                onRequestEdit={vm.handleRequestConditionEdit}
+              />
+            )}
+          </S.Form>
+        </S.Content>
+      ) : (
       <S.Content>
         <S.Form>
           <InputGroup>
@@ -374,13 +434,16 @@ export const EditWorkflowStepView: React.FC<{ tabKey: string }> = ({ tabKey }) =
           )}
         </S.Form>
       </S.Content>
+      )}
 
       <ConfirmModal
         isOpen={!!vm.stepToDelete}
         onConfirm={() => void vm.confirmDelete()}
         onCancel={vm.cancelDelete}
-        title="Excluir Step"
-        message="Tem certeza que deseja excluir este step? Esta ação não pode ser desfeita."
+        title={vm.isConditionStep ? 'Excluir Condição' : 'Excluir Step'}
+        message={vm.isConditionStep
+          ? 'Excluir esta condição também remove todos os steps dos ramos Verdadeiro e Falso. Esta ação não pode ser desfeita.'
+          : 'Tem certeza que deseja excluir este step? Esta ação não pode ser desfeita.'}
         confirmLabel="Excluir"
         variant="danger"
       />

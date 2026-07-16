@@ -4,6 +4,7 @@ import type { WorkflowEventFieldOption } from '../../../../domain/services/workf
 import { eventNameToRoot, WORKFLOW_CALLED_EVENT, workflowParametersToRoot } from '../../../../domain/services/workflowEventCatalog';
 import type { PathRoot } from '../../../../domain/schema/pathResolver';
 import { resolvePath, stripEventPrefix } from '../../../../domain/schema/pathResolver';
+import type { StepOutputField, WorkflowVariable } from '../ExpressionEditor/autocompleteHelpers';
 import type { SearchSelectOption } from '../SearchSelect';
 import { useScreenDefinitions } from '../../../../stores/useScreenDefinitions';
 import { useSchemaContext } from '../../../shared/useSchemaContext';
@@ -52,6 +53,9 @@ export interface ConditionBuilderViewModel {
   operatorOptions: SearchSelectOption[];
   eventFields: WorkflowEventFieldOption[];
   pathRoot: PathRoot | null;
+  stepOutputFields: StepOutputField[];
+  workflowVariables: WorkflowVariable[];
+  inputRoot: PathRoot | null;
   getLookupValueOptions: (fieldPath: string) => SearchSelectOption[] | null;
   setGroupOperator: (groupId: string, operator: GroupOperator) => void;
   toggleNegated: (nodeId: string) => void;
@@ -212,6 +216,9 @@ export const useConditionBuilderViewModel = (
   focusPath?: number[] | null,
   onFocusHandled?: () => void,
   parameters?: WorkflowParameter[],
+  stepOutputFields: StepOutputField[] = [],
+  workflowVariables: WorkflowVariable[] = [],
+  inputRoot: PathRoot | null = null,
 ): ConditionBuilderViewModel => {
   const { dynamicScreens } = useScreenDefinitions();
 
@@ -407,6 +414,9 @@ export const useConditionBuilderViewModel = (
     operatorOptions: OPERATOR_OPTIONS,
     eventFields,
     pathRoot,
+    stepOutputFields,
+    workflowVariables,
+    inputRoot,
     getLookupValueOptions,
     setGroupOperator,
     toggleNegated,

@@ -35,6 +35,14 @@ export type InputMapping =
   | OutputInputMapping
   | VariableInputMapping;
 
+// Ramos de um nó de controle StepCondition: os Steps executados quando a condição é
+// verdadeira e os executados quando é falsa. Cada ramo é uma sequência própria de Steps
+// (recursiva — pode conter outros StepCondition). Após o ramo, o fluxo converge de volta.
+export interface WorkflowStepBranches {
+  whenTrue: WorkflowStep[];
+  whenFalse: WorkflowStep[];
+}
+
 export interface WorkflowStep {
   id: string;
   stepDefinitionId: string;
@@ -44,6 +52,11 @@ export interface WorkflowStep {
   signature?: string;
   configuration: Record<string, InputMapping>;
   enabled: boolean;
+  // Somente quando type === 'Condition' (nó de controle de fluxo nativo, não um plugin do
+  // StepRegistry). `condition` é avaliada em runtime sobre o contexto acumulado e decide qual
+  // ramo de `branches` executa. `stepDefinitionId` fica vazio nesses nós.
+  condition?: Condition;
+  branches?: WorkflowStepBranches;
 }
 
 // Condições para filtrar quando o workflow deve executar (avaliadas ANTES de qualquer Step)

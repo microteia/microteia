@@ -1957,8 +1957,55 @@ no builder, acessível por atalho nos cartões do diagrama. Em `FieldComparison`
 quanto o valor de `valueType: 'eventField'` usam caminho absoluto no contexto
 ("event.payload.status") e são resolvidos por `getValueByPath(context, ...)`.
 **Preparado só como shape, nunca registrado no `StepRegistry`** (adicionar não exige tocar no
-motor): `ConditionStep`, `DelayStep`, `ScriptStep`, `SubWorkflowStep`, retry/compensação/rollback,
-execução síncrona.
+motor): `DelayStep`, retry/compensação/rollback, execução síncrona. (`ScriptStep` e
+`SubWorkflowStep` já são reais; a ramificação de fluxo — `StepCondition` — é nativa do motor,
+ver abaixo.)
+
+### StepCondition — ramificação de fluxo (nó de controle nativo)
+
+Além da condição de gatilho (avaliada uma vez, antes de qualquer Step), um Workflow pode ramificar
+o fluxo no meio da sequência com um **StepCondition**: um Step de `type: 'Condition'` que **não é
+um plugin do `StepRegistry`** (não tem `StepDefinitionSummary`, `stepDefinitionId` fica vazio) e sim
+um nó de controle tratado nativamente pelo `WorkflowExecutor`. Ele carrega uma `Condition` (reusa o
+mesmo tipo e o mesmo `ConditionEvaluator` da condição de gatilho) e dois ramos:
+`branches.whenTrue` e `branches.whenFalse`, cada um uma **sequência recursiva de Steps** (que pode
+conter outros StepCondition — aninhamento livre).
+
+**Modelo de dados** (`WorkflowStep` em `src/domain/entities/Workflow.ts` e a cópia manual em
+`functions/src/domain/entities/Workflow.ts` — este arquivo **não** está no `sync-schemas.cjs`):
+campos opcionais `condition?: Condition` e `branches?: { whenTrue: WorkflowStep[]; whenFalse:
+WorkflowStep[] }`, usados só quando `type === 'Condition'`. Persiste na mesma coleção via
+`updateWorkflowSteps` (árvore inteira; `branches` são arrays de objetos — permitido no Firestore,
+não há array-de-array). Nenhuma coleção nova nem regra de segurança alterada.
+
+**Execução** (`functions/src/domain/engine/WorkflowExecutor.ts`): o antigo laço plano virou
+`executeSteps(steps, lastStepId)` recursiva. Por nível: `filter(enabled).sort(order)`. Ao encontrar
+um nó `Condition`, monta `context.input` (mesmo flatten das saídas acumuladas dos demais Steps),
+avalia `evaluateCondition(step.condition, context)` (erro → log `ERROR` e falha), registra um log
+`INFO` (com o `stepId` do nó, o booleano e o ramo tomado — aparece na aba Execuções) e **recorre no
+ramo escolhido**; ao retornar, o fluxo **converge** para os Steps seguintes do nível. Só Steps
+efetivamente executados escrevem em `context.outputs`; os outputs finais do workflow são os do
+**último Step executado na travessia** (rastreado por `lastStepId`).
+
+**Escopo de outputs por caminho:** o intellisense de "Saída de outro step" (`priorSteps` em
+`EditWorkflowStep`) passou a ser calculado por `collectPriorSteps(rootSteps, targetId)` em
+`src/presentation/shared/workflowHelpers.ts`: do nó-alvo até a raiz, coleta os irmãos anteriores em
+cada nível (e os anteriores a cada Condição ancestral), **excluindo o outro ramo** e os próprios nós
+de Condição (que não produzem output). Para um Step ainda não inserido, `collectPriorStepsForInsert`
+faz o equivalente a partir do alvo de inserção. O `ConditionBuilder` ganhou props opcionais
+(`stepOutputFields`/`workflowVariables`/`inputRoot`) para que expressões de um StepCondition
+enxerguem as saídas dos Steps anteriores (ex.: decidir com base no resultado de um Script:
+`output.aprovado == true`).
+
+**UI** (`ViewWorkflow`): grafo e lista renderizam a árvore recursivamente (`FlowLevel`/`ListLevel`
+em `ViewWorkflow.view.tsx`); o nó Condição abre duas raias "Verdadeiro"/"Falso" (tokens
+`theme.colors.success`/`warning`) com botões de adicionar Step/Condição por ramo. O drag & drop
+reordena **dentro do mesmo ramo** (identificado por `parentKey`). Toda a manipulação da árvore
+(flatten/find/update/remove/insert/move/reorder) vive em funções puras em `workflowHelpers.ts`.
+Excluir um nó Condição remove seus ramos em cascata. `EditWorkflowStep` edita `step.condition` com o
+`ConditionBuilder` quando o Step é do tipo Condição. Ao copiar/atualizar um workflow público
+(`copyPublicWorkflow`/`updateFromSourceWorkflow`), a coleta e o remapeamento de Scripts/SubWorkflows
+percorrem a árvore via `flattenSteps`/`mapStepTree` (`functions/src/domain/services/stepTree.ts`).
 
 ### Arquivos-chave
 

@@ -79,6 +79,39 @@ export const S = {
     margin: ${({ theme }) => theme.spacing.sm} 0;
   `,
 
+  ConditionToolbar: styled.div`
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+  `,
+
+  ViewToggle: styled.div`
+    display: inline-flex;
+    border: 1px solid ${({ theme }) => theme.colors.border};
+    border-radius: ${({ theme }) => theme.borderRadius.md};
+    overflow: hidden;
+  `,
+
+  ViewToggleBtn: styled.button<{ $active: boolean }>`
+    width: 34px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: ${({ $active, theme }) => ($active ? theme.colors.primaryLight : theme.colors.surface)};
+    color: ${({ $active, theme }) => ($active ? theme.colors.primary : theme.colors.textMuted)};
+    cursor: pointer;
+    transition: ${({ theme }) => theme.transitions.fast};
+
+    & + & {
+      border-left: 1px solid ${({ theme }) => theme.colors.border};
+    }
+
+    &:hover {
+      color: ${({ theme }) => theme.colors.primary};
+    }
+  `,
+
   MappingRow: styled.div`
     display: grid;
     grid-template-columns: 160px 1fr;

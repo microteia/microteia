@@ -14,9 +14,13 @@ import {
   RiListUnordered,
   RiDraggable,
   RiNodeTree,
+  RiGitBranchLine,
 } from 'react-icons/ri';
 import { S } from './ViewWorkflow.styles';
 import { useViewWorkflowViewModel, EVENT_NAME_OPTIONS, LOOKUP_COLLECTION_OPTIONS } from './ViewWorkflow.viewmodel';
+import type { ViewWorkflowViewModel } from './ViewWorkflow.viewmodel';
+import type { WorkflowStep } from '../../../domain/entities/Workflow';
+import type { InsertTarget, BranchKey } from '../../shared/workflowHelpers';
 import { Button } from '../../components/ui/Button';
 import { InputGroup, Label, Input, Textarea } from '../../components/ui/Input';
 import { SearchSelect } from '../../components/ui/SearchSelect';
@@ -28,6 +32,164 @@ import { ConditionDiagram } from '../../components/ui/ConditionDiagram';
 import { AdvancedParametersEditor } from './components/AdvancedParametersEditor';
 import { PARAMETER_TYPE_OPTIONS } from './ViewWorkflow.viewmodel';
 import { getStepDisplayName } from '../../shared/workflowHelpers';
+
+const branchKeyOf = (conditionId: string, branch: BranchKey): string => `${conditionId}:${branch}`;
+
+const branchTarget = (conditionId: string, branch: BranchKey): InsertTarget => ({ kind: 'branch', conditionId, branch });
+
+interface LevelProps {
+  vm: ViewWorkflowViewModel;
+  steps: WorkflowStep[];
+  parentKey: string;
+  target: InsertTarget;
+}
+
+const AddControls: React.FC<{ vm: ViewWorkflowViewModel; target: InsertTarget }> = ({ vm, target }) => (
+  <S.AddRow>
+    <S.AddNodeBtn onClick={() => vm.openAddStep(target)} title="Adicionar step">
+      <RiAddLine size={18} />
+    </S.AddNodeBtn>
+    <S.AddNodeBtn onClick={() => void vm.openAddCondition(target)} title="Adicionar condição">
+      <RiGitBranchLine size={16} />
+    </S.AddNodeBtn>
+  </S.AddRow>
+);
+
+const StepNodeActions: React.FC<{ vm: ViewWorkflowViewModel; step: WorkflowStep }> = ({ vm, step }) => (
+  <S.NodeActions>
+    <S.IconBtn title={step.enabled ? 'Inativar' : 'Ativar'} onClick={() => void vm.toggleStepEnabled(step)}>
+      <S.ToggleIcon $enabled={step.enabled}>
+        <RiToggleLine size={14} />
+      </S.ToggleIcon>
+    </S.IconBtn>
+    <S.IconBtn title="Editar" onClick={() => vm.openEditStep(step)}>
+      <RiEditLine size={14} />
+    </S.IconBtn>
+    <S.IconBtn title="Excluir" onClick={() => vm.handleDeleteStep(step)}>
+      <RiDeleteBinLine size={14} />
+    </S.IconBtn>
+  </S.NodeActions>
+);
+
+const FlowLevel: React.FC<LevelProps> = ({ vm, steps, parentKey, target }) => (
+  <>
+    {steps.map((step, index) => {
+      const definition = vm.getStepDefinition(step.stepDefinitionId);
+      const StepIcon = vm.getStepIconForStep(step);
+      const isCondition = step.type === 'Condition';
+      return (
+      <React.Fragment key={step.id}>
+        <S.FlowConnector
+          $active={vm.draggingStepId !== null && vm.dropTarget?.parentKey === parentKey && vm.dropTarget.index === index}
+          onDragOver={(e) => vm.handleStepDragOverGap(e, parentKey, index)}
+          onDrop={vm.handleStepDrop}
+        />
+        <S.FlowNode
+          draggable
+          $disabled={!step.enabled}
+          $dragging={vm.draggingStepId === step.id}
+          onDragStart={(e) => vm.handleStepDragStart(e, step.id, parentKey)}
+          onDragEnd={vm.handleStepDragEnd}
+          onDragOver={(e) => vm.handleStepDragOverNode(e, parentKey, index)}
+          onDrop={vm.handleStepDrop}
+        >
+          <S.DragHandle title="Arraste para reordenar">
+            <RiDraggable size={16} />
+          </S.DragHandle>
+          <S.StepOrder>{index + 1}</S.StepOrder>
+          <S.NodeIconBox>
+            <StepIcon size={18} />
+          </S.NodeIconBox>
+          <S.NodeBody>
+            <S.NodeTitle>{getStepDisplayName(step, definition)}</S.NodeTitle>
+            <S.NodeType>{isCondition ? vm.getConditionSummary(step) : vm.getStepTypeLabel(step)}</S.NodeType>
+          </S.NodeBody>
+          <S.NodeStatusDot $enabled={step.enabled} title={step.enabled ? 'Ativo' : 'Inativo'} />
+          <StepNodeActions vm={vm} step={step} />
+        </S.FlowNode>
+        {step.type === 'Condition' && step.branches && (
+          <S.BranchSplit>
+            {(['whenTrue', 'whenFalse'] as BranchKey[]).map((branch) => (
+              <S.BranchLane key={branch} $variant={branch === 'whenTrue' ? 'true' : 'false'}>
+                <S.BranchLabel $variant={branch === 'whenTrue' ? 'true' : 'false'}>
+                  {branch === 'whenTrue' ? 'Verdadeiro' : 'Falso'}
+                </S.BranchLabel>
+                <FlowLevel
+                  vm={vm}
+                  steps={step.branches![branch]}
+                  parentKey={branchKeyOf(step.id, branch)}
+                  target={branchTarget(step.id, branch)}
+                />
+              </S.BranchLane>
+            ))}
+          </S.BranchSplit>
+        )}
+      </React.Fragment>
+      );
+    })}
+    <S.FlowConnector
+      $dashed
+      $active={vm.draggingStepId !== null && vm.dropTarget?.parentKey === parentKey && vm.dropTarget.index === steps.length}
+      onDragOver={(e) => vm.handleStepDragOverGap(e, parentKey, steps.length)}
+      onDrop={vm.handleStepDrop}
+    />
+    <AddControls vm={vm} target={target} />
+  </>
+);
+
+const ListLevel: React.FC<{ vm: ViewWorkflowViewModel; steps: WorkflowStep[] }> = ({ vm, steps }) => (
+  <>
+    {steps.map((step, index) => {
+      const definition = vm.getStepDefinition(step.stepDefinitionId);
+      const StepIcon = vm.getStepIconForStep(step);
+      const isCondition = step.type === 'Condition';
+      return (
+        <React.Fragment key={step.id}>
+          <S.StepRow $disabled={!step.enabled}>
+            <S.StepOrder>{index + 1}</S.StepOrder>
+            <S.StepIcon>
+              <StepIcon size={18} />
+            </S.StepIcon>
+            <S.StepInfo>
+              <S.StepName>{getStepDisplayName(step, definition)}</S.StepName>
+              {isCondition
+                ? <S.StepDescription>{vm.getConditionSummary(step)}</S.StepDescription>
+                : definition?.description && <S.StepDescription>{definition.description}</S.StepDescription>}
+            </S.StepInfo>
+            <S.StepActions>
+              <S.IconBtn title={step.enabled ? 'Inativar' : 'Ativar'} onClick={() => void vm.toggleStepEnabled(step)}>
+                <S.ToggleIcon $enabled={step.enabled}>
+                  <RiToggleLine size={14} />
+                </S.ToggleIcon>
+              </S.IconBtn>
+              <S.IconBtn title="Mover para cima" disabled={index === 0} onClick={() => void vm.moveStep(step, 'up')}>
+                <RiArrowUpLine size={14} />
+              </S.IconBtn>
+              <S.IconBtn title="Mover para baixo" disabled={index === steps.length - 1} onClick={() => void vm.moveStep(step, 'down')}>
+                <RiArrowDownLine size={14} />
+              </S.IconBtn>
+              <S.IconBtn title="Editar" onClick={() => vm.openEditStep(step)}>
+                <RiEditLine size={14} />
+              </S.IconBtn>
+              <S.IconBtn title="Excluir" onClick={() => vm.handleDeleteStep(step)}>
+                <RiDeleteBinLine size={14} />
+              </S.IconBtn>
+            </S.StepActions>
+          </S.StepRow>
+          {isCondition && step.branches && (['whenTrue', 'whenFalse'] as BranchKey[]).map((branch) => (
+            <S.BranchListGroup key={branch} $variant={branch === 'whenTrue' ? 'true' : 'false'}>
+              <S.BranchLabel $variant={branch === 'whenTrue' ? 'true' : 'false'}>
+                {branch === 'whenTrue' ? 'Verdadeiro' : 'Falso'}
+              </S.BranchLabel>
+              <ListLevel vm={vm} steps={step.branches![branch]} />
+              <AddControls vm={vm} target={branchTarget(step.id, branch)} />
+            </S.BranchListGroup>
+          ))}
+        </React.Fragment>
+      );
+    })}
+  </>
+);
 
 export const ViewWorkflowView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
   const vm = useViewWorkflowViewModel(tabKey);
@@ -95,10 +257,10 @@ export const ViewWorkflowView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
               <RiSaveLine size={14} />
             </S.SaveBtn>
           )}
-          {vm.activeTab === 'conditions' && !vm.isNew && (
+          {vm.activeTab === 'conditions' && !vm.isNew && vm.conditionChanged && (
             <S.SaveBtn
               onClick={() => void vm.handleSaveCondition()}
-              disabled={vm.isSaving || !vm.conditionChanged}
+              disabled={vm.isSaving}
               title={vm.isSaving ? 'Salvando...' : 'Salvar'}
             >
               <RiSaveLine size={14} />
@@ -287,7 +449,7 @@ export const ViewWorkflowView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
 
       {vm.activeTab === 'steps' && !vm.isNew && (
         <S.Content>
-          <S.ContentInner>
+          <S.StepsContentInner>
             <S.StepsToolbar>
               <S.ViewToggle>
                 <S.ViewToggleBtn
@@ -306,7 +468,7 @@ export const ViewWorkflowView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
                 </S.ViewToggleBtn>
               </S.ViewToggle>
               {vm.stepsViewMode === 'list' && (
-                <Button onClick={vm.openAddStep} title="Adicionar step">
+                <Button onClick={() => vm.openAddStep()} title="Adicionar step">
                   <RiAddLine size={14} />
                 </Button>
               )}
@@ -322,69 +484,7 @@ export const ViewWorkflowView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
                   </S.TriggerText>
                 </S.TriggerNode>
 
-                {vm.steps.map((step, index) => {
-                  const definition = vm.getStepDefinition(step.stepDefinitionId);
-                  const StepIcon = vm.getStepIcon(step.stepDefinitionId);
-                  return (
-                    <React.Fragment key={step.id}>
-                      <S.FlowConnector
-                        $active={vm.draggingStepId !== null && vm.dropTargetIndex === index}
-                        onDragOver={(e) => vm.handleStepDragOverGap(e, index)}
-                        onDrop={vm.handleStepDrop}
-                      />
-                      <S.FlowNode
-                        draggable
-                        $disabled={!step.enabled}
-                        $dragging={vm.draggingStepId === step.id}
-                        onDragStart={(e) => vm.handleStepDragStart(e, step.id)}
-                        onDragEnd={vm.handleStepDragEnd}
-                        onDragOver={(e) => vm.handleStepDragOverNode(e, index)}
-                        onDrop={vm.handleStepDrop}
-                      >
-                        <S.DragHandle title="Arraste para reordenar">
-                          <RiDraggable size={16} />
-                        </S.DragHandle>
-                        <S.StepOrder>{index + 1}</S.StepOrder>
-                        <S.NodeIconBox>
-                          <StepIcon size={18} />
-                        </S.NodeIconBox>
-                        <S.NodeBody>
-                          <S.NodeTitle>{getStepDisplayName(step, definition)}</S.NodeTitle>
-                          <S.NodeType>{vm.getStepTypeLabel(step)}</S.NodeType>
-                        </S.NodeBody>
-                        <S.NodeStatusDot $enabled={step.enabled} title={step.enabled ? 'Ativo' : 'Inativo'} />
-                        <S.NodeActions>
-                          <S.IconBtn title={step.enabled ? 'Inativar' : 'Ativar'} onClick={() => void vm.toggleStepEnabled(step)}>
-                            <S.ToggleIcon $enabled={step.enabled}>
-                              <RiToggleLine size={14} />
-                            </S.ToggleIcon>
-                          </S.IconBtn>
-                          <S.IconBtn title="Editar" onClick={() => vm.openEditStep(step)}>
-                            <RiEditLine size={14} />
-                          </S.IconBtn>
-                          <S.IconBtn title="Excluir" onClick={() => vm.handleDeleteStep(step)}>
-                            <RiDeleteBinLine size={14} />
-                          </S.IconBtn>
-                        </S.NodeActions>
-                      </S.FlowNode>
-                    </React.Fragment>
-                  );
-                })}
-
-                <S.FlowConnector
-                  $dashed
-                  $active={vm.draggingStepId !== null && vm.dropTargetIndex === vm.steps.length}
-                  onDragOver={(e) => vm.handleStepDragOverGap(e, vm.steps.length)}
-                  onDrop={vm.handleStepDrop}
-                />
-                <S.AddNodeBtn
-                  onClick={vm.openAddStep}
-                  title="Adicionar step"
-                  onDragOver={(e) => vm.handleStepDragOverGap(e, vm.steps.length)}
-                  onDrop={vm.handleStepDrop}
-                >
-                  <RiAddLine size={18} />
-                </S.AddNodeBtn>
+                <FlowLevel vm={vm} steps={vm.steps} parentKey="root" target={{ kind: 'root' }} />
               </S.FlowCanvas>
             )}
 
@@ -396,41 +496,7 @@ export const ViewWorkflowView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
                 </S.EmptyState>
               ) : (
                 <S.List>
-                  {vm.steps.map((step, index) => {
-                    const definition = vm.getStepDefinition(step.stepDefinitionId);
-                    const StepIcon = vm.getStepIcon(step.stepDefinitionId);
-                    return (
-                      <S.StepRow key={step.id}>
-                        <S.StepOrder>{index + 1}</S.StepOrder>
-                        <S.StepIcon>
-                          <StepIcon size={18} />
-                        </S.StepIcon>
-                        <S.StepInfo>
-                          <S.StepName>{getStepDisplayName(step, definition)}</S.StepName>
-                          {definition?.description && <S.StepDescription>{definition.description}</S.StepDescription>}
-                        </S.StepInfo>
-                        <S.StepActions>
-                          <S.IconBtn title={step.enabled ? 'Inativar' : 'Ativar'} onClick={() => void vm.toggleStepEnabled(step)}>
-                            <S.ToggleIcon $enabled={step.enabled}>
-                              <RiToggleLine size={14} />
-                            </S.ToggleIcon>
-                          </S.IconBtn>
-                          <S.IconBtn title="Mover para cima" disabled={index === 0} onClick={() => void vm.moveStep(step, 'up')}>
-                            <RiArrowUpLine size={14} />
-                          </S.IconBtn>
-                          <S.IconBtn title="Mover para baixo" disabled={index === vm.steps.length - 1} onClick={() => void vm.moveStep(step, 'down')}>
-                            <RiArrowDownLine size={14} />
-                          </S.IconBtn>
-                          <S.IconBtn title="Editar" onClick={() => vm.openEditStep(step)}>
-                            <RiEditLine size={14} />
-                          </S.IconBtn>
-                          <S.IconBtn title="Excluir" onClick={() => vm.handleDeleteStep(step)}>
-                            <RiDeleteBinLine size={14} />
-                          </S.IconBtn>
-                        </S.StepActions>
-                      </S.StepRow>
-                    );
-                  })}
+                  <ListLevel vm={vm} steps={vm.steps} />
                 </S.List>
               )
             )}
@@ -439,12 +505,16 @@ export const ViewWorkflowView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
               isOpen={!!vm.stepToDelete}
               onConfirm={() => void vm.confirmDeleteStep()}
               onCancel={vm.cancelDeleteStep}
-              title="Excluir Step"
-              message="Tem certeza que deseja excluir este step? Esta ação não pode ser desfeita."
+              title={vm.stepToDelete?.type === 'Condition' ? 'Excluir Condição' : 'Excluir Step'}
+              message={
+                vm.stepToDelete?.type === 'Condition'
+                  ? 'Excluir esta condição também remove todos os steps dos ramos Verdadeiro e Falso. Esta ação não pode ser desfeita.'
+                  : 'Tem certeza que deseja excluir este step? Esta ação não pode ser desfeita.'
+              }
               confirmLabel="Excluir"
               variant="danger"
             />
-          </S.ContentInner>
+          </S.StepsContentInner>
         </S.Content>
       )}
 
@@ -487,11 +557,11 @@ export const ViewWorkflowView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
                       )}
 
                       {stepLogs.map((log, i) => {
-                        const step = log.stepId ? vm.steps.find((s) => s.id === log.stepId) : undefined;
+                        const step = log.stepId ? vm.getStepById(log.stepId) : undefined;
                         const definition = log.stepDefinitionId ? vm.getStepDefinition(log.stepDefinitionId) : undefined;
                         const stepName = step ? getStepDisplayName(step, definition) : (definition?.name || log.stepDefinitionId || 'Step');
                         const isExpanded = vm.isStepResultExpanded(execution.id, log.stepId || String(i));
-                        const StepIcon = log.stepDefinitionId ? vm.getStepIcon(log.stepDefinitionId) : RiFlowChart;
+                        const StepIcon = step ? vm.getStepIconForStep(step) : (log.stepDefinitionId ? vm.getStepIcon(log.stepDefinitionId) : RiFlowChart);
                         const status = vm.getStepLogStatus(log);
 
                         return (

@@ -1,20 +1,29 @@
 import styled from 'styled-components';
 
 const NodeActions = styled.div`
+  position: absolute;
+  top: 50%;
+  right: ${({ theme }) => theme.spacing.sm};
+  transform: translateY(-50%);
   display: flex;
   align-items: center;
   gap: 4px;
-  flex-shrink: 0;
+  padding: 4px;
+  border-radius: ${({ theme }) => theme.borderRadius.md};
+  background: ${({ theme }) => theme.colors.surface};
+  box-shadow: 0 2px 8px ${({ theme }) => theme.colors.shadow};
   opacity: 0;
+  pointer-events: none;
   transition: opacity ${({ theme }) => theme.transitions.fast};
 `;
 
 const FlowNode = styled.div<{ $disabled?: boolean; $dragging?: boolean }>`
+  position: relative;
   width: 100%;
   max-width: 520px;
   display: flex;
   align-items: center;
-  gap: ${({ theme }) => theme.spacing.md};
+  gap: ${({ theme }) => theme.spacing.sm};
   background: ${({ theme }) => theme.colors.surface};
   border: 1px ${({ $disabled }) => ($disabled ? 'dashed' : 'solid')} ${({ theme }) => theme.colors.border};
   border-radius: ${({ theme }) => theme.borderRadius.lg};
@@ -30,6 +39,7 @@ const FlowNode = styled.div<{ $disabled?: boolean; $dragging?: boolean }>`
 
   &:hover ${NodeActions}, &:focus-within ${NodeActions} {
     opacity: 1;
+    pointer-events: auto;
   }
 `;
 
@@ -182,6 +192,11 @@ export const S = {
 
   ContentInner: styled.div`
     max-width: 720px;
+  `,
+
+  StepsContentInner: styled.div`
+    max-width: 1100px;
+    margin: 0 auto;
   `,
 
   Form: styled.div`
@@ -350,14 +365,85 @@ export const S = {
     }
   `,
 
-  StepRow: styled.div`
+  AddRow: styled.div`
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: ${({ theme }) => theme.spacing.sm};
+  `,
+
+  BranchSplit: styled.div`
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    gap: ${({ theme }) => theme.spacing.lg};
+    width: 100%;
+    margin-top: ${({ theme }) => theme.spacing.sm};
+    overflow-x: auto;
+  `,
+
+  BranchLane: styled.div<{ $variant: 'true' | 'false' }>`
+    flex: 1 1 0;
+    min-width: 320px;
+    max-width: 560px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: ${({ theme }) => theme.spacing.xs};
+    padding: ${({ theme }) => theme.spacing.md};
+    border: 1px solid ${({ theme }) => theme.colors.border};
+    border-radius: ${({ theme }) => theme.borderRadius.lg};
+    background: ${({ theme }) => theme.colors.surface};
+  `,
+
+  BranchLabel: styled.span<{ $variant: 'true' | 'false' }>`
+    align-self: flex-start;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 10px;
+    border-radius: ${({ theme }) => theme.borderRadius.full};
+    background: ${({ theme }) => theme.colors.surfaceHover};
+    border: 1px solid ${({ theme }) => theme.colors.border};
+    color: ${({ theme }) => theme.colors.textSecondary};
+    font-size: ${({ theme }) => theme.fontSizes.xs};
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+
+    &::before {
+      content: '';
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: ${({ $variant, theme }) => ($variant === 'true' ? theme.colors.revenue : theme.colors.danger)};
+    }
+  `,
+
+  BranchEmpty: styled.div`
+    font-size: ${({ theme }) => theme.fontSizes.xs};
+    color: ${({ theme }) => theme.colors.textMuted};
+    padding: ${({ theme }) => theme.spacing.xs} 0;
+  `,
+
+  BranchListGroup: styled.div<{ $variant: 'true' | 'false' }>`
+    display: flex;
+    flex-direction: column;
+    gap: ${({ theme }) => theme.spacing.sm};
+    margin: ${({ theme }) => theme.spacing.xs} 0 ${({ theme }) => theme.spacing.xs} ${({ theme }) => theme.spacing.lg};
+    padding-left: ${({ theme }) => theme.spacing.md};
+    border-left: 2px solid ${({ theme }) => theme.colors.border};
+  `,
+
+  StepRow: styled.div<{ $disabled?: boolean }>`
     display: flex;
     align-items: center;
     gap: ${({ theme }) => theme.spacing.md};
     background: ${({ theme }) => theme.colors.surface};
-    border: 1px solid ${({ theme }) => theme.colors.border};
+    border: 1px ${({ $disabled }) => ($disabled ? 'dashed' : 'solid')} ${({ theme }) => theme.colors.border};
     border-radius: ${({ theme }) => theme.borderRadius.lg};
     padding: ${({ theme }) => theme.spacing.md};
+    opacity: ${({ $disabled }) => ($disabled ? 0.65 : 1)};
   `,
 
   StepOrder: styled.div`

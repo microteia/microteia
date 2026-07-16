@@ -11,6 +11,11 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [0.85.0] — 2026-07-15
+
+- As automações agora podem ramificar o fluxo: um novo passo de Condição avalia uma regra durante a execução e decide quais passos seguintes rodam quando o resultado é Verdadeiro e quais rodam quando é Falso. Depois dos ramos, o fluxo volta a seguir normalmente. As condições podem ser aninhadas e continuam aproveitando as saídas dos passos anteriores.
+- A tela de passos ganhou a visualização do fluxo com trilhas coloridas de "Verdadeiro" e "Falso", além da lista indentada equivalente, para acompanhar visualmente cada caminho da automação.
+
 ## [0.84.0] — 2026-07-15
 
 - Os parâmetros de uma automação (e as entradas e saídas de um Script) agora podem ser marcados como "Vários", permitindo receber uma lista de valores do mesmo tipo — seja uma lista simples, como etiquetas, ou uma lista de fichas completas, como itens com descrição e valor. A opção fica disponível para todos os tipos de campo, tanto no editor visual quanto no modo avançado.
