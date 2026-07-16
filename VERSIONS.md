@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [0.87.0] — 2026-07-16
+
+- O passo "Montar Objeto" das automações ficou mais flexível: o nome do objeto agora é opcional. Quando você dá um nome, os campos continuam agrupados num único objeto (ideal para gravar um cadastro de uma vez). Quando deixa o nome em branco, cada campo montado fica disponível diretamente para os próximos passos, sem precisar navegar por um objeto.
+
 ## [0.86.0] — 2026-07-16
 
 - As automações agora podem repetir passos para cada item de uma lista: o novo passo de Repetição recebe uma lista (ou um item único) e executa a sequência de passos do seu corpo uma vez para cada item. Ao final, os resultados de todas as repetições ficam reunidos numa lista, disponível para o próximo passo da automação. As repetições podem ser aninhadas e aproveitam normalmente as saídas dos passos anteriores.

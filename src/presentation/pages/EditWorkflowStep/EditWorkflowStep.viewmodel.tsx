@@ -49,7 +49,19 @@ const mapConfigOf = (
   const mapping = step.configuration[definition.dynamicOutputs.sourceInputId];
   if (!mapping || mapping.kind !== 'Literal' || !mapping.value || typeof mapping.value !== 'object') return null;
   const config = mapping.value as MapStepConfig;
-  return config.name?.trim() ? config : null;
+  if (!Array.isArray(config.fields)) return null;
+  const hasNamedField = config.fields.some((field) => field?.name?.trim());
+  return config.name?.trim() || hasNamedField ? config : null;
+};
+
+// Nomes de saída expostos por um MapStepConfig: o nome do objeto no modo nomeado;
+// cada campo nomeado no modo sem-nome (os campos ficam espalhados na raiz da saída).
+const mapOutputNames = (config: MapStepConfig): string[] => {
+  const name = config.name?.trim();
+  if (name) return [name];
+  return (config.fields ?? [])
+    .map((field) => field.name?.trim())
+    .filter((fieldName): fieldName is string => !!fieldName);
 };
 
 // O Step "Validar Objeto" tem a mesma forma de saída do "Montar Objeto" (um objeto nomeado, com
@@ -474,7 +486,9 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
       });
       const mapConfig = objectOutputConfigOf(step, definition);
       if (mapConfig) {
-        fields.push({ stepId: step.id, stepName, outputId: mapConfig.name, outputLabel: mapConfig.name });
+        mapOutputNames(mapConfig).forEach((name) => {
+          fields.push({ stepId: step.id, stepName, outputId: name, outputLabel: name });
+        });
       }
     });
     return fields;
@@ -503,23 +517,32 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
 
       const mapConfig = objectOutputConfigOf(step, definition);
       if (mapConfig) {
-        fields.push(
-          mapConfig.type
-            ? workflowParameterToNativeField({
-                key: mapConfig.name,
-                label: mapConfig.name,
-                type: 'EntityReference',
-                entityType: mapConfig.type,
-              } as WorkflowParameter)
-            : {
-                key: mapConfig.name,
-                label: mapConfig.name,
-                type: 'object',
-                objectFields: mapConfig.fields
-                  .filter((field) => field.name?.trim())
-                  .map((field) => ({ key: field.name, label: field.name, type: 'string' as const })),
-              },
-        );
+        const name = mapConfig.name?.trim();
+        if (name) {
+          fields.push(
+            mapConfig.type
+              ? workflowParameterToNativeField({
+                  key: name,
+                  label: name,
+                  type: 'EntityReference',
+                  entityType: mapConfig.type,
+                } as WorkflowParameter)
+              : {
+                  key: name,
+                  label: name,
+                  type: 'object',
+                  objectFields: mapConfig.fields
+                    .filter((field) => field.name?.trim())
+                    .map((field) => ({ key: field.name, label: field.name, type: 'string' as const })),
+                },
+          );
+        } else {
+          mapConfig.fields
+            .filter((field) => field.name?.trim())
+            .forEach((field) => {
+              fields.push({ key: field.name, label: field.name, type: 'string' as const });
+            });
+        }
       }
     });
     return { kind: 'fields', fields, hasOld: false };
@@ -571,7 +594,10 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
 
     const mapConfig = objectOutputConfigOf(step, definition);
     if (mapConfig) {
-      outputs.push({ value: mapConfig.name, label: `${mapConfig.name} (objeto)` });
+      const suffix = mapConfig.name?.trim() ? '(objeto)' : '(campo)';
+      mapOutputNames(mapConfig).forEach((name) => {
+        outputs.push({ value: name, label: `${name} ${suffix}` });
+      });
     }
 
     return outputs;

@@ -84,7 +84,8 @@ export type DynamicOutputsMetadata =
     }
   | {
       kind: 'from-map-config';
-      /** ID do input do tipo 'Map' cujo MapStepConfig define a saída `<name>` (objeto tipado por `type`). */
+      /** ID do input do tipo 'Map'. Com `name`, a saída é o objeto nomeado `<name>` (tipado por `type`);
+       *  sem `name`, cada campo do MapStepConfig vira uma saída direta na raiz do step. */
       sourceInputId: string;
       description?: string;
     };

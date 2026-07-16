@@ -14,13 +14,17 @@ export const MapBuilderControl: React.FC<MapBuilderControlProps> = (props) => {
   return (
     <S.Container>
       <S.Section>
-        <S.SectionTitle>Nome do objeto</S.SectionTitle>
+        <S.SectionTitle>Nome do objeto (opcional)</S.SectionTitle>
         <Input
-          value={config.name}
+          value={config.name ?? ''}
           onChange={(e) => vm.setName(e.target.value)}
           placeholder="ex: person"
         />
-        <S.HelpText>Este nome fica disponível para os próximos steps como input.{config.name || 'nome'}.</S.HelpText>
+        <S.HelpText>
+          {config.name?.trim()
+            ? `Os campos ficam agrupados num objeto: input.${config.name.trim()}.`
+            : 'Sem nome, cada campo fica disponível diretamente para os próximos steps (input.<campo>).'}
+        </S.HelpText>
       </S.Section>
 
       <S.Section>

@@ -6,7 +6,7 @@ export interface MapFieldMapping {
 }
 
 export interface MapStepConfig {
-  name: string;
+  name?: string;
   type?: string;
   fields: MapFieldMapping[];
 }

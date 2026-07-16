@@ -7,7 +7,7 @@ export const makeMapStepDefinition = (): StepDefinition => ({
   version: 1,
   name: 'Montar Objeto',
   description:
-    'Monta um objeto de saída nomeado a partir de campos mapeados (nome e valor). Útil para preparar os dados de um cadastro e depois gravá-los com o step Gravar Registro.',
+    'Monta campos a partir de mapeamentos (nome e valor). Com um nome informado, agrupa tudo num objeto nomeado (útil para gravar com o step Gravar Registro). Sem nome, cada campo fica disponível diretamente como saída do step.',
   icon: 'RiBracketsLine',
   category: 'Data',
   type: 'Action',
@@ -30,20 +30,29 @@ export const makeMapStepDefinition = (): StepDefinition => ({
   createExecutor: (): WorkflowStepExecutor => ({
     execute: async (inputs, context) => {
       const config = inputs.map as MapStepConfig | undefined;
-      if (!config || typeof config !== 'object' || !config.name?.trim()) {
+      if (!config || typeof config !== 'object' || !Array.isArray(config.fields)) {
         return { success: false, message: 'Montagem de objeto não configurada' };
       }
 
       const object: Record<string, unknown> = {};
-      for (const field of config.fields ?? []) {
+      for (const field of config.fields) {
         if (!field?.name?.trim()) continue;
         object[field.name] = resolveMapping(field.value, context);
       }
 
+      const name = config.name?.trim();
+      if (name) {
+        return {
+          success: true,
+          message: `Objeto "${name}" montado`,
+          outputs: { [name]: object },
+        };
+      }
+
       return {
         success: true,
-        message: `Objeto "${config.name}" montado`,
-        outputs: { [config.name]: object },
+        message: 'Campos montados',
+        outputs: object,
       };
     },
   }),
