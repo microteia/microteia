@@ -25,14 +25,18 @@ export const NotificationBanner: React.FC = () => {
   return (
     <S.BannerContainer>
       {vm.visibleNotifications.map(n => (
-        <S.NotificationItem key={n.id} $variant={n.variant} $exiting={vm.exitingIds.has(n.id)}>
+        <S.NotificationItem
+          key={n.id}
+          $variant={n.variant}
+          $exiting={vm.exitingIds.has(n.id)}
+          onMouseEnter={() => vm.handleMouseEnter(n.id)}
+          onMouseLeave={() => vm.handleMouseLeave(n.id)}
+        >
           <S.Icon $variant={n.variant}>{ICONS[n.variant]}</S.Icon>
           <S.Message>{n.message}</S.Message>
-          {n.variant !== 'success' && (
-            <S.CloseButton onClick={() => vm.handleDismiss(n.id)} aria-label="Fechar">
-              <RiCloseLine size={15} />
-            </S.CloseButton>
-          )}
+          <S.CloseButton onClick={() => vm.handleDismiss(n.id)} aria-label="Fechar">
+            <RiCloseLine size={15} />
+          </S.CloseButton>
         </S.NotificationItem>
       ))}
 

@@ -52,7 +52,7 @@ export const S = {
     overflow: hidden;
     pointer-events: auto;
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     gap: ${({ theme }) => theme.spacing.sm};
     padding: 12px ${({ theme }) => theme.spacing.md};
     border-left: 4px solid ${({ theme, $variant }) => variantAccent($variant, theme)};
@@ -82,14 +82,17 @@ export const S = {
     display: flex;
     align-items: center;
     flex-shrink: 0;
+    margin-top: 2px;
   `,
 
   Message: styled.p`
     flex: 1;
+    min-width: 0;
     margin: 0;
     font-size: ${({ theme }) => theme.fontSizes.sm};
     color: ${({ theme }) => theme.colors.text};
     line-height: 1.45;
+    overflow-wrap: anywhere;
   `,
 
   CloseButton: styled.button`

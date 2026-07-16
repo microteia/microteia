@@ -11,6 +11,11 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [0.90.0] — 2026-07-16
+
+- As mensagens de aviso e de erro que aparecem no topo da tela agora desaparecem sozinhas depois de 10 segundos. Basta manter o mouse sobre a mensagem para pausar essa contagem e lê-la com calma — ao tirar o mouse, ela volta a se fechar automaticamente. Também é possível fechá-la na hora clicando no "x".
+- Corrigido um problema em que o botão de fechar ("x") sumia quando a mensagem de erro era muito longa. Agora o texto quebra em várias linhas e o "x" continua sempre visível.
+
 ## [0.89.1] — 2026-07-16
 
 - Corrigido um erro ao salvar steps de automação com campos opcionais deixados em branco, como validar o objeto inteiro sem informar uma propriedade específica.
