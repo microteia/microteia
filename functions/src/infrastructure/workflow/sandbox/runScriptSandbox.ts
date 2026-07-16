@@ -171,15 +171,34 @@ export async function runScriptSandbox(
     vm.setProp(vm.global, 'input', inputHandle);
     inputHandle.dispose();
 
+    const formatLogArgs = (args: QuickJSHandle[]): string =>
+      args
+        .map((h) => {
+          const value = vmValueToHost(h);
+          return typeof value === 'string' ? value : hostStringify(value);
+        })
+        .join(' ');
+
     const logHandle = vm.newFunction('log', (...args) => {
-      const parts = args.map((h) => {
-        const value = vmValueToHost(h);
-        return typeof value === 'string' ? value : hostStringify(value);
-      });
-      context.logger.info(parts.join(' '));
+      context.logger.info(formatLogArgs(args));
     });
     vm.setProp(vm.global, 'log', logHandle);
     logHandle.dispose();
+
+    const consoleObject = vm.newObject();
+    const registerConsoleMethod = (name: string, sink: (message: string) => void): void => {
+      const handle = vm.newFunction(name, (...args) => {
+        sink(formatLogArgs(args));
+      });
+      vm.setProp(consoleObject, name, handle);
+      handle.dispose();
+    };
+    registerConsoleMethod('log', (m) => context.logger.info(m));
+    registerConsoleMethod('info', (m) => context.logger.info(m));
+    registerConsoleMethod('warn', (m) => context.logger.warn(m));
+    registerConsoleMethod('error', (m) => context.logger.error(m));
+    vm.setProp(vm.global, 'console', consoleObject);
+    consoleObject.dispose();
 
     const queryHandle = vm.newFunction('query', (specHandle) => {
       const deferred = vm.newPromise();

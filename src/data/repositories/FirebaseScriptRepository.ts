@@ -13,8 +13,13 @@ import {
   serverTimestamp,
   onSnapshot,
 } from 'firebase/firestore';
-import { db } from '../../infrastructure/firebase/config';
-import type { IScriptRepository } from '../../domain/repositories/IScriptRepository';
+import { httpsCallable } from 'firebase/functions';
+import { db, functions } from '../../infrastructure/firebase/config';
+import type {
+  IScriptRepository,
+  RunScriptInput,
+  RunScriptResult,
+} from '../../domain/repositories/IScriptRepository';
 import type { Script, ScriptOutputParam } from '../../domain/entities/Script';
 import type { WorkflowParameter } from '../../domain/entities/Workflow';
 
@@ -36,6 +41,12 @@ const mapScript = (id: string, d: Record<string, unknown>, tenantId: string): Sc
 });
 
 export class FirebaseScriptRepository implements IScriptRepository {
+  async runScript(input: RunScriptInput): Promise<RunScriptResult> {
+    const call = httpsCallable<RunScriptInput, RunScriptResult>(functions, 'runScript');
+    const result = await call(input);
+    return result.data;
+  }
+
   async getScripts(tenantId: string): Promise<Script[]> {
     const q = query(scriptsRef(tenantId), orderBy('name', 'asc'), limit(500));
     const snap = await getDocs(q);

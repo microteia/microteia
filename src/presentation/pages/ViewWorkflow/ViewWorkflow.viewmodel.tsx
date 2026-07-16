@@ -34,6 +34,7 @@ import {
 } from '../../shared/workflowHelpers';
 import type { InsertTarget } from '../../shared/workflowHelpers';
 import type { WorkflowDefinition, WorkflowExecution, WorkflowStep, Condition, WorkflowParameter } from '../../../domain/entities/Workflow';
+import type { RunModalResult } from '../../components/ui/RunModal';
 import type { StepDefinitionSummary, StepCategory } from '../../../domain/entities/WorkflowStepCatalog';
 
 export type ViewWorkflowTab = 'general' | 'conditions' | 'steps' | 'executions';
@@ -221,6 +222,25 @@ export interface ViewWorkflowViewModel {
   sourceWorkflowVersion: number | null;
   handleUpdateFromSource: () => Promise<void>;
   isUpdating: boolean;
+  canRunWorkflow: boolean;
+  runWorkflowDisabledReason: string | null;
+  runModalOpen: boolean;
+  runModalParameters: WorkflowParameter[];
+  openRunModal: () => void;
+  closeRunModal: () => void;
+  runWorkflowForModal: (providedParams: Record<string, unknown>) => Promise<RunModalResult>;
+}
+
+const RUN_EXECUTION_TIMEOUT_MS = 60000;
+
+const mapExecutionToRunResult = (exec: WorkflowExecution): RunModalResult => {
+  const lastError = [...exec.logs].reverse().find((entry) => entry.level === 'ERROR');
+  return {
+    status: exec.status === 'RUNNING' ? null : exec.status,
+    outputs: exec.outputs ?? null,
+    logs: exec.logs.map((entry) => ({ level: entry.level, message: entry.message })),
+    error: exec.status === 'SUCCESS' ? null : (lastError?.message ?? null),
+  };
 }
 
 const CLONE_PREFIX = 'new-workflow:clone:';
@@ -236,7 +256,7 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
   const { currentTenant } = useTenant();
   const { setTabTitle, closeTab, openTab, activePanelId } = useWorkspace();
   const { notify } = useNotification();
-  const { workflowExecutionRepository } = useDI();
+  const { workflowExecutionRepository, dataProcessorRepository } = useDI();
   const { dynamicScreens, getDefinition } = useScreenDefinitions();
   const { stepCatalog, loadCatalog } = useStepCatalog();
 
@@ -253,6 +273,7 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
   const [activeTab, setActiveTab] = useState<ViewWorkflowTab>(initialTab);
   const [formData, setFormDataState] = useState<WorkflowFormData>(() => buildForm(cloneSource));
   const [isSaving, setIsSaving] = useState(false);
+  const [runModalOpen, setRunModalOpen] = useState(false);
   const [executions, setExecutions] = useState<WorkflowExecution[]>([]);
   const [executionsError, setExecutionsError] = useState<string | null>(null);
   const [stepToDelete, setStepToDelete] = useState<WorkflowStep | null>(null);
@@ -889,6 +910,87 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
     return 'INFO';
   }, []);
 
+  const canRunWorkflow = useMemo(
+    () => !!workflow && isCalledEventName(workflow.eventName),
+    [workflow],
+  );
+
+  const runWorkflowDisabledReason = useMemo(() => {
+    if (!workflow) return 'Salve a automação antes de executar.';
+    if (!isCalledEventName(workflow.eventName)) {
+      return 'Só automações do tipo "Chamada por outro workflow" podem ser executadas aqui.';
+    }
+    return null;
+  }, [workflow]);
+
+  const runModalParameters = useMemo(() => workflow?.parameters ?? [], [workflow]);
+
+  const openRunModal = useCallback(() => setRunModalOpen(true), []);
+  const closeRunModal = useCallback(() => setRunModalOpen(false), []);
+
+  const runWorkflowForModal = useCallback(
+    async (providedParams: Record<string, unknown>): Promise<RunModalResult> => {
+      if (!currentTenant || !workflow) {
+        return { status: 'FAILED', outputs: null, logs: [], error: 'Automação não encontrada.' };
+      }
+      const tenantId = currentTenant.id;
+      const targetWorkflowId = workflow.id;
+
+      let eventId: string;
+      try {
+        const res = await dataProcessorRepository.runWorkflow({ tenantId, targetWorkflowId, providedParams });
+        eventId = res.eventId;
+      } catch (error) {
+        return {
+          status: 'FAILED',
+          outputs: null,
+          logs: [],
+          error: error instanceof Error ? error.message : String(error),
+        };
+      }
+
+      return new Promise<RunModalResult>((resolve) => {
+        let settled = false;
+        let unsub: (() => void) | null = null;
+        let timer: ReturnType<typeof setTimeout> | null = null;
+        const finish = (result: RunModalResult): void => {
+          if (settled) return;
+          settled = true;
+          if (timer) clearTimeout(timer);
+          if (unsub) unsub();
+          resolve(result);
+        };
+        unsub = workflowExecutionRepository.subscribeToWorkflowExecutions(
+          tenantId,
+          targetWorkflowId,
+          (execs) => {
+            const exec = execs.find((e) => e.eventId === eventId);
+            if (!exec || exec.status === 'RUNNING') return;
+            finish(mapExecutionToRunResult(exec));
+          },
+          (error) =>
+            finish({
+              status: 'FAILED',
+              outputs: null,
+              logs: [],
+              error: `Não foi possível acompanhar a execução: ${error.message}`,
+            }),
+        );
+        timer = setTimeout(
+          () =>
+            finish({
+              status: 'FAILED',
+              outputs: null,
+              logs: [],
+              error: 'Tempo esgotado ao aguardar a execução. Confira na aba Execuções.',
+            }),
+          RUN_EXECUTION_TIMEOUT_MS,
+        );
+      });
+    },
+    [currentTenant, workflow, dataProcessorRepository, workflowExecutionRepository],
+  );
+
   return {
     isNew,
     workflow,
@@ -977,5 +1079,12 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
     sourceWorkflowVersion,
     handleUpdateFromSource,
     isUpdating,
+    canRunWorkflow,
+    runWorkflowDisabledReason,
+    runModalOpen,
+    runModalParameters,
+    openRunModal,
+    closeRunModal,
+    runWorkflowForModal,
   };
 };

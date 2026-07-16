@@ -5,7 +5,7 @@ import type {
   WorkflowExecutionLogEntry,
   WorkflowStep,
 } from '../entities/Workflow';
-import type { WorkflowContext, WorkflowServices } from '../entities/WorkflowContext';
+import type { WorkflowContext, WorkflowLogger, WorkflowServices } from '../entities/WorkflowContext';
 import type { StepRegistry } from './StepRegistry';
 import { evaluateCondition } from './ConditionEvaluator';
 import { resolveInputsSafe, resolveMapping } from './InputMapping';
@@ -40,6 +40,28 @@ export const runWorkflow = async ({ definition, event, registry, services }: Run
     logs.push({ stepId, stepDefinitionId, level, message, at: services.now(), contextInput, inputs, outputs });
   };
 
+  // Step cujo executor está rodando agora — usado para atribuir ao step certo as mensagens
+  // que o próprio código do usuário emite (ex.: log()/console.log dentro de um Script).
+  let currentLogStepId: string | undefined;
+  let currentLogStepDefinitionId: string | undefined;
+
+  // Logger encaminhado aos steps: além de ir para os logs do Cloud Functions (services.logger),
+  // grava a mensagem em execution.logs para que apareça na tela (Execuções e no modal de Run).
+  const captureLogger: WorkflowLogger = {
+    info: (message) => {
+      services.logger.info(message);
+      log('INFO', message, currentLogStepId, currentLogStepDefinitionId);
+    },
+    warn: (message) => {
+      services.logger.warn(message);
+      log('WARN', message, currentLogStepId, currentLogStepDefinitionId);
+    },
+    error: (message) => {
+      services.logger.error(message);
+      log('ERROR', message, currentLogStepId, currentLogStepDefinitionId);
+    },
+  };
+
   const finish = (status: WorkflowExecution['status'], outputs: Record<string, unknown>): WorkflowExecution => ({
     id: executionId,
     tenantId: definition.tenantId,
@@ -58,7 +80,7 @@ export const runWorkflow = async ({ definition, event, registry, services }: Run
     outputs: {},
     variables: {},
     services,
-    logger: services.logger,
+    logger: captureLogger,
     execution: { id: executionId, workflowDefinitionId: definition.id, tenantId: definition.tenantId },
   };
 
@@ -96,7 +118,7 @@ export const runWorkflow = async ({ definition, event, registry, services }: Run
     outputs: {},
     variables: {},
     services,
-    logger: services.logger,
+    logger: captureLogger,
     execution: { id: executionId, workflowDefinitionId: definition.id, tenantId: definition.tenantId },
   };
 
@@ -125,6 +147,8 @@ export const runWorkflow = async ({ definition, event, registry, services }: Run
 
     for (const step of ordered) {
       applyStepInput();
+      currentLogStepId = undefined;
+      currentLogStepDefinitionId = undefined;
 
       if (step.type === 'Condition') {
         let branchResult: boolean;
@@ -239,6 +263,9 @@ export const runWorkflow = async ({ definition, event, registry, services }: Run
       }
 
       const inputs = resolveResult.inputs;
+
+      currentLogStepId = step.id;
+      currentLogStepDefinitionId = step.stepDefinitionId;
 
       try {
         const result = await stepDefinition.createExecutor().execute(inputs, context);

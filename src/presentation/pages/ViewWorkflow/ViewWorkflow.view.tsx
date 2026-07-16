@@ -17,6 +17,7 @@ import {
   RiGitBranchLine,
   RiLoopLeftLine,
   RiArrowDownSLine,
+  RiPlayLine,
 } from 'react-icons/ri';
 import { S } from './ViewWorkflow.styles';
 import { useViewWorkflowViewModel, EVENT_NAME_OPTIONS, LOOKUP_COLLECTION_OPTIONS } from './ViewWorkflow.viewmodel';
@@ -29,6 +30,7 @@ import { SearchSelect } from '../../components/ui/SearchSelect';
 import { Checkbox } from '../../components/ui/Checkbox';
 import { InfoBanner } from '../../components/ui/InfoBanner';
 import { ConfirmModal } from '../../components/ui/ConfirmModal';
+import { RunModal } from '../../components/ui/RunModal';
 import { ConditionBuilder } from '../../components/ui/ConditionBuilder';
 import { ConditionDiagram } from '../../components/ui/ConditionDiagram';
 import { AdvancedParametersEditor } from './components/AdvancedParametersEditor';
@@ -280,6 +282,15 @@ export const ViewWorkflowView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
         <S.HeaderActions>
           {!vm.isNew && vm.workflow && (
             <>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={vm.openRunModal}
+                disabled={!vm.canRunWorkflow}
+                title={vm.runWorkflowDisabledReason ?? 'Executar (Debug)'}
+              >
+                <RiPlayLine size={14} />
+              </Button>
               <Button variant="ghost" size="sm" onClick={vm.handleCopyDeepLink} title="Copiar link">
                 {vm.copyLinkDone ? <RiCheckLine size={14} /> : <RiLinkM size={14} />}
               </Button>
@@ -706,6 +717,16 @@ export const ViewWorkflowView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
             )}
           </S.ContentInner>
         </S.Content>
+      )}
+
+      {vm.runModalOpen && (
+        <RunModal
+          title={`Executar: ${vm.workflow?.name || 'Automação'}`}
+          parameters={vm.runModalParameters}
+          runLabel="Executar Automação"
+          onClose={vm.closeRunModal}
+          onRun={vm.runWorkflowForModal}
+        />
       )}
 
       <ConfirmModal

@@ -1,6 +1,7 @@
 import { useState, useMemo, useCallback, useEffect } from 'react';
 import { transform } from 'sucrase';
 import { useScriptStore } from '../../../stores/useScriptStore';
+import { useDI } from '../../../infrastructure/di/useDI';
 import { useTenant } from '../../../stores/useTenant';
 import { useWorkspace } from '../../../stores/useWorkspace';
 import { useNotification } from '../../../stores/useNotification';
@@ -17,6 +18,7 @@ import {
 import { buildScriptTypeDefs } from './scriptTypeDefs';
 import type { Script, ScriptOutputParam } from '../../../domain/entities/Script';
 import type { WorkflowParameter } from '../../../domain/entities/Workflow';
+import type { RunModalResult } from '../../components/ui/RunModal';
 
 const DEFAULT_SOURCE = `async function main() {
   // 'input' contém os parâmetros de entrada configurados no Step.
@@ -102,6 +104,10 @@ export interface ViewScriptViewModel {
   isSaving: boolean;
   canSave: boolean;
   handleSave: () => Promise<void>;
+  runModalOpen: boolean;
+  openRunModal: () => void;
+  closeRunModal: () => void;
+  runScriptForModal: (providedParams: Record<string, unknown>) => Promise<RunModalResult>;
   handleDelete: () => void;
   scriptToDelete: Script | null;
   confirmDelete: () => Promise<void>;
@@ -113,6 +119,7 @@ export const useViewScriptViewModel = (tabKey: string): ViewScriptViewModel => {
   const scriptId = isNew ? '' : tabKey.replace('view-script:', '');
 
   const { scripts, createScript, updateScript, deleteScript } = useScriptStore();
+  const { scriptRepository } = useDI();
   const { currentTenant } = useTenant();
   const { setTabTitle, closeTab, openTab, activePanelId } = useWorkspace();
   const { notify } = useNotification();
@@ -126,6 +133,7 @@ export const useViewScriptViewModel = (tabKey: string): ViewScriptViewModel => {
 
   const [formData, setFormDataState] = useState<ScriptFormData>(() => buildForm(null));
   const [isSaving, setIsSaving] = useState(false);
+  const [runModalOpen, setRunModalOpen] = useState(false);
   const [scriptToDelete, setScriptToDelete] = useState<Script | null>(null);
   const [collapsedSections, setCollapsedSections] = useState<Set<string>>(() => new Set(['queryDoc']));
 
@@ -266,6 +274,51 @@ export const useViewScriptViewModel = (tabKey: string): ViewScriptViewModel => {
     }
   }, [currentTenant, formData, isNew, script, createScript, updateScript, notify, closeTab, tabKey, activePanelId, openTab]);
 
+  const openRunModal = useCallback(() => {
+    const compiled = transpile(formData.sourceTs);
+    if ('error' in compiled) {
+      notify(compiled.error, 'error');
+      return;
+    }
+    setRunModalOpen(true);
+  }, [formData.sourceTs, notify]);
+
+  const closeRunModal = useCallback(() => setRunModalOpen(false), []);
+
+  const runScriptForModal = useCallback(
+    async (providedParams: Record<string, unknown>): Promise<RunModalResult> => {
+      if (!currentTenant) {
+        return { status: 'FAILED', outputs: null, logs: [], error: 'Nenhum escritório selecionado.' };
+      }
+      const compiled = transpile(formData.sourceTs);
+      if ('error' in compiled) {
+        return { status: 'FAILED', outputs: null, logs: [], error: compiled.error };
+      }
+      try {
+        const res = await scriptRepository.runScript({
+          tenantId: currentTenant.id,
+          compiledJs: compiled.compiledJs,
+          inputParams: sanitizeInputParams(formData.inputParams),
+          providedParams,
+        });
+        return {
+          status: res.error ? 'FAILED' : 'SUCCESS',
+          outputs: res.outputs,
+          logs: res.logs,
+          error: res.error,
+        };
+      } catch (error) {
+        return {
+          status: 'FAILED',
+          outputs: null,
+          logs: [],
+          error: error instanceof Error ? error.message : String(error),
+        };
+      }
+    },
+    [currentTenant, formData.sourceTs, formData.inputParams, scriptRepository],
+  );
+
   const handleDelete = useCallback(() => {
     if (script) setScriptToDelete(script);
   }, [script]);
@@ -312,6 +365,10 @@ export const useViewScriptViewModel = (tabKey: string): ViewScriptViewModel => {
     isSaving,
     canSave,
     handleSave,
+    runModalOpen,
+    openRunModal,
+    closeRunModal,
+    runScriptForModal,
     handleDelete,
     scriptToDelete,
     confirmDelete,

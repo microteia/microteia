@@ -11,6 +11,11 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [0.91.0] — 2026-07-16
+
+- Agora é possível testar um Script ou uma Automação direto na tela, sem sair do sistema. Um novo botão "Executar" abre uma janela que pede os dados de entrada — pelo formulário ou colando um JSON — e, ao rodar, mostra o resultado e as mensagens de log de forma clara.
+- Nos Scripts, ficou disponível o `console.log` (e a função `log`) para acompanhar o que acontece durante a execução; essas mensagens aparecem tanto ao testar o Script quanto na aba de Execuções das Automações que o utilizam.
+
 ## [0.90.0] — 2026-07-16
 
 - As mensagens de aviso e de erro que aparecem no topo da tela agora desaparecem sozinhas depois de 10 segundos. Basta manter o mouse sobre a mensagem para pausar essa contagem e lê-la com calma — ao tirar o mouse, ela volta a se fechar automaticamente. Também é possível fechá-la na hora clicando no "x".

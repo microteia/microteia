@@ -50,7 +50,8 @@ const ALL_FUNCTIONS = [
   'syncPublicWorkflowOnDelete',
   'getExpressionFunctions',
   'copyPublicWorkflow',
-  'updateFromSourceWorkflow'
+  'updateFromSourceWorkflow',
+  'runScript'
 ];
 
 // Parse argumentos

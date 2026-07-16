@@ -1,9 +1,10 @@
 import React, { Suspense, lazy } from 'react';
-import { RiCodeBoxLine, RiSave3Line, RiDeleteBinLine, RiArrowRightSLine, RiDatabase2Line } from 'react-icons/ri';
+import { RiCodeBoxLine, RiSave3Line, RiDeleteBinLine, RiArrowRightSLine, RiDatabase2Line, RiPlayLine } from 'react-icons/ri';
 import { S } from './ViewScript.styles';
 import { useViewScriptViewModel } from './ViewScript.viewmodel';
 import { Input, Label, Textarea } from '../../components/ui/Input';
 import { ConfirmModal } from '../../components/ui/ConfirmModal';
+import { RunModal } from '../../components/ui/RunModal';
 import { InfoBanner } from '../../components/ui/InfoBanner';
 import { AdvancedParametersEditor } from '../ViewWorkflow/components/AdvancedParametersEditor';
 import type { AdvancedParametersEditorProps } from '../ViewWorkflow/components/AdvancedParametersEditor/AdvancedParametersEditor.viewmodel';
@@ -24,6 +25,9 @@ export const ViewScriptView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
           {vm.isNew ? 'Novo Script' : (vm.formData.name || 'Script')}
         </S.HeaderTitle>
         <S.HeaderActions>
+          <S.RunBtn onClick={vm.openRunModal} title="Executar (Debug)">
+            <RiPlayLine size={14} />
+          </S.RunBtn>
           <S.SaveBtn
             onClick={() => void vm.handleSave()}
             disabled={!vm.canSave}
@@ -292,6 +296,16 @@ const nomes = r.results.map((p) => p.name);`}</S.Pre>
           )}
         </S.Section>
       </S.Content>
+
+      {vm.runModalOpen && (
+        <RunModal
+          title={`Executar: ${vm.formData.name || 'Script'}`}
+          parameters={vm.formData.inputParams}
+          runLabel="Executar Script"
+          onClose={vm.closeRunModal}
+          onRun={vm.runScriptForModal}
+        />
+      )}
 
       <ConfirmModal
         isOpen={!!vm.scriptToDelete}
