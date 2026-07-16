@@ -5,7 +5,10 @@ import {
   collectPriorStepsForInsert,
   flattenSteps,
   insertStepInto,
+  insertStepAtIndex,
   moveStepWithinSiblings,
+  moveStepToLocation,
+  parseParentKey,
   removeStepFromTree,
   reorderSiblings,
 } from './workflowHelpers';
@@ -133,5 +136,76 @@ describe('workflowHelpers — nó de Loop', () => {
   it('collectPriorStepsForInsert para o corpo do loop inclui prefixo + irmãos do corpo', () => {
     const ids = collectPriorStepsForInsert(loopTree, { kind: 'loop', loopId: 'L' }).map((s) => s.id);
     expect(ids).toEqual(['A', 'B1', 'B2']);
+  });
+});
+
+describe('workflowHelpers — mover step entre níveis', () => {
+  it('parseParentKey decodifica raiz, corpo de loop e ramos de condição', () => {
+    expect(parseParentKey('root')).toEqual({ kind: 'root' });
+    expect(parseParentKey('L:body')).toEqual({ kind: 'loop', loopId: 'L' });
+    expect(parseParentKey('C:whenTrue')).toEqual({ kind: 'branch', conditionId: 'C', branch: 'whenTrue' });
+    expect(parseParentKey('C:whenFalse')).toEqual({ kind: 'branch', conditionId: 'C', branch: 'whenFalse' });
+  });
+
+  it('insertStepAtIndex insere na posição pedida e reindexa', () => {
+    const roots = [action('A', 0), action('B', 1)];
+    const next = insertStepAtIndex(roots, { kind: 'root' }, action('X', 99), 1);
+    expect(next.map((s) => [s.id, s.order])).toEqual([['A', 0], ['X', 1], ['B', 2]]);
+  });
+
+  it('insertStepAtIndex insere no início de um ramo de condição', () => {
+    const next = insertStepAtIndex(tree, { kind: 'branch', conditionId: 'C', branch: 'whenTrue' }, action('T0', 99), 0);
+    const cNode = next.find((s) => s.id === 'C');
+    expect(cNode?.branches?.whenTrue.map((s) => [s.id, s.order])).toEqual([['T0', 0], ['T', 1], ['C2', 2]]);
+  });
+
+  it('insertStepAtIndex insere no meio do corpo de um loop', () => {
+    const next = insertStepAtIndex(loopTree, { kind: 'loop', loopId: 'L' }, action('B15', 99), 1);
+    const lNode = next.find((s) => s.id === 'L');
+    expect(lNode?.loop?.body.map((s) => [s.id, s.order])).toEqual([['B1', 0], ['B15', 1], ['B2', 2]]);
+  });
+
+  it('insertStepAtIndex satura índice acima do tamanho (insere no fim)', () => {
+    const roots = [action('A', 0), action('B', 1)];
+    const next = insertStepAtIndex(roots, { kind: 'root' }, action('X', 99), 99);
+    expect(next.map((s) => s.id)).toEqual(['A', 'B', 'X']);
+  });
+
+  it('move um step da raiz para o corpo de um loop', () => {
+    const next = moveStepToLocation(loopTree, 'A', { kind: 'loop', loopId: 'L' }, 1);
+    expect(next.map((s) => s.id)).toEqual(['L', 'Z']);
+    const lNode = next.find((s) => s.id === 'L');
+    expect(lNode?.loop?.body.map((s) => [s.id, s.order])).toEqual([['B1', 0], ['A', 1], ['B2', 2]]);
+  });
+
+  it('move um step do corpo de um loop de volta para a raiz', () => {
+    const next = moveStepToLocation(loopTree, 'B1', { kind: 'root' }, 0);
+    expect(next.map((s) => [s.id, s.order])).toEqual([['B1', 0], ['A', 1], ['L', 2], ['Z', 3]]);
+    const lNode = next.find((s) => s.id === 'L');
+    expect(lNode?.loop?.body.map((s) => s.id)).toEqual(['B2']);
+  });
+
+  it('move um step para dentro de um ramo de condição', () => {
+    const next = moveStepToLocation(tree, 'A', { kind: 'branch', conditionId: 'C', branch: 'whenFalse' }, 0);
+    expect(next.map((s) => s.id)).toEqual(['C', 'Z']);
+    const cNode = next.find((s) => s.id === 'C');
+    expect(cNode?.branches?.whenFalse.map((s) => [s.id, s.order])).toEqual([['A', 0], ['F', 1]]);
+  });
+
+  it('move um nó de controle (Loop) com sua subárvore para dentro de uma condição', () => {
+    const next = moveStepToLocation(loopTree, 'L', { kind: 'root' }, 0);
+    expect(next.map((s) => s.id)).toEqual(['L', 'A', 'Z']);
+  });
+
+  it('barra mover um Loop para dentro do próprio corpo (árvore intacta)', () => {
+    expect(moveStepToLocation(loopTree, 'L', { kind: 'loop', loopId: 'L' }, 0)).toBe(loopTree);
+  });
+
+  it('barra mover uma Condição para dentro de um descendente', () => {
+    expect(moveStepToLocation(tree, 'C', { kind: 'branch', conditionId: 'C2', branch: 'whenTrue' }, 0)).toBe(tree);
+  });
+
+  it('id inexistente retorna a árvore intacta', () => {
+    expect(moveStepToLocation(loopTree, 'ZZZ', { kind: 'root' }, 0)).toBe(loopTree);
   });
 });

@@ -17,6 +17,7 @@ import {
   collectPriorSteps,
   collectPriorStepsForInsert,
   insertStepInto,
+  insertStepAtIndex,
   replaceStepInTree,
   removeStepFromTree,
 } from '../../shared/workflowHelpers';
@@ -203,7 +204,16 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
   //   "edit-workflow-step:{wfId}:{stepId}"                → editar step existente
   //   "edit-workflow-step:{wfId}:add:{condId}:{branch}"   → adicionar step num ramo de condição
   //   "edit-workflow-step:{wfId}:addloop:{loopId}"        → adicionar step no corpo de um Loop
-  const parts = useMemo(() => tabKey.replace('edit-workflow-step:', '').split(':'), [tabKey]);
+  // Sufixo opcional ":at:{index}" (sempre no fim) fixa a posição de inserção; sem ele, insere no fim.
+  const rawParts = useMemo(() => tabKey.replace('edit-workflow-step:', '').split(':'), [tabKey]);
+  const insertIndex = useMemo<number | null>(
+    () => (rawParts[rawParts.length - 2] === 'at' ? Number(rawParts[rawParts.length - 1]) : null),
+    [rawParts],
+  );
+  const parts = useMemo(
+    () => (insertIndex !== null ? rawParts.slice(0, rawParts.length - 2) : rawParts),
+    [rawParts, insertIndex],
+  );
   const workflowId = parts[0] ?? '';
   const isBranchAdd = parts[1] === 'add';
   const isLoopAdd = parts[1] === 'addloop';
@@ -726,7 +736,9 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
 
       const updatedSteps = editingStep
         ? replaceStepInTree(existingSteps, step)
-        : insertStepInto(existingSteps, insertTarget, step);
+        : insertIndex !== null
+          ? insertStepAtIndex(existingSteps, insertTarget, step, insertIndex)
+          : insertStepInto(existingSteps, insertTarget, step);
 
       await updateWorkflowSteps(workflow.id, updatedSteps);
       notify('Step salvo com sucesso.', 'success');
@@ -746,6 +758,7 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
     editingStep,
     existingSteps,
     insertTarget,
+    insertIndex,
     signature,
     configuration,
     enabled,

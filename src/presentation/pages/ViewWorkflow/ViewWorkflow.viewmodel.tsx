@@ -26,8 +26,11 @@ import {
   removeStepFromTree,
   updateStepInTree,
   insertStepInto,
+  insertStepAtIndex,
   moveStepWithinSiblings,
   reorderSiblings,
+  moveStepToLocation,
+  parseParentKey,
 } from '../../shared/workflowHelpers';
 import type { InsertTarget } from '../../shared/workflowHelpers';
 import type { WorkflowDefinition, WorkflowExecution, WorkflowStep, Condition, WorkflowParameter } from '../../../domain/entities/Workflow';
@@ -146,9 +149,9 @@ export interface ViewWorkflowViewModel {
   getStepIcon: (stepDefinitionId: string) => IconType;
   getStepIconForStep: (step: WorkflowStep) => IconType;
   getStepById: (id: string) => WorkflowStep | undefined;
-  openAddStep: (target?: InsertTarget) => void;
-  openAddCondition: (target?: InsertTarget) => Promise<void>;
-  openAddLoop: (target?: InsertTarget) => Promise<void>;
+  openAddStep: (target?: InsertTarget, index?: number) => void;
+  openAddCondition: (target?: InsertTarget, index?: number) => Promise<void>;
+  openAddLoop: (target?: InsertTarget, index?: number) => Promise<void>;
   toggleLoopCollapsed: (loopId: string) => void;
   isLoopCollapsed: (loopId: string) => boolean;
   openEditStep: (step: WorkflowStep) => void;
@@ -175,6 +178,7 @@ export interface ViewWorkflowViewModel {
   handleStepDragEnd: () => void;
   handleStepDragOverNode: (event: DragEvent<HTMLElement>, parentKey: string, index: number) => void;
   handleStepDragOverGap: (event: DragEvent<HTMLElement>, parentKey: string, gapIndex: number) => void;
+  handleContainerDragOver: (event: DragEvent<HTMLElement>, parentKey: string, endIndex: number) => void;
   handleStepDrop: (event: DragEvent<HTMLElement>) => void;
   executions: WorkflowExecution[];
   executionsError: string | null;
@@ -683,12 +687,13 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
     return `:add:${target.conditionId}:${target.branch}`;
   }, []);
 
-  const openAddStep = useCallback((target?: InsertTarget) => {
+  const openAddStep = useCallback((target?: InsertTarget, index?: number) => {
     if (!workflow) return;
-    openTab(`edit-workflow-step:${workflow.id}${targetSuffix(target)}`);
+    const at = index !== undefined ? `:at:${index}` : '';
+    openTab(`edit-workflow-step:${workflow.id}${targetSuffix(target)}${at}`);
   }, [workflow, openTab, targetSuffix]);
 
-  const openAddCondition = useCallback(async (target?: InsertTarget) => {
+  const openAddCondition = useCallback(async (target?: InsertTarget, index?: number) => {
     if (!workflow) return;
     const conditionStep: WorkflowStep = {
       id: crypto.randomUUID(),
@@ -700,14 +705,17 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
       condition: { kind: 'AlwaysTrue' },
       branches: { whenTrue: [], whenFalse: [] },
     };
-    const nextSteps = insertStepInto(workflow.steps, target ?? { kind: 'root' }, conditionStep);
+    const location = target ?? { kind: 'root' };
+    const nextSteps = index !== undefined
+      ? insertStepAtIndex(workflow.steps, location, conditionStep, index)
+      : insertStepInto(workflow.steps, location, conditionStep);
     await updateWorkflowSteps(workflow.id, nextSteps).catch((error) => {
       console.error('[ViewWorkflow] openAddCondition:', error);
       notify('Erro ao adicionar condição.', 'error');
     });
   }, [workflow, updateWorkflowSteps, notify]);
 
-  const openAddLoop = useCallback(async (target?: InsertTarget) => {
+  const openAddLoop = useCallback(async (target?: InsertTarget, index?: number) => {
     if (!workflow) return;
     const loopStep: WorkflowStep = {
       id: crypto.randomUUID(),
@@ -723,7 +731,10 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
         body: [],
       },
     };
-    const nextSteps = insertStepInto(workflow.steps, target ?? { kind: 'root' }, loopStep);
+    const location = target ?? { kind: 'root' };
+    const nextSteps = index !== undefined
+      ? insertStepAtIndex(workflow.steps, location, loopStep, index)
+      : insertStepInto(workflow.steps, location, loopStep);
     await updateWorkflowSteps(workflow.id, nextSteps).catch((error) => {
       console.error('[ViewWorkflow] openAddLoop:', error);
       notify('Erro ao adicionar repetição.', 'error');
@@ -835,28 +846,39 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
 
   const handleStepDragOverGap = useCallback((event: DragEvent<HTMLElement>, parentKey: string, gapIndex: number) => {
     event.preventDefault();
+    event.stopPropagation();
     setDropTarget({ parentKey, index: gapIndex });
   }, []);
 
   const handleStepDragOverNode = useCallback((event: DragEvent<HTMLElement>, parentKey: string, index: number) => {
     event.preventDefault();
+    event.stopPropagation();
     const rect = event.currentTarget.getBoundingClientRect();
     setDropTarget({ parentKey, index: event.clientY < rect.top + rect.height / 2 ? index : index + 1 });
   }, []);
 
+  const handleContainerDragOver = useCallback((event: DragEvent<HTMLElement>, parentKey: string, endIndex: number) => {
+    event.preventDefault();
+    event.stopPropagation();
+    setDropTarget({ parentKey, index: endIndex });
+  }, []);
+
   const handleStepDrop = useCallback((event: DragEvent<HTMLElement>) => {
     event.preventDefault();
+    event.stopPropagation();
     const dragged = dragging;
     const target = dropTarget;
     setDragging(null);
     setDropTarget(null);
-    // Reordenação só dentro do mesmo ramo (mesmo parentKey).
-    if (!workflow || !dragged || !target || dragged.parentKey !== target.parentKey) return;
-    const nextSteps = reorderSiblings(workflow.steps, dragged.id, target.index);
+    if (!workflow || !dragged || !target) return;
+    // Mesmo nível → reordena; nível diferente → move para dentro do Loop/Condição (ou de volta à raiz).
+    const nextSteps = dragged.parentKey === target.parentKey
+      ? reorderSiblings(workflow.steps, dragged.id, target.index)
+      : moveStepToLocation(workflow.steps, dragged.id, parseParentKey(target.parentKey), target.index);
     if (nextSteps === workflow.steps) return;
     updateWorkflowSteps(workflow.id, nextSteps).catch((error) => {
       console.error('[ViewWorkflow] handleStepDrop:', error);
-      notify('Erro ao reordenar steps.', 'error');
+      notify('Erro ao mover step.', 'error');
     });
   }, [dragging, dropTarget, workflow, updateWorkflowSteps, notify]);
 
@@ -912,6 +934,7 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
     handleStepDragEnd,
     handleStepDragOverNode,
     handleStepDragOverGap,
+    handleContainerDragOver,
     handleStepDrop,
     executions,
     executionsError,

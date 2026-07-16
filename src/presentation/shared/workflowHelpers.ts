@@ -207,6 +207,78 @@ export const reorderSiblings = (
   return steps.map((step) => mapChildLists(step, (list) => reorderSiblings(list, id, toIndex)));
 };
 
+// Insere `step` na posição `index` de uma lista de irmãos, preservando a ordem lógica e reindexando.
+const insertAtIndex = (list: WorkflowStep[], step: WorkflowStep, index: number): WorkflowStep[] => {
+  const sorted = [...list].sort(byOrder);
+  const clamped = Math.max(0, Math.min(index, sorted.length));
+  const next = [...sorted];
+  next.splice(clamped, 0, step);
+  return reindex(next);
+};
+
+/** Insere um Step numa posição específica do alvo (raiz, ramo de Condição, ou corpo de Loop). */
+export const insertStepAtIndex = (
+  steps: WorkflowStep[],
+  target: InsertTarget,
+  step: WorkflowStep,
+  index: number,
+): WorkflowStep[] => {
+  if (target.kind === 'root') {
+    return insertAtIndex(steps, step, index);
+  }
+  return steps.map((current) => {
+    if (target.kind === 'branch' && current.id === target.conditionId && current.type === 'Condition') {
+      const branches = current.branches ?? { whenTrue: [], whenFalse: [] };
+      return {
+        ...current,
+        branches: { ...branches, [target.branch]: insertAtIndex(branches[target.branch], step, index) },
+      };
+    }
+    if (target.kind === 'loop' && current.id === target.loopId && current.type === 'Loop' && current.loop) {
+      return {
+        ...current,
+        loop: { ...current.loop, body: insertAtIndex(current.loop.body, step, index) },
+      };
+    }
+    return mapChildLists(current, (list) => insertStepAtIndex(list, target, step, index));
+  });
+};
+
+// Converte o `parentKey` usado no drag & drop do fluxo de volta para um InsertTarget.
+// Formatos: 'root' | '{loopId}:body' | '{conditionId}:whenTrue' | '{conditionId}:whenFalse'.
+export const parseParentKey = (parentKey: string): InsertTarget => {
+  if (parentKey === 'root') return { kind: 'root' };
+  const separator = parentKey.lastIndexOf(':');
+  const id = parentKey.slice(0, separator);
+  const suffix = parentKey.slice(separator + 1);
+  if (suffix === 'body') return { kind: 'loop', loopId: id };
+  return { kind: 'branch', conditionId: id, branch: suffix as BranchKey };
+};
+
+// Container-alvo de um InsertTarget (null na raiz); usado para barrar mover um nó para dentro de si.
+const targetContainerId = (target: InsertTarget): string | null =>
+  target.kind === 'root' ? null : target.kind === 'branch' ? target.conditionId : target.loopId;
+
+/**
+ * Move um Step (com sua subárvore, se for nó de controle) para uma posição em outro nível da
+ * árvore — dentro do corpo de um Loop ou de um ramo de Condição, ou de volta à raiz.
+ * Barra mover um nó de controle para dentro de si mesmo ou de um descendente (retornaria a árvore
+ * intacta). Para reordenar dentro do mesmo nível, use `reorderSiblings`.
+ */
+export const moveStepToLocation = (
+  steps: WorkflowStep[],
+  id: string,
+  target: InsertTarget,
+  index: number,
+): WorkflowStep[] => {
+  const moving = findStepInTree(steps, id);
+  if (!moving) return steps;
+  const containerId = targetContainerId(target);
+  if (containerId && findStepInTree([moving], containerId)) return steps;
+  const without = removeStepFromTree(steps, id);
+  return insertStepAtIndex(without, target, moving, index);
+};
+
 /**
  * Steps que podem produzir outputs disponíveis para um Step-alvo já existente na árvore.
  * Regra (segura): do alvo até a raiz, coleta os irmãos anteriores em cada nível, na ordem de

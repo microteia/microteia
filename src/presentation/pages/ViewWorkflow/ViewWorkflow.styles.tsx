@@ -43,6 +43,49 @@ const FlowNode = styled.div<{ $disabled?: boolean; $dragging?: boolean }>`
   }
 `;
 
+const ConnectorActions = styled.div`
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px;
+  border-radius: ${({ theme }) => theme.borderRadius.full};
+  background: ${({ theme }) => theme.colors.surface};
+  border: 1px solid ${({ theme }) => theme.colors.border};
+  box-shadow: 0 2px 8px ${({ theme }) => theme.colors.shadow};
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity ${({ theme }) => theme.transitions.fast};
+  z-index: 2;
+`;
+
+const ConnectorZone = styled.div<{ $active?: boolean }>`
+  position: relative;
+  width: 100%;
+  max-width: 520px;
+  min-height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    border-left: 2px solid ${({ $active, theme }) => ($active ? theme.colors.primary : theme.colors.border)};
+  }
+
+  &:hover ${ConnectorActions} {
+    opacity: 1;
+    pointer-events: auto;
+  }
+`;
+
 export const S = {
   Page: styled.div`
     display: flex;
@@ -291,6 +334,29 @@ export const S = {
     }
   `,
 
+  ConnectorZone,
+  ConnectorActions,
+
+  ConnectorBtn: styled.button`
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    border: 1px solid ${({ theme }) => theme.colors.border};
+    background: ${({ theme }) => theme.colors.surface};
+    color: ${({ theme }) => theme.colors.textMuted};
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: ${({ theme }) => theme.transitions.fast};
+
+    &:hover {
+      border-color: ${({ theme }) => theme.colors.primary};
+      color: ${({ theme }) => theme.colors.primary};
+      background: ${({ theme }) => theme.colors.primaryLight};
+    }
+  `,
+
   FlowNode,
   NodeActions,
 
@@ -382,7 +448,7 @@ export const S = {
     overflow-x: auto;
   `,
 
-  BranchLane: styled.div<{ $variant: 'true' | 'false' }>`
+  BranchLane: styled.div<{ $variant: 'true' | 'false'; $dropActive?: boolean }>`
     flex: 1 1 0;
     min-width: 320px;
     max-width: 560px;
@@ -391,9 +457,10 @@ export const S = {
     align-items: center;
     gap: ${({ theme }) => theme.spacing.xs};
     padding: ${({ theme }) => theme.spacing.md};
-    border: 1px solid ${({ theme }) => theme.colors.border};
+    border: 1px solid ${({ $dropActive, theme }) => ($dropActive ? theme.colors.primary : theme.colors.border)};
     border-radius: ${({ theme }) => theme.borderRadius.lg};
-    background: ${({ theme }) => theme.colors.surface};
+    background: ${({ $dropActive, theme }) => ($dropActive ? theme.colors.primaryLight : theme.colors.surface)};
+    transition: border-color ${({ theme }) => theme.transitions.fast}, background ${({ theme }) => theme.transitions.fast};
   `,
 
   BranchLabel: styled.span<{ $variant: 'true' | 'false' }>`
@@ -435,17 +502,18 @@ export const S = {
     border-left: 2px solid ${({ theme }) => theme.colors.border};
   `,
 
-  LoopBlock: styled.div`
+  LoopBlock: styled.div<{ $dropActive?: boolean }>`
     display: flex;
     flex-direction: column;
     gap: ${({ theme }) => theme.spacing.xs};
     width: 100%;
     margin-top: ${({ theme }) => theme.spacing.sm};
     padding: ${({ theme }) => theme.spacing.md};
-    border: 1px solid ${({ theme }) => theme.colors.border};
+    border: 1px solid ${({ $dropActive, theme }) => ($dropActive ? theme.colors.primary : theme.colors.border)};
     border-left: 3px solid ${({ theme }) => theme.colors.primary};
     border-radius: ${({ theme }) => theme.borderRadius.lg};
-    background: ${({ theme }) => theme.colors.surface};
+    background: ${({ $dropActive, theme }) => ($dropActive ? theme.colors.primaryLight : theme.colors.surface)};
+    transition: border-color ${({ theme }) => theme.transitions.fast}, background ${({ theme }) => theme.transitions.fast};
   `,
 
   LoopHeader: styled.button`

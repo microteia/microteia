@@ -64,6 +64,28 @@ const AddControls: React.FC<{ vm: ViewWorkflowViewModel; target: InsertTarget }>
   </S.AddRow>
 );
 
+const ConnectorInsert: React.FC<{ vm: ViewWorkflowViewModel; parentKey: string; index: number; target: InsertTarget }> = ({ vm, parentKey, index, target }) => (
+  <S.ConnectorZone
+    $active={vm.draggingStepId !== null && vm.dropTarget?.parentKey === parentKey && vm.dropTarget.index === index}
+    onDragOver={(e) => vm.handleStepDragOverGap(e, parentKey, index)}
+    onDrop={vm.handleStepDrop}
+  >
+    {vm.draggingStepId === null && (
+      <S.ConnectorActions>
+        <S.ConnectorBtn onClick={() => vm.openAddStep(target, index)} title="Inserir step aqui">
+          <RiAddLine size={14} />
+        </S.ConnectorBtn>
+        <S.ConnectorBtn onClick={() => void vm.openAddCondition(target, index)} title="Inserir condição aqui">
+          <RiGitBranchLine size={13} />
+        </S.ConnectorBtn>
+        <S.ConnectorBtn onClick={() => void vm.openAddLoop(target, index)} title="Inserir repetição aqui">
+          <RiLoopLeftLine size={13} />
+        </S.ConnectorBtn>
+      </S.ConnectorActions>
+    )}
+  </S.ConnectorZone>
+);
+
 const StepNodeActions: React.FC<{ vm: ViewWorkflowViewModel; step: WorkflowStep }> = ({ vm, step }) => (
   <S.NodeActions>
     <S.IconBtn title={step.enabled ? 'Inativar' : 'Ativar'} onClick={() => void vm.toggleStepEnabled(step)}>
@@ -89,11 +111,7 @@ const FlowLevel: React.FC<LevelProps> = ({ vm, steps, parentKey, target }) => (
       const isLoop = step.type === 'Loop';
       return (
       <React.Fragment key={step.id}>
-        <S.FlowConnector
-          $active={vm.draggingStepId !== null && vm.dropTarget?.parentKey === parentKey && vm.dropTarget.index === index}
-          onDragOver={(e) => vm.handleStepDragOverGap(e, parentKey, index)}
-          onDrop={vm.handleStepDrop}
-        />
+        <ConnectorInsert vm={vm} parentKey={parentKey} index={index} target={target} />
         <S.FlowNode
           draggable
           $disabled={!step.enabled}
@@ -120,7 +138,13 @@ const FlowLevel: React.FC<LevelProps> = ({ vm, steps, parentKey, target }) => (
         {step.type === 'Condition' && step.branches && (
           <S.BranchSplit>
             {(['whenTrue', 'whenFalse'] as BranchKey[]).map((branch) => (
-              <S.BranchLane key={branch} $variant={branch === 'whenTrue' ? 'true' : 'false'}>
+              <S.BranchLane
+                key={branch}
+                $variant={branch === 'whenTrue' ? 'true' : 'false'}
+                $dropActive={vm.draggingStepId !== null && vm.dropTarget?.parentKey === branchKeyOf(step.id, branch)}
+                onDragOver={(e) => vm.handleContainerDragOver(e, branchKeyOf(step.id, branch), step.branches![branch].length)}
+                onDrop={vm.handleStepDrop}
+              >
                 <S.BranchLabel $variant={branch === 'whenTrue' ? 'true' : 'false'}>
                   {branch === 'whenTrue' ? 'Verdadeiro' : 'Falso'}
                 </S.BranchLabel>
@@ -135,7 +159,7 @@ const FlowLevel: React.FC<LevelProps> = ({ vm, steps, parentKey, target }) => (
           </S.BranchSplit>
         )}
         {isLoop && step.loop && (
-          <S.LoopBlock>
+          <S.LoopBlock $dropActive={vm.draggingStepId !== null && vm.dropTarget?.parentKey === loopKeyOf(step.id)}>
             <S.LoopHeader onClick={() => vm.toggleLoopCollapsed(step.id)} title={vm.isLoopCollapsed(step.id) ? 'Expandir' : 'Recolher'}>
               <S.LoopChevron $collapsed={vm.isLoopCollapsed(step.id)}>
                 <RiArrowDownSLine size={16} />
@@ -143,7 +167,10 @@ const FlowLevel: React.FC<LevelProps> = ({ vm, steps, parentKey, target }) => (
               <S.LoopLabel>Corpo da repetição</S.LoopLabel>
             </S.LoopHeader>
             {!vm.isLoopCollapsed(step.id) && (
-              <S.LoopBody>
+              <S.LoopBody
+                onDragOver={(e) => vm.handleContainerDragOver(e, loopKeyOf(step.id), step.loop!.body.length)}
+                onDrop={vm.handleStepDrop}
+              >
                 <FlowLevel
                   vm={vm}
                   steps={step.loop.body}

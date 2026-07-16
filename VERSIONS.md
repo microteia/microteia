@@ -11,6 +11,14 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [0.89.0] — 2026-07-16
+
+- No editor de automações (visualização em fluxo), agora dá para inserir um passo, uma Condição ou uma Repetição em qualquer ponto do fluxo, não só no fim. Passe o mouse sobre a linha onde quer o novo item — inclusive na primeira linha, logo abaixo do Gatilho — e escolha entre os três botões que aparecem. Isso vale também dentro das Repetições e dos ramos das Condições.
+
+## [0.88.0] — 2026-07-16
+
+- No editor de automações (visualização em fluxo), agora você pode arrastar um passo já existente para dentro de uma Repetição ou de um ramo de uma Condição — e também tirá-lo de lá de volta para o fluxo principal. Assim não é mais preciso recriar o passo do zero quando ele deveria estar dentro de um Loop ou Condição.
+
 ## [0.87.0] — 2026-07-16
 
 - O passo "Montar Objeto" das automações ficou mais flexível: o nome do objeto agora é opcional. Quando você dá um nome, os campos continuam agrupados num único objeto (ideal para gravar um cadastro de uma vez). Quando deixa o nome em branco, cada campo montado fica disponível diretamente para os próximos passos, sem precisar navegar por um objeto.
