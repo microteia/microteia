@@ -14,6 +14,7 @@ export class TJMAEmailParser implements IEmailParser {
     const content = `${textContent}\n${htmlContent}`;
 
     if (!this.isTJMAEmail(content)) {
+      console.log('TJMAEmailParser: conteúdo não corresponde ao padrão esperado.');
       return [];
     }
 

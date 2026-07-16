@@ -22,6 +22,7 @@ export class PublicacoesOnlineParser implements IEmailParser {
       : normalizeWhitespace(decodeHtmlEntities(emailText || ''));
 
     if (!this.matches(source)) {
+      console.log('PublicacoesOnlineParser: conteúdo não corresponde ao padrão esperado.');
       return [];
     }
 

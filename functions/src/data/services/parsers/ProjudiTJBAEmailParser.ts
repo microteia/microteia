@@ -19,6 +19,7 @@ export class ProjudiTJBAEmailParser implements IEmailParser {
     const content = `${decodeHtmlEntities(emailText || '')}\n${htmlToText(emailHtml || '')}`;
 
     if (!this.matches(content)) {
+      console.log('ProjudiTJBAEmailParser: conteúdo não corresponde ao padrão esperado.');
       return [];
     }
 

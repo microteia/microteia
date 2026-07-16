@@ -14,6 +14,7 @@ export class CNJEmailParser implements IEmailParser {
     const content = `${textContent}\n${htmlContent}`;
 
     if (!this.isCNJEmail(content)) {
+      console.log('CNJEmailParser: conteúdo não corresponde ao padrão esperado.');
       return [];
     }
 

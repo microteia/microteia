@@ -23,6 +23,7 @@ export class RecorteDigitalEmailParser implements IEmailParser {
   tryParse(emailText: string, emailHtml?: string): Array<Omit<ParsedEmailData, 'parsedByAI'>> {
     const html = emailHtml || emailText || '';
     if (!this.matches(html)) {
+      console.log('RecorteDigitalEmailParser: conteúdo não corresponde ao padrão esperado.');
       return [];
     }
 

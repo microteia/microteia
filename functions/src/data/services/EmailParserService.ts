@@ -159,7 +159,7 @@ export class EmailParserService implements IEmailParserService {
 
     console.log('Parser específico não encontrado ou falhou, tentando fallback...');
     for (const parser of this.parsers) {
-
+      console.log(`Tentando parser: ${parser.name}`);
       const results = parser.tryParse(emailText, emailHtml);
       if (results.length > 0 && results[0].processNumber) {
         console.log(`Parsing bem-sucedido com parser: ${parser.name}`);

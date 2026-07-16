@@ -15,7 +15,7 @@ export class TRTEmailParser implements IEmailParser {
     const content = `${textContent}\n${htmlContent}`;
 
     if (!this.isTRTEmail(content)) {
-      console.log('Email não identificado como TRT, retornando array vazio.');
+      console.log('TRTEmailParser: conteúdo não corresponde ao padrão esperado.');
       return [];
     }
 
