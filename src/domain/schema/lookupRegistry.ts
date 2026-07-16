@@ -14,6 +14,7 @@ const LOOKUP_LIST: LookupMetadata[] = [
   { collection: 'personMaritalStatuses', group: 'person', screenLabel: 'Pessoa', entityLabel: 'Estado Civil' },
   { collection: 'personCities', group: 'person', screenLabel: 'Pessoa', entityLabel: 'Cidade' },
   { collection: 'personRelationships', group: 'person', screenLabel: 'Pessoa', entityLabel: 'Relacionamento' },
+  { collection: 'personGenders', group: 'person', screenLabel: 'Pessoa', entityLabel: 'Sexo' },
   { collection: 'caseAreas', group: 'case', screenLabel: 'Processo', entityLabel: 'Área do Direito' },
   { collection: 'casePhases', group: 'case', screenLabel: 'Processo', entityLabel: 'Fase Processual' },
   { collection: 'caseStatuses', group: 'case', screenLabel: 'Processo', entityLabel: 'Status' },
