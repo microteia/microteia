@@ -1,6 +1,6 @@
 import type { FieldRules } from '../schema/fieldRules';
 
-export type StepType = 'Action' | 'Condition' | 'Delay' | 'Script' | 'SubWorkflow';
+export type StepType = 'Action' | 'Condition' | 'Delay' | 'Loop' | 'Script' | 'SubWorkflow';
 
 export interface LiteralInputMapping {
   kind: 'Literal';
@@ -43,6 +43,18 @@ export interface WorkflowStepBranches {
   whenFalse: WorkflowStep[];
 }
 
+// Configuração de um nó de controle Loop (ForEach): itera `source` (lista ou item único, que vira
+// lista de 1) executando `body` uma vez por item. Cada iteração recebe o item no input (objeto é
+// espalhado; escalar fica sob `itemName`) e contribui com o output do seu último substep. Ao final,
+// o vetor de contribuições é publicado sob `outputName` para o próximo Step. `stepDefinitionId`
+// fica vazio nesses nós.
+export interface WorkflowLoopConfig {
+  source: InputMapping;
+  itemName: string;
+  outputName: string;
+  body: WorkflowStep[];
+}
+
 export interface WorkflowStep {
   id: string;
   stepDefinitionId: string;
@@ -57,6 +69,8 @@ export interface WorkflowStep {
   // ramo de `branches` executa. `stepDefinitionId` fica vazio nesses nós.
   condition?: Condition;
   branches?: WorkflowStepBranches;
+  // Somente quando type === 'Loop' (nó de controle nativo). Ver WorkflowLoopConfig.
+  loop?: WorkflowLoopConfig;
 }
 
 // Condições para filtrar quando o workflow deve executar (avaliadas ANTES de qualquer Step)

@@ -11,6 +11,11 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [0.86.0] — 2026-07-16
+
+- As automações agora podem repetir passos para cada item de uma lista: o novo passo de Repetição recebe uma lista (ou um item único) e executa a sequência de passos do seu corpo uma vez para cada item. Ao final, os resultados de todas as repetições ficam reunidos numa lista, disponível para o próximo passo da automação. As repetições podem ser aninhadas e aproveitam normalmente as saídas dos passos anteriores.
+- Na tela de passos, a Repetição aparece como um bloco recolhível e elegante, deixando claro visualmente quais passos rodam a cada item.
+
 ## [0.85.0] — 2026-07-15
 
 - As automações agora podem ramificar o fluxo: um novo passo de Condição avalia uma regra durante a execução e decide quais passos seguintes rodam quando o resultado é Verdadeiro e quais rodam quando é Falso. Depois dos ramos, o fluxo volta a seguir normalmente. As condições podem ser aninhadas e continuam aproveitando as saídas dos passos anteriores.

@@ -41,6 +41,16 @@ const getMappingKindOptions = (input: InputDefinition) => {
   return MAPPING_KIND_OPTIONS.filter(opt => input.allowedMappingKinds?.includes(opt.value as InputMapping['kind']));
 };
 
+// Input sintético para a origem da lista de um nó Loop: reusa os mesmos controles de mapeamento
+// dos demais inputs, gravando/lendo em configuration['source'].
+const LOOP_SOURCE_INPUT: InputDefinition = {
+  id: 'source',
+  label: 'Lista de itens',
+  type: 'String',
+  required: true,
+  allowedMappingKinds: ['Output', 'Event', 'Expression', 'Variable'],
+};
+
 const literalRuleError = (value: string, input: InputDefinition): string | undefined => {
   const rules = toEffectiveRules(input);
   if (!rules) return undefined;
@@ -280,7 +290,7 @@ export const EditWorkflowStepView: React.FC<{ tabKey: string }> = ({ tabKey }) =
       <S.Header>
         <S.TitleRow>
           {vm.selectedStepIcon && <vm.selectedStepIcon size={22} />}
-          <S.Title>{vm.isConditionStep ? 'Editar Condição' : (vm.isDefinitionLocked ? 'Editar Step' : 'Adicionar Step')}</S.Title>
+          <S.Title>{vm.isConditionStep ? 'Editar Condição' : vm.isLoopStep ? 'Editar Repetição' : (vm.isDefinitionLocked ? 'Editar Step' : 'Adicionar Step')}</S.Title>
         </S.TitleRow>
         <S.HeaderActions>
           <S.SaveBtn
@@ -291,7 +301,7 @@ export const EditWorkflowStepView: React.FC<{ tabKey: string }> = ({ tabKey }) =
             <RiSaveLine size={14} />
           </S.SaveBtn>
           {vm.isDefinitionLocked && (
-            <S.DeleteBtn onClick={vm.handleDelete} disabled={vm.isSaving} title={vm.isConditionStep ? 'Excluir Condição' : 'Excluir Step'}>
+            <S.DeleteBtn onClick={vm.handleDelete} disabled={vm.isSaving} title={vm.isConditionStep ? 'Excluir Condição' : vm.isLoopStep ? 'Excluir Repetição' : 'Excluir Step'}>
               <RiDeleteBinLine size={14} />
             </S.DeleteBtn>
           )}
@@ -353,6 +363,56 @@ export const EditWorkflowStepView: React.FC<{ tabKey: string }> = ({ tabKey }) =
                 onRequestEdit={vm.handleRequestConditionEdit}
               />
             )}
+          </S.Form>
+        </S.Content>
+      ) : vm.isLoopStep ? (
+        <S.Content>
+          <S.Form>
+            <InputGroup>
+              <Label>Nome (opcional)</Label>
+              <Input
+                value={vm.signature}
+                onChange={(e) => vm.setSignature(e.target.value)}
+                placeholder="ex: Para cada processo encontrado"
+              />
+              <S.HelpText>Nome para identificar esta repetição no fluxo.</S.HelpText>
+            </InputGroup>
+            <S.StepsDivider />
+            <S.Field>
+              <S.FieldHeader>
+                <Label>{LOOP_SOURCE_INPUT.label}</Label>
+                <S.Required>*</S.Required>
+              </S.FieldHeader>
+              <S.HelpText>A lista (ou item único) sobre a qual repetir. Cada item roda os steps do corpo da repetição.</S.HelpText>
+              <S.MappingRow>
+                <SearchSelect
+                  options={getMappingKindOptions(LOOP_SOURCE_INPUT)}
+                  value={vm.configuration.source?.kind ?? ''}
+                  onChange={(kind) => vm.setMappingKind('source', kind as InputMapping['kind'])}
+                  placeholder="Origem..."
+                />
+                {renderMappingControl(LOOP_SOURCE_INPUT)}
+              </S.MappingRow>
+            </S.Field>
+            <InputGroup>
+              <Label>Nome do item</Label>
+              <Input
+                value={vm.loopItemName}
+                onChange={(e) => vm.setLoopItemName(e.target.value)}
+                placeholder="ex: item"
+              />
+              <S.HelpText>{`Item escalar fica disponível como input.${vm.loopItemName || 'item'}. Se o item for um objeto, seus campos ficam em input.campo.`}</S.HelpText>
+            </InputGroup>
+            <InputGroup>
+              <Label>Nome da saída</Label>
+              <Input
+                value={vm.loopOutputName}
+                onChange={(e) => vm.setLoopOutputName(e.target.value)}
+                placeholder="ex: itens"
+              />
+              <S.HelpText>O resultado de cada iteração é agrupado num vetor publicado sob este nome para o próximo step.</S.HelpText>
+            </InputGroup>
+            <InfoBanner variant="info" message="Adicione os steps que rodam a cada item no corpo da repetição, no fluxo do workflow." />
           </S.Form>
         </S.Content>
       ) : (
@@ -440,10 +500,12 @@ export const EditWorkflowStepView: React.FC<{ tabKey: string }> = ({ tabKey }) =
         isOpen={!!vm.stepToDelete}
         onConfirm={() => void vm.confirmDelete()}
         onCancel={vm.cancelDelete}
-        title={vm.isConditionStep ? 'Excluir Condição' : 'Excluir Step'}
+        title={vm.isConditionStep ? 'Excluir Condição' : vm.isLoopStep ? 'Excluir Repetição' : 'Excluir Step'}
         message={vm.isConditionStep
           ? 'Excluir esta condição também remove todos os steps dos ramos Verdadeiro e Falso. Esta ação não pode ser desfeita.'
-          : 'Tem certeza que deseja excluir este step? Esta ação não pode ser desfeita.'}
+          : vm.isLoopStep
+            ? 'Excluir esta repetição também remove todos os steps do seu corpo. Esta ação não pode ser desfeita.'
+            : 'Tem certeza que deseja excluir este step? Esta ação não pode ser desfeita.'}
         confirmLabel="Excluir"
         variant="danger"
       />

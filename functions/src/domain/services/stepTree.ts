@@ -1,9 +1,10 @@
 import type { WorkflowStep } from "../entities/Workflow";
 
 /**
- * Achata a árvore de Steps (incluindo os ramos whenTrue/whenFalse de nós StepCondition) numa
- * lista única. Usado por rotinas que precisam varrer todos os Steps independentemente da
- * profundidade — ex: coletar Scripts/SubWorkflows referenciados ao copiar um workflow público.
+ * Achata a árvore de Steps (incluindo os ramos whenTrue/whenFalse de nós StepCondition e o corpo
+ * de nós Loop) numa lista única. Usado por rotinas que precisam varrer todos os Steps
+ * independentemente da profundidade — ex: coletar Scripts/SubWorkflows referenciados ao copiar um
+ * workflow público, ou coletar os ids de um corpo de Loop para isolamento entre iterações.
  */
 export const flattenSteps = (steps: WorkflowStep[]): WorkflowStep[] => {
   const out: WorkflowStep[] = [];
@@ -13,13 +14,17 @@ export const flattenSteps = (steps: WorkflowStep[]): WorkflowStep[] => {
       out.push(...flattenSteps(step.branches.whenTrue));
       out.push(...flattenSteps(step.branches.whenFalse));
     }
+    if (step.type === "Loop" && step.loop) {
+      out.push(...flattenSteps(step.loop.body));
+    }
   }
   return out;
 };
 
 /**
- * Aplica `fn` a cada Step da árvore, preservando a estrutura de ramos. Para nós StepCondition,
- * `fn` é aplicada ao próprio nó e depois a transformação recorre nos dois ramos.
+ * Aplica `fn` a cada Step da árvore, preservando a estrutura de ramos/corpo. Para nós StepCondition,
+ * `fn` é aplicada ao próprio nó e depois a transformação recorre nos dois ramos; para nós Loop,
+ * recorre no corpo.
  */
 export const mapStepTree = (
   steps: WorkflowStep[],
@@ -34,6 +39,12 @@ export const mapStepTree = (
           whenTrue: mapStepTree(mapped.branches.whenTrue, fn),
           whenFalse: mapStepTree(mapped.branches.whenFalse, fn),
         },
+      };
+    }
+    if (mapped.type === "Loop" && mapped.loop) {
+      return {
+        ...mapped,
+        loop: { ...mapped.loop, body: mapStepTree(mapped.loop.body, fn) },
       };
     }
     return mapped;

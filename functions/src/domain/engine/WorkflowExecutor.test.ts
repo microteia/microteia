@@ -3,7 +3,7 @@ import { runWorkflow } from './WorkflowExecutor';
 import type { StepRegistry } from './StepRegistry';
 import type { StepDefinition } from './StepDefinition';
 import type { WorkflowServices } from '../entities/WorkflowContext';
-import type { Condition, WorkflowDefinition, WorkflowEvent, WorkflowStep } from '../entities/Workflow';
+import type { Condition, InputMapping, WorkflowDefinition, WorkflowEvent, WorkflowStep } from '../entities/Workflow';
 
 // Step de teste "record": registra sua tag na ordem de execução e devolve { value: tag }.
 const makeRecordStep = (order: string[]): StepDefinition => ({
@@ -176,6 +176,169 @@ describe('runWorkflow — StepCondition (ramificação)', () => {
     const result = await runWorkflow({
       definition: makeDefinition([broken]),
       event: makeEvent({ branch: 'yes' }),
+      registry: makeRegistry(order),
+      services,
+    });
+    expect(result.status).toBe('FAILED');
+  });
+});
+
+const recordFromExpr = (expr: string): WorkflowStep => ({
+  id: `s-${seq++}`,
+  stepDefinitionId: 'record',
+  type: 'Action',
+  order: 0,
+  configuration: { tag: { kind: 'Expression', expression: expr } },
+  enabled: true,
+});
+
+// Step que sempre falha: input obrigatório "tag" fica sem mapeamento, então resolveInputsSafe
+// rejeita antes mesmo de executar.
+const failingStep = (): WorkflowStep => ({
+  id: `fail-${seq++}`,
+  stepDefinitionId: 'record',
+  type: 'Action',
+  order: 0,
+  configuration: {},
+  enabled: true,
+});
+
+const loopStep = (
+  id: string,
+  source: InputMapping,
+  body: WorkflowStep[],
+  opts?: { itemName?: string; outputName?: string },
+): WorkflowStep => ({
+  id,
+  stepDefinitionId: '',
+  type: 'Loop',
+  order: 0,
+  configuration: {},
+  enabled: true,
+  loop: {
+    source,
+    itemName: opts?.itemName ?? 'item',
+    outputName: opts?.outputName ?? 'itens',
+    body,
+  },
+});
+
+describe('runWorkflow — StepLoop (repetição / ForEach)', () => {
+  it('itera uma lista de objetos e publica um vetor com o output do último substep', async () => {
+    const order: string[] = [];
+    const steps = withOrder([
+      loopStep('loop-1', { kind: 'Event', path: 'items' }, withOrder([recordFromExpr('input.name')])),
+    ]);
+    const result = await runWorkflow({
+      definition: makeDefinition(steps),
+      event: makeEvent({ items: [{ name: 'a' }, { name: 'b' }, { name: 'c' }] }),
+      registry: makeRegistry(order),
+      services,
+    });
+    expect(result.status).toBe('SUCCESS');
+    expect(order).toEqual(['a', 'b', 'c']);
+    expect(result.outputs).toEqual({ itens: [{ value: 'a' }, { value: 'b' }, { value: 'c' }] });
+  });
+
+  it('trata um item escalar único como lista de 1, sob o itemName', async () => {
+    const order: string[] = [];
+    const steps = withOrder([
+      loopStep('loop-1', { kind: 'Event', path: 'name' }, withOrder([recordFromExpr('input.item')])),
+    ]);
+    const result = await runWorkflow({
+      definition: makeDefinition(steps),
+      event: makeEvent({ name: 'solo' }),
+      registry: makeRegistry(order),
+      services,
+    });
+    expect(result.status).toBe('SUCCESS');
+    expect(order).toEqual(['solo']);
+    expect(result.outputs).toEqual({ itens: [{ value: 'solo' }] });
+  });
+
+  it('lista vazia não roda nada e publica um vetor vazio', async () => {
+    const order: string[] = [];
+    const steps = withOrder([
+      loopStep('loop-1', { kind: 'Event', path: 'items' }, withOrder([recordFromExpr('input.item')])),
+    ]);
+    const result = await runWorkflow({
+      definition: makeDefinition(steps),
+      event: makeEvent({ items: [] }),
+      registry: makeRegistry(order),
+      services,
+    });
+    expect(result.status).toBe('SUCCESS');
+    expect(order).toEqual([]);
+    expect(result.outputs).toEqual({ itens: [] });
+  });
+
+  it('isola os outputs entre iterações — a iteração 2 não enxerga o output da iteração 1', async () => {
+    // A lê o próprio campo "value" via input; se o output da iteração anterior vazasse, o
+    // coalesce pegaria o valor antigo em vez do "n" do item corrente.
+    const order: string[] = [];
+    const steps = withOrder([
+      loopStep('loop-1', { kind: 'Event', path: 'items' }, withOrder([recordFromExpr('coalesce(input.value, input.n)')])),
+    ]);
+    const result = await runWorkflow({
+      definition: makeDefinition(steps),
+      event: makeEvent({ items: [{ n: 1 }, { n: 2 }] }),
+      registry: makeRegistry(order),
+      services,
+    });
+    expect(result.status).toBe('SUCCESS');
+    expect(result.outputs).toEqual({ itens: [{ value: '1' }, { value: '2' }] });
+  });
+
+  it('fail-fast: erro numa iteração marca FAILED e interrompe as iterações seguintes', async () => {
+    const order: string[] = [];
+    const steps = withOrder([
+      loopStep('loop-1', { kind: 'Event', path: 'items' }, withOrder([recordFromExpr('input.name'), failingStep()])),
+    ]);
+    const result = await runWorkflow({
+      definition: makeDefinition(steps),
+      event: makeEvent({ items: [{ name: 'a' }, { name: 'b' }] }),
+      registry: makeRegistry(order),
+      services,
+    });
+    expect(result.status).toBe('FAILED');
+    expect(order).toEqual(['a']);
+  });
+
+  it('suporta loops aninhados', async () => {
+    const order: string[] = [];
+    const inner = loopStep('loop-inner', { kind: 'Expression', expression: 'input.items' }, withOrder([recordFromExpr('input.name')]), { outputName: 'inner' });
+    const steps = withOrder([
+      loopStep('loop-outer', { kind: 'Event', path: 'groups' }, withOrder([inner]), { outputName: 'outer' }),
+    ]);
+    const result = await runWorkflow({
+      definition: makeDefinition(steps),
+      event: makeEvent({ groups: [{ items: [{ name: 'a' }, { name: 'b' }] }, { items: [{ name: 'c' }] }] }),
+      registry: makeRegistry(order),
+      services,
+    });
+    expect(result.status).toBe('SUCCESS');
+    expect(order).toEqual(['a', 'b', 'c']);
+    expect(result.outputs).toEqual({
+      outer: [
+        { inner: [{ value: 'a' }, { value: 'b' }] },
+        { inner: [{ value: 'c' }] },
+      ],
+    });
+  });
+
+  it('falha quando o StepLoop não tem configuração', async () => {
+    const order: string[] = [];
+    const broken: WorkflowStep = {
+      id: 'loop-broken',
+      stepDefinitionId: '',
+      type: 'Loop',
+      order: 0,
+      configuration: {},
+      enabled: true,
+    };
+    const result = await runWorkflow({
+      definition: makeDefinition([broken]),
+      event: makeEvent({ items: [] }),
       registry: makeRegistry(order),
       services,
     });

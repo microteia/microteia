@@ -435,6 +435,70 @@ export const S = {
     border-left: 2px solid ${({ theme }) => theme.colors.border};
   `,
 
+  LoopBlock: styled.div`
+    display: flex;
+    flex-direction: column;
+    gap: ${({ theme }) => theme.spacing.xs};
+    width: 100%;
+    margin-top: ${({ theme }) => theme.spacing.sm};
+    padding: ${({ theme }) => theme.spacing.md};
+    border: 1px solid ${({ theme }) => theme.colors.border};
+    border-left: 3px solid ${({ theme }) => theme.colors.primary};
+    border-radius: ${({ theme }) => theme.borderRadius.lg};
+    background: ${({ theme }) => theme.colors.surface};
+  `,
+
+  LoopHeader: styled.button`
+    display: flex;
+    align-items: center;
+    gap: ${({ theme }) => theme.spacing.sm};
+    width: 100%;
+    background: none;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+  `,
+
+  LoopChevron: styled.span<{ $collapsed: boolean }>`
+    display: inline-flex;
+    align-items: center;
+    transition: transform 0.15s ease;
+    transform: rotate(${({ $collapsed }) => ($collapsed ? '-90deg' : '0deg')});
+    color: ${({ theme }) => theme.colors.textMuted};
+  `,
+
+  LoopLabel: styled.span`
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 10px;
+    border-radius: ${({ theme }) => theme.borderRadius.full};
+    background: ${({ theme }) => theme.colors.surfaceHover};
+    border: 1px solid ${({ theme }) => theme.colors.border};
+    color: ${({ theme }) => theme.colors.primary};
+    font-size: ${({ theme }) => theme.fontSizes.xs};
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  `,
+
+  LoopBody: styled.div`
+    display: flex;
+    flex-direction: column;
+    gap: ${({ theme }) => theme.spacing.sm};
+    width: 100%;
+    padding-top: ${({ theme }) => theme.spacing.sm};
+  `,
+
+  LoopListGroup: styled.div`
+    display: flex;
+    flex-direction: column;
+    gap: ${({ theme }) => theme.spacing.sm};
+    margin: ${({ theme }) => theme.spacing.xs} 0 ${({ theme }) => theme.spacing.xs} ${({ theme }) => theme.spacing.lg};
+    padding-left: ${({ theme }) => theme.spacing.md};
+    border-left: 2px solid ${({ theme }) => theme.colors.primary};
+  `,
+
   StepRow: styled.div<{ $disabled?: boolean }>`
     display: flex;
     align-items: center;

@@ -1,4 +1,4 @@
-import type { Condition, WorkflowDefinition, WorkflowEvent } from '../entities/Workflow';
+import type { Condition, InputMapping, WorkflowDefinition, WorkflowEvent } from '../entities/Workflow';
 import type { WorkflowLogger } from '../entities/WorkflowContext';
 import type { IWorkflowRecordFetcher } from '../repositories/IWorkflowRecordFetcher';
 import type { IScreenDefinitionProvider } from '../repositories/IScreenDefinitionProvider';
@@ -8,6 +8,7 @@ import { buildHydrationPlan } from '../schema/hydrationPlan';
 import { collectHopRecordRefs, materializeHops, recordKey } from '../schema/materialize';
 import { eventNameToRoot } from '../schema/eventCatalog';
 import { extractExpressionPaths } from '../schema/expressionPaths';
+import { flattenSteps } from '../services/stepTree';
 
 export type HydrationCache = Map<string, Record<string, unknown> | null>;
 
@@ -58,11 +59,15 @@ export class WorkflowContextHydrator {
 
     walkCondition(definition.condition);
 
-    for (const step of definition.steps) {
-      for (const mapping of Object.values(step.configuration)) {
-        if (mapping.kind === 'Event') addRelative(mapping.path);
-        else if (mapping.kind === 'Expression') addExpression(mapping.expression);
-      }
+    const addMapping = (mapping: InputMapping): void => {
+      if (mapping.kind === 'Event') addRelative(mapping.path);
+      else if (mapping.kind === 'Expression') addExpression(mapping.expression);
+    };
+
+    // Percorre a árvore inteira (incluindo ramos de Condition e corpos de Loop), não só o nível raiz.
+    for (const step of flattenSteps(definition.steps)) {
+      for (const mapping of Object.values(step.configuration)) addMapping(mapping);
+      if (step.loop) addMapping(step.loop.source);
     }
 
     return [...paths];

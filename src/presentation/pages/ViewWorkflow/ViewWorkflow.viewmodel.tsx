@@ -17,7 +17,7 @@ import { siblingParameterErrors, hasParameterErrorsDeep, sanitizeWorkflowParamet
 import { getWorkflowEventIcon, getWorkflowLookupGroupIcon } from '../../shared/workflowEventIcons';
 import { getScreenIconType } from '../../shared/screenIcons';
 import { getStepIcon as getStepIconType } from '../../shared/stepIcons';
-import { RiGitBranchLine } from 'react-icons/ri';
+import { RiGitBranchLine, RiLoopLeftLine } from 'react-icons/ri';
 import { generateDeepLink } from '../../../infrastructure/deeplink/deepLinkUtils';
 import {
   getStepDisplayName,
@@ -148,6 +148,9 @@ export interface ViewWorkflowViewModel {
   getStepById: (id: string) => WorkflowStep | undefined;
   openAddStep: (target?: InsertTarget) => void;
   openAddCondition: (target?: InsertTarget) => Promise<void>;
+  openAddLoop: (target?: InsertTarget) => Promise<void>;
+  toggleLoopCollapsed: (loopId: string) => void;
+  isLoopCollapsed: (loopId: string) => boolean;
   openEditStep: (step: WorkflowStep) => void;
   stepToDelete: WorkflowStep | null;
   handleDeleteStep: (step: WorkflowStep) => void;
@@ -165,6 +168,7 @@ export interface ViewWorkflowViewModel {
   eventLabel: string;
   getStepTypeLabel: (step: WorkflowStep) => string;
   getConditionSummary: (step: WorkflowStep) => string;
+  getLoopSummary: (step: WorkflowStep) => string;
   draggingStepId: string | null;
   dropTarget: { parentKey: string; index: number } | null;
   handleStepDragStart: (event: DragEvent<HTMLElement>, stepId: string, parentKey: string) => void;
@@ -253,6 +257,7 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
   const [expandedExecutionOutputs, setExpandedExecutionOutputs] = useState<Set<string>>(new Set());
   const [expandedLogData, setExpandedLogData] = useState<Set<string>>(new Set());
   const [expandedStepResults, setExpandedStepResults] = useState<Set<string>>(new Set());
+  const [collapsedLoopIds, setCollapsedLoopIds] = useState<Set<string>>(new Set());
   const [pendingCondition, setPendingCondition] = useState<Condition>({ kind: 'AlwaysTrue' });
   const [conditionChanged, setConditionChanged] = useState(false);
   const [stepsViewMode, setStepsViewModeState] = useState<StepsViewMode>(loadStepsViewMode);
@@ -343,7 +348,11 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
   );
 
   const getStepIconForStep = useCallback(
-    (step: WorkflowStep): IconType => (step.type === 'Condition' ? RiGitBranchLine : getStepIcon(step.stepDefinitionId)),
+    (step: WorkflowStep): IconType => {
+      if (step.type === 'Condition') return RiGitBranchLine;
+      if (step.type === 'Loop') return RiLoopLeftLine;
+      return getStepIcon(step.stepDefinitionId);
+    },
     [getStepIcon],
   );
 
@@ -670,6 +679,7 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
 
   const targetSuffix = useCallback((target?: InsertTarget): string => {
     if (!target || target.kind === 'root') return '';
+    if (target.kind === 'loop') return `:addloop:${target.loopId}`;
     return `:add:${target.conditionId}:${target.branch}`;
   }, []);
 
@@ -696,6 +706,40 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
       notify('Erro ao adicionar condição.', 'error');
     });
   }, [workflow, updateWorkflowSteps, notify]);
+
+  const openAddLoop = useCallback(async (target?: InsertTarget) => {
+    if (!workflow) return;
+    const loopStep: WorkflowStep = {
+      id: crypto.randomUUID(),
+      stepDefinitionId: '',
+      type: 'Loop',
+      order: 0,
+      configuration: {},
+      enabled: true,
+      loop: {
+        source: { kind: 'Expression', expression: '' },
+        itemName: 'item',
+        outputName: 'itens',
+        body: [],
+      },
+    };
+    const nextSteps = insertStepInto(workflow.steps, target ?? { kind: 'root' }, loopStep);
+    await updateWorkflowSteps(workflow.id, nextSteps).catch((error) => {
+      console.error('[ViewWorkflow] openAddLoop:', error);
+      notify('Erro ao adicionar repetição.', 'error');
+    });
+  }, [workflow, updateWorkflowSteps, notify]);
+
+  const toggleLoopCollapsed = useCallback((loopId: string) => {
+    setCollapsedLoopIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(loopId)) next.delete(loopId);
+      else next.add(loopId);
+      return next;
+    });
+  }, []);
+
+  const isLoopCollapsed = useCallback((loopId: string) => collapsedLoopIds.has(loopId), [collapsedLoopIds]);
 
   const openEditStep = useCallback((step: WorkflowStep) => {
     if (!workflow) return;
@@ -762,6 +806,7 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
 
   const getStepTypeLabel = useCallback((step: WorkflowStep): string => {
     if (step.type === 'Condition') return 'Condição';
+    if (step.type === 'Loop') return 'Repetição';
     const definition = getStepDefinition(step.stepDefinitionId);
     if (!definition) return step.stepDefinitionId;
     const categoryLabel = STEP_CATEGORY_LABELS[definition.category] ?? definition.category;
@@ -771,6 +816,11 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
   }, [getStepDefinition]);
 
   const getConditionSummary = useCallback((step: WorkflowStep): string => describeCondition(step.condition), []);
+
+  const getLoopSummary = useCallback((step: WorkflowStep): string => {
+    if (!step.loop) return 'Para cada item';
+    return `Para cada item → ${step.loop.outputName}`;
+  }, []);
 
   const handleStepDragStart = useCallback((event: DragEvent<HTMLElement>, stepId: string, parentKey: string) => {
     event.dataTransfer.setData('text/plain', stepId);
@@ -835,6 +885,9 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
     getStepById,
     openAddStep,
     openAddCondition,
+    openAddLoop,
+    toggleLoopCollapsed,
+    isLoopCollapsed,
     openEditStep,
     stepToDelete,
     handleDeleteStep,
@@ -852,6 +905,7 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
     eventLabel,
     getStepTypeLabel,
     getConditionSummary,
+    getLoopSummary,
     draggingStepId: dragging?.id ?? null,
     dropTarget,
     handleStepDragStart,

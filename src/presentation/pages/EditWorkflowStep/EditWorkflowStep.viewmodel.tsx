@@ -152,6 +152,11 @@ export interface EditWorkflowStepViewModel {
   enabled: boolean;
   setEnabled: (enabled: boolean) => void;
   isConditionStep: boolean;
+  isLoopStep: boolean;
+  loopItemName: string;
+  setLoopItemName: (name: string) => void;
+  loopOutputName: string;
+  setLoopOutputName: (name: string) => void;
   pendingCondition: Condition;
   setPendingCondition: (condition: Condition) => void;
   conditionViewMode: ConditionViewMode;
@@ -185,15 +190,19 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
   //   "edit-workflow-step:{wfId}"                         → adicionar step na raiz
   //   "edit-workflow-step:{wfId}:{stepId}"                → editar step existente
   //   "edit-workflow-step:{wfId}:add:{condId}:{branch}"   → adicionar step num ramo de condição
+  //   "edit-workflow-step:{wfId}:addloop:{loopId}"        → adicionar step no corpo de um Loop
   const parts = useMemo(() => tabKey.replace('edit-workflow-step:', '').split(':'), [tabKey]);
   const workflowId = parts[0] ?? '';
   const isBranchAdd = parts[1] === 'add';
-  const stepId = isBranchAdd ? null : (parts[1] ?? null);
+  const isLoopAdd = parts[1] === 'addloop';
+  const stepId = isBranchAdd || isLoopAdd ? null : (parts[1] ?? null);
   const insertTarget = useMemo<InsertTarget>(
-    () => (isBranchAdd && parts[2] && parts[3]
-      ? { kind: 'branch', conditionId: parts[2], branch: parts[3] as BranchKey }
-      : { kind: 'root' }),
-    [isBranchAdd, parts],
+    () => {
+      if (isBranchAdd && parts[2] && parts[3]) return { kind: 'branch', conditionId: parts[2], branch: parts[3] as BranchKey };
+      if (isLoopAdd && parts[2]) return { kind: 'loop', loopId: parts[2] };
+      return { kind: 'root' };
+    },
+    [isBranchAdd, isLoopAdd, parts],
   );
 
   const { workflows, updateWorkflowSteps } = useWorkflowStore();
@@ -219,12 +228,15 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
   );
 
   const isConditionStep = editingStep?.type === 'Condition';
+  const isLoopStep = editingStep?.type === 'Loop';
 
   const [selectedDefinitionId, setSelectedDefinitionId] = useState('');
   const [signature, setSignature] = useState('');
   const [configuration, setConfiguration] = useState<Record<string, InputMapping>>({});
   const [enabled, setEnabled] = useState(true);
   const [pendingCondition, setPendingCondition] = useState<Condition>({ kind: 'AlwaysTrue' });
+  const [loopItemName, setLoopItemName] = useState('item');
+  const [loopOutputName, setLoopOutputName] = useState('itens');
   const [conditionViewMode, setConditionViewModeState] = useState<ConditionViewMode>(loadConditionViewMode);
   const [conditionFocusPath, setConditionFocusPath] = useState<number[] | null>(null);
   const [isSaving, setIsSaving] = useState(false);
@@ -255,9 +267,17 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
     // eslint-disable-next-line react-hooks/set-state-in-effect -- reinicializa o form ao montar ou mudar de step
     setSelectedDefinitionId(editingStep?.stepDefinitionId ?? '');
     setSignature(editingStep?.signature ?? '');
-    setConfiguration(editingStep?.configuration ?? {});
+    // Nó Loop guarda a origem da lista em `loop.source`; expõe-a como configuration['source']
+    // para reusar os mesmos controles de mapeamento de qualquer outro input.
+    setConfiguration(
+      editingStep?.type === 'Loop' && editingStep.loop
+        ? { source: editingStep.loop.source }
+        : (editingStep?.configuration ?? {}),
+    );
     setEnabled(editingStep?.enabled ?? true);
     setPendingCondition(editingStep?.condition ?? { kind: 'AlwaysTrue' });
+    setLoopItemName(editingStep?.loop?.itemName ?? 'item');
+    setLoopOutputName(editingStep?.loop?.outputName ?? 'itens');
   }, [editingStep]);
 
   const selectedDefinition = useMemo(
@@ -425,6 +445,15 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
   const stepOutputFields = useMemo(() => {
     const fields: StepOutputField[] = [];
     priorSteps.forEach((step) => {
+      if (step.type === 'Loop' && step.loop) {
+        fields.push({
+          stepId: step.id,
+          stepName: getStepDisplayName(step),
+          outputId: step.loop.outputName,
+          outputLabel: `${step.loop.outputName} (lista)`,
+        });
+        return;
+      }
       const definition = stepCatalog.find((d) => d.id === step.stepDefinitionId);
       if (!definition) return;
 
@@ -499,6 +528,10 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
   const getStepOutputs = useCallback((stepId: string) => {
     const step = priorSteps.find((s) => s.id === stepId);
     if (!step) return [];
+
+    if (step.type === 'Loop' && step.loop) {
+      return [{ value: step.loop.outputName, label: `${step.loop.outputName} (lista)` }];
+    }
 
     const definition = stepCatalog.find((d) => d.id === step.stepDefinitionId);
     if (!definition) return [];
@@ -582,11 +615,12 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
 
   const canSave = useMemo(() => {
     if (isConditionStep) return true;
+    if (isLoopStep) return !!configuration.source && !!loopItemName.trim() && !!loopOutputName.trim();
     if (!selectedDefinition) return false;
     return effectiveInputs
       .filter((input) => input.required)
       .every((input) => configuration[input.id] !== undefined);
-  }, [isConditionStep, selectedDefinition, effectiveInputs, configuration]);
+  }, [isConditionStep, isLoopStep, configuration, loopItemName, loopOutputName, selectedDefinition, effectiveInputs]);
 
   const handleSave = useCallback(async () => {
     if (!workflow) return;
@@ -611,6 +645,39 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
         closeTab(tabKey, activePanelId ?? 'main');
       } catch (error) {
         notify(`Erro ao salvar condição: ${String(error)}`, 'error');
+      } finally {
+        setIsSaving(false);
+      }
+      return;
+    }
+
+    // Modo Loop: edita a configuração de repetição de um nó de controle já existente,
+    // preservando o corpo (loop.body).
+    if (isLoopStep && editingStep && editingStep.loop) {
+      const source = configuration.source;
+      if (!source) return;
+      setIsSaving(true);
+      try {
+        const updated: WorkflowStep = {
+          id: editingStep.id,
+          stepDefinitionId: '',
+          type: 'Loop',
+          order: editingStep.order,
+          ...(signature.trim() ? { signature: signature.trim() } : {}),
+          configuration: {},
+          enabled,
+          loop: {
+            source,
+            itemName: loopItemName.trim(),
+            outputName: loopOutputName.trim(),
+            body: editingStep.loop.body,
+          },
+        };
+        await updateWorkflowSteps(workflow.id, replaceStepInTree(existingSteps, updated));
+        notify('Repetição salva com sucesso.', 'success');
+        closeTab(tabKey, activePanelId ?? 'main');
+      } catch (error) {
+        notify(`Erro ao salvar repetição: ${String(error)}`, 'error');
       } finally {
         setIsSaving(false);
       }
@@ -645,6 +712,9 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
     }
   }, [
     isConditionStep,
+    isLoopStep,
+    loopItemName,
+    loopOutputName,
     selectedDefinition,
     workflow,
     editingStep,
@@ -704,6 +774,11 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
     enabled,
     setEnabled,
     isConditionStep: !!isConditionStep,
+    isLoopStep: !!isLoopStep,
+    loopItemName,
+    setLoopItemName,
+    loopOutputName,
+    setLoopOutputName,
     pendingCondition,
     setPendingCondition,
     conditionViewMode,

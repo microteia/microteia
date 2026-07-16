@@ -8,9 +8,13 @@ import type {
 import type { WorkflowContext, WorkflowServices } from '../entities/WorkflowContext';
 import type { StepRegistry } from './StepRegistry';
 import { evaluateCondition } from './ConditionEvaluator';
-import { resolveInputsSafe } from './InputMapping';
+import { resolveInputsSafe, resolveMapping } from './InputMapping';
 import { describeRuleIssues } from '../schema/fieldRules';
 import { formatAndValidateParameters } from '../schema/parameterRules';
+import { flattenSteps } from '../services/stepTree';
+
+const isPlainObject = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null && !Array.isArray(value);
 
 export interface RunWorkflowParams {
   definition: WorkflowDefinition;
@@ -151,6 +155,69 @@ export const runWorkflow = async ({ definition, event, registry, services }: Run
           return { ok: false };
         }
         lastStepId = recur.lastStepId;
+        continue;
+      }
+
+      if (step.type === 'Loop') {
+        if (!step.loop) {
+          log('ERROR', '[Repetição] Nó de repetição sem configuração', step.id, undefined, context.input);
+          return { ok: false };
+        }
+        const { source, itemName, outputName, body } = step.loop;
+
+        let sourceValue: unknown;
+        try {
+          sourceValue = resolveMapping(source, context);
+        } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : String(error);
+          log('ERROR', `[Repetição] ${errorMessage}`, step.id, undefined, context.input);
+          return { ok: false };
+        }
+
+        const items = Array.isArray(sourceValue) ? sourceValue : sourceValue == null ? [] : [sourceValue];
+        const bodyStepIds = flattenSteps(body).map((bodyStep) => bodyStep.id);
+        const results: unknown[] = [];
+
+        log(
+          'INFO',
+          `Repetição sobre ${items.length} ${items.length === 1 ? 'item' : 'itens'}`,
+          step.id,
+          undefined,
+          context.input,
+          undefined,
+          { count: items.length },
+        );
+
+        let loopFailed = false;
+        for (const item of items) {
+          for (const bodyStepId of bodyStepIds) delete context.outputs[bodyStepId];
+          context.outputs[step.id] = isPlainObject(item) ? { ...item } : { [itemName]: item };
+
+          const recur = await executeSteps(body, null);
+          if (!recur.ok) {
+            loopFailed = true;
+            break;
+          }
+          results.push(recur.lastStepId ? context.outputs[recur.lastStepId] ?? {} : {});
+        }
+
+        for (const bodyStepId of bodyStepIds) delete context.outputs[bodyStepId];
+        if (loopFailed) {
+          return { ok: false };
+        }
+
+        const loopOutputs = { [outputName]: results };
+        context.outputs[step.id] = loopOutputs;
+        log(
+          'SUCCESS',
+          `Repetição concluída — ${results.length} ${results.length === 1 ? 'resultado' : 'resultados'}`,
+          step.id,
+          undefined,
+          context.input,
+          undefined,
+          loopOutputs,
+        );
+        lastStepId = step.id;
         continue;
       }
 

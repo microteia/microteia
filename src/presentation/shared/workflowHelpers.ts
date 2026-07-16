@@ -17,23 +17,28 @@ export const getStepDisplayName = (
   if (step.name) return step.name;
   if (definition?.name) return definition.name;
   if (step.type === 'Condition') return 'Condição';
+  if (step.type === 'Loop') return 'Repetição';
   return fallback ?? step.stepDefinitionId;
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Árvore de Steps (StepCondition ramifica em branches.whenTrue / branches.whenFalse)
-// Um Step do tipo 'Condition' é um nó de controle: não produz output próprio e carrega
-// dois ramos, cada um uma sequência recursiva de Steps. As funções abaixo tratam a lista
-// de Steps como uma árvore imutável, preservando a ordenação por `order` em cada nível.
+// Árvore de Steps. Nós de controle carregam listas-filhas recursivas de Steps: 'Condition'
+// ramifica em branches.whenTrue / branches.whenFalse; 'Loop' repete uma única lista loop.body.
+// As funções abaixo tratam a lista de Steps como uma árvore imutável através de uma abstração
+// genérica de listas-filhas (childListsOf / withChildLists), preservando a ordenação por `order`
+// em cada nível.
 // ─────────────────────────────────────────────────────────────────────────────
 
 export type BranchKey = 'whenTrue' | 'whenFalse';
 
 export type InsertTarget =
   | { kind: 'root' }
-  | { kind: 'branch'; conditionId: string; branch: BranchKey };
+  | { kind: 'branch'; conditionId: string; branch: BranchKey }
+  | { kind: 'loop'; loopId: string };
 
 export const isConditionStep = (step: WorkflowStep): boolean => step.type === 'Condition';
+
+export const isLoopStep = (step: WorkflowStep): boolean => step.type === 'Loop';
 
 const byOrder = (a: WorkflowStep, b: WorkflowStep): number => a.order - b.order;
 
@@ -45,8 +50,47 @@ const reindex = (list: WorkflowStep[]): WorkflowStep[] =>
 // preservar a ordem lógica existente antes de reatribuir os índices.
 const sortAndReindex = (list: WorkflowStep[]): WorkflowStep[] => reindex([...list].sort(byOrder));
 
-const branchesOf = (step: WorkflowStep): WorkflowStep['branches'] =>
-  step.type === 'Condition' ? step.branches ?? { whenTrue: [], whenFalse: [] } : undefined;
+interface ChildList {
+  key: string;
+  steps: WorkflowStep[];
+}
+
+// Listas-filhas de um nó de controle (vazio para Steps normais). Condition → duas listas;
+// Loop → uma lista.
+const childListsOf = (step: WorkflowStep): ChildList[] => {
+  if (step.type === 'Condition') {
+    const branches = step.branches ?? { whenTrue: [], whenFalse: [] };
+    return [
+      { key: 'whenTrue', steps: branches.whenTrue },
+      { key: 'whenFalse', steps: branches.whenFalse },
+    ];
+  }
+  if (step.type === 'Loop' && step.loop) {
+    return [{ key: 'body', steps: step.loop.body }];
+  }
+  return [];
+};
+
+// Reconstrói um nó de controle com listas-filhas novas (contraparte de childListsOf).
+const withChildLists = (step: WorkflowStep, lists: ChildList[]): WorkflowStep => {
+  if (step.type === 'Condition') {
+    const byKey = new Map(lists.map((list) => [list.key, list.steps]));
+    return { ...step, branches: { whenTrue: byKey.get('whenTrue') ?? [], whenFalse: byKey.get('whenFalse') ?? [] } };
+  }
+  if (step.type === 'Loop' && step.loop) {
+    return { ...step, loop: { ...step.loop, body: lists.find((list) => list.key === 'body')?.steps ?? [] } };
+  }
+  return step;
+};
+
+const mapChildLists = (
+  step: WorkflowStep,
+  fn: (steps: WorkflowStep[]) => WorkflowStep[],
+): WorkflowStep => {
+  const lists = childListsOf(step);
+  if (lists.length === 0) return step;
+  return withChildLists(step, lists.map((list) => ({ key: list.key, steps: fn(list.steps) })));
+};
 
 /** Achata a árvore inteira numa lista (ordem de pré-percurso). Útil para lookups por id. */
 export const flattenSteps = (steps: WorkflowStep[]): WorkflowStep[] => {
@@ -54,11 +98,7 @@ export const flattenSteps = (steps: WorkflowStep[]): WorkflowStep[] => {
   const walk = (list: WorkflowStep[]): void => {
     for (const step of [...list].sort(byOrder)) {
       out.push(step);
-      const branches = branchesOf(step);
-      if (branches) {
-        walk(branches.whenTrue);
-        walk(branches.whenFalse);
-      }
+      for (const child of childListsOf(step)) walk(child.steps);
     }
   };
   walk(steps);
@@ -69,9 +109,8 @@ export const flattenSteps = (steps: WorkflowStep[]): WorkflowStep[] => {
 export const findStepInTree = (steps: WorkflowStep[], id: string): WorkflowStep | null => {
   for (const step of steps) {
     if (step.id === id) return step;
-    const branches = branchesOf(step);
-    if (branches) {
-      const found = findStepInTree(branches.whenTrue, id) ?? findStepInTree(branches.whenFalse, id);
+    for (const child of childListsOf(step)) {
+      const found = findStepInTree(child.steps, id);
       if (found) return found;
     }
   }
@@ -84,41 +123,18 @@ export const updateStepInTree = (
   id: string,
   fn: (step: WorkflowStep) => WorkflowStep,
 ): WorkflowStep[] =>
-  steps.map((step) => {
-    if (step.id === id) return fn(step);
-    const branches = branchesOf(step);
-    if (branches) {
-      return {
-        ...step,
-        branches: {
-          whenTrue: updateStepInTree(branches.whenTrue, id, fn),
-          whenFalse: updateStepInTree(branches.whenFalse, id, fn),
-        },
-      };
-    }
-    return step;
-  });
+  steps.map((step) =>
+    step.id === id ? fn(step) : mapChildLists(step, (list) => updateStepInTree(list, id, fn)),
+  );
 
-/** Remove o Step com o id dado (e seus ramos, se for uma Condição) e reindexa os irmãos. */
+/** Remove o Step com o id dado (e suas listas-filhas, se for um nó de controle) e reindexa os irmãos. */
 export const removeStepFromTree = (steps: WorkflowStep[], id: string): WorkflowStep[] => {
   const filtered = steps.filter((step) => step.id !== id);
-  const mapped = filtered.map((step) => {
-    const branches = branchesOf(step);
-    if (branches) {
-      return {
-        ...step,
-        branches: {
-          whenTrue: removeStepFromTree(branches.whenTrue, id),
-          whenFalse: removeStepFromTree(branches.whenFalse, id),
-        },
-      };
-    }
-    return step;
-  });
+  const mapped = filtered.map((step) => mapChildLists(step, (list) => removeStepFromTree(list, id)));
   return filtered.length !== steps.length ? sortAndReindex(mapped) : mapped;
 };
 
-/** Insere um Step no fim do alvo (raiz ou um ramo específico de uma Condição). */
+/** Insere um Step no fim do alvo (raiz, um ramo de uma Condição, ou o corpo de um Loop). */
 export const insertStepInto = (
   steps: WorkflowStep[],
   target: InsertTarget,
@@ -128,24 +144,20 @@ export const insertStepInto = (
     return reindex([...[...steps].sort(byOrder), step]);
   }
   return steps.map((current) => {
-    if (current.id === target.conditionId && current.type === 'Condition') {
+    if (target.kind === 'branch' && current.id === target.conditionId && current.type === 'Condition') {
       const branches = current.branches ?? { whenTrue: [], whenFalse: [] };
       return {
         ...current,
         branches: { ...branches, [target.branch]: reindex([...[...branches[target.branch]].sort(byOrder), step]) },
       };
     }
-    const branches = branchesOf(current);
-    if (branches) {
+    if (target.kind === 'loop' && current.id === target.loopId && current.type === 'Loop' && current.loop) {
       return {
         ...current,
-        branches: {
-          whenTrue: insertStepInto(branches.whenTrue, target, step),
-          whenFalse: insertStepInto(branches.whenFalse, target, step),
-        },
+        loop: { ...current.loop, body: reindex([...[...current.loop.body].sort(byOrder), step]) },
       };
     }
-    return current;
+    return mapChildLists(current, (list) => insertStepInto(list, target, step));
   });
 };
 
@@ -153,7 +165,7 @@ export const insertStepInto = (
 export const replaceStepInTree = (steps: WorkflowStep[], step: WorkflowStep): WorkflowStep[] =>
   updateStepInTree(steps, step.id, (existing) => ({ ...step, order: existing.order }));
 
-/** Move um Step uma posição para cima/baixo dentro dos próprios irmãos (mesmo ramo). */
+/** Move um Step uma posição para cima/baixo dentro dos próprios irmãos (mesmo nível). */
 export const moveStepWithinSiblings = (
   steps: WorkflowStep[],
   id: string,
@@ -168,23 +180,11 @@ export const moveStepWithinSiblings = (
     [next[position], next[swapWith]] = [next[swapWith], next[position]];
     return reindex(next);
   }
-  return steps.map((step) => {
-    const branches = branchesOf(step);
-    if (branches) {
-      return {
-        ...step,
-        branches: {
-          whenTrue: moveStepWithinSiblings(branches.whenTrue, id, direction),
-          whenFalse: moveStepWithinSiblings(branches.whenFalse, id, direction),
-        },
-      };
-    }
-    return step;
-  });
+  return steps.map((step) => mapChildLists(step, (list) => moveStepWithinSiblings(list, id, direction)));
 };
 
 /**
- * Reordena os irmãos de um ramo movendo `id` para `toIndex` (drag & drop dentro do mesmo
+ * Reordena os irmãos de um nível movendo `id` para `toIndex` (drag & drop dentro do mesmo
  * nível). Só reordena no nível onde o id realmente está.
  */
 export const reorderSiblings = (
@@ -204,26 +204,14 @@ export const reorderSiblings = (
     next.splice(clamped, 0, moved);
     return reindex(next);
   }
-  return steps.map((step) => {
-    const branches = branchesOf(step);
-    if (branches) {
-      return {
-        ...step,
-        branches: {
-          whenTrue: reorderSiblings(branches.whenTrue, id, toIndex),
-          whenFalse: reorderSiblings(branches.whenFalse, id, toIndex),
-        },
-      };
-    }
-    return step;
-  });
+  return steps.map((step) => mapChildLists(step, (list) => reorderSiblings(list, id, toIndex)));
 };
 
 /**
  * Steps que podem produzir outputs disponíveis para um Step-alvo já existente na árvore.
- * Regra (segura): do alvo até a raiz, coleta os irmãos anteriores em cada nível (e os irmãos
- * anteriores a cada Condição ancestral), na ordem de execução. Exclui o outro ramo de cada
- * ancestral e os próprios nós de Condição (que não produzem output).
+ * Regra (segura): do alvo até a raiz, coleta os irmãos anteriores em cada nível, na ordem de
+ * execução. Exclui o outro ramo de cada ancestral e os próprios nós de Condição (que não
+ * produzem output). Nós de Loop SÃO produtores de output (o vetor de saída), então são incluídos.
  */
 export const collectPriorSteps = (rootSteps: WorkflowStep[], targetId: string): WorkflowStep[] => {
   const result: WorkflowStep[] = [];
@@ -235,8 +223,7 @@ export const collectPriorSteps = (rootSteps: WorkflowStep[], targetId: string): 
         result.unshift(...precedingHere);
         return true;
       }
-      const branches = branchesOf(step);
-      if (branches && (walk(branches.whenTrue) || walk(branches.whenFalse))) {
+      if (childListsOf(step).some((child) => walk(child.steps))) {
         result.unshift(...precedingHere);
         return true;
       }
@@ -256,9 +243,14 @@ export const collectPriorStepsForInsert = (
   if (target.kind === 'root') {
     return [...rootSteps].filter((s) => s.type !== 'Condition').sort(byOrder);
   }
-  const condition = findStepInTree(rootSteps, target.conditionId);
-  const branchSteps = (condition?.branches?.[target.branch] ?? []).filter((s) => s.type !== 'Condition');
-  return [...collectPriorSteps(rootSteps, target.conditionId), ...[...branchSteps].sort(byOrder)];
+  if (target.kind === 'branch') {
+    const condition = findStepInTree(rootSteps, target.conditionId);
+    const branchSteps = (condition?.branches?.[target.branch] ?? []).filter((s) => s.type !== 'Condition');
+    return [...collectPriorSteps(rootSteps, target.conditionId), ...[...branchSteps].sort(byOrder)];
+  }
+  const loop = findStepInTree(rootSteps, target.loopId);
+  const bodySteps = (loop?.loop?.body ?? []).filter((s) => s.type !== 'Condition');
+  return [...collectPriorSteps(rootSteps, target.loopId), ...[...bodySteps].sort(byOrder)];
 };
 
 /** Resumo de uma linha de uma Condição, para exibir dentro do nó no grafo/lista. */

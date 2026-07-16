@@ -15,6 +15,8 @@ import {
   RiDraggable,
   RiNodeTree,
   RiGitBranchLine,
+  RiLoopLeftLine,
+  RiArrowDownSLine,
 } from 'react-icons/ri';
 import { S } from './ViewWorkflow.styles';
 import { useViewWorkflowViewModel, EVENT_NAME_OPTIONS, LOOKUP_COLLECTION_OPTIONS } from './ViewWorkflow.viewmodel';
@@ -37,6 +39,10 @@ const branchKeyOf = (conditionId: string, branch: BranchKey): string => `${condi
 
 const branchTarget = (conditionId: string, branch: BranchKey): InsertTarget => ({ kind: 'branch', conditionId, branch });
 
+const loopKeyOf = (loopId: string): string => `${loopId}:body`;
+
+const loopTarget = (loopId: string): InsertTarget => ({ kind: 'loop', loopId });
+
 interface LevelProps {
   vm: ViewWorkflowViewModel;
   steps: WorkflowStep[];
@@ -51,6 +57,9 @@ const AddControls: React.FC<{ vm: ViewWorkflowViewModel; target: InsertTarget }>
     </S.AddNodeBtn>
     <S.AddNodeBtn onClick={() => void vm.openAddCondition(target)} title="Adicionar condição">
       <RiGitBranchLine size={16} />
+    </S.AddNodeBtn>
+    <S.AddNodeBtn onClick={() => void vm.openAddLoop(target)} title="Adicionar repetição">
+      <RiLoopLeftLine size={16} />
     </S.AddNodeBtn>
   </S.AddRow>
 );
@@ -77,6 +86,7 @@ const FlowLevel: React.FC<LevelProps> = ({ vm, steps, parentKey, target }) => (
       const definition = vm.getStepDefinition(step.stepDefinitionId);
       const StepIcon = vm.getStepIconForStep(step);
       const isCondition = step.type === 'Condition';
+      const isLoop = step.type === 'Loop';
       return (
       <React.Fragment key={step.id}>
         <S.FlowConnector
@@ -102,7 +112,7 @@ const FlowLevel: React.FC<LevelProps> = ({ vm, steps, parentKey, target }) => (
           </S.NodeIconBox>
           <S.NodeBody>
             <S.NodeTitle>{getStepDisplayName(step, definition)}</S.NodeTitle>
-            <S.NodeType>{isCondition ? vm.getConditionSummary(step) : vm.getStepTypeLabel(step)}</S.NodeType>
+            <S.NodeType>{isCondition ? vm.getConditionSummary(step) : isLoop ? vm.getLoopSummary(step) : vm.getStepTypeLabel(step)}</S.NodeType>
           </S.NodeBody>
           <S.NodeStatusDot $enabled={step.enabled} title={step.enabled ? 'Ativo' : 'Inativo'} />
           <StepNodeActions vm={vm} step={step} />
@@ -124,6 +134,26 @@ const FlowLevel: React.FC<LevelProps> = ({ vm, steps, parentKey, target }) => (
             ))}
           </S.BranchSplit>
         )}
+        {isLoop && step.loop && (
+          <S.LoopBlock>
+            <S.LoopHeader onClick={() => vm.toggleLoopCollapsed(step.id)} title={vm.isLoopCollapsed(step.id) ? 'Expandir' : 'Recolher'}>
+              <S.LoopChevron $collapsed={vm.isLoopCollapsed(step.id)}>
+                <RiArrowDownSLine size={16} />
+              </S.LoopChevron>
+              <S.LoopLabel>Corpo da repetição</S.LoopLabel>
+            </S.LoopHeader>
+            {!vm.isLoopCollapsed(step.id) && (
+              <S.LoopBody>
+                <FlowLevel
+                  vm={vm}
+                  steps={step.loop.body}
+                  parentKey={loopKeyOf(step.id)}
+                  target={loopTarget(step.id)}
+                />
+              </S.LoopBody>
+            )}
+          </S.LoopBlock>
+        )}
       </React.Fragment>
       );
     })}
@@ -143,6 +173,7 @@ const ListLevel: React.FC<{ vm: ViewWorkflowViewModel; steps: WorkflowStep[] }> 
       const definition = vm.getStepDefinition(step.stepDefinitionId);
       const StepIcon = vm.getStepIconForStep(step);
       const isCondition = step.type === 'Condition';
+      const isLoop = step.type === 'Loop';
       return (
         <React.Fragment key={step.id}>
           <S.StepRow $disabled={!step.enabled}>
@@ -154,7 +185,9 @@ const ListLevel: React.FC<{ vm: ViewWorkflowViewModel; steps: WorkflowStep[] }> 
               <S.StepName>{getStepDisplayName(step, definition)}</S.StepName>
               {isCondition
                 ? <S.StepDescription>{vm.getConditionSummary(step)}</S.StepDescription>
-                : definition?.description && <S.StepDescription>{definition.description}</S.StepDescription>}
+                : isLoop
+                  ? <S.StepDescription>{vm.getLoopSummary(step)}</S.StepDescription>
+                  : definition?.description && <S.StepDescription>{definition.description}</S.StepDescription>}
             </S.StepInfo>
             <S.StepActions>
               <S.IconBtn title={step.enabled ? 'Inativar' : 'Ativar'} onClick={() => void vm.toggleStepEnabled(step)}>
@@ -185,6 +218,22 @@ const ListLevel: React.FC<{ vm: ViewWorkflowViewModel; steps: WorkflowStep[] }> 
               <AddControls vm={vm} target={branchTarget(step.id, branch)} />
             </S.BranchListGroup>
           ))}
+          {isLoop && step.loop && (
+            <S.LoopListGroup>
+              <S.LoopHeader onClick={() => vm.toggleLoopCollapsed(step.id)} title={vm.isLoopCollapsed(step.id) ? 'Expandir' : 'Recolher'}>
+                <S.LoopChevron $collapsed={vm.isLoopCollapsed(step.id)}>
+                  <RiArrowDownSLine size={16} />
+                </S.LoopChevron>
+                <S.LoopLabel>Corpo da repetição</S.LoopLabel>
+              </S.LoopHeader>
+              {!vm.isLoopCollapsed(step.id) && (
+                <>
+                  <ListLevel vm={vm} steps={step.loop.body} />
+                  <AddControls vm={vm} target={loopTarget(step.id)} />
+                </>
+              )}
+            </S.LoopListGroup>
+          )}
         </React.Fragment>
       );
     })}
