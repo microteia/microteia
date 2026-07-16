@@ -15,6 +15,7 @@ import {
 } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import { db, functions } from '../../infrastructure/firebase/config';
+import { pruneUndefined } from '../utils/pruneUndefined';
 import type { IWorkflowDefinitionRepository, CopyPublicWorkflowResult, UpdateFromSourceWorkflowResult } from '../../domain/repositories/IWorkflowDefinitionRepository';
 import type { WorkflowDefinition, WorkflowParameter, WorkflowStep, PublicWorkflow } from '../../domain/entities/Workflow';
 
@@ -94,7 +95,7 @@ export class FirebaseWorkflowDefinitionRepository implements IWorkflowDefinition
     data: Omit<WorkflowDefinition, 'id' | 'tenantId' | 'createdAt' | 'updatedAt'>,
   ): Promise<WorkflowDefinition> {
     const ref = await addDoc(definitionsRef(tenantId), {
-      ...data,
+      ...pruneUndefined(data),
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     });
@@ -107,11 +108,11 @@ export class FirebaseWorkflowDefinitionRepository implements IWorkflowDefinition
     id: string,
     data: Partial<Omit<WorkflowDefinition, 'id' | 'tenantId' | 'createdAt'>>,
   ): Promise<void> {
-    await updateDoc(doc(definitionsRef(tenantId), id), { ...data, updatedAt: serverTimestamp() });
+    await updateDoc(doc(definitionsRef(tenantId), id), { ...pruneUndefined(data), updatedAt: serverTimestamp() });
   }
 
   async updateWorkflowSteps(tenantId: string, id: string, steps: WorkflowStep[]): Promise<void> {
-    await updateDoc(doc(definitionsRef(tenantId), id), { steps, updatedAt: serverTimestamp() });
+    await updateDoc(doc(definitionsRef(tenantId), id), { steps: pruneUndefined(steps), updatedAt: serverTimestamp() });
   }
 
   async deleteWorkflowDefinition(tenantId: string, id: string): Promise<void> {

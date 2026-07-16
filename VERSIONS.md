@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [0.89.1] — 2026-07-16
+
+- Corrigido um erro ao salvar steps de automação com campos opcionais deixados em branco, como validar o objeto inteiro sem informar uma propriedade específica.
+
 ## [0.89.0] — 2026-07-16
 
 - No editor de automações (visualização em fluxo), agora dá para inserir um passo, uma Condição ou uma Repetição em qualquer ponto do fluxo, não só no fim. Passe o mouse sobre a linha onde quer o novo item — inclusive na primeira linha, logo abaixo do Gatilho — e escolha entre os três botões que aparecem. Isso vale também dentro das Repetições e dos ramos das Condições.
