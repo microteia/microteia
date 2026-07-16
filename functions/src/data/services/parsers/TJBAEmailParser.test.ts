@@ -98,49 +98,24 @@ Conteúdo não relacionado ao TJBA.
       expect(results).toEqual([]);
     });
 
-    it('deve retornar erro de parsing quando não encontrar número do processo', () => {
-      const emailText = `
-Tribunal de Justiça do Estado da Bahia <pje@tjba.jus.br>
+    it('não reconhece sem os marcadores estritos (PJe Push + campos do processo + CNJ 8.05)', () => {
+      // O matcher exige os três marcadores juntos, para não disparar em emails que apenas
+      // mencionam o TJBA ou vêm do domínio: só domínio, só a menção "TJBA", ou "PJe Push" sem
+      // os campos do processo não bastam.
+      const soDominio = `From: pje@tjba.jus.br\nNúmero do Processo: 1234567-89.2026.8.05.0001\n`;
+      const soMencao = `TJBA\nNúmero do Processo: 1234567-89.2026.8.05.0001\n`;
+      const pushSemCampos = `PJe Push\nEmail sem número de processo.\n`;
 
-PJe Push
-
-Email sem número de processo.
-`;
-
-      const results = parser.tryParse(emailText);
-
-      expect(results).toHaveLength(1);
-      expect(results[0].parsingError).toBe('Número do processo não encontrado');
-      expect(results[0].processNumber).toBeUndefined();
-    });
-
-    it('deve identificar email TJBA pelo domínio pje@tjba.jus.br', () => {
-      const emailText = `
-From: pje@tjba.jus.br
-Subject: Teste
-
-Número do Processo: 1234567-89.2026.8.05.0001
-`;
-
-      const results = parser.tryParse(emailText);
-
-      expect(results.length).toBeGreaterThan(0);
-    });
-
-    it('deve identificar email TJBA pela menção "TJBA"', () => {
-      const emailText = `
-TJBA
-Número do Processo: 1234567-89.2026.8.05.0001
-`;
-
-      const results = parser.tryParse(emailText);
-
-      expect(results.length).toBeGreaterThan(0);
+      expect(parser.tryParse(soDominio)).toEqual([]);
+      expect(parser.tryParse(soMencao)).toEqual([]);
+      expect(parser.tryParse(pushSemCampos)).toEqual([]);
     });
 
     it('deve extrair múltiplos campos opcionais quando presentes', () => {
       const emailText = `
 pje@tjba.jus.br
+
+PJe Push - Serviço de Acompanhamento automático de processos
 
 Número do Processo: 8161100-67.2024.8.05.0001
 Polo Ativo: AUTOR TESTE
