@@ -2,6 +2,7 @@ import { collection, getDocs, orderBy, query, addDoc, deleteDoc, doc, where } fr
 import { db } from '../../infrastructure/firebase/config';
 import type { ICaseStatusRepository } from '../../domain/repositories/ICaseStatusRepository';
 import type { CaseStatusConfig } from '../../domain/entities';
+import { mergeLookupDefaults } from './mergeLookupDefaults';
 
 const DEFAULT_CASE_STATUSES: CaseStatusConfig[] = [
   { key: 'Em Andamento',          label: 'Em Andamento',          color: 'caseStatusInProgress',  isStatic: true },
@@ -27,9 +28,7 @@ export class FirebaseCaseStatusRepository implements ICaseStatusRepository {
         color:    d.data().color as string,
         isStatic: false,
       }));
-      const dynamicKeys = new Set(dynamicStatuses.map((s) => s.key));
-      const staticStatuses = DEFAULT_CASE_STATUSES.filter((s) => !dynamicKeys.has(s.key));
-      return [...staticStatuses, ...dynamicStatuses].sort((a, b) => a.label.localeCompare(b.label));
+      return mergeLookupDefaults(DEFAULT_CASE_STATUSES, dynamicStatuses);
     } catch {
       return DEFAULT_CASE_STATUSES;
     }

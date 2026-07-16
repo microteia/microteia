@@ -2,6 +2,7 @@ import { collection, getDocs, orderBy, query, addDoc, deleteDoc, doc, where } fr
 import { db } from '../../infrastructure/firebase/config';
 import type { IPersonLookupRepository } from '../../domain/repositories/IPersonLookupRepository';
 import type { PersonLookupConfig, PersonLookupKind } from '../../domain/entities';
+import { mergeLookupDefaults } from './mergeLookupDefaults';
 
 const COLLECTION_NAMES: Record<PersonLookupKind, string> = {
   types:          'personTypes',
@@ -56,9 +57,7 @@ export class FirebasePersonLookupRepository implements IPersonLookupRepository {
         color:    d.data().color as string | undefined,
         isStatic: false,
       }));
-      const dynamicKeys = new Set(dynamic.map((a) => a.key));
-      const statics = STATIC_DEFAULTS[kind].filter((s) => !dynamicKeys.has(s.key));
-      return [...statics, ...dynamic].sort((a, b) => a.label.localeCompare(b.label));
+      return mergeLookupDefaults(STATIC_DEFAULTS[kind], dynamic);
     } catch {
       return STATIC_DEFAULTS[kind];
     }

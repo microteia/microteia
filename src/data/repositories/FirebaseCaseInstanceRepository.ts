@@ -2,6 +2,7 @@ import { collection, getDocs, orderBy, query, addDoc, deleteDoc, doc, where } fr
 import { db } from '../../infrastructure/firebase/config';
 import type { ICaseInstanceRepository } from '../../domain/repositories/ICaseInstanceRepository';
 import type { CaseInstanceConfig } from '../../domain/entities';
+import { mergeLookupDefaults } from './mergeLookupDefaults';
 
 const DEFAULT_CASE_INSTANCES: CaseInstanceConfig[] = [
   { key: '1º Grau', label: '1º Grau', isStatic: true },
@@ -25,9 +26,7 @@ export class FirebaseCaseInstanceRepository implements ICaseInstanceRepository {
         color:    d.data().color as string | undefined,
         isStatic: false,
       }));
-      const dynamicKeys = new Set(dynamicInstances.map((i) => i.key));
-      const staticInstances = DEFAULT_CASE_INSTANCES.filter((i) => !dynamicKeys.has(i.key));
-      return [...staticInstances, ...dynamicInstances].sort((a, b) => a.label.localeCompare(b.label));
+      return mergeLookupDefaults(DEFAULT_CASE_INSTANCES, dynamicInstances);
     } catch {
       return DEFAULT_CASE_INSTANCES;
     }

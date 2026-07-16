@@ -2,6 +2,7 @@ import { collection, getDocs, orderBy, query, addDoc, deleteDoc, doc, where } fr
 import { db } from '../../infrastructure/firebase/config';
 import type { IDeadlineTypeRepository } from '../../domain/repositories/IDeadlineTypeRepository';
 import type { DeadlineTypeConfig } from '../../domain/entities';
+import { mergeLookupDefaults } from './mergeLookupDefaults';
 
 const DEFAULT_DEADLINE_TYPES: DeadlineTypeConfig[] = [
   { key: 'Audiência',   label: 'Audiência',   isStatic: true },
@@ -23,9 +24,7 @@ export class FirebaseDeadlineTypeRepository implements IDeadlineTypeRepository {
         label:    d.data().label as string,
         isStatic: false,
       }));
-      const dynamicKeys = new Set(dynamic.map((d) => d.key));
-      const statics = DEFAULT_DEADLINE_TYPES.filter((t) => !dynamicKeys.has(t.key));
-      return [...statics, ...dynamic].sort((a, b) => a.label.localeCompare(b.label));
+      return mergeLookupDefaults(DEFAULT_DEADLINE_TYPES, dynamic);
     } catch {
       return DEFAULT_DEADLINE_TYPES;
     }

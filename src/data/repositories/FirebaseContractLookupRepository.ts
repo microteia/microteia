@@ -2,6 +2,7 @@ import { collection, getDocs, orderBy, query, addDoc, deleteDoc, doc, where } fr
 import { db } from '../../infrastructure/firebase/config';
 import type { IContractLookupRepository } from '../../domain/repositories/IContractLookupRepository';
 import type { ContractLookupConfig, ContractLookupKind } from '../../domain/entities';
+import { mergeLookupDefaults } from './mergeLookupDefaults';
 
 const COLLECTION_NAMES: Record<ContractLookupKind, string> = {
   types:                     'contractTypes',
@@ -92,9 +93,7 @@ export class FirebaseContractLookupRepository implements IContractLookupReposito
         color:    d.data().color as string | undefined,
         isStatic: false,
       }));
-      const dynamicKeys = new Set(dynamic.map((a) => a.key));
-      const statics = STATIC_DEFAULTS[kind].filter((s) => !dynamicKeys.has(s.key));
-      return [...statics, ...dynamic].sort((a, b) => a.label.localeCompare(b.label));
+      return mergeLookupDefaults(STATIC_DEFAULTS[kind], dynamic);
     } catch {
       return STATIC_DEFAULTS[kind];
     }

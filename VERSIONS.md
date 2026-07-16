@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [0.91.1] — 2026-07-16
+
+- Corrigido um problema nas listas de opções (tipos, categorias, status e afins) em que um valor padrão do sistema aparecia duplicado quando também existia um valor cadastrado com o mesmo nome. Agora, quando isso acontece, o sistema mostra apenas o valor padrão, sem repetição.
+
 ## [0.91.0] — 2026-07-16
 
 - Agora é possível testar um Script ou uma Automação direto na tela, sem sair do sistema. Um novo botão "Executar" abre uma janela que pede os dados de entrada — pelo formulário ou colando um JSON — e, ao rodar, mostra o resultado e as mensagens de log de forma clara.

@@ -2,6 +2,7 @@ import { collection, getDocs, orderBy, query, addDoc, deleteDoc, doc, where } fr
 import { db } from '../../infrastructure/firebase/config';
 import type { ICasePhaseRepository } from '../../domain/repositories/ICasePhaseRepository';
 import type { CasePhaseConfig } from '../../domain/entities';
+import { mergeLookupDefaults } from './mergeLookupDefaults';
 
 const DEFAULT_CASE_PHASES: CasePhaseConfig[] = [
   { key: 'Fase Inicial', label: 'Fase Inicial', color: 'casePhaseInitial',     isStatic: true },
@@ -26,9 +27,7 @@ export class FirebaseCasePhaseRepository implements ICasePhaseRepository {
         color:    d.data().color as string | undefined,
         isStatic: false,
       }));
-      const dynamicKeys = new Set(dynamicPhases.map((p) => p.key));
-      const staticPhases = DEFAULT_CASE_PHASES.filter((p) => !dynamicKeys.has(p.key));
-      return [...staticPhases, ...dynamicPhases].sort((a, b) => a.label.localeCompare(b.label));
+      return mergeLookupDefaults(DEFAULT_CASE_PHASES, dynamicPhases);
     } catch {
       return DEFAULT_CASE_PHASES;
     }

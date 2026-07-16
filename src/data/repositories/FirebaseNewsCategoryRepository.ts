@@ -2,6 +2,7 @@ import { collection, getDocs, orderBy, query, addDoc, deleteDoc, doc, where } fr
 import { db } from '../../infrastructure/firebase/config';
 import type { INewsCategoryRepository } from '../../domain/repositories/INewsCategoryRepository';
 import type { NewsCategoryConfig } from '../../domain/entities';
+import { mergeLookupDefaults } from './mergeLookupDefaults';
 
 const DEFAULT_NEWS_CATEGORIES: NewsCategoryConfig[] = [
   { key: 'GENERAL',       label: 'Geral',          isStatic: true },
@@ -23,9 +24,7 @@ export class FirebaseNewsCategoryRepository implements INewsCategoryRepository {
         label:    d.data().label as string,
         isStatic: false,
       }));
-      const dynamicKeys = new Set(dynamicCategories.map((c) => c.key));
-      const staticCategories = DEFAULT_NEWS_CATEGORIES.filter((c) => !dynamicKeys.has(c.key));
-      return [...staticCategories, ...dynamicCategories].sort((a, b) => a.label.localeCompare(b.label));
+      return mergeLookupDefaults(DEFAULT_NEWS_CATEGORIES, dynamicCategories);
     } catch {
       return DEFAULT_NEWS_CATEGORIES;
     }

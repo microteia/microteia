@@ -2,6 +2,7 @@ import { collection, getDocs, orderBy, query, addDoc, deleteDoc, doc, where } fr
 import { db } from '../../infrastructure/firebase/config';
 import type { IDocumentTypeRepository } from '../../domain/repositories/IDocumentTypeRepository';
 import type { DocumentTypeConfig } from '../../domain/entities';
+import { mergeLookupDefaults } from './mergeLookupDefaults';
 
 const DEFAULT_DOCUMENT_TYPES: DocumentTypeConfig[] = [
   { key: 'Contrato', label: 'Contrato', isStatic: true },
@@ -27,9 +28,7 @@ export class FirebaseDocumentTypeRepository implements IDocumentTypeRepository {
         label:    d.data().label as string,
         isStatic: false,
       }));
-      const dynamicKeys = new Set(dynamicTypes.map((t) => t.key));
-      const staticTypes = DEFAULT_DOCUMENT_TYPES.filter((t) => !dynamicKeys.has(t.key));
-      return [...staticTypes, ...dynamicTypes].sort((a, b) => a.label.localeCompare(b.label));
+      return mergeLookupDefaults(DEFAULT_DOCUMENT_TYPES, dynamicTypes);
     } catch {
       return DEFAULT_DOCUMENT_TYPES;
     }

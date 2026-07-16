@@ -2,6 +2,7 @@ import { collection, getDocs, orderBy, query, addDoc, deleteDoc, doc, where } fr
 import { db } from '../../infrastructure/firebase/config';
 import type { ICaseAreaRepository } from '../../domain/repositories/ICaseAreaRepository';
 import type { CaseAreaConfig } from '../../domain/entities';
+import { mergeLookupDefaults } from './mergeLookupDefaults';
 
 const DEFAULT_CASE_AREAS: CaseAreaConfig[] = [
   { key: 'Cível', label: 'Cível', isStatic: true },
@@ -30,9 +31,7 @@ export class FirebaseCaseAreaRepository implements ICaseAreaRepository {
         label:    d.data().label as string,
         isStatic: false,
       }));
-      const dynamicKeys = new Set(dynamicAreas.map((a) => a.key));
-      const staticAreas = DEFAULT_CASE_AREAS.filter((a) => !dynamicKeys.has(a.key));
-      return [...staticAreas, ...dynamicAreas].sort((a, b) => a.label.localeCompare(b.label));
+      return mergeLookupDefaults(DEFAULT_CASE_AREAS, dynamicAreas);
     } catch {
       return DEFAULT_CASE_AREAS;
     }
