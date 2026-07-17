@@ -15,6 +15,14 @@ export interface LookupOptionSet {
   dynamicOptions: DynamicSelectOption[];
 }
 
+const readByPath = (values: Record<string, unknown>, key: string): unknown => {
+  if (!key.includes('.')) return values[key];
+  return key.split('.').reduce<unknown>(
+    (acc, part) => (acc !== null && typeof acc === 'object' ? (acc as Record<string, unknown>)[part] : undefined),
+    values,
+  );
+};
+
 export interface CustomFieldsSectionProps {
   screenKey: string;
   fields: FieldDefinition[];
@@ -91,19 +99,19 @@ export const useCustomFieldsSectionViewModel = (props: CustomFieldsSectionProps)
   }, [fields]);
 
   const getString = useCallback((fieldKey: string) => {
-    const value = values[fieldKey];
+    const value = readByPath(values, fieldKey);
     return typeof value === 'string' ? value : '';
   }, [values]);
 
   const getStringArray = useCallback((fieldKey: string) => {
-    const value = values[fieldKey];
+    const value = readByPath(values, fieldKey);
     return Array.isArray(value) ? value : [];
   }, [values]);
 
-  const getBoolean = useCallback((fieldKey: string) => values[fieldKey] === true, [values]);
+  const getBoolean = useCallback((fieldKey: string) => readByPath(values, fieldKey) === true, [values]);
 
   const getCurrency = useCallback((fieldKey: string) => {
-    const value = values[fieldKey];
+    const value = readByPath(values, fieldKey);
     return typeof value === 'number' ? value : null;
   }, [values]);
 
@@ -175,19 +183,19 @@ export const useCustomFieldsSectionViewModel = (props: CustomFieldsSectionProps)
 
   const isFieldHidden = useCallback(
     (field: FieldDefinition): boolean =>
-      evaluateFieldBoolean(field.logic?.hiddenWhen, { value: values[field.key], data: values }),
+      evaluateFieldBoolean(field.logic?.hiddenWhen, { value: readByPath(values, field.key), data: values }),
     [values],
   );
 
   const isFieldDisabled = useCallback(
     (field: FieldDefinition): boolean =>
-      disabled || evaluateFieldBoolean(field.logic?.disabledWhen, { value: values[field.key], data: values }),
+      disabled || evaluateFieldBoolean(field.logic?.disabledWhen, { value: readByPath(values, field.key), data: values }),
     [disabled, values],
   );
 
   const fieldError = useCallback(
     (field: FieldDefinition): string | null =>
-      evaluateFieldValidation(field.logic?.validate, { value: values[field.key], data: values }),
+      evaluateFieldValidation(field.logic?.validate, { value: readByPath(values, field.key), data: values }),
     [values],
   );
 

@@ -10,32 +10,19 @@
 // ═══════════════════════════════════════════════════════════════════════════════
 
 import { ENTITY_REGISTRY_LIST } from '../schema/entityRegistry';
-import type { FieldLogic, FieldRules } from '../schema/fieldRules';
+import type {
+  CustomFieldMask,
+  CustomFieldOption,
+  CustomFieldType,
+  FieldLogic,
+  FieldRules,
+} from '../schema/fieldRules';
 
 // ─── Tipos de Campos Customizados ─────────────────────────────────────────────
 
-export type CustomFieldType =
-  | 'text'
-  | 'textarea'
-  | 'number'
-  | 'currency'
-  | 'date'
-  | 'checkbox'
-  | 'select'
-  | 'masked'
-  | 'reference'
-  | 'markdown';
-
-export type CustomFieldMask = 'cpf' | 'cnpj' | 'phone' | 'cep';
+export type { CustomFieldType, CustomFieldMask, CustomFieldOption } from '../schema/fieldRules';
 
 export type CustomFieldValue = string | string[] | number | boolean | null;
-
-export interface CustomFieldOption {
-  key: string;
-  label: string;
-  isStatic?: boolean;
-  color?: string;
-}
 
 // ─── Definição de Campo ───────────────────────────────────────────────────────
 

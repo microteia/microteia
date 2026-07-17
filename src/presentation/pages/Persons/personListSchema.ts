@@ -1,3 +1,5 @@
+import { deriveListRows } from '../../shared/deriveEntitySchema';
+
 export type PersonCardActionKey = 'copyLink' | 'clone' | 'manageTags' | 'delete';
 
 export interface PersonCardRow {
@@ -13,17 +15,12 @@ export interface PersonListConfig {
   rows: PersonCardRow[];
 }
 
+// As linhas (campos + ícone + ordem) derivam da fonte única (ENTITY_REGISTRY.persons, via `ui.list`).
+// Título/subtítulo/etiquetas/ações são configuração de nível de card.
 export const PERSON_LIST_CONFIG: PersonListConfig = {
   titleKey: 'name',
   subtitle: { key: 'type', icon: 'user' },
   showTags: true,
-  actions: ['copyLink', 'clone', 'manageTags', 'delete'],
-  rows: [
-    { key: 'cpf', icon: 'contacts' },
-    { key: 'cnpj', icon: 'contacts' },
-    { key: 'email', icon: 'mail' },
-    { key: 'phone', icon: 'phone' },
-    { key: 'occupation', icon: 'briefcase' },
-    { key: 'address.city', icon: 'map' },
-  ],
+  actions: ['manageTags'],
+  rows: deriveListRows('persons'),
 };

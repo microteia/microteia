@@ -41,6 +41,29 @@ export interface FieldLogic {
   hiddenWhen?: string | null;
 }
 
+// ─── Tipos de controle de campo (compartilhados form/list/custom) ─────────────
+
+export type CustomFieldType =
+  | 'text'
+  | 'textarea'
+  | 'number'
+  | 'currency'
+  | 'date'
+  | 'checkbox'
+  | 'select'
+  | 'masked'
+  | 'reference'
+  | 'markdown';
+
+export type CustomFieldMask = 'cpf' | 'cnpj' | 'phone' | 'cep';
+
+export interface CustomFieldOption {
+  key: string;
+  label: string;
+  isStatic?: boolean;
+  color?: string;
+}
+
 export interface RuleIssue {
   path: string;
   label: string;

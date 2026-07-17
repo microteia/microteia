@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [0.96.0] — 2026-07-17
+
+- Reorganização interna da tela de Pessoas: o formulário e o card da listagem agora são montados a partir de uma única definição de cada campo, o que torna a manutenção mais simples e consistente — adicionar ou ajustar um campo passa a ser feito em um só lugar. Sem mudança visível no uso do dia a dia.
+
 ## [0.95.1] — 2026-07-17
 
 - Nos cards de Pessoas, os atalhos do canto passaram a seguir o mesmo visual dos demais (aparecem no hover e destacam em vermelho ao excluir), e as linhas de informação agora podem exibir qualquer campo da pessoa apenas indicando-o na configuração da tela.

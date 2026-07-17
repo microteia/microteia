@@ -96,6 +96,16 @@ const buildFormData = (person: Person | null): PersonFormData => ({
   addressZipCode: person?.address?.zipCode ? formatCEP(person.address.zipCode) : '',
 });
 
+const ADDRESS_KEY_MAP: Record<string, keyof PersonFormData> = {
+  'address.street': 'addressStreet',
+  'address.number': 'addressNumber',
+  'address.complement': 'addressComplement',
+  'address.neighborhood': 'addressNeighborhood',
+  'address.city': 'addressCity',
+  'address.state': 'addressState',
+  'address.zipCode': 'addressZipCode',
+};
+
 const LOOKUP_COLLECTION_TO_KIND: Record<string, PersonLookupKind> = {
   personTypes: 'types',
   personOccupations: 'occupations',
@@ -785,8 +795,28 @@ export const useViewPersonViewModel = (tabKey: string): ViewPersonViewModel => {
   }, [removeItem]);
 
   const setNativeFieldValue = useCallback((fieldKey: string, value: CustomFieldValue) => {
-    setFormData({ [fieldKey]: value } as Partial<PersonFormData>);
+    const mapped = ADDRESS_KEY_MAP[fieldKey] ?? fieldKey;
+    setFormData({ [mapped]: value } as Partial<PersonFormData>);
   }, [setFormData]);
+
+  const nativeValues = useMemo<Record<string, CustomFieldValue>>(() => {
+    const {
+      addressStreet, addressNumber, addressComplement, addressNeighborhood,
+      addressCity, addressState, addressZipCode, ...rest
+    } = formData;
+    return {
+      ...rest,
+      address: {
+        street: addressStreet,
+        number: addressNumber,
+        complement: addressComplement,
+        neighborhood: addressNeighborhood,
+        city: addressCity,
+        state: addressState,
+        zipCode: addressZipCode,
+      },
+    } as unknown as Record<string, CustomFieldValue>;
+  }, [formData]);
 
   return {
     isNew,
@@ -796,7 +826,7 @@ export const useViewPersonViewModel = (tabKey: string): ViewPersonViewModel => {
     formData,
     setFormData,
     nativeFields: PERSON_FORM_FIELDS,
-    nativeValues: formData as unknown as Record<string, CustomFieldValue>,
+    nativeValues,
     setNativeFieldValue,
     personLookupOptions,
     handleAddPersonLookup,
