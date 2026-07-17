@@ -26,7 +26,7 @@ import type { UserRole } from '../../domain/entities';
 import { DashboardView } from './Dashboard/Dashboard.view';
 import { CalendarView } from './Calendar/Calendar.view';
 import { PersonsView } from './Persons/Persons.view';
-import { ViewPersonView } from './ViewPerson/ViewPerson.view';
+import { ViewPersonView } from './Persons/ViewPerson.view';
 import { CasesView } from './Cases/Cases.view';
 import { ContractsView } from './Contracts/Contracts.view';
 import { ViewContractView } from './ViewContract/ViewContract.view';

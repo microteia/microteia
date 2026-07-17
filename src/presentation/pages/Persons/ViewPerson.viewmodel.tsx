@@ -21,7 +21,7 @@ import { makeAddPersonDocumentUseCase } from '../../../domain/usecases/persondoc
 import { makeDeletePersonDocumentUseCase } from '../../../domain/usecases/persondocuments/DeletePersonDocumentUseCase';
 import type { Person, PersonNote, PersonDocument, PersonType, PersonAddress, Gender, CustomFieldValue, DeletionActor, FieldDefinition, PersonLookupKind } from '../../../domain/entities';
 import type { LookupOptionSet } from '../../components/ui/CustomFieldsSection/CustomFieldsSection.viewmodel';
-import { PERSON_FORM_FIELDS } from './personFormSchema';
+import { PERSON_FORM_FIELDS } from './personSchema';
 import type { TagStoreAdapter } from '../../components/ui/TagManager/TagManager.viewmodel';
 import { useScreenDefinitions } from '../../../stores/useScreenDefinitions';
 import { buildInitialFormValues, formValuesToStoredValues, validateRequiredFields } from '../../../domain/services/customFieldValues';

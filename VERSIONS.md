@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [0.96.2] — 2026-07-17
+
+- Organização interna do código da tela de Pessoas (listagem e cadastro reunidos), sem mudança visível no uso.
+
 ## [0.96.1] — 2026-07-17
 
 - Continuação do ajuste interno da tela de Pessoas, separando com mais clareza as regras de cada campo (o que é obrigatório, as opções disponíveis) da forma como ele é exibido. Sem mudança visível no uso.

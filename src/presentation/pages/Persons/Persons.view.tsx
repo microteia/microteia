@@ -9,7 +9,7 @@ import {
 } from 'react-icons/ri';
 import { S } from './Persons.styles';
 import { usePersonsViewModel } from './Persons.viewmodel';
-import type { PersonCardActionKey } from './personListSchema';
+import type { PersonCardActionKey } from './personSchema';
 import { CompositeFilter } from '../../components/ui/CompositeFilter';
 import { Button } from '../../components/ui/Button';
 import { EntityListCard } from '../../components/ui/EntityListCard';

@@ -15,8 +15,8 @@ import { format } from 'date-fns';
 import type { Person } from '../../../domain/entities';
 import type { FilterDef, FilterToken } from '../../components/ui/CompositeFilter';
 import type { TagStoreAdapter } from '../../components/ui/TagManager/TagManager.viewmodel';
-import { PERSON_LIST_CONFIG } from './personListSchema';
-import type { PersonCardActionKey } from './personListSchema';
+import { PERSON_LIST_CONFIG } from './personSchema';
+import type { PersonCardActionKey } from './personSchema';
 
 const PERSON_STATUS_OPTIONS: FilterDef['options'] = [
   { value: 'Ativo', label: 'Ativos' },
