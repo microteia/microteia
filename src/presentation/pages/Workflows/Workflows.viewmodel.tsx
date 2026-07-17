@@ -32,7 +32,7 @@ export const useWorkflowsViewModel = (): WorkflowsViewModel => {
   const { openTab } = useWorkspace();
   const { notify } = useNotification();
 
-  const [filterTokens, setFilterTokens] = useState<FilterToken[]>([]);
+  const [filterTokens, setFilterTokens] = useState<FilterToken[]>([{ key: 'ownership', values: ['own'] }]);
   const [workflowToDelete, setWorkflowToDelete] = useState<WorkflowDefinition | null>(null);
 
   const allWorkflows = useMemo(() => {
@@ -77,6 +77,11 @@ export const useWorkflowsViewModel = (): WorkflowsViewModel => {
     return w.tenantId === currentTenant?.id;
   }, [currentTenant]);
 
+  const isPublicWorkflow = useCallback((w: WorkflowDefinition | PublicWorkflow) => {
+    if ('originalTenantId' in w) return true;
+    return !!w.isPublic;
+  }, []);
+
   const filteredWorkflows = useMemo(() => {
     const searchQ = (tokenMap['search']?.[0] ?? '').toLowerCase();
     const eventFilter = tokenMap['eventName'] ?? [];
@@ -89,14 +94,17 @@ export const useWorkflowsViewModel = (): WorkflowsViewModel => {
         if (eventFilter.length > 0 && !eventFilter.includes(w.eventName)) return false;
         if (enabledFilter.length > 0 && !enabledFilter.includes(String(w.enabled))) return false;
         if (ownershipFilter.length > 0) {
-          const isOwn = isOwnWorkflow(w);
-          if (ownershipFilter.includes('own') && !isOwn) return false;
-          if (ownershipFilter.includes('public') && isOwn) return false;
+          const matches = ownershipFilter.some((v) => {
+            if (v === 'own') return isOwnWorkflow(w);
+            if (v === 'public') return isPublicWorkflow(w);
+            return false;
+          });
+          if (!matches) return false;
         }
         return true;
       })
       .sort((a, b) => a.name.localeCompare(b.name));
-  }, [allWorkflows, tokenMap, isOwnWorkflow]);
+  }, [allWorkflows, tokenMap, isOwnWorkflow, isPublicWorkflow]);
 
   const openNewWorkflow = useCallback(() => openTab('new-workflow'), [openTab]);
   const openWorkflow = useCallback((w: WorkflowDefinition | PublicWorkflow) => {
