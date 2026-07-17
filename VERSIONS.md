@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [0.96.1] — 2026-07-17
+
+- Continuação do ajuste interno da tela de Pessoas, separando com mais clareza as regras de cada campo (o que é obrigatório, as opções disponíveis) da forma como ele é exibido. Sem mudança visível no uso.
+
 ## [0.96.0] — 2026-07-17
 
 - Reorganização interna da tela de Pessoas: o formulário e o card da listagem agora são montados a partir de uma única definição de cada campo, o que torna a manutenção mais simples e consistente — adicionar ou ajustar um campo passa a ser feito em um só lugar. Sem mudança visível no uso do dia a dia.

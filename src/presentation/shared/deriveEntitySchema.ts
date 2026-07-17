@@ -19,7 +19,7 @@ const toFieldDefinition = (spec: NativeFieldSpec, key: string, order: number): F
   key,
   label: spec.label,
   type: controlFor(spec),
-  required: spec.ui?.required ?? false,
+  required: spec.required ?? false,
   order,
   section: spec.ui?.section ?? null,
   placeholder: spec.ui?.placeholder ?? null,
@@ -27,8 +27,8 @@ const toFieldDefinition = (spec: NativeFieldSpec, key: string, order: number): F
   lookupCollection: spec.lookupCollection ?? null,
   refEntity: spec.refEntity ?? null,
   multi: spec.multi ?? (spec.type === 'stringArray' ? true : undefined),
-  optionsAllowUserAdd: spec.ui?.optionsAllowUserAdd,
-  options: spec.ui?.options,
+  optionsAllowUserAdd: spec.optionsAllowUserAdd,
+  options: spec.options,
   logic: spec.logic ?? null,
 });
 

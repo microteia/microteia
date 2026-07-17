@@ -36,15 +36,14 @@ export type WorkflowEntityEventPrefix =
 
 export type NativeFieldType = 'string' | 'number' | 'boolean' | 'date' | 'stringArray' | 'object';
 
+// Apenas regras de APRESENTAÇÃO (como o campo é exibido/renderizado). Regras de negócio
+// (required, options, optionsAllowUserAdd, rules, logic, multi...) ficam no NativeFieldSpec.
 export interface FieldUiSpec {
   control?: CustomFieldType;
   mask?: CustomFieldMask;
   section?: string;
   order?: number;
   placeholder?: string;
-  required?: boolean;
-  optionsAllowUserAdd?: boolean;
-  options?: CustomFieldOption[];
   form?: boolean;
   list?: { icon?: string; order?: number };
 }
@@ -58,6 +57,9 @@ export interface NativeFieldSpec {
   refEntity?: string;
   multi?: boolean;
   list?: boolean;
+  required?: boolean;
+  options?: CustomFieldOption[];
+  optionsAllowUserAdd?: boolean;
   rules?: FieldRules;
   logic?: FieldLogic;
   ui?: FieldUiSpec;
@@ -120,9 +122,10 @@ export const ENTITY_REGISTRY: Record<EntityKey, EntityMetadata> = {
     referenceDenormFields: ['name', 'type', 'email'],
     fields: [
       { key: 'type', label: 'Tipo', type: 'string', lookupCollection: 'personTypes',
-        ui: { control: 'select', optionsAllowUserAdd: true, required: true, order: 0 } },
-      { key: 'name', label: 'Nome', type: 'string',
-        ui: { required: true, order: 1 } },
+        required: true, optionsAllowUserAdd: true,
+        ui: { control: 'select', order: 0 } },
+      { key: 'name', label: 'Nome', type: 'string', required: true,
+        ui: { order: 1 } },
       {
         key: 'cpf',
         label: 'CPF',
@@ -154,22 +157,23 @@ export const ENTITY_REGISTRY: Record<EntityKey, EntityMetadata> = {
       { key: 'secondaryPhone', label: 'Telefone Secundário', type: 'string', rules: PHONE_RULES,
         ui: { control: 'masked', mask: 'phone', order: 6 } },
       { key: 'relationship', label: 'Relacionamento', type: 'string', lookupCollection: 'personRelationships',
-        ui: { control: 'select', optionsAllowUserAdd: true, order: 7 } },
+        optionsAllowUserAdd: true,
+        ui: { control: 'select', order: 7 } },
       { key: 'occupation', label: 'Profissão', type: 'string', lookupCollection: 'personOccupations',
-        logic: { hiddenWhen: PF_ONLY },
-        ui: { control: 'select', optionsAllowUserAdd: true, order: 8, list: { icon: 'briefcase', order: 4 } } },
+        optionsAllowUserAdd: true, logic: { hiddenWhen: PF_ONLY },
+        ui: { control: 'select', order: 8, list: { icon: 'briefcase', order: 4 } } },
       { key: 'nationality', label: 'Nacionalidade', type: 'string', lookupCollection: 'personNationalities',
-        logic: { hiddenWhen: PF_ONLY },
-        ui: { control: 'select', optionsAllowUserAdd: true, order: 9 } },
+        optionsAllowUserAdd: true, logic: { hiddenWhen: PF_ONLY },
+        ui: { control: 'select', order: 9 } },
       { key: 'maritalStatus', label: 'Estado Civil', type: 'string', lookupCollection: 'personMaritalStatuses',
-        logic: { hiddenWhen: PF_ONLY },
-        ui: { control: 'select', optionsAllowUserAdd: true, order: 10 } },
+        optionsAllowUserAdd: true, logic: { hiddenWhen: PF_ONLY },
+        ui: { control: 'select', order: 10 } },
       { key: 'birthDate', label: 'Data de Nascimento', type: 'date',
         logic: { hiddenWhen: PF_ONLY },
         ui: { order: 11 } },
       { key: 'gender', label: 'Sexo', type: 'string', lookupCollection: 'personGenders',
-        logic: { hiddenWhen: PF_ONLY },
-        ui: { control: 'select', optionsAllowUserAdd: true, order: 12 } },
+        optionsAllowUserAdd: true, logic: { hiddenWhen: PF_ONLY },
+        ui: { control: 'select', order: 12 } },
       {
         key: 'address',
         label: 'Endereço',
@@ -186,9 +190,10 @@ export const ENTITY_REGISTRY: Record<EntityKey, EntityMetadata> = {
           { key: 'neighborhood', label: 'Bairro', type: 'string',
             ui: { section: 'Endereço', order: 17 } },
           { key: 'city', label: 'Cidade', type: 'string', lookupCollection: 'personCities',
-            ui: { control: 'select', optionsAllowUserAdd: true, section: 'Endereço', order: 18, list: { icon: 'map', order: 5 } } },
-          { key: 'state', label: 'Estado', type: 'string',
-            ui: { control: 'select', options: BR_STATE_OPTIONS, section: 'Endereço', order: 19 } },
+            optionsAllowUserAdd: true,
+            ui: { control: 'select', section: 'Endereço', order: 18, list: { icon: 'map', order: 5 } } },
+          { key: 'state', label: 'Estado', type: 'string', options: BR_STATE_OPTIONS,
+            ui: { control: 'select', section: 'Endereço', order: 19 } },
         ],
       },
       { key: 'notes', label: 'Observações', type: 'string',
