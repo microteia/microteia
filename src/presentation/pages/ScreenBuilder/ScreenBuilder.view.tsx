@@ -18,6 +18,7 @@ import { SearchSelect } from '../../components/ui/SearchSelect';
 import { Modal } from '../../components/ui/Modal';
 import { ConfirmModal } from '../../components/ui/ConfirmModal';
 import { InfoBanner } from '../../components/ui/InfoBanner';
+import { ExpressionEditor } from '../../components/ui/ExpressionEditor';
 import { ColorSwatchPicker } from '../../components/ui/ColorSwatchPicker';
 import { ColorDot } from '../../components/ui/Badge';
 import { getScreenIcon } from '../../shared/screenIcons';
@@ -318,7 +319,7 @@ export const ScreenBuilderView: React.FC = () => {
       )}
 
       {vm.fieldModalOpen && (
-        <Modal title={vm.fieldModalIsEdit ? 'Editar Campo' : 'Novo Campo'} onClose={vm.closeFieldModal}>
+        <Modal title={vm.fieldModalIsEdit ? 'Editar Campo' : 'Novo Campo'} onClose={vm.closeFieldModal} size="large">
           <S.ModalForm>
             <InputGroup>
               <Label>Nome do campo *</Label>
@@ -420,6 +421,40 @@ export const ScreenBuilderView: React.FC = () => {
                 </InputGroup>
               </>
             )}
+            <S.RulesDivider>Comportamento por expressão</S.RulesDivider>
+            <S.FullRow>
+              <InfoBanner
+                message="Nas expressões, referencie os campos da tela pela chave (ex.: status, valor) — comece a digitar para ver as sugestões. Use value para o valor do próprio campo."
+                variant="info"
+              />
+              <InputGroup>
+                <Label>Validação (retorna a mensagem de erro, ou vazio/null se válido)</Label>
+                <ExpressionEditor
+                  value={vm.fieldForm.logicValidate}
+                  onChange={(value) => vm.updateFieldForm({ logicValidate: value })}
+                  workflowVariables={vm.fieldExpressionVariables}
+                  placeholder="Ex: if(isEmpty(value) and status == 'ativo', 'Obrigatório para ativos', null)"
+                />
+              </InputGroup>
+              <InputGroup>
+                <Label>Desabilitar quando (expressão verdadeiro/falso)</Label>
+                <ExpressionEditor
+                  value={vm.fieldForm.logicDisabledWhen}
+                  onChange={(value) => vm.updateFieldForm({ logicDisabledWhen: value })}
+                  workflowVariables={vm.fieldExpressionVariables}
+                  placeholder="Ex: status == 'encerrado'"
+                />
+              </InputGroup>
+              <InputGroup>
+                <Label>Ocultar quando — some quando a expressão for verdadeira</Label>
+                <ExpressionEditor
+                  value={vm.fieldForm.logicHiddenWhen}
+                  onChange={(value) => vm.updateFieldForm({ logicHiddenWhen: value })}
+                  workflowVariables={vm.fieldExpressionVariables}
+                  placeholder="Ex: eletrico == false (some quando NÃO for elétrico)"
+                />
+              </InputGroup>
+            </S.FullRow>
             {vm.fieldForm.type === 'reference' && (
               <InputGroup>
                 <Label>Tela vinculada *</Label>
@@ -441,7 +476,7 @@ export const ScreenBuilderView: React.FC = () => {
                   />
                   Opções com cor
                 </S.CheckboxRow>
-                <InputGroup>
+                <InputGroup $fullWidth>
                   <Label>Opções</Label>
                   {vm.fieldForm.optionsColored && (
                     <ColorSwatchPicker

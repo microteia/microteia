@@ -214,7 +214,13 @@ export const useExpressionEditorViewModel = (
         cursorPos = newCursor;
       } else {
         let insertion: string;
-        if (autocompleteState.mode === 'function' && !item.value.endsWith(')') && !item.value.endsWith('.')) {
+        const isBareIdentifier = item.category === 'Variável' || item.category === 'Campo';
+        if (
+          autocompleteState.mode === 'function' &&
+          !isBareIdentifier &&
+          !item.value.endsWith(')') &&
+          !item.value.endsWith('.')
+        ) {
           insertion = `${item.value}()`;
           cursorPos = before.length + item.value.length + 1;
         } else {

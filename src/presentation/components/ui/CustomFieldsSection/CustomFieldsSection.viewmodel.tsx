@@ -4,6 +4,7 @@ import { useScreenDefinitions, fieldOptionsKey } from '../../../../stores/useScr
 import { useTenant } from '../../../../stores/useTenant';
 import { useReferenceOptions } from '../../../hooks/useReferenceOptions';
 import { sortFieldsByOrder } from '../../../../domain/services/customFieldValues';
+import { evaluateFieldBoolean, evaluateFieldValidation } from '../../../../domain/schema/fieldExpression';
 import { resolveFieldOptionColor } from '../../../../shared/styles/colorUtils';
 import type { CustomFieldValue, FieldDefinition } from '../../../../domain/entities';
 import type { DynamicSelectOption } from '../DynamicSelect';
@@ -36,6 +37,9 @@ export interface CustomFieldsSectionViewModel {
   handleAddOption: (field: FieldDefinition, label: string) => Promise<void>;
   handleDeleteOption: (field: FieldDefinition, optionKey: string) => Promise<void>;
   referenceOptions: (field: FieldDefinition) => ReferenceOption[];
+  isFieldHidden: (field: FieldDefinition) => boolean;
+  isFieldDisabled: (field: FieldDefinition) => boolean;
+  fieldError: (field: FieldDefinition) => string | null;
 }
 
 export const useCustomFieldsSectionViewModel = (props: CustomFieldsSectionProps): CustomFieldsSectionViewModel => {
@@ -119,6 +123,24 @@ export const useCustomFieldsSectionViewModel = (props: CustomFieldsSectionProps)
     [referenceOptionsByEntity],
   );
 
+  const isFieldHidden = useCallback(
+    (field: FieldDefinition): boolean =>
+      evaluateFieldBoolean(field.logic?.hiddenWhen, { value: values[field.key], data: values }),
+    [values],
+  );
+
+  const isFieldDisabled = useCallback(
+    (field: FieldDefinition): boolean =>
+      disabled || evaluateFieldBoolean(field.logic?.disabledWhen, { value: values[field.key], data: values }),
+    [disabled, values],
+  );
+
+  const fieldError = useCallback(
+    (field: FieldDefinition): string | null =>
+      evaluateFieldValidation(field.logic?.validate, { value: values[field.key], data: values }),
+    [values],
+  );
+
   return {
     groups,
     disabled,
@@ -133,5 +155,8 @@ export const useCustomFieldsSectionViewModel = (props: CustomFieldsSectionProps)
     handleAddOption,
     handleDeleteOption,
     referenceOptions,
+    isFieldHidden,
+    isFieldDisabled,
+    fieldError,
   };
 };

@@ -16,6 +16,7 @@ export const CustomFieldsSection: React.FC<CustomFieldsSectionProps> = (props) =
   const vm = useCustomFieldsSectionViewModel(props);
 
   const renderControl = (field: FieldDefinition): React.ReactNode => {
+    const isDisabled = vm.isFieldDisabled(field);
     switch (field.type) {
       case 'textarea':
         return (
@@ -23,7 +24,7 @@ export const CustomFieldsSection: React.FC<CustomFieldsSectionProps> = (props) =
             value={vm.getString(field.key)}
             onChange={(e) => vm.setValue(field.key, e.target.value)}
             placeholder={field.placeholder ?? undefined}
-            disabled={vm.disabled}
+            disabled={isDisabled}
           />
         );
       case 'number':
@@ -33,7 +34,7 @@ export const CustomFieldsSection: React.FC<CustomFieldsSectionProps> = (props) =
             value={vm.getString(field.key)}
             onChange={(e) => vm.setValue(field.key, e.target.value)}
             placeholder={field.placeholder ?? undefined}
-            disabled={vm.disabled}
+            disabled={isDisabled}
           />
         );
       case 'currency':
@@ -42,7 +43,7 @@ export const CustomFieldsSection: React.FC<CustomFieldsSectionProps> = (props) =
             value={vm.getCurrency(field.key)}
             onChange={(value) => vm.setValue(field.key, value)}
             placeholder={field.placeholder ?? undefined}
-            disabled={vm.disabled}
+            disabled={isDisabled}
           />
         );
       case 'date':
@@ -50,7 +51,7 @@ export const CustomFieldsSection: React.FC<CustomFieldsSectionProps> = (props) =
           <DateInput
             value={vm.getString(field.key)}
             onChange={(value) => vm.setValue(field.key, value)}
-            disabled={vm.disabled}
+            disabled={isDisabled}
           />
         );
       case 'checkbox':
@@ -60,7 +61,7 @@ export const CustomFieldsSection: React.FC<CustomFieldsSectionProps> = (props) =
               type="checkbox"
               checked={vm.getBoolean(field.key)}
               onChange={(e) => vm.setValue(field.key, e.target.checked)}
-              disabled={vm.disabled}
+              disabled={isDisabled}
             />
             {field.placeholder ?? 'Sim'}
           </S.CheckboxRow>
@@ -72,7 +73,7 @@ export const CustomFieldsSection: React.FC<CustomFieldsSectionProps> = (props) =
             value={vm.getString(field.key)}
             onChange={(value) => vm.setValue(field.key, value)}
             placeholder={field.placeholder ?? undefined}
-            disabled={vm.disabled}
+            disabled={isDisabled}
           />
         );
       case 'select':
@@ -86,7 +87,7 @@ export const CustomFieldsSection: React.FC<CustomFieldsSectionProps> = (props) =
             values={field.multi ? vm.getStringArray(field.key) : undefined}
             onChangeMulti={field.multi ? (values) => vm.setValue(field.key, values) : undefined}
             placeholder={field.placeholder ?? 'Selecione...'}
-            disabled={vm.disabled}
+            disabled={isDisabled}
             onAdd={field.optionsAllowUserAdd ? (label) => vm.handleAddOption(field, label) : undefined}
             onDelete={field.optionsAllowUserAdd && vm.canDeleteOption
               ? (optionKey) => vm.handleDeleteOption(field, optionKey)
@@ -102,7 +103,7 @@ export const CustomFieldsSection: React.FC<CustomFieldsSectionProps> = (props) =
             values={vm.getStringArray(field.key)}
             onChange={(values) => vm.setValue(field.key, values)}
             placeholder={field.placeholder ?? 'Selecione...'}
-            disabled={vm.disabled}
+            disabled={isDisabled}
           />
         ) : (
           <SearchSelect
@@ -110,7 +111,7 @@ export const CustomFieldsSection: React.FC<CustomFieldsSectionProps> = (props) =
             value={vm.getString(field.key)}
             onChange={(value) => vm.setValue(field.key, value)}
             placeholder={field.placeholder ?? 'Selecione...'}
-            disabled={vm.disabled}
+            disabled={isDisabled}
           />
         );
       case 'markdown':
@@ -119,7 +120,7 @@ export const CustomFieldsSection: React.FC<CustomFieldsSectionProps> = (props) =
             value={vm.getString(field.key)}
             onChange={(value) => vm.setValue(field.key, value)}
             placeholder={field.placeholder ?? undefined}
-            readOnly={vm.disabled}
+            readOnly={isDisabled}
           />
         );
       default:
@@ -129,7 +130,7 @@ export const CustomFieldsSection: React.FC<CustomFieldsSectionProps> = (props) =
             value={vm.getString(field.key)}
             onChange={(e) => vm.setValue(field.key, e.target.value)}
             placeholder={field.placeholder ?? undefined}
-            disabled={vm.disabled}
+            disabled={isDisabled}
           />
         );
     }
@@ -137,19 +138,27 @@ export const CustomFieldsSection: React.FC<CustomFieldsSectionProps> = (props) =
 
   return (
     <S.Wrapper>
-      {vm.groups.map((group, index) => (
-        <React.Fragment key={group.section ?? `group-${index}`}>
-          {group.section && <S.SectionTitle>{group.section}</S.SectionTitle>}
-          <S.Grid>
-            {group.fields.map((field) => (
-              <S.FormGroup key={field.key} $fullWidth={field.type === 'textarea' || field.type === 'markdown'}>
-                <Label>{field.label}{field.required ? ' *' : ''}</Label>
-                {renderControl(field)}
-              </S.FormGroup>
-            ))}
-          </S.Grid>
-        </React.Fragment>
-      ))}
+      {vm.groups.map((group, index) => {
+        const visibleFields = group.fields.filter((field) => !vm.isFieldHidden(field));
+        if (visibleFields.length === 0) return null;
+        return (
+          <React.Fragment key={group.section ?? `group-${index}`}>
+            {group.section && <S.SectionTitle>{group.section}</S.SectionTitle>}
+            <S.Grid>
+              {visibleFields.map((field) => {
+                const error = vm.fieldError(field);
+                return (
+                  <S.FormGroup key={field.key} $fullWidth={field.type === 'textarea' || field.type === 'markdown'}>
+                    <Label>{field.label}{field.required ? ' *' : ''}</Label>
+                    {renderControl(field)}
+                    {error && <S.FieldError>{error}</S.FieldError>}
+                  </S.FormGroup>
+                );
+              })}
+            </S.Grid>
+          </React.Fragment>
+        );
+      })}
     </S.Wrapper>
   );
 };

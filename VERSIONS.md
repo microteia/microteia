@@ -11,6 +11,15 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [0.93.1] — 2026-07-17
+
+- No construtor de telas, a janela de criar/editar campo ficou mais larga e organizada em duas colunas, mais fácil de preencher.
+- Ao escrever uma expressão de campo, os campos da tela e o "value" agora aparecem como sugestões conforme você digita.
+
+## [0.93.0] — 2026-07-17
+
+- Campos agora podem ter regras inteligentes por expressão: uma expressão de **validação** que exibe uma mensagem de erro personalizada (aplicada tanto ao salvar na tela quanto nas automações), além de expressões para **desabilitar** ou **ocultar** o campo automaticamente conforme os outros campos preenchidos. Configuráveis no construtor de telas, para campos personalizados de qualquer tela.
+
 ## [0.92.4] — 2026-07-17
 
 - No editor de automações, um passo "Chamar Workflow" que não aguarda o retorno deixa de aparecer na lista de "Saída de outro step", já que nesse modo ele não devolve nenhuma saída para ser aproveitada.

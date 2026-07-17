@@ -4,7 +4,7 @@
 // Para alterar, edite a fonte e rode: npm run sync-schemas
 // ═══════════════════════════════════════════════════════════════════════════
 
-import type { FieldRules } from './fieldRules';
+import type { FieldLogic, FieldRules } from './fieldRules';
 
 export const SCHEMA_VERSION = 1;
 
@@ -40,6 +40,7 @@ export interface NativeFieldSpec {
   multi?: boolean;
   list?: boolean;
   rules?: FieldRules;
+  logic?: FieldLogic;
 }
 
 export interface FkSpec {

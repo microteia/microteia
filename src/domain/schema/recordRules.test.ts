@@ -103,6 +103,59 @@ describe('formatAndValidateRecord — campos dinâmicos', () => {
   });
 });
 
+const logicScreens: SchemaScreen[] = [
+  {
+    id: 'equipamentos',
+    titleSingular: 'Equipamento',
+    titleFieldKey: 'nome',
+    fields: [
+      field({ key: 'eletrico', label: 'Elétrico', type: 'checkbox' }),
+      field({
+        key: 'liberacao',
+        label: 'Número liberação',
+        rules: { format: { preset: 'digits' } },
+        logic: { validate: 'if(eletrico == true and isEmpty(value), "Obrigatório para elétricos", null)' },
+      }),
+    ],
+  },
+];
+const logicCtx = createSchemaContext(logicScreens);
+
+describe('formatAndValidateRecord — validação por expressão', () => {
+  it('dispara a mensagem da expressão sobre valores customizados', () => {
+    const outcome = formatAndValidateRecord(logicCtx, 'equipamentos', {
+      values: { eletrico: true, liberacao: '' },
+    });
+    expect(outcome.issues).toEqual([
+      { path: 'values.liberacao', label: 'Número liberação', error: 'Obrigatório para elétricos' },
+    ]);
+  });
+
+  it('não dispara quando a condição é falsa', () => {
+    const outcome = formatAndValidateRecord(logicCtx, 'equipamentos', {
+      values: { eletrico: false, liberacao: '' },
+    });
+    expect(outcome.issues).toHaveLength(0);
+  });
+
+  it('a expressão vê o valor JÁ formatado (format roda antes)', () => {
+    const outcome = formatAndValidateRecord(logicCtx, 'equipamentos', {
+      values: { eletrico: true, liberacao: 'abc123' },
+    });
+    expect(outcome.data).toEqual({ values: { eletrico: true, liberacao: '123' } });
+    expect(outcome.issues).toHaveLength(0);
+  });
+
+  it('coexiste com a validação por regra (FieldRules) no mesmo registro', () => {
+    const outcome = formatAndValidateRecord(ctx, 'persons', {
+      customValues: { registro: 'sp12' },
+    });
+    expect(outcome.issues).toEqual([
+      { path: 'customValues.registro', label: 'Registro OAB', error: 'Use UF + 6 dígitos' },
+    ]);
+  });
+});
+
 describe('formatAndValidateRecord — transparência', () => {
   it('não altera nada em tabela sem regras', () => {
     const data = { key: 'x', label: 'X' };

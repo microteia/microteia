@@ -19,6 +19,7 @@ const ROOT = path.join(__dirname, '..');
 const SHARED_FILES = [
   'domain/entities/entitySchemas.ts',
   'domain/schema/fieldRules.ts',
+  'domain/schema/fieldExpression.ts',
   'domain/schema/entityRegistry.ts',
   'domain/schema/lookupRegistry.ts',
   'domain/schema/pathResolver.ts',

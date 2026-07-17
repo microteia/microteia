@@ -4,7 +4,7 @@
 // ═══════════════════════════════════════════════════════════════════════════════
 
 import { ENTITY_REGISTRY_LIST } from '../schema/entityRegistry';
-import type { FieldRules } from '../schema/fieldRules';
+import type { FieldLogic, FieldRules } from '../schema/fieldRules';
 
 // ─── Tipos de Campos Customizados ─────────────────────────────────────────────
 
@@ -51,6 +51,7 @@ export interface FieldDefinition {
   listLabel?: string | null;
   filterable?: boolean;
   rules?: FieldRules | null;
+  logic?: FieldLogic | null;
 }
 
 // ─── Definição de Tela ────────────────────────────────────────────────────────

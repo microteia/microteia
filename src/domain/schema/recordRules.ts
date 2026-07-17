@@ -5,6 +5,7 @@
 
 import type { FieldDefinition } from '../entities/entitySchemas';
 import type { NativeFieldSpec } from './entityRegistry';
+import { evaluateFieldValidation } from './fieldExpression';
 import type { FieldRules, RuleIssue } from './fieldRules';
 import { formatAndValidate } from './fieldRules';
 import { flattenDataLeaves, resolveWritableTable, setValueAtPath } from './mutationSpec';
@@ -68,6 +69,98 @@ export const resolveFieldRules = (
   return findNativeFieldRules(entity.fields, parts);
 };
 
+interface ExpressionValidationTarget {
+  key: string;
+  path: string;
+  label: string;
+  expr: string;
+}
+
+/**
+ * Escopo plano por chave de campo (nativos e customizados na raiz), usado tanto na avaliação de
+ * expressões no back quanto no renderizador do front — para que a mesma expressão funcione dos dois
+ * lados referenciando os campos por `key`.
+ */
+export const buildRecordFieldScope = (
+  ctx: SchemaContext,
+  table: string,
+  data: Record<string, unknown>,
+): Record<string, unknown> => {
+  const outcome = resolveWritableTable(table, ctx);
+  if (!outcome.ok || outcome.value.kind === 'lookup') return { ...data };
+
+  if (outcome.value.kind === 'custom') {
+    const values = data.values;
+    return typeof values === 'object' && values !== null ? { ...(values as Record<string, unknown>) } : {};
+  }
+
+  const customValues = data[CUSTOM_VALUES_KEY];
+  const flatCustom = typeof customValues === 'object' && customValues !== null
+    ? (customValues as Record<string, unknown>)
+    : {};
+  return { ...data, ...flatCustom };
+};
+
+const collectExpressionValidationTargets = (
+  ctx: SchemaContext,
+  table: string,
+): ExpressionValidationTarget[] => {
+  const outcome = resolveWritableTable(table, ctx);
+  if (!outcome.ok || outcome.value.kind === 'lookup') return [];
+
+  const resolved = outcome.value;
+  const targets: ExpressionValidationTarget[] = [];
+
+  const pushCustomFields = (fields: FieldDefinition[] | undefined, prefix: string): void => {
+    for (const field of fields ?? []) {
+      if (field.logic?.validate) {
+        targets.push({
+          key: field.key,
+          path: `${prefix}.${field.key}`,
+          label: field.label,
+          expr: field.logic.validate,
+        });
+      }
+    }
+  };
+
+  if (resolved.kind === 'custom') {
+    pushCustomFields(ctx.screens.get(resolved.screenKey ?? '')?.fields, 'values');
+    return targets;
+  }
+
+  const entity = resolved.entityKey ? ctx.registry[resolved.entityKey] : undefined;
+  if (!entity) return targets;
+
+  for (const field of entity.fields) {
+    if (field.logic?.validate) {
+      targets.push({ key: field.key, path: field.key, label: field.label, expr: field.logic.validate });
+    }
+  }
+  if (entity.supportsCustomFields) {
+    pushCustomFields(ctx.screens.get(entity.collection)?.fields, CUSTOM_VALUES_KEY);
+  }
+
+  return targets;
+};
+
+const evaluateExpressionValidations = (
+  ctx: SchemaContext,
+  table: string,
+  data: Record<string, unknown>,
+): RuleIssue[] => {
+  const targets = collectExpressionValidationTargets(ctx, table);
+  if (targets.length === 0) return [];
+
+  const scope = buildRecordFieldScope(ctx, table, data);
+  const issues: RuleIssue[] = [];
+  for (const target of targets) {
+    const error = evaluateFieldValidation(target.expr, { value: scope[target.key], data: scope });
+    if (error) issues.push({ path: target.path, label: target.label, error });
+  }
+  return issues;
+};
+
 export interface RecordRulesOutcome {
   data: Record<string, unknown>;
   issues: RuleIssue[];
@@ -105,6 +198,8 @@ export const formatAndValidateRecord = (
     setValueAtPath(next, leaf.path, outcome.value);
     if (outcome.issue) issues.push(outcome.issue);
   }
+
+  issues.push(...evaluateExpressionValidations(ctx, table, next));
 
   return { data: next, issues };
 };

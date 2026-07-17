@@ -32,6 +32,11 @@ export const S = {
     ${({ $fullWidth }) => $fullWidth && 'grid-column: 1 / -1;'}
   `,
 
+  FieldError: styled.span`
+    font-size: ${({ theme }) => theme.fontSizes.sm};
+    color: ${({ theme }) => theme.colors.danger};
+  `,
+
   CheckboxRow: styled.label`
     display: flex;
     align-items: center;

@@ -41,6 +41,12 @@ export interface FieldRules {
   format?: FormatRule;
 }
 
+export interface FieldLogic {
+  validate?: string | null;
+  disabledWhen?: string | null;
+  hiddenWhen?: string | null;
+}
+
 export interface RuleIssue {
   path: string;
   label: string;

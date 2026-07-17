@@ -8,8 +8,10 @@ import { ensureUniqueKey, slugifyFieldKey, sortFieldsByOrder, validateFieldKey }
 import { getDefaultTagColor } from '../../../shared/styles/colorUtils';
 import { getScreenIconOptions } from '../../shared/screenIcons';
 import type { CustomFieldMask, CustomFieldType, FieldDefinition, ScreenDefinition } from '../../../domain/entities';
-import type { FieldRules, FormatPreset, FormatRule, ValidateCheck, ValidateRule } from '../../../domain/schema/fieldRules';
+import type { FieldLogic, FieldRules, FormatPreset, FormatRule, ValidateCheck, ValidateRule } from '../../../domain/schema/fieldRules';
 import { FORMAT_PRESET_LABELS, VALIDATE_CHECK_LABELS } from '../../../domain/schema/fieldRules';
+import { getEntityByCollection } from '../../../domain/schema/entityRegistry';
+import type { WorkflowVariable } from '../../components/ui/ExpressionEditor/autocompleteHelpers';
 import type { SearchSelectOption } from '../../components/ui/SearchSelect';
 import type { ColorSwatchOption } from '../../components/ui/ColorSwatchPicker';
 
@@ -79,6 +81,9 @@ export interface FieldFormState {
   ruleValidateCheck: ValidateCheck | '';
   ruleValidatePattern: string;
   ruleValidateMessage: string;
+  logicValidate: string;
+  logicDisabledWhen: string;
+  logicHiddenWhen: string;
 }
 
 export interface ScreenBuilderViewModel {
@@ -117,6 +122,7 @@ export interface ScreenBuilderViewModel {
   fieldModalIsTitleField: boolean;
   fieldForm: FieldFormState;
   updateFieldForm: (patch: Partial<FieldFormState>) => void;
+  fieldExpressionVariables: WorkflowVariable[];
   typeOptions: SearchSelectOption[];
   maskOptions: SearchSelectOption[];
   formatPresetOptions: SearchSelectOption[];
@@ -208,6 +214,9 @@ const EMPTY_FIELD_FORM: FieldFormState = {
   ruleValidateCheck: '',
   ruleValidatePattern: '',
   ruleValidateMessage: '',
+  logicValidate: '',
+  logicDisabledWhen: '',
+  logicHiddenWhen: '',
 };
 
 export const RULES_SUPPORTED_FIELD_TYPES: CustomFieldType[] = [
@@ -262,6 +271,23 @@ const fieldRulesToForm = (rules: FieldRules | null | undefined): Pick<
   ruleValidateCheck: rules?.validate?.check ?? '',
   ruleValidatePattern: rules?.validate?.pattern ?? '',
   ruleValidateMessage: rules?.validate?.message ?? '',
+});
+
+const buildFieldLogic = (form: FieldFormState): FieldLogic | null => {
+  const logic: FieldLogic = {};
+  if (form.logicValidate.trim()) logic.validate = form.logicValidate.trim();
+  if (form.logicDisabledWhen.trim()) logic.disabledWhen = form.logicDisabledWhen.trim();
+  if (form.logicHiddenWhen.trim()) logic.hiddenWhen = form.logicHiddenWhen.trim();
+  return Object.keys(logic).length > 0 ? logic : null;
+};
+
+const fieldLogicToForm = (logic: FieldLogic | null | undefined): Pick<
+  FieldFormState,
+  'logicValidate' | 'logicDisabledWhen' | 'logicHiddenWhen'
+> => ({
+  logicValidate: logic?.validate ?? '',
+  logicDisabledWhen: logic?.disabledWhen ?? '',
+  logicHiddenWhen: logic?.hiddenWhen ?? '',
 });
 
 const toSaveInput = (def: ScreenDefinition): ScreenDefinitionSaveInput => ({
@@ -628,6 +654,7 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
       listLabel: field.listLabel ?? '',
       filterable: field.filterable ?? false,
       ...fieldRulesToForm(field.rules),
+      ...fieldLogicToForm(field.logic),
     });
     setFieldModal({ screenKey, fieldKey });
   }, [getDefinitionByKey, defaultTagColor]);
@@ -708,6 +735,21 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
     [fieldModal, isTitleField],
   );
 
+  const fieldExpressionVariables = useMemo<WorkflowVariable[]>(() => {
+    if (!fieldModal) return [];
+    const seen = new Set<string>();
+    const vars: WorkflowVariable[] = [{ name: 'value', definedBy: 'Valor do próprio campo' }];
+    seen.add('value');
+    const push = (name: string, definedBy: string) => {
+      if (seen.has(name)) return;
+      seen.add(name);
+      vars.push({ name, definedBy });
+    };
+    getEntityByCollection(fieldModal.screenKey)?.fields.forEach((f) => push(f.key, f.label));
+    getDefinitionByKey(fieldModal.screenKey)?.fields.forEach((f) => push(f.key, f.label));
+    return vars;
+  }, [fieldModal, getDefinitionByKey]);
+
   const handleSaveField = useCallback(async () => {
     if (!fieldModal) return;
     const label = fieldForm.label.trim();
@@ -747,6 +789,7 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
       return;
     }
     const rules = buildFieldRules(fieldForm);
+    const logic = buildFieldLogic(fieldForm);
     setSavingField(true);
     try {
       const existing = getDefinitionByKey(fieldModal.screenKey);
@@ -774,6 +817,7 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
             listLabel: fieldForm.showInList ? (fieldForm.listLabel.trim() || null) : null,
             filterable: fieldForm.filterable,
             rules,
+            logic,
           };
         });
       } else {
@@ -802,6 +846,7 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
           listLabel: fieldForm.showInList ? (fieldForm.listLabel.trim() || null) : null,
           filterable: fieldForm.filterable,
           rules,
+          logic,
         }];
       }
       await saveDefinition(fieldModal.screenKey, { ...baseInput, fields: nextFields });
@@ -927,6 +972,7 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
     fieldModalIsTitleField,
     fieldForm,
     updateFieldForm,
+    fieldExpressionVariables,
     typeOptions,
     maskOptions,
     formatPresetOptions,

@@ -334,12 +334,25 @@ export const S = {
   `,
 
   ModalForm: styled.div`
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    align-items: start;
+    gap: ${({ theme }) => theme.spacing.md};
+
+    @media (max-width: 640px) {
+      grid-template-columns: 1fr;
+    }
+  `,
+
+  FullRow: styled.div`
+    grid-column: 1 / -1;
     display: flex;
     flex-direction: column;
     gap: ${({ theme }) => theme.spacing.md};
   `,
 
   ModalActions: styled.div`
+    grid-column: 1 / -1;
     display: flex;
     justify-content: flex-end;
     gap: ${({ theme }) => theme.spacing.sm};
@@ -347,6 +360,7 @@ export const S = {
   `,
 
   CheckboxRow: styled.label`
+    grid-column: 1 / -1;
     display: flex;
     align-items: center;
     gap: ${({ theme }) => theme.spacing.sm};
@@ -386,6 +400,7 @@ export const S = {
   `,
 
   RulesDivider: styled.div`
+    grid-column: 1 / -1;
     margin-top: ${({ theme }) => theme.spacing.sm};
     padding-top: ${({ theme }) => theme.spacing.sm};
     border-top: 1px solid ${({ theme }) => theme.colors.border};

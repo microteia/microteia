@@ -1,9 +1,10 @@
 import styled from 'styled-components';
 
-export const InputGroup = styled.div`
+export const InputGroup = styled.div<{ $fullWidth?: boolean }>`
   display: flex;
   flex-direction: column;
   gap: 6px;
+  ${({ $fullWidth }) => $fullWidth && 'grid-column: 1 / -1;'}
 `;
 
 export const Label = styled.label`

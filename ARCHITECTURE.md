@@ -1599,6 +1599,17 @@ Nota: a subcoleção `fieldOptions` (opções dinâmicas de selects) **não** es
 - **Listagens padrão:** as cinco listagens builtin (Pessoas, Processos, Contratos, Financeiro, Prazos) obtêm os campos via `getCustomFieldsFor(entityKey)` e usam o hook com `CUSTOM_FIELD_FILTER_PREFIX` (`cf-`) nas chaves dos `FilterDef` — o prefixo evita colisão com os filtros nativos (`status`, `type`, `city`…). Cada ViewModel anexa `...customListing.filterDefs` aos defs nativos, encerra o predicado de filtragem com `customListing.matchesFilters(entidade.customValues, tokenMap)` e expõe `getCustomFieldItems(entidade)`; a View renderiza `<CustomFieldMetaRows items={...} />` no cartão, após o bloco de metadados nativo.
 - **Deeplink de registro fora das 500 carregadas:** `ViewDynamicRecord` faz fallback de busca por id (`GetCustomRecordByIdUseCase`).
 
+### Expressões por campo (validação, desabilitar, ocultar)
+
+Todo campo — `FieldDefinition` (customizado) e `NativeFieldSpec` (fixo) — aceita `logic?: FieldLogic` com três expressões (`domain/schema/fieldRules.ts`): `validate` (retorna a mensagem de erro ou vazio/null; roda **front e back**), `disabledWhen` e `hiddenWhen` (booleanas, **só front**).
+
+- **Avaliador compartilhado:** `domain/schema/fieldExpression.ts` (fonte única, sincronizado para `functions/`) usa `expr-eval` com um conjunto de funções **puras** cujos nomes espelham o catálogo do Workflow (`if`, `concat`, `lower`, `upper`, `trim`, `length`, `isEmpty`, `coalesce`, `isCPF`, `isCNPJ`, `isEmail`, `onlyNumber`, `contains`, `startsWith`, `endsWith`, `substring`, `replace`, `today`…). Não importa o `FunctionRegistry` do motor de workflow (acoplado a `WorkflowContext`). `evaluateFieldValidation`/`evaluateFieldBoolean` são tolerantes a erro (expressão inválida → sem bloqueio / `false`).
+- **Escopo das expressões:** mapa **plano por chave de campo** (nativos e customizados na raiz), montado por `buildRecordFieldScope` (`recordRules.ts`); `value`/`self` = valor do próprio campo. A mesma expressão referencia os campos por `key` nos dois lados.
+- **Validação:** `formatAndValidateRecord` (`recordRules.ts`) roda um passo extra que avalia `logic.validate` de cada campo do schema e acrescenta `RuleIssue`. Coexiste com `required` e `FieldRules`. Enforcement automático via o choke point único: front (`recordRulesGate`) e back (`runWorkflowMutation`, `ValidateStep`).
+- **Front (desabilitar/ocultar/mensagem inline):** `ui/CustomFieldsSection` avalia por campo `isFieldHidden`/`isFieldDisabled`/`fieldError` de forma reativa; campos ocultos não são renderizados (seção sem campos visíveis some).
+- **Autoria:** `ScreenBuilder` grava `FieldDefinition.logic` via três `ExpressionEditor`.
+- **Campos nativos das telas fixas:** a **validação** já vale (o passo lê `entity.fields[].logic.validate`); o **desabilitar/ocultar ao vivo** depende de renderizar os campos nativos pelo renderer de Schema — piloto pendente (ver "Telas fixas por Schema").
+
 ### Regras de integridade
 
 - **Exclusão de tela é soft-block:** `DeleteScreenDefinitionUseCase` recusa excluir se houver registros (`hasRecords` com `limit(1)`); a alternativa oferecida é desativar (`enabled: false`).
