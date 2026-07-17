@@ -10,7 +10,7 @@ import type { StepRegistry } from './StepRegistry';
 import { evaluateCondition } from './ConditionEvaluator';
 import { resolveInputsSafe, resolveMapping } from './InputMapping';
 import { describeRuleIssues } from '../schema/fieldRules';
-import { formatAndValidateParameters } from '../schema/parameterRules';
+import { collectRequiredIssues, formatAndValidateParameters } from '../schema/parameterRules';
 import { flattenSteps } from '../services/stepTree';
 
 const isPlainObject = (value: unknown): value is Record<string, unknown> =>
@@ -105,6 +105,12 @@ export const runWorkflow = async ({ definition, event, registry, services }: Run
   if (definition.lookupCollection && event.payload.collection !== definition.lookupCollection) {
     log('INFO', 'Execução ignorada: lista do evento não corresponde à lista configurada no gatilho');
     return finish('SUCCESS', {});
+  }
+
+  const requiredIssues = collectRequiredIssues(definition.parameters, event.payload);
+  if (requiredIssues.length > 0) {
+    log('ERROR', `Parâmetros do workflow inválidos: ${describeRuleIssues(requiredIssues)}`);
+    return finish('FAILED', {});
   }
 
   const ruledParameters = formatAndValidateParameters(definition.parameters, event.payload);

@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [0.92.2] — 2026-07-17
+
+- Corrigido um problema em que uma automação era executada mesmo quando parâmetros marcados como obrigatórios não estavam preenchidos. Agora, se faltar um campo obrigatório, a execução é interrompida e o motivo fica registrado no histórico da automação.
+
 ## [0.92.1] — 2026-07-17
 
 - Ajustes internos de manutenção do projeto, sem qualquer mudança visível no uso do sistema.

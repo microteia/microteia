@@ -4,9 +4,8 @@
 // ═══════════════════════════════════════════════════════════════════════════════
 
 import type { WorkflowParameter } from '../entities/Workflow';
-import { isEmptyRuleValue } from './fieldRules';
 import type { RuleIssue } from './fieldRules';
-import { formatAndValidateParameters } from './parameterRules';
+import { collectRequiredIssues, formatAndValidateParameters } from './parameterRules';
 import type { SchemaContext } from './pathResolver';
 import { formatAndValidateRecord } from './recordRules';
 
@@ -22,28 +21,6 @@ export interface ValidateObjectOutcome {
   value: Record<string, unknown>;
   issues: RuleIssue[];
 }
-
-const collectRequiredIssues = (
-  parameters: WorkflowParameter[] | undefined,
-  data: Record<string, unknown>,
-  prefix = '',
-): RuleIssue[] => {
-  const issues: RuleIssue[] = [];
-  for (const parameter of parameters ?? []) {
-    const path = prefix ? `${prefix}.${parameter.key}` : parameter.key;
-    const label = parameter.label || parameter.key;
-    const value = data[parameter.key];
-
-    if (parameter.required && isEmptyRuleValue(value)) {
-      issues.push({ path, label, error: `O campo "${label}" é obrigatório` });
-      continue;
-    }
-    if (parameter.type === 'Object' && value && typeof value === 'object' && !Array.isArray(value)) {
-      issues.push(...collectRequiredIssues(parameter.fields, value as Record<string, unknown>, path));
-    }
-  }
-  return issues;
-};
 
 const pickParameterKeys = (
   parameters: WorkflowParameter[],

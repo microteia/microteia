@@ -5,7 +5,7 @@
 
 import type { WorkflowParameter } from '../entities/Workflow';
 import type { RuleIssue } from './fieldRules';
-import { formatAndValidate } from './fieldRules';
+import { formatAndValidate, isEmptyRuleValue } from './fieldRules';
 
 export interface ParameterRulesOutcome {
   data: Record<string, unknown>;
@@ -57,4 +57,31 @@ export const formatAndValidateParameters = (
   }
 
   return { data: next, issues };
+};
+
+/**
+ * Verifica a obrigatoriedade (`required`) de cada parâmetro contra `data`. Complementa
+ * `formatAndValidateParameters` (que só valida chaves presentes) e deve ser chamada sempre
+ * que os parâmetros forem materializados numa execução. Desce recursivamente em `fields`.
+ */
+export const collectRequiredIssues = (
+  parameters: WorkflowParameter[] | undefined,
+  data: Record<string, unknown>,
+  prefix = '',
+): RuleIssue[] => {
+  const issues: RuleIssue[] = [];
+  for (const parameter of parameters ?? []) {
+    const path = prefix ? `${prefix}.${parameter.key}` : parameter.key;
+    const label = parameter.label || parameter.key;
+    const value = data[parameter.key];
+
+    if (parameter.required && isEmptyRuleValue(value)) {
+      issues.push({ path, label, error: `O campo "${label}" é obrigatório` });
+      continue;
+    }
+    if (parameter.type === 'Object' && isPlainObject(value)) {
+      issues.push(...collectRequiredIssues(parameter.fields, value, path));
+    }
+  }
+  return issues;
 };

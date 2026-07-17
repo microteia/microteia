@@ -345,3 +345,47 @@ describe('runWorkflow — StepLoop (repetição / ForEach)', () => {
     expect(result.status).toBe('FAILED');
   });
 });
+
+describe('runWorkflow — parâmetros obrigatórios', () => {
+  const withParams = (parameters: WorkflowDefinition['parameters']): WorkflowDefinition => ({
+    ...makeDefinition([recordStep('a')]),
+    parameters,
+  });
+
+  it('falha quando um parâmetro obrigatório está ausente no payload', async () => {
+    const order: string[] = [];
+    const result = await runWorkflow({
+      definition: withParams([{ key: 'nome', label: 'Nome', required: true, type: 'String' }]),
+      event: makeEvent({ tag: 'a' }),
+      registry: makeRegistry(order),
+      services,
+    });
+    expect(result.status).toBe('FAILED');
+    expect(order).toEqual([]);
+    expect(result.logs.some((entry) => entry.message.includes('obrigatório'))).toBe(true);
+  });
+
+  it('falha quando um parâmetro obrigatório está vazio', async () => {
+    const order: string[] = [];
+    const result = await runWorkflow({
+      definition: withParams([{ key: 'nome', label: 'Nome', required: true, type: 'String' }]),
+      event: makeEvent({ tag: 'a', nome: '   ' }),
+      registry: makeRegistry(order),
+      services,
+    });
+    expect(result.status).toBe('FAILED');
+    expect(order).toEqual([]);
+  });
+
+  it('prossegue quando os parâmetros obrigatórios estão preenchidos', async () => {
+    const order: string[] = [];
+    const result = await runWorkflow({
+      definition: withParams([{ key: 'nome', label: 'Nome', required: true, type: 'String' }]),
+      event: makeEvent({ tag: 'a', nome: 'Fulano' }),
+      registry: makeRegistry(order),
+      services,
+    });
+    expect(result.status).toBe('SUCCESS');
+    expect(order).toEqual(['a']);
+  });
+});
