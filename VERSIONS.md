@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [0.95.1] — 2026-07-17
+
+- Nos cards de Pessoas, os atalhos do canto passaram a seguir o mesmo visual dos demais (aparecem no hover e destacam em vermelho ao excluir), e as linhas de informação agora podem exibir qualquer campo da pessoa apenas indicando-o na configuração da tela.
+
 ## [0.95.0] — 2026-07-17
 
 - A listagem de Pessoas ganhou cards padronizados com título, subtítulo com ícone, etiquetas e — ao passar o mouse — atalhos rápidos no canto (copiar link, duplicar, gerenciar etiquetas e excluir), sem precisar abrir o cadastro. Cada linha de informação exibe um ícone, e a ordem e os ícones são definidos pela configuração da tela.

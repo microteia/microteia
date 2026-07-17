@@ -19,10 +19,11 @@ export const PERSON_LIST_CONFIG: PersonListConfig = {
   showTags: true,
   actions: ['copyLink', 'clone', 'manageTags', 'delete'],
   rows: [
-    { key: 'document', icon: 'contacts' },
+    { key: 'cpf', icon: 'contacts' },
+    { key: 'cnpj', icon: 'contacts' },
     { key: 'email', icon: 'mail' },
     { key: 'phone', icon: 'phone' },
     { key: 'occupation', icon: 'briefcase' },
-    { key: 'city', icon: 'map' },
+    { key: 'address.city', icon: 'map' },
   ],
 };

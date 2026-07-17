@@ -11,6 +11,7 @@ import { useCustomFieldListing, CUSTOM_FIELD_FILTER_PREFIX } from '../../hooks/u
 import type { CustomFieldCardItem } from '../../hooks/useCustomFieldListing';
 import { resolveColor, getConfigColor } from '../../../shared/styles/colorUtils';
 import { generateDeepLink } from '../../../infrastructure/deeplink/deepLinkUtils';
+import { format } from 'date-fns';
 import type { Person } from '../../../domain/entities';
 import type { FilterDef, FilterToken } from '../../components/ui/CompositeFilter';
 import type { TagStoreAdapter } from '../../components/ui/TagManager/TagManager.viewmodel';
@@ -21,6 +22,22 @@ const PERSON_STATUS_OPTIONS: FilterDef['options'] = [
   { value: 'Ativo', label: 'Ativos' },
   { value: 'Inativo', label: 'Inativos' },
 ];
+
+const readFieldPath = (obj: unknown, key: string): unknown => {
+  let cursor: unknown = obj;
+  for (const part of key.split('.')) {
+    if (cursor === null || typeof cursor !== 'object') return undefined;
+    cursor = (cursor as Record<string, unknown>)[part];
+  }
+  return cursor;
+};
+
+const formatFieldValue = (raw: unknown): string => {
+  if (raw === null || raw === undefined || raw === '') return '';
+  if (raw instanceof Date) return format(raw, 'dd/MM/yyyy');
+  if (Array.isArray(raw)) return raw.map((item) => String(item)).join(' · ');
+  return String(raw);
+};
 
 export interface PersonCardAction {
   key: PersonCardActionKey;
@@ -185,19 +202,9 @@ export const usePersonsViewModel = (): PersonsViewModel => {
   );
 
   const resolveRow = useCallback((person: Person, key: string): string => {
-    switch (key) {
-      case 'name': return person.name;
-      case 'type': return person.type;
-      case 'document': return person.cpf ?? person.cnpj ?? '';
-      case 'email': return person.email ?? '';
-      case 'phone': return person.phone
-        ? `${person.phone}${person.secondaryPhone ? ` · ${person.secondaryPhone}` : ''}`
-        : '';
-      case 'occupation': return person.occupation ?? '';
-      case 'city': return [person.address?.neighborhood, person.address?.city, person.address?.state]
-        .filter(Boolean).join(' · ');
-      default: return '';
-    }
+    const direct = readFieldPath(person, key);
+    const raw = direct === undefined ? person.customValues?.[key] : direct;
+    return formatFieldValue(raw);
   }, []);
 
   const onCopyLink = useCallback((person: Person) => {

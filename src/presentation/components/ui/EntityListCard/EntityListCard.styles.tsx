@@ -5,12 +5,15 @@ const Actions = styled.div`
   top: ${({ theme }) => theme.spacing.sm};
   right: ${({ theme }) => theme.spacing.sm};
   display: flex;
-  gap: 2px;
+  gap: 4px;
   opacity: 0;
+  pointer-events: none;
   transition: ${({ theme }) => theme.transitions.fast};
+  z-index: 1;
 
   @media (hover: none) {
     opacity: 1;
+    pointer-events: auto;
   }
 `;
 
@@ -34,6 +37,7 @@ const Card = styled.div`
 
   &:hover ${Actions} {
     opacity: 1;
+    pointer-events: auto;
   }
 `;
 
@@ -47,14 +51,17 @@ export const S = {
     justify-content: center;
     width: 28px;
     height: 28px;
-    border-radius: ${({ theme }) => theme.borderRadius.sm};
-    color: ${({ theme, $danger }) => ($danger ? theme.colors.danger : theme.colors.textSecondary)};
+    border-radius: ${({ theme }) => theme.borderRadius.md};
+    color: ${({ theme }) => theme.colors.textMuted};
     background: ${({ theme }) => theme.colors.surface};
     border: 1px solid ${({ theme }) => theme.colors.border};
+    cursor: pointer;
+    transition: ${({ theme }) => theme.transitions.fast};
 
     &:hover {
-      background: ${({ theme }) => theme.colors.surfaceHover};
-      color: ${({ theme, $danger }) => ($danger ? theme.colors.danger : theme.colors.text)};
+      background: ${({ theme, $danger }) => ($danger ? theme.colors.danger : theme.colors.surfaceHover)};
+      color: ${({ theme, $danger }) => ($danger ? theme.colors.white : theme.colors.text)};
+      border-color: ${({ theme, $danger }) => ($danger ? theme.colors.danger : theme.colors.primary)};
     }
   `,
 
