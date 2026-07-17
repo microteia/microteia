@@ -16,7 +16,6 @@ import { UpsertBuilderControl } from '../ViewWorkflow/components/UpsertBuilderCo
 import { RemoveBuilderControl } from '../ViewWorkflow/components/RemoveBuilderControl';
 import { MapBuilderControl } from '../ViewWorkflow/components/MapBuilderControl';
 import { ValidateBuilderControl } from '../ViewWorkflow/components/ValidateBuilderControl';
-import { getStepDisplayName } from '../../shared/workflowHelpers';
 import { S } from './EditWorkflowStep.styles';
 import { useEditWorkflowStepViewModel } from './EditWorkflowStep.viewmodel';
 import type { InputDefinition } from '../../../domain/entities/WorkflowStepCatalog';
@@ -178,10 +177,6 @@ export const EditWorkflowStepView: React.FC<{ tabKey: string }> = ({ tabKey }) =
       mapping?.kind === 'Literal' && mapping.value && typeof mapping.value === 'object'
         ? (mapping.value as MapStepConfig)
         : undefined;
-    const priorStepOptions = vm.priorSteps.map((s) => ({
-      value: s.id,
-      label: getStepDisplayName(s, vm.stepCatalog.find((d) => d.id === s.stepDefinitionId)),
-    }));
     return (
       <MapBuilderControl
         value={config}
@@ -191,7 +186,7 @@ export const EditWorkflowStepView: React.FC<{ tabKey: string }> = ({ tabKey }) =
         inputRoot={vm.inputRoot}
         stepOutputFields={vm.stepOutputFields}
         workflowVariables={vm.workflowVariables}
-        priorStepOptions={priorStepOptions}
+        priorStepOptions={vm.priorStepOptions}
         getStepOutputs={vm.getStepOutputs}
       />
     );
@@ -255,10 +250,7 @@ export const EditWorkflowStepView: React.FC<{ tabKey: string }> = ({ tabKey }) =
         return (
           <S.OutputPickerRow>
             <SearchSelect
-              options={vm.priorSteps.map((s) => ({
-                value: s.id,
-                label: getStepDisplayName(s, vm.stepCatalog.find((d) => d.id === s.stepDefinitionId))
-              }))}
+              options={vm.priorStepOptions}
               value={mapping.stepId}
               onChange={(stepId) => vm.setMapping(input.id, { kind: 'Output', stepId, outputId: '' })}
               placeholder="Step anterior..."

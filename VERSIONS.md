@@ -11,6 +11,14 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [0.92.4] — 2026-07-17
+
+- No editor de automações, um passo "Chamar Workflow" que não aguarda o retorno deixa de aparecer na lista de "Saída de outro step", já que nesse modo ele não devolve nenhuma saída para ser aproveitada.
+
+## [0.92.3] — 2026-07-17
+
+- Corrigido um problema no editor de automações: quando um passo usava a saída de um passo anterior do tipo "Chamar Workflow", essa saída não aparecia na lista de seleção. Agora as saídas do workflow chamado (quando ele aguarda o retorno) ficam disponíveis para escolher.
+
 ## [0.92.2] — 2026-07-17
 
 - Corrigido um problema em que uma automação era executada mesmo quando parâmetros marcados como obrigatórios não estavam preenchidos. Agora, se faltar um campo obrigatório, a execução é interrompida e o motivo fica registrado no histórico da automação.

@@ -188,6 +188,7 @@ export interface EditWorkflowStepViewModel {
   cancelDelete: () => void;
   stepToDelete: WorkflowStep | null;
   priorSteps: WorkflowStep[];
+  priorStepOptions: { value: string; label: string }[];
   stepCatalog: StepDefinitionSummary[];
   stepCatalogOptions: { value: string; label: string; icon: IconType }[];
   eventFields: WorkflowEventFieldOption[];
@@ -487,48 +488,72 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
     [workflows],
   );
 
+  // Fonte única de verdade das saídas selecionáveis de um step (estáticas, dinâmicas,
+  // projeções de query, saídas de Script/Workflow-alvo e objetos montados). Consumida tanto
+  // pelo autocomplete (`stepOutputFields`/`input.`) quanto pelo seletor visual (`getStepOutputs`)
+  // e pela lista de steps candidatos (`priorStepOptions`), garantindo que os três coincidam.
+  const resolveStepOutputs = useCallback(
+    (step: WorkflowStep): { id: string; label: string }[] => {
+      if (step.type === 'Loop' && step.loop) {
+        return [{ id: step.loop.outputName, label: `${step.loop.outputName} (lista)` }];
+      }
+
+      const definition = stepCatalog.find((d) => d.id === step.stepDefinitionId);
+      if (!definition) return [];
+
+      const outputs: { id: string; label: string }[] = [];
+
+      definition.outputDefinitions.forEach((output) => {
+        outputs.push({ id: output.id, label: output.label });
+      });
+
+      if (definition.dynamicOutputs?.kind === 'from-input-field') {
+        const sourceIds = Array.isArray(definition.dynamicOutputs.sourceInputId)
+          ? definition.dynamicOutputs.sourceInputId
+          : [definition.dynamicOutputs.sourceInputId];
+        sourceIds.forEach((sourceInputId) => {
+          const mapping = step.configuration[sourceInputId];
+          if (mapping && mapping.kind === 'Literal' && mapping.value) {
+            const outputId = String(mapping.value);
+            outputs.push({ id: outputId, label: `${outputId} (dinâmico)` });
+          }
+        });
+      }
+
+      queryProjectionOutputs(step, definition).forEach((output) => {
+        outputs.push({ id: output.id, label: output.label });
+      });
+      scriptOutputsFor(step, definition).forEach((output) => {
+        outputs.push({ id: output.id, label: output.label });
+      });
+      workflowOutputsFor(step, definition).forEach((output) => {
+        outputs.push({ id: output.id, label: output.label });
+      });
+
+      const mapConfig = objectOutputConfigOf(step, definition);
+      if (mapConfig) {
+        const suffix = mapConfig.name?.trim() ? '(objeto)' : '(campo)';
+        mapOutputNames(mapConfig).forEach((name) => {
+          outputs.push({ id: name, label: `${name} ${suffix}` });
+        });
+      }
+
+      return outputs;
+    },
+    [stepCatalog, scriptOutputsFor, workflowOutputsFor],
+  );
+
   const stepOutputFields = useMemo(() => {
     const fields: StepOutputField[] = [];
     priorSteps.forEach((step) => {
-      if (step.type === 'Loop' && step.loop) {
-        fields.push({
-          stepId: step.id,
-          stepName: getStepDisplayName(step),
-          outputId: step.loop.outputName,
-          outputLabel: `${step.loop.outputName} (lista)`,
-        });
-        return;
-      }
       const definition = stepCatalog.find((d) => d.id === step.stepDefinitionId);
-      if (!definition) return;
-
       const stepName = getStepDisplayName(step, definition);
-      definition.outputDefinitions.forEach((output) => {
-        fields.push({
-          stepId: step.id,
-          stepName,
-          outputId: output.id,
-          outputLabel: output.label,
-        });
-      });
-      queryProjectionOutputs(step, definition).forEach((output) => {
+      resolveStepOutputs(step).forEach((output) => {
         fields.push({ stepId: step.id, stepName, outputId: output.id, outputLabel: output.label });
       });
-      scriptOutputsFor(step, definition).forEach((output) => {
-        fields.push({ stepId: step.id, stepName, outputId: output.id, outputLabel: output.label });
-      });
-      workflowOutputsFor(step, definition).forEach((output) => {
-        fields.push({ stepId: step.id, stepName, outputId: output.id, outputLabel: output.label });
-      });
-      const mapConfig = objectOutputConfigOf(step, definition);
-      if (mapConfig) {
-        mapOutputNames(mapConfig).forEach((name) => {
-          fields.push({ stepId: step.id, stepName, outputId: name, outputLabel: name });
-        });
-      }
     });
     return fields;
-  }, [priorSteps, stepCatalog, scriptOutputsFor, workflowOutputsFor]);
+  }, [priorSteps, stepCatalog, resolveStepOutputs]);
 
   // Descreve a "forma" do `input` (saídas dos steps anteriores) como um PathRoot de schema, para
   // que o autocomplete de `input.<saída>.` navegue nas propriedades de saídas do tipo
@@ -587,57 +612,22 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
   const getStepOutputs = useCallback((stepId: string) => {
     const step = priorSteps.find((s) => s.id === stepId);
     if (!step) return [];
+    return resolveStepOutputs(step).map((output) => ({ value: output.id, label: output.label }));
+  }, [priorSteps, resolveStepOutputs]);
 
-    if (step.type === 'Loop' && step.loop) {
-      return [{ value: step.loop.outputName, label: `${step.loop.outputName} (lista)` }];
-    }
-
-    const definition = stepCatalog.find((d) => d.id === step.stepDefinitionId);
-    if (!definition) return [];
-
-    const outputs: { value: string; label: string }[] = [];
-
-    // Outputs estáticos
-    definition.outputDefinitions.forEach((output) => {
-      outputs.push({ value: output.id, label: output.label });
-    });
-
-    // Outputs dinâmicos
-    if (definition.dynamicOutputs && definition.dynamicOutputs.kind === 'from-input-field') {
-      const sourceIds = Array.isArray(definition.dynamicOutputs.sourceInputId)
-        ? definition.dynamicOutputs.sourceInputId
-        : [definition.dynamicOutputs.sourceInputId];
-
-      sourceIds.forEach((sourceInputId) => {
-        const mapping = step.configuration[sourceInputId];
-        if (mapping && mapping.kind === 'Literal' && mapping.value) {
-          const outputId = String(mapping.value);
-          outputs.push({
-            value: outputId,
-            label: `${outputId} (dinâmico)`
-          });
-        }
-      });
-    }
-
-    queryProjectionOutputs(step, definition).forEach((output) => {
-      outputs.push({ value: output.id, label: output.label });
-    });
-
-    scriptOutputsFor(step, definition).forEach((output) => {
-      outputs.push({ value: output.id, label: output.label });
-    });
-
-    const mapConfig = objectOutputConfigOf(step, definition);
-    if (mapConfig) {
-      const suffix = mapConfig.name?.trim() ? '(objeto)' : '(campo)';
-      mapOutputNames(mapConfig).forEach((name) => {
-        outputs.push({ value: name, label: `${name} ${suffix}` });
-      });
-    }
-
-    return outputs;
-  }, [priorSteps, stepCatalog, scriptOutputsFor]);
+  // Steps anteriores oferecíveis em "Saída de outro step": apenas os que expõem ao menos uma
+  // saída selecionável. Um "Chamar Workflow" sem "Aguardar retorno", por exemplo, não devolve
+  // saídas ao chamador, então some da lista em vez de aparecer com um seletor de saída vazio.
+  const priorStepOptions = useMemo(
+    () =>
+      priorSteps
+        .filter((step) => resolveStepOutputs(step).length > 0)
+        .map((step) => ({
+          value: step.id,
+          label: getStepDisplayName(step, stepCatalog.find((d) => d.id === step.stepDefinitionId)),
+        })),
+    [priorSteps, stepCatalog, resolveStepOutputs],
+  );
 
   const workflowVariables = useMemo(() => {
     const variables: WorkflowVariable[] = [];
@@ -861,6 +851,7 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
     cancelDelete,
     stepToDelete,
     priorSteps,
+    priorStepOptions,
     stepCatalog,
     stepCatalogOptions,
     eventFields,
