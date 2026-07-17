@@ -9,7 +9,6 @@ import { useWorkspace } from '../../../stores/useWorkspace';
 import { useNotification } from '../../../stores/useNotification';
 import { useDI } from '../../../infrastructure/di/useDI';
 import { resolveColor, getConfigColor } from '../../../shared/styles/colorUtils';
-import type { DynamicSelectOption } from '../../components/ui/DynamicSelect';
 import { makeGetPersonNotesUseCase } from '../../../domain/usecases/personnotes/GetPersonNotesUseCase';
 import { makeAddPersonNoteUseCase } from '../../../domain/usecases/personnotes/AddPersonNoteUseCase';
 import { makeDeletePersonNoteUseCase } from '../../../domain/usecases/personnotes/DeletePersonNoteUseCase';
@@ -33,7 +32,6 @@ import type { TagStoreAdapter } from '../../components/ui/TagManager/TagManager.
 import { useScreenDefinitions } from '../../../stores/useScreenDefinitions';
 import { buildInitialFormValues, formValuesToStoredValues, validateRequiredFields } from '../../../domain/services/customFieldValues';
 import { formatCPF, formatCNPJ, formatPhone, formatCEP, onlyNumbers } from '../../../utils/formatters';
-import { validateCPF, validateCNPJ } from '../../../utils/validators';
 import { describeRuleIssues } from '../../../domain/schema/fieldRules';
 import { validateRecordRules } from '../../../data/utils/recordRulesGate';
 import { format, parseISO } from 'date-fns';
@@ -62,21 +60,6 @@ export interface PersonFormData {
   addressCity: string;
   addressState: string;
   addressZipCode: string;
-}
-
-export interface PersonFormErrors {
-  cpf?: string;
-  cnpj?: string;
-}
-
-interface ViaCEPResponse {
-  cep: string;
-  logradouro: string;
-  complemento: string;
-  bairro: string;
-  localidade: string;
-  uf: string;
-  erro?: boolean;
 }
 
 const buildFormData = (person: Person | null): PersonFormData => ({
@@ -136,14 +119,6 @@ export interface ViewPersonViewModel {
   personLookupOptions: Record<string, LookupOptionSet>;
   handleAddPersonLookup: (collection: string, label: string) => Promise<void>;
   handleDeletePersonLookup: (collection: string, optionKey: string) => Promise<void>;
-  formErrors: PersonFormErrors;
-  handleCPFChange: (value: string) => void;
-  handleCNPJChange: (value: string) => void;
-  handlePhoneChange: (value: string) => void;
-  handleSecondaryPhoneChange: (value: string) => void;
-  handleCEPChange: (value: string) => void;
-  isFetchingAddress: boolean;
-  addressFetchError: string;
   customFields: FieldDefinition[];
   customValues: Record<string, CustomFieldValue>;
   setCustomValue: (fieldKey: string, value: CustomFieldValue) => void;
@@ -169,34 +144,6 @@ export interface ViewPersonViewModel {
   personToDelete: Person | null;
   confirmDeletePerson: () => Promise<void>;
   cancelDeletePerson: () => void;
-
-  typeOptions:             DynamicSelectOption[];
-  typeDynamicOptions:      DynamicSelectOption[];
-  occupationOptions:       DynamicSelectOption[];
-  nationalityOptions:      DynamicSelectOption[];
-  nationalityDynamicOptions: DynamicSelectOption[];
-  maritalStatusOptions:    DynamicSelectOption[];
-  maritalStatusDynamicOptions: DynamicSelectOption[];
-  cityOptions:             DynamicSelectOption[];
-  relationshipOptions:     DynamicSelectOption[];
-  relationshipDynamicOptions: DynamicSelectOption[];
-  genderOptions:           DynamicSelectOption[];
-  genderDynamicOptions:    DynamicSelectOption[];
-
-  handleAddType:           (name: string) => Promise<void>;
-  handleDeleteType:        (key: string)  => Promise<void>;
-  handleAddOccupation:     (name: string) => Promise<void>;
-  handleDeleteOccupation:  (key: string)  => Promise<void>;
-  handleAddNationality:    (name: string) => Promise<void>;
-  handleDeleteNationality: (key: string)  => Promise<void>;
-  handleAddMaritalStatus:  (name: string) => Promise<void>;
-  handleDeleteMaritalStatus:(key: string) => Promise<void>;
-  handleAddCity:           (name: string) => Promise<void>;
-  handleDeleteCity:        (key: string)  => Promise<void>;
-  handleAddRelationship:   (name: string) => Promise<void>;
-  handleDeleteRelationship:(key: string)  => Promise<void>;
-  handleAddGender:         (name: string) => Promise<void>;
-  handleDeleteGender:      (key: string)  => Promise<void>;
 }
 
 const CLONE_PREFIX = 'new-person:clone:';
@@ -232,13 +179,10 @@ export const useViewPersonViewModel = (tabKey: string): ViewPersonViewModel => {
     const base = buildFormData(cloneSource);
     return cloneSource ? { ...base, cpf: '', cnpj: '' } : base;
   });
-  const [formErrors, setFormErrors] = useState<PersonFormErrors>({});
   const [isSaving, setIsSaving] = useState(false);
   const { getCustomFieldsFor } = useScreenDefinitions();
   const customFields = useMemo(() => getCustomFieldsFor('persons'), [getCustomFieldsFor]);
   const [customValues, setCustomValues] = useState<Record<string, CustomFieldValue>>({});
-  const [isFetchingAddress, setIsFetchingAddress] = useState(false);
-  const [addressFetchError, setAddressFetchError] = useState('');
 
   const chrome = useEntityDetailChrome({
     recordId: person?.id ?? null,
@@ -323,110 +267,6 @@ export const useViewPersonViewModel = (tabKey: string): ViewPersonViewModel => {
     setFormDataState((prev) => ({ ...prev, ...data }));
   }, []);
 
-  const handleCPFChange = useCallback((value: string) => {
-    const cleanValue = value.toLowerCase().trim();
-    if (cleanValue === 'x' || cleanValue === '') {
-      setFormDataState((prev) => ({ ...prev, cpf: '' }));
-      setFormErrors((prev) => ({ ...prev, cpf: undefined }));
-      return;
-    }
-    const formatted = formatCPF(value);
-    setFormDataState((prev) => ({ ...prev, cpf: formatted }));
-    const numbers = onlyNumbers(formatted);
-    if (numbers.length > 0 && numbers.length === 11) {
-      if (!validateCPF(numbers)) {
-        setFormErrors((prev) => ({ ...prev, cpf: 'CPF inválido' }));
-      } else {
-        setFormErrors((prev) => ({ ...prev, cpf: undefined }));
-      }
-    } else if (numbers.length === 11) {
-      setFormErrors((prev) => ({ ...prev, cpf: undefined }));
-    }
-  }, []);
-
-  const handleCNPJChange = useCallback((value: string) => {
-    const cleanValue = value.toLowerCase().trim();
-    if (cleanValue === 'x' || cleanValue === '') {
-      setFormDataState((prev) => ({ ...prev, cnpj: '' }));
-      setFormErrors((prev) => ({ ...prev, cnpj: undefined }));
-      return;
-    }
-    const formatted = formatCNPJ(value);
-    setFormDataState((prev) => ({ ...prev, cnpj: formatted }));
-    const numbers = onlyNumbers(formatted);
-    if (numbers.length > 0 && numbers.length === 14) {
-      if (!validateCNPJ(numbers)) {
-        setFormErrors((prev) => ({ ...prev, cnpj: 'CNPJ inválido' }));
-      } else {
-        setFormErrors((prev) => ({ ...prev, cnpj: undefined }));
-      }
-    } else if (numbers.length === 14) {
-      setFormErrors((prev) => ({ ...prev, cnpj: undefined }));
-    }
-  }, []);
-
-  const handlePhoneChange = useCallback((value: string) => {
-    const cleanValue = value.toLowerCase().trim();
-    if (cleanValue === 'x' || cleanValue === '') {
-      setFormDataState((prev) => ({ ...prev, phone: '' }));
-      return;
-    }
-    const formatted = formatPhone(value);
-    setFormDataState((prev) => ({ ...prev, phone: formatted }));
-  }, []);
-
-  const handleSecondaryPhoneChange = useCallback((value: string) => {
-    const cleanValue = value.toLowerCase().trim();
-    if (cleanValue === 'x' || cleanValue === '') {
-      setFormDataState((prev) => ({ ...prev, secondaryPhone: '' }));
-      return;
-    }
-    const formatted = formatPhone(value);
-    setFormDataState((prev) => ({ ...prev, secondaryPhone: formatted }));
-  }, []);
-
-  const handleCEPChange = useCallback((value: string) => {
-    const cleanValue = value.toLowerCase().trim();
-    if (cleanValue === 'x' || cleanValue === '') {
-      setFormDataState((prev) => ({ ...prev, addressZipCode: '' }));
-      setAddressFetchError('');
-      return;
-    }
-    const formatted = formatCEP(value);
-    setFormDataState((prev) => ({ ...prev, addressZipCode: formatted }));
-    
-    const numbers = onlyNumbers(formatted);
-    if (numbers.length === 8) {
-      setIsFetchingAddress(true);
-      setAddressFetchError('');
-      
-      fetch(`https://viacep.com.br/ws/${numbers}/json/`)
-        .then(async (res) => {
-          if (!res.ok) throw new Error('Erro ao buscar CEP');
-          return res.json() as Promise<ViaCEPResponse>;
-        })
-        .then((data) => {
-          if (data.erro) {
-            setAddressFetchError('CEP não encontrado');
-            return;
-          }
-          setFormDataState((prev) => ({
-            ...prev,
-            addressStreet: data.logradouro || prev.addressStreet,
-            addressNeighborhood: data.bairro || prev.addressNeighborhood,
-            addressCity: data.localidade || prev.addressCity,
-            addressState: data.uf || prev.addressState,
-          }));
-        })
-        .catch(() => {
-          setAddressFetchError('Erro ao buscar endereço');
-        })
-        .finally(() => {
-          setIsFetchingAddress(false);
-        });
-    }
-  }, []);
-
   const handleSave = useCallback(async () => {
     if (!formData.name.trim()) { notify('Nome é obrigatório.', 'error'); return; }
     const customFieldsError = validateRequiredFields(customFields, customValues);
@@ -481,7 +321,6 @@ export const useViewPersonViewModel = (tabKey: string): ViewPersonViewModel => {
       if (isNew) {
         const created = await createPerson({ ...payload, status: 'Ativo', createdBy: user?.id ?? '', tagIds: [] });
         notify('Pessoa cadastrada com sucesso!', 'success');
-        // Transição automática para modo de edição
         const newTabKey = `view-person:${created.id}`;
         closeTab(tabKey, activePanelId ?? 'main');
         openTab(newTabKey);
@@ -527,91 +366,25 @@ export const useViewPersonViewModel = (tabKey: string): ViewPersonViewModel => {
     notify(`Pessoa ${next === 'Ativo' ? 'ativada' : 'inativada'}.`, 'success');
   }, [person, updatePersonStatus, notify]);
 
-  const typeOptions = useMemo<DynamicSelectOption[]>(
-    () => typeConfigs.filter(c => c.isStatic !== false).map(c => ({ value: c.key, label: c.label })),
-    [typeConfigs],
-  );
-  const typeDynamicOptions = useMemo<DynamicSelectOption[]>(
-    () => typeConfigs.filter(c => c.isStatic === false).map(c => ({ value: c.key, label: c.label })),
-    [typeConfigs],
-  );
-
-  const occupationOptions = useMemo<DynamicSelectOption[]>(
-    () => occupationConfigs.map(c => ({ value: c.key, label: c.label })),
-    [occupationConfigs],
-  );
-
-  const nationalityOptions = useMemo<DynamicSelectOption[]>(
-    () => nationalityConfigs.filter(c => c.isStatic !== false).map(c => ({ value: c.key, label: c.label })),
-    [nationalityConfigs],
-  );
-  const nationalityDynamicOptions = useMemo<DynamicSelectOption[]>(
-    () => nationalityConfigs.filter(c => c.isStatic === false).map(c => ({ value: c.key, label: c.label })),
-    [nationalityConfigs],
-  );
-
-  const maritalStatusOptions = useMemo<DynamicSelectOption[]>(
-    () => maritalStatusConfigs.filter(c => c.isStatic !== false).map(c => ({ value: c.key, label: c.label })),
-    [maritalStatusConfigs],
-  );
-  const maritalStatusDynamicOptions = useMemo<DynamicSelectOption[]>(
-    () => maritalStatusConfigs.filter(c => c.isStatic === false).map(c => ({ value: c.key, label: c.label })),
-    [maritalStatusConfigs],
-  );
-
-  const cityOptions = useMemo<DynamicSelectOption[]>(
-    () => cityConfigs.map(c => ({ value: c.key, label: c.label })),
-    [cityConfigs],
-  );
-
-  const relationshipOptions = useMemo<DynamicSelectOption[]>(
-    () => relationshipConfigs.filter(c => c.isStatic !== false).map(c => ({ value: c.key, label: c.label, color: resolveColor(c.color, theme) })),
-    [relationshipConfigs, theme],
-  );
-  const relationshipDynamicOptions = useMemo<DynamicSelectOption[]>(
-    () => relationshipConfigs.filter(c => c.isStatic === false).map(c => ({ value: c.key, label: c.label, color: resolveColor(c.color, theme) })),
-    [relationshipConfigs, theme],
-  );
-
-  const genderOptions = useMemo<DynamicSelectOption[]>(
-    () => genderConfigs.filter(c => c.isStatic !== false).map(c => ({ value: c.key, label: c.label })),
-    [genderConfigs],
-  );
-  const genderDynamicOptions = useMemo<DynamicSelectOption[]>(
-    () => genderConfigs.filter(c => c.isStatic === false).map(c => ({ value: c.key, label: c.label })),
-    [genderConfigs],
-  );
-
-
-  const handleAddType            = useCallback(async (name: string) => { await addItem('types', name); },           [addItem]);
-  const handleDeleteType         = useCallback(async (key: string)  => { await removeItem('types', key); },         [removeItem]);
-  const handleAddOccupation      = useCallback(async (name: string) => { await addItem('occupations', name); },     [addItem]);
-  const handleDeleteOccupation   = useCallback(async (key: string)  => { await removeItem('occupations', key); },   [removeItem]);
-  const handleAddNationality     = useCallback(async (name: string) => { await addItem('nationalities', name); },   [addItem]);
-  const handleDeleteNationality  = useCallback(async (key: string)  => { await removeItem('nationalities', key); }, [removeItem]);
-  const handleAddMaritalStatus   = useCallback(async (name: string) => { await addItem('maritalStatuses', name); }, [addItem]);
-  const handleDeleteMaritalStatus= useCallback(async (key: string)  => { await removeItem('maritalStatuses', key); },[removeItem]);
-  const handleAddCity            = useCallback(async (name: string) => { await addItem('cities', name); },          [addItem]);
-  const handleDeleteCity         = useCallback(async (key: string)  => { await removeItem('cities', key); },        [removeItem]);
-  const handleAddRelationship    = useCallback(async (name: string) => { await addItem('relationships', name); },   [addItem]);
-  const handleDeleteRelationship = useCallback(async (key: string)  => { await removeItem('relationships', key); }, [removeItem]);
-  const handleAddGender          = useCallback(async (name: string) => { await addItem('genders', name); },         [addItem]);
-  const handleDeleteGender       = useCallback(async (key: string)  => { await removeItem('genders', key); },       [removeItem]);
-
-
-  const personLookupOptions = useMemo<Record<string, LookupOptionSet>>(() => ({
-    personTypes:            { staticOptions: typeOptions,          dynamicOptions: typeDynamicOptions },
-    personOccupations:      { staticOptions: [],                   dynamicOptions: occupationOptions },
-    personNationalities:    { staticOptions: nationalityOptions,   dynamicOptions: nationalityDynamicOptions },
-    personMaritalStatuses:  { staticOptions: maritalStatusOptions, dynamicOptions: maritalStatusDynamicOptions },
-    personCities:           { staticOptions: [],                   dynamicOptions: cityOptions },
-    personRelationships:    { staticOptions: relationshipOptions,  dynamicOptions: relationshipDynamicOptions },
-    personGenders:          { staticOptions: genderOptions,        dynamicOptions: genderDynamicOptions },
-  }), [
-    typeOptions, typeDynamicOptions, occupationOptions, nationalityOptions, nationalityDynamicOptions,
-    maritalStatusOptions, maritalStatusDynamicOptions, cityOptions, relationshipOptions,
-    relationshipDynamicOptions, genderOptions, genderDynamicOptions,
-  ]);
+  const personLookupOptions = useMemo<Record<string, LookupOptionSet>>(() => {
+    const staticOf = (configs: typeof typeConfigs) =>
+      configs.filter((c) => c.isStatic !== false).map((c) => ({ value: c.key, label: c.label }));
+    const dynamicOf = (configs: typeof typeConfigs) =>
+      configs.filter((c) => c.isStatic === false).map((c) => ({ value: c.key, label: c.label }));
+    const relOf = (isStatic: boolean) =>
+      relationshipConfigs
+        .filter((c) => (isStatic ? c.isStatic !== false : c.isStatic === false))
+        .map((c) => ({ value: c.key, label: c.label, color: resolveColor(c.color, theme) }));
+    return {
+      personTypes:            { staticOptions: staticOf(typeConfigs),          dynamicOptions: dynamicOf(typeConfigs) },
+      personOccupations:      { staticOptions: [],                             dynamicOptions: occupationConfigs.map((c) => ({ value: c.key, label: c.label })) },
+      personNationalities:    { staticOptions: staticOf(nationalityConfigs),   dynamicOptions: dynamicOf(nationalityConfigs) },
+      personMaritalStatuses:  { staticOptions: staticOf(maritalStatusConfigs), dynamicOptions: dynamicOf(maritalStatusConfigs) },
+      personCities:           { staticOptions: [],                             dynamicOptions: cityConfigs.map((c) => ({ value: c.key, label: c.label })) },
+      personRelationships:    { staticOptions: relOf(true),                    dynamicOptions: relOf(false) },
+      personGenders:          { staticOptions: staticOf(genderConfigs),        dynamicOptions: dynamicOf(genderConfigs) },
+    };
+  }, [typeConfigs, occupationConfigs, nationalityConfigs, maritalStatusConfigs, cityConfigs, relationshipConfigs, genderConfigs, theme]);
 
   const handleAddPersonLookup = useCallback(async (collection: string, label: string): Promise<void> => {
     const kind = LOOKUP_COLLECTION_TO_KIND[collection];
@@ -663,14 +436,6 @@ export const useViewPersonViewModel = (tabKey: string): ViewPersonViewModel => {
     customFields,
     customValues,
     setCustomValue,
-    formErrors,
-    handleCPFChange,
-    handleCNPJChange,
-    handlePhoneChange,
-    handleSecondaryPhoneChange,
-    handleCEPChange,
-    isFetchingAddress,
-    addressFetchError,
     isSaving,
     handleSave,
     tagAdapter,
@@ -690,31 +455,5 @@ export const useViewPersonViewModel = (tabKey: string): ViewPersonViewModel => {
     personToDelete: chrome.isDeleteOpen ? person : null,
     confirmDeletePerson: chrome.confirmDelete,
     cancelDeletePerson: chrome.cancelDelete,
-    typeOptions,
-    typeDynamicOptions,
-    occupationOptions,
-    nationalityOptions,
-    nationalityDynamicOptions,
-    maritalStatusOptions,
-    maritalStatusDynamicOptions,
-    cityOptions,
-    relationshipOptions,
-    relationshipDynamicOptions,
-    genderOptions,
-    genderDynamicOptions,
-    handleAddType,
-    handleDeleteType,
-    handleAddOccupation,
-    handleDeleteOccupation,
-    handleAddNationality,
-    handleDeleteNationality,
-    handleAddMaritalStatus,
-    handleDeleteMaritalStatus,
-    handleAddCity,
-    handleDeleteCity,
-    handleAddRelationship,
-    handleDeleteRelationship,
-    handleAddGender,
-    handleDeleteGender,
   };
 };
