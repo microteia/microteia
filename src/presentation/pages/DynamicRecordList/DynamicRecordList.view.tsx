@@ -5,6 +5,7 @@ import { useDynamicRecordListViewModel } from './DynamicRecordList.viewmodel';
 import { Spinner } from '../../components/ui/Spinner';
 import { InfoBanner } from '../../components/ui/InfoBanner';
 import { CustomFieldMetaRows } from '../../components/ui/CustomFieldMetaRows';
+import { EntityListCard } from '../../components/ui/EntityListCard';
 import { EntityListView } from '../../components/layout/EntityListView';
 import { getScreenIcon } from '../../shared/screenIcons';
 
@@ -51,24 +52,17 @@ export const DynamicRecordListView: React.FC<{ tabKey: string }> = ({ tabKey }) 
     >
       {vm.filteredRecords.map((record) => {
         const recordTags = vm.tags.filter((t) => record.tagIds?.includes(t.id));
+        const items = vm.getCardItems(record);
         return (
-          <S.RecordCard key={record.id} onClick={() => vm.openRecord(record)}>
-            <S.RecordHeader>
-              <S.RecordAvatar>{getScreenIcon(definition.icon, 20)}</S.RecordAvatar>
-              <S.RecordTitle>{record.title}</S.RecordTitle>
-            </S.RecordHeader>
-            <CustomFieldMetaRows items={vm.getCardItems(record)} />
-            {recordTags.length > 0 && (
-              <S.Tags onClick={(e) => e.stopPropagation()}>
-                {recordTags.map((t) => (
-                  <S.TagPill key={t.id} $color={t.color}>
-                    <S.TagDot $color={t.color} />
-                    {t.name}
-                  </S.TagPill>
-                ))}
-              </S.Tags>
-            )}
-          </S.RecordCard>
+          <EntityListCard
+            key={record.id}
+            onClick={() => vm.openRecord(record)}
+            avatar={getScreenIcon(definition.icon, 22)}
+            title={record.title}
+            metaRows={[]}
+            tags={recordTags}
+            extra={items.length > 0 ? <CustomFieldMetaRows items={items} /> : undefined}
+          />
         );
       })}
     </EntityListView>

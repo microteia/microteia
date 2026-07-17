@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [0.99.1] — 2026-07-17
+
+- Os cards das telas personalizadas na listagem passaram a ter o mesmo visual dos cards de Pessoas (ícone em círculo ao lado do título), deixando a aparência totalmente uniforme.
+
 ## [0.99.0] — 2026-07-17
 
 - As telas de listagem (Pessoas e telas personalizadas) passaram a compartilhar o mesmo cabeçalho, filtro e área de conteúdo, deixando tudo mais uniforme. A listagem de telas personalizadas teve pequenos ajustes visuais (estado "vazio" e espaçamento) para ficar igual às demais.
