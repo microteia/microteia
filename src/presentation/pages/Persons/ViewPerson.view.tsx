@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React from 'react';
 import {
   RiUserLine,
   RiBuildingLine,
@@ -8,31 +8,18 @@ import {
   RiCheckLine,
   RiFileCopyLine,
   RiPriceTag3Line,
-  RiAddLine,
-  RiFileTextLine,
-  RiUploadLine,
-  RiExternalLinkLine,
-  RiCloseLine,
-  RiArrowDownSLine,
   RiSaveLine,
 } from 'react-icons/ri';
 import { S } from './ViewPerson.styles';
 import { useViewPersonViewModel } from './ViewPerson.viewmodel';
 import { Button } from '../../components/ui/Button';
-import { Spinner } from '../../components/ui/Spinner';
-import { Input } from '../../components/ui/Input';
-import { DynamicSelect } from '../../components/ui/DynamicSelect';
 import { ConfirmModal } from '../../components/ui/ConfirmModal';
 import { TagManager } from '../../components/ui/TagManager';
-import { MarkdownEditor } from '../../components/ui/MarkdownEditor';
-import { MarkdownContent } from '../../components/ui/MarkdownContent';
 import { CustomFieldsSection } from '../../components/ui/CustomFieldsSection';
-import { format } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
+import { NotesPanel, DocumentsPanel } from '../../components/layout/EntityDetailPanels';
 
 export const ViewPersonView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
   const vm = useViewPersonViewModel(tabKey);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const appliedTags = vm.person ? vm.tagAdapter.getAppliedTags(vm.person.id) : [];
 
@@ -136,198 +123,11 @@ export const ViewPersonView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
         )}
 
         {vm.activeTab === 'notes' && !vm.isNew && (
-          <>
-            <S.TabSectionHeader>
-              {!vm.isNoteEditorOpen && (
-                <Button variant="secondary" size="sm" onClick={vm.openNoteEditor}>
-                  <RiAddLine size={14} />
-                  Nova Anotação
-                </Button>
-              )}
-            </S.TabSectionHeader>
-
-            {vm.isNoteEditorOpen && (
-              <S.NoteEditorCard>
-                <S.NoteEditorTitleRow>
-                  <Input
-                    value={vm.newNoteTitle}
-                    onChange={(e) => vm.setNewNoteTitle(e.target.value)}
-                    placeholder="Título da anotação *"
-                  />
-                </S.NoteEditorTitleRow>
-                <MarkdownEditor
-                  value={vm.newNoteText}
-                  onChange={vm.setNewNoteText}
-                  placeholder="Conteúdo em Markdown..."
-                />
-                <S.NoteEditorActions>
-                  <Button variant="ghost" size="sm" onClick={vm.closeNoteEditor}>
-                    <RiCloseLine size={14} />
-                    Cancelar
-                  </Button>
-                  <Button size="sm" onClick={() => void vm.handleAddNote()} disabled={vm.isAddingNote || !vm.newNoteTitle.trim() || !vm.newNoteText.trim()}>
-                    <RiAddLine size={14} />
-                    {vm.isAddingNote ? 'Adicionando...' : 'Adicionar'}
-                  </Button>
-                </S.NoteEditorActions>
-              </S.NoteEditorCard>
-            )}
-
-            {vm.notesLoading ? (
-              <div style={{ display: 'flex', justifyContent: 'center', padding: '32px' }}>
-                <Spinner />
-              </div>
-            ) : vm.notes.length === 0 ? (
-              <S.EmptyState>
-                <S.EmptyIcon><RiFileTextLine /></S.EmptyIcon>
-                <div>Nenhuma anotação ainda.</div>
-              </S.EmptyState>
-            ) : (
-              <S.NoteList>
-                {vm.notes.map((note) => {
-                  const isExpanded = vm.expandedNoteIds.has(note.id);
-                  return (
-                    <S.NoteCard key={note.id}>
-                      <S.NoteCardTop>
-                        <S.NoteCardClickArea onClick={() => vm.toggleNoteExpanded(note.id)}>
-                          <S.NoteAvatar>
-                            {note.createdByPhotoUrl
-                              ? <S.NoteAvatarImg src={note.createdByPhotoUrl} alt={note.createdByName} />
-                              : (note.createdByName || 'U').charAt(0).toUpperCase()}
-                          </S.NoteAvatar>
-                          <S.NoteBody>
-                            <S.NoteTitle>{note.title || '(sem título)'}</S.NoteTitle>
-                            <S.NoteDate>
-                              {note.createdByName} · {format(note.createdAt, "d 'de' MMM 'de' yyyy", { locale: ptBR })}
-                            </S.NoteDate>
-                          </S.NoteBody>
-                          <S.NoteExpandIcon $expanded={isExpanded}>
-                            <RiArrowDownSLine size={18} />
-                          </S.NoteExpandIcon>
-                        </S.NoteCardClickArea>
-                        {vm.isAdmin && (
-                          <Button variant="ghost" size="sm" onClick={() => vm.requestDeleteNote(note)} title="Excluir anotação">
-                            <RiDeleteBinLine size={13} />
-                          </Button>
-                        )}
-                      </S.NoteCardTop>
-                      {isExpanded && (
-                        <>
-                          <S.NoteDivider />
-                          <S.NoteContent>
-                            <MarkdownContent>{note.text}</MarkdownContent>
-                          </S.NoteContent>
-                        </>
-                      )}
-                    </S.NoteCard>
-                  );
-                })}
-              </S.NoteList>
-            )}
-          </>
+          <NotesPanel controller={vm.notesController} isAdmin={vm.isAdmin} />
         )}
 
         {vm.activeTab === 'documents' && !vm.isNew && (
-          <>
-            <input
-              ref={fileInputRef}
-              type="file"
-              style={{ display: 'none' }}
-              onChange={vm.handleSelectFile}
-            />
-
-            <S.TabSectionHeader>
-              <Button
-                variant="secondary"
-                size="sm"
-                onClick={() => fileInputRef.current?.click()}
-                disabled={vm.isUploadingDoc || !!vm.pendingFile}
-              >
-                <RiUploadLine size={14} />
-                Anexar Documento
-              </Button>
-            </S.TabSectionHeader>
-
-            {vm.pendingFile && (
-              <S.PendingFileCard>
-                <S.PendingFileTopRow>
-                  <S.DocIcon><RiFileTextLine /></S.DocIcon>
-                  <S.PendingFileContent>
-                    <DynamicSelect
-                      staticOptions={vm.documentTypeOptions}
-                      dynamicOptions={vm.documentTypeDynamicOptions}
-                      value={vm.pendingType}
-                      onChange={vm.setPendingType}
-                      placeholder="Tipo (opcional)"
-                      onAdd={vm.handleAddDocumentType}
-                      onDelete={vm.isAdmin ? vm.handleDeleteDocumentType : undefined}
-                      deleteConfirmTitle="Excluir tipo de documento"
-                      deleteConfirmMessage="Tem certeza que deseja excluir este tipo de documento?"
-                      disabled={vm.isUploadingDoc}
-                    />
-                  </S.PendingFileContent>
-                  <S.PendingFileActions>
-                    <Button variant="ghost" size="sm" onClick={vm.handleCancelPendingUpload} disabled={vm.isUploadingDoc}>
-                      <RiCloseLine size={14} />
-                      Cancelar
-                    </Button>
-                    <Button size="sm" onClick={() => void vm.handleConfirmUpload()} disabled={vm.isUploadingDoc}>
-                      {vm.isUploadingDoc ? 'Enviando...' : 'Confirmar Envio'}
-                    </Button>
-                  </S.PendingFileActions>
-                </S.PendingFileTopRow>
-                <S.PendingFileName title={vm.pendingFile.name}>{vm.pendingFile.name}</S.PendingFileName>
-              </S.PendingFileCard>
-            )}
-
-            {vm.docsLoading ? (
-              <div style={{ display: 'flex', justifyContent: 'center', padding: '32px' }}>
-                <Spinner />
-              </div>
-            ) : vm.documents.length === 0 ? (
-              <S.EmptyState>
-                <S.EmptyIcon><RiFileTextLine /></S.EmptyIcon>
-                <div>Nenhum documento anexado.</div>
-              </S.EmptyState>
-            ) : (
-              <S.DocList>
-                {vm.documents.map((docItem) => (
-                  <S.DocRow key={docItem.id}>
-                    <S.DocIcon><RiFileTextLine /></S.DocIcon>
-                    <S.DocContent>
-                      <S.DocName href={docItem.url} target="_blank" rel="noopener noreferrer" title={docItem.name}>
-                        {docItem.name}
-                      </S.DocName>
-                      {docItem.description && (
-                        <S.DocMeta>{docItem.description}</S.DocMeta>
-                      )}
-                      <S.DocUploaderRow>
-                        <S.DocUploaderAvatar>
-                          {docItem.createdByPhotoUrl
-                            ? <S.DocUploaderImg src={docItem.createdByPhotoUrl} alt={docItem.createdByName} />
-                            : (docItem.createdByName || 'U').charAt(0).toUpperCase()}
-                        </S.DocUploaderAvatar>
-                        <S.DocMeta>
-                          {docItem.createdByName} · {format(docItem.createdAt, "d 'de' MMM 'de' yyyy 'às' HH:mm", { locale: ptBR })}
-                        </S.DocMeta>
-                      </S.DocUploaderRow>
-                    </S.DocContent>
-                    {docItem.type && <S.DocTypeBadge>{docItem.type}</S.DocTypeBadge>}
-                    <S.DocActions>
-                      <Button variant="ghost" size="sm" onClick={() => window.open(docItem.url, '_blank', 'noopener,noreferrer')} title="Abrir documento">
-                        <RiExternalLinkLine size={14} />
-                      </Button>
-                      {vm.isAdmin && (
-                        <Button variant="ghost" size="sm" onClick={() => vm.requestDeleteDoc(docItem)} title="Excluir documento">
-                          <RiDeleteBinLine size={13} />
-                        </Button>
-                      )}
-                    </S.DocActions>
-                  </S.DocRow>
-                ))}
-              </S.DocList>
-            )}
-          </>
+          <DocumentsPanel controller={vm.docsController} isAdmin={vm.isAdmin} />
         )}
       </S.Content>
 
@@ -338,26 +138,6 @@ export const ViewPersonView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
           adapter={vm.tagAdapter}
         />
       )}
-
-      <ConfirmModal
-        isOpen={!!vm.noteToDelete}
-        onConfirm={() => void vm.confirmDeleteNote()}
-        onCancel={vm.cancelDeleteNote}
-        title="Excluir Anotação"
-        message="Tem certeza que deseja excluir esta anotação? Esta ação não pode ser desfeita."
-        confirmLabel="Excluir"
-        variant="danger"
-      />
-
-      <ConfirmModal
-        isOpen={!!vm.docToDelete}
-        onConfirm={() => void vm.confirmDeleteDoc()}
-        onCancel={vm.cancelDeleteDoc}
-        title="Excluir Documento"
-        message={`Tem certeza que deseja excluir "${vm.docToDelete?.name}"? Esta ação não pode ser desfeita.`}
-        confirmLabel="Excluir"
-        variant="danger"
-      />
 
       <ConfirmModal
         isOpen={!!vm.personToDelete}

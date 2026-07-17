@@ -3,7 +3,6 @@ import { useTheme } from 'styled-components';
 import { usePersonStore } from '../../../stores/usePersonStore';
 import { usePersonTagStore } from '../../../stores/usePersonTagStore';
 import { usePersonLookup } from '../../../stores/usePersonLookup';
-import { useDocumentTypeLookup } from '../../../stores/useDocumentTypeLookup';
 import { useAuth } from '../../../stores/useAuth';
 import { useTenant } from '../../../stores/useTenant';
 import { useWorkspace } from '../../../stores/useWorkspace';
@@ -19,8 +18,16 @@ import { makeGetPersonDocumentsUseCase } from '../../../domain/usecases/persondo
 import { makeUploadPersonDocumentUseCase } from '../../../domain/usecases/persondocuments/UploadPersonDocumentUseCase';
 import { makeAddPersonDocumentUseCase } from '../../../domain/usecases/persondocuments/AddPersonDocumentUseCase';
 import { makeDeletePersonDocumentUseCase } from '../../../domain/usecases/persondocuments/DeletePersonDocumentUseCase';
-import type { Person, PersonNote, PersonDocument, PersonType, PersonAddress, Gender, CustomFieldValue, DeletionActor, FieldDefinition, PersonLookupKind } from '../../../domain/entities';
+import type { Person, PersonType, PersonAddress, Gender, CustomFieldValue, DeletionActor, FieldDefinition, PersonLookupKind } from '../../../domain/entities';
 import type { LookupOptionSet } from '../../components/ui/CustomFieldsSection/CustomFieldsSection.viewmodel';
+import { useEntityNotes } from '../../shared/entityScreen/useEntityNotes';
+import { useEntityDocuments } from '../../shared/entityScreen/useEntityDocuments';
+import type {
+  EntityDocumentsController,
+  EntityNotesController,
+  DocumentsPort,
+  NotesPort,
+} from '../../shared/entityScreen/types';
 import { PERSON_FORM_FIELDS } from './personSchema';
 import type { TagStoreAdapter } from '../../components/ui/TagManager/TagManager.viewmodel';
 import { useScreenDefinitions } from '../../../stores/useScreenDefinitions';
@@ -148,42 +155,9 @@ export interface ViewPersonViewModel {
   openTagManager: () => void;
   closeTagManager: () => void;
 
-  notes: PersonNote[];
-  notesLoading: boolean;
-  newNoteTitle: string;
-  setNewNoteTitle: (v: string) => void;
-  newNoteText: string;
-  setNewNoteText: (v: string) => void;
-  isAddingNote: boolean;
-  isNoteEditorOpen: boolean;
-  openNoteEditor: () => void;
-  closeNoteEditor: () => void;
-  expandedNoteIds: Set<string>;
-  toggleNoteExpanded: (id: string) => void;
-  handleAddNote: () => Promise<void>;
-  noteToDelete: PersonNote | null;
-  requestDeleteNote: (note: PersonNote) => void;
-  confirmDeleteNote: () => Promise<void>;
-  cancelDeleteNote: () => void;
+  notesController: EntityNotesController;
+  docsController: EntityDocumentsController;
   isAdmin: boolean;
-
-  documents: PersonDocument[];
-  docsLoading: boolean;
-  isUploadingDoc: boolean;
-  pendingFile: File | null;
-  pendingType: string;
-  setPendingType: (v: string) => void;
-  documentTypeOptions: DynamicSelectOption[];
-  documentTypeDynamicOptions: DynamicSelectOption[];
-  handleAddDocumentType: (name: string) => Promise<void>;
-  handleDeleteDocumentType: (key: string) => Promise<void>;
-  handleSelectFile: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  handleConfirmUpload: () => Promise<void>;
-  handleCancelPendingUpload: () => void;
-  docToDelete: PersonDocument | null;
-  requestDeleteDoc: (doc: PersonDocument) => void;
-  confirmDeleteDoc: () => Promise<void>;
-  cancelDeleteDoc: () => void;
 
   copyLinkDone: boolean;
   handleCopyDeepLink: () => void;
@@ -235,7 +209,6 @@ export const useViewPersonViewModel = (tabKey: string): ViewPersonViewModel => {
   const { persons, createPerson, updatePerson, updatePersonStatus, deletePerson } = usePersonStore();
   const { tags, getTagsForPerson, setTagsForPerson, createTag, updateTag, deleteTag } = usePersonTagStore();
   const { typeConfigs, occupationConfigs, nationalityConfigs, maritalStatusConfigs, cityConfigs, relationshipConfigs, genderConfigs, addItem, removeItem } = usePersonLookup();
-  const { typeConfigs: documentTypeConfigs, addItem: addDocumentType, removeItem: removeDocumentType } = useDocumentTypeLookup();
   const { user, effectiveName } = useAuth();
   const { tenantRole, currentTenant } = useTenant();
   const { setTabTitle, closeTab, openTab, activePanelId } = useWorkspace();
@@ -271,23 +244,6 @@ export const useViewPersonViewModel = (tabKey: string): ViewPersonViewModel => {
   const [copyLinkDone, setCopyLinkDone] = useState(false);
   const [personToDelete, setPersonToDelete] = useState<Person | null>(null);
 
-  const [notes, setNotes] = useState<PersonNote[]>([]);
-  const [notesLoading, setNotesLoading] = useState(false);
-  const [newNoteTitle, setNewNoteTitle] = useState('');
-  const [newNoteText, setNewNoteText] = useState('');
-  const [isAddingNote, setIsAddingNote] = useState(false);
-  const [noteToDelete, setNoteToDelete] = useState<PersonNote | null>(null);
-
-  const [isNoteEditorOpen, setIsNoteEditorOpen] = useState(false);
-  const [expandedNoteIds, setExpandedNoteIds] = useState<Set<string>>(new Set());
-
-  const [documents, setDocuments] = useState<PersonDocument[]>([]);
-  const [docsLoading, setDocsLoading] = useState(false);
-  const [isUploadingDoc, setIsUploadingDoc] = useState(false);
-  const [docToDelete, setDocToDelete] = useState<PersonDocument | null>(null);
-  const [pendingFile, setPendingFile] = useState<File | null>(null);
-  const [pendingType, setPendingType] = useState('');
-
   const noteUC = useMemo(() => ({
     get:    makeGetPersonNotesUseCase(personNoteRepository),
     add:    makeAddPersonNoteUseCase(personNoteRepository),
@@ -300,6 +256,45 @@ export const useViewPersonViewModel = (tabKey: string): ViewPersonViewModel => {
     add:    makeAddPersonDocumentUseCase(personDocumentRepository),
     delete: makeDeletePersonDocumentUseCase(personDocumentRepository),
   }), [personDocumentRepository]);
+
+  const notesPort = useMemo<NotesPort>(() => ({
+    get: (rid) => (currentTenant ? noteUC.get.execute(currentTenant.id, rid) : Promise.resolve([])),
+    add: (rid, input) => noteUC.add.execute(currentTenant?.id ?? '', rid, {
+      title: input.title,
+      text: input.text,
+      createdBy: user?.id ?? '',
+      createdByName: effectiveName,
+      createdByPhotoUrl: user?.photoURL ?? undefined,
+    }),
+    remove: (rid, noteId) => {
+      const actor: DeletionActor = { uid: user?.id ?? '', name: effectiveName, photoURL: user?.photoURL ?? '' };
+      return noteUC.delete.execute(currentTenant?.id ?? '', rid, noteId, actor);
+    },
+  }), [noteUC, currentTenant, user, effectiveName]);
+
+  const documentsPort = useMemo<DocumentsPort>(() => ({
+    get: (rid) => (currentTenant ? docUC.get.execute(currentTenant.id, rid) : Promise.resolve([])),
+    upload: async (rid, file) => {
+      const raw = await docUC.upload.execute(currentTenant?.id ?? '', rid, file);
+      return JSON.parse(raw) as { url: string; storagePath: string };
+    },
+    add: (rid, input) => docUC.add.execute(currentTenant?.id ?? '', rid, {
+      name: input.name,
+      type: input.type,
+      url: input.url,
+      storagePath: input.storagePath,
+      createdBy: user?.id ?? '',
+      createdByName: effectiveName,
+      createdByPhotoUrl: user?.photoURL ?? undefined,
+    }),
+    remove: (rid, doc) => {
+      const actor: DeletionActor = { uid: user?.id ?? '', name: effectiveName, photoURL: user?.photoURL ?? '' };
+      return docUC.delete.execute(currentTenant?.id ?? '', rid, doc.id, doc.storagePath, actor);
+    },
+  }), [docUC, currentTenant, user, effectiveName]);
+
+  const notesController = useEntityNotes({ enabled: !!person, recordId: person?.id ?? null, port: notesPort });
+  const docsController = useEntityDocuments({ enabled: !!person, recordId: person?.id ?? null, port: documentsPort });
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- sincroniza campos adicionais ao carregar/atualizar dados
@@ -317,24 +312,6 @@ export const useViewPersonViewModel = (tabKey: string): ViewPersonViewModel => {
       setTabTitle(tabKey, person.name);
     }
   }, [person, tabKey, setTabTitle]);
-
-  useEffect(() => {
-    if (!person || !currentTenant) return;
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- carregamento inicial após navegação para aba
-    setNotesLoading(true);
-    noteUC.get.execute(currentTenant.id, person.id)
-      .then(setNotes)
-      .finally(() => setNotesLoading(false));
-  }, [person, currentTenant, noteUC]);
-
-  useEffect(() => {
-    if (!person || !currentTenant) return;
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- carregamento inicial após navegação para aba
-    setDocsLoading(true);
-    docUC.get.execute(currentTenant.id, person.id)
-      .then(setDocuments)
-      .finally(() => setDocsLoading(false));
-  }, [person, currentTenant, docUC]);
 
   const setFormData = useCallback((data: Partial<PersonFormData>) => {
     setFormDataState((prev) => ({ ...prev, ...data }));
@@ -532,115 +509,6 @@ export const useViewPersonViewModel = (tabKey: string): ViewPersonViewModel => {
   const openTagManager = useCallback(() => setIsTagManagerOpen(true), []);
   const closeTagManager = useCallback(() => setIsTagManagerOpen(false), []);
 
-  const openNoteEditor = useCallback(() => setIsNoteEditorOpen(true), []);
-  const closeNoteEditor = useCallback(() => {
-    setIsNoteEditorOpen(false);
-    setNewNoteTitle('');
-    setNewNoteText('');
-  }, []);
-
-  const toggleNoteExpanded = useCallback((id: string) => {
-    setExpandedNoteIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id); else next.add(id);
-      return next;
-    });
-  }, []);
-
-  const handleAddNote = useCallback(async () => {
-    if (!newNoteTitle.trim() || !newNoteText.trim() || !person || !currentTenant || !user) return;
-    setIsAddingNote(true);
-    try {
-      const note = await noteUC.add.execute(currentTenant.id, person.id, {
-        title: newNoteTitle.trim(),
-        text: newNoteText.trim(),
-        createdBy: user.id,
-        createdByName: effectiveName,
-        createdByPhotoUrl: user.photoURL ?? undefined,
-      });
-      setNotes((prev) => [note, ...prev]);
-      setNewNoteTitle('');
-      setNewNoteText('');
-      setIsNoteEditorOpen(false);
-      notify('Anotação adicionada.', 'success');
-    } catch {
-      notify('Erro ao adicionar anotação.', 'error');
-    } finally {
-      setIsAddingNote(false);
-    }
-  }, [newNoteTitle, newNoteText, person, currentTenant, user, effectiveName, noteUC, notify]);
-
-  const requestDeleteNote = useCallback((note: PersonNote) => setNoteToDelete(note), []);
-  const cancelDeleteNote = useCallback(() => setNoteToDelete(null), []);
-  const confirmDeleteNote = useCallback(async () => {
-    if (!noteToDelete || !person || !currentTenant) return;
-    try {
-      const actor: DeletionActor = { uid: user?.id ?? '', name: effectiveName, photoURL: user?.photoURL ?? '' };
-      await noteUC.delete.execute(currentTenant.id, person.id, noteToDelete.id, actor);
-      setNotes((prev) => prev.filter((n) => n.id !== noteToDelete.id));
-      notify('Anotação excluída.', 'success');
-    } catch {
-      notify('Erro ao excluir anotação.', 'error');
-    } finally {
-      setNoteToDelete(null);
-    }
-  }, [noteToDelete, person, currentTenant, noteUC, notify, user, effectiveName]);
-
-  const handleSelectFile = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setPendingFile(file);
-      setPendingType('');
-    }
-    e.target.value = '';
-  }, []);
-
-  const handleCancelPendingUpload = useCallback(() => {
-    setPendingFile(null);
-    setPendingType('');
-  }, []);
-
-  const handleConfirmUpload = useCallback(async () => {
-    if (!pendingFile || !person || !currentTenant || !user) return;
-    setIsUploadingDoc(true);
-    try {
-      const raw = await docUC.upload.execute(currentTenant.id, person.id, pendingFile);
-      const { url, storagePath } = JSON.parse(raw) as { url: string; storagePath: string };
-      const addedDoc = await docUC.add.execute(currentTenant.id, person.id, {
-        name: pendingFile.name,
-        type: pendingType.trim() || undefined,
-        url,
-        storagePath,
-        createdBy: user.id,
-        createdByName: effectiveName,
-        createdByPhotoUrl: user.photoURL ?? undefined,
-      });
-      setDocuments((prev) => [addedDoc, ...prev]);
-      setPendingFile(null);
-      setPendingType('');
-      notify('Documento enviado com sucesso.', 'success');
-    } catch {
-      notify('Erro ao enviar documento.', 'error');
-    } finally {
-      setIsUploadingDoc(false);
-    }
-  }, [pendingFile, pendingType, person, currentTenant, user, effectiveName, docUC, notify]);
-
-  const requestDeleteDoc = useCallback((doc: PersonDocument) => setDocToDelete(doc), []);
-  const cancelDeleteDoc = useCallback(() => setDocToDelete(null), []);
-  const confirmDeleteDoc = useCallback(async () => {
-    if (!docToDelete || !person || !currentTenant) return;
-    try {
-      const actor: DeletionActor = { uid: user?.id ?? '', name: effectiveName, photoURL: user?.photoURL ?? '' };
-      await docUC.delete.execute(currentTenant.id, person.id, docToDelete.id, docToDelete.storagePath, actor);
-      setDocuments((prev) => prev.filter((d) => d.id !== docToDelete.id));
-      notify('Documento excluído.', 'success');
-    } catch {
-      notify('Erro ao excluir documento.', 'error');
-    } finally {
-      setDocToDelete(null);
-    }
-  }, [docToDelete, person, currentTenant, docUC, notify, user, effectiveName]);
 
   const handleCopyDeepLink = useCallback(() => {
     if (!person) return;
@@ -743,14 +611,6 @@ export const useViewPersonViewModel = (tabKey: string): ViewPersonViewModel => {
     [genderConfigs],
   );
 
-  const documentTypeOptions = useMemo<DynamicSelectOption[]>(() =>
-    documentTypeConfigs.filter(t => t.isStatic !== false).map((t) => ({ value: t.key, label: t.label })),
-    [documentTypeConfigs],
-  );
-  const documentTypeDynamicOptions = useMemo<DynamicSelectOption[]>(() =>
-    documentTypeConfigs.filter(t => t.isStatic === false).map((t) => ({ value: t.key, label: t.label })),
-    [documentTypeConfigs],
-  );
 
   const handleAddType            = useCallback(async (name: string) => { await addItem('types', name); },           [addItem]);
   const handleDeleteType         = useCallback(async (key: string)  => { await removeItem('types', key); },         [removeItem]);
@@ -767,8 +627,6 @@ export const useViewPersonViewModel = (tabKey: string): ViewPersonViewModel => {
   const handleAddGender          = useCallback(async (name: string) => { await addItem('genders', name); },         [addItem]);
   const handleDeleteGender       = useCallback(async (key: string)  => { await removeItem('genders', key); },       [removeItem]);
 
-  const handleAddDocumentType = useCallback(async (name: string) => { await addDocumentType(name); }, [addDocumentType]);
-  const handleDeleteDocumentType = useCallback(async (key: string) => { await removeDocumentType(key); }, [removeDocumentType]);
 
   const personLookupOptions = useMemo<Record<string, LookupOptionSet>>(() => ({
     personTypes:            { staticOptions: typeOptions,          dynamicOptions: typeDynamicOptions },
@@ -848,41 +706,9 @@ export const useViewPersonViewModel = (tabKey: string): ViewPersonViewModel => {
     isTagManagerOpen,
     openTagManager,
     closeTagManager,
-    notes,
-    notesLoading,
-    newNoteTitle,
-    setNewNoteTitle,
-    newNoteText,
-    setNewNoteText,
-    isAddingNote,
-    isNoteEditorOpen,
-    openNoteEditor,
-    closeNoteEditor,
-    expandedNoteIds,
-    toggleNoteExpanded,
-    handleAddNote,
-    noteToDelete,
-    requestDeleteNote,
-    confirmDeleteNote,
-    cancelDeleteNote,
+    notesController,
+    docsController,
     isAdmin,
-    documents,
-    docsLoading,
-    isUploadingDoc,
-    pendingFile,
-    pendingType,
-    setPendingType,
-    documentTypeOptions,
-    documentTypeDynamicOptions,
-    handleAddDocumentType,
-    handleDeleteDocumentType,
-    handleSelectFile,
-    handleConfirmUpload,
-    handleCancelPendingUpload,
-    docToDelete,
-    requestDeleteDoc,
-    confirmDeleteDoc,
-    cancelDeleteDoc,
     copyLinkDone,
     handleCopyDeepLink,
     handleClone,

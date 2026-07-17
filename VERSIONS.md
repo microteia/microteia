@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [0.97.0] — 2026-07-17
+
+- As abas de Anotações e Documentos passaram a usar um mesmo componente em todas as telas (Pessoas e telas personalizadas), garantindo comportamento e visual idênticos e facilitando melhorias futuras. Sem mudança no uso do dia a dia.
+
 ## [0.96.2] — 2026-07-17
 
 - Organização interna do código da tela de Pessoas (listagem e cadastro reunidos), sem mudança visível no uso.

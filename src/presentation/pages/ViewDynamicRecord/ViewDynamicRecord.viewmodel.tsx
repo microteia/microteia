@@ -1,7 +1,6 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useScreenDefinitions } from '../../../stores/useScreenDefinitions';
 import { useCustomRecords } from '../../../stores/useCustomRecords';
-import { useDocumentTypeLookup } from '../../../stores/useDocumentTypeLookup';
 import { useTenant } from '../../../stores/useTenant';
 import { useAuth } from '../../../stores/useAuth';
 import { useWorkspace } from '../../../stores/useWorkspace';
@@ -30,13 +29,18 @@ import {
 } from '../../../domain/services/customFieldValues';
 import { describeRuleIssues } from '../../../domain/schema/fieldRules';
 import { validateRecordRules } from '../../../data/utils/recordRulesGate';
-import type { DynamicSelectOption } from '../../components/ui/DynamicSelect';
+import { useEntityNotes } from '../../shared/entityScreen/useEntityNotes';
+import { useEntityDocuments } from '../../shared/entityScreen/useEntityDocuments';
+import type {
+  EntityDocumentsController,
+  EntityNotesController,
+  DocumentsPort,
+  NotesPort,
+} from '../../shared/entityScreen/types';
 import type { TagStoreAdapter } from '../../components/ui/TagManager';
 import type {
   CustomFieldValue,
   CustomRecord,
-  CustomRecordDocument,
-  CustomRecordNote,
   DeletionActor,
   FieldDefinition,
   ScreenDefinition,
@@ -68,40 +72,8 @@ export interface ViewDynamicRecordViewModel {
   confirmDelete: () => Promise<void>;
   isDeleting: boolean;
   recordNotFound: boolean;
-  notes: CustomRecordNote[];
-  notesLoading: boolean;
-  newNoteTitle: string;
-  setNewNoteTitle: (v: string) => void;
-  newNoteText: string;
-  setNewNoteText: (v: string) => void;
-  isAddingNote: boolean;
-  isNoteEditorOpen: boolean;
-  openNoteEditor: () => void;
-  closeNoteEditor: () => void;
-  expandedNoteIds: Set<string>;
-  toggleNoteExpanded: (id: string) => void;
-  handleAddNote: () => Promise<void>;
-  noteToDelete: CustomRecordNote | null;
-  requestDeleteNote: (note: CustomRecordNote) => void;
-  confirmDeleteNote: () => Promise<void>;
-  cancelDeleteNote: () => void;
-  documents: CustomRecordDocument[];
-  docsLoading: boolean;
-  isUploadingDoc: boolean;
-  pendingFile: File | null;
-  pendingType: string;
-  setPendingType: (v: string) => void;
-  handleSelectFile: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  handleCancelPendingUpload: () => void;
-  handleConfirmUpload: () => Promise<void>;
-  docToDelete: CustomRecordDocument | null;
-  requestDeleteDoc: (doc: CustomRecordDocument) => void;
-  confirmDeleteDoc: () => Promise<void>;
-  cancelDeleteDoc: () => void;
-  documentTypeOptions: DynamicSelectOption[];
-  documentTypeDynamicOptions: DynamicSelectOption[];
-  handleAddDocumentType: (name: string) => Promise<void>;
-  handleDeleteDocumentType: (key: string) => Promise<void>;
+  notesController: EntityNotesController;
+  docsController: EntityDocumentsController;
   tagAdapter: TagStoreAdapter;
   isTagManagerOpen: boolean;
   openTagManager: () => void;
@@ -111,7 +83,6 @@ export interface ViewDynamicRecordViewModel {
 export const useViewDynamicRecordViewModel = (tabKey: string): ViewDynamicRecordViewModel => {
   const { getDefinition, isLoading: isLoadingDefinition, tagsByScreen, createTag, updateTag, deleteTag } = useScreenDefinitions();
   const { recordsByScreen, createRecord, updateRecord, deleteRecord } = useCustomRecords();
-  const { typeConfigs: documentTypeConfigs, addItem: addDocumentType, removeItem: removeDocumentType } = useDocumentTypeLookup();
   const { currentTenant, tenantRole } = useTenant();
   const { user, effectiveName } = useAuth();
   const { setTabTitle, closeTab, openTab, activePanelId } = useWorkspace();
@@ -181,23 +152,6 @@ export const useViewDynamicRecordViewModel = (tabKey: string): ViewDynamicRecord
   const [copyLinkDone, setCopyLinkDone] = useState(false);
   const [recordToDelete, setRecordToDelete] = useState<CustomRecord | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
-
-  const [notes, setNotes] = useState<CustomRecordNote[]>([]);
-  const [notesLoading, setNotesLoading] = useState(false);
-  const [newNoteTitle, setNewNoteTitle] = useState('');
-  const [newNoteText, setNewNoteText] = useState('');
-  const [isAddingNote, setIsAddingNote] = useState(false);
-  const [isNoteEditorOpen, setIsNoteEditorOpen] = useState(false);
-  const [expandedNoteIds, setExpandedNoteIds] = useState<Set<string>>(new Set());
-  const [noteToDelete, setNoteToDelete] = useState<CustomRecordNote | null>(null);
-
-  const [documents, setDocuments] = useState<CustomRecordDocument[]>([]);
-  const [docsLoading, setDocsLoading] = useState(false);
-  const [isUploadingDoc, setIsUploadingDoc] = useState(false);
-  const [pendingFile, setPendingFile] = useState<File | null>(null);
-  const [pendingType, setPendingType] = useState('');
-  const [docToDelete, setDocToDelete] = useState<CustomRecordDocument | null>(null);
-
   const [isTagManagerOpen, setIsTagManagerOpen] = useState(false);
 
   useEffect(() => {
@@ -214,23 +168,46 @@ export const useViewDynamicRecordViewModel = (tabKey: string): ViewDynamicRecord
     }
   }, [definition, isNew, sourceRecord, tabKey, setTabTitle]);
 
-  useEffect(() => {
-    if (!definition?.hasNotes || !recordId || !sourceRecord || !currentTenant) return;
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- carregamento inicial de anotações
-    setNotesLoading(true);
-    noteUC.get.execute(currentTenant.id, recordId)
-      .then(setNotes)
-      .finally(() => setNotesLoading(false));
-  }, [definition, recordId, sourceRecord, currentTenant, noteUC]);
+  const notesPort = useMemo<NotesPort>(() => ({
+    get: (rid) => (currentTenant ? noteUC.get.execute(currentTenant.id, rid) : Promise.resolve([])),
+    add: (rid, input) => noteUC.add.execute(currentTenant?.id ?? '', rid, {
+      screenKey,
+      title: input.title,
+      text: input.text,
+      createdBy: user?.id ?? '',
+      createdByName: effectiveName,
+      createdByPhotoUrl: user?.photoURL ?? undefined,
+    }),
+    remove: (rid, noteId) => {
+      const actor: DeletionActor = { uid: user?.id ?? '', name: effectiveName, photoURL: user?.photoURL ?? '' };
+      return noteUC.delete.execute(currentTenant?.id ?? '', rid, noteId, actor);
+    },
+  }), [noteUC, currentTenant, user, effectiveName, screenKey]);
 
-  useEffect(() => {
-    if (!definition?.hasDocuments || !recordId || !sourceRecord || !currentTenant) return;
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- carregamento inicial de documentos
-    setDocsLoading(true);
-    docUC.get.execute(currentTenant.id, recordId)
-      .then(setDocuments)
-      .finally(() => setDocsLoading(false));
-  }, [definition, recordId, sourceRecord, currentTenant, docUC]);
+  const documentsPort = useMemo<DocumentsPort>(() => ({
+    get: (rid) => (currentTenant ? docUC.get.execute(currentTenant.id, rid) : Promise.resolve([])),
+    upload: async (rid, file) => {
+      const raw = await docUC.upload.execute(currentTenant?.id ?? '', rid, file);
+      return JSON.parse(raw) as { url: string; storagePath: string };
+    },
+    add: (rid, input) => docUC.add.execute(currentTenant?.id ?? '', rid, {
+      screenKey,
+      name: input.name,
+      type: input.type,
+      url: input.url,
+      storagePath: input.storagePath,
+      createdBy: user?.id ?? '',
+      createdByName: effectiveName,
+      createdByPhotoUrl: user?.photoURL ?? undefined,
+    }),
+    remove: (rid, doc) => {
+      const actor: DeletionActor = { uid: user?.id ?? '', name: effectiveName, photoURL: user?.photoURL ?? '' };
+      return docUC.delete.execute(currentTenant?.id ?? '', rid, doc.id, doc.storagePath, actor);
+    },
+  }), [docUC, currentTenant, user, effectiveName, screenKey]);
+
+  const notesController = useEntityNotes({ enabled: !!definition?.hasNotes && !!sourceRecord, recordId, port: notesPort });
+  const docsController = useEntityDocuments({ enabled: !!definition?.hasDocuments && !!sourceRecord, recordId, port: documentsPort });
 
   const setFieldValue = useCallback((fieldKey: string, value: CustomFieldValue) => {
     setFormValues((prev) => ({ ...prev, [fieldKey]: value }));
@@ -317,129 +294,6 @@ export const useViewDynamicRecordViewModel = (tabKey: string): ViewDynamicRecord
     }
   }, [recordToDelete, deleteRecord, screenKey, notify, closeTab, tabKey, activePanelId]);
 
-  const openNoteEditor = useCallback(() => setIsNoteEditorOpen(true), []);
-  const closeNoteEditor = useCallback(() => {
-    setIsNoteEditorOpen(false);
-    setNewNoteTitle('');
-    setNewNoteText('');
-  }, []);
-
-  const toggleNoteExpanded = useCallback((id: string) => {
-    setExpandedNoteIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id); else next.add(id);
-      return next;
-    });
-  }, []);
-
-  const handleAddNote = useCallback(async () => {
-    if (!newNoteTitle.trim() || !newNoteText.trim() || !recordId || !currentTenant || !user) return;
-    setIsAddingNote(true);
-    try {
-      const note = await noteUC.add.execute(currentTenant.id, recordId, {
-        screenKey,
-        title: newNoteTitle.trim(),
-        text: newNoteText.trim(),
-        createdBy: user.id,
-        createdByName: effectiveName,
-        createdByPhotoUrl: user.photoURL ?? undefined,
-      });
-      setNotes((prev) => [note, ...prev]);
-      setNewNoteTitle('');
-      setNewNoteText('');
-      setIsNoteEditorOpen(false);
-      notify('Anotação adicionada.', 'success');
-    } catch {
-      notify('Erro ao adicionar anotação.', 'error');
-    } finally {
-      setIsAddingNote(false);
-    }
-  }, [newNoteTitle, newNoteText, recordId, screenKey, currentTenant, user, effectiveName, noteUC, notify]);
-
-  const requestDeleteNote = useCallback((note: CustomRecordNote) => setNoteToDelete(note), []);
-  const cancelDeleteNote = useCallback(() => setNoteToDelete(null), []);
-  const confirmDeleteNote = useCallback(async () => {
-    if (!noteToDelete || !recordId || !currentTenant) return;
-    try {
-      const actor: DeletionActor = { uid: user?.id ?? '', name: effectiveName, photoURL: user?.photoURL ?? '' };
-      await noteUC.delete.execute(currentTenant.id, recordId, noteToDelete.id, actor);
-      setNotes((prev) => prev.filter((n) => n.id !== noteToDelete.id));
-      notify('Anotação excluída.', 'success');
-    } catch {
-      notify('Erro ao excluir anotação.', 'error');
-    } finally {
-      setNoteToDelete(null);
-    }
-  }, [noteToDelete, recordId, currentTenant, noteUC, notify, user, effectiveName]);
-
-  const handleSelectFile = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setPendingFile(file);
-      setPendingType('');
-    }
-    e.target.value = '';
-  }, []);
-
-  const handleCancelPendingUpload = useCallback(() => {
-    setPendingFile(null);
-    setPendingType('');
-  }, []);
-
-  const handleConfirmUpload = useCallback(async () => {
-    if (!pendingFile || !recordId || !currentTenant || !user) return;
-    setIsUploadingDoc(true);
-    try {
-      const raw = await docUC.upload.execute(currentTenant.id, recordId, pendingFile);
-      const { url, storagePath } = JSON.parse(raw) as { url: string; storagePath: string };
-      const addedDoc = await docUC.add.execute(currentTenant.id, recordId, {
-        screenKey,
-        name: pendingFile.name,
-        type: pendingType.trim() || undefined,
-        url,
-        storagePath,
-        createdBy: user.id,
-        createdByName: effectiveName,
-        createdByPhotoUrl: user.photoURL ?? undefined,
-      });
-      setDocuments((prev) => [addedDoc, ...prev]);
-      setPendingFile(null);
-      setPendingType('');
-      notify('Documento enviado com sucesso.', 'success');
-    } catch {
-      notify('Erro ao enviar documento.', 'error');
-    } finally {
-      setIsUploadingDoc(false);
-    }
-  }, [pendingFile, pendingType, recordId, screenKey, currentTenant, user, effectiveName, docUC, notify]);
-
-  const requestDeleteDoc = useCallback((doc: CustomRecordDocument) => setDocToDelete(doc), []);
-  const cancelDeleteDoc = useCallback(() => setDocToDelete(null), []);
-  const confirmDeleteDoc = useCallback(async () => {
-    if (!docToDelete || !recordId || !currentTenant) return;
-    try {
-      const actor: DeletionActor = { uid: user?.id ?? '', name: effectiveName, photoURL: user?.photoURL ?? '' };
-      await docUC.delete.execute(currentTenant.id, recordId, docToDelete.id, docToDelete.storagePath, actor);
-      setDocuments((prev) => prev.filter((d) => d.id !== docToDelete.id));
-      notify('Documento excluído.', 'success');
-    } catch {
-      notify('Erro ao excluir documento.', 'error');
-    } finally {
-      setDocToDelete(null);
-    }
-  }, [docToDelete, recordId, currentTenant, docUC, notify, user, effectiveName]);
-
-  const documentTypeOptions = useMemo<DynamicSelectOption[]>(
-    () => documentTypeConfigs.filter((c) => c.isStatic !== false).map((c) => ({ value: c.key, label: c.label })),
-    [documentTypeConfigs],
-  );
-  const documentTypeDynamicOptions = useMemo<DynamicSelectOption[]>(
-    () => documentTypeConfigs.filter((c) => c.isStatic === false).map((c) => ({ value: c.key, label: c.label })),
-    [documentTypeConfigs],
-  );
-  const handleAddDocumentType = useCallback(async (name: string) => { await addDocumentType(name); }, [addDocumentType]);
-  const handleDeleteDocumentType = useCallback(async (key: string) => { await removeDocumentType(key); }, [removeDocumentType]);
-
   const screenTags = useMemo(() => tagsByScreen[screenKey] ?? [], [tagsByScreen, screenKey]);
 
   const tagAdapter: TagStoreAdapter = useMemo(() => ({
@@ -480,40 +334,8 @@ export const useViewDynamicRecordViewModel = (tabKey: string): ViewDynamicRecord
     confirmDelete,
     isDeleting,
     recordNotFound,
-    notes,
-    notesLoading,
-    newNoteTitle,
-    setNewNoteTitle,
-    newNoteText,
-    setNewNoteText,
-    isAddingNote,
-    isNoteEditorOpen,
-    openNoteEditor,
-    closeNoteEditor,
-    expandedNoteIds,
-    toggleNoteExpanded,
-    handleAddNote,
-    noteToDelete,
-    requestDeleteNote,
-    confirmDeleteNote,
-    cancelDeleteNote,
-    documents,
-    docsLoading,
-    isUploadingDoc,
-    pendingFile,
-    pendingType,
-    setPendingType,
-    handleSelectFile,
-    handleCancelPendingUpload,
-    handleConfirmUpload,
-    docToDelete,
-    requestDeleteDoc,
-    confirmDeleteDoc,
-    cancelDeleteDoc,
-    documentTypeOptions,
-    documentTypeDynamicOptions,
-    handleAddDocumentType,
-    handleDeleteDocumentType,
+    notesController,
+    docsController,
     tagAdapter,
     isTagManagerOpen,
     openTagManager,

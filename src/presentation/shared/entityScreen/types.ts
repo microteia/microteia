@@ -1,0 +1,85 @@
+import type React from 'react';
+import type { DynamicSelectOption } from '../../components/ui/DynamicSelect';
+
+// ─── Formas comuns (PersonNote/CustomRecordNote e PersonDocument/CustomRecordDocument satisfazem) ──
+
+export interface EntityNote {
+  id: string;
+  title: string;
+  text: string;
+  createdByName: string;
+  createdByPhotoUrl?: string;
+  createdAt: Date;
+}
+
+export interface EntityDocument {
+  id: string;
+  name: string;
+  type?: string;
+  description?: string;
+  url: string;
+  storagePath: string;
+  createdByName: string;
+  createdByPhotoUrl?: string;
+  createdAt: Date;
+}
+
+// ─── Ports: o adapter embrulha os use cases da entidade (tenant/usuário/screenKey ficam presos no closure) ──
+
+export interface NotesPort {
+  get: (recordId: string) => Promise<EntityNote[]>;
+  add: (recordId: string, input: { title: string; text: string }) => Promise<EntityNote>;
+  remove: (recordId: string, noteId: string) => Promise<void>;
+}
+
+export interface DocumentsPort {
+  get: (recordId: string) => Promise<EntityDocument[]>;
+  upload: (recordId: string, file: File) => Promise<{ url: string; storagePath: string }>;
+  add: (
+    recordId: string,
+    input: { name: string; type?: string; url: string; storagePath: string },
+  ) => Promise<EntityDocument>;
+  remove: (recordId: string, doc: EntityDocument) => Promise<void>;
+}
+
+// ─── Retorno dos hooks (consumido pelos painéis) ──────────────────────────────
+
+export interface EntityNotesController {
+  notes: EntityNote[];
+  notesLoading: boolean;
+  newNoteTitle: string;
+  setNewNoteTitle: (v: string) => void;
+  newNoteText: string;
+  setNewNoteText: (v: string) => void;
+  isAddingNote: boolean;
+  isNoteEditorOpen: boolean;
+  openNoteEditor: () => void;
+  closeNoteEditor: () => void;
+  expandedNoteIds: Set<string>;
+  toggleNoteExpanded: (id: string) => void;
+  handleAddNote: () => Promise<void>;
+  noteToDelete: EntityNote | null;
+  requestDeleteNote: (note: EntityNote) => void;
+  confirmDeleteNote: () => Promise<void>;
+  cancelDeleteNote: () => void;
+}
+
+export interface EntityDocumentsController {
+  documents: EntityDocument[];
+  docsLoading: boolean;
+  isUploadingDoc: boolean;
+  pendingFile: File | null;
+  pendingType: string;
+  setPendingType: (v: string) => void;
+  handleSelectFile: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  handleCancelPendingUpload: () => void;
+  handleConfirmUpload: () => Promise<void>;
+  docToDelete: EntityDocument | null;
+  requestDeleteDoc: (doc: EntityDocument) => void;
+  confirmDeleteDoc: () => Promise<void>;
+  cancelDeleteDoc: () => void;
+  documentTypeOptions: DynamicSelectOption[];
+  documentTypeDynamicOptions: DynamicSelectOption[];
+  handleAddDocumentType: (name: string) => Promise<void>;
+  handleDeleteDocumentType: (key: string) => Promise<void>;
+}
