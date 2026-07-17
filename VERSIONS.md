@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [0.98.1] — 2026-07-17
+
+- Mais reorganização interna das telas de cadastro (ações de copiar link, duplicar, etiquetas e excluir agora compartilham o mesmo código). Sem mudança no uso.
+
 ## [0.98.0] — 2026-07-17
 
 - As telas de cadastro (Pessoas e telas personalizadas) passaram a compartilhar o mesmo cabeçalho, abas e botões de ação, deixando a experiência mais uniforme. Nas telas personalizadas, o ícone da tela agora aparece num círculo ao lado do título, como em Pessoas.

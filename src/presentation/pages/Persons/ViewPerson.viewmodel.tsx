@@ -8,7 +8,6 @@ import { useTenant } from '../../../stores/useTenant';
 import { useWorkspace } from '../../../stores/useWorkspace';
 import { useNotification } from '../../../stores/useNotification';
 import { useDI } from '../../../infrastructure/di/useDI';
-import { generateDeepLink } from '../../../infrastructure/deeplink/deepLinkUtils';
 import { resolveColor, getConfigColor } from '../../../shared/styles/colorUtils';
 import type { DynamicSelectOption } from '../../components/ui/DynamicSelect';
 import { makeGetPersonNotesUseCase } from '../../../domain/usecases/personnotes/GetPersonNotesUseCase';
@@ -22,6 +21,7 @@ import type { Person, PersonType, PersonAddress, Gender, CustomFieldValue, Delet
 import type { LookupOptionSet } from '../../components/ui/CustomFieldsSection/CustomFieldsSection.viewmodel';
 import { useEntityNotes } from '../../shared/entityScreen/useEntityNotes';
 import { useEntityDocuments } from '../../shared/entityScreen/useEntityDocuments';
+import { useEntityDetailChrome } from '../../shared/entityScreen/useEntityDetailChrome';
 import type {
   EntityDocumentsController,
   EntityNotesController,
@@ -228,7 +228,6 @@ export const useViewPersonViewModel = (tabKey: string): ViewPersonViewModel => {
 
   const isAdmin = tenantRole === 'admin';
 
-  const [activeTab, setActiveTab] = useState<ViewPersonTab>('data');
   const [formData, setFormDataState] = useState<PersonFormData>(() => {
     const base = buildFormData(cloneSource);
     return cloneSource ? { ...base, cpf: '', cnpj: '' } : base;
@@ -240,9 +239,16 @@ export const useViewPersonViewModel = (tabKey: string): ViewPersonViewModel => {
   const [customValues, setCustomValues] = useState<Record<string, CustomFieldValue>>({});
   const [isFetchingAddress, setIsFetchingAddress] = useState(false);
   const [addressFetchError, setAddressFetchError] = useState('');
-  const [isTagManagerOpen, setIsTagManagerOpen] = useState(false);
-  const [copyLinkDone, setCopyLinkDone] = useState(false);
-  const [personToDelete, setPersonToDelete] = useState<Person | null>(null);
+
+  const chrome = useEntityDetailChrome({
+    recordId: person?.id ?? null,
+    deepLinkKey: (id) => `view-person:${id}`,
+    cloneKey: (id) => `${CLONE_PREFIX}${id}`,
+    remove: (id) => deletePerson(id),
+    onRemoved: () => closeTab(tabKey, activePanelId),
+    removedMessage: 'Pessoa excluída.',
+    removeErrorMessage: 'Erro ao excluir pessoa.',
+  });
 
   const noteUC = useMemo(() => ({
     get:    makeGetPersonNotesUseCase(personNoteRepository),
@@ -506,22 +512,6 @@ export const useViewPersonViewModel = (tabKey: string): ViewPersonViewModel => {
     deleteTag: (id: string) => deleteTag(id),
   }), [tags, person, getTagsForPerson, setTagsForPerson, createTag, updateTag, deleteTag]);
 
-  const openTagManager = useCallback(() => setIsTagManagerOpen(true), []);
-  const closeTagManager = useCallback(() => setIsTagManagerOpen(false), []);
-
-
-  const handleCopyDeepLink = useCallback(() => {
-    if (!person) return;
-    void navigator.clipboard.writeText(generateDeepLink(`view-person:${person.id}`));
-    setCopyLinkDone(true);
-    setTimeout(() => setCopyLinkDone(false), 2000);
-  }, [person]);
-
-  const handleClone = useCallback(() => {
-    if (!person) return;
-    openTab(`${CLONE_PREFIX}${person.id}`);
-  }, [person, openTab]);
-
   const statusLabel = person?.status === 'Ativo' ? 'Ativo' : 'Inativo';
 
   const relationshipColor = useMemo(() => {
@@ -536,25 +526,6 @@ export const useViewPersonViewModel = (tabKey: string): ViewPersonViewModel => {
     await updatePersonStatus(person.id, next);
     notify(`Pessoa ${next === 'Ativo' ? 'ativada' : 'inativada'}.`, 'success');
   }, [person, updatePersonStatus, notify]);
-
-  const handleDeletePerson = useCallback(() => {
-    if (person) setPersonToDelete(person);
-  }, [person]);
-
-  const confirmDeletePerson = useCallback(async () => {
-    if (!personToDelete) return;
-    try {
-      await deletePerson(personToDelete.id);
-      notify('Pessoa excluída.', 'success');
-      closeTab(tabKey, activePanelId);
-    } catch {
-      notify('Erro ao excluir pessoa.', 'error');
-    } finally {
-      setPersonToDelete(null);
-    }
-  }, [personToDelete, deletePerson, notify, closeTab, tabKey, activePanelId]);
-
-  const cancelDeletePerson = useCallback(() => setPersonToDelete(null), []);
 
   const typeOptions = useMemo<DynamicSelectOption[]>(
     () => typeConfigs.filter(c => c.isStatic !== false).map(c => ({ value: c.key, label: c.label })),
@@ -679,8 +650,8 @@ export const useViewPersonViewModel = (tabKey: string): ViewPersonViewModel => {
   return {
     isNew,
     person,
-    activeTab,
-    setActiveTab,
+    activeTab: chrome.activeTab,
+    setActiveTab: chrome.setActiveTab,
     formData,
     setFormData,
     nativeFields: PERSON_FORM_FIELDS,
@@ -703,22 +674,22 @@ export const useViewPersonViewModel = (tabKey: string): ViewPersonViewModel => {
     isSaving,
     handleSave,
     tagAdapter,
-    isTagManagerOpen,
-    openTagManager,
-    closeTagManager,
+    isTagManagerOpen: chrome.isTagManagerOpen,
+    openTagManager: chrome.openTagManager,
+    closeTagManager: chrome.closeTagManager,
     notesController,
     docsController,
     isAdmin,
-    copyLinkDone,
-    handleCopyDeepLink,
-    handleClone,
+    copyLinkDone: chrome.copyLinkDone,
+    handleCopyDeepLink: chrome.handleCopyDeepLink,
+    handleClone: chrome.handleClone,
     statusLabel,
     relationshipColor,
     handleToggleStatus,
-    handleDeletePerson,
-    personToDelete,
-    confirmDeletePerson,
-    cancelDeletePerson,
+    handleDeletePerson: chrome.requestDelete,
+    personToDelete: chrome.isDeleteOpen ? person : null,
+    confirmDeletePerson: chrome.confirmDelete,
+    cancelDeletePerson: chrome.cancelDelete,
     typeOptions,
     typeDynamicOptions,
     occupationOptions,

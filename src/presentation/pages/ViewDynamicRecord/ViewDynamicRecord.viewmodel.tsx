@@ -6,7 +6,6 @@ import { useAuth } from '../../../stores/useAuth';
 import { useWorkspace } from '../../../stores/useWorkspace';
 import { useNotification } from '../../../stores/useNotification';
 import { useDI } from '../../../infrastructure/di/useDI';
-import { generateDeepLink } from '../../../infrastructure/deeplink/deepLinkUtils';
 import { makeGetCustomRecordByIdUseCase } from '../../../domain/usecases/customrecords/GetCustomRecordByIdUseCase';
 import { makeGetCustomRecordNotesUseCase } from '../../../domain/usecases/customrecordnotes/GetCustomRecordNotesUseCase';
 import { makeAddCustomRecordNoteUseCase } from '../../../domain/usecases/customrecordnotes/AddCustomRecordNoteUseCase';
@@ -31,6 +30,7 @@ import { describeRuleIssues } from '../../../domain/schema/fieldRules';
 import { validateRecordRules } from '../../../data/utils/recordRulesGate';
 import { useEntityNotes } from '../../shared/entityScreen/useEntityNotes';
 import { useEntityDocuments } from '../../shared/entityScreen/useEntityDocuments';
+import { useEntityDetailChrome } from '../../shared/entityScreen/useEntityDetailChrome';
 import type {
   EntityDocumentsController,
   EntityNotesController,
@@ -146,13 +146,18 @@ export const useViewDynamicRecordViewModel = (tabKey: string): ViewDynamicRecord
     [definition],
   );
 
-  const [activeTab, setActiveTab] = useState<ViewDynamicRecordTab>('data');
   const [formValues, setFormValues] = useState<Record<string, CustomFieldValue>>({});
   const [isSaving, setIsSaving] = useState(false);
-  const [copyLinkDone, setCopyLinkDone] = useState(false);
-  const [recordToDelete, setRecordToDelete] = useState<CustomRecord | null>(null);
-  const [isDeleting, setIsDeleting] = useState(false);
-  const [isTagManagerOpen, setIsTagManagerOpen] = useState(false);
+
+  const chrome = useEntityDetailChrome({
+    recordId,
+    deepLinkKey: (id) => buildViewTabKey(screenKey, id),
+    cloneKey: (id) => buildCloneTabKey(screenKey, id),
+    remove: (id) => deleteRecord(id, screenKey),
+    onRemoved: () => closeTab(tabKey, activePanelId ?? 'main'),
+    removedMessage: 'Registro excluído com sucesso.',
+    removeErrorMessage: 'Erro ao excluir o registro.',
+  });
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- sincroniza formulário ao carregar definição/registro
@@ -261,39 +266,6 @@ export const useViewDynamicRecordViewModel = (tabKey: string): ViewDynamicRecord
     }
   }, [definition, currentTenant, sortedFields, formValues, isNew, recordId, screenKey, createRecord, updateRecord, user, effectiveName, notify, tabKey, setTabTitle, closeTab, openTab, activePanelId]);
 
-  const handleClone = useCallback(() => {
-    if (!recordId) return;
-    openTab(buildCloneTabKey(screenKey, recordId));
-  }, [openTab, screenKey, recordId]);
-
-  const handleCopyDeepLink = useCallback(() => {
-    if (!recordId) return;
-    void navigator.clipboard.writeText(generateDeepLink(buildViewTabKey(screenKey, recordId)));
-    setCopyLinkDone(true);
-    setTimeout(() => setCopyLinkDone(false), 2000);
-  }, [screenKey, recordId]);
-
-  const requestDelete = useCallback(() => {
-    if (sourceRecord && recordId) setRecordToDelete(sourceRecord);
-  }, [sourceRecord, recordId]);
-
-  const cancelDelete = useCallback(() => setRecordToDelete(null), []);
-
-  const confirmDelete = useCallback(async () => {
-    if (!recordToDelete) return;
-    setIsDeleting(true);
-    try {
-      await deleteRecord(recordToDelete.id, screenKey);
-      notify('Registro excluído com sucesso.', 'success');
-      setRecordToDelete(null);
-      closeTab(tabKey, activePanelId ?? 'main');
-    } catch {
-      notify('Erro ao excluir o registro.', 'error');
-    } finally {
-      setIsDeleting(false);
-    }
-  }, [recordToDelete, deleteRecord, screenKey, notify, closeTab, tabKey, activePanelId]);
-
   const screenTags = useMemo(() => tagsByScreen[screenKey] ?? [], [tagsByScreen, screenKey]);
 
   const tagAdapter: TagStoreAdapter = useMemo(() => ({
@@ -305,9 +277,6 @@ export const useViewDynamicRecordViewModel = (tabKey: string): ViewDynamicRecord
     deleteTag: (id: string) => deleteTag(screenKey, id),
   }), [screenTags, sourceRecord, updateRecord, screenKey, createTag, updateTag, deleteTag]);
 
-  const openTagManager = useCallback(() => setIsTagManagerOpen(true), []);
-  const closeTagManager = useCallback(() => setIsTagManagerOpen(false), []);
-
   const recordNotFound = !isNew && !sourceRecord && fetchAttempted;
 
   return {
@@ -318,27 +287,27 @@ export const useViewDynamicRecordViewModel = (tabKey: string): ViewDynamicRecord
     isAdmin,
     screenKey,
     recordId,
-    activeTab,
-    setActiveTab,
+    activeTab: chrome.activeTab,
+    setActiveTab: chrome.setActiveTab,
     sortedFields,
     formValues,
     setFieldValue,
     isSaving,
     handleSave,
-    handleClone,
-    copyLinkDone,
-    handleCopyDeepLink,
-    recordToDelete,
-    requestDelete,
-    cancelDelete,
-    confirmDelete,
-    isDeleting,
+    handleClone: chrome.handleClone,
+    copyLinkDone: chrome.copyLinkDone,
+    handleCopyDeepLink: chrome.handleCopyDeepLink,
+    recordToDelete: chrome.isDeleteOpen ? sourceRecord : null,
+    requestDelete: chrome.requestDelete,
+    cancelDelete: chrome.cancelDelete,
+    confirmDelete: chrome.confirmDelete,
+    isDeleting: chrome.isDeleting,
     recordNotFound,
     notesController,
     docsController,
     tagAdapter,
-    isTagManagerOpen,
-    openTagManager,
-    closeTagManager,
+    isTagManagerOpen: chrome.isTagManagerOpen,
+    openTagManager: chrome.openTagManager,
+    closeTagManager: chrome.closeTagManager,
   };
 };
