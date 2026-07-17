@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [0.98.0] — 2026-07-17
+
+- As telas de cadastro (Pessoas e telas personalizadas) passaram a compartilhar o mesmo cabeçalho, abas e botões de ação, deixando a experiência mais uniforme. Nas telas personalizadas, o ícone da tela agora aparece num círculo ao lado do título, como em Pessoas.
+
 ## [0.97.0] — 2026-07-17
 
 - As abas de Anotações e Documentos passaram a usar um mesmo componente em todas as telas (Pessoas e telas personalizadas), garantindo comportamento e visual idênticos e facilitando melhorias futuras. Sem mudança no uso do dia a dia.
