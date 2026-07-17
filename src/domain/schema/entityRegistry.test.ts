@@ -42,7 +42,7 @@ const LEGACY_FK_SCHEMA = {
 
 const LEGACY_LOOKUP_COLLECTIONS = [
   'personTypes', 'personOccupations', 'personNationalities', 'personMaritalStatuses',
-  'personCities', 'personRelationships',
+  'personCities', 'personRelationships', 'personGenders',
   'caseAreas', 'casePhases', 'caseStatuses', 'caseInstances', 'caseActionTypes',
   'caseCourts', 'caseDistricts', 'caseJudges',
   'documentTypes', 'newsCategories',

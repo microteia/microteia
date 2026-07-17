@@ -2,6 +2,7 @@ import React from 'react';
 import { RiSaveLine, RiDeleteBinLine, RiEditLine, RiNodeTree } from 'react-icons/ri';
 import { InputGroup, Label, Input } from '../../components/ui/Input';
 import { SearchSelect } from '../../components/ui/SearchSelect';
+import { Checkbox } from '../../components/ui/Checkbox';
 import { DateInput } from '../../components/ui/DateInput';
 import { InfoBanner } from '../../components/ui/InfoBanner';
 import { ConfirmModal } from '../../components/ui/ConfirmModal';
@@ -448,6 +449,22 @@ export const EditWorkflowStepView: React.FC<{ tabKey: string }> = ({ tabKey }) =
             const mappingKindOptions = getMappingKindOptions(input);
             const isMappingKindLocked = mappingKindOptions.length === 1;
             const isTargetPicker = input.id === vm.dynamicInputsSourceId;
+
+            if (input.type === 'Boolean') {
+              const booleanMapping = vm.configuration[input.id];
+              const checked =
+                booleanMapping?.kind === 'Literal' ? booleanMapping.value === true : input.defaultValue === true;
+              return (
+                <S.Field key={input.id}>
+                  <Checkbox
+                    label={input.label}
+                    checked={checked}
+                    onChange={(next) => vm.setMapping(input.id, { kind: 'Literal', value: next })}
+                  />
+                  {input.description && <S.HelpText>{input.description}</S.HelpText>}
+                </S.Field>
+              );
+            }
 
             return (
               <S.Field key={input.id}>

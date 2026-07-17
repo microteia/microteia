@@ -71,6 +71,12 @@ export type DynamicOutputsMetadata =
       description?: string;
     }
   | {
+      kind: 'from-target-workflow-outputs';
+      /** ID do input (Literal) que guarda o id do workflow-alvo cujas "Saída do Workflow" viram saídas. */
+      sourceInputId: string;
+      description?: string;
+    }
+  | {
       kind: 'from-query-projections';
       /** ID do input do tipo 'Query' cujas projeções viram saídas `first.<projeção>`. */
       sourceInputId: string;

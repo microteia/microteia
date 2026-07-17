@@ -6,6 +6,7 @@ import type { IWorkflowMutationRepository } from '../../domain/repositories/IWor
 import type { IScreenDefinitionProvider } from '../../domain/repositories/IScreenDefinitionProvider';
 import type { IScriptRepository } from '../../domain/repositories/IScriptRepository';
 import type { CreateAuditLogUseCase } from '../../domain/usecases/CreateAuditLogUseCase';
+import type { RunCalledWorkflowUseCase } from '../../domain/usecases/RunCalledWorkflowUseCase';
 import { makeCallWorkflowStepDefinition } from './steps/CallWorkflowStep';
 import { makeScriptStepDefinition } from './steps/ScriptStep';
 import { makeCreateDeadlineStepDefinition } from './steps/CreateDeadlineStep';
@@ -27,6 +28,7 @@ export interface RegisterStepsDeps {
   workflowMutationRepository: IWorkflowMutationRepository;
   screenDefinitionProvider: IScreenDefinitionProvider;
   scriptRepository: IScriptRepository;
+  runCalledWorkflowUseCase: RunCalledWorkflowUseCase;
 }
 
 /**
@@ -53,7 +55,7 @@ export const registerSteps = (deps: RegisterStepsDeps): void => {
   stepRegistry.register(makeMapStepDefinition());
   stepRegistry.register(makeValidateStepDefinition(deps.screenDefinitionProvider));
   stepRegistry.register(makeOutputStepDefinition());
-  stepRegistry.register(makeCallWorkflowStepDefinition());
+  stepRegistry.register(makeCallWorkflowStepDefinition(deps.runCalledWorkflowUseCase));
   stepRegistry.register(makeScriptStepDefinition(deps.scriptRepository, queryDeps, mutationDeps));
   stepRegistry.register(
     makeQueryStepDefinition(deps.workflowQueryRepository, deps.workflowRecordFetcher, deps.screenDefinitionProvider),

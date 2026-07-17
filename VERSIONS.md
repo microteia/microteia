@@ -11,6 +11,18 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [0.92.0] — 2026-07-17
+
+- No passo "Chamar Workflow" de uma automação, agora existe a opção "Aguardar retorno": quando ativada, a automação executa o outro workflow, espera ele terminar e aproveita as saídas dele nos passos seguintes. Assim é possível, por exemplo, chamar um workflow que calcula um valor e usar esse resultado logo em seguida. Sem a opção, o comportamento continua o mesmo de antes: o outro workflow é apenas disparado e a automação segue em frente sem esperar.
+
+## [0.91.3] — 2026-07-16
+
+- A tela de Automações agora abre já filtrada por "Meus Workflows", mostrando primeiro as suas automações. Basta ajustar o filtro para ver também as públicas de outros escritórios.
+
+## [0.91.2] — 2026-07-16
+
+- Corrigido o filtro de automações por tipo "Públicos": agora as suas próprias automações publicadas também aparecem ao filtrar por Públicos, e não apenas as de outros escritórios.
+
 ## [0.91.1] — 2026-07-16
 
 - Corrigido um problema nas listas de opções (tipos, categorias, status e afins) em que um valor padrão do sistema aparecia duplicado quando também existia um valor cadastrado com o mesmo nome. Agora, quando isso acontece, o sistema mostra apenas o valor padrão, sem repetição.

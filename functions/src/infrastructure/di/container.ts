@@ -70,6 +70,8 @@ import type { IWorkflowDefinitionRepository } from '../../domain/repositories/IW
 import type { IWorkflowExecutionRepository } from '../../domain/repositories/IWorkflowExecutionRepository';
 import { makeRunWorkflowsForEventUseCase } from '../../domain/usecases/RunWorkflowsForEventUseCase';
 import type { RunWorkflowsForEventUseCase } from '../../domain/usecases/RunWorkflowsForEventUseCase';
+import { makeRunCalledWorkflowUseCase } from '../../domain/usecases/RunCalledWorkflowUseCase';
+import type { RunCalledWorkflowUseCase } from '../../domain/usecases/RunCalledWorkflowUseCase';
 import type { WorkflowServices } from '../../domain/entities/WorkflowContext';
 import { stepRegistry } from '../../domain/engine/StepRegistry';
 import { registerSteps } from '../workflow/registerSteps';
@@ -116,6 +118,7 @@ class DIContainer {
   private workflowDefinitionRepo?: IWorkflowDefinitionRepository;
   private workflowExecutionRepo?: IWorkflowExecutionRepository;
   private runWorkflowsForEventUC?: RunWorkflowsForEventUseCase;
+  private runCalledWorkflowUC?: RunCalledWorkflowUseCase;
   private screenDefinitionCache?: ScreenDefinitionCache;
   private workflowContextHydrator?: WorkflowContextHydrator;
   private workflowStepsRegistered = false;
@@ -423,6 +426,19 @@ class DIContainer {
     return this.runWorkflowsForEventUC;
   }
 
+  getRunCalledWorkflowUseCase(): RunCalledWorkflowUseCase {
+    if (!this.runCalledWorkflowUC) {
+      this.runCalledWorkflowUC = makeRunCalledWorkflowUseCase(
+        this.getWorkflowDefinitionRepository(),
+        this.getWorkflowExecutionRepository(),
+        stepRegistry,
+        this.getWorkflowServices(),
+        this.getWorkflowContextHydrator(),
+      );
+    }
+    return this.runCalledWorkflowUC;
+  }
+
   /**
    * Composition root do Workflow Engine: registra os Steps concretos no StepRegistry.
    * Idempotente e chamado uma única vez por instância da function (guardado por
@@ -439,6 +455,7 @@ class DIContainer {
       workflowMutationRepository: new FirestoreWorkflowMutationRepository(getDb()),
       screenDefinitionProvider: this.getScreenDefinitionCache(),
       scriptRepository: new FirebaseScriptRepository(getDb()),
+      runCalledWorkflowUseCase: this.getRunCalledWorkflowUseCase(),
     });
     this.workflowStepsRegistered = true;
   }

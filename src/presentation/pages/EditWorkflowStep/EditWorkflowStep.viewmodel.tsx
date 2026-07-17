@@ -20,6 +20,7 @@ import {
   insertStepAtIndex,
   replaceStepInTree,
   removeStepFromTree,
+  flattenSteps,
 } from '../../shared/workflowHelpers';
 import type { InsertTarget, BranchKey } from '../../shared/workflowHelpers';
 import type { WorkflowEventFieldOption } from '../../../domain/services/workflowEventCatalog';
@@ -464,6 +465,28 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
     [scripts],
   );
 
+  const workflowOutputsFor = useCallback(
+    (step: WorkflowStep, definition: StepDefinitionSummary): { id: string; label: string }[] => {
+      if (definition.dynamicOutputs?.kind !== 'from-target-workflow-outputs') return [];
+      const waitMapping = step.configuration.waitForResult;
+      if (!(waitMapping?.kind === 'Literal' && waitMapping.value === true)) return [];
+      const mapping = step.configuration[definition.dynamicOutputs.sourceInputId];
+      const id = mapping?.kind === 'Literal' ? String(mapping.value ?? '') : '';
+      if (!id) return [];
+      const target = workflows.find((w) => w.id === id);
+      if (!target) return [];
+      const names = new Set<string>();
+      flattenSteps(target.steps).forEach((targetStep) => {
+        if (targetStep.stepDefinitionId !== 'output') return;
+        const nameMapping = targetStep.configuration.name;
+        const name = nameMapping?.kind === 'Literal' ? String(nameMapping.value ?? '').trim() : '';
+        if (name) names.add(name);
+      });
+      return Array.from(names).map((name) => ({ id: name, label: name }));
+    },
+    [workflows],
+  );
+
   const stepOutputFields = useMemo(() => {
     const fields: StepOutputField[] = [];
     priorSteps.forEach((step) => {
@@ -494,6 +517,9 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
       scriptOutputsFor(step, definition).forEach((output) => {
         fields.push({ stepId: step.id, stepName, outputId: output.id, outputLabel: output.label });
       });
+      workflowOutputsFor(step, definition).forEach((output) => {
+        fields.push({ stepId: step.id, stepName, outputId: output.id, outputLabel: output.label });
+      });
       const mapConfig = objectOutputConfigOf(step, definition);
       if (mapConfig) {
         mapOutputNames(mapConfig).forEach((name) => {
@@ -502,7 +528,7 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
       }
     });
     return fields;
-  }, [priorSteps, stepCatalog, scriptOutputsFor]);
+  }, [priorSteps, stepCatalog, scriptOutputsFor, workflowOutputsFor]);
 
   // Descreve a "forma" do `input` (saídas dos steps anteriores) como um PathRoot de schema, para
   // que o autocomplete de `input.<saída>.` navegue nas propriedades de saídas do tipo

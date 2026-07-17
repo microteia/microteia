@@ -1,4 +1,5 @@
 import type { StepDefinition, WorkflowStepExecutor } from '../../../domain/engine/StepDefinition';
+import type { RunCalledWorkflowUseCase } from '../../../domain/usecases/RunCalledWorkflowUseCase';
 import { resolveMapping } from '../../../domain/engine/InputMapping';
 import { buildNestedParams } from '../../../domain/engine/nestedParams';
 import { WORKFLOW_CALLED_EVENT } from '../../../domain/schema/eventCatalog';
@@ -8,7 +9,7 @@ import { publishEvent } from '../publishEvent';
 const MAX_CALL_DEPTH = 10;
 const PARAM_PREFIX = 'param.';
 
-export const makeCallWorkflowStepDefinition = (): StepDefinition => ({
+export const makeCallWorkflowStepDefinition = (runCalledWorkflow: RunCalledWorkflowUseCase): StepDefinition => ({
   id: 'call-workflow',
   version: 1,
   name: 'Chamar Workflow',
@@ -25,9 +26,24 @@ export const makeCallWorkflowStepDefinition = (): StepDefinition => ({
       type: 'String',
       allowedMappingKinds: ['Literal'],
     },
+    {
+      id: 'waitForResult',
+      label: 'Aguardar retorno',
+      description:
+        'Se ativado, executa o workflow-alvo e espera terminar, disponibilizando as saídas dele (as "Saída do Workflow") para os próximos passos. Se desativado, apenas dispara o workflow e segue em frente sem esperar.',
+      required: false,
+      type: 'Boolean',
+      defaultValue: false,
+      allowedMappingKinds: ['Literal'],
+    },
   ],
   outputDefinitions: [],
   dynamicInputs: { kind: 'from-target-workflow-parameters', sourceInputId: 'targetWorkflowId' },
+  dynamicOutputs: {
+    kind: 'from-target-workflow-outputs',
+    sourceInputId: 'targetWorkflowId',
+    description: 'Cada "Saída do Workflow" do workflow-alvo vira uma saída deste passo (só quando "Aguardar retorno" está ativo).',
+  },
   createExecutor: (): WorkflowStepExecutor => ({
     execute: async (inputs, context) => {
       const targetWorkflowId = inputs.targetWorkflowId ? String(inputs.targetWorkflowId) : '';
@@ -47,13 +63,33 @@ export const makeCallWorkflowStepDefinition = (): StepDefinition => ({
       }
       const resolvedParams = buildNestedParams(paramEntries);
 
-      await publishEvent(getDb(), context.execution.tenantId, WORKFLOW_CALLED_EVENT, {
-        __targetWorkflowId: targetWorkflowId,
-        __callDepth: depth + 1,
-        ...resolvedParams,
+      const waitForResult = inputs.waitForResult === true;
+
+      if (!waitForResult) {
+        await publishEvent(getDb(), context.execution.tenantId, WORKFLOW_CALLED_EVENT, {
+          __targetWorkflowId: targetWorkflowId,
+          __callDepth: depth + 1,
+          ...resolvedParams,
+        });
+        return { success: true, message: 'Workflow chamado', outputs: {} };
+      }
+
+      const result = await runCalledWorkflow.execute({
+        tenantId: context.execution.tenantId,
+        targetWorkflowId,
+        params: resolvedParams,
+        callDepth: depth + 1,
       });
 
-      return { success: true, message: 'Workflow chamado', outputs: {} };
+      if (!result.found) {
+        return { success: false, message: 'Workflow-alvo não encontrado, desativado ou não é do tipo "Chamar Workflow"' };
+      }
+
+      if (result.status !== 'SUCCESS') {
+        return { success: false, message: `Workflow chamado terminou com status "${result.status}"` };
+      }
+
+      return { success: true, message: 'Workflow chamado e concluído', outputs: result.outputs };
     },
   }),
 });
