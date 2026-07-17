@@ -6,16 +6,43 @@ import { usePersonLookup } from '../../../stores/usePersonLookup';
 import { useTenant } from '../../../stores/useTenant';
 import { useWorkspace } from '../../../stores/useWorkspace';
 import { useScreenDefinitions } from '../../../stores/useScreenDefinitions';
+import { useNotification } from '../../../stores/useNotification';
 import { useCustomFieldListing, CUSTOM_FIELD_FILTER_PREFIX } from '../../hooks/useCustomFieldListing';
 import type { CustomFieldCardItem } from '../../hooks/useCustomFieldListing';
 import { resolveColor, getConfigColor } from '../../../shared/styles/colorUtils';
+import { generateDeepLink } from '../../../infrastructure/deeplink/deepLinkUtils';
 import type { Person } from '../../../domain/entities';
 import type { FilterDef, FilterToken } from '../../components/ui/CompositeFilter';
+import type { TagStoreAdapter } from '../../components/ui/TagManager/TagManager.viewmodel';
+import { PERSON_LIST_CONFIG } from './personListSchema';
+import type { PersonCardActionKey } from './personListSchema';
 
 const PERSON_STATUS_OPTIONS: FilterDef['options'] = [
   { value: 'Ativo', label: 'Ativos' },
   { value: 'Inativo', label: 'Inativos' },
 ];
+
+export interface PersonCardAction {
+  key: PersonCardActionKey;
+  title: string;
+  danger?: boolean;
+  onClick: () => void;
+}
+
+export interface PersonCardMetaRow {
+  key: string;
+  iconKey: string;
+  value: string;
+}
+
+export interface PersonCardModel {
+  avatar: string;
+  title: string;
+  subtitle: { iconKey: string; text: string };
+  metaRows: PersonCardMetaRow[];
+  tags: { id: string; name: string; color: string }[];
+  actions: PersonCardAction[];
+}
 
 export interface PersonsViewModel {
   persons: Person[];
@@ -30,16 +57,29 @@ export interface PersonsViewModel {
   openPerson: (person: Person) => void;
   getRelationshipColor: (relationship?: string | null) => string;
   getCustomFieldItems: (person: Person) => CustomFieldCardItem[];
+  getCardModel: (person: Person) => PersonCardModel;
+  tagManagerPerson: Person | null;
+  tagAdapter: TagStoreAdapter;
+  closeTagManager: () => void;
+  personToDelete: Person | null;
+  isDeleting: boolean;
+  confirmDeletePerson: () => Promise<void>;
+  cancelDeletePerson: () => void;
 }
 
 export const usePersonsViewModel = (): PersonsViewModel => {
-  const { persons, isLoading } = usePersonStore();
-  const { tags } = usePersonTagStore();
+  const { persons, isLoading, deletePerson } = usePersonStore();
+  const { tags, getTagsForPerson, setTagsForPerson, createTag, updateTag, deleteTag } = usePersonTagStore();
   const { typeConfigs, occupationConfigs, nationalityConfigs, maritalStatusConfigs, cityConfigs, relationshipConfigs } = usePersonLookup();
   const { tenantRole } = useTenant();
   const { openTab } = useWorkspace();
   const { getCustomFieldsFor } = useScreenDefinitions();
+  const { notify } = useNotification();
   const theme = useTheme();
+
+  const [tagManagerPerson, setTagManagerPerson] = useState<Person | null>(null);
+  const [personToDelete, setPersonToDelete] = useState<Person | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const customFields = useMemo(() => getCustomFieldsFor('persons'), [getCustomFieldsFor]);
   const customListing = useCustomFieldListing('persons', customFields, CUSTOM_FIELD_FILTER_PREFIX);
@@ -144,6 +184,85 @@ export const usePersonsViewModel = (): PersonsViewModel => {
     [customListing],
   );
 
+  const resolveRow = useCallback((person: Person, key: string): string => {
+    switch (key) {
+      case 'name': return person.name;
+      case 'type': return person.type;
+      case 'document': return person.cpf ?? person.cnpj ?? '';
+      case 'email': return person.email ?? '';
+      case 'phone': return person.phone
+        ? `${person.phone}${person.secondaryPhone ? ` · ${person.secondaryPhone}` : ''}`
+        : '';
+      case 'occupation': return person.occupation ?? '';
+      case 'city': return [person.address?.neighborhood, person.address?.city, person.address?.state]
+        .filter(Boolean).join(' · ');
+      default: return '';
+    }
+  }, []);
+
+  const onCopyLink = useCallback((person: Person) => {
+    void navigator.clipboard.writeText(generateDeepLink(`view-person:${person.id}`));
+    notify('Link copiado para a área de transferência.', 'success');
+  }, [notify]);
+
+  const onClone = useCallback((person: Person) => {
+    openTab(`new-person:clone:${person.id}`);
+  }, [openTab]);
+
+  const buildCardActions = useCallback((person: Person): PersonCardAction[] => {
+    const handlers: Record<PersonCardActionKey, PersonCardAction> = {
+      copyLink: { key: 'copyLink', title: 'Copiar link', onClick: () => onCopyLink(person) },
+      clone: { key: 'clone', title: 'Duplicar', onClick: () => onClone(person) },
+      manageTags: { key: 'manageTags', title: 'Gerenciar etiquetas', onClick: () => setTagManagerPerson(person) },
+      delete: { key: 'delete', title: 'Excluir', danger: true, onClick: () => setPersonToDelete(person) },
+    };
+    return PERSON_LIST_CONFIG.actions
+      .filter((action) => action !== 'delete' || isAdmin)
+      .map((action) => handlers[action]);
+  }, [onCopyLink, onClone, isAdmin]);
+
+  const getCardModel = useCallback((person: Person): PersonCardModel => ({
+    avatar: (person.name || '?').charAt(0).toUpperCase(),
+    title: person.name,
+    subtitle: { iconKey: PERSON_LIST_CONFIG.subtitle.icon, text: resolveRow(person, PERSON_LIST_CONFIG.subtitle.key) },
+    metaRows: PERSON_LIST_CONFIG.rows
+      .map((row) => ({ key: row.key, iconKey: row.icon, value: resolveRow(person, row.key) }))
+      .filter((row) => row.value !== ''),
+    tags: PERSON_LIST_CONFIG.showTags
+      ? tags.filter((t) => person.tagIds?.includes(t.id)).map((t) => ({ id: t.id, name: t.name, color: t.color }))
+      : [],
+    actions: buildCardActions(person),
+  }), [resolveRow, tags, buildCardActions]);
+
+  const tagAdapter = useMemo<TagStoreAdapter>(() => ({
+    tags,
+    getAppliedTags: (entityId: string) => {
+      const target = persons.find((p) => p.id === entityId);
+      return getTagsForPerson(entityId, target?.tagIds ?? []);
+    },
+    setTags: (entityId: string, tagIds: string[]) => setTagsForPerson(entityId, tagIds),
+    createTag: (name: string, color: string) => createTag(name, color),
+    updateTag: (id: string, data: { name: string; color: string }) => updateTag(id, data),
+    deleteTag: (id: string) => deleteTag(id),
+  }), [tags, persons, getTagsForPerson, setTagsForPerson, createTag, updateTag, deleteTag]);
+
+  const closeTagManager = useCallback(() => setTagManagerPerson(null), []);
+  const cancelDeletePerson = useCallback(() => setPersonToDelete(null), []);
+
+  const confirmDeletePerson = useCallback(async () => {
+    if (!personToDelete) return;
+    setIsDeleting(true);
+    try {
+      await deletePerson(personToDelete.id);
+      notify('Pessoa excluída.', 'success');
+      setPersonToDelete(null);
+    } catch {
+      notify('Erro ao excluir pessoa.', 'error');
+    } finally {
+      setIsDeleting(false);
+    }
+  }, [personToDelete, deletePerson, notify]);
+
   return {
     persons,
     filteredPersons,
@@ -157,5 +276,13 @@ export const usePersonsViewModel = (): PersonsViewModel => {
     openPerson,
     getRelationshipColor,
     getCustomFieldItems,
+    getCardModel,
+    tagManagerPerson,
+    tagAdapter,
+    closeTagManager,
+    personToDelete,
+    isDeleting,
+    confirmDeletePerson,
+    cancelDeletePerson,
   };
 };

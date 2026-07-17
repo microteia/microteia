@@ -1618,6 +1618,8 @@ Primeiro passo de unificação: o formulário "Dados" de `ViewPerson` é renderi
 - **Bridge:** `ViewPerson.viewmodel` expõe `nativeFields` (o layout), `nativeValues` (o próprio `formData`), `setNativeFieldValue` (→ `setFormData`), `personLookupOptions` (montado dos memos de `usePersonLookup`) e `handleAddPersonLookup`/`handleDeletePersonLookup` (mapeiam `collection → PersonLookupKind`). O `formData` chato por chave já é o escopo das expressões.
 - **Fora do piloto (a integrar depois):** a busca automática de endereço por CEP (`handleCEPChange` permanece no viewmodel, disponível) e o erro inline de CPF/CNPJ (a validação de dígito continua no save via `FieldRules`). As demais telas fixas ainda são escritas à mão.
 
+**Listagem (card) por config — piloto Pessoas:** `ui/EntityListCard` é o card reutilizável (avatar, título, subtítulo, ações no hover no canto superior direito, linhas de meta com ícone, etiquetas, `extra` para `CustomFieldMetaRows`). Config em código `presentation/pages/Persons/personListSchema.ts` (`PERSON_LIST_CONFIG`): `titleKey`, `subtitle{key,icon}`, `showTags`, `actions` (`copyLink|clone|manageTags|delete`, cada uma opcional) e `rows[{key,icon}]` (ordem + ícone por linha; ícones resolvidos por `getScreenIcon`). O `Persons.viewmodel` resolve cada `row.key`→valor (`getCardModel`), monta as ações (delete só admin) e o `TagStoreAdapter`; a View mapeia `iconKey→getScreenIcon` e `action.key→ícone`. Telas customizadas e demais fixas migram depois.
+
 ### Regras de integridade
 
 - **Exclusão de tela é soft-block:** `DeleteScreenDefinitionUseCase` recusa excluir se houver registros (`hasRecords` com `limit(1)`); a alternativa oferecida é desativar (`enabled: false`).

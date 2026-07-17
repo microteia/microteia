@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [0.95.0] — 2026-07-17
+
+- A listagem de Pessoas ganhou cards padronizados com título, subtítulo com ícone, etiquetas e — ao passar o mouse — atalhos rápidos no canto (copiar link, duplicar, gerenciar etiquetas e excluir), sem precisar abrir o cadastro. Cada linha de informação exibe um ícone, e a ordem e os ícones são definidos pela configuração da tela.
+
 ## [0.94.0] — 2026-07-17
 
 - A tela de Pessoas passou a montar seu formulário sobre a mesma base das telas personalizadas: os campos de Pessoa Física e Jurídica aparecem e somem conforme o tipo escolhido, com as listas (Profissão, Cidade, Sexo, Relacionamento e demais) funcionando como antes. Um primeiro passo para deixar a manutenção de todas as telas mais uniforme.
