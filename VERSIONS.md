@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [0.92.1] — 2026-07-17
+
+- Ajustes internos de manutenção do projeto, sem qualquer mudança visível no uso do sistema.
+
 ## [0.92.0] — 2026-07-17
 
 - No passo "Chamar Workflow" de uma automação, agora existe a opção "Aguardar retorno": quando ativada, a automação executa o outro workflow, espera ele terminar e aproveita as saídas dele nos passos seguintes. Assim é possível, por exemplo, chamar um workflow que calcula um valor e usar esse resultado logo em seguida. Sem a opção, o comportamento continua o mesmo de antes: o outro workflow é apenas disparado e a automação segue em frente sem esperar.
