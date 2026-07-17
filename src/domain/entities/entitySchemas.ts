@@ -46,6 +46,7 @@ export interface FieldDefinition {
   multi?: boolean;
   mask?: CustomFieldMask | null;
   refEntity?: string | null;
+  lookupCollection?: string | null;
   placeholder?: string | null;
   showInList?: boolean;
   listLabel?: string | null;

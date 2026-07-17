@@ -1608,7 +1608,15 @@ Todo campo — `FieldDefinition` (customizado) e `NativeFieldSpec` (fixo) — ac
 - **Validação:** `formatAndValidateRecord` (`recordRules.ts`) roda um passo extra que avalia `logic.validate` de cada campo do schema e acrescenta `RuleIssue`. Coexiste com `required` e `FieldRules`. Enforcement automático via o choke point único: front (`recordRulesGate`) e back (`runWorkflowMutation`, `ValidateStep`).
 - **Front (desabilitar/ocultar/mensagem inline):** `ui/CustomFieldsSection` avalia por campo `isFieldHidden`/`isFieldDisabled`/`fieldError` de forma reativa; campos ocultos não são renderizados (seção sem campos visíveis some).
 - **Autoria:** `ScreenBuilder` grava `FieldDefinition.logic` via três `ExpressionEditor`.
-- **Campos nativos das telas fixas:** a **validação** já vale (o passo lê `entity.fields[].logic.validate`); o **desabilitar/ocultar ao vivo** depende de renderizar os campos nativos pelo renderer de Schema — piloto pendente (ver "Telas fixas por Schema").
+- **Campos nativos das telas fixas:** a **validação** já vale (o passo lê `entity.fields[].logic.validate`); o **desabilitar/ocultar ao vivo** vale onde os campos nativos são renderizados pelo renderer de Schema (piloto: Pessoas — ver abaixo).
+
+### Telas fixas por Schema — piloto (Pessoas)
+
+Primeiro passo de unificação: o formulário "Dados" de `ViewPerson` é renderizado pelo `CustomFieldsSection` a partir de um layout de código `presentation/pages/ViewPerson/personFormSchema.ts` (`PERSON_FORM_FIELDS: FieldDefinition[]`), em vez de campos escritos à mão. A visibilidade PF/PJ (antes `if type === ...` no JSX) agora é `logic.hiddenWhen` por campo.
+
+- **Renderer lookup-aware (aditivo):** `CustomFieldsSection` ganhou props opcionais `lookupOptions` (`Record<collection, LookupOptionSet{staticOptions,dynamicOptions}>`), `onAddLookupOption`, `onDeleteLookupOption`, `canDeleteLookupOption`. Um `FieldDefinition` com `lookupCollection` renderiza um `DynamicSelect` alimentado por essas props. Telas customizadas que não passam as props seguem idênticas — sem risco.
+- **Bridge:** `ViewPerson.viewmodel` expõe `nativeFields` (o layout), `nativeValues` (o próprio `formData`), `setNativeFieldValue` (→ `setFormData`), `personLookupOptions` (montado dos memos de `usePersonLookup`) e `handleAddPersonLookup`/`handleDeletePersonLookup` (mapeiam `collection → PersonLookupKind`). O `formData` chato por chave já é o escopo das expressões.
+- **Fora do piloto (a integrar depois):** a busca automática de endereço por CEP (`handleCEPChange` permanece no viewmodel, disponível) e o erro inline de CPF/CNPJ (a validação de dígito continua no save via `FieldRules`). As demais telas fixas ainda são escritas à mão.
 
 ### Regras de integridade
 

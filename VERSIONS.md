@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [0.94.0] — 2026-07-17
+
+- A tela de Pessoas passou a montar seu formulário sobre a mesma base das telas personalizadas: os campos de Pessoa Física e Jurídica aparecem e somem conforme o tipo escolhido, com as listas (Profissão, Cidade, Sexo, Relacionamento e demais) funcionando como antes. Um primeiro passo para deixar a manutenção de todas as telas mais uniforme.
+
 ## [0.93.1] — 2026-07-17
 
 - No construtor de telas, a janela de criar/editar campo ficou mais larga e organizada em duas colunas, mais fácil de preencher.

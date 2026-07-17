@@ -77,6 +77,27 @@ export const CustomFieldsSection: React.FC<CustomFieldsSectionProps> = (props) =
           />
         );
       case 'select':
+        if (field.lookupCollection) {
+          return (
+            <DynamicSelect
+              staticOptions={vm.lookupStaticOptions(field)}
+              dynamicOptions={vm.lookupDynamicOptions(field)}
+              multiSelect={field.multi}
+              value={field.multi ? undefined : vm.getString(field.key)}
+              onChange={field.multi ? undefined : (value) => vm.setValue(field.key, value)}
+              values={field.multi ? vm.getStringArray(field.key) : undefined}
+              onChangeMulti={field.multi ? (values) => vm.setValue(field.key, values) : undefined}
+              placeholder={field.placeholder ?? 'Selecione...'}
+              disabled={isDisabled}
+              onAdd={field.optionsAllowUserAdd ? (label) => vm.handleAddLookupOption(field, label) : undefined}
+              onDelete={field.optionsAllowUserAdd && vm.canDeleteLookupOption
+                ? (optionKey) => vm.handleDeleteLookupOption(field, optionKey)
+                : undefined}
+              deleteConfirmTitle="Excluir opção"
+              deleteConfirmMessage="Tem certeza que deseja excluir esta opção da lista? Registros que a utilizam manterão o valor salvo."
+            />
+          );
+        }
         return (
           <DynamicSelect
             staticOptions={vm.staticSelectOptions(field)}

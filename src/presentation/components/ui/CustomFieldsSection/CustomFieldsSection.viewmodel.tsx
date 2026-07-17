@@ -10,12 +10,21 @@ import type { CustomFieldValue, FieldDefinition } from '../../../../domain/entit
 import type { DynamicSelectOption } from '../DynamicSelect';
 import type { ReferenceOption } from '../../../hooks/useReferenceOptions';
 
+export interface LookupOptionSet {
+  staticOptions: DynamicSelectOption[];
+  dynamicOptions: DynamicSelectOption[];
+}
+
 export interface CustomFieldsSectionProps {
   screenKey: string;
   fields: FieldDefinition[];
   values: Record<string, CustomFieldValue>;
   onChange: (fieldKey: string, value: CustomFieldValue) => void;
   disabled?: boolean;
+  lookupOptions?: Record<string, LookupOptionSet>;
+  onAddLookupOption?: (collection: string, label: string) => void | Promise<void>;
+  onDeleteLookupOption?: (collection: string, optionKey: string) => void | Promise<void>;
+  canDeleteLookupOption?: boolean;
 }
 
 export interface FieldGroup {
@@ -37,13 +46,28 @@ export interface CustomFieldsSectionViewModel {
   handleAddOption: (field: FieldDefinition, label: string) => Promise<void>;
   handleDeleteOption: (field: FieldDefinition, optionKey: string) => Promise<void>;
   referenceOptions: (field: FieldDefinition) => ReferenceOption[];
+  lookupStaticOptions: (field: FieldDefinition) => DynamicSelectOption[];
+  lookupDynamicOptions: (field: FieldDefinition) => DynamicSelectOption[];
+  handleAddLookupOption: (field: FieldDefinition, label: string) => Promise<void>;
+  handleDeleteLookupOption: (field: FieldDefinition, optionKey: string) => Promise<void>;
+  canDeleteLookupOption: boolean;
   isFieldHidden: (field: FieldDefinition) => boolean;
   isFieldDisabled: (field: FieldDefinition) => boolean;
   fieldError: (field: FieldDefinition) => string | null;
 }
 
 export const useCustomFieldsSectionViewModel = (props: CustomFieldsSectionProps): CustomFieldsSectionViewModel => {
-  const { screenKey, fields, values, onChange, disabled = false } = props;
+  const {
+    screenKey,
+    fields,
+    values,
+    onChange,
+    disabled = false,
+    lookupOptions,
+    onAddLookupOption,
+    onDeleteLookupOption,
+    canDeleteLookupOption = false,
+  } = props;
   const { fieldOptionsByField, addFieldOption, removeFieldOption } = useScreenDefinitions();
   const { tenantRole } = useTenant();
   const referenceOptionsByEntity = useReferenceOptions();
@@ -123,6 +147,32 @@ export const useCustomFieldsSectionViewModel = (props: CustomFieldsSectionProps)
     [referenceOptionsByEntity],
   );
 
+  const lookupStaticOptions = useCallback(
+    (field: FieldDefinition): DynamicSelectOption[] =>
+      lookupOptions?.[field.lookupCollection ?? '']?.staticOptions ?? [],
+    [lookupOptions],
+  );
+
+  const lookupDynamicOptions = useCallback(
+    (field: FieldDefinition): DynamicSelectOption[] =>
+      lookupOptions?.[field.lookupCollection ?? '']?.dynamicOptions ?? [],
+    [lookupOptions],
+  );
+
+  const handleAddLookupOption = useCallback(
+    async (field: FieldDefinition, label: string): Promise<void> => {
+      if (field.lookupCollection) await onAddLookupOption?.(field.lookupCollection, label);
+    },
+    [onAddLookupOption],
+  );
+
+  const handleDeleteLookupOption = useCallback(
+    async (field: FieldDefinition, optionKey: string): Promise<void> => {
+      if (field.lookupCollection) await onDeleteLookupOption?.(field.lookupCollection, optionKey);
+    },
+    [onDeleteLookupOption],
+  );
+
   const isFieldHidden = useCallback(
     (field: FieldDefinition): boolean =>
       evaluateFieldBoolean(field.logic?.hiddenWhen, { value: values[field.key], data: values }),
@@ -155,6 +205,11 @@ export const useCustomFieldsSectionViewModel = (props: CustomFieldsSectionProps)
     handleAddOption,
     handleDeleteOption,
     referenceOptions,
+    lookupStaticOptions,
+    lookupDynamicOptions,
+    handleAddLookupOption,
+    handleDeleteLookupOption,
+    canDeleteLookupOption,
     isFieldHidden,
     isFieldDisabled,
     fieldError,

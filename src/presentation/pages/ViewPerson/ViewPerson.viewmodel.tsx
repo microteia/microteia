@@ -19,7 +19,9 @@ import { makeGetPersonDocumentsUseCase } from '../../../domain/usecases/persondo
 import { makeUploadPersonDocumentUseCase } from '../../../domain/usecases/persondocuments/UploadPersonDocumentUseCase';
 import { makeAddPersonDocumentUseCase } from '../../../domain/usecases/persondocuments/AddPersonDocumentUseCase';
 import { makeDeletePersonDocumentUseCase } from '../../../domain/usecases/persondocuments/DeletePersonDocumentUseCase';
-import type { Person, PersonNote, PersonDocument, PersonType, PersonAddress, Gender, CustomFieldValue, DeletionActor, FieldDefinition } from '../../../domain/entities';
+import type { Person, PersonNote, PersonDocument, PersonType, PersonAddress, Gender, CustomFieldValue, DeletionActor, FieldDefinition, PersonLookupKind } from '../../../domain/entities';
+import type { LookupOptionSet } from '../../components/ui/CustomFieldsSection/CustomFieldsSection.viewmodel';
+import { PERSON_FORM_FIELDS } from './personFormSchema';
 import type { TagStoreAdapter } from '../../components/ui/TagManager/TagManager.viewmodel';
 import { useScreenDefinitions } from '../../../stores/useScreenDefinitions';
 import { buildInitialFormValues, formValuesToStoredValues, validateRequiredFields } from '../../../domain/services/customFieldValues';
@@ -94,6 +96,16 @@ const buildFormData = (person: Person | null): PersonFormData => ({
   addressZipCode: person?.address?.zipCode ? formatCEP(person.address.zipCode) : '',
 });
 
+const LOOKUP_COLLECTION_TO_KIND: Record<string, PersonLookupKind> = {
+  personTypes: 'types',
+  personOccupations: 'occupations',
+  personNationalities: 'nationalities',
+  personMaritalStatuses: 'maritalStatuses',
+  personCities: 'cities',
+  personRelationships: 'relationships',
+  personGenders: 'genders',
+};
+
 export interface ViewPersonViewModel {
   isNew: boolean;
   person: Person | null;
@@ -101,6 +113,12 @@ export interface ViewPersonViewModel {
   setActiveTab: (tab: ViewPersonTab) => void;
   formData: PersonFormData;
   setFormData: (data: Partial<PersonFormData>) => void;
+  nativeFields: FieldDefinition[];
+  nativeValues: Record<string, CustomFieldValue>;
+  setNativeFieldValue: (fieldKey: string, value: CustomFieldValue) => void;
+  personLookupOptions: Record<string, LookupOptionSet>;
+  handleAddPersonLookup: (collection: string, label: string) => Promise<void>;
+  handleDeletePersonLookup: (collection: string, optionKey: string) => Promise<void>;
   formErrors: PersonFormErrors;
   handleCPFChange: (value: string) => void;
   handleCNPJChange: (value: string) => void;
@@ -742,6 +760,34 @@ export const useViewPersonViewModel = (tabKey: string): ViewPersonViewModel => {
   const handleAddDocumentType = useCallback(async (name: string) => { await addDocumentType(name); }, [addDocumentType]);
   const handleDeleteDocumentType = useCallback(async (key: string) => { await removeDocumentType(key); }, [removeDocumentType]);
 
+  const personLookupOptions = useMemo<Record<string, LookupOptionSet>>(() => ({
+    personTypes:            { staticOptions: typeOptions,          dynamicOptions: typeDynamicOptions },
+    personOccupations:      { staticOptions: [],                   dynamicOptions: occupationOptions },
+    personNationalities:    { staticOptions: nationalityOptions,   dynamicOptions: nationalityDynamicOptions },
+    personMaritalStatuses:  { staticOptions: maritalStatusOptions, dynamicOptions: maritalStatusDynamicOptions },
+    personCities:           { staticOptions: [],                   dynamicOptions: cityOptions },
+    personRelationships:    { staticOptions: relationshipOptions,  dynamicOptions: relationshipDynamicOptions },
+    personGenders:          { staticOptions: genderOptions,        dynamicOptions: genderDynamicOptions },
+  }), [
+    typeOptions, typeDynamicOptions, occupationOptions, nationalityOptions, nationalityDynamicOptions,
+    maritalStatusOptions, maritalStatusDynamicOptions, cityOptions, relationshipOptions,
+    relationshipDynamicOptions, genderOptions, genderDynamicOptions,
+  ]);
+
+  const handleAddPersonLookup = useCallback(async (collection: string, label: string): Promise<void> => {
+    const kind = LOOKUP_COLLECTION_TO_KIND[collection];
+    if (kind) await addItem(kind, label);
+  }, [addItem]);
+
+  const handleDeletePersonLookup = useCallback(async (collection: string, optionKey: string): Promise<void> => {
+    const kind = LOOKUP_COLLECTION_TO_KIND[collection];
+    if (kind) await removeItem(kind, optionKey);
+  }, [removeItem]);
+
+  const setNativeFieldValue = useCallback((fieldKey: string, value: CustomFieldValue) => {
+    setFormData({ [fieldKey]: value } as Partial<PersonFormData>);
+  }, [setFormData]);
+
   return {
     isNew,
     person,
@@ -749,6 +795,12 @@ export const useViewPersonViewModel = (tabKey: string): ViewPersonViewModel => {
     setActiveTab,
     formData,
     setFormData,
+    nativeFields: PERSON_FORM_FIELDS,
+    nativeValues: formData as unknown as Record<string, CustomFieldValue>,
+    setNativeFieldValue,
+    personLookupOptions,
+    handleAddPersonLookup,
+    handleDeletePersonLookup,
     customFields,
     customValues,
     setCustomValue,

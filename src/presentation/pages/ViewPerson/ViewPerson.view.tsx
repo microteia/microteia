@@ -20,10 +20,8 @@ import { S } from './ViewPerson.styles';
 import { useViewPersonViewModel } from './ViewPerson.viewmodel';
 import { Button } from '../../components/ui/Button';
 import { Spinner } from '../../components/ui/Spinner';
-import { Input, Label, Textarea, ErrorMessage } from '../../components/ui/Input';
-import { SearchSelect } from '../../components/ui/SearchSelect';
+import { Input } from '../../components/ui/Input';
 import { DynamicSelect } from '../../components/ui/DynamicSelect';
-import { DateInput } from '../../components/ui/DateInput';
 import { ConfirmModal } from '../../components/ui/ConfirmModal';
 import { TagManager } from '../../components/ui/TagManager';
 import { MarkdownEditor } from '../../components/ui/MarkdownEditor';
@@ -31,11 +29,6 @@ import { MarkdownContent } from '../../components/ui/MarkdownContent';
 import { CustomFieldsSection } from '../../components/ui/CustomFieldsSection';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import type { SearchSelectOption } from '../../components/ui/SearchSelect';
-
-const STATES = ['AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG','PA','PB','PR','PE','PI','RJ','RN','RS','RO','RR','SC','SP','SE','TO'];
-
-const STATE_OPTIONS: SearchSelectOption[] = STATES.map((uf) => ({ value: uf, label: uf }));
 
 export const ViewPersonView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
   const vm = useViewPersonViewModel(tabKey);
@@ -114,198 +107,16 @@ export const ViewPersonView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
         {(vm.activeTab === 'data' || vm.isNew) && (
           <S.FormGrid>
             <S.FormGroup $fullWidth>
-              <Label>Tipo *</Label>
-              <DynamicSelect
-                staticOptions={vm.typeOptions}
-                dynamicOptions={vm.typeDynamicOptions}
-                value={vm.formData.type}
-                onChange={(val) => vm.setFormData({ type: val as 'Pessoa Física' | 'Pessoa Jurídica' })}
-                placeholder="Selecione o tipo..."
-                onAdd={vm.handleAddType}
-                onDelete={vm.isAdmin ? vm.handleDeleteType : undefined}
-                deleteConfirmTitle="Excluir tipo de pessoa"
+              <CustomFieldsSection
+                screenKey="persons-native"
+                fields={vm.nativeFields}
+                values={vm.nativeValues}
+                onChange={vm.setNativeFieldValue}
+                lookupOptions={vm.personLookupOptions}
+                onAddLookupOption={vm.handleAddPersonLookup}
+                onDeleteLookupOption={vm.handleDeletePersonLookup}
+                canDeleteLookupOption={vm.isAdmin}
               />
-            </S.FormGroup>
-
-            <S.FormGroup $fullWidth>
-              <Label>Nome *</Label>
-              <Input
-                value={vm.formData.name}
-                onChange={(e) => vm.setFormData({ name: e.target.value })}
-                placeholder="Nome completo ou razão social"
-              />
-            </S.FormGroup>
-
-            {vm.formData.type === 'Pessoa Física' ? (
-              <S.FormGroup>
-                <Label>CPF</Label>
-                <Input
-                  value={vm.formData.cpf}
-                  onChange={(e) => vm.handleCPFChange(e.target.value)}
-                  placeholder="000.000.000-00"
-                  $hasError={!!vm.formErrors.cpf}
-                />
-                {vm.formErrors.cpf && <ErrorMessage>{vm.formErrors.cpf}</ErrorMessage>}
-              </S.FormGroup>
-            ) : (
-              <S.FormGroup>
-                <Label>CNPJ</Label>
-                <Input
-                  value={vm.formData.cnpj}
-                  onChange={(e) => vm.handleCNPJChange(e.target.value)}
-                  placeholder="00.000.000/0000-00"
-                  $hasError={!!vm.formErrors.cnpj}
-                />
-                {vm.formErrors.cnpj && <ErrorMessage>{vm.formErrors.cnpj}</ErrorMessage>}
-              </S.FormGroup>
-            )}
-
-            <S.FormGroup>
-              <Label>E-mail</Label>
-              <Input type="email" value={vm.formData.email} onChange={(e) => vm.setFormData({ email: e.target.value })} placeholder="email@exemplo.com" />
-            </S.FormGroup>
-            <S.FormGroup>
-              <Label>Telefone</Label>
-              <Input
-                value={vm.formData.phone}
-                onChange={(e) => vm.handlePhoneChange(e.target.value)}
-                placeholder="(00) 00000-0000"
-              />
-            </S.FormGroup>
-            <S.FormGroup>
-              <Label>Telefone Secundário</Label>
-              <Input
-                value={vm.formData.secondaryPhone}
-                onChange={(e) => vm.handleSecondaryPhoneChange(e.target.value)}
-                placeholder="(00) 00000-0000"
-              />
-            </S.FormGroup>
-
-            <S.FormGroup>
-              <Label>Relacionamento</Label>
-              <DynamicSelect
-                staticOptions={vm.relationshipOptions}
-                dynamicOptions={vm.relationshipDynamicOptions}
-                value={vm.formData.relationship}
-                onChange={(val) => vm.setFormData({ relationship: val })}
-                placeholder="Selecione ou adicione..."
-                onAdd={vm.handleAddRelationship}
-                onDelete={vm.isAdmin ? vm.handleDeleteRelationship : undefined}
-                deleteConfirmTitle="Excluir tipo de relacionamento"
-              />
-            </S.FormGroup>
-
-            {vm.formData.type === 'Pessoa Física' && (
-              <>
-                <S.FormGroup>
-                  <Label>Profissão</Label>
-                  <DynamicSelect
-                    dynamicOptions={vm.occupationOptions}
-                    value={vm.formData.occupation}
-                    onChange={(val) => vm.setFormData({ occupation: val })}
-                    placeholder="Selecione ou adicione..."
-                    onAdd={vm.handleAddOccupation}
-                    onDelete={vm.isAdmin ? vm.handleDeleteOccupation : undefined}
-                    deleteConfirmTitle="Excluir profissão"
-                  />
-                </S.FormGroup>
-                <S.FormGroup>
-                  <Label>Nacionalidade</Label>
-                  <DynamicSelect
-                    staticOptions={vm.nationalityOptions}
-                    dynamicOptions={vm.nationalityDynamicOptions}
-                    value={vm.formData.nationality}
-                    onChange={(val) => vm.setFormData({ nationality: val })}
-                    placeholder="Selecione ou adicione..."
-                    onAdd={vm.handleAddNationality}
-                    onDelete={vm.isAdmin ? vm.handleDeleteNationality : undefined}
-                    deleteConfirmTitle="Excluir nacionalidade"
-                  />
-                </S.FormGroup>
-                <S.FormGroup>
-                  <Label>Estado Civil</Label>
-                  <DynamicSelect
-                    staticOptions={vm.maritalStatusOptions}
-                    dynamicOptions={vm.maritalStatusDynamicOptions}
-                    value={vm.formData.maritalStatus}
-                    onChange={(val) => vm.setFormData({ maritalStatus: val })}
-                    placeholder="Selecione ou adicione..."
-                    onAdd={vm.handleAddMaritalStatus}
-                    onDelete={vm.isAdmin ? vm.handleDeleteMaritalStatus : undefined}
-                    deleteConfirmTitle="Excluir estado civil"
-                  />
-                </S.FormGroup>
-                <S.FormGroup>
-                  <Label>Data de Nascimento</Label>
-                  <DateInput
-                    value={vm.formData.birthDate}
-                    onChange={(val) => vm.setFormData({ birthDate: val })}
-                  />
-                </S.FormGroup>
-                <S.FormGroup>
-                  <Label>Sexo</Label>
-                  <DynamicSelect
-                    staticOptions={vm.genderOptions}
-                    dynamicOptions={vm.genderDynamicOptions}
-                    value={vm.formData.gender}
-                    onChange={(val) => vm.setFormData({ gender: val })}
-                    placeholder="Selecione ou adicione..."
-                    onAdd={vm.handleAddGender}
-                    onDelete={vm.isAdmin ? vm.handleDeleteGender : undefined}
-                    deleteConfirmTitle="Excluir sexo"
-                  />
-                </S.FormGroup>
-              </>
-            )}
-
-            <S.SectionTitle>Endereço</S.SectionTitle>
-            <S.FormGroup>
-              <Label>CEP</Label>
-              <Input
-                value={vm.formData.addressZipCode}
-                onChange={(e) => vm.handleCEPChange(e.target.value)}
-                placeholder="00000-000"
-                disabled={vm.isFetchingAddress}
-              />
-              {vm.isFetchingAddress && <ErrorMessage style={{ color: 'inherit' }}>Buscando endereço...</ErrorMessage>}
-              {vm.addressFetchError && <ErrorMessage>{vm.addressFetchError}</ErrorMessage>}
-            </S.FormGroup>
-            <S.FormGroup $fullWidth>
-              <Label>Rua / Avenida</Label>
-              <Input value={vm.formData.addressStreet} onChange={(e) => vm.setFormData({ addressStreet: e.target.value })} placeholder="Rua / Avenida" />
-            </S.FormGroup>
-            <S.FormGroup>
-              <Label>Número</Label>
-              <Input value={vm.formData.addressNumber} onChange={(e) => vm.setFormData({ addressNumber: e.target.value })} />
-            </S.FormGroup>
-            <S.FormGroup>
-              <Label>Complemento</Label>
-              <Input value={vm.formData.addressComplement} onChange={(e) => vm.setFormData({ addressComplement: e.target.value })} placeholder="Apto, Sala..." />
-            </S.FormGroup>
-            <S.FormGroup>
-              <Label>Bairro</Label>
-              <Input value={vm.formData.addressNeighborhood} onChange={(e) => vm.setFormData({ addressNeighborhood: e.target.value })} />
-            </S.FormGroup>
-            <S.FormGroup>
-              <Label>Cidade</Label>
-              <DynamicSelect
-                dynamicOptions={vm.cityOptions}
-                value={vm.formData.addressCity}
-                onChange={(val) => vm.setFormData({ addressCity: val })}
-                placeholder="Selecione ou adicione..."
-                onAdd={vm.handleAddCity}
-                onDelete={vm.isAdmin ? vm.handleDeleteCity : undefined}
-                deleteConfirmTitle="Excluir cidade"
-              />
-            </S.FormGroup>
-            <S.FormGroup>
-              <Label>Estado</Label>
-              <SearchSelect options={STATE_OPTIONS} value={vm.formData.addressState} onChange={(val) => vm.setFormData({ addressState: val })} placeholder="UF" />
-            </S.FormGroup>
-
-            <S.FormGroup $fullWidth>
-              <Label>Observações</Label>
-              <Textarea value={vm.formData.notes} onChange={(e) => vm.setFormData({ notes: e.target.value })} placeholder="Informações adicionais sobre a pessoa" />
             </S.FormGroup>
 
             {vm.customFields.length > 0 && (
