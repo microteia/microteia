@@ -17,6 +17,14 @@ export const S = {
     flex-shrink: 0;
   `,
 
+  TitleRow: styled.div`
+    display: flex;
+    align-items: center;
+    gap: ${({ theme }) => theme.spacing.sm};
+    color: ${({ theme }) => theme.colors.primary};
+    min-width: 0;
+  `,
+
   Title: styled.h1`
     font-size: ${({ theme }) => theme.fontSizes.xl};
     font-weight: 700;
@@ -43,6 +51,12 @@ export const S = {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
     gap: ${({ theme }) => theme.spacing.md};
+  `,
+
+  SpinnerWrap: styled.div`
+    display: flex;
+    justify-content: center;
+    padding-top: 48px;
   `,
 
   EmptyState: styled.div`

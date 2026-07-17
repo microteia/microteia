@@ -1,5 +1,7 @@
 import styled from 'styled-components';
 
+// A casca da lista vive em components/layout/EntityListView. Aqui só o estado de tela
+// indisponível e o card específico desta listagem.
 export const S = {
   Page: styled.div`
     display: flex;
@@ -17,43 +19,20 @@ export const S = {
     flex-shrink: 0;
   `,
 
-  TitleRow: styled.div`
-    display: flex;
-    align-items: center;
-    gap: ${({ theme }) => theme.spacing.sm};
-    color: ${({ theme }) => theme.colors.primary};
-  `,
-
   Title: styled.h1`
     font-size: ${({ theme }) => theme.fontSizes.xl};
     font-weight: 700;
     color: ${({ theme }) => theme.colors.text};
   `,
 
-  Toolbar: styled.div`
-    display: flex;
-    gap: ${({ theme }) => theme.spacing.sm};
-    padding: ${({ theme }) => theme.spacing.md} ${({ theme }) => theme.spacing.xl};
-    border-bottom: 1px solid ${({ theme }) => theme.colors.border};
-    flex-shrink: 0;
-    flex-wrap: wrap;
-    align-items: center;
-  `,
-
-  Content: styled.div`
-    flex: 1;
-    overflow-y: auto;
-    padding: ${({ theme }) => theme.spacing.lg} ${({ theme }) => theme.spacing.xl};
-  `,
-
   BannerWrapper: styled.div`
     padding: ${({ theme }) => theme.spacing.lg} ${({ theme }) => theme.spacing.xl};
   `,
 
-  Grid: styled.div`
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-    gap: ${({ theme }) => theme.spacing.md};
+  SpinnerWrapper: styled.div`
+    display: flex;
+    justify-content: center;
+    padding-top: ${({ theme }) => theme.spacing['2xl']};
   `,
 
   RecordCard: styled.div`
@@ -125,29 +104,5 @@ export const S = {
     border-radius: 50%;
     background: ${({ $color }) => $color};
     flex-shrink: 0;
-  `,
-
-  EmptyState: styled.div`
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: ${({ theme }) => theme.spacing.md};
-    padding: ${({ theme }) => theme.spacing['2xl']} 0;
-  `,
-
-  EmptyIcon: styled.div`
-    font-size: 40px;
-    color: ${({ theme }) => theme.colors.textMuted};
-  `,
-
-  EmptyTitle: styled.div`
-    font-size: ${({ theme }) => theme.fontSizes.md};
-    color: ${({ theme }) => theme.colors.textSecondary};
-  `,
-
-  SpinnerWrapper: styled.div`
-    display: flex;
-    justify-content: center;
-    padding-top: ${({ theme }) => theme.spacing['2xl']};
   `,
 };
