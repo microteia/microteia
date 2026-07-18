@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [0.108.0] — 2026-07-18
+
+- Os cards da listagem de Financeiro passaram a seguir a configuração da tela para os campos simples, mantendo os atalhos que abrem a Pessoa, o Processo e o Contrato, a linha de datas e o valor destacado no rodapé. Com isso, todas as listagens do sistema seguem o mesmo padrão visual.
+
 ## [0.107.0] — 2026-07-18
 
 - Os cards da listagem de Prazos passaram a seguir a configuração da tela: Processo, datas de vencimento e conclusão, responsável e descrição agora vêm da definição de cada campo. A faixa colorida de prioridade, os selos de situação, o contador de dias e o atalho para abrir o processo continuam como antes.

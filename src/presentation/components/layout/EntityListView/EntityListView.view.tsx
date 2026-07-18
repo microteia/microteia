@@ -25,6 +25,11 @@ export interface EntityListViewProps {
   emptyTitle: string;
   emptyActionLabel: string;
 
+  /** Ações extras no cabeçalho, antes do botão "novo" (ex.: Dashboard, ocultar totais). */
+  headerExtra?: React.ReactNode;
+  /** Faixa entre o cabeçalho e o filtro (ex.: barra de totais do Financeiro). */
+  belowHeader?: React.ReactNode;
+
   children: React.ReactNode;
   modals?: React.ReactNode;
 }
@@ -45,6 +50,8 @@ export const EntityListView: React.FC<EntityListViewProps> = ({
   emptyIcon,
   emptyTitle,
   emptyActionLabel,
+  headerExtra,
+  belowHeader,
   children,
   modals,
 }) => {
@@ -60,8 +67,13 @@ export const EntityListView: React.FC<EntityListViewProps> = ({
         ) : (
           <S.Title>{title}</S.Title>
         )}
-        <Button onClick={onNew} title={newTitle}>{addIcon}</Button>
+        <S.HeaderActions>
+          {headerExtra}
+          <Button onClick={onNew} title={newTitle}>{addIcon}</Button>
+        </S.HeaderActions>
       </S.Header>
+
+      {belowHeader}
 
       <S.Toolbar>
         <CompositeFilter

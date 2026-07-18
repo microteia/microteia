@@ -33,6 +33,8 @@ export interface EntityListCardProps {
   belowHeader?: React.ReactNode;
   /** Conteúdo exclusivo após as meta-linhas (ex.: campos adicionais). */
   extra?: React.ReactNode;
+  /** Conteúdo exclusivo no rodapé, após as etiquetas (ex.: o valor do lançamento). */
+  footer?: React.ReactNode;
   /** Faixa lateral colorida — leitura rápida de severidade (ex.: prioridade do Prazo). */
   accentColor?: string;
   onClick?: () => void;
@@ -47,6 +49,7 @@ export const EntityListCard: React.FC<EntityListCardProps> = ({
   tags,
   belowHeader,
   extra,
+  footer,
   accentColor,
   onClick,
 }) => (
@@ -100,5 +103,7 @@ export const EntityListCard: React.FC<EntityListCardProps> = ({
         ))}
       </S.Tags>
     )}
+
+    {footer}
   </S.Card>
 );

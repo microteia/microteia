@@ -17,6 +17,12 @@ export const S = {
     flex-shrink: 0;
   `,
 
+  HeaderActions: styled.div`
+    display: flex;
+    align-items: center;
+    gap: ${({ theme }) => theme.spacing.sm};
+  `,
+
   TitleRow: styled.div`
     display: flex;
     align-items: center;
