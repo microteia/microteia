@@ -41,6 +41,12 @@ export interface SelectedScreenState {
   fields: FieldDefinition[];
 }
 
+export interface ChildCandidate {
+  key: string;
+  label: string;
+  fieldOptions: SearchSelectOption[];
+}
+
 export interface ScreenFormState {
   titleSingular: string;
   titlePlural: string;
@@ -51,6 +57,8 @@ export interface ScreenFormState {
   listActions: ScreenListAction[];
   parentEntity: string;
   parentFieldKey: string;
+  /** telaFilha -> campo de vínculo. Configurado pelo lado do PAI. */
+  childLinks: Record<string, string>;
   enabled: boolean;
   titleFieldKey: string;
 }
@@ -117,6 +125,9 @@ export interface ScreenBuilderViewModel {
   titleFieldOptions: SearchSelectOption[];
   parentEntityOptions: SearchSelectOption[];
   parentFieldOptions: SearchSelectOption[];
+  childCandidates: ChildCandidate[];
+  toggleChildScreen: (childKey: string) => void;
+  setChildLinkField: (childKey: string, fieldKey: string) => void;
   iconOptions: SearchSelectOption[];
   openCreateScreen: () => void;
   openEditScreen: (screenKey: string) => void;
@@ -202,6 +213,7 @@ const EMPTY_SCREEN_FORM: ScreenFormState = {
   listActions: [],
   parentEntity: '',
   parentFieldKey: '',
+  childLinks: {},
   enabled: true,
   titleFieldKey: '',
 };
@@ -520,11 +532,16 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
       listActions: def.listActions,
       parentEntity: def.parentEntity ?? '',
       parentFieldKey: def.parentFieldKey ?? '',
+      childLinks: Object.fromEntries(
+        dynamicDefinitions
+          .filter((child) => child.parentEntity === def.id && child.parentFieldKey)
+          .map((child) => [child.id, child.parentFieldKey as string]),
+      ),
       enabled: def.enabled,
       titleFieldKey: def.titleFieldKey,
     });
     setScreenModal({ screenKey });
-  }, [getDefinitionByKey]);
+  }, [getDefinitionByKey, dynamicDefinitions]);
 
   const closeScreenModal = useCallback(() => setScreenModal(null), []);
 
@@ -548,6 +565,39 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
       .filter((field) => field.type === 'reference' && field.refEntity === screenForm.parentEntity)
       .map((field) => ({ value: field.key, label: field.label }));
   }, [screenModal, getDefinitionByKey, screenForm.parentEntity]);
+
+  // Telas que já têm um campo apontando para esta — só elas podem virar filhas.
+  const childCandidates = useMemo<ChildCandidate[]>(() => {
+    const current = screenModal?.screenKey;
+    if (!current) return [];
+    return dynamicDefinitions
+      .filter((def) => def.id !== current)
+      .map((def) => ({
+        key: def.id,
+        label: def.titlePlural,
+        fieldOptions: def.fields
+          .filter((field) => field.type === 'reference' && field.refEntity === current)
+          .map((field) => ({ value: field.key, label: field.label })),
+      }))
+      .filter((candidate) => candidate.fieldOptions.length > 0);
+  }, [dynamicDefinitions, screenModal]);
+
+  const toggleChildScreen = useCallback((childKey: string) => {
+    setScreenForm((prev) => {
+      const next = { ...prev.childLinks };
+      if (next[childKey] !== undefined) {
+        delete next[childKey];
+      } else {
+        const options = childCandidates.find((c) => c.key === childKey)?.fieldOptions ?? [];
+        next[childKey] = options.length === 1 ? options[0].value : '';
+      }
+      return { ...prev, childLinks: next };
+    });
+  }, [childCandidates]);
+
+  const setChildLinkField = useCallback((childKey: string, fieldKey: string) => {
+    setScreenForm((prev) => ({ ...prev, childLinks: { ...prev.childLinks, [childKey]: fieldKey } }));
+  }, []);
 
   const iconOptions = useMemo<SearchSelectOption[]>(
     () => getScreenIconOptions().map((option) => ({
@@ -576,6 +626,12 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
       notify('Escolha o campo que vincula esta tela ao registro pai.', 'error');
       return;
     }
+    const childMissingField = Object.entries(screenForm.childLinks).find(([, field]) => !field);
+    if (childMissingField) {
+      const label = childCandidates.find((c) => c.key === childMissingField[0])?.label ?? 'registro filho';
+      notify(`Escolha o campo de vínculo de "${label}".`, 'error');
+      return;
+    }
     setSavingScreen(true);
     try {
       if (screenModal?.screenKey) {
@@ -596,6 +652,30 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
           enabled: screenForm.enabled,
           titleFieldKey,
         });
+
+        // O vínculo é configurado aqui (no pai), mas o dado mora na definição da tela FILHA.
+        for (const candidate of childCandidates) {
+          const childDef = getDefinitionByKey(candidate.key);
+          if (!childDef) continue;
+          const linkField = screenForm.childLinks[candidate.key];
+          const isChildOfThis = childDef.parentEntity === def.id;
+          if (linkField) {
+            if (!isChildOfThis || childDef.parentFieldKey !== linkField) {
+              await saveDefinition(childDef.id, {
+                ...toSaveInput(childDef),
+                parentEntity: def.id,
+                parentFieldKey: linkField,
+              });
+            }
+          } else if (isChildOfThis) {
+            await saveDefinition(childDef.id, {
+              ...toSaveInput(childDef),
+              parentEntity: null,
+              parentFieldKey: null,
+            });
+          }
+        }
+
         notify('Tela atualizada com sucesso!', 'success');
       } else {
         const existingKeys = new Set([
@@ -639,7 +719,7 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
     } finally {
       setSavingScreen(false);
     }
-  }, [screenForm, screenModal, getDefinitionByKey, saveDefinition, definitions, dynamicDefinitions, notify]);
+  }, [screenForm, screenModal, getDefinitionByKey, saveDefinition, definitions, dynamicDefinitions, childCandidates, notify]);
 
   const toggleScreenEnabled = useCallback(async (screenKey: string) => {
     const def = getDefinitionByKey(screenKey);
@@ -1023,6 +1103,9 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
     titleFieldOptions,
     parentEntityOptions,
     parentFieldOptions,
+    childCandidates,
+    toggleChildScreen,
+    setChildLinkField,
     iconOptions,
     openCreateScreen,
     openEditScreen,

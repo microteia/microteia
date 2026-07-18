@@ -296,9 +296,47 @@ export const ScreenBuilderView: React.FC = () => {
                 onChange={(next) => vm.updateScreenForm({ hasTags: next })}
               />
             </S.CheckboxRow>
+            {vm.screenModalIsEdit && vm.childCandidates.length > 0 && (
+              <>
+                <S.RulesDivider>Registros filhos desta tela</S.RulesDivider>
+                <S.FullRow>
+                  <InfoBanner
+                    variant="info"
+                    message="Telas que possuem um campo apontando para esta. Ao marcar, os registros dela passam a aparecer como uma aba dentro de cada registro desta tela — e ela sai do menu lateral e da busca."
+                  />
+                </S.FullRow>
+                {vm.childCandidates.map((candidate) => {
+                  const linkField = vm.screenForm.childLinks[candidate.key];
+                  const isChild = linkField !== undefined;
+                  return (
+                    <React.Fragment key={candidate.key}>
+                      <S.CheckboxRow>
+                        <Checkbox
+                          label={candidate.label}
+                          checked={isChild}
+                          onChange={() => vm.toggleChildScreen(candidate.key)}
+                        />
+                      </S.CheckboxRow>
+                      {isChild && candidate.fieldOptions.length > 1 && (
+                        <InputGroup>
+                          <Label>{`Campo de vínculo de ${candidate.label} *`}</Label>
+                          <SearchSelect
+                            options={candidate.fieldOptions}
+                            value={linkField}
+                            onChange={(value) => vm.setChildLinkField(candidate.key, value)}
+                            placeholder="Escolha o campo"
+                          />
+                        </InputGroup>
+                      )}
+                    </React.Fragment>
+                  );
+                })}
+              </>
+            )}
+
             {vm.screenModalIsEdit && (
               <>
-                <S.RulesDivider>Registros filhos</S.RulesDivider>
+                <S.RulesDivider>Esta tela é filha de outra?</S.RulesDivider>
                 <S.FullRow>
                   <InfoBanner
                     variant="info"

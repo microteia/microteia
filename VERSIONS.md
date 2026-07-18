@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [0.111.0] — 2026-07-18
+
+- Os registros filhos agora podem ser configurados a partir da tela principal. Ao editar a tela de Veículos, por exemplo, uma seção "Registros filhos desta tela" lista as telas que possuem um campo apontando para Veículos — basta marcar quais devem aparecer como aba dentro de cada veículo. A configuração pelo lado da tela filha continua disponível, e é o caminho para vincular a uma tela do sistema, como Processos.
+
 ## [0.110.1] — 2026-07-18
 
 - Corrigido um erro ao salvar telas na configuração (criar tela, editar, ativar/desativar, reordenar e salvar campo), que passou a falhar após a atualização anterior.
