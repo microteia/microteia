@@ -11,6 +11,11 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [0.101.0] — 2026-07-18
+
+- Nova função `map` nas expressões: a partir de uma lista, ela recolhe um mesmo dado de todos os itens — por exemplo, os nomes de todas as partes de um processo. Basta indicar o caminho do dado desejado, e há a opção de descartar os valores em branco do resultado.
+- As funções `contains` e `indexOf` passam a funcionar tanto com listas quanto com texto, em qualquer lugar do sistema. Antes, cada uma aceitava apenas um dos dois casos conforme onde era usada, o que provocava erros inesperados ou resultados incorretos.
+
 ## [0.100.2] — 2026-07-18
 
 - As mensagens de validação por expressão (e de formato) agora também aparecem abaixo do campo correspondente nas telas personalizadas e nos campos adicionais, não só no aviso do topo.

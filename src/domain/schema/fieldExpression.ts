@@ -43,6 +43,21 @@ const asText = (value: unknown): string => {
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+const UNSAFE_PATH_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
+
+const splitPath = (path: unknown): string[] =>
+  asText(path)
+    .split('.')
+    .map((key) => key.trim())
+    .filter((key) => key !== '');
+
+const resolvePath = (item: unknown, keys: string[]): unknown =>
+  keys.reduce<unknown>((current, key) => {
+    if (current === null || typeof current !== 'object') return undefined;
+    if (UNSAFE_PATH_KEYS.has(key)) return undefined;
+    return (current as Record<string, unknown>)[key];
+  }, item);
+
 // Nomes deliberadamente iguais aos do catálogo de funções do Workflow, para que o ExpressionEditor
 // não acuse "função desconhecida". Apenas funções PURAS (sem WorkflowContext) entram aqui.
 const FIELD_EXPRESSION_FUNCTIONS: Record<string, (...args: unknown[]) => unknown> = {
@@ -60,15 +75,23 @@ const FIELD_EXPRESSION_FUNCTIONS: Record<string, (...args: unknown[]) => unknown
   isCPF: (value) => isValidCpf(asText(value)),
   isCNPJ: (value) => isValidCnpj(asText(value)),
   isEmail: (value) => EMAIL_PATTERN.test(asText(value)),
-  contains: (value, search) => asText(value).includes(asText(search)),
+  contains: (value, search) =>
+    Array.isArray(value) ? value.includes(search) : asText(value).includes(asText(search)),
   startsWith: (value, search) => asText(value).startsWith(asText(search)),
   endsWith: (value, search) => asText(value).endsWith(asText(search)),
-  indexOf: (value, search) => asText(value).indexOf(asText(search)),
+  indexOf: (value, search) =>
+    Array.isArray(value) ? value.indexOf(search) : asText(value).indexOf(asText(search)),
   substring: (value, start, end) =>
     asText(value).substring(Number(start) || 0, end === undefined ? undefined : Number(end)),
   replace: (value, search, replacement) =>
     asText(value).split(asText(search)).join(asText(replacement)),
   today: () => new Date().toISOString().slice(0, 10),
+  map: (array, path, compact) => {
+    if (!Array.isArray(array)) return [];
+    const keys = splitPath(path);
+    const result = keys.length === 0 ? [...array] : array.map((item) => resolvePath(item, keys));
+    return compact ? result.filter((item) => !isEmptyRuleValue(item)) : result;
+  },
 };
 
 const buildParser = (): Parser => {

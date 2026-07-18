@@ -70,3 +70,63 @@ describe('evaluateFieldValidation', () => {
     expect(evaluateFieldValidation('funcaoInexistente(1)', { value: '', data: {} })).toBe(null);
   });
 });
+
+describe('map', () => {
+  const ctx = {
+    value: null,
+    data: {
+      partes: [
+        { pessoa: { nome: 'Ana' }, papel: 'autor' },
+        { pessoa: { nome: 'Bruno' }, papel: 'reu' },
+      ],
+      vazios: [{ nome: 'Ana' }, { nome: '' }, { nome: null }, {}],
+      naoArray: 'texto',
+    },
+  };
+
+  it('extrai caminho simples e aninhado', () => {
+    expect(evaluateFieldExpression('map(partes, "papel")', ctx)).toEqual(['autor', 'reu']);
+    expect(evaluateFieldExpression('map(partes, "pessoa.nome")', ctx)).toEqual(['Ana', 'Bruno']);
+  });
+
+  it('caminho ausente vira undefined, sem quebrar', () => {
+    expect(evaluateFieldExpression('map(partes, "pessoa.idade")', ctx)).toEqual([undefined, undefined]);
+    expect(evaluateFieldExpression('map(partes, "a.b.c")', ctx)).toEqual([undefined, undefined]);
+  });
+
+  it('compact descarta vazios (mas preserva 0 e false)', () => {
+    expect(evaluateFieldExpression('map(vazios, "nome")', ctx)).toEqual(['Ana', '', null, undefined]);
+    expect(evaluateFieldExpression('map(vazios, "nome", true)', ctx)).toEqual(['Ana']);
+    const zeros = { value: null, data: { itens: [{ n: 0 }, { n: false }, { n: null }] } };
+    expect(evaluateFieldExpression('map(itens, "n", true)', zeros)).toEqual([0, false]);
+  });
+
+  it('caminho vazio devolve os próprios itens', () => {
+    expect(evaluateFieldExpression('map(partes, "")', ctx)).toEqual(ctx.data.partes);
+  });
+
+  it('não-array devolve lista vazia', () => {
+    expect(evaluateFieldExpression('map(naoArray, "x")', ctx)).toEqual([]);
+    expect(evaluateFieldExpression('map(null, "x")', ctx)).toEqual([]);
+    expect(evaluateFieldValidation('if(length(map(naoArray, "x")) > 0, "erro", null)', ctx)).toBe(null);
+  });
+
+  it('não expõe chaves internas do protótipo', () => {
+    expect(evaluateFieldExpression('map(partes, "constructor.name")', ctx)).toEqual([undefined, undefined]);
+    expect(evaluateFieldExpression('map(partes, "__proto__")', ctx)).toEqual([undefined, undefined]);
+  });
+
+  it('contains e indexOf aceitam array e texto (paridade com o catálogo do Workflow)', () => {
+    expect(evaluateFieldExpression('contains(map(partes, "papel"), "autor")', ctx)).toBe(true);
+    expect(evaluateFieldExpression('contains(map(partes, "papel"), "perito")', ctx)).toBe(false);
+    expect(evaluateFieldExpression('indexOf(map(partes, "papel"), "reu")', ctx)).toBe(1);
+    expect(evaluateFieldExpression('indexOf(map(partes, "papel"), "perito")', ctx)).toBe(-1);
+    expect(evaluateFieldExpression('contains("abcdef", "cde")', ctx)).toBe(true);
+    expect(evaluateFieldExpression('indexOf("abcdef", "cde")', ctx)).toBe(2);
+  });
+
+  it('combina com length e contains nas validações', () => {
+    const expr = 'if(length(map(partes, "pessoa.nome", true)) < 2, "Informe ao menos 2 partes", null)';
+    expect(evaluateFieldValidation(expr, ctx)).toBe(null);
+  });
+});

@@ -182,8 +182,9 @@ Digite: `e`
 - `round(num, decimais)`, `floor(num)`, `ceil(num)`, `abs(num)`
 - `min(...)`, `max(...)`, `sum(array)`, `avg(array)`
 
-### 📊 Array (4)
-- `first(array)`, `last(array)`, `contains(array, valor)`, `indexOf(arrayOuTexto, valor)`
+### 📊 Array (5)
+- `first(array)`, `last(array)`, `contains(arrayOuTexto, valor)`, `indexOf(arrayOuTexto, valor)`
+- `map(array, caminho, compact?)` — extrai uma propriedade de cada item; `compact = true` descarta os vazios
 
 ### 🔀 Condicional/Lógica (8)
 - `if(cond, true, false)`, `and(...)`, `or(...)`, `not(valor)`
