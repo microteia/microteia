@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [0.109.1] — 2026-07-18
+
+- Preparação interna para o recurso de registros filhos (ex.: os Itens de uma Venda): a configuração de telas passou a permitir indicar uma tela pai e o campo que faz o vínculo. A exibição desses registros dentro do registro pai vem na próxima atualização.
+
 ## [0.109.0] — 2026-07-18
 
 - A tela de Contratos passou a usar o mesmo motor de formulário das demais: as mensagens de validação aparecem abaixo de cada campo, as listas (Tipo, Categoria, Status, Objeto, Índice de reajuste, Moeda, Forma de pagamento, Banco e Centro de custo) permitem cadastrar novas opções direto no campo, e as partes envolvidas ganharam busca por digitação com seleção múltipla. A aba de Processos vinculados continua funcionando como antes.

@@ -296,6 +296,40 @@ export const ScreenBuilderView: React.FC = () => {
                 onChange={(next) => vm.updateScreenForm({ hasTags: next })}
               />
             </S.CheckboxRow>
+            {vm.screenModalIsEdit && (
+              <>
+                <S.RulesDivider>Registros filhos</S.RulesDivider>
+                <S.FullRow>
+                  <InfoBanner
+                    variant="info"
+                    message="Ao definir uma tela pai, esta tela sai do menu lateral e da busca: seus registros passam a ser exibidos como uma aba dentro do registro pai. É preciso ter um campo do tipo 'Vínculo com registro' apontando para a tela pai."
+                  />
+                </S.FullRow>
+                <InputGroup>
+                  <Label>Tela pai</Label>
+                  <SearchSelect
+                    options={vm.parentEntityOptions}
+                    value={vm.screenForm.parentEntity}
+                    onChange={(value) => vm.updateScreenForm({ parentEntity: value, parentFieldKey: '' })}
+                    placeholder="Nenhuma — tela independente"
+                  />
+                </InputGroup>
+                {vm.screenForm.parentEntity && (
+                  <InputGroup>
+                    <Label>Campo de vínculo *</Label>
+                    <SearchSelect
+                      options={vm.parentFieldOptions}
+                      value={vm.screenForm.parentFieldKey}
+                      onChange={(value) => vm.updateScreenForm({ parentFieldKey: value })}
+                      placeholder={vm.parentFieldOptions.length > 0
+                        ? 'Escolha o campo'
+                        : 'Crie antes um campo de vínculo para a tela pai'}
+                    />
+                  </InputGroup>
+                )}
+              </>
+            )}
+
             <S.RulesDivider>Ações no card da listagem</S.RulesDivider>
             {LIST_ACTION_OPTIONS.map((option) => (
               <S.CheckboxRow key={option.key}>

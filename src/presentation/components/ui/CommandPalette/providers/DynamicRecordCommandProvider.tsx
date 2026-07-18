@@ -12,7 +12,11 @@ export const DynamicRecordCommandProvider: ICommandPaletteProvider = {
   getItems(query: string, { screenDefinitions, customRecords, openTab, close }: CommandPaletteAppContext): CommandPaletteItem[] {
     if (!query) return [];
 
-    const enabledScreens = screenDefinitions.filter((def) => !def.builtin && def.enabled);
+    // Telas filhas existem só dentro do registro-pai: ficam fora do ⌘K, e como `screenByKey`
+    // limita os registros, os filhos também não aparecem na busca.
+    const enabledScreens = screenDefinitions.filter(
+      (def) => !def.builtin && def.enabled && !def.parentEntity,
+    );
     const screenByKey = new Map(enabledScreens.map((def) => [def.id, def]));
 
     const navigationItems: CommandPaletteItem[] = enabledScreens

@@ -91,6 +91,14 @@ export const ScreenDefinitionStoreProvider: React.FC<{ children: React.ReactNode
     [definitions],
   );
 
+  // Telas filhas existem só dentro do registro-pai: sem menu lateral e sem ⌘K. Elas seguem em
+  // `dynamicScreens` porque o CustomRecordStore precisa assinar seus registros e o ScreenBuilder
+  // precisa listá-las para configuração.
+  const sidebarScreens = useMemo(
+    () => dynamicScreens.filter((def) => !def.parentEntity),
+    [dynamicScreens],
+  );
+
   const getDefinition = useCallback(
     (screenKey: string) => definitions.find((def) => def.id === screenKey),
     [definitions],
@@ -180,6 +188,7 @@ export const ScreenDefinitionStoreProvider: React.FC<{ children: React.ReactNode
     <ScreenDefinitionContext.Provider value={{
       definitions,
       dynamicScreens,
+      sidebarScreens,
       getDefinition,
       getCustomFieldsFor,
       fieldOptionsByField,

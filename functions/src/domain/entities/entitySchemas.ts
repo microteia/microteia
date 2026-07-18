@@ -65,6 +65,14 @@ export interface ScreenDefinition {
   hasDocuments: boolean;
   hasTags: boolean;
   listActions: ScreenListAction[];
+  /**
+   * Quando presente, a tela é FILHA de outra: sai do menu lateral e da busca ⌘K, e seus registros
+   * aparecem como uma aba do registro-pai. Aceita a chave de uma tela fixa ('cases', 'contracts'…)
+   * ou o id de uma tela dinâmica.
+   */
+  parentEntity?: string;
+  /** Campo `reference` desta tela que guarda o id do registro-pai. */
+  parentFieldKey?: string;
   sidebarOrder: number;
   enabled: boolean;
   createdAt: Date;

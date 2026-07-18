@@ -113,7 +113,7 @@ export const useWorkspaceSidebarViewModel = (): WorkspaceSidebarViewModel => {
   const { unreadCount: unreadNewsCount } = useNewsInteraction();
   const { unreadCount: unreadPushCount } = usePushInteraction();
   const { unreadCriticalCount: unreadCriticalAuditCount } = useAuditLogAlert();
-  const { dynamicScreens } = useScreenDefinitions();
+  const { sidebarScreens } = useScreenDefinitions();
 
   const searchShortcut = /Mac|iPhone|iPod|iPad/.test(navigator.platform) ? '⌘K' : 'Ctrl K';
 
@@ -124,7 +124,7 @@ export const useWorkspaceSidebarViewModel = (): WorkspaceSidebarViewModel => {
 
   const navItems = useMemo(() => {
     const base = NAV_ITEMS.filter((item) => !item.requiresTenantAdmin || isAdmin || tenantRole === 'admin');
-    const dynamicItems: NavItem[] = dynamicScreens.map((def) => ({
+    const dynamicItems: NavItem[] = sidebarScreens.map((def) => ({
       key: buildListTabKey(def.id),
       label: def.titlePlural,
       icon: getScreenIcon(def.icon, 18),
@@ -133,7 +133,7 @@ export const useWorkspaceSidebarViewModel = (): WorkspaceSidebarViewModel => {
     const settingsIndex = base.findIndex((item) => item.key === 'tenant-settings');
     if (settingsIndex === -1) return [...base, ...dynamicItems];
     return [...base.slice(0, settingsIndex), ...dynamicItems, ...base.slice(settingsIndex)];
-  }, [isAdmin, tenantRole, dynamicScreens]);
+  }, [isAdmin, tenantRole, sidebarScreens]);
 
   const toggleCollapse = useCallback(() => setCollapsed(c => !c), []);
 

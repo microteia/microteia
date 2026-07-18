@@ -7,6 +7,8 @@ export type ScreenDefinitionSaveInput = Omit<ScreenDefinitionInput, 'createdBy' 
 export interface ScreenDefinitionStoreState {
   definitions: ScreenDefinition[];
   dynamicScreens: ScreenDefinition[];
+  /** `dynamicScreens` sem as telas filhas — para menu lateral e busca ⌘K. */
+  sidebarScreens: ScreenDefinition[];
   getDefinition: (screenKey: string) => ScreenDefinition | undefined;
   getCustomFieldsFor: (entityKey: string) => FieldDefinition[];
   fieldOptionsByField: Record<string, ScreenFieldOption[]>;

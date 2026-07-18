@@ -49,6 +49,8 @@ export interface ScreenFormState {
   hasDocuments: boolean;
   hasTags: boolean;
   listActions: ScreenListAction[];
+  parentEntity: string;
+  parentFieldKey: string;
   enabled: boolean;
   titleFieldKey: string;
 }
@@ -113,6 +115,8 @@ export interface ScreenBuilderViewModel {
   updateScreenForm: (patch: Partial<ScreenFormState>) => void;
   toggleListAction: (action: ScreenListAction) => void;
   titleFieldOptions: SearchSelectOption[];
+  parentEntityOptions: SearchSelectOption[];
+  parentFieldOptions: SearchSelectOption[];
   iconOptions: SearchSelectOption[];
   openCreateScreen: () => void;
   openEditScreen: (screenKey: string) => void;
@@ -196,6 +200,8 @@ const EMPTY_SCREEN_FORM: ScreenFormState = {
   hasDocuments: false,
   hasTags: false,
   listActions: [],
+  parentEntity: '',
+  parentFieldKey: '',
   enabled: true,
   titleFieldKey: '',
 };
@@ -311,6 +317,8 @@ const toSaveInput = (def: ScreenDefinition): ScreenDefinitionSaveInput => ({
   hasDocuments: def.hasDocuments,
   hasTags: def.hasTags,
   listActions: def.listActions,
+  parentEntity: def.parentEntity,
+  parentFieldKey: def.parentFieldKey,
   sidebarOrder: def.sidebarOrder,
   enabled: def.enabled,
 });
@@ -336,6 +344,8 @@ const builtinSaveInput = (key: string): ScreenDefinitionSaveInput => {
     hasDocuments: false,
     hasTags: false,
     listActions: [],
+    parentEntity: undefined,
+    parentFieldKey: undefined,
     sidebarOrder: 0,
     enabled: true,
   };
@@ -508,6 +518,8 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
       hasDocuments: def.hasDocuments,
       hasTags: def.hasTags,
       listActions: def.listActions,
+      parentEntity: def.parentEntity ?? '',
+      parentFieldKey: def.parentFieldKey ?? '',
       enabled: def.enabled,
       titleFieldKey: def.titleFieldKey,
     });
@@ -515,6 +527,27 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
   }, [getDefinitionByKey]);
 
   const closeScreenModal = useCallback(() => setScreenModal(null), []);
+
+  // Candidatas a pai: telas fixas + dinâmicas, exceto a própria e exceto quem já é filha desta
+  // (evita ciclo A→B→A). Só um nível de profundidade por ora.
+  const parentEntityOptions = useMemo<SearchSelectOption[]>(() => {
+    const current = screenModal?.screenKey ?? '';
+    return [
+      ...BUILTIN_SCREENS.map((b) => ({ value: b.key, label: b.label })),
+      ...dynamicDefinitions
+        .filter((def) => def.id !== current && def.parentEntity !== current)
+        .map((def) => ({ value: def.id, label: def.titlePlural })),
+    ];
+  }, [dynamicDefinitions, screenModal]);
+
+  // Vínculo: apenas os campos `reference` desta tela que apontam para a tela pai escolhida.
+  const parentFieldOptions = useMemo<SearchSelectOption[]>(() => {
+    const def = screenModal?.screenKey ? getDefinitionByKey(screenModal.screenKey) : undefined;
+    if (!def || !screenForm.parentEntity) return [];
+    return def.fields
+      .filter((field) => field.type === 'reference' && field.refEntity === screenForm.parentEntity)
+      .map((field) => ({ value: field.key, label: field.label }));
+  }, [screenModal, getDefinitionByKey, screenForm.parentEntity]);
 
   const iconOptions = useMemo<SearchSelectOption[]>(
     () => getScreenIconOptions().map((option) => ({
@@ -539,6 +572,10 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
       notify('Informe o título no singular e no plural.', 'error');
       return;
     }
+    if (screenForm.parentEntity && !screenForm.parentFieldKey) {
+      notify('Escolha o campo que vincula esta tela ao registro pai.', 'error');
+      return;
+    }
     setSavingScreen(true);
     try {
       if (screenModal?.screenKey) {
@@ -554,6 +591,8 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
           hasDocuments: screenForm.hasDocuments,
           hasTags: screenForm.hasTags,
           listActions: screenForm.listActions,
+          parentEntity: screenForm.parentEntity || undefined,
+          parentFieldKey: screenForm.parentEntity ? (screenForm.parentFieldKey || undefined) : undefined,
           enabled: screenForm.enabled,
           titleFieldKey,
         });
@@ -585,6 +624,8 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
           hasDocuments: screenForm.hasDocuments,
           hasTags: screenForm.hasTags,
           listActions: screenForm.listActions,
+          parentEntity: undefined,
+          parentFieldKey: undefined,
           sidebarOrder: maxOrder + 1,
           enabled: true,
         });
@@ -979,6 +1020,8 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
     updateScreenForm,
     toggleListAction,
     titleFieldOptions,
+    parentEntityOptions,
+    parentFieldOptions,
     iconOptions,
     openCreateScreen,
     openEditScreen,
