@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [0.99.4] — 2026-07-18
+
+- As telas de cadastro de Pessoas e das telas personalizadas passaram a compartilhar o mesmo motor interno de detalhe (abrir, editar, clonar, excluir, anotações, documentos e etiquetas), deixando o comportamento mais uniforme e a manutenção mais simples, sem mudança visível no uso.
+
 ## [0.99.3] — 2026-07-17
 
 - As anotações e os documentos das telas de Pessoas e das telas personalizadas passaram a compartilhar exatamente o mesmo mecanismo interno, e a formatação de campos com máscara (como CPF, CNPJ e telefone) ficou totalmente unificada — mais consistência e menos pontos de manutenção.

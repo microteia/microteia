@@ -18,8 +18,8 @@ export const ViewPersonView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
         <CustomFieldsSection
           screenKey="persons-native"
           fields={vm.nativeFields}
-          values={vm.nativeValues}
-          onChange={vm.setNativeFieldValue}
+          values={vm.values}
+          onChange={vm.setFieldValue}
           lookupOptions={vm.personLookupOptions}
           onAddLookupOption={vm.handleAddPersonLookup}
           onDeleteLookupOption={vm.handleDeletePersonLookup}
@@ -34,8 +34,8 @@ export const ViewPersonView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
             <CustomFieldsSection
               screenKey="persons"
               fields={vm.customFields}
-              values={vm.customValues}
-              onChange={vm.setCustomValue}
+              values={vm.values}
+              onChange={vm.setFieldValue}
             />
           </S.FormGroup>
         </>
@@ -64,9 +64,9 @@ export const ViewPersonView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
     <EntityDetailView
       isNew={vm.isNew}
       isAdmin={vm.isAdmin}
-      avatar={(vm.formData.name || 'N').charAt(0).toUpperCase()}
+      avatar={(vm.personName || 'N').charAt(0).toUpperCase()}
       title={vm.isNew ? 'Nova Pessoa' : (vm.person?.name ?? 'Pessoa')}
-      subtitle={vm.formData.type === 'Pessoa Física'
+      subtitle={vm.personType === 'Pessoa Física'
         ? <><RiUserLine size={13} /> Pessoa Física</>
         : <><RiBuildingLine size={13} /> Pessoa Jurídica</>}
       tags={appliedTags}

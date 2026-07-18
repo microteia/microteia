@@ -1,10 +1,8 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useMemo } from 'react';
 import { useScreenDefinitions } from '../../../stores/useScreenDefinitions';
 import { useCustomRecords } from '../../../stores/useCustomRecords';
 import { useTenant } from '../../../stores/useTenant';
 import { useAuth } from '../../../stores/useAuth';
-import { useWorkspace } from '../../../stores/useWorkspace';
-import { useNotification } from '../../../stores/useNotification';
 import { useDI } from '../../../infrastructure/di/useDI';
 import { makeGetCustomRecordByIdUseCase } from '../../../domain/usecases/customrecords/GetCustomRecordByIdUseCase';
 import {
@@ -21,9 +19,7 @@ import {
 } from '../../../domain/services/customFieldValues';
 import { describeRuleIssues } from '../../../domain/schema/fieldRules';
 import { validateRecordRules } from '../../../data/utils/recordRulesGate';
-import { useEntityNotes } from '../../shared/entityScreen/useEntityNotes';
-import { useEntityDocuments } from '../../shared/entityScreen/useEntityDocuments';
-import { useEntityDetailChrome } from '../../shared/entityScreen/useEntityDetailChrome';
+import { useEntityDetail } from '../../shared/entityScreen/useEntityDetail';
 import { useNotesPort } from '../../shared/entityScreen/useNotesPort';
 import { useDocumentsPort } from '../../shared/entityScreen/useDocumentsPort';
 import type {
@@ -72,146 +68,140 @@ export interface ViewDynamicRecordViewModel {
   closeTagManager: () => void;
 }
 
+type Values = Record<string, CustomFieldValue>;
+
 export const useViewDynamicRecordViewModel = (tabKey: string): ViewDynamicRecordViewModel => {
   const { getDefinition, isLoading: isLoadingDefinition, tagsByScreen, createTag, updateTag, deleteTag } = useScreenDefinitions();
   const { recordsByScreen, createRecord, updateRecord, deleteRecord } = useCustomRecords();
   const { currentTenant, tenantRole } = useTenant();
   const { user, effectiveName } = useAuth();
-  const { setTabTitle, closeTab, openTab, activePanelId } = useWorkspace();
-  const { notify } = useNotification();
   const { customRecordRepository, customRecordNoteRepository, customRecordDocumentRepository } = useDI();
 
-  const tabInfo = useMemo(() => parseDynamicTabKey(tabKey), [tabKey]);
-  const screenKey = tabInfo?.screenKey ?? '';
-  const isNew = tabInfo?.kind === 'new';
-  const recordId = tabInfo?.kind === 'view' ? tabInfo.recordId ?? null : null;
-  const cloneSourceId = tabInfo?.cloneSourceId ?? null;
-
+  const screenKey = useMemo(() => parseDynamicTabKey(tabKey)?.screenKey ?? '', [tabKey]);
+  const recordId = useMemo(() => {
+    const t = parseDynamicTabKey(tabKey);
+    return t?.kind === 'view' ? (t.recordId ?? null) : null;
+  }, [tabKey]);
   const definition = useMemo(() => getDefinition(screenKey) ?? null, [getDefinition, screenKey]);
   const isAvailable = !!definition && !definition.builtin;
   const isAdmin = tenantRole === 'admin';
 
+  const sortedFields = useMemo(() => (definition ? sortFieldsByOrder(definition.fields) : []), [definition]);
+  const titleFieldKey = definition?.titleFieldKey ?? '';
+
   const getByIdUC = useMemo(() => makeGetCustomRecordByIdUseCase(customRecordRepository), [customRecordRepository]);
 
-  const [fetchedRecord, setFetchedRecord] = useState<CustomRecord | null>(null);
-  const [fetchAttempted, setFetchAttempted] = useState(false);
+  const parse = useCallback((tk: string) => {
+    const t = parseDynamicTabKey(tk);
+    return {
+      isNew: t?.kind === 'new',
+      recordId: t?.kind === 'view' ? (t.recordId ?? null) : null,
+      cloneSourceId: t?.cloneSourceId ?? null,
+    };
+  }, []);
 
-  const storeRecord = useMemo(() => {
-    const targetId = recordId ?? cloneSourceId;
-    if (!targetId) return null;
-    return (recordsByScreen[screenKey] ?? []).find((r) => r.id === targetId) ?? null;
-  }, [recordsByScreen, screenKey, recordId, cloneSourceId]);
+  const findInStore = useCallback(
+    (id: string) => (recordsByScreen[screenKey] ?? []).find((r) => r.id === id) ?? null,
+    [recordsByScreen, screenKey],
+  );
 
-  const sourceRecord = storeRecord ?? fetchedRecord;
+  const getById = useCallback(
+    (id: string) => (currentTenant ? getByIdUC.execute(currentTenant.id, id) : Promise.resolve(null)),
+    [getByIdUC, currentTenant],
+  );
 
-  useEffect(() => {
-    const targetId = recordId ?? cloneSourceId;
-    if (!targetId || storeRecord || !currentTenant) return;
-    let cancelled = false;
-    getByIdUC.execute(currentTenant.id, targetId)
-      .then((record) => {
-        if (cancelled) return;
-        setFetchedRecord(record);
-        setFetchAttempted(true);
-      })
-      .catch(() => {
-        if (!cancelled) setFetchAttempted(true);
-      });
-    return () => { cancelled = true; };
-  }, [recordId, cloneSourceId, storeRecord, currentTenant, getByIdUC]);
+  const recordToValues = useCallback(
+    (record: CustomRecord | null) => buildInitialFormValues(sortedFields, record?.values ?? null),
+    [sortedFields],
+  );
 
-  const sortedFields = useMemo(
-    () => (definition ? sortFieldsByOrder(definition.fields) : []),
+  const resolveTabTitle = useCallback(
+    (record: CustomRecord | null, isNew: boolean) => {
+      if (!definition) return null;
+      return isNew ? `Novo ${definition.titleSingular}` : (record?.title ?? null);
+    },
     [definition],
   );
 
-  const [formValues, setFormValues] = useState<Record<string, CustomFieldValue>>({});
-  const [isSaving, setIsSaving] = useState(false);
+  const resolveTitleFromValues = useCallback(
+    (values: Values) => resolveRecordTitle(formValuesToStoredValues(sortedFields, values), titleFieldKey),
+    [sortedFields, titleFieldKey],
+  );
 
-  const chrome = useEntityDetailChrome({
-    recordId,
-    deepLinkKey: (id) => buildViewTabKey(screenKey, id),
-    cloneKey: (id) => buildCloneTabKey(screenKey, id),
-    remove: (id) => deleteRecord(id, screenKey),
-    onRemoved: () => closeTab(tabKey, activePanelId ?? 'main'),
-    removedMessage: 'Registro excluído com sucesso.',
-    removeErrorMessage: 'Erro ao excluir o registro.',
-  });
+  const validate = useCallback(
+    (values: Values) => {
+      const missing = validateRequiredFields(sortedFields, values);
+      if (missing) return missing;
+      const issues = validateRecordRules(screenKey, { values: formValuesToStoredValues(sortedFields, values) });
+      return issues.length > 0 ? describeRuleIssues(issues) : null;
+    },
+    [sortedFields, screenKey],
+  );
 
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- sincroniza formulário ao carregar definição/registro
-    setFormValues(buildInitialFormValues(sortedFields, sourceRecord?.values ?? null));
-  }, [sortedFields, sourceRecord]);
+  const create = useCallback(
+    async (values: Values) => {
+      const stored = formValuesToStoredValues(sortedFields, values);
+      const title = resolveRecordTitle(stored, titleFieldKey);
+      const created = await createRecord({ screenKey, title, values: stored, createdBy: user?.id ?? '' });
+      return { id: created.id, title: created.title };
+    },
+    [sortedFields, titleFieldKey, createRecord, screenKey, user],
+  );
 
-  useEffect(() => {
-    if (!definition) return;
-    if (isNew) {
-      setTabTitle(tabKey, `Novo ${definition.titleSingular}`);
-    } else if (sourceRecord) {
-      setTabTitle(tabKey, sourceRecord.title);
-    }
-  }, [definition, isNew, sourceRecord, tabKey, setTabTitle]);
+  const update = useCallback(
+    async (id: string, values: Values) => {
+      const stored = formValuesToStoredValues(sortedFields, values);
+      const title = resolveRecordTitle(stored, titleFieldKey);
+      await updateRecord(id, screenKey, {
+        title,
+        values: stored,
+        updatedBy: user?.id ?? '',
+        updatedByName: effectiveName,
+        updatedByPhotoURL: user?.photoURL ?? '',
+      });
+    },
+    [sortedFields, titleFieldKey, updateRecord, screenKey, user, effectiveName],
+  );
+
+  const deepLinkKey = useCallback((id: string) => buildViewTabKey(screenKey, id), [screenKey]);
+  const cloneKey = useCallback((id: string) => buildCloneTabKey(screenKey, id), [screenKey]);
+  const remove = useCallback((id: string) => deleteRecord(id, screenKey), [deleteRecord, screenKey]);
 
   const noteDocExtra = useMemo(() => ({ screenKey }), [screenKey]);
   const notesPort = useNotesPort(customRecordNoteRepository, noteDocExtra);
   const documentsPort = useDocumentsPort(customRecordDocumentRepository, noteDocExtra);
 
-  const notesController = useEntityNotes({ enabled: !!definition?.hasNotes && !!sourceRecord, recordId, port: notesPort });
-  const docsController = useEntityDocuments({ enabled: !!definition?.hasDocuments && !!sourceRecord, recordId, port: documentsPort });
+  const messages = useMemo(() => ({
+    created: `${definition?.titleSingular ?? 'Registro'} cadastrado com sucesso!`,
+    updated: `${definition?.titleSingular ?? 'Registro'} atualizado com sucesso!`,
+    error: 'Erro ao salvar o registro.',
+  }), [definition]);
 
-  const setFieldValue = useCallback((fieldKey: string, value: CustomFieldValue) => {
-    setFormValues((prev) => ({ ...prev, [fieldKey]: value }));
-  }, []);
-
-  const handleSave = useCallback(async () => {
-    if (!definition || !currentTenant) return;
-    const validationError = validateRequiredFields(sortedFields, formValues);
-    if (validationError) {
-      notify(validationError, 'error');
-      return;
-    }
-    setIsSaving(true);
-    try {
-      const values = formValuesToStoredValues(sortedFields, formValues);
-      const title = resolveRecordTitle(values, definition.titleFieldKey);
-
-      const ruleIssues = validateRecordRules(screenKey, { values });
-      if (ruleIssues.length > 0) {
-        notify(describeRuleIssues(ruleIssues), 'error');
-        return;
-      }
-
-      if (isNew) {
-        const created = await createRecord({
-          screenKey,
-          title,
-          values,
-          createdBy: user?.id ?? '',
-        });
-        notify(`${definition.titleSingular} cadastrado com sucesso!`, 'success');
-        const newTabKey = buildViewTabKey(screenKey, created.id);
-        closeTab(tabKey, activePanelId ?? 'main');
-        openTab(newTabKey);
-        setTabTitle(newTabKey, created.title);
-      } else if (recordId) {
-        await updateRecord(recordId, screenKey, {
-          title,
-          values,
-          updatedBy: user?.id ?? '',
-          updatedByName: effectiveName,
-          updatedByPhotoURL: user?.photoURL ?? '',
-        });
-        notify(`${definition.titleSingular} atualizado com sucesso!`, 'success');
-        setTabTitle(tabKey, title);
-      }
-    } catch {
-      notify('Erro ao salvar o registro.', 'error');
-    } finally {
-      setIsSaving(false);
-    }
-  }, [definition, currentTenant, sortedFields, formValues, isNew, recordId, screenKey, createRecord, updateRecord, user, effectiveName, notify, tabKey, setTabTitle, closeTab, openTab, activePanelId]);
+  const detail = useEntityDetail<CustomRecord>({
+    tabKey,
+    parse,
+    findInStore,
+    getById,
+    recordToValues,
+    resolveTabTitle,
+    resolveTitleFromValues,
+    validate,
+    create,
+    update,
+    messages,
+    deepLinkKey,
+    cloneKey,
+    remove,
+    removedMessage: 'Registro excluído com sucesso.',
+    removeErrorMessage: 'Erro ao excluir o registro.',
+    notesPort,
+    documentsPort,
+    hasNotes: !!definition?.hasNotes,
+    hasDocuments: !!definition?.hasDocuments,
+  });
 
   const screenTags = useMemo(() => tagsByScreen[screenKey] ?? [], [tagsByScreen, screenKey]);
+  const sourceRecord = detail.record;
 
   const tagAdapter: TagStoreAdapter = useMemo(() => ({
     tags: screenTags,
@@ -222,37 +212,35 @@ export const useViewDynamicRecordViewModel = (tabKey: string): ViewDynamicRecord
     deleteTag: (id: string) => deleteTag(screenKey, id),
   }), [screenTags, sourceRecord, updateRecord, screenKey, createTag, updateTag, deleteTag]);
 
-  const recordNotFound = !isNew && !sourceRecord && fetchAttempted;
-
   return {
     definition,
     isAvailable,
     isLoadingDefinition,
-    isNew,
+    isNew: detail.isNew,
     isAdmin,
     screenKey,
     recordId,
-    activeTab: chrome.activeTab,
-    setActiveTab: chrome.setActiveTab,
+    activeTab: detail.activeTab,
+    setActiveTab: detail.setActiveTab,
     sortedFields,
-    formValues,
-    setFieldValue,
-    isSaving,
-    handleSave,
-    handleClone: chrome.handleClone,
-    copyLinkDone: chrome.copyLinkDone,
-    handleCopyDeepLink: chrome.handleCopyDeepLink,
-    recordToDelete: chrome.isDeleteOpen ? sourceRecord : null,
-    requestDelete: chrome.requestDelete,
-    cancelDelete: chrome.cancelDelete,
-    confirmDelete: chrome.confirmDelete,
-    isDeleting: chrome.isDeleting,
-    recordNotFound,
-    notesController,
-    docsController,
+    formValues: detail.values,
+    setFieldValue: detail.setFieldValue,
+    isSaving: detail.isSaving,
+    handleSave: detail.handleSave,
+    handleClone: detail.handleClone,
+    copyLinkDone: detail.copyLinkDone,
+    handleCopyDeepLink: detail.handleCopyDeepLink,
+    recordToDelete: detail.isDeleteOpen ? detail.record : null,
+    requestDelete: detail.requestDelete,
+    cancelDelete: detail.cancelDelete,
+    confirmDelete: detail.confirmDelete,
+    isDeleting: detail.isDeleting,
+    recordNotFound: detail.recordNotFound,
+    notesController: detail.notesController,
+    docsController: detail.docsController,
     tagAdapter,
-    isTagManagerOpen: chrome.isTagManagerOpen,
-    openTagManager: chrome.openTagManager,
-    closeTagManager: chrome.closeTagManager,
+    isTagManagerOpen: detail.isTagManagerOpen,
+    openTagManager: detail.openTagManager,
+    closeTagManager: detail.closeTagManager,
   };
 };

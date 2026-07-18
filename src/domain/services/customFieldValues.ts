@@ -155,3 +155,23 @@ export const resolveRecordTitle = (
   const value = values[titleFieldKey];
   return typeof value === 'string' && value.trim() !== '' ? value.trim() : 'Sem título';
 };
+
+/**
+ * Escrita imutável por caminho pontilhado (espelha o readByPath do CustomFieldsSection).
+ * Chave sem "." grava no topo; "address.street" grava aninhado, criando o ramo se preciso.
+ */
+export const setValueByPath = (
+  values: Record<string, CustomFieldValue>,
+  key: string,
+  value: CustomFieldValue,
+): Record<string, CustomFieldValue> => {
+  if (!key.includes('.')) return { ...values, [key]: value };
+  const [head, ...rest] = key.split('.');
+  const current = (values as Record<string, unknown>)[head];
+  const branch =
+    current !== null && typeof current === 'object' && !Array.isArray(current)
+      ? (current as Record<string, CustomFieldValue>)
+      : ({} as Record<string, CustomFieldValue>);
+  const updated = setValueByPath(branch, rest.join('.'), value);
+  return { ...values, [head]: updated as unknown as CustomFieldValue };
+};
