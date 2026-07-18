@@ -8,11 +8,13 @@ import { EntityListCard } from '../../components/ui/EntityListCard';
 import { EntityListView } from '../../components/layout/EntityListView';
 import { getScreenIcon } from '../../shared/screenIcons';
 import { useCaseTagStore } from '../../../stores/useCaseTagStore';
-import { CASE_LIST_ROWS, formatListValue } from './caseListSchema';
+import { useListRowResolver } from '../../shared/listRows';
+import { CASE_LIST_ROWS } from './caseListSchema';
 
 export const CasesView: React.FC = () => {
   const vm = useCasesViewModel();
   const { tags } = useCaseTagStore();
+  const resolveRow = useListRowResolver();
 
   return (
     <EntityListView
@@ -37,7 +39,6 @@ export const CasesView: React.FC = () => {
         const activeNames = vm.getPartyNames(c.activePoleIds ?? []);
         const passiveNames = vm.getPartyNames(c.passivePoleIds ?? []);
         const hasPoles = activeNames.length > 0 || passiveNames.length > 0;
-        const lawyerName = vm.getLawyerName(c.responsibleLawyerId);
         const customItems = vm.getCustomFieldItems(c);
 
         // Exclusivo do Processo: chip de dias em trâmite, badges de status/fase e os polos.
@@ -67,17 +68,16 @@ export const CasesView: React.FC = () => {
           </>
         );
 
-        // Linhas derivadas do registry (`ui.list`) + o responsável, que é uma relação.
-        const metaRows = [
-          ...(lawyerName ? [{ key: 'responsibleLawyerId', icon: getScreenIcon('scales', 12), value: lawyerName }] : []),
-          ...CASE_LIST_ROWS
-            .map((row) => ({
-              key: row.key,
-              icon: getScreenIcon(row.icon, 12),
-              value: formatListValue((c as unknown as Record<string, unknown>)[row.key], row.type),
-            }))
-            .filter((row) => row.value !== ''),
-        ];
+        // Todas as linhas vêm do registry (`ui.list`) — inclusive o responsável, que é uma relação
+        // e tem o ID resolvido para o nome pelo mesmo caminho dos campos `reference` do formulário.
+        const record = c as unknown as Record<string, unknown>;
+        const metaRows = CASE_LIST_ROWS
+          .map((row) => ({
+            key: row.key,
+            icon: getScreenIcon(row.icon, 12),
+            value: resolveRow(record, row),
+          }))
+          .filter((row) => row.value !== '');
 
         return (
           <EntityListCard

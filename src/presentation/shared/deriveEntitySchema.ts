@@ -106,6 +106,8 @@ export interface DerivedListRow {
   icon: string;
   /** Controle do campo — permite ao card formatar moeda/data corretamente. */
   type: CustomFieldType;
+  /** Presente nas relações: o card resolve o ID para o rótulo via useReferenceOptions. */
+  refEntity?: string;
 }
 
 /**
@@ -133,5 +135,19 @@ export const deriveListRows = (entityKey: EntityKey): DerivedListRow[] => {
   };
 
   walk(entity.fields, '');
-  return rows.sort((a, b) => a.order - b.order).map(({ key, icon, type }) => ({ key, icon, type }));
+
+  for (const fk of entity.fks) {
+    if (!fk.ui?.list) continue;
+    rows.push({
+      key: fk.key,
+      icon: fk.ui.list.icon ?? '',
+      type: 'reference',
+      refEntity: fk.targetCollection,
+      order: fk.ui.list.order ?? 0,
+    });
+  }
+
+  return rows
+    .sort((a, b) => a.order - b.order)
+    .map(({ key, icon, type, refEntity }) => ({ key, icon, type, refEntity }));
 };

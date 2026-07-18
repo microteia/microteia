@@ -120,4 +120,23 @@ describe('deriveListRows — linhas do card derivam de ui.list, ordenadas', () =
     expect(rows.map((r) => r.key)).toEqual(['cpf', 'cnpj', 'email', 'phone', 'occupation', 'address.city']);
     for (const row of rows) expect(row.icon).toBeTruthy();
   });
+
+  it('carrega o controle do campo, para o card formatar moeda/data', () => {
+    const rows = deriveListRows('cases');
+    expect(rows.find((r) => r.key === 'causeValue')?.type).toBe('currency');
+  });
+
+  it('deriva também as relações, marcando a entidade alvo para resolver o rótulo', () => {
+    const rows = deriveListRows('cases');
+    expect(rows.find((r) => r.key === 'responsibleLawyerId')).toMatchObject({
+      type: 'reference',
+      refEntity: 'members',
+    });
+  });
+
+  it('ordena campos e relações juntos pelo ui.list.order', () => {
+    expect(deriveListRows('cases').map((r) => r.key)).toEqual(
+      ['responsibleLawyerId', 'area', 'instance', 'court', 'causeValue'],
+    );
+  });
 });
