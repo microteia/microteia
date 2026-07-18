@@ -55,9 +55,7 @@ export interface ScreenFormState {
   hasDocuments: boolean;
   hasTags: boolean;
   listActions: ScreenListAction[];
-  parentEntity: string;
-  parentFieldKey: string;
-  /** telaFilha -> campo de vínculo. Configurado pelo lado do PAI. */
+  /** telaFilha -> campo de vínculo. A relação é sempre configurada de dentro do PAI. */
   childLinks: Record<string, string>;
   enabled: boolean;
   titleFieldKey: string;
@@ -119,12 +117,12 @@ export interface ScreenBuilderViewModel {
   isTitleField: (screenKey: string, fieldKey: string) => boolean;
   screenModalOpen: boolean;
   screenModalIsEdit: boolean;
+  /** Modal aberto para uma tela do sistema: só configura os registros filhos. */
+  screenModalIsBuiltin: boolean;
   screenForm: ScreenFormState;
   updateScreenForm: (patch: Partial<ScreenFormState>) => void;
   toggleListAction: (action: ScreenListAction) => void;
   titleFieldOptions: SearchSelectOption[];
-  parentEntityOptions: SearchSelectOption[];
-  parentFieldOptions: SearchSelectOption[];
   childCandidates: ChildCandidate[];
   toggleChildScreen: (childKey: string) => void;
   setChildLinkField: (childKey: string, fieldKey: string) => void;
@@ -211,8 +209,6 @@ const EMPTY_SCREEN_FORM: ScreenFormState = {
   hasDocuments: false,
   hasTags: false,
   listActions: [],
-  parentEntity: '',
-  parentFieldKey: '',
   childLinks: {},
   enabled: true,
   titleFieldKey: '',
@@ -521,7 +517,19 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
 
   const openEditScreen = useCallback((screenKey: string) => {
     const def = getDefinitionByKey(screenKey);
-    if (!def) return;
+    const childLinks = Object.fromEntries(
+      dynamicDefinitions
+        .filter((child) => child.parentEntity === screenKey && child.parentFieldKey)
+        .map((child) => [child.id, child.parentFieldKey as string]),
+    );
+    // Tela do sistema: título/ícone/abas são fixos, então o modal serve só aos registros filhos.
+    // (uma tela fixa PODE ter definição gravada, por causa dos campos adicionais — por isso a
+    // checagem é pela lista de builtins, não pela ausência de definição)
+    if (BUILTIN_SCREENS.some((b) => b.key === screenKey) || !def) {
+      setScreenForm({ ...EMPTY_SCREEN_FORM, childLinks });
+      setScreenModal({ screenKey });
+      return;
+    }
     setScreenForm({
       titleSingular: def.titleSingular,
       titlePlural: def.titlePlural,
@@ -530,13 +538,7 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
       hasDocuments: def.hasDocuments,
       hasTags: def.hasTags,
       listActions: def.listActions,
-      parentEntity: def.parentEntity ?? '',
-      parentFieldKey: def.parentFieldKey ?? '',
-      childLinks: Object.fromEntries(
-        dynamicDefinitions
-          .filter((child) => child.parentEntity === def.id && child.parentFieldKey)
-          .map((child) => [child.id, child.parentFieldKey as string]),
-      ),
+      childLinks,
       enabled: def.enabled,
       titleFieldKey: def.titleFieldKey,
     });
@@ -544,27 +546,6 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
   }, [getDefinitionByKey, dynamicDefinitions]);
 
   const closeScreenModal = useCallback(() => setScreenModal(null), []);
-
-  // Candidatas a pai: telas fixas + dinâmicas, exceto a própria e exceto quem já é filha desta
-  // (evita ciclo A→B→A). Só um nível de profundidade por ora.
-  const parentEntityOptions = useMemo<SearchSelectOption[]>(() => {
-    const current = screenModal?.screenKey ?? '';
-    return [
-      ...BUILTIN_SCREENS.map((b) => ({ value: b.key, label: b.label })),
-      ...dynamicDefinitions
-        .filter((def) => def.id !== current && def.parentEntity !== current)
-        .map((def) => ({ value: def.id, label: def.titlePlural })),
-    ];
-  }, [dynamicDefinitions, screenModal]);
-
-  // Vínculo: apenas os campos `reference` desta tela que apontam para a tela pai escolhida.
-  const parentFieldOptions = useMemo<SearchSelectOption[]>(() => {
-    const def = screenModal?.screenKey ? getDefinitionByKey(screenModal.screenKey) : undefined;
-    if (!def || !screenForm.parentEntity) return [];
-    return def.fields
-      .filter((field) => field.type === 'reference' && field.refEntity === screenForm.parentEntity)
-      .map((field) => ({ value: field.key, label: field.label }));
-  }, [screenModal, getDefinitionByKey, screenForm.parentEntity]);
 
   // Telas que já têm um campo apontando para esta — só elas podem virar filhas.
   const childCandidates = useMemo<ChildCandidate[]>(() => {
@@ -617,13 +598,39 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
       .map((f) => ({ value: f.key, label: f.label }));
   }, [screenModal, getDefinitionByKey]);
 
-  const handleSaveScreen = useCallback(async () => {
-    if (!screenForm.titleSingular.trim() || !screenForm.titlePlural.trim()) {
-      notify('Informe o título no singular e no plural.', 'error');
-      return;
+  const screenModalIsBuiltin = !!screenModal?.screenKey
+    && BUILTIN_SCREENS.some((b) => b.key === screenModal.screenKey);
+
+  /** O vínculo é configurado no pai, mas o dado mora na definição da tela FILHA. */
+  const persistChildLinks = useCallback(async (parentKey: string) => {
+    for (const candidate of childCandidates) {
+      const childDef = getDefinitionByKey(candidate.key);
+      if (!childDef) continue;
+      const linkField = screenForm.childLinks[candidate.key];
+      const isChildOfThis = childDef.parentEntity === parentKey;
+      if (linkField) {
+        if (!isChildOfThis || childDef.parentFieldKey !== linkField) {
+          await saveDefinition(childDef.id, {
+            ...toSaveInput(childDef),
+            parentEntity: parentKey,
+            parentFieldKey: linkField,
+          });
+        }
+      } else if (isChildOfThis) {
+        await saveDefinition(childDef.id, {
+          ...toSaveInput(childDef),
+          parentEntity: null,
+          parentFieldKey: null,
+        });
+      }
     }
-    if (screenForm.parentEntity && !screenForm.parentFieldKey) {
-      notify('Escolha o campo que vincula esta tela ao registro pai.', 'error');
+  }, [childCandidates, getDefinitionByKey, saveDefinition, screenForm.childLinks]);
+
+  const handleSaveScreen = useCallback(async () => {
+    const isBuiltinParent = !!screenModal?.screenKey
+      && BUILTIN_SCREENS.some((b) => b.key === screenModal.screenKey);
+    if (!isBuiltinParent && (!screenForm.titleSingular.trim() || !screenForm.titlePlural.trim())) {
+      notify('Informe o título no singular e no plural.', 'error');
       return;
     }
     const childMissingField = Object.entries(screenForm.childLinks).find(([, field]) => !field);
@@ -634,6 +641,13 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
     }
     setSavingScreen(true);
     try {
+      // Tela do sistema: nada a salvar nela própria, só os vínculos dos filhos.
+      if (screenModal?.screenKey && BUILTIN_SCREENS.some((b) => b.key === screenModal.screenKey)) {
+        await persistChildLinks(screenModal.screenKey);
+        notify('Registros filhos atualizados!', 'success');
+        setScreenModal(null);
+        return;
+      }
       if (screenModal?.screenKey) {
         const def = getDefinitionByKey(screenModal.screenKey);
         if (!def) return;
@@ -647,34 +661,11 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
           hasDocuments: screenForm.hasDocuments,
           hasTags: screenForm.hasTags,
           listActions: screenForm.listActions,
-          parentEntity: screenForm.parentEntity || null,
-          parentFieldKey: screenForm.parentEntity ? (screenForm.parentFieldKey || null) : null,
           enabled: screenForm.enabled,
           titleFieldKey,
         });
 
-        // O vínculo é configurado aqui (no pai), mas o dado mora na definição da tela FILHA.
-        for (const candidate of childCandidates) {
-          const childDef = getDefinitionByKey(candidate.key);
-          if (!childDef) continue;
-          const linkField = screenForm.childLinks[candidate.key];
-          const isChildOfThis = childDef.parentEntity === def.id;
-          if (linkField) {
-            if (!isChildOfThis || childDef.parentFieldKey !== linkField) {
-              await saveDefinition(childDef.id, {
-                ...toSaveInput(childDef),
-                parentEntity: def.id,
-                parentFieldKey: linkField,
-              });
-            }
-          } else if (isChildOfThis) {
-            await saveDefinition(childDef.id, {
-              ...toSaveInput(childDef),
-              parentEntity: null,
-              parentFieldKey: null,
-            });
-          }
-        }
+        await persistChildLinks(def.id);
 
         notify('Tela atualizada com sucesso!', 'success');
       } else {
@@ -719,7 +710,7 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
     } finally {
       setSavingScreen(false);
     }
-  }, [screenForm, screenModal, getDefinitionByKey, saveDefinition, definitions, dynamicDefinitions, childCandidates, notify]);
+  }, [screenForm, screenModal, getDefinitionByKey, saveDefinition, definitions, dynamicDefinitions, childCandidates, persistChildLinks, notify]);
 
   const toggleScreenEnabled = useCallback(async (screenKey: string) => {
     const def = getDefinitionByKey(screenKey);
@@ -1097,12 +1088,11 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
     isTitleField,
     screenModalOpen: screenModal !== null,
     screenModalIsEdit: !!screenModal?.screenKey,
+    screenModalIsBuiltin,
     screenForm,
     updateScreenForm,
     toggleListAction,
     titleFieldOptions,
-    parentEntityOptions,
-    parentFieldOptions,
     childCandidates,
     toggleChildScreen,
     setChildLinkField,

@@ -11,6 +11,11 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [0.112.0] — 2026-07-18
+
+- A configuração de registros filhos agora tem um caminho único: você seleciona os filhos de dentro da tela principal, seja ela personalizada ou do sistema. As telas do sistema (Processos, Contratos, Pessoas, Financeiro e Prazos) ganharam um botão de configuração para escolher quais telas aparecem como aba dentro de cada registro.
+- A antiga opção "Esta tela é filha de outra?", que ficava na tela filha e gerava confusão, foi removida.
+
 ## [0.111.0] — 2026-07-18
 
 - Os registros filhos agora podem ser configurados a partir da tela principal. Ao editar a tela de Veículos, por exemplo, uma seção "Registros filhos desta tela" lista as telas que possuem um campo apontando para Veículos — basta marcar quais devem aparecer como aba dentro de cada veículo. A configuração pelo lado da tela filha continua disponível, e é o caminho para vincular a uma tela do sistema, como Processos.

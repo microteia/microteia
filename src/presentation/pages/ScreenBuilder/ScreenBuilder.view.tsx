@@ -132,6 +132,13 @@ const ScreenDetailPane: React.FC<{ vm: ScreenBuilderViewModel; screen: SelectedS
           </S.DangerIconButton>
         </S.CardActions>
       )}
+      {screen.kind === 'builtin' && (
+        <S.CardActions>
+          <S.IconButton title="Configurar registros filhos" onClick={() => vm.openEditScreen(screen.key)}>
+            <RiPencilLine size={16} />
+          </S.IconButton>
+        </S.CardActions>
+      )}
     </S.ScreenCardHeader>
     <FieldRows vm={vm} screenKey={screen.key} fields={screen.fields} />
     <S.CardFooter>
@@ -237,7 +244,10 @@ export const ScreenBuilderView: React.FC = () => {
       </S.Content>
 
       {vm.screenModalOpen && (
-        <Modal title={vm.screenModalIsEdit ? 'Editar Tela' : 'Nova Tela'} onClose={vm.closeScreenModal}>
+        <Modal
+          title={vm.screenModalIsBuiltin ? 'Registros filhos' : (vm.screenModalIsEdit ? 'Editar Tela' : 'Nova Tela')}
+          onClose={vm.closeScreenModal}
+        >
           <S.ModalForm>
             <InputGroup>
               <Label>Título (singular) *</Label>
@@ -296,6 +306,15 @@ export const ScreenBuilderView: React.FC = () => {
                 onChange={(next) => vm.updateScreenForm({ hasTags: next })}
               />
             </S.CheckboxRow>
+            {vm.screenModalIsBuiltin && vm.childCandidates.length === 0 && (
+              <S.FullRow>
+                <InfoBanner
+                  variant="info"
+                  message="Nenhuma tela pode ser filha desta ainda. Crie uma tela customizada com um campo do tipo 'Vínculo com registro' apontando para esta tela — ela passará a aparecer aqui."
+                />
+              </S.FullRow>
+            )}
+
             {vm.screenModalIsEdit && vm.childCandidates.length > 0 && (
               <>
                 <S.RulesDivider>Registros filhos desta tela</S.RulesDivider>
@@ -334,40 +353,8 @@ export const ScreenBuilderView: React.FC = () => {
               </>
             )}
 
-            {vm.screenModalIsEdit && (
+            {!vm.screenModalIsBuiltin && (
               <>
-                <S.RulesDivider>Esta tela é filha de outra?</S.RulesDivider>
-                <S.FullRow>
-                  <InfoBanner
-                    variant="info"
-                    message="Ao definir uma tela pai, esta tela sai do menu lateral e da busca: seus registros passam a ser exibidos como uma aba dentro do registro pai. É preciso ter um campo do tipo 'Vínculo com registro' apontando para a tela pai."
-                  />
-                </S.FullRow>
-                <InputGroup>
-                  <Label>Tela pai</Label>
-                  <SearchSelect
-                    options={vm.parentEntityOptions}
-                    value={vm.screenForm.parentEntity}
-                    onChange={(value) => vm.updateScreenForm({ parentEntity: value, parentFieldKey: '' })}
-                    placeholder="Nenhuma — tela independente"
-                  />
-                </InputGroup>
-                {vm.screenForm.parentEntity && (
-                  <InputGroup>
-                    <Label>Campo de vínculo *</Label>
-                    <SearchSelect
-                      options={vm.parentFieldOptions}
-                      value={vm.screenForm.parentFieldKey}
-                      onChange={(value) => vm.updateScreenForm({ parentFieldKey: value })}
-                      placeholder={vm.parentFieldOptions.length > 0
-                        ? 'Escolha o campo'
-                        : 'Crie antes um campo de vínculo para a tela pai'}
-                    />
-                  </InputGroup>
-                )}
-              </>
-            )}
-
             <S.RulesDivider>Ações no card da listagem</S.RulesDivider>
             {LIST_ACTION_OPTIONS.map((option) => (
               <S.CheckboxRow key={option.key}>
@@ -387,6 +374,8 @@ export const ScreenBuilderView: React.FC = () => {
                   onChange={(next) => vm.updateScreenForm({ enabled: next })}
                 />
               </S.CheckboxRow>
+            )}
+              </>
             )}
             <S.ModalActions>
               <Button variant="secondary" onClick={vm.closeScreenModal}>Cancelar</Button>
