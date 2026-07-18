@@ -9,29 +9,22 @@ import { useWorkspace } from '../../../stores/useWorkspace';
 import { useNotification } from '../../../stores/useNotification';
 import { useDI } from '../../../infrastructure/di/useDI';
 import { resolveColor, getConfigColor } from '../../../shared/styles/colorUtils';
-import { makeGetPersonNotesUseCase } from '../../../domain/usecases/personnotes/GetPersonNotesUseCase';
-import { makeAddPersonNoteUseCase } from '../../../domain/usecases/personnotes/AddPersonNoteUseCase';
-import { makeDeletePersonNoteUseCase } from '../../../domain/usecases/personnotes/DeletePersonNoteUseCase';
-import { makeGetPersonDocumentsUseCase } from '../../../domain/usecases/persondocuments/GetPersonDocumentsUseCase';
-import { makeUploadPersonDocumentUseCase } from '../../../domain/usecases/persondocuments/UploadPersonDocumentUseCase';
-import { makeAddPersonDocumentUseCase } from '../../../domain/usecases/persondocuments/AddPersonDocumentUseCase';
-import { makeDeletePersonDocumentUseCase } from '../../../domain/usecases/persondocuments/DeletePersonDocumentUseCase';
-import type { Person, PersonType, PersonAddress, Gender, CustomFieldValue, DeletionActor, FieldDefinition, PersonLookupKind } from '../../../domain/entities';
+import type { Person, PersonType, PersonAddress, Gender, CustomFieldValue, FieldDefinition, PersonLookupKind } from '../../../domain/entities';
 import type { LookupOptionSet } from '../../components/ui/CustomFieldsSection/CustomFieldsSection.viewmodel';
 import { useEntityNotes } from '../../shared/entityScreen/useEntityNotes';
 import { useEntityDocuments } from '../../shared/entityScreen/useEntityDocuments';
 import { useEntityDetailChrome } from '../../shared/entityScreen/useEntityDetailChrome';
+import { useNotesPort } from '../../shared/entityScreen/useNotesPort';
+import { useDocumentsPort } from '../../shared/entityScreen/useDocumentsPort';
 import type {
   EntityDocumentsController,
   EntityNotesController,
-  DocumentsPort,
-  NotesPort,
 } from '../../shared/entityScreen/types';
 import { PERSON_FORM_FIELDS } from './personSchema';
 import type { TagStoreAdapter } from '../../components/ui/TagManager/TagManager.viewmodel';
 import { useScreenDefinitions } from '../../../stores/useScreenDefinitions';
 import { buildInitialFormValues, formValuesToStoredValues, validateRequiredFields } from '../../../domain/services/customFieldValues';
-import { formatCPF, formatCNPJ, formatPhone, formatCEP, onlyNumbers } from '../../../utils/formatters';
+import { onlyNumbers } from '../../../utils/formatters';
 import { describeRuleIssues } from '../../../domain/schema/fieldRules';
 import { validateRecordRules } from '../../../data/utils/recordRulesGate';
 import { format, parseISO } from 'date-fns';
@@ -65,11 +58,11 @@ export interface PersonFormData {
 const buildFormData = (person: Person | null): PersonFormData => ({
   type: person?.type ?? 'Pessoa Física',
   name: person?.name ?? '',
-  cpf: person?.cpf ? formatCPF(person.cpf) : '',
-  cnpj: person?.cnpj ? formatCNPJ(person.cnpj) : '',
+  cpf: person?.cpf ?? '',
+  cnpj: person?.cnpj ?? '',
   email: person?.email ?? '',
-  phone: person?.phone ? formatPhone(person.phone) : '',
-  secondaryPhone: person?.secondaryPhone ? formatPhone(person.secondaryPhone) : '',
+  phone: person?.phone ?? '',
+  secondaryPhone: person?.secondaryPhone ?? '',
   occupation: person?.occupation ?? '',
   nationality: person?.nationality ?? '',
   maritalStatus: person?.maritalStatus ?? '',
@@ -83,7 +76,7 @@ const buildFormData = (person: Person | null): PersonFormData => ({
   addressNeighborhood: person?.address?.neighborhood ?? '',
   addressCity: person?.address?.city ?? '',
   addressState: person?.address?.state ?? '',
-  addressZipCode: person?.address?.zipCode ? formatCEP(person.address.zipCode) : '',
+  addressZipCode: person?.address?.zipCode ?? '',
 });
 
 const ADDRESS_KEY_MAP: Record<string, keyof PersonFormData> = {
@@ -194,54 +187,8 @@ export const useViewPersonViewModel = (tabKey: string): ViewPersonViewModel => {
     removeErrorMessage: 'Erro ao excluir pessoa.',
   });
 
-  const noteUC = useMemo(() => ({
-    get:    makeGetPersonNotesUseCase(personNoteRepository),
-    add:    makeAddPersonNoteUseCase(personNoteRepository),
-    delete: makeDeletePersonNoteUseCase(personNoteRepository),
-  }), [personNoteRepository]);
-
-  const docUC = useMemo(() => ({
-    get:    makeGetPersonDocumentsUseCase(personDocumentRepository),
-    upload: makeUploadPersonDocumentUseCase(personDocumentRepository),
-    add:    makeAddPersonDocumentUseCase(personDocumentRepository),
-    delete: makeDeletePersonDocumentUseCase(personDocumentRepository),
-  }), [personDocumentRepository]);
-
-  const notesPort = useMemo<NotesPort>(() => ({
-    get: (rid) => (currentTenant ? noteUC.get.execute(currentTenant.id, rid) : Promise.resolve([])),
-    add: (rid, input) => noteUC.add.execute(currentTenant?.id ?? '', rid, {
-      title: input.title,
-      text: input.text,
-      createdBy: user?.id ?? '',
-      createdByName: effectiveName,
-      createdByPhotoUrl: user?.photoURL ?? undefined,
-    }),
-    remove: (rid, noteId) => {
-      const actor: DeletionActor = { uid: user?.id ?? '', name: effectiveName, photoURL: user?.photoURL ?? '' };
-      return noteUC.delete.execute(currentTenant?.id ?? '', rid, noteId, actor);
-    },
-  }), [noteUC, currentTenant, user, effectiveName]);
-
-  const documentsPort = useMemo<DocumentsPort>(() => ({
-    get: (rid) => (currentTenant ? docUC.get.execute(currentTenant.id, rid) : Promise.resolve([])),
-    upload: async (rid, file) => {
-      const raw = await docUC.upload.execute(currentTenant?.id ?? '', rid, file);
-      return JSON.parse(raw) as { url: string; storagePath: string };
-    },
-    add: (rid, input) => docUC.add.execute(currentTenant?.id ?? '', rid, {
-      name: input.name,
-      type: input.type,
-      url: input.url,
-      storagePath: input.storagePath,
-      createdBy: user?.id ?? '',
-      createdByName: effectiveName,
-      createdByPhotoUrl: user?.photoURL ?? undefined,
-    }),
-    remove: (rid, doc) => {
-      const actor: DeletionActor = { uid: user?.id ?? '', name: effectiveName, photoURL: user?.photoURL ?? '' };
-      return docUC.delete.execute(currentTenant?.id ?? '', rid, doc.id, doc.storagePath, actor);
-    },
-  }), [docUC, currentTenant, user, effectiveName]);
+  const notesPort = useNotesPort(personNoteRepository);
+  const documentsPort = useDocumentsPort(personDocumentRepository);
 
   const notesController = useEntityNotes({ enabled: !!person, recordId: person?.id ?? null, port: notesPort });
   const docsController = useEntityDocuments({ enabled: !!person, recordId: person?.id ?? null, port: documentsPort });

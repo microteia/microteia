@@ -7,13 +7,6 @@ import { useWorkspace } from '../../../stores/useWorkspace';
 import { useNotification } from '../../../stores/useNotification';
 import { useDI } from '../../../infrastructure/di/useDI';
 import { makeGetCustomRecordByIdUseCase } from '../../../domain/usecases/customrecords/GetCustomRecordByIdUseCase';
-import { makeGetCustomRecordNotesUseCase } from '../../../domain/usecases/customrecordnotes/GetCustomRecordNotesUseCase';
-import { makeAddCustomRecordNoteUseCase } from '../../../domain/usecases/customrecordnotes/AddCustomRecordNoteUseCase';
-import { makeDeleteCustomRecordNoteUseCase } from '../../../domain/usecases/customrecordnotes/DeleteCustomRecordNoteUseCase';
-import { makeGetCustomRecordDocumentsUseCase } from '../../../domain/usecases/customrecorddocuments/GetCustomRecordDocumentsUseCase';
-import { makeUploadCustomRecordDocumentUseCase } from '../../../domain/usecases/customrecorddocuments/UploadCustomRecordDocumentUseCase';
-import { makeAddCustomRecordDocumentUseCase } from '../../../domain/usecases/customrecorddocuments/AddCustomRecordDocumentUseCase';
-import { makeDeleteCustomRecordDocumentUseCase } from '../../../domain/usecases/customrecorddocuments/DeleteCustomRecordDocumentUseCase';
 import {
   buildCloneTabKey,
   buildViewTabKey,
@@ -31,17 +24,16 @@ import { validateRecordRules } from '../../../data/utils/recordRulesGate';
 import { useEntityNotes } from '../../shared/entityScreen/useEntityNotes';
 import { useEntityDocuments } from '../../shared/entityScreen/useEntityDocuments';
 import { useEntityDetailChrome } from '../../shared/entityScreen/useEntityDetailChrome';
+import { useNotesPort } from '../../shared/entityScreen/useNotesPort';
+import { useDocumentsPort } from '../../shared/entityScreen/useDocumentsPort';
 import type {
   EntityDocumentsController,
   EntityNotesController,
-  DocumentsPort,
-  NotesPort,
 } from '../../shared/entityScreen/types';
 import type { TagStoreAdapter } from '../../components/ui/TagManager';
 import type {
   CustomFieldValue,
   CustomRecord,
-  DeletionActor,
   FieldDefinition,
   ScreenDefinition,
 } from '../../../domain/entities';
@@ -100,19 +92,6 @@ export const useViewDynamicRecordViewModel = (tabKey: string): ViewDynamicRecord
   const isAdmin = tenantRole === 'admin';
 
   const getByIdUC = useMemo(() => makeGetCustomRecordByIdUseCase(customRecordRepository), [customRecordRepository]);
-
-  const noteUC = useMemo(() => ({
-    get: makeGetCustomRecordNotesUseCase(customRecordNoteRepository),
-    add: makeAddCustomRecordNoteUseCase(customRecordNoteRepository),
-    delete: makeDeleteCustomRecordNoteUseCase(customRecordNoteRepository),
-  }), [customRecordNoteRepository]);
-
-  const docUC = useMemo(() => ({
-    get: makeGetCustomRecordDocumentsUseCase(customRecordDocumentRepository),
-    upload: makeUploadCustomRecordDocumentUseCase(customRecordDocumentRepository),
-    add: makeAddCustomRecordDocumentUseCase(customRecordDocumentRepository),
-    delete: makeDeleteCustomRecordDocumentUseCase(customRecordDocumentRepository),
-  }), [customRecordDocumentRepository]);
 
   const [fetchedRecord, setFetchedRecord] = useState<CustomRecord | null>(null);
   const [fetchAttempted, setFetchAttempted] = useState(false);
@@ -173,43 +152,9 @@ export const useViewDynamicRecordViewModel = (tabKey: string): ViewDynamicRecord
     }
   }, [definition, isNew, sourceRecord, tabKey, setTabTitle]);
 
-  const notesPort = useMemo<NotesPort>(() => ({
-    get: (rid) => (currentTenant ? noteUC.get.execute(currentTenant.id, rid) : Promise.resolve([])),
-    add: (rid, input) => noteUC.add.execute(currentTenant?.id ?? '', rid, {
-      screenKey,
-      title: input.title,
-      text: input.text,
-      createdBy: user?.id ?? '',
-      createdByName: effectiveName,
-      createdByPhotoUrl: user?.photoURL ?? undefined,
-    }),
-    remove: (rid, noteId) => {
-      const actor: DeletionActor = { uid: user?.id ?? '', name: effectiveName, photoURL: user?.photoURL ?? '' };
-      return noteUC.delete.execute(currentTenant?.id ?? '', rid, noteId, actor);
-    },
-  }), [noteUC, currentTenant, user, effectiveName, screenKey]);
-
-  const documentsPort = useMemo<DocumentsPort>(() => ({
-    get: (rid) => (currentTenant ? docUC.get.execute(currentTenant.id, rid) : Promise.resolve([])),
-    upload: async (rid, file) => {
-      const raw = await docUC.upload.execute(currentTenant?.id ?? '', rid, file);
-      return JSON.parse(raw) as { url: string; storagePath: string };
-    },
-    add: (rid, input) => docUC.add.execute(currentTenant?.id ?? '', rid, {
-      screenKey,
-      name: input.name,
-      type: input.type,
-      url: input.url,
-      storagePath: input.storagePath,
-      createdBy: user?.id ?? '',
-      createdByName: effectiveName,
-      createdByPhotoUrl: user?.photoURL ?? undefined,
-    }),
-    remove: (rid, doc) => {
-      const actor: DeletionActor = { uid: user?.id ?? '', name: effectiveName, photoURL: user?.photoURL ?? '' };
-      return docUC.delete.execute(currentTenant?.id ?? '', rid, doc.id, doc.storagePath, actor);
-    },
-  }), [docUC, currentTenant, user, effectiveName, screenKey]);
+  const noteDocExtra = useMemo(() => ({ screenKey }), [screenKey]);
+  const notesPort = useNotesPort(customRecordNoteRepository, noteDocExtra);
+  const documentsPort = useDocumentsPort(customRecordDocumentRepository, noteDocExtra);
 
   const notesController = useEntityNotes({ enabled: !!definition?.hasNotes && !!sourceRecord, recordId, port: notesPort });
   const docsController = useEntityDocuments({ enabled: !!definition?.hasDocuments && !!sourceRecord, recordId, port: documentsPort });

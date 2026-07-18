@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [0.99.3] — 2026-07-17
+
+- As anotações e os documentos das telas de Pessoas e das telas personalizadas passaram a compartilhar exatamente o mesmo mecanismo interno, e a formatação de campos com máscara (como CPF, CNPJ e telefone) ficou totalmente unificada — mais consistência e menos pontos de manutenção.
+
 ## [0.99.2] — 2026-07-17
 
 - Aprimoramentos internos no cadastro de Pessoas: a formatação e a verificação de CPF, CNPJ e telefone passaram a seguir integralmente a definição de cada campo, deixando a tela mais leve e consistente com o restante do sistema.
