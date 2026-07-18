@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [0.100.2] — 2026-07-18
+
+- As mensagens de validação por expressão (e de formato) agora também aparecem abaixo do campo correspondente nas telas personalizadas e nos campos adicionais, não só no aviso do topo.
+
 ## [0.100.1] — 2026-07-18
 
 - Ao salvar um cadastro de Pessoa ou de uma tela personalizada, as mensagens de validação agora aparecem também logo abaixo de cada campo com problema (além do aviso no topo), facilitando identificar exatamente o que corrigir. A mensagem some assim que o campo é ajustado.

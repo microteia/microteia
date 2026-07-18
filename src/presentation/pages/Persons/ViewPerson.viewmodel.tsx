@@ -20,7 +20,7 @@ import { useScreenDefinitions } from '../../../stores/useScreenDefinitions';
 import { buildInitialFormValues, collectRequiredErrors, formValuesToStoredValues, validateRequiredFields } from '../../../domain/services/customFieldValues';
 import { onlyNumbers } from '../../../utils/formatters';
 import { describeRuleIssues } from '../../../domain/schema/fieldRules';
-import { validateRecordRules } from '../../../data/utils/recordRulesGate';
+import { validateRecordRules, ruleIssueFieldKey } from '../../../data/utils/recordRulesGate';
 import { format, parseISO } from 'date-fns';
 
 export type ViewPersonTab = 'data' | 'notes' | 'documents';
@@ -182,7 +182,10 @@ export const useViewPersonViewModel = (tabKey: string): ViewPersonViewModel => {
     if (!str(values, 'name').trim()) fieldErrors.name = 'Nome é obrigatório.';
     Object.assign(fieldErrors, collectRequiredErrors(customFields, values));
     const issues = validateRecordRules('persons', valuesToPersonPayload(values, customFields));
-    issues.forEach((issue) => { if (!fieldErrors[issue.path]) fieldErrors[issue.path] = issue.error; });
+    issues.forEach((issue) => {
+      const key = ruleIssueFieldKey(issue.path);
+      if (!fieldErrors[key]) fieldErrors[key] = issue.error;
+    });
     if (Object.keys(fieldErrors).length === 0) return null;
     const message = fieldErrors.name ?? validateRequiredFields(customFields, values) ?? describeRuleIssues(issues);
     return { message, fieldErrors };

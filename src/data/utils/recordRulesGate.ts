@@ -40,6 +40,17 @@ export const validateRecordRules = (table: string, data: object): RuleIssue[] =>
   formatAndValidateRecord(schemaContext, table, data as Record<string, unknown>).issues;
 
 /**
+ * Converte o `path` de um RuleIssue para a chave de campo usada no formulário (CustomFieldsSection):
+ * regras de campos dinâmicos/customizados vêm prefixadas (`values.` / `customValues.`); campos
+ * nativos (inclusive objetos aninhados, ex.: `address.street`) já vêm pela própria chave.
+ */
+export const ruleIssueFieldKey = (path: string): string => {
+  if (path.startsWith('values.')) return path.slice('values.'.length);
+  if (path.startsWith('customValues.')) return path.slice('customValues.'.length);
+  return path;
+};
+
+/**
  * Formata o registro e lança RecordRulesError se alguma regra de campo não passar.
  * Chamado por todo create/update de repositório das entidades com schema.
  */

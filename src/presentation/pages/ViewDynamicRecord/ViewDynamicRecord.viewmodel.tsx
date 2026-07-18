@@ -19,7 +19,7 @@ import {
   validateRequiredFields,
 } from '../../../domain/services/customFieldValues';
 import { describeRuleIssues } from '../../../domain/schema/fieldRules';
-import { validateRecordRules } from '../../../data/utils/recordRulesGate';
+import { validateRecordRules, ruleIssueFieldKey } from '../../../data/utils/recordRulesGate';
 import { useEntityDetail, type EntityValidationResult } from '../../shared/entityScreen/useEntityDetail';
 import { useNotesPort } from '../../shared/entityScreen/useNotesPort';
 import { useDocumentsPort } from '../../shared/entityScreen/useDocumentsPort';
@@ -134,7 +134,10 @@ export const useViewDynamicRecordViewModel = (tabKey: string): ViewDynamicRecord
     (values: Values): EntityValidationResult | null => {
       const fieldErrors = collectRequiredErrors(sortedFields, values);
       const issues = validateRecordRules(screenKey, { values: formValuesToStoredValues(sortedFields, values) });
-      issues.forEach((issue) => { if (!fieldErrors[issue.path]) fieldErrors[issue.path] = issue.error; });
+      issues.forEach((issue) => {
+        const key = ruleIssueFieldKey(issue.path);
+        if (!fieldErrors[key]) fieldErrors[key] = issue.error;
+      });
       if (Object.keys(fieldErrors).length === 0) return null;
       const message = validateRequiredFields(sortedFields, values) ?? describeRuleIssues(issues);
       return { message, fieldErrors };
