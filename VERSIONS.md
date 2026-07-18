@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [0.106.0] — 2026-07-18
+
+- Os cards da listagem de Contratos passaram a seguir a configuração da tela, com o valor total exibido como moeda. Situação, tipo, período de vigência e as partes (Contratante e Contratado) continuam exibidos como antes.
+
 ## [0.105.1] — 2026-07-18
 
 - No card de Processos, o advogado responsável passou a ser exibido a partir da configuração da tela, como as demais linhas. Com isso, todas as informações do card seguem a definição dos campos.
