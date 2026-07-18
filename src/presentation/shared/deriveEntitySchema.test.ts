@@ -73,6 +73,27 @@ describe('deriveFormFields — relações (fks) viram campos reference', () => {
   });
 });
 
+describe('deriveFormFields — financials', () => {
+  const map = byKey(deriveFormFields('financials'));
+
+  it('valor usa controle de moeda e obrigatórios vêm do registry', () => {
+    expect(map.get('amount')).toMatchObject({ type: 'currency', required: true });
+    expect(map.get('category')).toMatchObject({ type: 'select', required: true, lookupCollection: 'financialCategories' });
+    expect(map.get('status')).toMatchObject({ type: 'select', required: true, optionsColored: true });
+    expect(map.get('dueDate')).toMatchObject({ type: 'date', required: true });
+  });
+
+  it('centro de custo aponta para o lookup compartilhado com Contratos', () => {
+    expect(map.get('costCenter')?.lookupCollection).toBe('contractCostCenters');
+  });
+
+  it('as três relações viram campos reference', () => {
+    expect(map.get('caseId')).toMatchObject({ type: 'reference', refEntity: 'cases' });
+    expect(map.get('personId')).toMatchObject({ type: 'reference', refEntity: 'persons' });
+    expect(map.get('contractId')).toMatchObject({ type: 'reference', refEntity: 'contracts' });
+  });
+});
+
 describe('nenhuma entidade expõe o FK de etiquetas no formulário', () => {
   it.each(['persons', 'cases', 'contracts', 'financials'] as const)('%s', (entity) => {
     expect(deriveFormFields(entity).some((f) => f.key === 'tagIds')).toBe(false);

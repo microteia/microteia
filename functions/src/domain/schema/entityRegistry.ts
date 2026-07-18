@@ -109,6 +109,15 @@ const CEP_RULES: FieldRules = {
 const PF_ONLY = 'type != "Pessoa Física"';
 const PJ_ONLY = 'type != "Pessoa Jurídica"';
 
+const FINANCIAL_TYPE_OPTIONS: CustomFieldOption[] = [
+  { key: 'Receita', label: 'Receita' },
+  { key: 'Despesa', label: 'Despesa' },
+];
+
+const PAYMENT_METHOD_OPTIONS: CustomFieldOption[] = [
+  'PIX', 'Transferência', 'Dinheiro', 'Cartão', 'Cheque', 'Outro',
+].map((m) => ({ key: m, label: m }));
+
 // `color` aceita token do tema (resolvido por resolveColor) — nunca hex literal.
 const DEADLINE_PRIORITY_OPTIONS: CustomFieldOption[] = [
   { key: 'Baixa', label: 'Baixa', color: 'success' },
@@ -381,17 +390,29 @@ export const ENTITY_REGISTRY: Record<EntityKey, EntityMetadata> = {
     displayNameFields: ['category'],
     referenceDenormFields: ['type', 'amount', 'dueDate'],
     fields: [
-      { key: 'type', label: 'Tipo', type: 'string' },
-      { key: 'category', label: 'Categoria', type: 'string', lookupCollection: 'financialCategories' },
-      { key: 'costCenter', label: 'Centro de custo', type: 'string' },
-      { key: 'amount', label: 'Valor', type: 'number' },
-      { key: 'dueDate', label: 'Data de vencimento', type: 'date' },
-      { key: 'paymentDate', label: 'Data de pagamento', type: 'date' },
-      { key: 'cancelDate', label: 'Data de cancelamento', type: 'date' },
-      { key: 'status', label: 'Status', type: 'string', lookupCollection: 'financialStatuses' },
-      { key: 'paymentMethod', label: 'Forma de pagamento', type: 'string' },
-      { key: 'invoiceNumber', label: 'Número da nota', type: 'string' },
-      { key: 'notes', label: 'Observações', type: 'string' },
+      { key: 'type', label: 'Tipo', type: 'string', required: true, options: FINANCIAL_TYPE_OPTIONS,
+        ui: { control: 'select', section: 'Lançamento', order: 0, placeholder: 'Selecione o tipo...' } },
+      { key: 'category', label: 'Categoria', type: 'string', lookupCollection: 'financialCategories',
+        required: true, optionsAllowUserAdd: true,
+        ui: { control: 'select', section: 'Lançamento', order: 1, placeholder: 'Selecione a categoria...', list: { icon: 'wallet', order: 0 } } },
+      { key: 'amount', label: 'Valor', type: 'number', required: true,
+        ui: { control: 'currency', section: 'Lançamento', order: 2, list: { icon: 'money', order: 1 } } },
+      { key: 'status', label: 'Status', type: 'string', lookupCollection: 'financialStatuses',
+        required: true, optionsAllowUserAdd: true, optionsColored: true,
+        ui: { control: 'select', section: 'Lançamento', order: 3, placeholder: 'Selecione o status...' } },
+      { key: 'dueDate', label: 'Data de vencimento', type: 'date', required: true,
+        ui: { section: 'Datas', order: 4, list: { icon: 'calendar', order: 2 } } },
+      { key: 'paymentDate', label: 'Data de pagamento', type: 'date', ui: { section: 'Datas', order: 5 } },
+      { key: 'cancelDate', label: 'Data de cancelamento', type: 'date', ui: { section: 'Datas', order: 6 } },
+      { key: 'paymentMethod', label: 'Forma de pagamento', type: 'string', options: PAYMENT_METHOD_OPTIONS,
+        ui: { control: 'select', section: 'Pagamento', order: 7, placeholder: 'Selecione a forma...' } },
+      // O centro de custo é compartilhado com Contratos (useContractLookup) — daí a coleção `contractCostCenters`.
+      { key: 'costCenter', label: 'Centro de custo', type: 'string', lookupCollection: 'contractCostCenters',
+        optionsAllowUserAdd: true,
+        ui: { control: 'select', section: 'Pagamento', order: 8, placeholder: 'Selecione o centro de custo...' } },
+      { key: 'invoiceNumber', label: 'Número da nota', type: 'string', ui: { section: 'Pagamento', order: 9 } },
+      { key: 'notes', label: 'Observações', type: 'string',
+        ui: { control: 'textarea', section: 'Vínculos e Observações', order: 13 } },
     ],
     fks: [
       {
@@ -400,6 +421,7 @@ export const ENTITY_REGISTRY: Record<EntityKey, EntityMetadata> = {
         targetCollection: 'cases',
         denormKey: 'case',
         denormalizedFields: ['caseNumber', 'title'],
+        ui: { section: 'Vínculos e Observações', order: 10, placeholder: 'Selecione o processo...' },
       },
       {
         key: 'personId',
@@ -407,6 +429,7 @@ export const ENTITY_REGISTRY: Record<EntityKey, EntityMetadata> = {
         targetCollection: 'persons',
         denormKey: 'person',
         denormalizedFields: ['name', 'type'],
+        ui: { section: 'Vínculos e Observações', order: 11, placeholder: 'Selecione a pessoa...' },
       },
       {
         key: 'contractId',
@@ -414,6 +437,7 @@ export const ENTITY_REGISTRY: Record<EntityKey, EntityMetadata> = {
         targetCollection: 'contracts',
         denormKey: 'contract',
         denormalizedFields: ['number', 'title'],
+        ui: { section: 'Vínculos e Observações', order: 12, placeholder: 'Selecione o contrato...' },
       },
       { key: 'tagIds', label: 'Etiquetas', targetCollection: 'financialTags', denormKey: 'tag', multi: true,
         ui: { form: false } },

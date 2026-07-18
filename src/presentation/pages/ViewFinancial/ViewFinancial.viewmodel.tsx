@@ -1,405 +1,254 @@
-import { useState, useMemo, useCallback, useEffect } from 'react';
+import { useCallback, useMemo } from 'react';
 import { useTheme } from 'styled-components';
 import { useFinancialStore } from '../../../stores/useFinancialStore';
 import { useFinancialTagStore } from '../../../stores/useFinancialTagStore';
 import { useFinancialLookup } from '../../../stores/useFinancialLookup';
 import { useContractLookup } from '../../../stores/useContractLookup';
-import { useCaseStore } from '../../../stores/useCaseStore';
-import { usePersonStore } from '../../../stores/usePersonStore';
-import { useContractStore } from '../../../stores/useContractStore';
-import { useDocumentTypeLookup } from '../../../stores/useDocumentTypeLookup';
 import { useAuth } from '../../../stores/useAuth';
 import { useTenant } from '../../../stores/useTenant';
-import { useWorkspace } from '../../../stores/useWorkspace';
-import { useNotification } from '../../../stores/useNotification';
-import { useDI } from '../../../infrastructure/di/useDI';
-import { generateDeepLink } from '../../../infrastructure/deeplink/deepLinkUtils';
-import { resolveColor, getConfigColor } from '../../../shared/styles/colorUtils';
-import { toDateInputValue as toDateInput } from '../../../utils/formatters';
-import type { DynamicSelectOption } from '../../components/ui/DynamicSelect';
-import type { SearchSelectOption } from '../../components/ui/SearchSelect';
-import { makeGetFinancialDocumentsUseCase } from '../../../domain/usecases/financialdocuments/GetFinancialDocumentsUseCase';
-import { makeUploadFinancialDocumentUseCase } from '../../../domain/usecases/financialdocuments/UploadFinancialDocumentUseCase';
-import { makeAddFinancialDocumentUseCase } from '../../../domain/usecases/financialdocuments/AddFinancialDocumentUseCase';
-import { makeDeleteFinancialDocumentUseCase } from '../../../domain/usecases/financialdocuments/DeleteFinancialDocumentUseCase';
-import type { Financial, FinancialType, FinancialDocument, PaymentMethod, CustomFieldValue, DeletionActor, FieldDefinition } from '../../../domain/entities';
-import type { TagStoreAdapter } from '../../components/ui/TagManager/TagManager.viewmodel';
 import { useScreenDefinitions } from '../../../stores/useScreenDefinitions';
-import { buildInitialFormValues, formValuesToStoredValues, validateRequiredFields } from '../../../domain/services/customFieldValues';
+import { useDI } from '../../../infrastructure/di/useDI';
+import { resolveColor } from '../../../shared/styles/colorUtils';
+import { toDateInputValue as toDateInput } from '../../../utils/formatters';
+import type { Financial, FinancialType, PaymentMethod, CustomFieldValue, FieldDefinition } from '../../../domain/entities';
+import type { LookupOptionSet } from '../../components/ui/CustomFieldsSection/CustomFieldsSection.viewmodel';
+import type { TagStoreAdapter } from '../../components/ui/TagManager/TagManager.viewmodel';
+import { useEntityDetail, type EntityValidationResult } from '../../shared/entityScreen/useEntityDetail';
+import { useDocumentsPort } from '../../shared/entityScreen/useDocumentsPort';
+import type { NotesPort, EntityNotesController, EntityDocumentsController } from '../../shared/entityScreen/types';
+import type { EntityDetailTab } from '../../components/layout/EntityDetailView';
+import { FINANCIAL_FORM_FIELDS } from './financialSchema';
+import {
+  buildInitialFormValues,
+  collectRequiredErrors,
+  formValuesToStoredValues,
+  validateRequiredFields,
+} from '../../../domain/services/customFieldValues';
 import { describeRuleIssues } from '../../../domain/schema/fieldRules';
-import { validateRecordRules } from '../../../data/utils/recordRulesGate';
+import { validateRecordRules, ruleIssueFieldKey } from '../../../data/utils/recordRulesGate';
 
 export type ViewFinancialTab = 'data' | 'documents';
 
-export interface FinancialFormData {
-  type: FinancialType | '';
-  category: string;
-  amount: number | null;
-  dueDate: string;
-  paymentDate: string;
-  cancelDate: string;
-  status: string;
-  paymentMethod: PaymentMethod | '';
-  caseId: string;
-  personId: string;
-  contractId: string;
-  costCenter: string;
-  invoiceNumber: string;
-  notes: string;
-}
+type Values = Record<string, CustomFieldValue>;
 
-const NEW_FINANCIAL_DEFAULTS: { type: FinancialType; status: string } = {
-  type: 'Receita',
-  status: 'Aberto',
+const CLONE_PREFIX = 'new-financial:clone:';
+const NEW_FINANCIAL_DEFAULTS = { type: 'Receita', status: 'Aberto' };
+
+const parseFinancialTab = (tabKey: string) => {
+  const cloneSourceId = tabKey.startsWith(CLONE_PREFIX) ? tabKey.slice(CLONE_PREFIX.length) : null;
+  const isNew = tabKey === 'new-financial' || cloneSourceId !== null;
+  return { isNew, recordId: isNew ? null : tabKey.replace('view-financial:', ''), cloneSourceId };
 };
 
-const buildFormData = (financial: Financial | null): FinancialFormData => ({
+const financialToValues = (
+  financial: Financial | null,
+  customFields: FieldDefinition[],
+  clone: boolean,
+): Values => ({
   type: financial ? financial.type ?? '' : NEW_FINANCIAL_DEFAULTS.type,
   category: financial?.category ?? '',
   amount: financial?.amount ?? null,
+  status: clone ? NEW_FINANCIAL_DEFAULTS.status : (financial ? financial.status ?? '' : NEW_FINANCIAL_DEFAULTS.status),
   dueDate: toDateInput(financial?.dueDate),
-  paymentDate: toDateInput(financial?.paymentDate),
-  cancelDate: toDateInput(financial?.cancelDate),
-  status: financial ? financial.status ?? '' : NEW_FINANCIAL_DEFAULTS.status,
+  paymentDate: clone ? '' : toDateInput(financial?.paymentDate),
+  cancelDate: clone ? '' : toDateInput(financial?.cancelDate),
   paymentMethod: financial?.paymentMethod ?? '',
+  costCenter: financial?.costCenter ?? '',
+  invoiceNumber: clone ? '' : (financial?.invoiceNumber ?? ''),
   caseId: financial?.caseId ?? '',
   personId: financial?.personId ?? '',
   contractId: financial?.contractId ?? '',
-  costCenter: financial?.costCenter ?? '',
-  invoiceNumber: financial?.invoiceNumber ?? '',
   notes: financial?.notes ?? '',
+  ...buildInitialFormValues(customFields, financial?.customValues ?? null),
 });
 
-const PAYMENT_METHOD_OPTIONS: SearchSelectOption[] = (['PIX', 'Transferência', 'Dinheiro', 'Cartão', 'Cheque', 'Outro'] as PaymentMethod[])
-  .map((m) => ({ value: m, label: m }));
+const str = (values: Values, key: string): string => {
+  const v = (values as Record<string, unknown>)[key];
+  return typeof v === 'string' ? v : '';
+};
+
+const num = (values: Values, key: string): number | null => {
+  const v = (values as Record<string, unknown>)[key];
+  return typeof v === 'number' ? v : null;
+};
+
+const valuesToFinancialPayload = (values: Values, customFields: FieldDefinition[]) => ({
+  type: str(values, 'type') as FinancialType,
+  category: str(values, 'category'),
+  costCenter: str(values, 'costCenter') || null,
+  amount: num(values, 'amount') ?? 0,
+  dueDate: new Date(`${str(values, 'dueDate')}T12:00:00`),
+  paymentDate: str(values, 'paymentDate') ? new Date(`${str(values, 'paymentDate')}T12:00:00`) : null,
+  cancelDate: str(values, 'cancelDate') ? new Date(`${str(values, 'cancelDate')}T12:00:00`) : null,
+  status: str(values, 'status'),
+  paymentMethod: (str(values, 'paymentMethod') as PaymentMethod) || null,
+  caseId: str(values, 'caseId') || null,
+  personId: str(values, 'personId') || null,
+  contractId: str(values, 'contractId') || null,
+  invoiceNumber: str(values, 'invoiceNumber') || null,
+  notes: str(values, 'notes') || null,
+  customValues: formValuesToStoredValues(customFields, values),
+});
+
+const NO_NOTES_PORT: NotesPort = {
+  get: () => Promise.resolve([]),
+  add: () => Promise.reject(new Error('sem anotações')),
+  remove: () => Promise.resolve(),
+};
 
 export interface ViewFinancialViewModel {
   isNew: boolean;
   financial: Financial | null;
-  activeTab: ViewFinancialTab;
-  setActiveTab: (tab: ViewFinancialTab) => void;
-  formData: FinancialFormData;
-  setFormData: (data: Partial<FinancialFormData>) => void;
+  isAdmin: boolean;
+  fields: FieldDefinition[];
   customFields: FieldDefinition[];
-  customValues: Record<string, CustomFieldValue>;
-  setCustomValue: (fieldKey: string, value: CustomFieldValue) => void;
+  values: Values;
+  setFieldValue: (fieldKey: string, value: CustomFieldValue) => void;
+  fieldErrors: Record<string, string>;
+  lookupOptions: Record<string, LookupOptionSet>;
+  handleAddLookupOption: (collection: string, label: string) => Promise<void>;
+  handleDeleteLookupOption: (collection: string, optionKey: string) => Promise<void>;
   isSaving: boolean;
   handleSave: () => Promise<void>;
-
-  documents: FinancialDocument[];
-  docsLoading: boolean;
-  isUploadingDoc: boolean;
-  pendingFile: File | null;
-  pendingType: string;
-  setPendingType: (v: string) => void;
-  documentTypeOptions: DynamicSelectOption[];
-  documentTypeDynamicOptions: DynamicSelectOption[];
-  handleAddDocumentType: (name: string) => Promise<void>;
-  handleDeleteDocumentType: (key: string) => Promise<void>;
-  handleSelectFile: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  handleConfirmUpload: () => Promise<void>;
-  handleCancelPendingUpload: () => void;
-  docToDelete: FinancialDocument | null;
-  requestDeleteDoc: (doc: FinancialDocument) => void;
-  confirmDeleteDoc: () => Promise<void>;
-  cancelDeleteDoc: () => void;
 
   tagAdapter: TagStoreAdapter;
   isTagManagerOpen: boolean;
   openTagManager: () => void;
   closeTagManager: () => void;
 
-  caseOptions: SearchSelectOption[];
-  personOptions: SearchSelectOption[];
-  contractOptions: SearchSelectOption[];
-  paymentMethodOptions: SearchSelectOption[];
+  notesController: EntityNotesController;
+  docsController: EntityDocumentsController;
 
-  categoryOptions: DynamicSelectOption[];
-  categoryDynamicOptions: DynamicSelectOption[];
-  statusOptions: DynamicSelectOption[];
-  statusDynamicOptions: DynamicSelectOption[];
-  costCenterOptions: DynamicSelectOption[];
-
-  handleAddCategory: (name: string) => Promise<void>;
-  handleDeleteCategory: (key: string) => Promise<void>;
-  handleAddStatus: (name: string) => Promise<void>;
-  handleDeleteStatus: (key: string) => Promise<void>;
-  handleAddCostCenter: (name: string) => Promise<void>;
-  handleDeleteCostCenter: (key: string) => Promise<void>;
-
-  isAdmin: boolean;
+  activeTab: EntityDetailTab;
+  setActiveTab: (tab: EntityDetailTab) => void;
   copyLinkDone: boolean;
   handleCopyDeepLink: () => void;
   handleClone: () => void;
-  statusColor: string;
   handleDeleteFinancial: () => void;
   financialToDelete: Financial | null;
   confirmDeleteFinancial: () => Promise<void>;
   cancelDeleteFinancial: () => void;
 }
 
-const CLONE_PREFIX = 'new-financial:clone:';
-
 export const useViewFinancialViewModel = (tabKey: string): ViewFinancialViewModel => {
-  const cloneSourceId = tabKey.startsWith(CLONE_PREFIX) ? tabKey.slice(CLONE_PREFIX.length) : null;
-  const isNew = tabKey === 'new-financial' || cloneSourceId !== null;
-  const financialId = isNew ? '' : tabKey.replace('view-financial:', '');
-
   const { financials, createFinancial, updateFinancial, deleteFinancial } = useFinancialStore();
   const { tags, getTagsForFinancial, setTagsForFinancial, createTag, updateTag, deleteTag } = useFinancialTagStore();
   const { categoryConfigs, statusConfigs, addItem, removeItem } = useFinancialLookup();
   const { costCenterConfigs, addItem: addContractLookupItem, removeItem: removeContractLookupItem } = useContractLookup();
-  const { cases } = useCaseStore();
-  const { persons } = usePersonStore();
-  const { contracts } = useContractStore();
-  const { typeConfigs: documentTypeConfigs, addItem: addDocumentType, removeItem: removeDocumentType } = useDocumentTypeLookup();
   const { user, effectiveName } = useAuth();
-  const { tenantRole, currentTenant } = useTenant();
-  const { setTabTitle, closeTab, openTab, activePanelId } = useWorkspace();
-  const { notify } = useNotification();
-  const theme = useTheme();
+  const { tenantRole } = useTenant();
+  const { getCustomFieldsFor } = useScreenDefinitions();
   const { financialDocumentRepository } = useDI();
-
-  const financial = useMemo(
-    () => (isNew ? null : (financials.find((f) => f.id === financialId) ?? null)),
-    [financials, financialId, isNew],
-  );
-
-  const cloneSource = useMemo(
-    () => (cloneSourceId ? (financials.find((f) => f.id === cloneSourceId) ?? null) : null),
-    [financials, cloneSourceId],
-  );
+  const theme = useTheme();
 
   const isAdmin = tenantRole === 'admin';
-
-  const [activeTab, setActiveTab] = useState<ViewFinancialTab>('data');
-  const [formData, setFormDataState] = useState<FinancialFormData>(() => {
-    const base = buildFormData(cloneSource);
-    return cloneSource ? { ...base, status: 'Aberto', paymentDate: '', cancelDate: '', invoiceNumber: '' } : base;
-  });
-  const [isSaving, setIsSaving] = useState(false);
-  const { getCustomFieldsFor } = useScreenDefinitions();
+  const userId = user?.id ?? '';
   const customFields = useMemo(() => getCustomFieldsFor('financials'), [getCustomFieldsFor]);
-  const [customValues, setCustomValues] = useState<Record<string, CustomFieldValue>>({});
-  const [isTagManagerOpen, setIsTagManagerOpen] = useState(false);
-  const [copyLinkDone, setCopyLinkDone] = useState(false);
-  const [financialToDelete, setFinancialToDelete] = useState<Financial | null>(null);
 
-  const [documents, setDocuments] = useState<FinancialDocument[]>([]);
-  const [docsLoading, setDocsLoading] = useState(false);
-  const [isUploadingDoc, setIsUploadingDoc] = useState(false);
-  const [docToDelete, setDocToDelete] = useState<FinancialDocument | null>(null);
-  const [pendingFile, setPendingFile] = useState<File | null>(null);
-  const [pendingType, setPendingType] = useState('');
-
-  const docUC = useMemo(() => ({
-    get:    makeGetFinancialDocumentsUseCase(financialDocumentRepository),
-    upload: makeUploadFinancialDocumentUseCase(financialDocumentRepository),
-    add:    makeAddFinancialDocumentUseCase(financialDocumentRepository),
-    delete: makeDeleteFinancialDocumentUseCase(financialDocumentRepository),
-  }), [financialDocumentRepository]);
-
-  useEffect(() => {
-    if (!financial || !currentTenant) return;
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- carregamento inicial após navegação para aba
-    setDocsLoading(true);
-    docUC.get.execute(currentTenant.id, financial.id)
-      .then(setDocuments)
-      .finally(() => setDocsLoading(false));
-  }, [financial, currentTenant, docUC]);
-
-  useEffect(() => {
-    if (financial) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- sincroniza formulário ao carregar/atualizar dados do lançamento
-      setFormDataState(buildFormData(financial));
-      setTabTitle(tabKey, financial.category);
-    }
-  }, [financial, tabKey, setTabTitle]);
-
-  const setFormData = useCallback((data: Partial<FinancialFormData>) => {
-    setFormDataState((prev) => ({ ...prev, ...data }));
-  }, []);
-
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- sincroniza campos adicionais ao carregar/atualizar dados
-    setCustomValues(buildInitialFormValues(customFields, (financial ?? cloneSource)?.customValues ?? null));
-  }, [financial, cloneSource, customFields]);
-
-  const setCustomValue = useCallback((fieldKey: string, value: CustomFieldValue) => {
-    setCustomValues((prev) => ({ ...prev, [fieldKey]: value }));
-  }, []);
-
-  const caseOptions = useMemo<SearchSelectOption[]>(
-    () => cases.map((c) => ({ value: c.id, label: `${c.caseNumber} — ${c.title}` })),
-    [cases],
+  const findInStore = useCallback(
+    (id: string) => financials.find((f) => f.id === id) ?? null,
+    [financials],
   );
 
-  const personOptions = useMemo<SearchSelectOption[]>(
-    () => persons.map((p) => ({ value: p.id, label: p.name })).sort((a, b) => a.label.localeCompare(b.label)),
-    [persons],
+  const recordToValues = useCallback(
+    (financial: Financial | null, opts: { clone: boolean }) =>
+      financialToValues(financial, customFields, opts.clone),
+    [customFields],
   );
 
-  const contractOptions = useMemo<SearchSelectOption[]>(
-    () => contracts.map((c) => ({ value: c.id, label: `${c.number} — ${c.title}` })),
-    [contracts],
-  );
+  const resolveTitleFromValues = useCallback((values: Values) => str(values, 'category') || 'Lançamento', []);
 
-  const categoryOptions = useMemo<DynamicSelectOption[]>(
-    () => categoryConfigs.filter((c) => c.isStatic !== false).map((c) => ({ value: c.key, label: c.label })),
-    [categoryConfigs],
-  );
-  const categoryDynamicOptions = useMemo<DynamicSelectOption[]>(
-    () => categoryConfigs.filter((c) => c.isStatic === false).map((c) => ({ value: c.key, label: c.label })),
-    [categoryConfigs],
-  );
+  const allFields = useMemo(() => [...FINANCIAL_FORM_FIELDS, ...customFields], [customFields]);
 
-  const statusOptions = useMemo<DynamicSelectOption[]>(
-    () => statusConfigs.filter((c) => c.isStatic !== false).map((c) => ({ value: c.key, label: c.label, color: resolveColor(c.color, theme) })),
-    [statusConfigs, theme],
-  );
-  const statusDynamicOptions = useMemo<DynamicSelectOption[]>(
-    () => statusConfigs.filter((c) => c.isStatic === false).map((c) => ({ value: c.key, label: c.label, color: resolveColor(c.color, theme) })),
-    [statusConfigs, theme],
-  );
+  const validate = useCallback((values: Values): EntityValidationResult | null => {
+    const fieldErrors = collectRequiredErrors(allFields, values);
+    const amount = num(values, 'amount');
+    if (amount !== null && amount <= 0) fieldErrors.amount = 'Informe um valor maior que zero.';
+    const issues = validateRecordRules('financials', valuesToFinancialPayload(values, customFields));
+    issues.forEach((issue) => {
+      const key = ruleIssueFieldKey(issue.path);
+      if (!fieldErrors[key]) fieldErrors[key] = issue.error;
+    });
+    if (Object.keys(fieldErrors).length === 0) return null;
+    const message =
+      validateRequiredFields(allFields, values) ?? fieldErrors.amount ?? describeRuleIssues(issues);
+    return { message, fieldErrors };
+  }, [allFields, customFields]);
 
-  const costCenterOptions = useMemo<DynamicSelectOption[]>(
-    () => costCenterConfigs.map((c) => ({ value: c.key, label: c.label })),
-    [costCenterConfigs],
-  );
+  const create = useCallback(async (values: Values) => {
+    const created = await createFinancial({
+      ...valuesToFinancialPayload(values, customFields),
+      createdBy: userId,
+      tagIds: [],
+    });
+    return { id: created.id, title: created.category };
+  }, [createFinancial, customFields, userId]);
 
-  const documentTypeOptions = useMemo<DynamicSelectOption[]>(() =>
-    documentTypeConfigs.filter((t) => t.isStatic !== false).map((t) => ({ value: t.key, label: t.label })),
-    [documentTypeConfigs],
-  );
-  const documentTypeDynamicOptions = useMemo<DynamicSelectOption[]>(() =>
-    documentTypeConfigs.filter((t) => t.isStatic === false).map((t) => ({ value: t.key, label: t.label })),
-    [documentTypeConfigs],
-  );
+  const update = useCallback(async (id: string, values: Values) => {
+    await updateFinancial(id, {
+      ...valuesToFinancialPayload(values, customFields),
+      updatedBy: userId,
+      updatedByName: effectiveName,
+      updatedByPhotoURL: user?.photoURL ?? '',
+    });
+  }, [updateFinancial, customFields, userId, effectiveName, user]);
 
-  const handleAddCategory = useCallback(async (name: string) => { await addItem('categories', name); }, [addItem]);
-  const handleDeleteCategory = useCallback(async (key: string) => { await removeItem('categories', key); }, [removeItem]);
-  const handleAddStatus = useCallback(async (name: string) => { await addItem('statuses', name); }, [addItem]);
-  const handleDeleteStatus = useCallback(async (key: string) => { await removeItem('statuses', key); }, [removeItem]);
-  const handleAddCostCenter = useCallback(async (name: string) => { await addContractLookupItem('costCenters', name); }, [addContractLookupItem]);
-  const handleDeleteCostCenter = useCallback(async (key: string) => { await removeContractLookupItem('costCenters', key); }, [removeContractLookupItem]);
+  const documentsPort = useDocumentsPort(financialDocumentRepository);
 
-  const handleAddDocumentType = useCallback(async (name: string) => { await addDocumentType(name); }, [addDocumentType]);
-  const handleDeleteDocumentType = useCallback(async (key: string) => { await removeDocumentType(key); }, [removeDocumentType]);
+  const detail = useEntityDetail<Financial>({
+    tabKey,
+    parse: parseFinancialTab,
+    findInStore,
+    recordToValues,
+    resolveTabTitle: (financial) => financial?.category ?? null,
+    resolveTitleFromValues,
+    validate,
+    create,
+    update,
+    messages: {
+      created: 'Lançamento criado com sucesso!',
+      updated: 'Lançamento atualizado com sucesso!',
+      error: 'Erro ao salvar lançamento.',
+    },
+    deepLinkKey: (id) => `view-financial:${id}`,
+    cloneKey: (id) => `${CLONE_PREFIX}${id}`,
+    remove: (id) => deleteFinancial(id),
+    removedMessage: 'Lançamento excluído.',
+    removeErrorMessage: 'Erro ao excluir lançamento.',
+    notesPort: NO_NOTES_PORT,
+    documentsPort,
+    hasNotes: false,
+    hasDocuments: true,
+  });
 
-  const handleSelectFile = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setPendingFile(file);
-      setPendingType('');
-    }
-    e.target.value = '';
-  }, []);
+  const financial = detail.record;
 
-  const handleCancelPendingUpload = useCallback(() => {
-    setPendingFile(null);
-    setPendingType('');
-  }, []);
+  const lookupOptions = useMemo<Record<string, LookupOptionSet>>(() => ({
+    financialCategories: {
+      staticOptions: categoryConfigs.filter((c) => c.isStatic !== false).map((c) => ({ value: c.key, label: c.label })),
+      dynamicOptions: categoryConfigs.filter((c) => c.isStatic === false).map((c) => ({ value: c.key, label: c.label })),
+    },
+    financialStatuses: {
+      staticOptions: statusConfigs.filter((c) => c.isStatic !== false).map((c) => ({ value: c.key, label: c.label, color: resolveColor(c.color, theme) })),
+      dynamicOptions: statusConfigs.filter((c) => c.isStatic === false).map((c) => ({ value: c.key, label: c.label, color: resolveColor(c.color, theme) })),
+    },
+    contractCostCenters: {
+      staticOptions: [],
+      dynamicOptions: costCenterConfigs.map((c) => ({ value: c.key, label: c.label })),
+    },
+  }), [categoryConfigs, statusConfigs, costCenterConfigs, theme]);
 
-  const handleConfirmUpload = useCallback(async () => {
-    if (!pendingFile || !financial || !currentTenant || !user) return;
-    setIsUploadingDoc(true);
-    try {
-      const raw = await docUC.upload.execute(currentTenant.id, financial.id, pendingFile);
-      const { url, storagePath } = JSON.parse(raw) as { url: string; storagePath: string };
-      const addedDoc = await docUC.add.execute(currentTenant.id, financial.id, {
-        name: pendingFile.name,
-        type: pendingType.trim() || undefined,
-        url,
-        storagePath,
-        createdBy: user.id,
-        createdByName: effectiveName,
-        createdByPhotoUrl: user.photoURL ?? undefined,
-      });
-      setDocuments((prev) => [addedDoc, ...prev]);
-      setPendingFile(null);
-      setPendingType('');
-      notify('Documento enviado com sucesso.', 'success');
-    } catch {
-      notify('Erro ao enviar documento.', 'error');
-    } finally {
-      setIsUploadingDoc(false);
-    }
-  }, [pendingFile, pendingType, financial, currentTenant, user, effectiveName, docUC, notify]);
+  const handleAddLookupOption = useCallback(async (collection: string, label: string): Promise<void> => {
+    if (collection === 'financialCategories') await addItem('categories', label);
+    else if (collection === 'financialStatuses') await addItem('statuses', label);
+    else if (collection === 'contractCostCenters') await addContractLookupItem('costCenters', label);
+  }, [addItem, addContractLookupItem]);
 
-  const requestDeleteDoc = useCallback((doc: FinancialDocument) => setDocToDelete(doc), []);
-  const cancelDeleteDoc = useCallback(() => setDocToDelete(null), []);
-  const confirmDeleteDoc = useCallback(async () => {
-    if (!docToDelete || !financial || !currentTenant) return;
-    try {
-      const actor: DeletionActor = { uid: user?.id ?? '', name: effectiveName, photoURL: user?.photoURL ?? '' };
-      await docUC.delete.execute(currentTenant.id, financial.id, docToDelete.id, docToDelete.storagePath, actor);
-      setDocuments((prev) => prev.filter((d) => d.id !== docToDelete.id));
-      notify('Documento excluído.', 'success');
-    } catch {
-      notify('Erro ao excluir documento.', 'error');
-    } finally {
-      setDocToDelete(null);
-    }
-  }, [docToDelete, financial, currentTenant, docUC, notify, user, effectiveName]);
-
-  const handleSave = useCallback(async () => {
-    if (!formData.amount || formData.amount <= 0) { notify('Informe um valor válido.', 'error'); return; }
-    if (!formData.dueDate) { notify('Informe a data de vencimento.', 'error'); return; }
-    if (!formData.category) { notify('Categoria é obrigatória.', 'error'); return; }
-    if (!formData.type) { notify('Selecione o tipo do lançamento.', 'error'); return; }
-    if (!formData.status) { notify('Status é obrigatório.', 'error'); return; }
-    const customFieldsError = validateRequiredFields(customFields, customValues);
-    if (customFieldsError) { notify(customFieldsError, 'error'); return; }
-
-    setIsSaving(true);
-    try {
-      const payload = {
-        type: formData.type,
-        category: formData.category,
-        costCenter: formData.costCenter || null,
-        amount: formData.amount,
-        dueDate: new Date(`${formData.dueDate}T12:00:00`),
-        paymentDate: formData.paymentDate ? new Date(`${formData.paymentDate}T12:00:00`) : null,
-        cancelDate: formData.cancelDate ? new Date(`${formData.cancelDate}T12:00:00`) : null,
-        status: formData.status,
-        paymentMethod: (formData.paymentMethod as PaymentMethod) || null,
-        caseId: formData.caseId || null,
-        personId: formData.personId || null,
-        contractId: formData.contractId || null,
-        invoiceNumber: formData.invoiceNumber || null,
-        notes: formData.notes || null,
-        customValues: formValuesToStoredValues(customFields, customValues),
-      };
-
-      const ruleIssues = validateRecordRules('financials', payload);
-      if (ruleIssues.length > 0) {
-        notify(describeRuleIssues(ruleIssues), 'error');
-        return;
-      }
-
-      if (isNew) {
-        const created = await createFinancial({ ...payload, createdBy: user?.id ?? '', tagIds: [] });
-        notify('Lançamento criado com sucesso!', 'success');
-        const newTabKey = `view-financial:${created.id}`;
-        closeTab(tabKey, activePanelId ?? 'main');
-        openTab(newTabKey);
-        setTabTitle(newTabKey, created.category);
-      } else if (financial) {
-        await updateFinancial(financial.id, {
-          ...payload,
-          updatedBy: user?.id ?? '',
-          updatedByName: effectiveName,
-          updatedByPhotoURL: user?.photoURL ?? '',
-        });
-        notify('Lançamento atualizado com sucesso!', 'success');
-      }
-    } catch (err) {
-      console.error('[ViewFinancial handleSave]', err);
-      notify('Erro ao salvar lançamento.', 'error');
-    } finally {
-      setIsSaving(false);
-    }
-  }, [formData, customFields, customValues, isNew, financial, createFinancial, updateFinancial, notify, user, effectiveName, tabKey, setTabTitle, closeTab, openTab, activePanelId]);
+  const handleDeleteLookupOption = useCallback(async (collection: string, optionKey: string): Promise<void> => {
+    if (collection === 'financialCategories') await removeItem('categories', optionKey);
+    else if (collection === 'financialStatuses') await removeItem('statuses', optionKey);
+    else if (collection === 'contractCostCenters') await removeContractLookupItem('costCenters', optionKey);
+  }, [removeItem, removeContractLookupItem]);
 
   const tagAdapter: TagStoreAdapter = useMemo(() => ({
     tags,
@@ -410,101 +259,34 @@ export const useViewFinancialViewModel = (tabKey: string): ViewFinancialViewMode
     deleteTag: (id: string) => deleteTag(id),
   }), [tags, financial, getTagsForFinancial, setTagsForFinancial, createTag, updateTag, deleteTag]);
 
-  const openTagManager = useCallback(() => setIsTagManagerOpen(true), []);
-  const closeTagManager = useCallback(() => setIsTagManagerOpen(false), []);
-
-  const handleCopyDeepLink = useCallback(() => {
-    if (!financial) return;
-    void navigator.clipboard.writeText(generateDeepLink(`view-financial:${financial.id}`));
-    setCopyLinkDone(true);
-    setTimeout(() => setCopyLinkDone(false), 2000);
-  }, [financial]);
-
-  const handleClone = useCallback(() => {
-    if (!financial) return;
-    openTab(`${CLONE_PREFIX}${financial.id}`);
-  }, [financial, openTab]);
-
-  const statusColor = useMemo(() => {
-    if (!formData.status) return theme.colors.textSecondary;
-    return getConfigColor(statusConfigs, formData.status, theme);
-  }, [formData.status, statusConfigs, theme]);
-
-  const handleDeleteFinancial = useCallback(() => {
-    if (financial) setFinancialToDelete(financial);
-  }, [financial]);
-
-  const confirmDeleteFinancial = useCallback(async () => {
-    if (!financialToDelete) return;
-    try {
-      await deleteFinancial(financialToDelete.id);
-      notify('Lançamento excluído.', 'success');
-      closeTab(tabKey, activePanelId);
-    } catch {
-      notify('Erro ao excluir lançamento.', 'error');
-    } finally {
-      setFinancialToDelete(null);
-    }
-  }, [financialToDelete, deleteFinancial, notify, closeTab, tabKey, activePanelId]);
-
-  const cancelDeleteFinancial = useCallback(() => setFinancialToDelete(null), []);
-
   return {
-    isNew,
+    isNew: detail.isNew,
     financial,
-    activeTab,
-    setActiveTab,
-    formData,
-    setFormData,
-    customFields,
-    customValues,
-    setCustomValue,
-    isSaving,
-    handleSave,
-    tagAdapter,
-    isTagManagerOpen,
-    openTagManager,
-    closeTagManager,
-    caseOptions,
-    personOptions,
-    contractOptions,
-    paymentMethodOptions: PAYMENT_METHOD_OPTIONS,
-    categoryOptions,
-    categoryDynamicOptions,
-    statusOptions,
-    statusDynamicOptions,
-    costCenterOptions,
-    handleAddCategory,
-    handleDeleteCategory,
-    handleAddStatus,
-    handleDeleteStatus,
-    handleAddCostCenter,
-    handleDeleteCostCenter,
-    documents,
-    docsLoading,
-    isUploadingDoc,
-    pendingFile,
-    pendingType,
-    setPendingType,
-    documentTypeOptions,
-    documentTypeDynamicOptions,
-    handleAddDocumentType,
-    handleDeleteDocumentType,
-    handleSelectFile,
-    handleConfirmUpload,
-    handleCancelPendingUpload,
-    docToDelete,
-    requestDeleteDoc,
-    confirmDeleteDoc,
-    cancelDeleteDoc,
     isAdmin,
-    copyLinkDone,
-    handleCopyDeepLink,
-    handleClone,
-    statusColor,
-    handleDeleteFinancial,
-    financialToDelete,
-    confirmDeleteFinancial,
-    cancelDeleteFinancial,
+    fields: FINANCIAL_FORM_FIELDS,
+    customFields,
+    values: detail.values,
+    setFieldValue: detail.setFieldValue,
+    fieldErrors: detail.fieldErrors,
+    lookupOptions,
+    handleAddLookupOption,
+    handleDeleteLookupOption,
+    isSaving: detail.isSaving,
+    handleSave: detail.handleSave,
+    tagAdapter,
+    isTagManagerOpen: detail.isTagManagerOpen,
+    openTagManager: detail.openTagManager,
+    closeTagManager: detail.closeTagManager,
+    notesController: detail.notesController,
+    docsController: detail.docsController,
+    activeTab: detail.activeTab,
+    setActiveTab: detail.setActiveTab,
+    copyLinkDone: detail.copyLinkDone,
+    handleCopyDeepLink: detail.handleCopyDeepLink,
+    handleClone: detail.handleClone,
+    handleDeleteFinancial: detail.requestDelete,
+    financialToDelete: detail.isDeleteOpen ? financial : null,
+    confirmDeleteFinancial: detail.confirmDelete,
+    cancelDeleteFinancial: detail.cancelDelete,
   };
 };

@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [0.103.0] — 2026-07-18
+
+- A tela de Financeiro passou a usar o mesmo motor de formulário das demais: as mensagens de validação aparecem abaixo de cada campo, Categoria, Status e Centro de custo permitem cadastrar novas opções direto no campo, e Processo, Pessoa e Contrato ganharam busca por digitação. A aba de Documentos agora usa o mesmo painel das outras telas.
+
 ## [0.102.1] — 2026-07-18
 
 - Corrigido um campo "Etiquetas" que passou a aparecer indevidamente no formulário de Pessoas. As etiquetas continuam sendo gerenciadas pelo botão no topo da tela, como antes.
