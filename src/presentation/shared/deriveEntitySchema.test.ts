@@ -94,6 +94,20 @@ describe('deriveFormFields — financials', () => {
   });
 });
 
+describe('deriveFormFields — cases', () => {
+  const map = byKey(deriveFormFields('cases'));
+
+  it('polos ativo/passivo são relações múltiplas para pessoas', () => {
+    expect(map.get('activePoleIds')).toMatchObject({ type: 'reference', refEntity: 'persons', multi: true });
+    expect(map.get('passivePoleIds')).toMatchObject({ type: 'reference', refEntity: 'persons', multi: true });
+  });
+
+  it('tipo de ação é seleção múltipla e valor da causa é moeda', () => {
+    expect(map.get('type')).toMatchObject({ type: 'select', multi: true, lookupCollection: 'caseActionTypes' });
+    expect(map.get('causeValue')?.type).toBe('currency');
+  });
+});
+
 describe('nenhuma entidade expõe o FK de etiquetas no formulário', () => {
   it.each(['persons', 'cases', 'contracts', 'financials'] as const)('%s', (entity) => {
     expect(deriveFormFields(entity).some((f) => f.key === 'tagIds')).toBe(false);

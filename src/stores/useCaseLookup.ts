@@ -1,7 +1,9 @@
 import { createContext, useContext } from 'react';
 import type { CaseAreaConfig, CasePhaseConfig, CaseStatusConfig, CaseInstanceConfig, CaseActionTypeConfig, CaseCourtConfig, CaseDistrictConfig, CaseJudgeConfig } from '../domain/entities';
 
-type LookupKind = 'areas' | 'phases' | 'statuses' | 'instances' | 'actionTypes' | 'courts' | 'districts' | 'judges';
+export type CaseLookupKind = 'areas' | 'phases' | 'statuses' | 'instances' | 'actionTypes' | 'courts' | 'districts' | 'judges';
+
+type LookupKind = CaseLookupKind;
 
 export interface CaseLookupStoreState {
   areaConfigs: CaseAreaConfig[];

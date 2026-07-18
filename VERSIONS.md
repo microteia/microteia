@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [0.104.0] — 2026-07-18
+
+- A tela de Processos passou a usar o mesmo motor de formulário das demais: as mensagens de validação aparecem abaixo de cada campo, os polos ativo e passivo ganharam busca por digitação com seleção múltipla, o valor da causa virou campo de moeda, e as listas (Área, Fase, Status, Instância, Vara, Comarca, Juiz e Tipo de ação) permitem cadastrar novas opções direto no campo.
+
 ## [0.103.0] — 2026-07-18
 
 - A tela de Financeiro passou a usar o mesmo motor de formulário das demais: as mensagens de validação aparecem abaixo de cada campo, Categoria, Status e Centro de custo permitem cadastrar novas opções direto no campo, e Processo, Pessoa e Contrato ganharam busca por digitação. A aba de Documentos agora usa o mesmo painel das outras telas.
