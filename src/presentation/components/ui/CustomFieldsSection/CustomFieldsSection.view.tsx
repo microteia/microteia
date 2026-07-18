@@ -10,6 +10,7 @@ import { DynamicSelect } from '../DynamicSelect';
 import { SearchSelect } from '../SearchSelect';
 import { MultiSearchSelect } from '../MultiSearchSelect';
 import { MarkdownEditor } from '../MarkdownEditor';
+import { Checkbox } from '../Checkbox';
 import type { FieldDefinition } from '../../../../domain/entities';
 
 export const CustomFieldsSection: React.FC<CustomFieldsSectionProps> = (props) => {
@@ -56,15 +57,12 @@ export const CustomFieldsSection: React.FC<CustomFieldsSectionProps> = (props) =
         );
       case 'checkbox':
         return (
-          <S.CheckboxRow>
-            <input
-              type="checkbox"
-              checked={vm.getBoolean(field.key)}
-              onChange={(e) => vm.setValue(field.key, e.target.checked)}
-              disabled={isDisabled}
-            />
-            {field.placeholder ?? 'Sim'}
-          </S.CheckboxRow>
+          <Checkbox
+            label={field.placeholder ?? 'Sim'}
+            checked={vm.getBoolean(field.key)}
+            onChange={(next) => vm.setValue(field.key, next)}
+            disabled={isDisabled}
+          />
         );
       case 'masked':
         return (

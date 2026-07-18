@@ -13,6 +13,7 @@ import { S } from './ScreenBuilder.styles';
 import { useScreenBuilderViewModel } from './ScreenBuilder.viewmodel';
 import type { ScreenBuilderViewModel, SelectedScreenState } from './ScreenBuilder.viewmodel';
 import { Button } from '../../components/ui/Button';
+import { Checkbox } from '../../components/ui/Checkbox';
 import { Input, InputGroup, Label } from '../../components/ui/Input';
 import { SearchSelect } from '../../components/ui/SearchSelect';
 import { Modal } from '../../components/ui/Modal';
@@ -265,7 +266,7 @@ export const ScreenBuilderView: React.FC = () => {
             </InputGroup>
             {vm.screenModalIsEdit && vm.titleFieldOptions.length > 0 && (
               <InputGroup>
-                <Label>Campo usado como título do registro</Label>
+                <Label>Campo Título</Label>
                 <SearchSelect
                   options={vm.titleFieldOptions}
                   value={vm.screenForm.titleFieldKey}
@@ -275,37 +276,33 @@ export const ScreenBuilderView: React.FC = () => {
               </InputGroup>
             )}
             <S.CheckboxRow>
-              <input
-                type="checkbox"
+              <Checkbox
+                label="Habilitar aba de Anotações"
                 checked={vm.screenForm.hasNotes}
-                onChange={(e) => vm.updateScreenForm({ hasNotes: e.target.checked })}
+                onChange={(next) => vm.updateScreenForm({ hasNotes: next })}
               />
-              Habilitar aba de Anotações
             </S.CheckboxRow>
             <S.CheckboxRow>
-              <input
-                type="checkbox"
+              <Checkbox
+                label="Habilitar aba de Documentos"
                 checked={vm.screenForm.hasDocuments}
-                onChange={(e) => vm.updateScreenForm({ hasDocuments: e.target.checked })}
+                onChange={(next) => vm.updateScreenForm({ hasDocuments: next })}
               />
-              Habilitar aba de Documentos
             </S.CheckboxRow>
             <S.CheckboxRow>
-              <input
-                type="checkbox"
+              <Checkbox
+                label="Habilitar Etiquetas"
                 checked={vm.screenForm.hasTags}
-                onChange={(e) => vm.updateScreenForm({ hasTags: e.target.checked })}
+                onChange={(next) => vm.updateScreenForm({ hasTags: next })}
               />
-              Habilitar Etiquetas
             </S.CheckboxRow>
             {vm.screenModalIsEdit && (
               <S.CheckboxRow>
-                <input
-                  type="checkbox"
+                <Checkbox
+                  label="Tela ativa (visível no menu lateral)"
                   checked={vm.screenForm.enabled}
-                  onChange={(e) => vm.updateScreenForm({ enabled: e.target.checked })}
+                  onChange={(next) => vm.updateScreenForm({ enabled: next })}
                 />
-                Tela ativa (visível no menu lateral)
               </S.CheckboxRow>
             )}
             <S.ModalActions>
@@ -469,12 +466,11 @@ export const ScreenBuilderView: React.FC = () => {
             {vm.fieldForm.type === 'select' && (
               <>
                 <S.CheckboxRow>
-                  <input
-                    type="checkbox"
+                  <Checkbox
+                    label="Opções com cor"
                     checked={vm.fieldForm.optionsColored}
-                    onChange={(e) => vm.updateFieldForm({ optionsColored: e.target.checked })}
+                    onChange={(next) => vm.updateFieldForm({ optionsColored: next })}
                   />
-                  Opções com cor
                 </S.CheckboxRow>
                 <InputGroup $fullWidth>
                   <Label>Opções</Label>
@@ -512,23 +508,21 @@ export const ScreenBuilderView: React.FC = () => {
                   )}
                 </InputGroup>
                 <S.CheckboxRow>
-                  <input
-                    type="checkbox"
+                  <Checkbox
+                    label="Permitir que usuários adicionem novas opções"
                     checked={vm.fieldForm.optionsAllowUserAdd}
-                    onChange={(e) => vm.updateFieldForm({ optionsAllowUserAdd: e.target.checked })}
+                    onChange={(next) => vm.updateFieldForm({ optionsAllowUserAdd: next })}
                   />
-                  Permitir que usuários adicionem novas opções
                 </S.CheckboxRow>
               </>
             )}
             {(vm.fieldForm.type === 'select' || vm.fieldForm.type === 'reference') && !vm.fieldModalIsEdit && (
               <S.CheckboxRow>
-                <input
-                  type="checkbox"
+                <Checkbox
+                  label="Permitir múltiplas seleções"
                   checked={vm.fieldForm.multi}
-                  onChange={(e) => vm.updateFieldForm({ multi: e.target.checked })}
+                  onChange={(next) => vm.updateFieldForm({ multi: next })}
                 />
-                Permitir múltiplas seleções
               </S.CheckboxRow>
             )}
             <InputGroup>
@@ -548,21 +542,19 @@ export const ScreenBuilderView: React.FC = () => {
               />
             </InputGroup>
             <S.CheckboxRow>
-              <input
-                type="checkbox"
+              <Checkbox
+                label="Preenchimento obrigatório"
                 checked={vm.fieldModalIsTitleField ? true : vm.fieldForm.required}
                 disabled={vm.fieldModalIsTitleField}
-                onChange={(e) => vm.updateFieldForm({ required: e.target.checked })}
+                onChange={(next) => vm.updateFieldForm({ required: next })}
               />
-              Preenchimento obrigatório
             </S.CheckboxRow>
             <S.CheckboxRow>
-              <input
-                type="checkbox"
+              <Checkbox
+                label="Exibir na listagem"
                 checked={vm.fieldForm.showInList}
-                onChange={(e) => vm.updateFieldForm({ showInList: e.target.checked })}
+                onChange={(next) => vm.updateFieldForm({ showInList: next })}
               />
-              Exibir na listagem
             </S.CheckboxRow>
             {vm.fieldForm.showInList && (
               <InputGroup>
@@ -575,12 +567,11 @@ export const ScreenBuilderView: React.FC = () => {
               </InputGroup>
             )}
             <S.CheckboxRow>
-              <input
-                type="checkbox"
+              <Checkbox
+                label="Disponível como filtro na listagem"
                 checked={vm.fieldForm.filterable}
-                onChange={(e) => vm.updateFieldForm({ filterable: e.target.checked })}
+                onChange={(next) => vm.updateFieldForm({ filterable: next })}
               />
-              Disponível como filtro na listagem
             </S.CheckboxRow>
             <S.ModalActions>
               <Button variant="secondary" onClick={vm.closeFieldModal}>Cancelar</Button>

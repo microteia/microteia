@@ -359,21 +359,8 @@ export const S = {
     margin-top: ${({ theme }) => theme.spacing.sm};
   `,
 
-  CheckboxRow: styled.label`
+  CheckboxRow: styled.div`
     grid-column: 1 / -1;
-    display: flex;
-    align-items: center;
-    gap: ${({ theme }) => theme.spacing.sm};
-    font-size: ${({ theme }) => theme.fontSizes.sm};
-    color: ${({ theme }) => theme.colors.text};
-    cursor: pointer;
-
-    input {
-      accent-color: ${({ theme }) => theme.colors.primary};
-      width: 16px;
-      height: 16px;
-      cursor: pointer;
-    }
   `,
 
   OptionInputRow: styled.div`

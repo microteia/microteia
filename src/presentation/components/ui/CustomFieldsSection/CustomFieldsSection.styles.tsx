@@ -36,21 +36,4 @@ export const S = {
     font-size: ${({ theme }) => theme.fontSizes.sm};
     color: ${({ theme }) => theme.colors.danger};
   `,
-
-  CheckboxRow: styled.label`
-    display: flex;
-    align-items: center;
-    gap: ${({ theme }) => theme.spacing.sm};
-    font-size: ${({ theme }) => theme.fontSizes.sm};
-    color: ${({ theme }) => theme.colors.text};
-    cursor: pointer;
-    padding: 10px 0;
-
-    input {
-      accent-color: ${({ theme }) => theme.colors.primary};
-      width: 16px;
-      height: 16px;
-      cursor: pointer;
-    }
-  `,
 };

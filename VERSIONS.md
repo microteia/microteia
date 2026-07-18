@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [0.99.5] — 2026-07-18
+
+- As caixas de seleção da configuração de telas e de campos personalizados, além dos campos do tipo "sim/não" nos formulários, passaram a usar o visual padrão do sistema, ficando consistentes com o restante da interface e com o tema claro/escuro.
+
 ## [0.99.4] — 2026-07-18
 
 - As telas de cadastro de Pessoas e das telas personalizadas passaram a compartilhar o mesmo motor interno de detalhe (abrir, editar, clonar, excluir, anotações, documentos e etiquetas), deixando o comportamento mais uniforme e a manutenção mais simples, sem mudança visível no uso.
