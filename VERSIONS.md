@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [0.101.3] — 2026-07-18
+
+- O Processador de Dados passa a respeitar exatamente como o texto está escrito no documento ao preencher os campos de uma automação: nomes, endereços e descrições são copiados sem trocar maiúsculas por minúsculas nem "arrumar" a grafia. A única exceção são os campos de escolha entre opções, em que a diferença de maiúsculas e de acentos é ignorada apenas para encontrar a opção certa — o texto "Ba", por exemplo, passa a ser reconhecido como a opção "BA", em vez de deixar o campo vazio.
+
 ## [0.101.2] — 2026-07-18
 
 - A etapa "Gravar Registro" das automações agora avisa, no histórico de execução, sempre que algum campo enviado não pôde ser gravado — informando quais foram e o motivo. Antes esses campos eram simplesmente ignorados, sem nenhum registro.
