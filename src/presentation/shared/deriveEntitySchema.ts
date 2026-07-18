@@ -104,6 +104,8 @@ export const deriveFormFields = (entityKey: EntityKey, opts: DeriveFormOptions =
 export interface DerivedListRow {
   key: string;
   icon: string;
+  /** Controle do campo — permite ao card formatar moeda/data corretamente. */
+  type: CustomFieldType;
 }
 
 /**
@@ -120,11 +122,16 @@ export const deriveListRows = (entityKey: EntityKey): DerivedListRow[] => {
         continue;
       }
       if (spec.ui?.list) {
-        rows.push({ key: `${prefix}${spec.key}`, icon: spec.ui.list.icon ?? '', order: spec.ui.list.order ?? 0 });
+        rows.push({
+          key: `${prefix}${spec.key}`,
+          icon: spec.ui.list.icon ?? '',
+          type: controlFor(spec),
+          order: spec.ui.list.order ?? 0,
+        });
       }
     }
   };
 
   walk(entity.fields, '');
-  return rows.sort((a, b) => a.order - b.order).map(({ key, icon }) => ({ key, icon }));
+  return rows.sort((a, b) => a.order - b.order).map(({ key, icon, type }) => ({ key, icon, type }));
 };

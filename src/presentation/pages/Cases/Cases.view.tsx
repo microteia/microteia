@@ -1,160 +1,103 @@
 import React from 'react';
-import {
-  RiFolderAddLine,
-  RiFolderLine,
-  RiScalesLine,
-  RiMoneyDollarCircleLine,
-} from 'react-icons/ri';
+import { RiFolderLine } from 'react-icons/ri';
 import { S } from './Cases.styles';
 import { useCasesViewModel } from './Cases.viewmodel';
-import { CompositeFilter } from '../../components/ui/CompositeFilter';
-import { Button } from '../../components/ui/Button';
 import { Badge } from '../../components/ui/Badge';
-import { Spinner } from '../../components/ui/Spinner';
 import { CustomFieldMetaRows } from '../../components/ui/CustomFieldMetaRows';
+import { EntityListCard } from '../../components/ui/EntityListCard';
+import { EntityListView } from '../../components/layout/EntityListView';
+import { getScreenIcon } from '../../shared/screenIcons';
 import { useCaseTagStore } from '../../../stores/useCaseTagStore';
+import { CASE_LIST_ROWS, formatListValue } from './caseListSchema';
 
 export const CasesView: React.FC = () => {
   const vm = useCasesViewModel();
   const { tags } = useCaseTagStore();
 
   return (
-    <S.Page>
-      <S.Header>
-        <S.Title>Processos</S.Title>
-        <Button onClick={vm.openNewCase} title="Novo Processo">
-          <RiFolderAddLine size={16} />
-        </Button>
-      </S.Header>
+    <EntityListView
+      title="Processos"
+      titleIcon={<RiFolderLine size={22} />}
+      onNew={vm.openNewCase}
+      newTitle="Novo Processo"
+      filterDefs={vm.filterDefs}
+      filterTokens={vm.filterTokens}
+      onFilterChange={vm.setFilterTokens}
+      filterPlaceholder="Filtrar processos..."
+      savedFiltersScreenKey={vm.savedFiltersScreenKey}
+      isLoading={vm.isLoading}
+      isEmpty={vm.filteredCases.length === 0}
+      emptyIcon={<RiFolderLine />}
+      emptyTitle="Nenhum processo encontrado"
+      emptyActionLabel="Cadastrar primeiro processo"
+    >
+      {vm.filteredCases.map((c) => {
+        const caseTags = tags.filter((t) => c.tagIds?.includes(t.id));
+        const days = vm.getDaysInTramitation(c);
+        const activeNames = vm.getPartyNames(c.activePoleIds ?? []);
+        const passiveNames = vm.getPartyNames(c.passivePoleIds ?? []);
+        const hasPoles = activeNames.length > 0 || passiveNames.length > 0;
+        const lawyerName = vm.getLawyerName(c.responsibleLawyerId);
+        const customItems = vm.getCustomFieldItems(c);
 
-      <S.Toolbar>
-        <CompositeFilter
-          defs={vm.filterDefs}
-          tokens={vm.filterTokens}
-          onChange={vm.setFilterTokens}
-          placeholder="Filtrar processos..."
-          screenKey={vm.savedFiltersScreenKey}
-        />
-      </S.Toolbar>
+        // Exclusivo do Processo: chip de dias em trâmite, badges de status/fase e os polos.
+        const belowHeader = (
+          <>
+            <S.Badges>
+              <Badge color={vm.getStatusColor(c.status)}>{c.status}</Badge>
+              <Badge color={vm.getPhaseColor(c.phase)}>{c.phase}</Badge>
+            </S.Badges>
 
-      <S.Content>
-        {vm.isLoading ? (
-          <div style={{ display: 'flex', justifyContent: 'center', paddingTop: '48px' }}>
-            <Spinner />
-          </div>
-        ) : vm.filteredCases.length === 0 ? (
-          <S.EmptyState>
-            <S.EmptyIcon><RiFolderLine /></S.EmptyIcon>
-            <S.EmptyTitle>Nenhum processo encontrado</S.EmptyTitle>
-            <Button onClick={vm.openNewCase} variant="secondary">
-              <RiFolderAddLine size={14} />
-              Cadastrar primeiro processo
-            </Button>
-          </S.EmptyState>
-        ) : (
-          <S.Grid>
-            {vm.filteredCases.map((c) => {
-              const caseTags = tags.filter((t) => c.tagIds?.includes(t.id));
-              const lawyerName = vm.getLawyerName(c.responsibleLawyerId);
-              return (
-                <S.CaseCard key={c.id} onClick={() => vm.openCase(c)}>
-                  <S.CaseHeader>
-                    <S.CaseAvatar $color={vm.getStatusColor(c.status)}>
-                      <RiFolderLine size={22} />
-                    </S.CaseAvatar>
-                    <S.CaseHeaderInfo>
-                      <S.CaseTitle>{c.title}</S.CaseTitle>
-                      {c.caseNumber && (
-                        <S.CaseNumberRow>
-                          <S.CaseNumber>{c.caseNumber}</S.CaseNumber>
-                          {(() => {
-                            const days = vm.getDaysInTramitation(c);
-                            return days !== null
-                              ? <S.DaysChip>{days} dias</S.DaysChip>
-                              : null;
-                          })()}
-                        </S.CaseNumberRow>
-                      )}
-                    </S.CaseHeaderInfo>
-                  </S.CaseHeader>
+            {hasPoles && (
+              <S.PartesRow>
+                <S.PoleColumn $side="left">
+                  <S.PoleLabel>Polo Ativo</S.PoleLabel>
+                  {activeNames.length > 0
+                    ? activeNames.map((n) => <S.PoleName key={n}>{n}</S.PoleName>)
+                    : <S.PoleEmpty>—</S.PoleEmpty>}
+                </S.PoleColumn>
+                <S.PoleColumn $side="right">
+                  <S.PoleLabel>Polo Passivo</S.PoleLabel>
+                  {passiveNames.length > 0
+                    ? passiveNames.map((n) => <S.PoleName key={n}>{n}</S.PoleName>)
+                    : <S.PoleEmpty>—</S.PoleEmpty>}
+                </S.PoleColumn>
+              </S.PartesRow>
+            )}
+          </>
+        );
 
-                  <S.Badges>
-                    <Badge color={vm.getStatusColor(c.status)}>
-                      {c.status}
-                    </Badge>
-                    <Badge color={vm.getPhaseColor(c.phase)}>
-                      {c.phase}
-                    </Badge>
-                  </S.Badges>
+        // Linhas derivadas do registry (`ui.list`) + o responsável, que é uma relação.
+        const metaRows = [
+          ...(lawyerName ? [{ key: 'responsibleLawyerId', icon: getScreenIcon('scales', 12), value: lawyerName }] : []),
+          ...CASE_LIST_ROWS
+            .map((row) => ({
+              key: row.key,
+              icon: getScreenIcon(row.icon, 12),
+              value: formatListValue((c as unknown as Record<string, unknown>)[row.key], row.type),
+            }))
+            .filter((row) => row.value !== ''),
+        ];
 
-                  {((c.activePoleIds?.length ?? 0) > 0 || (c.passivePoleIds?.length ?? 0) > 0) && (() => {
-                    const activeNames = vm.getPartyNames(c.activePoleIds ?? []);
-                    const passiveNames = vm.getPartyNames(c.passivePoleIds ?? []);
-                    return (
-                      <S.PartesRow>
-                        <S.PoleColumn $side="left">
-                          <S.PoleLabel>Polo Ativo</S.PoleLabel>
-                          {activeNames.length > 0
-                            ? activeNames.map((n) => <S.PoleName key={n}>{n}</S.PoleName>)
-                            : <S.PoleEmpty>—</S.PoleEmpty>}
-                        </S.PoleColumn>
-                        <S.PoleColumn $side="right">
-                          <S.PoleLabel>Polo Passivo</S.PoleLabel>
-                          {passiveNames.length > 0
-                            ? passiveNames.map((n) => <S.PoleName key={n}>{n}</S.PoleName>)
-                            : <S.PoleEmpty>—</S.PoleEmpty>}
-                        </S.PoleColumn>
-                      </S.PartesRow>
-                    );
-                  })()}
-
-                  <S.CaseMeta>
-                    {lawyerName && (
-                      <S.MetaRow>
-                        <RiScalesLine size={12} />
-                        <S.MetaText>{lawyerName}</S.MetaText>
-                      </S.MetaRow>
-                    )}
-                    {c.instance && (
-                      <S.MetaRow>
-                        <RiScalesLine size={12} />
-                        <S.MetaText>{c.instance} - {c.court}</S.MetaText>
-                      </S.MetaRow>
-                    )}
-                    {c.type && c.type.length > 0 && (
-                      <S.MetaRow>
-                        <RiScalesLine size={12} />
-                        <S.MetaText>{c.area} - {Array.isArray(c.type) ? c.type.join(', ') : c.type}</S.MetaText>
-                      </S.MetaRow>
-                    )}
-                    {c.causeValue != null && (
-                      <S.MetaRow>
-                        <RiMoneyDollarCircleLine size={12} />
-                        <S.MetaText>
-                          {c.causeValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-                        </S.MetaText>
-                      </S.MetaRow>
-                    )}
-                  </S.CaseMeta>
-
-                  <CustomFieldMetaRows items={vm.getCustomFieldItems(c)} />
-
-                  {caseTags.length > 0 && (
-                    <S.Tags onClick={(e) => e.stopPropagation()}>
-                      {caseTags.map((t) => (
-                        <S.TagPill key={t.id} $color={t.color}>
-                          <S.TagDot $color={t.color} />
-                          {t.name}
-                        </S.TagPill>
-                      ))}
-                    </S.Tags>
-                  )}
-                </S.CaseCard>
-              );
-            })}
-          </S.Grid>
-        )}
-      </S.Content>
-    </S.Page>
+        return (
+          <EntityListCard
+            key={c.id}
+            onClick={() => vm.openCase(c)}
+            avatar={<RiFolderLine size={22} />}
+            title={c.title}
+            subtitle={c.caseNumber ? (
+              <S.CaseNumberRow>
+                <S.CaseNumber>{c.caseNumber}</S.CaseNumber>
+                {days !== null && <S.DaysChip>{days} dias</S.DaysChip>}
+              </S.CaseNumberRow>
+            ) : undefined}
+            belowHeader={belowHeader}
+            metaRows={metaRows}
+            tags={caseTags}
+            extra={customItems.length > 0 ? <CustomFieldMetaRows items={customItems} /> : undefined}
+          />
+        );
+      })}
+    </EntityListView>
   );
 };

@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [0.105.0] — 2026-07-18
+
+- Os cards da listagem de Processos passaram a seguir a configuração da tela: as linhas exibidas (Área, Instância, Vara, Valor da causa) agora vêm da definição de cada campo, e o valor da causa aparece formatado como moeda. As características próprias do Processo — dias em trâmite, situação e fase, e os polos ativo e passivo — continuam exibidas como antes.
+
 ## [0.104.0] — 2026-07-18
 
 - A tela de Processos passou a usar o mesmo motor de formulário das demais: as mensagens de validação aparecem abaixo de cada campo, os polos ativo e passivo ganharam busca por digitação com seleção múltipla, o valor da causa virou campo de moeda, e as listas (Área, Fase, Status, Instância, Vara, Comarca, Juiz e Tipo de ação) permitem cadastrar novas opções direto no campo.

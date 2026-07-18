@@ -28,6 +28,10 @@ export interface EntityListCardProps {
   actions?: EntityCardAction[];
   metaRows: EntityCardMetaRow[];
   tags?: EntityCardTag[];
+  /** Conteúdo exclusivo da tela, logo abaixo do cabeçalho e antes das meta-linhas
+   *  (ex.: badges de status/fase e os polos do Processo). */
+  belowHeader?: React.ReactNode;
+  /** Conteúdo exclusivo após as meta-linhas (ex.: campos adicionais). */
   extra?: React.ReactNode;
   onClick?: () => void;
 }
@@ -39,6 +43,7 @@ export const EntityListCard: React.FC<EntityListCardProps> = ({
   actions,
   metaRows,
   tags,
+  belowHeader,
   extra,
   onClick,
 }) => (
@@ -66,6 +71,8 @@ export const EntityListCard: React.FC<EntityListCardProps> = ({
         {subtitle && <S.Subtitle>{subtitle}</S.Subtitle>}
       </S.HeaderInfo>
     </S.Header>
+
+    {belowHeader}
 
     {metaRows.length > 0 && (
       <S.Meta>
