@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [0.112.2] — 2026-07-18
+
+- Ao configurar os registros filhos de uma tela do sistema (Processos, Contratos, Pessoas, Financeiro e Prazos), a janela deixou de exibir campos que não se aplicam a essas telas, como título, ícone e as opções de abas — que são fixos e não podiam ser alterados de qualquer forma.
+
 ## [0.112.1] — 2026-07-18
 
 - Removido um texto explicativo desnecessário na configuração de registros filhos das telas do sistema.

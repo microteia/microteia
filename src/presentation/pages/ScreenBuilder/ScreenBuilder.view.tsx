@@ -249,6 +249,10 @@ export const ScreenBuilderView: React.FC = () => {
           onClose={vm.closeScreenModal}
         >
           <S.ModalForm>
+            {/* Título, ícone, abas e ações são fixos nas telas do sistema — lá o modal serve
+                apenas para escolher os registros filhos. */}
+            {!vm.screenModalIsBuiltin && (
+              <>
             <InputGroup>
               <Label>Título (singular) *</Label>
               <Input
@@ -306,6 +310,9 @@ export const ScreenBuilderView: React.FC = () => {
                 onChange={(next) => vm.updateScreenForm({ hasTags: next })}
               />
             </S.CheckboxRow>
+              </>
+            )}
+
             {vm.screenModalIsEdit && vm.childCandidates.length > 0 && (
               <>
                 <S.RulesDivider>Registros filhos desta tela</S.RulesDivider>
