@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [0.108.1] — 2026-07-18
+
+- Corrigida a faixa colorida de prioridade nos cards de Prazos, que havia passado para a lateral e ultrapassava a borda arredondada do card. Voltou a ser a linha fina no topo, como antes.
+
 ## [0.108.0] — 2026-07-18
 
 - Os cards da listagem de Financeiro passaram a seguir a configuração da tela para os campos simples, mantendo os atalhos que abrem a Pessoa, o Processo e o Contrato, a linha de datas e o valor destacado no rodapé. Com isso, todas as listagens do sistema seguem o mesmo padrão visual.

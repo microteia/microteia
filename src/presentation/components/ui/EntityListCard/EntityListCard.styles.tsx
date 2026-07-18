@@ -29,19 +29,20 @@ const Card = styled.div<{ $accent?: string }>`
   cursor: pointer;
   transition: ${({ theme }) => theme.transitions.fast};
 
-  /* Faixa lateral de severidade (ex.: prioridade do Prazo). A cor vem de dado/tema resolvido
-     pela tela, por isso entra como prop e não como token fixo. */
+  /* Faixa de severidade no topo (ex.: prioridade do Prazo), de ponta a ponta. A cor vem de
+     dado/tema resolvido pela tela, por isso entra como prop e não como token fixo.
+     O overflow recorta a faixa na curvatura do card — só é ligado quando há faixa. */
   ${({ $accent }) => $accent && css`
+    overflow: hidden;
+
     &::before {
       content: '';
       position: absolute;
-      left: 0;
       top: 0;
-      bottom: 0;
-      width: 4px;
+      left: 0;
+      right: 0;
+      height: 3px;
       background: ${$accent};
-      border-top-left-radius: inherit;
-      border-bottom-left-radius: inherit;
     }
   `}
 

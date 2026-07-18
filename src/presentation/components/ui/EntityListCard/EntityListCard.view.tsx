@@ -35,7 +35,7 @@ export interface EntityListCardProps {
   extra?: React.ReactNode;
   /** Conteúdo exclusivo no rodapé, após as etiquetas (ex.: o valor do lançamento). */
   footer?: React.ReactNode;
-  /** Faixa lateral colorida — leitura rápida de severidade (ex.: prioridade do Prazo). */
+  /** Faixa colorida no topo do card — leitura rápida de severidade (ex.: prioridade do Prazo). */
   accentColor?: string;
   onClick?: () => void;
 }
