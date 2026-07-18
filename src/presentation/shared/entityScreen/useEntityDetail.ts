@@ -36,9 +36,12 @@ export interface EntityDetailConfig<TRecord extends { id: string }> {
   messages: { created: string; updated: string; error: string };
   deepLinkKey: (id: string) => string;
   cloneKey: (id: string) => string;
-  remove: (id: string) => Promise<void>;
-  removedMessage: string;
-  removeErrorMessage: string;
+  /** Ausente quando a tela não oferece exclusão no detalhe (ex.: Prazos). */
+  remove?: (id: string) => Promise<void>;
+  removedMessage?: string;
+  removeErrorMessage?: string;
+  /** 'reopen' (padrão) reabre a aba em modo edição; 'close' apenas fecha (ex.: Prazos). */
+  afterCreate?: 'reopen' | 'close';
   notesPort: NotesPort;
   documentsPort: DocumentsPort;
   hasNotes: boolean;
@@ -78,6 +81,7 @@ export function useEntityDetail<TRecord extends { id: string }>(
     tabKey, parse, findInStore, getById, recordToValues, resolveTabTitle, resolveTitleFromValues,
     validate, create, update, messages, deepLinkKey, cloneKey, remove, removedMessage,
     removeErrorMessage, notesPort, documentsPort, hasNotes, hasDocuments,
+    afterCreate = 'reopen',
   } = config;
 
   const { setTabTitle, closeTab, openTab, activePanelId } = useWorkspace();
@@ -136,10 +140,10 @@ export function useEntityDetail<TRecord extends { id: string }>(
     recordId: record?.id ?? null,
     deepLinkKey,
     cloneKey,
-    remove,
+    remove: remove ?? (() => Promise.resolve()),
     onRemoved: () => closeTab(tabKey, activePanelId),
-    removedMessage,
-    removeErrorMessage,
+    removedMessage: removedMessage ?? '',
+    removeErrorMessage: removeErrorMessage ?? '',
   });
 
   const notesController = useEntityNotes({ enabled: hasNotes && !!record, recordId: record?.id ?? null, port: notesPort });
@@ -157,10 +161,14 @@ export function useEntityDetail<TRecord extends { id: string }>(
       if (isNew) {
         const created = await create(values);
         notify(messages.created, 'success');
-        const newTabKey = deepLinkKey(created.id);
-        closeTab(tabKey, activePanelId);
-        openTab(newTabKey);
-        setTabTitle(newTabKey, created.title);
+        if (afterCreate === 'close') {
+          closeTab(tabKey, activePanelId);
+        } else {
+          const newTabKey = deepLinkKey(created.id);
+          closeTab(tabKey, activePanelId);
+          openTab(newTabKey);
+          setTabTitle(newTabKey, created.title);
+        }
       } else if (record) {
         await update(record.id, values);
         notify(messages.updated, 'success');
@@ -172,7 +180,7 @@ export function useEntityDetail<TRecord extends { id: string }>(
     } finally {
       setIsSaving(false);
     }
-  }, [validate, values, currentTenant, isNew, record, create, update, messages, deepLinkKey, resolveTitleFromValues, tabKey, activePanelId, closeTab, openTab, setTabTitle, notify]);
+  }, [validate, values, currentTenant, isNew, record, create, update, messages, deepLinkKey, resolveTitleFromValues, tabKey, activePanelId, closeTab, openTab, setTabTitle, notify, afterCreate]);
 
   return {
     isNew,

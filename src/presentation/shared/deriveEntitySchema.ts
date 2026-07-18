@@ -1,4 +1,4 @@
-import type { EntityKey, NativeFieldSpec } from '../../domain/schema/entityRegistry';
+import type { EntityKey, FkSpec, NativeFieldSpec } from '../../domain/schema/entityRegistry';
 import { ENTITY_REGISTRY } from '../../domain/schema/entityRegistry';
 import type { CustomFieldType, FieldDefinition } from '../../domain/entities';
 
@@ -28,8 +28,29 @@ const toFieldDefinition = (spec: NativeFieldSpec, key: string, order: number): F
   refEntity: spec.refEntity ?? null,
   multi: spec.multi ?? (spec.type === 'stringArray' ? true : undefined),
   optionsAllowUserAdd: spec.optionsAllowUserAdd,
+  optionsColored: spec.optionsColored,
   options: spec.options,
   logic: spec.logic ?? null,
+});
+
+/**
+ * Relações (`fks`) viram campos `reference` do formulário — o controle genérico resolve as opções
+ * via `useReferenceOptions` (persons/members/cases/contracts/financials/deadlines/telas dinâmicas).
+ * FKs de etiquetas ficam de fora marcando `ui: { form: false }` (quem trata é o TagManager).
+ */
+const fkToFieldDefinition = (fk: FkSpec, order: number): FieldDefinition => ({
+  key: fk.key,
+  label: fk.label,
+  type: 'reference',
+  required: fk.required ?? false,
+  order,
+  section: fk.ui?.section ?? null,
+  placeholder: fk.ui?.placeholder ?? null,
+  mask: null,
+  lookupCollection: null,
+  refEntity: fk.targetCollection,
+  multi: fk.multi,
+  logic: null,
 });
 
 export interface DeriveFormOptions {
@@ -64,10 +85,20 @@ export const deriveFormFields = (entityKey: EntityKey, opts: DeriveFormOptions =
 
   walk(entity.fields, '');
 
+  for (const fk of entity.fks) {
+    if (fk.ui?.form === false) {
+      auto += 1;
+      continue;
+    }
+    derived.push(fkToFieldDefinition(fk, fk.ui?.order ?? auto));
+    auto += 1;
+  }
+
   const withOverrides = derived.map((field) =>
     opts.overrides?.[field.key] ? { ...field, ...opts.overrides[field.key] } : field,
   );
-  return opts.extra ? [...withOverrides, ...opts.extra] : withOverrides;
+  const ordered = [...withOverrides].sort((a, b) => a.order - b.order);
+  return opts.extra ? [...ordered, ...opts.extra] : ordered;
 };
 
 export interface DerivedListRow {

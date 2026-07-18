@@ -1,273 +1,264 @@
-import { useState, useMemo, useCallback, useEffect } from 'react';
+import { useCallback, useMemo } from 'react';
 import { useTheme } from 'styled-components';
 import { useDeadlineStore } from '../../../stores/useDeadlineStore';
 import { useDeadlineLookup } from '../../../stores/useDeadlineLookup';
 import { useCaseStore } from '../../../stores/useCaseStore';
 import { useAuth } from '../../../stores/useAuth';
 import { useTenant } from '../../../stores/useTenant';
-import { useWorkspace } from '../../../stores/useWorkspace';
-import { useNotification } from '../../../stores/useNotification';
-import type { CustomFieldValue, Deadline, DeadlinePriority, DeadlineStatus, FieldDefinition } from '../../../domain/entities';
-import type { DynamicSelectOption } from '../../components/ui/DynamicSelect';
 import { useScreenDefinitions } from '../../../stores/useScreenDefinitions';
-import { buildInitialFormValues, formValuesToStoredValues, validateRequiredFields } from '../../../domain/services/customFieldValues';
+import type { CustomFieldValue, Deadline, DeadlinePriority, DeadlineStatus, FieldDefinition } from '../../../domain/entities';
+import type { LookupOptionSet } from '../../components/ui/CustomFieldsSection/CustomFieldsSection.viewmodel';
+import { useEntityDetail, type EntityValidationResult } from '../../shared/entityScreen/useEntityDetail';
+import type {
+  NotesPort,
+  DocumentsPort,
+  EntityNotesController,
+  EntityDocumentsController,
+} from '../../shared/entityScreen/types';
+import { DEADLINE_FORM_FIELDS } from './deadlineSchema';
+import {
+  buildInitialFormValues,
+  collectRequiredErrors,
+  formValuesToStoredValues,
+  validateRequiredFields,
+} from '../../../domain/services/customFieldValues';
 import { describeRuleIssues } from '../../../domain/schema/fieldRules';
-import { validateRecordRules } from '../../../data/utils/recordRulesGate';
+import { validateRecordRules, ruleIssueFieldKey } from '../../../data/utils/recordRulesGate';
+import { toDateInputValue } from '../../../utils/formatters';
 
-export interface DeadlineFormData {
-  type: string;
-  caseId: string;
-  dueDate: string;
-  completedAt: string;
-  priority: DeadlinePriority | '';
-  responsibleLawyerId: string;
-  description: string;
-}
+type Values = Record<string, CustomFieldValue>;
 
-const toDateInputValue = (date: Date): string => {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
+const NEW_DEADLINE_DEFAULTS = { type: 'Outro', priority: 'Média' };
+
+const parseDeadlineTab = (tabKey: string) => {
+  const isNew = tabKey === 'new-deadline';
+  return { isNew, recordId: isNew ? null : tabKey.replace('view-deadline:', ''), cloneSourceId: null };
 };
 
-const NEW_DEADLINE_DEFAULTS: { type: string; priority: DeadlinePriority } = {
-  type: 'Outro',
-  priority: 'Média',
-};
-
-const buildForm = (d: Deadline | null, userId: string): DeadlineFormData => ({
-  type: d ? d.type ?? '' : NEW_DEADLINE_DEFAULTS.type,
-  caseId: d?.caseId ?? '',
-  dueDate: d?.dueDate ? toDateInputValue(d.dueDate) : '',
-  completedAt: d?.completedAt ? toDateInputValue(d.completedAt) : '',
-  priority: d ? d.priority ?? '' : NEW_DEADLINE_DEFAULTS.priority,
-  responsibleLawyerId: d ? d.responsibleLawyerId ?? '' : userId,
-  description: d?.description ?? '',
+const deadlineToValues = (
+  deadline: Deadline | null,
+  customFields: FieldDefinition[],
+  userId: string,
+): Values => ({
+  type: deadline ? deadline.type ?? '' : NEW_DEADLINE_DEFAULTS.type,
+  priority: deadline ? deadline.priority ?? '' : NEW_DEADLINE_DEFAULTS.priority,
+  caseId: deadline?.caseId ?? '',
+  dueDate: deadline?.dueDate ? toDateInputValue(deadline.dueDate) : '',
+  completedAt: deadline?.completedAt ? toDateInputValue(deadline.completedAt) : '',
+  responsibleLawyerId: deadline ? deadline.responsibleLawyerId ?? '' : userId,
+  description: deadline?.description ?? '',
+  ...buildInitialFormValues(customFields, deadline?.customValues ?? null),
 });
+
+const str = (values: Values, key: string): string => {
+  const v = (values as Record<string, unknown>)[key];
+  return typeof v === 'string' ? v : '';
+};
+
+const deriveStatus = (values: Values): DeadlineStatus => {
+  if (str(values, 'completedAt')) return 'Concluído';
+  if (str(values, 'dueDate') && new Date(`${str(values, 'dueDate')}T23:59:00`) < new Date()) return 'Vencido';
+  return 'Pendente';
+};
+
+const valuesToDeadlinePayload = (values: Values, customFields: FieldDefinition[], userId: string) => {
+  const dueDate = new Date(`${str(values, 'dueDate')}T23:59:00`);
+  const completedAt = str(values, 'completedAt') ? new Date(`${str(values, 'completedAt')}T12:00:00`) : null;
+  const status: DeadlineStatus = completedAt ? 'Concluído' : (dueDate < new Date() ? 'Vencido' : 'Pendente');
+
+  return {
+    type: str(values, 'type'),
+    caseId: str(values, 'caseId'),
+    dueDate,
+    priority: str(values, 'priority') as DeadlinePriority,
+    status,
+    responsibleLawyerId: str(values, 'responsibleLawyerId') || null,
+    description: str(values, 'description') || null,
+    completedAt,
+    completedBy: completedAt ? (userId || null) : null,
+    notes: null,
+    customValues: formValuesToStoredValues(customFields, values),
+  };
+};
+
+const NO_NOTES_PORT: NotesPort = {
+  get: () => Promise.resolve([]),
+  add: () => Promise.reject(new Error('sem anotações')),
+  remove: () => Promise.resolve(),
+};
+
+const NO_DOCS_PORT: DocumentsPort = {
+  get: () => Promise.resolve([]),
+  upload: () => Promise.reject(new Error('sem documentos')),
+  add: () => Promise.reject(new Error('sem documentos')),
+  remove: () => Promise.resolve(),
+};
 
 export interface ViewDeadlineViewModel {
   isNew: boolean;
   deadline: Deadline | null;
-  formData: DeadlineFormData;
-  setFormData: (data: Partial<DeadlineFormData>) => void;
+  isAdmin: boolean;
+  fields: FieldDefinition[];
   customFields: FieldDefinition[];
-  customValues: Record<string, CustomFieldValue>;
-  setCustomValue: (fieldKey: string, value: CustomFieldValue) => void;
+  values: Values;
+  setFieldValue: (fieldKey: string, value: CustomFieldValue) => void;
+  fieldErrors: Record<string, string>;
+  lookupOptions: Record<string, LookupOptionSet>;
+  handleAddLookupOption: (collection: string, label: string) => Promise<void>;
+  handleDeleteLookupOption: (collection: string, optionKey: string) => Promise<void>;
   isSaving: boolean;
   handleSave: () => Promise<void>;
-
-  typeOptions: DynamicSelectOption[];
-  typeDynamicOptions: DynamicSelectOption[];
-  handleAddType: (name: string) => Promise<void>;
-  handleDeleteType: (key: string) => Promise<void>;
-  isAdmin: boolean;
-
-  priorityOptions: { value: string; label: string; color: string }[];
-  caseOptions: { value: string; label: string }[];
-  memberOptions: { value: string; label: string }[];
-
   derivedStatus: DeadlineStatus;
   caseDisplay: string;
-  getPriorityColor: (priority: string) => string;
+  priorityColor: string;
   getDeadlineStatusColor: (status: DeadlineStatus) => string;
+  notesController: EntityNotesController;
+  docsController: EntityDocumentsController;
 }
 
 export const useViewDeadlineViewModel = (tabKey: string): ViewDeadlineViewModel => {
-  const isNew = tabKey === 'new-deadline';
-  const deadlineId = isNew ? '' : tabKey.replace('view-deadline:', '');
-
   const { deadlines, createDeadline, updateDeadline } = useDeadlineStore();
   const { typeConfigs, addType, removeType } = useDeadlineLookup();
   const { cases } = useCaseStore();
   const { user, effectiveName } = useAuth();
-  const { members, tenantRole } = useTenant();
-  const isAdmin = tenantRole === 'admin';
-  const { setTabTitle, closeTab, activePanelId } = useWorkspace();
-  const { notify } = useNotification();
+  const { tenantRole } = useTenant();
+  const { getCustomFieldsFor } = useScreenDefinitions();
   const theme = useTheme();
 
-  const deadline = useMemo(
-    () => (isNew ? null : (deadlines.find((d) => d.id === deadlineId) ?? null)),
-    [isNew, deadlines, deadlineId],
-  );
-
-  const [formData, setFormDataState] = useState<DeadlineFormData>(() =>
-    buildForm(deadline, user?.id ?? ''),
-  );
-  const [isSaving, setIsSaving] = useState(false);
-  const { getCustomFieldsFor } = useScreenDefinitions();
+  const isAdmin = tenantRole === 'admin';
+  const userId = user?.id ?? '';
   const customFields = useMemo(() => getCustomFieldsFor('deadlines'), [getCustomFieldsFor]);
-  const [customValues, setCustomValues] = useState<Record<string, CustomFieldValue>>({});
 
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- re-initialise form when deadline or user loads from store
-    setFormDataState(buildForm(deadline, user?.id ?? ''));
-  }, [deadline, user]);
+  const findInStore = useCallback(
+    (id: string) => deadlines.find((d) => d.id === id) ?? null,
+    [deadlines],
+  );
 
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- sincroniza campos adicionais ao carregar/atualizar dados
-    setCustomValues(buildInitialFormValues(customFields, deadline?.customValues ?? null));
-  }, [deadline, customFields]);
+  const recordToValues = useCallback(
+    (deadline: Deadline | null) => deadlineToValues(deadline, customFields, userId),
+    [customFields, userId],
+  );
 
-  const setCustomValue = useCallback((fieldKey: string, value: CustomFieldValue) => {
-    setCustomValues((prev) => ({ ...prev, [fieldKey]: value }));
-  }, []);
+  const resolveTitleFromValues = useCallback((values: Values) => str(values, 'type') || 'Prazo', []);
 
-  useEffect(() => {
-    if (!isNew && deadline) {
-      setTabTitle(tabKey, deadline.type || 'Prazo');
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- only run when deadline type changes
-  }, [deadline?.type]);
+  const validate = useCallback((values: Values): EntityValidationResult | null => {
+    const fieldErrors = collectRequiredErrors([...DEADLINE_FORM_FIELDS, ...customFields], values);
+    const issues = validateRecordRules('deadlines', valuesToDeadlinePayload(values, customFields, userId));
+    issues.forEach((issue) => {
+      const key = ruleIssueFieldKey(issue.path);
+      if (!fieldErrors[key]) fieldErrors[key] = issue.error;
+    });
+    if (Object.keys(fieldErrors).length === 0) return null;
+    const message =
+      validateRequiredFields([...DEADLINE_FORM_FIELDS, ...customFields], values) ?? describeRuleIssues(issues);
+    return { message, fieldErrors };
+  }, [customFields, userId]);
 
-  const getPriorityColor = useCallback((priority: string): string => {
+  const create = useCallback(async (values: Values) => {
+    const created = await createDeadline({
+      ...valuesToDeadlinePayload(values, customFields, userId),
+      createdBy: userId,
+    });
+    return { id: created.id, title: created.type || 'Prazo' };
+  }, [createDeadline, customFields, userId]);
+
+  const update = useCallback(async (id: string, values: Values) => {
+    await updateDeadline(id, {
+      ...valuesToDeadlinePayload(values, customFields, userId),
+      updatedBy: userId,
+      updatedByName: effectiveName,
+      updatedByPhotoURL: user?.photoURL ?? '',
+    });
+  }, [updateDeadline, customFields, userId, effectiveName, user]);
+
+  const detail = useEntityDetail<Deadline>({
+    tabKey,
+    parse: parseDeadlineTab,
+    findInStore,
+    recordToValues,
+    resolveTabTitle: (deadline, isNew) => (isNew ? null : (deadline?.type || 'Prazo')),
+    resolveTitleFromValues,
+    validate,
+    create,
+    update,
+    messages: {
+      created: 'Prazo cadastrado com sucesso!',
+      updated: 'Prazo atualizado com sucesso!',
+      error: 'Erro ao salvar prazo.',
+    },
+    deepLinkKey: (id) => `view-deadline:${id}`,
+    cloneKey: (id) => `view-deadline:${id}`,
+    afterCreate: 'close',
+    notesPort: NO_NOTES_PORT,
+    documentsPort: NO_DOCS_PORT,
+    hasNotes: false,
+    hasDocuments: false,
+  });
+
+  const lookupOptions = useMemo<Record<string, LookupOptionSet>>(() => ({
+    deadlineTypes: {
+      staticOptions: typeConfigs.filter((t) => t.isStatic).map((t) => ({ value: t.key, label: t.label })),
+      dynamicOptions: typeConfigs.filter((t) => !t.isStatic).map((t) => ({ value: t.key, label: t.label })),
+    },
+  }), [typeConfigs]);
+
+  const handleAddLookupOption = useCallback(async (collection: string, label: string): Promise<void> => {
+    if (collection === 'deadlineTypes') await addType(label);
+  }, [addType]);
+
+  const handleDeleteLookupOption = useCallback(async (collection: string, optionKey: string): Promise<void> => {
+    if (collection === 'deadlineTypes') await removeType(optionKey);
+  }, [removeType]);
+
+  const derivedStatus = useMemo(() => deriveStatus(detail.values), [detail.values]);
+
+  const caseDisplay = useMemo(() => {
+    const caseId = str(detail.values, 'caseId');
+    if (!caseId) return '';
+    const found = cases.find((c) => c.id === caseId);
+    if (!found) return '—';
+    return found.caseNumber ? `${found.caseNumber} — ${found.title}` : found.title;
+  }, [detail.values, cases]);
+
+  const priorityColor = useMemo(() => {
     const map: Record<DeadlinePriority, string> = {
-      'Baixa':   theme.colors.success,
-      'Média':   theme.colors.warning,
-      'Alta':    theme.colors.secondary,
+      'Baixa': theme.colors.success,
+      'Média': theme.colors.warning,
+      'Alta': theme.colors.secondary,
       'Crítica': theme.colors.danger,
     };
-    return map[priority as DeadlinePriority] ?? theme.colors.textSecondary;
-  }, [theme]);
+    return map[str(detail.values, 'priority') as DeadlinePriority] ?? theme.colors.textSecondary;
+  }, [detail.values, theme]);
 
   const getDeadlineStatusColor = useCallback((status: DeadlineStatus): string => {
     const map: Record<DeadlineStatus, string> = {
-      'Pendente':  theme.colors.deadlineStatusPending,
+      'Pendente': theme.colors.deadlineStatusPending,
       'Concluído': theme.colors.deadlineStatusCompleted,
-      'Vencido':   theme.colors.deadlineStatusOverdue,
+      'Vencido': theme.colors.deadlineStatusOverdue,
       'Cancelado': theme.colors.deadlineStatusCanceled,
     };
     return map[status] ?? theme.colors.deadlineStatusPending;
   }, [theme]);
 
-  const typeOptions = useMemo<DynamicSelectOption[]>(() =>
-    typeConfigs.filter((t) => t.isStatic).map((t) => ({ value: t.key, label: t.label })),
-    [typeConfigs],
-  );
-
-  const typeDynamicOptions = useMemo<DynamicSelectOption[]>(() =>
-    typeConfigs.filter((t) => !t.isStatic).map((t) => ({ value: t.key, label: t.label, isDynamic: true })),
-    [typeConfigs],
-  );
-
-  const priorityOptions = useMemo(() =>
-    (['Baixa', 'Média', 'Alta', 'Crítica'] as DeadlinePriority[]).map((p) => ({
-      value: p, label: p, color: getPriorityColor(p),
-    })),
-    [getPriorityColor],
-  );
-
-  const caseOptions = useMemo(() =>
-    cases.map((c) => ({ value: c.id, label: c.caseNumber ? `${c.caseNumber} — ${c.title}` : c.title })),
-    [cases],
-  );
-
-  const memberOptions = useMemo(() =>
-    members.map((m) => ({ value: m.userId, label: m.displayName })),
-    [members],
-  );
-
-  const caseDisplay = useMemo(() => {
-    if (!deadline) return '';
-    const c = cases.find((cc) => cc.id === deadline.caseId);
-    if (!c) return '—';
-    return c.caseNumber ? `${c.caseNumber} — ${c.title}` : c.title;
-  }, [deadline, cases]);
-
-  const derivedStatus = useMemo<DeadlineStatus>(() => {
-    if (formData.completedAt) return 'Concluído';
-    if (formData.dueDate && new Date(`${formData.dueDate}T23:59:00`) < new Date()) return 'Vencido';
-    return 'Pendente';
-  }, [formData.completedAt, formData.dueDate]);
-
-  const setFormData = useCallback((data: Partial<DeadlineFormData>) => {
-    setFormDataState((prev) => ({ ...prev, ...data }));
-  }, []);
-
-  const handleAddType = useCallback(async (name: string) => {
-    await addType(name);
-  }, [addType]);
-
-  const handleDeleteType = useCallback(async (key: string) => {
-    await removeType(key);
-  }, [removeType]);
-
-  const handleSave = useCallback(async () => {
-    if (!formData.type.trim()) { notify('Selecione o tipo do prazo.', 'error'); return; }
-    if (!formData.priority) { notify('Selecione a prioridade do prazo.', 'error'); return; }
-    if (!formData.caseId) { notify('Selecione um processo.', 'error'); return; }
-    if (!formData.dueDate) { notify('Informe a data de vencimento.', 'error'); return; }
-    const customFieldsError = validateRequiredFields(customFields, customValues);
-    if (customFieldsError) { notify(customFieldsError, 'error'); return; }
-
-    setIsSaving(true);
-    try {
-      const dueDate = new Date(`${formData.dueDate}T23:59:00`);
-      const completedAt = formData.completedAt ? new Date(`${formData.completedAt}T12:00:00`) : null;
-      const status: DeadlineStatus = completedAt ? 'Concluído' : (dueDate < new Date() ? 'Vencido' : 'Pendente');
-
-      const payload = {
-        type: formData.type,
-        caseId: formData.caseId,
-        dueDate,
-        priority: formData.priority,
-        status,
-        responsibleLawyerId: formData.responsibleLawyerId || null,
-        description: formData.description || null,
-        completedAt,
-        completedBy: completedAt ? (user?.id ?? null) : null,
-        notes: null,
-        customValues: formValuesToStoredValues(customFields, customValues),
-      };
-
-      const ruleIssues = validateRecordRules('deadlines', payload);
-      if (ruleIssues.length > 0) {
-        notify(describeRuleIssues(ruleIssues), 'error');
-        return;
-      }
-
-      if (isNew) {
-        await createDeadline({ ...payload, createdBy: user?.id ?? '' });
-        notify('Prazo cadastrado com sucesso!', 'success');
-        closeTab(tabKey, activePanelId ?? '');
-      } else {
-        await updateDeadline(deadlineId, {
-          ...payload,
-          updatedBy: user?.id ?? '',
-          updatedByName: effectiveName,
-          updatedByPhotoURL: user?.photoURL ?? '',
-        });
-        notify('Prazo atualizado com sucesso!', 'success');
-      }
-    } catch {
-      notify('Erro ao salvar prazo.', 'error');
-    } finally {
-      setIsSaving(false);
-    }
-  }, [formData, customFields, customValues, isNew, deadlineId, createDeadline, updateDeadline, closeTab, notify, user, effectiveName, tabKey, activePanelId]);
-
   return {
-    isNew,
-    deadline,
-    formData,
-    setFormData,
-    customFields,
-    customValues,
-    setCustomValue,
-    isSaving,
-    handleSave,
-    typeOptions,
-    typeDynamicOptions,
-    handleAddType,
-    handleDeleteType,
+    isNew: detail.isNew,
+    deadline: detail.record,
     isAdmin,
-    priorityOptions,
-    caseOptions,
-    memberOptions,
+    fields: DEADLINE_FORM_FIELDS,
+    customFields,
+    values: detail.values,
+    setFieldValue: detail.setFieldValue,
+    fieldErrors: detail.fieldErrors,
+    lookupOptions,
+    handleAddLookupOption,
+    handleDeleteLookupOption,
+    isSaving: detail.isSaving,
+    handleSave: detail.handleSave,
     derivedStatus,
     caseDisplay,
-    getPriorityColor,
+    priorityColor,
     getDeadlineStatusColor,
+    notesController: detail.notesController,
+    docsController: detail.docsController,
   };
 };

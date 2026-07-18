@@ -33,6 +33,9 @@ export interface EntityDetailViewProps {
   copyLinkDone: boolean;
   onCopyLink: () => void;
   onClone: () => void;
+  /** Telas sem deeplink/clone no detalhe (ex.: Prazos) escondem essas ações. */
+  showCopyLink?: boolean;
+  showClone?: boolean;
   headerActionsExtra?: React.ReactNode;
   showTagsAction: boolean;
   onManageTags: () => void;
@@ -63,6 +66,8 @@ export const EntityDetailView: React.FC<EntityDetailViewProps> = ({
   copyLinkDone,
   onCopyLink,
   onClone,
+  showCopyLink = true,
+  showClone = true,
   headerActionsExtra,
   showTagsAction,
   onManageTags,
@@ -100,12 +105,12 @@ export const EntityDetailView: React.FC<EntityDetailViewProps> = ({
       </S.HeaderLeft>
 
       <S.HeaderActions>
-        {!isNew && (
+        {!isNew && showCopyLink && (
           <Button variant="ghost" size="sm" onClick={onCopyLink} title="Copiar link">
             {copyLinkDone ? <RiCheckLine size={14} /> : <RiLinkM size={14} />}
           </Button>
         )}
-        {!isNew && (
+        {!isNew && showClone && (
           <Button variant="ghost" size="sm" onClick={onClone} title="Clonar">
             <RiFileCopyLine size={14} />
           </Button>

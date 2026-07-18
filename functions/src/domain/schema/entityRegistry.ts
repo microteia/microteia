@@ -60,6 +60,7 @@ export interface NativeFieldSpec {
   required?: boolean;
   options?: CustomFieldOption[];
   optionsAllowUserAdd?: boolean;
+  optionsColored?: boolean;
   rules?: FieldRules;
   logic?: FieldLogic;
   ui?: FieldUiSpec;
@@ -72,6 +73,8 @@ export interface FkSpec {
   denormKey: string;
   multi?: boolean;
   denormalizedFields?: string[];
+  required?: boolean;
+  ui?: FieldUiSpec;
 }
 
 export interface EntityMetadata {
@@ -105,6 +108,14 @@ const CEP_RULES: FieldRules = {
 
 const PF_ONLY = 'type != "Pessoa Física"';
 const PJ_ONLY = 'type != "Pessoa Jurídica"';
+
+// `color` aceita token do tema (resolvido por resolveColor) — nunca hex literal.
+const DEADLINE_PRIORITY_OPTIONS: CustomFieldOption[] = [
+  { key: 'Baixa', label: 'Baixa', color: 'success' },
+  { key: 'Média', label: 'Média', color: 'warning' },
+  { key: 'Alta', label: 'Alta', color: 'secondary' },
+  { key: 'Crítica', label: 'Crítica', color: 'danger' },
+];
 
 const BR_STATE_OPTIONS: CustomFieldOption[] = [
   'AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG','PA','PB',
@@ -321,13 +332,20 @@ export const ENTITY_REGISTRY: Record<EntityKey, EntityMetadata> = {
     displayNameFields: ['description'],
     referenceDenormFields: ['type', 'dueDate', 'priority'],
     fields: [
-      { key: 'description', label: 'Descrição', type: 'string' },
-      { key: 'dueDate', label: 'Data de vencimento', type: 'date' },
-      { key: 'type', label: 'Tipo', type: 'string', lookupCollection: 'deadlineTypes' },
-      { key: 'priority', label: 'Prioridade', type: 'string' },
-      { key: 'status', label: 'Status', type: 'string' },
-      { key: 'completedAt', label: 'Data de conclusão', type: 'date' },
-      { key: 'notes', label: 'Observações', type: 'string' },
+      { key: 'type', label: 'Tipo', type: 'string', lookupCollection: 'deadlineTypes',
+        required: true, optionsAllowUserAdd: true,
+        ui: { control: 'select', section: 'Identificação', order: 0, placeholder: 'Selecione o tipo...', list: { icon: 'time', order: 0 } } },
+      { key: 'priority', label: 'Prioridade', type: 'string', required: true,
+        options: DEADLINE_PRIORITY_OPTIONS, optionsColored: true,
+        ui: { control: 'select', section: 'Identificação', order: 1, placeholder: 'Selecione a prioridade...' } },
+      { key: 'dueDate', label: 'Data de vencimento', type: 'date', required: true,
+        ui: { section: 'Datas', order: 3, list: { icon: 'calendar', order: 1 } } },
+      { key: 'completedAt', label: 'Data de conclusão', type: 'date',
+        ui: { section: 'Datas', order: 4 } },
+      { key: 'description', label: 'Descrição', type: 'string',
+        ui: { control: 'textarea', section: 'Responsável e Detalhes', order: 6, placeholder: 'Detalhes sobre o prazo, documentos necessários, etc.' } },
+      { key: 'status', label: 'Status', type: 'string', ui: { form: false } },
+      { key: 'notes', label: 'Observações', type: 'string', ui: { form: false } },
     ],
     fks: [
       {
@@ -336,6 +354,8 @@ export const ENTITY_REGISTRY: Record<EntityKey, EntityMetadata> = {
         targetCollection: 'cases',
         denormKey: 'case',
         denormalizedFields: ['caseNumber', 'title', 'area'],
+        required: true,
+        ui: { section: 'Identificação', order: 2, placeholder: 'Selecione o processo...' },
       },
       {
         key: 'responsibleLawyerId',
@@ -343,6 +363,7 @@ export const ENTITY_REGISTRY: Record<EntityKey, EntityMetadata> = {
         targetCollection: 'members',
         denormKey: 'responsibleLawyer',
         denormalizedFields: ['name', 'email'],
+        ui: { section: 'Responsável e Detalhes', order: 5, placeholder: 'Selecione o responsável...' },
       },
     ],
     supportsCustomFields: true,
