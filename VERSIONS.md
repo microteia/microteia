@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [0.101.5] — 2026-07-18
+
+- Nas automações, ao buscar itens de uma lista de escolha (Juiz, Vara, Área do Direito, Tipo, Status e demais), agora é possível filtrar e trazer o identificador e a cor do item. Antes esses dois campos não apareciam entre as opções, e a lista oferecia um campo "Coleção" que nunca tinha conteúdo.
+
 ## [0.101.4] — 2026-07-18
 
 - Campos de seleção deixam de exibir uma opção como se estivesse escolhida quando o registro não tem valor gravado. Isso acontecia em Processos (Área do Direito, Instância, Fase, Status e Advogado Responsável), Prazos (Tipo, Prioridade e Advogado Responsável), Financeiro (Tipo e Status) e Pessoas (Tipo de Pessoa): a tela mostrava um valor que não existia na base, e o registro não aparecia ao ser pesquisado por esse campo. Os valores sugeridos continuam sendo preenchidos normalmente na criação de um novo registro.

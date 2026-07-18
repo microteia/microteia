@@ -854,26 +854,6 @@ export interface TextAnnotation {
   updatedAt: Date;
 }
 
-// ─── Case Lookups ─────────────────────────────────────────────────────────────
-
-export type CaseLookupKind =
-  | 'areas'
-  | 'phases'
-  | 'statuses'
-  | 'instances'
-  | 'actionTypes'
-  | 'courts'
-  | 'districts'
-  | 'judges';
-
-export interface CaseLookupItem {
-  id: string;
-  tenantId: string;
-  name: string;
-  createdAt: Date;
-  createdBy: string;
-}
-
 // ─── Custom Screens (Telas Dinâmicas) ────────────────────────────────────────
 
 export type {

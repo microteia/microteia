@@ -28,7 +28,6 @@ import { FirebasePersonDocumentRepository } from '../../data/repositories/Fireba
 import { FirebaseCaseTagRepository } from '../../data/repositories/FirebaseCaseTagRepository';
 import { FirebaseCaseNoteRepository } from '../../data/repositories/FirebaseCaseNoteRepository';
 import { FirebaseCaseDocumentRepository } from '../../data/repositories/FirebaseCaseDocumentRepository';
-import { FirebaseCaseLookupRepository } from '../../data/repositories/FirebaseCaseLookupRepository';
 import { FirebaseCaseAreaRepository } from '../../data/repositories/FirebaseCaseAreaRepository';
 import { FirebaseCasePhaseRepository } from '../../data/repositories/FirebaseCasePhaseRepository';
 import { FirebaseCaseStatusRepository } from '../../data/repositories/FirebaseCaseStatusRepository';
@@ -84,7 +83,6 @@ export const DIProvider: React.FC<{ children: React.ReactNode }> = ({ children }
     caseTagRepository:        new FirebaseCaseTagRepository(),
     caseNoteRepository:       new FirebaseCaseNoteRepository(),
     caseDocumentRepository:   new FirebaseCaseDocumentRepository(),
-    caseLookupRepository:     new FirebaseCaseLookupRepository(),
     caseAreaRepository:       new FirebaseCaseAreaRepository(),
     casePhaseRepository:      new FirebaseCasePhaseRepository(),
     caseStatusRepository:     new FirebaseCaseStatusRepository(),

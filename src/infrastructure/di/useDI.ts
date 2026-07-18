@@ -26,7 +26,6 @@ import type { IPersonDocumentRepository } from '../../domain/repositories/IPerso
 import type { ICaseTagRepository } from '../../domain/repositories/ICaseTagRepository';
 import type { ICaseNoteRepository } from '../../domain/repositories/ICaseNoteRepository';
 import type { ICaseDocumentRepository } from '../../domain/repositories/ICaseDocumentRepository';
-import type { ICaseLookupRepository } from '../../domain/repositories/ICaseLookupRepository';
 import type { ICaseAreaRepository } from '../../domain/repositories/ICaseAreaRepository';
 import type { ICasePhaseRepository } from '../../domain/repositories/ICasePhaseRepository';
 import type { ICaseStatusRepository } from '../../domain/repositories/ICaseStatusRepository';
@@ -80,7 +79,6 @@ export interface DIContainer {
   caseTagRepository: ICaseTagRepository;
   caseNoteRepository: ICaseNoteRepository;
   caseDocumentRepository: ICaseDocumentRepository;
-  caseLookupRepository: ICaseLookupRepository;
   caseAreaRepository: ICaseAreaRepository;
   casePhaseRepository: ICasePhaseRepository;
   caseStatusRepository: ICaseStatusRepository;
