@@ -20,6 +20,7 @@ export const ViewPersonView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
           fields={vm.nativeFields}
           values={vm.values}
           onChange={vm.setFieldValue}
+          errors={vm.fieldErrors}
           lookupOptions={vm.personLookupOptions}
           onAddLookupOption={vm.handleAddPersonLookup}
           onDeleteLookupOption={vm.handleDeletePersonLookup}
@@ -36,6 +37,7 @@ export const ViewPersonView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
               fields={vm.customFields}
               values={vm.values}
               onChange={vm.setFieldValue}
+              errors={vm.fieldErrors}
             />
           </S.FormGroup>
         </>

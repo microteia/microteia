@@ -138,6 +138,9 @@ const hasFormValue = (field: FieldDefinition, value: CustomFieldValue | undefine
   }
 };
 
+export const requiredFieldError = (field: FieldDefinition): string =>
+  `O campo "${field.label}" é obrigatório.`;
+
 export const validateRequiredFields = (
   fields: FieldDefinition[],
   form: Record<string, CustomFieldValue>,
@@ -145,7 +148,20 @@ export const validateRequiredFields = (
   const missing = sortFieldsByOrder(fields).find(
     (field) => field.required && !hasFormValue(field, form[field.key]),
   );
-  return missing ? `O campo "${missing.label}" é obrigatório.` : null;
+  return missing ? requiredFieldError(missing) : null;
+};
+
+export const collectRequiredErrors = (
+  fields: FieldDefinition[],
+  form: Record<string, CustomFieldValue>,
+): Record<string, string> => {
+  const errors: Record<string, string> = {};
+  sortFieldsByOrder(fields).forEach((field) => {
+    if (field.required && !hasFormValue(field, form[field.key])) {
+      errors[field.key] = requiredFieldError(field);
+    }
+  });
+  return errors;
 };
 
 export const resolveRecordTitle = (

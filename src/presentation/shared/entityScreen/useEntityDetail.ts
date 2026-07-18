@@ -17,6 +17,11 @@ import type {
 
 type Values = Record<string, CustomFieldValue>;
 
+export interface EntityValidationResult {
+  message: string;
+  fieldErrors: Record<string, string>;
+}
+
 export interface EntityDetailConfig<TRecord extends { id: string }> {
   tabKey: string;
   parse: (tabKey: string) => { isNew: boolean; recordId: string | null; cloneSourceId: string | null };
@@ -25,7 +30,7 @@ export interface EntityDetailConfig<TRecord extends { id: string }> {
   recordToValues: (record: TRecord | null, opts: { clone: boolean }) => Values;
   resolveTabTitle: (record: TRecord | null, isNew: boolean) => string | null;
   resolveTitleFromValues: (values: Values) => string;
-  validate: (values: Values) => string | null;
+  validate: (values: Values) => EntityValidationResult | null;
   create: (values: Values) => Promise<{ id: string; title: string }>;
   update: (recordId: string, values: Values) => Promise<void>;
   messages: { created: string; updated: string; error: string };
@@ -46,6 +51,7 @@ export interface EntityDetail<TRecord extends { id: string }> {
   recordNotFound: boolean;
   values: Values;
   setFieldValue: (fieldKey: string, value: CustomFieldValue) => void;
+  fieldErrors: Record<string, string>;
   isSaving: boolean;
   handleSave: () => Promise<void>;
   activeTab: EntityDetailTab;
@@ -104,6 +110,7 @@ export function useEntityDetail<TRecord extends { id: string }>(
   const recordNotFound = !isNew && !sourceRecord && fetchAttempted;
 
   const [values, setValues] = useState<Values>(() => recordToValues(storeRecord, { clone: isClone }));
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- sincroniza valores ao carregar registro/campos
@@ -112,6 +119,12 @@ export function useEntityDetail<TRecord extends { id: string }>(
 
   const setFieldValue = useCallback((fieldKey: string, value: CustomFieldValue) => {
     setValues((prev) => setValueByPath(prev, fieldKey, value));
+    setFieldErrors((prev) => {
+      if (!prev[fieldKey]) return prev;
+      const next = { ...prev };
+      delete next[fieldKey];
+      return next;
+    });
   }, []);
 
   useEffect(() => {
@@ -135,8 +148,9 @@ export function useEntityDetail<TRecord extends { id: string }>(
   const [isSaving, setIsSaving] = useState(false);
 
   const handleSave = useCallback(async () => {
-    const error = validate(values);
-    if (error) { notify(error, 'error'); return; }
+    const invalid = validate(values);
+    if (invalid) { setFieldErrors(invalid.fieldErrors); notify(invalid.message, 'error'); return; }
+    setFieldErrors({});
     if (!currentTenant) return;
     setIsSaving(true);
     try {
@@ -166,6 +180,7 @@ export function useEntityDetail<TRecord extends { id: string }>(
     recordNotFound,
     values,
     setFieldValue,
+    fieldErrors,
     isSaving,
     handleSave,
     activeTab: chrome.activeTab,

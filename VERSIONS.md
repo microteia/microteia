@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [0.100.1] — 2026-07-18
+
+- Ao salvar um cadastro de Pessoa ou de uma tela personalizada, as mensagens de validação agora aparecem também logo abaixo de cada campo com problema (além do aviso no topo), facilitando identificar exatamente o que corrigir. A mensagem some assim que o campo é ajustado.
+
 ## [0.100.0] — 2026-07-18
 
 - Nas telas personalizadas, agora é possível escolher quais atalhos aparecem em cada card da listagem — copiar link, duplicar, gerenciar etiquetas e excluir. Basta marcar as opções desejadas em "Ações no card da listagem" ao editar a tela.

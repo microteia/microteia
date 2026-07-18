@@ -10,14 +10,14 @@ import { useDI } from '../../../infrastructure/di/useDI';
 import { resolveColor } from '../../../shared/styles/colorUtils';
 import type { Person, PersonType, PersonAddress, Gender, CustomFieldValue, FieldDefinition, PersonLookupKind } from '../../../domain/entities';
 import type { LookupOptionSet } from '../../components/ui/CustomFieldsSection/CustomFieldsSection.viewmodel';
-import { useEntityDetail } from '../../shared/entityScreen/useEntityDetail';
+import { useEntityDetail, type EntityValidationResult } from '../../shared/entityScreen/useEntityDetail';
 import { useNotesPort } from '../../shared/entityScreen/useNotesPort';
 import { useDocumentsPort } from '../../shared/entityScreen/useDocumentsPort';
 import type { EntityDocumentsController, EntityNotesController } from '../../shared/entityScreen/types';
 import { PERSON_FORM_FIELDS } from './personSchema';
 import type { TagStoreAdapter } from '../../components/ui/TagManager/TagManager.viewmodel';
 import { useScreenDefinitions } from '../../../stores/useScreenDefinitions';
-import { buildInitialFormValues, formValuesToStoredValues, validateRequiredFields } from '../../../domain/services/customFieldValues';
+import { buildInitialFormValues, collectRequiredErrors, formValuesToStoredValues, validateRequiredFields } from '../../../domain/services/customFieldValues';
 import { onlyNumbers } from '../../../utils/formatters';
 import { describeRuleIssues } from '../../../domain/schema/fieldRules';
 import { validateRecordRules } from '../../../data/utils/recordRulesGate';
@@ -128,6 +128,7 @@ export interface ViewPersonViewModel {
   customFields: FieldDefinition[];
   values: Values;
   setFieldValue: (fieldKey: string, value: CustomFieldValue) => void;
+  fieldErrors: Record<string, string>;
   personName: string;
   personType: PersonType;
   personLookupOptions: Record<string, LookupOptionSet>;
@@ -176,12 +177,15 @@ export const useViewPersonViewModel = (tabKey: string): ViewPersonViewModel => {
 
   const resolveTitleFromValues = useCallback((values: Values) => str(values, 'name').trim(), []);
 
-  const validate = useCallback((values: Values) => {
-    if (!str(values, 'name').trim()) return 'Nome é obrigatório.';
-    const customErr = validateRequiredFields(customFields, values);
-    if (customErr) return customErr;
+  const validate = useCallback((values: Values): EntityValidationResult | null => {
+    const fieldErrors: Record<string, string> = {};
+    if (!str(values, 'name').trim()) fieldErrors.name = 'Nome é obrigatório.';
+    Object.assign(fieldErrors, collectRequiredErrors(customFields, values));
     const issues = validateRecordRules('persons', valuesToPersonPayload(values, customFields));
-    return issues.length > 0 ? describeRuleIssues(issues) : null;
+    issues.forEach((issue) => { if (!fieldErrors[issue.path]) fieldErrors[issue.path] = issue.error; });
+    if (Object.keys(fieldErrors).length === 0) return null;
+    const message = fieldErrors.name ?? validateRequiredFields(customFields, values) ?? describeRuleIssues(issues);
+    return { message, fieldErrors };
   }, [customFields]);
 
   const create = useCallback(async (values: Values) => {
@@ -288,6 +292,7 @@ export const useViewPersonViewModel = (tabKey: string): ViewPersonViewModel => {
     customFields,
     values: detail.values,
     setFieldValue: detail.setFieldValue,
+    fieldErrors: detail.fieldErrors,
     personName: str(detail.values, 'name'),
     personType: (str(detail.values, 'type') || 'Pessoa Física') as PersonType,
     personLookupOptions,

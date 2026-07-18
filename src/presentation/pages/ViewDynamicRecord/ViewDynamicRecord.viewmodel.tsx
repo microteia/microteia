@@ -12,6 +12,7 @@ import {
 } from '../../../shared/constants/dynamicScreenKeys';
 import {
   buildInitialFormValues,
+  collectRequiredErrors,
   formValuesToStoredValues,
   resolveRecordTitle,
   sortFieldsByOrder,
@@ -19,7 +20,7 @@ import {
 } from '../../../domain/services/customFieldValues';
 import { describeRuleIssues } from '../../../domain/schema/fieldRules';
 import { validateRecordRules } from '../../../data/utils/recordRulesGate';
-import { useEntityDetail } from '../../shared/entityScreen/useEntityDetail';
+import { useEntityDetail, type EntityValidationResult } from '../../shared/entityScreen/useEntityDetail';
 import { useNotesPort } from '../../shared/entityScreen/useNotesPort';
 import { useDocumentsPort } from '../../shared/entityScreen/useDocumentsPort';
 import type {
@@ -49,6 +50,7 @@ export interface ViewDynamicRecordViewModel {
   sortedFields: FieldDefinition[];
   formValues: Record<string, CustomFieldValue>;
   setFieldValue: (fieldKey: string, value: CustomFieldValue) => void;
+  fieldErrors: Record<string, string>;
   isSaving: boolean;
   handleSave: () => Promise<void>;
   handleClone: () => void;
@@ -129,11 +131,13 @@ export const useViewDynamicRecordViewModel = (tabKey: string): ViewDynamicRecord
   );
 
   const validate = useCallback(
-    (values: Values) => {
-      const missing = validateRequiredFields(sortedFields, values);
-      if (missing) return missing;
+    (values: Values): EntityValidationResult | null => {
+      const fieldErrors = collectRequiredErrors(sortedFields, values);
       const issues = validateRecordRules(screenKey, { values: formValuesToStoredValues(sortedFields, values) });
-      return issues.length > 0 ? describeRuleIssues(issues) : null;
+      issues.forEach((issue) => { if (!fieldErrors[issue.path]) fieldErrors[issue.path] = issue.error; });
+      if (Object.keys(fieldErrors).length === 0) return null;
+      const message = validateRequiredFields(sortedFields, values) ?? describeRuleIssues(issues);
+      return { message, fieldErrors };
     },
     [sortedFields, screenKey],
   );
@@ -225,6 +229,7 @@ export const useViewDynamicRecordViewModel = (tabKey: string): ViewDynamicRecord
     sortedFields,
     formValues: detail.values,
     setFieldValue: detail.setFieldValue,
+    fieldErrors: detail.fieldErrors,
     isSaving: detail.isSaving,
     handleSave: detail.handleSave,
     handleClone: detail.handleClone,

@@ -33,6 +33,7 @@ export interface CustomFieldsSectionProps {
   onAddLookupOption?: (collection: string, label: string) => void | Promise<void>;
   onDeleteLookupOption?: (collection: string, optionKey: string) => void | Promise<void>;
   canDeleteLookupOption?: boolean;
+  errors?: Record<string, string>;
 }
 
 export interface FieldGroup {
@@ -75,6 +76,7 @@ export const useCustomFieldsSectionViewModel = (props: CustomFieldsSectionProps)
     onAddLookupOption,
     onDeleteLookupOption,
     canDeleteLookupOption = false,
+    errors,
   } = props;
   const { fieldOptionsByField, addFieldOption, removeFieldOption } = useScreenDefinitions();
   const { tenantRole } = useTenant();
@@ -195,8 +197,9 @@ export const useCustomFieldsSectionViewModel = (props: CustomFieldsSectionProps)
 
   const fieldError = useCallback(
     (field: FieldDefinition): string | null =>
+      errors?.[field.key] ??
       evaluateFieldValidation(field.logic?.validate, { value: readByPath(values, field.key), data: values }),
-    [values],
+    [errors, values],
   );
 
   return {
