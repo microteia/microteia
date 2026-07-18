@@ -306,15 +306,6 @@ export const ScreenBuilderView: React.FC = () => {
                 onChange={(next) => vm.updateScreenForm({ hasTags: next })}
               />
             </S.CheckboxRow>
-            {vm.screenModalIsBuiltin && vm.childCandidates.length === 0 && (
-              <S.FullRow>
-                <InfoBanner
-                  variant="info"
-                  message="Nenhuma tela pode ser filha desta ainda. Crie uma tela customizada com um campo do tipo 'Vínculo com registro' apontando para esta tela — ela passará a aparecer aqui."
-                />
-              </S.FullRow>
-            )}
-
             {vm.screenModalIsEdit && vm.childCandidates.length > 0 && (
               <>
                 <S.RulesDivider>Registros filhos desta tela</S.RulesDivider>

@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [0.112.1] — 2026-07-18
+
+- Removido um texto explicativo desnecessário na configuração de registros filhos das telas do sistema.
+
 ## [0.112.0] — 2026-07-18
 
 - A configuração de registros filhos agora tem um caminho único: você seleciona os filhos de dentro da tela principal, seja ela personalizada ou do sistema. As telas do sistema (Processos, Contratos, Pessoas, Financeiro e Prazos) ganharam um botão de configuração para escolher quais telas aparecem como aba dentro de cada registro.
