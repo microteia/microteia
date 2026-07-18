@@ -28,6 +28,7 @@ import type {
   EntityNotesController,
 } from '../../shared/entityScreen/types';
 import type { TagStoreAdapter } from '../../components/ui/TagManager';
+import type { EntityDetailTab } from '../../components/layout/EntityDetailView';
 import type {
   CustomFieldValue,
   CustomRecord,
@@ -45,8 +46,8 @@ export interface ViewDynamicRecordViewModel {
   isAdmin: boolean;
   screenKey: string;
   recordId: string | null;
-  activeTab: ViewDynamicRecordTab;
-  setActiveTab: (tab: ViewDynamicRecordTab) => void;
+  activeTab: EntityDetailTab;
+  setActiveTab: (tab: EntityDetailTab) => void;
   sortedFields: FieldDefinition[];
   formValues: Record<string, CustomFieldValue>;
   setFieldValue: (fieldKey: string, value: CustomFieldValue) => void;

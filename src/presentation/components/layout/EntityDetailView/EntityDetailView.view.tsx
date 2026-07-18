@@ -12,7 +12,15 @@ import { Button } from '../../ui/Button';
 import { NotesPanel, DocumentsPanel } from '../EntityDetailPanels';
 import type { EntityDocumentsController, EntityNotesController } from '../../../shared/entityScreen/types';
 
-export type EntityDetailTab = 'data' | 'notes' | 'documents';
+/** `'data' | 'notes' | 'documents'` — ou a chave de uma aba extra declarada em `extraTabs`. */
+export type EntityDetailTab = string;
+
+/** Aba própria da tela, além de Dados/Anotações/Documentos (ex.: Processos, no Contrato). */
+export interface EntityDetailExtraTab {
+  key: string;
+  label: string;
+  content: React.ReactNode;
+}
 
 export interface EntityDetailTag {
   id: string;
@@ -48,6 +56,7 @@ export interface EntityDetailViewProps {
   setActiveTab: (tab: EntityDetailTab) => void;
   showNotesTab: boolean;
   showDocsTab: boolean;
+  extraTabs?: EntityDetailExtraTab[];
   notesController: EntityNotesController;
   docsController: EntityDocumentsController;
 
@@ -77,6 +86,7 @@ export const EntityDetailView: React.FC<EntityDetailViewProps> = ({
   onDelete,
   activeTab,
   setActiveTab,
+  extraTabs,
   showNotesTab,
   showDocsTab,
   notesController,
@@ -134,7 +144,7 @@ export const EntityDetailView: React.FC<EntityDetailViewProps> = ({
       </S.HeaderActions>
     </S.Header>
 
-    {!isNew && (showNotesTab || showDocsTab) && (
+    {!isNew && (showNotesTab || showDocsTab || (extraTabs?.length ?? 0) > 0) && (
       <S.TabBar>
         <S.TabBtn $active={activeTab === 'data'} onClick={() => setActiveTab('data')}>Dados</S.TabBtn>
         {showNotesTab && (
@@ -143,6 +153,11 @@ export const EntityDetailView: React.FC<EntityDetailViewProps> = ({
         {showDocsTab && (
           <S.TabBtn $active={activeTab === 'documents'} onClick={() => setActiveTab('documents')}>Documentos</S.TabBtn>
         )}
+        {extraTabs?.map((tab) => (
+          <S.TabBtn key={tab.key} $active={activeTab === tab.key} onClick={() => setActiveTab(tab.key)}>
+            {tab.label}
+          </S.TabBtn>
+        ))}
       </S.TabBar>
     )}
 
@@ -154,6 +169,7 @@ export const EntityDetailView: React.FC<EntityDetailViewProps> = ({
       {activeTab === 'documents' && !isNew && showDocsTab && (
         <DocumentsPanel controller={docsController} isAdmin={isAdmin} />
       )}
+      {!isNew && extraTabs?.find((tab) => tab.key === activeTab)?.content}
     </S.Content>
 
     {modals}

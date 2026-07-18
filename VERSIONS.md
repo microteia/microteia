@@ -11,6 +11,11 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [0.109.0] — 2026-07-18
+
+- A tela de Contratos passou a usar o mesmo motor de formulário das demais: as mensagens de validação aparecem abaixo de cada campo, as listas (Tipo, Categoria, Status, Objeto, Índice de reajuste, Moeda, Forma de pagamento, Banco e Centro de custo) permitem cadastrar novas opções direto no campo, e as partes envolvidas ganharam busca por digitação com seleção múltipla. A aba de Processos vinculados continua funcionando como antes.
+- Com isso, todas as telas de cadastro do sistema seguem o mesmo padrão de formulário e de listagem.
+
 ## [0.108.1] — 2026-07-18
 
 - Corrigida a faixa colorida de prioridade nos cards de Prazos, que havia passado para a lateral e ultrapassava a borda arredondada do card. Voltou a ser a linha fina no topo, como antes.

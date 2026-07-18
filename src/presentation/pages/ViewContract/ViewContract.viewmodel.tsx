@@ -1,38 +1,47 @@
-import { useState, useMemo, useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTheme } from 'styled-components';
 import { useContractStore } from '../../../stores/useContractStore';
 import { useContractTagStore } from '../../../stores/useContractTagStore';
+import { useContractLookup } from '../../../stores/useContractLookup';
 import { useCaseStore } from '../../../stores/useCaseStore';
 import { useCaseLookup } from '../../../stores/useCaseLookup';
-import { useContractLookup } from '../../../stores/useContractLookup';
-import { useDocumentTypeLookup } from '../../../stores/useDocumentTypeLookup';
-import { usePersonStore } from '../../../stores/usePersonStore';
 import { useAuth } from '../../../stores/useAuth';
 import { useTenant } from '../../../stores/useTenant';
 import { useWorkspace } from '../../../stores/useWorkspace';
 import { useNotification } from '../../../stores/useNotification';
-import { useDI } from '../../../infrastructure/di/useDI';
-import { generateDeepLink } from '../../../infrastructure/deeplink/deepLinkUtils';
-import { resolveColor, getConfigColor } from '../../../shared/styles/colorUtils';
-import type { DynamicSelectOption } from '../../components/ui/DynamicSelect';
-import type { MultiSearchSelectOption } from '../../components/ui/MultiSearchSelect';
-import type { SearchSelectOption } from '../../components/ui/SearchSelect';
-import { makeGetContractNotesUseCase } from '../../../domain/usecases/contractnotes/GetContractNotesUseCase';
-import { makeAddContractNoteUseCase } from '../../../domain/usecases/contractnotes/AddContractNoteUseCase';
-import { makeDeleteContractNoteUseCase } from '../../../domain/usecases/contractnotes/DeleteContractNoteUseCase';
-import { makeGetContractDocumentsUseCase } from '../../../domain/usecases/contractdocuments/GetContractDocumentsUseCase';
-import { makeUploadContractDocumentUseCase } from '../../../domain/usecases/contractdocuments/UploadContractDocumentUseCase';
-import { makeAddContractDocumentUseCase } from '../../../domain/usecases/contractdocuments/AddContractDocumentUseCase';
-import { makeDeleteContractDocumentUseCase } from '../../../domain/usecases/contractdocuments/DeleteContractDocumentUseCase';
-import type { Contract, ContractNote, ContractDocument, Case, CustomFieldValue, DeletionActor, FieldDefinition } from '../../../domain/entities';
-import type { TagStoreAdapter } from '../../components/ui/TagManager/TagManager.viewmodel';
 import { useScreenDefinitions } from '../../../stores/useScreenDefinitions';
-import { buildInitialFormValues, formValuesToStoredValues, validateRequiredFields } from '../../../domain/services/customFieldValues';
+import { useDI } from '../../../infrastructure/di/useDI';
+import { resolveColor, getConfigColor } from '../../../shared/styles/colorUtils';
+import { toDateInputValue } from '../../../utils/formatters';
+import type {
+  Case, Contract, ContractLookupKind, CustomFieldValue, FieldDefinition,
+} from '../../../domain/entities';
+import type { LookupOptionSet } from '../../components/ui/CustomFieldsSection/CustomFieldsSection.viewmodel';
+import type { TagStoreAdapter } from '../../components/ui/TagManager/TagManager.viewmodel';
+import type { EntityDetailTab } from '../../components/layout/EntityDetailView';
+import type { SearchSelectOption } from '../../components/ui/SearchSelect';
+import { useEntityDetail, type EntityValidationResult } from '../../shared/entityScreen/useEntityDetail';
+import { useNotesPort } from '../../shared/entityScreen/useNotesPort';
+import { useDocumentsPort } from '../../shared/entityScreen/useDocumentsPort';
+import type { EntityNotesController, EntityDocumentsController } from '../../shared/entityScreen/types';
+import { CONTRACT_FORM_FIELDS } from './contractSchema';
+import {
+  buildInitialFormValues,
+  collectRequiredErrors,
+  formValuesToStoredValues,
+  validateRequiredFields,
+} from '../../../domain/services/customFieldValues';
 import { describeRuleIssues } from '../../../domain/schema/fieldRules';
-import { validateRecordRules } from '../../../data/utils/recordRulesGate';
+import { validateRecordRules, ruleIssueFieldKey } from '../../../data/utils/recordRulesGate';
 
 export type ViewContractTab = 'data' | 'notes' | 'documents' | 'cases';
 
+/** Chave da aba própria do Contrato (processos vinculados). */
+export const CONTRACT_CASES_TAB = 'cases';
+
+type Values = Record<string, CustomFieldValue>;
+
+const CLONE_PREFIX = 'new-contract:clone:';
 const LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
 
 const generateContractNumber = (existing: Set<string>): string => {
@@ -46,203 +55,165 @@ const generateContractNumber = (existing: Set<string>): string => {
   return candidate;
 };
 
-const toDateInput = (d: Date | null | undefined): string => d ? d.toISOString().slice(0, 10) : '';
+const LOOKUP_COLLECTION_TO_KIND: Record<string, ContractLookupKind> = {
+  contractTypes: 'types',
+  contractCategories: 'categories',
+  contractStatuses: 'statuses',
+  contractObjects: 'objects',
+  contractAdjustmentIndexes: 'adjustmentIndexes',
+  contractAdjustmentPeriodicities: 'adjustmentPeriodicities',
+  contractCurrencies: 'currencies',
+  contractPaymentMethods: 'paymentMethods',
+  contractBanks: 'banks',
+  contractCostCenters: 'costCenters',
+};
 
-export interface ContractFormData {
-  number: string;
-  title: string;
-  type: string;
-  category: string;
-  status: string;
-  object: string;
-  contractorIds: string[];
-  contracteeIds: string[];
-  witnessIds: string[];
-  contractorLawyerIds: string[];
-  contracteeLawyerIds: string[];
-  clientId: string;
-  responsibleId: string;
-  draftedAt: string;
-  signedAt: string;
-  effectiveStart: string;
-  effectiveEnd: string;
-  autoRenewal: boolean;
-  renewalDate: string;
-  terminationDate: string;
-  initialValue: number | null;
-  monthlyValue: number | null;
-  totalValue: number | null;
-  adjustmentIndex: string;
-  adjustmentPeriodicity: string;
-  currency: string;
-  paymentMethod: string;
-  dueDay: string;
-  installments: string;
-  bank: string;
-  bankAccount: string;
-  pixKey: string;
-  costCenter: string;
-}
+const parseContractTab = (tabKey: string) => {
+  const cloneSourceId = tabKey.startsWith(CLONE_PREFIX) ? tabKey.slice(CLONE_PREFIX.length) : null;
+  const isNew = tabKey === 'new-contract' || cloneSourceId !== null;
+  return { isNew, recordId: isNew ? null : tabKey.replace('view-contract:', ''), cloneSourceId };
+};
 
-const buildFormData = (contract: Contract | null): ContractFormData => ({
-  number: contract?.number ?? '',
-  title: contract?.title ?? '',
-  type: contract?.type ?? '',
-  category: contract?.category ?? '',
-  status: contract?.status ?? '',
-  object: contract?.object ?? '',
-  contractorIds: contract?.contractorIds ?? [],
-  contracteeIds: contract?.contracteeIds ?? [],
-  witnessIds: contract?.witnessIds ?? [],
-  contractorLawyerIds: contract?.contractorLawyerIds ?? [],
-  contracteeLawyerIds: contract?.contracteeLawyerIds ?? [],
-  clientId: contract?.clientId ?? '',
-  responsibleId: contract?.responsibleId ?? '',
-  draftedAt: toDateInput(contract?.draftedAt),
-  signedAt: toDateInput(contract?.signedAt),
-  effectiveStart: toDateInput(contract?.effectiveStart),
-  effectiveEnd: toDateInput(contract?.effectiveEnd),
-  autoRenewal: contract?.autoRenewal ?? false,
-  renewalDate: toDateInput(contract?.renewalDate),
-  terminationDate: toDateInput(contract?.terminationDate),
-  initialValue: contract?.initialValue ?? null,
-  monthlyValue: contract?.monthlyValue ?? null,
-  totalValue: contract?.totalValue ?? null,
-  adjustmentIndex: contract?.adjustmentIndex ?? '',
-  adjustmentPeriodicity: contract?.adjustmentPeriodicity ?? '',
-  currency: contract?.currency ?? '',
-  paymentMethod: contract?.paymentMethod ?? '',
-  dueDay: contract?.dueDay != null ? String(contract.dueDay) : '',
-  installments: contract?.installments != null ? String(contract.installments) : '',
-  bank: contract?.bank ?? '',
-  bankAccount: contract?.bankAccount ?? '',
-  pixKey: contract?.pixKey ?? '',
-  costCenter: contract?.costCenter ?? '',
+const contractToValues = (c: Contract | null, customFields: FieldDefinition[], clone: boolean): Values => ({
+  number: clone ? '' : (c?.number ?? ''),
+  title: c?.title ?? '',
+  type: c?.type ?? '',
+  category: c?.category ?? '',
+  status: c?.status ?? '',
+  object: c?.object ?? '',
+  contractorIds: c?.contractorIds ?? [],
+  contracteeIds: c?.contracteeIds ?? [],
+  witnessIds: c?.witnessIds ?? [],
+  contractorLawyerIds: c?.contractorLawyerIds ?? [],
+  contracteeLawyerIds: c?.contracteeLawyerIds ?? [],
+  clientId: c?.clientId ?? '',
+  responsibleId: c?.responsibleId ?? '',
+  draftedAt: toDateInputValue(c?.draftedAt),
+  signedAt: toDateInputValue(c?.signedAt),
+  effectiveStart: toDateInputValue(c?.effectiveStart),
+  effectiveEnd: toDateInputValue(c?.effectiveEnd),
+  autoRenewal: c?.autoRenewal ?? false,
+  renewalDate: toDateInputValue(c?.renewalDate),
+  terminationDate: toDateInputValue(c?.terminationDate),
+  initialValue: c?.initialValue ?? null,
+  monthlyValue: c?.monthlyValue ?? null,
+  totalValue: c?.totalValue ?? null,
+  adjustmentIndex: c?.adjustmentIndex ?? '',
+  adjustmentPeriodicity: c?.adjustmentPeriodicity ?? '',
+  currency: c?.currency ?? '',
+  paymentMethod: c?.paymentMethod ?? '',
+  dueDay: c?.dueDay != null ? String(c.dueDay) : '',
+  installments: c?.installments != null ? String(c.installments) : '',
+  bank: c?.bank ?? '',
+  bankAccount: c?.bankAccount ?? '',
+  pixKey: c?.pixKey ?? '',
+  costCenter: c?.costCenter ?? '',
+  ...buildInitialFormValues(customFields, c?.customValues ?? null),
+} as unknown as Values);
+
+const str = (values: Values, key: string): string => {
+  const v = (values as Record<string, unknown>)[key];
+  return typeof v === 'string' ? v : '';
+};
+
+const strArray = (values: Values, key: string): string[] => {
+  const v = (values as Record<string, unknown>)[key];
+  return Array.isArray(v) ? (v as string[]) : [];
+};
+
+const num = (values: Values, key: string): number | null => {
+  const v = (values as Record<string, unknown>)[key];
+  return typeof v === 'number' ? v : null;
+};
+
+const dateOrNull = (values: Values, key: string): Date | null =>
+  str(values, key) ? new Date(str(values, key)) : null;
+
+const intOrNull = (values: Values, key: string): number | null =>
+  str(values, key) ? Number(str(values, key)) : null;
+
+const valuesToContractPayload = (values: Values, customFields: FieldDefinition[]) => ({
+  number: str(values, 'number').trim(),
+  title: str(values, 'title').trim(),
+  type: str(values, 'type'),
+  category: str(values, 'category'),
+  status: str(values, 'status'),
+  object: str(values, 'object') || null,
+  contractorIds: strArray(values, 'contractorIds'),
+  contracteeIds: strArray(values, 'contracteeIds'),
+  witnessIds: strArray(values, 'witnessIds'),
+  contractorLawyerIds: strArray(values, 'contractorLawyerIds'),
+  contracteeLawyerIds: strArray(values, 'contracteeLawyerIds'),
+  clientId: str(values, 'clientId') || null,
+  responsibleId: str(values, 'responsibleId') || null,
+  draftedAt: dateOrNull(values, 'draftedAt'),
+  signedAt: dateOrNull(values, 'signedAt'),
+  effectiveStart: dateOrNull(values, 'effectiveStart'),
+  effectiveEnd: dateOrNull(values, 'effectiveEnd'),
+  autoRenewal: (values as Record<string, unknown>).autoRenewal === true,
+  renewalDate: dateOrNull(values, 'renewalDate'),
+  terminationDate: dateOrNull(values, 'terminationDate'),
+  initialValue: num(values, 'initialValue'),
+  monthlyValue: num(values, 'monthlyValue'),
+  totalValue: num(values, 'totalValue'),
+  adjustmentIndex: str(values, 'adjustmentIndex') || null,
+  adjustmentPeriodicity: str(values, 'adjustmentPeriodicity') || null,
+  currency: str(values, 'currency') || null,
+  paymentMethod: str(values, 'paymentMethod') || null,
+  dueDay: intOrNull(values, 'dueDay'),
+  installments: intOrNull(values, 'installments'),
+  bank: str(values, 'bank') || null,
+  bankAccount: str(values, 'bankAccount') || null,
+  pixKey: str(values, 'pixKey') || null,
+  costCenter: str(values, 'costCenter') || null,
+  customValues: formValuesToStoredValues(customFields, values),
 });
 
 export interface ViewContractViewModel {
   isNew: boolean;
   contract: Contract | null;
-  activeTab: ViewContractTab;
-  setActiveTab: (tab: ViewContractTab) => void;
-  formData: ContractFormData;
-  setFormData: (data: Partial<ContractFormData>) => void;
+  isAdmin: boolean;
+  fields: FieldDefinition[];
   customFields: FieldDefinition[];
-  customValues: Record<string, CustomFieldValue>;
-  setCustomValue: (fieldKey: string, value: CustomFieldValue) => void;
+  values: Values;
+  setFieldValue: (fieldKey: string, value: CustomFieldValue) => void;
+  fieldErrors: Record<string, string>;
+  lookupOptions: Record<string, LookupOptionSet>;
+  handleAddLookupOption: (collection: string, label: string) => Promise<void>;
+  handleDeleteLookupOption: (collection: string, optionKey: string) => Promise<void>;
   isSaving: boolean;
   handleSave: () => Promise<void>;
-
-  personOptions: MultiSearchSelectOption[];
-  personSearchOptions: SearchSelectOption[];
-
-  linkedCases: Case[];
-  unlinkedCaseOptions: SearchSelectOption[];
-  caseToAdd: string;
-  setCaseToAdd: (v: string) => void;
-  handleLinkCase: (caseId: string) => Promise<void>;
-  handleOpenCase: (c: Case) => void;
-  handleUnlinkCase: (c: Case) => Promise<void>;
-  getCaseStatusColor: (status: string) => string;
 
   tagAdapter: TagStoreAdapter;
   isTagManagerOpen: boolean;
   openTagManager: () => void;
   closeTagManager: () => void;
 
-  notes: ContractNote[];
-  notesLoading: boolean;
-  newNoteTitle: string;
-  setNewNoteTitle: (v: string) => void;
-  newNoteText: string;
-  setNewNoteText: (v: string) => void;
-  isAddingNote: boolean;
-  isNoteEditorOpen: boolean;
-  openNoteEditor: () => void;
-  closeNoteEditor: () => void;
-  expandedNoteIds: Set<string>;
-  toggleNoteExpanded: (id: string) => void;
-  handleAddNote: () => Promise<void>;
-  noteToDelete: ContractNote | null;
-  requestDeleteNote: (note: ContractNote) => void;
-  confirmDeleteNote: () => Promise<void>;
-  cancelDeleteNote: () => void;
-  isAdmin: boolean;
+  notesController: EntityNotesController;
+  docsController: EntityDocumentsController;
 
-  documents: ContractDocument[];
-  docsLoading: boolean;
-  isUploadingDoc: boolean;
-  pendingFile: File | null;
-  pendingType: string;
-  setPendingType: (v: string) => void;
-  documentTypeOptions: DynamicSelectOption[];
-  documentTypeDynamicOptions: DynamicSelectOption[];
-  handleAddDocumentType: (name: string) => Promise<void>;
-  handleDeleteDocumentType: (key: string) => Promise<void>;
-  handleSelectFile: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  handleConfirmUpload: () => Promise<void>;
-  handleCancelPendingUpload: () => void;
-  docToDelete: ContractDocument | null;
-  requestDeleteDoc: (doc: ContractDocument) => void;
-  confirmDeleteDoc: () => Promise<void>;
-  cancelDeleteDoc: () => void;
-
+  activeTab: EntityDetailTab;
+  setActiveTab: (tab: EntityDetailTab) => void;
   copyLinkDone: boolean;
   handleCopyDeepLink: () => void;
   handleClone: () => void;
-  statusColor: string;
   handleDeleteContract: () => void;
   contractToDelete: Contract | null;
   confirmDeleteContract: () => Promise<void>;
   cancelDeleteContract: () => void;
 
-  typeOptions: DynamicSelectOption[];
-  typeDynamicOptions: DynamicSelectOption[];
-  categoryOptions: DynamicSelectOption[];
-  categoryDynamicOptions: DynamicSelectOption[];
-  statusOptions: DynamicSelectOption[];
-  statusDynamicOptions: DynamicSelectOption[];
-  objectOptions: DynamicSelectOption[];
-  adjustmentIndexOptions: DynamicSelectOption[];
-  adjustmentIndexDynamicOptions: DynamicSelectOption[];
-  adjustmentPeriodicityOptions: DynamicSelectOption[];
-  adjustmentPeriodicityDynamicOptions: DynamicSelectOption[];
-  currencyOptions: DynamicSelectOption[];
-  currencyDynamicOptions: DynamicSelectOption[];
-  paymentMethodOptions: DynamicSelectOption[];
-  paymentMethodDynamicOptions: DynamicSelectOption[];
-  bankOptions: DynamicSelectOption[];
-  costCenterOptions: DynamicSelectOption[];
-
-  handleAddType: (name: string) => Promise<void>;
-  handleDeleteType: (key: string) => Promise<void>;
-  handleAddCategory: (name: string) => Promise<void>;
-  handleDeleteCategory: (key: string) => Promise<void>;
-  handleAddStatus: (name: string) => Promise<void>;
-  handleDeleteStatus: (key: string) => Promise<void>;
-  handleAddObject: (name: string) => Promise<void>;
-  handleDeleteObject: (key: string) => Promise<void>;
-  handleAddAdjustmentIndex: (name: string) => Promise<void>;
-  handleDeleteAdjustmentIndex: (key: string) => Promise<void>;
-  handleAddAdjustmentPeriodicity: (name: string) => Promise<void>;
-  handleDeleteAdjustmentPeriodicity: (key: string) => Promise<void>;
-  handleAddCurrency: (name: string) => Promise<void>;
-  handleDeleteCurrency: (key: string) => Promise<void>;
-  handleAddPaymentMethod: (name: string) => Promise<void>;
-  handleDeletePaymentMethod: (key: string) => Promise<void>;
-  handleAddBank: (name: string) => Promise<void>;
-  handleDeleteBank: (key: string) => Promise<void>;
-  handleAddCostCenter: (name: string) => Promise<void>;
-  handleDeleteCostCenter: (key: string) => Promise<void>;
+  // Aba própria do Contrato: processos vinculados.
+  linkedCases: Case[];
+  unlinkedCaseOptions: SearchSelectOption[];
+  caseToAdd: string;
+  setCaseToAdd: (v: string) => void;
+  handleLinkCase: (caseId: string) => Promise<void>;
+  handleUnlinkCase: (c: Case) => Promise<void>;
+  handleOpenCase: (c: Case) => void;
+  getCaseStatusColor: (status: string) => string;
 }
 
-const CLONE_PREFIX = 'new-contract:clone:';
-
 export const useViewContractViewModel = (tabKey: string): ViewContractViewModel => {
-  const cloneSourceId = tabKey.startsWith(CLONE_PREFIX) ? tabKey.slice(CLONE_PREFIX.length) : null;
-  const isNew = tabKey === 'new-contract' || cloneSourceId !== null;
-  const contractId = isNew ? '' : tabKey.replace('view-contract:', '');
-
   const { contracts, createContract, updateContract, deleteContract } = useContractStore();
   const { tags, getTagsForContract, setTagsForContract, createTag, updateTag, deleteTag } = useContractTagStore();
   const {
@@ -250,130 +221,145 @@ export const useViewContractViewModel = (tabKey: string): ViewContractViewModel 
     adjustmentIndexConfigs, adjustmentPeriodicityConfigs, currencyConfigs, paymentMethodConfigs,
     bankConfigs, costCenterConfigs, addItem, removeItem,
   } = useContractLookup();
-  const { typeConfigs: documentTypeConfigs, addItem: addDocumentType, removeItem: removeDocumentType } = useDocumentTypeLookup();
-  const { persons } = usePersonStore();
   const { cases, updateCase } = useCaseStore();
   const { statusConfigs: caseStatusConfigs } = useCaseLookup();
   const { user, effectiveName } = useAuth();
-  const { tenantRole, currentTenant } = useTenant();
-  const { setTabTitle, closeTab, openTab, activePanelId } = useWorkspace();
+  const { tenantRole } = useTenant();
+  const { openTab } = useWorkspace();
   const { notify } = useNotification();
-  const theme = useTheme();
-  const { contractNoteRepository, contractDocumentRepository } = useDI();
   const { getCustomFieldsFor } = useScreenDefinitions();
-
-  const contract = useMemo(
-    () => (isNew ? null : (contracts.find((c) => c.id === contractId) ?? null)),
-    [contracts, contractId, isNew],
-  );
-
-  const cloneSource = useMemo(
-    () => (cloneSourceId ? (contracts.find((c) => c.id === cloneSourceId) ?? null) : null),
-    [contracts, cloneSourceId],
-  );
+  const { contractNoteRepository, contractDocumentRepository } = useDI();
+  const theme = useTheme();
 
   const isAdmin = tenantRole === 'admin';
-
-  const [activeTab, setActiveTab] = useState<ViewContractTab>('data');
-  const [formData, setFormDataState] = useState<ContractFormData>(() => {
-    const base = buildFormData(cloneSource);
-    return cloneSource ? { ...base, number: '' } : base;
-  });
-  const [isSaving, setIsSaving] = useState(false);
+  const userId = user?.id ?? '';
   const customFields = useMemo(() => getCustomFieldsFor('contracts'), [getCustomFieldsFor]);
-  const [customValues, setCustomValues] = useState<Record<string, CustomFieldValue>>({});
-  const [isTagManagerOpen, setIsTagManagerOpen] = useState(false);
-  const [copyLinkDone, setCopyLinkDone] = useState(false);
-  const [contractToDelete, setContractToDelete] = useState<Contract | null>(null);
-
-  const [notes, setNotes] = useState<ContractNote[]>([]);
-  const [notesLoading, setNotesLoading] = useState(false);
-  const [newNoteTitle, setNewNoteTitle] = useState('');
-  const [newNoteText, setNewNoteText] = useState('');
-  const [isAddingNote, setIsAddingNote] = useState(false);
-  const [noteToDelete, setNoteToDelete] = useState<ContractNote | null>(null);
-
-  const [isNoteEditorOpen, setIsNoteEditorOpen] = useState(false);
-  const [expandedNoteIds, setExpandedNoteIds] = useState<Set<string>>(new Set());
-
-  const [documents, setDocuments] = useState<ContractDocument[]>([]);
-  const [docsLoading, setDocsLoading] = useState(false);
-  const [isUploadingDoc, setIsUploadingDoc] = useState(false);
-  const [docToDelete, setDocToDelete] = useState<ContractDocument | null>(null);
-  const [pendingFile, setPendingFile] = useState<File | null>(null);
-  const [pendingType, setPendingType] = useState('');
-
-  const noteUC = useMemo(() => ({
-    get: makeGetContractNotesUseCase(contractNoteRepository),
-    add: makeAddContractNoteUseCase(contractNoteRepository),
-    delete: makeDeleteContractNoteUseCase(contractNoteRepository),
-  }), [contractNoteRepository]);
-
-  const docUC = useMemo(() => ({
-    get: makeGetContractDocumentsUseCase(contractDocumentRepository),
-    upload: makeUploadContractDocumentUseCase(contractDocumentRepository),
-    add: makeAddContractDocumentUseCase(contractDocumentRepository),
-    delete: makeDeleteContractDocumentUseCase(contractDocumentRepository),
-  }), [contractDocumentRepository]);
-
-  useEffect(() => {
-    if (contract) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- sincroniza formulário ao carregar/atualizar dados do contrato
-      setFormDataState(buildFormData(contract));
-      setTabTitle(tabKey, contract.number ?? contract.title);
-    }
-  }, [contract, tabKey, setTabTitle]);
-
-  useEffect(() => {
-    if (!isNew) return;
-    const existing = new Set(contracts.map((c) => c.number));
-    const suggested = generateContractNumber(existing);
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- sugere um número de contrato aleatório ao criar
-    setFormDataState((prev) => (prev.number ? prev : { ...prev, number: suggested }));
-  }, [isNew, contracts]);
-
-  useEffect(() => {
-    if (!contract || !currentTenant) return;
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- carregamento inicial após navegação para aba
-    setNotesLoading(true);
-    noteUC.get.execute(currentTenant.id, contract.id)
-      .then(setNotes)
-      .finally(() => setNotesLoading(false));
-  }, [contract, currentTenant, noteUC]);
-
-  useEffect(() => {
-    if (!contract || !currentTenant) return;
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- carregamento inicial após navegação para aba
-    setDocsLoading(true);
-    docUC.get.execute(currentTenant.id, contract.id)
-      .then(setDocuments)
-      .finally(() => setDocsLoading(false));
-  }, [contract, currentTenant, docUC]);
-
-  const setFormData = useCallback((data: Partial<ContractFormData>) => {
-    setFormDataState((prev) => ({ ...prev, ...data }));
-  }, []);
-
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- sincroniza campos adicionais ao carregar/atualizar dados
-    setCustomValues(buildInitialFormValues(customFields, (contract ?? cloneSource)?.customValues ?? null));
-  }, [contract, cloneSource, customFields]);
-
-  const setCustomValue = useCallback((fieldKey: string, value: CustomFieldValue) => {
-    setCustomValues((prev) => ({ ...prev, [fieldKey]: value }));
-  }, []);
-
-  const personOptions = useMemo<MultiSearchSelectOption[]>(() =>
-    persons.map((p) => ({ value: p.id, label: p.name })).sort((a, b) => a.label.localeCompare(b.label)),
-    [persons],
-  );
-
-  const personSearchOptions = useMemo<SearchSelectOption[]>(() =>
-    persons.map((p) => ({ value: p.id, label: p.name })).sort((a, b) => a.label.localeCompare(b.label)),
-    [persons],
-  );
+  const allFields = useMemo(() => [...CONTRACT_FORM_FIELDS, ...customFields], [customFields]);
 
   const [caseToAdd, setCaseToAdd] = useState('');
+
+  const findInStore = useCallback((id: string) => contracts.find((c) => c.id === id) ?? null, [contracts]);
+
+  const recordToValues = useCallback(
+    (c: Contract | null, opts: { clone: boolean }) => contractToValues(c, customFields, opts.clone),
+    [customFields],
+  );
+
+  const resolveTitleFromValues = useCallback(
+    (values: Values) => str(values, 'number') || str(values, 'title') || 'Contrato',
+    [],
+  );
+
+  const validate = useCallback((values: Values): EntityValidationResult | null => {
+    const fieldErrors = collectRequiredErrors(allFields, values);
+    const issues = validateRecordRules('contracts', valuesToContractPayload(values, customFields));
+    issues.forEach((issue) => {
+      const key = ruleIssueFieldKey(issue.path);
+      if (!fieldErrors[key]) fieldErrors[key] = issue.error;
+    });
+    if (Object.keys(fieldErrors).length === 0) return null;
+    const message = validateRequiredFields(allFields, values) ?? describeRuleIssues(issues);
+    return { message, fieldErrors };
+  }, [allFields, customFields]);
+
+  const create = useCallback(async (values: Values) => {
+    const created = await createContract({
+      ...valuesToContractPayload(values, customFields),
+      createdBy: userId,
+      tagIds: [],
+    });
+    return { id: created.id, title: created.number || created.title };
+  }, [createContract, customFields, userId]);
+
+  const update = useCallback(async (id: string, values: Values) => {
+    await updateContract(id, {
+      ...valuesToContractPayload(values, customFields),
+      updatedBy: userId,
+      updatedByName: effectiveName,
+      updatedByPhotoURL: user?.photoURL ?? '',
+    });
+  }, [updateContract, customFields, userId, effectiveName, user]);
+
+  const notesPort = useNotesPort(contractNoteRepository);
+  const documentsPort = useDocumentsPort(contractDocumentRepository);
+
+  const detail = useEntityDetail<Contract>({
+    tabKey,
+    parse: parseContractTab,
+    findInStore,
+    recordToValues,
+    resolveTabTitle: (c) => c?.number ?? c?.title ?? null,
+    resolveTitleFromValues,
+    validate,
+    create,
+    update,
+    messages: {
+      created: 'Contrato cadastrado com sucesso!',
+      updated: 'Contrato atualizado com sucesso!',
+      error: 'Erro ao salvar contrato.',
+    },
+    deepLinkKey: (id) => `view-contract:${id}`,
+    cloneKey: (id) => `${CLONE_PREFIX}${id}`,
+    remove: (id) => deleteContract(id),
+    removedMessage: 'Contrato excluído.',
+    removeErrorMessage: 'Erro ao excluir contrato.',
+    notesPort,
+    documentsPort,
+    hasNotes: true,
+    hasDocuments: true,
+  });
+
+  const contract = detail.record;
+  const { setFieldValue } = detail;
+
+  // Sugere um número livre ao criar/clonar. Fica em efeito porque sorteia (impuro no render).
+  const needsNumber = detail.isNew && !str(detail.values, 'number');
+  useEffect(() => {
+    if (!needsNumber) return;
+    setFieldValue('number', generateContractNumber(new Set(contracts.map((c) => c.number))));
+  }, [needsNumber, contracts, setFieldValue]);
+
+  const lookupOptions = useMemo<Record<string, LookupOptionSet>>(() => {
+    const plain = (configs: typeof typeConfigs) => ({
+      staticOptions: configs.filter((c) => c.isStatic !== false).map((c) => ({ value: c.key, label: c.label })),
+      dynamicOptions: configs.filter((c) => c.isStatic === false).map((c) => ({ value: c.key, label: c.label })),
+    });
+    return {
+      contractTypes: plain(typeConfigs),
+      contractCategories: plain(categoryConfigs),
+      contractStatuses: {
+        staticOptions: statusConfigs.filter((c) => c.isStatic !== false).map((c) => ({ value: c.key, label: c.label, color: resolveColor(c.color, theme) })),
+        dynamicOptions: statusConfigs.filter((c) => c.isStatic === false).map((c) => ({ value: c.key, label: c.label, color: resolveColor(c.color, theme) })),
+      },
+      contractObjects: plain(objectConfigs),
+      contractAdjustmentIndexes: plain(adjustmentIndexConfigs),
+      contractAdjustmentPeriodicities: plain(adjustmentPeriodicityConfigs),
+      contractCurrencies: plain(currencyConfigs),
+      contractPaymentMethods: plain(paymentMethodConfigs),
+      contractBanks: plain(bankConfigs),
+      contractCostCenters: plain(costCenterConfigs),
+    };
+  }, [typeConfigs, categoryConfigs, statusConfigs, objectConfigs, adjustmentIndexConfigs,
+      adjustmentPeriodicityConfigs, currencyConfigs, paymentMethodConfigs, bankConfigs, costCenterConfigs, theme]);
+
+  const handleAddLookupOption = useCallback(async (collection: string, label: string): Promise<void> => {
+    const kind = LOOKUP_COLLECTION_TO_KIND[collection];
+    if (kind) await addItem(kind, label);
+  }, [addItem]);
+
+  const handleDeleteLookupOption = useCallback(async (collection: string, optionKey: string): Promise<void> => {
+    const kind = LOOKUP_COLLECTION_TO_KIND[collection];
+    if (kind) await removeItem(kind, optionKey);
+  }, [removeItem]);
+
+  const tagAdapter: TagStoreAdapter = useMemo(() => ({
+    tags,
+    getAppliedTags: (entityId: string) => getTagsForContract(entityId, contract?.tagIds ?? []),
+    setTags: (entityId: string, tagIds: string[]) => setTagsForContract(entityId, tagIds),
+    createTag: (name: string, color: string) => createTag(name, color),
+    updateTag: (id: string, data: { name: string; color: string }) => updateTag(id, data),
+    deleteTag: (id: string) => deleteTag(id),
+  }), [tags, contract, getTagsForContract, setTagsForContract, createTag, updateTag, deleteTag]);
 
   const linkedCases = useMemo(
     () => (contract ? cases.filter((c) => c.contractId === contract.id) : []),
@@ -397,14 +383,6 @@ export const useViewContractViewModel = (tabKey: string): ViewContractViewModel 
     }
   }, [contract, updateCase, notify]);
 
-  const handleOpenCase = useCallback((c: Case) => {
-    openTab(`view-case:${c.id}`);
-  }, [openTab]);
-
-  const getCaseStatusColor = useCallback((status: string): string => {
-    return getConfigColor(caseStatusConfigs, status, theme);
-  }, [caseStatusConfigs, theme]);
-
   const handleUnlinkCase = useCallback(async (c: Case) => {
     try {
       await updateCase(c.id, { contractId: null });
@@ -414,459 +392,49 @@ export const useViewContractViewModel = (tabKey: string): ViewContractViewModel 
     }
   }, [updateCase, notify]);
 
-  const handleSave = useCallback(async () => {
-    if (!formData.number.trim()) { notify('Número do contrato é obrigatório.', 'error'); return; }
-    if (!formData.title.trim()) { notify('Título é obrigatório.', 'error'); return; }
-    if (!formData.type) { notify('Tipo de contrato é obrigatório.', 'error'); return; }
-    if (!formData.category) { notify('Categoria é obrigatória.', 'error'); return; }
-    if (!formData.status) { notify('Status é obrigatório.', 'error'); return; }
-    const customFieldsError = validateRequiredFields(customFields, customValues);
-    if (customFieldsError) { notify(customFieldsError, 'error'); return; }
-    if (!currentTenant) return;
+  const handleOpenCase = useCallback((c: Case) => openTab(`view-case:${c.id}`), [openTab]);
 
-    setIsSaving(true);
-    try {
-      const payload = {
-        number: formData.number.trim(),
-        title: formData.title.trim(),
-        type: formData.type,
-        category: formData.category,
-        status: formData.status,
-        object: formData.object || null,
-        contractorIds: formData.contractorIds,
-        contracteeIds: formData.contracteeIds,
-        witnessIds: formData.witnessIds,
-        contractorLawyerIds: formData.contractorLawyerIds,
-        contracteeLawyerIds: formData.contracteeLawyerIds,
-        clientId: formData.clientId || null,
-        responsibleId: formData.responsibleId || null,
-        draftedAt: formData.draftedAt ? new Date(formData.draftedAt) : null,
-        signedAt: formData.signedAt ? new Date(formData.signedAt) : null,
-        effectiveStart: formData.effectiveStart ? new Date(formData.effectiveStart) : null,
-        effectiveEnd: formData.effectiveEnd ? new Date(formData.effectiveEnd) : null,
-        autoRenewal: formData.autoRenewal,
-        renewalDate: formData.renewalDate ? new Date(formData.renewalDate) : null,
-        terminationDate: formData.terminationDate ? new Date(formData.terminationDate) : null,
-        initialValue: formData.initialValue,
-        monthlyValue: formData.monthlyValue,
-        totalValue: formData.totalValue,
-        adjustmentIndex: formData.adjustmentIndex || null,
-        adjustmentPeriodicity: formData.adjustmentPeriodicity || null,
-        currency: formData.currency || null,
-        paymentMethod: formData.paymentMethod || null,
-        dueDay: formData.dueDay ? Number(formData.dueDay) : null,
-        installments: formData.installments ? Number(formData.installments) : null,
-        bank: formData.bank || null,
-        bankAccount: formData.bankAccount || null,
-        pixKey: formData.pixKey || null,
-        costCenter: formData.costCenter || null,
-        customValues: formValuesToStoredValues(customFields, customValues),
-      };
-
-      const ruleIssues = validateRecordRules('contracts', payload);
-      if (ruleIssues.length > 0) {
-        notify(describeRuleIssues(ruleIssues), 'error');
-        return;
-      }
-
-      if (isNew) {
-        const created = await createContract({ ...payload, createdBy: user?.id ?? '', tagIds: [] });
-        notify('Contrato cadastrado com sucesso!', 'success');
-        const newTabKey = `view-contract:${created.id}`;
-        closeTab(tabKey, activePanelId ?? 'main');
-        openTab(newTabKey);
-        setTabTitle(newTabKey, created.title);
-      } else if (contract) {
-        await updateContract(contract.id, {
-          ...payload,
-          updatedBy: user?.id ?? '',
-          updatedByName: effectiveName,
-          updatedByPhotoURL: user?.photoURL ?? '',
-        });
-        notify('Contrato atualizado com sucesso!', 'success');
-      }
-    } catch (err) {
-      console.error('[ViewContract handleSave]', err);
-      notify('Erro ao salvar contrato.', 'error');
-    } finally {
-      setIsSaving(false);
-    }
-  }, [formData, customFields, customValues, isNew, contract, createContract, updateContract, currentTenant, notify, user, effectiveName, tabKey, setTabTitle, closeTab, openTab, activePanelId]);
-
-  const tagAdapter: TagStoreAdapter = useMemo(() => ({
-    tags,
-    getAppliedTags: (entityId: string) => getTagsForContract(entityId, contract?.tagIds ?? []),
-    setTags: (entityId: string, tagIds: string[]) => setTagsForContract(entityId, tagIds),
-    createTag: (name: string, color: string) => createTag(name, color),
-    updateTag: (id: string, data: { name: string; color: string }) => updateTag(id, data),
-    deleteTag: (id: string) => deleteTag(id),
-  }), [tags, contract, getTagsForContract, setTagsForContract, createTag, updateTag, deleteTag]);
-
-  const openTagManager = useCallback(() => setIsTagManagerOpen(true), []);
-  const closeTagManager = useCallback(() => setIsTagManagerOpen(false), []);
-
-  const openNoteEditor = useCallback(() => setIsNoteEditorOpen(true), []);
-  const closeNoteEditor = useCallback(() => {
-    setIsNoteEditorOpen(false);
-    setNewNoteTitle('');
-    setNewNoteText('');
-  }, []);
-
-  const toggleNoteExpanded = useCallback((id: string) => {
-    setExpandedNoteIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id); else next.add(id);
-      return next;
-    });
-  }, []);
-
-  const handleAddNote = useCallback(async () => {
-    if (!newNoteTitle.trim() || !newNoteText.trim() || !contract || !currentTenant || !user) return;
-    setIsAddingNote(true);
-    try {
-      const note = await noteUC.add.execute(currentTenant.id, contract.id, {
-        title: newNoteTitle.trim(),
-        text: newNoteText.trim(),
-        createdBy: user.id,
-        createdByName: effectiveName,
-        createdByPhotoUrl: user.photoURL ?? undefined,
-      });
-      setNotes((prev) => [note, ...prev]);
-      setNewNoteTitle('');
-      setNewNoteText('');
-      setIsNoteEditorOpen(false);
-      notify('Anotação adicionada.', 'success');
-    } catch {
-      notify('Erro ao adicionar anotação.', 'error');
-    } finally {
-      setIsAddingNote(false);
-    }
-  }, [newNoteTitle, newNoteText, contract, currentTenant, user, effectiveName, noteUC, notify]);
-
-  const requestDeleteNote = useCallback((note: ContractNote) => setNoteToDelete(note), []);
-  const cancelDeleteNote = useCallback(() => setNoteToDelete(null), []);
-  const confirmDeleteNote = useCallback(async () => {
-    if (!noteToDelete || !contract || !currentTenant) return;
-    try {
-      const actor: DeletionActor = { uid: user?.id ?? '', name: effectiveName, photoURL: user?.photoURL ?? '' };
-      await noteUC.delete.execute(currentTenant.id, contract.id, noteToDelete.id, actor);
-      setNotes((prev) => prev.filter((n) => n.id !== noteToDelete.id));
-      notify('Anotação excluída.', 'success');
-    } catch {
-      notify('Erro ao excluir anotação.', 'error');
-    } finally {
-      setNoteToDelete(null);
-    }
-  }, [noteToDelete, contract, currentTenant, noteUC, notify, user, effectiveName]);
-
-  const handleSelectFile = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setPendingFile(file);
-      setPendingType('');
-    }
-    e.target.value = '';
-  }, []);
-
-  const handleCancelPendingUpload = useCallback(() => {
-    setPendingFile(null);
-    setPendingType('');
-  }, []);
-
-  const handleConfirmUpload = useCallback(async () => {
-    if (!pendingFile || !contract || !currentTenant || !user) return;
-    setIsUploadingDoc(true);
-    try {
-      const raw = await docUC.upload.execute(currentTenant.id, contract.id, pendingFile);
-      const { url, storagePath } = JSON.parse(raw) as { url: string; storagePath: string };
-      const addedDoc = await docUC.add.execute(currentTenant.id, contract.id, {
-        name: pendingFile.name,
-        type: pendingType.trim() || undefined,
-        url,
-        storagePath,
-        createdBy: user.id,
-        createdByName: effectiveName,
-        createdByPhotoUrl: user.photoURL ?? undefined,
-      });
-      setDocuments((prev) => [addedDoc, ...prev]);
-      setPendingFile(null);
-      setPendingType('');
-      notify('Documento enviado com sucesso.', 'success');
-    } catch {
-      notify('Erro ao enviar documento.', 'error');
-    } finally {
-      setIsUploadingDoc(false);
-    }
-  }, [pendingFile, pendingType, contract, currentTenant, user, effectiveName, docUC, notify]);
-
-  const requestDeleteDoc = useCallback((doc: ContractDocument) => setDocToDelete(doc), []);
-  const cancelDeleteDoc = useCallback(() => setDocToDelete(null), []);
-  const confirmDeleteDoc = useCallback(async () => {
-    if (!docToDelete || !contract || !currentTenant) return;
-    try {
-      const actor: DeletionActor = { uid: user?.id ?? '', name: effectiveName, photoURL: user?.photoURL ?? '' };
-      await docUC.delete.execute(currentTenant.id, contract.id, docToDelete.id, docToDelete.storagePath, actor);
-      setDocuments((prev) => prev.filter((d) => d.id !== docToDelete.id));
-      notify('Documento excluído.', 'success');
-    } catch {
-      notify('Erro ao excluir documento.', 'error');
-    } finally {
-      setDocToDelete(null);
-    }
-  }, [docToDelete, contract, currentTenant, docUC, notify, user, effectiveName]);
-
-  const handleCopyDeepLink = useCallback(() => {
-    if (!contract) return;
-    void navigator.clipboard.writeText(generateDeepLink(`view-contract:${contract.id}`));
-    setCopyLinkDone(true);
-    setTimeout(() => setCopyLinkDone(false), 2000);
-  }, [contract]);
-
-  const handleClone = useCallback(() => {
-    if (!contract) return;
-    openTab(`${CLONE_PREFIX}${contract.id}`);
-  }, [contract, openTab]);
-
-  const statusColor = useMemo(() => {
-    if (!formData.status) return theme.colors.textSecondary;
-    return getConfigColor(statusConfigs, formData.status, theme);
-  }, [formData.status, statusConfigs, theme]);
-
-  const handleDeleteContract = useCallback(() => {
-    if (contract) setContractToDelete(contract);
-  }, [contract]);
-
-  const confirmDeleteContract = useCallback(async () => {
-    if (!contractToDelete) return;
-    try {
-      await deleteContract(contractToDelete.id);
-      notify('Contrato excluído.', 'success');
-      closeTab(tabKey, activePanelId);
-    } catch {
-      notify('Erro ao excluir contrato.', 'error');
-    } finally {
-      setContractToDelete(null);
-    }
-  }, [contractToDelete, deleteContract, notify, closeTab, tabKey, activePanelId]);
-
-  const cancelDeleteContract = useCallback(() => setContractToDelete(null), []);
-
-  const typeOptions = useMemo<DynamicSelectOption[]>(
-    () => typeConfigs.filter(c => c.isStatic !== false).map(c => ({ value: c.key, label: c.label })),
-    [typeConfigs],
+  const getCaseStatusColor = useCallback(
+    (status: string): string => getConfigColor(caseStatusConfigs, status, theme),
+    [caseStatusConfigs, theme],
   );
-  const typeDynamicOptions = useMemo<DynamicSelectOption[]>(
-    () => typeConfigs.filter(c => c.isStatic === false).map(c => ({ value: c.key, label: c.label })),
-    [typeConfigs],
-  );
-
-  const categoryOptions = useMemo<DynamicSelectOption[]>(
-    () => categoryConfigs.filter(c => c.isStatic !== false).map(c => ({ value: c.key, label: c.label })),
-    [categoryConfigs],
-  );
-  const categoryDynamicOptions = useMemo<DynamicSelectOption[]>(
-    () => categoryConfigs.filter(c => c.isStatic === false).map(c => ({ value: c.key, label: c.label })),
-    [categoryConfigs],
-  );
-
-  const statusOptions = useMemo<DynamicSelectOption[]>(
-    () => statusConfigs.filter(c => c.isStatic !== false).map(c => ({ value: c.key, label: c.label, color: resolveColor(c.color, theme) })),
-    [statusConfigs, theme],
-  );
-  const statusDynamicOptions = useMemo<DynamicSelectOption[]>(
-    () => statusConfigs.filter(c => c.isStatic === false).map(c => ({ value: c.key, label: c.label, color: resolveColor(c.color, theme) })),
-    [statusConfigs, theme],
-  );
-
-  const objectOptions = useMemo<DynamicSelectOption[]>(
-    () => objectConfigs.map(c => ({ value: c.key, label: c.label })),
-    [objectConfigs],
-  );
-
-  const adjustmentIndexOptions = useMemo<DynamicSelectOption[]>(
-    () => adjustmentIndexConfigs.filter(c => c.isStatic !== false).map(c => ({ value: c.key, label: c.label })),
-    [adjustmentIndexConfigs],
-  );
-  const adjustmentIndexDynamicOptions = useMemo<DynamicSelectOption[]>(
-    () => adjustmentIndexConfigs.filter(c => c.isStatic === false).map(c => ({ value: c.key, label: c.label })),
-    [adjustmentIndexConfigs],
-  );
-
-  const adjustmentPeriodicityOptions = useMemo<DynamicSelectOption[]>(
-    () => adjustmentPeriodicityConfigs.filter(c => c.isStatic !== false).map(c => ({ value: c.key, label: c.label })),
-    [adjustmentPeriodicityConfigs],
-  );
-  const adjustmentPeriodicityDynamicOptions = useMemo<DynamicSelectOption[]>(
-    () => adjustmentPeriodicityConfigs.filter(c => c.isStatic === false).map(c => ({ value: c.key, label: c.label })),
-    [adjustmentPeriodicityConfigs],
-  );
-
-  const currencyOptions = useMemo<DynamicSelectOption[]>(
-    () => currencyConfigs.filter(c => c.isStatic !== false).map(c => ({ value: c.key, label: c.label })),
-    [currencyConfigs],
-  );
-  const currencyDynamicOptions = useMemo<DynamicSelectOption[]>(
-    () => currencyConfigs.filter(c => c.isStatic === false).map(c => ({ value: c.key, label: c.label })),
-    [currencyConfigs],
-  );
-
-  const paymentMethodOptions = useMemo<DynamicSelectOption[]>(
-    () => paymentMethodConfigs.filter(c => c.isStatic !== false).map(c => ({ value: c.key, label: c.label })),
-    [paymentMethodConfigs],
-  );
-  const paymentMethodDynamicOptions = useMemo<DynamicSelectOption[]>(
-    () => paymentMethodConfigs.filter(c => c.isStatic === false).map(c => ({ value: c.key, label: c.label })),
-    [paymentMethodConfigs],
-  );
-
-  const bankOptions = useMemo<DynamicSelectOption[]>(
-    () => bankConfigs.map(c => ({ value: c.key, label: c.label })),
-    [bankConfigs],
-  );
-
-  const costCenterOptions = useMemo<DynamicSelectOption[]>(
-    () => costCenterConfigs.map(c => ({ value: c.key, label: c.label })),
-    [costCenterConfigs],
-  );
-
-  const documentTypeOptions = useMemo<DynamicSelectOption[]>(() =>
-    documentTypeConfigs.filter(t => t.isStatic !== false).map((t) => ({ value: t.key, label: t.label })),
-    [documentTypeConfigs],
-  );
-  const documentTypeDynamicOptions = useMemo<DynamicSelectOption[]>(() =>
-    documentTypeConfigs.filter(t => t.isStatic === false).map((t) => ({ value: t.key, label: t.label })),
-    [documentTypeConfigs],
-  );
-
-  const handleAddType = useCallback(async (name: string) => { await addItem('types', name); }, [addItem]);
-  const handleDeleteType = useCallback(async (key: string) => { await removeItem('types', key); }, [removeItem]);
-  const handleAddCategory = useCallback(async (name: string) => { await addItem('categories', name); }, [addItem]);
-  const handleDeleteCategory = useCallback(async (key: string) => { await removeItem('categories', key); }, [removeItem]);
-  const handleAddStatus = useCallback(async (name: string) => { await addItem('statuses', name); }, [addItem]);
-  const handleDeleteStatus = useCallback(async (key: string) => { await removeItem('statuses', key); }, [removeItem]);
-  const handleAddObject = useCallback(async (name: string) => { await addItem('objects', name); }, [addItem]);
-  const handleDeleteObject = useCallback(async (key: string) => { await removeItem('objects', key); }, [removeItem]);
-  const handleAddAdjustmentIndex = useCallback(async (name: string) => { await addItem('adjustmentIndexes', name); }, [addItem]);
-  const handleDeleteAdjustmentIndex = useCallback(async (key: string) => { await removeItem('adjustmentIndexes', key); }, [removeItem]);
-  const handleAddAdjustmentPeriodicity = useCallback(async (name: string) => { await addItem('adjustmentPeriodicities', name); }, [addItem]);
-  const handleDeleteAdjustmentPeriodicity = useCallback(async (key: string) => { await removeItem('adjustmentPeriodicities', key); }, [removeItem]);
-  const handleAddCurrency = useCallback(async (name: string) => { await addItem('currencies', name); }, [addItem]);
-  const handleDeleteCurrency = useCallback(async (key: string) => { await removeItem('currencies', key); }, [removeItem]);
-  const handleAddPaymentMethod = useCallback(async (name: string) => { await addItem('paymentMethods', name); }, [addItem]);
-  const handleDeletePaymentMethod = useCallback(async (key: string) => { await removeItem('paymentMethods', key); }, [removeItem]);
-  const handleAddBank = useCallback(async (name: string) => { await addItem('banks', name); }, [addItem]);
-  const handleDeleteBank = useCallback(async (key: string) => { await removeItem('banks', key); }, [removeItem]);
-  const handleAddCostCenter = useCallback(async (name: string) => { await addItem('costCenters', name); }, [addItem]);
-  const handleDeleteCostCenter = useCallback(async (key: string) => { await removeItem('costCenters', key); }, [removeItem]);
-
-  const handleAddDocumentType = useCallback(async (name: string) => { await addDocumentType(name); }, [addDocumentType]);
-  const handleDeleteDocumentType = useCallback(async (key: string) => { await removeDocumentType(key); }, [removeDocumentType]);
 
   return {
-    isNew,
+    isNew: detail.isNew,
     contract,
-    activeTab,
-    setActiveTab,
-    formData,
-    setFormData,
+    isAdmin,
+    fields: CONTRACT_FORM_FIELDS,
     customFields,
-    customValues,
-    setCustomValue,
-    isSaving,
-    handleSave,
-    personOptions,
-    personSearchOptions,
+    values: detail.values,
+    setFieldValue,
+    fieldErrors: detail.fieldErrors,
+    lookupOptions,
+    handleAddLookupOption,
+    handleDeleteLookupOption,
+    isSaving: detail.isSaving,
+    handleSave: detail.handleSave,
+    tagAdapter,
+    isTagManagerOpen: detail.isTagManagerOpen,
+    openTagManager: detail.openTagManager,
+    closeTagManager: detail.closeTagManager,
+    notesController: detail.notesController,
+    docsController: detail.docsController,
+    activeTab: detail.activeTab,
+    setActiveTab: detail.setActiveTab,
+    copyLinkDone: detail.copyLinkDone,
+    handleCopyDeepLink: detail.handleCopyDeepLink,
+    handleClone: detail.handleClone,
+    handleDeleteContract: detail.requestDelete,
+    contractToDelete: detail.isDeleteOpen ? contract : null,
+    confirmDeleteContract: detail.confirmDelete,
+    cancelDeleteContract: detail.cancelDelete,
     linkedCases,
     unlinkedCaseOptions,
     caseToAdd,
     setCaseToAdd,
     handleLinkCase,
-    handleOpenCase,
     handleUnlinkCase,
+    handleOpenCase,
     getCaseStatusColor,
-    tagAdapter,
-    isTagManagerOpen,
-    openTagManager,
-    closeTagManager,
-    notes,
-    notesLoading,
-    newNoteTitle,
-    setNewNoteTitle,
-    newNoteText,
-    setNewNoteText,
-    isAddingNote,
-    isNoteEditorOpen,
-    openNoteEditor,
-    closeNoteEditor,
-    expandedNoteIds,
-    toggleNoteExpanded,
-    handleAddNote,
-    noteToDelete,
-    requestDeleteNote,
-    confirmDeleteNote,
-    cancelDeleteNote,
-    isAdmin,
-    documents,
-    docsLoading,
-    isUploadingDoc,
-    pendingFile,
-    pendingType,
-    setPendingType,
-    documentTypeOptions,
-    documentTypeDynamicOptions,
-    handleAddDocumentType,
-    handleDeleteDocumentType,
-    handleSelectFile,
-    handleConfirmUpload,
-    handleCancelPendingUpload,
-    docToDelete,
-    requestDeleteDoc,
-    confirmDeleteDoc,
-    cancelDeleteDoc,
-    copyLinkDone,
-    handleCopyDeepLink,
-    handleClone,
-    statusColor,
-    handleDeleteContract,
-    contractToDelete,
-    confirmDeleteContract,
-    cancelDeleteContract,
-    typeOptions,
-    typeDynamicOptions,
-    categoryOptions,
-    categoryDynamicOptions,
-    statusOptions,
-    statusDynamicOptions,
-    objectOptions,
-    adjustmentIndexOptions,
-    adjustmentIndexDynamicOptions,
-    adjustmentPeriodicityOptions,
-    adjustmentPeriodicityDynamicOptions,
-    currencyOptions,
-    currencyDynamicOptions,
-    paymentMethodOptions,
-    paymentMethodDynamicOptions,
-    bankOptions,
-    costCenterOptions,
-    handleAddType,
-    handleDeleteType,
-    handleAddCategory,
-    handleDeleteCategory,
-    handleAddStatus,
-    handleDeleteStatus,
-    handleAddObject,
-    handleDeleteObject,
-    handleAddAdjustmentIndex,
-    handleDeleteAdjustmentIndex,
-    handleAddAdjustmentPeriodicity,
-    handleDeleteAdjustmentPeriodicity,
-    handleAddCurrency,
-    handleDeleteCurrency,
-    handleAddPaymentMethod,
-    handleDeletePaymentMethod,
-    handleAddBank,
-    handleDeleteBank,
-    handleAddCostCenter,
-    handleDeleteCostCenter,
   };
 };
