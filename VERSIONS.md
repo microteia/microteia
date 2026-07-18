@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [0.102.1] — 2026-07-18
+
+- Corrigido um campo "Etiquetas" que passou a aparecer indevidamente no formulário de Pessoas. As etiquetas continuam sendo gerenciadas pelo botão no topo da tela, como antes.
+
 ## [0.102.0] — 2026-07-18
 
 - A tela de Prazos passou a usar o mesmo motor de formulário das demais telas: as mensagens de validação agora aparecem abaixo de cada campo, o tipo de prazo permite cadastrar novas opções direto no campo, e a prioridade exibe suas cores. Os campos Processo e Advogado responsável ganharam busca por digitação.

@@ -44,6 +44,39 @@ describe('deriveFormFields — campos fixos derivam do ENTITY_REGISTRY como Fiel
   it('respeita ui.form:false (status não entra no formulário)', () => {
     expect(map.has('status')).toBe(false);
   });
+
+  it('não deriva o FK de etiquetas como campo (quem trata é o TagManager)', () => {
+    expect(map.has('tagIds')).toBe(false);
+  });
+});
+
+describe('deriveFormFields — relações (fks) viram campos reference', () => {
+  const map = byKey(deriveFormFields('deadlines'));
+
+  it('deriva o FK como reference apontando para a coleção alvo', () => {
+    expect(map.get('caseId')).toMatchObject({ type: 'reference', refEntity: 'cases', required: true });
+    expect(map.get('responsibleLawyerId')).toMatchObject({ type: 'reference', refEntity: 'members' });
+  });
+
+  it('mantém campos e relações ordenados por ui.order', () => {
+    const fields = deriveFormFields('deadlines');
+    const orders = fields.map((f) => f.order);
+    expect(orders).toEqual([...orders].sort((a, b) => a - b));
+    expect(fields.map((f) => f.key)).toEqual(
+      ['type', 'priority', 'caseId', 'dueDate', 'completedAt', 'responsibleLawyerId', 'description'],
+    );
+  });
+
+  it('campos derivados (status) e observações ficam fora do formulário', () => {
+    expect(map.has('status')).toBe(false);
+    expect(map.has('notes')).toBe(false);
+  });
+});
+
+describe('nenhuma entidade expõe o FK de etiquetas no formulário', () => {
+  it.each(['persons', 'cases', 'contracts', 'financials'] as const)('%s', (entity) => {
+    expect(deriveFormFields(entity).some((f) => f.key === 'tagIds')).toBe(false);
+  });
 });
 
 describe('deriveListRows — linhas do card derivam de ui.list, ordenadas', () => {
