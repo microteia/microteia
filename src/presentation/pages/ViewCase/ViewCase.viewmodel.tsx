@@ -50,20 +50,27 @@ export interface CaseFormData {
   filedAt: string;
 }
 
+const NEW_CASE_DEFAULTS = {
+  area: 'Cível',
+  instance: '1º Grau',
+  phase: 'Fase Inicial',
+  status: 'Em Andamento',
+};
+
 const buildFormData = (c: Case | null, userId: string): CaseFormData => ({
   caseNumber: c?.caseNumber ?? '',
   title: c?.title ?? '',
   activePoleIds: c?.activePoleIds ?? [],
   passivePoleIds: c?.passivePoleIds ?? [],
-  area: c?.area ?? 'Cível',
+  area: c ? c.area ?? '' : NEW_CASE_DEFAULTS.area,
   type: c?.type ?? [],
   court: c?.court ?? '',
   courtDistrict: c?.courtDistrict ?? '',
   judge: c?.judge ?? '',
-  instance: c?.instance ?? '1º Grau',
-  phase: c?.phase ?? 'Fase Inicial',
-  status: c?.status ?? 'Em Andamento',
-  responsibleLawyerId: c?.responsibleLawyerId ?? userId,
+  instance: c ? c.instance ?? '' : NEW_CASE_DEFAULTS.instance,
+  phase: c ? c.phase ?? '' : NEW_CASE_DEFAULTS.phase,
+  status: c ? c.status ?? '' : NEW_CASE_DEFAULTS.status,
+  responsibleLawyerId: c ? c.responsibleLawyerId ?? '' : userId,
   contractId: c?.contractId ?? '',
   notes: c?.notes ?? '',
   causeValue: c?.causeValue ?? null,

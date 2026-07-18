@@ -26,7 +26,7 @@ export const S = {
     gap: ${({ theme }) => theme.spacing.md};
   `,
 
-  Avatar: styled.div<{ $type: FinancialType }>`
+  Avatar: styled.div<{ $type: FinancialType | '' }>`
     width: 48px;
     height: 48px;
     border-radius: ${({ theme }) => theme.borderRadius.full};

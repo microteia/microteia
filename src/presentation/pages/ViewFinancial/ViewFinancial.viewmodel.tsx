@@ -32,7 +32,7 @@ import { validateRecordRules } from '../../../data/utils/recordRulesGate';
 export type ViewFinancialTab = 'data' | 'documents';
 
 export interface FinancialFormData {
-  type: FinancialType;
+  type: FinancialType | '';
   category: string;
   amount: number | null;
   dueDate: string;
@@ -48,14 +48,19 @@ export interface FinancialFormData {
   notes: string;
 }
 
+const NEW_FINANCIAL_DEFAULTS: { type: FinancialType; status: string } = {
+  type: 'Receita',
+  status: 'Aberto',
+};
+
 const buildFormData = (financial: Financial | null): FinancialFormData => ({
-  type: financial?.type ?? 'Receita',
+  type: financial ? financial.type ?? '' : NEW_FINANCIAL_DEFAULTS.type,
   category: financial?.category ?? '',
   amount: financial?.amount ?? null,
   dueDate: toDateInput(financial?.dueDate),
   paymentDate: toDateInput(financial?.paymentDate),
   cancelDate: toDateInput(financial?.cancelDate),
-  status: financial?.status ?? 'Aberto',
+  status: financial ? financial.status ?? '' : NEW_FINANCIAL_DEFAULTS.status,
   paymentMethod: financial?.paymentMethod ?? '',
   caseId: financial?.caseId ?? '',
   personId: financial?.personId ?? '',
@@ -341,6 +346,7 @@ export const useViewFinancialViewModel = (tabKey: string): ViewFinancialViewMode
     if (!formData.amount || formData.amount <= 0) { notify('Informe um valor válido.', 'error'); return; }
     if (!formData.dueDate) { notify('Informe a data de vencimento.', 'error'); return; }
     if (!formData.category) { notify('Categoria é obrigatória.', 'error'); return; }
+    if (!formData.type) { notify('Selecione o tipo do lançamento.', 'error'); return; }
     if (!formData.status) { notify('Status é obrigatório.', 'error'); return; }
     const customFieldsError = validateRequiredFields(customFields, customValues);
     if (customFieldsError) { notify(customFieldsError, 'error'); return; }

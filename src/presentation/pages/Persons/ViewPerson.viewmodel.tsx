@@ -45,9 +45,11 @@ const parsePersonTab = (tabKey: string) => {
   return { isNew, recordId: isNew ? null : tabKey.replace('view-person:', ''), cloneSourceId };
 };
 
+const NEW_PERSON_DEFAULT_TYPE = 'Pessoa Física';
+
 const personToValues = (person: Person | null, customFields: FieldDefinition[], clone: boolean): Values => {
   const base = {
-    type: person?.type ?? 'Pessoa Física',
+    type: person ? person.type ?? '' : NEW_PERSON_DEFAULT_TYPE,
     name: person?.name ?? '',
     cpf: clone ? '' : (person?.cpf ?? ''),
     cnpj: clone ? '' : (person?.cnpj ?? ''),

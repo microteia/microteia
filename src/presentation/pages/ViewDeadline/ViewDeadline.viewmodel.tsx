@@ -19,7 +19,7 @@ export interface DeadlineFormData {
   caseId: string;
   dueDate: string;
   completedAt: string;
-  priority: DeadlinePriority;
+  priority: DeadlinePriority | '';
   responsibleLawyerId: string;
   description: string;
 }
@@ -31,13 +31,18 @@ const toDateInputValue = (date: Date): string => {
   return `${year}-${month}-${day}`;
 };
 
+const NEW_DEADLINE_DEFAULTS: { type: string; priority: DeadlinePriority } = {
+  type: 'Outro',
+  priority: 'Média',
+};
+
 const buildForm = (d: Deadline | null, userId: string): DeadlineFormData => ({
-  type: d?.type ?? 'Outro',
+  type: d ? d.type ?? '' : NEW_DEADLINE_DEFAULTS.type,
   caseId: d?.caseId ?? '',
   dueDate: d?.dueDate ? toDateInputValue(d.dueDate) : '',
   completedAt: d?.completedAt ? toDateInputValue(d.completedAt) : '',
-  priority: d?.priority ?? 'Média',
-  responsibleLawyerId: d?.responsibleLawyerId ?? userId,
+  priority: d ? d.priority ?? '' : NEW_DEADLINE_DEFAULTS.priority,
+  responsibleLawyerId: d ? d.responsibleLawyerId ?? '' : userId,
   description: d?.description ?? '',
 });
 
@@ -190,6 +195,7 @@ export const useViewDeadlineViewModel = (tabKey: string): ViewDeadlineViewModel 
 
   const handleSave = useCallback(async () => {
     if (!formData.type.trim()) { notify('Selecione o tipo do prazo.', 'error'); return; }
+    if (!formData.priority) { notify('Selecione a prioridade do prazo.', 'error'); return; }
     if (!formData.caseId) { notify('Selecione um processo.', 'error'); return; }
     if (!formData.dueDate) { notify('Informe a data de vencimento.', 'error'); return; }
     const customFieldsError = validateRequiredFields(customFields, customValues);

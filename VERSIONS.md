@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [0.101.4] — 2026-07-18
+
+- Campos de seleção deixam de exibir uma opção como se estivesse escolhida quando o registro não tem valor gravado. Isso acontecia em Processos (Área do Direito, Instância, Fase, Status e Advogado Responsável), Prazos (Tipo, Prioridade e Advogado Responsável), Financeiro (Tipo e Status) e Pessoas (Tipo de Pessoa): a tela mostrava um valor que não existia na base, e o registro não aparecia ao ser pesquisado por esse campo. Os valores sugeridos continuam sendo preenchidos normalmente na criação de um novo registro.
+
 ## [0.101.3] — 2026-07-18
 
 - O Processador de Dados passa a respeitar exatamente como o texto está escrito no documento ao preencher os campos de uma automação: nomes, endereços e descrições são copiados sem trocar maiúsculas por minúsculas nem "arrumar" a grafia. A única exceção são os campos de escolha entre opções, em que a diferença de maiúsculas e de acentos é ignorada apenas para encontrar a opção certa — o texto "Ba", por exemplo, passa a ser reconhecido como a opção "BA", em vez de deixar o campo vazio.
