@@ -80,8 +80,6 @@ export const LOOKUP_WRITABLE_FIELDS: readonly string[] = ['key', 'label', 'color
 
 const SYSTEM_MANAGED_KEYS: ReadonlySet<string> = new Set([
   'id',
-  'screenKey',
-  'title',
   'createdAt',
   'updatedAt',
   'createdBy',

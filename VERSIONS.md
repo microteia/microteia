@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [0.101.1] — 2026-07-18
+
+- Corrigido um problema em que a etapa "Gravar Registro" das automações ignorava o Título ao incluir ou alterar Processos e Contratos: o campo era descartado silenciosamente e o registro era gravado sem ele.
+
 ## [0.101.0] — 2026-07-18
 
 - Nova função `map` nas expressões: a partir de uma lista, ela recolhe um mesmo dado de todos os itens — por exemplo, os nomes de todas as partes de um processo. Basta indicar o caminho do dado desejado, e há a opção de descartar os valores em branco do resultado.
