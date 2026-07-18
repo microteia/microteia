@@ -1,4 +1,4 @@
-import styled from 'styled-components';
+import styled, { css } from 'styled-components';
 
 const Actions = styled.div`
   position: absolute;
@@ -17,7 +17,7 @@ const Actions = styled.div`
   }
 `;
 
-const Card = styled.div`
+const Card = styled.div<{ $accent?: string }>`
   position: relative;
   background: ${({ theme }) => theme.colors.surface};
   border: 1px solid ${({ theme }) => theme.colors.border};
@@ -28,6 +28,22 @@ const Card = styled.div`
   gap: ${({ theme }) => theme.spacing.sm};
   cursor: pointer;
   transition: ${({ theme }) => theme.transitions.fast};
+
+  /* Faixa lateral de severidade (ex.: prioridade do Prazo). A cor vem de dado/tema resolvido
+     pela tela, por isso entra como prop e não como token fixo. */
+  ${({ $accent }) => $accent && css`
+    &::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      width: 4px;
+      background: ${$accent};
+      border-top-left-radius: inherit;
+      border-bottom-left-radius: inherit;
+    }
+  `}
 
   &:hover {
     border-color: ${({ theme }) => theme.colors.primary};

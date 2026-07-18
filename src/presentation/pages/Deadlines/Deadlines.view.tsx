@@ -1,38 +1,31 @@
 import React from 'react';
 import {
   RiTimeLine,
-  RiAddLine,
   RiDeleteBinLine,
   RiCheckLine,
-  RiCalendarCheckLine,
-  RiScalesLine,
   RiAlertLine,
-  RiExternalLinkLine,
 } from 'react-icons/ri';
 import { S } from './Deadlines.styles';
 import { useDeadlinesViewModel } from './Deadlines.viewmodel';
-import { CompositeFilter } from '../../components/ui/CompositeFilter';
-import { Button } from '../../components/ui/Button';
 import { ConfirmModal } from '../../components/ui/ConfirmModal';
-import { Spinner } from '../../components/ui/Spinner';
 import { CustomFieldMetaRows } from '../../components/ui/CustomFieldMetaRows';
+import { EntityListCard, type EntityCardAction } from '../../components/ui/EntityListCard';
+import { EntityListView } from '../../components/layout/EntityListView';
+import { getScreenIcon } from '../../shared/screenIcons';
+import { useListRowResolver } from '../../shared/listRows';
+import { DEADLINE_LIST_ROWS } from './deadlineListSchema';
 import type { Deadline } from '../../../domain/entities';
 
 export const DeadlinesView: React.FC = () => {
   const vm = useDeadlinesViewModel();
+  const resolveRow = useListRowResolver();
 
   const renderDaysChip = (d: Deadline) => {
-    if (d.status === 'Concluído') {
-      return <S.DaysChip $completed>Concluído</S.DaysChip>;
-    }
-    if (d.status === 'Cancelado') {
-      return <S.DaysChip>Cancelado</S.DaysChip>;
-    }
-    const days = vm.getDaysUntilDue(d);
-    const overdue = vm.isOverdue(d);
-    const today = vm.isToday(d);
+    if (d.status === 'Concluído') return <S.DaysChip $completed>Concluído</S.DaysChip>;
+    if (d.status === 'Cancelado') return <S.DaysChip>Cancelado</S.DaysChip>;
 
-    if (overdue) {
+    const days = vm.getDaysUntilDue(d);
+    if (vm.isOverdue(d)) {
       return (
         <S.DaysChip $overdue>
           <RiAlertLine size={10} style={{ marginRight: 2 }} />
@@ -40,144 +33,13 @@ export const DeadlinesView: React.FC = () => {
         </S.DaysChip>
       );
     }
-    if (today) return <S.DaysChip $today>Hoje</S.DaysChip>;
+    if (vm.isToday(d)) return <S.DaysChip $today>Hoje</S.DaysChip>;
     if (days === 1) return <S.DaysChip $today>Amanhã</S.DaysChip>;
     return <S.DaysChip>{days}d</S.DaysChip>;
   };
 
-  return (
-    <S.Page>
-      <S.Header>
-        <S.Title>Prazos</S.Title>
-        <Button onClick={vm.openNewDeadline} title="Novo Prazo">
-          <RiAddLine size={16} />
-        </Button>
-      </S.Header>
-
-      <S.Toolbar>
-        <CompositeFilter
-          defs={vm.filterDefs}
-          tokens={vm.filterTokens}
-          onChange={vm.setFilterTokens}
-          placeholder="Filtrar prazos..."
-          screenKey={vm.savedFiltersScreenKey}
-        />
-      </S.Toolbar>
-
-      <S.Content>
-        {vm.isLoading ? (
-          <div style={{ display: 'flex', justifyContent: 'center', paddingTop: '48px' }}>
-            <Spinner />
-          </div>
-        ) : vm.filteredDeadlines.length === 0 ? (
-          <S.EmptyState>
-            <S.EmptyIcon><RiTimeLine /></S.EmptyIcon>
-            <S.EmptyTitle>Nenhum prazo encontrado</S.EmptyTitle>
-            <Button onClick={vm.openNewDeadline} variant="secondary">
-              <RiAddLine size={14} />
-              Cadastrar primeiro prazo
-            </Button>
-          </S.EmptyState>
-        ) : (
-          <S.Grid>
-            {vm.filteredDeadlines.map((d) => {
-              const priorityColor = vm.getPriorityColor(d.priority);
-              const overdue = vm.isOverdue(d);
-              const today = vm.isToday(d);
-              const caseInfo = vm.getCaseInfo(d);
-              const lawyerName = vm.getLawyerName(d);
-
-              return (
-                <S.DeadlineCard key={d.id} onClick={() => vm.openDeadline(d)}>
-                  <S.PriorityBar $color={priorityColor} />
-
-                  <S.CardBody>
-                    <S.CardTop>
-                      <S.CardAvatar $color={priorityColor}>
-                        <RiTimeLine size={20} />
-                      </S.CardAvatar>
-
-                      <S.CardInfo>
-                        <S.CardType>{d.type}</S.CardType>
-                        <S.CardCaseRow>
-                          {caseInfo?.number && (
-                            <S.CardCaseNumber
-                              title={`Abrir processo ${caseInfo.number}`}
-                              onClick={(e) => { e.stopPropagation(); vm.openCase(d.caseId); }}
-                            >
-                              {caseInfo.number}
-                            </S.CardCaseNumber>
-                          )}
-                          {renderDaysChip(d)}
-                        </S.CardCaseRow>
-                      </S.CardInfo>
-                    </S.CardTop>
-                  </S.CardBody>
-
-                  <S.CardDivider />
-
-                  <S.CardMeta>
-                    <S.MetaRow>
-                      <RiScalesLine size={12} />
-                      <S.MetaBadge $color={vm.getStatusColor(d.status)}>{d.status}</S.MetaBadge>
-                      <S.MetaBadge $color={priorityColor}>{d.priority}</S.MetaBadge>
-                    </S.MetaRow>
-
-                    {caseInfo?.title && (
-                      <S.MetaRow>
-                        <RiExternalLinkLine size={12} />
-                        <S.MetaText>{caseInfo.title}</S.MetaText>
-                      </S.MetaRow>
-                    )}
-
-                    <S.MetaRow>
-                      <RiCalendarCheckLine size={12} />
-                      <S.MetaText style={{ color: overdue ? undefined : (today ? undefined : undefined) }}>
-                        {d.dueDate.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' })}
-                        {d.completedAt && ` · Concluído em ${d.completedAt.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' })}`}
-                      </S.MetaText>
-                    </S.MetaRow>
-
-                    {lawyerName && (
-                      <S.MetaRow>
-                        <RiScalesLine size={12} />
-                        <S.MetaText>{lawyerName}</S.MetaText>
-                      </S.MetaRow>
-                    )}
-
-                    {d.description && (
-                      <S.MetaRow>
-                        <S.MetaText style={{ fontStyle: 'italic' }}>{d.description}</S.MetaText>
-                      </S.MetaRow>
-                    )}
-                  </S.CardMeta>
-
-                  <CustomFieldMetaRows items={vm.getCustomFieldItems(d)} />
-
-                  {d.status !== 'Concluído' && d.status !== 'Cancelado' && (
-                    <S.CompleteBtn
-                      className="deadline-complete-btn"
-                      title="Marcar como concluído"
-                      onClick={(e) => { e.stopPropagation(); vm.handleComplete(d); }}
-                    >
-                      <RiCheckLine size={13} />
-                    </S.CompleteBtn>
-                  )}
-
-                  <S.DeleteBtn
-                    className="deadline-delete-btn"
-                    title="Excluir prazo"
-                    onClick={(e) => { e.stopPropagation(); vm.handleDelete(d); }}
-                  >
-                    <RiDeleteBinLine size={13} />
-                  </S.DeleteBtn>
-                </S.DeadlineCard>
-              );
-            })}
-          </S.Grid>
-        )}
-      </S.Content>
-
+  const modals = (
+    <>
       <ConfirmModal
         isOpen={!!vm.deadlineToDelete}
         onConfirm={() => void vm.confirmDelete()}
@@ -187,7 +49,6 @@ export const DeadlinesView: React.FC = () => {
         confirmLabel="Excluir"
         variant="danger"
       />
-
       <ConfirmModal
         isOpen={!!vm.deadlineToComplete}
         onConfirm={() => void vm.confirmComplete()}
@@ -196,6 +57,92 @@ export const DeadlinesView: React.FC = () => {
         message={`Marcar o prazo "${vm.deadlineToComplete?.type}" como concluído? A data de hoje será registrada como data de conclusão.`}
         confirmLabel="Concluir"
       />
-    </S.Page>
+    </>
+  );
+
+  return (
+    <EntityListView
+      title="Prazos"
+      titleIcon={<RiTimeLine size={22} />}
+      onNew={vm.openNewDeadline}
+      newTitle="Novo Prazo"
+      filterDefs={vm.filterDefs}
+      filterTokens={vm.filterTokens}
+      onFilterChange={vm.setFilterTokens}
+      filterPlaceholder="Filtrar prazos..."
+      savedFiltersScreenKey={vm.savedFiltersScreenKey}
+      isLoading={vm.isLoading}
+      isEmpty={vm.filteredDeadlines.length === 0}
+      emptyIcon={<RiTimeLine />}
+      emptyTitle="Nenhum prazo encontrado"
+      emptyActionLabel="Cadastrar primeiro prazo"
+      modals={modals}
+    >
+      {vm.filteredDeadlines.map((d) => {
+        const caseInfo = vm.getCaseInfo(d);
+        const customItems = vm.getCustomFieldItems(d);
+        const record = d as unknown as Record<string, unknown>;
+        const isClosed = d.status === 'Concluído' || d.status === 'Cancelado';
+
+        const actions: EntityCardAction[] = [
+          ...(isClosed ? [] : [{
+            key: 'complete',
+            icon: <RiCheckLine size={13} />,
+            title: 'Marcar como concluído',
+            onClick: () => vm.handleComplete(d),
+          }]),
+          {
+            key: 'delete',
+            icon: <RiDeleteBinLine size={13} />,
+            title: 'Excluir prazo',
+            danger: true,
+            onClick: () => vm.handleDelete(d),
+          },
+        ];
+
+        // Exclusivo do Prazo: badges de situação e prioridade.
+        const belowHeader = (
+          <S.MetaRow>
+            <S.MetaBadge $color={vm.getStatusColor(d.status)}>{d.status}</S.MetaBadge>
+            <S.MetaBadge $color={vm.getPriorityColor(d.priority)}>{d.priority}</S.MetaBadge>
+          </S.MetaRow>
+        );
+
+        const metaRows = DEADLINE_LIST_ROWS
+          .map((row) => ({
+            key: row.key,
+            icon: getScreenIcon(row.icon, 12),
+            value: resolveRow(record, row),
+          }))
+          .filter((row) => row.value !== '');
+
+        return (
+          <EntityListCard
+            key={d.id}
+            onClick={() => vm.openDeadline(d)}
+            accentColor={vm.getPriorityColor(d.priority)}
+            avatar={<RiTimeLine size={20} />}
+            title={d.type}
+            subtitle={
+              <S.CardCaseRow>
+                {caseInfo?.number && (
+                  <S.CardCaseNumber
+                    title={`Abrir processo ${caseInfo.number}`}
+                    onClick={(e) => { e.stopPropagation(); vm.openCase(d.caseId); }}
+                  >
+                    {caseInfo.number}
+                  </S.CardCaseNumber>
+                )}
+                {renderDaysChip(d)}
+              </S.CardCaseRow>
+            }
+            actions={actions}
+            belowHeader={belowHeader}
+            metaRows={metaRows}
+            extra={customItems.length > 0 ? <CustomFieldMetaRows items={customItems} /> : undefined}
+          />
+        );
+      })}
+    </EntityListView>
   );
 };

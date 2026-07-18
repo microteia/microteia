@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import type { CustomFieldType, FieldDefinition } from '../../domain/entities';
+import type { EntityKey } from '../../domain/schema/entityRegistry';
 import { deriveFormFields, deriveListRows } from './deriveEntitySchema';
+import { SCREEN_ICON_KEYS } from './screenIcons';
 
 const CONTROL_TYPES: CustomFieldType[] = [
   'text', 'textarea', 'number', 'currency', 'date', 'checkbox', 'select', 'masked', 'reference', 'markdown',
@@ -105,6 +107,17 @@ describe('deriveFormFields — cases', () => {
   it('tipo de ação é seleção múltipla e valor da causa é moeda', () => {
     expect(map.get('type')).toMatchObject({ type: 'select', multi: true, lookupCollection: 'caseActionTypes' });
     expect(map.get('causeValue')?.type).toBe('currency');
+  });
+});
+
+// `ui.list.icon` é string livre: um nome errado cai no ícone de fallback silenciosamente.
+describe('todo ícone declarado em ui.list existe no catálogo', () => {
+  const ENTITIES: EntityKey[] = ['persons', 'cases', 'contracts', 'deadlines', 'financials'];
+
+  it.each(ENTITIES)('%s', (entity) => {
+    for (const row of deriveListRows(entity)) {
+      expect(SCREEN_ICON_KEYS, `ícone "${row.icon}" (campo ${row.key})`).toContain(row.icon);
+    }
   });
 });
 
