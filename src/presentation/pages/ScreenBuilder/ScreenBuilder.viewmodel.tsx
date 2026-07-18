@@ -7,7 +7,7 @@ import { useNotification } from '../../../stores/useNotification';
 import { ensureUniqueKey, slugifyFieldKey, sortFieldsByOrder, validateFieldKey } from '../../../domain/services/customFieldValues';
 import { getDefaultTagColor } from '../../../shared/styles/colorUtils';
 import { getScreenIconOptions } from '../../shared/screenIcons';
-import type { CustomFieldMask, CustomFieldType, FieldDefinition, ScreenDefinition } from '../../../domain/entities';
+import type { CustomFieldMask, CustomFieldType, FieldDefinition, ScreenDefinition, ScreenListAction } from '../../../domain/entities';
 import type { FieldLogic, FieldRules, FormatPreset, FormatRule, ValidateCheck, ValidateRule } from '../../../domain/schema/fieldRules';
 import { FORMAT_PRESET_LABELS, VALIDATE_CHECK_LABELS } from '../../../domain/schema/fieldRules';
 import { getEntityByCollection } from '../../../domain/schema/entityRegistry';
@@ -48,9 +48,17 @@ export interface ScreenFormState {
   hasNotes: boolean;
   hasDocuments: boolean;
   hasTags: boolean;
+  listActions: ScreenListAction[];
   enabled: boolean;
   titleFieldKey: string;
 }
+
+export const LIST_ACTION_OPTIONS: { key: ScreenListAction; label: string }[] = [
+  { key: 'copyLink', label: 'Copiar link' },
+  { key: 'clone', label: 'Duplicar' },
+  { key: 'manageTags', label: 'Gerenciar etiquetas' },
+  { key: 'delete', label: 'Excluir' },
+];
 
 export interface FieldOptionFormItem {
   label: string;
@@ -103,6 +111,7 @@ export interface ScreenBuilderViewModel {
   screenModalIsEdit: boolean;
   screenForm: ScreenFormState;
   updateScreenForm: (patch: Partial<ScreenFormState>) => void;
+  toggleListAction: (action: ScreenListAction) => void;
   titleFieldOptions: SearchSelectOption[];
   iconOptions: SearchSelectOption[];
   openCreateScreen: () => void;
@@ -186,6 +195,7 @@ const EMPTY_SCREEN_FORM: ScreenFormState = {
   hasNotes: false,
   hasDocuments: false,
   hasTags: false,
+  listActions: [],
   enabled: true,
   titleFieldKey: '',
 };
@@ -300,6 +310,7 @@ const toSaveInput = (def: ScreenDefinition): ScreenDefinitionSaveInput => ({
   hasNotes: def.hasNotes,
   hasDocuments: def.hasDocuments,
   hasTags: def.hasTags,
+  listActions: def.listActions,
   sidebarOrder: def.sidebarOrder,
   enabled: def.enabled,
 });
@@ -324,6 +335,7 @@ const builtinSaveInput = (key: string): ScreenDefinitionSaveInput => {
     hasNotes: false,
     hasDocuments: false,
     hasTags: false,
+    listActions: [],
     sidebarOrder: 0,
     enabled: true,
   };
@@ -457,6 +469,15 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
     setScreenForm((prev) => ({ ...prev, ...patch }));
   }, []);
 
+  const toggleListAction = useCallback((action: ScreenListAction) => {
+    setScreenForm((prev) => ({
+      ...prev,
+      listActions: prev.listActions.includes(action)
+        ? prev.listActions.filter((a) => a !== action)
+        : [...prev.listActions, action],
+    }));
+  }, []);
+
   const updateFieldForm = useCallback((patch: Partial<FieldFormState>) => {
     setFieldForm((prev) => {
       const next = { ...prev, ...patch };
@@ -486,6 +507,7 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
       hasNotes: def.hasNotes,
       hasDocuments: def.hasDocuments,
       hasTags: def.hasTags,
+      listActions: def.listActions,
       enabled: def.enabled,
       titleFieldKey: def.titleFieldKey,
     });
@@ -531,6 +553,7 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
           hasNotes: screenForm.hasNotes,
           hasDocuments: screenForm.hasDocuments,
           hasTags: screenForm.hasTags,
+          listActions: screenForm.listActions,
           enabled: screenForm.enabled,
           titleFieldKey,
         });
@@ -561,6 +584,7 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
           hasNotes: screenForm.hasNotes,
           hasDocuments: screenForm.hasDocuments,
           hasTags: screenForm.hasTags,
+          listActions: screenForm.listActions,
           sidebarOrder: maxOrder + 1,
           enabled: true,
         });
@@ -953,6 +977,7 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
     screenModalIsEdit: !!screenModal?.screenKey,
     screenForm,
     updateScreenForm,
+    toggleListAction,
     titleFieldOptions,
     iconOptions,
     openCreateScreen,

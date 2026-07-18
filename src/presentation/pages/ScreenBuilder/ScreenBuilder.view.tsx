@@ -10,7 +10,7 @@ import {
   RiPencilLine,
 } from 'react-icons/ri';
 import { S } from './ScreenBuilder.styles';
-import { useScreenBuilderViewModel } from './ScreenBuilder.viewmodel';
+import { useScreenBuilderViewModel, LIST_ACTION_OPTIONS } from './ScreenBuilder.viewmodel';
 import type { ScreenBuilderViewModel, SelectedScreenState } from './ScreenBuilder.viewmodel';
 import { Button } from '../../components/ui/Button';
 import { Checkbox } from '../../components/ui/Checkbox';
@@ -296,6 +296,17 @@ export const ScreenBuilderView: React.FC = () => {
                 onChange={(next) => vm.updateScreenForm({ hasTags: next })}
               />
             </S.CheckboxRow>
+            <S.RulesDivider>Ações no card da listagem</S.RulesDivider>
+            {LIST_ACTION_OPTIONS.map((option) => (
+              <S.CheckboxRow key={option.key}>
+                <Checkbox
+                  label={option.label}
+                  checked={vm.screenForm.listActions.includes(option.key)}
+                  onChange={() => vm.toggleListAction(option.key)}
+                  disabled={option.key === 'manageTags' && !vm.screenForm.hasTags}
+                />
+              </S.CheckboxRow>
+            ))}
             {vm.screenModalIsEdit && (
               <S.CheckboxRow>
                 <Checkbox

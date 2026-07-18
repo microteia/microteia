@@ -50,6 +50,8 @@ export interface FieldDefinition {
 
 // ─── Definição de Tela ────────────────────────────────────────────────────────
 
+export type ScreenListAction = 'copyLink' | 'clone' | 'manageTags' | 'delete';
+
 export interface ScreenDefinition {
   id: string;
   tenantId: string;
@@ -62,6 +64,7 @@ export interface ScreenDefinition {
   hasNotes: boolean;
   hasDocuments: boolean;
   hasTags: boolean;
+  listActions: ScreenListAction[];
   sidebarOrder: number;
   enabled: boolean;
   createdAt: Date;

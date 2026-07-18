@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [0.100.0] — 2026-07-18
+
+- Nas telas personalizadas, agora é possível escolher quais atalhos aparecem em cada card da listagem — copiar link, duplicar, gerenciar etiquetas e excluir. Basta marcar as opções desejadas em "Ações no card da listagem" ao editar a tela.
+
 ## [0.99.5] — 2026-07-18
 
 - As caixas de seleção da configuração de telas e de campos personalizados, além dos campos do tipo "sim/não" nos formulários, passaram a usar o visual padrão do sistema, ficando consistentes com o restante da interface e com o tema claro/escuro.

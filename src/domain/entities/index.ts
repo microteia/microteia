@@ -883,6 +883,7 @@ export type {
   CustomFieldOption,
   FieldDefinition,
   ScreenDefinition,
+  ScreenListAction,
 } from './entitySchemas';
 
 export interface ScreenFieldOption {
