@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [0.101.2] — 2026-07-18
+
+- A etapa "Gravar Registro" das automações agora avisa, no histórico de execução, sempre que algum campo enviado não pôde ser gravado — informando quais foram e o motivo. Antes esses campos eram simplesmente ignorados, sem nenhum registro.
+
 ## [0.101.1] — 2026-07-18
 
 - Corrigido um problema em que a etapa "Gravar Registro" das automações ignorava o Título ao incluir ou alterar Processos e Contratos: o campo era descartado silenciosamente e o registro era gravado sem ele.

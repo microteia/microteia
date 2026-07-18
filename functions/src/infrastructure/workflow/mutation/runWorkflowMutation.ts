@@ -32,17 +32,26 @@ export interface UpsertOptions {
   ignoreUnwritableFields?: boolean;
 }
 
+interface WritableLeavesOutcome {
+  spec: UpsertSpec;
+  discarded: string[];
+}
+
 const keepWritableLeaves = (
   spec: UpsertSpec,
   ctx: ReturnType<typeof createSchemaContext>,
-): UpsertSpec => {
+): WritableLeavesOutcome => {
   const data: Record<string, unknown> = {};
+  const discarded: string[] = [];
   for (const leaf of flattenDataLeaves(spec.data)) {
-    if (!validateWritablePath(ctx, spec.table, leaf.path)) {
-      setValueAtPath(data, leaf.path, leaf.value);
+    const error = validateWritablePath(ctx, spec.table, leaf.path);
+    if (error) {
+      discarded.push(`${leaf.path} (${error})`);
+      continue;
     }
+    setValueAtPath(data, leaf.path, leaf.value);
   }
-  return { ...spec, data };
+  return { spec: { ...spec, data }, discarded };
 };
 
 export interface UpsertResult {
@@ -83,7 +92,16 @@ export async function runWorkflowUpsert(
   const screens = await deps.screenProvider.getScreens(tenantId);
   const ctx = createSchemaContext(screens);
 
-  const effectiveSpec = options.ignoreUnwritableFields ? keepWritableLeaves(spec, ctx) : spec;
+  let effectiveSpec = spec;
+  if (options.ignoreUnwritableFields) {
+    const kept = keepWritableLeaves(spec, ctx);
+    effectiveSpec = kept.spec;
+    if (kept.discarded.length > 0) {
+      context.logger.warn(
+        `Gravação em "${spec.table}": ${kept.discarded.length} campo(s) não gravável(is) foram ignorados — ${kept.discarded.join('; ')}`,
+      );
+    }
+  }
 
   const issues = validateUpsertSpec(effectiveSpec, ctx);
   if (issues.length > 0) {

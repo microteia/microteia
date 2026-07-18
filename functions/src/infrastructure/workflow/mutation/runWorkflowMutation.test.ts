@@ -196,6 +196,57 @@ describe('runWorkflowUpsert', () => {
     expect(written).not.toHaveProperty('naoExiste');
   });
 
+  it('avisa no log quais campos foram descartados por ignoreUnwritableFields', async () => {
+    const repo = new FakeMutationRepository();
+    repo.seed('persons', 'p1', { name: 'Antigo' });
+    const warnings: string[] = [];
+    const capturing = context();
+    capturing.logger = { info: () => {}, warn: (m: string) => warnings.push(m), error: () => {} };
+
+    await runWorkflowUpsert(
+      { table: 'persons', id: 'p1', data: { name: 'Novo', createdBy: 'alguém', naoExiste: 'w' } },
+      capturing,
+      deps(repo),
+      { ignoreUnwritableFields: true },
+    );
+
+    expect(warnings).toHaveLength(1);
+    expect(warnings[0]).toContain('createdBy');
+    expect(warnings[0]).toContain('naoExiste');
+    expect(warnings[0]).not.toContain('name');
+  });
+
+  it('não avisa quando todos os campos são graváveis', async () => {
+    const repo = new FakeMutationRepository();
+    repo.seed('persons', 'p1', { name: 'Antigo' });
+    const warnings: string[] = [];
+    const capturing = context();
+    capturing.logger = { info: () => {}, warn: (m: string) => warnings.push(m), error: () => {} };
+
+    await runWorkflowUpsert(
+      { table: 'persons', id: 'p1', data: { name: 'Novo' } },
+      capturing,
+      deps(repo),
+      { ignoreUnwritableFields: true },
+    );
+
+    expect(warnings).toHaveLength(0);
+  });
+
+  it('grava title em entidades nativas que o têm como campo próprio', async () => {
+    const repo = new FakeMutationRepository();
+    repo.seed('cases', 'c1', { title: 'Antigo' });
+    const outcome = await runWorkflowUpsert(
+      { table: 'cases', id: 'c1', data: { title: 'Novo título' } },
+      context(),
+      deps(repo),
+      { ignoreUnwritableFields: true },
+    );
+
+    expect(outcome.ok).toBe(true);
+    expect(repo.updateCalls[0].data).toMatchObject({ title: 'Novo título' });
+  });
+
   it('impede alterar registro custom de outra tela', async () => {
     const repo = new FakeMutationRepository();
     repo.seed('customRecords', 'r1', { screenKey: 'outra' });
