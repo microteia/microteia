@@ -42,8 +42,8 @@ const mapScreenDefinition = (id: string, d: Record<string, unknown>, tenantId: s
   hasDocuments: (d.hasDocuments as boolean | undefined) ?? false,
   hasTags: (d.hasTags as boolean | undefined) ?? false,
   listActions: (d.listActions as ScreenDefinition['listActions'] | undefined) ?? [],
-  parentEntity: d.parentEntity as string | undefined,
-  parentFieldKey: d.parentFieldKey as string | undefined,
+  parentEntity: (d.parentEntity as string | null | undefined) ?? null,
+  parentFieldKey: (d.parentFieldKey as string | null | undefined) ?? null,
   sidebarOrder: (d.sidebarOrder as number | undefined) ?? 0,
   enabled: (d.enabled as boolean | undefined) ?? true,
   createdAt: toDate(d.createdAt),
@@ -83,6 +83,11 @@ export class FirebaseScreenDefinitionRepository implements IScreenDefinitionRepo
 
   async upsert(tenantId: string, screenKey: string, data: ScreenDefinitionInput): Promise<ScreenDefinition> {
     const ref = doc(definitionsRef(tenantId), screenKey);
+    // O Firestore rejeita `undefined`, e um campo opcional ausente chega assim. Ausente some;
+    // para limpar um valor gravado, use `null`.
+    data = Object.fromEntries(
+      Object.entries(data).filter(([, value]) => value !== undefined),
+    ) as ScreenDefinitionInput;
     const existing = await getDoc(ref);
     if (existing.exists()) {
       const updatable: Partial<ScreenDefinitionInput> = { ...data };

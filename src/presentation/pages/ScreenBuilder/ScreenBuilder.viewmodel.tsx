@@ -317,8 +317,8 @@ const toSaveInput = (def: ScreenDefinition): ScreenDefinitionSaveInput => ({
   hasDocuments: def.hasDocuments,
   hasTags: def.hasTags,
   listActions: def.listActions,
-  parentEntity: def.parentEntity,
-  parentFieldKey: def.parentFieldKey,
+  parentEntity: def.parentEntity ?? null,
+  parentFieldKey: def.parentFieldKey ?? null,
   sidebarOrder: def.sidebarOrder,
   enabled: def.enabled,
 });
@@ -344,8 +344,8 @@ const builtinSaveInput = (key: string): ScreenDefinitionSaveInput => {
     hasDocuments: false,
     hasTags: false,
     listActions: [],
-    parentEntity: undefined,
-    parentFieldKey: undefined,
+    parentEntity: null,
+    parentFieldKey: null,
     sidebarOrder: 0,
     enabled: true,
   };
@@ -591,8 +591,8 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
           hasDocuments: screenForm.hasDocuments,
           hasTags: screenForm.hasTags,
           listActions: screenForm.listActions,
-          parentEntity: screenForm.parentEntity || undefined,
-          parentFieldKey: screenForm.parentEntity ? (screenForm.parentFieldKey || undefined) : undefined,
+          parentEntity: screenForm.parentEntity || null,
+          parentFieldKey: screenForm.parentEntity ? (screenForm.parentFieldKey || null) : null,
           enabled: screenForm.enabled,
           titleFieldKey,
         });
@@ -624,8 +624,8 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
           hasDocuments: screenForm.hasDocuments,
           hasTags: screenForm.hasTags,
           listActions: screenForm.listActions,
-          parentEntity: undefined,
-          parentFieldKey: undefined,
+          parentEntity: null,
+          parentFieldKey: null,
           sidebarOrder: maxOrder + 1,
           enabled: true,
         });
@@ -633,7 +633,8 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
         setSelectedKeyState(screenKey);
       }
       setScreenModal(null);
-    } catch {
+    } catch (err) {
+      console.error('[ScreenBuilder handleSaveScreen]', err);
       notify('Erro ao salvar a tela.', 'error');
     } finally {
       setSavingScreen(false);

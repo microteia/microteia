@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [0.110.1] — 2026-07-18
+
+- Corrigido um erro ao salvar telas na configuração (criar tela, editar, ativar/desativar, reordenar e salvar campo), que passou a falhar após a atualização anterior.
+
 ## [0.110.0] — 2026-07-18
 
 - Agora uma tela pode ter registros filhos. Exemplo: em uma tela de Vendas, os Itens da venda passam a aparecer como uma aba dentro de cada venda, com os campos que você configurar (inclusive vínculos, como o produto). Basta criar a tela dos itens, adicionar um campo de vínculo apontando para a tela principal e indicá-la como "Tela pai" na configuração.

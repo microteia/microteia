@@ -64,9 +64,9 @@ export interface ScreenDefinition {
    * aparecem como uma aba do registro-pai. Aceita a chave de uma tela fixa ('cases', 'contracts'…)
    * ou o id de uma tela dinâmica.
    */
-  parentEntity?: string;
+  parentEntity?: string | null;
   /** Campo `reference` desta tela que guarda o id do registro-pai. */
-  parentFieldKey?: string;
+  parentFieldKey?: string | null;
   sidebarOrder: number;
   enabled: boolean;
   createdAt: Date;
