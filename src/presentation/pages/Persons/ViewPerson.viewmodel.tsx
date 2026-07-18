@@ -14,7 +14,7 @@ import { useEntityDetail, type EntityValidationResult } from '../../shared/entit
 import { useNotesPort } from '../../shared/entityScreen/useNotesPort';
 import { useDocumentsPort } from '../../shared/entityScreen/useDocumentsPort';
 import type { EntityDocumentsController, EntityNotesController } from '../../shared/entityScreen/types';
-import type { EntityDetailTab } from '../../components/layout/EntityDetailView';
+import type { EntityDetailExtraTab, EntityDetailTab } from '../../components/layout/EntityDetailView';
 import { PERSON_FORM_FIELDS } from './personSchema';
 import type { TagStoreAdapter } from '../../components/ui/TagManager/TagManager.viewmodel';
 import { useScreenDefinitions } from '../../../stores/useScreenDefinitions';
@@ -145,6 +145,7 @@ export interface ViewPersonViewModel {
   closeTagManager: () => void;
   notesController: EntityNotesController;
   docsController: EntityDocumentsController;
+  childTabs: EntityDetailExtraTab[];
   activeTab: EntityDetailTab;
   setActiveTab: (tab: EntityDetailTab) => void;
   copyLinkDone: boolean;
@@ -218,6 +219,7 @@ export const useViewPersonViewModel = (tabKey: string): ViewPersonViewModel => {
 
   const detail = useEntityDetail<Person>({
     tabKey,
+    entityKey: 'persons',
     parse: parsePersonTab,
     findInStore,
     recordToValues,
@@ -312,6 +314,7 @@ export const useViewPersonViewModel = (tabKey: string): ViewPersonViewModel => {
     closeTagManager: detail.closeTagManager,
     notesController: detail.notesController,
     docsController: detail.docsController,
+    childTabs: detail.childTabs,
     activeTab: detail.activeTab,
     setActiveTab: detail.setActiveTab,
     copyLinkDone: detail.copyLinkDone,

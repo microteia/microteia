@@ -99,6 +99,7 @@ export const ViewDynamicRecordView: React.FC<{ tabKey: string }> = ({ tabKey }) 
       setActiveTab={vm.setActiveTab}
       showNotesTab={definition.hasNotes}
       showDocsTab={definition.hasDocuments}
+      extraTabs={vm.childTabs}
       notesController={vm.notesController}
       docsController={vm.docsController}
       dataContent={dataContent}

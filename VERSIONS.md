@@ -11,6 +11,12 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [0.110.0] — 2026-07-18
+
+- Agora uma tela pode ter registros filhos. Exemplo: em uma tela de Vendas, os Itens da venda passam a aparecer como uma aba dentro de cada venda, com os campos que você configurar (inclusive vínculos, como o produto). Basta criar a tela dos itens, adicionar um campo de vínculo apontando para a tela principal e indicá-la como "Tela pai" na configuração.
+- A tela dos itens deixa de aparecer no menu lateral e na busca, já que seus registros só existem dentro do registro principal. Ao clicar em "+", a janela do item abre já vinculada; ao salvar, ela fecha e volta para o registro principal.
+- Vale também para as telas do sistema: é possível, por exemplo, ter uma tela de Audiências vinculada a Processos.
+
 ## [0.109.1] — 2026-07-18
 
 - Preparação interna para o recurso de registros filhos (ex.: os Itens de uma Venda): a configuração de telas passou a permitir indicar uma tela pai e o campo que faz o vínculo. A exibição desses registros dentro do registro pai vem na próxima atualização.

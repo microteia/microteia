@@ -4,7 +4,8 @@ import { useNotification } from '../../../stores/useNotification';
 import { useTenant } from '../../../stores/useTenant';
 import { setValueByPath } from '../../../domain/services/customFieldValues';
 import type { CustomFieldValue } from '../../../domain/entities';
-import type { EntityDetailTab } from '../../components/layout/EntityDetailView';
+import type { EntityDetailExtraTab, EntityDetailTab } from '../../components/layout/EntityDetailView';
+import { useChildScreenTabs } from './useChildScreenTabs';
 import { useEntityDetailChrome } from './useEntityDetailChrome';
 import { useEntityNotes } from './useEntityNotes';
 import { useEntityDocuments } from './useEntityDocuments';
@@ -24,6 +25,8 @@ export interface EntityValidationResult {
 
 export interface EntityDetailConfig<TRecord extends { id: string }> {
   tabKey: string;
+  /** Chave da entidade ('cases', 'contracts', … ou o id da tela dinâmica) — usada para achar as telas filhas. */
+  entityKey: string;
   parse: (tabKey: string) => { isNew: boolean; recordId: string | null; cloneSourceId: string | null };
   findInStore: (id: string) => TRecord | null;
   getById?: (id: string) => Promise<TRecord | null>;
@@ -42,6 +45,11 @@ export interface EntityDetailConfig<TRecord extends { id: string }> {
   removeErrorMessage?: string;
   /** 'reopen' (padrão) reabre a aba em modo edição; 'close' apenas fecha (ex.: Prazos). */
   afterCreate?: 'reopen' | 'close';
+  /**
+   * Quando presente, salvar (criar ou editar) fecha esta aba e volta para a informada — usado pelos
+   * registros filhos, que voltam ao registro pai. `openTab` foca a aba se ela já estiver aberta.
+   */
+  returnTabKey?: string;
   notesPort: NotesPort;
   documentsPort: DocumentsPort;
   hasNotes: boolean;
@@ -72,16 +80,18 @@ export interface EntityDetail<TRecord extends { id: string }> {
   isDeleting: boolean;
   notesController: EntityNotesController;
   docsController: EntityDocumentsController;
+  /** Abas de registros filhos — a view repassa em `extraTabs`. */
+  childTabs: EntityDetailExtraTab[];
 }
 
 export function useEntityDetail<TRecord extends { id: string }>(
   config: EntityDetailConfig<TRecord>,
 ): EntityDetail<TRecord> {
   const {
-    tabKey, parse, findInStore, getById, recordToValues, resolveTabTitle, resolveTitleFromValues,
+    tabKey, entityKey, parse, findInStore, getById, recordToValues, resolveTabTitle, resolveTitleFromValues,
     validate, create, update, messages, deepLinkKey, cloneKey, remove, removedMessage,
     removeErrorMessage, notesPort, documentsPort, hasNotes, hasDocuments,
-    afterCreate = 'reopen',
+    afterCreate = 'reopen', returnTabKey,
   } = config;
 
   const { setTabTitle, closeTab, openTab, activePanelId } = useWorkspace();
@@ -149,6 +159,8 @@ export function useEntityDetail<TRecord extends { id: string }>(
   const notesController = useEntityNotes({ enabled: hasNotes && !!record, recordId: record?.id ?? null, port: notesPort });
   const docsController = useEntityDocuments({ enabled: hasDocuments && !!record, recordId: record?.id ?? null, port: documentsPort });
 
+  const childTabs = useChildScreenTabs(entityKey, record?.id ?? null);
+
   const [isSaving, setIsSaving] = useState(false);
 
   const handleSave = useCallback(async () => {
@@ -161,7 +173,10 @@ export function useEntityDetail<TRecord extends { id: string }>(
       if (isNew) {
         const created = await create(values);
         notify(messages.created, 'success');
-        if (afterCreate === 'close') {
+        if (returnTabKey) {
+          closeTab(tabKey, activePanelId);
+          openTab(returnTabKey);
+        } else if (afterCreate === 'close') {
           closeTab(tabKey, activePanelId);
         } else {
           const newTabKey = deepLinkKey(created.id);
@@ -172,7 +187,12 @@ export function useEntityDetail<TRecord extends { id: string }>(
       } else if (record) {
         await update(record.id, values);
         notify(messages.updated, 'success');
-        setTabTitle(tabKey, resolveTitleFromValues(values));
+        if (returnTabKey) {
+          closeTab(tabKey, activePanelId);
+          openTab(returnTabKey);
+        } else {
+          setTabTitle(tabKey, resolveTitleFromValues(values));
+        }
       }
     } catch (err) {
       console.error('[useEntityDetail save]', err);
@@ -180,7 +200,7 @@ export function useEntityDetail<TRecord extends { id: string }>(
     } finally {
       setIsSaving(false);
     }
-  }, [validate, values, currentTenant, isNew, record, create, update, messages, deepLinkKey, resolveTitleFromValues, tabKey, activePanelId, closeTab, openTab, setTabTitle, notify, afterCreate]);
+  }, [validate, values, currentTenant, isNew, record, create, update, messages, deepLinkKey, resolveTitleFromValues, tabKey, activePanelId, closeTab, openTab, setTabTitle, notify, afterCreate, returnTabKey]);
 
   return {
     isNew,
@@ -206,5 +226,6 @@ export function useEntityDetail<TRecord extends { id: string }>(
     isDeleting: chrome.isDeleting,
     notesController,
     docsController,
+    childTabs,
   };
 }

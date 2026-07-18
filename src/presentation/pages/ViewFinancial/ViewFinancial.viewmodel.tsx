@@ -16,7 +16,7 @@ import type { TagStoreAdapter } from '../../components/ui/TagManager/TagManager.
 import { useEntityDetail, type EntityValidationResult } from '../../shared/entityScreen/useEntityDetail';
 import { useDocumentsPort } from '../../shared/entityScreen/useDocumentsPort';
 import type { NotesPort, EntityNotesController, EntityDocumentsController } from '../../shared/entityScreen/types';
-import type { EntityDetailTab } from '../../components/layout/EntityDetailView';
+import type { EntityDetailExtraTab, EntityDetailTab } from '../../components/layout/EntityDetailView';
 import { FINANCIAL_FORM_FIELDS } from './financialSchema';
 import {
   buildInitialFormValues,
@@ -118,6 +118,7 @@ export interface ViewFinancialViewModel {
 
   notesController: EntityNotesController;
   docsController: EntityDocumentsController;
+  childTabs: EntityDetailExtraTab[];
 
   activeTab: EntityDetailTab;
   setActiveTab: (tab: EntityDetailTab) => void;
@@ -197,6 +198,7 @@ export const useViewFinancialViewModel = (tabKey: string): ViewFinancialViewMode
 
   const detail = useEntityDetail<Financial>({
     tabKey,
+    entityKey: 'financials',
     parse: parseFinancialTab,
     findInStore,
     recordToValues,
@@ -279,6 +281,7 @@ export const useViewFinancialViewModel = (tabKey: string): ViewFinancialViewMode
     closeTagManager: detail.closeTagManager,
     notesController: detail.notesController,
     docsController: detail.docsController,
+    childTabs: detail.childTabs,
     activeTab: detail.activeTab,
     setActiveTab: detail.setActiveTab,
     copyLinkDone: detail.copyLinkDone,

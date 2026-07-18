@@ -98,6 +98,7 @@ export const ViewPersonView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
       setActiveTab={vm.setActiveTab}
       showNotesTab
       showDocsTab
+      extraTabs={vm.childTabs}
       notesController={vm.notesController}
       docsController={vm.docsController}
       dataContent={dataContent}

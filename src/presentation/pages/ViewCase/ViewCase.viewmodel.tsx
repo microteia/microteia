@@ -15,7 +15,7 @@ import type {
 } from '../../../domain/entities';
 import type { LookupOptionSet } from '../../components/ui/CustomFieldsSection/CustomFieldsSection.viewmodel';
 import type { TagStoreAdapter } from '../../components/ui/TagManager/TagManager.viewmodel';
-import type { EntityDetailTab } from '../../components/layout/EntityDetailView';
+import type { EntityDetailExtraTab, EntityDetailTab } from '../../components/layout/EntityDetailView';
 import { useEntityDetail, type EntityValidationResult } from '../../shared/entityScreen/useEntityDetail';
 import { useNotesPort } from '../../shared/entityScreen/useNotesPort';
 import { useDocumentsPort } from '../../shared/entityScreen/useDocumentsPort';
@@ -155,6 +155,7 @@ export interface ViewCaseViewModel {
 
   notesController: EntityNotesController;
   docsController: EntityDocumentsController;
+  childTabs: EntityDetailExtraTab[];
 
   activeTab: EntityDetailTab;
   setActiveTab: (tab: EntityDetailTab) => void;
@@ -233,6 +234,7 @@ export const useViewCaseViewModel = (tabKey: string): ViewCaseViewModel => {
 
   const detail = useEntityDetail<Case>({
     tabKey,
+    entityKey: 'cases',
     parse: parseCaseTab,
     findInStore,
     recordToValues,
@@ -319,6 +321,7 @@ export const useViewCaseViewModel = (tabKey: string): ViewCaseViewModel => {
     closeTagManager: detail.closeTagManager,
     notesController: detail.notesController,
     docsController: detail.docsController,
+    childTabs: detail.childTabs,
     activeTab: detail.activeTab,
     setActiveTab: detail.setActiveTab,
     copyLinkDone: detail.copyLinkDone,

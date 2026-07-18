@@ -88,6 +88,7 @@ export const ViewFinancialView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
       setActiveTab={vm.setActiveTab}
       showNotesTab={false}
       showDocsTab
+      extraTabs={vm.childTabs}
       notesController={vm.notesController}
       docsController={vm.docsController}
       dataContent={dataContent}

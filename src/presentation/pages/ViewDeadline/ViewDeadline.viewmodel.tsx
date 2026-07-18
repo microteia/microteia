@@ -8,6 +8,7 @@ import { useTenant } from '../../../stores/useTenant';
 import { useScreenDefinitions } from '../../../stores/useScreenDefinitions';
 import type { CustomFieldValue, Deadline, DeadlinePriority, DeadlineStatus, FieldDefinition } from '../../../domain/entities';
 import type { LookupOptionSet } from '../../components/ui/CustomFieldsSection/CustomFieldsSection.viewmodel';
+import type { EntityDetailExtraTab, EntityDetailTab } from '../../components/layout/EntityDetailView';
 import { useEntityDetail, type EntityValidationResult } from '../../shared/entityScreen/useEntityDetail';
 import type {
   NotesPort,
@@ -114,6 +115,9 @@ export interface ViewDeadlineViewModel {
   getDeadlineStatusColor: (status: DeadlineStatus) => string;
   notesController: EntityNotesController;
   docsController: EntityDocumentsController;
+  childTabs: EntityDetailExtraTab[];
+  activeTab: EntityDetailTab;
+  setActiveTab: (tab: EntityDetailTab) => void;
 }
 
 export const useViewDeadlineViewModel = (tabKey: string): ViewDeadlineViewModel => {
@@ -173,6 +177,7 @@ export const useViewDeadlineViewModel = (tabKey: string): ViewDeadlineViewModel 
 
   const detail = useEntityDetail<Deadline>({
     tabKey,
+    entityKey: 'deadlines',
     parse: parseDeadlineTab,
     findInStore,
     recordToValues,
@@ -260,5 +265,8 @@ export const useViewDeadlineViewModel = (tabKey: string): ViewDeadlineViewModel 
     getDeadlineStatusColor,
     notesController: detail.notesController,
     docsController: detail.docsController,
+    childTabs: detail.childTabs,
+    activeTab: detail.activeTab,
+    setActiveTab: detail.setActiveTab,
   };
 };

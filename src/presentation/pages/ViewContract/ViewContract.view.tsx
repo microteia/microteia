@@ -130,7 +130,7 @@ export const ViewContractView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
       setActiveTab={vm.setActiveTab}
       showNotesTab
       showDocsTab
-      extraTabs={[{ key: CONTRACT_CASES_TAB, label: 'Processos', content: casesContent }]}
+      extraTabs={[{ key: CONTRACT_CASES_TAB, label: 'Processos', content: casesContent }, ...vm.childTabs]}
       notesController={vm.notesController}
       docsController={vm.docsController}
       dataContent={dataContent}

@@ -7,6 +7,7 @@ import { useDI } from '../../../infrastructure/di/useDI';
 import { makeGetCustomRecordByIdUseCase } from '../../../domain/usecases/customrecords/GetCustomRecordByIdUseCase';
 import {
   buildCloneTabKey,
+  buildEntityViewTabKey,
   buildViewTabKey,
   parseDynamicTabKey,
 } from '../../../shared/constants/dynamicScreenKeys';
@@ -28,7 +29,7 @@ import type {
   EntityNotesController,
 } from '../../shared/entityScreen/types';
 import type { TagStoreAdapter } from '../../components/ui/TagManager';
-import type { EntityDetailTab } from '../../components/layout/EntityDetailView';
+import type { EntityDetailExtraTab, EntityDetailTab } from '../../components/layout/EntityDetailView';
 import type {
   CustomFieldValue,
   CustomRecord,
@@ -65,6 +66,7 @@ export interface ViewDynamicRecordViewModel {
   recordNotFound: boolean;
   notesController: EntityNotesController;
   docsController: EntityDocumentsController;
+  childTabs: EntityDetailExtraTab[];
   tagAdapter: TagStoreAdapter;
   isTagManagerOpen: boolean;
   openTagManager: () => void;
@@ -86,6 +88,14 @@ export const useViewDynamicRecordViewModel = (tabKey: string): ViewDynamicRecord
     return t?.kind === 'view' ? (t.recordId ?? null) : null;
   }, [tabKey]);
   const definition = useMemo(() => getDefinition(screenKey) ?? null, [getDefinition, screenKey]);
+
+  // Ao criar um filho a partir da aba do pai, a chave carrega quem é o pai.
+  const parentContext = useMemo(() => {
+    const info = parseDynamicTabKey(tabKey);
+    return info?.parentEntity && info.parentId
+      ? { entity: info.parentEntity, id: info.parentId }
+      : null;
+  }, [tabKey]);
   const isAvailable = !!definition && !definition.builtin;
   const isAdmin = tenantRole === 'admin';
 
@@ -114,8 +124,15 @@ export const useViewDynamicRecordViewModel = (tabKey: string): ViewDynamicRecord
   );
 
   const recordToValues = useCallback(
-    (record: CustomRecord | null) => buildInitialFormValues(sortedFields, record?.values ?? null),
-    [sortedFields],
+    (record: CustomRecord | null) => {
+      const values = buildInitialFormValues(sortedFields, record?.values ?? null);
+      // Registro filho novo já nasce vinculado ao pai que abriu a aba.
+      if (parentContext && definition?.parentFieldKey) {
+        values[definition.parentFieldKey] = parentContext.id;
+      }
+      return values;
+    },
+    [sortedFields, parentContext, definition],
   );
 
   const resolveTabTitle = useCallback(
@@ -175,6 +192,27 @@ export const useViewDynamicRecordViewModel = (tabKey: string): ViewDynamicRecord
   const cloneKey = useCallback((id: string) => buildCloneTabKey(screenKey, id), [screenKey]);
   const remove = useCallback((id: string) => deleteRecord(id, screenKey), [deleteRecord, screenKey]);
 
+  // Registro filho volta para o pai ao salvar. Na criação o pai vem da chave da aba; na edição,
+  // do valor já gravado no campo de vínculo.
+  const returnTabKey = useMemo(() => {
+    if (parentContext) return buildEntityViewTabKey(parentContext.entity, parentContext.id);
+    if (!definition?.parentEntity || !definition.parentFieldKey || !recordId) return undefined;
+    const existing = (recordsByScreen[screenKey] ?? []).find((r) => r.id === recordId);
+    const parentId = existing?.values[definition.parentFieldKey];
+    return typeof parentId === 'string' && parentId
+      ? buildEntityViewTabKey(definition.parentEntity, parentId)
+      : undefined;
+  }, [parentContext, definition, recordId, recordsByScreen, screenKey]);
+
+  // O campo de vínculo não vai ao formulário (já vem preenchido), mas segue em `sortedFields`
+  // para ser gravado normalmente.
+  const formFields = useMemo(
+    () => (definition?.parentFieldKey
+      ? sortedFields.filter((f) => f.key !== definition.parentFieldKey)
+      : sortedFields),
+    [sortedFields, definition],
+  );
+
   const noteDocExtra = useMemo(() => ({ screenKey }), [screenKey]);
   const notesPort = useNotesPort(customRecordNoteRepository, noteDocExtra);
   const documentsPort = useDocumentsPort(customRecordDocumentRepository, noteDocExtra);
@@ -187,6 +225,7 @@ export const useViewDynamicRecordViewModel = (tabKey: string): ViewDynamicRecord
 
   const detail = useEntityDetail<CustomRecord>({
     tabKey,
+    entityKey: screenKey,
     parse,
     findInStore,
     getById,
@@ -206,6 +245,7 @@ export const useViewDynamicRecordViewModel = (tabKey: string): ViewDynamicRecord
     documentsPort,
     hasNotes: !!definition?.hasNotes,
     hasDocuments: !!definition?.hasDocuments,
+    returnTabKey,
   });
 
   const screenTags = useMemo(() => tagsByScreen[screenKey] ?? [], [tagsByScreen, screenKey]);
@@ -230,7 +270,7 @@ export const useViewDynamicRecordViewModel = (tabKey: string): ViewDynamicRecord
     recordId,
     activeTab: detail.activeTab,
     setActiveTab: detail.setActiveTab,
-    sortedFields,
+    sortedFields: formFields,
     formValues: detail.values,
     setFieldValue: detail.setFieldValue,
     fieldErrors: detail.fieldErrors,
@@ -247,6 +287,7 @@ export const useViewDynamicRecordViewModel = (tabKey: string): ViewDynamicRecord
     recordNotFound: detail.recordNotFound,
     notesController: detail.notesController,
     docsController: detail.docsController,
+    childTabs: detail.childTabs,
     tagAdapter,
     isTagManagerOpen: detail.isTagManagerOpen,
     openTagManager: detail.openTagManager,

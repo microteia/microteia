@@ -18,7 +18,7 @@ import type {
 } from '../../../domain/entities';
 import type { LookupOptionSet } from '../../components/ui/CustomFieldsSection/CustomFieldsSection.viewmodel';
 import type { TagStoreAdapter } from '../../components/ui/TagManager/TagManager.viewmodel';
-import type { EntityDetailTab } from '../../components/layout/EntityDetailView';
+import type { EntityDetailExtraTab, EntityDetailTab } from '../../components/layout/EntityDetailView';
 import type { SearchSelectOption } from '../../components/ui/SearchSelect';
 import { useEntityDetail, type EntityValidationResult } from '../../shared/entityScreen/useEntityDetail';
 import { useNotesPort } from '../../shared/entityScreen/useNotesPort';
@@ -191,6 +191,7 @@ export interface ViewContractViewModel {
 
   notesController: EntityNotesController;
   docsController: EntityDocumentsController;
+  childTabs: EntityDetailExtraTab[];
 
   activeTab: EntityDetailTab;
   setActiveTab: (tab: EntityDetailTab) => void;
@@ -285,6 +286,7 @@ export const useViewContractViewModel = (tabKey: string): ViewContractViewModel 
 
   const detail = useEntityDetail<Contract>({
     tabKey,
+    entityKey: 'contracts',
     parse: parseContractTab,
     findInStore,
     recordToValues,
@@ -419,6 +421,7 @@ export const useViewContractViewModel = (tabKey: string): ViewContractViewModel 
     closeTagManager: detail.closeTagManager,
     notesController: detail.notesController,
     docsController: detail.docsController,
+    childTabs: detail.childTabs,
     activeTab: detail.activeTab,
     setActiveTab: detail.setActiveTab,
     copyLinkDone: detail.copyLinkDone,

@@ -64,10 +64,11 @@ export const ViewDeadlineView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
       isSaving={vm.isSaving}
       showDelete={false}
       onDelete={() => undefined}
-      activeTab="data"
-      setActiveTab={() => undefined}
+      activeTab={vm.activeTab}
+      setActiveTab={vm.setActiveTab}
       showNotesTab={false}
       showDocsTab={false}
+      extraTabs={vm.childTabs}
       notesController={vm.notesController}
       docsController={vm.docsController}
       dataContent={dataContent}
