@@ -3,6 +3,7 @@ import { db } from '../../infrastructure/firebase/config';
 import type { ICaseStatusRepository } from '../../domain/repositories/ICaseStatusRepository';
 import type { CaseStatusConfig } from '../../domain/entities';
 import { mergeLookupDefaults } from './mergeLookupDefaults';
+import { subscribeLookupCollection } from './subscribeLookupCollection';
 
 const DEFAULT_CASE_STATUSES: CaseStatusConfig[] = [
   { key: 'Em Andamento',          label: 'Em Andamento',          color: 'caseStatusInProgress',  isStatic: true },
@@ -17,6 +18,10 @@ const DEFAULT_CASE_STATUSES: CaseStatusConfig[] = [
 ];
 
 export class FirebaseCaseStatusRepository implements ICaseStatusRepository {
+  subscribe(tenantId: string, onChange: (items: CaseStatusConfig[]) => void): () => void {
+    return subscribeLookupCollection<CaseStatusConfig>(tenantId, 'caseStatuses', DEFAULT_CASE_STATUSES, onChange);
+  }
+
   async getAll(tenantId: string): Promise<CaseStatusConfig[]> {
     try {
       const col = collection(db, 'tenants', tenantId, 'caseStatuses');

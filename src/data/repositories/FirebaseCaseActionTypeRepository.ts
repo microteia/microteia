@@ -2,8 +2,13 @@ import { collection, getDocs, orderBy, query, addDoc, deleteDoc, doc, where } fr
 import { db } from '../../infrastructure/firebase/config';
 import type { ICaseActionTypeRepository } from '../../domain/repositories/ICaseActionTypeRepository';
 import type { CaseActionTypeConfig } from '../../domain/entities';
+import { subscribeLookupCollection } from './subscribeLookupCollection';
 
 export class FirebaseCaseActionTypeRepository implements ICaseActionTypeRepository {
+  subscribe(tenantId: string, onChange: (items: CaseActionTypeConfig[]) => void): () => void {
+    return subscribeLookupCollection<CaseActionTypeConfig>(tenantId, 'caseActionTypes', [], onChange);
+  }
+
   async getAll(tenantId: string): Promise<CaseActionTypeConfig[]> {
     try {
       const col = collection(db, 'tenants', tenantId, 'caseActionTypes');

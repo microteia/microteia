@@ -29,44 +29,33 @@ export const CaseLookupStoreProvider: React.FC<{ children: React.ReactNode }> = 
   const [judgeConfigs, setJudgeConfigs] = useState<CaseJudgeConfig[]>([]);
   const [loading, setLoading] = useState(false);
 
-  const refresh = useCallback(async () => {
-    if (!currentTenant) return;
-    setLoading(true);
-    try {
-      const [areas, phases, statuses, instances, actionTypes, courts, districts, judges] = await Promise.all([
-        caseAreaRepository.getAll(currentTenant.id),
-        casePhaseRepository.getAll(currentTenant.id),
-        caseStatusRepository.getAll(currentTenant.id),
-        caseInstanceRepository.getAll(currentTenant.id),
-        caseActionTypeRepository.getAll(currentTenant.id),
-        caseCourtRepository.getAll(currentTenant.id),
-        caseDistrictRepository.getAll(currentTenant.id),
-        caseJudgeRepository.getAll(currentTenant.id),
-      ]);
-      setAreaConfigs(areas);
-      setPhaseConfigs(phases);
-      setStatusConfigs(statuses);
-      setInstanceConfigs(instances);
-      setActionTypeConfigs(actionTypes);
-      setCourtConfigs(courts);
-      setDistrictConfigs(districts);
-      setJudgeConfigs(judges);
-    } finally {
-      setLoading(false);
+  useEffect(() => {
+    if (!currentTenant) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- clearing local state on tenant change is architecturally required
+      setAreaConfigs([]);
+      setPhaseConfigs([]);
+      setStatusConfigs([]);
+      setInstanceConfigs([]);
+      setActionTypeConfigs([]);
+      setCourtConfigs([]);
+      setDistrictConfigs([]);
+      setJudgeConfigs([]);
+      return;
     }
+    setLoading(true);
+    const done = () => setLoading(false);
+    const unsubscribes = [
+      caseAreaRepository.subscribe(currentTenant.id,       (items) => { setAreaConfigs(items);       done(); }),
+      casePhaseRepository.subscribe(currentTenant.id,      (items) => { setPhaseConfigs(items);      done(); }),
+      caseStatusRepository.subscribe(currentTenant.id,     (items) => { setStatusConfigs(items);     done(); }),
+      caseInstanceRepository.subscribe(currentTenant.id,   (items) => { setInstanceConfigs(items);   done(); }),
+      caseActionTypeRepository.subscribe(currentTenant.id, (items) => { setActionTypeConfigs(items); done(); }),
+      caseCourtRepository.subscribe(currentTenant.id,      (items) => { setCourtConfigs(items);      done(); }),
+      caseDistrictRepository.subscribe(currentTenant.id,   (items) => { setDistrictConfigs(items);   done(); }),
+      caseJudgeRepository.subscribe(currentTenant.id,      (items) => { setJudgeConfigs(items);      done(); }),
+    ];
+    return () => unsubscribes.forEach((unsubscribe) => unsubscribe());
   }, [currentTenant, caseAreaRepository, casePhaseRepository, caseStatusRepository, caseInstanceRepository, caseActionTypeRepository, caseCourtRepository, caseDistrictRepository, caseJudgeRepository]);
-
-  useEffect(() => {
-    if (!currentTenant) return;
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- triggering async refresh on tenant change is architecturally required
-    void refresh();
-  }, [currentTenant, refresh]);
-
-  useEffect(() => {
-    const handle = () => { if (!document.hidden && currentTenant) void refresh(); };
-    document.addEventListener('visibilitychange', handle);
-    return () => document.removeEventListener('visibilitychange', handle);
-  }, [refresh, currentTenant]);
 
   type LookupKind = 'areas' | 'phases' | 'statuses' | 'instances' | 'actionTypes' | 'courts' | 'districts' | 'judges';
 

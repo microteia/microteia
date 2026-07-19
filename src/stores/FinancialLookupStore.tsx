@@ -20,30 +20,19 @@ export const FinancialLookupStoreProvider: React.FC<{ children: React.ReactNode 
   const [configs, setConfigs] = useState<Record<FinancialLookupKind, FinancialLookupConfig[]>>(EMPTY_STATE);
   const [loading, setLoading] = useState(false);
 
-  const refresh = useCallback(async () => {
-    if (!currentTenant) return;
-    setLoading(true);
-    try {
-      const results = await Promise.all(KINDS.map((kind) => financialLookupRepository.getAll(currentTenant.id, kind)));
-      const next = {} as Record<FinancialLookupKind, FinancialLookupConfig[]>;
-      KINDS.forEach((kind, idx) => { next[kind] = results[idx]; });
-      setConfigs(next);
-    } finally {
-      setLoading(false);
+  useEffect(() => {
+    if (!currentTenant) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- clearing local state on tenant change is architecturally required
+      setConfigs(EMPTY_STATE);
+      return;
     }
+    setLoading(true);
+    const unsubscribes = KINDS.map((kind) => financialLookupRepository.subscribe(currentTenant.id, kind, (items) => {
+      setConfigs((prev) => ({ ...prev, [kind]: items }));
+      setLoading(false);
+    }));
+    return () => unsubscribes.forEach((unsubscribe) => unsubscribe());
   }, [currentTenant, financialLookupRepository]);
-
-  useEffect(() => {
-    if (!currentTenant) return;
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- triggering async refresh on tenant change is architecturally required
-    void refresh();
-  }, [currentTenant, refresh]);
-
-  useEffect(() => {
-    const handle = () => { if (!document.hidden && currentTenant) void refresh(); };
-    document.addEventListener('visibilitychange', handle);
-    return () => document.removeEventListener('visibilitychange', handle);
-  }, [refresh, currentTenant]);
 
   const addItem = useCallback(async (kind: FinancialLookupKind, name: string) => {
     if (!currentTenant || !user) throw new Error('Not authenticated');

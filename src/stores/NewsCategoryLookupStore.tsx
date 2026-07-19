@@ -13,28 +13,19 @@ export const NewsCategoryLookupStoreProvider: React.FC<{ children: React.ReactNo
   const [categoryConfigs, setCategoryConfigs] = useState<NewsCategoryConfig[]>([]);
   const [loading, setLoading] = useState(false);
 
-  const refresh = useCallback(async () => {
-    if (!currentTenant) return;
-    setLoading(true);
-    try {
-      const categories = await newsCategoryRepository.getAll(currentTenant.id);
-      setCategoryConfigs(categories);
-    } finally {
-      setLoading(false);
+  useEffect(() => {
+    if (!currentTenant) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- clearing local state on tenant change is architecturally required
+      setCategoryConfigs([]);
+      return;
     }
+    setLoading(true);
+    const unsubscribe = newsCategoryRepository.subscribe(currentTenant.id, (categories) => {
+      setCategoryConfigs(categories);
+      setLoading(false);
+    });
+    return () => unsubscribe();
   }, [currentTenant, newsCategoryRepository]);
-
-  useEffect(() => {
-    if (!currentTenant) return;
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- triggering async refresh on tenant change is architecturally required
-    void refresh();
-  }, [currentTenant, refresh]);
-
-  useEffect(() => {
-    const handle = () => { if (!document.hidden && currentTenant) void refresh(); };
-    document.addEventListener('visibilitychange', handle);
-    return () => document.removeEventListener('visibilitychange', handle);
-  }, [refresh, currentTenant]);
 
   const addItem = useCallback(async (name: string) => {
     if (!currentTenant || !user) throw new Error('Not authenticated');

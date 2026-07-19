@@ -3,6 +3,7 @@ import { db } from '../../infrastructure/firebase/config';
 import type { IContractLookupRepository } from '../../domain/repositories/IContractLookupRepository';
 import type { ContractLookupConfig, ContractLookupKind } from '../../domain/entities';
 import { mergeLookupDefaults } from './mergeLookupDefaults';
+import { subscribeLookupCollection } from './subscribeLookupCollection';
 
 const COLLECTION_NAMES: Record<ContractLookupKind, string> = {
   types:                     'contractTypes',
@@ -82,6 +83,10 @@ const STATIC_DEFAULTS: Record<ContractLookupKind, ContractLookupConfig[]> = {
 };
 
 export class FirebaseContractLookupRepository implements IContractLookupRepository {
+  subscribe(tenantId: string, kind: ContractLookupKind, onChange: (items: ContractLookupConfig[]) => void): () => void {
+    return subscribeLookupCollection<ContractLookupConfig>(tenantId, COLLECTION_NAMES[kind], STATIC_DEFAULTS[kind], onChange);
+  }
+
   async getAll(tenantId: string, kind: ContractLookupKind): Promise<ContractLookupConfig[]> {
     try {
       const col = collection(db, 'tenants', tenantId, COLLECTION_NAMES[kind]);

@@ -3,6 +3,7 @@ import { db } from '../../infrastructure/firebase/config';
 import type { IFinancialLookupRepository } from '../../domain/repositories/IFinancialLookupRepository';
 import type { FinancialLookupConfig, FinancialLookupKind } from '../../domain/entities';
 import { mergeLookupDefaults } from './mergeLookupDefaults';
+import { subscribeLookupCollection } from './subscribeLookupCollection';
 
 const COLLECTION_NAMES: Record<FinancialLookupKind, string> = {
   categories: 'financialCategories',
@@ -29,6 +30,10 @@ const STATIC_DEFAULTS: Record<FinancialLookupKind, FinancialLookupConfig[]> = {
 };
 
 export class FirebaseFinancialLookupRepository implements IFinancialLookupRepository {
+  subscribe(tenantId: string, kind: FinancialLookupKind, onChange: (items: FinancialLookupConfig[]) => void): () => void {
+    return subscribeLookupCollection<FinancialLookupConfig>(tenantId, COLLECTION_NAMES[kind], STATIC_DEFAULTS[kind], onChange);
+  }
+
   async getAll(tenantId: string, kind: FinancialLookupKind): Promise<FinancialLookupConfig[]> {
     try {
       const col = collection(db, 'tenants', tenantId, COLLECTION_NAMES[kind]);

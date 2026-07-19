@@ -3,6 +3,7 @@ import { db } from '../../infrastructure/firebase/config';
 import type { ICaseAreaRepository } from '../../domain/repositories/ICaseAreaRepository';
 import type { CaseAreaConfig } from '../../domain/entities';
 import { mergeLookupDefaults } from './mergeLookupDefaults';
+import { subscribeLookupCollection } from './subscribeLookupCollection';
 
 const DEFAULT_CASE_AREAS: CaseAreaConfig[] = [
   { key: 'Cível', label: 'Cível', isStatic: true },
@@ -21,6 +22,10 @@ const DEFAULT_CASE_AREAS: CaseAreaConfig[] = [
 ];
 
 export class FirebaseCaseAreaRepository implements ICaseAreaRepository {
+  subscribe(tenantId: string, onChange: (items: CaseAreaConfig[]) => void): () => void {
+    return subscribeLookupCollection<CaseAreaConfig>(tenantId, 'caseAreas', DEFAULT_CASE_AREAS, onChange);
+  }
+
   async getAll(tenantId: string): Promise<CaseAreaConfig[]> {
     try {
       const col = collection(db, 'tenants', tenantId, 'caseAreas');

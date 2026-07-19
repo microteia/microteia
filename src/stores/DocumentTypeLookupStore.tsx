@@ -13,28 +13,19 @@ export const DocumentTypeLookupStoreProvider: React.FC<{ children: React.ReactNo
   const [typeConfigs, setTypeConfigs] = useState<DocumentTypeConfig[]>([]);
   const [loading, setLoading] = useState(false);
 
-  const refresh = useCallback(async () => {
-    if (!currentTenant) return;
-    setLoading(true);
-    try {
-      const types = await documentTypeRepository.getAll(currentTenant.id);
-      setTypeConfigs(types);
-    } finally {
-      setLoading(false);
+  useEffect(() => {
+    if (!currentTenant) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- clearing local state on tenant change is architecturally required
+      setTypeConfigs([]);
+      return;
     }
+    setLoading(true);
+    const unsubscribe = documentTypeRepository.subscribe(currentTenant.id, (types) => {
+      setTypeConfigs(types);
+      setLoading(false);
+    });
+    return () => unsubscribe();
   }, [currentTenant, documentTypeRepository]);
-
-  useEffect(() => {
-    if (!currentTenant) return;
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- triggering async refresh on tenant change is architecturally required
-    void refresh();
-  }, [currentTenant, refresh]);
-
-  useEffect(() => {
-    const handle = () => { if (!document.hidden && currentTenant) void refresh(); };
-    document.addEventListener('visibilitychange', handle);
-    return () => document.removeEventListener('visibilitychange', handle);
-  }, [refresh, currentTenant]);
 
   const addItem = useCallback(async (name: string) => {
     if (!currentTenant || !user) throw new Error('Not authenticated');

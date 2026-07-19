@@ -3,6 +3,7 @@ import { db } from '../../infrastructure/firebase/config';
 import type { INewsCategoryRepository } from '../../domain/repositories/INewsCategoryRepository';
 import type { NewsCategoryConfig } from '../../domain/entities';
 import { mergeLookupDefaults } from './mergeLookupDefaults';
+import { subscribeLookupCollection } from './subscribeLookupCollection';
 
 const DEFAULT_NEWS_CATEGORIES: NewsCategoryConfig[] = [
   { key: 'GENERAL',       label: 'Geral',          isStatic: true },
@@ -14,6 +15,10 @@ const DEFAULT_NEWS_CATEGORIES: NewsCategoryConfig[] = [
 ];
 
 export class FirebaseNewsCategoryRepository implements INewsCategoryRepository {
+  subscribe(tenantId: string, onChange: (items: NewsCategoryConfig[]) => void): () => void {
+    return subscribeLookupCollection<NewsCategoryConfig>(tenantId, 'newsCategories', DEFAULT_NEWS_CATEGORIES, onChange);
+  }
+
   async getAll(tenantId: string): Promise<NewsCategoryConfig[]> {
     try {
       const col = collection(db, 'tenants', tenantId, 'newsCategories');

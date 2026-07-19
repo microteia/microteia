@@ -5,6 +5,11 @@ import { useAuth } from './useAuth';
 import { PersonLookupContext } from './usePersonLookup';
 import type { PersonLookupConfig, PersonLookupKind } from '../domain/entities';
 
+const KINDS: PersonLookupKind[] = [
+  'types', 'occupations', 'nationalities', 'maritalStatuses',
+  'cities', 'relationships', 'genders',
+];
+
 export const PersonLookupStoreProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { personLookupRepository } = useDI();
   const { currentTenant } = useTenant();
@@ -19,42 +24,34 @@ export const PersonLookupStoreProvider: React.FC<{ children: React.ReactNode }> 
   const [genderConfigs,        setGenderConfigs]        = useState<PersonLookupConfig[]>([]);
   const [loading, setLoading] = useState(false);
 
-  const refresh = useCallback(async () => {
-    if (!currentTenant) return;
-    setLoading(true);
-    try {
-      const [types, occupations, nationalities, maritalStatuses, cities, relationships, genders] = await Promise.all([
-        personLookupRepository.getAll(currentTenant.id, 'types'),
-        personLookupRepository.getAll(currentTenant.id, 'occupations'),
-        personLookupRepository.getAll(currentTenant.id, 'nationalities'),
-        personLookupRepository.getAll(currentTenant.id, 'maritalStatuses'),
-        personLookupRepository.getAll(currentTenant.id, 'cities'),
-        personLookupRepository.getAll(currentTenant.id, 'relationships'),
-        personLookupRepository.getAll(currentTenant.id, 'genders'),
-      ]);
-      setTypeConfigs(types);
-      setOccupationConfigs(occupations);
-      setNationalityConfigs(nationalities);
-      setMaritalStatusConfigs(maritalStatuses);
-      setCityConfigs(cities);
-      setRelationshipConfigs(relationships);
-      setGenderConfigs(genders);
-    } finally {
-      setLoading(false);
+  useEffect(() => {
+    if (!currentTenant) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- clearing local state on tenant change is architecturally required
+      setTypeConfigs([]);
+      setOccupationConfigs([]);
+      setNationalityConfigs([]);
+      setMaritalStatusConfigs([]);
+      setCityConfigs([]);
+      setRelationshipConfigs([]);
+      setGenderConfigs([]);
+      return;
     }
+    setLoading(true);
+    const setters: Record<PersonLookupKind, React.Dispatch<React.SetStateAction<PersonLookupConfig[]>>> = {
+      types:           setTypeConfigs,
+      occupations:     setOccupationConfigs,
+      nationalities:   setNationalityConfigs,
+      maritalStatuses: setMaritalStatusConfigs,
+      cities:          setCityConfigs,
+      relationships:   setRelationshipConfigs,
+      genders:         setGenderConfigs,
+    };
+    const unsubscribes = KINDS.map((kind) => personLookupRepository.subscribe(currentTenant.id, kind, (items) => {
+      setters[kind](items);
+      setLoading(false);
+    }));
+    return () => unsubscribes.forEach((unsubscribe) => unsubscribe());
   }, [currentTenant, personLookupRepository]);
-
-  useEffect(() => {
-    if (!currentTenant) return;
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- triggering async refresh on tenant change is architecturally required
-    void refresh();
-  }, [currentTenant, refresh]);
-
-  useEffect(() => {
-    const handle = () => { if (!document.hidden && currentTenant) void refresh(); };
-    document.addEventListener('visibilitychange', handle);
-    return () => document.removeEventListener('visibilitychange', handle);
-  }, [refresh, currentTenant]);
 
   const addItem = useCallback(async (kind: PersonLookupKind, name: string) => {
     if (!currentTenant || !user) throw new Error('Not authenticated');

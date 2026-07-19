@@ -3,6 +3,7 @@ import { db } from '../../infrastructure/firebase/config';
 import type { ICaseInstanceRepository } from '../../domain/repositories/ICaseInstanceRepository';
 import type { CaseInstanceConfig } from '../../domain/entities';
 import { mergeLookupDefaults } from './mergeLookupDefaults';
+import { subscribeLookupCollection } from './subscribeLookupCollection';
 
 const DEFAULT_CASE_INSTANCES: CaseInstanceConfig[] = [
   { key: '1º Grau', label: '1º Grau', isStatic: true },
@@ -15,6 +16,10 @@ const DEFAULT_CASE_INSTANCES: CaseInstanceConfig[] = [
 ];
 
 export class FirebaseCaseInstanceRepository implements ICaseInstanceRepository {
+  subscribe(tenantId: string, onChange: (items: CaseInstanceConfig[]) => void): () => void {
+    return subscribeLookupCollection<CaseInstanceConfig>(tenantId, 'caseInstances', DEFAULT_CASE_INSTANCES, onChange);
+  }
+
   async getAll(tenantId: string): Promise<CaseInstanceConfig[]> {
     try {
       const col = collection(db, 'tenants', tenantId, 'caseInstances');

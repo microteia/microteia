@@ -3,6 +3,7 @@ import { db } from '../../infrastructure/firebase/config';
 import type { IPersonLookupRepository } from '../../domain/repositories/IPersonLookupRepository';
 import type { PersonLookupConfig, PersonLookupKind } from '../../domain/entities';
 import { mergeLookupDefaults } from './mergeLookupDefaults';
+import { subscribeLookupCollection } from './subscribeLookupCollection';
 
 const COLLECTION_NAMES: Record<PersonLookupKind, string> = {
   types:          'personTypes',
@@ -46,6 +47,10 @@ const STATIC_DEFAULTS: Record<PersonLookupKind, PersonLookupConfig[]> = {
 };
 
 export class FirebasePersonLookupRepository implements IPersonLookupRepository {
+  subscribe(tenantId: string, kind: PersonLookupKind, onChange: (items: PersonLookupConfig[]) => void): () => void {
+    return subscribeLookupCollection<PersonLookupConfig>(tenantId, COLLECTION_NAMES[kind], STATIC_DEFAULTS[kind], onChange);
+  }
+
   async getAll(tenantId: string, kind: PersonLookupKind): Promise<PersonLookupConfig[]> {
     try {
       const col = collection(db, 'tenants', tenantId, COLLECTION_NAMES[kind]);

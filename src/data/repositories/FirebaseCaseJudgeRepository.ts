@@ -2,8 +2,13 @@ import { collection, getDocs, orderBy, query, addDoc, deleteDoc, doc, where } fr
 import { db } from '../../infrastructure/firebase/config';
 import type { ICaseJudgeRepository } from '../../domain/repositories/ICaseJudgeRepository';
 import type { CaseJudgeConfig } from '../../domain/entities';
+import { subscribeLookupCollection } from './subscribeLookupCollection';
 
 export class FirebaseCaseJudgeRepository implements ICaseJudgeRepository {
+  subscribe(tenantId: string, onChange: (items: CaseJudgeConfig[]) => void): () => void {
+    return subscribeLookupCollection<CaseJudgeConfig>(tenantId, 'caseJudges', [], onChange);
+  }
+
   async getAll(tenantId: string): Promise<CaseJudgeConfig[]> {
     try {
       const col = collection(db, 'tenants', tenantId, 'caseJudges');

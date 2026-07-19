@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [0.115.3] — 2026-07-19
+
+- Corrigido: as listas de opções cadastráveis (áreas, fases, situações, instâncias, tipos de ação, tribunais, comarcas, juízes, tipos de prazo, tipos de documento, categorias de notícia e as opções de pessoas, contratos e financeiro) não mostravam, para os demais usuários, os itens recém-incluídos por um colega — era preciso recarregar a página. Agora elas se atualizam sozinhas, como o restante do sistema.
+
 ## [0.115.2] — 2026-07-19
 
 - Corrigido: e-mails de movimentação do PJe do TJBA chegavam com as letras acentuadas trocadas e deixavam de ser reconhecidos, impedindo o registro automático das movimentações. O mesmo problema podia afetar comunicados de outros tribunais.

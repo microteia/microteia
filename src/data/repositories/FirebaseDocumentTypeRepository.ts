@@ -3,6 +3,7 @@ import { db } from '../../infrastructure/firebase/config';
 import type { IDocumentTypeRepository } from '../../domain/repositories/IDocumentTypeRepository';
 import type { DocumentTypeConfig } from '../../domain/entities';
 import { mergeLookupDefaults } from './mergeLookupDefaults';
+import { subscribeLookupCollection } from './subscribeLookupCollection';
 
 const DEFAULT_DOCUMENT_TYPES: DocumentTypeConfig[] = [
   { key: 'Contrato', label: 'Contrato', isStatic: true },
@@ -18,6 +19,10 @@ const DEFAULT_DOCUMENT_TYPES: DocumentTypeConfig[] = [
 ];
 
 export class FirebaseDocumentTypeRepository implements IDocumentTypeRepository {
+  subscribe(tenantId: string, onChange: (items: DocumentTypeConfig[]) => void): () => void {
+    return subscribeLookupCollection<DocumentTypeConfig>(tenantId, 'documentTypes', DEFAULT_DOCUMENT_TYPES, onChange);
+  }
+
   async getAll(tenantId: string): Promise<DocumentTypeConfig[]> {
     try {
       const col = collection(db, 'tenants', tenantId, 'documentTypes');

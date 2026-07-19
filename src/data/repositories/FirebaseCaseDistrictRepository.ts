@@ -2,8 +2,13 @@ import { collection, getDocs, orderBy, query, addDoc, deleteDoc, doc, where } fr
 import { db } from '../../infrastructure/firebase/config';
 import type { ICaseDistrictRepository } from '../../domain/repositories/ICaseDistrictRepository';
 import type { CaseDistrictConfig } from '../../domain/entities';
+import { subscribeLookupCollection } from './subscribeLookupCollection';
 
 export class FirebaseCaseDistrictRepository implements ICaseDistrictRepository {
+  subscribe(tenantId: string, onChange: (items: CaseDistrictConfig[]) => void): () => void {
+    return subscribeLookupCollection<CaseDistrictConfig>(tenantId, 'caseDistricts', [], onChange);
+  }
+
   async getAll(tenantId: string): Promise<CaseDistrictConfig[]> {
     try {
       const col = collection(db, 'tenants', tenantId, 'caseDistricts');

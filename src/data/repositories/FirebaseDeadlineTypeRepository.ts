@@ -3,6 +3,7 @@ import { db } from '../../infrastructure/firebase/config';
 import type { IDeadlineTypeRepository } from '../../domain/repositories/IDeadlineTypeRepository';
 import type { DeadlineTypeConfig } from '../../domain/entities';
 import { mergeLookupDefaults } from './mergeLookupDefaults';
+import { subscribeLookupCollection } from './subscribeLookupCollection';
 
 const DEFAULT_DEADLINE_TYPES: DeadlineTypeConfig[] = [
   { key: 'Audiência',   label: 'Audiência',   isStatic: true },
@@ -14,6 +15,10 @@ const DEFAULT_DEADLINE_TYPES: DeadlineTypeConfig[] = [
 ];
 
 export class FirebaseDeadlineTypeRepository implements IDeadlineTypeRepository {
+  subscribe(tenantId: string, onChange: (items: DeadlineTypeConfig[]) => void): () => void {
+    return subscribeLookupCollection<DeadlineTypeConfig>(tenantId, 'deadlineTypes', DEFAULT_DEADLINE_TYPES, onChange);
+  }
+
   async getAll(tenantId: string): Promise<DeadlineTypeConfig[]> {
     try {
       const col = collection(db, 'tenants', tenantId, 'deadlineTypes');

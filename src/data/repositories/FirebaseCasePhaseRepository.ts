@@ -3,6 +3,7 @@ import { db } from '../../infrastructure/firebase/config';
 import type { ICasePhaseRepository } from '../../domain/repositories/ICasePhaseRepository';
 import type { CasePhaseConfig } from '../../domain/entities';
 import { mergeLookupDefaults } from './mergeLookupDefaults';
+import { subscribeLookupCollection } from './subscribeLookupCollection';
 
 const DEFAULT_CASE_PHASES: CasePhaseConfig[] = [
   { key: 'Fase Inicial', label: 'Fase Inicial', color: 'casePhaseInitial',     isStatic: true },
@@ -16,6 +17,10 @@ const DEFAULT_CASE_PHASES: CasePhaseConfig[] = [
 ];
 
 export class FirebaseCasePhaseRepository implements ICasePhaseRepository {
+  subscribe(tenantId: string, onChange: (items: CasePhaseConfig[]) => void): () => void {
+    return subscribeLookupCollection<CasePhaseConfig>(tenantId, 'casePhases', DEFAULT_CASE_PHASES, onChange);
+  }
+
   async getAll(tenantId: string): Promise<CasePhaseConfig[]> {
     try {
       const col = collection(db, 'tenants', tenantId, 'casePhases');
