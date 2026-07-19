@@ -81,6 +81,7 @@ export const ViewDynamicRecordView: React.FC<{ tabKey: string }> = ({ tabKey }) 
   return (
     <EntityDetailView
       isNew={vm.isNew}
+      screenActions={vm.screenActions}
       isAdmin={vm.isAdmin}
       avatar={getScreenIcon(definition.icon, 22)}
       title={vm.isNew ? `Novo ${definition.titleSingular}` : definition.titleSingular}

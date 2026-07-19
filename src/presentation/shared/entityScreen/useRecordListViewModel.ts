@@ -4,19 +4,32 @@ import { useCustomRecords } from '../../../stores/useCustomRecords';
 import { useWorkspace } from '../../../stores/useWorkspace';
 import { useTenant } from '../../../stores/useTenant';
 import { useNotification } from '../../../stores/useNotification';
+import { useActions } from '../../../stores/useActions';
+import { storeEvents, StoreEvents } from '../../../infrastructure/events/StoreEventEmitter';
+import { isActionDisabled, isActionHidden } from '../../../domain/schema/actionExpression';
+import { dispatchActionOutcome } from './useScreenActions';
 import { useCustomFieldListing } from '../../hooks/useCustomFieldListing';
 import type { CustomFieldCardItem } from '../../hooks/useCustomFieldListing';
 import { generateDeepLink } from '../../../infrastructure/deeplink/deepLinkUtils';
 import { buildNewTabKey, buildViewTabKey, buildCloneTabKey, buildChildNewTabKey } from '../../../shared/constants/dynamicScreenKeys';
 import { sortFieldsByOrder } from '../../../domain/services/customFieldValues';
-import type { CustomRecord, CustomRecordTag, ScreenDefinition, ScreenListAction } from '../../../domain/entities';
+import type { ActionDefinition, ActionStatusCode, CustomRecord, CustomRecordTag, ScreenDefinition, ScreenListAction } from '../../../domain/entities';
 import type { TagStoreAdapter } from '../../components/ui/TagManager';
 import type { FilterDef, FilterToken } from '../../components/ui/CompositeFilter';
 
+const STATUS_TONE: Record<ActionStatusCode, 'success' | 'warning' | 'error'> = {
+  SUCCESS: 'success',
+  WARNING: 'warning',
+  ERROR: 'error',
+};
+
 export interface RecordCardAction {
-  key: ScreenListAction;
+  key: string;
   title: string;
   danger?: boolean;
+  disabled?: boolean;
+  /** Presente nas ações customizadas — a view resolve pelo registro de ícones das telas. */
+  iconKey?: string;
   onClick: () => void;
 }
 
@@ -70,11 +83,13 @@ export const useRecordListViewModel = (source: RecordListSource): RecordListView
   const { openTab } = useWorkspace();
   const { tenantRole } = useTenant();
   const { notify } = useNotification();
+  const { getActionsByIds, runAction } = useActions();
 
   const [filterTokens, setFilterTokens] = useState<FilterToken[]>([]);
   const [tagManagerRecord, setTagManagerRecord] = useState<CustomRecord | null>(null);
   const [recordToDelete, setRecordToDelete] = useState<CustomRecord | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [runningActionId, setRunningActionId] = useState<string | null>(null);
 
   const isAdmin = tenantRole === 'admin';
   const definition = useMemo(() => getDefinition(screenKey) ?? null, [getDefinition, screenKey]);
@@ -158,6 +173,42 @@ export const useRecordListViewModel = (source: RecordListSource): RecordListView
     [openTab, screenKey],
   );
 
+  const cardActionDefs = useMemo(
+    () => getActionsByIds(definition?.cardActionIds ?? []),
+    [getActionsByIds, definition],
+  );
+
+  const runCardAction = useCallback(async (action: ActionDefinition, record: CustomRecord) => {
+    setRunningActionId(action.id);
+    try {
+      const response = await runAction({
+        actionId: action.id,
+        source: screenKey,
+        context: record.values,
+        recordId: record.id,
+        isNew: false,
+      });
+      if (response.error || !response.outcome) {
+        notify(response.error ?? 'Não foi possível executar a ação.', 'error');
+        return;
+      }
+      const { status } = response.outcome;
+      if (status.message) notify(status.message, STATUS_TONE[status.code]);
+
+      await dispatchActionOutcome(response.outcome, record.values, {
+        save: (override) => updateRecord(record.id, screenKey, { values: override ?? record.values }),
+        clone: () => onClone(record),
+        remove: () => setRecordToDelete(record),
+        refresh: () => storeEvents.emit(StoreEvents.CUSTOM_RECORDS_UPDATED),
+      });
+    } catch (error) {
+      console.error('[useRecordListViewModel action]', error);
+      notify('Não foi possível executar a ação.', 'error');
+    } finally {
+      setRunningActionId(null);
+    }
+  }, [runAction, screenKey, notify, updateRecord, onClone]);
+
   const getCardActions = useCallback((record: CustomRecord): RecordCardAction[] => {
     const handlers: Record<ScreenListAction, RecordCardAction> = {
       copyLink: { key: 'copyLink', title: 'Copiar link', onClick: () => onCopyLink(record) },
@@ -165,10 +216,30 @@ export const useRecordListViewModel = (source: RecordListSource): RecordListView
       manageTags: { key: 'manageTags', title: 'Gerenciar etiquetas', onClick: () => setTagManagerRecord(record) },
       delete: { key: 'delete', title: 'Excluir', danger: true, onClick: () => setRecordToDelete(record) },
     };
-    return (definition?.listActions ?? [])
+    const native = (definition?.listActions ?? [])
       .filter((action) => (action !== 'delete' || isAdmin) && (action !== 'manageTags' || !!definition?.hasTags))
       .map((action) => handlers[action]);
-  }, [definition, isAdmin, onCopyLink, onClone]);
+
+    const exprContext = {
+      values: record.values,
+      record: record.values,
+      isNew: false,
+      isDirty: false,
+      role: tenantRole ?? '',
+    };
+    const custom = cardActionDefs
+      .filter((action) => !isActionHidden(action.hiddenWhen, exprContext))
+      .map<RecordCardAction>((action) => ({
+        key: action.id,
+        title: action.title,
+        danger: action.danger,
+        iconKey: action.icon,
+        disabled: runningActionId !== null || isActionDisabled(action.disabledWhen, exprContext),
+        onClick: () => void runCardAction(action, record),
+      }));
+
+    return [...native, ...custom];
+  }, [definition, isAdmin, onCopyLink, onClone, cardActionDefs, tenantRole, runningActionId, runCardAction]);
 
   const tagAdapter = useMemo<TagStoreAdapter>(() => ({
     tags,

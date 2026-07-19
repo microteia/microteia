@@ -7,6 +7,7 @@ export interface EntityCardAction {
   title: string;
   onClick: () => void;
   danger?: boolean;
+  disabled?: boolean;
 }
 
 export interface EntityCardMetaRow {
@@ -62,6 +63,7 @@ export const EntityListCard: React.FC<EntityListCardProps> = ({
             type="button"
             title={action.title}
             $danger={action.danger}
+            disabled={action.disabled}
             onClick={action.onClick}
           >
             {action.icon}

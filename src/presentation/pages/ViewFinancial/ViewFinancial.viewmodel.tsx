@@ -14,6 +14,7 @@ import type { Financial, FinancialType, PaymentMethod, CustomFieldValue, FieldDe
 import type { LookupOptionSet } from '../../components/ui/CustomFieldsSection/CustomFieldsSection.viewmodel';
 import type { TagStoreAdapter } from '../../components/ui/TagManager/TagManager.viewmodel';
 import { useEntityDetail, type EntityValidationResult } from '../../shared/entityScreen/useEntityDetail';
+import type { ScreenActions } from '../../shared/entityScreen/useScreenActions';
 import { useDocumentsPort } from '../../shared/entityScreen/useDocumentsPort';
 import type { NotesPort, EntityNotesController, EntityDocumentsController } from '../../shared/entityScreen/types';
 import type { EntityDetailExtraTab, EntityDetailTab } from '../../components/layout/EntityDetailView';
@@ -98,6 +99,7 @@ const NO_NOTES_PORT: NotesPort = {
 
 export interface ViewFinancialViewModel {
   isNew: boolean;
+  screenActions: ScreenActions;
   financial: Financial | null;
   isAdmin: boolean;
   fields: FieldDefinition[];
@@ -263,6 +265,7 @@ export const useViewFinancialViewModel = (tabKey: string): ViewFinancialViewMode
 
   return {
     isNew: detail.isNew,
+    screenActions: detail.screenActions,
     financial,
     isAdmin,
     fields: FINANCIAL_FORM_FIELDS,

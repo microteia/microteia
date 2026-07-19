@@ -17,6 +17,7 @@ import type { LookupOptionSet } from '../../components/ui/CustomFieldsSection/Cu
 import type { TagStoreAdapter } from '../../components/ui/TagManager/TagManager.viewmodel';
 import type { EntityDetailExtraTab, EntityDetailTab } from '../../components/layout/EntityDetailView';
 import { useEntityDetail, type EntityValidationResult } from '../../shared/entityScreen/useEntityDetail';
+import type { ScreenActions } from '../../shared/entityScreen/useScreenActions';
 import { useNotesPort } from '../../shared/entityScreen/useNotesPort';
 import { useDocumentsPort } from '../../shared/entityScreen/useDocumentsPort';
 import type { EntityNotesController, EntityDocumentsController } from '../../shared/entityScreen/types';
@@ -133,6 +134,7 @@ const valuesToCasePayload = (
 
 export interface ViewCaseViewModel {
   isNew: boolean;
+  screenActions: ScreenActions;
   case_: Case | null;
   isAdmin: boolean;
   fields: FieldDefinition[];
@@ -301,6 +303,7 @@ export const useViewCaseViewModel = (tabKey: string): ViewCaseViewModel => {
 
   return {
     isNew: detail.isNew,
+    screenActions: detail.screenActions,
     case_,
     isAdmin,
     fields: CASE_FORM_FIELDS,

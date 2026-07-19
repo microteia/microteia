@@ -111,6 +111,7 @@ export const ViewContractView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
   return (
     <EntityDetailView
       isNew={vm.isNew}
+      screenActions={vm.screenActions}
       isAdmin={vm.isAdmin}
       avatar={<RiFileTextLine size={22} />}
       title={vm.isNew ? 'Novo Contrato' : (vm.contract?.title ?? 'Contrato')}

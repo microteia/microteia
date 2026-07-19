@@ -27,6 +27,7 @@ import { NewsTagStoreProvider } from './stores/NewsTagStore';
 import { NewsInteractionStoreProvider } from './stores/NewsInteractionStore';
 import { SavedFilterStoreProvider } from './stores/SavedFilterStore';
 import { ScreenDefinitionStoreProvider } from './stores/ScreenDefinitionStore';
+import { ActionStoreProvider } from './stores/ActionStore';
 import { CustomRecordStoreProvider } from './stores/CustomRecordStore';
 import { WorkflowStoreProvider } from './stores/WorkflowStore';
 import { ScriptStoreProvider } from './stores/ScriptStore';
@@ -93,6 +94,7 @@ const App: React.FC = () => {
                                           <CustomRecordStoreProvider>
                                           <WorkflowStoreProvider>
                                           <ScriptStoreProvider>
+                                          <ActionStoreProvider>
                                           <AuditLogStoreProvider>
                                           <AuditLogAlertStoreProvider>
                                           <WorkspaceStoreProvider>
@@ -110,6 +112,7 @@ const App: React.FC = () => {
                                           </WorkspaceStoreProvider>
                                           </AuditLogAlertStoreProvider>
                                           </AuditLogStoreProvider>
+                                          </ActionStoreProvider>
                                           </ScriptStoreProvider>
                                           </WorkflowStoreProvider>
                                           </CustomRecordStoreProvider>

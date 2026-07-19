@@ -42,6 +42,8 @@ const mapScreenDefinition = (id: string, d: Record<string, unknown>, tenantId: s
   hasDocuments: (d.hasDocuments as boolean | undefined) ?? false,
   hasTags: (d.hasTags as boolean | undefined) ?? false,
   listActions: (d.listActions as ScreenDefinition['listActions'] | undefined) ?? [],
+  viewActionIds: (d.viewActionIds as string[] | undefined) ?? [],
+  cardActionIds: (d.cardActionIds as string[] | undefined) ?? [],
   parentEntity: (d.parentEntity as string | null | undefined) ?? null,
   parentFieldKey: (d.parentFieldKey as string | null | undefined) ?? null,
   sidebarOrder: (d.sidebarOrder as number | undefined) ?? 0,

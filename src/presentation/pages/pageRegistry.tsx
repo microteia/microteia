@@ -18,6 +18,7 @@ import {
   RiLayoutGridLine,
   RiFlowChart,
   RiCodeBoxLine,
+  RiCursorLine,
   RiBookLine,
   RiDatabase2Line,
   RiSparkling2Line,
@@ -53,6 +54,8 @@ import { ViewWorkflowView } from './ViewWorkflow/ViewWorkflow.view';
 import { EditWorkflowStepView } from './EditWorkflowStep/EditWorkflowStep.view';
 import { ScriptsView } from './Scripts/Scripts.view';
 import { ViewScriptView } from './ViewScript/ViewScript.view';
+import { ActionsView } from './Actions/Actions.view';
+import { ViewActionView } from './ViewAction/ViewAction.view';
 import { DataProcessorView } from './DataProcessor';
 import { FunctionReferenceView } from './FunctionReference/FunctionReference.view';
 import { DataFunctionReferenceView } from './DataFunctionReference/DataFunctionReference.view';
@@ -261,6 +264,20 @@ export const PAGE_REGISTRY: PageDefinition[] = [
     title: 'Script',
     icon: <RiCodeBoxLine size={20} />,
     component: ViewScriptView,
+  },
+  { key: 'actions',          title: 'Ações',               icon: <RiCursorLine size={20} />,            component: ActionsView          },
+  {
+    key: 'new-action',
+    title: 'Nova Ação',
+    icon: <RiCursorLine size={20} />,
+    component: ViewActionView,
+  },
+  {
+    key: '',
+    keyPrefix: 'view-action:',
+    title: 'Ação',
+    icon: <RiCursorLine size={20} />,
+    component: ViewActionView,
   },
   {
     key: 'function-reference',

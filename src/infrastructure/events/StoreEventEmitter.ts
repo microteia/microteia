@@ -42,4 +42,5 @@ export const StoreEvents = {
   CUSTOM_RECORDS_UPDATED: 'custom_records:updated',
   WORKFLOWS_UPDATED: 'workflows:updated',
   SCRIPTS_UPDATED: 'scripts:updated',
+  ACTIONS_UPDATED: 'actions:updated',
 } as const;

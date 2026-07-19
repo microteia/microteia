@@ -866,6 +866,14 @@ export type {
   ScreenListAction,
 } from './entitySchemas';
 
+export type {
+  ActionDefinition,
+  ActionLocalCommand,
+  ActionOutcome,
+  ActionStatus,
+  ActionStatusCode,
+} from './Action';
+
 export interface ScreenFieldOption {
   id: string;
   tenantId: string;

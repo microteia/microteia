@@ -44,6 +44,7 @@ export const ViewDeadlineView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
   return (
     <EntityDetailView
       isNew={vm.isNew}
+      screenActions={vm.screenActions}
       isAdmin={vm.isAdmin}
       avatar={<RiTimeLine size={22} />}
       title={vm.isNew ? 'Novo Prazo' : (vm.deadline?.type || 'Prazo')}

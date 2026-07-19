@@ -59,6 +59,10 @@ export interface ScreenDefinition {
   hasDocuments: boolean;
   hasTags: boolean;
   listActions: ScreenListAction[];
+  /** Ids de `ActionDefinition` exibidos no cabeçalho da tela de detalhe. */
+  viewActionIds: string[];
+  /** Ids de `ActionDefinition` exibidos no card da listagem. */
+  cardActionIds: string[];
   /**
    * Quando presente, a tela é FILHA de outra: sai do menu lateral e da busca ⌘K, e seus registros
    * aparecem como uma aba do registro-pai. Aceita a chave de uma tela fixa ('cases', 'contracts'…)

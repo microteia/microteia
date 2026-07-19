@@ -55,6 +55,7 @@ import { FirebaseWorkflowDefinitionRepository } from '../../data/repositories/Fi
 import { FirebaseWorkflowExecutionRepository } from '../../data/repositories/FirebaseWorkflowExecutionRepository';
 import { FirebaseScriptRepository } from '../../data/repositories/FirebaseScriptRepository';
 import { FirebaseDataProcessorRepository } from '../../data/repositories/FirebaseDataProcessorRepository';
+import { FirebaseActionRepository } from '../../data/repositories/FirebaseActionRepository';
 import { DIContext } from './useDI';
 import type { DIContainer } from './useDI';
 
@@ -116,6 +117,7 @@ export const DIProvider: React.FC<{ children: React.ReactNode }> = ({ children }
     workflowExecutionRepository: new FirebaseWorkflowExecutionRepository(),
     scriptRepository:         new FirebaseScriptRepository(),
     dataProcessorRepository:  new FirebaseDataProcessorRepository(),
+    actionRepository:         new FirebaseActionRepository(),
   }), []);
 
   return <DIContext.Provider value={container}>{children}</DIContext.Provider>;

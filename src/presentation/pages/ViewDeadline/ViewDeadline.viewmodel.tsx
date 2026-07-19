@@ -10,6 +10,7 @@ import type { CustomFieldValue, Deadline, DeadlinePriority, DeadlineStatus, Fiel
 import type { LookupOptionSet } from '../../components/ui/CustomFieldsSection/CustomFieldsSection.viewmodel';
 import type { EntityDetailExtraTab, EntityDetailTab } from '../../components/layout/EntityDetailView';
 import { useEntityDetail, type EntityValidationResult } from '../../shared/entityScreen/useEntityDetail';
+import type { ScreenActions } from '../../shared/entityScreen/useScreenActions';
 import type {
   NotesPort,
   DocumentsPort,
@@ -96,6 +97,7 @@ const NO_DOCS_PORT: DocumentsPort = {
 
 export interface ViewDeadlineViewModel {
   isNew: boolean;
+  screenActions: ScreenActions;
   deadline: Deadline | null;
   isAdmin: boolean;
   fields: FieldDefinition[];
@@ -246,6 +248,7 @@ export const useViewDeadlineViewModel = (tabKey: string): ViewDeadlineViewModel 
 
   return {
     isNew: detail.isNew,
+    screenActions: detail.screenActions,
     deadline: detail.record,
     isAdmin,
     fields: DEADLINE_FORM_FIELDS,

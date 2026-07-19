@@ -13,6 +13,7 @@ import {
   RiSearchLine,
   RiFlowChart,
   RiCodeBoxLine,
+  RiCursorLine,
   RiSparkling2Line,
 } from 'react-icons/ri';
 import { useWorkspaceSidebarViewModel } from './WorkspaceSidebar.viewmodel';
@@ -119,6 +120,12 @@ export const WorkspaceSidebar: React.FC = () => {
                   <S.MenuItem onClick={vm.handleScriptsClick}>
                     <RiCodeBoxLine size={16} />
                     Scripts
+                  </S.MenuItem>
+                )}
+                {vm.canAccessScreenBuilder && (
+                  <S.MenuItem onClick={vm.handleActionsClick}>
+                    <RiCursorLine size={16} />
+                    Ações
                   </S.MenuItem>
                 )}
                 {vm.canAccessDataProcessor && (

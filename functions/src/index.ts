@@ -8,6 +8,7 @@ export { updateFromSourceWorkflow } from './infrastructure/handlers/updateFromSo
 export { detectWorkflows } from './infrastructure/handlers/detectWorkflows';
 export { runWorkflow } from './infrastructure/handlers/runWorkflow';
 export { runScript } from './infrastructure/handlers/runScript';
+export { runAction } from './infrastructure/handlers/runAction';
 export { getUserInfo } from './infrastructure/handlers/getUserInfo';
 export { checkNicknameAvailability } from './infrastructure/handlers/checkNicknameAvailability';
 export { claimNickname } from './infrastructure/handlers/claimNickname';

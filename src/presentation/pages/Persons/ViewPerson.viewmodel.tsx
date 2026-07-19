@@ -11,6 +11,7 @@ import { resolveColor } from '../../../shared/styles/colorUtils';
 import type { Person, PersonType, PersonAddress, Gender, CustomFieldValue, FieldDefinition, PersonLookupKind } from '../../../domain/entities';
 import type { LookupOptionSet } from '../../components/ui/CustomFieldsSection/CustomFieldsSection.viewmodel';
 import { useEntityDetail, type EntityValidationResult } from '../../shared/entityScreen/useEntityDetail';
+import type { ScreenActions } from '../../shared/entityScreen/useScreenActions';
 import { useNotesPort } from '../../shared/entityScreen/useNotesPort';
 import { useDocumentsPort } from '../../shared/entityScreen/useDocumentsPort';
 import type { EntityDocumentsController, EntityNotesController } from '../../shared/entityScreen/types';
@@ -125,6 +126,7 @@ const valuesToPersonPayload = (values: Values, customFields: FieldDefinition[]) 
 
 export interface ViewPersonViewModel {
   isNew: boolean;
+  screenActions: ScreenActions;
   person: Person | null;
   isAdmin: boolean;
   nativeFields: FieldDefinition[];
@@ -294,6 +296,7 @@ export const useViewPersonViewModel = (tabKey: string): ViewPersonViewModel => {
 
   return {
     isNew: detail.isNew,
+    screenActions: detail.screenActions,
     person,
     isAdmin,
     nativeFields: PERSON_FORM_FIELDS,

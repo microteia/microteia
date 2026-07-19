@@ -1649,6 +1649,30 @@ Para isso o `EntityListCard` ganhou slots opcionais — `belowHeader` (entre cab
 
 **Ações no card da listagem:** o `EntityListCard` aceita `actions` (ícone + `onClick`, `copyLink`/`clone`/`manageTags`/`delete`). Nas telas dinâmicas isso é **configurável**: `ScreenDefinition.listActions: ScreenListAction[]` (tipo em `entitySchemas.ts`, sincronizado; persistido em `screenDefinitions/{key}` e lido em `mapScreenDefinition`, default `[]`). No `ScreenBuilder`, o modal de tela tem o grupo "Ações no card da listagem" (`LIST_ACTION_OPTIONS` + `toggleListAction`; `manageTags` desabilitado sem `hasTags`). `DynamicRecordList` monta as ações via `getCardActions` filtrando por `listActions` (+ `delete` só admin, `manageTags` só com `hasTags`) e provê os modais `TagManager`/`ConfirmModal` — mesmo padrão de `Persons` (`PERSON_LIST_CONFIG.actions`). **Atenção:** `toSaveInput`/`builtinSaveInput` listam campos à mão — qualquer campo novo de `ScreenDefinition` precisa ser adicionado neles, senão salvamentos parciais o apagam.
 
+### Actions Customizadas
+
+Um botão configurável nas telas de dados que dispara um **workflow síncrono** e aplica o retorno de volta na tela. Complementa `listActions` (o quarteto nativo fechado): as customizadas são um array próprio, renderizado depois.
+
+**Entidade** — `ActionDefinition` (`src/domain/entities/Action.ts`, **arquivo compartilhado**, gerado em `functions/src` por `sync-schemas`), persistida em `tenants/{tid}/actions/{actionId}`: `key` (identificador que chega ao workflow), `title`, `icon` (chave de `screenIcons.tsx`), `workflowId`, `hiddenWhen`/`disabledWhen` (expressões), `confirmMessage`, `danger`, `enabled`, `order`. `ScreenDefinition` ganhou `viewActionIds`/`cardActionIds` (ids referenciados, ordem configurada) — uma mesma action serve várias telas.
+
+**Contrato com o workflow** — o alvo tem `eventName: 'workflow.called'` e recebe `action` (o `key`), `source` (o `screenKey`), `context` (valores da tela), `recordId` e `isNew`. O frontend manda o `values` **cru**; quem poda e coage é o `formatAndValidateParameters` do executor, contra os `fields` declarados no parâmetro `context`. As saídas esperadas são `result` (objeto a aplicar), `status` (`{ code: 'SUCCESS'|'WARNING'|'ERROR', message, fieldErrors? }`) e `actions` (comandos locais).
+
+> **O último Step precisa emitir as três chaves de uma vez.** O `WorkflowExecutor` devolve **apenas os outputs do último step da travessia** (`context.outputs[run.lastStepId]`), e o Step "Saída do Workflow" emite **uma chave por vez** — encadear três Steps de saída descartaria as duas primeiras. As formas corretas são **"Montar Objeto" sem nome** (o `MapStep` espalha os campos na raiz quando `config.name` é vazio) ou um **Step Script** retornando `{ result, status, actions }`. Como `normalizeActionOutcome` é tolerante, esse erro seria um no-op silencioso; por isso o `runAction` detecta a ausência das três chaves e devolve uma mensagem explicando a regra.
+
+`normalizeActionOutcome` (mesmo arquivo, com testes) traduz os outputs crus e é **deliberadamente tolerante**: saída ausente ou malformada vira "nada a aplicar", nunca exceção na tela. Aceita comando como string (`"merge"`) ou objeto (`{ type: 'merge' }`) — a forma-objeto existe para comandos parametrizados no futuro sem quebrar workflows já escritos.
+
+**Formas compactas do `status`.** O avaliador de expressões tem literal de **array** (`["a","b"]`) mas **não de objeto** — objeto só via a função `object(chave, valor, …)`. Para não obrigar a isso, `asStatus` aceita quatro formas: `{ code, message, fieldErrors? }` (única que carrega `fieldErrors`), `["SUCCESS", "Mensagem"]`, `["SUCCESS"]` e `"SUCCESS"`. Nas formas compactas, texto que **não** é um código conhecido vira a mensagem com código `SUCCESS` — `"Enviado"` e `["Enviado"]` são sucesso com mensagem. Na forma-objeto as posições são nomeadas, então um `code` desconhecido é **descartado** (cai para `SUCCESS` com mensagem vazia), não promovido a mensagem.
+
+**Execução** — callable **síncrono** `runAction` (`functions/src/infrastructure/handlers/runAction.ts`), que reusa `getRunCalledWorkflowUseCase()` — o mesmo motor do Step "Chamar Workflow" com "Aguardar retorno". Sem event bus, sem polling: a resposta HTTP já traz `outcome` + `executionId`. Como o use case roda os steps direto, o handler chama `ensureWorkflowStepsRegistered()`. Erros de execução voltam no campo `error` (não lançam), padrão de `runScript`.
+
+**Comandos locais** — aplicados por `dispatchActionOutcome` (`presentation/shared/entityScreen/useScreenActions.ts`) na **ordem canônica** `ACTION_COMMAND_ORDER`, não na ordem do array: `replace → merge → save → refresh → clone → delete → close` (senão `['save','merge']` gravaria antes de mesclar). Um `status.code === 'ERROR'` reporta e **para** — nada de gravar ou excluir sobre uma falha declarada. Comando sem callback correspondente é ignorado: a listagem não tem formulário para `merge` nem aba para `close` (mesmo racional do `listActionCapabilities.ts`). O `result` é **achatado em caminhos pontilhados** antes de aplicar, para que objetos aninhados cheguem aos campos via `setValueByPath` (arrays são folhas — campos de múltipla escolha).
+
+> **Atenção:** `merge` seguido de `save` exigiu `handleSave(override?: Values)` em `useEntityDetail` — o `handleSave` fecha sobre o `values` do render corrente e não enxergaria o merge recém-aplicado. O dispatcher acumula os valores localmente e os passa adiante.
+
+**Expressões** — `hiddenWhen`/`disabledWhen` são o mesmo par de `FieldLogic` e reusam `evaluateFieldBoolean`; `domain/schema/actionExpression.ts` só monta o escopo. Puramente de UI (o backend não as reavalia). O escopo expõe os campos da tela **na raiz** (como nas expressões de campo) mais os reservados `record`, `isNew`, `isDirty`, `role` — que **sobrescrevem** campos de mesmo nome (um campo `record` segue legível por `record.record`). Reavaliação é síncrona a cada render, então "ao abrir a tela" e "ao mudar um campo" saem de graça.
+
+**Superfícies** — na View, `useEntityDetail` chama `useScreenActions` e devolve `screenActions`; o `EntityDetailView` renderiza os botões e o `ConfirmModal` de `confirmMessage`. As 6 telas de detalhe só repassam a prop. No card, `useRecordListViewModel` avalia as expressões **por registro** (funções puras, não hooks — não dá para chamar hook em loop) e usa o mesmo `dispatchActionOutcome`, com `save` mapeado para `updateRecord`. `RecordCardAction` ganhou `iconKey`/`disabled`; a view resolve por `getScreenIcon`. Administração em `Actions`/`ViewAction` (só admin), seleção por tela na aba "Ações" do `ScreenBuilder`.
+
 **Viewmodel genérico (Fase A, fecho) — `useEntityDetail`:** o núcleo restante (parse do tabKey, resolução do registro com `findInStore` + fallback opcional `getById` + `recordNotFound`, o **estado único de `values`** com `setFieldValue`, a orquestração de salvar — validar → montar payload → create/update → `notify` → reabrir aba → título — e o efeito de título da aba) vive em `presentation/shared/entityScreen/useEntityDetail.ts`, compondo `useEntityDetailChrome`/`useEntityNotes`/`useEntityDocuments`. `ViewPerson` e `ViewDynamicRecord` viraram **adapters finos**: montam um `config` (stores tipados, `recordToValues`/`valuesToPayload`, `resolveTabTitle`, `create`/`update`/`validate`, ports, flags `hasNotes`/`hasDocuments`) e adicionam só seus overrides (Person: lookups tipados + toggle de status). O `values` é **um mapa só** (nativo aninhado + custom flat); `setFieldValue` grava por caminho via **`setValueByPath`** (`domain/services/customFieldValues.ts`, com teste) — chave com `.` aninha (`address.street`), sem `.` grava no topo. A **máscara** é 100% dirigida por `field.mask`: o `MaskedInput` formata no render (formatters idempotentes), então nenhuma tela pré-formata. Os ports de notes/docs são genéricos (`useNotesPort`/`useDocumentsPort` sobre a interface de repositório, com `extra` opcional p/ o `screenKey` do dinâmico); os 14 use cases `make*Note/Document*` foram removidos.
 
 **Fase C — migrar as fixas restantes (em andamento):** Prazos foi a primeira (Notícias ficou fora do escopo: é um feed com comentários, não um cadastro registro-a-registro). Três recursos novos, todos **aditivos** (defaults preservam Pessoas/dinâmicas):
@@ -2819,6 +2843,14 @@ service cloud.firestore {
       // Scripts reutilizáveis executados pelo Step "Script" (sandbox QuickJS) — feature
       // administrativa; só admin cria/edita/exclui. Ver "Step Script" no corpo do doc.
       match /scripts/{scriptId} {
+        allow read: if isMember(tenantId);
+        allow create, update, delete: if isTenantAdmin(tenantId);
+      }
+
+      // Ações customizadas exibidas nas telas de dados (botão -> workflow síncrono).
+      // Todo membro lê (precisa montar os botões da tela); só admin configura.
+      // Ver "Actions Customizadas" no corpo do doc.
+      match /actions/{actionId} {
         allow read: if isMember(tenantId);
         allow create, update, delete: if isTenantAdmin(tenantId);
       }

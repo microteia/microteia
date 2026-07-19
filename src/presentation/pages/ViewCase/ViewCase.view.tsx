@@ -69,6 +69,7 @@ export const ViewCaseView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
   return (
     <EntityDetailView
       isNew={vm.isNew}
+      screenActions={vm.screenActions}
       isAdmin={vm.isAdmin}
       avatar={<RiFolderLine size={22} />}
       title={vm.isNew ? 'Novo Processo' : (vm.case_?.title ?? 'Processo')}

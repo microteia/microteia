@@ -65,6 +65,7 @@ export const ViewPersonView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
   return (
     <EntityDetailView
       isNew={vm.isNew}
+      screenActions={vm.screenActions}
       isAdmin={vm.isAdmin}
       avatar={(vm.personName || 'N').charAt(0).toUpperCase()}
       title={vm.isNew ? 'Nova Pessoa' : (vm.person?.name ?? 'Pessoa')}

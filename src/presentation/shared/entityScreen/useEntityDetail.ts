@@ -2,6 +2,9 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useWorkspace } from '../../../stores/useWorkspace';
 import { useNotification } from '../../../stores/useNotification';
 import { useTenant } from '../../../stores/useTenant';
+import { useScreenDefinitions } from '../../../stores/useScreenDefinitions';
+import { useScreenActions } from './useScreenActions';
+import type { ScreenActions } from './useScreenActions';
 import { setValueByPath } from '../../../domain/services/customFieldValues';
 import type { CustomFieldValue } from '../../../domain/entities';
 import type { EntityDetailExtraTab, EntityDetailTab } from '../../components/layout/EntityDetailView';
@@ -82,6 +85,8 @@ export interface EntityDetail<TRecord extends { id: string }> {
   docsController: EntityDocumentsController;
   /** Abas de registros filhos — a view repassa em `extraTabs`. */
   childTabs: EntityDetailExtraTab[];
+  /** Ações customizadas configuradas para o cabeçalho desta tela. */
+  screenActions: ScreenActions;
 }
 
 export function useEntityDetail<TRecord extends { id: string }>(
@@ -97,6 +102,7 @@ export function useEntityDetail<TRecord extends { id: string }>(
   const { setTabTitle, closeTab, openTab, activePanelId } = useWorkspace();
   const { notify } = useNotification();
   const { currentTenant } = useTenant();
+  const { getDefinition } = useScreenDefinitions();
 
   const { isNew, recordId, cloneSourceId } = useMemo(() => parse(tabKey), [parse, tabKey]);
   const isClone = cloneSourceId !== null;
@@ -125,20 +131,28 @@ export function useEntityDetail<TRecord extends { id: string }>(
 
   const [values, setValues] = useState<Values>(() => recordToValues(storeRecord, { clone: isClone }));
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [isDirty, setIsDirty] = useState(false);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- sincroniza valores ao carregar registro/campos
     setValues(recordToValues(sourceRecord, { clone: isClone }));
+    setIsDirty(false);
   }, [recordToValues, sourceRecord, isClone]);
 
   const setFieldValue = useCallback((fieldKey: string, value: CustomFieldValue) => {
     setValues((prev) => setValueByPath(prev, fieldKey, value));
+    setIsDirty(true);
     setFieldErrors((prev) => {
       if (!prev[fieldKey]) return prev;
       const next = { ...prev };
       delete next[fieldKey];
       return next;
     });
+  }, []);
+
+  const applyValues = useCallback((next: Values) => {
+    setValues(next);
+    setIsDirty(true);
   }, []);
 
   useEffect(() => {
@@ -163,15 +177,20 @@ export function useEntityDetail<TRecord extends { id: string }>(
 
   const [isSaving, setIsSaving] = useState(false);
 
-  const handleSave = useCallback(async () => {
-    const invalid = validate(values);
+  /**
+   * `override` existe para o despacho de Actions: um `merge` seguido de `save` precisa gravar os
+   * valores recém-mesclados, que ainda não passaram por um render quando o `save` é chamado.
+   */
+  const handleSave = useCallback(async (override?: Values) => {
+    const saved = override ?? values;
+    const invalid = validate(saved);
     if (invalid) { setFieldErrors(invalid.fieldErrors); notify(invalid.message, 'error'); return; }
     setFieldErrors({});
     if (!currentTenant) return;
     setIsSaving(true);
     try {
       if (isNew) {
-        const created = await create(values);
+        const created = await create(saved);
         notify(messages.created, 'success');
         if (returnTabKey) {
           closeTab(tabKey, activePanelId);
@@ -185,13 +204,13 @@ export function useEntityDetail<TRecord extends { id: string }>(
           setTabTitle(newTabKey, created.title);
         }
       } else if (record) {
-        await update(record.id, values);
+        await update(record.id, saved);
         notify(messages.updated, 'success');
         if (returnTabKey) {
           closeTab(tabKey, activePanelId);
           openTab(returnTabKey);
         } else {
-          setTabTitle(tabKey, resolveTitleFromValues(values));
+          setTabTitle(tabKey, resolveTitleFromValues(saved));
         }
       }
     } catch (err) {
@@ -201,6 +220,36 @@ export function useEntityDetail<TRecord extends { id: string }>(
       setIsSaving(false);
     }
   }, [validate, values, currentTenant, isNew, record, create, update, messages, deepLinkKey, resolveTitleFromValues, tabKey, activePanelId, closeTab, openTab, setTabTitle, notify, afterCreate, returnTabKey]);
+
+  const refetch = useCallback(async () => {
+    const targetId = record?.id ?? null;
+    const fresh = targetId && getById ? await getById(targetId) : null;
+    if (fresh) setFetchedRecord(fresh);
+    setValues(recordToValues(fresh ?? sourceRecord, { clone: isClone }));
+    setIsDirty(false);
+  }, [record, getById, recordToValues, sourceRecord, isClone]);
+
+  const viewActionIds = useMemo(
+    () => getDefinition(entityKey)?.viewActionIds ?? [],
+    [getDefinition, entityKey],
+  );
+
+  const screenActions = useScreenActions({
+    screenKey: entityKey,
+    actionIds: viewActionIds,
+    values,
+    record: (record as Record<string, unknown> | null) ?? null,
+    recordId: record?.id ?? null,
+    isNew,
+    isDirty,
+    applyValues,
+    setFieldErrors,
+    save: handleSave,
+    clone: chrome.handleClone,
+    remove: chrome.requestDelete,
+    refresh: refetch,
+    close: () => closeTab(tabKey, activePanelId),
+  });
 
   return {
     isNew,
@@ -227,5 +276,6 @@ export function useEntityDetail<TRecord extends { id: string }>(
     notesController,
     docsController,
     childTabs,
+    screenActions,
   };
 }

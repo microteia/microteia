@@ -77,9 +77,12 @@ export const RecordListSurface: React.FC<RecordListSurfaceProps> = ({ vm, defini
             tags={recordTags}
             actions={vm.getCardActions(record).map((action) => ({
               key: action.key,
-              icon: ACTION_ICONS[action.key],
+              icon: action.iconKey
+                ? getScreenIcon(action.iconKey, 14)
+                : ACTION_ICONS[action.key as ScreenListAction],
               title: action.title,
               danger: action.danger,
+              disabled: action.disabled,
               onClick: action.onClick,
             }))}
             extra={items.length > 0 ? <CustomFieldMetaRows items={items} /> : undefined}

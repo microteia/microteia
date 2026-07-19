@@ -11,6 +11,13 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [0.117.0] — 2026-07-19
+
+- Chegam as **Ações**: botões próprios do escritório que aparecem nas telas de cadastro e executam uma rotina automatizada. Um clique consulta, calcula ou integra o que for preciso, e traz o resultado de volta para a tela — podendo preencher campos, gravar o registro ou apenas avisar o que aconteceu.
+- Cada ação tem título, ícone e o fluxo de trabalho que executa, e pode exibir uma mensagem de confirmação antes de rodar.
+- É possível controlar quando cada ação aparece ou fica desabilitada conforme o preenchimento da tela — por exemplo, liberar o envio de e-mail somente depois que o endereço estiver informado, ou mostrar a ação apenas para administradores.
+- As ações são configuradas uma única vez e reaproveitadas em quantas telas você quiser, escolhendo em Form Design se elas aparecem no cadastro, na listagem, ou em ambos.
+
 ## [0.116.0] — 2026-07-19
 
 - Os campos de responsável — "Advogado responsável" em Processos e Prazos e "Responsável" em Contratos — passam a escolher entre as **Pessoas** do escritório, e não mais entre os usuários com acesso ao sistema. Assim é possível indicar qualquer advogado ou colaborador cadastrado, tenha ele conta de acesso ou não.

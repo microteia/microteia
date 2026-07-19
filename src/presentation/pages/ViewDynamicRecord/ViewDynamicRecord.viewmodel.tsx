@@ -22,6 +22,7 @@ import {
 import { describeRuleIssues } from '../../../domain/schema/fieldRules';
 import { validateRecordRules, ruleIssueFieldKey } from '../../../data/utils/recordRulesGate';
 import { useEntityDetail, type EntityValidationResult } from '../../shared/entityScreen/useEntityDetail';
+import type { ScreenActions } from '../../shared/entityScreen/useScreenActions';
 import { useNotesPort } from '../../shared/entityScreen/useNotesPort';
 import { useDocumentsPort } from '../../shared/entityScreen/useDocumentsPort';
 import type {
@@ -44,6 +45,7 @@ export interface ViewDynamicRecordViewModel {
   isAvailable: boolean;
   isLoadingDefinition: boolean;
   isNew: boolean;
+  screenActions: ScreenActions;
   isAdmin: boolean;
   screenKey: string;
   recordId: string | null;
@@ -265,6 +267,7 @@ export const useViewDynamicRecordViewModel = (tabKey: string): ViewDynamicRecord
     isAvailable,
     isLoadingDefinition,
     isNew: detail.isNew,
+    screenActions: detail.screenActions,
     isAdmin,
     screenKey,
     recordId,

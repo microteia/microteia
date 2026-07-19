@@ -16,6 +16,7 @@ import { Button } from '../../components/ui/Button';
 import { Checkbox } from '../../components/ui/Checkbox';
 import { Input, InputGroup, Label } from '../../components/ui/Input';
 import { SearchSelect } from '../../components/ui/SearchSelect';
+import { MultiSearchSelect } from '../../components/ui/MultiSearchSelect';
 import { Modal } from '../../components/ui/Modal';
 import { ConfirmModal } from '../../components/ui/ConfirmModal';
 import { InfoBanner } from '../../components/ui/InfoBanner';
@@ -383,6 +384,29 @@ export const ScreenBuilderView: React.FC = () => {
                 />
               </S.CheckboxCell>
             ))}
+            {vm.screenModalTab === 'actions' && (
+              <>
+                <InputGroup>
+                  <Label>Ações da tela de detalhe</Label>
+                  <MultiSearchSelect
+                    options={vm.actionOptions}
+                    values={vm.screenForm.viewActionIds}
+                    onChange={vm.setScreenViewActionIds}
+                    placeholder="Nenhuma ação"
+                  />
+                </InputGroup>
+                <InputGroup>
+                  <Label>Ações do card na listagem</Label>
+                  <MultiSearchSelect
+                    options={vm.actionOptions}
+                    values={vm.screenForm.cardActionIds}
+                    onChange={vm.setScreenCardActionIds}
+                    placeholder="Nenhuma ação"
+                  />
+                </InputGroup>
+              </>
+            )}
+
             <S.ModalActions>
               <Button variant="secondary" onClick={vm.closeScreenModal}>Cancelar</Button>
               <Button onClick={() => void vm.handleSaveScreen()} disabled={vm.savingScreen} $isLoading={vm.savingScreen}>

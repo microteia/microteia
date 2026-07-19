@@ -21,6 +21,7 @@ import type { TagStoreAdapter } from '../../components/ui/TagManager/TagManager.
 import type { EntityDetailExtraTab, EntityDetailTab } from '../../components/layout/EntityDetailView';
 import type { SearchSelectOption } from '../../components/ui/SearchSelect';
 import { useEntityDetail, type EntityValidationResult } from '../../shared/entityScreen/useEntityDetail';
+import type { ScreenActions } from '../../shared/entityScreen/useScreenActions';
 import { useNotesPort } from '../../shared/entityScreen/useNotesPort';
 import { useDocumentsPort } from '../../shared/entityScreen/useDocumentsPort';
 import type { EntityNotesController, EntityDocumentsController } from '../../shared/entityScreen/types';
@@ -171,6 +172,7 @@ const valuesToContractPayload = (values: Values, customFields: FieldDefinition[]
 
 export interface ViewContractViewModel {
   isNew: boolean;
+  screenActions: ScreenActions;
   contract: Contract | null;
   isAdmin: boolean;
   fields: FieldDefinition[];
@@ -403,6 +405,7 @@ export const useViewContractViewModel = (tabKey: string): ViewContractViewModel 
 
   return {
     isNew: detail.isNew,
+    screenActions: detail.screenActions,
     contract,
     isAdmin,
     fields: CONTRACT_FORM_FIELDS,

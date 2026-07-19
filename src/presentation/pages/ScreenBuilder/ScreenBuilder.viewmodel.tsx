@@ -4,6 +4,7 @@ import { useTenant } from '../../../stores/useTenant';
 import { useScreenDefinitions } from '../../../stores/useScreenDefinitions';
 import type { ScreenDefinitionSaveInput } from '../../../stores/useScreenDefinitions';
 import { useNotification } from '../../../stores/useNotification';
+import { useActions } from '../../../stores/useActions';
 import { ensureUniqueKey, slugifyFieldKey, sortFieldsByOrder, validateFieldKey } from '../../../domain/services/customFieldValues';
 import { getDefaultTagColor } from '../../../shared/styles/colorUtils';
 import { getScreenIconOptions } from '../../shared/screenIcons';
@@ -56,6 +57,8 @@ export interface ScreenFormState {
   hasDocuments: boolean;
   hasTags: boolean;
   listActions: ScreenListAction[];
+  viewActionIds: string[];
+  cardActionIds: string[];
   /** telaFilha -> campo de vínculo. A relação é sempre configurada de dentro do PAI. */
   childLinks: Record<string, string>;
   enabled: boolean;
@@ -103,7 +106,7 @@ export interface FieldFormState {
   logicHiddenWhen: string;
 }
 
-export type ScreenModalTab = 'general' | 'list' | 'children';
+export type ScreenModalTab = 'general' | 'list' | 'actions' | 'children';
 export type FieldModalTab = 'general' | 'advanced';
 
 export interface ScreenBuilderViewModel {
@@ -128,6 +131,9 @@ export interface ScreenBuilderViewModel {
   screenModalTab: ScreenModalTab;
   setScreenModalTab: (tab: ScreenModalTab) => void;
   modalListActionOptions: { key: ScreenListAction; label: string }[];
+  actionOptions: { value: string; label: string }[];
+  setScreenViewActionIds: (ids: string[]) => void;
+  setScreenCardActionIds: (ids: string[]) => void;
   screenForm: ScreenFormState;
   updateScreenForm: (patch: Partial<ScreenFormState>) => void;
   toggleListAction: (action: ScreenListAction) => void;
@@ -220,6 +226,8 @@ const EMPTY_SCREEN_FORM: ScreenFormState = {
   hasDocuments: false,
   hasTags: false,
   listActions: [],
+  viewActionIds: [],
+  cardActionIds: [],
   childLinks: {},
   enabled: true,
   titleFieldKey: '',
@@ -336,6 +344,8 @@ const toSaveInput = (def: ScreenDefinition): ScreenDefinitionSaveInput => ({
   hasDocuments: def.hasDocuments,
   hasTags: def.hasTags,
   listActions: def.listActions,
+  viewActionIds: def.viewActionIds,
+  cardActionIds: def.cardActionIds,
   parentEntity: def.parentEntity ?? null,
   parentFieldKey: def.parentFieldKey ?? null,
   sidebarOrder: def.sidebarOrder,
@@ -363,6 +373,8 @@ const builtinSaveInput = (key: string): ScreenDefinitionSaveInput => {
     hasDocuments: false,
     hasTags: false,
     listActions: [],
+    viewActionIds: [],
+    cardActionIds: [],
     parentEntity: null,
     parentFieldKey: null,
     sidebarOrder: 0,
@@ -374,6 +386,7 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
   const { tenantRole } = useTenant();
   const { definitions, dynamicScreens, isLoading, saveDefinition, deleteDefinition } = useScreenDefinitions();
   const { notify } = useNotification();
+  const { actions } = useActions();
   const theme = useTheme();
 
   const isAdmin = tenantRole === 'admin';
@@ -510,6 +523,21 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
     });
   }, [screenModalIsBuiltin]);
 
+  const actionOptions = useMemo(
+    () => actions.filter((action) => action.enabled).map((action) => ({ value: action.id, label: action.title })),
+    [actions],
+  );
+
+  const setScreenViewActionIds = useCallback(
+    (ids: string[]) => setScreenForm((prev) => ({ ...prev, viewActionIds: ids })),
+    [],
+  );
+
+  const setScreenCardActionIds = useCallback(
+    (ids: string[]) => setScreenForm((prev) => ({ ...prev, cardActionIds: ids })),
+    [],
+  );
+
   const toggleListAction = useCallback((action: ScreenListAction) => {
     setScreenForm((prev) => {
       if (action === 'manageTags' && !screenModalIsBuiltin && !prev.hasTags) return prev;
@@ -558,6 +586,8 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
         ...EMPTY_SCREEN_FORM,
         childLinks,
         listActions: resolveListActions(screenKey, def?.listActions),
+        viewActionIds: def?.viewActionIds ?? [],
+        cardActionIds: def?.cardActionIds ?? [],
       });
       setScreenModal({ screenKey });
       return;
@@ -570,6 +600,8 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
       hasDocuments: def.hasDocuments,
       hasTags: def.hasTags,
       listActions: def.hasTags ? def.listActions : def.listActions.filter((a) => a !== 'manageTags'),
+      viewActionIds: def.viewActionIds,
+      cardActionIds: def.cardActionIds,
       childLinks,
       enabled: def.enabled,
       titleFieldKey: def.titleFieldKey,
@@ -641,6 +673,7 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
   const screenModalTabs = useMemo<{ key: ScreenModalTab; label: string }[]>(() => [
     ...(screenModalIsBuiltin ? [] : [{ key: 'general' as const, label: 'Geral' }]),
     { key: 'list' as const, label: 'Listagem' },
+    { key: 'actions' as const, label: 'Ações' },
     ...(!!screenModal?.screenKey && childCandidates.length > 0
       ? [{ key: 'children' as const, label: 'Registros filhos' }]
       : []),
@@ -701,6 +734,8 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
         await saveDefinition(screenModal.screenKey, {
           ...(builtinDef ? toSaveInput(builtinDef) : builtinSaveInput(screenModal.screenKey)),
           listActions: screenForm.listActions,
+          viewActionIds: screenForm.viewActionIds,
+          cardActionIds: screenForm.cardActionIds,
         });
         await persistChildLinks(screenModal.screenKey);
         notify('Registros filhos atualizados!', 'success');
@@ -720,6 +755,8 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
           hasDocuments: screenForm.hasDocuments,
           hasTags: screenForm.hasTags,
           listActions: screenForm.listActions,
+          viewActionIds: screenForm.viewActionIds,
+          cardActionIds: screenForm.cardActionIds,
           enabled: screenForm.enabled,
           titleFieldKey,
         });
@@ -754,6 +791,8 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
           hasDocuments: screenForm.hasDocuments,
           hasTags: screenForm.hasTags,
           listActions: screenForm.listActions,
+          viewActionIds: screenForm.viewActionIds,
+          cardActionIds: screenForm.cardActionIds,
           parentEntity: null,
           parentFieldKey: null,
           sidebarOrder: maxOrder + 1,
@@ -1157,6 +1196,9 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
     screenModalIsEdit: !!screenModal?.screenKey,
     screenModalIsBuiltin,
     modalListActionOptions,
+    actionOptions,
+    setScreenViewActionIds,
+    setScreenCardActionIds,
     screenModalTabs,
     screenModalTab: activeScreenModalTab,
     setScreenModalTab,

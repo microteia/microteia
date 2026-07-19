@@ -9,8 +9,11 @@ import {
 } from 'react-icons/ri';
 import { S } from './EntityDetailView.styles';
 import { Button } from '../../ui/Button';
+import { ConfirmModal } from '../../ui/ConfirmModal';
 import { NotesPanel, DocumentsPanel } from '../EntityDetailPanels';
+import { getScreenIcon } from '../../../shared/screenIcons';
 import type { EntityDocumentsController, EntityNotesController } from '../../../shared/entityScreen/types';
+import type { ScreenActions } from '../../../shared/entityScreen/useScreenActions';
 
 /** `'data' | 'notes' | 'documents'` — ou a chave de uma aba extra declarada em `extraTabs`. */
 export type EntityDetailTab = string;
@@ -45,6 +48,8 @@ export interface EntityDetailViewProps {
   showCopyLink?: boolean;
   showClone?: boolean;
   headerActionsExtra?: React.ReactNode;
+  /** Ações customizadas do escritório, configuradas em Form Design para esta tela. */
+  screenActions?: ScreenActions;
   showTagsAction: boolean;
   onManageTags: () => void;
   onSave: () => void;
@@ -78,6 +83,7 @@ export const EntityDetailView: React.FC<EntityDetailViewProps> = ({
   showCopyLink = true,
   showClone = true,
   headerActionsExtra,
+  screenActions,
   showTagsAction,
   onManageTags,
   onSave,
@@ -126,6 +132,24 @@ export const EntityDetailView: React.FC<EntityDetailViewProps> = ({
           </Button>
         )}
         {!isNew && headerActionsExtra}
+        {screenActions?.buttons.map((action) => (
+          action.danger ? (
+            <S.DeleteBtn key={action.key} onClick={action.onClick} disabled={action.disabled} title={action.title}>
+              {getScreenIcon(action.iconKey, 14)}
+            </S.DeleteBtn>
+          ) : (
+            <Button
+              key={action.key}
+              variant="ghost"
+              size="sm"
+              onClick={action.onClick}
+              disabled={action.disabled}
+              title={action.title}
+            >
+              {getScreenIcon(action.iconKey, 14)}
+            </Button>
+          )
+        ))}
         {!isNew && showTagsAction && (
           <Button variant="ghost" size="sm" onClick={onManageTags} title="Gerenciar etiquetas">
             <RiPriceTag3Line size={14} />
@@ -173,5 +197,18 @@ export const EntityDetailView: React.FC<EntityDetailViewProps> = ({
     </S.Content>
 
     {modals}
+
+    {screenActions && (
+      <ConfirmModal
+        isOpen={screenActions.pendingAction !== null}
+        title={screenActions.pendingAction?.title ?? ''}
+        message={screenActions.pendingAction?.confirmMessage ?? ''}
+        variant={screenActions.pendingAction?.danger ? 'danger' : 'default'}
+        confirmLabel="Executar"
+        loading={screenActions.runningActionId !== null}
+        onConfirm={screenActions.confirmPendingAction}
+        onCancel={screenActions.cancelPendingAction}
+      />
+    )}
   </S.Page>
 );

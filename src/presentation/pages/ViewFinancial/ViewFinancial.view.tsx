@@ -65,6 +65,7 @@ export const ViewFinancialView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
   return (
     <EntityDetailView
       isNew={vm.isNew}
+      screenActions={vm.screenActions}
       isAdmin={vm.isAdmin}
       avatar={<RiMoneyDollarCircleLine size={22} />}
       title={vm.isNew ? 'Novo Lançamento' : (vm.financial?.category ?? 'Lançamento')}

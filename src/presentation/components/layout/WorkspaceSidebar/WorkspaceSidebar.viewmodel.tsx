@@ -95,6 +95,7 @@ export interface WorkspaceSidebarViewModel {
   handleScreenBuilderClick: () => void;
   handleWorkflowsClick: () => void;
   handleScriptsClick: () => void;
+  handleActionsClick: () => void;
   handleDataProcessorClick: () => void;
   handleSetTheme: (mode: ThemeMode) => void;
   handleSignOut: () => void;
@@ -181,6 +182,11 @@ export const useWorkspaceSidebarViewModel = (): WorkspaceSidebarViewModel => {
     closeMenu();
   }, [openTab, closeMenu]);
 
+  const handleActionsClick = useCallback(() => {
+    openTab('actions');
+    closeMenu();
+  }, [openTab, closeMenu]);
+
   const handleDataProcessorClick = useCallback(() => {
     openTab('data-processor');
     closeMenu();
@@ -225,6 +231,7 @@ export const useWorkspaceSidebarViewModel = (): WorkspaceSidebarViewModel => {
     handleScreenBuilderClick,
     handleWorkflowsClick,
     handleScriptsClick,
+    handleActionsClick,
     handleDataProcessorClick,
     handleSetTheme,
     handleSignOut,
