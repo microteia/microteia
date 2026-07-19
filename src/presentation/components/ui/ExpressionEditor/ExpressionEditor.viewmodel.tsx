@@ -6,7 +6,7 @@ import type { PathRoot } from '../../../../domain/schema/pathResolver';
 import { parsePath, suggestNextSegments } from '../../../../domain/schema/pathResolver';
 import { validateExpressionWithParser } from './expressionValidator';
 import { buildAutocompleteItems, insertSnippet } from './autocompleteHelpers';
-import type { AutocompleteItem, StepOutputField, WorkflowVariable } from './autocompleteHelpers';
+import type { AutocompleteItem, ExpressionContextRoot, StepOutputField, WorkflowVariable } from './autocompleteHelpers';
 import { buildPathAutocompleteItems, extractActiveEventPath, extractActiveInputPath, findInvalidEventPath } from './pathAutocomplete';
 
 export interface EventField {
@@ -130,6 +130,16 @@ export const useExpressionEditorViewModel = (
     };
   }, [props.value, functions, pathRoot, schemaContext]);
 
+  // As raízes de contexto saem do que o chamador realmente forneceu: quem edita expressão de campo
+  // ou de Action não passa nenhuma delas, e lá o escopo é plano (`isNew`, não `input.isNew`).
+  const contextRoots = useMemo<ExpressionContextRoot[]>(() => {
+    const roots: ExpressionContextRoot[] = [];
+    if (pathRoot || (props.eventFields?.length ?? 0) > 0) roots.push('event');
+    if (inputRoot || (props.stepOutputFields?.length ?? 0) > 0) roots.push('input');
+    if ((props.stepOutputFields?.length ?? 0) > 0) roots.push('output');
+    return roots;
+  }, [pathRoot, inputRoot, props.eventFields, props.stepOutputFields]);
+
   const autocompleteItems = useMemo((): AutocompleteItem[] => {
     if (autocompleteState.mode === 'field' && pathRoot) {
       return buildPathAutocompleteItems(schemaContext, pathRoot, {
@@ -153,8 +163,10 @@ export const useExpressionEditorViewModel = (
       props.stepOutputFields ?? [],
       props.workflowVariables ?? [],
       true,
+      contextRoots,
     );
   }, [
+    contextRoots,
     autocompleteState.mode,
     autocompleteState.query,
     autocompleteState.pathBase,
@@ -366,7 +378,7 @@ export const useExpressionEditorViewModel = (
 
       // Detecta "input.campo" → outputs de steps anteriores
       const inputDotMatch = textBefore.match(/input\.([a-zA-Z_][a-zA-Z0-9_.]*)$/);
-      if (inputDotMatch || textBefore.endsWith('input.')) {
+      if (contextRoots.includes('input') && (inputDotMatch || textBefore.endsWith('input.'))) {
         const triggerStart = inputDotMatch ? pos - inputDotMatch[1].length : pos;
         const query = inputDotMatch ? inputDotMatch[1] : '';
 
@@ -383,7 +395,7 @@ export const useExpressionEditorViewModel = (
       }
 
       const outputDotMatch = textBefore.match(/output\.([a-zA-Z_][a-zA-Z0-9_.]*)$/);
-      if (outputDotMatch || textBefore.endsWith('output.')) {
+      if (contextRoots.includes('output') && (outputDotMatch || textBefore.endsWith('output.'))) {
         const triggerStart = outputDotMatch ? pos - outputDotMatch[1].length : pos;
         const query = outputDotMatch ? outputDotMatch[1] : '';
 
@@ -418,7 +430,7 @@ export const useExpressionEditorViewModel = (
 
       if (autocompleteState.active) closeAutocomplete();
     },
-    [props, pathRoot, inputRoot, schemaContext, autocompleteState.active, closeAutocomplete],
+    [props, pathRoot, inputRoot, contextRoots, schemaContext, autocompleteState.active, closeAutocomplete],
   );
 
   const handleKeyDown = useCallback(

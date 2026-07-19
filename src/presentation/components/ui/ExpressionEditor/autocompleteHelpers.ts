@@ -72,26 +72,33 @@ const COMMON_SNIPPETS: AutocompleteItem[] = [
   },
 ];
 
-const CONTEXT_VARIABLES: AutocompleteItem[] = [
-  {
+export type ExpressionContextRoot = 'event' | 'input' | 'output';
+
+/**
+ * Raízes de contexto do Workflow. Só existem quando a expressão é avaliada pelo `ExpressionEngine`;
+ * as expressões de campo e de Action rodam no `fieldExpression`, cujo escopo é plano (as variáveis
+ * ficam na raiz). Sugeri-las ali levaria a `input.isNew`, que parseia mas resolve para indefinido.
+ */
+const CONTEXT_VARIABLES: Record<ExpressionContextRoot, AutocompleteItem> = {
+  event: {
     value: 'event.',
     label: 'event',
     description: 'Dados do evento que disparou o workflow',
     category: 'Contexto',
   },
-  {
+  input: {
     value: 'input.',
     label: 'input',
     description: 'Dados de entrada configurados para este step',
     category: 'Contexto',
   },
-  {
+  output: {
     value: 'output.',
     label: 'output',
     description: 'Saídas de steps anteriores do workflow',
     category: 'Contexto',
   },
-];
+};
 
 export const buildAutocompleteItems = (
   mode: 'function' | 'field' | 'context' | 'input',
@@ -101,6 +108,7 @@ export const buildAutocompleteItems = (
   stepOutputFields: StepOutputField[],
   workflowVariables: WorkflowVariable[],
   includeSnippets = true,
+  contextRoots: ExpressionContextRoot[] = [],
 ): AutocompleteItem[] => {
   const q = query.toLowerCase();
   const items: AutocompleteItem[] = [];
@@ -148,10 +156,10 @@ export const buildAutocompleteItems = (
       })),
     );
 
-    // Contextos (event, input, output)
-    const matchingContexts = CONTEXT_VARIABLES.filter(
-      (c) => !q || c.value.toLowerCase().includes(q) || c.label.toLowerCase().includes(q)
-    );
+    // Contextos (event, input, output) — só os que existem no escopo desta expressão
+    const matchingContexts = contextRoots
+      .map((root) => CONTEXT_VARIABLES[root])
+      .filter((c) => !q || c.value.toLowerCase().includes(q) || c.label.toLowerCase().includes(q));
     items.push(...matchingContexts);
 
     if (includeSnippets) {
@@ -193,7 +201,11 @@ export const buildAutocompleteItems = (
       })),
     );
   } else if (mode === 'context') {
-    items.push(...CONTEXT_VARIABLES.filter((c) => c.value.toLowerCase().includes(q)));
+    items.push(
+      ...contextRoots
+        .map((root) => CONTEXT_VARIABLES[root])
+        .filter((c) => c.value.toLowerCase().includes(q)),
+    );
   }
 
   return items.sort((a, b) => {
