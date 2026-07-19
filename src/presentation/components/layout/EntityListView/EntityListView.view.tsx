@@ -25,6 +25,12 @@ export interface EntityListViewProps {
   emptyTitle: string;
   emptyActionLabel: string;
 
+  /**
+   * `'page'` (padrão) ocupa a janela inteira. `'embedded'` renderiza dentro de uma aba de detalhe:
+   * sem título (o rótulo da aba já nomeia a tela), sem scroll próprio e sem padding lateral.
+   */
+  variant?: 'page' | 'embedded';
+
   /** Ações extras no cabeçalho, antes do botão "novo" (ex.: Dashboard, ocultar totais). */
   headerExtra?: React.ReactNode;
   /** Faixa entre o cabeçalho e o filtro (ex.: barra de totais do Financeiro). */
@@ -50,23 +56,25 @@ export const EntityListView: React.FC<EntityListViewProps> = ({
   emptyIcon,
   emptyTitle,
   emptyActionLabel,
+  variant = 'page',
   headerExtra,
   belowHeader,
   children,
   modals,
 }) => {
   const addIcon = newIcon ?? <RiAddLine size={16} />;
+  const embedded = variant === 'embedded';
   return (
-    <S.Page>
-      <S.Header>
-        {titleIcon ? (
+    <S.Page $embedded={embedded}>
+      <S.Header $embedded={embedded}>
+        {!embedded && (titleIcon ? (
           <S.TitleRow>
             {titleIcon}
             <S.Title>{title}</S.Title>
           </S.TitleRow>
         ) : (
           <S.Title>{title}</S.Title>
-        )}
+        ))}
         <S.HeaderActions>
           {headerExtra}
           <Button onClick={onNew} title={newTitle}>{addIcon}</Button>
@@ -75,7 +83,7 @@ export const EntityListView: React.FC<EntityListViewProps> = ({
 
       {belowHeader}
 
-      <S.Toolbar>
+      <S.Toolbar $embedded={embedded}>
         <CompositeFilter
           defs={filterDefs}
           tokens={filterTokens}
@@ -85,7 +93,7 @@ export const EntityListView: React.FC<EntityListViewProps> = ({
         />
       </S.Toolbar>
 
-      <S.Content>
+      <S.Content $embedded={embedded}>
         {isLoading ? (
           <S.SpinnerWrap><Spinner /></S.SpinnerWrap>
         ) : isEmpty ? (

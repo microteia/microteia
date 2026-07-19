@@ -1,18 +1,24 @@
 import styled from 'styled-components';
 
 export const S = {
-  Page: styled.div`
+  // Embutida numa aba de detalhe, quem rola é o contêiner da aba — um segundo scroll aninhado
+  // deixaria a lista presa numa faixa curta. O padding horizontal também já vem da aba.
+  Page: styled.div<{ $embedded?: boolean }>`
     display: flex;
     flex-direction: column;
-    height: 100%;
-    overflow: hidden;
+    ${({ $embedded }) => ($embedded ? '' : `
+      height: 100%;
+      overflow: hidden;
+    `)}
   `,
 
-  Header: styled.div`
+  Header: styled.div<{ $embedded?: boolean }>`
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    padding: ${({ theme }) => theme.spacing.lg} ${({ theme }) => theme.spacing.xl};
+    justify-content: ${({ $embedded }) => ($embedded ? 'flex-end' : 'space-between')};
+    padding: ${({ theme, $embedded }) => ($embedded
+    ? `0 0 ${theme.spacing.md} 0`
+    : `${theme.spacing.lg} ${theme.spacing.xl}`)};
     border-bottom: 1px solid ${({ theme }) => theme.colors.border};
     flex-shrink: 0;
   `,
@@ -37,20 +43,26 @@ export const S = {
     color: ${({ theme }) => theme.colors.text};
   `,
 
-  Toolbar: styled.div`
+  Toolbar: styled.div<{ $embedded?: boolean }>`
     display: flex;
     gap: ${({ theme }) => theme.spacing.sm};
-    padding: ${({ theme }) => theme.spacing.md} ${({ theme }) => theme.spacing.xl};
+    padding: ${({ theme, $embedded }) => ($embedded
+    ? `${theme.spacing.md} 0`
+    : `${theme.spacing.md} ${theme.spacing.xl}`)};
     border-bottom: 1px solid ${({ theme }) => theme.colors.border};
     flex-shrink: 0;
     flex-wrap: wrap;
     align-items: center;
   `,
 
-  Content: styled.div`
-    flex: 1;
-    overflow-y: auto;
-    padding: ${({ theme }) => theme.spacing.lg} ${({ theme }) => theme.spacing.xl};
+  Content: styled.div<{ $embedded?: boolean }>`
+    ${({ $embedded }) => ($embedded ? '' : `
+      flex: 1;
+      overflow-y: auto;
+    `)}
+    padding: ${({ theme, $embedded }) => ($embedded
+    ? `${theme.spacing.lg} 0 0 0`
+    : `${theme.spacing.lg} ${theme.spacing.xl}`)};
   `,
 
   Grid: styled.div`

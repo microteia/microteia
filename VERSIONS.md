@@ -11,6 +11,12 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [0.114.0] — 2026-07-18
+
+- A aba de registros vinculados agora usa a mesma listagem das telas personalizadas em janela. Na prática, os registros filhos ganharam de uma vez tudo o que a listagem já oferecia: os atalhos do card (copiar link, duplicar, gerenciar etiquetas e excluir), a barra de filtros com filtros salvos, as etiquetas no card e o convite para cadastrar o primeiro registro quando a lista está vazia.
+- Daqui em diante, toda melhoria feita nas listagens chega junto às abas de registros vinculados, sem precisar ser refeita.
+- O filtro da aba não oferece mais o campo que liga o registro ao seu principal — como todos os registros da aba pertencem ao mesmo, filtrar por ele não trazia resultado nenhum.
+
 ## [0.113.1] — 2026-07-18
 
 - Corrigido um problema nas telas personalizadas: ao criar uma etiqueta pela janela de etiquetas, ela não aparecia na lista e era preciso recarregar o navegador para vê-la. Agora a etiqueta nova surge na hora, já na ordem alfabética — e o mesmo vale quando uma etiqueta é renomeada.
