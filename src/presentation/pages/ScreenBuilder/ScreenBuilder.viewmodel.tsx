@@ -486,17 +486,26 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
     return !!def && !def.builtin && def.titleFieldKey === fieldKey;
   }, [getDefinitionByKey]);
 
+  // Sem etiquetas na tela não há o que gerenciar pelo card: desligar "Habilitar Etiquetas"
+  // retira a ação da configuração, para não gravar uma combinação que a listagem ignoraria.
   const updateScreenForm = useCallback((patch: Partial<ScreenFormState>) => {
-    setScreenForm((prev) => ({ ...prev, ...patch }));
+    setScreenForm((prev) => {
+      const next = { ...prev, ...patch };
+      if (next.hasTags) return next;
+      return { ...next, listActions: next.listActions.filter((a) => a !== 'manageTags') };
+    });
   }, []);
 
   const toggleListAction = useCallback((action: ScreenListAction) => {
-    setScreenForm((prev) => ({
-      ...prev,
-      listActions: prev.listActions.includes(action)
-        ? prev.listActions.filter((a) => a !== action)
-        : [...prev.listActions, action],
-    }));
+    setScreenForm((prev) => {
+      if (action === 'manageTags' && !prev.hasTags) return prev;
+      return {
+        ...prev,
+        listActions: prev.listActions.includes(action)
+          ? prev.listActions.filter((a) => a !== action)
+          : [...prev.listActions, action],
+      };
+    });
   }, []);
 
   const updateFieldForm = useCallback((patch: Partial<FieldFormState>) => {
@@ -544,7 +553,7 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
       hasNotes: def.hasNotes,
       hasDocuments: def.hasDocuments,
       hasTags: def.hasTags,
-      listActions: def.listActions,
+      listActions: def.hasTags ? def.listActions : def.listActions.filter((a) => a !== 'manageTags'),
       childLinks,
       enabled: def.enabled,
       titleFieldKey: def.titleFieldKey,

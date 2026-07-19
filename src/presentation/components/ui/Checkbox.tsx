@@ -8,18 +8,18 @@ interface CheckboxProps {
   disabled?: boolean;
 }
 
-const StyledCheckboxLabel = styled.label`
+const StyledCheckboxLabel = styled.label<{ $disabled?: boolean }>`
   display: flex;
   align-items: center;
   gap: ${({ theme }) => theme.spacing.sm};
-  cursor: pointer;
+  cursor: ${({ $disabled }) => ($disabled ? 'not-allowed' : 'pointer')};
   font-size: ${({ theme }) => theme.fontSizes.sm};
-  color: ${({ theme }) => theme.colors.text};
+  color: ${({ theme, $disabled }) => ($disabled ? theme.colors.textMuted : theme.colors.text)};
   user-select: none;
   transition: color ${({ theme }) => theme.transitions.fast};
 
   &:hover {
-    color: ${({ theme }) => theme.colors.primary};
+    color: ${({ theme, $disabled }) => ($disabled ? theme.colors.textMuted : theme.colors.primary)};
   }
 `;
 
@@ -69,7 +69,7 @@ const StyledCheckboxInput = styled.input`
 
 export const Checkbox: React.FC<CheckboxProps> = ({ checked, onChange, label, disabled = false }) => {
   return (
-    <StyledCheckboxLabel>
+    <StyledCheckboxLabel $disabled={disabled}>
       <StyledCheckboxInput
         type="checkbox"
         checked={checked}

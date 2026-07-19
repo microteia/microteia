@@ -11,6 +11,11 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [0.114.1] — 2026-07-19
+
+- Na configuração de uma tela personalizada, o atalho "Gerenciar etiquetas" do card agora fica visivelmente indisponível enquanto "Habilitar Etiquetas" estiver desmarcado — antes ele parecia disponível, mas não tinha efeito.
+- Desmarcar "Habilitar Etiquetas" também desmarca o atalho, para que a tela não guarde uma configuração sem efeito.
+
 ## [0.114.0] — 2026-07-18
 
 - A aba de registros vinculados agora usa a mesma listagem das telas personalizadas em janela. Na prática, os registros filhos ganharam de uma vez tudo o que a listagem já oferecia: os atalhos do card (copiar link, duplicar, gerenciar etiquetas e excluir), a barra de filtros com filtros salvos, as etiquetas no card e o convite para cadastrar o primeiro registro quando a lista está vazia.
