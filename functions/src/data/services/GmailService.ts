@@ -1,4 +1,5 @@
 import { google, gmail_v1 } from 'googleapis';
+import { decodeQuotedPrintable } from './mimeDecoding';
 
 function charsetFor(part: gmail_v1.Schema$MessagePart): BufferEncoding {
   const contentType = part.headers?.find((h) => h.name?.toLowerCase() === 'content-type')?.value ?? '';
@@ -9,9 +10,20 @@ function charsetFor(part: gmail_v1.Schema$MessagePart): BufferEncoding {
   return 'utf-8';
 }
 
-function decodePartData(part: gmail_v1.Schema$MessagePart): string {
+function transferEncodingFor(part: gmail_v1.Schema$MessagePart): string {
+  return (
+    part.headers
+      ?.find((h) => h.name?.toLowerCase() === 'content-transfer-encoding')
+      ?.value?.trim()
+      .toLowerCase() ?? ''
+  );
+}
+
+export function decodePartData(part: gmail_v1.Schema$MessagePart): string {
   if (!part.body?.data) return '';
-  return Buffer.from(part.body.data, 'base64').toString(charsetFor(part));
+  const raw = Buffer.from(part.body.data, 'base64');
+  const decoded = transferEncodingFor(part) === 'quoted-printable' ? decodeQuotedPrintable(raw) : raw;
+  return decoded.toString(charsetFor(part));
 }
 
 function collectBodies(
