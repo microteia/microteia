@@ -11,6 +11,12 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [0.115.5] — 2026-07-19
+
+- Valores que não constam mais na lista de um campo de seleção deixam de sumir da tela: agora aparecem destacados em âmbar, com um aviso de que a opção pode ter sido excluída. Antes o campo ficava visualmente vazio, mesmo com o conteúdo preservado no registro.
+- Nas listas de opções cadastráveis, o item destacado traz um atalho para recolocá-lo na lista com um clique.
+- Em campos que apontam para outro cadastro, quando o registro referenciado não é encontrado o sistema exibe "Registro não encontrado" junto ao identificador, que permite localizar os dados na auditoria.
+
 ## [0.115.4] — 2026-07-19
 
 - Corrigido: ao cadastrar uma opção nova direto de um campo de seleção, o item aparecia duplicado na lista até a tela ser recarregada.

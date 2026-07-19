@@ -7,10 +7,14 @@ import {
   RiArrowDownSLine,
   RiDeleteBin6Line,
   RiAddLine,
+  RiErrorWarningLine,
+  RiAddCircleLine,
 } from 'react-icons/ri';
 import { ConfirmModal } from '../ConfirmModal';
 import { type DynamicSelectProps, useDynamicSelectViewModel } from './DynamicSelect.viewmodel';
 import * as S from './DynamicSelect.styles';
+
+const ORPHAN_TITLE = 'Este valor não está mais na lista de opções — pode ter sido excluído. O conteúdo foi mantido no registro.';
 
 export const DynamicSelect: React.FC<DynamicSelectProps> = (props) => {
   const {
@@ -38,6 +42,7 @@ export const DynamicSelect: React.FC<DynamicSelectProps> = (props) => {
     onQueryChange,
     handleKeyDown,
     handleDeleteClick,
+    handleRestoreClick,
     handleConfirmDelete,
     handleCancelDelete,
     handleAdd,
@@ -45,6 +50,7 @@ export const DynamicSelect: React.FC<DynamicSelectProps> = (props) => {
     placeholder,
     disabled,
     multiSelect,
+    hasOnAdd,
     hasOnDelete,
   } = useDynamicSelectViewModel(props);
 
@@ -63,8 +69,15 @@ export const DynamicSelect: React.FC<DynamicSelectProps> = (props) => {
             {selectedOptions.length > 0 ? (
               <S.SelectedPills>
                 {selectedOptions.map(opt => (
-                  <S.SelectedPill key={opt.value} $color={opt.color}>
-                    {opt.color && <S.ColorDot $color={opt.color} />}
+                  <S.SelectedPill
+                    key={opt.value}
+                    $color={opt.color}
+                    $orphan={opt.isOrphan}
+                    title={opt.isOrphan ? ORPHAN_TITLE : undefined}
+                  >
+                    {opt.isOrphan
+                      ? <S.OrphanIcon><RiErrorWarningLine size={11} /></S.OrphanIcon>
+                      : opt.color && <S.ColorDot $color={opt.color} />}
                     {opt.label}
                   </S.SelectedPill>
                 ))}
@@ -85,8 +98,15 @@ export const DynamicSelect: React.FC<DynamicSelectProps> = (props) => {
           </>
         ) : (
           <>
-            {selectedOption?.color && <S.ColorDot $color={selectedOption.color} />}
-            <S.TriggerLabel>{selectedOption ? selectedOption.label : placeholder}</S.TriggerLabel>
+            {selectedOption?.isOrphan
+              ? <S.OrphanIcon title={ORPHAN_TITLE}><RiErrorWarningLine size={14} /></S.OrphanIcon>
+              : selectedOption?.color && <S.ColorDot $color={selectedOption.color} />}
+            <S.TriggerLabel
+              $orphan={selectedOption?.isOrphan}
+              title={selectedOption?.isOrphan ? ORPHAN_TITLE : undefined}
+            >
+              {selectedOption ? selectedOption.label : placeholder}
+            </S.TriggerLabel>
             <S.TriggerRight>
               {selectedOption && !disabled && (
                 <S.ClearBtn onClick={handleClear} title="Limpar">
@@ -134,11 +154,24 @@ export const DynamicSelect: React.FC<DynamicSelectProps> = (props) => {
                   onMouseDown={() => handleSelect(opt.value)}
                   onMouseEnter={() => setActiveIdx(idx)}
                 >
-                  {opt.color && <S.ColorDot $color={opt.color} />}
+                  {opt.isOrphan
+                    ? <S.OrphanIcon><RiErrorWarningLine size={13} /></S.OrphanIcon>
+                    : opt.color && <S.ColorDot $color={opt.color} />}
                   <S.OptionText>
-                    <S.OptionLabel>{opt.label}</S.OptionLabel>
-                    {opt.meta && <S.OptionMeta>{opt.meta}</S.OptionMeta>}
+                    <S.OptionLabel $orphan={opt.isOrphan}>{opt.label}</S.OptionLabel>
+                    {opt.isOrphan
+                      ? <S.OptionMeta>{'Fora da lista de opções'}</S.OptionMeta>
+                      : opt.meta && <S.OptionMeta>{opt.meta}</S.OptionMeta>}
                   </S.OptionText>
+                  {hasOnAdd && opt.isOrphan && (
+                    <S.RestoreBtn
+                      type="button"
+                      title={`Adicionar "${opt.label}" à lista de opções`}
+                      onMouseDown={e => void handleRestoreClick(e, opt)}
+                    >
+                      <RiAddCircleLine size={15} />
+                    </S.RestoreBtn>
+                  )}
                   {hasOnDelete && opt.isDynamic && (
                     <S.DeleteBtn
                       type="button"

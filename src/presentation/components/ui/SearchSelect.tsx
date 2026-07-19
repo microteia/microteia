@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import ReactDOM from 'react-dom';
 import styled from 'styled-components';
 import type { IconType } from 'react-icons';
-import { RiSearchLine, RiCloseLine, RiCheckLine } from 'react-icons/ri';
+import { RiSearchLine, RiCloseLine, RiCheckLine, RiErrorWarningLine } from 'react-icons/ri';
 import { useAnchoredDropdown } from '../../hooks/useAnchoredDropdown';
 
 export interface SearchSelectOption {
@@ -68,12 +68,22 @@ const OptionIcon = styled.span`
   color: ${({ theme }) => theme.colors.textSecondary};
 `;
 
-const TriggerLabel = styled.span`
+const TriggerLabel = styled.span<{ $orphan?: boolean }>`
   flex: 1;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  color: ${({ theme, $orphan }) => $orphan ? theme.colors.warning : 'inherit'};
 `;
+
+const OrphanIcon = styled.span`
+  display: inline-flex;
+  align-items: center;
+  color: ${({ theme }) => theme.colors.warning};
+  flex-shrink: 0;
+`;
+
+const ORPHAN_TITLE = 'O registro referenciado não foi encontrado — pode ter sido excluído. O identificador foi mantido e permite localizar os dados na auditoria.';
 
 const ClearBtn = styled.span`
   display: flex;
@@ -195,6 +205,7 @@ export const SearchSelect: React.FC<SearchSelectProps> = ({
   const { dropPos, reposition } = useAnchoredDropdown({ open, anchorRef: wrapperRef, dropdownRef });
 
   const selected = options.find((o) => o.value === value);
+  const isOrphan = !!value && !selected;
 
   const filtered = options.filter((o) =>
     o.label.toLowerCase().includes(query.toLowerCase()) ||
@@ -252,10 +263,13 @@ export const SearchSelect: React.FC<SearchSelectProps> = ({
         onClick={handleOpen}
         disabled={disabled}
       >
+        {isOrphan && <OrphanIcon title={ORPHAN_TITLE}><RiErrorWarningLine size={14} /></OrphanIcon>}
         {selected?.color && <ColorDot $color={selected.color} />}
         {selected?.icon && <OptionIcon><selected.icon size={14} /></OptionIcon>}
-        <TriggerLabel>{selected ? selected.label : placeholder}</TriggerLabel>
-        {selected && !disabled && (
+        <TriggerLabel $orphan={isOrphan} title={isOrphan ? ORPHAN_TITLE : undefined}>
+          {selected ? selected.label : isOrphan ? `Registro não encontrado (${value})` : placeholder}
+        </TriggerLabel>
+        {(selected || isOrphan) && !disabled && (
           <ClearBtn onClick={handleClear} title="Limpar">
             <RiCloseLine size={14} />
           </ClearBtn>

@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import ReactDOM from 'react-dom';
 import styled from 'styled-components';
-import { RiSearchLine, RiCloseLine, RiCheckLine, RiArrowDownSLine } from 'react-icons/ri';
+import { RiSearchLine, RiCloseLine, RiCheckLine, RiArrowDownSLine, RiErrorWarningLine } from 'react-icons/ri';
 import { useAnchoredDropdown } from '../../hooks/useAnchoredDropdown';
 
 export interface MultiSearchSelectOption {
@@ -55,7 +55,7 @@ const SelectedPills = styled.div`
   min-width: 0;
 `;
 
-const SelectedPill = styled.span<{ $color?: string }>`
+const SelectedPill = styled.span<{ $color?: string; $orphan?: boolean }>`
   display: inline-flex;
   align-items: center;
   gap: 4px;
@@ -64,11 +64,21 @@ const SelectedPill = styled.span<{ $color?: string }>`
   font-size: 11px;
   font-weight: 500;
   background: ${({ $color }) => $color ? `${$color}22` : 'rgba(0,0,0,0.08)'};
-  color: ${({ theme, $color }) => $color ?? theme.colors.text};
-  border: 1px solid ${({ $color }) => $color ? `${$color}44` : 'transparent'};
+  color: ${({ theme, $color, $orphan }) => $orphan ? theme.colors.warning : ($color ?? theme.colors.text)};
+  border: 1px solid ${({ theme, $color, $orphan }) => $orphan ? theme.colors.warning : ($color ? `${$color}44` : 'transparent')};
+  border-style: ${({ $orphan }) => $orphan ? 'dashed' : 'solid'};
   white-space: nowrap;
   flex-shrink: 0;
 `;
+
+const OrphanIcon = styled.span`
+  display: inline-flex;
+  align-items: center;
+  color: ${({ theme }) => theme.colors.warning};
+  flex-shrink: 0;
+`;
+
+const ORPHAN_TITLE = 'O registro referenciado não foi encontrado — pode ter sido excluído. O identificador foi mantido e permite localizar os dados na auditoria.';
 
 const PlaceholderText = styled.span`
   flex: 1;
@@ -216,7 +226,9 @@ export const MultiSearchSelect: React.FC<MultiSearchSelectProps> = ({
     o.label.toLowerCase().includes(query.toLowerCase())
   );
 
+  const knownValues = new Set(options.map((o) => o.value));
   const selectedOptions = options.filter((o) => values.includes(o.value));
+  const orphanValues = values.filter((v) => v && !knownValues.has(v));
 
   const handleOpen = () => {
     if (disabled) return;
@@ -265,16 +277,22 @@ export const MultiSearchSelect: React.FC<MultiSearchSelectProps> = ({
     <Wrapper ref={wrapperRef}>
       <TriggerButton
         type="button"
-        $hasValue={selectedOptions.length > 0}
+        $hasValue={selectedOptions.length > 0 || orphanValues.length > 0}
         $disabled={disabled}
         onClick={handleOpen}
         disabled={disabled}
       >
-        {selectedOptions.length > 0 ? (
+        {selectedOptions.length > 0 || orphanValues.length > 0 ? (
           <SelectedPills>
             {selectedOptions.map((opt) => (
               <SelectedPill key={opt.value} $color={opt.color}>
                 {opt.label}
+              </SelectedPill>
+            ))}
+            {orphanValues.map((val) => (
+              <SelectedPill key={val} $orphan title={ORPHAN_TITLE}>
+                <OrphanIcon><RiErrorWarningLine size={11} /></OrphanIcon>
+                {`Registro não encontrado (${val})`}
               </SelectedPill>
             ))}
           </SelectedPills>
@@ -282,7 +300,7 @@ export const MultiSearchSelect: React.FC<MultiSearchSelectProps> = ({
           <PlaceholderText>{placeholder}</PlaceholderText>
         )}
         <TriggerRight>
-          {selectedOptions.length > 0 && !disabled && (
+          {(selectedOptions.length > 0 || orphanValues.length > 0) && !disabled && (
             <ClearBtn type="button" onClick={handleClearAll} title="Limpar tudo">
               <RiCloseLine size={14} />
             </ClearBtn>

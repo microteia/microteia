@@ -52,7 +52,7 @@ export const SelectedPills = styled.div`
   min-width: 0;
 `;
 
-export const SelectedPill = styled.span<{ $color?: string }>`
+export const SelectedPill = styled.span<{ $color?: string; $orphan?: boolean }>`
   display: inline-flex;
   align-items: center;
   gap: 4px;
@@ -61,17 +61,26 @@ export const SelectedPill = styled.span<{ $color?: string }>`
   font-size: 11px;
   font-weight: 500;
   background: ${({ theme, $color }) => $color ? `${$color}22` : theme.colors.surfaceHover};
-  color: ${({ theme, $color }) => $color ?? theme.colors.text};
-  border: 1px solid ${({ $color }) => $color ? `${$color}44` : 'transparent'};
+  color: ${({ theme, $color, $orphan }) => $orphan ? theme.colors.warning : ($color ?? theme.colors.text)};
+  border: 1px solid ${({ theme, $color, $orphan }) => $orphan ? theme.colors.warning : ($color ? `${$color}44` : 'transparent')};
+  border-style: ${({ $orphan }) => $orphan ? 'dashed' : 'solid'};
   white-space: nowrap;
   flex-shrink: 0;
 `;
 
-export const TriggerLabel = styled.span`
+export const TriggerLabel = styled.span<{ $orphan?: boolean }>`
   flex: 1;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  color: ${({ theme, $orphan }) => $orphan ? theme.colors.warning : 'inherit'};
+`;
+
+export const OrphanIcon = styled.span`
+  display: inline-flex;
+  align-items: center;
+  color: ${({ theme }) => theme.colors.warning};
+  flex-shrink: 0;
 `;
 
 export const TriggerRight = styled.div`
@@ -155,6 +164,23 @@ export const OptionList = styled.ul`
   overflow-y: auto;
 `;
 
+export const RestoreBtn = styled.button`
+  display: flex;
+  align-items: center;
+  padding: 2px 4px;
+  border-radius: ${({ theme }) => theme.borderRadius.sm};
+  color: ${({ theme }) => theme.colors.warning};
+  transition:
+    color 150ms ease,
+    background 150ms ease;
+  flex-shrink: 0;
+
+  &:hover {
+    color: ${({ theme }) => theme.colors.primary};
+    background: ${({ theme }) => theme.colors.surfaceHover};
+  }
+`;
+
 export const DeleteBtn = styled.button`
   display: flex;
   align-items: center;
@@ -202,10 +228,11 @@ export const OptionText = styled.div`
   min-width: 0;
 `;
 
-export const OptionLabel = styled.div`
+export const OptionLabel = styled.div<{ $orphan?: boolean }>`
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  color: ${({ theme, $orphan }) => $orphan ? theme.colors.warning : 'inherit'};
 `;
 
 export const OptionMeta = styled.div`

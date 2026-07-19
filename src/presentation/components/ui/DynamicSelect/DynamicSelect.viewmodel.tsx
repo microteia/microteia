@@ -11,6 +11,7 @@ export interface DynamicSelectOption {
 
 export interface InternalOption extends DynamicSelectOption {
   isDynamic: boolean;
+  isOrphan: boolean;
 }
 
 export interface DynamicSelectProps {
@@ -54,6 +55,7 @@ export interface DynamicSelectViewModel {
   onQueryChange: (q: string) => void;
   handleKeyDown: (e: React.KeyboardEvent) => void;
   handleDeleteClick: (e: React.MouseEvent, item: InternalOption) => void;
+  handleRestoreClick: (e: React.MouseEvent, item: InternalOption) => Promise<void>;
   handleConfirmDelete: () => Promise<void>;
   handleCancelDelete: () => void;
   handleAdd: () => Promise<void>;
@@ -95,26 +97,39 @@ export const useDynamicSelectViewModel = (props: DynamicSelectProps): DynamicSel
   const { dropPos, reposition } = useAnchoredDropdown({ open, anchorRef: wrapperRef, dropdownRef });
 
   const allOptions = useMemo<InternalOption[]>(() => [
-    ...staticOptions.map(o => ({ ...o, isDynamic: false })),
-    ...dynamicOptions.map(o => ({ ...o, isDynamic: true })),
+    ...staticOptions.map(o => ({ ...o, isDynamic: false, isOrphan: false })),
+    ...dynamicOptions.map(o => ({ ...o, isDynamic: true, isOrphan: false })),
   ], [staticOptions, dynamicOptions]);
 
+  const orphanOptions = useMemo<InternalOption[]>(() => {
+    const known = new Set(allOptions.map(o => o.value));
+    const selectedValues = multiSelect ? values : (value ? [value] : []);
+    return selectedValues
+      .filter(v => v && !known.has(v))
+      .map(v => ({ value: v, label: v, isDynamic: false, isOrphan: true }));
+  }, [allOptions, multiSelect, values, value]);
+
+  const listedOptions = useMemo(() =>
+    [...allOptions, ...orphanOptions],
+    [allOptions, orphanOptions]
+  );
+
   const filtered = useMemo(() =>
-    allOptions.filter(o =>
+    listedOptions.filter(o =>
       o.label.toLowerCase().includes(query.toLowerCase()) ||
       (o.meta ?? '').toLowerCase().includes(query.toLowerCase())
     ),
-    [allOptions, query]
+    [listedOptions, query]
   );
 
   const selectedOption = useMemo(() =>
-    allOptions.find(o => o.value === value),
-    [allOptions, value]
+    listedOptions.find(o => o.value === value),
+    [listedOptions, value]
   );
 
   const selectedOptions = useMemo(() =>
-    allOptions.filter(o => values.includes(o.value)),
-    [allOptions, values]
+    listedOptions.filter(o => values.includes(o.value)),
+    [listedOptions, values]
   );
 
   const isSelected = useCallback((val: string) =>
@@ -198,6 +213,18 @@ export const useDynamicSelectViewModel = (props: DynamicSelectProps): DynamicSel
     if (e.key === 'Escape') setOpen(false);
   }, [filtered, canAdd, activeIdx, handleAdd, handleSelect]);
 
+  const handleRestoreClick = useCallback(async (e: React.MouseEvent, item: InternalOption) => {
+    e.stopPropagation();
+    e.preventDefault();
+    if (!onAdd) return;
+    setAddLoading(true);
+    try {
+      await onAdd(item.label);
+    } finally {
+      setAddLoading(false);
+    }
+  }, [onAdd]);
+
   const handleDeleteClick = useCallback((e: React.MouseEvent, item: InternalOption) => {
     e.stopPropagation();
     e.preventDefault();
@@ -258,6 +285,7 @@ export const useDynamicSelectViewModel = (props: DynamicSelectProps): DynamicSel
     onQueryChange,
     handleKeyDown,
     handleDeleteClick,
+    handleRestoreClick,
     handleConfirmDelete,
     handleCancelDelete,
     handleAdd,
