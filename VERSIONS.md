@@ -11,6 +11,11 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [0.118.0] — 2026-07-19
+
+- Novo passo **Encerrar Workflow**: interrompe a rotina naquele ponto e devolve como resultado o que o passo anterior produziu. Serve para sair mais cedo de dentro de uma condição ou de uma repetição, sem precisar contornar os passos seguintes.
+- O passo **Saída do Workflow** foi descontinuado, pois o **Montar Objeto** já cumpre a mesma função com mais recursos. Rotinas que ainda usem o passo antigo precisam ser abertas e ajustadas para voltar a executar.
+
 ## [0.117.0] — 2026-07-19
 
 - Chegam as **Ações**: botões próprios do escritório que aparecem nas telas de cadastro e executam uma rotina automatizada. Um clique consulta, calcula ou integra o que for preciso, e traz o resultado de volta para a tela — podendo preencher campos, gravar o registro ou apenas avisar o que aconteceu.

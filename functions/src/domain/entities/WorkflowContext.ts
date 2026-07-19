@@ -32,4 +32,7 @@ export interface WorkflowResult {
   success: boolean;
   message?: string;
   outputs?: Record<string, unknown>;
+  // Encerra o workflow imediatamente após este step, atravessando ramos de condição e
+  // repetições. O workflow retorna os outputs do último step executado antes do encerramento.
+  halt?: boolean;
 }

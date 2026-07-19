@@ -26,12 +26,33 @@ const makeRecordStep = (order: string[]): StepDefinition => ({
   }),
 });
 
+// Step de teste "exit": mesmo contrato do Step "Encerrar Workflow" — sinaliza halt sem outputs.
+const makeExitStep = (order: string[]): StepDefinition => ({
+  id: 'exit',
+  version: 1,
+  name: 'Exit',
+  description: '',
+  icon: 'x',
+  category: 'Action',
+  type: 'Action',
+  configurable: false,
+  inputs: [],
+  outputDefinitions: [],
+  createExecutor: () => ({
+    execute: async () => {
+      order.push('EXIT');
+      return { success: true, halt: true };
+    },
+  }),
+});
+
 const makeRegistry = (order: string[]): StepRegistry => {
   const record = makeRecordStep(order);
+  const exit = makeExitStep(order);
   return {
     register: () => undefined,
-    resolve: (id) => (id === 'record' ? record : undefined),
-    list: () => [record],
+    resolve: (id) => (id === 'record' ? record : id === 'exit' ? exit : undefined),
+    list: () => [record, exit],
   };
 };
 
@@ -387,5 +408,139 @@ describe('runWorkflow — parâmetros obrigatórios', () => {
     });
     expect(result.status).toBe('SUCCESS');
     expect(order).toEqual(['a']);
+  });
+});
+
+const exitStep = (): WorkflowStep => ({
+  id: `exit-${seq++}`,
+  stepDefinitionId: 'exit',
+  type: 'Action',
+  order: 0,
+  configuration: {},
+  enabled: true,
+});
+
+describe('runWorkflow — Encerrar Workflow (halt)', () => {
+  it('para no encerramento e devolve as saídas do step anterior', async () => {
+    const order: string[] = [];
+    const steps = withOrder([recordStep('A'), recordStep('B'), exitStep(), recordStep('C')]);
+    const result = await runWorkflow({
+      definition: makeDefinition(steps),
+      event: makeEvent({}),
+      registry: makeRegistry(order),
+      services,
+    });
+    expect(result.status).toBe('SUCCESS');
+    expect(order).toEqual(['A', 'B', 'EXIT']);
+    expect(result.outputs).toEqual({ value: 'B' });
+  });
+
+  it('encerra de dentro de um ramo de condição, sem rodar os steps após a condição', async () => {
+    const order: string[] = [];
+    const steps = withOrder([
+      recordStep('A'),
+      conditionStep(takeIf('yes'), withOrder([recordStep('T1'), exitStep()]), withOrder([recordStep('F1')])),
+      recordStep('Z'),
+    ]);
+    const result = await runWorkflow({
+      definition: makeDefinition(steps),
+      event: makeEvent({ branch: 'yes' }),
+      registry: makeRegistry(order),
+      services,
+    });
+    expect(result.status).toBe('SUCCESS');
+    expect(order).toEqual(['A', 'T1', 'EXIT']);
+    expect(result.outputs).toEqual({ value: 'T1' });
+  });
+
+  it('encerramento no início de um ramo devolve as saídas do step anterior à condição', async () => {
+    const order: string[] = [];
+    const steps = withOrder([
+      recordStep('A'),
+      conditionStep(takeIf('yes'), withOrder([exitStep()]), withOrder([recordStep('F1')])),
+      recordStep('Z'),
+    ]);
+    const result = await runWorkflow({
+      definition: makeDefinition(steps),
+      event: makeEvent({ branch: 'yes' }),
+      registry: makeRegistry(order),
+      services,
+    });
+    expect(result.status).toBe('SUCCESS');
+    expect(order).toEqual(['A', 'EXIT']);
+    expect(result.outputs).toEqual({ value: 'A' });
+  });
+
+  it('encerra de dentro de uma repetição, interrompendo as iterações seguintes', async () => {
+    const order: string[] = [];
+    const steps = withOrder([
+      loopStep(
+        'loop-1',
+        { kind: 'Event', path: 'items' },
+        withOrder([
+          recordFromExpr('input.name'),
+          conditionStep(
+            { kind: 'FieldComparison', fieldPath: 'input.name', operator: '==', value: 'b', valueType: 'literal' },
+            withOrder([exitStep()]),
+            [],
+          ),
+        ]),
+      ),
+      recordStep('Z'),
+    ]);
+    const result = await runWorkflow({
+      definition: makeDefinition(steps),
+      event: makeEvent({ items: [{ name: 'a' }, { name: 'b' }, { name: 'c' }] }),
+      registry: makeRegistry(order),
+      services,
+    });
+    expect(result.status).toBe('SUCCESS');
+    expect(order).toEqual(['a', 'b', 'EXIT']);
+    expect(result.outputs).toEqual({ value: 'b' });
+  });
+
+  it('encerramento no início do corpo de uma repetição devolve as saídas do step anterior ao loop', async () => {
+    const order: string[] = [];
+    const steps = withOrder([
+      recordStep('A'),
+      loopStep('loop-1', { kind: 'Event', path: 'items' }, withOrder([exitStep()])),
+      recordStep('Z'),
+    ]);
+    const result = await runWorkflow({
+      definition: makeDefinition(steps),
+      event: makeEvent({ items: [{ name: 'a' }, { name: 'b' }] }),
+      registry: makeRegistry(order),
+      services,
+    });
+    expect(result.status).toBe('SUCCESS');
+    expect(order).toEqual(['A', 'EXIT']);
+    expect(result.outputs).toEqual({ value: 'A' });
+  });
+
+  it('encerramento como primeiro step do fluxo devolve outputs vazios', async () => {
+    const order: string[] = [];
+    const steps = withOrder([exitStep(), recordStep('A')]);
+    const result = await runWorkflow({
+      definition: makeDefinition(steps),
+      event: makeEvent({}),
+      registry: makeRegistry(order),
+      services,
+    });
+    expect(result.status).toBe('SUCCESS');
+    expect(order).toEqual(['EXIT']);
+    expect(result.outputs).toEqual({});
+  });
+
+  it('sem encerramento, o retorno continua sendo o último step do fluxo', async () => {
+    const order: string[] = [];
+    const steps = withOrder([recordStep('A'), recordStep('B')]);
+    const result = await runWorkflow({
+      definition: makeDefinition(steps),
+      event: makeEvent({}),
+      registry: makeRegistry(order),
+      services,
+    });
+    expect(result.status).toBe('SUCCESS');
+    expect(result.outputs).toEqual({ value: 'B' });
   });
 });

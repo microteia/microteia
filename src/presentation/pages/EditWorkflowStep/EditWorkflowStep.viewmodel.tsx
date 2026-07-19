@@ -20,7 +20,7 @@ import {
   insertStepAtIndex,
   replaceStepInTree,
   removeStepFromTree,
-  flattenSteps,
+  returningStepsOf,
 } from '../../shared/workflowHelpers';
 import type { InsertTarget, BranchKey } from '../../shared/workflowHelpers';
 import type { WorkflowEventFieldOption } from '../../../domain/services/workflowEventCatalog';
@@ -466,33 +466,10 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
     [scripts],
   );
 
-  const workflowOutputsFor = useCallback(
-    (step: WorkflowStep, definition: StepDefinitionSummary): { id: string; label: string }[] => {
-      if (definition.dynamicOutputs?.kind !== 'from-target-workflow-outputs') return [];
-      const waitMapping = step.configuration.waitForResult;
-      if (!(waitMapping?.kind === 'Literal' && waitMapping.value === true)) return [];
-      const mapping = step.configuration[definition.dynamicOutputs.sourceInputId];
-      const id = mapping?.kind === 'Literal' ? String(mapping.value ?? '') : '';
-      if (!id) return [];
-      const target = workflows.find((w) => w.id === id);
-      if (!target) return [];
-      const names = new Set<string>();
-      flattenSteps(target.steps).forEach((targetStep) => {
-        if (targetStep.stepDefinitionId !== 'output') return;
-        const nameMapping = targetStep.configuration.name;
-        const name = nameMapping?.kind === 'Literal' ? String(nameMapping.value ?? '').trim() : '';
-        if (name) names.add(name);
-      });
-      return Array.from(names).map((name) => ({ id: name, label: name }));
-    },
-    [workflows],
-  );
-
-  // Fonte única de verdade das saídas selecionáveis de um step (estáticas, dinâmicas,
-  // projeções de query, saídas de Script/Workflow-alvo e objetos montados). Consumida tanto
-  // pelo autocomplete (`stepOutputFields`/`input.`) quanto pelo seletor visual (`getStepOutputs`)
-  // e pela lista de steps candidatos (`priorStepOptions`), garantindo que os três coincidam.
-  const resolveStepOutputs = useCallback(
+  // Saídas de um Step desconsiderando chamadas a outro workflow. É a base compartilhada entre
+  // resolveStepOutputs e a leitura das saídas de um workflow-alvo — separá-las impede recursão
+  // infinita quando um workflow chama outro que também chama workflow.
+  const localStepOutputs = useCallback(
     (step: WorkflowStep): { id: string; label: string }[] => {
       if (step.type === 'Loop' && step.loop) {
         return [{ id: step.loop.outputName, label: `${step.loop.outputName} (lista)` }];
@@ -526,9 +503,6 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
       scriptOutputsFor(step, definition).forEach((output) => {
         outputs.push({ id: output.id, label: output.label });
       });
-      workflowOutputsFor(step, definition).forEach((output) => {
-        outputs.push({ id: output.id, label: output.label });
-      });
 
       const mapConfig = objectOutputConfigOf(step, definition);
       if (mapConfig) {
@@ -540,7 +514,48 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
 
       return outputs;
     },
-    [stepCatalog, scriptOutputsFor, workflowOutputsFor],
+    [stepCatalog, scriptOutputsFor],
+  );
+
+  const workflowOutputsFor = useCallback(
+    (step: WorkflowStep, definition: StepDefinitionSummary): { id: string; label: string }[] => {
+      if (definition.dynamicOutputs?.kind !== 'from-target-workflow-outputs') return [];
+      const waitMapping = step.configuration.waitForResult;
+      if (!(waitMapping?.kind === 'Literal' && waitMapping.value === true)) return [];
+      const mapping = step.configuration[definition.dynamicOutputs.sourceInputId];
+      const id = mapping?.kind === 'Literal' ? String(mapping.value ?? '') : '';
+      if (!id) return [];
+      const target = workflows.find((w) => w.id === id);
+      if (!target) return [];
+
+      const labelsByOutputId = new Map<string, string>();
+      returningStepsOf(target.steps).forEach((returningStep) => {
+        localStepOutputs(returningStep).forEach((output) => {
+          if (!labelsByOutputId.has(output.id)) labelsByOutputId.set(output.id, output.label);
+        });
+      });
+      return Array.from(labelsByOutputId, ([outputId, label]) => ({ id: outputId, label }));
+    },
+    [workflows, localStepOutputs],
+  );
+
+  // Fonte única de verdade das saídas selecionáveis de um step (estáticas, dinâmicas,
+  // projeções de query, saídas de Script/Workflow-alvo e objetos montados). Consumida tanto
+  // pelo autocomplete (`stepOutputFields`/`input.`) quanto pelo seletor visual (`getStepOutputs`)
+  // e pela lista de steps candidatos (`priorStepOptions`), garantindo que os três coincidam.
+  const resolveStepOutputs = useCallback(
+    (step: WorkflowStep): { id: string; label: string }[] => {
+      const definition = stepCatalog.find((d) => d.id === step.stepDefinitionId);
+      const outputs = localStepOutputs(step);
+      if (!definition) return outputs;
+
+      workflowOutputsFor(step, definition).forEach((output) => {
+        outputs.push({ id: output.id, label: output.label });
+      });
+
+      return outputs;
+    },
+    [stepCatalog, localStepOutputs, workflowOutputsFor],
   );
 
   const stepOutputFields = useMemo(() => {

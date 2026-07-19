@@ -138,12 +138,14 @@ export const runWorkflow = async ({ definition, event, registry, services }: Run
     context.input = Object.keys(flattenedOutputs).length > 0 ? flattenedOutputs : event.payload ?? {};
   };
 
-  type StepsRunResult = { ok: true; lastStepId: string | null } | { ok: false };
+  type StepsRunResult = { ok: true; lastStepId: string | null; halted?: boolean } | { ok: false };
 
   // Executa uma sequência de Steps (um nível/ramo). Recursiva: um StepCondition avalia sua
   // condição e desce no ramo correspondente; ao retornar, o fluxo converge para os próximos
   // Steps deste nível. `incomingLastStepId` propaga qual foi o último Step executado, para que
   // os outputs finais do workflow reflitam a travessia inteira, não só o último nível.
+  // `halted` sobe pela recursão quando um Step de encerramento roda: nenhum Step posterior
+  // executa, em nenhum nível, e `lastStepId` preserva o Step cujas saídas serão o retorno.
   const executeSteps = async (branchSteps: WorkflowStep[], incomingLastStepId: string | null): Promise<StepsRunResult> => {
     let lastStepId = incomingLastStepId;
 
@@ -185,6 +187,9 @@ export const runWorkflow = async ({ definition, event, registry, services }: Run
           return { ok: false };
         }
         lastStepId = recur.lastStepId;
+        if (recur.halted) {
+          return { ok: true, lastStepId, halted: true };
+        }
         continue;
       }
 
@@ -227,6 +232,12 @@ export const runWorkflow = async ({ definition, event, registry, services }: Run
           if (!recur.ok) {
             loopFailed = true;
             break;
+          }
+          if (recur.halted) {
+            // Encerramento dentro do corpo: não agrega nem limpa as saídas do corpo, porque o
+            // retorno do workflow é justamente a saída do Step que rodou antes do encerramento.
+            log('INFO', 'Repetição interrompida por encerramento do workflow', step.id, undefined, context.input);
+            return { ok: true, lastStepId: recur.lastStepId ?? lastStepId, halted: true };
           }
           results.push(recur.lastStepId ? context.outputs[recur.lastStepId] ?? {} : {});
         }
@@ -283,6 +294,14 @@ export const runWorkflow = async ({ definition, event, registry, services }: Run
 
         context.outputs[step.id] = result.outputs ?? {};
         log('SUCCESS', result.message ?? `Step "${stepDefinition.name}" concluído`, step.id, step.stepDefinitionId, context.input, inputs, result.outputs);
+
+        if (result.halt) {
+          // Um Step de encerramento não produz saída própria: `lastStepId` continua apontando
+          // para o Step anterior, cujas saídas viram o retorno do workflow.
+          const haltedAt = result.outputs && Object.keys(result.outputs).length > 0 ? step.id : lastStepId;
+          return { ok: true, lastStepId: haltedAt, halted: true };
+        }
+
         lastStepId = step.id;
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);

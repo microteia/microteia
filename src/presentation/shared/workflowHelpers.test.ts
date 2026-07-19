@@ -11,6 +11,8 @@ import {
   parseParentKey,
   removeStepFromTree,
   reorderSiblings,
+  returningStepsOf,
+  EXIT_STEP_DEFINITION_ID,
 } from './workflowHelpers';
 
 const action = (id: string, order: number): WorkflowStep => ({
@@ -207,5 +209,112 @@ describe('workflowHelpers — mover step entre níveis', () => {
 
   it('id inexistente retorna a árvore intacta', () => {
     expect(moveStepToLocation(loopTree, 'ZZZ', { kind: 'root' }, 0)).toBe(loopTree);
+  });
+});
+
+const exit = (id: string, order: number): WorkflowStep => ({
+  id,
+  stepDefinitionId: EXIT_STEP_DEFINITION_ID,
+  type: 'Action',
+  order,
+  configuration: {},
+  enabled: true,
+});
+
+const ids = (steps: WorkflowStep[]): string[] => steps.map((step) => step.id);
+
+// Espelha a regra do WorkflowExecutor: o retorno do workflow são as saídas do último Step
+// executado. Cada caso aqui tem um teste-irmão no motor (WorkflowExecutor.test.ts, describe
+// "Encerrar Workflow (halt)"), para que design-time e runtime não divirjam.
+describe('returningStepsOf', () => {
+  it('sem encerramento, é o último Step do nível raiz', () => {
+    expect(ids(returningStepsOf([action('A', 0), action('B', 1)]))).toEqual(['B']);
+  });
+
+  it('lista vazia não tem candidato', () => {
+    expect(returningStepsOf([])).toEqual([]);
+  });
+
+  it('é o Step anterior ao encerramento, ignorando os Steps seguintes', () => {
+    expect(ids(returningStepsOf([action('A', 0), action('B', 1), exit('X', 2), action('C', 3)]))).toEqual(['B']);
+  });
+
+  it('encerramento como primeiro Step do fluxo não tem anterior — nenhum candidato', () => {
+    expect(returningStepsOf([exit('X', 0), action('A', 1)])).toEqual([]);
+  });
+
+  it('encerramento no início de um ramo usa o Step anterior à Condição', () => {
+    const steps = [
+      action('A', 0),
+      cond('C', 1, [exit('X', 0)], [action('F1', 0)]),
+      action('Z', 2),
+    ];
+    expect(ids(returningStepsOf(steps))).toEqual(['A']);
+  });
+
+  it('encerramento no início do corpo de um Loop usa o Step anterior ao Loop', () => {
+    const steps = [action('A', 0), loop('L', 1, [exit('X', 0)]), action('Z', 2)];
+    expect(ids(returningStepsOf(steps))).toEqual(['A']);
+  });
+
+  it('encerramento dentro de um ramo usa o Step anterior daquele ramo', () => {
+    const steps = [
+      action('A', 0),
+      cond('C', 1, [action('T1', 0), exit('X', 1)], [action('F1', 0)]),
+      action('Z', 2),
+    ];
+    expect(ids(returningStepsOf(steps))).toEqual(['T1']);
+  });
+
+  it('um encerramento por ramo produz a união das formas de retorno possíveis', () => {
+    const steps = [
+      cond('C', 0, [action('T1', 0), exit('X1', 1)], [action('F1', 0), exit('X2', 1)]),
+      action('Z', 1),
+    ];
+    expect(ids(returningStepsOf(steps))).toEqual(['T1', 'F1']);
+  });
+
+  it('encerramento dentro do corpo de um Loop usa o Step anterior do corpo', () => {
+    const steps = [loop('L', 0, [action('B1', 0), exit('X', 1)]), action('Z', 1)];
+    expect(ids(returningStepsOf(steps))).toEqual(['B1']);
+  });
+
+  it('última posição ocupada por uma Condição expande nos terminais de cada ramo', () => {
+    const steps = [action('A', 0), cond('C', 1, [action('T1', 0), action('T2', 1)], [action('F1', 0)])];
+    expect(ids(returningStepsOf(steps))).toEqual(['T2', 'F1']);
+  });
+
+  it('expande recursivamente condições aninhadas na última posição', () => {
+    const steps = [cond('C', 0, [cond('C2', 0, [action('D1', 0)], [action('D2', 0)])], [action('F', 0)])];
+    expect(ids(returningStepsOf(steps))).toEqual(['D1', 'D2', 'F']);
+  });
+
+  it('ramo vazio na última posição não contribui com candidato', () => {
+    const steps = [cond('C', 0, [], [action('F', 0)])];
+    expect(ids(returningStepsOf(steps))).toEqual(['F']);
+  });
+
+  it('um Loop na última posição não expande — a saída é o vetor do próprio Loop', () => {
+    const steps = [action('A', 0), loop('L', 1, [action('B1', 0)])];
+    expect(ids(returningStepsOf(steps))).toEqual(['L']);
+  });
+
+  it('Steps desabilitados não são candidatos nem contam como anteriores', () => {
+    const steps = [
+      action('A', 0),
+      { ...action('B', 1), enabled: false },
+      exit('X', 2),
+    ];
+    expect(ids(returningStepsOf(steps))).toEqual(['A']);
+  });
+
+  it('encerramento desabilitado não interrompe — vale o último Step do fluxo', () => {
+    const steps = [action('A', 0), { ...exit('X', 1), enabled: false }, action('B', 2)];
+    expect(ids(returningStepsOf(steps))).toEqual(['B']);
+  });
+
+  it('respeita `order`, não a posição no array', () => {
+    const steps = [exit('X', 2), action('B', 1), action('A', 0)];
+    expect(ids(returningStepsOf(steps))).toEqual(['B']);
   });
 });

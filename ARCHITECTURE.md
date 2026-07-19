@@ -1657,7 +1657,7 @@ Um botão configurável nas telas de dados que dispara um **workflow síncrono**
 
 **Contrato com o workflow** — o alvo tem `eventName: 'workflow.called'` e recebe `action` (o `key`), `source` (o `screenKey`), `context` (valores da tela), `recordId` e `isNew`. O frontend manda o `values` **cru**; quem poda e coage é o `formatAndValidateParameters` do executor, contra os `fields` declarados no parâmetro `context`. As saídas esperadas são `result` (objeto a aplicar), `status` (`{ code: 'SUCCESS'|'WARNING'|'ERROR', message, fieldErrors? }`) e `actions` (comandos locais).
 
-> **O último Step precisa emitir as três chaves de uma vez.** O `WorkflowExecutor` devolve **apenas os outputs do último step da travessia** (`context.outputs[run.lastStepId]`), e o Step "Saída do Workflow" emite **uma chave por vez** — encadear três Steps de saída descartaria as duas primeiras. As formas corretas são **"Montar Objeto" sem nome** (o `MapStep` espalha os campos na raiz quando `config.name` é vazio) ou um **Step Script** retornando `{ result, status, actions }`. Como `normalizeActionOutcome` é tolerante, esse erro seria um no-op silencioso; por isso o `runAction` detecta a ausência das três chaves e devolve uma mensagem explicando a regra.
+> **O último Step precisa emitir as três chaves de uma vez.** O `WorkflowExecutor` devolve **apenas os outputs do último step da travessia** (`context.outputs[run.lastStepId]`), então um Step que emitisse uma chave por vez descartaria as anteriores. As formas corretas são **"Montar Objeto" sem nome** (o `MapStep` espalha os campos na raiz quando `config.name` é vazio) ou um **Step Script** retornando `{ result, status, actions }`. Como `normalizeActionOutcome` é tolerante, esse erro seria um no-op silencioso; por isso o `runAction` detecta a ausência das três chaves e devolve uma mensagem explicando a regra.
 
 `normalizeActionOutcome` (mesmo arquivo, com testes) traduz os outputs crus e é **deliberadamente tolerante**: saída ausente ou malformada vira "nada a aplicar", nunca exceção na tela. Aceita comando como string (`"merge"`) ou objeto (`{ type: 'merge' }`) — a forma-objeto existe para comandos parametrizados no futuro sem quebrar workflows já escritos.
 
@@ -2121,6 +2121,42 @@ percorrem a árvore via `flattenSteps`/`mapStepTree` (`functions/src/domain/serv
 - `src/presentation/pages/ViewWorkflow/components/StepEditorModal/` — UI genérica dirigida por `InputDefinition[]`
 - `src/presentation/components/ui/ExpressionEditor/` — editor de expressões com autocomplete segmento-a-segmento (`pathRoot` + `suggestNextSegments`) e validação semântica de caminhos
 - `src/presentation/shared/useSchemaContext.ts` / `useLookupValues.ts` — pontes dos stores para o resolvedor (screens dinâmicas e valores de lookup)
+
+### Step "Encerrar Workflow" (`exit`) — saída antecipada
+
+Step sem inputs e sem outputs (`configurable: false`) que **interrompe a execução no ponto em que
+está**. O retorno do workflow passa a ser o que ele já seria naquele instante: as saídas do **Step
+executado imediatamente antes**. Não existe "Step que declara a saída" — quem define o retorno é
+sempre o último Step da travessia (`context.outputs[run.lastStepId]`); o `exit` apenas antecipa esse
+fim. Para montar o objeto de retorno, use "Montar Objeto" (`map`) antes dele.
+
+**Mecânica.** `WorkflowResult` ganhou `halt?: boolean`. Quando um executor devolve `halt`, o
+`executeSteps` retorna `{ ok: true, halted: true }` **sem mover o `lastStepId`** (o Step de
+encerramento não produz saída própria), e o flag sobe pela recursão: um ramo de `StepCondition`
+propaga imediatamente sem executar os Steps após a condição, e um corpo de `Loop` interrompe as
+iterações restantes **sem agregar** o vetor de `outputName` e **sem limpar** `context.outputs` do
+corpo — justamente porque o retorno vem de um Step de dentro do corpo. `halt` é um contrato genérico
+do executor, não um caso especial do Step `exit`: qualquer Step futuro pode encerrar o fluxo.
+
+**Design-time (IntelliSense do "Chamar Workflow").** Para saber o que um workflow-alvo devolve, o
+editor não procura mais um Step de saída nomeado. `returningStepsOf`
+(`presentation/shared/workflowHelpers.ts`, com testes) reproduz a regra do motor: os candidatos são
+os Steps anteriores a cada `exit` (um por ramo) ou, se não houver nenhum `exit`, o último Step do
+nível raiz — expandindo nós de `Condition` nos terminais de cada ramo, já que eles não têm saída
+própria. Dois detalhes que **precisam** espelhar o executor, e por isso têm teste-irmão em
+`WorkflowExecutor.test.ts`: um `exit` na primeira posição de um ramo ou do corpo de um Loop tem como
+"Step anterior" o último Step do nível de cima (o `incomingLastStepId` do executor), e um `exit` sem
+nenhum Step anterior devolve **vazio** — não cai no fallback do último Step do fluxo, porque em
+runtime esse Step nunca chega a executar.
+
+As saídas dos candidatos são resolvidas por `localStepOutputs`, uma versão de `resolveStepOutputs`
+**sem** `from-target-workflow-outputs`: a separação é o que impede recursão infinita quando um
+workflow chama outro que também chama workflow.
+
+> **Descontinuado:** o Step `output` ("Saída do Workflow"), que emitia um par nome-valor, foi
+> removido — o `MapStep` sem nome faz o mesmo com N campos de uma vez e com builder visual.
+> Workflows salvos que ainda o referenciem falham com "StepDefinition desconhecida" e precisam ser
+> editados.
 
 ### Step "Script" — código do usuário em sandbox QuickJS
 

@@ -11,7 +11,7 @@ import { makeCallWorkflowStepDefinition } from './steps/CallWorkflowStep';
 import { makeScriptStepDefinition } from './steps/ScriptStep';
 import { makeCreateDeadlineStepDefinition } from './steps/CreateDeadlineStep';
 import { makeNotifyStepDefinition } from './steps/NotifyStep';
-import { makeOutputStepDefinition } from './steps/OutputStep';
+import { makeExitStepDefinition } from './steps/ExitStep';
 import { makeMapStepDefinition } from './steps/MapStep';
 import { makeQueryStepDefinition } from './steps/QueryStep';
 import { makeUpsertStepDefinition } from './steps/UpsertStep';
@@ -54,7 +54,7 @@ export const registerSteps = (deps: RegisterStepsDeps): void => {
   stepRegistry.register(makeSetVariableStepDefinition());
   stepRegistry.register(makeMapStepDefinition());
   stepRegistry.register(makeValidateStepDefinition(deps.screenDefinitionProvider));
-  stepRegistry.register(makeOutputStepDefinition());
+  stepRegistry.register(makeExitStepDefinition());
   stepRegistry.register(makeCallWorkflowStepDefinition(deps.runCalledWorkflowUseCase));
   stepRegistry.register(makeScriptStepDefinition(deps.scriptRepository, queryDeps, mutationDeps));
   stepRegistry.register(
