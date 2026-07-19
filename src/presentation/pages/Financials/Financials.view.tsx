@@ -12,11 +12,15 @@ import {
   RiEyeLine,
   RiEyeOffLine,
   RiLineChartLine,
+  RiLinkM,
+  RiFileCopyLine,
+  RiPriceTag3Line,
 } from 'react-icons/ri';
 import { S } from './Financials.styles';
 import { useFinancialsViewModel } from './Financials.viewmodel';
 import { Button } from '../../components/ui/Button';
 import { ConfirmModal } from '../../components/ui/ConfirmModal';
+import { TagManager } from '../../components/ui/TagManager';
 import { Badge } from '../../components/ui/Badge';
 import { CustomFieldMetaRows } from '../../components/ui/CustomFieldMetaRows';
 import { EntityListCard, type EntityCardAction } from '../../components/ui/EntityListCard';
@@ -79,15 +83,24 @@ export const FinancialsView: React.FC = () => {
   ) : undefined;
 
   const modals = (
-    <ConfirmModal
+    <>
+      {vm.tagManagerFinancial && (
+        <TagManager
+          entityId={vm.tagManagerFinancial.id}
+          onClose={vm.closeTagManager}
+          adapter={vm.tagAdapter}
+        />
+      )}
+      <ConfirmModal
       isOpen={!!vm.financialToDelete}
       onConfirm={() => void vm.confirmDelete()}
       onCancel={vm.cancelDelete}
       title="Excluir Lançamento"
       message={`Tem certeza que deseja excluir o lançamento "${vm.financialToDelete?.category}"? Esta ação não pode ser desfeita.`}
-      confirmLabel="Excluir"
-      variant="danger"
-    />
+        confirmLabel="Excluir"
+        variant="danger"
+      />
+    </>
   );
 
   return (
@@ -119,6 +132,35 @@ export const FinancialsView: React.FC = () => {
         const customItems = vm.getCustomFieldItems(f);
         const record = f as unknown as Record<string, unknown>;
 
+        // Registrar/estornar pagamento são operações do fluxo: sempre visíveis. As demais vêm da
+        // configuração da tela (Form Design > Financeiro).
+        const configurable: Record<string, EntityCardAction> = {
+          copyLink: {
+            key: 'copyLink',
+            icon: <RiLinkM size={13} />,
+            title: 'Copiar link',
+            onClick: () => vm.handleCopyLink(f),
+          },
+          clone: {
+            key: 'clone',
+            icon: <RiFileCopyLine size={13} />,
+            title: 'Duplicar',
+            onClick: () => vm.handleClone(f),
+          },
+          manageTags: {
+            key: 'manageTags',
+            icon: <RiPriceTag3Line size={13} />,
+            title: 'Gerenciar etiquetas',
+            onClick: () => vm.setTagManagerFinancial(f),
+          },
+          delete: {
+            key: 'delete',
+            icon: <RiDeleteBinLine size={13} />,
+            title: 'Excluir lançamento',
+            danger: true,
+            onClick: () => vm.handleDelete(f),
+          },
+        };
         const actions: EntityCardAction[] = [
           ...(f.status === 'Aberto' ? [{
             key: 'markPaid',
@@ -132,13 +174,7 @@ export const FinancialsView: React.FC = () => {
             title: 'Cancelar pagamento',
             onClick: () => { void vm.handleCancelPayment(f); },
           }] : []),
-          {
-            key: 'delete',
-            icon: <RiDeleteBinLine size={13} />,
-            title: 'Excluir lançamento',
-            danger: true,
-            onClick: () => vm.handleDelete(f),
-          },
+          ...vm.listActions.map((key) => configurable[key]).filter(Boolean),
         ];
 
         // Compõe vencimento/pagamento/cancelamento numa linha só, com cores distintas.

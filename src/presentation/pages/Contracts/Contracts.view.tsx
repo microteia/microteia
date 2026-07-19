@@ -1,10 +1,19 @@
 import React from 'react';
-import { RiFileTextLine, RiCalendarLine } from 'react-icons/ri';
+import {
+  RiFileTextLine,
+  RiCalendarLine,
+  RiLinkM,
+  RiFileCopyLine,
+  RiPriceTag3Line,
+  RiDeleteBinLine,
+} from 'react-icons/ri';
 import { S } from './Contracts.styles';
 import { useContractsViewModel } from './Contracts.viewmodel';
 import { Badge } from '../../components/ui/Badge';
 import { CustomFieldMetaRows } from '../../components/ui/CustomFieldMetaRows';
-import { EntityListCard } from '../../components/ui/EntityListCard';
+import { EntityListCard, type EntityCardAction } from '../../components/ui/EntityListCard';
+import { ConfirmModal } from '../../components/ui/ConfirmModal';
+import { TagManager } from '../../components/ui/TagManager';
 import { EntityListView } from '../../components/layout/EntityListView';
 import { getScreenIcon } from '../../shared/screenIcons';
 import { useContractTagStore } from '../../../stores/useContractTagStore';
@@ -31,6 +40,26 @@ export const ContractsView: React.FC = () => {
       isEmpty={vm.filteredContracts.length === 0}
       emptyIcon={<RiFileTextLine />}
       emptyTitle="Nenhum contrato encontrado"
+      modals={
+        <>
+          {vm.tagManagerContract && (
+            <TagManager
+              entityId={vm.tagManagerContract.id}
+              onClose={vm.closeTagManager}
+              adapter={vm.tagAdapter}
+            />
+          )}
+          <ConfirmModal
+            isOpen={vm.contractToDelete !== null}
+            title="Excluir contrato"
+            message={`Tem certeza que deseja excluir "${vm.contractToDelete?.title ?? ''}"? As anotações e documentos vinculados também serão excluídos.`}
+            variant="danger"
+            confirmLabel="Excluir"
+            onConfirm={() => void vm.confirmDelete()}
+            onCancel={vm.cancelDelete}
+          />
+        </>
+      }
       emptyActionLabel="Cadastrar primeiro contrato"
     >
       {vm.filteredContracts.map((c) => {
@@ -85,8 +114,16 @@ export const ContractsView: React.FC = () => {
             .filter((row) => row.value !== ''),
         ];
 
+        const configurable: Record<string, EntityCardAction> = {
+          copyLink: { key: 'copyLink', icon: <RiLinkM size={13} />, title: 'Copiar link', onClick: () => vm.handleCopyLink(c) },
+          clone: { key: 'clone', icon: <RiFileCopyLine size={13} />, title: 'Duplicar', onClick: () => vm.handleClone(c) },
+          manageTags: { key: 'manageTags', icon: <RiPriceTag3Line size={13} />, title: 'Gerenciar etiquetas', onClick: () => vm.setTagManagerContract(c) },
+          delete: { key: 'delete', icon: <RiDeleteBinLine size={13} />, title: 'Excluir', danger: true, onClick: () => vm.setContractToDelete(c) },
+        };
+
         return (
           <EntityListCard
+            actions={vm.listActions.map((key) => configurable[key]).filter(Boolean)}
             key={c.id}
             onClick={() => vm.openContract(c)}
             avatar={<RiFileTextLine size={22} />}

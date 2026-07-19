@@ -4,6 +4,7 @@ import {
   RiDeleteBinLine,
   RiCheckLine,
   RiAlertLine,
+  RiLinkM,
 } from 'react-icons/ri';
 import { S } from './Deadlines.styles';
 import { useDeadlinesViewModel } from './Deadlines.viewmodel';
@@ -84,6 +85,23 @@ export const DeadlinesView: React.FC = () => {
         const record = d as unknown as Record<string, unknown>;
         const isClosed = d.status === 'Concluído' || d.status === 'Cancelado';
 
+        // "Concluir" é operação do fluxo de trabalho: sempre visível. As demais vêm da
+        // configuração da tela (Form Design > Prazos).
+        const configurable: Record<string, EntityCardAction> = {
+          copyLink: {
+            key: 'copyLink',
+            icon: <RiLinkM size={13} />,
+            title: 'Copiar link',
+            onClick: () => vm.handleCopyLink(d),
+          },
+          delete: {
+            key: 'delete',
+            icon: <RiDeleteBinLine size={13} />,
+            title: 'Excluir prazo',
+            danger: true,
+            onClick: () => vm.handleDelete(d),
+          },
+        };
         const actions: EntityCardAction[] = [
           ...(isClosed ? [] : [{
             key: 'complete',
@@ -91,13 +109,7 @@ export const DeadlinesView: React.FC = () => {
             title: 'Marcar como concluído',
             onClick: () => vm.handleComplete(d),
           }]),
-          {
-            key: 'delete',
-            icon: <RiDeleteBinLine size={13} />,
-            title: 'Excluir prazo',
-            danger: true,
-            onClick: () => vm.handleDelete(d),
-          },
+          ...vm.listActions.map((key) => configurable[key]).filter(Boolean),
         ];
 
         // Exclusivo do Prazo: badges de situação e prioridade.

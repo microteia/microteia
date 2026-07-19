@@ -7,6 +7,7 @@ import { useNotification } from '../../../stores/useNotification';
 import { ensureUniqueKey, slugifyFieldKey, sortFieldsByOrder, validateFieldKey } from '../../../domain/services/customFieldValues';
 import { getDefaultTagColor } from '../../../shared/styles/colorUtils';
 import { getScreenIconOptions } from '../../shared/screenIcons';
+import { resolveListActions, supportedListActions } from '../../shared/listActionCapabilities';
 import type { CustomFieldMask, CustomFieldType, FieldDefinition, ScreenDefinition, ScreenListAction } from '../../../domain/entities';
 import type { FieldLogic, FieldRules, FormatPreset, FormatRule, ValidateCheck, ValidateRule } from '../../../domain/schema/fieldRules';
 import { FORMAT_PRESET_LABELS, VALIDATE_CHECK_LABELS } from '../../../domain/schema/fieldRules';
@@ -119,6 +120,8 @@ export interface ScreenBuilderViewModel {
   screenModalIsEdit: boolean;
   /** Modal aberto para uma tela do sistema: só configura os registros filhos. */
   screenModalIsBuiltin: boolean;
+  screenModalTitle: string;
+  modalListActionOptions: { key: ScreenListAction; label: string }[];
   screenForm: ScreenFormState;
   updateScreenForm: (patch: Partial<ScreenFormState>) => void;
   toggleListAction: (action: ScreenListAction) => void;
@@ -526,7 +529,11 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
     // (uma tela fixa PODE ter definição gravada, por causa dos campos adicionais — por isso a
     // checagem é pela lista de builtins, não pela ausência de definição)
     if (BUILTIN_SCREENS.some((b) => b.key === screenKey) || !def) {
-      setScreenForm({ ...EMPTY_SCREEN_FORM, childLinks });
+      setScreenForm({
+        ...EMPTY_SCREEN_FORM,
+        childLinks,
+        listActions: resolveListActions(screenKey, def?.listActions),
+      });
       setScreenModal({ screenKey });
       return;
     }
@@ -601,6 +608,12 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
   const screenModalIsBuiltin = !!screenModal?.screenKey
     && BUILTIN_SCREENS.some((b) => b.key === screenModal.screenKey);
 
+  const modalListActionOptions = useMemo(() => {
+    if (!screenModalIsBuiltin) return LIST_ACTION_OPTIONS;
+    const supported = supportedListActions(screenModal?.screenKey ?? '');
+    return LIST_ACTION_OPTIONS.filter((option) => supported.includes(option.key));
+  }, [screenModalIsBuiltin, screenModal]);
+
   /** O vínculo é configurado no pai, mas o dado mora na definição da tela FILHA. */
   const persistChildLinks = useCallback(async (parentKey: string) => {
     for (const candidate of childCandidates) {
@@ -643,6 +656,11 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
     try {
       // Tela do sistema: nada a salvar nela própria, só os vínculos dos filhos.
       if (screenModal?.screenKey && BUILTIN_SCREENS.some((b) => b.key === screenModal.screenKey)) {
+        const builtinDef = getDefinitionByKey(screenModal.screenKey);
+        await saveDefinition(screenModal.screenKey, {
+          ...(builtinDef ? toSaveInput(builtinDef) : builtinSaveInput(screenModal.screenKey)),
+          listActions: screenForm.listActions,
+        });
         await persistChildLinks(screenModal.screenKey);
         notify('Registros filhos atualizados!', 'success');
         setScreenModal(null);
@@ -1089,6 +1107,10 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
     screenModalOpen: screenModal !== null,
     screenModalIsEdit: !!screenModal?.screenKey,
     screenModalIsBuiltin,
+    modalListActionOptions,
+    screenModalTitle: screenModalIsBuiltin
+      ? `Configurações de ${BUILTIN_SCREENS.find((b) => b.key === screenModal?.screenKey)?.label ?? 'Tela'}`
+      : (screenModal?.screenKey ? 'Editar Tela' : 'Nova Tela'),
     screenForm,
     updateScreenForm,
     toggleListAction,

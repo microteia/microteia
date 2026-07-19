@@ -9,6 +9,9 @@ import { useContractStore } from '../../../stores/useContractStore';
 import { useWorkspace } from '../../../stores/useWorkspace';
 import { useNotification } from '../../../stores/useNotification';
 import { useScreenDefinitions } from '../../../stores/useScreenDefinitions';
+import { generateDeepLink } from '../../../infrastructure/deeplink/deepLinkUtils';
+import { resolveListActions } from '../../shared/listActionCapabilities';
+import type { TagStoreAdapter } from '../../components/ui/TagManager';
 import { useCustomFieldListing, CUSTOM_FIELD_FILTER_PREFIX } from '../../hooks/useCustomFieldListing';
 import type { CustomFieldCardItem } from '../../hooks/useCustomFieldListing';
 import { consumeNavigationIntent, setNavigationIntent, subscribeNavigationIntent } from '../../../infrastructure/navigation/navigationIntent';
@@ -21,7 +24,7 @@ import {
   filterFinancialsByTokens,
   type FinancialSummary,
 } from '../../shared/financials/financialFilters';
-import type { Financial } from '../../../domain/entities';
+import type { Financial, ScreenListAction } from '../../../domain/entities';
 import type { FilterDef, FilterOption, FilterToken } from '../../components/ui/CompositeFilter';
 
 export type { FinancialSummary };
@@ -58,20 +61,27 @@ export interface FinancialsViewModel {
   getCardStatusColor: (f: Financial) => string;
   getTypeColor: (type: string) => string;
   getCustomFieldItems: (f: Financial) => CustomFieldCardItem[];
+  listActions: ScreenListAction[];
+  handleCopyLink: (f: Financial) => void;
+  handleClone: (f: Financial) => void;
+  tagManagerFinancial: Financial | null;
+  setTagManagerFinancial: (f: Financial | null) => void;
+  closeTagManager: () => void;
+  tagAdapter: TagStoreAdapter;
 }
 
 const fmt = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
 
 export const useFinancialsViewModel = (): FinancialsViewModel => {
   const { financials, isLoading, deleteFinancial, markPaid, updateFinancialStatus, cancelFinancial } = useFinancialStore();
-  const { tags } = useFinancialTagStore();
+  const { tags, getTagsForFinancial, setTagsForFinancial, createTag, updateTag, deleteTag } = useFinancialTagStore();
   const { statusConfigs } = useFinancialLookup();
   const { cases } = useCaseStore();
   const { persons } = usePersonStore();
   const { contracts } = useContractStore();
   const { openTab } = useWorkspace();
   const { notify } = useNotification();
-  const { getCustomFieldsFor } = useScreenDefinitions();
+  const { getCustomFieldsFor, getDefinition } = useScreenDefinitions();
   const theme = useTheme();
 
   const customFields = useMemo(() => getCustomFieldsFor('financials'), [getCustomFieldsFor]);
@@ -170,6 +180,33 @@ export const useFinancialsViewModel = (): FinancialsViewModel => {
     openTab('financial-dashboard');
   }, [openTab, filterTokens]);
   const openFinancial = useCallback((f: Financial) => openTab(`view-financial:${f.id}`), [openTab]);
+
+  const listActions = useMemo(
+    () => resolveListActions('financials', getDefinition('financials')?.listActions),
+    [getDefinition],
+  );
+
+  const handleCopyLink = useCallback((f: Financial) => {
+    void navigator.clipboard.writeText(generateDeepLink(`view-financial:${f.id}`));
+    notify('Link copiado para a área de transferência.', 'success');
+  }, [notify]);
+
+  const handleClone = useCallback((f: Financial) => openTab(`new-financial:clone:${f.id}`), [openTab]);
+
+  const [tagManagerFinancial, setTagManagerFinancial] = useState<Financial | null>(null);
+  const closeTagManager = useCallback(() => setTagManagerFinancial(null), []);
+
+  const tagAdapter = useMemo<TagStoreAdapter>(() => ({
+    tags,
+    getAppliedTags: (entityId: string) => {
+      const target = financials.find((f) => f.id === entityId);
+      return getTagsForFinancial(entityId, target?.tagIds ?? []);
+    },
+    setTags: (entityId: string, tagIds: string[]) => setTagsForFinancial(entityId, tagIds),
+    createTag: (name: string, color: string) => createTag(name, color),
+    updateTag: (id: string, data: { name: string; color: string }) => updateTag(id, data),
+    deleteTag: (id: string) => deleteTag(id),
+  }), [tags, financials, getTagsForFinancial, setTagsForFinancial, createTag, updateTag, deleteTag]);
   const openPerson = useCallback((personId: string | null | undefined) => { if (personId) openTab(`view-person:${personId}`); }, [openTab]);
   const openCase = useCallback((caseId: string | null | undefined) => { if (caseId) openTab(`view-case:${caseId}`); }, [openTab]);
   const openContract = useCallback((contractId: string | null | undefined) => { if (contractId) openTab(`view-contract:${contractId}`); }, [openTab]);
@@ -223,6 +260,13 @@ export const useFinancialsViewModel = (): FinancialsViewModel => {
   }, [cancelFinancial, notify]);
 
   return {
+    listActions,
+    handleCopyLink,
+    handleClone,
+    tagManagerFinancial,
+    setTagManagerFinancial,
+    closeTagManager,
+    tagAdapter,
     financials,
     filteredFinancials,
     isLoading,

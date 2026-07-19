@@ -17,15 +17,14 @@ export interface PersonListConfig {
   titleKey: string;
   subtitle: { key: string; icon: string };
   showTags: boolean;
-  actions: PersonCardActionKey[];
   rows: PersonCardRow[];
 }
 
-// Título/subtítulo/etiquetas/ações são configuração de nível de card; as linhas derivam do registry (`ui.list`).
+// Título/subtítulo/etiquetas são configuração de nível de card; as linhas derivam do registry
+// (`ui.list`) e as ações vêm da configuração da tela (ScreenDefinition.listActions).
 export const PERSON_LIST_CONFIG: PersonListConfig = {
   titleKey: 'name',
   subtitle: { key: 'type', icon: 'user' },
   showTags: true,
-  actions: ['manageTags'],
   rows: deriveListRows('persons'),
 };

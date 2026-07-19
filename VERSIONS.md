@@ -11,6 +11,12 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [0.113.0] — 2026-07-18
+
+- As telas do sistema (Pessoas, Processos, Contratos, Prazos e Financeiro) ganharam uma janela de Configurações, onde é possível escolher quais atalhos aparecem no card da listagem — copiar link, duplicar, gerenciar etiquetas e excluir. Cada tela oferece apenas os atalhos que fazem sentido nela: Prazos, por exemplo, não tem etiquetas.
+- Atalhos próprios do fluxo de trabalho, como "Concluir" em Prazos e "Registrar pagamento" no Financeiro, continuam sempre disponíveis.
+- Processos e Contratos, que não tinham nenhum atalho no card, agora podem exibi-los.
+
 ## [0.112.2] — 2026-07-18
 
 - Ao configurar os registros filhos de uma tela do sistema (Processos, Contratos, Pessoas, Financeiro e Prazos), a janela deixou de exibir campos que não se aplicam a essas telas, como título, ícone e as opções de abas — que são fixos e não podiam ser alterados de qualquer forma.

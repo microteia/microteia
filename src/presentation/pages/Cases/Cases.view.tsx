@@ -1,10 +1,18 @@
 import React from 'react';
-import { RiFolderLine } from 'react-icons/ri';
+import {
+  RiFolderLine,
+  RiLinkM,
+  RiFileCopyLine,
+  RiPriceTag3Line,
+  RiDeleteBinLine,
+} from 'react-icons/ri';
 import { S } from './Cases.styles';
 import { useCasesViewModel } from './Cases.viewmodel';
 import { Badge } from '../../components/ui/Badge';
 import { CustomFieldMetaRows } from '../../components/ui/CustomFieldMetaRows';
-import { EntityListCard } from '../../components/ui/EntityListCard';
+import { EntityListCard, type EntityCardAction } from '../../components/ui/EntityListCard';
+import { ConfirmModal } from '../../components/ui/ConfirmModal';
+import { TagManager } from '../../components/ui/TagManager';
 import { EntityListView } from '../../components/layout/EntityListView';
 import { getScreenIcon } from '../../shared/screenIcons';
 import { useCaseTagStore } from '../../../stores/useCaseTagStore';
@@ -31,6 +39,26 @@ export const CasesView: React.FC = () => {
       isEmpty={vm.filteredCases.length === 0}
       emptyIcon={<RiFolderLine />}
       emptyTitle="Nenhum processo encontrado"
+      modals={
+        <>
+          {vm.tagManagerCase && (
+            <TagManager
+              entityId={vm.tagManagerCase.id}
+              onClose={vm.closeTagManager}
+              adapter={vm.tagAdapter}
+            />
+          )}
+          <ConfirmModal
+            isOpen={vm.caseToDelete !== null}
+            title="Excluir processo"
+            message={`Tem certeza que deseja excluir "${vm.caseToDelete?.title ?? ''}"? As anotações e documentos vinculados também serão excluídos.`}
+            variant="danger"
+            confirmLabel="Excluir"
+            onConfirm={() => void vm.confirmDelete()}
+            onCancel={vm.cancelDelete}
+          />
+        </>
+      }
       emptyActionLabel="Cadastrar primeiro processo"
     >
       {vm.filteredCases.map((c) => {
@@ -79,8 +107,16 @@ export const CasesView: React.FC = () => {
           }))
           .filter((row) => row.value !== '');
 
+        const configurable: Record<string, EntityCardAction> = {
+          copyLink: { key: 'copyLink', icon: <RiLinkM size={13} />, title: 'Copiar link', onClick: () => vm.handleCopyLink(c) },
+          clone: { key: 'clone', icon: <RiFileCopyLine size={13} />, title: 'Duplicar', onClick: () => vm.handleClone(c) },
+          manageTags: { key: 'manageTags', icon: <RiPriceTag3Line size={13} />, title: 'Gerenciar etiquetas', onClick: () => vm.setTagManagerCase(c) },
+          delete: { key: 'delete', icon: <RiDeleteBinLine size={13} />, title: 'Excluir', danger: true, onClick: () => vm.setCaseToDelete(c) },
+        };
+
         return (
           <EntityListCard
+            actions={vm.listActions.map((key) => configurable[key]).filter(Boolean)}
             key={c.id}
             onClick={() => vm.openCase(c)}
             avatar={<RiFolderLine size={22} />}

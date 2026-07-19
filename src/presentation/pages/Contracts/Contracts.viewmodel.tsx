@@ -7,6 +7,11 @@ import { usePersonStore } from '../../../stores/usePersonStore';
 import { useTenant } from '../../../stores/useTenant';
 import { useWorkspace } from '../../../stores/useWorkspace';
 import { useScreenDefinitions } from '../../../stores/useScreenDefinitions';
+import { useNotification } from '../../../stores/useNotification';
+import { generateDeepLink } from '../../../infrastructure/deeplink/deepLinkUtils';
+import { resolveListActions } from '../../shared/listActionCapabilities';
+import type { ScreenListAction } from '../../../domain/entities';
+import type { TagStoreAdapter } from '../../components/ui/TagManager';
 import { useCustomFieldListing, CUSTOM_FIELD_FILTER_PREFIX } from '../../hooks/useCustomFieldListing';
 import type { CustomFieldCardItem } from '../../hooks/useCustomFieldListing';
 import { resolveColor, getConfigColor } from '../../../shared/styles/colorUtils';
@@ -24,19 +29,31 @@ export interface ContractsViewModel {
   setFilterTokens: (tokens: FilterToken[]) => void;
   openNewContract: () => void;
   openContract: (c: Contract) => void;
+  listActions: ScreenListAction[];
+  handleCopyLink: (c: Contract) => void;
+  handleClone: (c: Contract) => void;
+  tagManagerContract: Contract | null;
+  setTagManagerContract: (c: Contract | null) => void;
+  closeTagManager: () => void;
+  tagAdapter: TagStoreAdapter;
+  contractToDelete: Contract | null;
+  setContractToDelete: (c: Contract | null) => void;
+  cancelDelete: () => void;
+  confirmDelete: () => Promise<void>;
   getStatusColor: (status: string) => string;
   getPersonNames: (ids: string[]) => string[];
   getCustomFieldItems: (c: Contract) => CustomFieldCardItem[];
 }
 
 export const useContractsViewModel = (): ContractsViewModel => {
-  const { contracts, isLoading } = useContractStore();
-  const { tags } = useContractTagStore();
+  const { contracts, isLoading, deleteContract } = useContractStore();
+  const { tags, getTagsForContract, setTagsForContract, createTag, updateTag, deleteTag } = useContractTagStore();
   const { persons } = usePersonStore();
   const { tenantRole } = useTenant();
   const { typeConfigs, categoryConfigs, statusConfigs } = useContractLookup();
   const { openTab } = useWorkspace();
-  const { getCustomFieldsFor } = useScreenDefinitions();
+  const { getCustomFieldsFor, getDefinition } = useScreenDefinitions();
+  const { notify } = useNotification();
   const theme = useTheme();
 
   const customFields = useMemo(() => getCustomFieldsFor('contracts'), [getCustomFieldsFor]);
@@ -128,6 +145,48 @@ export const useContractsViewModel = (): ContractsViewModel => {
   const openNewContract = useCallback(() => openTab('new-contract'), [openTab]);
   const openContract = useCallback((c: Contract) => openTab(`view-contract:${c.id}`), [openTab]);
 
+  const listActions = useMemo(
+    () => resolveListActions('contracts', getDefinition('contracts')?.listActions),
+    [getDefinition],
+  );
+
+  const handleCopyLink = useCallback((c: Contract) => {
+    void navigator.clipboard.writeText(generateDeepLink(`view-contract:${c.id}`));
+    notify('Link copiado para a área de transferência.', 'success');
+  }, [notify]);
+
+  const handleClone = useCallback((c: Contract) => openTab(`new-contract:clone:${c.id}`), [openTab]);
+
+  const [tagManagerContract, setTagManagerContract] = useState<Contract | null>(null);
+  const closeTagManager = useCallback(() => setTagManagerContract(null), []);
+
+  const [contractToDelete, setContractToDelete] = useState<Contract | null>(null);
+  const cancelDelete = useCallback(() => setContractToDelete(null), []);
+  const confirmDelete = useCallback(async () => {
+    if (!contractToDelete) return;
+    try {
+      // Passa pelo store para manter a cascata de anotações/documentos do detalhe.
+      await deleteContract(contractToDelete.id);
+      notify('Registro excluído.', 'success');
+    } catch {
+      notify('Erro ao excluir o contrato.', 'error');
+    } finally {
+      setContractToDelete(null);
+    }
+  }, [contractToDelete, deleteContract, notify]);
+
+  const tagAdapter = useMemo<TagStoreAdapter>(() => ({
+    tags,
+    getAppliedTags: (entityId: string) => {
+      const target = contracts.find((c) => c.id === entityId);
+      return getTagsForContract(entityId, target?.tagIds ?? []);
+    },
+    setTags: (entityId: string, tagIds: string[]) => setTagsForContract(entityId, tagIds),
+    createTag: (name: string, color: string) => createTag(name, color),
+    updateTag: (id: string, data: { name: string; color: string }) => updateTag(id, data),
+    deleteTag: (id: string) => deleteTag(id),
+  }), [tags, contracts, getTagsForContract, setTagsForContract, createTag, updateTag, deleteTag]);
+
   const getStatusColor = useCallback((status: string): string => {
     return getConfigColor(statusConfigs, status, theme);
   }, [statusConfigs, theme]);
@@ -138,6 +197,17 @@ export const useContractsViewModel = (): ContractsViewModel => {
   );
 
   return {
+    listActions,
+    handleCopyLink,
+    handleClone,
+    tagManagerContract,
+    setTagManagerContract,
+    closeTagManager,
+    tagAdapter,
+    contractToDelete,
+    setContractToDelete,
+    cancelDelete,
+    confirmDelete,
     contracts,
     filteredContracts,
     isLoading,

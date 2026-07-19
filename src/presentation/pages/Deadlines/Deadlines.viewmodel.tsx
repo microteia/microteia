@@ -8,6 +8,9 @@ import { useTenant } from '../../../stores/useTenant';
 import { useWorkspace } from '../../../stores/useWorkspace';
 import { useNotification } from '../../../stores/useNotification';
 import { useScreenDefinitions } from '../../../stores/useScreenDefinitions';
+import { generateDeepLink } from '../../../infrastructure/deeplink/deepLinkUtils';
+import { resolveListActions } from '../../shared/listActionCapabilities';
+import type { ScreenListAction } from '../../../domain/entities';
 import { useCustomFieldListing, CUSTOM_FIELD_FILTER_PREFIX } from '../../hooks/useCustomFieldListing';
 import type { CustomFieldCardItem } from '../../hooks/useCustomFieldListing';
 import { consumeNavigationIntent } from '../../../infrastructure/navigation/navigationIntent';
@@ -46,6 +49,8 @@ export interface DeadlinesViewModel {
   getStatusColor: (status: string) => string;
   getPriorityColor: (priority: string) => string;
   getCustomFieldItems: (d: Deadline) => CustomFieldCardItem[];
+  listActions: ScreenListAction[];
+  handleCopyLink: (d: Deadline) => void;
 }
 
 export const useDeadlinesViewModel = (): DeadlinesViewModel => {
@@ -56,7 +61,17 @@ export const useDeadlinesViewModel = (): DeadlinesViewModel => {
   const { members } = useTenant();
   const { openTab } = useWorkspace();
   const { notify } = useNotification();
-  const { getCustomFieldsFor } = useScreenDefinitions();
+  const { getCustomFieldsFor, getDefinition } = useScreenDefinitions();
+
+  const listActions = useMemo(
+    () => resolveListActions('deadlines', getDefinition('deadlines')?.listActions),
+    [getDefinition],
+  );
+
+  const handleCopyLink = useCallback((d: Deadline) => {
+    void navigator.clipboard.writeText(generateDeepLink(`view-deadline:${d.id}`));
+    notify('Link copiado para a área de transferência.', 'success');
+  }, [notify]);
   const theme = useTheme();
 
   const customFields = useMemo(() => getCustomFieldsFor('deadlines'), [getCustomFieldsFor]);
@@ -236,6 +251,8 @@ export const useDeadlinesViewModel = (): DeadlinesViewModel => {
   );
 
   return {
+    listActions,
+    handleCopyLink,
     deadlines,
     filteredDeadlines,
     isLoading,

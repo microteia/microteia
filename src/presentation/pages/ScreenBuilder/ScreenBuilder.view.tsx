@@ -10,7 +10,7 @@ import {
   RiPencilLine,
 } from 'react-icons/ri';
 import { S } from './ScreenBuilder.styles';
-import { useScreenBuilderViewModel, LIST_ACTION_OPTIONS } from './ScreenBuilder.viewmodel';
+import { useScreenBuilderViewModel } from './ScreenBuilder.viewmodel';
 import type { ScreenBuilderViewModel, SelectedScreenState } from './ScreenBuilder.viewmodel';
 import { Button } from '../../components/ui/Button';
 import { Checkbox } from '../../components/ui/Checkbox';
@@ -245,7 +245,7 @@ export const ScreenBuilderView: React.FC = () => {
 
       {vm.screenModalOpen && (
         <Modal
-          title={vm.screenModalIsBuiltin ? 'Registros filhos' : (vm.screenModalIsEdit ? 'Editar Tela' : 'Nova Tela')}
+          title={vm.screenModalTitle}
           onClose={vm.closeScreenModal}
         >
           <S.ModalForm>
@@ -351,10 +351,8 @@ export const ScreenBuilderView: React.FC = () => {
               </>
             )}
 
-            {!vm.screenModalIsBuiltin && (
-              <>
             <S.RulesDivider>Ações no card da listagem</S.RulesDivider>
-            {LIST_ACTION_OPTIONS.map((option) => (
+            {vm.modalListActionOptions.map((option) => (
               <S.CheckboxRow key={option.key}>
                 <Checkbox
                   label={option.label}
@@ -364,7 +362,7 @@ export const ScreenBuilderView: React.FC = () => {
                 />
               </S.CheckboxRow>
             ))}
-            {vm.screenModalIsEdit && (
+            {vm.screenModalIsEdit && !vm.screenModalIsBuiltin && (
               <S.CheckboxRow>
                 <Checkbox
                   label="Tela ativa (visível no menu lateral)"
@@ -372,8 +370,6 @@ export const ScreenBuilderView: React.FC = () => {
                   onChange={(next) => vm.updateScreenForm({ enabled: next })}
                 />
               </S.CheckboxRow>
-            )}
-              </>
             )}
             <S.ModalActions>
               <Button variant="secondary" onClick={vm.closeScreenModal}>Cancelar</Button>

@@ -8,6 +8,11 @@ import { usePersonStore } from '../../../stores/usePersonStore';
 import { useTenant } from '../../../stores/useTenant';
 import { useWorkspace } from '../../../stores/useWorkspace';
 import { useScreenDefinitions } from '../../../stores/useScreenDefinitions';
+import { useNotification } from '../../../stores/useNotification';
+import { generateDeepLink } from '../../../infrastructure/deeplink/deepLinkUtils';
+import { resolveListActions } from '../../shared/listActionCapabilities';
+import type { ScreenListAction } from '../../../domain/entities';
+import type { TagStoreAdapter } from '../../components/ui/TagManager';
 import { useCustomFieldListing, CUSTOM_FIELD_FILTER_PREFIX } from '../../hooks/useCustomFieldListing';
 import type { CustomFieldCardItem } from '../../hooks/useCustomFieldListing';
 import { resolveColor, getConfigColor } from '../../../shared/styles/colorUtils';
@@ -35,6 +40,17 @@ export interface CasesViewModel {
   setFilterTokens: (tokens: FilterToken[]) => void;
   openNewCase: () => void;
   openCase: (c: Case) => void;
+  listActions: ScreenListAction[];
+  handleCopyLink: (c: Case) => void;
+  handleClone: (c: Case) => void;
+  tagManagerCase: Case | null;
+  setTagManagerCase: (c: Case | null) => void;
+  closeTagManager: () => void;
+  tagAdapter: TagStoreAdapter;
+  caseToDelete: Case | null;
+  setCaseToDelete: (c: Case | null) => void;
+  cancelDelete: () => void;
+  confirmDelete: () => Promise<void>;
   getStatusColor: (status: string) => string;
   getPhaseColor: (phase: string) => string;
   getPartyNames: (ids: string[]) => string[];
@@ -43,14 +59,15 @@ export interface CasesViewModel {
 }
 
 export const useCasesViewModel = (): CasesViewModel => {
-  const { cases, isLoading } = useCaseStore();
-  const { tags } = useCaseTagStore();
+  const { cases, isLoading, deleteCase } = useCaseStore();
+  const { tags, getTagsForCase, setTagsForCase, createTag, updateTag, deleteTag } = useCaseTagStore();
   const { contracts } = useContractStore();
   const { persons } = usePersonStore();
   const { tenantRole, members } = useTenant();
   const { areaConfigs, phaseConfigs, statusConfigs, instanceConfigs, actionTypeConfigs, courtConfigs, districtConfigs, judgeConfigs } = useCaseLookup();
   const { openTab } = useWorkspace();
-  const { getCustomFieldsFor } = useScreenDefinitions();
+  const { getCustomFieldsFor, getDefinition } = useScreenDefinitions();
+  const { notify } = useNotification();
   const theme = useTheme();
 
   const customFields = useMemo(() => getCustomFieldsFor('cases'), [getCustomFieldsFor]);
@@ -222,6 +239,48 @@ export const useCasesViewModel = (): CasesViewModel => {
   const openNewCase = useCallback(() => openTab('new-case'), [openTab]);
   const openCase = useCallback((c: Case) => openTab(`view-case:${c.id}`), [openTab]);
 
+  const listActions = useMemo(
+    () => resolveListActions('cases', getDefinition('cases')?.listActions),
+    [getDefinition],
+  );
+
+  const handleCopyLink = useCallback((c: Case) => {
+    void navigator.clipboard.writeText(generateDeepLink(`view-case:${c.id}`));
+    notify('Link copiado para a área de transferência.', 'success');
+  }, [notify]);
+
+  const handleClone = useCallback((c: Case) => openTab(`new-case:clone:${c.id}`), [openTab]);
+
+  const [tagManagerCase, setTagManagerCase] = useState<Case | null>(null);
+  const closeTagManager = useCallback(() => setTagManagerCase(null), []);
+
+  const [caseToDelete, setCaseToDelete] = useState<Case | null>(null);
+  const cancelDelete = useCallback(() => setCaseToDelete(null), []);
+  const confirmDelete = useCallback(async () => {
+    if (!caseToDelete) return;
+    try {
+      // Passa pelo store para manter a cascata de anotações/documentos do detalhe.
+      await deleteCase(caseToDelete.id);
+      notify('Registro excluído.', 'success');
+    } catch {
+      notify('Erro ao excluir o processo.', 'error');
+    } finally {
+      setCaseToDelete(null);
+    }
+  }, [caseToDelete, deleteCase, notify]);
+
+  const tagAdapter = useMemo<TagStoreAdapter>(() => ({
+    tags,
+    getAppliedTags: (entityId: string) => {
+      const target = cases.find((c) => c.id === entityId);
+      return getTagsForCase(entityId, target?.tagIds ?? []);
+    },
+    setTags: (entityId: string, tagIds: string[]) => setTagsForCase(entityId, tagIds),
+    createTag: (name: string, color: string) => createTag(name, color),
+    updateTag: (id: string, data: { name: string; color: string }) => updateTag(id, data),
+    deleteTag: (id: string) => deleteTag(id),
+  }), [tags, cases, getTagsForCase, setTagsForCase, createTag, updateTag, deleteTag]);
+
   const getStatusColor = useCallback((status: string): string => {
     return getConfigColor(statusConfigs, status, theme);
   }, [statusConfigs, theme]);
@@ -236,6 +295,17 @@ export const useCasesViewModel = (): CasesViewModel => {
   );
 
   return {
+    listActions,
+    handleCopyLink,
+    handleClone,
+    tagManagerCase,
+    setTagManagerCase,
+    closeTagManager,
+    tagAdapter,
+    caseToDelete,
+    setCaseToDelete,
+    cancelDelete,
+    confirmDelete,
     cases,
     filteredCases,
     isLoading,

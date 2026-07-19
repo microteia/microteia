@@ -6,6 +6,7 @@ import { usePersonLookup } from '../../../stores/usePersonLookup';
 import { useTenant } from '../../../stores/useTenant';
 import { useWorkspace } from '../../../stores/useWorkspace';
 import { useScreenDefinitions } from '../../../stores/useScreenDefinitions';
+import { resolveListActions } from '../../shared/listActionCapabilities';
 import { useNotification } from '../../../stores/useNotification';
 import { useCustomFieldListing, CUSTOM_FIELD_FILTER_PREFIX } from '../../hooks/useCustomFieldListing';
 import type { CustomFieldCardItem } from '../../hooks/useCustomFieldListing';
@@ -90,7 +91,7 @@ export const usePersonsViewModel = (): PersonsViewModel => {
   const { typeConfigs, occupationConfigs, nationalityConfigs, maritalStatusConfigs, cityConfigs, relationshipConfigs } = usePersonLookup();
   const { tenantRole } = useTenant();
   const { openTab } = useWorkspace();
-  const { getCustomFieldsFor } = useScreenDefinitions();
+  const { getCustomFieldsFor, getDefinition } = useScreenDefinitions();
   const { notify } = useNotification();
   const theme = useTheme();
 
@@ -223,10 +224,10 @@ export const usePersonsViewModel = (): PersonsViewModel => {
       manageTags: { key: 'manageTags', title: 'Gerenciar etiquetas', onClick: () => setTagManagerPerson(person) },
       delete: { key: 'delete', title: 'Excluir', danger: true, onClick: () => setPersonToDelete(person) },
     };
-    return PERSON_LIST_CONFIG.actions
+    return resolveListActions('persons', getDefinition('persons')?.listActions)
       .filter((action) => action !== 'delete' || isAdmin)
       .map((action) => handlers[action]);
-  }, [onCopyLink, onClone, isAdmin]);
+  }, [onCopyLink, onClone, isAdmin, getDefinition]);
 
   const getCardModel = useCallback((person: Person): PersonCardModel => ({
     avatar: (person.name || '?').charAt(0).toUpperCase(),
