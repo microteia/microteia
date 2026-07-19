@@ -48,17 +48,12 @@ export const ContractLookupStoreProvider: React.FC<{ children: React.ReactNode }
 
   const addItem = useCallback(async (kind: ContractLookupKind, name: string) => {
     if (!currentTenant || !user) throw new Error('Not authenticated');
-    const config = await contractLookupRepository.create(currentTenant.id, kind, name, user.id);
-    setConfigs((prev) => ({
-      ...prev,
-      [kind]: [...prev[kind], config].sort((a, b) => a.label.localeCompare(b.label)),
-    }));
+    await contractLookupRepository.create(currentTenant.id, kind, name, user.id);
   }, [currentTenant, user, contractLookupRepository]);
 
   const removeItem = useCallback(async (kind: ContractLookupKind, key: string) => {
     if (!currentTenant) return;
     await contractLookupRepository.delete(currentTenant.id, kind, key);
-    setConfigs((prev) => ({ ...prev, [kind]: prev[kind].filter((i) => i.key !== key) }));
   }, [currentTenant, contractLookupRepository]);
 
   return (

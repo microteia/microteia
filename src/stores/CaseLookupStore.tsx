@@ -64,43 +64,35 @@ export const CaseLookupStoreProvider: React.FC<{ children: React.ReactNode }> = 
     
     switch (kind) {
       case 'areas': {
-        const config = await caseAreaRepository.create(currentTenant.id, name, name, user.id);
-        setAreaConfigs(prev => [...prev, config].sort((a, b) => a.label.localeCompare(b.label)));
+        await caseAreaRepository.create(currentTenant.id, name, name, user.id);
         break;
       }
       case 'phases': {
-        const config = await casePhaseRepository.create(currentTenant.id, name, name, undefined, user.id);
-        setPhaseConfigs(prev => [...prev, config].sort((a, b) => a.label.localeCompare(b.label)));
+        await casePhaseRepository.create(currentTenant.id, name, name, undefined, user.id);
         break;
       }
       case 'statuses': {
-        const config = await caseStatusRepository.create(currentTenant.id, name, name, '#6b7280', user.id);
-        setStatusConfigs(prev => [...prev, config].sort((a, b) => a.label.localeCompare(b.label)));
+        await caseStatusRepository.create(currentTenant.id, name, name, '#6b7280', user.id);
         break;
       }
       case 'instances': {
-        const config = await caseInstanceRepository.create(currentTenant.id, name, name, undefined, user.id);
-        setInstanceConfigs(prev => [...prev, config].sort((a, b) => a.label.localeCompare(b.label)));
+        await caseInstanceRepository.create(currentTenant.id, name, name, undefined, user.id);
         break;
       }
       case 'actionTypes': {
-        const config = await caseActionTypeRepository.create(currentTenant.id, name, name, user.id);
-        setActionTypeConfigs(prev => [...prev, config].sort((a, b) => a.label.localeCompare(b.label)));
+        await caseActionTypeRepository.create(currentTenant.id, name, name, user.id);
         break;
       }
       case 'courts': {
-        const config = await caseCourtRepository.create(currentTenant.id, name, name, user.id);
-        setCourtConfigs(prev => [...prev, config].sort((a, b) => a.label.localeCompare(b.label)));
+        await caseCourtRepository.create(currentTenant.id, name, name, user.id);
         break;
       }
       case 'districts': {
-        const config = await caseDistrictRepository.create(currentTenant.id, name, name, user.id);
-        setDistrictConfigs(prev => [...prev, config].sort((a, b) => a.label.localeCompare(b.label)));
+        await caseDistrictRepository.create(currentTenant.id, name, name, user.id);
         break;
       }
       case 'judges': {
-        const config = await caseJudgeRepository.create(currentTenant.id, name, name, user.id);
-        setJudgeConfigs(prev => [...prev, config].sort((a, b) => a.label.localeCompare(b.label)));
+        await caseJudgeRepository.create(currentTenant.id, name, name, user.id);
         break;
       }
     }
@@ -112,35 +104,27 @@ export const CaseLookupStoreProvider: React.FC<{ children: React.ReactNode }> = 
     switch (kind) {
       case 'areas':
         await caseAreaRepository.delete(currentTenant.id, key);
-        setAreaConfigs(prev => prev.filter(i => i.key !== key));
         break;
       case 'phases':
         await casePhaseRepository.delete(currentTenant.id, key);
-        setPhaseConfigs(prev => prev.filter(i => i.key !== key));
         break;
       case 'statuses':
         await caseStatusRepository.delete(currentTenant.id, key);
-        setStatusConfigs(prev => prev.filter(i => i.key !== key));
         break;
       case 'instances':
         await caseInstanceRepository.delete(currentTenant.id, key);
-        setInstanceConfigs(prev => prev.filter(i => i.key !== key));
         break;
       case 'actionTypes':
         await caseActionTypeRepository.delete(currentTenant.id, key);
-        setActionTypeConfigs(prev => prev.filter(i => i.key !== key));
         break;
       case 'courts':
         await caseCourtRepository.delete(currentTenant.id, key);
-        setCourtConfigs(prev => prev.filter(i => i.key !== key));
         break;
       case 'districts':
         await caseDistrictRepository.delete(currentTenant.id, key);
-        setDistrictConfigs(prev => prev.filter(i => i.key !== key));
         break;
       case 'judges':
         await caseJudgeRepository.delete(currentTenant.id, key);
-        setJudgeConfigs(prev => prev.filter(i => i.key !== key));
         break;
     }
   }, [currentTenant, caseAreaRepository, casePhaseRepository, caseStatusRepository, caseInstanceRepository, caseActionTypeRepository, caseCourtRepository, caseDistrictRepository, caseJudgeRepository]);

@@ -29,14 +29,12 @@ export const NewsCategoryLookupStoreProvider: React.FC<{ children: React.ReactNo
 
   const addItem = useCallback(async (name: string) => {
     if (!currentTenant || !user) throw new Error('Not authenticated');
-    const config = await newsCategoryRepository.create(currentTenant.id, name, name, user.id);
-    setCategoryConfigs(prev => [...prev, config].sort((a, b) => a.label.localeCompare(b.label)));
+    await newsCategoryRepository.create(currentTenant.id, name, name, user.id);
   }, [currentTenant, user, newsCategoryRepository]);
 
   const removeItem = useCallback(async (key: string) => {
     if (!currentTenant) return;
     await newsCategoryRepository.delete(currentTenant.id, key);
-    setCategoryConfigs(prev => prev.filter(c => c.key !== key));
   }, [currentTenant, newsCategoryRepository]);
 
   return (

@@ -29,14 +29,12 @@ export const DeadlineLookupStoreProvider: React.FC<{ children: React.ReactNode }
 
   const addType = useCallback(async (name: string) => {
     if (!currentTenant || !user) throw new Error('Not authenticated');
-    const config = await deadlineTypeRepository.create(currentTenant.id, name, name, user.id);
-    setTypeConfigs((prev) => [...prev, config].sort((a, b) => a.label.localeCompare(b.label)));
+    await deadlineTypeRepository.create(currentTenant.id, name, name, user.id);
   }, [currentTenant, user, deadlineTypeRepository]);
 
   const removeType = useCallback(async (key: string) => {
     if (!currentTenant) return;
     await deadlineTypeRepository.delete(currentTenant.id, key);
-    setTypeConfigs((prev) => prev.filter((t) => t.key !== key));
   }, [currentTenant, deadlineTypeRepository]);
 
   return (

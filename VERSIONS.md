@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [0.115.4] — 2026-07-19
+
+- Corrigido: ao cadastrar uma opção nova direto de um campo de seleção, o item aparecia duplicado na lista até a tela ser recarregada.
+
 ## [0.115.3] — 2026-07-19
 
 - Corrigido: as listas de opções cadastráveis (áreas, fases, situações, instâncias, tipos de ação, tribunais, comarcas, juízes, tipos de prazo, tipos de documento, categorias de notícia e as opções de pessoas, contratos e financeiro) não mostravam, para os demais usuários, os itens recém-incluídos por um colega — era preciso recarregar a página. Agora elas se atualizam sozinhas, como o restante do sistema.

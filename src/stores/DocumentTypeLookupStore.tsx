@@ -29,14 +29,12 @@ export const DocumentTypeLookupStoreProvider: React.FC<{ children: React.ReactNo
 
   const addItem = useCallback(async (name: string) => {
     if (!currentTenant || !user) throw new Error('Not authenticated');
-    const config = await documentTypeRepository.create(currentTenant.id, name, name, user.id);
-    setTypeConfigs(prev => [...prev, config].sort((a, b) => a.label.localeCompare(b.label)));
+    await documentTypeRepository.create(currentTenant.id, name, name, user.id);
   }, [currentTenant, user, documentTypeRepository]);
 
   const removeItem = useCallback(async (key: string) => {
     if (!currentTenant) return;
     await documentTypeRepository.delete(currentTenant.id, key);
-    setTypeConfigs(prev => prev.filter(i => i.key !== key));
   }, [currentTenant, documentTypeRepository]);
 
   return (

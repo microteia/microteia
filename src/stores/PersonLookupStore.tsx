@@ -55,30 +55,12 @@ export const PersonLookupStoreProvider: React.FC<{ children: React.ReactNode }> 
 
   const addItem = useCallback(async (kind: PersonLookupKind, name: string) => {
     if (!currentTenant || !user) throw new Error('Not authenticated');
-    const config = await personLookupRepository.create(currentTenant.id, kind, name, user.id);
-    switch (kind) {
-      case 'types':          setTypeConfigs(prev          => [...prev, config].sort((a, b) => a.label.localeCompare(b.label))); break;
-      case 'occupations':    setOccupationConfigs(prev    => [...prev, config].sort((a, b) => a.label.localeCompare(b.label))); break;
-      case 'nationalities':  setNationalityConfigs(prev   => [...prev, config].sort((a, b) => a.label.localeCompare(b.label))); break;
-      case 'maritalStatuses':setMaritalStatusConfigs(prev => [...prev, config].sort((a, b) => a.label.localeCompare(b.label))); break;
-      case 'cities':         setCityConfigs(prev          => [...prev, config].sort((a, b) => a.label.localeCompare(b.label))); break;
-      case 'relationships':  setRelationshipConfigs(prev  => [...prev, config].sort((a, b) => a.label.localeCompare(b.label))); break;
-      case 'genders':        setGenderConfigs(prev        => [...prev, config].sort((a, b) => a.label.localeCompare(b.label))); break;
-    }
+    await personLookupRepository.create(currentTenant.id, kind, name, user.id);
   }, [currentTenant, user, personLookupRepository]);
 
   const removeItem = useCallback(async (kind: PersonLookupKind, key: string) => {
     if (!currentTenant) return;
     await personLookupRepository.delete(currentTenant.id, kind, key);
-    switch (kind) {
-      case 'types':          setTypeConfigs(prev          => prev.filter(i => i.key !== key)); break;
-      case 'occupations':    setOccupationConfigs(prev    => prev.filter(i => i.key !== key)); break;
-      case 'nationalities':  setNationalityConfigs(prev   => prev.filter(i => i.key !== key)); break;
-      case 'maritalStatuses':setMaritalStatusConfigs(prev => prev.filter(i => i.key !== key)); break;
-      case 'cities':         setCityConfigs(prev          => prev.filter(i => i.key !== key)); break;
-      case 'relationships':  setRelationshipConfigs(prev  => prev.filter(i => i.key !== key)); break;
-      case 'genders':        setGenderConfigs(prev        => prev.filter(i => i.key !== key)); break;
-    }
   }, [currentTenant, personLookupRepository]);
 
   return (
