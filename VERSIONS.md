@@ -11,6 +11,13 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [0.116.0] — 2026-07-19
+
+- Os campos de responsável — "Advogado responsável" em Processos e Prazos e "Responsável" em Contratos — passam a escolher entre as **Pessoas** do escritório, e não mais entre os usuários com acesso ao sistema. Assim é possível indicar qualquer advogado ou colaborador cadastrado, tenha ele conta de acesso ou não.
+- Nos registros antigos, o responsável escolhido pelo modelo anterior aparece destacado como valor não encontrado, bastando reabrir o registro e selecionar a Pessoa correspondente.
+- Ao criar um Processo ou Prazo, o responsável deixa de vir preenchido automaticamente com o próprio usuário: escolha a Pessoa responsável pelo trabalho.
+- Em Processos, o responsável passa a ser opcional, como já era em Prazos e Contratos.
+
 ## [0.115.5] — 2026-07-19
 
 - Valores que não constam mais na lista de um campo de seleção deixam de sumir da tela: agora aparecem destacados em âmbar, com um aviso de que a opção pode ter sido excluída. Antes o campo ficava visualmente vazio, mesmo com o conteúdo preservado no registro.

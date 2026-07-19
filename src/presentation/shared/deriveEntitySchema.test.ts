@@ -57,7 +57,7 @@ describe('deriveFormFields — relações (fks) viram campos reference', () => {
 
   it('deriva o FK como reference apontando para a coleção alvo', () => {
     expect(map.get('caseId')).toMatchObject({ type: 'reference', refEntity: 'cases', required: true });
-    expect(map.get('responsibleLawyerId')).toMatchObject({ type: 'reference', refEntity: 'members' });
+    expect(map.get('responsibleLawyerId')).toMatchObject({ type: 'reference', refEntity: 'persons' });
   });
 
   it('mantém campos e relações ordenados por ui.order', () => {
@@ -143,7 +143,7 @@ describe('deriveListRows — linhas do card derivam de ui.list, ordenadas', () =
     const rows = deriveListRows('cases');
     expect(rows.find((r) => r.key === 'responsibleLawyerId')).toMatchObject({
       type: 'reference',
-      refEntity: 'members',
+      refEntity: 'persons',
     });
   });
 

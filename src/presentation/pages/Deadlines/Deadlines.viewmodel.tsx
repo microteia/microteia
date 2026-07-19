@@ -4,7 +4,7 @@ import { useAuth } from '../../../stores/useAuth';
 import { useDeadlineStore } from '../../../stores/useDeadlineStore';
 import { useDeadlineLookup } from '../../../stores/useDeadlineLookup';
 import { useCaseStore } from '../../../stores/useCaseStore';
-import { useTenant } from '../../../stores/useTenant';
+import { usePersonStore } from '../../../stores/usePersonStore';
 import { useWorkspace } from '../../../stores/useWorkspace';
 import { useNotification } from '../../../stores/useNotification';
 import { useScreenDefinitions } from '../../../stores/useScreenDefinitions';
@@ -58,7 +58,7 @@ export const useDeadlinesViewModel = (): DeadlinesViewModel => {
   const { user } = useAuth();
   const { typeConfigs } = useDeadlineLookup();
   const { cases } = useCaseStore();
-  const { members } = useTenant();
+  const { persons } = usePersonStore();
   const { openTab } = useWorkspace();
   const { notify } = useNotification();
   const { getCustomFieldsFor, getDefinition } = useScreenDefinitions();
@@ -94,14 +94,14 @@ export const useDeadlinesViewModel = (): DeadlinesViewModel => {
     return map;
   }, [cases]);
 
-  const memberById = useMemo(() => {
+  const personNameById = useMemo(() => {
     const map: Record<string, string> = {};
-    members.forEach((m) => { map[m.userId] = m.displayName; });
+    persons.forEach((p) => { map[p.id] = p.name; });
     return map;
-  }, [members]);
+  }, [persons]);
 
   const getCaseInfo = useCallback((d: Deadline) => caseById[d.caseId] ?? null, [caseById]);
-  const getLawyerName = useCallback((d: Deadline) => (d.responsibleLawyerId ? (memberById[d.responsibleLawyerId] ?? null) : null), [memberById]);
+  const getLawyerName = useCallback((d: Deadline) => (d.responsibleLawyerId ? (personNameById[d.responsibleLawyerId] ?? null) : null), [personNameById]);
 
   const getStatusColor = useCallback((status: string): string => {
     const map: Record<DeadlineStatus, string> = {

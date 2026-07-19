@@ -431,7 +431,7 @@ export interface Case {
   instance?: CaseInstance;
   phase: CasePhase;
   status: CaseStatus;
-  responsibleLawyerId: string;
+  responsibleLawyerId?: string | null;
   contractId?: string | null;
   activePoleIds?: string[];
   passivePoleIds?: string[];

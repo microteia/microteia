@@ -19,7 +19,7 @@ export const CreateDeadlineFromPushModal: React.FC<CreateDeadlineFromPushModalPr
   const vm = useCreateDeadlineFromPushViewModel(push, onClose);
 
   const priorityOptions: SearchSelectOption[] = vm.priorityOptions.map((o) => ({ value: o.value, label: o.label, color: o.color }));
-  const memberOptions: SearchSelectOption[] = vm.memberOptions.map((o) => ({ value: o.value, label: o.label }));
+  const personOptions: SearchSelectOption[] = vm.personOptions.map((o) => ({ value: o.value, label: o.label }));
 
   return (
     <Modal title="Criar Prazo Processual" onClose={vm.handleCancel}>
@@ -85,7 +85,7 @@ export const CreateDeadlineFromPushModal: React.FC<CreateDeadlineFromPushModalPr
         <S.FormGroup>
           <Label>Advogado Responsável</Label>
           <SearchSelect
-            options={memberOptions}
+            options={personOptions}
             value={vm.formData.responsibleLawyerId}
             onChange={(val) => vm.setFormData({ responsibleLawyerId: val })}
             placeholder="Selecione o responsável..."

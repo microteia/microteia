@@ -47,7 +47,7 @@ const mapCase = (id: string, d: Record<string, unknown>, tenantId: string): Case
   instance: (d.instance as CaseInstance | undefined) ?? undefined,
   phase: d.phase as Case['phase'],
   status: (d.status as CaseStatus) ?? 'Em Andamento',
-  responsibleLawyerId: d.responsibleLawyerId as string,
+  responsibleLawyerId: (d.responsibleLawyerId as string | null) ?? null,
   contractId: (d.contractId as string | null) ?? null,
   activePoleIds: (d.activePoleIds as string[] | undefined) ?? [],
   passivePoleIds: (d.passivePoleIds as string[] | undefined) ?? [],

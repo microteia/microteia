@@ -4,7 +4,7 @@ import { format, startOfMonth, endOfMonth, eachDayOfInterval, isToday, addMonths
 import { ptBR } from 'date-fns/locale';
 import { useDeadlineStore } from '../../../stores/useDeadlineStore';
 import { useCaseStore } from '../../../stores/useCaseStore';
-import { useTenant } from '../../../stores/useTenant';
+import { usePersonStore } from '../../../stores/usePersonStore';
 import { useWorkspace } from '../../../stores/useWorkspace';
 import { useAuth } from '../../../stores/useAuth';
 import { useNotification } from '../../../stores/useNotification';
@@ -78,7 +78,7 @@ const atDayTime = (date: Date, hours: number, minutes: number): Date =>
 export const useCalendarViewModel = (): CalendarViewModel => {
   const { deadlines, completeDeadline, updateDeadline } = useDeadlineStore();
   const { cases } = useCaseStore();
-  const { members } = useTenant();
+  const { persons } = usePersonStore();
   const { openTab } = useWorkspace();
   const { user } = useAuth();
   const { notify } = useNotification();
@@ -150,7 +150,7 @@ export const useCalendarViewModel = (): CalendarViewModel => {
         })
         .map((d) => {
           const matchedCase = cases.find((c) => c.id === d.caseId);
-          const matchedLawyer = d.responsibleLawyerId ? members.find((m) => m.userId === d.responsibleLawyerId) : undefined;
+          const matchedLawyer = d.responsibleLawyerId ? persons.find((p) => p.id === d.responsibleLawyerId) : undefined;
           return {
             deadline: d,
             color: getPriorityColor(d.priority),
@@ -160,7 +160,7 @@ export const useCalendarViewModel = (): CalendarViewModel => {
             statusColor: getStatusColor(d.status),
             caseExists: !!matchedCase,
             caseNumber: matchedCase?.caseNumber ?? null,
-            lawyerName: matchedLawyer?.displayName ?? null,
+            lawyerName: matchedLawyer?.name ?? null,
           };
         });
 
@@ -173,7 +173,7 @@ export const useCalendarViewModel = (): CalendarViewModel => {
         items,
       };
     });
-  }, [currentMonth, filteredDeadlines, getPriorityColor, getStatusColor, cases, members]);
+  }, [currentMonth, filteredDeadlines, getPriorityColor, getStatusColor, cases, persons]);
 
   const stats = useMemo<CalendarStats>(() => {
     const monthKey = currentMonth.toISOString().slice(0, 7);

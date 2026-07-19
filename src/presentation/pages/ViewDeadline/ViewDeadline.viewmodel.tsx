@@ -39,14 +39,13 @@ const parseDeadlineTab = (tabKey: string) => {
 const deadlineToValues = (
   deadline: Deadline | null,
   customFields: FieldDefinition[],
-  userId: string,
 ): Values => ({
   type: deadline ? deadline.type ?? '' : NEW_DEADLINE_DEFAULTS.type,
   priority: deadline ? deadline.priority ?? '' : NEW_DEADLINE_DEFAULTS.priority,
   caseId: deadline?.caseId ?? '',
   dueDate: deadline?.dueDate ? toDateInputValue(deadline.dueDate) : '',
   completedAt: deadline?.completedAt ? toDateInputValue(deadline.completedAt) : '',
-  responsibleLawyerId: deadline ? deadline.responsibleLawyerId ?? '' : userId,
+  responsibleLawyerId: deadline?.responsibleLawyerId ?? '',
   description: deadline?.description ?? '',
   ...buildInitialFormValues(customFields, deadline?.customValues ?? null),
 });
@@ -139,8 +138,8 @@ export const useViewDeadlineViewModel = (tabKey: string): ViewDeadlineViewModel 
   );
 
   const recordToValues = useCallback(
-    (deadline: Deadline | null) => deadlineToValues(deadline, customFields, userId),
-    [customFields, userId],
+    (deadline: Deadline | null) => deadlineToValues(deadline, customFields),
+    [customFields],
   );
 
   const resolveTitleFromValues = useCallback((values: Values) => str(values, 'type') || 'Prazo', []);

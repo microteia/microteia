@@ -291,6 +291,12 @@ Todo o onboarding de um usuário novo (`users/{uid}`, `userProfiles/{uid}` e o t
 - `BootstrapUserUseCase` (`functions/src/domain/usecases/BootstrapUserUseCase.ts`), idempotente: `createUserIfMissing` cria `users/{uid}` (role `USER`) só se ainda não existir — se já existir (reexecução do trigger), a função **retorna sem fazer nada**, para não duplicar tenant; `createUserProfileIfMissing` cria `userProfiles/{uid}` vazio; em seguida cria o tenant (`ITenantRepository.createTenant`, com `memberLimit: 1, memberCount: 0`) e adiciona o próprio usuário como `admin` via `addMemberIfWithinLimit` (mesma transação atômica descrita abaixo) — resultado final: `memberLimit: 1`, `memberCount: 1`. Todo usuário sempre tem exatamente 1 tenant (o seu) ao final do bootstrap; todo tenant sempre tem um `ownerId`.
 - **Client não cria mais nada disso.** `users`/`tenants` negam `create` do client nas Security Rules (`allow create: if false`). O `AuthContext` (`src/stores/AuthContext.tsx`) não faz mais `createUserProfile` — em vez disso, `IUserRepository.waitForProvisioning` (`src/data/repositories/FirebaseUserRepository.ts`) abre um `onSnapshot` em `users/{uid}` e só resolve quando o documento existir **e** `tenantIds` não estiver vazio (sinal de que o bootstrap terminou), com timeout de 20s. Para quem já loga há tempos isso resolve quase instantaneamente (documento já existe); no primeiro login, cobre a espera pela Cloud Function. `TenantStore` (`src/stores/TenantStore.tsx`) não cria mais tenant algum — se `getTenantsForUser` retornar vazio nesse ponto (não deveria, dado o `waitForProvisioning`), trata como falha de provisionamento (`initError`) em vez de criar um tenant no client.
 
+### `TenantMember` não é entidade de domínio — não use como alvo de FK
+
+`members` existe **exclusivamente** para autenticação (quem entra no tenant e com qual papel) e para auditoria (`createdBy`/`updatedBy`/`completedBy`, e o `auditFlatEntityChange`). Nenhum campo de negócio referencia `members`: campos como "Advogado responsável" (`Case.responsibleLawyerId`, `Deadline.responsibleLawyerId`) e "Responsável" (`Contract.responsibleId`) são FKs para **`persons`**, com `denormalizedFields: ['name', 'type', 'email']`. Um responsável é uma Pessoa do escritório, exista ou não uma conta de login correspondente — e continua válido depois que o membro sai do tenant.
+
+Registros gravados antes dessa correção guardam um `userId` de membro nesses campos; o valor não resolve mais para uma Pessoa e aparece como **valor órfão sinalizado** no `SearchSelect`, até ser reapontado manualmente para a Pessoa correta.
+
 ### Limite de membros — adição atômica via Cloud Function
 
 `TenantMember` é criado/removido por duas Cloud Functions callable, **não** por escrita direta do client no Firestore (`match /tenants/{tenantId}/members/{memberId}` nega `create`/`delete` para qualquer client nas Security Rules):
@@ -401,7 +407,7 @@ interface Case {
   court?: string;
   judge?: string;
   opposingParty?: string;
-  responsibleLawyerId?: string;    // nome do advogado é resolvido em tempo de renderização via useTenant().members
+  responsibleLawyerId?: string | null; // FK para Pessoa; nome resolvido em tempo de renderização via usePersonStore()
   contractId?: string | null;      // Contrato vinculado — Contract (único; um Processo pertence a no máximo 1 Contrato); número resolvido via useContractStore()
   parties: CaseParty[];
   description?: string;
@@ -528,7 +534,7 @@ interface Deadline {
   dueDate: Date;
   priority: 'low' | 'medium' | 'high' | 'critical';
   status: 'pending' | 'completed' | 'expired' | 'cancelled';
-  responsibleLawyerId?: string;    // nome do advogado resolvido em tempo de renderização via useTenant().members
+  responsibleLawyerId?: string | null; // FK para Pessoa; nome resolvido em tempo de renderização via usePersonStore()
   description?: string;
   completedAt?: Date;
   completedBy?: string;
@@ -1646,7 +1652,7 @@ Para isso o `EntityListCard` ganhou slots opcionais — `belowHeader` (entre cab
 **Viewmodel genérico (Fase A, fecho) — `useEntityDetail`:** o núcleo restante (parse do tabKey, resolução do registro com `findInStore` + fallback opcional `getById` + `recordNotFound`, o **estado único de `values`** com `setFieldValue`, a orquestração de salvar — validar → montar payload → create/update → `notify` → reabrir aba → título — e o efeito de título da aba) vive em `presentation/shared/entityScreen/useEntityDetail.ts`, compondo `useEntityDetailChrome`/`useEntityNotes`/`useEntityDocuments`. `ViewPerson` e `ViewDynamicRecord` viraram **adapters finos**: montam um `config` (stores tipados, `recordToValues`/`valuesToPayload`, `resolveTabTitle`, `create`/`update`/`validate`, ports, flags `hasNotes`/`hasDocuments`) e adicionam só seus overrides (Person: lookups tipados + toggle de status). O `values` é **um mapa só** (nativo aninhado + custom flat); `setFieldValue` grava por caminho via **`setValueByPath`** (`domain/services/customFieldValues.ts`, com teste) — chave com `.` aninha (`address.street`), sem `.` grava no topo. A **máscara** é 100% dirigida por `field.mask`: o `MaskedInput` formata no render (formatters idempotentes), então nenhuma tela pré-formata. Os ports de notes/docs são genéricos (`useNotesPort`/`useDocumentsPort` sobre a interface de repositório, com `extra` opcional p/ o `screenKey` do dinâmico); os 14 use cases `make*Note/Document*` foram removidos.
 
 **Fase C — migrar as fixas restantes (em andamento):** Prazos foi a primeira (Notícias ficou fora do escopo: é um feed com comentários, não um cadastro registro-a-registro). Três recursos novos, todos **aditivos** (defaults preservam Pessoas/dinâmicas):
-- **`deriveFormFields` deriva `fks`** como campos `reference` (ex.: `caseId` → `cases`, `responsibleLawyerId` → `members`) — o `useReferenceOptions` já resolve as opções de `persons/members/cases/contracts/financials/deadlines` + telas dinâmicas. FKs de etiqueta ficam fora do formulário com `ui: { form: false }` (quem trata é o TagManager). `FkSpec` ganhou `required?`/`ui?`; `NativeFieldSpec` ganhou `optionsColored?`. Os campos derivados são reordenados por `order` no fim da derivação.
+- **`deriveFormFields` deriva `fks`** como campos `reference` (ex.: `caseId` → `cases`, `responsibleLawyerId` → `persons`) — o `useReferenceOptions` já resolve as opções de `persons/members/cases/contracts/financials/deadlines` + telas dinâmicas. FKs de etiqueta ficam fora do formulário com `ui: { form: false }` (quem trata é o TagManager). `FkSpec` ganhou `required?`/`ui?`; `NativeFieldSpec` ganhou `optionsColored?`. Os campos derivados são reordenados por `order` no fim da derivação.
 - **`useEntityDetail`**: `afterCreate: 'reopen' | 'close'` (Prazos **fecha** a aba ao criar; o padrão continua reabrindo em edição) e **`remove` opcional** (telas sem exclusão no detalhe).
 - **`EntityDetailView`**: `showCopyLink`/`showClone` opcionais (default `true`).
 

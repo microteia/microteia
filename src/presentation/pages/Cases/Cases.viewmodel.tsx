@@ -63,7 +63,7 @@ export const useCasesViewModel = (): CasesViewModel => {
   const { tags, getTagsForCase, setTagsForCase, createTag, updateTag, deleteTag } = useCaseTagStore();
   const { contracts } = useContractStore();
   const { persons } = usePersonStore();
-  const { tenantRole, members } = useTenant();
+  const { tenantRole } = useTenant();
   const { areaConfigs, phaseConfigs, statusConfigs, instanceConfigs, actionTypeConfigs, courtConfigs, districtConfigs, judgeConfigs } = useCaseLookup();
   const { openTab } = useWorkspace();
   const { getCustomFieldsFor, getDefinition } = useScreenDefinitions();
@@ -124,14 +124,6 @@ export const useCasesViewModel = (): CasesViewModel => {
     [judgeConfigs],
   );
 
-  const lawyerOptions = useMemo<FilterOption[]>(() =>
-    members
-      .filter((m) => m.role === 'admin' || m.role === 'lawyer')
-      .map((m) => ({ value: m.userId, label: m.displayName }))
-      .sort((a, b) => a.label.localeCompare(b.label)),
-    [members],
-  );
-
   const personOptions = useMemo<FilterOption[]>(() =>
     persons
       .map((p) => ({ value: p.id, label: p.name }))
@@ -159,11 +151,11 @@ export const useCasesViewModel = (): CasesViewModel => {
     ...(judgeOptions.length > 0 ? [{ key: 'judge', label: 'Juiz', type: 'select' as const, options: judgeOptions }] : []),
     { key: 'filedAtFrom', label: 'Distribuição (de)', type: 'text', placeholder: 'dd/mm/aaaa' },
     { key: 'filedAtTo', label: 'Distribuição (até)', type: 'text', placeholder: 'dd/mm/aaaa' },
-    ...(lawyerOptions.length > 0 ? [{ key: 'lawyer', label: 'Advogado', type: 'select' as const, options: lawyerOptions }] : []),
+    ...(personOptions.length > 0 ? [{ key: 'lawyer', label: 'Advogado', type: 'select' as const, options: personOptions }] : []),
     ...(contractOptions.length > 0 ? [{ key: 'contract', label: 'Contrato', type: 'select' as const, options: contractOptions }] : []),
     ...(tagOptions.length > 0 ? [{ key: 'tag', label: 'Etiqueta', type: 'select' as const, options: tagOptions }] : []),
     ...customListing.filterDefs,
-  ], [statusOptions, areaOptions, phaseOptions, instanceOptions, actionTypeOptions, courtOptions, districtOptions, judgeOptions, lawyerOptions, contractOptions, tagOptions, personOptions, customListing.filterDefs]);
+  ], [statusOptions, areaOptions, phaseOptions, instanceOptions, actionTypeOptions, courtOptions, districtOptions, judgeOptions, contractOptions, tagOptions, personOptions, customListing.filterDefs]);
 
   const tokenMap = useMemo(() => {
     const map: Record<string, string[]> = {};
@@ -205,7 +197,7 @@ export const useCasesViewModel = (): CasesViewModel => {
       if (courtFilter.length > 0 && !courtFilter.includes(c.court ?? '')) return false;
       if (districtFilter.length > 0 && !districtFilter.includes(c.courtDistrict ?? '')) return false;
       if (judgeFilter.length > 0 && !judgeFilter.includes(c.judge ?? '')) return false;
-      if (lawyerFilter.length > 0 && !lawyerFilter.includes(c.responsibleLawyerId)) return false;
+      if (lawyerFilter.length > 0 && !lawyerFilter.includes(c.responsibleLawyerId ?? '')) return false;
       if (contractFilter.length > 0 && !contractFilter.includes(c.contractId ?? '')) return false;
       if (tagFilter.length > 0 && !tagFilter.some((tid) => c.tagIds?.includes(tid))) return false;
       if (partiesFilter.length > 0 && !partiesFilter.some((id) =>

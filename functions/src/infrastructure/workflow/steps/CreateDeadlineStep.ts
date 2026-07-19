@@ -46,7 +46,7 @@ export const makeCreateDeadlineStepDefinition = (deadlineRepository: IDeadlineRe
     { id: 'type', label: 'Tipo de prazo', required: true, type: 'String',defaultValue: 'Petição',  options: { kind: 'Lookup', lookup: 'deadlineTypes' } },
     { id: 'priority', label: 'Prioridade', required: true, type: 'String', defaultValue: 'Média' as DeadlinePriority, options: { kind: 'Static', options: PRIORITY_OPTIONS } },
     { id: 'description', label: 'Descrição', required: false, type: 'String' },
-    { id: 'responsibleLawyerId', label: 'Advogado responsável', required: false, type: 'EntityReference', entityType: 'members' },
+    { id: 'responsibleLawyerId', label: 'Advogado responsável', required: false, type: 'EntityReference', entityType: 'persons' },
   ],
   outputDefinitions: [
     { id: 'deadlineId', label: 'Id do prazo criado', type: 'String' },
@@ -112,19 +112,20 @@ export const makeCreateDeadlineStepDefinition = (deadlineRepository: IDeadlineRe
       }
 
       if (deadlineData.responsibleLawyerId) {
-        const memberDoc = await db
+        const personDoc = await db
           .collection('tenants')
           .doc(tenantId)
-          .collection('members')
+          .collection('persons')
           .doc(String(deadlineData.responsibleLawyerId))
           .get();
 
-        if (memberDoc.exists) {
-          const memberData = memberDoc.data() as Record<string, unknown>;
+        if (personDoc.exists) {
+          const personData = personDoc.data() as Record<string, unknown>;
           deadline.responsibleLawyer = {
-            id: memberDoc.id,
-            name: memberData.name,
-            email: memberData.email,
+            id: personDoc.id,
+            name: personData.name,
+            type: personData.type,
+            email: personData.email,
           };
         }
       }

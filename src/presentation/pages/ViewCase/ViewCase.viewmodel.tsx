@@ -63,7 +63,6 @@ const parseCaseTab = (tabKey: string) => {
 const caseToValues = (
   c: Case | null,
   customFields: FieldDefinition[],
-  userId: string,
   clone: boolean,
 ): Values => ({
   caseNumber: clone ? '' : (c?.caseNumber ?? ''),
@@ -78,7 +77,7 @@ const caseToValues = (
   instance: c ? c.instance ?? '' : NEW_CASE_DEFAULTS.instance,
   phase: c ? c.phase ?? '' : NEW_CASE_DEFAULTS.phase,
   status: c ? c.status ?? '' : NEW_CASE_DEFAULTS.status,
-  responsibleLawyerId: c ? c.responsibleLawyerId ?? '' : userId,
+  responsibleLawyerId: c?.responsibleLawyerId ?? '',
   contractId: c?.contractId ?? '',
   filedAt: toDateInputValue(c?.filedAt),
   causeValue: c?.causeValue ?? null,
@@ -105,7 +104,6 @@ const num = (values: Values, key: string): number | null => {
 const valuesToCasePayload = (
   values: Values,
   customFields: FieldDefinition[],
-  userId: string,
   existing: Case | null,
 ) => {
   const types = strArray(values, 'type');
@@ -120,7 +118,7 @@ const valuesToCasePayload = (
     instance: str(values, 'instance') as CaseInstance,
     phase: str(values, 'phase') as CasePhase,
     status: str(values, 'status') as CaseStatus,
-    responsibleLawyerId: str(values, 'responsibleLawyerId') || userId,
+    responsibleLawyerId: str(values, 'responsibleLawyerId') || null,
     contractId: str(values, 'contractId') || null,
     activePoleIds: strArray(values, 'activePoleIds'),
     passivePoleIds: strArray(values, 'passivePoleIds'),
@@ -190,8 +188,8 @@ export const useViewCaseViewModel = (tabKey: string): ViewCaseViewModel => {
   const findInStore = useCallback((id: string) => cases.find((c) => c.id === id) ?? null, [cases]);
 
   const recordToValues = useCallback(
-    (c: Case | null, opts: { clone: boolean }) => caseToValues(c, customFields, userId, opts.clone),
-    [customFields, userId],
+    (c: Case | null, opts: { clone: boolean }) => caseToValues(c, customFields, opts.clone),
+    [customFields],
   );
 
   const resolveTitleFromValues = useCallback(
@@ -201,7 +199,7 @@ export const useViewCaseViewModel = (tabKey: string): ViewCaseViewModel => {
 
   const validate = useCallback((values: Values): EntityValidationResult | null => {
     const fieldErrors = collectRequiredErrors(allFields, values);
-    const issues = validateRecordRules('cases', valuesToCasePayload(values, customFields, userId, null));
+    const issues = validateRecordRules('cases', valuesToCasePayload(values, customFields, null));
     issues.forEach((issue) => {
       const key = ruleIssueFieldKey(issue.path);
       if (!fieldErrors[key]) fieldErrors[key] = issue.error;
@@ -209,11 +207,11 @@ export const useViewCaseViewModel = (tabKey: string): ViewCaseViewModel => {
     if (Object.keys(fieldErrors).length === 0) return null;
     const message = validateRequiredFields(allFields, values) ?? describeRuleIssues(issues);
     return { message, fieldErrors };
-  }, [allFields, customFields, userId]);
+  }, [allFields, customFields]);
 
   const create = useCallback(async (values: Values) => {
     const created = await createCase({
-      ...valuesToCasePayload(values, customFields, userId, null),
+      ...valuesToCasePayload(values, customFields, null),
       createdBy: userId,
     });
     return { id: created.id, title: created.caseNumber ?? created.title };
@@ -222,7 +220,7 @@ export const useViewCaseViewModel = (tabKey: string): ViewCaseViewModel => {
   const update = useCallback(async (id: string, values: Values) => {
     const existing = cases.find((c) => c.id === id) ?? null;
     await updateCase(id, {
-      ...valuesToCasePayload(values, customFields, userId, existing),
+      ...valuesToCasePayload(values, customFields, existing),
       updatedBy: userId,
       updatedByName: effectiveName,
       updatedByPhotoURL: user?.photoURL ?? '',

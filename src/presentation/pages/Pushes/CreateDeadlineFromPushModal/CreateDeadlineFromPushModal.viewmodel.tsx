@@ -4,6 +4,7 @@ import { useCaseStore } from '../../../../stores/useCaseStore';
 import { useDeadlineStore } from '../../../../stores/useDeadlineStore';
 import { useDeadlineLookup } from '../../../../stores/useDeadlineLookup';
 import { useTenant } from '../../../../stores/useTenant';
+import { usePersonStore } from '../../../../stores/usePersonStore';
 import { useAuth } from '../../../../stores/useAuth';
 import { usePush } from '../../../../stores/usePush';
 import { usePushInteraction } from '../../../../stores/usePushInteraction';
@@ -36,7 +37,7 @@ export interface CreateDeadlineFromPushViewModel {
   isAdmin: boolean;
 
   priorityOptions: { value: string; label: string; color: string }[];
-  memberOptions: { value: string; label: string }[];
+  personOptions: { value: string; label: string }[];
   getPriorityColor: (priority: string) => string;
   successColor: string;
   dangerColor: string;
@@ -49,7 +50,8 @@ export const useCreateDeadlineFromPushViewModel = (
   const { cases } = useCaseStore();
   const { createDeadline } = useDeadlineStore();
   const { typeConfigs, addType, removeType } = useDeadlineLookup();
-  const { members, currentTenant, tenantRole } = useTenant();
+  const { currentTenant, tenantRole } = useTenant();
+  const { persons } = usePersonStore();
   const isAdmin = tenantRole === 'admin';
   const { user } = useAuth();
   const { updateStatus } = usePush();
@@ -61,7 +63,7 @@ export const useCreateDeadlineFromPushViewModel = (
     type: 'Prazo Processual',
     priority: 'Média',
     dueDate: '',
-    responsibleLawyerId: user?.id ?? '',
+    responsibleLawyerId: '',
   }));
   const [isSaving, setIsSaving] = useState(false);
 
@@ -101,9 +103,11 @@ export const useCreateDeadlineFromPushViewModel = (
     [getPriorityColor],
   );
 
-  const memberOptions = useMemo(() =>
-    members.map((m) => ({ value: m.userId, label: m.displayName })),
-    [members],
+  const personOptions = useMemo(() =>
+    persons
+      .map((p) => ({ value: p.id, label: p.name }))
+      .sort((a, b) => a.label.localeCompare(b.label)),
+    [persons],
   );
 
   const setFormData = useCallback((data: Partial<CreateDeadlineFromPushFormData>) => {
@@ -224,7 +228,7 @@ export const useCreateDeadlineFromPushViewModel = (
     handleDeleteType,
     isAdmin,
     priorityOptions,
-    memberOptions,
+    personOptions,
     getPriorityColor,
     successColor: theme.colors.success,
     dangerColor: theme.colors.danger,

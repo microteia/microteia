@@ -13,14 +13,14 @@ const LEGACY_FK_SCHEMA = {
   },
   cases: {
     contractId: { targetCollection: 'contracts', denormalizedFields: ['number', 'title', 'type', 'status'] },
-    responsibleLawyerId: { targetCollection: 'members', denormalizedFields: ['name', 'email'] },
+    responsibleLawyerId: { targetCollection: 'persons', denormalizedFields: ['name', 'type', 'email'] },
     activePoleIds: { targetCollection: 'persons', multi: true },
     passivePoleIds: { targetCollection: 'persons', multi: true },
     tagIds: { targetCollection: 'caseTags', multi: true },
   },
   deadlines: {
     caseId: { targetCollection: 'cases', denormalizedFields: ['caseNumber', 'title', 'area'] },
-    responsibleLawyerId: { targetCollection: 'members', denormalizedFields: ['name', 'email'] },
+    responsibleLawyerId: { targetCollection: 'persons', denormalizedFields: ['name', 'type', 'email'] },
   },
   financials: {
     caseId: { targetCollection: 'cases', denormalizedFields: ['caseNumber', 'title'] },
@@ -30,7 +30,7 @@ const LEGACY_FK_SCHEMA = {
   },
   contracts: {
     clientId: { targetCollection: 'persons', denormalizedFields: ['name', 'type', 'email'] },
-    responsibleId: { targetCollection: 'members', denormalizedFields: ['name', 'email'] },
+    responsibleId: { targetCollection: 'persons', denormalizedFields: ['name', 'type', 'email'] },
     contractorIds: { targetCollection: 'persons', multi: true },
     contracteeIds: { targetCollection: 'persons', multi: true },
     witnessIds: { targetCollection: 'persons', multi: true },
