@@ -363,6 +363,30 @@ export const S = {
     grid-column: 1 / -1;
   `,
 
+  /** Checkbox ocupando meia linha, alinhado à base do campo vizinho. */
+  CheckboxCell: styled.div`
+    align-self: end;
+    padding-bottom: ${({ theme }) => theme.spacing.sm};
+  `,
+
+  ModalTabs: styled.div`
+    display: flex;
+    border-bottom: 1px solid ${({ theme }) => theme.colors.border};
+    margin-bottom: ${({ theme }) => theme.spacing.lg};
+  `,
+
+  ModalTabBtn: styled.button<{ $active: boolean }>`
+    padding: ${({ theme }) => `${theme.spacing.sm} ${theme.spacing.lg}`};
+    font-size: ${({ theme }) => theme.fontSizes.sm};
+    font-weight: 500;
+    color: ${({ $active, theme }) => ($active ? theme.colors.primary : theme.colors.textSecondary)};
+    border-bottom: 2px solid ${({ $active, theme }) => ($active ? theme.colors.primary : 'transparent')};
+    transition: all ${({ theme }) => theme.transitions.fast};
+    white-space: nowrap;
+
+    &:hover { color: ${({ theme }) => theme.colors.text}; }
+  `,
+
   OptionInputRow: styled.div`
     display: flex;
     gap: ${({ theme }) => theme.spacing.sm};

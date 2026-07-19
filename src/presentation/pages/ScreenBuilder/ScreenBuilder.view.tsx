@@ -247,75 +247,97 @@ export const ScreenBuilderView: React.FC = () => {
         <Modal
           title={vm.screenModalTitle}
           onClose={vm.closeScreenModal}
+          size="xlarge"
         >
+          {vm.screenModalTabs.length > 1 && (
+            <S.ModalTabs>
+              {vm.screenModalTabs.map((tab) => (
+                <S.ModalTabBtn
+                  key={tab.key}
+                  $active={vm.screenModalTab === tab.key}
+                  onClick={() => vm.setScreenModalTab(tab.key)}
+                >
+                  {tab.label}
+                </S.ModalTabBtn>
+              ))}
+            </S.ModalTabs>
+          )}
           <S.ModalForm>
-            {/* Título, ícone, abas e ações são fixos nas telas do sistema — lá o modal serve
-                apenas para escolher os registros filhos. */}
-            {!vm.screenModalIsBuiltin && (
+            {/* Título, ícone, abas e ações são fixos nas telas do sistema — lá não há aba "Geral". */}
+            {vm.screenModalTab === 'general' && !vm.screenModalIsBuiltin && (
               <>
-            <InputGroup>
-              <Label>Título (singular) *</Label>
-              <Input
-                value={vm.screenForm.titleSingular}
-                onChange={(e) => vm.updateScreenForm({ titleSingular: e.target.value })}
-                placeholder="Ex: Consulta"
-              />
-            </InputGroup>
-            <InputGroup>
-              <Label>Título (plural) *</Label>
-              <Input
-                value={vm.screenForm.titlePlural}
-                onChange={(e) => vm.updateScreenForm({ titlePlural: e.target.value })}
-                placeholder="Ex: Consultas"
-              />
-            </InputGroup>
-            <InputGroup>
-              <Label>Ícone</Label>
-              <SearchSelect
-                options={vm.iconOptions}
-                value={vm.screenForm.icon}
-                onChange={(value) => vm.updateScreenForm({ icon: value })}
-                placeholder="Escolha um ícone"
-              />
-            </InputGroup>
-            {vm.screenModalIsEdit && vm.titleFieldOptions.length > 0 && (
-              <InputGroup>
-                <Label>Campo Título</Label>
-                <SearchSelect
-                  options={vm.titleFieldOptions}
-                  value={vm.screenForm.titleFieldKey}
-                  onChange={(value) => vm.updateScreenForm({ titleFieldKey: value })}
-                  placeholder="Escolha o campo título"
-                />
-              </InputGroup>
-            )}
-            <S.CheckboxRow>
-              <Checkbox
-                label="Habilitar aba de Anotações"
-                checked={vm.screenForm.hasNotes}
-                onChange={(next) => vm.updateScreenForm({ hasNotes: next })}
-              />
-            </S.CheckboxRow>
-            <S.CheckboxRow>
-              <Checkbox
-                label="Habilitar aba de Documentos"
-                checked={vm.screenForm.hasDocuments}
-                onChange={(next) => vm.updateScreenForm({ hasDocuments: next })}
-              />
-            </S.CheckboxRow>
-            <S.CheckboxRow>
-              <Checkbox
-                label="Habilitar Etiquetas"
-                checked={vm.screenForm.hasTags}
-                onChange={(next) => vm.updateScreenForm({ hasTags: next })}
-              />
-            </S.CheckboxRow>
+                <InputGroup>
+                  <Label>Título (singular) *</Label>
+                  <Input
+                    value={vm.screenForm.titleSingular}
+                    onChange={(e) => vm.updateScreenForm({ titleSingular: e.target.value })}
+                    placeholder="Ex: Consulta"
+                  />
+                </InputGroup>
+                <InputGroup>
+                  <Label>Título (plural) *</Label>
+                  <Input
+                    value={vm.screenForm.titlePlural}
+                    onChange={(e) => vm.updateScreenForm({ titlePlural: e.target.value })}
+                    placeholder="Ex: Consultas"
+                  />
+                </InputGroup>
+                <InputGroup>
+                  <Label>Ícone</Label>
+                  <SearchSelect
+                    options={vm.iconOptions}
+                    value={vm.screenForm.icon}
+                    onChange={(value) => vm.updateScreenForm({ icon: value })}
+                    placeholder="Escolha um ícone"
+                  />
+                </InputGroup>
+                {vm.screenModalIsEdit && vm.titleFieldOptions.length > 0 && (
+                  <InputGroup>
+                    <Label>Campo Título</Label>
+                    <SearchSelect
+                      options={vm.titleFieldOptions}
+                      value={vm.screenForm.titleFieldKey}
+                      onChange={(value) => vm.updateScreenForm({ titleFieldKey: value })}
+                      placeholder="Escolha o campo título"
+                    />
+                  </InputGroup>
+                )}
+                <S.RulesDivider>Abas do registro</S.RulesDivider>
+                <S.CheckboxCell>
+                  <Checkbox
+                    label="Habilitar aba de Anotações"
+                    checked={vm.screenForm.hasNotes}
+                    onChange={(next) => vm.updateScreenForm({ hasNotes: next })}
+                  />
+                </S.CheckboxCell>
+                <S.CheckboxCell>
+                  <Checkbox
+                    label="Habilitar aba de Documentos"
+                    checked={vm.screenForm.hasDocuments}
+                    onChange={(next) => vm.updateScreenForm({ hasDocuments: next })}
+                  />
+                </S.CheckboxCell>
+                <S.CheckboxCell>
+                  <Checkbox
+                    label="Habilitar Etiquetas"
+                    checked={vm.screenForm.hasTags}
+                    onChange={(next) => vm.updateScreenForm({ hasTags: next })}
+                  />
+                </S.CheckboxCell>
+                {vm.screenModalIsEdit && (
+                  <S.CheckboxCell>
+                    <Checkbox
+                      label="Tela ativa (visível no menu lateral)"
+                      checked={vm.screenForm.enabled}
+                      onChange={(next) => vm.updateScreenForm({ enabled: next })}
+                    />
+                  </S.CheckboxCell>
+                )}
               </>
             )}
 
-            {vm.screenModalIsEdit && vm.childCandidates.length > 0 && (
+            {vm.screenModalTab === 'children' && (
               <>
-                <S.RulesDivider>Registros filhos desta tela</S.RulesDivider>
                 <S.FullRow>
                   <InfoBanner
                     variant="info"
@@ -327,14 +349,14 @@ export const ScreenBuilderView: React.FC = () => {
                   const isChild = linkField !== undefined;
                   return (
                     <React.Fragment key={candidate.key}>
-                      <S.CheckboxRow>
+                      <S.CheckboxCell>
                         <Checkbox
                           label={candidate.label}
                           checked={isChild}
                           onChange={() => vm.toggleChildScreen(candidate.key)}
                         />
-                      </S.CheckboxRow>
-                      {isChild && candidate.fieldOptions.length > 1 && (
+                      </S.CheckboxCell>
+                      {isChild && candidate.fieldOptions.length > 1 ? (
                         <InputGroup>
                           <Label>{`Campo de vínculo de ${candidate.label} *`}</Label>
                           <SearchSelect
@@ -344,33 +366,23 @@ export const ScreenBuilderView: React.FC = () => {
                             placeholder="Escolha o campo"
                           />
                         </InputGroup>
-                      )}
+                      ) : <div />}
                     </React.Fragment>
                   );
                 })}
               </>
             )}
 
-            <S.RulesDivider>Ações no card da listagem</S.RulesDivider>
-            {vm.modalListActionOptions.map((option) => (
-              <S.CheckboxRow key={option.key}>
+            {vm.screenModalTab === 'list' && vm.modalListActionOptions.map((option) => (
+              <S.CheckboxCell key={option.key}>
                 <Checkbox
                   label={option.label}
                   checked={vm.screenForm.listActions.includes(option.key)}
                   onChange={() => vm.toggleListAction(option.key)}
-                  disabled={option.key === 'manageTags' && !vm.screenForm.hasTags}
+                  disabled={!vm.screenModalIsBuiltin && option.key === 'manageTags' && !vm.screenForm.hasTags}
                 />
-              </S.CheckboxRow>
+              </S.CheckboxCell>
             ))}
-            {vm.screenModalIsEdit && !vm.screenModalIsBuiltin && (
-              <S.CheckboxRow>
-                <Checkbox
-                  label="Tela ativa (visível no menu lateral)"
-                  checked={vm.screenForm.enabled}
-                  onChange={(next) => vm.updateScreenForm({ enabled: next })}
-                />
-              </S.CheckboxRow>
-            )}
             <S.ModalActions>
               <Button variant="secondary" onClick={vm.closeScreenModal}>Cancelar</Button>
               <Button onClick={() => void vm.handleSaveScreen()} disabled={vm.savingScreen} $isLoading={vm.savingScreen}>
@@ -382,8 +394,18 @@ export const ScreenBuilderView: React.FC = () => {
       )}
 
       {vm.fieldModalOpen && (
-        <Modal title={vm.fieldModalIsEdit ? 'Editar Campo' : 'Novo Campo'} onClose={vm.closeFieldModal} size="large">
+        <Modal title={vm.fieldModalIsEdit ? 'Editar Campo' : 'Novo Campo'} onClose={vm.closeFieldModal} size="xlarge">
+          <S.ModalTabs>
+            <S.ModalTabBtn $active={vm.fieldModalTab === 'general'} onClick={() => vm.setFieldModalTab('general')}>
+              Geral
+            </S.ModalTabBtn>
+            <S.ModalTabBtn $active={vm.fieldModalTab === 'advanced'} onClick={() => vm.setFieldModalTab('advanced')}>
+              Avançado
+            </S.ModalTabBtn>
+          </S.ModalTabs>
           <S.ModalForm>
+            {vm.fieldModalTab === 'general' && (
+              <>
             <InputGroup>
               <Label>Nome do campo *</Label>
               <Input
@@ -429,105 +451,27 @@ export const ScreenBuilderView: React.FC = () => {
                 />
               </InputGroup>
             )}
-            {vm.fieldSupportsRules && (
-              <>
-                <S.RulesDivider>Formatação e validação</S.RulesDivider>
-                <InputGroup>
-                  <Label>Formatação pronta</Label>
-                  <SearchSelect
-                    options={vm.formatPresetOptions}
-                    value={vm.fieldForm.ruleFormatPreset}
-                    onChange={(value) => vm.updateFieldForm({ ruleFormatPreset: value as typeof vm.fieldForm.ruleFormatPreset })}
-                    placeholder="Nenhuma"
-                  />
-                </InputGroup>
-                <InputGroup>
-                  <Label>Formatação por expressão regular</Label>
-                  <Input
-                    value={vm.fieldForm.ruleFormatPattern}
-                    onChange={(e) => vm.updateFieldForm({ ruleFormatPattern: e.target.value })}
-                    placeholder="Procurar, ex: ^(\d{3})(\d{3})(\d{3})(\d{2})$"
-                  />
-                </InputGroup>
-                <InputGroup>
-                  <Label>Substituir por</Label>
-                  <Input
-                    value={vm.fieldForm.ruleFormatReplacement}
-                    onChange={(e) => vm.updateFieldForm({ ruleFormatReplacement: e.target.value })}
-                    placeholder="Ex: $1.$2.$3-$4"
-                  />
-                </InputGroup>
-                <InputGroup>
-                  <Label>Validação pronta</Label>
-                  <SearchSelect
-                    options={vm.validateCheckOptions}
-                    value={vm.fieldForm.ruleValidateCheck}
-                    onChange={(value) => vm.updateFieldForm({ ruleValidateCheck: value as typeof vm.fieldForm.ruleValidateCheck })}
-                    placeholder="Nenhuma"
-                  />
-                </InputGroup>
-                <InputGroup>
-                  <Label>Validação por expressão regular</Label>
-                  <Input
-                    value={vm.fieldForm.ruleValidatePattern}
-                    onChange={(e) => vm.updateFieldForm({ ruleValidatePattern: e.target.value })}
-                    placeholder="Ex: ^[A-Z]{2}\d{6}$"
-                  />
-                </InputGroup>
-                <InputGroup>
-                  <Label>Mensagem de erro</Label>
-                  <Input
-                    value={vm.fieldForm.ruleValidateMessage}
-                    onChange={(e) => vm.updateFieldForm({ ruleValidateMessage: e.target.value })}
-                    placeholder="Exibida quando o valor não passa na validação"
-                  />
-                </InputGroup>
-              </>
-            )}
-            <S.RulesDivider>Comportamento por expressão</S.RulesDivider>
-            <S.FullRow>
-              <InfoBanner
-                message="Nas expressões, referencie os campos da tela pela chave (ex.: status, valor) — comece a digitar para ver as sugestões. Use value para o valor do próprio campo."
-                variant="info"
-              />
-              <InputGroup>
-                <Label>Validação (retorna a mensagem de erro, ou vazio/null se válido)</Label>
-                <ExpressionEditor
-                  value={vm.fieldForm.logicValidate}
-                  onChange={(value) => vm.updateFieldForm({ logicValidate: value })}
-                  workflowVariables={vm.fieldExpressionVariables}
-                  placeholder="Ex: if(isEmpty(value) and status == 'ativo', 'Obrigatório para ativos', null)"
-                />
-              </InputGroup>
-              <InputGroup>
-                <Label>Desabilitar quando (expressão verdadeiro/falso)</Label>
-                <ExpressionEditor
-                  value={vm.fieldForm.logicDisabledWhen}
-                  onChange={(value) => vm.updateFieldForm({ logicDisabledWhen: value })}
-                  workflowVariables={vm.fieldExpressionVariables}
-                  placeholder="Ex: status == 'encerrado'"
-                />
-              </InputGroup>
-              <InputGroup>
-                <Label>Ocultar quando — some quando a expressão for verdadeira</Label>
-                <ExpressionEditor
-                  value={vm.fieldForm.logicHiddenWhen}
-                  onChange={(value) => vm.updateFieldForm({ logicHiddenWhen: value })}
-                  workflowVariables={vm.fieldExpressionVariables}
-                  placeholder="Ex: eletrico == false (some quando NÃO for elétrico)"
-                />
-              </InputGroup>
-            </S.FullRow>
             {vm.fieldForm.type === 'reference' && (
-              <InputGroup>
-                <Label>Tela vinculada *</Label>
-                <SearchSelect
-                  options={vm.refEntityOptions}
-                  value={vm.fieldForm.refEntity}
-                  onChange={(value) => vm.updateFieldForm({ refEntity: value })}
-                  placeholder="Escolha a tela"
-                />
-              </InputGroup>
+              <>
+                <InputGroup>
+                  <Label>Tela vinculada *</Label>
+                  <SearchSelect
+                    options={vm.refEntityOptions}
+                    value={vm.fieldForm.refEntity}
+                    onChange={(value) => vm.updateFieldForm({ refEntity: value })}
+                    placeholder="Escolha a tela"
+                  />
+                </InputGroup>
+                {!vm.fieldModalIsEdit && (
+                  <S.CheckboxCell>
+                    <Checkbox
+                      label="Permitir múltiplas seleções"
+                      checked={vm.fieldForm.multi}
+                      onChange={(next) => vm.updateFieldForm({ multi: next })}
+                    />
+                  </S.CheckboxCell>
+                )}
+              </>
             )}
             {vm.fieldForm.type === 'select' && (
               <>
@@ -573,23 +517,23 @@ export const ScreenBuilderView: React.FC = () => {
                     </S.OptionChips>
                   )}
                 </InputGroup>
-                <S.CheckboxRow>
+                <S.CheckboxCell>
                   <Checkbox
                     label="Permitir que usuários adicionem novas opções"
                     checked={vm.fieldForm.optionsAllowUserAdd}
                     onChange={(next) => vm.updateFieldForm({ optionsAllowUserAdd: next })}
                   />
-                </S.CheckboxRow>
+                </S.CheckboxCell>
+                {!vm.fieldModalIsEdit && (
+                  <S.CheckboxCell>
+                    <Checkbox
+                      label="Permitir múltiplas seleções"
+                      checked={vm.fieldForm.multi}
+                      onChange={(next) => vm.updateFieldForm({ multi: next })}
+                    />
+                  </S.CheckboxCell>
+                )}
               </>
-            )}
-            {(vm.fieldForm.type === 'select' || vm.fieldForm.type === 'reference') && !vm.fieldModalIsEdit && (
-              <S.CheckboxRow>
-                <Checkbox
-                  label="Permitir múltiplas seleções"
-                  checked={vm.fieldForm.multi}
-                  onChange={(next) => vm.updateFieldForm({ multi: next })}
-                />
-              </S.CheckboxRow>
             )}
             <InputGroup>
               <Label>Seção do formulário</Label>
@@ -607,22 +551,30 @@ export const ScreenBuilderView: React.FC = () => {
                 placeholder="Opcional — exibido dentro do campo vazio"
               />
             </InputGroup>
-            <S.CheckboxRow>
+            <S.RulesDivider>Comportamento na tela</S.RulesDivider>
+            <S.CheckboxCell>
               <Checkbox
                 label="Preenchimento obrigatório"
                 checked={vm.fieldModalIsTitleField ? true : vm.fieldForm.required}
                 disabled={vm.fieldModalIsTitleField}
                 onChange={(next) => vm.updateFieldForm({ required: next })}
               />
-            </S.CheckboxRow>
-            <S.CheckboxRow>
+            </S.CheckboxCell>
+            <S.CheckboxCell>
+              <Checkbox
+                label="Disponível como filtro na listagem"
+                checked={vm.fieldForm.filterable}
+                onChange={(next) => vm.updateFieldForm({ filterable: next })}
+              />
+            </S.CheckboxCell>
+            <S.CheckboxCell>
               <Checkbox
                 label="Exibir na listagem"
                 checked={vm.fieldForm.showInList}
                 onChange={(next) => vm.updateFieldForm({ showInList: next })}
               />
-            </S.CheckboxRow>
-            {vm.fieldForm.showInList && (
+            </S.CheckboxCell>
+            {vm.fieldForm.showInList ? (
               <InputGroup>
                 <Label>Título no card da listagem</Label>
                 <Input
@@ -631,14 +583,103 @@ export const ScreenBuilderView: React.FC = () => {
                   placeholder="Opcional — se vazio, o valor aparece sem título no card"
                 />
               </InputGroup>
+            ) : <div />}
+              </>
             )}
-            <S.CheckboxRow>
-              <Checkbox
-                label="Disponível como filtro na listagem"
-                checked={vm.fieldForm.filterable}
-                onChange={(next) => vm.updateFieldForm({ filterable: next })}
-              />
-            </S.CheckboxRow>
+
+            {vm.fieldModalTab === 'advanced' && (
+              <>
+                {vm.fieldSupportsRules && (
+                  <>
+                    <S.RulesDivider>Formatação e validação</S.RulesDivider>
+                    <InputGroup>
+                      <Label>Formatação pronta</Label>
+                      <SearchSelect
+                        options={vm.formatPresetOptions}
+                        value={vm.fieldForm.ruleFormatPreset}
+                        onChange={(value) => vm.updateFieldForm({ ruleFormatPreset: value as typeof vm.fieldForm.ruleFormatPreset })}
+                        placeholder="Nenhuma"
+                      />
+                    </InputGroup>
+                    <InputGroup>
+                      <Label>Validação pronta</Label>
+                      <SearchSelect
+                        options={vm.validateCheckOptions}
+                        value={vm.fieldForm.ruleValidateCheck}
+                        onChange={(value) => vm.updateFieldForm({ ruleValidateCheck: value as typeof vm.fieldForm.ruleValidateCheck })}
+                        placeholder="Nenhuma"
+                      />
+                    </InputGroup>
+                    <InputGroup>
+                      <Label>Formatação por expressão regular</Label>
+                      <Input
+                        value={vm.fieldForm.ruleFormatPattern}
+                        onChange={(e) => vm.updateFieldForm({ ruleFormatPattern: e.target.value })}
+                        placeholder="Procurar, ex: ^(\d{3})(\d{3})(\d{3})(\d{2})$"
+                      />
+                    </InputGroup>
+                    <InputGroup>
+                      <Label>Substituir por</Label>
+                      <Input
+                        value={vm.fieldForm.ruleFormatReplacement}
+                        onChange={(e) => vm.updateFieldForm({ ruleFormatReplacement: e.target.value })}
+                        placeholder="Ex: $1.$2.$3-$4"
+                      />
+                    </InputGroup>
+                    <InputGroup>
+                      <Label>Validação por expressão regular</Label>
+                      <Input
+                        value={vm.fieldForm.ruleValidatePattern}
+                        onChange={(e) => vm.updateFieldForm({ ruleValidatePattern: e.target.value })}
+                        placeholder="Ex: ^[A-Z]{2}\d{6}$"
+                      />
+                    </InputGroup>
+                    <InputGroup>
+                      <Label>Mensagem de erro</Label>
+                      <Input
+                        value={vm.fieldForm.ruleValidateMessage}
+                        onChange={(e) => vm.updateFieldForm({ ruleValidateMessage: e.target.value })}
+                        placeholder="Exibida quando o valor não passa na validação"
+                      />
+                    </InputGroup>
+                  </>
+                )}
+                <S.RulesDivider>Comportamento por expressão</S.RulesDivider>
+                <S.FullRow>
+                  <InfoBanner
+                    message="Nas expressões, referencie os campos da tela pela chave (ex.: status, valor) — comece a digitar para ver as sugestões. Use value para o valor do próprio campo."
+                    variant="info"
+                  />
+                  <InputGroup>
+                    <Label>Validação (retorna a mensagem de erro, ou vazio/null se válido)</Label>
+                    <ExpressionEditor
+                      value={vm.fieldForm.logicValidate}
+                      onChange={(value) => vm.updateFieldForm({ logicValidate: value })}
+                      workflowVariables={vm.fieldExpressionVariables}
+                      placeholder="Ex: if(isEmpty(value) and status == 'ativo', 'Obrigatório para ativos', null)"
+                    />
+                  </InputGroup>
+                </S.FullRow>
+                <InputGroup>
+                  <Label>Desabilitar quando (verdadeiro/falso)</Label>
+                  <ExpressionEditor
+                    value={vm.fieldForm.logicDisabledWhen}
+                    onChange={(value) => vm.updateFieldForm({ logicDisabledWhen: value })}
+                    workflowVariables={vm.fieldExpressionVariables}
+                    placeholder="Ex: status == 'encerrado'"
+                  />
+                </InputGroup>
+                <InputGroup>
+                  <Label>Ocultar quando (verdadeiro/falso)</Label>
+                  <ExpressionEditor
+                    value={vm.fieldForm.logicHiddenWhen}
+                    onChange={(value) => vm.updateFieldForm({ logicHiddenWhen: value })}
+                    workflowVariables={vm.fieldExpressionVariables}
+                    placeholder="Ex: eletrico == false (some quando NÃO for elétrico)"
+                  />
+                </InputGroup>
+              </>
+            )}
             <S.ModalActions>
               <Button variant="secondary" onClick={vm.closeFieldModal}>Cancelar</Button>
               <Button onClick={() => void vm.handleSaveField()} disabled={vm.savingField} $isLoading={vm.savingField}>

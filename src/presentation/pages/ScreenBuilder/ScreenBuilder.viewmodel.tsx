@@ -103,6 +103,9 @@ export interface FieldFormState {
   logicHiddenWhen: string;
 }
 
+export type ScreenModalTab = 'general' | 'list' | 'children';
+export type FieldModalTab = 'general' | 'advanced';
+
 export interface ScreenBuilderViewModel {
   isAdmin: boolean;
   isLoading: boolean;
@@ -121,6 +124,9 @@ export interface ScreenBuilderViewModel {
   /** Modal aberto para uma tela do sistema: só configura os registros filhos. */
   screenModalIsBuiltin: boolean;
   screenModalTitle: string;
+  screenModalTabs: { key: ScreenModalTab; label: string }[];
+  screenModalTab: ScreenModalTab;
+  setScreenModalTab: (tab: ScreenModalTab) => void;
   modalListActionOptions: { key: ScreenListAction; label: string }[];
   screenForm: ScreenFormState;
   updateScreenForm: (patch: Partial<ScreenFormState>) => void;
@@ -143,6 +149,8 @@ export interface ScreenBuilderViewModel {
   confirmDeleteScreen: () => Promise<void>;
   deletingScreen: boolean;
   fieldModalOpen: boolean;
+  fieldModalTab: FieldModalTab;
+  setFieldModalTab: (tab: FieldModalTab) => void;
   fieldModalIsEdit: boolean;
   fieldModalIsTitleField: boolean;
   fieldForm: FieldFormState;
@@ -373,6 +381,12 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
   const defaultTagColor = useMemo(() => getDefaultTagColor(theme), [theme]);
 
   const [screenModal, setScreenModal] = useState<{ screenKey: string | null } | null>(null);
+  // Telas do sistema não têm o interruptor "Habilitar Etiquetas": a capacidade delas vem de
+  // supportedListActions. Por isso a regra hasTags → manageTags vale só para telas customizadas.
+  const screenModalIsBuiltin = !!screenModal?.screenKey
+    && BUILTIN_SCREENS.some((b) => b.key === screenModal.screenKey);
+  const [screenModalTab, setScreenModalTab] = useState<ScreenModalTab>('general');
+  const [fieldModalTab, setFieldModalTab] = useState<FieldModalTab>('general');
   const [screenForm, setScreenForm] = useState<ScreenFormState>(EMPTY_SCREEN_FORM);
   const [savingScreen, setSavingScreen] = useState(false);
   const [deleteScreenTarget, setDeleteScreenTarget] = useState<ScreenDefinition | null>(null);
@@ -491,14 +505,14 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
   const updateScreenForm = useCallback((patch: Partial<ScreenFormState>) => {
     setScreenForm((prev) => {
       const next = { ...prev, ...patch };
-      if (next.hasTags) return next;
+      if (screenModalIsBuiltin || next.hasTags) return next;
       return { ...next, listActions: next.listActions.filter((a) => a !== 'manageTags') };
     });
-  }, []);
+  }, [screenModalIsBuiltin]);
 
   const toggleListAction = useCallback((action: ScreenListAction) => {
     setScreenForm((prev) => {
-      if (action === 'manageTags' && !prev.hasTags) return prev;
+      if (action === 'manageTags' && !screenModalIsBuiltin && !prev.hasTags) return prev;
       return {
         ...prev,
         listActions: prev.listActions.includes(action)
@@ -506,7 +520,7 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
           : [...prev.listActions, action],
       };
     });
-  }, []);
+  }, [screenModalIsBuiltin]);
 
   const updateFieldForm = useCallback((patch: Partial<FieldFormState>) => {
     setFieldForm((prev) => {
@@ -524,10 +538,12 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
 
   const openCreateScreen = useCallback(() => {
     setScreenForm(EMPTY_SCREEN_FORM);
+    setScreenModalTab('general');
     setScreenModal({ screenKey: null });
   }, []);
 
   const openEditScreen = useCallback((screenKey: string) => {
+    setScreenModalTab('general');
     const def = getDefinitionByKey(screenKey);
     const childLinks = Object.fromEntries(
       dynamicDefinitions
@@ -614,14 +630,28 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
       .map((f) => ({ value: f.key, label: f.label }));
   }, [screenModal, getDefinitionByKey]);
 
-  const screenModalIsBuiltin = !!screenModal?.screenKey
-    && BUILTIN_SCREENS.some((b) => b.key === screenModal.screenKey);
-
   const modalListActionOptions = useMemo(() => {
     if (!screenModalIsBuiltin) return LIST_ACTION_OPTIONS;
     const supported = supportedListActions(screenModal?.screenKey ?? '');
     return LIST_ACTION_OPTIONS.filter((option) => supported.includes(option.key));
   }, [screenModalIsBuiltin, screenModal]);
+
+  // Nas telas do sistema não há "Geral" (título, ícone e abas são fixos), e "Registros filhos"
+  // só existe quando alguma tela aponta para esta.
+  const screenModalTabs = useMemo<{ key: ScreenModalTab; label: string }[]>(() => [
+    ...(screenModalIsBuiltin ? [] : [{ key: 'general' as const, label: 'Geral' }]),
+    { key: 'list' as const, label: 'Listagem' },
+    ...(!!screenModal?.screenKey && childCandidates.length > 0
+      ? [{ key: 'children' as const, label: 'Registros filhos' }]
+      : []),
+  ], [screenModalIsBuiltin, screenModal, childCandidates]);
+
+  const activeScreenModalTab = useMemo<ScreenModalTab>(
+    () => (screenModalTabs.some((tab) => tab.key === screenModalTab)
+      ? screenModalTab
+      : screenModalTabs[0].key),
+    [screenModalTabs, screenModalTab],
+  );
 
   /** O vínculo é configurado no pai, mas o dado mora na definição da tela FILHA. */
   const persistChildLinks = useCallback(async (parentKey: string) => {
@@ -652,12 +682,14 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
     const isBuiltinParent = !!screenModal?.screenKey
       && BUILTIN_SCREENS.some((b) => b.key === screenModal.screenKey);
     if (!isBuiltinParent && (!screenForm.titleSingular.trim() || !screenForm.titlePlural.trim())) {
+      setScreenModalTab('general');
       notify('Informe o título no singular e no plural.', 'error');
       return;
     }
     const childMissingField = Object.entries(screenForm.childLinks).find(([, field]) => !field);
     if (childMissingField) {
       const label = childCandidates.find((c) => c.key === childMissingField[0])?.label ?? 'registro filho';
+      setScreenModalTab('children');
       notify(`Escolha o campo de vínculo de "${label}".`, 'error');
       return;
     }
@@ -792,10 +824,12 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
 
   const openCreateField = useCallback((screenKey: string) => {
     setFieldForm({ ...EMPTY_FIELD_FORM, optionColorInput: defaultTagColor });
+    setFieldModalTab('general');
     setFieldModal({ screenKey, fieldKey: null });
   }, [defaultTagColor]);
 
   const openEditField = useCallback((screenKey: string, fieldKey: string) => {
+    setFieldModalTab('general');
     const def = getDefinitionByKey(screenKey);
     const field = def?.fields.find((f) => f.key === fieldKey);
     if (!field) return;
@@ -916,40 +950,46 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
 
   const handleSaveField = useCallback(async () => {
     if (!fieldModal) return;
+    // Abre a aba dona do campo recusado: com o formulário em abas, avisar sem trazer o
+    // usuário até o campo deixaria o erro invisível.
+    const reject = (tab: FieldModalTab, message: string) => {
+      setFieldModalTab(tab);
+      notify(message, 'error');
+    };
     const label = fieldForm.label.trim();
     if (!label) {
-      notify('Informe o nome do campo.', 'error');
+      reject('general', 'Informe o nome do campo.');
       return;
     }
-    
+
     // Validação do fieldKey (apenas em criação, não edição)
     if (!fieldModal.fieldKey) {
       const fieldKeyToValidate = fieldForm.fieldKey.trim() || slugifyFieldKey(label);
       const validationError = validateFieldKey(fieldKeyToValidate);
       if (validationError) {
-        notify(validationError, 'error');
+        reject('general', validationError);
         return;
       }
     }
-    
+
     if (fieldForm.type === 'select' && fieldForm.staticOptions.length === 0 && !fieldForm.optionsAllowUserAdd) {
-      notify('Adicione ao menos uma opção ou permita que usuários criem opções.', 'error');
+      reject('general', 'Adicione ao menos uma opção ou permita que usuários criem opções.');
       return;
     }
     if (fieldForm.type === 'masked' && !fieldForm.mask) {
-      notify('Escolha a máscara do campo.', 'error');
+      reject('general', 'Escolha a máscara do campo.');
       return;
     }
     if (fieldForm.type === 'reference' && !fieldForm.refEntity) {
-      notify('Escolha a tela vinculada ao campo.', 'error');
+      reject('general', 'Escolha a tela vinculada ao campo.');
       return;
     }
     if (isInvalidRegex(fieldForm.ruleValidatePattern)) {
-      notify('A expressão regular de validação é inválida.', 'error');
+      reject('advanced', 'A expressão regular de validação é inválida.');
       return;
     }
     if (isInvalidRegex(fieldForm.ruleFormatPattern)) {
-      notify('A expressão regular de formatação é inválida.', 'error');
+      reject('advanced', 'A expressão regular de formatação é inválida.');
       return;
     }
     const rules = buildFieldRules(fieldForm);
@@ -1117,6 +1157,9 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
     screenModalIsEdit: !!screenModal?.screenKey,
     screenModalIsBuiltin,
     modalListActionOptions,
+    screenModalTabs,
+    screenModalTab: activeScreenModalTab,
+    setScreenModalTab,
     screenModalTitle: screenModalIsBuiltin
       ? `Configurações de ${BUILTIN_SCREENS.find((b) => b.key === screenModal?.screenKey)?.label ?? 'Tela'}`
       : (screenModal?.screenKey ? 'Editar Tela' : 'Nova Tela'),
@@ -1141,6 +1184,8 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
     confirmDeleteScreen,
     deletingScreen,
     fieldModalOpen: fieldModal !== null,
+    fieldModalTab,
+    setFieldModalTab,
     fieldModalIsEdit: !!fieldModal?.fieldKey,
     fieldModalIsTitleField,
     fieldForm,

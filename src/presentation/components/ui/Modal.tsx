@@ -21,13 +21,19 @@ const Overlay = styled.div`
   }
 `;
 
-const Container = styled.div<{ $size: 'small' | 'medium' | 'large' }>`
+const SIZE_WIDTHS = {
+  small: '420px',
+  medium: '640px',
+  large: '800px',
+  xlarge: '1040px',
+} as const;
+
+const Container = styled.div<{ $size: keyof typeof SIZE_WIDTHS }>`
   background: ${({ theme }) => theme.colors.surface};
   border: 1px solid ${({ theme }) => theme.colors.border};
   border-radius: ${({ theme }) => theme.borderRadius.lg};
   width: 100%;
-  max-width: ${({ $size }) =>
-    $size === 'small' ? '420px' : $size === 'medium' ? '640px' : '800px'};
+  max-width: ${({ $size }) => SIZE_WIDTHS[$size]};
   max-height: 90vh;
   display: flex;
   flex-direction: column;
@@ -70,7 +76,7 @@ interface ModalProps {
   title: string;
   onClose: () => void;
   children: React.ReactNode;
-  size?: 'small' | 'medium' | 'large';
+  size?: keyof typeof SIZE_WIDTHS;
 }
 
 export const Modal: React.FC<ModalProps> = ({ title, onClose, children, size = 'small' }) => {

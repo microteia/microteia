@@ -11,6 +11,13 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [0.115.0] — 2026-07-19
+
+- As janelas de configuração de tela e de campo ficaram mais largas e foram divididas em abas, para caber na tela sem rolagem. No campo, as regras de formatação, validação, ocultação e desabilitação passaram para a aba "Avançado"; na tela, as opções foram separadas entre "Geral", "Listagem" e "Registros filhos".
+- Ao escolher o tipo "Vínculo com registro", a tela vinculada e a opção de múltiplas seleções agora aparecem lado a lado.
+- Se algo obrigatório não estiver preenchido, o sistema abre automaticamente a aba onde está o campo, em vez de apenas avisar.
+- Corrigido: nas telas do sistema, o atalho "Gerenciar etiquetas" aparecia bloqueado na configuração do card, mesmo em telas que têm etiquetas.
+
 ## [0.114.1] — 2026-07-19
 
 - Na configuração de uma tela personalizada, o atalho "Gerenciar etiquetas" do card agora fica visivelmente indisponível enquanto "Habilitar Etiquetas" estiver desmarcado — antes ele parecia disponível, mas não tinha efeito.
