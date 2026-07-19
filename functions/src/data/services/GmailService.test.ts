@@ -1,58 +1,37 @@
 import { describe, it, expect } from 'vitest';
 import { decodePartData } from './GmailService';
-import { decodeQuotedPrintable } from './mimeDecoding';
 import { TJBAEmailParser } from './parsers/TJBAEmailParser';
-import { PJE_PUSH_QUOTED_PRINTABLE_HTML } from './parsers/__fixtures__/emails';
+import { PJE_PUSH_TJBA_HTML } from './parsers/__fixtures__/emails';
 
-const gmailPart = (body: string, contentType: string, transferEncoding?: string) => ({
+const gmailPart = (body: Buffer, contentType: string) => ({
   mimeType: 'text/html',
-  headers: [
-    { name: 'Content-Type', value: contentType },
-    ...(transferEncoding ? [{ name: 'Content-Transfer-Encoding', value: transferEncoding }] : []),
-  ],
-  body: { data: Buffer.from(body, 'latin1').toString('base64url') },
-});
-
-describe('decodeQuotedPrintable', () => {
-  it('remove quebras de linha suaves', () => {
-    expect(decodeQuotedPrintable(Buffer.from('Numero do proces=\r\nso', 'latin1')).toString('latin1')).toBe(
-      'Numero do processo',
-    );
-  });
-
-  it('converte escapes =XX no byte correspondente', () => {
-    expect(decodeQuotedPrintable(Buffer.from('N=FAmero', 'latin1')).toString('latin1')).toBe('Número');
-  });
-
-  it('preserva o texto que não está codificado', () => {
-    expect(decodeQuotedPrintable(Buffer.from('Classe Judicial: X', 'latin1')).toString('latin1')).toBe(
-      'Classe Judicial: X',
-    );
-  });
+  headers: [{ name: 'Content-Type', value: contentType }],
+  body: { data: body.toString('base64url') },
 });
 
 describe('decodePartData', () => {
-  it('decodifica quoted-printable antes de aplicar o charset ISO-8859-1', () => {
-    const part = gmailPart('N=FAmero do Proces=\r\nso: 1', 'text/html; charset=ISO-8859-1', 'quoted-printable');
-    expect(decodePartData(part)).toBe('Número do Processo: 1');
+  it('decodifica como UTF-8 mesmo quando a parte declara ISO-8859-1', () => {
+    const part = gmailPart(Buffer.from('Número do Processo', 'utf8'), 'text/html; charset=ISO-8859-1');
+    expect(decodePartData(part)).toBe('Número do Processo');
   });
 
-  it('não altera partes sem quoted-printable', () => {
-    const part = gmailPart('Número do Processo: 1', 'text/html; charset=ISO-8859-1');
-    expect(decodePartData(part)).toBe('Número do Processo: 1');
+  it('cai para latin1 quando os bytes não são UTF-8 válido', () => {
+    const part = gmailPart(Buffer.from('Número do Processo', 'latin1'), 'text/html; charset=ISO-8859-1');
+    expect(decodePartData(part)).toBe('Número do Processo');
+  });
+
+  it('preserva "=" seguido de hexadecimal em URLs', () => {
+    const url = 'documentoHTML.seam?idBin=541457660&idProcessoDoc=569250351';
+    const part = gmailPart(Buffer.from(url, 'utf8'), 'text/html; charset=UTF-8');
+    expect(decodePartData(part)).toBe(url);
   });
 });
 
-describe('e-mail real do PJe TJBA em quoted-printable (pjetjba.eml)', () => {
-  const part = gmailPart(
-    PJE_PUSH_QUOTED_PRINTABLE_HTML,
-    'text/html; charset=ISO-8859-1',
-    'quoted-printable',
-  );
+describe('e-mail real do PJe Push TJBA entregue pela Gmail API', () => {
+  const part = gmailPart(Buffer.from(PJE_PUSH_TJBA_HTML, 'utf8'), 'text/html; charset=ISO-8859-1');
 
-  it('é reconhecido e parseado pelo TJBAEmailParser após a decodificação MIME', () => {
-    const html = decodePartData(part);
-    const results = new TJBAEmailParser().tryParse('', html);
+  it('é reconhecido e parseado após a decodificação da parte MIME', () => {
+    const results = new TJBAEmailParser().tryParse('', decodePartData(part));
 
     expect(results).toHaveLength(1);
     const r = results[0];
@@ -71,11 +50,15 @@ describe('e-mail real do PJe TJBA em quoted-printable (pjetjba.eml)', () => {
     expect(r.movements).toHaveLength(1);
     expect(r.movements?.[0].type).toBe('Disponibilizado no DJ Eletrônico em 17/07/2026');
     expect(r.movements?.[0].date.getDate()).toBe(18);
-    expect(r.movements?.[0].documentUrl).toContain('documentoHTML.seam?idBin=541457660');
+    expect(r.movements?.[0].documentUrl).toContain('idBin=541457660');
+    expect(r.movements?.[0].documentUrl).toContain('idProcessoDoc=569250351');
   });
 
-  it('não é reconhecido enquanto o quoted-printable não for decodificado', () => {
-    const results = new TJBAEmailParser().tryParse('', PJE_PUSH_QUOTED_PRINTABLE_HTML);
-    expect(results).toEqual([]);
+  it('não extrai o processo quando o corpo UTF-8 é lido como latin1', () => {
+    const corrompido = Buffer.from(PJE_PUSH_TJBA_HTML, 'utf8').toString('latin1');
+    const results = new TJBAEmailParser().tryParse('', corrompido);
+
+    expect(results[0]?.processNumber).toBeUndefined();
+    expect(results[0]?.parsingError).toBe('Número do processo não encontrado');
   });
 });

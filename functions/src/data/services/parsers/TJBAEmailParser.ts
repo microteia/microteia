@@ -20,7 +20,7 @@ export class TJBAEmailParser implements IEmailParser {
     const content = `${decodeHtmlEntities(emailText || '')}\n${htmlToText(html)}`;
 
     if (!this.matches(content)) {
-      console.log('TJBAEmailParser: conteúdo não corresponde ao padrão esperado.');
+      console.log('TJBAEmailParser (v1.1): conteúdo não corresponde ao padrão esperado.');
       return [];
     }
 
@@ -58,7 +58,7 @@ export class TJBAEmailParser implements IEmailParser {
   private matches(content: string): boolean {
     const hasPjePush = /PJe Push/i.test(content);
     const has805Process = /\d{7}-\d{2}\.\d{4}\.8\.05\.\d{4}/.test(content);
-    const hasPjeFields = /Classe Judicial/i.test(content) && /N.mero do Processo/i.test(content);
+    const hasPjeFields = /Classe Judicial/i.test(content) && /N.{0,3}mero do Processo/i.test(content);
     return hasPjePush && has805Process && hasPjeFields;
   }
 

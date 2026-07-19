@@ -11,9 +11,14 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [0.115.2] — 2026-07-19
+
+- Corrigido: e-mails de movimentação do PJe do TJBA chegavam com as letras acentuadas trocadas e deixavam de ser reconhecidos, impedindo o registro automático das movimentações. O mesmo problema podia afetar comunicados de outros tribunais.
+- Corrigido: os links para os documentos das movimentações podiam vir quebrados. Comunicados recebidos hoje mais cedo com link inválido precisam ser reprocessados.
+
 ## [0.115.1] — 2026-07-19
 
-- Corrigido: e-mails de movimentação do PJe do TJBA chegavam com o texto embaralhado e deixavam de ser reconhecidos, o que impedia o registro automático das movimentações. O mesmo problema podia afetar comunicados de outros tribunais.
+- Ajuste interno no processamento de e-mails dos tribunais.
 
 ## [0.115.0] — 2026-07-19
 
