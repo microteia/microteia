@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [0.113.1] — 2026-07-18
+
+- Corrigido um problema nas telas personalizadas: ao criar uma etiqueta pela janela de etiquetas, ela não aparecia na lista e era preciso recarregar o navegador para vê-la. Agora a etiqueta nova surge na hora, já na ordem alfabética — e o mesmo vale quando uma etiqueta é renomeada.
+
 ## [0.113.0] — 2026-07-18
 
 - As telas do sistema (Pessoas, Processos, Contratos, Prazos e Financeiro) ganharam uma janela de Configurações, onde é possível escolher quais atalhos aparecem no card da listagem — copiar link, duplicar, gerenciar etiquetas e excluir. Cada tela oferece apenas os atalhos que fazem sentido nela: Prazos, por exemplo, não tem etiquetas.
