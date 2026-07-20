@@ -17,6 +17,7 @@ export const ViewFinancialView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
       <S.FormGroup $fullWidth>
         <CustomFieldsSection
           screenKey="financials-native"
+          resolveOptionsScreenKey={vm.resolveOptionsScreenKey}
           fields={vm.fields}
           values={vm.values}
           onChange={vm.setFieldValue}
@@ -29,21 +30,6 @@ export const ViewFinancialView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
         />
       </S.FormGroup>
 
-      {vm.customFields.length > 0 && (
-        <>
-          <S.SectionTitle>Campos adicionais</S.SectionTitle>
-          <S.FormGroup $fullWidth>
-            <CustomFieldsSection
-              screenKey="financials"
-              fields={vm.customFields}
-              values={vm.values}
-              onChange={vm.setFieldValue}
-          onMergeValues={vm.mergeValues}
-              errors={vm.fieldErrors}
-            />
-          </S.FormGroup>
-        </>
-      )}
     </S.FormGrid>
   );
 

@@ -37,6 +37,9 @@ const mapScreenDefinition = (id: string, d: Record<string, unknown>, tenantId: s
   titlePlural: (d.titlePlural as string | undefined) ?? '',
   icon: (d.icon as string | undefined) ?? 'apps',
   fields: (d.fields as FieldDefinition[] | undefined) ?? [],
+  nativeFieldOverrides:
+    (d.nativeFieldOverrides as ScreenDefinition['nativeFieldOverrides'] | undefined) ?? null,
+  fieldOrderUnified: (d.fieldOrderUnified as boolean | undefined) ?? null,
   titleFieldKey: (d.titleFieldKey as string | undefined) ?? '',
   hasNotes: (d.hasNotes as boolean | undefined) ?? false,
   hasDocuments: (d.hasDocuments as boolean | undefined) ?? false,

@@ -1,10 +1,8 @@
-import type { FieldDefinition } from '../../../domain/entities';
-import { deriveFormFields, deriveListRows } from '../../shared/deriveEntitySchema';
+import { deriveListRows } from '../../shared/deriveEntitySchema';
 
-// Form e List de Pessoas derivam da fonte única (ENTITY_REGISTRY.persons — regras no campo, apresentação no `ui`).
-// Para ajustar um campo, edite o campo no registry. Overrides/campos exclusivos entrariam via deriveFormFields(opts).
-
-export const PERSON_FORM_FIELDS: FieldDefinition[] = deriveFormFields('persons');
+// A listagem de Pessoas deriva da fonte única (ENTITY_REGISTRY.persons — regras no campo,
+// apresentação no `ui`). Os campos do FORMULÁRIO vêm de `useEntityFormFields`, que aplica também
+// os ajustes do Form Design.
 
 export type PersonCardActionKey = 'copyLink' | 'clone' | 'manageTags' | 'delete';
 

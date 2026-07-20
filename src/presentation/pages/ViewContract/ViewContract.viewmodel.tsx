@@ -9,7 +9,7 @@ import { useAuth } from '../../../stores/useAuth';
 import { useTenant } from '../../../stores/useTenant';
 import { useWorkspace } from '../../../stores/useWorkspace';
 import { useNotification } from '../../../stores/useNotification';
-import { useScreenDefinitions } from '../../../stores/useScreenDefinitions';
+import { useEntityFormFields } from '../../shared/useEntityFormFields';
 import { useDI } from '../../../infrastructure/di/useDI';
 import { resolveColor, getConfigColor } from '../../../shared/styles/colorUtils';
 import { toDateInputValue } from '../../../utils/formatters';
@@ -25,7 +25,6 @@ import type { ScreenActions } from '../../shared/entityScreen/useScreenActions';
 import { useNotesPort } from '../../shared/entityScreen/useNotesPort';
 import { useDocumentsPort } from '../../shared/entityScreen/useDocumentsPort';
 import type { EntityNotesController, EntityDocumentsController } from '../../shared/entityScreen/types';
-import { CONTRACT_FORM_FIELDS } from './contractSchema';
 import {
   buildInitialFormValues,
   collectRequiredErrors,
@@ -177,6 +176,7 @@ export interface ViewContractViewModel {
   isAdmin: boolean;
   fields: FieldDefinition[];
   customFields: FieldDefinition[];
+  resolveOptionsScreenKey: (field: FieldDefinition) => string;
   values: Values;
   setFieldValue: (fieldKey: string, value: CustomFieldValue) => void;
   mergeValues: (patch: Record<string, unknown>) => void;
@@ -231,14 +231,12 @@ export const useViewContractViewModel = (tabKey: string): ViewContractViewModel 
   const { tenantRole } = useTenant();
   const { openTab } = useWorkspace();
   const { notify } = useNotification();
-  const { getCustomFieldsFor } = useScreenDefinitions();
   const { contractNoteRepository, contractDocumentRepository } = useDI();
   const theme = useTheme();
 
   const isAdmin = tenantRole === 'admin';
   const userId = user?.id ?? '';
-  const customFields = useMemo(() => getCustomFieldsFor('contracts'), [getCustomFieldsFor]);
-  const allFields = useMemo(() => [...CONTRACT_FORM_FIELDS, ...customFields], [customFields]);
+  const { fields: formFields, customFields, resolveOptionsScreenKey } = useEntityFormFields('contracts');
 
   const [caseToAdd, setCaseToAdd] = useState('');
 
@@ -255,16 +253,16 @@ export const useViewContractViewModel = (tabKey: string): ViewContractViewModel 
   );
 
   const validate = useCallback((values: Values): EntityValidationResult | null => {
-    const fieldErrors = collectRequiredErrors(allFields, values);
+    const fieldErrors = collectRequiredErrors(formFields, values);
     const issues = validateRecordRules('contracts', valuesToContractPayload(values, customFields));
     issues.forEach((issue) => {
       const key = ruleIssueFieldKey(issue.path);
       if (!fieldErrors[key]) fieldErrors[key] = issue.error;
     });
     if (Object.keys(fieldErrors).length === 0) return null;
-    const message = validateRequiredFields(allFields, values) ?? describeRuleIssues(issues);
+    const message = validateRequiredFields(formFields, values) ?? describeRuleIssues(issues);
     return { message, fieldErrors };
-  }, [allFields, customFields]);
+  }, [formFields, customFields]);
 
   const create = useCallback(async (values: Values) => {
     const created = await createContract({
@@ -409,8 +407,9 @@ export const useViewContractViewModel = (tabKey: string): ViewContractViewModel 
     screenActions: detail.screenActions,
     contract,
     isAdmin,
-    fields: CONTRACT_FORM_FIELDS,
+    fields: formFields,
     customFields,
+    resolveOptionsScreenKey,
     values: detail.values,
     setFieldValue,
     mergeValues: detail.mergeValues,

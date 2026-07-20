@@ -40,6 +40,12 @@ export interface CustomFieldsSectionProps {
   errors?: Record<string, string>;
   /** Habilita os efeitos de `onChange` (preencher vários campos). Ausente = comportamento anterior. */
   onMergeValues?: (patch: Record<string, unknown>) => void;
+  /**
+   * Resolve a tela dona das opções de cada campo. Necessário na lista unificada das telas fixas,
+   * onde campos do sistema e adicionais convivem mas indexam opções em chaves diferentes.
+   * Ausente = todos usam `screenKey`.
+   */
+  resolveOptionsScreenKey?: (field: FieldDefinition) => string;
 }
 
 export interface FieldGroup {
@@ -86,6 +92,7 @@ export const useCustomFieldsSectionViewModel = (props: CustomFieldsSectionProps)
     canDeleteLookupOption = false,
     errors,
     onMergeValues,
+    resolveOptionsScreenKey,
   } = props;
   const { fieldOptionsByField, addFieldOption, removeFieldOption } = useScreenDefinitions();
   const { tenantRole } = useTenant();
@@ -93,6 +100,11 @@ export const useCustomFieldsSectionViewModel = (props: CustomFieldsSectionProps)
   const theme = useTheme();
 
   const canDeleteOption = tenantRole === 'admin';
+
+  const optionsScreenKeyOf = useCallback(
+    (field: FieldDefinition): string => resolveOptionsScreenKey?.(field) ?? screenKey,
+    [resolveOptionsScreenKey, screenKey],
+  );
 
   const resolveRecord = useRecordResolver();
 
@@ -162,22 +174,22 @@ export const useCustomFieldsSectionViewModel = (props: CustomFieldsSectionProps)
 
   const dynamicSelectOptions = useCallback(
     (field: FieldDefinition): DynamicSelectOption[] =>
-      (fieldOptionsByField[fieldOptionsKey(screenKey, field.key)] ?? []).map((o) => ({
+      (fieldOptionsByField[fieldOptionsKey(optionsScreenKeyOf(field), field.key)] ?? []).map((o) => ({
         value: o.key,
         label: o.label,
         color: resolveFieldOptionColor(undefined, field.optionsColored, theme),
       })),
-    [fieldOptionsByField, screenKey, theme],
+    [fieldOptionsByField, optionsScreenKeyOf, theme],
   );
 
   const handleAddOption = useCallback(
-    (field: FieldDefinition, label: string) => addFieldOption(screenKey, field.key, label),
-    [addFieldOption, screenKey],
+    (field: FieldDefinition, label: string) => addFieldOption(optionsScreenKeyOf(field), field.key, label),
+    [addFieldOption, optionsScreenKeyOf],
   );
 
   const handleDeleteOption = useCallback(
-    (field: FieldDefinition, optionKey: string) => removeFieldOption(screenKey, field.key, optionKey),
-    [removeFieldOption, screenKey],
+    (field: FieldDefinition, optionKey: string) => removeFieldOption(optionsScreenKeyOf(field), field.key, optionKey),
+    [removeFieldOption, optionsScreenKeyOf],
   );
 
   const referenceOptions = useCallback(

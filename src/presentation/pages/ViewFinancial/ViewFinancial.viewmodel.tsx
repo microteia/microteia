@@ -6,7 +6,7 @@ import { useFinancialLookup } from '../../../stores/useFinancialLookup';
 import { useContractLookup } from '../../../stores/useContractLookup';
 import { useAuth } from '../../../stores/useAuth';
 import { useTenant } from '../../../stores/useTenant';
-import { useScreenDefinitions } from '../../../stores/useScreenDefinitions';
+import { useEntityFormFields } from '../../shared/useEntityFormFields';
 import { useDI } from '../../../infrastructure/di/useDI';
 import { resolveColor } from '../../../shared/styles/colorUtils';
 import { toDateInputValue as toDateInput } from '../../../utils/formatters';
@@ -18,7 +18,6 @@ import type { ScreenActions } from '../../shared/entityScreen/useScreenActions';
 import { useDocumentsPort } from '../../shared/entityScreen/useDocumentsPort';
 import type { NotesPort, EntityNotesController, EntityDocumentsController } from '../../shared/entityScreen/types';
 import type { EntityDetailExtraTab, EntityDetailTab } from '../../components/layout/EntityDetailView';
-import { FINANCIAL_FORM_FIELDS } from './financialSchema';
 import {
   buildInitialFormValues,
   collectRequiredErrors,
@@ -104,6 +103,7 @@ export interface ViewFinancialViewModel {
   isAdmin: boolean;
   fields: FieldDefinition[];
   customFields: FieldDefinition[];
+  resolveOptionsScreenKey: (field: FieldDefinition) => string;
   values: Values;
   setFieldValue: (fieldKey: string, value: CustomFieldValue) => void;
   mergeValues: (patch: Record<string, unknown>) => void;
@@ -141,13 +141,12 @@ export const useViewFinancialViewModel = (tabKey: string): ViewFinancialViewMode
   const { costCenterConfigs, addItem: addContractLookupItem, removeItem: removeContractLookupItem } = useContractLookup();
   const { user, effectiveName } = useAuth();
   const { tenantRole } = useTenant();
-  const { getCustomFieldsFor } = useScreenDefinitions();
   const { financialDocumentRepository } = useDI();
   const theme = useTheme();
 
   const isAdmin = tenantRole === 'admin';
   const userId = user?.id ?? '';
-  const customFields = useMemo(() => getCustomFieldsFor('financials'), [getCustomFieldsFor]);
+  const { fields: formFields, customFields, resolveOptionsScreenKey } = useEntityFormFields('financials');
 
   const findInStore = useCallback(
     (id: string) => financials.find((f) => f.id === id) ?? null,
@@ -162,10 +161,9 @@ export const useViewFinancialViewModel = (tabKey: string): ViewFinancialViewMode
 
   const resolveTitleFromValues = useCallback((values: Values) => str(values, 'category') || 'Lançamento', []);
 
-  const allFields = useMemo(() => [...FINANCIAL_FORM_FIELDS, ...customFields], [customFields]);
 
   const validate = useCallback((values: Values): EntityValidationResult | null => {
-    const fieldErrors = collectRequiredErrors(allFields, values);
+    const fieldErrors = collectRequiredErrors(formFields, values);
     const amount = num(values, 'amount');
     if (amount !== null && amount <= 0) fieldErrors.amount = 'Informe um valor maior que zero.';
     const issues = validateRecordRules('financials', valuesToFinancialPayload(values, customFields));
@@ -175,9 +173,9 @@ export const useViewFinancialViewModel = (tabKey: string): ViewFinancialViewMode
     });
     if (Object.keys(fieldErrors).length === 0) return null;
     const message =
-      validateRequiredFields(allFields, values) ?? fieldErrors.amount ?? describeRuleIssues(issues);
+      validateRequiredFields(formFields, values) ?? fieldErrors.amount ?? describeRuleIssues(issues);
     return { message, fieldErrors };
-  }, [allFields, customFields]);
+  }, [formFields, customFields]);
 
   const create = useCallback(async (values: Values) => {
     const created = await createFinancial({
@@ -269,8 +267,9 @@ export const useViewFinancialViewModel = (tabKey: string): ViewFinancialViewMode
     screenActions: detail.screenActions,
     financial,
     isAdmin,
-    fields: FINANCIAL_FORM_FIELDS,
+    fields: formFields,
     customFields,
+    resolveOptionsScreenKey,
     values: detail.values,
     setFieldValue: detail.setFieldValue,
     mergeValues: detail.mergeValues,

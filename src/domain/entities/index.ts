@@ -862,6 +862,7 @@ export type {
   CustomFieldValue,
   CustomFieldOption,
   FieldDefinition,
+  NativeFieldOverride,
   ScreenDefinition,
   ScreenListAction,
 } from './entitySchemas';

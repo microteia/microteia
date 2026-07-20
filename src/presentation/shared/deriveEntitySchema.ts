@@ -1,6 +1,6 @@
 import type { EntityKey, FkSpec, NativeFieldSpec } from '../../domain/schema/entityRegistry';
 import { ENTITY_REGISTRY } from '../../domain/schema/entityRegistry';
-import type { CustomFieldType, FieldDefinition } from '../../domain/entities';
+import type { CustomFieldType, FieldDefinition, NativeFieldOverride } from '../../domain/entities';
 
 const controlFor = (spec: NativeFieldSpec): CustomFieldType => {
   if (spec.ui?.control) return spec.ui.control;
@@ -55,8 +55,44 @@ const fkToFieldDefinition = (fk: FkSpec, order: number): FieldDefinition => ({
 
 export interface DeriveFormOptions {
   overrides?: Record<string, Partial<FieldDefinition>>;
+  /** Ajustes do tenant vindos do Form Design — aplicados depois de `overrides` (que é de código). */
+  nativeOverrides?: Record<string, NativeFieldOverride> | null;
   extra?: FieldDefinition[];
 }
+
+const isSet = <T>(value: T | null | undefined): value is T => value !== null && value !== undefined;
+
+/**
+ * Aplica o override do tenant sobre o campo derivado do código. Só as propriedades declaradas em
+ * `NativeFieldOverride` passam — o resto do campo é intocável por desenho.
+ *
+ * `logic` é MESCLADO, não substituído: o override cobre as expressões front-only e precisa
+ * preservar `validate`/`compute` declarados em código, que também rodam no backend.
+ */
+export const applyNativeOverride = (
+  field: FieldDefinition,
+  override: NativeFieldOverride | undefined,
+): FieldDefinition => {
+  if (!override) return field;
+
+  const next: FieldDefinition = { ...field };
+  if (isSet(override.label) && override.label.trim() !== '') next.label = override.label.trim();
+  if (isSet(override.placeholder)) next.placeholder = override.placeholder.trim() || null;
+  if (isSet(override.section)) next.section = override.section.trim() || null;
+  if (isSet(override.order)) next.order = override.order;
+
+  if (isSet(override.logic)) {
+    next.logic = { ...(field.logic ?? {}), ...override.logic };
+  }
+
+  return next;
+};
+
+/** Um campo fixo escondido do formulário pelo Form Design não deve ser renderizado nem validado. */
+export const isHiddenByOverride = (
+  fieldKey: string,
+  overrides: Record<string, NativeFieldOverride> | null | undefined,
+): boolean => overrides?.[fieldKey]?.hiddenInForm === true;
 
 /**
  * Deriva os campos de formulário de uma entidade a partir do ENTITY_REGISTRY (fonte única).
@@ -94,9 +130,11 @@ export const deriveFormFields = (entityKey: EntityKey, opts: DeriveFormOptions =
     auto += 1;
   }
 
-  const withOverrides = derived.map((field) =>
-    opts.overrides?.[field.key] ? { ...field, ...opts.overrides[field.key] } : field,
-  );
+  const withOverrides = derived
+    .filter((field) => !isHiddenByOverride(field.key, opts.nativeOverrides))
+    .map((field) => (opts.overrides?.[field.key] ? { ...field, ...opts.overrides[field.key] } : field))
+    .map((field) => applyNativeOverride(field, opts.nativeOverrides?.[field.key]));
+
   const ordered = [...withOverrides].sort((a, b) => a.order - b.order);
   return opts.extra ? [...ordered, ...opts.extra] : ordered;
 };

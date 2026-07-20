@@ -1659,6 +1659,26 @@ Compatibilidade com expressões já escritas: referência vazia continua `null`/
 - **Limitação conhecida:** o vínculo é por igualdade simples — campo de referência `multi` (que grava um array) não é suportado, pois `queryByEquality` não faz `array-contains`.
 - **Escrita:** carimba `updatedBy: 'aggregate-engine'`. O campo agregado é somente-leitura no formulário (`isFieldDisabled`).
 
+### Override de campo fixo pelo Form Design
+
+`ScreenDefinition.nativeFieldOverrides?: Record<fieldKey, NativeFieldOverride>` guarda, no documento da tela fixa (`screenDefinitions/{entityKey}`, `builtin: true`), ajustes por tenant sobre os campos declarados em `entityRegistry.ts`.
+
+**A linha de corte é a fronteira front/back** (ver acima): o Form Design só edita **o que apenas o front lê**.
+
+| Editável | Fixo no código |
+|---|---|
+| `label`, `placeholder`, `section`, `order`, `hiddenInForm` | `type`, `multi`, `objectFields` |
+| `logic.hiddenWhen`, `logic.disabledWhen` | `rules` (formato e validação) |
+| `logic.onChange`, `logic.onChangeLookup` | `logic.validate`, `logic.compute`, `required`, `aggregation` |
+
+A coluna da direita é lida por `resolveFieldRules`/`collectFieldLogicTargets`/`pathResolver` **nos dois lados**. Sobrescrevê-la por tenant exigiria propagar o override até o `ScreenDefinitionCache` e aos três montadores de `SchemaContext` — sem isso, um workflow gravaria registro que a tela rejeita. Por isso o cache do backend **descarta `nativeFieldOverrides` de propósito**, com comentário no código.
+
+- **Aplicação:** `applyNativeOverride` (`presentation/shared/deriveEntitySchema.ts`) mescla o override sobre o campo derivado. `logic` é **mesclado, não substituído** — o `validate`/`compute` do código sobrevive ao ajuste das expressões front-only.
+- **Lista unificada:** `useEntityFormFields(entityKey)` substitui as constantes de módulo (`PERSON_FORM_FIELDS = deriveFormFields('persons')`), que eram avaliadas no import e não enxergariam um ajuste recém-salvo. As 5 telas fixas renderizam **um** `CustomFieldsSection` com fixos + adicionais.
+- **Ordenação:** `mergeFormFields` (`entityFormFields.ts`) resolve a colisão de `order` entre as duas famílias. Enquanto `fieldOrderUnified` for falso, os adicionais são deslocados para depois dos fixos — o layout anterior à unificação. A primeira reordenação no Form Design grava posições absolutas nos dois (fixo → `override.order`, adicional → `field.order`) e liga a flag, liberando a intercalação.
+- **Opções por campo:** a prop `resolveOptionsScreenKey` do `CustomFieldsSection` mantém a indexação histórica — campo fixo em `{entityKey}-native`, adicional em `{entityKey}`. Sem ela as opções já cadastradas sumiriam.
+- **`toSaveInput` propaga `nativeFieldOverrides` e `fieldOrderUnified`**: sem isso, salvar qualquer outra coisa na tela apagaria os ajustes.
+
 ### Telas fixas por Schema — piloto (Pessoas)
 
 Primeiro passo de unificação: o formulário "Dados" de `ViewPerson` é renderizado pelo `CustomFieldsSection` a partir de um layout de código `presentation/pages/ViewPerson/personFormSchema.ts` (`PERSON_FORM_FIELDS: FieldDefinition[]`), em vez de campos escritos à mão. A visibilidade PF/PJ (antes `if type === ...` no JSX) agora é `logic.hiddenWhen` por campo.

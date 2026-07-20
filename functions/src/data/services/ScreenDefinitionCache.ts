@@ -25,6 +25,12 @@ export class ScreenDefinitionCache implements IScreenDefinitionProvider {
     }
 
     const snapshot = await this.db.collection(`tenants/${tenantId}/screenDefinitions`).get();
+
+    // `nativeFieldOverrides` é lido do documento apenas pelo FRONT, e o descarte aqui é PROPOSITAL:
+    // o Form Design só ajusta apresentação e as expressões front-only dos campos fixos. Tipo,
+    // máscara, `rules`, `logic.validate` e `logic.compute` continuam vindo do entityRegistry, que o
+    // backend lê. Passar a respeitar o override aqui sem estender o escopo do Form Design faria a
+    // gravação por workflow divergir da tela.
     const screens: SchemaScreen[] = snapshot.docs.map((doc) => {
       const data = doc.data();
       return {

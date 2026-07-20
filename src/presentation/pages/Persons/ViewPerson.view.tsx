@@ -17,7 +17,8 @@ export const ViewPersonView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
       <S.FormGroup $fullWidth>
         <CustomFieldsSection
           screenKey="persons-native"
-          fields={vm.nativeFields}
+          resolveOptionsScreenKey={vm.resolveOptionsScreenKey}
+          fields={vm.fields}
           values={vm.values}
           onChange={vm.setFieldValue}
           onMergeValues={vm.mergeValues}
@@ -29,21 +30,6 @@ export const ViewPersonView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
         />
       </S.FormGroup>
 
-      {vm.customFields.length > 0 && (
-        <>
-          <S.SectionTitle>Campos adicionais</S.SectionTitle>
-          <S.FormGroup $fullWidth>
-            <CustomFieldsSection
-              screenKey="persons"
-              fields={vm.customFields}
-              values={vm.values}
-              onChange={vm.setFieldValue}
-          onMergeValues={vm.mergeValues}
-              errors={vm.fieldErrors}
-            />
-          </S.FormGroup>
-        </>
-      )}
     </S.FormGrid>
   );
 

@@ -2,6 +2,7 @@ import React from 'react';
 import {
   RiAddLine,
   RiArrowDownSLine,
+  RiArrowGoBackLine,
   RiArrowUpSLine,
   RiDeleteBinLine,
   RiDraggable,
@@ -28,7 +29,7 @@ import type { FieldDefinition } from '../../../domain/entities';
 
 const FieldRows: React.FC<{ vm: ScreenBuilderViewModel; screenKey: string; fields: FieldDefinition[] }> = ({ vm, screenKey, fields }) => (
   <S.FieldList>
-    {fields.length === 0 && <S.EmptyHint>Nenhum campo adicional definido.</S.EmptyHint>}
+    {fields.length === 0 && <S.EmptyHint>Nenhum campo definido.</S.EmptyHint>}
     {fields.map((field, index) => (
       <S.FieldRow
         key={field.key}
@@ -56,9 +57,11 @@ const FieldRows: React.FC<{ vm: ScreenBuilderViewModel; screenKey: string; field
             {vm.isTitleField(screenKey, field.key) ? ' (título)' : ''}
           </S.FieldName>
           <S.FieldMeta>
+            {vm.isNativeField(screenKey, field.key) ? 'Do sistema · ' : ''}
             {vm.fieldTypeLabel(field.type)}
             {field.section ? ` · ${field.section}` : ''}
             {` · fieldName: ${field.key}`}
+            {vm.hasNativeOverride(screenKey, field.key) ? ' · ajustado' : ''}
           </S.FieldMeta>
         </S.FieldInfo>
         <S.CardActions>
@@ -79,13 +82,23 @@ const FieldRows: React.FC<{ vm: ScreenBuilderViewModel; screenKey: string; field
           <S.IconButton title="Editar campo" onClick={() => vm.openEditField(screenKey, field.key)}>
             <RiPencilLine size={16} />
           </S.IconButton>
-          <S.DangerIconButton
-            title="Excluir campo"
-            disabled={vm.isTitleField(screenKey, field.key)}
-            onClick={() => vm.requestDeleteField(screenKey, field.key)}
-          >
-            <RiDeleteBinLine size={16} />
-          </S.DangerIconButton>
+          {vm.isNativeField(screenKey, field.key) ? (
+            <S.IconButton
+              title="Restaurar padrão do sistema"
+              disabled={!vm.hasNativeOverride(screenKey, field.key)}
+              onClick={() => void vm.restoreNativeField(screenKey, field.key)}
+            >
+              <RiArrowGoBackLine size={16} />
+            </S.IconButton>
+          ) : (
+            <S.DangerIconButton
+              title="Excluir campo"
+              disabled={vm.isTitleField(screenKey, field.key)}
+              onClick={() => vm.requestDeleteField(screenKey, field.key)}
+            >
+              <RiDeleteBinLine size={16} />
+            </S.DangerIconButton>
+          )}
         </S.CardActions>
       </S.FieldRow>
     ))}
@@ -418,7 +431,7 @@ export const ScreenBuilderView: React.FC = () => {
       )}
 
       {vm.fieldModalOpen && (
-        <Modal title={vm.fieldModalIsEdit ? 'Editar Campo' : 'Novo Campo'} onClose={vm.closeFieldModal} size="xlarge">
+        <Modal title={vm.fieldModalIsNative ? 'Ajustar Campo do Sistema' : (vm.fieldModalIsEdit ? 'Editar Campo' : 'Novo Campo')} onClose={vm.closeFieldModal} size="xlarge">
           <S.ModalTabs>
             <S.ModalTabBtn $active={vm.fieldModalTab === 'general'} onClick={() => vm.setFieldModalTab('general')}>
               Geral
@@ -428,6 +441,14 @@ export const ScreenBuilderView: React.FC = () => {
             </S.ModalTabBtn>
           </S.ModalTabs>
           <S.ModalForm>
+            {vm.fieldModalIsNative && (
+              <S.FullRow>
+                <InfoBanner
+                  variant="info"
+                  message="Campo do sistema: aqui você ajusta como ele aparece e se comporta na tela. Tipo, máscara, obrigatoriedade e validação são definidos pelo sistema, porque também valem para gravações feitas por automações."
+                />
+              </S.FullRow>
+            )}
             {vm.fieldModalTab === 'general' && (
               <>
             <InputGroup>
@@ -438,6 +459,8 @@ export const ScreenBuilderView: React.FC = () => {
                 placeholder="Ex: Data de aniversário"
               />
             </InputGroup>
+            {!vm.fieldModalIsNative && (
+              <>
             <InputGroup>
               <Label>Nome na base de dados (fieldName) *</Label>
               <Input
@@ -559,6 +582,8 @@ export const ScreenBuilderView: React.FC = () => {
                 )}
               </>
             )}
+              </>
+            )}
             <InputGroup>
               <Label>Seção do formulário</Label>
               <Input
@@ -575,6 +600,8 @@ export const ScreenBuilderView: React.FC = () => {
                 placeholder="Opcional — exibido dentro do campo vazio"
               />
             </InputGroup>
+            {!vm.fieldModalIsNative && (
+              <>
             <S.RulesDivider>Comportamento na tela</S.RulesDivider>
             <S.CheckboxCell>
               <Checkbox
@@ -610,10 +637,12 @@ export const ScreenBuilderView: React.FC = () => {
             ) : <div />}
               </>
             )}
+              </>
+            )}
 
             {vm.fieldModalTab === 'advanced' && (
               <>
-                {vm.fieldSupportsRules && (
+                {vm.fieldSupportsRules && !vm.fieldModalIsNative && (
                   <>
                     <S.RulesDivider>Formatação e validação</S.RulesDivider>
                     <InputGroup>
@@ -668,7 +697,7 @@ export const ScreenBuilderView: React.FC = () => {
                     </InputGroup>
                   </>
                 )}
-                {vm.aggregationFromOptions.length > 1 && (
+                {vm.aggregationFromOptions.length > 1 && !vm.fieldModalIsNative && (
                   <>
                     <S.RulesDivider>Valor vindo dos registros filhos</S.RulesDivider>
                     <S.FullRow>
@@ -738,6 +767,7 @@ export const ScreenBuilderView: React.FC = () => {
                     message="Nas expressões, referencie os campos da tela pela chave (ex.: status, valor) — comece a digitar para ver as sugestões. Use value para o valor do próprio campo. Em Ocultar, Desabilitar e Ao alterar, um campo de vínculo pode ser navegado (ex.: produto.preco); em Validação e Valor calculado ele vale como identificador, pois essas duas também são conferidas no servidor."
                     variant="info"
                   />
+                  {!vm.fieldModalIsNative && (
                   <InputGroup>
                     <Label>Valor calculado (preenche o campo automaticamente)</Label>
                     <ExpressionEditor
@@ -747,6 +777,8 @@ export const ScreenBuilderView: React.FC = () => {
                       placeholder="Ex: trim(concat(nome, ' ', sobrenome))"
                     />
                   </InputGroup>
+                  )}
+                  {!vm.fieldModalIsNative && (
                   <InputGroup>
                     <Label>Validação (retorna a mensagem de erro, ou vazio/null se válido)</Label>
                     <ExpressionEditor
@@ -756,6 +788,7 @@ export const ScreenBuilderView: React.FC = () => {
                       placeholder="Ex: if(isEmpty(value) and status == 'ativo', 'Obrigatório para ativos', null)"
                     />
                   </InputGroup>
+                  )}
                 </S.FullRow>
                 <InputGroup>
                   <Label>Desabilitar quando (verdadeiro/falso)</Label>

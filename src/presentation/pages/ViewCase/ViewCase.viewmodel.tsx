@@ -5,7 +5,7 @@ import { useCaseTagStore } from '../../../stores/useCaseTagStore';
 import { useCaseLookup, type CaseLookupKind } from '../../../stores/useCaseLookup';
 import { useAuth } from '../../../stores/useAuth';
 import { useTenant } from '../../../stores/useTenant';
-import { useScreenDefinitions } from '../../../stores/useScreenDefinitions';
+import { useEntityFormFields } from '../../shared/useEntityFormFields';
 import { useDI } from '../../../infrastructure/di/useDI';
 import { resolveColor } from '../../../shared/styles/colorUtils';
 import { toDateInputValue } from '../../../utils/formatters';
@@ -21,7 +21,6 @@ import type { ScreenActions } from '../../shared/entityScreen/useScreenActions';
 import { useNotesPort } from '../../shared/entityScreen/useNotesPort';
 import { useDocumentsPort } from '../../shared/entityScreen/useDocumentsPort';
 import type { EntityNotesController, EntityDocumentsController } from '../../shared/entityScreen/types';
-import { CASE_FORM_FIELDS } from './caseSchema';
 import {
   buildInitialFormValues,
   collectRequiredErrors,
@@ -139,6 +138,7 @@ export interface ViewCaseViewModel {
   isAdmin: boolean;
   fields: FieldDefinition[];
   customFields: FieldDefinition[];
+  resolveOptionsScreenKey: (field: FieldDefinition) => string;
   values: Values;
   setFieldValue: (fieldKey: string, value: CustomFieldValue) => void;
   mergeValues: (patch: Record<string, unknown>) => void;
@@ -179,14 +179,12 @@ export const useViewCaseViewModel = (tabKey: string): ViewCaseViewModel => {
   } = useCaseLookup();
   const { user, effectiveName } = useAuth();
   const { tenantRole } = useTenant();
-  const { getCustomFieldsFor } = useScreenDefinitions();
   const { caseNoteRepository, caseDocumentRepository } = useDI();
   const theme = useTheme();
 
   const isAdmin = tenantRole === 'admin';
   const userId = user?.id ?? '';
-  const customFields = useMemo(() => getCustomFieldsFor('cases'), [getCustomFieldsFor]);
-  const allFields = useMemo(() => [...CASE_FORM_FIELDS, ...customFields], [customFields]);
+  const { fields: formFields, customFields, resolveOptionsScreenKey } = useEntityFormFields('cases');
 
   const findInStore = useCallback((id: string) => cases.find((c) => c.id === id) ?? null, [cases]);
 
@@ -201,16 +199,16 @@ export const useViewCaseViewModel = (tabKey: string): ViewCaseViewModel => {
   );
 
   const validate = useCallback((values: Values): EntityValidationResult | null => {
-    const fieldErrors = collectRequiredErrors(allFields, values);
+    const fieldErrors = collectRequiredErrors(formFields, values);
     const issues = validateRecordRules('cases', valuesToCasePayload(values, customFields, null));
     issues.forEach((issue) => {
       const key = ruleIssueFieldKey(issue.path);
       if (!fieldErrors[key]) fieldErrors[key] = issue.error;
     });
     if (Object.keys(fieldErrors).length === 0) return null;
-    const message = validateRequiredFields(allFields, values) ?? describeRuleIssues(issues);
+    const message = validateRequiredFields(formFields, values) ?? describeRuleIssues(issues);
     return { message, fieldErrors };
-  }, [allFields, customFields]);
+  }, [formFields, customFields]);
 
   const create = useCallback(async (values: Values) => {
     const created = await createCase({
@@ -307,8 +305,9 @@ export const useViewCaseViewModel = (tabKey: string): ViewCaseViewModel => {
     screenActions: detail.screenActions,
     case_,
     isAdmin,
-    fields: CASE_FORM_FIELDS,
+    fields: formFields,
     customFields,
+    resolveOptionsScreenKey,
     values: detail.values,
     setFieldValue: detail.setFieldValue,
     mergeValues: detail.mergeValues,

@@ -11,6 +11,15 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [0.122.0] — 2026-07-20
+
+- O CEP do cadastro de Pessoas passa a buscar o endereço automaticamente: ao digitar um CEP válido, rua, bairro, cidade e estado são preenchidos.
+- O Form Design agora mostra também os campos do sistema das telas padrão (Pessoas, Processos, Contratos, Prazos e Financeiro). É possível mudar o nome que aparece na tela, o texto de exemplo, a seção, a posição e até ocultar um campo que o escritório não usa.
+- Esses campos também aceitam as regras de comportamento: ocultar ou bloquear conforme o preenchimento de outros campos, preencher outros campos ao serem alterados, e buscar dados externos.
+- Campos do sistema e campos próprios do escritório aparecem agora numa lista só, e podem ser reordenados livremente entre si.
+- Um botão restaura qualquer campo do sistema ao padrão original, desfazendo os ajustes.
+- Tipo do campo, máscara, obrigatoriedade e validação continuam definidos pelo sistema — eles também valem para os registros gravados por automações.
+
 ## [0.121.0] — 2026-07-20
 
 - Escolher um vínculo agora pode preencher outros campos automaticamente. Ao selecionar o produto de um item de venda, por exemplo, o preço vem junto — e continua editável, caso aquela venda tenha um valor diferente.

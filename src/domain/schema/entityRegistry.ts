@@ -194,6 +194,7 @@ export const ENTITY_REGISTRY: Record<EntityKey, EntityMetadata> = {
         type: 'object',
         objectFields: [
           { key: 'zipCode', label: 'CEP', type: 'string', rules: CEP_RULES,
+            logic: { onChangeLookup: { provider: 'viacep', targetPrefix: 'address' } },
             ui: { control: 'masked', mask: 'cep', section: 'Endereço', order: 13 } },
           { key: 'street', label: 'Rua / Avenida', type: 'string',
             ui: { section: 'Endereço', order: 14 } },

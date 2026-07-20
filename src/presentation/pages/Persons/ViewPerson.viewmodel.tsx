@@ -16,9 +16,8 @@ import { useNotesPort } from '../../shared/entityScreen/useNotesPort';
 import { useDocumentsPort } from '../../shared/entityScreen/useDocumentsPort';
 import type { EntityDocumentsController, EntityNotesController } from '../../shared/entityScreen/types';
 import type { EntityDetailExtraTab, EntityDetailTab } from '../../components/layout/EntityDetailView';
-import { PERSON_FORM_FIELDS } from './personSchema';
 import type { TagStoreAdapter } from '../../components/ui/TagManager/TagManager.viewmodel';
-import { useScreenDefinitions } from '../../../stores/useScreenDefinitions';
+import { useEntityFormFields } from '../../shared/useEntityFormFields';
 import { buildInitialFormValues, collectRequiredErrors, formValuesToStoredValues, validateRequiredFields } from '../../../domain/services/customFieldValues';
 import { onlyNumbers } from '../../../utils/formatters';
 import { describeRuleIssues } from '../../../domain/schema/fieldRules';
@@ -129,8 +128,9 @@ export interface ViewPersonViewModel {
   screenActions: ScreenActions;
   person: Person | null;
   isAdmin: boolean;
-  nativeFields: FieldDefinition[];
+  fields: FieldDefinition[];
   customFields: FieldDefinition[];
+  resolveOptionsScreenKey: (field: FieldDefinition) => string;
   values: Values;
   setFieldValue: (fieldKey: string, value: CustomFieldValue) => void;
   mergeValues: (patch: Record<string, unknown>) => void;
@@ -170,10 +170,9 @@ export const useViewPersonViewModel = (tabKey: string): ViewPersonViewModel => {
   const { notify } = useNotification();
   const theme = useTheme();
   const { personNoteRepository, personDocumentRepository } = useDI();
-  const { getCustomFieldsFor } = useScreenDefinitions();
 
   const isAdmin = tenantRole === 'admin';
-  const customFields = useMemo(() => getCustomFieldsFor('persons'), [getCustomFieldsFor]);
+  const { fields: formFields, customFields, resolveOptionsScreenKey } = useEntityFormFields('persons');
 
   const findInStore = useCallback((id: string) => persons.find((p) => p.id === id) ?? null, [persons]);
 
@@ -300,8 +299,9 @@ export const useViewPersonViewModel = (tabKey: string): ViewPersonViewModel => {
     screenActions: detail.screenActions,
     person,
     isAdmin,
-    nativeFields: PERSON_FORM_FIELDS,
+    fields: formFields,
     customFields,
+    resolveOptionsScreenKey,
     values: detail.values,
     setFieldValue: detail.setFieldValue,
     mergeValues: detail.mergeValues,

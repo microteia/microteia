@@ -5,7 +5,7 @@ import { useDeadlineLookup } from '../../../stores/useDeadlineLookup';
 import { useCaseStore } from '../../../stores/useCaseStore';
 import { useAuth } from '../../../stores/useAuth';
 import { useTenant } from '../../../stores/useTenant';
-import { useScreenDefinitions } from '../../../stores/useScreenDefinitions';
+import { useEntityFormFields } from '../../shared/useEntityFormFields';
 import type { CustomFieldValue, Deadline, DeadlinePriority, DeadlineStatus, FieldDefinition } from '../../../domain/entities';
 import type { LookupOptionSet } from '../../components/ui/CustomFieldsSection/CustomFieldsSection.viewmodel';
 import type { EntityDetailExtraTab, EntityDetailTab } from '../../components/layout/EntityDetailView';
@@ -17,7 +17,6 @@ import type {
   EntityNotesController,
   EntityDocumentsController,
 } from '../../shared/entityScreen/types';
-import { DEADLINE_FORM_FIELDS } from './deadlineSchema';
 import {
   buildInitialFormValues,
   collectRequiredErrors,
@@ -102,6 +101,7 @@ export interface ViewDeadlineViewModel {
   isAdmin: boolean;
   fields: FieldDefinition[];
   customFields: FieldDefinition[];
+  resolveOptionsScreenKey: (field: FieldDefinition) => string;
   values: Values;
   setFieldValue: (fieldKey: string, value: CustomFieldValue) => void;
   mergeValues: (patch: Record<string, unknown>) => void;
@@ -128,12 +128,11 @@ export const useViewDeadlineViewModel = (tabKey: string): ViewDeadlineViewModel 
   const { cases } = useCaseStore();
   const { user, effectiveName } = useAuth();
   const { tenantRole } = useTenant();
-  const { getCustomFieldsFor } = useScreenDefinitions();
   const theme = useTheme();
 
   const isAdmin = tenantRole === 'admin';
   const userId = user?.id ?? '';
-  const customFields = useMemo(() => getCustomFieldsFor('deadlines'), [getCustomFieldsFor]);
+  const { fields: formFields, customFields, resolveOptionsScreenKey } = useEntityFormFields('deadlines');
 
   const findInStore = useCallback(
     (id: string) => deadlines.find((d) => d.id === id) ?? null,
@@ -148,7 +147,7 @@ export const useViewDeadlineViewModel = (tabKey: string): ViewDeadlineViewModel 
   const resolveTitleFromValues = useCallback((values: Values) => str(values, 'type') || 'Prazo', []);
 
   const validate = useCallback((values: Values): EntityValidationResult | null => {
-    const fieldErrors = collectRequiredErrors([...DEADLINE_FORM_FIELDS, ...customFields], values);
+    const fieldErrors = collectRequiredErrors(formFields, values);
     const issues = validateRecordRules('deadlines', valuesToDeadlinePayload(values, customFields, userId));
     issues.forEach((issue) => {
       const key = ruleIssueFieldKey(issue.path);
@@ -156,9 +155,9 @@ export const useViewDeadlineViewModel = (tabKey: string): ViewDeadlineViewModel 
     });
     if (Object.keys(fieldErrors).length === 0) return null;
     const message =
-      validateRequiredFields([...DEADLINE_FORM_FIELDS, ...customFields], values) ?? describeRuleIssues(issues);
+      validateRequiredFields(formFields, values) ?? describeRuleIssues(issues);
     return { message, fieldErrors };
-  }, [customFields, userId]);
+  }, [formFields, customFields, userId]);
 
   const create = useCallback(async (values: Values) => {
     const created = await createDeadline({
@@ -252,8 +251,9 @@ export const useViewDeadlineViewModel = (tabKey: string): ViewDeadlineViewModel 
     screenActions: detail.screenActions,
     deadline: detail.record,
     isAdmin,
-    fields: DEADLINE_FORM_FIELDS,
+    fields: formFields,
     customFields,
+    resolveOptionsScreenKey,
     values: detail.values,
     setFieldValue: detail.setFieldValue,
     mergeValues: detail.mergeValues,
