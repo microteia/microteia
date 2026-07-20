@@ -35,11 +35,26 @@ export interface FieldRules {
   format?: FormatRule;
 }
 
+/**
+ * Origem externa de dados para preencher campos quando outro campo muda — a alternativa assíncrona
+ * ao `onChange`, que é síncrono por ser expressão. O provedor é resolvido por nome no registro
+ * montado pelo DIContainer.
+ */
+export interface FieldLookupBinding {
+  provider: string;
+  // Prefixo aplicado às chaves devolvidas: 'address' → address.street, address.city…
+  targetPrefix?: string | null;
+}
+
 export interface FieldLogic {
   validate?: string | null;
   disabledWhen?: string | null;
   hiddenWhen?: string | null;
   compute?: string | null;
+  // Front-only: expressão que DEVOLVE um objeto, mesclado no formulário quando o campo muda.
+  // Semeia valores que o usuário ainda pode editar — ao contrário de `compute`, que deriva sempre.
+  onChange?: string | null;
+  onChangeLookup?: FieldLookupBinding | null;
 }
 
 // ─── Agregação sobre registros filhos ─────────────────────────────────────────

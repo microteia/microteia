@@ -411,7 +411,10 @@ export const useExpressionEditorViewModel = (
         return;
       }
 
-      const lastWordMatch = textBefore.match(/[a-zA-Z_][a-zA-Z0-9_]*$/);
+      // Identificador possivelmente pontilhado (`produto`, `produto.`, `produto.pre`): campos de
+      // referência são navegáveis nos slots front-only e chegam como variáveis já concatenadas
+      // (`produto.preco`), então parar no ponto fecharia o menu logo ao digitá-lo.
+      const lastWordMatch = textBefore.match(/[a-zA-Z_][a-zA-Z0-9_]*(?:\.[a-zA-Z0-9_]*)*$/);
       if (lastWordMatch && !textBefore.slice(0, pos - lastWordMatch[0].length).endsWith('.')) {
         const triggerStart = pos - lastWordMatch[0].length;
         const query = lastWordMatch[0];

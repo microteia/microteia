@@ -151,3 +151,51 @@ describe('extractFieldExpressionDependencies', () => {
     expect(extractFieldExpressionDependencies('concat(')).toEqual([]);
   });
 });
+
+describe('object — construção de objeto por pares', () => {
+  const ctx = { value: null, data: { preco: 10, nome: 'Ana' } };
+
+  it('monta o objeto a partir de pares chave/valor', () => {
+    expect(evaluateFieldExpression("object('preco', preco, 'nome', nome)", ctx))
+      .toEqual({ preco: 10, nome: 'Ana' });
+  });
+
+  it('ignora uma chave sem valor no fim', () => {
+    expect(evaluateFieldExpression("object('a', 1, 'b')", ctx)).toEqual({ a: 1 });
+  });
+
+  it('descarta chave vazia', () => {
+    expect(evaluateFieldExpression("object('', 1, 'b', 2)", ctx)).toEqual({ b: 2 });
+  });
+
+  it('bloqueia chaves internas do protótipo', () => {
+    expect(evaluateFieldExpression("object('__proto__', 1, 'ok', 2)", ctx)).toEqual({ ok: 2 });
+    expect(evaluateFieldExpression("object('constructor', 1, 'ok', 2)", ctx)).toEqual({ ok: 2 });
+  });
+
+  it('sem argumentos devolve objeto vazio', () => {
+    expect(evaluateFieldExpression('object()', ctx)).toEqual({});
+  });
+});
+
+describe('contains/indexOf com referências hidratadas', () => {
+  const ctx = {
+    value: null,
+    data: {
+      ids: ['p1', 'p2'],
+      registros: [{ id: 'p1', nome: 'Teclado' }, { id: 'p2', nome: 'Mouse' }],
+    },
+  };
+
+  it('casa por id quando os itens são registros hidratados', () => {
+    expect(evaluateFieldExpression("contains(registros, 'p1')", ctx)).toBe(true);
+    expect(evaluateFieldExpression("contains(registros, 'p9')", ctx)).toBe(false);
+    expect(evaluateFieldExpression("indexOf(registros, 'p2')", ctx)).toBe(1);
+  });
+
+  it('segue funcionando com array de ids crus', () => {
+    expect(evaluateFieldExpression("contains(ids, 'p2')", ctx)).toBe(true);
+    expect(evaluateFieldExpression("indexOf(ids, 'p1')", ctx)).toBe(0);
+    expect(evaluateFieldExpression("indexOf(ids, 'p9')", ctx)).toBe(-1);
+  });
+});

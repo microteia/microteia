@@ -735,7 +735,7 @@ export const ScreenBuilderView: React.FC = () => {
                 <S.RulesDivider>Comportamento por expressão</S.RulesDivider>
                 <S.FullRow>
                   <InfoBanner
-                    message="Nas expressões, referencie os campos da tela pela chave (ex.: status, valor) — comece a digitar para ver as sugestões. Use value para o valor do próprio campo."
+                    message="Nas expressões, referencie os campos da tela pela chave (ex.: status, valor) — comece a digitar para ver as sugestões. Use value para o valor do próprio campo. Em Ocultar, Desabilitar e Ao alterar, um campo de vínculo pode ser navegado (ex.: produto.preco); em Validação e Valor calculado ele vale como identificador, pois essas duas também são conferidas no servidor."
                     variant="info"
                   />
                   <InputGroup>
@@ -766,6 +766,36 @@ export const ScreenBuilderView: React.FC = () => {
                     placeholder="Ex: status == 'encerrado'"
                   />
                 </InputGroup>
+                <S.FullRow>
+                  <InputGroup>
+                    <Label>Ao alterar, preencher (devolve os campos a preencher)</Label>
+                    <ExpressionEditor
+                      value={vm.fieldForm.logicOnChange}
+                      onChange={(value) => vm.updateFieldForm({ logicOnChange: value })}
+                      workflowVariables={vm.fieldExpressionVariables}
+                      placeholder="Ex: object('preco', produto.preco, 'unidade', produto.unidade)"
+                    />
+                  </InputGroup>
+                </S.FullRow>
+                <InputGroup>
+                  <Label>Ao alterar, buscar dados externos</Label>
+                  <SearchSelect
+                    options={vm.lookupProviderOptions}
+                    value={vm.fieldForm.lookupProvider}
+                    onChange={(value) => vm.updateFieldForm({ lookupProvider: value })}
+                    placeholder="Nenhuma"
+                  />
+                </InputGroup>
+                {vm.fieldForm.lookupProvider !== '' && (
+                  <InputGroup>
+                    <Label>Preencher dentro de (opcional)</Label>
+                    <Input
+                      value={vm.fieldForm.lookupTargetPrefix}
+                      onChange={(e) => vm.updateFieldForm({ lookupTargetPrefix: e.target.value })}
+                      placeholder="Ex: address"
+                    />
+                  </InputGroup>
+                )}
                 <InputGroup>
                   <Label>Ocultar quando (verdadeiro/falso)</Label>
                   <ExpressionEditor

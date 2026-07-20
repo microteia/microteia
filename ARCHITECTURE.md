@@ -1605,9 +1605,9 @@ Nota: a subcoleção `fieldOptions` (opções dinâmicas de selects) **não** es
 - **Listagens padrão:** as cinco listagens builtin (Pessoas, Processos, Contratos, Financeiro, Prazos) obtêm os campos via `getCustomFieldsFor(entityKey)` e usam o hook com `CUSTOM_FIELD_FILTER_PREFIX` (`cf-`) nas chaves dos `FilterDef` — o prefixo evita colisão com os filtros nativos (`status`, `type`, `city`…). Cada ViewModel anexa `...customListing.filterDefs` aos defs nativos, encerra o predicado de filtragem com `customListing.matchesFilters(entidade.customValues, tokenMap)` e expõe `getCustomFieldItems(entidade)`; a View renderiza `<CustomFieldMetaRows items={...} />` no cartão, após o bloco de metadados nativo.
 - **Deeplink de registro fora das 500 carregadas:** `ViewDynamicRecord` faz fallback de busca por id (`GetCustomRecordByIdUseCase`).
 
-### Expressões por campo (validação, desabilitar, ocultar, valor calculado)
+### Expressões por campo (validação, desabilitar, ocultar, valor calculado, ao alterar)
 
-Todo campo — `FieldDefinition` (customizado) e `NativeFieldSpec` (fixo) — aceita `logic?: FieldLogic` com quatro expressões (`domain/schema/fieldRules.ts`): `validate` (retorna a mensagem de erro ou vazio/null; roda **front e back**), `disabledWhen` e `hiddenWhen` (booleanas, **só front**) e `compute` (o **valor** do campo; roda **front e back**).
+Todo campo — `FieldDefinition` (customizado) e `NativeFieldSpec` (fixo) — aceita `logic?: FieldLogic` (`domain/schema/fieldRules.ts`): `validate` (retorna a mensagem de erro ou vazio/null; roda **front e back**), `disabledWhen` e `hiddenWhen` (booleanas, **só front**), `compute` (o **valor** do campo; roda **front e back**) e `onChange` + `onChangeLookup` (preenchem **outros** campos quando este muda; **só front**).
 
 - **Avaliador compartilhado:** `domain/schema/fieldExpression.ts` (fonte única, sincronizado para `functions/`) usa `expr-eval` com um conjunto de funções **puras** cujos nomes espelham o catálogo do Workflow (`if`, `concat`, `lower`, `upper`, `trim`, `length`, `isEmpty`, `coalesce`, `isCPF`, `isCNPJ`, `isEmail`, `onlyNumber`, `contains`, `startsWith`, `endsWith`, `substring`, `replace`, `today`…). Não importa o `FunctionRegistry` do motor de workflow (acoplado a `WorkflowContext`). `evaluateFieldValidation`/`evaluateFieldBoolean` são tolerantes a erro (expressão inválida → sem bloqueio / `false`).
 - **Escopo das expressões:** mapa **plano por chave de campo** (nativos e customizados na raiz), montado por `buildRecordFieldScope` (`recordRules.ts`); `value`/`self` = valor do próprio campo. A mesma expressão referencia os campos por `key` nos dois lados.
@@ -1619,7 +1619,29 @@ Todo campo — `FieldDefinition` (customizado) e `NativeFieldSpec` (fixo) — ac
   - **No formulário:** `computeFieldValues` (mesma avaliação, versão plana) deriva os valores em `CustomFieldsSection` só para exibição — o usuário vê o campo se formando enquanto digita, e ele é sempre somente-leitura (`isFieldDisabled`). Quem persiste é o save.
   - **`skipCompute`:** o Step "Validar Objeto" (`validateSpec.ts`) desliga o compute — ele checa um objeto avulso, não um registro que será gravado.
   - **Agregado sobre filhos:** fora do alcance do `compute` (puro e síncrono, restrito ao próprio registro) — ver "Campos agregados" abaixo. Os dois se compõem: a agregação grava o valor cru, o `compute` monta o texto em cima dele.
-- **Autoria:** `ScreenBuilder` grava `FieldDefinition.logic` via quatro `ExpressionEditor`.
+- **`onChange` (semear valores ao alterar um campo) — FRONT-ONLY:** expressão que **devolve um objeto**, mesclado no formulário. `object('preco', produto.preco)` — `object(k, v, …)` existe porque `expr-eval` tem literal de array mas não de objeto (mesma razão do status compacto das Actions).
+  - **Não é `setValues(...)` com efeito colateral:** o avaliador é puro e compartilhado com as functions; função que muta estado quebraria isso. Com semântica de retorno a expressão continua portável.
+  - **Não roda no save, e isso é proposital:** `compute` deriva **sempre**; `onChange` **semeia** um valor que o usuário ainda pode editar (o preço vem do produto, mas pode ser ajustado naquela venda). Rodar no save sobrescreveria a edição.
+  - **Nunca reescreve o campo que disparou** o evento — brigaria com a digitação. Garantido em `resolveOnChangePatch` (`domain/schema/fieldChangeSpec.ts`).
+- **`onChangeLookup` (busca externa) — FRONT-ONLY:** `{ provider, targetPrefix? }` resolve um `IExternalLookupService` (`domain/services/`) pelo nome, registrado no `DIContainer`. Nasce com `ViaCepLookupService` (`data/services/`), que devolve `{ street, neighborhood, city, state }` e é prefixado por `targetPrefix` (`address` → `address.street`). É a contraparte assíncrona do `onChange`: **as duas produzem um objeto e usam o mesmo caminho de merge**. Disparo com debounce de 400 ms e **guarda de corrida** por sequencial — digitar dois CEPs em sequência aplica só o último. Falha vira `notify(...)`, nunca trava o preenchimento manual.
+- **Aplicação no formulário:** `useEntityDetail.mergeValues(patch)` é o meio-termo entre `setFieldValue` (um campo) e `applyValues` (substitui tudo); reusa o `applyResult` de `useScreenActions` (achata caminhos + `setValueByPath`), o mesmo do comando `merge` das Actions. A prop `onMergeValues` do `CustomFieldsSection` é opcional: sem ela, o comportamento é o anterior.
+
+#### Hidratação de referência — a fronteira front/back
+
+No front os registros referenciados já estão em memória (os stores assinam as telas), então um campo de referência é **navegável como objeto**: `produto.preco`. `buildHydratedFieldScope` (`domain/schema/referenceScope.ts`) troca o id pelo registro (`{ id, ...values }`); `useRecordResolver` (`presentation/shared/`) é o resolvedor sobre os stores.
+
+**Isso vale APENAS nos slots front-only.** No backend só existe o id cru, e hidratá-lo exigiria I/O dentro de uma avaliação síncrona:
+
+| Slot | Escopo | Roda no back? |
+|---|---|---|
+| `hiddenWhen`, `disabledWhen`, `onChange` | **hidratado** (`produto` = objeto) | não |
+| `validate`, `compute` | **cru** (`produto` = id) | sim |
+
+Se `validate`/`compute` fossem hidratados só no front, a mesma expressão daria resultados diferentes dos dois lados — um `validate` que passa no front e reprova no back. `referenceScope.ts` e `fieldChangeSpec.ts` ficam **fora de `SHARED_FILES`** justamente por serem front-only.
+
+Compatibilidade com expressões já escritas: referência vazia continua `null`/`''` (não há registro para hidratar), então `isEmpty`/`isNull` seguem corretos — o uso dominante em `hiddenWhen`. O id permanece em `produto.id`. E `contains`/`indexOf` casam por `.id` quando os itens são registros hidratados, mantendo `contains(produtos, '<id>')` funcionando nos dois formatos.
+
+- **Autoria:** `ScreenBuilder` grava `FieldDefinition.logic` via cinco `ExpressionEditor` + o select de provedor externo. O `InfoBanner` do bloco diz onde o vínculo é navegável e onde não é; o autocomplete sugere `campo.subcampo` para os campos de referência.
 - **Campos nativos das telas fixas:** a **validação** já vale (o passo lê `entity.fields[].logic.validate`); o **desabilitar/ocultar ao vivo** vale onde os campos nativos são renderizados pelo renderer de Schema (piloto: Pessoas — ver abaixo).
 
 ### Campos agregados (valor vindo dos registros filhos)

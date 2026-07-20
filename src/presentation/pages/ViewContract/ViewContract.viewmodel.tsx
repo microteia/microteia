@@ -179,6 +179,7 @@ export interface ViewContractViewModel {
   customFields: FieldDefinition[];
   values: Values;
   setFieldValue: (fieldKey: string, value: CustomFieldValue) => void;
+  mergeValues: (patch: Record<string, unknown>) => void;
   fieldErrors: Record<string, string>;
   lookupOptions: Record<string, LookupOptionSet>;
   handleAddLookupOption: (collection: string, label: string) => Promise<void>;
@@ -412,6 +413,7 @@ export const useViewContractViewModel = (tabKey: string): ViewContractViewModel 
     customFields,
     values: detail.values,
     setFieldValue,
+    mergeValues: detail.mergeValues,
     fieldErrors: detail.fieldErrors,
     lookupOptions,
     handleAddLookupOption,

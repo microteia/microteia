@@ -113,14 +113,20 @@ export const buildAutocompleteItems = (
   const q = query.toLowerCase();
   const items: AutocompleteItem[] = [];
 
+  // Consulta com ponto é navegação de campo (`produto.`): nome de função nunca tem ponto, então
+  // oferecer funções/atalhos aqui só produziria ruído — vindo de casar com a descrição.
+  const isMemberQuery = q.includes('.');
+
   if (mode === 'function') {
     // Funções e operadores (operadores vêm junto em 'functions')
-    const matchingFunctions = functions.filter(
-      (f) =>
-        f.name.toLowerCase().includes(q) ||
-        f.category.toLowerCase().includes(q) ||
-        f.description.toLowerCase().includes(q),
-    );
+    const matchingFunctions = isMemberQuery
+      ? []
+      : functions.filter(
+          (f) =>
+            f.name.toLowerCase().includes(q) ||
+            f.category.toLowerCase().includes(q) ||
+            f.description.toLowerCase().includes(q),
+        );
     
     // Regex de validação compilada uma vez (não dentro do map!)
     const validIdentifierRegex = /^[a-zA-Z_][a-zA-Z0-9_]*$/;
@@ -162,7 +168,7 @@ export const buildAutocompleteItems = (
       .filter((c) => !q || c.value.toLowerCase().includes(q) || c.label.toLowerCase().includes(q));
     items.push(...matchingContexts);
 
-    if (includeSnippets) {
+    if (includeSnippets && !isMemberQuery) {
       const matchingSnippets = COMMON_SNIPPETS.filter(
         (s) => s.label.toLowerCase().includes(q) || s.value.toLowerCase().includes(q),
       );

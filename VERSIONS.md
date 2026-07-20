@@ -11,6 +11,12 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [0.121.0] — 2026-07-20
+
+- Escolher um vínculo agora pode preencher outros campos automaticamente. Ao selecionar o produto de um item de venda, por exemplo, o preço vem junto — e continua editável, caso aquela venda tenha um valor diferente.
+- Voltou a busca de endereço pelo CEP: ao digitar um CEP válido no cadastro de pessoas, rua, bairro, cidade e estado são preenchidos sozinhos. CEP não encontrado apenas avisa, sem atrapalhar o preenchimento manual.
+- A busca respeita a digitação: se você corrigir o CEP antes de a consulta terminar, vale sempre o endereço do último CEP informado.
+
 ## [0.120.0] — 2026-07-19
 
 - Um campo agora pode totalizar os registros de outra tela vinculados a ele — como o total dos itens de uma venda, a quantidade de parcelas de um contrato ou o maior valor lançado. Basta escolher a tela dos filhos, a operação e o campo a ser medido.

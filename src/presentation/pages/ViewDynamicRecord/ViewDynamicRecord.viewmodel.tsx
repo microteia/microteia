@@ -54,6 +54,7 @@ export interface ViewDynamicRecordViewModel {
   sortedFields: FieldDefinition[];
   formValues: Record<string, CustomFieldValue>;
   setFieldValue: (fieldKey: string, value: CustomFieldValue) => void;
+  mergeValues: (patch: Record<string, unknown>) => void;
   fieldErrors: Record<string, string>;
   isSaving: boolean;
   handleSave: () => Promise<void>;
@@ -276,6 +277,7 @@ export const useViewDynamicRecordViewModel = (tabKey: string): ViewDynamicRecord
     sortedFields: formFields,
     formValues: detail.values,
     setFieldValue: detail.setFieldValue,
+    mergeValues: detail.mergeValues,
     fieldErrors: detail.fieldErrors,
     isSaving: detail.isSaving,
     handleSave: detail.handleSave,

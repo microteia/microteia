@@ -10,11 +10,12 @@ import { getDefaultTagColor } from '../../../shared/styles/colorUtils';
 import { getScreenIconOptions } from '../../shared/screenIcons';
 import { resolveListActions, supportedListActions } from '../../shared/listActionCapabilities';
 import type { CustomFieldMask, CustomFieldType, FieldDefinition, ScreenDefinition, ScreenListAction } from '../../../domain/entities';
-import type { AggregationOp, FieldAggregation, FieldLogic, FieldRules, FormatPreset, FormatRule, ValidateCheck, ValidateRule } from '../../../domain/schema/fieldRules';
+import type { AggregationOp, FieldAggregation, FieldLookupBinding, FieldLogic, FieldRules, FormatPreset, FormatRule, ValidateCheck, ValidateRule } from '../../../domain/schema/fieldRules';
 import { AGGREGATION_OP_LABELS, FORMAT_PRESET_LABELS, VALIDATE_CHECK_LABELS } from '../../../domain/schema/fieldRules';
 import { extractFieldExpressionDependencies } from '../../../domain/schema/fieldExpression';
 import { aggregationCreatesCycle } from '../../../domain/schema/aggregationSpec';
 import { useSchemaContext } from '../../shared/useSchemaContext';
+import { useDI } from '../../../infrastructure/di/useDI';
 import { getEntityByCollection } from '../../../domain/schema/entityRegistry';
 import type { WorkflowVariable } from '../../components/ui/ExpressionEditor/autocompleteHelpers';
 import type { SearchSelectOption } from '../../components/ui/SearchSelect';
@@ -108,6 +109,9 @@ export interface FieldFormState {
   logicDisabledWhen: string;
   logicHiddenWhen: string;
   logicCompute: string;
+  logicOnChange: string;
+  lookupProvider: string;
+  lookupTargetPrefix: string;
   aggregationFrom: string;
   aggregationVia: string;
   aggregationOp: AggregationOp | '';
@@ -182,6 +186,7 @@ export interface ScreenBuilderViewModel {
   aggregationFieldOptions: SearchSelectOption[];
   aggregationOpOptions: SearchSelectOption[];
   aggregationFilterVariables: WorkflowVariable[];
+  lookupProviderOptions: SearchSelectOption[];
   tagColors: ColorSwatchOption[];
   addStaticOption: () => void;
   removeStaticOption: (label: string) => void;
@@ -275,6 +280,9 @@ const EMPTY_FIELD_FORM: FieldFormState = {
   logicDisabledWhen: '',
   logicHiddenWhen: '',
   logicCompute: '',
+  logicOnChange: '',
+  lookupProvider: '',
+  lookupTargetPrefix: '',
   aggregationFrom: '',
   aggregationVia: '',
   aggregationOp: '',
@@ -342,7 +350,17 @@ const buildFieldLogic = (form: FieldFormState): FieldLogic | null => {
   if (form.logicDisabledWhen.trim()) logic.disabledWhen = form.logicDisabledWhen.trim();
   if (form.logicHiddenWhen.trim()) logic.hiddenWhen = form.logicHiddenWhen.trim();
   if (form.logicCompute.trim()) logic.compute = form.logicCompute.trim();
+  if (form.logicOnChange.trim()) logic.onChange = form.logicOnChange.trim();
+  const lookup = buildFieldLookup(form);
+  if (lookup) logic.onChangeLookup = lookup;
   return Object.keys(logic).length > 0 ? logic : null;
+};
+
+const buildFieldLookup = (form: FieldFormState): FieldLookupBinding | null => {
+  const provider = form.lookupProvider.trim();
+  if (!provider) return null;
+  const targetPrefix = form.lookupTargetPrefix.trim();
+  return { provider, ...(targetPrefix ? { targetPrefix } : {}) };
 };
 
 const buildFieldAggregation = (form: FieldFormState): FieldAggregation | null => {
@@ -405,12 +423,15 @@ const findComputeCycle = (
 
 const fieldLogicToForm = (logic: FieldLogic | null | undefined): Pick<
   FieldFormState,
-  'logicValidate' | 'logicDisabledWhen' | 'logicHiddenWhen' | 'logicCompute'
+  'logicValidate' | 'logicDisabledWhen' | 'logicHiddenWhen' | 'logicCompute' | 'logicOnChange' | 'lookupProvider' | 'lookupTargetPrefix'
 > => ({
   logicValidate: logic?.validate ?? '',
   logicDisabledWhen: logic?.disabledWhen ?? '',
   logicHiddenWhen: logic?.hiddenWhen ?? '',
   logicCompute: logic?.compute ?? '',
+  logicOnChange: logic?.onChange ?? '',
+  lookupProvider: logic?.onChangeLookup?.provider ?? '',
+  lookupTargetPrefix: logic?.onChangeLookup?.targetPrefix ?? '',
 });
 
 const toSaveInput = (def: ScreenDefinition): ScreenDefinitionSaveInput => ({
@@ -466,6 +487,7 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
   const { tenantRole } = useTenant();
   const { definitions, dynamicScreens, isLoading, saveDefinition, deleteDefinition } = useScreenDefinitions();
   const schemaContext = useSchemaContext();
+  const { externalLookupServices } = useDI();
   const { notify } = useNotification();
   const { actions } = useActions();
   const theme = useTheme();
@@ -1067,6 +1089,14 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
       .map((f) => ({ value: f.key, label: f.label }));
   }, [aggregationChildScreens, fieldForm.aggregationFrom]);
 
+  const lookupProviderOptions = useMemo<SearchSelectOption[]>(
+    () => [
+      { value: '', label: 'Nenhuma' },
+      ...externalLookupServices.map((service) => ({ value: service.key, label: service.label })),
+    ],
+    [externalLookupServices],
+  );
+
   const aggregationOpOptions = useMemo<SearchSelectOption[]>(
     () => Object.entries(AGGREGATION_OP_LABELS).map(([value, label]) => ({ value, label })),
     [],
@@ -1110,7 +1140,20 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
       vars.push({ name, definedBy });
     };
     getEntityByCollection(fieldModal.screenKey)?.fields.forEach((f) => push(f.key, f.label));
-    getDefinitionByKey(fieldModal.screenKey)?.fields.forEach((f) => push(f.key, f.label));
+
+    const screenFields = getDefinitionByKey(fieldModal.screenKey)?.fields ?? [];
+    screenFields.forEach((f) => push(f.key, f.label));
+
+    // Campo de referência é navegável nos slots front-only (`produto.preco`): sugere os campos da
+    // tela apontada, já prefixados.
+    for (const field of screenFields) {
+      if (field.type !== 'reference' || !field.refEntity) continue;
+      const target = getDefinitionByKey(field.refEntity);
+      const targetFields = target?.fields ?? getEntityByCollection(field.refEntity)?.fields ?? [];
+      push(`${field.key}.id`, `${field.label} — identificador`);
+      targetFields.forEach((t) => push(`${field.key}.${t.key}`, `${field.label} — ${t.label}`));
+    }
+
     return vars;
   }, [fieldModal, getDefinitionByKey]);
 
@@ -1392,6 +1435,7 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
     aggregationFieldOptions,
     aggregationOpOptions,
     aggregationFilterVariables,
+    lookupProviderOptions,
     tagColors,
     addStaticOption,
     removeStaticOption,

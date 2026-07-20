@@ -22,6 +22,7 @@ export const ViewContractView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
           fields={vm.fields}
           values={vm.values}
           onChange={vm.setFieldValue}
+          onMergeValues={vm.mergeValues}
           errors={vm.fieldErrors}
           lookupOptions={vm.lookupOptions}
           onAddLookupOption={vm.handleAddLookupOption}
@@ -39,6 +40,7 @@ export const ViewContractView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
               fields={vm.customFields}
               values={vm.values}
               onChange={vm.setFieldValue}
+          onMergeValues={vm.mergeValues}
               errors={vm.fieldErrors}
             />
           </S.FormGroup>

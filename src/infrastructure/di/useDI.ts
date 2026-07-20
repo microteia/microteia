@@ -13,6 +13,7 @@ import type { INewsDocumentRepository } from '../../domain/repositories/INewsDoc
 import type { INewsCategoryRepository } from '../../domain/repositories/INewsCategoryRepository';
 import type { ISavedFilterRepository } from '../../domain/repositories/ISavedFilterRepository';
 import type { ITenantRepository } from '../../domain/repositories/ITenantRepository';
+import type { IExternalLookupService } from '../../domain/services/IExternalLookupService';
 import type { IPersonRepository } from '../../domain/repositories/IPersonRepository';
 import type { ICaseRepository } from '../../domain/repositories/ICaseRepository';
 import type { IDeadlineRepository } from '../../domain/repositories/IDeadlineRepository';
@@ -57,6 +58,7 @@ import type { IDataProcessorRepository } from '../../domain/repositories/IDataPr
 import type { IActionRepository } from '../../domain/repositories/IActionRepository';
 
 export interface DIContainer {
+  externalLookupServices: IExternalLookupService[];
   authRepository: IAuthRepository;
   userRepository: IUserRepository;
   userProfileRepository: IUserProfileRepository;

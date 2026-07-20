@@ -133,6 +133,7 @@ export interface ViewPersonViewModel {
   customFields: FieldDefinition[];
   values: Values;
   setFieldValue: (fieldKey: string, value: CustomFieldValue) => void;
+  mergeValues: (patch: Record<string, unknown>) => void;
   fieldErrors: Record<string, string>;
   personName: string;
   personType: PersonType;
@@ -303,6 +304,7 @@ export const useViewPersonViewModel = (tabKey: string): ViewPersonViewModel => {
     customFields,
     values: detail.values,
     setFieldValue: detail.setFieldValue,
+    mergeValues: detail.mergeValues,
     fieldErrors: detail.fieldErrors,
     personName: str(detail.values, 'name'),
     personType: (str(detail.values, 'type') || 'Pessoa Física') as PersonType,

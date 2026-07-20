@@ -55,6 +55,7 @@ export const ViewDynamicRecordView: React.FC<{ tabKey: string }> = ({ tabKey }) 
         fields={vm.sortedFields}
         values={vm.formValues}
         onChange={vm.setFieldValue}
+          onMergeValues={vm.mergeValues}
         errors={vm.fieldErrors}
       />
     </S.FormWrapper>

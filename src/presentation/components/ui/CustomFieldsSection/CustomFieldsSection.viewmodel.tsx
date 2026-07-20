@@ -6,6 +6,9 @@ import { useReferenceOptions } from '../../../hooks/useReferenceOptions';
 import { sortFieldsByOrder } from '../../../../domain/services/customFieldValues';
 import { evaluateFieldBoolean, evaluateFieldValidation } from '../../../../domain/schema/fieldExpression';
 import { computeFieldValues } from '../../../../domain/schema/recordRules';
+import { buildHydratedFieldScope } from '../../../../domain/schema/referenceScope';
+import { useRecordResolver } from '../../../shared/useRecordResolver';
+import { useFieldChangeEffects } from './useFieldChangeEffects';
 import { resolveFieldOptionColor } from '../../../../shared/styles/colorUtils';
 import type { CustomFieldValue, FieldDefinition } from '../../../../domain/entities';
 import type { DynamicSelectOption } from '../DynamicSelect';
@@ -35,6 +38,8 @@ export interface CustomFieldsSectionProps {
   onDeleteLookupOption?: (collection: string, optionKey: string) => void | Promise<void>;
   canDeleteLookupOption?: boolean;
   errors?: Record<string, string>;
+  /** Habilita os efeitos de `onChange` (preencher vários campos). Ausente = comportamento anterior. */
+  onMergeValues?: (patch: Record<string, unknown>) => void;
 }
 
 export interface FieldGroup {
@@ -64,6 +69,8 @@ export interface CustomFieldsSectionViewModel {
   isFieldHidden: (field: FieldDefinition) => boolean;
   isFieldDisabled: (field: FieldDefinition) => boolean;
   fieldError: (field: FieldDefinition) => string | null;
+  /** Campo aguardando uma busca externa (ex.: endereço pelo CEP). */
+  isFieldLoading: (fieldKey: string) => boolean;
 }
 
 export const useCustomFieldsSectionViewModel = (props: CustomFieldsSectionProps): CustomFieldsSectionViewModel => {
@@ -78,6 +85,7 @@ export const useCustomFieldsSectionViewModel = (props: CustomFieldsSectionProps)
     onDeleteLookupOption,
     canDeleteLookupOption = false,
     errors,
+    onMergeValues,
   } = props;
   const { fieldOptionsByField, addFieldOption, removeFieldOption } = useScreenDefinitions();
   const { tenantRole } = useTenant();
@@ -85,6 +93,15 @@ export const useCustomFieldsSectionViewModel = (props: CustomFieldsSectionProps)
   const theme = useTheme();
 
   const canDeleteOption = tenantRole === 'admin';
+
+  const resolveRecord = useRecordResolver();
+
+  const { runFieldChangeEffects, isFieldLoading } = useFieldChangeEffects({
+    fields,
+    values: rawValues,
+    resolveRecord,
+    onMergeValues,
+  });
 
   // Os campos calculados são derivados aqui apenas para exibição: quem os persiste é
   // formatAndValidateRecord, na gravação, com a mesma avaliação.
@@ -130,7 +147,8 @@ export const useCustomFieldsSectionViewModel = (props: CustomFieldsSectionProps)
 
   const setValue = useCallback((fieldKey: string, value: CustomFieldValue) => {
     onChange(fieldKey, value);
-  }, [onChange]);
+    runFieldChangeEffects(fieldKey, value);
+  }, [onChange, runFieldChangeEffects]);
 
   const staticSelectOptions = useCallback(
     (field: FieldDefinition): DynamicSelectOption[] =>
@@ -194,10 +212,21 @@ export const useCustomFieldsSectionViewModel = (props: CustomFieldsSectionProps)
     [onDeleteLookupOption],
   );
 
+  // Escopo com os campos de referência trocados pelo registro apontado, para que `produto.preco`
+  // funcione. Vale SÓ nos slots front-only: `validate` e `compute` também rodam no backend, onde só
+  // existe o id, e precisam continuar avaliando sobre ele.
+  const hydratedScope = useMemo(
+    () => buildHydratedFieldScope(fields, values, resolveRecord),
+    [fields, values, resolveRecord],
+  );
+
   const isFieldHidden = useCallback(
     (field: FieldDefinition): boolean =>
-      evaluateFieldBoolean(field.logic?.hiddenWhen, { value: readByPath(values, field.key), data: values }),
-    [values],
+      evaluateFieldBoolean(field.logic?.hiddenWhen, {
+        value: hydratedScope[field.key],
+        data: hydratedScope,
+      }),
+    [hydratedScope],
   );
 
   const isFieldDisabled = useCallback(
@@ -205,8 +234,11 @@ export const useCustomFieldsSectionViewModel = (props: CustomFieldsSectionProps)
       disabled ||
       Boolean(field.logic?.compute) ||
       Boolean(field.aggregation) ||
-      evaluateFieldBoolean(field.logic?.disabledWhen, { value: readByPath(values, field.key), data: values }),
-    [disabled, values],
+      evaluateFieldBoolean(field.logic?.disabledWhen, {
+        value: hydratedScope[field.key],
+        data: hydratedScope,
+      }),
+    [disabled, hydratedScope],
   );
 
   const fieldError = useCallback(
@@ -238,5 +270,6 @@ export const useCustomFieldsSectionViewModel = (props: CustomFieldsSectionProps)
     isFieldHidden,
     isFieldDisabled,
     fieldError,
+    isFieldLoading,
   };
 };

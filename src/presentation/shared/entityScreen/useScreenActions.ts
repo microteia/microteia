@@ -81,7 +81,7 @@ const flattenResult = (source: Record<string, unknown>, prefix = ''): Values => 
   return out;
 };
 
-const applyResult = (base: Values, result: Record<string, unknown> | null): Values =>
+export const applyResult = (base: Values, result: Record<string, unknown> | null): Values =>
   Object.entries(flattenResult(result ?? {})).reduce<Values>(
     (acc, [path, value]) => setValueByPath(acc, path, value),
     base,

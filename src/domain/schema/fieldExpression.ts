@@ -58,6 +58,19 @@ const resolvePath = (item: unknown, keys: string[]): unknown =>
     return (current as Record<string, unknown>)[key];
   }, item);
 
+/**
+ * No FRONT, um campo de referência pode chegar hidratado — o registro inteiro no lugar do id (ver
+ * `referenceScope.ts`). Casar também pelo `id` mantém `contains(produtos, '<id>')` funcionando nos
+ * dois formatos, em vez de silenciosamente devolver false quando o item é um objeto.
+ */
+const matchesItem = (item: unknown, search: unknown): boolean => {
+  if (item === search) return true;
+  if (item !== null && typeof item === 'object' && !Array.isArray(item)) {
+    return (item as Record<string, unknown>).id === search;
+  }
+  return false;
+};
+
 // Nomes deliberadamente iguais aos do catálogo de funções do Workflow, para que o ExpressionEditor
 // não acuse "função desconhecida". Apenas funções PURAS (sem WorkflowContext) entram aqui.
 const FIELD_EXPRESSION_FUNCTIONS: Record<string, (...args: unknown[]) => unknown> = {
@@ -76,16 +89,28 @@ const FIELD_EXPRESSION_FUNCTIONS: Record<string, (...args: unknown[]) => unknown
   isCNPJ: (value) => isValidCnpj(asText(value)),
   isEmail: (value) => EMAIL_PATTERN.test(asText(value)),
   contains: (value, search) =>
-    Array.isArray(value) ? value.includes(search) : asText(value).includes(asText(search)),
+    Array.isArray(value) ? value.some((item) => matchesItem(item, search)) : asText(value).includes(asText(search)),
   startsWith: (value, search) => asText(value).startsWith(asText(search)),
   endsWith: (value, search) => asText(value).endsWith(asText(search)),
   indexOf: (value, search) =>
-    Array.isArray(value) ? value.indexOf(search) : asText(value).indexOf(asText(search)),
+    Array.isArray(value)
+      ? value.findIndex((item) => matchesItem(item, search))
+      : asText(value).indexOf(asText(search)),
   substring: (value, start, end) =>
     asText(value).substring(Number(start) || 0, end === undefined ? undefined : Number(end)),
   replace: (value, search, replacement) =>
     asText(value).split(asText(search)).join(asText(replacement)),
   today: () => new Date().toISOString().slice(0, 10),
+  // `expr-eval` tem literal de array mas não de objeto — daí a forma por pares, mesma solução já
+  // adotada no status compacto das Actions. object('preco', 10) → { preco: 10 }.
+  object: (...args) => {
+    const result: Record<string, unknown> = {};
+    for (let index = 0; index + 1 < args.length; index += 2) {
+      const key = asText(args[index]).trim();
+      if (key !== '' && !UNSAFE_PATH_KEYS.has(key)) result[key] = args[index + 1];
+    }
+    return result;
+  },
   map: (array, path, compact) => {
     if (!Array.isArray(array)) return [];
     const keys = splitPath(path);

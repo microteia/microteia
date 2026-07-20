@@ -3,7 +3,7 @@ import { useWorkspace } from '../../../stores/useWorkspace';
 import { useNotification } from '../../../stores/useNotification';
 import { useTenant } from '../../../stores/useTenant';
 import { useScreenDefinitions } from '../../../stores/useScreenDefinitions';
-import { useScreenActions } from './useScreenActions';
+import { applyResult, useScreenActions } from './useScreenActions';
 import type { ScreenActions } from './useScreenActions';
 import { setValueByPath } from '../../../domain/services/customFieldValues';
 import type { CustomFieldValue } from '../../../domain/entities';
@@ -65,6 +65,8 @@ export interface EntityDetail<TRecord extends { id: string }> {
   recordNotFound: boolean;
   values: Values;
   setFieldValue: (fieldKey: string, value: CustomFieldValue) => void;
+  /** Mescla vários campos de uma vez — usado pelos efeitos de `onChange`. */
+  mergeValues: (patch: Record<string, unknown>) => void;
   fieldErrors: Record<string, string>;
   isSaving: boolean;
   handleSave: () => Promise<void>;
@@ -152,6 +154,17 @@ export function useEntityDetail<TRecord extends { id: string }>(
 
   const applyValues = useCallback((next: Values) => {
     setValues(next);
+    setIsDirty(true);
+  }, []);
+
+  /**
+   * Meio-termo entre `setFieldValue` (um campo) e `applyValues` (substitui tudo): mescla um objeto
+   * sobre os valores atuais, achatando caminhos aninhados. Usado pelos efeitos de `onChange`, que
+   * preenchem vários campos de uma vez.
+   */
+  const mergeValues = useCallback((patch: Record<string, unknown>) => {
+    if (Object.keys(patch).length === 0) return;
+    setValues((prev) => applyResult(prev, patch));
     setIsDirty(true);
   }, []);
 
@@ -257,6 +270,7 @@ export function useEntityDetail<TRecord extends { id: string }>(
     recordNotFound,
     values,
     setFieldValue,
+    mergeValues,
     fieldErrors,
     isSaving,
     handleSave,
