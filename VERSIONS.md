@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [0.122.1] — 2026-07-20
+
+- Melhorias internas de qualidade: novas verificações automáticas que detectam, antes da publicação, ajustes de tela que não seriam salvos e funcionalidades que ficariam de fora de uma atualização.
+
 ## [0.122.0] — 2026-07-20
 
 - O CEP do cadastro de Pessoas passa a buscar o endereço automaticamente: ao digitar um CEP válido, rua, bairro, cidade e estado são preenchidos.

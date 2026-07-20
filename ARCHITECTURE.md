@@ -3526,6 +3526,32 @@ setLoading(true);
 
 ---
 
+## Testes — o que cada camada cobre
+
+`npx vitest run`. O grosso da suíte é de **função pura** (domínio e schema), que é onde a lógica de
+verdade mora. Mas duas classes de defeito já escaparam dela e ganharam rede própria:
+
+- **Mapeamento destrutivo na leitura** — `screenDefinitionMapper.test.ts`. O mapper converte o
+  documento do Firestore campo a campo; esquecer um campo novo grava no banco e descarta na leitura,
+  e a tela parece "não ter salvo". O teste é **dirigido por tipo**: o objeto de amostra é um
+  `Omit<ScreenDefinition, …>`, então acrescentar uma propriedade à entidade quebra a compilação do
+  teste até ela ser declarada, e o teste falha até o mapper tratá-la.
+- **Listas manuais de deploy** — `scripts/deployLists.test.ts`. Os grupos `deploy:*` do
+  `package.json` e o `ALL_FUNCTIONS` de `deploy-functions-individually.cjs` enumeram functions à mão;
+  uma function nova fora deles não sobe, sem erro nenhum. Já aconteceu com `runAction` e
+  `recomputeAggregatesOnEntityChange`.
+
+**Testes de hook/fluxo** (`@testing-library/react` + `jsdom`) são a exceção, não a regra: o ambiente
+global do Vitest continua `node`, e cada arquivo que precisa de DOM declara
+`// @vitest-environment jsdom` no topo. Usar só quando o defeito estiver na **ordem do fluxo** ou na
+ligação com os stores — coisas que função pura não expressa. Exemplos: `useEntityFormFields.test.tsx`
+(store → formulário) e `ScreenBuilder.nativeField.test.tsx` (ordem das validações no save do campo
+fixo). Os stores entram por `vi.mock` do módulo, sem árvore de providers.
+
+> Ao escrever um teste de regressão, **reintroduza o defeito e confirme que o teste falha**. Dois
+> dos testes acima passaram na primeira tentativa contra o código quebrado — um por escolher um
+> campo que não disparava a validação, outro por mutação que não foi aplicada.
+
 ## Regra de Commit — Gate de Qualidade
 
 **Nenhum commit sem passar pelas DUAS verificações:**

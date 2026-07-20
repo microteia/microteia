@@ -14,8 +14,9 @@ import {
 } from 'firebase/firestore';
 import { db } from '../../infrastructure/firebase/config';
 import type { IScreenDefinitionRepository, ScreenDefinitionInput } from '../../domain/repositories/IScreenDefinitionRepository';
-import type { CustomRecordTag, DeletionActor, FieldDefinition, ScreenDefinition, ScreenFieldOption } from '../../domain/entities';
+import type { CustomRecordTag, DeletionActor, ScreenDefinition, ScreenFieldOption } from '../../domain/entities';
 import { stampDeletionActor } from '../utils/stampDeletionActor';
+import { mapScreenDefinition } from './screenDefinitionMapper';
 
 const toDate = (v: unknown): Date =>
   v instanceof Timestamp ? v.toDate() : (v as Date);
@@ -29,35 +30,6 @@ const fieldOptionsRef = (tenantId: string, screenKey: string) =>
 const tagsRef = (tenantId: string, screenKey: string) =>
   collection(db, 'tenants', tenantId, 'screenDefinitions', screenKey, 'tags');
 
-const mapScreenDefinition = (id: string, d: Record<string, unknown>, tenantId: string): ScreenDefinition => ({
-  id,
-  tenantId,
-  builtin: (d.builtin as boolean | undefined) ?? false,
-  titleSingular: (d.titleSingular as string | undefined) ?? '',
-  titlePlural: (d.titlePlural as string | undefined) ?? '',
-  icon: (d.icon as string | undefined) ?? 'apps',
-  fields: (d.fields as FieldDefinition[] | undefined) ?? [],
-  nativeFieldOverrides:
-    (d.nativeFieldOverrides as ScreenDefinition['nativeFieldOverrides'] | undefined) ?? null,
-  fieldOrderUnified: (d.fieldOrderUnified as boolean | undefined) ?? null,
-  titleFieldKey: (d.titleFieldKey as string | undefined) ?? '',
-  hasNotes: (d.hasNotes as boolean | undefined) ?? false,
-  hasDocuments: (d.hasDocuments as boolean | undefined) ?? false,
-  hasTags: (d.hasTags as boolean | undefined) ?? false,
-  listActions: (d.listActions as ScreenDefinition['listActions'] | undefined) ?? [],
-  viewActionIds: (d.viewActionIds as string[] | undefined) ?? [],
-  cardActionIds: (d.cardActionIds as string[] | undefined) ?? [],
-  parentEntity: (d.parentEntity as string | null | undefined) ?? null,
-  parentFieldKey: (d.parentFieldKey as string | null | undefined) ?? null,
-  sidebarOrder: (d.sidebarOrder as number | undefined) ?? 0,
-  enabled: (d.enabled as boolean | undefined) ?? true,
-  createdAt: toDate(d.createdAt),
-  createdBy: (d.createdBy as string | undefined) ?? '',
-  updatedAt: toDate(d.updatedAt),
-  updatedBy: d.updatedBy as string | undefined,
-  updatedByName: d.updatedByName as string | undefined,
-  updatedByPhotoURL: d.updatedByPhotoURL as string | undefined,
-});
 
 const mapFieldOption = (id: string, d: Record<string, unknown>, tenantId: string, screenKey: string): ScreenFieldOption => ({
   id,
