@@ -204,6 +204,7 @@ export const useCustomFieldsSectionViewModel = (props: CustomFieldsSectionProps)
     (field: FieldDefinition): boolean =>
       disabled ||
       Boolean(field.logic?.compute) ||
+      Boolean(field.aggregation) ||
       evaluateFieldBoolean(field.logic?.disabledWhen, { value: readByPath(values, field.key), data: values }),
     [disabled, values],
   );

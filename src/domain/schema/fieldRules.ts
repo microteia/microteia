@@ -42,6 +42,36 @@ export interface FieldLogic {
   compute?: string | null;
 }
 
+// ─── Agregação sobre registros filhos ─────────────────────────────────────────
+
+export type AggregationOp = 'sum' | 'count' | 'avg' | 'min' | 'max';
+
+/**
+ * Declara que o valor do campo vem de um agregado sobre os registros FILHOS — o que o `compute`
+ * (puro e síncrono, restrito ao próprio registro) não alcança. A dependência é declarada, e não
+ * inferida de uma expressão, para que o motor saiba exatamente quando recalcular e para que ciclos
+ * entre telas sejam detectáveis na autoria.
+ */
+export interface FieldAggregation {
+  // Tela/entidade dos filhos: screenKey de tela dinâmica ou coleção de entidade fixa.
+  from: string;
+  // Chave do campo de referência NO FILHO que aponta para este registro.
+  via: string;
+  op: AggregationOp;
+  // Campo do filho medido; ignorado por `count`.
+  field?: string | null;
+  // Expressão booleana avaliada sobre o filho — só entra no agregado quando verdadeira.
+  filter?: string | null;
+}
+
+export const AGGREGATION_OP_LABELS: Record<AggregationOp, string> = {
+  sum: 'Soma',
+  count: 'Contagem',
+  avg: 'Média',
+  min: 'Menor valor',
+  max: 'Maior valor',
+};
+
 // ─── Tipos de controle de campo (compartilhados form/list/custom) ─────────────
 
 export type CustomFieldType =

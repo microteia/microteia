@@ -28,6 +28,7 @@ export { cascadeDeletePushInteractions } from './infrastructure/handlers/cascade
 export { onWorkflowEventCreated } from './infrastructure/handlers/onWorkflowEventCreated';
 export { getWorkflowStepCatalog } from './infrastructure/handlers/getWorkflowStepCatalog';
 export { publishWorkflowEventOnEntityChange } from './infrastructure/handlers/publishWorkflowEventOnEntityChange';
+export { recomputeAggregatesOnEntityChange } from './infrastructure/handlers/recomputeAggregatesOnEntityChange';
 export { onNoteChange } from './infrastructure/handlers/workflow/onNoteChange';
 export { onDocumentChange } from './infrastructure/handlers/workflow/onDocumentChange';
 export { syncPublicWorkflowOnWrite, syncPublicWorkflowOnDelete } from './infrastructure/handlers/workflow/syncPublicWorkflow';

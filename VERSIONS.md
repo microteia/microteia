@@ -11,6 +11,13 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [0.120.0] — 2026-07-19
+
+- Um campo agora pode totalizar os registros de outra tela vinculados a ele — como o total dos itens de uma venda, a quantidade de parcelas de um contrato ou o maior valor lançado. Basta escolher a tela dos filhos, a operação e o campo a ser medido.
+- O total se mantém sozinho: sempre que um filho é incluído, alterado, excluído ou movido para outro registro, o valor do pai é recalculado.
+- É possível considerar apenas parte dos filhos, informando uma condição — por exemplo, somar somente os itens que não foram cancelados.
+- Campos calculados podem usar esses totais para montar textos, como um resumo que mostra a quantidade de itens e o valor total da venda.
+
 ## [0.119.0] — 2026-07-19
 
 - Campos podem agora se preencher sozinhos a partir dos outros campos do mesmo cadastro. Basta descrever como o valor é montado — um nome completo formado pelo nome e pelo sobrenome, o total de um item calculado pela quantidade e pelo preço, ou uma frase que reúne várias informações do registro.

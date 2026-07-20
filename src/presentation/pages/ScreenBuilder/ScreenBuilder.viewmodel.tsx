@@ -10,9 +10,11 @@ import { getDefaultTagColor } from '../../../shared/styles/colorUtils';
 import { getScreenIconOptions } from '../../shared/screenIcons';
 import { resolveListActions, supportedListActions } from '../../shared/listActionCapabilities';
 import type { CustomFieldMask, CustomFieldType, FieldDefinition, ScreenDefinition, ScreenListAction } from '../../../domain/entities';
-import type { FieldLogic, FieldRules, FormatPreset, FormatRule, ValidateCheck, ValidateRule } from '../../../domain/schema/fieldRules';
-import { FORMAT_PRESET_LABELS, VALIDATE_CHECK_LABELS } from '../../../domain/schema/fieldRules';
+import type { AggregationOp, FieldAggregation, FieldLogic, FieldRules, FormatPreset, FormatRule, ValidateCheck, ValidateRule } from '../../../domain/schema/fieldRules';
+import { AGGREGATION_OP_LABELS, FORMAT_PRESET_LABELS, VALIDATE_CHECK_LABELS } from '../../../domain/schema/fieldRules';
 import { extractFieldExpressionDependencies } from '../../../domain/schema/fieldExpression';
+import { aggregationCreatesCycle } from '../../../domain/schema/aggregationSpec';
+import { useSchemaContext } from '../../shared/useSchemaContext';
 import { getEntityByCollection } from '../../../domain/schema/entityRegistry';
 import type { WorkflowVariable } from '../../components/ui/ExpressionEditor/autocompleteHelpers';
 import type { SearchSelectOption } from '../../components/ui/SearchSelect';
@@ -106,6 +108,11 @@ export interface FieldFormState {
   logicDisabledWhen: string;
   logicHiddenWhen: string;
   logicCompute: string;
+  aggregationFrom: string;
+  aggregationVia: string;
+  aggregationOp: AggregationOp | '';
+  aggregationField: string;
+  aggregationFilter: string;
 }
 
 export type ScreenModalTab = 'general' | 'list' | 'actions' | 'children';
@@ -170,6 +177,11 @@ export interface ScreenBuilderViewModel {
   validateCheckOptions: SearchSelectOption[];
   fieldSupportsRules: boolean;
   refEntityOptions: SearchSelectOption[];
+  aggregationFromOptions: SearchSelectOption[];
+  aggregationViaOptions: SearchSelectOption[];
+  aggregationFieldOptions: SearchSelectOption[];
+  aggregationOpOptions: SearchSelectOption[];
+  aggregationFilterVariables: WorkflowVariable[];
   tagColors: ColorSwatchOption[];
   addStaticOption: () => void;
   removeStaticOption: (label: string) => void;
@@ -263,6 +275,11 @@ const EMPTY_FIELD_FORM: FieldFormState = {
   logicDisabledWhen: '',
   logicHiddenWhen: '',
   logicCompute: '',
+  aggregationFrom: '',
+  aggregationVia: '',
+  aggregationOp: '',
+  aggregationField: '',
+  aggregationFilter: '',
 };
 
 export const RULES_SUPPORTED_FIELD_TYPES: CustomFieldType[] = [
@@ -327,6 +344,33 @@ const buildFieldLogic = (form: FieldFormState): FieldLogic | null => {
   if (form.logicCompute.trim()) logic.compute = form.logicCompute.trim();
   return Object.keys(logic).length > 0 ? logic : null;
 };
+
+const buildFieldAggregation = (form: FieldFormState): FieldAggregation | null => {
+  const from = form.aggregationFrom.trim();
+  const via = form.aggregationVia.trim();
+  if (!from || !via || !form.aggregationOp) return null;
+
+  const field = form.aggregationField.trim();
+  const filter = form.aggregationFilter.trim();
+  return {
+    from,
+    via,
+    op: form.aggregationOp,
+    ...(form.aggregationOp !== 'count' && field ? { field } : {}),
+    ...(filter ? { filter } : {}),
+  };
+};
+
+const fieldAggregationToForm = (aggregation: FieldAggregation | null | undefined): Pick<
+  FieldFormState,
+  'aggregationFrom' | 'aggregationVia' | 'aggregationOp' | 'aggregationField' | 'aggregationFilter'
+> => ({
+  aggregationFrom: aggregation?.from ?? '',
+  aggregationVia: aggregation?.via ?? '',
+  aggregationOp: aggregation?.op ?? '',
+  aggregationField: aggregation?.field ?? '',
+  aggregationFilter: aggregation?.filter ?? '',
+});
 
 /**
  * Um campo calculado que dependa (direta ou indiretamente) de si mesmo nunca seria avaliado: o
@@ -421,6 +465,7 @@ const builtinSaveInput = (key: string): ScreenDefinitionSaveInput => {
 export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
   const { tenantRole } = useTenant();
   const { definitions, dynamicScreens, isLoading, saveDefinition, deleteDefinition } = useScreenDefinitions();
+  const schemaContext = useSchemaContext();
   const { notify } = useNotification();
   const { actions } = useActions();
   const theme = useTheme();
@@ -928,6 +973,7 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
       filterable: field.filterable ?? false,
       ...fieldRulesToForm(field.rules),
       ...fieldLogicToForm(field.logic),
+      ...fieldAggregationToForm(field.aggregation),
     });
     setFieldModal({ screenKey, fieldKey });
   }, [getDefinitionByKey, defaultTagColor]);
@@ -986,6 +1032,51 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
       ...dynamicOptions,
     ];
   }, [dynamicScreens, fieldModal]);
+
+  // Só faz sentido agregar de uma tela que aponte de volta para esta: é o vínculo pai/filho que
+  // define quais registros pertencem ao agregado.
+  const aggregationChildScreens = useMemo(
+    () =>
+      dynamicScreens.filter(
+        (def) =>
+          def.id !== fieldModal?.screenKey &&
+          def.fields.some((f) => f.type === 'reference' && f.refEntity === fieldModal?.screenKey),
+      ),
+    [dynamicScreens, fieldModal],
+  );
+
+  const aggregationFromOptions = useMemo<SearchSelectOption[]>(
+    () => [
+      { value: '', label: 'Nenhuma (campo comum)' },
+      ...aggregationChildScreens.map((def) => ({ value: def.id, label: def.titlePlural })),
+    ],
+    [aggregationChildScreens],
+  );
+
+  const aggregationViaOptions = useMemo<SearchSelectOption[]>(() => {
+    const child = aggregationChildScreens.find((def) => def.id === fieldForm.aggregationFrom);
+    return (child?.fields ?? [])
+      .filter((f) => f.type === 'reference' && f.refEntity === fieldModal?.screenKey)
+      .map((f) => ({ value: f.key, label: f.label }));
+  }, [aggregationChildScreens, fieldForm.aggregationFrom, fieldModal]);
+
+  const aggregationFieldOptions = useMemo<SearchSelectOption[]>(() => {
+    const child = aggregationChildScreens.find((def) => def.id === fieldForm.aggregationFrom);
+    return (child?.fields ?? [])
+      .filter((f) => f.type === 'number' || f.type === 'currency')
+      .map((f) => ({ value: f.key, label: f.label }));
+  }, [aggregationChildScreens, fieldForm.aggregationFrom]);
+
+  const aggregationOpOptions = useMemo<SearchSelectOption[]>(
+    () => Object.entries(AGGREGATION_OP_LABELS).map(([value, label]) => ({ value, label })),
+    [],
+  );
+
+  // O filtro é avaliado sobre o FILHO: as sugestões são os campos da tela filha, não desta.
+  const aggregationFilterVariables = useMemo<WorkflowVariable[]>(() => {
+    const child = aggregationChildScreens.find((def) => def.id === fieldForm.aggregationFrom);
+    return (child?.fields ?? []).map((f) => ({ name: f.key, definedBy: f.label }));
+  }, [aggregationChildScreens, fieldForm.aggregationFrom]);
 
   const addStaticOption = useCallback(() => {
     setFieldForm((prev) => {
@@ -1075,6 +1166,17 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
         return;
       }
     }
+    const aggregation = buildFieldAggregation(fieldForm);
+    if (aggregation) {
+      if (aggregation.op !== 'count' && !aggregation.field) {
+        reject('advanced', 'Escolha o campo do filho a ser somado (só a contagem dispensa o campo).');
+        return;
+      }
+      if (aggregationCreatesCycle(schemaContext, fieldModal.screenKey, aggregation.from)) {
+        reject('advanced', 'Essa agregação fecha um ciclo entre telas — o valor nunca se estabilizaria.');
+        return;
+      }
+    }
     const rules = buildFieldRules(fieldForm);
     const logic = buildFieldLogic(fieldForm);
     setSavingField(true);
@@ -1105,6 +1207,7 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
             filterable: fieldForm.filterable,
             rules,
             logic,
+            aggregation,
           };
         });
       } else {
@@ -1133,6 +1236,7 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
           listLabel: fieldForm.showInList ? (fieldForm.listLabel.trim() || null) : null,
           filterable: fieldForm.filterable,
           rules,
+          aggregation,
           logic,
         }];
       }
@@ -1144,7 +1248,7 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
     } finally {
       setSavingField(false);
     }
-  }, [fieldModal, fieldForm, fieldModalIsTitleField, getDefinitionByKey, saveDefinition, notify]);
+  }, [fieldModal, fieldForm, fieldModalIsTitleField, getDefinitionByKey, saveDefinition, notify, schemaContext]);
 
   const applyFieldOrder = useCallback(async (screenKey: string, fields: FieldDefinition[]) => {
     const def = getDefinitionByKey(screenKey);
@@ -1283,6 +1387,11 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
     validateCheckOptions,
     fieldSupportsRules,
     refEntityOptions,
+    aggregationFromOptions,
+    aggregationViaOptions,
+    aggregationFieldOptions,
+    aggregationOpOptions,
+    aggregationFilterVariables,
     tagColors,
     addStaticOption,
     removeStaticOption,

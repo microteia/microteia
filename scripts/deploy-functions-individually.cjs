@@ -44,6 +44,7 @@ const ALL_FUNCTIONS = [
   'onWorkflowEventCreated',
   'getWorkflowStepCatalog',
   'publishWorkflowEventOnEntityChange',
+  'recomputeAggregatesOnEntityChange',
   'onNoteChange',
   'onDocumentChange',
   'syncPublicWorkflowOnWrite',
@@ -51,7 +52,8 @@ const ALL_FUNCTIONS = [
   'getExpressionFunctions',
   'copyPublicWorkflow',
   'updateFromSourceWorkflow',
-  'runScript'
+  'runScript',
+  'runAction'
 ];
 
 // Parse argumentos

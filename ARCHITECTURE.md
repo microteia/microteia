@@ -1618,9 +1618,24 @@ Todo campo — `FieldDefinition` (customizado) e `NativeFieldSpec` (fixo) — ac
   - **Payload parcial:** `RecordRulesOptions.baseline` recebe o registro existente e serve de base ao escopo, para que um update que envia só parte dos campos não recompute com dependências ausentes. No back, `runWorkflowUpsert` lê o documento **antes** das regras justamente para isso; no front, `loadRecordBaseline` (`recordRulesGate`) só lê quando a tabela tem algum campo computado. Sem baseline e com dependência ausente, o `expr-eval` lança e o campo é **pulado** — nunca grava lixo por cima de um valor correto.
   - **No formulário:** `computeFieldValues` (mesma avaliação, versão plana) deriva os valores em `CustomFieldsSection` só para exibição — o usuário vê o campo se formando enquanto digita, e ele é sempre somente-leitura (`isFieldDisabled`). Quem persiste é o save.
   - **`skipCompute`:** o Step "Validar Objeto" (`validateSpec.ts`) desliga o compute — ele checa um objeto avulso, não um registro que será gravado.
-  - **Agregado sobre filhos** (ex.: total do pai = soma dos itens) **não** existe: `compute` é puro e síncrono, restrito ao próprio registro. Depende de um motor de agregação reagindo a `*.saved`/`.deleted`, ainda não implementado.
+  - **Agregado sobre filhos:** fora do alcance do `compute` (puro e síncrono, restrito ao próprio registro) — ver "Campos agregados" abaixo. Os dois se compõem: a agregação grava o valor cru, o `compute` monta o texto em cima dele.
 - **Autoria:** `ScreenBuilder` grava `FieldDefinition.logic` via quatro `ExpressionEditor`.
 - **Campos nativos das telas fixas:** a **validação** já vale (o passo lê `entity.fields[].logic.validate`); o **desabilitar/ocultar ao vivo** vale onde os campos nativos são renderizados pelo renderer de Schema (piloto: Pessoas — ver abaixo).
+
+### Campos agregados (valor vindo dos registros filhos)
+
+`FieldDefinition.aggregation?: FieldAggregation` (`domain/schema/fieldRules.ts`) declara que o valor do campo vem de um agregado sobre os **filhos**: `{ from, via, op, field?, filter? }` — tela dos filhos, campo de referência no filho que aponta para este registro, operação (`sum|count|avg|min|max`), campo medido e filtro opcional.
+
+**Por que declarativo e não uma função de expressão** (`sum(children(...))`): a dependência precisa ser conhecida pelo motor para saber *quando* recalcular. Inferir isso do texto de uma expressão é análise estática frágil — falharia em silêncio, deixando o total desatualizado. Declarado, também permite detectar ciclos entre telas na autoria.
+
+- **Spec compartilhado:** `domain/schema/aggregationSpec.ts` (fonte única, gerado para `functions/`). `collectAggregationsFor(ctx, childTable)` é o índice invertido — dado um filho que mudou, quais campos de quais telas agregam sobre ele; `aggregateChildren` aplica filtro e operação; `aggregationCreatesCycle` guarda a autoria.
+- **Motor:** `functions/src/domain/services/recomputeAggregates.ts`, disparado por `recomputeAggregatesOnEntityChange` — um `onDocumentWritten` **próprio**, separado de `publishWorkflowEventOnEntityChange` para que uma falha no agregado não derrube a publicação de eventos (e vice-versa).
+- **Recompute por requery:** a cada mudança de filho, consulta os irmãos (`queryByEquality`, teto de 500 com warn) e recalcula do zero. Sempre convergente e auto-corretivo — conserta divergências passadas, ao contrário de um delta incremental, que erra para sempre depois de uma escrita perdida.
+- **Guarda de recursão — o ponto crítico:** o write do pai dispara `.saved` do pai, que reentra no handler. A cascata termina porque o recompute é **idempotente**: as folhas resultantes são comparadas com o registro atual e, sem diferença real, **nada é gravado** — sem write, sem evento. É isso que substitui um limite de profundidade, e é o que torna seguro o ciclo que antes não tinha freio nenhum (o `JSON.stringify` de `publishWorkflowEventOnEntityChange` sempre difere, porque `updatedAt` é reescrito). Ciclos entre telas (A agrega de B que agrega de A) são recusados na autoria, pois nunca convergiriam.
+- **Escopo de recálculo:** só recalcula quando a mudança pode ter mexido no agregado — o pai vinculado mudou, o campo medido mudou, ou existe filtro. Um filho que troca de pai recalcula **os dois** (o antigo, lido de `before`, e o novo).
+- **Composição com `compute`:** o patch do agregado passa por `formatAndValidateRecord` com `baseline`, então um campo `compute` que dependa do agregado é recalculado no mesmo write.
+- **Limitação conhecida:** o vínculo é por igualdade simples — campo de referência `multi` (que grava um array) não é suportado, pois `queryByEquality` não faz `array-contains`.
+- **Escrita:** carimba `updatedBy: 'aggregate-engine'`. O campo agregado é somente-leitura no formulário (`isFieldDisabled`).
 
 ### Telas fixas por Schema — piloto (Pessoas)
 

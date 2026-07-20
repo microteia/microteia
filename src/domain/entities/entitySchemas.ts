@@ -8,6 +8,7 @@ import type {
   CustomFieldMask,
   CustomFieldOption,
   CustomFieldType,
+  FieldAggregation,
   FieldLogic,
   FieldRules,
 } from '../schema/fieldRules';
@@ -40,6 +41,7 @@ export interface FieldDefinition {
   filterable?: boolean;
   rules?: FieldRules | null;
   logic?: FieldLogic | null;
+  aggregation?: FieldAggregation | null;
 }
 
 // ─── Definição de Tela ────────────────────────────────────────────────────────

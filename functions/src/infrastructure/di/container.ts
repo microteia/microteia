@@ -81,6 +81,7 @@ import { FirestoreWorkflowQueryRepository } from '../../data/services/FirestoreW
 import { FirestoreWorkflowMutationRepository } from '../../data/services/FirestoreWorkflowMutationRepository';
 import { FirebaseScriptRepository } from '../../data/repositories/FirebaseScriptRepository';
 import { ScreenDefinitionCache } from '../../data/services/ScreenDefinitionCache';
+import type { AggregateRecomputeDeps } from '../../domain/services/recomputeAggregates';
 
 class DIContainer {
   private static instance: DIContainer;
@@ -120,6 +121,7 @@ class DIContainer {
   private runWorkflowsForEventUC?: RunWorkflowsForEventUseCase;
   private runCalledWorkflowUC?: RunCalledWorkflowUseCase;
   private screenDefinitionCache?: ScreenDefinitionCache;
+  private aggregateRecomputeDeps?: AggregateRecomputeDeps;
   private workflowContextHydrator?: WorkflowContextHydrator;
   private workflowStepsRegistered = false;
 
@@ -401,6 +403,18 @@ class DIContainer {
       this.screenDefinitionCache = new ScreenDefinitionCache(getDb());
     }
     return this.screenDefinitionCache;
+  }
+
+  getAggregateRecomputeDeps(): AggregateRecomputeDeps {
+    if (!this.aggregateRecomputeDeps) {
+      this.aggregateRecomputeDeps = {
+        screenProvider: this.getScreenDefinitionCache(),
+        queryRepository: new FirestoreWorkflowQueryRepository(getDb()),
+        mutationRepository: new FirestoreWorkflowMutationRepository(getDb()),
+        logger: { warn: (message: string) => console.warn(`[aggregate] ${message}`) },
+      };
+    }
+    return this.aggregateRecomputeDeps;
   }
 
   getWorkflowContextHydrator(): WorkflowContextHydrator {

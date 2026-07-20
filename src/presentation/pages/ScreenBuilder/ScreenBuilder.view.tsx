@@ -668,6 +668,70 @@ export const ScreenBuilderView: React.FC = () => {
                     </InputGroup>
                   </>
                 )}
+                {vm.aggregationFromOptions.length > 1 && (
+                  <>
+                    <S.RulesDivider>Valor vindo dos registros filhos</S.RulesDivider>
+                    <S.FullRow>
+                      <InfoBanner
+                        message="Use para totalizar registros de outra tela vinculados a este — como o total dos itens de uma venda. O valor é recalculado automaticamente sempre que um filho é criado, alterado ou excluído."
+                        variant="info"
+                      />
+                    </S.FullRow>
+                    <InputGroup>
+                      <Label>Tela dos filhos</Label>
+                      <SearchSelect
+                        options={vm.aggregationFromOptions}
+                        value={vm.fieldForm.aggregationFrom}
+                        onChange={(value) => vm.updateFieldForm({ aggregationFrom: value, aggregationVia: '', aggregationField: '' })}
+                        placeholder="Nenhuma (campo comum)"
+                      />
+                    </InputGroup>
+                    {vm.fieldForm.aggregationFrom !== '' && (
+                      <>
+                        <InputGroup>
+                          <Label>Campo do filho que aponta para esta tela</Label>
+                          <SearchSelect
+                            options={vm.aggregationViaOptions}
+                            value={vm.fieldForm.aggregationVia}
+                            onChange={(value) => vm.updateFieldForm({ aggregationVia: value })}
+                            placeholder="Escolha o vínculo"
+                          />
+                        </InputGroup>
+                        <InputGroup>
+                          <Label>Operação</Label>
+                          <SearchSelect
+                            options={vm.aggregationOpOptions}
+                            value={vm.fieldForm.aggregationOp}
+                            onChange={(value) => vm.updateFieldForm({ aggregationOp: value as typeof vm.fieldForm.aggregationOp })}
+                            placeholder="Escolha a operação"
+                          />
+                        </InputGroup>
+                        {vm.fieldForm.aggregationOp !== 'count' && (
+                          <InputGroup>
+                            <Label>Campo do filho a ser medido</Label>
+                            <SearchSelect
+                              options={vm.aggregationFieldOptions}
+                              value={vm.fieldForm.aggregationField}
+                              onChange={(value) => vm.updateFieldForm({ aggregationField: value })}
+                              placeholder="Escolha o campo"
+                            />
+                          </InputGroup>
+                        )}
+                        <S.FullRow>
+                          <InputGroup>
+                            <Label>Considerar apenas os filhos que atendam a (opcional)</Label>
+                            <ExpressionEditor
+                              value={vm.fieldForm.aggregationFilter}
+                              onChange={(value) => vm.updateFieldForm({ aggregationFilter: value })}
+                              workflowVariables={vm.aggregationFilterVariables}
+                              placeholder="Ex: status != 'cancelado'"
+                            />
+                          </InputGroup>
+                        </S.FullRow>
+                      </>
+                    )}
+                  </>
+                )}
                 <S.RulesDivider>Comportamento por expressão</S.RulesDivider>
                 <S.FullRow>
                   <InfoBanner
