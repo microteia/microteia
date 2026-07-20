@@ -11,6 +11,12 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [0.119.0] — 2026-07-19
+
+- Campos podem agora se preencher sozinhos a partir dos outros campos do mesmo cadastro. Basta descrever como o valor é montado — um nome completo formado pelo nome e pelo sobrenome, o total de um item calculado pela quantidade e pelo preço, ou uma frase que reúne várias informações do registro.
+- O campo calculado aparece pronto no formulário e vai se atualizando conforme os demais campos são preenchidos. Ele fica bloqueado para digitação, já que o valor vem do cálculo.
+- O valor é gravado junto com o registro, então pode ser usado em filtros, ordenações e rotinas — e é calculado da mesma forma quando o registro é gravado por uma automação.
+
 ## [0.118.0] — 2026-07-19
 
 - Novo passo **Encerrar Workflow**: interrompe a rotina naquele ponto e devolve como resultado o que o passo anterior produziu. Serve para sair mais cedo de dentro de uma condição ou de uma repetição, sem precisar contornar os passos seguintes.

@@ -17,7 +17,7 @@ import { db } from '../../infrastructure/firebase/config';
 import type { IPersonRepository } from '../../domain/repositories/IPersonRepository';
 import type { Person, PersonStatus, Gender, DeletionActor, CustomFieldValue } from '../../domain/entities';
 import { stampDeletionActor } from '../utils/stampDeletionActor';
-import { applyRecordRules } from '../utils/recordRulesGate';
+import { applyRecordRules, loadRecordBaseline } from '../utils/recordRulesGate';
 
 const toDate = (v: unknown): Date =>
   v instanceof Timestamp ? v.toDate() : (v as Date);
@@ -93,8 +93,10 @@ export class FirebasePersonRepository implements IPersonRepository {
   }
 
   async updatePerson(tenantId: string, personId: string, data: Partial<Omit<Person, 'id' | 'tenantId' | 'createdAt' | 'createdBy'>>): Promise<void> {
-    await updateDoc(doc(personsRef(tenantId), personId), {
-      ...applyRecordRules('persons', data),
+    const ref = doc(personsRef(tenantId), personId);
+    const baseline = await loadRecordBaseline('persons', ref);
+    await updateDoc(ref, {
+      ...applyRecordRules('persons', data, baseline),
       updatedAt: serverTimestamp(),
     });
   }

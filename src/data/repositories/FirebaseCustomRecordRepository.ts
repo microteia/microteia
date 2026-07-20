@@ -18,7 +18,7 @@ import { db } from '../../infrastructure/firebase/config';
 import type { ICustomRecordRepository } from '../../domain/repositories/ICustomRecordRepository';
 import type { CustomFieldValue, CustomRecord, DeletionActor } from '../../domain/entities';
 import { stampDeletionActor } from '../utils/stampDeletionActor';
-import { applyRecordRules } from '../utils/recordRulesGate';
+import { applyRecordRules, loadRecordBaseline } from '../utils/recordRulesGate';
 
 const toDate = (v: unknown): Date =>
   v instanceof Timestamp ? v.toDate() : (v as Date);
@@ -88,8 +88,10 @@ export class FirebaseCustomRecordRepository implements ICustomRecordRepository {
   }
 
   async update(tenantId: string, recordId: string, screenKey: string, data: Partial<Omit<CustomRecord, 'id' | 'tenantId' | 'screenKey' | 'createdAt' | 'createdBy'>>): Promise<void> {
-    await updateDoc(doc(recordsRef(tenantId), recordId), {
-      ...applyRecordRules(screenKey, data),
+    const ref = doc(recordsRef(tenantId), recordId);
+    const baseline = await loadRecordBaseline(screenKey, ref);
+    await updateDoc(ref, {
+      ...applyRecordRules(screenKey, data, baseline),
       updatedAt: serverTimestamp(),
     });
   }

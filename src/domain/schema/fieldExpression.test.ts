@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { evaluateFieldBoolean, evaluateFieldExpression, evaluateFieldValidation } from './fieldExpression';
+import { evaluateFieldBoolean, evaluateFieldExpression, evaluateFieldValidation, extractFieldExpressionDependencies } from './fieldExpression';
 
 describe('evaluateFieldExpression — escopo e literais', () => {
   it('acessa campos por chave e o valor do próprio campo', () => {
@@ -128,5 +128,26 @@ describe('map', () => {
   it('combina com length e contains nas validações', () => {
     const expr = 'if(length(map(partes, "pessoa.nome", true)) < 2, "Informe ao menos 2 partes", null)';
     expect(evaluateFieldValidation(expr, ctx)).toBe(null);
+  });
+});
+
+describe('extractFieldExpressionDependencies', () => {
+  it('devolve as chaves de campo referenciadas', () => {
+    expect(extractFieldExpressionDependencies("concat(nome, ' ', sobrenome)").sort())
+      .toEqual(['nome', 'sobrenome']);
+    expect(extractFieldExpressionDependencies('quantidade * precoUnitario').sort())
+      .toEqual(['precoUnitario', 'quantidade']);
+  });
+
+  it('descarta os nomes reservados do escopo', () => {
+    expect(extractFieldExpressionDependencies("if(isEmpty(value), status, self)").sort())
+      .toEqual(['status']);
+    expect(extractFieldExpressionDependencies('if(true, 1, null)')).toEqual([]);
+  });
+
+  it('devolve vazio para expressão ausente ou inválida', () => {
+    expect(extractFieldExpressionDependencies(null)).toEqual([]);
+    expect(extractFieldExpressionDependencies('')).toEqual([]);
+    expect(extractFieldExpressionDependencies('concat(')).toEqual([]);
   });
 });

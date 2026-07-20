@@ -108,18 +108,29 @@ export async function runWorkflowUpsert(
     return { ok: false, error: `Gravação inválida: ${issues.map((i) => `${i.field}: ${i.error}`).join('; ')}` };
   }
 
-  const ruled = formatAndValidateRecord(ctx, effectiveSpec.table, effectiveSpec.data);
-  if (ruled.issues.length > 0) {
-    return { ok: false, error: `Gravação inválida: ${describeRuleIssues(ruled.issues)}` };
-  }
-  const ruledSpec: UpsertSpec = { ...effectiveSpec, data: ruled.data };
-
   const resolved = resolveWritableTable(effectiveSpec.table, ctx);
   if (!resolved.ok) {
     return { ok: false, error: resolved.error };
   }
   const target = resolved.value;
   const collection = target.physicalCollection;
+
+  // O registro existente é lido ANTES das regras: ele é a base do escopo dos campos computados,
+  // sem a qual um update parcial recalcularia com as dependências ausentes do payload.
+  const id = effectiveSpec.id?.trim();
+  const existing = id ? await deps.mutationRepository.getById(tenantId, collection, id) : null;
+
+  if (existing && target.kind === 'custom' && existing.screenKey !== target.screenKey) {
+    return { ok: false, error: 'O registro informado pertence a outra tela e não pode ser alterado' };
+  }
+
+  const ruled = formatAndValidateRecord(ctx, effectiveSpec.table, effectiveSpec.data, {
+    baseline: existing ?? undefined,
+  });
+  if (ruled.issues.length > 0) {
+    return { ok: false, error: `Gravação inválida: ${describeRuleIssues(ruled.issues)}` };
+  }
+  const ruledSpec: UpsertSpec = { ...effectiveSpec, data: ruled.data };
 
   const payload = buildFieldPayload(ruledSpec, target, ctx);
 
@@ -129,13 +140,6 @@ export async function runWorkflowUpsert(
     const values = (payload.values as Record<string, unknown> | undefined) ?? {};
     const titleValue = screen?.titleFieldKey ? values[screen.titleFieldKey] : undefined;
     payload.title = typeof titleValue === 'string' && titleValue.trim() !== '' ? titleValue.trim() : UNTITLED_RECORD;
-  }
-
-  const id = effectiveSpec.id?.trim();
-  const existing = id ? await deps.mutationRepository.getById(tenantId, collection, id) : null;
-
-  if (existing && target.kind === 'custom' && existing.screenKey !== target.screenKey) {
-    return { ok: false, error: 'O registro informado pertence a outra tela e não pode ser alterado' };
   }
 
   let created: boolean;

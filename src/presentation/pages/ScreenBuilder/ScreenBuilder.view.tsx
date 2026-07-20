@@ -675,6 +675,15 @@ export const ScreenBuilderView: React.FC = () => {
                     variant="info"
                   />
                   <InputGroup>
+                    <Label>Valor calculado (preenche o campo automaticamente)</Label>
+                    <ExpressionEditor
+                      value={vm.fieldForm.logicCompute}
+                      onChange={(value) => vm.updateFieldForm({ logicCompute: value })}
+                      workflowVariables={vm.fieldExpressionVariables}
+                      placeholder="Ex: trim(concat(nome, ' ', sobrenome))"
+                    />
+                  </InputGroup>
+                  <InputGroup>
                     <Label>Validação (retorna a mensagem de erro, ou vazio/null se válido)</Label>
                     <ExpressionEditor
                       value={vm.fieldForm.logicValidate}

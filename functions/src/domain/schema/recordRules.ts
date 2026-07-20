@@ -11,8 +11,12 @@
 
 import type { FieldDefinition } from '../entities/entitySchemas';
 import type { NativeFieldSpec } from './entityRegistry';
-import { evaluateFieldValidation } from './fieldExpression';
-import type { FieldRules, RuleIssue } from './fieldRules';
+import {
+  evaluateFieldExpression,
+  evaluateFieldValidation,
+  extractFieldExpressionDependencies,
+} from './fieldExpression';
+import type { FieldLogic, FieldRules, RuleIssue } from './fieldRules';
 import { formatAndValidate } from './fieldRules';
 import { flattenDataLeaves, resolveWritableTable, setValueAtPath } from './mutationSpec';
 import type { SchemaContext } from './pathResolver';
@@ -75,11 +79,14 @@ export const resolveFieldRules = (
   return findNativeFieldRules(entity.fields, parts);
 };
 
-interface ExpressionValidationTarget {
+export type FieldLogicSlot = 'validate' | 'compute';
+
+export interface FieldLogicTarget {
   key: string;
   path: string;
   label: string;
   expr: string;
+  dependencies: string[];
 }
 
 /**
@@ -107,27 +114,42 @@ export const buildRecordFieldScope = (
   return { ...data, ...flatCustom };
 };
 
-const collectExpressionValidationTargets = (
+const readLogicSlot = (
+  logic: FieldLogic | null | undefined,
+  slot: FieldLogicSlot,
+): string | undefined => {
+  const expr = slot === 'validate' ? logic?.validate : logic?.compute;
+  return expr && expr.trim() ? expr : undefined;
+};
+
+export const collectFieldLogicTargets = (
   ctx: SchemaContext,
   table: string,
-): ExpressionValidationTarget[] => {
+  slot: FieldLogicSlot,
+): FieldLogicTarget[] => {
   const outcome = resolveWritableTable(table, ctx);
   if (!outcome.ok || outcome.value.kind === 'lookup') return [];
 
   const resolved = outcome.value;
-  const targets: ExpressionValidationTarget[] = [];
+  const targets: FieldLogicTarget[] = [];
+
+  const push = (
+    field: { key: string; label: string; logic?: FieldLogic | null },
+    path: string,
+  ): void => {
+    const expr = readLogicSlot(field.logic, slot);
+    if (!expr) return;
+    targets.push({
+      key: field.key,
+      path,
+      label: field.label,
+      expr,
+      dependencies: extractFieldExpressionDependencies(expr),
+    });
+  };
 
   const pushCustomFields = (fields: FieldDefinition[] | undefined, prefix: string): void => {
-    for (const field of fields ?? []) {
-      if (field.logic?.validate) {
-        targets.push({
-          key: field.key,
-          path: `${prefix}.${field.key}`,
-          label: field.label,
-          expr: field.logic.validate,
-        });
-      }
-    }
+    for (const field of fields ?? []) push(field, `${prefix}.${field.key}`);
   };
 
   if (resolved.kind === 'custom') {
@@ -138,11 +160,7 @@ const collectExpressionValidationTargets = (
   const entity = resolved.entityKey ? ctx.registry[resolved.entityKey] : undefined;
   if (!entity) return targets;
 
-  for (const field of entity.fields) {
-    if (field.logic?.validate) {
-      targets.push({ key: field.key, path: field.key, label: field.label, expr: field.logic.validate });
-    }
-  }
+  for (const field of entity.fields) push(field, field.key);
   if (entity.supportsCustomFields) {
     pushCustomFields(ctx.screens.get(entity.collection)?.fields, CUSTOM_VALUES_KEY);
   }
@@ -155,7 +173,7 @@ const evaluateExpressionValidations = (
   table: string,
   data: Record<string, unknown>,
 ): RuleIssue[] => {
-  const targets = collectExpressionValidationTargets(ctx, table);
+  const targets = collectFieldLogicTargets(ctx, table, 'validate');
   if (targets.length === 0) return [];
 
   const scope = buildRecordFieldScope(ctx, table, data);
@@ -165,6 +183,120 @@ const evaluateExpressionValidations = (
     if (error) issues.push({ path: target.path, label: target.label, error });
   }
   return issues;
+};
+
+/**
+ * Ordena os campos computados de forma que um computado que depende de outro seja avaliado depois
+ * dele. Campos envolvidos em ciclo são descartados — a expressão não é avaliada e o valor anterior
+ * do campo permanece intacto.
+ */
+export const orderComputeTargets = (targets: FieldLogicTarget[]): FieldLogicTarget[] => {
+  const byKey = new Map(targets.map((target) => [target.key, target]));
+  const ordered: FieldLogicTarget[] = [];
+  const settled = new Set<string>();
+  const visiting = new Set<string>();
+
+  const visit = (target: FieldLogicTarget): boolean => {
+    if (settled.has(target.key)) return true;
+    if (visiting.has(target.key)) return false;
+
+    visiting.add(target.key);
+    for (const dependency of target.dependencies) {
+      const upstream = byKey.get(dependency);
+      if (upstream && upstream.key !== target.key && !visit(upstream)) {
+        visiting.delete(target.key);
+        return false;
+      }
+    }
+    visiting.delete(target.key);
+
+    settled.add(target.key);
+    ordered.push(target);
+    return true;
+  };
+
+  for (const target of targets) visit(target);
+  return ordered;
+};
+
+/**
+ * Avalia os alvos na ordem de dependência sobre um escopo plano por chave de campo. Cada resultado
+ * entra no escopo antes do próximo alvo, para que um computado enxergue outro. Expressão que lança
+ * é ignorada — campo computado nunca bloqueia a gravação.
+ */
+const evaluateComputeTargets = (
+  targets: FieldLogicTarget[],
+  scope: Record<string, unknown>,
+): Map<string, unknown> => {
+  const resolved = new Map<string, unknown>();
+  const working = { ...scope };
+
+  for (const target of orderComputeTargets(targets)) {
+    try {
+      const value = evaluateFieldExpression(target.expr, { value: working[target.key], data: working });
+      if (value === undefined) continue;
+      working[target.key] = value;
+      resolved.set(target.key, value);
+    } catch {
+      continue;
+    }
+  }
+
+  return resolved;
+};
+
+/**
+ * Versão plana, para o formulário: recebe os campos de uma tela e os valores por chave, devolvendo
+ * só os computados. É a MESMA avaliação do save, para o que o usuário vê enquanto digita não
+ * divergir do que será persistido.
+ */
+export const computeFieldValues = (
+  fields: { key: string; label?: string; logic?: FieldLogic | null }[],
+  values: Record<string, unknown>,
+): Record<string, unknown> => {
+  const targets: FieldLogicTarget[] = [];
+  for (const field of fields) {
+    const expr = readLogicSlot(field.logic, 'compute');
+    if (!expr) continue;
+    targets.push({
+      key: field.key,
+      path: field.key,
+      label: field.label ?? field.key,
+      expr,
+      dependencies: extractFieldExpressionDependencies(expr),
+    });
+  }
+  if (targets.length === 0) return {};
+
+  return Object.fromEntries(evaluateComputeTargets(targets, values));
+};
+
+/**
+ * Avalia as expressões `logic.compute` e grava o resultado no próprio registro. O escopo parte do
+ * `baseline` (registro já existente) sobreposto pelos valores recebidos, para que um payload parcial
+ * — típico do Step "Gravar Registro" — não recompute com dependências ausentes.
+ */
+export const applyComputedFields = (
+  ctx: SchemaContext,
+  table: string,
+  data: Record<string, unknown>,
+  baseline?: Record<string, unknown>,
+): Record<string, unknown> => {
+  const targets = collectFieldLogicTargets(ctx, table, 'compute');
+  if (targets.length === 0) return data;
+
+  const scope: Record<string, unknown> = {
+    ...(baseline ? buildRecordFieldScope(ctx, table, baseline) : {}),
+    ...buildRecordFieldScope(ctx, table, data),
+  };
+
+  const resolved = evaluateComputeTargets(targets, scope);
+  const next = { ...data };
+  for (const target of targets) {
+    if (resolved.has(target.key)) setValueAtPath(next, target.path, resolved.get(target.key));
+  }
+
+  return next;
 };
 
 export interface RecordRulesOutcome {
@@ -181,6 +313,11 @@ export interface RecordRulesOptions {
   // Caminhos cuja regra de schema deve ser ignorada — usado pelo Step "Validar Objeto", onde as
   // regras declaradas nos parâmetros SOBREPÕEM as da entidade.
   skipPaths?: ReadonlySet<string>;
+  // Registro já existente, usado como base do escopo dos campos computados quando `data` é parcial.
+  baseline?: Record<string, unknown>;
+  // Desliga a avaliação de `logic.compute` — usado pelo Step "Validar Objeto", que checa um objeto
+  // avulso e não um registro que será gravado.
+  skipCompute?: boolean;
 }
 
 export const formatAndValidateRecord = (
@@ -205,7 +342,11 @@ export const formatAndValidateRecord = (
     if (outcome.issue) issues.push(outcome.issue);
   }
 
-  issues.push(...evaluateExpressionValidations(ctx, table, next));
+  const computed = options.skipCompute
+    ? next
+    : applyComputedFields(ctx, table, next, options.baseline);
 
-  return { data: next, issues };
+  issues.push(...evaluateExpressionValidations(ctx, table, computed));
+
+  return { data: computed, issues };
 };

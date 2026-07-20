@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { FieldDefinition } from '../entities/entitySchemas';
 import { createSchemaContext } from './pathResolver';
 import type { SchemaScreen } from './pathResolver';
-import { formatAndValidateRecord } from './recordRules';
+import { computeFieldValues, formatAndValidateRecord } from './recordRules';
 
 const field = (overrides: Partial<FieldDefinition> & Pick<FieldDefinition, 'key' | 'label'>): FieldDefinition => ({
   type: 'text',
@@ -153,6 +153,139 @@ describe('formatAndValidateRecord — validação por expressão', () => {
     expect(outcome.issues).toEqual([
       { path: 'customValues.registro', label: 'Registro OAB', error: 'Use UF + 6 dígitos' },
     ]);
+  });
+});
+
+const computeScreens: SchemaScreen[] = [
+  {
+    id: 'itens',
+    titleSingular: 'Item',
+    titleFieldKey: 'descricao',
+    fields: [
+      field({ key: 'nome', label: 'Nome' }),
+      field({ key: 'sobrenome', label: 'Sobrenome' }),
+      field({ key: 'quantidade', label: 'Quantidade', type: 'number' }),
+      field({ key: 'precoUnitario', label: 'Preço unitário', type: 'currency' }),
+      field({
+        key: 'nomeCompleto',
+        label: 'Nome completo',
+        logic: { compute: "trim(concat(nome, ' ', sobrenome))" },
+      }),
+      field({
+        key: 'total',
+        label: 'Total',
+        type: 'currency',
+        logic: { compute: 'quantidade * precoUnitario' },
+      }),
+      field({
+        key: 'resumo',
+        label: 'Resumo',
+        logic: { compute: "concat(nomeCompleto, ' — R$ ', total)" },
+      }),
+    ],
+  },
+  {
+    id: 'ciclicos',
+    titleSingular: 'Cíclico',
+    titleFieldKey: 'a',
+    fields: [
+      field({ key: 'a', label: 'A', logic: { compute: 'b' } }),
+      field({ key: 'b', label: 'B', logic: { compute: 'a' } }),
+      field({ key: 'ok', label: 'Ok', logic: { compute: "concat('valor')" } }),
+      field({ key: 'quebrado', label: 'Quebrado', logic: { compute: 'funcaoInexistente(1)' } }),
+    ],
+  },
+];
+const computeCtx = createSchemaContext(computeScreens);
+
+describe('formatAndValidateRecord — campos computados', () => {
+  it('computa texto concatenado a partir de outros campos', () => {
+    const outcome = formatAndValidateRecord(computeCtx, 'itens', {
+      values: { nome: 'Ana', sobrenome: 'Souza' },
+    });
+    expect((outcome.data.values as Record<string, unknown>).nomeCompleto).toBe('Ana Souza');
+    expect(outcome.issues).toHaveLength(0);
+  });
+
+  it('computa valor numérico', () => {
+    const outcome = formatAndValidateRecord(computeCtx, 'itens', {
+      values: { quantidade: 3, precoUnitario: 10 },
+    });
+    expect((outcome.data.values as Record<string, unknown>).total).toBe(30);
+  });
+
+  it('encadeia computados na ordem de dependência', () => {
+    const outcome = formatAndValidateRecord(computeCtx, 'itens', {
+      values: { nome: 'Ana', sobrenome: 'Souza', quantidade: 2, precoUnitario: 5 },
+    });
+    expect((outcome.data.values as Record<string, unknown>).resumo).toBe('Ana Souza — R$ 10');
+  });
+
+  it('usa o baseline quando o payload é parcial', () => {
+    const outcome = formatAndValidateRecord(
+      computeCtx,
+      'itens',
+      { values: { quantidade: 4 } },
+      { baseline: { values: { quantidade: 1, precoUnitario: 10 } } },
+    );
+    expect((outcome.data.values as Record<string, unknown>).total).toBe(40);
+  });
+
+  it('sem baseline, dependência ausente pula o campo em vez de gravar lixo', () => {
+    const outcome = formatAndValidateRecord(computeCtx, 'itens', { values: { quantidade: 4 } });
+    const values = outcome.data.values as Record<string, unknown>;
+    expect(values).not.toHaveProperty('total');
+    expect(values.quantidade).toBe(4);
+    expect(outcome.issues).toHaveLength(0);
+  });
+
+  it('descarta campos em ciclo sem lançar, mantendo os demais', () => {
+    const outcome = formatAndValidateRecord(computeCtx, 'ciclicos', { values: {} });
+    const values = outcome.data.values as Record<string, unknown>;
+    expect(values.a).toBeUndefined();
+    expect(values.b).toBeUndefined();
+    expect(values.ok).toBe('valor');
+  });
+
+  it('ignora expressão que lança, sem bloquear a gravação', () => {
+    const outcome = formatAndValidateRecord(computeCtx, 'ciclicos', { values: {} });
+    expect((outcome.data.values as Record<string, unknown>).quebrado).toBeUndefined();
+    expect(outcome.issues).toHaveLength(0);
+  });
+
+  it('computa em campo dinâmico de entidade fixa, sob customValues', () => {
+    const outcome = formatAndValidateRecord(
+      createSchemaContext([
+        {
+          id: 'persons',
+          titleSingular: 'Pessoa',
+          titleFieldKey: 'name',
+          fields: [
+            field({ key: 'apelido', label: 'Apelido' }),
+            field({ key: 'saudacao', label: 'Saudação', logic: { compute: "concat('Olá, ', apelido)" } }),
+          ],
+        },
+      ]),
+      'persons',
+      { customValues: { apelido: 'Ana' } },
+    );
+    expect((outcome.data.customValues as Record<string, unknown>).saudacao).toBe('Olá, Ana');
+  });
+});
+
+describe('computeFieldValues — preview do formulário', () => {
+  it('devolve apenas os campos calculados, na ordem de dependência', () => {
+    const values = computeFieldValues(computeScreens[0].fields, {
+      nome: 'Ana',
+      sobrenome: 'Souza',
+      quantidade: 2,
+      precoUnitario: 5,
+    });
+    expect(values).toEqual({ nomeCompleto: 'Ana Souza', total: 10, resumo: 'Ana Souza — R$ 10' });
+  });
+
+  it('devolve objeto vazio quando nenhum campo é calculado', () => {
+    expect(computeFieldValues([field({ key: 'nome', label: 'Nome' })], { nome: 'Ana' })).toEqual({});
   });
 });
 

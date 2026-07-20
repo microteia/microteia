@@ -55,6 +55,7 @@ export const validateObject = (
   if (config.entityType) {
     const record = formatAndValidateRecord(ctx, config.entityType, value, {
       skipPaths: hasParameters ? overriddenKeys : undefined,
+      skipCompute: true,
     });
     value = record.data;
     issues.push(...record.issues);

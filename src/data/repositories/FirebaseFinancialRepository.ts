@@ -19,7 +19,7 @@ import { db } from '../../infrastructure/firebase/config';
 import type { IFinancialRepository } from '../../domain/repositories/IFinancialRepository';
 import type { Financial, FinancialStatus, FinancialType, DeletionActor, CustomFieldValue } from '../../domain/entities';
 import { stampDeletionActor } from '../utils/stampDeletionActor';
-import { applyRecordRules } from '../utils/recordRulesGate';
+import { applyRecordRules, loadRecordBaseline } from '../utils/recordRulesGate';
 
 const toDate = (v: unknown): Date =>
   v instanceof Timestamp ? v.toDate() : (v as Date);
@@ -123,8 +123,10 @@ export class FirebaseFinancialRepository implements IFinancialRepository {
   }
 
   async updateFinancial(tenantId: string, financialId: string, data: Partial<Omit<Financial, 'id' | 'tenantId' | 'createdAt' | 'createdBy'>>): Promise<void> {
-    await updateDoc(doc(financialsRef(tenantId), financialId), {
-      ...applyRecordRules('financials', data),
+    const ref = doc(financialsRef(tenantId), financialId);
+    const baseline = await loadRecordBaseline('financials', ref);
+    await updateDoc(ref, {
+      ...applyRecordRules('financials', data, baseline),
       updatedAt: serverTimestamp(),
     });
   }

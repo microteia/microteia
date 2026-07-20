@@ -45,6 +45,7 @@ export interface FieldLogic {
   validate?: string | null;
   disabledWhen?: string | null;
   hiddenWhen?: string | null;
+  compute?: string | null;
 }
 
 // ─── Tipos de controle de campo (compartilhados form/list/custom) ─────────────

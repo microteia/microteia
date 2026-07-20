@@ -123,6 +123,22 @@ const buildScope = (ctx: FieldExprContext): Record<string, unknown> => ({
 export const evaluateFieldExpression = (expr: string, ctx: FieldExprContext): unknown =>
   fieldParser.parse(expr).evaluate(buildScope(ctx) as never);
 
+const SCOPE_RESERVED_VARIABLES = new Set(['null', 'true', 'false', 'value', 'self']);
+
+export const extractFieldExpressionDependencies = (
+  expr: string | null | undefined,
+): string[] => {
+  if (!expr || !expr.trim()) return [];
+  try {
+    return fieldParser
+      .parse(expr)
+      .variables({ withMembers: false })
+      .filter((name) => !SCOPE_RESERVED_VARIABLES.has(name));
+  } catch {
+    return [];
+  }
+};
+
 export const evaluateFieldBoolean = (
   expr: string | null | undefined,
   ctx: FieldExprContext,

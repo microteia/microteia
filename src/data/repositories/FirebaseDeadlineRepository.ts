@@ -18,7 +18,7 @@ import { db } from '../../infrastructure/firebase/config';
 import type { IDeadlineRepository } from '../../domain/repositories/IDeadlineRepository';
 import type { Deadline, DeadlineStatus, DeletionActor, CustomFieldValue } from '../../domain/entities';
 import { stampDeletionActor } from '../utils/stampDeletionActor';
-import { applyRecordRules } from '../utils/recordRulesGate';
+import { applyRecordRules, loadRecordBaseline } from '../utils/recordRulesGate';
 
 const toDate = (v: unknown): Date =>
   v instanceof Timestamp ? v.toDate() : (v as Date);
@@ -98,8 +98,10 @@ export class FirebaseDeadlineRepository implements IDeadlineRepository {
   }
 
   async updateDeadline(tenantId: string, deadlineId: string, data: Partial<Omit<Deadline, 'id' | 'tenantId' | 'createdAt' | 'createdBy'>>): Promise<void> {
-    await updateDoc(doc(deadlinesRef(tenantId), deadlineId), {
-      ...applyRecordRules('deadlines', data),
+    const ref = doc(deadlinesRef(tenantId), deadlineId);
+    const baseline = await loadRecordBaseline('deadlines', ref);
+    await updateDoc(ref, {
+      ...applyRecordRules('deadlines', data, baseline),
       updatedAt: serverTimestamp(),
     });
   }

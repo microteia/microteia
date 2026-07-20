@@ -12,6 +12,7 @@ import { resolveListActions, supportedListActions } from '../../shared/listActio
 import type { CustomFieldMask, CustomFieldType, FieldDefinition, ScreenDefinition, ScreenListAction } from '../../../domain/entities';
 import type { FieldLogic, FieldRules, FormatPreset, FormatRule, ValidateCheck, ValidateRule } from '../../../domain/schema/fieldRules';
 import { FORMAT_PRESET_LABELS, VALIDATE_CHECK_LABELS } from '../../../domain/schema/fieldRules';
+import { extractFieldExpressionDependencies } from '../../../domain/schema/fieldExpression';
 import { getEntityByCollection } from '../../../domain/schema/entityRegistry';
 import type { WorkflowVariable } from '../../components/ui/ExpressionEditor/autocompleteHelpers';
 import type { SearchSelectOption } from '../../components/ui/SearchSelect';
@@ -104,6 +105,7 @@ export interface FieldFormState {
   logicValidate: string;
   logicDisabledWhen: string;
   logicHiddenWhen: string;
+  logicCompute: string;
 }
 
 export type ScreenModalTab = 'general' | 'list' | 'actions' | 'children';
@@ -260,6 +262,7 @@ const EMPTY_FIELD_FORM: FieldFormState = {
   logicValidate: '',
   logicDisabledWhen: '',
   logicHiddenWhen: '',
+  logicCompute: '',
 };
 
 export const RULES_SUPPORTED_FIELD_TYPES: CustomFieldType[] = [
@@ -321,16 +324,49 @@ const buildFieldLogic = (form: FieldFormState): FieldLogic | null => {
   if (form.logicValidate.trim()) logic.validate = form.logicValidate.trim();
   if (form.logicDisabledWhen.trim()) logic.disabledWhen = form.logicDisabledWhen.trim();
   if (form.logicHiddenWhen.trim()) logic.hiddenWhen = form.logicHiddenWhen.trim();
+  if (form.logicCompute.trim()) logic.compute = form.logicCompute.trim();
   return Object.keys(logic).length > 0 ? logic : null;
+};
+
+/**
+ * Um campo calculado que dependa (direta ou indiretamente) de si mesmo nunca seria avaliado: o
+ * motor descarta os campos em ciclo. Recusar na autoria evita a expressão que "não faz nada".
+ */
+const findComputeCycle = (
+  fields: FieldDefinition[],
+  editedKey: string,
+  editedCompute: string,
+): boolean => {
+  const dependenciesOf = new Map<string, string[]>();
+  for (const field of fields) {
+    if (field.key === editedKey) continue;
+    const expr = field.logic?.compute;
+    if (expr) dependenciesOf.set(field.key, extractFieldExpressionDependencies(expr));
+  }
+  dependenciesOf.set(editedKey, extractFieldExpressionDependencies(editedCompute));
+
+  const visiting = new Set<string>();
+  const reachesEdited = (key: string): boolean => {
+    if (visiting.has(key)) return false;
+    visiting.add(key);
+    for (const dependency of dependenciesOf.get(key) ?? []) {
+      if (dependency === editedKey) return true;
+      if (reachesEdited(dependency)) return true;
+    }
+    return false;
+  };
+
+  return reachesEdited(editedKey);
 };
 
 const fieldLogicToForm = (logic: FieldLogic | null | undefined): Pick<
   FieldFormState,
-  'logicValidate' | 'logicDisabledWhen' | 'logicHiddenWhen'
+  'logicValidate' | 'logicDisabledWhen' | 'logicHiddenWhen' | 'logicCompute'
 > => ({
   logicValidate: logic?.validate ?? '',
   logicDisabledWhen: logic?.disabledWhen ?? '',
   logicHiddenWhen: logic?.hiddenWhen ?? '',
+  logicCompute: logic?.compute ?? '',
 });
 
 const toSaveInput = (def: ScreenDefinition): ScreenDefinitionSaveInput => ({
@@ -1030,6 +1066,14 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
     if (isInvalidRegex(fieldForm.ruleFormatPattern)) {
       reject('advanced', 'A expressão regular de formatação é inválida.');
       return;
+    }
+    if (fieldForm.logicCompute.trim()) {
+      const computeKey = fieldModal.fieldKey ?? (fieldForm.fieldKey.trim() || slugifyFieldKey(label));
+      const screenFields = getDefinitionByKey(fieldModal.screenKey)?.fields ?? [];
+      if (findComputeCycle(screenFields, computeKey, fieldForm.logicCompute.trim())) {
+        reject('advanced', 'O valor calculado depende de si mesmo — reveja as expressões dos campos calculados.');
+        return;
+      }
     }
     const rules = buildFieldRules(fieldForm);
     const logic = buildFieldLogic(fieldForm);

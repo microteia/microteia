@@ -5,6 +5,7 @@ import { useTenant } from '../../../../stores/useTenant';
 import { useReferenceOptions } from '../../../hooks/useReferenceOptions';
 import { sortFieldsByOrder } from '../../../../domain/services/customFieldValues';
 import { evaluateFieldBoolean, evaluateFieldValidation } from '../../../../domain/schema/fieldExpression';
+import { computeFieldValues } from '../../../../domain/schema/recordRules';
 import { resolveFieldOptionColor } from '../../../../shared/styles/colorUtils';
 import type { CustomFieldValue, FieldDefinition } from '../../../../domain/entities';
 import type { DynamicSelectOption } from '../DynamicSelect';
@@ -69,7 +70,7 @@ export const useCustomFieldsSectionViewModel = (props: CustomFieldsSectionProps)
   const {
     screenKey,
     fields,
-    values,
+    values: rawValues,
     onChange,
     disabled = false,
     lookupOptions,
@@ -84,6 +85,13 @@ export const useCustomFieldsSectionViewModel = (props: CustomFieldsSectionProps)
   const theme = useTheme();
 
   const canDeleteOption = tenantRole === 'admin';
+
+  // Os campos calculados são derivados aqui apenas para exibição: quem os persiste é
+  // formatAndValidateRecord, na gravação, com a mesma avaliação.
+  const values = useMemo<Record<string, CustomFieldValue>>(
+    () => ({ ...rawValues, ...(computeFieldValues(fields, rawValues) as Record<string, CustomFieldValue>) }),
+    [fields, rawValues],
+  );
 
   const groups = useMemo<FieldGroup[]>(() => {
     const ordered = sortFieldsByOrder(fields);
@@ -100,8 +108,11 @@ export const useCustomFieldsSectionViewModel = (props: CustomFieldsSectionProps)
     return result;
   }, [fields]);
 
+  // Números entram aqui vindos de um campo calculado ou de uma gravação por automação (que coage
+  // o tipo declarado): devolver '' os apagaria da tela. Campos de texto seguem inalterados.
   const getString = useCallback((fieldKey: string) => {
     const value = readByPath(values, fieldKey);
+    if (typeof value === 'number') return String(value);
     return typeof value === 'string' ? value : '';
   }, [values]);
 
@@ -191,7 +202,9 @@ export const useCustomFieldsSectionViewModel = (props: CustomFieldsSectionProps)
 
   const isFieldDisabled = useCallback(
     (field: FieldDefinition): boolean =>
-      disabled || evaluateFieldBoolean(field.logic?.disabledWhen, { value: readByPath(values, field.key), data: values }),
+      disabled ||
+      Boolean(field.logic?.compute) ||
+      evaluateFieldBoolean(field.logic?.disabledWhen, { value: readByPath(values, field.key), data: values }),
     [disabled, values],
   );
 
