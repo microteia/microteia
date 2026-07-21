@@ -1,0 +1,136 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    // ─── Fotos de perfil de usuário ───────────────────────────────────────────
+    // Path: userPhotos/{userId}/{filename}
+    match /userPhotos/{userId}/{allPaths=**} {
+      // Qualquer usuário autenticado pode ler fotos de perfil
+      allow read: if request.auth != null;
+      // Somente o próprio usuário pode fazer upload/delete da sua foto
+      allow write: if request.auth != null
+        && request.auth.uid == userId
+        && request.resource.size < 5 * 1024 * 1024       // máximo 5 MB
+        && request.resource.contentType.matches('image/.*');
+    }
+
+    // Verifica se o usuário autenticado é SYSTEM ou SUPPORT — ambos agem como
+    // admin em qualquer tenant nas regras de Storage abaixo (mesmo racional de
+    // isSystemOrSupport() nas regras do Firestore).
+    function isSystemOrSupportUser() {
+      return firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role in ['SYSTEM', 'SUPPORT'];
+    }
+    function isTenantMemberOrElevated(tenantId) {
+      return isSystemOrSupportUser()
+        || firestore.exists(/databases/(default)/documents/tenants/$(tenantId)/members/$(request.auth.uid));
+    }
+    function isTenantAdminOrElevated(tenantId) {
+      return isSystemOrSupportUser()
+        || firestore.get(/databases/(default)/documents/tenants/$(tenantId)/members/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    // ─── Documentos de processos ──────────────────────────────────────────────
+    // Path: tenants/{tenantId}/cases/{caseId}/{filename}
+    match /tenants/{tenantId}/cases/{caseId}/{allPaths=**} {
+      allow read: if request.auth != null && isTenantMemberOrElevated(tenantId);
+      allow write: if request.auth != null
+        && isTenantMemberOrElevated(tenantId)
+        && request.resource.size < 20 * 1024 * 1024;    // máximo 20 MB
+      allow delete: if request.auth != null && isTenantAdminOrElevated(tenantId);
+    }
+
+    // ─── Documentos de pessoas ───────────────────────────────────────────────
+    // Path: tenants/{tenantId}/persons/{personId}/{filename}
+    match /tenants/{tenantId}/persons/{personId}/{allPaths=**} {
+      allow read: if request.auth != null && isTenantMemberOrElevated(tenantId);
+      allow create: if request.auth != null
+        && isTenantMemberOrElevated(tenantId)
+        && request.resource.size < 20 * 1024 * 1024;     // máximo 20 MB
+      allow delete: if request.auth != null && isTenantAdminOrElevated(tenantId);
+    }
+
+    // ─── Documentos de contratos ──────────────────────────────────────────────
+    // Path: tenants/{tenantId}/contracts/{contractId}/{filename}
+    match /tenants/{tenantId}/contracts/{contractId}/{allPaths=**} {
+      allow read: if request.auth != null && isTenantMemberOrElevated(tenantId);
+      allow create: if request.auth != null
+        && isTenantMemberOrElevated(tenantId)
+        && request.resource.size < 20 * 1024 * 1024;     // máximo 20 MB
+      allow delete: if request.auth != null && isTenantAdminOrElevated(tenantId);
+    }
+
+    // ─── Documentos de lançamentos financeiros ───────────────────────────────
+    // Path: tenants/{tenantId}/financials/{financialId}/{filename}
+    match /tenants/{tenantId}/financials/{financialId}/{allPaths=**} {
+      allow read: if request.auth != null && isTenantMemberOrElevated(tenantId);
+      allow create: if request.auth != null
+        && isTenantMemberOrElevated(tenantId)
+        && request.resource.size < 20 * 1024 * 1024;     // máximo 20 MB
+      allow delete: if request.auth != null && isTenantAdminOrElevated(tenantId);
+    }
+
+    // ─── Documentos de registros de telas dinâmicas ──────────────────────────
+    // Path: tenants/{tenantId}/customRecords/{recordId}/{filename}
+    match /tenants/{tenantId}/customRecords/{recordId}/{allPaths=**} {
+      allow read: if request.auth != null && isTenantMemberOrElevated(tenantId);
+      allow create: if request.auth != null
+        && isTenantMemberOrElevated(tenantId)
+        && request.resource.size < 20 * 1024 * 1024;     // máximo 20 MB
+      allow delete: if request.auth != null && isTenantAdminOrElevated(tenantId);
+    }
+
+    // ─── Documentos de boletins ───────────────────────────────────────────────
+    // Path: news/{newsId}/{filename}
+    // Não é escopado por tenant (News pode ser do Sistema, tenantId null),
+    // então a permissão de escrita espelha canEdit de ViewNews.viewmodel.tsx
+    // via leitura cruzada do Firestore.
+    function newsTenantId(newsId) {
+      return firestore.get(/databases/(default)/documents/news/$(newsId)).data.tenantId;
+    }
+    function newsCreator(newsId) {
+      return firestore.get(/databases/(default)/documents/news/$(newsId)).data.userId;
+    }
+    function isSystemAdminUser() {
+      return firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role == 'SYSTEM';
+    }
+    function canViewNews(newsId) {
+      let tenantId = newsTenantId(newsId);
+      return isSystemAdminUser()
+        || (tenantId != null && isTenantMemberOrElevated(tenantId));
+    }
+    function canEditNews(newsId) {
+      let tenantId = newsTenantId(newsId);
+      return isSystemAdminUser()
+        || (tenantId != null
+            && isTenantMemberOrElevated(tenantId)
+            && (newsCreator(newsId) == request.auth.uid || isTenantAdminOrElevated(tenantId)));
+    }
+    match /news/{newsId}/{allPaths=**} {
+      allow read: if request.auth != null && canViewNews(newsId);
+      allow create: if request.auth != null
+        && request.resource.size < 20 * 1024 * 1024        // máximo 20 MB
+        && canEditNews(newsId);
+      allow delete: if request.auth != null && canEditNews(newsId);
+    }
+
+    // ─── Backup frio de Logs de Auditoria ────────────────────────────────────
+    // Path: tenants/{tenantId}/logs/{entity}/{logId}.json
+    // Escrito somente pela Cloud Function backupDeletedAuditLog (Admin SDK).
+    match /tenants/{tenantId}/logs/{entity}/{allPaths=**} {
+      allow read: if request.auth != null && isTenantAdminOrElevated(tenantId);
+      allow write: if false;
+    }
+    // Path: systemLogs/{entity}/{logId}.json — logs sem tenant (erros globais do pipeline)
+    match /systemLogs/{entity}/{allPaths=**} {
+      allow read: if request.auth != null
+        && firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role == 'SYSTEM';
+      allow write: if false;
+    }
+
+    // Bloqueia tudo o mais
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+
+  }
+}

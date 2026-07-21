@@ -1431,6 +1431,8 @@ useEffect(() => {
 }, [refresh, currentTenant]);
 ```
 
+**Preservação de edições durante visibilitychange:** O `useEntityDetail` sincroniza valores vindos do Store apenas se `isDirty === false`, garantindo que o formulário não perca as edições do usuário quando o documento é atualizado remotamente ou ao trocar de abas do navegador. Após salvar, `isDirty` é resetado e o próximo update do Store aplica o valor salvo.
+
 ---
 
 ## Cascata de Exclusão

@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [0.122.2] — 2026-07-21
+
+- Corrigido um problema que fazia os campos voltarem aos valores originais ao trocar de aba do navegador durante a edição ou cadastro de registros.
+
 ## [0.122.1] — 2026-07-20
 
 - Melhorias internas de qualidade: novas verificações automáticas que detectam, antes da publicação, ajustes de tela que não seriam salvos e funcionalidades que ficariam de fora de uma atualização.

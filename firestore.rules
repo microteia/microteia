@@ -1,0 +1,757 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ─── Funções auxiliares ───────────────────────────────────────────────────
+
+    // Retorna os dados do usuário autenticado na coleção users
+    function userData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    // Verifica se o usuário autenticado é administrador global do sistema
+    function isSystemAdmin() {
+      return request.auth != null && userData().role == 'SYSTEM';
+    }
+
+    // Verifica se o usuário autenticado é SYSTEM ou SUPPORT — ambos agem como
+    // admin em QUALQUER tenant, mesmo sem um doc em members/{uid} daquele tenant
+    // (usado pela equipe para prestar suporte a um escritório sem precisar de convite).
+    function isSystemOrSupport() {
+      return request.auth != null && userData().role in ['SYSTEM', 'SUPPORT'];
+    }
+
+    // Retorna os dados do membro do tenant
+    function memberData(tenantId) {
+      return get(/databases/$(database)/documents/tenants/$(tenantId)/members/$(request.auth.uid)).data;
+    }
+
+    // Verifica se o usuário é membro do tenant (ou SYSTEM/SUPPORT, que contam como membro de todos)
+    function isMember(tenantId) {
+      return request.auth != null &&
+        (isSystemOrSupport() ||
+         exists(/databases/$(database)/documents/tenants/$(tenantId)/members/$(request.auth.uid)));
+    }
+
+    // Verifica se o usuário tem role de admin no tenant (ou é SYSTEM/SUPPORT)
+    function isTenantAdmin(tenantId) {
+      return isSystemOrSupport() || (isMember(tenantId) && memberData(tenantId).role == 'admin');
+    }
+
+    // Verifica se o usuário tem role de advogado ou admin no tenant (ou é SYSTEM/SUPPORT)
+    function isTenantLawyerOrAdmin(tenantId) {
+      return isSystemOrSupport() ||
+        (isMember(tenantId) && memberData(tenantId).role in ['admin', 'lawyer']);
+    }
+
+    // Verifica se o usuário pode escrever dados no tenant (admin, lawyer, secretary, ou SYSTEM/SUPPORT)
+    function canWriteInTenant(tenantId) {
+      return isSystemOrSupport() ||
+        (isMember(tenantId) && memberData(tenantId).role in ['admin', 'lawyer', 'secretary']);
+    }
+
+    // Retorna os dados da notícia relacionada a um NewsDocument
+    function relatedNews(newsId) {
+      return get(/databases/$(database)/documents/news/$(newsId)).data;
+    }
+
+    // Espelha a permissão de edição da notícia (canEdit em ViewNews.viewmodel.tsx):
+    // ADMIN do sistema sempre; autor ou admin do tenant para notícias de escritório
+    function canEditNewsDocument(newsId) {
+      let n = relatedNews(newsId);
+      return isSystemAdmin()
+        || (n.tenantId != null
+            && isMember(n.tenantId)
+            && (n.userId == request.auth.uid || isTenantAdmin(n.tenantId)));
+    }
+
+    // ─── Usuários ─────────────────────────────────────────────────────────────
+
+    match /users/{userId} {
+      allow get: if request.auth != null && request.auth.uid == userId;
+      // list: SYSTEM lista livremente (Gestão de Acessos, getUsers() sem limit()).
+      // Qualquer outro autenticado só pode rodar consultas com limit() <= 1 — cobre a busca
+      // exata por e-mail ao convidar membros (getUserByEmail usa limit(1)) sem permitir
+      // dump da coleção inteira (emails/roles de todos os usuários) por um usuário comum.
+      allow list: if isSystemAdmin()
+        || (request.auth != null && request.query.limit <= 1);
+      // O próprio documento é criado pela Cloud Function onUserCreated (Admin SDK,
+      // trigger de Auth), nunca pelo client — por isso create é sempre negado aqui.
+      allow create: if false;
+      // Nenhum campo é editável pelo frontend fora da role, e só por SYSTEM. tenantIds e
+      // qualquer outro campo são mantidos pelas Cloud Functions addTenantMember/removeTenantMember
+      // (Admin SDK, ignoram estas regras) — o client não tem mais nenhum caminho de escrita
+      // cross-user em users/{userId}.
+      allow update: if isSystemAdmin();
+    }
+
+    // ─── Perfis de usuário ────────────────────────────────────────────────────
+    
+    match /userProfiles/{userId} {
+      allow read: if request.auth != null;
+      allow list: if isSystemAdmin()
+        || (request.auth != null && request.query.limit <= 1);
+      allow write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // ─── Nicknames (unicidade) ────────────────────────────────────────────────
+
+    match /nicknames/{nickname} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null
+        && request.resource.data.userId == request.auth.uid;
+      allow delete: if request.auth != null
+        && resource.data.userId == request.auth.uid;
+    }
+
+    // ─── Conexões Gmail (Push) — nível raiz ──────────────────────────────────
+    // Armazenadas fora de tenants/{tenantId} para permitir query por email
+    // na Cloud Function sem precisar varrer todos os tenants.
+    // SOMENTE admin do tenant dono pode ler/escrever.
+
+    match /gmailConnections/{connectionId} {
+      allow read, update, delete: if request.auth != null
+        && isTenantAdmin(resource.data.tenantId);
+      allow create: if request.auth != null
+        && isTenantAdmin(request.resource.data.tenantId);
+      
+      // Tokens OAuth: admin pode ESCREVER (autorização inicial), mas NUNCA LER
+      // Cloud Functions (Admin SDK) leem/renovam tokens, ignorando estas regras
+      match /tokens/{tokenId} {
+        allow read: if false;                                // Frontend NUNCA lê tokens
+        allow write: if request.auth != null                 // Admin do tenant dono pode salvar
+          && isTenantAdmin(get(/databases/$(database)/documents/gmailConnections/$(connectionId)).data.tenantId);
+      }
+    }
+
+    // ─── Tenants (escritórios) ────────────────────────────────────────────────  
+
+    match /tenants/{tenantId} {
+      // Qualquer membro pode ler o tenant
+      allow get: if isMember(tenantId);
+      // list: SYSTEM e SUPPORT listam a coleção inteira — usado tanto pela aba "Escritórios"
+      // de Gestão de Acessos (SYSTEM) quanto pelo seletor de tenant no TopBar, que para esses
+      // dois roles exibe todos os escritórios em vez de só os que o usuário é membro.
+      // Sem esta regra, getDocs(collection('tenants')) é negado — "get" não cobre consultas de coleção.
+      allow list: if isSystemOrSupport();
+      // Admin do tenant atualiza os dados do escritório, mas nunca memberCount/memberLimit/ownerId/plan.
+      // memberCount só é escrito pelas Cloud Functions addTenantMember/removeTenantMember (Admin SDK,
+      // ignora estas regras); memberLimit e plan só por admin global (SYSTEM), na aba "Escritórios" de Gestão de Acessos.
+      allow update: if isSystemAdmin()
+        || (isTenantAdmin(tenantId)
+            && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['memberCount', 'memberLimit', 'ownerId', 'plan']));
+      // Tenant é criado pela Cloud Function onUserCreated (Admin SDK, trigger de Auth)
+      // junto com o bootstrap do usuário — nunca pelo client.
+      allow create: if false;
+      allow delete: if false;
+
+      // Conexões de IA do escritório — somente admin lê e escreve
+      match /aiConnections/{connectionId} {
+        allow read, write: if isTenantAdmin(tenantId);
+
+        // Chave de API: admin pode ESCREVER (cadastro/troca), mas NUNCA LER.
+        // Cloud Functions (Admin SDK) leem a chave, ignorando estas regras.
+        match /secrets/{secretId} {
+          allow read: if false;                  // Frontend NUNCA lê a chave
+          allow write: if isTenantAdmin(tenantId);
+        }
+      }
+
+      // Membros do tenant
+      match /members/{memberId} {
+        // Membros leem a lista de membros do próprio tenant
+        allow read: if isMember(tenantId);
+        // Criação e exclusão passam pelas Cloud Functions addTenantMember/removeTenantMember
+        // (Admin SDK, ignoram estas regras) — garante que o limite de membros do tenant
+        // (memberLimit/memberCount) nunca seja ultrapassado, mesmo por escritas diretas do client
+        // ou por duas adições concorrentes (dois admins, dois computadores, ao mesmo tempo).
+        allow create, delete: if false;
+        // Alteração de role continua direta do client — não mexe no contador de membros.
+        allow update: if isTenantAdmin(tenantId);
+      }
+
+      // Lookups de pessoa — qualquer membro lê; qualquer membro com escrita cria; só admin deleta
+      match /personTypes/{id} {
+        allow read: if isMember(tenantId);
+        allow create: if canWriteInTenant(tenantId);
+        allow delete: if isTenantAdmin(tenantId);
+      }
+      match /personOccupations/{id} {
+        allow read: if isMember(tenantId);
+        allow create: if canWriteInTenant(tenantId);
+        allow delete: if isTenantAdmin(tenantId);
+      }
+      match /personNationalities/{id} {
+        allow read: if isMember(tenantId);
+        allow create: if canWriteInTenant(tenantId);
+        allow delete: if isTenantAdmin(tenantId);
+      }
+      match /personMaritalStatuses/{id} {
+        allow read: if isMember(tenantId);
+        allow create: if canWriteInTenant(tenantId);
+        allow delete: if isTenantAdmin(tenantId);
+      }
+      match /personCities/{id} {
+        allow read: if isMember(tenantId);
+        allow create: if canWriteInTenant(tenantId);
+        allow delete: if isTenantAdmin(tenantId);
+      }
+      match /personRelationships/{id} {
+        allow read: if isMember(tenantId);
+        allow create: if canWriteInTenant(tenantId);
+        allow delete: if isTenantAdmin(tenantId);
+      }
+      match /personGenders/{id} {
+        allow read: if isMember(tenantId);
+        allow create: if canWriteInTenant(tenantId);
+        allow delete: if isTenantAdmin(tenantId);
+      }
+
+      // Pessoas
+      match /persons/{personId} {
+        allow read: if isMember(tenantId);
+        allow create, update: if canWriteInTenant(tenantId);
+        allow delete: if isTenantAdmin(tenantId);
+
+        // Anotações da pessoa — criação por qualquer membro com escrita; exclusão só admin.
+        // update só é usado para o stamp de autoria de exclusão (deletedBy*), gravado logo
+        // antes do delete (ver "Autoria de exclusão").
+        match /notes/{noteId} {
+          allow read: if isMember(tenantId);
+          allow create: if canWriteInTenant(tenantId);
+          allow update: if isTenantAdmin(tenantId)
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['deletedBy', 'deletedByName', 'deletedByPhotoURL'])
+            && request.resource.data.deletedBy == request.auth.uid;
+          allow delete: if isTenantAdmin(tenantId);
+        }
+
+        // Documentos da pessoa — upload por qualquer membro com escrita; exclusão só admin.
+        // update só é usado para o stamp de autoria de exclusão (deletedBy*).
+        match /documents/{documentId} {
+          allow read: if isMember(tenantId);
+          allow create: if canWriteInTenant(tenantId);
+          allow update: if isTenantAdmin(tenantId)
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['deletedBy', 'deletedByName', 'deletedByPhotoURL'])
+            && request.resource.data.deletedBy == request.auth.uid;
+          allow delete: if isTenantAdmin(tenantId);
+        }
+      }
+
+      // Etiquetas de pessoas (tenant-scoped) — qualquer membro com escrita cria; só admin deleta
+      match /personTags/{tagId} {
+        allow read: if isMember(tenantId);
+        allow create, update: if canWriteInTenant(tenantId);
+        allow delete: if isTenantAdmin(tenantId);
+      }
+
+      // Etiquetas de processos (tenant-scoped) — qualquer membro com escrita cria; só admin deleta
+      match /caseTags/{tagId} {
+        allow read: if isMember(tenantId);
+        allow create, update: if canWriteInTenant(tenantId);
+        allow delete: if isTenantAdmin(tenantId);
+      }
+
+      // Etiquetas de contratos (tenant-scoped) — qualquer membro com escrita cria; só admin deleta
+      match /contractTags/{tagId} {
+        allow read: if isMember(tenantId);
+        allow create, update: if canWriteInTenant(tenantId);
+        allow delete: if isTenantAdmin(tenantId);
+      }
+
+      // Lookups de processo — qualquer membro lê; qualquer membro com escrita cria; só admin deleta
+      match /caseAreas/{id} {
+        allow read: if isMember(tenantId);
+        allow create: if canWriteInTenant(tenantId);
+        allow delete: if isTenantAdmin(tenantId);
+      }
+      match /casePhases/{id} {
+        allow read: if isMember(tenantId);
+        allow create: if canWriteInTenant(tenantId);
+        allow delete: if isTenantAdmin(tenantId);
+      }
+      match /caseStatuses/{id} {
+        allow read: if isMember(tenantId);
+        allow create: if canWriteInTenant(tenantId);
+        allow delete: if isTenantAdmin(tenantId);
+      }
+      match /caseInstances/{id} {
+        allow read: if isMember(tenantId);
+        allow create: if canWriteInTenant(tenantId);
+        allow delete: if isTenantAdmin(tenantId);
+      }
+      match /caseActionTypes/{id} {
+        allow read: if isMember(tenantId);
+        allow create: if canWriteInTenant(tenantId);
+        allow delete: if isTenantAdmin(tenantId);
+      }
+      match /caseCourts/{id} {
+        allow read: if isMember(tenantId);
+        allow create: if canWriteInTenant(tenantId);
+        allow delete: if isTenantAdmin(tenantId);
+      }
+      match /caseDistricts/{id} {
+        allow read: if isMember(tenantId);
+        allow create: if canWriteInTenant(tenantId);
+        allow delete: if isTenantAdmin(tenantId);
+      }
+      match /caseJudges/{id} {
+        allow read: if isMember(tenantId);
+        allow create: if canWriteInTenant(tenantId);
+        allow delete: if isTenantAdmin(tenantId);
+      }
+
+      // Tipos de documento — compartilhado entre pessoas, processos e contratos
+      match /documentTypes/{id} {
+        allow read: if isMember(tenantId);
+        allow create: if canWriteInTenant(tenantId);
+        allow delete: if isTenantAdmin(tenantId);
+      }
+
+      // Categorias de notícias do escritório (parte dinâmica do campo Categoria em Notícias)
+      match /newsCategories/{id} {
+        allow read: if isMember(tenantId);
+        allow create: if canWriteInTenant(tenantId);
+        allow delete: if isTenantAdmin(tenantId);
+      }
+
+      // Processos
+      match /cases/{caseId} {
+        allow read: if isMember(tenantId);
+        allow create, update: if isTenantLawyerOrAdmin(tenantId);
+        allow delete: if isTenantAdmin(tenantId);
+
+        // Anotações do processo — criação por qualquer membro com escrita; exclusão só admin.
+        // update só é usado para o stamp de autoria de exclusão (deletedBy*).
+        match /notes/{noteId} {
+          allow read: if isMember(tenantId);
+          allow create: if canWriteInTenant(tenantId);
+          allow update: if isTenantAdmin(tenantId)
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['deletedBy', 'deletedByName', 'deletedByPhotoURL'])
+            && request.resource.data.deletedBy == request.auth.uid;
+          allow delete: if isTenantAdmin(tenantId);
+        }
+
+        // Documentos do processo — upload por qualquer membro com escrita; exclusão só admin.
+        // update só é usado para o stamp de autoria de exclusão (deletedBy*).
+        match /documents/{documentId} {
+          allow read: if isMember(tenantId);
+          allow create: if canWriteInTenant(tenantId);
+          allow update: if isTenantAdmin(tenantId)
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['deletedBy', 'deletedByName', 'deletedByPhotoURL'])
+            && request.resource.data.deletedBy == request.auth.uid;
+          allow delete: if isTenantAdmin(tenantId);
+        }
+      }
+
+      // Lookups de contrato — qualquer membro lê; qualquer membro com escrita cria; só admin deleta
+      match /contractTypes/{id} {
+        allow read: if isMember(tenantId);
+        allow create: if canWriteInTenant(tenantId);
+        allow delete: if isTenantAdmin(tenantId);
+      }
+      match /contractCategories/{id} {
+        allow read: if isMember(tenantId);
+        allow create: if canWriteInTenant(tenantId);
+        allow delete: if isTenantAdmin(tenantId);
+      }
+      match /contractStatuses/{id} {
+        allow read: if isMember(tenantId);
+        allow create: if canWriteInTenant(tenantId);
+        allow delete: if isTenantAdmin(tenantId);
+      }
+      match /contractObjects/{id} {
+        allow read: if isMember(tenantId);
+        allow create: if canWriteInTenant(tenantId);
+        allow delete: if isTenantAdmin(tenantId);
+      }
+      match /contractAdjustmentIndexes/{id} {
+        allow read: if isMember(tenantId);
+        allow create: if canWriteInTenant(tenantId);
+        allow delete: if isTenantAdmin(tenantId);
+      }
+      match /contractAdjustmentPeriodicities/{id} {
+        allow read: if isMember(tenantId);
+        allow create: if canWriteInTenant(tenantId);
+        allow delete: if isTenantAdmin(tenantId);
+      }
+      match /contractCurrencies/{id} {
+        allow read: if isMember(tenantId);
+        allow create: if canWriteInTenant(tenantId);
+        allow delete: if isTenantAdmin(tenantId);
+      }
+      match /contractPaymentMethods/{id} {
+        allow read: if isMember(tenantId);
+        allow create: if canWriteInTenant(tenantId);
+        allow delete: if isTenantAdmin(tenantId);
+      }
+      match /contractBanks/{id} {
+        allow read: if isMember(tenantId);
+        allow create: if canWriteInTenant(tenantId);
+        allow delete: if isTenantAdmin(tenantId);
+      }
+      match /contractCostCenters/{id} {
+        allow read: if isMember(tenantId);
+        allow create: if canWriteInTenant(tenantId);
+        allow delete: if isTenantAdmin(tenantId);
+      }
+
+      // Contratos
+      match /contracts/{contractId} {
+        allow read: if isMember(tenantId);
+        allow create, update: if isTenantLawyerOrAdmin(tenantId);
+        allow delete: if isTenantAdmin(tenantId);
+
+        // Anotações do contrato — criação por qualquer membro com escrita; exclusão só admin.
+        // update só é usado para o stamp de autoria de exclusão (deletedBy*).
+        match /notes/{noteId} {
+          allow read: if isMember(tenantId);
+          allow create: if canWriteInTenant(tenantId);
+          allow update: if isTenantAdmin(tenantId)
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['deletedBy', 'deletedByName', 'deletedByPhotoURL'])
+            && request.resource.data.deletedBy == request.auth.uid;
+          allow delete: if isTenantAdmin(tenantId);
+        }
+
+        // Documentos do contrato — upload por qualquer membro com escrita; exclusão só admin.
+        // update só é usado para o stamp de autoria de exclusão (deletedBy*).
+        match /documents/{documentId} {
+          allow read: if isMember(tenantId);
+          allow create: if canWriteInTenant(tenantId);
+          allow update: if isTenantAdmin(tenantId)
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['deletedBy', 'deletedByName', 'deletedByPhotoURL'])
+            && request.resource.data.deletedBy == request.auth.uid;
+          allow delete: if isTenantAdmin(tenantId);
+        }
+      }
+
+      // Tipos de prazo (lookup dinâmico por tenant) — qualquer membro com escrita cria; só admin deleta
+      match /deadlineTypes/{id} {
+        allow read: if isMember(tenantId);
+        allow create: if canWriteInTenant(tenantId);
+        allow delete: if isTenantAdmin(tenantId);
+      }
+
+      // Prazos
+      match /deadlines/{deadlineId} {
+        allow read: if isMember(tenantId);
+        allow create, update: if canWriteInTenant(tenantId);
+        allow delete: if isTenantLawyerOrAdmin(tenantId);
+      }
+
+      // Financeiro
+      match /financials/{financialId} {
+        allow read: if isMember(tenantId);
+        allow create, update: if isTenantLawyerOrAdmin(tenantId);
+        allow delete: if isTenantAdmin(tenantId);
+
+        // Documentos do lançamento financeiro — upload por qualquer membro com escrita; exclusão só admin.
+        // update só é usado para o stamp de autoria de exclusão (deletedBy*).
+        match /documents/{documentId} {
+          allow read: if isMember(tenantId);
+          allow create: if canWriteInTenant(tenantId);
+          allow update: if isTenantAdmin(tenantId)
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['deletedBy', 'deletedByName', 'deletedByPhotoURL'])
+            && request.resource.data.deletedBy == request.auth.uid;
+          allow delete: if isTenantAdmin(tenantId);
+        }
+      }
+
+      // Etiquetas de lançamentos financeiros (tenant-scoped) — qualquer membro com escrita cria; só admin deleta
+      match /financialTags/{tagId} {
+        allow read: if isMember(tenantId);
+        allow create, update: if canWriteInTenant(tenantId);
+        allow delete: if isTenantAdmin(tenantId);
+      }
+
+      // Lookups de financeiro — qualquer membro lê; qualquer membro com escrita cria; só admin deleta
+      match /financialCategories/{id} {
+        allow read: if isMember(tenantId);
+        allow create: if canWriteInTenant(tenantId);
+        allow delete: if isTenantAdmin(tenantId);
+      }
+      match /financialStatuses/{id} {
+        allow read: if isMember(tenantId);
+        allow create: if canWriteInTenant(tenantId);
+        allow delete: if isTenantAdmin(tenantId);
+      }
+
+      // Pushes do Tribunal (notificações de email processadas)
+      match /pushes/{pushId} {
+        allow read: if isMember(tenantId);
+        // Cloud Functions criam pushes (via Admin SDK, ignora estas regras)
+        // Membros podem atualizar status; updatedBy* é o carimbo de autoria (auditoria)
+        allow update: if isMember(tenantId)
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedBy', 'updatedByName', 'updatedByPhotoURL']);
+        // Stamp de autoria de exclusão (deletedBy*), gravado logo antes do delete — só quem
+        // pode de fato deletar (admin) pode gravar esse stamp.
+        allow update: if isTenantAdmin(tenantId)
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['deletedBy', 'deletedByName', 'deletedByPhotoURL'])
+          && request.resource.data.deletedBy == request.auth.uid;
+        // Somente admin pode deletar
+        allow delete: if isTenantAdmin(tenantId);
+      }
+
+      // ─── Workflow Engine (Automações) ────────────────────────────────────────
+      // Definições de automação — feature administrativa; só admin cria/edita/exclui.
+      // `steps` fica embutido no próprio documento (ver "Workflow Engine" no corpo do doc).
+      // Workflows públicos (isPublic === true) podem ser lidos por qualquer tenant autenticado
+      // para permitir cópia (ver "Workflows Públicos" no corpo do doc).
+      match /workflow_definitions/{workflowId} {
+        allow read: if request.auth != null && 
+        (isMember(tenantId) || resource.data.isPublic == true);
+        allow create, update, delete: if isTenantAdmin(tenantId);
+      }
+
+      // Scripts reutilizáveis executados pelo Step "Script" (sandbox QuickJS) — feature
+      // administrativa; só admin cria/edita/exclui. Ver "Step Script" no corpo do doc.
+      match /scripts/{scriptId} {
+        allow read: if isMember(tenantId);
+        allow create, update, delete: if isTenantAdmin(tenantId);
+      }
+
+      // Ações customizadas exibidas nas telas de dados (botão -> workflow síncrono).
+      // Todo membro lê (precisa montar os botões da tela); só admin configura.
+      // Ver "Actions Customizadas" no corpo do doc.
+      match /actions/{actionId} {
+        allow read: if isMember(tenantId);
+        allow create, update, delete: if isTenantAdmin(tenantId);
+      }
+
+      // Event Bus do motor — qualquer membro com escrita pode publicar um evento;
+      // coleção append-only, ninguém lê/edita/exclui pelo client (só a Cloud Function
+      // onWorkflowEventCreated, via Admin SDK, que ignora estas regras).
+      match /workflow_events/{eventId} {
+        allow create: if canWriteInTenant(tenantId);
+        allow read, update, delete: if false;
+      }
+
+      // Histórico de execução — só a Cloud Function grava (Admin SDK); membros só leem.
+      match /workflow_executions/{executionId} {
+        allow read: if isMember(tenantId);
+        allow write: if false;
+      }
+
+      // ─── Telas Dinâmicas (Personalização) ────────────────────────────────────
+      // Definições de telas e campos customizados — membro lê; só admin configura
+      match /screenDefinitions/{screenId} {
+        allow read: if isMember(tenantId);
+        allow create, update, delete: if isTenantAdmin(tenantId);
+
+        // Opções adicionadas inline nos selects de campos customizados
+        // (mesmo modelo dos lookups: membro com escrita cria; só admin deleta)
+        match /fieldOptions/{optionId} {
+          allow read: if isMember(tenantId);
+          allow create: if canWriteInTenant(tenantId);
+          allow delete: if isTenantAdmin(tenantId);
+        }
+
+        // Etiquetas da tela dinâmica (exclusivas por screenKey) — mesmo modelo das
+        // demais etiquetas (personTags, contractTags...): membro com escrita cria/edita; só admin deleta
+        match /tags/{tagId} {
+          allow read: if isMember(tenantId);
+          allow create, update: if canWriteInTenant(tenantId);
+          allow delete: if isTenantAdmin(tenantId);
+        }
+      }
+
+      // Registros das telas dinâmicas — mesmo modelo de acesso das entidades padrão.
+      // update por canWriteInTenant também cobre o stamp de autoria de exclusão (deletedBy*).
+      match /customRecords/{recordId} {
+        allow read: if isMember(tenantId);
+        allow create, update: if canWriteInTenant(tenantId);
+        allow delete: if isTenantAdmin(tenantId);
+
+        // Anotações do registro — qualquer membro com escrita cria; exclusão só admin.
+        // update só é usado para o stamp de autoria de exclusão (deletedBy*).
+        match /notes/{noteId} {
+          allow read: if isMember(tenantId);
+          allow create: if canWriteInTenant(tenantId);
+          allow update: if isTenantAdmin(tenantId)
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['deletedBy', 'deletedByName', 'deletedByPhotoURL'])
+            && request.resource.data.deletedBy == request.auth.uid;
+          allow delete: if isTenantAdmin(tenantId);
+        }
+
+        // Documentos do registro — mesmo modelo das anotações
+        match /documents/{documentId} {
+          allow read: if isMember(tenantId);
+          allow create: if canWriteInTenant(tenantId);
+          allow update: if isTenantAdmin(tenantId)
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['deletedBy', 'deletedByName', 'deletedByPhotoURL'])
+            && request.resource.data.deletedBy == request.auth.uid;
+          allow delete: if isTenantAdmin(tenantId);
+        }
+      }
+    }
+
+    // ─── Notícias ─────────────────────────────────────────────────────────────
+    // tenantId == null  → notícia do Sistema, visível a todos os autenticados
+    // tenantId == X     → notícia do escritório X, visível apenas a membros do tenant
+
+    match /news/{newsId} {
+      // Leitura: sistema (tenantId null) → qualquer auth; tenant → somente membros
+      allow get: if request.auth != null
+        && (resource.data.tenantId == null
+            || isMember(resource.data.tenantId));
+      allow list: if request.auth != null;
+
+      // Criação: ADMIN pode criar com tenantId null (sistema) ou qualquer tenant;
+      //          membro cria somente com tenantId == seu próprio tenant
+      allow create: if request.auth != null
+        && request.resource.data.userId == request.auth.uid
+        && (isSystemAdmin()
+            || (request.resource.data.tenantId != null
+                && isMember(request.resource.data.tenantId)));
+
+      // Edição de conteúdo: ADMIN edita qualquer; membro edita notícias do próprio tenant
+      //         (e somente notícias de tenant, nunca as de sistema)
+      // Curtida: qualquer auth que pode ler altera apenas likedBy + likeCount
+      // Visualização: qualquer auth que pode ler altera apenas viewCount
+      allow update: if request.auth != null
+        && (isSystemAdmin()
+            || (resource.data.tenantId != null
+                && isMember(resource.data.tenantId)
+                && (resource.data.userId == request.auth.uid
+                    || isTenantAdmin(resource.data.tenantId)))
+            || (request.resource.data.diff(resource.data).affectedKeys()
+                  .hasOnly(['likedBy', 'likeCount'])
+                && (resource.data.tenantId == null
+                    || isMember(resource.data.tenantId)))
+            || (request.resource.data.diff(resource.data).affectedKeys()
+                  .hasOnly(['viewCount'])
+                && (resource.data.tenantId == null
+                    || isMember(resource.data.tenantId)))
+            || (request.resource.data.diff(resource.data).affectedKeys()
+                  .hasOnly(['commentCount'])
+                && (resource.data.tenantId == null
+                    || isMember(resource.data.tenantId))));
+
+      // Exclusão: ADMIN exclui qualquer; admin do tenant exclui do seu tenant
+      allow delete: if isSystemAdmin()
+        || (request.auth != null
+            && resource.data.tenantId != null
+            && isTenantAdmin(resource.data.tenantId));
+    }
+
+    // ─── Etiquetas de boletins ────────────────────────────────────────────────
+
+    match /newsTags/{tagId} {
+      allow read: if request.auth != null;
+      allow create, update: if request.auth != null
+        && request.resource.data.userId == request.auth.uid;
+      allow delete: if request.auth != null
+        && resource.data.userId == request.auth.uid;
+    }
+
+    match /newsTagLinks/{linkId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null;
+    }
+
+    // ─── Interações com boletins ──────────────────────────────────────────────
+
+    match /newsInteractions/{interactionId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null
+        && request.resource.data.userId == request.auth.uid;
+      // Update: o dono altera livremente seu próprio registro; qualquer outro
+      // autenticado pode SOMENTE resetar isRead para false (nunca para true, nem
+      // outros campos) — usado quando alguém comenta/edita/exclui um comentário
+      // para que quem já tinha lido a notícia volte a vê-la como não lida.
+      allow update: if request.auth != null
+        && (resource.data.userId == request.auth.uid
+            || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['isRead', 'updatedAt'])
+                && request.resource.data.isRead == false));
+      allow delete: if request.auth != null
+        && resource.data.userId == request.auth.uid;
+    }
+
+    // ─── Interações com pushes ────────────────────────────────────────────────
+
+    match /pushInteractions/{interactionId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null
+        && request.resource.data.userId == request.auth.uid;
+    }
+
+    // ─── Comentários de boletins ──────────────────────────────────────────────
+
+    match /newsComments/{commentId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null
+        && request.resource.data.userId == request.auth.uid;
+      allow update: if request.auth != null
+        && (resource.data.userId == request.auth.uid || isSystemAdmin());
+      allow delete: if request.auth != null
+        && (resource.data.userId == request.auth.uid || isSystemAdmin());
+    }
+
+    // ─── Documentos de boletins ───────────────────────────────────────────────
+    // Coleção de topo com campo newsId (mesmo padrão de newsComments) — não é
+    // subcoleção de tenant porque News pode ser do Sistema (tenantId null).
+    // Leitura segue o mesmo modelo de newsComments (qualquer autenticado): uma
+    // regra de "list" não consegue filtrar por notícia individualmente, então a
+    // restrição de visibilidade fica a cargo da escrita (só quem edita a
+    // notícia anexa documentos a ela).
+
+    match /newsDocuments/{docId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null
+        && request.resource.data.createdBy == request.auth.uid
+        && canEditNewsDocument(request.resource.data.newsId);
+      allow delete: if request.auth != null
+        && canEditNewsDocument(resource.data.newsId);
+    }
+
+    // ─── Filtros salvos ───────────────────────────────────────────────────────
+
+    match /savedFilters/{filterId} {
+      allow read, write: if request.auth != null
+        && request.auth.uid == resource.data.userId;
+      allow create: if request.auth != null
+        && request.resource.data.userId == request.auth.uid;
+    }
+
+    // ─── Logs de Auditoria ────────────────────────────────────────────────────
+    // Coleção flat na raiz (não subcoleção de tenant). Escrita bloqueada para
+    // todos os clientes — somente Cloud Functions (Admin SDK) criam documentos.
+
+    match /auditLogs/{logId} {
+      allow read: if request.auth != null && isTenantAdmin(resource.data.tenantId);
+      allow write: if false;
+    }
+
+    // ─── Cursor de leitura da Auditoria ───────────────────────────────────────
+    // Doc id: `${userId}_${tenantId}`. Guarda só `lastReadAt` — usado para
+    // calcular o badge de falhas CRITICAL não lidas (ver "Badge de falhas
+    // críticas não lidas" no módulo de Auditoria). Mesmo padrão de savedFilters.
+
+    match /auditLogReadCursors/{cursorId} {
+      allow read, write: if request.auth != null
+        && request.auth.uid == resource.data.userId;
+      allow create: if request.auth != null
+        && request.resource.data.userId == request.auth.uid;
+    }
+
+    // ─── Catálogo de Steps do Workflow Engine ─────────────────────────────────
+    // Coleção flat na raiz, global (não por tenant) — o catálogo de Steps disponíveis é o
+    // mesmo para todos os escritórios. Espelho somente-leitura de StepDefinition (sem
+    // `createExecutor`), escrito só pelo composition root em functions/ (Admin SDK).
+    match /workflow_step_catalog/{stepDefinitionId} {
+      allow read: if request.auth != null;
+      allow write: if false;
+    }
+
+    // ─── Workflows Públicos ───────────────────────────────────────────────────
+    // Coleção flat na raiz com réplicas dos workflows marcados isPublic=true. Sincronizada
+    // por Cloud Functions (syncPublicWorkflowOnWrite/OnDelete) a partir de
+    // tenants/{tenantId}/workflow_definitions. Leitura aberta a qualquer autenticado para
+    // permitir o marketplace de workflows entre escritórios; escrita bloqueada (apenas
+    // Cloud Functions com Admin SDK podem criar/atualizar/deletar).
+    match /public_workflows/{workflowId} {
+      allow read: if request.auth != null;
+      allow write: if false;
+    }
+
+  }
+}

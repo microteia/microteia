@@ -136,10 +136,11 @@ export function useEntityDetail<TRecord extends { id: string }>(
   const [isDirty, setIsDirty] = useState(false);
 
   useEffect(() => {
+    if (isDirty) return;
     // eslint-disable-next-line react-hooks/set-state-in-effect -- sincroniza valores ao carregar registro/campos
     setValues(recordToValues(sourceRecord, { clone: isClone }));
     setIsDirty(false);
-  }, [recordToValues, sourceRecord, isClone]);
+  }, [recordToValues, sourceRecord, isClone, isDirty]);
 
   const setFieldValue = useCallback((fieldKey: string, value: CustomFieldValue) => {
     setValues((prev) => setValueByPath(prev, fieldKey, value));
