@@ -110,9 +110,13 @@ export const buildTokenRefreshFailureAuditText = (input: GmailPushTokenRefreshFa
     '**Como resolver:**',
     '',
     '1. Acesse as configurações do escritório',
-    '2. Vá para a seção de Integrações → Gmail',
-    '3. Remova a conexão atual',
-    '4. Conecte novamente com a conta do Gmail',
+    '2. Vá para a seção de Integrações → Push',
+    `3. Clique no ícone de Reautorizar na conexão do e-mail \`${sanitizeForMarkdown(input.emailAddress, 300)}\``,
+    '4. Após Reautorizar, o recebimento de intimações por e-mail será retomado',
+    `5. Envie um e-mail de teste para \`${sanitizeForMarkdown(input.emailAddress, 300)}\` para forçar o recebimento das intimações`,
+    '6. Após o teste, verifique se o recebimento de intimações por e-mail voltou a funcionar',
+    '',
+    'Se o problema persistir, entre em contato com o suporte técnico.',
   ];
 
   return lines.join('\n');
