@@ -40,10 +40,24 @@ export const PushesView: React.FC = () => {
             <S.UnreadBadge>{vm.unreadCount}</S.UnreadBadge>
           )}
         </S.TitleRow>
-        <Button onClick={vm.handleOpenDashboard} variant="secondary">
-          <RiBarChartBoxLine size={18} />
-          Dashboard
-        </Button>
+        <S.HeaderActions>
+          {vm.hasUnreadInList && (
+            <Button onClick={vm.handleMarkAllUnreadAsRead} variant="ghost" size="sm">
+              <RiCheckLine size={16} />
+              Marcar todos como lidos
+            </Button>
+          )}
+          {vm.hasNotReviewedInList && (
+            <Button onClick={vm.handleMarkAllAsReviewed} variant="ghost" size="sm">
+              <RiCheckLine size={16} />
+              Marcar todos como revisados
+            </Button>
+          )}
+          <Button onClick={vm.handleOpenDashboard} variant="secondary">
+            <RiBarChartBoxLine size={18} />
+            Dashboard
+          </Button>
+        </S.HeaderActions>
       </S.Header>
 
       <S.FilterBar>

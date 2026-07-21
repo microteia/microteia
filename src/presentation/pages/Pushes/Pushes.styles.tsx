@@ -16,6 +16,12 @@ export const S = {
     justify-content: space-between;
   `,
 
+  HeaderActions: styled.div`
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  `,
+
   TitleRow: styled.div`
     display: flex;
     align-items: center;

@@ -11,6 +11,16 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [0.123.1] — 2026-07-21
+
+- Os botões de "Marcar todos como lidos" e "Marcar todos como revisados" agora aparecem apenas quando há itens aplicáveis na lista filtrada, tornando a interface mais inteligente.
+
+## [0.123.0] — 2026-07-21
+
+- A tela de Pushes do Tribunal agora abre com o filtro de "Não lidos" já aplicado, facilitando a visualização das intimações pendentes.
+- Adicionados botões elegantes para marcar todos os pushes não lidos como lidos e para marcar todos como revisados de uma só vez.
+- Ao marcar um push como revisado, ele agora é automaticamente marcado também como lido.
+
 ## [0.122.3] — 2026-07-21
 
 - Melhorias internas de infraestrutura: as regras de segurança e índices do banco de dados agora ficam em arquivos próprios, facilitando atualizações futuras.

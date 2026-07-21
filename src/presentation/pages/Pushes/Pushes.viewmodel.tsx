@@ -41,9 +41,13 @@ export interface PushesViewModel {
   filterDefs: FilterDef[];
   savedFiltersScreenKey: string;
   unreadCount: number;
+  hasUnreadInList: boolean;
+  hasNotReviewedInList: boolean;
   createDeadlineModalPush: Push | null;
   setFilterTokens: (tokens: FilterToken[]) => void;
   handleMarkAsRead: (push: Push) => Promise<void>;
+  handleMarkAllUnreadAsRead: () => Promise<void>;
+  handleMarkAllAsReviewed: () => Promise<void>;
   handleUpdateStatus: (push: Push, status: 'pending' | 'reviewed' | 'archived') => Promise<void>;
   handleDelete: (push: Push) => Promise<void>;
   handleOpenDashboard: () => void;
@@ -109,7 +113,9 @@ export const usePushesViewModel = (): PushesViewModel => {
   const { currentTenant } = useTenant();
   const theme = useTheme();
 
-  const [filterTokens, setFilterTokens] = useState<FilterToken[]>([]);
+  const [filterTokens, setFilterTokens] = useState<FilterToken[]>([
+    { key: 'readStatus', values: ['unread'] },
+  ]);
   const [expandedBodies, setExpandedBodies] = useState<Set<string>>(new Set());
   const [createDeadlineModalPush, setCreateDeadlineModalPush] = useState<Push | null>(null);
 
@@ -242,10 +248,34 @@ export const usePushesViewModel = (): PushesViewModel => {
     await markAsRead(push.id);
   }, [markAsRead]);
 
+  const handleMarkAllUnreadAsRead = useCallback(async () => {
+    const unreadPushes = rows.filter((row) => !row.isRead);
+    await Promise.all(unreadPushes.map((row) => markAsRead(row.push.id)));
+  }, [rows, markAsRead]);
+
+  const handleMarkAllAsReviewed = useCallback(async () => {
+    if (!currentTenant) return;
+    const notReviewedPushes = rows.filter((row) => row.push.status !== 'reviewed');
+    await Promise.all(
+      notReviewedPushes.map(async (row) => {
+        await updateStatus(row.push.id, 'reviewed');
+        if (!row.isRead) {
+          await markAsRead(row.push.id);
+        }
+      })
+    );
+  }, [rows, currentTenant, updateStatus, markAsRead]);
+
   const handleUpdateStatus = useCallback(async (push: Push, status: 'pending' | 'reviewed' | 'archived') => {
     if (!currentTenant) return;
     await updateStatus(push.id, status);
-  }, [updateStatus, currentTenant]);
+    if (status === 'reviewed') {
+      const interaction = getInteraction(push.id);
+      if (!interaction?.isRead) {
+        await markAsRead(push.id);
+      }
+    }
+  }, [updateStatus, currentTenant, markAsRead, getInteraction]);
 
   const handleDelete = useCallback(async (push: Push) => {
     await deletePush(push.id);
@@ -297,15 +327,22 @@ export const usePushesViewModel = (): PushesViewModel => {
     return getConfigColor(statusConfigs, status, theme);
   }, [statusConfigs, theme]);
 
+  const hasUnreadInList = useMemo(() => rows.some((row) => !row.isRead), [rows]);
+  const hasNotReviewedInList = useMemo(() => rows.some((row) => row.push.status !== 'reviewed'), [rows]);
+
   return {
     rows,
     filterTokens,
     filterDefs,
     savedFiltersScreenKey: 'pushes',
     unreadCount,
+    hasUnreadInList,
+    hasNotReviewedInList,
     createDeadlineModalPush,
     setFilterTokens,
     handleMarkAsRead,
+    handleMarkAllUnreadAsRead,
+    handleMarkAllAsReviewed,
     handleUpdateStatus,
     handleDelete,
     handleOpenDashboard,
