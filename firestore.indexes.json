@@ -1,0 +1,33 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "gmailConnections",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "email",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "tenantId",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "pushes",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "emailId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "processNumber",
+          "order": "ASCENDING"
+        }
+      ]
+    }
+  ],
+  "fieldOverrides": []
+}

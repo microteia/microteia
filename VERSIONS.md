@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [0.122.3] — 2026-07-21
+
+- Melhorias internas de infraestrutura: as regras de segurança e índices do banco de dados agora ficam em arquivos próprios, facilitando atualizações futuras.
+
 ## [0.122.2] — 2026-07-21
 
 - Corrigido um problema que fazia os campos voltarem aos valores originais ao trocar de aba do navegador durante a edição ou cadastro de registros.
