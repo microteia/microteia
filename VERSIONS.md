@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [0.124.3] — 2026-07-22
+
+- O ambiente de testes foi colocado no ar, permitindo validar as novidades antes que elas cheguem ao escritório. Nada muda no uso do sistema.
+
 ## [0.124.2] — 2026-07-22
 
 - Passamos a manter um ambiente de testes separado do ambiente real do escritório, para que novidades sejam validadas com segurança antes de chegar ao seu dia a dia. Nada muda no uso do sistema.

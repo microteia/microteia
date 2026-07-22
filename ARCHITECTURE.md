@@ -1172,14 +1172,35 @@ do arquivo a corrigir.
 No backend o mecanismo é nativo: o `firebase-functions` carrega sozinho o `.env.<projectId>` do
 projeto alvo, então não há nada a configurar além de manter os dois arquivos preenchidos.
 
-### Ao criar o ambiente de dev do zero
+### Ao criar um ambiente do zero
 
 ```bash
 npx firebase apps:sdkconfig web --project dev   # preenche .env.dev
+gcloud app create --region=southamerica-east1 --project=microteia-dev
 npm run deploy:rules                            # regras do Firestore e do Storage
 npm run deploy:indexes                          # índices compostos
-npm run deploy:functions                        # todas as functions
+npm run deploy:functions --force                # todas as functions (rode duas vezes)
 ```
+
+Três armadilhas de projeto novo, todas já enfrentadas em `microteia-dev`:
+
+**1. A aplicação do App Engine precisa existir antes das functions.** Sem ela o deploy falha em
+`generateUploadUrl` com um 404 dizendo que não conseguiu autenticar o service agent
+`gcf-admin-robot` — mensagem que não menciona o App Engine e manda procurar no lugar errado.
+A **região do App Engine é definida uma única vez e nunca pode ser alterada**; use a mesma das
+functions (`southamerica-east1`), senão o projeto inteiro precisa ser recriado.
+
+**2. O primeiro `deploy:functions` falha nas functions de gatilho.** As identidades de serviço do
+Pub/Sub e do Eventarc são criadas *durante* esse primeiro deploy e não propagam a tempo, então toda
+function de trigger (`onDocumentWritten`, `onDocumentCreated`, `onUserCreated`) quebra enquanto as
+callables sobem normalmente. **Não é erro de configuração: basta repetir o comando.**
+
+**3. Use `--force` na primeira vez** para que o Firebase configure sozinho a política de limpeza do
+Artifact Registry. Sem ela, as imagens de container de cada build se acumulam e geram cobrança
+mensal crescente. A política aplicada apaga imagens com mais de 24h.
+
+A localização do Firestore precisa bater com a região das functions — gatilhos do Firestore não
+funcionam entre regiões diferentes.
 
 Regras, índices e código são os mesmos arquivos versionados dos dois lados — só o projeto de
 destino muda. O que **não** é replicado: dados, usuários e as credenciais OAuth do Google (o
