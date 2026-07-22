@@ -2643,6 +2643,28 @@ verdades. O manifest declara só o que o Kernel precisa para raciocinar sem carr
 O `WorkflowExecutor`, o `StepRegistry` e os handlers de catálogo **não mudaram**: o `stepRegistry`
 continua sendo o índice que o executor consulta; o que virou orientado a dados foi quem o popula.
 
+### Entidades e lookups como contribuições (Etapa 4b)
+
+`EntityKey` deixou de ser união fechada e virou `string` — o conjunto de entidades é **dado**, não
+tipo. A validação de que uma chave existe é de runtime, contra o registro (`getEntityByCollection`,
+`ctx.registry`). A união `BuiltinEntityKey` sobrevive só para documentar o conjunto nativo.
+
+| Ponto | Metadata | `impl` |
+|---|---|---|
+| `data.entity` | o `EntityMetadata` inteiro | nenhuma (metadata pura) |
+| `data.lookup` | o `LookupMetadata` inteiro | nenhuma |
+
+**Entidade é dado da camada de domínio, abaixo do Kernel — então o schema continua sendo o dono.**
+`ENTITY_REGISTRY` permanece a fonte ergonômica que `pathResolver`, `eventCatalog`, `mutationSpec`
+etc. consomem direto (não podem importar o Kernel, que está acima). As contribuições em
+`domain/schema/dataExtensionPoints.ts` **derivam** desses mesmos objetos e os EXPÕEM ao Kernel: é o
+que torna o catálogo de entidades consultável e, no futuro, publicável. Fonte única, dupla exposição
+— não é fachada, é respeitar a hierarquia de camadas.
+
+Consequência honesta: remover `core.data` da lista de plugins **não** remove as entidades do schema
+(o schema depende delas diretamente, por baixo). Diferente de uma tela ou um Step, que somem ao
+descarregar o plugin. É o preço de entidade ser domínio, não apresentação.
+
 ### Capabilities — múltiplos provedores para a mesma capacidade (Etapa 4a)
 
 O container de injeção não nomeia mais os cinco serviços de IA. Eles são contribuições do ponto
@@ -2701,7 +2723,7 @@ não dispara é pior que guarda nenhuma.
 | 2 ✅ | Dogfood da UI: telas (lazy), navegação e ⌘K como contribuições de 12 core plugins |
 | 3 ✅ | Dogfood da automação: 12 Steps e 53 funções de expressão como contribuições |
 | 4a ✅ | Capabilities: os 5 provedores de IA saem do container e viram contribuições |
-| 4b | Dogfood do domínio: `ENTITY_REGISTRY`, `LOOKUP_REGISTRY`, `DIContainer` |
+| 4b ✅ | `EntityKey` aberto; entidades e lookups como contribuições `data.entity`/`data.lookup` |
 | 5 | Ciclo de vida: instalar/ativar/desativar/atualizar/remover, permissões no sandbox |
 | 6 | Widget DSL: slots e renderizador declarativo |
 | 7 | Marketplace: `plugin_registry`, publicação e instalação |

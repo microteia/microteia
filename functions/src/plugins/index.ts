@@ -4,6 +4,7 @@ import { coreStepsPlugin } from './core.steps/manifest';
 import { coreExpressionsPlugin } from './core.expressions/manifest';
 import { coreCapabilitiesPlugin } from './core.capabilities/manifest';
 import { coreAiPlugin } from './core.ai/manifest';
+import { coreDataPlugin } from './core.data/manifest';
 
 /**
  * Composition root dos plugins do backend — o ÚNICO lugar das Cloud Functions que conhece a lista
@@ -15,4 +16,5 @@ export const BACKEND_PLUGINS: PluginRecord[] = [
   coreExpressionsPlugin,
   coreCapabilitiesPlugin,
   coreAiPlugin,
+  coreDataPlugin,
 ];

@@ -46,7 +46,9 @@ describe('core plugins — carga', () => {
 
   it('carrega core.ui antes de quem depende dele', () => {
     const { result } = hostWith(CORE_PLUGINS);
-    expect(result.loaded[0]).toBe('core.ui');
+    const posicao = (id: string) => result.loaded.indexOf(id);
+    expect(posicao('core.ui')).toBeLessThan(posicao('core.persons'));
+    expect(posicao('core.ui')).toBeLessThan(posicao('core.workspace'));
   });
 
   it('toda contribuição de tela resolve um componente', () => {
@@ -181,11 +183,14 @@ describe('core plugins — remoção limpa (critério de aceite da Etapa 2)', ()
     expect(host.contributions.query(UI_NAV_POINT).length).toBe(10);
   });
 
-  it('remover core.ui derruba todo mundo, porque ninguém declara os pontos', () => {
+  it('remover core.ui derruba todos os módulos de UI, porque ninguém declara os pontos', () => {
     const { host, result } = hostWith(without('core.ui'));
 
-    expect(result.loaded).toEqual([]);
+    // Só core.data sobrevive: declara os próprios pontos e não depende de core.ui.
+    expect(result.loaded).toEqual(['core.data']);
     expect(host.contributions.query(UI_PAGE_POINT)).toEqual([]);
-    expect(result.diagnostics.every((d) => d.code === 'dependency.missing')).toBe(true);
+    expect(
+      result.diagnostics.filter((d) => d.pluginId !== 'core.data').every((d) => d.code === 'dependency.missing'),
+    ).toBe(true);
   });
 });

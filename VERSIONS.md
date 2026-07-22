@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [0.125.1] — 2026-07-22
+
+- Aprimoramento interno na forma como o sistema organiza seus cadastros (Pessoas, Processos, Contratos, etc.), preparando o terreno para novos tipos de cadastro no futuro. Nenhuma tela ou comportamento muda.
+
 ## [0.125.0] — 2026-07-22
 
 - Os provedores de inteligência artificial (OpenAI, Anthropic, Google, Mistral e Cohere) passaram a ser módulos independentes. Na prática, novos provedores poderão ser oferecidos ao escritório sem que o sistema precise ser atualizado. A escolha do provedor nas Configurações continua igual.

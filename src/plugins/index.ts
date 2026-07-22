@@ -11,6 +11,7 @@ import { coreNewsPlugin } from './core.news/manifest';
 import { coreRecordsPlugin } from './core.records/manifest';
 import { coreAutomationPlugin } from './core.automation/manifest';
 import { coreAdminPlugin } from './core.admin/manifest';
+import { coreDataPlugin } from './core.data/manifest';
 
 /**
  * Composition root dos plugins internos — o ÚNICO lugar do app que conhece a lista de plugins.
@@ -30,4 +31,5 @@ export const CORE_PLUGINS: PluginRecord[] = [
   coreRecordsPlugin,
   coreAutomationPlugin,
   coreAdminPlugin,
+  coreDataPlugin,
 ];

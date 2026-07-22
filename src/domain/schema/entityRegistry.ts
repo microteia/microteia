@@ -8,7 +8,15 @@ import type {
 
 export const SCHEMA_VERSION = 1;
 
-export type EntityKey =
+/**
+ * Chave de entidade. Aberta para `string` a partir da Etapa 4b: o conjunto de entidades passou a
+ * ser dado (contribuições `data.entity`), não uma união fechada no tipo. A validação de que uma
+ * chave existe é de runtime, contra o registro — `getEntityByCollection`/`ctx.registry`.
+ */
+export type EntityKey = string;
+
+/** As entidades nativas do Curatino. Mantida como união só para documentar o conjunto fixo. */
+export type BuiltinEntityKey =
   | 'persons'
   | 'cases'
   | 'contracts'
@@ -18,6 +26,10 @@ export type EntityKey =
   | 'pushes'
   | 'news'
   | 'customRecords';
+
+export const BUILTIN_ENTITY_KEYS: readonly BuiltinEntityKey[] = [
+  'persons', 'cases', 'contracts', 'deadlines', 'financials', 'members', 'pushes', 'news', 'customRecords',
+] as const;
 
 export type WorkflowEntityEventPrefix =
   | 'person'

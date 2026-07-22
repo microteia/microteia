@@ -35,6 +35,7 @@ const SHARED_FILES = [
   'domain/schema/parameterRules.ts',
   'domain/schema/validateSpec.ts',
   'domain/schema/mapSpec.ts',
+  'domain/schema/dataExtensionPoints.ts',
   'domain/schema/plugin/semver.ts',
   'domain/schema/plugin/diagnostics.ts',
   'domain/schema/plugin/permission.ts',
