@@ -35,6 +35,15 @@ const SHARED_FILES = [
   'domain/schema/parameterRules.ts',
   'domain/schema/validateSpec.ts',
   'domain/schema/mapSpec.ts',
+  'domain/schema/plugin/semver.ts',
+  'domain/schema/plugin/diagnostics.ts',
+  'domain/schema/plugin/permission.ts',
+  'domain/schema/plugin/capability.ts',
+  'domain/schema/plugin/extensionPoint.ts',
+  'domain/schema/plugin/contribution.ts',
+  'domain/schema/plugin/pluginManifest.ts',
+  'domain/schema/plugin/kernelVersion.ts',
+  'domain/schema/plugin/index.ts',
 ];
 
 const buildHeader = (relativePath) =>

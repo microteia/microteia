@@ -2338,6 +2338,122 @@ visualizem e **copiem** a automação completa, incluindo scripts associados. A 
 
 ---
 
+## Plataforma de Plugins
+
+Camada que transforma o Curatino de um sistema configurável em uma **plataforma extensível**, no
+modelo do AppExchange/Odoo: toda funcionalidade — inclusive as que hoje moram no núcleo — chega por
+**contribuição declarada em um Manifest**, e o Kernel nunca conhece um plugin pelo nome.
+
+> **Status:** Etapa 0 (contratos) concluída. As etapas seguintes constroem o runtime, migram o
+> núcleo atual para *core plugins*, e abrem o Marketplace. Ver "Etapas" ao final desta seção.
+
+### Os dez princípios
+
+1. O Kernel nunca conhece plugins. 2. Plugins nunca alteram o Kernel. 3. Toda funcionalidade é
+registrada por Contribution. 4. Tudo é baseado em interfaces. 5. O ciclo de vida cobre instalar,
+atualizar, desativar e remover. 6. Todo plugin é isolado. 7. Toda API é tipada. 8. Todo registro
+ocorre por Manifest. 9. Metadata antes de código. 10. Nenhuma decisão pode impedir um Marketplace
+com milhares de plugins.
+
+### O gabarito obrigatório
+
+Toda funcionalidade nova — do núcleo ou de terceiro — responde antes de ser escrita: como é
+registrada no Kernel; quais Extension Points usa; quais Capabilities fornece; quais consome; como é
+instalada; como é removida; como é versionada; como evita acoplamento; como funciona no Marketplace.
+
+### Metadata separada de implementação
+
+O padrão já provado pelo Workflow Engine (`StepDefinitionSummary` serializável no cliente vs
+`StepDefinition.createExecutor` só em `functions/`) vira a regra geral. Uma `Contribution` carrega
+`metadata` 100% serializável e, opcionalmente, uma `ImplRef` que aponta para a implementação:
+
+| `impl.kind` | O que é | Quem pode usar |
+|---|---|---|
+| `code` | Função/componente compilado no bundle, resolvido por chave no `ImplementationRegistry` | **Só plugins first-party** |
+| `script` | Script do usuário no sandbox QuickJS já existente | Qualquer plugin |
+| `widget` | Árvore declarativa renderizada pelo Kernel (Widget DSL) | Qualquer plugin |
+| `workflow` | Workflow do tenant | Qualquer plugin |
+
+`code` é o único que executa JavaScript arbitrário e por isso é **privilégio de plugin interno** —
+é essa linha que permite centenas de plugins de terceiros sem revisar JS, sem CSP exótica e sem
+sandbox de browser. `isTrustedOnlyImplKind` e a flag `trusted` de `validatePluginManifest`
+implementam a regra.
+
+### Contratos — `domain/schema/plugin/` (sincronizado para `functions/`)
+
+Arquivos **compartilhados**: fonte única em `src/domain/schema/plugin/`, cópias geradas por
+`npm run sync-schemas`. Nunca edite as cópias.
+
+| Arquivo | Contrato |
+|---|---|
+| `semver.ts` | Parse/comparação/faixas semver sem dependência externa. Suporta `*`, `=`, `^`, `~`, `>`, `>=`, `<`, `<=` e conjunção separada por espaço |
+| `diagnostics.ts` | `PluginDiagnostic` — canal único de erro/aviso. Validador **nunca lança** |
+| `permission.ts` | `dominio:recurso:acao` (ou `dominio:acao`), com curinga. Domínios: `data`, `workflow`, `script`, `capability`, `ui`, `net` |
+| `capability.ts` | `CapabilityProvision`/`CapabilityRequirement` e `selectProvider` — múltiplos provedores para a mesma capability |
+| `extensionPoint.ts` | `ExtensionPointDefinition` + compatibilidade de `apiVersion` |
+| `contribution.ts` | `Contribution`, `ImplRef` e a **ordenação determinística** |
+| `pluginManifest.ts` | `PluginManifest` + `validatePluginManifest` |
+| `kernelVersion.ts` | `KERNEL_VERSION` — versão do contrato Kernel↔plugins |
+
+### Versionamento em três eixos — não confundir
+
+| Eixo | Onde | Sobe quando |
+|---|---|---|
+| Versão do produto | `package.json` / `VERSIONS.md` | Toda release, pela regra de commit |
+| `KERNEL_VERSION` | `kernelVersion.ts` | Major: um Extension Point muda de forma incompatível. Minor: algo é adicionado |
+| `apiVersion` do ponto | cada `ExtensionPointDefinition` | Contrato daquele ponto específico |
+
+Um manifest declara `kernel: '^1.0.0'`; cada contribuição declara a `apiVersion` do contrato contra
+o qual foi escrita. `isApiVersionCompatible(contribuição, ponto)` aceita um ponto que evoluiu
+aditivamente (contribuição `1.0.0` roda em ponto `1.4.2`) e recusa major diferente **ou**
+contribuição que exija contrato mais novo que o instalado.
+
+### Falha isolada, nunca fatal
+
+Nenhum validador lança. Manifest malformado, ponto desconhecido, versão incompatível ou
+implementação proibida viram `PluginDiagnostic` com `code` e `path` — a contribuição é descartada e
+**as demais do mesmo plugin continuam válidas**. Com centenas de plugins instalados, um plugin
+quebrado não pode derrubar o boot.
+
+### Ordenação determinística — não é detalhe
+
+`compareContributions` ordena por prioridade (maior primeiro), depois `pluginId`, depois `id`, todos
+alfabéticos. **Nunca** a ordem de carregamento: com centenas de plugins, depender de quem registrou
+primeiro tornaria a ordem do menu e o vencedor de qualquer conflito não-determinístico entre um boot
+e outro. `selectProvider` segue a mesma regra, com a vinculação explícita do escritório vencendo
+sempre a prioridade.
+
+### Isolamento de dados
+
+Plugin **não cria coleção nova** — reusa `screenDefinitions` + `customRecords`, marcando os
+artefatos com `ownerPluginId` e `managed: true` (bloqueia edição pelo usuário no Form Design). A
+consequência é que plugin novo **nunca exige deploy de `firestore.rules`**, e o dado do plugin herda
+⌘K, auditoria, workflow, filtros e agregados sem nenhum código adicional.
+
+### Guarda de acoplamento no ESLint
+
+`eslint.config.js` tem duas zonas `no-restricted-imports` que reprovam o build:
+
+- `src/kernel/**` e `functions/src/kernel/**` não importam `plugins/`, `presentation/`, `data/`,
+  `stores/` nem `firebase` — o Kernel depende só dos contratos.
+- `src/plugins/*/**` não importa outro plugin diretamente — a comunicação é por Capability ou por
+  Extension Point.
+
+### Etapas
+
+| Etapa | Entrega |
+|---|---|
+| 0 ✅ | Contratos em `domain/schema/plugin/`, guarda no ESLint, sincronização |
+| 1 | Runtime: Contribution/ExtensionPoint/Implementation/Capability registries + PluginHost |
+| 2 | Dogfood da UI: páginas (com `React.lazy`), navegação, ⌘K, ícones, temas |
+| 3 | Dogfood da automação: Steps, funções de expressão, catálogo de eventos |
+| 4 | Dogfood do domínio: `ENTITY_REGISTRY`, `LOOKUP_REGISTRY`, `DIContainer`, capabilities |
+| 5 | Ciclo de vida: instalar/ativar/desativar/atualizar/remover, permissões no sandbox |
+| 6 | Widget DSL: slots e renderizador declarativo |
+| 7 | Marketplace: `plugin_registry`, publicação e instalação |
+
+---
+
 ## Camada de Regras de Campo (validação e formatação)
 
 Camada declarativa, **compartilhada entre front e backend**, que formata e valida um valor **antes
