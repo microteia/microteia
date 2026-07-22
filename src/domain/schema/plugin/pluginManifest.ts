@@ -57,6 +57,12 @@ export interface ValidateManifestOptions {
   trusted?: boolean;
   kernelVersion?: string;
   points?: Map<string, ExtensionPointDefinition>;
+  /**
+   * O `PluginHost` desliga esta etapa na primeira passada: só depois de saber quais plugins
+   * carregam é que os pontos de extensão existem, e validar contribuições antes disso acusaria
+   * "ponto desconhecido" em todas elas.
+   */
+  validateContributions?: boolean;
 }
 
 const isPlainObject = (value: unknown): value is Record<string, unknown> =>
@@ -183,7 +189,7 @@ export const validatePluginManifest = (
     return [error({ code: 'manifest.invalid', message: 'O manifest precisa ser um objeto.' })];
   }
 
-  const { trusted = false, kernelVersion, points } = options;
+  const { trusted = false, kernelVersion, points, validateContributions = true } = options;
   const diagnostics: PluginDiagnostic[] = [
     ...validateShape(manifest),
     ...validateDependencies(manifest),
@@ -203,6 +209,8 @@ export const validatePluginManifest = (
       }),
     );
   }
+
+  if (!validateContributions) return diagnostics;
 
   const contributions = manifest.contributes ?? [];
   const declaredPoints = new Map(points ?? []);

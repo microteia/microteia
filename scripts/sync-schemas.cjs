@@ -44,6 +44,12 @@ const SHARED_FILES = [
   'domain/schema/plugin/pluginManifest.ts',
   'domain/schema/plugin/kernelVersion.ts',
   'domain/schema/plugin/index.ts',
+  'kernel/ExtensionPointRegistry.ts',
+  'kernel/ContributionRegistry.ts',
+  'kernel/ImplementationRegistry.ts',
+  'kernel/CapabilityRegistry.ts',
+  'kernel/PluginHost.ts',
+  'kernel/index.ts',
 ];
 
 const buildHeader = (relativePath) =>

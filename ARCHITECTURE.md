@@ -2344,8 +2344,8 @@ Camada que transforma o Curatino de um sistema configurável em uma **plataforma
 modelo do AppExchange/Odoo: toda funcionalidade — inclusive as que hoje moram no núcleo — chega por
 **contribuição declarada em um Manifest**, e o Kernel nunca conhece um plugin pelo nome.
 
-> **Status:** Etapa 0 (contratos) concluída. As etapas seguintes constroem o runtime, migram o
-> núcleo atual para *core plugins*, e abrem o Marketplace. Ver "Etapas" ao final desta seção.
+> **Status:** Etapas 0 (contratos) e 1 (runtime) concluídas. Ainda **nenhum plugin existe** — o
+> núcleo atual migra para *core plugins* na Etapa 2. Ver "Etapas" ao final desta seção.
 
 ### Os dez princípios
 
@@ -2430,6 +2430,66 @@ artefatos com `ownerPluginId` e `managed: true` (bloqueia edição pelo usuário
 consequência é que plugin novo **nunca exige deploy de `firestore.rules`**, e o dado do plugin herda
 ⌘K, auditoria, workflow, filtros e agregados sem nenhum código adicional.
 
+### Runtime — `kernel/` (sincronizado para `functions/`)
+
+O Kernel é **puro**: sem React, sem Firebase, sem styled-components, sem conhecer nenhuma camada
+do app. Por isso os mesmos arquivos servem os dois runtimes — a fonte vive em `src/kernel/` e
+`npm run sync-schemas` gera a cópia em `functions/src/kernel/`, como já acontece com o schema.
+
+| Arquivo | Responsabilidade |
+|---|---|
+| `ExtensionPointRegistry.ts` | Pontos declarados. Só o dono redeclara o próprio ponto; outro plugin tentando sequestrá-lo é recusado |
+| `ContributionRegistry.ts` | Índice por ponto, com consulta **memoizada** e ordenação determinística |
+| `ImplementationRegistry.ts` | Tabela `impl: code` dos plugins internos, isolada por plugin |
+| `CapabilityRegistry.ts` | Provedores por capability, resolvidos por `selectProvider` |
+| `PluginHost.ts` | Composition root: valida, resolve dependências, registra tudo |
+
+Todos são **factories** (`createXxxRegistry()`), não classes nem singletons — cada host tem o seu
+mundo, o que torna teste e multi-tenant triviais.
+
+### `PluginHost.load` — carga como reconstrução total
+
+`load(records)` **substitui o mundo inteiro**: zera os quatro registries e reconstrói. Não existe
+`unload` — desinstalar é `load` sem aquele registro. Uma entrada só, um caminho de código só, e a
+garantia de que não sobra rastro de um plugin removido (contribuição, ponto, implementação ou
+provimento de capability).
+
+A carga tem cinco fases, nesta ordem:
+
+1. **Deduplicação** — o mesmo `id` duas vezes: a segunda é ignorada (`manifest.duplicate`).
+2. **Validação do manifest** — sem validar contribuições ainda (os pontos não existem). Erro aqui
+   descarta o plugin inteiro.
+3. **Dependências** — laço de ponto fixo que remove quem tem dependência ausente
+   (`dependency.missing`), incompatível (`dependency.unsatisfied`) ou que não carregou
+   (`dependency.disabled`) — **propagando em cascata** até estabilizar.
+4. **Ordem topológica (Kahn)** — dependência antes de dependente. O que sobra fora da ordem está em
+   um ciclo, ou depende de alguém que está: sai com `dependency.cycle`. A fila é reordenada
+   alfabeticamente a cada passo, então a ordem final não depende da ordem de entrada.
+5. **Registro** — pontos primeiro (para que um plugin possa contribuir a um ponto declarado por
+   outro), depois implementações, depois contribuições, depois capabilities.
+
+### Granularidade da falha — manifest vs. contribuição
+
+`PluginDiagnostic.contributionIndex` é o que separa os dois níveis: diagnóstico **com** índice
+descarta apenas aquela contribuição; **sem** índice descarta o plugin. É por isso que um plugin com
+uma contribuição para um ponto inexistente continua carregando, com as outras funcionando. O
+`contributionId` não serviria para isso — ele pode ser justamente o campo inválido.
+
+### Conflitos são avisos, nunca exceções
+
+Ponto com `multiple: false` recebendo mais de uma contribuição gera `contribution.conflict`
+(**warning**), e vence a primeira da ordenação determinística. Capability exigida e não fornecida
+gera `capability.unsatisfied` (**warning**) — o plugin carrega mesmo assim, porque a integração pode
+ser instalada depois. Só erro impede carga.
+
+### Binding React — `stores/KernelContext.tsx` + `stores/useKernel.ts`
+
+Segue a separação obrigatória do projeto: o `.tsx` exporta **apenas** o `KernelProvider`; o `.ts`
+exporta o Context, os tipos e os hooks `useKernel`, `useContributions`, `useContribution`,
+`useCapability`, `useImplementation` e `usePluginDiagnostics`. `useContributions` devolve
+**referência estável** entre renders (a memoização do `ContributionRegistry`), então usar o
+resultado em dependência de `useMemo`/`useEffect` não causa loop.
+
 ### Guarda de acoplamento no ESLint
 
 `eslint.config.js` tem duas zonas `no-restricted-imports` que reprovam o build:
@@ -2439,12 +2499,18 @@ consequência é que plugin novo **nunca exige deploy de `firestore.rules`**, e 
 - `src/plugins/*/**` não importa outro plugin diretamente — a comunicação é por Capability ou por
   Extension Point.
 
+A configuração do ESLint pode ser afrouxada sem ninguém perceber, então `kernel/kernelPurity.test.ts`
+é a segunda tranca: lê o próprio código-fonte do Kernel via `import.meta.glob(..., '?raw')` e falha
+no `npm test` se qualquer arquivo importar algo além de `domain/schema/plugin/` ou de outro arquivo
+do Kernel. O último caso do teste prova que o detector realmente reconhece uma violação — guarda que
+não dispara é pior que guarda nenhuma.
+
 ### Etapas
 
 | Etapa | Entrega |
 |---|---|
 | 0 ✅ | Contratos em `domain/schema/plugin/`, guarda no ESLint, sincronização |
-| 1 | Runtime: Contribution/ExtensionPoint/Implementation/Capability registries + PluginHost |
+| 1 ✅ | Runtime: os quatro registries, `PluginHost` e o binding React |
 | 2 | Dogfood da UI: páginas (com `React.lazy`), navegação, ⌘K, ícones, temas |
 | 3 | Dogfood da automação: Steps, funções de expressão, catálogo de eventos |
 | 4 | Dogfood do domínio: `ENTITY_REGISTRY`, `LOOKUP_REGISTRY`, `DIContainer`, capabilities |

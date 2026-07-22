@@ -93,7 +93,7 @@ export const validateContribution = (
   const contributionId = contribution?.id;
   const at = (field: string) => `contributes[${index}].${field}`;
   const push = (code: PluginDiagnostic['code'], message: string, path: string) =>
-    diagnostics.push(error({ code, message, pluginId, contributionId, path }));
+    diagnostics.push(error({ code, message, pluginId, contributionId, contributionIndex: index, path }));
 
   if (!isValidContributionId(contributionId)) {
     push('contribution.id.invalid', `Id de contribuição "${contributionId}" é inválido. Use letras minúsculas, números, "-" e ".".`, at('id'));
@@ -149,6 +149,7 @@ export const findDuplicateContributions = (
           message: `A contribuição "${contribution?.id}" já foi declarada para o ponto "${contribution?.point}" neste plugin.`,
           pluginId,
           contributionId: contribution?.id,
+          contributionIndex: index,
           path: `contributes[${index}].id`,
         }),
       ];

@@ -42,6 +42,12 @@ export interface PluginDiagnostic {
   message: string;
   pluginId?: string;
   contributionId?: string;
+  /**
+   * Índice da contribuição culpada. É o que separa, sem ambiguidade, um problema do manifest
+   * (que descarta o plugin inteiro) de um problema de uma contribuição (que descarta só ela) —
+   * o `contributionId` não serve para isso porque pode ser justamente o campo inválido.
+   */
+  contributionIndex?: number;
   path?: string;
 }
 
@@ -50,8 +56,12 @@ export interface DiagnosticInput {
   message: string;
   pluginId?: string;
   contributionId?: string;
+  contributionIndex?: number;
   path?: string;
 }
+
+export const isContributionScoped = (diagnostic: PluginDiagnostic): boolean =>
+  diagnostic.contributionIndex !== undefined;
 
 export const error = (input: DiagnosticInput): PluginDiagnostic => ({ severity: 'error', ...input });
 
