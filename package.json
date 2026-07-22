@@ -1,7 +1,7 @@
 {
   "name": "curatino",
   "private": true,
-  "version": "0.123.1",
+  "version": "0.123.2",
   "type": "module",
   "scripts": {
     "predev": "npm run sync-schemas",
@@ -19,6 +19,8 @@
     "build:functions": "npm run sync-schemas && tsc -b functions",
     "deploy": "npm run build:functions && firebase deploy --project curatino",
     "deploy:hosting": "npm run build && npm run build:functions && firebase deploy --only hosting --project curatino",
+    "deploy:rules": "firebase deploy --only firestore:rules,storage --project curatino",
+    "deploy:indexes": "firebase deploy --only firestore:indexes --project curatino",
     "deploy:workflow": "npm run build:functions && firebase deploy --only functions:onWorkflowEventCreated,functions:publishWorkflowEventOnEntityChange,functions:recomputeAggregatesOnEntityChange,functions:onNoteChange,functions:onDocumentChange,functions:getExpressionFunctions,functions:getWorkflowStepCatalog,functions:detectWorkflows,functions:runWorkflow,functions:syncPublicWorkflowOnWrite,functions:syncPublicWorkflowOnDelete,functions:copyPublicWorkflow,functions:updateFromSourceWorkflow,functions:runScript,functions:runAction --project curatino",
     "deploy:audit": "npm run build:functions && firebase deploy --only functions:auditFlatEntityChange,functions:auditNestedEntityChange,functions:auditTenantDeleted,functions:auditNewsChange,functions:auditNewsCommentChange,functions:auditNewsTagChange,functions:backupDeletedAuditLog --project curatino",
     "deploy:auth": "npm run build:functions && firebase deploy --only functions:getUserInfo,functions:checkNicknameAvailability,functions:claimNickname,functions:onUserCreated --project curatino",

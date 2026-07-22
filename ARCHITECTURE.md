@@ -671,8 +671,6 @@ Deploy: `firebase deploy --only firestore:indexes` (configurado em `firestore.in
 
 **Motivo:** Um único email pode conter múltiplas intimações. A query de deduplicação (`getByEmailIdAndProcessNumber`) usa `emailId + processNumber` e precisa deste índice. **Um mesmo processo pode aparecer várias vezes no mesmo e-mail** (publicações/documentos diferentes) — por isso a query retorna **todos** os candidatos e o `CreateOrUpdatePushUseCase` desempata por uma `notificationKey` por intimação (URL do documento; na falta dela, composição de `court`/`processSubject`/`activeParty`/data). Assim cada intimação vira um push próprio, mantendo a idempotência no reprocessamento.
 
-Crie no Firebase Console → Firestore → Índices.
-
 **Cloud Function:** `gmailPush` (Pub/Sub trigger) processa notificações do Gmail, extrai dados via parsers específicos por formato e cria registros de Push. Um único e-mail pode conter várias intimações (uma por processo) — cada parser retorna um array e a Cloud Function cria um Push por item.
 
 **Pipeline de extração (`functions/src/data/services/`):**
@@ -2468,28 +2466,34 @@ Não documente as regras neste arquivo — a fonte de verdade é `storage.rules`
 
 **Os índices compostos ficam em `firestore.indexes.json` (raiz do projeto).**
 
-Deploy: `firebase deploy --only firestore:indexes`
+Deploy: `npm run deploy:indexes`
 
-**Referência dos índices atuais:**
+Toda query nova que combine `where` com `orderBy` em campos diferentes exige uma entrada nesse arquivo — **nunca** crie o índice pelo link de erro do console sem registrá-lo lá, porque o próximo `deploy --only firestore:indexes` o apagaria. O caminho inverso vale igual: ao remover a última query que usa um índice, remova a entrada e faça o deploy, para não pagar escrita por índice morto.
 
-| Coleção | Campos | Direção |
+Um índice composto `(campo ASC, ordenação ASC)` também atende à mesma query com ordenação DESC — o Firestore percorre o índice ao contrário. Só é preciso um índice por *conjunto* de campos, não por direção.
+
+A tabela abaixo é **derivada** do `firestore.indexes.json` e existe só para registrar o "porquê" de cada índice. Em caso de divergência, o arquivo é a fonte de verdade.
+
+| Coleção | Campos | Query que o exige |
 |---|---|---|
-| `tenants/{id}/deadlines` | `tenantId` ASC, `dueDate` ASC | Para ordenar prazos por data |
-| `tenants/{id}/deadlines` | `status` ASC, `dueDate` ASC | Para filtrar prazos pendentes |
-| `tenants/{id}/financials` | `type` ASC, `dueDate` ASC | Para separar receitas/despesas |
-| `tenants/{id}/financials` | `personId` ASC, `dueDate` DESC | Para `getFinancialsByPerson` (cascata de exclusão de `Person`) |
-| `tenants/{id}/cases` | `status` ASC, `createdAt` DESC | Para listar processos ativos |
-| `tenants/{id}/pushes` | `tenantId` ASC, `receivedAt` DESC | Para ordenar pushes por data de recebimento |
-| `tenants/{id}/pushes` | `status` ASC, `receivedAt` DESC | Para filtrar pushes por status |
-| `news` | `tenantId` ASC, `createdAt` DESC | Para listar notícias por escopo (sistema ou tenant) |
-| `members` (collectionGroup) | `userId` ASC | Para descobrir tenants de um usuário |
-| `gmailConnections` | `email` ASC, `tenantId` ASC | Para buscar conexões Gmail por email na Cloud Function |
-| `auditLogs` | `tenantId` ASC, `createdAt` DESC | Para listar auditoria por escritório, mais recente primeiro |
-| `auditLogs` | `tenantId` ASC, `severity` ASC, `createdAt` ASC | Para contar falhas CRITICAL não lidas (badge da Auditoria) |
-| `tenants/{id}/customRecords` | `screenKey` ASC, `createdAt` DESC | Para listar registros de cada tela dinâmica |
-| `tenants/{id}/workflow_definitions` | `eventName` ASC, `enabled` ASC | Para `findEnabledByEvent` — o gatilho do motor localiza workflows habilitados por evento |
-| `workflow_definitions` (collectionGroup) | `isPublic` ASC, `name` ASC | Para `subscribeToPublicWorkflowDefinitions` — busca workflows públicos de todos os tenants |
-| `tenants/{id}/workflow_executions` | `workflowDefinitionId` ASC, `startedAt` DESC | Para listar execuções de um workflow na aba "Execuções", mais recente primeiro |
+| `auditLogs` | `tenantId` ASC, `createdAt` DESC | `getPage` — auditoria por escritório, mais recente primeiro |
+| `auditLogs` | `tenantId` ASC, `severity` ASC, `createdAt` ASC | `countUnreadCritical` — badge de falhas CRITICAL não lidas |
+| `tenants/{id}/customRecords` | `screenKey` ASC, `createdAt` DESC | `getByScreen` — registros de cada tela dinâmica |
+| `tenants/{id}/deadlines` | `caseId` ASC, `dueDate` ASC | `getDeadlinesByCase` |
+| `tenants/{id}/financials` | `caseId` ASC, `dueDate` DESC | `getFinancialsByCase` |
+| `tenants/{id}/financials` | `personId` ASC, `dueDate` DESC | `getFinancialsByPerson` (cascata de exclusão de `Person`) |
+| `tenants/{id}/financials` | `type` ASC, `dueDate` ASC | `getFinancialsByType` (serve a ordenação DESC pelo percurso inverso) |
+| `news` | `tenantId` ASC, `createdAt` DESC | `getNews` / `subscribeToNews` — notícias por escopo (sistema ou tenant) |
+| `tenants/{id}/pushes` | `emailId` ASC, `processNumber` ASC | `getByEmailIdAndProcessNumber` — deduplicação de intimações |
+| `tenants/{id}/workflow_definitions` | `eventName` ASC, `enabled` ASC | `findEnabledByEvent` — o gatilho do motor localiza workflows por evento |
+| `tenants/{id}/workflow_executions` | `workflowDefinitionId` ASC, `startedAt` DESC | Aba "Execuções" de um workflow, mais recente primeiro |
+
+Além dos compostos, o arquivo declara dois `fieldOverrides`:
+
+| Coleção | Campo | Motivo |
+|---|---|---|
+| `auditLogs` | `expiresAt` | TTL — o Firestore expurga o log automaticamente na data |
+| `members` (collectionGroup) | `userId` ASC | `getTenantsForUser` consulta `collectionGroup('members')` para descobrir os escritórios do usuário |
 
 ---
 

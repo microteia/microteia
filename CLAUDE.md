@@ -184,6 +184,22 @@ Arquivos `.tsx` exportam **apenas** componentes React. Hooks e tipos ficam em `.
 
 ---
 
+## Firebase — regras e índices ficam em arquivo, nunca no Console
+
+Regras e índices são **código versionado**, referenciados pelo `firebase.json`:
+
+| Arquivo (raiz) | Conteúdo | Deploy |
+|---|---|---|
+| `firestore.rules` | Security Rules do Firestore | `npm run deploy:rules` |
+| `storage.rules` | Security Rules do Storage | `npm run deploy:rules` |
+| `firestore.indexes.json` | Índices compostos e `fieldOverrides` | `npm run deploy:indexes` |
+
+**Nunca** edite regras ou crie índices pelo Firebase Console — o próximo deploy sobrescreve a regra e **apaga** o índice não declarado. Criou índice pelo link de erro do console? Registre-o no `firestore.indexes.json` na mesma hora.
+
+O `ARCHITECTURE.md` **não** guarda cópia das regras; a tabela de índices que ele mantém é derivada do JSON e serve só para registrar o motivo de cada um — atualize as duas pontas.
+
+---
+
 ## Checklist antes de criar qualquer arquivo
 
 1. **Qual camada?** Verifique a hierarquia e que nenhum import a viola.
@@ -210,9 +226,9 @@ Arquivos `.tsx` exportam **apenas** componentes React. Hooks e tipos ficam em `.
 - [ ] `npx tsc -b --force` sem erros (ou `npm run typecheck`)
 - [ ] `npx eslint . --max-warnings 0` sem erros **nem warnings**
 - [ ] **Antes de commitar:** `version` incrementada em `package.json` + entrada nova no topo de `VERSIONS.md` (linguagem de usuário, diferente da mensagem de commit)
-- [ ] **Nova coleção Firestore ou permissão alterada:** atualizar "Firestore Security Rules — Conjunto Completo" no `ARCHITECTURE.md` e apresentar o bloco completo ao usuário para colar no Firebase Console
-- [ ] **Novo path no Storage:** atualizar "Firebase Storage Rules — Conjunto Completo" e apresentar o bloco
-- [ ] **Nova query Firestore:** `where` máximo + `orderBy` no servidor + `limit()` + índice composto documentado; coleções de crescimento ilimitado exigem paginação por cursor
+- [ ] **Nova coleção Firestore ou permissão alterada:** editar `firestore.rules` (raiz) e avisar que precisa de `npm run deploy:rules`
+- [ ] **Novo path no Storage:** editar `storage.rules` (raiz) e avisar que precisa de `npm run deploy:rules`
+- [ ] **Nova query Firestore:** `where` máximo + `orderBy` no servidor + `limit()` + índice em `firestore.indexes.json` (raiz) e na tabela do `ARCHITECTURE.md`, com aviso de `npm run deploy:indexes`; coleções de crescimento ilimitado exigem paginação por cursor
 - [ ] **Novo Store:** tem `visibilitychange`, emite evento em cada mutação e assina eventos dos stores de que depende
 - [ ] **Entidade com relação pai/filho:** `Delete[Entidade]UseCase` cascateia filhos; o método do Store atualiza estado local + emite os eventos corretos
 

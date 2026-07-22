@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [0.123.2] — 2026-07-22
+
+- Revisão dos índices do banco de dados: os que não eram mais usados por nenhuma tela foram retirados e os que faltavam foram acrescentados, deixando as consultas mais econômicas e evitando falhas em buscas por processo e por escritório.
+
 ## [0.123.1] — 2026-07-21
 
 - Os botões de "Marcar todos como lidos" e "Marcar todos como revisados" agora aparecem apenas quando há itens aplicáveis na lista filtrada, tornando a interface mais inteligente.
