@@ -1122,6 +1122,70 @@ npm run deploy
 
 **IMPORTANTE:** O script `deploy:[grupo]` já executa `npm run build:functions` automaticamente — nunca rode deploy sem compilar o TypeScript.
 
+**Todo comando acima vai para DESENVOLVIMENTO por padrão.** Ver "Dois ambientes" abaixo.
+
+---
+
+## Dois ambientes — `microteia-dev` e `curatino`
+
+| Alvo | Projeto Firebase | Quando |
+|---|---|---|
+| `dev` (padrão) | `microteia-dev` | Desenvolvimento e testes |
+| `prod` | `curatino` | Produção |
+
+### Um único seletor: `TARGET`
+
+`TARGET` escolhe **ao mesmo tempo** o projeto do Firebase (via alias do `.firebaserc`) e o modo do
+Vite — que decide qual arquivo de ambiente entra no bundle. Os dois andam juntos de propósito:
+separá-los permitiria publicar um bundle com credenciais de produção no hosting de desenvolvimento.
+
+```bash
+npm run dev                       # servidor local -> microteia-dev
+npm run deploy:workflow           # -> microteia-dev
+npm run deploy:rules              # -> microteia-dev
+
+TARGET=prod npm run deploy:workflow   # -> curatino
+npm run deploy:prod                   # atalho: deploy completo em curatino
+npm run deploy:hosting:prod           # atalho: hosting + functions em curatino
+```
+
+**O padrão é `dev`, não `prod`.** Um comando digitado sem pensar publica em desenvolvimento; chegar
+em produção exige dizer isso explicitamente. O `firebase` imprime o projeto de destino no início de
+todo deploy — é a confirmação visual antes de qualquer escrita.
+
+### Arquivos de ambiente — não existe `.env` comum
+
+| Arquivo | Ambiente | No git |
+|---|---|---|
+| `.env.dev` | microteia-dev | não |
+| `.env.prod` | curatino | não |
+| `.env.example` | modelo | sim |
+| `functions/.env.microteia-dev` | microteia-dev | não |
+| `functions/.env.curatino` | curatino | não |
+
+O `.env` da raiz foi **removido de propósito**. O Vite o usaria como fallback de qualquer modo, e
+uma variável esquecida no `.env.dev` cairia calada na configuração de produção — o pior erro
+possível aqui, porque o app de desenvolvimento passaria a escrever no banco real. Sem fallback, a
+falta de qualquer chave estoura em `infrastructure/firebase/config.ts` com o nome do que faltou e
+do arquivo a corrigir.
+
+No backend o mecanismo é nativo: o `firebase-functions` carrega sozinho o `.env.<projectId>` do
+projeto alvo, então não há nada a configurar além de manter os dois arquivos preenchidos.
+
+### Ao criar o ambiente de dev do zero
+
+```bash
+npx firebase apps:sdkconfig web --project dev   # preenche .env.dev
+npm run deploy:rules                            # regras do Firestore e do Storage
+npm run deploy:indexes                          # índices compostos
+npm run deploy:functions                        # todas as functions
+```
+
+Regras, índices e código são os mesmos arquivos versionados dos dois lados — só o projeto de
+destino muda. O que **não** é replicado: dados, usuários e as credenciais OAuth do Google (o
+`VITE_GOOGLE_CLIENT_ID` e o `GOOGLE_CLIENT_SECRET` precisam ser criados no Console do Google Cloud
+do projeto de dev; usar os de produção faria o desenvolvimento ler caixas de e-mail reais).
+
 ### Checklist ao Criar Cloud Function
 
 - [ ] Handler criado em `functions/src/infrastructure/handlers/`

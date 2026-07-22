@@ -26,7 +26,9 @@ dist-ssr
 # Environment variables (never commit!)
 .env
 .env.local
-.env.*.local
+.env.*
+!.env.example
+!.env.*.example
 .firebase/
 
 # Claude Code

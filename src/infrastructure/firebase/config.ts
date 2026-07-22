@@ -21,6 +21,20 @@ const firebaseConfig = {
   measurementId: import.meta.env.VITE_CURATINO_MEASUREMENT_ID,
 };
 
+// Falha na hora se o arquivo do ambiente estiver incompleto. Sem isto, o Firebase inicializa
+// pela metade e o erro só aparece na primeira consulta — ou, pior, num projeto que não é o
+// pretendido. Por isso também não existe um `.env` comum servindo de fallback entre dev e prod.
+const missingKeys = Object.entries(firebaseConfig)
+  .filter(([, value]) => !value)
+  .map(([key]) => key);
+
+if (missingKeys.length > 0) {
+  throw new Error(
+    `Configuração do Firebase incompleta (${missingKeys.join(', ')}). ` +
+    `Verifique o arquivo .env.${import.meta.env.MODE} na raiz do projeto — veja .env.example.`,
+  );
+}
+
 const app: FirebaseApp = initializeApp(firebaseConfig);
 export const auth: Auth = getAuth(app);
 export const db: Firestore = getFirestore(app);

@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [0.124.2] — 2026-07-22
+
+- Passamos a manter um ambiente de testes separado do ambiente real do escritório, para que novidades sejam validadas com segurança antes de chegar ao seu dia a dia. Nada muda no uso do sistema.
+
 ## [0.124.1] — 2026-07-22
 
 - Os passos e as funções disponíveis nas Automações passaram a ser organizados como módulos independentes, preparando o terreno para que novos passos possam ser adicionados ao escritório sem atualizar o sistema inteiro. Todos os passos e funções existentes continuam disponíveis, com o mesmo comportamento.

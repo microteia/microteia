@@ -1,5 +1,7 @@
 {
   "projects": {
-    "default": "curatino"
+    "default": "microteia-dev",
+    "dev": "microteia-dev",
+    "prod": "curatino"
   }
 }

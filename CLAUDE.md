@@ -184,6 +184,22 @@ Arquivos `.tsx` exportam **apenas** componentes React. Hooks e tipos ficam em `.
 
 ---
 
+## Ambientes — dev por padrão, produção só explicitamente
+
+Dois projetos Firebase: `microteia-dev` (desenvolvimento) e `curatino` (produção). O seletor é a
+variável `TARGET`, que escolhe ao mesmo tempo o projeto e o arquivo de ambiente do bundle.
+
+```bash
+npm run deploy:workflow              # -> microteia-dev (padrão)
+TARGET=prod npm run deploy:workflow  # -> curatino
+```
+
+**Nunca** publique em produção sem que o comando diga `TARGET=prod` (ou use `npm run deploy:prod`).
+Não existe `.env` comum na raiz: cada ambiente tem o seu (`.env.dev`, `.env.prod`), justamente para
+que uma variável faltando estoure em vez de cair calada na configuração do outro projeto.
+
+---
+
 ## Firebase — regras e índices ficam em arquivo, nunca no Console
 
 Regras e índices são **código versionado**, referenciados pelo `firebase.json`:
