@@ -11,6 +11,11 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [0.124.0] — 2026-07-22
+
+- O Curatino agora carrega cada tela sob demanda, no momento em que você a abre. O sistema abre bem mais rápido no primeiro acesso do dia, especialmente em conexões lentas.
+- Toda a estrutura de telas, menu e busca rápida (⌘K) passou a funcionar como módulos independentes — a base que permitirá, em breve, instalar novos recursos no escritório sem atualizar o sistema inteiro. Nenhuma tela, atalho ou item de menu mudou de lugar.
+
 ## [0.123.4] — 2026-07-22
 
 - Continuação da preparação para as extensões do Curatino: o sistema já sabe reconhecer, conferir e organizar os recursos que serão instalados, recusando com uma explicação clara qualquer extensão incompatível — sem afetar as demais. Nada muda no uso do dia a dia por enquanto.

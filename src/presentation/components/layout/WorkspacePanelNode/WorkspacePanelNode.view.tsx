@@ -2,7 +2,8 @@ import React from 'react';
 import { RiLayoutGridLine } from 'react-icons/ri';
 import { useWorkspace } from '../../../../stores/useWorkspace';
 import type { PanelNode, PanelSplit } from '../../../../stores/useWorkspace';
-import { getPageByKey } from '../../../pages/pageRegistry';
+import { Spinner } from '../../ui/Spinner';
+import { useResolvePage } from '../../../shared/useUiContributions';
 import { TabBar } from '../TabBar';
 import { useSplitResizerViewModel } from './WorkspacePanelNode.viewmodel';
 import { S } from './WorkspacePanelNode.styles';
@@ -18,17 +19,18 @@ export const WorkspacePanelNode: React.FC<WorkspacePanelNodeProps> = ({ node }) 
 
 const PanelLeaf: React.FC<{ panelId: string }> = ({ panelId }) => {
   const { panels, activePanelId, setActivePanelId } = useWorkspace();
+  const resolvePage = useResolvePage();
   const panel = panels[panelId];
   const hasMultiplePanels = Object.keys(panels).length > 1;
   const isActive = hasMultiplePanels && activePanelId === panelId;
   const activeKey = panel?.activeTabKey ?? null;
   const tabKeys = panel?.tabKeys ?? [];
-  const activePage = activeKey ? getPageByKey(activeKey) : undefined;
+  const activePage = activeKey ? resolvePage(activeKey) : undefined;
 
   return (
     <S.PanelLeaf onClick={() => !isActive && setActivePanelId(panelId)}>
       <TabBar panelId={panelId} />
-      <S.PanelContent $noPadding={activePage?.fullBleed}>
+      <S.PanelContent $noPadding={activePage?.metadata.fullBleed}>
         {tabKeys.length === 0 ? (
           <S.EmptyPanel>
             <S.EmptyIcon><RiLayoutGridLine /></S.EmptyIcon>
@@ -36,12 +38,13 @@ const PanelLeaf: React.FC<{ panelId: string }> = ({ panelId }) => {
           </S.EmptyPanel>
         ) : (
           tabKeys.map((tabKey) => {
-            const pageDef = getPageByKey(tabKey);
-            const PageComponent = pageDef?.component;
+            const PageComponent = resolvePage(tabKey)?.Component;
             if (!PageComponent) return null;
             return (
               <S.TabPane key={tabKey} $active={tabKey === activeKey}>
-                <PageComponent tabKey={tabKey} />
+                <React.Suspense fallback={<S.PageLoading><Spinner /></S.PageLoading>}>
+                  <PageComponent tabKey={tabKey} />
+                </React.Suspense>
               </S.TabPane>
             );
           })

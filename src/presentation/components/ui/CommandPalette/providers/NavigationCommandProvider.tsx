@@ -1,6 +1,5 @@
-import React from 'react';
 import type { ICommandPaletteProvider, CommandPaletteAppContext, CommandPaletteItem } from './ICommandPaletteProvider';
-import { PAGE_REGISTRY } from '../../../../pages/pageRegistry';
+import { getScreenIcon } from '../../../../shared/screenIcons';
 
 const contains = (text: string, query: string) =>
   text.toLowerCase().includes(query.toLowerCase());
@@ -8,28 +7,19 @@ const contains = (text: string, query: string) =>
 export const NavigationCommandProvider: ICommandPaletteProvider = {
   group: 'Navegação',
 
-  getItems(query: string, { openTab, close, userRole }: CommandPaletteAppContext): CommandPaletteItem[] {
-    const navigable = PAGE_REGISTRY.filter((p) => {
-      if (!p.key || p.keyPrefix) return false;
-      if (p.requiredRole && userRole !== p.requiredRole && userRole !== 'SYSTEM') return false;
-      return true;
-    });
-
+  getItems(query: string, { openTab, close, navigablePages }: CommandPaletteAppContext): CommandPaletteItem[] {
     const filtered = query
-      ? navigable.filter((p) => {
-          const title = typeof p.title === 'string' ? p.title : p.title('');
-          return contains(title, query) || contains(p.key, query);
-        })
-      : navigable;
+      ? navigablePages.filter((page) => contains(page.title, query) || contains(page.key, query))
+      : navigablePages;
 
-    return filtered.map((p) => ({
-      id: `nav:${p.key}`,
-      title: typeof p.title === 'string' ? p.title : p.title(''),
+    return filtered.map((page) => ({
+      id: `nav:${page.key}`,
+      title: page.title,
       group: 'Navegação',
-      icon: p.icon as React.ReactNode,
-      keywords: [p.key],
+      icon: getScreenIcon(page.icon, 20),
+      keywords: [page.key],
       onSelect: () => {
-        openTab(p.key);
+        openTab(page.key);
         close();
       },
     }));

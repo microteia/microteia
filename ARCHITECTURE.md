@@ -2344,8 +2344,8 @@ Camada que transforma o Curatino de um sistema configurável em uma **plataforma
 modelo do AppExchange/Odoo: toda funcionalidade — inclusive as que hoje moram no núcleo — chega por
 **contribuição declarada em um Manifest**, e o Kernel nunca conhece um plugin pelo nome.
 
-> **Status:** Etapas 0 (contratos) e 1 (runtime) concluídas. Ainda **nenhum plugin existe** — o
-> núcleo atual migra para *core plugins* na Etapa 2. Ver "Etapas" ao final desta seção.
+> **Status:** Etapas 0 (contratos), 1 (runtime) e 2 (dogfood da UI) concluídas. Toda a interface do
+> Curatino já chega por contribuição de plugin. Ver "Etapas" ao final desta seção.
 
 ### Os dez princípios
 
@@ -2490,6 +2490,48 @@ exporta o Context, os tipos e os hooks `useKernel`, `useContributions`, `useCont
 **referência estável** entre renders (a memoização do `ContributionRegistry`), então usar o
 resultado em dependência de `useMemo`/`useEffect` não causa loop.
 
+### A UI como contribuição — `plugins/` (Etapa 2)
+
+Não existe mais `pageRegistry.tsx` nem `CommandPaletteRegistry.ts`. Telas, itens de menu e
+provedores do ⌘K são **contribuições** de 12 plugins internos.
+
+| Ponto | Metadata | `impl` |
+|---|---|---|
+| `ui.page` | `key`, `keyPrefix`, `title`, `icon`, `fullBleed`, `requiredRole` | `code` (lazy) ou `widget` |
+| `ui.nav` | `key`, `label`, `icon`, `order`, `requiresTenantAdmin` | nenhuma |
+| `ui.command` | `group` | `code` |
+
+Contratos em `presentation/shared/uiExtensionPoints.ts` — **terreno neutro de propósito**: plugin
+não importa outro plugin, e tanto os plugins quanto o shell dependem só dessa definição.
+
+**`icon` é uma chave de `screenIcons`, nunca um componente.** Foi o que manteve a metadata
+serializável (requisito para viajar até o Marketplace) e consolidou os ícones das telas fixas no
+mesmo conjunto curado que as telas dinâmicas já usavam.
+
+**Composition root:** `plugins/index.ts` é o único arquivo do app que conhece a lista de plugins.
+Remover uma linha dali remove a tela, o item de menu e os comandos daquele módulo.
+
+**Ordem do menu é `metadata.order`, não a ordem das contribuições.** As telas dinâmicas do
+escritório entram com `DYNAMIC_SCREEN_NAV_ORDER = 100`, entre os cadastros (10..90) e a
+administração (110+) — substituindo o `splice` que antes procurava o índice de `tenant-settings`.
+
+**Resolução de aba** (`presentation/shared/resolveUiContributions.ts`, função pura e testada):
+chave exata primeiro, depois **o prefixo mais longo**. O critério de comprimento é o que faz
+`new-person:clone:abc` cair em `new-person:clone:` e não em `new-person:` — sem ele, o vencedor
+dependeria da ordem de registro.
+
+**Id de contribuição de tela paramétrica leva o sufixo `-prefix`.** O slug de `tenant-settings:`
+seria idêntico ao de `tenant-settings`, e a segunda contribuição era descartada como duplicada —
+com a tela sumindo em silêncio. Quem pegou foi o teste de paridade.
+
+### Carregamento sob demanda
+
+Toda `impl` de tela é um `React.lazy` (`lazyView` em `plugins/contributionBuilders.ts`), e o
+`WorkspacePanelNode` envolve a tela num `Suspense`. Isso não é só otimização: um manifest precisa
+poder ser **lido sem arrastar o código da tela junto**, senão o Marketplace com centenas de plugins
+carregaria tudo no boot. Efeito medido no bundle principal: **3,39 MB → 1,15 MB** (327 KB gzip),
+com os chunks passando de 96 para 180.
+
 ### Guarda de acoplamento no ESLint
 
 `eslint.config.js` tem duas zonas `no-restricted-imports` que reprovam o build:
@@ -2511,7 +2553,7 @@ não dispara é pior que guarda nenhuma.
 |---|---|
 | 0 ✅ | Contratos em `domain/schema/plugin/`, guarda no ESLint, sincronização |
 | 1 ✅ | Runtime: os quatro registries, `PluginHost` e o binding React |
-| 2 | Dogfood da UI: páginas (com `React.lazy`), navegação, ⌘K, ícones, temas |
+| 2 ✅ | Dogfood da UI: telas (lazy), navegação e ⌘K como contribuições de 12 core plugins |
 | 3 | Dogfood da automação: Steps, funções de expressão, catálogo de eventos |
 | 4 | Dogfood do domínio: `ENTITY_REGISTRY`, `LOOKUP_REGISTRY`, `DIContainer`, capabilities |
 | 5 | Ciclo de vida: instalar/ativar/desativar/atualizar/remover, permissões no sandbox |

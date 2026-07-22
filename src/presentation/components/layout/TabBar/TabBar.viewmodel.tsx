@@ -2,7 +2,7 @@ import { useState, useCallback, useEffect, useMemo } from 'react';
 import { useWorkspace } from '../../../../stores/useWorkspace';
 import type { SplitDirection } from '../../../../stores/useWorkspace';
 import { useScreenDefinitions } from '../../../../stores/useScreenDefinitions';
-import { getPageByKey } from '../../../pages/pageRegistry';
+import { useResolvePage } from '../../../shared/useUiContributions';
 import { parseDynamicTabKey } from '../../../../shared/constants/dynamicScreenKeys';
 import { getScreenIcon } from '../../../shared/screenIcons';
 
@@ -37,6 +37,7 @@ export interface TabBarViewModel {
 export const useTabBarViewModel = ({ panelId }: TabBarProps): TabBarViewModel => {
   const { panels, activePanelId, tabTitleOverrides, activateTab, closeTab, closeOtherTabs, closePanel, splitPanel } = useWorkspace();
   const { definitions } = useScreenDefinitions();
+  const resolvePage = useResolvePage();
   const panel = panels[panelId];
   const hasMultiplePanels = Object.keys(panels).length > 1;
   const isPanelActive = hasMultiplePanels && activePanelId === panelId;
@@ -46,12 +47,15 @@ export const useTabBarViewModel = ({ panelId }: TabBarProps): TabBarViewModel =>
   });
 
   const tabs = (panel?.tabKeys ?? []).map(key => {
-    const def = getPageByKey(key);
-    const registryTitle = typeof def?.title === 'function' ? def.title(key) : (def?.title ?? key);
-    const title = tabTitleOverrides[key] ?? registryTitle;
+    const resolved = resolvePage(key);
+    const title = tabTitleOverrides[key] ?? resolved?.metadata.title ?? key;
     const dynamicInfo = parseDynamicTabKey(key);
     const dynamicScreen = dynamicInfo ? definitions.find((d) => d.id === dynamicInfo.screenKey) : undefined;
-    const icon = dynamicScreen ? getScreenIcon(dynamicScreen.icon, 20) : (def?.icon ?? null);
+    const icon = dynamicScreen
+      ? getScreenIcon(dynamicScreen.icon, 20)
+      : resolved
+        ? getScreenIcon(resolved.metadata.icon, 20)
+        : null;
     return {
       key,
       title,

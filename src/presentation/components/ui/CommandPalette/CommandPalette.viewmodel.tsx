@@ -12,7 +12,8 @@ import { useWorkflowStore } from '../../../../stores/useWorkflowStore';
 import { useTheme } from '../../../../stores/useTheme';
 import { useAuth } from '../../../../stores/useAuth';
 import { useTenant } from '../../../../stores/useTenant';
-import { COMMAND_PALETTE_PROVIDERS } from './providers/CommandPaletteRegistry';
+import { useCommandProviders, usePageContributions } from '../../../shared/useUiContributions';
+import { navigablePages as selectNavigablePages } from '../../../shared/resolveUiContributions';
 import type { CommandPaletteItem } from './providers/ICommandPaletteProvider';
 
 export interface CommandPaletteGroup {
@@ -45,6 +46,13 @@ export const useCommandPaletteViewModel = (): CommandPaletteViewModel => {
   const { mode, setTheme } = useTheme();
   const { signOut, userRole } = useAuth();
   const { tenantRole } = useTenant();
+  const providers = useCommandProviders();
+  const pageContributions = usePageContributions();
+
+  const navigablePages = useMemo(
+    () => selectNavigablePages(pageContributions, userRole),
+    [pageContributions, userRole],
+  );
 
   const [query, setQuery] = useState('');
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -71,20 +79,21 @@ export const useCommandPaletteViewModel = (): CommandPaletteViewModel => {
       signOut,
       userRole,
       tenantRole,
+      navigablePages,
     }),
-    [openTab, close, news, persons, cases, contracts, financials, customRecords, screenDefinitions, workflows, mode, setTheme, signOut, userRole, tenantRole],
+    [openTab, close, news, persons, cases, contracts, financials, customRecords, screenDefinitions, workflows, mode, setTheme, signOut, userRole, tenantRole, navigablePages],
   );
 
   const groups = useMemo<CommandPaletteGroup[]>(() => {
     const result: CommandPaletteGroup[] = [];
-    for (const provider of COMMAND_PALETTE_PROVIDERS) {
+    for (const provider of providers) {
       const items = provider.getItems(query, appContext);
       if (items.length > 0) {
         result.push({ name: provider.group, items });
       }
     }
     return result;
-  }, [query, appContext]);
+  }, [query, appContext, providers]);
 
   const allItems = useMemo(() => groups.flatMap((g) => g.items), [groups]);
 

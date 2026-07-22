@@ -2,6 +2,7 @@ import type React from 'react';
 import type { News, Person, Case, Contract, Financial, CustomRecord, ScreenDefinition, TenantRole, UserRole } from '../../../../../domain/entities';
 import type { WorkflowDefinition } from '../../../../../domain/entities/Workflow';
 import type { ThemeMode } from '../../../../../shared/types';
+import type { UiPageMetadata } from '../../../../shared/uiExtensionPoints';
 
 export interface CommandPaletteItem {
   id: string;
@@ -29,6 +30,8 @@ export interface CommandPaletteAppContext {
   signOut: () => Promise<void>;
   userRole: UserRole | null;
   tenantRole: TenantRole | null;
+  /** Telas abríveis, já filtradas por papel — vêm das contribuições `ui.page` dos plugins. */
+  navigablePages: UiPageMetadata[];
 }
 
 export interface ICommandPaletteProvider {

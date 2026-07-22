@@ -27,6 +27,14 @@ export const S = {
     display: ${({ $active }) => ($active ? 'contents' : 'none')};
   `,
 
+  PageLoading: styled.div`
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    padding: ${({ theme }) => theme.spacing.xl};
+  `,
+
   EmptyPanel: styled.div`
     display: flex;
     flex-direction: column;

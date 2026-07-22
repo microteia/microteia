@@ -1,6 +1,8 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { DIProvider } from './infrastructure/di/DIContainer';
+import { KernelProvider } from './stores/KernelContext';
+import { CORE_PLUGINS } from './plugins';
 import { ThemeProvider } from './stores/ThemeContext';
 import { AuthProvider } from './stores/AuthContext';
 import { TenantStoreProvider } from './stores/TenantStore';
@@ -51,6 +53,7 @@ import { AppErrorBoundary } from './presentation/components/layout/AppErrorBound
 
 const App: React.FC = () => {
   return (
+    <KernelProvider records={CORE_PLUGINS}>
     <DIProvider>
       <ThemeProvider>
         <AuthProvider>
@@ -149,6 +152,7 @@ const App: React.FC = () => {
         </AuthProvider>
       </ThemeProvider>
     </DIProvider>
+    </KernelProvider>
   );
 };
 

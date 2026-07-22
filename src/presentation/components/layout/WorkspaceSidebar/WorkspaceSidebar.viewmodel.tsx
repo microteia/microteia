@@ -1,17 +1,4 @@
 import { useState, useCallback, useMemo } from 'react';
-import {
-  RiDashboardLine,
-  RiCalendar2Line,
-  RiTimeLine,
-  RiTeamLine,
-  RiFolderLine,
-  RiFileTextLine,
-  RiMoneyDollarCircleLine,
-  RiNewspaperLine,
-  RiBuilding2Line,
-  RiInboxLine,
-  RiHistoryLine,
-} from 'react-icons/ri';
 import { useWorkspace } from '../../../../stores/useWorkspace';
 import { useAuth } from '../../../../stores/useAuth';
 import { useTenant } from '../../../../stores/useTenant';
@@ -21,6 +8,9 @@ import { useNewsInteraction } from '../../../../stores/useNewsInteraction';
 import { useScreenDefinitions } from '../../../../stores/useScreenDefinitions';
 import { buildListTabKey } from '../../../../shared/constants/dynamicScreenKeys';
 import { getScreenIcon } from '../../../shared/screenIcons';
+import { useNavContributions } from '../../../shared/useUiContributions';
+import { visibleNavItems } from '../../../shared/resolveUiContributions';
+import { DYNAMIC_SCREEN_NAV_ORDER } from '../../../shared/uiExtensionPoints';
 import { usePushInteraction } from '../../../../stores/usePushInteraction';
 import { useAuditLogAlert } from '../../../../stores/useAuditLogAlert';
 import type { User } from '../../../../domain/entities';
@@ -39,20 +29,6 @@ export interface ThemeOption {
   primaryColor: string;
   bgColor: string;
 }
-
-const NAV_ITEMS: NavItem[] = [
-  { key: 'dashboard',       label: 'Dashboard',           icon: <RiDashboardLine />          },
-  { key: 'calendar',        label: 'Calendário',          icon: <RiCalendar2Line />          },
-  { key: 'persons',         label: 'Pessoas',             icon: <RiTeamLine />               },
-  { key: 'cases',           label: 'Processos',           icon: <RiFolderLine />             },
-  { key: 'contracts',       label: 'Contratos',           icon: <RiFileTextLine />           },
-  { key: 'deadlines',       label: 'Prazos',              icon: <RiTimeLine />               },
-  { key: 'financials',      label: 'Financeiro',          icon: <RiMoneyDollarCircleLine />  },
-  { key: 'pushes',          label: 'Pushes do Tribunal',  icon: <RiInboxLine />              },
-  { key: 'news',            label: 'Notícias',            icon: <RiNewspaperLine />          },
-  { key: 'tenant-settings', label: 'Escritório',          icon: <RiBuilding2Line />          },
-  { key: 'audit-logs',      label: 'Auditoria',           icon: <RiHistoryLine />, requiresTenantAdmin: true },
-];
 
 const THEME_OPTIONS: ThemeOption[] = [
   { mode: 'curatino', label: 'Curatino',  primaryColor: '#F56B3A', bgColor: '#141414' },
@@ -115,6 +91,7 @@ export const useWorkspaceSidebarViewModel = (): WorkspaceSidebarViewModel => {
   const { unreadCount: unreadPushCount } = usePushInteraction();
   const { unreadCriticalCount: unreadCriticalAuditCount } = useAuditLogAlert();
   const { sidebarScreens } = useScreenDefinitions();
+  const navContributions = useNavContributions();
 
   const searchShortcut = /Mac|iPhone|iPod|iPad/.test(navigator.platform) ? '⌘K' : 'Ctrl K';
 
@@ -124,17 +101,22 @@ export const useWorkspaceSidebarViewModel = (): WorkspaceSidebarViewModel => {
   const canAccessDataProcessor = isAdmin || tenantRole === 'admin' || tenantRole === 'lawyer';
 
   const navItems = useMemo(() => {
-    const base = NAV_ITEMS.filter((item) => !item.requiresTenantAdmin || isAdmin || tenantRole === 'admin');
-    const dynamicItems: NavItem[] = sidebarScreens.map((def) => ({
+    const contributed = visibleNavItems(navContributions, {
+      isSystemAdmin: isAdmin,
+      isTenantAdmin: tenantRole === 'admin',
+    }).map((item) => ({ key: item.key, label: item.label, icon: getScreenIcon(item.icon, 20), order: item.order }));
+
+    const dynamicItems = sidebarScreens.map((def) => ({
       key: buildListTabKey(def.id),
       label: def.titlePlural,
       icon: getScreenIcon(def.icon, 18),
+      order: DYNAMIC_SCREEN_NAV_ORDER,
     }));
-    if (dynamicItems.length === 0) return base;
-    const settingsIndex = base.findIndex((item) => item.key === 'tenant-settings');
-    if (settingsIndex === -1) return [...base, ...dynamicItems];
-    return [...base.slice(0, settingsIndex), ...dynamicItems, ...base.slice(settingsIndex)];
-  }, [isAdmin, tenantRole, sidebarScreens]);
+
+    return [...contributed, ...dynamicItems]
+      .sort((a, b) => a.order - b.order)
+      .map(({ key, label, icon }): NavItem => ({ key, label, icon }));
+  }, [navContributions, isAdmin, tenantRole, sidebarScreens]);
 
   const toggleCollapse = useCallback(() => setCollapsed(c => !c), []);
 
