@@ -2643,6 +2643,29 @@ verdades. O manifest declara só o que o Kernel precisa para raciocinar sem carr
 O `WorkflowExecutor`, o `StepRegistry` e os handlers de catálogo **não mudaram**: o `stepRegistry`
 continua sendo o índice que o executor consulta; o que virou orientado a dados foi quem o popula.
 
+### Ciclo de vida de instalação (Etapa 5 — spine)
+
+Quando um plugin do Marketplace for instalado num escritório, o registro fica em
+`tenants/{tid}/plugin_installations/{pluginId}`: `version`, `enabled`, `config`,
+`grantedPermissions`, `installedAt/By`. Regra: membro lê (o app precisa saber o que está ativo),
+só admin instala/atualiza/remove.
+
+**A lógica de negócio é pura e isolada** em `domain/services/pluginLifecycle.ts`: `planInstall`,
+`planEnable`, `planDisable`, `planUpgrade`, `planUninstall` recebem o estado atual e devolvem o
+próximo estado **ou** um erro tipado (`already-installed`, `not-installed`, `not-newer-version`,
+`invalid-version`) — nunca lançam, nunca tocam I/O. Regras cobertas: idempotência (ativar o que já
+está ativo é no-op, não erro), upgrade só para frente (recusa versão igual/anterior, comparada por
+semver), install só do que não existe.
+
+Os use cases (`usecases/plugins/PluginLifecycleUseCases.ts`, padrão factory) orquestram o
+repositório em volta dessas funções: leem o estado, aplicam a regra, persistem só se aprovada.
+
+**Esta é a Etapa 5 em sua forma spine.** O que depende de existir plugin instalável — a tela de
+Plugins (admin), o enforçamento de permissão por plugin no sandbox QuickJS e a marcação
+`ownerPluginId`/`managed` dos artefatos com varredura na desinstalação — fica para a Etapa 7, quando
+o Marketplace fornece o conteúdo. O `UninstallPluginUseCase` já reserva o lugar da cascata de
+artefatos, hoje um no-op documentado.
+
 ### Entidades e lookups como contribuições (Etapa 4b)
 
 `EntityKey` deixou de ser união fechada e virou `string` — o conjunto de entidades é **dado**, não
@@ -2745,7 +2768,7 @@ não dispara é pior que guarda nenhuma.
 | 4a ✅ | Capabilities: os 5 provedores de IA saem do container e viram contribuições |
 | 4b ✅ | `EntityKey` aberto; entidades e lookups como contribuições `data.entity`/`data.lookup` |
 | 4c ✅ | Ponto `data.service`: plugin injeta serviço no DI do frontend, container tipado intacto |
-| 5 | Ciclo de vida: instalar/ativar/desativar/atualizar/remover, permissões no sandbox |
+| 5 ◑ | Ciclo de vida (spine): `PluginInstallation` + use cases testados + rules. UI/enforçamento na 7 |
 | 6 | Widget DSL: slots e renderizador declarativo |
 | 7 | Marketplace: `plugin_registry`, publicação e instalação |
 

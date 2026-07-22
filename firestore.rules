@@ -517,6 +517,13 @@ service cloud.firestore {
         allow create, update, delete: if isTenantAdmin(tenantId);
       }
 
+      // Plugins instalados no escritório (Marketplace). Todo membro lê — o app precisa saber
+      // quais extensões estão ativas para montar contribuições; só admin instala/atualiza/remove.
+      match /plugin_installations/{pluginId} {
+        allow read: if isMember(tenantId);
+        allow create, update, delete: if isTenantAdmin(tenantId);
+      }
+
       // Event Bus do motor — qualquer membro com escrita pode publicar um evento;
       // coleção append-only, ninguém lê/edita/exclui pelo client (só a Cloud Function
       // onWorkflowEventCreated, via Admin SDK, que ignora estas regras).

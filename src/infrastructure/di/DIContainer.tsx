@@ -58,6 +58,7 @@ import { FirebaseWorkflowExecutionRepository } from '../../data/repositories/Fir
 import { FirebaseScriptRepository } from '../../data/repositories/FirebaseScriptRepository';
 import { FirebaseDataProcessorRepository } from '../../data/repositories/FirebaseDataProcessorRepository';
 import { FirebaseActionRepository } from '../../data/repositories/FirebaseActionRepository';
+import { FirebasePluginInstallationRepository } from '../../data/repositories/FirebasePluginInstallationRepository';
 import { ViaCepLookupService } from '../../data/services/ViaCepLookupService';
 import { DIContext } from './useDI';
 import type { DIContainer } from './useDI';
@@ -126,6 +127,7 @@ export const DIProvider: React.FC<{ children: React.ReactNode }> = ({ children }
     scriptRepository:         new FirebaseScriptRepository(),
     dataProcessorRepository:  new FirebaseDataProcessorRepository(),
     actionRepository:         new FirebaseActionRepository(),
+    pluginInstallationRepository: new FirebasePluginInstallationRepository(),
     externalLookupServices:   [new ViaCepLookupService()],
   }), [host]);
 

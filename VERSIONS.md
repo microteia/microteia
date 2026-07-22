@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [0.126.0] — 2026-07-22
+
+- Base para o futuro catálogo de extensões do Curatino: o sistema já sabe registrar quais extensões um escritório instalou, ativou ou removeu. Ainda não há extensões para instalar — isso vem a seguir. Nenhuma mudança visível no uso.
+
 ## [0.125.2] — 2026-07-22
 
 - Preparação técnica para que futuras extensões possam adicionar integrações próprias ao sistema. Nenhuma mudança visível no uso.
