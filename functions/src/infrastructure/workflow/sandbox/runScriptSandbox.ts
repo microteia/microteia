@@ -1,6 +1,6 @@
 import { getQuickJS, shouldInterruptAfterDeadline } from 'quickjs-emscripten';
 import type { QuickJSWASMModule, QuickJSContext, QuickJSHandle, QuickJSDeferredPromise } from 'quickjs-emscripten';
-import { expressionFunctions } from '../../../domain/engine/expression/ExpressionEngine';
+import { loadedExpressionFunctions } from '../../../domain/engine/expression/ExpressionEngine';
 import type { WorkflowContext } from '../../../domain/entities/WorkflowContext';
 import type { QueryOperator, QueryOrderBy, QueryPredicate, QuerySpec } from '../../../domain/schema/querySpec';
 import { runWorkflowQuery } from '../query/runWorkflowQuery';
@@ -311,8 +311,9 @@ export async function runScriptSandbox(
     );
 
     const fnObject = vm.newObject();
-    for (const definition of expressionFunctions.getAllDefinitions()) {
-      const implementation = expressionFunctions.resolve(definition.name);
+    const registry = loadedExpressionFunctions();
+    for (const definition of registry.getAllDefinitions()) {
+      const implementation = registry.resolve(definition.name);
       if (!implementation) continue;
       const fnHandle = vm.newFunction(definition.name, (...argHandles) => {
         const args = argHandles.map(vmValueToHost);

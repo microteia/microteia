@@ -2344,8 +2344,10 @@ Camada que transforma o Curatino de um sistema configurável em uma **plataforma
 modelo do AppExchange/Odoo: toda funcionalidade — inclusive as que hoje moram no núcleo — chega por
 **contribuição declarada em um Manifest**, e o Kernel nunca conhece um plugin pelo nome.
 
-> **Status:** Etapas 0 (contratos), 1 (runtime) e 2 (dogfood da UI) concluídas. Toda a interface do
-> Curatino já chega por contribuição de plugin. Ver "Etapas" ao final desta seção.
+> **Status:** Etapas 0 a 3 concluídas. A interface **e** o motor de automações já chegam por
+> contribuição de plugin. Ver "Etapas" ao final desta seção.
+>
+> ⚠️ A Etapa 3 mexe em `functions/` — exige `npm run deploy:workflow` para valer em produção.
 
 ### Os dez princípios
 
@@ -2532,6 +2534,41 @@ poder ser **lido sem arrastar o código da tela junto**, senão o Marketplace co
 carregaria tudo no boot. Efeito medido no bundle principal: **3,39 MB → 1,15 MB** (327 KB gzip),
 com os chunks passando de 96 para 180.
 
+### O motor de automações como contribuição — `functions/src/plugins/` (Etapa 3)
+
+`registerSteps.ts` não existe mais, e o `ExpressionEngine` não importa mais 53 funções uma a uma.
+
+| Ponto | Metadata | `impl` |
+|---|---|---|
+| `workflow.step` | `stepDefinitionId`, `name`, `category` | `code` → `StepFactory` |
+| `expression.function` | `name`, `category`, `minArgs`, `maxArgs` | `code` → `ExpressionFunction` |
+
+Três plugins: `core.workflow` (declara os pontos), `core.steps` (12 passos) e `core.expressions`
+(53 funções). Composition root em `functions/src/plugins/index.ts`.
+
+**Step é fábrica, não objeto pronto.** `StepFactory = (deps: RegisterStepsDeps) => StepDefinition`:
+quem contribui declara a fábrica, e `registerStepsFromPlugins` injeta os repositórios na carga. As
+deps vivem em `infrastructure/workflow/stepDeps.ts`, arquivo próprio — se estivessem no loader, o
+manifest não poderia tipá-las sem fechar um ciclo.
+
+**A metadata da função é derivada do próprio objeto.** `description`, `signature` e `example` já
+vivem no `ExpressionFunction` e alimentam a tela de referência; repeti-los no manifest criaria duas
+verdades. O manifest declara só o que o Kernel precisa para raciocinar sem carregar código.
+
+O `WorkflowExecutor`, o `StepRegistry` e os handlers de catálogo **não mudaram**: o `stepRegistry`
+continua sendo o índice que o executor consulta; o que virou orientado a dados foi quem o popula.
+
+### Carga preguiçosa das funções de expressão — não mexa
+
+O índice dos plugins importa os Steps, que importam o `ExpressionEngine`. Registrar as funções no
+topo do módulo do motor lê `BACKEND_PLUGINS` **antes de o módulo terminar de inicializar**, e a
+lista chega `undefined`. Por isso o registro é preguiçoso e idempotente.
+
+A garantia está concentrada em **um** acessador: `loadedExpressionFunctions()`, exportado pelo
+`ExpressionEngine`. Os três leitores do catálogo (o próprio motor, o `runScriptSandbox` e o handler
+`getExpressionFunctions`) passam por ele. **Nunca leia `expressionFunctions` direto** — pula a
+garantia, e o sintoma é o catálogo vazio só em alguns caminhos.
+
 ### Guarda de acoplamento no ESLint
 
 `eslint.config.js` tem duas zonas `no-restricted-imports` que reprovam o build:
@@ -2554,7 +2591,7 @@ não dispara é pior que guarda nenhuma.
 | 0 ✅ | Contratos em `domain/schema/plugin/`, guarda no ESLint, sincronização |
 | 1 ✅ | Runtime: os quatro registries, `PluginHost` e o binding React |
 | 2 ✅ | Dogfood da UI: telas (lazy), navegação e ⌘K como contribuições de 12 core plugins |
-| 3 | Dogfood da automação: Steps, funções de expressão, catálogo de eventos |
+| 3 ✅ | Dogfood da automação: 12 Steps e 53 funções de expressão como contribuições |
 | 4 | Dogfood do domínio: `ENTITY_REGISTRY`, `LOOKUP_REGISTRY`, `DIContainer`, capabilities |
 | 5 | Ciclo de vida: instalar/ativar/desativar/atualizar/remover, permissões no sandbox |
 | 6 | Widget DSL: slots e renderizador declarativo |

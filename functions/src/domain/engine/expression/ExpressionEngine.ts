@@ -1,17 +1,8 @@
 import { Parser } from 'expr-eval';
 import type { WorkflowContext } from '../../entities/WorkflowContext';
 import { expressionFunctions } from './FunctionRegistry';
+import { registerExpressionFunctionsFromPlugins } from '../../../infrastructure/workflow/loadWorkflowPlugins';
 import { operatorRegistry } from './OperatorRegistry';
-import { todayFn, nowFn, formatDateFn, dayOfWeekFn, isWeekendFn, dateDiffFn, yearFn, monthFn, dayFn } from './builtins/dateFns';
-import { addDaysFn } from './builtins/addDaysFn';
-import { ifFn } from './builtins/ifFn';
-import { concatFn, lowerFn, upperFn, lengthFn, trimFn, replaceFn, substringFn, startsWithFn, endsWithFn, splitFn, joinFn, interpolateFn, onlyNumberFn, formatMoneyFn } from './builtins/stringFns';
-import { getVarFn } from './builtins/getVarFn';
-import { roundFn, floorFn, ceilFn, absFn, minFn, maxFn, sumFn, avgFn } from './builtins/mathFns';
-import { firstFn, lastFn, containsFn, indexOfFn, mapFn } from './builtins/arrayFns';
-import { objectFn, deleteFn } from './builtins/objectFns';
-import { andFn, orFn, notFn, isEmptyFn, isNullFn, isNotNullFn, coalesceFn } from './builtins/logicFns';
-import { isCPFFn, isCNPJFn, isEmailFn, formatCPFFn, formatCNPJFn } from './builtins/validationFns';
 import {
   addOperator, subtractOperator, multiplyOperator, divideOperator, remainderOperator, powerOperator, factorialOperator,
   equalOperator, notEqualOperator, lessThanOperator, lessOrEqualOperator, greaterThanOperator, greaterOrEqualOperator,
@@ -23,18 +14,6 @@ import {
   signFunction, minFunction, maxFunction, randomFunction, lengthFunction,
 } from './builtins/operators';
 
-[
-  todayFn, nowFn, formatDateFn, dayOfWeekFn, isWeekendFn, dateDiffFn, yearFn, monthFn, dayFn,
-  addDaysFn,
-  ifFn,
-  concatFn, lowerFn, upperFn, lengthFn, trimFn, replaceFn, substringFn, startsWithFn, endsWithFn, splitFn, joinFn, interpolateFn, onlyNumberFn, formatMoneyFn,
-  getVarFn,
-  roundFn, floorFn, ceilFn, absFn, minFn, maxFn, sumFn, avgFn,
-  firstFn, lastFn, containsFn, indexOfFn, mapFn,
-  objectFn, deleteFn,
-  andFn, orFn, notFn, isEmptyFn, isNullFn, isNotNullFn, coalesceFn,
-  isCPFFn, isCNPJFn, isEmailFn, formatCPFFn, formatCNPJFn,
-].forEach((fn) => expressionFunctions.register(fn));
 
 // Registra operadores built-in do expr-eval para documentação
 [
@@ -59,12 +38,24 @@ const buildVariablesContext = (context: WorkflowContext): Record<string, unknown
   return variables;
 };
 
+/**
+ * ÚNICO ponto de leitura do catálogo de funções. Garante que as contribuições dos plugins já
+ * foram registradas antes de responder — a carga é preguiçosa porque o módulo dos plugins importa
+ * os Steps, que importam este motor, e registrar no topo do arquivo leria a lista antes de ela
+ * existir. Ler `expressionFunctions` direto pularia essa garantia; use sempre este acessador.
+ */
+export const loadedExpressionFunctions = (): typeof expressionFunctions => {
+  registerExpressionFunctionsFromPlugins();
+  return expressionFunctions;
+};
+
 const buildFunctionsContext = (context: WorkflowContext): Record<string, (...args: unknown[]) => unknown> => {
   const functions: Record<string, (...args: unknown[]) => unknown> = {};
 
-  const allFunctions = expressionFunctions.getAllDefinitions();
+  const registry = loadedExpressionFunctions();
+  const allFunctions = registry.getAllDefinitions();
   allFunctions.forEach((fnDef) => {
-    const fn = expressionFunctions.resolve(fnDef.name);
+    const fn = registry.resolve(fnDef.name);
     if (fn) {
       functions[fnDef.name] = (...args: unknown[]) => fn.call(args, context);
     }

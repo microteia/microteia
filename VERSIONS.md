@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [0.124.1] — 2026-07-22
+
+- Os passos e as funções disponíveis nas Automações passaram a ser organizados como módulos independentes, preparando o terreno para que novos passos possam ser adicionados ao escritório sem atualizar o sistema inteiro. Todos os passos e funções existentes continuam disponíveis, com o mesmo comportamento.
+
 ## [0.124.0] — 2026-07-22
 
 - O Curatino agora carrega cada tela sob demanda, no momento em que você a abre. O sistema abre bem mais rápido no primeiro acesso do dia, especialmente em conexões lentas.

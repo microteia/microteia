@@ -74,7 +74,7 @@ import { makeRunCalledWorkflowUseCase } from '../../domain/usecases/RunCalledWor
 import type { RunCalledWorkflowUseCase } from '../../domain/usecases/RunCalledWorkflowUseCase';
 import type { WorkflowServices } from '../../domain/entities/WorkflowContext';
 import { stepRegistry } from '../../domain/engine/StepRegistry';
-import { registerSteps } from '../workflow/registerSteps';
+import { registerStepsFromPlugins } from '../workflow/loadWorkflowPlugins';
 import { WorkflowContextHydrator } from '../../domain/engine/WorkflowContextHydrator';
 import { FirestoreWorkflowRecordFetcher } from '../../data/services/FirestoreWorkflowRecordFetcher';
 import { FirestoreWorkflowQueryRepository } from '../../data/services/FirestoreWorkflowQueryRepository';
@@ -461,7 +461,7 @@ class DIContainer {
    */
   async ensureWorkflowStepsRegistered(): Promise<void> {
     if (this.workflowStepsRegistered) return;
-    registerSteps({
+    registerStepsFromPlugins({
       deadlineRepository: this.getDeadlineRepository(),
       createAuditLogUseCase: this.getCreateAuditLogUseCase(),
       workflowQueryRepository: new FirestoreWorkflowQueryRepository(getDb()),
