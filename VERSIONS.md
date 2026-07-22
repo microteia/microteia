@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [0.125.0] — 2026-07-22
+
+- Os provedores de inteligência artificial (OpenAI, Anthropic, Google, Mistral e Cohere) passaram a ser módulos independentes. Na prática, novos provedores poderão ser oferecidos ao escritório sem que o sistema precise ser atualizado. A escolha do provedor nas Configurações continua igual.
+
 ## [0.124.3] — 2026-07-22
 
 - O ambiente de testes foi colocado no ar, permitindo validar as novidades antes que elas cheguem ao escritório. Nada muda no uso do sistema.

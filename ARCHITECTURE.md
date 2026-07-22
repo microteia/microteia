@@ -2643,6 +2643,29 @@ verdades. O manifest declara só o que o Kernel precisa para raciocinar sem carr
 O `WorkflowExecutor`, o `StepRegistry` e os handlers de catálogo **não mudaram**: o `stepRegistry`
 continua sendo o índice que o executor consulta; o que virou orientado a dados foi quem o popula.
 
+### Capabilities — múltiplos provedores para a mesma capacidade (Etapa 4a)
+
+O container de injeção não nomeia mais os cinco serviços de IA. Eles são contribuições do ponto
+`capability.provider`, no plugin `core.ai`.
+
+| Ponto | Metadata | `impl` |
+|---|---|---|
+| `capability.provider` | `capability`, `version`, `providerKey`, `label` | `code` → a implementação |
+
+**`provides` no manifest e a contribuição fazem coisas diferentes, de propósito.** O `provides`
+DECLARA a capacidade — é o que o Marketplace lista e o que satisfaz o `consumes` de outro plugin,
+sem carregar código nenhum. A contribuição CARREGA a implementação. Um plugin pode declarar que
+fornece IA e ter sua implementação recusada por incompatibilidade sem que a declaração suma.
+
+**Aqui a resolução coleta todos, não escolhe um.** `capabilityProvidersOf('ai.completion')` devolve
+a lista inteira, e o `canHandle` de cada serviço decide quem atende a conexão configurada pelo
+escritório — o mecanismo de seleção que já existia. `selectProvider`/`resolve` (escolher **um** por
+prioridade ou vínculo do tenant) continua disponível para capacidades onde só um provedor faz
+sentido por vez.
+
+Adicionar um provedor novo de IA é uma linha de manifest: `container.ts` não muda. Há teste
+provando isso com um plugin de terceiro fictício.
+
 ### Carga preguiçosa das funções de expressão — não mexa
 
 O índice dos plugins importa os Steps, que importam o `ExpressionEngine`. Registrar as funções no
@@ -2677,7 +2700,8 @@ não dispara é pior que guarda nenhuma.
 | 1 ✅ | Runtime: os quatro registries, `PluginHost` e o binding React |
 | 2 ✅ | Dogfood da UI: telas (lazy), navegação e ⌘K como contribuições de 12 core plugins |
 | 3 ✅ | Dogfood da automação: 12 Steps e 53 funções de expressão como contribuições |
-| 4 | Dogfood do domínio: `ENTITY_REGISTRY`, `LOOKUP_REGISTRY`, `DIContainer`, capabilities |
+| 4a ✅ | Capabilities: os 5 provedores de IA saem do container e viram contribuições |
+| 4b | Dogfood do domínio: `ENTITY_REGISTRY`, `LOOKUP_REGISTRY`, `DIContainer` |
 | 5 | Ciclo de vida: instalar/ativar/desativar/atualizar/remover, permissões no sandbox |
 | 6 | Widget DSL: slots e renderizador declarativo |
 | 7 | Marketplace: `plugin_registry`, publicação e instalação |

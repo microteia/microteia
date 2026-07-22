@@ -2,6 +2,8 @@ import type { PluginRecord } from '../kernel';
 import { coreWorkflowPlugin } from './core.workflow/manifest';
 import { coreStepsPlugin } from './core.steps/manifest';
 import { coreExpressionsPlugin } from './core.expressions/manifest';
+import { coreCapabilitiesPlugin } from './core.capabilities/manifest';
+import { coreAiPlugin } from './core.ai/manifest';
 
 /**
  * Composition root dos plugins do backend — o ÚNICO lugar das Cloud Functions que conhece a lista
@@ -11,4 +13,6 @@ export const BACKEND_PLUGINS: PluginRecord[] = [
   coreWorkflowPlugin,
   coreStepsPlugin,
   coreExpressionsPlugin,
+  coreCapabilitiesPlugin,
+  coreAiPlugin,
 ];

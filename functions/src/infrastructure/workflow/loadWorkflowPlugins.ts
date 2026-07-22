@@ -7,6 +7,7 @@ import type { ExpressionFunction } from '../../domain/engine/expression/Function
 import { BACKEND_PLUGINS } from '../../plugins';
 import type { StepFactory } from '../../plugins/workflowExtensionPoints';
 import { EXPRESSION_FUNCTION_POINT, WORKFLOW_STEP_POINT } from '../../plugins/workflowExtensionPoints';
+import { CAPABILITY_PROVIDER_POINT } from '../../plugins/capabilityExtensionPoints';
 import type { RegisterStepsDeps } from './stepDeps';
 
 let host: PluginHost | null = null;
@@ -72,4 +73,22 @@ export const registerStepsFromPlugins = (deps: RegisterStepsDeps): void => {
     );
     if (factory) stepRegistry.register(factory(deps));
   }
+};
+
+/**
+ * Coleta as implementações de uma Capability. Devolve TODAS, não uma: quem consome IA continua
+ * escolhendo pelo `canHandle` do provedor, guiado pela conexão configurada no escritório. Um
+ * provedor novo entra por manifest, sem tocar no container de injeção.
+ */
+export const capabilityProvidersOf = <T>(capabilityId: string): T[] => {
+  const loaded = getWorkflowPluginHost();
+
+  return loaded.contributions
+    .query(CAPABILITY_PROVIDER_POINT)
+    .filter((contribution) => (contribution.metadata as { capability?: string }).capability === capabilityId)
+    .flatMap((contribution) => {
+      if (contribution.impl?.kind !== 'code') return [];
+      const implementation = loaded.implementations.resolve<T>(contribution.pluginId, contribution.impl.key);
+      return implementation ? [implementation] : [];
+    });
 };

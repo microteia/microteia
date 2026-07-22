@@ -6,6 +6,7 @@ import type { ExpressionFunction } from '../domain/engine/expression/FunctionReg
 import type { RegisterStepsDeps } from '../infrastructure/workflow/stepDeps';
 import type { StepFactory } from './workflowExtensionPoints';
 import { EXPRESSION_FUNCTION_POINT, WORKFLOW_STEP_POINT } from './workflowExtensionPoints';
+import { CAPABILITY_PROVIDER_POINT, capabilityProvider } from './capabilityExtensionPoints';
 import { BACKEND_PLUGINS } from './index';
 
 const hostWith = (records: PluginRecord[]) => {
@@ -39,9 +40,13 @@ describe('plugins do backend — carga', () => {
     expect(result.skipped).toEqual([]);
   });
 
-  it('carrega core.workflow antes de quem depende dele', () => {
+  it('carrega quem declara um ponto antes de quem contribui para ele', () => {
     const { result } = hostWith(BACKEND_PLUGINS);
-    expect(result.loaded[0]).toBe('core.workflow');
+    const posicao = (id: string) => result.loaded.indexOf(id);
+
+    expect(posicao('core.workflow')).toBeLessThan(posicao('core.steps'));
+    expect(posicao('core.workflow')).toBeLessThan(posicao('core.expressions'));
+    expect(posicao('core.capabilities')).toBeLessThan(posicao('core.ai'));
   });
 
   it('toda contribuição resolve uma implementação', () => {
@@ -136,12 +141,90 @@ describe('plugins do backend — remoção limpa', () => {
     expect(host.contributions.query(WORKFLOW_STEP_POINT)).toHaveLength(STEPS_ANTES_DA_MIGRACAO.length);
   });
 
-  it('remover core.workflow derruba os dois, porque ninguém declara os pontos', () => {
+  it('remover core.workflow derruba passos e funções, mas não as capabilities', () => {
     const { host, result } = hostWith(without('core.workflow'));
 
-    expect(result.loaded).toEqual([]);
+    expect(result.skipped).toEqual(['core.expressions', 'core.steps']);
     expect(host.contributions.query(WORKFLOW_STEP_POINT)).toEqual([]);
     expect(host.contributions.query(EXPRESSION_FUNCTION_POINT)).toEqual([]);
     expect(result.diagnostics.every((d) => d.code === 'dependency.missing')).toBe(true);
+
+    // core.ai não depende do motor: continua de pé.
+    expect(host.isLoaded('core.ai')).toBe(true);
+  });
+});
+
+
+describe('capabilities — provedores de IA', () => {
+  const providersOf = (host: ReturnType<typeof createPluginHost>, capability: string) =>
+    host.contributions
+      .query(CAPABILITY_PROVIDER_POINT)
+      .filter((c) => (c.metadata as { capability: string }).capability === capability);
+
+  it('os 5 provedores de IA que o container criava à mão viraram contribuições', () => {
+    const { host } = hostWith(BACKEND_PLUGINS);
+    const keys = providersOf(host, 'ai.completion')
+      .map((c) => (c.metadata as { providerKey: string }).providerKey)
+      .sort();
+
+    expect(keys).toEqual(['anthropic', 'cohere', 'google', 'mistral', 'openai']);
+  });
+
+  it('cada provedor resolve um serviço que sabe atender sua própria chave', () => {
+    const { host } = hostWith(BACKEND_PLUGINS);
+
+    for (const contribution of providersOf(host, 'ai.completion')) {
+      if (contribution.impl?.kind !== 'code') continue;
+      const service = host.implementations.resolve<{ canHandle(p: string): boolean }>(
+        contribution.pluginId,
+        contribution.impl.key,
+      );
+      const { providerKey } = contribution.metadata as { providerKey: string };
+
+      expect(service?.canHandle(providerKey), `${providerKey} não se reconhece`).toBe(true);
+      expect(service?.canHandle('outro-qualquer')).toBe(false);
+    }
+  });
+
+  it('o manifest declara a capability para quem quiser consumi-la', () => {
+    const { host } = hostWith(BACKEND_PLUGINS);
+    expect(host.capabilities.resolve({ capability: 'ai.completion', range: '^1.0.0' })?.pluginId).toBe(
+      'core.ai',
+    );
+  });
+
+  it('um plugin de terceiro adiciona um provedor SEM tocar no container de injeção', () => {
+    const terceiro: PluginRecord = {
+      trusted: true,
+      implementations: { LlamaService: { canHandle: (p: string) => p === 'llama' } },
+      manifest: {
+        id: 'com.acme.llama',
+        version: '1.0.0',
+        kernel: '^1.0.0',
+        name: 'Llama',
+        dependencies: { 'core.capabilities': '^1.0.0' },
+        provides: [{ capability: 'ai.completion', version: '1.0.0' }],
+        contributes: [
+          capabilityProvider(
+            { capability: 'ai.completion', version: '1.0.0', providerKey: 'llama', label: 'Llama' },
+            'LlamaService',
+          ),
+        ],
+      },
+    };
+
+    const { host, result } = hostWith([...BACKEND_PLUGINS, terceiro]);
+
+    expect(result.diagnostics).toEqual([]);
+    expect(providersOf(host, 'ai.completion')).toHaveLength(6);
+    expect(
+      providersOf(host, 'ai.completion').map((c) => (c.metadata as { providerKey: string }).providerKey),
+    ).toContain('llama');
+  });
+
+  it('remover core.ai deixa o sistema sem nenhum provedor de IA', () => {
+    const { host } = hostWith(without('core.ai'));
+    expect(providersOf(host, 'ai.completion')).toEqual([]);
+    expect(host.capabilities.resolve({ capability: 'ai.completion', range: '^1.0.0' })).toBeNull();
   });
 });

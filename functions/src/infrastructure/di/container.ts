@@ -16,11 +16,6 @@ import { FirebaseNicknameRepository } from '../../data/repositories/FirebaseNick
 import { FirebaseGmailConnectionRepository } from '../../data/repositories/FirebaseGmailConnectionRepository';
 import { FirebasePushRepository } from '../../data/repositories/FirebasePushRepository';
 import { FirebaseTenantRepository } from '../../data/repositories/FirebaseTenantRepository';
-import { OpenAIService } from '../../data/services/OpenAIService';
-import { AnthropicService } from '../../data/services/AnthropicService';
-import { GoogleAIService } from '../../data/services/GoogleAIService';
-import { MistralService } from '../../data/services/MistralService';
-import { CohereService } from '../../data/services/CohereService';
 import { GoogleAuthService } from '../../data/services/GoogleAuthService';
 import { GmailWatchService } from '../../data/services/GmailWatchService';
 import { GmailService } from '../../data/services/GmailService';
@@ -74,7 +69,7 @@ import { makeRunCalledWorkflowUseCase } from '../../domain/usecases/RunCalledWor
 import type { RunCalledWorkflowUseCase } from '../../domain/usecases/RunCalledWorkflowUseCase';
 import type { WorkflowServices } from '../../domain/entities/WorkflowContext';
 import { stepRegistry } from '../../domain/engine/StepRegistry';
-import { registerStepsFromPlugins } from '../workflow/loadWorkflowPlugins';
+import { capabilityProvidersOf, registerStepsFromPlugins } from '../workflow/loadWorkflowPlugins';
 import { WorkflowContextHydrator } from '../../domain/engine/WorkflowContextHydrator';
 import { FirestoreWorkflowRecordFetcher } from '../../data/services/FirestoreWorkflowRecordFetcher';
 import { FirestoreWorkflowQueryRepository } from '../../data/services/FirestoreWorkflowQueryRepository';
@@ -126,13 +121,7 @@ class DIContainer {
   private workflowStepsRegistered = false;
 
   private constructor() {
-    this.aiProviders = [
-      new OpenAIService(),
-      new AnthropicService(),
-      new GoogleAIService(),
-      new MistralService(),
-      new CohereService(),
-    ];
+    this.aiProviders = capabilityProvidersOf<IAIProviderService>('ai.completion');
   }
 
   static getInstance(): DIContainer {
