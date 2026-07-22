@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [0.125.2] — 2026-07-22
+
+- Preparação técnica para que futuras extensões possam adicionar integrações próprias ao sistema. Nenhuma mudança visível no uso.
+
 ## [0.125.1] — 2026-07-22
 
 - Aprimoramento interno na forma como o sistema organiza seus cadastros (Pessoas, Processos, Contratos, etc.), preparando o terreno para novos tipos de cadastro no futuro. Nenhuma tela ou comportamento muda.

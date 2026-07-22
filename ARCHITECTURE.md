@@ -2665,6 +2665,26 @@ Consequência honesta: remover `core.data` da lista de plugins **não** remove a
 (o schema depende delas diretamente, por baixo). Diferente de uma tela ou um Step, que somem ao
 descarregar o plugin. É o preço de entidade ser domínio, não apresentação.
 
+### Serviços de plugin no DI do frontend (Etapa 4c)
+
+O `DIContainer` do frontend **permanece tipado e cabeado à mão** — 58 campos, seguros em
+compilação, consumidores (`useDI().personRepository`) intocados. Transformá-lo em contribuições
+seria uma fachada: mais código que hoje, troca da garantia do compilador por `!` de runtime, e o
+risco de rearrastar o Firebase para os testes (o que a Etapa 2 evitou). Repositório nativo não é
+ponto de extensão de terceiro — plugins usam `customRecords`, não `FirebaseXRepository`.
+
+O que é extensível, de forma **aditiva**, é o ponto `data.service`: um plugin registra um serviço
+próprio (uma integração externa, por exemplo) e o resolve por chave:
+
+```ts
+const geocoder = useDI().resolveService<Geocoder>('acme.geocoder');
+```
+
+`resolvePluginService` (`infrastructure/di/pluginServices.ts`, puro e testado) faz a busca; o
+`DIProvider` lê o host do Kernel via `KernelContext` **opcional** — sem `KernelProvider` em volta,
+`resolveService` devolve `undefined` em vez de quebrar. O núcleo não perde nada; o plugin ganha um
+lugar de verdade para injetar comportamento no frontend.
+
 ### Capabilities — múltiplos provedores para a mesma capacidade (Etapa 4a)
 
 O container de injeção não nomeia mais os cinco serviços de IA. Eles são contribuições do ponto
@@ -2724,6 +2744,7 @@ não dispara é pior que guarda nenhuma.
 | 3 ✅ | Dogfood da automação: 12 Steps e 53 funções de expressão como contribuições |
 | 4a ✅ | Capabilities: os 5 provedores de IA saem do container e viram contribuições |
 | 4b ✅ | `EntityKey` aberto; entidades e lookups como contribuições `data.entity`/`data.lookup` |
+| 4c ✅ | Ponto `data.service`: plugin injeta serviço no DI do frontend, container tipado intacto |
 | 5 | Ciclo de vida: instalar/ativar/desativar/atualizar/remover, permissões no sandbox |
 | 6 | Widget DSL: slots e renderizador declarativo |
 | 7 | Marketplace: `plugin_registry`, publicação e instalação |

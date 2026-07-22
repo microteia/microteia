@@ -1,4 +1,6 @@
-import React, { useMemo } from 'react';
+import React, { useContext, useMemo } from 'react';
+import { KernelContext } from '../../stores/useKernel';
+import { resolvePluginService } from './pluginServices';
 import { FirebaseAuthRepository } from '../../data/repositories/FirebaseAuthRepository';
 import { FirebaseUserRepository } from '../../data/repositories/FirebaseUserRepository';
 import { FirebaseUserProfileRepository } from '../../data/repositories/FirebaseUserProfileRepository';
@@ -61,7 +63,12 @@ import { DIContext } from './useDI';
 import type { DIContainer } from './useDI';
 
 export const DIProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const kernel = useContext(KernelContext);
+  const host = kernel?.host ?? null;
+
   const container = useMemo<DIContainer>(() => ({
+    resolveService: <T,>(serviceKey: string): T | undefined =>
+      host ? resolvePluginService<T>(host, serviceKey) : undefined,
     authRepository:           new FirebaseAuthRepository(),
     userRepository:           new FirebaseUserRepository(),
     userProfileRepository:    new FirebaseUserProfileRepository(),
@@ -120,7 +127,7 @@ export const DIProvider: React.FC<{ children: React.ReactNode }> = ({ children }
     dataProcessorRepository:  new FirebaseDataProcessorRepository(),
     actionRepository:         new FirebaseActionRepository(),
     externalLookupServices:   [new ViaCepLookupService()],
-  }), []);
+  }), [host]);
 
   return <DIContext.Provider value={container}>{children}</DIContext.Provider>;
 };

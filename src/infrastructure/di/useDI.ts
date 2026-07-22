@@ -58,6 +58,12 @@ import type { IDataProcessorRepository } from '../../domain/repositories/IDataPr
 import type { IActionRepository } from '../../domain/repositories/IActionRepository';
 
 export interface DIContainer {
+  /**
+   * Resolve um serviço trazido por um plugin (ponto `data.service`), por chave. É o ponto de
+   * extensão do DI: o núcleo mantém seus repositórios tipados abaixo; plugins acrescentam serviços
+   * próprios sem editar esta interface. Chave desconhecida → `undefined`.
+   */
+  resolveService: <T>(serviceKey: string) => T | undefined;
   externalLookupServices: IExternalLookupService[];
   authRepository: IAuthRepository;
   userRepository: IUserRepository;

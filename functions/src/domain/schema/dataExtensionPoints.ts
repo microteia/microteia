@@ -13,6 +13,7 @@ import { LOOKUP_REGISTRY_LIST } from './lookupRegistry';
 
 export const DATA_ENTITY_POINT = 'data.entity';
 export const DATA_LOOKUP_POINT = 'data.lookup';
+export const DATA_SERVICE_POINT = 'data.service';
 
 export const DATA_API_VERSION = '1.0.0';
 
@@ -43,7 +44,35 @@ export const DATA_EXTENSION_POINTS: ExtensionPointDefinition[] = [
     implRequired: false,
     multiple: true,
   },
+  {
+    id: DATA_SERVICE_POINT,
+    apiVersion: DATA_API_VERSION,
+    title: 'Serviço injetável de plugin',
+    description:
+      'Um plugin registra um serviço próprio (ex.: integração externa), resolvível por chave via useDI().resolveService. O container tipado do núcleo permanece intocado.',
+    ownerPluginId: 'core.data',
+    allowedImplKinds: ['code'],
+    implRequired: true,
+    multiple: true,
+  },
 ];
+
+export interface ServiceContributionMetadata {
+  serviceKey: string;
+  label?: string;
+}
+
+export const serviceContribution = (
+  serviceKey: string,
+  implKey: string,
+  label?: string,
+): Contribution => ({
+  point: DATA_SERVICE_POINT,
+  id: slugId(serviceKey),
+  apiVersion: DATA_API_VERSION,
+  metadata: { serviceKey, label } as unknown as Record<string, unknown>,
+  impl: { kind: 'code', key: implKey },
+});
 
 const slugId = (value: string): string =>
   value.replace(/([a-z0-9])([A-Z])/g, '$1-$2').replace(/[^a-zA-Z0-9-]+/g, '-').toLowerCase();
