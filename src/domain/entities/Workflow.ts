@@ -156,6 +156,11 @@ export interface WorkflowDefinition {
   // Quando true, outros escritórios enxergam o workflow e podem copiá-lo integralmente; a edição
   // continua restrita ao tenant dono. Ver "Workflows Públicos" no ARCHITECTURE.md.
   isPublic?: boolean;
+  // Presente quando o workflow foi materializado pela instalação de um plugin do Marketplace.
+  // É a marca que a desinstalação usa para remover exatamente os artefatos daquele plugin, e o
+  // sinal de que o registro é gerenciado (o usuário não deve editá-lo à mão). Ver "Fatia vertical
+  // do Marketplace" no ARCHITECTURE.md.
+  ownerPluginId?: string;
   enabled: boolean;
   version: number;
   // ID do workflow público original (presente apenas quando este workflow foi copiado de um workflow público)

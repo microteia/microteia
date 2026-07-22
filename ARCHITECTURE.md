@@ -2643,6 +2643,35 @@ verdades. O manifest declara só o que o Kernel precisa para raciocinar sem carr
 O `WorkflowExecutor`, o `StepRegistry` e os handlers de catálogo **não mudaram**: o `stepRegistry`
 continua sendo o índice que o executor consulta; o que virou orientado a dados foi quem o popula.
 
+### Fatia vertical do Marketplace — instalar de verdade (Etapa 5 + prova de ponta a ponta)
+
+A primeira extensão instalável real, provando a plataforma inteira **reusando o motor de
+automações** — sem uma linha de backend novo.
+
+**O plugin de exemplo** (`plugins/marketplace/catalog.ts`, `com.curatino.boas-vindas`) carrega um
+único workflow: ao criar uma Pessoa (`person.saved`, `changeType == created`), registra um evento
+na Auditoria. O catálogo é código embutido nesta fatia; na Etapa 7 completa vem do registro global.
+
+**Instalar = materializar.** `InstallMarketplacePluginUseCase` valida a instalação (regras puras da
+Etapa 5), cria os workflows do plugin no tenant **marcados com `ownerPluginId`** e habilitados, e só
+então grava o `PluginInstallation`. A ordem importa: validar antes de criar evita workflow órfão;
+gravar o registro por último evita marcar como instalado algo cuja materialização falhou.
+
+**O motor já executa.** O workflow materializado é uma `WorkflowDefinition` normal na coleção
+`workflow_definitions` — a Cloud Function `onWorkflowEventCreated` (já no ar) o dispara como
+qualquer outro. **Nenhum backend novo, nenhuma rule nova.** Por isso o `ownerPluginId` é um marcador
+**só do frontend**: o motor é agnóstico a dono (roda todo workflow habilitado), então
+`functions/src/.../Workflow.ts` não precisa do campo.
+
+**Desinstalar = cascata.** `UninstallMarketplacePluginUseCase` remove **todos** os workflows do
+tenant com aquele `ownerPluginId` e depois apaga o registro — a cascata de artefatos que a Etapa 5
+reservou, agora real para workflows. Workflows do próprio usuário (sem `ownerPluginId`) não são
+tocados; há teste.
+
+**Superfície:** o `PluginStore` assina as instalações do tenant e expõe instalar/ativar/desativar/
+remover; a página **Extensões** (`core.marketplace`, contribuindo `ui.page` + `ui.nav`) lista o
+catálogo com o estado por card. Só admin gerencia (InfoBanner para os demais).
+
 ### Ciclo de vida de instalação (Etapa 5 — spine)
 
 Quando um plugin do Marketplace for instalado num escritório, o registro fica em
@@ -2768,7 +2797,8 @@ não dispara é pior que guarda nenhuma.
 | 4a ✅ | Capabilities: os 5 provedores de IA saem do container e viram contribuições |
 | 4b ✅ | `EntityKey` aberto; entidades e lookups como contribuições `data.entity`/`data.lookup` |
 | 4c ✅ | Ponto `data.service`: plugin injeta serviço no DI do frontend, container tipado intacto |
-| 5 ◑ | Ciclo de vida (spine): `PluginInstallation` + use cases testados + rules. UI/enforçamento na 7 |
+| 5 ◑ | Ciclo de vida (spine): `PluginInstallation` + use cases testados + rules |
+| — ✅ | Fatia vertical: plugin de exemplo instalável ponta a ponta (workflow + página Extensões) |
 | 6 | Widget DSL: slots e renderizador declarativo |
 | 7 | Marketplace: `plugin_registry`, publicação e instalação |
 

@@ -33,6 +33,7 @@ import { ActionStoreProvider } from './stores/ActionStore';
 import { CustomRecordStoreProvider } from './stores/CustomRecordStore';
 import { WorkflowStoreProvider } from './stores/WorkflowStore';
 import { ScriptStoreProvider } from './stores/ScriptStore';
+import { PluginStoreProvider } from './stores/PluginStore';
 import { AuditLogStoreProvider } from './stores/AuditLogStore';
 import { AuditLogAlertStoreProvider } from './stores/AuditLogAlertStore';
 import { WorkspaceStoreProvider } from './stores/WorkspaceStore';
@@ -97,6 +98,7 @@ const App: React.FC = () => {
                                           <CustomRecordStoreProvider>
                                           <WorkflowStoreProvider>
                                           <ScriptStoreProvider>
+                                          <PluginStoreProvider>
                                           <ActionStoreProvider>
                                           <AuditLogStoreProvider>
                                           <AuditLogAlertStoreProvider>
@@ -116,6 +118,7 @@ const App: React.FC = () => {
                                           </AuditLogAlertStoreProvider>
                                           </AuditLogStoreProvider>
                                           </ActionStoreProvider>
+                                          </PluginStoreProvider>
                                           </ScriptStoreProvider>
                                           </WorkflowStoreProvider>
                                           </CustomRecordStoreProvider>
