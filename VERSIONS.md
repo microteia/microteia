@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [0.127.1] — 2026-07-22
+
+- Ajuste na extensão de exemplo "Boas-vindas ao Cliente" para que ela registre corretamente o evento na Auditoria ao cadastrar uma nova pessoa.
+
 ## [0.127.0] — 2026-07-22
 
 - Chegou a primeira versão da tela **Extensões**: um catálogo de funcionalidades que o administrador pode instalar no escritório com um clique. A extensão de exemplo "Boas-vindas ao Cliente" registra na Auditoria toda vez que uma nova pessoa é cadastrada — e pode ser removida a qualquer momento, desfazendo tudo que ela adicionou.

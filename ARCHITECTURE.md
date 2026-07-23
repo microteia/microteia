@@ -2657,6 +2657,13 @@ Etapa 5), cria os workflows do plugin no tenant **marcados com `ownerPluginId`**
 então grava o `PluginInstallation`. A ordem importa: validar antes de criar evita workflow órfão;
 gravar o registro por último evita marcar como instalado algo cuja materialização falhou.
 
+**Duas convenções de caminho — não confundir** (o autor do plugin de exemplo tropeçou nisto): o
+`fieldPath` de um `FieldComparison` (condição) é resolvido contra o **contexto inteiro**, então usa
+caminho absoluto — `event.payload.changeType`. Já o `path` de um `EventInputMapping` (config de
+step) é resolvido contra `context.event.payload`, então é **relativo ao payload** — `id`, não
+`event.id`. Em **expressões** (`ExpressionInputMapping`), `event` já aponta para o payload, então
+`event.name` é o campo `name` do registro. Três resolvedores, três raízes.
+
 **O motor já executa.** O workflow materializado é uma `WorkflowDefinition` normal na coleção
 `workflow_definitions` — a Cloud Function `onWorkflowEventCreated` (já no ar) o dispara como
 qualquer outro. **Nenhum backend novo, nenhuma rule nova.** Por isso o `ownerPluginId` é um marcador

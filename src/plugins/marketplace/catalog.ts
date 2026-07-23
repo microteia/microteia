@@ -28,7 +28,8 @@ export const MARKETPLACE_CATALOG: MarketplacePlugin[] = [
         version: 1,
         condition: {
           kind: 'FieldComparison',
-          fieldPath: 'event.changeType',
+          // fieldPath é resolvido contra o CONTEXTO inteiro — caminho absoluto (event.payload.*).
+          fieldPath: 'event.payload.changeType',
           operator: '==',
           value: 'created',
           valueType: 'literal',
@@ -48,7 +49,8 @@ export const MARKETPLACE_CATALOG: MarketplacePlugin[] = [
               },
               severity: { kind: 'Literal', value: 'LOW' },
               entity: { kind: 'Literal', value: 'person' },
-              entityId: { kind: 'Event', path: 'event.id' },
+              // Mapping 'Event' é resolvido contra event.payload — caminho RELATIVO ao payload.
+              entityId: { kind: 'Event', path: 'id' },
             },
           },
         ],
