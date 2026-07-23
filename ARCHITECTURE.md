@@ -2758,9 +2758,11 @@ relacionamentos, cálculos, master-detail — reusando **inteiramente** o sistem
   telas com aquele `ownerPluginId` e **preserva os registros** (dados órfãos).
 - As telas instaladas fluem pelo pipeline de telas dinâmicas **automaticamente** (sidebar, ⌘K, Form
   Design, renderer, agregação no backend) por serem `ScreenDefinition` no tenant.
-- **Form Design trava o gerenciado:** editar/excluir campo do plugin e editar/excluir a tela
-  gerenciada são bloqueados (nos handlers do `ScreenBuilder` e, como backstop de integridade, no
-  `DeleteScreenDefinitionUseCase`); adicionar campos próprios continua liberado.
+- **Form Design espelha as telas fixas:** tela/campo de extensão é EDITÁVEL (ajustes não-críticos,
+  como nas telas fixas) mas NÃO EXCLUÍVEL — só a desinstalação remove. A exclusão é bloqueada nos
+  handlers do `ScreenBuilder` e, como backstop de integridade, no `DeleteScreenDefinitionUseCase`.
+  Editar preserva o `ownerPluginId` (o spread do campo e o `toSaveInput` o carregam em todo save);
+  adicionar campos próprios continua liberado. Etiqueta "Extensão" no card e na meta do campo.
 
 Plugin de exemplo `com.curatino.vendas` (produto, venda, item): validação por regex, currency,
 select, relação com pessoa[core], preço do item vindo do produto (`onChange`), total do item

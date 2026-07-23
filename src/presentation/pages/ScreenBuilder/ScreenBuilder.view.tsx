@@ -57,7 +57,11 @@ const FieldRows: React.FC<{ vm: ScreenBuilderViewModel; screenKey: string; field
             {vm.isTitleField(screenKey, field.key) ? ' (título)' : ''}
           </S.FieldName>
           <S.FieldMeta>
-            {vm.isNativeField(screenKey, field.key) ? 'Do sistema · ' : ''}
+            {vm.isNativeField(screenKey, field.key)
+              ? 'Do sistema · '
+              : vm.isPluginField(screenKey, field.key)
+                ? 'Extensão · '
+                : ''}
             {vm.fieldTypeLabel(field.type)}
             {field.section ? ` · ${field.section}` : ''}
             {` · fieldName: ${field.key}`}
@@ -92,8 +96,12 @@ const FieldRows: React.FC<{ vm: ScreenBuilderViewModel; screenKey: string; field
             </S.IconButton>
           ) : (
             <S.DangerIconButton
-              title="Excluir campo"
-              disabled={vm.isTitleField(screenKey, field.key)}
+              title={
+                vm.isPluginField(screenKey, field.key)
+                  ? 'Campo de extensão — não pode ser excluído'
+                  : 'Excluir campo'
+              }
+              disabled={vm.isTitleField(screenKey, field.key) || vm.isPluginField(screenKey, field.key)}
               onClick={() => vm.requestDeleteField(screenKey, field.key)}
             >
               <RiDeleteBinLine size={16} />
@@ -112,6 +120,9 @@ const ScreenDetailPane: React.FC<{ vm: ScreenBuilderViewModel; screen: SelectedS
       <S.ScreenInfo>
         <S.ScreenName>
           {screen.title}
+          {vm.isManagedScreen(screen.key) && (
+            <S.PluginBadge title={vm.managedScreenOwner(screen.key) ?? undefined}>Extensão</S.PluginBadge>
+          )}
           {!screen.enabled && <S.DisabledBadge>Desativada</S.DisabledBadge>}
         </S.ScreenName>
         <S.ScreenMeta>{screen.meta}</S.ScreenMeta>
@@ -141,7 +152,11 @@ const ScreenDetailPane: React.FC<{ vm: ScreenBuilderViewModel; screen: SelectedS
           <S.IconButton title="Editar tela" onClick={() => vm.openEditScreen(screen.key)}>
             <RiPencilLine size={16} />
           </S.IconButton>
-          <S.DangerIconButton title="Excluir tela" onClick={() => vm.requestDeleteScreen(screen.key)}>
+          <S.DangerIconButton
+            title={vm.isManagedScreen(screen.key) ? 'Tela de extensão — remova a extensão para excluir' : 'Excluir tela'}
+            disabled={vm.isManagedScreen(screen.key)}
+            onClick={() => vm.requestDeleteScreen(screen.key)}
+          >
             <RiDeleteBinLine size={16} />
           </S.DangerIconButton>
         </S.CardActions>

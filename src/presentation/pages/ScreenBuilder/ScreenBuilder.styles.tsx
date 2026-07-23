@@ -213,6 +213,15 @@ export const S = {
     padding: 1px 10px;
   `,
 
+  PluginBadge: styled.span`
+    font-size: ${({ theme }) => theme.fontSizes.xs};
+    font-weight: 500;
+    color: ${({ theme }) => theme.colors.primary};
+    border: 1px solid ${({ theme }) => theme.colors.primary};
+    border-radius: ${({ theme }) => theme.borderRadius.full};
+    padding: 1px 10px;
+  `,
+
   CardActions: styled.div`
     display: flex;
     align-items: center;

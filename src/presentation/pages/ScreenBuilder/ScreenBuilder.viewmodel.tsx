@@ -486,9 +486,11 @@ const toSaveInput = (def: ScreenDefinition): ScreenDefinitionSaveInput => ({
   sidebarOrder: def.sidebarOrder,
   enabled: def.enabled,
   // Precisam viajar em TODO save: sem isso, salvar qualquer outra coisa na tela apagaria os
-  // ajustes feitos nos campos do sistema.
+  // ajustes feitos nos campos do sistema — e a marca de qual extensão é dona da tela.
   nativeFieldOverrides: def.nativeFieldOverrides ?? null,
   fieldOrderUnified: def.fieldOrderUnified ?? null,
+  ownerPluginId: def.ownerPluginId ?? null,
+  managed: def.managed ?? null,
 });
 
 const buildDynamicMeta = (def: ScreenDefinition, fieldCount: number): string => {
@@ -769,10 +771,6 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
   }, []);
 
   const openEditScreen = useCallback((screenKey: string) => {
-    if (isManagedScreen(screenKey)) {
-      notify('Esta tela pertence a uma extensão e não pode ser editada aqui.', 'info');
-      return;
-    }
     setScreenModalTab('general');
     const def = getDefinitionByKey(screenKey);
     const childLinks = Object.fromEntries(
@@ -809,7 +807,7 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
       titleFieldKey: def.titleFieldKey,
     });
     setScreenModal({ screenKey });
-  }, [getDefinitionByKey, dynamicDefinitions, isManagedScreen, notify]);
+  }, [getDefinitionByKey, dynamicDefinitions]);
 
   const closeScreenModal = useCallback(() => setScreenModal(null), []);
 
@@ -1075,10 +1073,6 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
   }, [defaultTagColor]);
 
   const openEditField = useCallback((screenKey: string, fieldKey: string) => {
-    if (isPluginField(screenKey, fieldKey)) {
-      notify('Este campo pertence a uma extensão e não pode ser editado.', 'info');
-      return;
-    }
     setFieldModalTab('general');
     const def = getDefinitionByKey(screenKey);
     const native = isNativeField(screenKey, fieldKey);
@@ -1110,7 +1104,7 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
       ...fieldAggregationToForm(field.aggregation),
     });
     setFieldModal({ screenKey, fieldKey });
-  }, [getDefinitionByKey, defaultTagColor, isNativeField, nativeFieldsByScreen, isPluginField, notify]);
+  }, [getDefinitionByKey, defaultTagColor, isNativeField, nativeFieldsByScreen]);
 
   const closeFieldModal = useCallback(() => setFieldModal(null), []);
 
