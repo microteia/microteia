@@ -81,8 +81,10 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
         const error = await action();
         if (error) notify(error.message, 'error');
         else notify(successMessage, 'success');
-      } catch {
-        notify('Não foi possível concluir a operação.', 'error');
+      } catch (err) {
+        const detail = err instanceof Error ? err.message : String(err);
+        console.error('[marketplace] falha na operação de extensão:', err);
+        notify(`Não foi possível concluir a operação: ${detail}`, 'error');
       } finally {
         setBusyPluginId(null);
       }

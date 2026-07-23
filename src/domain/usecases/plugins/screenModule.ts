@@ -19,6 +19,22 @@ export const buildScreenKeyMap = (pluginId: string, screens: ScreenModuleTemplat
 const rewriteRef = (ref: string | null | undefined, keyMap: Map<string, string>): string | null | undefined =>
   ref && keyMap.has(ref) ? keyMap.get(ref) : ref;
 
+/**
+ * Remove `undefined` recursivamente — o Firestore o rejeita, inclusive dentro de `fields[]`. Espelha
+ * `data/utils/pruneUndefined`, mas aqui na camada de domínio (que não pode importar `data`).
+ */
+const stripUndefined = <T>(value: T): T => {
+  if (Array.isArray(value)) return value.map((item) => stripUndefined(item)) as T;
+  if (value !== null && typeof value === 'object') {
+    return Object.fromEntries(
+      Object.entries(value as Record<string, unknown>)
+        .filter(([, v]) => v !== undefined)
+        .map(([k, v]) => [k, stripUndefined(v)]),
+    ) as T;
+  }
+  return value;
+};
+
 export interface MaterializedScreen {
   screenKey: string;
   input: ScreenDefinitionInput;
@@ -71,7 +87,7 @@ export const materializeScreen = (
     createdBy,
   };
 
-  return { screenKey, input };
+  return { screenKey, input: stripUndefined(input) };
 };
 
 /** Todas as telas do plugin, materializadas na ordem do pacote. */

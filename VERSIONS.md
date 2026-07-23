@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [0.131.2] — 2026-07-23
+
+- Correção: a instalação de extensões que trazem telas (como "Vendas") falhava com uma mensagem genérica. Agora funciona, e qualquer falha de instalação passa a mostrar o motivo real.
+
 ## [0.131.1] — 2026-07-23
 
 - As telas trazidas por uma extensão ficam protegidas no Form Design: seus campos não podem ser editados ou excluídos, e a tela só sai ao remover a extensão. Você continua podendo adicionar seus próprios campos por cima.

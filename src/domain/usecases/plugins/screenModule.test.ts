@@ -75,6 +75,22 @@ describe('materializeScreen', () => {
     expect(input.fields[0].refEntity).toBe('com-acme-vendas__venda');
   });
 
+  it('não emite nenhum undefined (o Firestore o rejeita, inclusive dentro de fields)', () => {
+    const hasUndefined = (value: unknown): boolean => {
+      if (Array.isArray(value)) return value.some(hasUndefined);
+      if (value !== null && typeof value === 'object') {
+        return Object.values(value).some((v) => v === undefined || hasUndefined(v));
+      }
+      return value === undefined;
+    };
+    const { input } = materializeScreen(template, 'com.acme.vendas', keyMap, 'u1');
+    // campos sem refEntity/aggregation não podem carregar essas chaves como undefined
+    expect(hasUndefined(input)).toBe(false);
+    const numero = input.fields.find((f) => f.key === 'numero')!;
+    expect('refEntity' in numero && numero.refEntity === undefined).toBe(false);
+    expect('aggregation' in numero && numero.aggregation === undefined).toBe(false);
+  });
+
   it('não altera refEntity para coleção fora do pacote', () => {
     const withExternal: ScreenModuleTemplate = {
       ...template,
