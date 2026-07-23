@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [0.132.3] — 2026-07-23
+
+- Nas listas, quando o título de um registro é um campo de relacionamento (por exemplo, o produto de um item de venda), o card agora mostra o nome do registro relacionado, e não mais um código interno.
+
 ## [0.132.2] — 2026-07-23
 
 - Ao instalar ou remover uma extensão, as telas e os botões que ela traz agora aparecem (ou somem) na hora, sem precisar atualizar o navegador.

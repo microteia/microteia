@@ -61,6 +61,7 @@ export interface RecordListViewModel {
   openNewRecord: () => void;
   openRecord: (record: CustomRecord) => void;
   getCardItems: (record: CustomRecord) => CustomFieldCardItem[];
+  getCardTitle: (record: CustomRecord) => string;
   getCardActions: (record: CustomRecord) => RecordCardAction[];
   tagAdapter: TagStoreAdapter;
   tagManagerRecord: CustomRecord | null;
@@ -150,6 +151,18 @@ export const useRecordListViewModel = (source: RecordListSource): RecordListView
     (record: CustomRecord): CustomFieldCardItem[] =>
       listing.cardItems(record.values).filter((item) => item.key !== definition?.titleFieldKey),
     [listing, definition],
+  );
+
+  const getCardTitle = useCallback(
+    (record: CustomRecord): string => {
+      const titleField = definition?.fields.find((field) => field.key === definition.titleFieldKey);
+      if (titleField && (titleField.type === 'reference' || titleField.type === 'select')) {
+        const resolved = listing.displayValue(record.values, titleField);
+        if (resolved && resolved !== '—') return resolved;
+      }
+      return record.title;
+    },
+    [definition, listing],
   );
 
   const openNewRecord = useCallback(
@@ -284,6 +297,7 @@ export const useRecordListViewModel = (source: RecordListSource): RecordListView
     openNewRecord,
     openRecord,
     getCardItems,
+    getCardTitle,
     getCardActions,
     tagAdapter,
     tagManagerRecord,

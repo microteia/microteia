@@ -72,7 +72,7 @@ export const RecordListSurface: React.FC<RecordListSurfaceProps> = ({ vm, defini
             key={record.id}
             onClick={() => vm.openRecord(record)}
             avatar={getScreenIcon(definition.icon, 22)}
-            title={record.title}
+            title={vm.getCardTitle(record)}
             metaRows={[]}
             tags={recordTags}
             actions={vm.getCardActions(record).map((action) => ({
