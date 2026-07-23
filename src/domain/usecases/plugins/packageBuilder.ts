@@ -51,6 +51,7 @@ const omit = <T extends object>(obj: T, keys: readonly string[]): Record<string,
 const screenToTemplate = (screen: ScreenDefinition): ScreenModuleTemplate =>
   stripUndefined({
     key: screen.id,
+    sourceId: screen.sourceId ?? screen.id,
     titleSingular: screen.titleSingular,
     titlePlural: screen.titlePlural,
     icon: screen.icon,

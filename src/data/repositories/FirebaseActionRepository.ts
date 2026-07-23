@@ -41,6 +41,8 @@ const mapAction = (id: string, d: Record<string, unknown>, tenantId: string): Ac
   enabled: (d.enabled as boolean | undefined) ?? true,
   order: (d.order as number | undefined) ?? 0,
   ownerPluginId: (d.ownerPluginId as string | null | undefined) ?? null,
+  ownerPluginIds: (d.ownerPluginIds as string[] | null | undefined) ?? null,
+  sourceId: (d.sourceId as string | null | undefined) ?? null,
   createdAt: toDate(d.createdAt),
   createdBy: (d.createdBy as string | undefined) ?? '',
   updatedAt: toDate(d.updatedAt),

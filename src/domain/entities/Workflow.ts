@@ -161,6 +161,10 @@ export interface WorkflowDefinition {
   // sinal de que o registro é gerenciado (o usuário não deve editá-lo à mão). Ver "Fatia vertical
   // do Marketplace" no ARCHITECTURE.md.
   ownerPluginId?: string;
+  /** Conjunto de extensões que compartilham este workflow (refcount); removido só quando vazio. */
+  ownerPluginIds?: string[];
+  /** Id UNIVERSAL de origem (GUID do artefato no tenant autor) — chave de deduplicação na instalação. */
+  sourceId?: string;
   enabled: boolean;
   version: number;
   // ID do workflow público original (presente apenas quando este workflow foi copiado de um workflow público)

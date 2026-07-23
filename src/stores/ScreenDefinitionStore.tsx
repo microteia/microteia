@@ -114,8 +114,13 @@ export const ScreenDefinitionStoreProvider: React.FC<{ children: React.ReactNode
 
   const saveDefinition = useCallback(async (screenKey: string, data: ScreenDefinitionSaveInput) => {
     if (!currentTenant || !user) throw new Error('Not authenticated');
+    const existing = definitions.find((def) => def.id === screenKey);
     const saved = await uc.save.execute(currentTenant.id, screenKey, {
       ...data,
+      // Id universal da tela: gerado na criação (e retroativo na primeira edição de telas legadas),
+      // preservado nas edições. É por ele que a instalação de extensões deduplica a mesma tela vinda
+      // de pacotes diferentes.
+      sourceId: data.sourceId ?? existing?.sourceId ?? crypto.randomUUID(),
       createdBy: user.id,
       updatedBy: user.id,
       updatedByName: effectiveName,
@@ -127,7 +132,7 @@ export const ScreenDefinitionStoreProvider: React.FC<{ children: React.ReactNode
     });
     storeEvents.emit(StoreEvents.SCREEN_DEFINITIONS_UPDATED);
     return saved;
-  }, [currentTenant, user, effectiveName, uc.save]);
+  }, [currentTenant, user, effectiveName, uc.save, definitions]);
 
   const deleteDefinition = useCallback(async (screenKey: string) => {
     if (!currentTenant) return;

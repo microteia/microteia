@@ -11,6 +11,11 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [0.136.0] — 2026-07-23
+
+- Extensões que compartilham telas, ações, automações ou scripts em comum não duplicam mais: ao instalar duas extensões com o mesmo item, ele passa a existir uma vez só.
+- Remoção com segurança: ao remover uma extensão, os itens que outra extensão instalada ainda usa são preservados — só somem quando nenhuma extensão mais os utiliza.
+
 ## [0.135.0] — 2026-07-23
 
 - Atualização de extensões: ao importar uma versão mais recente de uma extensão já instalada, o sistema atualiza no lugar — cria e ajusta as telas novas, remove as que saíram e mantém os seus dados. Os campos que você adicionou por conta própria às telas da extensão são preservados.

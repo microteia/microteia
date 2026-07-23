@@ -18,8 +18,12 @@ export interface Script {
   compiledJs: string;
   inputParams: WorkflowParameter[];
   outputParams: ScriptOutputParam[];
-  /** Presente quando o script foi trazido por uma extensão; a desinstalação o remove. */
+  /** Dono PRIMÁRIO (= `ownerPluginIds[0]`) quando trazido por uma extensão. */
   ownerPluginId?: string | null;
+  /** Conjunto de extensões que compartilham este script (refcount); removido só quando vazio. */
+  ownerPluginIds?: string[] | null;
+  /** Id UNIVERSAL de origem (GUID do artefato no tenant autor) — chave de deduplicação na instalação. */
+  sourceId?: string | null;
   createdAt: Date;
   updatedAt: Date;
 }

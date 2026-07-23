@@ -30,6 +30,8 @@ const persisted: PersistedKeys = {
   parentEntity: 'cases',
   parentFieldKey: 'caseId',
   ownerPluginId: 'com.acme.vendas',
+  ownerPluginIds: ['com.acme.vendas'],
+  sourceId: 'src-123',
   managed: true,
   sidebarOrder: 3,
   enabled: false,

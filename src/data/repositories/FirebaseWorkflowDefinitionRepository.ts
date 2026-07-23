@@ -37,6 +37,8 @@ const mapDefinition = (id: string, d: Record<string, unknown>, tenantId: string)
   parameters: (d.parameters as WorkflowParameter[] | undefined) ?? undefined,
   isPublic: (d.isPublic as boolean | undefined) ?? false,
   ownerPluginId: (d.ownerPluginId as string | undefined) ?? undefined,
+  ownerPluginIds: (d.ownerPluginIds as string[] | undefined) ?? undefined,
+  sourceId: (d.sourceId as string | undefined) ?? undefined,
   enabled: (d.enabled as boolean) ?? false,
   version: (d.version as number) ?? 1,
   sourceWorkflowId: (d.sourceWorkflowId as string | undefined) ?? undefined,

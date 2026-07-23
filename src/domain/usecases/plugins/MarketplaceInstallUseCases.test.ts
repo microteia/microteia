@@ -50,6 +50,10 @@ class FakeWorkflows {
     const wf = this.store.get(id);
     if (wf) this.store.set(id, { ...wf, steps });
   }
+  async updateWorkflowDefinition(_tenantId: string, id: string, data: Partial<WorkflowDefinition>) {
+    const wf = this.store.get(id);
+    if (wf) this.store.set(id, { ...wf, ...data });
+  }
   async deleteWorkflowDefinition(_tenantId: string, id: string) {
     this.store.delete(id);
   }
@@ -70,6 +74,11 @@ class FakeScreens {
   }
 }
 
+const upd = <T>(store: Map<string, T>, id: string, data: Partial<T>) => {
+  const cur = store.get(id);
+  if (cur) store.set(id, { ...cur, ...data });
+};
+
 class FakeActions {
   seq = 0;
   store = new Map<string, ActionDefinition>();
@@ -80,6 +89,9 @@ class FakeActions {
     const action = { ...data, id: `act-${(this.seq += 1)}`, tenantId, createdAt: new Date(), updatedAt: new Date() } as ActionDefinition;
     this.store.set(action.id, action);
     return action;
+  }
+  async update(_tenantId: string, id: string, data: Partial<ActionDefinitionInput>) {
+    upd(this.store, id, data as Partial<ActionDefinition>);
   }
   async delete(_tenantId: string, id: string) {
     this.store.delete(id);
@@ -96,6 +108,9 @@ class FakeScripts {
     const script = { ...data, id: `scr-${(this.seq += 1)}`, tenantId, createdAt: new Date(), updatedAt: new Date() } as Script;
     this.store.set(script.id, script);
     return script;
+  }
+  async updateScript(_tenantId: string, id: string, data: Partial<Script>) {
+    upd(this.store, id, data);
   }
   async deleteScript(_tenantId: string, id: string) {
     this.store.delete(id);
@@ -346,6 +361,76 @@ describe('Upgrade — atualização de versão', () => {
   it('recusa atualizar o que não está instalado', async () => {
     const result = await makeUpgradeMarketplacePluginUseCase(deps()).execute(version('1.1.0', [screenT('a')]), actor);
     expect(result).toMatchObject({ ok: false, error: { code: 'not-installed' } });
+  });
+});
+
+describe('Dedup + refcount — extensões que compartilham artefatos', () => {
+  const shared = (id: string): MarketplacePlugin => ({
+    summary: 'S',
+    manifest: { id, version: '1.0.0', kernel: '^1.0.0', name: id },
+    scripts: [{ templateId: 'scr-shared', name: 'Sc', sourceTs: 'x', compiledJs: 'y', inputParams: [], outputParams: [] }],
+    workflows: [{
+      templateId: 'wf-shared', name: 'Wf', eventName: 'workflow.called', version: 1, condition: { kind: 'AlwaysTrue' },
+      steps: [literalStep('s1', 'script', 'scriptId', 'scr-shared')],
+    }],
+    actions: [{ templateId: 'act-shared', key: 'a', title: 'A', icon: 'apps', workflowId: 'wf-shared', danger: false, enabled: true, order: 0 }],
+    screens: [{
+      key: 'medico', sourceId: 'src-medico', titleSingular: 'Médico', titlePlural: 'Médicos', icon: 'apps',
+      titleFieldKey: 'n', viewActionIds: ['act-shared'], fields: [{ key: 'n', label: 'N', type: 'text', required: true, order: 0 }],
+    }],
+  });
+
+  const installTwo = async () => {
+    await makeInstallMarketplacePluginUseCase(deps()).execute(shared('com.a'), actor);
+    await makeInstallMarketplacePluginUseCase(deps()).execute(shared('com.b'), actor);
+  };
+
+  it('instalar duas extensões com o mesmo artefato NÃO duplica; ambas viram donas', async () => {
+    await installTwo();
+
+    const s = await scripts.getScripts('t1');
+    const w = await workflows.getWorkflowDefinitions('t1');
+    const a = await actions.getAll('t1');
+    const sc = await screens.getAll('t1');
+    expect([s.length, w.length, a.length, sc.length]).toEqual([1, 1, 1, 1]);
+    expect(s[0].ownerPluginIds).toEqual(['com.a', 'com.b']);
+    expect(w[0].ownerPluginIds).toEqual(['com.a', 'com.b']);
+    expect(a[0].ownerPluginIds).toEqual(['com.a', 'com.b']);
+    expect(sc[0].ownerPluginIds).toEqual(['com.a', 'com.b']);
+    // A tela reusa a chave da PRIMEIRA extensão e aponta para a action deduplicada.
+    expect(sc[0].id).toBe('com-a__medico');
+    expect(sc[0].viewActionIds).toEqual([a[0].id]);
+  });
+
+  it('remover uma mantém o artefato (a outra usa); remover a outra apaga', async () => {
+    await installTwo();
+
+    const first = await makeUninstallMarketplacePluginUseCase(deps()).execute('com.a', actor);
+    expect(first).toMatchObject({ ok: true, removedScreens: 0, removedActions: 0, removedWorkflows: 0, removedScripts: 0 });
+    expect((await screens.getAll('t1'))[0].ownerPluginIds).toEqual(['com.b']);
+    expect((await screens.getAll('t1'))[0].ownerPluginId).toBe('com.b');
+    expect((await actions.getAll('t1'))[0].ownerPluginId).toBe('com.b');
+    expect(await scripts.getScripts('t1')).toHaveLength(1);
+
+    const second = await makeUninstallMarketplacePluginUseCase(deps()).execute('com.b', actor);
+    expect(second).toMatchObject({ ok: true, removedScreens: 1, removedActions: 1, removedWorkflows: 1, removedScripts: 1 });
+    expect(await screens.getAll('t1')).toEqual([]);
+    expect(await actions.getAll('t1')).toEqual([]);
+    expect(await workflows.getWorkflowDefinitions('t1')).toEqual([]);
+    expect(await scripts.getScripts('t1')).toEqual([]);
+  });
+
+  it('segundo install preserva campos que o usuário adicionou à tela compartilhada', async () => {
+    await makeInstallMarketplacePluginUseCase(deps()).execute(shared('com.a'), actor);
+    const key = 'com-a__medico';
+    const cur = screens.store.get(key)!;
+    screens.store.set(key, { ...cur, fields: [...cur.fields, { key: 'meu', label: 'Meu', type: 'text', required: false, order: 9, ownerPluginId: null }] });
+
+    await makeInstallMarketplacePluginUseCase(deps()).execute(shared('com.b'), actor);
+
+    const after = screens.store.get(key)!;
+    expect(after.fields.map((f) => f.key)).toEqual(expect.arrayContaining(['n', 'meu']));
+    expect(after.ownerPluginIds).toEqual(['com.a', 'com.b']);
   });
 });
 

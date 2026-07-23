@@ -1,4 +1,5 @@
 import type { MarketplacePlugin, ScreenModuleTemplate } from '../../entities/MarketplacePlugin';
+import type { ScreenDefinition } from '../../entities';
 import type { ScreenDefinitionInput } from '../../repositories/IScreenDefinitionRepository';
 
 const slug = (value: string): string =>
@@ -12,9 +13,31 @@ const slug = (value: string): string =>
 export const installedScreenKey = (pluginId: string, templateKey: string): string =>
   `${slug(pluginId)}__${slug(templateKey)}`;
 
-/** Mapa `keyDeTemplate → chaveInstalada` de todas as telas do pacote, base da reescrita de refs. */
-export const buildScreenKeyMap = (pluginId: string, screens: ScreenModuleTemplate[]): Map<string, string> =>
-  new Map(screens.map((screen) => [screen.key, installedScreenKey(pluginId, screen.key)]));
+/** Id UNIVERSAL da tela: o `sourceId` do template; na falta (tela legada), a própria chave. */
+export const templateSourceId = (screen: Pick<ScreenModuleTemplate, 'key' | 'sourceId'>): string =>
+  screen.sourceId ?? screen.key;
+
+const screenSourceId = (screen: Pick<ScreenDefinition, 'id' | 'sourceId'>): string =>
+  screen.sourceId ?? screen.id;
+
+/**
+ * Mapa `keyDeTemplate → chaveInstalada`. Deduplica por `sourceId`: se uma tela com o mesmo id
+ * universal já existe no tenant (trazida por outra extensão), reusa a chave dela — instala uma vez
+ * só, sem órfão de dados. Senão, primeira instalação, cai na chave namespaced determinística.
+ */
+export const buildScreenKeyMap = (
+  pluginId: string,
+  screens: ScreenModuleTemplate[],
+  existingScreens: ScreenDefinition[] = [],
+): Map<string, string> => {
+  const bySourceId = new Map(existingScreens.map((s) => [screenSourceId(s), s.id]));
+  return new Map(
+    screens.map((screen) => [
+      screen.key,
+      bySourceId.get(templateSourceId(screen)) ?? installedScreenKey(pluginId, screen.key),
+    ]),
+  );
+};
 
 const rewriteRef = (ref: string | null | undefined, keyMap: Map<string, string>): string | null | undefined =>
   ref && keyMap.has(ref) ? keyMap.get(ref) : ref;
@@ -84,6 +107,8 @@ export const materializeScreen = (
     parentEntity: rewriteRef(template.parentEntity, keyMap) ?? null,
     parentFieldKey: template.parentFieldKey ?? null,
     ownerPluginId: pluginId,
+    ownerPluginIds: [pluginId],
+    sourceId: templateSourceId(template),
     managed: true,
     sidebarOrder: template.sidebarOrder ?? 0,
     enabled: template.enabled ?? true,

@@ -37,6 +37,8 @@ export const mapScreenDefinition = (
   parentEntity: (d.parentEntity as string | null | undefined) ?? null,
   parentFieldKey: (d.parentFieldKey as string | null | undefined) ?? null,
   ownerPluginId: (d.ownerPluginId as string | null | undefined) ?? null,
+  ownerPluginIds: (d.ownerPluginIds as string[] | null | undefined) ?? null,
+  sourceId: (d.sourceId as string | null | undefined) ?? null,
   managed: (d.managed as boolean | null | undefined) ?? null,
   sidebarOrder: (d.sidebarOrder as number | undefined) ?? 0,
   enabled: (d.enabled as boolean | undefined) ?? true,

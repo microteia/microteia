@@ -22,8 +22,15 @@ export interface ActionDefinition {
   danger: boolean;
   enabled: boolean;
   order: number;
-  /** Presente quando a action foi trazida por uma extensão; a desinstalação a remove. */
+  /** Presente quando a action foi trazida por uma extensão; a desinstalação a remove. Dono
+   * PRIMÁRIO (= `ownerPluginIds[0]`), usado para exibição/lock. */
   ownerPluginId?: string | null;
+  /** Conjunto de extensões que compartilham esta action (refcount). A action só é removida quando o
+   * conjunto fica vazio. */
+  ownerPluginIds?: string[] | null;
+  /** Id UNIVERSAL de origem (o GUID do artefato no tenant autor), estável entre pacotes — é por ele
+   * que a instalação deduplica: dois plugins com a mesma origem reusam a mesma action. */
+  sourceId?: string | null;
   createdAt: Date;
   createdBy: string;
   updatedAt: Date;

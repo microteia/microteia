@@ -118,6 +118,11 @@ export interface ScreenDefinition {
    * `ownerPluginId`.
    */
   ownerPluginId?: string | null;
+  /** Conjunto de extensões que compartilham esta tela (refcount); removida só quando vazio. */
+  ownerPluginIds?: string[] | null;
+  /** Id UNIVERSAL de origem da tela — GUID quando criada após a introdução do campo; senão a própria
+   * chave (slug). É a base da chave instalada universal, o que deduplica telas entre extensões. */
+  sourceId?: string | null;
   managed?: boolean | null;
   sidebarOrder: number;
   enabled: boolean;

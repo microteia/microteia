@@ -13,6 +13,8 @@ import type { FieldDefinition, ScreenListAction } from './entitySchemas';
  */
 export interface ScreenModuleTemplate {
   key: string;
+  /** Id UNIVERSAL de origem da tela — deduplica a mesma tela entre extensões na instalação. */
+  sourceId?: string;
   titleSingular: string;
   titlePlural: string;
   icon: string;
