@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [0.130.0] — 2026-07-23
+
+- As extensões agora podem adicionar itens ao menu e telas próprias ao escritório. Ao instalar uma extensão com interface, o novo item aparece na hora na barra lateral; ao desativar ou remover, ele some. A extensão de exemplo "Guia do Escritório" demonstra o recurso.
+
 ## [0.129.0] — 2026-07-22
 
 - As extensões agora podem ter uma página de detalhes rica: na tela de Extensões, clique em "Ver detalhes" para conhecer o que cada uma faz antes de instalar.

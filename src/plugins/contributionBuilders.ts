@@ -1,5 +1,6 @@
 import React, { lazy } from 'react';
 import type { Contribution } from '../domain/schema/plugin/contribution';
+import type { WidgetSpec } from '../presentation/shared/widget/widgetSpec';
 import type {
   UiCommandMetadata,
   UiNavMetadata,
@@ -43,6 +44,18 @@ export const page = (metadata: UiPageMetadata, implKey: string): Contribution =>
   apiVersion: UI_API_VERSION,
   metadata: { ...metadata } as unknown as Record<string, unknown>,
   impl: { kind: 'code', key: implKey },
+});
+
+/**
+ * Uma tela DECLARATIVA (Widget DSL) — o único jeito de um plugin de terceiro entregar página, já
+ * que `impl: code` é vetado a quem não é interno. O Kernel a renderiza pelo `WidgetRenderer`.
+ */
+export const widgetPage = (metadata: UiPageMetadata, spec: WidgetSpec): Contribution => ({
+  point: UI_PAGE_POINT,
+  id: metadata.key ? slug(metadata.key) : `${slug(metadata.keyPrefix ?? 'widget')}-prefix`,
+  apiVersion: UI_API_VERSION,
+  metadata: { ...metadata } as unknown as Record<string, unknown>,
+  impl: { kind: 'widget', spec: spec as unknown as Record<string, unknown> },
 });
 
 export const nav = (metadata: UiNavMetadata): Contribution => ({

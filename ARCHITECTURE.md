@@ -2643,6 +2643,37 @@ verdades. O manifest declara só o que o Kernel precisa para raciocinar sem carr
 O `WorkflowExecutor`, o `StepRegistry` e os handlers de catálogo **não mudaram**: o `stepRegistry`
 continua sendo o índice que o executor consulta; o que virou orientado a dados foi quem o popula.
 
+### Carga de plugins ciente do tenant — o que ativa um plugin instalado
+
+O host do Kernel do topo do `App` (`KernelProvider records={CORE_PLUGINS}`) é o **host base**: serve
+o `resolveService` do DI e as rotas públicas, acima do tenant. Sozinho, ele nunca vê o que um
+escritório instalou.
+
+`stores/TenantKernelProvider.tsx` resolve isso com **override de contexto React**: dentro do tenant,
+envolvendo `<WorkspaceShell />`, ele renderiza um **segundo** `KernelProvider` com
+`records = [...CORE_PLUGINS, ...instalados]`. Como os dois usam o mesmo `KernelContext`, a instância
+interna vence para a subárvore do workspace — barra lateral, páginas e ⌘K leem as contribuições
+**dela**. O DI, acima, continua no host base. Nenhuma mudança no Kernel; só aninhamento.
+
+`installedPluginRecords(catalog, installations)` (`domain/usecases/plugins/`, puro e testado)
+computa os `PluginRecord` a partir de `(instalação habilitada ∩ catálogo)`, sempre `trusted: false`.
+Consequências:
+
+- **Contribuição de UI de plugin instalado não é persistida.** É derivada; ativar/desativar liga e
+  desliga o menu e as páginas ao vivo, sem gravar nada. (Workflow continua materializado — é estado;
+  UI é função do que está instalado.)
+- **Terceiro nunca roda `code`.** `trusted: false` faz o `PluginHost` recusar `impl: code`; só
+  `widget`/`workflow`/`nav` passam. Uma página de plugin instalado é sempre Widget DSL.
+- **Instalação órfã** (manifest sumiu do catálogo por despublicação) é ignorada.
+
+O plugin de exemplo `com.curatino.guia` prova o caminho: seu manifest contribui `ui.nav` + uma
+`ui.page` de widget; instalar faz "Guia" aparecer no menu e a página renderizar pelo `WidgetRenderer`
+— sem uma linha de código do plugin no browser. (O `com.curatino.boas-vindas` cobre o outro
+mecanismo, materialização de workflow.)
+
+**Limitação registrada:** o `resolveService` do DI usa o host base, então um `data.service` de plugin
+instalado não é resolvido — sem consumidor hoje; a evolução é o DI ler o host de tenant.
+
 ### Widget DSL — tela declarativa sem JS de plugin (Etapa 6)
 
 Um plugin de terceiro só contribui `script`/`widget`/`workflow` (nunca `code`). O **Widget DSL** é
@@ -2855,10 +2886,10 @@ não dispara é pior que guarda nenhuma.
 | 4a ✅ | Capabilities: os 5 provedores de IA saem do container e viram contribuições |
 | 4b ✅ | `EntityKey` aberto; entidades e lookups como contribuições `data.entity`/`data.lookup` |
 | 4c ✅ | Ponto `data.service`: plugin injeta serviço no DI do frontend, container tipado intacto |
-| 5 ◑ | Ciclo de vida (spine): `PluginInstallation` + use cases testados + rules |
+| 5 ✅ | Ciclo de vida + carga por tenant: instalar ativa menu/página/workflow do plugin |
 | — ✅ | Fatia vertical: plugin de exemplo instalável ponta a ponta (workflow + página Extensões) |
-| 7 ◑ | Marketplace (spine): registro global `plugin_registry`, catálogo publicados ∪ embutidos, publish/unpublish (SYSTEM) |
-| 6 ◑ | Widget DSL: `WidgetSpec` + `WidgetRenderer` (estático), ligado em `impl:widget`; falta ligação a dados |
+| 7 ◑ | Marketplace: registro global + publish (SYSTEM); falta versões por plugin e publish com validação |
+| 6 ✅ | Widget DSL (estático) — plugin instalado entrega tela por widget; falta só ligação a dados |
 | 7 | Marketplace: `plugin_registry`, publicação e instalação |
 
 ---

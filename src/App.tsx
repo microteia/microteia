@@ -2,6 +2,7 @@ import React from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { DIProvider } from './infrastructure/di/DIContainer';
 import { KernelProvider } from './stores/KernelContext';
+import { TenantKernelProvider } from './stores/TenantKernelProvider';
 import { CORE_PLUGINS } from './plugins';
 import { ThemeProvider } from './stores/ThemeContext';
 import { AuthProvider } from './stores/AuthContext';
@@ -108,7 +109,9 @@ const App: React.FC = () => {
                                               <CommandPaletteProvider>
                                                 <TextAnnotationStoreProvider>
                                                   <AppErrorBoundary>
-                                                    <WorkspaceShell />
+                                                    <TenantKernelProvider>
+                                                      <WorkspaceShell />
+                                                    </TenantKernelProvider>
                                                   </AppErrorBoundary>
                                                 </TextAnnotationStoreProvider>
                                               </CommandPaletteProvider>

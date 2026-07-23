@@ -1,11 +1,13 @@
 import type { MarketplacePlugin } from '../../domain/entities/MarketplacePlugin';
+import { nav, widgetPage } from '../contributionBuilders';
 
 /**
- * Catálogo do Marketplace — fatia vertical. Um plugin de exemplo, real e instalável, cujo único
- * artefato é um workflow. Prova a plataforma de ponta a ponta reusando o motor de automações: a
- * instalação materializa o workflow no tenant (o motor já o executa); a desinstalação o remove.
+ * Catálogo do Marketplace embutido. Dois exemplos, cada um provando um mecanismo de instalação:
+ * - "Boas-vindas ao Cliente" — só um workflow, materializado no tenant (o motor já o executa).
+ * - "Guia do Escritório" — só UI (item de menu + página em Widget DSL): ao instalar, o host de
+ *   tenant carrega suas contribuições e o menu/página aparecem ao vivo; nada é gravado.
  *
- * Hoje o catálogo é código embutido; na Etapa 7 vem do registro global `plugin_registry`.
+ * Hoje o catálogo é código embutido; publicá-los leva ao registro global `plugin_registry`.
  */
 export const MARKETPLACE_CATALOG: MarketplacePlugin[] = [
   {
@@ -89,5 +91,76 @@ export const MARKETPLACE_CATALOG: MarketplacePlugin[] = [
         ],
       },
     ],
+  },
+  {
+    manifest: {
+      id: 'com.curatino.guia',
+      version: '1.0.0',
+      kernel: '^1.0.0',
+      name: 'Guia do Escritório',
+      description: 'Adiciona uma página de guia rápido ao menu do escritório.',
+      publisher: { name: 'Curatino' },
+      dependencies: { 'core.ui': '^1.0.0' },
+      contributes: [
+        nav({ key: 'guia', label: 'Guia', icon: 'bookSimple', order: 106 }),
+        widgetPage(
+          { key: 'guia', title: 'Guia do Escritório', icon: 'bookSimple' },
+          {
+            type: 'stack',
+            gap: 'lg',
+            children: [
+              { type: 'heading', text: 'Guia do Escritório' },
+              {
+                type: 'markdown',
+                content:
+                  'Esta página foi **adicionada por uma extensão** — não faz parte do sistema base. Ela demonstra que um plugin pode trazer uma tela própria, descrita de forma declarativa e renderizada com segurança pelo Curatino.',
+              },
+              {
+                type: 'grid',
+                columns: 3,
+                children: [
+                  { type: 'metric', label: 'Cadastre', value: 'Pessoas' },
+                  { type: 'metric', label: 'Organize', value: 'Processos' },
+                  { type: 'metric', label: 'Controle', value: 'Prazos' },
+                ],
+              },
+              { type: 'divider' },
+              {
+                type: 'keyValue',
+                items: [
+                  { label: 'Origem', value: 'Extensão Guia do Escritório' },
+                  { label: 'Tipo de tela', value: 'Declarativa (Widget DSL)' },
+                  { label: 'Código no navegador', value: 'Nenhum' },
+                ],
+              },
+              {
+                type: 'banner',
+                message: 'Desative ou remova a extensão a qualquer momento — esta página some junto.',
+                variant: 'info',
+              },
+            ],
+          },
+        ),
+      ],
+    },
+    summary:
+      'Adiciona um item "Guia" ao menu, com uma página de introdução ao escritório. Um exemplo de extensão que traz a própria tela, sem código no navegador.',
+    overview: {
+      type: 'stack',
+      gap: 'md',
+      children: [
+        {
+          type: 'markdown',
+          content:
+            'A extensão **Guia do Escritório** adiciona uma página ao menu lateral. É um exemplo de como uma extensão pode entregar **interface própria** — descrita como dado e renderizada pelo Curatino, sem executar código de terceiro no navegador.',
+        },
+        {
+          type: 'banner',
+          message: 'Após instalar, procure o item "Guia" no menu à esquerda.',
+          variant: 'info',
+        },
+      ],
+    },
+    workflows: [],
   },
 ];
