@@ -11,19 +11,24 @@ export interface MarketplaceCard {
   enabled: boolean;
   installedVersion?: string;
   workflowCount: number;
+  published: boolean;
 }
 
 export interface MarketplaceViewModel {
   cards: MarketplaceCard[];
   canManage: boolean;
+  canPublish: boolean;
   busyPluginId: string | null;
   install: (plugin: MarketplacePlugin) => Promise<void>;
   uninstall: (pluginId: string) => Promise<void>;
   toggleEnabled: (pluginId: string, enabled: boolean) => Promise<void>;
+  publish: (plugin: MarketplacePlugin) => Promise<void>;
+  unpublish: (pluginId: string) => Promise<void>;
 }
 
 export const useMarketplaceViewModel = (): MarketplaceViewModel => {
-  const { catalog, installationOf, install, uninstall, setEnabled } = usePluginStore();
+  const { catalog, installationOf, sourceOf, canPublish, install, uninstall, setEnabled, publish, unpublish } =
+    usePluginStore();
   const { tenantRole } = useTenant();
   const { userRole } = useAuth();
   const { notify } = useNotification();
@@ -41,9 +46,10 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
           enabled: installation?.enabled ?? false,
           installedVersion: installation?.version,
           workflowCount: plugin.workflows.length,
+          published: sourceOf(plugin.manifest.id) === 'published',
         };
       }),
-    [catalog, installationOf],
+    [catalog, installationOf, sourceOf],
   );
 
   const run = useCallback(
@@ -79,12 +85,41 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
     [run, setEnabled],
   );
 
+  const publishPlugin = useCallback(
+    (plugin: MarketplacePlugin) =>
+      run(
+        plugin.manifest.id,
+        async () => {
+          await publish(plugin);
+          return null;
+        },
+        `${plugin.manifest.name} publicado no catálogo.`,
+      ),
+    [run, publish],
+  );
+
+  const unpublishPlugin = useCallback(
+    (pluginId: string) =>
+      run(
+        pluginId,
+        async () => {
+          await unpublish(pluginId);
+          return null;
+        },
+        'Publicação removida do catálogo.',
+      ),
+    [run, unpublish],
+  );
+
   return {
     cards,
     canManage,
+    canPublish,
     busyPluginId,
     install: installPlugin,
     uninstall: uninstallPlugin,
     toggleEnabled,
+    publish: publishPlugin,
+    unpublish: unpublishPlugin,
   };
 };

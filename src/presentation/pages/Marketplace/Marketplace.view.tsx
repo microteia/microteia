@@ -23,7 +23,7 @@ export const MarketplaceView: React.FC = () => {
           />
         )}
 
-        {vm.cards.map(({ plugin, installed, enabled, installedVersion, workflowCount }) => {
+        {vm.cards.map(({ plugin, installed, enabled, installedVersion, workflowCount, published }) => {
           const busy = vm.busyPluginId === plugin.manifest.id;
           return (
             <S.Card key={plugin.manifest.id}>
@@ -40,6 +40,7 @@ export const MarketplaceView: React.FC = () => {
                 <span>
                   {workflowCount} {workflowCount === 1 ? 'automação' : 'automações'}
                 </span>
+                <S.Origin>{published ? 'Publicada' : 'Interna'}</S.Origin>
               </S.Meta>
 
               {vm.canManage && (
@@ -67,6 +68,20 @@ export const MarketplaceView: React.FC = () => {
                         Remover
                       </Button>
                     </>
+                  )}
+                </S.Actions>
+              )}
+
+              {vm.canPublish && (
+                <S.Actions>
+                  {!published ? (
+                    <Button variant="ghost" size="sm" disabled={busy} onClick={() => vm.publish(plugin)}>
+                      Publicar no catálogo
+                    </Button>
+                  ) : (
+                    <Button variant="ghost" size="sm" disabled={busy} onClick={() => vm.unpublish(plugin.manifest.id)}>
+                      Despublicar
+                    </Button>
                   )}
                 </S.Actions>
               )}

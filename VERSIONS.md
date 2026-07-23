@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [0.128.0] — 2026-07-22
+
+- A tela de Extensões passou a ter um catálogo compartilhado: novas extensões podem ser disponibilizadas para todos os escritórios sem precisar atualizar o sistema. Cada extensão mostra se é interna ou publicada no catálogo.
+
 ## [0.127.1] — 2026-07-22
 
 - Ajuste na extensão de exemplo "Boas-vindas ao Cliente" para que ela registre corretamente o evento na Auditoria ao cadastrar uma nova pessoa.

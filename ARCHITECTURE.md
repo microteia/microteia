@@ -2643,6 +2643,30 @@ verdades. O manifest declara só o que o Kernel precisa para raciocinar sem carr
 O `WorkflowExecutor`, o `StepRegistry` e os handlers de catálogo **não mudaram**: o `stepRegistry`
 continua sendo o índice que o executor consulta; o que virou orientado a dados foi quem o popula.
 
+### Registro global do Marketplace (Etapa 7 — spine)
+
+O catálogo deixou de ser só código: uma coleção-raiz `plugin_registry` guarda os plugins
+publicados, no mesmo modelo de `public_workflows`.
+
+| | Leitura | Escrita |
+|---|---|---|
+| `plugin_registry/{pluginId}` | qualquer autenticado | só `isSystemAdmin()` (equipe global) |
+
+**Marketplace curado, v1.** Publicar é escrita de cliente gated a SYSTEM — a equipe Curatino
+curadora, não o admin do tenant. Precisa apenas de `deploy:rules`, sem Cloud Function nem service
+account. A evolução para marketplace aberto (revisão + publish via Admin SDK, como
+`public_workflows`) é trocar a regra e a porta de escrita, sem mexer no resto.
+
+**Catálogo mostrado = publicados ∪ embutidos**, deduplicados por id, o publicado vencendo
+(`domain/usecases/plugins/mergeCatalog.ts`, puro e testado). Os plugins **embutidos**
+(`plugins/marketplace/catalog.ts`) vêm no bundle e são o ponto de partida; o **registro** é o que
+permite adicionar um plugin **sem deploy do frontend**. Publicar um embutido prova o ciclo:
+o card passa de "Interna" para "Publicada" e a partir dali vem do Firestore. O `PluginStore` assina
+`plugin_registry` (global, independente de tenant) e expõe `publish`/`unpublish` para SYSTEM.
+
+O que falta para a Etapa 7 completa: versões por plugin (`versions/{semver}`), um fluxo de publish
+de verdade (formulário/validação de manifest) e a migração dos Workflows Públicos para cá.
+
 ### Fatia vertical do Marketplace — instalar de verdade (Etapa 5 + prova de ponta a ponta)
 
 A primeira extensão instalável real, provando a plataforma inteira **reusando o motor de
@@ -2806,6 +2830,7 @@ não dispara é pior que guarda nenhuma.
 | 4c ✅ | Ponto `data.service`: plugin injeta serviço no DI do frontend, container tipado intacto |
 | 5 ◑ | Ciclo de vida (spine): `PluginInstallation` + use cases testados + rules |
 | — ✅ | Fatia vertical: plugin de exemplo instalável ponta a ponta (workflow + página Extensões) |
+| 7 ◑ | Marketplace (spine): registro global `plugin_registry`, catálogo publicados ∪ embutidos, publish/unpublish (SYSTEM) |
 | 6 | Widget DSL: slots e renderizador declarativo |
 | 7 | Marketplace: `plugin_registry`, publicação e instalação |
 

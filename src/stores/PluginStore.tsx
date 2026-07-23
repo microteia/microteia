@@ -6,6 +6,9 @@ import { useDI } from '../infrastructure/di/useDI';
 import { MARKETPLACE_CATALOG } from '../plugins/marketplace/catalog';
 import type { MarketplacePlugin } from '../domain/entities/MarketplacePlugin';
 import type { PluginInstallation } from '../domain/entities/PluginInstallation';
+import type { PublishedPlugin } from '../domain/repositories/IPluginRegistryRepository';
+import { mergeCatalog, pluginSourceOf } from '../domain/usecases/plugins/mergeCatalog';
+import type { PluginSource } from './usePluginStore';
 import type { LifecycleActor } from '../domain/services/pluginLifecycle';
 import {
   makeInstallMarketplacePluginUseCase,
@@ -18,11 +21,14 @@ import {
 
 export const PluginStoreProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { currentTenant } = useTenant();
-  const { user } = useAuth();
-  const { workflowDefinitionRepository, pluginInstallationRepository } = useDI();
+  const { user, userRole } = useAuth();
+  const { workflowDefinitionRepository, pluginInstallationRepository, pluginRegistryRepository } = useDI();
 
   const [installations, setInstallations] = useState<PluginInstallation[]>([]);
+  const [published, setPublished] = useState<PublishedPlugin[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+
+  const canPublish = userRole === 'SYSTEM';
 
   const uc = useMemo(() => {
     const deps = {
@@ -50,6 +56,11 @@ export const PluginStoreProvider: React.FC<{ children: React.ReactNode }> = ({ c
     });
     return () => unsubscribe();
   }, [currentTenant, pluginInstallationRepository]);
+
+  useEffect(() => {
+    const unsubscribe = pluginRegistryRepository.subscribe(setPublished);
+    return () => unsubscribe();
+  }, [pluginRegistryRepository]);
 
   const actorNow = useCallback((): LifecycleActor | null => {
     if (!currentTenant || !user) return null;
@@ -91,17 +102,46 @@ export const PluginStoreProvider: React.FC<{ children: React.ReactNode }> = ({ c
     [installations],
   );
 
+  // O registro é o que permite adicionar plugin sem deploy; os embutidos vêm no bundle e servem de
+  // ponto de partida — publicá-los prova o ciclo publicar → vir do registro. Lógica em mergeCatalog.
+  const catalog = useMemo<MarketplacePlugin[]>(
+    () => mergeCatalog(published, MARKETPLACE_CATALOG),
+    [published],
+  );
+
+  const sourceOf = useCallback(
+    (pluginId: string): PluginSource => pluginSourceOf(published, pluginId),
+    [published],
+  );
+
+  const publish = useCallback(
+    async (plugin: MarketplacePlugin) => {
+      if (!user) return;
+      await pluginRegistryRepository.publish(plugin, user.id);
+    },
+    [pluginRegistryRepository, user],
+  );
+
+  const unpublish = useCallback(
+    (pluginId: string) => pluginRegistryRepository.unpublish(pluginId),
+    [pluginRegistryRepository],
+  );
+
   const value = useMemo(
     () => ({
-      catalog: MARKETPLACE_CATALOG,
+      catalog,
       installations,
       isLoading,
+      canPublish,
       installationOf,
+      sourceOf,
       install,
       uninstall,
       setEnabled,
+      publish,
+      unpublish,
     }),
-    [installations, isLoading, installationOf, install, uninstall, setEnabled],
+    [catalog, installations, isLoading, canPublish, installationOf, sourceOf, install, uninstall, setEnabled, publish, unpublish],
   );
 
   return <PluginStoreContext.Provider value={value}>{children}</PluginStoreContext.Provider>;

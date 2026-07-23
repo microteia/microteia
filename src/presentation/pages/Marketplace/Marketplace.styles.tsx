@@ -86,6 +86,12 @@ export const S = {
     font-weight: 500;
   `,
 
+  Origin: styled.span`
+    margin-left: auto;
+    font-weight: 600;
+    color: ${({ theme }) => theme.colors.textSecondary};
+  `,
+
   Actions: styled.div`
     display: flex;
     gap: ${({ theme }) => theme.spacing.sm};
