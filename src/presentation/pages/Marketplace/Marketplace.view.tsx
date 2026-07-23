@@ -43,7 +43,7 @@ export const MarketplaceView: React.FC = () => {
           />
         )}
 
-        {vm.cards.map(({ plugin, installed, enabled, installedVersion, workflowCount, published, loadError }) => {
+        {vm.cards.map(({ plugin, installed, enabled, installedVersion, workflowCount, published, imported, loadError }) => {
           const busy = vm.busyPluginId === plugin.manifest.id;
           return (
             <S.Card key={plugin.manifest.id}>
@@ -70,7 +70,7 @@ export const MarketplaceView: React.FC = () => {
                 <span>
                   {workflowCount} {workflowCount === 1 ? 'automação' : 'automações'}
                 </span>
-                <S.Origin>{published ? 'Publicada' : 'Interna'}</S.Origin>
+                <S.Origin>{published ? 'Publicada' : imported ? 'Importada' : 'Interna'}</S.Origin>
               </S.Meta>
 
               {vm.canManage && (

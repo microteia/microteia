@@ -73,6 +73,7 @@ export interface WorkspaceSidebarViewModel {
   handleScriptsClick: () => void;
   handleActionsClick: () => void;
   handleDataProcessorClick: () => void;
+  handleMarketplaceClick: () => void;
   handleSetTheme: (mode: ThemeMode) => void;
   handleSignOut: () => void;
 }
@@ -174,6 +175,11 @@ export const useWorkspaceSidebarViewModel = (): WorkspaceSidebarViewModel => {
     closeMenu();
   }, [openTab, closeMenu]);
 
+  const handleMarketplaceClick = useCallback(() => {
+    openTab('marketplace');
+    closeMenu();
+  }, [openTab, closeMenu]);
+
   const handleSetTheme = useCallback((newMode: ThemeMode) => {
     setTheme(newMode);
     closeMenu();
@@ -215,6 +221,7 @@ export const useWorkspaceSidebarViewModel = (): WorkspaceSidebarViewModel => {
     handleScriptsClick,
     handleActionsClick,
     handleDataProcessorClick,
+    handleMarketplaceClick,
     handleSetTheme,
     handleSignOut,
   };

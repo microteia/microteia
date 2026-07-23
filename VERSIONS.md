@@ -11,6 +11,11 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [0.134.1] — 2026-07-23
+
+- Extensões importadas agora mostram o próprio nome e descrição na tela de Extensões, com a marca "Importada".
+- O acesso a Extensões saiu do menu lateral e passou para o menu do seu avatar, junto de Form Design, Workflow, Scripts e Ações.
+
 ## [0.134.0] — 2026-07-23
 
 - A tela de Extensões agora tem os botões "Criar extensão" e "Importar .json"; extensões importadas de um arquivo passam a aparecer na lista, com opção de ativar, desativar e remover.

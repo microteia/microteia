@@ -14,6 +14,8 @@ export interface MarketplaceCard {
   installedVersion?: string;
   workflowCount: number;
   published: boolean;
+  /** Extensão instalada a partir de um `.json`, fora do catálogo. */
+  imported: boolean;
   /** Preenchido quando o plugin está instalado e habilitado mas NÃO carregou no escritório. */
   loadError?: string;
 }
@@ -73,6 +75,7 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
           installedVersion: installation?.version,
           workflowCount: plugin.workflows.length,
           published: sourceOf(plugin.manifest.id) === 'published',
+          imported: false,
           loadError: loadErrorOf(plugin.manifest.id, installed, enabled),
         };
       }),
@@ -85,24 +88,31 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
     () =>
       installations
         .filter((installation) => !catalog.some((plugin) => plugin.manifest.id === installation.pluginId))
-        .map((installation) => ({
-          plugin: {
-            manifest: {
-              id: installation.pluginId,
-              version: installation.version,
-              kernel: '^1.0.0',
-              name: installation.pluginId,
+        .map((installation) => {
+          const meta = installation.config ?? {};
+          const name = (typeof meta.name === 'string' && meta.name) || installation.pluginId;
+          const summary = (typeof meta.summary === 'string' && meta.summary) || 'Extensão importada neste escritório.';
+          const workflowCount = typeof meta.workflowCount === 'number' ? meta.workflowCount : 0;
+          return {
+            plugin: {
+              manifest: {
+                id: installation.pluginId,
+                version: installation.version,
+                kernel: '^1.0.0',
+                name,
+              },
+              summary,
+              workflows: [],
             },
-            summary: 'Extensão importada neste escritório.',
-            workflows: [],
-          },
-          installed: true,
-          enabled: installation.enabled,
-          installedVersion: installation.version,
-          workflowCount: 0,
-          published: false,
-          loadError: loadErrorOf(installation.pluginId, true, installation.enabled),
-        })),
+            installed: true,
+            enabled: installation.enabled,
+            installedVersion: installation.version,
+            workflowCount,
+            published: false,
+            imported: true,
+            loadError: loadErrorOf(installation.pluginId, true, installation.enabled),
+          };
+        }),
     [installations, catalog, loadErrorOf],
   );
 

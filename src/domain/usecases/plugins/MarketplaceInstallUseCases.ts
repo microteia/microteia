@@ -52,7 +52,13 @@ export const makeInstallMarketplacePluginUseCase = (
 
     const outcome = planInstall(
       current,
-      { pluginId, version: plugin.manifest.version, grantedPermissions: plugin.manifest.permissions ?? [] },
+      {
+        pluginId,
+        version: plugin.manifest.version,
+        grantedPermissions: plugin.manifest.permissions ?? [],
+        // Cache denormalizado para exibir extensões importadas (fora do catálogo) na tela de Extensões.
+        config: { name: plugin.manifest.name, summary: plugin.summary, workflowCount: plugin.workflows.length },
+      },
       actor,
     );
     if (!outcome.ok) return { ok: false, error: outcome.error };
