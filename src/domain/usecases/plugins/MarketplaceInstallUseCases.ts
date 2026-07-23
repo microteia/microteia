@@ -1,23 +1,33 @@
 import type { MarketplacePlugin } from '../../entities/MarketplacePlugin';
 import type { IWorkflowDefinitionRepository } from '../../repositories/IWorkflowDefinitionRepository';
 import type { IPluginInstallationRepository } from '../../repositories/IPluginInstallationRepository';
+import type { IScreenDefinitionRepository } from '../../repositories/IScreenDefinitionRepository';
+import type { DeletionActor } from '../../entities';
 import type { LifecycleActor } from '../../services/pluginLifecycle';
 import { planInstall, planUninstall } from '../../services/pluginLifecycle';
 import type { LifecycleResult } from './PluginLifecycleUseCases';
+import { materializePluginScreens } from './screenModule';
 
 export interface MarketplaceDeps {
   workflowRepository: IWorkflowDefinitionRepository;
   installationRepository: IPluginInstallationRepository;
+  screenRepository: IScreenDefinitionRepository;
 }
+
+const deletionActor = (actor: LifecycleActor): DeletionActor => ({
+  uid: actor.userId,
+  name: actor.userId,
+  photoURL: '',
+});
 
 export type InstallMarketplacePluginUseCase = {
   execute: (plugin: MarketplacePlugin, actor: LifecycleActor) => Promise<LifecycleResult>;
 };
 
 /**
- * Instala um plugin do catálogo: valida a instalação, MATERIALIZA os workflows do plugin no tenant
- * (marcados com `ownerPluginId`, habilitados) e só então grava o registro de instalação. A ordem
- * importa — validar antes de criar evita workflow órfão se a regra recusar; gravar o registro por
+ * Instala um plugin do catálogo: valida a instalação, MATERIALIZA os artefatos do plugin no tenant
+ * (telas gerenciadas + workflows, marcados com `ownerPluginId`) e só então grava o registro. A ordem
+ * importa — validar antes de criar evita artefato órfão se a regra recusar; gravar o registro por
  * último evita marcar como instalado algo cuja materialização falhou.
  */
 export const makeInstallMarketplacePluginUseCase = (
@@ -38,6 +48,10 @@ export const makeInstallMarketplacePluginUseCase = (
     );
     if (!outcome.ok) return { ok: false, error: outcome.error };
 
+    for (const { screenKey, input } of materializePluginScreens(plugin, actor.userId)) {
+      await deps.screenRepository.upsert(actor.tenantId, screenKey, input);
+    }
+
     for (const template of plugin.workflows) {
       await deps.workflowRepository.createWorkflowDefinition(actor.tenantId, {
         ...template,
@@ -52,7 +66,7 @@ export const makeInstallMarketplacePluginUseCase = (
 });
 
 export type UninstallMarketplacePluginResult =
-  | { ok: true; removedWorkflows: number }
+  | { ok: true; removedWorkflows: number; removedScreens: number }
   | LifecycleResult;
 
 export type UninstallMarketplacePluginUseCase = {
@@ -60,8 +74,10 @@ export type UninstallMarketplacePluginUseCase = {
 };
 
 /**
- * Desinstala: valida, remove TODOS os workflows do tenant marcados com aquele `ownerPluginId`
- * (a cascata de artefatos que a Etapa 5 reservou) e por fim apaga o registro de instalação.
+ * Desinstala: valida, remove os artefatos do tenant marcados com aquele `ownerPluginId` — workflows
+ * e telas gerenciadas — e por fim apaga o registro de instalação. Os REGISTROS (customRecords) das
+ * telas são mantidos como órfãos: a estrutura some, os dados ficam. (Excluir os dados também é um
+ * follow-up.)
  */
 export const makeUninstallMarketplacePluginUseCase = (
   deps: MarketplaceDeps,
@@ -71,13 +87,19 @@ export const makeUninstallMarketplacePluginUseCase = (
     const outcome = planUninstall(current);
     if (!outcome.ok) return { ok: false, error: outcome.error };
 
-    const all = await deps.workflowRepository.getWorkflowDefinitions(actor.tenantId);
-    const owned = all.filter((workflow) => workflow.ownerPluginId === pluginId);
-    for (const workflow of owned) {
+    const workflows = await deps.workflowRepository.getWorkflowDefinitions(actor.tenantId);
+    const ownedWorkflows = workflows.filter((workflow) => workflow.ownerPluginId === pluginId);
+    for (const workflow of ownedWorkflows) {
       await deps.workflowRepository.deleteWorkflowDefinition(actor.tenantId, workflow.id);
     }
 
+    const screens = await deps.screenRepository.getAll(actor.tenantId);
+    const ownedScreens = screens.filter((screen) => screen.ownerPluginId === pluginId);
+    for (const screen of ownedScreens) {
+      await deps.screenRepository.delete(actor.tenantId, screen.id, deletionActor(actor));
+    }
+
     await deps.installationRepository.delete(actor.tenantId, pluginId);
-    return { ok: true, removedWorkflows: owned.length };
+    return { ok: true, removedWorkflows: ownedWorkflows.length, removedScreens: ownedScreens.length };
   },
 });

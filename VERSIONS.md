@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [0.131.0] — 2026-07-23
+
+- Extensões agora podem trazer módulos completos ao escritório — telas próprias de cadastro com campos, cálculos automáticos e relacionamentos. A extensão de exemplo "Vendas" adiciona Produtos, Vendas e Itens: o preço do item vem do produto escolhido, o total do item é calculado, e o total da venda soma os itens. Ao remover a extensão, os dados são preservados.
+
 ## [0.130.1] — 2026-07-23
 
 - Mais segurança no catálogo de extensões: uma extensão só entra no catálogo se estiver íntegra, e uma extensão que não puder ser carregada no escritório passa a explicar o motivo, em vez de simplesmente não aparecer.

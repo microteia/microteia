@@ -27,7 +27,12 @@ export const PluginStoreProvider: React.FC<{ children: React.ReactNode }> = ({ c
   const { currentTenant } = useTenant();
   const { user, userRole } = useAuth();
   const { host } = useKernel();
-  const { workflowDefinitionRepository, pluginInstallationRepository, pluginRegistryRepository } = useDI();
+  const {
+    workflowDefinitionRepository,
+    pluginInstallationRepository,
+    pluginRegistryRepository,
+    screenDefinitionRepository,
+  } = useDI();
 
   const [installations, setInstallations] = useState<PluginInstallation[]>([]);
   const [published, setPublished] = useState<PublishedPlugin[]>([]);
@@ -39,6 +44,7 @@ export const PluginStoreProvider: React.FC<{ children: React.ReactNode }> = ({ c
     const deps = {
       workflowRepository: workflowDefinitionRepository,
       installationRepository: pluginInstallationRepository,
+      screenRepository: screenDefinitionRepository,
     };
     return {
       install: makeInstallMarketplacePluginUseCase(deps),
@@ -46,7 +52,7 @@ export const PluginStoreProvider: React.FC<{ children: React.ReactNode }> = ({ c
       enable: makeEnablePluginUseCase(pluginInstallationRepository),
       disable: makeDisablePluginUseCase(pluginInstallationRepository),
     };
-  }, [workflowDefinitionRepository, pluginInstallationRepository]);
+  }, [workflowDefinitionRepository, pluginInstallationRepository, screenDefinitionRepository]);
 
   useEffect(() => {
     if (!currentTenant) {

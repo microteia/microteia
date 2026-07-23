@@ -2,8 +2,10 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import type { PluginInstallation } from '../../entities/PluginInstallation';
 import type { MarketplacePlugin } from '../../entities/MarketplacePlugin';
 import type { WorkflowDefinition } from '../../entities/Workflow';
+import type { ScreenDefinition } from '../../entities';
 import type { IPluginInstallationRepository } from '../../repositories/IPluginInstallationRepository';
 import type { IWorkflowDefinitionRepository } from '../../repositories/IWorkflowDefinitionRepository';
+import type { IScreenDefinitionRepository, ScreenDefinitionInput } from '../../repositories/IScreenDefinitionRepository';
 import type { LifecycleActor } from '../../services/pluginLifecycle';
 import {
   makeInstallMarketplacePluginUseCase,
@@ -54,6 +56,21 @@ class FakeWorkflows {
   }
 }
 
+class FakeScreens {
+  store = new Map<string, ScreenDefinition>();
+  async getAll(tenantId: string) {
+    return [...this.store.values()].filter((s) => s.tenantId === tenantId);
+  }
+  async upsert(tenantId: string, screenKey: string, data: ScreenDefinitionInput) {
+    const screen = { ...data, id: screenKey, tenantId, createdAt: new Date(), updatedAt: new Date() } as ScreenDefinition;
+    this.store.set(screenKey, screen);
+    return screen;
+  }
+  async delete(_tenantId: string, screenKey: string) {
+    this.store.delete(screenKey);
+  }
+}
+
 const actor: LifecycleActor = { tenantId: 't1', userId: 'u1', now: new Date('2026-07-22T12:00:00Z') };
 
 const plugin: MarketplacePlugin = {
@@ -78,15 +95,18 @@ const plugin: MarketplacePlugin = {
 
 let installations: FakeInstallations;
 let workflows: FakeWorkflows;
+let screens: FakeScreens;
 
 const deps = () => ({
   installationRepository: installations,
   workflowRepository: workflows as unknown as IWorkflowDefinitionRepository,
+  screenRepository: screens as unknown as IScreenDefinitionRepository,
 });
 
 beforeEach(() => {
   installations = new FakeInstallations();
   workflows = new FakeWorkflows();
+  screens = new FakeScreens();
 });
 
 describe('InstallMarketplacePluginUseCase', () => {
@@ -123,7 +143,7 @@ describe('UninstallMarketplacePluginUseCase', () => {
 
     const result = await makeUninstallMarketplacePluginUseCase(deps()).execute(plugin.manifest.id, actor);
 
-    expect(result).toEqual({ ok: true, removedWorkflows: 1 });
+    expect(result).toEqual({ ok: true, removedWorkflows: 1, removedScreens: 0 });
     expect(await workflows.getWorkflowDefinitions('t1')).toEqual([]);
     expect(await installations.getById('t1', 'com.curatino.boas-vindas')).toBeNull();
   });
@@ -165,5 +185,108 @@ describe('ciclo completo com o catálogo real', () => {
 
     await makeUninstallMarketplacePluginUseCase(deps()).execute(sample.manifest.id, actor);
     expect(await workflows.getWorkflowDefinitions('t1')).toEqual([]);
+  });
+});
+
+const screenPlugin: MarketplacePlugin = {
+  summary: 'Módulo',
+  manifest: { id: 'com.acme.vendas', version: '1.0.0', kernel: '^1.0.0', name: 'Vendas' },
+  workflows: [],
+  screens: [
+    {
+      key: 'venda',
+      titleSingular: 'Venda',
+      titlePlural: 'Vendas',
+      icon: 'shoppingBag',
+      titleFieldKey: 'numero',
+      fields: [
+        { key: 'numero', label: 'Número', type: 'text', required: true, order: 0 },
+        { key: 'cliente', label: 'Cliente', type: 'reference', refEntity: 'persons', required: true, order: 1 },
+        {
+          key: 'total', label: 'Total', type: 'currency', required: false, order: 2,
+          aggregation: { from: 'item', via: 'venda', op: 'sum', field: 'total' },
+        },
+      ],
+    },
+    {
+      key: 'item',
+      titleSingular: 'Item',
+      titlePlural: 'Itens',
+      icon: 'shoppingBag',
+      titleFieldKey: 'produto',
+      parentEntity: 'venda',
+      parentFieldKey: 'venda',
+      fields: [
+        { key: 'venda', label: 'Venda', type: 'reference', refEntity: 'venda', required: true, order: 0 },
+        { key: 'total', label: 'Total', type: 'currency', required: false, order: 1, logic: { compute: 'qtd * preco' } },
+      ],
+    },
+  ],
+};
+
+describe('materialização de telas (módulo de plugin)', () => {
+  it('cria as telas namespaced, gerenciadas e com ownerPluginId', async () => {
+    await makeInstallMarketplacePluginUseCase(deps()).execute(screenPlugin, actor);
+    const created = await screens.getAll('t1');
+
+    expect(created.map((s) => s.id).sort()).toEqual([
+      'com-acme-vendas__item',
+      'com-acme-vendas__venda',
+    ]);
+    for (const screen of created) {
+      expect(screen.managed).toBe(true);
+      expect(screen.ownerPluginId).toBe('com.acme.vendas');
+      expect(screen.fields.every((f) => f.ownerPluginId === 'com.acme.vendas')).toBe(true);
+    }
+  });
+
+  it('reescreve refs entre telas do pacote e preserva ref ao core', async () => {
+    await makeInstallMarketplacePluginUseCase(deps()).execute(screenPlugin, actor);
+    const venda = (await screens.getAll('t1')).find((s) => s.id === 'com-acme-vendas__venda')!;
+    const item = (await screens.getAll('t1')).find((s) => s.id === 'com-acme-vendas__item')!;
+
+    // ref ao core intacto
+    expect(venda.fields.find((f) => f.key === 'cliente')?.refEntity).toBe('persons');
+    // agregado aponta para a tela item namespaced
+    expect(venda.fields.find((f) => f.key === 'total')?.aggregation?.from).toBe('com-acme-vendas__item');
+    // ref e parent do item apontam para a venda namespaced
+    expect(item.fields.find((f) => f.key === 'venda')?.refEntity).toBe('com-acme-vendas__venda');
+    expect(item.parentEntity).toBe('com-acme-vendas__venda');
+    expect(item.parentFieldKey).toBe('venda');
+    // compute preservado
+    expect(item.fields.find((f) => f.key === 'total')?.logic?.compute).toBe('qtd * preco');
+  });
+
+  it('desinstalar remove as telas do plugin e conta certo', async () => {
+    await makeInstallMarketplacePluginUseCase(deps()).execute(screenPlugin, actor);
+    const result = await makeUninstallMarketplacePluginUseCase(deps()).execute('com.acme.vendas', actor);
+
+    expect(result).toMatchObject({ ok: true, removedScreens: 2, removedWorkflows: 0 });
+    expect(await screens.getAll('t1')).toEqual([]);
+  });
+
+  it('não remove telas de outro dono nem as do usuário', async () => {
+    await screens.upsert('t1', 'minha-tela', { ownerPluginId: null } as never);
+    await makeInstallMarketplacePluginUseCase(deps()).execute(screenPlugin, actor);
+
+    await makeUninstallMarketplacePluginUseCase(deps()).execute('com.acme.vendas', actor);
+    const remaining = await screens.getAll('t1');
+    expect(remaining.map((s) => s.id)).toEqual(['minha-tela']);
+  });
+});
+
+describe('pacote Vendas do catálogo', () => {
+  it('materializa produto, venda e item com as três chaves namespaced', async () => {
+    const { MARKETPLACE_CATALOG } = await import('../../../plugins/marketplace/catalog');
+    const vendas = MARKETPLACE_CATALOG.find((p) => p.manifest.id === 'com.curatino.vendas')!;
+    expect(vendas.screens).toHaveLength(3);
+
+    await makeInstallMarketplacePluginUseCase(deps()).execute(vendas, actor);
+    const created = await screens.getAll('t1');
+    expect(created.map((s) => s.id).sort()).toEqual([
+      'com-curatino-vendas__item',
+      'com-curatino-vendas__produto',
+      'com-curatino-vendas__venda',
+    ]);
   });
 });

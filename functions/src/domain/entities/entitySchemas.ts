@@ -48,6 +48,12 @@ export interface FieldDefinition {
   rules?: FieldRules | null;
   logic?: FieldLogic | null;
   aggregation?: FieldAggregation | null;
+  /**
+   * Presente quando o campo foi trazido por uma extensão. É somente-leitura no Form Design (o
+   * usuário não edita nem exclui) e distingue os campos do plugin dos que o usuário adicionou por
+   * cima — o upgrade da extensão substitui os do plugin e preserva os do usuário.
+   */
+  ownerPluginId?: string | null;
 }
 
 // ─── Override de campo nativo ─────────────────────────────────────────────────
@@ -105,6 +111,14 @@ export interface ScreenDefinition {
   parentEntity?: string | null;
   /** Campo `reference` desta tela que guarda o id do registro-pai. */
   parentFieldKey?: string | null;
+  /**
+   * Presente quando a tela foi trazida por uma extensão. `managed: true` a torna gerenciada: sua
+   * estrutura é somente-leitura no Form Design (só a extensão altera/remove), embora o usuário
+   * possa adicionar campos próprios por cima. A desinstalação da extensão remove as telas com este
+   * `ownerPluginId`.
+   */
+  ownerPluginId?: string | null;
+  managed?: boolean | null;
   sidebarOrder: number;
   enabled: boolean;
   createdAt: Date;

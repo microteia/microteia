@@ -1,5 +1,6 @@
 import type { MarketplacePlugin } from '../../domain/entities/MarketplacePlugin';
 import { nav, widgetPage } from '../contributionBuilders';
+import { vendasPlugin } from './vendas';
 
 /**
  * Catálogo do Marketplace embutido. Dois exemplos, cada um provando um mecanismo de instalação:
@@ -163,4 +164,5 @@ export const MARKETPLACE_CATALOG: MarketplacePlugin[] = [
     },
     workflows: [],
   },
+  vendasPlugin,
 ];

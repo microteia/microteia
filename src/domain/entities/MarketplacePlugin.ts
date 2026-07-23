@@ -1,5 +1,29 @@
 import type { PluginManifest } from '../schema/plugin/pluginManifest';
 import type { WorkflowDefinition } from './Workflow';
+import type { FieldDefinition, ScreenListAction } from './entitySchemas';
+
+/**
+ * Uma tela (entidade) que a extensão instala no escritório. É uma ScreenDefinition autoral: a
+ * `key` é de TEMPLATE (namespaced na instalação) e as referências entre telas do mesmo pacote
+ * (`refEntity`, `parentEntity`, `aggregation.from`) usam essas keys de template, reescritas na
+ * materialização. Referência a coleção fixa (`persons`) fica intacta.
+ */
+export interface ScreenModuleTemplate {
+  key: string;
+  titleSingular: string;
+  titlePlural: string;
+  icon: string;
+  fields: FieldDefinition[];
+  titleFieldKey: string;
+  hasNotes?: boolean;
+  hasDocuments?: boolean;
+  hasTags?: boolean;
+  listActions?: ScreenListAction[];
+  sidebarOrder?: number;
+  enabled?: boolean;
+  parentEntity?: string | null;
+  parentFieldKey?: string | null;
+}
 
 /**
  * O que a instalação materializa como um workflow no tenant. É a WorkflowDefinition sem os campos
@@ -20,6 +44,8 @@ export interface MarketplacePlugin {
   manifest: PluginManifest;
   summary: string;
   workflows: WorkflowTemplate[];
+  /** Telas (entidades) que a extensão instala como telas dinâmicas gerenciadas. */
+  screens?: ScreenModuleTemplate[];
   /**
    * Descrição rica da extensão, em Widget DSL — renderizada pelo Kernel na tela de detalhes. É
    * serializável (viaja no manifest até o registro) e não carrega código do plugin. `unknown`
