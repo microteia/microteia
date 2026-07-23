@@ -12,6 +12,7 @@ import { KERNEL_VERSION } from '../domain/schema/plugin/kernelVersion';
 import { mergeCatalog, pluginSourceOf } from '../domain/usecases/plugins/mergeCatalog';
 import { makePublishPluginUseCase } from '../domain/usecases/plugins/PublishPluginUseCase';
 import { useKernel } from './useKernel';
+import { storeEvents, StoreEvents } from '../infrastructure/events/StoreEventEmitter';
 import type { PluginSource } from './usePluginStore';
 import type { LifecycleActor } from '../domain/services/pluginLifecycle';
 import {
@@ -87,6 +88,10 @@ export const PluginStoreProvider: React.FC<{ children: React.ReactNode }> = ({ c
       const actor = actorNow();
       if (!actor) return null;
       const result = await uc.install.execute(plugin, actor);
+      if (result.ok) {
+        storeEvents.emit(StoreEvents.SCREEN_DEFINITIONS_UPDATED);
+        storeEvents.emit(StoreEvents.ACTIONS_UPDATED);
+      }
       return result.ok ? null : result.error;
     },
     [actorNow, uc.install],
@@ -97,6 +102,10 @@ export const PluginStoreProvider: React.FC<{ children: React.ReactNode }> = ({ c
       const actor = actorNow();
       if (!actor) return null;
       const result = await uc.uninstall.execute(pluginId, actor);
+      if (!('error' in result)) {
+        storeEvents.emit(StoreEvents.SCREEN_DEFINITIONS_UPDATED);
+        storeEvents.emit(StoreEvents.ACTIONS_UPDATED);
+      }
       return 'error' in result ? result.error : null;
     },
     [actorNow, uc.uninstall],

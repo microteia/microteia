@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [0.132.2] — 2026-07-23
+
+- Ao instalar ou remover uma extensão, as telas e os botões que ela traz agora aparecem (ou somem) na hora, sem precisar atualizar o navegador.
+
 ## [0.132.1] — 2026-07-23
 
 - Correção importante: ao remover uma extensão que traz telas, as telas agora são de fato removidas (antes ficavam órfãs). E o botão de uma extensão (como "Resumo" no módulo Vendas) passa a aparecer também nos cartões da lista.
