@@ -57,8 +57,10 @@ const venda: ScreenModuleTemplate = {
   icon: 'shoppingBag',
   titleFieldKey: 'numero',
   sidebarOrder: 201,
-  // Botão na tela de Venda — dispara o workflow síncrono e mostra o retorno (prova action→workflow).
+  // Botão na tela de Venda (detalhe e card da lista) — dispara o workflow síncrono e mostra o
+  // retorno. Prova action→workflow ponta a ponta.
   viewActionIds: ['act-venda-resumo'],
+  cardActionIds: ['act-venda-resumo'],
   fields: [
     f({ key: 'numero', label: 'Número', type: 'text', order: 0, required: true, showInList: true }),
     // Relacionamento com ENTIDADE FIXA do core — refEntity 'persons' fica intacto na instalação.

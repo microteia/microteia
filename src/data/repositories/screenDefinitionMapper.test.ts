@@ -29,6 +29,8 @@ const persisted: PersistedKeys = {
   cardActionIds: ['a2'],
   parentEntity: 'cases',
   parentFieldKey: 'caseId',
+  ownerPluginId: 'com.acme.vendas',
+  managed: true,
   sidebarOrder: 3,
   enabled: false,
   createdBy: 'user-1',

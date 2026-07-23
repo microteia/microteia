@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [0.132.1] — 2026-07-23
+
+- Correção importante: ao remover uma extensão que traz telas, as telas agora são de fato removidas (antes ficavam órfãs). E o botão de uma extensão (como "Resumo" no módulo Vendas) passa a aparecer também nos cartões da lista.
+
 ## [0.132.0] — 2026-07-23
 
 - Extensões agora podem trazer módulos ainda mais completos: além de telas, também ações (botões) e automações com scripts. A extensão de exemplo "Vendas" ganhou o botão "Resumo" na tela de Venda. Tudo é removido junto ao desinstalar.
