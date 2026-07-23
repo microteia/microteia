@@ -4,6 +4,7 @@ import { useTenant } from '../../../stores/useTenant';
 import { useAuth } from '../../../stores/useAuth';
 import { useNotification } from '../../../stores/useNotification';
 import { useKernel } from '../../../stores/useKernel';
+import { useWorkspace } from '../../../stores/useWorkspace';
 import type { MarketplacePlugin } from '../../../domain/entities/MarketplacePlugin';
 
 export interface MarketplaceCard {
@@ -25,6 +26,8 @@ export interface MarketplaceViewModel {
   detailPlugin: MarketplacePlugin | null;
   openDetail: (plugin: MarketplacePlugin) => void;
   closeDetail: () => void;
+  openAuthor: () => void;
+  onImportFile: (event: React.ChangeEvent<HTMLInputElement>) => Promise<void>;
   install: (plugin: MarketplacePlugin) => Promise<void>;
   uninstall: (pluginId: string) => Promise<void>;
   toggleEnabled: (pluginId: string, enabled: boolean) => Promise<void>;
@@ -33,12 +36,13 @@ export interface MarketplaceViewModel {
 }
 
 export const useMarketplaceViewModel = (): MarketplaceViewModel => {
-  const { catalog, installationOf, sourceOf, canPublish, install, uninstall, setEnabled, publish, unpublish } =
+  const { catalog, installations, installationOf, sourceOf, canPublish, install, uninstall, setEnabled, importPackage, publish, unpublish } =
     usePluginStore();
   const { host, result } = useKernel();
   const { tenantRole } = useTenant();
   const { userRole } = useAuth();
   const { notify } = useNotification();
+  const { openTab } = useWorkspace();
   const [busyPluginId, setBusyPluginId] = useState<string | null>(null);
   const [detailPlugin, setDetailPlugin] = useState<MarketplacePlugin | null>(null);
 
@@ -46,6 +50,7 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
 
   const openDetail = useCallback((plugin: MarketplacePlugin) => setDetailPlugin(plugin), []);
   const closeDetail = useCallback(() => setDetailPlugin(null), []);
+  const openAuthor = useCallback(() => openTab('plugin-author'), [openTab]);
 
   const loadErrorOf = useCallback(
     (pluginId: string, installed: boolean, enabled: boolean): string | undefined => {
@@ -55,7 +60,7 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
     [host, result],
   );
 
-  const cards = useMemo<MarketplaceCard[]>(
+  const catalogCards = useMemo<MarketplaceCard[]>(
     () =>
       catalog.map((plugin) => {
         const installation = installationOf(plugin.manifest.id);
@@ -72,6 +77,38 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
         };
       }),
     [catalog, installationOf, sourceOf, loadErrorOf],
+  );
+
+  // Extensões importadas de um `.json` instalam-se sem entrar no catálogo. Sem estes cards, elas
+  // funcionariam mas não teriam onde ser desativadas/removidas.
+  const importedCards = useMemo<MarketplaceCard[]>(
+    () =>
+      installations
+        .filter((installation) => !catalog.some((plugin) => plugin.manifest.id === installation.pluginId))
+        .map((installation) => ({
+          plugin: {
+            manifest: {
+              id: installation.pluginId,
+              version: installation.version,
+              kernel: '^1.0.0',
+              name: installation.pluginId,
+            },
+            summary: 'Extensão importada neste escritório.',
+            workflows: [],
+          },
+          installed: true,
+          enabled: installation.enabled,
+          installedVersion: installation.version,
+          workflowCount: 0,
+          published: false,
+          loadError: loadErrorOf(installation.pluginId, true, installation.enabled),
+        })),
+    [installations, catalog, loadErrorOf],
+  );
+
+  const cards = useMemo<MarketplaceCard[]>(
+    () => [...catalogCards, ...importedCards],
+    [catalogCards, importedCards],
   );
 
   const run = useCallback(
@@ -137,6 +174,22 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
     [run, unpublish],
   );
 
+  const onImportFile = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) return;
+    setBusyPluginId('__import__');
+    try {
+      const result = await importPackage(await file.text());
+      if (result.ok) notify(`${result.name} instalado.`, 'success');
+      else notify(`Não foi possível importar: ${result.error}`, 'error');
+    } catch (err) {
+      notify(`Não foi possível importar: ${err instanceof Error ? err.message : String(err)}`, 'error');
+    } finally {
+      setBusyPluginId(null);
+    }
+  }, [importPackage, notify]);
+
   return {
     cards,
     canManage,
@@ -145,6 +198,8 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
     detailPlugin,
     openDetail,
     closeDetail,
+    openAuthor,
+    onImportFile,
     install: installPlugin,
     uninstall: uninstallPlugin,
     toggleEnabled,

@@ -11,6 +11,11 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [0.134.0] — 2026-07-23
+
+- A tela de Extensões agora tem os botões "Criar extensão" e "Importar .json"; extensões importadas de um arquivo passam a aparecer na lista, com opção de ativar, desativar e remover.
+- Ao montar uma extensão, os avisos de pendência mostram o nome do item que ficou de fora (antes exibiam apenas um código interno).
+
 ## [0.133.0] — 2026-07-23
 
 - Nova tela "Criar extensão": marque as telas, ações, automações e scripts do seu escritório, preencha os dados da extensão e baixe um arquivo pronto para compartilhar. O sistema aponta na hora qualquer dependência que ficou de fora.

@@ -9,9 +9,45 @@ export const S = {
   `,
 
   Header: styled.div`
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: ${({ theme }) => theme.spacing.md};
     padding: ${({ theme }) => theme.spacing.lg} ${({ theme }) => theme.spacing.xl};
     border-bottom: 1px solid ${({ theme }) => theme.colors.border};
     flex-shrink: 0;
+  `,
+
+  HeaderText: styled.div``,
+
+  HeaderActions: styled.div`
+    display: flex;
+    gap: ${({ theme }) => theme.spacing.sm};
+    flex-shrink: 0;
+  `,
+
+  ImportLabel: styled.label<{ $disabled?: boolean }>`
+    display: inline-flex;
+    align-items: center;
+    gap: ${({ theme }) => theme.spacing.xs};
+    padding: ${({ theme }) => theme.spacing.xs} ${({ theme }) => theme.spacing.md};
+    border: 1px solid ${({ theme }) => theme.colors.border};
+    border-radius: ${({ theme }) => theme.borderRadius.sm};
+    background: ${({ theme }) => theme.colors.surface};
+    color: ${({ theme }) => theme.colors.text};
+    font-size: ${({ theme }) => theme.fontSizes.sm};
+    font-weight: 500;
+    cursor: ${({ $disabled }) => ($disabled ? 'not-allowed' : 'pointer')};
+    opacity: ${({ $disabled }) => ($disabled ? 0.5 : 1)};
+    pointer-events: ${({ $disabled }) => ($disabled ? 'none' : 'auto')};
+
+    &:hover {
+      background: ${({ theme }) => theme.colors.surfaceHover};
+    }
+  `,
+
+  HiddenFile: styled.input`
+    display: none;
   `,
 
   Title: styled.h1`

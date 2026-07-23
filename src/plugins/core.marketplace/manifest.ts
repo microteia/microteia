@@ -17,7 +17,6 @@ export const coreMarketplacePlugin: PluginRecord = {
       page({ key: 'marketplace', title: 'Extensões', icon: 'store' }, 'MarketplaceView'),
       nav({ key: 'marketplace', label: 'Extensões', icon: 'store', order: 105 }),
       page({ key: 'plugin-author', title: 'Criar extensão', icon: 'magic' }, 'PluginAuthorView'),
-      nav({ key: 'plugin-author', label: 'Criar extensão', icon: 'magic', order: 106, requiresTenantAdmin: true }),
     ],
   },
 };

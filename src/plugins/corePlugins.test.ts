@@ -114,7 +114,7 @@ describe('core plugins — paridade com o registro anterior', () => {
 
     expect(items.map((item) => item.key)).toEqual([
       'dashboard', 'calendar', 'persons', 'cases', 'contracts', 'deadlines',
-      'financials', 'pushes', 'news', 'marketplace', 'plugin-author', 'tenant-settings', 'audit-logs',
+      'financials', 'pushes', 'news', 'marketplace', 'tenant-settings', 'audit-logs',
     ]);
   });
 
@@ -182,7 +182,7 @@ describe('core plugins — remoção limpa (critério de aceite da Etapa 2)', ()
 
     expect(resolvePageContribution(pages, 'cases')).toBeDefined();
     expect(resolvePageContribution(pages, 'financials')).toBeDefined();
-    expect(host.contributions.query(UI_NAV_POINT).length).toBe(12);
+    expect(host.contributions.query(UI_NAV_POINT).length).toBe(11);
   });
 
   it('remover core.ui derruba todos os módulos de UI, porque ninguém declara os pontos', () => {

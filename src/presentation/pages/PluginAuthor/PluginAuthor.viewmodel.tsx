@@ -9,11 +9,19 @@ import { useAuth } from '../../../stores/useAuth';
 import { useNotification } from '../../../stores/useNotification';
 import { buildPackage } from '../../../domain/usecases/plugins/packageBuilder';
 import { validatePackage } from '../../../domain/usecases/plugins/pluginReferences';
-import { parsePackage, serializePackage } from '../../../domain/usecases/plugins/packageSerialization';
+import { serializePackage } from '../../../domain/usecases/plugins/packageSerialization';
 import { validatePluginManifest } from '../../../domain/schema/plugin/pluginManifest';
 import { KERNEL_VERSION } from '../../../domain/schema/plugin/kernelVersion';
 import type { PluginManifest } from '../../../domain/schema/plugin/pluginManifest';
+import type { RefKind } from '../../../domain/usecases/plugins/pluginReferences';
 import type { MarketplacePlugin } from '../../../domain/entities/MarketplacePlugin';
+
+const KIND_LABEL: Record<RefKind, string> = {
+  screen: 'a tela',
+  action: 'a ação',
+  workflow: 'a automação',
+  script: 'o script',
+};
 
 export type ArtifactKind = 'screens' | 'actions' | 'workflows' | 'scripts';
 
@@ -42,7 +50,6 @@ export interface PluginAuthorViewModel {
   busy: boolean;
   download: () => void;
   publish: () => Promise<void>;
-  onImportFile: (event: React.ChangeEvent<HTMLInputElement>) => Promise<void>;
 }
 
 const parseDependencies = (raw: string): Record<string, string> => {
@@ -68,7 +75,7 @@ const useSelection = () => {
 };
 
 export const usePluginAuthorViewModel = (): PluginAuthorViewModel => {
-  const { install, publish, canPublish } = usePluginStore();
+  const { publish, canPublish } = usePluginStore();
   const { definitions } = useScreenDefinitions();
   const { actions } = useActions();
   const { workflows } = useWorkflowStore();
@@ -153,11 +160,22 @@ export const usePluginAuthorViewModel = (): PluginAuthorViewModel => {
     [selection, manifest, form.summary],
   );
 
+  const nameOf = useCallback((kind: RefKind, id: string): string => {
+    switch (kind) {
+      case 'screen': return definitions.find((d) => d.id === id)?.titlePlural || id;
+      case 'action': return actions.find((a) => a.id === id)?.title || id;
+      case 'workflow': return workflows.find((w) => w.id === id)?.name || id;
+      case 'script': return scripts.find((s) => s.id === id)?.name || id;
+    }
+  }, [definitions, actions, workflows, scripts]);
+
   const issues = useMemo<string[]>(() => [
     ...validatePluginManifest(manifest, { kernelVersion: KERNEL_VERSION, validateContributions: false }).map((d) => d.message),
     ...(form.summary.trim() ? [] : ['A extensão precisa de uma descrição curta (resumo).']),
-    ...validatePackage(pkg).map((i) => i.message),
-  ], [manifest, form.summary, pkg]);
+    ...validatePackage(pkg).map((issue) =>
+      `${issue.ref.from} referencia ${KIND_LABEL[issue.ref.kind]} "${nameOf(issue.ref.kind, issue.ref.id)}", que não está no pacote nem coberta por uma dependência declarada.`,
+    ),
+  ], [manifest, form.summary, pkg, nameOf]);
 
   const canExport = selectedCount > 0 && issues.length === 0;
 
@@ -183,37 +201,6 @@ export const usePluginAuthorViewModel = (): PluginAuthorViewModel => {
     }
   }, [publish, pkg, manifest.name, manifest.id, notify]);
 
-  const onImportFile = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    event.target.value = '';
-    if (!file) return;
-    setBusy(true);
-    try {
-      const parsed = parsePackage(await file.text());
-      if (!parsed.ok) {
-        notify(parsed.error, 'error');
-        return;
-      }
-      const imported = parsed.package;
-      const manifestErrors = validatePluginManifest(imported.manifest, {
-        kernelVersion: KERNEL_VERSION,
-        validateContributions: false,
-      });
-      const refErrors = validatePackage(imported);
-      if (manifestErrors.length > 0 || refErrors.length > 0) {
-        notify(`Extensão inválida: ${(manifestErrors[0]?.message ?? refErrors[0]?.message)}`, 'error');
-        return;
-      }
-      const error = await install(imported);
-      if (error) notify(error.message, 'error');
-      else notify(`${imported.manifest.name || imported.manifest.id} instalado.`, 'success');
-    } catch (err) {
-      notify(`Não foi possível importar: ${err instanceof Error ? err.message : String(err)}`, 'error');
-    } finally {
-      setBusy(false);
-    }
-  }, [install, notify]);
-
   return {
     canManage,
     canPublish,
@@ -227,6 +214,5 @@ export const usePluginAuthorViewModel = (): PluginAuthorViewModel => {
     busy,
     download,
     publish: publishPackage,
-    onImportFile,
   };
 };

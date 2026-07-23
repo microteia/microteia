@@ -18,7 +18,9 @@ export const S = {
     flex-shrink: 0;
   `,
 
-  HeaderText: styled.div``,
+  HeaderText: styled.div`
+    flex: 1;
+  `,
 
   Title: styled.h1`
     font-size: ${({ theme }) => theme.fontSizes.xl};
@@ -30,12 +32,6 @@ export const S = {
     margin-top: ${({ theme }) => theme.spacing.xs};
     font-size: ${({ theme }) => theme.fontSizes.sm};
     color: ${({ theme }) => theme.colors.textSecondary};
-  `,
-
-  HeaderActions: styled.div`
-    display: flex;
-    gap: ${({ theme }) => theme.spacing.sm};
-    flex-shrink: 0;
   `,
 
   Content: styled.div`
@@ -181,27 +177,4 @@ export const S = {
     margin-right: auto;
   `,
 
-  HiddenFile: styled.input`
-    display: none;
-  `,
-
-  ImportLabel: styled.label<{ $disabled?: boolean }>`
-    display: inline-flex;
-    align-items: center;
-    gap: ${({ theme }) => theme.spacing.xs};
-    padding: ${({ theme }) => theme.spacing.xs} ${({ theme }) => theme.spacing.md};
-    border: 1px solid ${({ theme }) => theme.colors.border};
-    border-radius: ${({ theme }) => theme.borderRadius.sm};
-    background: ${({ theme }) => theme.colors.surface};
-    color: ${({ theme }) => theme.colors.text};
-    font-size: ${({ theme }) => theme.fontSizes.sm};
-    font-weight: 500;
-    cursor: ${({ $disabled }) => ($disabled ? 'not-allowed' : 'pointer')};
-    opacity: ${({ $disabled }) => ($disabled ? 0.5 : 1)};
-    pointer-events: ${({ $disabled }) => ($disabled ? 'none' : 'auto')};
-
-    &:hover {
-      background: ${({ theme }) => theme.colors.surfaceHover};
-    }
-  `,
 };

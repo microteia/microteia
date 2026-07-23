@@ -1,5 +1,5 @@
 import React from 'react';
-import { RiDownloadLine, RiUploadLine } from 'react-icons/ri';
+import { RiDownloadLine } from 'react-icons/ri';
 import { Button } from '../../components/ui/Button';
 import { Checkbox } from '../../components/ui/Checkbox';
 import { InfoBanner } from '../../components/ui/InfoBanner';
@@ -16,17 +16,6 @@ export const PluginAuthorView: React.FC = () => {
           <S.Title>Criar extensão</S.Title>
           <S.Subtitle>Empacote telas, ações, automações e scripts do seu escritório em uma extensão.</S.Subtitle>
         </S.HeaderText>
-        <S.HeaderActions>
-          <S.ImportLabel $disabled={vm.busy || !vm.canManage}>
-            <RiUploadLine size={16} /> Importar .json
-            <S.HiddenFile
-              type="file"
-              accept="application/json,.json"
-              disabled={vm.busy || !vm.canManage}
-              onChange={(e) => void vm.onImportFile(e)}
-            />
-          </S.ImportLabel>
-        </S.HeaderActions>
       </S.Header>
 
       <S.Content>

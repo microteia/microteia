@@ -13,7 +13,10 @@ import { mergeCatalog, pluginSourceOf } from '../domain/usecases/plugins/mergeCa
 import { makePublishPluginUseCase } from '../domain/usecases/plugins/PublishPluginUseCase';
 import { useKernel } from './useKernel';
 import { storeEvents, StoreEvents } from '../infrastructure/events/StoreEventEmitter';
-import type { PluginSource } from './usePluginStore';
+import { parsePackage } from '../domain/usecases/plugins/packageSerialization';
+import { validatePackage } from '../domain/usecases/plugins/pluginReferences';
+import { validatePluginManifest } from '../domain/schema/plugin/pluginManifest';
+import type { ImportPackageResult, PluginSource } from './usePluginStore';
 import type { LifecycleActor } from '../domain/services/pluginLifecycle';
 import {
   makeInstallMarketplacePluginUseCase,
@@ -111,6 +114,26 @@ export const PluginStoreProvider: React.FC<{ children: React.ReactNode }> = ({ c
     [actorNow, uc.uninstall],
   );
 
+  const importPackage = useCallback(
+    async (text: string): Promise<ImportPackageResult> => {
+      const parsed = parsePackage(text);
+      if (!parsed.ok) return { ok: false, error: parsed.error };
+      const pkg = parsed.package;
+      const manifestErrors = validatePluginManifest(pkg.manifest, {
+        kernelVersion: KERNEL_VERSION,
+        validateContributions: false,
+      });
+      const refErrors = validatePackage(pkg);
+      if (manifestErrors.length > 0 || refErrors.length > 0) {
+        return { ok: false, error: manifestErrors[0]?.message ?? refErrors[0].message };
+      }
+      const error = await install(pkg);
+      if (error) return { ok: false, error: error.message };
+      return { ok: true, name: pkg.manifest.name || pkg.manifest.id };
+    },
+    [install],
+  );
+
   const setEnabled = useCallback(
     async (pluginId: string, enabled: boolean) => {
       const actor = actorNow();
@@ -166,10 +189,11 @@ export const PluginStoreProvider: React.FC<{ children: React.ReactNode }> = ({ c
       install,
       uninstall,
       setEnabled,
+      importPackage,
       publish,
       unpublish,
     }),
-    [catalog, installations, isLoading, canPublish, installationOf, sourceOf, install, uninstall, setEnabled, publish, unpublish],
+    [catalog, installations, isLoading, canPublish, installationOf, sourceOf, install, uninstall, setEnabled, importPackage, publish, unpublish],
   );
 
   return <PluginStoreContext.Provider value={value}>{children}</PluginStoreContext.Provider>;

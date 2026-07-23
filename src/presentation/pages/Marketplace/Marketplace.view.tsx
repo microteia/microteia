@@ -1,5 +1,5 @@
 import React from 'react';
-import { RiStoreLine } from 'react-icons/ri';
+import { RiStoreLine, RiMagicLine, RiUploadLine } from 'react-icons/ri';
 import { Button } from '../../components/ui/Button';
 import { InfoBanner } from '../../components/ui/InfoBanner';
 import { Modal } from '../../components/ui/Modal';
@@ -13,8 +13,26 @@ export const MarketplaceView: React.FC = () => {
   return (
     <S.Page>
       <S.Header>
-        <S.Title>Extensões</S.Title>
-        <S.Subtitle>Instale funcionalidades adicionais no seu escritório.</S.Subtitle>
+        <S.HeaderText>
+          <S.Title>Extensões</S.Title>
+          <S.Subtitle>Instale funcionalidades adicionais no seu escritório.</S.Subtitle>
+        </S.HeaderText>
+        {vm.canManage && (
+          <S.HeaderActions>
+            <Button variant="secondary" size="sm" onClick={vm.openAuthor}>
+              <RiMagicLine size={16} /> Criar extensão
+            </Button>
+            <S.ImportLabel $disabled={vm.busyPluginId === '__import__'}>
+              <RiUploadLine size={16} /> Importar .json
+              <S.HiddenFile
+                type="file"
+                accept="application/json,.json"
+                disabled={vm.busyPluginId === '__import__'}
+                onChange={(e) => void vm.onImportFile(e)}
+              />
+            </S.ImportLabel>
+          </S.HeaderActions>
+        )}
       </S.Header>
 
       <S.Content>
