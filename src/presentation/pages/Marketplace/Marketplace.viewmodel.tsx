@@ -3,6 +3,7 @@ import { usePluginStore } from '../../../stores/usePluginStore';
 import { useTenant } from '../../../stores/useTenant';
 import { useAuth } from '../../../stores/useAuth';
 import { useNotification } from '../../../stores/useNotification';
+import { useKernel } from '../../../stores/useKernel';
 import type { MarketplacePlugin } from '../../../domain/entities/MarketplacePlugin';
 
 export interface MarketplaceCard {
@@ -12,6 +13,8 @@ export interface MarketplaceCard {
   installedVersion?: string;
   workflowCount: number;
   published: boolean;
+  /** Preenchido quando o plugin está instalado e habilitado mas NÃO carregou no escritório. */
+  loadError?: string;
 }
 
 export interface MarketplaceViewModel {
@@ -32,6 +35,7 @@ export interface MarketplaceViewModel {
 export const useMarketplaceViewModel = (): MarketplaceViewModel => {
   const { catalog, installationOf, sourceOf, canPublish, install, uninstall, setEnabled, publish, unpublish } =
     usePluginStore();
+  const { host, result } = useKernel();
   const { tenantRole } = useTenant();
   const { userRole } = useAuth();
   const { notify } = useNotification();
@@ -43,20 +47,31 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
   const openDetail = useCallback((plugin: MarketplacePlugin) => setDetailPlugin(plugin), []);
   const closeDetail = useCallback(() => setDetailPlugin(null), []);
 
+  const loadErrorOf = useCallback(
+    (pluginId: string, installed: boolean, enabled: boolean): string | undefined => {
+      if (!installed || !enabled || host.isLoaded(pluginId)) return undefined;
+      return result.diagnostics.find((d) => d.pluginId === pluginId && d.severity === 'error')?.message;
+    },
+    [host, result],
+  );
+
   const cards = useMemo<MarketplaceCard[]>(
     () =>
       catalog.map((plugin) => {
         const installation = installationOf(plugin.manifest.id);
+        const installed = Boolean(installation);
+        const enabled = installation?.enabled ?? false;
         return {
           plugin,
-          installed: Boolean(installation),
-          enabled: installation?.enabled ?? false,
+          installed,
+          enabled,
           installedVersion: installation?.version,
           workflowCount: plugin.workflows.length,
           published: sourceOf(plugin.manifest.id) === 'published',
+          loadError: loadErrorOf(plugin.manifest.id, installed, enabled),
         };
       }),
-    [catalog, installationOf, sourceOf],
+    [catalog, installationOf, sourceOf, loadErrorOf],
   );
 
   const run = useCallback(
@@ -97,8 +112,10 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
       run(
         plugin.manifest.id,
         async () => {
-          await publish(plugin);
-          return null;
+          const errors = await publish(plugin);
+          return errors.length > 0
+            ? { message: `Não foi possível publicar: ${errors[0].message}` }
+            : null;
         },
         `${plugin.manifest.name} publicado no catálogo.`,
       ),

@@ -2,6 +2,7 @@ import { createContext, useContext } from 'react';
 import type { MarketplacePlugin } from '../domain/entities/MarketplacePlugin';
 import type { PluginInstallation } from '../domain/entities/PluginInstallation';
 import type { PluginLifecycleError } from '../domain/entities/PluginInstallation';
+import type { PluginDiagnostic } from '../domain/schema/plugin/diagnostics';
 
 export type PluginSource = 'published' | 'builtin';
 
@@ -16,7 +17,8 @@ export interface PluginStoreValue {
   install: (plugin: MarketplacePlugin) => Promise<PluginLifecycleError | null>;
   uninstall: (pluginId: string) => Promise<PluginLifecycleError | null>;
   setEnabled: (pluginId: string, enabled: boolean) => Promise<PluginLifecycleError | null>;
-  publish: (plugin: MarketplacePlugin) => Promise<void>;
+  /** Devolve os erros de validação do manifest; vazio = publicado com sucesso. */
+  publish: (plugin: MarketplacePlugin) => Promise<PluginDiagnostic[]>;
   unpublish: (pluginId: string) => Promise<void>;
 }
 

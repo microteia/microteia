@@ -2701,6 +2701,23 @@ depender da carga por tenant.
 **Falta para o Widget DSL completo:** ligação a dados (`source: query:/script:/field:`) e `when` por
 expressão — o que torna um widget dinâmico, não só descritivo.
 
+### Integridade do Marketplace — publicar válido e ver por que falhou
+
+Duas guardas que fecham buracos da carga por tenant:
+
+**Validação na publicação** (`domain/usecases/plugins/PublishPluginUseCase.ts`). Publicar agora roda
+`validatePluginManifest` **antes** de gravar no registro, contra os pontos e a versão do kernel em
+execução, com `trusted: false` — exatamente como o plugin vai rodar nos escritórios. Manifest com id
+inválido, kernel incompatível, contribuição para ponto inexistente ou tentativa de `impl: code` (JS
+compilado de terceiro) é **recusado, sem gravar**. Sem isso, um admin publicaria um plugin que
+falharia em todos os tenants. O `PluginStore` valida usando `host.points.snapshot()` do host base.
+
+**Visibilidade de falha de carga.** Um plugin instalado que não carrega (ex.: incompatível) antes
+sumia em silêncio. Agora o `Marketplace.viewmodel` cruza `host.isLoaded(pluginId)` com
+`result.diagnostics` do host de tenant: se o plugin está instalado e habilitado mas **não** carregou,
+o card mostra "Esta extensão não pôde ser carregada: <motivo>". `usePluginDiagnostics()` já existia;
+aqui ele ganha consumidor.
+
 ### Registro global do Marketplace (Etapa 7 — spine)
 
 O catálogo deixou de ser só código: uma coleção-raiz `plugin_registry` guarda os plugins

@@ -25,7 +25,7 @@ export const MarketplaceView: React.FC = () => {
           />
         )}
 
-        {vm.cards.map(({ plugin, installed, enabled, installedVersion, workflowCount, published }) => {
+        {vm.cards.map(({ plugin, installed, enabled, installedVersion, workflowCount, published, loadError }) => {
           const busy = vm.busyPluginId === plugin.manifest.id;
           return (
             <S.Card key={plugin.manifest.id}>
@@ -33,6 +33,10 @@ export const MarketplaceView: React.FC = () => {
                 <S.CardName>{plugin.manifest.name}</S.CardName>
                 {installed && <S.StatusBadge $on={enabled}>{enabled ? 'Ativa' : 'Desativada'}</S.StatusBadge>}
               </S.CardHead>
+
+              {loadError && (
+                <InfoBanner message={`Esta extensão não pôde ser carregada: ${loadError}`} variant="warning" />
+              )}
 
               <S.Summary>{plugin.summary}</S.Summary>
 

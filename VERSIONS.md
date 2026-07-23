@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [0.130.1] — 2026-07-23
+
+- Mais segurança no catálogo de extensões: uma extensão só entra no catálogo se estiver íntegra, e uma extensão que não puder ser carregada no escritório passa a explicar o motivo, em vez de simplesmente não aparecer.
+
 ## [0.130.0] — 2026-07-23
 
 - As extensões agora podem adicionar itens ao menu e telas próprias ao escritório. Ao instalar uma extensão com interface, o novo item aparece na hora na barra lateral; ao desativar ou remover, ele some. A extensão de exemplo "Guia do Escritório" demonstra o recurso.

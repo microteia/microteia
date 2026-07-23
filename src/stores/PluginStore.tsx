@@ -7,7 +7,11 @@ import { MARKETPLACE_CATALOG } from '../plugins/marketplace/catalog';
 import type { MarketplacePlugin } from '../domain/entities/MarketplacePlugin';
 import type { PluginInstallation } from '../domain/entities/PluginInstallation';
 import type { PublishedPlugin } from '../domain/repositories/IPluginRegistryRepository';
+import type { PluginDiagnostic } from '../domain/schema/plugin/diagnostics';
+import { KERNEL_VERSION } from '../domain/schema/plugin/kernelVersion';
 import { mergeCatalog, pluginSourceOf } from '../domain/usecases/plugins/mergeCatalog';
+import { makePublishPluginUseCase } from '../domain/usecases/plugins/PublishPluginUseCase';
+import { useKernel } from './useKernel';
 import type { PluginSource } from './usePluginStore';
 import type { LifecycleActor } from '../domain/services/pluginLifecycle';
 import {
@@ -22,6 +26,7 @@ import {
 export const PluginStoreProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { currentTenant } = useTenant();
   const { user, userRole } = useAuth();
+  const { host } = useKernel();
   const { workflowDefinitionRepository, pluginInstallationRepository, pluginRegistryRepository } = useDI();
 
   const [installations, setInstallations] = useState<PluginInstallation[]>([]);
@@ -115,11 +120,15 @@ export const PluginStoreProvider: React.FC<{ children: React.ReactNode }> = ({ c
   );
 
   const publish = useCallback(
-    async (plugin: MarketplacePlugin) => {
-      if (!user) return;
-      await pluginRegistryRepository.publish(plugin, user.id);
+    async (plugin: MarketplacePlugin): Promise<PluginDiagnostic[]> => {
+      if (!user) return [];
+      const result = await makePublishPluginUseCase(pluginRegistryRepository).execute(plugin, user.id, {
+        points: host.points.snapshot(),
+        kernelVersion: KERNEL_VERSION,
+      });
+      return result.ok ? [] : result.errors;
     },
-    [pluginRegistryRepository, user],
+    [pluginRegistryRepository, user, host],
   );
 
   const unpublish = useCallback(
