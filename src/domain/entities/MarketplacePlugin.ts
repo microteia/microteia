@@ -20,4 +20,10 @@ export interface MarketplacePlugin {
   manifest: PluginManifest;
   summary: string;
   workflows: WorkflowTemplate[];
+  /**
+   * Descrição rica da extensão, em Widget DSL — renderizada pelo Kernel na tela de detalhes. É
+   * serializável (viaja no manifest até o registro) e não carrega código do plugin. `unknown`
+   * porque o tipo `WidgetSpec` vive na camada de apresentação; o renderizador valida.
+   */
+  overview?: unknown;
 }

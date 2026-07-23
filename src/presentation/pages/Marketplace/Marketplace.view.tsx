@@ -2,6 +2,8 @@ import React from 'react';
 import { RiStoreLine } from 'react-icons/ri';
 import { Button } from '../../components/ui/Button';
 import { InfoBanner } from '../../components/ui/InfoBanner';
+import { Modal } from '../../components/ui/Modal';
+import { WidgetRenderer } from '../../components/ui/WidgetRenderer';
 import { useMarketplaceViewModel } from './Marketplace.viewmodel';
 import { S } from './Marketplace.styles';
 
@@ -33,6 +35,12 @@ export const MarketplaceView: React.FC = () => {
               </S.CardHead>
 
               <S.Summary>{plugin.summary}</S.Summary>
+
+              {plugin.overview !== undefined && (
+                <S.DetailLink type="button" onClick={() => vm.openDetail(plugin)}>
+                  Ver detalhes
+                </S.DetailLink>
+              )}
 
               <S.Meta>
                 <S.Publisher>{plugin.manifest.publisher?.name ?? 'Curatino'}</S.Publisher>
@@ -89,6 +97,12 @@ export const MarketplaceView: React.FC = () => {
           );
         })}
       </S.Content>
+
+      {vm.detailPlugin && (
+        <Modal title={vm.detailPlugin.manifest.name} onClose={vm.closeDetail} size="medium">
+          <WidgetRenderer spec={vm.detailPlugin.overview} />
+        </Modal>
+      )}
     </S.Page>
   );
 };

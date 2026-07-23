@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [0.129.0] — 2026-07-22
+
+- As extensões agora podem ter uma página de detalhes rica: na tela de Extensões, clique em "Ver detalhes" para conhecer o que cada uma faz antes de instalar.
+
 ## [0.128.0] — 2026-07-22
 
 - A tela de Extensões passou a ter um catálogo compartilhado: novas extensões podem ser disponibilizadas para todos os escritórios sem precisar atualizar o sistema. Cada extensão mostra se é interna ou publicada no catálogo.

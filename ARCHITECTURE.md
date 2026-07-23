@@ -2643,6 +2643,33 @@ verdades. O manifest declara só o que o Kernel precisa para raciocinar sem carr
 O `WorkflowExecutor`, o `StepRegistry` e os handlers de catálogo **não mudaram**: o `stepRegistry`
 continua sendo o índice que o executor consulta; o que virou orientado a dados foi quem o popula.
 
+### Widget DSL — tela declarativa sem JS de plugin (Etapa 6)
+
+Um plugin de terceiro só contribui `script`/`widget`/`workflow` (nunca `code`). O **Widget DSL** é
+o que permite `widget`: uma descrição **serializável** de uma tela que o Kernel renderiza usando os
+próprios componentes do Curatino — zero `dangerouslySetInnerHTML`, zero `eval`, cor só via tema.
+
+**`WidgetSpec`** (`presentation/shared/widget/widgetSpec.ts`) é uma união discriminada por `type`.
+v1 (estática, sem ligação a dados): `stack`, `grid`, `heading`, `text`, `markdown`, `metric`,
+`keyValue`, `banner`, `divider`. Adicionar um nó é aditivo.
+
+**`WidgetRenderer`** (`components/ui/WidgetRenderer/`) percorre a árvore recursivamente. **Nó
+desconhecido é ignorado, não derruba a tela** — um plugin escrito para uma versão mais nova do DSL
+degrada em vez de quebrar (há teste). Cada nó vira um componente já existente (`InfoBanner`,
+`MarkdownContent`, styled-components com tokens).
+
+**Ligado no caminho de página.** `useResolvePage` já trata `impl: { kind: 'widget', spec }`:
+devolve um componente que renderiza `<WidgetRenderer spec={...} />`. Então, assim que um plugin
+instalado puder contribuir para o host (carga por tenant, pendente), uma tela `ui.page` de widget
+aparece como qualquer outra — o caminho está pronto.
+
+**Provado no app** pela tela **Extensões**: cada plugin com `overview` (um `WidgetSpec`) ganha um
+"Ver detalhes" que abre um modal renderizado pelo `WidgetRenderer`. Consumidor real, clicável, sem
+depender da carga por tenant.
+
+**Falta para o Widget DSL completo:** ligação a dados (`source: query:/script:/field:`) e `when` por
+expressão — o que torna um widget dinâmico, não só descritivo.
+
 ### Registro global do Marketplace (Etapa 7 — spine)
 
 O catálogo deixou de ser só código: uma coleção-raiz `plugin_registry` guarda os plugins
@@ -2831,7 +2858,7 @@ não dispara é pior que guarda nenhuma.
 | 5 ◑ | Ciclo de vida (spine): `PluginInstallation` + use cases testados + rules |
 | — ✅ | Fatia vertical: plugin de exemplo instalável ponta a ponta (workflow + página Extensões) |
 | 7 ◑ | Marketplace (spine): registro global `plugin_registry`, catálogo publicados ∪ embutidos, publish/unpublish (SYSTEM) |
-| 6 | Widget DSL: slots e renderizador declarativo |
+| 6 ◑ | Widget DSL: `WidgetSpec` + `WidgetRenderer` (estático), ligado em `impl:widget`; falta ligação a dados |
 | 7 | Marketplace: `plugin_registry`, publicação e instalação |
 
 ---

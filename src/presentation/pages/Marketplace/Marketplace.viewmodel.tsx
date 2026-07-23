@@ -19,6 +19,9 @@ export interface MarketplaceViewModel {
   canManage: boolean;
   canPublish: boolean;
   busyPluginId: string | null;
+  detailPlugin: MarketplacePlugin | null;
+  openDetail: (plugin: MarketplacePlugin) => void;
+  closeDetail: () => void;
   install: (plugin: MarketplacePlugin) => Promise<void>;
   uninstall: (pluginId: string) => Promise<void>;
   toggleEnabled: (pluginId: string, enabled: boolean) => Promise<void>;
@@ -33,8 +36,12 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
   const { userRole } = useAuth();
   const { notify } = useNotification();
   const [busyPluginId, setBusyPluginId] = useState<string | null>(null);
+  const [detailPlugin, setDetailPlugin] = useState<MarketplacePlugin | null>(null);
 
   const canManage = userRole === 'SYSTEM' || tenantRole === 'admin';
+
+  const openDetail = useCallback((plugin: MarketplacePlugin) => setDetailPlugin(plugin), []);
+  const closeDetail = useCallback(() => setDetailPlugin(null), []);
 
   const cards = useMemo<MarketplaceCard[]>(
     () =>
@@ -116,6 +123,9 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
     canManage,
     canPublish,
     busyPluginId,
+    detailPlugin,
+    openDetail,
+    closeDetail,
     install: installPlugin,
     uninstall: uninstallPlugin,
     toggleEnabled,

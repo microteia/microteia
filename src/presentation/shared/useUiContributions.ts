@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import type { QualifiedContribution } from '../../domain/schema/plugin/contribution';
 import { useContributions, useKernel } from '../../stores/useKernel';
 import type { ICommandPaletteProvider } from '../components/ui/CommandPalette/providers/ICommandPaletteProvider';
+import { WidgetRenderer } from '../components/ui/WidgetRenderer';
 import { resolvePageContribution } from './resolveUiContributions';
 import type { UiPageMetadata } from './uiExtensionPoints';
 import { UI_COMMAND_POINT, UI_NAV_POINT, UI_PAGE_POINT } from './uiExtensionPoints';
@@ -25,10 +26,16 @@ export const useResolvePage = (): ((tabKey: string) => ResolvedPage | undefined)
     () => (tabKey: string) => {
       const contribution = resolvePageContribution(contributions, tabKey);
       if (!contribution) return undefined;
-      const Component =
-        contribution.impl?.kind === 'code'
-          ? host.implementations.resolve<PageComponent>(contribution.pluginId, contribution.impl.key)
-          : undefined;
+
+      let Component: PageComponent | undefined;
+      if (contribution.impl?.kind === 'code') {
+        // Só plugin interno resolve componente compilado.
+        Component = host.implementations.resolve<PageComponent>(contribution.pluginId, contribution.impl.key);
+      } else if (contribution.impl?.kind === 'widget') {
+        // Plugin de terceiro entrega tela declarativa: o Kernel a renderiza, sem JS do plugin.
+        const spec = contribution.impl.spec;
+        Component = () => React.createElement(WidgetRenderer, { spec });
+      }
       return { metadata: contribution.metadata as unknown as UiPageMetadata, Component };
     },
     [contributions, host],

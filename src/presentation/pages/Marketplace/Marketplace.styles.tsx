@@ -92,6 +92,18 @@ export const S = {
     color: ${({ theme }) => theme.colors.textSecondary};
   `,
 
+  DetailLink: styled.button`
+    align-self: flex-start;
+    background: none;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+    font-size: ${({ theme }) => theme.fontSizes.sm};
+    font-weight: 600;
+    color: ${({ theme }) => theme.colors.primary};
+    &:hover { text-decoration: underline; }
+  `,
+
   Actions: styled.div`
     display: flex;
     gap: ${({ theme }) => theme.spacing.sm};

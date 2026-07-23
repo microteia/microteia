@@ -20,6 +20,39 @@ export const MARKETPLACE_CATALOG: MarketplacePlugin[] = [
     },
     summary:
       'Ao cadastrar uma nova pessoa, registra um evento na Auditoria dando as boas-vindas. Um exemplo simples de automação instalável.',
+    overview: {
+      type: 'stack',
+      gap: 'lg',
+      children: [
+        {
+          type: 'markdown',
+          content:
+            'A extensão **Boas-vindas ao Cliente** adiciona uma automação que reage ao cadastro de cada nova pessoa no escritório.\n\nÉ um exemplo de como uma extensão pode instalar uma automação completa com um clique — e removê-la sem deixar rastro.',
+        },
+        {
+          type: 'grid',
+          columns: 2,
+          children: [
+            { type: 'metric', label: 'Automações', value: '1' },
+            { type: 'metric', label: 'Gatilho', value: 'Nova pessoa' },
+          ],
+        },
+        { type: 'divider' },
+        {
+          type: 'keyValue',
+          items: [
+            { label: 'Publicado por', value: 'Curatino' },
+            { label: 'Evento', value: 'Pessoa cadastrada' },
+            { label: 'Efeito', value: 'Registro na Auditoria' },
+          ],
+        },
+        {
+          type: 'banner',
+          message: 'Esta é uma extensão de exemplo, segura para instalar e remover a qualquer momento.',
+          variant: 'info',
+        },
+      ],
+    },
     workflows: [
       {
         name: 'Boas-vindas ao Cliente',
