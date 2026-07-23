@@ -35,7 +35,7 @@ const PAGE_KEYS_ANTES_DA_MIGRACAO = [
   'view-dyn:', 'view-financial:', 'view-news:', 'view-person:', 'view-script:', 'view-workflow:',
   'workflows',
   // Adicionadas depois da migração (a lista é o guarda de "nenhuma tela some", não um congelamento):
-  'marketplace',
+  'marketplace', 'plugin-author',
 ].sort();
 
 describe('core plugins — carga', () => {
@@ -114,7 +114,7 @@ describe('core plugins — paridade com o registro anterior', () => {
 
     expect(items.map((item) => item.key)).toEqual([
       'dashboard', 'calendar', 'persons', 'cases', 'contracts', 'deadlines',
-      'financials', 'pushes', 'news', 'marketplace', 'tenant-settings', 'audit-logs',
+      'financials', 'pushes', 'news', 'marketplace', 'plugin-author', 'tenant-settings', 'audit-logs',
     ]);
   });
 
@@ -182,7 +182,7 @@ describe('core plugins — remoção limpa (critério de aceite da Etapa 2)', ()
 
     expect(resolvePageContribution(pages, 'cases')).toBeDefined();
     expect(resolvePageContribution(pages, 'financials')).toBeDefined();
-    expect(host.contributions.query(UI_NAV_POINT).length).toBe(11);
+    expect(host.contributions.query(UI_NAV_POINT).length).toBe(12);
   });
 
   it('remover core.ui derruba todos os módulos de UI, porque ninguém declara os pontos', () => {

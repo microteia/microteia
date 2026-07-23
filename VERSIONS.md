@@ -11,6 +11,11 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [0.133.0] — 2026-07-23
+
+- Nova tela "Criar extensão": marque as telas, ações, automações e scripts do seu escritório, preencha os dados da extensão e baixe um arquivo pronto para compartilhar. O sistema aponta na hora qualquer dependência que ficou de fora.
+- Agora é possível importar uma extensão a partir de um arquivo, com a mesma conferência que a criação faz — se algo estiver faltando, a importação avisa antes de instalar.
+
 ## [0.132.3] — 2026-07-23
 
 - Nas listas, quando o título de um registro é um campo de relacionamento (por exemplo, o produto de um item de venda), o card agora mostra o nome do registro relacionado, e não mais um código interno.

@@ -1,0 +1,110 @@
+import type {
+  ActionModuleTemplate,
+  MarketplacePlugin,
+  ScreenModuleTemplate,
+  ScriptModuleTemplate,
+  WorkflowModuleTemplate,
+} from '../../entities/MarketplacePlugin';
+import type { PluginManifest } from '../../schema/plugin/pluginManifest';
+import type { ActionDefinition, ScreenDefinition } from '../../entities';
+import type { Script } from '../../entities/Script';
+import type { WorkflowDefinition } from '../../entities/Workflow';
+
+export interface PackageSelection {
+  screens: ScreenDefinition[];
+  actions: ActionDefinition[];
+  workflows: WorkflowDefinition[];
+  scripts: Script[];
+}
+
+export interface BuildPackageInput extends PackageSelection {
+  manifest: PluginManifest;
+  summary: string;
+  overview?: unknown;
+}
+
+const stripUndefined = <T>(value: T): T => {
+  if (Array.isArray(value)) return value.map((item) => stripUndefined(item)) as T;
+  if (value !== null && typeof value === 'object') {
+    return Object.fromEntries(
+      Object.entries(value as Record<string, unknown>)
+        .filter(([, v]) => v !== undefined)
+        .map(([k, v]) => [k, stripUndefined(v)]),
+    ) as T;
+  }
+  return value;
+};
+
+const omit = <T extends object>(obj: T, keys: readonly string[]): Record<string, unknown> => {
+  const clone = { ...obj } as Record<string, unknown>;
+  for (const key of keys) delete clone[key];
+  return clone;
+};
+
+/**
+ * O inverso da instalação: converte um artefato REAL do tenant num template de pacote. O id real
+ * (GUID estável) vira o `templateId` e a `key` real da tela vira a `key` de template — assim as
+ * referências internas do pacote (viewActionIds, workflowId, scriptId, refEntity…) já apontam para
+ * os ids/keys de template sem precisar reescrever nada. Só os campos de sistema (id, tenantId,
+ * timestamps, autoria, `ownerPluginId`) e denormalizados são removidos.
+ */
+const screenToTemplate = (screen: ScreenDefinition): ScreenModuleTemplate =>
+  stripUndefined({
+    key: screen.id,
+    titleSingular: screen.titleSingular,
+    titlePlural: screen.titlePlural,
+    icon: screen.icon,
+    fields: screen.fields.map((field) => omit(field, ['ownerPluginId'])) as unknown as ScreenModuleTemplate['fields'],
+    titleFieldKey: screen.titleFieldKey,
+    hasNotes: screen.hasNotes,
+    hasDocuments: screen.hasDocuments,
+    hasTags: screen.hasTags,
+    listActions: screen.listActions,
+    sidebarOrder: screen.sidebarOrder,
+    enabled: screen.enabled,
+    parentEntity: screen.parentEntity ?? undefined,
+    parentFieldKey: screen.parentFieldKey ?? undefined,
+    viewActionIds: screen.viewActionIds,
+    cardActionIds: screen.cardActionIds,
+  });
+
+const actionToTemplate = (action: ActionDefinition): ActionModuleTemplate =>
+  stripUndefined({
+    templateId: action.id,
+    ...omit(action, [
+      'id', 'tenantId', 'ownerPluginId',
+      'createdAt', 'createdBy', 'updatedAt', 'updatedBy', 'updatedByName', 'updatedByPhotoURL',
+    ]),
+  }) as ActionModuleTemplate;
+
+const workflowToTemplate = (workflow: WorkflowDefinition): WorkflowModuleTemplate =>
+  stripUndefined({
+    templateId: workflow.id,
+    ...omit(workflow, ['id', 'tenantId', 'ownerPluginId', 'enabled', 'createdAt', 'updatedAt']),
+  }) as WorkflowModuleTemplate;
+
+const scriptToTemplate = (script: Script): ScriptModuleTemplate =>
+  stripUndefined({
+    templateId: script.id,
+    ...omit(script, ['id', 'tenantId', 'ownerPluginId', 'createdAt', 'updatedAt']),
+  }) as ScriptModuleTemplate;
+
+/**
+ * Monta um `MarketplacePlugin` a partir dos artefatos selecionados. Arrays vazias das partes
+ * opcionais são omitidas para um JSON limpo. A integridade referencial (dependências não incluídas)
+ * é conferida à parte por `validatePackage` — a MESMA checagem que roda na importação.
+ */
+export const buildPackage = (input: BuildPackageInput): MarketplacePlugin => {
+  const screens = input.screens.map(screenToTemplate);
+  const actions = input.actions.map(actionToTemplate);
+  const scripts = input.scripts.map(scriptToTemplate);
+  return {
+    manifest: input.manifest,
+    summary: input.summary,
+    ...(input.overview !== undefined ? { overview: input.overview } : {}),
+    workflows: input.workflows.map(workflowToTemplate),
+    ...(screens.length > 0 ? { screens } : {}),
+    ...(actions.length > 0 ? { actions } : {}),
+    ...(scripts.length > 0 ? { scripts } : {}),
+  };
+};

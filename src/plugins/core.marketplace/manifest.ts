@@ -5,6 +5,7 @@ export const coreMarketplacePlugin: PluginRecord = {
   trusted: true,
   implementations: {
     MarketplaceView: lazyView(() => import('../../presentation/pages/Marketplace/Marketplace.view'), 'MarketplaceView'),
+    PluginAuthorView: lazyView(() => import('../../presentation/pages/PluginAuthor/PluginAuthor.view'), 'PluginAuthorView'),
   },
   manifest: {
     id: 'core.marketplace',
@@ -15,6 +16,8 @@ export const coreMarketplacePlugin: PluginRecord = {
     contributes: [
       page({ key: 'marketplace', title: 'Extensões', icon: 'store' }, 'MarketplaceView'),
       nav({ key: 'marketplace', label: 'Extensões', icon: 'store', order: 105 }),
+      page({ key: 'plugin-author', title: 'Criar extensão', icon: 'magic' }, 'PluginAuthorView'),
+      nav({ key: 'plugin-author', label: 'Criar extensão', icon: 'magic', order: 106, requiresTenantAdmin: true }),
     ],
   },
 };

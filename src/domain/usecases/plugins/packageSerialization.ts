@@ -1,0 +1,37 @@
+import type { MarketplacePlugin } from '../../entities/MarketplacePlugin';
+
+/** Serializa o pacote para download — JSON indentado, estável para versionar e reimportar. */
+export const serializePackage = (pkg: MarketplacePlugin): string => JSON.stringify(pkg, null, 2);
+
+export type ParsePackageResult =
+  | { ok: true; package: MarketplacePlugin }
+  | { ok: false; error: string };
+
+const isObject = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null && !Array.isArray(value);
+
+/**
+ * Faz o parse de um `.json` importado e confere a forma mínima de um `MarketplacePlugin` — sem
+ * validar integridade referencial nem o manifest, que ficam a cargo de `validatePackage` e
+ * `validatePluginManifest` (a MESMA checagem do lado da autoria). Nunca lança: todo problema
+ * vira `error` legível.
+ */
+export const parsePackage = (text: string): ParsePackageResult => {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(text);
+  } catch {
+    return { ok: false, error: 'O arquivo não é um JSON válido.' };
+  }
+  if (!isObject(parsed)) return { ok: false, error: 'O conteúdo não é um objeto de extensão.' };
+  if (!isObject(parsed.manifest) || typeof parsed.manifest.id !== 'string') {
+    return { ok: false, error: 'A extensão não tem um manifest com "id".' };
+  }
+  if (!Array.isArray(parsed.workflows)) {
+    return { ok: false, error: 'A extensão precisa da lista "workflows" (pode ser vazia).' };
+  }
+  if (typeof parsed.summary !== 'string') {
+    return { ok: false, error: 'A extensão precisa de um "summary".' };
+  }
+  return { ok: true, package: parsed as unknown as MarketplacePlugin };
+};
