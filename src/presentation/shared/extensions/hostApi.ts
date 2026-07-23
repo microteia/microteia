@@ -1,0 +1,81 @@
+import React, { useCallback } from 'react';
+import { jsx, jsxs, Fragment } from 'react/jsx-runtime';
+import styled, { useTheme } from 'styled-components';
+import { Button } from '../../components/ui/Button';
+import { InfoBanner } from '../../components/ui/InfoBanner';
+import { CompositeFilter } from '../../components/ui/CompositeFilter';
+import { SearchSelect } from '../../components/ui/SearchSelect';
+import { DateInput } from '../../components/ui/DateInput';
+import { useCaseStore } from '../../../stores/useCaseStore';
+import { useCaseLookup } from '../../../stores/useCaseLookup';
+import { usePersonStore } from '../../../stores/usePersonStore';
+import { useWorkspace } from '../../../stores/useWorkspace';
+import { useNotification } from '../../../stores/useNotification';
+import { useSavedViewState } from './useSavedViewState';
+import type { CasePhase } from '../../../domain/entities';
+
+/**
+ * A FRONTEIRA DE SANDBOX. Este mapa é tudo que o `require` de uma extensão enxerga — o teto do que o
+ * código de terceiro (trusted) pode tocar. Não há `firebase`, `fetch`, `window` cru nem acesso ao
+ * container de DI: só React, um kit de UI do próprio Curatino e hooks de dados curados que já passam
+ * pelos stores (portanto pelas mesmas regras e permissões da aplicação). Ampliar a superfície é uma
+ * decisão consciente de segurança — adicione um módulo aqui, nunca exponha um objeto amplo.
+ *
+ * Chave desconhecida no `require` é ERRO explícito (ver `evaluateExtensionView`), não `undefined`
+ * silencioso: uma extensão que tenta importar algo fora da superfície falha visivelmente.
+ */
+
+const useCases = (): {
+  cases: ReturnType<typeof useCaseStore>['cases'];
+  updatePhase: (caseId: string, phaseKey: string) => Promise<void>;
+} => {
+  const { cases, updateCase } = useCaseStore();
+  const updatePhase = useCallback(
+    (caseId: string, phaseKey: string) => updateCase(caseId, { phase: phaseKey as CasePhase }),
+    [updateCase],
+  );
+  return { cases, updatePhase };
+};
+
+const useCasePhases = (): ReturnType<typeof useCaseLookup>['phaseConfigs'] =>
+  useCaseLookup().phaseConfigs;
+
+const useCaseAreas = (): ReturnType<typeof useCaseLookup>['areaConfigs'] =>
+  useCaseLookup().areaConfigs;
+
+const useCaseStatuses = (): ReturnType<typeof useCaseLookup>['statusConfigs'] =>
+  useCaseLookup().statusConfigs;
+
+const usePersons = (): ReturnType<typeof usePersonStore>['persons'] => usePersonStore().persons;
+
+const useNotify = (): ReturnType<typeof useNotification>['notify'] => useNotification().notify;
+
+const uiModule = {
+  Button,
+  InfoBanner,
+  CompositeFilter,
+  SearchSelect,
+  DateInput,
+  styled,
+  useTheme,
+} as const;
+
+const dataModule = {
+  useCases,
+  useCasePhases,
+  useCaseAreas,
+  useCaseStatuses,
+  usePersons,
+  useWorkspace,
+  useNotify,
+  useSavedViewState,
+} as const;
+
+export const HOST_MODULES: Record<string, unknown> = {
+  react: React,
+  'react/jsx-runtime': { jsx, jsxs, Fragment },
+  'react/jsx-dev-runtime': { jsxDEV: jsx, Fragment },
+  'styled-components': { default: styled, styled, useTheme },
+  '@curatino/ui': uiModule,
+  '@curatino/data': dataModule,
+};

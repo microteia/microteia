@@ -56,6 +56,22 @@ describe('installedPluginRecords', () => {
   it('sem instalações, nada é carregado', () => {
     expect(installedPluginRecords(catalog, [])).toEqual([]);
   });
+
+  it('plugin com views (fonte confiável do catálogo) é trusted e recebe marcadores ExtensionViewRef', () => {
+    const withView: MarketplacePlugin = {
+      ...plugin('com.acme.kanban', [
+        { point: UI_PAGE_POINT, id: 'kanban', apiVersion: '1.0.0', metadata: { key: 'kanban' }, impl: { kind: 'code', key: 'kanban' } },
+      ]),
+      views: [{ key: 'kanban', title: 'Kanban', icon: 'layoutGrid', source: 'export default () => null;' }],
+    };
+    const records = installedPluginRecords([withView], [installation('com.acme.kanban', true)]);
+    expect(records[0].trusted).toBe(true);
+    expect(records[0].implementations?.kanban).toMatchObject({
+      kind: 'extension-view',
+      pluginId: 'com.acme.kanban',
+      viewKey: 'kanban',
+    });
+  });
 });
 
 describe('carga por tenant — integração com o host', () => {

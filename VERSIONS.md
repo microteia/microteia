@@ -11,6 +11,13 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [0.138.0] — 2026-07-23
+
+- Nova visão **Kanban de Processos**, disponível como extensão: um quadro onde cada coluna é uma Fase e cada processo aparece na coluna da sua fase atual.
+- Você escolhe quais fases viram coluna e filtra o quadro inteiro por advogado, área ou status.
+- Arraste um processo de uma coluna para outra para mudar a fase dele — a mudança é salva na hora, e o cartão usa a cor da fase.
+- As colunas e o filtro que você montar ficam salvos só para você, neste navegador. Ative em Extensões.
+
 ## [0.137.0] — 2026-07-23
 
 - Tela "Criar extensão" repaginada: itens organizados em cartões por tipo, cada um com seu ícone e um contador de selecionados.

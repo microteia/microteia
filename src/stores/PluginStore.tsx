@@ -146,7 +146,13 @@ export const PluginStoreProvider: React.FC<{ children: React.ReactNode }> = ({ c
       const alreadyInstalled = installations.some((i) => i.pluginId === pkg.manifest.id);
       const error = alreadyInstalled ? await upgrade(pkg) : await install(pkg);
       if (error) return { ok: false, error: error.message };
-      return { ok: true, name: pkg.manifest.name || pkg.manifest.id, action: alreadyInstalled ? 'upgraded' : 'installed' };
+      // Um pacote importado avulso não entra no catálogo, então suas views de CÓDIGO não executam:
+      // só código de fonte confiável (publicado por um SYSTEM, ou embutido) roda. Os dados foram
+      // instalados; a tela em código fica inerte até a extensão ser publicada no catálogo.
+      const note = (pkg.views?.length ?? 0) > 0
+        ? 'Esta extensão traz uma tela em código, que só será executada após ser publicada no catálogo por um administrador do sistema. Os dados foram instalados normalmente.'
+        : undefined;
+      return { ok: true, name: pkg.manifest.name || pkg.manifest.id, action: alreadyInstalled ? 'upgraded' : 'installed', note };
     },
     [install, upgrade, installations],
   );

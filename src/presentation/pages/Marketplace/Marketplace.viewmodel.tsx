@@ -191,8 +191,10 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
     setBusyPluginId('__import__');
     try {
       const result = await importPackage(await file.text());
-      if (result.ok) notify(`${result.name} ${result.action === 'upgraded' ? 'atualizado' : 'instalado'}.`, 'success');
-      else notify(`Não foi possível importar: ${result.error}`, 'error');
+      if (result.ok) {
+        notify(`${result.name} ${result.action === 'upgraded' ? 'atualizado' : 'instalado'}.`, 'success');
+        if (result.note) notify(result.note, 'warning');
+      } else notify(`Não foi possível importar: ${result.error}`, 'error');
     } catch (err) {
       notify(`Não foi possível importar: ${err instanceof Error ? err.message : String(err)}`, 'error');
     } finally {

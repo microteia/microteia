@@ -55,6 +55,22 @@ export type ScriptModuleTemplate = { templateId: string } & Omit<
 >;
 
 /**
+ * Uma VIEW DE CÓDIGO de uma extensão trusted: um componente React entregue como fonte (TSX/TS
+ * serializável, viaja no `.json`). O Kernel não interpreta a fonte — o runtime do browser a compila
+ * (`sucrase`) e a avalia contra a API CURADA do host, registrando o componente sob `key`. Uma
+ * contribuição `ui.page` com `impl: { kind: 'code', key }` no `manifest.contributes` a expõe como
+ * aba do workspace. Código só é avaliado quando a extensão vem de fonte confiável — publicada no
+ * registro por um SYSTEM ou embutida no bundle; um `.json` importado avulso instala dados, mas a
+ * view não executa.
+ */
+export interface ViewModuleTemplate {
+  key: string;
+  title: string;
+  icon: string;
+  source: string;
+}
+
+/**
  * Um plugin do Marketplace: o manifest (metadata declarativa) mais os artefatos que ele instala —
  * telas, workflows, actions e scripts. Um plugin pode ser qualquer subconjunto (só um workflow, só
  * uma action, etc.). As referências entre artefatos são por `key`/`templateId` de template,
@@ -67,6 +83,8 @@ export interface MarketplacePlugin {
   screens?: ScreenModuleTemplate[];
   actions?: ActionModuleTemplate[];
   scripts?: ScriptModuleTemplate[];
+  /** Views de código (extensões trusted). Cada `key` casa com uma contribuição `ui.page` code. */
+  views?: ViewModuleTemplate[];
   /**
    * Descrição rica da extensão, em Widget DSL — renderizada pelo Kernel na tela de detalhes. É
    * serializável (viaja no manifest até o registro) e não carrega código do plugin. `unknown`
