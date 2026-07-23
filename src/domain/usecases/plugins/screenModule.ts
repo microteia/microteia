@@ -51,8 +51,11 @@ export const materializeScreen = (
   pluginId: string,
   keyMap: Map<string, string>,
   createdBy: string,
+  actionMap: Map<string, string> = new Map(),
 ): MaterializedScreen => {
   const screenKey = keyMap.get(template.key) ?? installedScreenKey(pluginId, template.key);
+  const mapActionIds = (ids: string[] | undefined): string[] =>
+    (ids ?? []).map((id) => actionMap.get(id) ?? id);
 
   const fields = template.fields.map((field) => ({
     ...field,
@@ -76,8 +79,8 @@ export const materializeScreen = (
     hasDocuments: template.hasDocuments ?? false,
     hasTags: template.hasTags ?? false,
     listActions: template.listActions ?? [],
-    viewActionIds: [],
-    cardActionIds: [],
+    viewActionIds: mapActionIds(template.viewActionIds),
+    cardActionIds: mapActionIds(template.cardActionIds),
     parentEntity: rewriteRef(template.parentEntity, keyMap) ?? null,
     parentFieldKey: template.parentFieldKey ?? null,
     ownerPluginId: pluginId,

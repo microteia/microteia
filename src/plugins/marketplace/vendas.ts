@@ -57,6 +57,8 @@ const venda: ScreenModuleTemplate = {
   icon: 'shoppingBag',
   titleFieldKey: 'numero',
   sidebarOrder: 201,
+  // Botão na tela de Venda — dispara o workflow síncrono e mostra o retorno (prova action→workflow).
+  viewActionIds: ['act-venda-resumo'],
   fields: [
     f({ key: 'numero', label: 'Número', type: 'text', order: 0, required: true, showInList: true }),
     // Relacionamento com ENTIDADE FIXA do core — refEntity 'persons' fica intacto na instalação.
@@ -150,6 +152,48 @@ export const vendasPlugin: MarketplacePlugin = {
       },
     ],
   },
-  workflows: [],
+  workflows: [
+    {
+      templateId: 'wf-venda-resumo',
+      name: 'Resumo da Venda',
+      description: 'Workflow síncrono chamado pela ação "Resumo" na tela de Venda.',
+      eventName: 'workflow.called',
+      version: 1,
+      condition: { kind: 'AlwaysTrue' },
+      steps: [
+        {
+          id: 'montar',
+          stepDefinitionId: 'map',
+          type: 'Action',
+          order: 0,
+          enabled: true,
+          // "Montar Objeto" sem nome espalha os campos na raiz — a ação lê `status`.
+          configuration: {
+            map: {
+              kind: 'Literal',
+              value: {
+                name: '',
+                fields: [
+                  { name: 'status', value: { kind: 'Literal', value: { code: 'SUCCESS', message: 'Resumo da venda gerado com sucesso.' } } },
+                ],
+              },
+            },
+          },
+        },
+      ],
+    },
+  ],
+  actions: [
+    {
+      templateId: 'act-venda-resumo',
+      key: 'venda_resumo',
+      title: 'Resumo',
+      icon: 'shoppingBag',
+      workflowId: 'wf-venda-resumo',
+      danger: false,
+      enabled: true,
+      order: 0,
+    },
+  ],
   screens: [produto, venda, item],
 };

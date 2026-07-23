@@ -22,6 +22,8 @@ export interface ActionDefinition {
   danger: boolean;
   enabled: boolean;
   order: number;
+  /** Presente quando a action foi trazida por uma extensão; a desinstalação a remove. */
+  ownerPluginId?: string | null;
   createdAt: Date;
   createdBy: string;
   updatedAt: Date;

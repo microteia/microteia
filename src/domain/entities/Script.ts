@@ -18,6 +18,8 @@ export interface Script {
   compiledJs: string;
   inputParams: WorkflowParameter[];
   outputParams: ScriptOutputParam[];
+  /** Presente quando o script foi trazido por uma extensão; a desinstalação o remove. */
+  ownerPluginId?: string | null;
   createdAt: Date;
   updatedAt: Date;
 }

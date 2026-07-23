@@ -1,12 +1,15 @@
 import type { PluginManifest } from '../schema/plugin/pluginManifest';
 import type { WorkflowDefinition } from './Workflow';
+import type { Script } from './Script';
+import type { ActionDefinition } from './Action';
 import type { FieldDefinition, ScreenListAction } from './entitySchemas';
 
 /**
  * Uma tela (entidade) que a extensão instala no escritório. É uma ScreenDefinition autoral: a
  * `key` é de TEMPLATE (namespaced na instalação) e as referências entre telas do mesmo pacote
  * (`refEntity`, `parentEntity`, `aggregation.from`) usam essas keys de template, reescritas na
- * materialização. Referência a coleção fixa (`persons`) fica intacta.
+ * materialização. `viewActionIds`/`cardActionIds` referenciam `templateId`s de actions do pacote.
+ * Referência a coleção fixa (`persons`) fica intacta.
  */
 export interface ScreenModuleTemplate {
   key: string;
@@ -23,29 +26,45 @@ export interface ScreenModuleTemplate {
   enabled?: boolean;
   parentEntity?: string | null;
   parentFieldKey?: string | null;
+  viewActionIds?: string[];
+  cardActionIds?: string[];
 }
 
 /**
- * O que a instalação materializa como um workflow no tenant. É a WorkflowDefinition sem os campos
- * que só existem depois de gravada (id, tenantId, timestamps) nem a marca de dono (preenchida na
- * instalação). `enabled` fica de fora: a instalação decide (nasce habilitado).
+ * Um workflow do pacote. `templateId` é o id estável pelo qual actions (`workflowId`) e outros
+ * workflows (`step.configuration.targetWorkflowId`) o referenciam — remapeado para o id gerado na
+ * instalação. Os demais campos são a WorkflowDefinition sem o que só existe depois de gravada.
  */
-export type WorkflowTemplate = Omit<
+export type WorkflowModuleTemplate = { templateId: string } & Omit<
   WorkflowDefinition,
   'id' | 'tenantId' | 'createdAt' | 'updatedAt' | 'ownerPluginId' | 'enabled'
 >;
 
+/** Uma action do pacote. `workflowId` referencia o `templateId` de um workflow do pacote. */
+export type ActionModuleTemplate = { templateId: string } & Omit<
+  ActionDefinition,
+  'id' | 'tenantId' | 'createdAt' | 'createdBy' | 'updatedAt' | 'updatedBy' | 'updatedByName' | 'updatedByPhotoURL' | 'ownerPluginId'
+>;
+
+/** Um script do pacote, referenciado por `step.configuration.scriptId` de workflows via `templateId`. */
+export type ScriptModuleTemplate = { templateId: string } & Omit<
+  Script,
+  'id' | 'tenantId' | 'createdAt' | 'updatedAt' | 'ownerPluginId'
+>;
+
 /**
- * Um plugin do Marketplace nesta fatia vertical: o manifest (metadata declarativa) mais os
- * workflows que ele instala. Distribuído hoje embutido no código (catálogo); na Etapa 7 completa
- * virá do registro global no Firestore.
+ * Um plugin do Marketplace: o manifest (metadata declarativa) mais os artefatos que ele instala —
+ * telas, workflows, actions e scripts. Um plugin pode ser qualquer subconjunto (só um workflow, só
+ * uma action, etc.). As referências entre artefatos são por `key`/`templateId` de template,
+ * remapeadas na instalação.
  */
 export interface MarketplacePlugin {
   manifest: PluginManifest;
   summary: string;
-  workflows: WorkflowTemplate[];
-  /** Telas (entidades) que a extensão instala como telas dinâmicas gerenciadas. */
+  workflows: WorkflowModuleTemplate[];
   screens?: ScreenModuleTemplate[];
+  actions?: ActionModuleTemplate[];
+  scripts?: ScriptModuleTemplate[];
   /**
    * Descrição rica da extensão, em Widget DSL — renderizada pelo Kernel na tela de detalhes. É
    * serializável (viaja no manifest até o registro) e não carrega código do plugin. `unknown`

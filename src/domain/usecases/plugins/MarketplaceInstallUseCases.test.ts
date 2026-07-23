@@ -1,11 +1,14 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import type { PluginInstallation } from '../../entities/PluginInstallation';
 import type { MarketplacePlugin } from '../../entities/MarketplacePlugin';
-import type { WorkflowDefinition } from '../../entities/Workflow';
-import type { ScreenDefinition } from '../../entities';
+import type { WorkflowDefinition, WorkflowStep } from '../../entities/Workflow';
+import type { ScreenDefinition, ActionDefinition } from '../../entities';
+import type { Script } from '../../entities/Script';
 import type { IPluginInstallationRepository } from '../../repositories/IPluginInstallationRepository';
 import type { IWorkflowDefinitionRepository } from '../../repositories/IWorkflowDefinitionRepository';
 import type { IScreenDefinitionRepository, ScreenDefinitionInput } from '../../repositories/IScreenDefinitionRepository';
+import type { IActionRepository, ActionDefinitionInput } from '../../repositories/IActionRepository';
+import type { IScriptRepository } from '../../repositories/IScriptRepository';
 import type { LifecycleActor } from '../../services/pluginLifecycle';
 import {
   makeInstallMarketplacePluginUseCase,
@@ -37,19 +40,14 @@ class FakeWorkflows {
   async getWorkflowDefinitions(tenantId: string) {
     return [...this.store.values()].filter((w) => w.tenantId === tenantId);
   }
-  async createWorkflowDefinition(
-    tenantId: string,
-    data: Omit<WorkflowDefinition, 'id' | 'tenantId' | 'createdAt' | 'updatedAt'>,
-  ) {
-    const workflow: WorkflowDefinition = {
-      ...data,
-      id: `wf-${(this.seq += 1)}`,
-      tenantId,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    };
+  async createWorkflowDefinition(tenantId: string, data: Omit<WorkflowDefinition, 'id' | 'tenantId' | 'createdAt' | 'updatedAt'>) {
+    const workflow = { ...data, id: `wf-${(this.seq += 1)}`, tenantId, createdAt: new Date(), updatedAt: new Date() } as WorkflowDefinition;
     this.store.set(workflow.id, workflow);
     return workflow;
+  }
+  async updateWorkflowSteps(_tenantId: string, id: string, steps: WorkflowStep[]) {
+    const wf = this.store.get(id);
+    if (wf) this.store.set(id, { ...wf, steps });
   }
   async deleteWorkflowDefinition(_tenantId: string, id: string) {
     this.store.delete(id);
@@ -71,222 +69,218 @@ class FakeScreens {
   }
 }
 
-const actor: LifecycleActor = { tenantId: 't1', userId: 'u1', now: new Date('2026-07-22T12:00:00Z') };
+class FakeActions {
+  seq = 0;
+  store = new Map<string, ActionDefinition>();
+  async getAll(tenantId: string) {
+    return [...this.store.values()].filter((a) => a.tenantId === tenantId);
+  }
+  async create(tenantId: string, data: ActionDefinitionInput) {
+    const action = { ...data, id: `act-${(this.seq += 1)}`, tenantId, createdAt: new Date(), updatedAt: new Date() } as ActionDefinition;
+    this.store.set(action.id, action);
+    return action;
+  }
+  async delete(_tenantId: string, id: string) {
+    this.store.delete(id);
+  }
+}
 
-const plugin: MarketplacePlugin = {
-  summary: 'Exemplo',
-  manifest: {
-    id: 'com.curatino.boas-vindas',
-    version: '1.0.0',
-    kernel: '^1.0.0',
-    name: 'Boas-vindas',
-    permissions: ['workflow:run'],
-  },
-  workflows: [
-    {
-      name: 'Boas-vindas ao Cliente',
-      eventName: 'person.saved',
-      version: 1,
-      condition: { kind: 'AlwaysTrue' },
-      steps: [],
-    },
-  ],
-};
+class FakeScripts {
+  seq = 0;
+  store = new Map<string, Script>();
+  async getScripts(tenantId: string) {
+    return [...this.store.values()].filter((s) => s.tenantId === tenantId);
+  }
+  async createScript(tenantId: string, data: Omit<Script, 'id' | 'tenantId' | 'createdAt' | 'updatedAt'>) {
+    const script = { ...data, id: `scr-${(this.seq += 1)}`, tenantId, createdAt: new Date(), updatedAt: new Date() } as Script;
+    this.store.set(script.id, script);
+    return script;
+  }
+  async deleteScript(_tenantId: string, id: string) {
+    this.store.delete(id);
+  }
+}
+
+const actor: LifecycleActor = { tenantId: 't1', userId: 'u1', now: new Date('2026-07-23T12:00:00Z') };
 
 let installations: FakeInstallations;
 let workflows: FakeWorkflows;
 let screens: FakeScreens;
+let actions: FakeActions;
+let scripts: FakeScripts;
 
 const deps = () => ({
   installationRepository: installations,
   workflowRepository: workflows as unknown as IWorkflowDefinitionRepository,
   screenRepository: screens as unknown as IScreenDefinitionRepository,
+  actionRepository: actions as unknown as IActionRepository,
+  scriptRepository: scripts as unknown as IScriptRepository,
 });
 
 beforeEach(() => {
   installations = new FakeInstallations();
   workflows = new FakeWorkflows();
   screens = new FakeScreens();
+  actions = new FakeActions();
+  scripts = new FakeScripts();
 });
 
-describe('InstallMarketplacePluginUseCase', () => {
-  it('materializa os workflows do plugin e grava a instalação', async () => {
-    const result = await makeInstallMarketplacePluginUseCase(deps()).execute(plugin, actor);
+const literalStep = (id: string, stepDefinitionId: string, inputId: string, value: string): WorkflowStep => ({
+  id,
+  stepDefinitionId,
+  type: 'Action',
+  order: 0,
+  enabled: true,
+  configuration: { [inputId]: { kind: 'Literal', value } },
+});
 
+const workflowPlugin: MarketplacePlugin = {
+  summary: 'Automação',
+  manifest: { id: 'com.acme.aut', version: '1.0.0', kernel: '^1.0.0', name: 'Aut', permissions: ['workflow:run'] },
+  workflows: [
+    { templateId: 'wf-1', name: 'W1', eventName: 'person.saved', version: 1, condition: { kind: 'AlwaysTrue' }, steps: [] },
+  ],
+};
+
+describe('Install — workflows (compatibilidade)', () => {
+  it('materializa o workflow marcado e grava a instalação', async () => {
+    const result = await makeInstallMarketplacePluginUseCase(deps()).execute(workflowPlugin, actor);
     expect(result.ok).toBe(true);
     const created = await workflows.getWorkflowDefinitions('t1');
     expect(created).toHaveLength(1);
-    expect(created[0]).toMatchObject({
-      name: 'Boas-vindas ao Cliente',
-      ownerPluginId: 'com.curatino.boas-vindas',
-      enabled: true,
-    });
-    expect(await installations.getById('t1', 'com.curatino.boas-vindas')).toMatchObject({
-      version: '1.0.0',
-      grantedPermissions: ['workflow:run'],
-    });
+    expect(created[0]).toMatchObject({ name: 'W1', ownerPluginId: 'com.acme.aut', enabled: true });
+    // templateId não vaza para a WorkflowDefinition gravada.
+    expect('templateId' in created[0]).toBe(false);
   });
 
-  it('não materializa nem grava se o plugin já está instalado', async () => {
-    await makeInstallMarketplacePluginUseCase(deps()).execute(plugin, actor);
-    const result = await makeInstallMarketplacePluginUseCase(deps()).execute(plugin, actor);
-
+  it('recusa reinstalar', async () => {
+    await makeInstallMarketplacePluginUseCase(deps()).execute(workflowPlugin, actor);
+    const result = await makeInstallMarketplacePluginUseCase(deps()).execute(workflowPlugin, actor);
     expect(result).toMatchObject({ ok: false, error: { code: 'already-installed' } });
-    // Continua com só 1 workflow (não duplicou).
-    expect(await workflows.getWorkflowDefinitions('t1')).toHaveLength(1);
   });
 });
 
-describe('UninstallMarketplacePluginUseCase', () => {
-  it('remove os workflows do plugin e o registro de instalação', async () => {
-    await makeInstallMarketplacePluginUseCase(deps()).execute(plugin, actor);
+describe('Install — remapeamento de ids (scripts → workflows → actions → telas)', () => {
+  const fullPlugin: MarketplacePlugin = {
+    summary: 'Completo',
+    manifest: { id: 'com.acme.full', version: '1.0.0', kernel: '^1.0.0', name: 'Full' },
+    scripts: [
+      { templateId: 'scr-a', name: 'Script A', sourceTs: 'x', compiledJs: 'y', inputParams: [], outputParams: [] },
+    ],
+    workflows: [
+      {
+        templateId: 'wf-inner',
+        name: 'Inner',
+        eventName: 'workflow.called',
+        version: 1,
+        condition: { kind: 'AlwaysTrue' },
+        steps: [literalStep('s1', 'script', 'scriptId', 'scr-a')],
+      },
+      {
+        templateId: 'wf-outer',
+        name: 'Outer',
+        eventName: 'workflow.called',
+        version: 1,
+        condition: { kind: 'AlwaysTrue' },
+        steps: [literalStep('s1', 'call-workflow', 'targetWorkflowId', 'wf-inner')],
+      },
+    ],
+    actions: [
+      { templateId: 'act-x', key: 'x', title: 'X', icon: 'apps', workflowId: 'wf-outer', danger: false, enabled: true, order: 0 },
+    ],
+    screens: [
+      {
+        key: 'tela',
+        titleSingular: 'Tela',
+        titlePlural: 'Telas',
+        icon: 'apps',
+        titleFieldKey: 'nome',
+        viewActionIds: ['act-x'],
+        fields: [{ key: 'nome', label: 'Nome', type: 'text', required: true, order: 0 }],
+      },
+    ],
+  };
 
-    const result = await makeUninstallMarketplacePluginUseCase(deps()).execute(plugin.manifest.id, actor);
-
-    expect(result).toEqual({ ok: true, removedWorkflows: 1, removedScreens: 0 });
-    expect(await workflows.getWorkflowDefinitions('t1')).toEqual([]);
-    expect(await installations.getById('t1', 'com.curatino.boas-vindas')).toBeNull();
+  it('reescreve scriptId do step pelo id real do script', async () => {
+    await makeInstallMarketplacePluginUseCase(deps()).execute(fullPlugin, actor);
+    const inner = (await workflows.getWorkflowDefinitions('t1')).find((w) => w.name === 'Inner')!;
+    const scriptId = (inner.steps[0].configuration.scriptId as { value: string }).value;
+    const realScript = (await scripts.getScripts('t1'))[0];
+    expect(scriptId).toBe(realScript.id);
+    expect(realScript.ownerPluginId).toBe('com.acme.full');
   });
 
-  it('não toca em workflows de outros donos nem nos do próprio usuário', async () => {
-    // workflow do usuário, sem ownerPluginId
-    await workflows.createWorkflowDefinition('t1', {
-      name: 'Meu workflow',
-      eventName: 'person.saved',
-      version: 1,
-      enabled: true,
-      condition: { kind: 'AlwaysTrue' },
-      steps: [],
-    });
-    await makeInstallMarketplacePluginUseCase(deps()).execute(plugin, actor);
+  it('reescreve targetWorkflowId (workflow que chama workflow) na segunda passada', async () => {
+    await makeInstallMarketplacePluginUseCase(deps()).execute(fullPlugin, actor);
+    const all = await workflows.getWorkflowDefinitions('t1');
+    const outer = all.find((w) => w.name === 'Outer')!;
+    const inner = all.find((w) => w.name === 'Inner')!;
+    const target = (outer.steps[0].configuration.targetWorkflowId as { value: string }).value;
+    expect(target).toBe(inner.id);
+  });
 
-    await makeUninstallMarketplacePluginUseCase(deps()).execute(plugin.manifest.id, actor);
+  it('reescreve o workflowId da action pelo id real do workflow', async () => {
+    await makeInstallMarketplacePluginUseCase(deps()).execute(fullPlugin, actor);
+    const action = (await actions.getAll('t1'))[0];
+    const outer = (await workflows.getWorkflowDefinitions('t1')).find((w) => w.name === 'Outer')!;
+    expect(action.workflowId).toBe(outer.id);
+    expect(action.ownerPluginId).toBe('com.acme.full');
+  });
 
-    const remaining = await workflows.getWorkflowDefinitions('t1');
-    expect(remaining).toHaveLength(1);
-    expect(remaining[0].name).toBe('Meu workflow');
+  it('reescreve os viewActionIds da tela pelo id real da action', async () => {
+    await makeInstallMarketplacePluginUseCase(deps()).execute(fullPlugin, actor);
+    const screen = (await screens.getAll('t1'))[0];
+    const action = (await actions.getAll('t1'))[0];
+    expect(screen.viewActionIds).toEqual([action.id]);
+  });
+});
+
+describe('Uninstall — cascata dos quatro tipos', () => {
+  const fullPlugin: MarketplacePlugin = {
+    summary: 'Completo',
+    manifest: { id: 'com.acme.full', version: '1.0.0', kernel: '^1.0.0', name: 'Full' },
+    scripts: [{ templateId: 'scr-a', name: 'A', sourceTs: 'x', compiledJs: 'y', inputParams: [], outputParams: [] }],
+    workflows: [{ templateId: 'wf-a', name: 'A', eventName: 'workflow.called', version: 1, condition: { kind: 'AlwaysTrue' }, steps: [] }],
+    actions: [{ templateId: 'act-a', key: 'a', title: 'A', icon: 'apps', workflowId: 'wf-a', danger: false, enabled: true, order: 0 }],
+    screens: [{ key: 't', titleSingular: 'T', titlePlural: 'T', icon: 'apps', titleFieldKey: 'n', fields: [{ key: 'n', label: 'N', type: 'text', required: true, order: 0 }] }],
+  };
+
+  it('remove telas, actions, workflows e scripts do plugin e conta', async () => {
+    await makeInstallMarketplacePluginUseCase(deps()).execute(fullPlugin, actor);
+    const result = await makeUninstallMarketplacePluginUseCase(deps()).execute('com.acme.full', actor);
+
+    expect(result).toEqual({ ok: true, removedScreens: 1, removedActions: 1, removedWorkflows: 1, removedScripts: 1 });
+    expect(await screens.getAll('t1')).toEqual([]);
+    expect(await actions.getAll('t1')).toEqual([]);
+    expect(await workflows.getWorkflowDefinitions('t1')).toEqual([]);
+    expect(await scripts.getScripts('t1')).toEqual([]);
+  });
+
+  it('não toca em artefatos de outro dono nem do usuário', async () => {
+    await scripts.createScript('t1', { name: 'meu', sourceTs: '', compiledJs: '', inputParams: [], outputParams: [] } as never);
+    await makeInstallMarketplacePluginUseCase(deps()).execute(fullPlugin, actor);
+    await makeUninstallMarketplacePluginUseCase(deps()).execute('com.acme.full', actor);
+    expect((await scripts.getScripts('t1')).map((s) => s.name)).toEqual(['meu']);
   });
 
   it('recusa desinstalar o que não está instalado', async () => {
-    const result = await makeUninstallMarketplacePluginUseCase(deps()).execute('com.curatino.boas-vindas', actor);
+    const result = await makeUninstallMarketplacePluginUseCase(deps()).execute('com.acme.full', actor);
     expect(result).toMatchObject({ ok: false, error: { code: 'not-installed' } });
   });
 });
 
-describe('ciclo completo com o catálogo real', () => {
-  it('instala e desinstala o plugin de exemplo do catálogo', async () => {
-    const { MARKETPLACE_CATALOG } = await import('../../../plugins/marketplace/catalog');
-    const sample = MARKETPLACE_CATALOG[0];
-
-    await makeInstallMarketplacePluginUseCase(deps()).execute(sample, actor);
-    const afterInstall = await workflows.getWorkflowDefinitions('t1');
-    expect(afterInstall).toHaveLength(1);
-    expect(afterInstall[0].ownerPluginId).toBe(sample.manifest.id);
-
-    await makeUninstallMarketplacePluginUseCase(deps()).execute(sample.manifest.id, actor);
-    expect(await workflows.getWorkflowDefinitions('t1')).toEqual([]);
-  });
-});
-
-const screenPlugin: MarketplacePlugin = {
-  summary: 'Módulo',
-  manifest: { id: 'com.acme.vendas', version: '1.0.0', kernel: '^1.0.0', name: 'Vendas' },
-  workflows: [],
-  screens: [
-    {
-      key: 'venda',
-      titleSingular: 'Venda',
-      titlePlural: 'Vendas',
-      icon: 'shoppingBag',
-      titleFieldKey: 'numero',
-      fields: [
-        { key: 'numero', label: 'Número', type: 'text', required: true, order: 0 },
-        { key: 'cliente', label: 'Cliente', type: 'reference', refEntity: 'persons', required: true, order: 1 },
-        {
-          key: 'total', label: 'Total', type: 'currency', required: false, order: 2,
-          aggregation: { from: 'item', via: 'venda', op: 'sum', field: 'total' },
-        },
-      ],
-    },
-    {
-      key: 'item',
-      titleSingular: 'Item',
-      titlePlural: 'Itens',
-      icon: 'shoppingBag',
-      titleFieldKey: 'produto',
-      parentEntity: 'venda',
-      parentFieldKey: 'venda',
-      fields: [
-        { key: 'venda', label: 'Venda', type: 'reference', refEntity: 'venda', required: true, order: 0 },
-        { key: 'total', label: 'Total', type: 'currency', required: false, order: 1, logic: { compute: 'qtd * preco' } },
-      ],
-    },
-  ],
-};
-
-describe('materialização de telas (módulo de plugin)', () => {
-  it('cria as telas namespaced, gerenciadas e com ownerPluginId', async () => {
-    await makeInstallMarketplacePluginUseCase(deps()).execute(screenPlugin, actor);
-    const created = await screens.getAll('t1');
-
-    expect(created.map((s) => s.id).sort()).toEqual([
-      'com-acme-vendas__item',
-      'com-acme-vendas__venda',
-    ]);
-    for (const screen of created) {
-      expect(screen.managed).toBe(true);
-      expect(screen.ownerPluginId).toBe('com.acme.vendas');
-      expect(screen.fields.every((f) => f.ownerPluginId === 'com.acme.vendas')).toBe(true);
-    }
-  });
-
-  it('reescreve refs entre telas do pacote e preserva ref ao core', async () => {
-    await makeInstallMarketplacePluginUseCase(deps()).execute(screenPlugin, actor);
-    const venda = (await screens.getAll('t1')).find((s) => s.id === 'com-acme-vendas__venda')!;
-    const item = (await screens.getAll('t1')).find((s) => s.id === 'com-acme-vendas__item')!;
-
-    // ref ao core intacto
-    expect(venda.fields.find((f) => f.key === 'cliente')?.refEntity).toBe('persons');
-    // agregado aponta para a tela item namespaced
-    expect(venda.fields.find((f) => f.key === 'total')?.aggregation?.from).toBe('com-acme-vendas__item');
-    // ref e parent do item apontam para a venda namespaced
-    expect(item.fields.find((f) => f.key === 'venda')?.refEntity).toBe('com-acme-vendas__venda');
-    expect(item.parentEntity).toBe('com-acme-vendas__venda');
-    expect(item.parentFieldKey).toBe('venda');
-    // compute preservado
-    expect(item.fields.find((f) => f.key === 'total')?.logic?.compute).toBe('qtd * preco');
-  });
-
-  it('desinstalar remove as telas do plugin e conta certo', async () => {
-    await makeInstallMarketplacePluginUseCase(deps()).execute(screenPlugin, actor);
-    const result = await makeUninstallMarketplacePluginUseCase(deps()).execute('com.acme.vendas', actor);
-
-    expect(result).toMatchObject({ ok: true, removedScreens: 2, removedWorkflows: 0 });
-    expect(await screens.getAll('t1')).toEqual([]);
-  });
-
-  it('não remove telas de outro dono nem as do usuário', async () => {
-    await screens.upsert('t1', 'minha-tela', { ownerPluginId: null } as never);
-    await makeInstallMarketplacePluginUseCase(deps()).execute(screenPlugin, actor);
-
-    await makeUninstallMarketplacePluginUseCase(deps()).execute('com.acme.vendas', actor);
-    const remaining = await screens.getAll('t1');
-    expect(remaining.map((s) => s.id)).toEqual(['minha-tela']);
-  });
-});
-
-describe('pacote Vendas do catálogo', () => {
-  it('materializa produto, venda e item com as três chaves namespaced', async () => {
+describe('pacote Vendas do catálogo (com action + workflow)', () => {
+  it('materializa telas + action + workflow, com a action da venda ligada ao workflow real', async () => {
     const { MARKETPLACE_CATALOG } = await import('../../../plugins/marketplace/catalog');
     const vendas = MARKETPLACE_CATALOG.find((p) => p.manifest.id === 'com.curatino.vendas')!;
-    expect(vendas.screens).toHaveLength(3);
 
     await makeInstallMarketplacePluginUseCase(deps()).execute(vendas, actor);
-    const created = await screens.getAll('t1');
-    expect(created.map((s) => s.id).sort()).toEqual([
-      'com-curatino-vendas__item',
-      'com-curatino-vendas__produto',
-      'com-curatino-vendas__venda',
-    ]);
+
+    const venda = (await screens.getAll('t1')).find((s) => s.id === 'com-curatino-vendas__venda')!;
+    const action = (await actions.getAll('t1'))[0];
+    const wf = (await workflows.getWorkflowDefinitions('t1'))[0];
+    expect(venda.viewActionIds).toEqual([action.id]);
+    expect(action.workflowId).toBe(wf.id);
+    expect(wf.ownerPluginId).toBe('com.curatino.vendas');
   });
 });

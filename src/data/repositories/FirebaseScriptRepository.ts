@@ -36,6 +36,7 @@ const mapScript = (id: string, d: Record<string, unknown>, tenantId: string): Sc
   compiledJs: (d.compiledJs as string | undefined) ?? '',
   inputParams: (d.inputParams as WorkflowParameter[] | undefined) ?? [],
   outputParams: (d.outputParams as ScriptOutputParam[] | undefined) ?? [],
+  ownerPluginId: (d.ownerPluginId as string | null | undefined) ?? null,
   createdAt: toDate(d.createdAt),
   updatedAt: toDate(d.updatedAt),
 });

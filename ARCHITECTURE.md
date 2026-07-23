@@ -2768,8 +2768,24 @@ Plugin de exemplo `com.curatino.vendas` (produto, venda, item): validação por 
 select, relação com pessoa[core], preço do item vindo do produto (`onChange`), total do item
 calculado (`compute`), total da venda agregado, e master-detail venda→itens.
 
-**Escopo desta fase:** só telas. Actions/scripts no pacote, upgrade preservando campos do usuário, e
-exportar do Form Design → pacote (autoria) são fases seguintes.
+**Pacote completo (actions, scripts, workflows).** `MarketplacePlugin` carrega `screens`, `workflows`,
+`actions` e `scripts` — um plugin é qualquer subconjunto. Telas usam `screenKey` namespaced
+(determinístico); actions/scripts/workflows têm **id de template** e recebem id gerado na instalação,
+então a materialização faz **remapeamento em duas passadas** (`packageMaterialize.ts`): cria scripts →
+mapa; cria workflows (reescreve `step.configuration.scriptId`, namespaceia a tela-gatilho) → mapa;
+reescreve `targetWorkflowId` (workflow que chama workflow); cria actions (reescreve `workflowId`) →
+mapa; grava telas (reescreve `viewActionIds`/`cardActionIds` e as refs entre telas). Ordem obrigatória:
+scripts → workflows → actions → telas. `ownerPluginId` em Action e Script (Workflow já tinha);
+desinstalar cascateia os quatro tipos e preserva os registros.
+
+**Um modelo de referências, um validador** (`pluginReferences.ts`, puro): as referências de saída de
+cada artefato (tela→actions/telas, action→workflow, workflow→scripts/workflows/tela-gatilho). O
+`validatePackage(pkg)` exige que toda referência esteja **incluída no pacote**, seja **coleção fixa do
+core**, ou esteja **coberta por dependência declarada** (chave namespaced `<slug>__x` de uma
+`dependencies`). É a MESMA checagem que o export (dry-run) e o import usam — simétrico e agnóstico.
+
+**Escopo desta fase:** materialização/instalação. A autoria ("Criar Plugin": marcar artefatos +
+manifest → validar como dry-run de import → gerar `.json`/publicar) e o upgrade são as fases seguintes.
 
 ### Fatia vertical do Marketplace — instalar de verdade
 

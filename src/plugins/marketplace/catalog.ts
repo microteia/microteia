@@ -58,6 +58,7 @@ export const MARKETPLACE_CATALOG: MarketplacePlugin[] = [
     },
     workflows: [
       {
+        templateId: 'wf-boas-vindas',
         name: 'Boas-vindas ao Cliente',
         description: 'Registra na auditoria quando uma nova pessoa é criada.',
         eventName: 'person.saved',
