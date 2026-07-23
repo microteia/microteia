@@ -21,6 +21,7 @@ import type { LifecycleActor } from '../domain/services/pluginLifecycle';
 import {
   makeInstallMarketplacePluginUseCase,
   makeUninstallMarketplacePluginUseCase,
+  makeUpgradeMarketplacePluginUseCase,
 } from '../domain/usecases/plugins/MarketplaceInstallUseCases';
 import {
   makeDisablePluginUseCase,
@@ -56,6 +57,7 @@ export const PluginStoreProvider: React.FC<{ children: React.ReactNode }> = ({ c
     };
     return {
       install: makeInstallMarketplacePluginUseCase(deps),
+      upgrade: makeUpgradeMarketplacePluginUseCase(deps),
       uninstall: makeUninstallMarketplacePluginUseCase(deps),
       enable: makeEnablePluginUseCase(pluginInstallationRepository),
       disable: makeDisablePluginUseCase(pluginInstallationRepository),
@@ -114,6 +116,20 @@ export const PluginStoreProvider: React.FC<{ children: React.ReactNode }> = ({ c
     [actorNow, uc.uninstall],
   );
 
+  const upgrade = useCallback(
+    async (plugin: MarketplacePlugin) => {
+      const actor = actorNow();
+      if (!actor) return null;
+      const result = await uc.upgrade.execute(plugin, actor);
+      if (result.ok) {
+        storeEvents.emit(StoreEvents.SCREEN_DEFINITIONS_UPDATED);
+        storeEvents.emit(StoreEvents.ACTIONS_UPDATED);
+      }
+      return result.ok ? null : result.error;
+    },
+    [actorNow, uc.upgrade],
+  );
+
   const importPackage = useCallback(
     async (text: string): Promise<ImportPackageResult> => {
       const parsed = parsePackage(text);
@@ -127,11 +143,12 @@ export const PluginStoreProvider: React.FC<{ children: React.ReactNode }> = ({ c
       if (manifestErrors.length > 0 || refErrors.length > 0) {
         return { ok: false, error: manifestErrors[0]?.message ?? refErrors[0].message };
       }
-      const error = await install(pkg);
+      const alreadyInstalled = installations.some((i) => i.pluginId === pkg.manifest.id);
+      const error = alreadyInstalled ? await upgrade(pkg) : await install(pkg);
       if (error) return { ok: false, error: error.message };
-      return { ok: true, name: pkg.manifest.name || pkg.manifest.id };
+      return { ok: true, name: pkg.manifest.name || pkg.manifest.id, action: alreadyInstalled ? 'upgraded' : 'installed' };
     },
-    [install],
+    [install, upgrade, installations],
   );
 
   const setEnabled = useCallback(

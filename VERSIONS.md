@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [0.135.0] — 2026-07-23
+
+- Atualização de extensões: ao importar uma versão mais recente de uma extensão já instalada, o sistema atualiza no lugar — cria e ajusta as telas novas, remove as que saíram e mantém os seus dados. Os campos que você adicionou por conta própria às telas da extensão são preservados.
+
 ## [0.134.1] — 2026-07-23
 
 - Extensões importadas agora mostram o próprio nome e descrição na tela de Extensões, com a marca "Importada".

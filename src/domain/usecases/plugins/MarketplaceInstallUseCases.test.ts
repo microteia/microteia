@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import type { PluginInstallation } from '../../entities/PluginInstallation';
-import type { MarketplacePlugin } from '../../entities/MarketplacePlugin';
+import type { MarketplacePlugin, ScreenModuleTemplate } from '../../entities/MarketplacePlugin';
 import type { WorkflowDefinition, WorkflowStep } from '../../entities/Workflow';
 import type { ScreenDefinition, ActionDefinition } from '../../entities';
 import type { Script } from '../../entities/Script';
@@ -13,6 +13,7 @@ import type { LifecycleActor } from '../../services/pluginLifecycle';
 import {
   makeInstallMarketplacePluginUseCase,
   makeUninstallMarketplacePluginUseCase,
+  makeUpgradeMarketplacePluginUseCase,
 } from './MarketplaceInstallUseCases';
 
 class FakeInstallations implements IPluginInstallationRepository {
@@ -265,6 +266,85 @@ describe('Uninstall — cascata dos quatro tipos', () => {
 
   it('recusa desinstalar o que não está instalado', async () => {
     const result = await makeUninstallMarketplacePluginUseCase(deps()).execute('com.acme.full', actor);
+    expect(result).toMatchObject({ ok: false, error: { code: 'not-installed' } });
+  });
+});
+
+describe('Upgrade — atualização de versão', () => {
+  const screenT = (key: string): ScreenModuleTemplate => ({
+    key, titleSingular: key, titlePlural: key, icon: 'apps', titleFieldKey: 'n',
+    viewActionIds: ['act-1'],
+    fields: [{ key: 'n', label: 'N', type: 'text', required: true, order: 0 }],
+  });
+
+  const version = (v: string, screenTemplates: ScreenModuleTemplate[]): MarketplacePlugin => ({
+    summary: 'S',
+    manifest: { id: 'com.acme.up', version: v, kernel: '^1.0.0', name: 'Up' },
+    workflows: [{ templateId: 'wf-1', name: 'W', eventName: 'person.saved', version: 1, condition: { kind: 'AlwaysTrue' }, steps: [] }],
+    actions: [{ templateId: 'act-1', key: 'a', title: 'A', icon: 'apps', workflowId: 'wf-1', danger: false, enabled: true, order: 0 }],
+    screens: screenTemplates,
+  });
+
+  const KEY_A = 'com-acme-up__a';
+  const KEY_B = 'com-acme-up__b';
+
+  it('sobe a versão da instalação e atualiza o cache de exibição', async () => {
+    await makeInstallMarketplacePluginUseCase(deps()).execute(version('1.0.0', [screenT('a')]), actor);
+    const result = await makeUpgradeMarketplacePluginUseCase(deps()).execute(version('1.1.0', [screenT('a')]), actor);
+
+    expect(result.ok).toBe(true);
+    const installation = await installations.getById('t1', 'com.acme.up');
+    expect(installation?.version).toBe('1.1.0');
+    expect(installation?.config).toMatchObject({ name: 'Up', workflowCount: 1 });
+  });
+
+  it('cria tela nova e remove tela que sumiu na nova versão; dados por chave preservados', async () => {
+    await makeInstallMarketplacePluginUseCase(deps()).execute(version('1.0.0', [screenT('a'), screenT('b')]), actor);
+    await makeUpgradeMarketplacePluginUseCase(deps()).execute(version('1.1.0', [screenT('a')]), actor);
+
+    const keys = (await screens.getAll('t1')).map((s) => s.id);
+    expect(keys).toContain(KEY_A);
+    expect(keys).not.toContain(KEY_B);
+  });
+
+  it('preserva os campos que o usuário adicionou por cima da tela gerenciada', async () => {
+    await makeInstallMarketplacePluginUseCase(deps()).execute(version('1.0.0', [screenT('a')]), actor);
+    const current = screens.store.get(KEY_A)!;
+    screens.store.set(KEY_A, {
+      ...current,
+      fields: [...current.fields, { key: 'meu', label: 'Meu', type: 'text', required: false, order: 5, ownerPluginId: null }],
+    });
+
+    await makeUpgradeMarketplacePluginUseCase(deps()).execute(version('1.1.0', [screenT('a')]), actor);
+
+    const after = screens.store.get(KEY_A)!;
+    const keys = after.fields.map((f) => f.key);
+    expect(keys).toContain('meu');
+    expect(keys).toContain('n');
+  });
+
+  it('regenera actions/workflows/scripts sem duplicar (velhos removidos, novos criados)', async () => {
+    await makeInstallMarketplacePluginUseCase(deps()).execute(version('1.0.0', [screenT('a')]), actor);
+    const actionIdBefore = (await actions.getAll('t1'))[0].id;
+
+    await makeUpgradeMarketplacePluginUseCase(deps()).execute(version('1.1.0', [screenT('a')]), actor);
+
+    const allActions = await actions.getAll('t1');
+    expect(allActions).toHaveLength(1);
+    expect(allActions[0].id).not.toBe(actionIdBefore);
+    expect(await workflows.getWorkflowDefinitions('t1')).toHaveLength(1);
+    // A tela aponta para a action recriada.
+    expect((await screens.getAll('t1'))[0].viewActionIds ?? []).not.toContain(actionIdBefore);
+  });
+
+  it('recusa versão que não é mais recente', async () => {
+    await makeInstallMarketplacePluginUseCase(deps()).execute(version('1.0.0', [screenT('a')]), actor);
+    const result = await makeUpgradeMarketplacePluginUseCase(deps()).execute(version('1.0.0', [screenT('a')]), actor);
+    expect(result).toMatchObject({ ok: false, error: { code: 'not-newer-version' } });
+  });
+
+  it('recusa atualizar o que não está instalado', async () => {
+    const result = await makeUpgradeMarketplacePluginUseCase(deps()).execute(version('1.1.0', [screenT('a')]), actor);
     expect(result).toMatchObject({ ok: false, error: { code: 'not-installed' } });
   });
 });

@@ -6,7 +6,9 @@ import type { PluginDiagnostic } from '../domain/schema/plugin/diagnostics';
 
 export type PluginSource = 'published' | 'builtin';
 
-export type ImportPackageResult = { ok: true; name: string } | { ok: false; error: string };
+export type ImportPackageResult =
+  | { ok: true; name: string; action: 'installed' | 'upgraded' }
+  | { ok: false; error: string };
 
 export interface PluginStoreValue {
   catalog: MarketplacePlugin[];
