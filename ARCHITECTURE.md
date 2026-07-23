@@ -2742,6 +2742,35 @@ o card passa de "Interna" para "Publicada" e a partir dali vem do Firestore. O `
 O que falta para a Etapa 7 completa: versões por plugin (`versions/{semver}`), um fluxo de publish
 de verdade (formulário/validação de manifest) e a migração dos Workflows Públicos para cá.
 
+### Extensões que carregam módulos de domínio (Fase 1)
+
+Uma extensão traz um MÓDULO completo — entidades com campos, máscara, validação, expressões,
+relacionamentos, cálculos, master-detail — reusando **inteiramente** o sistema de Telas Dinâmicas.
+`ScreenDefinition`/`FieldDefinition` já expressam tudo (`logic.compute`, `logic.onChange`,
+`aggregation`, `refEntity`, `parentEntity`); os gaps eram só empacotamento e marcação.
+
+- `MarketplacePlugin.screens: ScreenModuleTemplate[]` — telas autorais com `key` de template.
+- `ownerPluginId`/`managed` em `ScreenDefinition`; `ownerPluginId` em `FieldDefinition`.
+- **Materialização** (`domain/usecases/plugins/screenModule.ts`, puro): `screenKey` namespaced por
+  plugin (`com-acme-vendas__produto`) — determinístico, sem remapear ids gerados. Reescreve as
+  referências entre telas do pacote (`refEntity`/`parentEntity`/`aggregation.from`); ref a coleção
+  fixa (`persons`) fica intacta. Instalar faz `upsert` das telas gerenciadas; desinstalar apaga as
+  telas com aquele `ownerPluginId` e **preserva os registros** (dados órfãos).
+- As telas instaladas fluem pelo pipeline de telas dinâmicas **automaticamente** (sidebar, ⌘K, Form
+  Design, renderer, agregação no backend) por serem `ScreenDefinition` no tenant.
+- **Form Design trava o gerenciado:** editar/excluir campo do plugin e editar/excluir a tela
+  gerenciada são bloqueados (nos handlers do `ScreenBuilder` e, como backstop de integridade, no
+  `DeleteScreenDefinitionUseCase`); adicionar campos próprios continua liberado.
+
+Plugin de exemplo `com.curatino.vendas` (produto, venda, item): validação por regex, currency,
+select, relação com pessoa[core], preço do item vindo do produto (`onChange`), total do item
+calculado (`compute`), total da venda agregado, e master-detail venda→itens.
+
+**Escopo desta fase:** só telas. Actions/scripts no pacote, upgrade preservando campos do usuário, e
+exportar do Form Design → pacote (autoria) são fases seguintes.
+
+### Fatia vertical do Marketplace — instalar de verdade
+
 ### Fatia vertical do Marketplace — instalar de verdade (Etapa 5 + prova de ponta a ponta)
 
 A primeira extensão instalável real, provando a plataforma inteira **reusando o motor de

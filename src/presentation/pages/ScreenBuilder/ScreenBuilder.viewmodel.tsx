@@ -140,6 +140,9 @@ export interface ScreenBuilderViewModel {
   isTitleField: (screenKey: string, fieldKey: string) => boolean;
   /** Campo declarado em código (tela fixa): edição restrita e sem exclusão. */
   isNativeField: (screenKey: string, fieldKey: string) => boolean;
+  isManagedScreen: (screenKey: string) => boolean;
+  isPluginField: (screenKey: string, fieldKey: string) => boolean;
+  managedScreenOwner: (screenKey: string) => string | null;
   hasNativeOverride: (screenKey: string, fieldKey: string) => boolean;
   restoreNativeField: (screenKey: string, fieldKey: string) => Promise<void>;
   screenModalOpen: boolean;
@@ -594,6 +597,31 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
     [nativeKeysByScreen],
   );
 
+  // Telas e campos trazidos por uma extensão: estrutura somente-leitura no Form Design (só a
+  // extensão altera/remove). O usuário ainda pode adicionar campos próprios por cima.
+  const managedScreenKeys = useMemo(
+    () => new Set(dynamicDefinitions.filter((def) => def.ownerPluginId).map((def) => def.id)),
+    [dynamicDefinitions],
+  );
+  const pluginFieldKeysByScreen = useMemo(() => {
+    const map: Record<string, Set<string>> = {};
+    for (const def of dynamicDefinitions) {
+      const owned = def.fields.filter((f) => f.ownerPluginId).map((f) => f.key);
+      if (owned.length > 0) map[def.id] = new Set(owned);
+    }
+    return map;
+  }, [dynamicDefinitions]);
+
+  const isManagedScreen = useCallback((screenKey: string) => managedScreenKeys.has(screenKey), [managedScreenKeys]);
+  const isPluginField = useCallback(
+    (screenKey: string, fieldKey: string) => pluginFieldKeysByScreen[screenKey]?.has(fieldKey) === true,
+    [pluginFieldKeysByScreen],
+  );
+  const managedScreenOwner = useCallback(
+    (screenKey: string) => dynamicDefinitions.find((def) => def.id === screenKey)?.ownerPluginId ?? null,
+    [dynamicDefinitions],
+  );
+
   const builtinRows = useMemo<BuiltinScreenRow[]>(
     () => BUILTIN_SCREENS.map((b) => ({
       key: b.key,
@@ -741,6 +769,10 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
   }, []);
 
   const openEditScreen = useCallback((screenKey: string) => {
+    if (isManagedScreen(screenKey)) {
+      notify('Esta tela pertence a uma extensão e não pode ser editada aqui.', 'info');
+      return;
+    }
     setScreenModalTab('general');
     const def = getDefinitionByKey(screenKey);
     const childLinks = Object.fromEntries(
@@ -777,7 +809,7 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
       titleFieldKey: def.titleFieldKey,
     });
     setScreenModal({ screenKey });
-  }, [getDefinitionByKey, dynamicDefinitions]);
+  }, [getDefinitionByKey, dynamicDefinitions, isManagedScreen, notify]);
 
   const closeScreenModal = useCallback(() => setScreenModal(null), []);
 
@@ -1011,9 +1043,13 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
   }, [dynamicDefinitions, saveDefinition, notify]);
 
   const requestDeleteScreen = useCallback((screenKey: string) => {
+    if (isManagedScreen(screenKey)) {
+      notify('Esta tela pertence a uma extensão. Remova a extensão para excluí-la.', 'info');
+      return;
+    }
     const def = getDefinitionByKey(screenKey);
     if (def) setDeleteScreenTarget(def);
-  }, [getDefinitionByKey]);
+  }, [getDefinitionByKey, isManagedScreen, notify]);
 
   const cancelDeleteScreen = useCallback(() => setDeleteScreenTarget(null), []);
 
@@ -1039,6 +1075,10 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
   }, [defaultTagColor]);
 
   const openEditField = useCallback((screenKey: string, fieldKey: string) => {
+    if (isPluginField(screenKey, fieldKey)) {
+      notify('Este campo pertence a uma extensão e não pode ser editado.', 'info');
+      return;
+    }
     setFieldModalTab('general');
     const def = getDefinitionByKey(screenKey);
     const native = isNativeField(screenKey, fieldKey);
@@ -1070,7 +1110,7 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
       ...fieldAggregationToForm(field.aggregation),
     });
     setFieldModal({ screenKey, fieldKey });
-  }, [getDefinitionByKey, defaultTagColor, isNativeField, nativeFieldsByScreen]);
+  }, [getDefinitionByKey, defaultTagColor, isNativeField, nativeFieldsByScreen, isPluginField, notify]);
 
   const closeFieldModal = useCallback(() => setFieldModal(null), []);
 
@@ -1468,10 +1508,14 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
   }, [draggedFieldKey, visibleFieldsOf, applyFieldOrder]);
 
   const requestDeleteField = useCallback((screenKey: string, fieldKey: string) => {
+    if (isPluginField(screenKey, fieldKey)) {
+      notify('Este campo pertence a uma extensão e não pode ser excluído.', 'info');
+      return;
+    }
     const def = getDefinitionByKey(screenKey);
     const field = def?.fields.find((f) => f.key === fieldKey);
     if (field) setDeleteFieldTarget({ screenKey, field });
-  }, [getDefinitionByKey]);
+  }, [getDefinitionByKey, isPluginField, notify]);
 
   const hasNativeOverride = useCallback(
     (screenKey: string, fieldKey: string) =>
@@ -1526,6 +1570,9 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
     fieldTypeLabel,
     isTitleField,
     isNativeField,
+    isManagedScreen,
+    isPluginField,
+    managedScreenOwner,
     hasNativeOverride,
     restoreNativeField,
     screenModalOpen: screenModal !== null,

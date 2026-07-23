@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [0.131.1] — 2026-07-23
+
+- As telas trazidas por uma extensão ficam protegidas no Form Design: seus campos não podem ser editados ou excluídos, e a tela só sai ao remover a extensão. Você continua podendo adicionar seus próprios campos por cima.
+
 ## [0.131.0] — 2026-07-23
 
 - Extensões agora podem trazer módulos completos ao escritório — telas próprias de cadastro com campos, cálculos automáticos e relacionamentos. A extensão de exemplo "Vendas" adiciona Produtos, Vendas e Itens: o preço do item vem do produto escolhido, o total do item é calculado, e o total da venda soma os itens. Ao remover a extensão, os dados são preservados.
