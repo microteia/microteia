@@ -8,7 +8,7 @@ import { useTenant } from '../../../stores/useTenant';
 import { useAuth } from '../../../stores/useAuth';
 import { useNotification } from '../../../stores/useNotification';
 import { buildPackage } from '../../../domain/usecases/plugins/packageBuilder';
-import { validatePackage } from '../../../domain/usecases/plugins/pluginReferences';
+import { packageOutRefs, validatePackage } from '../../../domain/usecases/plugins/pluginReferences';
 import { serializePackage } from '../../../domain/usecases/plugins/packageSerialization';
 import { validatePluginManifest } from '../../../domain/schema/plugin/pluginManifest';
 import { KERNEL_VERSION } from '../../../domain/schema/plugin/kernelVersion';
@@ -23,12 +23,18 @@ const KIND_LABEL: Record<RefKind, string> = {
   script: 'o script',
 };
 
+const STUB_MANIFEST: PluginManifest = { id: 'seu.plugin', version: '1.0.0', kernel: '^1.0.0', name: 'x' };
+
 export type ArtifactKind = 'screens' | 'actions' | 'workflows' | 'scripts';
 
 export interface ArtifactOption {
   id: string;
   label: string;
+  /** Chave de ícone (telas/ações têm; automações/scripts caem no ícone padrão do grupo na view). */
+  icon?: string;
   selected: boolean;
+  /** Dependência de um item marcado: entra obrigatoriamente e não pode ser desmarcada. */
+  locked: boolean;
 }
 
 export interface ArtifactGroup {
@@ -40,7 +46,7 @@ export interface ArtifactGroup {
 export interface PluginAuthorViewModel {
   canManage: boolean;
   canPublish: boolean;
-  form: { id: string; name: string; version: string; description: string; summary: string; dependencies: string };
+  form: { id: string; name: string; version: string; description: string; summary: string };
   updateForm: (patch: Partial<PluginAuthorViewModel['form']>) => void;
   groups: ArtifactGroup[];
   toggle: (kind: ArtifactKind, id: string) => void;
@@ -51,15 +57,6 @@ export interface PluginAuthorViewModel {
   download: () => void;
   publish: () => Promise<void>;
 }
-
-const parseDependencies = (raw: string): Record<string, string> => {
-  const deps: Record<string, string> = {};
-  for (const line of raw.split('\n')) {
-    const [id, range] = line.trim().split(/\s+/);
-    if (id && range) deps[id] = range;
-  }
-  return deps;
-};
 
 const useSelection = () => {
   const [ids, setIds] = useState<Set<string>>(new Set());
@@ -74,6 +71,8 @@ const useSelection = () => {
   return [ids, toggle] as const;
 };
 
+const union = (a: Set<string>, b: Set<string>): Set<string> => new Set([...a, ...b]);
+
 export const usePluginAuthorViewModel = (): PluginAuthorViewModel => {
   const { publish, canPublish } = usePluginStore();
   const { definitions } = useScreenDefinitions();
@@ -86,9 +85,7 @@ export const usePluginAuthorViewModel = (): PluginAuthorViewModel => {
 
   const canManage = userRole === 'SYSTEM' || tenantRole === 'admin';
 
-  const [form, setForm] = useState({
-    id: '', name: '', version: '1.0.0', description: '', summary: '', dependencies: '',
-  });
+  const [form, setForm] = useState({ id: '', name: '', version: '1.0.0', description: '', summary: '' });
   const updateForm = useCallback((patch: Partial<typeof form>) => setForm((prev) => ({ ...prev, ...patch })), []);
 
   const [screenIds, toggleScreen] = useSelection();
@@ -97,58 +94,99 @@ export const usePluginAuthorViewModel = (): PluginAuthorViewModel => {
   const [scriptIds, toggleScript] = useSelection();
   const [busy, setBusy] = useState(false);
 
-  const ownScreens = useMemo(
-    () => definitions.filter((d) => !d.builtin && !d.ownerPluginId),
-    [definitions],
-  );
+  const ownScreens = useMemo(() => definitions.filter((d) => !d.builtin && !d.ownerPluginId), [definitions]);
   const ownActions = useMemo(() => actions.filter((a) => !a.ownerPluginId), [actions]);
   const ownWorkflows = useMemo(() => workflows.filter((w) => !w.ownerPluginId), [workflows]);
   const ownScripts = useMemo(() => scripts.filter((s) => !s.ownerPluginId), [scripts]);
 
+  const availById = useMemo(() => ({
+    screen: new Set(ownScreens.map((s) => s.id)),
+    action: new Set(ownActions.map((a) => a.id)),
+    workflow: new Set(ownWorkflows.map((w) => w.id)),
+    script: new Set(ownScripts.map((s) => s.id)),
+  }), [ownScreens, ownActions, ownWorkflows, ownScripts]);
+
+  // Fecho de dependências: a partir do que o usuário marcou, puxa (obrigatoriamente) todo artefato
+  // referenciado que existe no escritório — telas→ações/telas, ação→automação, automação→scripts/etc.
+  const required = useMemo<Record<ArtifactKind, Set<string>>>(() => {
+    const req: Record<ArtifactKind, Set<string>> = {
+      screens: new Set(), actions: new Set(), workflows: new Set(), scripts: new Set(),
+    };
+    const explicitOf = (k: ArtifactKind): Set<string> =>
+      k === 'screens' ? screenIds : k === 'actions' ? actionIds : k === 'workflows' ? workflowIds : scriptIds;
+    const has = (k: ArtifactKind, id: string): boolean => explicitOf(k).has(id) || req[k].has(id);
+
+    let changed = true;
+    let guard = 0;
+    while (changed && guard < 100) {
+      changed = false;
+      guard += 1;
+      const pkg = buildPackage({
+        manifest: STUB_MANIFEST, summary: 's',
+        screens: ownScreens.filter((s) => has('screens', s.id)),
+        actions: ownActions.filter((a) => has('actions', a.id)),
+        workflows: ownWorkflows.filter((w) => has('workflows', w.id)),
+        scripts: ownScripts.filter((s) => has('scripts', s.id)),
+      });
+      for (const ref of packageOutRefs(pkg)) {
+        const plural = `${ref.kind}s` as ArtifactKind;
+        if (availById[ref.kind].has(ref.id) && !has(plural, ref.id)) {
+          req[plural].add(ref.id);
+          changed = true;
+        }
+      }
+    }
+    return req;
+  }, [availById, ownScreens, ownActions, ownWorkflows, ownScripts, screenIds, actionIds, workflowIds, scriptIds]);
+
+  const effective = useMemo(() => ({
+    screens: union(screenIds, required.screens),
+    actions: union(actionIds, required.actions),
+    workflows: union(workflowIds, required.workflows),
+    scripts: union(scriptIds, required.scripts),
+  }), [screenIds, actionIds, workflowIds, scriptIds, required]);
+
   const groups = useMemo<ArtifactGroup[]>(() => [
     {
       kind: 'screens', title: 'Telas',
-      options: ownScreens.map((d) => ({ id: d.id, label: d.titlePlural || d.id, selected: screenIds.has(d.id) })),
+      options: ownScreens.map((d) => ({ id: d.id, label: d.titlePlural || d.id, icon: d.icon, selected: effective.screens.has(d.id), locked: required.screens.has(d.id) })),
     },
     {
       kind: 'actions', title: 'Ações',
-      options: ownActions.map((a) => ({ id: a.id, label: a.title || a.key, selected: actionIds.has(a.id) })),
+      options: ownActions.map((a) => ({ id: a.id, label: a.title || a.key, icon: a.icon, selected: effective.actions.has(a.id), locked: required.actions.has(a.id) })),
     },
     {
       kind: 'workflows', title: 'Automações',
-      options: ownWorkflows.map((w) => ({ id: w.id, label: w.name, selected: workflowIds.has(w.id) })),
+      options: ownWorkflows.map((w) => ({ id: w.id, label: w.name, selected: effective.workflows.has(w.id), locked: required.workflows.has(w.id) })),
     },
     {
       kind: 'scripts', title: 'Scripts',
-      options: ownScripts.map((s) => ({ id: s.id, label: s.name, selected: scriptIds.has(s.id) })),
+      options: ownScripts.map((s) => ({ id: s.id, label: s.name, selected: effective.scripts.has(s.id), locked: required.scripts.has(s.id) })),
     },
-  ], [ownScreens, ownActions, ownWorkflows, ownScripts, screenIds, actionIds, workflowIds, scriptIds]);
+  ], [ownScreens, ownActions, ownWorkflows, ownScripts, effective, required]);
 
   const toggle = useCallback((kind: ArtifactKind, id: string) => {
+    if (required[kind].has(id)) return; // dependência obrigatória — não desmarca
     if (kind === 'screens') toggleScreen(id);
     else if (kind === 'actions') toggleAction(id);
     else if (kind === 'workflows') toggleWorkflow(id);
     else toggleScript(id);
-  }, [toggleScreen, toggleAction, toggleWorkflow, toggleScript]);
+  }, [required, toggleScreen, toggleAction, toggleWorkflow, toggleScript]);
 
-  const manifest = useMemo<PluginManifest>(() => {
-    const deps = parseDependencies(form.dependencies);
-    return {
-      id: form.id.trim(),
-      version: form.version.trim(),
-      kernel: '^1.0.0',
-      name: form.name.trim(),
-      ...(form.description.trim() ? { description: form.description.trim() } : {}),
-      ...(Object.keys(deps).length > 0 ? { dependencies: deps } : {}),
-    };
-  }, [form]);
+  const manifest = useMemo<PluginManifest>(() => ({
+    id: form.id.trim(),
+    version: form.version.trim(),
+    kernel: '^1.0.0',
+    name: form.name.trim(),
+    ...(form.description.trim() ? { description: form.description.trim() } : {}),
+  }), [form]);
 
   const selection = useMemo(() => ({
-    screens: ownScreens.filter((d) => screenIds.has(d.id)),
-    actions: ownActions.filter((a) => actionIds.has(a.id)),
-    workflows: ownWorkflows.filter((w) => workflowIds.has(w.id)),
-    scripts: ownScripts.filter((s) => scriptIds.has(s.id)),
-  }), [ownScreens, ownActions, ownWorkflows, ownScripts, screenIds, actionIds, workflowIds, scriptIds]);
+    screens: ownScreens.filter((d) => effective.screens.has(d.id)),
+    actions: ownActions.filter((a) => effective.actions.has(a.id)),
+    workflows: ownWorkflows.filter((w) => effective.workflows.has(w.id)),
+    scripts: ownScripts.filter((s) => effective.scripts.has(s.id)),
+  }), [ownScreens, ownActions, ownWorkflows, ownScripts, effective]);
 
   const selectedCount = useMemo(
     () => selection.screens.length + selection.actions.length + selection.workflows.length + selection.scripts.length,
@@ -173,7 +211,7 @@ export const usePluginAuthorViewModel = (): PluginAuthorViewModel => {
     ...validatePluginManifest(manifest, { kernelVersion: KERNEL_VERSION, validateContributions: false }).map((d) => d.message),
     ...(form.summary.trim() ? [] : ['A extensão precisa de uma descrição curta (resumo).']),
     ...validatePackage(pkg).map((issue) =>
-      `${issue.ref.from} referencia ${KIND_LABEL[issue.ref.kind]} "${nameOf(issue.ref.kind, issue.ref.id)}", que não está no pacote nem coberta por uma dependência declarada.`,
+      `${issue.ref.from} referencia ${KIND_LABEL[issue.ref.kind]} "${nameOf(issue.ref.kind, issue.ref.id)}", que pertence a outra extensão. Ela será exigida na instalação.`,
     ),
   ], [manifest, form.summary, pkg, nameOf]);
 

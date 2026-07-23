@@ -1,10 +1,17 @@
 import React from 'react';
-import { RiDownloadLine } from 'react-icons/ri';
+import { RiDownloadLine, RiCheckLine, RiLockLine } from 'react-icons/ri';
 import { Button } from '../../components/ui/Button';
-import { Checkbox } from '../../components/ui/Checkbox';
 import { InfoBanner } from '../../components/ui/InfoBanner';
-import { usePluginAuthorViewModel } from './PluginAuthor.viewmodel';
+import { getScreenIcon } from '../../shared/screenIcons';
+import { usePluginAuthorViewModel, type ArtifactKind } from './PluginAuthor.viewmodel';
 import { S } from './PluginAuthor.styles';
+
+const GROUP_ICON: Record<ArtifactKind, string> = {
+  screens: 'layoutGrid',
+  actions: 'cursor',
+  workflows: 'flowChart',
+  scripts: 'codeBox',
+};
 
 export const PluginAuthorView: React.FC = () => {
   const vm = usePluginAuthorViewModel();
@@ -12,97 +19,83 @@ export const PluginAuthorView: React.FC = () => {
   return (
     <S.Page>
       <S.Header>
-        <S.HeaderText>
-          <S.Title>Criar extensão</S.Title>
-          <S.Subtitle>Empacote telas, ações, automações e scripts do seu escritório em uma extensão.</S.Subtitle>
-        </S.HeaderText>
+        <S.Title>Criar extensão</S.Title>
+        <S.Subtitle>Empacote telas, ações, automações e scripts do seu escritório em uma extensão.</S.Subtitle>
       </S.Header>
 
       <S.Content>
         {!vm.canManage && (
-          <InfoBanner
-            message="Somente administradores do escritório podem criar ou importar extensões."
-            variant="info"
-          />
+          <InfoBanner message="Somente administradores do escritório podem criar extensões." variant="info" />
         )}
 
         <S.Section>
           <S.SectionTitle>Identificação</S.SectionTitle>
-          <S.FormGrid>
-            <S.Field>
-              Identificador
-              <S.Input
-                placeholder="com.seuescritorio.vendas"
-                value={vm.form.id}
-                onChange={(e) => vm.updateForm({ id: e.target.value })}
-              />
-              <S.Hint>DNS reverso, ao menos dois segmentos.</S.Hint>
-            </S.Field>
-            <S.Field>
-              Nome
-              <S.Input
-                placeholder="Vendas"
-                value={vm.form.name}
-                onChange={(e) => vm.updateForm({ name: e.target.value })}
-              />
-            </S.Field>
-            <S.Field>
-              Versão
-              <S.Input
-                placeholder="1.0.0"
-                value={vm.form.version}
-                onChange={(e) => vm.updateForm({ version: e.target.value })}
-              />
-            </S.Field>
-            <S.FieldWide>
-              Resumo
-              <S.Input
-                placeholder="O que esta extensão adiciona ao escritório."
-                value={vm.form.summary}
-                onChange={(e) => vm.updateForm({ summary: e.target.value })}
-              />
-            </S.FieldWide>
-            <S.FieldWide>
-              Descrição (opcional)
-              <S.Textarea
-                value={vm.form.description}
-                onChange={(e) => vm.updateForm({ description: e.target.value })}
-              />
-            </S.FieldWide>
-            <S.FieldWide>
-              Dependências (opcional)
-              <S.Textarea
-                placeholder="com.curatino.vendas ^1.0.0"
-                value={vm.form.dependencies}
-                onChange={(e) => vm.updateForm({ dependencies: e.target.value })}
-              />
-              <S.Hint>Uma por linha, no formato "identificador faixa". Declare aqui outra extensão referenciada.</S.Hint>
-            </S.FieldWide>
-          </S.FormGrid>
+          <S.Card>
+            <S.FormGrid>
+              <S.Field>
+                Identificador
+                <S.Input placeholder="com.seuescritorio.vendas" value={vm.form.id} onChange={(e) => vm.updateForm({ id: e.target.value })} />
+                <S.Hint>DNS reverso, ao menos dois segmentos.</S.Hint>
+              </S.Field>
+              <S.Field>
+                Nome
+                <S.Input placeholder="Vendas" value={vm.form.name} onChange={(e) => vm.updateForm({ name: e.target.value })} />
+              </S.Field>
+              <S.Field>
+                Versão
+                <S.Input placeholder="1.0.0" value={vm.form.version} onChange={(e) => vm.updateForm({ version: e.target.value })} />
+              </S.Field>
+              <S.FieldWide>
+                Resumo
+                <S.Input placeholder="O que esta extensão adiciona ao escritório." value={vm.form.summary} onChange={(e) => vm.updateForm({ summary: e.target.value })} />
+              </S.FieldWide>
+              <S.FieldWide>
+                Descrição (opcional)
+                <S.Textarea value={vm.form.description} onChange={(e) => vm.updateForm({ description: e.target.value })} />
+              </S.FieldWide>
+            </S.FormGrid>
+          </S.Card>
         </S.Section>
 
         <S.Section>
           <S.SectionTitle>Conteúdo</S.SectionTitle>
           <S.Groups>
-            {vm.groups.map((group) => (
-              <S.Group key={group.kind}>
-                <S.GroupTitle>{group.title}</S.GroupTitle>
-                {group.options.length === 0 ? (
-                  <S.Empty>Nada disponível.</S.Empty>
-                ) : (
-                  group.options.map((option) => (
-                    <S.Option key={option.id}>
-                      <Checkbox
-                        checked={option.selected}
-                        onChange={() => vm.toggle(group.kind, option.id)}
-                        label={option.label}
-                        disabled={!vm.canManage}
-                      />
-                    </S.Option>
-                  ))
-                )}
-              </S.Group>
-            ))}
+            {vm.groups.map((group) => {
+              const selectedInGroup = group.options.filter((o) => o.selected).length;
+              return (
+                <S.Group key={group.kind}>
+                  <S.GroupHead>
+                    <S.GroupIcon>{getScreenIcon(GROUP_ICON[group.kind], 18)}</S.GroupIcon>
+                    <S.GroupTitle>{group.title}</S.GroupTitle>
+                    <S.GroupCount>{selectedInGroup}/{group.options.length}</S.GroupCount>
+                  </S.GroupHead>
+                  <S.GroupBody>
+                    {group.options.length === 0 ? (
+                      <S.Empty>Nada disponível.</S.Empty>
+                    ) : (
+                      group.options.map((option) => (
+                        <S.Item
+                          key={option.id}
+                          type="button"
+                          $selected={option.selected}
+                          disabled={!vm.canManage || option.locked}
+                          onClick={() => vm.toggle(group.kind, option.id)}
+                          title={option.locked ? 'Necessária por outro item marcado' : undefined}
+                        >
+                          <S.ItemIcon>{getScreenIcon(option.icon ?? GROUP_ICON[group.kind], 16)}</S.ItemIcon>
+                          <S.ItemLabel>{option.label}</S.ItemLabel>
+                          {option.locked ? (
+                            <S.Required><RiLockLine size={11} /> Obrigatório</S.Required>
+                          ) : (
+                            <S.Check $on={option.selected}>{option.selected && <RiCheckLine size={14} />}</S.Check>
+                          )}
+                        </S.Item>
+                      ))
+                    )}
+                  </S.GroupBody>
+                </S.Group>
+              );
+            })}
           </S.Groups>
         </S.Section>
 

@@ -11,6 +11,11 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [0.137.0] — 2026-07-23
+
+- Tela "Criar extensão" repaginada: itens organizados em cartões por tipo, cada um com seu ícone e um contador de selecionados.
+- Ao marcar um item, tudo que ele precisa (por exemplo, a automação de uma ação ou a tela de um relacionamento) é marcado automaticamente e fica travado — se é necessário, não dá para desmarcar por engano.
+
 ## [0.136.0] — 2026-07-23
 
 - Extensões que compartilham telas, ações, automações ou scripts em comum não duplicam mais: ao instalar duas extensões com o mesmo item, ele passa a existir uma vez só.
