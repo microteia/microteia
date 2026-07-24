@@ -436,8 +436,7 @@ describe('Dedup + refcount — extensões que compartilham artefatos', () => {
 
 describe('pacote Vendas do catálogo (com action + workflow)', () => {
   it('materializa telas + action + workflow, com a action da venda ligada ao workflow real', async () => {
-    const { MARKETPLACE_CATALOG } = await import('../../../plugins/marketplace/catalog');
-    const vendas = MARKETPLACE_CATALOG.find((p) => p.manifest.id === 'com.curatino.vendas')!;
+    const { vendasPlugin: vendas } = await import('../../../plugins/marketplace/catalog');
 
     await makeInstallMarketplacePluginUseCase(deps()).execute(vendas, actor);
 

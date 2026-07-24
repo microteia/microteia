@@ -3,7 +3,7 @@ import type { MarketplacePlugin } from '../../entities/MarketplacePlugin';
 import type { PluginInstallation } from '../../entities/PluginInstallation';
 import { createPluginHost } from '../../../kernel';
 import { CORE_PLUGINS } from '../../../plugins';
-import { MARKETPLACE_CATALOG } from '../../../plugins/marketplace/catalog';
+import { guiaPlugin } from '../../../plugins/marketplace/catalog';
 import { UI_NAV_POINT, UI_PAGE_POINT } from '../../../presentation/shared/uiExtensionPoints';
 import { installedPluginRecords } from './installedPluginRecords';
 
@@ -75,7 +75,7 @@ describe('installedPluginRecords', () => {
 });
 
 describe('carga por tenant — integração com o host', () => {
-  const guia = MARKETPLACE_CATALOG.find((p) => p.manifest.id === 'com.curatino.guia');
+  const guia = guiaPlugin;
 
   const navKeys = (host: ReturnType<typeof createPluginHost>) =>
     host.contributions.query(UI_NAV_POINT).map((c) => (c.metadata as { key: string }).key);
@@ -98,7 +98,7 @@ describe('carga por tenant — integração com o host', () => {
 
   it('carregando core + Guia (instalado), o menu e a página "guia" aparecem', () => {
     const host = createPluginHost();
-    const records = [...CORE_PLUGINS, ...installedPluginRecords(MARKETPLACE_CATALOG, [installation('com.curatino.guia', true)])];
+    const records = [...CORE_PLUGINS, ...installedPluginRecords([guiaPlugin], [installation('com.curatino.guia', true)])];
     const result = host.load(records);
 
     expect(result.diagnostics.filter((d) => d.severity === 'error')).toEqual([]);
@@ -109,7 +109,7 @@ describe('carga por tenant — integração com o host', () => {
 
   it('a página widget do plugin instalado é aceita mesmo sendo não confiável', () => {
     const host = createPluginHost();
-    host.load([...CORE_PLUGINS, ...installedPluginRecords(MARKETPLACE_CATALOG, [installation('com.curatino.guia', true)])]);
+    host.load([...CORE_PLUGINS, ...installedPluginRecords([guiaPlugin], [installation('com.curatino.guia', true)])]);
 
     const widgetPage = host.contributions
       .query(UI_PAGE_POINT)

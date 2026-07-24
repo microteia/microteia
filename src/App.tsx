@@ -36,6 +36,7 @@ import { WorkflowStoreProvider } from './stores/WorkflowStore';
 import { ScriptStoreProvider } from './stores/ScriptStore';
 import { PluginStoreProvider } from './stores/PluginStore';
 import { TenantExtensionStoreProvider } from './stores/TenantExtensionStore';
+import { InstalledExtensionStoreProvider } from './stores/InstalledExtensionStore';
 import { PublicExtensionStoreProvider } from './stores/PublicExtensionStore';
 import { AuditLogStoreProvider } from './stores/AuditLogStore';
 import { AuditLogAlertStoreProvider } from './stores/AuditLogAlertStore';
@@ -103,6 +104,7 @@ const App: React.FC = () => {
                                           <ScriptStoreProvider>
                                           <PluginStoreProvider>
                                           <TenantExtensionStoreProvider>
+                                          <InstalledExtensionStoreProvider>
                                           <PublicExtensionStoreProvider>
                                           <ActionStoreProvider>
                                           <AuditLogStoreProvider>
@@ -126,6 +128,7 @@ const App: React.FC = () => {
                                           </AuditLogStoreProvider>
                                           </ActionStoreProvider>
                                           </PublicExtensionStoreProvider>
+                                          </InstalledExtensionStoreProvider>
                                           </TenantExtensionStoreProvider>
                                           </PluginStoreProvider>
                                           </ScriptStoreProvider>

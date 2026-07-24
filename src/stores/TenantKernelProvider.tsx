@@ -1,10 +1,8 @@
 import React, { useMemo } from 'react';
 import { KernelProvider } from './KernelContext';
-import { usePluginStore } from './usePluginStore';
-import { useTenantExtensions } from './useTenantExtensions';
+import { useInstalledExtensions } from './useInstalledExtensions';
 import { CORE_PLUGINS } from '../plugins';
-import { installedPluginRecords } from '../domain/usecases/plugins/installedPluginRecords';
-import { tenantExtensionRecords } from '../domain/usecases/plugins/tenantExtensionRecords';
+import { installedExtensionRecords } from '../domain/usecases/plugins/installedExtensionRecords';
 import type { PluginRecord } from '../kernel';
 
 /** Mantém o primeiro registro de cada id (o Kernel recusaria ids duplicados). */
@@ -19,26 +17,23 @@ const dedupeById = (records: PluginRecord[]): PluginRecord[] => {
 };
 
 /**
- * Host do Kernel do escritório: `CORE_PLUGINS` + os plugins instalados e habilitados + as extensões
- * AUTORAIS ativas do próprio tenant (self-trust; ver `tenantExtensionRecords`). Aninhado abaixo do
- * host base — como usa o mesmo `KernelContext`, esta instância vence para a subárvore do workspace, e
- * é dela que a barra lateral, as páginas e o ⌘K leem as contribuições. Salvar/ativar uma extensão
- * autoral recompõe os `records` e o host recarrega, fazendo a tela aparecer ao vivo. Extensão autoral
- * tem prioridade sobre a mesma id vinda do catálogo (a autoral é a fonte editável).
+ * Host do Kernel do escritório: `CORE_PLUGINS` + as extensões INSTALADAS ativas. Separação de conceitos:
+ * a área PRIVADA é de autoria (rascunho editável, não roda); para USAR uma extensão no escritório é
+ * preciso INSTALÁ-LA (a partir da pública ou da própria privada) — é a cópia instalada e ativa que
+ * contribui telas/menu aqui. Como o código instalado veio de fonte confiável (catálogo aprovado ou a
+ * privada do próprio autor — self-trust), rodá-lo é seguro. Aninhado abaixo do host base: usa o mesmo
+ * `KernelContext`, então vence para a subárvore do workspace. Instalar/ativar recompõe os `records` e o
+ * host recarrega, fazendo a tela aparecer ao vivo.
  */
 export const TenantKernelProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { catalog, installations } = usePluginStore();
-  const { extensions } = useTenantExtensions();
+  const { installed } = useInstalledExtensions();
 
   const records = useMemo(
-    // Ordem = prioridade no dedup: core nunca é sombreado; extensão autoral vence a mesma id vinda
-    // do catálogo (a autoral é a fonte editável do dono).
     () => dedupeById([
       ...CORE_PLUGINS,
-      ...tenantExtensionRecords(extensions),
-      ...installedPluginRecords(catalog, installations),
+      ...installedExtensionRecords(installed),
     ]),
-    [catalog, installations, extensions],
+    [installed],
   );
 
   return <KernelProvider records={records}>{children}</KernelProvider>;

@@ -61,6 +61,7 @@ import { FirebaseActionRepository } from '../../data/repositories/FirebaseAction
 import { FirebasePluginInstallationRepository } from '../../data/repositories/FirebasePluginInstallationRepository';
 import { FirebasePluginRegistryRepository } from '../../data/repositories/FirebasePluginRegistryRepository';
 import { FirebaseTenantExtensionRepository } from '../../data/repositories/FirebaseTenantExtensionRepository';
+import { FirebaseInstalledExtensionRepository } from '../../data/repositories/FirebaseInstalledExtensionRepository';
 import { FirebasePublicExtensionRepository } from '../../data/repositories/FirebasePublicExtensionRepository';
 import { ViaCepLookupService } from '../../data/services/ViaCepLookupService';
 import { DIContext } from './useDI';
@@ -133,6 +134,7 @@ export const DIProvider: React.FC<{ children: React.ReactNode }> = ({ children }
     pluginInstallationRepository: new FirebasePluginInstallationRepository(),
     pluginRegistryRepository: new FirebasePluginRegistryRepository(),
     tenantExtensionRepository: new FirebaseTenantExtensionRepository(),
+    installedExtensionRepository: new FirebaseInstalledExtensionRepository(),
     publicExtensionRepository: new FirebasePublicExtensionRepository(),
     externalLookupServices:   [new ViaCepLookupService()],
   }), [host]);

@@ -524,9 +524,16 @@ service cloud.firestore {
         allow create, update, delete: if isTenantAdmin(tenantId);
       }
 
-      // Extensões AUTORAIS do escritório (criadas na tela "Criar extensão"). Todo membro lê —
+      // Extensões PRIVADAS do escritório (criadas na tela "Criar extensão"). Todo membro lê —
       // as ativas contribuem telas/menu no Kernel do tenant; só admin cria/edita/remove.
       match /extensions/{extensionId} {
+        allow read: if isMember(tenantId);
+        allow create, update, delete: if isTenantAdmin(tenantId);
+      }
+
+      // Extensões INSTALADAS (cópias fiéis da área pública ou de uma privada). Todo membro lê — as
+      // ativas contribuem no Kernel; só admin instala/atualiza/desinstala. Independentes da fonte.
+      match /installed_extensions/{extensionId} {
         allow read: if isMember(tenantId);
         allow create, update, delete: if isTenantAdmin(tenantId);
       }
@@ -782,8 +789,9 @@ service cloud.firestore {
     //   bater com o código: extensão COM código entra 'pending' (aguarda aprovação do SYSTEM); SEM
     //   código entra 'approved'. create só existe quando o doc não existe → domínio único global.
     // - Atualizar (update): SYSTEM (aprovar/obsoletar/qualquer), ou o dono, mantendo o mesmo
-    //   ownerTenantId, com version DIFERENTE (imutabilidade: não sobrescreve a mesma versão) e o
-    //   mesmo invariante de status por código (mexer numa de código volta para 'pending').
+    //   ownerTenantId. É UPSERT: um identificador tem UM registro público, então republicar
+    //   sobrescreve os dados (qualquer versão) e o status volta a bater com o código (de código →
+    //   'pending' de novo, re-aprovação).
     // - Apagar: só SYSTEM (usuário usa 'deprecated', não apaga do catálogo).
     match /public_extensions/{domain} {
       function pkgHasCode() {
@@ -798,10 +806,12 @@ service cloud.firestore {
       allow read: if request.auth != null;
       allow create: if isSystemAdmin()
         || (isTenantAdmin(request.resource.data.ownerTenantId) && statusMatchesCode());
+      // Republicar = upsert: um identificador tem UM registro público. O dono sobrescreve seus
+      // próprios dados (qualquer versão); o status volta a corresponder ao código (de código →
+      // 'pending' de novo, re-aprovação). O SYSTEM aprova/obsoleta livremente.
       allow update: if isSystemAdmin()
         || (isTenantAdmin(resource.data.ownerTenantId)
             && request.resource.data.ownerTenantId == resource.data.ownerTenantId
-            && request.resource.data.version != resource.data.version
             && statusMatchesCode());
       allow delete: if isSystemAdmin();
     }

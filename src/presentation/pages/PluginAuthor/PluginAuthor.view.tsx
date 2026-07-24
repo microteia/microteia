@@ -37,8 +37,13 @@ export const PluginAuthorView: React.FC<{ tabKey?: string }> = ({ tabKey }) => {
             <S.FormGrid>
               <S.Field>
                 Identificador
-                <S.Input placeholder="com.seuescritorio.vendas" value={vm.form.id} onChange={(e) => vm.updateForm({ id: e.target.value })} />
-                <S.Hint>DNS reverso, ao menos dois segmentos.</S.Hint>
+                <S.Input
+                  placeholder="com.seuescritorio.vendas"
+                  value={vm.form.id}
+                  readOnly={vm.editing}
+                  onChange={(e) => vm.updateForm({ id: e.target.value })}
+                />
+                <S.Hint>{vm.editing ? 'O identificador é fixo após a criação.' : 'DNS reverso, ao menos dois segmentos.'}</S.Hint>
               </S.Field>
               <S.Field>
                 Nome

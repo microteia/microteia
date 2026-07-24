@@ -11,6 +11,15 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [0.145.0] — 2026-07-24
+
+- A tela de **Extensões** foi redesenhada e reorganizada em seções claras: **Minhas Extensões** (o que você cria e edita), **Instaladas** (o que está de fato ligado no escritório) e **Catálogo público** (o que dá para instalar de outros).
+- Agora a ideia é simples: você **cria e edita** na sua área privada, **instala** para usar no escritório e **publica** para compartilhar — cada coisa no seu lugar.
+- Uma extensão instalada mostra o botão **Atualizar** sempre que a origem (a sua versão ou a pública) estiver mais nova, buscando automaticamente a mais recente.
+- No catálogo público, uma extensão de cada identificador aparece **uma única vez**: publicar de novo apenas atualiza a existente, sem duplicar.
+- A foto de quem criou a extensão agora aparece corretamente para os demais usuários, e o aviso "Você é o autor" só aparece para o autor de verdade.
+- O identificador de uma extensão passa a ser **fixo após a criação**, evitando confusão entre versões.
+
 ## [0.144.0] — 2026-07-24
 
 - Agora dá para **instalar** extensões da seção Públicas: elas viram uma **cópia sua** em uma nova seção **Instaladas**, prontas para ativar e usar no seu escritório.

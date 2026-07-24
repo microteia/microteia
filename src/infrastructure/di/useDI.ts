@@ -59,6 +59,7 @@ import type { IActionRepository } from '../../domain/repositories/IActionReposit
 import type { IPluginInstallationRepository } from '../../domain/repositories/IPluginInstallationRepository';
 import type { IPluginRegistryRepository } from '../../domain/repositories/IPluginRegistryRepository';
 import type { ITenantExtensionRepository } from '../../domain/repositories/ITenantExtensionRepository';
+import type { IInstalledExtensionRepository } from '../../domain/repositories/IInstalledExtensionRepository';
 import type { IPublicExtensionRepository } from '../../domain/repositories/IPublicExtensionRepository';
 
 export interface DIContainer {
@@ -129,6 +130,7 @@ export interface DIContainer {
   pluginInstallationRepository: IPluginInstallationRepository;
   pluginRegistryRepository: IPluginRegistryRepository;
   tenantExtensionRepository: ITenantExtensionRepository;
+  installedExtensionRepository: IInstalledExtensionRepository;
   publicExtensionRepository: IPublicExtensionRepository;
 }
 

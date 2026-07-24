@@ -4,14 +4,14 @@ import { vendasPlugin } from './vendas';
 import { kanbanCasesPlugin } from './kanbanCases';
 
 /**
- * Catálogo do Marketplace embutido. Dois exemplos, cada um provando um mecanismo de instalação:
- * - "Boas-vindas ao Cliente" — só um workflow, materializado no tenant (o motor já o executa).
- * - "Guia do Escritório" — só UI (item de menu + página em Widget DSL): ao instalar, o host de
- *   tenant carrega suas contribuições e o menu/página aparecem ao vivo; nada é gravado.
- *
- * Hoje o catálogo é código embutido; publicá-los leva ao registro global `plugin_registry`.
+ * Extensões de exemplo, mantidas como MOLDE de autoria e como fixtures dos testes da máquina de
+ * instalação — NÃO são mais embarcadas no catálogo (ver `MARKETPLACE_CATALOG`, hoje vazio). Extensões
+ * de primeira-parte (ex.: "Kanban de Processos") são entregues como `.json` para importar, não fixas
+ * no código. Cada exemplo prova um mecanismo:
+ * - `boasVindasPlugin` — só um workflow, materializado no tenant (o motor já o executa).
+ * - `guiaPlugin` — só UI (item de menu + página em Widget DSL), carregada ao vivo pelo host; nada gravado.
  */
-export const MARKETPLACE_CATALOG: MarketplacePlugin[] = [
+export const boasVindasPlugin: MarketplacePlugin =
   {
     manifest: {
       id: 'com.curatino.boas-vindas',
@@ -94,7 +94,9 @@ export const MARKETPLACE_CATALOG: MarketplacePlugin[] = [
         ],
       },
     ],
-  },
+  };
+
+export const guiaPlugin: MarketplacePlugin =
   {
     manifest: {
       id: 'com.curatino.guia',
@@ -165,7 +167,14 @@ export const MARKETPLACE_CATALOG: MarketplacePlugin[] = [
       ],
     },
     workflows: [],
-  },
-  vendasPlugin,
-  kanbanCasesPlugin,
-];
+  };
+
+export { vendasPlugin, kanbanCasesPlugin };
+
+/**
+ * Catálogo do Marketplace EMBUTIDO — hoje vazio de propósito. Extensões de primeira-parte (Kanban de
+ * Processos etc.) são distribuídas como `.json` para o usuário importar em Minhas Extensões, não fixas
+ * no código. A máquina de instalação (`installedPluginRecords`/`MarketplaceInstall...`) e o
+ * `PluginStore` seguem existindo; nada é servido por aqui até um item ser adicionado a esta lista.
+ */
+export const MARKETPLACE_CATALOG: MarketplacePlugin[] = [];

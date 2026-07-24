@@ -1,31 +1,49 @@
 import { useCallback, useMemo, useState } from 'react';
-import { usePluginStore } from '../../../stores/usePluginStore';
 import { useTenantExtensions } from '../../../stores/useTenantExtensions';
+import { useInstalledExtensions, type InstallExtensionInput } from '../../../stores/useInstalledExtensions';
 import { usePublicExtensions } from '../../../stores/usePublicExtensions';
 import { useTenant } from '../../../stores/useTenant';
 import { useAuth } from '../../../stores/useAuth';
 import { useNotification } from '../../../stores/useNotification';
-import { useKernel } from '../../../stores/useKernel';
 import { useWorkspace } from '../../../stores/useWorkspace';
 import { serializePackage } from '../../../domain/usecases/plugins/packageSerialization';
 import { isVersionGreater } from '../../../domain/usecases/plugins/publicExtension';
-import type { MarketplacePlugin } from '../../../domain/entities/MarketplacePlugin';
 import type { PublicExtensionStatus } from '../../../domain/entities/PublicExtension';
 
-export interface MyExtensionCard {
+export interface Author {
+  name: string | null;
+  photoURL: string | null;
+}
+
+export interface PrivateCard {
+  id: string;
+  name: string;
+  summary: string;
+  version: string;
+  hasCode: boolean;
+  /** Status no catálogo público: null = ainda não publicada. */
+  publicStatus: PublicExtensionStatus | null;
+  /** Já existe uma cópia instalada deste identificador no escritório? */
+  installed: boolean;
+  /** Instalada de versão anterior à privada atual → dá para reinstalar/atualizar. */
+  installOutdated: boolean;
+  author: Author;
+}
+
+export interface InstalledCard {
   id: string;
   name: string;
   summary: string;
   version: string;
   active: boolean;
   hasCode: boolean;
-  /** Status no catálogo público: null = privada (não publicada). */
-  publicStatus: PublicExtensionStatus | null;
-  authorName: string | null;
-  authorPhotoURL: string | null;
+  sourceLabel: string;
+  updateAvailable: boolean;
+  updateVersion: string | null;
+  deprecated: boolean;
+  isAuthor: boolean;
+  author: Author;
 }
-
-export type PublicInstallState = 'authored' | 'installed' | 'update' | 'none';
 
 export interface PublicCard {
   domain: string;
@@ -33,285 +51,181 @@ export interface PublicCard {
   summary: string;
   version: string;
   hasCode: boolean;
-  status: PublicExtensionStatus;
-  authorName: string;
-  authorPhotoURL: string | null;
-  installState: PublicInstallState;
+  isAuthor: boolean;
+  /** none = não instalada; installed = instalada e atual; update = instalada de versão anterior. */
+  installState: 'none' | 'installed' | 'update';
+  author: Author;
 }
 
-export interface InstalledExtensionCard {
-  id: string;
+export interface ModerationCard {
+  domain: string;
   name: string;
   summary: string;
   version: string;
-  active: boolean;
-  hasCode: boolean;
-  updateAvailable: boolean;
-  deprecated: boolean;
-  authorName: string | null;
-  authorPhotoURL: string | null;
-}
-
-export interface MarketplaceCard {
-  plugin: MarketplacePlugin;
-  installed: boolean;
-  enabled: boolean;
-  installedVersion?: string;
-  workflowCount: number;
-  published: boolean;
-  /** Extensão instalada a partir de um `.json`, fora do catálogo. */
-  imported: boolean;
-  /** Preenchido quando o plugin está instalado e habilitado mas NÃO carregou no escritório. */
-  loadError?: string;
+  author: Author;
 }
 
 export interface MarketplaceViewModel {
-  cards: MarketplaceCard[];
-  myExtensions: MyExtensionCard[];
-  installedExtensions: InstalledExtensionCard[];
-  publicCards: PublicCard[];
-  pendingCards: PublicCard[];
   canManage: boolean;
-  canPublish: boolean;
   canModerate: boolean;
-  busyPluginId: string | null;
-  detailPlugin: MarketplacePlugin | null;
+  privateCards: PrivateCard[];
+  installedCards: InstalledCard[];
+  publicCards: PublicCard[];
+  moderationCards: ModerationCard[];
+  busyId: string | null;
   removeTarget: { id: string; name: string } | null;
-  openDetail: (plugin: MarketplacePlugin) => void;
-  closeDetail: () => void;
   openAuthor: () => void;
   onImportFile: (event: React.ChangeEvent<HTMLInputElement>) => Promise<void>;
-  install: (plugin: MarketplacePlugin) => Promise<void>;
-  uninstall: (pluginId: string) => Promise<void>;
-  toggleEnabled: (pluginId: string, enabled: boolean) => Promise<void>;
-  publish: (plugin: MarketplacePlugin) => Promise<void>;
-  unpublish: (pluginId: string) => Promise<void>;
-  editMyExtension: (id: string) => void;
-  downloadMyExtension: (id: string) => void;
-  toggleMyActive: (id: string, active: boolean) => Promise<void>;
-  publishMyExtension: (id: string) => Promise<void>;
+  editPrivate: (id: string) => void;
+  downloadPrivate: (id: string) => void;
+  publishPrivate: (id: string) => Promise<void>;
+  installPrivate: (id: string) => Promise<void>;
+  requestRemovePrivate: (id: string) => void;
+  confirmRemovePrivate: () => Promise<void>;
+  cancelRemovePrivate: () => void;
   installPublic: (domain: string) => Promise<void>;
   toggleInstalledActive: (id: string, active: boolean) => Promise<void>;
+  updateInstalled: (id: string) => Promise<void>;
   uninstallInstalled: (id: string) => Promise<void>;
-  requestRemoveMyExtension: (id: string) => void;
-  confirmRemoveMyExtension: () => Promise<void>;
-  cancelRemoveMyExtension: () => void;
+  downloadInstalled: (id: string) => void;
   approvePublic: (domain: string) => Promise<void>;
   deprecatePublic: (domain: string) => Promise<void>;
   rejectPublic: (domain: string) => Promise<void>;
 }
 
+const hasCodeOf = (views: unknown[] | undefined): boolean => (views?.length ?? 0) > 0;
+
 export const useMarketplaceViewModel = (): MarketplaceViewModel => {
-  const { catalog, installations, installationOf, sourceOf, canPublish, install, uninstall, setEnabled, publish, unpublish } =
-    usePluginStore();
-  const { extensions, importExtension, installFromPublic, setActive: setExtensionActive, removeExtension } = useTenantExtensions();
-  const { publicExtensions, publish: publishPublic, approve, deprecate, unpublish: unpublishPublic, publicOf } = usePublicExtensions();
-  const { host, result } = useKernel();
-  const { tenantRole } = useTenant();
-  const { userRole } = useAuth();
+  const { extensions, importExtension, removeExtension } = useTenantExtensions();
+  const { installed, install, setActive: setInstalledActive, uninstall } = useInstalledExtensions();
+  const { publicExtensions, publish: publishPublic, approve, deprecate, unpublish, publicOf } = usePublicExtensions();
+  const { currentTenant, tenantRole } = useTenant();
+  const { user, userRole } = useAuth();
   const { notify } = useNotification();
   const { openTab } = useWorkspace();
-  const [busyPluginId, setBusyPluginId] = useState<string | null>(null);
-  const [detailPlugin, setDetailPlugin] = useState<MarketplacePlugin | null>(null);
+
+  const [busyId, setBusyId] = useState<string | null>(null);
   const [removeTarget, setRemoveTarget] = useState<{ id: string; name: string } | null>(null);
 
-  const canManage = userRole === 'SYSTEM' || tenantRole === 'admin';
+  const canModerate = userRole === 'SYSTEM';
+  const canManage = canModerate || tenantRole === 'admin';
 
-  const openDetail = useCallback((plugin: MarketplacePlugin) => setDetailPlugin(plugin), []);
-  const closeDetail = useCallback(() => setDetailPlugin(null), []);
   const openAuthor = useCallback(() => openTab('plugin-author'), [openTab]);
 
-  const loadErrorOf = useCallback(
-    (pluginId: string, installed: boolean, enabled: boolean): string | undefined => {
-      if (!installed || !enabled || host.isLoaded(pluginId)) return undefined;
-      return result.diagnostics.find((d) => d.pluginId === pluginId && d.severity === 'error')?.message;
-    },
-    [host, result],
-  );
-
-  const catalogCards = useMemo<MarketplaceCard[]>(
-    () =>
-      catalog.map((plugin) => {
-        const installation = installationOf(plugin.manifest.id);
-        const installed = Boolean(installation);
-        const enabled = installation?.enabled ?? false;
-        return {
-          plugin,
-          installed,
-          enabled,
-          installedVersion: installation?.version,
-          workflowCount: plugin.workflows.length,
-          published: sourceOf(plugin.manifest.id) === 'published',
-          imported: false,
-          loadError: loadErrorOf(plugin.manifest.id, installed, enabled),
-        };
-      }),
-    [catalog, installationOf, sourceOf, loadErrorOf],
-  );
-
-  // Extensões importadas de um `.json` instalam-se sem entrar no catálogo. Sem estes cards, elas
-  // funcionariam mas não teriam onde ser desativadas/removidas.
-  const importedCards = useMemo<MarketplaceCard[]>(
-    () =>
-      installations
-        .filter((installation) => !catalog.some((plugin) => plugin.manifest.id === installation.pluginId))
-        .map((installation) => {
-          const meta = installation.config ?? {};
-          const name = (typeof meta.name === 'string' && meta.name) || installation.pluginId;
-          const summary = (typeof meta.summary === 'string' && meta.summary) || 'Extensão importada neste escritório.';
-          const workflowCount = typeof meta.workflowCount === 'number' ? meta.workflowCount : 0;
-          return {
-            plugin: {
-              manifest: {
-                id: installation.pluginId,
-                version: installation.version,
-                kernel: '^1.0.0',
-                name,
-              },
-              summary,
-              workflows: [],
-            },
-            installed: true,
-            enabled: installation.enabled,
-            installedVersion: installation.version,
-            workflowCount,
-            published: false,
-            imported: true,
-            loadError: loadErrorOf(installation.pluginId, true, installation.enabled),
-          };
-        }),
-    [installations, catalog, loadErrorOf],
-  );
-
-  const cards = useMemo<MarketplaceCard[]>(
-    () => [...catalogCards, ...importedCards],
-    [catalogCards, importedCards],
-  );
-
   const run = useCallback(
-    async (pluginId: string, action: () => Promise<{ message: string } | null>, successMessage: string) => {
-      setBusyPluginId(pluginId);
+    async (id: string, action: () => Promise<void>, successMessage: string) => {
+      setBusyId(id);
       try {
-        const error = await action();
-        if (error) notify(error.message, 'error');
-        else notify(successMessage, 'success');
+        await action();
+        notify(successMessage, 'success');
       } catch (err) {
         const detail = err instanceof Error ? err.message : String(err);
         console.error('[marketplace] falha na operação de extensão:', err);
         notify(`Não foi possível concluir a operação: ${detail}`, 'error');
       } finally {
-        setBusyPluginId(null);
+        setBusyId(null);
       }
     },
     [notify],
   );
 
-  const installPlugin = useCallback(
-    (plugin: MarketplacePlugin) =>
-      run(plugin.manifest.id, () => install(plugin), `${plugin.manifest.name} instalado.`),
-    [run, install],
-  );
+  const privateInputOf = useCallback((id: string): InstallExtensionInput | null => {
+    const priv = extensions.find((e) => e.id === id);
+    if (!priv) return null;
+    return {
+      package: priv.package,
+      source: 'private',
+      version: priv.package.manifest.version,
+      authorId: priv.createdBy,
+      authorName: priv.createdByName ?? user?.displayName ?? '',
+      authorPhotoURL: priv.createdByPhotoURL ?? null,
+    };
+  }, [extensions, user]);
 
-  const uninstallPlugin = useCallback(
-    (pluginId: string) => run(pluginId, () => uninstall(pluginId), 'Extensão removida.'),
-    [run, uninstall],
-  );
+  const publicInputOf = useCallback((domain: string): InstallExtensionInput | null => {
+    const pub = publicOf(domain);
+    if (!pub) return null;
+    return {
+      package: pub.package,
+      source: 'public',
+      version: pub.version,
+      authorId: pub.publishedBy,
+      authorName: pub.ownerName,
+      authorPhotoURL: pub.ownerPhotoURL,
+    };
+  }, [publicOf]);
 
-  const toggleEnabled = useCallback(
-    (pluginId: string, enabled: boolean) =>
-      run(pluginId, () => setEnabled(pluginId, enabled), enabled ? 'Extensão ativada.' : 'Extensão desativada.'),
-    [run, setEnabled],
-  );
+  // Fonte mais recente para atualizar uma cópia instalada: a privada do próprio autor se for a mais
+  // recente, senão a pública aprovada. Retorna a entrada a copiar quando a versão supera a instalada.
+  const updateSourceOf = useCallback((id: string, installedVersion: string): InstallExtensionInput | null => {
+    const priv = privateInputOf(id);
+    const pub = publicOf(id)?.status === 'approved' ? publicInputOf(id) : null;
+    const candidates = [priv, pub].filter((c): c is InstallExtensionInput => c !== null);
+    if (candidates.length === 0) return null;
+    const best = candidates.reduce((a, b) => (isVersionGreater(b.version, a.version) ? b : a));
+    return isVersionGreater(best.version, installedVersion) ? best : null;
+  }, [privateInputOf, publicInputOf, publicOf]);
 
-  const publishPlugin = useCallback(
-    (plugin: MarketplacePlugin) =>
-      run(
-        plugin.manifest.id,
-        async () => {
-          const errors = await publish(plugin);
-          return errors.length > 0
-            ? { message: `Não foi possível publicar: ${errors[0].message}` }
-            : null;
-        },
-        `${plugin.manifest.name} publicado no catálogo.`,
-      ),
-    [run, publish],
-  );
-
-  const unpublishPlugin = useCallback(
-    (pluginId: string) =>
-      run(
-        pluginId,
-        async () => {
-          await unpublish(pluginId);
-          return null;
-        },
-        'Publicação removida do catálogo.',
-      ),
-    [run, unpublish],
-  );
-
-  // Minhas = autorais (sem sourcePluginId); Instaladas = cópias (com sourcePluginId).
-  const myExtensions = useMemo<MyExtensionCard[]>(
-    () => extensions.filter((e) => !e.sourcePluginId).map((extension) => ({
-      id: extension.id,
-      name: extension.package.manifest.name,
-      summary: extension.package.summary,
-      version: extension.package.manifest.version,
-      active: extension.active,
-      hasCode: (extension.package.views?.length ?? 0) > 0,
-      publicStatus: publicOf(extension.id)?.status ?? null,
-      authorName: extension.createdByName ?? null,
-      authorPhotoURL: extension.createdByPhotoURL ?? null,
-    })),
-    [extensions, publicOf],
-  );
-
-  const installedExtensions = useMemo<InstalledExtensionCard[]>(
-    () => extensions.filter((e) => e.sourcePluginId).map((extension) => {
-      const pub = publicOf(extension.id);
+  const privateCards = useMemo<PrivateCard[]>(
+    () => extensions.map((ext) => {
+      const copy = installed.find((i) => i.id === ext.id);
       return {
-        id: extension.id,
-        name: extension.package.manifest.name,
-        summary: extension.package.summary,
-        version: extension.sourceVersion ?? extension.package.manifest.version,
-        active: extension.active,
-        hasCode: (extension.package.views?.length ?? 0) > 0,
-        updateAvailable: Boolean(pub && pub.status === 'approved' && isVersionGreater(pub.version, extension.sourceVersion ?? '0.0.0')),
-        deprecated: pub?.status === 'deprecated',
-        authorName: extension.createdByName ?? null,
-        authorPhotoURL: extension.createdByPhotoURL ?? null,
+        id: ext.id,
+        name: ext.package.manifest.name,
+        summary: ext.package.summary,
+        version: ext.package.manifest.version,
+        hasCode: hasCodeOf(ext.package.views),
+        publicStatus: publicOf(ext.id)?.status ?? null,
+        installed: Boolean(copy),
+        installOutdated: Boolean(copy && isVersionGreater(ext.package.manifest.version, copy.installedVersion)),
+        author: { name: ext.createdByName ?? null, photoURL: ext.createdByPhotoURL ?? null },
       };
     }),
-    [extensions, publicOf],
+    [extensions, installed, publicOf],
   );
 
-  const installStateOf = useCallback((domain: string, publicVersion: string): PublicInstallState => {
-    const local = extensions.find((e) => e.id === domain);
-    if (!local) return 'none';
-    if (!local.sourcePluginId) return 'authored';
-    return isVersionGreater(publicVersion, local.sourceVersion ?? '0.0.0') ? 'update' : 'installed';
-  }, [extensions]);
+  const installedCards = useMemo<InstalledCard[]>(
+    () => installed.map((ext) => {
+      const update = updateSourceOf(ext.id, ext.installedVersion);
+      return {
+        id: ext.id,
+        name: ext.package.manifest.name,
+        summary: ext.package.summary,
+        version: ext.installedVersion,
+        active: ext.active,
+        hasCode: hasCodeOf(ext.package.views),
+        sourceLabel: ext.source === 'private' ? 'Da sua área privada' : 'Do catálogo público',
+        updateAvailable: update !== null,
+        updateVersion: update?.version ?? null,
+        deprecated: publicOf(ext.id)?.status === 'deprecated',
+        isAuthor: ext.authorId === user?.id,
+        author: { name: ext.authorName || null, photoURL: ext.authorPhotoURL },
+      };
+    }),
+    [installed, updateSourceOf, publicOf, user],
+  );
 
   const publicCards = useMemo<PublicCard[]>(
     () => publicExtensions
       .filter((p) => p.status === 'approved')
-      .map((p) => ({
-        domain: p.domain,
-        name: p.package.manifest.name,
-        summary: p.package.summary,
-        version: p.version,
-        hasCode: p.hasCode,
-        status: p.status,
-        authorName: p.ownerName,
-        authorPhotoURL: p.ownerPhotoURL,
-        installState: installStateOf(p.domain, p.version),
-      })),
-    [publicExtensions, installStateOf],
+      .map((p) => {
+        const copy = installed.find((i) => i.id === p.domain);
+        return {
+          domain: p.domain,
+          name: p.package.manifest.name,
+          summary: p.package.summary,
+          version: p.version,
+          hasCode: p.hasCode,
+          isAuthor: p.ownerTenantId === currentTenant?.id,
+          installState: !copy ? 'none' : isVersionGreater(p.version, copy.installedVersion) ? 'update' : 'installed',
+          author: { name: p.ownerName || null, photoURL: p.ownerPhotoURL },
+        };
+      }),
+    [publicExtensions, installed, currentTenant],
   );
 
-  const pendingCards = useMemo<PublicCard[]>(
-    () => (canPublish
+  const moderationCards = useMemo<ModerationCard[]>(
+    () => (canModerate
       ? publicExtensions
         .filter((p) => p.status === 'pending')
         .map((p) => ({
@@ -319,42 +233,40 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
           name: p.package.manifest.name,
           summary: p.package.summary,
           version: p.version,
-          hasCode: p.hasCode,
-          status: p.status,
-          authorName: p.ownerName,
-          authorPhotoURL: p.ownerPhotoURL,
-          installState: 'none' as PublicInstallState,
+          author: { name: p.ownerName || null, photoURL: p.ownerPhotoURL },
         }))
       : []),
-    [publicExtensions, canPublish],
+    [publicExtensions, canModerate],
   );
 
-  const editMyExtension = useCallback((id: string) => openTab(`plugin-author:${id}`), [openTab]);
+  const editPrivate = useCallback((id: string) => openTab(`plugin-author:${id}`), [openTab]);
 
-  const downloadMyExtension = useCallback((id: string) => {
-    const extension = extensions.find((e) => e.id === id);
-    if (!extension) return;
-    const blob = new Blob([serializePackage(extension.package)], { type: 'application/json' });
+  const downloadPackage = useCallback((id: string, packageJson: string) => {
+    const blob = new Blob([packageJson], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const anchor = document.createElement('a');
     anchor.href = url;
     anchor.download = `${id}.json`;
     anchor.click();
     URL.revokeObjectURL(url);
-  }, [extensions]);
+  }, []);
 
-  const toggleMyActive = useCallback(
-    (id: string, active: boolean) =>
-      run(id, async () => { await setExtensionActive(id, active); return null; }, active ? 'Extensão ativada.' : 'Extensão desativada.'),
-    [run, setExtensionActive],
-  );
+  const downloadPrivate = useCallback((id: string) => {
+    const ext = extensions.find((e) => e.id === id);
+    if (ext) downloadPackage(id, serializePackage(ext.package));
+  }, [extensions, downloadPackage]);
 
-  const publishMyExtension = useCallback(async (id: string) => {
-    const extension = extensions.find((e) => e.id === id);
-    if (!extension) return;
-    setBusyPluginId(id);
+  const downloadInstalled = useCallback((id: string) => {
+    const ext = installed.find((e) => e.id === id);
+    if (ext) downloadPackage(id, serializePackage(ext.package));
+  }, [installed, downloadPackage]);
+
+  const publishPrivate = useCallback(async (id: string) => {
+    const ext = extensions.find((e) => e.id === id);
+    if (!ext) return;
+    setBusyId(id);
     try {
-      const result = await publishPublic(extension.package);
+      const result = await publishPublic(ext.package);
       if (!result.ok) notify(result.error, 'error');
       else if (result.status === 'pending') {
         notify('Enviada para aprovação: uma extensão com código só fica pública depois de aprovada por um administrador do sistema.', 'warning');
@@ -362,102 +274,99 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
     } catch (err) {
       notify(`Não foi possível publicar: ${err instanceof Error ? err.message : String(err)}`, 'error');
     } finally {
-      setBusyPluginId(null);
+      setBusyId(null);
     }
   }, [extensions, publishPublic, notify]);
 
+  const installPrivate = useCallback((id: string) => {
+    const input = privateInputOf(id);
+    if (!input) return Promise.resolve();
+    const isUpdate = installed.some((e) => e.id === id);
+    return run(id, () => install(input), isUpdate ? 'Cópia atualizada no escritório.' : 'Instalada no escritório.');
+  }, [privateInputOf, installed, run, install]);
+
   const installPublic = useCallback((domain: string) => {
-    const pub = publicOf(domain);
-    if (!pub) return Promise.resolve();
-    const isUpdate = extensions.some((e) => e.id === domain && e.sourcePluginId);
-    return run(domain, async () => { await installFromPublic(pub); return null; }, isUpdate ? 'Extensão atualizada.' : 'Extensão instalada.');
-  }, [publicOf, extensions, run, installFromPublic]);
+    const input = publicInputOf(domain);
+    if (!input) return Promise.resolve();
+    const isUpdate = installed.some((e) => e.id === domain);
+    return run(domain, () => install(input), isUpdate ? 'Extensão atualizada.' : 'Extensão instalada.');
+  }, [publicInputOf, installed, run, install]);
+
+  const updateInstalled = useCallback((id: string) => {
+    const ext = installed.find((e) => e.id === id);
+    if (!ext) return Promise.resolve();
+    const input = updateSourceOf(id, ext.installedVersion);
+    if (!input) return Promise.resolve();
+    return run(id, () => install(input), 'Extensão atualizada.');
+  }, [installed, updateSourceOf, run, install]);
 
   const toggleInstalledActive = useCallback(
-    (id: string, active: boolean) => run(id, async () => { await setExtensionActive(id, active); return null; }, active ? 'Extensão ativada.' : 'Extensão desativada.'),
-    [run, setExtensionActive],
+    (id: string, active: boolean) => run(id, () => setInstalledActive(id, active), active ? 'Extensão ativada.' : 'Extensão desativada.'),
+    [run, setInstalledActive],
   );
 
   const uninstallInstalled = useCallback(
-    (id: string) => run(id, async () => { await removeExtension(id); return null; }, 'Extensão desinstalada.'),
-    [run, removeExtension],
+    (id: string) => run(id, () => uninstall(id), 'Extensão desinstalada.'),
+    [run, uninstall],
   );
 
-  const approvePublic = useCallback(
-    (domain: string) => run(domain, async () => { await approve(domain); return null; }, 'Extensão aprovada.'),
-    [run, approve],
-  );
-  const deprecatePublic = useCallback(
-    (domain: string) => run(domain, async () => { await deprecate(domain); return null; }, 'Extensão marcada como obsoleta.'),
-    [run, deprecate],
-  );
-  const rejectPublic = useCallback(
-    (domain: string) => run(domain, async () => { await unpublishPublic(domain); return null; }, 'Publicação recusada e removida do catálogo.'),
-    [run, unpublishPublic],
-  );
+  const approvePublic = useCallback((domain: string) => run(domain, () => approve(domain), 'Extensão aprovada.'), [run, approve]);
+  const deprecatePublic = useCallback((domain: string) => run(domain, () => deprecate(domain), 'Extensão marcada como obsoleta.'), [run, deprecate]);
+  const rejectPublic = useCallback((domain: string) => run(domain, () => unpublish(domain), 'Publicação recusada e removida do catálogo.'), [run, unpublish]);
 
-  const requestRemoveMyExtension = useCallback((id: string) => {
-    const extension = extensions.find((e) => e.id === id);
-    setRemoveTarget({ id, name: extension?.package.manifest.name ?? id });
+  const requestRemovePrivate = useCallback((id: string) => {
+    const ext = extensions.find((e) => e.id === id);
+    setRemoveTarget({ id, name: ext?.package.manifest.name ?? id });
   }, [extensions]);
 
-  const cancelRemoveMyExtension = useCallback(() => setRemoveTarget(null), []);
+  const cancelRemovePrivate = useCallback(() => setRemoveTarget(null), []);
 
-  const confirmRemoveMyExtension = useCallback(async () => {
+  const confirmRemovePrivate = useCallback(async () => {
     if (!removeTarget) return;
     const { id } = removeTarget;
     setRemoveTarget(null);
-    await run(id, async () => { await removeExtension(id); return null; }, 'Extensão excluída.');
+    await run(id, () => removeExtension(id), 'Extensão excluída da sua área privada.');
   }, [removeTarget, run, removeExtension]);
 
   const onImportFile = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     event.target.value = '';
     if (!file) return;
-    setBusyPluginId('__import__');
+    setBusyId('__import__');
     try {
-      // Importar = criar um RASCUNHO privado em Minhas Extensões (você vira o dono, edita/ativa/publica).
       const result = await importExtension(await file.text());
       if (result.ok) notify(`${result.name} importado para Minhas Extensões.`, 'success');
       else notify(`Não foi possível importar: ${result.error}`, 'error');
     } catch (err) {
       notify(`Não foi possível importar: ${err instanceof Error ? err.message : String(err)}`, 'error');
     } finally {
-      setBusyPluginId(null);
+      setBusyId(null);
     }
   }, [importExtension, notify]);
 
   return {
-    cards,
-    myExtensions,
-    installedExtensions,
-    publicCards,
-    pendingCards,
     canManage,
-    canPublish,
-    canModerate: canPublish,
-    busyPluginId,
-    detailPlugin,
+    canModerate,
+    privateCards,
+    installedCards,
+    publicCards,
+    moderationCards,
+    busyId,
     removeTarget,
-    openDetail,
-    closeDetail,
     openAuthor,
     onImportFile,
-    install: installPlugin,
-    uninstall: uninstallPlugin,
-    toggleEnabled,
-    publish: publishPlugin,
-    unpublish: unpublishPlugin,
-    editMyExtension,
-    downloadMyExtension,
-    toggleMyActive,
-    publishMyExtension,
+    editPrivate,
+    downloadPrivate,
+    publishPrivate,
+    installPrivate,
+    requestRemovePrivate,
+    confirmRemovePrivate,
+    cancelRemovePrivate,
     installPublic,
     toggleInstalledActive,
+    updateInstalled,
     uninstallInstalled,
-    requestRemoveMyExtension,
-    confirmRemoveMyExtension,
-    cancelRemoveMyExtension,
+    downloadInstalled,
     approvePublic,
     deprecatePublic,
     rejectPublic,
