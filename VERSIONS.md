@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [0.139.1] — 2026-07-24
+
+- Corrigido um problema em que uma extensão publicada no catálogo chegava incompleta a quem instalava (perdia telas, automações e a própria tela de código). Agora a extensão publicada é entregue por inteiro.
+
 ## [0.139.0] — 2026-07-23
 
 - A tela **Criar extensão** agora permite montar **telas de código**: escreva a sua própria tela num editor, com pré-visualização ao vivo, e inclua-a na extensão.
