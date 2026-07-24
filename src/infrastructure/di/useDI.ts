@@ -58,6 +58,7 @@ import type { IDataProcessorRepository } from '../../domain/repositories/IDataPr
 import type { IActionRepository } from '../../domain/repositories/IActionRepository';
 import type { IPluginInstallationRepository } from '../../domain/repositories/IPluginInstallationRepository';
 import type { IPluginRegistryRepository } from '../../domain/repositories/IPluginRegistryRepository';
+import type { ITenantExtensionRepository } from '../../domain/repositories/ITenantExtensionRepository';
 
 export interface DIContainer {
   /**
@@ -126,6 +127,7 @@ export interface DIContainer {
   actionRepository: IActionRepository;
   pluginInstallationRepository: IPluginInstallationRepository;
   pluginRegistryRepository: IPluginRegistryRepository;
+  tenantExtensionRepository: ITenantExtensionRepository;
 }
 
 export const DIContext = createContext<DIContainer | null>(null);

@@ -524,6 +524,13 @@ service cloud.firestore {
         allow create, update, delete: if isTenantAdmin(tenantId);
       }
 
+      // Extensões AUTORAIS do escritório (criadas na tela "Criar extensão"). Todo membro lê —
+      // as ativas contribuem telas/menu no Kernel do tenant; só admin cria/edita/remove.
+      match /extensions/{extensionId} {
+        allow read: if isMember(tenantId);
+        allow create, update, delete: if isTenantAdmin(tenantId);
+      }
+
       // Event Bus do motor — qualquer membro com escrita pode publicar um evento;
       // coleção append-only, ninguém lê/edita/exclui pelo client (só a Cloud Function
       // onWorkflowEventCreated, via Admin SDK, que ignora estas regras).

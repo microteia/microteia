@@ -62,6 +62,19 @@ export const S = {
     color: ${({ theme }) => theme.colors.textSecondary};
   `,
 
+  GroupTitle: styled.h2`
+    font-size: ${({ theme }) => theme.fontSizes.md};
+    font-weight: 600;
+    color: ${({ theme }) => theme.colors.text};
+    margin-top: ${({ theme }) => theme.spacing.sm};
+  `,
+
+  GroupHint: styled.p`
+    font-size: ${({ theme }) => theme.fontSizes.xs};
+    color: ${({ theme }) => theme.colors.textSecondary};
+    margin-top: -${({ theme }) => theme.spacing.xs};
+  `,
+
   Content: styled.div`
     flex: 1;
     overflow-y: auto;

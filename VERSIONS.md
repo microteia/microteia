@@ -11,6 +11,13 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [0.140.0] — 2026-07-24
+
+- Suas extensões agora ficam guardadas em **Minhas Extensões**, na tela Extensões: ao criar uma extensão, ela é salva ali (privada e inativa) e você pode **editá-la quando quiser**, sem começar do zero.
+- Cada extensão que você criou pode ser **ativada no seu próprio escritório** com um clique — inclusive as que trazem uma tela em código, que passam a funcionar na hora para você.
+- Também dá para **baixar** o arquivo da extensão, **excluí-la** ou **publicá-la** no catálogo, tudo a partir da tela Extensões.
+- A publicação **saiu da tela de criação** — criar e publicar agora são passos separados, então você nunca mais fica sem poder editar uma extensão já criada.
+
 ## [0.139.1] — 2026-07-24
 
 - Corrigido um problema em que uma extensão publicada no catálogo chegava incompleta a quem instalava (perdia telas, automações e a própria tela de código). Agora a extensão publicada é entregue por inteiro.

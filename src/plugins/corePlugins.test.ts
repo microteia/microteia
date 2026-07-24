@@ -35,7 +35,7 @@ const PAGE_KEYS_ANTES_DA_MIGRACAO = [
   'view-dyn:', 'view-financial:', 'view-news:', 'view-person:', 'view-script:', 'view-workflow:',
   'workflows',
   // Adicionadas depois da migração (a lista é o guarda de "nenhuma tela some", não um congelamento):
-  'marketplace', 'plugin-author',
+  'marketplace', 'plugin-author', 'plugin-author:',
 ].sort();
 
 describe('core plugins — carga', () => {

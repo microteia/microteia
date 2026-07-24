@@ -1,6 +1,6 @@
 import React from 'react';
 import {
-  RiDownloadLine, RiCheckLine, RiLockLine, RiAddLine, RiDeleteBinLine, RiEyeLine, RiErrorWarningLine,
+  RiDownloadLine, RiCheckLine, RiLockLine, RiAddLine, RiDeleteBinLine, RiEyeLine, RiErrorWarningLine, RiSaveLine,
 } from 'react-icons/ri';
 import { Button } from '../../components/ui/Button';
 import { InfoBanner } from '../../components/ui/InfoBanner';
@@ -21,14 +21,14 @@ const GROUP_ICON: Record<ArtifactKind, string> = {
   scripts: 'codeBox',
 };
 
-export const PluginAuthorView: React.FC = () => {
-  const vm = usePluginAuthorViewModel();
+export const PluginAuthorView: React.FC<{ tabKey?: string }> = ({ tabKey }) => {
+  const vm = usePluginAuthorViewModel(tabKey);
 
   return (
     <S.Page>
       <S.Header>
-        <S.Title>Criar extensão</S.Title>
-        <S.Subtitle>Empacote telas, ações, automações e scripts do seu escritório em uma extensão.</S.Subtitle>
+        <S.Title>{vm.editing ? 'Editar extensão' : 'Criar extensão'}</S.Title>
+        <S.Subtitle>Empacote telas, ações, automações e scripts do seu escritório em uma extensão. Salve em Minhas Extensões para editar depois; a publicação fica na tela Extensões.</S.Subtitle>
       </S.Header>
 
       <S.Content>
@@ -199,13 +199,11 @@ export const PluginAuthorView: React.FC = () => {
 
         <S.Footer>
           <S.Count>{vm.selectedCount} {vm.selectedCount === 1 ? 'item selecionado' : 'itens selecionados'}</S.Count>
-          {vm.canPublish && (
-            <Button variant="ghost" size="sm" disabled={vm.busy || !vm.canExport} onClick={vm.publish}>
-              Publicar no catálogo
-            </Button>
-          )}
-          <Button variant="primary" size="sm" disabled={vm.busy || !vm.canExport} onClick={vm.download}>
+          <Button variant="ghost" size="sm" disabled={vm.busy || !vm.canExport} onClick={vm.download}>
             <RiDownloadLine size={16} /> Baixar .json
+          </Button>
+          <Button variant="primary" size="sm" disabled={vm.busy || !vm.canSave} onClick={vm.save}>
+            <RiSaveLine size={16} /> {vm.editing ? 'Salvar alterações' : 'Salvar em Minhas Extensões'}
           </Button>
         </S.Footer>
       </S.Content>

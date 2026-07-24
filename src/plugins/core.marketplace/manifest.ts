@@ -16,6 +16,7 @@ export const coreMarketplacePlugin: PluginRecord = {
     contributes: [
       page({ key: 'marketplace', title: 'Extensões', icon: 'store' }, 'MarketplaceView'),
       page({ key: 'plugin-author', title: 'Criar extensão', icon: 'magic' }, 'PluginAuthorView'),
+      page({ key: '', keyPrefix: 'plugin-author:', title: 'Editar extensão', icon: 'magic' }, 'PluginAuthorView'),
     ],
   },
 };

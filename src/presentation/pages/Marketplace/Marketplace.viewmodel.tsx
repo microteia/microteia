@@ -1,11 +1,23 @@
 import { useCallback, useMemo, useState } from 'react';
 import { usePluginStore } from '../../../stores/usePluginStore';
+import { useTenantExtensions } from '../../../stores/useTenantExtensions';
 import { useTenant } from '../../../stores/useTenant';
 import { useAuth } from '../../../stores/useAuth';
 import { useNotification } from '../../../stores/useNotification';
 import { useKernel } from '../../../stores/useKernel';
 import { useWorkspace } from '../../../stores/useWorkspace';
+import { serializePackage } from '../../../domain/usecases/plugins/packageSerialization';
 import type { MarketplacePlugin } from '../../../domain/entities/MarketplacePlugin';
+
+export interface MyExtensionCard {
+  id: string;
+  name: string;
+  summary: string;
+  version: string;
+  active: boolean;
+  hasCode: boolean;
+  published: boolean;
+}
 
 export interface MarketplaceCard {
   plugin: MarketplacePlugin;
@@ -22,10 +34,12 @@ export interface MarketplaceCard {
 
 export interface MarketplaceViewModel {
   cards: MarketplaceCard[];
+  myExtensions: MyExtensionCard[];
   canManage: boolean;
   canPublish: boolean;
   busyPluginId: string | null;
   detailPlugin: MarketplacePlugin | null;
+  removeTarget: { id: string; name: string } | null;
   openDetail: (plugin: MarketplacePlugin) => void;
   closeDetail: () => void;
   openAuthor: () => void;
@@ -35,11 +49,19 @@ export interface MarketplaceViewModel {
   toggleEnabled: (pluginId: string, enabled: boolean) => Promise<void>;
   publish: (plugin: MarketplacePlugin) => Promise<void>;
   unpublish: (pluginId: string) => Promise<void>;
+  editMyExtension: (id: string) => void;
+  downloadMyExtension: (id: string) => void;
+  toggleMyActive: (id: string, active: boolean) => Promise<void>;
+  publishMyExtension: (id: string) => Promise<void>;
+  requestRemoveMyExtension: (id: string) => void;
+  confirmRemoveMyExtension: () => Promise<void>;
+  cancelRemoveMyExtension: () => void;
 }
 
 export const useMarketplaceViewModel = (): MarketplaceViewModel => {
   const { catalog, installations, installationOf, sourceOf, canPublish, install, uninstall, setEnabled, importPackage, publish, unpublish } =
     usePluginStore();
+  const { extensions, setActive: setExtensionActive, removeExtension } = useTenantExtensions();
   const { host, result } = useKernel();
   const { tenantRole } = useTenant();
   const { userRole } = useAuth();
@@ -47,6 +69,7 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
   const { openTab } = useWorkspace();
   const [busyPluginId, setBusyPluginId] = useState<string | null>(null);
   const [detailPlugin, setDetailPlugin] = useState<MarketplacePlugin | null>(null);
+  const [removeTarget, setRemoveTarget] = useState<{ id: string; name: string } | null>(null);
 
   const canManage = userRole === 'SYSTEM' || tenantRole === 'admin';
 
@@ -184,6 +207,58 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
     [run, unpublish],
   );
 
+  const myExtensions = useMemo<MyExtensionCard[]>(
+    () => extensions.map((extension) => ({
+      id: extension.id,
+      name: extension.package.manifest.name,
+      summary: extension.package.summary,
+      version: extension.package.manifest.version,
+      active: extension.active,
+      hasCode: (extension.package.views?.length ?? 0) > 0,
+      published: sourceOf(extension.id) === 'published',
+    })),
+    [extensions, sourceOf],
+  );
+
+  const editMyExtension = useCallback((id: string) => openTab(`plugin-author:${id}`), [openTab]);
+
+  const downloadMyExtension = useCallback((id: string) => {
+    const extension = extensions.find((e) => e.id === id);
+    if (!extension) return;
+    const blob = new Blob([serializePackage(extension.package)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = `${id}.json`;
+    anchor.click();
+    URL.revokeObjectURL(url);
+  }, [extensions]);
+
+  const toggleMyActive = useCallback(
+    (id: string, active: boolean) =>
+      run(id, async () => { await setExtensionActive(id, active); return null; }, active ? 'Extensão ativada.' : 'Extensão desativada.'),
+    [run, setExtensionActive],
+  );
+
+  const publishMyExtension = useCallback(async (id: string) => {
+    const extension = extensions.find((e) => e.id === id);
+    if (extension) await publishPlugin(extension.package);
+  }, [extensions, publishPlugin]);
+
+  const requestRemoveMyExtension = useCallback((id: string) => {
+    const extension = extensions.find((e) => e.id === id);
+    setRemoveTarget({ id, name: extension?.package.manifest.name ?? id });
+  }, [extensions]);
+
+  const cancelRemoveMyExtension = useCallback(() => setRemoveTarget(null), []);
+
+  const confirmRemoveMyExtension = useCallback(async () => {
+    if (!removeTarget) return;
+    const { id } = removeTarget;
+    setRemoveTarget(null);
+    await run(id, async () => { await removeExtension(id); return null; }, 'Extensão excluída.');
+  }, [removeTarget, run, removeExtension]);
+
   const onImportFile = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     event.target.value = '';
@@ -204,10 +279,12 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
 
   return {
     cards,
+    myExtensions,
     canManage,
     canPublish,
     busyPluginId,
     detailPlugin,
+    removeTarget,
     openDetail,
     closeDetail,
     openAuthor,
@@ -217,5 +294,12 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
     toggleEnabled,
     publish: publishPlugin,
     unpublish: unpublishPlugin,
+    editMyExtension,
+    downloadMyExtension,
+    toggleMyActive,
+    publishMyExtension,
+    requestRemoveMyExtension,
+    confirmRemoveMyExtension,
+    cancelRemoveMyExtension,
   };
 };

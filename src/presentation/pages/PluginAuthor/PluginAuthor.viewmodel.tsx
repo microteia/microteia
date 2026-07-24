@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from 'react';
-import { usePluginStore } from '../../../stores/usePluginStore';
+import { useTenantExtensions } from '../../../stores/useTenantExtensions';
 import { useScreenDefinitions } from '../../../stores/useScreenDefinitions';
 import { useActions } from '../../../stores/useActions';
 import { useWorkflowStore } from '../../../stores/useWorkflowStore';
@@ -10,7 +10,7 @@ import { useNotification } from '../../../stores/useNotification';
 import { buildPackage } from '../../../domain/usecases/plugins/packageBuilder';
 import { packageOutRefs, validatePackage } from '../../../domain/usecases/plugins/pluginReferences';
 import { serializePackage } from '../../../domain/usecases/plugins/packageSerialization';
-import { validatePluginManifest } from '../../../domain/schema/plugin/pluginManifest';
+import { isValidPluginId, validatePluginManifest } from '../../../domain/schema/plugin/pluginManifest';
 import { KERNEL_VERSION } from '../../../domain/schema/plugin/kernelVersion';
 import { nav, page } from '../../../plugins/contributionBuilders';
 import { compileExtensionView } from '../../shared/extensions/evaluateExtensionView';
@@ -87,7 +87,7 @@ export interface CodeViewEditing {
 
 export interface PluginAuthorViewModel {
   canManage: boolean;
-  canPublish: boolean;
+  editing: boolean;
   form: { id: string; name: string; version: string; description: string; summary: string };
   updateForm: (patch: Partial<PluginAuthorViewModel['form']>) => void;
   groups: ArtifactGroup[];
@@ -106,13 +106,14 @@ export interface PluginAuthorViewModel {
   selectedCount: number;
   issues: string[];
   canExport: boolean;
+  canSave: boolean;
   busy: boolean;
   download: () => void;
-  publish: () => Promise<void>;
+  save: () => Promise<void>;
 }
 
-const useSelection = () => {
-  const [ids, setIds] = useState<Set<string>>(new Set());
+const useSelection = (initial?: Set<string>) => {
+  const [ids, setIds] = useState<Set<string>>(() => initial ?? new Set());
   const toggle = useCallback((id: string) => {
     setIds((prev) => {
       const next = new Set(prev);
@@ -126,8 +127,10 @@ const useSelection = () => {
 
 const union = (a: Set<string>, b: Set<string>): Set<string> => new Set([...a, ...b]);
 
-export const usePluginAuthorViewModel = (): PluginAuthorViewModel => {
-  const { publish, canPublish } = usePluginStore();
+const EDIT_PREFIX = 'plugin-author:';
+
+export const usePluginAuthorViewModel = (tabKey?: string): PluginAuthorViewModel => {
+  const { saveExtension, extensionOf } = useTenantExtensions();
   const { definitions } = useScreenDefinitions();
   const { actions } = useActions();
   const { workflows } = useWorkflowStore();
@@ -137,17 +140,31 @@ export const usePluginAuthorViewModel = (): PluginAuthorViewModel => {
   const { notify } = useNotification();
 
   const canManage = userRole === 'SYSTEM' || tenantRole === 'admin';
+  const editingId = tabKey && tabKey.startsWith(EDIT_PREFIX) ? tabKey.slice(EDIT_PREFIX.length) : null;
+  // Editar = pré-carrega o formulário da extensão já em memória (a aba abre a partir de Minhas
+  // Extensões, então ela está carregada). Inicialização preguiçosa, uma vez — sem efeito que copia
+  // dados para o estado (que dispararia renders em cascata / bailout do React Compiler).
+  const editingPackage = editingId ? extensionOf(editingId)?.package : undefined;
 
-  const [form, setForm] = useState({ id: '', name: '', version: '1.0.0', description: '', summary: '' });
+  const [form, setForm] = useState(() => (editingPackage
+    ? {
+      id: editingPackage.manifest.id,
+      name: editingPackage.manifest.name,
+      version: editingPackage.manifest.version,
+      description: editingPackage.manifest.description ?? '',
+      summary: editingPackage.summary,
+    }
+    : { id: '', name: '', version: '1.0.0', description: '', summary: '' }));
   const updateForm = useCallback((patch: Partial<typeof form>) => setForm((prev) => ({ ...prev, ...patch })), []);
 
-  const [screenIds, toggleScreen] = useSelection();
-  const [actionIds, toggleAction] = useSelection();
-  const [workflowIds, toggleWorkflow] = useSelection();
-  const [scriptIds, toggleScript] = useSelection();
+  const [screenIds, toggleScreen] = useSelection(new Set((editingPackage?.screens ?? []).map((s) => s.key)));
+  const [actionIds, toggleAction] = useSelection(new Set((editingPackage?.actions ?? []).map((a) => a.templateId)));
+  const [workflowIds, toggleWorkflow] = useSelection(new Set((editingPackage?.workflows ?? []).map((w) => w.templateId)));
+  const [scriptIds, toggleScript] = useSelection(new Set((editingPackage?.scripts ?? []).map((s) => s.templateId)));
   const [busy, setBusy] = useState(false);
 
-  const [views, setViews] = useState<CodeViewForm[]>([]);
+  const [views, setViews] = useState<CodeViewForm[]>(() =>
+    (editingPackage?.views ?? []).map((v) => ({ uid: crypto.randomUUID(), key: v.key, title: v.title, icon: v.icon, source: v.source })));
   const [selectedViewId, setSelectedViewId] = useState<string | null>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
 
@@ -362,6 +379,9 @@ export const usePluginAuthorViewModel = (): PluginAuthorViewModel => {
   ], [manifest, form.summary, pkg, nameOf, viewIssues]);
 
   const canExport = selectedCount > 0 && issues.length === 0;
+  // Salvar um rascunho editável exige só um domínio (id) válido — pendências não bloqueiam salvar,
+  // só exportar/publicar. É o que permite "criar e voltar depois para editar".
+  const canSave = canManage && isValidPluginId(form.id.trim()) && Boolean(form.name.trim());
 
   const download = useCallback(() => {
     const blob = new Blob([serializePackage(pkg)], { type: 'application/json' });
@@ -374,20 +394,22 @@ export const usePluginAuthorViewModel = (): PluginAuthorViewModel => {
     notify('Arquivo da extensão gerado.', 'success');
   }, [pkg, manifest.id, notify]);
 
-  const publishPackage = useCallback(async () => {
+  const save = useCallback(async () => {
+    if (!canSave) return;
     setBusy(true);
     try {
-      const errors = await publish(pkg);
-      if (errors.length > 0) notify(`Não foi possível publicar: ${errors[0].message}`, 'error');
-      else notify(`${manifest.name || manifest.id} publicado no catálogo.`, 'success');
+      await saveExtension(pkg);
+      notify(`${manifest.name || manifest.id} salvo em Minhas Extensões.`, 'success');
+    } catch {
+      notify('Não foi possível salvar a extensão.', 'error');
     } finally {
       setBusy(false);
     }
-  }, [publish, pkg, manifest.name, manifest.id, notify]);
+  }, [canSave, saveExtension, pkg, manifest.name, manifest.id, notify]);
 
   return {
     canManage,
-    canPublish,
+    editing: Boolean(editingId),
     form,
     updateForm,
     groups,
@@ -406,8 +428,9 @@ export const usePluginAuthorViewModel = (): PluginAuthorViewModel => {
     selectedCount,
     issues,
     canExport,
+    canSave,
     busy,
     download,
-    publish: publishPackage,
+    save,
   };
 };
