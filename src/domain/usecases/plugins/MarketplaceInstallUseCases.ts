@@ -17,12 +17,18 @@ import {
 } from './packageMaterialize';
 import { workflowOutRefs } from './pluginReferences';
 
-export interface MarketplaceDeps {
+/** Repositórios necessários para materializar/liberar os artefatos de dados de um pacote (telas,
+ *  actions, workflows, scripts) — sem depender do registro de instalação. Reusado tanto pela máquina
+ *  antiga (PluginInstallation) quanto pelo novo fluxo de extensões instaladas (`installed_extensions`). */
+export interface ArtifactDeps {
   workflowRepository: IWorkflowDefinitionRepository;
-  installationRepository: IPluginInstallationRepository;
   screenRepository: IScreenDefinitionRepository;
   actionRepository: IActionRepository;
   scriptRepository: IScriptRepository;
+}
+
+export interface MarketplaceDeps extends ArtifactDeps {
+  installationRepository: IPluginInstallationRepository;
 }
 
 const deletionActor = (actor: LifecycleActor): DeletionActor => ({
@@ -90,7 +96,7 @@ const preservedUserFields = <T extends { key: string; ownerPluginId?: string | n
  * reusa-se ele e apenas acrescenta este plugin ao conjunto de donos — nunca duplica.
  */
 const materializeArtifacts = async (
-  deps: MarketplaceDeps,
+  deps: ArtifactDeps,
   plugin: MarketplacePlugin,
   tenantId: string,
   userId: string,
@@ -173,7 +179,7 @@ const materializeArtifacts = async (
  * por cima. Devolve as chaves tocadas (o upgrade usa para achar as telas que sumiram).
  */
 const upsertPluginScreens = async (
-  deps: MarketplaceDeps,
+  deps: ArtifactDeps,
   plugin: MarketplacePlugin,
   tenantId: string,
   userId: string,
@@ -202,7 +208,7 @@ const upsertPluginScreens = async (
 
 // --- Liberação com refcount: remove o plugin do dono; só apaga quando ninguém mais usa. -----------
 
-const releaseScreen = async (deps: MarketplaceDeps, tenantId: string, screen: ScreenDefinition, pluginId: string, actor: LifecycleActor): Promise<boolean> => {
+const releaseScreen = async (deps: ArtifactDeps, tenantId: string, screen: ScreenDefinition, pluginId: string, actor: LifecycleActor): Promise<boolean> => {
   const owners = removeOwner(ownerSet(screen), pluginId);
   if (owners.length === 0) {
     await deps.screenRepository.delete(tenantId, screen.id, deletionActor(actor));
@@ -213,7 +219,7 @@ const releaseScreen = async (deps: MarketplaceDeps, tenantId: string, screen: Sc
 };
 
 const releaseGeneratedArtifacts = async (
-  deps: MarketplaceDeps,
+  deps: ArtifactDeps,
   tenantId: string,
   pluginId: string,
   actor: LifecycleActor,
@@ -240,6 +246,49 @@ const releaseGeneratedArtifacts = async (
   }
 
   return { removedActions, removedWorkflows, removedScripts };
+};
+
+// --- API reutilizável para o fluxo de extensões instaladas (installed_extensions) -----------------
+
+/**
+ * Materializa os artefatos de DADOS de um pacote no tenant (telas, actions, workflows, scripts),
+ * deduplicando por `sourceId` os que já existem de outra extensão, e reconcilia as telas por chave
+ * (preservando registros e campos que o usuário adicionou). Idempotente: chamar de novo com uma versão
+ * mais recente REUSA os artefatos de mesmo `sourceId` (mantém os ids) e libera as telas que sumiram.
+ * Não depende do registro de instalação — serve à instalação-cópia baseada em `installed_extensions`.
+ */
+export const applyPackageArtifacts = async (
+  deps: ArtifactDeps,
+  plugin: MarketplacePlugin,
+  actor: LifecycleActor,
+): Promise<void> => {
+  const { tenantId, userId } = actor;
+  const pluginId = plugin.manifest.id;
+  const existingScreens = await deps.screenRepository.getAll(tenantId);
+  const { actionMap, screenKeyMap } = await materializeArtifacts(deps, plugin, tenantId, userId, existingScreens);
+  const nextKeys = await upsertPluginScreens(deps, plugin, tenantId, userId, screenKeyMap, actionMap, existingScreens);
+  for (const screen of existingScreens.filter((s) => ownerSet(s).includes(pluginId))) {
+    if (!nextKeys.has(screen.id)) await releaseScreen(deps, tenantId, screen, pluginId, actor);
+  }
+};
+
+/**
+ * Libera (refcount) todos os artefatos de dados que este pacote trouxe ao tenant. Cada artefato só é
+ * de fato apagado quando nenhuma outra extensão o usa; senão, apenas perde este plugin como dono. Os
+ * REGISTROS das telas apagadas ficam órfãos (a estrutura some, os dados ficam). Devolve o que apagou.
+ */
+export const releasePackageArtifacts = async (
+  deps: ArtifactDeps,
+  pluginId: string,
+  actor: LifecycleActor,
+): Promise<UninstallCounts> => {
+  const { tenantId } = actor;
+  let removedScreens = 0;
+  for (const screen of (await deps.screenRepository.getAll(tenantId)).filter((s) => ownerSet(s).includes(pluginId))) {
+    if (await releaseScreen(deps, tenantId, screen, pluginId, actor)) removedScreens += 1;
+  }
+  const { removedActions, removedWorkflows, removedScripts } = await releaseGeneratedArtifacts(deps, tenantId, pluginId, actor);
+  return { removedScreens, removedActions, removedWorkflows, removedScripts };
 };
 
 export type InstallMarketplacePluginUseCase = {

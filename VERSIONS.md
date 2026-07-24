@@ -11,6 +11,11 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [0.146.0] — 2026-07-24
+
+- Ao **instalar** uma extensão, agora tudo o que ela traz também é criado no seu escritório: telas, ações e automações passam a aparecer prontas para uso, não só as telas de código.
+- Ao **desinstalar**, esses itens são removidos automaticamente — e, se outra extensão também os usava, eles continuam onde estão. Os registros já cadastrados nas telas removidas são preservados.
+
 ## [0.145.0] — 2026-07-24
 
 - A tela de **Extensões** foi redesenhada e reorganizada em seções claras: **Minhas Extensões** (o que você cria e edita), **Instaladas** (o que está de fato ligado no escritório) e **Catálogo público** (o que dá para instalar de outros).

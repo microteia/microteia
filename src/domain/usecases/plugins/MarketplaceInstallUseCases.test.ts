@@ -14,6 +14,8 @@ import {
   makeInstallMarketplacePluginUseCase,
   makeUninstallMarketplacePluginUseCase,
   makeUpgradeMarketplacePluginUseCase,
+  applyPackageArtifacts,
+  releasePackageArtifacts,
 } from './MarketplaceInstallUseCases';
 
 class FakeInstallations implements IPluginInstallationRepository {
@@ -446,5 +448,45 @@ describe('pacote Vendas do catálogo (com action + workflow)', () => {
     expect(venda.viewActionIds).toEqual([action.id]);
     expect(action.workflowId).toBe(wf.id);
     expect(wf.ownerPluginId).toBe('com.curatino.vendas');
+  });
+});
+
+describe('applyPackageArtifacts / releasePackageArtifacts — fluxo de extensões instaladas', () => {
+  const dataPlugin: MarketplacePlugin = {
+    summary: 'Extensão com dados',
+    manifest: { id: 'com.acme.data', version: '1.0.0', kernel: '^1.0.0', name: 'Data' },
+    scripts: [{ templateId: 'scr-a', name: 'A', sourceTs: 'x', compiledJs: 'y', inputParams: [], outputParams: [] }],
+    workflows: [{ templateId: 'wf-a', name: 'A', eventName: 'workflow.called', version: 1, condition: { kind: 'AlwaysTrue' }, steps: [] }],
+    actions: [{ templateId: 'act-a', key: 'a', title: 'A', icon: 'apps', workflowId: 'wf-a', danger: false, enabled: true, order: 0 }],
+    screens: [{ key: 't', titleSingular: 'T', titlePlural: 'T', icon: 'apps', titleFieldKey: 'n', fields: [{ key: 'n', label: 'N', type: 'text', required: true, order: 0 }] }],
+  };
+
+  it('materializa telas + action + workflow + script sem depender do registro de instalação', async () => {
+    await applyPackageArtifacts(deps(), dataPlugin, actor);
+    expect(await screens.getAll('t1')).toHaveLength(1);
+    expect(await actions.getAll('t1')).toHaveLength(1);
+    expect(await workflows.getWorkflowDefinitions('t1')).toHaveLength(1);
+    expect(await scripts.getScripts('t1')).toHaveLength(1);
+  });
+
+  it('reaplicar a mesma versão é idempotente (reusa por sourceId, não duplica)', async () => {
+    const d = deps();
+    await applyPackageArtifacts(d, dataPlugin, actor);
+    await applyPackageArtifacts(d, dataPlugin, actor);
+    expect(await screens.getAll('t1')).toHaveLength(1);
+    expect(await workflows.getWorkflowDefinitions('t1')).toHaveLength(1);
+    expect(await actions.getAll('t1')).toHaveLength(1);
+    expect(await scripts.getScripts('t1')).toHaveLength(1);
+  });
+
+  it('release libera os quatro tipos e conta o que apagou', async () => {
+    const d = deps();
+    await applyPackageArtifacts(d, dataPlugin, actor);
+    const counts = await releasePackageArtifacts(d, 'com.acme.data', actor);
+    expect(counts).toEqual({ removedScreens: 1, removedActions: 1, removedWorkflows: 1, removedScripts: 1 });
+    expect(await screens.getAll('t1')).toEqual([]);
+    expect(await actions.getAll('t1')).toEqual([]);
+    expect(await workflows.getWorkflowDefinitions('t1')).toEqual([]);
+    expect(await scripts.getScripts('t1')).toEqual([]);
   });
 });

@@ -3,12 +3,29 @@ import { InstalledExtensionStoreContext, type InstallExtensionInput } from './us
 import { useTenant } from './useTenant';
 import { useAuth } from './useAuth';
 import { useDI } from '../infrastructure/di/useDI';
+import { applyPackageArtifacts, releasePackageArtifacts, type ArtifactDeps } from '../domain/usecases/plugins/MarketplaceInstallUseCases';
 import type { InstalledExtension } from '../domain/entities/InstalledExtension';
 
 export const InstalledExtensionStoreProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { currentTenant } = useTenant();
   const { user } = useAuth();
-  const { installedExtensionRepository } = useDI();
+  const {
+    installedExtensionRepository,
+    screenDefinitionRepository,
+    workflowDefinitionRepository,
+    scriptRepository,
+    actionRepository,
+  } = useDI();
+
+  const artifactDeps = useMemo<ArtifactDeps>(
+    () => ({
+      screenRepository: screenDefinitionRepository,
+      workflowRepository: workflowDefinitionRepository,
+      scriptRepository,
+      actionRepository,
+    }),
+    [screenDefinitionRepository, workflowDefinitionRepository, scriptRepository, actionRepository],
+  );
 
   const [installed, setInstalled] = useState<InstalledExtension[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -51,11 +68,15 @@ export const InstalledExtensionStoreProvider: React.FC<{ children: React.ReactNo
       installedAt: existing?.installedAt ?? new Date(),
       updatedAt: new Date(),
     };
+    // Materializa os artefatos de DADOS (telas/actions/workflows/scripts) da cópia no tenant, antes de
+    // gravar o registro — se falhar, nada fica "instalado". Idempotente: reinstalar/atualizar reusa por
+    // sourceId. Código-only (ex.: Kanban) = no-op barato. As telas/menus surgem via os stores de dados.
+    await applyPackageArtifacts(artifactDeps, input.package, { tenantId: currentTenant.id, userId: user.id, now: new Date() });
     await installedExtensionRepository.upsert(currentTenant.id, extension);
     setInstalled((prev) =>
       existing ? prev.map((e) => (e.id === id ? extension : e)) : [...prev, extension],
     );
-  }, [currentTenant, user, installed, installedExtensionRepository]);
+  }, [currentTenant, user, installed, installedExtensionRepository, artifactDeps]);
 
   const setActive = useCallback(async (id: string, active: boolean) => {
     if (!currentTenant) return;
@@ -64,10 +85,13 @@ export const InstalledExtensionStoreProvider: React.FC<{ children: React.ReactNo
   }, [currentTenant, installedExtensionRepository]);
 
   const uninstall = useCallback(async (id: string) => {
-    if (!currentTenant) return;
+    if (!currentTenant || !user) return;
+    // Libera (refcount) os artefatos de dados: só apaga o que nenhuma outra extensão usa. Os registros
+    // das telas removidas ficam órfãos (estrutura some, dados ficam). Depois remove o registro da cópia.
+    await releasePackageArtifacts(artifactDeps, id, { tenantId: currentTenant.id, userId: user.id, now: new Date() });
     await installedExtensionRepository.delete(currentTenant.id, id);
     setInstalled((prev) => prev.filter((e) => e.id !== id));
-  }, [currentTenant, installedExtensionRepository]);
+  }, [currentTenant, user, installedExtensionRepository, artifactDeps]);
 
   const value = useMemo(
     () => ({ installed, isLoading, install, setActive, uninstall, installedOf }),
