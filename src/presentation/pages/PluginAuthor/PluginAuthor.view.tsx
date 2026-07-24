@@ -1,18 +1,13 @@
 import React from 'react';
 import {
-  RiDownloadLine, RiCheckLine, RiLockLine, RiAddLine, RiDeleteBinLine, RiEyeLine, RiErrorWarningLine, RiSaveLine,
+  RiDownloadLine, RiCheckLine, RiLockLine, RiAddLine, RiDeleteBinLine, RiErrorWarningLine, RiSaveLine,
 } from 'react-icons/ri';
 import { Button } from '../../components/ui/Button';
 import { InfoBanner } from '../../components/ui/InfoBanner';
-import { CodeEditor } from '../../components/ui/CodeEditor';
-import { SearchSelect } from '../../components/ui/SearchSelect';
-import { ErrorBoundary } from '../../components/layout/ErrorBoundary/ErrorBoundary';
-import { ExtensionPreviewHost } from '../../shared/extensions/ExtensionPreviewHost';
 import { getScreenIcon } from '../../shared/screenIcons';
+import { CodeViewEditorModal } from './CodeViewEditorModal';
 import { usePluginAuthorViewModel, type ArtifactKind } from './PluginAuthor.viewmodel';
 import { S } from './PluginAuthor.styles';
-
-const swallowPreviewError = (): void => { /* erros de render aparecem no fallback do ErrorBoundary */ };
 
 const GROUP_ICON: Record<ArtifactKind, string> = {
   screens: 'layoutGrid',
@@ -120,69 +115,27 @@ export const PluginAuthorView: React.FC<{ tabKey?: string }> = ({ tabKey }) => {
               código e renderizada com segurança. Roda em outro escritório só depois de publicada no catálogo.
             </S.CodeEmpty>
           ) : (
-            <S.CodeLayout>
-              <S.ViewList>
-                {vm.codeViews.map((view) => (
-                  <S.ViewChip
-                    key={view.id}
-                    type="button"
-                    $selected={view.id === vm.selectedViewId}
-                    onClick={() => vm.selectView(view.id)}
+            <S.ViewGrid>
+              {vm.codeViews.map((view) => (
+                <S.ViewChip
+                  key={view.id}
+                  type="button"
+                  onClick={() => vm.openView(view.id)}
+                >
+                  <S.ItemIcon>{getScreenIcon(view.icon, 16)}</S.ItemIcon>
+                  <S.ItemLabel>{view.title}</S.ItemLabel>
+                  {view.hasError && <S.ViewWarn title="Não compila"><RiErrorWarningLine size={14} /></S.ViewWarn>}
+                  <S.ViewRemove
+                    role="button"
+                    aria-label="Remover tela"
+                    title="Remover tela"
+                    onClick={(e) => { e.stopPropagation(); vm.removeView(view.id); }}
                   >
-                    <S.ItemIcon>{getScreenIcon(view.icon, 16)}</S.ItemIcon>
-                    <S.ItemLabel>{view.title}</S.ItemLabel>
-                    {view.hasError && <S.ViewWarn title="Não compila"><RiErrorWarningLine size={14} /></S.ViewWarn>}
-                    <S.ViewRemove
-                      role="button"
-                      aria-label="Remover tela"
-                      title="Remover tela"
-                      onClick={(e) => { e.stopPropagation(); vm.removeView(view.id); }}
-                    >
-                      <RiDeleteBinLine size={14} />
-                    </S.ViewRemove>
-                  </S.ViewChip>
-                ))}
-              </S.ViewList>
-              {vm.selectedView ? (
-                <S.EditorPanel>
-                  <S.EditorFields>
-                    <S.Field>
-                      Título
-                      <S.Input value={vm.selectedView.title} onChange={(e) => vm.updateSelectedView({ title: e.target.value })} />
-                    </S.Field>
-                    <S.Field>
-                      Chave (menu e endereço)
-                      <S.Input value={vm.selectedView.key} onChange={(e) => vm.updateSelectedView({ key: e.target.value })} placeholder="minha-tela" />
-                    </S.Field>
-                    <S.Field>
-                      Ícone
-                      <SearchSelect options={vm.iconOptions} value={vm.selectedView.icon} onChange={(icon) => vm.updateSelectedView({ icon })} placeholder="Ícone" />
-                    </S.Field>
-                  </S.EditorFields>
-                  <S.EditorToolbar>
-                    <Button variant="ghost" size="sm" onClick={vm.togglePreview}>
-                      <RiEyeLine size={16} /> {vm.previewOpen ? 'Ocultar pré-visualização' : 'Pré-visualizar'}
-                    </Button>
-                    {vm.selectedView.error && <S.EditorError>Não compila: {vm.selectedView.error}</S.EditorError>}
-                  </S.EditorToolbar>
-                  <CodeEditor value={vm.selectedView.source} onChange={(source) => vm.updateSelectedView({ source })} minHeight="360px" />
-                  {vm.previewSource && (
-                    <S.PreviewBox>
-                      <S.PreviewLabel>Pré-visualização</S.PreviewLabel>
-                      <ErrorBoundary
-                        key={vm.previewSource}
-                        fallback={<InfoBanner message="Não foi possível renderizar a pré-visualização. Verifique o código." variant="warning" />}
-                        onError={swallowPreviewError}
-                      >
-                        <ExtensionPreviewHost source={vm.previewSource} />
-                      </ErrorBoundary>
-                    </S.PreviewBox>
-                  )}
-                </S.EditorPanel>
-              ) : (
-                <S.CodeEmpty>Selecione uma tela à esquerda para editar.</S.CodeEmpty>
-              )}
-            </S.CodeLayout>
+                    <RiDeleteBinLine size={14} />
+                  </S.ViewRemove>
+                </S.ViewChip>
+              ))}
+            </S.ViewGrid>
           )}
         </S.Section>
 
@@ -207,6 +160,14 @@ export const PluginAuthorView: React.FC<{ tabKey?: string }> = ({ tabKey }) => {
           </Button>
         </S.Footer>
       </S.Content>
+
+      <CodeViewEditorModal
+        isOpen={vm.editorOpen}
+        view={vm.selectedView}
+        iconOptions={vm.iconOptions}
+        onChange={vm.updateSelectedView}
+        onClose={vm.closeEditor}
+      />
     </S.Page>
   );
 };

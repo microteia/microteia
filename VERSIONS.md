@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [0.141.0] — 2026-07-24
+
+- O editor de telas de código agora abre em uma **janela ampla**, com o código de um lado e a **pré-visualização ao vivo do outro** — e você pode **arrastar a divisória** para dar mais espaço a um ou a outro, com muito mais conforto para programar.
+
 ## [0.140.0] — 2026-07-24
 
 - Suas extensões agora ficam guardadas em **Minhas Extensões**, na tela Extensões: ao criar uma extensão, ela é salva ali (privada e inativa) e você pode **editá-la quando quiser**, sem começar do zero.

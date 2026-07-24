@@ -266,32 +266,21 @@ export const S = {
     color: ${({ theme }) => theme.colors.textSecondary};
   `,
 
-  CodeLayout: styled.div`
+  ViewGrid: styled.div`
     display: grid;
-    grid-template-columns: minmax(180px, 240px) 1fr;
-    gap: ${({ theme }) => theme.spacing.lg};
-    align-items: start;
-
-    @media (max-width: 720px) {
-      grid-template-columns: 1fr;
-    }
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: ${({ theme }) => theme.spacing.sm};
   `,
 
-  ViewList: styled.div`
-    display: flex;
-    flex-direction: column;
-    gap: ${({ theme }) => theme.spacing.xs};
-  `,
-
-  ViewChip: styled.button<{ $selected?: boolean }>`
+  ViewChip: styled.button`
     display: flex;
     align-items: center;
     gap: ${({ theme }) => theme.spacing.sm};
     width: 100%;
     padding: ${({ theme }) => theme.spacing.sm};
-    border: 1px solid ${({ $selected, theme }) => ($selected ? theme.colors.primary : theme.colors.border)};
+    border: 1px solid ${({ theme }) => theme.colors.border};
     border-radius: ${({ theme }) => theme.borderRadius.sm};
-    background: ${({ $selected, theme }) => ($selected ? theme.colors.surfaceHover : theme.colors.surface)};
+    background: ${({ theme }) => theme.colors.surface};
     color: ${({ theme }) => theme.colors.text};
     text-align: left;
     cursor: pointer;
@@ -299,6 +288,7 @@ export const S = {
 
     &:hover {
       background: ${({ theme }) => theme.colors.surfaceHover};
+      border-color: ${({ theme }) => theme.colors.primary};
     }
   `,
 
@@ -319,47 +309,6 @@ export const S = {
     &:hover {
       color: ${({ theme }) => theme.colors.danger};
     }
-  `,
-
-  EditorPanel: styled.div`
-    display: flex;
-    flex-direction: column;
-    gap: ${({ theme }) => theme.spacing.md};
-    min-width: 0;
-  `,
-
-  EditorFields: styled.div`
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-    gap: ${({ theme }) => theme.spacing.md};
-  `,
-
-  EditorToolbar: styled.div`
-    display: flex;
-    align-items: center;
-    gap: ${({ theme }) => theme.spacing.md};
-    flex-wrap: wrap;
-  `,
-
-  EditorError: styled.span`
-    font-size: ${({ theme }) => theme.fontSizes.xs};
-    color: ${({ theme }) => theme.colors.warning};
-  `,
-
-  PreviewBox: styled.div`
-    border: 1px solid ${({ theme }) => theme.colors.border};
-    border-radius: ${({ theme }) => theme.borderRadius.md};
-    background: ${({ theme }) => theme.colors.background};
-    overflow: hidden;
-  `,
-
-  PreviewLabel: styled.div`
-    padding: ${({ theme }) => theme.spacing.xs} ${({ theme }) => theme.spacing.md};
-    border-bottom: 1px solid ${({ theme }) => theme.colors.border};
-    font-size: ${({ theme }) => theme.fontSizes.xs};
-    font-weight: 600;
-    color: ${({ theme }) => theme.colors.textSecondary};
-    background: ${({ theme }) => theme.colors.surface};
   `,
 
   Issues: styled.ul`

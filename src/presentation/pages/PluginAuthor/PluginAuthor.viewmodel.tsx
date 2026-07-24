@@ -98,11 +98,10 @@ export interface PluginAuthorViewModel {
   selectedView: CodeViewEditing | null;
   addView: () => void;
   removeView: (id: string) => void;
-  selectView: (id: string) => void;
+  openView: (id: string) => void;
   updateSelectedView: (patch: Partial<Omit<CodeViewEditing, 'error'>>) => void;
-  previewOpen: boolean;
-  togglePreview: () => void;
-  previewSource: string | null;
+  editorOpen: boolean;
+  closeEditor: () => void;
   selectedCount: number;
   issues: string[];
   canExport: boolean;
@@ -166,7 +165,7 @@ export const usePluginAuthorViewModel = (tabKey?: string): PluginAuthorViewModel
   const [views, setViews] = useState<CodeViewForm[]>(() =>
     (editingPackage?.views ?? []).map((v) => ({ uid: crypto.randomUUID(), key: v.key, title: v.title, icon: v.icon, source: v.source })));
   const [selectedViewId, setSelectedViewId] = useState<string | null>(null);
-  const [previewOpen, setPreviewOpen] = useState(false);
+  const [editorOpen, setEditorOpen] = useState(false);
 
   const iconOptions = useMemo<SearchSelectOption[]>(
     () => getScreenIconOptions().map((option) => ({ value: option.key, label: option.label })),
@@ -180,24 +179,28 @@ export const usePluginAuthorViewModel = (tabKey?: string): PluginAuthorViewModel
       return [...prev, { uid, key: `tela-${n}`, title: `Tela ${n}`, icon: 'layoutGrid', source: VIEW_STARTER }];
     });
     setSelectedViewId(uid);
-    setPreviewOpen(false);
+    setEditorOpen(true);
   }, []);
 
   const removeView = useCallback((id: string) => {
     setViews((prev) => prev.filter((v) => v.uid !== id));
-    setSelectedViewId((current) => (current === id ? null : current));
+    setSelectedViewId((current) => {
+      if (current !== id) return current;
+      setEditorOpen(false);
+      return null;
+    });
   }, []);
 
-  const selectView = useCallback((id: string) => {
+  const openView = useCallback((id: string) => {
     setSelectedViewId(id);
-    setPreviewOpen(false);
+    setEditorOpen(true);
   }, []);
+
+  const closeEditor = useCallback(() => setEditorOpen(false), []);
 
   const updateSelectedView = useCallback((patch: Partial<Omit<CodeViewEditing, 'error'>>) => {
     setViews((prev) => prev.map((v) => (v.uid === selectedViewId ? { ...v, ...patch } : v)));
   }, [selectedViewId]);
-
-  const togglePreview = useCallback(() => setPreviewOpen((open) => !open), []);
 
   const viewErrors = useMemo<Record<string, string | null>>(() => {
     const map: Record<string, string | null> = {};
@@ -218,8 +221,6 @@ export const usePluginAuthorViewModel = (tabKey?: string): PluginAuthorViewModel
     const found = views.find((v) => v.uid === selectedViewId);
     return found ? { key: found.key, title: found.title, icon: found.icon, source: found.source, error: viewErrors[found.uid] ?? null } : null;
   }, [views, selectedViewId, viewErrors]);
-
-  const previewSource = previewOpen && selectedView ? selectedView.source : null;
 
   const codeContributions = useMemo<Contribution[]>(
     () => views.flatMap((v, index) => {
@@ -420,11 +421,10 @@ export const usePluginAuthorViewModel = (tabKey?: string): PluginAuthorViewModel
     selectedView,
     addView,
     removeView,
-    selectView,
+    openView,
     updateSelectedView,
-    previewOpen,
-    togglePreview,
-    previewSource,
+    editorOpen,
+    closeEditor,
     selectedCount,
     issues,
     canExport,
