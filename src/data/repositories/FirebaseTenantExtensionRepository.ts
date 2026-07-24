@@ -24,6 +24,8 @@ const mapExtension = (id: string, tenantId: string, d: Record<string, unknown>):
   active: Boolean(d.active),
   package: (d.package as MarketplacePlugin) ?? { manifest: { id, version: '0.0.0', kernel: '*', name: id }, summary: '', workflows: [] },
   createdBy: (d.createdBy as string | undefined) ?? '',
+  createdByName: (d.createdByName as string | undefined) ?? undefined,
+  createdByPhotoURL: (d.createdByPhotoURL as string | null | undefined) ?? null,
   createdAt: toDate(d.createdAt),
   updatedAt: toDate(d.updatedAt),
 });
@@ -38,13 +40,18 @@ export class FirebaseTenantExtensionRepository implements ITenantExtensionReposi
   }
 
   async upsert(tenantId: string, extension: TenantExtension): Promise<void> {
-    await setDoc(doc(extensionsRef(tenantId), extension.id), pruneUndefined({
+    // Só o pacote passa por pruneUndefined; os carimbos do Firestore (Timestamp/serverTimestamp) NÃO
+    // podem ser percorridos por pruneUndefined — isso destruía o sentinel e gravava um mapa no lugar
+    // da data. `setDoc` sobrescreve o doc (cria ou atualiza), então salvar de novo é idempotente.
+    await setDoc(doc(extensionsRef(tenantId), extension.id), {
       active: extension.active,
-      package: extension.package,
+      package: pruneUndefined(extension.package),
       createdBy: extension.createdBy,
+      createdByName: extension.createdByName ?? null,
+      createdByPhotoURL: extension.createdByPhotoURL ?? null,
       createdAt: Timestamp.fromDate(extension.createdAt),
       updatedAt: serverTimestamp(),
-    }));
+    });
   }
 
   async setActive(tenantId: string, id: string, active: boolean): Promise<void> {

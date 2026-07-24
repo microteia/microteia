@@ -1,8 +1,12 @@
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
-import { TenantExtensionStoreContext } from './useTenantExtensions';
+import { TenantExtensionStoreContext, type ImportExtensionResult } from './useTenantExtensions';
 import { useTenant } from './useTenant';
 import { useAuth } from './useAuth';
 import { useDI } from '../infrastructure/di/useDI';
+import { parsePackage } from '../domain/usecases/plugins/packageSerialization';
+import { validatePackage } from '../domain/usecases/plugins/pluginReferences';
+import { validatePluginManifest } from '../domain/schema/plugin/pluginManifest';
+import { KERNEL_VERSION } from '../domain/schema/plugin/kernelVersion';
 import type { TenantExtension } from '../domain/entities/TenantExtension';
 import type { MarketplacePlugin } from '../domain/entities/MarketplacePlugin';
 
@@ -43,6 +47,8 @@ export const TenantExtensionStoreProvider: React.FC<{ children: React.ReactNode 
       active: existing?.active ?? false,
       package: pkg,
       createdBy: existing?.createdBy ?? user.id,
+      createdByName: existing?.createdByName ?? user.displayName,
+      createdByPhotoURL: existing?.createdByPhotoURL ?? user.photoURL,
       createdAt: existing?.createdAt ?? new Date(),
       updatedAt: new Date(),
     };
@@ -51,6 +57,19 @@ export const TenantExtensionStoreProvider: React.FC<{ children: React.ReactNode 
       existing ? prev.map((e) => (e.id === id ? extension : e)) : [...prev, extension],
     );
   }, [currentTenant, user, extensions, tenantExtensionRepository]);
+
+  const importExtension = useCallback(async (text: string): Promise<ImportExtensionResult> => {
+    const parsed = parsePackage(text);
+    if (!parsed.ok) return { ok: false, error: parsed.error };
+    const pkg = parsed.package;
+    const manifestErrors = validatePluginManifest(pkg.manifest, { kernelVersion: KERNEL_VERSION, validateContributions: false });
+    const refErrors = validatePackage(pkg);
+    if (manifestErrors.length > 0 || refErrors.length > 0) {
+      return { ok: false, error: manifestErrors[0]?.message ?? refErrors[0].message };
+    }
+    await saveExtension(pkg);
+    return { ok: true, name: pkg.manifest.name || pkg.manifest.id };
+  }, [saveExtension]);
 
   const setActive = useCallback(async (id: string, active: boolean) => {
     if (!currentTenant) return;
@@ -65,8 +84,8 @@ export const TenantExtensionStoreProvider: React.FC<{ children: React.ReactNode 
   }, [currentTenant, tenantExtensionRepository]);
 
   const value = useMemo(
-    () => ({ extensions, isLoading, saveExtension, setActive, removeExtension, extensionOf }),
-    [extensions, isLoading, saveExtension, setActive, removeExtension, extensionOf],
+    () => ({ extensions, isLoading, saveExtension, importExtension, setActive, removeExtension, extensionOf }),
+    [extensions, isLoading, saveExtension, importExtension, setActive, removeExtension, extensionOf],
   );
 
   return <TenantExtensionStoreContext.Provider value={value}>{children}</TenantExtensionStoreContext.Provider>;

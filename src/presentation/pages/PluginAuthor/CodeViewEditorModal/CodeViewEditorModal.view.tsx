@@ -44,7 +44,7 @@ export const CodeViewEditorModal: React.FC<CodeViewEditorModalProps> = ({ isOpen
       <S.Split>
         <SplitPane
           showRight={vm.previewOpen}
-          left={<CodeEditor value={view.source} onChange={(source) => onChange({ source })} minHeight="100%" />}
+          left={<CodeEditor value={view.source} onChange={(source) => onChange({ source })} minHeight="calc(62vh - 44px)" />}
           right={(
             <S.PreviewPane>
               <ErrorBoundary

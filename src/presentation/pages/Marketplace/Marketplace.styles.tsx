@@ -75,6 +75,34 @@ export const S = {
     margin-top: -${({ theme }) => theme.spacing.xs};
   `,
 
+  Author: styled.div`
+    display: flex;
+    align-items: center;
+    gap: ${({ theme }) => theme.spacing.xs};
+    font-size: ${({ theme }) => theme.fontSizes.xs};
+    color: ${({ theme }) => theme.colors.textSecondary};
+  `,
+
+  AuthorPhoto: styled.img`
+    width: 20px;
+    height: 20px;
+    border-radius: ${({ theme }) => theme.borderRadius.full};
+    object-fit: cover;
+  `,
+
+  AuthorInitial: styled.span`
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    border-radius: ${({ theme }) => theme.borderRadius.full};
+    background: ${({ theme }) => theme.colors.surfaceHover};
+    color: ${({ theme }) => theme.colors.textSecondary};
+    font-size: 10px;
+    font-weight: 600;
+  `,
+
   Content: styled.div`
     flex: 1;
     overflow-y: auto;

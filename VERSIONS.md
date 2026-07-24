@@ -11,6 +11,13 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [0.142.0] — 2026-07-24
+
+- O editor de telas de código agora **já abre com uma boa altura**, sem precisar redimensionar para começar a escrever.
+- Corrigido um erro ao **salvar novamente** a mesma extensão; agora, ao salvar, você volta para a tela de Extensões e vê a extensão na lista.
+- **Importar um .json** agora cria uma extensão **privada em Minhas Extensões**, da qual você vira o dono — pode editar, ativar no seu escritório e publicar, igual a uma que você criou.
+- As extensões em Minhas Extensões passam a mostrar **quem as criou** (nome e foto), como acontece nos Workflows.
+
 ## [0.141.0] — 2026-07-24
 
 - O editor de telas de código agora abre em uma **janela ampla**, com o código de um lado e a **pré-visualização ao vivo do outro** — e você pode **arrastar a divisória** para dar mais espaço a um ou a outro, com muito mais conforto para programar.

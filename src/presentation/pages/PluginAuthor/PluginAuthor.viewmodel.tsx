@@ -1,5 +1,6 @@
 import { useCallback, useMemo, useState } from 'react';
 import { useTenantExtensions } from '../../../stores/useTenantExtensions';
+import { useWorkspace } from '../../../stores/useWorkspace';
 import { useScreenDefinitions } from '../../../stores/useScreenDefinitions';
 import { useActions } from '../../../stores/useActions';
 import { useWorkflowStore } from '../../../stores/useWorkflowStore';
@@ -130,6 +131,7 @@ const EDIT_PREFIX = 'plugin-author:';
 
 export const usePluginAuthorViewModel = (tabKey?: string): PluginAuthorViewModel => {
   const { saveExtension, extensionOf } = useTenantExtensions();
+  const { openTab } = useWorkspace();
   const { definitions } = useScreenDefinitions();
   const { actions } = useActions();
   const { workflows } = useWorkflowStore();
@@ -401,12 +403,14 @@ export const usePluginAuthorViewModel = (tabKey?: string): PluginAuthorViewModel
     try {
       await saveExtension(pkg);
       notify(`${manifest.name || manifest.id} salvo em Minhas Extensões.`, 'success');
-    } catch {
-      notify('Não foi possível salvar a extensão.', 'error');
+      openTab('marketplace');
+    } catch (err) {
+      console.error('[plugin-author] falha ao salvar extensão:', err);
+      notify(`Não foi possível salvar: ${err instanceof Error ? err.message : String(err)}`, 'error');
     } finally {
       setBusy(false);
     }
-  }, [canSave, saveExtension, pkg, manifest.name, manifest.id, notify]);
+  }, [canSave, saveExtension, pkg, manifest.name, manifest.id, notify, openTab]);
 
   return {
     canManage,

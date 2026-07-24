@@ -57,6 +57,14 @@ export const MarketplaceView: React.FC = () => {
                     <S.StatusBadge $on={ext.active}>{ext.active ? 'Ativa' : 'Inativa'}</S.StatusBadge>
                   </S.CardHead>
                   <S.Summary>{ext.summary}</S.Summary>
+                  {ext.authorName && (
+                    <S.Author>
+                      {ext.authorPhotoURL
+                        ? <S.AuthorPhoto src={ext.authorPhotoURL} alt={ext.authorName} />
+                        : <S.AuthorInitial>{ext.authorName.charAt(0).toUpperCase()}</S.AuthorInitial>}
+                      Criada por {ext.authorName}
+                    </S.Author>
+                  )}
                   <S.Meta>
                     <span>v{ext.version}</span>
                     {ext.hasCode && <S.Origin>Com código</S.Origin>}

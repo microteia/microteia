@@ -15,6 +15,9 @@ export interface TenantExtension {
   active: boolean;
   package: MarketplacePlugin;
   createdBy: string;
+  /** Nome e foto do criador, denormalizados para exibição na lista (modelo dos Workflows Públicos). */
+  createdByName?: string;
+  createdByPhotoURL?: string | null;
   createdAt: Date;
   updatedAt: Date;
 }

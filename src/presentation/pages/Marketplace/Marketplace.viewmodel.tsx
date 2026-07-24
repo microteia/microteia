@@ -17,6 +17,8 @@ export interface MyExtensionCard {
   active: boolean;
   hasCode: boolean;
   published: boolean;
+  authorName: string | null;
+  authorPhotoURL: string | null;
 }
 
 export interface MarketplaceCard {
@@ -59,9 +61,9 @@ export interface MarketplaceViewModel {
 }
 
 export const useMarketplaceViewModel = (): MarketplaceViewModel => {
-  const { catalog, installations, installationOf, sourceOf, canPublish, install, uninstall, setEnabled, importPackage, publish, unpublish } =
+  const { catalog, installations, installationOf, sourceOf, canPublish, install, uninstall, setEnabled, publish, unpublish } =
     usePluginStore();
-  const { extensions, setActive: setExtensionActive, removeExtension } = useTenantExtensions();
+  const { extensions, importExtension, setActive: setExtensionActive, removeExtension } = useTenantExtensions();
   const { host, result } = useKernel();
   const { tenantRole } = useTenant();
   const { userRole } = useAuth();
@@ -216,6 +218,8 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
       active: extension.active,
       hasCode: (extension.package.views?.length ?? 0) > 0,
       published: sourceOf(extension.id) === 'published',
+      authorName: extension.createdByName ?? null,
+      authorPhotoURL: extension.createdByPhotoURL ?? null,
     })),
     [extensions, sourceOf],
   );
@@ -265,17 +269,16 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
     if (!file) return;
     setBusyPluginId('__import__');
     try {
-      const result = await importPackage(await file.text());
-      if (result.ok) {
-        notify(`${result.name} ${result.action === 'upgraded' ? 'atualizado' : 'instalado'}.`, 'success');
-        if (result.note) notify(result.note, 'warning');
-      } else notify(`Não foi possível importar: ${result.error}`, 'error');
+      // Importar = criar um RASCUNHO privado em Minhas Extensões (você vira o dono, edita/ativa/publica).
+      const result = await importExtension(await file.text());
+      if (result.ok) notify(`${result.name} importado para Minhas Extensões.`, 'success');
+      else notify(`Não foi possível importar: ${result.error}`, 'error');
     } catch (err) {
       notify(`Não foi possível importar: ${err instanceof Error ? err.message : String(err)}`, 'error');
     } finally {
       setBusyPluginId(null);
     }
-  }, [importPackage, notify]);
+  }, [importExtension, notify]);
 
   return {
     cards,
