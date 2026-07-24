@@ -11,6 +11,12 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [0.139.0] — 2026-07-23
+
+- A tela **Criar extensão** agora permite montar **telas de código**: escreva a sua própria tela num editor, com pré-visualização ao vivo, e inclua-a na extensão.
+- Cada tela ganha título, ícone e um endereço próprio no menu; a extensão gerada já sai pronta para baixar e, depois de publicada, aparece como uma tela nova em qualquer escritório.
+- O editor avisa na hora se o código não compila, para você corrigir antes de exportar.
+
 ## [0.138.0] — 2026-07-23
 
 - Nova visão **Kanban de Processos**, disponível como extensão: um quadro onde cada coluna é uma Fase e cada processo aparece na coluna da sua fase atual.

@@ -3,6 +3,7 @@ import type {
   MarketplacePlugin,
   ScreenModuleTemplate,
   ScriptModuleTemplate,
+  ViewModuleTemplate,
   WorkflowModuleTemplate,
 } from '../../entities/MarketplacePlugin';
 import type { PluginManifest } from '../../schema/plugin/pluginManifest';
@@ -21,6 +22,8 @@ export interface BuildPackageInput extends PackageSelection {
   manifest: PluginManifest;
   summary: string;
   overview?: unknown;
+  /** Views de código (extensão trusted). As contribuições `ui.page`/`ui.nav` são geradas na autoria. */
+  views?: ViewModuleTemplate[];
 }
 
 const stripUndefined = <T>(value: T): T => {
@@ -107,5 +110,6 @@ export const buildPackage = (input: BuildPackageInput): MarketplacePlugin => {
     ...(screens.length > 0 ? { screens } : {}),
     ...(actions.length > 0 ? { actions } : {}),
     ...(scripts.length > 0 ? { scripts } : {}),
+    ...((input.views?.length ?? 0) > 0 ? { views: input.views } : {}),
   };
 };

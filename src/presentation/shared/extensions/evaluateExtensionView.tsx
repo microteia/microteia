@@ -42,6 +42,23 @@ const compile = (source: string): ExtensionPageComponent => {
   return exported as ExtensionPageComponent;
 };
 
+export type CompileExtensionViewResult =
+  | { ok: true; Component: ExtensionPageComponent }
+  | { ok: false; error: string };
+
+/**
+ * Compila e avalia a fonte, devolvendo o resultado (usado pela autoria para validar/pré-visualizar).
+ * Não memoiza nem gera fallback — o chamador decide o que fazer com o erro. Não pega erros de
+ * RENDER (esses só aparecem ao montar o componente), só de compilação e carga do módulo.
+ */
+export const compileExtensionView = (source: string): CompileExtensionViewResult => {
+  try {
+    return { ok: true, Component: compile(source) };
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : String(err) };
+  }
+};
+
 const cache = new Map<string, { source: string; Component: ExtensionPageComponent }>();
 
 /**
@@ -59,12 +76,8 @@ export const evaluateExtensionView = (cacheKey: string, source: string): Extensi
   const cached = cache.get(cacheKey);
   if (cached && cached.source === source) return cached.Component;
 
-  let Component: ExtensionPageComponent;
-  try {
-    Component = compile(source);
-  } catch (err) {
-    Component = makeFallback(err instanceof Error ? err.message : String(err));
-  }
+  const result = compileExtensionView(source);
+  const Component = result.ok ? result.Component : makeFallback(result.error);
   cache.set(cacheKey, { source, Component });
   return Component;
 };

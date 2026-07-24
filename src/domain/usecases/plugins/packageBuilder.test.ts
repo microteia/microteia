@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { buildPackage } from './packageBuilder';
 import { validatePackage } from './pluginReferences';
+import { serializePackage, parsePackage } from './packageSerialization';
 import type { ScreenDefinition, ActionDefinition } from '../../entities';
 import type { Script } from '../../entities/Script';
 import type { WorkflowDefinition } from '../../entities/Workflow';
@@ -59,6 +60,23 @@ describe('buildPackage', () => {
     expect(pkg.actions?.[0].templateId).toBe('act-1');
     expect(pkg.actions?.[0].workflowId).toBe('wf-1');
     expect(pkg.workflows[0].templateId).toBe('wf-1');
+  });
+
+  it('inclui views de código e sobrevive ao round-trip serialize→parse', () => {
+    const pkg = buildPackage({
+      ...empty, manifest, summary: 's',
+      views: [{ key: 'kanban', title: 'Kanban', icon: 'layoutGrid', source: 'export default () => null;' }],
+    });
+    expect(pkg.views).toHaveLength(1);
+    expect(pkg.views?.[0]).toMatchObject({ key: 'kanban', source: 'export default () => null;' });
+
+    const parsed = parsePackage(serializePackage(pkg));
+    expect(parsed.ok).toBe(true);
+    if (parsed.ok) expect(parsed.package.views?.[0].source).toBe('export default () => null;');
+  });
+
+  it('sem views, a chave "views" é omitida do pacote', () => {
+    expect(buildPackage({ ...empty, manifest, summary: 's' }).views).toBeUndefined();
   });
 
   it('remove campos de sistema e ownerPluginId (inclusive dos campos da tela)', () => {
