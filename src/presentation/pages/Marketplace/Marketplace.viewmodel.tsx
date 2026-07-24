@@ -1,6 +1,7 @@
 import { useCallback, useMemo, useState } from 'react';
 import { usePluginStore } from '../../../stores/usePluginStore';
 import { useTenantExtensions } from '../../../stores/useTenantExtensions';
+import { usePublicExtensions } from '../../../stores/usePublicExtensions';
 import { useTenant } from '../../../stores/useTenant';
 import { useAuth } from '../../../stores/useAuth';
 import { useNotification } from '../../../stores/useNotification';
@@ -8,6 +9,7 @@ import { useKernel } from '../../../stores/useKernel';
 import { useWorkspace } from '../../../stores/useWorkspace';
 import { serializePackage } from '../../../domain/usecases/plugins/packageSerialization';
 import type { MarketplacePlugin } from '../../../domain/entities/MarketplacePlugin';
+import type { PublicExtensionStatus } from '../../../domain/entities/PublicExtension';
 
 export interface MyExtensionCard {
   id: string;
@@ -16,8 +18,20 @@ export interface MyExtensionCard {
   version: string;
   active: boolean;
   hasCode: boolean;
-  published: boolean;
+  /** Status no catálogo público: null = privada (não publicada). */
+  publicStatus: PublicExtensionStatus | null;
   authorName: string | null;
+  authorPhotoURL: string | null;
+}
+
+export interface PublicCard {
+  domain: string;
+  name: string;
+  summary: string;
+  version: string;
+  hasCode: boolean;
+  status: PublicExtensionStatus;
+  authorName: string;
   authorPhotoURL: string | null;
 }
 
@@ -37,8 +51,11 @@ export interface MarketplaceCard {
 export interface MarketplaceViewModel {
   cards: MarketplaceCard[];
   myExtensions: MyExtensionCard[];
+  publicCards: PublicCard[];
+  pendingCards: PublicCard[];
   canManage: boolean;
   canPublish: boolean;
+  canModerate: boolean;
   busyPluginId: string | null;
   detailPlugin: MarketplacePlugin | null;
   removeTarget: { id: string; name: string } | null;
@@ -58,12 +75,16 @@ export interface MarketplaceViewModel {
   requestRemoveMyExtension: (id: string) => void;
   confirmRemoveMyExtension: () => Promise<void>;
   cancelRemoveMyExtension: () => void;
+  approvePublic: (domain: string) => Promise<void>;
+  deprecatePublic: (domain: string) => Promise<void>;
+  rejectPublic: (domain: string) => Promise<void>;
 }
 
 export const useMarketplaceViewModel = (): MarketplaceViewModel => {
   const { catalog, installations, installationOf, sourceOf, canPublish, install, uninstall, setEnabled, publish, unpublish } =
     usePluginStore();
   const { extensions, importExtension, setActive: setExtensionActive, removeExtension } = useTenantExtensions();
+  const { publicExtensions, publish: publishPublic, approve, deprecate, unpublish: unpublishPublic, publicOf } = usePublicExtensions();
   const { host, result } = useKernel();
   const { tenantRole } = useTenant();
   const { userRole } = useAuth();
@@ -217,11 +238,45 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
       version: extension.package.manifest.version,
       active: extension.active,
       hasCode: (extension.package.views?.length ?? 0) > 0,
-      published: sourceOf(extension.id) === 'published',
+      publicStatus: publicOf(extension.id)?.status ?? null,
       authorName: extension.createdByName ?? null,
       authorPhotoURL: extension.createdByPhotoURL ?? null,
     })),
-    [extensions, sourceOf],
+    [extensions, publicOf],
+  );
+
+  const publicCards = useMemo<PublicCard[]>(
+    () => publicExtensions
+      .filter((p) => p.status === 'approved')
+      .map((p) => ({
+        domain: p.domain,
+        name: p.package.manifest.name,
+        summary: p.package.summary,
+        version: p.version,
+        hasCode: p.hasCode,
+        status: p.status,
+        authorName: p.ownerName,
+        authorPhotoURL: p.ownerPhotoURL,
+      })),
+    [publicExtensions],
+  );
+
+  const pendingCards = useMemo<PublicCard[]>(
+    () => (canPublish
+      ? publicExtensions
+        .filter((p) => p.status === 'pending')
+        .map((p) => ({
+          domain: p.domain,
+          name: p.package.manifest.name,
+          summary: p.package.summary,
+          version: p.version,
+          hasCode: p.hasCode,
+          status: p.status,
+          authorName: p.ownerName,
+          authorPhotoURL: p.ownerPhotoURL,
+        }))
+      : []),
+    [publicExtensions, canPublish],
   );
 
   const editMyExtension = useCallback((id: string) => openTab(`plugin-author:${id}`), [openTab]);
@@ -246,8 +301,33 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
 
   const publishMyExtension = useCallback(async (id: string) => {
     const extension = extensions.find((e) => e.id === id);
-    if (extension) await publishPlugin(extension.package);
-  }, [extensions, publishPlugin]);
+    if (!extension) return;
+    setBusyPluginId(id);
+    try {
+      const result = await publishPublic(extension.package);
+      if (!result.ok) notify(result.error, 'error');
+      else if (result.status === 'pending') {
+        notify('Enviada para aprovação: uma extensão com código só fica pública depois de aprovada por um administrador do sistema.', 'warning');
+      } else notify('Publicada no catálogo.', 'success');
+    } catch (err) {
+      notify(`Não foi possível publicar: ${err instanceof Error ? err.message : String(err)}`, 'error');
+    } finally {
+      setBusyPluginId(null);
+    }
+  }, [extensions, publishPublic, notify]);
+
+  const approvePublic = useCallback(
+    (domain: string) => run(domain, async () => { await approve(domain); return null; }, 'Extensão aprovada.'),
+    [run, approve],
+  );
+  const deprecatePublic = useCallback(
+    (domain: string) => run(domain, async () => { await deprecate(domain); return null; }, 'Extensão marcada como obsoleta.'),
+    [run, deprecate],
+  );
+  const rejectPublic = useCallback(
+    (domain: string) => run(domain, async () => { await unpublishPublic(domain); return null; }, 'Publicação recusada e removida do catálogo.'),
+    [run, unpublishPublic],
+  );
 
   const requestRemoveMyExtension = useCallback((id: string) => {
     const extension = extensions.find((e) => e.id === id);
@@ -283,8 +363,11 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
   return {
     cards,
     myExtensions,
+    publicCards,
+    pendingCards,
     canManage,
     canPublish,
+    canModerate: canPublish,
     busyPluginId,
     detailPlugin,
     removeTarget,
@@ -304,5 +387,8 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
     requestRemoveMyExtension,
     confirmRemoveMyExtension,
     cancelRemoveMyExtension,
+    approvePublic,
+    deprecatePublic,
+    rejectPublic,
   };
 };

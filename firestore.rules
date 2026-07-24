@@ -775,5 +775,36 @@ service cloud.firestore {
       allow write: if isSystemAdmin();
     }
 
+    // Catálogo global de extensões publicadas por usuários (modelo npm/VS Code). É a FRONTEIRA de
+    // integridade da publicação/aprovação/imutabilidade — o app não usa Cloud Function aqui.
+    // - Qualquer autenticado lê (é o catálogo "Públicas").
+    // - Publicar (create): SYSTEM, ou admin do próprio escritório (ownerTenantId), e o status precisa
+    //   bater com o código: extensão COM código entra 'pending' (aguarda aprovação do SYSTEM); SEM
+    //   código entra 'approved'. create só existe quando o doc não existe → domínio único global.
+    // - Atualizar (update): SYSTEM (aprovar/obsoletar/qualquer), ou o dono, mantendo o mesmo
+    //   ownerTenantId, com version DIFERENTE (imutabilidade: não sobrescreve a mesma versão) e o
+    //   mesmo invariante de status por código (mexer numa de código volta para 'pending').
+    // - Apagar: só SYSTEM (usuário usa 'deprecated', não apaga do catálogo).
+    match /public_extensions/{domain} {
+      function pkgHasCode() {
+        return ('views' in request.resource.data.package)
+          && request.resource.data.package.views.size() > 0;
+      }
+      function statusMatchesCode() {
+        return pkgHasCode()
+          ? request.resource.data.status == 'pending'
+          : request.resource.data.status == 'approved';
+      }
+      allow read: if request.auth != null;
+      allow create: if isSystemAdmin()
+        || (isTenantAdmin(request.resource.data.ownerTenantId) && statusMatchesCode());
+      allow update: if isSystemAdmin()
+        || (isTenantAdmin(resource.data.ownerTenantId)
+            && request.resource.data.ownerTenantId == resource.data.ownerTenantId
+            && request.resource.data.version != resource.data.version
+            && statusMatchesCode());
+      allow delete: if isSystemAdmin();
+    }
+
   }
 }

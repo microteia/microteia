@@ -6,7 +6,17 @@ import { Modal } from '../../components/ui/Modal';
 import { ConfirmModal } from '../../components/ui/ConfirmModal';
 import { WidgetRenderer } from '../../components/ui/WidgetRenderer';
 import { useMarketplaceViewModel } from './Marketplace.viewmodel';
+import type { PublicExtensionStatus } from '../../../domain/entities/PublicExtension';
 import { S } from './Marketplace.styles';
+
+const publicStatusLabel = (status: PublicExtensionStatus | null): string => {
+  switch (status) {
+    case 'pending': return 'Em análise';
+    case 'approved': return 'Publicada';
+    case 'deprecated': return 'Obsoleta';
+    default: return 'Privada';
+  }
+};
 
 export const MarketplaceView: React.FC = () => {
   const vm = useMarketplaceViewModel();
@@ -68,7 +78,7 @@ export const MarketplaceView: React.FC = () => {
                   <S.Meta>
                     <span>v{ext.version}</span>
                     {ext.hasCode && <S.Origin>Com código</S.Origin>}
-                    <S.Origin>{ext.published ? 'Publicada' : 'Privada'}</S.Origin>
+                    <S.Origin>{publicStatusLabel(ext.publicStatus)}</S.Origin>
                   </S.Meta>
                   <S.Actions>
                     <Button variant="secondary" size="sm" disabled={busy} onClick={() => vm.editMyExtension(ext.id)}>
@@ -80,29 +90,94 @@ export const MarketplaceView: React.FC = () => {
                     <Button variant="ghost" size="sm" disabled={busy} onClick={() => vm.downloadMyExtension(ext.id)}>
                       <RiDownloadLine size={16} /> Baixar
                     </Button>
+                    <Button variant="ghost" size="sm" disabled={busy} onClick={() => vm.publishMyExtension(ext.id)}>
+                      <RiUploadLine size={16} /> {ext.publicStatus ? 'Publicar atualização' : 'Publicar'}
+                    </Button>
                     <Button variant="danger" size="sm" disabled={busy} onClick={() => vm.requestRemoveMyExtension(ext.id)}>
                       Excluir
                     </Button>
                   </S.Actions>
-                  {vm.canPublish && (
+                </S.Card>
+              );
+            })}
+          </>
+        )}
+
+        {vm.canModerate && vm.pendingCards.length > 0 && (
+          <>
+            <S.GroupTitle>Moderação (aguardando aprovação)</S.GroupTitle>
+            <S.GroupHint>Extensões com código publicadas por escritórios, à espera de aprovação para virarem públicas.</S.GroupHint>
+            {vm.pendingCards.map((pub) => {
+              const busy = vm.busyPluginId === pub.domain;
+              return (
+                <S.Card key={pub.domain}>
+                  <S.CardHead>
+                    <S.CardName>{pub.name}</S.CardName>
+                    <S.StatusBadge $on={false}>Em análise</S.StatusBadge>
+                  </S.CardHead>
+                  <S.Summary>{pub.summary}</S.Summary>
+                  <S.Author>
+                    {pub.authorPhotoURL
+                      ? <S.AuthorPhoto src={pub.authorPhotoURL} alt={pub.authorName} />
+                      : <S.AuthorInitial>{pub.authorName.charAt(0).toUpperCase()}</S.AuthorInitial>}
+                    Publicada por {pub.authorName}
+                  </S.Author>
+                  <S.Meta>
+                    <span>v{pub.version}</span>
+                    {pub.hasCode && <S.Origin>Com código</S.Origin>}
+                    <S.Origin>{pub.domain}</S.Origin>
+                  </S.Meta>
+                  <S.Actions>
+                    <Button variant="primary" size="sm" disabled={busy} onClick={() => vm.approvePublic(pub.domain)}>
+                      Aprovar
+                    </Button>
+                    <Button variant="danger" size="sm" disabled={busy} onClick={() => vm.rejectPublic(pub.domain)}>
+                      Recusar
+                    </Button>
+                  </S.Actions>
+                </S.Card>
+              );
+            })}
+          </>
+        )}
+
+        {vm.publicCards.length > 0 && (
+          <>
+            <S.GroupTitle>Públicas</S.GroupTitle>
+            <S.GroupHint>Extensões publicadas e aprovadas, disponíveis para todos os escritórios.</S.GroupHint>
+            {vm.publicCards.map((pub) => {
+              const busy = vm.busyPluginId === pub.domain;
+              return (
+                <S.Card key={pub.domain}>
+                  <S.CardHead>
+                    <S.CardName>{pub.name}</S.CardName>
+                    <S.StatusBadge $on>Publicada</S.StatusBadge>
+                  </S.CardHead>
+                  <S.Summary>{pub.summary}</S.Summary>
+                  <S.Author>
+                    {pub.authorPhotoURL
+                      ? <S.AuthorPhoto src={pub.authorPhotoURL} alt={pub.authorName} />
+                      : <S.AuthorInitial>{pub.authorName.charAt(0).toUpperCase()}</S.AuthorInitial>}
+                    Publicada por {pub.authorName}
+                  </S.Author>
+                  <S.Meta>
+                    <span>v{pub.version}</span>
+                    {pub.hasCode && <S.Origin>Com código</S.Origin>}
+                  </S.Meta>
+                  {vm.canModerate && (
                     <S.Actions>
-                      {!ext.published ? (
-                        <Button variant="ghost" size="sm" disabled={busy} onClick={() => vm.publishMyExtension(ext.id)}>
-                          Publicar no catálogo
-                        </Button>
-                      ) : (
-                        <Button variant="ghost" size="sm" disabled={busy} onClick={() => vm.unpublish(ext.id)}>
-                          Despublicar
-                        </Button>
-                      )}
+                      <Button variant="ghost" size="sm" disabled={busy} onClick={() => vm.deprecatePublic(pub.domain)}>
+                        Marcar obsoleta
+                      </Button>
                     </S.Actions>
                   )}
                 </S.Card>
               );
             })}
-            <S.GroupTitle>Catálogo</S.GroupTitle>
           </>
         )}
+
+        {vm.cards.length > 0 && <S.GroupTitle>Exemplos</S.GroupTitle>}
 
         {vm.cards.map(({ plugin, installed, enabled, installedVersion, workflowCount, published, imported, loadError }) => {
           const busy = vm.busyPluginId === plugin.manifest.id;

@@ -11,6 +11,13 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [0.143.0] — 2026-07-24
+
+- Agora **qualquer escritório pode publicar** suas extensões no catálogo, direto de Minhas Extensões. Extensões **sem código** ficam públicas na hora; as **com código** entram em análise e só ficam públicas depois de **aprovadas por um administrador do sistema**.
+- Uma nova seção **Públicas** mostra as extensões aprovadas e disponíveis a todos, com o nome e a foto de quem publicou.
+- **Versão protegida:** cada domínio de extensão é único e uma versão publicada não pode ser sobrescrita — para publicar de novo, é preciso **subir a versão**. Extensões saem do catálogo apenas sendo marcadas como **obsoletas** (nunca somem para quem já usa).
+- Administradores do sistema ganham uma área de **Moderação** para aprovar, recusar ou marcar como obsoletas as extensões enviadas.
+
 ## [0.142.0] — 2026-07-24
 
 - O editor de telas de código agora **já abre com uma boa altura**, sem precisar redimensionar para começar a escrever.

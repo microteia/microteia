@@ -14,6 +14,11 @@ export interface TenantExtension {
   /** Ligada no próprio escritório: registra nav/páginas/telas de código no Kernel do tenant. */
   active: boolean;
   package: MarketplacePlugin;
+  /** Presente quando esta extensão é uma CÓPIA instalada de uma pública (domínio de origem). Uma
+   *  extensão autoral ("Minha") não tem este campo; uma "Instalada" tem. Cópias não são editáveis. */
+  sourcePluginId?: string;
+  /** Versão da pública no momento da instalação/atualização — detecta "há atualização disponível". */
+  sourceVersion?: string;
   createdBy: string;
   /** Nome e foto do criador, denormalizados para exibição na lista (modelo dos Workflows Públicos). */
   createdByName?: string;
