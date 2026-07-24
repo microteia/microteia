@@ -8,6 +8,7 @@ import { useNotification } from '../../../stores/useNotification';
 import { useKernel } from '../../../stores/useKernel';
 import { useWorkspace } from '../../../stores/useWorkspace';
 import { serializePackage } from '../../../domain/usecases/plugins/packageSerialization';
+import { isVersionGreater } from '../../../domain/usecases/plugins/publicExtension';
 import type { MarketplacePlugin } from '../../../domain/entities/MarketplacePlugin';
 import type { PublicExtensionStatus } from '../../../domain/entities/PublicExtension';
 
@@ -24,6 +25,8 @@ export interface MyExtensionCard {
   authorPhotoURL: string | null;
 }
 
+export type PublicInstallState = 'authored' | 'installed' | 'update' | 'none';
+
 export interface PublicCard {
   domain: string;
   name: string;
@@ -32,6 +35,20 @@ export interface PublicCard {
   hasCode: boolean;
   status: PublicExtensionStatus;
   authorName: string;
+  authorPhotoURL: string | null;
+  installState: PublicInstallState;
+}
+
+export interface InstalledExtensionCard {
+  id: string;
+  name: string;
+  summary: string;
+  version: string;
+  active: boolean;
+  hasCode: boolean;
+  updateAvailable: boolean;
+  deprecated: boolean;
+  authorName: string | null;
   authorPhotoURL: string | null;
 }
 
@@ -51,6 +68,7 @@ export interface MarketplaceCard {
 export interface MarketplaceViewModel {
   cards: MarketplaceCard[];
   myExtensions: MyExtensionCard[];
+  installedExtensions: InstalledExtensionCard[];
   publicCards: PublicCard[];
   pendingCards: PublicCard[];
   canManage: boolean;
@@ -72,6 +90,9 @@ export interface MarketplaceViewModel {
   downloadMyExtension: (id: string) => void;
   toggleMyActive: (id: string, active: boolean) => Promise<void>;
   publishMyExtension: (id: string) => Promise<void>;
+  installPublic: (domain: string) => Promise<void>;
+  toggleInstalledActive: (id: string, active: boolean) => Promise<void>;
+  uninstallInstalled: (id: string) => Promise<void>;
   requestRemoveMyExtension: (id: string) => void;
   confirmRemoveMyExtension: () => Promise<void>;
   cancelRemoveMyExtension: () => void;
@@ -83,7 +104,7 @@ export interface MarketplaceViewModel {
 export const useMarketplaceViewModel = (): MarketplaceViewModel => {
   const { catalog, installations, installationOf, sourceOf, canPublish, install, uninstall, setEnabled, publish, unpublish } =
     usePluginStore();
-  const { extensions, importExtension, setActive: setExtensionActive, removeExtension } = useTenantExtensions();
+  const { extensions, importExtension, installFromPublic, setActive: setExtensionActive, removeExtension } = useTenantExtensions();
   const { publicExtensions, publish: publishPublic, approve, deprecate, unpublish: unpublishPublic, publicOf } = usePublicExtensions();
   const { host, result } = useKernel();
   const { tenantRole } = useTenant();
@@ -230,8 +251,9 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
     [run, unpublish],
   );
 
+  // Minhas = autorais (sem sourcePluginId); Instaladas = cópias (com sourcePluginId).
   const myExtensions = useMemo<MyExtensionCard[]>(
-    () => extensions.map((extension) => ({
+    () => extensions.filter((e) => !e.sourcePluginId).map((extension) => ({
       id: extension.id,
       name: extension.package.manifest.name,
       summary: extension.package.summary,
@@ -245,6 +267,32 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
     [extensions, publicOf],
   );
 
+  const installedExtensions = useMemo<InstalledExtensionCard[]>(
+    () => extensions.filter((e) => e.sourcePluginId).map((extension) => {
+      const pub = publicOf(extension.id);
+      return {
+        id: extension.id,
+        name: extension.package.manifest.name,
+        summary: extension.package.summary,
+        version: extension.sourceVersion ?? extension.package.manifest.version,
+        active: extension.active,
+        hasCode: (extension.package.views?.length ?? 0) > 0,
+        updateAvailable: Boolean(pub && pub.status === 'approved' && isVersionGreater(pub.version, extension.sourceVersion ?? '0.0.0')),
+        deprecated: pub?.status === 'deprecated',
+        authorName: extension.createdByName ?? null,
+        authorPhotoURL: extension.createdByPhotoURL ?? null,
+      };
+    }),
+    [extensions, publicOf],
+  );
+
+  const installStateOf = useCallback((domain: string, publicVersion: string): PublicInstallState => {
+    const local = extensions.find((e) => e.id === domain);
+    if (!local) return 'none';
+    if (!local.sourcePluginId) return 'authored';
+    return isVersionGreater(publicVersion, local.sourceVersion ?? '0.0.0') ? 'update' : 'installed';
+  }, [extensions]);
+
   const publicCards = useMemo<PublicCard[]>(
     () => publicExtensions
       .filter((p) => p.status === 'approved')
@@ -257,8 +305,9 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
         status: p.status,
         authorName: p.ownerName,
         authorPhotoURL: p.ownerPhotoURL,
+        installState: installStateOf(p.domain, p.version),
       })),
-    [publicExtensions],
+    [publicExtensions, installStateOf],
   );
 
   const pendingCards = useMemo<PublicCard[]>(
@@ -274,6 +323,7 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
           status: p.status,
           authorName: p.ownerName,
           authorPhotoURL: p.ownerPhotoURL,
+          installState: 'none' as PublicInstallState,
         }))
       : []),
     [publicExtensions, canPublish],
@@ -315,6 +365,23 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
       setBusyPluginId(null);
     }
   }, [extensions, publishPublic, notify]);
+
+  const installPublic = useCallback((domain: string) => {
+    const pub = publicOf(domain);
+    if (!pub) return Promise.resolve();
+    const isUpdate = extensions.some((e) => e.id === domain && e.sourcePluginId);
+    return run(domain, async () => { await installFromPublic(pub); return null; }, isUpdate ? 'Extensão atualizada.' : 'Extensão instalada.');
+  }, [publicOf, extensions, run, installFromPublic]);
+
+  const toggleInstalledActive = useCallback(
+    (id: string, active: boolean) => run(id, async () => { await setExtensionActive(id, active); return null; }, active ? 'Extensão ativada.' : 'Extensão desativada.'),
+    [run, setExtensionActive],
+  );
+
+  const uninstallInstalled = useCallback(
+    (id: string) => run(id, async () => { await removeExtension(id); return null; }, 'Extensão desinstalada.'),
+    [run, removeExtension],
+  );
 
   const approvePublic = useCallback(
     (domain: string) => run(domain, async () => { await approve(domain); return null; }, 'Extensão aprovada.'),
@@ -363,6 +430,7 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
   return {
     cards,
     myExtensions,
+    installedExtensions,
     publicCards,
     pendingCards,
     canManage,
@@ -384,6 +452,9 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
     downloadMyExtension,
     toggleMyActive,
     publishMyExtension,
+    installPublic,
+    toggleInstalledActive,
+    uninstallInstalled,
     requestRemoveMyExtension,
     confirmRemoveMyExtension,
     cancelRemoveMyExtension,

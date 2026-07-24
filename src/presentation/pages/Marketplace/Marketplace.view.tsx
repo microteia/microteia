@@ -103,6 +103,52 @@ export const MarketplaceView: React.FC = () => {
           </>
         )}
 
+        {vm.canManage && vm.installedExtensions.length > 0 && (
+          <>
+            <S.GroupTitle>Instaladas</S.GroupTitle>
+            <S.GroupHint>Extensões instaladas do catálogo. São cópias independentes — quando o autor publica uma versão nova, aparece "Atualizar".</S.GroupHint>
+            {vm.installedExtensions.map((ext) => {
+              const busy = vm.busyPluginId === ext.id;
+              return (
+                <S.Card key={ext.id}>
+                  <S.CardHead>
+                    <S.CardName>{ext.name}</S.CardName>
+                    <S.StatusBadge $on={ext.active}>{ext.active ? 'Ativa' : 'Inativa'}</S.StatusBadge>
+                  </S.CardHead>
+                  <S.Summary>{ext.summary}</S.Summary>
+                  {ext.authorName && (
+                    <S.Author>
+                      {ext.authorPhotoURL
+                        ? <S.AuthorPhoto src={ext.authorPhotoURL} alt={ext.authorName} />
+                        : <S.AuthorInitial>{ext.authorName.charAt(0).toUpperCase()}</S.AuthorInitial>}
+                      Por {ext.authorName}
+                    </S.Author>
+                  )}
+                  <S.Meta>
+                    <span>v{ext.version}</span>
+                    {ext.hasCode && <S.Origin>Com código</S.Origin>}
+                    {ext.deprecated && <S.Origin>Obsoleta</S.Origin>}
+                    {ext.updateAvailable && <S.Origin>Atualização disponível</S.Origin>}
+                  </S.Meta>
+                  <S.Actions>
+                    <Button variant="secondary" size="sm" disabled={busy} onClick={() => vm.toggleInstalledActive(ext.id, !ext.active)}>
+                      {ext.active ? 'Desativar' : 'Ativar'}
+                    </Button>
+                    {ext.updateAvailable && (
+                      <Button variant="primary" size="sm" disabled={busy} onClick={() => vm.installPublic(ext.id)}>
+                        Atualizar
+                      </Button>
+                    )}
+                    <Button variant="danger" size="sm" disabled={busy} onClick={() => vm.uninstallInstalled(ext.id)}>
+                      Desinstalar
+                    </Button>
+                  </S.Actions>
+                </S.Card>
+              );
+            })}
+          </>
+        )}
+
         {vm.canModerate && vm.pendingCards.length > 0 && (
           <>
             <S.GroupTitle>Moderação (aguardando aprovação)</S.GroupTitle>
@@ -164,11 +210,22 @@ export const MarketplaceView: React.FC = () => {
                     <span>v{pub.version}</span>
                     {pub.hasCode && <S.Origin>Com código</S.Origin>}
                   </S.Meta>
-                  {vm.canModerate && (
+                  {vm.canManage && (
                     <S.Actions>
-                      <Button variant="ghost" size="sm" disabled={busy} onClick={() => vm.deprecatePublic(pub.domain)}>
-                        Marcar obsoleta
-                      </Button>
+                      {pub.installState === 'authored' ? (
+                        <S.Origin>Você é o autor</S.Origin>
+                      ) : pub.installState === 'installed' ? (
+                        <Button variant="secondary" size="sm" disabled>Instalada</Button>
+                      ) : (
+                        <Button variant="primary" size="sm" disabled={busy} onClick={() => vm.installPublic(pub.domain)}>
+                          <RiStoreLine size={16} /> {pub.installState === 'update' ? 'Atualizar' : 'Instalar'}
+                        </Button>
+                      )}
+                      {vm.canModerate && (
+                        <Button variant="ghost" size="sm" disabled={busy} onClick={() => vm.deprecatePublic(pub.domain)}>
+                          Marcar obsoleta
+                        </Button>
+                      )}
                     </S.Actions>
                   )}
                 </S.Card>

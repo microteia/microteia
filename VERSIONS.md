@@ -11,6 +11,13 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [0.144.0] — 2026-07-24
+
+- Agora dá para **instalar** extensões da seção Públicas: elas viram uma **cópia sua** em uma nova seção **Instaladas**, prontas para ativar e usar no seu escritório.
+- Como cada instalação é uma cópia independente, se o autor mudar, marcar como obsoleta ou remover a extensão do catálogo, **a sua continua funcionando** — e você pode desinstalá-la quando quiser.
+- Quando o autor publica uma **versão nova**, aparece o botão **Atualizar** na sua extensão instalada.
+- A seção **Minhas Extensões** passa a mostrar só as que você criou; as que você instalou aparecem em **Instaladas**.
+
 ## [0.143.0] — 2026-07-24
 
 - Agora **qualquer escritório pode publicar** suas extensões no catálogo, direto de Minhas Extensões. Extensões **sem código** ficam públicas na hora; as **com código** entram em análise e só ficam públicas depois de **aprovadas por um administrador do sistema**.
