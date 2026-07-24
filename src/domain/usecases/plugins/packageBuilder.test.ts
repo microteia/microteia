@@ -131,6 +131,35 @@ describe('buildPackage', () => {
     expect(issues[0].ref.id).toBe('act-ausente');
   });
 
+  it('preserva os templates embarcados (carried) de uma extensão importada em edição', () => {
+    // Sem seleção de artefatos próprios: só os templates que já viajam no pacote. Antes, buildPackage
+    // reconstruía a partir da seleção e PERDIA esses artefatos ao salvar/exportar.
+    const pkg = buildPackage({
+      ...empty, manifest, summary: 's', views: [{ key: 'v', title: 'V', icon: 'layoutGrid', source: 'export default () => null;' }],
+      carried: {
+        screens: [{ key: 'medicos', sourceId: 'medicos', titleSingular: 'Médico', titlePlural: 'Médicos', icon: 'apps', titleFieldKey: 'nome', fields: [{ key: 'nome', label: 'Nome', type: 'text', required: true, order: 0 }] }],
+        actions: [{ templateId: 'act-a', key: 'a', title: 'A', icon: 'apps', workflowId: 'wf-a', danger: false, enabled: true, order: 0 }],
+        workflows: [{ templateId: 'wf-a', name: 'A', eventName: 'workflow.called', version: 1, condition: { kind: 'AlwaysTrue' }, steps: [] }],
+        scripts: [{ templateId: 'scr-a', name: 'A', sourceTs: 'x', compiledJs: 'y', inputParams: [], outputParams: [] }],
+      },
+    });
+    expect(pkg.screens?.map((s) => s.key)).toEqual(['medicos']);
+    expect(pkg.actions?.map((a) => a.templateId)).toEqual(['act-a']);
+    expect(pkg.workflows.map((w) => w.templateId)).toEqual(['wf-a']);
+    expect(pkg.scripts?.map((s) => s.templateId)).toEqual(['scr-a']);
+    expect(pkg.views?.map((v) => v.key)).toEqual(['v']);
+    expect(validatePackage(pkg)).toEqual([]);
+  });
+
+  it('não duplica quando um artefato próprio selecionado coincide com um carried de mesma chave', () => {
+    const pkg = buildPackage({
+      ...empty, manifest, summary: 's',
+      screens: [screen({ id: 'medicos' })],
+      carried: { screens: [{ key: 'medicos', sourceId: 'medicos', titleSingular: 'M', titlePlural: 'M', icon: 'apps', titleFieldKey: 'nome', fields: [] }] },
+    });
+    expect(pkg.screens?.filter((s) => s.key === 'medicos')).toHaveLength(1);
+  });
+
   it('referência a outro plugin é coberta ao declarar a dependência', () => {
     const withDep = buildPackage({
       ...empty,

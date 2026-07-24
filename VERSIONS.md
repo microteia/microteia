@@ -11,6 +11,11 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [0.146.1] — 2026-07-24
+
+- Ao **editar** uma extensão importada, as telas, ações, automações e scripts que ela traz agora aparecem na tela de edição, marcados como "Incluída" — e podem ser removidos com um clique.
+- Corrigido um problema em que salvar ou baixar uma extensão importada **descartava** esses itens, deixando só o código. Agora eles são sempre preservados.
+
 ## [0.146.0] — 2026-07-24
 
 - Ao **instalar** uma extensão, agora tudo o que ela traz também é criado no seu escritório: telas, ações e automações passam a aparecer prontas para uso, não só as telas de código.

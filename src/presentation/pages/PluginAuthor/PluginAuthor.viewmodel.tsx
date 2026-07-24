@@ -8,7 +8,7 @@ import { useScriptStore } from '../../../stores/useScriptStore';
 import { useTenant } from '../../../stores/useTenant';
 import { useAuth } from '../../../stores/useAuth';
 import { useNotification } from '../../../stores/useNotification';
-import { buildPackage } from '../../../domain/usecases/plugins/packageBuilder';
+import { buildPackage, type CarriedTemplates } from '../../../domain/usecases/plugins/packageBuilder';
 import { packageOutRefs, validatePackage } from '../../../domain/usecases/plugins/pluginReferences';
 import { serializePackage } from '../../../domain/usecases/plugins/packageSerialization';
 import { isValidPluginId, validatePluginManifest } from '../../../domain/schema/plugin/pluginManifest';
@@ -55,6 +55,8 @@ export interface ArtifactOption {
   selected: boolean;
   /** Dependência de um item marcado: entra obrigatoriamente e não pode ser desmarcada. */
   locked: boolean;
+  /** Artefato JÁ embarcado nesta extensão (importada/instalada) — vai no pacote; clicar remove. */
+  carried?: boolean;
 }
 
 export interface ArtifactGroup {
@@ -168,6 +170,25 @@ export const usePluginAuthorViewModel = (tabKey?: string): PluginAuthorViewModel
     (editingPackage?.views ?? []).map((v) => ({ uid: crypto.randomUUID(), key: v.key, title: v.title, icon: v.icon, source: v.source })));
   const [selectedViewId, setSelectedViewId] = useState<string | null>(null);
   const [editorOpen, setEditorOpen] = useState(false);
+
+  // Artefatos JÁ embarcados no pacote em edição (extensão importada/instalada). Não vêm dos artefatos
+  // "próprios" do escritório — são templates que viajam no pacote —, então precisam ser preservados e
+  // exibidos aqui, senão salvar/exportar os perderia. Inicialização preguiçosa, uma vez.
+  const [carried, setCarried] = useState<Required<CarriedTemplates>>(() => ({
+    screens: editingPackage?.screens ?? [],
+    actions: editingPackage?.actions ?? [],
+    workflows: editingPackage?.workflows ?? [],
+    scripts: editingPackage?.scripts ?? [],
+  }));
+  const removeCarried = useCallback((kind: ArtifactKind, id: string) => {
+    setCarried((prev) => ({
+      ...prev,
+      screens: kind === 'screens' ? prev.screens.filter((s) => s.key !== id) : prev.screens,
+      actions: kind === 'actions' ? prev.actions.filter((a) => a.templateId !== id) : prev.actions,
+      workflows: kind === 'workflows' ? prev.workflows.filter((w) => w.templateId !== id) : prev.workflows,
+      scripts: kind === 'scripts' ? prev.scripts.filter((s) => s.templateId !== id) : prev.scripts,
+    }));
+  }, []);
 
   const iconOptions = useMemo<SearchSelectOption[]>(
     () => getScreenIconOptions().map((option) => ({ value: option.key, label: option.label })),
@@ -291,32 +312,40 @@ export const usePluginAuthorViewModel = (tabKey?: string): PluginAuthorViewModel
     scripts: union(scriptIds, required.scripts),
   }), [screenIds, actionIds, workflowIds, scriptIds, required]);
 
+  const carriedOptions = useMemo<Record<ArtifactKind, ArtifactOption[]>>(() => ({
+    screens: carried.screens.map((s) => ({ id: s.key, label: s.titlePlural || s.titleSingular || s.key, icon: s.icon, selected: true, locked: false, carried: true })),
+    actions: carried.actions.map((a) => ({ id: a.templateId, label: a.title || a.key, icon: a.icon, selected: true, locked: false, carried: true })),
+    workflows: carried.workflows.map((w) => ({ id: w.templateId, label: w.name, selected: true, locked: false, carried: true })),
+    scripts: carried.scripts.map((s) => ({ id: s.templateId, label: s.name, selected: true, locked: false, carried: true })),
+  }), [carried]);
+
   const groups = useMemo<ArtifactGroup[]>(() => [
     {
       kind: 'screens', title: 'Telas',
-      options: ownScreens.map((d) => ({ id: d.id, label: d.titlePlural || d.id, icon: d.icon, selected: effective.screens.has(d.id), locked: required.screens.has(d.id) })),
+      options: [...carriedOptions.screens, ...ownScreens.map((d) => ({ id: d.id, label: d.titlePlural || d.id, icon: d.icon, selected: effective.screens.has(d.id), locked: required.screens.has(d.id) }))],
     },
     {
       kind: 'actions', title: 'Ações',
-      options: ownActions.map((a) => ({ id: a.id, label: a.title || a.key, icon: a.icon, selected: effective.actions.has(a.id), locked: required.actions.has(a.id) })),
+      options: [...carriedOptions.actions, ...ownActions.map((a) => ({ id: a.id, label: a.title || a.key, icon: a.icon, selected: effective.actions.has(a.id), locked: required.actions.has(a.id) }))],
     },
     {
       kind: 'workflows', title: 'Automações',
-      options: ownWorkflows.map((w) => ({ id: w.id, label: w.name, selected: effective.workflows.has(w.id), locked: required.workflows.has(w.id) })),
+      options: [...carriedOptions.workflows, ...ownWorkflows.map((w) => ({ id: w.id, label: w.name, selected: effective.workflows.has(w.id), locked: required.workflows.has(w.id) }))],
     },
     {
       kind: 'scripts', title: 'Scripts',
-      options: ownScripts.map((s) => ({ id: s.id, label: s.name, selected: effective.scripts.has(s.id), locked: required.scripts.has(s.id) })),
+      options: [...carriedOptions.scripts, ...ownScripts.map((s) => ({ id: s.id, label: s.name, selected: effective.scripts.has(s.id), locked: required.scripts.has(s.id) }))],
     },
-  ], [ownScreens, ownActions, ownWorkflows, ownScripts, effective, required]);
+  ], [carriedOptions, ownScreens, ownActions, ownWorkflows, ownScripts, effective, required]);
 
   const toggle = useCallback((kind: ArtifactKind, id: string) => {
+    if (carriedOptions[kind].some((o) => o.id === id)) { removeCarried(kind, id); return; } // remove o embarcado
     if (required[kind].has(id)) return; // dependência obrigatória — não desmarca
     if (kind === 'screens') toggleScreen(id);
     else if (kind === 'actions') toggleAction(id);
     else if (kind === 'workflows') toggleWorkflow(id);
     else toggleScript(id);
-  }, [required, toggleScreen, toggleAction, toggleWorkflow, toggleScript]);
+  }, [carriedOptions, removeCarried, required, toggleScreen, toggleAction, toggleWorkflow, toggleScript]);
 
   const manifest = useMemo<PluginManifest>(() => ({
     id: form.id.trim(),
@@ -337,13 +366,14 @@ export const usePluginAuthorViewModel = (tabKey?: string): PluginAuthorViewModel
   }), [ownScreens, ownActions, ownWorkflows, ownScripts, effective]);
 
   const selectedCount = useMemo(
-    () => selection.screens.length + selection.actions.length + selection.workflows.length + selection.scripts.length + views.length,
-    [selection, views.length],
+    () => selection.screens.length + selection.actions.length + selection.workflows.length + selection.scripts.length + views.length
+      + carried.screens.length + carried.actions.length + carried.workflows.length + carried.scripts.length,
+    [selection, views.length, carried],
   );
 
   const pkg = useMemo<MarketplacePlugin>(
-    () => buildPackage({ ...selection, manifest, summary: form.summary.trim(), views: viewTemplates }),
-    [selection, manifest, form.summary, viewTemplates],
+    () => buildPackage({ ...selection, manifest, summary: form.summary.trim(), views: viewTemplates, carried }),
+    [selection, manifest, form.summary, viewTemplates, carried],
   );
 
   const nameOf = useCallback((kind: RefKind, id: string): string => {

@@ -18,13 +18,34 @@ export interface PackageSelection {
   scripts: Script[];
 }
 
+/** Templates JÁ prontos (ex.: os artefatos embarcados de uma extensão importada em edição). São
+ *  preservados como estão e mesclados aos derivados da seleção de artefatos próprios. */
+export interface CarriedTemplates {
+  screens?: ScreenModuleTemplate[];
+  actions?: ActionModuleTemplate[];
+  workflows?: WorkflowModuleTemplate[];
+  scripts?: ScriptModuleTemplate[];
+}
+
 export interface BuildPackageInput extends PackageSelection {
   manifest: PluginManifest;
   summary: string;
   overview?: unknown;
   /** Views de código (extensão trusted). As contribuições `ui.page`/`ui.nav` são geradas na autoria. */
   views?: ViewModuleTemplate[];
+  /** Templates embarcados a preservar (extensão importada em edição). Mesclados por chave/templateId. */
+  carried?: CarriedTemplates;
 }
+
+const dedupeBy = <T>(items: T[], keyOf: (item: T) => string): T[] => {
+  const seen = new Set<string>();
+  return items.filter((item) => {
+    const key = keyOf(item);
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+};
 
 const stripUndefined = <T>(value: T): T => {
   if (Array.isArray(value)) return value.map((item) => stripUndefined(item)) as T;
@@ -99,14 +120,15 @@ const scriptToTemplate = (script: Script): ScriptModuleTemplate =>
  * é conferida à parte por `validatePackage` — a MESMA checagem que roda na importação.
  */
 export const buildPackage = (input: BuildPackageInput): MarketplacePlugin => {
-  const screens = input.screens.map(screenToTemplate);
-  const actions = input.actions.map(actionToTemplate);
-  const scripts = input.scripts.map(scriptToTemplate);
+  const screens = dedupeBy([...input.screens.map(screenToTemplate), ...(input.carried?.screens ?? [])], (s) => s.key);
+  const actions = dedupeBy([...input.actions.map(actionToTemplate), ...(input.carried?.actions ?? [])], (a) => a.templateId);
+  const scripts = dedupeBy([...input.scripts.map(scriptToTemplate), ...(input.carried?.scripts ?? [])], (s) => s.templateId);
+  const workflows = dedupeBy([...input.workflows.map(workflowToTemplate), ...(input.carried?.workflows ?? [])], (w) => w.templateId);
   return {
     manifest: input.manifest,
     summary: input.summary,
     ...(input.overview !== undefined ? { overview: input.overview } : {}),
-    workflows: input.workflows.map(workflowToTemplate),
+    workflows,
     ...(screens.length > 0 ? { screens } : {}),
     ...(actions.length > 0 ? { actions } : {}),
     ...(scripts.length > 0 ? { scripts } : {}),

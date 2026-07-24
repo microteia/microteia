@@ -244,6 +244,19 @@ export const S = {
     flex-shrink: 0;
   `,
 
+  Carried: styled.span`
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    padding: 2px 8px;
+    border-radius: ${({ theme }) => theme.borderRadius.full};
+    border: 1px solid ${({ theme }) => theme.colors.primary};
+    font-size: ${({ theme }) => theme.fontSizes.xs};
+    font-weight: 600;
+    color: ${({ theme }) => theme.colors.primary};
+    flex-shrink: 0;
+  `,
+
   Empty: styled.p`
     padding: ${({ theme }) => theme.spacing.sm};
     font-size: ${({ theme }) => theme.fontSizes.xs};

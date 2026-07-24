@@ -88,12 +88,18 @@ export const PluginAuthorView: React.FC<{ tabKey?: string }> = ({ tabKey }) => {
                           $selected={option.selected}
                           disabled={!vm.canManage || option.locked}
                           onClick={() => vm.toggle(group.kind, option.id)}
-                          title={option.locked ? 'Necessária por outro item marcado' : undefined}
+                          title={
+                            option.locked ? 'Necessária por outro item marcado'
+                              : option.carried ? 'Embarcada nesta extensão — clique para remover'
+                                : undefined
+                          }
                         >
                           <S.ItemIcon>{getScreenIcon(option.icon ?? GROUP_ICON[group.kind], 16)}</S.ItemIcon>
                           <S.ItemLabel>{option.label}</S.ItemLabel>
                           {option.locked ? (
                             <S.Required><RiLockLine size={11} /> Obrigatório</S.Required>
+                          ) : option.carried ? (
+                            <S.Carried><RiCheckLine size={11} /> Incluída</S.Carried>
                           ) : (
                             <S.Check $on={option.selected}>{option.selected && <RiCheckLine size={14} />}</S.Check>
                           )}
