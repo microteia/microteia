@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [0.146.2] — 2026-07-24
+
+- Ao instalar uma extensão que traz telas, a tela agora aparece **na hora** no Form Design e no menu — antes só surgia depois de recarregar a página. Ao desinstalar, some da mesma forma.
+
 ## [0.146.1] — 2026-07-24
 
 - Ao **editar** uma extensão importada, as telas, ações, automações e scripts que ela traz agora aparecem na tela de edição, marcados como "Incluída" — e podem ser removidos com um clique.

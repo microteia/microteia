@@ -4,7 +4,15 @@ import { useTenant } from './useTenant';
 import { useAuth } from './useAuth';
 import { useDI } from '../infrastructure/di/useDI';
 import { applyPackageArtifacts, releasePackageArtifacts, type ArtifactDeps } from '../domain/usecases/plugins/MarketplaceInstallUseCases';
+import { storeEvents, StoreEvents } from '../infrastructure/events/StoreEventEmitter';
 import type { InstalledExtension } from '../domain/entities/InstalledExtension';
+
+// Telas usam refresh por evento (não assinam onSnapshot ao vivo como workflows/actions/scripts).
+// Sem estes emits, uma tela materializada na instalação não aparece no Form Design nem no menu.
+const notifyArtifactStores = (): void => {
+  storeEvents.emit(StoreEvents.SCREEN_DEFINITIONS_UPDATED);
+  storeEvents.emit(StoreEvents.ACTIONS_UPDATED);
+};
 
 export const InstalledExtensionStoreProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { currentTenant } = useTenant();
@@ -73,6 +81,7 @@ export const InstalledExtensionStoreProvider: React.FC<{ children: React.ReactNo
     // sourceId. Código-only (ex.: Kanban) = no-op barato. As telas/menus surgem via os stores de dados.
     await applyPackageArtifacts(artifactDeps, input.package, { tenantId: currentTenant.id, userId: user.id, now: new Date() });
     await installedExtensionRepository.upsert(currentTenant.id, extension);
+    notifyArtifactStores();
     setInstalled((prev) =>
       existing ? prev.map((e) => (e.id === id ? extension : e)) : [...prev, extension],
     );
@@ -90,6 +99,7 @@ export const InstalledExtensionStoreProvider: React.FC<{ children: React.ReactNo
     // das telas removidas ficam órfãos (estrutura some, dados ficam). Depois remove o registro da cópia.
     await releasePackageArtifacts(artifactDeps, id, { tenantId: currentTenant.id, userId: user.id, now: new Date() });
     await installedExtensionRepository.delete(currentTenant.id, id);
+    notifyArtifactStores();
     setInstalled((prev) => prev.filter((e) => e.id !== id));
   }, [currentTenant, user, installedExtensionRepository, artifactDeps]);
 
