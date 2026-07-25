@@ -11,6 +11,17 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [0.148.0] — 2026-07-24
+
+- A tela de **Extensões** foi redesenhada para ficar mais leve e clara. Cada extensão agora aparece **uma única vez**, em uma lista enxuta — não mais repetida em três blocos diferentes.
+- As ações (instalar, editar, publicar, ativar, baixar, excluir…) aparecem como ícones discretos que se revelam ao passar o mouse sobre a extensão, deixando a tela limpa.
+- Os selos de estado (Instalada, Publicada, Privada, Com código…) ficaram mais sutis, e um filtro rápido no topo permite ver **Todas**, apenas as **Instaladas**, as **Minhas** ou o **Catálogo** público.
+
+## [0.147.0] — 2026-07-24
+
+- Ao **atualizar** uma extensão, agora as mudanças feitas pelo autor nas automações, ações e scripts também chegam até você — antes só as telas eram atualizadas, e esses itens ficavam parados na versão antiga.
+- A atualização é inteligente: só substitui um item por uma versão **mais recente**, nunca regride para uma mais antiga, e nunca duplica. Itens compartilhados por mais de uma extensão são atualizados uma única vez, para todas.
+
 ## [0.146.2] — 2026-07-24
 
 - Ao instalar uma extensão que traz telas, a tela agora aparece **na hora** no Form Design e no menu — antes só surgia depois de recarregar a página. Ao desinstalar, some da mesma forma.

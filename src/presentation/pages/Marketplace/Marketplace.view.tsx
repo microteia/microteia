@@ -4,39 +4,144 @@ import {
   RiUploadLine,
   RiPencilLine,
   RiDownloadLine,
-  RiStoreLine,
+  RiInstallLine,
+  RiUninstallLine,
   RiRefreshLine,
+  RiToggleLine,
+  RiToggleFill,
+  RiDeleteBinLine,
+  RiCheckLine,
+  RiCloseLine,
+  RiArchiveLine,
+  RiPuzzle2Line,
 } from 'react-icons/ri';
 import { Button } from '../../components/ui/Button';
 import { InfoBanner } from '../../components/ui/InfoBanner';
 import { ConfirmModal } from '../../components/ui/ConfirmModal';
 import { useMarketplaceViewModel } from './Marketplace.viewmodel';
-import type { Author } from './Marketplace.viewmodel';
-import type { PublicExtensionStatus } from '../../../domain/entities/PublicExtension';
+import type { Author, ExtensionRow, MarketplaceFilter, StatusBadge } from './Marketplace.viewmodel';
 import { S } from './Marketplace.styles';
 
-const AuthorLine: React.FC<{ author: Author; prefix: string }> = ({ author, prefix }) => {
+type Tone = 'neutral' | 'success' | 'warning' | 'info' | 'danger' | 'primary';
+
+const FILTERS: { key: MarketplaceFilter; label: string }[] = [
+  { key: 'all', label: 'Todas' },
+  { key: 'installed', label: 'Instaladas' },
+  { key: 'mine', label: 'Minhas' },
+  { key: 'catalog', label: 'Catálogo' },
+];
+
+const STATUS_LABEL: Record<StatusBadge, { label: string; tone: Tone }> = {
+  published: { label: 'Publicada', tone: 'success' },
+  pending: { label: 'Em análise', tone: 'warning' },
+  deprecated: { label: 'Obsoleta', tone: 'neutral' },
+  private: { label: 'Privada', tone: 'neutral' },
+};
+
+const AuthorLine: React.FC<{ author: Author }> = ({ author }) => {
   if (!author.name) return null;
   return (
-    <S.Author>
+    <S.MetaAuthor>
       {author.photoURL
         ? <S.AuthorPhoto src={author.photoURL} alt={author.name} referrerPolicy="no-referrer" />
         : <S.AuthorInitial>{author.name.charAt(0).toUpperCase()}</S.AuthorInitial>}
-      {prefix} {author.name}
-    </S.Author>
+      {author.name}
+    </S.MetaAuthor>
   );
 };
 
-const CodeBadge: React.FC = () => <S.Badge $tone="info">Com código</S.Badge>;
+const RowView: React.FC<{ row: ExtensionRow; busy: boolean; vm: ReturnType<typeof useMarketplaceViewModel> }> = ({ row, busy, vm }) => (
+  <S.Row>
+    <S.RowIcon $tone={row.installBadge === 'active' ? 'primary' : 'neutral'}>
+      <RiPuzzle2Line size={20} />
+    </S.RowIcon>
 
-const publicStatusBadge = (status: PublicExtensionStatus | null): React.ReactNode => {
-  switch (status) {
-    case 'pending': return <S.Badge $tone="warning">Em análise</S.Badge>;
-    case 'approved': return <S.Badge $tone="success">Publicada</S.Badge>;
-    case 'deprecated': return <S.Badge $tone="neutral">Obsoleta</S.Badge>;
-    default: return <S.Badge $tone="neutral">Privada</S.Badge>;
-  }
-};
+    <S.RowMain>
+      <S.TitleLine>
+        <S.Name>{row.name}</S.Name>
+        <S.Badges>
+          {row.installBadge === 'active' && <S.Badge $tone="success"><S.BadgeDot $tone="success" />Ativa</S.Badge>}
+          {row.installBadge === 'inactive' && <S.Badge $tone="neutral"><S.BadgeDot $tone="neutral" />Inativa</S.Badge>}
+          {row.updateAvailable && <S.Badge $tone="primary">Atualização</S.Badge>}
+          {row.statusBadge && <S.Badge $tone={STATUS_LABEL[row.statusBadge].tone}>{STATUS_LABEL[row.statusBadge].label}</S.Badge>}
+          {row.hasCode && <S.Badge $tone="info">Com código</S.Badge>}
+        </S.Badges>
+      </S.TitleLine>
+
+      {row.summary && <S.Summary>{row.summary}</S.Summary>}
+
+      <S.Meta>
+        <AuthorLine author={row.author} />
+        {row.author.name && <S.MetaSep>·</S.MetaSep>}
+        <span>v{row.version}</span>
+        <S.MetaSep>·</S.MetaSep>
+        <span>{row.id}</span>
+      </S.Meta>
+    </S.RowMain>
+
+    <S.RowActions onClick={(e) => e.stopPropagation()}>
+      {row.canEdit && (
+        <S.ActionButton title="Editar" disabled={busy} onClick={() => vm.edit(row.id)}>
+          <RiPencilLine size={17} />
+        </S.ActionButton>
+      )}
+      {row.install === 'install' && (
+        <S.ActionButton $primary title="Instalar no escritório" disabled={busy} onClick={() => void vm.install(row.id)}>
+          <RiInstallLine size={17} />
+        </S.ActionButton>
+      )}
+      {row.install === 'update' && (
+        <S.ActionButton $primary title="Atualizar" disabled={busy} onClick={() => void vm.install(row.id)}>
+          <RiRefreshLine size={17} />
+        </S.ActionButton>
+      )}
+      {row.canToggleActive && (
+        <S.ActionButton
+          title={row.active ? 'Desativar no escritório' : 'Ativar no escritório'}
+          disabled={busy}
+          onClick={() => void vm.toggleActive(row.id, !row.active)}
+        >
+          {row.active ? <RiToggleFill size={18} /> : <RiToggleLine size={18} />}
+        </S.ActionButton>
+      )}
+      {row.canPublish && (
+        <S.ActionButton title={row.published ? 'Republicar no catálogo' : 'Publicar no catálogo'} disabled={busy} onClick={() => void vm.publish(row.id)}>
+          <RiUploadLine size={17} />
+        </S.ActionButton>
+      )}
+      {row.canDownload && (
+        <S.ActionButton title="Baixar .json" disabled={busy} onClick={() => vm.download(row.id)}>
+          <RiDownloadLine size={17} />
+        </S.ActionButton>
+      )}
+      {row.canApprove && (
+        <>
+          <S.ActionButton $primary title="Aprovar publicação" disabled={busy} onClick={() => void vm.approve(row.id)}>
+            <RiCheckLine size={18} />
+          </S.ActionButton>
+          <S.ActionButton $danger title="Recusar publicação" disabled={busy} onClick={() => void vm.reject(row.id)}>
+            <RiCloseLine size={18} />
+          </S.ActionButton>
+        </>
+      )}
+      {row.canDeprecate && (
+        <S.ActionButton title="Marcar como obsoleta" disabled={busy} onClick={() => void vm.deprecate(row.id)}>
+          <RiArchiveLine size={17} />
+        </S.ActionButton>
+      )}
+      {row.canUninstall && (
+        <S.ActionButton title="Desinstalar do escritório" disabled={busy} onClick={() => void vm.uninstall(row.id)}>
+          <RiUninstallLine size={17} />
+        </S.ActionButton>
+      )}
+      {row.canDelete && (
+        <S.ActionButton $danger title="Excluir da área privada" disabled={busy} onClick={() => vm.requestRemove(row.id)}>
+          <RiDeleteBinLine size={17} />
+        </S.ActionButton>
+      )}
+    </S.RowActions>
+  </S.Row>
+);
 
 export const MarketplaceView: React.FC = () => {
   const vm = useMarketplaceViewModel();
@@ -70,211 +175,37 @@ export const MarketplaceView: React.FC = () => {
       </S.Header>
 
       <S.Scroll>
-        {!vm.canManage && (
-          <InfoBanner
-            message="Somente administradores do escritório podem criar, instalar ou publicar extensões."
-            variant="info"
-          />
-        )}
-
-        {vm.canManage && (
-          <S.Section>
-            <S.SectionHead>
-              <S.SectionTitleRow>
-                <S.SectionTitle>Minhas Extensões</S.SectionTitle>
-                <S.Count>{vm.privateCards.length}</S.Count>
-              </S.SectionTitleRow>
-              <S.SectionHint>
-                Sua área privada de autoria. Edite à vontade; instale para usar aqui no escritório e
-                publique quando quiser disponibilizar a outros.
-              </S.SectionHint>
-            </S.SectionHead>
-            {vm.privateCards.length === 0 ? (
-              <S.Empty>Você ainda não criou nenhuma extensão. Use "Criar extensão" ou importe um .json.</S.Empty>
-            ) : (
-              <S.Grid>
-                {vm.privateCards.map((ext) => {
-                  const busy = vm.busyId === ext.id;
-                  return (
-                    <S.Card key={ext.id}>
-                      <S.CardTop>
-                        <S.CardName>{ext.name}</S.CardName>
-                        <S.Badges>
-                          {ext.hasCode && <CodeBadge />}
-                          {publicStatusBadge(ext.publicStatus)}
-                        </S.Badges>
-                      </S.CardTop>
-                      <S.Summary>{ext.summary}</S.Summary>
-                      <AuthorLine author={ext.author} prefix="Criada por" />
-                      <S.Meta><span>v{ext.version}</span><span>{ext.id}</span></S.Meta>
-                      <S.Actions>
-                        <Button variant="secondary" size="sm" disabled={busy} onClick={() => vm.editPrivate(ext.id)}>
-                          <RiPencilLine size={16} /> Editar
-                        </Button>
-                        <Button variant="primary" size="sm" disabled={busy} onClick={() => vm.installPrivate(ext.id)}>
-                          {!ext.installed ? <><RiStoreLine size={16} /> Instalar</> : ext.installOutdated ? <><RiRefreshLine size={16} /> Reinstalar</> : 'Instalada'}
-                        </Button>
-                        <Button variant="ghost" size="sm" disabled={busy} onClick={() => vm.publishPrivate(ext.id)}>
-                          <RiUploadLine size={16} /> {ext.publicStatus ? 'Republicar' : 'Publicar'}
-                        </Button>
-                        <Button variant="ghost" size="sm" disabled={busy} onClick={() => vm.downloadPrivate(ext.id)}>
-                          <RiDownloadLine size={16} /> Baixar
-                        </Button>
-                        <Button variant="danger" size="sm" disabled={busy} onClick={() => vm.requestRemovePrivate(ext.id)}>
-                          Excluir
-                        </Button>
-                      </S.Actions>
-                    </S.Card>
-                  );
-                })}
-              </S.Grid>
-            )}
-          </S.Section>
-        )}
-
-        {vm.canManage && (
-          <S.Section>
-            <S.SectionHead>
-              <S.SectionTitleRow>
-                <S.SectionTitle>Instaladas</S.SectionTitle>
-                <S.Count>{vm.installedCards.length}</S.Count>
-              </S.SectionTitleRow>
-              <S.SectionHint>
-                O que está de fato ativo no escritório — cópias independentes da fonte. Quando a origem
-                (sua privada ou a pública) tiver versão mais nova, aparece "Atualizar".
-              </S.SectionHint>
-            </S.SectionHead>
-            {vm.installedCards.length === 0 ? (
-              <S.Empty>Nenhuma extensão instalada. Instale a partir de Minhas Extensões ou do catálogo público.</S.Empty>
-            ) : (
-              <S.Grid>
-                {vm.installedCards.map((ext) => {
-                  const busy = vm.busyId === ext.id;
-                  return (
-                    <S.Card key={ext.id}>
-                      <S.CardTop>
-                        <S.CardName>{ext.name}</S.CardName>
-                        <S.Badges>
-                          <S.Badge $tone={ext.active ? 'success' : 'neutral'}>{ext.active ? 'Ativa' : 'Inativa'}</S.Badge>
-                          {ext.hasCode && <CodeBadge />}
-                          {ext.updateAvailable && <S.Badge $tone="primary">Atualização</S.Badge>}
-                          {ext.deprecated && <S.Badge $tone="warning">Origem obsoleta</S.Badge>}
-                        </S.Badges>
-                      </S.CardTop>
-                      <S.Summary>{ext.summary}</S.Summary>
-                      <AuthorLine author={ext.author} prefix="Por" />
-                      <S.Meta><span>v{ext.version}</span><span>{ext.sourceLabel}</span></S.Meta>
-                      <S.Actions>
-                        <Button variant="secondary" size="sm" disabled={busy} onClick={() => vm.toggleInstalledActive(ext.id, !ext.active)}>
-                          {ext.active ? 'Desativar' : 'Ativar'}
-                        </Button>
-                        {ext.updateAvailable && (
-                          <Button variant="primary" size="sm" disabled={busy} onClick={() => vm.updateInstalled(ext.id)}>
-                            <RiRefreshLine size={16} /> Atualizar{ext.updateVersion ? ` (v${ext.updateVersion})` : ''}
-                          </Button>
-                        )}
-                        {ext.isAuthor && (
-                          <Button variant="ghost" size="sm" disabled={busy} onClick={() => vm.downloadInstalled(ext.id)}>
-                            <RiDownloadLine size={16} /> Baixar
-                          </Button>
-                        )}
-                        <Button variant="danger" size="sm" disabled={busy} onClick={() => vm.uninstallInstalled(ext.id)}>
-                          Desinstalar
-                        </Button>
-                      </S.Actions>
-                    </S.Card>
-                  );
-                })}
-              </S.Grid>
-            )}
-          </S.Section>
-        )}
-
-        {vm.canModerate && vm.moderationCards.length > 0 && (
-          <S.Section>
-            <S.SectionHead>
-              <S.SectionTitleRow>
-                <S.SectionTitle>Moderação</S.SectionTitle>
-                <S.Count>{vm.moderationCards.length}</S.Count>
-              </S.SectionTitleRow>
-              <S.SectionHint>Extensões com código aguardando aprovação para virarem públicas.</S.SectionHint>
-            </S.SectionHead>
-            <S.Grid>
-              {vm.moderationCards.map((pub) => {
-                const busy = vm.busyId === pub.domain;
-                return (
-                  <S.Card key={pub.domain}>
-                    <S.CardTop>
-                      <S.CardName>{pub.name}</S.CardName>
-                      <S.Badges><S.Badge $tone="warning">Em análise</S.Badge><CodeBadge /></S.Badges>
-                    </S.CardTop>
-                    <S.Summary>{pub.summary}</S.Summary>
-                    <AuthorLine author={pub.author} prefix="Publicada por" />
-                    <S.Meta><span>v{pub.version}</span><span>{pub.domain}</span></S.Meta>
-                    <S.Actions>
-                      <Button variant="primary" size="sm" disabled={busy} onClick={() => vm.approvePublic(pub.domain)}>
-                        Aprovar
-                      </Button>
-                      <Button variant="danger" size="sm" disabled={busy} onClick={() => vm.rejectPublic(pub.domain)}>
-                        Recusar
-                      </Button>
-                    </S.Actions>
-                  </S.Card>
-                );
-              })}
-            </S.Grid>
-          </S.Section>
-        )}
-
-        <S.Section>
-          <S.SectionHead>
-            <S.SectionTitleRow>
-              <S.SectionTitle>Catálogo público</S.SectionTitle>
-              <S.Count>{vm.publicCards.length}</S.Count>
-            </S.SectionTitleRow>
-            <S.SectionHint>Extensões publicadas e aprovadas, disponíveis para todos os escritórios.</S.SectionHint>
-          </S.SectionHead>
-          {vm.publicCards.length === 0 ? (
-            <S.Empty>Ainda não há extensões públicas.</S.Empty>
-          ) : (
-            <S.Grid>
-              {vm.publicCards.map((pub) => {
-                const busy = vm.busyId === pub.domain;
-                return (
-                  <S.Card key={pub.domain}>
-                    <S.CardTop>
-                      <S.CardName>{pub.name}</S.CardName>
-                      <S.Badges>
-                        <S.Badge $tone="success">Pública</S.Badge>
-                        {pub.hasCode && <CodeBadge />}
-                        {pub.isAuthor && <S.Badge $tone="primary">Você é o autor</S.Badge>}
-                      </S.Badges>
-                    </S.CardTop>
-                    <S.Summary>{pub.summary}</S.Summary>
-                    <AuthorLine author={pub.author} prefix="Publicada por" />
-                    <S.Meta><span>v{pub.version}</span><span>{pub.domain}</span></S.Meta>
-                    {vm.canManage && (
-                      <S.Actions>
-                        {pub.installState === 'installed' ? (
-                          <S.Note>Instalada no escritório</S.Note>
-                        ) : (
-                          <Button variant="primary" size="sm" disabled={busy} onClick={() => vm.installPublic(pub.domain)}>
-                            {pub.installState === 'update' ? <><RiRefreshLine size={16} /> Atualizar</> : <><RiStoreLine size={16} /> Instalar</>}
-                          </Button>
-                        )}
-                        {vm.canModerate && (
-                          <Button variant="ghost" size="sm" disabled={busy} onClick={() => vm.deprecatePublic(pub.domain)}>
-                            Marcar obsoleta
-                          </Button>
-                        )}
-                      </S.Actions>
-                    )}
-                  </S.Card>
-                );
-              })}
-            </S.Grid>
+        <S.Body>
+          {!vm.canManage && (
+            <InfoBanner
+              message="Somente administradores do escritório podem criar, instalar ou publicar extensões."
+              variant="info"
+            />
           )}
-        </S.Section>
+
+          <S.Filters>
+            {FILTERS.map((f) => (
+              <S.Filter key={f.key} $active={vm.filter === f.key} onClick={() => vm.setFilter(f.key)}>
+                {f.label}
+                <S.FilterCount>{vm.counts[f.key]}</S.FilterCount>
+              </S.Filter>
+            ))}
+          </S.Filters>
+
+          {vm.rows.length === 0 ? (
+            <S.Empty>
+              {vm.filter === 'all'
+                ? 'Nenhuma extensão ainda. Use "Criar extensão", importe um .json ou instale a partir do catálogo público.'
+                : 'Nenhuma extensão nesta visão.'}
+            </S.Empty>
+          ) : (
+            <S.List>
+              {vm.rows.map((row) => (
+                <RowView key={row.id} row={row} busy={vm.busyId === row.id} vm={vm} />
+              ))}
+            </S.List>
+          )}
+        </S.Body>
       </S.Scroll>
 
       <ConfirmModal
@@ -283,8 +214,8 @@ export const MarketplaceView: React.FC = () => {
         message={`Excluir "${vm.removeTarget?.name ?? ''}" da sua área privada? Cópias já instaladas (aqui ou em outros escritórios) e a versão publicada não são afetadas.`}
         confirmLabel="Excluir"
         variant="danger"
-        onConfirm={vm.confirmRemovePrivate}
-        onCancel={vm.cancelRemovePrivate}
+        onConfirm={vm.confirmRemove}
+        onCancel={vm.cancelRemove}
       />
     </S.Page>
   );

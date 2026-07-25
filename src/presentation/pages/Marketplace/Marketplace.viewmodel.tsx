@@ -8,104 +8,91 @@ import { useNotification } from '../../../stores/useNotification';
 import { useWorkspace } from '../../../stores/useWorkspace';
 import { serializePackage } from '../../../domain/usecases/plugins/packageSerialization';
 import { isVersionGreater } from '../../../domain/usecases/plugins/publicExtension';
-import type { PublicExtensionStatus } from '../../../domain/entities/PublicExtension';
 
 export interface Author {
   name: string | null;
   photoURL: string | null;
 }
 
-export interface PrivateCard {
-  id: string;
-  name: string;
-  summary: string;
-  version: string;
-  hasCode: boolean;
-  /** Status no catálogo público: null = ainda não publicada. */
-  publicStatus: PublicExtensionStatus | null;
-  /** Já existe uma cópia instalada deste identificador no escritório? */
-  installed: boolean;
-  /** Instalada de versão anterior à privada atual → dá para reinstalar/atualizar. */
-  installOutdated: boolean;
-  author: Author;
-}
+export type StatusBadge = 'published' | 'pending' | 'deprecated' | 'private';
+export type InstallBadge = 'active' | 'inactive';
+export type InstallAction = 'install' | 'update';
 
-export interface InstalledCard {
+/** Uma extensão consolidada: a mesma identidade (id/domínio) aparece uma única vez, reunindo todos os
+ *  seus papéis — autoria privada, cópia instalada no escritório e presença no catálogo público —, com
+ *  os selos e as ações que fizerem sentido para o estado atual. */
+export interface ExtensionRow {
   id: string;
   name: string;
   summary: string;
   version: string;
-  active: boolean;
+  author: Author;
   hasCode: boolean;
-  sourceLabel: string;
+
+  installBadge: InstallBadge | null;
+  statusBadge: StatusBadge | null;
   updateAvailable: boolean;
-  updateVersion: string | null;
-  deprecated: boolean;
-  isAuthor: boolean;
-  author: Author;
+
+  canEdit: boolean;
+  install: InstallAction | null;
+  active: boolean;
+  canToggleActive: boolean;
+  published: boolean;
+  canPublish: boolean;
+  canDownload: boolean;
+  canUninstall: boolean;
+  canDelete: boolean;
+  canApprove: boolean;
+  canDeprecate: boolean;
+
+  mine: boolean;
+  installed: boolean;
+  isPublic: boolean;
 }
 
-export interface PublicCard {
-  domain: string;
-  name: string;
-  summary: string;
-  version: string;
-  hasCode: boolean;
-  isAuthor: boolean;
-  /** none = não instalada; installed = instalada e atual; update = instalada de versão anterior. */
-  installState: 'none' | 'installed' | 'update';
-  author: Author;
-}
-
-export interface ModerationCard {
-  domain: string;
-  name: string;
-  summary: string;
-  version: string;
-  author: Author;
-}
+export type MarketplaceFilter = 'all' | 'installed' | 'mine' | 'catalog';
 
 export interface MarketplaceViewModel {
   canManage: boolean;
   canModerate: boolean;
-  privateCards: PrivateCard[];
-  installedCards: InstalledCard[];
-  publicCards: PublicCard[];
-  moderationCards: ModerationCard[];
+  rows: ExtensionRow[];
+  filter: MarketplaceFilter;
+  setFilter: (filter: MarketplaceFilter) => void;
+  counts: Record<MarketplaceFilter, number>;
   busyId: string | null;
   removeTarget: { id: string; name: string } | null;
   openAuthor: () => void;
   onImportFile: (event: React.ChangeEvent<HTMLInputElement>) => Promise<void>;
-  editPrivate: (id: string) => void;
-  downloadPrivate: (id: string) => void;
-  publishPrivate: (id: string) => Promise<void>;
-  installPrivate: (id: string) => Promise<void>;
-  requestRemovePrivate: (id: string) => void;
-  confirmRemovePrivate: () => Promise<void>;
-  cancelRemovePrivate: () => void;
-  installPublic: (domain: string) => Promise<void>;
-  toggleInstalledActive: (id: string, active: boolean) => Promise<void>;
-  updateInstalled: (id: string) => Promise<void>;
-  uninstallInstalled: (id: string) => Promise<void>;
-  downloadInstalled: (id: string) => void;
-  approvePublic: (domain: string) => Promise<void>;
-  deprecatePublic: (domain: string) => Promise<void>;
-  rejectPublic: (domain: string) => Promise<void>;
+  edit: (id: string) => void;
+  download: (id: string) => void;
+  publish: (id: string) => Promise<void>;
+  install: (id: string) => Promise<void>;
+  toggleActive: (id: string, active: boolean) => Promise<void>;
+  uninstall: (id: string) => Promise<void>;
+  requestRemove: (id: string) => void;
+  confirmRemove: () => Promise<void>;
+  cancelRemove: () => void;
+  approve: (id: string) => Promise<void>;
+  reject: (id: string) => Promise<void>;
+  deprecate: (id: string) => Promise<void>;
 }
 
 const hasCodeOf = (views: unknown[] | undefined): boolean => (views?.length ?? 0) > 0;
 
+const rankOf = (row: ExtensionRow): number => (row.installed ? 0 : row.mine ? 1 : 2);
+
 export const useMarketplaceViewModel = (): MarketplaceViewModel => {
   const { extensions, importExtension, removeExtension } = useTenantExtensions();
-  const { installed, install, setActive: setInstalledActive, uninstall } = useInstalledExtensions();
-  const { publicExtensions, publish: publishPublic, approve, deprecate, unpublish, publicOf } = usePublicExtensions();
-  const { currentTenant, tenantRole } = useTenant();
+  const { installed, install: installCopy, setActive: setInstalledActive, uninstall: uninstallCopy } = useInstalledExtensions();
+  const { publicExtensions, publish: publishPublic, approve: approvePublic, deprecate: deprecatePublic, unpublish, publicOf } = usePublicExtensions();
+  const { tenantRole } = useTenant();
   const { user, userRole } = useAuth();
   const { notify } = useNotification();
   const { openTab } = useWorkspace();
 
   const [busyId, setBusyId] = useState<string | null>(null);
   const [removeTarget, setRemoveTarget] = useState<{ id: string; name: string } | null>(null);
+  const [filter, setFilter] = useState<MarketplaceFilter>('all');
 
   const canModerate = userRole === 'SYSTEM';
   const canManage = canModerate || tenantRole === 'admin';
@@ -166,80 +153,89 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
     return isVersionGreater(best.version, installedVersion) ? best : null;
   }, [privateInputOf, publicInputOf, publicOf]);
 
-  const privateCards = useMemo<PrivateCard[]>(
-    () => extensions.map((ext) => {
-      const copy = installed.find((i) => i.id === ext.id);
-      return {
-        id: ext.id,
-        name: ext.package.manifest.name,
-        summary: ext.package.summary,
-        version: ext.package.manifest.version,
-        hasCode: hasCodeOf(ext.package.views),
-        publicStatus: publicOf(ext.id)?.status ?? null,
-        installed: Boolean(copy),
-        installOutdated: Boolean(copy && isVersionGreater(ext.package.manifest.version, copy.installedVersion)),
-        author: { name: ext.createdByName ?? null, photoURL: ext.createdByPhotoURL ?? null },
-      };
-    }),
-    [extensions, installed, publicOf],
-  );
+  const rows = useMemo<ExtensionRow[]>(() => {
+    const ids = new Set<string>();
+    extensions.forEach((e) => ids.add(e.id));
+    installed.forEach((i) => ids.add(i.id));
+    publicExtensions.forEach((p) => { if (p.status === 'approved' || canModerate) ids.add(p.domain); });
 
-  const installedCards = useMemo<InstalledCard[]>(
-    () => installed.map((ext) => {
-      const update = updateSourceOf(ext.id, ext.installedVersion);
-      return {
-        id: ext.id,
-        name: ext.package.manifest.name,
-        summary: ext.package.summary,
-        version: ext.installedVersion,
-        active: ext.active,
-        hasCode: hasCodeOf(ext.package.views),
-        sourceLabel: ext.source === 'private' ? 'Da sua área privada' : 'Do catálogo público',
-        updateAvailable: update !== null,
-        updateVersion: update?.version ?? null,
-        deprecated: publicOf(ext.id)?.status === 'deprecated',
-        isAuthor: ext.authorId === user?.id,
-        author: { name: ext.authorName || null, photoURL: ext.authorPhotoURL },
-      };
-    }),
-    [installed, updateSourceOf, publicOf, user],
-  );
+    const list: ExtensionRow[] = [];
+    for (const id of ids) {
+      const priv = extensions.find((e) => e.id === id);
+      const inst = installed.find((i) => i.id === id);
+      const pub = publicOf(id);
 
-  const publicCards = useMemo<PublicCard[]>(
-    () => publicExtensions
-      .filter((p) => p.status === 'approved')
-      .map((p) => {
-        const copy = installed.find((i) => i.id === p.domain);
-        return {
-          domain: p.domain,
-          name: p.package.manifest.name,
-          summary: p.package.summary,
-          version: p.version,
-          hasCode: p.hasCode,
-          isAuthor: p.ownerTenantId === currentTenant?.id,
-          installState: !copy ? 'none' : isVersionGreater(p.version, copy.installedVersion) ? 'update' : 'installed',
-          author: { name: p.ownerName || null, photoURL: p.ownerPhotoURL },
-        };
-      }),
-    [publicExtensions, installed, currentTenant],
-  );
+      const mine = Boolean(priv);
+      const installed_ = Boolean(inst);
+      const publicStatus = pub?.status ?? null;
+      const isApproved = publicStatus === 'approved';
 
-  const moderationCards = useMemo<ModerationCard[]>(
-    () => (canModerate
-      ? publicExtensions
-        .filter((p) => p.status === 'pending')
-        .map((p) => ({
-          domain: p.domain,
-          name: p.package.manifest.name,
-          summary: p.package.summary,
-          version: p.version,
-          author: { name: p.ownerName || null, photoURL: p.ownerPhotoURL },
-        }))
-      : []),
-    [publicExtensions, canModerate],
-  );
+      const pkg = inst?.package ?? priv?.package ?? pub?.package;
+      if (!pkg) continue;
 
-  const editPrivate = useCallback((id: string) => openTab(`plugin-author:${id}`), [openTab]);
+      const author: Author = inst
+        ? { name: inst.authorName || null, photoURL: inst.authorPhotoURL }
+        : priv
+          ? { name: priv.createdByName ?? null, photoURL: priv.createdByPhotoURL ?? null }
+          : { name: pub?.ownerName || null, photoURL: pub?.ownerPhotoURL ?? null };
+
+      const updateAvailable = inst ? updateSourceOf(id, inst.installedVersion) !== null : false;
+      const install: InstallAction | null = inst
+        ? (updateAvailable ? 'update' : null)
+        : (mine || isApproved ? 'install' : null);
+
+      const statusBadge: StatusBadge | null = publicStatus === 'approved' ? 'published'
+        : publicStatus === 'pending' ? 'pending'
+          : publicStatus === 'deprecated' ? 'deprecated'
+            : mine ? 'private' : null;
+
+      list.push({
+        id,
+        name: pkg.manifest.name,
+        summary: pkg.summary,
+        version: inst?.installedVersion ?? priv?.package.manifest.version ?? pub?.version ?? '',
+        author,
+        hasCode: hasCodeOf(pkg.views),
+        installBadge: inst ? (inst.active ? 'active' : 'inactive') : null,
+        statusBadge,
+        updateAvailable,
+        canEdit: mine,
+        install,
+        active: inst?.active ?? false,
+        canToggleActive: installed_,
+        published: publicStatus !== null,
+        canPublish: mine,
+        canDownload: mine || Boolean(inst && inst.authorId === user?.id),
+        canUninstall: installed_,
+        canDelete: mine,
+        canApprove: canModerate && publicStatus === 'pending',
+        canDeprecate: canModerate && publicStatus === 'approved',
+        mine,
+        installed: installed_,
+        isPublic: isApproved,
+      });
+    }
+
+    return list.sort((a, b) => rankOf(a) - rankOf(b) || a.name.localeCompare(b.name));
+  }, [extensions, installed, publicExtensions, publicOf, updateSourceOf, canModerate, user]);
+
+  const counts = useMemo<Record<MarketplaceFilter, number>>(() => ({
+    all: rows.length,
+    installed: rows.filter((r) => r.installed).length,
+    mine: rows.filter((r) => r.mine).length,
+    catalog: rows.filter((r) => r.isPublic).length,
+  }), [rows]);
+
+  const visibleRows = useMemo<ExtensionRow[]>(() => {
+    switch (filter) {
+      case 'installed': return rows.filter((r) => r.installed);
+      case 'mine': return rows.filter((r) => r.mine);
+      case 'catalog': return rows.filter((r) => r.isPublic);
+      default: return rows;
+    }
+  }, [rows, filter]);
+
+  const edit = useCallback((id: string) => openTab(`plugin-author:${id}`), [openTab]);
 
   const downloadPackage = useCallback((id: string, packageJson: string) => {
     const blob = new Blob([packageJson], { type: 'application/json' });
@@ -251,17 +247,14 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
     URL.revokeObjectURL(url);
   }, []);
 
-  const downloadPrivate = useCallback((id: string) => {
-    const ext = extensions.find((e) => e.id === id);
-    if (ext) downloadPackage(id, serializePackage(ext.package));
-  }, [extensions, downloadPackage]);
+  const download = useCallback((id: string) => {
+    const priv = extensions.find((e) => e.id === id);
+    if (priv) { downloadPackage(id, serializePackage(priv.package)); return; }
+    const inst = installed.find((e) => e.id === id);
+    if (inst) downloadPackage(id, serializePackage(inst.package));
+  }, [extensions, installed, downloadPackage]);
 
-  const downloadInstalled = useCallback((id: string) => {
-    const ext = installed.find((e) => e.id === id);
-    if (ext) downloadPackage(id, serializePackage(ext.package));
-  }, [installed, downloadPackage]);
-
-  const publishPrivate = useCallback(async (id: string) => {
+  const publish = useCallback(async (id: string) => {
     const ext = extensions.find((e) => e.id === id);
     if (!ext) return;
     setBusyId(id);
@@ -278,50 +271,40 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
     }
   }, [extensions, publishPublic, notify]);
 
-  const installPrivate = useCallback((id: string) => {
-    const input = privateInputOf(id);
+  const install = useCallback((id: string) => {
+    const inst = installed.find((e) => e.id === id);
+    if (inst) {
+      const input = updateSourceOf(id, inst.installedVersion);
+      if (!input) return Promise.resolve();
+      return run(id, () => installCopy(input), 'Extensão atualizada.');
+    }
+    const input = privateInputOf(id) ?? publicInputOf(id);
     if (!input) return Promise.resolve();
-    const isUpdate = installed.some((e) => e.id === id);
-    return run(id, () => install(input), isUpdate ? 'Cópia atualizada no escritório.' : 'Instalada no escritório.');
-  }, [privateInputOf, installed, run, install]);
+    return run(id, () => installCopy(input), 'Instalada no escritório.');
+  }, [installed, updateSourceOf, privateInputOf, publicInputOf, run, installCopy]);
 
-  const installPublic = useCallback((domain: string) => {
-    const input = publicInputOf(domain);
-    if (!input) return Promise.resolve();
-    const isUpdate = installed.some((e) => e.id === domain);
-    return run(domain, () => install(input), isUpdate ? 'Extensão atualizada.' : 'Extensão instalada.');
-  }, [publicInputOf, installed, run, install]);
-
-  const updateInstalled = useCallback((id: string) => {
-    const ext = installed.find((e) => e.id === id);
-    if (!ext) return Promise.resolve();
-    const input = updateSourceOf(id, ext.installedVersion);
-    if (!input) return Promise.resolve();
-    return run(id, () => install(input), 'Extensão atualizada.');
-  }, [installed, updateSourceOf, run, install]);
-
-  const toggleInstalledActive = useCallback(
+  const toggleActive = useCallback(
     (id: string, active: boolean) => run(id, () => setInstalledActive(id, active), active ? 'Extensão ativada.' : 'Extensão desativada.'),
     [run, setInstalledActive],
   );
 
-  const uninstallInstalled = useCallback(
-    (id: string) => run(id, () => uninstall(id), 'Extensão desinstalada.'),
-    [run, uninstall],
+  const uninstall = useCallback(
+    (id: string) => run(id, () => uninstallCopy(id), 'Extensão desinstalada.'),
+    [run, uninstallCopy],
   );
 
-  const approvePublic = useCallback((domain: string) => run(domain, () => approve(domain), 'Extensão aprovada.'), [run, approve]);
-  const deprecatePublic = useCallback((domain: string) => run(domain, () => deprecate(domain), 'Extensão marcada como obsoleta.'), [run, deprecate]);
-  const rejectPublic = useCallback((domain: string) => run(domain, () => unpublish(domain), 'Publicação recusada e removida do catálogo.'), [run, unpublish]);
+  const approve = useCallback((id: string) => run(id, () => approvePublic(id), 'Extensão aprovada.'), [run, approvePublic]);
+  const deprecate = useCallback((id: string) => run(id, () => deprecatePublic(id), 'Extensão marcada como obsoleta.'), [run, deprecatePublic]);
+  const reject = useCallback((id: string) => run(id, () => unpublish(id), 'Publicação recusada e removida do catálogo.'), [run, unpublish]);
 
-  const requestRemovePrivate = useCallback((id: string) => {
+  const requestRemove = useCallback((id: string) => {
     const ext = extensions.find((e) => e.id === id);
     setRemoveTarget({ id, name: ext?.package.manifest.name ?? id });
   }, [extensions]);
 
-  const cancelRemovePrivate = useCallback(() => setRemoveTarget(null), []);
+  const cancelRemove = useCallback(() => setRemoveTarget(null), []);
 
-  const confirmRemovePrivate = useCallback(async () => {
+  const confirmRemove = useCallback(async () => {
     if (!removeTarget) return;
     const { id } = removeTarget;
     setRemoveTarget(null);
@@ -347,28 +330,25 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
   return {
     canManage,
     canModerate,
-    privateCards,
-    installedCards,
-    publicCards,
-    moderationCards,
+    rows: visibleRows,
+    filter,
+    setFilter,
+    counts,
     busyId,
     removeTarget,
     openAuthor,
     onImportFile,
-    editPrivate,
-    downloadPrivate,
-    publishPrivate,
-    installPrivate,
-    requestRemovePrivate,
-    confirmRemovePrivate,
-    cancelRemovePrivate,
-    installPublic,
-    toggleInstalledActive,
-    updateInstalled,
-    uninstallInstalled,
-    downloadInstalled,
-    approvePublic,
-    deprecatePublic,
-    rejectPublic,
+    edit,
+    download,
+    publish,
+    install,
+    toggleActive,
+    uninstall,
+    requestRemove,
+    confirmRemove,
+    cancelRemove,
+    approve,
+    reject,
+    deprecate,
   };
 };
