@@ -129,7 +129,7 @@ function daysSince(dateStr) {
 
 export default function ProcessoCloneView() {
   const theme = useTheme();
-  const list = useEntityList(SOURCE_ID);
+  const list = useEntityList(SOURCE_ID, { editKeyPrefix: EDIT_PREFIX });
   const persons = usePersons();
   const { openTab } = useWorkspace();
 

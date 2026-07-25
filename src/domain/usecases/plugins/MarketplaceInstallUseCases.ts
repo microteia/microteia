@@ -68,6 +68,12 @@ const addOwner = (owners: string[], pluginId: string): string[] =>
 
 const removeOwner = (owners: string[], pluginId: string): string[] => owners.filter((o) => o !== pluginId);
 
+/** União preservando ordem: os ids do template primeiro, mais os que só existiam na tela (do usuário). */
+const unionIds = (base: string[] = [], extra: string[] = []): string[] => {
+  const seen = new Set(base);
+  return [...base, ...extra.filter((id) => !seen.has(id))];
+};
+
 /** Revisão de origem de um artefato (0 quando ausente — legado materializado antes do campo). O
  * conteúdo só é reescrito quando a revisão que CHEGA (template) é estritamente maior que a atual. */
 const revOf = (a: { sourceRev?: number | null }): number => a.sourceRev ?? 0;
@@ -227,6 +233,10 @@ const upsertPluginScreens = async (
           ownerPluginId: existing.ownerPluginId ?? pluginId,
           ownerPluginIds: addOwner(ownerSet(existing), pluginId),
           fields: [...input.fields, ...preservedUserFields(existing.fields, input.fields, pluginId)],
+          // Ações do card/detalhe que o usuário configurou por cima (Form Design) são preservadas —
+          // sem isso, reinstalar/atualizar as apagaria, já que o template não as traz.
+          viewActionIds: unionIds(input.viewActionIds, existing.viewActionIds),
+          cardActionIds: unionIds(input.cardActionIds, existing.cardActionIds),
         }
       : input;
     await deps.screenRepository.upsert(tenantId, screenKey, merged);
