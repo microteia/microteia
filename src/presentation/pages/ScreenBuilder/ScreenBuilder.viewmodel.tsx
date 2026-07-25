@@ -491,6 +491,7 @@ const toSaveInput = (def: ScreenDefinition): ScreenDefinitionSaveInput => ({
   fieldOrderUnified: def.fieldOrderUnified ?? null,
   ownerPluginId: def.ownerPluginId ?? null,
   managed: def.managed ?? null,
+  hideFromSidebar: def.hideFromSidebar ?? null,
 });
 
 const buildDynamicMeta = (def: ScreenDefinition, fieldCount: number): string => {

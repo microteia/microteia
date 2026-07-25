@@ -1,56 +1,50 @@
 import React from 'react';
-import { RiApps2Line, RiLinkM, RiFileCopyLine, RiPriceTag3Line, RiDeleteBinLine } from 'react-icons/ri';
-import { ConfirmModal } from '../../ui/ConfirmModal';
-import { TagManager } from '../../ui/TagManager';
+import { RiApps2Line } from 'react-icons/ri';
 import { CustomFieldMetaRows } from '../../ui/CustomFieldMetaRows';
 import { EntityListCard } from '../../ui/EntityListCard';
 import { EntityListView } from '../EntityListView';
+import { EntityListModals } from './EntityListModals';
+import { cardActionIcon } from './cardActionIcon';
 import { getScreenIcon } from '../../../shared/screenIcons';
 import type { RecordListViewModel } from '../../../shared/entityScreen/useRecordListViewModel';
-import type { ScreenDefinition, ScreenListAction } from '../../../../domain/entities';
-
-const ACTION_ICONS: Record<ScreenListAction, React.ReactNode> = {
-  copyLink: <RiLinkM size={14} />,
-  clone: <RiFileCopyLine size={14} />,
-  manageTags: <RiPriceTag3Line size={14} />,
-  delete: <RiDeleteBinLine size={14} />,
-};
+import type { CustomRecord, ScreenDefinition } from '../../../../domain/entities';
 
 interface RecordListSurfaceProps {
   vm: RecordListViewModel;
   definition: ScreenDefinition;
   variant?: 'page' | 'embedded';
+  /**
+   * Slots OPCIONAIS para conteúdo específico da tela — o que uma extensão injeta sem abrir mão do
+   * resto padrão (ações, filtros, etiquetas e modais continuam vindo da configuração/Form Design).
+   * `renderSubtitle` alimenta o subtítulo do card; `renderBelowHeader`, a faixa logo abaixo do
+   * cabeçalho (ex.: badges próprios, colunas de polos). Ausentes, o card é o padrão de sempre.
+   */
+  renderSubtitle?: (record: CustomRecord) => React.ReactNode;
+  renderBelowHeader?: (record: CustomRecord) => React.ReactNode;
+  /**
+   * Redireciona abrir/criar registro para uma tela PRÓPRIA (ex.: um editor de código da extensão),
+   * no lugar do detalhe dinâmico nativo. Ausentes, mantêm o comportamento padrão (`vm.openRecord`/
+   * `vm.openNewRecord`).
+   */
+  onOpenRecord?: (record: CustomRecord) => void;
+  onNewRecord?: () => void;
 }
 
 /**
  * Listagem de registros de uma tela customizada. A mesma superfície serve à janela própria da tela
  * e à aba de registros filhos dentro do pai — só muda a variante do `EntityListView`.
  */
-export const RecordListSurface: React.FC<RecordListSurfaceProps> = ({ vm, definition, variant = 'page' }) => {
-  const modals = (
-    <>
-      {vm.tagManagerRecord && (
-        <TagManager entityId={vm.tagManagerRecord.id} onClose={vm.closeTagManager} adapter={vm.tagAdapter} />
-      )}
-      <ConfirmModal
-        isOpen={vm.recordToDelete !== null}
-        title="Excluir registro"
-        message={`Tem certeza que deseja excluir "${vm.recordToDelete?.title ?? ''}"? As anotações e documentos vinculados também serão excluídos. Esta ação não pode ser desfeita.`}
-        variant="danger"
-        confirmLabel="Excluir"
-        loading={vm.isDeleting}
-        onConfirm={() => void vm.confirmDelete()}
-        onCancel={vm.cancelDelete}
-      />
-    </>
-  );
+export const RecordListSurface: React.FC<RecordListSurfaceProps> = ({ vm, definition, variant = 'page', renderSubtitle, renderBelowHeader, onOpenRecord, onNewRecord }) => {
+  const openRecord = onOpenRecord ?? vm.openRecord;
+  const openNewRecord = onNewRecord ?? vm.openNewRecord;
+  const modals = <EntityListModals vm={vm} />;
 
   return (
     <EntityListView
       variant={variant}
       title={definition.titlePlural}
       titleIcon={getScreenIcon(definition.icon, 22)}
-      onNew={vm.openNewRecord}
+      onNew={openNewRecord}
       newTitle={`Novo ${definition.titleSingular}`}
       filterDefs={vm.filterDefs}
       filterTokens={vm.filterTokens}
@@ -70,16 +64,16 @@ export const RecordListSurface: React.FC<RecordListSurfaceProps> = ({ vm, defini
         return (
           <EntityListCard
             key={record.id}
-            onClick={() => vm.openRecord(record)}
+            onClick={() => openRecord(record)}
             avatar={getScreenIcon(definition.icon, 22)}
             title={vm.getCardTitle(record)}
+            subtitle={renderSubtitle?.(record)}
+            belowHeader={renderBelowHeader?.(record)}
             metaRows={[]}
             tags={recordTags}
             actions={vm.getCardActions(record).map((action) => ({
               key: action.key,
-              icon: action.iconKey
-                ? getScreenIcon(action.iconKey, 14)
-                : ACTION_ICONS[action.key as ScreenListAction],
+              icon: cardActionIcon(action),
               title: action.title,
               danger: action.danger,
               disabled: action.disabled,

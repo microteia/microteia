@@ -95,7 +95,7 @@ export const ScreenDefinitionStoreProvider: React.FC<{ children: React.ReactNode
   // `dynamicScreens` porque o CustomRecordStore precisa assinar seus registros e o ScreenBuilder
   // precisa listá-las para configuração.
   const sidebarScreens = useMemo(
-    () => dynamicScreens.filter((def) => !def.parentEntity),
+    () => dynamicScreens.filter((def) => !def.parentEntity && !def.hideFromSidebar),
     [dynamicScreens],
   );
 

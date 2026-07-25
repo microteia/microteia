@@ -121,6 +121,13 @@ export interface ScreenDefinition {
    * só reescreve a estrutura quando a revisão que chega é estritamente maior que a materializada. */
   sourceRev?: number | null;
   managed?: boolean | null;
+  /**
+   * Mantém a tela FORA do menu lateral e da busca ⌘K mesmo sendo de topo (sem `parentEntity`). É o
+   * que permite uma entidade existir sem menu quando quem dá acesso a ela é OUTRA tela — tipicamente
+   * uma view de código de extensão que a apresenta com layout próprio. Diferente de `parentEntity`,
+   * não a torna filha de ninguém: continua uma entidade de topo, só sem entrada de menu automática.
+   */
+  hideFromSidebar?: boolean | null;
   sidebarOrder: number;
   enabled: boolean;
   createdAt: Date;

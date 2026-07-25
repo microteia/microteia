@@ -191,7 +191,7 @@ export const usePluginAuthorViewModel = (tabKey?: string): PluginAuthorViewModel
   }, []);
 
   const iconOptions = useMemo<SearchSelectOption[]>(
-    () => getScreenIconOptions().map((option) => ({ value: option.key, label: option.label })),
+    () => getScreenIconOptions().map((option) => ({ value: option.key, label: option.label, icon: option.Icon })),
     [],
   );
 

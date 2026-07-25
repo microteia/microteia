@@ -28,6 +28,8 @@ export interface ScreenModuleTemplate {
   listActions?: ScreenListAction[];
   sidebarOrder?: number;
   enabled?: boolean;
+  /** Mantém a tela fora do menu (entidade de topo sem entrada automática). Ver `ScreenDefinition`. */
+  hideFromSidebar?: boolean;
   parentEntity?: string | null;
   parentFieldKey?: string | null;
   viewActionIds?: string[];

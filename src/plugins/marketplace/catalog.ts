@@ -2,6 +2,7 @@ import type { MarketplacePlugin } from '../../domain/entities/MarketplacePlugin'
 import { nav, widgetPage } from '../contributionBuilders';
 import { vendasPlugin } from './vendas';
 import { kanbanCasesPlugin } from './kanbanCases';
+import { processoClonePlugin } from './processoClone';
 
 /**
  * Extensões de exemplo, mantidas como MOLDE de autoria e como fixtures dos testes da máquina de
@@ -169,12 +170,13 @@ export const guiaPlugin: MarketplacePlugin =
     workflows: [],
   };
 
-export { vendasPlugin, kanbanCasesPlugin };
+export { vendasPlugin, kanbanCasesPlugin, processoClonePlugin };
 
 /**
  * Catálogo do Marketplace EMBUTIDO — hoje vazio de propósito. Extensões de primeira-parte (Kanban de
- * Processos etc.) são distribuídas como `.json` para o usuário importar em Minhas Extensões, não fixas
- * no código. A máquina de instalação (`installedPluginRecords`/`MarketplaceInstall...`) e o
- * `PluginStore` seguem existindo; nada é servido por aqui até um item ser adicionado a esta lista.
+ * Processos, Processo (clone)…) são distribuídas como `.json` para o usuário importar em Minhas
+ * Extensões; ao instalar, a cópia ganha self-trust (tem `views`) e a tela em código executa. A
+ * confiança NÃO depende deste catálogo (ver `extensionRecordFrom`/`installedExtensionRecords`); esta
+ * lista existe só para o eventual caminho de "publicar do bundle".
  */
 export const MARKETPLACE_CATALOG: MarketplacePlugin[] = [];

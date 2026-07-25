@@ -11,6 +11,15 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [0.150.0] — 2026-07-24
+
+- Nova extensão de exemplo **"Processos (clone)"**: uma réplica da tela de Processos construída inteiramente como extensão, com seus próprios cards, filtros, etiquetas coloridas de Status e Fase, além dos polos ativo e passivo. Ela traz a própria ficha de processo — que aparece no **Form Design** como qualquer outra e pode ser personalizada — e ao abrir ou criar um registro usa o formulário padrão, com campos, máscaras, validações, notas e documentos. Os dados são totalmente independentes dos Processos do escritório: serve para demonstrar, na prática, o que já é possível montar com o novo recurso de telas por extensão.
+- Ao escolher o ícone de uma tela de código na criação de extensões, agora o **desenho do ícone** aparece ao lado do nome, tanto na lista quanto no campo selecionado — antes só o nome era exibido.
+- A extensão "Processos (clone)" passou a usar a **própria listagem padrão do sistema**: agora os filtros, as etiquetas coloridas de Status e Fase, as etiquetas do registro e — principalmente — as **ações do cartão** (copiar link, duplicar, gerenciar etiquetas, excluir) vêm da **configuração da tela no Form Design**, e não mais fixas no código da extensão. A extensão só acrescenta o que é exclusivo dela (o número do processo, o tempo em trâmite e os polos ativo/passivo). Assim quem personaliza a tela vê a mudança refletida na hora, sem depender de quem programou a extensão.
+- Quem cria extensões agora pode montar **telas de cadastro/edição com layout próprio** reaproveitando os **campos padrão do sistema**: cada campo (texto, moeda, data, seleção com cor, referência etc.) já vem com sua máscara, opções e validação vindas do Form Design — a extensão só decide onde cada campo fica e pode dar comportamentos especiais a um campo específico. É a base para telas personalizadas sem abrir mão da configuração do escritório.
+- A extensão "Processos (clone)" ganhou uma **tela de edição própria em duas colunas**: ao abrir ou criar um processo, agora surge um formulário organizado por seções, montado pela extensão, mas com todos os campos, máscaras e validações vindos da configuração da tela — demonstrando de ponta a ponta a criação de telas personalizadas.
+- A tela de edição da extensão passou a mostrar, no cabeçalho, as **mesmas ações da tela** (duplicar, gerenciar etiquetas, excluir, copiar link) definidas no Form Design, como ícones pequenos que se destacam ao passar o mouse — iguais aos das telas do sistema. Excluir a partir dali já volta para a listagem.
+
 ## [0.149.0] — 2026-07-24
 
 - O recurso de "workflow público" foi descontinuado. Todas as automações agora são **privadas do seu escritório**, seguindo o mesmo princípio de Scripts e Ações. Para compartilhar uma automação com outro escritório, crie uma **Extensão** e selecione apenas a automação desejada — o compartilhamento passa a ser feito por um único caminho, mais organizado e completo.

@@ -106,6 +106,7 @@ export const materializeScreen = (
     cardActionIds: mapActionIds(template.cardActionIds),
     parentEntity: rewriteRef(template.parentEntity, keyMap) ?? null,
     parentFieldKey: template.parentFieldKey ?? null,
+    hideFromSidebar: template.hideFromSidebar ?? false,
     ownerPluginId: pluginId,
     ownerPluginIds: [pluginId],
     sourceId: templateSourceId(template),

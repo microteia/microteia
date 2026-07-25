@@ -88,6 +88,7 @@ const screenToTemplate = (screen: ScreenDefinition): ScreenModuleTemplate =>
     listActions: screen.listActions,
     sidebarOrder: screen.sidebarOrder,
     enabled: screen.enabled,
+    hideFromSidebar: screen.hideFromSidebar ?? undefined,
     parentEntity: screen.parentEntity ?? undefined,
     parentFieldKey: screen.parentFieldKey ?? undefined,
     viewActionIds: screen.viewActionIds,

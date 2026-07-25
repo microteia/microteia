@@ -1,0 +1,366 @@
+import type { MarketplacePlugin, ScreenModuleTemplate } from '../../domain/entities/MarketplacePlugin';
+import type { CustomFieldOption, FieldDefinition } from '../../domain/entities';
+import { nav, page } from '../contributionBuilders';
+
+/**
+ * "Processo (clone)" — PROVA DE CONCEITO de recriar uma tela nativa inteiramente como Extensão, fiel
+ * porém INDEPENDENTE do Processo real. A entidade é declarativa (comporta-se como criada no Form
+ * Design: campos, lookups coloridos, máscaras, validações, título/etiquetas/notas/documentos nativos)
+ * e NÃO tem `ui.nav` própria — existe sem item de menu. A view de código abaixo é a lista rica (cards,
+ * filtros, badges, polos), que lê o SCHEMA VIVO e os PRÓPRIOS registros (coleção genérica
+ * `customRecords`) pela ponte `@curatino/*`, sem tocar nenhum repositório de Case. Abrir/criar um
+ * registro cai no detalhe dinâmico nativo (`ViewDynamicRecord`), gerado a partir deste mesmo schema.
+ *
+ * O `sourceId` estável é o elo entre o schema instalado e a view: a view resolve a tela por ele,
+ * imune ao namespacing da chave instalada.
+ */
+const SOURCE_ID = 'curatino:processo-clone';
+
+const opts = (labels: string[]): CustomFieldOption[] => labels.map((label) => ({ key: label, label }));
+
+const coloredOpts = (entries: [string, string][]): CustomFieldOption[] =>
+  entries.map(([label, color]) => ({ key: label, label, color }));
+
+const STATUS_OPTIONS = coloredOpts([
+  ['Em Andamento', 'caseStatusInProgress'],
+  ['Procedente', 'caseStatusWon'],
+  ['Procedente em Parte', 'caseStatusWon'],
+  ['Improcedente', 'caseStatusLost'],
+  ['Acordo', 'caseStatusSettlement'],
+  ['Suspenso', 'caseStatusSuspended'],
+  ['Arquivado', 'caseStatusArchived'],
+  ['Extinto', 'caseStatusLost'],
+]);
+
+const PHASE_OPTIONS = coloredOpts([
+  ['Fase Inicial', 'casePhaseInitial'],
+  ['Instrução', 'casePhaseInstruction'],
+  ['Sentença', 'casePhaseSentence'],
+  ['Recurso', 'casePhaseAppeal'],
+  ['Execução', 'casePhaseExecution'],
+  ['Arquivado', 'casePhaseArchived'],
+]);
+
+const AREA_OPTIONS = opts([
+  'Cível', 'Criminal', 'Trabalhista', 'Tributário', 'Família', 'Consumidor', 'Administrativo',
+  'Constitucional', 'Ambiental', 'Imobiliário', 'Empresarial', 'Digital', 'Outros',
+]);
+
+const INSTANCE_OPTIONS = opts(['1º Grau', '2º Grau', 'Turma Recursal', 'STJ', 'STF', 'TST', 'TSE']);
+
+const TYPE_OPTIONS = opts([
+  'Ação de Cobrança', 'Ação de Indenização', 'Ação Trabalhista', 'Execução Fiscal',
+  'Mandado de Segurança', 'Ação de Divórcio', 'Ação Penal',
+]);
+
+const IDENTIFICACAO = 'Identificação';
+const CLASSIFICACAO = 'Classificação';
+const TRIBUNAL = 'Tribunal';
+const FINANCEIRO = 'Financeiro e Responsável';
+const PARTES = 'Partes';
+
+const FIELDS: FieldDefinition[] = [
+  { key: 'caseNumber', label: 'Número do processo', type: 'text', required: true, order: 0, section: IDENTIFICACAO },
+  { key: 'title', label: 'Título', type: 'text', required: true, order: 1, section: IDENTIFICACAO },
+  { key: 'area', label: 'Área', type: 'select', required: false, order: 2, section: CLASSIFICACAO, options: AREA_OPTIONS, optionsAllowUserAdd: true, showInList: true, filterable: true },
+  { key: 'type', label: 'Tipo de ação', type: 'select', required: false, order: 3, section: CLASSIFICACAO, options: TYPE_OPTIONS, optionsAllowUserAdd: true, multi: true, filterable: true },
+  { key: 'phase', label: 'Fase', type: 'select', required: false, order: 4, section: CLASSIFICACAO, options: PHASE_OPTIONS, optionsColored: true, optionsAllowUserAdd: true, showInList: true, filterable: true },
+  { key: 'status', label: 'Status', type: 'select', required: false, order: 5, section: CLASSIFICACAO, options: STATUS_OPTIONS, optionsColored: true, optionsAllowUserAdd: true, showInList: true, filterable: true },
+  { key: 'instance', label: 'Instância', type: 'select', required: false, order: 6, section: TRIBUNAL, options: INSTANCE_OPTIONS, optionsAllowUserAdd: true, showInList: true, filterable: true },
+  { key: 'court', label: 'Vara/Tribunal', type: 'select', required: false, order: 7, section: TRIBUNAL, options: [], optionsAllowUserAdd: true, showInList: true, filterable: true },
+  { key: 'courtDistrict', label: 'Comarca', type: 'select', required: false, order: 8, section: TRIBUNAL, options: [], optionsAllowUserAdd: true, filterable: true },
+  { key: 'judge', label: 'Juiz(a)', type: 'select', required: false, order: 9, section: TRIBUNAL, options: [], optionsAllowUserAdd: true, filterable: true },
+  { key: 'filedAt', label: 'Data de distribuição', type: 'date', required: false, order: 10, section: TRIBUNAL },
+  { key: 'causeValue', label: 'Valor da causa', type: 'currency', required: false, order: 11, section: FINANCEIRO, showInList: true },
+  { key: 'responsibleLawyerId', label: 'Advogado responsável', type: 'reference', required: false, order: 12, section: FINANCEIRO, refEntity: 'persons', showInList: true, filterable: true },
+  { key: 'contractId', label: 'Contrato', type: 'reference', required: false, order: 13, section: FINANCEIRO, refEntity: 'contracts' },
+  { key: 'notes', label: 'Observações', type: 'textarea', required: false, order: 14, section: FINANCEIRO },
+  { key: 'activePoleIds', label: 'Polo ativo', type: 'reference', required: false, order: 15, section: PARTES, refEntity: 'persons', multi: true },
+  { key: 'passivePoleIds', label: 'Polo passivo', type: 'reference', required: false, order: 16, section: PARTES, refEntity: 'persons', multi: true },
+];
+
+const PROCESSO_SCREEN: ScreenModuleTemplate = {
+  key: 'processo-clone',
+  sourceId: SOURCE_ID,
+  sourceRev: 1,
+  titleSingular: 'Processo (clone)',
+  titlePlural: 'Processos (clone)',
+  icon: 'folder',
+  fields: FIELDS,
+  titleFieldKey: 'title',
+  hasNotes: true,
+  hasDocuments: true,
+  hasTags: true,
+  listActions: ['copyLink', 'clone', 'manageTags', 'delete'],
+  sidebarOrder: 0,
+  hideFromSidebar: true,
+};
+
+/**
+ * A view de código (lista rica). Escrita SÓ contra `@curatino/*`, `react` e `styled-components`.
+ *
+ * Aqui está o ponto da prova: em vez de remontar a lista na mão, ela REUTILIZA a mesma superfície
+ * padrão das telas nativas — `RecordListSurface`, alimentada por `useEntityList(sourceId)`. Com isso
+ * o TÍTULO, os FILTROS (com cor), os BADGES coloridos de Status/Fase, as ETIQUETAS e — o ponto que o
+ * usuário pediu — as AÇÕES do card vêm todos da CONFIGURAÇÃO (Form Design): a extensão não fixa nada.
+ * A view só injeta os pedaços EXCLUSIVOS por slots: o subtítulo (número + chip de dias) e os polos.
+ * Quem cria a extensão pode manter esse padrão ou, para relocar (ex.: ações num dropdown), compor a
+ * própria tela com `useEntityList` + `EntityListView`/`EntityListCard`, sem perder a governança da
+ * configuração. Nenhuma cor é fixa: os lookups usam nome de token do tema, resolvidos pela app.
+ */
+const PROCESSO_SOURCE = `
+import { useMemo } from 'react';
+import { useTheme } from 'styled-components';
+import { RecordListSurface, Badge, InfoBanner } from '@curatino/ui';
+import { useEntityList, usePersons, useWorkspace } from '@curatino/data';
+
+const SOURCE_ID = 'curatino:processo-clone';
+const EDIT_PREFIX = 'processo-clone-edit:';
+
+const asArray = (v) => Array.isArray(v) ? v : (v == null || v === '' ? [] : [v]);
+
+function daysSince(dateStr) {
+  if (!dateStr) return null;
+  const d = new Date(dateStr + 'T00:00:00');
+  if (isNaN(d.getTime())) return null;
+  const diff = Math.floor((Date.now() - d.getTime()) / 86400000);
+  return diff < 0 ? 0 : diff;
+}
+
+export default function ProcessoCloneView() {
+  const theme = useTheme();
+  const list = useEntityList(SOURCE_ID);
+  const persons = usePersons();
+  const { openTab } = useWorkspace();
+
+  const personById = useMemo(() => {
+    const map = {};
+    for (const p of persons) map[p.id] = p;
+    return map;
+  }, [persons]);
+
+  if (!list.definition) {
+    return <div style={{ padding: '24px' }}><InfoBanner message='Entidade "Processo (clone)" não encontrada. Instale a extensão para ativar esta tela.' variant="warning" /></div>;
+  }
+
+  const namesOf = (ids) => asArray(ids).map((id) => personById[id] ? personById[id].name : '').filter(Boolean);
+
+  const poleLabel = { fontSize: theme.fontSizes.xs, color: theme.colors.textMuted, textTransform: 'uppercase', letterSpacing: '0.04em' };
+  const poleName = { fontSize: theme.fontSizes.sm, color: theme.colors.text };
+  const poleEmpty = { fontSize: theme.fontSizes.sm, color: theme.colors.textMuted };
+
+  const renderPole = (label, names) => (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', minWidth: '160px' }}>
+      <span style={poleLabel}>{label}</span>
+      {names.length > 0
+        ? names.map((n, i) => <span key={i} style={poleName}>{n}</span>)
+        : <span style={poleEmpty}>—</span>}
+    </div>
+  );
+
+  const renderSubtitle = (record) => {
+    const v = record.values || {};
+    const days = daysSince(v.filedAt);
+    return (
+      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+        {v.caseNumber ? <span style={{ fontFamily: 'monospace' }}>{v.caseNumber}</span> : null}
+        {days != null ? <Badge color={theme.colors.textSecondary}>{days} dias</Badge> : null}
+      </span>
+    );
+  };
+
+  const renderBelowHeader = (record) => {
+    const v = record.values || {};
+    return (
+      <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap', margin: '8px 0' }}>
+        {renderPole('Polo Ativo', namesOf(v.activePoleIds))}
+        {renderPole('Polo Passivo', namesOf(v.passivePoleIds))}
+      </div>
+    );
+  };
+
+  return (
+    <RecordListSurface
+      vm={list}
+      definition={list.definition}
+      renderSubtitle={renderSubtitle}
+      renderBelowHeader={renderBelowHeader}
+      onOpenRecord={(record) => openTab(EDIT_PREFIX + record.id)}
+      onNewRecord={() => openTab(EDIT_PREFIX + 'new')}
+    />
+  );
+}
+`;
+
+/**
+ * A tela de EDIÇÃO própria da extensão — a prova de que dá para RECRIAR o formulário com layout
+ * próprio (aqui, 2 colunas) sem reimplementar os inputs: cada `FieldInput` renderiza o campo pelo
+ * TIPO/máscara/opções/validação do Form Design; a extensão só decide a disposição e envolve o
+ * `onChange` com o que quiser. Estado e gravação em `customRecords` vêm de `useEntityForm`. Aberta
+ * pela lista (no lugar do detalhe nativo) e registrada por uma page de `keyPrefix`.
+ */
+const EDIT_SOURCE = `
+import { useMemo, useEffect, useRef } from 'react';
+import { useTheme } from 'styled-components';
+import { FieldInput, Button, InfoBanner, EntityListModals, cardActionIcon } from '@curatino/ui';
+import { useEntityForm, useEntityList, useWorkspace, useNotify } from '@curatino/data';
+
+const SOURCE_ID = 'curatino:processo-clone';
+const EDIT_PREFIX = 'processo-clone-edit:';
+const LIST_KEY = 'processo-clone';
+
+export default function EditProcessoView({ tabKey }) {
+  const theme = useTheme();
+  const { openTab, closeTab, activePanelId } = useWorkspace();
+  const notify = useNotify();
+
+  const raw = String(tabKey || '').slice(EDIT_PREFIX.length);
+  const recordId = (raw === 'new' || raw === '') ? null : raw;
+  const form = useEntityForm(SOURCE_ID, recordId);
+  const list = useEntityList(SOURCE_ID);
+
+  const groups = useMemo(() => {
+    const result = [];
+    for (const field of form.fields) {
+      if (field.key === 'tagIds') continue;
+      const section = field.section || null;
+      const last = result[result.length - 1];
+      if (last && last.section === section) last.fields.push(field);
+      else result.push({ section, fields: [field] });
+    }
+    return result;
+  }, [form.fields]);
+
+  // Ações da tela vindas da CONFIGURAÇÃO (Form Design): as mesmas do card. Só ao editar (há registro).
+  const record = useMemo(
+    () => (recordId ? (list.records.find((r) => r.id === recordId) || null) : null),
+    [list.records, recordId],
+  );
+  const actions = useMemo(() => (record ? list.getCardActions(record) : []), [list, record]);
+
+  // Ao excluir pela ação, o registro some da lista — então volta para a listagem.
+  const seenRef = useRef(false);
+  useEffect(() => { if (record) seenRef.current = true; }, [record]);
+  useEffect(() => {
+    if (!recordId || form.isNew || !seenRef.current) return;
+    if (!list.records.some((r) => r.id === recordId)) { closeTab(tabKey, activePanelId); openTab(LIST_KEY); }
+  }, [list.records, recordId, form.isNew, tabKey, activePanelId, closeTab, openTab]);
+
+  if (!form.screen) {
+    return <div style={{ padding: '24px' }}><InfoBanner message='Entidade "Processo (clone)" não encontrada. Instale a extensão para ativar esta tela.' variant="warning" /></div>;
+  }
+
+  const goToList = () => { closeTab(tabKey, activePanelId); openTab(LIST_KEY); };
+  const onSave = () => {
+    form.save().then((res) => {
+      if (res) { notify(form.isNew ? 'Processo criado.' : 'Processo atualizado.', 'success'); goToList(); }
+    });
+  };
+
+  const page = { display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' };
+  const header = { display: 'flex', alignItems: 'center', gap: '8px', padding: '16px 20px', borderBottom: '1px solid ' + theme.colors.border, flexShrink: 0 };
+  const titleStyle = { fontSize: theme.fontSizes.lg, fontWeight: 700, color: theme.colors.text, flex: 1 };
+  const body = { flex: 1, overflowY: 'auto', padding: '20px', display: 'flex', flexDirection: 'column', gap: '20px' };
+  const sectionTitle = { fontSize: theme.fontSizes.sm, fontWeight: 600, color: theme.colors.textSecondary, textTransform: 'uppercase', letterSpacing: '0.04em' };
+  const grid = { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' };
+  const wide = { gridColumn: '1 / -1' };
+
+  return (
+    <div style={page}>
+      <div style={header}>
+        <span style={titleStyle}>{form.isNew ? 'Novo processo' : 'Editar processo'}</span>
+        {actions.map((a) => (
+          <Button key={a.key} variant="ghost" size="sm" title={a.title} onClick={a.onClick} disabled={a.disabled}>
+            {cardActionIcon(a)}
+          </Button>
+        ))}
+        <Button variant="ghost" size="sm" onClick={goToList}>Cancelar</Button>
+        <Button variant="primary" size="sm" onClick={onSave} disabled={form.isSaving}>Salvar</Button>
+      </div>
+      <div style={body}>
+        {groups.map((group, gi) => (
+          <div key={gi} style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            {group.section ? <span style={sectionTitle}>{group.section}</span> : null}
+            <div style={grid}>
+              {group.fields.map((field) => {
+                const isWide = field.type === 'textarea' || field.type === 'markdown';
+                return (
+                  <div key={field.key} style={isWide ? wide : undefined}>
+                    <FieldInput
+                      field={field}
+                      value={form.getValue(field.key)}
+                      onChange={(value) => form.setValue(field.key, value)}
+                      screenKey={form.screenKey}
+                      error={form.errors[field.key]}
+                    />
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        ))}
+      </div>
+      <EntityListModals vm={list} />
+    </div>
+  );
+}
+`;
+
+export const processoClonePlugin: MarketplacePlugin = {
+  manifest: {
+    id: 'com.curatino.processo-clone',
+    version: '1.0.0',
+    kernel: '^1.0.0',
+    name: 'Processo (clone)',
+    description: 'Réplica independente da tela de Processos, construída inteiramente como extensão — prova de conceito da ponte de componentes.',
+    publisher: { name: 'Curatino' },
+    dependencies: { 'core.ui': '^1.0.0' },
+    contributes: [
+      nav({ key: 'processo-clone', label: 'Processos (clone)', icon: 'folder', order: 105 }),
+      page({ key: 'processo-clone', title: 'Processos (clone)', icon: 'folder' }, 'processo-clone'),
+      page({ key: '', keyPrefix: 'processo-clone-edit:', title: 'Editar processo', icon: 'folder' }, 'processo-clone-edit'),
+    ],
+  },
+  summary:
+    'Recria a tela de Processos como extensão: uma entidade própria (com campos, lookups coloridos, máscaras e validações, editável no Form Design) e uma tela em código com cards, filtros, badges e polos — independente do Processo nativo. Prova o que a ponte de componentes já permite construir.',
+  overview: {
+    type: 'stack',
+    gap: 'lg',
+    children: [
+      {
+        type: 'markdown',
+        content:
+          'A extensão **Processo (clone)** é uma **prova de conceito**: reproduz a tela de Processos do escritório usando apenas o mecanismo de extensões.\n\nEla traz a **própria entidade** — com os mesmos campos, lookups coloridos (Status, Fase), máscaras e validações — que aparece no **Form Design** como qualquer outra, e uma **tela em código** com cards, filtros e badges. Os dados são independentes dos Processos reais.',
+      },
+      {
+        type: 'keyValue',
+        items: [
+          { label: 'Adiciona', value: 'Item "Processos (clone)" no menu' },
+          { label: 'Entidade', value: 'Processo (clone) — editável no Form Design' },
+          { label: 'Detalhe', value: 'Formulário nativo (campos, etiquetas, notas, documentos)' },
+        ],
+      },
+      {
+        type: 'banner',
+        message: 'Os registros desta extensão são independentes: nada é compartilhado com os Processos nativos do escritório.',
+        variant: 'info',
+      },
+    ],
+  },
+  workflows: [],
+  screens: [PROCESSO_SCREEN],
+  views: [
+    {
+      key: 'processo-clone',
+      title: 'Processos (clone)',
+      icon: 'folder',
+      source: PROCESSO_SOURCE,
+    },
+    {
+      key: 'processo-clone-edit',
+      title: 'Editar processo',
+      icon: 'folder',
+      source: EDIT_SOURCE,
+    },
+  ],
+};
