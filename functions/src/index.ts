@@ -3,8 +3,6 @@ import { initFirebase } from './infrastructure/firebase/initFirebase';
 initFirebase();
 
 export { callAIProxy } from './infrastructure/handlers/callAIProxy';
-export { copyPublicWorkflow } from './infrastructure/handlers/copyPublicWorkflow';
-export { updateFromSourceWorkflow } from './infrastructure/handlers/updateFromSourceWorkflow';
 export { detectWorkflows } from './infrastructure/handlers/detectWorkflows';
 export { runWorkflow } from './infrastructure/handlers/runWorkflow';
 export { runScript } from './infrastructure/handlers/runScript';
@@ -31,5 +29,4 @@ export { publishWorkflowEventOnEntityChange } from './infrastructure/handlers/pu
 export { recomputeAggregatesOnEntityChange } from './infrastructure/handlers/recomputeAggregatesOnEntityChange';
 export { onNoteChange } from './infrastructure/handlers/workflow/onNoteChange';
 export { onDocumentChange } from './infrastructure/handlers/workflow/onDocumentChange';
-export { syncPublicWorkflowOnWrite, syncPublicWorkflowOnDelete } from './infrastructure/handlers/workflow/syncPublicWorkflow';
 export { getExpressionFunctions } from './infrastructure/handlers/getExpressionFunctions';

@@ -153,9 +153,6 @@ export interface WorkflowDefinition {
   // Só relevante quando eventName é "workflow.called": parâmetros que este workflow espera receber
   // de quem o chamar. Definem o schema de `event.` (intellisense e hidratação) do workflow chamado.
   parameters?: WorkflowParameter[];
-  // Quando true, outros escritórios enxergam o workflow e podem copiá-lo integralmente; a edição
-  // continua restrita ao tenant dono. Ver "Workflows Públicos" no ARCHITECTURE.md.
-  isPublic?: boolean;
   // Presente quando o workflow foi materializado pela instalação de um plugin do Marketplace.
   // É a marca que a desinstalação usa para remover exatamente os artefatos daquele plugin, e o
   // sinal de que o registro é gerenciado (o usuário não deve editá-lo à mão). Ver "Fatia vertical
@@ -171,10 +168,6 @@ export interface WorkflowDefinition {
   sourceRev?: number | null;
   enabled: boolean;
   version: number;
-  // ID do workflow público original (presente apenas quando este workflow foi copiado de um workflow público)
-  sourceWorkflowId?: string;
-  // Versão do workflow original no momento da cópia (usado para detectar desatualização)
-  sourceVersion?: number;
   condition: Condition;
   steps: WorkflowStep[];
   createdAt: Date;
@@ -204,12 +197,4 @@ export interface WorkflowExecution {
   finishedAt?: Date;
   logs: WorkflowExecutionLogEntry[];
   outputs: Record<string, Record<string, unknown>>;
-}
-
-export interface PublicWorkflow extends Omit<WorkflowDefinition, 'tenantId'> {
-  originalWorkflowId: string;
-  originalTenantId: string;
-  ownerId: string;
-  ownerName: string;
-  ownerPhotoURL?: string;
 }

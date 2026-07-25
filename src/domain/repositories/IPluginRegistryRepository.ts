@@ -1,9 +1,8 @@
 import type { MarketplacePlugin } from '../entities/MarketplacePlugin';
 
 /**
- * O registro global de plugins publicados — coleção-raiz `plugin_registry`, no mesmo modelo de
- * `public_workflows`: qualquer autenticado LÊ; só a equipe global (SYSTEM) PUBLICA. É o que permite
- * adicionar um plugin sem um deploy do frontend.
+ * O registro global de plugins publicados — coleção-raiz `plugin_registry`: qualquer autenticado LÊ;
+ * só a equipe global (SYSTEM) PUBLICA. É o que permite adicionar um plugin sem um deploy do frontend.
  */
 export interface PublishedPlugin extends MarketplacePlugin {
   publishedAt: Date;

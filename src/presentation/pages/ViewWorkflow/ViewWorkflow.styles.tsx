@@ -182,32 +182,6 @@ export const S = {
     color: ${({ $enabled, theme }) => ($enabled ? theme.colors.success : theme.colors.danger)};
   `,
 
-  CopyBadge: styled.div<{ $outdated: boolean }>`
-    display: flex;
-    align-items: center;
-    padding: 4px 10px;
-    border-radius: ${({ theme }) => theme.borderRadius.sm};
-    background: ${({ $outdated, theme }) => ($outdated ? `${theme.colors.warning}15` : `${theme.colors.info}15`)};
-    border: 1px solid ${({ $outdated, theme }) => ($outdated ? theme.colors.warning : theme.colors.info)};
-    color: ${({ $outdated, theme }) => ($outdated ? theme.colors.warning : theme.colors.info)};
-    font-size: ${({ theme }) => theme.fontSizes.xs};
-    font-weight: 500;
-    white-space: nowrap;
-  `,
-
-  OutdatedBadge: styled.div`
-    display: flex;
-    align-items: center;
-    padding: 4px 10px;
-    border-radius: ${({ theme }) => theme.borderRadius.sm};
-    background: ${({ theme }) => theme.colors.warning}15;
-    border: 1px solid ${({ theme }) => theme.colors.warning};
-    color: ${({ theme }) => theme.colors.warning};
-    font-size: ${({ theme }) => theme.fontSizes.xs};
-    font-weight: 500;
-    white-space: nowrap;
-  `,
-
   TabBar: styled.div`
     display: flex;
     border-bottom: 1px solid ${({ theme }) => theme.colors.border};

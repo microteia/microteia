@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [0.149.0] — 2026-07-24
+
+- O recurso de "workflow público" foi descontinuado. Todas as automações agora são **privadas do seu escritório**, seguindo o mesmo princípio de Scripts e Ações. Para compartilhar uma automação com outro escritório, crie uma **Extensão** e selecione apenas a automação desejada — o compartilhamento passa a ser feito por um único caminho, mais organizado e completo.
+
 ## [0.148.1] — 2026-07-24
 
 - Na edição de uma extensão, os itens que você criou no próprio escritório não aparecem mais **duplicados** — antes cada tela, ação ou automação surgia duas vezes (uma como "Incluída" e outra como opção marcável). Agora cada item aparece **uma única vez**, já marcado. Os itens que vêm embarcados de uma extensão importada de outro escritório continuam sinalizados como "Incluída".

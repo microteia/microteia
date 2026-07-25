@@ -2248,9 +2248,9 @@ em `ViewWorkflow.view.tsx`); o nó Condição abre duas raias "Verdadeiro"/"Fals
 reordena **dentro do mesmo ramo** (identificado por `parentKey`). Toda a manipulação da árvore
 (flatten/find/update/remove/insert/move/reorder) vive em funções puras em `workflowHelpers.ts`.
 Excluir um nó Condição remove seus ramos em cascata. `EditWorkflowStep` edita `step.condition` com o
-`ConditionBuilder` quando o Step é do tipo Condição. Ao copiar/atualizar um workflow público
-(`copyPublicWorkflow`/`updateFromSourceWorkflow`), a coleta e o remapeamento de Scripts/SubWorkflows
-percorrem a árvore via `flattenSteps`/`mapStepTree` (`functions/src/domain/services/stepTree.ts`).
+`ConditionBuilder` quando o Step é do tipo Condição. A coleta e o remapeamento de Scripts/SubWorkflows
+(usados no empacotamento/instalação de extensões) percorrem a árvore via `flattenSteps`/`mapStepTree`
+(`functions/src/domain/services/stepTree.ts`).
 
 ### Arquivos-chave
 
@@ -2370,56 +2370,11 @@ editor de Script) e no IntelliSense do editor (`scriptTypeDefs.ts`).
 
 ---
 
-### Workflows Públicos
-
-Workflows podem ser marcados como **públicos** (`isPublic: true`), permitindo que outros escritórios
-visualizem e **copiem** a automação completa, incluindo scripts associados. A edição continua
-**restrita ao tenant dono** — workflows públicos são somente-leitura para os demais tenants.
-
-- **Campo `isPublic`** — booleano opcional em `WorkflowDefinition` (padrão `false`). Controlado por
-  checkbox "Workflow Público" no formulário geral da tela de edição de workflow, com `InfoBanner`
-  explicando o comportamento.
-- **Sincronização automática via Cloud Functions** — quando um workflow é marcado como `isPublic: true`
-  (ou atualizado/excluído), duas Cloud Functions sincronizam automaticamente a coleção flat
-  `public_workflows` no root do Firestore:
-  - `syncPublicWorkflowOnWrite` (trigger `onDocumentWritten` em `workflow_definitions`) — replica o
-    workflow para `public_workflows` quando `isPublic: true`, incluindo metadados do proprietário
-    (`ownerId`, `ownerName`, `ownerPhotoURL` do dono do tenant); remove de `public_workflows` quando
-    `isPublic` se torna `false`.
-  - `syncPublicWorkflowOnDelete` (trigger `onDocumentDeleted` em `workflow_definitions`) — remove o
-    workflow de `public_workflows` quando o documento original é excluído.
-  - Ambas implementadas em `functions/src/infrastructure/handlers/workflow/syncPublicWorkflow.ts` e
-    exportadas em `functions/src/index.ts`.
-- **Entidade `PublicWorkflow`** — estende `WorkflowDefinition` (via `Omit<WorkflowDefinition, 'tenantId'>`)
-  e adiciona campos `originalWorkflowId`, `originalTenantId`, `ownerId`, `ownerName`, `ownerPhotoURL`.
-  Definida em `domain/entities/Workflow.ts`.
-- **Listagem unificada** — a tela "Workflows" (`presentation/pages/Workflows`) mescla workflows do
-  tenant atual (`useWorkflowStore().workflows`) com workflows públicos de outros tenants
-  (`useWorkflowStore().publicWorkflows`), removendo duplicatas. Workflows públicos aparecem com:
-  - Badge "Público" (ícone `RiGlobalLine`)
-  - Nome e foto do proprietário abaixo do nome do evento (componentes `S.OwnerInfo`, `S.OwnerPhoto`, `S.OwnerName`)
-  - Botão de copiar (ícone `RiFileCopyLine`) em vez do botão de exclusão
-- **Filtro "Tipo"** — `CompositeFilter` inclui opção "Tipo" com valores "Meus Workflows" / "Públicos"
-  para separar os dois grupos.
-- **Permissão de leitura** — coleção flat `public_workflows` permite leitura para qualquer autenticado;
-  escrita bloqueada (apenas Cloud Functions com Admin SDK). Firestore Security Rule:
-  ```javascript
-  match /public_workflows/{workflowId} {
-    allow read: if request.auth != null;
-    allow write: if false;
-  }
-  ```
-- **Cópia** — método `copyPublicWorkflow(originalTenantId, originalWorkflowId)` no Store:
-  1. Lê o workflow de `public_workflows/{originalWorkflowId}` (não mais do tenant original)
-  2. Copia scripts associados (Steps do tipo `'Script'`) de `tenants/{originalTenantId}/scripts` para
-     `tenants/{targetTenantId}/scripts` e atualiza as referências (`scriptId` nos Steps)
-  3. Cria o workflow no tenant destino com nome + `" (cópia)"`, `isPublic: false`, `enabled: false`, `version: 1`
-  4. Retorna `{ workflowId, copiedWorkflows: 1, copiedScripts: N }`
-  5. Notifica o usuário com mensagem de sucesso incluindo contagem de scripts copiados
-- **Interação na UI** — workflows públicos de outros tenants **não** são clicáveis/editáveis (prop
-  `$clickable={false}` no `S.Row`); badge "Habilitado/Desabilitado" e botão de exclusão aparecem
-  **apenas** para workflows do tenant atual.
-- **Índice composto** — `public_workflows` com campos `name` (ASC) para ordenação alfabética na listagem.
+> **Compartilhamento de workflows.** Não existe compartilhamento direto de workflow entre escritórios:
+> todo workflow é **privado ao tenant**, no mesmo modelo de Scripts e Actions. Para distribuir um
+> workflow a outro escritório, crie uma **Extensão** selecionando apenas esse workflow — o
+> empacotamento/instalação de extensões é o único canal de compartilhamento. Ver "Plataforma de
+> Plugins".
 
 ---
 
@@ -2721,7 +2676,7 @@ aqui ele ganha consumidor.
 ### Registro global do Marketplace (Etapa 7 — spine)
 
 O catálogo deixou de ser só código: uma coleção-raiz `plugin_registry` guarda os plugins
-publicados, no mesmo modelo de `public_workflows`.
+publicados (qualquer autenticado LÊ; só a equipe global publica).
 
 | | Leitura | Escrita |
 |---|---|---|
@@ -2729,8 +2684,8 @@ publicados, no mesmo modelo de `public_workflows`.
 
 **Marketplace curado, v1.** Publicar é escrita de cliente gated a SYSTEM — a equipe Curatino
 curadora, não o admin do tenant. Precisa apenas de `deploy:rules`, sem Cloud Function nem service
-account. A evolução para marketplace aberto (revisão + publish via Admin SDK, como
-`public_workflows`) é trocar a regra e a porta de escrita, sem mexer no resto.
+account. A evolução para marketplace aberto (revisão + publish via Admin SDK) é trocar a regra e a
+porta de escrita, sem mexer no resto.
 
 **Catálogo mostrado = publicados ∪ embutidos**, deduplicados por id, o publicado vencendo
 (`domain/usecases/plugins/mergeCatalog.ts`, puro e testado). Os plugins **embutidos**
@@ -2739,8 +2694,8 @@ permite adicionar um plugin **sem deploy do frontend**. Publicar um embutido pro
 o card passa de "Interna" para "Publicada" e a partir dali vem do Firestore. O `PluginStore` assina
 `plugin_registry` (global, independente de tenant) e expõe `publish`/`unpublish` para SYSTEM.
 
-O que falta para a Etapa 7 completa: versões por plugin (`versions/{semver}`), um fluxo de publish
-de verdade (formulário/validação de manifest) e a migração dos Workflows Públicos para cá.
+O que falta para a Etapa 7 completa: versões por plugin (`versions/{semver}`) e um fluxo de publish
+de verdade (formulário/validação de manifest).
 
 ### Extensões que carregam módulos de domínio (Fase 1)
 
