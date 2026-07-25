@@ -193,116 +193,23 @@ export default function ProcessoCloneView() {
 `;
 
 /**
- * A tela de EDIÇÃO própria da extensão — a prova de que dá para RECRIAR o formulário com layout
- * próprio (aqui, 2 colunas) sem reimplementar os inputs: cada `FieldInput` renderiza o campo pelo
- * TIPO/máscara/opções/validação do Form Design; a extensão só decide a disposição e envolve o
- * `onChange` com o que quiser. Estado e gravação em `customRecords` vêm de `useEntityForm`. Aberta
- * pela lista (no lugar do detalhe nativo) e registrada por uma page de `keyPrefix`.
+ * A tela de EDIÇÃO própria da extensão. Reaproveita a MESMA superfície de detalhe do sistema
+ * (`RecordDetailSurface`, alimentada por `useEntityDetailVM`): cabeçalho com salvar (verde)/excluir
+ * (vermelho)/clonar/copiar-link/etiquetas nos mesmos ícones, abas Dados/Anotações/Documentos, seções
+ * e campos do schema (grade 1fr 1fr) — tudo governado pela configuração (Form Design). Diferença do
+ * detalhe nativo: os links (copiar link, clonar, reabrir ao salvar) apontam para ESTE editor, via
+ * `editKeyPrefix`. Para um layout de campos próprio, passar `renderData` (usa `FieldInput`/`EntityForm`).
  */
 const EDIT_SOURCE = `
-import { useMemo, useEffect, useRef } from 'react';
-import { useTheme } from 'styled-components';
-import { FieldInput, Button, InfoBanner, EntityListModals, cardActionIcon } from '@curatino/ui';
-import { useEntityForm, useEntityList, useWorkspace, useNotify } from '@curatino/data';
+import { RecordDetailSurface } from '@curatino/ui';
+import { useEntityDetailVM } from '@curatino/data';
 
 const SOURCE_ID = 'curatino:processo-clone';
 const EDIT_PREFIX = 'processo-clone-edit:';
-const LIST_KEY = 'processo-clone';
 
 export default function EditProcessoView({ tabKey }) {
-  const theme = useTheme();
-  const { openTab, closeTab, activePanelId } = useWorkspace();
-  const notify = useNotify();
-
-  const raw = String(tabKey || '').slice(EDIT_PREFIX.length);
-  const recordId = (raw === 'new' || raw === '') ? null : raw;
-  const form = useEntityForm(SOURCE_ID, recordId);
-  const list = useEntityList(SOURCE_ID);
-
-  const groups = useMemo(() => {
-    const result = [];
-    for (const field of form.fields) {
-      if (field.key === 'tagIds') continue;
-      const section = field.section || null;
-      const last = result[result.length - 1];
-      if (last && last.section === section) last.fields.push(field);
-      else result.push({ section, fields: [field] });
-    }
-    return result;
-  }, [form.fields]);
-
-  // Ações da tela vindas da CONFIGURAÇÃO (Form Design): as mesmas do card. Só ao editar (há registro).
-  const record = useMemo(
-    () => (recordId ? (list.records.find((r) => r.id === recordId) || null) : null),
-    [list.records, recordId],
-  );
-  const actions = useMemo(() => (record ? list.getCardActions(record) : []), [list, record]);
-
-  // Ao excluir pela ação, o registro some da lista — então volta para a listagem.
-  const seenRef = useRef(false);
-  useEffect(() => { if (record) seenRef.current = true; }, [record]);
-  useEffect(() => {
-    if (!recordId || form.isNew || !seenRef.current) return;
-    if (!list.records.some((r) => r.id === recordId)) { closeTab(tabKey, activePanelId); openTab(LIST_KEY); }
-  }, [list.records, recordId, form.isNew, tabKey, activePanelId, closeTab, openTab]);
-
-  if (!form.screen) {
-    return <div style={{ padding: '24px' }}><InfoBanner message='Entidade "Processo (clone)" não encontrada. Instale a extensão para ativar esta tela.' variant="warning" /></div>;
-  }
-
-  const goToList = () => { closeTab(tabKey, activePanelId); openTab(LIST_KEY); };
-  const onSave = () => {
-    form.save().then((res) => {
-      if (res) { notify(form.isNew ? 'Processo criado.' : 'Processo atualizado.', 'success'); goToList(); }
-    });
-  };
-
-  const page = { display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' };
-  const header = { display: 'flex', alignItems: 'center', gap: '8px', padding: '16px 20px', borderBottom: '1px solid ' + theme.colors.border, flexShrink: 0 };
-  const titleStyle = { fontSize: theme.fontSizes.lg, fontWeight: 700, color: theme.colors.text, flex: 1 };
-  const body = { flex: 1, overflowY: 'auto', padding: '20px', display: 'flex', flexDirection: 'column', gap: '20px' };
-  const sectionTitle = { fontSize: theme.fontSizes.sm, fontWeight: 600, color: theme.colors.textSecondary, textTransform: 'uppercase', letterSpacing: '0.04em' };
-  const grid = { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' };
-  const wide = { gridColumn: '1 / -1' };
-
-  return (
-    <div style={page}>
-      <div style={header}>
-        <span style={titleStyle}>{form.isNew ? 'Novo processo' : 'Editar processo'}</span>
-        {actions.map((a) => (
-          <Button key={a.key} variant="ghost" size="sm" title={a.title} onClick={a.onClick} disabled={a.disabled}>
-            {cardActionIcon(a)}
-          </Button>
-        ))}
-        <Button variant="ghost" size="sm" onClick={goToList}>Cancelar</Button>
-        <Button variant="primary" size="sm" onClick={onSave} disabled={form.isSaving}>Salvar</Button>
-      </div>
-      <div style={body}>
-        {groups.map((group, gi) => (
-          <div key={gi} style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-            {group.section ? <span style={sectionTitle}>{group.section}</span> : null}
-            <div style={grid}>
-              {group.fields.map((field) => {
-                const isWide = field.type === 'textarea' || field.type === 'markdown';
-                return (
-                  <div key={field.key} style={isWide ? wide : undefined}>
-                    <FieldInput
-                      field={field}
-                      value={form.getValue(field.key)}
-                      onChange={(value) => form.setValue(field.key, value)}
-                      screenKey={form.screenKey}
-                      error={form.errors[field.key]}
-                    />
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        ))}
-      </div>
-      <EntityListModals vm={list} />
-    </div>
-  );
+  const vm = useEntityDetailVM(SOURCE_ID, tabKey, { editKeyPrefix: EDIT_PREFIX });
+  return <RecordDetailSurface vm={vm} />;
 }
 `;
 

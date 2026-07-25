@@ -25,10 +25,12 @@ import { EntityListView } from '../../components/layout/EntityListView';
 import { RecordListSurface } from '../../components/layout/RecordListSurface';
 import { EntityListModals } from '../../components/layout/RecordListSurface/EntityListModals';
 import { cardActionIcon } from '../../components/layout/RecordListSurface/cardActionIcon';
+import { RecordDetailSurface } from '../../components/layout/RecordDetailSurface';
 import { Icon } from './HostIcon';
 import { resolveColor, getConfigColor, getDefaultTagColor } from '../../../shared/styles/colorUtils';
 import { useEntityList } from './useEntityList';
 import { useEntityForm } from './useEntityForm';
+import { useEntityDetailVM } from './useEntityDetailVM';
 import {
   formatCEP,
   formatCNPJ,
@@ -106,6 +108,7 @@ const uiModule = {
   EntityListCard,
   CustomFieldMetaRows,
   RecordListSurface,
+  RecordDetailSurface,
   EntityListModals,
   cardActionIcon,
   CardAtoms,
@@ -126,6 +129,7 @@ const dataModule = {
   useEntity,
   useEntityList,
   useEntityForm,
+  useEntityDetailVM,
   useCases,
   useCasePhases,
   useCaseAreas,
