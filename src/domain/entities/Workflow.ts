@@ -165,6 +165,10 @@ export interface WorkflowDefinition {
   ownerPluginIds?: string[];
   /** Id UNIVERSAL de origem (GUID do artefato no tenant autor) — chave de deduplicação na instalação. */
   sourceId?: string;
+  /** Revisão de ORIGEM do artefato (epoch ms do `updatedAt` no autor), carimbada no empacotamento.
+   * Monotônica por artefato e independente da extensão que o empacota — a instalação/atualização só
+   * reescreve o conteúdo quando a revisão que chega é estritamente maior que a materializada. */
+  sourceRev?: number | null;
   enabled: boolean;
   version: number;
   // ID do workflow público original (presente apenas quando este workflow foi copiado de um workflow público)

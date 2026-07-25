@@ -340,18 +340,21 @@ describe('Upgrade — atualização de versão', () => {
     expect(keys).toContain('n');
   });
 
-  it('regenera actions/workflows/scripts sem duplicar (velhos removidos, novos criados)', async () => {
+  it('atualiza in-place PRESERVANDO os ids (sem regenerar) quando a revisão não muda', async () => {
     await makeInstallMarketplacePluginUseCase(deps()).execute(version('1.0.0', [screenT('a')]), actor);
     const actionIdBefore = (await actions.getAll('t1'))[0].id;
+    const wfIdBefore = (await workflows.getWorkflowDefinitions('t1'))[0].id;
 
     await makeUpgradeMarketplacePluginUseCase(deps()).execute(version('1.1.0', [screenT('a')]), actor);
 
     const allActions = await actions.getAll('t1');
     expect(allActions).toHaveLength(1);
-    expect(allActions[0].id).not.toBe(actionIdBefore);
-    expect(await workflows.getWorkflowDefinitions('t1')).toHaveLength(1);
-    // A tela aponta para a action recriada.
-    expect((await screens.getAll('t1'))[0].viewActionIds ?? []).not.toContain(actionIdBefore);
+    expect(allActions[0].id).toBe(actionIdBefore);
+    const allWf = await workflows.getWorkflowDefinitions('t1');
+    expect(allWf).toHaveLength(1);
+    expect(allWf[0].id).toBe(wfIdBefore);
+    // A tela continua apontando para a MESMA action (id estável).
+    expect((await screens.getAll('t1'))[0].viewActionIds ?? []).toEqual([actionIdBefore]);
   });
 
   it('recusa versão que não é mais recente', async () => {
@@ -488,5 +491,90 @@ describe('applyPackageArtifacts / releasePackageArtifacts — fluxo de extensõe
     expect(await actions.getAll('t1')).toEqual([]);
     expect(await workflows.getWorkflowDefinitions('t1')).toEqual([]);
     expect(await scripts.getScripts('t1')).toEqual([]);
+  });
+});
+
+describe('Atualização por sourceRev — reescrita in-place, sem duplicar nem regredir', () => {
+  const rev = (id: string, sourceRev: number | undefined, name: string): MarketplacePlugin => ({
+    summary: 'S',
+    manifest: { id, version: '1.0.0', kernel: '^1.0.0', name: id },
+    scripts: [{ templateId: 'scr-shared', sourceRev, name: `${name}-s`, sourceTs: 'x', compiledJs: 'y', inputParams: [], outputParams: [] }],
+    workflows: [{
+      templateId: 'wf-shared', sourceRev, name, eventName: 'workflow.called', version: 1, condition: { kind: 'AlwaysTrue' },
+      steps: [literalStep('s1', 'script', 'scriptId', 'scr-shared')],
+    }],
+    actions: [{ templateId: 'act-shared', sourceRev, key: 'a', title: name, icon: 'apps', workflowId: 'wf-shared', danger: false, enabled: true, order: 0 }],
+  });
+
+  it('revisão MAIOR reescreve o conteúdo mantendo o mesmo id', async () => {
+    const d = deps();
+    await applyPackageArtifacts(d, rev('com.a', 100, 'V1'), actor);
+    const wfBefore = (await workflows.getWorkflowDefinitions('t1'))[0];
+    const actBefore = (await actions.getAll('t1'))[0];
+
+    await applyPackageArtifacts(d, rev('com.a', 200, 'V2'), actor);
+
+    const wf = await workflows.getWorkflowDefinitions('t1');
+    const act = await actions.getAll('t1');
+    expect(wf).toHaveLength(1);
+    expect(wf[0].id).toBe(wfBefore.id);
+    expect(wf[0].name).toBe('V2');
+    expect(wf[0].sourceRev).toBe(200);
+    expect(act[0].id).toBe(actBefore.id);
+    expect(act[0].title).toBe('V2');
+    expect((await scripts.getScripts('t1'))[0].name).toBe('V2-s');
+  });
+
+  it('revisão IGUAL ou MENOR mantém o conteúdo (não regride)', async () => {
+    const d = deps();
+    await applyPackageArtifacts(d, rev('com.a', 200, 'V2'), actor);
+    await applyPackageArtifacts(d, rev('com.a', 100, 'ANTIGO'), actor);
+
+    expect((await workflows.getWorkflowDefinitions('t1'))[0].name).toBe('V2');
+    expect((await actions.getAll('t1'))[0].title).toBe('V2');
+    expect((await scripts.getScripts('t1'))).toHaveLength(1);
+  });
+
+  it('artefato compartilhado por duas extensões atualiza para AMBAS quando a revisão sobe', async () => {
+    const d = deps();
+    await applyPackageArtifacts(d, rev('com.a', 100, 'V1'), actor);
+    await applyPackageArtifacts(d, rev('com.b', 100, 'V1'), actor);
+    expect((await workflows.getWorkflowDefinitions('t1'))[0].ownerPluginIds).toEqual(['com.a', 'com.b']);
+
+    await applyPackageArtifacts(d, rev('com.a', 200, 'V2'), actor);
+
+    const wf = await workflows.getWorkflowDefinitions('t1');
+    expect(wf).toHaveLength(1);
+    expect(wf[0].name).toBe('V2');
+    expect(wf[0].ownerPluginIds).toEqual(['com.a', 'com.b']);
+  });
+
+  it('legado sem sourceRev (=0) é atualizado uma vez quando chega template com revisão', async () => {
+    const d = deps();
+    await applyPackageArtifacts(d, rev('com.a', undefined, 'V1'), actor);
+    expect((await workflows.getWorkflowDefinitions('t1'))[0].name).toBe('V1');
+
+    await applyPackageArtifacts(d, rev('com.a', 50, 'V2'), actor);
+    expect((await workflows.getWorkflowDefinitions('t1'))[0].name).toBe('V2');
+  });
+
+  it('artefato que sumiu da versão nova é liberado por refcount (dono único → apaga)', async () => {
+    const d = deps();
+    const twoWf: MarketplacePlugin = {
+      summary: 'S', manifest: { id: 'com.a', version: '1.0.0', kernel: '^1.0.0', name: 'A' },
+      workflows: [
+        { templateId: 'wf-a', name: 'A', eventName: 'workflow.called', version: 1, condition: { kind: 'AlwaysTrue' }, steps: [] },
+        { templateId: 'wf-b', name: 'B', eventName: 'workflow.called', version: 1, condition: { kind: 'AlwaysTrue' }, steps: [] },
+      ],
+    };
+    const oneWf: MarketplacePlugin = { ...twoWf, workflows: [twoWf.workflows[0]] };
+
+    await applyPackageArtifacts(d, twoWf, actor);
+    expect(await workflows.getWorkflowDefinitions('t1')).toHaveLength(2);
+
+    await applyPackageArtifacts(d, oneWf, actor);
+    const wf = await workflows.getWorkflowDefinitions('t1');
+    expect(wf).toHaveLength(1);
+    expect(wf[0].name).toBe('A');
   });
 });

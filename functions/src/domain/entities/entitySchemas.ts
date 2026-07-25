@@ -123,6 +123,9 @@ export interface ScreenDefinition {
   /** Id UNIVERSAL de origem da tela — GUID quando criada após a introdução do campo; senão a própria
    * chave (slug). É a base da chave instalada universal, o que deduplica telas entre extensões. */
   sourceId?: string | null;
+  /** Revisão de ORIGEM (epoch ms do `updatedAt` no autor), carimbada no empacotamento. A atualização
+   * só reescreve a estrutura quando a revisão que chega é estritamente maior que a materializada. */
+  sourceRev?: number | null;
   managed?: boolean | null;
   sidebarOrder: number;
   enabled: boolean;

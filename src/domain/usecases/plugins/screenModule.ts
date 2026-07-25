@@ -109,6 +109,7 @@ export const materializeScreen = (
     ownerPluginId: pluginId,
     ownerPluginIds: [pluginId],
     sourceId: templateSourceId(template),
+    sourceRev: template.sourceRev ?? null,
     managed: true,
     sidebarOrder: template.sidebarOrder ?? 0,
     enabled: template.enabled ?? true,

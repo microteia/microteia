@@ -272,6 +272,17 @@ export const usePluginAuthorViewModel = (tabKey?: string): PluginAuthorViewModel
     script: new Set(ownScripts.map((s) => s.id)),
   }), [ownScreens, ownActions, ownWorkflows, ownScripts]);
 
+  // Templates embarcados que NÃO correspondem a um artefato próprio do escritório. Ao autorar a partir
+  // de um artefato próprio, `key`/`templateId` do template = o id do artefato — então ele já aparece
+  // (pré-marcado) como linha própria, e mostrá-lo também como "Incluída" duplicaria a entrada. Só os
+  // realmente estrangeiros (extensão importada de outro escritório) seguem como carregados.
+  const foreignCarried = useMemo<Required<CarriedTemplates>>(() => ({
+    screens: carried.screens.filter((s) => !availById.screen.has(s.key)),
+    actions: carried.actions.filter((a) => !availById.action.has(a.templateId)),
+    workflows: carried.workflows.filter((w) => !availById.workflow.has(w.templateId)),
+    scripts: carried.scripts.filter((s) => !availById.script.has(s.templateId)),
+  }), [carried, availById]);
+
   // Fecho de dependências: a partir do que o usuário marcou, puxa (obrigatoriamente) todo artefato
   // referenciado que existe no escritório — telas→ações/telas, ação→automação, automação→scripts/etc.
   const required = useMemo<Record<ArtifactKind, Set<string>>>(() => {
@@ -313,11 +324,11 @@ export const usePluginAuthorViewModel = (tabKey?: string): PluginAuthorViewModel
   }), [screenIds, actionIds, workflowIds, scriptIds, required]);
 
   const carriedOptions = useMemo<Record<ArtifactKind, ArtifactOption[]>>(() => ({
-    screens: carried.screens.map((s) => ({ id: s.key, label: s.titlePlural || s.titleSingular || s.key, icon: s.icon, selected: true, locked: false, carried: true })),
-    actions: carried.actions.map((a) => ({ id: a.templateId, label: a.title || a.key, icon: a.icon, selected: true, locked: false, carried: true })),
-    workflows: carried.workflows.map((w) => ({ id: w.templateId, label: w.name, selected: true, locked: false, carried: true })),
-    scripts: carried.scripts.map((s) => ({ id: s.templateId, label: s.name, selected: true, locked: false, carried: true })),
-  }), [carried]);
+    screens: foreignCarried.screens.map((s) => ({ id: s.key, label: s.titlePlural || s.titleSingular || s.key, icon: s.icon, selected: true, locked: false, carried: true })),
+    actions: foreignCarried.actions.map((a) => ({ id: a.templateId, label: a.title || a.key, icon: a.icon, selected: true, locked: false, carried: true })),
+    workflows: foreignCarried.workflows.map((w) => ({ id: w.templateId, label: w.name, selected: true, locked: false, carried: true })),
+    scripts: foreignCarried.scripts.map((s) => ({ id: s.templateId, label: s.name, selected: true, locked: false, carried: true })),
+  }), [foreignCarried]);
 
   const groups = useMemo<ArtifactGroup[]>(() => [
     {
@@ -367,13 +378,13 @@ export const usePluginAuthorViewModel = (tabKey?: string): PluginAuthorViewModel
 
   const selectedCount = useMemo(
     () => selection.screens.length + selection.actions.length + selection.workflows.length + selection.scripts.length + views.length
-      + carried.screens.length + carried.actions.length + carried.workflows.length + carried.scripts.length,
-    [selection, views.length, carried],
+      + foreignCarried.screens.length + foreignCarried.actions.length + foreignCarried.workflows.length + foreignCarried.scripts.length,
+    [selection, views.length, foreignCarried],
   );
 
   const pkg = useMemo<MarketplacePlugin>(
-    () => buildPackage({ ...selection, manifest, summary: form.summary.trim(), views: viewTemplates, carried }),
-    [selection, manifest, form.summary, viewTemplates, carried],
+    () => buildPackage({ ...selection, manifest, summary: form.summary.trim(), views: viewTemplates, carried: foreignCarried }),
+    [selection, manifest, form.summary, viewTemplates, foreignCarried],
   );
 
   const nameOf = useCallback((kind: RefKind, id: string): string => {

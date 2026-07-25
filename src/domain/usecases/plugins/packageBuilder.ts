@@ -76,6 +76,7 @@ const screenToTemplate = (screen: ScreenDefinition): ScreenModuleTemplate =>
   stripUndefined({
     key: screen.id,
     sourceId: screen.sourceId ?? screen.id,
+    sourceRev: screen.updatedAt.getTime(),
     titleSingular: screen.titleSingular,
     titlePlural: screen.titlePlural,
     icon: screen.icon,
@@ -100,18 +101,21 @@ const actionToTemplate = (action: ActionDefinition): ActionModuleTemplate =>
       'id', 'tenantId', 'ownerPluginId',
       'createdAt', 'createdBy', 'updatedAt', 'updatedBy', 'updatedByName', 'updatedByPhotoURL',
     ]),
+    sourceRev: action.updatedAt.getTime(),
   }) as ActionModuleTemplate;
 
 const workflowToTemplate = (workflow: WorkflowDefinition): WorkflowModuleTemplate =>
   stripUndefined({
     templateId: workflow.id,
     ...omit(workflow, ['id', 'tenantId', 'ownerPluginId', 'enabled', 'createdAt', 'updatedAt']),
+    sourceRev: workflow.updatedAt.getTime(),
   }) as WorkflowModuleTemplate;
 
 const scriptToTemplate = (script: Script): ScriptModuleTemplate =>
   stripUndefined({
     templateId: script.id,
     ...omit(script, ['id', 'tenantId', 'ownerPluginId', 'createdAt', 'updatedAt']),
+    sourceRev: script.updatedAt.getTime(),
   }) as ScriptModuleTemplate;
 
 /**

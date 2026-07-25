@@ -68,6 +68,10 @@ const addOwner = (owners: string[], pluginId: string): string[] =>
 
 const removeOwner = (owners: string[], pluginId: string): string[] => owners.filter((o) => o !== pluginId);
 
+/** Revisão de origem de um artefato (0 quando ausente — legado materializado antes do campo). O
+ * conteúdo só é reescrito quando a revisão que CHEGA (template) é estritamente maior que a atual. */
+const revOf = (a: { sourceRev?: number | null }): number => a.sourceRev ?? 0;
+
 const screenToInput = (screen: ScreenDefinition): ScreenDefinitionInput => {
   const clone = { ...screen } as Record<string, unknown>;
   for (const key of ['id', 'tenantId', 'createdAt', 'updatedAt', 'deletedBy', 'deletedByName', 'deletedByPhotoURL']) {
@@ -111,7 +115,13 @@ const materializeArtifacts = async (
     if (existing) {
       scriptMap.set(template.templateId, existing.id);
       const owners = addOwner(ownerSet(existing), pluginId);
-      if (owners.length !== ownerSet(existing).length) {
+      if (revOf(template) > revOf(existing)) {
+        await deps.scriptRepository.updateScript(tenantId, existing.id, {
+          ...scriptInputFromTemplate(template, pluginId),
+          ownerPluginIds: owners,
+          ownerPluginId: existing.ownerPluginId ?? pluginId,
+        });
+      } else if (owners.length !== ownerSet(existing).length) {
         await deps.scriptRepository.updateScript(tenantId, existing.id, { ownerPluginIds: owners, ownerPluginId: existing.ownerPluginId ?? pluginId });
       }
     } else {
@@ -124,31 +134,43 @@ const materializeArtifacts = async (
 
   const existingWorkflows = await deps.workflowRepository.getWorkflowDefinitions(tenantId);
   const workflowMap = new Map<string, string>();
-  const createdWorkflows: { templateId: string; id: string }[] = [];
+  // Workflows TOCADOS (criados OU reescritos in-place) — os que a passada 2 precisa remapear.
+  const touchedWorkflows: { templateId: string; id: string }[] = [];
   for (const template of plugin.workflows) {
     const existing = existingWorkflows.find((w) => w.sourceId === template.templateId);
     if (existing) {
       workflowMap.set(template.templateId, existing.id);
       const owners = addOwner(ownerSet(existing), pluginId);
-      if (owners.length !== ownerSet(existing).length) {
+      if (revOf(template) > revOf(existing)) {
+        const input = workflowInputFromTemplate(template, pluginId, scriptMap, screenKeyMap);
+        // Reescreve o conteúdo mas PRESERVA o estado local do tenant (`enabled`) e o dono primário.
+        await deps.workflowRepository.updateWorkflowDefinition(tenantId, existing.id, {
+          ...input,
+          enabled: existing.enabled,
+          ownerPluginIds: owners,
+          ownerPluginId: existing.ownerPluginId ?? pluginId,
+        });
+        touchedWorkflows.push({ templateId: template.templateId, id: existing.id });
+      } else if (owners.length !== ownerSet(existing).length) {
         await deps.workflowRepository.updateWorkflowDefinition(tenantId, existing.id, { ownerPluginIds: owners, ownerPluginId: existing.ownerPluginId ?? pluginId });
       }
     } else {
       const input = workflowInputFromTemplate(template, pluginId, scriptMap, screenKeyMap);
       const created = await deps.workflowRepository.createWorkflowDefinition(tenantId, input);
       workflowMap.set(template.templateId, created.id);
-      createdWorkflows.push({ templateId: template.templateId, id: created.id });
+      touchedWorkflows.push({ templateId: template.templateId, id: created.id });
     }
   }
 
-  // Passada 2 — só nos workflows recém-criados que chamam outro workflow (os reusados já têm passos ok).
+  // Passada 2 — nos workflows tocados que chamam outro workflow, remapeia `targetWorkflowId` para os
+  // ids reais (os reusados sem reescrita já têm os passos corretos, então ficam de fora).
   for (const template of plugin.workflows) {
     if (!workflowOutRefs(template).some((ref) => ref.kind === 'workflow')) continue;
-    const created = createdWorkflows.find((w) => w.templateId === template.templateId);
-    if (!created) continue;
+    const touched = touchedWorkflows.find((w) => w.templateId === template.templateId);
+    if (!touched) continue;
     const input = workflowInputFromTemplate(template, pluginId, scriptMap, screenKeyMap);
     const steps = rewriteStepLiteral(input.steps, 'targetWorkflowId', workflowMap);
-    await deps.workflowRepository.updateWorkflowSteps(tenantId, created.id, steps);
+    await deps.workflowRepository.updateWorkflowSteps(tenantId, touched.id, steps);
   }
 
   const existingActions = await deps.actionRepository.getAll(tenantId);
@@ -158,7 +180,13 @@ const materializeArtifacts = async (
     if (existing) {
       actionMap.set(template.templateId, existing.id);
       const owners = addOwner(ownerSet(existing), pluginId);
-      if (owners.length !== ownerSet(existing).length) {
+      if (revOf(template) > revOf(existing)) {
+        await deps.actionRepository.update(tenantId, existing.id, {
+          ...actionInputFromTemplate(template, pluginId, workflowMap, userId),
+          ownerPluginIds: owners,
+          ownerPluginId: existing.ownerPluginId ?? pluginId,
+        });
+      } else if (owners.length !== ownerSet(existing).length) {
         await deps.actionRepository.update(tenantId, existing.id, { ownerPluginIds: owners, ownerPluginId: existing.ownerPluginId ?? pluginId });
       }
     } else {
@@ -248,6 +276,44 @@ const releaseGeneratedArtifacts = async (
   return { removedActions, removedWorkflows, removedScripts };
 };
 
+/**
+ * Libera (refcount) os artefatos gerados que ESTE plugin possuía e que a versão nova do pacote NÃO
+ * traz mais (o `sourceId` sumiu do conjunto de `templateId`s). Espelha a remoção que a reconciliação
+ * de telas já faz — mantém o `applyPackageArtifacts` idempotente também na remoção.
+ */
+const releaseVanishedGeneratedArtifacts = async (
+  deps: ArtifactDeps,
+  plugin: MarketplacePlugin,
+  tenantId: string,
+  pluginId: string,
+  actor: LifecycleActor,
+): Promise<void> => {
+  const keepWorkflows = new Set((plugin.workflows ?? []).map((t) => t.templateId));
+  const keepActions = new Set((plugin.actions ?? []).map((t) => t.templateId));
+  const keepScripts = new Set((plugin.scripts ?? []).map((t) => t.templateId));
+
+  for (const workflow of (await deps.workflowRepository.getWorkflowDefinitions(tenantId))
+    .filter((w) => ownerSet(w).includes(pluginId) && !keepWorkflows.has(w.sourceId ?? ''))) {
+    const owners = removeOwner(ownerSet(workflow), pluginId);
+    if (owners.length === 0) await deps.workflowRepository.deleteWorkflowDefinition(tenantId, workflow.id);
+    else await deps.workflowRepository.updateWorkflowDefinition(tenantId, workflow.id, { ownerPluginIds: owners, ownerPluginId: owners[0] });
+  }
+
+  for (const action of (await deps.actionRepository.getAll(tenantId))
+    .filter((a) => ownerSet(a).includes(pluginId) && !keepActions.has(a.sourceId ?? ''))) {
+    const owners = removeOwner(ownerSet(action), pluginId);
+    if (owners.length === 0) await deps.actionRepository.delete(tenantId, action.id, deletionActor(actor));
+    else await deps.actionRepository.update(tenantId, action.id, { ownerPluginIds: owners, ownerPluginId: owners[0] });
+  }
+
+  for (const script of (await deps.scriptRepository.getScripts(tenantId))
+    .filter((s) => ownerSet(s).includes(pluginId) && !keepScripts.has(s.sourceId ?? ''))) {
+    const owners = removeOwner(ownerSet(script), pluginId);
+    if (owners.length === 0) await deps.scriptRepository.deleteScript(tenantId, script.id);
+    else await deps.scriptRepository.updateScript(tenantId, script.id, { ownerPluginIds: owners, ownerPluginId: owners[0] });
+  }
+};
+
 // --- API reutilizável para o fluxo de extensões instaladas (installed_extensions) -----------------
 
 /**
@@ -270,6 +336,7 @@ export const applyPackageArtifacts = async (
   for (const screen of existingScreens.filter((s) => ownerSet(s).includes(pluginId))) {
     if (!nextKeys.has(screen.id)) await releaseScreen(deps, tenantId, screen, pluginId, actor);
   }
+  await releaseVanishedGeneratedArtifacts(deps, plugin, tenantId, pluginId, actor);
 };
 
 /**
@@ -344,20 +411,14 @@ export const makeUpgradeMarketplacePluginUseCase = (
 ): UpgradeMarketplacePluginUseCase => ({
   execute: async (plugin, actor) => {
     const pluginId = plugin.manifest.id;
-    const { tenantId, userId } = actor;
-    const current = await deps.installationRepository.getById(tenantId, pluginId);
+    const current = await deps.installationRepository.getById(actor.tenantId, pluginId);
 
     const outcome = planUpgrade(current, plugin.manifest.version, actor);
     if (!outcome.ok) return { ok: false, error: outcome.error };
 
-    await releaseGeneratedArtifacts(deps, tenantId, pluginId, actor);
-    const existingScreens = await deps.screenRepository.getAll(tenantId);
-    const { actionMap, screenKeyMap } = await materializeArtifacts(deps, plugin, tenantId, userId, existingScreens);
-    const nextKeys = await upsertPluginScreens(deps, plugin, tenantId, userId, screenKeyMap, actionMap, existingScreens);
-
-    for (const screen of existingScreens.filter((s) => ownerSet(s).includes(pluginId))) {
-      if (!nextKeys.has(screen.id)) await releaseScreen(deps, tenantId, screen, pluginId, actor);
-    }
+    // Uma só rota de materialização (mesma do fluxo installed_extensions): reescreve por `sourceRev`,
+    // preserva o que o usuário adicionou e libera o que sumiu na versão nova. Sem release-first cego.
+    await applyPackageArtifacts(deps, plugin, actor);
 
     const installation = { ...outcome.value, config: displayConfig(plugin) };
     await deps.installationRepository.save(installation);

@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [0.148.1] — 2026-07-24
+
+- Na edição de uma extensão, os itens que você criou no próprio escritório não aparecem mais **duplicados** — antes cada tela, ação ou automação surgia duas vezes (uma como "Incluída" e outra como opção marcável). Agora cada item aparece **uma única vez**, já marcado. Os itens que vêm embarcados de uma extensão importada de outro escritório continuam sinalizados como "Incluída".
+
 ## [0.148.0] — 2026-07-24
 
 - A tela de **Extensões** foi redesenhada para ficar mais leve e clara. Cada extensão agora aparece **uma única vez**, em uma lista enxuta — não mais repetida em três blocos diferentes.

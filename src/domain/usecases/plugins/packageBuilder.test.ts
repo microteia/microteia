@@ -102,6 +102,31 @@ describe('buildPackage', () => {
     expect('ownerPluginId' in (pkg.scripts![0] as unknown as Record<string, unknown>)).toBe(false);
   });
 
+  it('carimba sourceRev = updatedAt.getTime() em cada template próprio', () => {
+    const later = new Date('2026-07-24T10:00:00Z');
+    const pkg = buildPackage({
+      ...empty, manifest, summary: 's',
+      screens: [screen({ id: 'produto', updatedAt: later })],
+      actions: [action({ id: 'act-1', updatedAt: later })],
+      workflows: [workflow({ id: 'wf-1', updatedAt: now })],
+      scripts: [script({ id: 'scr-1', updatedAt: now })],
+    });
+    expect(pkg.screens?.[0].sourceRev).toBe(later.getTime());
+    expect(pkg.actions?.[0].sourceRev).toBe(later.getTime());
+    expect(pkg.workflows[0].sourceRev).toBe(now.getTime());
+    expect(pkg.scripts?.[0].sourceRev).toBe(now.getTime());
+  });
+
+  it('preserva o sourceRev que já vem nos templates carried', () => {
+    const pkg = buildPackage({
+      ...empty, manifest, summary: 's',
+      carried: {
+        workflows: [{ templateId: 'wf-a', sourceRev: 4242, name: 'A', eventName: 'workflow.called', version: 1, condition: { kind: 'AlwaysTrue' }, steps: [] }],
+      },
+    });
+    expect(pkg.workflows[0].sourceRev).toBe(4242);
+  });
+
   it('omite arrays opcionais vazias', () => {
     const pkg = buildPackage({ ...empty, manifest, summary: 's', workflows: [workflow({})] });
     expect(pkg.screens).toBeUndefined();

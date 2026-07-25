@@ -63,7 +63,7 @@ export type WorkflowInput = Omit<WorkflowDefinition, 'id' | 'tenantId' | 'create
 
 export const scriptInputFromTemplate = (template: ScriptModuleTemplate, pluginId: string): ScriptInput => {
   const rest = withoutTemplateId(template);
-  return stripUndefined({ ...rest, ownerPluginId: pluginId, ownerPluginIds: [pluginId], sourceId: template.templateId });
+  return stripUndefined({ ...rest, ownerPluginId: pluginId, ownerPluginIds: [pluginId], sourceId: template.templateId, sourceRev: template.sourceRev ?? null });
 };
 
 /**
@@ -83,7 +83,7 @@ export const workflowInputFromTemplate = (
     ? screenKeyMap.get(rest.screenKey)
     : rest.screenKey;
   return stripUndefined({
-    ...rest, steps, screenKey, ownerPluginId: pluginId, ownerPluginIds: [pluginId], sourceId: template.templateId, enabled: true,
+    ...rest, steps, screenKey, ownerPluginId: pluginId, ownerPluginIds: [pluginId], sourceId: template.templateId, sourceRev: template.sourceRev ?? null, enabled: true,
   });
 };
 
@@ -100,6 +100,7 @@ export const actionInputFromTemplate = (
     ownerPluginId: pluginId,
     ownerPluginIds: [pluginId],
     sourceId: template.templateId,
+    sourceRev: template.sourceRev ?? null,
     createdBy,
   }) as ActionDefinitionInput;
 };

@@ -15,6 +15,8 @@ export interface ScreenModuleTemplate {
   key: string;
   /** Id UNIVERSAL de origem da tela — deduplica a mesma tela entre extensões na instalação. */
   sourceId?: string;
+  /** Revisão de origem (epoch ms do `updatedAt` no autor) — decide se a atualização reescreve a tela. */
+  sourceRev?: number | null;
   titleSingular: string;
   titlePlural: string;
   icon: string;

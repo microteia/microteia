@@ -31,6 +31,9 @@ export interface ActionDefinition {
   /** Id UNIVERSAL de origem (o GUID do artefato no tenant autor), estável entre pacotes — é por ele
    * que a instalação deduplica: dois plugins com a mesma origem reusam a mesma action. */
   sourceId?: string | null;
+  /** Revisão de ORIGEM (epoch ms do `updatedAt` no autor), carimbada no empacotamento. A atualização
+   * só reescreve o conteúdo quando a revisão que chega é estritamente maior que a materializada. */
+  sourceRev?: number | null;
   createdAt: Date;
   createdBy: string;
   updatedAt: Date;
