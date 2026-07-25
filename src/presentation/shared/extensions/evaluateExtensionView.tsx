@@ -15,7 +15,11 @@ const makeFallback = (message: string): ExtensionPageComponent => {
   return Fallback;
 };
 
-const compile = (source: string): ExtensionPageComponent => {
+/**
+ * Compila a fonte (`sucrase`) e a avalia num `new Function` cujo `require` só resolve os módulos da
+ * API curada (`HOST_MODULES`), devolvendo o export `default`. Base comum das views e do `startup`.
+ */
+const compileDefaultExport = (source: string): unknown => {
   const { code } = transform(source, {
     transforms: ['typescript', 'jsx', 'imports'],
     jsxRuntime: 'automatic',
@@ -35,11 +39,38 @@ const compile = (source: string): ExtensionPageComponent => {
   ) => void;
   factory(requireHost, moduleObject, moduleObject.exports);
 
-  const exported = (moduleObject.exports.default ?? moduleObject.exports) as unknown;
+  return (moduleObject.exports.default ?? moduleObject.exports) as unknown;
+};
+
+const compile = (source: string): ExtensionPageComponent => {
+  const exported = compileDefaultExport(source);
   if (typeof exported !== 'function') {
     throw new Error('a view precisa exportar um componente React como `default`.');
   }
   return exported as ExtensionPageComponent;
+};
+
+/** Função de inicialização de uma extensão: recebe o `host` curado e devolve um teardown opcional. */
+export type ExtensionStartup = (host: unknown) => (() => void) | void;
+
+export type CompileExtensionStartupResult =
+  | { ok: true; startup: ExtensionStartup }
+  | { ok: false; error: string };
+
+/**
+ * Compila e avalia a fonte de `startup` de uma extensão, devolvendo a função exportada como `default`.
+ * Não roda a função nem memoiza — o chamador (host de startup) executa e cuida do teardown.
+ */
+export const compileExtensionStartup = (source: string): CompileExtensionStartupResult => {
+  try {
+    const exported = compileDefaultExport(source);
+    if (typeof exported !== 'function') {
+      throw new Error('o startup precisa exportar uma função `(host) => cleanup?` como `default`.');
+    }
+    return { ok: true, startup: exported as ExtensionStartup };
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : String(err) };
+  }
 };
 
 export type CompileExtensionViewResult =

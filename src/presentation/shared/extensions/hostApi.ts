@@ -46,6 +46,7 @@ import { useCaseLookup } from '../../../stores/useCaseLookup';
 import { usePersonStore } from '../../../stores/usePersonStore';
 import { useWorkspace } from '../../../stores/useWorkspace';
 import { useNotification } from '../../../stores/useNotification';
+import { generateDeepLink } from '../../../infrastructure/deeplink/deepLinkUtils';
 import { useSavedViewState } from './useSavedViewState';
 import { useEntity } from './useEntity';
 import type { CasePhase } from '../../../domain/entities';
@@ -138,6 +139,7 @@ const dataModule = {
   useWorkspace,
   useNotify,
   useSavedViewState,
+  generateDeepLink,
 } as const;
 
 const formatModule = {

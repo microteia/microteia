@@ -4,6 +4,7 @@ import { useContributions, useKernel } from '../../stores/useKernel';
 import type { ICommandPaletteProvider } from '../components/ui/CommandPalette/providers/ICommandPaletteProvider';
 import { WidgetRenderer } from '../components/ui/WidgetRenderer';
 import { evaluateExtensionView } from './extensions/evaluateExtensionView';
+import { useExtensionCommandProviders } from './extensions/extensionServices';
 import { isExtensionViewRef } from '../../domain/usecases/plugins/extensionViewRef';
 import { resolvePageContribution } from './resolveUiContributions';
 import type { UiPageMetadata } from './uiExtensionPoints';
@@ -51,10 +52,11 @@ export const useResolvePage = (): ((tabKey: string) => ResolvedPage | undefined)
 export const useCommandProviders = (): ICommandPaletteProvider[] => {
   const { host } = useKernel();
   const contributions = useContributions(UI_COMMAND_POINT);
+  const extensionProviders = useExtensionCommandProviders();
 
   return useMemo(
-    () =>
-      contributions.flatMap((contribution) => {
+    () => [
+      ...contributions.flatMap((contribution) => {
         if (contribution.impl?.kind !== 'code') return [];
         const provider = host.implementations.resolve<ICommandPaletteProvider>(
           contribution.pluginId,
@@ -62,6 +64,8 @@ export const useCommandProviders = (): ICommandPaletteProvider[] => {
         );
         return provider ? [provider] : [];
       }),
-    [contributions, host],
+      ...extensionProviders,
+    ],
+    [contributions, host, extensionProviders],
   );
 };

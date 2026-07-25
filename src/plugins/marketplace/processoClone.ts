@@ -213,6 +213,47 @@ export default function EditProcessoView({ tabKey }) {
 }
 `;
 
+/**
+ * O STARTUP da extensão: roda uma vez ao carregar o escritório e REGISTRA SERVIÇOS no host. Aqui,
+ * comandos de ⌘K próprios — "Novo processo (clone)", "Abrir Processos (clone)" e a busca dos registros
+ * — todos abrindo as telas DA EXTENSÃO (não as nativas). Resolve a tela pelo `sourceId` no contexto do
+ * comando, então acompanha a instalação. É a prova do conceito "extensão registra serviços via código".
+ */
+const STARTUP_SOURCE = `
+import { Icon } from '@curatino/ui';
+
+const SOURCE_ID = 'curatino:processo-clone';
+const EDIT_PREFIX = 'processo-clone-edit:';
+const LIST_KEY = 'processo-clone';
+const GROUP = 'Processos (clone)';
+
+export default function startup(host) {
+  host.commands.register({
+    group: GROUP,
+    getItems(query, ctx) {
+      const q = String(query || '').toLowerCase().trim();
+      if (!q) return [];
+      const screen = ctx.screenDefinitions.find((s) => (s.sourceId || s.id) === SOURCE_ID);
+      if (!screen) return [];
+      const icon = <Icon name="folder" size={16} />;
+      const items = [];
+      if ('novo processo clone'.indexOf(q) !== -1) {
+        items.push({ id: 'proc-clone:new', title: 'Novo processo (clone)', group: GROUP, icon, onSelect: () => { ctx.openTab(EDIT_PREFIX + 'new'); ctx.close(); } });
+      }
+      if ('abrir processos clone'.indexOf(q) !== -1) {
+        items.push({ id: 'proc-clone:list', title: 'Abrir Processos (clone)', group: GROUP, icon, onSelect: () => { ctx.openTab(LIST_KEY); ctx.close(); } });
+      }
+      for (const r of ctx.customRecords) {
+        if (r.screenKey === screen.id && r.title && r.title.toLowerCase().indexOf(q) !== -1) {
+          items.push({ id: 'proc-clone:' + r.id, title: r.title, subtitle: 'Processo (clone)', group: GROUP, icon, onSelect: () => { ctx.openTab(EDIT_PREFIX + r.id); ctx.close(); } });
+        }
+      }
+      return items.slice(0, 9);
+    },
+  });
+}
+`;
+
 export const processoClonePlugin: MarketplacePlugin = {
   manifest: {
     id: 'com.curatino.processo-clone',
@@ -256,6 +297,7 @@ export const processoClonePlugin: MarketplacePlugin = {
   },
   workflows: [],
   screens: [PROCESSO_SCREEN],
+  startup: STARTUP_SOURCE,
   views: [
     {
       key: 'processo-clone',

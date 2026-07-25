@@ -90,6 +90,13 @@ export interface MarketplacePlugin {
   /** Views de código (extensões trusted). Cada `key` casa com uma contribuição `ui.page` code. */
   views?: ViewModuleTemplate[];
   /**
+   * Código de INICIALIZAÇÃO (trusted): fonte TS/TSX que exporta como `default` uma função
+   * `(host) => cleanup?`. Roda uma vez quando a extensão instalada e ativa é carregada no escritório,
+   * recebendo um `host` curado para REGISTRAR SERVIÇOS (comandos ⌘K, etc.). O retorno opcional é o
+   * teardown, chamado ao desativar/desinstalar. Só executa de fonte confiável, como as `views`.
+   */
+  startup?: string;
+  /**
    * Descrição rica da extensão, em Widget DSL — renderizada pelo Kernel na tela de detalhes. É
    * serializável (viaja no manifest até o registro) e não carrega código do plugin. `unknown`
    * porque o tipo `WidgetSpec` vive na camada de apresentação; o renderizador valida.
