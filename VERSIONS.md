@@ -21,6 +21,7 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - A tela de edição da extensão "Processos (clone)" ficou **idêntica à de qualquer outra tela do sistema**: mesmo cabeçalho (salvar em verde, excluir em vermelho, além de clonar, copiar link e etiquetas), as abas **Dados / Anotações / Documentos**, e as seções e campos no mesmo padrão visual. Além disso, clonar e copiar link agora abrem/geram para a **própria tela da extensão**, e não para uma tela paralela.
 - Extensões agora podem **registrar recursos ao carregar o escritório**: a "Processos (clone)" adicionou atalhos na busca rápida (**⌘K / Ctrl+K**) — "Novo processo (clone)", "Abrir Processos (clone)" e a busca dos próprios registros — que abrem as telas da extensão. É a base para extensões estenderem a busca rápida e outros pontos do sistema.
 - As menções com **@** no editor de texto (anotações, descrições) agora também incluem os registros trazidos por extensões: digitar **@** e escolher "Processo (clone)" permite buscar e inserir um link para um processo da extensão, do mesmo jeito que já funcionava para Processos, Pessoas e Contratos nativos.
+- A tela de **Criar/editar extensão** ganhou um editor de **Código de inicialização**, onde se escreve o código que roda ao carregar a extensão para registrar recursos (comandos do ⌘K, menções @). Antes isso só existia embutido; agora dá para escrever, validar e salvar direto pela tela.
 
 ## [0.149.0] — 2026-07-24
 

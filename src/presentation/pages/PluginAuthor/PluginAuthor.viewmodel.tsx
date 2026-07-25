@@ -14,7 +14,7 @@ import { serializePackage } from '../../../domain/usecases/plugins/packageSerial
 import { isValidPluginId, validatePluginManifest } from '../../../domain/schema/plugin/pluginManifest';
 import { KERNEL_VERSION } from '../../../domain/schema/plugin/kernelVersion';
 import { nav, page } from '../../../plugins/contributionBuilders';
-import { compileExtensionView } from '../../shared/extensions/evaluateExtensionView';
+import { compileExtensionView, compileExtensionStartup } from '../../shared/extensions/evaluateExtensionView';
 import { getScreenIconOptions } from '../../shared/screenIcons';
 import type { PluginManifest } from '../../../domain/schema/plugin/pluginManifest';
 import type { Contribution } from '../../../domain/schema/plugin/contribution';
@@ -105,6 +105,9 @@ export interface PluginAuthorViewModel {
   updateSelectedView: (patch: Partial<Omit<CodeViewEditing, 'error'>>) => void;
   editorOpen: boolean;
   closeEditor: () => void;
+  startup: string;
+  setStartup: (source: string) => void;
+  startupError: string | null;
   selectedCount: number;
   issues: string[];
   canExport: boolean;
@@ -168,6 +171,13 @@ export const usePluginAuthorViewModel = (tabKey?: string): PluginAuthorViewModel
 
   const [views, setViews] = useState<CodeViewForm[]>(() =>
     (editingPackage?.views ?? []).map((v) => ({ uid: crypto.randomUUID(), key: v.key, title: v.title, icon: v.icon, source: v.source })));
+  const [startup, setStartup] = useState<string>(() => editingPackage?.startup ?? '');
+
+  const startupError = useMemo<string | null>(() => {
+    if (!startup.trim()) return null;
+    const result = compileExtensionStartup(startup);
+    return result.ok ? null : result.error;
+  }, [startup]);
   const [selectedViewId, setSelectedViewId] = useState<string | null>(null);
   const [editorOpen, setEditorOpen] = useState(false);
 
@@ -383,8 +393,8 @@ export const usePluginAuthorViewModel = (tabKey?: string): PluginAuthorViewModel
   );
 
   const pkg = useMemo<MarketplacePlugin>(
-    () => buildPackage({ ...selection, manifest, summary: form.summary.trim(), views: viewTemplates, carried: foreignCarried }),
-    [selection, manifest, form.summary, viewTemplates, foreignCarried],
+    () => buildPackage({ ...selection, manifest, summary: form.summary.trim(), views: viewTemplates, startup, carried: foreignCarried }),
+    [selection, manifest, form.summary, viewTemplates, startup, foreignCarried],
   );
 
   const nameOf = useCallback((kind: RefKind, id: string): string => {
@@ -420,7 +430,8 @@ export const usePluginAuthorViewModel = (tabKey?: string): PluginAuthorViewModel
       `${issue.ref.from} referencia ${KIND_LABEL[issue.ref.kind]} "${nameOf(issue.ref.kind, issue.ref.id)}", que pertence a outra extensão. Ela será exigida na instalação.`,
     ),
     ...viewIssues,
-  ], [manifest, form.summary, pkg, nameOf, viewIssues]);
+    ...(startupError ? [`O código de inicialização não compila: ${startupError}.`] : []),
+  ], [manifest, form.summary, pkg, nameOf, viewIssues, startupError]);
 
   const canExport = selectedCount > 0 && issues.length === 0;
   // Salvar um rascunho editável exige só um domínio (id) válido — pendências não bloqueiam salvar,
@@ -470,6 +481,9 @@ export const usePluginAuthorViewModel = (tabKey?: string): PluginAuthorViewModel
     updateSelectedView,
     editorOpen,
     closeEditor,
+    startup,
+    setStartup,
+    startupError,
     selectedCount,
     issues,
     canExport,

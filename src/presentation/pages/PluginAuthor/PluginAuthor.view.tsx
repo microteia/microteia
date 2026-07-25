@@ -4,6 +4,7 @@ import {
 } from 'react-icons/ri';
 import { Button } from '../../components/ui/Button';
 import { InfoBanner } from '../../components/ui/InfoBanner';
+import { CodeEditor } from '../../components/ui/CodeEditor';
 import { getScreenIcon } from '../../shared/screenIcons';
 import { CodeViewEditorModal } from './CodeViewEditorModal';
 import { usePluginAuthorViewModel, type ArtifactKind } from './PluginAuthor.viewmodel';
@@ -148,6 +149,19 @@ export const PluginAuthorView: React.FC<{ tabKey?: string }> = ({ tabKey }) => {
               ))}
             </S.ViewGrid>
           )}
+        </S.Section>
+
+        <S.Section>
+          <S.SectionTitle>Código de inicialização</S.SectionTitle>
+          <S.Hint>
+            Opcional. Roda uma vez quando a extensão é carregada no escritório e recebe um <code>host</code> para
+            registrar serviços — como comandos do ⌘K e menções <code>@</code>. Exporte como <code>default</code> uma
+            função <code>(host) =&gt; cleanup?</code>.
+          </S.Hint>
+          {vm.startupError && <InfoBanner message={`Não compila: ${vm.startupError}`} variant="warning" />}
+          <S.Card>
+            <CodeEditor value={vm.startup} onChange={vm.setStartup} minHeight="300px" />
+          </S.Card>
         </S.Section>
 
         {vm.issues.length > 0 && vm.selectedCount > 0 && (

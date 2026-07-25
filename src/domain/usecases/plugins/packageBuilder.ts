@@ -33,6 +33,8 @@ export interface BuildPackageInput extends PackageSelection {
   overview?: unknown;
   /** Views de código (extensão trusted). As contribuições `ui.page`/`ui.nav` são geradas na autoria. */
   views?: ViewModuleTemplate[];
+  /** Código de inicialização (trusted) que registra serviços ao carregar. Vazio → omitido. */
+  startup?: string;
   /** Templates embarcados a preservar (extensão importada em edição). Mesclados por chave/templateId. */
   carried?: CarriedTemplates;
 }
@@ -138,5 +140,6 @@ export const buildPackage = (input: BuildPackageInput): MarketplacePlugin => {
     ...(actions.length > 0 ? { actions } : {}),
     ...(scripts.length > 0 ? { scripts } : {}),
     ...((input.views?.length ?? 0) > 0 ? { views: input.views } : {}),
+    ...(input.startup && input.startup.trim() !== '' ? { startup: input.startup } : {}),
   };
 };
