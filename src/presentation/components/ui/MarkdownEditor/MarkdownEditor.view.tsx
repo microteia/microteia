@@ -14,6 +14,7 @@ import { useMarkdownEditorViewModel, HIGHLIGHT_COLORS } from './MarkdownEditor.v
 import type { MarkdownEditorProps } from './MarkdownEditor.viewmodel';
 import { S } from './MarkdownEditor.styles';
 import { MentionMenu } from '../MentionMenu';
+import { ExtensionMentionModal } from '../ExtensionMentionModal';
 import { NewsMentionModal } from '../NewsMentionModal';
 import { CaseMentionModal } from '../CaseMentionModal';
 import { ClientMentionModal } from '../PersonMentionModal';
@@ -122,7 +123,16 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = (props) => {
         position={vm.mentionState.position}
         onSelect={vm.selectMentionCommand}
         onHover={vm.onMentionHover}
+        commands={vm.mentionCommands}
       />
+
+      {vm.extMentionProvider && (
+        <ExtensionMentionModal
+          provider={vm.extMentionProvider}
+          onSelect={vm.insertExtMentionLink}
+          onClose={vm.closeExtMention}
+        />
+      )}
 
       {vm.newsPickerOpen && (
         <NewsMentionModal

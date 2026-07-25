@@ -1,7 +1,11 @@
 import { useState, useCallback, useRef, useMemo } from 'react';
 import type { News, Case, Person, Contract } from '../../../../domain/entities';
 import type { WorkflowDefinition } from '../../../../domain/entities/Workflow';
-import { MENTION_COMMANDS } from '../MentionMenu/MentionMenu.viewmodel';
+import { MENTION_COMMANDS, type MentionCommand } from '../MentionMenu/MentionMenu.viewmodel';
+import { useExtensionMentionProviders, type ExtensionMentionProvider, type MentionResult } from '../../../shared/extensions/extensionServices';
+import { getScreenIconType } from '../../../shared/screenIcons';
+
+const EXT_MENTION_PREFIX = 'ext:';
 
 export type EditorMode = 'edit' | 'split' | 'preview';
 
@@ -40,10 +44,14 @@ export interface MarkdownEditorViewModel {
   handleTextareaKeyDown: (e: React.KeyboardEvent<HTMLTextAreaElement>) => void;
   mentionState: MentionState;
   mentionHighlightedIndex: number;
-  filteredMentionCommands: typeof MENTION_COMMANDS;
+  mentionCommands: MentionCommand[];
+  filteredMentionCommands: MentionCommand[];
   closeMention: () => void;
   selectMentionCommand: (key: string) => void;
   onMentionHover: (index: number) => void;
+  extMentionProvider: ExtensionMentionProvider | null;
+  closeExtMention: () => void;
+  insertExtMentionLink: (result: MentionResult) => void;
   newsPickerOpen: boolean;
   closeNewsPicker: () => void;
   insertNewsLink: (n: News) => void;
@@ -105,14 +113,26 @@ export const useMarkdownEditorViewModel = (
   const [personPickerOpen, setPersonPickerOpen] = useState(false);
   const [contractPickerOpen, setContractPickerOpen] = useState(false);
   const [workflowPickerOpen, setWorkflowPickerOpen] = useState(false);
+  const [extMentionProvider, setExtMentionProvider] = useState<ExtensionMentionProvider | null>(null);
+
+  const extensionMentionProviders = useExtensionMentionProviders();
+  const mentionCommands = useMemo<MentionCommand[]>(() => [
+    ...MENTION_COMMANDS,
+    ...extensionMentionProviders.map((provider) => ({
+      key: `${EXT_MENTION_PREFIX}${provider.key}`,
+      label: provider.label,
+      description: provider.description ?? `Inserir link para ${provider.label}`,
+      icon: getScreenIconType(provider.icon ?? 'apps'),
+    })),
+  ], [extensionMentionProviders]);
 
   const mentionRangeRef = useRef<{ start: number; end: number }>({ start: -1, end: -1 });
 
   const filteredMentionCommands = useMemo(() => {
     const q = mentionState.query.toLowerCase();
-    if (!q) return MENTION_COMMANDS;
-    return MENTION_COMMANDS.filter((c) => c.label.toLowerCase().startsWith(q));
-  }, [mentionState.query]);
+    if (!q) return mentionCommands;
+    return mentionCommands.filter((c) => c.label.toLowerCase().startsWith(q));
+  }, [mentionState.query, mentionCommands]);
 
   const closeMention = useCallback(() => {
     setMentionState({ active: false, query: '', triggerStart: -1, position: null });
@@ -129,8 +149,12 @@ export const useMarkdownEditorViewModel = (
       if (key === 'person') setPersonPickerOpen(true);
       if (key === 'contract') setContractPickerOpen(true);
       if (key === 'workflow') setWorkflowPickerOpen(true);
+      if (key.startsWith(EXT_MENTION_PREFIX)) {
+        const providerKey = key.slice(EXT_MENTION_PREFIX.length);
+        setExtMentionProvider(extensionMentionProviders.find((p) => p.key === providerKey) ?? null);
+      }
     },
-    [mentionState, closeMention],
+    [mentionState, closeMention, extensionMentionProviders],
   );
 
   const onMentionHover = useCallback((index: number) => {
@@ -173,6 +197,16 @@ export const useMarkdownEditorViewModel = (
     },
     [insertLink],
   );
+
+  const insertExtMentionLink = useCallback(
+    (result: MentionResult) => {
+      insertLink(result.title, `/curatino/${result.tabKey}`);
+      setExtMentionProvider(null);
+    },
+    [insertLink],
+  );
+
+  const closeExtMention = useCallback(() => setExtMentionProvider(null), []);
 
   const closeNewsPicker = useCallback(() => setNewsPickerOpen(false), []);
   const closeCasePicker = useCallback(() => setCasePickerOpen(false), []);
@@ -342,10 +376,14 @@ export const useMarkdownEditorViewModel = (
     handleTextareaKeyDown,
     mentionState,
     mentionHighlightedIndex,
+    mentionCommands,
     filteredMentionCommands,
     closeMention,
     selectMentionCommand,
     onMentionHover,
+    extMentionProvider,
+    closeExtMention,
+    insertExtMentionLink,
     newsPickerOpen,
     closeNewsPicker,
     insertNewsLink,

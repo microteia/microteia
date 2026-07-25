@@ -49,6 +49,8 @@ export interface MentionMenuProps {
   position: { top: number; left: number } | null;
   onSelect: (key: string) => void;
   onHover: (index: number) => void;
+  /** Comandos disponíveis (nativos + registrados por extensões). Ausente → só os nativos. */
+  commands?: MentionCommand[];
 }
 
 export interface MentionMenuViewModel {
@@ -56,11 +58,12 @@ export interface MentionMenuViewModel {
 }
 
 export const useMentionMenuViewModel = (props: MentionMenuProps): MentionMenuViewModel => {
+  const commands = props.commands ?? MENTION_COMMANDS;
   const filteredCommands = useMemo(() => {
     const q = props.query.toLowerCase();
-    if (!q) return MENTION_COMMANDS;
-    return MENTION_COMMANDS.filter((c) => c.label.toLowerCase().startsWith(q));
-  }, [props.query]);
+    if (!q) return commands;
+    return commands.filter((c) => c.label.toLowerCase().startsWith(q));
+  }, [props.query, commands]);
 
   return { filteredCommands };
 };

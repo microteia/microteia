@@ -251,6 +251,22 @@ export default function startup(host) {
       return items.slice(0, 9);
     },
   });
+
+  host.mentions.register({
+    key: 'processo-clone',
+    label: 'Processo (clone)',
+    description: 'Inserir link para um processo (clone)',
+    icon: 'folder',
+    search(query, ctx) {
+      const screen = ctx.screenDefinitions.find((s) => (s.sourceId || s.id) === SOURCE_ID);
+      if (!screen) return [];
+      const q = String(query || '').toLowerCase().trim();
+      return ctx.customRecords
+        .filter((r) => r.screenKey === screen.id && r.title && (!q || r.title.toLowerCase().indexOf(q) !== -1))
+        .slice(0, 20)
+        .map((r) => ({ id: r.id, title: r.title, subtitle: 'Processo (clone)', tabKey: EDIT_PREFIX + r.id }));
+    },
+  });
 }
 `;
 
