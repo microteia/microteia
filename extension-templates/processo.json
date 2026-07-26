@@ -1,7 +1,7 @@
 {
   "manifest": {
     "id": "com.curatino.processo-clone",
-    "version": "1.0.0",
+    "version": "1.0.8",
     "kernel": "^1.0.0",
     "name": "Processo (clone)",
     "description": "Réplica independente da tela de Processos, construída inteiramente como extensão — prova de conceito da ponte de componentes.",

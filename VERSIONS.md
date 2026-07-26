@@ -11,6 +11,14 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [0.150.13] — 2026-07-26
+
+- Adicionadas dicas explicativas que aparecem ao passar o mouse sobre os botões de salvar e exportar na tela de criação de extensões.
+
+## [0.150.12] — 2026-07-26
+
+- Botões de salvar e exportar na tela de criação de extensões agora aparecem no topo da página, com destaque visual ao passar o mouse.
+
 ## [0.150.11] — 2026-07-26
 
 - Corrigido IntelliSense do editor de extensões: alterada a extensão do arquivo de modelo do Monaco de `.ts` para `.tsx`, permitindo que o TypeScript reconheça e valide corretamente a sintaxe JSX (elementos HTML e componentes React).

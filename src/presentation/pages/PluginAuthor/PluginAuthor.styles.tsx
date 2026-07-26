@@ -9,9 +9,21 @@ export const S = {
   `,
 
   Header: styled.div`
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: ${({ theme }) => theme.spacing.md};
     padding: ${({ theme }) => theme.spacing.lg} ${({ theme }) => theme.spacing.xl};
     border-bottom: 1px solid ${({ theme }) => theme.colors.border};
     flex-shrink: 0;
+  `,
+
+  HeaderLeft: styled.div`
+    display: flex;
+    flex-direction: column;
+    gap: ${({ theme }) => theme.spacing.xs};
+    flex: 1;
+    min-width: 0;
   `,
 
   Title: styled.h1`
@@ -21,9 +33,67 @@ export const S = {
   `,
 
   Subtitle: styled.p`
-    margin-top: ${({ theme }) => theme.spacing.xs};
     font-size: ${({ theme }) => theme.fontSizes.sm};
     color: ${({ theme }) => theme.colors.textSecondary};
+  `,
+
+  HeaderActions: styled.div`
+    display: flex;
+    align-items: center;
+    gap: ${({ theme }) => theme.spacing.sm};
+    flex-shrink: 0;
+  `,
+
+  ActionBtn: styled.button`
+    width: 30px;
+    height: 30px;
+    border-radius: ${({ theme }) => theme.borderRadius.md};
+    border: 1px solid ${({ theme }) => theme.colors.border};
+    background: ${({ theme }) => theme.colors.surface};
+    color: ${({ theme }) => theme.colors.textMuted};
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: ${({ theme }) => theme.transitions.fast};
+    flex-shrink: 0;
+
+    &:hover:not(:disabled) {
+      background: ${({ theme }) => theme.colors.primary};
+      color: ${({ theme }) => theme.colors.white};
+      border-color: ${({ theme }) => theme.colors.primary};
+    }
+
+    &:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+  `,
+
+  SaveBtn: styled.button`
+    width: 30px;
+    height: 30px;
+    border-radius: ${({ theme }) => theme.borderRadius.md};
+    border: 1px solid ${({ theme }) => theme.colors.border};
+    background: ${({ theme }) => theme.colors.surface};
+    color: ${({ theme }) => theme.colors.textMuted};
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: ${({ theme }) => theme.transitions.fast};
+    flex-shrink: 0;
+
+    &:hover:not(:disabled) {
+      background: ${({ theme }) => theme.colors.success};
+      color: ${({ theme }) => theme.colors.white};
+      border-color: ${({ theme }) => theme.colors.success};
+    }
+
+    &:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
   `,
 
   Content: styled.div`
@@ -340,16 +410,16 @@ export const S = {
     color: ${({ theme }) => theme.colors.text};
   `,
 
-  Footer: styled.div`
+  StatusBar: styled.div`
     display: flex;
     align-items: center;
-    gap: ${({ theme }) => theme.spacing.sm};
-    padding-top: ${({ theme }) => theme.spacing.sm};
+    padding: ${({ theme }) => theme.spacing.md} 0;
+    border-top: 1px solid ${({ theme }) => theme.colors.border};
+    margin-top: auto;
   `,
 
   Count: styled.span`
     font-size: ${({ theme }) => theme.fontSizes.sm};
     color: ${({ theme }) => theme.colors.textSecondary};
-    margin-right: auto;
   `,
 };

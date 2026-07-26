@@ -23,8 +23,18 @@ export const PluginAuthorView: React.FC<{ tabKey?: string }> = ({ tabKey }) => {
   return (
     <S.Page>
       <S.Header>
-        <S.Title>{vm.editing ? 'Editar extensão' : 'Criar extensão'}</S.Title>
-        <S.Subtitle>Empacote telas, ações, automações e scripts do seu escritório em uma extensão. Salve em Minhas Extensões para editar depois; a publicação fica na tela Extensões.</S.Subtitle>
+        <S.HeaderLeft>
+          <S.Title>{vm.editing ? 'Editar extensão' : 'Criar extensão'}</S.Title>
+          <S.Subtitle>Empacote telas, ações, automações e scripts do seu escritório em uma extensão. Salve em Minhas Extensões para editar depois; a publicação fica na tela Extensões.</S.Subtitle>
+        </S.HeaderLeft>
+        <S.HeaderActions>
+          <S.ActionBtn onClick={vm.download} disabled={vm.busy || !vm.canExport} title="Baixar .json">
+            <RiDownloadLine size={16} />
+          </S.ActionBtn>
+          <S.SaveBtn onClick={vm.save} disabled={vm.busy || !vm.canSave} title={vm.busy ? 'Salvando...' : vm.editing ? 'Salvar alterações' : 'Salvar em Minhas Extensões'}>
+            <RiSaveLine size={16} />
+          </S.SaveBtn>
+        </S.HeaderActions>
       </S.Header>
 
       <S.Content>
@@ -175,15 +185,9 @@ export const PluginAuthorView: React.FC<{ tabKey?: string }> = ({ tabKey }) => {
           </S.Section>
         )}
 
-        <S.Footer>
+        <S.StatusBar>
           <S.Count>{vm.selectedCount} {vm.selectedCount === 1 ? 'item selecionado' : 'itens selecionados'}</S.Count>
-          <Button variant="ghost" size="sm" disabled={vm.busy || !vm.canExport} onClick={vm.download}>
-            <RiDownloadLine size={16} /> Baixar .json
-          </Button>
-          <Button variant="primary" size="sm" disabled={vm.busy || !vm.canSave} onClick={vm.save}>
-            <RiSaveLine size={16} /> {vm.editing ? 'Salvar alterações' : 'Salvar em Minhas Extensões'}
-          </Button>
-        </S.Footer>
+        </S.StatusBar>
       </S.Content>
 
       <CodeViewEditorModal
