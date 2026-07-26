@@ -35,6 +35,86 @@ export default function View() {
 }
 `;
 
+const STARTUP_TEMPLATE = `// import { Icon } from '@curatino/ui';
+
+export default function startup(host) {
+  /*
+  // Exemplo: registrar comandos no Command Palette (⌘K)
+  host.commands.register({
+    group: 'Minha Extensão',
+    getItems(query, ctx) {
+      const q = String(query || '').toLowerCase().trim();
+      if (!q) return [];
+      
+      // const icon = <Icon name="star" size={16} />;
+      const items = [];
+      
+      // Comando fixo (ex: "novo item")
+      if ('novo item da extensão'.indexOf(q) !== -1) {
+        items.push({
+          id: 'minha-ext:novo',
+          title: 'Novo item da extensão',
+          group: 'Minha Extensão',
+          // icon,
+          onSelect: () => {
+            ctx.openTab('minha-tela:new');
+            ctx.close();
+          }
+        });
+      }
+      
+      // Busca em registros (exemplo: entidades customizadas)
+      // for (const r of ctx.customRecords) {
+      //   if (r.screenKey === 'minha-tela' && r.title?.toLowerCase().indexOf(q) !== -1) {
+      //     items.push({
+      //       id: 'minha-ext:' + r.id,
+      //       title: r.title,
+      //       subtitle: 'Minha Extensão',
+      //       group: 'Minha Extensão',
+      //       icon,
+      //       onSelect: () => { ctx.openTab('minha-tela:' + r.id); ctx.close(); }
+      //     });
+      //   }
+      // }
+      
+      return items.slice(0, 9);
+    },
+  });
+  */
+
+  /*
+  // Exemplo: registrar menção @ no chat
+  host.mentions.register({
+    key: 'minha-mencao',
+    label: 'Minha Menção',
+    description: 'Inserir link para um item da extensão',
+    icon: 'star',
+    search(query, ctx) {
+      const q = String(query || '').toLowerCase().trim();
+      
+      // Retornar lista de opções para o usuário escolher
+      // return ctx.customRecords
+      //   .filter((r) => r.screenKey === 'minha-tela' && r.title && (!q || r.title.toLowerCase().indexOf(q) !== -1))
+      //   .slice(0, 20)
+      //   .map((r) => ({
+      //     id: r.id,
+      //     title: r.title,
+      //     subtitle: 'Minha Extensão',
+      //     tabKey: 'minha-tela:' + r.id
+      //   }));
+      
+      return [];
+    },
+  });
+  */
+
+  // Opcional: retornar função de cleanup para desregistrar ao descarregar a extensão
+  // return () => {
+  //   // Cleanup se necessário
+  // };
+}
+`;
+
 const KEY_PATTERN = /^[a-z0-9][a-z0-9-]*$/;
 
 const KIND_LABEL: Record<RefKind, string> = {
@@ -173,7 +253,7 @@ export const usePluginAuthorViewModel = (tabKey?: string): PluginAuthorViewModel
 
   const [views, setViews] = useState<CodeViewForm[]>(() =>
     (editingPackage?.views ?? []).map((v) => ({ uid: crypto.randomUUID(), key: v.key, title: v.title, icon: v.icon, source: v.source })));
-  const [startup, setStartup] = useState<string>(() => editingPackage?.startup ?? '');
+  const [startup, setStartup] = useState<string>(() => editingPackage?.startup ?? STARTUP_TEMPLATE);
 
   const startupError = useMemo<string | null>(() => {
     if (!startup.trim()) return null;

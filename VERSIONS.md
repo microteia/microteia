@@ -11,6 +11,14 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [0.150.15] — 2026-07-26
+
+- Aprimorado o template de código de inicialização de extensões com exemplos práticos de como registrar comandos no Command Palette (⌘K) com busca dinâmica e menções @ no chat com sugestões interativas.
+
+## [0.150.14] — 2026-07-26
+
+- Ao criar uma nova extensão, o código de inicialização agora vem com exemplos comentados mostrando como registrar comandos e menções, facilitando o início do desenvolvimento.
+
 ## [0.150.13] — 2026-07-26
 
 - Adicionadas dicas explicativas que aparecem ao passar o mouse sobre os botões de salvar e exportar na tela de criação de extensões.
