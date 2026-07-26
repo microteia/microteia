@@ -188,6 +188,163 @@ export const S = {
     color: ${({ theme }) => theme.colors.textSecondary};
   `,
 
+  // Árvore estilo VSCode Explorer
+  TreeContainer: styled.div`
+    display: flex;
+    flex-direction: column;
+    border: 1px solid ${({ theme }) => theme.colors.border};
+    border-radius: ${({ theme }) => theme.borderRadius.md};
+    background: ${({ theme }) => theme.colors.surface};
+    overflow: hidden;
+  `,
+
+  TreeGroup: styled.div`
+    display: flex;
+    flex-direction: column;
+  `,
+
+  TreeGroupHead: styled.button`
+    display: flex;
+    align-items: center;
+    gap: ${({ theme }) => theme.spacing.xs};
+    padding: 6px ${({ theme }) => theme.spacing.sm};
+    border: none;
+    background: transparent;
+    width: 100%;
+    cursor: pointer;
+    transition: background ${({ theme }) => theme.transitions.fast};
+    min-height: 28px;
+    
+    &:hover {
+      background: ${({ theme }) => theme.colors.surfaceHover};
+    }
+  `,
+
+  TreeToggle: styled.span`
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: ${({ theme }) => theme.colors.textSecondary};
+    flex-shrink: 0;
+    width: 16px;
+    height: 16px;
+  `,
+
+  TreeGroupIcon: styled.span`
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: ${({ theme }) => theme.colors.primary};
+    flex-shrink: 0;
+  `,
+
+  TreeGroupLabel: styled.span`
+    flex: 1;
+    font-size: ${({ theme }) => theme.fontSizes.sm};
+    font-weight: 500;
+    color: ${({ theme }) => theme.colors.text};
+    text-align: left;
+  `,
+
+  TreeGroupCount: styled.span`
+    font-size: ${({ theme }) => theme.fontSizes.xs};
+    color: ${({ theme }) => theme.colors.textSecondary};
+    flex-shrink: 0;
+  `,
+
+  TreeGroupAction: styled.button`
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    border: none;
+    border-radius: ${({ theme }) => theme.borderRadius.sm};
+    background: transparent;
+    color: ${({ theme }) => theme.colors.textSecondary};
+    cursor: pointer;
+    transition: all ${({ theme }) => theme.transitions.fast};
+    flex-shrink: 0;
+    opacity: 0.7;
+    
+    &:hover:not(:disabled) {
+      background: ${({ theme }) => theme.colors.primary};
+      color: ${({ theme }) => theme.colors.white};
+      opacity: 1;
+    }
+
+    &:disabled {
+      opacity: 0.3;
+      cursor: not-allowed;
+    }
+  `,
+
+  TreeItem: styled.button<{ $selected?: boolean }>`
+    display: flex;
+    align-items: center;
+    gap: ${({ theme }) => theme.spacing.xs};
+    width: 100%;
+    padding: 4px ${({ theme }) => theme.spacing.sm} 4px 32px;
+    border: none;
+    background: ${({ $selected, theme }) => ($selected ? theme.colors.surfaceHover : 'transparent')};
+    color: ${({ theme }) => theme.colors.text};
+    text-align: left;
+    cursor: pointer;
+    transition: background ${({ theme }) => theme.transitions.fast};
+    min-height: 26px;
+
+    &:hover:not(:disabled) {
+      background: ${({ theme }) => theme.colors.surfaceHover};
+    }
+
+    &:disabled {
+      cursor: default;
+    }
+  `,
+
+  TreeItemIcon: styled.span`
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: ${({ theme }) => theme.colors.textSecondary};
+    flex-shrink: 0;
+  `,
+
+  TreeItemLabel: styled.span`
+    flex: 1;
+    min-width: 0;
+    font-size: ${({ theme }) => theme.fontSizes.sm};
+    color: ${({ theme }) => theme.colors.text};
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  `,
+
+  TreeItemAction: styled.span`
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: ${({ theme }) => theme.colors.textSecondary};
+    flex-shrink: 0;
+    opacity: 0.6;
+
+    &:hover {
+      color: ${({ theme }) => theme.colors.danger};
+      opacity: 1;
+    }
+  `,
+
+  TreeEmpty: styled.p`
+    padding: 4px ${({ theme }) => theme.spacing.sm} 4px 32px;
+    font-size: ${({ theme }) => theme.fontSizes.xs};
+    color: ${({ theme }) => theme.colors.textMuted};
+    font-style: italic;
+    min-height: 26px;
+    display: flex;
+    align-items: center;
+  `,
+
+  // Estilos antigos mantidos para outras partes
   Groups: styled.div`
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));

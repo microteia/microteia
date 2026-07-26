@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [0.150.17] — 2026-07-26
+
+- Reorganizado o conteúdo da criação de extensões em uma árvore única estilo Explorer do VSCode, com visual mais compacto e natural, incluindo as telas de código integradas à estrutura.
+
 ## [0.150.16] — 2026-07-26
 
 - Os grupos de conteúdo (Telas, Ações, Automações e Scripts) na criação de extensões agora são exibidos em formato de árvore colapsável, permitindo expandir e recolher cada seção para melhor organização visual.

@@ -3,7 +3,6 @@ import {
   RiDownloadLine, RiCheckLine, RiLockLine, RiAddLine, RiDeleteBinLine, RiErrorWarningLine, RiSaveLine,
   RiArrowRightSLine, RiArrowDownSLine,
 } from 'react-icons/ri';
-import { Button } from '../../components/ui/Button';
 import { InfoBanner } from '../../components/ui/InfoBanner';
 import { CodeEditor } from '../../components/ui/CodeEditor';
 import { getScreenIcon } from '../../shared/screenIcons';
@@ -79,96 +78,110 @@ export const PluginAuthorView: React.FC<{ tabKey?: string }> = ({ tabKey }) => {
 
         <S.Section>
           <S.SectionTitle>Conteúdo</S.SectionTitle>
-          <S.Groups>
+          <S.TreeContainer>
             {vm.groups.map((group) => {
               const selectedInGroup = group.options.filter((o) => o.selected).length;
               const isExpanded = vm.expandedGroups.has(group.kind);
               return (
-                <S.Group key={group.kind}>
-                  <S.GroupHead
+                <S.TreeGroup key={group.kind}>
+                  <S.TreeGroupHead
                     onClick={() => vm.toggleGroup(group.kind)}
                     title={isExpanded ? 'Colapsar grupo' : 'Expandir grupo'}
                   >
-                    <S.GroupToggle>
-                      {isExpanded ? <RiArrowDownSLine size={18} /> : <RiArrowRightSLine size={18} />}
-                    </S.GroupToggle>
-                    <S.GroupIcon>{getScreenIcon(GROUP_ICON[group.kind], 18)}</S.GroupIcon>
-                    <S.GroupTitle>{group.title}</S.GroupTitle>
-                    <S.GroupCount>{selectedInGroup}/{group.options.length}</S.GroupCount>
-                  </S.GroupHead>
+                    <S.TreeToggle>
+                      {isExpanded ? <RiArrowDownSLine size={16} /> : <RiArrowRightSLine size={16} />}
+                    </S.TreeToggle>
+                    <S.TreeGroupIcon>{getScreenIcon(GROUP_ICON[group.kind], 16)}</S.TreeGroupIcon>
+                    <S.TreeGroupLabel>{group.title}</S.TreeGroupLabel>
+                    <S.TreeGroupCount>{selectedInGroup}/{group.options.length}</S.TreeGroupCount>
+                  </S.TreeGroupHead>
                   {isExpanded && (
-                    <S.GroupBody>
-                    {group.options.length === 0 ? (
-                      <S.Empty>Nada disponível.</S.Empty>
-                    ) : (
-                      group.options.map((option) => (
-                        <S.Item
-                          key={option.id}
-                          type="button"
-                          $selected={option.selected}
-                          disabled={!vm.canManage || option.locked}
-                          onClick={() => vm.toggle(group.kind, option.id)}
-                          title={
-                            option.locked ? 'Necessária por outro item marcado'
-                              : option.carried ? 'Embarcada nesta extensão — clique para remover'
-                                : undefined
-                          }
-                        >
-                          <S.ItemIcon>{getScreenIcon(option.icon ?? GROUP_ICON[group.kind], 16)}</S.ItemIcon>
-                          <S.ItemLabel>{option.label}</S.ItemLabel>
-                          {option.locked ? (
-                            <S.Required><RiLockLine size={11} /> Obrigatório</S.Required>
-                          ) : option.carried ? (
-                            <S.Carried><RiCheckLine size={11} /> Incluída</S.Carried>
-                          ) : (
-                            <S.Check $on={option.selected}>{option.selected && <RiCheckLine size={14} />}</S.Check>
-                          )}
-                        </S.Item>
-                      ))
-                    )}
-                  </S.GroupBody>
+                    <>
+                      {group.options.length === 0 ? (
+                        <S.TreeEmpty>Nada disponível.</S.TreeEmpty>
+                      ) : (
+                        group.options.map((option) => (
+                          <S.TreeItem
+                            key={option.id}
+                            type="button"
+                            $selected={option.selected}
+                            disabled={!vm.canManage || option.locked}
+                            onClick={() => vm.toggle(group.kind, option.id)}
+                            title={
+                              option.locked ? 'Necessária por outro item marcado'
+                                : option.carried ? 'Embarcada nesta extensão — clique para remover'
+                                  : undefined
+                            }
+                          >
+                            <S.TreeItemIcon>{getScreenIcon(option.icon ?? GROUP_ICON[group.kind], 16)}</S.TreeItemIcon>
+                            <S.TreeItemLabel>{option.label}</S.TreeItemLabel>
+                            {option.locked ? (
+                              <S.Required><RiLockLine size={11} /> Obrigatório</S.Required>
+                            ) : option.carried ? (
+                              <S.Carried><RiCheckLine size={11} /> Incluída</S.Carried>
+                            ) : (
+                              <S.Check $on={option.selected}>{option.selected && <RiCheckLine size={14} />}</S.Check>
+                            )}
+                          </S.TreeItem>
+                        ))
+                      )}
+                    </>
                   )}
-                </S.Group>
+                </S.TreeGroup>
               );
             })}
-          </S.Groups>
-        </S.Section>
 
-        <S.Section>
-          <S.CodeHead>
-            <S.SectionTitle>Telas de código</S.SectionTitle>
-            <Button variant="ghost" size="sm" disabled={!vm.canManage} onClick={vm.addView}>
-              <RiAddLine size={16} /> Adicionar tela
-            </Button>
-          </S.CodeHead>
-          {vm.codeViews.length === 0 ? (
-            <S.CodeEmpty>
-              Nenhuma tela de código. Adicione uma para entregar uma tela interativa própria — escrita em
-              código e renderizada com segurança. Roda em outro escritório só depois de publicada no catálogo.
-            </S.CodeEmpty>
-          ) : (
-            <S.ViewGrid>
-              {vm.codeViews.map((view) => (
-                <S.ViewChip
-                  key={view.id}
-                  type="button"
-                  onClick={() => vm.openView(view.id)}
+            <S.TreeGroup>
+              <S.TreeGroupHead
+                onClick={() => vm.toggleGroup('codeViews')}
+                title={vm.expandedGroups.has('codeViews') ? 'Colapsar grupo' : 'Expandir grupo'}
+              >
+                <S.TreeToggle>
+                  {vm.expandedGroups.has('codeViews') ? <RiArrowDownSLine size={16} /> : <RiArrowRightSLine size={16} />}
+                </S.TreeToggle>
+                <S.TreeGroupIcon>{getScreenIcon('codeBox', 16)}</S.TreeGroupIcon>
+                <S.TreeGroupLabel>Telas de código</S.TreeGroupLabel>
+                <S.TreeGroupCount>{vm.codeViews.length}</S.TreeGroupCount>
+                <S.TreeGroupAction
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    vm.addView();
+                  }}
+                  disabled={!vm.canManage}
+                  title="Adicionar tela"
                 >
-                  <S.ItemIcon>{getScreenIcon(view.icon, 16)}</S.ItemIcon>
-                  <S.ItemLabel>{view.title}</S.ItemLabel>
-                  {view.hasError && <S.ViewWarn title="Não compila"><RiErrorWarningLine size={14} /></S.ViewWarn>}
-                  <S.ViewRemove
-                    role="button"
-                    aria-label="Remover tela"
-                    title="Remover tela"
-                    onClick={(e) => { e.stopPropagation(); vm.removeView(view.id); }}
-                  >
-                    <RiDeleteBinLine size={14} />
-                  </S.ViewRemove>
-                </S.ViewChip>
-              ))}
-            </S.ViewGrid>
-          )}
+                  <RiAddLine size={14} />
+                </S.TreeGroupAction>
+              </S.TreeGroupHead>
+              {vm.expandedGroups.has('codeViews') && (
+                <>
+                  {vm.codeViews.length === 0 ? (
+                    <S.TreeEmpty>Nenhuma tela de código.</S.TreeEmpty>
+                  ) : (
+                    vm.codeViews.map((view) => (
+                      <S.TreeItem
+                        key={view.id}
+                        type="button"
+                        onClick={() => vm.openView(view.id)}
+                      >
+                        <S.TreeItemIcon>{getScreenIcon(view.icon, 16)}</S.TreeItemIcon>
+                        <S.TreeItemLabel>{view.title}</S.TreeItemLabel>
+                        {view.hasError && <S.ViewWarn title="Não compila"><RiErrorWarningLine size={14} /></S.ViewWarn>}
+                        <S.TreeItemAction
+                          role="button"
+                          aria-label="Remover tela"
+                          title="Remover tela"
+                          onClick={(e) => { e.stopPropagation(); vm.removeView(view.id); }}
+                        >
+                          <RiDeleteBinLine size={14} />
+                        </S.TreeItemAction>
+                      </S.TreeItem>
+                    ))
+                  )}
+                </>
+              )}
+            </S.TreeGroup>
+          </S.TreeContainer>
         </S.Section>
 
         <S.Section>
