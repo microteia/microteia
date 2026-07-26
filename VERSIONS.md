@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [0.150.16] — 2026-07-26
+
+- Os grupos de conteúdo (Telas, Ações, Automações e Scripts) na criação de extensões agora são exibidos em formato de árvore colapsável, permitindo expandir e recolher cada seção para melhor organização visual.
+
 ## [0.150.15] — 2026-07-26
 
 - Aprimorado o template de código de inicialização de extensões com exemplos práticos de como registrar comandos no Command Palette (⌘K) com busca dinâmica e menções @ no chat com sugestões interativas.

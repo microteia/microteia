@@ -202,12 +202,30 @@ export const S = {
     overflow: hidden;
   `,
 
-  GroupHead: styled.div`
+  GroupHead: styled.button`
     display: flex;
     align-items: center;
     gap: ${({ theme }) => theme.spacing.sm};
     padding: ${({ theme }) => theme.spacing.md};
+    border: none;
     border-bottom: 1px solid ${({ theme }) => theme.colors.border};
+    background: ${({ theme }) => theme.colors.surface};
+    width: 100%;
+    cursor: pointer;
+    transition: background ${({ theme }) => theme.transitions.fast};
+    
+    &:hover {
+      background: ${({ theme }) => theme.colors.surfaceHover};
+    }
+  `,
+
+  GroupToggle: styled.span`
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: ${({ theme }) => theme.colors.textSecondary};
+    flex-shrink: 0;
+    transition: transform ${({ theme }) => theme.transitions.fast};
   `,
 
   GroupIcon: styled.span`

@@ -1,6 +1,7 @@
 import React from 'react';
 import {
   RiDownloadLine, RiCheckLine, RiLockLine, RiAddLine, RiDeleteBinLine, RiErrorWarningLine, RiSaveLine,
+  RiArrowRightSLine, RiArrowDownSLine,
 } from 'react-icons/ri';
 import { Button } from '../../components/ui/Button';
 import { InfoBanner } from '../../components/ui/InfoBanner';
@@ -81,14 +82,22 @@ export const PluginAuthorView: React.FC<{ tabKey?: string }> = ({ tabKey }) => {
           <S.Groups>
             {vm.groups.map((group) => {
               const selectedInGroup = group.options.filter((o) => o.selected).length;
+              const isExpanded = vm.expandedGroups.has(group.kind);
               return (
                 <S.Group key={group.kind}>
-                  <S.GroupHead>
+                  <S.GroupHead
+                    onClick={() => vm.toggleGroup(group.kind)}
+                    title={isExpanded ? 'Colapsar grupo' : 'Expandir grupo'}
+                  >
+                    <S.GroupToggle>
+                      {isExpanded ? <RiArrowDownSLine size={18} /> : <RiArrowRightSLine size={18} />}
+                    </S.GroupToggle>
                     <S.GroupIcon>{getScreenIcon(GROUP_ICON[group.kind], 18)}</S.GroupIcon>
                     <S.GroupTitle>{group.title}</S.GroupTitle>
                     <S.GroupCount>{selectedInGroup}/{group.options.length}</S.GroupCount>
                   </S.GroupHead>
-                  <S.GroupBody>
+                  {isExpanded && (
+                    <S.GroupBody>
                     {group.options.length === 0 ? (
                       <S.Empty>Nada disponível.</S.Empty>
                     ) : (
@@ -118,6 +127,7 @@ export const PluginAuthorView: React.FC<{ tabKey?: string }> = ({ tabKey }) => {
                       ))
                     )}
                   </S.GroupBody>
+                  )}
                 </S.Group>
               );
             })}

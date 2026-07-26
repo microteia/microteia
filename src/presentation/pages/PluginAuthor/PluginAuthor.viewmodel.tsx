@@ -176,6 +176,8 @@ export interface PluginAuthorViewModel {
   updateForm: (patch: Partial<PluginAuthorViewModel['form']>) => void;
   groups: ArtifactGroup[];
   toggle: (kind: ArtifactKind, id: string) => void;
+  expandedGroups: Set<ArtifactKind>;
+  toggleGroup: (kind: ArtifactKind) => void;
   iconOptions: SearchSelectOption[];
   codeViews: CodeViewItem[];
   selectedViewId: string | null;
@@ -250,6 +252,7 @@ export const usePluginAuthorViewModel = (tabKey?: string): PluginAuthorViewModel
   const [workflowIds, toggleWorkflow] = useSelection(new Set((editingPackage?.workflows ?? []).map((w) => w.templateId)));
   const [scriptIds, toggleScript] = useSelection(new Set((editingPackage?.scripts ?? []).map((s) => s.templateId)));
   const [busy, setBusy] = useState(false);
+  const [expandedGroups, setExpandedGroups] = useState<Set<ArtifactKind>>(() => new Set(['screens', 'actions', 'workflows', 'scripts']));
 
   const [views, setViews] = useState<CodeViewForm[]>(() =>
     (editingPackage?.views ?? []).map((v) => ({ uid: crypto.randomUUID(), key: v.key, title: v.title, icon: v.icon, source: v.source })));
@@ -312,6 +315,15 @@ export const usePluginAuthorViewModel = (tabKey?: string): PluginAuthorViewModel
   }, []);
 
   const closeEditor = useCallback(() => setEditorOpen(false), []);
+
+  const toggleGroup = useCallback((kind: ArtifactKind) => {
+    setExpandedGroups((prev) => {
+      const next = new Set(prev);
+      if (next.has(kind)) next.delete(kind);
+      else next.add(kind);
+      return next;
+    });
+  }, []);
 
   const updateSelectedView = useCallback((patch: Partial<Omit<CodeViewEditing, 'error'>>) => {
     setViews((prev) => prev.map((v) => (v.uid === selectedViewId ? { ...v, ...patch } : v)));
@@ -555,6 +567,8 @@ export const usePluginAuthorViewModel = (tabKey?: string): PluginAuthorViewModel
     updateForm,
     groups,
     toggle,
+    expandedGroups,
+    toggleGroup,
     iconOptions,
     codeViews,
     selectedViewId,
