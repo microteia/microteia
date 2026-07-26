@@ -51,17 +51,6 @@ const buildMonacoTheme = (theme: Theme): Monaco.editor.IStandaloneThemeData => (
   },
 });
 
-const configureCompiler = (monaco: typeof Monaco): void => {
-  const ts = monaco.typescript.typescriptDefaults;
-  ts.setCompilerOptions({
-    target: monaco.typescript.ScriptTarget.ES2020,
-    lib: ['es2021'],
-    allowNonTsExtensions: true,
-    noEmit: true,
-  });
-  ts.setEagerModelSync(true);
-};
-
 export interface CodeEditorProps {
   value: string;
   onChange: (value: string) => void;
@@ -91,7 +80,7 @@ export const useCodeEditorViewModel = (props: CodeEditorProps): CodeEditorViewMo
   const modelPath =
     language === 'json'
       ? `file:///curatino-params-${instanceId}.json`
-      : `file:///curatino-script-${instanceId}.ts`;
+      : `file:///curatino-script-${instanceId}.tsx`;  // .tsx para reconhecer JSX!
 
   const editorRef = useRef<Monaco.editor.IStandaloneCodeEditor | null>(null);
   const monacoRef = useRef<typeof Monaco | null>(null);
@@ -108,15 +97,14 @@ export const useCodeEditorViewModel = (props: CodeEditorProps): CodeEditorViewMo
   const applyExtraLib = useCallback((monaco: typeof Monaco, lib: string | undefined) => {
     extraLibRef.current?.dispose();
     extraLibRef.current = lib
-      ? monaco.typescript.typescriptDefaults.addExtraLib(lib, `file:///curatino-globals-${instanceId}.d.ts`)
+      ? monaco.typescript.typescriptDefaults.addExtraLib(lib, 'file:///node_modules/@types/curatino-extension-api/index.d.ts')
       : null;
-  }, [instanceId]);
+  }, []);
 
   const handleMount = useCallback<OnMount>(
     (editor, monaco) => {
       editorRef.current = editor;
       monacoRef.current = monaco;
-      configureCompiler(monaco);
       applyExtraLib(monaco, extraLib);
       monaco.editor.defineTheme(THEME_NAME, buildMonacoTheme(theme));
       monaco.editor.setTheme(THEME_NAME);

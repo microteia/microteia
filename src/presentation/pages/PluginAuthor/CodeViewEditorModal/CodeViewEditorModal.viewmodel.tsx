@@ -8,6 +8,7 @@ export interface CodeViewEditorModalProps {
   iconOptions: SearchSelectOption[];
   onChange: (patch: Partial<Omit<CodeViewEditing, 'error'>>) => void;
   onClose: () => void;
+  extensionTypeDefs?: string;
 }
 
 export interface CodeViewEditorModalViewModel {

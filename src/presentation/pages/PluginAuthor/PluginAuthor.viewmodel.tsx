@@ -15,6 +15,7 @@ import { isValidPluginId, validatePluginManifest } from '../../../domain/schema/
 import { KERNEL_VERSION } from '../../../domain/schema/plugin/kernelVersion';
 import { nav, page } from '../../../plugins/contributionBuilders';
 import { compileExtensionView, compileExtensionStartup } from '../../shared/extensions/evaluateExtensionView';
+import { buildExtensionTypeDefs } from '../../shared/extensions/extensionTypeDefs';
 import { getScreenIconOptions } from '../../shared/screenIcons';
 import type { PluginManifest } from '../../../domain/schema/plugin/pluginManifest';
 import type { Contribution } from '../../../domain/schema/plugin/contribution';
@@ -115,6 +116,7 @@ export interface PluginAuthorViewModel {
   busy: boolean;
   download: () => void;
   save: () => Promise<void>;
+  extensionTypeDefs: string;
 }
 
 const useSelection = (initial?: Set<string>) => {
@@ -438,6 +440,8 @@ export const usePluginAuthorViewModel = (tabKey?: string): PluginAuthorViewModel
   // só exportar/publicar. É o que permite "criar e voltar depois para editar".
   const canSave = canManage && isValidPluginId(form.id.trim()) && Boolean(form.name.trim());
 
+  const extensionTypeDefs = useMemo(() => buildExtensionTypeDefs(), []);
+
   const download = useCallback(() => {
     const blob = new Blob([serializePackage(pkg)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
@@ -491,5 +495,6 @@ export const usePluginAuthorViewModel = (tabKey?: string): PluginAuthorViewModel
     busy,
     download,
     save,
+    extensionTypeDefs,
   };
 };

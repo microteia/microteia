@@ -13,7 +13,7 @@ import { S } from './CodeViewEditorModal.styles';
 
 const swallowPreviewError = (): void => { /* erros de render aparecem no fallback do ErrorBoundary */ };
 
-export const CodeViewEditorModal: React.FC<CodeViewEditorModalProps> = ({ isOpen, view, iconOptions, onChange, onClose }) => {
+export const CodeViewEditorModal: React.FC<CodeViewEditorModalProps> = ({ isOpen, view, iconOptions, onChange, onClose, extensionTypeDefs }) => {
   const vm = useCodeViewEditorModalViewModel();
   if (!isOpen || !view) return null;
 
@@ -44,7 +44,7 @@ export const CodeViewEditorModal: React.FC<CodeViewEditorModalProps> = ({ isOpen
       <S.Split>
         <SplitPane
           showRight={vm.previewOpen}
-          left={<CodeEditor value={view.source} onChange={(source) => onChange({ source })} minHeight="calc(62vh - 44px)" />}
+          left={<CodeEditor value={view.source} onChange={(source) => onChange({ source })} minHeight="calc(62vh - 44px)" extraLib={extensionTypeDefs} />}
           right={(
             <S.PreviewPane>
               <ErrorBoundary

@@ -160,7 +160,7 @@ export const PluginAuthorView: React.FC<{ tabKey?: string }> = ({ tabKey }) => {
           </S.Hint>
           {vm.startupError && <InfoBanner message={`Não compila: ${vm.startupError}`} variant="warning" />}
           <S.Card>
-            <CodeEditor value={vm.startup} onChange={vm.setStartup} minHeight="300px" />
+            <CodeEditor value={vm.startup} onChange={vm.setStartup} minHeight="300px" extraLib={vm.extensionTypeDefs} />
           </S.Card>
         </S.Section>
 
@@ -192,6 +192,7 @@ export const PluginAuthorView: React.FC<{ tabKey?: string }> = ({ tabKey }) => {
         iconOptions={vm.iconOptions}
         onChange={vm.updateSelectedView}
         onClose={vm.closeEditor}
+        extensionTypeDefs={vm.extensionTypeDefs}
       />
     </S.Page>
   );

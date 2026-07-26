@@ -52,6 +52,9 @@ import { useEntity } from './useEntity';
 import type { CasePhase } from '../../../domain/entities';
 
 /**
+ * ATENÇÃO: ao adicionar/remover/modificar módulos aqui, atualize também as definições TypeScript
+ * em `extensionTypeDefs.ts` para manter o IntelliSense sincronizado com a API real disponível.
+ *
  * A FRONTEIRA DE SANDBOX. Este mapa é tudo que o `require` de uma extensão enxerga — o teto do que o
  * código de terceiro (trusted) pode tocar. Não há `firebase`, `fetch`, `window` cru nem acesso ao
  * container de DI: só React, um kit de UI do próprio Curatino e hooks de dados curados que já passam

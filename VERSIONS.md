@@ -11,6 +11,50 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [0.150.11] — 2026-07-26
+
+- Corrigido IntelliSense do editor de extensões: alterada a extensão do arquivo de modelo do Monaco de `.ts` para `.tsx`, permitindo que o TypeScript reconheça e valide corretamente a sintaxe JSX (elementos HTML e componentes React).
+
+## [0.150.10] — 2026-07-25
+
+- Corrigido IntelliSense do editor de extensões: removido import inválido que quebrava reconhecimento de módulos, e adicionado React.createElement para suporte completo a JSX no modo clássico.
+
+## [0.150.9] — 2026-07-25
+
+- Alterado o modo JSX do editor de extensões para o modo clássico React (com import automático de React), garantindo compatibilidade total do TypeScript com elementos HTML e componentes React em todas as telas de código.
+
+## [0.150.8] — 2026-07-25
+
+- Reconfigurado o compilador TypeScript do Monaco Editor de forma global: agora o suporte a JSX é inicializado antes de qualquer editor ser criado, garantindo que elementos HTML e componentes React sejam reconhecidos corretamente em todas as telas de código.
+
+## [0.150.7] — 2026-07-25
+
+- Corrigido o compilador TypeScript do editor de extensões: agora reconhece JSX corretamente, eliminando os erros "Cannot find name 'div'" e erros de tipo ao usar componentes React.
+
+## [0.150.6] — 2026-07-25
+
+- Corrigido IntelliSense do editor de extensões: o namespace JSX agora está no escopo global correto, permitindo que elementos HTML e componentes React sejam reconhecidos em todas as telas de código abertas.
+
+## [0.150.5] — 2026-07-25
+
+- Corrigido IntelliSense do editor de extensões: os componentes agora são reconhecidos corretamente ao escrever JSX, sem erros de tipo ao usar `<InfoBanner />`, `<Button />`, `<div>` e outros elementos.
+
+## [0.150.4] — 2026-07-25
+
+- Corrigido IntelliSense do editor de extensões: agora os elementos HTML (div, span, button) são reconhecidos corretamente e os componentes podem ser usados como tipos sem erro.
+
+## [0.150.3] — 2026-07-25
+
+- Corrigido o IntelliSense do editor de extensões: agora reconhece elementos HTML (div, span, button) e mostra os tipos corretos dos componentes, eliminando erros de lint durante a edição de código.
+
+## [0.150.2] — 2026-07-25
+
+- Corrigido o IntelliSense do tema no editor de extensões: agora todas as cores estão disponíveis no autocompletar, incluindo as cores de status de processos, contratos, pessoas, fases, KPIs, providers de IA e outras — antes só apareciam as cores básicas.
+
+## [0.150.1] — 2026-07-25
+
+- O editor de código das extensões agora tem **IntelliSense completo**: ao escrever uma tela de código ou o código de inicialização, o editor sugere automaticamente os componentes disponíveis (Button, Input, Modal…), os hooks de dados (useCases, useEntity…) e as funções de formatação (formatCurrencyBRL, formatCPF…), com a documentação e os tipos de cada um. Isso torna muito mais fácil descobrir o que está disponível e evita erros de digitação ao criar extensões.
+
 ## [0.150.0] — 2026-07-24
 
 - Nova extensão de exemplo **"Processos (clone)"**: uma réplica da tela de Processos construída inteiramente como extensão, com seus próprios cards, filtros, etiquetas coloridas de Status e Fase, além dos polos ativo e passivo. Ela traz a própria ficha de processo — que aparece no **Form Design** como qualquer outra e pode ser personalizada — e ao abrir ou criar um registro usa o formulário padrão, com campos, máscaras, validações, notas e documentos. Os dados são totalmente independentes dos Processos do escritório: serve para demonstrar, na prática, o que já é possível montar com o novo recurso de telas por extensão.
