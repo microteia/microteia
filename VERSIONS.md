@@ -11,6 +11,14 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [0.150.21] — 2026-07-26
+
+- Reforçado que toda evolução do núcleo do sistema deve ampliar sua capacidade de ser estendido sem modificação, nunca vinculá-lo a situações específicas.
+
+## [0.150.20] — 2026-07-26
+
+- Estabelecido fundamento arquitetural da plataforma: o sistema é construído de forma declarativa, permitindo criar novas funcionalidades sem modificar o núcleo central do código.
+
 ## [0.150.19] — 2026-07-26
 
 - Adicionado botão de maximizar nos modais de edição de código (telas e inicialização), permitindo usar toda a tela para programação confortável.

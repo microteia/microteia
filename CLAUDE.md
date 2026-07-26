@@ -4,6 +4,18 @@
 > A referência detalhada (regras Firestore, pipelines, padrões por feature) vive em `ARCHITECTURE.md`.
 > **Regra de ouro:** quando este arquivo e o `ARCHITECTURE.md` divergirem, o `ARCHITECTURE.md` é a fonte de verdade — e deve ser corrigido para eliminar a divergência.
 
+---
+
+## Fundamento Arquitetural — NÃO-NEGOCIÁVEL
+
+**Este projeto é uma plataforma declarativa capaz de criar aplicações de negócio sem alterar o kernel.**
+
+Toda alteração, toda funcionalidade, todo pensamento sobre o código deve respeitar este princípio fundamental. O kernel é imutável e extensível apenas por meio de declarações (plugins, extensões, contribuições). Nunca modifique o kernel para adicionar regras de negócio específicas de um domínio.
+
+As mudanças no kernel devem ser obrigatoriamente voltadas para prover essa capacidade declarativa e JAMAIS para amarrar o projeto a um caso específico.
+
+---
+
 **Curatino** é um sistema SaaS multi-tenant de gestão de escritórios de advocacia. Cada usuário pertence a um ou mais "escritórios" (tenants). Após o login, o usuário seleciona o escritório em que vai trabalhar. Todos os dados (clientes, processos, prazos, financeiro) ficam em subcoleções do tenant no Firestore: `tenants/{tenantId}/{coleção}/{docId}`.
 
 ---
