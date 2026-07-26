@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [0.150.19] — 2026-07-26
+
+- Adicionado botão de maximizar nos modais de edição de código (telas e inicialização), permitindo usar toda a tela para programação confortável.
+
 ## [0.150.18] — 2026-07-26
 
 - Adicionado "Código de inicialização" como primeiro item fixo na árvore de conteúdo, abrindo um modal amplo e confortável para programação ao ser clicado.

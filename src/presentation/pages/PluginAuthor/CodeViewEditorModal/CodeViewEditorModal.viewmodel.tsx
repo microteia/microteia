@@ -14,10 +14,14 @@ export interface CodeViewEditorModalProps {
 export interface CodeViewEditorModalViewModel {
   previewOpen: boolean;
   togglePreview: () => void;
+  maximized: boolean;
+  toggleMaximized: () => void;
 }
 
 export const useCodeViewEditorModalViewModel = (): CodeViewEditorModalViewModel => {
   const [previewOpen, setPreviewOpen] = useState(false);
+  const [maximized, setMaximized] = useState(false);
   const togglePreview = useCallback(() => setPreviewOpen((open) => !open), []);
-  return { previewOpen, togglePreview };
+  const toggleMaximized = useCallback(() => setMaximized((prev) => !prev), []);
+  return { previewOpen, togglePreview, maximized, toggleMaximized };
 };

@@ -191,6 +191,8 @@ export interface PluginAuthorViewModel {
   startupEditorOpen: boolean;
   openStartupEditor: () => void;
   closeStartupEditor: () => void;
+  startupMaximized: boolean;
+  toggleStartupMaximized: () => void;
   startup: string;
   setStartup: (source: string) => void;
   startupError: string | null;
@@ -269,6 +271,7 @@ export const usePluginAuthorViewModel = (tabKey?: string): PluginAuthorViewModel
   const [selectedViewId, setSelectedViewId] = useState<string | null>(null);
   const [editorOpen, setEditorOpen] = useState(false);
   const [startupEditorOpen, setStartupEditorOpen] = useState(false);
+  const [startupMaximized, setStartupMaximized] = useState(false);
 
   // Artefatos JÁ embarcados no pacote em edição (extensão importada/instalada). Não vêm dos artefatos
   // "próprios" do escritório — são templates que viajam no pacote —, então precisam ser preservados e
@@ -321,7 +324,11 @@ export const usePluginAuthorViewModel = (tabKey?: string): PluginAuthorViewModel
   const closeEditor = useCallback(() => setEditorOpen(false), []);
 
   const openStartupEditor = useCallback(() => setStartupEditorOpen(true), []);
-  const closeStartupEditor = useCallback(() => setStartupEditorOpen(false), []);
+  const closeStartupEditor = useCallback(() => {
+    setStartupEditorOpen(false);
+    setStartupMaximized(false);
+  }, []);
+  const toggleStartupMaximized = useCallback(() => setStartupMaximized((prev) => !prev), []);
 
   const toggleGroup = useCallback((kind: ArtifactKind | 'codeViews') => {
     setExpandedGroups((prev) => {
@@ -589,6 +596,8 @@ export const usePluginAuthorViewModel = (tabKey?: string): PluginAuthorViewModel
     startupEditorOpen,
     openStartupEditor,
     closeStartupEditor,
+    startupMaximized,
+    toggleStartupMaximized,
     startup,
     setStartup,
     startupError,

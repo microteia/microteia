@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import styled from 'styled-components';
 import { Button } from './Button';
-import { RiCloseLine } from 'react-icons/ri';
+import { RiCloseLine, RiFullscreenLine, RiFullscreenExitLine } from 'react-icons/ri';
 
 const Overlay = styled.div`
   position: fixed;
@@ -28,13 +28,14 @@ const SIZE_WIDTHS = {
   xlarge: '1040px',
 } as const;
 
-const Container = styled.div<{ $size: keyof typeof SIZE_WIDTHS }>`
+const Container = styled.div<{ $size: keyof typeof SIZE_WIDTHS; $maximized?: boolean }>`
   background: ${({ theme }) => theme.colors.surface};
   border: 1px solid ${({ theme }) => theme.colors.border};
-  border-radius: ${({ theme }) => theme.borderRadius.lg};
-  width: 100%;
-  max-width: ${({ $size }) => SIZE_WIDTHS[$size]};
-  max-height: 90vh;
+  border-radius: ${({ $maximized, theme }) => ($maximized ? '0' : theme.borderRadius.lg)};
+  width: ${({ $maximized }) => ($maximized ? '100vw' : '100%')};
+  max-width: ${({ $maximized, $size }) => ($maximized ? '100vw' : SIZE_WIDTHS[$size])};
+  height: ${({ $maximized }) => ($maximized ? '100vh' : 'auto')};
+  max-height: ${({ $maximized }) => ($maximized ? '100vh' : '90vh')};
   display: flex;
   flex-direction: column;
   animation: slideUp 200ms ease;
@@ -53,6 +54,12 @@ const Header = styled.div`
   padding: ${({ theme }) => theme.spacing.xl};
   border-bottom: 1px solid ${({ theme }) => theme.colors.border};
   flex-shrink: 0;
+`;
+
+const HeaderActions = styled.div`
+  display: flex;
+  align-items: center;
+  gap: ${({ theme }) => theme.spacing.xs};
 `;
 
 const Content = styled.div`
@@ -77,9 +84,20 @@ interface ModalProps {
   onClose: () => void;
   children: React.ReactNode;
   size?: keyof typeof SIZE_WIDTHS;
+  maximizable?: boolean;
+  maximized?: boolean;
+  onToggleMaximize?: () => void;
 }
 
-export const Modal: React.FC<ModalProps> = ({ title, onClose, children, size = 'small' }) => {
+export const Modal: React.FC<ModalProps> = ({ 
+  title, 
+  onClose, 
+  children, 
+  size = 'small',
+  maximizable = false,
+  maximized = false,
+  onToggleMaximize,
+}) => {
   useEffect(() => {
     const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
     window.addEventListener('keydown', handler);
@@ -88,12 +106,19 @@ export const Modal: React.FC<ModalProps> = ({ title, onClose, children, size = '
 
   return (
     <Overlay onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <Container $size={size}>
+      <Container $size={size} $maximized={maximized}>
         <Header>
           <Title>{title}</Title>
-          <CloseButton variant="ghost" onClick={onClose}>
-            <RiCloseLine size={20} />
-          </CloseButton>
+          <HeaderActions>
+            {maximizable && onToggleMaximize && (
+              <CloseButton variant="ghost" onClick={onToggleMaximize} title={maximized ? 'Restaurar' : 'Maximizar'}>
+                {maximized ? <RiFullscreenExitLine size={20} /> : <RiFullscreenLine size={20} />}
+              </CloseButton>
+            )}
+            <CloseButton variant="ghost" onClick={onClose} title="Fechar">
+              <RiCloseLine size={20} />
+            </CloseButton>
+          </HeaderActions>
         </Header>
         <Content>
           {children}

@@ -18,7 +18,14 @@ export const CodeViewEditorModal: React.FC<CodeViewEditorModalProps> = ({ isOpen
   if (!isOpen || !view) return null;
 
   return (
-    <Modal title={`Tela de código — ${view.title || view.key || 'sem título'}`} onClose={onClose} size="xlarge">
+    <Modal 
+      title={`Tela de código — ${view.title || view.key || 'sem título'}`} 
+      onClose={onClose} 
+      size="xlarge"
+      maximizable
+      maximized={vm.maximized}
+      onToggleMaximize={vm.toggleMaximized}
+    >
       <S.Fields>
         <S.Field>
           Título
@@ -44,7 +51,7 @@ export const CodeViewEditorModal: React.FC<CodeViewEditorModalProps> = ({ isOpen
       <S.Split>
         <SplitPane
           showRight={vm.previewOpen}
-          left={<CodeEditor value={view.source} onChange={(source) => onChange({ source })} minHeight="calc(62vh - 44px)" extraLib={extensionTypeDefs} />}
+          left={<CodeEditor value={view.source} onChange={(source) => onChange({ source })} minHeight={vm.maximized ? "calc(100vh - 300px)" : "calc(62vh - 44px)"} extraLib={extensionTypeDefs} />}
           right={(
             <S.PreviewPane>
               <ErrorBoundary

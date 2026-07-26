@@ -214,7 +214,14 @@ export const PluginAuthorView: React.FC<{ tabKey?: string }> = ({ tabKey }) => {
 
       {/* Modal de edição do código de inicialização */}
       {vm.startupEditorOpen && (
-        <Modal title="Código de inicialização" onClose={vm.closeStartupEditor} size="xlarge">
+        <Modal 
+          title="Código de inicialização" 
+          onClose={vm.closeStartupEditor} 
+          size="xlarge"
+          maximizable
+          maximized={vm.startupMaximized}
+          onToggleMaximize={vm.toggleStartupMaximized}
+        >
           <S.StartupDescription>
             Opcional. Roda uma vez quando a extensão é carregada no escritório e recebe um <code>host</code> para
             registrar serviços — como comandos do ⌘K e menções <code>@</code>. Exporte como <code>default</code> uma
@@ -225,7 +232,7 @@ export const PluginAuthorView: React.FC<{ tabKey?: string }> = ({ tabKey }) => {
             <CodeEditor 
               value={vm.startup} 
               onChange={vm.setStartup} 
-              minHeight="calc(85vh - 200px)" 
+              minHeight={vm.startupMaximized ? "calc(100vh - 240px)" : "calc(85vh - 200px)"} 
               extraLib={vm.extensionTypeDefs} 
             />
           </S.EditorContainer>
