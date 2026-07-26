@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [0.150.18] — 2026-07-26
+
+- Adicionado "Código de inicialização" como primeiro item fixo na árvore de conteúdo, abrindo um modal amplo e confortável para programação ao ser clicado.
+
 ## [0.150.17] — 2026-07-26
 
 - Reorganizado o conteúdo da criação de extensões em uma árvore única estilo Explorer do VSCode, com visual mais compacto e natural, incluindo as telas de código integradas à estrutura.

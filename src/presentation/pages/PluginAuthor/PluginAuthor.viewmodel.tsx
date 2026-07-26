@@ -188,6 +188,9 @@ export interface PluginAuthorViewModel {
   updateSelectedView: (patch: Partial<Omit<CodeViewEditing, 'error'>>) => void;
   editorOpen: boolean;
   closeEditor: () => void;
+  startupEditorOpen: boolean;
+  openStartupEditor: () => void;
+  closeStartupEditor: () => void;
   startup: string;
   setStartup: (source: string) => void;
   startupError: string | null;
@@ -265,6 +268,7 @@ export const usePluginAuthorViewModel = (tabKey?: string): PluginAuthorViewModel
   }, [startup]);
   const [selectedViewId, setSelectedViewId] = useState<string | null>(null);
   const [editorOpen, setEditorOpen] = useState(false);
+  const [startupEditorOpen, setStartupEditorOpen] = useState(false);
 
   // Artefatos JÁ embarcados no pacote em edição (extensão importada/instalada). Não vêm dos artefatos
   // "próprios" do escritório — são templates que viajam no pacote —, então precisam ser preservados e
@@ -315,6 +319,9 @@ export const usePluginAuthorViewModel = (tabKey?: string): PluginAuthorViewModel
   }, []);
 
   const closeEditor = useCallback(() => setEditorOpen(false), []);
+
+  const openStartupEditor = useCallback(() => setStartupEditorOpen(true), []);
+  const closeStartupEditor = useCallback(() => setStartupEditorOpen(false), []);
 
   const toggleGroup = useCallback((kind: ArtifactKind | 'codeViews') => {
     setExpandedGroups((prev) => {
@@ -579,6 +586,9 @@ export const usePluginAuthorViewModel = (tabKey?: string): PluginAuthorViewModel
     updateSelectedView,
     editorOpen,
     closeEditor,
+    startupEditorOpen,
+    openStartupEditor,
+    closeStartupEditor,
     startup,
     setStartup,
     startupError,

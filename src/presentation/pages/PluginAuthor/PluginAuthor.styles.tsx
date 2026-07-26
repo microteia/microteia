@@ -597,4 +597,24 @@ export const S = {
     font-size: ${({ theme }) => theme.fontSizes.sm};
     color: ${({ theme }) => theme.colors.textSecondary};
   `,
+
+  StartupDescription: styled.p`
+    font-size: ${({ theme }) => theme.fontSizes.sm};
+    color: ${({ theme }) => theme.colors.textSecondary};
+    margin-bottom: ${({ theme }) => theme.spacing.md};
+    line-height: 1.5;
+
+    code {
+      padding: 2px 6px;
+      border-radius: ${({ theme }) => theme.borderRadius.sm};
+      background: ${({ theme }) => theme.colors.surfaceHover};
+      font-family: 'Monaco', 'Menlo', 'Consolas', monospace;
+      font-size: ${({ theme }) => theme.fontSizes.xs};
+      color: ${({ theme }) => theme.colors.primary};
+    }
+  `,
+
+  EditorContainer: styled.div`
+    margin-top: ${({ theme }) => theme.spacing.md};
+  `,
 };

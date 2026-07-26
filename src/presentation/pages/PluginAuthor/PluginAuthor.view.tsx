@@ -1,10 +1,11 @@
 import React from 'react';
 import {
   RiDownloadLine, RiCheckLine, RiLockLine, RiAddLine, RiDeleteBinLine, RiErrorWarningLine, RiSaveLine,
-  RiArrowRightSLine, RiArrowDownSLine,
+  RiArrowRightSLine, RiArrowDownSLine, RiCodeSSlashLine,
 } from 'react-icons/ri';
 import { InfoBanner } from '../../components/ui/InfoBanner';
 import { CodeEditor } from '../../components/ui/CodeEditor';
+import { Modal } from '../../components/ui/Modal';
 import { getScreenIcon } from '../../shared/screenIcons';
 import { CodeViewEditorModal } from './CodeViewEditorModal';
 import { usePluginAuthorViewModel, type ArtifactKind } from './PluginAuthor.viewmodel';
@@ -79,6 +80,17 @@ export const PluginAuthorView: React.FC<{ tabKey?: string }> = ({ tabKey }) => {
         <S.Section>
           <S.SectionTitle>Conteúdo</S.SectionTitle>
           <S.TreeContainer>
+            {/* Item fixo: Código de inicialização */}
+            <S.TreeItem
+              type="button"
+              onClick={vm.openStartupEditor}
+              title="Editar código de inicialização"
+            >
+              <S.TreeItemIcon><RiCodeSSlashLine size={16} /></S.TreeItemIcon>
+              <S.TreeItemLabel>Código de inicialização</S.TreeItemLabel>
+              {vm.startupError && <S.ViewWarn title="Não compila"><RiErrorWarningLine size={14} /></S.ViewWarn>}
+            </S.TreeItem>
+
             {vm.groups.map((group) => {
               const selectedInGroup = group.options.filter((o) => o.selected).length;
               const isExpanded = vm.expandedGroups.has(group.kind);
@@ -184,19 +196,6 @@ export const PluginAuthorView: React.FC<{ tabKey?: string }> = ({ tabKey }) => {
           </S.TreeContainer>
         </S.Section>
 
-        <S.Section>
-          <S.SectionTitle>Código de inicialização</S.SectionTitle>
-          <S.Hint>
-            Opcional. Roda uma vez quando a extensão é carregada no escritório e recebe um <code>host</code> para
-            registrar serviços — como comandos do ⌘K e menções <code>@</code>. Exporte como <code>default</code> uma
-            função <code>(host) =&gt; cleanup?</code>.
-          </S.Hint>
-          {vm.startupError && <InfoBanner message={`Não compila: ${vm.startupError}`} variant="warning" />}
-          <S.Card>
-            <CodeEditor value={vm.startup} onChange={vm.setStartup} minHeight="300px" extraLib={vm.extensionTypeDefs} />
-          </S.Card>
-        </S.Section>
-
         {vm.issues.length > 0 && vm.selectedCount > 0 && (
           <S.Section>
             <S.SectionTitle>Pendências</S.SectionTitle>
@@ -212,6 +211,26 @@ export const PluginAuthorView: React.FC<{ tabKey?: string }> = ({ tabKey }) => {
           <S.Count>{vm.selectedCount} {vm.selectedCount === 1 ? 'item selecionado' : 'itens selecionados'}</S.Count>
         </S.StatusBar>
       </S.Content>
+
+      {/* Modal de edição do código de inicialização */}
+      {vm.startupEditorOpen && (
+        <Modal title="Código de inicialização" onClose={vm.closeStartupEditor} size="xlarge">
+          <S.StartupDescription>
+            Opcional. Roda uma vez quando a extensão é carregada no escritório e recebe um <code>host</code> para
+            registrar serviços — como comandos do ⌘K e menções <code>@</code>. Exporte como <code>default</code> uma
+            função <code>(host) =&gt; cleanup?</code>.
+          </S.StartupDescription>
+          {vm.startupError && <InfoBanner message={`Não compila: ${vm.startupError}`} variant="warning" />}
+          <S.EditorContainer>
+            <CodeEditor 
+              value={vm.startup} 
+              onChange={vm.setStartup} 
+              minHeight="calc(85vh - 200px)" 
+              extraLib={vm.extensionTypeDefs} 
+            />
+          </S.EditorContainer>
+        </Modal>
+      )}
 
       <CodeViewEditorModal
         isOpen={vm.editorOpen}
