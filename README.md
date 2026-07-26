@@ -1,6 +1,6 @@
-# Curatino
+# Microteia
 
-SaaS multi-tenant de gestão de escritórios de advocacia. Cada escritório (tenant) opera de forma isolada: clientes, processos, prazos e financeiro ficam em subcoleções dedicadas no Firestore (`tenants/{tenantId}/{coleção}/{docId}`). Um usuário pode pertencer a múltiplos escritórios e alternar entre eles após o login.
+SaaS multi-tenant de gestão de escritórios. Cada escritório (tenant) opera de forma isolada: clientes, processos, prazos e financeiro ficam em subcoleções dedicadas no Firestore (`tenants/{tenantId}/{coleção}/{docId}`). Um usuário pode pertencer a múltiplos escritórios e alternar entre eles após o login.
 
 ## Tecnologias
 
@@ -21,7 +21,7 @@ SaaS multi-tenant de gestão de escritórios de advocacia. Cada escritório (ten
 1. Clone o repositório:
 ```bash
 git clone <repository-url>
-cd curatino
+cd microteia
 ```
 
 2. Instale as dependências:
@@ -36,13 +36,13 @@ cp .env.example .env
 
 4. Adicione suas credenciais do Firebase no `.env`:
 ```env
-VITE_FIREBASE_API_KEY=your_api_key
-VITE_FIREBASE_AUTH_DOMAIN=your_auth_domain
-VITE_FIREBASE_PROJECT_ID=your_project_id
-VITE_FIREBASE_STORAGE_BUCKET=your_storage_bucket
-VITE_FIREBASE_MESSAGING_SENDER_ID=your_sender_id
-VITE_FIREBASE_APP_ID=your_app_id
-VITE_FIREBASE_MEASUREMENT_ID=your_measurement_id
+VITE_API_KEY=your_api_key
+VITE_AUTH_DOMAIN=your_auth_domain
+VITE_PROJECT_ID=your_project_id
+VITE_STORAGE_BUCKET=your_storage_bucket
+VITE_MESSAGING_SENDER_ID=your_sender_id
+VITE_APP_ID=your_app_id
+VITE_MEASUREMENT_ID=your_measurement_id
 ```
 
 ## Executando o projeto
@@ -103,7 +103,7 @@ Para detalhes de arquitetura, padrões de código e regras Firestore, consulte [
 - Ao fazer login pela primeira vez, um escritório padrão é criado automaticamente.
 - O tenant ativo fica em `useTenant().currentTenant`; todos os stores de dados só carregam quando ele não é `null`.
 - Roles por escritório: `admin`, `lawyer`, `secretary`, `user`. Role global: `ADMIN` | `USER`.
-- O último escritório escolhido é salvo em `localStorage` com chave `curatino:lastTenantId`.
+- O último escritório escolhido é salvo em `localStorage` com chave `microteia:lastTenantId`.
 
 ## Autenticação
 

@@ -57,7 +57,7 @@ import type { CasePhase } from '../../../domain/entities';
  *
  * A FRONTEIRA DE SANDBOX. Este mapa é tudo que o `require` de uma extensão enxerga — o teto do que o
  * código de terceiro (trusted) pode tocar. Não há `firebase`, `fetch`, `window` cru nem acesso ao
- * container de DI: só React, um kit de UI do próprio Curatino e hooks de dados curados que já passam
+ * container de DI: só React, um kit de UI do próprio Microteia e hooks de dados curados que já passam
  * pelos stores (portanto pelas mesmas regras e permissões da aplicação). Ampliar a superfície é uma
  * decisão consciente de segurança — adicione um módulo aqui, nunca exponha um objeto amplo.
  *
@@ -161,8 +161,8 @@ export const HOST_MODULES: Record<string, unknown> = {
   'react/jsx-runtime': { jsx, jsxs, Fragment },
   'react/jsx-dev-runtime': { jsxDEV: jsx, Fragment },
   'styled-components': { default: styled, styled, useTheme },
-  '@curatino/ui': uiModule,
-  '@curatino/data': dataModule,
-  '@curatino/format': formatModule,
-  '@curatino/theme': themeModule,
+  '@microteia/ui': uiModule,
+  '@microteia/data': dataModule,
+  '@microteia/format': formatModule,
+  '@microteia/theme': themeModule,
 };

@@ -4,8 +4,8 @@ import type * as Monaco from 'monaco-editor';
 import type { OnChange, OnMount } from '@monaco-editor/react';
 import type { Theme } from '../../../../shared/styles/theme';
 
-const AUTO_FORMAT_KEY = 'curatino:scriptEditorAutoFormat';
-const THEME_NAME = 'curatino-script';
+const AUTO_FORMAT_KEY = 'microteia:scriptEditorAutoFormat';
+const THEME_NAME = 'microteia-script';
 
 const hexWithAlpha = (hex: string, alpha: number): string => {
   const a = Math.round(Math.min(1, Math.max(0, alpha)) * 255)
@@ -79,8 +79,8 @@ export const useCodeEditorViewModel = (props: CodeEditorProps): CodeEditorViewMo
   const instanceId = useId().replace(/[^a-zA-Z0-9]/g, '');
   const modelPath =
     language === 'json'
-      ? `file:///curatino-params-${instanceId}.json`
-      : `file:///curatino-script-${instanceId}.tsx`;  // .tsx para reconhecer JSX!
+      ? `file:///microteia-params-${instanceId}.json`
+      : `file:///microteia-script-${instanceId}.tsx`;  // .tsx para reconhecer JSX!
 
   const editorRef = useRef<Monaco.editor.IStandaloneCodeEditor | null>(null);
   const monacoRef = useRef<typeof Monaco | null>(null);
@@ -97,7 +97,7 @@ export const useCodeEditorViewModel = (props: CodeEditorProps): CodeEditorViewMo
   const applyExtraLib = useCallback((monaco: typeof Monaco, lib: string | undefined) => {
     extraLibRef.current?.dispose();
     extraLibRef.current = lib
-      ? monaco.typescript.typescriptDefaults.addExtraLib(lib, 'file:///node_modules/@types/curatino-extension-api/index.d.ts')
+      ? monaco.typescript.typescriptDefaults.addExtraLib(lib, 'file:///node_modules/@types/microteia-extension-api/index.d.ts')
       : null;
   }, []);
 

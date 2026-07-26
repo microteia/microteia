@@ -10,8 +10,8 @@ export const PublicHeader: React.FC = () => {
     <S.Header>
       <S.Bar>
         <S.LogoButton onClick={() => vm.goTo('/')}>
-          <img src="/logo.png" alt="Curatino" />
-          <span>Curatino</span>
+          <img src="/logo.png" alt="Microteia" />
+          <span>Microteia</span>
         </S.LogoButton>
 
         <S.Nav $open={vm.isMenuOpen}>

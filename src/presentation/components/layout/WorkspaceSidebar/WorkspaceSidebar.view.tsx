@@ -29,12 +29,12 @@ export const WorkspaceSidebar: React.FC = () => {
       <S.LogoArea $collapsed={vm.collapsed}>
         <S.LogoLeft>
           <S.LogoIcon $collapsed={vm.collapsed}>
-            <img src="/logo.png" alt="Curatino" />
+            <img src="/logo.png" alt="Microteia" />
           </S.LogoIcon>
           {!vm.collapsed && (
             <S.LogoText>
               <S.AppNameRow>
-                <S.AppName>Curatino</S.AppName>
+                <S.AppName>Microteia</S.AppName>
               </S.AppNameRow>
               <S.AppTagline>Curador da Advocacia</S.AppTagline>
             </S.LogoText>

@@ -1,6 +1,6 @@
-# Notas de Versão — Curatino
+# Notas de Versão — Microteia
 
-> Histórico de novidades, melhorias e correções do Curatino, escrito para quem usa o sistema no dia a dia. Para o histórico técnico de alterações, consulte o log de commits do git.
+> Histórico de novidades, melhorias e correções da Microteia, escrito para quem usa o sistema no dia a dia. Para o histórico técnico de alterações, consulte o log de commits do git.
 
 Cada versão corresponde ao campo `version` de `package.json`. A mais recente fica no topo.
 
@@ -10,6 +10,11 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 
 - Descrição elegante da mudança, em linguagem simples.
 -->
+
+## [0.151.0] — 2026-07-26
+
+- Iniciada a transição do produto de Microteia para Microteia: o sistema agora se apresenta como uma plataforma de serviço (PaaS) para criar aplicações de negócio de forma declarativa, não limitada apenas a escritórios de advocacia.
+- Atualizada a identidade visual e textual do sistema para refletir o novo posicionamento como Microteia.
 
 ## [0.150.21] — 2026-07-26
 
@@ -287,7 +292,7 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 
 ## [0.126.0] — 2026-07-22
 
-- Base para o futuro catálogo de extensões do Curatino: o sistema já sabe registrar quais extensões um escritório instalou, ativou ou removeu. Ainda não há extensões para instalar — isso vem a seguir. Nenhuma mudança visível no uso.
+- Base para o futuro catálogo de extensões do Microteia: o sistema já sabe registrar quais extensões um escritório instalou, ativou ou removeu. Ainda não há extensões para instalar — isso vem a seguir. Nenhuma mudança visível no uso.
 
 ## [0.125.2] — 2026-07-22
 
@@ -315,16 +320,16 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 
 ## [0.124.0] — 2026-07-22
 
-- O Curatino agora carrega cada tela sob demanda, no momento em que você a abre. O sistema abre bem mais rápido no primeiro acesso do dia, especialmente em conexões lentas.
+- O Microteia agora carrega cada tela sob demanda, no momento em que você a abre. O sistema abre bem mais rápido no primeiro acesso do dia, especialmente em conexões lentas.
 - Toda a estrutura de telas, menu e busca rápida (⌘K) passou a funcionar como módulos independentes — a base que permitirá, em breve, instalar novos recursos no escritório sem atualizar o sistema inteiro. Nenhuma tela, atalho ou item de menu mudou de lugar.
 
 ## [0.123.4] — 2026-07-22
 
-- Continuação da preparação para as extensões do Curatino: o sistema já sabe reconhecer, conferir e organizar os recursos que serão instalados, recusando com uma explicação clara qualquer extensão incompatível — sem afetar as demais. Nada muda no uso do dia a dia por enquanto.
+- Continuação da preparação para as extensões do Microteia: o sistema já sabe reconhecer, conferir e organizar os recursos que serão instalados, recusando com uma explicação clara qualquer extensão incompatível — sem afetar as demais. Nada muda no uso do dia a dia por enquanto.
 
 ## [0.123.3] — 2026-07-22
 
-- Início da preparação para as extensões do Curatino: uma base técnica que, nas próximas versões, permitirá instalar novos recursos no escritório sem precisar atualizar o sistema inteiro. Nada muda no uso do dia a dia por enquanto.
+- Início da preparação para as extensões do Microteia: uma base técnica que, nas próximas versões, permitirá instalar novos recursos no escritório sem precisar atualizar o sistema inteiro. Nada muda no uso do dia a dia por enquanto.
 
 ## [0.123.2] — 2026-07-22
 
@@ -1488,8 +1493,8 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 
 #### [0.18.0] — 2026-07-03
 
-- Lançado o site institucional do Curatino, com apresentação das funcionalidades, planos e uma página de contato — acessível para qualquer visitante, sem precisar de login.
-- Corrigido um problema em que um link copiado de um processo, contrato, pessoa, notícia ou lançamento financeiro não abria a tela correspondente ao ser colado na mesma aba do navegador que já estava com o Curatino aberto.
+- Lançado o site institucional do Microteia, com apresentação das funcionalidades, planos e uma página de contato — acessível para qualquer visitante, sem precisar de login.
+- Corrigido um problema em que um link copiado de um processo, contrato, pessoa, notícia ou lançamento financeiro não abria a tela correspondente ao ser colado na mesma aba do navegador que já estava com o Microteia aberto.
 
 #### [0.17.0] — 2026-07-03
 
@@ -1507,11 +1512,11 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 
 - A tela de login agora exige a confirmação de leitura dos Termos de Uso e da Política de Privacidade (por marcação de caixa de seleção) antes de criar uma conta por e-mail ou de continuar com o Google — com aviso caso o usuário tente prosseguir sem aceitar.
 - A página de Termos de Uso e Política de Privacidade só exibe o botão "Voltar" quando é aberta a partir da tela de login; ao ser aberta diretamente por um link, ela é exibida sem esse botão.
-- Adicionada, na parte inferior do sistema, uma barra fina de status com o nome do escritório em uso, o atalho de teclado da paleta de comandos, o link para os Termos e Privacidade e a versão atual do Curatino.
+- Adicionada, na parte inferior do sistema, uma barra fina de status com o nome do escritório em uso, o atalho de teclado da paleta de comandos, o link para os Termos e Privacidade e a versão atual do Microteia.
 
 #### [0.15.0] — 2026-07-03
 
-- Adicionada uma página pública com os Termos de Uso e a Política de Privacidade do Curatino, acessível em "/license" sem necessidade de login. Ela explica, entre outros pontos, que o sistema está em fase beta e que a conferência final de prazos e intimações identificados pelo monitor de e-mails é sempre responsabilidade do advogado.
+- Adicionada uma página pública com os Termos de Uso e a Política de Privacidade do Microteia, acessível em "/license" sem necessidade de login. Ela explica, entre outros pontos, que o sistema está em fase beta e que a conferência final de prazos e intimações identificados pelo monitor de e-mails é sempre responsabilidade do advogado.
 
 #### [0.14.0] — 2026-07-03
 

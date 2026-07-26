@@ -15,12 +15,12 @@ import { processoClonePlugin } from './processoClone';
 export const boasVindasPlugin: MarketplacePlugin =
   {
     manifest: {
-      id: 'com.curatino.boas-vindas',
+      id: 'com.microteia.boas-vindas',
       version: '1.0.0',
       kernel: '^1.0.0',
       name: 'Boas-vindas ao Cliente',
       description: 'Registra na auditoria toda vez que uma nova pessoa é cadastrada.',
-      publisher: { name: 'Curatino' },
+      publisher: { name: 'Microteia' },
       permissions: ['workflow:run'],
     },
     summary:
@@ -46,7 +46,7 @@ export const boasVindasPlugin: MarketplacePlugin =
         {
           type: 'keyValue',
           items: [
-            { label: 'Publicado por', value: 'Curatino' },
+            { label: 'Publicado por', value: 'Microteia' },
             { label: 'Evento', value: 'Pessoa cadastrada' },
             { label: 'Efeito', value: 'Registro na Auditoria' },
           ],
@@ -100,12 +100,12 @@ export const boasVindasPlugin: MarketplacePlugin =
 export const guiaPlugin: MarketplacePlugin =
   {
     manifest: {
-      id: 'com.curatino.guia',
+      id: 'com.microteia.guia',
       version: '1.0.0',
       kernel: '^1.0.0',
       name: 'Guia do Escritório',
       description: 'Adiciona uma página de guia rápido ao menu do escritório.',
-      publisher: { name: 'Curatino' },
+      publisher: { name: 'Microteia' },
       dependencies: { 'core.ui': '^1.0.0' },
       contributes: [
         nav({ key: 'guia', label: 'Guia', icon: 'bookSimple', order: 106 }),
@@ -119,7 +119,7 @@ export const guiaPlugin: MarketplacePlugin =
               {
                 type: 'markdown',
                 content:
-                  'Esta página foi **adicionada por uma extensão** — não faz parte do sistema base. Ela demonstra que um plugin pode trazer uma tela própria, descrita de forma declarativa e renderizada com segurança pelo Curatino.',
+                  'Esta página foi **adicionada por uma extensão** — não faz parte do sistema base. Ela demonstra que um plugin pode trazer uma tela própria, descrita de forma declarativa e renderizada com segurança pela plataforma Microteia.',
               },
               {
                 type: 'grid',
@@ -158,7 +158,7 @@ export const guiaPlugin: MarketplacePlugin =
         {
           type: 'markdown',
           content:
-            'A extensão **Guia do Escritório** adiciona uma página ao menu lateral. É um exemplo de como uma extensão pode entregar **interface própria** — descrita como dado e renderizada pelo Curatino, sem executar código de terceiro no navegador.',
+            'A extensão **Guia do Escritório** adiciona uma página ao menu lateral. É um exemplo de como uma extensão pode entregar **interface própria** — descrita como dado e renderizada pelo Microteia, sem executar código de terceiro no navegador.',
         },
         {
           type: 'banner',

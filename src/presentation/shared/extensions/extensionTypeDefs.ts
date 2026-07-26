@@ -323,7 +323,7 @@ const STYLED_COMPONENTS_DEFS = `declare module 'styled-components' {
   export function useTheme(): Theme;
 }`;
 
-const UI_MODULE_DEFS = `declare module '@curatino/ui' {
+const UI_MODULE_DEFS = `declare module '@microteia/ui' {
   import * as React from 'react';
 
   /** Props do botão padrão do sistema. */
@@ -576,7 +576,7 @@ const UI_MODULE_DEFS = `declare module '@curatino/ui' {
   export { styled, useTheme } from 'styled-components';
 }`;
 
-const DATA_MODULE_DEFS = `declare module '@curatino/data' {
+const DATA_MODULE_DEFS = `declare module '@microteia/data' {
   export interface Case {
     id: string;
     title: string;
@@ -742,7 +742,7 @@ const DATA_MODULE_DEFS = `declare module '@curatino/data' {
   export function generateDeepLink(path: string): string;
 }`;
 
-const FORMAT_MODULE_DEFS = `declare module '@curatino/format' {
+const FORMAT_MODULE_DEFS = `declare module '@microteia/format' {
   /** Formata número como moeda brasileira (R$ 1.234,56). */
   export function formatCurrencyBRL(value: number): string;
 
@@ -768,7 +768,7 @@ const FORMAT_MODULE_DEFS = `declare module '@curatino/format' {
   export function onlyNumbers(value: string): string;
 }`;
 
-const THEME_MODULE_DEFS = `declare module '@curatino/theme' {
+const THEME_MODULE_DEFS = `declare module '@microteia/theme' {
   /**
    * Resolve uma cor para hex, tratando cores do tema e hex direto.
    * @param color - Nome da cor do tema (ex: 'primary') ou hex (ex: '#ff0000')

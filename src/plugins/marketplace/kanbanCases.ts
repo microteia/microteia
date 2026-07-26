@@ -4,7 +4,7 @@ import { nav, page } from '../contributionBuilders';
 /**
  * "Kanban de Processos" — a PRIMEIRA extensão de CÓDIGO (trusted). A view abaixo é entregue como
  * FONTE (string), compilada e avaliada pelo runtime do browser contra a API curada do host — o
- * Kernel não a interpreta. Escrita só contra `@curatino/ui`, `@curatino/data`, `react` e
+ * Kernel não a interpreta. Escrita só contra `@microteia/ui`, `@microteia/data`, `react` e
  * `styled-components`; nenhum import do app. Por vir do bundle (fonte confiável), executa; um `.json`
  * importado avulso com esta mesma fonte NÃO executaria até ser publicado por um SYSTEM.
  *
@@ -15,11 +15,11 @@ import { nav, page } from '../contributionBuilders';
 const KANBAN_SOURCE = `
 import { useMemo, useState, useCallback } from 'react';
 import { useTheme } from 'styled-components';
-import { CompositeFilter, SearchSelect } from '@curatino/ui';
+import { CompositeFilter, SearchSelect } from '@microteia/ui';
 import {
   useCases, useCasePhases, useCaseAreas, useCaseStatuses,
   usePersons, useWorkspace, useNotify, useSavedViewState,
-} from '@curatino/data';
+} from '@microteia/data';
 
 const inList = (values, value) => Array.isArray(values) && value != null && values.indexOf(value) !== -1;
 
@@ -177,12 +177,12 @@ function AddColumn(props) {
 
 export const kanbanCasesPlugin: MarketplacePlugin = {
   manifest: {
-    id: 'com.curatino.kanban-processos',
+    id: 'com.microteia.kanban-processos',
     version: '1.0.0',
     kernel: '^1.0.0',
     name: 'Kanban de Processos',
     description: 'Uma visão Kanban dos processos, com uma coluna por Fase e arrastar-para-mover.',
-    publisher: { name: 'Curatino' },
+    publisher: { name: 'Microteia' },
     dependencies: { 'core.ui': '^1.0.0' },
     contributes: [
       nav({ key: 'kanban-processos', label: 'Kanban de Processos', icon: 'layoutGrid', order: 104 }),

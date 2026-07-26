@@ -188,10 +188,10 @@ describe('buildPackage', () => {
   it('referência a outro plugin é coberta ao declarar a dependência', () => {
     const withDep = buildPackage({
       ...empty,
-      manifest: { ...manifest, dependencies: { 'com.curatino.vendas': '^1.0.0' } },
+      manifest: { ...manifest, dependencies: { 'com.microteia.vendas': '^1.0.0' } },
       summary: 's',
       screens: [screen({ id: 'meu_item', fields: [
-        { key: 'produto', label: 'Produto', type: 'reference', refEntity: 'com-curatino-vendas__produto', required: false, order: 0 } as ScreenDefinition['fields'][number],
+        { key: 'produto', label: 'Produto', type: 'reference', refEntity: 'com-microteia-vendas__produto', required: false, order: 0 } as ScreenDefinition['fields'][number],
       ] })],
     });
     expect(validatePackage(withDep)).toEqual([]);
@@ -199,7 +199,7 @@ describe('buildPackage', () => {
     const withoutDep = buildPackage({
       ...empty, manifest, summary: 's',
       screens: [screen({ id: 'meu_item', fields: [
-        { key: 'produto', label: 'Produto', type: 'reference', refEntity: 'com-curatino-vendas__produto', required: false, order: 0 } as ScreenDefinition['fields'][number],
+        { key: 'produto', label: 'Produto', type: 'reference', refEntity: 'com-microteia-vendas__produto', required: false, order: 0 } as ScreenDefinition['fields'][number],
       ] })],
     });
     expect(validatePackage(withoutDep)).toHaveLength(1);

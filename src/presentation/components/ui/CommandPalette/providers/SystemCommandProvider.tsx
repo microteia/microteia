@@ -15,7 +15,7 @@ const contains = (text: string, query: string) =>
   text.toLowerCase().includes(query.toLowerCase());
 
 const THEME_OPTIONS: { mode: ThemeMode; label: string; light: boolean }[] = [
-  { mode: 'curatino', label: 'Tema Curatino', light: false },
+  { mode: 'microteia', label: 'Tema Microteia', light: false },
   { mode: 'dark',     label: 'Tema Escuro',   light: false },
   { mode: 'light',    label: 'Tema Claro',    light: true  },
   { mode: 'claude',   label: 'Tema Claude',   light: true  },

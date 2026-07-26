@@ -37,12 +37,12 @@ describe('WidgetRenderer', () => {
     renderSpec({
       type: 'keyValue',
       items: [
-        { label: 'Autor', value: 'Curatino' },
+        { label: 'Autor', value: 'Microteia' },
         { label: 'Evento', value: 'Pessoa' },
       ],
     } satisfies WidgetSpec);
     expect(screen.getByText('Autor')).toBeDefined();
-    expect(screen.getByText('Curatino')).toBeDefined();
+    expect(screen.getByText('Microteia')).toBeDefined();
     expect(screen.getByText('Evento')).toBeDefined();
   });
 

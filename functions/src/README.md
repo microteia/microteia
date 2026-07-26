@@ -5,7 +5,7 @@
 
 ## Estrutura SOLID Refatorada
 
-Esta estrutura segue os princípios SOLID e a arquitetura em camadas do projeto Curatino.
+Esta estrutura segue os princípios SOLID e a arquitetura em camadas do projeto Microteia.
 
 ### Hierarquia de Camadas
 

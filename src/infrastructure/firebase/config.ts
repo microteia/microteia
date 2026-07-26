@@ -12,13 +12,13 @@ import { getFunctions/*, connectFunctionsEmulator*/ } from 'firebase/functions';
 import type { Functions } from 'firebase/functions';
 
 const firebaseConfig = {
-  apiKey: import.meta.env.VITE_CURATINO_API_KEY,
-  authDomain: import.meta.env.VITE_CURATINO_AUTH_DOMAIN,
-  projectId: import.meta.env.VITE_CURATINO_PROJECT_ID,
-  storageBucket: import.meta.env.VITE_CURATINO_STORAGE_BUCKET,
-  messagingSenderId: import.meta.env.VITE_CURATINO_MESSAGING_SENDER_ID,
-  appId: import.meta.env.VITE_CURATINO_APP_ID,
-  measurementId: import.meta.env.VITE_CURATINO_MEASUREMENT_ID,
+  apiKey: import.meta.env.VITE_API_KEY,
+  authDomain: import.meta.env.VITE_AUTH_DOMAIN,
+  projectId: import.meta.env.VITE_PROJECT_ID,
+  storageBucket: import.meta.env.VITE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_MESSAGING_SENDER_ID,
+  appId: import.meta.env.VITE_APP_ID,
+  measurementId: import.meta.env.VITE_MEASUREMENT_ID,
 };
 
 // Falha na hora se o arquivo do ambiente estiver incompleto. Sem isto, o Firebase inicializa

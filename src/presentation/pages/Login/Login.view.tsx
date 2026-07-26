@@ -15,7 +15,7 @@ export const LoginView: React.FC = () => {
       <S.Page>
         <S.Card>
           <S.Logo>
-            <img src="/logo.png" alt="Curatino" style={{ width: '80px', height: '80px' }} />
+            <img src="/logo.png" alt="Microteia" style={{ width: '80px', height: '80px' }} />
           </S.Logo>
           <S.VerifyEmailIcon>
             <RiMailSendLine />
@@ -52,7 +52,7 @@ export const LoginView: React.FC = () => {
             <RiArrowLeftLine /> Voltar
           </S.BackLink>
           <S.Logo>
-            <img src="/logo.png" alt="Curatino" style={{ width: '80px', height: '80px' }} />
+            <img src="/logo.png" alt="Microteia" style={{ width: '80px', height: '80px' }} />
           </S.Logo>
           <S.Title>Redefinir senha</S.Title>
           <S.Subtitle>
@@ -90,7 +90,7 @@ export const LoginView: React.FC = () => {
             <RiArrowLeftLine /> Voltar
           </S.BackLink>
           <S.Logo>
-            <img src="/logo.png" alt="Curatino" style={{ width: '80px', height: '80px' }} />
+            <img src="/logo.png" alt="Microteia" style={{ width: '80px', height: '80px' }} />
           </S.Logo>
           <S.Title>Criar conta</S.Title>
           <S.Form>
@@ -171,11 +171,11 @@ export const LoginView: React.FC = () => {
     <S.Page>
       <S.Card>
         <S.Logo>
-          <img src="/logo.png" alt="Curatino" style={{ width: '80px', height: '80px' }} />
+          <img src="/logo.png" alt="Microteia" style={{ width: '80px', height: '80px' }} />
         </S.Logo>
-        <S.Title>Curatino</S.Title>
+        <S.Title>Microteia</S.Title>
         <S.Subtitle>
-          Escritório de advocacia virtual. Gerencie clientes, processos, prazos e financeiro em um só lugar.
+          Plataforma de aplicações de negócio. Crie sistemas personalizados de forma declarativa e extensível.
         </S.Subtitle>
         <S.Form>
           <S.InputGroup>

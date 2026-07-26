@@ -2,6 +2,6 @@
   "projects": {
     "default": "microteia-dev",
     "dev": "microteia-dev",
-    "prod": "curatino"
+    "prod": "microteia"
   }
 }

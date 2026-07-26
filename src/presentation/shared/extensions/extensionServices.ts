@@ -2,7 +2,7 @@ import { useSyncExternalStore } from 'react';
 import type { ICommandPaletteProvider } from '../../components/ui/CommandPalette/providers/ICommandPaletteProvider';
 import type { CustomRecord, ScreenDefinition } from '../../../domain/entities';
 
-/** Um resultado de menção `@`: vira o link `[title](/curatino/<tabKey>)` no markdown. */
+/** Um resultado de menção `@`: vira o link `[title](/microteia/<tabKey>)` no markdown. */
 export interface MentionResult {
   id: string;
   title: string;

@@ -2,7 +2,7 @@ import { useCallback, useState } from 'react';
 import { useTenant } from '../../../stores/useTenant';
 
 const storageKey = (tenantId: string | undefined, key: string): string =>
-  `curatino:viewstate:${tenantId ?? 'no-tenant'}:${key}`;
+  `microteia:viewstate:${tenantId ?? 'no-tenant'}:${key}`;
 
 /**
  * Estado de view persistido por usuário (no `localStorage` do navegador), escopado pelo tenant atual

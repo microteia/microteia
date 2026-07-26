@@ -445,12 +445,12 @@ describe('pacote Vendas do catálogo (com action + workflow)', () => {
 
     await makeInstallMarketplacePluginUseCase(deps()).execute(vendas, actor);
 
-    const venda = (await screens.getAll('t1')).find((s) => s.id === 'com-curatino-vendas__venda')!;
+    const venda = (await screens.getAll('t1')).find((s) => s.id === 'com-microteia-vendas__venda')!;
     const action = (await actions.getAll('t1'))[0];
     const wf = (await workflows.getWorkflowDefinitions('t1'))[0];
     expect(venda.viewActionIds).toEqual([action.id]);
     expect(action.workflowId).toBe(wf.id);
-    expect(wf.ownerPluginId).toBe('com.curatino.vendas');
+    expect(wf.ownerPluginId).toBe('com.microteia.vendas');
   });
 });
 

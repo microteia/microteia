@@ -9,8 +9,8 @@ export const PublicFooter: React.FC = () => {
     <S.Footer>
       <S.Content>
         <S.Brand>
-          <img src="/logo.png" alt="Curatino" />
-          <span>Curatino</span>
+          <img src="/logo.png" alt="Microteia" />
+          <span>Microteia</span>
         </S.Brand>
 
         <S.LinkGroup>
@@ -37,7 +37,7 @@ export const PublicFooter: React.FC = () => {
         </S.LinkGroup>
       </S.Content>
 
-      <S.Bottom>© 2026 Curatino. Todos os direitos reservados.</S.Bottom>
+      <S.Bottom>© 2026 Microteia. Todos os direitos reservados.</S.Bottom>
     </S.Footer>
   );
 };

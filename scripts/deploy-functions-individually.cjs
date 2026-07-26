@@ -96,7 +96,7 @@ Exemplos:
 const functionsToDeplay = targetFunctions.filter(fn => !skipFunctions.includes(fn));
 
 console.log('═══════════════════════════════════════════════════════════');
-console.log('  Deploy Individual de Firebase Functions — Curatino');
+console.log('  Deploy Individual de Firebase Functions — Microteia');
 console.log('═══════════════════════════════════════════════════════════');
 console.log(`Total de functions: ${functionsToDeplay.length}`);
 console.log(`Delay entre deploys: ${delaySeconds}s`);
@@ -132,7 +132,7 @@ const deployFunction = async (functionName, index, total) => {
   console.log(`${prefix} Iniciando deploy...`);
 
   const success = runCommand(
-    `firebase deploy --only functions:${functionName} --project curatino`,
+    `firebase deploy --only functions:${functionName} --project microteia`,
     { stdio: 'pipe' }
   );
 

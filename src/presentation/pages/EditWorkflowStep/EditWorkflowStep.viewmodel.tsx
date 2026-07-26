@@ -134,7 +134,7 @@ const emptyMappingFor = (kind: InputMapping['kind']): InputMapping => {
 
 export type ConditionViewMode = 'editor' | 'diagram';
 
-const CONDITION_VIEW_MODE_KEY = 'curatino:workflowConditionViewMode';
+const CONDITION_VIEW_MODE_KEY = 'microteia:workflowConditionViewMode';
 
 const loadConditionViewMode = (): ConditionViewMode => {
   try {

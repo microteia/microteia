@@ -203,7 +203,7 @@ export const validatePluginManifest = (
     diagnostics.push(
       error({
         code: 'manifest.kernel.incompatible',
-        message: `O plugin "${manifest.name || manifest.id}" exige o Curatino ${manifest.kernel}, mas esta instalação está na versão ${kernelVersion}.`,
+        message: `O plugin "${manifest.name || manifest.id}" exige o Microteia ${manifest.kernel}, mas esta instalação está na versão ${kernelVersion}.`,
         pluginId: manifest.id,
         path: 'kernel',
       }),

@@ -1,4 +1,4 @@
-# CLAUDE.md — Curatino: Escritório de Advocacia Virtual
+# CLAUDE.md — Microteia: Plataforma de Aplicações de Negócio (PaaS)
 
 > Manual operacional para o Claude Code. É curto de propósito: contém o que fazer **em toda sessão**.
 > A referência detalhada (regras Firestore, pipelines, padrões por feature) vive em `ARCHITECTURE.md`.
@@ -16,7 +16,7 @@ As mudanças no kernel devem ser obrigatoriamente voltadas para prover essa capa
 
 ---
 
-**Curatino** é um sistema SaaS multi-tenant de gestão de escritórios de advocacia. Cada usuário pertence a um ou mais "escritórios" (tenants). Após o login, o usuário seleciona o escritório em que vai trabalhar. Todos os dados (clientes, processos, prazos, financeiro) ficam em subcoleções do tenant no Firestore: `tenants/{tenantId}/{coleção}/{docId}`.
+**Microteia** é um SaaS (Software as a Service) multi-tenant para permitir criar aplicações de negócio de forma declarativa. Cada usuário pertence a um ou mais "tenants" (organizações). Após o login, o usuário seleciona o tenant em que vai trabalhar. Todos os dados ficam em subcoleções do tenant no Firestore: `tenants/{tenantId}/{coleção}/{docId}`.
 
 ---
 
@@ -186,24 +186,24 @@ Arquivos `.tsx` exportam **apenas** componentes React. Hooks e tipos ficam em `.
 
 ---
 
-## Multi-tenant — regras do Curatino
+## Multi-tenant — regras da Microteia
 
-- **Tenant selecionado vive em `useTenant().currentTenant`** — todos os stores de dados (Clientes, Processos, Prazos, Financeiro) só carregam dados quando `currentTenant` não é `null`.
-- **Estrutura Firestore:** `tenants/{tenantId}/clients`, `tenants/{tenantId}/cases`, `tenants/{tenantId}/deadlines`, `tenants/{tenantId}/financials`.
-- **Roles por tenant:** `admin`, `lawyer`, `secretary`, `user`. Role global: `SYSTEM` | `USER`.
-- **Novo usuário:** ao fazer login pela primeira vez, um tenant padrão "Escritório de [displayName]" é criado automaticamente com o usuário como `admin`.
-- **Seleção de tenant:** após login (ou ao criar conta), o usuário vê o `TenantSelector`. O último tenant escolhido é salvo em `localStorage` com chave `'curatino:lastTenantId'`.
+- **Tenant selecionado vive em `useTenant().currentTenant`** — todos os stores de dados (Pessoas, Processos, Prazos, Financeiro, etc.) só carregam dados quando `currentTenant` não é `null`.
+- **Estrutura Firestore:** `tenants/{tenantId}/persons`, `tenants/{tenantId}/cases`, `tenants/{tenantId}/deadlines`, `tenants/{tenantId}/financials`.
+- **Roles por tenant:** `admin`, `lawyer`, `secretary`, `user`. Role global: `SYSTEM` | `SUPPORT` | `USER`.
+- **Novo usuário:** ao fazer login pela primeira vez, um tenant padrão "Organização de [displayName]" é criado automaticamente com o usuário como `admin`.
+- **Seleção de tenant:** após login (ou ao criar conta), o usuário vê o `TenantSelector`. O último tenant escolhido é salvo em `localStorage` com chave `'microteia:lastTenantId'`.
 
 ---
 
 ## Ambientes — dev por padrão, produção só explicitamente
 
-Dois projetos Firebase: `microteia-dev` (desenvolvimento) e `curatino` (produção). O seletor é a
+Dois projetos Firebase: `microteia-dev` (desenvolvimento) e `microteia` (produção). O seletor é a
 variável `TARGET`, que escolhe ao mesmo tempo o projeto e o arquivo de ambiente do bundle.
 
 ```bash
 npm run deploy:workflow              # -> microteia-dev (padrão)
-TARGET=prod npm run deploy:workflow  # -> curatino
+TARGET=prod npm run deploy:workflow  # -> microteia
 ```
 
 **Nunca** publique em produção sem que o comando diga `TARGET=prod` (ou use `npm run deploy:prod`).

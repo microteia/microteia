@@ -69,7 +69,7 @@ node scripts/deploy-functions-individually.cjs --delay 45 --only callAIProxy,det
 
 ```
 ═══════════════════════════════════════════════════════════
-  Deploy Individual de Firebase Functions — Curatino
+  Deploy Individual de Firebase Functions — Microteia
 ═══════════════════════════════════════════════════════════
 Total de functions: 30
 Delay entre deploys: 30s

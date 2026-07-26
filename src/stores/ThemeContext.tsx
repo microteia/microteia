@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
 import { ThemeProvider as StyledThemeProvider } from 'styled-components';
-import { darkTheme, lightTheme, claudeTheme, teamsTheme, brumaTheme, kindleTheme, curatinoTheme, themisTheme, themisDarkTheme } from '../shared/styles/theme';
+import { darkTheme, lightTheme, claudeTheme, teamsTheme, brumaTheme, kindleTheme, microteiaTheme, themisTheme, themisDarkTheme } from '../shared/styles/theme';
 import type { Theme } from '../shared/styles/theme';
 import { GlobalStyles } from '../shared/styles/GlobalStyles';
 import type { ThemeMode } from '../shared/types';
 import { ThemeContext } from './useTheme';
 
-const STORAGE_KEY = 'curatino-theme';
+const STORAGE_KEY = 'microteia-theme';
 
 const THEMES: Record<ThemeMode, Theme> = {
   dark: darkTheme,
@@ -15,7 +15,7 @@ const THEMES: Record<ThemeMode, Theme> = {
   teams: teamsTheme,
   bruma: brumaTheme,
   kindle: kindleTheme,
-  curatino: curatinoTheme,
+  microteia: microteiaTheme,
   themis: themisTheme,
   themisDark: themisDarkTheme,
 };
@@ -24,7 +24,7 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [mode, setMode] = useState<ThemeMode>(() => {
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved && saved in THEMES) return saved as ThemeMode;
-    return 'curatino';
+    return 'microteia';
   });
 
   const theme: Theme = THEMES[mode] ?? darkTheme;

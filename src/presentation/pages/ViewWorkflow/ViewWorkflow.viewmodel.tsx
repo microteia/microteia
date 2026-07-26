@@ -42,8 +42,8 @@ export type ViewWorkflowTab = 'general' | 'conditions' | 'steps' | 'executions';
 export type StepsViewMode = 'flow' | 'list';
 export type ConditionViewMode = 'editor' | 'diagram';
 
-const STEPS_VIEW_MODE_KEY = 'curatino:workflowStepsViewMode';
-const CONDITION_VIEW_MODE_KEY = 'curatino:workflowConditionViewMode';
+const STEPS_VIEW_MODE_KEY = 'microteia:workflowStepsViewMode';
+const CONDITION_VIEW_MODE_KEY = 'microteia:workflowConditionViewMode';
 
 const loadStepsViewMode = (): StepsViewMode => {
   try {

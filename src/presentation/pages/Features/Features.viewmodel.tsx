@@ -58,7 +58,7 @@ const SECTIONS: FeatureSection[] = [
   },
   {
     title: 'Notícias',
-    description: 'Acompanhe as novidades e atualizações do sistema direto de dentro do Curatino.',
+    description: 'Acompanhe as novidades e atualizações do sistema direto de dentro do Microteia.',
     image: noticiasImg,
   },
   {

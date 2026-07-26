@@ -2,7 +2,7 @@
  * Widget DSL — descrição declarativa e serializável de uma tela, renderizada pelo Kernel a partir
  * de metadata. É o que permite um plugin de terceiro entregar interface **sem uma linha de JS no
  * browser**: nada de `dangerouslySetInnerHTML`, `eval` ou estilo arbitrário; cada nó vira um
- * componente do próprio Curatino, com cor só via tema.
+ * componente do próprio Microteia, com cor só via tema.
  *
  * v1 é estática (sem ligação a dados nem expressões) — suficiente para telas descritivas. Ligação a
  * dados (`source: query:/script:/field:`) é o próximo incremento.

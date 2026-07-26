@@ -13,7 +13,7 @@ export const FeaturesView: React.FC = () => {
 
       <S.Intro>
         <S.Title>Tudo que o seu escritório precisa, em um só lugar</S.Title>
-        <S.Subtitle>Conheça as funcionalidades do Curatino.</S.Subtitle>
+        <S.Subtitle>Conheça as funcionalidades do Microteia.</S.Subtitle>
       </S.Intro>
 
       <S.SectionList>

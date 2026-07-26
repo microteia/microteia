@@ -34,8 +34,8 @@ export interface DeadlineChartsViewModel {
   toggleTypeVisibility: (type: string) => void;
 }
 
-const STORAGE_KEY_SHOW = 'curatino:dashboard:showCharts';
-const STORAGE_KEY_PERIOD = 'curatino:dashboard:chartsPeriod';
+const STORAGE_KEY_SHOW = 'microteia:dashboard:showCharts';
+const STORAGE_KEY_PERIOD = 'microteia:dashboard:chartsPeriod';
 
 const loadShowCharts = (): boolean => {
   try {

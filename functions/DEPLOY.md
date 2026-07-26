@@ -142,7 +142,7 @@ npm run deploy:functions
 Para ver quais functions estão ativas no Firebase:
 
 ```bash
-firebase functions:list --project curatino
+firebase functions:list --project microteia
 ```
 
 ---
@@ -160,5 +160,5 @@ firebase functions:list --project curatino
 
 4. **Logs em tempo real:** Para ver logs durante/após o deploy:
    ```bash
-   firebase functions:log --project curatino
+   firebase functions:log --project microteia
    ```

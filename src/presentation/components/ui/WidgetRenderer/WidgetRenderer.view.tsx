@@ -12,7 +12,7 @@ interface WidgetRendererProps {
 /**
  * Renderiza um WidgetSpec recursivamente. Nó desconhecido ou malformado é IGNORADO (não quebra a
  * tela) — um plugin escrito para uma versão mais nova do DSL degrada, não derruba o app. Zero
- * `dangerouslySetInnerHTML`, zero estilo vindo do plugin: cada nó é um componente do Curatino.
+ * `dangerouslySetInnerHTML`, zero estilo vindo do plugin: cada nó é um componente do Microteia.
  */
 export const WidgetRenderer: React.FC<WidgetRendererProps> = ({ spec }) => {
   if (!isWidgetSpec(spec)) return null;

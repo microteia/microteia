@@ -1,5 +1,5 @@
 {
-  "name": "curatino-functions",
+  "name": "microteia-functions",
   "private": true,
   "scripts": {
     "build": "tsc",

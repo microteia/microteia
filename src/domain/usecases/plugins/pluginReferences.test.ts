@@ -81,10 +81,10 @@ describe('validatePackage', () => {
 
   it('referência a tela de outro plugin é satisfeita por dependência declarada', () => {
     const pkg = base({
-      manifest: { id: 'com.acme.pedidos', version: '1.0.0', kernel: '^1.0.0', name: 'Pedidos', dependencies: { 'com.curatino.vendas': '^1.0.0' } },
+      manifest: { id: 'com.acme.pedidos', version: '1.0.0', kernel: '^1.0.0', name: 'Pedidos', dependencies: { 'com.microteia.vendas': '^1.0.0' } },
       screens: [{ key: 'pedido', titleSingular: 'P', titlePlural: 'P', icon: 'apps', titleFieldKey: 'n', fields: [
         { key: 'n', label: 'N', type: 'text', required: true, order: 0 },
-        { key: 'produto', label: 'Produto', type: 'reference', refEntity: 'com-curatino-vendas__produto', required: false, order: 1 },
+        { key: 'produto', label: 'Produto', type: 'reference', refEntity: 'com-microteia-vendas__produto', required: false, order: 1 },
       ] }],
     });
     expect(validatePackage(pkg)).toEqual([]);
@@ -93,10 +93,10 @@ describe('validatePackage', () => {
   it('referência a outro plugin SEM dependência declarada é pendente', () => {
     const pkg = base({
       screens: [{ key: 'pedido', titleSingular: 'P', titlePlural: 'P', icon: 'apps', titleFieldKey: 'n', fields: [
-        { key: 'produto', label: 'Produto', type: 'reference', refEntity: 'com-curatino-vendas__produto', required: false, order: 0 },
+        { key: 'produto', label: 'Produto', type: 'reference', refEntity: 'com-microteia-vendas__produto', required: false, order: 0 },
         { key: 'n', label: 'N', type: 'text', required: true, order: 1 },
       ] }],
     });
-    expect(validatePackage(pkg).map((i) => i.ref.id)).toEqual(['com-curatino-vendas__produto']);
+    expect(validatePackage(pkg).map((i) => i.ref.id)).toEqual(['com-microteia-vendas__produto']);
   });
 });

@@ -1,5 +1,5 @@
 const HASH_PREFIX = 'tab=';
-const CURATION_PATH_PREFIX = '/curatino/';
+const CURATION_PATH_PREFIX = '/microteia/';
 
 export const parseDeepLink = (): string | null => {
   const hash = window.location.hash.slice(1);

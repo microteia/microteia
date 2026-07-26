@@ -8,13 +8,13 @@ import { nav, page } from '../contributionBuilders';
  * Design: campos, lookups coloridos, máscaras, validações, título/etiquetas/notas/documentos nativos)
  * e NÃO tem `ui.nav` própria — existe sem item de menu. A view de código abaixo é a lista rica (cards,
  * filtros, badges, polos), que lê o SCHEMA VIVO e os PRÓPRIOS registros (coleção genérica
- * `customRecords`) pela ponte `@curatino/*`, sem tocar nenhum repositório de Case. Abrir/criar um
+ * `customRecords`) pela ponte `@microteia/*`, sem tocar nenhum repositório de Case. Abrir/criar um
  * registro cai no detalhe dinâmico nativo (`ViewDynamicRecord`), gerado a partir deste mesmo schema.
  *
  * O `sourceId` estável é o elo entre o schema instalado e a view: a view resolve a tela por ele,
  * imune ao namespacing da chave instalada.
  */
-const SOURCE_ID = 'curatino:processo-clone';
+const SOURCE_ID = 'microteia:processo-clone';
 
 const opts = (labels: string[]): CustomFieldOption[] => labels.map((label) => ({ key: label, label }));
 
@@ -97,7 +97,7 @@ const PROCESSO_SCREEN: ScreenModuleTemplate = {
 };
 
 /**
- * A view de código (lista rica). Escrita SÓ contra `@curatino/*`, `react` e `styled-components`.
+ * A view de código (lista rica). Escrita SÓ contra `@microteia/*`, `react` e `styled-components`.
  *
  * Aqui está o ponto da prova: em vez de remontar a lista na mão, ela REUTILIZA a mesma superfície
  * padrão das telas nativas — `RecordListSurface`, alimentada por `useEntityList(sourceId)`. Com isso
@@ -111,10 +111,10 @@ const PROCESSO_SCREEN: ScreenModuleTemplate = {
 const PROCESSO_SOURCE = `
 import { useMemo } from 'react';
 import { useTheme } from 'styled-components';
-import { RecordListSurface, Badge, InfoBanner } from '@curatino/ui';
-import { useEntityList, usePersons, useWorkspace } from '@curatino/data';
+import { RecordListSurface, Badge, InfoBanner } from '@microteia/ui';
+import { useEntityList, usePersons, useWorkspace } from '@microteia/data';
 
-const SOURCE_ID = 'curatino:processo-clone';
+const SOURCE_ID = 'microteia:processo-clone';
 const EDIT_PREFIX = 'processo-clone-edit:';
 
 const asArray = (v) => Array.isArray(v) ? v : (v == null || v === '' ? [] : [v]);
@@ -201,10 +201,10 @@ export default function ProcessoCloneView() {
  * `editKeyPrefix`. Para um layout de campos próprio, passar `renderData` (usa `FieldInput`/`EntityForm`).
  */
 const EDIT_SOURCE = `
-import { RecordDetailSurface } from '@curatino/ui';
-import { useEntityDetailVM } from '@curatino/data';
+import { RecordDetailSurface } from '@microteia/ui';
+import { useEntityDetailVM } from '@microteia/data';
 
-const SOURCE_ID = 'curatino:processo-clone';
+const SOURCE_ID = 'microteia:processo-clone';
 const EDIT_PREFIX = 'processo-clone-edit:';
 
 export default function EditProcessoView({ tabKey }) {
@@ -220,9 +220,9 @@ export default function EditProcessoView({ tabKey }) {
  * comando, então acompanha a instalação. É a prova do conceito "extensão registra serviços via código".
  */
 const STARTUP_SOURCE = `
-import { Icon } from '@curatino/ui';
+import { Icon } from '@microteia/ui';
 
-const SOURCE_ID = 'curatino:processo-clone';
+const SOURCE_ID = 'microteia:processo-clone';
 const EDIT_PREFIX = 'processo-clone-edit:';
 const LIST_KEY = 'processo-clone';
 const GROUP = 'Processos (clone)';
@@ -272,12 +272,12 @@ export default function startup(host) {
 
 export const processoClonePlugin: MarketplacePlugin = {
   manifest: {
-    id: 'com.curatino.processo-clone',
+    id: 'com.microteia.processo-clone',
     version: '1.0.0',
     kernel: '^1.0.0',
     name: 'Processo (clone)',
     description: 'Réplica independente da tela de Processos, construída inteiramente como extensão — prova de conceito da ponte de componentes.',
-    publisher: { name: 'Curatino' },
+    publisher: { name: 'Microteia' },
     dependencies: { 'core.ui': '^1.0.0' },
     contributes: [
       nav({ key: 'processo-clone', label: 'Processos (clone)', icon: 'folder', order: 105 }),

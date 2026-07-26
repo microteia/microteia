@@ -15,7 +15,7 @@ export const SCHEMA_VERSION = 1;
  */
 export type EntityKey = string;
 
-/** As entidades nativas do Curatino. Mantida como união só para documentar o conjunto fixo. */
+/** As entidades nativas do Microteia. Mantida como união só para documentar o conjunto fixo. */
 export type BuiltinEntityKey =
   | 'persons'
   | 'cases'

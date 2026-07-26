@@ -23,7 +23,7 @@ import type { RefKind } from '../../../domain/usecases/plugins/pluginReferences'
 import type { MarketplacePlugin, ViewModuleTemplate } from '../../../domain/entities/MarketplacePlugin';
 import type { SearchSelectOption } from '../../components/ui/SearchSelect';
 
-const VIEW_STARTER = `import { useCasePhases } from '@curatino/data';
+const VIEW_STARTER = `import { useCasePhases } from '@microteia/data';
 
 export default function View() {
   const phases = useCasePhases();
@@ -35,7 +35,7 @@ export default function View() {
 }
 `;
 
-const STARTUP_TEMPLATE = `// import { Icon } from '@curatino/ui';
+const STARTUP_TEMPLATE = `// import { Icon } from '@microteia/ui';
 
 export default function startup(host) {
   /*

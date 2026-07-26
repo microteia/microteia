@@ -13,7 +13,7 @@ import {
 import { makeUpdateTenantUseCase } from '../domain/usecases/tenants/UpdateTenantUseCase';
 import type { Tenant, TenantMember, TenantRole } from '../domain/entities';
 
-const TENANT_STORAGE_KEY = 'curatino:lastTenantId';
+const TENANT_STORAGE_KEY = 'microteia:lastTenantId';
 
 export const TenantStoreProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user, userRole, effectiveName } = useAuth();

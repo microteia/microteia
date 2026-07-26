@@ -1,8 +1,8 @@
-# Arquitetura do Curatino — Escritório de Advocacia Virtual
+# Arquitetura da Microteia — Plataforma de Aplicações de Negócio (SaaS)
 
 > Documento de referência para desenvolvimento e manutenção. Toda nova feature deve seguir este padrão.
 >
-> **Curatino** é um SaaS multi-tenant de gestão de escritórios de advocacia construído com React + Firebase. Dados de cada escritório (tenant) ficam isolados em subcoleções do Firestore: `tenants/{tenantId}/{coleção}/{docId}`.
+> **Microteia** é um SaaS (Software as a Service) multi-tenant construído com React + Firebase. A plataforma permite criar aplicações de negócio de forma declarativa. Dados de cada tenant (organização) ficam isolados em subcoleções do Firestore: `tenants/{tenantId}/{coleção}/{docId}`.
 
 ---
 
@@ -141,7 +141,7 @@ type UserRole = 'SYSTEM' | 'USER';
 type TenantRole = 'admin' | 'lawyer' | 'secretary' | 'user';
 
 // Temas visuais disponíveis
-type ThemeMode = 'dark' | 'light' | 'claude' | 'teams' | 'bruma' | 'kindle' | 'curatino' | 'themis' | 'themisDark';
+type ThemeMode = 'dark' | 'light' | 'claude' | 'teams' | 'bruma' | 'kindle' | 'microteia' | 'themis' | 'themisDark';
 ```
 
 ### Entidade AIConnection
@@ -208,7 +208,7 @@ Coleção Firestore: `gmailConnections/{connectionId}/tokens/current` (subcoleç
 
 **Fluxo OAuth do Gmail (Authorization Code Flow com Cloud Function):**
 
-O Curatino implementa o **Authorization Code Flow** do Google OAuth para obter tokens de acesso offline (com `refresh_token`). Este é o fluxo correto para SaaS que precisam acessar APIs em background sem o usuário presente.
+O Microteia implementa o **Authorization Code Flow** do Google OAuth para obter tokens de acesso offline (com `refresh_token`). Este é o fluxo correto para SaaS que precisam acessar APIs em background sem o usuário presente.
 
 **Por que NÃO usar `initTokenClient`:**
 - `initTokenClient` implementa o **Implicit Flow** (tokens na memória do navegador)
@@ -736,7 +736,7 @@ Coleção Firestore: `auditLogs/{id}` (raiz, flat — isolamento via campo `tena
 
 ### Captura automática — Cloud Functions
 
-Em vez de uma Cloud Function por coleção monitorada (o que exigiria ~17 deploys), o Curatino usa **duas triggers com wildcard no nome da coleção**, cada uma com uma tabela de configuração interna (`functions/src/domain/services/auditableEntities.ts`) decidindo o que é auditável — coleções fora da allowlist (lookups, `aiConnections`, etc.) são ignoradas rapidamente:
+Em vez de uma Cloud Function por coleção monitorada (o que exigiria ~17 deploys), a Microteia usa **duas triggers com wildcard no nome da coleção**, cada uma com uma tabela de configuração interna (`functions/src/domain/services/auditableEntities.ts`) decidindo o que é auditável — coleções fora da allowlist (lookups, `aiConnections`, etc.) são ignoradas rapidamente:
 
 | Handler | Trigger | Cobre |
 |---|---|---|
@@ -845,7 +845,7 @@ TenantStore.loadTenantsForUser(userId)
 TenantSelector (usuário escolhe qual escritório)
     ↓
 setCurrentTenant(tenant)
-    ├── persiste tenantId em localStorage['curatino:lastTenantId']
+    ├── persiste tenantId em localStorage['microteia:lastTenantId']
     └── PersonStore, CaseStore, DeadlineStore, FinancialStore
           iniciam onSnapshot() do tenant selecionado
 ```
@@ -885,7 +885,7 @@ setCurrentTenant(tenant)
 src/
 ├── domain/
 │   ├── entities/
-│   │   └── index.ts               # Todas as entidades e tipos do Curatino
+│   │   └── index.ts               # Todas as entidades e tipos da Microteia
 │   ├── repositories/
 │   │   ├── IAuthRepository.ts
 │   │   ├── IUserProfileRepository.ts
@@ -977,7 +977,7 @@ src/
 ├── shared/
 │   ├── types/index.ts             # Re-exporta aliases de domain/entities
 │   └── styles/
-│       ├── theme.ts               # Tokens dark/light/claude/teams/bruma/kindle/curatino/themis/themisDark
+│       ├── theme.ts               # Tokens dark/light/claude/teams/bruma/kindle/microteia/themis/themisDark
 │       ├── GlobalStyles.ts
 │       └── styled.d.ts
 │
@@ -1101,7 +1101,7 @@ export { executeCustomAction } from './infrastructure/handlers/executeCustomActi
 
 **Atualizar `package.json` raiz:**
 ```json
-"deploy:workflow": "npm run build:functions && firebase deploy --only functions:onWorkflowEventCreated,functions:publishWorkflowEventOnEntityChange,functions:onNoteChange,functions:onDocumentChange,functions:getExpressionFunctions,functions:getWorkflowStepCatalog --project curatino"
+"deploy:workflow": "npm run build:functions && firebase deploy --only functions:onWorkflowEventCreated,functions:publishWorkflowEventOnEntityChange,functions:onNoteChange,functions:onDocumentChange,functions:getExpressionFunctions,functions:getWorkflowStepCatalog --project microteia"
 ```
 
 ### Deploy
@@ -1126,12 +1126,12 @@ npm run deploy
 
 ---
 
-## Dois ambientes — `microteia-dev` e `curatino`
+## Dois ambientes — `microteia-dev` e `microteia`
 
 | Alvo | Projeto Firebase | Quando |
 |---|---|---|
 | `dev` (padrão) | `microteia-dev` | Desenvolvimento e testes |
-| `prod` | `curatino` | Produção |
+| `prod` | `microteia` | Produção |
 
 ### Um único seletor: `TARGET`
 
@@ -1144,9 +1144,9 @@ npm run dev                       # servidor local -> microteia-dev
 npm run deploy:workflow           # -> microteia-dev
 npm run deploy:rules              # -> microteia-dev
 
-TARGET=prod npm run deploy:workflow   # -> curatino
-npm run deploy:prod                   # atalho: deploy completo em curatino
-npm run deploy:hosting:prod           # atalho: hosting + functions em curatino
+TARGET=prod npm run deploy:workflow   # -> microteia
+npm run deploy:prod                   # atalho: deploy completo em microteia
+npm run deploy:hosting:prod           # atalho: hosting + functions em microteia
 ```
 
 **O padrão é `dev`, não `prod`.** Um comando digitado sem pensar publica em desenvolvimento; chegar
@@ -1158,10 +1158,10 @@ todo deploy — é a confirmação visual antes de qualquer escrita.
 | Arquivo | Ambiente | No git |
 |---|---|---|
 | `.env.dev` | microteia-dev | não |
-| `.env.prod` | curatino | não |
+| `.env.prod` | microteia | não |
 | `.env.example` | modelo | sim |
 | `functions/.env.microteia-dev` | microteia-dev | não |
-| `functions/.env.curatino` | curatino | não |
+| `functions/.env.microteia` | microteia | não |
 
 O `.env` da raiz foi **removido de propósito**. O Vite o usaria como fallback de qualquer modo, e
 uma variável esquecida no `.env.dev` cairia calada na configuração de produção — o pior erro
@@ -1445,7 +1445,7 @@ Cada store é **dois** arquivos:
 
 Arquivos `.tsx` exportam **apenas** componentes React. Hooks e tipos ficam em `.ts`.
 
-### Responsabilidades dos stores do Curatino
+### Responsabilidades dos stores da Microteia
 
 | Store | Responsabilidade |
 |---|---|
@@ -1466,7 +1466,7 @@ Arquivos `.tsx` exportam **apenas** componentes React. Hooks e tipos ficam em `.
 | `NewsTagStore` | Etiquetas de boletins |
 | `NewsInteractionStore` | Leitura, salvos, curtidas por usuário |
 | `WorkspaceStore` | Tabs abertas no shell, tab ativa |
-| `ThemeStore` | Tema visual com persistência em localStorage (`'curatino-theme'`) |
+| `ThemeStore` | Tema visual com persistência em localStorage (`'microteia-theme'`) |
 | `WorkflowStore` | Automações (`WorkflowDefinition`) do tenant atual — CRUD de definição + steps embutidos. Execuções (`WorkflowExecution`) e catálogo de Steps são lidos direto via `useDI()` nas viewmodels de `ViewWorkflow`, sem store próprio (dado local à página, não compartilhado entre telas) |
 
 ### Stores que dependem do tenant
@@ -2380,7 +2380,7 @@ editor de Script) e no IntelliSense do editor (`scriptTypeDefs.ts`).
 
 ## Plataforma de Plugins
 
-Camada que transforma o Curatino de um sistema configurável em uma **plataforma extensível**, no
+Camada que transforma a Microteia de um sistema configurável em uma **plataforma extensível**, no
 modelo do AppExchange/Odoo: toda funcionalidade — inclusive as que hoje moram no núcleo — chega por
 **contribuição declarada em um Manifest**, e o Kernel nunca conhece um plugin pelo nome.
 
@@ -2621,9 +2621,9 @@ Consequências:
   `widget`/`workflow`/`nav` passam. Uma página de plugin instalado é sempre Widget DSL.
 - **Instalação órfã** (manifest sumiu do catálogo por despublicação) é ignorada.
 
-O plugin de exemplo `com.curatino.guia` prova o caminho: seu manifest contribui `ui.nav` + uma
+O plugin de exemplo `com.microteia.guia` prova o caminho: seu manifest contribui `ui.nav` + uma
 `ui.page` de widget; instalar faz "Guia" aparecer no menu e a página renderizar pelo `WidgetRenderer`
-— sem uma linha de código do plugin no browser. (O `com.curatino.boas-vindas` cobre o outro
+— sem uma linha de código do plugin no browser. (O `com.microteia.boas-vindas` cobre o outro
 mecanismo, materialização de workflow.)
 
 **Limitação registrada:** o `resolveService` do DI usa o host base, então um `data.service` de plugin
@@ -2633,7 +2633,7 @@ instalado não é resolvido — sem consumidor hoje; a evolução é o DI ler o 
 
 Um plugin de terceiro só contribui `script`/`widget`/`workflow` (nunca `code`). O **Widget DSL** é
 o que permite `widget`: uma descrição **serializável** de uma tela que o Kernel renderiza usando os
-próprios componentes do Curatino — zero `dangerouslySetInnerHTML`, zero `eval`, cor só via tema.
+próprios componentes do Microteia — zero `dangerouslySetInnerHTML`, zero `eval`, cor só via tema.
 
 **`WidgetSpec`** (`presentation/shared/widget/widgetSpec.ts`) é uma união discriminada por `type`.
 v1 (estática, sem ligação a dados): `stack`, `grid`, `heading`, `text`, `markdown`, `metric`,
@@ -2682,7 +2682,7 @@ publicados (qualquer autenticado LÊ; só a equipe global publica).
 |---|---|---|
 | `plugin_registry/{pluginId}` | qualquer autenticado | só `isSystemAdmin()` (equipe global) |
 
-**Marketplace curado, v1.** Publicar é escrita de cliente gated a SYSTEM — a equipe Curatino
+**Marketplace curado, v1.** Publicar é escrita de cliente gated a SYSTEM — a equipe Microteia
 curadora, não o admin do tenant. Precisa apenas de `deploy:rules`, sem Cloud Function nem service
 account. A evolução para marketplace aberto (revisão + publish via Admin SDK) é trocar a regra e a
 porta de escrita, sem mexer no resto.
@@ -2719,7 +2719,7 @@ relacionamentos, cálculos, master-detail — reusando **inteiramente** o sistem
   Editar preserva o `ownerPluginId` (o spread do campo e o `toSaveInput` o carregam em todo save);
   adicionar campos próprios continua liberado. Etiqueta "Extensão" no card e na meta do campo.
 
-Plugin de exemplo `com.curatino.vendas` (produto, venda, item): validação por regex, currency,
+Plugin de exemplo `com.microteia.vendas` (produto, venda, item): validação por regex, currency,
 select, relação com pessoa[core], preço do item vindo do produto (`onChange`), total do item
 calculado (`compute`), total da venda agregado, e master-detail venda→itens.
 
@@ -2749,7 +2749,7 @@ manifest → validar como dry-run de import → gerar `.json`/publicar) e o upgr
 A primeira extensão instalável real, provando a plataforma inteira **reusando o motor de
 automações** — sem uma linha de backend novo.
 
-**O plugin de exemplo** (`plugins/marketplace/catalog.ts`, `com.curatino.boas-vindas`) carrega um
+**O plugin de exemplo** (`plugins/marketplace/catalog.ts`, `com.microteia.boas-vindas`) carrega um
 único workflow: ao criar uma Pessoa (`person.saved`, `changeType == created`), registra um evento
 na Auditoria. O catálogo é código embutido nesta fatia; na Etapa 7 completa vem do registro global.
 
@@ -3079,7 +3079,7 @@ Deeplinks permitem compartilhar links diretos para tabs específicas.
 ### Formato
 
 ```
-https://curatino.app/view-news:{newsId}
+https://microteia.app/view-news:{newsId}
 ```
 
 ### Geração

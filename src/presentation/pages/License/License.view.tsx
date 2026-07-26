@@ -17,7 +17,7 @@ export const LicenseView: React.FC = () => {
         )}
 
         <S.Logo>
-          <img src="/logo.png" alt="Curatino" style={{ width: '64px', height: '64px' }} />
+          <img src="/logo.png" alt="Microteia" style={{ width: '64px', height: '64px' }} />
         </S.Logo>
 
         <S.Title>Termos de Uso e Política de Privacidade</S.Title>
@@ -26,18 +26,18 @@ export const LicenseView: React.FC = () => {
         <S.BannerGroup>
           <InfoBanner
             variant="warning"
-            message="O Curatino está em fase beta. O sistema pode conter erros, instabilidades ou indisponibilidades temporárias. O uso é por conta e risco do escritório e dos usuários cadastrados."
+            message="O Microteia está em fase beta. O sistema pode conter erros, instabilidades ou indisponibilidades temporárias. O uso é por conta e risco do escritório e dos usuários cadastrados."
           />
           <InfoBanner
             variant="warning"
-            message="O monitor de e-mails é uma ferramenta de apoio que identifica e permite que você defina os prazos de forma personalizada. A conferência e a confirmação de todas as informações extraídas — datas, prazos e teor das intimações — são de responsabilidade exclusiva do advogado responsável pelo processo. O Curatino não substitui a conferência humana e não garante que nenhum prazo será perdido."
+            message="O monitor de e-mails é uma ferramenta de apoio que identifica e permite que você defina os prazos de forma personalizada. A conferência e a confirmação de todas as informações extraídas — datas, prazos e teor das intimações — são de responsabilidade exclusiva do advogado responsável pelo processo. O Microteia não substitui a conferência humana e não garante que nenhum prazo será perdido."
           />
         </S.BannerGroup>
 
         <S.Section>
           <S.SectionTitle>1. Aceitação dos termos</S.SectionTitle>
           <S.Paragraph>
-            O Curatino é um sistema de gestão para escritórios de advocacia, oferecido no modelo SaaS
+            O Microteia é um sistema de gestão para escritórios de advocacia, oferecido no modelo SaaS
             (software como serviço), multi-tenant. Ao criar uma conta ou utilizar o sistema, o usuário e o
             escritório ao qual ele pertence declaram ter lido, compreendido e aceito integralmente estes
             Termos de Uso e esta Política de Privacidade. Caso não concorde com qualquer cláusula, o usuário
@@ -48,7 +48,7 @@ export const LicenseView: React.FC = () => {
         <S.Section>
           <S.SectionTitle>2. Descrição do serviço</S.SectionTitle>
           <S.Paragraph>
-            O Curatino permite o cadastro e a gestão de clientes, processos, prazos, contratos, lançamentos
+            O Microteia permite o cadastro e a gestão de clientes, processos, prazos, contratos, lançamentos
             financeiros e comunicações do escritório, incluindo recursos de apoio baseados em inteligência
             artificial para leitura e classificação de e-mails, intimações e movimentações processuais. Os
             dados de cada escritório (tenant) são armazenados de forma isolada dos demais escritórios que
@@ -59,7 +59,7 @@ export const LicenseView: React.FC = () => {
         <S.Section>
           <S.SectionTitle>3. Fase beta e limitação de garantias</S.SectionTitle>
           <S.Paragraph>
-            O Curatino encontra-se em fase de desenvolvimento e testes (beta). Isso significa que:
+            O Microteia encontra-se em fase de desenvolvimento e testes (beta). Isso significa que:
           </S.Paragraph>
           <S.List>
             <S.ListItem>o sistema pode apresentar falhas, indisponibilidades, perda temporária de dados ou comportamento inesperado;</S.ListItem>
@@ -72,7 +72,7 @@ export const LicenseView: React.FC = () => {
         <S.Section>
           <S.SectionTitle>4. Monitor de e-mails, intimações e prazos</S.SectionTitle>
           <S.Paragraph>
-            O Curatino oferece um recurso de leitura automática de e-mails e documentos (intimações, pushes
+            O Microteia oferece um recurso de leitura automática de e-mails e documentos (intimações, pushes
             de tribunais, notificações) que utiliza inteligência artificial para identificar processos,
             extrair datas e sugerir prazos. Este recurso é uma ferramenta de apoio à organização do escritório
             e não uma garantia de acompanhamento processual.
@@ -83,11 +83,11 @@ export const LicenseView: React.FC = () => {
           <S.List>
             <S.ListItem>conferir manualmente todas as intimações, prazos e movimentações identificadas pelo sistema junto aos autos e aos diários oficiais;</S.ListItem>
             <S.ListItem>confirmar a exatidão de datas, prazos e informações extraídas automaticamente antes de tomar qualquer decisão processual com base nelas;</S.ListItem>
-            <S.ListItem>manter rotinas próprias de controle de prazos, independentemente do uso do Curatino;</S.ListItem>
+            <S.ListItem>manter rotinas próprias de controle de prazos, independentemente do uso do Microteia;</S.ListItem>
             <S.ListItem>verificar regularmente a caixa de e-mail e os canais oficiais de intimação, já que falhas de leitura, classificação incorreta ou indisponibilidade do serviço de e-mail ou de terceiros podem ocorrer.</S.ListItem>
           </S.List>
           <S.Paragraph>
-            O Curatino não se responsabiliza por perda de prazo, preclusão, revelia ou qualquer prejuízo
+            O Microteia não se responsabiliza por perda de prazo, preclusão, revelia ou qualquer prejuízo
             processual decorrente de falha, atraso, erro de interpretação da inteligência artificial,
             indisponibilidade do sistema ou de serviços de terceiros (provedores de e-mail, tribunais,
             provedores de nuvem), ou pela ausência de conferência humana das informações apresentadas.
@@ -143,7 +143,7 @@ export const LicenseView: React.FC = () => {
         <S.Section>
           <S.SectionTitle>8. Limitação de responsabilidade</S.SectionTitle>
           <S.Paragraph>
-            Na máxima extensão permitida pela legislação aplicável, o Curatino e seu responsável não se
+            Na máxima extensão permitida pela legislação aplicável, o Microteia e seu responsável não se
             responsabilizam por danos indiretos, lucros cessantes, perda de clientes, perda de prazos
             processuais ou quaisquer prejuízos decorrentes do uso ou da impossibilidade de uso do sistema,
             incluindo falhas técnicas, indisponibilidade, erros da inteligência artificial ou de serviços de
@@ -155,7 +155,7 @@ export const LicenseView: React.FC = () => {
         <S.Section>
           <S.SectionTitle>9. Propriedade intelectual</S.SectionTitle>
           <S.Paragraph>
-            Todo o código-fonte, design, marca e demais elementos do Curatino são protegidos por direitos
+            Todo o código-fonte, design, marca e demais elementos do Microteia são protegidos por direitos
             autorais e pertencem ao seu autor, sendo vedadas a cópia, engenharia reversa, redistribuição ou
             exploração comercial não autorizada do sistema.
           </S.Paragraph>
@@ -184,7 +184,7 @@ export const LicenseView: React.FC = () => {
         <S.Section>
           <S.SectionTitle>Direitos autorais e contato</S.SectionTitle>
           <S.Paragraph>
-            Todos os direitos autorais sobre o Curatino pertencem ao advogado responsável pelo seu
+            Todos os direitos autorais sobre o Microteia pertencem ao advogado responsável pelo seu
             desenvolvimento.
           </S.Paragraph>
           <S.ContactCard>

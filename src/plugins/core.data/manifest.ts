@@ -6,7 +6,7 @@ import {
 } from '../../domain/schema/dataExtensionPoints';
 
 /**
- * Expõe ao Kernel as entidades nativas e os lookups do Curatino. Os dados em si continuam morando
+ * Expõe ao Kernel as entidades nativas e os lookups da Microteia. Os dados em si continuam morando
  * no schema (camada de domínio); aqui eles viram contribuições consultáveis. Declarar o ponto e as
  * contribuições no mesmo plugin é permitido — um plugin pode contribuir para um ponto que ele mesmo
  * declara.

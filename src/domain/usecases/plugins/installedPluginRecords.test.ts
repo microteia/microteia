@@ -98,23 +98,23 @@ describe('carga por tenant — integração com o host', () => {
 
   it('carregando core + Guia (instalado), o menu e a página "guia" aparecem', () => {
     const host = createPluginHost();
-    const records = [...CORE_PLUGINS, ...installedPluginRecords([guiaPlugin], [installation('com.curatino.guia', true)])];
+    const records = [...CORE_PLUGINS, ...installedPluginRecords([guiaPlugin], [installation('com.microteia.guia', true)])];
     const result = host.load(records);
 
     expect(result.diagnostics.filter((d) => d.severity === 'error')).toEqual([]);
     expect(navKeys(host)).toContain('guia');
     expect(pageKeys(host)).toContain('guia');
-    expect(host.isLoaded('com.curatino.guia')).toBe(true);
+    expect(host.isLoaded('com.microteia.guia')).toBe(true);
   });
 
   it('a página widget do plugin instalado é aceita mesmo sendo não confiável', () => {
     const host = createPluginHost();
-    host.load([...CORE_PLUGINS, ...installedPluginRecords([guiaPlugin], [installation('com.curatino.guia', true)])]);
+    host.load([...CORE_PLUGINS, ...installedPluginRecords([guiaPlugin], [installation('com.microteia.guia', true)])]);
 
     const widgetPage = host.contributions
       .query(UI_PAGE_POINT)
       .find((c) => (c.metadata as { key?: string }).key === 'guia');
     expect(widgetPage?.impl).toMatchObject({ kind: 'widget' });
-    expect(widgetPage?.pluginId).toBe('com.curatino.guia');
+    expect(widgetPage?.pluginId).toBe('com.microteia.guia');
   });
 });

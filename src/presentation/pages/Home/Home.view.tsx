@@ -22,7 +22,7 @@ export const HomeView: React.FC = () => {
 
       <S.Hero>
         <S.HeroContent>
-          <S.Eyebrow>Curatino</S.Eyebrow>
+          <S.Eyebrow>Microteia</S.Eyebrow>
           <S.Title>Um jeito diferente de cuidar da advocacia</S.Title>
           <S.Subtitle>
             Tenha seu próprio escritório sem custo, faça parte de um escritório existente ou convide sua equipe para
@@ -34,7 +34,7 @@ export const HomeView: React.FC = () => {
           </S.HeroActions>
         </S.HeroContent>
         <S.HeroImage>
-          <img src={vm.heroImage} alt="Dashboard do Curatino" />
+          <img src={vm.heroImage} alt="Dashboard do Microteia" />
         </S.HeroImage>
       </S.Hero>
 

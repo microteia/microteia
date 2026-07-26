@@ -301,9 +301,9 @@ export const claudeTheme: typeof darkTheme = {
   },
 };
 
-export const curatinoTheme: typeof darkTheme = {
+export const microteiaTheme: typeof darkTheme = {
   ...darkTheme,
-  mode: 'curatino' as ThemeMode,
+  mode: 'microteia' as ThemeMode,
   colors: {
     ...darkTheme.colors,
     background: '#141414',

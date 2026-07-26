@@ -4,7 +4,7 @@ const isValidNicknameFormat = (nickname: string): boolean =>
   /^[a-zA-Z0-9._-]{3,30}$/.test(nickname);
 
 const NICKNAME_BLOCKLIST = [
-  'curatino', 'admin', 'root', 'superuser', 'system',
+  'microteia', 'admin', 'root', 'superuser', 'system',
   'suporte', 'support', 'moderador', 'moderator',
   'staff', 'oficial', 'official',
 ];

@@ -31,7 +31,7 @@ export interface ThemeOption {
 }
 
 const THEME_OPTIONS: ThemeOption[] = [
-  { mode: 'curatino', label: 'Curatino',  primaryColor: '#F56B3A', bgColor: '#141414' },
+  { mode: 'microteia', label: 'Microteia',  primaryColor: '#F56B3A', bgColor: '#141414' },
   { mode: 'dark',     label: 'Escuro',    primaryColor: '#6c63ff', bgColor: '#0f1117' },
   { mode: 'light',    label: 'Claro',     primaryColor: '#6c63ff', bgColor: '#f1f5f9' },
   { mode: 'bruma',    label: 'Bruma',     primaryColor: '#5B7ED6', bgColor: '#ECEEF2' },

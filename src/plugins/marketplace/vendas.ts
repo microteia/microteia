@@ -110,12 +110,12 @@ const item: ScreenModuleTemplate = {
 
 export const vendasPlugin: MarketplacePlugin = {
   manifest: {
-    id: 'com.curatino.vendas',
+    id: 'com.microteia.vendas',
     version: '1.0.0',
     kernel: '^1.0.0',
     name: 'Vendas',
     description: 'Módulo de vendas: produtos, vendas e itens, com totais calculados.',
-    publisher: { name: 'Curatino' },
+    publisher: { name: 'Microteia' },
   },
   summary:
     'Um módulo de Vendas completo: cadastro de produtos, vendas ligadas a clientes (pessoas), e itens com preço preenchido pelo produto, total por item e total da venda calculados automaticamente.',

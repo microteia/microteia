@@ -2,7 +2,7 @@ import type { INicknameRepository } from '../repositories/INicknameRepository';
 import type { NicknameAvailability } from '../entities/NicknameInfo';
 
 const NICKNAME_BLOCKLIST = [
-  'curatino', 'admin', 'root', 'superuser', 'system',
+  'microteia', 'admin', 'root', 'superuser', 'system',
   'suporte', 'support', 'moderador', 'moderator',
   'staff', 'oficial', 'official',
 ];

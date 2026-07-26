@@ -184,7 +184,7 @@ export const useMarkdownEditorViewModel = (
 
   const insertNewsLink = useCallback(
     (n: News) => {
-      insertLink(n.title, `/curatino/view-news:${n.id}`);
+      insertLink(n.title, `/microteia/view-news:${n.id}`);
       setNewsPickerOpen(false);
     },
     [insertLink],
@@ -192,7 +192,7 @@ export const useMarkdownEditorViewModel = (
 
   const insertCaseLink = useCallback(
     (c: Case) => {
-      insertLink(c.title, `/curatino/view-case:${c.id}`);
+      insertLink(c.title, `/microteia/view-case:${c.id}`);
       setCasePickerOpen(false);
     },
     [insertLink],
@@ -200,7 +200,7 @@ export const useMarkdownEditorViewModel = (
 
   const insertExtMentionLink = useCallback(
     (result: MentionResult) => {
-      insertLink(result.title, `/curatino/${result.tabKey}`);
+      insertLink(result.title, `/microteia/${result.tabKey}`);
       setExtMentionProvider(null);
     },
     [insertLink],
@@ -216,7 +216,7 @@ export const useMarkdownEditorViewModel = (
 
   const insertPersonLink = useCallback(
     (c: Person) => {
-      insertLink(c.name, `/curatino/view-person:${c.id}`);
+      insertLink(c.name, `/microteia/view-person:${c.id}`);
       setPersonPickerOpen(false);
     },
     [insertLink],
@@ -224,7 +224,7 @@ export const useMarkdownEditorViewModel = (
 
   const insertContractLink = useCallback(
     (c: Contract) => {
-      insertLink(c.title, `/curatino/view-contract:${c.id}`);
+      insertLink(c.title, `/microteia/view-contract:${c.id}`);
       setContractPickerOpen(false);
     },
     [insertLink],
@@ -232,7 +232,7 @@ export const useMarkdownEditorViewModel = (
 
   const insertWorkflowLink = useCallback(
     (w: WorkflowDefinition) => {
-      insertLink(w.name, `/curatino/view-workflow:${w.id}`);
+      insertLink(w.name, `/microteia/view-workflow:${w.id}`);
       setWorkflowPickerOpen(false);
     },
     [insertLink],

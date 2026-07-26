@@ -15,7 +15,7 @@ export const ContactView: React.FC = () => {
         <S.Card>
           <S.Title>Fale com a gente</S.Title>
           <S.Subtitle>
-            Tem alguma dúvida sobre o Curatino ou quer conversar sobre o seu escritório? Manda um e-mail direto.
+            Tem alguma dúvida sobre o Microteia ou quer conversar sobre o seu escritório? Manda um e-mail direto.
           </S.Subtitle>
           <S.EmailButton href={vm.mailtoHref}>{vm.email}</S.EmailButton>
         </S.Card>
