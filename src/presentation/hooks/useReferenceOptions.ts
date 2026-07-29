@@ -4,8 +4,10 @@ import { useCaseStore } from '../../stores/useCaseStore';
 import { useContractStore } from '../../stores/useContractStore';
 import { useFinancialStore } from '../../stores/useFinancialStore';
 import { useDeadlineStore } from '../../stores/useDeadlineStore';
-import { useCustomRecords } from '../../stores/useCustomRecords';
+import { useRecords } from '../../stores/useRecords';
+import { useScreenDefinitions } from '../../stores/useScreenDefinitions';
 import { useTenant } from '../../stores/useTenant';
+import { resolveRecordTitle } from '../../domain/services/customFieldValues';
 import { formatCurrencyBRL } from '../../utils/formatters';
 
 export interface ReferenceOption {
@@ -20,7 +22,8 @@ export const useReferenceOptions = (): Record<string, ReferenceOption[]> => {
   const { contracts } = useContractStore();
   const { financials } = useFinancialStore();
   const { deadlines } = useDeadlineStore();
-  const { recordsByScreen } = useCustomRecords();
+  const { recordsByCollection } = useRecords();
+  const { getDefinition } = useScreenDefinitions();
   const { members } = useTenant();
 
   return useMemo(() => {
@@ -48,11 +51,12 @@ export const useReferenceOptions = (): Record<string, ReferenceOption[]> => {
         .map((d) => ({ value: d.id, label: `${d.type} — ${cases.find((c) => c.id === d.caseId)?.title ?? '—'}` }))
         .sort((a, b) => a.label.localeCompare(b.label)),
     };
-    Object.entries(recordsByScreen).forEach(([screenKey, records]) => {
-      map[screenKey] = records
-        .map((r) => ({ value: r.id, label: r.title }))
+    Object.entries(recordsByCollection).forEach(([collection, records]) => {
+      const titleFieldKey = getDefinition(collection)?.titleFieldKey ?? '';
+      map[collection] = records
+        .map((r) => ({ value: r.id, label: resolveRecordTitle(r, titleFieldKey) }))
         .sort((a, b) => a.label.localeCompare(b.label));
     });
     return map;
-  }, [persons, cases, contracts, financials, deadlines, recordsByScreen, members]);
+  }, [persons, cases, contracts, financials, deadlines, recordsByCollection, getDefinition, members]);
 };

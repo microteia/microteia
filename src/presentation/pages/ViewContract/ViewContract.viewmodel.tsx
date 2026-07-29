@@ -32,7 +32,7 @@ import {
   validateRequiredFields,
 } from '../../../domain/services/customFieldValues';
 import { describeRuleIssues } from '../../../domain/schema/fieldRules';
-import { validateRecordRules, ruleIssueFieldKey } from '../../../data/utils/recordRulesGate';
+import { validateRecordRules } from '../../../data/utils/recordRulesGate';
 
 export type ViewContractTab = 'data' | 'notes' | 'documents' | 'cases';
 
@@ -74,7 +74,7 @@ const parseContractTab = (tabKey: string) => {
   return { isNew, recordId: isNew ? null : tabKey.replace('view-contract:', ''), cloneSourceId };
 };
 
-const contractToValues = (c: Contract | null, customFields: FieldDefinition[], clone: boolean): Values => ({
+const contractToValues = (c: Contract | null, addedFields: FieldDefinition[], clone: boolean): Values => ({
   number: clone ? '' : (c?.number ?? ''),
   title: c?.title ?? '',
   type: c?.type ?? '',
@@ -108,7 +108,7 @@ const contractToValues = (c: Contract | null, customFields: FieldDefinition[], c
   bankAccount: c?.bankAccount ?? '',
   pixKey: c?.pixKey ?? '',
   costCenter: c?.costCenter ?? '',
-  ...buildInitialFormValues(customFields, c?.customValues ?? null),
+  ...buildInitialFormValues(addedFields, c ?? null),
 } as unknown as Values);
 
 const str = (values: Values, key: string): string => {
@@ -132,7 +132,7 @@ const dateOrNull = (values: Values, key: string): Date | null =>
 const intOrNull = (values: Values, key: string): number | null =>
   str(values, key) ? Number(str(values, key)) : null;
 
-const valuesToContractPayload = (values: Values, customFields: FieldDefinition[]) => ({
+const valuesToContractPayload = (values: Values, addedFields: FieldDefinition[]) => ({
   number: str(values, 'number').trim(),
   title: str(values, 'title').trim(),
   type: str(values, 'type'),
@@ -166,7 +166,7 @@ const valuesToContractPayload = (values: Values, customFields: FieldDefinition[]
   bankAccount: str(values, 'bankAccount') || null,
   pixKey: str(values, 'pixKey') || null,
   costCenter: str(values, 'costCenter') || null,
-  customValues: formValuesToStoredValues(customFields, values),
+  ...formValuesToStoredValues(addedFields, values),
 });
 
 export interface ViewContractViewModel {
@@ -175,7 +175,7 @@ export interface ViewContractViewModel {
   contract: Contract | null;
   isAdmin: boolean;
   fields: FieldDefinition[];
-  customFields: FieldDefinition[];
+  addedFields: FieldDefinition[];
   resolveOptionsScreenKey: (field: FieldDefinition) => string;
   values: Values;
   setFieldValue: (fieldKey: string, value: CustomFieldValue) => void;
@@ -236,15 +236,15 @@ export const useViewContractViewModel = (tabKey: string): ViewContractViewModel 
 
   const isAdmin = tenantRole === 'admin';
   const userId = user?.id ?? '';
-  const { fields: formFields, customFields, resolveOptionsScreenKey } = useEntityFormFields('contracts');
+  const { fields: formFields, addedFields, resolveOptionsScreenKey } = useEntityFormFields('contracts');
 
   const [caseToAdd, setCaseToAdd] = useState('');
 
   const findInStore = useCallback((id: string) => contracts.find((c) => c.id === id) ?? null, [contracts]);
 
   const recordToValues = useCallback(
-    (c: Contract | null, opts: { clone: boolean }) => contractToValues(c, customFields, opts.clone),
-    [customFields],
+    (c: Contract | null, opts: { clone: boolean }) => contractToValues(c, addedFields, opts.clone),
+    [addedFields],
   );
 
   const resolveTitleFromValues = useCallback(
@@ -254,33 +254,33 @@ export const useViewContractViewModel = (tabKey: string): ViewContractViewModel 
 
   const validate = useCallback((values: Values): EntityValidationResult | null => {
     const fieldErrors = collectRequiredErrors(formFields, values);
-    const issues = validateRecordRules('contracts', valuesToContractPayload(values, customFields));
+    const issues = validateRecordRules('contracts', valuesToContractPayload(values, addedFields));
     issues.forEach((issue) => {
-      const key = ruleIssueFieldKey(issue.path);
+      const key = issue.path;
       if (!fieldErrors[key]) fieldErrors[key] = issue.error;
     });
     if (Object.keys(fieldErrors).length === 0) return null;
     const message = validateRequiredFields(formFields, values) ?? describeRuleIssues(issues);
     return { message, fieldErrors };
-  }, [formFields, customFields]);
+  }, [formFields, addedFields]);
 
   const create = useCallback(async (values: Values) => {
     const created = await createContract({
-      ...valuesToContractPayload(values, customFields),
+      ...valuesToContractPayload(values, addedFields),
       createdBy: userId,
       tagIds: [],
     });
     return { id: created.id, title: created.number || created.title };
-  }, [createContract, customFields, userId]);
+  }, [createContract, addedFields, userId]);
 
   const update = useCallback(async (id: string, values: Values) => {
     await updateContract(id, {
-      ...valuesToContractPayload(values, customFields),
+      ...valuesToContractPayload(values, addedFields),
       updatedBy: userId,
       updatedByName: effectiveName,
       updatedByPhotoURL: user?.photoURL ?? '',
     });
-  }, [updateContract, customFields, userId, effectiveName, user]);
+  }, [updateContract, addedFields, userId, effectiveName, user]);
 
   const notesPort = useNotesPort(contractNoteRepository);
   const documentsPort = useDocumentsPort(contractDocumentRepository);
@@ -408,7 +408,7 @@ export const useViewContractViewModel = (tabKey: string): ViewContractViewModel 
     contract,
     isAdmin,
     fields: formFields,
-    customFields,
+    addedFields,
     resolveOptionsScreenKey,
     values: detail.values,
     setFieldValue,

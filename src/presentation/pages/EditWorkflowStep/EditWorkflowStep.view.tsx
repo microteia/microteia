@@ -337,7 +337,6 @@ export const EditWorkflowStepView: React.FC<{ tabKey: string }> = ({ tabKey }) =
                 value={vm.pendingCondition}
                 onChange={vm.setPendingCondition}
                 eventName={vm.conditionEventName}
-                screenKey={vm.conditionScreenKey}
                 parameters={vm.conditionParameters}
                 stepOutputFields={vm.stepOutputFields}
                 workflowVariables={vm.workflowVariables}
@@ -350,7 +349,6 @@ export const EditWorkflowStepView: React.FC<{ tabKey: string }> = ({ tabKey }) =
               <ConditionDiagram
                 condition={vm.pendingCondition}
                 eventName={vm.conditionEventName}
-                screenKey={vm.conditionScreenKey}
                 parameters={vm.conditionParameters}
                 onChange={vm.setPendingCondition}
                 onRequestEdit={vm.handleRequestConditionEdit}

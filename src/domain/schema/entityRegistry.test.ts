@@ -95,7 +95,6 @@ describe('entityRegistry — compatibilidade com o schema legado', () => {
       deadlines: 'deadline',
       financials: 'financial',
       pushes: 'push',
-      customRecords: 'custom_record',
     });
   });
 

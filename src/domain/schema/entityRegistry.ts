@@ -2,7 +2,9 @@ import type {
   CustomFieldMask,
   CustomFieldOption,
   CustomFieldType,
+  FieldAggregation,
   FieldLogic,
+  FieldOrigin,
   FieldRules,
 } from './fieldRules';
 
@@ -24,11 +26,10 @@ export type BuiltinEntityKey =
   | 'financials'
   | 'members'
   | 'pushes'
-  | 'news'
-  | 'customRecords';
+  | 'news';
 
 export const BUILTIN_ENTITY_KEYS: readonly BuiltinEntityKey[] = [
-  'persons', 'cases', 'contracts', 'deadlines', 'financials', 'members', 'pushes', 'news', 'customRecords',
+  'persons', 'cases', 'contracts', 'deadlines', 'financials', 'members', 'pushes', 'news',
 ] as const;
 
 export type WorkflowEntityEventPrefix =
@@ -37,8 +38,7 @@ export type WorkflowEntityEventPrefix =
   | 'contract'
   | 'deadline'
   | 'financial'
-  | 'push'
-  | 'custom_record';
+  | 'push';
 
 export type NativeFieldType = 'string' | 'number' | 'boolean' | 'date' | 'stringArray' | 'object';
 
@@ -54,6 +54,11 @@ export interface FieldUiSpec {
   list?: { icon?: string; order?: number };
 }
 
+/**
+ * Forma CANÔNICA de um campo dentro da camada de schema, seja ele declarado em código (aqui),
+ * num pacote de extensão ou no Form Design. `FieldDefinition` é a forma de autoria/UI e converte
+ * para esta em `screenEntity.ts`.
+ */
 export interface NativeFieldSpec {
   key: string;
   label: string;
@@ -69,6 +74,9 @@ export interface NativeFieldSpec {
   optionsColored?: boolean;
   rules?: FieldRules;
   logic?: FieldLogic;
+  aggregation?: FieldAggregation;
+  /** Ausente nos campos deste registro, onde é sempre `builtin` por definição. */
+  origin?: FieldOrigin;
   ui?: FieldUiSpec;
 }
 
@@ -86,13 +94,18 @@ export interface FkSpec {
 export interface EntityMetadata {
   key: EntityKey;
   collection: string;
-  eventPrefix?: WorkflowEntityEventPrefix;
+  /**
+   * Prefixo dos eventos de workflow. Nas entidades deste registro é o nome declarado no singular
+   * (`person.saved`); numa entidade vinda de tela é o próprio nome da coleção (`medico.saved`).
+   */
+  eventPrefix?: string;
   labelSingular: string;
   labelPlural: string;
   displayNameFields: string[];
   referenceDenormFields: string[];
   fields: NativeFieldSpec[];
   fks: FkSpec[];
+  /** A entidade pode receber uma `ScreenDefinition` — aparece no Form Design. */
   supportsCustomFields: boolean;
   referenceable: boolean;
 }
@@ -574,22 +587,6 @@ export const ENTITY_REGISTRY: Record<EntityKey, EntityMetadata> = {
       { key: 'category', label: 'Categoria', type: 'string', lookupCollection: 'newsCategories' },
       { key: 'createdBy', label: 'Criado por', type: 'string' },
       { key: 'publishedAt', label: 'Data de publicação', type: 'date' },
-    ],
-    fks: [],
-    supportsCustomFields: false,
-    referenceable: false,
-  },
-  customRecords: {
-    key: 'customRecords',
-    collection: 'customRecords',
-    eventPrefix: 'custom_record',
-    labelSingular: 'Entidade Customizada',
-    labelPlural: 'Entidades Customizadas',
-    displayNameFields: ['title'],
-    referenceDenormFields: ['title'],
-    fields: [
-      { key: 'screenKey', label: 'Tela', type: 'string' },
-      { key: 'title', label: 'Título', type: 'string' },
     ],
     fks: [],
     supportsCustomFields: false,

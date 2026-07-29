@@ -1,9 +1,9 @@
 import type { InputMapping } from '../entities/Workflow';
 import type { NativeFieldSpec } from './entityRegistry';
-import { getEntityByCollection } from './entityRegistry';
 import { isLookupCollection } from './lookupRegistry';
 import type { PathRoot, SchemaContext } from './pathResolver';
 import { parsePath, resolvePath } from './pathResolver';
+import { isEntityCollection } from './screenEntity';
 
 export type QueryOperator =
   | 'eq'
@@ -46,24 +46,19 @@ export const LOOKUP_QUERY_FIELDS: NativeFieldSpec[] = [
 
 export interface ResolvedQueryTable {
   physicalCollection: string;
-  screenKey?: string;
   root: PathRoot;
 }
 
+/**
+ * A tabela É a coleção — para as fixas ('persons') tanto quanto para as telas do Form Design
+ * ('medico'). Não há mais coleção física distinta da tabela lógica nem filtro implícito por tela.
+ */
 export const resolveQueryTable = (table: string, ctx: SchemaContext): ResolvedQueryTable | null => {
-  const entity = getEntityByCollection(table);
-  if (entity && entity.key !== 'customRecords') {
-    return { physicalCollection: entity.collection, root: { kind: 'entity', entityKey: entity.key, hasOld: false } };
+  if (isEntityCollection(ctx, table)) {
+    return { physicalCollection: table, root: { kind: 'entity', entityKey: table, hasOld: false } };
   }
   if (isLookupCollection(table)) {
     return { physicalCollection: table, root: { kind: 'fields', fields: LOOKUP_QUERY_FIELDS, hasOld: false } };
-  }
-  if (ctx.screens.has(table)) {
-    return {
-      physicalCollection: 'customRecords',
-      screenKey: table,
-      root: { kind: 'entity', entityKey: 'customRecords', screenKey: table, hasOld: false },
-    };
   }
   return null;
 };

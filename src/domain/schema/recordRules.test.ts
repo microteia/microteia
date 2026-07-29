@@ -5,6 +5,7 @@ import type { SchemaScreen } from './pathResolver';
 import { computeFieldValues, formatAndValidateRecord } from './recordRules';
 
 const field = (overrides: Partial<FieldDefinition> & Pick<FieldDefinition, 'key' | 'label'>): FieldDefinition => ({
+  origin: 'design',
   type: 'text',
   required: false,
   order: 0,
@@ -34,6 +35,9 @@ const screens: SchemaScreen[] = [
     fields: [
       field({ key: 'protocolo', label: 'Protocolo', rules: { format: { preset: 'digits' } } }),
       field({ key: 'obs', label: 'Observação' }),
+      field({ key: 'data', label: 'Data da audiência', type: 'date' }),
+      field({ key: 'sala', label: 'Sala', type: 'number' }),
+      field({ key: 'virtual', label: 'Virtual', type: 'checkbox' }),
     ],
   },
 ];
@@ -77,28 +81,28 @@ describe('formatAndValidateRecord — campos nativos', () => {
 });
 
 describe('formatAndValidateRecord — campos dinâmicos', () => {
-  it('aplica regras de campo dinâmico sob customValues', () => {
+  it('aplica regras de campo declarado pelo tenant numa entidade fixa', () => {
     const outcome = formatAndValidateRecord(ctx, 'persons', {
-      customValues: { registro: 'sp123456' },
+      registro: 'sp123456',
     });
-    expect(outcome.data).toEqual({ customValues: { registro: 'SP123456' } });
+    expect(outcome.data).toEqual({ registro: 'SP123456' });
     expect(outcome.issues).toHaveLength(0);
   });
 
   it('reprova campo dinâmico fora do padrão', () => {
     const outcome = formatAndValidateRecord(ctx, 'persons', {
-      customValues: { registro: 'sp12' },
+      registro: 'sp12',
     });
     expect(outcome.issues).toEqual([
-      { path: 'customValues.registro', label: 'Registro OAB', error: 'Use UF + 6 dígitos' },
+      { path: 'registro', label: 'Registro OAB', error: 'Use UF + 6 dígitos' },
     ]);
   });
 
-  it('aplica regras em entidade customizada sob values', () => {
+  it('aplica regras numa tela do Form Design', () => {
     const outcome = formatAndValidateRecord(ctx, 'audiencias', {
-      values: { protocolo: 'nº 12.345', obs: 'manter' },
+      protocolo: 'nº 12.345', obs: 'manter',
     });
-    expect(outcome.data).toEqual({ values: { protocolo: '12345', obs: 'manter' } });
+    expect(outcome.data).toEqual({ protocolo: '12345', obs: 'manter' });
     expect(outcome.issues).toHaveLength(0);
   });
 });
@@ -124,34 +128,34 @@ const logicCtx = createSchemaContext(logicScreens);
 describe('formatAndValidateRecord — validação por expressão', () => {
   it('dispara a mensagem da expressão sobre valores customizados', () => {
     const outcome = formatAndValidateRecord(logicCtx, 'equipamentos', {
-      values: { eletrico: true, liberacao: '' },
+      eletrico: true, liberacao: '',
     });
     expect(outcome.issues).toEqual([
-      { path: 'values.liberacao', label: 'Número liberação', error: 'Obrigatório para elétricos' },
+      { path: 'liberacao', label: 'Número liberação', error: 'Obrigatório para elétricos' },
     ]);
   });
 
   it('não dispara quando a condição é falsa', () => {
     const outcome = formatAndValidateRecord(logicCtx, 'equipamentos', {
-      values: { eletrico: false, liberacao: '' },
+      eletrico: false, liberacao: '',
     });
     expect(outcome.issues).toHaveLength(0);
   });
 
   it('a expressão vê o valor JÁ formatado (format roda antes)', () => {
     const outcome = formatAndValidateRecord(logicCtx, 'equipamentos', {
-      values: { eletrico: true, liberacao: 'abc123' },
+      eletrico: true, liberacao: 'abc123',
     });
-    expect(outcome.data).toEqual({ values: { eletrico: true, liberacao: '123' } });
+    expect(outcome.data).toEqual({ eletrico: true, liberacao: '123' });
     expect(outcome.issues).toHaveLength(0);
   });
 
   it('coexiste com a validação por regra (FieldRules) no mesmo registro', () => {
     const outcome = formatAndValidateRecord(ctx, 'persons', {
-      customValues: { registro: 'sp12' },
+      registro: 'sp12',
     });
     expect(outcome.issues).toEqual([
-      { path: 'customValues.registro', label: 'Registro OAB', error: 'Use UF + 6 dígitos' },
+      { path: 'registro', label: 'Registro OAB', error: 'Use UF + 6 dígitos' },
     ]);
   });
 });
@@ -201,39 +205,39 @@ const computeCtx = createSchemaContext(computeScreens);
 describe('formatAndValidateRecord — campos computados', () => {
   it('computa texto concatenado a partir de outros campos', () => {
     const outcome = formatAndValidateRecord(computeCtx, 'itens', {
-      values: { nome: 'Ana', sobrenome: 'Souza' },
+      nome: 'Ana', sobrenome: 'Souza',
     });
-    expect((outcome.data.values as Record<string, unknown>).nomeCompleto).toBe('Ana Souza');
+    expect(outcome.data.nomeCompleto).toBe('Ana Souza');
     expect(outcome.issues).toHaveLength(0);
   });
 
   it('computa valor numérico', () => {
     const outcome = formatAndValidateRecord(computeCtx, 'itens', {
-      values: { quantidade: 3, precoUnitario: 10 },
+      quantidade: 3, precoUnitario: 10,
     });
-    expect((outcome.data.values as Record<string, unknown>).total).toBe(30);
+    expect(outcome.data.total).toBe(30);
   });
 
   it('encadeia computados na ordem de dependência', () => {
     const outcome = formatAndValidateRecord(computeCtx, 'itens', {
-      values: { nome: 'Ana', sobrenome: 'Souza', quantidade: 2, precoUnitario: 5 },
+      nome: 'Ana', sobrenome: 'Souza', quantidade: 2, precoUnitario: 5,
     });
-    expect((outcome.data.values as Record<string, unknown>).resumo).toBe('Ana Souza — R$ 10');
+    expect(outcome.data.resumo).toBe('Ana Souza — R$ 10');
   });
 
   it('usa o baseline quando o payload é parcial', () => {
     const outcome = formatAndValidateRecord(
       computeCtx,
       'itens',
-      { values: { quantidade: 4 } },
-      { baseline: { values: { quantidade: 1, precoUnitario: 10 } } },
+      { quantidade: 4 },
+      { baseline: { quantidade: 1, precoUnitario: 10 } },
     );
-    expect((outcome.data.values as Record<string, unknown>).total).toBe(40);
+    expect(outcome.data.total).toBe(40);
   });
 
   it('sem baseline, dependência ausente pula o campo em vez de gravar lixo', () => {
-    const outcome = formatAndValidateRecord(computeCtx, 'itens', { values: { quantidade: 4 } });
-    const values = outcome.data.values as Record<string, unknown>;
+    const outcome = formatAndValidateRecord(computeCtx, 'itens', { quantidade: 4 });
+    const values = outcome.data;
     expect(values).not.toHaveProperty('total');
     expect(values.quantidade).toBe(4);
     expect(outcome.issues).toHaveLength(0);
@@ -241,7 +245,7 @@ describe('formatAndValidateRecord — campos computados', () => {
 
   it('descarta campos em ciclo sem lançar, mantendo os demais', () => {
     const outcome = formatAndValidateRecord(computeCtx, 'ciclicos', { values: {} });
-    const values = outcome.data.values as Record<string, unknown>;
+    const values = outcome.data;
     expect(values.a).toBeUndefined();
     expect(values.b).toBeUndefined();
     expect(values.ok).toBe('valor');
@@ -249,11 +253,11 @@ describe('formatAndValidateRecord — campos computados', () => {
 
   it('ignora expressão que lança, sem bloquear a gravação', () => {
     const outcome = formatAndValidateRecord(computeCtx, 'ciclicos', { values: {} });
-    expect((outcome.data.values as Record<string, unknown>).quebrado).toBeUndefined();
+    expect(outcome.data.quebrado).toBeUndefined();
     expect(outcome.issues).toHaveLength(0);
   });
 
-  it('computa em campo dinâmico de entidade fixa, sob customValues', () => {
+  it('computa em campo declarado pelo tenant numa entidade fixa', () => {
     const outcome = formatAndValidateRecord(
       createSchemaContext([
         {
@@ -267,9 +271,9 @@ describe('formatAndValidateRecord — campos computados', () => {
         },
       ]),
       'persons',
-      { customValues: { apelido: 'Ana' } },
+      { apelido: 'Ana' },
     );
-    expect((outcome.data.customValues as Record<string, unknown>).saudacao).toBe('Olá, Ana');
+    expect(outcome.data.saudacao).toBe('Olá, Ana');
   });
 });
 
@@ -286,6 +290,38 @@ describe('computeFieldValues — preview do formulário', () => {
 
   it('devolve objeto vazio quando nenhum campo é calculado', () => {
     expect(computeFieldValues([field({ key: 'nome', label: 'Nome' })], { nome: 'Ana' })).toEqual({});
+  });
+});
+
+describe('formatAndValidateRecord — tipo declarado', () => {
+  it('grava a data do formulário como Date, no dia escolhido', () => {
+    const outcome = formatAndValidateRecord(ctx, 'audiencias', { data: '2026-07-15' });
+    const value = outcome.data.data as Date;
+
+    expect(value).toBeInstanceOf(Date);
+    expect([value.getFullYear(), value.getMonth() + 1, value.getDate()]).toEqual([2026, 7, 15]);
+  });
+
+  it('a data de uma tela do tenant é gravada como a de uma tela fixa', () => {
+    const doTenant = formatAndValidateRecord(ctx, 'audiencias', { data: '2026-07-15' }).data.data;
+    const fixa = formatAndValidateRecord(ctx, 'cases', { filedAt: '2026-07-15' }).data.filedAt;
+
+    expect(doTenant).toEqual(fixa);
+  });
+
+  it('data vazia é ausência de data, não texto vazio', () => {
+    expect(formatAndValidateRecord(ctx, 'audiencias', { data: '' }).data.data).toBeNull();
+    expect(formatAndValidateRecord(ctx, 'audiencias', { data: null }).data.data).toBeNull();
+  });
+
+  it('preserva a Date que já chega pronta do motor de workflows', () => {
+    const date = new Date(2026, 6, 15);
+    expect(formatAndValidateRecord(ctx, 'audiencias', { data: date }).data.data).toBe(date);
+  });
+
+  it('número e booleano também seguem o tipo declarado', () => {
+    const outcome = formatAndValidateRecord(ctx, 'audiencias', { sala: '12', virtual: 'true' });
+    expect(outcome.data).toEqual({ sala: 12, virtual: true });
   });
 });
 

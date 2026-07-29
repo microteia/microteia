@@ -6,7 +6,6 @@ import type { PathRoot } from '../../../../domain/schema/pathResolver';
 import { resolvePath, stripEventPrefix } from '../../../../domain/schema/pathResolver';
 import type { StepOutputField, WorkflowVariable } from '../ExpressionEditor/autocompleteHelpers';
 import type { SearchSelectOption } from '../SearchSelect';
-import { useScreenDefinitions } from '../../../../stores/useScreenDefinitions';
 import { useSchemaContext } from '../../../shared/useSchemaContext';
 import { useLookupValues } from '../../../shared/useLookupValues';
 import {
@@ -212,7 +211,6 @@ export const useConditionBuilderViewModel = (
   value: Condition,
   onChange: (condition: Condition) => void,
   eventName: string,
-  screenKey?: string,
   focusPath?: number[] | null,
   onFocusHandled?: () => void,
   parameters?: WorkflowParameter[],
@@ -220,7 +218,7 @@ export const useConditionBuilderViewModel = (
   workflowVariables: WorkflowVariable[] = [],
   inputRoot: PathRoot | null = null,
 ): ConditionBuilderViewModel => {
-  const { dynamicScreens } = useScreenDefinitions();
+  const schemaContext = useSchemaContext();
 
   const [mode, setModeState] = useState<ConditionMode>(value.kind === 'AlwaysTrue' ? 'always' : 'custom');
   const [root, setRoot] = useState<BuilderGroupNode>(() => conditionToRoot(value));
@@ -270,19 +268,17 @@ export const useConditionBuilderViewModel = (
   const isCollapsed = useCallback((nodeId: string) => collapsedIds.has(nodeId), [collapsedIds]);
 
   const eventFields = useMemo(
-    () => buildConditionEventFields(eventName, screenKey, dynamicScreens, parameters),
-    [eventName, screenKey, dynamicScreens, parameters],
+    () => buildConditionEventFields(eventName, schemaContext, parameters),
+    [eventName, schemaContext, parameters],
   );
 
   const pathRoot = useMemo(
     () =>
       eventName === WORKFLOW_CALLED_EVENT
         ? workflowParametersToRoot(parameters)
-        : eventNameToRoot(eventName, screenKey),
-    [eventName, screenKey, parameters],
+        : eventNameToRoot(eventName, schemaContext),
+    [eventName, schemaContext, parameters],
   );
-
-  const schemaContext = useSchemaContext();
   const { getLookupOptions } = useLookupValues();
 
   const getLookupValueOptions = useCallback(

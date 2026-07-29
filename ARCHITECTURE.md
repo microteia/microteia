@@ -765,7 +765,7 @@ Membro de tenant (`TenantMember`) é removido via Cloud Function callable (`remo
 **Resolução de nomes de FK.** Sem tratamento, um campo que guarda o id de outra entidade (ex: `clientId` de Contrato, `activePoleIds` de Processo, ou um campo personalizado do tipo "Referência" criado no Screen Builder) apareceria no bloco JSON só como id cru — ilegível para o usuário do escritório. `auditFlatEntityChange` resolve isso **no momento da escrita**, antes de `buildAuditText`, chamando `IFkNameEnricherService.enrichDiff(tenantId, collection, screenKey, diff)` (`data/services/FkNameEnricherService.ts`), que:
 
 1. Consulta `STATIC_FK_SCHEMA` (`domain/services/auditFkSchema.ts`) — tabela declarativa dos campos FK "de código" das entidades fixas (ex: `financials.caseId → cases`, `contracts.contractorIds → persons`, `*.tagIds → *Tags`). Só entram aqui campos **sem** um irmão já desnormalizado no próprio diff (`caseId`+`caseNumber` juntos, por exemplo, não precisam de resolução extra).
-2. Para coleções que suportam campos personalizados (`persons`, `cases`, `deadlines`, `financials`, `contracts`, `customRecords`), busca o `ScreenDefinition` do `screenKey` (o nome da própria coleção para as fixas; `data.screenKey` para Registros Personalizados) e monta o mesmo tipo de schema para todo `FieldDefinition` com `type === 'reference'` — cobrindo tanto referências a entidades fixas quanto a **outra tela dinâmica** (nesse caso `refEntity` não é uma das 5 chaves fixas, e o alvo cai sempre em `customRecords`, já que todo registro de tela personalizada mora nessa única coleção, diferenciado por `screenKey`).
+2. Busca o `ScreenDefinition` de id igual à própria coleção e monta o mesmo tipo de schema para todo `FieldDefinition` com `type === 'reference'`, indexado pela chave do campo (que mora na raiz do documento). `refEntity` é sempre o nome da coleção alvo — fixa ou de tela, sem tradução.
 3. Coleta todos os ids referenciados em `before`/`after`, deduplica por `(coleção, id)` e busca todos de uma vez com `Firestore.getAll(...refs)` — uma única chamada em lote, não uma query por campo.
 4. Substitui cada id (ou cada item de um array de ids) pelo nome de exibição (`AuditableEntityConfig.getDisplayName`, a mesma função já usada para nomear a entidade principal do log) — mantendo o id como fallback se o documento referenciado não existir mais (ex: já excluído).
 
@@ -1645,25 +1645,41 @@ Um único doc `ScreenDefinition` em `tenants/{tenantId}/screenDefinitions/{scree
 
 **Opções dinâmicas de selects** (adicionadas inline por usuários com escrita, padrão `DynamicSelect`) vivem na subcoleção `tenants/{tid}/screenDefinitions/{screenKey}/fieldOptions/{id}` (`{ fieldKey, key, label, createdBy, createdAt }`) — fora do doc da definição para não afrouxar a rule de update (só admin edita a definição) e evitar corrida de escrita no array `fields`.
 
-### Registros das telas dinâmicas
+### Registros das telas — UM modelo só
 
-Coleção única `tenants/{tenantId}/customRecords/{id}` com discriminador `screenKey`, `title` denormalizado (valor do `titleFieldKey`, recalculado a cada save) e `values: Record<fieldKey, valor>`. Convenção de tipos em `values` (e em `customValues` das entidades padrão): text/textarea/masked → `string` (masked guarda formatado); number/currency → `number | null`; date → `string 'YYYY-MM-DD'`; checkbox → `boolean`; select/reference single → `string | null`; multi → `string[]`.
+**Uma tela É uma coleção, e o `id` dela É o nome da coleção:** `tenants/{tenantId}/{screenId}/{recordId}`.
+Vale igual para as fixas (`persons`), as de extensão (`vendas__produto`) e as do Form Design
+(`medico`). **Todo campo mora na raiz do documento** — não existe mais o mapa `values` das telas
+dinâmicas nem o `customValues` das fixas, nem o discriminador `screenKey`, nem o `title`
+denormalizado (o nome de exibição sai de `titleFieldKey`, como as fixas usam `displayNameFields`).
+Quem abre um documento no Firestore não distingue o que veio do kernel, de uma extensão ou do
+próprio escritório.
 
-Toda tela dinâmica consulta por `where('screenKey','==',X) + orderBy('createdAt','desc') + limit(500)` — exige o índice composto documentado abaixo.
+Convenção de tipos gravados: text/textarea/masked → `string` (masked guarda formatado);
+number/currency → `number | null`; date → `string 'YYYY-MM-DD'`; checkbox → `boolean`;
+select/reference single → `string | null`; multi → `string[]`.
+
+A listagem consulta `orderBy('createdAt','desc') + limit(500)` — sem filtro implícito e, portanto,
+**sem índice composto**. Filtro e ordenação continuam em memória, como antes.
+
+> Consequência aceita: coleções criadas em runtime não podem ter índice composto declarado em
+> `firestore.indexes.json`. É o motivo de o motor de workflow usar só igualdades no Firestore e
+> ordenar em memória.
 
 ### Camadas
 
 - Conversões e validações puras: `domain/services/customFieldValues.ts` (`slugifyFieldKey`, `ensureUniqueKey`, `buildInitialFormValues`, `formValuesToStoredValues`, `validateRequiredFields`, `resolveRecordTitle`, `sortFieldsByOrder`).
-- Repositórios: `FirebaseScreenDefinitionRepository` (upsert preserva `createdAt/createdBy`; delete remove antes as subcoleções `fieldOptions` e `tags` e grava o stamp `deletedBy*`) e `FirebaseCustomRecordRepository`.
-- Stores: `ScreenDefinitionStore` (definições + `fieldOptionsByField` + `tagsByScreen`, eventos `SCREEN_DEFINITIONS_UPDATED`) e `CustomRecordStore` (registros por tela, `allRecords` para o ⌘K, eventos `CUSTOM_RECORDS_UPDATED`; depende do `ScreenDefinitionStore` — ordem dos providers em `App.tsx`).
+- Repositórios: `FirebaseScreenDefinitionRepository` (upsert preserva `createdAt/createdBy`; delete remove antes as subcoleções `fieldOptions` e `tags` e grava o stamp `deletedBy*`) e `FirebaseRecordRepository`/`FirebaseRecordNoteRepository`/`FirebaseRecordDocumentRepository` — **genéricos por coleção**: recebem `collection` como argumento e servem qualquer entidade.
+- Use cases genéricos em `domain/usecases/records/` (`Create/Update/Delete/GetById/Get/SubscribeToRecord*`), todos parametrizados pela coleção.
+- Stores: `ScreenDefinitionStore` (definições + `fieldOptionsByField` + `tagsByScreen`, eventos `SCREEN_DEFINITIONS_UPDATED`) e `RecordStore` (`recordsByCollection`, `allRecords` para o ⌘K, evento `RECORDS_UPDATED`; assina uma coleção por tela `design`/`plugin` e depende do `ScreenDefinitionStore` — ordem dos providers em `App.tsx`). As 5 entidades fixas seguem com stores tipados próprios nesta etapa; o contrato de leitura e gravação, porém, já é o mesmo.
 
 ### Anotações e Documentos em telas dinâmicas
 
 - Habilitados por tela via `hasNotes`/`hasDocuments` na definição; aparecem como abas em `ViewDynamicRecord` (padrão idêntico ao `ViewContract`).
-- Subcoleções `tenants/{tid}/customRecords/{recordId}/notes|documents`, com `screenKey` **denormalizado em cada doc** (usado pelo link da auditoria nested). Arquivos no Storage em `tenants/{tid}/customRecords/{recordId}/{ts}_{arquivo}` (máx. 20 MB).
-- Repositórios `FirebaseCustomRecordNote/DocumentRepository` + use cases `customrecordnotes/`/`customrecorddocuments/` — gerenciados direto no ViewModel (sem store global), tipo de documento via `useDocumentTypeLookup`.
-- `DeleteCustomRecordUseCase` cascateia: exclui notas, documentos (incluindo arquivos do Storage) e então o registro.
-- Auditoria: pares `customRecords/notes` e `customRecords/documents` no `NESTED_ENTITY_CONFIG`.
+- Subcoleções `tenants/{tid}/{collection}/{recordId}/notes|documents` — a coleção é o caminho, então nada precisa ser denormalizado no doc. Arquivos no Storage em `tenants/{tid}/{collection}/{recordId}/{ts}_{arquivo}` (máx. 20 MB).
+- Repositórios genéricos + `useRecordNotesPort`/`useRecordDocumentsPort` (`entityScreen/useRecordPorts.ts`), que prendem a coleção e entregam o mesmo `NotesPort`/`DocumentsPort` das fixas.
+- `DeleteRecordUseCase` cascateia: exclui notas, documentos (incluindo arquivos do Storage) e então o registro.
+- Auditoria: `getNestedEntityConfig` cai numa configuração genérica de "Nota/Documento de Registro" para qualquer coleção que não seja reservada.
 
 Nota: a subcoleção `fieldOptions` (opções dinâmicas de selects) **não** está no `NESTED_ENTITY_CONFIG` — não gera log de auditoria hoje.
 
@@ -1671,16 +1687,16 @@ Nota: a subcoleção `fieldOptions` (opções dinâmicas de selects) **não** es
 
 - Habilitadas por tela via `hasTags` na definição; a tela de detalhe (`ViewDynamicRecord`) exibe um botão "Gerenciar etiquetas" no cabeçalho (mesmo ícone/posição do `ViewPerson`/`ViewContract`), as etiquetas aplicadas como pills abaixo do título, um filtro "Etiqueta" na listagem (`DynamicRecordList`) e as pills no card da listagem — tudo condicionado a `definition.hasTags`.
 - Diferente de `PersonTag`/`ContractTag` (tenant-scoped, uma coleção por tela padrão), a etiqueta de tela dinâmica é **exclusiva por `screenKey`**: `CustomRecordTag` (`{ name, color, createdBy, createdAt, ... }`) vive na subcoleção `tenants/{tid}/screenDefinitions/{screenKey}/tags/{id}` — mesmo racional de isolamento do `fieldOptions` (não afrouxar a rule de update da definição).
-- `CustomRecord.tagIds?: string[]` guarda as etiquetas aplicadas a cada registro (mesmo padrão de `Person.tagIds`/`Contract.tagIds`); atualizado via `useCustomRecords().updateRecord(recordId, screenKey, { tagIds })`.
+- `tagIds?: string[]` guarda as etiquetas aplicadas a cada registro (mesmo padrão de `Person.tagIds`/`Contract.tagIds`); atualizado via `useRecords().updateRecord(collection, recordId, { tagIds })`.
 - CRUD de etiquetas: `IScreenDefinitionRepository.getTags/createTag/updateTag/deleteTag` (mesmo repositório de `fieldOptions`, por serem ambos filhos de `screenDefinitions`) + use cases `screendefinitions/{Get,Create,Update,Delete}ScreenTagUseCase` + `ScreenDefinitionStore.tagsByScreen`/`createTag`/`updateTag`/`deleteTag`.
 - UI reaproveita o componente genérico `ui/TagManager` (já usado por Pessoa/Contrato) via um `TagStoreAdapter` construído em `ViewDynamicRecord.viewmodel` — nenhum componente de UI novo foi necessário.
-- Auditoria: par `screenDefinitions/tags` no `NESTED_ENTITY_CONFIG` (`functions/src/domain/services/auditableEntities.ts`), `entityKey: 'CustomRecordTag'`; como o pai já é o próprio `screenKey` (diferente de `customRecords/notes`, que precisa de `screenKey` denormalizado), `getEntityLink` usa `parentId` direto para montar `dyn:{screenKey}` (abre a listagem da tela).
+- Auditoria: par `screenDefinitions/tags` no `NESTED_ENTITY_CONFIG` (`functions/src/domain/services/auditableEntities.ts`), `entityKey: 'ScreenTag'`; como o pai já é o próprio `screenKey` (a subcoleção de tags é filha da própria definição), `getEntityLink` usa `parentId` direto para montar `dyn:{screenKey}` (abre a listagem da tela).
 
 ### Auditoria e ⌘K
 
-- `screenDefinitions` e `customRecords` estão na allowlist de `functions/src/domain/services/auditableEntities.ts` ("Tela Personalizada" e "Registro Personalizado"). O link da entidade de um registro usa o `screenKey` do próprio doc (`view-dyn:{screenKey}:{docId}`) — para isso, `getEntityLink` ganhou um 4º parâmetro opcional com os dados do documento, preenchido por `auditFlatEntityChange`.
-- O diff de auditoria (`auditDiff.ts`) **achata um nível** os mapas `values` e `customValues`: alterações aparecem como `values.data-de-aniversario` no Antes/Depois, em vez do mapa inteiro.
-- Busca no ⌘K: `DynamicRecordCommandProvider` (grupo "Telas Personalizadas") busca registros por título e oferece "Abrir {titlePlural}" por tela; os dados entram no `CommandPaletteAppContext` via `useCustomRecords().allRecords` e `useScreenDefinitions().definitions`.
+- `screenDefinitions` está na allowlist nomeada de `functions/src/domain/services/auditableEntities.ts`. Para os REGISTROS, `getFlatEntityConfig` cai numa configuração genérica sempre que a coleção não é reservada nem tem config própria — é assim que uma tela criada em runtime passa a ser auditada sem tocar em código. O nome de exibição é heurístico (`nome`/`name`/`titulo`/`title`): o auditor não carrega o schema do tenant.
+- O diff de auditoria (`auditDiff.ts`) **não achata mais nada** — os campos já estão na raiz do documento.
+- Busca no ⌘K: `DynamicRecordCommandProvider` (grupo "Telas Personalizadas") resolve o título por `titleFieldKey` e oferece "Abrir {titlePlural}" por tela; os dados entram no `CommandPaletteAppContext` via `useRecords().allRecords` e `useScreenDefinitions().definitions`.
 - **Deploy:** as entradas de allowlist e o flatten do diff exigem deploy das Cloud Functions junto do release correspondente.
 
 ### Navegação e renderização
@@ -1689,8 +1705,8 @@ Nota: a subcoleção `fieldOptions` (opções dinâmicas de selects) **não** es
 - **Motor de renderização:** `ui/CustomFieldsSection` renderiza qualquer `FieldDefinition[]` (agrupado por `section`) a partir de `values` + `onChange(fieldKey, value)`. Mapa de tipo→componente: text/number→`Input`, textarea→`Textarea`, currency→`CurrencyInput`, date→`DateInput`, checkbox nativo estilizado, select→`DynamicSelect` (opções estáticas da definição + dinâmicas de `fieldOptions`, com `onAdd`/`onDelete`), masked→`ui/MaskedInput` (novo wrapper das máscaras de `utils/formatters.ts`), reference→`SearchSelect`/`MultiSearchSelect` com opções de `presentation/hooks/useReferenceOptions.ts` (mapeia `refEntity` → registros do store correspondente, incluindo outras telas dinâmicas).
 - **Listagem (dinâmica e padrão) — hook `useCustomFieldListing`:** a lógica de `showInList`/`filterable` vive em `presentation/hooks/useCustomFieldListing.ts`. O hook recebe `(screenKey, fields, filterKeyPrefix)` e devolve: `filterDefs` do `CompositeFilter` a partir dos campos `filterable` (select/reference→multiselect, checkbox→Sim/Não, date→date com igualdade exata, demais→texto), o matcher `matchesFilters(values, tokenMap)`, e `cardItems(values)` (pares label/valor dos campos `showInList`, formatados por tipo) renderizados pelo componente `ui/CustomFieldMetaRows`.
 - **Listagem dinâmica:** `DynamicRecordList` usa o hook sem prefixo de chave e com `savedFiltersScreenKey = tabKey`; exclui o `titleFieldKey` dos `cardItems`. Tela desativada/excluída renderiza `InfoBanner`, nunca quebra.
-- **Listagens padrão:** as cinco listagens builtin (Pessoas, Processos, Contratos, Financeiro, Prazos) obtêm os campos via `getCustomFieldsFor(entityKey)` e usam o hook com `CUSTOM_FIELD_FILTER_PREFIX` (`cf-`) nas chaves dos `FilterDef` — o prefixo evita colisão com os filtros nativos (`status`, `type`, `city`…). Cada ViewModel anexa `...customListing.filterDefs` aos defs nativos, encerra o predicado de filtragem com `customListing.matchesFilters(entidade.customValues, tokenMap)` e expõe `getCustomFieldItems(entidade)`; a View renderiza `<CustomFieldMetaRows items={...} />` no cartão, após o bloco de metadados nativo.
-- **Deeplink de registro fora das 500 carregadas:** `ViewDynamicRecord` faz fallback de busca por id (`GetCustomRecordByIdUseCase`).
+- **Listagens padrão:** as cinco listagens builtin (Pessoas, Processos, Contratos, Financeiro, Prazos) obtêm os campos via `getScreenFieldsFor(collection)` e usam o hook com `CUSTOM_FIELD_FILTER_PREFIX` (`cf-`) nas chaves dos `FilterDef` — o prefixo evita colisão com os filtros nativos (`status`, `type`, `city`…). Cada ViewModel anexa `...customListing.filterDefs` aos defs nativos, encerra o predicado de filtragem com `customListing.matchesFilters(entidade, tokenMap)` e expõe `getCustomFieldItems(entidade)`; a View renderiza `<CustomFieldMetaRows items={...} />` no cartão, após o bloco de metadados nativo.
+- **Deeplink de registro fora das 500 carregadas:** `ViewDynamicRecord` faz fallback de busca por id (`GetRecordByIdUseCase`).
 
 ### Expressões por campo (validação, desabilitar, ocultar, valor calculado, ao alterar)
 
@@ -1746,25 +1762,45 @@ Compatibilidade com expressões já escritas: referência vazia continua `null`/
 - **Limitação conhecida:** o vínculo é por igualdade simples — campo de referência `multi` (que grava um array) não é suportado, pois `queryByEquality` não faz `array-contains`.
 - **Escrita:** carimba `updatedBy: 'aggregate-engine'`. O campo agregado é somente-leitura no formulário (`isFieldDisabled`).
 
-### Override de campo fixo pelo Form Design
+### Origem de tela e de campo (`origin`)
 
-`ScreenDefinition.nativeFieldOverrides?: Record<fieldKey, NativeFieldOverride>` guarda, no documento da tela fixa (`screenDefinitions/{entityKey}`, `builtin: true`), ajustes por tenant sobre os campos declarados em `entityRegistry.ts`.
+`ScreenDefinition.origin` e `FieldDefinition.origin` (`'builtin' | 'plugin' | 'design'`) são a
+**única** diferença conceitual que restou. Servem a um propósito só: `builtin` (declarado no
+`entityRegistry.ts`) e `plugin` (declarado no pacote da extensão) **não podem ser excluídos** pelo
+usuário. Todo o resto — gravação, resolução de caminhos, automações, formulários, auditoria — trata
+as três origens de forma idêntica.
 
-**A linha de corte é a fronteira front/back** (ver acima): o Form Design só edita **o que apenas o front lê**.
+| `origin` | Onde é declarado | Entrada em `fields[]` | Excluível |
+|---|---|---|---|
+| `builtin` | `entityRegistry.ts` (código) | materializada no 1º ajuste, inteira | **não** |
+| `plugin` | pacote da extensão, materializado na instalação | declaração completa | **não** |
+| `design` | `screenDefinitions/{id}.fields` | declaração completa | sim |
 
-| Editável | Fixo no código |
-|---|---|
-| `label`, `placeholder`, `section`, `order`, `hiddenInForm` | `type`, `multi`, `objectFields` |
-| `logic.hiddenWhen`, `logic.disabledWhen` | `rules` (formato e validação) |
-| `logic.onChange`, `logic.onChangeLookup` | `logic.validate`, `logic.compute`, `required`, `aggregation` |
+**Um campo do kernel só aparece em `fields[]` depois de editado.** Até lá vive apenas no código. No
+primeiro ajuste, o Form Design materializa a declaração INTEIRA no documento — e a partir daí o
+documento é a verdade, exatamente como já acontece com `plugin` e `design`. É o que permite ajustar
+`rules`, `logic.validate`, `logic.compute`, `required` e `aggregation` de um campo fixo: front e back
+resolvem a lista com a MESMA função, então o backend enxerga o ajuste e a gravação por automação
+nunca diverge da tela. (A `key` e o `type` seguem fixos: definem como o valor é gravado.)
 
-A coluna da direita é lida por `resolveFieldRules`/`collectFieldLogicTargets`/`pathResolver` **nos dois lados**. Sobrescrevê-la por tenant exigiria propagar o override até o `ScreenDefinitionCache` e aos três montadores de `SchemaContext` — sem isso, um workflow gravaria registro que a tela rejeita. Por isso o cache do backend **descarta `nativeFieldOverrides` de propósito**, com comentário no código.
+> Consequência assumida: um campo materializado deixa de acompanhar mudanças futuras do código.
+> É o mesmo contrato de uma tela de extensão, e o preço de o documento ser a fonte de verdade.
 
-- **Aplicação:** `applyNativeOverride` (`presentation/shared/deriveEntitySchema.ts`) mescla o override sobre o campo derivado. `logic` é **mesclado, não substituído** — o `validate`/`compute` do código sobrevive ao ajuste das expressões front-only.
-- **Lista unificada:** `useEntityFormFields(entityKey)` substitui as constantes de módulo (`PERSON_FORM_FIELDS = deriveFormFields('persons')`), que eram avaliadas no import e não enxergariam um ajuste recém-salvo. As 5 telas fixas renderizam **um** `CustomFieldsSection` com fixos + adicionais.
-- **Ordenação:** `mergeFormFields` (`entityFormFields.ts`) resolve a colisão de `order` entre as duas famílias. Enquanto `fieldOrderUnified` for falso, os adicionais são deslocados para depois dos fixos — o layout anterior à unificação. A primeira reordenação no Form Design grava posições absolutas nos dois (fixo → `override.order`, adicional → `field.order`) e liga a flag, liberando a intercalação.
-- **Opções por campo:** a prop `resolveOptionsScreenKey` do `CustomFieldsSection` mantém a indexação histórica — campo fixo em `{entityKey}-native`, adicional em `{entityKey}`. Sem ela as opções já cadastradas sumiriam.
-- **`toSaveInput` propaga `nativeFieldOverrides` e `fieldOrderUnified`**: sem isso, salvar qualquer outra coisa na tela apagaria os ajustes.
+- **Resolução:** `domain/schema/screenEntity.ts` é o ponto único. `resolveEntity(ctx, collection)`
+  devolve um `EntityMetadata` para QUALQUER coleção — a do registro quando existe, senão uma
+  sintetizada a partir da tela do tenant; quando existem as duas, os campos são mesclados por chave
+  (`resolveEntityFields`). Caminho pontilhado (`address.city`) desce em `objectFields` sem achatar a
+  estrutura do documento.
+- **Forma canônica:** `NativeFieldSpec`. `FieldDefinition` é a forma de autoria/UI, convertida nos
+  dois sentidos por `fieldDefinitionToNativeSpec`/`nativeSpecToFieldDefinition`. `hiddenInForm` vira
+  `ui.form: false`, o mesmo sinal que o registro usa para o que nunca vai ao formulário.
+- **Lista unificada:** `useEntityFormFields(collection)` → `deriveFormFields(ctx, collection)`. As 5
+  telas fixas renderizam **um** `CustomFieldsSection` com todos os campos; `addedFields`
+  (`origin !== 'builtin'`) é o que os viewmodels tipados espalham na raiz do payload.
+- **Opções por campo:** indexadas pela própria coleção, sem chave separada para campo fixo.
+- **Nome da coleção:** `RESERVED_COLLECTIONS` + `screenIdIssue` recusam nomes do sistema e formatos
+  inválidos na criação de tela. A lista é espelhada na denylist do `firestore.rules`, e
+  `scripts/reservedCollections.test.ts` falha se as duas divergirem.
 
 ### Telas fixas por Schema — piloto (Pessoas)
 
@@ -1948,13 +1984,13 @@ síncrono).
 **valores dos filtros** (`QueryPredicate.value`) são `InputMapping`s aninhados, resolvidos em runtime
 via `resolveMapping` (habilita filtro por evento/expressão/variável/saída de step).
 
-**Tabela tipada e validada nos dois lados** — `resolveQueryTable` mapeia o nome para: entidade fixa
-(`getEntityByCollection`), tela dinâmica (`ctx.screens` → `customRecords` + filtro `screenKey`) ou
-lista/lookup (`isLookupCollection`). `validateQuerySpec` confirma a tabela e cada caminho de
+**Tabela tipada e validada nos dois lados** — `resolveQueryTable` resolve o nome para a **própria
+coleção**: entidade do registro ou tela do tenant (`isEntityCollection`), ou lista/lookup
+(`isLookupCollection`). Não há mais coleção física distinta da tabela lógica nem filtro implícito. `validateQuerySpec` confirma a tabela e cada caminho de
 `where`/`orderBy`/`projections` via `resolvePath`. Roda no front (`QueryBuilderControl`, antes de
 salvar) e no back (antes de executar) — mesma função.
 
-**Projeção por caminho** (ex: `client.name`, `client.customValues.apelido`, `values.prioridade`)
+**Projeção por caminho** (ex: `client.name`, `client.apelido`, `prioridade`)
 reaproveita o pipeline de hidratação de FKs: `buildHydrationPlan` + `materializeHops` +
 `IWorkflowRecordFetcher`, materializando cada linha do resultado. Os `projections` também limitam
 quais FKs são carregadas (evita over-fetch).
@@ -1965,14 +2001,15 @@ de role por usuário: o workflow é tratado como automação de nível administr
 
 **Estratégia índice-free (evita a exigência de índice composto do Firestore)** — o Firestore exige
 índice composto ao misturar `==` com range/`orderBy` em outro campo, ou `array-contains`/`in` com
-outro filtro. Como o usuário escolhe campos arbitrários (inclusive `customValues.*`), pré-criar esses
-índices é inviável. Por isso:
-- **Servidor:** apenas predicados `eq` (mais o `screenKey ==` das telas dinâmicas), servidos por
-  índices single-field automáticos → **nunca** exige índice composto. Consultado com
+outro filtro. Como o usuário escolhe campos arbitrários, pré-criar esses
+índices é inviável — e coleções criadas em runtime não podem sequer ser declaradas em
+`firestore.indexes.json`. Por isso:
+- **Servidor:** apenas predicados `eq`, servidos por índices single-field automáticos → **nunca**
+  exige índice composto. Consultado com
   `limit(MAX_SCAN = 300)`.
 - **Memória:** `neq`, ranges (`lt/lte/gt/gte`), `in`, `contains`, `exists`, a **ordenação** e o
   **`limit` final** (cap `MAX_QUERY_LIMIT = 100`) são aplicados sobre a janela varrida — depois da
-  materialização, para permitir filtro em caminhos de FK (ex: `client.customValues.apelido`).
+  materialização, para permitir filtro em caminhos de FK (ex: `client.apelido`).
 - **Trade-off:** ranges/ordenação operam sobre a janela varrida, não sobre a coleção inteira —
   adequado à escala por-tenant. Evolução futura: paginação por cursor.
 
@@ -2093,10 +2130,7 @@ categoria automaticamente a partir dos dados retornados pela API.
 
 Escrita em `workflow_events` → `onWorkflowEventCreated` dispara → carrega
 `WorkflowDefinition`s habilitadas para aquele `eventName` (`findEnabledByEvent`) → para cada
-uma: **hidrata o payload** (resolução lazy de FKs, ver abaixo) → avalia a `Condition` → se
-`screenKey` estiver definido no `WorkflowDefinition` (só se aplica
-a `custom_record.saved`/`custom_record.deleted`, ver abaixo) e não bater com o `screenKey` do
-`payload`, ignora a execução sem rodar nenhum step → roda os `steps` em ordem (`order`
+uma: **hidrata o payload** (resolução lazy de FKs, ver abaixo) → avalia a `Condition` → roda os `steps` em ordem (`order`
 crescente), resolvendo os inputs de cada um via `InputMapping` e despachando o executor via
 `StepRegistry` → grava um `WorkflowExecution` com `logs[]` em
 `tenants/{tenantId}/workflow_executions`. Falha de um step para o restante daquele workflow
@@ -2120,10 +2154,9 @@ da execução e **apenas para os caminhos que a automação realmente referencia
    todos os workflows do mesmo evento**.
 4. `materializeHops` (compartilhado, `domain/schema/materialize.ts`) aplica cada
    `MaterializationMode`: FK fixa materializa sob o `denormKey` (`contractId` → `contract`, com
-   os `denormalizedFields` do registry); reference de campo customizado **substitui** o ID em
-   `customValues.<key>`/`values.<key>` espalhando os `values` do registro alvo — os mesmos nomes
-   do antigo enriquecimento eager, preservando expressões existentes (`event.contract.number`,
-   `event.customValues.tarefa.nome`). FKs múltiplas materializam arrays (cap de 50 itens,
+   os `denormalizedFields` do registry); um campo `reference` **substitui** o ID pelo registro
+   alvo na própria chave (`event.tarefa.nome`), sem envelope nenhum. FKs múltiplas materializam
+   arrays (cap de 50 itens,
    navegáveis por índice: `event.activePole.0.name`); `old.*` também é hidratado.
 
 As `ScreenDefinition`s do tenant vêm do `ScreenDefinitionCache` (`functions/src/data/services/`),
@@ -2150,7 +2183,6 @@ coleção → prefixo de evento é **derivado do `ENTITY_REGISTRY`/`LOOKUP_REGIS
 | Prazo | `deadlines` | `deadline` |
 | Financeiro | `financials` | `financial` |
 | Push | `pushes` | `push` |
-| Entidade Customizada | `customRecords` | `custom_record` |
 | Item de Lista (qualquer lookup) | `personTypes`, `caseAreas`, `contractTypes`, `deadlineTypes`, `financialCategories`, etc. (lista fechada em `LOOKUP_COLLECTIONS`) | `lookup` |
 
 Toda entidade tem exatamente dois eventos: `<prefixo>.saved` (criação **ou** atualização — o
@@ -2158,8 +2190,11 @@ motor não distingue as duas) e `<prefixo>.deleted`. O `payload` publicado é `{
 — os dados de depois da escrita (`saved`) ou de antes (`deleted`), **sem denormalização de FKs**
 (a resolução é lazy, na execução — seção "Resolução lazy de FKs").
 
-Coleções fora desse mapa (tags, `members`, `aiConnections`, subcoleções aninhadas como
-`notes`/`documents`) são ignoradas — mesmo padrão de allowlist do `auditFlatEntityChange`.
+Toda tela do tenant emite pelo **próprio nome da coleção** (`medico.saved`, `medico.deleted`) — as
+fixas mantêm o prefixo declarado no registro para não quebrar automações existentes. As coleções
+reservadas do sistema (tags, `members`, `aiConnections`, `workflow_*`, subcoleções `notes`/`documents`)
+são ignoradas por denylist (`RESERVED_COLLECTIONS`), sem consultar o cache de telas: o gatilho roda em
+toda escrita do tenant e uma leitura extra por escrita sairia cara.
 
 **Catálogo de eventos:** derivado do `ENTITY_REGISTRY` no arquivo compartilhado
 `domain/schema/eventCatalog.ts` (fonte em `src/`, cópia gerada em `functions/`) — eventos de
@@ -2170,19 +2205,12 @@ para (1) o seletor de evento na aba Geral, com rótulos em PT-BR (`"Ao salvar: P
 lista de campos do mapping "Do evento". O mesmo catálogo fornece `eventNameToRoot`, a raiz de
 navegação usada pelo autocomplete do `ExpressionEditor` e pela hidratação lazy.
 
-**Gatilho de Entidade Customizada — seletor de tela.** Como toda entidade customizada mora na
-mesma coleção `customRecords` discriminada por `screenKey`, escolher `custom_record.saved`/
-`custom_record.deleted` sozinho não identifica *qual* entidade (ex: "Contrato de Locação" vs
-"Imóvel"). Por isso `WorkflowDefinition.screenKey` (opcional, só usado por esses dois eventos)
-guarda o id da `ScreenDefinition` escolhida na aba Geral (`ViewWorkflow.view.tsx`, seletor
-populado por `useScreenDefinitions().dynamicScreens`). Esse campo cumpre dois papéis: (1) filtro
-de execução no backend (seção "Fluxo de execução" acima) e (2) fonte dos campos dinâmicos do
-"Do evento" — `getWorkflowEventFields(eventName, dynamicFields)` recebe, só para
-`custom_record.*`, os campos da `ScreenDefinition` selecionada mapeados para `values.<fieldKey>`
-(calculados em `ViewWorkflow.viewmodel.tsx` a partir de `sortFieldsByOrder(definition.fields)`).
-Sem `screenKey` escolhido, a automação roda para qualquer entidade customizada do tenant e o
-picker de "Do evento" só oferece `id`/`screenKey` (comportamento anterior, preservado para
-compatibilidade com automações já existentes).
+**Catálogo por tenant.** `buildWorkflowEventCatalog(ctx)` acrescenta ao catálogo estático um par
+`.saved`/`.deleted` por tela do tenant, e é o que popula o seletor de gatilho. Não existe mais um
+passo de "escolher a entidade depois de escolher o evento": o gatilho já É a entidade
+(`WorkflowDefinition.screenKey` foi removido). `getWorkflowEventFields(eventName, ctx)` devolve os
+campos do payload a partir da entidade resolvida — os declarados pelo tenant vêm na raiz, sem
+prefixo `values.`/`customValues.` e sem lista dinâmica à parte.
 
 ### v1 — implementado vs preparado
 
@@ -2332,26 +2360,23 @@ O script do usuário retorna um objeto (ex.: `main()` no final) que vira os `out
 ### Passos de dados de escrita "Gravar Registro" (Upsert) e "Excluir Registro" (Remove)
 
 Contraparte de escrita do Step "Buscar Registros" e da ponte `query`. Permitem que uma automação
-**inclua/atualize** (`upsert`) e **exclua** (`remove`) registros de entidades **fixas**
-(persons, cases, contracts, deadlines, financials), **personalizadas** (`customRecords` por
-`screenKey`) e **listas** (lookups). Núcleo compartilhado em
+**inclua/atualize** (`upsert`) e **exclua** (`remove`) registros de **qualquer entidade** — fixa
+(`persons`, `cases`…), de tela do Form Design/extensão (`medico`) — e de **listas** (lookups). Núcleo compartilhado em
 `functions/src/infrastructure/workflow/mutation/runWorkflowMutation.ts`
 (`runWorkflowUpsert`/`runWorkflowRemove`), sobre `IWorkflowMutationRepository`
 (`FirestoreWorkflowMutationRepository`).
 
-- **Escopo de escrita (allowlist)** — `src/domain/schema/mutationSpec.ts` (`resolveWritableTable`):
-  são graváveis persons, cases, contracts, deadlines, financials, `customRecords` e lookups.
-  **Bloqueados**: `members` (papéis/permissões), `pushes` e `news` (infra). `resolveWritableTable`
-  reúsa `resolveQueryTable` e aplica a allowlist.
+- **Escopo de escrita (DENYLIST)** — `src/domain/schema/mutationSpec.ts` (`resolveWritableTable`):
+  **bloqueados** `members` (papéis/permissões), `pushes` e `news` (infra). Todo o resto é gravável,
+  inclusive uma tela criada agora — a inversão de allowlist para denylist é o que torna o modelo
+  extensível sem tocar no kernel.
 - **Segurança de tenant** — o `tenantId` vem **sempre** de `context.execution.tenantId`; o `spec`
-  nunca o contém. Em `customRecords`, o `screenKey` é forçado a partir da tabela do spec e, no
-  update, o doc existente precisa ter o mesmo `screenKey` (impede repropósito entre telas).
+  nunca o contém. Não há mais guarda de "registro de outra tela": a coleção isola por construção.
 - **Validação** — `validateUpsertSpec` achata o `data` em caminhos e valida cada um com
   `resolvePath` (rejeita campos desconhecidos, campos gerenciados pelo sistema — `id`, timestamps,
-  `screenKey`/`title` — e escrita "através" de referência). Fixas gravam campos nativos + FKs
-  (id/id[]) + `customValues.*`; personalizadas gravam em `values.*` (título derivado de
-  `titleFieldKey`); listas gravam `key`/`label`/`color`. `upsert` sem `id` inclui (com `createdBy:
-  'workflow-engine'` + timestamps); com `id` existente faz merge.
+  autoria — e escrita "através" de referência). **Todas** as tabelas gravam os campos na raiz;
+  listas gravam `key`/`label`/`color`. `upsert` sem `id` inclui (com `createdBy: 'workflow-engine'`
+  + timestamps); com `id` existente faz merge.
 - **Eventos** — como a escrita é um `set`/`delete` em `tenants/{tenantId}/{coleção}/{doc}`, os
   eventos `*.saved`/`*.deleted` são emitidos **automaticamente** pelo trigger
   `publishWorkflowEventOnEntityChange`; nenhuma emissão manual. **Sem cascata** (ver "Cascata de
@@ -2467,7 +2492,7 @@ sempre a prioridade.
 
 ### Isolamento de dados
 
-Plugin **não cria coleção nova** — reusa `screenDefinitions` + `customRecords`, marcando os
+Plugin declara telas como qualquer outra origem — cada uma vira sua coleção, marcando os
 artefatos com `ownerPluginId` e `managed: true` (bloqueia edição pelo usuário no Form Design). A
 consequência é que plugin novo **nunca exige deploy de `firestore.rules`**, e o dado do plugin herda
 ⌘K, auditoria, workflow, filtros e agregados sem nenhum código adicional.
@@ -2831,7 +2856,7 @@ O `DIContainer` do frontend **permanece tipado e cabeado à mão** — 58 campos
 compilação, consumidores (`useDI().personRepository`) intocados. Transformá-lo em contribuições
 seria uma fachada: mais código que hoje, troca da garantia do compilador por `!` de runtime, e o
 risco de rearrastar o Firebase para os testes (o que a Etapa 2 evitou). Repositório nativo não é
-ponto de extensão de terceiro — plugins usam `customRecords`, não `FirebaseXRepository`.
+ponto de extensão de terceiro — plugins usam a coleção da própria tela via o repositório genérico, não `FirebaseXRepository`.
 
 O que é extensível, de forma **aditiva**, é o ponto `data.service`: um plugin registra um serviço
 próprio (uma integração externa, por exemplo) e o resolve por chave:
@@ -2959,8 +2984,10 @@ presentation); a implementação vive só aqui, porque `src/utils` não é sincr
 ### Resolvedores
 
 - **`domain/schema/recordRules.ts`** — `formatAndValidateRecord(ctx, table, data)`: percorre as folhas
-  **presentes** em `data`, resolve a regra de cada uma pelo `SchemaContext` (campo nativo, campo de
-  objeto aninhado, ou campo dinâmico sob `customValues.*` / `values.*`) e devolve `{ data, issues }`.
+  **presentes** em `data`, resolve o campo de cada uma pelo `SchemaContext` (`resolveFieldSpec` —
+  campo nativo, campo de objeto aninhado, ou campo declarado pelo tenant, todos na raiz), **converte
+  o valor para o `type` declarado** (`coerceWriteValue`) e só então aplica `format`/`validate`,
+  devolvendo `{ data, issues }`.
 - **`domain/schema/parameterRules.ts`** — `formatAndValidateParameters(parameters, data)`: idem, contra
   um `WorkflowParameter[]` (desce recursivamente em `Object.fields`; quando `list: true`, mapeia as
   regras sobre cada elemento do array).
@@ -2984,6 +3011,17 @@ presentation); a implementação vive só aqui, porque `src/utils` não é sincr
 | **Backend — parâmetros de Workflow** | `runWorkflow()` (`engine/WorkflowExecutor.ts`), antes do 1º step | execução vira `FAILED` com o campo e o motivo no log |
 | **Backend — parâmetros de Script** | `ScriptStep.ts`, após `applyParameterDefaults` | falha o step antes de entrar no sandbox |
 | **Backend — execução manual/IA** | callable `handlers/runWorkflow.ts` | `HttpsError('invalid-argument')` com as mensagens |
+
+> **Tipo declarado = tipo gravado.** A conversão vive no portão, não em cada chamador. O controle de
+> data do formulário fala `aaaa-mm-dd` e o motor de workflows entrega `Date`; os dois chegam ao
+> Firestore como Timestamp, porque `formatAndValidateRecord` coage pelo `type` do campo. Sem isso
+> uma tela do Form Design gravaria a data como texto — indistinguível no console, mas quebrando
+> `addDays(event.campo, n)` no workflow que a própria tela dispara, enquanto a mesma expressão
+> funcionaria numa tela fixa (cujos mappers escritos à mão já convertiam). A data pura (`aaaa-mm-dd`)
+> é montada no **fuso local**: ela nomeia um dia, e `new Date('2026-07-15')` daria meia-noite UTC —
+> o dia anterior no horário do escritório. Na volta, `toDateFieldInput` (`customFieldValues.ts`)
+> devolve `Date`/Timestamp ao formato do controle, e `FirebaseRecordRepository` converte Timestamps
+> em `Date` de forma genérica, já que uma coleção de tela não tem mapper escrito à mão.
 
 O `SchemaContext` do front precisa das `ScreenDefinition`s do tenant, e um repositório não alcança um
 Store React — por isso `data/utils/recordRulesGate.ts` mantém um contexto de módulo que o
@@ -3015,6 +3053,24 @@ O `firebase.json` aponta para esse arquivo. Sempre que uma nova coleção for cr
 2. Deploy: `firebase deploy --only firestore:rules`
 
 Não documente as regras neste arquivo — a fonte de verdade é `firestore.rules`.
+
+### Curinga das telas — a única regra que precisa de explicação aqui
+
+Como uma tela É uma coleção e o nome dela só existe em runtime, os registros são autorizados por um
+`match /{screenCollection}/{recordId}` dentro de `match /tenants/{tenantId}`. Duas coisas o tornam
+seguro, e nenhuma pode ser removida:
+
+1. **Denylist obrigatória.** O Firestore avalia TODAS as regras que casam e concede se QUALQUER uma
+   conceder. Sem `isReservedCollection`, o curinga anularia as regras nomeadas mais estritas —
+   `workflow_executions` (`write: if false`), `members` (sem create/delete), `cases` (create/update
+   só para advogado ou admin). A lista espelha `RESERVED_COLLECTIONS`
+   (`domain/schema/screenEntity.ts`); `scripts/reservedCollections.test.ts` falha se divergirem.
+2. **`exists(screenDefinitions/{collection})` na ESCRITA.** Impede que uma coleção inventada receba
+   dados. A leitura dispensa a checagem de propósito: coleção sem tela está vazia, e cobrar uma
+   leitura de documento por consulta não pagaria o que protege.
+
+O `storage.rules` tem o curinga equivalente para os arquivos dos documentos, com
+`isReservedStoragePath` cobrindo `logs` (que tem regra própria, mais estrita).
 
 ---
 
@@ -3053,7 +3109,6 @@ A tabela abaixo é **derivada** do `firestore.indexes.json` e existe só para re
 |---|---|---|
 | `auditLogs` | `tenantId` ASC, `createdAt` DESC | `getPage` — auditoria por escritório, mais recente primeiro |
 | `auditLogs` | `tenantId` ASC, `severity` ASC, `createdAt` ASC | `countUnreadCritical` — badge de falhas CRITICAL não lidas |
-| `tenants/{id}/customRecords` | `screenKey` ASC, `createdAt` DESC | `getByScreen` — registros de cada tela dinâmica |
 | `tenants/{id}/deadlines` | `caseId` ASC, `dueDate` ASC | `getDeadlinesByCase` |
 | `tenants/{id}/financials` | `caseId` ASC, `dueDate` DESC | `getFinancialsByCase` |
 | `tenants/{id}/financials` | `personId` ASC, `dueDate` DESC | `getFinancialsByPerson` (cascata de exclusão de `Person`) |

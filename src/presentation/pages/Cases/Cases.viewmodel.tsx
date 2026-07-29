@@ -66,11 +66,11 @@ export const useCasesViewModel = (): CasesViewModel => {
   const { tenantRole } = useTenant();
   const { areaConfigs, phaseConfigs, statusConfigs, instanceConfigs, actionTypeConfigs, courtConfigs, districtConfigs, judgeConfigs } = useCaseLookup();
   const { openTab } = useWorkspace();
-  const { getCustomFieldsFor, getDefinition } = useScreenDefinitions();
+  const { getScreenFieldsFor, getDefinition } = useScreenDefinitions();
   const { notify } = useNotification();
   const theme = useTheme();
 
-  const customFields = useMemo(() => getCustomFieldsFor('cases'), [getCustomFieldsFor]);
+  const customFields = useMemo(() => getScreenFieldsFor('cases'), [getScreenFieldsFor]);
   const customListing = useCustomFieldListing('cases', customFields, CUSTOM_FIELD_FILTER_PREFIX);
 
   const [filterTokens, setFilterTokens] = useState<FilterToken[]>(
@@ -205,7 +205,7 @@ export const useCasesViewModel = (): CasesViewModel => {
       )) return false;
       if (filedAtFrom && (!c.filedAt || c.filedAt < filedAtFrom)) return false;
       if (filedAtTo && (!c.filedAt || c.filedAt >= filedAtTo)) return false;
-      return customListing.matchesFilters(c.customValues, tokenMap);
+      return customListing.matchesFilters(c, tokenMap);
     });
   }, [cases, tokenMap, customListing]);
 
@@ -282,7 +282,7 @@ export const useCasesViewModel = (): CasesViewModel => {
   }, [phaseConfigs, theme]);
 
   const getCustomFieldItems = useCallback(
-    (c: Case): CustomFieldCardItem[] => customListing.cardItems(c.customValues),
+    (c: Case): CustomFieldCardItem[] => customListing.cardItems(c),
     [customListing],
   );
 

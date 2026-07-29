@@ -11,6 +11,7 @@ import { createSchemaContext } from './pathResolver';
 import type { SchemaScreen } from './pathResolver';
 
 const field = (overrides: Partial<FieldDefinition> & Pick<FieldDefinition, 'key' | 'label'>): FieldDefinition => ({
+  origin: 'design',
   type: 'text',
   required: false,
   order: 0,
@@ -70,15 +71,15 @@ describe('collectAggregationsFor', () => {
   it('encontra os campos que agregam sobre a tela filha, com o caminho de escrita no pai', () => {
     const targets = collectAggregationsFor(ctx, 'itens');
     expect(targets).toHaveLength(2);
-    expect(targets.map((t) => t.parentPath).sort()).toEqual(['values.qtdItens', 'values.totalItens']);
+    expect(targets.map((t) => t.parentPath).sort()).toEqual(['qtdItens', 'totalItens']);
     expect(targets[0].parentTable).toBe('vendas');
   });
 
-  it('usa customValues quando o pai é uma entidade fixa', () => {
+  it('grava no próprio campo também quando o pai é uma entidade fixa', () => {
     const targets = collectAggregationsFor(ctx, 'vendas');
     expect(targets).toHaveLength(1);
     expect(targets[0].parentTable).toBe('persons');
-    expect(targets[0].parentPath).toBe('customValues.totalVendas');
+    expect(targets[0].parentPath).toBe('totalVendas');
   });
 
   it('devolve vazio para uma tela da qual ninguém agrega', () => {
@@ -124,9 +125,9 @@ describe('applyAggregationOp', () => {
 
 describe('aggregateChildren', () => {
   const children = [
-    { screenKey: 'itens', values: { total: 10, status: 'ativo' } },
-    { screenKey: 'itens', values: { total: 20, status: 'cancelado' } },
-    { screenKey: 'itens', values: { total: 5, status: 'ativo' } },
+    { total: 10, status: 'ativo' },
+    { total: 20, status: 'cancelado' },
+    { total: 5, status: 'ativo' },
   ];
 
   it('soma o campo declarado sobre os filhos', () => {
@@ -156,8 +157,8 @@ describe('aggregateChildren', () => {
 });
 
 describe('readChildField', () => {
-  it('lê sob values numa tela dinâmica', () => {
-    expect(readChildField(ctx, 'itens', { screenKey: 'itens', values: { venda: 'v1' } }, 'venda')).toBe('v1');
+  it('lê o campo na raiz do registro filho', () => {
+    expect(readChildField(ctx, 'itens', { venda: 'v1' }, 'venda')).toBe('v1');
   });
 
   it('lê na raiz numa entidade fixa', () => {

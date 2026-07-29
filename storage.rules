@@ -69,14 +69,28 @@ service firebase.storage {
       allow delete: if request.auth != null && isTenantAdminOrElevated(tenantId);
     }
 
-    // ─── Documentos de registros de telas dinâmicas ──────────────────────────
-    // Path: tenants/{tenantId}/customRecords/{recordId}/{filename}
-    match /tenants/{tenantId}/customRecords/{recordId}/{allPaths=**} {
-      allow read: if request.auth != null && isTenantMemberOrElevated(tenantId);
+    // ─── Documentos de registros de qualquer tela ────────────────────────────
+    // Path: tenants/{tenantId}/{collection}/{recordId}/{filename} — a coleção é o id da tela e só
+    // existe em runtime, então o curinga vale para todas.
+    //
+    // `logs` fica de fora porque tem regra PRÓPRIA e mais estrita logo abaixo (só admin lê, ninguém
+    // escreve) e, como o Storage libera quando qualquer regra libera, o curinga a afrouxaria. As
+    // entidades fixas não precisam ser excluídas: o modelo de acesso delas é idêntico ao daqui.
+    function isReservedStoragePath(collection) {
+      return collection in ['logs'];
+    }
+
+    match /tenants/{tenantId}/{collection}/{recordId}/{allPaths=**} {
+      allow read: if request.auth != null
+        && !isReservedStoragePath(collection)
+        && isTenantMemberOrElevated(tenantId);
       allow create: if request.auth != null
+        && !isReservedStoragePath(collection)
         && isTenantMemberOrElevated(tenantId)
         && request.resource.size < 20 * 1024 * 1024;     // máximo 20 MB
-      allow delete: if request.auth != null && isTenantAdminOrElevated(tenantId);
+      allow delete: if request.auth != null
+        && !isReservedStoragePath(collection)
+        && isTenantAdminOrElevated(tenantId);
     }
 
     // ─── Documentos de boletins ───────────────────────────────────────────────

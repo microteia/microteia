@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { Modal } from '../Modal';
 import { Input } from '../Input';
 import { S } from './ExtensionMentionModal.styles';
-import { useCustomRecords } from '../../../../stores/useCustomRecords';
+import { useRecords } from '../../../../stores/useRecords';
 import { useScreenDefinitions } from '../../../../stores/useScreenDefinitions';
 import type { ExtensionMentionProvider, MentionResult } from '../../../shared/extensions/extensionServices';
 
@@ -18,12 +18,12 @@ export interface ExtensionMentionModalProps {
  * usar os stores com segurança — só monta dentro do contexto do escritório, ao acionar o `@`.
  */
 export const ExtensionMentionModal: React.FC<ExtensionMentionModalProps> = ({ provider, onSelect, onClose }) => {
-  const { allRecords } = useCustomRecords();
+  const { allRecords } = useRecords();
   const { definitions } = useScreenDefinitions();
   const [query, setQuery] = useState('');
 
   const results = useMemo(
-    () => provider.search(query, { customRecords: allRecords, screenDefinitions: definitions }).slice(0, 20),
+    () => provider.search(query, { records: allRecords, screenDefinitions: definitions }).slice(0, 20),
     [provider, query, allRecords, definitions],
   );
 

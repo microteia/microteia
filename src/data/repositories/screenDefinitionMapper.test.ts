@@ -13,13 +13,11 @@ import type { ScreenDefinition } from '../../domain/entities';
 type PersistedKeys = Omit<ScreenDefinition, 'id' | 'tenantId' | 'createdAt' | 'updatedAt'>;
 
 const persisted: PersistedKeys = {
-  builtin: true,
+  origin: 'plugin',
   titleSingular: 'Pessoa',
   titlePlural: 'Pessoas',
   icon: 'user',
-  fields: [{ key: 'apelido', label: 'Apelido', type: 'text', required: false, order: 0 }],
-  nativeFieldOverrides: { name: { label: 'Nome completo', logic: { onChange: 'object("a", 1)' } } },
-  fieldOrderUnified: true,
+  fields: [{ key: 'apelido', label: 'Apelido', type: 'text', required: false, order: 0, origin: 'design' }],
   titleFieldKey: 'name',
   hasNotes: true,
   hasDocuments: true,
@@ -32,6 +30,7 @@ const persisted: PersistedKeys = {
   ownerPluginId: 'com.acme.vendas',
   ownerPluginIds: ['com.acme.vendas'],
   sourceId: 'src-123',
+  sourceRev: 7,
   managed: true,
   sidebarOrder: 3,
   enabled: false,
@@ -46,7 +45,7 @@ const persisted: PersistedKeys = {
 
 describe('mapScreenDefinition', () => {
   it('preserva TODAS as propriedades persistidas do documento', () => {
-    const mapped = mapScreenDefinition('persons', { ...persisted }, 'tenant-1');
+    const mapped = mapScreenDefinition('vendas__produto', { ...persisted }, 'tenant-1');
 
     for (const [key, value] of Object.entries(persisted)) {
       if (value === undefined) continue;
@@ -62,13 +61,34 @@ describe('mapScreenDefinition', () => {
   });
 
   it('documento vazio cai em padrões seguros', () => {
-    const mapped = mapScreenDefinition('cases', {}, 'tenant-1');
-    expect(mapped.builtin).toBe(false);
+    const mapped = mapScreenDefinition('medico', {}, 'tenant-1');
+    expect(mapped.origin).toBe('design');
     expect(mapped.fields).toEqual([]);
-    expect(mapped.nativeFieldOverrides).toBe(null);
-    expect(mapped.fieldOrderUnified).toBe(null);
     expect(mapped.enabled).toBe(true);
     expect(mapped.icon).toBe('apps');
+  });
+
+  it('a tela de uma entidade fixa é builtin, esteja ou não gravado no documento', () => {
+    expect(mapScreenDefinition('cases', {}, 'tenant-1').origin).toBe('builtin');
+    expect(mapScreenDefinition('cases', { origin: 'design' }, 'tenant-1').origin).toBe('builtin');
+  });
+
+  it('campo sem origin herda a da tela; com ownerPluginId, é da extensão', () => {
+    const mapped = mapScreenDefinition('medico', {
+      fields: [
+        { key: 'a', label: 'A', type: 'text', required: false, order: 0 },
+        { key: 'b', label: 'B', type: 'text', required: false, order: 1, ownerPluginId: 'com.acme.x' },
+      ],
+    }, 'tenant-1');
+    expect(mapped.fields[0].origin).toBe('design');
+    expect(mapped.fields[1].origin).toBe('plugin');
+  });
+
+  it('numa tela fixa, um campo sem origin é do usuário — não do kernel', () => {
+    const mapped = mapScreenDefinition('persons', {
+      fields: [{ key: 'apelido', label: 'Apelido', type: 'text', required: false, order: 0 }],
+    }, 'tenant-1');
+    expect(mapped.fields[0].origin).toBe('design');
   });
 
   it('converte Timestamp do Firestore em Date', () => {

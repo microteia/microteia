@@ -11,6 +11,17 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [1.0.0] — 2026-07-29
+
+- Unificação do modelo de dados: as telas criadas no Form Design e as trazidas por extensões passam a guardar seus registros do mesmo jeito que as telas do sistema — cada tela com seu próprio espaço e cada campo no seu próprio lugar. Quem olha os dados não distingue mais o que veio do sistema, de uma extensão ou do próprio escritório.
+- Os campos que você acrescenta a Pessoas, Processos, Contratos, Prazos e Financeiro deixam de ficar num compartimento separado: passam a conviver lado a lado com os campos originais.
+- Campos do sistema ficaram totalmente configuráveis. Antes só era possível ajustar rótulo, seção, ordem e algumas regras de tela; agora também obrigatoriedade, formatação, validação e valor calculado — e o que você configura vale igualmente nas automações, não só na tela.
+- Automações: o gatilho passa a apontar direto para a tela desejada (por exemplo, "Ao salvar: Médico"), sem o passo extra de escolher a entidade depois de escolher o evento. Nas condições e nos passos, os campos da tela aparecem na lista principal, sem precisar navegar por um agrupamento à parte.
+- Fim de uma restrição: uma tela criada no Form Design agora pode virar uma extensão — e vice-versa — sem qualquer conversão de dados.
+- Campos de data passam a ser guardados como data de verdade em qualquer tela, e não mais como texto nas telas personalizadas. Com isso, uma automação disparada por uma tela do Form Design ou de extensão já pode fazer contas com a data recebida — somar prazos, comparar vencimentos — exatamente como faz com as telas do sistema.
+
+> **Atenção:** esta versão muda a forma como os dados são gravados. Telas e campos criados antes dela precisam ser recriados. Automações que reagiam a telas personalizadas devem ter o gatilho escolhido de novo.
+
 ## [0.151.0] — 2026-07-26
 
 - Iniciada a transição do produto de Microteia para Microteia: o sistema agora se apresenta como uma plataforma de serviço (PaaS) para criar aplicações de negócio de forma declarativa, não limitada apenas a escritórios de advocacia.

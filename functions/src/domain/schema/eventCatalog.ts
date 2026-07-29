@@ -5,10 +5,10 @@
 // ═══════════════════════════════════════════════════════════════════════════
 
 import type { EntityKey, EntityMetadata, NativeFieldSpec, NativeFieldType } from './entityRegistry';
-import { ENTITY_REGISTRY, getEntityByCollection, getEntityByEventPrefix } from './entityRegistry';
-import type { PathRoot } from './pathResolver';
+import { ENTITY_REGISTRY, getEntityByCollection } from './entityRegistry';
+import type { PathRoot, SchemaContext } from './pathResolver';
 import type { WorkflowParameter } from '../entities/Workflow';
-import { resolveRefEntityCollection } from '../entities/entitySchemas';
+import { isEntityCollection, resolveEntity } from './screenEntity';
 
 export const WORKFLOW_CALLED_EVENT = 'workflow.called';
 
@@ -27,8 +27,6 @@ export interface WorkflowEventCatalogEntry {
 const ID_FIELD: WorkflowEventFieldOption = { path: 'id', label: 'Id' };
 const CHANGE_TYPE_FIELD: WorkflowEventFieldOption = { path: 'changeType', label: 'Tipo da mudança ("created" ou "updated")' };
 const OLD_FIELD: WorkflowEventFieldOption = { path: 'old', label: 'Dados anteriores (objeto)' };
-const CUSTOM_VALUES_FIELD: WorkflowEventFieldOption = { path: 'customValues', label: 'Campos customizados (objeto)' };
-const VALUES_FIELD: WorkflowEventFieldOption = { path: 'values', label: 'Campos da tela (objeto)' };
 
 const ENTITY_EVENT_ORDER: EntityKey[] = [
   'persons',
@@ -37,7 +35,6 @@ const ENTITY_EVENT_ORDER: EntityKey[] = [
   'deadlines',
   'financials',
   'pushes',
-  'customRecords',
 ];
 
 const flattenNativeFields = (
@@ -78,7 +75,7 @@ const entityEventFields = (entity: EntityMetadata): WorkflowEventFieldOption[] =
 };
 
 type PathRootBase =
-  | { kind: 'entity'; entityKey: EntityKey; screenKey?: string }
+  | { kind: 'entity'; entityKey: EntityKey }
   | { kind: 'fields'; fields: NativeFieldSpec[] };
 
 const buildEntry = (
@@ -87,32 +84,21 @@ const buildEntry = (
   hasOld: boolean,
   fields: WorkflowEventFieldOption[],
   rootBase: PathRootBase,
-  placeholder?: WorkflowEventFieldOption,
-): WorkflowEventCatalogEntry => {
-  const root: PathRoot = rootBase.kind === 'entity' ? { ...rootBase, hasOld } : { ...rootBase, hasOld };
-  return {
-    name,
-    label,
-    fields: [ID_FIELD, ...(hasOld ? [CHANGE_TYPE_FIELD, OLD_FIELD] : []), ...fields, ...(placeholder ? [placeholder] : [])],
-    root,
-  };
-};
+): WorkflowEventCatalogEntry => ({
+  name,
+  label,
+  fields: [ID_FIELD, ...(hasOld ? [CHANGE_TYPE_FIELD, OLD_FIELD] : []), ...fields],
+  root: { ...rootBase, hasOld },
+});
 
-const entityEntry = (entity: EntityMetadata, action: 'saved' | 'deleted'): WorkflowEventCatalogEntry => {
-  const placeholder = entity.supportsCustomFields
-    ? CUSTOM_VALUES_FIELD
-    : entity.key === 'customRecords'
-      ? VALUES_FIELD
-      : undefined;
-  return buildEntry(
+const entityEntry = (entity: EntityMetadata, action: 'saved' | 'deleted'): WorkflowEventCatalogEntry =>
+  buildEntry(
     `${entity.eventPrefix}.${action}`,
     `Ao ${action === 'saved' ? 'salvar' : 'excluir'}: ${entity.labelSingular}`,
     action === 'saved',
     entityEventFields(entity),
     { kind: 'entity', entityKey: entity.key },
-    placeholder,
   );
-};
 
 const LOOKUP_EVENT_FIELDS: NativeFieldSpec[] = [
   { key: 'key', label: 'Chave', type: 'string' },
@@ -237,6 +223,7 @@ export const workflowParametersToRoot = (parameters: WorkflowParameter[] = []): 
 
 export const workflowParametersToFieldOptions = (
   parameters: WorkflowParameter[] = [],
+  ctx?: SchemaContext,
 ): WorkflowEventFieldOption[] =>
   parameters.flatMap((parameter) => {
     if (parameter.list) {
@@ -244,7 +231,9 @@ export const workflowParametersToFieldOptions = (
     }
     if (parameter.type === 'EntityReference' && parameter.entityType) {
       const options: WorkflowEventFieldOption[] = [{ path: parameter.key, label: `${parameter.label} (Id)` }];
-      const target = getEntityByCollection(resolveRefEntityCollection(parameter.entityType));
+      const target = ctx
+        ? resolveEntity(ctx, parameter.entityType)
+        : getEntityByCollection(parameter.entityType);
       options.push({ path: `${parameter.key}.id`, label: `${parameter.label}: Id` });
       for (const denormField of target?.referenceDenormFields ?? []) {
         options.push({
@@ -255,7 +244,7 @@ export const workflowParametersToFieldOptions = (
       return options;
     }
     if (parameter.type === 'Object') {
-      return workflowParametersToFieldOptions(parameter.fields ?? []).map((option) => ({
+      return workflowParametersToFieldOptions(parameter.fields ?? [], ctx).map((option) => ({
         path: `${parameter.key}.${option.path}`,
         label: `${parameter.label}: ${option.label}`,
       }));
@@ -287,41 +276,99 @@ export const applyParameterDefaults = (
   return result;
 };
 
-export const findEventCatalogEntry = (eventName: string): WorkflowEventCatalogEntry | undefined =>
-  WORKFLOW_EVENT_CATALOG.find((entry) => entry.name === eventName);
+const ENTITY_EVENT_ACTIONS = ['saved', 'deleted'] as const;
 
-export const eventNameToRoot = (eventName: string, screenKey?: string): PathRoot | null => {
-  const entry = findEventCatalogEntry(eventName);
-  if (!entry) return null;
-  if (entry.root.kind === 'entity' && entry.root.entityKey === 'customRecords' && screenKey) {
-    return { ...entry.root, screenKey };
-  }
-  return entry.root;
+export type EntityEventAction = (typeof ENTITY_EVENT_ACTIONS)[number];
+
+/**
+ * Separa `<coleção>.saved` / `<coleção>.deleted`. Devolve `null` para os eventos que não são de
+ * entidade (`lookup.*`, `case_note.*`, `workflow.called`) — o empacotamento usa isto para saber
+ * qual tela um gatilho referencia.
+ */
+export const splitEntityEventName = (
+  eventName: string,
+): { collection: string; action: EntityEventAction } | null => {
+  const separator = eventName.lastIndexOf('.');
+  if (separator <= 0) return null;
+  const action = eventName.slice(separator + 1) as EntityEventAction;
+  if (!ENTITY_EVENT_ACTIONS.includes(action)) return null;
+  const collection = eventName.slice(0, separator);
+  if (collection.includes('_') || collection === 'lookup' || collection === 'workflow') return null;
+  return { collection, action };
 };
 
-export const eventNameToEntityKey = (eventName: string): string | null => {
+/**
+ * Toda entidade emite `<coleção>.saved`/`.deleted` — as fixas com o prefixo declarado
+ * (`person.saved`), as demais com o próprio nome da coleção (`medico.saved`). Um evento de tela não
+ * está no catálogo estático: é sintetizado a partir da entidade resolvida no contexto do tenant.
+ */
+const screenEventEntry = (
+  eventName: string,
+  ctx: SchemaContext | undefined,
+): WorkflowEventCatalogEntry | undefined => {
+  if (!ctx) return undefined;
+  const separator = eventName.lastIndexOf('.');
+  if (separator <= 0) return undefined;
+
+  const collection = eventName.slice(0, separator);
+  const action = eventName.slice(separator + 1) as EntityEventAction;
+  if (!ENTITY_EVENT_ACTIONS.includes(action)) return undefined;
+  if (!isEntityCollection(ctx, collection)) return undefined;
+
+  const entity = resolveEntity(ctx, collection);
+  return entity ? entityEntry(entity, action) : undefined;
+};
+
+export const findEventCatalogEntry = (
+  eventName: string,
+  ctx?: SchemaContext,
+): WorkflowEventCatalogEntry | undefined =>
+  WORKFLOW_EVENT_CATALOG.find((entry) => entry.name === eventName) ?? screenEventEntry(eventName, ctx);
+
+/**
+ * Catálogo completo para o tenant: os eventos fixos mais um par `.saved`/`.deleted` por tela do
+ * Form Design ou de extensão.
+ */
+export const buildWorkflowEventCatalog = (ctx: SchemaContext): WorkflowEventCatalogEntry[] => {
+  const screenEntries: WorkflowEventCatalogEntry[] = [];
+  for (const collection of ctx.screens.keys()) {
+    if (collection in ctx.registry) continue;
+    const entity = resolveEntity(ctx, collection);
+    if (!entity) continue;
+    screenEntries.push(entityEntry(entity, 'saved'), entityEntry(entity, 'deleted'));
+  }
+  return [...WORKFLOW_EVENT_CATALOG, ...screenEntries];
+};
+
+export const eventNameToRoot = (eventName: string, ctx?: SchemaContext): PathRoot | null =>
+  findEventCatalogEntry(eventName, ctx)?.root ?? null;
+
+export const eventNameToEntityKey = (eventName: string, ctx?: SchemaContext): string | null => {
   const prefix = eventName.split('.')[0];
   if (!prefix) return null;
   if (prefix === 'lookup') return 'lookups';
-  if (prefix === 'news') return 'news';
-  if (prefix === 'custom_record') return null;
-  return getEntityByEventPrefix(prefix)?.collection ?? null;
+  const root = findEventCatalogEntry(eventName, ctx)?.root;
+  return root?.kind === 'entity' ? root.entityKey : null;
 };
 
+/**
+ * Campos disponíveis no payload do evento. Os campos declarados pelo tenant já vêm na entidade
+ * resolvida — não há mais lista dinâmica separada nem prefixo `values.`/`customValues.`.
+ */
 export const getWorkflowEventFields = (
   eventName: string,
-  dynamicFields: WorkflowEventFieldOption[] = [],
+  ctx?: SchemaContext,
 ): WorkflowEventFieldOption[] => {
-  const entry = findEventCatalogEntry(eventName);
+  const entry = findEventCatalogEntry(eventName, ctx);
   if (!entry) return [];
+  if (entry.root.kind !== 'entity' || !ctx) return entry.fields;
 
-  const isCustomRecord = eventName.startsWith('custom_record.');
-  const placeholderPath = isCustomRecord ? 'values' : 'customValues';
-  const baseFields = entry.fields.filter((field) => field.path !== placeholderPath);
+  const entity = resolveEntity(ctx, entry.root.entityKey);
+  if (!entity) return entry.fields;
 
-  if (dynamicFields.length === 0) return baseFields;
-
-  const prefix = isCustomRecord ? 'values.' : 'customValues.';
-  const prefixedFields = dynamicFields.map((field) => ({ ...field, path: `${prefix}${field.path}` }));
-  return [...baseFields, ...prefixedFields];
+  return [
+    ID_FIELD,
+    ...(entry.root.hasOld ? [CHANGE_TYPE_FIELD, OLD_FIELD] : []),
+    ...entityEventFields(entity),
+  ];
 };

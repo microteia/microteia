@@ -460,7 +460,7 @@ export const ScreenBuilderView: React.FC = () => {
               <S.FullRow>
                 <InfoBanner
                   variant="info"
-                  message="Campo do sistema: aqui você ajusta como ele aparece e se comporta na tela. Tipo, máscara, obrigatoriedade e validação são definidos pelo sistema, porque também valem para gravações feitas por automações."
+                  message="Campo do sistema: pode ser configurado à vontade, mas não excluído. A chave e o tipo ficam fixos porque definem como o valor é gravado."
                 />
               </S.FullRow>
             )}
@@ -615,8 +615,6 @@ export const ScreenBuilderView: React.FC = () => {
                 placeholder="Opcional — exibido dentro do campo vazio"
               />
             </InputGroup>
-            {!vm.fieldModalIsNative && (
-              <>
             <S.RulesDivider>Comportamento na tela</S.RulesDivider>
             <S.CheckboxCell>
               <Checkbox
@@ -652,12 +650,10 @@ export const ScreenBuilderView: React.FC = () => {
             ) : <div />}
               </>
             )}
-              </>
-            )}
 
             {vm.fieldModalTab === 'advanced' && (
               <>
-                {vm.fieldSupportsRules && !vm.fieldModalIsNative && (
+                {vm.fieldSupportsRules && (
                   <>
                     <S.RulesDivider>Formatação e validação</S.RulesDivider>
                     <InputGroup>
@@ -712,7 +708,7 @@ export const ScreenBuilderView: React.FC = () => {
                     </InputGroup>
                   </>
                 )}
-                {vm.aggregationFromOptions.length > 1 && !vm.fieldModalIsNative && (
+                {vm.aggregationFromOptions.length > 1 && (
                   <>
                     <S.RulesDivider>Valor vindo dos registros filhos</S.RulesDivider>
                     <S.FullRow>
@@ -782,7 +778,6 @@ export const ScreenBuilderView: React.FC = () => {
                     message="Nas expressões, referencie os campos da tela pela chave (ex.: status, valor) — comece a digitar para ver as sugestões. Use value para o valor do próprio campo. Em Ocultar, Desabilitar e Ao alterar, um campo de vínculo pode ser navegado (ex.: produto.preco); em Validação e Valor calculado ele vale como identificador, pois essas duas também são conferidas no servidor."
                     variant="info"
                   />
-                  {!vm.fieldModalIsNative && (
                   <InputGroup>
                     <Label>Valor calculado (preenche o campo automaticamente)</Label>
                     <ExpressionEditor
@@ -792,8 +787,6 @@ export const ScreenBuilderView: React.FC = () => {
                       placeholder="Ex: trim(concat(nome, ' ', sobrenome))"
                     />
                   </InputGroup>
-                  )}
-                  {!vm.fieldModalIsNative && (
                   <InputGroup>
                     <Label>Validação (retorna a mensagem de erro, ou vazio/null se válido)</Label>
                     <ExpressionEditor
@@ -803,7 +796,6 @@ export const ScreenBuilderView: React.FC = () => {
                       placeholder="Ex: if(isEmpty(value) and status == 'ativo', 'Obrigatório para ativos', null)"
                     />
                   </InputGroup>
-                  )}
                 </S.FullRow>
                 <InputGroup>
                   <Label>Desabilitar quando (verdadeiro/falso)</Label>

@@ -86,17 +86,16 @@ export const materializeScreen = (
     aggregation: field.aggregation
       ? { ...field.aggregation, from: rewriteRef(field.aggregation.from, keyMap) ?? field.aggregation.from }
       : field.aggregation,
+    origin: 'plugin' as const,
     ownerPluginId: pluginId,
   }));
 
   const input: ScreenDefinitionInput = {
-    builtin: false,
+    origin: 'plugin',
     titleSingular: template.titleSingular,
     titlePlural: template.titlePlural,
     icon: template.icon,
     fields,
-    nativeFieldOverrides: null,
-    fieldOrderUnified: true,
     titleFieldKey: template.titleFieldKey,
     hasNotes: template.hasNotes ?? false,
     hasDocuments: template.hasDocuments ?? false,

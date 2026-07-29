@@ -10,7 +10,7 @@ import { getScreenIcon } from '../../../shared/screenIcons';
 import type { ScreenActions } from '../../../shared/entityScreen/useScreenActions';
 import type { EntityDocumentsController, EntityNotesController } from '../../../shared/entityScreen/types';
 import type { TagStoreAdapter } from '../../ui/TagManager';
-import type { CustomFieldValue, CustomRecord, FieldDefinition, ScreenDefinition } from '../../../../domain/entities';
+import type { CustomFieldValue, EntityRecord, FieldDefinition, ScreenDefinition } from '../../../../domain/entities';
 
 /**
  * A superfície do DETALHE (criar/editar) de uma tela de registros — o par do `RecordDetailSurface`
@@ -48,7 +48,7 @@ export interface RecordDetailViewModel {
   isTagManagerOpen: boolean;
   openTagManager: () => void;
   closeTagManager: () => void;
-  recordToDelete: CustomRecord | null;
+  recordToDelete: EntityRecord | null;
   requestDelete: () => void;
   cancelDelete: () => void;
   confirmDelete: () => Promise<void>;

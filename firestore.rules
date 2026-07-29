@@ -575,32 +575,66 @@ service cloud.firestore {
         }
       }
 
-      // Registros das telas dinâmicas — mesmo modelo de acesso das entidades padrão.
-      // update por canWriteInTenant também cobre o stamp de autoria de exclusão (deletedBy*).
-      match /customRecords/{recordId} {
-        allow read: if isMember(tenantId);
-        allow create, update: if canWriteInTenant(tenantId);
-        allow delete: if isTenantAdmin(tenantId);
+      // ─── Registros de qualquer tela ─────────────────────────────────────────
+      // Uma tela É uma coleção: `tenants/{tenantId}/medico/{id}`. O nome só existe em runtime
+      // (o usuário cria a tela no Form Design), então não há como listá-lo aqui — daí o curinga.
+      //
+      // A lista de reservadas é OBRIGATÓRIA: o Firestore avalia todas as regras que casam e libera
+      // se qualquer uma liberar. Sem ela, este bloco anularia as regras mais estritas acima
+      // (workflow_executions com `write: if false`, members sem create/delete, cases exigindo
+      // advogado ou admin). É espelho de RESERVED_COLLECTIONS em domain/schema/screenEntity.ts,
+      // e o teste screenEntity.test.ts compara as duas pontas.
+      //
+      // A ESCRITA exige ainda que exista a tela declarada, para que nenhuma coleção inventada
+      // receba dados. A LEITURA dispensa a checagem: coleção sem tela está vazia, e cobrar uma
+      // leitura de documento por consulta não pagaria o que protege.
+      function isReservedCollection(name) {
+        return name in [
+        'actions', 'aiConnections', 'caseActionTypes', 'caseAreas', 'caseCourts', 'caseDistricts',
+        'caseInstances', 'caseJudges', 'casePhases', 'caseStatuses', 'caseTags', 'cases',
+        'contractAdjustmentIndexes', 'contractAdjustmentPeriodicities', 'contractBanks',
+        'contractCategories', 'contractCostCenters', 'contractCurrencies', 'contractObjects',
+        'contractPaymentMethods', 'contractStatuses', 'contractTags', 'contractTypes', 'contracts',
+        'deadlineTypes', 'deadlines', 'documentTypes', 'documents', 'extensions', 'fieldOptions',
+        'financialCategories', 'financialStatuses', 'financialTags', 'financials',
+        'installed_extensions', 'members', 'news', 'newsCategories', 'notes', 'personCities',
+        'personGenders', 'personMaritalStatuses', 'personNationalities', 'personOccupations',
+        'personRelationships', 'personTags', 'personTypes', 'persons', 'plugin_installations',
+        'pushes', 'screenDefinitions', 'scripts', 'secrets', 'tags', 'workflow_definitions',
+        'workflow_events', 'workflow_executions'
+        ];
+      }
+      function isDeclaredScreen(name) {
+        return exists(/databases/$(database)/documents/tenants/$(tenantId)/screenDefinitions/$(name));
+      }
+      function isWritableScreen(name) {
+        return !isReservedCollection(name) && isDeclaredScreen(name);
+      }
 
-        // Anotações do registro — qualquer membro com escrita cria; exclusão só admin.
-        // update só é usado para o stamp de autoria de exclusão (deletedBy*).
+      match /{screenCollection}/{recordId} {
+        allow read: if !isReservedCollection(screenCollection) && isMember(tenantId);
+        allow create, update: if isWritableScreen(screenCollection) && canWriteInTenant(tenantId);
+        allow delete: if isWritableScreen(screenCollection) && isTenantAdmin(tenantId);
+
+        // Anotações do registro — mesmo modelo das entidades fixas: qualquer membro com escrita
+        // cria; update só carimba a autoria de exclusão; exclusão só admin.
         match /notes/{noteId} {
-          allow read: if isMember(tenantId);
-          allow create: if canWriteInTenant(tenantId);
-          allow update: if isTenantAdmin(tenantId)
+          allow read: if !isReservedCollection(screenCollection) && isMember(tenantId);
+          allow create: if isWritableScreen(screenCollection) && canWriteInTenant(tenantId);
+          allow update: if isWritableScreen(screenCollection) && isTenantAdmin(tenantId)
             && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['deletedBy', 'deletedByName', 'deletedByPhotoURL'])
             && request.resource.data.deletedBy == request.auth.uid;
-          allow delete: if isTenantAdmin(tenantId);
+          allow delete: if isWritableScreen(screenCollection) && isTenantAdmin(tenantId);
         }
 
         // Documentos do registro — mesmo modelo das anotações
         match /documents/{documentId} {
-          allow read: if isMember(tenantId);
-          allow create: if canWriteInTenant(tenantId);
-          allow update: if isTenantAdmin(tenantId)
+          allow read: if !isReservedCollection(screenCollection) && isMember(tenantId);
+          allow create: if isWritableScreen(screenCollection) && canWriteInTenant(tenantId);
+          allow update: if isWritableScreen(screenCollection) && isTenantAdmin(tenantId)
             && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['deletedBy', 'deletedByName', 'deletedByPhotoURL'])
             && request.resource.data.deletedBy == request.auth.uid;
-          allow delete: if isTenantAdmin(tenantId);
+          allow delete: if isWritableScreen(screenCollection) && isTenantAdmin(tenantId);
         }
       }
     }

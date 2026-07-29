@@ -16,7 +16,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '../../infrastructure/firebase/config';
 import type { IDeadlineRepository } from '../../domain/repositories/IDeadlineRepository';
-import type { Deadline, DeadlineStatus, DeletionActor, CustomFieldValue } from '../../domain/entities';
+import type { Deadline, DeadlineStatus, DeletionActor } from '../../domain/entities';
 import { stampDeletionActor } from '../utils/stampDeletionActor';
 import { applyRecordRules, loadRecordBaseline } from '../utils/recordRulesGate';
 
@@ -32,6 +32,9 @@ const deadlinesRef = (tenantId: string) =>
   collection(db, 'tenants', tenantId, 'deadlines');
 
 const mapDeadline = (id: string, d: Record<string, unknown>, tenantId: string): Deadline => ({
+  // Campos declarados pelo tenant moram na raiz, ao lado dos fixos: o documento cru
+  // entra inteiro e o mapeamento tipado sobrescreve o que precisa de conversão.
+  ...d,
   id,
   tenantId,
   caseId: d.caseId as string,
@@ -45,7 +48,6 @@ const mapDeadline = (id: string, d: Record<string, unknown>, tenantId: string): 
   completedBy: (d.completedBy as string | null) ?? null,
   notes: (d.notes as string | null) ?? null,
   pushIds: (d.pushIds as string[]) ?? undefined,
-  customValues: (d.customValues as Record<string, CustomFieldValue> | undefined) ?? {},
   createdAt: toDate(d.createdAt),
   createdBy: d.createdBy as string,
   updatedAt: toDate(d.updatedAt),

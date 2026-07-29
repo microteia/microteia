@@ -55,13 +55,38 @@ export const ensureUniqueKey = (base: string, existingKeys: Set<string>): string
 export const sortFieldsByOrder = (fields: FieldDefinition[]): FieldDefinition[] =>
   [...fields].sort((a, b) => a.order - b.order);
 
+const isTimestampLike = (value: unknown): value is { toDate: () => Date } =>
+  !!value && typeof value === 'object' && typeof (value as { toDate?: unknown }).toDate === 'function';
+
+/**
+ * Um campo de data é gravado como data e volta como `Date` (ou Timestamp, se veio cru do Firestore);
+ * o controle do formulário fala `aaaa-mm-dd`. A conversão usa o fuso local, o mesmo em que a data
+ * foi montada na gravação, para o dia exibido ser o dia escolhido.
+ */
+export const toDateFieldInput = (value: unknown): string => {
+  const date = value instanceof Date ? value : isTimestampLike(value) ? value.toDate() : null;
+  if (date) {
+    if (Number.isNaN(date.getTime())) return '';
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${date.getFullYear()}-${month}-${day}`;
+  }
+  return typeof value === 'string' ? value.slice(0, 10) : '';
+};
+
+/**
+ * `stored` é o REGISTRO INTEIRO — os campos moram na raiz do documento, então basta ler pela chave.
+ * Aceita `object` para que uma entidade tipada (Person, Case…) seja passada diretamente: interfaces
+ * não são atribuíveis a `Record<string, unknown>`, e o cast ficaria em cada chamada.
+ */
 export const buildInitialFormValues = (
   fields: FieldDefinition[],
-  stored?: Record<string, CustomFieldValue> | null,
+  stored?: object | null,
 ): Record<string, CustomFieldValue> => {
+  const record = stored as Record<string, unknown> | null | undefined;
   const form: Record<string, CustomFieldValue> = {};
   fields.forEach((field) => {
-    const value = stored?.[field.key];
+    const value = record?.[field.key] as CustomFieldValue | undefined;
     switch (field.type) {
       case 'checkbox':
         form[field.key] = typeof value === 'boolean' ? value : false;
@@ -71,6 +96,9 @@ export const buildInitialFormValues = (
         break;
       case 'number':
         form[field.key] = typeof value === 'number' ? String(value) : '';
+        break;
+      case 'date':
+        form[field.key] = toDateFieldInput(value);
         break;
       case 'select':
       case 'reference':
@@ -164,11 +192,12 @@ export const collectRequiredErrors = (
   return errors;
 };
 
+/** Nome de exibição do registro — o valor do campo eleito como título na tela. */
 export const resolveRecordTitle = (
-  values: Record<string, CustomFieldValue>,
+  values: object,
   titleFieldKey: string,
 ): string => {
-  const value = values[titleFieldKey];
+  const value = (values as Record<string, unknown>)[titleFieldKey];
   return typeof value === 'string' && value.trim() !== '' ? value.trim() : 'Sem título';
 };
 

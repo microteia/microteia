@@ -4,6 +4,7 @@ import { buildHydratedFieldScope } from './referenceScope';
 import type { RecordResolver } from './referenceScope';
 
 const field = (overrides: Partial<FieldDefinition> & Pick<FieldDefinition, 'key' | 'label'>): FieldDefinition => ({
+  origin: 'design',
   type: 'text',
   required: false,
   order: 0,

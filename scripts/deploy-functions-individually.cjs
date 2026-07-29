@@ -20,7 +20,6 @@ const path = require('path');
 // Lista completa de functions exportadas (ordem de index.ts)
 const ALL_FUNCTIONS = [
   'callAIProxy',
-  'copyPublicWorkflow',
   'detectWorkflows',
   'runWorkflow',
   'getUserInfo',
@@ -47,11 +46,7 @@ const ALL_FUNCTIONS = [
   'recomputeAggregatesOnEntityChange',
   'onNoteChange',
   'onDocumentChange',
-  'syncPublicWorkflowOnWrite',
-  'syncPublicWorkflowOnDelete',
   'getExpressionFunctions',
-  'copyPublicWorkflow',
-  'updateFromSourceWorkflow',
   'runScript',
   'runAction'
 ];

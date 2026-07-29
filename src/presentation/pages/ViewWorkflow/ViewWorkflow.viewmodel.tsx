@@ -8,8 +8,9 @@ import { useNotification } from '../../../stores/useNotification';
 import { useDI } from '../../../infrastructure/di/useDI';
 import { useScreenDefinitions } from '../../../stores/useScreenDefinitions';
 import { useStepCatalog } from '../../../stores/useStepCatalog';
-import { sortFieldsByOrder } from '../../../domain/services/customFieldValues';
-import { WORKFLOW_EVENT_CATALOG, WORKFLOW_CALLED_EVENT, getWorkflowEventFields, eventNameToEntityKey, workflowParametersToFieldOptions } from '../../../domain/services/workflowEventCatalog';
+import { WORKFLOW_CALLED_EVENT, buildWorkflowEventCatalog, getWorkflowEventFields, eventNameToEntityKey, workflowParametersToFieldOptions } from '../../../domain/services/workflowEventCatalog';
+import type { SchemaContext } from '../../../domain/schema/pathResolver';
+import { useSchemaContext } from '../../shared/useSchemaContext';
 import type { WorkflowEventFieldOption } from '../../../domain/services/workflowEventCatalog';
 import { WORKFLOW_LOOKUP_COLLECTIONS } from '../../../domain/services/workflowLookupCatalog';
 import { ENTITY_REGISTRY } from '../../../domain/schema/entityRegistry';
@@ -84,7 +85,6 @@ const STEP_CATEGORY_LABELS: Record<StepCategory, string> = {
   Integration: 'Integração',
 };
 
-const isCustomRecordEventName = (eventName: string): boolean => eventName.startsWith('custom_record.');
 const isLookupEventName = (eventName: string): boolean => eventName.startsWith('lookup.');
 const isCalledEventName = (eventName: string): boolean => eventName === WORKFLOW_CALLED_EVENT;
 
@@ -102,7 +102,6 @@ export interface WorkflowFormData {
   name: string;
   description: string;
   eventName: string;
-  screenKey: string;
   lookupCollection: string;
   parameters: WorkflowParameter[];
 }
@@ -113,16 +112,20 @@ const buildForm = (w: WorkflowDefinition | null): WorkflowFormData => ({
   name: w?.name ?? '',
   description: w?.description ?? '',
   eventName: w?.eventName ?? '',
-  screenKey: w?.screenKey ?? '',
   lookupCollection: w?.lookupCollection ?? '',
   parameters: w?.parameters ?? [],
 });
 
-export const EVENT_NAME_OPTIONS = WORKFLOW_EVENT_CATALOG.map((entry) => ({
-  value: entry.name,
-  label: entry.label,
-  icon: getWorkflowEventIcon(entry.name),
-}));
+/**
+ * Opções de gatilho do tenant: os eventos fixos mais um par por tela do Form Design ou de extensão.
+ * Depende do contexto de schema porque as telas do tenant são DADO, não código.
+ */
+export const buildEventNameOptions = (ctx: SchemaContext) =>
+  buildWorkflowEventCatalog(ctx).map((entry) => ({
+    value: entry.name,
+    label: entry.label,
+    icon: getWorkflowEventIcon(entry.name),
+  }));
 
 export const LOOKUP_COLLECTION_OPTIONS = WORKFLOW_LOOKUP_COLLECTIONS.map((entry) => ({
   value: entry.collection,
@@ -188,9 +191,7 @@ export interface ViewWorkflowViewModel {
   getStepLogStatus: (log: { level: string }) => 'SUCCESS' | 'ERROR' | 'WARN' | 'INFO';
   eventFields: WorkflowEventFieldOption[];
   isEventNameRecognized: boolean;
-  isCustomRecordEvent: boolean;
-  screenOptions: { value: string; label: string; icon: IconType }[];
-  isScreenKeyRecognized: boolean;
+  eventNameOptions: { value: string; label: string; icon: IconType }[];
   isLookupEvent: boolean;
   isLookupCollectionRecognized: boolean;
   isCalledEvent: boolean;
@@ -250,6 +251,7 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
   const { notify } = useNotification();
   const { workflowExecutionRepository, dataProcessorRepository } = useDI();
   const { dynamicScreens, getDefinition } = useScreenDefinitions();
+  const ctx = useSchemaContext();
   const { stepCatalog, loadCatalog } = useStepCatalog();
 
   const workflow = useMemo(
@@ -365,61 +367,21 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
     [flatSteps],
   );
 
-  const dynamicEventFields = useMemo(() => {
-    if (!workflow) return [];
-
-    // Para custom_record, usa screenKey para buscar a definição de tela customizada
-    if (isCustomRecordEventName(workflow.eventName) && workflow.screenKey) {
-      const definition = getDefinition(workflow.screenKey);
-      if (definition) {
-        return sortFieldsByOrder(definition.fields).map((field) => ({
-          path: field.key,
-          label: field.label,
-        }));
-      }
-    }
-
-    // Para entidades built-in (case, person, contract, etc.), busca campos customizados
-    const entityKey = eventNameToEntityKey(workflow.eventName);
-    if (entityKey) {
-      const customFields = getDefinition(entityKey);
-      if (customFields) {
-        return sortFieldsByOrder(customFields.fields).map((field) => ({
-          path: field.key,
-          label: field.label,
-        }));
-      }
-    }
-
-    return [];
-  }, [workflow, getDefinition]);
-
+  // Os campos declarados pelo tenant já vêm na entidade resolvida — não há lista dinâmica à parte.
   const eventFields = useMemo(() => {
     if (!workflow) return [];
-    if (isCalledEventName(workflow.eventName)) return workflowParametersToFieldOptions(workflow.parameters);
-    return getWorkflowEventFields(workflow.eventName, dynamicEventFields);
-  }, [workflow, dynamicEventFields]);
+    if (isCalledEventName(workflow.eventName)) return workflowParametersToFieldOptions(workflow.parameters, ctx);
+    return getWorkflowEventFields(workflow.eventName, ctx);
+  }, [workflow, ctx]);
 
   // Se o eventName gravado não corresponde a nenhum evento do catálogo atual (ex: automação
   // criada antes de uma renomeação de evento), os pickers de "Do evento" não têm o que listar
   // e caem para texto livre — este flag avisa o usuário na aba Geral para escolher de novo.
+  const eventNameOptions = useMemo(() => buildEventNameOptions(ctx), [ctx]);
+
   const isEventNameRecognized = useMemo(
-    () => !workflow || WORKFLOW_EVENT_CATALOG.some((entry) => entry.name === workflow.eventName),
-    [workflow],
-  );
-
-  const isCustomRecordEvent = useMemo(() => isCustomRecordEventName(formData.eventName), [formData.eventName]);
-
-  const screenOptions = useMemo(
-    () => dynamicScreens.map((def) => ({ value: def.id, label: def.titleSingular, icon: getScreenIconType(def.icon) })),
-    [dynamicScreens],
-  );
-
-  // Mesma ideia de isEventNameRecognized, mas para a entidade customizada escolhida: se ela foi
-  // excluída depois que o gatilho foi configurado, avisa o usuário a escolher de novo.
-  const isScreenKeyRecognized = useMemo(
-    () => !isCustomRecordEvent || !formData.screenKey || dynamicScreens.some((def) => def.id === formData.screenKey),
-    [isCustomRecordEvent, formData.screenKey, dynamicScreens],
+    () => !workflow || eventNameOptions.some((option) => option.value === workflow.eventName),
+    [workflow, eventNameOptions],
   );
 
   const isLookupEvent = useMemo(() => isLookupEventName(formData.eventName), [formData.eventName]);
@@ -483,22 +445,20 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
   // caindo para o ícone genérico do evento (a mesma lógica do card em Automações).
   const headerIcon = useMemo<IconType | null>(() => {
     if (!formData.eventName) return null;
-    if (isCustomRecordEvent && formData.screenKey) {
-      const definition = getDefinition(formData.screenKey);
-      if (definition) return getScreenIconType(definition.icon);
-    }
+    const eventCollection = eventNameToEntityKey(formData.eventName, ctx);
+    const eventScreen = eventCollection ? getDefinition(eventCollection) : undefined;
+    if (eventScreen) return getScreenIconType(eventScreen.icon);
     if (isLookupEvent && formData.lookupCollection) {
       const entry = WORKFLOW_LOOKUP_COLLECTIONS.find((e) => e.collection === formData.lookupCollection);
       if (entry) return getWorkflowLookupGroupIcon(entry.group);
     }
     return getWorkflowEventIcon(formData.eventName);
-  }, [formData.eventName, formData.screenKey, formData.lookupCollection, isCustomRecordEvent, isLookupEvent, getDefinition]);
+  }, [formData.eventName, formData.lookupCollection, isLookupEvent, getDefinition, ctx]);
 
   const handleSaveGeneral = useCallback(async () => {
     if (!currentTenant) return;
     setIsSaving(true);
     try {
-      const screenKey = isCustomRecordEvent && formData.screenKey ? formData.screenKey : undefined;
       const lookupCollection = isLookupEvent && formData.lookupCollection ? formData.lookupCollection : undefined;
       const parameters = isCalledEvent ? sanitizeParameters(formData.parameters) : undefined;
 
@@ -512,7 +472,6 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
           steps: cloneSource ? cloneSource.steps.map((step) => ({ ...step, id: crypto.randomUUID() })) : [],
         };
         if (formData.description) createData.description = formData.description;
-        if (screenKey) createData.screenKey = screenKey;
         if (lookupCollection) createData.lookupCollection = lookupCollection;
         if (parameters) createData.parameters = parameters;
 
@@ -527,7 +486,6 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
           parameters: parameters ?? [],
         };
         if (formData.description) updateData.description = formData.description;
-        if (screenKey) updateData.screenKey = screenKey;
         if (lookupCollection) updateData.lookupCollection = lookupCollection;
 
         await updateWorkflow(workflow.id, updateData as Parameters<typeof updateWorkflow>[1]);
@@ -539,7 +497,7 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
     } finally {
       setIsSaving(false);
     }
-  }, [currentTenant, isNew, formData, isCustomRecordEvent, isLookupEvent, isCalledEvent, cloneSource, createWorkflow, updateWorkflow, workflow, notify, closeTab, tabKey, activePanelId, openTab]);
+  }, [currentTenant, isNew, formData, isLookupEvent, isCalledEvent, cloneSource, createWorkflow, updateWorkflow, workflow, notify, closeTab, tabKey, activePanelId, openTab]);
 
   const toggleEnabled = useCallback(() => {
     if (!workflow) return;
@@ -787,8 +745,8 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
 
   const eventLabel = useMemo(() => {
     if (!workflow) return '';
-    return WORKFLOW_EVENT_CATALOG.find((entry) => entry.name === workflow.eventName)?.label ?? workflow.eventName;
-  }, [workflow]);
+    return eventNameOptions.find((option) => option.value === workflow.eventName)?.label ?? workflow.eventName;
+  }, [workflow, eventNameOptions]);
 
   const getStepTypeLabel = useCallback((step: WorkflowStep): string => {
     if (step.type === 'Condition') return 'Condição';
@@ -1002,9 +960,7 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
     isStepResultExpanded,
     eventFields,
     isEventNameRecognized,
-    isCustomRecordEvent,
-    screenOptions,
-    isScreenKeyRecognized,
+    eventNameOptions,
     isLookupEvent,
     isLookupCollectionRecognized,
     isCalledEvent,

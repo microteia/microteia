@@ -21,9 +21,9 @@ const activePoleHop: FkHop = {
 };
 
 const tarefaHop: FkHop = {
-  atPath: 'customValues.tarefa',
-  targetCollection: 'customRecords',
-  materializeAt: 'customValues.tarefa',
+  atPath: 'tarefa',
+  targetCollection: 'tarefas',
+  materializeAt: 'tarefa',
   mode: 'replaceValue',
   multi: false,
   fields: 'all',
@@ -34,14 +34,14 @@ describe('collectHopRecordRefs', () => {
     const payload = {
       contractId: 'c1',
       activePoleIds: ['p1', 'p2', 'p1'],
-      customValues: { tarefa: 't1' },
+      tarefa: 't1',
     };
     const refs = collectHopRecordRefs(payload, [contractHop, activePoleHop, tarefaHop]);
     expect(refs).toStrictEqual([
       { collection: 'contracts', id: 'c1' },
       { collection: 'persons', id: 'p1' },
       { collection: 'persons', id: 'p2' },
-      { collection: 'customRecords', id: 't1' },
+      { collection: 'tarefas', id: 't1' },
     ]);
 
     const alreadyMaterialized = { contractId: 'c1', contract: { id: 'c1' } };
@@ -75,24 +75,22 @@ describe('materializeHops', () => {
     expect(list[0]).toMatchObject({ id: 'p0', name: 'Nome p0' });
   });
 
-  it('substitui reference custom espalhando values com título derivado', () => {
+  it('substitui reference de tela pelo registro inteiro, sem desempacotar nada', () => {
     const records = new Map([
-      [recordKey('customRecords', 't1'), { screenKey: 'tarefas', values: { nome: 'Elaborar petição', prazo: '2026-07-10' } }],
+      [recordKey('tarefas', 't1'), { nome: 'Elaborar petição', prazo: '2026-07-10' }],
     ]);
-    const result = materializeHops({ customValues: { tarefa: 't1' } }, [tarefaHop], records);
-    expect((result.customValues as Record<string, unknown>).tarefa).toStrictEqual({
+    const result = materializeHops({ tarefa: 't1' }, [tarefaHop], records);
+    expect(result.tarefa).toStrictEqual({
       id: 't1',
-      title: 'Elaborar petição',
-      screenKey: 'tarefas',
       nome: 'Elaborar petição',
       prazo: '2026-07-10',
     });
   });
 
   it('não substitui reference já enriquecida (objeto) nem valor vazio', () => {
-    const enriched = { customValues: { tarefa: { id: 't1', nome: 'já enriquecida' } } };
+    const enriched = { tarefa: { id: 't1', nome: 'já enriquecida' } };
     const result = materializeHops(enriched, [tarefaHop], new Map());
-    expect((result.customValues as Record<string, unknown>).tarefa).toStrictEqual({ id: 't1', nome: 'já enriquecida' });
+    expect(result.tarefa).toStrictEqual({ id: 't1', nome: 'já enriquecida' });
 
     const empty = materializeHops({ customValues: { tarefa: null } }, [tarefaHop], new Map());
     expect((empty.customValues as Record<string, unknown>).tarefa).toBeNull();

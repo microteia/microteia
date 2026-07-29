@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   WORKFLOW_EVENT_CATALOG,
   WORKFLOW_CALLED_EVENT,
+  buildWorkflowEventCatalog,
   eventNameToEntityKey,
   eventNameToRoot,
   getWorkflowEventFields,
@@ -14,11 +15,26 @@ import type { WorkflowParameter } from '../entities/Workflow';
 const entry = (name: string) => WORKFLOW_EVENT_CATALOG.find((e) => e.name === name);
 const paths = (name: string) => (entry(name)?.fields ?? []).map((f) => f.path);
 
+const tenantCtx = createSchemaContext([
+  {
+    id: 'cases',
+    titleSingular: 'Processo',
+    titleFieldKey: 'title',
+    fields: [{ key: 'tarefa', label: 'Tarefa', type: 'text', required: false, order: 0, origin: 'design' }],
+  },
+  {
+    id: 'medico',
+    titleSingular: 'Médico',
+    titlePlural: 'Médicos',
+    titleFieldKey: 'nome',
+    fields: [{ key: 'nome', label: 'Nome', type: 'text', required: false, order: 0, origin: 'design' }],
+  },
+]);
+
 describe('eventCatalog — derivação do registry', () => {
   it('mantém os eventos das entidades com rótulos PT-BR', () => {
     expect(entry('person.saved')?.label).toBe('Ao salvar: Pessoa');
     expect(entry('case.deleted')?.label).toBe('Ao excluir: Processo');
-    expect(entry('custom_record.saved')?.label).toBe('Ao salvar: Entidade Customizada');
     expect(entry('lookup.saved')?.label).toBe('Ao salvar: Item de Lista');
   });
 
@@ -54,16 +70,26 @@ describe('eventCatalog — derivação do registry', () => {
 });
 
 describe('getWorkflowEventFields', () => {
-  it('prefixa campos dinâmicos de entidades fixas com customValues.', () => {
-    const fields = getWorkflowEventFields('case.saved', [{ path: 'tarefa', label: 'Tarefa' }]);
-    expect(fields.map((f) => f.path)).toContain('customValues.tarefa');
-    expect(fields.map((f) => f.path)).not.toContain('customValues');
+  it('oferece os campos declarados pelo tenant na raiz, sem envelope', () => {
+    const fields = getWorkflowEventFields('case.saved', tenantCtx).map((f) => f.path);
+    expect(fields).toContain('tarefa');
+    expect(fields).toContain('caseNumber');
+    expect(fields).not.toContain('customValues');
   });
 
-  it('prefixa campos de tela dinâmica com values. (payload real de customRecords)', () => {
-    const fields = getWorkflowEventFields('custom_record.saved', [{ path: 'nome', label: 'Nome' }]);
-    expect(fields.map((f) => f.path)).toContain('values.nome');
-    expect(fields.map((f) => f.path)).not.toContain('values');
+  it('trata a tela do Form Design como qualquer outra entidade', () => {
+    const fields = getWorkflowEventFields('medico.saved', tenantCtx).map((f) => f.path);
+    expect(fields).toEqual(expect.arrayContaining(['id', 'changeType', 'old', 'nome']));
+    expect(fields).not.toContain('values');
+  });
+});
+
+describe('buildWorkflowEventCatalog', () => {
+  it('acrescenta um par de eventos por tela do tenant, sem duplicar as fixas', () => {
+    const names = buildWorkflowEventCatalog(tenantCtx).map((e) => e.name);
+    expect(names).toEqual(expect.arrayContaining(['person.saved', 'medico.saved', 'medico.deleted']));
+    expect(names.filter((n) => n === 'case.saved')).toHaveLength(1);
+    expect(names).not.toContain('cases.saved');
   });
 });
 
@@ -73,24 +99,25 @@ describe('eventNameToRoot / eventNameToEntityKey', () => {
     expect(eventNameToRoot('case.deleted')).toMatchObject({ hasOld: false });
   });
 
-  it('anexa screenKey à raiz de custom_record', () => {
-    expect(eventNameToRoot('custom_record.saved', 'tarefas')).toMatchObject({
+  it('resolve a tela do tenant como entidade própria', () => {
+    expect(eventNameToRoot('medico.saved', tenantCtx)).toMatchObject({
       kind: 'entity',
-      entityKey: 'customRecords',
-      screenKey: 'tarefas',
+      entityKey: 'medico',
+      hasOld: true,
     });
   });
 
   it('resolve raiz de campos para eventos de sistema e lookup', () => {
     expect(eventNameToRoot('lookup.saved')?.kind).toBe('fields');
     expect(eventNameToRoot('case_note.saved')?.kind).toBe('fields');
-    expect(eventNameToRoot('desconhecido.saved')).toBeNull();
+    expect(eventNameToRoot('desconhecido.saved', tenantCtx)).toBeNull();
   });
 
   it('mantém o mapeamento legado de entityKey', () => {
     expect(eventNameToEntityKey('case.saved')).toBe('cases');
     expect(eventNameToEntityKey('lookup.saved')).toBe('lookups');
-    expect(eventNameToEntityKey('custom_record.saved')).toBeNull();
+    expect(eventNameToEntityKey('medico.saved', tenantCtx)).toBe('medico');
+    expect(eventNameToEntityKey('desconhecido.saved', tenantCtx)).toBeNull();
   });
 });
 

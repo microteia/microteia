@@ -15,6 +15,7 @@ import { extractExpressionPaths } from './expressionPaths';
 const field = (partial: Partial<FieldDefinition> & Pick<FieldDefinition, 'key' | 'label' | 'type'>): FieldDefinition => ({
   required: false,
   order: 0,
+  origin: 'design',
   ...partial,
 });
 
@@ -68,7 +69,7 @@ describe('parsePath / stripEventPrefix / joinSegments', () => {
 
 describe('getValueAtPath — equivalência com os resolvedores antigos', () => {
   const context = {
-    event: { payload: { status: 'Ativo', contract: { number: '001' }, customValues: { tarefa: { nome: 'X' } } } },
+    event: { payload: { status: 'Ativo', contract: { number: '001' }, tarefa: { nome: 'X' } } },
   };
 
   it('navega caminho absoluto de condição', () => {
@@ -77,7 +78,7 @@ describe('getValueAtPath — equivalência com os resolvedores antigos', () => {
   });
 
   it('navega caminho relativo de mapping', () => {
-    expect(getValueAtPath(context.event.payload, parsePath('customValues.tarefa.nome'))).toBe('X');
+    expect(getValueAtPath(context.event.payload, parsePath('tarefa.nome'))).toBe('X');
   });
 
   it('retorna undefined para caminho inexistente ou intermediário nulo', () => {
@@ -107,7 +108,6 @@ describe('resolvePath — FKs fixas', () => {
         mode: 'denormKey',
         multi: false,
         fields: ['number', 'title', 'type', 'status'],
-        bagKeys: ['customValues'],
       },
     ]);
   });
@@ -123,7 +123,6 @@ describe('resolvePath — FKs fixas', () => {
       mode: 'denormKey',
       multi: false,
       fields: ['name', 'type', 'email'],
-      bagKeys: ['customValues'],
     });
   });
 
@@ -164,16 +163,16 @@ describe('resolvePath — FKs fixas', () => {
   });
 });
 
-describe('resolvePath — campos customizados e telas dinâmicas', () => {
-  it('resolve reference em customValues com substituição de valor', () => {
-    const resolution = resolvePath(ctx, casesRoot, parsePath('customValues.tarefa.nome'));
+describe('resolvePath — campos declarados pelo tenant', () => {
+  it('resolve reference declarada pelo tenant, na raiz, com substituição de valor', () => {
+    const resolution = resolvePath(ctx, casesRoot, parsePath('tarefa.nome'));
     expect(resolution.valid).toBe(true);
     expect(resolution.node).toMatchObject({ kind: 'scalar', type: 'string' });
     expect(resolution.hops).toStrictEqual([
       {
-        atPath: 'customValues.tarefa',
-        targetCollection: 'customRecords',
-        materializeAt: 'customValues.tarefa',
+        atPath: 'tarefa',
+        targetCollection: 'tarefas',
+        materializeAt: 'tarefa',
         mode: 'replaceValue',
         multi: false,
         fields: 'all',
@@ -181,45 +180,45 @@ describe('resolvePath — campos customizados e telas dinâmicas', () => {
     ]);
   });
 
-  it('resolve reference custom → builtin (tarefa.processo.title)', () => {
-    const resolution = resolvePath(ctx, casesRoot, parsePath('customValues.tarefa.processo.title'));
+  it('resolve reference de tela → fixa (tarefa.processo.title)', () => {
+    const resolution = resolvePath(ctx, casesRoot, parsePath('tarefa.processo.title'));
     expect(resolution.valid).toBe(true);
     expect(resolution.depth).toBe(2);
     expect(resolution.hops[1]).toMatchObject({
-      atPath: 'customValues.tarefa.processo',
+      atPath: 'tarefa.processo',
       targetCollection: 'cases',
       mode: 'replaceValue',
       fields: 'all',
     });
   });
 
-  it('resolve reference custom → custom múltipla com índice', () => {
-    const resolution = resolvePath(ctx, casesRoot, parsePath('customValues.tarefa.etapas.0.nome'));
+  it('resolve reference de tela → tela múltipla com índice', () => {
+    const resolution = resolvePath(ctx, casesRoot, parsePath('tarefa.etapas.0.nome'));
     expect(resolution.valid).toBe(true);
     expect(resolution.depth).toBe(2);
-    expect(resolution.hops[1]).toMatchObject({ targetCollection: 'customRecords', multi: true, mode: 'replaceValue' });
+    expect(resolution.hops[1]).toMatchObject({ targetCollection: 'etapas', multi: true, mode: 'replaceValue' });
   });
 
-  it('campo custom escalar vira folha tipada', () => {
-    expect(resolvePath(ctx, casesRoot, parsePath('customValues.urgente')).node).toMatchObject({
+  it('campo escalar declarado pelo tenant vira folha tipada', () => {
+    expect(resolvePath(ctx, casesRoot, parsePath('urgente')).node).toMatchObject({
       kind: 'scalar',
       type: 'boolean',
     });
   });
 
-  it('customValues sem screen no contexto vira unknown navegável', () => {
+  it('campo sem tela no contexto vira unknown navegável', () => {
     const emptyCtx = createSchemaContext();
-    const resolution = resolvePath(emptyCtx, casesRoot, parsePath('customValues.qualquer.coisa'));
+    const resolution = resolvePath(emptyCtx, casesRoot, parsePath('qualquer.coisa'));
     expect(resolution.valid).toBe(true);
     expect(resolution.node.kind).toBe('unknown');
     expect(resolution.hops).toHaveLength(0);
   });
 
-  it('registro de tela dinâmica na raiz navega por values', () => {
-    const root: PathRoot = { kind: 'entity', entityKey: 'customRecords', screenKey: 'tarefas', hasOld: true };
-    const resolution = resolvePath(ctx, root, parsePath('values.processo.caseNumber'));
+  it('registro de tela do Form Design tem os campos na raiz, como qualquer entidade', () => {
+    const root: PathRoot = { kind: 'entity', entityKey: 'tarefas', hasOld: true };
+    const resolution = resolvePath(ctx, root, parsePath('processo.caseNumber'));
     expect(resolution.valid).toBe(true);
-    expect(resolution.hops[0]).toMatchObject({ atPath: 'values.processo', targetCollection: 'cases', mode: 'replaceValue' });
+    expect(resolution.hops[0]).toMatchObject({ atPath: 'processo', targetCollection: 'cases', mode: 'replaceValue' });
   });
 });
 
@@ -279,14 +278,15 @@ describe('resolvePath — lookups, old e casos de borda', () => {
 });
 
 describe('suggestNextSegments', () => {
-  it('sugere campos, FKs navegáveis, customValues e old na raiz', () => {
+  it('sugere campos fixos, os declarados pelo tenant, FKs navegáveis e old na raiz', () => {
     const suggestions = suggestNextSegments(ctx, casesRoot, []);
     const byText = Object.fromEntries(suggestions.map((s) => [s.insertText, s]));
     expect(byText.caseNumber).toMatchObject({ isLeaf: true, kind: 'field' });
     expect(byText.contract).toMatchObject({ isLeaf: false, kind: 'fk', detail: 'Contrato' });
     expect(byText.activePole).toMatchObject({ isLeaf: false, kind: 'fkList' });
     expect(byText.contractId).toMatchObject({ isLeaf: true });
-    expect(byText.customValues).toMatchObject({ isLeaf: false });
+    expect(byText.observacao).toMatchObject({ isLeaf: true, kind: 'customField' });
+    expect(byText.tarefa).toMatchObject({ isLeaf: false, kind: 'reference', detail: 'Tarefa' });
     expect(byText.old).toMatchObject({ isLeaf: false });
     expect(byText.area.detail).toContain('Área do Direito');
   });
@@ -296,7 +296,6 @@ describe('suggestNextSegments', () => {
     const texts = suggestions.map((s) => s.insertText);
     expect(texts).toContain('number');
     expect(texts).toContain('client');
-    expect(texts).toContain('customValues');
   });
 
   it('sugere índice para listas', () => {
@@ -305,14 +304,10 @@ describe('suggestNextSegments', () => {
     ]);
   });
 
-  it('sugere campos da tela em customValues e do alvo da reference', () => {
-    const bag = suggestNextSegments(ctx, casesRoot, parsePath('customValues'));
-    expect(bag.find((s) => s.insertText === 'tarefa')).toMatchObject({ kind: 'reference', isLeaf: false, detail: 'Tarefa' });
-    expect(bag.find((s) => s.insertText === 'observacao')).toMatchObject({ isLeaf: true });
-
-    const target = suggestNextSegments(ctx, casesRoot, parsePath('customValues.tarefa'));
+  it('navega para os campos da tela alvo de uma reference declarada pelo tenant', () => {
+    const target = suggestNextSegments(ctx, casesRoot, parsePath('tarefa'));
     const texts = target.map((s) => s.insertText);
-    expect(texts).toEqual(expect.arrayContaining(['title', 'nome', 'prazo', 'processo']));
+    expect(texts).toEqual(expect.arrayContaining(['nome', 'prazo', 'processo']));
   });
 
   it('não sugere nada após erro ou em folha', () => {
@@ -323,8 +318,8 @@ describe('suggestNextSegments', () => {
 
 describe('extractExpressionPaths', () => {
   it('extrai apenas caminhos event.* com membros', () => {
-    const paths = extractExpressionPaths('concat(event.customValues.tarefa.nome, " - ", upper(event.contract.number))');
-    expect(paths.sort()).toStrictEqual(['event.contract.number', 'event.customValues.tarefa.nome'].sort());
+    const paths = extractExpressionPaths('concat(event.tarefa.nome, " - ", upper(event.contract.number))');
+    expect(paths.sort()).toStrictEqual(['event.contract.number', 'event.tarefa.nome'].sort());
   });
 
   it('retorna vazio para expressão inválida', () => {

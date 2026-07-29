@@ -1,10 +1,10 @@
 import { useCallback, useMemo } from 'react';
 import { useScreenDefinitions } from '../../../stores/useScreenDefinitions';
-import { useCustomRecords } from '../../../stores/useCustomRecords';
+import { useRecords } from '../../../stores/useRecords';
 import { useTenant } from '../../../stores/useTenant';
 import { useAuth } from '../../../stores/useAuth';
 import { useDI } from '../../../infrastructure/di/useDI';
-import { makeGetCustomRecordByIdUseCase } from '../../../domain/usecases/customrecords/GetCustomRecordByIdUseCase';
+import { makeGetRecordByIdUseCase } from '../../../domain/usecases/records/GetRecordByIdUseCase';
 import {
   buildCloneTabKey,
   buildEntityViewTabKey,
@@ -20,11 +20,10 @@ import {
   validateRequiredFields,
 } from '../../../domain/services/customFieldValues';
 import { describeRuleIssues } from '../../../domain/schema/fieldRules';
-import { validateRecordRules, ruleIssueFieldKey } from '../../../data/utils/recordRulesGate';
+import { validateRecordRules } from '../../../data/utils/recordRulesGate';
 import { useEntityDetail, type EntityValidationResult } from '../../shared/entityScreen/useEntityDetail';
 import type { ScreenActions } from '../../shared/entityScreen/useScreenActions';
-import { useNotesPort } from '../../shared/entityScreen/useNotesPort';
-import { useDocumentsPort } from '../../shared/entityScreen/useDocumentsPort';
+import { useRecordDocumentsPort, useRecordNotesPort } from '../../shared/entityScreen/useRecordPorts';
 import type {
   EntityDocumentsController,
   EntityNotesController,
@@ -33,7 +32,7 @@ import type { TagStoreAdapter } from '../../components/ui/TagManager';
 import type { EntityDetailExtraTab, EntityDetailTab } from '../../components/layout/EntityDetailView';
 import type {
   CustomFieldValue,
-  CustomRecord,
+  EntityRecord,
   FieldDefinition,
   ScreenDefinition,
 } from '../../../domain/entities';
@@ -61,7 +60,7 @@ export interface ViewDynamicRecordViewModel {
   handleClone: () => void;
   copyLinkDone: boolean;
   handleCopyDeepLink: () => void;
-  recordToDelete: CustomRecord | null;
+  recordToDelete: EntityRecord | null;
   requestDelete: () => void;
   cancelDelete: () => void;
   confirmDelete: () => Promise<void>;
@@ -80,10 +79,10 @@ type Values = Record<string, CustomFieldValue>;
 
 export const useViewDynamicRecordViewModel = (tabKey: string): ViewDynamicRecordViewModel => {
   const { getDefinition, isLoading: isLoadingDefinition, tagsByScreen, createTag, updateTag, deleteTag } = useScreenDefinitions();
-  const { recordsByScreen, createRecord, updateRecord, deleteRecord } = useCustomRecords();
+  const { recordsByCollection, createRecord, updateRecord, deleteRecord } = useRecords();
   const { currentTenant, tenantRole } = useTenant();
   const { user, effectiveName } = useAuth();
-  const { customRecordRepository, customRecordNoteRepository, customRecordDocumentRepository } = useDI();
+  const { recordRepository } = useDI();
 
   const screenKey = useMemo(() => parseDynamicTabKey(tabKey)?.screenKey ?? '', [tabKey]);
   const recordId = useMemo(() => {
@@ -99,13 +98,13 @@ export const useViewDynamicRecordViewModel = (tabKey: string): ViewDynamicRecord
       ? { entity: info.parentEntity, id: info.parentId }
       : null;
   }, [tabKey]);
-  const isAvailable = !!definition && !definition.builtin;
+  const isAvailable = !!definition && definition.origin !== 'builtin';
   const isAdmin = tenantRole === 'admin';
 
   const sortedFields = useMemo(() => (definition ? sortFieldsByOrder(definition.fields) : []), [definition]);
   const titleFieldKey = definition?.titleFieldKey ?? '';
 
-  const getByIdUC = useMemo(() => makeGetCustomRecordByIdUseCase(customRecordRepository), [customRecordRepository]);
+  const getByIdUC = useMemo(() => makeGetRecordByIdUseCase(recordRepository), [recordRepository]);
 
   const parse = useCallback((tk: string) => {
     const t = parseDynamicTabKey(tk);
@@ -117,18 +116,18 @@ export const useViewDynamicRecordViewModel = (tabKey: string): ViewDynamicRecord
   }, []);
 
   const findInStore = useCallback(
-    (id: string) => (recordsByScreen[screenKey] ?? []).find((r) => r.id === id) ?? null,
-    [recordsByScreen, screenKey],
+    (id: string) => (recordsByCollection[screenKey] ?? []).find((r) => r.id === id) ?? null,
+    [recordsByCollection, screenKey],
   );
 
   const getById = useCallback(
-    (id: string) => (currentTenant ? getByIdUC.execute(currentTenant.id, id) : Promise.resolve(null)),
-    [getByIdUC, currentTenant],
+    (id: string) => (currentTenant ? getByIdUC.execute(currentTenant.id, screenKey, id) : Promise.resolve(null)),
+    [getByIdUC, currentTenant, screenKey],
   );
 
   const recordToValues = useCallback(
-    (record: CustomRecord | null) => {
-      const values = buildInitialFormValues(sortedFields, record?.values ?? null);
+    (record: EntityRecord | null) => {
+      const values = buildInitialFormValues(sortedFields, record);
       // Registro filho novo já nasce vinculado ao pai que abriu a aba.
       if (parentContext && definition?.parentFieldKey) {
         values[definition.parentFieldKey] = parentContext.id;
@@ -139,11 +138,12 @@ export const useViewDynamicRecordViewModel = (tabKey: string): ViewDynamicRecord
   );
 
   const resolveTabTitle = useCallback(
-    (record: CustomRecord | null, isNew: boolean) => {
+    (record: EntityRecord | null, isNew: boolean) => {
       if (!definition) return null;
-      return isNew ? `Novo ${definition.titleSingular}` : (record?.title ?? null);
+      if (isNew) return `Novo ${definition.titleSingular}`;
+      return record ? resolveRecordTitle(record, titleFieldKey) : null;
     },
-    [definition],
+    [definition, titleFieldKey],
   );
 
   const resolveTitleFromValues = useCallback(
@@ -154,10 +154,9 @@ export const useViewDynamicRecordViewModel = (tabKey: string): ViewDynamicRecord
   const validate = useCallback(
     (values: Values): EntityValidationResult | null => {
       const fieldErrors = collectRequiredErrors(sortedFields, values);
-      const issues = validateRecordRules(screenKey, { values: formValuesToStoredValues(sortedFields, values) });
+      const issues = validateRecordRules(screenKey, formValuesToStoredValues(sortedFields, values));
       issues.forEach((issue) => {
-        const key = ruleIssueFieldKey(issue.path);
-        if (!fieldErrors[key]) fieldErrors[key] = issue.error;
+        if (!fieldErrors[issue.path]) fieldErrors[issue.path] = issue.error;
       });
       if (Object.keys(fieldErrors).length === 0) return null;
       const message = validateRequiredFields(sortedFields, values) ?? describeRuleIssues(issues);
@@ -169,43 +168,39 @@ export const useViewDynamicRecordViewModel = (tabKey: string): ViewDynamicRecord
   const create = useCallback(
     async (values: Values) => {
       const stored = formValuesToStoredValues(sortedFields, values);
-      const title = resolveRecordTitle(stored, titleFieldKey);
-      const created = await createRecord({ screenKey, title, values: stored, createdBy: user?.id ?? '' });
-      return { id: created.id, title: created.title };
+      const created = await createRecord(screenKey, { ...stored, createdBy: user?.id ?? '' });
+      return { id: created.id, title: resolveRecordTitle(created, titleFieldKey) };
     },
     [sortedFields, titleFieldKey, createRecord, screenKey, user],
   );
 
   const update = useCallback(
     async (id: string, values: Values) => {
-      const stored = formValuesToStoredValues(sortedFields, values);
-      const title = resolveRecordTitle(stored, titleFieldKey);
-      await updateRecord(id, screenKey, {
-        title,
-        values: stored,
+      await updateRecord(screenKey, id, {
+        ...formValuesToStoredValues(sortedFields, values),
         updatedBy: user?.id ?? '',
         updatedByName: effectiveName,
         updatedByPhotoURL: user?.photoURL ?? '',
       });
     },
-    [sortedFields, titleFieldKey, updateRecord, screenKey, user, effectiveName],
+    [sortedFields, updateRecord, screenKey, user, effectiveName],
   );
 
   const deepLinkKey = useCallback((id: string) => buildViewTabKey(screenKey, id), [screenKey]);
   const cloneKey = useCallback((id: string) => buildCloneTabKey(screenKey, id), [screenKey]);
-  const remove = useCallback((id: string) => deleteRecord(id, screenKey), [deleteRecord, screenKey]);
+  const remove = useCallback((id: string) => deleteRecord(screenKey, id), [deleteRecord, screenKey]);
 
   // Registro filho volta para o pai ao salvar. Na criação o pai vem da chave da aba; na edição,
   // do valor já gravado no campo de vínculo.
   const returnTabKey = useMemo(() => {
     if (parentContext) return buildEntityViewTabKey(parentContext.entity, parentContext.id);
     if (!definition?.parentEntity || !definition.parentFieldKey || !recordId) return undefined;
-    const existing = (recordsByScreen[screenKey] ?? []).find((r) => r.id === recordId);
-    const parentId = existing?.values[definition.parentFieldKey];
+    const existing = (recordsByCollection[screenKey] ?? []).find((r) => r.id === recordId);
+    const parentId = existing?.[definition.parentFieldKey];
     return typeof parentId === 'string' && parentId
       ? buildEntityViewTabKey(definition.parentEntity, parentId)
       : undefined;
-  }, [parentContext, definition, recordId, recordsByScreen, screenKey]);
+  }, [parentContext, definition, recordId, recordsByCollection, screenKey]);
 
   // O campo de vínculo não vai ao formulário (já vem preenchido), mas segue em `sortedFields`
   // para ser gravado normalmente.
@@ -216,9 +211,8 @@ export const useViewDynamicRecordViewModel = (tabKey: string): ViewDynamicRecord
     [sortedFields, definition],
   );
 
-  const noteDocExtra = useMemo(() => ({ screenKey }), [screenKey]);
-  const notesPort = useNotesPort(customRecordNoteRepository, noteDocExtra);
-  const documentsPort = useDocumentsPort(customRecordDocumentRepository, noteDocExtra);
+  const notesPort = useRecordNotesPort(screenKey);
+  const documentsPort = useRecordDocumentsPort(screenKey);
 
   const messages = useMemo(() => ({
     created: `${definition?.titleSingular ?? 'Registro'} cadastrado com sucesso!`,
@@ -226,7 +220,7 @@ export const useViewDynamicRecordViewModel = (tabKey: string): ViewDynamicRecord
     error: 'Erro ao salvar o registro.',
   }), [definition]);
 
-  const detail = useEntityDetail<CustomRecord>({
+  const detail = useEntityDetail<EntityRecord>({
     tabKey,
     entityKey: screenKey,
     parse,
@@ -257,7 +251,7 @@ export const useViewDynamicRecordViewModel = (tabKey: string): ViewDynamicRecord
   const tagAdapter: TagStoreAdapter = useMemo(() => ({
     tags: screenTags,
     getAppliedTags: (entityId: string) => { void entityId; return screenTags.filter((t) => sourceRecord?.tagIds?.includes(t.id)); },
-    setTags: (entityId: string, tagIds: string[]) => updateRecord(entityId, screenKey, { tagIds }),
+    setTags: (entityId: string, tagIds: string[]) => updateRecord(screenKey, entityId, { tagIds }),
     createTag: (name: string, color: string) => createTag(screenKey, name, color),
     updateTag: (id: string, data: { name: string; color: string }) => updateTag(screenKey, id, data),
     deleteTag: (id: string) => deleteTag(screenKey, id),

@@ -2,6 +2,7 @@ import { RiLayoutGridLine } from 'react-icons/ri';
 import type { ICommandPaletteProvider, CommandPaletteAppContext, CommandPaletteItem } from './ICommandPaletteProvider';
 import { buildListTabKey, buildViewTabKey } from '../../../../../shared/constants/dynamicScreenKeys';
 import { getScreenIcon } from '../../../../shared/screenIcons';
+import { resolveRecordTitle } from '../../../../../domain/services/customFieldValues';
 
 const contains = (text: string | null | undefined, query: string) =>
   !!text && text.toLowerCase().includes(query.toLowerCase());
@@ -9,13 +10,13 @@ const contains = (text: string | null | undefined, query: string) =>
 export const DynamicRecordCommandProvider: ICommandPaletteProvider = {
   group: 'Telas Personalizadas',
 
-  getItems(query: string, { screenDefinitions, customRecords, openTab, close }: CommandPaletteAppContext): CommandPaletteItem[] {
+  getItems(query: string, { screenDefinitions, records, openTab, close }: CommandPaletteAppContext): CommandPaletteItem[] {
     if (!query) return [];
 
     // Telas filhas existem só dentro do registro-pai: ficam fora do ⌘K, e como `screenByKey`
     // limita os registros, os filhos também não aparecem na busca.
     const enabledScreens = screenDefinitions.filter(
-      (def) => !def.builtin && def.enabled && !def.parentEntity,
+      (def) => def.origin !== 'builtin' && def.enabled && !def.parentEntity,
     );
     const screenByKey = new Map(enabledScreens.map((def) => [def.id, def]));
 
@@ -32,19 +33,22 @@ export const DynamicRecordCommandProvider: ICommandPaletteProvider = {
         },
       }));
 
-    const recordItems: CommandPaletteItem[] = customRecords
-      .filter((record) => screenByKey.has(record.screenKey) && contains(record.title, query))
-      .slice(0, 8)
+    const recordItems: CommandPaletteItem[] = records
       .map((record) => {
-        const screen = screenByKey.get(record.screenKey);
+        const screen = screenByKey.get(record.collection);
+        return { record, screen, title: resolveRecordTitle(record, screen?.titleFieldKey ?? '') };
+      })
+      .filter(({ screen, title }) => !!screen && contains(title, query))
+      .slice(0, 8)
+      .map(({ record, screen, title }) => {
         return {
           id: `dyn-record:${record.id}`,
-          title: record.title,
+          title,
           subtitle: screen?.titleSingular,
           group: 'Telas Personalizadas',
           icon: screen ? getScreenIcon(screen.icon, 16) : <RiLayoutGridLine size={16} />,
           onSelect: () => {
-            openTab(buildViewTabKey(record.screenKey, record.id));
+            openTab(buildViewTabKey(record.collection, record.id));
             close();
           },
         };

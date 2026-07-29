@@ -29,7 +29,6 @@ const mapDefinition = (id: string, d: Record<string, unknown>, tenantId: string)
   name: d.name as string,
   description: (d.description as string | undefined) ?? undefined,
   eventName: d.eventName as string,
-  screenKey: (d.screenKey as string | undefined) ?? undefined,
   lookupCollection: (d.lookupCollection as string | undefined) ?? undefined,
   parameters: (d.parameters as WorkflowParameter[] | undefined) ?? undefined,
   ownerPluginId: (d.ownerPluginId as string | undefined) ?? undefined,

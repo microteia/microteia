@@ -1,4 +1,5 @@
 import type { AuditAction } from '../entities/AuditLog';
+import { RESERVED_COLLECTIONS } from '../schema/screenEntity';
 
 type EntityData = Record<string, unknown>;
 
@@ -100,14 +101,6 @@ const FLAT_ENTITY_CONFIG: Record<string, AuditableEntityConfig> = {
     getDisplayName: (d) => asString(d.titlePlural ?? d.titleSingular),
     getEntityLink: () => 'screen-builder',
   },
-  customRecords: {
-    entityKey: 'CustomRecord',
-    entityLabel: 'Registro Personalizado',
-    entityLabelPlural: 'Registros Personalizados',
-    getDisplayName: (d) => asString(d.title),
-    getEntityLink: (_tenantId, docId, _parentId, data) =>
-      `view-dyn:${asString(data?.screenKey, '')}:${docId}`,
-  },
 };
 
 const NESTED_ENTITY_CONFIG: Record<string, Record<string, AuditableEntityConfig>> = {
@@ -168,14 +161,14 @@ const NESTED_ENTITY_CONFIG: Record<string, Record<string, AuditableEntityConfig>
       getEntityLink: (_tenantId, _docId, parentId) => `view-financial:${parentId}`,
     },
   },
-  customRecords: {
+  __screenRecord__: {
     notes: {
-      entityKey: 'CustomRecordNote',
-      entityLabel: 'Nota de Registro Personalizado',
-      entityLabelPlural: 'Notas de Registros Personalizados',
+      entityKey: 'RecordNote',
+      entityLabel: 'Nota de Registro',
+      entityLabelPlural: 'Notas de Registro',
       getDisplayName: (d) => truncate(asString(d.title ?? d.text, 'Nota'), 60),
       getEntityLink: (_tenantId, _docId, parentId, data) =>
-        `view-dyn:${asString(data?.screenKey, '')}:${parentId}`,
+        `view-dyn:${asString(data?.collection, '')}:${parentId}`,
     },
     documents: {
       entityKey: 'CustomRecordDocument',
@@ -197,8 +190,32 @@ const NESTED_ENTITY_CONFIG: Record<string, Record<string, AuditableEntityConfig>
   },
 };
 
-export const getFlatEntityConfig = (collection: string): AuditableEntityConfig | null =>
-  FLAT_ENTITY_CONFIG[collection] ?? null;
+/**
+ * Registro de uma tela do Form Design ou de extensão: a coleção só é conhecida em runtime, então a
+ * configuração é derivada do nome dela. O nome de exibição é heurístico — o auditor não carrega o
+ * schema do tenant para descobrir o `titleFieldKey`.
+ */
+const screenRecordConfig = (collection: string): AuditableEntityConfig => ({
+  entityKey: 'Record',
+  entityLabel: 'Registro',
+  entityLabelPlural: 'Registros',
+  getDisplayName: (d) => asString(d.nome ?? d.name ?? d.titulo ?? d.title, 'Registro'),
+  getEntityLink: (_tenantId, docId) => `view-dyn:${collection}:${docId}`,
+});
 
-export const getNestedEntityConfig = (parentCollection: string, subCollection: string): AuditableEntityConfig | null =>
-  NESTED_ENTITY_CONFIG[parentCollection]?.[subCollection] ?? null;
+const isScreenCollection = (collection: string): boolean =>
+  !RESERVED_COLLECTIONS.has(collection) && !FLAT_ENTITY_CONFIG[collection];
+
+export const getFlatEntityConfig = (collection: string): AuditableEntityConfig | null => {
+  const config = FLAT_ENTITY_CONFIG[collection];
+  if (config) return config;
+  return isScreenCollection(collection) ? screenRecordConfig(collection) : null;
+};
+
+export const getNestedEntityConfig = (parentCollection: string, subCollection: string): AuditableEntityConfig | null => {
+  const config = NESTED_ENTITY_CONFIG[parentCollection]?.[subCollection];
+  if (config) return config;
+  return isScreenCollection(parentCollection)
+    ? NESTED_ENTITY_CONFIG.__screenRecord__?.[subCollection] ?? null
+    : null;
+};

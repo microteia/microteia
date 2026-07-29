@@ -190,9 +190,6 @@ export async function runWorkflowQuery(
       memoryPredicates.push(predicate);
     }
   }
-  if (resolved.screenKey) {
-    equalityFilters.unshift({ path: 'screenKey', value: resolved.screenKey });
-  }
 
   const rows = await deps.queryRepository.queryByEquality(tenantId, resolved.physicalCollection, equalityFilters, MAX_SCAN);
 

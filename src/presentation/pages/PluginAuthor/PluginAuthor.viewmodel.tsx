@@ -378,7 +378,7 @@ export const usePluginAuthorViewModel = (tabKey?: string): PluginAuthorViewModel
     [views],
   );
 
-  const ownScreens = useMemo(() => definitions.filter((d) => !d.builtin && !d.ownerPluginId), [definitions]);
+  const ownScreens = useMemo(() => definitions.filter((d) => d.origin === 'design'), [definitions]);
   const ownActions = useMemo(() => actions.filter((a) => !a.ownerPluginId), [actions]);
   const ownWorkflows = useMemo(() => workflows.filter((w) => !w.ownerPluginId), [workflows]);
   const ownScripts = useMemo(() => scripts.filter((s) => !s.ownerPluginId), [scripts]);

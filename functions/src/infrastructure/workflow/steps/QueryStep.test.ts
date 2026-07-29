@@ -16,7 +16,7 @@ const personsScreen: SchemaScreen = {
   id: 'persons',
   titleSingular: 'Pessoa',
   titleFieldKey: 'name',
-  fields: [{ key: 'apelido', label: 'Apelido', type: 'text', required: false, order: 0 }],
+  fields: [{ key: 'apelido', label: 'Apelido', type: 'text', required: false, order: 0, origin: 'design' }],
 };
 
 interface QueryCall {
@@ -111,28 +111,33 @@ describe('QueryStep', () => {
     expect((outcome.outputs?.results as { id: string }[])[0].id).toBe('c2');
   });
 
-  it('hidrata campo customizado da FK quando ausente no snapshot', async () => {
-    const fetcher = new FakeFetcher({ p1: { name: 'Ana', customValues: { apelido: 'Aninha' } } });
+  it('hidrata campo declarado pelo tenant na FK quando ausente no snapshot', async () => {
+    const fetcher = new FakeFetcher({ p1: { name: 'Ana', apelido: 'Aninha' } });
     const { result } = run(
-      baseSpec({ projections: ['client.customValues.apelido'] }),
+      baseSpec({ projections: ['client.apelido'] }),
       [{ id: 'c1', data: { clientId: 'p1', client: { name: 'Ana' } } }],
       fetcher,
     );
 
     const outcome = await result;
     expect(fetcher.calls).toContainEqual({ collection: 'persons', ids: ['p1'] });
-    const first = outcome.outputs?.first as Record<string, Record<string, Record<string, unknown>>>;
-    expect(first.client.customValues.apelido).toBe('Aninha');
+    const first = outcome.outputs?.first as Record<string, Record<string, unknown>>;
+    expect(first.client.apelido).toBe('Aninha');
   });
 
-  it('injeta o filtro screenKey ao consultar tabela dinâmica', async () => {
+  it('consulta a coleção da tela, sem filtro implícito nenhum', async () => {
     const withScreen: IScreenDefinitionProvider = {
       getScreens: async () => [
         personsScreen,
-        { id: 'processos', titleSingular: 'Processo', titleFieldKey: 'title', fields: [] },
+        {
+          id: 'processos',
+          titleSingular: 'Processo',
+          titleFieldKey: 'title',
+          fields: [{ key: 'title', label: 'Título', type: 'text', required: false, order: 0, origin: 'design' }],
+        },
       ],
     };
-    const repo = new FakeQueryRepository([{ id: 'r1', data: { screenKey: 'processos', title: 'Caso X' } }]);
+    const repo = new FakeQueryRepository([{ id: 'r1', data: { title: 'Caso X' } }]);
     const definition = makeQueryStepDefinition(repo, new FakeFetcher(), withScreen);
     const outcome = await definition.createExecutor().execute(
       { query: baseSpec({ table: 'processos', projections: ['title'] }) },
@@ -140,7 +145,7 @@ describe('QueryStep', () => {
     );
 
     expect(outcome.success).toBe(true);
-    expect(repo.calls[0].collection).toBe('customRecords');
-    expect(repo.calls[0].equalityFilters).toContainEqual({ path: 'screenKey', value: 'processos' });
+    expect(repo.calls[0].collection).toBe('processos');
+    expect(repo.calls[0].equalityFilters).toEqual([]);
   });
 });

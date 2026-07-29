@@ -8,14 +8,14 @@ const personsScreen: SchemaScreen = {
   id: 'persons',
   titleSingular: 'Pessoa',
   titleFieldKey: 'name',
-  fields: [{ key: 'apelido', label: 'Apelido', type: 'text', required: false, order: 0 }],
+  fields: [{ key: 'apelido', label: 'Apelido', type: 'text', required: false, order: 0, origin: 'design' }],
 };
 
 const dynamicScreen: SchemaScreen = {
   id: 'processos',
   titleSingular: 'Processo',
   titleFieldKey: 'titulo',
-  fields: [{ key: 'prioridade', label: 'Prioridade', type: 'text', required: false, order: 0 }],
+  fields: [{ key: 'prioridade', label: 'Prioridade', type: 'text', required: false, order: 0, origin: 'design' }],
 };
 
 const ctx = createSchemaContext([personsScreen, dynamicScreen]);
@@ -34,8 +34,11 @@ describe('resolveQueryTable', () => {
     expect(resolveQueryTable('contracts', ctx)).toMatchObject({ physicalCollection: 'contracts', root: { kind: 'entity' } });
   });
 
-  it('resolve tela dinâmica para customRecords com screenKey', () => {
-    expect(resolveQueryTable('processos', ctx)).toMatchObject({ physicalCollection: 'customRecords', screenKey: 'processos' });
+  it('resolve tela do Form Design para a coleção de mesmo nome', () => {
+    expect(resolveQueryTable('processos', ctx)).toMatchObject({
+      physicalCollection: 'processos',
+      root: { kind: 'entity', entityKey: 'processos' },
+    });
   });
 
   it('resolve lookup para a própria coleção', () => {

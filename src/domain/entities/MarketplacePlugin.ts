@@ -11,6 +11,8 @@ import type { FieldDefinition, ScreenListAction } from './entitySchemas';
  * materialização. `viewActionIds`/`cardActionIds` referenciam `templateId`s de actions do pacote.
  * Referência a coleção fixa (`persons`) fica intacta.
  */
+export type TemplateField = Omit<FieldDefinition, 'origin'>;
+
 export interface ScreenModuleTemplate {
   key: string;
   /** Id UNIVERSAL de origem da tela — deduplica a mesma tela entre extensões na instalação. */
@@ -20,7 +22,8 @@ export interface ScreenModuleTemplate {
   titleSingular: string;
   titlePlural: string;
   icon: string;
-  fields: FieldDefinition[];
+  /** Sem `origin`: a instalação carimba `plugin` em cada campo. */
+  fields: TemplateField[];
   titleFieldKey: string;
   hasNotes?: boolean;
   hasDocuments?: boolean;

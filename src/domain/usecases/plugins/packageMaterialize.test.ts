@@ -53,15 +53,14 @@ describe('scriptInputFromTemplate', () => {
 });
 
 describe('workflowInputFromTemplate', () => {
-  it('remove templateId, marca dono, nasce habilitado, reescreve scriptId e namespaceia screenKey', () => {
+  it('remove templateId, marca dono, nasce habilitado, reescreve scriptId e a tela do gatilho', () => {
     const input = workflowInputFromTemplate(
       {
         templateId: 't',
         name: 'W',
-        eventName: 'custom_record.saved',
+        eventName: 'venda.saved',
         version: 1,
         condition: { kind: 'AlwaysTrue' },
-        screenKey: 'venda',
         steps: [step('scriptId', 'scr-tpl')],
       },
       'com.acme.x',
@@ -71,7 +70,7 @@ describe('workflowInputFromTemplate', () => {
     expect('templateId' in input).toBe(false);
     expect(input.ownerPluginId).toBe('com.acme.x');
     expect(input.enabled).toBe(true);
-    expect(input.screenKey).toBe('com-acme-x__venda');
+    expect(input.eventName).toBe('com-acme-x__venda.saved');
     expect((input.steps[0].configuration.scriptId as { value: string }).value).toBe('scr-real');
   });
 });

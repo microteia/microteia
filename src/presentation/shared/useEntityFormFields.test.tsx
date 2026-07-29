@@ -4,14 +4,13 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { FieldDefinition, ScreenDefinition } from '../../domain/entities';
 
 const storeState = {
-  definition: undefined as ScreenDefinition | undefined,
-  customFields: [] as FieldDefinition[],
+  definitions: [] as ScreenDefinition[],
 };
 
 vi.mock('../../stores/useScreenDefinitions', () => ({
   useScreenDefinitions: () => ({
-    getDefinition: () => storeState.definition,
-    getCustomFieldsFor: () => storeState.customFields,
+    definitions: storeState.definitions,
+    getDefinition: (id: string) => storeState.definitions.find((d) => d.id === id),
   }),
 }));
 
@@ -21,7 +20,7 @@ const definition = (overrides: Partial<ScreenDefinition>): ScreenDefinition =>
   ({
     id: 'persons',
     tenantId: 't1',
-    builtin: true,
+    origin: 'builtin',
     titleSingular: 'Pessoa',
     titlePlural: 'Pessoas',
     icon: 'user',
@@ -41,64 +40,75 @@ const definition = (overrides: Partial<ScreenDefinition>): ScreenDefinition =>
     ...overrides,
   }) as ScreenDefinition;
 
-const customField = (key: string, order: number): FieldDefinition => ({
-  key,
-  label: key,
+const field = (overrides: Partial<FieldDefinition> & Pick<FieldDefinition, 'key'>): FieldDefinition => ({
+  label: overrides.key,
   type: 'text',
   required: false,
-  order,
+  order: 0,
+  origin: 'design',
+  ...overrides,
 });
 
 beforeEach(() => {
-  storeState.definition = undefined;
-  storeState.customFields = [];
+  storeState.definitions = [];
 });
 
 describe('useEntityFormFields', () => {
-  it('sem ajustes, devolve os campos do código', () => {
+  it('sem tela do tenant, devolve os campos declarados em código', () => {
     const { result } = renderHook(() => useEntityFormFields('persons'));
     const name = result.current.fields.find((f) => f.key === 'name');
     expect(name?.label).toBe('Nome');
+    expect(name?.origin).toBe('builtin');
+    expect(result.current.addedFields).toHaveLength(0);
   });
 
-  it('aplica o ajuste do tenant sobre o campo do sistema', () => {
-    storeState.definition = definition({
-      nativeFieldOverrides: {
-        name: { label: 'Nome completo', logic: { onChange: 'object("apelido", name)' } },
-      },
-    });
+  it('um campo materializado com origin builtin sobrescreve a declaração de código', () => {
+    storeState.definitions = [definition({
+      fields: [field({
+        key: 'name',
+        label: 'Nome completo',
+        origin: 'builtin',
+        logic: { onChange: 'object("apelido", name)' },
+      })],
+    })];
 
     const { result } = renderHook(() => useEntityFormFields('persons'));
     const name = result.current.fields.find((f) => f.key === 'name');
 
     expect(name?.label).toBe('Nome completo');
     expect(name?.logic?.onChange).toBe('object("apelido", name)');
+    // Continua sendo do kernel: não entra na lista de adicionais nem pode ser excluído.
+    expect(result.current.addedFields.some((f) => f.key === 'name')).toBe(false);
   });
 
   it('esconde do formulário o campo marcado como oculto', () => {
-    storeState.definition = definition({ nativeFieldOverrides: { cpf: { hiddenInForm: true } } });
+    storeState.definitions = [definition({
+      fields: [field({ key: 'cpf', label: 'CPF', origin: 'builtin', hiddenInForm: true })],
+    })];
 
     const { result } = renderHook(() => useEntityFormFields('persons'));
     expect(result.current.fields.some((f) => f.key === 'cpf')).toBe(false);
   });
 
-  it('junta fixos e adicionais numa lista só, com os adicionais ao final', () => {
-    storeState.customFields = [customField('apelido', 0)];
+  it('campo do tenant entra na mesma lista dos fixos, ordenado pelo `order` absoluto', () => {
+    storeState.definitions = [definition({ fields: [field({ key: 'apelido', order: 99 })] })];
 
     const { result } = renderHook(() => useEntityFormFields('persons'));
     const keys = result.current.fields.map((f) => f.key);
 
     expect(keys).toContain('apelido');
     expect(keys.indexOf('apelido')).toBe(keys.length - 1);
-    expect(result.current.customFields).toHaveLength(1);
+    expect(result.current.addedFields).toHaveLength(1);
   });
 
-  it('com a ordem unificada, o adicional pode ficar entre os fixos', () => {
-    storeState.definition = definition({
-      fieldOrderUnified: true,
-      nativeFieldOverrides: { type: { order: 0 }, name: { order: 2 } },
-    });
-    storeState.customFields = [customField('apelido', 1)];
+  it('o campo do tenant pode ficar ENTRE os fixos — é um espaço de ordenação só', () => {
+    storeState.definitions = [definition({
+      fields: [
+        field({ key: 'type', label: 'Tipo', origin: 'builtin', order: 0 }),
+        field({ key: 'apelido', order: 1 }),
+        field({ key: 'name', label: 'Nome', origin: 'builtin', order: 2 }),
+      ],
+    })];
 
     const { result } = renderHook(() => useEntityFormFields('persons'));
     const keys = result.current.fields.map((f) => f.key);
@@ -107,13 +117,13 @@ describe('useEntityFormFields', () => {
     expect(keys.indexOf('type')).toBeLessThan(keys.indexOf('apelido'));
   });
 
-  it('resolve a tela das opções por origem do campo', () => {
-    storeState.customFields = [customField('apelido', 0)];
+  it('as opções de todos os campos são indexadas pela própria coleção', () => {
+    storeState.definitions = [definition({ fields: [field({ key: 'apelido' })] })];
 
     const { result } = renderHook(() => useEntityFormFields('persons'));
     const { resolveOptionsScreenKey, fields } = result.current;
 
     expect(resolveOptionsScreenKey(fields.find((f) => f.key === 'apelido')!)).toBe('persons');
-    expect(resolveOptionsScreenKey(fields.find((f) => f.key === 'name')!)).toBe('persons-native');
+    expect(resolveOptionsScreenKey(fields.find((f) => f.key === 'name')!)).toBe('persons');
   });
 });

@@ -17,7 +17,7 @@ const manifest: PluginManifest = {
 const now = new Date('2026-07-23T00:00:00Z');
 
 const screen = (over: Partial<ScreenDefinition>): ScreenDefinition => ({
-  id: 'produto', tenantId: 't1', builtin: false,
+  id: 'produto', tenantId: 't1', origin: 'design',
   titleSingular: 'Produto', titlePlural: 'Produtos', icon: 'priceTag',
   fields: [], titleFieldKey: 'nome', hasNotes: false, hasDocuments: false, hasTags: false,
   listActions: [], viewActionIds: [], cardActionIds: [],

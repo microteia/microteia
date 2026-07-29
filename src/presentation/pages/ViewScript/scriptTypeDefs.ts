@@ -40,7 +40,7 @@ interface UpsertSpec {
   table: 'persons' | 'cases' | 'contracts' | 'deadlines' | 'financials' | (string & {});
   /** Informe para atualizar um registro existente; omita para incluir um novo. */
   id?: string;
-  /** Campos a gravar. Em cadastros fixos, os campos ficam no topo (customizados em customValues); em personalizados, dentro de values. */
+  /** Campos a gravar, sempre na raiz do objeto — igual para cadastros fixos e telas do Form Design. */
   data: Record<string, unknown>;
 }
 
@@ -139,8 +139,6 @@ const customReferenceType = (screen: SchemaScreen | undefined, depth: number): s
   if (!screen) return 'Record<string, unknown>';
   const members = [
     `${indentOf(depth + 1)}id: string;`,
-    `${indentOf(depth + 1)}title: string;`,
-    `${indentOf(depth + 1)}screenKey: string;`,
     ...screen.fields.map(
       (field) => `${indentOf(depth + 1)}/** ${field.label} */\n${indentOf(depth + 1)}${field.key}?: ${customFieldType(field)};`,
     ),

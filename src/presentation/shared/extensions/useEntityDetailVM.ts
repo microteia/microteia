@@ -1,10 +1,10 @@
 import { useCallback, useMemo } from 'react';
 import { useScreenDefinitions } from '../../../stores/useScreenDefinitions';
-import { useCustomRecords } from '../../../stores/useCustomRecords';
+import { useRecords } from '../../../stores/useRecords';
 import { useTenant } from '../../../stores/useTenant';
 import { useAuth } from '../../../stores/useAuth';
 import { useDI } from '../../../infrastructure/di/useDI';
-import { makeGetCustomRecordByIdUseCase } from '../../../domain/usecases/customrecords/GetCustomRecordByIdUseCase';
+import { makeGetRecordByIdUseCase } from '../../../domain/usecases/records/GetRecordByIdUseCase';
 import {
   buildInitialFormValues,
   collectRequiredErrors,
@@ -14,12 +14,11 @@ import {
   validateRequiredFields,
 } from '../../../domain/services/customFieldValues';
 import { describeRuleIssues } from '../../../domain/schema/fieldRules';
-import { validateRecordRules, ruleIssueFieldKey } from '../../../data/utils/recordRulesGate';
+import { validateRecordRules } from '../../../data/utils/recordRulesGate';
 import { useEntityDetail, type EntityValidationResult } from '../entityScreen/useEntityDetail';
-import { useNotesPort } from '../entityScreen/useNotesPort';
-import { useDocumentsPort } from '../entityScreen/useDocumentsPort';
+import { useRecordDocumentsPort, useRecordNotesPort } from '../entityScreen/useRecordPorts';
 import type { RecordDetailViewModel } from '../../components/layout/RecordDetailSurface';
-import type { CustomFieldValue, CustomRecord } from '../../../domain/entities';
+import type { CustomFieldValue, EntityRecord } from '../../../domain/entities';
 import type { TagStoreAdapter } from '../../components/ui/TagManager';
 
 type Values = Record<string, CustomFieldValue>;
@@ -42,17 +41,17 @@ export const useEntityDetailVM = (
   { editKeyPrefix }: EntityDetailVMOptions,
 ): RecordDetailViewModel => {
   const { dynamicScreens, isLoading: isLoadingDefinition, tagsByScreen, createTag, updateTag, deleteTag } = useScreenDefinitions();
-  const { recordsByScreen, createRecord, updateRecord, deleteRecord } = useCustomRecords();
+  const { recordsByCollection, createRecord, updateRecord, deleteRecord } = useRecords();
   const { currentTenant, tenantRole } = useTenant();
   const { user, effectiveName } = useAuth();
-  const { customRecordRepository, customRecordNoteRepository, customRecordDocumentRepository } = useDI();
+  const { recordRepository } = useDI();
 
   const definition = useMemo(
     () => dynamicScreens.find((d) => (d.sourceId ?? d.id) === sourceId) ?? null,
     [dynamicScreens, sourceId],
   );
   const screenKey = definition?.id ?? '';
-  const isAvailable = !!definition && !definition.builtin;
+  const isAvailable = !!definition && definition.origin !== 'builtin';
   const isAdmin = tenantRole === 'admin';
 
   const sortedFields = useMemo(() => (definition ? sortFieldsByOrder(definition.fields) : []), [definition]);
@@ -67,28 +66,29 @@ export const useEntityDetailVM = (
 
   const recordId = useMemo(() => parseTab(tabKey).recordId, [parseTab, tabKey]);
 
-  const getByIdUC = useMemo(() => makeGetCustomRecordByIdUseCase(customRecordRepository), [customRecordRepository]);
+  const getByIdUC = useMemo(() => makeGetRecordByIdUseCase(recordRepository), [recordRepository]);
 
   const findInStore = useCallback(
-    (id: string) => (recordsByScreen[screenKey] ?? []).find((r) => r.id === id) ?? null,
-    [recordsByScreen, screenKey],
+    (id: string) => (recordsByCollection[screenKey] ?? []).find((r) => r.id === id) ?? null,
+    [recordsByCollection, screenKey],
   );
   const getById = useCallback(
-    (id: string) => (currentTenant ? getByIdUC.execute(currentTenant.id, id) : Promise.resolve(null)),
-    [getByIdUC, currentTenant],
+    (id: string) => (currentTenant ? getByIdUC.execute(currentTenant.id, screenKey, id) : Promise.resolve(null)),
+    [getByIdUC, currentTenant, screenKey],
   );
 
   const recordToValues = useCallback(
-    (record: CustomRecord | null) => buildInitialFormValues(sortedFields, record?.values ?? null),
+    (record: EntityRecord | null) => buildInitialFormValues(sortedFields, record),
     [sortedFields],
   );
 
   const resolveTabTitle = useCallback(
-    (record: CustomRecord | null, isNew: boolean) => {
+    (record: EntityRecord | null, isNew: boolean) => {
       if (!definition) return null;
-      return isNew ? `Novo ${definition.titleSingular}` : (record?.title ?? null);
+      if (isNew) return `Novo ${definition.titleSingular}`;
+      return record ? resolveRecordTitle(record, titleFieldKey) : null;
     },
-    [definition],
+    [definition, titleFieldKey],
   );
 
   const resolveTitleFromValues = useCallback(
@@ -99,10 +99,9 @@ export const useEntityDetailVM = (
   const validate = useCallback(
     (values: Values): EntityValidationResult | null => {
       const fieldErrors = collectRequiredErrors(sortedFields, values);
-      const issues = validateRecordRules(screenKey, { values: formValuesToStoredValues(sortedFields, values) });
+      const issues = validateRecordRules(screenKey, formValuesToStoredValues(sortedFields, values));
       issues.forEach((issue) => {
-        const key = ruleIssueFieldKey(issue.path);
-        if (!fieldErrors[key]) fieldErrors[key] = issue.error;
+        if (!fieldErrors[issue.path]) fieldErrors[issue.path] = issue.error;
       });
       if (Object.keys(fieldErrors).length === 0) return null;
       const message = validateRequiredFields(sortedFields, values) ?? describeRuleIssues(issues);
@@ -114,35 +113,30 @@ export const useEntityDetailVM = (
   const create = useCallback(
     async (values: Values) => {
       const stored = formValuesToStoredValues(sortedFields, values);
-      const title = resolveRecordTitle(stored, titleFieldKey);
-      const created = await createRecord({ screenKey, title, values: stored, createdBy: user?.id ?? '' });
-      return { id: created.id, title: created.title };
+      const created = await createRecord(screenKey, { ...stored, createdBy: user?.id ?? '' });
+      return { id: created.id, title: resolveRecordTitle(created, titleFieldKey) };
     },
     [sortedFields, titleFieldKey, createRecord, screenKey, user],
   );
 
   const update = useCallback(
     async (id: string, values: Values) => {
-      const stored = formValuesToStoredValues(sortedFields, values);
-      const title = resolveRecordTitle(stored, titleFieldKey);
-      await updateRecord(id, screenKey, {
-        title,
-        values: stored,
+      await updateRecord(screenKey, id, {
+        ...formValuesToStoredValues(sortedFields, values),
         updatedBy: user?.id ?? '',
         updatedByName: effectiveName,
         updatedByPhotoURL: user?.photoURL ?? '',
       });
     },
-    [sortedFields, titleFieldKey, updateRecord, screenKey, user, effectiveName],
+    [sortedFields, updateRecord, screenKey, user, effectiveName],
   );
 
   const deepLinkKey = useCallback((id: string) => `${editKeyPrefix}${id}`, [editKeyPrefix]);
   const cloneKey = useCallback((id: string) => `${editKeyPrefix}clone:${id}`, [editKeyPrefix]);
-  const remove = useCallback((id: string) => deleteRecord(id, screenKey), [deleteRecord, screenKey]);
+  const remove = useCallback((id: string) => deleteRecord(screenKey, id), [deleteRecord, screenKey]);
 
-  const noteDocExtra = useMemo(() => ({ screenKey }), [screenKey]);
-  const notesPort = useNotesPort(customRecordNoteRepository, noteDocExtra);
-  const documentsPort = useDocumentsPort(customRecordDocumentRepository, noteDocExtra);
+  const notesPort = useRecordNotesPort(screenKey);
+  const documentsPort = useRecordDocumentsPort(screenKey);
 
   const messages = useMemo(() => ({
     created: `${definition?.titleSingular ?? 'Registro'} cadastrado com sucesso!`,
@@ -150,7 +144,7 @@ export const useEntityDetailVM = (
     error: 'Erro ao salvar o registro.',
   }), [definition]);
 
-  const detail = useEntityDetail<CustomRecord>({
+  const detail = useEntityDetail<EntityRecord>({
     tabKey,
     entityKey: screenKey,
     parse: parseTab,
@@ -180,7 +174,7 @@ export const useEntityDetailVM = (
   const tagAdapter: TagStoreAdapter = useMemo(() => ({
     tags: screenTags,
     getAppliedTags: (entityId: string) => { void entityId; return screenTags.filter((t) => sourceRecord?.tagIds?.includes(t.id)); },
-    setTags: (entityId: string, tagIds: string[]) => updateRecord(entityId, screenKey, { tagIds }),
+    setTags: (entityId: string, tagIds: string[]) => updateRecord(screenKey, entityId, { tagIds }),
     createTag: (name: string, color: string) => createTag(screenKey, name, color),
     updateTag: (id: string, data: { name: string; color: string }) => updateTag(screenKey, id, data),
     deleteTag: (id: string) => deleteTag(screenKey, id),

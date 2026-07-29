@@ -91,7 +91,7 @@ export const usePersonsViewModel = (): PersonsViewModel => {
   const { typeConfigs, occupationConfigs, nationalityConfigs, maritalStatusConfigs, cityConfigs, relationshipConfigs } = usePersonLookup();
   const { tenantRole } = useTenant();
   const { openTab } = useWorkspace();
-  const { getCustomFieldsFor, getDefinition } = useScreenDefinitions();
+  const { getScreenFieldsFor, getDefinition } = useScreenDefinitions();
   const { notify } = useNotification();
   const theme = useTheme();
 
@@ -99,7 +99,7 @@ export const usePersonsViewModel = (): PersonsViewModel => {
   const [personToDelete, setPersonToDelete] = useState<Person | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  const customFields = useMemo(() => getCustomFieldsFor('persons'), [getCustomFieldsFor]);
+  const customFields = useMemo(() => getScreenFieldsFor('persons'), [getScreenFieldsFor]);
   const customListing = useCustomFieldListing('persons', customFields, CUSTOM_FIELD_FILTER_PREFIX);
 
   const [filterTokens, setFilterTokens] = useState<FilterToken[]>([]);
@@ -185,7 +185,7 @@ export const usePersonsViewModel = (): PersonsViewModel => {
       if (cityFilter.length     > 0 && !cityFilter.includes(c.address?.city ?? '')) return false;
       if (relFilter.length      > 0 && !relFilter.includes(c.relationship ?? '')) return false;
       if (tagFilter.length      > 0 && !tagFilter.some((tid) => c.tagIds?.includes(tid))) return false;
-      return customListing.matchesFilters(c.customValues, tokenMap);
+      return customListing.matchesFilters(c, tokenMap);
     });
   }, [persons, tokenMap, customListing]);
 
@@ -198,15 +198,12 @@ export const usePersonsViewModel = (): PersonsViewModel => {
   }, [relationshipConfigs, theme]);
 
   const getCustomFieldItems = useCallback(
-    (person: Person): CustomFieldCardItem[] => customListing.cardItems(person.customValues),
+    (person: Person): CustomFieldCardItem[] => customListing.cardItems(person),
     [customListing],
   );
 
-  const resolveRow = useCallback((person: Person, key: string): string => {
-    const direct = readFieldPath(person, key);
-    const raw = direct === undefined ? person.customValues?.[key] : direct;
-    return formatFieldValue(raw);
-  }, []);
+  const resolveRow = useCallback((person: Person, key: string): string =>
+    formatFieldValue(readFieldPath(person, key)), []);
 
   const onCopyLink = useCallback((person: Person) => {
     void navigator.clipboard.writeText(generateDeepLink(`view-person:${person.id}`));

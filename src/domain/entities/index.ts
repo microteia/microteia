@@ -1,7 +1,3 @@
-// `export type { CustomFieldValue } from './entitySchemas'` (mais abaixo) apenas reexporta o nome:
-// não o traz para o escopo deste módulo. Este import é o que permite usá-lo nas interfaces daqui.
-import type { CustomFieldValue } from './entitySchemas';
-
 // ─── Core user ───────────────────────────────────────────────────────────────
 
 export interface User {
@@ -197,7 +193,6 @@ export interface Person {
   notes?: string | null;
   tagIds?: string[];
   status: PersonStatus;
-  customValues?: Record<string, CustomFieldValue>;
   createdAt: Date;
   createdBy: string;
   updatedAt: Date;
@@ -440,7 +435,6 @@ export interface Case {
   causeValue?: number | null;
   notes?: string | null;
   tagIds?: string[];
-  customValues?: Record<string, CustomFieldValue>;
   createdAt: Date;
   createdBy: string;
   updatedAt: Date;
@@ -477,7 +471,6 @@ export interface Deadline {
   completedBy?: string | null;
   notes?: string | null;
   pushIds?: string[];
-  customValues?: Record<string, CustomFieldValue>;
   createdAt: Date;
   createdBy: string;
   updatedAt: Date;
@@ -513,7 +506,6 @@ export interface Financial {
   invoiceNumber?: string | null;
   notes?: string | null;
   tagIds?: string[];
-  customValues?: Record<string, CustomFieldValue>;
   createdAt: Date;
   createdBy: string;
   updatedAt: Date;
@@ -687,7 +679,6 @@ export interface Contract {
   pixKey?: string | null;
   costCenter?: string | null;
   tagIds?: string[];
-  customValues?: Record<string, CustomFieldValue>;
   createdAt: Date;
   createdBy: string;
   updatedAt: Date;
@@ -862,7 +853,7 @@ export type {
   CustomFieldValue,
   CustomFieldOption,
   FieldDefinition,
-  NativeFieldOverride,
+  FieldOrigin,
   ScreenDefinition,
   ScreenListAction,
 } from './entitySchemas';
@@ -886,76 +877,16 @@ export interface ScreenFieldOption {
   createdBy: string;
 }
 
-// ─── Custom Record Tags ───────────────────────────────────────────────────────
+// ─── Registros de qualquer entidade ───────────────────────────────────────────
 
-export interface CustomRecordTag {
-  id: string;
-  tenantId: string;
-  screenKey: string;
-  name: string;
-  color: string;
-  createdAt: Date;
-  createdBy: string;
-  updatedBy?: string;
-  updatedByName?: string;
-  updatedByPhotoURL?: string;
-  deletedBy?: string;
-  deletedByName?: string;
-  deletedByPhotoURL?: string;
-}
-
-export interface CustomRecord {
-  id: string;
-  tenantId: string;
-  screenKey: string;
-  title: string;
-  values: Record<string, CustomFieldValue>;
-  tagIds?: string[];
-  createdAt: Date;
-  createdBy: string;
-  updatedAt: Date;
-  updatedBy?: string;
-  updatedByName?: string;
-  updatedByPhotoURL?: string;
-  deletedBy?: string;
-  deletedByName?: string;
-  deletedByPhotoURL?: string;
-}
-
-export interface CustomRecordNote {
-  id: string;
-  recordId: string;
-  screenKey: string;
-  tenantId: string;
-  title: string;
-  text: string;
-  createdBy: string;
-  createdByName: string;
-  createdByPhotoUrl?: string;
-  createdAt: Date;
-  deletedBy?: string;
-  deletedByName?: string;
-  deletedByPhotoURL?: string;
-}
-
-export interface CustomRecordDocument {
-  id: string;
-  recordId: string;
-  screenKey: string;
-  tenantId: string;
-  name: string;
-  type?: string;
-  description?: string;
-  url: string;
-  storagePath: string;
-  createdBy: string;
-  createdByName: string;
-  createdByPhotoUrl?: string;
-  createdAt: Date;
-  deletedBy?: string;
-  deletedByName?: string;
-  deletedByPhotoURL?: string;
-}
+export type {
+  EntityRecord,
+  EntityRecordValues,
+  RecordDocument,
+  RecordIdentity,
+  RecordNote,
+  ScreenTag,
+} from './EntityRecord';
 
 // ─── Push ─────────────────────────────────────────────────────────────────────
 

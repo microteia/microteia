@@ -48,9 +48,11 @@ import type { IDocumentTypeRepository } from '../../domain/repositories/IDocumen
 import type { IAuditLogRepository } from '../../domain/repositories/IAuditLogRepository';
 import type { IAuditLogService } from '../../domain/repositories/IAuditLogService';
 import type { IScreenDefinitionRepository } from '../../domain/repositories/IScreenDefinitionRepository';
-import type { ICustomRecordRepository } from '../../domain/repositories/ICustomRecordRepository';
-import type { ICustomRecordNoteRepository } from '../../domain/repositories/ICustomRecordNoteRepository';
-import type { ICustomRecordDocumentRepository } from '../../domain/repositories/ICustomRecordDocumentRepository';
+import type {
+  IRecordDocumentRepository,
+  IRecordNoteRepository,
+  IRecordRepository,
+} from '../../domain/repositories/IRecordRepository';
 import type { IWorkflowDefinitionRepository } from '../../domain/repositories/IWorkflowDefinitionRepository';
 import type { IWorkflowExecutionRepository } from '../../domain/repositories/IWorkflowExecutionRepository';
 import type { IScriptRepository } from '../../domain/repositories/IScriptRepository';
@@ -119,9 +121,9 @@ export interface DIContainer {
   auditLogRepository: IAuditLogRepository;
   auditLogService: IAuditLogService;
   screenDefinitionRepository: IScreenDefinitionRepository;
-  customRecordRepository: ICustomRecordRepository;
-  customRecordNoteRepository: ICustomRecordNoteRepository;
-  customRecordDocumentRepository: ICustomRecordDocumentRepository;
+  recordRepository: IRecordRepository;
+  recordNoteRepository: IRecordNoteRepository;
+  recordDocumentRepository: IRecordDocumentRepository;
   workflowDefinitionRepository: IWorkflowDefinitionRepository;
   workflowExecutionRepository: IWorkflowExecutionRepository;
   scriptRepository: IScriptRepository;

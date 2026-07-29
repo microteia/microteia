@@ -15,7 +15,6 @@ export interface ConditionBuilderProps {
   value: Condition;
   onChange: (condition: Condition) => void;
   eventName: string;
-  screenKey?: string;
   focusPath?: number[] | null;
   onFocusHandled?: () => void;
   parameters?: WorkflowParameter[];
@@ -237,8 +236,8 @@ const ConditionNode: React.FC<{ node: BuilderNode; vm: ConditionBuilderViewModel
   );
 };
 
-export const ConditionBuilder: React.FC<ConditionBuilderProps> = ({ value, onChange, eventName, screenKey, focusPath, onFocusHandled, parameters, stepOutputFields, workflowVariables, inputRoot }) => {
-  const vm = useConditionBuilderViewModel(value, onChange, eventName, screenKey, focusPath, onFocusHandled, parameters, stepOutputFields, workflowVariables, inputRoot);
+export const ConditionBuilder: React.FC<ConditionBuilderProps> = ({ value, onChange, eventName, focusPath, onFocusHandled, parameters, stepOutputFields, workflowVariables, inputRoot }) => {
+  const vm = useConditionBuilderViewModel(value, onChange, eventName, focusPath, onFocusHandled, parameters, stepOutputFields, workflowVariables, inputRoot);
 
   return (
     <S.Container>

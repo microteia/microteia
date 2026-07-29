@@ -1,6 +1,6 @@
 import { useSyncExternalStore } from 'react';
 import type { ICommandPaletteProvider } from '../../components/ui/CommandPalette/providers/ICommandPaletteProvider';
-import type { CustomRecord, ScreenDefinition } from '../../../domain/entities';
+import type { EntityRecord, ScreenDefinition } from '../../../domain/entities';
 
 /** Um resultado de menção `@`: vira o link `[title](/microteia/<tabKey>)` no markdown. */
 export interface MentionResult {
@@ -12,7 +12,8 @@ export interface MentionResult {
 
 /** Contexto entregue à busca de menção — os dados que a extensão precisa para achar seus registros. */
 export interface MentionSearchContext {
-  customRecords: CustomRecord[];
+  /** Registros de TODAS as telas do tenant, com os campos na raiz de cada um. */
+  records: EntityRecord[];
   screenDefinitions: ScreenDefinition[];
 }
 

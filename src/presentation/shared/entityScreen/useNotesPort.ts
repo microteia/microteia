@@ -4,7 +4,7 @@ import { useAuth } from '../../../stores/useAuth';
 import type { DeletionActor } from '../../../domain/entities';
 import type { EntityNote, NotesPort } from './types';
 
-interface NoteRepositoryLike {
+export interface NoteRepositoryLike {
   getNotes(tenantId: string, recordId: string): Promise<EntityNote[]>;
   addNote(
     tenantId: string,

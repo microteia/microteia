@@ -21,14 +21,13 @@ describe('isCoreCollection', () => {
 });
 
 describe('workflowOutRefs', () => {
-  it('extrai scriptId, targetWorkflowId e screenKey', () => {
+  it('extrai scriptId, targetWorkflowId e a tela do gatilho', () => {
     const refs = workflowOutRefs({
       templateId: 'wf',
       name: 'W',
-      eventName: 'custom_record.saved',
+      eventName: 'venda.saved',
       version: 1,
       condition: { kind: 'AlwaysTrue' },
-      screenKey: 'venda',
       steps: [
         { id: 's1', stepDefinitionId: 'script', type: 'Action', order: 0, enabled: true, configuration: { scriptId: { kind: 'Literal', value: 'scr-1' } } },
         { id: 's2', stepDefinitionId: 'call-workflow', type: 'Action', order: 1, enabled: true, configuration: { targetWorkflowId: { kind: 'Literal', value: 'wf-2' } } },

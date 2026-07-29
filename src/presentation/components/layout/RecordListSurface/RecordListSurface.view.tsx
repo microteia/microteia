@@ -7,7 +7,7 @@ import { EntityListModals } from './EntityListModals';
 import { cardActionIcon } from './cardActionIcon';
 import { getScreenIcon } from '../../../shared/screenIcons';
 import type { RecordListViewModel } from '../../../shared/entityScreen/useRecordListViewModel';
-import type { CustomRecord, ScreenDefinition } from '../../../../domain/entities';
+import type { EntityRecord, ScreenDefinition } from '../../../../domain/entities';
 
 interface RecordListSurfaceProps {
   vm: RecordListViewModel;
@@ -19,14 +19,14 @@ interface RecordListSurfaceProps {
    * `renderSubtitle` alimenta o subtítulo do card; `renderBelowHeader`, a faixa logo abaixo do
    * cabeçalho (ex.: badges próprios, colunas de polos). Ausentes, o card é o padrão de sempre.
    */
-  renderSubtitle?: (record: CustomRecord) => React.ReactNode;
-  renderBelowHeader?: (record: CustomRecord) => React.ReactNode;
+  renderSubtitle?: (record: EntityRecord) => React.ReactNode;
+  renderBelowHeader?: (record: EntityRecord) => React.ReactNode;
   /**
    * Redireciona abrir/criar registro para uma tela PRÓPRIA (ex.: um editor de código da extensão),
    * no lugar do detalhe dinâmico nativo. Ausentes, mantêm o comportamento padrão (`vm.openRecord`/
    * `vm.openNewRecord`).
    */
-  onOpenRecord?: (record: CustomRecord) => void;
+  onOpenRecord?: (record: EntityRecord) => void;
   onNewRecord?: () => void;
 }
 

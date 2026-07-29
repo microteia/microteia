@@ -81,10 +81,10 @@ export const useFinancialsViewModel = (): FinancialsViewModel => {
   const { contracts } = useContractStore();
   const { openTab } = useWorkspace();
   const { notify } = useNotification();
-  const { getCustomFieldsFor, getDefinition } = useScreenDefinitions();
+  const { getScreenFieldsFor, getDefinition } = useScreenDefinitions();
   const theme = useTheme();
 
-  const customFields = useMemo(() => getCustomFieldsFor('financials'), [getCustomFieldsFor]);
+  const customFields = useMemo(() => getScreenFieldsFor('financials'), [getScreenFieldsFor]);
   const customListing = useCustomFieldListing('financials', customFields, CUSTOM_FIELD_FILTER_PREFIX);
 
   const [filterTokens, setFilterTokens] = useState<FilterToken[]>(
@@ -144,7 +144,7 @@ export const useFinancialsViewModel = (): FinancialsViewModel => {
   const filteredFinancials = useMemo(() => {
     const tokenMap = buildTokenMap(filterTokens);
     return filterFinancialsByTokens(financials, filterTokens, { cases, persons, contracts })
-      .filter((f) => customListing.matchesFilters(f.customValues, tokenMap))
+      .filter((f) => customListing.matchesFilters(f, tokenMap))
       .sort((a, b) => b.dueDate.getTime() - a.dueDate.getTime());
   }, [financials, filterTokens, customListing, cases, persons, contracts]);
 
@@ -228,7 +228,7 @@ export const useFinancialsViewModel = (): FinancialsViewModel => {
   const cancelDelete = useCallback(() => setFinancialToDelete(null), []);
 
   const getCustomFieldItems = useCallback(
-    (f: Financial): CustomFieldCardItem[] => customListing.cardItems(f.customValues),
+    (f: Financial): CustomFieldCardItem[] => customListing.cardItems(f),
     [customListing],
   );
 

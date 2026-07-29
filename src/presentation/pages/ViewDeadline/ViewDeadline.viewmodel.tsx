@@ -24,7 +24,7 @@ import {
   validateRequiredFields,
 } from '../../../domain/services/customFieldValues';
 import { describeRuleIssues } from '../../../domain/schema/fieldRules';
-import { validateRecordRules, ruleIssueFieldKey } from '../../../data/utils/recordRulesGate';
+import { validateRecordRules } from '../../../data/utils/recordRulesGate';
 import { toDateInputValue } from '../../../utils/formatters';
 
 type Values = Record<string, CustomFieldValue>;
@@ -38,7 +38,7 @@ const parseDeadlineTab = (tabKey: string) => {
 
 const deadlineToValues = (
   deadline: Deadline | null,
-  customFields: FieldDefinition[],
+  addedFields: FieldDefinition[],
 ): Values => ({
   type: deadline ? deadline.type ?? '' : NEW_DEADLINE_DEFAULTS.type,
   priority: deadline ? deadline.priority ?? '' : NEW_DEADLINE_DEFAULTS.priority,
@@ -47,7 +47,7 @@ const deadlineToValues = (
   completedAt: deadline?.completedAt ? toDateInputValue(deadline.completedAt) : '',
   responsibleLawyerId: deadline?.responsibleLawyerId ?? '',
   description: deadline?.description ?? '',
-  ...buildInitialFormValues(customFields, deadline?.customValues ?? null),
+  ...buildInitialFormValues(addedFields, deadline ?? null),
 });
 
 const str = (values: Values, key: string): string => {
@@ -61,7 +61,7 @@ const deriveStatus = (values: Values): DeadlineStatus => {
   return 'Pendente';
 };
 
-const valuesToDeadlinePayload = (values: Values, customFields: FieldDefinition[], userId: string) => {
+const valuesToDeadlinePayload = (values: Values, addedFields: FieldDefinition[], userId: string) => {
   const dueDate = new Date(`${str(values, 'dueDate')}T23:59:00`);
   const completedAt = str(values, 'completedAt') ? new Date(`${str(values, 'completedAt')}T12:00:00`) : null;
   const status: DeadlineStatus = completedAt ? 'Concluído' : (dueDate < new Date() ? 'Vencido' : 'Pendente');
@@ -77,7 +77,7 @@ const valuesToDeadlinePayload = (values: Values, customFields: FieldDefinition[]
     completedAt,
     completedBy: completedAt ? (userId || null) : null,
     notes: null,
-    customValues: formValuesToStoredValues(customFields, values),
+    ...formValuesToStoredValues(addedFields, values),
   };
 };
 
@@ -100,7 +100,7 @@ export interface ViewDeadlineViewModel {
   deadline: Deadline | null;
   isAdmin: boolean;
   fields: FieldDefinition[];
-  customFields: FieldDefinition[];
+  addedFields: FieldDefinition[];
   resolveOptionsScreenKey: (field: FieldDefinition) => string;
   values: Values;
   setFieldValue: (fieldKey: string, value: CustomFieldValue) => void;
@@ -132,7 +132,7 @@ export const useViewDeadlineViewModel = (tabKey: string): ViewDeadlineViewModel 
 
   const isAdmin = tenantRole === 'admin';
   const userId = user?.id ?? '';
-  const { fields: formFields, customFields, resolveOptionsScreenKey } = useEntityFormFields('deadlines');
+  const { fields: formFields, addedFields, resolveOptionsScreenKey } = useEntityFormFields('deadlines');
 
   const findInStore = useCallback(
     (id: string) => deadlines.find((d) => d.id === id) ?? null,
@@ -140,41 +140,41 @@ export const useViewDeadlineViewModel = (tabKey: string): ViewDeadlineViewModel 
   );
 
   const recordToValues = useCallback(
-    (deadline: Deadline | null) => deadlineToValues(deadline, customFields),
-    [customFields],
+    (deadline: Deadline | null) => deadlineToValues(deadline, addedFields),
+    [addedFields],
   );
 
   const resolveTitleFromValues = useCallback((values: Values) => str(values, 'type') || 'Prazo', []);
 
   const validate = useCallback((values: Values): EntityValidationResult | null => {
     const fieldErrors = collectRequiredErrors(formFields, values);
-    const issues = validateRecordRules('deadlines', valuesToDeadlinePayload(values, customFields, userId));
+    const issues = validateRecordRules('deadlines', valuesToDeadlinePayload(values, addedFields, userId));
     issues.forEach((issue) => {
-      const key = ruleIssueFieldKey(issue.path);
+      const key = issue.path;
       if (!fieldErrors[key]) fieldErrors[key] = issue.error;
     });
     if (Object.keys(fieldErrors).length === 0) return null;
     const message =
       validateRequiredFields(formFields, values) ?? describeRuleIssues(issues);
     return { message, fieldErrors };
-  }, [formFields, customFields, userId]);
+  }, [formFields, addedFields, userId]);
 
   const create = useCallback(async (values: Values) => {
     const created = await createDeadline({
-      ...valuesToDeadlinePayload(values, customFields, userId),
+      ...valuesToDeadlinePayload(values, addedFields, userId),
       createdBy: userId,
     });
     return { id: created.id, title: created.type || 'Prazo' };
-  }, [createDeadline, customFields, userId]);
+  }, [createDeadline, addedFields, userId]);
 
   const update = useCallback(async (id: string, values: Values) => {
     await updateDeadline(id, {
-      ...valuesToDeadlinePayload(values, customFields, userId),
+      ...valuesToDeadlinePayload(values, addedFields, userId),
       updatedBy: userId,
       updatedByName: effectiveName,
       updatedByPhotoURL: user?.photoURL ?? '',
     });
-  }, [updateDeadline, customFields, userId, effectiveName, user]);
+  }, [updateDeadline, addedFields, userId, effectiveName, user]);
 
   const detail = useEntityDetail<Deadline>({
     tabKey,
@@ -252,7 +252,7 @@ export const useViewDeadlineViewModel = (tabKey: string): ViewDeadlineViewModel 
     deadline: detail.record,
     isAdmin,
     fields: formFields,
-    customFields,
+    addedFields,
     resolveOptionsScreenKey,
     values: detail.values,
     setFieldValue: detail.setFieldValue,

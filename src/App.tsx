@@ -31,7 +31,7 @@ import { NewsInteractionStoreProvider } from './stores/NewsInteractionStore';
 import { SavedFilterStoreProvider } from './stores/SavedFilterStore';
 import { ScreenDefinitionStoreProvider } from './stores/ScreenDefinitionStore';
 import { ActionStoreProvider } from './stores/ActionStore';
-import { CustomRecordStoreProvider } from './stores/CustomRecordStore';
+import { RecordStoreProvider } from './stores/RecordStore';
 import { WorkflowStoreProvider } from './stores/WorkflowStore';
 import { ScriptStoreProvider } from './stores/ScriptStore';
 import { PluginStoreProvider } from './stores/PluginStore';
@@ -100,7 +100,7 @@ const App: React.FC = () => {
                                       <NewsInteractionStoreProvider>
                                         <SavedFilterStoreProvider>
                                           <ScreenDefinitionStoreProvider>
-                                          <CustomRecordStoreProvider>
+                                          <RecordStoreProvider>
                                           <WorkflowStoreProvider>
                                           <ScriptStoreProvider>
                                           <PluginStoreProvider>
@@ -135,7 +135,7 @@ const App: React.FC = () => {
                                           </PluginStoreProvider>
                                           </ScriptStoreProvider>
                                           </WorkflowStoreProvider>
-                                          </CustomRecordStoreProvider>
+                                          </RecordStoreProvider>
                                           </ScreenDefinitionStoreProvider>
                                         </SavedFilterStoreProvider>
                                       </NewsInteractionStoreProvider>

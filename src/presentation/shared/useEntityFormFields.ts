@@ -1,40 +1,33 @@
 import { useMemo } from 'react';
-import { useScreenDefinitions } from '../../stores/useScreenDefinitions';
 import { deriveFormFields } from './deriveEntitySchema';
-import { buildOptionsScreenKeyResolver, mergeFormFields } from './entityFormFields';
+import { useSchemaContext } from './useSchemaContext';
 import type { EntityKey } from '../../domain/schema/entityRegistry';
 import type { FieldDefinition } from '../../domain/entities';
 
 export interface EntityFormFields {
-  /** Fixos + adicionais, já com os ajustes do Form Design e ordenados. */
+  /** Todos os campos da tela, de qualquer origem, já ordenados. */
   fields: FieldDefinition[];
-  /** Só os adicionais — as telas usam para separar `customValues` na gravação. */
-  customFields: FieldDefinition[];
+  /**
+   * Os campos que NÃO vêm do kernel. As telas fixas mapeiam os seus campos nativos uma a um (tipos
+   * próprios, conversão de data, endereço aninhado) e usam esta lista para o resto — que é gravado
+   * na mesma raiz do documento, sem envelope.
+   */
+  addedFields: FieldDefinition[];
+  /** Opções criadas pelo usuário são indexadas por tela — e a tela é a própria coleção. */
   resolveOptionsScreenKey: (field: FieldDefinition) => string;
 }
 
 /**
- * Lista de campos do formulário de uma tela FIXA. Substitui as constantes de módulo
+ * Campos do formulário de uma coleção. Substitui as constantes de módulo
  * (`PERSON_FORM_FIELDS = deriveFormFields('persons')`), que eram avaliadas uma vez no import e por
  * isso não enxergariam um ajuste salvo no Form Design sem recarregar a página.
  */
-export const useEntityFormFields = (entityKey: EntityKey): EntityFormFields => {
-  const { getDefinition, getCustomFieldsFor } = useScreenDefinitions();
+export const useEntityFormFields = (collection: EntityKey): EntityFormFields => {
+  const ctx = useSchemaContext();
 
-  const definition = getDefinition(entityKey);
-  const nativeOverrides = definition?.nativeFieldOverrides ?? null;
-  const orderUnified = definition?.fieldOrderUnified === true;
-  const customFields = useMemo(() => getCustomFieldsFor(entityKey), [getCustomFieldsFor, entityKey]);
+  const fields = useMemo(() => deriveFormFields(ctx, collection), [ctx, collection]);
+  const addedFields = useMemo(() => fields.filter((field) => field.origin !== 'builtin'), [fields]);
+  const resolveOptionsScreenKey = useMemo(() => () => collection, [collection]);
 
-  const fields = useMemo(
-    () => mergeFormFields(deriveFormFields(entityKey, { nativeOverrides }), customFields, orderUnified),
-    [entityKey, nativeOverrides, customFields, orderUnified],
-  );
-
-  const resolveOptionsScreenKey = useMemo(
-    () => buildOptionsScreenKeyResolver(entityKey, new Set(customFields.map((field) => field.key))),
-    [entityKey, customFields],
-  );
-
-  return { fields, customFields, resolveOptionsScreenKey };
+  return { fields, addedFields, resolveOptionsScreenKey };
 };

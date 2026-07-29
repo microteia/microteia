@@ -329,7 +329,7 @@ describe('Upgrade — atualização de versão', () => {
     const current = screens.store.get(KEY_A)!;
     screens.store.set(KEY_A, {
       ...current,
-      fields: [...current.fields, { key: 'meu', label: 'Meu', type: 'text', required: false, order: 5, ownerPluginId: null }],
+      fields: [...current.fields, { key: 'meu', label: 'Meu', type: 'text', required: false, order: 5, origin: 'design', ownerPluginId: null }],
     });
 
     await makeUpgradeMarketplacePluginUseCase(deps()).execute(version('1.1.0', [screenT('a')]), actor);
@@ -429,7 +429,7 @@ describe('Dedup + refcount — extensões que compartilham artefatos', () => {
     await makeInstallMarketplacePluginUseCase(deps()).execute(shared('com.a'), actor);
     const key = 'com-a__medico';
     const cur = screens.store.get(key)!;
-    screens.store.set(key, { ...cur, fields: [...cur.fields, { key: 'meu', label: 'Meu', type: 'text', required: false, order: 9, ownerPluginId: null }] });
+    screens.store.set(key, { ...cur, fields: [...cur.fields, { key: 'meu', label: 'Meu', type: 'text', required: false, order: 9, origin: 'design', ownerPluginId: null }] });
 
     await makeInstallMarketplacePluginUseCase(deps()).execute(shared('com.b'), actor);
 

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { CustomFieldType, FieldDefinition } from '../../domain/entities';
 import type { EntityKey } from '../../domain/schema/entityRegistry';
+import { createSchemaContext } from '../../domain/schema/pathResolver';
 import { deriveFormFields, deriveListRows } from './deriveEntitySchema';
 import { SCREEN_ICON_KEYS } from './screenIcons';
 
@@ -8,11 +9,13 @@ const CONTROL_TYPES: CustomFieldType[] = [
   'text', 'textarea', 'number', 'currency', 'date', 'checkbox', 'select', 'masked', 'reference', 'markdown',
 ];
 
+const emptyCtx = createSchemaContext();
+
 const byKey = (fields: FieldDefinition[]): Map<string, FieldDefinition> =>
   new Map(fields.map((field) => [field.key, field]));
 
 describe('deriveFormFields — campos fixos derivam do ENTITY_REGISTRY como FieldDefinition', () => {
-  const fields = deriveFormFields('persons');
+  const fields = deriveFormFields(emptyCtx, 'persons');
   const map = byKey(fields);
 
   it('todo campo derivado é um FieldDefinition válido (mesmo modelo dos campos dinâmicos)', () => {
@@ -53,7 +56,7 @@ describe('deriveFormFields — campos fixos derivam do ENTITY_REGISTRY como Fiel
 });
 
 describe('deriveFormFields — relações (fks) viram campos reference', () => {
-  const map = byKey(deriveFormFields('deadlines'));
+  const map = byKey(deriveFormFields(emptyCtx, 'deadlines'));
 
   it('deriva o FK como reference apontando para a coleção alvo', () => {
     expect(map.get('caseId')).toMatchObject({ type: 'reference', refEntity: 'cases', required: true });
@@ -61,7 +64,7 @@ describe('deriveFormFields — relações (fks) viram campos reference', () => {
   });
 
   it('mantém campos e relações ordenados por ui.order', () => {
-    const fields = deriveFormFields('deadlines');
+    const fields = deriveFormFields(emptyCtx, 'deadlines');
     const orders = fields.map((f) => f.order);
     expect(orders).toEqual([...orders].sort((a, b) => a - b));
     expect(fields.map((f) => f.key)).toEqual(
@@ -76,7 +79,7 @@ describe('deriveFormFields — relações (fks) viram campos reference', () => {
 });
 
 describe('deriveFormFields — financials', () => {
-  const map = byKey(deriveFormFields('financials'));
+  const map = byKey(deriveFormFields(emptyCtx, 'financials'));
 
   it('valor usa controle de moeda e obrigatórios vêm do registry', () => {
     expect(map.get('amount')).toMatchObject({ type: 'currency', required: true });
@@ -97,7 +100,7 @@ describe('deriveFormFields — financials', () => {
 });
 
 describe('deriveFormFields — cases', () => {
-  const map = byKey(deriveFormFields('cases'));
+  const map = byKey(deriveFormFields(emptyCtx, 'cases'));
 
   it('polos ativo/passivo são relações múltiplas para pessoas', () => {
     expect(map.get('activePoleIds')).toMatchObject({ type: 'reference', refEntity: 'persons', multi: true });
@@ -123,7 +126,7 @@ describe('todo ícone declarado em ui.list existe no catálogo', () => {
 
 describe('nenhuma entidade expõe o FK de etiquetas no formulário', () => {
   it.each(['persons', 'cases', 'contracts', 'financials'] as const)('%s', (entity) => {
-    expect(deriveFormFields(entity).some((f) => f.key === 'tagIds')).toBe(false);
+    expect(deriveFormFields(emptyCtx, entity).some((f) => f.key === 'tagIds')).toBe(false);
   });
 });
 

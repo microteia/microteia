@@ -50,9 +50,9 @@ import { FirebaseDocumentTypeRepository } from '../../data/repositories/Firebase
 import { FirebaseAuditLogRepository } from '../../data/repositories/FirebaseAuditLogRepository';
 import { FirebaseAuditLogService } from '../../data/services/FirebaseAuditLogService';
 import { FirebaseScreenDefinitionRepository } from '../../data/repositories/FirebaseScreenDefinitionRepository';
-import { FirebaseCustomRecordRepository } from '../../data/repositories/FirebaseCustomRecordRepository';
-import { FirebaseCustomRecordNoteRepository } from '../../data/repositories/FirebaseCustomRecordNoteRepository';
-import { FirebaseCustomRecordDocumentRepository } from '../../data/repositories/FirebaseCustomRecordDocumentRepository';
+import { FirebaseRecordRepository } from '../../data/repositories/FirebaseRecordRepository';
+import { FirebaseRecordNoteRepository } from '../../data/repositories/FirebaseRecordNoteRepository';
+import { FirebaseRecordDocumentRepository } from '../../data/repositories/FirebaseRecordDocumentRepository';
 import { FirebaseWorkflowDefinitionRepository } from '../../data/repositories/FirebaseWorkflowDefinitionRepository';
 import { FirebaseWorkflowExecutionRepository } from '../../data/repositories/FirebaseWorkflowExecutionRepository';
 import { FirebaseScriptRepository } from '../../data/repositories/FirebaseScriptRepository';
@@ -123,9 +123,9 @@ export const DIProvider: React.FC<{ children: React.ReactNode }> = ({ children }
     auditLogRepository:       new FirebaseAuditLogRepository(),
     auditLogService:          new FirebaseAuditLogService(),
     screenDefinitionRepository: new FirebaseScreenDefinitionRepository(),
-    customRecordRepository:   new FirebaseCustomRecordRepository(),
-    customRecordNoteRepository: new FirebaseCustomRecordNoteRepository(),
-    customRecordDocumentRepository: new FirebaseCustomRecordDocumentRepository(),
+    recordRepository:         new FirebaseRecordRepository(),
+    recordNoteRepository:     new FirebaseRecordNoteRepository(),
+    recordDocumentRepository: new FirebaseRecordDocumentRepository(),
     workflowDefinitionRepository: new FirebaseWorkflowDefinitionRepository(),
     workflowExecutionRepository: new FirebaseWorkflowExecutionRepository(),
     scriptRepository:         new FirebaseScriptRepository(),

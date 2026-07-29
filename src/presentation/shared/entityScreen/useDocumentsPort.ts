@@ -4,7 +4,7 @@ import { useAuth } from '../../../stores/useAuth';
 import type { DeletionActor } from '../../../domain/entities';
 import type { EntityDocument, DocumentsPort } from './types';
 
-interface DocumentRepositoryLike {
+export interface DocumentRepositoryLike {
   getDocuments(tenantId: string, recordId: string): Promise<EntityDocument[]>;
   uploadDocument(tenantId: string, recordId: string, file: File): Promise<string>;
   addDocument(

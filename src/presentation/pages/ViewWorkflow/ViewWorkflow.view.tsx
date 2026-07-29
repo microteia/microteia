@@ -20,7 +20,7 @@ import {
   RiPlayLine,
 } from 'react-icons/ri';
 import { S } from './ViewWorkflow.styles';
-import { useViewWorkflowViewModel, EVENT_NAME_OPTIONS, LOOKUP_COLLECTION_OPTIONS } from './ViewWorkflow.viewmodel';
+import { useViewWorkflowViewModel, LOOKUP_COLLECTION_OPTIONS } from './ViewWorkflow.viewmodel';
 import type { ViewWorkflowViewModel } from './ViewWorkflow.viewmodel';
 import type { WorkflowStep } from '../../../domain/entities/Workflow';
 import type { InsertTarget, BranchKey } from '../../shared/workflowHelpers';
@@ -310,7 +310,6 @@ export const ViewWorkflowView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
                 vm.isSaving ||
                 !vm.formData.name ||
                 !vm.formData.eventName ||
-                (vm.isCustomRecordEvent && !vm.formData.screenKey) ||
                 (vm.isLookupEvent && !vm.formData.lookupCollection) ||
                 (vm.isCalledEvent && vm.hasParameterErrors)
               }
@@ -376,30 +375,12 @@ export const ViewWorkflowView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
                   />
                 )}
                 <SearchSelect
-                  options={EVENT_NAME_OPTIONS}
+                  options={vm.eventNameOptions}
                   value={vm.formData.eventName}
                   onChange={(eventName) => vm.setFormData({ eventName })}
                   placeholder="Selecione um evento..."
                 />
               </InputGroup>
-
-              {vm.isCustomRecordEvent && (
-                <InputGroup>
-                  <Label>Entidade customizada</Label>
-                  {!vm.isScreenKeyRecognized && (
-                    <InfoBanner
-                      variant="warning"
-                      message="A entidade customizada salva neste gatilho não existe mais. Selecione a entidade novamente e salve."
-                    />
-                  )}
-                  <SearchSelect
-                    options={vm.screenOptions}
-                    value={vm.formData.screenKey}
-                    onChange={(screenKey) => vm.setFormData({ screenKey })}
-                    placeholder="Selecione a entidade customizada..."
-                  />
-                </InputGroup>
-              )}
 
               {vm.isLookupEvent && (
                 <InputGroup>
@@ -466,7 +447,6 @@ export const ViewWorkflowView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
                 value={vm.pendingCondition}
                 onChange={vm.handleConditionLocalChange}
                 eventName={vm.workflow.eventName}
-                screenKey={vm.workflow.screenKey}
                 parameters={vm.workflow.parameters}
                 focusPath={vm.conditionFocusPath}
                 onFocusHandled={vm.clearConditionFocusPath}
@@ -476,7 +456,6 @@ export const ViewWorkflowView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
               <ConditionDiagram
                 condition={vm.pendingCondition}
                 eventName={vm.workflow.eventName}
-                screenKey={vm.workflow.screenKey}
                 parameters={vm.workflow.parameters}
                 onChange={vm.handleConditionLocalChange}
                 onRequestEdit={vm.handleRequestConditionEdit}

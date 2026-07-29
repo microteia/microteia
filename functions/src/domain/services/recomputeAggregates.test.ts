@@ -9,6 +9,7 @@ const field = (overrides: Partial<FieldDefinition> & Pick<FieldDefinition, 'key'
   type: 'text',
   required: false,
   order: 0,
+  origin: 'design',
   ...overrides,
 });
 
@@ -82,58 +83,55 @@ const harness = (
 
 const item = (id: string, venda: string, total: number): WorkflowQueryRow => ({
   id,
-  data: { screenKey: 'itens', values: { venda, total } },
+  data: { venda, total },
 });
 
 describe('recomputeAggregatesForChildChange', () => {
   it('soma os filhos e grava o total no pai', async () => {
-    const h = harness({ v1: { screenKey: 'vendas', values: { numero: '001' } } }, [
+    const h = harness({ v1: { numero: '001' } }, [
       item('i1', 'v1', 10),
       item('i2', 'v1', 25),
     ]);
 
     await recomputeAggregatesForChildChange(
       't1',
-      'customRecords',
+      'itens',
       null,
-      { screenKey: 'itens', values: { venda: 'v1', total: 25 } },
+      { venda: 'v1', total: 25 },
       h.deps,
     );
 
     expect(h.updates).toHaveLength(1);
     expect(h.updates[0].id).toBe('v1');
-    expect((h.updates[0].data.values as Record<string, unknown>).totalItens).toBe(35);
+    expect(h.updates[0].data.totalItens).toBe(35);
   });
 
-  it('filtra os filhos pela tela e pelo vínculo com o pai', async () => {
-    const h = harness({ v1: { screenKey: 'vendas', values: {} } }, [item('i1', 'v1', 10)]);
+  it('consulta a coleção do filho, filtrando só pelo vínculo com o pai', async () => {
+    const h = harness({ v1: {} }, [item('i1', 'v1', 10)]);
 
     await recomputeAggregatesForChildChange(
       't1',
-      'customRecords',
+      'itens',
       null,
-      { screenKey: 'itens', values: { venda: 'v1', total: 10 } },
+      { venda: 'v1', total: 10 },
       h.deps,
     );
 
-    expect(h.queries[0].collection).toBe('customRecords');
-    expect(h.queries[0].filters).toEqual([
-      { path: 'screenKey', value: 'itens' },
-      { path: 'values.venda', value: 'v1' },
-    ]);
+    expect(h.queries[0].collection).toBe('itens');
+    expect(h.queries[0].filters).toEqual([{ path: 'venda', value: 'v1' }]);
   });
 
   it('não grava quando o total já está correto — é a guarda que encerra a cascata', async () => {
-    const h = harness({ v1: { screenKey: 'vendas', values: { totalItens: 35, resumo: 'Total: 35' } } }, [
+    const h = harness({ v1: { totalItens: 35, resumo: 'Total: 35' } }, [
       item('i1', 'v1', 10),
       item('i2', 'v1', 25),
     ]);
 
     await recomputeAggregatesForChildChange(
       't1',
-      'customRecords',
-      { screenKey: 'itens', values: { venda: 'v1', total: 24 } },
-      { screenKey: 'itens', values: { venda: 'v1', total: 25 } },
+      'itens',
+      { venda: 'v1', total: 24 },
+      { venda: 'v1', total: 25 },
       h.deps,
     );
 
@@ -142,15 +140,15 @@ describe('recomputeAggregatesForChildChange', () => {
 
   it('recalcula o pai antigo E o novo quando o filho troca de pai', async () => {
     const h = harness(
-      { v1: { screenKey: 'vendas', values: {} }, v2: { screenKey: 'vendas', values: {} } },
+      { v1: {}, v2: {} },
       [item('i1', 'v2', 10)],
     );
 
     await recomputeAggregatesForChildChange(
       't1',
-      'customRecords',
-      { screenKey: 'itens', values: { venda: 'v1', total: 10 } },
-      { screenKey: 'itens', values: { venda: 'v2', total: 10 } },
+      'itens',
+      { venda: 'v1', total: 10 },
+      { venda: 'v2', total: 10 },
       h.deps,
     );
 
@@ -158,41 +156,41 @@ describe('recomputeAggregatesForChildChange', () => {
   });
 
   it('exclusão do filho baixa o total do pai', async () => {
-    const h = harness({ v1: { screenKey: 'vendas', values: { totalItens: 35 } } }, [item('i1', 'v1', 10)]);
+    const h = harness({ v1: { totalItens: 35 } }, [item('i1', 'v1', 10)]);
 
     await recomputeAggregatesForChildChange(
       't1',
-      'customRecords',
-      { screenKey: 'itens', values: { venda: 'v1', total: 25 } },
+      'itens',
+      { venda: 'v1', total: 25 },
       null,
       h.deps,
     );
 
-    expect((h.updates[0].data.values as Record<string, unknown>).totalItens).toBe(10);
+    expect(h.updates[0].data.totalItens).toBe(10);
   });
 
   it('recalcula o campo `compute` do pai que depende do agregado', async () => {
-    const h = harness({ v1: { screenKey: 'vendas', values: {} } }, [item('i1', 'v1', 42)]);
+    const h = harness({ v1: {} }, [item('i1', 'v1', 42)]);
 
     await recomputeAggregatesForChildChange(
       't1',
-      'customRecords',
+      'itens',
       null,
-      { screenKey: 'itens', values: { venda: 'v1', total: 42 } },
+      { venda: 'v1', total: 42 },
       h.deps,
     );
 
-    expect((h.updates[0].data.values as Record<string, unknown>).resumo).toBe('Total: 42');
+    expect(h.updates[0].data.resumo).toBe('Total: 42');
   });
 
   it('ignora a mudança que não afeta o agregado, sem consultar os filhos', async () => {
-    const h = harness({ v1: { screenKey: 'vendas', values: {} } }, [item('i1', 'v1', 10)]);
+    const h = harness({ v1: {} }, [item('i1', 'v1', 10)]);
 
     await recomputeAggregatesForChildChange(
       't1',
-      'customRecords',
-      { screenKey: 'itens', values: { venda: 'v1', total: 10, descricao: 'antes' } },
-      { screenKey: 'itens', values: { venda: 'v1', total: 10, descricao: 'depois' } },
+      'itens',
+      { venda: 'v1', total: 10, descricao: 'antes' },
+      { venda: 'v1', total: 10, descricao: 'depois' },
       h.deps,
     );
 
@@ -211,9 +209,9 @@ describe('recomputeAggregatesForChildChange', () => {
     const h = harness({}, [item('i1', 'v9', 10)]);
     await recomputeAggregatesForChildChange(
       't1',
-      'customRecords',
+      'itens',
       null,
-      { screenKey: 'itens', values: { venda: 'v9', total: 10 } },
+      { venda: 'v9', total: 10 },
       h.deps,
     );
     expect(h.updates).toHaveLength(0);

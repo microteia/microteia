@@ -21,7 +21,7 @@ import { useEntityFormFields } from '../../shared/useEntityFormFields';
 import { buildInitialFormValues, collectRequiredErrors, formValuesToStoredValues, validateRequiredFields } from '../../../domain/services/customFieldValues';
 import { onlyNumbers } from '../../../utils/formatters';
 import { describeRuleIssues } from '../../../domain/schema/fieldRules';
-import { validateRecordRules, ruleIssueFieldKey } from '../../../data/utils/recordRulesGate';
+import { validateRecordRules } from '../../../data/utils/recordRulesGate';
 import { format, parseISO } from 'date-fns';
 
 export type ViewPersonTab = 'data' | 'notes' | 'documents';
@@ -48,7 +48,7 @@ const parsePersonTab = (tabKey: string) => {
 
 const NEW_PERSON_DEFAULT_TYPE = 'Pessoa Física';
 
-const personToValues = (person: Person | null, customFields: FieldDefinition[], clone: boolean): Values => {
+const personToValues = (person: Person | null, addedFields: FieldDefinition[], clone: boolean): Values => {
   const base = {
     type: person ? person.type ?? '' : NEW_PERSON_DEFAULT_TYPE,
     name: person?.name ?? '',
@@ -73,7 +73,7 @@ const personToValues = (person: Person | null, customFields: FieldDefinition[], 
       state: person?.address?.state ?? '',
       zipCode: person?.address?.zipCode ?? '',
     },
-    ...buildInitialFormValues(customFields, person?.customValues ?? null),
+    ...buildInitialFormValues(addedFields, person ?? null),
   };
   return base as unknown as Values;
 };
@@ -83,7 +83,7 @@ const str = (values: Values, key: string): string => {
   return typeof v === 'string' ? v : '';
 };
 
-const valuesToPersonPayload = (values: Values, customFields: FieldDefinition[]) => {
+const valuesToPersonPayload = (values: Values, addedFields: FieldDefinition[]) => {
   const addr = ((values as Record<string, unknown>).address ?? {}) as Record<string, string>;
   const address: PersonAddress = {};
   if (addr.street) address.street = addr.street;
@@ -119,7 +119,7 @@ const valuesToPersonPayload = (values: Values, customFields: FieldDefinition[]) 
     gender: (str(values, 'gender') as Gender) || null,
     notes: str(values, 'notes') || null,
     address: hasAddress ? address : null,
-    customValues: formValuesToStoredValues(customFields, values),
+    ...formValuesToStoredValues(addedFields, values),
   };
 };
 
@@ -129,7 +129,7 @@ export interface ViewPersonViewModel {
   person: Person | null;
   isAdmin: boolean;
   fields: FieldDefinition[];
-  customFields: FieldDefinition[];
+  addedFields: FieldDefinition[];
   resolveOptionsScreenKey: (field: FieldDefinition) => string;
   values: Values;
   setFieldValue: (fieldKey: string, value: CustomFieldValue) => void;
@@ -172,13 +172,13 @@ export const useViewPersonViewModel = (tabKey: string): ViewPersonViewModel => {
   const { personNoteRepository, personDocumentRepository } = useDI();
 
   const isAdmin = tenantRole === 'admin';
-  const { fields: formFields, customFields, resolveOptionsScreenKey } = useEntityFormFields('persons');
+  const { fields: formFields, addedFields, resolveOptionsScreenKey } = useEntityFormFields('persons');
 
   const findInStore = useCallback((id: string) => persons.find((p) => p.id === id) ?? null, [persons]);
 
   const recordToValues = useCallback(
-    (person: Person | null, opts: { clone: boolean }) => personToValues(person, customFields, opts.clone),
-    [customFields],
+    (person: Person | null, opts: { clone: boolean }) => personToValues(person, addedFields, opts.clone),
+    [addedFields],
   );
 
   const resolveTitleFromValues = useCallback((values: Values) => str(values, 'name').trim(), []);
@@ -186,35 +186,35 @@ export const useViewPersonViewModel = (tabKey: string): ViewPersonViewModel => {
   const validate = useCallback((values: Values): EntityValidationResult | null => {
     const fieldErrors: Record<string, string> = {};
     if (!str(values, 'name').trim()) fieldErrors.name = 'Nome é obrigatório.';
-    Object.assign(fieldErrors, collectRequiredErrors(customFields, values));
-    const issues = validateRecordRules('persons', valuesToPersonPayload(values, customFields));
+    Object.assign(fieldErrors, collectRequiredErrors(addedFields, values));
+    const issues = validateRecordRules('persons', valuesToPersonPayload(values, addedFields));
     issues.forEach((issue) => {
-      const key = ruleIssueFieldKey(issue.path);
+      const key = issue.path;
       if (!fieldErrors[key]) fieldErrors[key] = issue.error;
     });
     if (Object.keys(fieldErrors).length === 0) return null;
-    const message = fieldErrors.name ?? validateRequiredFields(customFields, values) ?? describeRuleIssues(issues);
+    const message = fieldErrors.name ?? validateRequiredFields(addedFields, values) ?? describeRuleIssues(issues);
     return { message, fieldErrors };
-  }, [customFields]);
+  }, [addedFields]);
 
   const create = useCallback(async (values: Values) => {
     const created = await createPerson({
-      ...valuesToPersonPayload(values, customFields),
+      ...valuesToPersonPayload(values, addedFields),
       status: 'Ativo',
       createdBy: user?.id ?? '',
       tagIds: [],
     });
     return { id: created.id, title: created.name };
-  }, [createPerson, customFields, user]);
+  }, [createPerson, addedFields, user]);
 
   const update = useCallback(async (id: string, values: Values) => {
     await updatePerson(id, {
-      ...valuesToPersonPayload(values, customFields),
+      ...valuesToPersonPayload(values, addedFields),
       updatedBy: user?.id ?? '',
       updatedByName: effectiveName,
       updatedByPhotoURL: user?.photoURL ?? '',
     });
-  }, [updatePerson, customFields, user, effectiveName]);
+  }, [updatePerson, addedFields, user, effectiveName]);
 
   const notesPort = useNotesPort(personNoteRepository);
   const documentsPort = useDocumentsPort(personDocumentRepository);
@@ -300,7 +300,7 @@ export const useViewPersonViewModel = (tabKey: string): ViewPersonViewModel => {
     person,
     isAdmin,
     fields: formFields,
-    customFields,
+    addedFields,
     resolveOptionsScreenKey,
     values: detail.values,
     setFieldValue: detail.setFieldValue,

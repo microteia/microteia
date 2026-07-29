@@ -4,6 +4,7 @@ import { buildHydrationPlan } from './hydrationPlan';
 import type { FieldDefinition } from '../entities/entitySchemas';
 
 const field = (partial: Partial<FieldDefinition> & Pick<FieldDefinition, 'key' | 'label' | 'type'>): FieldDefinition => ({
+  origin: 'design',
   required: false,
   order: 0,
   ...partial,
@@ -33,14 +34,14 @@ describe('buildHydrationPlan', () => {
       'contract.title',
       'contract.client.name',
       'activePole.0.name',
-      'customValues.tarefa.nome',
+      'tarefa.nome',
     ]);
 
     expect(plan.issues).toHaveLength(0);
     expect(plan.levels).toHaveLength(2);
 
     const level1Targets = plan.levels[0].map((hop) => hop.materializeAt).sort();
-    expect(level1Targets).toStrictEqual(['activePole', 'contract', 'customValues.tarefa']);
+    expect(level1Targets).toStrictEqual(['activePole', 'contract', 'tarefa']);
 
     const level2Targets = plan.levels[1].map((hop) => hop.materializeAt);
     expect(level2Targets).toStrictEqual(['contract.client']);

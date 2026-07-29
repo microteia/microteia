@@ -3,13 +3,18 @@ import { useTheme } from 'styled-components';
 import { useScreenDefinitions, fieldOptionsKey } from '../../stores/useScreenDefinitions';
 import { useReferenceOptions } from './useReferenceOptions';
 import { formatCurrencyBRL } from '../../utils/formatters';
+import { toDateFieldInput } from '../../domain/services/customFieldValues';
 import { resolveFieldOptionColor } from '../../shared/styles/colorUtils';
 import type { CustomFieldValue, FieldDefinition } from '../../domain/entities';
 import type { FilterDef, FilterOption } from '../components/ui/CompositeFilter';
 
 export const CUSTOM_FIELD_FILTER_PREFIX = 'cf-';
 
-export type CustomValuesMap = Record<string, CustomFieldValue>;
+/**
+ * O REGISTRO inteiro: com os campos na raiz do documento, filtrar e exibir é ler pela chave. É
+ * `object` (e não `Record<string, unknown>`) para aceitar as entidades tipadas sem cast.
+ */
+export type RecordValues = object;
 
 export interface CustomFieldBadgeItem {
   label: string;
@@ -27,14 +32,15 @@ export interface CustomFieldCardItem {
 export interface CustomFieldListing {
   listFields: FieldDefinition[];
   filterDefs: FilterDef[];
-  matchesFilters: (values: CustomValuesMap | undefined, tokenMap: Record<string, string[]>) => boolean;
-  displayValue: (values: CustomValuesMap | undefined, field: FieldDefinition) => string;
-  cardItems: (values: CustomValuesMap | undefined) => CustomFieldCardItem[];
+  matchesFilters: (values: RecordValues | undefined, tokenMap: Record<string, string[]>) => boolean;
+  displayValue: (values: RecordValues | undefined, field: FieldDefinition) => string;
+  cardItems: (values: RecordValues | undefined) => CustomFieldCardItem[];
 }
 
-const formatDateBR = (value: string): string => {
-  const [year, month, day] = value.split('-');
-  if (!year || !month || !day) return value;
+const formatDateBR = (value: unknown): string => {
+  const iso = toDateFieldInput(value);
+  const [year, month, day] = iso.split('-');
+  if (!year || !month || !day) return iso;
   return `${day}/${month}/${year}`;
 };
 
@@ -105,11 +111,11 @@ export const useCustomFieldListing = (
     return defs;
   }, [filterableFields, filterKeyPrefix, selectOptionLabels, referenceOptionsByEntity]);
 
-  const matchesFilters = useCallback((values: CustomValuesMap | undefined, tokenMap: Record<string, string[]>): boolean => {
+  const matchesFilters = useCallback((values: RecordValues | undefined, tokenMap: Record<string, string[]>): boolean => {
     for (const field of filterableFields) {
       const tokenValues = tokenMap[`${filterKeyPrefix}${field.key}`] ?? [];
       if (tokenValues.length === 0) continue;
-      const value = values?.[field.key];
+      const value = (values as Record<string, CustomFieldValue> | undefined)?.[field.key];
       switch (field.type) {
         case 'select':
         case 'reference':
@@ -123,7 +129,7 @@ export const useCustomFieldListing = (
           if (String(value === true) !== tokenValues[0]) return false;
           break;
         case 'date':
-          if (value !== tokenValues[0]) return false;
+          if (toDateFieldInput(value) !== tokenValues[0]) return false;
           break;
         default: {
           const query = tokenValues[0]?.toLowerCase() ?? '';
@@ -135,12 +141,12 @@ export const useCustomFieldListing = (
     return true;
   }, [filterableFields, filterKeyPrefix]);
 
-  const displayValue = useCallback((values: CustomValuesMap | undefined, field: FieldDefinition): string => {
-    const value = values?.[field.key];
+  const displayValue = useCallback((values: RecordValues | undefined, field: FieldDefinition): string => {
+    const value = (values as Record<string, CustomFieldValue> | undefined)?.[field.key];
     if (value == null || value === '') return '—';
     switch (field.type) {
       case 'date':
-        return typeof value === 'string' ? formatDateBR(value) : '—';
+        return formatDateBR(value) || '—';
       case 'currency':
         return typeof value === 'number' ? formatCurrencyBRL(value) : '—';
       case 'checkbox':
@@ -164,8 +170,8 @@ export const useCustomFieldListing = (
     }
   }, [selectOptionLabels, referenceOptionsByEntity]);
 
-  const selectBadges = useCallback((values: CustomValuesMap | undefined, field: FieldDefinition): CustomFieldBadgeItem[] => {
-    const value = values?.[field.key];
+  const selectBadges = useCallback((values: RecordValues | undefined, field: FieldDefinition): CustomFieldBadgeItem[] => {
+    const value = (values as Record<string, CustomFieldValue> | undefined)?.[field.key];
     const selectedKeys = Array.isArray(value) ? value : (typeof value === 'string' && value ? [value] : []);
     const options = new Map(selectOptionLabels(field).map((o) => [o.value, o]));
     return selectedKeys.map((key) => {
@@ -174,7 +180,7 @@ export const useCustomFieldListing = (
     });
   }, [selectOptionLabels]);
 
-  const cardItems = useCallback((values: CustomValuesMap | undefined): CustomFieldCardItem[] =>
+  const cardItems = useCallback((values: RecordValues | undefined): CustomFieldCardItem[] =>
     listFields.map((field) => ({
       key: field.key,
       label: field.listLabel || undefined,

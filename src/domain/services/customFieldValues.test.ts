@@ -1,9 +1,35 @@
 import { describe, expect, it } from 'vitest';
-import { setValueByPath } from './customFieldValues';
-import type { CustomFieldValue } from '../entities/entitySchemas';
+import { buildInitialFormValues, setValueByPath } from './customFieldValues';
+import type { CustomFieldValue, FieldDefinition } from '../entities/entitySchemas';
 
 type Values = Record<string, CustomFieldValue>;
 const asValues = (obj: unknown): Values => obj as Values;
+
+const dateField: FieldDefinition = {
+  key: 'filedAt',
+  label: 'Data de distribuição',
+  type: 'date',
+  required: false,
+  order: 0,
+  origin: 'design',
+};
+
+describe('buildInitialFormValues — campo de data', () => {
+  it('traz a Date gravada de volta para o controle do formulário', () => {
+    const form = buildInitialFormValues([dateField], { filedAt: new Date(2026, 6, 15) });
+    expect(form.filedAt).toBe('2026-07-15');
+  });
+
+  it('aceita o Timestamp cru do Firestore', () => {
+    const stored = { filedAt: { toDate: () => new Date(2026, 6, 15) } };
+    expect(buildInitialFormValues([dateField], stored).filedAt).toBe('2026-07-15');
+  });
+
+  it('registro sem a data abre com o campo vazio', () => {
+    expect(buildInitialFormValues([dateField], {}).filedAt).toBe('');
+    expect(buildInitialFormValues([dateField], { filedAt: null }).filedAt).toBe('');
+  });
+});
 
 describe('setValueByPath', () => {
   it('grava chave simples no topo (imutável)', () => {

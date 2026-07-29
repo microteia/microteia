@@ -13,29 +13,23 @@ import { evaluateFieldBoolean } from './fieldExpression';
 import type { AggregationOp, FieldAggregation } from './fieldRules';
 import { resolveWritableTable } from './mutationSpec';
 import type { SchemaContext } from './pathResolver';
-import { CUSTOM_VALUES_KEY } from './pathResolver';
 import { buildRecordFieldScope } from './recordRules';
 
 export interface AggregationTarget {
   // Tabela do registro PAI, que recebe o valor agregado.
   parentTable: string;
-  // Caminho onde gravar no pai (`values.x` / `customValues.x`).
+  // Caminho onde gravar no pai — a própria chave do campo, na raiz do documento.
   parentPath: string;
   fieldKey: string;
   label: string;
   aggregation: FieldAggregation;
 }
 
-/**
- * Resolve o caminho de escrita de um campo dinâmico: tela dinâmica grava sob `values`, entidade
- * fixa sob `customValues`. Mesma convenção de `collectFieldLogicTargets`.
- */
+/** O agregado é gravado no próprio campo, como qualquer outro. */
 const parentPathFor = (ctx: SchemaContext, table: string, fieldKey: string): string | null => {
   const outcome = resolveWritableTable(table, ctx);
   if (!outcome.ok || outcome.value.kind === 'lookup') return null;
-  return outcome.value.kind === 'custom'
-    ? `values.${fieldKey}`
-    : `${CUSTOM_VALUES_KEY}.${fieldKey}`;
+  return fieldKey;
 };
 
 /**
@@ -97,7 +91,7 @@ export const aggregationCreatesCycle = (
   return reaches(from);
 };
 
-/** Lê no filho um campo pela chave, respeitando a convenção de `values`/`customValues`. */
+/** Lê no filho um campo pela chave. */
 export const readChildField = (
   ctx: SchemaContext,
   childTable: string,

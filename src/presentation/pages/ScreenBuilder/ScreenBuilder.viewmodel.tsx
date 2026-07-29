@@ -9,7 +9,7 @@ import { ensureUniqueKey, slugifyFieldKey, sortFieldsByOrder, validateFieldKey }
 import { getDefaultTagColor } from '../../../shared/styles/colorUtils';
 import { getScreenIconOptions } from '../../shared/screenIcons';
 import { resolveListActions, supportedListActions } from '../../shared/listActionCapabilities';
-import type { CustomFieldMask, CustomFieldType, FieldDefinition, NativeFieldOverride, ScreenDefinition, ScreenListAction } from '../../../domain/entities';
+import type { CustomFieldMask, CustomFieldType, FieldDefinition, ScreenDefinition, ScreenListAction } from '../../../domain/entities';
 import type { AggregationOp, FieldAggregation, FieldLookupBinding, FieldLogic, FieldRules, FormatPreset, FormatRule, ValidateCheck, ValidateRule } from '../../../domain/schema/fieldRules';
 import { AGGREGATION_OP_LABELS, FORMAT_PRESET_LABELS, VALIDATE_CHECK_LABELS } from '../../../domain/schema/fieldRules';
 import { extractFieldExpressionDependencies } from '../../../domain/schema/fieldExpression';
@@ -17,7 +17,7 @@ import { aggregationCreatesCycle } from '../../../domain/schema/aggregationSpec'
 import { useSchemaContext } from '../../shared/useSchemaContext';
 import { useDI } from '../../../infrastructure/di/useDI';
 import { deriveFormFields } from '../../shared/deriveEntitySchema';
-import { mergeFormFields } from '../../shared/entityFormFields';
+import { RESERVED_COLLECTIONS, screenIdIssue } from '../../../domain/schema/screenEntity';
 import type { EntityKey } from '../../../domain/schema/entityRegistry';
 import { getEntityByCollection } from '../../../domain/schema/entityRegistry';
 import type { WorkflowVariable } from '../../components/ui/ExpressionEditor/autocompleteHelpers';
@@ -373,23 +373,6 @@ const buildFieldLogic = (form: FieldFormState): FieldLogic | null => {
  * validação e valor calculado ficam fora — o backend também os lê, e um ajuste que ele não
  * enxergasse faria um workflow gravar registro que a tela rejeita.
  */
-const buildNativeOverride = (form: FieldFormState, order: number): NativeFieldOverride => {
-  const logic: NativeFieldOverride['logic'] = {};
-  if (form.logicHiddenWhen.trim()) logic.hiddenWhen = form.logicHiddenWhen.trim();
-  if (form.logicDisabledWhen.trim()) logic.disabledWhen = form.logicDisabledWhen.trim();
-  if (form.logicOnChange.trim()) logic.onChange = form.logicOnChange.trim();
-  const lookup = buildFieldLookup(form);
-  if (lookup) logic.onChangeLookup = lookup;
-
-  return {
-    label: form.label.trim(),
-    placeholder: form.placeholder.trim(),
-    section: form.section.trim(),
-    order,
-    ...(Object.keys(logic).length > 0 ? { logic } : {}),
-  };
-};
-
 const buildFieldLookup = (form: FieldFormState): FieldLookupBinding | null => {
   const provider = form.lookupProvider.trim();
   if (!provider) return null;
@@ -469,7 +452,7 @@ const fieldLogicToForm = (logic: FieldLogic | null | undefined): Pick<
 });
 
 const toSaveInput = (def: ScreenDefinition): ScreenDefinitionSaveInput => ({
-  builtin: def.builtin,
+  origin: def.origin,
   titleSingular: def.titleSingular,
   titlePlural: def.titlePlural,
   icon: def.icon,
@@ -485,10 +468,8 @@ const toSaveInput = (def: ScreenDefinition): ScreenDefinitionSaveInput => ({
   parentFieldKey: def.parentFieldKey ?? null,
   sidebarOrder: def.sidebarOrder,
   enabled: def.enabled,
-  // Precisam viajar em TODO save: sem isso, salvar qualquer outra coisa na tela apagaria os
-  // ajustes feitos nos campos do sistema — e a marca de qual extensão é dona da tela.
-  nativeFieldOverrides: def.nativeFieldOverrides ?? null,
-  fieldOrderUnified: def.fieldOrderUnified ?? null,
+  // Precisa viajar em TODO save: sem isso, salvar qualquer outra coisa na tela apagaria a marca
+  // de qual extensão é dona dela.
   ownerPluginId: def.ownerPluginId ?? null,
   managed: def.managed ?? null,
   hideFromSidebar: def.hideFromSidebar ?? null,
@@ -505,7 +486,7 @@ const buildDynamicMeta = (def: ScreenDefinition, fieldCount: number): string => 
 const builtinSaveInput = (key: string): ScreenDefinitionSaveInput => {
   const label = BUILTIN_SCREENS.find((b) => b.key === key)?.label ?? key;
   return {
-    builtin: true,
+    origin: 'builtin',
     titleSingular: label,
     titlePlural: label,
     icon: 'apps',
@@ -521,8 +502,6 @@ const builtinSaveInput = (key: string): ScreenDefinitionSaveInput => {
     parentFieldKey: null,
     sidebarOrder: 0,
     enabled: true,
-    nativeFieldOverrides: null,
-    fieldOrderUnified: null,
   };
 };
 
@@ -564,7 +543,7 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
 
   const dynamicDefinitions = useMemo(
     () => definitions
-      .filter((def) => !def.builtin)
+      .filter((def) => def.origin !== 'builtin')
       .sort((a, b) => a.sidebarOrder - b.sidebarOrder),
     [definitions],
   );
@@ -575,41 +554,44 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
     return map;
   }, [definitions]);
 
-  /** Campos declarados em código, já com os ajustes do Form Design aplicados. */
-  const nativeFieldsByScreen = useMemo(() => {
+  /**
+   * Lista final de campos de CADA tela — fixos declarados em código e adicionais do tenant já
+   * mesclados por `resolveEntity`. É a mesma função que monta o formulário, então o que o Form
+   * Design mostra é exatamente o que a tela renderiza.
+   */
+  const resolvedFieldsByScreen = useMemo(() => {
     const map: Record<string, FieldDefinition[]> = {};
     for (const builtin of BUILTIN_SCREENS) {
-      const def = definitions.find((d) => d.id === builtin.key);
-      map[builtin.key] = deriveFormFields(builtin.key as EntityKey, {
-        nativeOverrides: def?.nativeFieldOverrides ?? null,
-      });
+      map[builtin.key] = deriveFormFields(schemaContext, builtin.key as EntityKey);
+    }
+    for (const def of definitions) {
+      if (map[def.id]) continue;
+      map[def.id] = deriveFormFields(schemaContext, def.id);
     }
     return map;
-  }, [definitions]);
+  }, [schemaContext, definitions]);
 
-  const nativeKeysByScreen = useMemo(() => {
-    const map: Record<string, ReadonlySet<string>> = {};
-    for (const [key, fields] of Object.entries(nativeFieldsByScreen)) {
-      map[key] = new Set(fields.map((f) => f.key));
-    }
-    return map;
-  }, [nativeFieldsByScreen]);
+  const resolvedField = useCallback(
+    (screenKey: string, fieldKey: string) => resolvedFieldsByScreen[screenKey]?.find((f) => f.key === fieldKey),
+    [resolvedFieldsByScreen],
+  );
 
+  /** Campo do kernel: configurável à vontade, mas nunca excluível. */
   const isNativeField = useCallback(
-    (screenKey: string, fieldKey: string) => nativeKeysByScreen[screenKey]?.has(fieldKey) === true,
-    [nativeKeysByScreen],
+    (screenKey: string, fieldKey: string) => resolvedField(screenKey, fieldKey)?.origin === 'builtin',
+    [resolvedField],
   );
 
   // Telas e campos trazidos por uma extensão: estrutura somente-leitura no Form Design (só a
   // extensão altera/remove). O usuário ainda pode adicionar campos próprios por cima.
   const managedScreenKeys = useMemo(
-    () => new Set(dynamicDefinitions.filter((def) => def.ownerPluginId).map((def) => def.id)),
+    () => new Set(dynamicDefinitions.filter((def) => def.origin === 'plugin').map((def) => def.id)),
     [dynamicDefinitions],
   );
   const pluginFieldKeysByScreen = useMemo(() => {
     const map: Record<string, Set<string>> = {};
     for (const def of dynamicDefinitions) {
-      const owned = def.fields.filter((f) => f.ownerPluginId).map((f) => f.key);
+      const owned = def.fields.filter((f) => f.origin === 'plugin').map((f) => f.key);
       if (owned.length > 0) map[def.id] = new Set(owned);
     }
     return map;
@@ -629,13 +611,9 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
     () => BUILTIN_SCREENS.map((b) => ({
       key: b.key,
       label: b.label,
-      fields: mergeFormFields(
-        nativeFieldsByScreen[b.key] ?? [],
-        fieldsByScreen[b.key] ?? [],
-        definitions.find((d) => d.id === b.key)?.fieldOrderUnified === true,
-      ),
+      fields: resolvedFieldsByScreen[b.key] ?? [],
     })),
-    [fieldsByScreen, nativeFieldsByScreen, definitions],
+    [resolvedFieldsByScreen],
   );
 
   const dynamicListEntries = useMemo<ScreenListEntry[]>(
@@ -711,7 +689,7 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
 
   const isTitleField = useCallback((screenKey: string, fieldKey: string) => {
     const def = getDefinitionByKey(screenKey);
-    return !!def && !def.builtin && def.titleFieldKey === fieldKey;
+    return !!def && def.origin !== 'builtin' && def.titleFieldKey === fieldKey;
   }, [getDefinitionByKey]);
 
   // Sem etiquetas na tela não há o que gerenciar pelo card: desligar "Habilitar Etiquetas"
@@ -946,7 +924,7 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
       if (screenModal?.screenKey) {
         const def = getDefinitionByKey(screenModal.screenKey);
         if (!def) return;
-        const titleFieldKey = def.builtin ? '' : (screenForm.titleFieldKey || def.titleFieldKey);
+        const titleFieldKey = def.origin === 'builtin' ? '' : (screenForm.titleFieldKey || def.titleFieldKey);
         await saveDefinition(def.id, {
           ...toSaveInput(def),
           titleSingular: screenForm.titleSingular.trim(),
@@ -966,11 +944,19 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
 
         notify('Tela atualizada com sucesso!', 'success');
       } else {
+        // A chave da tela É o nome da coleção no Firestore: não pode colidir com outra tela nem
+        // com uma coleção de sistema.
         const existingKeys = new Set([
           ...definitions.map((def) => def.id),
           ...BUILTIN_SCREENS.map((b) => b.key),
+          ...RESERVED_COLLECTIONS,
         ]);
         const screenKey = ensureUniqueKey(slugifyFieldKey(screenForm.titlePlural), existingKeys);
+        const keyIssue = screenIdIssue(screenKey);
+        if (keyIssue) {
+          notify(keyIssue, 'error');
+          return;
+        }
         const maxOrder = dynamicDefinitions.reduce((max, def) => Math.max(max, def.sidebarOrder), -1);
         const nameField: FieldDefinition = {
           key: 'nome',
@@ -978,11 +964,12 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
           type: 'text',
           required: true,
           order: 0,
+          origin: 'design',
           showInList: true,
           filterable: true,
         };
         await saveDefinition(screenKey, {
-          builtin: false,
+          origin: 'design',
           titleSingular: screenForm.titleSingular.trim(),
           titlePlural: screenForm.titlePlural.trim(),
           icon: screenForm.icon,
@@ -1075,13 +1062,9 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
 
   const openEditField = useCallback((screenKey: string, fieldKey: string) => {
     setFieldModalTab('general');
-    const def = getDefinitionByKey(screenKey);
-    const native = isNativeField(screenKey, fieldKey);
-    const field = native
-      ? nativeFieldsByScreen[screenKey]?.find((f) => f.key === fieldKey)
-      : def?.fields.find((f) => f.key === fieldKey);
+    const field = resolvedField(screenKey, fieldKey);
     if (!field) return;
-    setFieldModalIsNative(native);
+    setFieldModalIsNative(field.origin === 'builtin');
     setFieldForm({
       label: field.label,
       fieldKey: field.key,
@@ -1105,7 +1088,7 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
       ...fieldAggregationToForm(field.aggregation),
     });
     setFieldModal({ screenKey, fieldKey });
-  }, [getDefinitionByKey, defaultTagColor, isNativeField, nativeFieldsByScreen]);
+  }, [defaultTagColor, resolvedField]);
 
   const closeFieldModal = useCallback(() => setFieldModal(null), []);
 
@@ -1278,29 +1261,6 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
       return;
     }
 
-    if (fieldModalIsNative && fieldModal.fieldKey) {
-      const def = getDefinitionByKey(fieldModal.screenKey);
-      const current = nativeFieldsByScreen[fieldModal.screenKey]?.find((f) => f.key === fieldModal.fieldKey);
-      setSavingField(true);
-      try {
-        const baseInput = def ? toSaveInput(def) : builtinSaveInput(fieldModal.screenKey);
-        await saveDefinition(fieldModal.screenKey, {
-          ...baseInput,
-          nativeFieldOverrides: {
-            ...(def?.nativeFieldOverrides ?? {}),
-            [fieldModal.fieldKey]: buildNativeOverride(fieldForm, current?.order ?? 0),
-          },
-        });
-        notify('Campo do sistema atualizado.', 'success');
-        setFieldModal(null);
-      } catch {
-        notify('Erro ao salvar o campo.', 'error');
-      } finally {
-        setSavingField(false);
-      }
-      return;
-    }
-
 
     // Validação do fieldKey (apenas em criação, não edição)
     if (!fieldModal.fieldKey) {
@@ -1312,7 +1272,15 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
       }
     }
 
-    if (fieldForm.type === 'select' && fieldForm.staticOptions.length === 0 && !fieldForm.optionsAllowUserAdd) {
+    // Uma seleção cujas opções vêm de uma LISTA (lookup) não precisa de opções estáticas — é o caso
+    // de vários campos do kernel. A checagem vale só para quem tira as opções do próprio campo.
+    const optionsFromLookup = !!resolvedField(fieldModal.screenKey, fieldModal.fieldKey ?? '')?.lookupCollection;
+    if (
+      fieldForm.type === 'select'
+      && !optionsFromLookup
+      && fieldForm.staticOptions.length === 0
+      && !fieldForm.optionsAllowUserAdd
+    ) {
       reject('general', 'Adicione ao menos uma opção ou permita que usuários criem opções.');
       return;
     }
@@ -1360,8 +1328,16 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
       const fields = sortFieldsByOrder(baseInput.fields);
       let nextFields: FieldDefinition[];
       if (fieldModal.fieldKey) {
-        nextFields = fields.map((f) => {
-          if (f.key !== fieldModal.fieldKey) return f;
+        // Um campo do kernel só entra em `fields[]` quando o usuário o ajusta pela primeira vez:
+        // a declaração inteira é materializada aqui, e a partir daí o documento é a verdade.
+        const editedKey = fieldModal.fieldKey;
+        const base = fields.some((f) => f.key === editedKey)
+          ? fields
+          : [...fields, resolvedField(fieldModal.screenKey, editedKey)].filter(
+              (f): f is FieldDefinition => f !== undefined,
+            );
+        nextFields = base.map((f) => {
+          if (f.key !== editedKey) return f;
           return {
             ...f,
             label,
@@ -1396,6 +1372,7 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
           type: fieldForm.type,
           required: fieldForm.required,
           order: maxOrder + 1,
+          origin: 'design',
           section: fieldForm.section.trim() || null,
           placeholder: fieldForm.placeholder.trim() || null,
           multi: fieldForm.multi,
@@ -1422,48 +1399,33 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
     } finally {
       setSavingField(false);
     }
-  }, [fieldModal, fieldForm, fieldModalIsTitleField, getDefinitionByKey, saveDefinition, notify, schemaContext, fieldModalIsNative, nativeFieldsByScreen]);
+  }, [fieldModal, fieldForm, fieldModalIsTitleField, getDefinitionByKey, saveDefinition, notify, schemaContext, resolvedField]);
 
   /**
-   * Grava a ordem da lista como posições absolutas. Numa tela fixa as duas famílias convivem: o
-   * campo do sistema guarda a posição no seu override, o adicional no próprio campo. A partir daí
-   * `fieldOrderUnified` marca que os dois compartilham o mesmo espaço — é o que permite intercalar.
+   * Grava a ordem da lista como posições absolutas em `fields[]`. Um campo do kernel que ainda não
+   * estava no documento só é materializado quando a nova posição difere da declarada em código —
+   * reordenar o fim da lista não congela a tela inteira.
    */
   const applyFieldOrder = useCallback(async (screenKey: string, fields: FieldDefinition[]) => {
     const def = getDefinitionByKey(screenKey);
     const baseInput = def ? toSaveInput(def) : builtinSaveInput(screenKey);
+    const stored = new Set((def?.fields ?? []).map((field) => field.key));
 
-    const overrides: Record<string, NativeFieldOverride> = { ...(def?.nativeFieldOverrides ?? {}) };
-    const customFields: FieldDefinition[] = [];
-
-    fields.forEach((field, index) => {
-      if (isNativeField(screenKey, field.key)) {
-        overrides[field.key] = { ...(overrides[field.key] ?? {}), order: index };
-      } else {
-        customFields.push({ ...field, order: index });
-      }
-    });
-
-    const touchesNative = fields.some((field) => isNativeField(screenKey, field.key));
+    const nextFields = fields
+      .map((field, index) => ({ ...field, order: index }))
+      .filter((field, index) => stored.has(field.key) || fields[index].order !== index);
 
     try {
-      await saveDefinition(screenKey, {
-        ...baseInput,
-        fields: customFields,
-        ...(touchesNative ? { nativeFieldOverrides: overrides, fieldOrderUnified: true } : {}),
-      });
+      await saveDefinition(screenKey, { ...baseInput, fields: nextFields });
     } catch {
       notify('Erro ao reordenar os campos.', 'error');
     }
-  }, [getDefinitionByKey, saveDefinition, notify, isNativeField]);
+  }, [getDefinitionByKey, saveDefinition, notify]);
 
-  const visibleFieldsOf = useCallback((screenKey: string): FieldDefinition[] => {
-    const custom = fieldsByScreen[screenKey] ?? [];
-    const native = nativeFieldsByScreen[screenKey];
-    if (!native) return sortFieldsByOrder(custom);
-    const unified = definitions.find((d) => d.id === screenKey)?.fieldOrderUnified === true;
-    return mergeFormFields(native, custom, unified);
-  }, [fieldsByScreen, nativeFieldsByScreen, definitions]);
+  const visibleFieldsOf = useCallback(
+    (screenKey: string): FieldDefinition[] => resolvedFieldsByScreen[screenKey] ?? [],
+    [resolvedFieldsByScreen],
+  );
 
   const moveField = useCallback(async (screenKey: string, fieldKey: string, direction: -1 | 1) => {
     const fields = visibleFieldsOf(screenKey);
@@ -1512,20 +1474,25 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
     if (field) setDeleteFieldTarget({ screenKey, field });
   }, [getDefinitionByKey, isPluginField, notify]);
 
+  /** Um campo do kernel só está "ajustado" depois de materializado no documento da tela. */
   const hasNativeOverride = useCallback(
     (screenKey: string, fieldKey: string) =>
-      Boolean(getDefinitionByKey(screenKey)?.nativeFieldOverrides?.[fieldKey]),
+      (getDefinitionByKey(screenKey)?.fields ?? []).some(
+        (field) => field.key === fieldKey && field.origin === 'builtin',
+      ),
     [getDefinitionByKey],
   );
 
+  /** Restaurar é remover a entrada materializada: a declaração de código volta a valer. */
   const restoreNativeField = useCallback(async (screenKey: string, fieldKey: string) => {
     const def = getDefinitionByKey(screenKey);
-    if (!def?.nativeFieldOverrides?.[fieldKey]) return;
-    const rest = Object.fromEntries(
-      Object.entries(def.nativeFieldOverrides).filter(([key]) => key !== fieldKey),
+    if (!def) return;
+    const rest = def.fields.filter(
+      (field) => !(field.key === fieldKey && field.origin === 'builtin'),
     );
+    if (rest.length === def.fields.length) return;
     try {
-      await saveDefinition(screenKey, { ...toSaveInput(def), nativeFieldOverrides: rest });
+      await saveDefinition(screenKey, { ...toSaveInput(def), fields: rest });
       notify('Campo restaurado ao padrão do sistema.', 'success');
     } catch {
       notify('Erro ao restaurar o campo.', 'error');

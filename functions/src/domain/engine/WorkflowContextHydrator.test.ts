@@ -11,20 +11,20 @@ const screens: SchemaScreen[] = [
     titleSingular: 'Processo',
     titleFieldKey: 'title',
     fields: [
-      { key: 'tarefa', label: 'Tarefa', type: 'reference', refEntity: 'tarefas', required: false, order: 0 },
+      { key: 'tarefa', label: 'Tarefa', type: 'reference', refEntity: 'tarefas', required: false, order: 0, origin: 'design' },
     ],
   },
   {
     id: 'tarefas',
     titleSingular: 'Tarefa',
     titleFieldKey: 'nome',
-    fields: [{ key: 'nome', label: 'Nome', type: 'text', required: false, order: 0 }],
+    fields: [{ key: 'nome', label: 'Nome', type: 'text', required: false, order: 0, origin: 'design' }],
   },
   {
     id: 'persons',
     titleSingular: 'Pessoa',
     titleFieldKey: 'name',
-    fields: [{ key: 'apelido', label: 'Apelido', type: 'text', required: false, order: 0 }],
+    fields: [{ key: 'apelido', label: 'Apelido', type: 'text', required: false, order: 0, origin: 'design' }],
   },
 ];
 
@@ -39,12 +39,12 @@ const database: Record<string, Record<string, Record<string, unknown>>> = {
       type: 'Pessoa Física',
       email: 'maria@x.com',
       address: { city: 'São Paulo', state: 'SP' },
-      customValues: { apelido: 'Mari' },
+      apelido: 'Mari',
     },
     p2: { name: 'João Souza', type: 'Pessoa Física' },
   },
-  customRecords: {
-    t1: { screenKey: 'tarefas', values: { nome: 'Elaborar petição' } },
+  tarefas: {
+    t1: { nome: 'Elaborar petição' },
   },
 };
 
@@ -93,7 +93,7 @@ describe('collectReferencedPaths', () => {
         conditions: [
           { kind: 'FieldComparison', fieldPath: 'event.payload.contract.status', operator: '==', value: 'Ativo', valueType: 'literal' },
           { kind: 'FieldComparison', fieldPath: 'event.payload.status', operator: '==', value: 'event.payload.old.status', valueType: 'eventField' },
-          { kind: 'Not', condition: { kind: 'Expression', expression: 'length(event.customValues.tarefa.nome) > 3' } },
+          { kind: 'Not', condition: { kind: 'Expression', expression: 'length(event.tarefa.nome) > 3' } },
         ],
       },
       steps: [
@@ -118,7 +118,7 @@ describe('collectReferencedPaths', () => {
         'contract.status',
         'status',
         'old.status',
-        'customValues.tarefa.nome',
+        'tarefa.nome',
         'id',
         'contract.client.name',
         'caseNumber',
@@ -128,30 +128,30 @@ describe('collectReferencedPaths', () => {
 });
 
 describe('hydrate', () => {
-  it('hidrata FK em 2 saltos, reference custom e old, com fetch em lote por coleção', async () => {
+  it('hidrata FK em 2 saltos, reference de tela e old, com fetch em lote por coleção', async () => {
     const { fetcher, calls } = createFakeFetcher();
     const hydrator = new WorkflowContextHydrator(fetcher, screenProvider);
     const event = makeEvent({
       id: 'case1',
       caseNumber: '0001',
       contractId: 'c1',
-      customValues: { tarefa: 't1' },
+      tarefa: 't1',
       old: { contractId: 'c2' },
     });
 
     const hydrated = await hydrator.hydrate(
       event,
-      ['contract.client.name', 'customValues.tarefa.nome', 'old.contract.number'],
+      ['contract.client.name', 'tarefa.nome', 'old.contract.number'],
       createHydrationCache(),
     );
 
     const payload = hydrated.payload;
     expect(payload.contract).toMatchObject({ id: 'c1', number: '001/2026' });
     expect((payload.contract as Record<string, unknown>).client).toMatchObject({ id: 'p1', name: 'Maria Silva' });
-    expect((payload.customValues as Record<string, unknown>).tarefa).toMatchObject({ id: 't1', nome: 'Elaborar petição' });
+    expect(payload.tarefa).toMatchObject({ id: 't1', nome: 'Elaborar petição' });
     expect((payload.old as Record<string, unknown>).contract).toMatchObject({ id: 'c2', number: '099/2020' });
 
-    expect(calls).toStrictEqual(['contracts:c1,c2', 'customRecords:t1', 'persons:p1']);
+    expect(calls).toStrictEqual(['contracts:c1,c2', 'tarefas:t1', 'persons:p1']);
   });
 
   it('busca o registro completo quando o caminho acessa campo fora do conjunto denormalizado', async () => {
@@ -184,30 +184,31 @@ describe('hydrate', () => {
     expect(calls).toStrictEqual(['persons:p1']);
   });
 
-  it('hidrata campos customizados de um registro vinculado', async () => {
+  it('hidrata campo declarado pelo tenant num registro vinculado, na raiz', async () => {
     const { fetcher, calls } = createFakeFetcher();
     const hydrator = new WorkflowContextHydrator(fetcher, screenProvider);
     const event = makeEvent({ id: 'case1', contractId: 'c1' });
 
-    const hydrated = await hydrator.hydrate(event, ['contract.client.customValues.apelido'], createHydrationCache());
+    const hydrated = await hydrator.hydrate(event, ['contract.client.apelido'], createHydrationCache());
 
     const contract = hydrated.payload.contract as Record<string, unknown>;
     const client = contract.client as Record<string, unknown>;
-    expect(client).toMatchObject({ id: 'p1', name: 'Maria Silva', customValues: { apelido: 'Mari' } });
+    expect(client).toMatchObject({ id: 'p1', name: 'Maria Silva', apelido: 'Mari' });
     expect(calls).toStrictEqual(['contracts:c1', 'persons:p1']);
   });
 
-  it('garante customValues como objeto vazio quando a pessoa vinculada não tem campos customizados', async () => {
+  it('registro sem o campo declarado apenas não o traz — não há envelope a criar', async () => {
     const { fetcher } = createFakeFetcher();
     const hydrator = new WorkflowContextHydrator(fetcher, screenProvider);
     const event = makeEvent({ id: 'case1', contractId: 'c1' });
     database.contracts.c1.clientId = 'p2';
 
-    const hydrated = await hydrator.hydrate(event, ['contract.client.customValues.apelido'], createHydrationCache());
+    const hydrated = await hydrator.hydrate(event, ['contract.client.apelido'], createHydrationCache());
 
     const contract = hydrated.payload.contract as Record<string, unknown>;
     const client = contract.client as Record<string, unknown>;
-    expect(client.customValues).toStrictEqual({});
+    expect(client).toMatchObject({ id: 'p2', name: 'João Souza' });
+    expect(client.apelido).toBeUndefined();
 
     database.contracts.c1.clientId = 'p1';
   });

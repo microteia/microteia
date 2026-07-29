@@ -1,6 +1,5 @@
 import type { InputMapping } from '../entities/Workflow';
 import type { EntityKey, NativeFieldType } from './entityRegistry';
-import { getEntityByCollection } from './entityRegistry';
 import { isLookupCollection } from './lookupRegistry';
 import type { PathRoot, SchemaContext } from './pathResolver';
 import { parsePath, resolvePath } from './pathResolver';
@@ -47,12 +46,11 @@ export const setValueAtPath = (
   cursor[parts[parts.length - 1]] = value;
 };
 
-export type WritableTableKind = 'entity' | 'custom' | 'lookup';
+export type WritableTableKind = 'entity' | 'lookup';
 
 export interface ResolvedWritableTable {
   kind: WritableTableKind;
   physicalCollection: string;
-  screenKey?: string;
   entityKey?: EntityKey;
   root: PathRoot;
 }
@@ -61,13 +59,15 @@ export type WritableTableOutcome =
   | { ok: true; value: ResolvedWritableTable }
   | { ok: false; error: string };
 
-const WRITABLE_ENTITY_KEYS: ReadonlySet<EntityKey> = new Set<EntityKey>([
-  'persons',
-  'cases',
-  'contracts',
-  'deadlines',
-  'financials',
-  'customRecords',
+/**
+ * Entidades legíveis mas NUNCA graváveis por automação: são mantidas por fluxos próprios com
+ * invariantes que uma automação não respeitaria (limite de membros, ingestão de e-mail, publicação).
+ * Uma DENYLIST, e não uma allowlist: qualquer tela nova é gravável por padrão.
+ */
+const NON_WRITABLE_ENTITY_KEYS: ReadonlySet<EntityKey> = new Set<EntityKey>([
+  'members',
+  'pushes',
+  'news',
 ]);
 
 export const LOOKUP_WRITABLE_FIELDS: readonly string[] = ['key', 'label', 'color'];
@@ -93,26 +93,13 @@ export const resolveWritableTable = (table: string, ctx: SchemaContext): Writabl
     return { ok: true, value: { kind: 'lookup', physicalCollection: table, root: resolved.root } };
   }
 
-  if (resolved.screenKey) {
-    return {
-      ok: true,
-      value: {
-        kind: 'custom',
-        physicalCollection: 'customRecords',
-        screenKey: resolved.screenKey,
-        entityKey: 'customRecords',
-        root: resolved.root,
-      },
-    };
-  }
-
-  const entity = getEntityByCollection(resolved.physicalCollection);
-  if (!entity || !WRITABLE_ENTITY_KEYS.has(entity.key)) {
+  if (NON_WRITABLE_ENTITY_KEYS.has(table)) {
     return { ok: false, error: `A tabela "${table}" não pode ser alterada por automações` };
   }
+
   return {
     ok: true,
-    value: { kind: 'entity', physicalCollection: entity.collection, entityKey: entity.key, root: resolved.root },
+    value: { kind: 'entity', physicalCollection: table, entityKey: table, root: resolved.root },
   };
 };
 
@@ -190,14 +177,6 @@ export const validateUpsertSpec = (spec: UpsertSpec, ctx: SchemaContext): Mutati
   }
 
   for (const leaf of leaves) {
-    const top = leaf.path.split('.')[0];
-    if (resolved.kind === 'custom' && top !== 'values') {
-      issues.push({
-        field: `data.${leaf.path}`,
-        error: 'Em entidades personalizadas, grave os campos dentro de "values"',
-      });
-      continue;
-    }
     const error = checkWritablePath(ctx, resolved.root, leaf.path);
     if (error) issues.push({ field: `data.${leaf.path}`, error });
   }
@@ -219,10 +198,6 @@ export const validateWritablePath = (
       ? `Campo "${path}" não é gravável em uma lista`
       : undefined;
   }
-  const top = path.split('.')[0];
-  if (resolved.kind === 'custom' && top !== 'values') {
-    return 'Em entidades personalizadas, grave os campos dentro de "values"';
-  }
   return checkWritablePath(ctx, resolved.root, path);
 };
 
@@ -240,14 +215,29 @@ export const validateRemoveSpec = (spec: RemoveSpec, ctx: SchemaContext): Mutati
   return issues;
 };
 
+const DATE_ONLY_PATTERN = /^(\d{4})-(\d{2})-(\d{2})$/;
+
+const isTimestampLike = (value: unknown): value is { toDate: () => Date } =>
+  !!value && typeof value === 'object' && typeof (value as { toDate?: unknown }).toDate === 'function';
+
+/**
+ * "2026-07-15" é o formato do campo de data do formulário e nomeia um DIA, não um instante. Lido
+ * por `new Date(...)` ele viraria meia-noite em UTC — que no fuso do escritório é o dia anterior, e
+ * o formulário reabriria mostrando 14/07. Por isso a data pura é montada no fuso local.
+ */
 export const coerceWriteValue = (type: NativeFieldType | undefined, value: unknown): unknown => {
   if (value === null || value === undefined) return null;
   switch (type) {
     case 'date': {
       if (value instanceof Date) return value;
+      if (isTimestampLike(value)) return value.toDate();
       if (typeof value === 'number') return new Date(value);
       if (typeof value === 'string') {
-        const parsed = new Date(value);
+        const trimmed = value.trim();
+        if (trimmed === '') return null;
+        const dayOnly = DATE_ONLY_PATTERN.exec(trimmed);
+        if (dayOnly) return new Date(Number(dayOnly[1]), Number(dayOnly[2]) - 1, Number(dayOnly[3]));
+        const parsed = new Date(trimmed);
         return Number.isNaN(parsed.getTime()) ? value : parsed;
       }
       return value;

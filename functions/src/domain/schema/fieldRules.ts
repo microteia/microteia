@@ -9,6 +9,16 @@
 // GERADA por scripts/sync-schemas.cjs (npm run sync-schemas). Nunca edite a cópia.
 // ═══════════════════════════════════════════════════════════════════════════════
 
+/**
+ * Onde a tela ou o campo foi DECLARADO — e nada além disso. É a única diferença que resta entre uma
+ * tela fixa, uma de extensão e uma do Form Design: a gravação, a resolução de caminhos, as
+ * automações e os formulários tratam as três de forma idêntica.
+ *
+ * `builtin` (declarado em `entityRegistry.ts`) e `plugin` (declarado no pacote da extensão) não
+ * podem ser EXCLUÍDOS pelo usuário; todas as demais configurações são livremente alteráveis.
+ */
+export type FieldOrigin = 'builtin' | 'plugin' | 'design';
+
 export type FormatPreset =
   | 'cpf'
   | 'cnpj'

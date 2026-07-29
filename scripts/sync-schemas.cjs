@@ -23,6 +23,7 @@ const SHARED_FILES = [
   'domain/schema/fieldExpression.ts',
   'domain/schema/entityRegistry.ts',
   'domain/schema/lookupRegistry.ts',
+  'domain/schema/screenEntity.ts',
   'domain/schema/pathResolver.ts',
   'domain/schema/expressionPaths.ts',
   'domain/schema/eventCatalog.ts',

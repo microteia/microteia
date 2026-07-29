@@ -19,7 +19,7 @@ const template: ScreenModuleTemplate = {
 };
 
 describe('installedScreenKey', () => {
-  it('namespaceia por plugin, com customRecords legível', () => {
+  it('namespaceia por plugin, com chave legível', () => {
     expect(installedScreenKey('com.acme.vendas', 'produto')).toBe('com-acme-vendas__produto');
   });
 
@@ -42,13 +42,14 @@ describe('materializeScreen', () => {
     ['item', 'com-acme-vendas__item'],
   ]);
 
-  it('marca a tela e os campos com ownerPluginId e managed', () => {
+  it('carimba origin plugin na tela e nos campos, com ownerPluginId e managed', () => {
     const { input } = materializeScreen(template, 'com.acme.vendas', keyMap, 'u1');
     expect(input.ownerPluginId).toBe('com.acme.vendas');
     expect(input.managed).toBe(true);
-    expect(input.builtin).toBe(false);
+    expect(input.origin).toBe('plugin');
     expect(input.createdBy).toBe('u1');
     expect(input.fields.every((f) => f.ownerPluginId === 'com.acme.vendas')).toBe(true);
+    expect(input.fields.every((f) => f.origin === 'plugin')).toBe(true);
   });
 
   it('reescreve aggregation.from para a tela do pacote e preserva ref ao core', () => {

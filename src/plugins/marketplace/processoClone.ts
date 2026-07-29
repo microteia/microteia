@@ -1,5 +1,6 @@
 import type { MarketplacePlugin, ScreenModuleTemplate } from '../../domain/entities/MarketplacePlugin';
-import type { CustomFieldOption, FieldDefinition } from '../../domain/entities';
+import type { CustomFieldOption } from '../../domain/entities';
+import type { TemplateField } from '../../domain/entities/MarketplacePlugin';
 import { nav, page } from '../contributionBuilders';
 
 /**
@@ -8,7 +9,7 @@ import { nav, page } from '../contributionBuilders';
  * Design: campos, lookups coloridos, máscaras, validações, título/etiquetas/notas/documentos nativos)
  * e NÃO tem `ui.nav` própria — existe sem item de menu. A view de código abaixo é a lista rica (cards,
  * filtros, badges, polos), que lê o SCHEMA VIVO e os PRÓPRIOS registros (coleção genérica
- * `customRecords`) pela ponte `@microteia/*`, sem tocar nenhum repositório de Case. Abrir/criar um
+ * coleção própria) pela ponte `@microteia/*`, sem tocar nenhum repositório de Case. Abrir/criar um
  * registro cai no detalhe dinâmico nativo (`ViewDynamicRecord`), gerado a partir deste mesmo schema.
  *
  * O `sourceId` estável é o elo entre o schema instalado e a view: a view resolve a tela por ele,
@@ -59,7 +60,7 @@ const TRIBUNAL = 'Tribunal';
 const FINANCEIRO = 'Financeiro e Responsável';
 const PARTES = 'Partes';
 
-const FIELDS: FieldDefinition[] = [
+const FIELDS: TemplateField[] = [
   { key: 'caseNumber', label: 'Número do processo', type: 'text', required: true, order: 0, section: IDENTIFICACAO },
   { key: 'title', label: 'Título', type: 'text', required: true, order: 1, section: IDENTIFICACAO },
   { key: 'area', label: 'Área', type: 'select', required: false, order: 2, section: CLASSIFICACAO, options: AREA_OPTIONS, optionsAllowUserAdd: true, showInList: true, filterable: true },
@@ -119,9 +120,9 @@ const EDIT_PREFIX = 'processo-clone-edit:';
 
 const asArray = (v) => Array.isArray(v) ? v : (v == null || v === '' ? [] : [v]);
 
-function daysSince(dateStr) {
-  if (!dateStr) return null;
-  const d = new Date(dateStr + 'T00:00:00');
+function daysSince(value) {
+  if (!value) return null;
+  const d = value instanceof Date ? value : new Date(String(value).slice(0, 10) + 'T00:00:00');
   if (isNaN(d.getTime())) return null;
   const diff = Math.floor((Date.now() - d.getTime()) / 86400000);
   return diff < 0 ? 0 : diff;
@@ -159,7 +160,7 @@ export default function ProcessoCloneView() {
   );
 
   const renderSubtitle = (record) => {
-    const v = record.values || {};
+    const v = record;
     const days = daysSince(v.filedAt);
     return (
       <span style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
@@ -170,7 +171,7 @@ export default function ProcessoCloneView() {
   };
 
   const renderBelowHeader = (record) => {
-    const v = record.values || {};
+    const v = record;
     return (
       <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap', margin: '8px 0' }}>
         {renderPole('Polo Ativo', namesOf(v.activePoleIds))}
@@ -243,9 +244,10 @@ export default function startup(host) {
       if ('abrir processos clone'.indexOf(q) !== -1) {
         items.push({ id: 'proc-clone:list', title: 'Abrir Processos (clone)', group: GROUP, icon, onSelect: () => { ctx.openTab(LIST_KEY); ctx.close(); } });
       }
-      for (const r of ctx.customRecords) {
-        if (r.screenKey === screen.id && r.title && r.title.toLowerCase().indexOf(q) !== -1) {
-          items.push({ id: 'proc-clone:' + r.id, title: r.title, subtitle: 'Processo (clone)', group: GROUP, icon, onSelect: () => { ctx.openTab(EDIT_PREFIX + r.id); ctx.close(); } });
+      for (const r of ctx.records) {
+        const title = r[screen.titleFieldKey];
+        if (r.collection === screen.id && title && title.toLowerCase().indexOf(q) !== -1) {
+          items.push({ id: 'proc-clone:' + r.id, title, subtitle: 'Processo (clone)', group: GROUP, icon, onSelect: () => { ctx.openTab(EDIT_PREFIX + r.id); ctx.close(); } });
         }
       }
       return items.slice(0, 9);
@@ -261,10 +263,12 @@ export default function startup(host) {
       const screen = ctx.screenDefinitions.find((s) => (s.sourceId || s.id) === SOURCE_ID);
       if (!screen) return [];
       const q = String(query || '').toLowerCase().trim();
-      return ctx.customRecords
-        .filter((r) => r.screenKey === screen.id && r.title && (!q || r.title.toLowerCase().indexOf(q) !== -1))
+      return ctx.records
+        .filter((r) => r.collection === screen.id)
+        .map((r) => ({ record: r, title: r[screen.titleFieldKey] }))
+        .filter(({ title }) => title && (!q || title.toLowerCase().indexOf(q) !== -1))
         .slice(0, 20)
-        .map((r) => ({ id: r.id, title: r.title, subtitle: 'Processo (clone)', tabKey: EDIT_PREFIX + r.id }));
+        .map(({ record, title }) => ({ id: record.id, title, subtitle: 'Processo (clone)', tabKey: EDIT_PREFIX + record.id }));
     },
   });
 }

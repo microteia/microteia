@@ -1,13 +1,13 @@
 import { useCallback, useMemo } from 'react';
 import { fieldOptionsKey, useScreenDefinitions } from '../../../stores/useScreenDefinitions';
-import { useCustomRecords } from '../../../stores/useCustomRecords';
+import { useRecords } from '../../../stores/useRecords';
 import { useWorkspace } from '../../../stores/useWorkspace';
 import {
   buildCloneTabKey,
   buildNewTabKey,
   buildViewTabKey,
 } from '../../../shared/constants/dynamicScreenKeys';
-import type { CustomRecord, FieldDefinition, ScreenDefinition } from '../../../domain/entities';
+import type { EntityRecord, FieldDefinition, ScreenDefinition } from '../../../domain/entities';
 
 /**
  * Uma opção de campo (lookup) já achatada para a extensão: chave, rótulo e cor opcional, unindo as
@@ -22,15 +22,15 @@ export interface EntityFieldOption {
 /**
  * Acesso GENÉRICO a uma entidade dinâmica (tela criada por extensão/Form Design), resolvido pelo
  * `sourceId` universal — não pela chave instalada, que é namespaced e pode variar por deduplicação.
- * Devolve o schema vivo (campos, opções coloridas, máscaras), os registros da coleção genérica
- * `customRecords` filtrados pela tela, e a navegação para o detalhe/criação NATIVOS. É o que permite
+ * Devolve o schema vivo (campos, opções coloridas, máscaras), os registros da COLEÇÃO da tela — com
+ * os campos na raiz de cada registro — e a navegação para o detalhe/criação NATIVOS. É o que permite
  * uma view de código ler/gravar os PRÓPRIOS dados sem tocar nenhum repositório específico do app.
  */
 export interface ExtensionEntity {
   screen: ScreenDefinition | null;
   screenKey: string | null;
   fields: FieldDefinition[];
-  records: CustomRecord[];
+  records: EntityRecord[];
   isLoading: boolean;
   optionsFor: (fieldKey: string) => EntityFieldOption[];
   openRecord: (recordId: string) => void;
@@ -41,7 +41,7 @@ export interface ExtensionEntity {
 
 export const useEntity = (sourceId: string): ExtensionEntity => {
   const { dynamicScreens, fieldOptionsByField } = useScreenDefinitions();
-  const { recordsByScreen, isLoading, deleteRecord } = useCustomRecords();
+  const { recordsByCollection, isLoading, deleteRecord } = useRecords();
   const { openTab } = useWorkspace();
 
   const screen = useMemo(
@@ -53,8 +53,8 @@ export const useEntity = (sourceId: string): ExtensionEntity => {
   const fields = useMemo(() => screen?.fields ?? [], [screen]);
 
   const records = useMemo(
-    () => (screenKey ? recordsByScreen[screenKey] ?? [] : []),
-    [recordsByScreen, screenKey],
+    () => (screenKey ? recordsByCollection[screenKey] ?? [] : []),
+    [recordsByCollection, screenKey],
   );
 
   const optionsFor = useCallback(

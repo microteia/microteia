@@ -5,7 +5,8 @@ import type {
   WorkflowModuleTemplate,
 } from '../../entities/MarketplacePlugin';
 import type { InputMapping, WorkflowStep } from '../../entities/Workflow';
-import { getEntityByCollection } from '../../schema/entityRegistry';
+import { getEntityByCollection, getEntityByEventPrefix } from '../../schema/entityRegistry';
+import { splitEntityEventName } from '../../schema/eventCatalog';
 import { isLookupCollection } from '../../schema/lookupRegistry';
 
 export type RefKind = 'screen' | 'action' | 'workflow' | 'script';
@@ -66,8 +67,9 @@ export const workflowOutRefs = (workflow: WorkflowModuleTemplate): PackageRef[] 
     const targetWorkflowId = stepLiteral(step, TARGET_WORKFLOW_ID_INPUT);
     if (targetWorkflowId) refs.push({ kind: 'workflow', id: targetWorkflowId, from });
   }
-  if (workflow.screenKey && !isCoreCollection(workflow.screenKey)) {
-    refs.push({ kind: 'screen', id: workflow.screenKey, from });
+  const event = splitEntityEventName(workflow.eventName);
+  if (event && !isCoreCollection(event.collection) && !getEntityByEventPrefix(event.collection)) {
+    refs.push({ kind: 'screen', id: event.collection, from });
   }
   return refs;
 };

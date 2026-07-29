@@ -1,8 +1,37 @@
 import { Timestamp } from 'firebase/firestore';
-import type { FieldDefinition, ScreenDefinition } from '../../domain/entities';
+import type { FieldDefinition, FieldOrigin, ScreenDefinition } from '../../domain/entities';
+import { CUSTOM_FIELD_ENABLED_ENTITIES } from '../../domain/entities/entitySchemas';
 
 const toDate = (v: unknown): Date =>
   v instanceof Timestamp ? v.toDate() : (v as Date);
+
+const FIELD_ORIGINS: readonly FieldOrigin[] = ['builtin', 'plugin', 'design'];
+
+const isFieldOrigin = (value: unknown): value is FieldOrigin =>
+  typeof value === 'string' && FIELD_ORIGINS.includes(value as FieldOrigin);
+
+/**
+ * Uma tela cujo id é o de uma entidade fixa É a tela fixa — o `origin` gravado nem precisa ser
+ * consultado. Nas demais, quem trouxe a tela grava o `origin`; a extensão é reconhecida pelo
+ * `ownerPluginId` quando o campo faltar.
+ */
+const screenOrigin = (id: string, d: Record<string, unknown>): FieldOrigin => {
+  if (CUSTOM_FIELD_ENABLED_ENTITIES.has(id)) return 'builtin';
+  if (isFieldOrigin(d.origin)) return d.origin;
+  return d.ownerPluginId ? 'plugin' : 'design';
+};
+
+const mapFields = (raw: unknown, screenOriginValue: FieldOrigin): FieldDefinition[] =>
+  ((raw as FieldDefinition[] | undefined) ?? []).map((field) => ({
+    ...field,
+    origin: isFieldOrigin(field.origin)
+      ? field.origin
+      : field.ownerPluginId
+        ? 'plugin'
+        : screenOriginValue === 'builtin'
+          ? 'design'
+          : screenOriginValue,
+  }));
 
 /**
  * Converte o documento cru do Firestore em `ScreenDefinition`.
@@ -19,14 +48,11 @@ export const mapScreenDefinition = (
 ): ScreenDefinition => ({
   id,
   tenantId,
-  builtin: (d.builtin as boolean | undefined) ?? false,
+  origin: screenOrigin(id, d),
   titleSingular: (d.titleSingular as string | undefined) ?? '',
   titlePlural: (d.titlePlural as string | undefined) ?? '',
   icon: (d.icon as string | undefined) ?? 'apps',
-  fields: (d.fields as FieldDefinition[] | undefined) ?? [],
-  nativeFieldOverrides:
-    (d.nativeFieldOverrides as ScreenDefinition['nativeFieldOverrides'] | undefined) ?? null,
-  fieldOrderUnified: (d.fieldOrderUnified as boolean | undefined) ?? null,
+  fields: mapFields(d.fields, screenOrigin(id, d)),
   titleFieldKey: (d.titleFieldKey as string | undefined) ?? '',
   hasNotes: (d.hasNotes as boolean | undefined) ?? false,
   hasDocuments: (d.hasDocuments as boolean | undefined) ?? false,
@@ -39,6 +65,7 @@ export const mapScreenDefinition = (
   ownerPluginId: (d.ownerPluginId as string | null | undefined) ?? null,
   ownerPluginIds: (d.ownerPluginIds as string[] | null | undefined) ?? null,
   sourceId: (d.sourceId as string | null | undefined) ?? null,
+  sourceRev: (d.sourceRev as number | null | undefined) ?? null,
   managed: (d.managed as boolean | null | undefined) ?? null,
   hideFromSidebar: (d.hideFromSidebar as boolean | null | undefined) ?? null,
   sidebarOrder: (d.sidebarOrder as number | undefined) ?? 0,

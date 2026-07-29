@@ -10,12 +10,13 @@ import type {
   CustomFieldType,
   FieldAggregation,
   FieldLogic,
+  FieldOrigin,
   FieldRules,
 } from '../schema/fieldRules';
 
 // ─── Tipos de Campos Customizados ─────────────────────────────────────────────
 
-export type { CustomFieldType, CustomFieldMask, CustomFieldOption } from '../schema/fieldRules';
+export type { CustomFieldType, CustomFieldMask, CustomFieldOption, FieldOrigin } from '../schema/fieldRules';
 
 export type CustomFieldValue = string | string[] | number | boolean | null;
 
@@ -43,51 +44,47 @@ export interface FieldDefinition {
   logic?: FieldLogic | null;
   aggregation?: FieldAggregation | null;
   /**
-   * Presente quando o campo foi trazido por uma extensão. É somente-leitura no Form Design (o
-   * usuário não edita nem exclui) e distingue os campos do plugin dos que o usuário adicionou por
-   * cima — o upgrade da extensão substitui os do plugin e preserva os do usuário.
+   * Onde o campo foi declarado. `builtin` e `plugin` não podem ser EXCLUÍDOS pelo usuário; todas as
+   * demais propriedades são livremente editáveis em qualquer origem.
+   *
+   * Um campo `builtin` só aparece em `fields[]` depois de editado pelo usuário: até lá ele vive
+   * apenas em `entityRegistry.ts`, e o Form Design materializa a declaração INTEIRA no documento no
+   * primeiro ajuste. A partir daí o documento é a verdade — como já acontece com `plugin` e
+   * `design`. Ver `resolveScreenFields` em `schema/screenEntity.ts`.
+   */
+  origin: FieldOrigin;
+  /** Esconde o campo do formulário sem excluí-lo — a alternativa para os campos não-excluíveis. */
+  hiddenInForm?: boolean | null;
+  /**
+   * Presente quando o campo foi trazido por uma extensão (`origin: 'plugin'`): identifica QUAL
+   * extensão, o que dirige o upgrade (substitui os do plugin, preserva os do usuário) e o refcount
+   * de desinstalação.
    */
   ownerPluginId?: string | null;
-}
-
-// ─── Override de campo nativo ─────────────────────────────────────────────────
-
-/**
- * Ajustes por tenant sobre um campo FIXO (declarado em `entityRegistry.ts`), feitos pelo Form
- * Design. Cobre **apenas o que só o front lê** — apresentação e as expressões front-only.
- *
- * Tipo, máscara, `rules` (formato/validação), `logic.validate`, `logic.compute` e `required`
- * ficam de fora de propósito: o backend também os lê, e um override que ele não enxergasse faria
- * um workflow gravar registro que a tela rejeita. Ver "Override de campo fixo" no ARCHITECTURE.
- */
-export interface NativeFieldOverride {
-  label?: string | null;
-  placeholder?: string | null;
-  section?: string | null;
-  order?: number | null;
-  hiddenInForm?: boolean | null;
-  logic?: Pick<FieldLogic, 'hiddenWhen' | 'disabledWhen' | 'onChange' | 'onChangeLookup'> | null;
 }
 
 // ─── Definição de Tela ────────────────────────────────────────────────────────
 
 export type ScreenListAction = 'copyLink' | 'clone' | 'manageTags' | 'delete';
 
+/**
+ * Uma tela É uma entidade, e o seu `id` É o nome da coleção no Firestore:
+ * `tenants/{tenantId}/{id}/{recordId}`, com os campos na raiz do documento. Vale igualmente para as
+ * fixas (`persons`), as de extensão (`vendas__produto`) e as do Form Design (`medico`) — a única
+ * diferença entre elas é o `origin`.
+ */
 export interface ScreenDefinition {
   id: string;
   tenantId: string;
-  builtin: boolean;
+  /**
+   * Onde a tela foi declarada. `builtin` e `plugin` não podem ser excluídas; o resto da configuração
+   * (rótulos, ícone, ordem, abas, ações, campos adicionais) é livremente editável nas três.
+   */
+  origin: FieldOrigin;
   titleSingular: string;
   titlePlural: string;
   icon: string;
   fields: FieldDefinition[];
-  /** Só nas telas fixas: ajustes sobre os campos declarados em código, por chave. */
-  nativeFieldOverrides?: Record<string, NativeFieldOverride> | null;
-  /**
-   * Marca que fixos e adicionais já compartilham o mesmo espaço de ordenação. Enquanto for falso,
-   * os adicionais são exibidos depois dos fixos — o layout que existia antes da unificação.
-   */
-  fieldOrderUnified?: boolean | null;
   titleFieldKey: string;
   hasNotes: boolean;
   hasDocuments: boolean;
@@ -169,6 +166,7 @@ export const ENTITY_FK_SCHEMA: Record<string, Record<string, FkFieldSpec>> = bui
 
 // ─── Coleções e Entidades (derivadas do ENTITY_REGISTRY) ──────────────────────
 
+/** Entidades fixas que podem receber uma `ScreenDefinition` — as que aparecem no Form Design. */
 export const CUSTOM_FIELD_ENABLED_ENTITIES = new Set(
   ENTITY_REGISTRY_LIST.filter((entity) => entity.supportsCustomFields).map((entity) => entity.collection),
 );
@@ -176,11 +174,3 @@ export const CUSTOM_FIELD_ENABLED_ENTITIES = new Set(
 export const BUILTIN_REF_ENTITIES = new Set(
   ENTITY_REGISTRY_LIST.filter((entity) => entity.referenceable).map((entity) => entity.collection),
 );
-
-/**
- * Resolve a coleção de destino para um refEntity.
- * Se for uma entidade builtin, retorna o nome da coleção.
- * Caso contrário, retorna 'customRecords' (para telas customizadas).
- */
-export const resolveRefEntityCollection = (refEntity: string): string =>
-  BUILTIN_REF_ENTITIES.has(refEntity) ? refEntity : 'customRecords';

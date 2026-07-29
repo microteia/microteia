@@ -1,12 +1,7 @@
 import type { Firestore } from 'firebase-admin/firestore';
 import type { AuditFieldDiff, IFkNameEnricherService } from '../../domain/repositories/IFkNameEnricherService';
 import type { EntityData } from '../../domain/services/auditDiff';
-import {
-  ENTITY_FK_SCHEMA,
-  CUSTOM_FIELD_ENABLED_ENTITIES,
-  resolveRefEntityCollection,
-  type FkFieldSpec,
-} from '../../domain/entities/entitySchemas';
+import { ENTITY_FK_SCHEMA, type FkFieldSpec } from '../../domain/entities/entitySchemas';
 import { getFlatEntityConfig } from '../../domain/services/auditableEntities';
 
 interface EntityRef {
@@ -17,24 +12,20 @@ interface EntityRef {
 export class FkNameEnricherService implements IFkNameEnricherService {
   constructor(private readonly db: Firestore) {}
 
-  /** Campos "reference" configurados no Screen Builder para o `screenKey` da entidade auditada. */
-  private async getDynamicFkSchema(tenantId: string, collection: string, screenKey?: string): Promise<Record<string, FkFieldSpec>> {
-    const isCustomRecords = collection === 'customRecords';
-    if (!isCustomRecords && !CUSTOM_FIELD_ENABLED_ENTITIES.has(collection)) return {};
-
-    const effectiveScreenKey = isCustomRecords ? screenKey : collection;
-    if (!effectiveScreenKey) return {};
-
-    const snap = await this.db.doc(`tenants/${tenantId}/screenDefinitions/${effectiveScreenKey}`).get();
+  /**
+   * Campos `reference` que a tela do tenant declara para a coleção — indexados pela própria chave,
+   * porque moram na raiz do documento como qualquer outro campo.
+   */
+  private async getDynamicFkSchema(tenantId: string, collection: string): Promise<Record<string, FkFieldSpec>> {
+    const snap = await this.db.doc(`tenants/${tenantId}/screenDefinitions/${collection}`).get();
     if (!snap.exists) return {};
 
     const fields = (snap.data()?.fields as Array<Record<string, unknown>>) ?? [];
-    const flattenedKey = isCustomRecords ? 'values' : 'customValues';
     const schema: Record<string, FkFieldSpec> = {};
     for (const field of fields) {
       if (field.type !== 'reference' || !field.refEntity) continue;
-      schema[`${flattenedKey}.${field.key as string}`] = {
-        targetCollection: resolveRefEntityCollection(field.refEntity as string),
+      schema[field.key as string] = {
+        targetCollection: field.refEntity as string,
         multi: field.multi === true,
       };
     }
@@ -42,7 +33,8 @@ export class FkNameEnricherService implements IFkNameEnricherService {
   }
 
   async enrichDiff(tenantId: string, collection: string, screenKey: string | undefined, diff: AuditFieldDiff): Promise<AuditFieldDiff> {
-    const dynamicSchema = await this.getDynamicFkSchema(tenantId, collection, screenKey);
+    void screenKey;
+    const dynamicSchema = await this.getDynamicFkSchema(tenantId, collection);
     const schema = { ...ENTITY_FK_SCHEMA[collection], ...dynamicSchema };
     if (Object.keys(schema).length === 0) return diff;
 

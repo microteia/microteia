@@ -6,7 +6,7 @@ import { usePersonStore } from '../../../../stores/usePersonStore';
 import { useCaseStore } from '../../../../stores/useCaseStore';
 import { useContractStore } from '../../../../stores/useContractStore';
 import { useFinancialStore } from '../../../../stores/useFinancialStore';
-import { useCustomRecords } from '../../../../stores/useCustomRecords';
+import { useRecords } from '../../../../stores/useRecords';
 import { useScreenDefinitions } from '../../../../stores/useScreenDefinitions';
 import { useWorkflowStore } from '../../../../stores/useWorkflowStore';
 import { useTheme } from '../../../../stores/useTheme';
@@ -40,7 +40,7 @@ export const useCommandPaletteViewModel = (): CommandPaletteViewModel => {
   const { cases } = useCaseStore();
   const { contracts } = useContractStore();
   const { financials } = useFinancialStore();
-  const { allRecords: customRecords } = useCustomRecords();
+  const { allRecords } = useRecords();
   const { definitions: screenDefinitions } = useScreenDefinitions();
   const { workflows } = useWorkflowStore();
   const { mode, setTheme } = useTheme();
@@ -71,7 +71,7 @@ export const useCommandPaletteViewModel = (): CommandPaletteViewModel => {
       cases,
       contracts,
       financials,
-      customRecords,
+      records: allRecords,
       screenDefinitions,
       workflows,
       mode,
@@ -81,7 +81,7 @@ export const useCommandPaletteViewModel = (): CommandPaletteViewModel => {
       tenantRole,
       navigablePages,
     }),
-    [openTab, close, news, persons, cases, contracts, financials, customRecords, screenDefinitions, workflows, mode, setTheme, signOut, userRole, tenantRole, navigablePages],
+    [openTab, close, news, persons, cases, contracts, financials, allRecords, screenDefinitions, workflows, mode, setTheme, signOut, userRole, tenantRole, navigablePages],
   );
 
   const groups = useMemo<CommandPaletteGroup[]>(() => {

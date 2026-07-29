@@ -2,6 +2,7 @@ export type { WorkflowEventFieldOption, WorkflowEventCatalogEntry } from '../sch
 export {
   WORKFLOW_EVENT_CATALOG,
   WORKFLOW_CALLED_EVENT,
+  buildWorkflowEventCatalog,
   findEventCatalogEntry,
   eventNameToRoot,
   eventNameToEntityKey,

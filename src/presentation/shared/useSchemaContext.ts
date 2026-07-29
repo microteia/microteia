@@ -10,6 +10,7 @@ export const useSchemaContext = (): SchemaContext => {
         definitions.map((definition) => ({
           id: definition.id,
           titleSingular: definition.titleSingular,
+          titlePlural: definition.titlePlural,
           titleFieldKey: definition.titleFieldKey,
           fields: definition.fields,
         })),

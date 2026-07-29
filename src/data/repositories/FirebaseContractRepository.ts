@@ -15,7 +15,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '../../infrastructure/firebase/config';
 import type { IContractRepository } from '../../domain/repositories/IContractRepository';
-import type { Contract, DeletionActor, CustomFieldValue } from '../../domain/entities';
+import type { Contract, DeletionActor } from '../../domain/entities';
 import { stampDeletionActor } from '../utils/stampDeletionActor';
 import { applyRecordRules, loadRecordBaseline } from '../utils/recordRulesGate';
 
@@ -31,6 +31,9 @@ const contractsRef = (tenantId: string) =>
   collection(db, 'tenants', tenantId, 'contracts');
 
 const mapContract = (id: string, d: Record<string, unknown>, tenantId: string): Contract => ({
+  // Campos declarados pelo tenant moram na raiz, ao lado dos fixos: o documento cru
+  // entra inteiro e o mapeamento tipado sobrescreve o que precisa de conversão.
+  ...d,
   id,
   tenantId,
   number: d.number as string,
@@ -67,7 +70,6 @@ const mapContract = (id: string, d: Record<string, unknown>, tenantId: string): 
   pixKey: (d.pixKey as string | null) ?? null,
   costCenter: (d.costCenter as string | null) ?? null,
   tagIds: (d.tagIds as string[] | undefined) ?? [],
-  customValues: (d.customValues as Record<string, CustomFieldValue> | undefined) ?? {},
   createdAt: toDate(d.createdAt),
   createdBy: d.createdBy as string,
   updatedAt: toDate(d.updatedAt),

@@ -6,6 +6,7 @@ import type {
 import type { WorkflowDefinition, WorkflowStep } from '../../entities/Workflow';
 import type { Script } from '../../entities/Script';
 import type { ActionDefinitionInput } from '../../repositories/IActionRepository';
+import { splitEntityEventName } from '../../schema/eventCatalog';
 import { installedScreenKey } from './screenModule';
 
 export type IdMap = Map<string, string>;
@@ -79,11 +80,13 @@ export const workflowInputFromTemplate = (
 ): WorkflowInput => {
   const rest = withoutTemplateId(template);
   const steps = rewriteStepLiteral(rest.steps ?? [], 'scriptId', scriptMap);
-  const screenKey = rest.screenKey && screenKeyMap.has(rest.screenKey)
-    ? screenKeyMap.get(rest.screenKey)
-    : rest.screenKey;
+  // O gatilho é `<coleção>.saved`: a coleção é a chave de template da tela e vira a instalada.
+  const event = splitEntityEventName(rest.eventName);
+  const eventName = event && screenKeyMap.has(event.collection)
+    ? `${screenKeyMap.get(event.collection)}.${event.action}`
+    : rest.eventName;
   return stripUndefined({
-    ...rest, steps, screenKey, ownerPluginId: pluginId, ownerPluginIds: [pluginId], sourceId: template.templateId, sourceRev: template.sourceRev ?? null, enabled: true,
+    ...rest, steps, eventName, ownerPluginId: pluginId, ownerPluginIds: [pluginId], sourceId: template.templateId, sourceRev: template.sourceRev ?? null, enabled: true,
   });
 };
 

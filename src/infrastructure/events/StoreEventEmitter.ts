@@ -39,7 +39,7 @@ export const StoreEvents = {
   PUSH_UPDATED: 'push:updated',
   SAVED_FILTER_UPDATED: 'saved_filter:updated',
   SCREEN_DEFINITIONS_UPDATED: 'screen_definitions:updated',
-  CUSTOM_RECORDS_UPDATED: 'custom_records:updated',
+  RECORDS_UPDATED: 'records:updated',
   WORKFLOWS_UPDATED: 'workflows:updated',
   SCRIPTS_UPDATED: 'scripts:updated',
   ACTIONS_UPDATED: 'actions:updated',

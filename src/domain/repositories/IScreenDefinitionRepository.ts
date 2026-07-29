@@ -1,4 +1,4 @@
-import type { CustomRecordTag, DeletionActor, ScreenDefinition, ScreenFieldOption } from '../entities';
+import type { ScreenTag, DeletionActor, ScreenDefinition, ScreenFieldOption } from '../entities';
 
 export type ScreenDefinitionInput = Omit<
   ScreenDefinition,
@@ -12,8 +12,8 @@ export interface IScreenDefinitionRepository {
   getFieldOptions(tenantId: string, screenKey: string): Promise<ScreenFieldOption[]>;
   addFieldOption(tenantId: string, screenKey: string, fieldKey: string, label: string, userId: string): Promise<ScreenFieldOption>;
   removeFieldOption(tenantId: string, screenKey: string, optionId: string): Promise<void>;
-  getTags(tenantId: string, screenKey: string): Promise<CustomRecordTag[]>;
-  createTag(tenantId: string, screenKey: string, data: Omit<CustomRecordTag, 'id' | 'tenantId' | 'screenKey' | 'createdAt'>): Promise<CustomRecordTag>;
+  getTags(tenantId: string, screenKey: string): Promise<ScreenTag[]>;
+  createTag(tenantId: string, screenKey: string, data: Omit<ScreenTag, 'id' | 'tenantId' | 'screenKey' | 'createdAt'>): Promise<ScreenTag>;
   updateTag(tenantId: string, screenKey: string, tagId: string, data: { name: string; color: string }): Promise<void>;
   deleteTag(tenantId: string, screenKey: string, tagId: string, actor: DeletionActor): Promise<void>;
 }

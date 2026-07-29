@@ -15,7 +15,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '../../infrastructure/firebase/config';
 import type { IPersonRepository } from '../../domain/repositories/IPersonRepository';
-import type { Person, PersonStatus, Gender, DeletionActor, CustomFieldValue } from '../../domain/entities';
+import type { Person, PersonStatus, Gender, DeletionActor } from '../../domain/entities';
 import { stampDeletionActor } from '../utils/stampDeletionActor';
 import { applyRecordRules, loadRecordBaseline } from '../utils/recordRulesGate';
 
@@ -31,6 +31,9 @@ const personsRef = (tenantId: string) =>
   collection(db, 'tenants', tenantId, 'persons');
 
 const mapPerson = (id: string, d: Record<string, unknown>, tenantId: string): Person => ({
+  // Campos declarados pelo tenant moram na raiz, ao lado dos fixos: o documento cru
+  // entra inteiro e o mapeamento tipado sobrescreve o que precisa de conversão.
+  ...d,
   id,
   tenantId,
   type: d.type as Person['type'],
@@ -50,7 +53,6 @@ const mapPerson = (id: string, d: Record<string, unknown>, tenantId: string): Pe
   notes: (d.notes as string | null) ?? null,
   tagIds: (d.tagIds as string[] | undefined) ?? [],
   status: (d.status as PersonStatus) ?? 'Ativo',
-  customValues: (d.customValues as Record<string, CustomFieldValue> | undefined) ?? {},
   createdAt: toDate(d.createdAt),
   createdBy: d.createdBy as string,
   updatedAt: toDate(d.updatedAt),

@@ -5,7 +5,7 @@ import { useNotification } from '../../../stores/useNotification';
 import { useRecordListViewModel, type RecordListViewModel, type RecordCardAction } from '../entityScreen/useRecordListViewModel';
 import { buildListTabKey } from '../../../shared/constants/dynamicScreenKeys';
 import { generateDeepLink } from '../../../infrastructure/deeplink/deepLinkUtils';
-import type { CustomRecord } from '../../../domain/entities';
+import type { EntityRecord } from '../../../domain/entities';
 
 export interface EntityListOptions {
   /**
@@ -40,7 +40,7 @@ export const useEntityList = (sourceId: string, options: EntityListOptions = {})
   const vm = useRecordListViewModel({ screenKey, savedFiltersKey: buildListTabKey(screenKey) });
 
   const getCardActions = useCallback(
-    (record: CustomRecord): RecordCardAction[] => {
+    (record: EntityRecord): RecordCardAction[] => {
       const base = vm.getCardActions(record);
       if (!editKeyPrefix) return base;
       return base.map((action) => {

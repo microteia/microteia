@@ -1,5 +1,5 @@
 import { useCallback, useMemo } from 'react';
-import { useCustomRecords } from '../../stores/useCustomRecords';
+import { useRecords } from '../../stores/useRecords';
 import { usePersonStore } from '../../stores/usePersonStore';
 import { useCaseStore } from '../../stores/useCaseStore';
 import { useContractStore } from '../../stores/useContractStore';
@@ -16,13 +16,11 @@ const indexById = <T extends Identified>(items: T[]): Map<string, T> =>
 
 /**
  * Resolve um registro referenciado a partir do que os stores já mantêm em memória — não há busca
- * nova: `CustomRecordStore` assina todas as telas dinâmicas e os stores nativos carregam suas listas.
- *
- * Para tela dinâmica devolve os `values` (o escopo de campos daquele registro); para entidade fixa
- * devolve o próprio objeto, cujos campos já estão na raiz.
+ * nova: o `RecordStore` assina todas as telas do tenant e os stores fixos carregam suas listas.
+ * Devolve sempre o próprio registro: os campos estão na raiz em qualquer coleção.
  */
 export const useRecordResolver = (): RecordResolver => {
-  const { recordsByScreen } = useCustomRecords();
+  const { recordsByCollection } = useRecords();
   const { persons } = usePersonStore();
   const { cases } = useCaseStore();
   const { contracts } = useContractStore();
@@ -42,14 +40,14 @@ export const useRecordResolver = (): RecordResolver => {
 
   const dynamicIndexes = useMemo(() => {
     const result = new Map<string, Map<string, Record<string, unknown>>>();
-    for (const [screenKey, records] of Object.entries(recordsByScreen)) {
+    for (const [collection, records] of Object.entries(recordsByCollection)) {
       result.set(
-        screenKey,
-        new Map(records.map((record) => [record.id, record.values as Record<string, unknown>])),
+        collection,
+        new Map(records.map((record) => [record.id, record as Record<string, unknown>])),
       );
     }
     return result;
-  }, [recordsByScreen]);
+  }, [recordsByCollection]);
 
   return useCallback(
     (refEntity, id) => {

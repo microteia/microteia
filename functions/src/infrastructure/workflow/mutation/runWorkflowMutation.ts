@@ -17,7 +17,6 @@ import { describeRuleIssues } from '../../../domain/schema/fieldRules';
 import { formatAndValidateRecord } from '../../../domain/schema/recordRules';
 
 const WORKFLOW_ACTOR = 'workflow-engine';
-const UNTITLED_RECORD = 'Sem título';
 
 export interface WorkflowMutationDeps {
   mutationRepository: IWorkflowMutationRepository;
@@ -120,10 +119,6 @@ export async function runWorkflowUpsert(
   const id = effectiveSpec.id?.trim();
   const existing = id ? await deps.mutationRepository.getById(tenantId, collection, id) : null;
 
-  if (existing && target.kind === 'custom' && existing.screenKey !== target.screenKey) {
-    return { ok: false, error: 'O registro informado pertence a outra tela e não pode ser alterado' };
-  }
-
   const ruled = formatAndValidateRecord(ctx, effectiveSpec.table, effectiveSpec.data, {
     baseline: existing ?? undefined,
   });
@@ -133,14 +128,6 @@ export async function runWorkflowUpsert(
   const ruledSpec: UpsertSpec = { ...effectiveSpec, data: ruled.data };
 
   const payload = buildFieldPayload(ruledSpec, target, ctx);
-
-  if (target.kind === 'custom' && target.screenKey) {
-    payload.screenKey = target.screenKey;
-    const screen = screens.find((s) => s.id === target.screenKey);
-    const values = (payload.values as Record<string, unknown> | undefined) ?? {};
-    const titleValue = screen?.titleFieldKey ? values[screen.titleFieldKey] : undefined;
-    payload.title = typeof titleValue === 'string' && titleValue.trim() !== '' ? titleValue.trim() : UNTITLED_RECORD;
-  }
 
   let created: boolean;
   let finalId: string;
@@ -188,10 +175,6 @@ export async function runWorkflowRemove(
   if (!existing) {
     return { ok: true, value: { id, removed: false } };
   }
-  if (target.kind === 'custom' && existing.screenKey !== target.screenKey) {
-    return { ok: false, error: 'O registro informado pertence a outra tela e não pode ser excluído' };
-  }
-
   await deps.mutationRepository.delete(tenantId, collection, id);
   return { ok: true, value: { id, removed: true } };
 }

@@ -14,7 +14,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '../../infrastructure/firebase/config';
 import type { IScreenDefinitionRepository, ScreenDefinitionInput } from '../../domain/repositories/IScreenDefinitionRepository';
-import type { CustomRecordTag, DeletionActor, ScreenDefinition, ScreenFieldOption } from '../../domain/entities';
+import type { ScreenTag, DeletionActor, ScreenDefinition, ScreenFieldOption } from '../../domain/entities';
 import { stampDeletionActor } from '../utils/stampDeletionActor';
 import { mapScreenDefinition } from './screenDefinitionMapper';
 
@@ -42,7 +42,7 @@ const mapFieldOption = (id: string, d: Record<string, unknown>, tenantId: string
   createdBy: (d.createdBy as string | undefined) ?? '',
 });
 
-const mapTag = (id: string, d: Record<string, unknown>, tenantId: string, screenKey: string): CustomRecordTag => ({
+const mapTag = (id: string, d: Record<string, unknown>, tenantId: string, screenKey: string): ScreenTag => ({
   id,
   tenantId,
   screenKey,
@@ -108,13 +108,13 @@ export class FirebaseScreenDefinitionRepository implements IScreenDefinitionRepo
     await deleteDoc(doc(fieldOptionsRef(tenantId, screenKey), optionId));
   }
 
-  async getTags(tenantId: string, screenKey: string): Promise<CustomRecordTag[]> {
+  async getTags(tenantId: string, screenKey: string): Promise<ScreenTag[]> {
     const q = query(tagsRef(tenantId, screenKey), orderBy('name', 'asc'));
     const snap = await getDocs(q);
     return snap.docs.map((d) => mapTag(d.id, d.data(), tenantId, screenKey));
   }
 
-  async createTag(tenantId: string, screenKey: string, data: Omit<CustomRecordTag, 'id' | 'tenantId' | 'screenKey' | 'createdAt'>): Promise<CustomRecordTag> {
+  async createTag(tenantId: string, screenKey: string, data: Omit<ScreenTag, 'id' | 'tenantId' | 'screenKey' | 'createdAt'>): Promise<ScreenTag> {
     const ref = await addDoc(tagsRef(tenantId, screenKey), { ...data, createdAt: serverTimestamp() });
     return { id: ref.id, tenantId, screenKey, ...data, createdAt: new Date() };
   }

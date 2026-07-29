@@ -17,7 +17,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '../../infrastructure/firebase/config';
 import type { ICaseRepository } from '../../domain/repositories/ICaseRepository';
-import type { Case, CaseInstance, CaseStatus, DeletionActor, CustomFieldValue } from '../../domain/entities';
+import type { Case, CaseInstance, CaseStatus, DeletionActor } from '../../domain/entities';
 import { stampDeletionActor } from '../utils/stampDeletionActor';
 import { applyRecordRules, loadRecordBaseline } from '../utils/recordRulesGate';
 
@@ -33,6 +33,9 @@ const casesRef = (tenantId: string) =>
   collection(db, 'tenants', tenantId, 'cases');
 
 const mapCase = (id: string, d: Record<string, unknown>, tenantId: string): Case => ({
+  // Campos declarados pelo tenant moram na raiz, ao lado dos fixos: o documento cru
+  // entra inteiro e o mapeamento tipado sobrescreve o que precisa de conversão.
+  ...d,
   id,
   tenantId,
   caseNumber: d.caseNumber as string,
@@ -56,7 +59,6 @@ const mapCase = (id: string, d: Record<string, unknown>, tenantId: string): Case
   causeValue: (d.causeValue as number | null) ?? null,
   notes: (d.notes as string | null) ?? null,
   tagIds: (d.tagIds as string[] | undefined) ?? [],
-  customValues: (d.customValues as Record<string, CustomFieldValue> | undefined) ?? {},
   createdAt: toDate(d.createdAt),
   createdBy: d.createdBy as string,
   updatedAt: toDate(d.updatedAt),

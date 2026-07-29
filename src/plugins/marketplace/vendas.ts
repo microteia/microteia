@@ -1,5 +1,4 @@
-import type { MarketplacePlugin, ScreenModuleTemplate } from '../../domain/entities/MarketplacePlugin';
-import type { FieldDefinition } from '../../domain/entities/entitySchemas';
+import type { MarketplacePlugin, ScreenModuleTemplate, TemplateField } from '../../domain/entities/MarketplacePlugin';
 
 /**
  * Plugin de exemplo COMPLETO — o módulo Vendas (produto, venda, item) espelhando um módulo do core,
@@ -12,7 +11,7 @@ import type { FieldDefinition } from '../../domain/entities/entitySchemas';
  * As `key`s são de template; a instalação as namespaceia e reescreve as referências entre telas.
  */
 
-const f = (field: Partial<FieldDefinition> & Pick<FieldDefinition, 'key' | 'label' | 'type' | 'order'>): FieldDefinition => ({
+const f = (field: Partial<TemplateField> & Pick<TemplateField, 'key' | 'label' | 'type' | 'order'>): TemplateField => ({
   required: false,
   ...field,
 });

@@ -6,7 +6,7 @@ import { publishEvent } from '../workflow/publishEvent';
 
 /**
  * Publica eventos de entidades com o payload cru do documento:
- * - Campos estáticos e dinâmicos (customValues/values)
+ * - Todos os campos, na raiz (fixos e declarados pelo tenant, sem distinção)
  * - changeType: 'created' | 'updated' (apenas para .saved)
  * - old: dados antes da alteração (apenas para .saved, ausente na inclusão)
  *
@@ -14,7 +14,8 @@ import { publishEvent } from '../workflow/publishEvent';
  * WorkflowContextHydrator no momento da execução dos workflows, guiada pelos
  * caminhos que cada automação realmente referencia.
  *
- * Suporta: persons, cases, contracts, deadlines, financials, pushes, custom_records e lookups
+ * Suporta as entidades fixas, os lookups e QUALQUER tela do tenant (que emite pelo nome da
+ * própria coleção — ver `getWorkflowEventPrefix`).
  */
 export const publishWorkflowEventOnEntityChange = onDocumentWritten(
   { document: 'tenants/{tenantId}/{collection}/{docId}', region: 'southamerica-east1' },

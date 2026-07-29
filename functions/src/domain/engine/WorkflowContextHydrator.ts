@@ -84,12 +84,11 @@ export class WorkflowContextHydrator {
     if (paths.length === 0) return event;
 
     const payload = event.payload ?? {};
-    const screenKey = typeof payload.screenKey === 'string' ? payload.screenKey : undefined;
-    const root = rootOverride ?? eventNameToRoot(event.name, screenKey);
-    if (!root) return event;
-
     const screens = await this.screenProvider.getScreens(event.tenantId);
     const ctx = createSchemaContext(screens);
+
+    const root = rootOverride ?? eventNameToRoot(event.name, ctx);
+    if (!root) return event;
     const plan = buildHydrationPlan(ctx, root, paths, options);
 
     for (const issue of plan.issues) {

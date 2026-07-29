@@ -17,22 +17,22 @@ import { makeUpdateScreenTagUseCase } from '../domain/usecases/screendefinitions
 import { makeDeleteScreenTagUseCase } from '../domain/usecases/screendefinitions/DeleteScreenTagUseCase';
 import { sortFieldsByOrder } from '../domain/services/customFieldValues';
 import { setRecordRulesScreens, toSchemaScreens } from '../data/utils/recordRulesGate';
-import type { CustomRecordTag, DeletionActor, FieldDefinition, ScreenDefinition, ScreenFieldOption } from '../domain/entities';
+import type { ScreenTag, DeletionActor, FieldDefinition, ScreenDefinition, ScreenFieldOption } from '../domain/entities';
 
 export const ScreenDefinitionStoreProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { currentTenant } = useTenant();
   const { user, effectiveName } = useAuth();
-  const { screenDefinitionRepository, customRecordRepository } = useDI();
+  const { screenDefinitionRepository, recordRepository } = useDI();
 
   const [definitions, setDefinitions] = useState<ScreenDefinition[]>([]);
   const [fieldOptionsByField, setFieldOptionsByField] = useState<Record<string, ScreenFieldOption[]>>({});
-  const [tagsByScreen, setTagsByScreen] = useState<Record<string, CustomRecordTag[]>>({});
+  const [tagsByScreen, setTagsByScreen] = useState<Record<string, ScreenTag[]>>({});
   const [isLoading, setIsLoading] = useState(false);
 
   const uc = useMemo(() => ({
     get: makeGetScreenDefinitionsUseCase(screenDefinitionRepository),
     save: makeSaveScreenDefinitionUseCase(screenDefinitionRepository),
-    delete: makeDeleteScreenDefinitionUseCase(screenDefinitionRepository, customRecordRepository),
+    delete: makeDeleteScreenDefinitionUseCase(screenDefinitionRepository, recordRepository),
     getOptions: makeGetScreenFieldOptionsUseCase(screenDefinitionRepository),
     addOption: makeAddFieldOptionUseCase(screenDefinitionRepository),
     removeOption: makeRemoveFieldOptionUseCase(screenDefinitionRepository),
@@ -40,7 +40,7 @@ export const ScreenDefinitionStoreProvider: React.FC<{ children: React.ReactNode
     createTag: makeCreateScreenTagUseCase(screenDefinitionRepository),
     updateTag: makeUpdateScreenTagUseCase(screenDefinitionRepository),
     deleteTag: makeDeleteScreenTagUseCase(screenDefinitionRepository),
-  }), [screenDefinitionRepository, customRecordRepository]);
+  }), [screenDefinitionRepository, recordRepository]);
 
   const refresh = useCallback(async () => {
     if (!currentTenant) return;
@@ -54,7 +54,7 @@ export const ScreenDefinitionStoreProvider: React.FC<{ children: React.ReactNode
         optionsMap[mapKey] = [...(optionsMap[mapKey] ?? []), option];
       });
       const tagLists = await Promise.all(list.map((def) => uc.getTags.execute(currentTenant.id, def.id)));
-      const tagsMap: Record<string, CustomRecordTag[]> = {};
+      const tagsMap: Record<string, ScreenTag[]> = {};
       list.forEach((def, idx) => { tagsMap[def.id] = tagLists[idx]; });
       setDefinitions(list);
       setFieldOptionsByField(optionsMap);
@@ -84,15 +84,17 @@ export const ScreenDefinitionStoreProvider: React.FC<{ children: React.ReactNode
     return () => document.removeEventListener('visibilitychange', handleVisibility);
   }, [refresh]);
 
+  // Telas que NÃO correspondem a uma entidade fixa: as do Form Design e as de extensão. São as que
+  // ganham store genérico, menu automático e páginas genéricas — as fixas já têm as suas.
   const dynamicScreens = useMemo(
     () => definitions
-      .filter((def) => !def.builtin && def.enabled)
+      .filter((def) => def.origin !== 'builtin' && def.enabled)
       .sort((a, b) => a.sidebarOrder - b.sidebarOrder),
     [definitions],
   );
 
   // Telas filhas existem só dentro do registro-pai: sem menu lateral e sem ⌘K. Elas seguem em
-  // `dynamicScreens` porque o CustomRecordStore precisa assinar seus registros e o ScreenBuilder
+  // `dynamicScreens` porque o RecordStore precisa assinar seus registros e o ScreenBuilder
   // precisa listá-las para configuração.
   const sidebarScreens = useMemo(
     () => dynamicScreens.filter((def) => !def.parentEntity && !def.hideFromSidebar),
@@ -104,9 +106,11 @@ export const ScreenDefinitionStoreProvider: React.FC<{ children: React.ReactNode
     [definitions],
   );
 
-  const getCustomFieldsFor = useCallback(
-    (entityKey: string): FieldDefinition[] => {
-      const def = definitions.find((d) => d.id === entityKey && d.builtin);
+  // Campos declarados pelo tenant para a entidade — os fixos vêm do ENTITY_REGISTRY e são
+  // mesclados por `resolveScreenFields` na hora de montar o formulário.
+  const getScreenFieldsFor = useCallback(
+    (collection: string): FieldDefinition[] => {
+      const def = definitions.find((d) => d.id === collection);
       return def ? sortFieldsByOrder(def.fields) : [];
     },
     [definitions],
@@ -164,7 +168,7 @@ export const ScreenDefinitionStoreProvider: React.FC<{ children: React.ReactNode
     }));
   }, [currentTenant, uc.removeOption, fieldOptionsByField]);
 
-  const createTag = useCallback(async (screenKey: string, name: string, color: string): Promise<CustomRecordTag> => {
+  const createTag = useCallback(async (screenKey: string, name: string, color: string): Promise<ScreenTag> => {
     if (!currentTenant || !user) throw new Error('Not authenticated');
     const tag = await uc.createTag.execute(currentTenant.id, screenKey, { name, color, createdBy: user.id });
     setTagsByScreen((prev) => ({
@@ -201,7 +205,7 @@ export const ScreenDefinitionStoreProvider: React.FC<{ children: React.ReactNode
       dynamicScreens,
       sidebarScreens,
       getDefinition,
-      getCustomFieldsFor,
+      getScreenFieldsFor,
       fieldOptionsByField,
       tagsByScreen,
       isLoading,

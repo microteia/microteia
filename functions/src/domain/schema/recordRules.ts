@@ -9,7 +9,6 @@
 // GERADA por scripts/sync-schemas.cjs (npm run sync-schemas). Nunca edite a cópia.
 // ═══════════════════════════════════════════════════════════════════════════════
 
-import type { FieldDefinition } from '../entities/entitySchemas';
 import type { NativeFieldSpec } from './entityRegistry';
 import {
   evaluateFieldExpression,
@@ -18,37 +17,49 @@ import {
 } from './fieldExpression';
 import type { FieldLogic, FieldRules, RuleIssue } from './fieldRules';
 import { formatAndValidate } from './fieldRules';
-import { flattenDataLeaves, resolveWritableTable, setValueAtPath } from './mutationSpec';
+import { coerceWriteValue, flattenDataLeaves, resolveWritableTable, setValueAtPath } from './mutationSpec';
 import type { SchemaContext } from './pathResolver';
-import { CUSTOM_VALUES_KEY } from './pathResolver';
+import { resolveEntity } from './screenEntity';
 
 export interface ResolvedFieldRules {
   rules: FieldRules;
   label: string;
 }
 
-const findNativeFieldRules = (
+const findNativeField = (
   fields: NativeFieldSpec[],
   parts: string[],
-): ResolvedFieldRules | undefined => {
+): NativeFieldSpec | undefined => {
   const [head, ...rest] = parts;
   const field = fields.find((candidate) => candidate.key === head);
   if (!field) return undefined;
 
   if (rest.length > 0) {
-    return field.objectFields ? findNativeFieldRules(field.objectFields, rest) : undefined;
+    return field.objectFields ? findNativeField(field.objectFields, rest) : undefined;
   }
 
-  return field.rules ? { rules: field.rules, label: field.label } : undefined;
+  return field;
 };
 
-const findCustomFieldRules = (
-  fields: FieldDefinition[] | undefined,
-  key: string,
-): ResolvedFieldRules | undefined => {
-  const field = fields?.find((candidate) => candidate.key === key);
-  if (!field?.rules) return undefined;
-  return { rules: field.rules, label: field.label };
+/**
+ * O campo declarado no caminho pedido, de qualquer origem — é ele que diz o TIPO em que o valor
+ * deve ser gravado e as regras de formato/validação que valem para ele.
+ */
+export const resolveFieldSpec = (
+  ctx: SchemaContext,
+  table: string,
+  path: string,
+): NativeFieldSpec | undefined => {
+  const outcome = resolveWritableTable(table, ctx);
+  if (!outcome.ok || outcome.value.kind === 'lookup') return undefined;
+
+  const parts = path.split('.').filter(Boolean);
+  if (parts.length === 0) return undefined;
+
+  const entity = resolveEntity(ctx, outcome.value.physicalCollection);
+  if (!entity) return undefined;
+
+  return findNativeField(entity.fields, parts);
 };
 
 export const resolveFieldRules = (
@@ -56,27 +67,8 @@ export const resolveFieldRules = (
   table: string,
   path: string,
 ): ResolvedFieldRules | undefined => {
-  const outcome = resolveWritableTable(table, ctx);
-  if (!outcome.ok || outcome.value.kind === 'lookup') return undefined;
-
-  const resolved = outcome.value;
-  const parts = path.split('.').filter(Boolean);
-  if (parts.length === 0) return undefined;
-
-  if (resolved.kind === 'custom') {
-    if (parts[0] !== 'values' || parts.length !== 2) return undefined;
-    return findCustomFieldRules(ctx.screens.get(resolved.screenKey ?? '')?.fields, parts[1]);
-  }
-
-  const entity = resolved.entityKey ? ctx.registry[resolved.entityKey] : undefined;
-  if (!entity) return undefined;
-
-  if (parts[0] === CUSTOM_VALUES_KEY) {
-    if (!entity.supportsCustomFields || parts.length !== 2) return undefined;
-    return findCustomFieldRules(ctx.screens.get(entity.collection)?.fields, parts[1]);
-  }
-
-  return findNativeFieldRules(entity.fields, parts);
+  const field = resolveFieldSpec(ctx, table, path);
+  return field?.rules ? { rules: field.rules, label: field.label } : undefined;
 };
 
 export type FieldLogicSlot = 'validate' | 'compute';
@@ -90,29 +82,18 @@ export interface FieldLogicTarget {
 }
 
 /**
- * Escopo plano por chave de campo (nativos e customizados na raiz), usado tanto na avaliação de
- * expressões no back quanto no renderizador do front — para que a mesma expressão funcione dos dois
- * lados referenciando os campos por `key`.
+ * Escopo das expressões de campo: o próprio registro. Como todo campo — fixo, de extensão ou do
+ * Form Design — mora na raiz do documento, a mesma expressão funciona no front e no back
+ * referenciando os campos por `key`, sem nenhum desempacotamento.
+ *
+ * A assinatura mantém `ctx` e `table` porque é ponto de extensão do escopo (hidratação de FK no
+ * front, por exemplo) e para não obrigar os chamadores a mudar quando isso voltar a variar.
  */
 export const buildRecordFieldScope = (
-  ctx: SchemaContext,
-  table: string,
+  _ctx: SchemaContext,
+  _table: string,
   data: Record<string, unknown>,
-): Record<string, unknown> => {
-  const outcome = resolveWritableTable(table, ctx);
-  if (!outcome.ok || outcome.value.kind === 'lookup') return { ...data };
-
-  if (outcome.value.kind === 'custom') {
-    const values = data.values;
-    return typeof values === 'object' && values !== null ? { ...(values as Record<string, unknown>) } : {};
-  }
-
-  const customValues = data[CUSTOM_VALUES_KEY];
-  const flatCustom = typeof customValues === 'object' && customValues !== null
-    ? (customValues as Record<string, unknown>)
-    : {};
-  return { ...data, ...flatCustom };
-};
+): Record<string, unknown> => ({ ...data });
 
 const readLogicSlot = (
   logic: FieldLogic | null | undefined,
@@ -122,6 +103,11 @@ const readLogicSlot = (
   return expr && expr.trim() ? expr : undefined;
 };
 
+/**
+ * Campos da entidade com expressão no slot pedido. `path` é igual a `key` porque todo campo mora na
+ * raiz do documento; campos aninhados em `objectFields` ficam de fora, como sempre estiveram — o
+ * escopo é plano por chave de topo.
+ */
 export const collectFieldLogicTargets = (
   ctx: SchemaContext,
   table: string,
@@ -130,39 +116,19 @@ export const collectFieldLogicTargets = (
   const outcome = resolveWritableTable(table, ctx);
   if (!outcome.ok || outcome.value.kind === 'lookup') return [];
 
-  const resolved = outcome.value;
+  const entity = resolveEntity(ctx, outcome.value.physicalCollection);
   const targets: FieldLogicTarget[] = [];
 
-  const push = (
-    field: { key: string; label: string; logic?: FieldLogic | null },
-    path: string,
-  ): void => {
+  for (const field of entity?.fields ?? []) {
     const expr = readLogicSlot(field.logic, slot);
-    if (!expr) return;
+    if (!expr) continue;
     targets.push({
       key: field.key,
-      path,
+      path: field.key,
       label: field.label,
       expr,
       dependencies: extractFieldExpressionDependencies(expr),
     });
-  };
-
-  const pushCustomFields = (fields: FieldDefinition[] | undefined, prefix: string): void => {
-    for (const field of fields ?? []) push(field, `${prefix}.${field.key}`);
-  };
-
-  if (resolved.kind === 'custom') {
-    pushCustomFields(ctx.screens.get(resolved.screenKey ?? '')?.fields, 'values');
-    return targets;
-  }
-
-  const entity = resolved.entityKey ? ctx.registry[resolved.entityKey] : undefined;
-  if (!entity) return targets;
-
-  for (const field of entity.fields) push(field, field.key);
-  if (entity.supportsCustomFields) {
-    pushCustomFields(ctx.screens.get(entity.collection)?.fields, CUSTOM_VALUES_KEY);
   }
 
   return targets;
@@ -305,9 +271,14 @@ export interface RecordRulesOutcome {
 }
 
 /**
- * Aplica `format` e `validate` a cada folha PRESENTE em `data` que tenha regra declarada
- * (campo nativo, campo de objeto aninhado, ou campo dinâmico sob customValues/values).
- * Folhas sem regra passam intactas; valores vazios nunca reprovam (obrigatoriedade é `required`).
+ * Portão único de escrita, do formulário e do motor de workflows. Para cada folha PRESENTE em
+ * `data`, converte o valor para o TIPO declarado no campo e aplica `format`/`validate` quando há
+ * regra. É aqui que uma data digitada no formulário vira `Date` — e por isso um campo `date` é
+ * gravado como Timestamp em qualquer tela, fixa, de extensão ou do Form Design, deixando o evento
+ * `<coleção>.saved` entregar uma data de verdade às expressões.
+ *
+ * Folhas de campos não declarados passam intactas; valores vazios nunca reprovam (obrigatoriedade
+ * é `required`).
  */
 export interface RecordRulesOptions {
   // Caminhos cuja regra de schema deve ser ignorada — usado pelo Step "Validar Objeto", onde as
@@ -331,13 +302,15 @@ export const formatAndValidateRecord = (
 
   for (const leaf of flattenDataLeaves(data)) {
     const skipped = options.skipPaths?.has(leaf.path.split('.')[0]);
-    const resolved = skipped ? undefined : resolveFieldRules(ctx, table, leaf.path);
-    if (!resolved) {
-      setValueAtPath(next, leaf.path, leaf.value);
+    const field = skipped ? undefined : resolveFieldSpec(ctx, table, leaf.path);
+    const value = field ? coerceWriteValue(field.type, leaf.value) : leaf.value;
+
+    if (!field?.rules) {
+      setValueAtPath(next, leaf.path, value);
       continue;
     }
 
-    const outcome = formatAndValidate(leaf.value, resolved.rules, leaf.path, resolved.label);
+    const outcome = formatAndValidate(value, field.rules, leaf.path, field.label);
     setValueAtPath(next, leaf.path, outcome.value);
     if (outcome.issue) issues.push(outcome.issue);
   }

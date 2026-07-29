@@ -46,8 +46,7 @@ export const auditFlatEntityChange = onDocumentWritten(
       }
 
       if (diff) {
-        const screenKey = collection === 'customRecords' ? (referenceData.screenKey as string | undefined) : collection;
-        diff = await getDI().getFkNameEnricherService().enrichDiff(tenantId, collection, screenKey, diff);
+        diff = await getDI().getFkNameEnricherService().enrichDiff(tenantId, collection, undefined, diff);
       }
 
       const displayName = config.getDisplayName(referenceData);

@@ -1,5 +1,5 @@
 import { createContext, useContext } from 'react';
-import type { CustomRecordTag, FieldDefinition, ScreenDefinition, ScreenFieldOption } from '../domain/entities';
+import type { ScreenTag, FieldDefinition, ScreenDefinition, ScreenFieldOption } from '../domain/entities';
 import type { ScreenDefinitionInput } from '../domain/repositories/IScreenDefinitionRepository';
 
 export type ScreenDefinitionSaveInput = Omit<ScreenDefinitionInput, 'createdBy' | 'updatedBy' | 'updatedByName' | 'updatedByPhotoURL'>;
@@ -10,15 +10,16 @@ export interface ScreenDefinitionStoreState {
   /** `dynamicScreens` sem as telas filhas — para menu lateral e busca ⌘K. */
   sidebarScreens: ScreenDefinition[];
   getDefinition: (screenKey: string) => ScreenDefinition | undefined;
-  getCustomFieldsFor: (entityKey: string) => FieldDefinition[];
+  /** Campos que a tela do tenant declara para a coleção (sem os fixos do código). */
+  getScreenFieldsFor: (collection: string) => FieldDefinition[];
   fieldOptionsByField: Record<string, ScreenFieldOption[]>;
-  tagsByScreen: Record<string, CustomRecordTag[]>;
+  tagsByScreen: Record<string, ScreenTag[]>;
   isLoading: boolean;
   saveDefinition: (screenKey: string, data: ScreenDefinitionSaveInput) => Promise<ScreenDefinition>;
   deleteDefinition: (screenKey: string) => Promise<void>;
   addFieldOption: (screenKey: string, fieldKey: string, label: string) => Promise<void>;
   removeFieldOption: (screenKey: string, fieldKey: string, optionKey: string) => Promise<void>;
-  createTag: (screenKey: string, name: string, color: string) => Promise<CustomRecordTag>;
+  createTag: (screenKey: string, name: string, color: string) => Promise<ScreenTag>;
   updateTag: (screenKey: string, tagId: string, data: { name: string; color: string }) => Promise<void>;
   deleteTag: (screenKey: string, tagId: string) => Promise<void>;
   refresh: () => Promise<void>;

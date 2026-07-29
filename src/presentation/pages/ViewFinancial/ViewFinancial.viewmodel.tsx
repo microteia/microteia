@@ -25,7 +25,7 @@ import {
   validateRequiredFields,
 } from '../../../domain/services/customFieldValues';
 import { describeRuleIssues } from '../../../domain/schema/fieldRules';
-import { validateRecordRules, ruleIssueFieldKey } from '../../../data/utils/recordRulesGate';
+import { validateRecordRules } from '../../../data/utils/recordRulesGate';
 
 export type ViewFinancialTab = 'data' | 'documents';
 
@@ -42,7 +42,7 @@ const parseFinancialTab = (tabKey: string) => {
 
 const financialToValues = (
   financial: Financial | null,
-  customFields: FieldDefinition[],
+  addedFields: FieldDefinition[],
   clone: boolean,
 ): Values => ({
   type: financial ? financial.type ?? '' : NEW_FINANCIAL_DEFAULTS.type,
@@ -59,7 +59,7 @@ const financialToValues = (
   personId: financial?.personId ?? '',
   contractId: financial?.contractId ?? '',
   notes: financial?.notes ?? '',
-  ...buildInitialFormValues(customFields, financial?.customValues ?? null),
+  ...buildInitialFormValues(addedFields, financial ?? null),
 });
 
 const str = (values: Values, key: string): string => {
@@ -72,7 +72,7 @@ const num = (values: Values, key: string): number | null => {
   return typeof v === 'number' ? v : null;
 };
 
-const valuesToFinancialPayload = (values: Values, customFields: FieldDefinition[]) => ({
+const valuesToFinancialPayload = (values: Values, addedFields: FieldDefinition[]) => ({
   type: str(values, 'type') as FinancialType,
   category: str(values, 'category'),
   costCenter: str(values, 'costCenter') || null,
@@ -87,7 +87,7 @@ const valuesToFinancialPayload = (values: Values, customFields: FieldDefinition[
   contractId: str(values, 'contractId') || null,
   invoiceNumber: str(values, 'invoiceNumber') || null,
   notes: str(values, 'notes') || null,
-  customValues: formValuesToStoredValues(customFields, values),
+  ...formValuesToStoredValues(addedFields, values),
 });
 
 const NO_NOTES_PORT: NotesPort = {
@@ -102,7 +102,7 @@ export interface ViewFinancialViewModel {
   financial: Financial | null;
   isAdmin: boolean;
   fields: FieldDefinition[];
-  customFields: FieldDefinition[];
+  addedFields: FieldDefinition[];
   resolveOptionsScreenKey: (field: FieldDefinition) => string;
   values: Values;
   setFieldValue: (fieldKey: string, value: CustomFieldValue) => void;
@@ -146,7 +146,7 @@ export const useViewFinancialViewModel = (tabKey: string): ViewFinancialViewMode
 
   const isAdmin = tenantRole === 'admin';
   const userId = user?.id ?? '';
-  const { fields: formFields, customFields, resolveOptionsScreenKey } = useEntityFormFields('financials');
+  const { fields: formFields, addedFields, resolveOptionsScreenKey } = useEntityFormFields('financials');
 
   const findInStore = useCallback(
     (id: string) => financials.find((f) => f.id === id) ?? null,
@@ -155,8 +155,8 @@ export const useViewFinancialViewModel = (tabKey: string): ViewFinancialViewMode
 
   const recordToValues = useCallback(
     (financial: Financial | null, opts: { clone: boolean }) =>
-      financialToValues(financial, customFields, opts.clone),
-    [customFields],
+      financialToValues(financial, addedFields, opts.clone),
+    [addedFields],
   );
 
   const resolveTitleFromValues = useCallback((values: Values) => str(values, 'category') || 'Lançamento', []);
@@ -166,34 +166,34 @@ export const useViewFinancialViewModel = (tabKey: string): ViewFinancialViewMode
     const fieldErrors = collectRequiredErrors(formFields, values);
     const amount = num(values, 'amount');
     if (amount !== null && amount <= 0) fieldErrors.amount = 'Informe um valor maior que zero.';
-    const issues = validateRecordRules('financials', valuesToFinancialPayload(values, customFields));
+    const issues = validateRecordRules('financials', valuesToFinancialPayload(values, addedFields));
     issues.forEach((issue) => {
-      const key = ruleIssueFieldKey(issue.path);
+      const key = issue.path;
       if (!fieldErrors[key]) fieldErrors[key] = issue.error;
     });
     if (Object.keys(fieldErrors).length === 0) return null;
     const message =
       validateRequiredFields(formFields, values) ?? fieldErrors.amount ?? describeRuleIssues(issues);
     return { message, fieldErrors };
-  }, [formFields, customFields]);
+  }, [formFields, addedFields]);
 
   const create = useCallback(async (values: Values) => {
     const created = await createFinancial({
-      ...valuesToFinancialPayload(values, customFields),
+      ...valuesToFinancialPayload(values, addedFields),
       createdBy: userId,
       tagIds: [],
     });
     return { id: created.id, title: created.category };
-  }, [createFinancial, customFields, userId]);
+  }, [createFinancial, addedFields, userId]);
 
   const update = useCallback(async (id: string, values: Values) => {
     await updateFinancial(id, {
-      ...valuesToFinancialPayload(values, customFields),
+      ...valuesToFinancialPayload(values, addedFields),
       updatedBy: userId,
       updatedByName: effectiveName,
       updatedByPhotoURL: user?.photoURL ?? '',
     });
-  }, [updateFinancial, customFields, userId, effectiveName, user]);
+  }, [updateFinancial, addedFields, userId, effectiveName, user]);
 
   const documentsPort = useDocumentsPort(financialDocumentRepository);
 
@@ -268,7 +268,7 @@ export const useViewFinancialViewModel = (tabKey: string): ViewFinancialViewMode
     financial,
     isAdmin,
     fields: formFields,
-    customFields,
+    addedFields,
     resolveOptionsScreenKey,
     values: detail.values,
     setFieldValue: detail.setFieldValue,

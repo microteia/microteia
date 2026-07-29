@@ -1,6 +1,6 @@
 import { useMemo, useState, useCallback } from 'react';
 import { useScreenDefinitions } from '../../../stores/useScreenDefinitions';
-import { useCustomRecords } from '../../../stores/useCustomRecords';
+import { useRecords } from '../../../stores/useRecords';
 import { useWorkspace } from '../../../stores/useWorkspace';
 import { useTenant } from '../../../stores/useTenant';
 import { useNotification } from '../../../stores/useNotification';
@@ -12,8 +12,8 @@ import { useCustomFieldListing } from '../../hooks/useCustomFieldListing';
 import type { CustomFieldCardItem } from '../../hooks/useCustomFieldListing';
 import { generateDeepLink } from '../../../infrastructure/deeplink/deepLinkUtils';
 import { buildNewTabKey, buildViewTabKey, buildCloneTabKey, buildChildNewTabKey } from '../../../shared/constants/dynamicScreenKeys';
-import { sortFieldsByOrder } from '../../../domain/services/customFieldValues';
-import type { ActionDefinition, ActionStatusCode, CustomRecord, CustomRecordTag, ScreenDefinition, ScreenListAction } from '../../../domain/entities';
+import { resolveRecordTitle, sortFieldsByOrder } from '../../../domain/services/customFieldValues';
+import type { ActionDefinition, ActionStatusCode, CustomFieldValue, EntityRecord, ScreenTag, ScreenDefinition, ScreenListAction } from '../../../domain/entities';
 import type { TagStoreAdapter } from '../../components/ui/TagManager';
 import type { FilterDef, FilterToken } from '../../components/ui/CompositeFilter';
 
@@ -51,22 +51,22 @@ export interface RecordListViewModel {
   definition: ScreenDefinition | null;
   isAvailable: boolean;
   isLoading: boolean;
-  records: CustomRecord[];
-  filteredRecords: CustomRecord[];
+  records: EntityRecord[];
+  filteredRecords: EntityRecord[];
   filterTokens: FilterToken[];
   filterDefs: FilterDef[];
   savedFiltersScreenKey: string;
-  tags: CustomRecordTag[];
+  tags: ScreenTag[];
   setFilterTokens: (tokens: FilterToken[]) => void;
   openNewRecord: () => void;
-  openRecord: (record: CustomRecord) => void;
-  getCardItems: (record: CustomRecord) => CustomFieldCardItem[];
-  getCardTitle: (record: CustomRecord) => string;
-  getCardActions: (record: CustomRecord) => RecordCardAction[];
+  openRecord: (record: EntityRecord) => void;
+  getCardItems: (record: EntityRecord) => CustomFieldCardItem[];
+  getCardTitle: (record: EntityRecord) => string;
+  getCardActions: (record: EntityRecord) => RecordCardAction[];
   tagAdapter: TagStoreAdapter;
-  tagManagerRecord: CustomRecord | null;
+  tagManagerRecord: EntityRecord | null;
   closeTagManager: () => void;
-  recordToDelete: CustomRecord | null;
+  recordToDelete: EntityRecord | null;
   cancelDelete: () => void;
   confirmDelete: () => Promise<void>;
   isDeleting: boolean;
@@ -80,21 +80,21 @@ export interface RecordListViewModel {
 export const useRecordListViewModel = (source: RecordListSource): RecordListViewModel => {
   const { screenKey, savedFiltersKey, parent } = source;
   const { getDefinition, isLoading: definitionsLoading, tagsByScreen, createTag, updateTag, deleteTag } = useScreenDefinitions();
-  const { recordsByScreen, isLoading: recordsLoading, updateRecord, deleteRecord } = useCustomRecords();
+  const { recordsByCollection, isLoading: recordsLoading, updateRecord, deleteRecord } = useRecords();
   const { openTab } = useWorkspace();
   const { tenantRole } = useTenant();
   const { notify } = useNotification();
   const { getActionsByIds, runAction } = useActions();
 
   const [filterTokens, setFilterTokens] = useState<FilterToken[]>([]);
-  const [tagManagerRecord, setTagManagerRecord] = useState<CustomRecord | null>(null);
-  const [recordToDelete, setRecordToDelete] = useState<CustomRecord | null>(null);
+  const [tagManagerRecord, setTagManagerRecord] = useState<EntityRecord | null>(null);
+  const [recordToDelete, setRecordToDelete] = useState<EntityRecord | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [runningActionId, setRunningActionId] = useState<string | null>(null);
 
   const isAdmin = tenantRole === 'admin';
   const definition = useMemo(() => getDefinition(screenKey) ?? null, [getDefinition, screenKey]);
-  const isAvailable = !!definition && !definition.builtin && definition.enabled;
+  const isAvailable = !!definition && definition.origin !== 'builtin' && definition.enabled;
 
   // Na aba do pai, todos os registros têm o mesmo vínculo: filtrar ou exibir esse campo não
   // informa nada. É o mesmo motivo pelo qual ele não vai ao formulário do filho.
@@ -107,10 +107,10 @@ export const useRecordListViewModel = (source: RecordListSource): RecordListView
   const listing = useCustomFieldListing(screenKey, sortedFields);
 
   const records = useMemo(() => {
-    const all = recordsByScreen[screenKey] ?? [];
+    const all = recordsByCollection[screenKey] ?? [];
     if (!parent) return all;
-    return all.filter((record) => record.values[parent.fieldKey] === parent.recordId);
-  }, [recordsByScreen, screenKey, parent]);
+    return all.filter((record) => record[parent.fieldKey] === parent.recordId);
+  }, [recordsByCollection, screenKey, parent]);
 
   const tags = useMemo(() => tagsByScreen[screenKey] ?? [], [tagsByScreen, screenKey]);
 
@@ -136,31 +136,31 @@ export const useRecordListViewModel = (source: RecordListSource): RecordListView
     const tagFilter = tokenMap['tag'] ?? [];
     return records.filter((record) => {
       if (searchQ) {
-        const haystack = [
-          record.title,
-          ...Object.values(record.values).filter((v): v is string => typeof v === 'string'),
-        ].join(' ').toLowerCase();
+        const haystack = Object.values(record)
+          .filter((v): v is string => typeof v === 'string')
+          .join(' ')
+          .toLowerCase();
         if (!haystack.includes(searchQ)) return false;
       }
       if (tagFilter.length > 0 && !tagFilter.some((tid) => record.tagIds?.includes(tid))) return false;
-      return listing.matchesFilters(record.values, tokenMap);
+      return listing.matchesFilters(record, tokenMap);
     });
   }, [records, tokenMap, listing]);
 
   const getCardItems = useCallback(
-    (record: CustomRecord): CustomFieldCardItem[] =>
-      listing.cardItems(record.values).filter((item) => item.key !== definition?.titleFieldKey),
+    (record: EntityRecord): CustomFieldCardItem[] =>
+      listing.cardItems(record).filter((item) => item.key !== definition?.titleFieldKey),
     [listing, definition],
   );
 
   const getCardTitle = useCallback(
-    (record: CustomRecord): string => {
+    (record: EntityRecord): string => {
       const titleField = definition?.fields.find((field) => field.key === definition.titleFieldKey);
       if (titleField && (titleField.type === 'reference' || titleField.type === 'select')) {
-        const resolved = listing.displayValue(record.values, titleField);
+        const resolved = listing.displayValue(record, titleField);
         if (resolved && resolved !== '—') return resolved;
       }
-      return record.title;
+      return resolveRecordTitle(record, definition?.titleFieldKey ?? '');
     },
     [definition, listing],
   );
@@ -172,17 +172,17 @@ export const useRecordListViewModel = (source: RecordListSource): RecordListView
     [openTab, screenKey, parent],
   );
   const openRecord = useCallback(
-    (record: CustomRecord) => openTab(buildViewTabKey(screenKey, record.id)),
+    (record: EntityRecord) => openTab(buildViewTabKey(screenKey, record.id)),
     [openTab, screenKey],
   );
 
-  const onCopyLink = useCallback((record: CustomRecord) => {
+  const onCopyLink = useCallback((record: EntityRecord) => {
     void navigator.clipboard.writeText(generateDeepLink(buildViewTabKey(screenKey, record.id)));
     notify('Link copiado para a área de transferência.', 'success');
   }, [screenKey, notify]);
 
   const onClone = useCallback(
-    (record: CustomRecord) => openTab(buildCloneTabKey(screenKey, record.id)),
+    (record: EntityRecord) => openTab(buildCloneTabKey(screenKey, record.id)),
     [openTab, screenKey],
   );
 
@@ -191,13 +191,13 @@ export const useRecordListViewModel = (source: RecordListSource): RecordListView
     [getActionsByIds, definition],
   );
 
-  const runCardAction = useCallback(async (action: ActionDefinition, record: CustomRecord) => {
+  const runCardAction = useCallback(async (action: ActionDefinition, record: EntityRecord) => {
     setRunningActionId(action.id);
     try {
       const response = await runAction({
         actionId: action.id,
         source: screenKey,
-        context: record.values,
+        context: record,
         recordId: record.id,
         isNew: false,
       });
@@ -208,11 +208,11 @@ export const useRecordListViewModel = (source: RecordListSource): RecordListView
       const { status } = response.outcome;
       if (status.message) notify(status.message, STATUS_TONE[status.code]);
 
-      await dispatchActionOutcome(response.outcome, record.values, {
-        save: (override) => updateRecord(record.id, screenKey, { values: override ?? record.values }),
+      await dispatchActionOutcome(response.outcome, record as Record<string, CustomFieldValue>, {
+        save: (override) => updateRecord(screenKey, record.id, override ?? record),
         clone: () => onClone(record),
         remove: () => setRecordToDelete(record),
-        refresh: () => storeEvents.emit(StoreEvents.CUSTOM_RECORDS_UPDATED),
+        refresh: () => storeEvents.emit(StoreEvents.RECORDS_UPDATED),
       });
     } catch (error) {
       console.error('[useRecordListViewModel action]', error);
@@ -222,7 +222,7 @@ export const useRecordListViewModel = (source: RecordListSource): RecordListView
     }
   }, [runAction, screenKey, notify, updateRecord, onClone]);
 
-  const getCardActions = useCallback((record: CustomRecord): RecordCardAction[] => {
+  const getCardActions = useCallback((record: EntityRecord): RecordCardAction[] => {
     const handlers: Record<ScreenListAction, RecordCardAction> = {
       copyLink: { key: 'copyLink', title: 'Copiar link', onClick: () => onCopyLink(record) },
       clone: { key: 'clone', title: 'Duplicar', onClick: () => onClone(record) },
@@ -234,8 +234,8 @@ export const useRecordListViewModel = (source: RecordListSource): RecordListView
       .map((action) => handlers[action]);
 
     const exprContext = {
-      values: record.values,
-      record: record.values,
+      values: record,
+      record,
       isNew: false,
       isDirty: false,
       role: tenantRole ?? '',
@@ -260,7 +260,7 @@ export const useRecordListViewModel = (source: RecordListSource): RecordListView
       const record = records.find((r) => r.id === entityId);
       return tags.filter((t) => record?.tagIds?.includes(t.id));
     },
-    setTags: (entityId: string, tagIds: string[]) => updateRecord(entityId, screenKey, { tagIds }),
+    setTags: (entityId: string, tagIds: string[]) => updateRecord(screenKey, entityId, { tagIds }),
     createTag: (name: string, color: string) => createTag(screenKey, name, color),
     updateTag: (id: string, data: { name: string; color: string }) => updateTag(screenKey, id, data),
     deleteTag: (id: string) => deleteTag(screenKey, id),
@@ -273,7 +273,7 @@ export const useRecordListViewModel = (source: RecordListSource): RecordListView
     if (!recordToDelete) return;
     setIsDeleting(true);
     try {
-      await deleteRecord(recordToDelete.id, screenKey);
+      await deleteRecord(screenKey, recordToDelete.id);
       notify('Registro excluído com sucesso.', 'success');
       setRecordToDelete(null);
     } catch {

@@ -28,7 +28,7 @@ import {
   validateRequiredFields,
 } from '../../../domain/services/customFieldValues';
 import { describeRuleIssues } from '../../../domain/schema/fieldRules';
-import { validateRecordRules, ruleIssueFieldKey } from '../../../data/utils/recordRulesGate';
+import { validateRecordRules } from '../../../data/utils/recordRulesGate';
 
 export type ViewCaseTab = 'data' | 'notes' | 'documents';
 
@@ -62,7 +62,7 @@ const parseCaseTab = (tabKey: string) => {
 
 const caseToValues = (
   c: Case | null,
-  customFields: FieldDefinition[],
+  addedFields: FieldDefinition[],
   clone: boolean,
 ): Values => ({
   caseNumber: clone ? '' : (c?.caseNumber ?? ''),
@@ -82,7 +82,7 @@ const caseToValues = (
   filedAt: toDateInputValue(c?.filedAt),
   causeValue: c?.causeValue ?? null,
   notes: c?.notes ?? '',
-  ...buildInitialFormValues(customFields, c?.customValues ?? null),
+  ...buildInitialFormValues(addedFields, c ?? null),
 } as unknown as Values);
 
 const str = (values: Values, key: string): string => {
@@ -103,7 +103,7 @@ const num = (values: Values, key: string): number | null => {
 /** `opposingParties` e `tagIds` não são campos do formulário — vêm do registro existente. */
 const valuesToCasePayload = (
   values: Values,
-  customFields: FieldDefinition[],
+  addedFields: FieldDefinition[],
   existing: Case | null,
 ) => {
   const types = strArray(values, 'type');
@@ -127,7 +127,7 @@ const valuesToCasePayload = (
     causeValue: num(values, 'causeValue'),
     notes: str(values, 'notes') || null,
     tagIds: existing?.tagIds ?? [],
-    customValues: formValuesToStoredValues(customFields, values),
+    ...formValuesToStoredValues(addedFields, values),
   };
 };
 
@@ -137,7 +137,7 @@ export interface ViewCaseViewModel {
   case_: Case | null;
   isAdmin: boolean;
   fields: FieldDefinition[];
-  customFields: FieldDefinition[];
+  addedFields: FieldDefinition[];
   resolveOptionsScreenKey: (field: FieldDefinition) => string;
   values: Values;
   setFieldValue: (fieldKey: string, value: CustomFieldValue) => void;
@@ -184,13 +184,13 @@ export const useViewCaseViewModel = (tabKey: string): ViewCaseViewModel => {
 
   const isAdmin = tenantRole === 'admin';
   const userId = user?.id ?? '';
-  const { fields: formFields, customFields, resolveOptionsScreenKey } = useEntityFormFields('cases');
+  const { fields: formFields, addedFields, resolveOptionsScreenKey } = useEntityFormFields('cases');
 
   const findInStore = useCallback((id: string) => cases.find((c) => c.id === id) ?? null, [cases]);
 
   const recordToValues = useCallback(
-    (c: Case | null, opts: { clone: boolean }) => caseToValues(c, customFields, opts.clone),
-    [customFields],
+    (c: Case | null, opts: { clone: boolean }) => caseToValues(c, addedFields, opts.clone),
+    [addedFields],
   );
 
   const resolveTitleFromValues = useCallback(
@@ -200,33 +200,33 @@ export const useViewCaseViewModel = (tabKey: string): ViewCaseViewModel => {
 
   const validate = useCallback((values: Values): EntityValidationResult | null => {
     const fieldErrors = collectRequiredErrors(formFields, values);
-    const issues = validateRecordRules('cases', valuesToCasePayload(values, customFields, null));
+    const issues = validateRecordRules('cases', valuesToCasePayload(values, addedFields, null));
     issues.forEach((issue) => {
-      const key = ruleIssueFieldKey(issue.path);
+      const key = issue.path;
       if (!fieldErrors[key]) fieldErrors[key] = issue.error;
     });
     if (Object.keys(fieldErrors).length === 0) return null;
     const message = validateRequiredFields(formFields, values) ?? describeRuleIssues(issues);
     return { message, fieldErrors };
-  }, [formFields, customFields]);
+  }, [formFields, addedFields]);
 
   const create = useCallback(async (values: Values) => {
     const created = await createCase({
-      ...valuesToCasePayload(values, customFields, null),
+      ...valuesToCasePayload(values, addedFields, null),
       createdBy: userId,
     });
     return { id: created.id, title: created.caseNumber ?? created.title };
-  }, [createCase, customFields, userId]);
+  }, [createCase, addedFields, userId]);
 
   const update = useCallback(async (id: string, values: Values) => {
     const existing = cases.find((c) => c.id === id) ?? null;
     await updateCase(id, {
-      ...valuesToCasePayload(values, customFields, existing),
+      ...valuesToCasePayload(values, addedFields, existing),
       updatedBy: userId,
       updatedByName: effectiveName,
       updatedByPhotoURL: user?.photoURL ?? '',
     });
-  }, [updateCase, cases, customFields, userId, effectiveName, user]);
+  }, [updateCase, cases, addedFields, userId, effectiveName, user]);
 
   const notesPort = useNotesPort(caseNoteRepository);
   const documentsPort = useDocumentsPort(caseDocumentRepository);
@@ -306,7 +306,7 @@ export const useViewCaseViewModel = (tabKey: string): ViewCaseViewModel => {
     case_,
     isAdmin,
     fields: formFields,
-    customFields,
+    addedFields,
     resolveOptionsScreenKey,
     values: detail.values,
     setFieldValue: detail.setFieldValue,

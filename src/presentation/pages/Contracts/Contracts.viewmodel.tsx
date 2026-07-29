@@ -52,11 +52,11 @@ export const useContractsViewModel = (): ContractsViewModel => {
   const { tenantRole } = useTenant();
   const { typeConfigs, categoryConfigs, statusConfigs } = useContractLookup();
   const { openTab } = useWorkspace();
-  const { getCustomFieldsFor, getDefinition } = useScreenDefinitions();
+  const { getScreenFieldsFor, getDefinition } = useScreenDefinitions();
   const { notify } = useNotification();
   const theme = useTheme();
 
-  const customFields = useMemo(() => getCustomFieldsFor('contracts'), [getCustomFieldsFor]);
+  const customFields = useMemo(() => getScreenFieldsFor('contracts'), [getScreenFieldsFor]);
   const customListing = useCustomFieldListing('contracts', customFields, CUSTOM_FIELD_FILTER_PREFIX);
 
   const [filterTokens, setFilterTokens] = useState<FilterToken[]>([]);
@@ -127,7 +127,7 @@ export const useContractsViewModel = (): ContractsViewModel => {
         c.contractorIds.includes(id) || c.contracteeIds.includes(id)
       )) return false;
       if (tagFilter.length > 0 && !tagFilter.some((tid) => c.tagIds?.includes(tid))) return false;
-      return customListing.matchesFilters(c.customValues, tokenMap);
+      return customListing.matchesFilters(c, tokenMap);
     });
   }, [contracts, tokenMap, customListing]);
 
@@ -192,7 +192,7 @@ export const useContractsViewModel = (): ContractsViewModel => {
   }, [statusConfigs, theme]);
 
   const getCustomFieldItems = useCallback(
-    (c: Contract): CustomFieldCardItem[] => customListing.cardItems(c.customValues),
+    (c: Contract): CustomFieldCardItem[] => customListing.cardItems(c),
     [customListing],
   );
 

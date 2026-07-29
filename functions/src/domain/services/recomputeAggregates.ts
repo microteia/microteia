@@ -30,19 +30,8 @@ const sameValue = (a: unknown, b: unknown): boolean => {
   return false;
 };
 
-/**
- * Identidade lógica do filho: para `customRecords` é a tela (screenKey) que discrimina a entidade
- * dentro da coleção física compartilhada; para as demais, a própria coleção.
- */
-export const resolveChildTable = (
-  collection: string,
-  after: Record<string, unknown> | null,
-  before: Record<string, unknown> | null,
-): string | null => {
-  if (collection !== 'customRecords') return collection;
-  const screenKey = (after ?? before)?.screenKey;
-  return typeof screenKey === 'string' && screenKey !== '' ? screenKey : null;
-};
+/** A coleção É a entidade: não há mais coleção física compartilhada por várias telas. */
+export const resolveChildTable = (collection: string): string => collection;
 
 /**
  * Só recalcula quando a mudança no filho pode ter mexido no agregado: o pai vinculado mudou, o campo
@@ -80,13 +69,6 @@ const buildChildFilters = (
 ): WorkflowEqualityFilter[] | null => {
   const outcome = resolveWritableTable(childTable, ctx);
   if (!outcome.ok || outcome.value.kind === 'lookup') return null;
-
-  if (outcome.value.kind === 'custom') {
-    return [
-      { path: 'screenKey', value: outcome.value.screenKey },
-      { path: `values.${via}`, value: parentId },
-    ];
-  }
   return [{ path: via, value: parentId }];
 };
 
@@ -160,8 +142,7 @@ export const recomputeAggregatesForChildChange = async (
   after: Record<string, unknown> | null,
   deps: AggregateRecomputeDeps,
 ): Promise<void> => {
-  const childTable = resolveChildTable(childCollection, after, before);
-  if (!childTable) return;
+  const childTable = resolveChildTable(childCollection);
 
   const ctx = createSchemaContext(await deps.screenProvider.getScreens(tenantId));
   const targets = collectAggregationsFor(ctx, childTable);

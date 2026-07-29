@@ -45,11 +45,11 @@ export const DATA_FUNCTIONS: DataFunctionDef[] = [
       {
         name: 'data',
         description:
-          'Campos a gravar. Em cadastros fixos, os campos ficam no topo (e customizados em "customValues"); em personalizados, dentro de "values". O título é derivado automaticamente.',
+          'Campos a gravar, sempre na raiz do objeto — vale igual para cadastros fixos e para telas criadas no Form Design.',
       },
     ],
     returns: 'id (do registro gravado), created (true se incluído) e record (registro gravado).',
-    example: `const r = await upsert({\n  table: 'persons',\n  data: { name: 'Ana Souza', customValues: { apelido: 'Aninha' } },\n});\nlog(r.created ? 'incluída' : 'atualizada', r.id);`,
+    example: `const r = await upsert({\n  table: 'persons',\n  data: { name: 'Ana Souza', apelido: 'Aninha' },\n});\nlog(r.created ? 'incluída' : 'atualizada', r.id);`,
   },
   {
     name: 'remove',

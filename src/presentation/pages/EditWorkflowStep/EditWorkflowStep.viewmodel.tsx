@@ -4,9 +4,9 @@ import { useWorkflowStore } from '../../../stores/useWorkflowStore';
 import { useScriptStore } from '../../../stores/useScriptStore';
 import { useWorkspace } from '../../../stores/useWorkspace';
 import { useNotification } from '../../../stores/useNotification';
-import { useScreenDefinitions } from '../../../stores/useScreenDefinitions';
+import { useSchemaContext } from '../../shared/useSchemaContext';
 import { useStepCatalog } from '../../../stores/useStepCatalog';
-import { getWorkflowEventFields, eventNameToEntityKey, eventNameToRoot, WORKFLOW_CALLED_EVENT, workflowParametersToRoot, workflowParametersToFieldOptions } from '../../../domain/services/workflowEventCatalog';
+import { getWorkflowEventFields, eventNameToRoot, WORKFLOW_CALLED_EVENT, workflowParametersToRoot, workflowParametersToFieldOptions } from '../../../domain/services/workflowEventCatalog';
 import { workflowParameterToNativeField } from '../../../domain/schema/eventCatalog';
 import type { PathRoot } from '../../../domain/schema/pathResolver';
 import type { NativeFieldSpec } from '../../../domain/schema/entityRegistry';
@@ -179,7 +179,6 @@ export interface EditWorkflowStepViewModel {
   handleRequestConditionEdit: (path: number[]) => void;
   clearConditionFocusPath: () => void;
   conditionEventName: string;
-  conditionScreenKey?: string;
   conditionParameters?: WorkflowParameter[];
   canSave: boolean;
   handleSave: () => Promise<void>;
@@ -233,7 +232,7 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
   const { scripts } = useScriptStore();
   const { closeTab, setTabTitle, activePanelId } = useWorkspace();
   const { notify } = useNotification();
-  const { getCustomFieldsFor } = useScreenDefinitions();
+  const schemaContext = useSchemaContext();
   const { stepCatalog, loadCatalog } = useStepCatalog();
 
   const workflow = useMemo(
@@ -390,30 +389,20 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
 
   const eventFields = useMemo<WorkflowEventFieldOption[]>(() => {
     if (!workflow) return [];
-
-    if (workflow.eventName === WORKFLOW_CALLED_EVENT) return workflowParametersToFieldOptions(workflow.parameters);
-
-    // Busca campos customizados da entidade, se houver
-    const entityKey = eventNameToEntityKey(workflow.eventName);
-    const customFields = entityKey ? getCustomFieldsFor(entityKey) : [];
-
-    // Mapeia FieldDefinition[] para WorkflowEventFieldOption[]
-    const dynamicFields: WorkflowEventFieldOption[] = customFields.map((field) => ({
-      path: field.key,
-      label: field.label,
-    }));
-
-    return getWorkflowEventFields(workflow.eventName, dynamicFields);
-  }, [workflow, getCustomFieldsFor]);
+    if (workflow.eventName === WORKFLOW_CALLED_EVENT) {
+      return workflowParametersToFieldOptions(workflow.parameters, schemaContext);
+    }
+    return getWorkflowEventFields(workflow.eventName, schemaContext);
+  }, [workflow, schemaContext]);
 
   const pathRoot = useMemo(
     () =>
       workflow
         ? workflow.eventName === WORKFLOW_CALLED_EVENT
           ? workflowParametersToRoot(workflow.parameters)
-          : eventNameToRoot(workflow.eventName, workflow.screenKey)
+          : eventNameToRoot(workflow.eventName, schemaContext)
         : null,
-    [workflow],
+    [workflow, schemaContext],
   );
 
   useEffect(() => {
@@ -857,7 +846,6 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
     handleRequestConditionEdit,
     clearConditionFocusPath,
     conditionEventName: workflow?.eventName ?? '',
-    conditionScreenKey: workflow?.screenKey,
     conditionParameters: workflow?.parameters,
     canSave,
     handleSave,

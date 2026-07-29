@@ -61,7 +61,7 @@ export const useDeadlinesViewModel = (): DeadlinesViewModel => {
   const { persons } = usePersonStore();
   const { openTab } = useWorkspace();
   const { notify } = useNotification();
-  const { getCustomFieldsFor, getDefinition } = useScreenDefinitions();
+  const { getScreenFieldsFor, getDefinition } = useScreenDefinitions();
 
   const listActions = useMemo(
     () => resolveListActions('deadlines', getDefinition('deadlines')?.listActions),
@@ -74,7 +74,7 @@ export const useDeadlinesViewModel = (): DeadlinesViewModel => {
   }, [notify]);
   const theme = useTheme();
 
-  const customFields = useMemo(() => getCustomFieldsFor('deadlines'), [getCustomFieldsFor]);
+  const customFields = useMemo(() => getScreenFieldsFor('deadlines'), [getScreenFieldsFor]);
   const customListing = useCustomFieldListing('deadlines', customFields, CUSTOM_FIELD_FILTER_PREFIX);
 
   const [filterTokens, setFilterTokens] = useState<FilterToken[]>(
@@ -198,7 +198,7 @@ export const useDeadlinesViewModel = (): DeadlinesViewModel => {
         if (priorityFilter.length > 0 && !priorityFilter.includes(d.priority)) return false;
         if (typeFilter.length > 0 && !typeFilter.includes(d.type)) return false;
         if (caseFilter.length > 0 && !caseFilter.includes(d.caseId)) return false;
-        return customListing.matchesFilters(d.customValues, tokenMap);
+        return customListing.matchesFilters(d, tokenMap);
       })
       .sort((a, b) => {
         const dateDiff = a.dueDate.getTime() - b.dueDate.getTime();
@@ -246,7 +246,7 @@ export const useDeadlinesViewModel = (): DeadlinesViewModel => {
   const cancelComplete = useCallback(() => setDeadlineToComplete(null), []);
 
   const getCustomFieldItems = useCallback(
-    (d: Deadline): CustomFieldCardItem[] => customListing.cardItems(d.customValues),
+    (d: Deadline): CustomFieldCardItem[] => customListing.cardItems(d),
     [customListing],
   );
 

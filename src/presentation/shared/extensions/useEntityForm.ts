@@ -1,12 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useScreenDefinitions } from '../../../stores/useScreenDefinitions';
-import { useCustomRecords } from '../../../stores/useCustomRecords';
+import { useRecords } from '../../../stores/useRecords';
 import { useAuth } from '../../../stores/useAuth';
 import {
   buildInitialFormValues,
   collectRequiredErrors,
   formValuesToStoredValues,
-  resolveRecordTitle,
   setValueByPath,
   sortFieldsByOrder,
 } from '../../../domain/services/customFieldValues';
@@ -33,11 +32,11 @@ export interface EntityForm {
  * `sourceId`. É o motor que uma view de código usa para RECRIAR a tela de edição com layout próprio:
  * ela dispõe os `fields` como quiser (`FieldInput` por campo, ou `EntityForm` inteiro), lê/escreve por
  * `values`/`setValue` e chama `save()`. O TIPO/máscara/opções de cada campo continuam vindo do schema
- * (Form Design); aqui só mora o estado, a validação de obrigatórios e o upsert em `customRecords`.
+ * (Form Design); aqui só mora o estado, a validação de obrigatórios e o upsert na coleção da tela.
  */
 export const useEntityForm = (sourceId: string, recordId?: string | null): EntityForm => {
   const { dynamicScreens } = useScreenDefinitions();
-  const { recordsByScreen, createRecord, updateRecord } = useCustomRecords();
+  const { recordsByCollection, createRecord, updateRecord } = useRecords();
   const { user } = useAuth();
 
   const screen = useMemo(
@@ -49,11 +48,11 @@ export const useEntityForm = (sourceId: string, recordId?: string | null): Entit
   const isNew = !recordId;
 
   const record = useMemo(
-    () => (recordId ? (recordsByScreen[screenKey] ?? []).find((r) => r.id === recordId) ?? null : null),
-    [recordId, recordsByScreen, screenKey],
+    () => (recordId ? (recordsByCollection[screenKey] ?? []).find((r) => r.id === recordId) ?? null : null),
+    [recordId, recordsByCollection, screenKey],
   );
 
-  const [values, setValues] = useState<Values>(() => buildInitialFormValues(fields, record?.values ?? null));
+  const [values, setValues] = useState<Values>(() => buildInitialFormValues(fields, record));
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSaving, setIsSaving] = useState(false);
   const [isDirty, setIsDirty] = useState(false);
@@ -61,7 +60,7 @@ export const useEntityForm = (sourceId: string, recordId?: string | null): Entit
   useEffect(() => {
     if (isDirty) return;
     // eslint-disable-next-line react-hooks/set-state-in-effect -- ressincroniza ao carregar tela/registro
-    setValues(buildInitialFormValues(fields, record?.values ?? null));
+    setValues(buildInitialFormValues(fields, record));
   }, [fields, record, isDirty]);
 
   const getValue = useCallback((fieldKey: string) => values[fieldKey], [values]);
@@ -92,16 +91,15 @@ export const useEntityForm = (sourceId: string, recordId?: string | null): Entit
     setErrors({});
     if (!screenKey) return null;
     const stored = formValuesToStoredValues(fields, values);
-    const title = resolveRecordTitle(stored, screen?.titleFieldKey ?? '');
     setIsSaving(true);
     try {
       if (isNew) {
-        const created = await createRecord({ screenKey, title, values: stored, createdBy: user?.id ?? '' });
+        const created = await createRecord(screenKey, { ...stored, createdBy: user?.id ?? '' });
         setIsDirty(false);
         return { id: created.id };
       }
       if (record) {
-        await updateRecord(record.id, screenKey, { title, values: stored });
+        await updateRecord(screenKey, record.id, stored);
         setIsDirty(false);
         return { id: record.id };
       }
@@ -109,7 +107,7 @@ export const useEntityForm = (sourceId: string, recordId?: string | null): Entit
     } finally {
       setIsSaving(false);
     }
-  }, [fields, values, screen, screenKey, isNew, record, createRecord, updateRecord, user]);
+  }, [fields, values, screenKey, isNew, record, createRecord, updateRecord, user]);
 
   return { screen, screenKey, fields, isNew, values, getValue, setValue, errors, validate, save, isSaving };
 };
