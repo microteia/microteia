@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import type { MarketplacePlugin, ScreenModuleTemplate } from '../../entities/MarketplacePlugin';
+import type { ScreenDefinition } from '../../entities';
 import { buildScreenKeyMap, installedScreenKey, materializePluginScreens, materializeScreen } from './screenModule';
 
 const template: ScreenModuleTemplate = {
@@ -19,27 +20,60 @@ const template: ScreenModuleTemplate = {
 };
 
 describe('installedScreenKey', () => {
-  it('namespaceia por plugin, com chave legível', () => {
-    expect(installedScreenKey('com.acme.vendas', 'produto')).toBe('com-acme-vendas__produto');
+  it('usa a chave declarada no pacote — ela é o nome da coleção', () => {
+    expect(installedScreenKey('produtos')).toBe('produtos');
   });
 
-  it('duas extensões com a mesma key de template não colidem', () => {
-    expect(installedScreenKey('com.a.x', 'produto')).not.toBe(installedScreenKey('com.b.y', 'produto'));
+  it('desambigua com sufixo quando o nome já está ocupado no escritório', () => {
+    expect(installedScreenKey('produtos', new Set(['produtos']))).toBe('produtos_2');
+    expect(installedScreenKey('produtos', new Set(['produtos', 'produtos_2']))).toBe('produtos_3');
+  });
+
+  it('nome reservado pelo sistema nunca é reivindicado', () => {
+    expect(installedScreenKey('persons')).toBe('persons_2');
+    expect(installedScreenKey('notes')).toBe('notes_2');
+  });
+
+  it('chave ilegal como nome de coleção é normalizada, nunca gravada como veio', () => {
+    expect(installedScreenKey('com-acme-vendas__produto')).toBe('com_acme_vendas_produto');
   });
 });
 
 describe('buildScreenKeyMap', () => {
-  it('mapeia cada key de template para a chave instalada', () => {
-    const map = buildScreenKeyMap('com.acme.vendas', [template, { ...template, key: 'item' }]);
+  it('mapeia cada key de template para a própria chave declarada', () => {
+    const map = buildScreenKeyMap([template, { ...template, key: 'item' }]);
+    expect(map.get('venda')).toBe('venda');
+    expect(map.get('item')).toBe('item');
+  });
+
+  it('reusa a chave da tela existente de mesmo sourceId, mesmo sendo uma chave longa antiga', () => {
+    const existing = { id: 'com-acme-vendas__venda', sourceId: 'src-venda', fields: [] } as unknown as ScreenDefinition;
+    const map = buildScreenKeyMap([{ ...template, sourceId: 'src-venda' }], [existing]);
     expect(map.get('venda')).toBe('com-acme-vendas__venda');
-    expect(map.get('item')).toBe('com-acme-vendas__item');
+  });
+
+  it('tela do escritório com a mesma chave e outro sourceId não é tomada: sufixo', () => {
+    const existing = { id: 'venda', sourceId: 'outra-tela', fields: [] } as unknown as ScreenDefinition;
+    const map = buildScreenKeyMap([{ ...template, sourceId: 'src-venda' }], [existing]);
+    expect(map.get('venda')).toBe('venda_2');
+  });
+
+  it('lista de opções e etiquetas do escritório também ocupam o nome', () => {
+    const map = buildScreenKeyMap([template], [], new Set(['venda']));
+    expect(map.get('venda')).toBe('venda_2');
+  });
+
+  it('a chave que uma tela do pacote acabou de reivindicar não é dada a outra', () => {
+    const map = buildScreenKeyMap([template, { ...template, key: 'venda_2' }], [], new Set(['venda']));
+    expect(map.get('venda')).toBe('venda_2');
+    expect(map.get('venda_2')).toBe('venda_2_2');
   });
 });
 
 describe('materializeScreen', () => {
   const keyMap = new Map([
-    ['venda', 'com-acme-vendas__venda'],
-    ['item', 'com-acme-vendas__item'],
+    ['venda', 'venda'],
+    ['item', 'item'],
   ]);
 
   it('carimba origin plugin na tela e nos campos, com ownerPluginId e managed', () => {
@@ -55,7 +89,7 @@ describe('materializeScreen', () => {
   it('reescreve aggregation.from para a tela do pacote e preserva ref ao core', () => {
     const { input } = materializeScreen(template, 'com.acme.vendas', keyMap, 'u1');
     expect(input.fields.find((f) => f.key === 'cliente')?.refEntity).toBe('persons');
-    expect(input.fields.find((f) => f.key === 'total')?.aggregation?.from).toBe('com-acme-vendas__item');
+    expect(input.fields.find((f) => f.key === 'total')?.aggregation?.from).toBe('item');
   });
 
   it('reescreve refEntity e parentEntity que apontam para o pacote', () => {
@@ -70,10 +104,10 @@ describe('materializeScreen', () => {
       fields: [{ key: 'venda', label: 'Venda', type: 'reference', refEntity: 'venda', required: true, order: 0 }],
     };
     const { screenKey, input } = materializeScreen(item, 'com.acme.vendas', keyMap, 'u1');
-    expect(screenKey).toBe('com-acme-vendas__item');
-    expect(input.parentEntity).toBe('com-acme-vendas__venda');
+    expect(screenKey).toBe('item');
+    expect(input.parentEntity).toBe('venda');
     expect(input.parentFieldKey).toBe('venda');
-    expect(input.fields[0].refEntity).toBe('com-acme-vendas__venda');
+    expect(input.fields[0].refEntity).toBe('venda');
   });
 
   it('não emite nenhum undefined (o Firestore o rejeita, inclusive dentro de fields)', () => {
@@ -111,7 +145,7 @@ describe('materializePluginScreens', () => {
       screens: [template, { ...template, key: 'item' }],
     };
     const result = materializePluginScreens(plugin, 'u1');
-    expect(result.map((r) => r.screenKey)).toEqual(['com-acme-vendas__venda', 'com-acme-vendas__item']);
+    expect(result.map((r) => r.screenKey)).toEqual(['venda', 'item']);
   });
 
   it('plugin sem telas devolve vazio', () => {

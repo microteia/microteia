@@ -1,14 +1,16 @@
-import type { MarketplacePlugin } from '../../entities/MarketplacePlugin';
+import type { MarketplacePlugin, ScreenPatchTemplate } from '../../entities/MarketplacePlugin';
 import type { IWorkflowDefinitionRepository } from '../../repositories/IWorkflowDefinitionRepository';
 import type { IPluginInstallationRepository } from '../../repositories/IPluginInstallationRepository';
 import type { IScreenDefinitionRepository, ScreenDefinitionInput } from '../../repositories/IScreenDefinitionRepository';
 import type { IActionRepository } from '../../repositories/IActionRepository';
 import type { IScriptRepository } from '../../repositories/IScriptRepository';
-import type { DeletionActor, ScreenDefinition } from '../../entities';
+import type { DeletionActor, FieldDefinition, ScreenDefinition } from '../../entities';
+import { CUSTOM_FIELD_ENABLED_ENTITIES } from '../../entities/entitySchemas';
+import { builtinScreenBaseline } from '../../schema/screenEntity';
 import type { LifecycleActor } from '../../services/pluginLifecycle';
 import { planInstall, planUninstall, planUpgrade } from '../../services/pluginLifecycle';
 import type { LifecycleResult } from './PluginLifecycleUseCases';
-import { buildScreenKeyMap, materializeScreen } from './screenModule';
+import { buildScreenKeyMap, isAdoptedScreen, materializeScreen, ownerSet } from './screenModule';
 import {
   actionInputFromTemplate,
   rewriteStepLiteral,
@@ -67,12 +69,6 @@ const stripUndefined = <T>(value: T): T => {
 };
 
 // --- Refcount de donos: um artefato pode pertencer a VÁRIAS extensões ao mesmo tempo. -------------
-
-type Owned = { ownerPluginId?: string | null; ownerPluginIds?: string[] | null };
-
-/** Conjunto de donos, tolerando o campo antigo `ownerPluginId` (singular) de dados anteriores. */
-const ownerSet = (a: Owned): string[] =>
-  a.ownerPluginIds && a.ownerPluginIds.length ? a.ownerPluginIds : (a.ownerPluginId ? [a.ownerPluginId] : []);
 
 const addOwner = (owners: string[], pluginId: string): string[] =>
   owners.includes(pluginId) ? owners : [...owners, pluginId];
@@ -147,7 +143,16 @@ const materializeArtifacts = async (
     }
   }
 
-  const screenKeyMap = buildScreenKeyMap(pluginId, plugin.screens ?? [], existingScreens);
+  // Uma tela, uma lista de opções e um conjunto de etiquetas viram COLEÇÃO sob o tenant e disputam o
+  // mesmo espaço de nomes — o que qualquer um deles já usa não está livre para a chave da tela. As do
+  // próprio pacote entram porque ainda não foram declaradas no escritório neste ponto do fluxo.
+  const takenCollections = new Set<string>([
+    ...(await deps.lookupDefinitionRepository.getAll(tenantId)).map((definition) => definition.collection),
+    ...(await deps.tagDefinitionRepository.getAll(tenantId)).map((definition) => definition.collection),
+    ...(plugin.lookups ?? []).map((lookup) => lookup.collection),
+    ...(plugin.tagLists ?? []).map((tagList) => tagList.collection),
+  ]);
+  const screenKeyMap = buildScreenKeyMap(plugin.screens ?? [], existingScreens, takenCollections);
 
   const existingWorkflows = await deps.workflowRepository.getWorkflowDefinitions(tenantId);
   const workflowMap = new Map<string, string>();
@@ -241,6 +246,10 @@ const upsertPluginScreens = async (
     const merged = existing
       ? {
           ...input,
+          // Tela que o tenant já tinha (Form Design/kernel) e a extensão passou a declarar: a origem
+          // continua sendo dela — é o que garante a devolução na desinstalação, em vez da exclusão.
+          origin: isAdoptedScreen(existing) ? existing.origin : input.origin,
+          managed: isAdoptedScreen(existing) ? (existing.managed ?? false) : input.managed,
           ownerPluginId: existing.ownerPluginId ?? pluginId,
           ownerPluginIds: addOwner(ownerSet(existing), pluginId),
           fields: [...input.fields, ...preservedUserFields(existing.fields, input.fields, pluginId)],
@@ -253,6 +262,91 @@ const upsertPluginScreens = async (
     await deps.screenRepository.upsert(tenantId, screenKey, merged);
   }
   return nextKeys;
+};
+
+// --- Complementos: campos que o pacote acrescenta a telas que JÁ existem no escritório -----------
+
+/**
+ * Resolve o alvo de um complemento na tela real do tenant. Alvo por `sourceId` (tela de outra
+ * extensão) só resolve se ela estiver instalada; alvo por coleção resolve na tela existente ou, para
+ * uma tela do kernel ainda sem documento, na baseline — o mesmo que o Form Design grava no primeiro
+ * ajuste de uma tela fixa. Alvo que não existe aqui é ignorado: o complemento não tem o que estender.
+ */
+const resolvePatchTarget = (
+  patch: ScreenPatchTemplate,
+  existingScreens: ScreenDefinition[],
+): { screenKey: string; base: ScreenDefinitionInput } | null => {
+  if ((patch.targetKind ?? 'collection') === 'sourceId') {
+    const found = existingScreens.find((screen) => (screen.sourceId ?? screen.id) === patch.target);
+    return found ? { screenKey: found.id, base: screenToInput(found) } : null;
+  }
+  const existing = existingScreens.find((screen) => screen.id === patch.target);
+  if (existing) return { screenKey: existing.id, base: screenToInput(existing) };
+  if (!CUSTOM_FIELD_ENABLED_ENTITIES.has(patch.target)) return null;
+  return { screenKey: patch.target, base: builtinScreenBaseline(patch.target) as unknown as ScreenDefinitionInput };
+};
+
+/**
+ * Aplica os complementos: acrescenta à tela alvo os campos declarados, carimbados com `origin`
+ * `plugin` e o `ownerPluginId`. A extensão NÃO entra no conjunto de donos da TELA — a posse fica em
+ * cada campo, e é isso que faz a desinstalação levar só os campos embora, sem tocar numa tela que é
+ * do kernel ou de outra extensão. Devolve as chaves das telas complementadas.
+ */
+const applyScreenPatches = async (
+  deps: ArtifactDeps,
+  plugin: MarketplacePlugin,
+  tenantId: string,
+  userId: string,
+  existingScreens: ScreenDefinition[],
+): Promise<Set<string>> => {
+  const pluginId = plugin.manifest.id;
+  const patched = new Set<string>();
+  for (const patch of plugin.screenPatches ?? []) {
+    const target = resolvePatchTarget(patch, existingScreens);
+    if (!target) continue;
+    // Complemento apontando para uma tela do PRÓPRIO pacote: quem manda na estrutura dela é o template
+    // da tela, então aplicar o complemento por cima apagaria todos os campos que não estão nele.
+    const own = existingScreens.find((screen) => screen.id === target.screenKey);
+    if (own && ownerSet(own).includes(pluginId)) continue;
+    const patchFields = patch.fields.map((field) => ({
+      ...field,
+      origin: 'plugin' as const,
+      ownerPluginId: pluginId,
+    })) as FieldDefinition[];
+    const patchKeys = new Set(patchFields.map((field) => field.key));
+    const kept = target.base.fields.filter(
+      (field) => field.ownerPluginId !== pluginId && !patchKeys.has(field.key),
+    );
+    await deps.screenRepository.upsert(tenantId, target.screenKey, stripUndefined({
+      ...target.base,
+      fields: [...kept, ...patchFields],
+      createdBy: target.base.createdBy || userId,
+    }));
+    patched.add(target.screenKey);
+  }
+  return patched;
+};
+
+/**
+ * Retira das telas de TERCEIROS os campos que este plugin acrescentou. A tela e os registros ficam;
+ * os valores já gravados no campo removido também — o renderizador ignora chave sem definição (ver
+ * "Cascata de Exclusão"). Telas do próprio plugin não passam por aqui: quem cuida é `releaseScreen`.
+ */
+const releaseScreenPatches = async (
+  deps: ArtifactDeps,
+  tenantId: string,
+  pluginId: string,
+  screens: ScreenDefinition[],
+): Promise<number> => {
+  let removedFields = 0;
+  for (const screen of screens) {
+    if (ownerSet(screen).includes(pluginId)) continue;
+    const fields = screen.fields.filter((field) => field.ownerPluginId !== pluginId);
+    if (fields.length === screen.fields.length) continue;
+    removedFields += screen.fields.length - fields.length;
+    await deps.screenRepository.upsert(tenantId, screen.id, { ...screenToInput(screen), fields });
+  }
+  return removedFields;
 };
 
 /**
@@ -355,9 +449,30 @@ const releasePluginTagLists = async (
 
 // --- Liberação com refcount: remove o plugin do dono; só apaga quando ninguém mais usa. -----------
 
+/**
+ * Devolve ao tenant uma tela ADOTADA: a extensão sai dos donos, a estrutura fica editável de novo e
+ * os campos que a extensão trouxe passam a ser do Form Design. A tela NÃO é apagada — apagá-la
+ * perderia a chave da coleção, e a reinstalação cairia numa chave nova, deixando os registros órfãos.
+ */
+const handBackScreen = async (deps: ArtifactDeps, tenantId: string, screen: ScreenDefinition, pluginId: string): Promise<void> => {
+  await deps.screenRepository.upsert(tenantId, screen.id, {
+    ...screenToInput(screen),
+    fields: screen.fields.map((field) =>
+      field.ownerPluginId === pluginId ? { ...field, origin: 'design' as const, ownerPluginId: null } : field,
+    ),
+    ownerPluginId: null,
+    ownerPluginIds: [],
+    managed: false,
+  });
+};
+
 const releaseScreen = async (deps: ArtifactDeps, tenantId: string, screen: ScreenDefinition, pluginId: string, actor: LifecycleActor): Promise<boolean> => {
   const owners = removeOwner(ownerSet(screen), pluginId);
   if (owners.length === 0) {
+    if (isAdoptedScreen(screen)) {
+      await handBackScreen(deps, tenantId, screen, pluginId);
+      return false;
+    }
     await deps.screenRepository.delete(tenantId, screen.id, deletionActor(actor));
     return true;
   }
@@ -457,6 +572,12 @@ export const applyPackageArtifacts = async (
   for (const screen of existingScreens.filter((s) => ownerSet(s).includes(pluginId))) {
     if (!nextKeys.has(screen.id)) await releaseScreen(deps, tenantId, screen, pluginId, actor);
   }
+  const patched = await applyScreenPatches(deps, plugin, tenantId, userId, await deps.screenRepository.getAll(tenantId));
+  // Complemento que sumiu da versão nova: os campos dele saem da tela que deixou de ser alvo.
+  await releaseScreenPatches(
+    deps, tenantId, pluginId,
+    (await deps.screenRepository.getAll(tenantId)).filter((screen) => !patched.has(screen.id)),
+  );
   await releaseVanishedGeneratedArtifacts(deps, plugin, tenantId, pluginId, actor);
 };
 
@@ -471,14 +592,16 @@ export const releasePackageArtifacts = async (
   actor: LifecycleActor,
 ): Promise<UninstallCounts> => {
   const { tenantId } = actor;
+  const screens = await deps.screenRepository.getAll(tenantId);
   let removedScreens = 0;
-  for (const screen of (await deps.screenRepository.getAll(tenantId)).filter((s) => ownerSet(s).includes(pluginId))) {
+  for (const screen of screens.filter((s) => ownerSet(s).includes(pluginId))) {
     if (await releaseScreen(deps, tenantId, screen, pluginId, actor)) removedScreens += 1;
   }
+  const removedPatchFields = await releaseScreenPatches(deps, tenantId, pluginId, screens);
   await releasePluginLookups(deps, tenantId, pluginId);
   await releasePluginTagLists(deps, tenantId, pluginId);
   const { removedActions, removedWorkflows, removedScripts } = await releaseGeneratedArtifacts(deps, tenantId, pluginId, actor);
-  return { removedScreens, removedActions, removedWorkflows, removedScripts };
+  return { removedScreens, removedActions, removedWorkflows, removedScripts, removedPatchFields };
 };
 
 export type InstallMarketplacePluginUseCase = {
@@ -515,6 +638,7 @@ export const makeInstallMarketplacePluginUseCase = (
     await declarePluginLookups(deps, plugin, tenantId, userId);
     await declarePluginTagLists(deps, plugin, tenantId, userId);
     await upsertPluginScreens(deps, plugin, tenantId, userId, screenKeyMap, actionMap, existingScreens);
+    await applyScreenPatches(deps, plugin, tenantId, userId, await deps.screenRepository.getAll(tenantId));
 
     await deps.installationRepository.save(outcome.value);
     return { ok: true, installation: outcome.value };
@@ -556,6 +680,8 @@ export interface UninstallCounts {
   removedActions: number;
   removedWorkflows: number;
   removedScripts: number;
+  /** Campos retirados de telas de terceiros (complementos) — a tela em si continua de pé. */
+  removedPatchFields: number;
 }
 
 export type UninstallMarketplacePluginResult = ({ ok: true } & UninstallCounts) | LifecycleResult;
@@ -579,10 +705,12 @@ export const makeUninstallMarketplacePluginUseCase = (
     const outcome = planUninstall(current);
     if (!outcome.ok) return { ok: false, error: outcome.error };
 
+    const screens = await deps.screenRepository.getAll(tenantId);
     let removedScreens = 0;
-    for (const screen of (await deps.screenRepository.getAll(tenantId)).filter((s) => ownerSet(s).includes(pluginId))) {
+    for (const screen of screens.filter((s) => ownerSet(s).includes(pluginId))) {
       if (await releaseScreen(deps, tenantId, screen, pluginId, actor)) removedScreens += 1;
     }
+    const removedPatchFields = await releaseScreenPatches(deps, tenantId, pluginId, screens);
 
     await releasePluginLookups(deps, tenantId, pluginId);
     await releasePluginTagLists(deps, tenantId, pluginId);
@@ -592,6 +720,6 @@ export const makeUninstallMarketplacePluginUseCase = (
     );
 
     await deps.installationRepository.delete(tenantId, pluginId);
-    return { ok: true, removedScreens, removedActions, removedWorkflows, removedScripts };
+    return { ok: true, removedScreens, removedActions, removedWorkflows, removedScripts, removedPatchFields };
   },
 });

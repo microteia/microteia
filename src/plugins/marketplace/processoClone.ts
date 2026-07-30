@@ -13,7 +13,7 @@ import { nav, page } from '../contributionBuilders';
  * registro cai no detalhe dinâmico nativo (`ViewDynamicRecord`), gerado a partir deste mesmo schema.
  *
  * O `sourceId` estável é o elo entre o schema instalado e a view: a view resolve a tela por ele,
- * imune ao namespacing da chave instalada.
+ * imune a qualquer desambiguação da chave instalada.
  */
 const SOURCE_ID = 'microteia:processo-clone';
 

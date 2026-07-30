@@ -108,5 +108,5 @@ export const actionInputFromTemplate = (
   }) as ActionDefinitionInput;
 };
 
-/** Namespacing determinístico da tela — reexportado para o materializador orquestrar. */
+/** Resolução da chave instalada da tela — reexportada para o materializador orquestrar. */
 export { installedScreenKey };

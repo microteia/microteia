@@ -1,12 +1,16 @@
 import type { DeletionActor } from '../../entities';
 import type { IScreenDefinitionRepository } from '../../repositories/IScreenDefinitionRepository';
 import type { IRecordRepository } from '../../repositories/IRecordRepository';
+import { ownerSet } from '../plugins/screenModule';
 
 export type DeleteScreenDefinitionUseCase = {
   execute: (tenantId: string, screenKey: string, actor: DeletionActor) => Promise<void>;
 };
 
-/** Só uma tela `design` é excluível: `builtin` vem do kernel e `plugin`, da extensão. */
+/**
+ * Só uma tela `design` sem dono é excluível: `builtin` vem do kernel, `plugin` vem da extensão, e uma
+ * tela do tenant ADOTADA por uma extensão instalada é declarada por ela — excluí-la a quebraria.
+ */
 export const makeDeleteScreenDefinitionUseCase = (
   repo: IScreenDefinitionRepository,
   recordRepo: IRecordRepository,
@@ -17,7 +21,7 @@ export const makeDeleteScreenDefinitionUseCase = (
     if (screen?.origin === 'builtin') {
       throw new Error('Esta tela faz parte do sistema e não pode ser excluída.');
     }
-    if (screen?.origin === 'plugin') {
+    if (screen?.origin === 'plugin' || (screen && ownerSet(screen).length > 0)) {
       throw new Error('Esta tela pertence a uma extensão. Remova a extensão para excluí-la.');
     }
     const hasRecords = await recordRepo.hasRecords(tenantId, screenKey);

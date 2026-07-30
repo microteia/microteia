@@ -316,7 +316,7 @@ describe('Uninstall — cascata dos quatro tipos', () => {
     await makeInstallMarketplacePluginUseCase(deps()).execute(fullPlugin, actor);
     const result = await makeUninstallMarketplacePluginUseCase(deps()).execute('com.acme.full', actor);
 
-    expect(result).toEqual({ ok: true, removedScreens: 1, removedActions: 1, removedWorkflows: 1, removedScripts: 1 });
+    expect(result).toEqual({ ok: true, removedScreens: 1, removedActions: 1, removedWorkflows: 1, removedScripts: 1, removedPatchFields: 0 });
     expect(await screens.getAll('t1')).toEqual([]);
     expect(await actions.getAll('t1')).toEqual([]);
     expect(await workflows.getWorkflowDefinitions('t1')).toEqual([]);
@@ -464,8 +464,8 @@ describe('Upgrade — atualização de versão', () => {
     screens: screenTemplates,
   });
 
-  const KEY_A = 'com-acme-up__a';
-  const KEY_B = 'com-acme-up__b';
+  const KEY_A = 'a';
+  const KEY_B = 'b';
 
   it('sobe a versão da instalação e atualiza o cache de exibição', async () => {
     await makeInstallMarketplacePluginUseCase(deps()).execute(version('1.0.0', [screenT('a')]), actor);
@@ -564,8 +564,8 @@ describe('Dedup + refcount — extensões que compartilham artefatos', () => {
     expect(w[0].ownerPluginIds).toEqual(['com.a', 'com.b']);
     expect(a[0].ownerPluginIds).toEqual(['com.a', 'com.b']);
     expect(sc[0].ownerPluginIds).toEqual(['com.a', 'com.b']);
-    // A tela reusa a chave da PRIMEIRA extensão e aponta para a action deduplicada.
-    expect(sc[0].id).toBe('com-a__medico');
+    // A tela fica na chave DECLARADA (uma só, deduplicada) e aponta para a action deduplicada.
+    expect(sc[0].id).toBe('medico');
     expect(sc[0].viewActionIds).toEqual([a[0].id]);
   });
 
@@ -589,7 +589,7 @@ describe('Dedup + refcount — extensões que compartilham artefatos', () => {
 
   it('segundo install preserva campos que o usuário adicionou à tela compartilhada', async () => {
     await makeInstallMarketplacePluginUseCase(deps()).execute(shared('com.a'), actor);
-    const key = 'com-a__medico';
+    const key = 'medico';
     const cur = screens.store.get(key)!;
     screens.store.set(key, { ...cur, fields: [...cur.fields, { key: 'meu', label: 'Meu', type: 'text', required: false, order: 9, origin: 'design', ownerPluginId: null }] });
 
@@ -607,7 +607,7 @@ describe('pacote Vendas do catálogo (com action + workflow)', () => {
 
     await makeInstallMarketplacePluginUseCase(deps()).execute(vendas, actor);
 
-    const venda = (await screens.getAll('t1')).find((s) => s.id === 'com-microteia-vendas__venda')!;
+    const venda = (await screens.getAll('t1')).find((s) => s.id === 'venda')!;
     const action = (await actions.getAll('t1'))[0];
     const wf = (await workflows.getWorkflowDefinitions('t1'))[0];
     expect(venda.viewActionIds).toEqual([action.id]);
@@ -648,7 +648,7 @@ describe('applyPackageArtifacts / releasePackageArtifacts — fluxo de extensõe
     const d = deps();
     await applyPackageArtifacts(d, dataPlugin, actor);
     const counts = await releasePackageArtifacts(d, 'com.acme.data', actor);
-    expect(counts).toEqual({ removedScreens: 1, removedActions: 1, removedWorkflows: 1, removedScripts: 1 });
+    expect(counts).toEqual({ removedScreens: 1, removedActions: 1, removedWorkflows: 1, removedScripts: 1, removedPatchFields: 0 });
     expect(await screens.getAll('t1')).toEqual([]);
     expect(await actions.getAll('t1')).toEqual([]);
     expect(await workflows.getWorkflowDefinitions('t1')).toEqual([]);
@@ -738,5 +738,211 @@ describe('Atualização por sourceRev — reescrita in-place, sem duplicar nem r
     const wf = await workflows.getWorkflowDefinitions('t1');
     expect(wf).toHaveLength(1);
     expect(wf[0].name).toBe('A');
+  });
+});
+
+describe('Adoção de tela do tenant (Form Design → extensão → desinstalar → reinstalar)', () => {
+  const SOURCE_ID = '5370049f-34a5-41ca-b73c-470dda93c3c5';
+
+  const userScreen = (): ScreenDefinition => ({
+    id: 'produtos',
+    tenantId: 't1',
+    origin: 'design',
+    titleSingular: 'Produto',
+    titlePlural: 'Produtos',
+    icon: 'apps',
+    fields: [{ key: 'nome', label: 'Nome', type: 'text', required: true, order: 0, origin: 'design', ownerPluginId: null }],
+    titleFieldKey: 'nome',
+    hasNotes: false,
+    hasDocuments: false,
+    hasTags: false,
+    listActions: [],
+    viewActionIds: [],
+    cardActionIds: [],
+    sourceId: SOURCE_ID,
+    sidebarOrder: 0,
+    enabled: true,
+    createdAt: new Date(),
+    createdBy: 'u1',
+    updatedAt: new Date(),
+  });
+
+  const exported = (): MarketplacePlugin => ({
+    summary: 'Produtos',
+    manifest: { id: 'com.microteia.produto', version: '1.0.0', kernel: '^1.0.0', name: 'Produtos' },
+    workflows: [],
+    screens: [{
+      key: 'produtos', sourceId: SOURCE_ID, titleSingular: 'Produto', titlePlural: 'Produtos', icon: 'apps',
+      titleFieldKey: 'nome',
+      fields: [{ key: 'nome', label: 'Nome', type: 'text', required: true, order: 0 }],
+    }],
+  });
+
+  it('instalar REUSA a chave da tela do tenant e a mantém como dela (não vira tela de extensão)', async () => {
+    screens.store.set('produtos', userScreen());
+
+    await makeInstallMarketplacePluginUseCase(deps()).execute(exported(), actor);
+
+    const all = await screens.getAll('t1');
+    expect(all.map((s) => s.id)).toEqual(['produtos']);
+    expect(all[0].origin).toBe('design');
+    expect(all[0].ownerPluginIds).toEqual(['com.microteia.produto']);
+  });
+
+  it('desinstalar DEVOLVE a tela adotada em vez de apagá-la — a chave da coleção sobrevive', async () => {
+    screens.store.set('produtos', userScreen());
+    await makeInstallMarketplacePluginUseCase(deps()).execute(exported(), actor);
+
+    const result = await makeUninstallMarketplacePluginUseCase(deps()).execute('com.microteia.produto', actor);
+
+    expect(result).toMatchObject({ ok: true, removedScreens: 0 });
+    const screen = screens.store.get('produtos')!;
+    expect(screen.origin).toBe('design');
+    expect(screen.ownerPluginIds).toEqual([]);
+    expect(screen.ownerPluginId).toBeNull();
+    expect(screen.managed).toBe(false);
+    expect(screen.fields.every((f) => f.origin === 'design' && !f.ownerPluginId)).toBe(true);
+  });
+
+  it('reinstalar depois de desinstalar volta para a MESMA chave — nunca uma coleção nova', async () => {
+    screens.store.set('produtos', userScreen());
+    await makeInstallMarketplacePluginUseCase(deps()).execute(exported(), actor);
+    await makeUninstallMarketplacePluginUseCase(deps()).execute('com.microteia.produto', actor);
+
+    await makeInstallMarketplacePluginUseCase(deps()).execute(exported(), actor);
+
+    expect((await screens.getAll('t1')).map((s) => s.id)).toEqual(['produtos']);
+  });
+
+  it('tela nascida da extensão continua sendo apagada na desinstalação (chave determinística)', async () => {
+    await makeInstallMarketplacePluginUseCase(deps()).execute(exported(), actor);
+    expect((await screens.getAll('t1')).map((s) => s.id)).toEqual(['produtos']);
+
+    const result = await makeUninstallMarketplacePluginUseCase(deps()).execute('com.microteia.produto', actor);
+
+    expect(result).toMatchObject({ ok: true, removedScreens: 1 });
+    expect(await screens.getAll('t1')).toEqual([]);
+  });
+});
+
+describe('Complementos — campos acrescentados a telas que já existem', () => {
+  const patchPlugin = (id: string, fieldKeys: string[], target = 'persons'): MarketplacePlugin => ({
+    summary: 'S',
+    manifest: { id, version: '1.0.0', kernel: '^1.0.0', name: id },
+    workflows: [],
+    screenPatches: [{
+      target,
+      fields: fieldKeys.map((key, order) => ({ key, label: key, type: 'text' as const, required: false, order })),
+    }],
+  });
+
+  const personsScreen = (fields: ScreenDefinition['fields']): ScreenDefinition => ({
+    id: 'persons', tenantId: 't1', origin: 'builtin',
+    titleSingular: 'Pessoa', titlePlural: 'Pessoas', icon: 'apps', fields,
+    titleFieldKey: '', hasNotes: false, hasDocuments: false, hasTags: false,
+    listActions: [], viewActionIds: [], cardActionIds: [],
+    sidebarOrder: 0, enabled: true, createdAt: new Date(), createdBy: 'u1', updatedAt: new Date(),
+  });
+
+  it('cria o documento da tela do kernel que ainda não tinha, com o campo da extensão', async () => {
+    await makeInstallMarketplacePluginUseCase(deps()).execute(patchPlugin('com.acme.crm', ['crm']), actor);
+
+    const persons = screens.store.get('persons')!;
+    expect(persons.fields.map((f) => f.key)).toEqual(['crm']);
+    expect(persons.fields[0].ownerPluginId).toBe('com.acme.crm');
+    expect(persons.fields[0].origin).toBe('plugin');
+    // A tela continua do kernel: a extensão não vira dona dela.
+    expect(persons.origin).toBe('builtin');
+    expect(persons.ownerPluginId ?? null).toBeNull();
+    expect(persons.sidebarOrder).toBe(0);
+  });
+
+  it('preserva os campos do escritório e os de outra extensão na mesma tela', async () => {
+    screens.store.set('persons', personsScreen([
+      { key: 'meu', label: 'Meu', type: 'text', required: false, order: 0, origin: 'design', ownerPluginId: null },
+      { key: 'outro', label: 'Outro', type: 'text', required: false, order: 1, origin: 'plugin', ownerPluginId: 'com.b' },
+    ]));
+
+    await makeInstallMarketplacePluginUseCase(deps()).execute(patchPlugin('com.acme.crm', ['crm']), actor);
+
+    expect(screens.store.get('persons')!.fields.map((f) => f.key)).toEqual(['meu', 'outro', 'crm']);
+  });
+
+  it('desinstalar leva só os campos da extensão — a tela e os demais campos ficam', async () => {
+    screens.store.set('persons', personsScreen([
+      { key: 'meu', label: 'Meu', type: 'text', required: false, order: 0, origin: 'design', ownerPluginId: null },
+    ]));
+    await makeInstallMarketplacePluginUseCase(deps()).execute(patchPlugin('com.acme.crm', ['crm', 'oab']), actor);
+
+    const result = await makeUninstallMarketplacePluginUseCase(deps()).execute('com.acme.crm', actor);
+
+    expect(result).toMatchObject({ ok: true, removedScreens: 0, removedPatchFields: 2 });
+    const persons = screens.store.get('persons')!;
+    expect(persons.fields.map((f) => f.key)).toEqual(['meu']);
+    expect(persons.origin).toBe('builtin');
+  });
+
+  it('reaplicar é idempotente e remove o campo que sumiu da versão nova', async () => {
+    const d = deps();
+    await applyPackageArtifacts(d, patchPlugin('com.acme.crm', ['crm', 'oab']), actor);
+    expect(screens.store.get('persons')!.fields.map((f) => f.key)).toEqual(['crm', 'oab']);
+
+    await applyPackageArtifacts(d, patchPlugin('com.acme.crm', ['crm']), actor);
+    expect(screens.store.get('persons')!.fields.map((f) => f.key)).toEqual(['crm']);
+  });
+
+  it('complemento cujo alvo NÃO existe no escritório é ignorado, sem criar tela', async () => {
+    await makeInstallMarketplacePluginUseCase(deps()).execute(
+      { ...patchPlugin('com.acme.crm', ['crm']), screenPatches: [{ target: 'nao-existe', fields: [] }] },
+      actor,
+    );
+    expect(await screens.getAll('t1')).toEqual([]);
+  });
+
+  it('alvo por sourceId acha a tela de outra extensão pela chave que ela recebeu no destino', async () => {
+    screens.store.set('produtos_2', {
+      ...personsScreen([]), id: 'produtos_2', origin: 'plugin', sourceId: 'src-produtos',
+      ownerPluginId: 'com.b', ownerPluginIds: ['com.b'],
+    });
+
+    await makeInstallMarketplacePluginUseCase(deps()).execute({
+      ...patchPlugin('com.acme.crm', []),
+      screenPatches: [{
+        target: 'src-produtos', targetKind: 'sourceId',
+        fields: [{ key: 'ncm', label: 'NCM', type: 'text', required: false, order: 0 }],
+      }],
+    }, actor);
+
+    const alvo = screens.store.get('produtos_2')!;
+    expect(alvo.fields.map((f) => f.key)).toEqual(['ncm']);
+    expect(alvo.ownerPluginIds).toEqual(['com.b']);
+  });
+});
+
+describe('Complemento apontando para a tela do PRÓPRIO pacote (pacote legado)', () => {
+  const pkg = (): MarketplacePlugin => ({
+    summary: 'S',
+    manifest: { id: 'com.microteia.produto', version: '1.0.0', kernel: '^1.0.0', name: 'Produtos' },
+    workflows: [],
+    screens: [{
+      key: 'produtos', sourceId: 'src-produtos', titleSingular: 'Produto', titlePlural: 'Produtos',
+      icon: 'apps', titleFieldKey: 'nome',
+      fields: [
+        { key: 'nome', label: 'Nome', type: 'text', required: true, order: 0 },
+        { key: 'preco', label: 'Preço', type: 'currency', required: false, order: 1 },
+      ],
+    }],
+    screenPatches: [{
+      target: 'src-produtos', targetKind: 'sourceId',
+      fields: [{ key: 'novo', label: 'Novo', type: 'text', required: false, order: 2 }],
+    }],
+  });
+
+  it('não apaga os campos da tela: o complemento sobre a própria tela é ignorado', async () => {
+    const d = deps();
+    await applyPackageArtifacts(d, pkg(), actor);
+    await applyPackageArtifacts(d, pkg(), actor);
+
+    expect(screens.store.get('produtos')!.fields.map((f) => f.key)).toEqual(['nome', 'preco']);
   });
 });

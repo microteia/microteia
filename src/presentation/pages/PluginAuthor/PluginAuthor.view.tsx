@@ -13,6 +13,7 @@ import { S } from './PluginAuthor.styles';
 
 const GROUP_ICON: Record<ArtifactKind, string> = {
   screens: 'layoutGrid',
+  screenPatches: 'edit',
   actions: 'cursor',
   workflows: 'flowChart',
   scripts: 'codeBox',

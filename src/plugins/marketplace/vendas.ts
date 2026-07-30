@@ -8,7 +8,8 @@ import type { MarketplacePlugin, ScreenModuleTemplate, TemplateField } from '../
  * produto), campo calculado (item.total = qtd × preço), agregado sobre filhos (venda.total = soma
  * dos itens), validação por expressão/regex, e master-detail (itens como aba da venda).
  *
- * As `key`s são de template; a instalação as namespaceia e reescreve as referências entre telas.
+ * As `key`s são de template; a instalação as reivindica como nome de coleção e reescreve as
+ * referências entre telas.
  */
 
 const f = (field: Partial<TemplateField> & Pick<TemplateField, 'key' | 'label' | 'type' | 'order'>): TemplateField => ({

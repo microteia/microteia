@@ -2,6 +2,7 @@ import type {
   ActionModuleTemplate,
   MarketplacePlugin,
   ScreenModuleTemplate,
+  ScreenPatchTemplate,
   WorkflowModuleTemplate,
 } from '../../entities/MarketplacePlugin';
 import type { InputMapping, WorkflowStep } from '../../entities/Workflow';
@@ -54,6 +55,25 @@ export const screenOutRefs = (screen: ScreenModuleTemplate): PackageRef[] => {
   return refs;
 };
 
+/**
+ * As referências de saída dos CAMPOS de um complemento. O alvo não entra aqui: ele não é uma
+ * referência a artefato do pacote, e sim o ponto de acoplamento — conferido por `patchTargetIssue`.
+ */
+export const screenPatchOutRefs = (patch: ScreenPatchTemplate): PackageRef[] => {
+  const from = `complemento de "${patch.target}"`;
+  const refs: PackageRef[] = [];
+
+  const targets = [
+    ...patch.fields.map((field) => field.refEntity),
+    ...patch.fields.map((field) => field.aggregation?.from),
+  ].filter((value): value is string => Boolean(value));
+
+  for (const target of targets) {
+    if (!isCoreCollection(target)) refs.push({ kind: 'screen', id: target, from });
+  }
+  return refs;
+};
+
 export const actionOutRefs = (action: ActionModuleTemplate): PackageRef[] =>
   action.workflowId ? [{ kind: 'workflow', id: action.workflowId, from: `ação "${action.key}"` }] : [];
 
@@ -76,6 +96,7 @@ export const workflowOutRefs = (workflow: WorkflowModuleTemplate): PackageRef[] 
 
 export const packageOutRefs = (pkg: MarketplacePlugin): PackageRef[] => [
   ...(pkg.screens ?? []).flatMap(screenOutRefs),
+  ...(pkg.screenPatches ?? []).flatMap(screenPatchOutRefs),
   ...(pkg.actions ?? []).flatMap(actionOutRefs),
   ...pkg.workflows.flatMap(workflowOutRefs),
 ];
@@ -87,6 +108,38 @@ export interface PackageValidationIssue {
 
 const slug = (value: string): string =>
   value.replace(/[^a-zA-Z0-9]+/g, '-').replace(/^-+|-+$/g, '').toLowerCase();
+
+/**
+ * O alvo de um complemento precisa ser universal — igual em todo escritório. Por nome, só coleção
+ * fixa do core (`persons`): a chave de uma tela do tenant de destino não é conhecida no pacote, e a
+ * de uma tela do próprio pacote seria ambígua (os campos pertencem à tela, e não a um complemento).
+ * Para estender a tela de OUTRA extensão, o alvo é o `sourceId` universal dela, que não dá para
+ * conferir aqui — se ela não estiver instalada, o complemento simplesmente não se aplica.
+ */
+const patchTargetIssue = (
+  patch: ScreenPatchTemplate,
+  screenKeys: ReadonlySet<string>,
+  screenSourceIds: ReadonlySet<string>,
+): PackageValidationIssue | undefined => {
+  const ref: PackageRef = { kind: 'screen', id: patch.target, from: `complemento de "${patch.target}"` };
+  const ownScreen = (patch.targetKind ?? 'collection') === 'sourceId'
+    ? screenSourceIds.has(patch.target)
+    : screenKeys.has(patch.target);
+  if (ownScreen) {
+    return {
+      ref,
+      message: `o complemento aponta para "${patch.target}", que é uma tela do próprio pacote — declare os campos na tela, não num complemento.`,
+    };
+  }
+  if ((patch.targetKind ?? 'collection') === 'sourceId') return undefined;
+  if (!isCoreCollection(patch.target)) {
+    return {
+      ref,
+      message: `o complemento aponta para "${patch.target}", que não é uma coleção fixa do sistema — para estender a tela de outra extensão, use o \`sourceId\` dela.`,
+    };
+  }
+  return undefined;
+};
 
 /**
  * Valida a integridade referencial de um pacote — a MESMA checagem no export (dry-run) e no import.
@@ -121,10 +174,18 @@ export const validatePackage = (pkg: MarketplacePlugin): PackageValidationIssue[
     script: 'o script',
   };
 
-  return packageOutRefs(pkg)
-    .filter((ref) => !bundled(ref) && !coveredByDependency(ref))
-    .map((ref) => ({
-      ref,
-      message: `${ref.from} referencia ${kindLabel[ref.kind]} "${ref.id}", que não está no pacote nem coberta por uma dependência declarada.`,
-    }));
+  const screenSourceIds = new Set((pkg.screens ?? []).map((s) => s.sourceId ?? s.key));
+  const targetIssues = (pkg.screenPatches ?? [])
+    .map((patch) => patchTargetIssue(patch, screenKeys, screenSourceIds))
+    .filter((issue): issue is PackageValidationIssue => issue !== undefined);
+
+  return [
+    ...targetIssues,
+    ...packageOutRefs(pkg)
+      .filter((ref) => !bundled(ref) && !coveredByDependency(ref))
+      .map((ref) => ({
+        ref,
+        message: `${ref.from} referencia ${kindLabel[ref.kind]} "${ref.id}", que não está no pacote nem coberta por uma dependência declarada.`,
+      })),
+  ];
 };

@@ -1,42 +1,70 @@
 import type { MarketplacePlugin, ScreenModuleTemplate } from '../../entities/MarketplacePlugin';
 import type { ScreenDefinition } from '../../entities';
 import type { ScreenDefinitionInput } from '../../repositories/IScreenDefinitionRepository';
-
-const slug = (value: string): string =>
-  value.replace(/[^a-zA-Z0-9]+/g, '-').replace(/^-+|-+$/g, '').toLowerCase();
+import { RESERVED_COLLECTIONS, screenIdIssue } from '../../schema/screenEntity';
+import { ensureUniqueKey, slugifyFieldKey } from '../../services/customFieldValues';
 
 /**
- * Chave real da tela instalada — namespaced pelo plugin para nunca colidir entre extensões nem com
- * telas do usuário. Determinística: não precisa de mapa de ids, e reinstalar/atualizar cai na mesma
- * chave (o `upsert` do repositório usa a chave como doc id).
+ * Chave real da tela instalada: a MESMA que o pacote declara. A chave É o nome da coleção no
+ * Firestore (`tenants/{tenantId}/produtos`), então ela aparece no código da extensão, nos stores e nas
+ * consultas — um nome curto e legível não é estética, é a interface da entidade.
+ *
+ * Só quando o nome já está OCUPADO no escritório de destino (outra tela, lista de opções ou conjunto
+ * de etiquetas — as três disputam o mesmo espaço de nomes) ou é RESERVADO pelo sistema é que ganha
+ * sufixo: `produtos` → `produtos_2`. É a mesma convenção que o Form Design aplica quando o usuário
+ * cria duas telas de título parecido, e o resultado é sempre um nome de coleção válido.
  */
-export const installedScreenKey = (pluginId: string, templateKey: string): string =>
-  `${slug(pluginId)}__${slug(templateKey)}`;
+export const installedScreenKey = (templateKey: string, taken: ReadonlySet<string> = new Set()): string => {
+  const declared = templateKey.trim();
+  const base = (screenIdIssue(declared) === undefined ? declared : slugifyFieldKey(declared)) || 'tela';
+  return ensureUniqueKey(base, new Set([...taken, ...RESERVED_COLLECTIONS]));
+};
 
 /** Id UNIVERSAL da tela: o `sourceId` do template; na falta (tela legada), a própria chave. */
 export const templateSourceId = (screen: Pick<ScreenModuleTemplate, 'key' | 'sourceId'>): string =>
   screen.sourceId ?? screen.key;
 
+/** Conjunto de extensões que declaram um artefato, tolerando o campo antigo `ownerPluginId`. */
+export const ownerSet = (artifact: { ownerPluginId?: string | null; ownerPluginIds?: string[] | null }): string[] =>
+  artifact.ownerPluginIds && artifact.ownerPluginIds.length
+    ? artifact.ownerPluginIds
+    : (artifact.ownerPluginId ? [artifact.ownerPluginId] : []);
+
+/**
+ * Tela ADOTADA: já existia no tenant (Form Design ou kernel) e passou a ser declarada por uma
+ * extensão porque tem o mesmo `sourceId`. Ela continua sendo do tenant — a `origin` preservada é o
+ * que faz a desinstalação DEVOLVÊ-LA em vez de apagá-la, mantendo a chave da coleção (e os registros).
+ */
+export const isAdoptedScreen = (screen: Pick<ScreenDefinition, 'origin'>): boolean =>
+  screen.origin !== 'plugin';
+
 const screenSourceId = (screen: Pick<ScreenDefinition, 'id' | 'sourceId'>): string =>
   screen.sourceId ?? screen.id;
 
 /**
- * Mapa `keyDeTemplate → chaveInstalada`. Deduplica por `sourceId`: se uma tela com o mesmo id
- * universal já existe no tenant (trazida por outra extensão), reusa a chave dela — instala uma vez
- * só, sem órfão de dados. Senão, primeira instalação, cai na chave namespaced determinística.
+ * Mapa `keyDeTemplate → chaveInstalada`, na ordem do pacote.
+ *
+ * (1) Deduplica por `sourceId`: se uma tela com o mesmo id universal já existe no tenant (trazida por
+ * outra extensão, criada no Form Design ou instalada antes), reusa a chave DELA — instala uma vez só,
+ * sem órfão de dados, e uma instalação antiga na chave longa continua onde está.
+ * (2) Senão, reivindica a chave declarada, com sufixo se o nome estiver ocupado. `taken` traz as
+ * coleções não-tela do escritório (listas e etiquetas); as telas existentes e as chaves já
+ * reivindicadas por telas anteriores DESTE pacote entram aqui também.
  */
 export const buildScreenKeyMap = (
-  pluginId: string,
   screens: ScreenModuleTemplate[],
   existingScreens: ScreenDefinition[] = [],
+  taken: ReadonlySet<string> = new Set(),
 ): Map<string, string> => {
   const bySourceId = new Map(existingScreens.map((s) => [screenSourceId(s), s.id]));
-  return new Map(
-    screens.map((screen) => [
-      screen.key,
-      bySourceId.get(templateSourceId(screen)) ?? installedScreenKey(pluginId, screen.key),
-    ]),
-  );
+  const claimed = new Set<string>([...taken, ...existingScreens.map((s) => s.id)]);
+  const keyMap = new Map<string, string>();
+  for (const screen of screens) {
+    const key = bySourceId.get(templateSourceId(screen)) ?? installedScreenKey(screen.key, claimed);
+    claimed.add(key);
+    keyMap.set(screen.key, key);
+  }
+  return keyMap;
 };
 
 const rewriteRef = (ref: string | null | undefined, keyMap: Map<string, string>): string | null | undefined =>
@@ -64,7 +92,7 @@ export interface MaterializedScreen {
 }
 
 /**
- * Materializa um template numa `ScreenDefinitionInput` pronta para `upsert`: chave namespaced,
+ * Materializa um template numa `ScreenDefinitionInput` pronta para `upsert`: chave instalada,
  * `managed`, `ownerPluginId` na tela e em cada campo, e todas as referências entre telas do pacote
  * (refEntity de campo, `aggregation.from`, `parentEntity`) reescritas para as chaves instaladas.
  * Referência a coleção fixa (`persons`) ou a algo fora do pacote fica intacta.
@@ -76,7 +104,7 @@ export const materializeScreen = (
   createdBy: string,
   actionMap: Map<string, string> = new Map(),
 ): MaterializedScreen => {
-  const screenKey = keyMap.get(template.key) ?? installedScreenKey(pluginId, template.key);
+  const screenKey = keyMap.get(template.key) ?? installedScreenKey(template.key);
   const mapActionIds = (ids: string[] | undefined): string[] =>
     (ids ?? []).map((id) => actionMap.get(id) ?? id);
 
@@ -126,6 +154,6 @@ export const materializePluginScreens = (
   createdBy: string,
 ): MaterializedScreen[] => {
   const screens = plugin.screens ?? [];
-  const keyMap = buildScreenKeyMap(plugin.manifest.id, screens);
+  const keyMap = buildScreenKeyMap(screens);
   return screens.map((template) => materializeScreen(template, plugin.manifest.id, keyMap, createdBy));
 };

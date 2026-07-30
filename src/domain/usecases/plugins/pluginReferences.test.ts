@@ -99,3 +99,66 @@ describe('validatePackage', () => {
     expect(validatePackage(pkg).map((i) => i.ref.id)).toEqual(['com-microteia-vendas__produto']);
   });
 });
+
+describe('validatePackage — complementos de tela', () => {
+  const patch = (over: Partial<MarketplacePlugin['screenPatches'] extends (infer T)[] | undefined ? T : never>) => ({
+    target: 'persons',
+    fields: [{ key: 'crm', label: 'CRM', type: 'text' as const, required: false, order: 0 }],
+    ...over,
+  });
+
+  it('aceita alvo em coleção fixa do sistema', () => {
+    expect(validatePackage(base({ screenPatches: [patch({})] }))).toEqual([]);
+  });
+
+  it('aceita alvo por sourceId sem conferir (a tela alvo vive no destino)', () => {
+    expect(validatePackage(base({
+      screenPatches: [patch({ target: 'src-produtos', targetKind: 'sourceId' })],
+    }))).toEqual([]);
+  });
+
+  it('recusa alvo que não é coleção fixa nem sourceId', () => {
+    const issues = validatePackage(base({ screenPatches: [patch({ target: 'minhaTela' })] }));
+    expect(issues).toHaveLength(1);
+    expect(issues[0].message).toMatch(/sourceId/);
+  });
+
+  it('recusa complemento que aponta para uma tela do próprio pacote', () => {
+    const issues = validatePackage(base({
+      screens: [{
+        key: 'produtos', titleSingular: 'Produto', titlePlural: 'Produtos', icon: 'apps',
+        titleFieldKey: 'nome', fields: [],
+      }],
+      screenPatches: [patch({ target: 'produtos' })],
+    }));
+    expect(issues).toHaveLength(1);
+    expect(issues[0].message).toMatch(/declare os campos na tela/);
+  });
+
+  it('campo do complemento que referencia tela fora do pacote é apontado', () => {
+    const issues = validatePackage(base({
+      screenPatches: [patch({
+        fields: [{ key: 'prod', label: 'Produto', type: 'reference', refEntity: 'produtos', required: false, order: 0 }],
+      })],
+    }));
+    expect(issues).toHaveLength(1);
+    expect(issues[0].ref.id).toBe('produtos');
+  });
+});
+
+describe('validatePackage — complemento sobre a tela do próprio pacote', () => {
+  it('recusa também quando o alvo é o sourceId de uma tela do pacote', () => {
+    const issues = validatePackage(base({
+      screens: [{
+        key: 'produtos', sourceId: 'src-produtos', titleSingular: 'Produto', titlePlural: 'Produtos',
+        icon: 'apps', titleFieldKey: 'nome', fields: [],
+      }],
+      screenPatches: [{
+        target: 'src-produtos', targetKind: 'sourceId',
+        fields: [{ key: 'novo', label: 'Novo', type: 'text', required: false, order: 0 }],
+      }],
+    }));
+    expect(issues).toHaveLength(1);
+    expect(issues[0].message).toMatch(/declare os campos na tela/);
+  });
+});

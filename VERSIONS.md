@@ -11,6 +11,33 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [1.4.2] — 2026-07-30
+
+- Na tela de criação de extensões, os campos que a extensão acrescenta a telas existentes passam a ser identificados pelo nome da tela e pelo ícone dela — antes aparecia o código interno de identificação.
+
+## [1.4.1] — 2026-07-30
+
+- **Correção importante:** ao editar uma extensão sua e exportá-la de novo, os ajustes feitos na tela pelo Form Design agora entram no arquivo — antes o pacote saía com a versão antiga da tela, e um campo novo acabava viajando por fora, o que apagava os demais campos na hora de atualizar a extensão.
+- As listas de opções e os conjuntos de etiquetas de uma extensão importada deixam de se perder quando ela é reexportada.
+- Um campo acrescentado a uma tela que a própria extensão instalou passa a ser incluído na tela, e não mais oferecido como "campo em tela existente" — atualizar a extensão nunca mais remove os campos que já estavam lá.
+
+## [1.4.0] — 2026-07-30
+
+- Agora é possível criar uma extensão a partir de **campos que você acrescentou a uma tela que já existe** — como um campo novo em Pessoas ou numa tela trazida por outra extensão. Antes, só telas criadas por você do zero podiam ser empacotadas.
+- Na tela de criação de extensões, esses campos aparecem no grupo "Campos em telas existentes", separado das telas inteiras.
+- Ao instalar, a extensão apenas **acrescenta** os campos à tela de destino: título, ícone, menu e os campos que já estavam lá não são tocados, e a tela continua sendo do escritório. Ao remover a extensão, só os campos dela saem — a tela e os registros permanecem.
+
+## [1.3.0] — 2026-07-30
+
+- A tela que uma extensão instala passa a usar o **nome curto** declarado no pacote (`produtos`), e não mais um nome longo com o identificador da extensão na frente. É esse nome que aparece nas automações, nos scripts e nas consultas — agora ele é legível.
+- Se o nome já estiver em uso no escritório (por outra tela, por uma lista de opções ou por um conjunto de etiquetas), a tela instalada recebe um sufixo (`produtos_2`), do mesmo jeito que já acontece ao criar duas telas de nome parecido. Nada do que já existia é sobrescrito.
+- Extensões já instaladas continuam exatamente onde estão: o nome da coleção é escolhido na primeira instalação e nunca muda sozinho.
+
+## [1.2.1] — 2026-07-30
+
+- **Correção importante:** uma tela criada no Form Design que você exportou como extensão continua sendo sua. Remover a extensão não apaga mais a tela: ela volta a ser editável, com todos os registros no lugar, e instalar a extensão de novo reaproveita a mesma tela — antes o sistema criava uma tela nova e vazia, e os registros ficavam inacessíveis.
+- Enquanto uma extensão estiver instalada, a tela que ela usa fica protegida contra exclusão pelo Form Design — remova a extensão primeiro.
+
 ## [1.2.0] — 2026-07-30
 
 - As etiquetas das telas personalizadas passam a ter espaço próprio no escritório, como já acontece com as de Processos, Pessoas, Contratos e Financeiro.

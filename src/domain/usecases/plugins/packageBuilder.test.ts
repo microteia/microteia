@@ -205,3 +205,146 @@ describe('buildPackage', () => {
     expect(validatePackage(withoutDep)).toHaveLength(1);
   });
 });
+
+describe('buildPackage — complementos de tela', () => {
+  const withOwnField = (over: Partial<ScreenDefinition>): ScreenDefinition => screen({
+    fields: [
+      { key: 'nome', label: 'Nome', type: 'text', required: true, order: 0, origin: 'builtin', ownerPluginId: null },
+      { key: 'crm', label: 'CRM', type: 'text', required: false, order: 1, origin: 'design', ownerPluginId: null },
+      { key: 'deOutra', label: 'De outra', type: 'text', required: false, order: 2, origin: 'plugin', ownerPluginId: 'com.b' },
+    ],
+    ...over,
+  });
+
+  it('empacota só os campos do autor, com alvo pelo nome quando a tela é do kernel', () => {
+    const pkg = buildPackage({
+      manifest, summary: 's', screens: [], actions: [], workflows: [], scripts: [],
+      patchedScreens: [withOwnField({ id: 'persons', origin: 'builtin' })],
+    });
+    expect(pkg.screenPatches).toHaveLength(1);
+    expect(pkg.screenPatches?.[0].target).toBe('persons');
+    expect(pkg.screenPatches?.[0].targetKind).toBe('collection');
+    expect(pkg.screenPatches?.[0].fields.map((f) => f.key)).toEqual(['crm']);
+    expect(pkg.screens).toBeUndefined();
+  });
+
+  it('tela de outra extensão viaja pelo sourceId, não pela chave instalada', () => {
+    const pkg = buildPackage({
+      manifest, summary: 's', screens: [], actions: [], workflows: [], scripts: [],
+      patchedScreens: [withOwnField({ id: 'produtos_2', origin: 'plugin', sourceId: 'src-produtos' })],
+    });
+    expect(pkg.screenPatches?.[0].target).toBe('src-produtos');
+    expect(pkg.screenPatches?.[0].targetKind).toBe('sourceId');
+  });
+
+  it('tela sem campo do autor não vira complemento', () => {
+    const pkg = buildPackage({
+      manifest, summary: 's', screens: [], actions: [], workflows: [], scripts: [],
+      patchedScreens: [screen({ id: 'persons', origin: 'builtin', fields: [] })],
+    });
+    expect(pkg.screenPatches).toBeUndefined();
+  });
+
+  it('a lista de opções que um campo do complemento usa é declarada no pacote', () => {
+    const pkg = buildPackage({
+      manifest, summary: 's', screens: [], actions: [], workflows: [], scripts: [],
+      patchedScreens: [screen({
+        id: 'persons', origin: 'builtin',
+        fields: [{ key: 'porte', label: 'Porte', type: 'select', lookupCollection: 'personsPorte', required: false, order: 0, origin: 'design', ownerPluginId: null }],
+      })],
+      availableLookups: [{ collection: 'personsPorte', label: 'Porte' }],
+    });
+    expect(pkg.lookups).toEqual([{ collection: 'personsPorte', label: 'Porte' }]);
+  });
+
+  it('o pacote resultante passa na mesma validação do import', () => {
+    const pkg = buildPackage({
+      manifest, summary: 's', screens: [], actions: [], workflows: [], scripts: [],
+      patchedScreens: [withOwnField({ id: 'persons', origin: 'builtin' })],
+    });
+    const roundTrip = parsePackage(serializePackage(pkg));
+    expect(roundTrip.ok).toBe(true);
+    expect(validatePackage(roundTrip.ok ? roundTrip.package : pkg)).toEqual([]);
+  });
+});
+
+describe('buildPackage — reexportar uma extensão em edição', () => {
+  const carriedTemplate = {
+    key: 'produtos', sourceId: 'src-produtos', sourceRev: 1,
+    titleSingular: 'Produto', titlePlural: 'Produtos', icon: 'priceTag', titleFieldKey: 'nome',
+    fields: [{ key: 'nome', label: 'Nome', type: 'text' as const, required: true, order: 0 }],
+    tagCollection: 'produtos_tags',
+  };
+
+  /** A tela como ela existe DEPOIS de instalada e de o autor acrescentar um campo no Form Design. */
+  const installedProdutos = (over: Partial<ScreenDefinition> = {}): ScreenDefinition => screen({
+    id: 'produtos', origin: 'plugin', sourceId: 'src-produtos',
+    ownerPluginId: 'com.acme.vendas', ownerPluginIds: ['com.acme.vendas'],
+    tagCollection: 'produtos_tags',
+    fields: [
+      { key: 'nome', label: 'Nome', type: 'text', required: true, order: 0, origin: 'plugin', ownerPluginId: 'com.acme.vendas' },
+      { key: 'novo', label: 'Novo', type: 'text', required: false, order: 1, origin: 'design', ownerPluginId: null },
+    ],
+    ...over,
+  });
+
+  it('o campo que o autor acrescentou à tela da extensão entra no TEMPLATE DA TELA', () => {
+    const pkg = buildPackage({
+      manifest, summary: 's', screens: [], actions: [], workflows: [], scripts: [],
+      carried: { screens: [carriedTemplate] },
+      installedScreens: [installedProdutos()],
+    });
+    expect(pkg.screens).toHaveLength(1);
+    expect(pkg.screens?.[0].key).toBe('produtos');
+    expect(pkg.screens?.[0].fields.map((f) => f.key)).toEqual(['nome', 'novo']);
+    expect(pkg.screenPatches).toBeUndefined();
+  });
+
+  it('a chave e o sourceId continuam sendo os do template, mesmo se a instalação desambiguou', () => {
+    const pkg = buildPackage({
+      manifest, summary: 's', screens: [], actions: [], workflows: [], scripts: [],
+      carried: { screens: [carriedTemplate] },
+      installedScreens: [installedProdutos({ id: 'produtos_2' })],
+    });
+    expect(pkg.screens?.[0].key).toBe('produtos');
+    expect(pkg.screens?.[0].sourceId).toBe('src-produtos');
+  });
+
+  it('campo de OUTRA extensão na mesma tela não é reexportado como se fosse do autor', () => {
+    const pkg = buildPackage({
+      manifest, summary: 's', screens: [], actions: [], workflows: [], scripts: [],
+      carried: { screens: [carriedTemplate] },
+      installedScreens: [installedProdutos({
+        fields: [
+          { key: 'nome', label: 'Nome', type: 'text', required: true, order: 0, origin: 'plugin', ownerPluginId: 'com.acme.vendas' },
+          { key: 'deOutra', label: 'De outra', type: 'text', required: false, order: 1, origin: 'plugin', ownerPluginId: 'com.b' },
+        ],
+      })],
+    });
+    expect(pkg.screens?.[0].fields.map((f) => f.key)).toEqual(['nome']);
+  });
+
+  it('as listas e etiquetas da extensão carregada sobrevivem ao reexport', () => {
+    const pkg = buildPackage({
+      manifest, summary: 's', screens: [], actions: [], workflows: [], scripts: [],
+      carried: {
+        screens: [{
+          ...carriedTemplate,
+          fields: [{ key: 'tipo', label: 'Tipo', type: 'select', lookupCollection: 'produtosTipos', required: false, order: 0 }],
+        }],
+      },
+      installedScreens: [],
+    });
+    expect(pkg.lookups).toEqual([{ collection: 'produtosTipos', label: 'produtosTipos' }]);
+    expect(pkg.tagLists).toEqual([{ collection: 'produtos_tags', label: 'produtos_tags' }]);
+  });
+
+  it('sem tela instalada correspondente, o template carregado é preservado como veio', () => {
+    const pkg = buildPackage({
+      manifest, summary: 's', screens: [], actions: [], workflows: [], scripts: [],
+      carried: { screens: [carriedTemplate] },
+      installedScreens: [],
+    });
+    expect(pkg.screens?.[0]).toEqual(carriedTemplate);
+  });
+});

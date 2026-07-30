@@ -18,6 +18,9 @@ import { compileExtensionView, compileExtensionStartup } from '../../shared/exte
 import { buildExtensionTypeDefs } from '../../shared/extensions/extensionTypeDefs';
 import { getScreenIconOptions } from '../../shared/screenIcons';
 import type { PluginManifest } from '../../../domain/schema/plugin/pluginManifest';
+import type { ScreenDefinition } from '../../../domain/entities';
+import type { ScreenPatchTemplate } from '../../../domain/entities/MarketplacePlugin';
+import { getEntityByCollection } from '../../../domain/schema/entityRegistry';
 import type { Contribution } from '../../../domain/schema/plugin/contribution';
 import type { RefKind } from '../../../domain/usecases/plugins/pluginReferences';
 import type { MarketplacePlugin, ViewModuleTemplate } from '../../../domain/entities/MarketplacePlugin';
@@ -126,7 +129,7 @@ const KIND_LABEL: Record<RefKind, string> = {
 
 const STUB_MANIFEST: PluginManifest = { id: 'seu.plugin', version: '1.0.0', kernel: '^1.0.0', name: 'x' };
 
-export type ArtifactKind = 'screens' | 'actions' | 'workflows' | 'scripts';
+export type ArtifactKind = 'screens' | 'screenPatches' | 'actions' | 'workflows' | 'scripts';
 
 export interface ArtifactOption {
   id: string;
@@ -256,8 +259,15 @@ export const usePluginAuthorViewModel = (tabKey?: string): PluginAuthorViewModel
   const [actionIds, toggleAction] = useSelection(new Set((editingPackage?.actions ?? []).map((a) => a.templateId)));
   const [workflowIds, toggleWorkflow] = useSelection(new Set((editingPackage?.workflows ?? []).map((w) => w.templateId)));
   const [scriptIds, toggleScript] = useSelection(new Set((editingPackage?.scripts ?? []).map((s) => s.templateId)));
+  // Complementos do pacote em edição, remapeados para a tela LOCAL que cada um estende: o alvo viaja
+  // como nome de coleção (tela do kernel) ou como `sourceId` (tela de outra extensão).
+  const [patchIds, togglePatch] = useSelection(new Set(
+    (editingPackage?.screenPatches ?? [])
+      .map((patch) => definitions.find((d) => (d.origin === 'builtin' ? d.id : (d.sourceId ?? d.id)) === patch.target)?.id)
+      .filter((id): id is string => id !== undefined),
+  ));
   const [busy, setBusy] = useState(false);
-  const [expandedGroups, setExpandedGroups] = useState<Set<ArtifactKind | 'codeViews'>>(() => new Set(['screens', 'actions', 'workflows', 'scripts', 'codeViews']));
+  const [expandedGroups, setExpandedGroups] = useState<Set<ArtifactKind | 'codeViews'>>(() => new Set(['screens', 'screenPatches', 'actions', 'workflows', 'scripts', 'codeViews']));
 
   const [views, setViews] = useState<CodeViewForm[]>(() =>
     (editingPackage?.views ?? []).map((v) => ({ uid: crypto.randomUUID(), key: v.key, title: v.title, icon: v.icon, source: v.source })));
@@ -278,6 +288,7 @@ export const usePluginAuthorViewModel = (tabKey?: string): PluginAuthorViewModel
   // exibidos aqui, senão salvar/exportar os perderia. Inicialização preguiçosa, uma vez.
   const [carried, setCarried] = useState<Required<CarriedTemplates>>(() => ({
     screens: editingPackage?.screens ?? [],
+    screenPatches: editingPackage?.screenPatches ?? [],
     actions: editingPackage?.actions ?? [],
     workflows: editingPackage?.workflows ?? [],
     scripts: editingPackage?.scripts ?? [],
@@ -286,6 +297,7 @@ export const usePluginAuthorViewModel = (tabKey?: string): PluginAuthorViewModel
     setCarried((prev) => ({
       ...prev,
       screens: kind === 'screens' ? prev.screens.filter((s) => s.key !== id) : prev.screens,
+      screenPatches: kind === 'screenPatches' ? prev.screenPatches.filter((p) => p.target !== id) : prev.screenPatches,
       actions: kind === 'actions' ? prev.actions.filter((a) => a.templateId !== id) : prev.actions,
       workflows: kind === 'workflows' ? prev.workflows.filter((w) => w.templateId !== id) : prev.workflows,
       scripts: kind === 'scripts' ? prev.scripts.filter((s) => s.templateId !== id) : prev.scripts,
@@ -379,9 +391,32 @@ export const usePluginAuthorViewModel = (tabKey?: string): PluginAuthorViewModel
   );
 
   const ownScreens = useMemo(() => definitions.filter((d) => d.origin === 'design'), [definitions]);
+  // Telas que NÃO são do autor (do kernel ou de outra extensão) e às quais ele acrescentou campos: o
+  // que viaja no pacote é só esse acréscimo, como COMPLEMENTO — a tela de destino não muda de dono.
+  // Tela que ESTE pacote já carrega fica de fora: os campos dela pertencem ao template da tela, e um
+  // complemento por cima apagaria todos os que não estivessem nele.
+  const carriedScreenSourceIds = useMemo(
+    () => new Set(carried.screens.map((template) => template.sourceId ?? template.key)),
+    [carried.screens],
+  );
+  const patchableScreens = useMemo(
+    () => definitions.filter((d) => d.origin !== 'design'
+      && d.fields.some((f) => f.origin === 'design')
+      && !carriedScreenSourceIds.has(d.sourceId ?? d.id)),
+    [definitions, carriedScreenSourceIds],
+  );
+  const patchTargetOf = useCallback(
+    (screen: ScreenDefinition): string => (screen.origin === 'builtin' ? screen.id : (screen.sourceId ?? screen.id)),
+    [],
+  );
   const ownActions = useMemo(() => actions.filter((a) => !a.ownerPluginId), [actions]);
   const ownWorkflows = useMemo(() => workflows.filter((w) => !w.ownerPluginId), [workflows]);
   const ownScripts = useMemo(() => scripts.filter((s) => !s.ownerPluginId), [scripts]);
+
+  const localPatchTargets = useMemo(
+    () => new Set(patchableScreens.map(patchTargetOf)),
+    [patchableScreens, patchTargetOf],
+  );
 
   const availById = useMemo(() => ({
     screen: new Set(ownScreens.map((s) => s.id)),
@@ -399,16 +434,19 @@ export const usePluginAuthorViewModel = (tabKey?: string): PluginAuthorViewModel
     actions: carried.actions.filter((a) => !availById.action.has(a.templateId)),
     workflows: carried.workflows.filter((w) => !availById.workflow.has(w.templateId)),
     scripts: carried.scripts.filter((s) => !availById.script.has(s.templateId)),
-  }), [carried, availById]);
+    screenPatches: carried.screenPatches.filter((p) => !localPatchTargets.has(p.target)),
+  }), [carried, availById, localPatchTargets]);
 
   // Fecho de dependências: a partir do que o usuário marcou, puxa (obrigatoriamente) todo artefato
   // referenciado que existe no escritório — telas→ações/telas, ação→automação, automação→scripts/etc.
   const required = useMemo<Record<ArtifactKind, Set<string>>>(() => {
     const req: Record<ArtifactKind, Set<string>> = {
-      screens: new Set(), actions: new Set(), workflows: new Set(), scripts: new Set(),
+      screens: new Set(), screenPatches: new Set(), actions: new Set(), workflows: new Set(), scripts: new Set(),
     };
     const explicitOf = (k: ArtifactKind): Set<string> =>
-      k === 'screens' ? screenIds : k === 'actions' ? actionIds : k === 'workflows' ? workflowIds : scriptIds;
+      k === 'screens' ? screenIds
+        : k === 'screenPatches' ? patchIds
+          : k === 'actions' ? actionIds : k === 'workflows' ? workflowIds : scriptIds;
     const has = (k: ArtifactKind, id: string): boolean => explicitOf(k).has(id) || req[k].has(id);
 
     let changed = true;
@@ -419,6 +457,7 @@ export const usePluginAuthorViewModel = (tabKey?: string): PluginAuthorViewModel
       const pkg = buildPackage({
         manifest: STUB_MANIFEST, summary: 's',
         screens: ownScreens.filter((s) => has('screens', s.id)),
+        patchedScreens: patchableScreens.filter((s) => has('screenPatches', s.id)),
         actions: ownActions.filter((a) => has('actions', a.id)),
         workflows: ownWorkflows.filter((w) => has('workflows', w.id)),
         scripts: ownScripts.filter((s) => has('scripts', s.id)),
@@ -432,26 +471,62 @@ export const usePluginAuthorViewModel = (tabKey?: string): PluginAuthorViewModel
       }
     }
     return req;
-  }, [availById, ownScreens, ownActions, ownWorkflows, ownScripts, screenIds, actionIds, workflowIds, scriptIds]);
+  }, [availById, ownScreens, patchableScreens, ownActions, ownWorkflows, ownScripts, screenIds, patchIds, actionIds, workflowIds, scriptIds]);
 
   const effective = useMemo(() => ({
     screens: union(screenIds, required.screens),
+    screenPatches: union(patchIds, required.screenPatches),
     actions: union(actionIds, required.actions),
     workflows: union(workflowIds, required.workflows),
     scripts: union(scriptIds, required.scripts),
-  }), [screenIds, actionIds, workflowIds, scriptIds, required]);
+  }), [screenIds, patchIds, actionIds, workflowIds, scriptIds, required]);
+
+  /**
+   * A tela que um complemento estende, resolvida pelo alvo: `sourceId` universal (tela de outra
+   * extensão) ou nome de coleção (tela do kernel). Serve só para dar nome e ícone à linha — sem isso
+   * a lista mostraria o alvo cru, como `microteia:processo-clone`. Alvo do kernel ainda sem documento
+   * cai no rótulo do registro de entidades; se nada resolver, resta o próprio alvo.
+   */
+  const patchTargetLabel = useCallback((patch: ScreenPatchTemplate): { label: string; icon?: string } => {
+    const bySourceId = (patch.targetKind ?? 'collection') === 'sourceId';
+    const screen = definitions.find((d) => (bySourceId ? (d.sourceId ?? d.id) : d.id) === patch.target);
+    if (screen) return { label: screen.titlePlural || screen.titleSingular || screen.id, icon: screen.icon };
+    const entity = bySourceId ? undefined : getEntityByCollection(patch.target);
+    return { label: entity?.labelPlural ?? patch.target };
+  }, [definitions]);
 
   const carriedOptions = useMemo<Record<ArtifactKind, ArtifactOption[]>>(() => ({
     screens: foreignCarried.screens.map((s) => ({ id: s.key, label: s.titlePlural || s.titleSingular || s.key, icon: s.icon, selected: true, locked: false, carried: true })),
     actions: foreignCarried.actions.map((a) => ({ id: a.templateId, label: a.title || a.key, icon: a.icon, selected: true, locked: false, carried: true })),
     workflows: foreignCarried.workflows.map((w) => ({ id: w.templateId, label: w.name, selected: true, locked: false, carried: true })),
     scripts: foreignCarried.scripts.map((s) => ({ id: s.templateId, label: s.name, selected: true, locked: false, carried: true })),
-  }), [foreignCarried]);
+    screenPatches: foreignCarried.screenPatches.map((p) => {
+      const target = patchTargetLabel(p);
+      return {
+        id: p.target,
+        label: `${target.label} (${p.fields.length} campo(s))`,
+        icon: target.icon,
+        selected: true,
+        locked: false,
+        carried: true,
+      };
+    }),
+  }), [foreignCarried, patchTargetLabel]);
 
   const groups = useMemo<ArtifactGroup[]>(() => [
     {
       kind: 'screens', title: 'Telas',
       options: [...carriedOptions.screens, ...ownScreens.map((d) => ({ id: d.id, label: d.titlePlural || d.id, icon: d.icon, selected: effective.screens.has(d.id), locked: required.screens.has(d.id) }))],
+    },
+    {
+      kind: 'screenPatches', title: 'Campos em telas existentes',
+      options: [...carriedOptions.screenPatches, ...patchableScreens.map((d) => ({
+        id: d.id,
+        label: `${d.titlePlural || d.id} (${d.fields.filter((f) => f.origin === 'design').length} campo(s) seu(s))`,
+        icon: d.icon,
+        selected: effective.screenPatches.has(d.id),
+        locked: false,
+      }))],
     },
     {
       kind: 'actions', title: 'Ações',
@@ -465,16 +540,17 @@ export const usePluginAuthorViewModel = (tabKey?: string): PluginAuthorViewModel
       kind: 'scripts', title: 'Scripts',
       options: [...carriedOptions.scripts, ...ownScripts.map((s) => ({ id: s.id, label: s.name, selected: effective.scripts.has(s.id), locked: required.scripts.has(s.id) }))],
     },
-  ], [carriedOptions, ownScreens, ownActions, ownWorkflows, ownScripts, effective, required]);
+  ], [carriedOptions, ownScreens, patchableScreens, ownActions, ownWorkflows, ownScripts, effective, required]);
 
   const toggle = useCallback((kind: ArtifactKind, id: string) => {
     if (carriedOptions[kind].some((o) => o.id === id)) { removeCarried(kind, id); return; } // remove o embarcado
     if (required[kind].has(id)) return; // dependência obrigatória — não desmarca
     if (kind === 'screens') toggleScreen(id);
+    else if (kind === 'screenPatches') togglePatch(id);
     else if (kind === 'actions') toggleAction(id);
     else if (kind === 'workflows') toggleWorkflow(id);
     else toggleScript(id);
-  }, [carriedOptions, removeCarried, required, toggleScreen, toggleAction, toggleWorkflow, toggleScript]);
+  }, [carriedOptions, removeCarried, required, toggleScreen, togglePatch, toggleAction, toggleWorkflow, toggleScript]);
 
   const manifest = useMemo<PluginManifest>(() => ({
     id: form.id.trim(),
@@ -489,20 +565,34 @@ export const usePluginAuthorViewModel = (tabKey?: string): PluginAuthorViewModel
 
   const selection = useMemo(() => ({
     screens: ownScreens.filter((d) => effective.screens.has(d.id)),
+    patchedScreens: patchableScreens.filter((d) => effective.screenPatches.has(d.id)),
     actions: ownActions.filter((a) => effective.actions.has(a.id)),
     workflows: ownWorkflows.filter((w) => effective.workflows.has(w.id)),
     scripts: ownScripts.filter((s) => effective.scripts.has(s.id)),
-  }), [ownScreens, ownActions, ownWorkflows, ownScripts, effective]);
+  }), [ownScreens, patchableScreens, ownActions, ownWorkflows, ownScripts, effective]);
 
   const selectedCount = useMemo(
-    () => selection.screens.length + selection.actions.length + selection.workflows.length + selection.scripts.length + views.length
-      + foreignCarried.screens.length + foreignCarried.actions.length + foreignCarried.workflows.length + foreignCarried.scripts.length,
+    () => selection.screens.length + selection.patchedScreens.length + selection.actions.length + selection.workflows.length
+      + selection.scripts.length + views.length
+      + foreignCarried.screens.length + foreignCarried.screenPatches.length + foreignCarried.actions.length
+      + foreignCarried.workflows.length + foreignCarried.scripts.length,
     [selection, views.length, foreignCarried],
   );
 
   const pkg = useMemo<MarketplacePlugin>(
-    () => buildPackage({ ...selection, manifest, summary: form.summary.trim(), views: viewTemplates, startup, carried: foreignCarried }),
-    [selection, manifest, form.summary, viewTemplates, startup, foreignCarried],
+    () => buildPackage({
+      ...selection,
+      manifest,
+      summary: form.summary.trim(),
+      views: viewTemplates,
+      startup,
+      carried: foreignCarried,
+      // Quem edita uma extensão edita a TELA INSTALADA, no Form Design: é dela que o template
+      // carregado é reancorado, senão reexportar reemitiria a versão velha.
+      installedScreens: definitions,
+      installedActions: actions,
+    }),
+    [selection, manifest, form.summary, viewTemplates, startup, foreignCarried, definitions, actions],
   );
 
   const nameOf = useCallback((kind: RefKind, id: string): string => {

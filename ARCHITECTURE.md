@@ -1664,7 +1664,7 @@ O `SchemaContext.lookups` é a **união** das duas — a partir dele nada mais p
 ### Registros das telas — UM modelo só
 
 **Uma tela É uma coleção, e o `id` dela É o nome da coleção:** `tenants/{tenantId}/{screenId}/{recordId}`.
-Vale igual para as fixas (`persons`), as de extensão (`vendas__produto`) e as do Form Design
+Vale igual para as fixas (`persons`), as de extensão (`produtos`) e as do Form Design
 (`medico`). **Todo campo mora na raiz do documento** — não existe mais o mapa `values` das telas
 dinâmicas nem o `customValues` das fixas, nem o discriminador `screenKey`, nem o `title`
 denormalizado (o nome de exibição sai de `titleFieldKey`, como as fixas usam `displayNameFields`).
@@ -2755,11 +2755,65 @@ relacionamentos, cálculos, master-detail — reusando **inteiramente** o sistem
 
 - `MarketplacePlugin.screens: ScreenModuleTemplate[]` — telas autorais com `key` de template.
 - `ownerPluginId`/`managed` em `ScreenDefinition`; `ownerPluginId` em `FieldDefinition`.
-- **Materialização** (`domain/usecases/plugins/screenModule.ts`, puro): `screenKey` namespaced por
-  plugin (`com-acme-vendas__produto`) — determinístico, sem remapear ids gerados. Reescreve as
-  referências entre telas do pacote (`refEntity`/`parentEntity`/`aggregation.from`); ref a coleção
-  fixa (`persons`) fica intacta. Instalar faz `upsert` das telas gerenciadas; desinstalar apaga as
-  telas com aquele `ownerPluginId` e **preserva os registros** (dados órfãos).
+- **Materialização** (`domain/usecases/plugins/screenModule.ts`, puro): a tela instala **na chave que
+  o pacote declara** (`produtos`), não numa chave namespaced por plugin. A chave É o nome da coleção
+  (`tenants/{tenantId}/produtos`), então ela é a *interface* da entidade: aparece no código da
+  extensão, nos stores e nas consultas. Materializar reescreve as referências entre telas do pacote
+  (`refEntity`/`parentEntity`/`aggregation.from`) pelo `screenKeyMap`; ref a coleção fixa (`persons`)
+  fica intacta. Instalar faz `upsert` das telas gerenciadas; desinstalar apaga as telas com aquele
+  `ownerPluginId` e **preserva os registros** (dados órfãos) — a chave é estável, então reinstalar cai
+  na mesma coleção e os registros voltam a aparecer.
+- **Resolução da chave — `installedScreenKey(templateKey, taken)`.** Ordem: (1) já existe tela de
+  mesmo `sourceId`? usa a chave DELA (dedup, e instalação antiga em chave longa fica onde está);
+  (2) senão reivindica a chave declarada; (3) se o nome estiver ocupado — outra tela, **lista de
+  opções** ou **conjunto de etiquetas**, que disputam o mesmo espaço de nomes — ou for
+  `RESERVED_COLLECTIONS`, ganha sufixo via `ensureUniqueKey`: `produtos` → `produtos_2`. É a mesma
+  convenção do Form Design, e o resultado é sempre um nome válido por `COLLECTION_NAME_PATTERN` (o
+  esquema antigo, com hífens, não era). `buildScreenKeyMap` acumula as chaves reivindicadas para que
+  duas telas do mesmo pacote não disputem uma só.
+- **Tela ADOTADA — a desinstalação DEVOLVE, não apaga** (`isAdoptedScreen`/`handBackScreen`): quando
+  a deduplicação por `sourceId` encontra no tenant uma tela que **não** nasceu de extensão (Form
+  Design ou kernel), a instalação reusa a chave dela **e preserva o `origin`** (`design`/`builtin`) e
+  o `managed` — a tela continua sendo do tenant, só ganha a extensão no conjunto de donos. Ao sair o
+  último dono, a tela **não** é excluída: a extensão sai dos donos, `managed` volta a `false` e os
+  campos que ela trouxe passam a `origin: 'design'`. Apagá-la perderia a **chave da coleção** e, com
+  ela, o vínculo dos registros — foi o bug do ciclo "criar no Form Design → exportar → importar →
+  desinstalar → reinstalar". Enquanto houver dono, a exclusão pelo Form Design é bloqueada por
+  **ownership** (não por `origin`) no `DeleteScreenDefinitionUseCase`.
+- **Complemento de tela (`screenPatches`) — estender o que já existe.** Um pacote nem sempre traz uma
+  entidade nova: ele pode acrescentar campos a uma tela que já existe no destino (um campo `crm` em
+  `persons`, ou um campo numa tela de outra extensão). Uma `ScreenModuleTemplate` não serve para isso
+  — ela é a tela INTEIRA, e instalá-la sobrescreveria rótulos, ícone e ações da tela de destino e a
+  reivindicaria como da extensão. O `ScreenPatchTemplate` declara só `{ target, targetKind, fields }`:
+  - **Alvo universal.** `targetKind: 'collection'` para tela do kernel (`persons` — o nome é igual em
+    todo escritório); `'sourceId'` para tela de outra extensão, cuja chave instalada varia. Nome de
+    tela do tenant de destino não é alvo válido (não é conhecido no pacote) e o `validatePackage`
+    recusa, assim como recusa alvo que seja tela do PRÓPRIO pacote (aí os campos vão na tela).
+  - **A posse fica no CAMPO, não na tela.** Os campos entram com `origin: 'plugin'` e `ownerPluginId`;
+    a extensão **não** entra em `ownerPluginIds` da tela. Por isso `releaseScreenPatches` (uninstall)
+    varre as telas de terceiros e tira só os campos dela — a tela e os registros continuam de pé, e os
+    valores já gravados no campo removido ficam nos documentos (inofensivos, como toda chave sem
+    definição). Telas do próprio plugin não passam por aí: quem cuida delas é o `releaseScreen`.
+  - **Tela do kernel ainda sem documento** ganha `builtinScreenBaseline(collection)` (em
+    `schema/screenEntity.ts`) — a MESMA baseline que o Form Design grava no primeiro ajuste de uma
+    tela fixa, com `sidebarOrder` (sem ele o documento ficaria fora do `getAll`, que ordena por esse
+    campo). Alvo que não existe no escritório é ignorado: não há o que estender.
+  - **Autoria:** `screenToPatch` (em `packageBuilder.ts`) empacota de uma tela de terceiros somente os
+    campos `origin: 'design'` — os do kernel e os de outra extensão não são do autor para distribuir.
+    A tela de autoria lista essas telas no grupo "Campos em telas existentes", separado de "Telas", e
+    EXCLUI dele as telas que o próprio pacote carrega (senão o complemento competiria com o template
+    da tela). O instalador e o `validatePackage` recusam esse mesmo caso, para os pacotes já gerados.
+- **Reexportar uma extensão em edição reancora os templates na tela VIVA** (`refreshedFromInstalled` +
+  `toTemplateRefs`, com `installedScreens`/`installedActions` na entrada do `buildPackage`). Quem edita
+  uma extensão edita a tela INSTALADA, no Form Design; sem esse reancoramento o export reemitiria o
+  template carregado, e o que o autor mexeu se perderia — foi o que fez um campo novo só conseguir
+  viajar como complemento e, na atualização, apagar todos os demais campos da tela. `key` e `sourceId`
+  continuam sendo os do template (a identidade do pacote não muda porque a instalação local
+  desambiguou a chave); campos de outra extensão não viajam; e as referências voltam ao vocabulário do
+  pacote — chave instalada de outra tela vira `key` de template, id real de action vira `templateId`.
+  Pelo mesmo motivo, `collectLookups`/`collectTagLists` varrem o pacote FINAL (telas + complementos), e
+  não a seleção de origem: era assim que as listas e etiquetas de uma extensão importada sumiam ao
+  reexportá-la.
 - As telas instaladas fluem pelo pipeline de telas dinâmicas **automaticamente** (sidebar, ⌘K, Form
   Design, renderer, agregação no backend) por serem `ScreenDefinition` no tenant.
 - **Form Design espelha as telas fixas:** tela/campo de extensão é EDITÁVEL (ajustes não-críticos,
@@ -2773,10 +2827,10 @@ select, relação com pessoa[core], preço do item vindo do produto (`onChange`)
 calculado (`compute`), total da venda agregado, e master-detail venda→itens.
 
 **Pacote completo (actions, scripts, workflows).** `MarketplacePlugin` carrega `screens`, `workflows`,
-`actions` e `scripts` — um plugin é qualquer subconjunto. Telas usam `screenKey` namespaced
-(determinístico); actions/scripts/workflows têm **id de template** e recebem id gerado na instalação,
-então a materialização faz **remapeamento em duas passadas** (`packageMaterialize.ts`): cria scripts →
-mapa; cria workflows (reescreve `step.configuration.scriptId`, namespaceia a tela-gatilho) → mapa;
+`actions` e `scripts` — um plugin é qualquer subconjunto. Telas usam a `screenKey` declarada (resolvida
+por `installedScreenKey`); actions/scripts/workflows têm **id de template** e recebem id gerado na
+instalação, então a materialização faz **remapeamento em duas passadas** (`packageMaterialize.ts`): cria
+scripts → mapa; cria workflows (reescreve `step.configuration.scriptId`, remapeia a tela-gatilho) → mapa;
 reescreve `targetWorkflowId` (workflow que chama workflow); cria actions (reescreve `workflowId`) →
 mapa; grava telas (reescreve `viewActionIds`/`cardActionIds` e as refs entre telas). Ordem obrigatória:
 scripts → workflows → actions → telas. `ownerPluginId` em Action e Script (Workflow já tinha);
@@ -2785,8 +2839,8 @@ desinstalar cascateia os quatro tipos e preserva os registros.
 **Um modelo de referências, um validador** (`pluginReferences.ts`, puro): as referências de saída de
 cada artefato (tela→actions/telas, action→workflow, workflow→scripts/workflows/tela-gatilho). O
 `validatePackage(pkg)` exige que toda referência esteja **incluída no pacote**, seja **coleção fixa do
-core**, ou esteja **coberta por dependência declarada** (chave namespaced `<slug>__x` de uma
-`dependencies`). É a MESMA checagem que o export (dry-run) e o import usam — simétrico e agnóstico.
+core**, ou esteja **coberta por dependência declarada** (chave `<slug>__x` de uma `dependencies` — a
+convenção antiga, mantida por compatibilidade; hoje só `core.ui` é declarada como dependência). É a MESMA checagem que o export (dry-run) e o import usam — simétrico e agnóstico.
 
 **Escopo desta fase:** materialização/instalação. A autoria ("Criar Plugin": marcar artefatos +
 manifest → validar como dry-run de import → gerar `.json`/publicar) e o upgrade são as fases seguintes.

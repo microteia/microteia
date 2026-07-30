@@ -40,6 +40,20 @@ describe('DeleteScreenDefinitionUseCase', () => {
     ).rejects.toThrow(/extensão/);
   });
 
+  it('recusa excluir uma tela do tenant ADOTADA por uma extensão instalada', async () => {
+    const { repo, del } = makeRepo([screen({ id: 'produtos', origin: 'design', ownerPluginIds: ['com.microteia.produto'] })]);
+    await expect(
+      makeDeleteScreenDefinitionUseCase(repo, noRecords).execute('t1', 'produtos', actor),
+    ).rejects.toThrow(/extensão/);
+    expect(del).not.toHaveBeenCalled();
+  });
+
+  it('a tela devolvida pela desinstalação (sem donos) volta a ser excluível', async () => {
+    const { repo, del } = makeRepo([screen({ id: 'produtos', origin: 'design', ownerPluginIds: [], ownerPluginId: null })]);
+    await makeDeleteScreenDefinitionUseCase(repo, noRecords).execute('t1', 'produtos', actor);
+    expect(del).toHaveBeenCalledWith('t1', 'produtos', actor);
+  });
+
   it('recusa excluir uma tela do sistema (origin builtin), sem chamar delete', async () => {
     const { repo, del } = makeRepo([screen({ id: 'persons', origin: 'builtin' })]);
     await expect(

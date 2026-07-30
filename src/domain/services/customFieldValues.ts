@@ -44,12 +44,18 @@ export const slugifyFieldKey = (label: string): string =>
     .replace(/^_+|_+$/g, '')
     .replace(/^(\d)/, '_$1'); // Se começar com número, adiciona underscore
 
+/**
+ * Desambigua uma chave já em uso com sufixo numérico. O separador é `_` pelo mesmo motivo do
+ * `slugifyFieldKey`: hífen é recusado tanto por `VALID_FIELD_KEY_PATTERN` (chave de campo) quanto por
+ * `COLLECTION_NAME_PATTERN` (nome de coleção), então um sufixo com hífen gerava uma chave que o
+ * próprio validador rejeitava em seguida.
+ */
 export const ensureUniqueKey = (base: string, existingKeys: Set<string>): string => {
   const safeBase = base || 'campo';
   if (!existingKeys.has(safeBase)) return safeBase;
   let suffix = 2;
-  while (existingKeys.has(`${safeBase}-${suffix}`)) suffix += 1;
-  return `${safeBase}-${suffix}`;
+  while (existingKeys.has(`${safeBase}_${suffix}`)) suffix += 1;
+  return `${safeBase}_${suffix}`;
 };
 
 export const sortFieldsByOrder = (fields: FieldDefinition[]): FieldDefinition[] =>

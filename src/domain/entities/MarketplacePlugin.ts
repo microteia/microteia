@@ -6,7 +6,8 @@ import type { FieldDefinition, ScreenListAction } from './entitySchemas';
 
 /**
  * Uma tela (entidade) que a extensão instala no escritório. É uma ScreenDefinition autoral: a
- * `key` é de TEMPLATE (namespaced na instalação) e as referências entre telas do mesmo pacote
+ * `key` é a chave DECLARADA (a instalação a reivindica, desambiguando só se o nome estiver
+ * ocupado) e as referências entre telas do mesmo pacote
  * (`refEntity`, `parentEntity`, `aggregation.from`) usam essas keys de template, reescritas na
  * materialização. `viewActionIds`/`cardActionIds` referenciam `templateId`s de actions do pacote.
  * Referência a coleção fixa (`persons`) fica intacta.
@@ -38,6 +39,25 @@ export interface ScreenModuleTemplate {
   parentFieldKey?: string | null;
   viewActionIds?: string[];
   cardActionIds?: string[];
+}
+
+/**
+ * Um COMPLEMENTO de tela: acrescenta campos a uma entidade que JÁ EXISTE no escritório de destino,
+ * em vez de instalar uma tela nova. É como uma extensão estende `persons` (kernel) ou uma tela
+ * trazida por outra extensão — a estrutura da tela (título, ícone, menu, ações) e o dono dela não
+ * são tocados; a extensão passa a ser dona apenas dos CAMPOS que acrescenta.
+ *
+ * `target` é a coleção do kernel (`persons`) quando `targetKind: 'collection'` — o nome é universal,
+ * igual em todo escritório —, ou o `sourceId` UNIVERSAL da tela quando `targetKind: 'sourceId'`, que
+ * é o caso de estender uma tela de outra extensão (cuja chave instalada varia por escritório).
+ */
+export interface ScreenPatchTemplate {
+  target: string;
+  targetKind?: 'collection' | 'sourceId';
+  /** Sem `origin`: a instalação carimba `plugin` e o `ownerPluginId` em cada campo. */
+  fields: TemplateField[];
+  /** Revisão de origem, no mesmo contrato dos demais artefatos. */
+  sourceRev?: number | null;
 }
 
 /**
@@ -94,6 +114,8 @@ export interface MarketplacePlugin {
   summary: string;
   workflows: WorkflowModuleTemplate[];
   screens?: ScreenModuleTemplate[];
+  /** Campos que o pacote acrescenta a telas que já existem no destino. Ver `ScreenPatchTemplate`. */
+  screenPatches?: ScreenPatchTemplate[];
   /**
    * Listas de opções que as telas do pacote referenciam em `lookupCollection`. Viajam como
    * DECLARAÇÃO (nome + rótulo), nunca com as opções: estas são dado do escritório, e é por isso que

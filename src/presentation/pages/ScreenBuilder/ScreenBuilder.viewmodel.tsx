@@ -19,7 +19,7 @@ import { useLookups } from '../../../stores/useLookups';
 import { useTags } from '../../../stores/useTags';
 import { useDI } from '../../../infrastructure/di/useDI';
 import { deriveFormFields } from '../../shared/deriveEntitySchema';
-import { RESERVED_COLLECTIONS, derivedLookupCollection, derivedTagCollection, lookupIdIssue, screenIdIssue, tagListIdIssue } from '../../../domain/schema/screenEntity';
+import { RESERVED_COLLECTIONS, builtinScreenBaseline, derivedLookupCollection, derivedTagCollection, lookupIdIssue, screenIdIssue, tagListIdIssue } from '../../../domain/schema/screenEntity';
 import type { EntityKey } from '../../../domain/schema/entityRegistry';
 import { getEntityByCollection } from '../../../domain/schema/entityRegistry';
 import type { WorkflowVariable } from '../../components/ui/ExpressionEditor/autocompleteHelpers';
@@ -498,27 +498,9 @@ const buildDynamicMeta = (def: ScreenDefinition, fieldCount: number): string => 
   return parts.join(' · ');
 };
 
-const builtinSaveInput = (key: string): ScreenDefinitionSaveInput => {
-  const label = BUILTIN_SCREENS.find((b) => b.key === key)?.label ?? key;
-  return {
-    origin: 'builtin',
-    titleSingular: label,
-    titlePlural: label,
-    icon: 'apps',
-    fields: [],
-    titleFieldKey: '',
-    hasNotes: false,
-    hasDocuments: false,
-    hasTags: false,
-    listActions: [],
-    viewActionIds: [],
-    cardActionIds: [],
-    parentEntity: null,
-    parentFieldKey: null,
-    sidebarOrder: 0,
-    enabled: true,
-  };
-};
+/** O documento mínimo de uma tela fixa, no primeiro ajuste — a MESMA baseline que a instalação de um
+ *  complemento de extensão usa, para que os dois caminhos gravem a tela do kernel do mesmo jeito. */
+const builtinSaveInput = (key: string): ScreenDefinitionSaveInput => builtinScreenBaseline(key);
 
 export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
   const { tenantRole } = useTenant();

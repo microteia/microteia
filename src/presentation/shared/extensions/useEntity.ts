@@ -22,7 +22,7 @@ export interface EntityFieldOption {
 
 /**
  * Acesso GENÉRICO a uma entidade dinâmica (tela criada por extensão/Form Design), resolvido pelo
- * `sourceId` universal — não pela chave instalada, que é namespaced e pode variar por deduplicação.
+ * `sourceId` universal — não pela chave instalada, que pode variar por dedup ou desambiguação.
  * Devolve o schema vivo (campos, opções coloridas, máscaras), os registros da COLEÇÃO da tela — com
  * os campos na raiz de cada registro — e a navegação para o detalhe/criação NATIVOS. É o que permite
  * uma view de código ler/gravar os PRÓPRIOS dados sem tocar nenhum repositório específico do app.
