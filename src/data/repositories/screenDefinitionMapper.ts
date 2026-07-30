@@ -57,6 +57,7 @@ export const mapScreenDefinition = (
   hasNotes: (d.hasNotes as boolean | undefined) ?? false,
   hasDocuments: (d.hasDocuments as boolean | undefined) ?? false,
   hasTags: (d.hasTags as boolean | undefined) ?? false,
+  tagCollection: (d.tagCollection as string | null | undefined) ?? null,
   listActions: (d.listActions as ScreenDefinition['listActions'] | undefined) ?? [],
   viewActionIds: (d.viewActionIds as string[] | undefined) ?? [],
   cardActionIds: (d.cardActionIds as string[] | undefined) ?? [],

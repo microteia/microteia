@@ -773,6 +773,44 @@ export type {
   ActionStatusCode,
 } from './Action';
 
+// ─── Etiquetas ────────────────────────────────────────────────────────────────
+
+/**
+ * Uma etiqueta. Mora em `tenants/{tenantId}/{colecao}/{id}` — a MESMA forma para a do kernel
+ * (`caseTags`) e para a de uma tela do Form Design ou de extensão. Qual coleção uma tela usa está
+ * em `ScreenDefinition.tagCollection`, e por isso duas telas podem compartilhar as mesmas etiquetas.
+ */
+export interface Tag {
+  id: string;
+  tenantId: string;
+  name: string;
+  color: string;
+  createdAt: Date;
+  createdBy: string;
+  createdByName?: string;
+  createdByPhotoURL?: string;
+  updatedBy?: string;
+  updatedByName?: string;
+  updatedByPhotoURL?: string;
+  deletedBy?: string;
+  deletedByName?: string;
+  deletedByPhotoURL?: string;
+}
+
+/**
+ * A declaração de uma coleção de etiquetas criada no tenant — gêmea de `LookupDefinition`, e pelo
+ * mesmo motivo: é o `exists()` que as Security Rules consultam para autorizar a escrita numa
+ * coleção cujo nome só existe em runtime.
+ */
+export interface TagDefinition {
+  collection: string;
+  label: string;
+  ownerPluginId?: string | null;
+  ownerPluginIds?: string[];
+  createdAt: Date;
+  createdBy: string;
+}
+
 // ─── Listas de opções ─────────────────────────────────────────────────────────
 
 /**
@@ -817,7 +855,6 @@ export type {
   RecordDocument,
   RecordIdentity,
   RecordNote,
-  ScreenTag,
 } from './EntityRecord';
 
 // ─── Push ─────────────────────────────────────────────────────────────────────

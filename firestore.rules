@@ -561,19 +561,21 @@ service cloud.firestore {
         allow delete: if isTenantAdmin(tenantId);
       }
 
+      // ─── Conjuntos de etiquetas declarados pelo tenant ───────────────────────
+      // Mesmo papel de lookupDefinitions: o id do documento É o nome da coleção onde as etiquetas
+      // ficam, e é este `exists()` que autoriza a escrita nela lá embaixo.
+      match /tagDefinitions/{tagCollection} {
+        allow read: if isMember(tenantId);
+        allow create, update: if canWriteInTenant(tenantId);
+        allow delete: if isTenantAdmin(tenantId);
+      }
+
       // ─── Telas Dinâmicas (Personalização) ────────────────────────────────────
       // Definições de telas e campos customizados — membro lê; só admin configura
       match /screenDefinitions/{screenId} {
         allow read: if isMember(tenantId);
         allow create, update, delete: if isTenantAdmin(tenantId);
 
-        // Etiquetas da tela dinâmica (exclusivas por screenKey) — mesmo modelo das
-        // demais etiquetas (personTags, contractTags...): membro com escrita cria/edita; só admin deleta
-        match /tags/{tagId} {
-          allow read: if isMember(tenantId);
-          allow create, update: if canWriteInTenant(tenantId);
-          allow delete: if isTenantAdmin(tenantId);
-        }
       }
 
       // ─── Registros de qualquer tela ─────────────────────────────────────────
@@ -599,6 +601,7 @@ service cloud.firestore {
         'deadlineTypes', 'deadlines', 'documentTypes', 'documents', 'extensions',
         'financialCategories', 'financialStatuses', 'financialTags', 'financials',
         'installed_extensions', 'lookupDefinitions', 'members', 'news', 'newsCategories', 'notes',
+        'tagDefinitions',
         'personCities',
         'personGenders', 'personMaritalStatuses', 'personNationalities', 'personOccupations',
         'personRelationships', 'personTags', 'personTypes', 'persons', 'plugin_installations',
@@ -614,8 +617,12 @@ service cloud.firestore {
       function isDeclaredLookup(name) {
         return exists(/databases/$(database)/documents/tenants/$(tenantId)/lookupDefinitions/$(name));
       }
+      function isDeclaredTagList(name) {
+        return exists(/databases/$(database)/documents/tenants/$(tenantId)/tagDefinitions/$(name));
+      }
       function isWritableScreen(name) {
-        return !isReservedCollection(name) && (isDeclaredScreen(name) || isDeclaredLookup(name));
+        return !isReservedCollection(name)
+          && (isDeclaredScreen(name) || isDeclaredLookup(name) || isDeclaredTagList(name));
       }
 
       match /{screenCollection}/{recordId} {

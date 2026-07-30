@@ -16,9 +16,10 @@ import { extractFieldExpressionDependencies } from '../../../domain/schema/field
 import { aggregationCreatesCycle } from '../../../domain/schema/aggregationSpec';
 import { useSchemaContext } from '../../shared/useSchemaContext';
 import { useLookups } from '../../../stores/useLookups';
+import { useTags } from '../../../stores/useTags';
 import { useDI } from '../../../infrastructure/di/useDI';
 import { deriveFormFields } from '../../shared/deriveEntitySchema';
-import { RESERVED_COLLECTIONS, derivedLookupCollection, lookupIdIssue, screenIdIssue } from '../../../domain/schema/screenEntity';
+import { RESERVED_COLLECTIONS, derivedLookupCollection, derivedTagCollection, lookupIdIssue, screenIdIssue, tagListIdIssue } from '../../../domain/schema/screenEntity';
 import type { EntityKey } from '../../../domain/schema/entityRegistry';
 import { getEntityByCollection } from '../../../domain/schema/entityRegistry';
 import type { WorkflowVariable } from '../../components/ui/ExpressionEditor/autocompleteHelpers';
@@ -64,6 +65,7 @@ export interface ScreenFormState {
   hasNotes: boolean;
   hasDocuments: boolean;
   hasTags: boolean;
+  tagCollection: string;
   listActions: ScreenListAction[];
   viewActionIds: string[];
   cardActionIds: string[];
@@ -197,6 +199,10 @@ export interface ScreenBuilderViewModel {
   refEntityOptions: SearchSelectOption[];
   /** Listas do tenant que o campo pode reaproveitar — é assim que duas telas compartilham opções. */
   lookupOptions: SearchSelectOption[];
+  /** Conjuntos de etiquetas do tenant que a tela pode reaproveitar. */
+  tagListOptions: SearchSelectOption[];
+  /** Nome sugerido quando a tela ainda não aponta para nenhum conjunto. */
+  suggestedTagCollection: string;
   /** Nome sugerido quando o campo ainda não aponta para nenhuma lista. */
   suggestedLookupCollection: string;
   aggregationFromOptions: SearchSelectOption[];
@@ -262,6 +268,7 @@ const EMPTY_SCREEN_FORM: ScreenFormState = {
   hasNotes: false,
   hasDocuments: false,
   hasTags: false,
+  tagCollection: '',
   listActions: [],
   viewActionIds: [],
   cardActionIds: [],
@@ -468,6 +475,7 @@ const toSaveInput = (def: ScreenDefinition): ScreenDefinitionSaveInput => ({
   hasNotes: def.hasNotes,
   hasDocuments: def.hasDocuments,
   hasTags: def.hasTags,
+  tagCollection: def.tagCollection ?? '',
   listActions: def.listActions,
   viewActionIds: def.viewActionIds,
   cardActionIds: def.cardActionIds,
@@ -517,6 +525,7 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
   const { definitions, dynamicScreens, isLoading, saveDefinition, deleteDefinition } = useScreenDefinitions();
   const schemaContext = useSchemaContext();
   const { availableLookups, declareLookup } = useLookups();
+  const { availableTagLists, declareTagList } = useTags();
   const { externalLookupServices } = useDI();
   const { notify } = useNotification();
   const { actions } = useActions();
@@ -786,6 +795,7 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
       hasNotes: def.hasNotes,
       hasDocuments: def.hasDocuments,
       hasTags: def.hasTags,
+      tagCollection: def.tagCollection ?? '',
       listActions: def.hasTags ? def.listActions : def.listActions.filter((a) => a !== 'manageTags'),
       viewActionIds: def.viewActionIds,
       cardActionIds: def.cardActionIds,
@@ -929,6 +939,31 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
         setScreenModal(null);
         return;
       }
+      // Etiquetas ligadas EXIGEM coleção: é ela que sobrevive à exclusão da tela e o que duas telas
+      // apontam em comum para compartilhá-las. Na criação, o nome sai da chave que a tela vai
+      // receber — a mesma derivação do ramo de baixo.
+      const screenKeyForTags = screenModal?.screenKey
+        ?? ensureUniqueKey(slugifyFieldKey(screenForm.titlePlural), new Set([
+          ...definitions.map((def) => def.id),
+          ...BUILTIN_SCREENS.map((b) => b.key),
+          ...RESERVED_COLLECTIONS,
+        ]));
+      const tagCollection = screenForm.hasTags
+        ? (screenForm.tagCollection.trim() || derivedTagCollection(screenKeyForTags))
+        : (screenForm.tagCollection.trim() || null);
+      const isNewTagList = !!tagCollection && !schemaContext.tagLists.has(tagCollection);
+      if (isNewTagList) {
+        const issue = tagListIdIssue(tagCollection as string, schemaContext);
+        if (issue) {
+          notify(issue, 'error');
+          return;
+        }
+      }
+
+      if (isNewTagList) {
+        await declareTagList(tagCollection as string, `Etiquetas: ${screenForm.titlePlural.trim()}`);
+      }
+
       if (screenModal?.screenKey) {
         const def = getDefinitionByKey(screenModal.screenKey);
         if (!def) return;
@@ -941,6 +976,7 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
           hasNotes: screenForm.hasNotes,
           hasDocuments: screenForm.hasDocuments,
           hasTags: screenForm.hasTags,
+          tagCollection,
           listActions: screenForm.listActions,
           viewActionIds: screenForm.viewActionIds,
           cardActionIds: screenForm.cardActionIds,
@@ -986,6 +1022,7 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
           hasNotes: screenForm.hasNotes,
           hasDocuments: screenForm.hasDocuments,
           hasTags: screenForm.hasTags,
+          tagCollection,
           listActions: screenForm.listActions,
           viewActionIds: screenForm.viewActionIds,
           cardActionIds: screenForm.cardActionIds,
@@ -1004,7 +1041,7 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
     } finally {
       setSavingScreen(false);
     }
-  }, [screenForm, screenModal, getDefinitionByKey, saveDefinition, definitions, dynamicDefinitions, childCandidates, persistChildLinks, notify, schemaContext]);
+  }, [screenForm, screenModal, getDefinitionByKey, saveDefinition, definitions, dynamicDefinitions, childCandidates, persistChildLinks, notify, schemaContext, declareTagList]);
 
   const toggleScreenEnabled = useCallback(async (screenKey: string) => {
     const def = getDefinitionByKey(screenKey);
@@ -1157,6 +1194,16 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
   const lookupOptions = useMemo<SearchSelectOption[]>(
     () => availableLookups.map((lookup) => ({ value: lookup.collection, label: `${lookup.label} (${lookup.collection})` })),
     [availableLookups],
+  );
+
+  const tagListOptions = useMemo<SearchSelectOption[]>(
+    () => availableTagLists.map((tagList) => ({ value: tagList.collection, label: `${tagList.label} (${tagList.collection})` })),
+    [availableTagLists],
+  );
+
+  const suggestedTagCollection = useMemo(
+    () => derivedTagCollection(screenModal?.screenKey || slugifyFieldKey(screenForm.titlePlural.trim())),
+    [screenModal, screenForm.titlePlural],
   );
 
   const suggestedLookupCollection = useMemo(() => {
@@ -1627,6 +1674,8 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
     fieldSupportsRules,
     refEntityOptions,
     lookupOptions,
+    tagListOptions,
+    suggestedTagCollection,
     suggestedLookupCollection,
     aggregationFromOptions,
     aggregationViaOptions,

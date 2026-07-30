@@ -1,6 +1,5 @@
-import { useCallback, useMemo } from 'react';
+import { useCallback } from 'react';
 import { usePersonStore } from '../../../stores/usePersonStore';
-import { usePersonTagStore } from '../../../stores/usePersonTagStore';
 import { useTenant } from '../../../stores/useTenant';
 import { useAuth } from '../../../stores/useAuth';
 import { useNotification } from '../../../stores/useNotification';
@@ -19,6 +18,7 @@ import { onlyNumbers } from '../../../utils/formatters';
 import { describeRuleIssues } from '../../../domain/schema/fieldRules';
 import { validateRecordRules } from '../../../data/utils/recordRulesGate';
 import { format, parseISO } from 'date-fns';
+import { useTagAdapter } from '../../shared/entityScreen/useTagAdapter';
 
 export type ViewPersonTab = 'data' | 'notes' | 'documents';
 
@@ -145,7 +145,6 @@ export interface ViewPersonViewModel {
 
 export const useViewPersonViewModel = (tabKey: string): ViewPersonViewModel => {
   const { persons, createPerson, updatePerson, updatePersonStatus, deletePerson } = usePersonStore();
-  const { tags, getTagsForPerson, setTagsForPerson, createTag, updateTag, deleteTag } = usePersonTagStore();
   const { tenantRole } = useTenant();
   const { user, effectiveName } = useAuth();
   const { notify } = useNotification();
@@ -228,14 +227,9 @@ export const useViewPersonViewModel = (tabKey: string): ViewPersonViewModel => {
 
   const person = detail.record;
 
-  const tagAdapter: TagStoreAdapter = useMemo(() => ({
-    tags,
-    getAppliedTags: (entityId: string) => getTagsForPerson(entityId, person?.tagIds ?? []),
-    setTags: (entityId: string, tagIds: string[]) => setTagsForPerson(entityId, tagIds),
-    createTag: (name: string, color: string) => createTag(name, color),
-    updateTag: (id: string, data: { name: string; color: string }) => updateTag(id, data),
-    deleteTag: (id: string) => deleteTag(id),
-  }), [tags, person, getTagsForPerson, setTagsForPerson, createTag, updateTag, deleteTag]);
+  const tagIdsOf = useCallback(() => person?.tagIds ?? [], [person]);
+  const setRecordTags = useCallback((entityId: string, tagIds: string[]) => updatePerson(entityId, { tagIds }), [updatePerson]);
+  const tagAdapter = useTagAdapter('persons', tagIdsOf, setRecordTags);
 
   const handleToggleStatus = useCallback(async () => {
     if (!person) return;

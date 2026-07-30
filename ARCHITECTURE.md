@@ -1702,7 +1702,15 @@ Nota: as coleções de lista (`caseCourts`, `medico_especialidade`…) **não** 
 ### Etiquetas em telas dinâmicas
 
 - Habilitadas por tela via `hasTags` na definição; a tela de detalhe (`ViewDynamicRecord`) exibe um botão "Gerenciar etiquetas" no cabeçalho (mesmo ícone/posição do `ViewPerson`/`ViewContract`), as etiquetas aplicadas como pills abaixo do título, um filtro "Etiqueta" na listagem (`DynamicRecordList`) e as pills no card da listagem — tudo condicionado a `definition.hasTags`.
-- Diferente de `PersonTag`/`ContractTag` (tenant-scoped, uma coleção por tela padrão), a etiqueta de tela dinâmica é **exclusiva por `screenKey`**: `CustomRecordTag` (`{ name, color, createdBy, createdAt, ... }`) vive na subcoleção `tenants/{tid}/screenDefinitions/{screenKey}/tags/{id}` — isolada da definição para não afrouxar a rule de update dela.
+- **A etiqueta vive numa COLEÇÃO do tenant**, apontada por `ScreenDefinition.tagCollection` (e, nas fixas, por `EntityMetadata.tagCollection`): `tenants/{tid}/caseTags/{id}` para Processos, `tenants/{tid}/medico_tags/{id}` para uma tela do Form Design. Mesma forma de documento (`{ name, color, createdBy, createdAt }`) nos dois casos — é o espelho exato do que `lookupCollection` faz num campo, e pelo mesmo motivo: duas telas que apontem para a mesma coleção **compartilham as etiquetas**, e excluir a tela não apaga o que o escritório cadastrou.
+
+| | Declaração do conjunto | Regra no Firestore |
+|---|---|---|
+| Kernel (`caseTags`) | `EntityMetadata.tagCollection` (código) | bloco nomeado; nome em `RESERVED_COLLECTIONS` |
+| Tenant (`medico_tags`) | documento em `tenants/{tid}/tagDefinitions/{colecao}` | curinga, via `isDeclaredTagList()` |
+
+- Um `FirebaseTagRepository` e um `TagStore`/`useTags` servem a TODAS as etiquetas, indexados pelo nome da coleção. Substituíram os 4 repositórios e stores por entidade (`CaseTagStore` e irmãos) e os métodos de etiqueta do repositório de telas. A costura para a UI é `useTagAdapter(entityCollection, tagIdsOf, setRecordTags)` (`shared/entityScreen/useTagAdapter.ts`), que monta o `TagStoreAdapter` que o `TagManager` já consumia — antes cada ViewModel montava o seu, quase idêntico.
+- `SchemaContext.tagLists` une os conjuntos do kernel aos do tenant. Ele existe para o **espaço de nomes**: tela, lista de opções e conjunto de etiquetas viram coleção sob o mesmo tenant e passam pelo MESMO `match` curinga, então `screenIdIssue`/`lookupIdIssue`/`tagListIdIssue` recusam um nome que qualquer uma das outras já use.
 - `tagIds?: string[]` guarda as etiquetas aplicadas a cada registro (mesmo padrão de `Person.tagIds`/`Contract.tagIds`); atualizado via `useRecords().updateRecord(collection, recordId, { tagIds })`.
 - CRUD de etiquetas: `IScreenDefinitionRepository.getTags/createTag/updateTag/deleteTag` (no repositório de telas, por serem filhas de `screenDefinitions`) + use cases `screendefinitions/{Get,Create,Update,Delete}ScreenTagUseCase` + `ScreenDefinitionStore.tagsByScreen`/`createTag`/`updateTag`/`deleteTag`.
 - UI reaproveita o componente genérico `ui/TagManager` (já usado por Pessoa/Contrato) via um `TagStoreAdapter` construído em `ViewDynamicRecord.viewmodel` — nenhum componente de UI novo foi necessário.

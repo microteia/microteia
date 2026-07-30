@@ -1,6 +1,5 @@
-import { useCallback, useMemo } from 'react';
+import { useCallback } from 'react';
 import { useFinancialStore } from '../../../stores/useFinancialStore';
-import { useFinancialTagStore } from '../../../stores/useFinancialTagStore';
 import { useAuth } from '../../../stores/useAuth';
 import { useTenant } from '../../../stores/useTenant';
 import { useEntityFormFields } from '../../shared/useEntityFormFields';
@@ -21,6 +20,7 @@ import {
 } from '../../../domain/services/customFieldValues';
 import { describeRuleIssues } from '../../../domain/schema/fieldRules';
 import { validateRecordRules } from '../../../data/utils/recordRulesGate';
+import { useTagAdapter } from '../../shared/entityScreen/useTagAdapter';
 
 export type ViewFinancialTab = 'data' | 'documents';
 
@@ -127,7 +127,6 @@ export interface ViewFinancialViewModel {
 
 export const useViewFinancialViewModel = (tabKey: string): ViewFinancialViewModel => {
   const { financials, createFinancial, updateFinancial, deleteFinancial } = useFinancialStore();
-  const { tags, getTagsForFinancial, setTagsForFinancial, createTag, updateTag, deleteTag } = useFinancialTagStore();
   const { user, effectiveName } = useAuth();
   const { tenantRole } = useTenant();
   const { financialDocumentRepository } = useDI();
@@ -214,14 +213,9 @@ export const useViewFinancialViewModel = (tabKey: string): ViewFinancialViewMode
 
   const financial = detail.record;
 
-  const tagAdapter: TagStoreAdapter = useMemo(() => ({
-    tags,
-    getAppliedTags: (entityId: string) => getTagsForFinancial(entityId, financial?.tagIds ?? []),
-    setTags: (entityId: string, tagIds: string[]) => setTagsForFinancial(entityId, tagIds),
-    createTag: (name: string, color: string) => createTag(name, color),
-    updateTag: (id: string, data: { name: string; color: string }) => updateTag(id, data),
-    deleteTag: (id: string) => deleteTag(id),
-  }), [tags, financial, getTagsForFinancial, setTagsForFinancial, createTag, updateTag, deleteTag]);
+  const tagIdsOf = useCallback(() => financial?.tagIds ?? [], [financial]);
+  const setRecordTags = useCallback((entityId: string, tagIds: string[]) => updateFinancial(entityId, { tagIds }), [updateFinancial]);
+  const tagAdapter = useTagAdapter('financials', tagIdsOf, setRecordTags);
 
   return {
     isNew: detail.isNew,

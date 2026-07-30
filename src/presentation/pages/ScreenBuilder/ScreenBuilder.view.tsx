@@ -353,6 +353,32 @@ export const ScreenBuilderView: React.FC = () => {
                     onChange={(next) => vm.updateScreenForm({ hasTags: next })}
                   />
                 </S.CheckboxCell>
+                {vm.screenForm.hasTags && (
+                  <>
+                    <InputGroup>
+                      <Label>Conjunto de etiquetas</Label>
+                      <Input
+                        value={vm.screenForm.tagCollection}
+                        onChange={(e) => vm.updateScreenForm({ tagCollection: e.target.value })}
+                        placeholder={vm.suggestedTagCollection}
+                      />
+                      <S.FieldHint>
+                        As etiquetas criadas ficam neste conjunto, e continuam lá mesmo se a tela for
+                        excluída. Em branco, o sistema cria
+                        {vm.suggestedTagCollection ? ` "${vm.suggestedTagCollection}"` : ' um conjunto para esta tela'}.
+                      </S.FieldHint>
+                    </InputGroup>
+                    <InputGroup>
+                      <Label>Reaproveitar etiquetas de outra tela</Label>
+                      <SearchSelect
+                        options={vm.tagListOptions}
+                        value={vm.screenForm.tagCollection}
+                        onChange={(value) => vm.updateScreenForm({ tagCollection: value })}
+                        placeholder="Escolha para compartilhar as etiquetas"
+                      />
+                    </InputGroup>
+                  </>
+                )}
                 {vm.screenModalIsEdit && (
                   <S.CheckboxCell>
                     <Checkbox

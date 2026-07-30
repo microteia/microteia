@@ -6,7 +6,7 @@ import type { RuleIssue } from '../../domain/schema/fieldRules';
 import { describeRuleIssues } from '../../domain/schema/fieldRules';
 import type { SchemaContext, SchemaScreen } from '../../domain/schema/pathResolver';
 import { createSchemaContext } from '../../domain/schema/pathResolver';
-import type { SchemaLookup } from '../../domain/schema/screenEntity';
+import type { SchemaLookup, SchemaTagList } from '../../domain/schema/screenEntity';
 import { collectFieldLogicTargets, formatAndValidateRecord } from '../../domain/schema/recordRules';
 
 export class RecordRulesError extends Error {
@@ -21,10 +21,11 @@ export class RecordRulesError extends Error {
 
 let schemaScreens: SchemaScreen[] = [];
 let schemaLookups: SchemaLookup[] = [];
+let schemaTagLists: SchemaTagList[] = [];
 let schemaContext: SchemaContext = createSchemaContext();
 
 const rebuild = (): void => {
-  schemaContext = createSchemaContext(schemaScreens, schemaLookups);
+  schemaContext = createSchemaContext(schemaScreens, schemaLookups, schemaTagLists);
 };
 
 /**
@@ -43,6 +44,12 @@ export const setRecordRulesLookups = (lookups: SchemaLookup[]): void => {
   rebuild();
 };
 
+/** Idem para os conjuntos de etiquetas (empurrados pelo `TagStore`). */
+export const setRecordRulesTagLists = (tagLists: SchemaTagList[]): void => {
+  schemaTagLists = tagLists;
+  rebuild();
+};
+
 export const toSchemaScreens = (
   definitions: {
     id: string;
@@ -50,6 +57,7 @@ export const toSchemaScreens = (
     titlePlural?: string;
     titleFieldKey: string;
     fields: FieldDefinition[];
+    tagCollection?: string | null;
   }[],
 ): SchemaScreen[] =>
   definitions.map((definition) => ({
@@ -58,6 +66,7 @@ export const toSchemaScreens = (
     titlePlural: definition.titlePlural,
     titleFieldKey: definition.titleFieldKey,
     fields: definition.fields,
+    tagCollection: definition.tagCollection,
   }));
 
 const tableHasComputedFields = (table: string): boolean =>

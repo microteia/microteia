@@ -27,7 +27,6 @@ import { EntityListCard, type EntityCardAction } from '../../components/ui/Entit
 import { EntityListView } from '../../components/layout/EntityListView';
 import { getScreenIcon } from '../../shared/screenIcons';
 import { useListRowResolver } from '../../shared/listRows';
-import { useFinancialTagStore } from '../../../stores/useFinancialTagStore';
 import { FINANCIAL_LIST_ROWS } from './financialListSchema';
 
 interface CardMetaRow {
@@ -38,7 +37,7 @@ interface CardMetaRow {
 
 export const FinancialsView: React.FC = () => {
   const vm = useFinancialsViewModel();
-  const { tags } = useFinancialTagStore();
+  const tags = vm.tagAdapter.tags;
   const resolveRow = useListRowResolver();
 
   const headerExtra = (

@@ -1,7 +1,6 @@
 import { useState, useMemo, useCallback } from 'react';
 import { useTheme } from 'styled-components';
 import { useContractStore } from '../../../stores/useContractStore';
-import { useContractTagStore } from '../../../stores/useContractTagStore';
 import { usePersonStore } from '../../../stores/usePersonStore';
 import { useTenant } from '../../../stores/useTenant';
 import { useWorkspace } from '../../../stores/useWorkspace';
@@ -17,6 +16,8 @@ import type { CustomFieldCardItem } from '../../hooks/useCustomFieldListing';
 import { resolveColor, getConfigColor } from '../../../shared/styles/colorUtils';
 import type { Contract } from '../../../domain/entities';
 import type { FilterDef, FilterToken, FilterOption } from '../../components/ui/CompositeFilter';
+import { useTagAdapter, useTagCollection } from '../../shared/entityScreen/useTagAdapter';
+import { useTags } from '../../../stores/useTags';
 
 export interface ContractsViewModel {
   contracts: Contract[];
@@ -46,8 +47,9 @@ export interface ContractsViewModel {
 }
 
 export const useContractsViewModel = (): ContractsViewModel => {
-  const { contracts, isLoading, deleteContract } = useContractStore();
-  const { tags, getTagsForContract, setTagsForContract, createTag, updateTag, deleteTag } = useContractTagStore();
+  const { contracts, isLoading, deleteContract, updateContract } = useContractStore();
+  const { getTags } = useTags();
+  const tags = getTags(useTagCollection('contracts'));
   const { persons } = usePersonStore();
   const { tenantRole } = useTenant();
   const { getOptions } = useLookups();
@@ -178,17 +180,9 @@ export const useContractsViewModel = (): ContractsViewModel => {
     }
   }, [contractToDelete, deleteContract, notify]);
 
-  const tagAdapter = useMemo<TagStoreAdapter>(() => ({
-    tags,
-    getAppliedTags: (entityId: string) => {
-      const target = contracts.find((c) => c.id === entityId);
-      return getTagsForContract(entityId, target?.tagIds ?? []);
-    },
-    setTags: (entityId: string, tagIds: string[]) => setTagsForContract(entityId, tagIds),
-    createTag: (name: string, color: string) => createTag(name, color),
-    updateTag: (id: string, data: { name: string; color: string }) => updateTag(id, data),
-    deleteTag: (id: string) => deleteTag(id),
-  }), [tags, contracts, getTagsForContract, setTagsForContract, createTag, updateTag, deleteTag]);
+  const tagIdsOf = useCallback((entityId: string) => contracts.find((c) => c.id === entityId)?.tagIds ?? [], [contracts]);
+  const setRecordTags = useCallback((entityId: string, tagIds: string[]) => updateContract(entityId, { tagIds }), [updateContract]);
+  const tagAdapter = useTagAdapter('contracts', tagIdsOf, setRecordTags);
 
   const getStatusColor = useCallback((status: string): string => {
     return getConfigColor(statusConfigs, status, theme);

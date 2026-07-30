@@ -89,6 +89,11 @@ export interface ScreenDefinition {
   hasNotes: boolean;
   hasDocuments: boolean;
   hasTags: boolean;
+  /**
+   * Coleção onde as etiquetas desta tela ficam. Duas telas que apontem para a mesma coleção
+   * compartilham as etiquetas — é o mesmo mecanismo de `lookupCollection` num campo.
+   */
+  tagCollection?: string | null;
   listActions: ScreenListAction[];
   /** Ids de `ActionDefinition` exibidos no cabeçalho da tela de detalhe. */
   viewActionIds: string[];

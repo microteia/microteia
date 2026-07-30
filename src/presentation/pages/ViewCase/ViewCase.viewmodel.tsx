@@ -1,6 +1,5 @@
-import { useCallback, useMemo } from 'react';
+import { useCallback } from 'react';
 import { useCaseStore } from '../../../stores/useCaseStore';
-import { useCaseTagStore } from '../../../stores/useCaseTagStore';
 import { useAuth } from '../../../stores/useAuth';
 import { useTenant } from '../../../stores/useTenant';
 import { useEntityFormFields } from '../../shared/useEntityFormFields';
@@ -25,6 +24,7 @@ import {
 } from '../../../domain/services/customFieldValues';
 import { describeRuleIssues } from '../../../domain/schema/fieldRules';
 import { validateRecordRules } from '../../../data/utils/recordRulesGate';
+import { useTagAdapter } from '../../shared/entityScreen/useTagAdapter';
 
 export type ViewCaseTab = 'data' | 'notes' | 'documents';
 
@@ -152,7 +152,6 @@ export interface ViewCaseViewModel {
 
 export const useViewCaseViewModel = (tabKey: string): ViewCaseViewModel => {
   const { cases, createCase, updateCase, deleteCase } = useCaseStore();
-  const { tags, getTagsForCase, setTagsForCase, createTag, updateTag, deleteTag } = useCaseTagStore();
   const { user, effectiveName } = useAuth();
   const { tenantRole } = useTenant();
   const { caseNoteRepository, caseDocumentRepository } = useDI();
@@ -235,14 +234,9 @@ export const useViewCaseViewModel = (tabKey: string): ViewCaseViewModel => {
 
   const case_ = detail.record;
 
-  const tagAdapter: TagStoreAdapter = useMemo(() => ({
-    tags,
-    getAppliedTags: (entityId: string) => getTagsForCase(entityId, case_?.tagIds ?? []),
-    setTags: (entityId: string, tagIds: string[]) => setTagsForCase(entityId, tagIds),
-    createTag: (name: string, color: string) => createTag(name, color),
-    updateTag: (id: string, data: { name: string; color: string }) => updateTag(id, data),
-    deleteTag: (id: string) => deleteTag(id),
-  }), [tags, case_, getTagsForCase, setTagsForCase, createTag, updateTag, deleteTag]);
+  const tagIdsOf = useCallback(() => case_?.tagIds ?? [], [case_]);
+  const setRecordTags = useCallback((entityId: string, tagIds: string[]) => updateCase(entityId, { tagIds }), [updateCase]);
+  const tagAdapter = useTagAdapter('cases', tagIdsOf, setRecordTags);
 
   return {
     isNew: detail.isNew,

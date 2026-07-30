@@ -11,6 +11,12 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [1.2.0] — 2026-07-30
+
+- As etiquetas das telas personalizadas passam a ter espaço próprio no escritório, como já acontece com as de Processos, Pessoas, Contratos e Financeiro.
+- **Correção importante:** excluir uma tela ou remover uma extensão não apaga mais as etiquetas criadas. Elas continuam guardadas e voltam a aparecer assim que a tela for recriada apontando para o mesmo conjunto.
+- Telas diferentes agora podem compartilhar as mesmas etiquetas. Ao marcar "Habilitar Etiquetas", o Form Design mostra qual conjunto a tela usa e permite reaproveitar o de outra tela — inclusive o de uma tela do sistema.
+
 ## [1.1.0] — 2026-07-30
 
 - As listas de opções dos campos de seleção passam a ter espaço próprio no escritório, igual às listas do sistema (Comarcas, Varas, Áreas do Direito). Antes, as opções de um campo criado no Form Design ou trazido por uma extensão ficavam presas à tela.

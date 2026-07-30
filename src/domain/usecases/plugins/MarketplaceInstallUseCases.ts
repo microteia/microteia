@@ -18,6 +18,13 @@ import {
 import { workflowOutRefs } from './pluginReferences';
 import type { ILookupDefinitionRepository } from '../../repositories/ILookupDefinitionRepository';
 import { isLookupCollection } from '../../schema/lookupRegistry';
+import type { ITagDefinitionRepository } from '../../repositories/ITagDefinitionRepository';
+import { ENTITY_REGISTRY_LIST } from '../../schema/entityRegistry';
+
+/** Coleções de etiquetas declaradas em código — não recebem documento de declaração. */
+const BUILTIN_TAG_COLLECTIONS = new Set(
+  ENTITY_REGISTRY_LIST.map((entity) => entity.tagCollection).filter(Boolean) as string[],
+);
 
 /** Repositórios necessários para materializar/liberar os artefatos de dados de um pacote (telas,
  *  actions, workflows, scripts) — sem depender do registro de instalação. Reusado tanto pela máquina
@@ -28,6 +35,7 @@ export interface ArtifactDeps {
   actionRepository: IActionRepository;
   scriptRepository: IScriptRepository;
   lookupDefinitionRepository: ILookupDefinitionRepository;
+  tagDefinitionRepository: ITagDefinitionRepository;
 }
 
 export interface MarketplaceDeps extends ArtifactDeps {
@@ -300,6 +308,51 @@ const releasePluginLookups = async (
   }
 };
 
+/** Declara os conjuntos de etiquetas do pacote. Os do kernel (`caseTags`) não ganham documento. */
+const declarePluginTagLists = async (
+  deps: ArtifactDeps,
+  plugin: MarketplacePlugin,
+  tenantId: string,
+  userId: string,
+): Promise<void> => {
+  const templates = (plugin.tagLists ?? []).filter((tagList) => !BUILTIN_TAG_COLLECTIONS.has(tagList.collection));
+  if (templates.length === 0) return;
+  const pluginId = plugin.manifest.id;
+  const existing = await deps.tagDefinitionRepository.getAll(tenantId);
+  for (const template of templates) {
+    const current = existing.find((definition) => definition.collection === template.collection);
+    const owners = addOwner(ownerSet(current ?? {}), pluginId);
+    await deps.tagDefinitionRepository.upsert(tenantId, {
+      collection: template.collection,
+      label: current?.label ?? template.label,
+      ownerPluginId: owners[0],
+      ownerPluginIds: owners,
+      createdBy: current?.createdBy ?? userId,
+    });
+  }
+};
+
+/** Libera os conjuntos deste plugin. Sem donos, some só a DECLARAÇÃO — as etiquetas ficam. */
+const releasePluginTagLists = async (
+  deps: ArtifactDeps,
+  tenantId: string,
+  pluginId: string,
+): Promise<void> => {
+  for (const definition of await deps.tagDefinitionRepository.getAll(tenantId)) {
+    if (!ownerSet(definition).includes(pluginId)) continue;
+    const owners = removeOwner(ownerSet(definition), pluginId);
+    if (owners.length === 0) {
+      await deps.tagDefinitionRepository.delete(tenantId, definition.collection);
+    } else {
+      await deps.tagDefinitionRepository.upsert(tenantId, {
+        ...definition,
+        ownerPluginId: owners[0],
+        ownerPluginIds: owners,
+      });
+    }
+  }
+};
+
 // --- Liberação com refcount: remove o plugin do dono; só apaga quando ninguém mais usa. -----------
 
 const releaseScreen = async (deps: ArtifactDeps, tenantId: string, screen: ScreenDefinition, pluginId: string, actor: LifecycleActor): Promise<boolean> => {
@@ -399,6 +452,7 @@ export const applyPackageArtifacts = async (
   const existingScreens = await deps.screenRepository.getAll(tenantId);
   const { actionMap, screenKeyMap } = await materializeArtifacts(deps, plugin, tenantId, userId, existingScreens);
   await declarePluginLookups(deps, plugin, tenantId, userId);
+  await declarePluginTagLists(deps, plugin, tenantId, userId);
   const nextKeys = await upsertPluginScreens(deps, plugin, tenantId, userId, screenKeyMap, actionMap, existingScreens);
   for (const screen of existingScreens.filter((s) => ownerSet(s).includes(pluginId))) {
     if (!nextKeys.has(screen.id)) await releaseScreen(deps, tenantId, screen, pluginId, actor);
@@ -422,6 +476,7 @@ export const releasePackageArtifacts = async (
     if (await releaseScreen(deps, tenantId, screen, pluginId, actor)) removedScreens += 1;
   }
   await releasePluginLookups(deps, tenantId, pluginId);
+  await releasePluginTagLists(deps, tenantId, pluginId);
   const { removedActions, removedWorkflows, removedScripts } = await releaseGeneratedArtifacts(deps, tenantId, pluginId, actor);
   return { removedScreens, removedActions, removedWorkflows, removedScripts };
 };
@@ -458,6 +513,7 @@ export const makeInstallMarketplacePluginUseCase = (
     const existingScreens = await deps.screenRepository.getAll(tenantId);
     const { actionMap, screenKeyMap } = await materializeArtifacts(deps, plugin, tenantId, userId, existingScreens);
     await declarePluginLookups(deps, plugin, tenantId, userId);
+    await declarePluginTagLists(deps, plugin, tenantId, userId);
     await upsertPluginScreens(deps, plugin, tenantId, userId, screenKeyMap, actionMap, existingScreens);
 
     await deps.installationRepository.save(outcome.value);
@@ -529,6 +585,7 @@ export const makeUninstallMarketplacePluginUseCase = (
     }
 
     await releasePluginLookups(deps, tenantId, pluginId);
+    await releasePluginTagLists(deps, tenantId, pluginId);
 
     const { removedActions, removedWorkflows, removedScripts } = await releaseGeneratedArtifacts(
       deps, tenantId, pluginId, actor,

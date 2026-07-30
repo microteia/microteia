@@ -100,6 +100,7 @@ export const materializeScreen = (
     hasNotes: template.hasNotes ?? false,
     hasDocuments: template.hasDocuments ?? false,
     hasTags: template.hasTags ?? false,
+    tagCollection: template.tagCollection ?? null,
     listActions: template.listActions ?? [],
     viewActionIds: mapActionIds(template.viewActionIds),
     cardActionIds: mapActionIds(template.cardActionIds),

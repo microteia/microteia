@@ -25,6 +25,7 @@ export interface SchemaScreen {
   titlePlural?: string;
   titleFieldKey: string;
   fields: FieldDefinition[];
+  tagCollection?: string | null;
 }
 
 /** A lista de opções como o schema a enxerga. `collection` é o nome da coleção sob o tenant. */
@@ -32,6 +33,9 @@ export interface SchemaLookup {
   collection: string;
   label: string;
 }
+
+/** Uma coleção de etiquetas declarada pelo tenant. Mesma forma da lista, papel diferente. */
+export type SchemaTagList = SchemaLookup;
 
 export interface SchemaContext {
   registry: Record<EntityKey, EntityMetadata>;
@@ -42,6 +46,13 @@ export interface SchemaContext {
    * mais pergunta de onde a lista veio.
    */
   lookups: ReadonlyMap<string, SchemaLookup>;
+  /**
+   * As coleções de etiquetas — as do kernel (`caseTags`, declaradas no registro) unidas às do
+   * tenant. Servem ao mesmo espaço de nomes das telas e das listas: as três viram coleção sob o
+   * tenant e passam pelo MESMO `match` curinga das rules, então nenhuma pode reivindicar um nome
+   * que outra já usa.
+   */
+  tagLists: ReadonlyMap<string, SchemaTagList>;
   version: number;
 }
 
@@ -50,14 +61,25 @@ const BUILTIN_LOOKUPS: SchemaLookup[] = LOOKUP_REGISTRY_LIST.map((lookup) => ({
   label: `${lookup.screenLabel}: ${lookup.entityLabel}`,
 }));
 
+const BUILTIN_TAG_LISTS: SchemaTagList[] = Object.values(ENTITY_REGISTRY)
+  .filter((entity) => !!entity.tagCollection)
+  .map((entity) => ({
+    collection: entity.tagCollection as string,
+    label: `Etiquetas: ${entity.labelPlural}`,
+  }));
+
 export const createSchemaContext = (
   screens: Iterable<SchemaScreen> = [],
   tenantLookups: Iterable<SchemaLookup> = [],
+  tenantTagLists: Iterable<SchemaTagList> = [],
 ): SchemaContext => ({
   registry: ENTITY_REGISTRY,
   screens: new Map([...screens].map((screen) => [screen.id, screen])),
   lookups: new Map(
     [...BUILTIN_LOOKUPS, ...tenantLookups].map((lookup) => [lookup.collection, lookup]),
+  ),
+  tagLists: new Map(
+    [...BUILTIN_TAG_LISTS, ...tenantTagLists].map((tagList) => [tagList.collection, tagList]),
   ),
   version: SCHEMA_VERSION,
 });
@@ -215,6 +237,7 @@ export const resolveEntityFields = (ctx: SchemaContext, collection: string): Nat
 const screenEntityMetadata = (screen: SchemaScreen, fields: NativeFieldSpec[]): EntityMetadata => ({
   key: screen.id,
   collection: screen.id,
+  ...(screen.tagCollection ? { tagCollection: screen.tagCollection } : {}),
   eventPrefix: screen.id,
   labelSingular: screen.titleSingular,
   labelPlural: screen.titlePlural ?? screen.titleSingular,
@@ -245,6 +268,9 @@ export const resolveEntity = (ctx: SchemaContext, collection: string): EntityMet
     fields,
     labelSingular: screen.titleSingular,
     labelPlural: screen.titlePlural ?? entity.labelPlural,
+    // A tela do tenant pode redirecionar as etiquetas da entidade fixa para outra coleção — é assim
+    // que Processos e uma tela nova passam a compartilhar as mesmas etiquetas.
+    ...(screen.tagCollection ? { tagCollection: screen.tagCollection } : {}),
   };
 };
 
@@ -291,6 +317,7 @@ export const RESERVED_COLLECTIONS: ReadonlySet<string> = new Set<string>([
   'documents',
   'tags',
   'lookupDefinitions',
+  'tagDefinitions',
   'secrets',
   ...LOOKUP_REGISTRY_LIST.map((lookup) => lookup.collection),
 ]);
@@ -308,11 +335,24 @@ const collectionNameIssue = (name: string, what: string): string | undefined => 
   return undefined;
 };
 
+/** O nome já reivindicado por outra coleção do tenant, seja ela tela, lista ou etiquetas. */
+const takenBy = (
+  name: string,
+  ctx: SchemaContext | undefined,
+  ignore: 'screens' | 'lookups' | 'tagLists',
+): string | undefined => {
+  if (!ctx) return undefined;
+  if (ignore !== 'screens' && ctx.screens.has(name)) return 'uma tela';
+  if (ignore !== 'lookups' && ctx.lookups.has(name)) return 'uma lista de opções';
+  if (ignore !== 'tagLists' && ctx.tagLists.has(name)) return 'um conjunto de etiquetas';
+  return undefined;
+};
+
 export const screenIdIssue = (id: string, ctx?: SchemaContext): string | undefined => {
   const issue = collectionNameIssue(id, 'da tela');
   if (issue) return issue;
-  if (ctx?.lookups.has(id.trim())) return `"${id.trim()}" já é o nome de uma lista de opções`;
-  return undefined;
+  const taken = takenBy(id.trim(), ctx, 'screens');
+  return taken ? `"${id.trim()}" já é o nome de ${taken}` : undefined;
 };
 
 /**
@@ -323,10 +363,20 @@ export const screenIdIssue = (id: string, ctx?: SchemaContext): string | undefin
 export const lookupIdIssue = (collection: string, ctx?: SchemaContext): string | undefined => {
   const issue = collectionNameIssue(collection, 'da lista');
   if (issue) return issue;
-  if (ctx?.screens.has(collection.trim())) return `"${collection.trim()}" já é o nome de uma tela`;
-  return undefined;
+  const taken = takenBy(collection.trim(), ctx, 'lookups');
+  return taken ? `"${collection.trim()}" já é o nome de ${taken}` : undefined;
+};
+
+export const tagListIdIssue = (collection: string, ctx?: SchemaContext): string | undefined => {
+  const issue = collectionNameIssue(collection, 'das etiquetas');
+  if (issue) return issue;
+  const taken = takenBy(collection.trim(), ctx, 'tagLists');
+  return taken ? `"${collection.trim()}" já é o nome de ${taken}` : undefined;
 };
 
 /** Nome sugerido para a lista de um campo: estável, legível e sem colidir com o camelCase do kernel. */
 export const derivedLookupCollection = (screenId: string, fieldKey: string): string =>
   `${screenId}_${fieldKey.replace(/\./g, '_')}`;
+
+/** Nome sugerido para as etiquetas de uma tela, na mesma convenção. */
+export const derivedTagCollection = (screenId: string): string => `${screenId}_tags`;

@@ -30,6 +30,7 @@ import type {
 } from '../../shared/entityScreen/types';
 import type { TagStoreAdapter } from '../../components/ui/TagManager';
 import type { EntityDetailExtraTab, EntityDetailTab } from '../../components/layout/EntityDetailView';
+import { useTagAdapter } from '../../shared/entityScreen/useTagAdapter';
 import type {
   CustomFieldValue,
   EntityRecord,
@@ -78,7 +79,7 @@ export interface ViewDynamicRecordViewModel {
 type Values = Record<string, CustomFieldValue>;
 
 export const useViewDynamicRecordViewModel = (tabKey: string): ViewDynamicRecordViewModel => {
-  const { getDefinition, isLoading: isLoadingDefinition, tagsByScreen, createTag, updateTag, deleteTag } = useScreenDefinitions();
+  const { getDefinition, isLoading: isLoadingDefinition } = useScreenDefinitions();
   const { recordsByCollection, createRecord, updateRecord, deleteRecord } = useRecords();
   const { currentTenant, tenantRole } = useTenant();
   const { user, effectiveName } = useAuth();
@@ -245,17 +246,14 @@ export const useViewDynamicRecordViewModel = (tabKey: string): ViewDynamicRecord
     returnTabKey,
   });
 
-  const screenTags = useMemo(() => tagsByScreen[screenKey] ?? [], [tagsByScreen, screenKey]);
-  const sourceRecord = detail.record;
+    const sourceRecord = detail.record;
 
-  const tagAdapter: TagStoreAdapter = useMemo(() => ({
-    tags: screenTags,
-    getAppliedTags: (entityId: string) => { void entityId; return screenTags.filter((t) => sourceRecord?.tagIds?.includes(t.id)); },
-    setTags: (entityId: string, tagIds: string[]) => updateRecord(screenKey, entityId, { tagIds }),
-    createTag: (name: string, color: string) => createTag(screenKey, name, color),
-    updateTag: (id: string, data: { name: string; color: string }) => updateTag(screenKey, id, data),
-    deleteTag: (id: string) => deleteTag(screenKey, id),
-  }), [screenTags, sourceRecord, updateRecord, screenKey, createTag, updateTag, deleteTag]);
+  const tagIdsOf = useCallback(() => sourceRecord?.tagIds ?? [], [sourceRecord]);
+  const setRecordTags = useCallback(
+    (entityId: string, tagIds: string[]) => updateRecord(screenKey, entityId, { tagIds }),
+    [updateRecord, screenKey],
+  );
+  const tagAdapter = useTagAdapter(screenKey, tagIdsOf, setRecordTags);
 
   return {
     definition,

@@ -15,13 +15,12 @@ import { ConfirmModal } from '../../components/ui/ConfirmModal';
 import { TagManager } from '../../components/ui/TagManager';
 import { EntityListView } from '../../components/layout/EntityListView';
 import { getScreenIcon } from '../../shared/screenIcons';
-import { useCaseTagStore } from '../../../stores/useCaseTagStore';
 import { useListRowResolver } from '../../shared/listRows';
 import { CASE_LIST_ROWS } from './caseListSchema';
 
 export const CasesView: React.FC = () => {
   const vm = useCasesViewModel();
-  const { tags } = useCaseTagStore();
+  const tags = vm.tagAdapter.tags;
   const resolveRow = useListRowResolver();
 
   return (

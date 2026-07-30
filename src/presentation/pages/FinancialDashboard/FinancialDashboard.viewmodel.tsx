@@ -14,7 +14,6 @@ import {
 } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useFinancialStore } from '../../../stores/useFinancialStore';
-import { useFinancialTagStore } from '../../../stores/useFinancialTagStore';
 import { useCaseStore } from '../../../stores/useCaseStore';
 import { usePersonStore } from '../../../stores/usePersonStore';
 import { useContractStore } from '../../../stores/useContractStore';
@@ -30,6 +29,8 @@ import {
 } from '../../shared/financials/financialFilters';
 import type { Financial, FinancialType } from '../../../domain/entities';
 import type { FilterDef, FilterOption, FilterToken } from '../../components/ui/CompositeFilter';
+import { useTags } from '../../../stores/useTags';
+import { useTagCollection } from '../../shared/entityScreen/useTagAdapter';
 
 export interface FinancialDashboardKPI {
   label: string;
@@ -101,7 +102,8 @@ export const useFinancialDashboardViewModel = (): FinancialDashboardViewModel =>
   const { getOptions } = useLookups();
   const statusConfigs = getOptions('financialStatuses');
   const categoryConfigs = getOptions('financialCategories');
-  const { tags } = useFinancialTagStore();
+  const { getTags } = useTags();
+  const tags = getTags(useTagCollection('financials'));
   const { cases } = useCaseStore();
   const { persons } = usePersonStore();
   const { contracts } = useContractStore();

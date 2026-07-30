@@ -16,13 +16,12 @@ import { ConfirmModal } from '../../components/ui/ConfirmModal';
 import { TagManager } from '../../components/ui/TagManager';
 import { EntityListView } from '../../components/layout/EntityListView';
 import { getScreenIcon } from '../../shared/screenIcons';
-import { useContractTagStore } from '../../../stores/useContractTagStore';
 import { useListRowResolver } from '../../shared/listRows';
 import { CONTRACT_LIST_ROWS } from './contractListSchema';
 
 export const ContractsView: React.FC = () => {
   const vm = useContractsViewModel();
-  const { tags } = useContractTagStore();
+  const tags = vm.tagAdapter.tags;
   const resolveRow = useListRowResolver();
 
   return (

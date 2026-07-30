@@ -2,14 +2,18 @@ import { describe, expect, it } from 'vitest';
 import {
   createSchemaContext,
   derivedLookupCollection,
+  derivedTagCollection,
   isLookupTable,
   lookupIdIssue,
+  resolveEntity,
   screenIdIssue,
+  tagListIdIssue,
 } from './screenEntity';
 
 const ctx = createSchemaContext(
   [{ id: 'medico', titleSingular: 'Médico', titleFieldKey: 'nome', fields: [] }],
   [{ collection: 'medico_especialidade', label: 'Especialidade' }],
+  [{ collection: 'medico_tags', label: 'Etiquetas: Médicos' }],
 );
 
 describe('SchemaContext — as listas do kernel e do tenant num conjunto só', () => {
@@ -49,5 +53,35 @@ describe('nome de lista', () => {
   it('o nome sugerido junta tela e campo, sem colidir com o camelCase do kernel', () => {
     expect(derivedLookupCollection('medico', 'especialidade')).toBe('medico_especialidade');
     expect(derivedLookupCollection('persons', 'address.city')).toBe('persons_address_city');
+    expect(derivedTagCollection('medico')).toBe('medico_tags');
+  });
+});
+
+describe('conjuntos de etiquetas', () => {
+  it('os do kernel entram no contexto mesmo sem declaração do tenant', () => {
+    const semTenant = createSchemaContext();
+    expect(semTenant.tagLists.has('caseTags')).toBe(true);
+    expect(semTenant.tagLists.has('personTags')).toBe(true);
+  });
+
+  it('a tela do tenant pode redirecionar as etiquetas de uma entidade fixa', () => {
+    const compartilhado = createSchemaContext(
+      [{ id: 'cases', titleSingular: 'Processo', titleFieldKey: 'title', fields: [], tagCollection: 'medico_tags' }],
+      [],
+      [{ collection: 'medico_tags', label: 'Etiquetas: Médicos' }],
+    );
+    expect(resolveEntity(compartilhado, 'cases')?.tagCollection).toBe('medico_tags');
+    // Sem redirecionamento, vale a declarada em código.
+    expect(resolveEntity(createSchemaContext(), 'cases')?.tagCollection).toBe('caseTags');
+  });
+
+  /** Tela, lista e etiquetas caem no MESMO curinga das rules: um nome só pode ter um dono. */
+  it('o espaço de nomes é único entre tela, lista e etiquetas', () => {
+    expect(tagListIdIssue('medico', ctx)).toBe('"medico" já é o nome de uma tela');
+    expect(tagListIdIssue('medico_especialidade', ctx)).toBe('"medico_especialidade" já é o nome de uma lista de opções');
+    expect(screenIdIssue('medico_tags', ctx)).toBe('"medico_tags" já é o nome de um conjunto de etiquetas');
+    expect(lookupIdIssue('medico_tags', ctx)).toBe('"medico_tags" já é o nome de um conjunto de etiquetas');
+    expect(tagListIdIssue('caseTags')).toBeTruthy();
+    expect(tagListIdIssue('medico_tags')).toBeUndefined();
   });
 });

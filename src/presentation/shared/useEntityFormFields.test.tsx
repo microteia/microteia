@@ -11,6 +11,10 @@ vi.mock('../../stores/useLookups', () => ({
   useLookups: () => ({ availableLookups: [] }),
 }));
 
+vi.mock('../../stores/useTags', () => ({
+  useTags: () => ({ availableTagLists: [] }),
+}));
+
 vi.mock('../../stores/useScreenDefinitions', () => ({
   useScreenDefinitions: () => ({
     definitions: storeState.definitions,

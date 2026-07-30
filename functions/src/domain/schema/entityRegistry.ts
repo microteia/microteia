@@ -98,6 +98,8 @@ export interface FkSpec {
 }
 
 export interface EntityMetadata {
+  /** Coleção de etiquetas da entidade, quando ela as tem. Ausente = tela sem etiquetas. */
+  tagCollection?: string;
   key: EntityKey;
   collection: string;
   /**
@@ -160,6 +162,7 @@ export const ENTITY_REGISTRY: Record<EntityKey, EntityMetadata> = {
   persons: {
     key: 'persons',
     collection: 'persons',
+    tagCollection: 'personTags',
     eventPrefix: 'person',
     labelSingular: 'Pessoa',
     labelPlural: 'Pessoas',
@@ -256,6 +259,7 @@ export const ENTITY_REGISTRY: Record<EntityKey, EntityMetadata> = {
   cases: {
     key: 'cases',
     collection: 'cases',
+    tagCollection: 'caseTags',
     eventPrefix: 'case',
     labelSingular: 'Processo',
     labelPlural: 'Processos',
@@ -328,6 +332,7 @@ export const ENTITY_REGISTRY: Record<EntityKey, EntityMetadata> = {
   contracts: {
     key: 'contracts',
     collection: 'contracts',
+    tagCollection: 'contractTags',
     eventPrefix: 'contract',
     labelSingular: 'Contrato',
     labelPlural: 'Contratos',
@@ -481,6 +486,7 @@ export const ENTITY_REGISTRY: Record<EntityKey, EntityMetadata> = {
   financials: {
     key: 'financials',
     collection: 'financials',
+    tagCollection: 'financialTags',
     eventPrefix: 'financial',
     labelSingular: 'Financeiro',
     labelPlural: 'Financeiro',

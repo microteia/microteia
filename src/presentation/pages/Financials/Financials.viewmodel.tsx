@@ -1,7 +1,6 @@
 import { useState, useMemo, useCallback, useEffect } from 'react';
 import { useTheme } from 'styled-components';
 import { useFinancialStore } from '../../../stores/useFinancialStore';
-import { useFinancialTagStore } from '../../../stores/useFinancialTagStore';
 import { useCaseStore } from '../../../stores/useCaseStore';
 import { usePersonStore } from '../../../stores/usePersonStore';
 import { useContractStore } from '../../../stores/useContractStore';
@@ -26,6 +25,8 @@ import {
 } from '../../shared/financials/financialFilters';
 import type { Financial, ScreenListAction } from '../../../domain/entities';
 import type { FilterDef, FilterOption, FilterToken } from '../../components/ui/CompositeFilter';
+import { useTagAdapter, useTagCollection } from '../../shared/entityScreen/useTagAdapter';
+import { useTags } from '../../../stores/useTags';
 
 export type { FinancialSummary };
 
@@ -73,8 +74,9 @@ export interface FinancialsViewModel {
 const fmt = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
 
 export const useFinancialsViewModel = (): FinancialsViewModel => {
-  const { financials, isLoading, deleteFinancial, markPaid, updateFinancialStatus, cancelFinancial } = useFinancialStore();
-  const { tags, getTagsForFinancial, setTagsForFinancial, createTag, updateTag, deleteTag } = useFinancialTagStore();
+  const { financials, isLoading, deleteFinancial, updateFinancial, markPaid, updateFinancialStatus, cancelFinancial } = useFinancialStore();
+  const { getTags } = useTags();
+  const tags = getTags(useTagCollection('financials'));
   const { getOptions } = useLookups();
   const statusConfigs = getOptions('financialStatuses');
   const { cases } = useCaseStore();
@@ -197,17 +199,9 @@ export const useFinancialsViewModel = (): FinancialsViewModel => {
   const [tagManagerFinancial, setTagManagerFinancial] = useState<Financial | null>(null);
   const closeTagManager = useCallback(() => setTagManagerFinancial(null), []);
 
-  const tagAdapter = useMemo<TagStoreAdapter>(() => ({
-    tags,
-    getAppliedTags: (entityId: string) => {
-      const target = financials.find((f) => f.id === entityId);
-      return getTagsForFinancial(entityId, target?.tagIds ?? []);
-    },
-    setTags: (entityId: string, tagIds: string[]) => setTagsForFinancial(entityId, tagIds),
-    createTag: (name: string, color: string) => createTag(name, color),
-    updateTag: (id: string, data: { name: string; color: string }) => updateTag(id, data),
-    deleteTag: (id: string) => deleteTag(id),
-  }), [tags, financials, getTagsForFinancial, setTagsForFinancial, createTag, updateTag, deleteTag]);
+  const tagIdsOf = useCallback((entityId: string) => financials.find((f) => f.id === entityId)?.tagIds ?? [], [financials]);
+  const setRecordTags = useCallback((entityId: string, tagIds: string[]) => updateFinancial(entityId, { tagIds }), [updateFinancial]);
+  const tagAdapter = useTagAdapter('financials', tagIdsOf, setRecordTags);
   const openPerson = useCallback((personId: string | null | undefined) => { if (personId) openTab(`view-person:${personId}`); }, [openTab]);
   const openCase = useCallback((caseId: string | null | undefined) => { if (caseId) openTab(`view-case:${caseId}`); }, [openTab]);
   const openContract = useCallback((contractId: string | null | undefined) => { if (contractId) openTab(`view-contract:${contractId}`); }, [openTab]);

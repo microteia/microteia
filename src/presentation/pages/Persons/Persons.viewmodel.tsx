@@ -1,7 +1,6 @@
 import { useState, useMemo, useCallback } from 'react';
 import { useTheme } from 'styled-components';
 import { usePersonStore } from '../../../stores/usePersonStore';
-import { usePersonTagStore } from '../../../stores/usePersonTagStore';
 import { useTenant } from '../../../stores/useTenant';
 import { useWorkspace } from '../../../stores/useWorkspace';
 import { useScreenDefinitions } from '../../../stores/useScreenDefinitions';
@@ -18,6 +17,8 @@ import type { FilterDef, FilterToken } from '../../components/ui/CompositeFilter
 import type { TagStoreAdapter } from '../../components/ui/TagManager/TagManager.viewmodel';
 import { PERSON_LIST_CONFIG } from './personSchema';
 import type { PersonCardActionKey } from './personSchema';
+import { useTagAdapter, useTagCollection } from '../../shared/entityScreen/useTagAdapter';
+import { useTags } from '../../../stores/useTags';
 
 const PERSON_STATUS_OPTIONS: FilterDef['options'] = [
   { value: 'Ativo', label: 'Ativos' },
@@ -86,8 +87,9 @@ export interface PersonsViewModel {
 }
 
 export const usePersonsViewModel = (): PersonsViewModel => {
-  const { persons, isLoading, deletePerson } = usePersonStore();
-  const { tags, getTagsForPerson, setTagsForPerson, createTag, updateTag, deleteTag } = usePersonTagStore();
+  const { persons, isLoading, deletePerson, updatePerson } = usePersonStore();
+  const { getTags } = useTags();
+  const tags = getTags(useTagCollection('persons'));
   const { getOptions } = useLookups();
   const typeConfigs = getOptions('personTypes');
   const occupationConfigs = getOptions('personOccupations');
@@ -245,17 +247,9 @@ export const usePersonsViewModel = (): PersonsViewModel => {
     actions: buildCardActions(person),
   }), [resolveRow, tags, buildCardActions]);
 
-  const tagAdapter = useMemo<TagStoreAdapter>(() => ({
-    tags,
-    getAppliedTags: (entityId: string) => {
-      const target = persons.find((p) => p.id === entityId);
-      return getTagsForPerson(entityId, target?.tagIds ?? []);
-    },
-    setTags: (entityId: string, tagIds: string[]) => setTagsForPerson(entityId, tagIds),
-    createTag: (name: string, color: string) => createTag(name, color),
-    updateTag: (id: string, data: { name: string; color: string }) => updateTag(id, data),
-    deleteTag: (id: string) => deleteTag(id),
-  }), [tags, persons, getTagsForPerson, setTagsForPerson, createTag, updateTag, deleteTag]);
+  const tagIdsOf = useCallback((entityId: string) => persons.find((p) => p.id === entityId)?.tagIds ?? [], [persons]);
+  const setRecordTags = useCallback((entityId: string, tagIds: string[]) => updatePerson(entityId, { tagIds }), [updatePerson]);
+  const tagAdapter = useTagAdapter('persons', tagIdsOf, setRecordTags);
 
   const closeTagManager = useCallback(() => setTagManagerPerson(null), []);
   const cancelDeletePerson = useCallback(() => setPersonToDelete(null), []);

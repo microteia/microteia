@@ -13,9 +13,11 @@ import type { CustomFieldCardItem } from '../../hooks/useCustomFieldListing';
 import { generateDeepLink } from '../../../infrastructure/deeplink/deepLinkUtils';
 import { buildNewTabKey, buildViewTabKey, buildCloneTabKey, buildChildNewTabKey } from '../../../shared/constants/dynamicScreenKeys';
 import { resolveRecordTitle, sortFieldsByOrder } from '../../../domain/services/customFieldValues';
-import type { ActionDefinition, ActionStatusCode, CustomFieldValue, EntityRecord, ScreenTag, ScreenDefinition, ScreenListAction } from '../../../domain/entities';
+import type { ActionDefinition, ActionStatusCode, CustomFieldValue, EntityRecord, ScreenDefinition, Tag, ScreenListAction } from '../../../domain/entities';
 import type { TagStoreAdapter } from '../../components/ui/TagManager';
 import type { FilterDef, FilterToken } from '../../components/ui/CompositeFilter';
+import { useTagAdapter, useTagCollection } from './useTagAdapter';
+import { useTags } from '../../../stores/useTags';
 
 const STATUS_TONE: Record<ActionStatusCode, 'success' | 'warning' | 'error'> = {
   SUCCESS: 'success',
@@ -56,7 +58,7 @@ export interface RecordListViewModel {
   filterTokens: FilterToken[];
   filterDefs: FilterDef[];
   savedFiltersScreenKey: string;
-  tags: ScreenTag[];
+  tags: Tag[];
   setFilterTokens: (tokens: FilterToken[]) => void;
   openNewRecord: () => void;
   openRecord: (record: EntityRecord) => void;
@@ -79,7 +81,7 @@ export interface RecordListViewModel {
  */
 export const useRecordListViewModel = (source: RecordListSource): RecordListViewModel => {
   const { screenKey, savedFiltersKey, parent } = source;
-  const { getDefinition, isLoading: definitionsLoading, tagsByScreen, createTag, updateTag, deleteTag } = useScreenDefinitions();
+  const { getDefinition, isLoading: definitionsLoading } = useScreenDefinitions();
   const { recordsByCollection, isLoading: recordsLoading, updateRecord, deleteRecord } = useRecords();
   const { openTab } = useWorkspace();
   const { tenantRole } = useTenant();
@@ -112,7 +114,8 @@ export const useRecordListViewModel = (source: RecordListSource): RecordListView
     return all.filter((record) => record[parent.fieldKey] === parent.recordId);
   }, [recordsByCollection, screenKey, parent]);
 
-  const tags = useMemo(() => tagsByScreen[screenKey] ?? [], [tagsByScreen, screenKey]);
+  
+  const tags = useTags().getTags(useTagCollection(screenKey));
 
   const tagOptions = useMemo<FilterDef['options']>(() =>
     tags.map((t) => ({ value: t.id, label: t.name, color: t.color })),
@@ -254,17 +257,12 @@ export const useRecordListViewModel = (source: RecordListSource): RecordListView
     return [...native, ...custom];
   }, [definition, isAdmin, onCopyLink, onClone, cardActionDefs, tenantRole, runningActionId, runCardAction]);
 
-  const tagAdapter = useMemo<TagStoreAdapter>(() => ({
-    tags,
-    getAppliedTags: (entityId: string) => {
-      const record = records.find((r) => r.id === entityId);
-      return tags.filter((t) => record?.tagIds?.includes(t.id));
-    },
-    setTags: (entityId: string, tagIds: string[]) => updateRecord(screenKey, entityId, { tagIds }),
-    createTag: (name: string, color: string) => createTag(screenKey, name, color),
-    updateTag: (id: string, data: { name: string; color: string }) => updateTag(screenKey, id, data),
-    deleteTag: (id: string) => deleteTag(screenKey, id),
-  }), [tags, records, updateRecord, screenKey, createTag, updateTag, deleteTag]);
+  const tagIdsOf = useCallback((entityId: string) => records.find((r) => r.id === entityId)?.tagIds ?? [], [records]);
+  const setRecordTags = useCallback(
+    (entityId: string, tagIds: string[]) => updateRecord(screenKey, entityId, { tagIds }),
+    [updateRecord, screenKey],
+  );
+  const tagAdapter = useTagAdapter(screenKey, tagIdsOf, setRecordTags);
 
   const closeTagManager = useCallback(() => setTagManagerRecord(null), []);
   const cancelDelete = useCallback(() => setRecordToDelete(null), []);

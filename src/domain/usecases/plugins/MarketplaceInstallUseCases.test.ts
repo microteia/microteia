@@ -11,7 +11,8 @@ import type { IActionRepository, ActionDefinitionInput } from '../../repositorie
 import type { IScriptRepository } from '../../repositories/IScriptRepository';
 import type { LifecycleActor } from '../../services/pluginLifecycle';
 import type { ILookupDefinitionRepository, LookupDefinitionInput } from '../../repositories/ILookupDefinitionRepository';
-import type { LookupDefinition } from '../../entities';
+import type { LookupDefinition, TagDefinition } from '../../entities';
+import type { ITagDefinitionRepository, TagDefinitionInput } from '../../repositories/ITagDefinitionRepository';
 import {
   makeInstallMarketplacePluginUseCase,
   makeUninstallMarketplacePluginUseCase,
@@ -143,6 +144,24 @@ class FakeLookupDefinitions implements ILookupDefinitionRepository {
   }
 }
 
+/** Mesmo racional do fake de listas: as ETIQUETAS não são representadas aqui de propósito. */
+class FakeTagDefinitions implements ITagDefinitionRepository {
+  items: TagDefinition[] = [];
+  deletedCollections: string[] = [];
+  subscribe(): () => void { return () => {}; }
+  async getAll(): Promise<TagDefinition[]> { return this.items; }
+  async upsert(_tenantId: string, definition: TagDefinitionInput): Promise<TagDefinition> {
+    const next = { ...definition, createdAt: new Date() };
+    const index = this.items.findIndex((item) => item.collection === definition.collection);
+    if (index >= 0) this.items[index] = next; else this.items.push(next);
+    return next;
+  }
+  async delete(_tenantId: string, collection: string): Promise<void> {
+    this.deletedCollections.push(collection);
+    this.items = this.items.filter((item) => item.collection !== collection);
+  }
+}
+
 const actor: LifecycleActor = { tenantId: 't1', userId: 'u1', now: new Date('2026-07-23T12:00:00Z') };
 
 let installations: FakeInstallations;
@@ -151,6 +170,7 @@ let screens: FakeScreens;
 let actions: FakeActions;
 let scripts: FakeScripts;
 let lookupDefinitions: FakeLookupDefinitions;
+let tagDefinitions: FakeTagDefinitions;
 
 const deps = () => ({
   installationRepository: installations,
@@ -159,6 +179,7 @@ const deps = () => ({
   actionRepository: actions as unknown as IActionRepository,
   scriptRepository: scripts as unknown as IScriptRepository,
   lookupDefinitionRepository: lookupDefinitions,
+  tagDefinitionRepository: tagDefinitions,
 });
 
 beforeEach(() => {
@@ -168,6 +189,7 @@ beforeEach(() => {
   actions = new FakeActions();
   scripts = new FakeScripts();
   lookupDefinitions = new FakeLookupDefinitions();
+  tagDefinitions = new FakeTagDefinitions();
 });
 
 const literalStep = (id: string, stepDefinitionId: string, inputId: string, value: string): WorkflowStep => ({
@@ -372,6 +394,58 @@ describe('Uninstall — listas de opções sobrevivem', () => {
     plugin.lookups = [{ collection: 'caseCourts', label: 'Vara/Tribunal' }];
     await makeInstallMarketplacePluginUseCase(deps()).execute(plugin, actor);
     expect(lookupDefinitions.items).toEqual([]);
+  });
+});
+
+describe('Uninstall — etiquetas sobrevivem', () => {
+  const taggedPlugin = (id: string): MarketplacePlugin => ({
+    summary: 'Com etiquetas',
+    manifest: { id, version: '1.0.0', kernel: '^1.0.0', name: 'T' },
+    workflows: [],
+    tagLists: [{ collection: 'medico_tags', label: 'Etiquetas: Médicos' }],
+    screens: [{
+      key: 'medico', titleSingular: 'Médico', titlePlural: 'Médicos', icon: 'apps', titleFieldKey: 'nome',
+      hasTags: true, tagCollection: 'medico_tags',
+      fields: [{ key: 'nome', label: 'Nome', type: 'text', required: true, order: 0 }],
+    }],
+  });
+
+  it('declara o conjunto na instalação, com o plugin como dono', async () => {
+    await makeInstallMarketplacePluginUseCase(deps()).execute(taggedPlugin('com.acme.med'), actor);
+    expect(tagDefinitions.items).toEqual([
+      expect.objectContaining({ collection: 'medico_tags', ownerPluginIds: ['com.acme.med'] }),
+    ]);
+  });
+
+  /**
+   * O bug que originou a mudança: as etiquetas viviam numa subcoleção de `screenDefinitions` e eram
+   * apagadas junto com a tela. Agora a desinstalação mexe só na DECLARAÇÃO.
+   */
+  it('a desinstalação remove a declaração, nunca a coleção de etiquetas', async () => {
+    const d = deps();
+    await makeInstallMarketplacePluginUseCase(d).execute(taggedPlugin('com.acme.med'), actor);
+    await makeUninstallMarketplacePluginUseCase(d).execute('com.acme.med', actor);
+
+    expect(tagDefinitions.items).toEqual([]);
+    expect(tagDefinitions.deletedCollections).toEqual(['medico_tags']);
+  });
+
+  it('duas extensões no mesmo conjunto: desinstalar uma mantém a declaração', async () => {
+    await makeInstallMarketplacePluginUseCase(deps()).execute(taggedPlugin('com.a'), actor);
+    await makeInstallMarketplacePluginUseCase(deps()).execute(taggedPlugin('com.b'), actor);
+    expect(tagDefinitions.items[0].ownerPluginIds).toEqual(['com.a', 'com.b']);
+
+    await makeUninstallMarketplacePluginUseCase(deps()).execute('com.a', actor);
+    expect(tagDefinitions.items).toEqual([
+      expect.objectContaining({ collection: 'medico_tags', ownerPluginIds: ['com.b'] }),
+    ]);
+  });
+
+  it('conjunto do kernel não vira documento — já é declarado no registro', async () => {
+    const plugin = taggedPlugin('com.acme.kernel');
+    plugin.tagLists = [{ collection: 'caseTags', label: 'Etiquetas: Processos' }];
+    await makeInstallMarketplacePluginUseCase(deps()).execute(plugin, actor);
+    expect(tagDefinitions.items).toEqual([]);
   });
 });
 

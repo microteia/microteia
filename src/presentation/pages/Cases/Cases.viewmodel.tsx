@@ -1,7 +1,6 @@
 import { useState, useMemo, useCallback } from 'react';
 import { useTheme } from 'styled-components';
 import { useCaseStore } from '../../../stores/useCaseStore';
-import { useCaseTagStore } from '../../../stores/useCaseTagStore';
 import { useContractStore } from '../../../stores/useContractStore';
 import { usePersonStore } from '../../../stores/usePersonStore';
 import { useTenant } from '../../../stores/useTenant';
@@ -19,6 +18,8 @@ import { resolveColor, getConfigColor } from '../../../shared/styles/colorUtils'
 import { consumeNavigationIntent } from '../../../infrastructure/navigation/navigationIntent';
 import type { Case } from '../../../domain/entities';
 import type { FilterDef, FilterToken, FilterOption } from '../../components/ui/CompositeFilter';
+import { useTagAdapter, useTagCollection } from '../../shared/entityScreen/useTagAdapter';
+import { useTags } from '../../../stores/useTags';
 
 const parseBRDate = (s: string): Date | null => {
   if (!s.trim()) return null;
@@ -59,8 +60,9 @@ export interface CasesViewModel {
 }
 
 export const useCasesViewModel = (): CasesViewModel => {
-  const { cases, isLoading, deleteCase } = useCaseStore();
-  const { tags, getTagsForCase, setTagsForCase, createTag, updateTag, deleteTag } = useCaseTagStore();
+  const { cases, isLoading, deleteCase, updateCase } = useCaseStore();
+  const { getTags } = useTags();
+  const tags = getTags(useTagCollection('cases'));
   const { contracts } = useContractStore();
   const { persons } = usePersonStore();
   const { tenantRole } = useTenant();
@@ -269,17 +271,9 @@ export const useCasesViewModel = (): CasesViewModel => {
     }
   }, [caseToDelete, deleteCase, notify]);
 
-  const tagAdapter = useMemo<TagStoreAdapter>(() => ({
-    tags,
-    getAppliedTags: (entityId: string) => {
-      const target = cases.find((c) => c.id === entityId);
-      return getTagsForCase(entityId, target?.tagIds ?? []);
-    },
-    setTags: (entityId: string, tagIds: string[]) => setTagsForCase(entityId, tagIds),
-    createTag: (name: string, color: string) => createTag(name, color),
-    updateTag: (id: string, data: { name: string; color: string }) => updateTag(id, data),
-    deleteTag: (id: string) => deleteTag(id),
-  }), [tags, cases, getTagsForCase, setTagsForCase, createTag, updateTag, deleteTag]);
+  const tagIdsOf = useCallback((entityId: string) => cases.find((c) => c.id === entityId)?.tagIds ?? [], [cases]);
+  const setRecordTags = useCallback((entityId: string, tagIds: string[]) => updateCase(entityId, { tagIds }), [updateCase]);
+  const tagAdapter = useTagAdapter('cases', tagIdsOf, setRecordTags);
 
   const getStatusColor = useCallback((status: string): string => {
     return getConfigColor(statusConfigs, status, theme);

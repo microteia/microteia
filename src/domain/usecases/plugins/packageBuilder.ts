@@ -40,6 +40,8 @@ export interface BuildPackageInput extends PackageSelection {
   carried?: CarriedTemplates;
   /** Listas do tenant, para dar rótulo às que as telas exportadas referenciam. */
   availableLookups?: LookupModuleTemplate[];
+  /** Idem para os conjuntos de etiquetas. */
+  availableTagLists?: LookupModuleTemplate[];
 }
 
 const dedupeBy = <T>(items: T[], keyOf: (item: T) => string): T[] => {
@@ -90,6 +92,7 @@ const screenToTemplate = (screen: ScreenDefinition): ScreenModuleTemplate =>
     hasNotes: screen.hasNotes,
     hasDocuments: screen.hasDocuments,
     hasTags: screen.hasTags,
+    tagCollection: screen.tagCollection ?? undefined,
     listActions: screen.listActions,
     sidebarOrder: screen.sidebarOrder,
     enabled: screen.enabled,
@@ -143,6 +146,19 @@ const collectLookups = (
   return [...collections].map((collection) => ({ collection, label: labels.get(collection) ?? collection }));
 };
 
+/** Os conjuntos de etiquetas referenciados pelas telas exportadas. */
+const collectTagLists = (
+  screens: ScreenDefinition[],
+  available: LookupModuleTemplate[],
+): LookupModuleTemplate[] => {
+  const labels = new Map(available.map((tagList) => [tagList.collection, tagList.label]));
+  const collections = new Set<string>();
+  for (const screen of screens) {
+    if (screen.tagCollection) collections.add(screen.tagCollection);
+  }
+  return [...collections].map((collection) => ({ collection, label: labels.get(collection) ?? collection }));
+};
+
 /**
  * Monta um `MarketplacePlugin` a partir dos artefatos selecionados. Arrays vazias das partes
  * opcionais são omitidas para um JSON limpo. A integridade referencial (dependências não incluídas)
@@ -151,6 +167,7 @@ const collectLookups = (
 export const buildPackage = (input: BuildPackageInput): MarketplacePlugin => {
   const screens = dedupeBy([...input.screens.map(screenToTemplate), ...(input.carried?.screens ?? [])], (s) => s.key);
   const lookups = collectLookups(input.screens, input.availableLookups ?? []);
+  const tagLists = collectTagLists(input.screens, input.availableTagLists ?? []);
   const actions = dedupeBy([...input.actions.map(actionToTemplate), ...(input.carried?.actions ?? [])], (a) => a.templateId);
   const scripts = dedupeBy([...input.scripts.map(scriptToTemplate), ...(input.carried?.scripts ?? [])], (s) => s.templateId);
   const workflows = dedupeBy([...input.workflows.map(workflowToTemplate), ...(input.carried?.workflows ?? [])], (w) => w.templateId);
@@ -161,6 +178,7 @@ export const buildPackage = (input: BuildPackageInput): MarketplacePlugin => {
     workflows,
     ...(screens.length > 0 ? { screens } : {}),
     ...(lookups.length > 0 ? { lookups } : {}),
+    ...(tagLists.length > 0 ? { tagLists } : {}),
     ...(actions.length > 0 ? { actions } : {}),
     ...(scripts.length > 0 ? { scripts } : {}),
     ...((input.views?.length ?? 0) > 0 ? { views: input.views } : {}),

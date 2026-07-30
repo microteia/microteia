@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTheme } from 'styled-components';
 import { useContractStore } from '../../../stores/useContractStore';
-import { useContractTagStore } from '../../../stores/useContractTagStore';
 import { useCaseStore } from '../../../stores/useCaseStore';
 import { useAuth } from '../../../stores/useAuth';
 import { useTenant } from '../../../stores/useTenant';
@@ -31,6 +30,7 @@ import {
 import { describeRuleIssues } from '../../../domain/schema/fieldRules';
 import { validateRecordRules } from '../../../data/utils/recordRulesGate';
 import { getConfigColor } from '../../../shared/styles/colorUtils';
+import { useTagAdapter } from '../../shared/entityScreen/useTagAdapter';
 
 export type ViewContractTab = 'data' | 'notes' | 'documents' | 'cases';
 
@@ -200,7 +200,6 @@ export interface ViewContractViewModel {
 
 export const useViewContractViewModel = (tabKey: string): ViewContractViewModel => {
   const { contracts, createContract, updateContract, deleteContract } = useContractStore();
-  const { tags, getTagsForContract, setTagsForContract, createTag, updateTag, deleteTag } = useContractTagStore();
   const { getOptions } = useLookups();
   const { cases, updateCase } = useCaseStore();
   const caseStatusConfigs = getOptions('caseStatuses');
@@ -299,14 +298,9 @@ export const useViewContractViewModel = (tabKey: string): ViewContractViewModel 
     setFieldValue('number', generateContractNumber(new Set(contracts.map((c) => c.number))));
   }, [needsNumber, contracts, setFieldValue]);
 
-  const tagAdapter: TagStoreAdapter = useMemo(() => ({
-    tags,
-    getAppliedTags: (entityId: string) => getTagsForContract(entityId, contract?.tagIds ?? []),
-    setTags: (entityId: string, tagIds: string[]) => setTagsForContract(entityId, tagIds),
-    createTag: (name: string, color: string) => createTag(name, color),
-    updateTag: (id: string, data: { name: string; color: string }) => updateTag(id, data),
-    deleteTag: (id: string) => deleteTag(id),
-  }), [tags, contract, getTagsForContract, setTagsForContract, createTag, updateTag, deleteTag]);
+  const tagIdsOf = useCallback(() => contract?.tagIds ?? [], [contract]);
+  const setRecordTags = useCallback((entityId: string, tagIds: string[]) => updateContract(entityId, { tagIds }), [updateContract]);
+  const tagAdapter = useTagAdapter('contracts', tagIdsOf, setRecordTags);
 
   const linkedCases = useMemo(
     () => (contract ? cases.filter((c) => c.contractId === contract.id) : []),

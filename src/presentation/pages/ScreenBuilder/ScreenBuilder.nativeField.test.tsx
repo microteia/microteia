@@ -27,6 +27,9 @@ vi.mock('../../../stores/useActions', () => ({ useActions: () => ({ actions: [] 
 vi.mock('../../../stores/useLookups', () => ({
   useLookups: () => ({ availableLookups: [], declareLookup: vi.fn() }),
 }));
+vi.mock('../../../stores/useTags', () => ({
+  useTags: () => ({ availableTagLists: [], declareTagList: vi.fn() }),
+}));
 vi.mock('../../shared/useSchemaContext', () => ({
   useSchemaContext: () => createSchemaContext(storeState.definition ? [storeState.definition] : []),
 }));

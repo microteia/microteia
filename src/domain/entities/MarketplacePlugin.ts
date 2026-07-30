@@ -28,6 +28,7 @@ export interface ScreenModuleTemplate {
   hasNotes?: boolean;
   hasDocuments?: boolean;
   hasTags?: boolean;
+  tagCollection?: string | null;
   listActions?: ScreenListAction[];
   sidebarOrder?: number;
   enabled?: boolean;
@@ -99,6 +100,8 @@ export interface MarketplacePlugin {
    * desinstalar a extensão não as apaga.
    */
   lookups?: LookupModuleTemplate[];
+  /** Conjuntos de etiquetas referenciados pelas telas do pacote, pelo mesmo motivo das listas. */
+  tagLists?: LookupModuleTemplate[];
   actions?: ActionModuleTemplate[];
   scripts?: ScriptModuleTemplate[];
   /** Views de código (extensões trusted). Cada `key` casa com uma contribuição `ui.page` code. */

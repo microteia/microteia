@@ -8,15 +8,12 @@ import { ThemeProvider } from './stores/ThemeContext';
 import { AuthProvider } from './stores/AuthContext';
 import { TenantStoreProvider } from './stores/TenantStore';
 import { PersonStoreProvider } from './stores/PersonStore';
-import { PersonTagStoreProvider } from './stores/PersonTagStore';
+import { TagStoreProvider } from './stores/TagStore';
 import { LookupStoreProvider } from './stores/LookupStore';
 import { CaseStoreProvider } from './stores/CaseStore';
-import { CaseTagStoreProvider } from './stores/CaseTagStore';
 import { ContractStoreProvider } from './stores/ContractStore';
-import { ContractTagStoreProvider } from './stores/ContractTagStore';
 import { DeadlineStoreProvider } from './stores/DeadlineStore';
 import { FinancialStoreProvider } from './stores/FinancialStore';
-import { FinancialTagStoreProvider } from './stores/FinancialTagStore';
 import { PushStoreProvider } from './stores/PushStore';
 import { PushInteractionStoreProvider } from './stores/PushInteractionStore';
 import { NewsStoreProvider } from './stores/NewsStore';
@@ -72,15 +69,12 @@ const App: React.FC = () => {
                   <ProtectedRoute>
                     <TenantStoreProvider>
                       <PersonStoreProvider>
-                        <PersonTagStoreProvider>
+                        <TagStoreProvider>
                         <LookupStoreProvider>
                         <CaseStoreProvider>
-                          <CaseTagStoreProvider>
                           <ContractStoreProvider>
-                          <ContractTagStoreProvider>
                           <DeadlineStoreProvider>
                             <FinancialStoreProvider>
-                            <FinancialTagStoreProvider>
                               <PushStoreProvider>
                                 <PushInteractionStoreProvider>
                                   <NewsStoreProvider>
@@ -131,15 +125,12 @@ const App: React.FC = () => {
                                   </NewsStoreProvider>
                                 </PushInteractionStoreProvider>
                               </PushStoreProvider>
-                            </FinancialTagStoreProvider>
                             </FinancialStoreProvider>
                           </DeadlineStoreProvider>
-                          </ContractTagStoreProvider>
                           </ContractStoreProvider>
-                          </CaseTagStoreProvider>
                         </CaseStoreProvider>
                         </LookupStoreProvider>
-                        </PersonTagStoreProvider>
+                        </TagStoreProvider>
                       </PersonStoreProvider>
                     </TenantStoreProvider>
                   </ProtectedRoute>

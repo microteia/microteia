@@ -18,19 +18,15 @@ import { FirebasePersonRepository } from '../../data/repositories/FirebasePerson
 import { FirebaseCaseRepository } from '../../data/repositories/FirebaseCaseRepository';
 import { FirebaseDeadlineRepository } from '../../data/repositories/FirebaseDeadlineRepository';
 import { FirebaseFinancialRepository } from '../../data/repositories/FirebaseFinancialRepository';
-import { FirebaseFinancialTagRepository } from '../../data/repositories/FirebaseFinancialTagRepository';
 import { FirebaseFinancialDocumentRepository } from '../../data/repositories/FirebaseFinancialDocumentRepository';
 import { FirebasePushRepository } from '../../data/repositories/FirebasePushRepository';
 import { FirebasePushInteractionRepository } from '../../data/repositories/FirebasePushInteractionRepository';
 import { FirebaseTextAnnotationRepository } from '../../data/repositories/FirebaseTextAnnotationRepository';
-import { FirebasePersonTagRepository } from '../../data/repositories/FirebasePersonTagRepository';
 import { FirebasePersonNoteRepository } from '../../data/repositories/FirebasePersonNoteRepository';
 import { FirebasePersonDocumentRepository } from '../../data/repositories/FirebasePersonDocumentRepository';
-import { FirebaseCaseTagRepository } from '../../data/repositories/FirebaseCaseTagRepository';
 import { FirebaseCaseNoteRepository } from '../../data/repositories/FirebaseCaseNoteRepository';
 import { FirebaseCaseDocumentRepository } from '../../data/repositories/FirebaseCaseDocumentRepository';
 import { FirebaseContractRepository } from '../../data/repositories/FirebaseContractRepository';
-import { FirebaseContractTagRepository } from '../../data/repositories/FirebaseContractTagRepository';
 import { FirebaseContractNoteRepository } from '../../data/repositories/FirebaseContractNoteRepository';
 import { FirebaseContractDocumentRepository } from '../../data/repositories/FirebaseContractDocumentRepository';
 import { FirebaseAuditLogRepository } from '../../data/repositories/FirebaseAuditLogRepository';
@@ -39,6 +35,8 @@ import { FirebaseScreenDefinitionRepository } from '../../data/repositories/Fire
 import { FirebaseRecordRepository } from '../../data/repositories/FirebaseRecordRepository';
 import { FirebaseLookupRepository } from '../../data/repositories/FirebaseLookupRepository';
 import { FirebaseLookupDefinitionRepository } from '../../data/repositories/FirebaseLookupDefinitionRepository';
+import { FirebaseTagRepository } from '../../data/repositories/FirebaseTagRepository';
+import { FirebaseTagDefinitionRepository } from '../../data/repositories/FirebaseTagDefinitionRepository';
 import { FirebaseRecordNoteRepository } from '../../data/repositories/FirebaseRecordNoteRepository';
 import { FirebaseRecordDocumentRepository } from '../../data/repositories/FirebaseRecordDocumentRepository';
 import { FirebaseWorkflowDefinitionRepository } from '../../data/repositories/FirebaseWorkflowDefinitionRepository';
@@ -76,20 +74,16 @@ export const DIProvider: React.FC<{ children: React.ReactNode }> = ({ children }
     savedFilterRepository:    new FirebaseSavedFilterRepository(),
     tenantRepository:         new FirebaseTenantRepository(),
     personRepository:         new FirebasePersonRepository(),
-    personTagRepository:      new FirebasePersonTagRepository(),
     personNoteRepository:     new FirebasePersonNoteRepository(),
     personDocumentRepository: new FirebasePersonDocumentRepository(),
     caseRepository:           new FirebaseCaseRepository(),
-    caseTagRepository:        new FirebaseCaseTagRepository(),
     caseNoteRepository:       new FirebaseCaseNoteRepository(),
     caseDocumentRepository:   new FirebaseCaseDocumentRepository(),
     contractRepository:         new FirebaseContractRepository(),
-    contractTagRepository:      new FirebaseContractTagRepository(),
     contractNoteRepository:     new FirebaseContractNoteRepository(),
     contractDocumentRepository: new FirebaseContractDocumentRepository(),
     deadlineRepository:       new FirebaseDeadlineRepository(),
     financialRepository:      new FirebaseFinancialRepository(),
-    financialTagRepository:   new FirebaseFinancialTagRepository(),
     financialDocumentRepository: new FirebaseFinancialDocumentRepository(),
     textAnnotationRepository: new FirebaseTextAnnotationRepository(),
     pushRepository:           new FirebasePushRepository(),
@@ -100,6 +94,8 @@ export const DIProvider: React.FC<{ children: React.ReactNode }> = ({ children }
     recordRepository:         new FirebaseRecordRepository(),
     lookupRepository:         new FirebaseLookupRepository(),
     lookupDefinitionRepository: new FirebaseLookupDefinitionRepository(),
+    tagRepository:            new FirebaseTagRepository(),
+    tagDefinitionRepository:  new FirebaseTagDefinitionRepository(),
     recordNoteRepository:     new FirebaseRecordNoteRepository(),
     recordDocumentRepository: new FirebaseRecordDocumentRepository(),
     workflowDefinitionRepository: new FirebaseWorkflowDefinitionRepository(),
