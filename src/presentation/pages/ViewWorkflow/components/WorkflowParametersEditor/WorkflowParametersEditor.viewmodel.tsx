@@ -1,5 +1,11 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import type { WorkflowParameter } from '../../../../../domain/entities/Workflow';
+import type { FieldRulePresetOption } from '../../../../shared/useFieldRulePresets';
+import {
+  formatPresetOptions,
+  useFieldRulePresets,
+  validatePresetOptions,
+} from '../../../../shared/useFieldRulePresets';
 
 export type WorkflowParametersEditorVariant = 'input' | 'output';
 
@@ -22,6 +28,8 @@ export interface WorkflowParametersEditorViewModel {
   handleRemove: (index: number) => void;
   handleClone: (index: number) => void;
   summaryFor: (parameter: WorkflowParameter) => string;
+  formatOptions: FieldRulePresetOption[];
+  validateOptions: FieldRulePresetOption[];
 }
 
 export const useWorkflowParametersEditorViewModel = (
@@ -85,5 +93,26 @@ export const useWorkflowParametersEditorViewModel = (
     [typeOptions, entityOptions],
   );
 
-  return { isExpanded, toggle, handleAdd, handleRemove, handleClone, summaryFor };
+  const presets = useFieldRulePresets();
+
+  const formatOptions = useMemo<FieldRulePresetOption[]>(
+    () => [{ value: '', label: 'Nenhuma' }, ...formatPresetOptions(presets)],
+    [presets],
+  );
+
+  const validateOptions = useMemo<FieldRulePresetOption[]>(
+    () => [{ value: '', label: 'Nenhuma' }, ...validatePresetOptions(presets)],
+    [presets],
+  );
+
+  return {
+    isExpanded,
+    toggle,
+    handleAdd,
+    handleRemove,
+    handleClone,
+    summaryFor,
+    formatOptions,
+    validateOptions,
+  };
 };

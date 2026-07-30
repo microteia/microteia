@@ -7,6 +7,7 @@ import { describeRuleIssues } from '../../domain/schema/fieldRules';
 import type { SchemaContext, SchemaScreen } from '../../domain/schema/pathResolver';
 import { createSchemaContext } from '../../domain/schema/pathResolver';
 import type { SchemaLookup, SchemaTagList } from '../../domain/schema/screenEntity';
+import type { FieldRulePreset } from '../../domain/schema/fieldRulePresets';
 import { collectFieldLogicTargets, formatAndValidateRecord } from '../../domain/schema/recordRules';
 
 export class RecordRulesError extends Error {
@@ -22,10 +23,16 @@ export class RecordRulesError extends Error {
 let schemaScreens: SchemaScreen[] = [];
 let schemaLookups: SchemaLookup[] = [];
 let schemaTagLists: SchemaTagList[] = [];
+let schemaFieldRulePresets: FieldRulePreset[] = [];
 let schemaContext: SchemaContext = createSchemaContext();
 
 const rebuild = (): void => {
-  schemaContext = createSchemaContext(schemaScreens, schemaLookups, schemaTagLists);
+  schemaContext = createSchemaContext(
+    schemaScreens,
+    schemaLookups,
+    schemaTagLists,
+    schemaFieldRulePresets,
+  );
 };
 
 /**
@@ -47,6 +54,15 @@ export const setRecordRulesLookups = (lookups: SchemaLookup[]): void => {
 /** Idem para os conjuntos de etiquetas (empurrados pelo `TagStore`). */
 export const setRecordRulesTagLists = (tagLists: SchemaTagList[]): void => {
   schemaTagLists = tagLists;
+  rebuild();
+};
+
+/**
+ * Idem para as máscaras/formatações/validações declaradas pelas extensões instaladas (empurradas
+ * pelo `FieldRulePresetBridge`, que lê as contribuições do Kernel do tenant).
+ */
+export const setRecordRulesFieldRulePresets = (presets: FieldRulePreset[]): void => {
+  schemaFieldRulePresets = presets;
   rebuild();
 };
 

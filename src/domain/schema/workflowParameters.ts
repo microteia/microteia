@@ -3,7 +3,6 @@ import type { ScriptOutputParam } from '../entities/Script';
 import { validateFieldKey } from '../services/customFieldValues';
 import { isScalarParameterType } from './eventCatalog';
 import type { FieldRules, FormatPreset, FormatRule, ValidateCheck, ValidateRule } from './fieldRules';
-import { FORMAT_PRESET_LABELS, VALIDATE_CHECK_LABELS } from './fieldRules';
 
 const isValidRegex = (pattern: string): boolean => {
   try {
@@ -17,8 +16,10 @@ const isValidRegex = (pattern: string): boolean => {
 export const sanitizeFieldRules = (rules: FieldRules | undefined): FieldRules | undefined => {
   if (!rules) return undefined;
 
+  // A chave do preset não é conferida contra uma lista fixa: quem responde por ela é o catálogo
+  // declarado, que varia por tenant. Chave desconhecida vira no-op na hora de aplicar.
   const format: FormatRule = {};
-  if (rules.format?.preset && rules.format.preset in FORMAT_PRESET_LABELS) format.preset = rules.format.preset;
+  if (rules.format?.preset?.trim()) format.preset = rules.format.preset.trim();
   if (rules.format?.pattern?.trim() && isValidRegex(rules.format.pattern)) {
     format.pattern = rules.format.pattern.trim();
     format.replacement = rules.format.replacement ?? '';
@@ -26,7 +27,7 @@ export const sanitizeFieldRules = (rules: FieldRules | undefined): FieldRules | 
   }
 
   const validate: ValidateRule = {};
-  if (rules.validate?.check && rules.validate.check in VALIDATE_CHECK_LABELS) validate.check = rules.validate.check;
+  if (rules.validate?.check?.trim()) validate.check = rules.validate.check.trim();
   if (rules.validate?.pattern?.trim() && isValidRegex(rules.validate.pattern)) {
     validate.pattern = rules.validate.pattern.trim();
     if (rules.validate.flags) validate.flags = rules.validate.flags;
@@ -51,7 +52,7 @@ const parseDslRules = (value: unknown): FieldRules | undefined => {
   return sanitizeFieldRules({
     format: rawFormat
       ? {
-          preset: rawFormat.preset as FormatPreset | undefined,
+          preset: typeof rawFormat.preset === 'string' ? (rawFormat.preset as FormatPreset) : undefined,
           pattern: typeof rawFormat.pattern === 'string' ? rawFormat.pattern : undefined,
           replacement: typeof rawFormat.replacement === 'string' ? rawFormat.replacement : undefined,
           flags: typeof rawFormat.flags === 'string' ? rawFormat.flags : undefined,
@@ -59,7 +60,7 @@ const parseDslRules = (value: unknown): FieldRules | undefined => {
       : undefined,
     validate: rawValidate
       ? {
-          check: rawValidate.check as ValidateCheck | undefined,
+          check: typeof rawValidate.check === 'string' ? (rawValidate.check as ValidateCheck) : undefined,
           pattern: typeof rawValidate.pattern === 'string' ? rawValidate.pattern : undefined,
           message: typeof rawValidate.message === 'string' ? rawValidate.message : undefined,
           flags: typeof rawValidate.flags === 'string' ? rawValidate.flags : undefined,

@@ -4,7 +4,7 @@ import type { IWorkflowQueryRepository, WorkflowEqualityFilter } from '../reposi
 import { aggregateChildren, collectAggregationsFor, readChildField } from '../schema/aggregationSpec';
 import type { AggregationTarget } from '../schema/aggregationSpec';
 import { flattenDataLeaves, resolveWritableTable, setValueAtPath } from '../schema/mutationSpec';
-import { createSchemaContext, getValueAtPath, parsePath } from '../schema/pathResolver';
+import { getValueAtPath, parsePath } from '../schema/pathResolver';
 import type { SchemaContext } from '../schema/pathResolver';
 import { formatAndValidateRecord } from '../schema/recordRules';
 
@@ -144,7 +144,7 @@ export const recomputeAggregatesForChildChange = async (
 ): Promise<void> => {
   const childTable = resolveChildTable(childCollection);
 
-  const ctx = createSchemaContext(await deps.screenProvider.getScreens(tenantId));
+  const ctx = await deps.screenProvider.getSchemaContext(tenantId);
   const targets = collectAggregationsFor(ctx, childTable);
   if (targets.length === 0) return;
 

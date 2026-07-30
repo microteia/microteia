@@ -46,6 +46,7 @@ import { LoginView } from './presentation/pages/Login/Login.view';
 import { LicenseView } from './presentation/pages/License/License.view';
 import { WorkspaceShell } from './presentation/components/layout/WorkspaceShell';
 import { ExtensionStartupHost } from './presentation/shared/extensions/ExtensionStartupHost';
+import { FieldRulePresetBridge } from './presentation/shared/FieldRulePresetBridge';
 import { AppErrorBoundary } from './presentation/components/layout/AppErrorBoundary';
 
 const App: React.FC = () => {
@@ -99,6 +100,7 @@ const App: React.FC = () => {
                                                 <TextAnnotationStoreProvider>
                                                   <AppErrorBoundary>
                                                     <TenantKernelProvider>
+                                                      <FieldRulePresetBridge />
                                                       <ExtensionStartupHost />
                                                       <WorkspaceShell />
                                                     </TenantKernelProvider>

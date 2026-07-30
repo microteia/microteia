@@ -76,7 +76,7 @@ export type ScreenListAction = 'copyLink' | 'clone' | 'manageTags' | 'delete';
 /**
  * Uma tela É uma entidade, e o seu `id` É o nome da coleção no Firestore:
  * `tenants/{tenantId}/{id}/{recordId}`, com os campos na raiz do documento. Vale igualmente para as
- * fixas (`persons`), as de extensão (`vendas__produto`) e as do Form Design (`medico`) — a única
+ * fixas (`persons`), as de extensão (`produtos`) e as do Form Design (`medico`) — a única
  * diferença entre elas é o `origin`.
  */
 export interface ScreenDefinition {

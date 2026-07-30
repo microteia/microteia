@@ -4,7 +4,7 @@
 // ═══════════════════════════════════════════════════════════════════════════════
 
 import { Parser } from 'expr-eval';
-import { isEmptyRuleValue, isValidCnpj, isValidCpf, onlyDigits } from './fieldRules';
+import { isEmptyRuleValue, isValidCnpj, isValidCpf, onlyDigits } from './fieldRulePresets';
 
 export interface FieldExprContext {
   value: unknown;
@@ -158,15 +158,21 @@ export const extractFieldExpressionDependencies = (
   }
 };
 
+/**
+ * `fallback` é o resultado quando a expressão está ausente ou estoura. Os slots de tela (`hiddenWhen`,
+ * `disabledWhen`) querem `false` — na dúvida, mostra o campo. Já a validação de um preset quer `true`:
+ * um preset quebrado não pode reprovar um valor legítimo.
+ */
 export const evaluateFieldBoolean = (
   expr: string | null | undefined,
   ctx: FieldExprContext,
+  fallback = false,
 ): boolean => {
-  if (!expr || !expr.trim()) return false;
+  if (!expr || !expr.trim()) return fallback;
   try {
     return Boolean(evaluateFieldExpression(expr, ctx));
   } catch {
-    return false;
+    return fallback;
   }
 };
 

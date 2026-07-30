@@ -71,7 +71,7 @@ export const validateObject = (
 
   if (hasParameters) {
     issues.push(...collectRequiredIssues(parameters, value));
-    const applied = formatAndValidateParameters(parameters, value);
+    const applied = formatAndValidateParameters(parameters, value, '', ctx.fieldRulePresets);
     value = applied.data;
     issues.push(...applied.issues);
   }

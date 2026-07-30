@@ -304,7 +304,13 @@ export const formatAndValidateRecord = (
       continue;
     }
 
-    const outcome = formatAndValidate(value, field.rules, leaf.path, field.label);
+    const outcome = formatAndValidate(
+      value,
+      field.rules,
+      leaf.path,
+      field.label,
+      ctx.fieldRulePresets,
+    );
     setValueAtPath(next, leaf.path, outcome.value);
     if (outcome.issue) issues.push(outcome.issue);
   }

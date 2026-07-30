@@ -6,6 +6,8 @@
 import type { WorkflowParameter } from '../entities/Workflow';
 import type { RuleIssue } from './fieldRules';
 import { formatAndValidate, isEmptyRuleValue } from './fieldRules';
+import type { FieldRulePresetCatalog } from './fieldRulePresets';
+import { CORE_FIELD_RULE_PRESET_CATALOG } from './fieldRulePresets';
 
 export interface ParameterRulesOutcome {
   data: Record<string, unknown>;
@@ -24,6 +26,7 @@ export const formatAndValidateParameters = (
   parameters: WorkflowParameter[] | undefined,
   data: Record<string, unknown>,
   prefix = '',
+  catalog: FieldRulePresetCatalog = CORE_FIELD_RULE_PRESET_CATALOG,
 ): ParameterRulesOutcome => {
   if (!parameters || parameters.length === 0) return { data, issues: [] };
 
@@ -33,11 +36,17 @@ export const formatAndValidateParameters = (
   const applyOne = (parameter: WorkflowParameter, value: unknown, path: string): unknown => {
     if (parameter.type === 'Object') {
       if (!isPlainObject(value)) return value;
-      const nested = formatAndValidateParameters(parameter.fields, value, path);
+      const nested = formatAndValidateParameters(parameter.fields, value, path, catalog);
       issues.push(...nested.issues);
       return nested.data;
     }
-    const outcome = formatAndValidate(value, parameter.rules, path, parameter.label || parameter.key);
+    const outcome = formatAndValidate(
+      value,
+      parameter.rules,
+      path,
+      parameter.label || parameter.key,
+      catalog,
+    );
     if (outcome.issue) issues.push(outcome.issue);
     return outcome.value;
   };

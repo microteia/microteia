@@ -11,7 +11,13 @@ import { getScreenIconOptions } from '../../shared/screenIcons';
 import { resolveListActions, supportedListActions } from '../../shared/listActionCapabilities';
 import type { CustomFieldMask, CustomFieldType, FieldDefinition, ScreenDefinition, ScreenListAction } from '../../../domain/entities';
 import type { AggregationOp, FieldAggregation, FieldLookupBinding, FieldLogic, FieldRules, FormatPreset, FormatRule, ValidateCheck, ValidateRule } from '../../../domain/schema/fieldRules';
-import { AGGREGATION_OP_LABELS, FORMAT_PRESET_LABELS, VALIDATE_CHECK_LABELS } from '../../../domain/schema/fieldRules';
+import { AGGREGATION_OP_LABELS } from '../../../domain/schema/fieldRules';
+import {
+  formatPresetOptions as buildFormatPresetOptions,
+  maskPresetOptions as buildMaskPresetOptions,
+  useFieldRulePresets,
+  validatePresetOptions as buildValidatePresetOptions,
+} from '../../shared/useFieldRulePresets';
 import { extractFieldExpressionDependencies } from '../../../domain/schema/fieldExpression';
 import { aggregationCreatesCycle } from '../../../domain/schema/aggregationSpec';
 import { useSchemaContext } from '../../shared/useSchemaContext';
@@ -252,13 +258,6 @@ const FIELD_TYPE_LABELS: Record<CustomFieldType, string> = {
   masked: 'Com máscara',
   reference: 'Vínculo com registro',
   markdown: 'Markdown',
-};
-
-const MASK_LABELS: Record<CustomFieldMask, string> = {
-  cpf: 'CPF',
-  cnpj: 'CNPJ',
-  phone: 'Telefone',
-  cep: 'CEP',
 };
 
 const EMPTY_SCREEN_FORM: ScreenFormState = {
@@ -506,6 +505,7 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
   const { tenantRole } = useTenant();
   const { definitions, dynamicScreens, isLoading, saveDefinition, deleteDefinition } = useScreenDefinitions();
   const schemaContext = useSchemaContext();
+  const fieldRulePresets = useFieldRulePresets();
   const { availableLookups, declareLookup } = useLookups();
   const { availableTagLists, declareTagList } = useTags();
   const { externalLookupServices } = useDI();
@@ -1129,33 +1129,24 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
   );
 
   const maskOptions = useMemo<SearchSelectOption[]>(
-    () => (Object.keys(MASK_LABELS) as CustomFieldMask[]).map((mask) => ({
-      value: mask,
-      label: MASK_LABELS[mask],
-    })),
-    [],
+    () => buildMaskPresetOptions(fieldRulePresets, fieldForm.type),
+    [fieldRulePresets, fieldForm.type],
   );
 
   const formatPresetOptions = useMemo<SearchSelectOption[]>(
     () => [
       { value: '', label: 'Nenhuma' },
-      ...(Object.keys(FORMAT_PRESET_LABELS) as FormatPreset[]).map((preset) => ({
-        value: preset,
-        label: FORMAT_PRESET_LABELS[preset],
-      })),
+      ...buildFormatPresetOptions(fieldRulePresets, fieldForm.type),
     ],
-    [],
+    [fieldRulePresets, fieldForm.type],
   );
 
   const validateCheckOptions = useMemo<SearchSelectOption[]>(
     () => [
       { value: '', label: 'Nenhuma' },
-      ...(Object.keys(VALIDATE_CHECK_LABELS) as ValidateCheck[]).map((check) => ({
-        value: check,
-        label: VALIDATE_CHECK_LABELS[check],
-      })),
+      ...buildValidatePresetOptions(fieldRulePresets, fieldForm.type),
     ],
-    [],
+    [fieldRulePresets, fieldForm.type],
   );
 
   const fieldSupportsRules = useMemo(

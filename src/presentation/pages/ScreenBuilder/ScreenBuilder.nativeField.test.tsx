@@ -36,6 +36,9 @@ vi.mock('../../shared/useSchemaContext', () => ({
 vi.mock('../../../infrastructure/di/useDI', () => ({
   useDI: () => ({ externalLookupServices: [] }),
 }));
+// Sem extensão instalada, o catálogo de máscaras/formatações é só o do núcleo — o que a autoria
+// enxerga aqui é exatamente o mesmo conjunto de antes.
+vi.mock('../../../stores/useKernel', () => ({ useContributions: () => [] }));
 vi.mock('../../../stores/useScreenDefinitions', () => ({
   useScreenDefinitions: () => ({
     definitions: storeState.definition ? [storeState.definition] : [],

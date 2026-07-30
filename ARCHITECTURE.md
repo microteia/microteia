@@ -2916,6 +2916,7 @@ tipo. A validação de que uma chave existe é de runtime, contra o registro (`g
 |---|---|---|
 | `data.entity` | o `EntityMetadata` inteiro | nenhuma (metadata pura) |
 | `data.lookup` | o `LookupMetadata` inteiro | nenhuma |
+| `data.field.preset` | o `FieldRulePreset` inteiro | nenhuma |
 
 **Entidade é dado da camada de domínio, abaixo do Kernel — então o schema continua sendo o dono.**
 `ENTITY_REGISTRY` permanece a fonte ergonômica que `pathResolver`, `eventCatalog`, `mutationSpec`
@@ -3008,6 +3009,7 @@ não dispara é pior que guarda nenhuma.
 | 4a ✅ | Capabilities: os 5 provedores de IA saem do container e viram contribuições |
 | 4b ✅ | `EntityKey` aberto; entidades e lookups como contribuições `data.entity`/`data.lookup` |
 | 4c ✅ | Ponto `data.service`: plugin injeta serviço no DI do frontend, container tipado intacto |
+| 4d ✅ | Ponto `data.field.preset`: máscara, formatação e validação prontas saem do kernel e viram declaração |
 | 5 ✅ | Ciclo de vida + carga por tenant: instalar ativa menu/página/workflow do plugin |
 | — ✅ | Fatia vertical: plugin de exemplo instalável ponta a ponta (workflow + página Extensões) |
 | 7 ◑ | Marketplace: registro global + publish (SYSTEM); falta versões por plugin e publish com validação |
@@ -3026,14 +3028,77 @@ Cloud Function (que rodaria com privilégio máximo).
 
 ```ts
 interface FieldRules {
-  validate?: { pattern?: string; flags?: string; message?: string; check?: 'cpf' | 'cnpj' | 'cpfCnpj' };
+  validate?: { pattern?: string; flags?: string; message?: string; check?: ValidateCheck };
   format?:   { preset?: FormatPreset; pattern?: string; replacement?: string; flags?: string };
 }
 ```
 
-`FormatPreset`: `cpf | cnpj | cpfCnpj | phone | cep | digits | trim | upper | lower`. O `format`
-aplica o `preset` e depois a substituição por regex (`pattern` → `replacement`, com `$1`, `$2`…).
-Um regex inválido é ignorado, nunca lança.
+`preset` e `check` são **chaves resolvidas num catálogo declarado** (ver a seção seguinte), não
+uniões fechadas: `FormatPreset` e `ValidateCheck` são `string`. O `format` aplica o pipeline do
+preset e depois a substituição por regex (`pattern` → `replacement`, com `$1`, `$2`…). Um regex
+inválido é ignorado, nunca lança.
+
+### Máscaras, formatações e validações prontas — `domain/schema/fieldRulePresets.ts` (sincronizado)
+
+**O kernel conhece VERBOS; o vocabulário de negócio é declaração de plugin.** Antes, CPF/CNPJ/
+telefone/CEP viviam em quatro uniões e mapas de função dentro do kernel, e acrescentar "RG" ou
+"placa" exigia um commit no núcleo — o oposto da pedra fundamental. Hoje o kernel só executa
+primitivos, e o significado de cada chave vem de uma contribuição.
+
+```ts
+type FormatOp =
+  | { op: 'digits' | 'letters' | 'alphanumeric' | 'trim' | 'upper' | 'lower' }
+  | { op: 'mask'; templates: string[] }
+  | { op: 'regex'; pattern: string; replacement?: string; flags?: string }
+  | { op: 'expression'; expression: string };
+
+interface FieldRulePreset {
+  key: string;                 // sem `/` é reservado ao núcleo; extensão usa 'com.acme.docs/rg-sp'
+  label: string;
+  appliesTo?: CustomFieldType[];
+  mask?: { templates: string[]; placeholder?: string; inputMode?: 'numeric' | 'text' };
+  format?: FormatOp[];
+  validate?: { expression?: string; pattern?: string; flags?: string; message?: string };
+}
+```
+
+**Motor genérico de máscara — `applyMaskTemplate(value, templates)`.** `#` = dígito, `A` = letra,
+`*` = alfanumérico; o resto é literal. A aplicação é **progressiva** (o separador só aparece quando
+há conteúdo depois dele — é o que permite digitar e apagar sem a máscara empurrar o cursor), e entre
+vários templates vence o primeiro que comporta o conteúdo. Essa lista é o que substituiu os `if` de
+tamanho: telefone é `['(##) ####-####', '(##) #####-####']`, CPF-ou-CNPJ é
+`['###.###.###-##', '##.###.###/####-##']`. `fieldRulePresets.test.ts` compara o motor com os
+formatadores removidos **caractere a caractere, para todo prefixo** — é esse teste que autoriza a
+remoção deles do kernel.
+
+**Sem código, de propósito.** O escape final é `{ op: 'expression' }` / `validate.expression`,
+avaliado pelo `fieldExpression.ts` — que já é compartilhado front/back e já expõe `isCPF`, `isCNPJ`,
+`onlyNumber`, `replace`, `length`. Um tier de código só rodaria no browser e só para extensão
+trusted, quebrando a paridade que faz a regra valer igual na tela e na automação. `isValidCpf` e
+`isValidCnpj` continuam existindo, mas como **funções do catálogo de expressões**, não como ramos de
+`switch`: qualquer declaração de qualquer plugin pode chamá-las.
+
+**Resolução em runtime.** O catálogo entra no `SchemaContext` (`ctx.fieldRulePresets`), pelo mesmo
+caminho de telas, listas e etiquetas — `buildFieldRulePresetCatalog` funde `CORE_FIELD_RULE_PRESETS`
+com o que as extensões declaram:
+
+| Lado | Como chega |
+|---|---|
+| Front (autoria e formulário) | `useFieldRulePresets()` lê as contribuições do `TenantKernelProvider` |
+| Front (gate de gravação) | `FieldRulePresetBridge` empurra para `setRecordRulesFieldRulePresets` |
+| Back | `ScreenDefinitionCache` lê `tenants/{id}/installed_extensions` (só as `active`) junto das telas, no mesmo cache de 5 min |
+
+**Chave já ocupada não é sobrescrita** — uma extensão não redefine o que `cpf` significa para as
+telas que já dependem dele (espelha `extensionPoint.duplicate`).
+
+**Compatibilidade: zero migração.** O campo continua gravando só a chave (`ui.mask: 'cpf'`,
+`format.preset: 'cpf'`, `validate.check: 'cpf'`) — mudou apenas quem responde pelo significado dela.
+
+**Tolerância a falha é deliberada:** preset desconhecido ou expressão quebrada = no-op na formatação
+e **aprovação** na validação. Uma extensão desinstalada não pode transformar registros válidos em
+registros que ninguém consegue salvar. Por isso `evaluateFieldBoolean` ganhou o parâmetro
+`fallback`: os slots de tela (`hiddenWhen`/`disabledWhen`) querem `false`, a validação de preset
+quer `true`.
 
 **Invariante que garante compatibilidade:** `validate` **nunca roda em valor vazio** (`null`,
 `undefined`, `''`, `[]`) — obrigatoriedade continua sendo assunto exclusivo de `required`. Sem essa

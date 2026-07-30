@@ -7,6 +7,8 @@ import type { CustomFieldType, FieldDefinition, FieldOrigin } from '../entities/
 import type { EntityKey, EntityMetadata, NativeFieldSpec, NativeFieldType } from './entityRegistry';
 import { BUILTIN_ENTITY_KEYS, ENTITY_REGISTRY, SCHEMA_VERSION } from './entityRegistry';
 import { LOOKUP_REGISTRY_LIST } from './lookupRegistry';
+import type { FieldRulePreset, FieldRulePresetCatalog } from './fieldRulePresets';
+import { buildFieldRulePresetCatalog } from './fieldRulePresets';
 
 /**
  * A tela como o schema a enxerga. O `id` é, por definição, o nome da COLEÇÃO no Firestore — para as
@@ -47,6 +49,12 @@ export interface SchemaContext {
    * que outra já usa.
    */
   tagLists: ReadonlyMap<string, SchemaTagList>;
+  /**
+   * As máscaras, formatações e validações prontas visíveis ao tenant: as do núcleo unidas às
+   * declaradas por extensões instaladas. É o que faz `format.preset: 'cpf'` significar a mesma coisa
+   * no formulário e na gravação por automação — sem que o kernel conheça a palavra "CPF".
+   */
+  fieldRulePresets: FieldRulePresetCatalog;
   version: number;
 }
 
@@ -66,6 +74,7 @@ export const createSchemaContext = (
   screens: Iterable<SchemaScreen> = [],
   tenantLookups: Iterable<SchemaLookup> = [],
   tenantTagLists: Iterable<SchemaTagList> = [],
+  tenantFieldRulePresets: Iterable<FieldRulePreset> = [],
 ): SchemaContext => ({
   registry: ENTITY_REGISTRY,
   screens: new Map([...screens].map((screen) => [screen.id, screen])),
@@ -75,6 +84,7 @@ export const createSchemaContext = (
   tagLists: new Map(
     [...BUILTIN_TAG_LISTS, ...tenantTagLists].map((tagList) => [tagList.collection, tagList]),
   ),
+  fieldRulePresets: buildFieldRulePresetCatalog(tenantFieldRulePresets),
   version: SCHEMA_VERSION,
 });
 

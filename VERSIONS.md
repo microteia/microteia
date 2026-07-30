@@ -11,6 +11,12 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [1.5.0] — 2026-07-30
+
+- As opções de **Máscara**, **Formatação pronta** e **Validação pronta** de um campo deixaram de ser uma lista fechada: agora uma extensão pode acrescentar as suas — o RG do seu estado, uma placa de veículo, um código interno do escritório — e elas aparecem para escolher junto com CPF, CNPJ, Telefone e CEP, como se sempre tivessem existido.
+- Uma máscara trazida por extensão vale igual em toda parte: no preenchimento da tela, na hora de salvar e também quando o registro é gravado por uma automação.
+- Nada muda nos campos já existentes: as opções de sempre continuam no lugar, com os mesmos nomes e o mesmo comportamento.
+
 ## [1.4.2] — 2026-07-30
 
 - Na tela de criação de extensões, os campos que a extensão acrescenta a telas existentes passam a ser identificados pelo nome da tela e pelo ícone dela — antes aparecia o código interno de identificação.

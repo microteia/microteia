@@ -4,10 +4,17 @@ import type { SchemaContext, SchemaScreen } from '../../domain/schema/pathResolv
 import { createSchemaContext } from '../../domain/schema/pathResolver';
 import type { SchemaLookup } from '../../domain/schema/screenEntity';
 import type { FieldDefinition } from '../../domain/entities/entitySchemas';
+import type { Contribution } from '../../domain/schema/plugin/contribution';
+import type { FieldRulePreset } from '../../domain/schema/fieldRulePresets';
+import {
+  DATA_FIELD_RULE_PRESET_POINT,
+  fieldRulePresetOf,
+} from '../../domain/schema/dataExtensionPoints';
 
 interface CacheEntry {
   screens: SchemaScreen[];
   lookups: SchemaLookup[];
+  fieldRulePresets: FieldRulePreset[];
   loadedAt: number;
 }
 
@@ -32,7 +39,7 @@ export class ScreenDefinitionCache implements IScreenDefinitionProvider {
   /** As telas e as listas do tenant no mesmo contexto — a forma que a camada de schema consome. */
   async getSchemaContext(tenantId: string): Promise<SchemaContext> {
     const entry = await this.load(tenantId);
-    return createSchemaContext(entry.screens, entry.lookups);
+    return createSchemaContext(entry.screens, entry.lookups, [], entry.fieldRulePresets);
   }
 
   private async load(tenantId: string): Promise<CacheEntry> {
@@ -41,9 +48,10 @@ export class ScreenDefinitionCache implements IScreenDefinitionProvider {
       return cached;
     }
 
-    const [snapshot, lookupSnapshot] = await Promise.all([
+    const [snapshot, lookupSnapshot, extensionSnapshot] = await Promise.all([
       this.db.collection(`tenants/${tenantId}/screenDefinitions`).get(),
       this.db.collection(`tenants/${tenantId}/lookupDefinitions`).get(),
+      this.db.collection(`tenants/${tenantId}/installed_extensions`).get(),
     ]);
 
     // O documento inteiro vale aqui: front e back resolvem os campos com a MESMA função
@@ -65,7 +73,20 @@ export class ScreenDefinitionCache implements IScreenDefinitionProvider {
       label: typeof doc.data().label === 'string' ? (doc.data().label as string) : doc.id,
     }));
 
-    const entry: CacheEntry = { screens, lookups, loadedAt: Date.now() };
+    // A mesma declaração que o formulário usa para mascarar e validar precisa valer aqui, senão a
+    // gravação por automação divergiria da gravação pela tela. Só extensão LIGADA contribui.
+    const fieldRulePresets: FieldRulePreset[] = extensionSnapshot.docs.flatMap((doc) => {
+      const data = doc.data();
+      if (data.active === false) return [];
+      const contributes = data.package?.manifest?.contributes;
+      if (!Array.isArray(contributes)) return [];
+      return (contributes as Contribution[])
+        .filter((contribution) => contribution?.point === DATA_FIELD_RULE_PRESET_POINT)
+        .map(fieldRulePresetOf)
+        .filter((preset): preset is FieldRulePreset => preset !== undefined);
+    });
+
+    const entry: CacheEntry = { screens, lookups, fieldRulePresets, loadedAt: Date.now() };
     this.entries.set(tenantId, entry);
     return entry;
   }

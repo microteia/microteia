@@ -10,10 +10,13 @@ import type { EntityMetadata } from './entityRegistry';
 import { ENTITY_REGISTRY_LIST } from './entityRegistry';
 import type { LookupMetadata } from './lookupRegistry';
 import { LOOKUP_REGISTRY_LIST } from './lookupRegistry';
+import type { FieldRulePreset } from './fieldRulePresets';
+import { CORE_FIELD_RULE_PRESETS } from './fieldRulePresets';
 
 export const DATA_ENTITY_POINT = 'data.entity';
 export const DATA_LOOKUP_POINT = 'data.lookup';
 export const DATA_SERVICE_POINT = 'data.service';
+export const DATA_FIELD_RULE_PRESET_POINT = 'data.field.preset';
 
 export const DATA_API_VERSION = '1.0.0';
 
@@ -55,6 +58,17 @@ export const DATA_EXTENSION_POINTS: ExtensionPointDefinition[] = [
     implRequired: true,
     multiple: true,
   },
+  {
+    id: DATA_FIELD_RULE_PRESET_POINT,
+    apiVersion: DATA_API_VERSION,
+    title: 'Máscara, formatação e validação prontas',
+    description:
+      'Declara um preset de campo (máscara por template, pipeline de formatação, validação por expressão ou regex). Sem código: a mesma declaração vale no formulário e na gravação por automação.',
+    ownerPluginId: 'core.data',
+    allowedImplKinds: [],
+    implRequired: false,
+    multiple: true,
+  },
 ];
 
 export interface ServiceContributionMetadata {
@@ -91,6 +105,24 @@ export const lookupContribution = (lookup: LookupMetadata): Contribution => ({
   metadata: lookup as unknown as Record<string, unknown>,
 });
 
+export const fieldRulePresetContribution = (preset: FieldRulePreset): Contribution => ({
+  point: DATA_FIELD_RULE_PRESET_POINT,
+  id: slugId(preset.key),
+  apiVersion: DATA_API_VERSION,
+  metadata: preset as unknown as Record<string, unknown>,
+});
+
+/** Lê de volta o preset de uma contribuição, descartando metadata malformada de terceiro. */
+export const fieldRulePresetOf = (contribution: Contribution): FieldRulePreset | undefined => {
+  const metadata = contribution.metadata as Partial<FieldRulePreset> | undefined;
+  if (!metadata || typeof metadata.key !== 'string' || metadata.key.trim() === '') return undefined;
+  if (typeof metadata.label !== 'string' || metadata.label.trim() === '') return undefined;
+  return metadata as FieldRulePreset;
+};
+
 export const ENTITY_CONTRIBUTIONS: Contribution[] = ENTITY_REGISTRY_LIST.map(entityContribution);
 
 export const LOOKUP_CONTRIBUTIONS: Contribution[] = LOOKUP_REGISTRY_LIST.map(lookupContribution);
+
+export const FIELD_RULE_PRESET_CONTRIBUTIONS: Contribution[] =
+  CORE_FIELD_RULE_PRESETS.map(fieldRulePresetContribution);

@@ -10,7 +10,7 @@ import type { WorkflowParameter } from '../../../../../domain/entities/Workflow'
 import { siblingParameterErrors, cloneParameterInList } from '../../../../../domain/schema/workflowParameters';
 import { isScalarParameterType } from '../../../../../domain/schema/eventCatalog';
 import type { FieldRules, FormatPreset, ValidateCheck } from '../../../../../domain/schema/fieldRules';
-import { FORMAT_PRESET_LABELS, VALIDATE_CHECK_LABELS } from '../../../../../domain/schema/fieldRules';
+import type { FieldRulePresetOption } from '../../../../shared/useFieldRulePresets';
 
 const REQUIRED_OPTIONS = [
   { value: 'optional', label: 'Opcional' },
@@ -135,6 +135,8 @@ export const WorkflowParametersEditor: React.FC<WorkflowParametersEditorProps> =
                   entityOptions={entityOptions}
                   onUpdate={onUpdate}
                   variant={variant}
+                  formatOptions={vm.formatOptions}
+                  validateOptions={vm.validateOptions}
                 />
                 {parameter.type === 'Object' && (
                   <S.NestedBox>
@@ -185,7 +187,9 @@ const ParameterFields: React.FC<{
   entityOptions: WorkflowParametersEditorProps['entityOptions'];
   onUpdate: WorkflowParametersEditorProps['onUpdate'];
   variant: NonNullable<WorkflowParametersEditorProps['variant']>;
-}> = ({ parameter, error, index, typeOptions, entityOptions, onUpdate, variant }) => {
+  formatOptions: FieldRulePresetOption[];
+  validateOptions: FieldRulePresetOption[];
+}> = ({ parameter, error, index, typeOptions, entityOptions, onUpdate, variant, formatOptions, validateOptions }) => {
   const isInput = variant === 'input';
   return (
   <>
@@ -309,7 +313,13 @@ const ParameterFields: React.FC<{
     </S.SubLine>
 
     {isInput && RULES_SUPPORTED_PARAMETER_TYPES.includes(parameter.type) && (
-      <ParameterRulesFields parameter={parameter} index={index} onUpdate={onUpdate} />
+      <ParameterRulesFields
+        parameter={parameter}
+        index={index}
+        onUpdate={onUpdate}
+        formatOptions={formatOptions}
+        validateOptions={validateOptions}
+      />
     )}
 
   </>
@@ -318,27 +328,13 @@ const ParameterFields: React.FC<{
 
 const RULES_SUPPORTED_PARAMETER_TYPES: WorkflowParameter['type'][] = ['String', 'Number'];
 
-const FORMAT_PRESET_OPTIONS = [
-  { value: '', label: 'Nenhuma' },
-  ...(Object.keys(FORMAT_PRESET_LABELS) as FormatPreset[]).map((preset) => ({
-    value: preset,
-    label: FORMAT_PRESET_LABELS[preset],
-  })),
-];
-
-const VALIDATE_CHECK_OPTIONS = [
-  { value: '', label: 'Nenhuma' },
-  ...(Object.keys(VALIDATE_CHECK_LABELS) as ValidateCheck[]).map((check) => ({
-    value: check,
-    label: VALIDATE_CHECK_LABELS[check],
-  })),
-];
-
 const ParameterRulesFields: React.FC<{
   parameter: WorkflowParameter;
   index: number;
   onUpdate: WorkflowParametersEditorProps['onUpdate'];
-}> = ({ parameter, index, onUpdate }) => {
+  formatOptions: FieldRulePresetOption[];
+  validateOptions: FieldRulePresetOption[];
+}> = ({ parameter, index, onUpdate, formatOptions, validateOptions }) => {
   const rules = parameter.rules;
 
   // O valor é guardado cru enquanto o usuário digita (um regex pela metade é inválido, e
@@ -359,7 +355,7 @@ const ParameterRulesFields: React.FC<{
         <S.Cell>
           <Label>Formatação pronta</Label>
           <SearchSelect
-            options={FORMAT_PRESET_OPTIONS}
+            options={formatOptions}
             value={rules?.format?.preset ?? ''}
             onChange={(value) => patchRules({ format: { preset: (value || undefined) as FormatPreset | undefined } })}
             placeholder="Nenhuma"
@@ -368,7 +364,7 @@ const ParameterRulesFields: React.FC<{
         <S.Cell>
           <Label>Validação pronta</Label>
           <SearchSelect
-            options={VALIDATE_CHECK_OPTIONS}
+            options={validateOptions}
             value={rules?.validate?.check ?? ''}
             onChange={(value) => patchRules({ validate: { check: (value || undefined) as ValidateCheck | undefined } })}
             placeholder="Nenhuma"

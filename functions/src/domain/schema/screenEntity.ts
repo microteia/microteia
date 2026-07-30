@@ -9,10 +9,12 @@
 // GERADA por scripts/sync-schemas.cjs (npm run sync-schemas). Nunca edite a cópia.
 // ═══════════════════════════════════════════════════════════════════════════════
 
-import type { CustomFieldType, FieldDefinition } from '../entities/entitySchemas';
+import type { CustomFieldType, FieldDefinition, FieldOrigin } from '../entities/entitySchemas';
 import type { EntityKey, EntityMetadata, NativeFieldSpec, NativeFieldType } from './entityRegistry';
 import { BUILTIN_ENTITY_KEYS, ENTITY_REGISTRY, SCHEMA_VERSION } from './entityRegistry';
 import { LOOKUP_REGISTRY_LIST } from './lookupRegistry';
+import type { FieldRulePreset, FieldRulePresetCatalog } from './fieldRulePresets';
+import { buildFieldRulePresetCatalog } from './fieldRulePresets';
 
 /**
  * A tela como o schema a enxerga. O `id` é, por definição, o nome da COLEÇÃO no Firestore — para as
@@ -53,6 +55,12 @@ export interface SchemaContext {
    * que outra já usa.
    */
   tagLists: ReadonlyMap<string, SchemaTagList>;
+  /**
+   * As máscaras, formatações e validações prontas visíveis ao tenant: as do núcleo unidas às
+   * declaradas por extensões instaladas. É o que faz `format.preset: 'cpf'` significar a mesma coisa
+   * no formulário e na gravação por automação — sem que o kernel conheça a palavra "CPF".
+   */
+  fieldRulePresets: FieldRulePresetCatalog;
   version: number;
 }
 
@@ -72,6 +80,7 @@ export const createSchemaContext = (
   screens: Iterable<SchemaScreen> = [],
   tenantLookups: Iterable<SchemaLookup> = [],
   tenantTagLists: Iterable<SchemaTagList> = [],
+  tenantFieldRulePresets: Iterable<FieldRulePreset> = [],
 ): SchemaContext => ({
   registry: ENTITY_REGISTRY,
   screens: new Map([...screens].map((screen) => [screen.id, screen])),
@@ -81,6 +90,7 @@ export const createSchemaContext = (
   tagLists: new Map(
     [...BUILTIN_TAG_LISTS, ...tenantTagLists].map((tagList) => [tagList.collection, tagList]),
   ),
+  fieldRulePresets: buildFieldRulePresetCatalog(tenantFieldRulePresets),
   version: SCHEMA_VERSION,
 });
 
@@ -380,3 +390,49 @@ export const derivedLookupCollection = (screenId: string, fieldKey: string): str
 
 /** Nome sugerido para as etiquetas de uma tela, na mesma convenção. */
 export const derivedTagCollection = (screenId: string): string => `${screenId}_tags`;
+
+/**
+ * O documento MÍNIMO de uma tela fixa, para quando alguém precisa gravar algo nela e ela ainda não
+ * existe em `screenDefinitions` — uma tela do kernel só ganha documento no primeiro ajuste (ver
+ * `FieldDefinition.origin`). Traz os rótulos do registro e `sidebarOrder`, sem o qual o documento
+ * ficaria de fora do `getAll` (que ordena por esse campo). Os campos nativos continuam vindo do
+ * registro via `resolveScreenFields`; `fields` aqui é só o que o tenant acrescentou.
+ */
+export const builtinScreenBaseline = (collection: string): {
+  origin: FieldOrigin;
+  titleSingular: string;
+  titlePlural: string;
+  icon: string;
+  fields: FieldDefinition[];
+  titleFieldKey: string;
+  hasNotes: boolean;
+  hasDocuments: boolean;
+  hasTags: boolean;
+  listActions: never[];
+  viewActionIds: string[];
+  cardActionIds: string[];
+  parentEntity: null;
+  parentFieldKey: null;
+  sidebarOrder: number;
+  enabled: boolean;
+} => {
+  const entity = ENTITY_REGISTRY[collection as EntityKey] as EntityMetadata | undefined;
+  return {
+    origin: 'builtin',
+    titleSingular: entity?.labelSingular ?? collection,
+    titlePlural: entity?.labelPlural ?? collection,
+    icon: 'apps',
+    fields: [],
+    titleFieldKey: '',
+    hasNotes: false,
+    hasDocuments: false,
+    hasTags: false,
+    listActions: [],
+    viewActionIds: [],
+    cardActionIds: [],
+    parentEntity: null,
+    parentFieldKey: null,
+    sidebarOrder: 0,
+    enabled: true,
+  };
+};
