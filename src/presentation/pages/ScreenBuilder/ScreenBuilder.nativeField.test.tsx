@@ -185,6 +185,35 @@ describe('ScreenBuilder — ajuste de campo do sistema', () => {
     expect(typeof moved?.order).toBe('number');
   });
 
+  /** A lista exibida vem da forma canônica do schema, que não carrega tudo que a autoria guarda. */
+  it('reordenar preserva os ajustes de autoria do campo movido', async () => {
+    storeState.definition = personsDefinition({
+      fields: [{
+        key: 'apelido', label: 'Apelido', type: 'text', required: false, order: 21, origin: 'design',
+        filterable: true, showInList: true, listLabel: 'Como chamar',
+      }],
+    });
+
+    const { result } = renderHook(() => useScreenBuilderViewModel());
+    await act(async () => { await result.current.moveField('persons', 'apelido', -1); });
+
+    expect(savedField('apelido')).toMatchObject({ filterable: true, listLabel: 'Como chamar' });
+  });
+
+  it('campo novo entra na última posição da tela do kernel', async () => {
+    const { result } = renderHook(() => useScreenBuilderViewModel());
+    act(() => result.current.selectScreen('persons'));
+    const lastNativeOrder = (result.current.selectedScreen?.fields ?? [])
+      .reduce((max, field) => Math.max(max, field.order), -1);
+
+    act(() => result.current.openCreateField('persons'));
+    act(() => result.current.updateFieldForm({ label: 'Apelido', fieldKey: 'apelido', type: 'text' }));
+    await act(async () => { await result.current.handleSaveField(); });
+
+    expect(lastNativeOrder).toBeGreaterThan(0);
+    expect(savedField('apelido')?.order).toBe(lastNativeOrder + 1);
+  });
+
   it('distingue campo do kernel de campo do usuário pela origem', () => {
     storeState.definition = personsDefinition({
       fields: [{ key: 'apelido', label: 'Apelido', type: 'text', required: false, order: 0, origin: 'design' }],

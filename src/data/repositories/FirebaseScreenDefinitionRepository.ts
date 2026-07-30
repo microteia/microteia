@@ -13,6 +13,7 @@ import {
 import { db } from '../../infrastructure/firebase/config';
 import type { IScreenDefinitionRepository, ScreenDefinitionInput } from '../../domain/repositories/IScreenDefinitionRepository';
 import type { DeletionActor, ScreenDefinition } from '../../domain/entities';
+import { pruneUndefined } from '../utils/pruneUndefined';
 import { stampDeletionActor } from '../utils/stampDeletionActor';
 import { mapScreenDefinition } from './screenDefinitionMapper';
 
@@ -30,10 +31,9 @@ export class FirebaseScreenDefinitionRepository implements IScreenDefinitionRepo
   async upsert(tenantId: string, screenKey: string, data: ScreenDefinitionInput): Promise<ScreenDefinition> {
     const ref = doc(definitionsRef(tenantId), screenKey);
     // O Firestore rejeita `undefined`, e um campo opcional ausente chega assim. Ausente some;
-    // para limpar um valor gravado, use `null`.
-    data = Object.fromEntries(
-      Object.entries(data).filter(([, value]) => value !== undefined),
-    ) as ScreenDefinitionInput;
+    // para limpar um valor gravado, use `null`. A limpeza é PROFUNDA porque `fields[]` é uma lista
+    // de objetos: um único opcional ausente lá dentro derrubava a gravação da tela inteira.
+    data = pruneUndefined(data);
     const existing = await getDoc(ref);
     if (existing.exists()) {
       const updatable: Partial<ScreenDefinitionInput> = { ...data };

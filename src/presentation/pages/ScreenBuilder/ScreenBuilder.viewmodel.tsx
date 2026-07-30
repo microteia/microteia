@@ -1431,7 +1431,11 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
         // Usa o fieldKey do form (preenchido automaticamente ou editado pelo usuário)
         const baseKey = fieldForm.fieldKey.trim() || slugifyFieldKey(label);
         const key = ensureUniqueKey(baseKey, existingKeys);
-        const maxOrder = fields.reduce((max, f) => Math.max(max, f.order), -1);
+        // A última posição é a da lista RESOLVIDA (fixos do código + adicionais do tenant), não a de
+        // `fields[]`: numa tela do kernel o documento começa vazio, e contar só ele punha o campo
+        // novo na frente de todos os declarados em código.
+        const visible = resolvedFieldsByScreen[fieldModal.screenKey] ?? [];
+        const maxOrder = [...fields, ...visible].reduce((max, f) => Math.max(max, f.order), -1);
         nextFields = [...fields, {
           key,
           label,
@@ -1471,24 +1475,32 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
     } finally {
       setSavingField(false);
     }
-  }, [fieldModal, fieldForm, fieldModalIsTitleField, getDefinitionByKey, saveDefinition, notify, schemaContext, resolvedField, declareLookup]);
+  }, [fieldModal, fieldForm, fieldModalIsTitleField, getDefinitionByKey, saveDefinition, notify, schemaContext, resolvedField, resolvedFieldsByScreen, declareLookup]);
 
   /**
-   * Grava a ordem da lista como posições absolutas em `fields[]`. Um campo do kernel que ainda não
-   * estava no documento só é materializado quando a nova posição difere da declarada em código —
-   * reordenar o fim da lista não congela a tela inteira.
+   * Grava a ordem da lista como posições absolutas em `fields[]`. Um campo já gravado viaja como
+   * está no documento, só com o `order` novo: a lista exibida vem da forma CANÔNICA do schema, que
+   * não carrega tudo que a autoria guarda (`filterable`, `listLabel`) e devolve `undefined` no que
+   * o documento não trazia — reordenar a partir dela apagava ajustes e o Firestore recusava a
+   * gravação inteira. Um campo do kernel ainda não gravado só é materializado quando a nova posição
+   * difere da declarada em código, e o que não vai ao formulário segue intocado no documento.
    */
   const applyFieldOrder = useCallback(async (screenKey: string, fields: FieldDefinition[]) => {
     const def = getDefinitionByKey(screenKey);
     const baseInput = def ? toSaveInput(def) : builtinSaveInput(screenKey);
-    const stored = new Set((def?.fields ?? []).map((field) => field.key));
+    const storedFields = def?.fields ?? [];
+    const storedByKey = new Map(storedFields.map((field) => [field.key, field]));
 
-    const nextFields = fields
-      .map((field, index) => ({ ...field, order: index }))
-      .filter((field, index) => stored.has(field.key) || fields[index].order !== index);
+    const reordered = fields.flatMap((field, index) => {
+      const stored = storedByKey.get(field.key);
+      if (stored) return [{ ...stored, order: index }];
+      return field.order === index ? [] : [{ ...field, order: index }];
+    });
+    const listedKeys = new Set(fields.map((field) => field.key));
+    const untouched = storedFields.filter((field) => !listedKeys.has(field.key));
 
     try {
-      await saveDefinition(screenKey, { ...baseInput, fields: nextFields });
+      await saveDefinition(screenKey, { ...baseInput, fields: [...reordered, ...untouched] });
     } catch {
       notify('Erro ao reordenar os campos.', 'error');
     }
@@ -1500,7 +1512,7 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
   );
 
   const moveField = useCallback(async (screenKey: string, fieldKey: string, direction: -1 | 1) => {
-    const fields = visibleFieldsOf(screenKey);
+    const fields = [...visibleFieldsOf(screenKey)];
     const index = fields.findIndex((f) => f.key === fieldKey);
     const targetIndex = index + direction;
     if (index < 0 || targetIndex < 0 || targetIndex >= fields.length) return;
@@ -1527,7 +1539,7 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
     setDraggedFieldKey(null);
     setDragOverFieldKey(null);
     if (!sourceKey || sourceKey === targetFieldKey) return;
-    const fields = visibleFieldsOf(screenKey);
+    const fields = [...visibleFieldsOf(screenKey)];
     const fromIndex = fields.findIndex((f) => f.key === sourceKey);
     const toIndex = fields.findIndex((f) => f.key === targetFieldKey);
     if (fromIndex < 0 || toIndex < 0) return;

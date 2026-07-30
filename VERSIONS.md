@@ -11,6 +11,11 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [1.6.1] — 2026-07-30
+
+- Na montagem de telas, um campo novo volta a entrar no **fim** da lista de campos, e não no começo.
+- Corrigida a reordenação de campos: mover para cima, mover para baixo e arrastar não tinham efeito nenhum — a nova ordem nunca chegava a ser gravada. Agora a ordem escolhida é mantida, e os ajustes do campo movido (como aparecer no filtro ou na listagem) continuam intactos.
+
 ## [1.6.0] — 2026-07-30
 
 - O preenchimento automático a partir de uma fonte externa — como o endereço que aparece sozinho ao digitar o CEP — deixou de ser exclusivo dos casos que já vinham prontos. Agora uma extensão pode trazer a sua própria consulta, e ela passa a ficar disponível na lista junto com as demais.
