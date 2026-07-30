@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
-import { ScreenDefinitionContext, fieldOptionsKey } from './useScreenDefinitions';
+import { ScreenDefinitionContext } from './useScreenDefinitions';
 import type { ScreenDefinitionSaveInput } from './useScreenDefinitions';
 import { useTenant } from './useTenant';
 import { useAuth } from './useAuth';
@@ -8,16 +8,13 @@ import { storeEvents, StoreEvents } from '../infrastructure/events/StoreEventEmi
 import { makeGetScreenDefinitionsUseCase } from '../domain/usecases/screendefinitions/GetScreenDefinitionsUseCase';
 import { makeSaveScreenDefinitionUseCase } from '../domain/usecases/screendefinitions/SaveScreenDefinitionUseCase';
 import { makeDeleteScreenDefinitionUseCase } from '../domain/usecases/screendefinitions/DeleteScreenDefinitionUseCase';
-import { makeGetScreenFieldOptionsUseCase } from '../domain/usecases/screendefinitions/GetScreenFieldOptionsUseCase';
-import { makeAddFieldOptionUseCase } from '../domain/usecases/screendefinitions/AddFieldOptionUseCase';
-import { makeRemoveFieldOptionUseCase } from '../domain/usecases/screendefinitions/RemoveFieldOptionUseCase';
 import { makeGetScreenTagsUseCase } from '../domain/usecases/screendefinitions/GetScreenTagsUseCase';
 import { makeCreateScreenTagUseCase } from '../domain/usecases/screendefinitions/CreateScreenTagUseCase';
 import { makeUpdateScreenTagUseCase } from '../domain/usecases/screendefinitions/UpdateScreenTagUseCase';
 import { makeDeleteScreenTagUseCase } from '../domain/usecases/screendefinitions/DeleteScreenTagUseCase';
 import { sortFieldsByOrder } from '../domain/services/customFieldValues';
 import { setRecordRulesScreens, toSchemaScreens } from '../data/utils/recordRulesGate';
-import type { ScreenTag, DeletionActor, FieldDefinition, ScreenDefinition, ScreenFieldOption } from '../domain/entities';
+import type { ScreenTag, DeletionActor, FieldDefinition, ScreenDefinition } from '../domain/entities';
 
 export const ScreenDefinitionStoreProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { currentTenant } = useTenant();
@@ -25,7 +22,6 @@ export const ScreenDefinitionStoreProvider: React.FC<{ children: React.ReactNode
   const { screenDefinitionRepository, recordRepository } = useDI();
 
   const [definitions, setDefinitions] = useState<ScreenDefinition[]>([]);
-  const [fieldOptionsByField, setFieldOptionsByField] = useState<Record<string, ScreenFieldOption[]>>({});
   const [tagsByScreen, setTagsByScreen] = useState<Record<string, ScreenTag[]>>({});
   const [isLoading, setIsLoading] = useState(false);
 
@@ -33,9 +29,6 @@ export const ScreenDefinitionStoreProvider: React.FC<{ children: React.ReactNode
     get: makeGetScreenDefinitionsUseCase(screenDefinitionRepository),
     save: makeSaveScreenDefinitionUseCase(screenDefinitionRepository),
     delete: makeDeleteScreenDefinitionUseCase(screenDefinitionRepository, recordRepository),
-    getOptions: makeGetScreenFieldOptionsUseCase(screenDefinitionRepository),
-    addOption: makeAddFieldOptionUseCase(screenDefinitionRepository),
-    removeOption: makeRemoveFieldOptionUseCase(screenDefinitionRepository),
     getTags: makeGetScreenTagsUseCase(screenDefinitionRepository),
     createTag: makeCreateScreenTagUseCase(screenDefinitionRepository),
     updateTag: makeUpdateScreenTagUseCase(screenDefinitionRepository),
@@ -47,22 +40,15 @@ export const ScreenDefinitionStoreProvider: React.FC<{ children: React.ReactNode
     setIsLoading(true);
     try {
       const list = await uc.get.execute(currentTenant.id);
-      const optionLists = await Promise.all(list.map((def) => uc.getOptions.execute(currentTenant.id, def.id)));
-      const optionsMap: Record<string, ScreenFieldOption[]> = {};
-      optionLists.flat().forEach((option) => {
-        const mapKey = fieldOptionsKey(option.screenKey, option.fieldKey);
-        optionsMap[mapKey] = [...(optionsMap[mapKey] ?? []), option];
-      });
       const tagLists = await Promise.all(list.map((def) => uc.getTags.execute(currentTenant.id, def.id)));
       const tagsMap: Record<string, ScreenTag[]> = {};
       list.forEach((def, idx) => { tagsMap[def.id] = tagLists[idx]; });
       setDefinitions(list);
-      setFieldOptionsByField(optionsMap);
       setTagsByScreen(tagsMap);
     } finally {
       setIsLoading(false);
     }
-  }, [currentTenant, uc.get, uc.getOptions, uc.getTags]);
+  }, [currentTenant, uc.get, uc.getTags]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- triggering async refresh on mount/tenant change is architecturally required
@@ -146,28 +132,6 @@ export const ScreenDefinitionStoreProvider: React.FC<{ children: React.ReactNode
     storeEvents.emit(StoreEvents.SCREEN_DEFINITIONS_UPDATED);
   }, [currentTenant, user, effectiveName, uc.delete]);
 
-  const addFieldOption = useCallback(async (screenKey: string, fieldKey: string, label: string) => {
-    if (!currentTenant || !user) throw new Error('Not authenticated');
-    const option = await uc.addOption.execute(currentTenant.id, screenKey, fieldKey, label, user.id);
-    setFieldOptionsByField((prev) => {
-      const mapKey = fieldOptionsKey(screenKey, fieldKey);
-      const next = [...(prev[mapKey] ?? []), option].sort((a, b) => a.label.localeCompare(b.label));
-      return { ...prev, [mapKey]: next };
-    });
-  }, [currentTenant, user, uc.addOption]);
-
-  const removeFieldOption = useCallback(async (screenKey: string, fieldKey: string, optionKey: string) => {
-    if (!currentTenant) return;
-    const mapKey = fieldOptionsKey(screenKey, fieldKey);
-    const option = (fieldOptionsByField[mapKey] ?? []).find((o) => o.key === optionKey);
-    if (!option) return;
-    await uc.removeOption.execute(currentTenant.id, screenKey, option.id);
-    setFieldOptionsByField((prev) => ({
-      ...prev,
-      [mapKey]: (prev[mapKey] ?? []).filter((o) => o.id !== option.id),
-    }));
-  }, [currentTenant, uc.removeOption, fieldOptionsByField]);
-
   const createTag = useCallback(async (screenKey: string, name: string, color: string): Promise<ScreenTag> => {
     if (!currentTenant || !user) throw new Error('Not authenticated');
     const tag = await uc.createTag.execute(currentTenant.id, screenKey, { name, color, createdBy: user.id });
@@ -206,13 +170,10 @@ export const ScreenDefinitionStoreProvider: React.FC<{ children: React.ReactNode
       sidebarScreens,
       getDefinition,
       getScreenFieldsFor,
-      fieldOptionsByField,
       tagsByScreen,
       isLoading,
       saveDefinition,
       deleteDefinition,
-      addFieldOption,
-      removeFieldOption,
       createTag,
       updateTag,
       deleteTag,

@@ -1,19 +1,15 @@
 import { useCallback, useMemo } from 'react';
-import { useTheme } from 'styled-components';
 import { useCaseStore } from '../../../stores/useCaseStore';
 import { useCaseTagStore } from '../../../stores/useCaseTagStore';
-import { useCaseLookup, type CaseLookupKind } from '../../../stores/useCaseLookup';
 import { useAuth } from '../../../stores/useAuth';
 import { useTenant } from '../../../stores/useTenant';
 import { useEntityFormFields } from '../../shared/useEntityFormFields';
 import { useDI } from '../../../infrastructure/di/useDI';
-import { resolveColor } from '../../../shared/styles/colorUtils';
 import { toDateInputValue } from '../../../utils/formatters';
 import type {
   Case, CaseArea, CaseInstance, CasePhase, CaseStatus,
   CustomFieldValue, FieldDefinition,
 } from '../../../domain/entities';
-import type { LookupOptionSet } from '../../components/ui/CustomFieldsSection/CustomFieldsSection.viewmodel';
 import type { TagStoreAdapter } from '../../components/ui/TagManager/TagManager.viewmodel';
 import type { EntityDetailExtraTab, EntityDetailTab } from '../../components/layout/EntityDetailView';
 import { useEntityDetail, type EntityValidationResult } from '../../shared/entityScreen/useEntityDetail';
@@ -41,17 +37,6 @@ const NEW_CASE_DEFAULTS = {
   instance: '1º Grau',
   phase: 'Fase Inicial',
   status: 'Em Andamento',
-};
-
-const LOOKUP_COLLECTION_TO_KIND: Record<string, CaseLookupKind> = {
-  caseAreas: 'areas',
-  casePhases: 'phases',
-  caseStatuses: 'statuses',
-  caseInstances: 'instances',
-  caseActionTypes: 'actionTypes',
-  caseCourts: 'courts',
-  caseDistricts: 'districts',
-  caseJudges: 'judges',
 };
 
 const parseCaseTab = (tabKey: string) => {
@@ -138,14 +123,10 @@ export interface ViewCaseViewModel {
   isAdmin: boolean;
   fields: FieldDefinition[];
   addedFields: FieldDefinition[];
-  resolveOptionsScreenKey: (field: FieldDefinition) => string;
   values: Values;
   setFieldValue: (fieldKey: string, value: CustomFieldValue) => void;
   mergeValues: (patch: Record<string, unknown>) => void;
   fieldErrors: Record<string, string>;
-  lookupOptions: Record<string, LookupOptionSet>;
-  handleAddLookupOption: (collection: string, label: string) => Promise<void>;
-  handleDeleteLookupOption: (collection: string, optionKey: string) => Promise<void>;
   isSaving: boolean;
   handleSave: () => Promise<void>;
 
@@ -172,19 +153,13 @@ export interface ViewCaseViewModel {
 export const useViewCaseViewModel = (tabKey: string): ViewCaseViewModel => {
   const { cases, createCase, updateCase, deleteCase } = useCaseStore();
   const { tags, getTagsForCase, setTagsForCase, createTag, updateTag, deleteTag } = useCaseTagStore();
-  const {
-    areaConfigs, phaseConfigs, statusConfigs, instanceConfigs,
-    actionTypeConfigs, courtConfigs, districtConfigs, judgeConfigs,
-    addItem, removeItem,
-  } = useCaseLookup();
   const { user, effectiveName } = useAuth();
   const { tenantRole } = useTenant();
   const { caseNoteRepository, caseDocumentRepository } = useDI();
-  const theme = useTheme();
 
   const isAdmin = tenantRole === 'admin';
   const userId = user?.id ?? '';
-  const { fields: formFields, addedFields, resolveOptionsScreenKey } = useEntityFormFields('cases');
+  const { fields: formFields, addedFields } = useEntityFormFields('cases');
 
   const findInStore = useCallback((id: string) => cases.find((c) => c.id === id) ?? null, [cases]);
 
@@ -260,37 +235,6 @@ export const useViewCaseViewModel = (tabKey: string): ViewCaseViewModel => {
 
   const case_ = detail.record;
 
-  const lookupOptions = useMemo<Record<string, LookupOptionSet>>(() => {
-    const plain = (configs: typeof areaConfigs) => ({
-      staticOptions: configs.filter((c) => c.isStatic !== false).map((c) => ({ value: c.key, label: c.label })),
-      dynamicOptions: configs.filter((c) => c.isStatic === false).map((c) => ({ value: c.key, label: c.label })),
-    });
-    const colored = (configs: typeof statusConfigs) => ({
-      staticOptions: configs.filter((c) => c.isStatic !== false).map((c) => ({ value: c.key, label: c.label, color: resolveColor(c.color, theme) })),
-      dynamicOptions: configs.filter((c) => c.isStatic === false).map((c) => ({ value: c.key, label: c.label, color: resolveColor(c.color, theme) })),
-    });
-    return {
-      caseAreas: plain(areaConfigs),
-      casePhases: plain(phaseConfigs),
-      caseStatuses: colored(statusConfigs),
-      caseInstances: plain(instanceConfigs),
-      caseActionTypes: plain(actionTypeConfigs),
-      caseCourts: plain(courtConfigs),
-      caseDistricts: plain(districtConfigs),
-      caseJudges: plain(judgeConfigs),
-    };
-  }, [areaConfigs, phaseConfigs, statusConfigs, instanceConfigs, actionTypeConfigs, courtConfigs, districtConfigs, judgeConfigs, theme]);
-
-  const handleAddLookupOption = useCallback(async (collection: string, label: string): Promise<void> => {
-    const kind = LOOKUP_COLLECTION_TO_KIND[collection];
-    if (kind) await addItem(kind, label);
-  }, [addItem]);
-
-  const handleDeleteLookupOption = useCallback(async (collection: string, optionKey: string): Promise<void> => {
-    const kind = LOOKUP_COLLECTION_TO_KIND[collection];
-    if (kind) await removeItem(kind, optionKey);
-  }, [removeItem]);
-
   const tagAdapter: TagStoreAdapter = useMemo(() => ({
     tags,
     getAppliedTags: (entityId: string) => getTagsForCase(entityId, case_?.tagIds ?? []),
@@ -307,14 +251,10 @@ export const useViewCaseViewModel = (tabKey: string): ViewCaseViewModel => {
     isAdmin,
     fields: formFields,
     addedFields,
-    resolveOptionsScreenKey,
     values: detail.values,
     setFieldValue: detail.setFieldValue,
     mergeValues: detail.mergeValues,
     fieldErrors: detail.fieldErrors,
-    lookupOptions,
-    handleAddLookupOption,
-    handleDeleteLookupOption,
     isSaving: detail.isSaving,
     handleSave: detail.handleSave,
     tagAdapter,

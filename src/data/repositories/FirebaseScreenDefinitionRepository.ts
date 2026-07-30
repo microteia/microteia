@@ -14,33 +14,17 @@ import {
 } from 'firebase/firestore';
 import { db } from '../../infrastructure/firebase/config';
 import type { IScreenDefinitionRepository, ScreenDefinitionInput } from '../../domain/repositories/IScreenDefinitionRepository';
-import type { ScreenTag, DeletionActor, ScreenDefinition, ScreenFieldOption } from '../../domain/entities';
+import type { ScreenTag, DeletionActor, ScreenDefinition } from '../../domain/entities';
 import { stampDeletionActor } from '../utils/stampDeletionActor';
 import { mapScreenDefinition } from './screenDefinitionMapper';
 
-const toDate = (v: unknown): Date =>
-  v instanceof Timestamp ? v.toDate() : (v as Date);
 
 const definitionsRef = (tenantId: string) =>
   collection(db, 'tenants', tenantId, 'screenDefinitions');
 
-const fieldOptionsRef = (tenantId: string, screenKey: string) =>
-  collection(db, 'tenants', tenantId, 'screenDefinitions', screenKey, 'fieldOptions');
-
 const tagsRef = (tenantId: string, screenKey: string) =>
   collection(db, 'tenants', tenantId, 'screenDefinitions', screenKey, 'tags');
 
-
-const mapFieldOption = (id: string, d: Record<string, unknown>, tenantId: string, screenKey: string): ScreenFieldOption => ({
-  id,
-  tenantId,
-  screenKey,
-  fieldKey: d.fieldKey as string,
-  key: d.key as string,
-  label: d.label as string,
-  createdAt: toDate(d.createdAt),
-  createdBy: (d.createdBy as string | undefined) ?? '',
-});
 
 const mapTag = (id: string, d: Record<string, unknown>, tenantId: string, screenKey: string): ScreenTag => ({
   id,
@@ -78,34 +62,11 @@ export class FirebaseScreenDefinitionRepository implements IScreenDefinitionRepo
   }
 
   async delete(tenantId: string, screenKey: string, actor: DeletionActor): Promise<void> {
-    const optionsSnap = await getDocs(fieldOptionsRef(tenantId, screenKey));
-    await Promise.all(optionsSnap.docs.map((d) => deleteDoc(d.ref)));
     const tagsSnap = await getDocs(tagsRef(tenantId, screenKey));
     await Promise.all(tagsSnap.docs.map((d) => deleteDoc(d.ref)));
     const ref = doc(definitionsRef(tenantId), screenKey);
     await stampDeletionActor(ref, actor);
     await deleteDoc(ref);
-  }
-
-  async getFieldOptions(tenantId: string, screenKey: string): Promise<ScreenFieldOption[]> {
-    const snap = await getDocs(query(fieldOptionsRef(tenantId, screenKey), orderBy('label', 'asc')));
-    return snap.docs.map((d) => mapFieldOption(d.id, d.data(), tenantId, screenKey));
-  }
-
-  async addFieldOption(tenantId: string, screenKey: string, fieldKey: string, label: string, userId: string): Promise<ScreenFieldOption> {
-    const ref = await addDoc(fieldOptionsRef(tenantId, screenKey), {
-      fieldKey,
-      key: label,
-      label,
-      createdBy: userId,
-      createdAt: serverTimestamp(),
-    });
-    const snap = await getDoc(ref);
-    return mapFieldOption(ref.id, snap.data() as Record<string, unknown>, tenantId, screenKey);
-  }
-
-  async removeFieldOption(tenantId: string, screenKey: string, optionId: string): Promise<void> {
-    await deleteDoc(doc(fieldOptionsRef(tenantId, screenKey), optionId));
   }
 
   async getTags(tenantId: string, screenKey: string): Promise<ScreenTag[]> {

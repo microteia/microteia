@@ -1,17 +1,12 @@
 import { useCallback, useMemo } from 'react';
-import { useTheme } from 'styled-components';
 import { useFinancialStore } from '../../../stores/useFinancialStore';
 import { useFinancialTagStore } from '../../../stores/useFinancialTagStore';
-import { useFinancialLookup } from '../../../stores/useFinancialLookup';
-import { useContractLookup } from '../../../stores/useContractLookup';
 import { useAuth } from '../../../stores/useAuth';
 import { useTenant } from '../../../stores/useTenant';
 import { useEntityFormFields } from '../../shared/useEntityFormFields';
 import { useDI } from '../../../infrastructure/di/useDI';
-import { resolveColor } from '../../../shared/styles/colorUtils';
 import { toDateInputValue as toDateInput } from '../../../utils/formatters';
 import type { Financial, FinancialType, PaymentMethod, CustomFieldValue, FieldDefinition } from '../../../domain/entities';
-import type { LookupOptionSet } from '../../components/ui/CustomFieldsSection/CustomFieldsSection.viewmodel';
 import type { TagStoreAdapter } from '../../components/ui/TagManager/TagManager.viewmodel';
 import { useEntityDetail, type EntityValidationResult } from '../../shared/entityScreen/useEntityDetail';
 import type { ScreenActions } from '../../shared/entityScreen/useScreenActions';
@@ -103,14 +98,10 @@ export interface ViewFinancialViewModel {
   isAdmin: boolean;
   fields: FieldDefinition[];
   addedFields: FieldDefinition[];
-  resolveOptionsScreenKey: (field: FieldDefinition) => string;
   values: Values;
   setFieldValue: (fieldKey: string, value: CustomFieldValue) => void;
   mergeValues: (patch: Record<string, unknown>) => void;
   fieldErrors: Record<string, string>;
-  lookupOptions: Record<string, LookupOptionSet>;
-  handleAddLookupOption: (collection: string, label: string) => Promise<void>;
-  handleDeleteLookupOption: (collection: string, optionKey: string) => Promise<void>;
   isSaving: boolean;
   handleSave: () => Promise<void>;
 
@@ -137,16 +128,13 @@ export interface ViewFinancialViewModel {
 export const useViewFinancialViewModel = (tabKey: string): ViewFinancialViewModel => {
   const { financials, createFinancial, updateFinancial, deleteFinancial } = useFinancialStore();
   const { tags, getTagsForFinancial, setTagsForFinancial, createTag, updateTag, deleteTag } = useFinancialTagStore();
-  const { categoryConfigs, statusConfigs, addItem, removeItem } = useFinancialLookup();
-  const { costCenterConfigs, addItem: addContractLookupItem, removeItem: removeContractLookupItem } = useContractLookup();
   const { user, effectiveName } = useAuth();
   const { tenantRole } = useTenant();
   const { financialDocumentRepository } = useDI();
-  const theme = useTheme();
 
   const isAdmin = tenantRole === 'admin';
   const userId = user?.id ?? '';
-  const { fields: formFields, addedFields, resolveOptionsScreenKey } = useEntityFormFields('financials');
+  const { fields: formFields, addedFields } = useEntityFormFields('financials');
 
   const findInStore = useCallback(
     (id: string) => financials.find((f) => f.id === id) ?? null,
@@ -226,33 +214,6 @@ export const useViewFinancialViewModel = (tabKey: string): ViewFinancialViewMode
 
   const financial = detail.record;
 
-  const lookupOptions = useMemo<Record<string, LookupOptionSet>>(() => ({
-    financialCategories: {
-      staticOptions: categoryConfigs.filter((c) => c.isStatic !== false).map((c) => ({ value: c.key, label: c.label })),
-      dynamicOptions: categoryConfigs.filter((c) => c.isStatic === false).map((c) => ({ value: c.key, label: c.label })),
-    },
-    financialStatuses: {
-      staticOptions: statusConfigs.filter((c) => c.isStatic !== false).map((c) => ({ value: c.key, label: c.label, color: resolveColor(c.color, theme) })),
-      dynamicOptions: statusConfigs.filter((c) => c.isStatic === false).map((c) => ({ value: c.key, label: c.label, color: resolveColor(c.color, theme) })),
-    },
-    contractCostCenters: {
-      staticOptions: [],
-      dynamicOptions: costCenterConfigs.map((c) => ({ value: c.key, label: c.label })),
-    },
-  }), [categoryConfigs, statusConfigs, costCenterConfigs, theme]);
-
-  const handleAddLookupOption = useCallback(async (collection: string, label: string): Promise<void> => {
-    if (collection === 'financialCategories') await addItem('categories', label);
-    else if (collection === 'financialStatuses') await addItem('statuses', label);
-    else if (collection === 'contractCostCenters') await addContractLookupItem('costCenters', label);
-  }, [addItem, addContractLookupItem]);
-
-  const handleDeleteLookupOption = useCallback(async (collection: string, optionKey: string): Promise<void> => {
-    if (collection === 'financialCategories') await removeItem('categories', optionKey);
-    else if (collection === 'financialStatuses') await removeItem('statuses', optionKey);
-    else if (collection === 'contractCostCenters') await removeContractLookupItem('costCenters', optionKey);
-  }, [removeItem, removeContractLookupItem]);
-
   const tagAdapter: TagStoreAdapter = useMemo(() => ({
     tags,
     getAppliedTags: (entityId: string) => getTagsForFinancial(entityId, financial?.tagIds ?? []),
@@ -269,14 +230,10 @@ export const useViewFinancialViewModel = (tabKey: string): ViewFinancialViewMode
     isAdmin,
     fields: formFields,
     addedFields,
-    resolveOptionsScreenKey,
     values: detail.values,
     setFieldValue: detail.setFieldValue,
     mergeValues: detail.mergeValues,
     fieldErrors: detail.fieldErrors,
-    lookupOptions,
-    handleAddLookupOption,
-    handleDeleteLookupOption,
     isSaving: detail.isSaving,
     handleSave: detail.handleSave,
     tagAdapter,

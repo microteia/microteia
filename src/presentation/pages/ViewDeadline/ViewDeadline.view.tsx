@@ -12,17 +12,11 @@ export const ViewDeadlineView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
     <S.FormGrid>
       <S.FormGroup $fullWidth>
         <CustomFieldsSection
-          screenKey="deadlines-native"
-          resolveOptionsScreenKey={vm.resolveOptionsScreenKey}
           fields={vm.fields}
           values={vm.values}
           onChange={vm.setFieldValue}
           onMergeValues={vm.mergeValues}
           errors={vm.fieldErrors}
-          lookupOptions={vm.lookupOptions}
-          onAddLookupOption={vm.handleAddLookupOption}
-          onDeleteLookupOption={vm.handleDeleteLookupOption}
-          canDeleteLookupOption={vm.isAdmin}
         />
       </S.FormGroup>
 

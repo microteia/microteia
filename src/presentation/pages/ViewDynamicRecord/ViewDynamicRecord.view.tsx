@@ -51,7 +51,6 @@ export const ViewDynamicRecordView: React.FC<{ tabKey: string }> = ({ tabKey }) 
   const dataContent = (
     <S.FormWrapper>
       <CustomFieldsSection
-        screenKey={vm.screenKey}
         fields={vm.sortedFields}
         values={vm.formValues}
         onChange={vm.setFieldValue}

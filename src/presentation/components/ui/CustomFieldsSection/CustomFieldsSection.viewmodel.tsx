@@ -1,6 +1,6 @@
 import { useCallback, useMemo } from 'react';
 import { useTheme } from 'styled-components';
-import { useScreenDefinitions, fieldOptionsKey } from '../../../../stores/useScreenDefinitions';
+import { useLookups } from '../../../../stores/useLookups';
 import { useTenant } from '../../../../stores/useTenant';
 import { useReferenceOptions } from '../../../hooks/useReferenceOptions';
 import { sortFieldsByOrder } from '../../../../domain/services/customFieldValues';
@@ -9,7 +9,7 @@ import { computeFieldValues } from '../../../../domain/schema/recordRules';
 import { buildHydratedFieldScope } from '../../../../domain/schema/referenceScope';
 import { useRecordResolver } from '../../../shared/useRecordResolver';
 import { useFieldChangeEffects } from './useFieldChangeEffects';
-import { resolveFieldOptionColor } from '../../../../shared/styles/colorUtils';
+import { resolveColor, resolveFieldOptionColor } from '../../../../shared/styles/colorUtils';
 import type { CustomFieldValue, FieldDefinition } from '../../../../domain/entities';
 import type { DynamicSelectOption } from '../DynamicSelect';
 import type { ReferenceOption } from '../../../hooks/useReferenceOptions';
@@ -28,24 +28,13 @@ const readByPath = (values: Record<string, unknown>, key: string): unknown => {
 };
 
 export interface CustomFieldsSectionProps {
-  screenKey: string;
   fields: FieldDefinition[];
   values: Record<string, CustomFieldValue>;
   onChange: (fieldKey: string, value: CustomFieldValue) => void;
   disabled?: boolean;
-  lookupOptions?: Record<string, LookupOptionSet>;
-  onAddLookupOption?: (collection: string, label: string) => void | Promise<void>;
-  onDeleteLookupOption?: (collection: string, optionKey: string) => void | Promise<void>;
-  canDeleteLookupOption?: boolean;
   errors?: Record<string, string>;
   /** Habilita os efeitos de `onChange` (preencher vários campos). Ausente = comportamento anterior. */
   onMergeValues?: (patch: Record<string, unknown>) => void;
-  /**
-   * Resolve a tela dona das opções de cada campo. Necessário na lista unificada das telas fixas,
-   * onde campos do sistema e adicionais convivem mas indexam opções em chaves diferentes.
-   * Ausente = todos usam `screenKey`.
-   */
-  resolveOptionsScreenKey?: (field: FieldDefinition) => string;
 }
 
 export interface FieldGroup {
@@ -67,11 +56,6 @@ export interface CustomFieldsSectionViewModel {
   handleAddOption: (field: FieldDefinition, label: string) => Promise<void>;
   handleDeleteOption: (field: FieldDefinition, optionKey: string) => Promise<void>;
   referenceOptions: (field: FieldDefinition) => ReferenceOption[];
-  lookupStaticOptions: (field: FieldDefinition) => DynamicSelectOption[];
-  lookupDynamicOptions: (field: FieldDefinition) => DynamicSelectOption[];
-  handleAddLookupOption: (field: FieldDefinition, label: string) => Promise<void>;
-  handleDeleteLookupOption: (field: FieldDefinition, optionKey: string) => Promise<void>;
-  canDeleteLookupOption: boolean;
   isFieldHidden: (field: FieldDefinition) => boolean;
   isFieldDisabled: (field: FieldDefinition) => boolean;
   fieldError: (field: FieldDefinition) => string | null;
@@ -81,30 +65,19 @@ export interface CustomFieldsSectionViewModel {
 
 export const useCustomFieldsSectionViewModel = (props: CustomFieldsSectionProps): CustomFieldsSectionViewModel => {
   const {
-    screenKey,
     fields,
     values: rawValues,
     onChange,
     disabled = false,
-    lookupOptions,
-    onAddLookupOption,
-    onDeleteLookupOption,
-    canDeleteLookupOption = false,
     errors,
     onMergeValues,
-    resolveOptionsScreenKey,
   } = props;
-  const { fieldOptionsByField, addFieldOption, removeFieldOption } = useScreenDefinitions();
+  const { getOptions, addOption, removeOption } = useLookups();
   const { tenantRole } = useTenant();
   const referenceOptionsByEntity = useReferenceOptions();
   const theme = useTheme();
 
   const canDeleteOption = tenantRole === 'admin';
-
-  const optionsScreenKeyOf = useCallback(
-    (field: FieldDefinition): string => resolveOptionsScreenKey?.(field) ?? screenKey,
-    [resolveOptionsScreenKey, screenKey],
-  );
 
   const resolveRecord = useRecordResolver();
 
@@ -162,66 +135,65 @@ export const useCustomFieldsSectionViewModel = (props: CustomFieldsSectionProps)
     runFieldChangeEffects(fieldKey, value);
   }, [onChange, runFieldChangeEffects]);
 
+  /**
+   * As opções que o usuário NÃO pode excluir: as declaradas no próprio campo (lista fechada) e as
+   * que já vêm prontas na lista do kernel (`lookupDefaults`). O `DynamicSelect` as renderiza sem o
+   * botão de excluir, separadas das cadastradas pelo escritório.
+   */
   const staticSelectOptions = useCallback(
-    (field: FieldDefinition): DynamicSelectOption[] =>
-      (field.options ?? []).map((o) => ({
-        value: o.key,
-        label: o.label,
-        color: resolveFieldOptionColor(o.color, field.optionsColored, theme),
-      })),
-    [theme],
+    (field: FieldDefinition): DynamicSelectOption[] => {
+      const declared = (field.options ?? []).map((option) => ({
+        value: option.key,
+        label: option.label,
+        color: resolveFieldOptionColor(option.color, field.optionsColored, theme),
+      }));
+      const fromKernel = getOptions(field.lookupCollection ?? '')
+        .filter((option) => option.isStatic)
+        .map((option) => ({
+          value: option.label,
+          label: option.label,
+          color: resolveColor(option.color, theme, false),
+        }));
+      return [...declared, ...fromKernel];
+    },
+    [getOptions, theme],
   );
 
+  /**
+   * As opções cadastradas pelo usuário moram na COLEÇÃO que o campo declara em `lookupCollection` —
+   * `caseCourts` para um campo do kernel, `medico_especialidade` para um do Form Design. Um caminho
+   * só: nada aqui pergunta de onde o campo veio.
+   */
   const dynamicSelectOptions = useCallback(
     (field: FieldDefinition): DynamicSelectOption[] =>
-      (fieldOptionsByField[fieldOptionsKey(optionsScreenKeyOf(field), field.key)] ?? []).map((o) => ({
-        value: o.key,
-        label: o.label,
-        color: resolveFieldOptionColor(undefined, field.optionsColored, theme),
-      })),
-    [fieldOptionsByField, optionsScreenKeyOf, theme],
+      getOptions(field.lookupCollection ?? '')
+        .filter((option) => !option.isStatic)
+        .map((option) => ({
+          value: option.label,
+          label: option.label,
+          color: resolveColor(option.color, theme, false),
+        })),
+    [getOptions, theme],
   );
 
   const handleAddOption = useCallback(
-    (field: FieldDefinition, label: string) => addFieldOption(optionsScreenKeyOf(field), field.key, label),
-    [addFieldOption, optionsScreenKeyOf],
+    async (field: FieldDefinition, label: string): Promise<void> => {
+      if (field.lookupCollection) await addOption(field.lookupCollection, label);
+    },
+    [addOption],
   );
 
   const handleDeleteOption = useCallback(
-    (field: FieldDefinition, optionKey: string) => removeFieldOption(optionsScreenKeyOf(field), field.key, optionKey),
-    [removeFieldOption, optionsScreenKeyOf],
+    async (field: FieldDefinition, optionKey: string): Promise<void> => {
+      if (field.lookupCollection) await removeOption(field.lookupCollection, optionKey);
+    },
+    [removeOption],
   );
 
   const referenceOptions = useCallback(
     (field: FieldDefinition): ReferenceOption[] =>
       referenceOptionsByEntity[field.refEntity ?? ''] ?? [],
     [referenceOptionsByEntity],
-  );
-
-  const lookupStaticOptions = useCallback(
-    (field: FieldDefinition): DynamicSelectOption[] =>
-      lookupOptions?.[field.lookupCollection ?? '']?.staticOptions ?? [],
-    [lookupOptions],
-  );
-
-  const lookupDynamicOptions = useCallback(
-    (field: FieldDefinition): DynamicSelectOption[] =>
-      lookupOptions?.[field.lookupCollection ?? '']?.dynamicOptions ?? [],
-    [lookupOptions],
-  );
-
-  const handleAddLookupOption = useCallback(
-    async (field: FieldDefinition, label: string): Promise<void> => {
-      if (field.lookupCollection) await onAddLookupOption?.(field.lookupCollection, label);
-    },
-    [onAddLookupOption],
-  );
-
-  const handleDeleteLookupOption = useCallback(
-    async (field: FieldDefinition, optionKey: string): Promise<void> => {
-      if (field.lookupCollection) await onDeleteLookupOption?.(field.lookupCollection, optionKey);
-    },
-    [onDeleteLookupOption],
   );
 
   // Escopo com os campos de referência trocados pelo registro apontado, para que `produto.preco`
@@ -274,11 +246,6 @@ export const useCustomFieldsSectionViewModel = (props: CustomFieldsSectionProps)
     handleAddOption,
     handleDeleteOption,
     referenceOptions,
-    lookupStaticOptions,
-    lookupDynamicOptions,
-    handleAddLookupOption,
-    handleDeleteLookupOption,
-    canDeleteLookupOption,
     isFieldHidden,
     isFieldDisabled,
     fieldError,

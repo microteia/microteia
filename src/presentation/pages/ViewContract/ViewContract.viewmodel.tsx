@@ -2,21 +2,18 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTheme } from 'styled-components';
 import { useContractStore } from '../../../stores/useContractStore';
 import { useContractTagStore } from '../../../stores/useContractTagStore';
-import { useContractLookup } from '../../../stores/useContractLookup';
 import { useCaseStore } from '../../../stores/useCaseStore';
-import { useCaseLookup } from '../../../stores/useCaseLookup';
 import { useAuth } from '../../../stores/useAuth';
 import { useTenant } from '../../../stores/useTenant';
 import { useWorkspace } from '../../../stores/useWorkspace';
 import { useNotification } from '../../../stores/useNotification';
+import { useLookups } from '../../../stores/useLookups';
 import { useEntityFormFields } from '../../shared/useEntityFormFields';
 import { useDI } from '../../../infrastructure/di/useDI';
-import { resolveColor, getConfigColor } from '../../../shared/styles/colorUtils';
 import { toDateInputValue } from '../../../utils/formatters';
 import type {
-  Case, Contract, ContractLookupKind, CustomFieldValue, FieldDefinition,
+  Case, Contract, CustomFieldValue, FieldDefinition,
 } from '../../../domain/entities';
-import type { LookupOptionSet } from '../../components/ui/CustomFieldsSection/CustomFieldsSection.viewmodel';
 import type { TagStoreAdapter } from '../../components/ui/TagManager/TagManager.viewmodel';
 import type { EntityDetailExtraTab, EntityDetailTab } from '../../components/layout/EntityDetailView';
 import type { SearchSelectOption } from '../../components/ui/SearchSelect';
@@ -33,6 +30,7 @@ import {
 } from '../../../domain/services/customFieldValues';
 import { describeRuleIssues } from '../../../domain/schema/fieldRules';
 import { validateRecordRules } from '../../../data/utils/recordRulesGate';
+import { getConfigColor } from '../../../shared/styles/colorUtils';
 
 export type ViewContractTab = 'data' | 'notes' | 'documents' | 'cases';
 
@@ -53,19 +51,6 @@ const generateContractNumber = (existing: Set<string>): string => {
     candidate = `${l1}${l2}${digits}`;
   } while (existing.has(candidate));
   return candidate;
-};
-
-const LOOKUP_COLLECTION_TO_KIND: Record<string, ContractLookupKind> = {
-  contractTypes: 'types',
-  contractCategories: 'categories',
-  contractStatuses: 'statuses',
-  contractObjects: 'objects',
-  contractAdjustmentIndexes: 'adjustmentIndexes',
-  contractAdjustmentPeriodicities: 'adjustmentPeriodicities',
-  contractCurrencies: 'currencies',
-  contractPaymentMethods: 'paymentMethods',
-  contractBanks: 'banks',
-  contractCostCenters: 'costCenters',
 };
 
 const parseContractTab = (tabKey: string) => {
@@ -176,14 +161,10 @@ export interface ViewContractViewModel {
   isAdmin: boolean;
   fields: FieldDefinition[];
   addedFields: FieldDefinition[];
-  resolveOptionsScreenKey: (field: FieldDefinition) => string;
   values: Values;
   setFieldValue: (fieldKey: string, value: CustomFieldValue) => void;
   mergeValues: (patch: Record<string, unknown>) => void;
   fieldErrors: Record<string, string>;
-  lookupOptions: Record<string, LookupOptionSet>;
-  handleAddLookupOption: (collection: string, label: string) => Promise<void>;
-  handleDeleteLookupOption: (collection: string, optionKey: string) => Promise<void>;
   isSaving: boolean;
   handleSave: () => Promise<void>;
 
@@ -220,13 +201,9 @@ export interface ViewContractViewModel {
 export const useViewContractViewModel = (tabKey: string): ViewContractViewModel => {
   const { contracts, createContract, updateContract, deleteContract } = useContractStore();
   const { tags, getTagsForContract, setTagsForContract, createTag, updateTag, deleteTag } = useContractTagStore();
-  const {
-    typeConfigs, categoryConfigs, statusConfigs, objectConfigs,
-    adjustmentIndexConfigs, adjustmentPeriodicityConfigs, currencyConfigs, paymentMethodConfigs,
-    bankConfigs, costCenterConfigs, addItem, removeItem,
-  } = useContractLookup();
+  const { getOptions } = useLookups();
   const { cases, updateCase } = useCaseStore();
-  const { statusConfigs: caseStatusConfigs } = useCaseLookup();
+  const caseStatusConfigs = getOptions('caseStatuses');
   const { user, effectiveName } = useAuth();
   const { tenantRole } = useTenant();
   const { openTab } = useWorkspace();
@@ -236,7 +213,7 @@ export const useViewContractViewModel = (tabKey: string): ViewContractViewModel 
 
   const isAdmin = tenantRole === 'admin';
   const userId = user?.id ?? '';
-  const { fields: formFields, addedFields, resolveOptionsScreenKey } = useEntityFormFields('contracts');
+  const { fields: formFields, addedFields } = useEntityFormFields('contracts');
 
   const [caseToAdd, setCaseToAdd] = useState('');
 
@@ -322,39 +299,6 @@ export const useViewContractViewModel = (tabKey: string): ViewContractViewModel 
     setFieldValue('number', generateContractNumber(new Set(contracts.map((c) => c.number))));
   }, [needsNumber, contracts, setFieldValue]);
 
-  const lookupOptions = useMemo<Record<string, LookupOptionSet>>(() => {
-    const plain = (configs: typeof typeConfigs) => ({
-      staticOptions: configs.filter((c) => c.isStatic !== false).map((c) => ({ value: c.key, label: c.label })),
-      dynamicOptions: configs.filter((c) => c.isStatic === false).map((c) => ({ value: c.key, label: c.label })),
-    });
-    return {
-      contractTypes: plain(typeConfigs),
-      contractCategories: plain(categoryConfigs),
-      contractStatuses: {
-        staticOptions: statusConfigs.filter((c) => c.isStatic !== false).map((c) => ({ value: c.key, label: c.label, color: resolveColor(c.color, theme) })),
-        dynamicOptions: statusConfigs.filter((c) => c.isStatic === false).map((c) => ({ value: c.key, label: c.label, color: resolveColor(c.color, theme) })),
-      },
-      contractObjects: plain(objectConfigs),
-      contractAdjustmentIndexes: plain(adjustmentIndexConfigs),
-      contractAdjustmentPeriodicities: plain(adjustmentPeriodicityConfigs),
-      contractCurrencies: plain(currencyConfigs),
-      contractPaymentMethods: plain(paymentMethodConfigs),
-      contractBanks: plain(bankConfigs),
-      contractCostCenters: plain(costCenterConfigs),
-    };
-  }, [typeConfigs, categoryConfigs, statusConfigs, objectConfigs, adjustmentIndexConfigs,
-      adjustmentPeriodicityConfigs, currencyConfigs, paymentMethodConfigs, bankConfigs, costCenterConfigs, theme]);
-
-  const handleAddLookupOption = useCallback(async (collection: string, label: string): Promise<void> => {
-    const kind = LOOKUP_COLLECTION_TO_KIND[collection];
-    if (kind) await addItem(kind, label);
-  }, [addItem]);
-
-  const handleDeleteLookupOption = useCallback(async (collection: string, optionKey: string): Promise<void> => {
-    const kind = LOOKUP_COLLECTION_TO_KIND[collection];
-    if (kind) await removeItem(kind, optionKey);
-  }, [removeItem]);
-
   const tagAdapter: TagStoreAdapter = useMemo(() => ({
     tags,
     getAppliedTags: (entityId: string) => getTagsForContract(entityId, contract?.tagIds ?? []),
@@ -409,14 +353,10 @@ export const useViewContractViewModel = (tabKey: string): ViewContractViewModel 
     isAdmin,
     fields: formFields,
     addedFields,
-    resolveOptionsScreenKey,
     values: detail.values,
     setFieldValue,
     mergeValues: detail.mergeValues,
     fieldErrors: detail.fieldErrors,
-    lookupOptions,
-    handleAddLookupOption,
-    handleDeleteLookupOption,
     isSaving: detail.isSaving,
     handleSave: detail.handleSave,
     tagAdapter,

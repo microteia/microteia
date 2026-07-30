@@ -20,17 +20,11 @@ export const ViewCaseView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
     <S.FormGrid>
       <S.FormGroup $fullWidth>
         <CustomFieldsSection
-          screenKey="cases-native"
-          resolveOptionsScreenKey={vm.resolveOptionsScreenKey}
           fields={vm.fields}
           values={vm.values}
           onChange={vm.setFieldValue}
           onMergeValues={vm.mergeValues}
           errors={vm.fieldErrors}
-          lookupOptions={vm.lookupOptions}
-          onAddLookupOption={vm.handleAddLookupOption}
-          onDeleteLookupOption={vm.handleDeleteLookupOption}
-          canDeleteLookupOption={vm.isAdmin}
         />
       </S.FormGroup>
 

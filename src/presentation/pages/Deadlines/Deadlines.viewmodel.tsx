@@ -2,12 +2,12 @@ import { useState, useMemo, useCallback } from 'react';
 import { useTheme } from 'styled-components';
 import { useAuth } from '../../../stores/useAuth';
 import { useDeadlineStore } from '../../../stores/useDeadlineStore';
-import { useDeadlineLookup } from '../../../stores/useDeadlineLookup';
 import { useCaseStore } from '../../../stores/useCaseStore';
 import { usePersonStore } from '../../../stores/usePersonStore';
 import { useWorkspace } from '../../../stores/useWorkspace';
 import { useNotification } from '../../../stores/useNotification';
 import { useScreenDefinitions } from '../../../stores/useScreenDefinitions';
+import { useLookups } from '../../../stores/useLookups';
 import { generateDeepLink } from '../../../infrastructure/deeplink/deepLinkUtils';
 import { resolveListActions } from '../../shared/listActionCapabilities';
 import type { ScreenListAction } from '../../../domain/entities';
@@ -56,7 +56,8 @@ export interface DeadlinesViewModel {
 export const useDeadlinesViewModel = (): DeadlinesViewModel => {
   const { deadlines, isLoading, deleteDeadline, completeDeadline } = useDeadlineStore();
   const { user } = useAuth();
-  const { typeConfigs } = useDeadlineLookup();
+  const { getOptions } = useLookups();
+  const typeConfigs = getOptions('deadlineTypes');
   const { cases } = useCaseStore();
   const { persons } = usePersonStore();
   const { openTab } = useWorkspace();
@@ -75,7 +76,7 @@ export const useDeadlinesViewModel = (): DeadlinesViewModel => {
   const theme = useTheme();
 
   const customFields = useMemo(() => getScreenFieldsFor('deadlines'), [getScreenFieldsFor]);
-  const customListing = useCustomFieldListing('deadlines', customFields, CUSTOM_FIELD_FILTER_PREFIX);
+  const customListing = useCustomFieldListing(customFields, CUSTOM_FIELD_FILTER_PREFIX);
 
   const [filterTokens, setFilterTokens] = useState<FilterToken[]>(
     () => consumeNavigationIntent('deadlines') as FilterToken[] | undefined ?? [{ key: 'status', values: ['Pendente'] }],

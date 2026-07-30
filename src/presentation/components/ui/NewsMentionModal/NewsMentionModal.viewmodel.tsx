@@ -1,6 +1,6 @@
 import { useState, useMemo, useCallback } from 'react';
 import { useNews } from '../../../../stores/useNews';
-import { useNewsCategoryLookup } from '../../../../stores/useNewsCategoryLookup';
+import { useLookups } from '../../../../stores/useLookups';
 import type { News } from '../../../../domain/entities';
 
 export interface NewsMentionModalProps {
@@ -20,7 +20,8 @@ export const useNewsMentionModalViewModel = (
   props: NewsMentionModalProps,
 ): NewsMentionModalViewModel => {
   const { news } = useNews();
-  const { categoryConfigs } = useNewsCategoryLookup();
+  const { getOptions } = useLookups();
+  const categoryConfigs = getOptions('newsCategories');
 
   const [keyword, setKeyword] = useState('');
 

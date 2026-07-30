@@ -6,10 +6,10 @@
 
 import type { InputMapping } from '../entities/Workflow';
 import type { EntityKey, NativeFieldType } from './entityRegistry';
-import { isLookupCollection } from './lookupRegistry';
 import type { PathRoot, SchemaContext } from './pathResolver';
 import { parsePath, resolvePath } from './pathResolver';
 import { resolveQueryTable } from './querySpec';
+import { isLookupTable } from './screenEntity';
 
 export interface UpsertSpec {
   table: string;
@@ -95,7 +95,7 @@ export const resolveWritableTable = (table: string, ctx: SchemaContext): Writabl
   const resolved = resolveQueryTable(table, ctx);
   if (!resolved) return { ok: false, error: `Tabela "${table}" não existe` };
 
-  if (isLookupCollection(table)) {
+  if (isLookupTable(ctx, table)) {
     return { ok: true, value: { kind: 'lookup', physicalCollection: table, root: resolved.root } };
   }
 

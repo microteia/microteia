@@ -86,7 +86,6 @@ export const RecordDetailSurface: React.FC<RecordDetailSurfaceProps> = ({ vm, re
 
   const dataContent = renderData ? renderData(vm) : (
     <CustomFieldsSection
-      screenKey={vm.screenKey}
       fields={vm.sortedFields}
       values={vm.formValues}
       onChange={vm.setFieldValue}

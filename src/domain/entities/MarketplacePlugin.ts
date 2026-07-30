@@ -83,11 +83,22 @@ export interface ViewModuleTemplate {
  * uma action, etc.). As referências entre artefatos são por `key`/`templateId` de template,
  * remapeadas na instalação.
  */
+export interface LookupModuleTemplate {
+  collection: string;
+  label: string;
+}
+
 export interface MarketplacePlugin {
   manifest: PluginManifest;
   summary: string;
   workflows: WorkflowModuleTemplate[];
   screens?: ScreenModuleTemplate[];
+  /**
+   * Listas de opções que as telas do pacote referenciam em `lookupCollection`. Viajam como
+   * DECLARAÇÃO (nome + rótulo), nunca com as opções: estas são dado do escritório, e é por isso que
+   * desinstalar a extensão não as apaga.
+   */
+  lookups?: LookupModuleTemplate[];
   actions?: ActionModuleTemplate[];
   scripts?: ScriptModuleTemplate[];
   /** Views de código (extensões trusted). Cada `key` casa com uma contribuição `ui.page` code. */

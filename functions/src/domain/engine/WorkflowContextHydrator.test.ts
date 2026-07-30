@@ -4,6 +4,7 @@ import type { IWorkflowRecordFetcher } from '../repositories/IWorkflowRecordFetc
 import type { IScreenDefinitionProvider } from '../repositories/IScreenDefinitionProvider';
 import type { SchemaScreen } from '../schema/pathResolver';
 import type { WorkflowDefinition, WorkflowEvent } from '../entities/Workflow';
+import { fakeScreenProvider } from '../../domain/repositories/fakeScreenProvider';
 
 const screens: SchemaScreen[] = [
   {
@@ -59,9 +60,7 @@ const createFakeFetcher = (): { fetcher: IWorkflowRecordFetcher; calls: string[]
   return { fetcher, calls };
 };
 
-const screenProvider: IScreenDefinitionProvider = {
-  getScreens: () => Promise.resolve(screens),
-};
+const screenProvider: IScreenDefinitionProvider = fakeScreenProvider(screens);
 
 const makeEvent = (payload: Record<string, unknown>): WorkflowEvent => ({
   id: 'evt1',

@@ -1,5 +1,5 @@
 import { createContext, useContext } from 'react';
-import type { ScreenTag, FieldDefinition, ScreenDefinition, ScreenFieldOption } from '../domain/entities';
+import type { ScreenTag, FieldDefinition, ScreenDefinition } from '../domain/entities';
 import type { ScreenDefinitionInput } from '../domain/repositories/IScreenDefinitionRepository';
 
 export type ScreenDefinitionSaveInput = Omit<ScreenDefinitionInput, 'createdBy' | 'updatedBy' | 'updatedByName' | 'updatedByPhotoURL'>;
@@ -12,20 +12,15 @@ export interface ScreenDefinitionStoreState {
   getDefinition: (screenKey: string) => ScreenDefinition | undefined;
   /** Campos que a tela do tenant declara para a coleção (sem os fixos do código). */
   getScreenFieldsFor: (collection: string) => FieldDefinition[];
-  fieldOptionsByField: Record<string, ScreenFieldOption[]>;
   tagsByScreen: Record<string, ScreenTag[]>;
   isLoading: boolean;
   saveDefinition: (screenKey: string, data: ScreenDefinitionSaveInput) => Promise<ScreenDefinition>;
   deleteDefinition: (screenKey: string) => Promise<void>;
-  addFieldOption: (screenKey: string, fieldKey: string, label: string) => Promise<void>;
-  removeFieldOption: (screenKey: string, fieldKey: string, optionKey: string) => Promise<void>;
   createTag: (screenKey: string, name: string, color: string) => Promise<ScreenTag>;
   updateTag: (screenKey: string, tagId: string, data: { name: string; color: string }) => Promise<void>;
   deleteTag: (screenKey: string, tagId: string) => Promise<void>;
   refresh: () => Promise<void>;
 }
-
-export const fieldOptionsKey = (screenKey: string, fieldKey: string): string => `${screenKey}:${fieldKey}`;
 
 export const ScreenDefinitionContext = createContext<ScreenDefinitionStoreState | null>(null);
 

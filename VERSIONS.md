@@ -11,6 +11,14 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [1.1.0] — 2026-07-30
+
+- As listas de opções dos campos de seleção passam a ter espaço próprio no escritório, igual às listas do sistema (Comarcas, Varas, Áreas do Direito). Antes, as opções de um campo criado no Form Design ou trazido por uma extensão ficavam presas à tela.
+- **Correção importante:** remover uma extensão ou excluir uma tela não apaga mais as opções cadastradas. Elas continuam guardadas e voltam a aparecer assim que a lista for recriada com o mesmo nome — nenhum trabalho de cadastro se perde.
+- Duas telas diferentes agora podem compartilhar a mesma lista de opções. Ao marcar "permitir que usuários adicionem novas opções", o Form Design mostra qual lista o campo usa e permite escolher uma já existente.
+- Em uma automação, uma lista criada no escritório passa a estar disponível como qualquer outra tabela: dá para consultá-la, gravar novas opções e reagir a mudanças nela.
+- As opções que já vêm prontas nas listas do sistema (Status do Processo, Fase, Categoria de Contrato e outras) continuam com suas cores e sem o botão de excluir, por fazerem parte do sistema. As cadastradas pelo escritório seguem excluíveis normalmente.
+
 ## [1.0.0] — 2026-07-29
 
 - Unificação do modelo de dados: as telas criadas no Form Design e as trazidas por extensões passam a guardar seus registros do mesmo jeito que as telas do sistema — cada tela com seu próprio espaço e cada campo no seu próprio lugar. Quem olha os dados não distingue mais o que veio do sistema, de uma extensão ou do próprio escritório.

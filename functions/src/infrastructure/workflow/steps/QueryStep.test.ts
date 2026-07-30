@@ -11,6 +11,7 @@ import type { SchemaScreen } from '../../../domain/schema/pathResolver';
 import type { QuerySpec } from '../../../domain/schema/querySpec';
 import type { WorkflowContext } from '../../../domain/entities/WorkflowContext';
 import type { WorkflowEvent } from '../../../domain/entities/Workflow';
+import { fakeScreenProvider } from '../../../domain/repositories/fakeScreenProvider';
 
 const personsScreen: SchemaScreen = {
   id: 'persons',
@@ -46,7 +47,7 @@ class FakeFetcher implements IWorkflowRecordFetcher {
   }
 }
 
-const screenProvider: IScreenDefinitionProvider = { getScreens: async () => [personsScreen] };
+const screenProvider: IScreenDefinitionProvider = fakeScreenProvider([personsScreen]);
 
 const logger = { info: () => {}, warn: () => {}, error: () => {} };
 
@@ -126,8 +127,7 @@ describe('QueryStep', () => {
   });
 
   it('consulta a coleção da tela, sem filtro implícito nenhum', async () => {
-    const withScreen: IScreenDefinitionProvider = {
-      getScreens: async () => [
+    const withScreen: IScreenDefinitionProvider = fakeScreenProvider([
         personsScreen,
         {
           id: 'processos',
@@ -135,8 +135,7 @@ describe('QueryStep', () => {
           titleFieldKey: 'title',
           fields: [{ key: 'title', label: 'Título', type: 'text', required: false, order: 0, origin: 'design' }],
         },
-      ],
-    };
+      ]);
     const repo = new FakeQueryRepository([{ id: 'r1', data: { title: 'Caso X' } }]);
     const definition = makeQueryStepDefinition(repo, new FakeFetcher(), withScreen);
     const outcome = await definition.createExecutor().execute(

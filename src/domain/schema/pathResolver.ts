@@ -359,8 +359,10 @@ export const resolvePath = (
   return { valid: true, node: cursorToNode(state.cursor), hops: state.hops, depth: state.depth };
 };
 
-const scalarDetail = (lookupCollection?: string): string | undefined =>
-  lookupCollection && LOOKUP_REGISTRY[lookupCollection] ? `Lista: ${getLookupLabel(lookupCollection)}` : undefined;
+const scalarDetail = (ctx: SchemaContext, lookupCollection?: string): string | undefined => {
+  if (!lookupCollection || !ctx.lookups.has(lookupCollection)) return undefined;
+  return `Lista: ${LOOKUP_REGISTRY[lookupCollection] ? getLookupLabel(lookupCollection) : lookupCollection}`;
+};
 
 const nativeFieldSuggestion = (ctx: SchemaContext, field: NativeFieldSpec): PathSuggestion => {
   const kind: PathSuggestionKind = field.origin && field.origin !== 'builtin' ? 'customField' : 'field';
@@ -380,7 +382,7 @@ const nativeFieldSuggestion = (ctx: SchemaContext, field: NativeFieldSpec): Path
     insertText: field.key,
     label: field.label,
     kind,
-    detail: field.type === 'object' ? 'Objeto' : scalarDetail(field.lookupCollection),
+    detail: field.type === 'object' ? 'Objeto' : scalarDetail(ctx, field.lookupCollection),
     isLeaf: field.type !== 'object',
   };
 };

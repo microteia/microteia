@@ -22,6 +22,7 @@ export const InstalledExtensionStoreProvider: React.FC<{ children: React.ReactNo
     screenDefinitionRepository,
     workflowDefinitionRepository,
     scriptRepository,
+    lookupDefinitionRepository,
     actionRepository,
   } = useDI();
 
@@ -30,9 +31,10 @@ export const InstalledExtensionStoreProvider: React.FC<{ children: React.ReactNo
       screenRepository: screenDefinitionRepository,
       workflowRepository: workflowDefinitionRepository,
       scriptRepository,
+      lookupDefinitionRepository,
       actionRepository,
     }),
-    [screenDefinitionRepository, workflowDefinitionRepository, scriptRepository, actionRepository],
+    [screenDefinitionRepository, workflowDefinitionRepository, scriptRepository, actionRepository, lookupDefinitionRepository],
   );
 
   const [installed, setInstalled] = useState<InstalledExtension[]>([]);

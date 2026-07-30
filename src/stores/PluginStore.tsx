@@ -39,6 +39,7 @@ export const PluginStoreProvider: React.FC<{ children: React.ReactNode }> = ({ c
     screenDefinitionRepository,
     actionRepository,
     scriptRepository,
+    lookupDefinitionRepository,
   } = useDI();
 
   const [installations, setInstallations] = useState<PluginInstallation[]>([]);
@@ -54,6 +55,7 @@ export const PluginStoreProvider: React.FC<{ children: React.ReactNode }> = ({ c
       screenRepository: screenDefinitionRepository,
       actionRepository,
       scriptRepository,
+      lookupDefinitionRepository,
     };
     return {
       install: makeInstallMarketplacePluginUseCase(deps),
@@ -62,7 +64,7 @@ export const PluginStoreProvider: React.FC<{ children: React.ReactNode }> = ({ c
       enable: makeEnablePluginUseCase(pluginInstallationRepository),
       disable: makeDisablePluginUseCase(pluginInstallationRepository),
     };
-  }, [workflowDefinitionRepository, pluginInstallationRepository, screenDefinitionRepository, actionRepository, scriptRepository]);
+  }, [workflowDefinitionRepository, pluginInstallationRepository, screenDefinitionRepository, actionRepository, scriptRepository, lookupDefinitionRepository]);
 
   useEffect(() => {
     if (!currentTenant) {

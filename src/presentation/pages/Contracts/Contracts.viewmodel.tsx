@@ -2,12 +2,12 @@ import { useState, useMemo, useCallback } from 'react';
 import { useTheme } from 'styled-components';
 import { useContractStore } from '../../../stores/useContractStore';
 import { useContractTagStore } from '../../../stores/useContractTagStore';
-import { useContractLookup } from '../../../stores/useContractLookup';
 import { usePersonStore } from '../../../stores/usePersonStore';
 import { useTenant } from '../../../stores/useTenant';
 import { useWorkspace } from '../../../stores/useWorkspace';
 import { useScreenDefinitions } from '../../../stores/useScreenDefinitions';
 import { useNotification } from '../../../stores/useNotification';
+import { useLookups } from '../../../stores/useLookups';
 import { generateDeepLink } from '../../../infrastructure/deeplink/deepLinkUtils';
 import { resolveListActions } from '../../shared/listActionCapabilities';
 import type { ScreenListAction } from '../../../domain/entities';
@@ -50,14 +50,17 @@ export const useContractsViewModel = (): ContractsViewModel => {
   const { tags, getTagsForContract, setTagsForContract, createTag, updateTag, deleteTag } = useContractTagStore();
   const { persons } = usePersonStore();
   const { tenantRole } = useTenant();
-  const { typeConfigs, categoryConfigs, statusConfigs } = useContractLookup();
+  const { getOptions } = useLookups();
+  const typeConfigs = getOptions('contractTypes');
+  const categoryConfigs = getOptions('contractCategories');
+  const statusConfigs = getOptions('contractStatuses');
   const { openTab } = useWorkspace();
   const { getScreenFieldsFor, getDefinition } = useScreenDefinitions();
   const { notify } = useNotification();
   const theme = useTheme();
 
   const customFields = useMemo(() => getScreenFieldsFor('contracts'), [getScreenFieldsFor]);
-  const customListing = useCustomFieldListing('contracts', customFields, CUSTOM_FIELD_FILTER_PREFIX);
+  const customListing = useCustomFieldListing(customFields, CUSTOM_FIELD_FILTER_PREFIX);
 
   const [filterTokens, setFilterTokens] = useState<FilterToken[]>([]);
 

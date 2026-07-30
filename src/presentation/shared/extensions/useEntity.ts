@@ -1,5 +1,6 @@
 import { useCallback, useMemo } from 'react';
-import { fieldOptionsKey, useScreenDefinitions } from '../../../stores/useScreenDefinitions';
+import { useLookups } from '../../../stores/useLookups';
+import { useScreenDefinitions } from '../../../stores/useScreenDefinitions';
 import { useRecords } from '../../../stores/useRecords';
 import { useWorkspace } from '../../../stores/useWorkspace';
 import {
@@ -40,7 +41,8 @@ export interface ExtensionEntity {
 }
 
 export const useEntity = (sourceId: string): ExtensionEntity => {
-  const { dynamicScreens, fieldOptionsByField } = useScreenDefinitions();
+  const { dynamicScreens } = useScreenDefinitions();
+  const { getOptions } = useLookups();
   const { recordsByCollection, isLoading, deleteRecord } = useRecords();
   const { openTab } = useWorkspace();
 
@@ -66,13 +68,12 @@ export const useEntity = (sourceId: string): ExtensionEntity => {
         label: option.label,
         color: option.color,
       }));
-      const userAdded = fieldOptionsByField[fieldOptionsKey(screen.id, fieldKey)] ?? [];
-      const extra: EntityFieldOption[] = userAdded
-        .filter((option) => !staticOptions.some((existing) => existing.key === option.key))
-        .map((option) => ({ key: option.key, label: option.label }));
+      const extra: EntityFieldOption[] = getOptions(field?.lookupCollection ?? '')
+        .filter((option) => !staticOptions.some((existing) => existing.key === option.label))
+        .map((option) => ({ key: option.label, label: option.label, color: option.color }));
       return [...staticOptions, ...extra];
     },
-    [screen, fieldOptionsByField],
+    [screen, getOptions],
   );
 
   const openRecord = useCallback(

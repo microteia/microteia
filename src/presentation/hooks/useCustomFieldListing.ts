@@ -1,10 +1,10 @@
 import { useCallback, useMemo } from 'react';
 import { useTheme } from 'styled-components';
-import { useScreenDefinitions, fieldOptionsKey } from '../../stores/useScreenDefinitions';
+import { useLookups } from '../../stores/useLookups';
 import { useReferenceOptions } from './useReferenceOptions';
 import { formatCurrencyBRL } from '../../utils/formatters';
 import { toDateFieldInput } from '../../domain/services/customFieldValues';
-import { resolveFieldOptionColor } from '../../shared/styles/colorUtils';
+import { resolveColor, resolveFieldOptionColor } from '../../shared/styles/colorUtils';
 import type { CustomFieldValue, FieldDefinition } from '../../domain/entities';
 import type { FilterDef, FilterOption } from '../components/ui/CompositeFilter';
 
@@ -45,11 +45,10 @@ const formatDateBR = (value: unknown): string => {
 };
 
 export const useCustomFieldListing = (
-  screenKey: string,
   fields: FieldDefinition[],
   filterKeyPrefix = '',
 ): CustomFieldListing => {
-  const { fieldOptionsByField } = useScreenDefinitions();
+  const { getOptions } = useLookups();
   const referenceOptionsByEntity = useReferenceOptions();
   const theme = useTheme();
 
@@ -62,14 +61,13 @@ export const useCustomFieldListing = (
       label: o.label,
       color: resolveFieldOptionColor(o.color, field.optionsColored, theme),
     }));
-    const dynamicOptions = (fieldOptionsByField[fieldOptionsKey(screenKey, field.key)] ?? [])
-      .map((o) => ({
-        value: o.key,
-        label: o.label,
-        color: resolveFieldOptionColor(undefined, field.optionsColored, theme),
-      }));
+    const dynamicOptions = getOptions(field.lookupCollection ?? '').map((option) => ({
+      value: option.label,
+      label: option.label,
+      color: resolveColor(option.color, theme, false),
+    }));
     return [...staticOptions, ...dynamicOptions];
-  }, [fieldOptionsByField, screenKey, theme]);
+  }, [getOptions, theme]);
 
   const filterDefs = useMemo<FilterDef[]>(() => {
     const defs: FilterDef[] = [];

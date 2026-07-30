@@ -2,13 +2,13 @@ import { useState, useMemo, useCallback } from 'react';
 import { useTheme } from 'styled-components';
 import { useCaseStore } from '../../../../stores/useCaseStore';
 import { useDeadlineStore } from '../../../../stores/useDeadlineStore';
-import { useDeadlineLookup } from '../../../../stores/useDeadlineLookup';
 import { useTenant } from '../../../../stores/useTenant';
 import { usePersonStore } from '../../../../stores/usePersonStore';
 import { useAuth } from '../../../../stores/useAuth';
 import { usePush } from '../../../../stores/usePush';
 import { usePushInteraction } from '../../../../stores/usePushInteraction';
 import { useNotification } from '../../../../stores/useNotification';
+import { useLookups } from '../../../../stores/useLookups';
 import type { Push, DeadlinePriority, DeadlineStatus } from '../../../../domain/entities';
 import type { DynamicSelectOption } from '../../../components/ui/DynamicSelect';
 
@@ -49,7 +49,8 @@ export const useCreateDeadlineFromPushViewModel = (
 ): CreateDeadlineFromPushViewModel => {
   const { cases } = useCaseStore();
   const { createDeadline } = useDeadlineStore();
-  const { typeConfigs, addType, removeType } = useDeadlineLookup();
+  const { getOptions, addOption, removeOption } = useLookups();
+  const typeConfigs = getOptions('deadlineTypes');
   const { currentTenant, tenantRole } = useTenant();
   const { persons } = usePersonStore();
   const isAdmin = tenantRole === 'admin';
@@ -115,12 +116,12 @@ export const useCreateDeadlineFromPushViewModel = (
   }, []);
 
   const handleAddType = useCallback(async (name: string) => {
-    await addType(name);
-  }, [addType]);
+    await addOption('deadlineTypes', name);
+  }, [addOption]);
 
   const handleDeleteType = useCallback(async (key: string) => {
-    await removeType(key);
-  }, [removeType]);
+    await removeOption('deadlineTypes', key);
+  }, [removeOption]);
 
   const handleCancel = useCallback(() => {
     onClose();

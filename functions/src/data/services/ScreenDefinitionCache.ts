@@ -1,10 +1,13 @@
 import type { Firestore } from 'firebase-admin/firestore';
 import type { IScreenDefinitionProvider } from '../../domain/repositories/IScreenDefinitionProvider';
-import type { SchemaScreen } from '../../domain/schema/pathResolver';
+import type { SchemaContext, SchemaScreen } from '../../domain/schema/pathResolver';
+import { createSchemaContext } from '../../domain/schema/pathResolver';
+import type { SchemaLookup } from '../../domain/schema/screenEntity';
 import type { FieldDefinition } from '../../domain/entities/entitySchemas';
 
 interface CacheEntry {
   screens: SchemaScreen[];
+  lookups: SchemaLookup[];
   loadedAt: number;
 }
 
@@ -19,12 +22,29 @@ export class ScreenDefinitionCache implements IScreenDefinitionProvider {
   ) {}
 
   async getScreens(tenantId: string): Promise<SchemaScreen[]> {
+    return (await this.load(tenantId)).screens;
+  }
+
+  async getLookups(tenantId: string): Promise<SchemaLookup[]> {
+    return (await this.load(tenantId)).lookups;
+  }
+
+  /** As telas e as listas do tenant no mesmo contexto — a forma que a camada de schema consome. */
+  async getSchemaContext(tenantId: string): Promise<SchemaContext> {
+    const entry = await this.load(tenantId);
+    return createSchemaContext(entry.screens, entry.lookups);
+  }
+
+  private async load(tenantId: string): Promise<CacheEntry> {
     const cached = this.entries.get(tenantId);
     if (cached && Date.now() - cached.loadedAt < this.ttlMs) {
-      return cached.screens;
+      return cached;
     }
 
-    const snapshot = await this.db.collection(`tenants/${tenantId}/screenDefinitions`).get();
+    const [snapshot, lookupSnapshot] = await Promise.all([
+      this.db.collection(`tenants/${tenantId}/screenDefinitions`).get(),
+      this.db.collection(`tenants/${tenantId}/lookupDefinitions`).get(),
+    ]);
 
     // O documento inteiro vale aqui: front e back resolvem os campos com a MESMA função
     // (`resolveEntity`), então um ajuste feito no Form Design vale igualmente para a gravação por
@@ -40,8 +60,14 @@ export class ScreenDefinitionCache implements IScreenDefinitionProvider {
       };
     });
 
-    this.entries.set(tenantId, { screens, loadedAt: Date.now() });
-    return screens;
+    const lookups: SchemaLookup[] = lookupSnapshot.docs.map((doc) => ({
+      collection: doc.id,
+      label: typeof doc.data().label === 'string' ? (doc.data().label as string) : doc.id,
+    }));
+
+    const entry: CacheEntry = { screens, lookups, loadedAt: Date.now() };
+    this.entries.set(tenantId, entry);
+    return entry;
   }
 
   async getScreen(tenantId: string, screenKey: string): Promise<SchemaScreen | undefined> {

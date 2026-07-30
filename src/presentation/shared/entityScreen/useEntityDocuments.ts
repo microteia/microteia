@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNotification } from '../../../stores/useNotification';
-import { useDocumentTypeLookup } from '../../../stores/useDocumentTypeLookup';
+import { useLookups } from '../../../stores/useLookups';
 import type { DynamicSelectOption } from '../../components/ui/DynamicSelect';
 import type { EntityDocument, EntityDocumentsController, DocumentsPort } from './types';
 
@@ -12,7 +12,8 @@ interface UseEntityDocumentsParams {
 
 export const useEntityDocuments = ({ enabled, recordId, port }: UseEntityDocumentsParams): EntityDocumentsController => {
   const { notify } = useNotification();
-  const { typeConfigs, addItem, removeItem } = useDocumentTypeLookup();
+  const { getOptions, addOption, removeOption } = useLookups();
+  const typeConfigs = getOptions('documentTypes');
 
   const [documents, setDocuments] = useState<EntityDocument[]>([]);
   const [docsLoading, setDocsLoading] = useState(false);
@@ -89,8 +90,8 @@ export const useEntityDocuments = ({ enabled, recordId, port }: UseEntityDocumen
     () => typeConfigs.filter((c) => c.isStatic === false).map((c) => ({ value: c.key, label: c.label })),
     [typeConfigs],
   );
-  const handleAddDocumentType = useCallback(async (name: string) => { await addItem(name); }, [addItem]);
-  const handleDeleteDocumentType = useCallback(async (key: string) => { await removeItem(key); }, [removeItem]);
+  const handleAddDocumentType = useCallback(async (name: string) => { await addOption('documentTypes', name); }, [addOption]);
+  const handleDeleteDocumentType = useCallback(async (key: string) => { await removeOption('documentTypes', key); }, [removeOption]);
 
   return {
     documents,

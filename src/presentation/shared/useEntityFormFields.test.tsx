@@ -7,6 +7,10 @@ const storeState = {
   definitions: [] as ScreenDefinition[],
 };
 
+vi.mock('../../stores/useLookups', () => ({
+  useLookups: () => ({ availableLookups: [] }),
+}));
+
 vi.mock('../../stores/useScreenDefinitions', () => ({
   useScreenDefinitions: () => ({
     definitions: storeState.definitions,
@@ -117,13 +121,17 @@ describe('useEntityFormFields', () => {
     expect(keys.indexOf('type')).toBeLessThan(keys.indexOf('apelido'));
   });
 
-  it('as opções de todos os campos são indexadas pela própria coleção', () => {
-    storeState.definitions = [definition({ fields: [field({ key: 'apelido' })] })];
+  it('cada campo carrega a própria lista de opções, seja do kernel ou do tenant', () => {
+    storeState.definitions = [definition({
+      fields: [field({ key: 'especialidade', type: 'select', lookupCollection: 'persons_especialidade' })],
+    })];
 
     const { result } = renderHook(() => useEntityFormFields('persons'));
-    const { resolveOptionsScreenKey, fields } = result.current;
+    const { fields } = result.current;
 
-    expect(resolveOptionsScreenKey(fields.find((f) => f.key === 'apelido')!)).toBe('persons');
-    expect(resolveOptionsScreenKey(fields.find((f) => f.key === 'name')!)).toBe('persons');
+    // O campo do tenant aponta para a lista declarada; o do kernel, para a do registro. Não existe
+    // mais um índice por tela: a lista está no campo, e é isso que permite compartilhá-la.
+    expect(fields.find((f) => f.key === 'especialidade')?.lookupCollection).toBe('persons_especialidade');
+    expect(fields.find((f) => f.key === 'type')?.lookupCollection).toBe('personTypes');
   });
 });

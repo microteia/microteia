@@ -2,13 +2,13 @@ import { useState, useMemo, useCallback, useEffect } from 'react';
 import { useTheme } from 'styled-components';
 import { useFinancialStore } from '../../../stores/useFinancialStore';
 import { useFinancialTagStore } from '../../../stores/useFinancialTagStore';
-import { useFinancialLookup } from '../../../stores/useFinancialLookup';
 import { useCaseStore } from '../../../stores/useCaseStore';
 import { usePersonStore } from '../../../stores/usePersonStore';
 import { useContractStore } from '../../../stores/useContractStore';
 import { useWorkspace } from '../../../stores/useWorkspace';
 import { useNotification } from '../../../stores/useNotification';
 import { useScreenDefinitions } from '../../../stores/useScreenDefinitions';
+import { useLookups } from '../../../stores/useLookups';
 import { generateDeepLink } from '../../../infrastructure/deeplink/deepLinkUtils';
 import { resolveListActions } from '../../shared/listActionCapabilities';
 import type { TagStoreAdapter } from '../../components/ui/TagManager';
@@ -75,7 +75,8 @@ const fmt = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' 
 export const useFinancialsViewModel = (): FinancialsViewModel => {
   const { financials, isLoading, deleteFinancial, markPaid, updateFinancialStatus, cancelFinancial } = useFinancialStore();
   const { tags, getTagsForFinancial, setTagsForFinancial, createTag, updateTag, deleteTag } = useFinancialTagStore();
-  const { statusConfigs } = useFinancialLookup();
+  const { getOptions } = useLookups();
+  const statusConfigs = getOptions('financialStatuses');
   const { cases } = useCaseStore();
   const { persons } = usePersonStore();
   const { contracts } = useContractStore();
@@ -85,7 +86,7 @@ export const useFinancialsViewModel = (): FinancialsViewModel => {
   const theme = useTheme();
 
   const customFields = useMemo(() => getScreenFieldsFor('financials'), [getScreenFieldsFor]);
-  const customListing = useCustomFieldListing('financials', customFields, CUSTOM_FIELD_FILTER_PREFIX);
+  const customListing = useCustomFieldListing(customFields, CUSTOM_FIELD_FILTER_PREFIX);
 
   const [filterTokens, setFilterTokens] = useState<FilterToken[]>(
     () => consumeNavigationIntent('financials') as FilterToken[] | undefined ?? buildDefaultMonthTokens(),

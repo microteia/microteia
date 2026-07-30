@@ -1,5 +1,6 @@
 import type {
   ActionModuleTemplate,
+  LookupModuleTemplate,
   MarketplacePlugin,
   ScreenModuleTemplate,
   ScriptModuleTemplate,
@@ -37,6 +38,8 @@ export interface BuildPackageInput extends PackageSelection {
   startup?: string;
   /** Templates embarcados a preservar (extensão importada em edição). Mesclados por chave/templateId. */
   carried?: CarriedTemplates;
+  /** Listas do tenant, para dar rótulo às que as telas exportadas referenciam. */
+  availableLookups?: LookupModuleTemplate[];
 }
 
 const dedupeBy = <T>(items: T[], keyOf: (item: T) => string): T[] => {
@@ -122,12 +125,32 @@ const scriptToTemplate = (script: Script): ScriptModuleTemplate =>
   }) as ScriptModuleTemplate;
 
 /**
+ * As listas referenciadas pelas telas exportadas. O rótulo vem da declaração do tenant quando ela
+ * existe; para uma lista do kernel (`caseCourts`), cai no próprio nome — o pacote não precisa saber
+ * a diferença, e a instalação também não.
+ */
+const collectLookups = (
+  screens: ScreenDefinition[],
+  available: LookupModuleTemplate[],
+): LookupModuleTemplate[] => {
+  const labels = new Map(available.map((lookup) => [lookup.collection, lookup.label]));
+  const collections = new Set<string>();
+  for (const screen of screens) {
+    for (const field of screen.fields) {
+      if (field.lookupCollection) collections.add(field.lookupCollection);
+    }
+  }
+  return [...collections].map((collection) => ({ collection, label: labels.get(collection) ?? collection }));
+};
+
+/**
  * Monta um `MarketplacePlugin` a partir dos artefatos selecionados. Arrays vazias das partes
  * opcionais são omitidas para um JSON limpo. A integridade referencial (dependências não incluídas)
  * é conferida à parte por `validatePackage` — a MESMA checagem que roda na importação.
  */
 export const buildPackage = (input: BuildPackageInput): MarketplacePlugin => {
   const screens = dedupeBy([...input.screens.map(screenToTemplate), ...(input.carried?.screens ?? [])], (s) => s.key);
+  const lookups = collectLookups(input.screens, input.availableLookups ?? []);
   const actions = dedupeBy([...input.actions.map(actionToTemplate), ...(input.carried?.actions ?? [])], (a) => a.templateId);
   const scripts = dedupeBy([...input.scripts.map(scriptToTemplate), ...(input.carried?.scripts ?? [])], (s) => s.templateId);
   const workflows = dedupeBy([...input.workflows.map(workflowToTemplate), ...(input.carried?.workflows ?? [])], (w) => w.templateId);
@@ -137,6 +160,7 @@ export const buildPackage = (input: BuildPackageInput): MarketplacePlugin => {
     ...(input.overview !== undefined ? { overview: input.overview } : {}),
     workflows,
     ...(screens.length > 0 ? { screens } : {}),
+    ...(lookups.length > 0 ? { lookups } : {}),
     ...(actions.length > 0 ? { actions } : {}),
     ...(scripts.length > 0 ? { scripts } : {}),
     ...((input.views?.length ?? 0) > 0 ? { views: input.views } : {}),

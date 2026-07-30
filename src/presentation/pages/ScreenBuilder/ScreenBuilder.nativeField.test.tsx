@@ -24,6 +24,9 @@ vi.mock('styled-components', () => ({
 vi.mock('../../../stores/useTenant', () => ({ useTenant: () => ({ tenantRole: 'admin' }) }));
 vi.mock('../../../stores/useNotification', () => ({ useNotification: () => ({ notify }) }));
 vi.mock('../../../stores/useActions', () => ({ useActions: () => ({ actions: [] }) }));
+vi.mock('../../../stores/useLookups', () => ({
+  useLookups: () => ({ availableLookups: [], declareLookup: vi.fn() }),
+}));
 vi.mock('../../shared/useSchemaContext', () => ({
   useSchemaContext: () => createSchemaContext(storeState.definition ? [storeState.definition] : []),
 }));

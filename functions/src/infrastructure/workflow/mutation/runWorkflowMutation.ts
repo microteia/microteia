@@ -88,8 +88,7 @@ export async function runWorkflowUpsert(
   options: UpsertOptions = {},
 ): Promise<WorkflowMutationOutcome<UpsertResult>> {
   const tenantId = context.execution.tenantId;
-  const screens = await deps.screenProvider.getScreens(tenantId);
-  const ctx = createSchemaContext(screens);
+  const ctx = await deps.screenProvider.getSchemaContext(tenantId);
 
   let effectiveSpec = spec;
   if (options.ignoreUnwritableFields) {
@@ -155,8 +154,7 @@ export async function runWorkflowRemove(
   deps: WorkflowMutationDeps,
 ): Promise<WorkflowMutationOutcome<RemoveResult>> {
   const tenantId = context.execution.tenantId;
-  const screens = await deps.screenProvider.getScreens(tenantId);
-  const ctx = createSchemaContext(screens);
+  const ctx = await deps.screenProvider.getSchemaContext(tenantId);
 
   const issues = validateRemoveSpec(spec, ctx);
   if (issues.length > 0) {

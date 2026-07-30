@@ -1,7 +1,7 @@
 import type { StepDefinition, WorkflowStepExecutor } from '../../../domain/engine/StepDefinition';
 import type { IScreenDefinitionProvider } from '../../../domain/repositories/IScreenDefinitionProvider';
 import { describeRuleIssues } from '../../../domain/schema/fieldRules';
-import { createSchemaContext, getValueAtPath, parsePath } from '../../../domain/schema/pathResolver';
+import { getValueAtPath, parsePath } from '../../../domain/schema/pathResolver';
 import type { ValidateStepConfig } from '../../../domain/schema/validateSpec';
 import { validateObject } from '../../../domain/schema/validateSpec';
 
@@ -49,8 +49,8 @@ export const makeValidateStepDefinition = (screenProvider: IScreenDefinitionProv
         return { success: false, message: 'Origem da validação não é um objeto válido' };
       }
 
-      const screens = await screenProvider.getScreens(context.execution.tenantId);
-      const outcome = validateObject(createSchemaContext(screens), config, raw);
+      const ctx = await screenProvider.getSchemaContext(context.execution.tenantId);
+      const outcome = validateObject(ctx, config, raw);
 
       if (outcome.issues.length > 0) {
         return { success: false, message: `Objeto inválido: ${describeRuleIssues(outcome.issues)}` };

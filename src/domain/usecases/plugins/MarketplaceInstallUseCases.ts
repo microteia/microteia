@@ -16,6 +16,8 @@ import {
   workflowInputFromTemplate,
 } from './packageMaterialize';
 import { workflowOutRefs } from './pluginReferences';
+import type { ILookupDefinitionRepository } from '../../repositories/ILookupDefinitionRepository';
+import { isLookupCollection } from '../../schema/lookupRegistry';
 
 /** Repositórios necessários para materializar/liberar os artefatos de dados de um pacote (telas,
  *  actions, workflows, scripts) — sem depender do registro de instalação. Reusado tanto pela máquina
@@ -25,6 +27,7 @@ export interface ArtifactDeps {
   screenRepository: IScreenDefinitionRepository;
   actionRepository: IActionRepository;
   scriptRepository: IScriptRepository;
+  lookupDefinitionRepository: ILookupDefinitionRepository;
 }
 
 export interface MarketplaceDeps extends ArtifactDeps {
@@ -244,6 +247,59 @@ const upsertPluginScreens = async (
   return nextKeys;
 };
 
+/**
+ * Declara as listas do pacote, acrescentando este plugin aos donos. Uma lista do kernel já é
+ * declarada em código e não ganha documento — replicá-la transformaria cada mudança do registro
+ * numa migração de dados.
+ */
+const declarePluginLookups = async (
+  deps: ArtifactDeps,
+  plugin: MarketplacePlugin,
+  tenantId: string,
+  userId: string,
+): Promise<void> => {
+  const templates = (plugin.lookups ?? []).filter((lookup) => !isLookupCollection(lookup.collection));
+  if (templates.length === 0) return;
+  const pluginId = plugin.manifest.id;
+  const existing = await deps.lookupDefinitionRepository.getAll(tenantId);
+  for (const template of templates) {
+    const current = existing.find((definition) => definition.collection === template.collection);
+    const owners = addOwner(ownerSet(current ?? {}), pluginId);
+    await deps.lookupDefinitionRepository.upsert(tenantId, {
+      collection: template.collection,
+      label: current?.label ?? template.label,
+      ownerPluginId: owners[0],
+      ownerPluginIds: owners,
+      createdBy: current?.createdBy ?? userId,
+    });
+  }
+};
+
+/**
+ * Libera as listas deste plugin. Sem donos, some apenas a DECLARAÇÃO — as opções cadastradas pelo
+ * escritório ficam na coleção, e voltam a valer assim que alguém recriar a lista com o mesmo nome.
+ * É o mesmo princípio que já vale para os registros de uma tela desinstalada.
+ */
+const releasePluginLookups = async (
+  deps: ArtifactDeps,
+  tenantId: string,
+  pluginId: string,
+): Promise<void> => {
+  for (const definition of await deps.lookupDefinitionRepository.getAll(tenantId)) {
+    if (!ownerSet(definition).includes(pluginId)) continue;
+    const owners = removeOwner(ownerSet(definition), pluginId);
+    if (owners.length === 0) {
+      await deps.lookupDefinitionRepository.delete(tenantId, definition.collection);
+    } else {
+      await deps.lookupDefinitionRepository.upsert(tenantId, {
+        ...definition,
+        ownerPluginId: owners[0],
+        ownerPluginIds: owners,
+      });
+    }
+  }
+};
+
 // --- Liberação com refcount: remove o plugin do dono; só apaga quando ninguém mais usa. -----------
 
 const releaseScreen = async (deps: ArtifactDeps, tenantId: string, screen: ScreenDefinition, pluginId: string, actor: LifecycleActor): Promise<boolean> => {
@@ -342,6 +398,7 @@ export const applyPackageArtifacts = async (
   const pluginId = plugin.manifest.id;
   const existingScreens = await deps.screenRepository.getAll(tenantId);
   const { actionMap, screenKeyMap } = await materializeArtifacts(deps, plugin, tenantId, userId, existingScreens);
+  await declarePluginLookups(deps, plugin, tenantId, userId);
   const nextKeys = await upsertPluginScreens(deps, plugin, tenantId, userId, screenKeyMap, actionMap, existingScreens);
   for (const screen of existingScreens.filter((s) => ownerSet(s).includes(pluginId))) {
     if (!nextKeys.has(screen.id)) await releaseScreen(deps, tenantId, screen, pluginId, actor);
@@ -364,6 +421,7 @@ export const releasePackageArtifacts = async (
   for (const screen of (await deps.screenRepository.getAll(tenantId)).filter((s) => ownerSet(s).includes(pluginId))) {
     if (await releaseScreen(deps, tenantId, screen, pluginId, actor)) removedScreens += 1;
   }
+  await releasePluginLookups(deps, tenantId, pluginId);
   const { removedActions, removedWorkflows, removedScripts } = await releaseGeneratedArtifacts(deps, tenantId, pluginId, actor);
   return { removedScreens, removedActions, removedWorkflows, removedScripts };
 };
@@ -399,6 +457,7 @@ export const makeInstallMarketplacePluginUseCase = (
 
     const existingScreens = await deps.screenRepository.getAll(tenantId);
     const { actionMap, screenKeyMap } = await materializeArtifacts(deps, plugin, tenantId, userId, existingScreens);
+    await declarePluginLookups(deps, plugin, tenantId, userId);
     await upsertPluginScreens(deps, plugin, tenantId, userId, screenKeyMap, actionMap, existingScreens);
 
     await deps.installationRepository.save(outcome.value);
@@ -468,6 +527,8 @@ export const makeUninstallMarketplacePluginUseCase = (
     for (const screen of (await deps.screenRepository.getAll(tenantId)).filter((s) => ownerSet(s).includes(pluginId))) {
       if (await releaseScreen(deps, tenantId, screen, pluginId, actor)) removedScreens += 1;
     }
+
+    await releasePluginLookups(deps, tenantId, pluginId);
 
     const { removedActions, removedWorkflows, removedScripts } = await releaseGeneratedArtifacts(
       deps, tenantId, pluginId, actor,

@@ -104,7 +104,7 @@ export const useRecordListViewModel = (source: RecordListSource): RecordListView
     return parent ? fields.filter((field) => field.key !== parent.fieldKey) : fields;
   }, [definition, parent]);
 
-  const listing = useCustomFieldListing(screenKey, sortedFields);
+  const listing = useCustomFieldListing(sortedFields);
 
   const records = useMemo(() => {
     const all = recordsByCollection[screenKey] ?? [];

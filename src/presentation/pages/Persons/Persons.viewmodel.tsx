@@ -2,12 +2,12 @@ import { useState, useMemo, useCallback } from 'react';
 import { useTheme } from 'styled-components';
 import { usePersonStore } from '../../../stores/usePersonStore';
 import { usePersonTagStore } from '../../../stores/usePersonTagStore';
-import { usePersonLookup } from '../../../stores/usePersonLookup';
 import { useTenant } from '../../../stores/useTenant';
 import { useWorkspace } from '../../../stores/useWorkspace';
 import { useScreenDefinitions } from '../../../stores/useScreenDefinitions';
 import { resolveListActions } from '../../shared/listActionCapabilities';
 import { useNotification } from '../../../stores/useNotification';
+import { useLookups } from '../../../stores/useLookups';
 import { useCustomFieldListing, CUSTOM_FIELD_FILTER_PREFIX } from '../../hooks/useCustomFieldListing';
 import type { CustomFieldCardItem } from '../../hooks/useCustomFieldListing';
 import { resolveColor, getConfigColor } from '../../../shared/styles/colorUtils';
@@ -88,7 +88,13 @@ export interface PersonsViewModel {
 export const usePersonsViewModel = (): PersonsViewModel => {
   const { persons, isLoading, deletePerson } = usePersonStore();
   const { tags, getTagsForPerson, setTagsForPerson, createTag, updateTag, deleteTag } = usePersonTagStore();
-  const { typeConfigs, occupationConfigs, nationalityConfigs, maritalStatusConfigs, cityConfigs, relationshipConfigs } = usePersonLookup();
+  const { getOptions } = useLookups();
+  const typeConfigs = getOptions('personTypes');
+  const occupationConfigs = getOptions('personOccupations');
+  const nationalityConfigs = getOptions('personNationalities');
+  const maritalStatusConfigs = getOptions('personMaritalStatuses');
+  const cityConfigs = getOptions('personCities');
+  const relationshipConfigs = getOptions('personRelationships');
   const { tenantRole } = useTenant();
   const { openTab } = useWorkspace();
   const { getScreenFieldsFor, getDefinition } = useScreenDefinitions();
@@ -100,7 +106,7 @@ export const usePersonsViewModel = (): PersonsViewModel => {
   const [isDeleting, setIsDeleting] = useState(false);
 
   const customFields = useMemo(() => getScreenFieldsFor('persons'), [getScreenFieldsFor]);
-  const customListing = useCustomFieldListing('persons', customFields, CUSTOM_FIELD_FILTER_PREFIX);
+  const customListing = useCustomFieldListing(customFields, CUSTOM_FIELD_FILTER_PREFIX);
 
   const [filterTokens, setFilterTokens] = useState<FilterToken[]>([]);
 

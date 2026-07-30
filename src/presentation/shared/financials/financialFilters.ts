@@ -1,6 +1,6 @@
 import type { DefaultTheme } from 'styled-components';
 import { getConfigColor } from '../../../shared/styles/colorUtils';
-import type { Case, Contract, Financial, FinancialLookupConfig, Person } from '../../../domain/entities';
+import type { Case, Contract, Financial, LookupOption, Person } from '../../../domain/entities';
 import type { FilterDef, FilterOption, FilterToken } from '../../components/ui/CompositeFilter';
 
 export interface FinancialSearchLookups {
@@ -14,7 +14,7 @@ export interface FinancialFilterOptions {
   personOptions: FilterOption[];
   contractOptions: FilterOption[];
   tagOptions: FilterOption[];
-  statusConfigs: FinancialLookupConfig[];
+  statusConfigs: LookupOption[];
   theme: DefaultTheme;
 }
 

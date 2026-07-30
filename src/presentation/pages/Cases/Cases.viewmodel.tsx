@@ -2,13 +2,13 @@ import { useState, useMemo, useCallback } from 'react';
 import { useTheme } from 'styled-components';
 import { useCaseStore } from '../../../stores/useCaseStore';
 import { useCaseTagStore } from '../../../stores/useCaseTagStore';
-import { useCaseLookup } from '../../../stores/useCaseLookup';
 import { useContractStore } from '../../../stores/useContractStore';
 import { usePersonStore } from '../../../stores/usePersonStore';
 import { useTenant } from '../../../stores/useTenant';
 import { useWorkspace } from '../../../stores/useWorkspace';
 import { useScreenDefinitions } from '../../../stores/useScreenDefinitions';
 import { useNotification } from '../../../stores/useNotification';
+import { useLookups } from '../../../stores/useLookups';
 import { generateDeepLink } from '../../../infrastructure/deeplink/deepLinkUtils';
 import { resolveListActions } from '../../shared/listActionCapabilities';
 import type { ScreenListAction } from '../../../domain/entities';
@@ -64,14 +64,22 @@ export const useCasesViewModel = (): CasesViewModel => {
   const { contracts } = useContractStore();
   const { persons } = usePersonStore();
   const { tenantRole } = useTenant();
-  const { areaConfigs, phaseConfigs, statusConfigs, instanceConfigs, actionTypeConfigs, courtConfigs, districtConfigs, judgeConfigs } = useCaseLookup();
+  const { getOptions } = useLookups();
+  const areaConfigs = getOptions('caseAreas');
+  const phaseConfigs = getOptions('casePhases');
+  const statusConfigs = getOptions('caseStatuses');
+  const instanceConfigs = getOptions('caseInstances');
+  const actionTypeConfigs = getOptions('caseActionTypes');
+  const courtConfigs = getOptions('caseCourts');
+  const districtConfigs = getOptions('caseDistricts');
+  const judgeConfigs = getOptions('caseJudges');
   const { openTab } = useWorkspace();
   const { getScreenFieldsFor, getDefinition } = useScreenDefinitions();
   const { notify } = useNotification();
   const theme = useTheme();
 
   const customFields = useMemo(() => getScreenFieldsFor('cases'), [getScreenFieldsFor]);
-  const customListing = useCustomFieldListing('cases', customFields, CUSTOM_FIELD_FILTER_PREFIX);
+  const customListing = useCustomFieldListing(customFields, CUSTOM_FIELD_FILTER_PREFIX);
 
   const [filterTokens, setFilterTokens] = useState<FilterToken[]>(
     () => consumeNavigationIntent('cases') as FilterToken[] | undefined ?? [],

@@ -1,13 +1,11 @@
 import { useCallback, useMemo } from 'react';
 import { useTheme } from 'styled-components';
 import { useDeadlineStore } from '../../../stores/useDeadlineStore';
-import { useDeadlineLookup } from '../../../stores/useDeadlineLookup';
 import { useCaseStore } from '../../../stores/useCaseStore';
 import { useAuth } from '../../../stores/useAuth';
 import { useTenant } from '../../../stores/useTenant';
 import { useEntityFormFields } from '../../shared/useEntityFormFields';
 import type { CustomFieldValue, Deadline, DeadlinePriority, DeadlineStatus, FieldDefinition } from '../../../domain/entities';
-import type { LookupOptionSet } from '../../components/ui/CustomFieldsSection/CustomFieldsSection.viewmodel';
 import type { EntityDetailExtraTab, EntityDetailTab } from '../../components/layout/EntityDetailView';
 import { useEntityDetail, type EntityValidationResult } from '../../shared/entityScreen/useEntityDetail';
 import type { ScreenActions } from '../../shared/entityScreen/useScreenActions';
@@ -101,14 +99,10 @@ export interface ViewDeadlineViewModel {
   isAdmin: boolean;
   fields: FieldDefinition[];
   addedFields: FieldDefinition[];
-  resolveOptionsScreenKey: (field: FieldDefinition) => string;
   values: Values;
   setFieldValue: (fieldKey: string, value: CustomFieldValue) => void;
   mergeValues: (patch: Record<string, unknown>) => void;
   fieldErrors: Record<string, string>;
-  lookupOptions: Record<string, LookupOptionSet>;
-  handleAddLookupOption: (collection: string, label: string) => Promise<void>;
-  handleDeleteLookupOption: (collection: string, optionKey: string) => Promise<void>;
   isSaving: boolean;
   handleSave: () => Promise<void>;
   derivedStatus: DeadlineStatus;
@@ -124,7 +118,6 @@ export interface ViewDeadlineViewModel {
 
 export const useViewDeadlineViewModel = (tabKey: string): ViewDeadlineViewModel => {
   const { deadlines, createDeadline, updateDeadline } = useDeadlineStore();
-  const { typeConfigs, addType, removeType } = useDeadlineLookup();
   const { cases } = useCaseStore();
   const { user, effectiveName } = useAuth();
   const { tenantRole } = useTenant();
@@ -132,7 +125,7 @@ export const useViewDeadlineViewModel = (tabKey: string): ViewDeadlineViewModel 
 
   const isAdmin = tenantRole === 'admin';
   const userId = user?.id ?? '';
-  const { fields: formFields, addedFields, resolveOptionsScreenKey } = useEntityFormFields('deadlines');
+  const { fields: formFields, addedFields } = useEntityFormFields('deadlines');
 
   const findInStore = useCallback(
     (id: string) => deadlines.find((d) => d.id === id) ?? null,
@@ -201,21 +194,6 @@ export const useViewDeadlineViewModel = (tabKey: string): ViewDeadlineViewModel 
     hasDocuments: false,
   });
 
-  const lookupOptions = useMemo<Record<string, LookupOptionSet>>(() => ({
-    deadlineTypes: {
-      staticOptions: typeConfigs.filter((t) => t.isStatic).map((t) => ({ value: t.key, label: t.label })),
-      dynamicOptions: typeConfigs.filter((t) => !t.isStatic).map((t) => ({ value: t.key, label: t.label })),
-    },
-  }), [typeConfigs]);
-
-  const handleAddLookupOption = useCallback(async (collection: string, label: string): Promise<void> => {
-    if (collection === 'deadlineTypes') await addType(label);
-  }, [addType]);
-
-  const handleDeleteLookupOption = useCallback(async (collection: string, optionKey: string): Promise<void> => {
-    if (collection === 'deadlineTypes') await removeType(optionKey);
-  }, [removeType]);
-
   const derivedStatus = useMemo(() => deriveStatus(detail.values), [detail.values]);
 
   const caseDisplay = useMemo(() => {
@@ -253,14 +231,10 @@ export const useViewDeadlineViewModel = (tabKey: string): ViewDeadlineViewModel 
     isAdmin,
     fields: formFields,
     addedFields,
-    resolveOptionsScreenKey,
     values: detail.values,
     setFieldValue: detail.setFieldValue,
     mergeValues: detail.mergeValues,
     fieldErrors: detail.fieldErrors,
-    lookupOptions,
-    handleAddLookupOption,
-    handleDeleteLookupOption,
     isSaving: detail.isSaving,
     handleSave: detail.handleSave,
     derivedStatus,

@@ -10,6 +10,8 @@ import type { IScreenDefinitionRepository, ScreenDefinitionInput } from '../../r
 import type { IActionRepository, ActionDefinitionInput } from '../../repositories/IActionRepository';
 import type { IScriptRepository } from '../../repositories/IScriptRepository';
 import type { LifecycleActor } from '../../services/pluginLifecycle';
+import type { ILookupDefinitionRepository, LookupDefinitionInput } from '../../repositories/ILookupDefinitionRepository';
+import type { LookupDefinition } from '../../entities';
 import {
   makeInstallMarketplacePluginUseCase,
   makeUninstallMarketplacePluginUseCase,
@@ -119,6 +121,28 @@ class FakeScripts {
   }
 }
 
+/**
+ * As OPÇÕES ficam numa coleção à parte, que este fake não representa de propósito: o ponto dos
+ * testes de lista é que a desinstalação mexe só na declaração, e nunca no dado do escritório.
+ */
+class FakeLookupDefinitions implements ILookupDefinitionRepository {
+  items: LookupDefinition[] = [];
+  /** Coleções cuja DECLARAÇÃO foi removida. Nunca há remoção de opção: o repositório não a expõe. */
+  deletedCollections: string[] = [];
+  subscribe(): () => void { return () => {}; }
+  async getAll(): Promise<LookupDefinition[]> { return this.items; }
+  async upsert(_tenantId: string, definition: LookupDefinitionInput): Promise<LookupDefinition> {
+    const next = { ...definition, createdAt: new Date() };
+    const index = this.items.findIndex((item) => item.collection === definition.collection);
+    if (index >= 0) this.items[index] = next; else this.items.push(next);
+    return next;
+  }
+  async delete(_tenantId: string, collection: string): Promise<void> {
+    this.deletedCollections.push(collection);
+    this.items = this.items.filter((item) => item.collection !== collection);
+  }
+}
+
 const actor: LifecycleActor = { tenantId: 't1', userId: 'u1', now: new Date('2026-07-23T12:00:00Z') };
 
 let installations: FakeInstallations;
@@ -126,6 +150,7 @@ let workflows: FakeWorkflows;
 let screens: FakeScreens;
 let actions: FakeActions;
 let scripts: FakeScripts;
+let lookupDefinitions: FakeLookupDefinitions;
 
 const deps = () => ({
   installationRepository: installations,
@@ -133,6 +158,7 @@ const deps = () => ({
   screenRepository: screens as unknown as IScreenDefinitionRepository,
   actionRepository: actions as unknown as IActionRepository,
   scriptRepository: scripts as unknown as IScriptRepository,
+  lookupDefinitionRepository: lookupDefinitions,
 });
 
 beforeEach(() => {
@@ -141,6 +167,7 @@ beforeEach(() => {
   screens = new FakeScreens();
   actions = new FakeActions();
   scripts = new FakeScripts();
+  lookupDefinitions = new FakeLookupDefinitions();
 });
 
 const literalStep = (id: string, stepDefinitionId: string, inputId: string, value: string): WorkflowStep => ({
@@ -284,6 +311,67 @@ describe('Uninstall — cascata dos quatro tipos', () => {
   it('recusa desinstalar o que não está instalado', async () => {
     const result = await makeUninstallMarketplacePluginUseCase(deps()).execute('com.acme.full', actor);
     expect(result).toMatchObject({ ok: false, error: { code: 'not-installed' } });
+  });
+});
+
+describe('Uninstall — listas de opções sobrevivem', () => {
+  const lookupPlugin = (id: string): MarketplacePlugin => ({
+    summary: 'Com lista',
+    manifest: { id, version: '1.0.0', kernel: '^1.0.0', name: 'L' },
+    workflows: [],
+    lookups: [{ collection: 'medico_especialidade', label: 'Especialidade' }],
+    screens: [{
+      key: 'medico', titleSingular: 'Médico', titlePlural: 'Médicos', icon: 'apps', titleFieldKey: 'nome',
+      fields: [
+        { key: 'nome', label: 'Nome', type: 'text', required: true, order: 0 },
+        { key: 'especialidade', label: 'Especialidade', type: 'select', required: false, order: 1,
+          optionsAllowUserAdd: true, lookupCollection: 'medico_especialidade' },
+      ],
+    }],
+  });
+
+  it('declara a lista na instalação, com o plugin como dono', async () => {
+    await makeInstallMarketplacePluginUseCase(deps()).execute(lookupPlugin('com.acme.med'), actor);
+    expect(lookupDefinitions.items).toEqual([
+      expect.objectContaining({
+        collection: 'medico_especialidade',
+        label: 'Especialidade',
+        ownerPluginIds: ['com.acme.med'],
+      }),
+    ]);
+  });
+
+  /**
+   * O bug que originou a mudança: as opções cadastradas pelo escritório sumiam junto com a tela.
+   * Agora a desinstalação mexe só na DECLARAÇÃO — a coleção de dados nunca é tocada, e recriar a
+   * lista com o mesmo nome reaproveita tudo.
+   */
+  it('a desinstalação remove a declaração, nunca a coleção de opções', async () => {
+    const d = deps();
+    await makeInstallMarketplacePluginUseCase(d).execute(lookupPlugin('com.acme.med'), actor);
+    await makeUninstallMarketplacePluginUseCase(d).execute('com.acme.med', actor);
+
+    expect(lookupDefinitions.items).toEqual([]);
+    // Nenhuma exclusão de dado foi pedida: a coleção `medico_especialidade` continua intacta.
+    expect(lookupDefinitions.deletedCollections).toEqual(['medico_especialidade']);
+  });
+
+  it('duas extensões na mesma lista: desinstalar uma mantém a declaração', async () => {
+    await makeInstallMarketplacePluginUseCase(deps()).execute(lookupPlugin('com.a'), actor);
+    await makeInstallMarketplacePluginUseCase(deps()).execute(lookupPlugin('com.b'), actor);
+    expect(lookupDefinitions.items[0].ownerPluginIds).toEqual(['com.a', 'com.b']);
+
+    await makeUninstallMarketplacePluginUseCase(deps()).execute('com.a', actor);
+    expect(lookupDefinitions.items).toEqual([
+      expect.objectContaining({ collection: 'medico_especialidade', ownerPluginIds: ['com.b'] }),
+    ]);
+  });
+
+  it('lista do kernel não vira documento — ela já é declarada em código', async () => {
+    const plugin = lookupPlugin('com.acme.kernel');
+    plugin.lookups = [{ collection: 'caseCourts', label: 'Vara/Tribunal' }];
+    await makeInstallMarketplacePluginUseCase(deps()).execute(plugin, actor);
+    expect(lookupDefinitions.items).toEqual([]);
   });
 });
 

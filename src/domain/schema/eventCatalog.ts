@@ -3,6 +3,7 @@ import { ENTITY_REGISTRY, getEntityByCollection } from './entityRegistry';
 import type { PathRoot, SchemaContext } from './pathResolver';
 import type { WorkflowParameter } from '../entities/Workflow';
 import { isEntityCollection, resolveEntity } from './screenEntity';
+import { isLookupCollection as isBuiltinLookupCollection } from './lookupRegistry';
 
 export const WORKFLOW_CALLED_EVENT = 'workflow.called';
 
@@ -107,6 +108,30 @@ const lookupEntry = (action: 'saved' | 'deleted'): WorkflowEventCatalogEntry =>
     action === 'saved',
     flattenNativeFields(LOOKUP_EVENT_FIELDS),
     { kind: 'fields', fields: LOOKUP_EVENT_FIELDS },
+  );
+
+/**
+ * A lista declarada pelo tenant emite pelo PRÓPRIO nome da coleção, como qualquer coleção que não é
+ * reservada. Não carrega o campo `collection` do evento `lookup.*`: ali ele existe justamente porque
+ * um evento só serve às 30 listas do kernel; aqui o nome do evento já diz qual lista é.
+ */
+const DECLARED_LOOKUP_FIELDS: NativeFieldSpec[] = [
+  { key: 'key', label: 'Chave', type: 'string' },
+  { key: 'label', label: 'Rótulo', type: 'string' },
+  { key: 'color', label: 'Cor', type: 'string' },
+];
+
+const declaredLookupEntry = (
+  collection: string,
+  label: string,
+  action: EntityEventAction,
+): WorkflowEventCatalogEntry =>
+  buildEntry(
+    `${collection}.${action}`,
+    `Ao ${action === 'saved' ? 'salvar' : 'excluir'}: ${label}`,
+    action === 'saved',
+    flattenNativeFields(DECLARED_LOOKUP_FIELDS),
+    { kind: 'fields', fields: DECLARED_LOOKUP_FIELDS },
   );
 
 const NOTE_FIELDS: NativeFieldSpec[] = [
@@ -307,6 +332,11 @@ const screenEventEntry = (
   const collection = eventName.slice(0, separator);
   const action = eventName.slice(separator + 1) as EntityEventAction;
   if (!ENTITY_EVENT_ACTIONS.includes(action)) return undefined;
+
+  const lookup = ctx.lookups.get(collection);
+  if (lookup && !isBuiltinLookupCollection(collection)) {
+    return declaredLookupEntry(lookup.collection, lookup.label, action);
+  }
   if (!isEntityCollection(ctx, collection)) return undefined;
 
   const entity = resolveEntity(ctx, collection);
@@ -330,6 +360,15 @@ export const buildWorkflowEventCatalog = (ctx: SchemaContext): WorkflowEventCata
     const entity = resolveEntity(ctx, collection);
     if (!entity) continue;
     screenEntries.push(entityEntry(entity, 'saved'), entityEntry(entity, 'deleted'));
+  }
+  // As 30 listas do kernel já estão no catálogo estático sob `lookup.*`; só as declaradas pelo
+  // tenant precisam de par próprio, porque emitem pelo nome da coleção.
+  for (const lookup of ctx.lookups.values()) {
+    if (isBuiltinLookupCollection(lookup.collection)) continue;
+    screenEntries.push(
+      declaredLookupEntry(lookup.collection, lookup.label, 'saved'),
+      declaredLookupEntry(lookup.collection, lookup.label, 'deleted'),
+    );
   }
   return [...WORKFLOW_EVENT_CATALOG, ...screenEntries];
 };

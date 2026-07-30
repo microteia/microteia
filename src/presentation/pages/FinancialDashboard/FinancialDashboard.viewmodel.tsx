@@ -14,12 +14,12 @@ import {
 } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useFinancialStore } from '../../../stores/useFinancialStore';
-import { useFinancialLookup } from '../../../stores/useFinancialLookup';
 import { useFinancialTagStore } from '../../../stores/useFinancialTagStore';
 import { useCaseStore } from '../../../stores/useCaseStore';
 import { usePersonStore } from '../../../stores/usePersonStore';
 import { useContractStore } from '../../../stores/useContractStore';
 import { useWorkspace } from '../../../stores/useWorkspace';
+import { useLookups } from '../../../stores/useLookups';
 import { consumeNavigationIntent, setNavigationIntent, subscribeNavigationIntent } from '../../../infrastructure/navigation/navigationIntent';
 import { getConfigColor } from '../../../shared/styles/colorUtils';
 import {
@@ -98,7 +98,9 @@ const AGING_BUCKET_DAYS = [7, 15, 30] as const;
 
 export const useFinancialDashboardViewModel = (): FinancialDashboardViewModel => {
   const { financials, isLoading } = useFinancialStore();
-  const { statusConfigs, categoryConfigs } = useFinancialLookup();
+  const { getOptions } = useLookups();
+  const statusConfigs = getOptions('financialStatuses');
+  const categoryConfigs = getOptions('financialCategories');
   const { tags } = useFinancialTagStore();
   const { cases } = useCaseStore();
   const { persons } = usePersonStore();

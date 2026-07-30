@@ -9,7 +9,6 @@ export interface FieldInputProps {
   value: CustomFieldValue;
   onChange: (value: CustomFieldValue) => void;
   /** Tela dona das opções dinâmicas/lookup do campo. Necessário só para selects com opções do tenant. */
-  screenKey?: string;
   disabled?: boolean;
   error?: string;
   showLabel?: boolean;
@@ -27,13 +26,11 @@ export const FieldInput: React.FC<FieldInputProps> = ({
   field,
   value,
   onChange,
-  screenKey = '',
   disabled,
   error,
   showLabel = true,
 }) => {
   const vm = useCustomFieldsSectionViewModel({
-    screenKey,
     fields: [field],
     values: { [field.key]: value },
     onChange: (_key, next) => onChange(next),

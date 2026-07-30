@@ -4,6 +4,7 @@ import type { SchemaScreen } from '../schema/pathResolver';
 import type { WorkflowEqualityFilter, WorkflowQueryRow } from '../repositories/IWorkflowQueryRepository';
 import type { AggregateRecomputeDeps } from './recomputeAggregates';
 import { recomputeAggregatesForChildChange } from './recomputeAggregates';
+import { fakeScreenProvider } from '../../domain/repositories/fakeScreenProvider';
 
 const field = (overrides: Partial<FieldDefinition> & Pick<FieldDefinition, 'key' | 'label'>): FieldDefinition => ({
   type: 'text',
@@ -62,7 +63,7 @@ const harness = (
     updates,
     queries,
     deps: {
-      screenProvider: { getScreens: async () => screens },
+      screenProvider: fakeScreenProvider(screens),
       queryRepository: {
         queryByEquality: async (_tenantId, collection, filters) => {
           queries.push({ collection, filters });

@@ -6,6 +6,7 @@ import type { RuleIssue } from '../../domain/schema/fieldRules';
 import { describeRuleIssues } from '../../domain/schema/fieldRules';
 import type { SchemaContext, SchemaScreen } from '../../domain/schema/pathResolver';
 import { createSchemaContext } from '../../domain/schema/pathResolver';
+import type { SchemaLookup } from '../../domain/schema/screenEntity';
 import { collectFieldLogicTargets, formatAndValidateRecord } from '../../domain/schema/recordRules';
 
 export class RecordRulesError extends Error {
@@ -18,7 +19,13 @@ export class RecordRulesError extends Error {
   }
 }
 
-let schemaContext: SchemaContext = createSchemaContext([]);
+let schemaScreens: SchemaScreen[] = [];
+let schemaLookups: SchemaLookup[] = [];
+let schemaContext: SchemaContext = createSchemaContext();
+
+const rebuild = (): void => {
+  schemaContext = createSchemaContext(schemaScreens, schemaLookups);
+};
 
 /**
  * Última porta antes da rede: os repositórios não têm como alcançar um Store React, então o
@@ -26,7 +33,14 @@ let schemaContext: SchemaContext = createSchemaContext([]);
  * Sem isso, os campos dinâmicos ficariam sem regra na hora da gravação.
  */
 export const setRecordRulesScreens = (screens: SchemaScreen[]): void => {
-  schemaContext = createSchemaContext(screens);
+  schemaScreens = screens;
+  rebuild();
+};
+
+/** Mesmo mecanismo, para as listas declaradas pelo tenant (empurradas pelo `LookupStore`). */
+export const setRecordRulesLookups = (lookups: SchemaLookup[]): void => {
+  schemaLookups = lookups;
+  rebuild();
 };
 
 export const toSchemaScreens = (

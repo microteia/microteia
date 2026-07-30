@@ -3,7 +3,7 @@ import type { IWorkflowQueryRepository, WorkflowEqualityFilter, WorkflowQueryRow
 import type { IWorkflowRecordFetcher } from '../../../domain/repositories/IWorkflowRecordFetcher';
 import type { IScreenDefinitionProvider } from '../../../domain/repositories/IScreenDefinitionProvider';
 import { resolveMapping } from '../../../domain/engine/InputMapping';
-import { createSchemaContext, getValueAtPath, parsePath, resolvePath } from '../../../domain/schema/pathResolver';
+import { getValueAtPath, parsePath, resolvePath } from '../../../domain/schema/pathResolver';
 import type { PathRoot, SchemaContext } from '../../../domain/schema/pathResolver';
 import { buildHydrationPlan } from '../../../domain/schema/hydrationPlan';
 import { collectHopRecordRefs, materializeHops, recordKey } from '../../../domain/schema/materialize';
@@ -162,8 +162,7 @@ export async function runWorkflowQuery(
   deps: WorkflowQueryDeps,
 ): Promise<WorkflowQueryOutcome> {
   const tenantId = context.execution.tenantId;
-  const screens = await deps.screenProvider.getScreens(tenantId);
-  const ctx = createSchemaContext(screens);
+  const ctx = await deps.screenProvider.getSchemaContext(tenantId);
 
   const issues = validateQuerySpec(spec, ctx);
   if (issues.length > 0) {

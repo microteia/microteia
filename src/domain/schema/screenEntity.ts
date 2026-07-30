@@ -21,15 +21,38 @@ export interface SchemaScreen {
   fields: FieldDefinition[];
 }
 
+/** A lista de opções como o schema a enxerga. `collection` é o nome da coleção sob o tenant. */
+export interface SchemaLookup {
+  collection: string;
+  label: string;
+}
+
 export interface SchemaContext {
   registry: Record<EntityKey, EntityMetadata>;
   screens: ReadonlyMap<string, SchemaScreen>;
+  /**
+   * Toda lista de opções visível ao tenant: as declaradas em código (`LOOKUP_REGISTRY`) unidas às
+   * declaradas no Firestore (`lookupDefinitions`). É um mapa só de propósito — a partir daqui nada
+   * mais pergunta de onde a lista veio.
+   */
+  lookups: ReadonlyMap<string, SchemaLookup>;
   version: number;
 }
 
-export const createSchemaContext = (screens: Iterable<SchemaScreen> = []): SchemaContext => ({
+const BUILTIN_LOOKUPS: SchemaLookup[] = LOOKUP_REGISTRY_LIST.map((lookup) => ({
+  collection: lookup.collection,
+  label: `${lookup.screenLabel}: ${lookup.entityLabel}`,
+}));
+
+export const createSchemaContext = (
+  screens: Iterable<SchemaScreen> = [],
+  tenantLookups: Iterable<SchemaLookup> = [],
+): SchemaContext => ({
   registry: ENTITY_REGISTRY,
   screens: new Map([...screens].map((screen) => [screen.id, screen])),
+  lookups: new Map(
+    [...BUILTIN_LOOKUPS, ...tenantLookups].map((lookup) => [lookup.collection, lookup]),
+  ),
   version: SCHEMA_VERSION,
 });
 
@@ -222,6 +245,15 @@ export const resolveEntity = (ctx: SchemaContext, collection: string): EntityMet
 export const isEntityCollection = (ctx: SchemaContext, collection: string): boolean =>
   collection in ctx.registry || ctx.screens.has(collection);
 
+/**
+ * A lista de opções pelo caminho único: fixa do kernel ou declarada pelo tenant, dá no mesmo. Quem
+ * precisa dessa resposta é a camada de schema (gravação e consulta por automação); o
+ * `isLookupCollection` de `lookupRegistry.ts` continua existindo para os pontos sem `ctx`, como o
+ * gatilho de eventos, que roda em toda escrita e não pode pagar uma leitura.
+ */
+export const isLookupTable = (ctx: SchemaContext, collection: string): boolean =>
+  ctx.lookups.has(collection);
+
 // ─── Nomes de coleção reservados ──────────────────────────────────────────────
 
 /**
@@ -252,7 +284,7 @@ export const RESERVED_COLLECTIONS: ReadonlySet<string> = new Set<string>([
   'notes',
   'documents',
   'tags',
-  'fieldOptions',
+  'lookupDefinitions',
   'secrets',
   ...LOOKUP_REGISTRY_LIST.map((lookup) => lookup.collection),
 ]);
@@ -260,12 +292,35 @@ export const RESERVED_COLLECTIONS: ReadonlySet<string> = new Set<string>([
 /** Firestore aceita quase tudo como nome de coleção; aqui o conjunto é estreitado de propósito. */
 const COLLECTION_NAME_PATTERN = /^[a-zA-Z][a-zA-Z0-9_]*$/;
 
-export const screenIdIssue = (id: string): string | undefined => {
-  const trimmed = id.trim();
-  if (!trimmed) return 'Informe a chave da tela';
+const collectionNameIssue = (name: string, what: string): string | undefined => {
+  const trimmed = name.trim();
+  if (!trimmed) return `Informe a chave ${what}`;
   if (!COLLECTION_NAME_PATTERN.test(trimmed)) {
     return 'A chave deve começar por letra e conter apenas letras, números e "_"';
   }
   if (RESERVED_COLLECTIONS.has(trimmed)) return `"${trimmed}" é um nome reservado pelo sistema`;
   return undefined;
 };
+
+export const screenIdIssue = (id: string, ctx?: SchemaContext): string | undefined => {
+  const issue = collectionNameIssue(id, 'da tela');
+  if (issue) return issue;
+  if (ctx?.lookups.has(id.trim())) return `"${id.trim()}" já é o nome de uma lista de opções`;
+  return undefined;
+};
+
+/**
+ * Uma lista e uma tela disputam o MESMO espaço de nomes: as duas viram coleção sob o tenant, e as
+ * duas passam pelo mesmo `match` curinga das rules. Por isso a validação é simétrica — nenhuma das
+ * duas pode reivindicar um nome que a outra já usa.
+ */
+export const lookupIdIssue = (collection: string, ctx?: SchemaContext): string | undefined => {
+  const issue = collectionNameIssue(collection, 'da lista');
+  if (issue) return issue;
+  if (ctx?.screens.has(collection.trim())) return `"${collection.trim()}" já é o nome de uma tela`;
+  return undefined;
+};
+
+/** Nome sugerido para a lista de um campo: estável, legível e sem colidir com o camelCase do kernel. */
+export const derivedLookupCollection = (screenId: string, fieldKey: string): string =>
+  `${screenId}_${fieldKey.replace(/\./g, '_')}`;

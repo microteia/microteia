@@ -2,12 +2,11 @@ import { useState, useMemo, useCallback, useEffect } from 'react';
 import { useNews } from '../../../stores/useNews';
 import { useNewsTag } from '../../../stores/useNewsTag';
 import { useNewsInteraction } from '../../../stores/useNewsInteraction';
-import { useNewsCategoryLookup } from '../../../stores/useNewsCategoryLookup';
-import { useDocumentTypeLookup } from '../../../stores/useDocumentTypeLookup';
 import { useAuth } from '../../../stores/useAuth';
 import { useTenant } from '../../../stores/useTenant';
 import { useWorkspace } from '../../../stores/useWorkspace';
 import { useNotification } from '../../../stores/useNotification';
+import { useLookups } from '../../../stores/useLookups';
 import { useDI } from '../../../infrastructure/di/useDI';
 import { generateDeepLink } from '../../../infrastructure/deeplink/deepLinkUtils';
 import type { DynamicSelectOption } from '../../components/ui/DynamicSelect';
@@ -67,8 +66,9 @@ export const useViewNewsViewModel = (tabKey: string): ViewNewsViewModel => {
   const { news, toggleLike } = useNews();
   const { tags, getTagsForNews, setTagsForNews, createTag, updateTag, deleteTag } = useNewsTag();
   const { getInteraction, markAsRead, markAsUnread, toggleSavedForLater } = useNewsInteraction();
-  const { categoryConfigs } = useNewsCategoryLookup();
-  const { typeConfigs: documentTypeConfigs, addItem: addDocumentType, removeItem: removeDocumentType } = useDocumentTypeLookup();
+  const { getOptions, addOption, removeOption } = useLookups();
+  const categoryConfigs = getOptions('newsCategories');
+  const documentTypeConfigs = getOptions('documentTypes');
   const { user, userRole, effectiveName } = useAuth();
   const { currentTenant, tenantRole } = useTenant();
   const isAdmin = tenantRole === 'admin';
@@ -194,8 +194,8 @@ export const useViewNewsViewModel = (tabKey: string): ViewNewsViewModel => {
     [documentTypeConfigs],
   );
 
-  const handleAddDocumentType = useCallback(async (name: string) => { await addDocumentType(name); }, [addDocumentType]);
-  const handleDeleteDocumentType = useCallback(async (key: string) => { await removeDocumentType(key); }, [removeDocumentType]);
+  const handleAddDocumentType = useCallback(async (name: string) => { await addOption('documentTypes', name); }, [addOption]);
+  const handleDeleteDocumentType = useCallback(async (key: string) => { await removeOption('documentTypes', key); }, [removeOption]);
 
   const handleSelectFile = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];

@@ -42,7 +42,6 @@ import {
   toDateInputValue,
 } from '../../../utils/formatters';
 import { useCaseStore } from '../../../stores/useCaseStore';
-import { useCaseLookup } from '../../../stores/useCaseLookup';
 import { usePersonStore } from '../../../stores/usePersonStore';
 import { useWorkspace } from '../../../stores/useWorkspace';
 import { useNotification } from '../../../stores/useNotification';
@@ -50,6 +49,8 @@ import { generateDeepLink } from '../../../infrastructure/deeplink/deepLinkUtils
 import { useSavedViewState } from './useSavedViewState';
 import { useEntity } from './useEntity';
 import type { CasePhase } from '../../../domain/entities';
+import { useLookups } from '../../../stores/useLookups';
+import type { LookupOption } from '../../../domain/entities';
 
 /**
  * ATENÇÃO: ao adicionar/remover/modificar módulos aqui, atualize também as definições TypeScript
@@ -77,14 +78,17 @@ const useCases = (): {
   return { cases, updatePhase };
 };
 
-const useCasePhases = (): ReturnType<typeof useCaseLookup>['phaseConfigs'] =>
-  useCaseLookup().phaseConfigs;
+/**
+ * Opções de QUALQUER lista pelo nome da coleção — do kernel ou criada no tenant. Os três atalhos
+ * abaixo continuam existindo porque extensões publicadas já os usam; são só apelidos deste.
+ */
+const useLookup = (collection: string): LookupOption[] => useLookups().getOptions(collection);
 
-const useCaseAreas = (): ReturnType<typeof useCaseLookup>['areaConfigs'] =>
-  useCaseLookup().areaConfigs;
+const useCasePhases = (): LookupOption[] => useLookup('casePhases');
 
-const useCaseStatuses = (): ReturnType<typeof useCaseLookup>['statusConfigs'] =>
-  useCaseLookup().statusConfigs;
+const useCaseAreas = (): LookupOption[] => useLookup('caseAreas');
+
+const useCaseStatuses = (): LookupOption[] => useLookup('caseStatuses');
 
 const usePersons = (): ReturnType<typeof usePersonStore>['persons'] => usePersonStore().persons;
 
@@ -135,6 +139,7 @@ const dataModule = {
   useEntityForm,
   useEntityDetailVM,
   useCases,
+  useLookup,
   useCasePhases,
   useCaseAreas,
   useCaseStatuses,

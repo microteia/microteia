@@ -154,15 +154,6 @@ export interface TenantMember {
 export type PersonType = 'Pessoa Física' | 'Pessoa Jurídica';
 export type PersonStatus = 'Ativo' | 'Inativo';
 
-export type PersonLookupKind = 'types' | 'occupations' | 'nationalities' | 'maritalStatuses' | 'cities' | 'relationships' | 'genders';
-
-export interface PersonLookupConfig {
-  key: string;
-  label: string;
-  color?: string;
-  isStatic?: boolean;
-}
-
 export interface PersonAddress {
   street?: string;
   number?: string;
@@ -314,7 +305,6 @@ export interface CaseDocument {
 
 // ─── Cases (Processos) ────────────────────────────────────────────────────────
 
-export type CaseStatus = 'Em Andamento' | 'Arquivado' | 'Ganho' | 'Perdido' | 'Acordo' | 'Suspenso';
 export type CaseArea =
   | 'Cível'
   | 'Criminal'
@@ -347,63 +337,6 @@ export type CaseInstance =
   | 'TST'
   | 'TSE';
 
-export interface CaseAreaConfig {
-  key: string;
-  label: string;
-  isStatic?: boolean;
-}
-
-export interface CasePhaseConfig {
-  key: string;
-  label: string;
-  color?: string;
-  isStatic?: boolean;
-}
-
-export interface CaseStatusConfig {
-  key: string;
-  label: string;
-  color: string;
-  isStatic?: boolean;
-}
-
-export interface CaseInstanceConfig {
-  key: string;
-  label: string;
-  color?: string;
-  isStatic?: boolean;
-}
-
-export interface CaseActionTypeConfig {
-  key: string;
-  label: string;
-  isStatic?: boolean;
-}
-
-export interface CaseCourtConfig {
-  key: string;
-  label: string;
-  isStatic?: boolean;
-}
-
-export interface CaseDistrictConfig {
-  key: string;
-  label: string;
-  isStatic?: boolean;
-}
-
-export interface CaseJudgeConfig {
-  key: string;
-  label: string;
-  isStatic?: boolean;
-}
-
-export interface DocumentTypeConfig {
-  key: string;
-  label: string;
-  isStatic?: boolean;
-}
-
 export interface CaseParty {
   name: string;
   cpfCnpj?: string;
@@ -412,6 +345,8 @@ export interface CaseParty {
   email?: string;
   phone?: string;
 }
+
+export type CaseStatus = 'Em Andamento' | 'Arquivado' | 'Ganho' | 'Perdido' | 'Acordo' | 'Suspenso';
 
 export interface Case {
   id: string;
@@ -450,12 +385,6 @@ export interface Case {
 
 export type DeadlineStatus = 'Pendente' | 'Concluído' | 'Vencido' | 'Cancelado';
 export type DeadlinePriority = 'Baixa' | 'Média' | 'Alta' | 'Crítica';
-
-export interface DeadlineTypeConfig {
-  key: string;
-  label: string;
-  isStatic?: boolean;
-}
 
 export interface Deadline {
   id: string;
@@ -535,15 +464,6 @@ export interface FinancialTag {
 }
 
 // ─── Financial Lookups ────────────────────────────────────────────────────────
-
-export type FinancialLookupKind = 'categories' | 'statuses';
-
-export interface FinancialLookupConfig {
-  key: string;
-  label: string;
-  color?: string;
-  isStatic?: boolean;
-}
 
 // ─── Financial Documents ──────────────────────────────────────────────────────
 
@@ -633,13 +553,6 @@ export type ContractLookupKind =
   | 'banks'
   | 'costCenters';
 
-export interface ContractLookupConfig {
-  key: string;
-  label: string;
-  color?: string;
-  isStatic?: boolean;
-}
-
 // ─── Contracts (Contratos) ────────────────────────────────────────────────────
 
 export interface Contract {
@@ -710,12 +623,6 @@ export interface CalendarEvent {
 }
 
 // ─── News (Notícias) ──────────────────────────────────────────────────────────
-
-export interface NewsCategoryConfig {
-  key: string;
-  label: string;
-  isStatic?: boolean;
-}
 
 export interface News {
   id: string;
@@ -866,13 +773,38 @@ export type {
   ActionStatusCode,
 } from './Action';
 
-export interface ScreenFieldOption {
-  id: string;
-  tenantId: string;
-  screenKey: string;
-  fieldKey: string;
+// ─── Listas de opções ─────────────────────────────────────────────────────────
+
+/**
+ * Uma opção de lista. Mora em `tenants/{tenantId}/{colecao}/{id}` — a MESMA forma para a lista do
+ * kernel (`caseCourts`) e para a criada no Form Design ou por uma extensão. `isStatic` marca a
+ * opção que vem declarada em código e por isso não é excluível.
+ */
+export interface LookupOption {
   key: string;
   label: string;
+  color?: string;
+  isStatic?: boolean;
+}
+
+/**
+ * A declaração de uma lista criada no tenant — o gêmeo, do lado do Firestore, do `LOOKUP_REGISTRY`
+ * de código. Vive em `tenants/{tenantId}/lookupDefinitions/{colecao}`, e o id do documento É o nome
+ * da coleção onde as opções ficam.
+ *
+ * Existe por dois motivos: dá nome e dono à lista na interface, e é o `exists()` que as Security
+ * Rules consultam para autorizar a escrita numa coleção que só existe em runtime.
+ */
+export interface LookupDefinition {
+  collection: string;
+  label: string;
+  /**
+   * Sem `origin`, ao contrário de `ScreenDefinition`: aqui ele não teria o que responder. A lista do
+   * kernel não tem documento — é declarada em código —, e a de extensão já se identifica por
+   * `ownerPluginIds`, que é o que a desinstalação consulta.
+   */
+  ownerPluginId?: string | null;
+  ownerPluginIds?: string[];
   createdAt: Date;
   createdBy: string;
 }

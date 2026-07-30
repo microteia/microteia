@@ -7,6 +7,7 @@ import type { SchemaScreen } from '../../../domain/schema/pathResolver';
 import type { UpsertSpec, RemoveSpec } from '../../../domain/schema/mutationSpec';
 import type { WorkflowContext } from '../../../domain/entities/WorkflowContext';
 import type { WorkflowEvent } from '../../../domain/entities/Workflow';
+import { fakeScreenProvider } from '../../../domain/repositories/fakeScreenProvider';
 
 const personsScreen: SchemaScreen = {
   id: 'persons',
@@ -25,9 +26,7 @@ const processosScreen: SchemaScreen = {
   ],
 };
 
-const screenProvider: IScreenDefinitionProvider = {
-  getScreens: async () => [personsScreen, processosScreen],
-};
+const screenProvider: IScreenDefinitionProvider = fakeScreenProvider([personsScreen, processosScreen]);
 
 interface WriteCall {
   tenantId: string;

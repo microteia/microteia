@@ -552,19 +552,20 @@ service cloud.firestore {
         allow write: if false;
       }
 
+      // ─── Listas de opções declaradas pelo tenant ─────────────────────────────
+      // O gêmeo, do lado do Firestore, do LOOKUP_REGISTRY de código. O id do documento É o nome da
+      // coleção onde as opções ficam, e é este `exists()` que autoriza a escrita nela lá embaixo.
+      match /lookupDefinitions/{lookupCollection} {
+        allow read: if isMember(tenantId);
+        allow create, update: if canWriteInTenant(tenantId);
+        allow delete: if isTenantAdmin(tenantId);
+      }
+
       // ─── Telas Dinâmicas (Personalização) ────────────────────────────────────
       // Definições de telas e campos customizados — membro lê; só admin configura
       match /screenDefinitions/{screenId} {
         allow read: if isMember(tenantId);
         allow create, update, delete: if isTenantAdmin(tenantId);
-
-        // Opções adicionadas inline nos selects de campos customizados
-        // (mesmo modelo dos lookups: membro com escrita cria; só admin deleta)
-        match /fieldOptions/{optionId} {
-          allow read: if isMember(tenantId);
-          allow create: if canWriteInTenant(tenantId);
-          allow delete: if isTenantAdmin(tenantId);
-        }
 
         // Etiquetas da tela dinâmica (exclusivas por screenKey) — mesmo modelo das
         // demais etiquetas (personTags, contractTags...): membro com escrita cria/edita; só admin deleta
@@ -595,9 +596,10 @@ service cloud.firestore {
         'contractAdjustmentIndexes', 'contractAdjustmentPeriodicities', 'contractBanks',
         'contractCategories', 'contractCostCenters', 'contractCurrencies', 'contractObjects',
         'contractPaymentMethods', 'contractStatuses', 'contractTags', 'contractTypes', 'contracts',
-        'deadlineTypes', 'deadlines', 'documentTypes', 'documents', 'extensions', 'fieldOptions',
+        'deadlineTypes', 'deadlines', 'documentTypes', 'documents', 'extensions',
         'financialCategories', 'financialStatuses', 'financialTags', 'financials',
-        'installed_extensions', 'members', 'news', 'newsCategories', 'notes', 'personCities',
+        'installed_extensions', 'lookupDefinitions', 'members', 'news', 'newsCategories', 'notes',
+        'personCities',
         'personGenders', 'personMaritalStatuses', 'personNationalities', 'personOccupations',
         'personRelationships', 'personTags', 'personTypes', 'persons', 'plugin_installations',
         'pushes', 'screenDefinitions', 'scripts', 'secrets', 'tags', 'workflow_definitions',
@@ -607,8 +609,13 @@ service cloud.firestore {
       function isDeclaredScreen(name) {
         return exists(/databases/$(database)/documents/tenants/$(tenantId)/screenDefinitions/$(name));
       }
+      // Uma lista de opções também é uma coleção que só existe em runtime, e cai neste mesmo
+      // curinga — dois `match` com o mesmo padrão não são permitidos. Daí a segunda condição.
+      function isDeclaredLookup(name) {
+        return exists(/databases/$(database)/documents/tenants/$(tenantId)/lookupDefinitions/$(name));
+      }
       function isWritableScreen(name) {
-        return !isReservedCollection(name) && isDeclaredScreen(name);
+        return !isReservedCollection(name) && (isDeclaredScreen(name) || isDeclaredLookup(name));
       }
 
       match /{screenCollection}/{recordId} {

@@ -1,9 +1,11 @@
 import { useMemo } from 'react';
 import { useScreenDefinitions } from '../../stores/useScreenDefinitions';
+import { useLookups } from '../../stores/useLookups';
 import { createSchemaContext, type SchemaContext } from '../../domain/schema/pathResolver';
 
 export const useSchemaContext = (): SchemaContext => {
   const { definitions } = useScreenDefinitions();
+  const { availableLookups } = useLookups();
   return useMemo(
     () =>
       createSchemaContext(
@@ -14,7 +16,8 @@ export const useSchemaContext = (): SchemaContext => {
           titleFieldKey: definition.titleFieldKey,
           fields: definition.fields,
         })),
+        availableLookups,
       ),
-    [definitions],
+    [definitions, availableLookups],
   );
 };

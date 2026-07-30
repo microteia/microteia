@@ -1,15 +1,11 @@
 import { useCallback, useMemo } from 'react';
-import { useTheme } from 'styled-components';
 import { usePersonStore } from '../../../stores/usePersonStore';
 import { usePersonTagStore } from '../../../stores/usePersonTagStore';
-import { usePersonLookup } from '../../../stores/usePersonLookup';
 import { useTenant } from '../../../stores/useTenant';
 import { useAuth } from '../../../stores/useAuth';
 import { useNotification } from '../../../stores/useNotification';
 import { useDI } from '../../../infrastructure/di/useDI';
-import { resolveColor } from '../../../shared/styles/colorUtils';
-import type { Person, PersonType, PersonAddress, Gender, CustomFieldValue, FieldDefinition, PersonLookupKind } from '../../../domain/entities';
-import type { LookupOptionSet } from '../../components/ui/CustomFieldsSection/CustomFieldsSection.viewmodel';
+import type { Person, PersonType, PersonAddress, Gender, CustomFieldValue, FieldDefinition } from '../../../domain/entities';
 import { useEntityDetail, type EntityValidationResult } from '../../shared/entityScreen/useEntityDetail';
 import type { ScreenActions } from '../../shared/entityScreen/useScreenActions';
 import { useNotesPort } from '../../shared/entityScreen/useNotesPort';
@@ -29,16 +25,6 @@ export type ViewPersonTab = 'data' | 'notes' | 'documents';
 type Values = Record<string, CustomFieldValue>;
 
 const CLONE_PREFIX = 'new-person:clone:';
-
-const LOOKUP_COLLECTION_TO_KIND: Record<string, PersonLookupKind> = {
-  personTypes: 'types',
-  personOccupations: 'occupations',
-  personNationalities: 'nationalities',
-  personMaritalStatuses: 'maritalStatuses',
-  personCities: 'cities',
-  personRelationships: 'relationships',
-  personGenders: 'genders',
-};
 
 const parsePersonTab = (tabKey: string) => {
   const cloneSourceId = tabKey.startsWith(CLONE_PREFIX) ? tabKey.slice(CLONE_PREFIX.length) : null;
@@ -130,16 +116,12 @@ export interface ViewPersonViewModel {
   isAdmin: boolean;
   fields: FieldDefinition[];
   addedFields: FieldDefinition[];
-  resolveOptionsScreenKey: (field: FieldDefinition) => string;
   values: Values;
   setFieldValue: (fieldKey: string, value: CustomFieldValue) => void;
   mergeValues: (patch: Record<string, unknown>) => void;
   fieldErrors: Record<string, string>;
   personName: string;
   personType: PersonType;
-  personLookupOptions: Record<string, LookupOptionSet>;
-  handleAddPersonLookup: (collection: string, label: string) => Promise<void>;
-  handleDeletePersonLookup: (collection: string, optionKey: string) => Promise<void>;
   isSaving: boolean;
   handleSave: () => Promise<void>;
   tagAdapter: TagStoreAdapter;
@@ -164,15 +146,13 @@ export interface ViewPersonViewModel {
 export const useViewPersonViewModel = (tabKey: string): ViewPersonViewModel => {
   const { persons, createPerson, updatePerson, updatePersonStatus, deletePerson } = usePersonStore();
   const { tags, getTagsForPerson, setTagsForPerson, createTag, updateTag, deleteTag } = usePersonTagStore();
-  const { typeConfigs, occupationConfigs, nationalityConfigs, maritalStatusConfigs, cityConfigs, relationshipConfigs, genderConfigs, addItem, removeItem } = usePersonLookup();
   const { tenantRole } = useTenant();
   const { user, effectiveName } = useAuth();
   const { notify } = useNotification();
-  const theme = useTheme();
   const { personNoteRepository, personDocumentRepository } = useDI();
 
   const isAdmin = tenantRole === 'admin';
-  const { fields: formFields, addedFields, resolveOptionsScreenKey } = useEntityFormFields('persons');
+  const { fields: formFields, addedFields } = useEntityFormFields('persons');
 
   const findInStore = useCallback((id: string) => persons.find((p) => p.id === id) ?? null, [persons]);
 
@@ -264,36 +244,6 @@ export const useViewPersonViewModel = (tabKey: string): ViewPersonViewModel => {
     notify(`Pessoa ${next === 'Ativo' ? 'ativada' : 'inativada'}.`, 'success');
   }, [person, updatePersonStatus, notify]);
 
-  const personLookupOptions = useMemo<Record<string, LookupOptionSet>>(() => {
-    const staticOf = (configs: typeof typeConfigs) =>
-      configs.filter((c) => c.isStatic !== false).map((c) => ({ value: c.key, label: c.label }));
-    const dynamicOf = (configs: typeof typeConfigs) =>
-      configs.filter((c) => c.isStatic === false).map((c) => ({ value: c.key, label: c.label }));
-    const relOf = (isStatic: boolean) =>
-      relationshipConfigs
-        .filter((c) => (isStatic ? c.isStatic !== false : c.isStatic === false))
-        .map((c) => ({ value: c.key, label: c.label, color: resolveColor(c.color, theme) }));
-    return {
-      personTypes:            { staticOptions: staticOf(typeConfigs),          dynamicOptions: dynamicOf(typeConfigs) },
-      personOccupations:      { staticOptions: [],                             dynamicOptions: occupationConfigs.map((c) => ({ value: c.key, label: c.label })) },
-      personNationalities:    { staticOptions: staticOf(nationalityConfigs),   dynamicOptions: dynamicOf(nationalityConfigs) },
-      personMaritalStatuses:  { staticOptions: staticOf(maritalStatusConfigs), dynamicOptions: dynamicOf(maritalStatusConfigs) },
-      personCities:           { staticOptions: [],                             dynamicOptions: cityConfigs.map((c) => ({ value: c.key, label: c.label })) },
-      personRelationships:    { staticOptions: relOf(true),                    dynamicOptions: relOf(false) },
-      personGenders:          { staticOptions: staticOf(genderConfigs),        dynamicOptions: dynamicOf(genderConfigs) },
-    };
-  }, [typeConfigs, occupationConfigs, nationalityConfigs, maritalStatusConfigs, cityConfigs, relationshipConfigs, genderConfigs, theme]);
-
-  const handleAddPersonLookup = useCallback(async (collection: string, label: string): Promise<void> => {
-    const kind = LOOKUP_COLLECTION_TO_KIND[collection];
-    if (kind) await addItem(kind, label);
-  }, [addItem]);
-
-  const handleDeletePersonLookup = useCallback(async (collection: string, optionKey: string): Promise<void> => {
-    const kind = LOOKUP_COLLECTION_TO_KIND[collection];
-    if (kind) await removeItem(kind, optionKey);
-  }, [removeItem]);
-
   return {
     isNew: detail.isNew,
     screenActions: detail.screenActions,
@@ -301,16 +251,12 @@ export const useViewPersonViewModel = (tabKey: string): ViewPersonViewModel => {
     isAdmin,
     fields: formFields,
     addedFields,
-    resolveOptionsScreenKey,
     values: detail.values,
     setFieldValue: detail.setFieldValue,
     mergeValues: detail.mergeValues,
     fieldErrors: detail.fieldErrors,
     personName: str(detail.values, 'name'),
     personType: (str(detail.values, 'type') || 'Pessoa Física') as PersonType,
-    personLookupOptions,
-    handleAddPersonLookup,
-    handleDeletePersonLookup,
     isSaving: detail.isSaving,
     handleSave: detail.handleSave,
     tagAdapter,

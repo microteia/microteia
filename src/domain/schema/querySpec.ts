@@ -1,9 +1,8 @@
 import type { InputMapping } from '../entities/Workflow';
 import type { NativeFieldSpec } from './entityRegistry';
-import { isLookupCollection } from './lookupRegistry';
 import type { PathRoot, SchemaContext } from './pathResolver';
 import { parsePath, resolvePath } from './pathResolver';
-import { isEntityCollection } from './screenEntity';
+import { isEntityCollection, isLookupTable } from './screenEntity';
 
 export type QueryOperator =
   | 'eq'
@@ -57,7 +56,7 @@ export const resolveQueryTable = (table: string, ctx: SchemaContext): ResolvedQu
   if (isEntityCollection(ctx, table)) {
     return { physicalCollection: table, root: { kind: 'entity', entityKey: table, hasOld: false } };
   }
-  if (isLookupCollection(table)) {
+  if (isLookupTable(ctx, table)) {
     return { physicalCollection: table, root: { kind: 'fields', fields: LOOKUP_QUERY_FIELDS, hasOld: false } };
   }
   return null;

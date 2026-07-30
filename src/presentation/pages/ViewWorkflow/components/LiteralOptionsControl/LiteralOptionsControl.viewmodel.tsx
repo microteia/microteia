@@ -1,9 +1,9 @@
 import { useTheme } from 'styled-components';
-import { useDeadlineLookup } from '../../../../../stores/useDeadlineLookup';
 import { resolveColor } from '../../../../../shared/styles/colorUtils';
 import type { InputDefinition } from '../../../../../domain/entities/WorkflowStepCatalog';
 import type { DynamicSelectOption } from '../../../../components/ui/DynamicSelect';
 import type { SearchSelectOption } from '../../../../components/ui/SearchSelect';
+import { useLookups } from '../../../../../stores/useLookups';
 
 export interface LiteralOptionsControlProps {
   input: InputDefinition;
@@ -23,15 +23,12 @@ export type LiteralOptionsViewModel =
   | { mode: 'none' };
 
 /**
- * Ponto único de extensão para novos campos de lista dinâmica: chame o hook do lookup
- * aqui (incondicionalmente, por causa das regras de Hooks) e adicione um `case` no switch
- * abaixo mapeando a chave declarada em `InputDefinition.options.lookup` no StepDefinition.
- * Se a config subjacente tiver um campo `color`, resolva com `resolveColor` (hex ou token
- * do tema) e inclua em cada opção — igual ao branch `Static` abaixo.
+ * `InputDefinition.options.lookup` nomeia a COLEÇÃO da lista, e qualquer uma responde — as do
+ * kernel e as declaradas pelo tenant. Não há mais um `case` por lista para acrescentar aqui.
  */
 export const useLiteralOptionsViewModel = (input: InputDefinition): LiteralOptionsViewModel => {
   const theme = useTheme();
-  const deadlineTypeLookup = useDeadlineLookup();
+  const { getOptions, addOption, removeOption } = useLookups();
 
   if (input.options?.kind === 'Static') {
     return {
@@ -45,22 +42,19 @@ export const useLiteralOptionsViewModel = (input: InputDefinition): LiteralOptio
   }
 
   if (input.options?.kind === 'Lookup') {
-    switch (input.options.lookup) {
-      case 'deadlineTypes':
-        return {
-          mode: 'dynamic',
-          staticOptions: deadlineTypeLookup.typeConfigs
-            .filter((t) => t.isStatic)
-            .map((t) => ({ value: t.key, label: t.label })),
-          dynamicOptions: deadlineTypeLookup.typeConfigs
-            .filter((t) => !t.isStatic)
-            .map((t) => ({ value: t.key, label: t.label })),
-          onAdd: deadlineTypeLookup.addType,
-          onDelete: deadlineTypeLookup.removeType,
-        };
-      default:
-        return { mode: 'none' };
-    }
+    const collection = input.options.lookup;
+    const options = getOptions(collection);
+    return {
+      mode: 'dynamic',
+      staticOptions: options
+        .filter((option) => option.isStatic)
+        .map((option) => ({ value: option.key, label: option.label, color: resolveColor(option.color, theme, false) })),
+      dynamicOptions: options
+        .filter((option) => !option.isStatic)
+        .map((option) => ({ value: option.key, label: option.label, color: resolveColor(option.color, theme, false) })),
+      onAdd: (label: string) => addOption(collection, label),
+      onDelete: (key: string) => removeOption(collection, key),
+    };
   }
 
   return { mode: 'none' };

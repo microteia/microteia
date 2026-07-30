@@ -586,6 +586,32 @@ export const ScreenBuilderView: React.FC = () => {
                     onChange={(next) => vm.updateFieldForm({ optionsAllowUserAdd: next })}
                   />
                 </S.CheckboxCell>
+                {vm.fieldForm.optionsAllowUserAdd && (
+                  <>
+                    <InputGroup>
+                      <Label>Lista de opções</Label>
+                      <Input
+                        value={vm.fieldForm.lookupCollection}
+                        onChange={(e) => vm.updateFieldForm({ lookupCollection: e.target.value })}
+                        placeholder={vm.suggestedLookupCollection}
+                      />
+                      <S.FieldHint>
+                        As opções cadastradas pelos usuários ficam nesta lista, e continuam lá mesmo
+                        se a tela for excluída. Em branco, o sistema cria
+                        {vm.suggestedLookupCollection ? ` "${vm.suggestedLookupCollection}"` : ' uma lista para este campo'}.
+                      </S.FieldHint>
+                    </InputGroup>
+                    <InputGroup>
+                      <Label>Reaproveitar uma lista existente</Label>
+                      <SearchSelect
+                        options={vm.lookupOptions}
+                        value={vm.fieldForm.lookupCollection}
+                        onChange={(value) => vm.updateFieldForm({ lookupCollection: value })}
+                        placeholder="Escolha para compartilhar as opções com outra tela"
+                      />
+                    </InputGroup>
+                  </>
+                )}
                 {!vm.fieldModalIsEdit && (
                   <S.CheckboxCell>
                     <Checkbox

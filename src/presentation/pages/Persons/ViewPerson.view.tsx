@@ -16,17 +16,11 @@ export const ViewPersonView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
     <S.FormGrid>
       <S.FormGroup $fullWidth>
         <CustomFieldsSection
-          screenKey="persons-native"
-          resolveOptionsScreenKey={vm.resolveOptionsScreenKey}
           fields={vm.fields}
           values={vm.values}
           onChange={vm.setFieldValue}
           onMergeValues={vm.mergeValues}
           errors={vm.fieldErrors}
-          lookupOptions={vm.personLookupOptions}
-          onAddLookupOption={vm.handleAddPersonLookup}
-          onDeleteLookupOption={vm.handleDeletePersonLookup}
-          canDeleteLookupOption={vm.isAdmin}
         />
       </S.FormGroup>
 

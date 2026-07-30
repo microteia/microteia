@@ -1643,7 +1643,23 @@ Um único doc `ScreenDefinition` em `tenants/{tenantId}/screenDefinitions/{scree
 
 `FieldDefinition`: `key` (slug do label na criação; **imutável** — renomear o label não altera a key, preservando dados e histórico de auditoria), `label`, `type` (`text | textarea | number | currency | date | checkbox | select | masked | reference` — **type também é imutável** após criação), `required`, `order`, `section`, `options` (estáticas, para `select`), `optionsAllowUserAdd`, `multi`, `mask` (`cpf | cnpj | phone | cep`), `refEntity` (coleção padrão ou screenKey dinâmico), `placeholder`, `showInList`, `filterable`.
 
-**Opções dinâmicas de selects** (adicionadas inline por usuários com escrita, padrão `DynamicSelect`) vivem na subcoleção `tenants/{tid}/screenDefinitions/{screenKey}/fieldOptions/{id}` (`{ fieldKey, key, label, createdBy, createdAt }`) — fora do doc da definição para não afrouxar a rule de update (só admin edita a definição) e evitar corrida de escrita no array `fields`.
+**Opções de selects vivem numa COLEÇÃO própria do tenant**, apontada por `FieldDefinition.lookupCollection` — `tenants/{tid}/caseCourts/{id}` para um campo do kernel, `tenants/{tid}/medico_especialidade/{id}` para um do Form Design ou de extensão. A forma do documento é a mesma nos dois casos (`{ key, label, color? }`), e é isso que permite migrar uma tela fixa para plugin sem mover dado: a identidade da lista é o NOME da coleção.
+
+A regra que unifica: **`optionsAllowUserAdd: true` exige `lookupCollection`** — lista aberta *é* lista em coleção. O campo `options` inline continua existindo, e só, para lista fechada.
+
+| | Declaração da lista | Regra no Firestore |
+|---|---|---|
+| Kernel (`caseCourts`) | `LOOKUP_REGISTRY` (código) + defaults em `data/repositories/lookupDefaults.ts` | bloco nomeado; nome em `RESERVED_COLLECTIONS` |
+| Tenant (`medico_especialidade`) | documento em `tenants/{tid}/lookupDefinitions/{colecao}` | curinga, via `isDeclaredLookup()` |
+
+O `SchemaContext.lookups` é a **união** das duas — a partir dele nada mais pergunta de onde a lista veio.
+
+> **Por que a declaração do tenant existe.** O curinga das rules autoriza a escrita numa coleção que só existe em runtime consultando um `exists()`; sem um documento a apontar, não haveria o que consultar. E é ela, não os dados, que a desinstalação remove: **as opções cadastradas pelo escritório ficam na coleção**, e voltam a valer quando alguém recriar a lista com o mesmo nome. Antes, `fieldOptions` era subcoleção de `screenDefinitions` e a exclusão da tela apagava tudo.
+
+> **Por que as 30 listas do kernel NÃO ganham documento.** Seriam 30 docs por tenant repetindo o que o código já diz, e cada lista nova no `LOOKUP_REGISTRY` viraria migração de dados (sem backfill, ela nasceria sem declaração e não aceitaria escrita em tenant nenhum). É o mesmo arranjo das entidades: `persons` tem regra nomeada e `medico` passa pelo curinga, mas as duas resolvem pelo MESMO caminho. Quando `cases` virar extensão, suas listas migram de `LOOKUP_REGISTRY` para `lookupDefinitions` e os documentos não se movem.
+
+- Repositório e store são **um só para todas as listas**: `FirebaseLookupRepository` (`collection` como primeiro argumento, defaults de `lookupDefaults.ts`) e `LookupStore`/`useLookups` (`getOptions(collection)`, `addOption`, `removeOption`, `declareLookup`). Substituíram ~30 `Firebase*Repository` idênticos, 14 interfaces e os 7 stores por entidade (`CaseLookupStore` e irmãos).
+- `FirebaseLookupDefinitionRepository` cuida das declarações do tenant, com refcount em `ownerPluginIds` — duas extensões podem declarar a mesma lista, e desinstalar uma preserva a declaração.
 
 ### Registros das telas — UM modelo só
 
@@ -1669,9 +1685,9 @@ A listagem consulta `orderBy('createdAt','desc') + limit(500)` — sem filtro im
 ### Camadas
 
 - Conversões e validações puras: `domain/services/customFieldValues.ts` (`slugifyFieldKey`, `ensureUniqueKey`, `buildInitialFormValues`, `formValuesToStoredValues`, `validateRequiredFields`, `resolveRecordTitle`, `sortFieldsByOrder`).
-- Repositórios: `FirebaseScreenDefinitionRepository` (upsert preserva `createdAt/createdBy`; delete remove antes as subcoleções `fieldOptions` e `tags` e grava o stamp `deletedBy*`) e `FirebaseRecordRepository`/`FirebaseRecordNoteRepository`/`FirebaseRecordDocumentRepository` — **genéricos por coleção**: recebem `collection` como argumento e servem qualquer entidade.
+- Repositórios: `FirebaseScreenDefinitionRepository` (upsert preserva `createdAt/createdBy`; delete remove antes a subcoleção `tags` e grava o stamp `deletedBy*`) e `FirebaseRecordRepository`/`FirebaseRecordNoteRepository`/`FirebaseRecordDocumentRepository` — **genéricos por coleção**: recebem `collection` como argumento e servem qualquer entidade.
 - Use cases genéricos em `domain/usecases/records/` (`Create/Update/Delete/GetById/Get/SubscribeToRecord*`), todos parametrizados pela coleção.
-- Stores: `ScreenDefinitionStore` (definições + `fieldOptionsByField` + `tagsByScreen`, eventos `SCREEN_DEFINITIONS_UPDATED`) e `RecordStore` (`recordsByCollection`, `allRecords` para o ⌘K, evento `RECORDS_UPDATED`; assina uma coleção por tela `design`/`plugin` e depende do `ScreenDefinitionStore` — ordem dos providers em `App.tsx`). As 5 entidades fixas seguem com stores tipados próprios nesta etapa; o contrato de leitura e gravação, porém, já é o mesmo.
+- Stores: `ScreenDefinitionStore` (definições + `tagsByScreen`, eventos `SCREEN_DEFINITIONS_UPDATED`) e `RecordStore` (`recordsByCollection`, `allRecords` para o ⌘K, evento `RECORDS_UPDATED`; assina uma coleção por tela `design`/`plugin` e depende do `ScreenDefinitionStore` — ordem dos providers em `App.tsx`). As 5 entidades fixas seguem com stores tipados próprios nesta etapa; o contrato de leitura e gravação, porém, já é o mesmo.
 
 ### Anotações e Documentos em telas dinâmicas
 
@@ -1681,14 +1697,14 @@ A listagem consulta `orderBy('createdAt','desc') + limit(500)` — sem filtro im
 - `DeleteRecordUseCase` cascateia: exclui notas, documentos (incluindo arquivos do Storage) e então o registro.
 - Auditoria: `getNestedEntityConfig` cai numa configuração genérica de "Nota/Documento de Registro" para qualquer coleção que não seja reservada.
 
-Nota: a subcoleção `fieldOptions` (opções dinâmicas de selects) **não** está no `NESTED_ENTITY_CONFIG` — não gera log de auditoria hoje.
+Nota: as coleções de lista (`caseCourts`, `medico_especialidade`…) **não** estão no `NESTED_ENTITY_CONFIG` — não geram log de auditoria hoje.
 
 ### Etiquetas em telas dinâmicas
 
 - Habilitadas por tela via `hasTags` na definição; a tela de detalhe (`ViewDynamicRecord`) exibe um botão "Gerenciar etiquetas" no cabeçalho (mesmo ícone/posição do `ViewPerson`/`ViewContract`), as etiquetas aplicadas como pills abaixo do título, um filtro "Etiqueta" na listagem (`DynamicRecordList`) e as pills no card da listagem — tudo condicionado a `definition.hasTags`.
-- Diferente de `PersonTag`/`ContractTag` (tenant-scoped, uma coleção por tela padrão), a etiqueta de tela dinâmica é **exclusiva por `screenKey`**: `CustomRecordTag` (`{ name, color, createdBy, createdAt, ... }`) vive na subcoleção `tenants/{tid}/screenDefinitions/{screenKey}/tags/{id}` — mesmo racional de isolamento do `fieldOptions` (não afrouxar a rule de update da definição).
+- Diferente de `PersonTag`/`ContractTag` (tenant-scoped, uma coleção por tela padrão), a etiqueta de tela dinâmica é **exclusiva por `screenKey`**: `CustomRecordTag` (`{ name, color, createdBy, createdAt, ... }`) vive na subcoleção `tenants/{tid}/screenDefinitions/{screenKey}/tags/{id}` — isolada da definição para não afrouxar a rule de update dela.
 - `tagIds?: string[]` guarda as etiquetas aplicadas a cada registro (mesmo padrão de `Person.tagIds`/`Contract.tagIds`); atualizado via `useRecords().updateRecord(collection, recordId, { tagIds })`.
-- CRUD de etiquetas: `IScreenDefinitionRepository.getTags/createTag/updateTag/deleteTag` (mesmo repositório de `fieldOptions`, por serem ambos filhos de `screenDefinitions`) + use cases `screendefinitions/{Get,Create,Update,Delete}ScreenTagUseCase` + `ScreenDefinitionStore.tagsByScreen`/`createTag`/`updateTag`/`deleteTag`.
+- CRUD de etiquetas: `IScreenDefinitionRepository.getTags/createTag/updateTag/deleteTag` (no repositório de telas, por serem filhas de `screenDefinitions`) + use cases `screendefinitions/{Get,Create,Update,Delete}ScreenTagUseCase` + `ScreenDefinitionStore.tagsByScreen`/`createTag`/`updateTag`/`deleteTag`.
 - UI reaproveita o componente genérico `ui/TagManager` (já usado por Pessoa/Contrato) via um `TagStoreAdapter` construído em `ViewDynamicRecord.viewmodel` — nenhum componente de UI novo foi necessário.
 - Auditoria: par `screenDefinitions/tags` no `NESTED_ENTITY_CONFIG` (`functions/src/domain/services/auditableEntities.ts`), `entityKey: 'ScreenTag'`; como o pai já é o próprio `screenKey` (a subcoleção de tags é filha da própria definição), `getEntityLink` usa `parentId` direto para montar `dyn:{screenKey}` (abre a listagem da tela).
 
@@ -1702,7 +1718,7 @@ Nota: a subcoleção `fieldOptions` (opções dinâmicas de selects) **não** es
 ### Navegação e renderização
 
 - **tabKeys** (builders/parser em `shared/constants/dynamicScreenKeys.ts`): `dyn:{screenKey}` (listagem), `new-dyn:{screenKey}`, `new-dyn:{screenKey}:clone:{recordId}` e `view-dyn:{screenKey}:{recordId}`. Os três prefixos estão registrados no `pageRegistry` apontando para `DynamicRecordList` e `ViewDynamicRecord`; o título real da aba é definido em runtime via `setTabTitle` (o ícone da aba é o genérico — o ícone escolhido pelo admin aparece no Sidebar).
-- **Motor de renderização:** `ui/CustomFieldsSection` renderiza qualquer `FieldDefinition[]` (agrupado por `section`) a partir de `values` + `onChange(fieldKey, value)`. Mapa de tipo→componente: text/number→`Input`, textarea→`Textarea`, currency→`CurrencyInput`, date→`DateInput`, checkbox nativo estilizado, select→`DynamicSelect` (opções estáticas da definição + dinâmicas de `fieldOptions`, com `onAdd`/`onDelete`), masked→`ui/MaskedInput` (novo wrapper das máscaras de `utils/formatters.ts`), reference→`SearchSelect`/`MultiSearchSelect` com opções de `presentation/hooks/useReferenceOptions.ts` (mapeia `refEntity` → registros do store correspondente, incluindo outras telas dinâmicas).
+- **Motor de renderização:** `ui/CustomFieldsSection` renderiza qualquer `FieldDefinition[]` (agrupado por `section`) a partir de `values` + `onChange(fieldKey, value)`. Mapa de tipo→componente: text/number→`Input`, textarea→`Textarea`, currency→`CurrencyInput`, date→`DateInput`, checkbox nativo estilizado, select→`DynamicSelect` (opções fixas — as declaradas no campo mais as `isStatic` da lista — e as cadastradas pelo escritório, com `onAdd`/`onDelete`, todas resolvidas por `lookupCollection`), masked→`ui/MaskedInput` (novo wrapper das máscaras de `utils/formatters.ts`), reference→`SearchSelect`/`MultiSearchSelect` com opções de `presentation/hooks/useReferenceOptions.ts` (mapeia `refEntity` → registros do store correspondente, incluindo outras telas dinâmicas).
 - **Listagem (dinâmica e padrão) — hook `useCustomFieldListing`:** a lógica de `showInList`/`filterable` vive em `presentation/hooks/useCustomFieldListing.ts`. O hook recebe `(screenKey, fields, filterKeyPrefix)` e devolve: `filterDefs` do `CompositeFilter` a partir dos campos `filterable` (select/reference→multiselect, checkbox→Sim/Não, date→date com igualdade exata, demais→texto), o matcher `matchesFilters(values, tokenMap)`, e `cardItems(values)` (pares label/valor dos campos `showInList`, formatados por tipo) renderizados pelo componente `ui/CustomFieldMetaRows`.
 - **Listagem dinâmica:** `DynamicRecordList` usa o hook sem prefixo de chave e com `savedFiltersScreenKey = tabKey`; exclui o `titleFieldKey` dos `cardItems`. Tela desativada/excluída renderiza `InfoBanner`, nunca quebra.
 - **Listagens padrão:** as cinco listagens builtin (Pessoas, Processos, Contratos, Financeiro, Prazos) obtêm os campos via `getScreenFieldsFor(collection)` e usam o hook com `CUSTOM_FIELD_FILTER_PREFIX` (`cf-`) nas chaves dos `FilterDef` — o prefixo evita colisão com os filtros nativos (`status`, `type`, `city`…). Cada ViewModel anexa `...customListing.filterDefs` aos defs nativos, encerra o predicado de filtragem com `customListing.matchesFilters(entidade, tokenMap)` e expõe `getCustomFieldItems(entidade)`; a View renderiza `<CustomFieldMetaRows items={...} />` no cartão, após o bloco de metadados nativo.

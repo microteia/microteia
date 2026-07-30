@@ -12,7 +12,6 @@ import { FirebaseNewsTagRepository } from '../../data/repositories/FirebaseNewsT
 import { FirebaseNewsTagLinkRepository } from '../../data/repositories/FirebaseNewsTagLinkRepository';
 import { FirebaseNewsCommentRepository } from '../../data/repositories/FirebaseNewsCommentRepository';
 import { FirebaseNewsDocumentRepository } from '../../data/repositories/FirebaseNewsDocumentRepository';
-import { FirebaseNewsCategoryRepository } from '../../data/repositories/FirebaseNewsCategoryRepository';
 import { FirebaseSavedFilterRepository } from '../../data/repositories/FirebaseSavedFilterRepository';
 import { FirebaseTenantRepository } from '../../data/repositories/FirebaseTenantRepository';
 import { FirebasePersonRepository } from '../../data/repositories/FirebasePersonRepository';
@@ -30,27 +29,16 @@ import { FirebasePersonDocumentRepository } from '../../data/repositories/Fireba
 import { FirebaseCaseTagRepository } from '../../data/repositories/FirebaseCaseTagRepository';
 import { FirebaseCaseNoteRepository } from '../../data/repositories/FirebaseCaseNoteRepository';
 import { FirebaseCaseDocumentRepository } from '../../data/repositories/FirebaseCaseDocumentRepository';
-import { FirebaseCaseAreaRepository } from '../../data/repositories/FirebaseCaseAreaRepository';
-import { FirebaseCasePhaseRepository } from '../../data/repositories/FirebaseCasePhaseRepository';
-import { FirebaseCaseStatusRepository } from '../../data/repositories/FirebaseCaseStatusRepository';
-import { FirebaseCaseInstanceRepository } from '../../data/repositories/FirebaseCaseInstanceRepository';
-import { FirebaseCaseActionTypeRepository } from '../../data/repositories/FirebaseCaseActionTypeRepository';
-import { FirebaseCaseCourtRepository } from '../../data/repositories/FirebaseCaseCourtRepository';
-import { FirebaseCaseDistrictRepository } from '../../data/repositories/FirebaseCaseDistrictRepository';
-import { FirebaseCaseJudgeRepository } from '../../data/repositories/FirebaseCaseJudgeRepository';
-import { FirebasePersonLookupRepository } from '../../data/repositories/FirebasePersonLookupRepository';
 import { FirebaseContractRepository } from '../../data/repositories/FirebaseContractRepository';
 import { FirebaseContractTagRepository } from '../../data/repositories/FirebaseContractTagRepository';
 import { FirebaseContractNoteRepository } from '../../data/repositories/FirebaseContractNoteRepository';
 import { FirebaseContractDocumentRepository } from '../../data/repositories/FirebaseContractDocumentRepository';
-import { FirebaseContractLookupRepository } from '../../data/repositories/FirebaseContractLookupRepository';
-import { FirebaseFinancialLookupRepository } from '../../data/repositories/FirebaseFinancialLookupRepository';
-import { FirebaseDeadlineTypeRepository } from '../../data/repositories/FirebaseDeadlineTypeRepository';
-import { FirebaseDocumentTypeRepository } from '../../data/repositories/FirebaseDocumentTypeRepository';
 import { FirebaseAuditLogRepository } from '../../data/repositories/FirebaseAuditLogRepository';
 import { FirebaseAuditLogService } from '../../data/services/FirebaseAuditLogService';
 import { FirebaseScreenDefinitionRepository } from '../../data/repositories/FirebaseScreenDefinitionRepository';
 import { FirebaseRecordRepository } from '../../data/repositories/FirebaseRecordRepository';
+import { FirebaseLookupRepository } from '../../data/repositories/FirebaseLookupRepository';
+import { FirebaseLookupDefinitionRepository } from '../../data/repositories/FirebaseLookupDefinitionRepository';
 import { FirebaseRecordNoteRepository } from '../../data/repositories/FirebaseRecordNoteRepository';
 import { FirebaseRecordDocumentRepository } from '../../data/repositories/FirebaseRecordDocumentRepository';
 import { FirebaseWorkflowDefinitionRepository } from '../../data/repositories/FirebaseWorkflowDefinitionRepository';
@@ -85,45 +73,33 @@ export const DIProvider: React.FC<{ children: React.ReactNode }> = ({ children }
     newsTagLinkRepository:    new FirebaseNewsTagLinkRepository(),
     newsCommentRepository:    new FirebaseNewsCommentRepository(),
     newsDocumentRepository:   new FirebaseNewsDocumentRepository(),
-    newsCategoryRepository:   new FirebaseNewsCategoryRepository(),
     savedFilterRepository:    new FirebaseSavedFilterRepository(),
     tenantRepository:         new FirebaseTenantRepository(),
     personRepository:         new FirebasePersonRepository(),
     personTagRepository:      new FirebasePersonTagRepository(),
     personNoteRepository:     new FirebasePersonNoteRepository(),
     personDocumentRepository: new FirebasePersonDocumentRepository(),
-    personLookupRepository:   new FirebasePersonLookupRepository(),
     caseRepository:           new FirebaseCaseRepository(),
     caseTagRepository:        new FirebaseCaseTagRepository(),
     caseNoteRepository:       new FirebaseCaseNoteRepository(),
     caseDocumentRepository:   new FirebaseCaseDocumentRepository(),
-    caseAreaRepository:       new FirebaseCaseAreaRepository(),
-    casePhaseRepository:      new FirebaseCasePhaseRepository(),
-    caseStatusRepository:     new FirebaseCaseStatusRepository(),
-    caseInstanceRepository:   new FirebaseCaseInstanceRepository(),
-    caseActionTypeRepository: new FirebaseCaseActionTypeRepository(),
-    caseCourtRepository:      new FirebaseCaseCourtRepository(),
-    caseDistrictRepository:   new FirebaseCaseDistrictRepository(),
-    caseJudgeRepository:      new FirebaseCaseJudgeRepository(),
     contractRepository:         new FirebaseContractRepository(),
     contractTagRepository:      new FirebaseContractTagRepository(),
     contractNoteRepository:     new FirebaseContractNoteRepository(),
     contractDocumentRepository: new FirebaseContractDocumentRepository(),
-    contractLookupRepository:   new FirebaseContractLookupRepository(),
     deadlineRepository:       new FirebaseDeadlineRepository(),
-    deadlineTypeRepository:   new FirebaseDeadlineTypeRepository(),
     financialRepository:      new FirebaseFinancialRepository(),
     financialTagRepository:   new FirebaseFinancialTagRepository(),
     financialDocumentRepository: new FirebaseFinancialDocumentRepository(),
-    financialLookupRepository: new FirebaseFinancialLookupRepository(),
     textAnnotationRepository: new FirebaseTextAnnotationRepository(),
     pushRepository:           new FirebasePushRepository(),
     pushInteractionRepository: new FirebasePushInteractionRepository(),
-    documentTypeRepository:   new FirebaseDocumentTypeRepository(),
     auditLogRepository:       new FirebaseAuditLogRepository(),
     auditLogService:          new FirebaseAuditLogService(),
     screenDefinitionRepository: new FirebaseScreenDefinitionRepository(),
     recordRepository:         new FirebaseRecordRepository(),
+    lookupRepository:         new FirebaseLookupRepository(),
+    lookupDefinitionRepository: new FirebaseLookupDefinitionRepository(),
     recordNoteRepository:     new FirebaseRecordNoteRepository(),
     recordDocumentRepository: new FirebaseRecordDocumentRepository(),
     workflowDefinitionRepository: new FirebaseWorkflowDefinitionRepository(),

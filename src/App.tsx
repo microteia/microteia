@@ -9,23 +9,17 @@ import { AuthProvider } from './stores/AuthContext';
 import { TenantStoreProvider } from './stores/TenantStore';
 import { PersonStoreProvider } from './stores/PersonStore';
 import { PersonTagStoreProvider } from './stores/PersonTagStore';
-import { PersonLookupStoreProvider } from './stores/PersonLookupStore';
+import { LookupStoreProvider } from './stores/LookupStore';
 import { CaseStoreProvider } from './stores/CaseStore';
 import { CaseTagStoreProvider } from './stores/CaseTagStore';
-import { CaseLookupStoreProvider } from './stores/CaseLookupStore';
-import { DocumentTypeLookupStoreProvider } from './stores/DocumentTypeLookupStore';
 import { ContractStoreProvider } from './stores/ContractStore';
-import { ContractLookupStoreProvider } from './stores/ContractLookupStore';
 import { ContractTagStoreProvider } from './stores/ContractTagStore';
 import { DeadlineStoreProvider } from './stores/DeadlineStore';
-import { DeadlineLookupStoreProvider } from './stores/DeadlineLookupStore';
 import { FinancialStoreProvider } from './stores/FinancialStore';
 import { FinancialTagStoreProvider } from './stores/FinancialTagStore';
-import { FinancialLookupStoreProvider } from './stores/FinancialLookupStore';
 import { PushStoreProvider } from './stores/PushStore';
 import { PushInteractionStoreProvider } from './stores/PushInteractionStore';
 import { NewsStoreProvider } from './stores/NewsStore';
-import { NewsCategoryLookupStoreProvider } from './stores/NewsCategoryLookupStore';
 import { NewsTagStoreProvider } from './stores/NewsTagStore';
 import { NewsInteractionStoreProvider } from './stores/NewsInteractionStore';
 import { SavedFilterStoreProvider } from './stores/SavedFilterStore';
@@ -79,23 +73,17 @@ const App: React.FC = () => {
                     <TenantStoreProvider>
                       <PersonStoreProvider>
                         <PersonTagStoreProvider>
-                        <PersonLookupStoreProvider>
+                        <LookupStoreProvider>
                         <CaseStoreProvider>
-                          <CaseLookupStoreProvider>
-                          <DocumentTypeLookupStoreProvider>
                           <CaseTagStoreProvider>
                           <ContractStoreProvider>
-                          <ContractLookupStoreProvider>
                           <ContractTagStoreProvider>
                           <DeadlineStoreProvider>
-                            <DeadlineLookupStoreProvider>
                             <FinancialStoreProvider>
                             <FinancialTagStoreProvider>
-                            <FinancialLookupStoreProvider>
                               <PushStoreProvider>
                                 <PushInteractionStoreProvider>
                                   <NewsStoreProvider>
-                                    <NewsCategoryLookupStoreProvider>
                                     <NewsTagStoreProvider>
                                       <NewsInteractionStoreProvider>
                                         <SavedFilterStoreProvider>
@@ -140,23 +128,17 @@ const App: React.FC = () => {
                                         </SavedFilterStoreProvider>
                                       </NewsInteractionStoreProvider>
                                     </NewsTagStoreProvider>
-                                    </NewsCategoryLookupStoreProvider>
                                   </NewsStoreProvider>
                                 </PushInteractionStoreProvider>
                               </PushStoreProvider>
-                            </FinancialLookupStoreProvider>
                             </FinancialTagStoreProvider>
                             </FinancialStoreProvider>
-                            </DeadlineLookupStoreProvider>
                           </DeadlineStoreProvider>
                           </ContractTagStoreProvider>
-                          </ContractLookupStoreProvider>
                           </ContractStoreProvider>
                           </CaseTagStoreProvider>
-                          </DocumentTypeLookupStoreProvider>
-                          </CaseLookupStoreProvider>
                         </CaseStoreProvider>
-                        </PersonLookupStoreProvider>
+                        </LookupStoreProvider>
                         </PersonTagStoreProvider>
                       </PersonStoreProvider>
                     </TenantStoreProvider>

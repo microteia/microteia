@@ -13,8 +13,6 @@ export interface EntityFormFields {
    * na mesma raiz do documento, sem envelope.
    */
   addedFields: FieldDefinition[];
-  /** Opções criadas pelo usuário são indexadas por tela — e a tela é a própria coleção. */
-  resolveOptionsScreenKey: (field: FieldDefinition) => string;
 }
 
 /**
@@ -27,7 +25,6 @@ export const useEntityFormFields = (collection: EntityKey): EntityFormFields => 
 
   const fields = useMemo(() => deriveFormFields(ctx, collection), [ctx, collection]);
   const addedFields = useMemo(() => fields.filter((field) => field.origin !== 'builtin'), [fields]);
-  const resolveOptionsScreenKey = useMemo(() => () => collection, [collection]);
 
-  return { fields, addedFields, resolveOptionsScreenKey };
+  return { fields, addedFields };
 };

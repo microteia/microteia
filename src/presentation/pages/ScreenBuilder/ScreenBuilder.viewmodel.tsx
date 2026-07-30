@@ -15,9 +15,10 @@ import { AGGREGATION_OP_LABELS, FORMAT_PRESET_LABELS, VALIDATE_CHECK_LABELS } fr
 import { extractFieldExpressionDependencies } from '../../../domain/schema/fieldExpression';
 import { aggregationCreatesCycle } from '../../../domain/schema/aggregationSpec';
 import { useSchemaContext } from '../../shared/useSchemaContext';
+import { useLookups } from '../../../stores/useLookups';
 import { useDI } from '../../../infrastructure/di/useDI';
 import { deriveFormFields } from '../../shared/deriveEntitySchema';
-import { RESERVED_COLLECTIONS, screenIdIssue } from '../../../domain/schema/screenEntity';
+import { RESERVED_COLLECTIONS, derivedLookupCollection, lookupIdIssue, screenIdIssue } from '../../../domain/schema/screenEntity';
 import type { EntityKey } from '../../../domain/schema/entityRegistry';
 import { getEntityByCollection } from '../../../domain/schema/entityRegistry';
 import type { WorkflowVariable } from '../../components/ui/ExpressionEditor/autocompleteHelpers';
@@ -95,6 +96,7 @@ export interface FieldFormState {
   mask: CustomFieldMask | '';
   refEntity: string;
   optionsAllowUserAdd: boolean;
+  lookupCollection: string;
   optionsColored: boolean;
   staticOptions: FieldOptionFormItem[];
   optionInput: string;
@@ -193,6 +195,10 @@ export interface ScreenBuilderViewModel {
   validateCheckOptions: SearchSelectOption[];
   fieldSupportsRules: boolean;
   refEntityOptions: SearchSelectOption[];
+  /** Listas do tenant que o campo pode reaproveitar — é assim que duas telas compartilham opções. */
+  lookupOptions: SearchSelectOption[];
+  /** Nome sugerido quando o campo ainda não aponta para nenhuma lista. */
+  suggestedLookupCollection: string;
   aggregationFromOptions: SearchSelectOption[];
   aggregationViaOptions: SearchSelectOption[];
   aggregationFieldOptions: SearchSelectOption[];
@@ -275,6 +281,7 @@ const EMPTY_FIELD_FORM: FieldFormState = {
   mask: '',
   refEntity: '',
   optionsAllowUserAdd: false,
+  lookupCollection: '',
   optionsColored: false,
   staticOptions: [],
   optionInput: '',
@@ -509,6 +516,7 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
   const { tenantRole } = useTenant();
   const { definitions, dynamicScreens, isLoading, saveDefinition, deleteDefinition } = useScreenDefinitions();
   const schemaContext = useSchemaContext();
+  const { availableLookups, declareLookup } = useLookups();
   const { externalLookupServices } = useDI();
   const { notify } = useNotification();
   const { actions } = useActions();
@@ -952,7 +960,7 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
           ...RESERVED_COLLECTIONS,
         ]);
         const screenKey = ensureUniqueKey(slugifyFieldKey(screenForm.titlePlural), existingKeys);
-        const keyIssue = screenIdIssue(screenKey);
+        const keyIssue = screenIdIssue(screenKey, schemaContext);
         if (keyIssue) {
           notify(keyIssue, 'error');
           return;
@@ -996,7 +1004,7 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
     } finally {
       setSavingScreen(false);
     }
-  }, [screenForm, screenModal, getDefinitionByKey, saveDefinition, definitions, dynamicDefinitions, childCandidates, persistChildLinks, notify]);
+  }, [screenForm, screenModal, getDefinitionByKey, saveDefinition, definitions, dynamicDefinitions, childCandidates, persistChildLinks, notify, schemaContext]);
 
   const toggleScreenEnabled = useCallback(async (screenKey: string) => {
     const def = getDefinitionByKey(screenKey);
@@ -1076,6 +1084,7 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
       mask: field.mask ?? '',
       refEntity: field.refEntity ?? '',
       optionsAllowUserAdd: field.optionsAllowUserAdd ?? false,
+      lookupCollection: field.lookupCollection ?? '',
       optionsColored: field.optionsColored ?? false,
       staticOptions: (field.options ?? []).map((o) => ({ label: o.label, color: o.color })),
       optionInput: '',
@@ -1144,6 +1153,17 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
       ...dynamicOptions,
     ];
   }, [dynamicScreens, fieldModal]);
+
+  const lookupOptions = useMemo<SearchSelectOption[]>(
+    () => availableLookups.map((lookup) => ({ value: lookup.collection, label: `${lookup.label} (${lookup.collection})` })),
+    [availableLookups],
+  );
+
+  const suggestedLookupCollection = useMemo(() => {
+    if (!fieldModal) return '';
+    const key = fieldModal.fieldKey || fieldForm.fieldKey.trim() || slugifyFieldKey(fieldForm.label.trim());
+    return key ? derivedLookupCollection(fieldModal.screenKey, key) : '';
+  }, [fieldModal, fieldForm.fieldKey, fieldForm.label]);
 
   // Só faz sentido agregar de uma tela que aponte de volta para esta: é o vínculo pai/filho que
   // define quais registros pertencem ao agregado.
@@ -1272,17 +1292,31 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
       }
     }
 
-    // Uma seleção cujas opções vêm de uma LISTA (lookup) não precisa de opções estáticas — é o caso
-    // de vários campos do kernel. A checagem vale só para quem tira as opções do próprio campo.
-    const optionsFromLookup = !!resolvedField(fieldModal.screenKey, fieldModal.fieldKey ?? '')?.lookupCollection;
+    const fieldKeyForLookup = fieldModal.fieldKey || fieldForm.fieldKey.trim() || slugifyFieldKey(label);
+
+    // Uma seleção cujas opções vêm de uma LISTA não precisa de opções declaradas no campo — é o
+    // caso de vários campos do kernel. A checagem vale só para quem tira as opções do próprio campo.
+    const lookupCollection = fieldForm.type === 'select' && fieldForm.optionsAllowUserAdd
+      ? (fieldForm.lookupCollection.trim() || derivedLookupCollection(fieldModal.screenKey, fieldKeyForLookup))
+      : (fieldForm.lookupCollection.trim() || null);
     if (
       fieldForm.type === 'select'
-      && !optionsFromLookup
+      && !lookupCollection
       && fieldForm.staticOptions.length === 0
       && !fieldForm.optionsAllowUserAdd
     ) {
       reject('general', 'Adicione ao menos uma opção ou permita que usuários criem opções.');
       return;
+    }
+    // Só um nome NOVO passa pela validação. Uma lista que já existe é escolha legítima — inclusive
+    // as do kernel, que estão entre as coleções reservadas justamente por já terem dono.
+    const isNewLookup = !!lookupCollection && !schemaContext.lookups.has(lookupCollection);
+    if (isNewLookup) {
+      const issue = lookupIdIssue(lookupCollection as string, schemaContext);
+      if (issue) {
+        reject('general', issue);
+        return;
+      }
     }
     if (fieldForm.type === 'masked' && !fieldForm.mask) {
       reject('general', 'Escolha a máscara do campo.');
@@ -1348,6 +1382,7 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
             mask: fieldForm.type === 'masked' && fieldForm.mask !== '' ? fieldForm.mask : null,
             refEntity: fieldForm.type === 'reference' ? fieldForm.refEntity : null,
             optionsAllowUserAdd: fieldForm.optionsAllowUserAdd,
+            lookupCollection,
             optionsColored: fieldForm.type === 'select' ? fieldForm.optionsColored : false,
             options: fieldForm.type === 'select'
               ? fieldForm.staticOptions.map((o) => ({ key: o.label, label: o.label, isStatic: true, color: o.color }))
@@ -1379,6 +1414,7 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
           mask: fieldForm.type === 'masked' && fieldForm.mask !== '' ? fieldForm.mask : null,
           refEntity: fieldForm.type === 'reference' ? fieldForm.refEntity : null,
           optionsAllowUserAdd: fieldForm.optionsAllowUserAdd,
+          lookupCollection,
           optionsColored: fieldForm.type === 'select' ? fieldForm.optionsColored : false,
           options: fieldForm.type === 'select'
             ? fieldForm.staticOptions.map((o) => ({ key: o.label, label: o.label, isStatic: true, color: o.color }))
@@ -1391,6 +1427,11 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
           logic,
         }];
       }
+      // A declaração vem ANTES do campo: é ela que as Security Rules consultam para autorizar a
+      // primeira opção que o usuário cadastrar na coleção.
+      if (isNewLookup) {
+        await declareLookup(lookupCollection as string, label);
+      }
       await saveDefinition(fieldModal.screenKey, { ...baseInput, fields: nextFields });
       notify(fieldModal.fieldKey ? 'Campo atualizado com sucesso!' : 'Campo adicionado com sucesso!', 'success');
       setFieldModal(null);
@@ -1399,7 +1440,7 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
     } finally {
       setSavingField(false);
     }
-  }, [fieldModal, fieldForm, fieldModalIsTitleField, getDefinitionByKey, saveDefinition, notify, schemaContext, resolvedField]);
+  }, [fieldModal, fieldForm, fieldModalIsTitleField, getDefinitionByKey, saveDefinition, notify, schemaContext, resolvedField, declareLookup]);
 
   /**
    * Grava a ordem da lista como posições absolutas em `fields[]`. Um campo do kernel que ainda não
@@ -1585,6 +1626,8 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
     validateCheckOptions,
     fieldSupportsRules,
     refEntityOptions,
+    lookupOptions,
+    suggestedLookupCollection,
     aggregationFromOptions,
     aggregationViaOptions,
     aggregationFieldOptions,

@@ -5,8 +5,8 @@ import { usePushInteraction } from '../../../stores/usePushInteraction';
 import { useWorkspace } from '../../../stores/useWorkspace';
 import { useDeadlineStore } from '../../../stores/useDeadlineStore';
 import { useCaseStore } from '../../../stores/useCaseStore';
-import { useCaseLookup } from '../../../stores/useCaseLookup';
 import { useTenant } from '../../../stores/useTenant';
+import { useLookups } from '../../../stores/useLookups';
 import { setNavigationIntent } from '../../../infrastructure/navigation/navigationIntent';
 import { getConfigColor } from '../../../shared/styles/colorUtils';
 import type { Push } from '../../../domain/entities';
@@ -109,7 +109,9 @@ export const usePushesViewModel = (): PushesViewModel => {
   const { openTab } = useWorkspace();
   const { deadlines } = useDeadlineStore();
   const { cases } = useCaseStore();
-  const { phaseConfigs, statusConfigs } = useCaseLookup();
+  const { getOptions } = useLookups();
+  const phaseConfigs = getOptions('casePhases');
+  const statusConfigs = getOptions('caseStatuses');
   const { currentTenant } = useTenant();
   const theme = useTheme();
 

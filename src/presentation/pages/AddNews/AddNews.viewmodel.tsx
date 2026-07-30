@@ -1,10 +1,10 @@
 import { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { useNews } from '../../../stores/useNews';
 import { useNewsInteraction } from '../../../stores/useNewsInteraction';
-import { useNewsCategoryLookup } from '../../../stores/useNewsCategoryLookup';
 import { useWorkspace } from '../../../stores/useWorkspace';
 import { useAuth } from '../../../stores/useAuth';
 import { useTenant } from '../../../stores/useTenant';
+import { useLookups } from '../../../stores/useLookups';
 import type { DynamicSelectOption } from '../../components/ui/DynamicSelect';
 
 export interface AddNewsViewModel {
@@ -40,7 +40,8 @@ export const useAddNewsViewModel = (tabKey: string): AddNewsViewModel => {
 
   const { news, createNews, updateNews } = useNews();
   const { markAsRead } = useNewsInteraction();
-  const { categoryConfigs, addItem, removeItem } = useNewsCategoryLookup();
+  const { getOptions, addOption, removeOption } = useLookups();
+  const categoryConfigs = getOptions('newsCategories');
   const { panels, closeTab } = useWorkspace();
   const { userRole, effectiveName, effectivePhotoURL } = useAuth();
   const { currentTenant, tenantRole } = useTenant();
@@ -89,8 +90,8 @@ export const useAddNewsViewModel = (tabKey: string): AddNewsViewModel => {
     [categoryConfigs],
   );
 
-  const handleAddCategory = useCallback(async (name: string) => { await addItem(name); }, [addItem]);
-  const handleDeleteCategory = useCallback(async (key: string) => { await removeItem(key); }, [removeItem]);
+  const handleAddCategory = useCallback(async (name: string) => { await addOption('newsCategories', name); }, [addOption]);
+  const handleDeleteCategory = useCallback(async (key: string) => { await removeOption('newsCategories', key); }, [removeOption]);
 
   const handleSave = async () => {
     if (!title.trim() || !summary.trim()) return;

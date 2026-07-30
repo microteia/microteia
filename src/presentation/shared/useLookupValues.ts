@@ -1,19 +1,8 @@
 import { useCallback } from 'react';
-import { usePersonLookup } from '../../stores/usePersonLookup';
-import { useCaseLookup } from '../../stores/useCaseLookup';
-import { useContractLookup } from '../../stores/useContractLookup';
-import { useDeadlineLookup } from '../../stores/useDeadlineLookup';
-import { useFinancialLookup } from '../../stores/useFinancialLookup';
-import { useDocumentTypeLookup } from '../../stores/useDocumentTypeLookup';
-import { useNewsCategoryLookup } from '../../stores/useNewsCategoryLookup';
+import { useLookups } from '../../stores/useLookups';
 
 export interface LookupValueOption {
   value: string;
-  label: string;
-  color?: string;
-}
-
-interface LookupConfigLike {
   label: string;
   color?: string;
 }
@@ -22,52 +11,25 @@ export interface LookupValuesState {
   getLookupOptions: (collection: string) => LookupValueOption[];
 }
 
+/**
+ * As opções de uma lista pelo nome da coleção. A assinatura é a mesma de antes — o que mudou é que
+ * atrás dela não existe mais um mapa de 30 linhas ligando coleção a store: qualquer lista responde,
+ * inclusive as que o tenant criou depois do build.
+ *
+ * O VALOR gravado no registro é o rótulo, não a chave: é o que as telas fixas sempre fizeram, e o
+ * que o formulário mostra ao usuário.
+ */
 export const useLookupValues = (): LookupValuesState => {
-  const personLookup = usePersonLookup();
-  const caseLookup = useCaseLookup();
-  const contractLookup = useContractLookup();
-  const deadlineLookup = useDeadlineLookup();
-  const financialLookup = useFinancialLookup();
-  const documentTypeLookup = useDocumentTypeLookup();
-  const newsCategoryLookup = useNewsCategoryLookup();
+  const { getOptions } = useLookups();
 
   const getLookupOptions = useCallback(
-    (collection: string): LookupValueOption[] => {
-      const configsByCollection: Record<string, LookupConfigLike[]> = {
-        personTypes: personLookup.typeConfigs,
-        personOccupations: personLookup.occupationConfigs,
-        personNationalities: personLookup.nationalityConfigs,
-        personMaritalStatuses: personLookup.maritalStatusConfigs,
-        personCities: personLookup.cityConfigs,
-        personRelationships: personLookup.relationshipConfigs,
-        caseAreas: caseLookup.areaConfigs,
-        casePhases: caseLookup.phaseConfigs,
-        caseStatuses: caseLookup.statusConfigs,
-        caseInstances: caseLookup.instanceConfigs,
-        caseActionTypes: caseLookup.actionTypeConfigs,
-        caseCourts: caseLookup.courtConfigs,
-        caseDistricts: caseLookup.districtConfigs,
-        caseJudges: caseLookup.judgeConfigs,
-        documentTypes: documentTypeLookup.typeConfigs,
-        newsCategories: newsCategoryLookup.categoryConfigs,
-        contractTypes: contractLookup.typeConfigs,
-        contractCategories: contractLookup.categoryConfigs,
-        contractStatuses: contractLookup.statusConfigs,
-        contractObjects: contractLookup.objectConfigs,
-        contractAdjustmentIndexes: contractLookup.adjustmentIndexConfigs,
-        contractAdjustmentPeriodicities: contractLookup.adjustmentPeriodicityConfigs,
-        contractCurrencies: contractLookup.currencyConfigs,
-        contractPaymentMethods: contractLookup.paymentMethodConfigs,
-        contractBanks: contractLookup.bankConfigs,
-        contractCostCenters: contractLookup.costCenterConfigs,
-        deadlineTypes: deadlineLookup.typeConfigs,
-        financialCategories: financialLookup.categoryConfigs,
-        financialStatuses: financialLookup.statusConfigs,
-      };
-      const configs = configsByCollection[collection] ?? [];
-      return configs.map((config) => ({ value: config.label, label: config.label, color: config.color }));
-    },
-    [personLookup, caseLookup, contractLookup, deadlineLookup, financialLookup, documentTypeLookup, newsCategoryLookup],
+    (collection: string): LookupValueOption[] =>
+      getOptions(collection).map((option) => ({
+        value: option.label,
+        label: option.label,
+        color: option.color,
+      })),
+    [getOptions],
   );
 
   return { getLookupOptions };

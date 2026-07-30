@@ -2,10 +2,10 @@ import { useState, useMemo, useCallback } from 'react';
 import { useNews } from '../../../stores/useNews';
 import { useNewsTag } from '../../../stores/useNewsTag';
 import { useNewsInteraction } from '../../../stores/useNewsInteraction';
-import { useNewsCategoryLookup } from '../../../stores/useNewsCategoryLookup';
 import { useWorkspace } from '../../../stores/useWorkspace';
 import { useAuth } from '../../../stores/useAuth';
 import { useTenant } from '../../../stores/useTenant';
+import { useLookups } from '../../../stores/useLookups';
 import type { News, NewsTag, UserRole } from '../../../domain/entities';
 import type { FilterDef, FilterToken } from '../../components/ui/CompositeFilter';
 
@@ -73,7 +73,8 @@ export const useNewsViewModel = (): NewsViewModel => {
   const { currentTenant } = useTenant();
   const { getTagsForNews } = useNewsTag();
   const { getInteraction, toggleSavedForLater, markAsUnread, unreadCount } = useNewsInteraction();
-  const { categoryConfigs } = useNewsCategoryLookup();
+  const { getOptions } = useLookups();
+  const categoryConfigs = getOptions('newsCategories');
 
   const [filterTokens, setFilterTokens] = useState<FilterToken[]>([
     { key: 'readStatus', values: ['UNREAD'] },
