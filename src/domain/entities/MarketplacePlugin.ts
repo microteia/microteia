@@ -88,8 +88,8 @@ export type ScriptModuleTemplate = { templateId: string } & Omit<
  * (`sucrase`) e a avalia contra a API CURADA do host, registrando o componente sob `key`. Uma
  * contribuição `ui.page` com `impl: { kind: 'code', key }` no `manifest.contributes` a expõe como
  * aba do workspace. Código só é avaliado quando a extensão vem de fonte confiável — publicada no
- * registro por um SYSTEM ou embutida no bundle; um `.json` importado avulso instala dados, mas a
- * view não executa.
+ * registro por um SYSTEM ou embutida no bundle; um `.json` importado avulso instala dados, e a view
+ * só executa depois que um admin do escritório revisa o código (ver `extensionCodeTrust`).
  */
 export interface ViewModuleTemplate {
   key: string;

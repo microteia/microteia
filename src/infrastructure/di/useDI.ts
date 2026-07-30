@@ -12,7 +12,6 @@ import type { INewsCommentRepository } from '../../domain/repositories/INewsComm
 import type { INewsDocumentRepository } from '../../domain/repositories/INewsDocumentRepository';
 import type { ISavedFilterRepository } from '../../domain/repositories/ISavedFilterRepository';
 import type { ITenantRepository } from '../../domain/repositories/ITenantRepository';
-import type { IExternalLookupService } from '../../domain/services/IExternalLookupService';
 import type { IPersonRepository } from '../../domain/repositories/IPersonRepository';
 import type { ICaseRepository } from '../../domain/repositories/ICaseRepository';
 import type { IDeadlineRepository } from '../../domain/repositories/IDeadlineRepository';
@@ -57,7 +56,6 @@ export interface DIContainer {
    * próprios sem editar esta interface. Chave desconhecida → `undefined`.
    */
   resolveService: <T>(serviceKey: string) => T | undefined;
-  externalLookupServices: IExternalLookupService[];
   authRepository: IAuthRepository;
   userRepository: IUserRepository;
   userProfileRepository: IUserProfileRepository;

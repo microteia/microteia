@@ -2917,6 +2917,7 @@ tipo. A validação de que uma chave existe é de runtime, contra o registro (`g
 | `data.entity` | o `EntityMetadata` inteiro | nenhuma (metadata pura) |
 | `data.lookup` | o `LookupMetadata` inteiro | nenhuma |
 | `data.field.preset` | o `FieldRulePreset` inteiro | nenhuma |
+| `data.external.lookup` | o `LookupProviderSpec` inteiro | nenhuma |
 
 **Entidade é dado da camada de domínio, abaixo do Kernel — então o schema continua sendo o dono.**
 `ENTITY_REGISTRY` permanece a fonte ergonômica que `pathResolver`, `eventCatalog`, `mutationSpec`
@@ -3010,6 +3011,8 @@ não dispara é pior que guarda nenhuma.
 | 4b ✅ | `EntityKey` aberto; entidades e lookups como contribuições `data.entity`/`data.lookup` |
 | 4c ✅ | Ponto `data.service`: plugin injeta serviço no DI do frontend, container tipado intacto |
 | 4d ✅ | Ponto `data.field.preset`: máscara, formatação e validação prontas saem do kernel e viram declaração |
+| 4e ✅ | Ponto `data.external.lookup`: busca de dados externos vira declaração; ViaCEP deixa de ser código |
+| 4f ✅ | Confiança de código de extensão: procedência do catálogo ou revisão explícita, vinculada por hash |
 | 5 ✅ | Ciclo de vida + carga por tenant: instalar ativa menu/página/workflow do plugin |
 | — ✅ | Fatia vertical: plugin de exemplo instalável ponta a ponta (workflow + página Extensões) |
 | 7 ◑ | Marketplace: registro global + publish (SYSTEM); falta versões por plugin e publish com validação |
@@ -3017,6 +3020,96 @@ não dispara é pior que guarda nenhuma.
 | 7 | Marketplace: `plugin_registry`, publicação e instalação |
 
 ---
+
+## Busca de dados externos declarativa
+
+O slot `FieldLogic.onChangeLookup` ("Ao alterar, buscar dados externos") resolve um provedor **por
+nome**. Antes, o registro era um array literal do `DIContainer` com uma classe dentro
+(`ViaCepLookupService`) — acrescentar um provedor exigia commit no kernel.
+
+### O contrato — `domain/schema/lookupProviderSpec.ts` (sincronizado)
+
+A requisição inteira é **dado**: `input` (pipeline `FormatOp`, o mesmo das regras de campo), `when`
+(expressão booleana), `request.url` com `{value}`, `map` (chave de saída → caminho no JSON) e
+`failWhen` (resposta 200 que significa "não encontrado"). `outputKeys` é **derivado** de
+`Object.keys(map)` — não se declara duas vezes.
+
+### O executor — `data/services/DeclarativeLookupService.ts`
+
+`makeDeclarativeLookupService(spec)` implementa `IExternalLookupService` e é **o único ponto do app
+que faz requisição em nome de uma extensão**. Por ser único, é onde as garantias cabem:
+
+| Garantia | Por quê |
+|---|---|
+| só `https:` | `http` vazaria o valor digitado em claro; `data:`/`javascript:` transformariam a declaração num vetor de execução |
+| `credentials: 'omit'`, `cache: 'no-store'` | nenhum cookie ou credencial do app viaja para o terceiro |
+| `{value}` com `encodeURIComponent` | o valor digitado não pode escapar para a estrutura da URL |
+| timeout com teto (`MAX_LOOKUP_TIMEOUT_MS`) | uma declaração não segura o formulário do usuário |
+| teto de corpo antes do `JSON.parse` | resposta gigante não trava a aba |
+| devolve **só** as chaves de `map` | a resposta bruta nunca chega a quem declarou |
+
+`when` ausente dispara; `when` presente que estoure **não** dispara — não se bombardeia um serviço de
+terceiro por causa de expressão quebrada. Erro nunca lança: vira `ok: false`, conforme o contrato.
+
+**Limite consciente:** a URL é pública dentro do pacote, então este canal **não comporta chave de
+API**. Provedor autenticado dependeria de um proxy no backend, ainda não implementado.
+
+### Resolução — hook, não DI
+
+`useExternalLookupProviders()` lê as contribuições do `TenantKernelProvider`. Não vem do
+`DIContainer` de propósito: o `DIProvider` lê o host **base** (`CORE_PLUGINS`), então declaração de
+extensão de tenant nunca chegaria lá. `externalLookupServices` saiu do container.
+
+O ViaCEP virou declaração em `CORE_LOOKUP_PROVIDERS` e a classe foi **deletada**; a chave segue
+`viacep`, então `address.zipCode` de Pessoa continua valendo sem migração. Os 7 casos do teste antigo
+viraram testes do executor rodando a declaração — é o que autorizou a exclusão.
+
+Na autoria, o provedor escolhido mostra o **host de destino** e as chaves devolvidas: a URL é dado, e
+é isso que torna a escolha revisável.
+
+## Fronteira de confiança do código de extensão
+
+**O que uma extensão executa hoje:** `evaluateExtensionView` compila com `sucrase` e avalia em
+`new Function('require','module','exports', code)`. `HOST_MODULES` é allowlist de **imports** — não
+de escopo. Corpo de `new Function` roda em escopo global, então `fetch`, `sendBeacon`, `WebSocket`,
+`localStorage` e `document.cookie` estão ao alcance. **Não há sandbox de browser, e não se finge que
+há.** Sombrear globais foi descartado deliberadamente: `({}).constructor.constructor('return fetch')()`
+recupera tudo em uma linha — seria vender segurança inexistente. Contenção real exigiria Web Worker ou
+iframe sandbox.
+
+A defesa, portanto, é **procedência + gesto deliberado** — o mesmo caminho de WordPress (revisão no
+diretório + `DISALLOW_FILE_MODS`), Odoo (no SaaS hospedado não se instala módulo arbitrário) e do
+Workspace Trust do VS Code.
+
+### A regra
+
+`extensionRecordFrom(pkg, mayRunCode)` só transforma `views` em `implementations` quando `mayRunCode`.
+O padrão do argumento é `false` — **falha fechada**. Antes, ter `views` bastava para receber
+`trusted: true`, e um `.json` importado à mão executava código para todos os membros do tenant.
+
+`isExtensionCodeTrusted` (em `domain/usecases/plugins/extensionCodeTrust.ts`):
+
+1. pacote sem `views`/`startup` → não se aplica (telas, campos e workflows entram normalmente);
+2. `source: 'public'` → roda (a aprovação por SYSTEM **é** a revisão);
+3. caso contrário → só com `codeTrust` cujo `hash` bate com o código atual.
+
+**O vínculo é por hash, não por versão.** Um pacote montado à mão pode manter `1.0.0` e trocar o
+código; confiança presa à versão passaria a valer para código nunca revisado. O hash é SHA-256 sobre
+as `views` (ordenadas por chave) mais o `startup`, separados por `\u0000`.
+
+`useExtensionCodeTrust` calcula o conjunto de confiáveis de forma assíncrona; enquanto calcula, o
+conjunto é **vazio** — de novo, falha fechada.
+
+### O gesto
+
+No Marketplace, cópia instalada com código não confiado ganha o selo "Código não revisado" e a ação
+**Revisar e confiar**, que abre a fonte e exige confirmação. `codeTrust` grava quem confiou, quando e
+o hash. Reinstalar preserva o registro — quem decide é o hash, então código igual mantém a revisão e
+código alterado volta a exigir o gesto.
+
+**O que continua em aberto, e é honesto registrar:** não há CSP (`connect-src`), `manifest.permissions`
+segue declarado e não consultado (inclusive o domínio `net`), e `installedPluginRecords` continua sem
+chamador — a decisão de confiança vive agora em `extensionCodeTrust`.
 
 ## Camada de Regras de Campo (validação e formatação)
 

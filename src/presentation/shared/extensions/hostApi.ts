@@ -56,11 +56,14 @@ import type { LookupOption } from '../../../domain/entities';
  * ATENÇÃO: ao adicionar/remover/modificar módulos aqui, atualize também as definições TypeScript
  * em `extensionTypeDefs.ts` para manter o IntelliSense sincronizado com a API real disponível.
  *
- * A FRONTEIRA DE SANDBOX. Este mapa é tudo que o `require` de uma extensão enxerga — o teto do que o
- * código de terceiro (trusted) pode tocar. Não há `firebase`, `fetch`, `window` cru nem acesso ao
- * container de DI: só React, um kit de UI do próprio Microteia e hooks de dados curados que já passam
- * pelos stores (portanto pelas mesmas regras e permissões da aplicação). Ampliar a superfície é uma
- * decisão consciente de segurança — adicione um módulo aqui, nunca exponha um objeto amplo.
+ * A API CURADA. Este mapa é tudo que o `require` de uma extensão resolve: React, um kit de UI do
+ * próprio Microteia e hooks de dados que já passam pelos stores (portanto pelas mesmas regras e
+ * permissões da aplicação). Ampliar a superfície é decisão consciente — adicione um módulo aqui,
+ * nunca exponha um objeto amplo.
+ *
+ * NÃO confunda com sandbox: isto é allowlist de IMPORTS, não de escopo. `fetch`, `window` e
+ * `localStorage` seguem acessíveis como globais (ver `evaluateExtensionView`). O que impede código
+ * arbitrário de rodar é a procedência — `extensionCodeTrust`.
  *
  * Chave desconhecida no `require` é ERRO explícito (ver `evaluateExtensionView`), não `undefined`
  * silencioso: uma extensão que tenta importar algo fora da superfície falha visivelmente.

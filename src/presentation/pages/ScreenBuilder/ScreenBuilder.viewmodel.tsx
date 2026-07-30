@@ -18,12 +18,13 @@ import {
   useFieldRulePresets,
   validatePresetOptions as buildValidatePresetOptions,
 } from '../../shared/useFieldRulePresets';
+import type { ExternalLookupProviderOption } from '../../shared/useExternalLookupProviders';
+import { useExternalLookupOptions } from '../../shared/useExternalLookupProviders';
 import { extractFieldExpressionDependencies } from '../../../domain/schema/fieldExpression';
 import { aggregationCreatesCycle } from '../../../domain/schema/aggregationSpec';
 import { useSchemaContext } from '../../shared/useSchemaContext';
 import { useLookups } from '../../../stores/useLookups';
 import { useTags } from '../../../stores/useTags';
-import { useDI } from '../../../infrastructure/di/useDI';
 import { deriveFormFields } from '../../shared/deriveEntitySchema';
 import { RESERVED_COLLECTIONS, builtinScreenBaseline, derivedLookupCollection, derivedTagCollection, lookupIdIssue, screenIdIssue, tagListIdIssue } from '../../../domain/schema/screenEntity';
 import type { EntityKey } from '../../../domain/schema/entityRegistry';
@@ -217,6 +218,7 @@ export interface ScreenBuilderViewModel {
   aggregationOpOptions: SearchSelectOption[];
   aggregationFilterVariables: WorkflowVariable[];
   lookupProviderOptions: SearchSelectOption[];
+  selectedLookupProvider: ExternalLookupProviderOption | null;
   tagColors: ColorSwatchOption[];
   addStaticOption: () => void;
   removeStaticOption: (label: string) => void;
@@ -508,7 +510,7 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
   const fieldRulePresets = useFieldRulePresets();
   const { availableLookups, declareLookup } = useLookups();
   const { availableTagLists, declareTagList } = useTags();
-  const { externalLookupServices } = useDI();
+  const externalLookupProviders = useExternalLookupOptions();
   const { notify } = useNotification();
   const { actions } = useActions();
   const theme = useTheme();
@@ -1222,9 +1224,18 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
   const lookupProviderOptions = useMemo<SearchSelectOption[]>(
     () => [
       { value: '', label: 'Nenhuma' },
-      ...externalLookupServices.map((service) => ({ value: service.key, label: service.label })),
+      ...externalLookupProviders.map((provider) => ({ value: provider.value, label: provider.label })),
     ],
-    [externalLookupServices],
+    [externalLookupProviders],
+  );
+
+  /**
+   * O provedor escolhido, com host e chaves de saída. É o que torna a escolha revisável: a URL de
+   * destino é dado declarado, e o autor precisa ver a quem o valor digitado vai ser enviado.
+   */
+  const selectedLookupProvider = useMemo(
+    () => externalLookupProviders.find((provider) => provider.value === fieldForm.lookupProvider) ?? null,
+    [externalLookupProviders, fieldForm.lookupProvider],
   );
 
   const aggregationOpOptions = useMemo<SearchSelectOption[]>(
@@ -1656,6 +1667,7 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
     aggregationOpOptions,
     aggregationFilterVariables,
     lookupProviderOptions,
+    selectedLookupProvider,
     tagColors,
     addStaticOption,
     removeStaticOption,

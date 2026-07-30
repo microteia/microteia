@@ -11,6 +11,13 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [1.6.0] — 2026-07-30
+
+- O preenchimento automático a partir de uma fonte externa — como o endereço que aparece sozinho ao digitar o CEP — deixou de ser exclusivo dos casos que já vinham prontos. Agora uma extensão pode trazer a sua própria consulta, e ela passa a ficar disponível na lista junto com as demais.
+- Ao escolher uma consulta externa na montagem de um campo, o sistema passa a mostrar **para onde o valor digitado será enviado** e quais informações aquela consulta devolve — assim dá para decidir com clareza antes de usar.
+- **Mais segurança com extensões:** uma extensão que contenha programação própria e não tenha vindo da loja agora chega desligada. Ela aparece marcada como "código não revisado", e um administrador precisa abrir o conteúdo, ler e liberar. Telas, campos e automações da extensão continuam funcionando normalmente enquanto isso — só a programação fica aguardando.
+- A liberação registra quem revisou e quando, e vale para aquele conteúdo exato: se a programação da extensão mudar, ela volta a pedir uma nova revisão.
+
 ## [1.5.0] — 2026-07-30
 
 - As opções de **Máscara**, **Formatação pronta** e **Validação pronta** de um campo deixaram de ser uma lista fechada: agora uma extensão pode acrescentar as suas — o RG do seu estado, uma placa de veículo, um código interno do escritório — e elas aparecem para escolher junto com CPF, CNPJ, Telefone e CEP, como se sempre tivessem existido.

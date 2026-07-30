@@ -49,7 +49,6 @@ import { FirebasePluginRegistryRepository } from '../../data/repositories/Fireba
 import { FirebaseTenantExtensionRepository } from '../../data/repositories/FirebaseTenantExtensionRepository';
 import { FirebaseInstalledExtensionRepository } from '../../data/repositories/FirebaseInstalledExtensionRepository';
 import { FirebasePublicExtensionRepository } from '../../data/repositories/FirebasePublicExtensionRepository';
-import { ViaCepLookupService } from '../../data/services/ViaCepLookupService';
 import { DIContext } from './useDI';
 import type { DIContainer } from './useDI';
 
@@ -108,7 +107,6 @@ export const DIProvider: React.FC<{ children: React.ReactNode }> = ({ children }
     tenantExtensionRepository: new FirebaseTenantExtensionRepository(),
     installedExtensionRepository: new FirebaseInstalledExtensionRepository(),
     publicExtensionRepository: new FirebasePublicExtensionRepository(),
-    externalLookupServices:   [new ViaCepLookupService()],
   }), [host]);
 
   return <DIContext.Provider value={container}>{children}</DIContext.Provider>;

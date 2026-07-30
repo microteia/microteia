@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { useDI } from '../../../../infrastructure/di/useDI';
+import { useExternalLookupProviders } from '../../../shared/useExternalLookupProviders';
 import { useNotification } from '../../../../stores/useNotification';
 import { prefixLookupValues, resolveOnChangePatch } from '../../../../domain/schema/fieldChangeSpec';
 import type { RecordResolver } from '../../../../domain/schema/referenceScope';
@@ -25,7 +25,7 @@ export interface FieldChangeEffects {
  */
 export const useFieldChangeEffects = (input: FieldChangeEffectsInput): FieldChangeEffects => {
   const { fields, values, resolveRecord, onMergeValues } = input;
-  const { externalLookupServices } = useDI();
+  const externalLookupServices = useExternalLookupProviders();
   const { notify } = useNotification();
 
   const [loadingKeys, setLoadingKeys] = useState<ReadonlySet<string>>(new Set());

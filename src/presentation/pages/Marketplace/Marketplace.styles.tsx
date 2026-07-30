@@ -316,6 +316,35 @@ export const S = {
     }
   `,
 
+  ReviewIntro: styled.p`
+    margin: 0 0 ${({ theme }) => theme.spacing.md};
+    font-size: ${({ theme }) => theme.fontSizes.sm};
+    color: ${({ theme }) => theme.colors.textMuted};
+    line-height: 1.5;
+  `,
+
+  ReviewCode: styled.pre`
+    margin: 0;
+    padding: ${({ theme }) => theme.spacing.md};
+    max-height: 50vh;
+    overflow: auto;
+    background: ${({ theme }) => theme.colors.background};
+    border: 1px solid ${({ theme }) => theme.colors.border};
+    border-radius: ${({ theme }) => theme.borderRadius.md};
+    font-family: ${({ theme }) => theme.fonts.mono};
+    font-size: ${({ theme }) => theme.fontSizes.xs};
+    color: ${({ theme }) => theme.colors.text};
+    white-space: pre-wrap;
+    word-break: break-word;
+  `,
+
+  ReviewActions: styled.div`
+    display: flex;
+    justify-content: flex-end;
+    gap: ${({ theme }) => theme.spacing.sm};
+    margin-top: ${({ theme }) => theme.spacing.md};
+  `,
+
   Empty: styled.div`
     padding: ${({ theme }) => theme.spacing.xl};
     text-align: center;

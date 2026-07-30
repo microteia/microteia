@@ -18,6 +18,8 @@ export interface InstalledExtensionStoreValue {
   /** Copia (fielmente) o pacote para o tenant; preserva `active` de uma instalação existente. */
   install: (input: InstallExtensionInput) => Promise<void>;
   setActive: (id: string, active: boolean) => Promise<void>;
+  /** Registra a revisão do código desta cópia: grava quem confiou, quando, e o hash do que foi revisado. */
+  trustCode: (id: string) => Promise<void>;
   uninstall: (id: string) => Promise<void>;
   installedOf: (id: string) => InstalledExtension | undefined;
 }

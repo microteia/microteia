@@ -1,5 +1,17 @@
 import type { MarketplacePlugin } from './MarketplacePlugin';
 
+/**
+ * Gesto explícito de um admin do escritório autorizando o CÓDIGO desta cópia a executar. O vínculo é
+ * pelo `hash` do conteúdo, e não pela versão: um pacote montado à mão pode manter a mesma versão e
+ * trocar o código, e uma confiança presa à versão passaria a valer para código nunca revisado.
+ */
+export interface ExtensionCodeTrust {
+  hash: string;
+  trustedBy: string;
+  trustedByName: string;
+  trustedAt: Date;
+}
+
 /** De onde a cópia instalada veio: do catálogo público ou de uma extensão privada do próprio autor. */
 export type InstalledExtensionSource = 'public' | 'private';
 
@@ -26,6 +38,11 @@ export interface InstalledExtension {
   authorName: string;
   authorPhotoURL: string | null;
   installedBy: string;
+  /**
+   * Ausente quando o pacote não tem código, ou quando o código ainda não foi revisado. Cópia vinda do
+   * catálogo público dispensa o gesto — a aprovação por SYSTEM já é a revisão.
+   */
+  codeTrust?: ExtensionCodeTrust | null;
   installedAt: Date;
   updatedAt: Date;
 }

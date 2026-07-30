@@ -14,10 +14,12 @@ import {
   RiCloseLine,
   RiArchiveLine,
   RiPuzzle2Line,
+  RiShieldCheckLine,
 } from 'react-icons/ri';
 import { Button } from '../../components/ui/Button';
 import { InfoBanner } from '../../components/ui/InfoBanner';
 import { ConfirmModal } from '../../components/ui/ConfirmModal';
+import { Modal } from '../../components/ui/Modal';
 import { useMarketplaceViewModel } from './Marketplace.viewmodel';
 import type { Author, ExtensionRow, MarketplaceFilter, StatusBadge } from './Marketplace.viewmodel';
 import { S } from './Marketplace.styles';
@@ -65,6 +67,7 @@ const RowView: React.FC<{ row: ExtensionRow; busy: boolean; vm: ReturnType<typeo
           {row.updateAvailable && <S.Badge $tone="primary">Atualização</S.Badge>}
           {row.statusBadge && <S.Badge $tone={STATUS_LABEL[row.statusBadge].tone}>{STATUS_LABEL[row.statusBadge].label}</S.Badge>}
           {row.hasCode && <S.Badge $tone="info">Com código</S.Badge>}
+          {row.needsCodeReview && <S.Badge $tone="warning">Código não revisado</S.Badge>}
         </S.Badges>
       </S.TitleLine>
 
@@ -93,6 +96,16 @@ const RowView: React.FC<{ row: ExtensionRow; busy: boolean; vm: ReturnType<typeo
       {row.install === 'update' && (
         <S.ActionButton $primary title="Atualizar" disabled={busy} onClick={() => void vm.install(row.id)}>
           <RiRefreshLine size={17} />
+        </S.ActionButton>
+      )}
+      {row.needsCodeReview && (
+        <S.ActionButton
+          $primary
+          title="Revisar e confiar no código"
+          disabled={busy}
+          onClick={() => vm.openReview(row.id)}
+        >
+          <RiShieldCheckLine size={17} />
         </S.ActionButton>
       )}
       {row.canToggleActive && (
@@ -217,6 +230,21 @@ export const MarketplaceView: React.FC = () => {
         onConfirm={vm.confirmRemove}
         onCancel={vm.cancelRemove}
       />
+
+      {vm.reviewTarget && (
+        <Modal title={`Revisar o código de "${vm.reviewTarget.name}"`} size="large" onClose={vm.cancelReview}>
+          <S.ReviewIntro>
+            Este código roda no navegador de <strong>todos os membros do escritório</strong>, com acesso aos
+            dados que cada um enxerga. Leia antes de liberar. Extensões vindas do catálogo público não
+            passam por aqui — já foram revisadas na publicação.
+          </S.ReviewIntro>
+          <S.ReviewCode>{vm.reviewTarget.code}</S.ReviewCode>
+          <S.ReviewActions>
+            <Button variant="secondary" onClick={vm.cancelReview}>Cancelar</Button>
+            <Button onClick={() => void vm.confirmReview()}>Confiar e executar</Button>
+          </S.ReviewActions>
+        </Modal>
+      )}
     </S.Page>
   );
 };

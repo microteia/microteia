@@ -99,9 +99,13 @@ const cache = new Map<string, { source: string; Component: ExtensionPageComponen
  * mostra a mensagem — mesma tolerância do `WidgetRenderer`. Resultado memoizado por `cacheKey`
  * (`pluginId::viewKey`), reavaliando só quando a fonte muda (nova versão da extensão).
  *
- * SEGURANÇA: isto executa código arbitrário na thread principal. A contenção é a superfície de
- * `HOST_MODULES` — nada de `firebase`/`fetch`/DI cru. Só é chamado para views de fonte confiável
- * (catálogo publicado por SYSTEM ou embutida); ver `installedPluginRecords`.
+ * SEGURANÇA — o que É e o que NÃO é: `HOST_MODULES` limita o que o `require` resolve, e nada além
+ * disso. Corpo de `new Function` roda em escopo GLOBAL, então `fetch`, `sendBeacon`, `localStorage` e
+ * o DOM continuam alcançáveis. Isto não é um sandbox, e sombrear globais não faria dele um
+ * (`({}).constructor.constructor` devolve `Function`).
+ *
+ * A contenção real é de PROCEDÊNCIA: só chega aqui código de extensão vinda do catálogo aprovado por
+ * SYSTEM, ou cujo código um admin do escritório revisou explicitamente. Ver `extensionCodeTrust`.
  */
 export const evaluateExtensionView = (cacheKey: string, source: string): ExtensionPageComponent => {
   const cached = cache.get(cacheKey);

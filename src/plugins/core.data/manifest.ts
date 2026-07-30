@@ -4,6 +4,7 @@ import {
   ENTITY_CONTRIBUTIONS,
   FIELD_RULE_PRESET_CONTRIBUTIONS,
   LOOKUP_CONTRIBUTIONS,
+  LOOKUP_PROVIDER_CONTRIBUTIONS,
 } from '../../domain/schema/dataExtensionPoints';
 
 /**
@@ -20,12 +21,13 @@ export const coreDataPlugin: PluginRecord = {
     kernel: '^1.0.0',
     name: 'Entidades e Listas',
     description:
-      'Declara os pontos de dados e expõe as entidades nativas, os lookups e as máscaras, formatações e validações prontas do sistema.',
+      'Declara os pontos de dados e expõe as entidades nativas, os lookups, as máscaras/formatações/validações prontas e as buscas de dados externos do sistema.',
     extensionPoints: DATA_EXTENSION_POINTS,
     contributes: [
       ...ENTITY_CONTRIBUTIONS,
       ...LOOKUP_CONTRIBUTIONS,
       ...FIELD_RULE_PRESET_CONTRIBUTIONS,
+      ...LOOKUP_PROVIDER_CONTRIBUTIONS,
     ],
   },
 };

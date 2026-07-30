@@ -8,6 +8,8 @@ import { useNotification } from '../../../stores/useNotification';
 import { useWorkspace } from '../../../stores/useWorkspace';
 import { serializePackage } from '../../../domain/usecases/plugins/packageSerialization';
 import { isVersionGreater } from '../../../domain/usecases/plugins/publicExtension';
+import { extensionCodeOf, extensionHasCode } from '../../../domain/usecases/plugins/extensionCodeTrust';
+import { useExtensionCodeTrust } from '../../../stores/useExtensionCodeTrust';
 
 export interface Author {
   name: string | null;
@@ -45,6 +47,12 @@ export interface ExtensionRow {
   canApprove: boolean;
   canDeprecate: boolean;
 
+  /** Código instalado que ainda não pode executar — falta a revisão de um admin do escritório. */
+  needsCodeReview: boolean;
+  /** Fonte do código, para o admin ler antes de confiar. */
+  codeToReview: string | null;
+  codeTrustedByName: string | null;
+
   mine: boolean;
   installed: boolean;
   isPublic: boolean;
@@ -61,6 +69,10 @@ export interface MarketplaceViewModel {
   counts: Record<MarketplaceFilter, number>;
   busyId: string | null;
   removeTarget: { id: string; name: string } | null;
+  reviewTarget: { id: string; name: string; code: string } | null;
+  openReview: (id: string) => void;
+  confirmReview: () => Promise<void>;
+  cancelReview: () => void;
   openAuthor: () => void;
   onImportFile: (event: React.ChangeEvent<HTMLInputElement>) => Promise<void>;
   edit: (id: string) => void;
@@ -83,7 +95,7 @@ const rankOf = (row: ExtensionRow): number => (row.installed ? 0 : row.mine ? 1 
 
 export const useMarketplaceViewModel = (): MarketplaceViewModel => {
   const { extensions, importExtension, removeExtension } = useTenantExtensions();
-  const { installed, install: installCopy, setActive: setInstalledActive, uninstall: uninstallCopy } = useInstalledExtensions();
+  const { installed, install: installCopy, setActive: setInstalledActive, trustCode, uninstall: uninstallCopy } = useInstalledExtensions();
   const { publicExtensions, publish: publishPublic, approve: approvePublic, deprecate: deprecatePublic, unpublish, publicOf } = usePublicExtensions();
   const { tenantRole } = useTenant();
   const { user, userRole } = useAuth();
@@ -93,6 +105,23 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [removeTarget, setRemoveTarget] = useState<{ id: string; name: string } | null>(null);
   const [filter, setFilter] = useState<MarketplaceFilter>('all');
+  const [reviewTarget, setReviewTarget] = useState<{ id: string; name: string; code: string } | null>(null);
+
+  const trustedIds = useExtensionCodeTrust(installed);
+
+  /**
+   * Cópias instaladas que têm código e ainda não podem executá-lo. Enquanto o hash não termina de ser
+   * calculado, o conjunto de confiáveis vem vazio e tudo com código aparece como pendente — é o mesmo
+   * "falha fechada" do host: melhor pedir revisão à toa do que rodar código não revisado.
+   */
+  const installedNeedsReview = useMemo(
+    () => new Set(
+      installed
+        .filter((extension) => extensionHasCode(extension.package) && !trustedIds.has(extension.id))
+        .map((extension) => extension.id),
+    ),
+    [installed, trustedIds],
+  );
 
   const canModerate = userRole === 'SYSTEM';
   const canManage = canModerate || tenantRole === 'admin';
@@ -210,6 +239,9 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
         canDelete: mine,
         canApprove: canModerate && publicStatus === 'pending',
         canDeprecate: canModerate && publicStatus === 'approved',
+        needsCodeReview: Boolean(inst) && installedNeedsReview.has(id),
+        codeToReview: inst ? extensionCodeOf(inst.package) : null,
+        codeTrustedByName: inst?.codeTrust?.trustedByName ?? null,
         mine,
         installed: installed_,
         isPublic: isApproved,
@@ -217,7 +249,7 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
     }
 
     return list.sort((a, b) => rankOf(a) - rankOf(b) || a.name.localeCompare(b.name));
-  }, [extensions, installed, publicExtensions, publicOf, updateSourceOf, canModerate, user]);
+  }, [extensions, installed, publicExtensions, publicOf, updateSourceOf, canModerate, user, installedNeedsReview]);
 
   const counts = useMemo<Record<MarketplaceFilter, number>>(() => ({
     all: rows.length,
@@ -304,6 +336,25 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
 
   const cancelRemove = useCallback(() => setRemoveTarget(null), []);
 
+  const openReview = useCallback((id: string) => {
+    const extension = installed.find((candidate) => candidate.id === id);
+    if (!extension) return;
+    setReviewTarget({
+      id,
+      name: extension.package.manifest.name,
+      code: extensionCodeOf(extension.package) ?? '',
+    });
+  }, [installed]);
+
+  const cancelReview = useCallback(() => setReviewTarget(null), []);
+
+  const confirmReview = useCallback(async () => {
+    if (!reviewTarget) return;
+    const { id } = reviewTarget;
+    setReviewTarget(null);
+    await run(id, () => trustCode(id), 'Código revisado e liberado para executar neste escritório.');
+  }, [reviewTarget, run, trustCode]);
+
   const confirmRemove = useCallback(async () => {
     if (!removeTarget) return;
     const { id } = removeTarget;
@@ -336,6 +387,10 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
     counts,
     busyId,
     removeTarget,
+    reviewTarget,
+    openReview,
+    confirmReview,
+    cancelReview,
     openAuthor,
     onImportFile,
     edit,

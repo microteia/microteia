@@ -6,6 +6,7 @@ import { useDI } from '../infrastructure/di/useDI';
 import { applyPackageArtifacts, releasePackageArtifacts, type ArtifactDeps } from '../domain/usecases/plugins/MarketplaceInstallUseCases';
 import { storeEvents, StoreEvents } from '../infrastructure/events/StoreEventEmitter';
 import type { InstalledExtension } from '../domain/entities/InstalledExtension';
+import { hashExtensionCode } from '../domain/usecases/plugins/extensionCodeTrust';
 
 // Telas usam refresh por evento (não assinam onSnapshot ao vivo como workflows/actions/scripts).
 // Sem estes emits, uma tela materializada na instalação não aparece no Form Design nem no menu.
@@ -16,7 +17,7 @@ const notifyArtifactStores = (): void => {
 
 export const InstalledExtensionStoreProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { currentTenant } = useTenant();
-  const { user } = useAuth();
+  const { user, effectiveName } = useAuth();
   const {
     installedExtensionRepository,
     screenDefinitionRepository,
@@ -77,6 +78,9 @@ export const InstalledExtensionStoreProvider: React.FC<{ children: React.ReactNo
       authorName: input.authorName,
       authorPhotoURL: input.authorPhotoURL,
       installedBy: existing?.installedBy ?? user.id,
+      // Preservar é seguro: quem decide é o HASH. Código igual mantém a revisão; código alterado
+      // deixa de casar com o hash gravado e volta a exigir o gesto.
+      codeTrust: existing?.codeTrust ?? null,
       installedAt: existing?.installedAt ?? new Date(),
       updatedAt: new Date(),
     };
@@ -97,6 +101,22 @@ export const InstalledExtensionStoreProvider: React.FC<{ children: React.ReactNo
     setInstalled((prev) => prev.map((e) => (e.id === id ? { ...e, active } : e)));
   }, [currentTenant, installedExtensionRepository]);
 
+  const trustCode = useCallback(async (id: string) => {
+    if (!currentTenant || !user) return;
+    const extension = installed.find((candidate) => candidate.id === id);
+    if (!extension) return;
+    const hash = await hashExtensionCode(extension.package);
+    if (!hash) return;
+    const trust = {
+      hash,
+      trustedBy: user.id,
+      trustedByName: effectiveName,
+      trustedAt: new Date(),
+    };
+    await installedExtensionRepository.setCodeTrust(currentTenant.id, id, trust);
+    setInstalled((prev) => prev.map((e) => (e.id === id ? { ...e, codeTrust: trust } : e)));
+  }, [currentTenant, user, effectiveName, installed, installedExtensionRepository]);
+
   const uninstall = useCallback(async (id: string) => {
     if (!currentTenant || !user) return;
     // Libera (refcount) os artefatos de dados: só apaga o que nenhuma outra extensão usa. Os registros
@@ -108,8 +128,8 @@ export const InstalledExtensionStoreProvider: React.FC<{ children: React.ReactNo
   }, [currentTenant, user, installedExtensionRepository, artifactDeps]);
 
   const value = useMemo(
-    () => ({ installed, isLoading, install, setActive, uninstall, installedOf }),
-    [installed, isLoading, install, setActive, uninstall, installedOf],
+    () => ({ installed, isLoading, install, setActive, trustCode, uninstall, installedOf }),
+    [installed, isLoading, install, setActive, trustCode, uninstall, installedOf],
   );
 
   return <InstalledExtensionStoreContext.Provider value={value}>{children}</InstalledExtensionStoreContext.Provider>;

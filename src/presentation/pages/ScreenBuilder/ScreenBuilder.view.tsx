@@ -878,15 +878,23 @@ export const ScreenBuilderView: React.FC = () => {
                     placeholder="Nenhuma"
                   />
                 </InputGroup>
-                {vm.fieldForm.lookupProvider !== '' && (
-                  <InputGroup>
-                    <Label>Preencher dentro de (opcional)</Label>
-                    <Input
-                      value={vm.fieldForm.lookupTargetPrefix}
-                      onChange={(e) => vm.updateFieldForm({ lookupTargetPrefix: e.target.value })}
-                      placeholder="Ex: address"
-                    />
-                  </InputGroup>
+                {vm.selectedLookupProvider && (
+                  <>
+                    <S.FullRow>
+                      <InfoBanner
+                        variant="info"
+                        message={`Ao preencher este campo, o valor digitado é enviado para ${vm.selectedLookupProvider.host ?? 'o provedor'}. Chaves devolvidas: ${vm.selectedLookupProvider.outputKeys.join(', ')}.`}
+                      />
+                    </S.FullRow>
+                    <InputGroup>
+                      <Label>Preencher dentro de (opcional)</Label>
+                      <Input
+                        value={vm.fieldForm.lookupTargetPrefix}
+                        onChange={(e) => vm.updateFieldForm({ lookupTargetPrefix: e.target.value })}
+                        placeholder="Ex: address"
+                      />
+                    </InputGroup>
+                  </>
                 )}
                 <InputGroup>
                   <Label>Ocultar quando (verdadeiro/falso)</Label>
