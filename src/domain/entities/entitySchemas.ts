@@ -39,6 +39,20 @@ export interface FieldDefinition {
   placeholder?: string | null;
   showInList?: boolean;
   listLabel?: string | null;
+  /**
+   * Ícone da meta-linha do campo no card da listagem (nome do registro de ícones de tela). Quando
+   * presente, o campo vira uma LINHA do card — com ícone, na ordem do campo —, e não um item do
+   * bloco de campos adicionais. É a forma de autoria do `ui.list.icon` que as entidades do kernel
+   * declaram em código: sem ele, uma tela de extensão não teria como reproduzir o card de uma tela
+   * fixa que ela substitui.
+   */
+  listIcon?: string | null;
+  /**
+   * Posição da meta-linha no card, quando ela deve diferir da ordem do campo no formulário — o card
+   * costuma querer outra sequência (no Processo, o responsável vem primeiro e é o 15º campo do
+   * formulário). Ausente, vale `order`.
+   */
+  listOrder?: number | null;
   filterable?: boolean;
   rules?: FieldRules | null;
   logic?: FieldLogic | null;
@@ -86,6 +100,12 @@ export interface ScreenDefinition {
   icon: string;
   fields: FieldDefinition[];
   titleFieldKey: string;
+  /**
+   * Campo exibido como SUBTÍTULO no detalhe (abaixo do título, ao lado do ícone) e como rótulo da
+   * ABA — tipicamente um identificador curto e único, que cabe melhor numa aba do que o título
+   * (o número do processo, o número do contrato). Ausente = sem subtítulo, e a aba leva o título.
+   */
+  subtitleFieldKey?: string | null;
   hasNotes: boolean;
   hasDocuments: boolean;
   hasTags: boolean;
@@ -94,6 +114,21 @@ export interface ScreenDefinition {
    * compartilham as etiquetas — é o mesmo mecanismo de `lookupCollection` num campo.
    */
   tagCollection?: string | null;
+  /**
+   * Coleção onde os REGISTROS desta tela vivem, quando não é a própria chave. Ausente (o normal) =
+   * a tela é dona da coleção de mesmo nome.
+   *
+   * Presente, a coleção deixa de ser a IDENTIDADE da tela e vira uma propriedade dela: a chave passa
+   * a endereçar só a UI (abas, deep link, filtros salvos) e a tela opera documentos que já existem —
+   * tipicamente os de uma entidade do kernel (`cases`). O que ela DECLARA (campos, listas de opções,
+   * relações, etiquetas, linhas do card, filtros) vale para a coleção, somando-se por chave de campo
+   * ao que a tela de mesmo nome e o `entityRegistry` declaram (`createSchemaContext`).
+   *
+   * É a peça que permite uma extensão descrever inteiramente uma entidade nativa e substituí-la sem
+   * mover um registro: enquanto as duas convivem, as declarações se sobrepõem; quando a entidade sai
+   * do kernel, resta a da extensão. Ver "A coleção é propriedade da tela" no ARCHITECTURE.md.
+   */
+  dataCollection?: string | null;
   listActions: ScreenListAction[];
   /** Ids de `ActionDefinition` exibidos no cabeçalho da tela de detalhe. */
   viewActionIds: string[];

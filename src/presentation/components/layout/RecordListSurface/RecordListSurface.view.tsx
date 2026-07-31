@@ -6,6 +6,9 @@ import { EntityListView } from '../EntityListView';
 import { EntityListModals } from './EntityListModals';
 import { cardActionIcon } from './cardActionIcon';
 import { getScreenIcon } from '../../../shared/screenIcons';
+import { deriveListRows } from '../../../shared/deriveEntitySchema';
+import { useSchemaContext } from '../../../shared/useSchemaContext';
+import { useListRowResolver } from '../../../shared/listRows';
 import type { RecordListViewModel } from '../../../shared/entityScreen/useRecordListViewModel';
 import type { EntityRecord, ScreenDefinition } from '../../../../domain/entities';
 
@@ -28,16 +31,25 @@ interface RecordListSurfaceProps {
    */
   onOpenRecord?: (record: EntityRecord) => void;
   onNewRecord?: () => void;
+  /** Textos do estado vazio, quando a tela prefere os seus aos genéricos. */
+  emptyTitle?: string;
+  emptyActionLabel?: string;
 }
 
 /**
  * Listagem de registros de uma tela customizada. A mesma superfície serve à janela própria da tela
  * e à aba de registros filhos dentro do pai — só muda a variante do `EntityListView`.
  */
-export const RecordListSurface: React.FC<RecordListSurfaceProps> = ({ vm, definition, variant = 'page', renderSubtitle, renderBelowHeader, onOpenRecord, onNewRecord }) => {
+export const RecordListSurface: React.FC<RecordListSurfaceProps> = ({ vm, definition, variant = 'page', renderSubtitle, renderBelowHeader, onOpenRecord, onNewRecord, emptyTitle, emptyActionLabel }) => {
   const openRecord = onOpenRecord ?? vm.openRecord;
   const openNewRecord = onNewRecord ?? vm.openNewRecord;
   const modals = <EntityListModals vm={vm} />;
+  const schemaContext = useSchemaContext();
+  const resolveRow = useListRowResolver();
+  // As meta-linhas que a COLEÇÃO declara — venham do registro do kernel ou da tela que a descreve
+  // (`listIcon`). Sem nenhuma declarada, o card segue só com os campos marcados "exibir na
+  // listagem". Mesmo caminho das listas fixas: mesma aparência, mesma ordem.
+  const listRows = deriveListRows(schemaContext, vm.collection);
 
   return (
     <EntityListView
@@ -54,13 +66,20 @@ export const RecordListSurface: React.FC<RecordListSurfaceProps> = ({ vm, defini
       isLoading={vm.isLoading && vm.records.length === 0}
       isEmpty={vm.filteredRecords.length === 0}
       emptyIcon={<RiApps2Line />}
-      emptyTitle="Nenhum registro encontrado"
-      emptyActionLabel={`Cadastrar ${definition.titleSingular.toLowerCase()}`}
+      emptyTitle={emptyTitle ?? 'Nenhum registro encontrado'}
+      emptyActionLabel={emptyActionLabel ?? `Cadastrar ${definition.titleSingular.toLowerCase()}`}
       modals={modals}
     >
       {vm.filteredRecords.map((record) => {
         const recordTags = vm.tags.filter((t) => record.tagIds?.includes(t.id));
         const items = vm.getCardItems(record);
+        const metaRows = listRows
+          .map((row) => ({
+            key: row.key,
+            icon: getScreenIcon(row.icon, 12),
+            value: resolveRow(record as unknown as Record<string, unknown>, row),
+          }))
+          .filter((row) => row.value !== '');
         return (
           <EntityListCard
             key={record.id}
@@ -69,7 +88,7 @@ export const RecordListSurface: React.FC<RecordListSurfaceProps> = ({ vm, defini
             title={vm.getCardTitle(record)}
             subtitle={renderSubtitle?.(record)}
             belowHeader={renderBelowHeader?.(record)}
-            metaRows={[]}
+            metaRows={metaRows}
             tags={recordTags}
             actions={vm.getCardActions(record).map((action) => ({
               key: action.key,

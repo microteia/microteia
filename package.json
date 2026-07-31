@@ -1,7 +1,7 @@
 {
   "name": "microteia",
   "private": true,
-  "version": "1.6.1",
+  "version": "1.8.1",
   "type": "module",
   "scripts": {
     "predev": "npm run sync-schemas",
@@ -11,8 +11,10 @@
     "lint": "eslint .",
     "typecheck": "tsc -b --force",
     "sync-schemas": "node scripts/sync-schemas.cjs",
+    "build:extensions": "node scripts/export-extensions.mjs",
+    "verify-extensions": "node scripts/export-extensions.mjs --check",
     "verify-schemas": "node scripts/sync-schemas.cjs --check",
-    "verify": "npm run typecheck && npm run lint && npm run verify-schemas",
+    "verify": "npm run typecheck && npm run lint && npm run verify-schemas && npm run verify-extensions",
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",

@@ -548,6 +548,9 @@ const UI_MODULE_DEFS = `declare module '@microteia/ui' {
     renderBelowHeader?: (record: any) => React.ReactNode;
     onOpenRecord?: (record: any) => void;
     onNewRecord?: () => void;
+    /** Textos do estado vazio, quando a tela prefere os seus aos genéricos. */
+    emptyTitle?: string;
+    emptyActionLabel?: string;
   }
   export function RecordListSurface(props: RecordListSurfaceProps): JSX.Element;
 
@@ -595,6 +598,17 @@ const DATA_MODULE_DEFS = `declare module '@microteia/data' {
     updatePhase: (caseId: string, phaseKey: string) => Promise<void>;
   };
 
+  export interface LookupOption {
+    key: string;
+    label: string;
+    color?: string;
+  }
+  /**
+   * Opções de QUALQUER lista pelo nome da coleção — do kernel ('caseStatuses', 'casePhases',
+   * 'caseAreas'…) ou criada no escritório. Os atalhos abaixo são apelidos deste.
+   */
+  export function useLookup(collection: string): LookupOption[];
+
   export interface PhaseConfig {
     key: string;
     label: string;
@@ -638,6 +652,8 @@ const DATA_MODULE_DEFS = `declare module '@microteia/data' {
   export interface ExtensionEntity {
     screen: any | null;
     screenKey: string | null;
+    /** Coleção dos registros — difere de screenKey quando a tela é visão sobre outra entidade. */
+    collection: string | null;
     fields: any[];
     records: any[];
     isLoading: boolean;
@@ -667,6 +683,8 @@ const DATA_MODULE_DEFS = `declare module '@microteia/data' {
 
   export interface RecordListViewModel {
     records: any[];
+    /** Coleção dos registros — a chave da tela, ou a coleção alvo quando ela é uma visão. */
+    collection: string;
     isLoading: boolean;
     filters: any[];
     setFilters: (filters: any[]) => void;
@@ -780,7 +798,7 @@ const THEME_MODULE_DEFS = `declare module '@microteia/theme' {
    * @param configs - Array de configurações com key e color
    * @param key - Chave da configuração
    */
-  export function getConfigColor(configs: any[], key: string): string;
+  export function getConfigColor(configs: any[], key: string, theme: any, fallback?: string): string;
 
   /**
    * Retorna uma cor padrão para uma tag/etiqueta baseada no índice.

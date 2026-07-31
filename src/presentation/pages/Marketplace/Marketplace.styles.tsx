@@ -215,6 +215,26 @@ export const S = {
     text-overflow: ellipsis;
   `,
 
+  /** O título é o gatilho dos detalhes da extensão — mesma aparência do `Name`, com afordância. */
+  NameButton: styled.button`
+    font-size: ${({ theme }) => theme.fontSizes.md};
+    font-weight: 600;
+    color: ${({ theme }) => theme.colors.text};
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    background: none;
+    border: none;
+    padding: 0;
+    text-align: left;
+    cursor: pointer;
+    transition: ${({ theme }) => theme.transitions.fast};
+
+    &:hover {
+      color: ${({ theme }) => theme.colors.primary};
+    }
+  `,
+
   Badges: styled.div`
     display: flex;
     align-items: center;
@@ -314,6 +334,24 @@ export const S = {
       opacity: 0.4;
       cursor: not-allowed;
     }
+  `,
+
+  DetailsIntro: styled.p`
+    margin: 0 0 ${({ theme }) => theme.spacing.lg};
+    font-size: ${({ theme }) => theme.fontSizes.sm};
+    color: ${({ theme }) => theme.colors.textMuted};
+    line-height: 1.5;
+  `,
+
+  DetailsMeta: styled.div`
+    display: flex;
+    align-items: center;
+    gap: ${({ theme }) => theme.spacing.xs};
+    margin-top: ${({ theme }) => theme.spacing.lg};
+    padding-top: ${({ theme }) => theme.spacing.md};
+    border-top: 1px solid ${({ theme }) => theme.colors.border};
+    font-size: ${({ theme }) => theme.fontSizes.xs};
+    color: ${({ theme }) => theme.colors.textMuted};
   `,
 
   ReviewIntro: styled.p`

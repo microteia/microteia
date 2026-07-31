@@ -12,8 +12,16 @@ export interface ExtensionCodeTrust {
   trustedAt: Date;
 }
 
-/** De onde a cópia instalada veio: do catálogo público ou de uma extensão privada do próprio autor. */
-export type InstalledExtensionSource = 'public' | 'private';
+/**
+ * De onde a cópia instalada veio:
+ * - `public` — catálogo público, aprovada por um SYSTEM;
+ * - `private` — extensão privada do próprio escritório;
+ * - `builtin` — CATÁLOGO EMBUTIDO, que viaja no bundle da aplicação (extensões de primeira parte).
+ *
+ * `public` e `builtin` têm procedência confiável — a primeira porque passou pela revisão da
+ * publicação, a segunda porque é o próprio código da aplicação. Ver `extensionCodeTrust`.
+ */
+export type InstalledExtensionSource = 'public' | 'private' | 'builtin';
 
 /**
  * Uma extensão INSTALADA no escritório — cópia fiel de TODOS os dados de uma extensão (pública ou

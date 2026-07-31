@@ -1,10 +1,10 @@
 {
   "manifest": {
     "id": "com.microteia.processo-clone",
-    "version": "1.0.9",
+    "version": "2.0.0",
     "kernel": "^1.0.0",
     "name": "Processo (clone)",
-    "description": "Réplica independente da tela de Processos, construída inteiramente como extensão — prova de conceito da ponte de componentes.",
+    "description": "A tela de Processos recriada como extensão, sobre os MESMOS processos do escritório — o caminho de migração de uma tela fixa para o modelo de extensão.",
     "publisher": {
       "name": "Microteia"
     },
@@ -54,14 +54,14 @@
       }
     ]
   },
-  "summary": "Recria a tela de Processos como extensão: uma entidade própria (com campos, lookups coloridos, máscaras e validações, editável no Form Design) e uma tela em código com cards, filtros, badges e polos — independente do Processo nativo. Prova o que a ponte de componentes já permite construir.",
+  "summary": "Recria a tela de Processos como extensão SOBRE OS MESMOS DADOS: a tela é uma visão da entidade Processo, com os campos, as listas de opções, as etiquetas, as anotações e os documentos que já existem. Cards, filtros e ações vêm da configuração; o subtítulo, os badges e os polos, da tela em código. Prova que uma tela fixa pode virar extensão sem migrar um único registro.",
   "overview": {
     "type": "stack",
     "gap": "lg",
     "children": [
       {
         "type": "markdown",
-        "content": "A extensão **Processo (clone)** é uma **prova de conceito**: reproduz a tela de Processos do escritório usando apenas o mecanismo de extensões.\n\nEla traz a **própria entidade** — com os mesmos campos, lookups coloridos (Status, Fase), máscaras e validações — que aparece no **Form Design** como qualquer outra, e uma **tela em código** com cards, filtros e badges. Os dados são independentes dos Processos reais."
+        "content": "A extensão **Processo (clone)** reproduz a tela de Processos do escritório usando apenas o mecanismo de extensões — e trabalhando **nos mesmos processos**.\n\nNada é duplicado: os registros, as listas de opções (Área, Fase, Status…), as etiquetas, as anotações e os documentos são os do Processo de sempre. Abrir a tela nova é ver os mesmos dados, com a mesma aparência."
       },
       {
         "type": "keyValue",
@@ -71,8 +71,8 @@
             "value": "Item \"Processos (clone)\" no menu"
           },
           {
-            "label": "Entidade",
-            "value": "Processo (clone) — editável no Form Design"
+            "label": "Dados",
+            "value": "Os processos do escritório — sem cópia"
           },
           {
             "label": "Detalhe",
@@ -82,8 +82,8 @@
       },
       {
         "type": "banner",
-        "message": "Os registros desta extensão são independentes: nada é compartilhado com os Processos nativos do escritório.",
-        "variant": "info"
+        "message": "Esta tela trabalha nos processos reais do escritório: o que você criar, alterar ou excluir aqui vale também na tela de Processos. Remover a extensão remove apenas a tela — nenhum processo é apagado.",
+        "variant": "warning"
       }
     ]
   },
@@ -92,17 +92,18 @@
     {
       "key": "processo-clone",
       "sourceId": "microteia:processo-clone",
-      "sourceRev": 1,
+      "sourceRev": 2,
       "titleSingular": "Processo (clone)",
       "titlePlural": "Processos (clone)",
       "icon": "folder",
+      "dataCollection": "cases",
       "fields": [
         {
           "key": "caseNumber",
           "label": "Número do processo",
           "type": "text",
           "required": true,
-          "order": 0,
+          "order": 2,
           "section": "Identificação"
         },
         {
@@ -110,7 +111,7 @@
           "label": "Título",
           "type": "text",
           "required": true,
-          "order": 1,
+          "order": 3,
           "section": "Identificação"
         },
         {
@@ -118,64 +119,13 @@
           "label": "Área",
           "type": "select",
           "required": false,
-          "order": 2,
+          "order": 4,
           "section": "Classificação",
-          "options": [
-            {
-              "key": "Cível",
-              "label": "Cível"
-            },
-            {
-              "key": "Criminal",
-              "label": "Criminal"
-            },
-            {
-              "key": "Trabalhista",
-              "label": "Trabalhista"
-            },
-            {
-              "key": "Tributário",
-              "label": "Tributário"
-            },
-            {
-              "key": "Família",
-              "label": "Família"
-            },
-            {
-              "key": "Consumidor",
-              "label": "Consumidor"
-            },
-            {
-              "key": "Administrativo",
-              "label": "Administrativo"
-            },
-            {
-              "key": "Constitucional",
-              "label": "Constitucional"
-            },
-            {
-              "key": "Ambiental",
-              "label": "Ambiental"
-            },
-            {
-              "key": "Imobiliário",
-              "label": "Imobiliário"
-            },
-            {
-              "key": "Empresarial",
-              "label": "Empresarial"
-            },
-            {
-              "key": "Digital",
-              "label": "Digital"
-            },
-            {
-              "key": "Outros",
-              "label": "Outros"
-            }
-          ],
+          "lookupCollection": "caseAreas",
           "optionsAllowUserAdd": true,
           "showInList": true,
+          "listIcon": "scales",
+          "listOrder": 1,
           "filterable": true
         },
         {
@@ -183,38 +133,9 @@
           "label": "Tipo de ação",
           "type": "select",
           "required": false,
-          "order": 3,
+          "order": 5,
           "section": "Classificação",
-          "options": [
-            {
-              "key": "Ação de Cobrança",
-              "label": "Ação de Cobrança"
-            },
-            {
-              "key": "Ação de Indenização",
-              "label": "Ação de Indenização"
-            },
-            {
-              "key": "Ação Trabalhista",
-              "label": "Ação Trabalhista"
-            },
-            {
-              "key": "Execução Fiscal",
-              "label": "Execução Fiscal"
-            },
-            {
-              "key": "Mandado de Segurança",
-              "label": "Mandado de Segurança"
-            },
-            {
-              "key": "Ação de Divórcio",
-              "label": "Ação de Divórcio"
-            },
-            {
-              "key": "Ação Penal",
-              "label": "Ação Penal"
-            }
-          ],
+          "lookupCollection": "caseActionTypes",
           "optionsAllowUserAdd": true,
           "multi": true,
           "filterable": true
@@ -224,43 +145,10 @@
           "label": "Fase",
           "type": "select",
           "required": false,
-          "order": 4,
+          "order": 6,
           "section": "Classificação",
-          "options": [
-            {
-              "key": "Fase Inicial",
-              "label": "Fase Inicial",
-              "color": "casePhaseInitial"
-            },
-            {
-              "key": "Instrução",
-              "label": "Instrução",
-              "color": "casePhaseInstruction"
-            },
-            {
-              "key": "Sentença",
-              "label": "Sentença",
-              "color": "casePhaseSentence"
-            },
-            {
-              "key": "Recurso",
-              "label": "Recurso",
-              "color": "casePhaseAppeal"
-            },
-            {
-              "key": "Execução",
-              "label": "Execução",
-              "color": "casePhaseExecution"
-            },
-            {
-              "key": "Arquivado",
-              "label": "Arquivado",
-              "color": "casePhaseArchived"
-            }
-          ],
-          "optionsColored": true,
+          "lookupCollection": "casePhases",
           "optionsAllowUserAdd": true,
-          "showInList": true,
           "filterable": true
         },
         {
@@ -268,53 +156,11 @@
           "label": "Status",
           "type": "select",
           "required": false,
-          "order": 5,
+          "order": 7,
           "section": "Classificação",
-          "options": [
-            {
-              "key": "Em Andamento",
-              "label": "Em Andamento",
-              "color": "caseStatusInProgress"
-            },
-            {
-              "key": "Procedente",
-              "label": "Procedente",
-              "color": "caseStatusWon"
-            },
-            {
-              "key": "Procedente em Parte",
-              "label": "Procedente em Parte",
-              "color": "caseStatusWon"
-            },
-            {
-              "key": "Improcedente",
-              "label": "Improcedente",
-              "color": "caseStatusLost"
-            },
-            {
-              "key": "Acordo",
-              "label": "Acordo",
-              "color": "caseStatusSettlement"
-            },
-            {
-              "key": "Suspenso",
-              "label": "Suspenso",
-              "color": "caseStatusSuspended"
-            },
-            {
-              "key": "Arquivado",
-              "label": "Arquivado",
-              "color": "caseStatusArchived"
-            },
-            {
-              "key": "Extinto",
-              "label": "Extinto",
-              "color": "caseStatusLost"
-            }
-          ],
-          "optionsColored": true,
+          "lookupCollection": "caseStatuses",
           "optionsAllowUserAdd": true,
-          "showInList": true,
+          "optionsColored": true,
           "filterable": true
         },
         {
@@ -322,40 +168,13 @@
           "label": "Instância",
           "type": "select",
           "required": false,
-          "order": 6,
+          "order": 8,
           "section": "Tribunal",
-          "options": [
-            {
-              "key": "1º Grau",
-              "label": "1º Grau"
-            },
-            {
-              "key": "2º Grau",
-              "label": "2º Grau"
-            },
-            {
-              "key": "Turma Recursal",
-              "label": "Turma Recursal"
-            },
-            {
-              "key": "STJ",
-              "label": "STJ"
-            },
-            {
-              "key": "STF",
-              "label": "STF"
-            },
-            {
-              "key": "TST",
-              "label": "TST"
-            },
-            {
-              "key": "TSE",
-              "label": "TSE"
-            }
-          ],
+          "lookupCollection": "caseInstances",
           "optionsAllowUserAdd": true,
           "showInList": true,
+          "listIcon": "scales",
+          "listOrder": 2,
           "filterable": true
         },
         {
@@ -363,11 +182,13 @@
           "label": "Vara/Tribunal",
           "type": "select",
           "required": false,
-          "order": 7,
+          "order": 9,
           "section": "Tribunal",
-          "options": [],
+          "lookupCollection": "caseCourts",
           "optionsAllowUserAdd": true,
           "showInList": true,
+          "listIcon": "scales",
+          "listOrder": 3,
           "filterable": true
         },
         {
@@ -375,9 +196,9 @@
           "label": "Comarca",
           "type": "select",
           "required": false,
-          "order": 8,
+          "order": 10,
           "section": "Tribunal",
-          "options": [],
+          "lookupCollection": "caseDistricts",
           "optionsAllowUserAdd": true,
           "filterable": true
         },
@@ -386,9 +207,9 @@
           "label": "Juiz(a)",
           "type": "select",
           "required": false,
-          "order": 9,
+          "order": 11,
           "section": "Tribunal",
-          "options": [],
+          "lookupCollection": "caseJudges",
           "optionsAllowUserAdd": true,
           "filterable": true
         },
@@ -397,27 +218,33 @@
           "label": "Data de distribuição",
           "type": "date",
           "required": false,
-          "order": 10,
-          "section": "Tribunal"
+          "order": 12,
+          "section": "Tribunal",
+          "filterable": true
         },
         {
           "key": "causeValue",
           "label": "Valor da causa",
           "type": "currency",
           "required": false,
-          "order": 11,
+          "order": 13,
           "section": "Financeiro e Responsável",
-          "showInList": true
+          "showInList": true,
+          "listIcon": "moneyDollar",
+          "listOrder": 4
         },
         {
           "key": "responsibleLawyerId",
           "label": "Advogado responsável",
           "type": "reference",
           "required": false,
-          "order": 12,
+          "order": 14,
           "section": "Financeiro e Responsável",
           "refEntity": "persons",
+          "placeholder": "Selecione o responsável...",
           "showInList": true,
+          "listIcon": "scales",
+          "listOrder": 0,
           "filterable": true
         },
         {
@@ -425,16 +252,18 @@
           "label": "Contrato",
           "type": "reference",
           "required": false,
-          "order": 13,
+          "order": 15,
           "section": "Financeiro e Responsável",
-          "refEntity": "contracts"
+          "refEntity": "contracts",
+          "placeholder": "Selecione o contrato...",
+          "filterable": true
         },
         {
           "key": "notes",
           "label": "Observações",
           "type": "textarea",
           "required": false,
-          "order": 14,
+          "order": 16,
           "section": "Financeiro e Responsável"
         },
         {
@@ -442,26 +271,32 @@
           "label": "Polo ativo",
           "type": "reference",
           "required": false,
-          "order": 15,
+          "order": 0,
           "section": "Partes",
           "refEntity": "persons",
-          "multi": true
+          "multi": true,
+          "placeholder": "Selecione as pessoas...",
+          "filterable": true
         },
         {
           "key": "passivePoleIds",
           "label": "Polo passivo",
           "type": "reference",
           "required": false,
-          "order": 16,
+          "order": 1,
           "section": "Partes",
           "refEntity": "persons",
-          "multi": true
+          "multi": true,
+          "placeholder": "Selecione as pessoas...",
+          "filterable": true
         }
       ],
       "titleFieldKey": "title",
+      "subtitleFieldKey": "caseNumber",
       "hasNotes": true,
       "hasDocuments": true,
       "hasTags": true,
+      "tagCollection": "caseTags",
       "listActions": [
         "copyLink",
         "clone",
@@ -472,13 +307,13 @@
       "hideFromSidebar": true
     }
   ],
-  "startup": "\nimport { Icon } from '@microteia/ui';\n\nconst SOURCE_ID = 'microteia:processo-clone';\nconst EDIT_PREFIX = 'processo-clone-edit:';\nconst LIST_KEY = 'processo-clone';\nconst GROUP = 'Processos (clone)';\n\nexport default function startup(host) {\n  host.commands.register({\n    group: GROUP,\n    getItems(query, ctx) {\n      const q = String(query || '').toLowerCase().trim();\n      if (!q) return [];\n      const screen = ctx.screenDefinitions.find((s) => (s.sourceId || s.id) === SOURCE_ID);\n      if (!screen) return [];\n      const icon = <Icon name=\"folder\" size={16} />;\n      const items = [];\n      if ('novo processo clone'.indexOf(q) !== -1) {\n        items.push({ id: 'proc-clone:new', title: 'Novo processo (clone)', group: GROUP, icon, onSelect: () => { ctx.openTab(EDIT_PREFIX + 'new'); ctx.close(); } });\n      }\n      if ('abrir processos clone'.indexOf(q) !== -1) {\n        items.push({ id: 'proc-clone:list', title: 'Abrir Processos (clone)', group: GROUP, icon, onSelect: () => { ctx.openTab(LIST_KEY); ctx.close(); } });\n      }\n      for (const r of ctx.records) {\n        const title = r[screen.titleFieldKey];\n        if (r.collection === screen.id && title && title.toLowerCase().indexOf(q) !== -1) {\n          items.push({ id: 'proc-clone:' + r.id, title, subtitle: 'Processo (clone)', group: GROUP, icon, onSelect: () => { ctx.openTab(EDIT_PREFIX + r.id); ctx.close(); } });\n        }\n      }\n      return items.slice(0, 9);\n    },\n  });\n\n  host.mentions.register({\n    key: 'processo-clone',\n    label: 'Processo (clone)',\n    description: 'Inserir link para um processo (clone)',\n    icon: 'folder',\n    search(query, ctx) {\n      const screen = ctx.screenDefinitions.find((s) => (s.sourceId || s.id) === SOURCE_ID);\n      if (!screen) return [];\n      const q = String(query || '').toLowerCase().trim();\n      return ctx.records\n        .filter((r) => r.collection === screen.id)\n        .map((r) => ({ record: r, title: r[screen.titleFieldKey] }))\n        .filter(({ title }) => title && (!q || title.toLowerCase().indexOf(q) !== -1))\n        .slice(0, 20)\n        .map(({ record, title }) => ({ id: record.id, title, subtitle: 'Processo (clone)', tabKey: EDIT_PREFIX + record.id }));\n    },\n  });\n}\n",
+  "startup": "\nimport { Icon } from '@microteia/ui';\n\nconst SOURCE_ID = 'microteia:processo-clone';\nconst EDIT_PREFIX = 'processo-clone-edit:';\nconst LIST_KEY = 'processo-clone';\nconst GROUP = 'Processos (clone)';\n\nexport default function startup(host) {\n  host.commands.register({\n    group: GROUP,\n    getItems(query, ctx) {\n      const q = String(query || '').toLowerCase().trim();\n      if (!q) return [];\n      const screen = ctx.screenDefinitions.find((s) => (s.sourceId || s.id) === SOURCE_ID);\n      if (!screen) return [];\n      const icon = <Icon name=\"folder\" size={16} />;\n      const items = [];\n      if ('novo processo clone'.indexOf(q) !== -1) {\n        items.push({ id: 'proc-clone:new', title: 'Novo processo (clone)', group: GROUP, icon, onSelect: () => { ctx.openTab(EDIT_PREFIX + 'new'); ctx.close(); } });\n      }\n      if ('abrir processos clone'.indexOf(q) !== -1) {\n        items.push({ id: 'proc-clone:list', title: 'Abrir Processos (clone)', group: GROUP, icon, onSelect: () => { ctx.openTab(LIST_KEY); ctx.close(); } });\n      }\n      const collection = screen.dataCollection || screen.id;\n      for (const r of ctx.records) {\n        const title = r[screen.titleFieldKey];\n        if (r.collection === collection && title && title.toLowerCase().indexOf(q) !== -1) {\n          items.push({ id: 'proc-clone:' + r.id, title, subtitle: 'Processo (clone)', group: GROUP, icon, onSelect: () => { ctx.openTab(EDIT_PREFIX + r.id); ctx.close(); } });\n        }\n      }\n      return items.slice(0, 9);\n    },\n  });\n\n  host.mentions.register({\n    key: 'processo-clone',\n    label: 'Processo (clone)',\n    description: 'Inserir link para um processo (clone)',\n    icon: 'folder',\n    search(query, ctx) {\n      const screen = ctx.screenDefinitions.find((s) => (s.sourceId || s.id) === SOURCE_ID);\n      if (!screen) return [];\n      const q = String(query || '').toLowerCase().trim();\n      const collection = screen.dataCollection || screen.id;\n      return ctx.records\n        .filter((r) => r.collection === collection)\n        .map((r) => ({ record: r, title: r[screen.titleFieldKey] }))\n        .filter(({ title }) => title && (!q || title.toLowerCase().indexOf(q) !== -1))\n        .slice(0, 20)\n        .map(({ record, title }) => ({ id: record.id, title, subtitle: 'Processo (clone)', tabKey: EDIT_PREFIX + record.id }));\n    },\n  });\n}\n",
   "views": [
     {
       "key": "processo-clone",
       "title": "Processos (clone)",
       "icon": "folder",
-      "source": "\nimport { useMemo } from 'react';\nimport { useTheme } from 'styled-components';\nimport { RecordListSurface, Badge, InfoBanner } from '@microteia/ui';\nimport { useEntityList, usePersons, useWorkspace } from '@microteia/data';\n\nconst SOURCE_ID = 'microteia:processo-clone';\nconst EDIT_PREFIX = 'processo-clone-edit:';\n\nconst asArray = (v) => Array.isArray(v) ? v : (v == null || v === '' ? [] : [v]);\n\nfunction daysSince(value) {\n  if (!value) return null;\n  const d = value instanceof Date ? value : new Date(String(value).slice(0, 10) + 'T00:00:00');\n  if (isNaN(d.getTime())) return null;\n  const diff = Math.floor((Date.now() - d.getTime()) / 86400000);\n  return diff < 0 ? 0 : diff;\n}\n\nexport default function ProcessoCloneView() {\n  const theme = useTheme();\n  const list = useEntityList(SOURCE_ID, { editKeyPrefix: EDIT_PREFIX });\n  const persons = usePersons();\n  const { openTab } = useWorkspace();\n\n  const personById = useMemo(() => {\n    const map = {};\n    for (const p of persons) map[p.id] = p;\n    return map;\n  }, [persons]);\n\n  if (!list.definition) {\n    return <div style={{ padding: '24px' }}><InfoBanner message='Entidade \"Processo (clone)\" não encontrada. Instale a extensão para ativar esta tela.' variant=\"warning\" /></div>;\n  }\n\n  const namesOf = (ids) => asArray(ids).map((id) => personById[id] ? personById[id].name : '').filter(Boolean);\n\n  const poleLabel = { fontSize: theme.fontSizes.xs, color: theme.colors.textMuted, textTransform: 'uppercase', letterSpacing: '0.04em' };\n  const poleName = { fontSize: theme.fontSizes.sm, color: theme.colors.text };\n  const poleEmpty = { fontSize: theme.fontSizes.sm, color: theme.colors.textMuted };\n\n  const renderPole = (label, names) => (\n    <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', minWidth: '160px' }}>\n      <span style={poleLabel}>{label}</span>\n      {names.length > 0\n        ? names.map((n, i) => <span key={i} style={poleName}>{n}</span>)\n        : <span style={poleEmpty}>—</span>}\n    </div>\n  );\n\n  const renderSubtitle = (record) => {\n    const v = record;\n    const days = daysSince(v.filedAt);\n    return (\n      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>\n        {v.caseNumber ? <span style={{ fontFamily: 'monospace' }}>{v.caseNumber}</span> : null}\n        {days != null ? <Badge color={theme.colors.textSecondary}>{days} dias</Badge> : null}\n      </span>\n    );\n  };\n\n  const renderBelowHeader = (record) => {\n    const v = record;\n    return (\n      <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap', margin: '8px 0' }}>\n        {renderPole('Polo Ativo', namesOf(v.activePoleIds))}\n        {renderPole('Polo Passivo', namesOf(v.passivePoleIds))}\n      </div>\n    );\n  };\n\n  return (\n    <RecordListSurface\n      vm={list}\n      definition={list.definition}\n      renderSubtitle={renderSubtitle}\n      renderBelowHeader={renderBelowHeader}\n      onOpenRecord={(record) => openTab(EDIT_PREFIX + record.id)}\n      onNewRecord={() => openTab(EDIT_PREFIX + 'new')}\n    />\n  );\n}\n"
+      "source": "\nimport { useMemo } from 'react';\nimport { styled, useTheme } from 'styled-components';\nimport { RecordListSurface, Badge, InfoBanner } from '@microteia/ui';\nimport { useEntityList, useLookup, usePersons, useWorkspace } from '@microteia/data';\nimport { getConfigColor } from '@microteia/theme';\n\nconst SOURCE_ID = 'microteia:processo-clone';\nconst EDIT_PREFIX = 'processo-clone-edit:';\n\nconst Badges = styled.div`\n  display: flex;\n  flex-wrap: wrap;\n  gap: ${({ theme }) => theme.spacing.xs};\n  align-items: center;\n`;\n\nconst PartesRow = styled.div`\n  display: grid;\n  grid-template-columns: 1fr 1fr;\n  border: 1px solid ${({ theme }) => theme.colors.border};\n  border-radius: ${({ theme }) => theme.borderRadius.md};\n  overflow: hidden;\n  font-size: ${({ theme }) => theme.fontSizes.xs};\n`;\n\nconst PoleColumn = styled.div`\n  padding: ${({ theme }) => theme.spacing.xs + ' ' + theme.spacing.sm};\n  display: flex;\n  flex-direction: column;\n  gap: 2px;\n  border-right: ${({ $side, theme }) => $side === 'left' ? '1px solid ' + theme.colors.border : 'none'};\n  min-width: 0;\n`;\n\nconst PoleLabel = styled.div`\n  font-size: 10px;\n  font-weight: 600;\n  color: ${({ theme }) => theme.colors.textMuted};\n  letter-spacing: 0.05em;\n  margin-bottom: 1px;\n`;\n\nconst PoleName = styled.div`\n  color: ${({ theme }) => theme.colors.text};\n  white-space: nowrap;\n  overflow: hidden;\n  text-overflow: ellipsis;\n  font-size: ${({ theme }) => theme.fontSizes.xs};\n`;\n\nconst PoleEmpty = styled.div`\n  color: ${({ theme }) => theme.colors.textMuted};\n  font-style: italic;\n  font-size: ${({ theme }) => theme.fontSizes.xs};\n`;\n\nconst CaseNumberRow = styled.div`\n  display: flex;\n  align-items: center;\n  gap: ${({ theme }) => theme.spacing.xs};\n  margin-top: 2px;\n  min-width: 0;\n`;\n\nconst CaseNumber = styled.div`\n  font-size: ${({ theme }) => theme.fontSizes.xs};\n  color: ${({ theme }) => theme.colors.textMuted};\n  font-family: ${({ theme }) => theme.fonts.mono};\n  white-space: nowrap;\n  overflow: hidden;\n  text-overflow: ellipsis;\n  min-width: 0;\n`;\n\nconst DaysChip = styled.span`\n  display: inline-flex;\n  align-items: center;\n  flex-shrink: 0;\n  margin-left: auto;\n  padding: 1px 6px;\n  border-radius: ${({ theme }) => theme.borderRadius.full};\n  font-size: 10px;\n  font-weight: 500;\n  font-family: ${({ theme }) => theme.fonts.mono};\n  background: ${({ theme }) => theme.colors.surfaceHover};\n  color: ${({ theme }) => theme.colors.textMuted};\n  border: 1px solid ${({ theme }) => theme.colors.border};\n  white-space: nowrap;\n`;\n\nconst asArray = (v) => Array.isArray(v) ? v : (v == null || v === '' ? [] : [v]);\n\nfunction daysSince(value) {\n  if (!value) return null;\n  const d = value instanceof Date ? value : new Date(String(value).slice(0, 10) + 'T00:00:00');\n  if (isNaN(d.getTime())) return null;\n  const diff = Math.floor((Date.now() - d.getTime()) / 86400000);\n  return diff < 0 ? 0 : diff;\n}\n\nexport default function ProcessoCloneView() {\n  const theme = useTheme();\n  const list = useEntityList(SOURCE_ID, { editKeyPrefix: EDIT_PREFIX });\n  const persons = usePersons();\n  const statusOptions = useLookup('caseStatuses');\n  const phaseOptions = useLookup('casePhases');\n  const { openTab } = useWorkspace();\n\n  const personById = useMemo(() => {\n    const map = {};\n    for (const p of persons) map[p.id] = p;\n    return map;\n  }, [persons]);\n\n  if (!list.definition) {\n    return <div style={{ padding: '24px' }}><InfoBanner message='Tela \"Processos (clone)\" não encontrada. Instale a extensão para ativá-la.' variant=\"warning\" /></div>;\n  }\n\n  const namesOf = (ids) => asArray(ids).map((id) => personById[id] ? personById[id].name : '').filter(Boolean);\n\n  const renderPole = (label, names, side) => (\n    <PoleColumn $side={side}>\n      <PoleLabel>{label}</PoleLabel>\n      {names.length > 0\n        ? names.map((n, i) => <PoleName key={i}>{n}</PoleName>)\n        : <PoleEmpty>—</PoleEmpty>}\n    </PoleColumn>\n  );\n\n  const renderSubtitle = (record) => {\n    if (!record.caseNumber) return undefined;\n    const days = daysSince(record.filedAt);\n    return (\n      <CaseNumberRow>\n        <CaseNumber>{record.caseNumber}</CaseNumber>\n        {days != null ? <DaysChip>{days} dias</DaysChip> : null}\n      </CaseNumberRow>\n    );\n  };\n\n  const renderBelowHeader = (record) => {\n    const active = namesOf(record.activePoleIds);\n    const passive = namesOf(record.passivePoleIds);\n    return (\n      <>\n        <Badges>\n          {record.status ? <Badge color={getConfigColor(statusOptions, record.status, theme)}>{record.status}</Badge> : null}\n          {record.phase ? <Badge color={getConfigColor(phaseOptions, record.phase, theme)}>{record.phase}</Badge> : null}\n        </Badges>\n        {active.length > 0 || passive.length > 0 ? (\n          <PartesRow>\n            {renderPole('Polo Ativo', active, 'left')}\n            {renderPole('Polo Passivo', passive, 'right')}\n          </PartesRow>\n        ) : null}\n      </>\n    );\n  };\n\n  return (\n    <RecordListSurface\n      vm={list}\n      definition={list.definition}\n      renderSubtitle={renderSubtitle}\n      renderBelowHeader={renderBelowHeader}\n      emptyTitle=\"Nenhum processo encontrado\"\n      emptyActionLabel=\"Cadastrar primeiro processo\"\n      onOpenRecord={(record) => openTab(EDIT_PREFIX + record.id)}\n      onNewRecord={() => openTab(EDIT_PREFIX + 'new')}\n    />\n  );\n}\n"
     },
     {
       "key": "processo-clone-edit",

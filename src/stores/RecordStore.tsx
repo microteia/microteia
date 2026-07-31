@@ -9,6 +9,7 @@ import { makeSubscribeToRecordsUseCase } from '../domain/usecases/records/Subscr
 import { makeCreateRecordUseCase } from '../domain/usecases/records/CreateRecordUseCase';
 import { makeUpdateRecordUseCase } from '../domain/usecases/records/UpdateRecordUseCase';
 import { makeDeleteRecordUseCase } from '../domain/usecases/records/DeleteRecordUseCase';
+import { screenDataCollection } from '../domain/services/screenDataCollection';
 import type { DeletionActor, EntityRecord, EntityRecordValues } from '../domain/entities';
 
 /**
@@ -31,7 +32,11 @@ export const RecordStoreProvider: React.FC<{ children: React.ReactNode }> = ({ c
     delete: makeDeleteRecordUseCase(recordRepository, recordNoteRepository, recordDocumentRepository),
   }), [recordRepository, recordNoteRepository, recordDocumentRepository]);
 
-  const collections = useMemo(() => dynamicScreens.map((def) => def.id), [dynamicScreens]);
+  // A coleção, não a tela: duas telas sobre a mesma coleção (uma delas BOUND) assinam uma vez só.
+  const collections = useMemo(
+    () => [...new Set(dynamicScreens.map((def) => screenDataCollection(def)))],
+    [dynamicScreens],
+  );
 
   useEffect(() => {
     if (!currentTenant) {

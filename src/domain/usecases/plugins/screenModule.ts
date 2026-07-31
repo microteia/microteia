@@ -125,10 +125,14 @@ export const materializeScreen = (
     icon: template.icon,
     fields,
     titleFieldKey: template.titleFieldKey,
+    subtitleFieldKey: template.subtitleFieldKey ?? null,
     hasNotes: template.hasNotes ?? false,
     hasDocuments: template.hasDocuments ?? false,
     hasTags: template.hasTags ?? false,
     tagCollection: template.tagCollection ?? null,
+    // Nome universal da coleção alvo: NÃO passa por `keyMap` (não é tela do pacote) nem por
+    // desambiguação — é a entidade que já existe no escritório.
+    dataCollection: template.dataCollection ?? null,
     listActions: template.listActions ?? [],
     viewActionIds: mapActionIds(template.viewActionIds),
     cardActionIds: mapActionIds(template.cardActionIds),

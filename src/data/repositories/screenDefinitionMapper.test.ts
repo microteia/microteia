@@ -19,6 +19,8 @@ const persisted: PersistedKeys = {
   icon: 'user',
   fields: [{ key: 'apelido', label: 'Apelido', type: 'text', required: false, order: 0, origin: 'design' }],
   titleFieldKey: 'name',
+  subtitleFieldKey: 'document',
+  dataCollection: 'cases',
   hasNotes: true,
   hasDocuments: true,
   hasTags: true,

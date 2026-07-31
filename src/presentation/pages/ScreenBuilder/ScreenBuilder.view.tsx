@@ -321,15 +321,26 @@ export const ScreenBuilderView: React.FC = () => {
                   />
                 </InputGroup>
                 {vm.screenModalIsEdit && vm.titleFieldOptions.length > 0 && (
-                  <InputGroup>
-                    <Label>Campo Título</Label>
-                    <SearchSelect
-                      options={vm.titleFieldOptions}
-                      value={vm.screenForm.titleFieldKey}
-                      onChange={(value) => vm.updateScreenForm({ titleFieldKey: value })}
-                      placeholder="Escolha o campo título"
-                    />
-                  </InputGroup>
+                  <>
+                    <InputGroup>
+                      <Label>Campo Título</Label>
+                      <SearchSelect
+                        options={vm.titleFieldOptions}
+                        value={vm.screenForm.titleFieldKey}
+                        onChange={(value) => vm.updateScreenForm({ titleFieldKey: value })}
+                        placeholder="Escolha o campo título"
+                      />
+                    </InputGroup>
+                    <InputGroup>
+                      <Label>Campo Subtítulo</Label>
+                      <SearchSelect
+                        options={vm.subtitleFieldOptions}
+                        value={vm.screenForm.subtitleFieldKey}
+                        onChange={(value) => vm.updateScreenForm({ subtitleFieldKey: value })}
+                        placeholder="Nenhum"
+                      />
+                    </InputGroup>
+                  </>
                 )}
                 <S.RulesDivider>Abas do registro</S.RulesDivider>
                 <S.CheckboxCell>

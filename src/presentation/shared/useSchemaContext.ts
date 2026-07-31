@@ -11,8 +11,11 @@ export const useSchemaContext = (): SchemaContext => {
   return useMemo(
     () =>
       createSchemaContext(
+        // Mesma tradução do `toSchemaScreens` da gravação — inclusive `collection`, que faz a tela
+        // entrar pela coleção que descreve quando não é a de mesmo nome.
         definitions.map((definition) => ({
           id: definition.id,
+          collection: definition.dataCollection ?? undefined,
           titleSingular: definition.titleSingular,
           titlePlural: definition.titlePlural,
           titleFieldKey: definition.titleFieldKey,

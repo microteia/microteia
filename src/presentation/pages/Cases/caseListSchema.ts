@@ -1,4 +1,4 @@
-import { deriveListRows, type DerivedListRow } from '../../shared/deriveEntitySchema';
+import { deriveBuiltinListRows, type DerivedListRow } from '../../shared/deriveEntitySchema';
 
 /**
  * Linhas do card de Processo — derivadas de `ui.list` no ENTITY_REGISTRY, inclusive as relações
@@ -6,4 +6,4 @@ import { deriveListRows, type DerivedListRow } from '../../shared/deriveEntitySc
  * registry — nunca esta view. O que é exclusivo do Processo (chip de dias em trâmite, badges de
  * status/fase e os polos) entra pelo slot `belowHeader` do EntityListCard.
  */
-export const CASE_LIST_ROWS: DerivedListRow[] = deriveListRows('cases');
+export const CASE_LIST_ROWS: DerivedListRow[] = deriveBuiltinListRows('cases');

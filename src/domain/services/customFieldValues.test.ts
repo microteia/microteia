@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildInitialFormValues, setValueByPath } from './customFieldValues';
+import { buildInitialFormValues, readRecordText, resolveRecordTitle, setValueByPath } from './customFieldValues';
 import type { CustomFieldValue, FieldDefinition } from '../entities/entitySchemas';
 
 type Values = Record<string, CustomFieldValue>;
@@ -61,5 +61,25 @@ describe('setValueByPath', () => {
     const before = asValues({ address: 'x' });
     const after = setValueByPath(before, 'address.street', 'Rua A');
     expect(after).toEqual({ address: { street: 'Rua A' } });
+  });
+});
+
+/**
+ * `readRecordText` existe para distinguir "não tem" de "sem título": quem monta o cabeçalho e o
+ * rótulo da aba precisa cair no próximo candidato quando o campo está vazio ou nem foi declarado.
+ */
+describe('readRecordText', () => {
+  const record = { caseNumber: ' 123-4567 ', title: '', causeValue: 1500 };
+
+  it('devolve o texto do campo, sem espaços nas pontas', () => {
+    expect(readRecordText(record, 'caseNumber')).toBe('123-4567');
+  });
+
+  it('campo vazio, não declarado ou não textual devolve vazio — nunca "Sem título"', () => {
+    expect(readRecordText(record, 'title')).toBe('');
+    expect(readRecordText(record, '')).toBe('');
+    expect(readRecordText(record, 'inexistente')).toBe('');
+    expect(readRecordText(record, 'causeValue')).toBe('');
+    expect(resolveRecordTitle(record, 'title')).toBe('Sem título');
   });
 });

@@ -1826,6 +1826,85 @@ nunca diverge da tela. (A `key` e o `type` seguem fixos: definem como o valor é
   inválidos na criação de tela. A lista é espelhada na denylist do `firestore.rules`, e
   `scripts/reservedCollections.test.ts` falha se as duas divergirem.
 
+### A coleção é propriedade da tela, não a identidade dela (`dataCollection`)
+
+**Objetivo do movimento:** o kernel não deve conhecer `cases`, `persons`, `deadlines`,
+`contracts` ou `financials` — são entidades de escritório de advocacia, não de uma plataforma. O
+destino é que o `entityRegistry` fique só com o que é comum a qualquer aplicação de negócio e que
+essas entidades sejam DECLARADAS por extensões. Esta mudança é o primeiro passo, e existe para
+responder a uma pergunta: *o que o kernel precisa suportar para que uma entidade nativa possa ser
+removida sem perder um único registro?*
+
+A resposta começa por desfazer um acoplamento: até aqui, uma tela **era** a coleção
+(`screenDefinitions/{id}` ↔ `tenants/{tid}/{id}`). `ScreenDefinition.dataCollection` separa as duas
+coisas — a chave da tela é identidade de UI (abas, deep link, filtros salvos), e a coleção é uma
+PROPRIEDADE dela. Com isso, uma tela de extensão pode descrever e operar uma coleção que já existe,
+sob qualquer nome.
+
+- **Ponto único:** `domain/services/screenDataCollection.ts` (`screenDataCollection`, `isBoundScreen`).
+  Toda leitura, gravação, exclusão, etiqueta, anotação, documento e execução de ação passa por ele.
+- **A declaração vale para a COLEÇÃO, não para a tela.** `toSchemaScreens`/`useSchemaContext` indexam
+  a tela pela coleção que ela descreve, e `createSchemaContext` MESCLA as declarações quando mais de
+  uma tela descreve a mesma (`mergeSchemaScreens`): os campos se somam por chave, com a tela DONA do
+  nome (`screenDefinitions/cases`, onde ficam os ajustes do escritório) entrando por último. Rótulos,
+  campo-título e etiquetas vêm da dona quando ela existe — uma tela chamada "Processo (clone)" não
+  renomeia a entidade Processo. Na falta dela, valem os da declaração que sobrou: é isso que mantém a
+  coleção descrita depois que a entidade sai do kernel.
+- **A extensão declara TUDO.** Uma tela ligada a `cases` que herdasse os campos do registro morreria
+  junto com ele. Por isso o pacote declara o esquema inteiro — campos, `lookupCollection` (as listas
+  de opções são dado do escritório e sobrevivem à desinstalação), relações, seções, `tagCollection`,
+  linhas do card e filtros. Hoje as duas declarações (registro e pacote) se sobrepõem sem conflito;
+  amanhã sobra só a do pacote.
+- **Gravação idêntica.** O repositório genérico recebe a coleção ALVO, então
+  `formatAndValidateRecord` resolve os campos por `cases`: data vira `Date` (Timestamp), `type` vira
+  array, moeda vira número — o documento sai igual ao que a tela fixa grava. Anotações e documentos
+  caem em `tenants/{tid}/cases/{id}/notes|documents`, os mesmos caminhos.
+- **Ciclo de vida:** desinstalar a extensão remove a tela; os registros são da coleção e permanecem.
+  `DeleteScreenDefinitionUseCase` checa registros na coleção da própria tela, que não existe — a
+  exclusão nunca alcança dados de outra entidade.
+- **Custo assumido:** enquanto as duas telas coexistirem, o `RecordStore` assina a coleção além do
+  store tipado dela (dois listeners sobre `cases`). É o preço de rodar as duas lado a lado.
+- **Fora do Form Design:** uma tela-visão não aparece na montagem de telas. Quem configura os campos
+  da coleção é a tela que leva o nome dela — duas portas para o mesmo esquema só confundiriam.
+- **Primeiro consumidor:** `src/plugins/marketplace/processoClone.ts`.
+
+**Autoria do card, dos filtros e do cabeçalho — o que faltava para uma extensão reproduzir uma tela
+fixa.** Declarações que só existiam em código passaram a ter forma de autoria, disponível a qualquer
+tela:
+
+| Autoria | Canônico | Efeito |
+|---|---|---|
+| `FieldDefinition.listIcon` | `ui.list.icon` | o campo vira META-LINHA do card, com ícone |
+| `FieldDefinition.listOrder` | `ui.list.order` | posição da linha no card, quando difere da ordem do campo no formulário (no Processo o responsável é a 1ª linha e o 15º campo) |
+| `FieldDefinition.filterable` | `ui.filter` | o campo vira filtro do `CompositeFilter` |
+| `ScreenDefinition.subtitleFieldKey` | — | campo do SUBTÍTULO do detalhe (abaixo do título) e do rótulo da ABA; ausente, a aba leva o título |
+
+`subtitleFieldKey` existe porque uma aba é estreita: um identificador curto e único (número do
+processo, número do contrato) cabe melhor nela do que o título. `RecordDetailSurface` e o detalhe
+dinâmico passaram a mostrar o TÍTULO DO REGISTRO no cabeçalho (com o nome da tela como fallback), em
+vez do nome da tela sempre — alinhando o runtime compartilhado ao que as telas fixas já faziam.
+
+Uma relação pode chegar pelos dois lados — como `fk` do registro e como campo `reference` declarado
+pela tela. `deriveFormFields`/`deriveListRows` descartam a `fk` quando a chave já veio da tela: a
+declaração da tela vence, porque é ela que sobrevive à saída da entidade do kernel.
+
+`deriveListRows(ctx, collection)` monta as linhas a partir de `resolveEntity` — tanto faz se a
+declaração veio do registro ou da tela. `RecordListSurface` a usa; `getCardItems` remove do bloco de
+campos adicionais o que já virou linha, para não repetir a informação. Campo com `showInList` mas
+**sem** ícone continua no bloco de campos adicionais, que é mais rico (rótulo, badges coloridos,
+markdown): são duas apresentações diferentes de propósito, e agora as duas são declaráveis.
+`deriveBuiltinListRows(entityKey)` é o atalho das telas fixas, que leem o layout direto do código.
+
+**O que ainda falta para tirar `cases` do kernel** (o inventário que este passo levantou):
+
+| Pendência | Hoje | O que precisa acontecer |
+|---|---|---|
+| Prefixo de evento | `eventPrefix: 'case'` no registro → `case.saved` | sem o registro o prefixo vira o nome da coleção (`cases.saved`); ou a tela declara o prefixo, ou os workflows são renomeados |
+| Rules | `match /cases` NOMEADA, e `cases` em `RESERVED_COLLECTIONS` | ao sair do registro, `cases` cai no curinga, que exige `exists(screenDefinitions/cases)` — a tela precisa passar a se chamar `cases` (a chave deixa de ser reservada no mesmo movimento) |
+| Denormalização de FK | `fks[].denormKey/denormalizedFields` só existem no registro | as relações declaradas por tela precisam do equivalente, ou os pontos que leem nome denormalizado passam a hidratar por `refEntity` |
+| Telas e stores nativos | `Cases`, `ViewCase`, `useCaseStore`, `FirebaseCaseRepository`, deep links `view-case:` | saem junto, substituídos pelas views da extensão |
+| Entidades filhas | `deadlines`/`financials` apontam para `cases` por `fks` | migram no mesmo modelo, uma de cada vez |
+
 ### Telas fixas por Schema — piloto (Pessoas)
 
 Primeiro passo de unificação: o formulário "Dados" de `ViewPerson` é renderizado pelo `CustomFieldsSection` a partir de um layout de código `presentation/pages/ViewPerson/personFormSchema.ts` (`PERSON_FORM_FIELDS: FieldDefinition[]`), em vez de campos escritos à mão. A visibilidade PF/PJ (antes `if type === ...` no JSX) agora é `logic.hiddenWhen` por campo.
@@ -3090,7 +3169,9 @@ O padrão do argumento é `false` — **falha fechada**. Antes, ter `views` bast
 `isExtensionCodeTrusted` (em `domain/usecases/plugins/extensionCodeTrust.ts`):
 
 1. pacote sem `views`/`startup` → não se aplica (telas, campos e workflows entram normalmente);
-2. `source: 'public'` → roda (a aprovação por SYSTEM **é** a revisão);
+2. procedência confiável (`hasTrustedProvenance`) → roda: `source: 'public'` (a aprovação por SYSTEM
+   **é** a revisão) ou `source: 'builtin'` (o pacote veio do CATÁLOGO EMBUTIDO — é o próprio código
+   da aplicação, e pedir revisão dele a um admin não acrescentaria garantia);
 3. caso contrário → só com `codeTrust` cujo `hash` bate com o código atual.
 
 **O vínculo é por hash, não por versão.** Um pacote montado à mão pode manter `1.0.0` e trocar o
@@ -3106,6 +3187,28 @@ No Marketplace, cópia instalada com código não confiado ganha o selo "Código
 **Revisar e confiar**, que abre a fonte e exige confirmação. `codeTrust` grava quem confiou, quando e
 o hash. Reinstalar preserva o registro — quem decide é o hash, então código igual mantém a revisão e
 código alterado volta a exigir o gesto.
+
+### Catálogo embutido e pacotes distribuíveis
+
+`MARKETPLACE_CATALOG` (`src/plugins/marketplace/catalog.ts`) são as extensões de PRIMEIRA PARTE que
+viajam no bundle. Aparecem em Extensões com o selo "Do sistema", instalam com um clique
+(`source: 'builtin'`) e executam código pela procedência — é o caminho curto de desenvolvimento:
+editar o `.ts`, recarregar, "Atualizar" na linha da extensão. O botão "Atualizar" aparece quando o
+pacote embutido **difere** do instalado, não só quando a versão sobe: durante o desenvolvimento a
+versão fica parada enquanto o código muda.
+
+O MESMO pacote também é distribuível como `.json` em `extension-templates/`, para escritórios que não
+rodam este bundle. O arquivo é **gerado**, nunca editado à mão:
+
+```bash
+npm run build:extensions        # regrava extension-templates/*.json a partir dos .ts
+npm run verify-extensions       # falha se algum estiver desatualizado (roda no `npm run verify`)
+```
+
+`scripts/export-extensions.mjs` carrega os módulos pelo próprio Vite (`ssrLoadModule`) e serializa
+com `serializePackage` — o mesmo formato do botão "Baixar .json". `scripts/extensionTemplates.test.ts`
+é a rede: alterar a extensão e esquecer de regerar o arquivo quebra o teste, em vez de deixar um
+`.json` velho instalando uma tela que não existe mais no repositório.
 
 **O que continua em aberto, e é honesto registrar:** não há CSP (`connect-src`), `manifest.permissions`
 segue declarado e não consultado (inclusive o domínio `net`), e `installedPluginRecords` continua sem

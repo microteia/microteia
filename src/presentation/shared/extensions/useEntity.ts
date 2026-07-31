@@ -8,6 +8,8 @@ import {
   buildNewTabKey,
   buildViewTabKey,
 } from '../../../shared/constants/dynamicScreenKeys';
+import { isBoundScreen, screenDataCollection } from '../../../domain/services/screenDataCollection';
+import { useEntityFormFields } from '../useEntityFormFields';
 import type { EntityRecord, FieldDefinition, ScreenDefinition } from '../../../domain/entities';
 
 /**
@@ -30,6 +32,8 @@ export interface EntityFieldOption {
 export interface ExtensionEntity {
   screen: ScreenDefinition | null;
   screenKey: string | null;
+  /** Coleção dos registros — difere de `screenKey` quando a tela é visão sobre outra entidade. */
+  collection: string | null;
   fields: FieldDefinition[];
   records: EntityRecord[];
   isLoading: boolean;
@@ -51,18 +55,26 @@ export const useEntity = (sourceId: string): ExtensionEntity => {
     [dynamicScreens, sourceId],
   );
   const screenKey = screen?.id ?? null;
+  const collection = screen ? screenDataCollection(screen) : null;
+  const isBound = !!screen && isBoundScreen(screen);
 
-  const fields = useMemo(() => screen?.fields ?? [], [screen]);
+  // Tela ligada a outra coleção lê os campos da COLEÇÃO (declaração dela + as demais que a descrevem).
+  const boundFields = useEntityFormFields(isBound && collection ? collection : '');
+
+  const fields = useMemo(
+    () => (isBound ? boundFields.fields : screen?.fields ?? []),
+    [isBound, boundFields.fields, screen],
+  );
 
   const records = useMemo(
-    () => (screenKey ? recordsByCollection[screenKey] ?? [] : []),
-    [recordsByCollection, screenKey],
+    () => (collection ? recordsByCollection[collection] ?? [] : []),
+    [recordsByCollection, collection],
   );
 
   const optionsFor = useCallback(
     (fieldKey: string): EntityFieldOption[] => {
       if (!screen) return [];
-      const field = screen.fields.find((candidate) => candidate.key === fieldKey);
+      const field = fields.find((candidate) => candidate.key === fieldKey);
       const staticOptions: EntityFieldOption[] = (field?.options ?? []).map((option) => ({
         key: option.key,
         label: option.label,
@@ -73,7 +85,7 @@ export const useEntity = (sourceId: string): ExtensionEntity => {
         .map((option) => ({ key: option.label, label: option.label, color: option.color }));
       return [...staticOptions, ...extra];
     },
-    [screen, getOptions],
+    [screen, fields, getOptions],
   );
 
   const openRecord = useCallback(
@@ -96,14 +108,15 @@ export const useEntity = (sourceId: string): ExtensionEntity => {
 
   const removeRecord = useCallback(
     async (recordId: string) => {
-      if (screenKey) await deleteRecord(recordId, screenKey);
+      if (collection) await deleteRecord(collection, recordId);
     },
-    [deleteRecord, screenKey],
+    [deleteRecord, collection],
   );
 
   return {
     screen,
     screenKey,
+    collection,
     fields,
     records,
     isLoading,

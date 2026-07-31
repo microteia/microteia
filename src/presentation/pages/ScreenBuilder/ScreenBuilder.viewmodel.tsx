@@ -27,6 +27,7 @@ import { useLookups } from '../../../stores/useLookups';
 import { useTags } from '../../../stores/useTags';
 import { deriveFormFields } from '../../shared/deriveEntitySchema';
 import { RESERVED_COLLECTIONS, builtinScreenBaseline, derivedLookupCollection, derivedTagCollection, lookupIdIssue, screenIdIssue, tagListIdIssue } from '../../../domain/schema/screenEntity';
+import { isBoundScreen } from '../../../domain/services/screenDataCollection';
 import type { EntityKey } from '../../../domain/schema/entityRegistry';
 import { getEntityByCollection } from '../../../domain/schema/entityRegistry';
 import type { WorkflowVariable } from '../../components/ui/ExpressionEditor/autocompleteHelpers';
@@ -80,6 +81,7 @@ export interface ScreenFormState {
   childLinks: Record<string, string>;
   enabled: boolean;
   titleFieldKey: string;
+  subtitleFieldKey: string;
 }
 
 export const LIST_ACTION_OPTIONS: { key: ScreenListAction; label: string }[] = [
@@ -172,6 +174,7 @@ export interface ScreenBuilderViewModel {
   updateScreenForm: (patch: Partial<ScreenFormState>) => void;
   toggleListAction: (action: ScreenListAction) => void;
   titleFieldOptions: SearchSelectOption[];
+  subtitleFieldOptions: SearchSelectOption[];
   childCandidates: ChildCandidate[];
   toggleChildScreen: (childKey: string) => void;
   setChildLinkField: (childKey: string, fieldKey: string) => void;
@@ -276,6 +279,7 @@ const EMPTY_SCREEN_FORM: ScreenFormState = {
   childLinks: {},
   enabled: true,
   titleFieldKey: '',
+  subtitleFieldKey: '',
 };
 
 const EMPTY_FIELD_FORM: FieldFormState = {
@@ -473,10 +477,13 @@ const toSaveInput = (def: ScreenDefinition): ScreenDefinitionSaveInput => ({
   icon: def.icon,
   fields: def.fields,
   titleFieldKey: def.titleFieldKey,
+  subtitleFieldKey: def.subtitleFieldKey ?? null,
   hasNotes: def.hasNotes,
   hasDocuments: def.hasDocuments,
   hasTags: def.hasTags,
   tagCollection: def.tagCollection ?? '',
+  // Sem isto, salvar qualquer outra coisa na tela desfaria o vínculo com a coleção alvo.
+  dataCollection: def.dataCollection ?? null,
   listActions: def.listActions,
   viewActionIds: def.viewActionIds,
   cardActionIds: def.cardActionIds,
@@ -542,9 +549,12 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
   const [draggedFieldKey, setDraggedFieldKey] = useState<string | null>(null);
   const [dragOverFieldKey, setDragOverFieldKey] = useState<string | null>(null);
 
+  // Tela que é VISÃO sobre outra coleção (`dataCollection`) fica de fora: ela não tem esquema
+  // próprio. Quem configura os campos é a tela da entidade alvo — mostrá-la aqui só ofereceria um
+  // formulário cujos ajustes nada fariam.
   const dynamicDefinitions = useMemo(
     () => definitions
-      .filter((def) => def.origin !== 'builtin')
+      .filter((def) => def.origin !== 'builtin' && !isBoundScreen(def))
       .sort((a, b) => a.sidebarOrder - b.sidebarOrder),
     [definitions],
   );
@@ -786,6 +796,7 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
       childLinks,
       enabled: def.enabled,
       titleFieldKey: def.titleFieldKey,
+      subtitleFieldKey: def.subtitleFieldKey ?? '',
     });
     setScreenModal({ screenKey });
   }, [getDefinitionByKey, dynamicDefinitions]);
@@ -841,6 +852,19 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
     return def.fields
       .filter((f) => f.type === 'text' && f.required)
       .map((f) => ({ value: f.key, label: f.label }));
+  }, [screenModal, getDefinitionByKey]);
+
+  /** O subtítulo aceita qualquer campo de texto (não precisa ser obrigatório) e pode ser nenhum. */
+  const subtitleFieldOptions = useMemo<SearchSelectOption[]>(() => {
+    if (!screenModal?.screenKey) return [];
+    const def = getDefinitionByKey(screenModal.screenKey);
+    if (!def) return [];
+    return [
+      { value: '', label: 'Nenhum' },
+      ...def.fields
+        .filter((f) => f.type === 'text' || f.type === 'masked')
+        .map((f) => ({ value: f.key, label: f.label })),
+    ];
   }, [screenModal, getDefinitionByKey]);
 
   const modalListActionOptions = useMemo(() => {
@@ -952,6 +976,7 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
         const def = getDefinitionByKey(screenModal.screenKey);
         if (!def) return;
         const titleFieldKey = def.origin === 'builtin' ? '' : (screenForm.titleFieldKey || def.titleFieldKey);
+        const subtitleFieldKey = def.origin === 'builtin' ? null : (screenForm.subtitleFieldKey || null);
         await saveDefinition(def.id, {
           ...toSaveInput(def),
           titleSingular: screenForm.titleSingular.trim(),
@@ -966,6 +991,7 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
           cardActionIds: screenForm.cardActionIds,
           enabled: screenForm.enabled,
           titleFieldKey,
+          subtitleFieldKey,
         });
 
         await persistChildLinks(def.id);
@@ -1638,6 +1664,7 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
     updateScreenForm,
     toggleListAction,
     titleFieldOptions,
+    subtitleFieldOptions,
     childCandidates,
     toggleChildScreen,
     setChildLinkField,

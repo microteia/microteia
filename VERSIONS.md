@@ -11,6 +11,24 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [1.8.1] — 2026-07-31
+
+- Corrigido o aviso de **Atualização** que ficava aceso para as extensões do sistema mesmo logo depois de instalá-las.
+- Na edição de um processo pela extensão **Processos (clone)**, o cabeçalho passou a mostrar o título do processo com o **número logo abaixo**, e a aba passou a levar o número — igual à tela de Processos.
+- Na montagem de telas, cada tela ganhou a opção **Campo Subtítulo**: o campo escolhido aparece abaixo do título na tela do registro e dá nome à aba.
+
+## [1.8.0] — 2026-07-31
+
+- As extensões que vêm com o sistema voltaram a aparecer na tela de Extensões, com o selo **Do sistema**: instalam com um clique e já funcionam, sem precisar importar arquivo nem liberar o código. Quando o sistema é atualizado com uma versão nova delas, a linha oferece **Atualizar**.
+- Cada extensão voltou a ter a **tela de detalhes**: clique no nome (ou no botão de informação) para ler a descrição completa, com o que ela adiciona ao escritório.
+- A extensão **Processos (clone)** foi corrigida e agora mostra o cartão exatamente como a tela de Processos — responsável, área, instância, vara e valor da causa na mesma ordem, com os mesmos ícones.
+
+## [1.7.0] — 2026-07-30
+
+- A extensão **Processos (clone)** passou a trabalhar nos **processos reais do escritório**, e não mais numa cópia separada: os mesmos registros, as mesmas listas de opções (Área, Fase, Status, Vara…), as mesmas etiquetas, anotações e documentos. Criar, alterar ou excluir por ela vale na tela de Processos, e vice-versa.
+- A lista dessa extensão ficou igual à tela de Processos: as mesmas linhas do cartão (responsável, área, instância, vara e valor da causa, com ícone), os mesmos filtros, o mesmo quadro de polos e as mesmas etiquetas coloridas.
+- Uma extensão agora consegue descrever **por completo** uma tela do sistema — campos, listas de opções, relações, etiquetas, linhas do cartão e filtros — e apresentá-la sobre os dados que já existem. É o passo que abre caminho para telas do sistema serem substituídas por telas de extensão sem migração e sem perder nada.
+
 ## [1.6.1] — 2026-07-30
 
 - Na montagem de telas, um campo novo volta a entrar no **fim** da lista de campos, e não no começo.

@@ -199,6 +199,17 @@ export const collectRequiredErrors = (
 };
 
 /** Nome de exibição do registro — o valor do campo eleito como título na tela. */
+/**
+ * Texto CRU de um campo do registro, ou vazio — a diferença para `resolveRecordTitle` é não inventar
+ * "Sem título": quem chama precisa distinguir "não tem" para cair no próximo candidato (o nome da
+ * tela, o campo-título). Chave vazia devolve vazio, então um `subtitleFieldKey` ausente não vira texto.
+ */
+export const readRecordText = (values: object, fieldKey: string): string => {
+  if (!fieldKey) return '';
+  const value = (values as Record<string, unknown>)[fieldKey];
+  return typeof value === 'string' ? value.trim() : '';
+};
+
 export const resolveRecordTitle = (
   values: object,
   titleFieldKey: string,

@@ -1,7 +1,6 @@
 import type { EntityKey, FkSpec, NativeFieldSpec } from '../../domain/schema/entityRegistry';
-import { ENTITY_REGISTRY } from '../../domain/schema/entityRegistry';
 import type { SchemaContext } from '../../domain/schema/pathResolver';
-import { nativeSpecToFieldDefinition, resolveEntity } from '../../domain/schema/screenEntity';
+import { createSchemaContext, nativeSpecToFieldDefinition, resolveEntity } from '../../domain/schema/screenEntity';
 import type { CustomFieldType, FieldDefinition } from '../../domain/entities';
 
 /**
@@ -22,6 +21,7 @@ const fkToFieldDefinition = (fk: FkSpec, order: number): FieldDefinition => ({
   lookupCollection: null,
   refEntity: fk.targetCollection,
   multi: fk.multi,
+  filterable: fk.ui?.filter === true,
   logic: null,
 });
 
@@ -45,6 +45,7 @@ export const deriveFormFields = (
   if (!entity) return opts.extra ?? [];
 
   const derived: FieldDefinition[] = [];
+  const emitted = new Set<string>();
   let auto = 0;
 
   const walk = (specs: NativeFieldSpec[], prefix: string): void => {
@@ -58,14 +59,18 @@ export const deriveFormFields = (
         continue;
       }
       derived.push(nativeSpecToFieldDefinition(spec, `${prefix}${spec.key}`, spec.ui?.order ?? auto));
+      emitted.add(`${prefix}${spec.key}`);
       auto += 1;
     }
   };
 
   walk(entity.fields, '');
 
+  // A MESMA relação pode chegar pelos dois lados: como `fk` do registro e como campo `reference`
+  // declarado pela tela que descreve a coleção. A declaração da tela vence — ela é a que sobrevive
+  // à saída da entidade do kernel —, e a `fk` correspondente é descartada em vez de duplicar o campo.
   for (const fk of entity.fks) {
-    if (fk.ui?.form === false) {
+    if (fk.ui?.form === false || emitted.has(fk.key)) {
       auto += 1;
       continue;
     }
@@ -94,11 +99,19 @@ const controlFor = (spec: NativeFieldSpec): CustomFieldType =>
   nativeSpecToFieldDefinition(spec, spec.key, 0).type;
 
 /**
- * Linhas do card de listagem de uma entidade FIXA: campos com `ui.list`, ordenados por
- * `ui.list.order`. Não depende do tenant — é o layout que o código declara.
+ * Meta-linhas do card de listagem de uma coleção: os campos com ÍCONE de listagem
+ * (`ui.list.icon` — `listIcon` na forma de autoria), ordenados por `ui.list.order`.
+ *
+ * A lista sai de `resolveEntity`, então a declaração vale igual venha ela do `entityRegistry` (as
+ * entidades que ainda estão no kernel) ou da TELA que descreve a coleção (extensão ou Form Design).
+ * É o que permite uma extensão reproduzir — e depois substituir — o card de uma tela fixa.
+ *
+ * Sem ícone o campo não vira linha: continua no bloco de campos adicionais (`showInList`), que é
+ * mais rico (rótulo, badges coloridos, markdown). São duas apresentações diferentes de propósito.
  */
-export const deriveListRows = (entityKey: EntityKey): DerivedListRow[] => {
-  const entity = ENTITY_REGISTRY[entityKey];
+export const deriveListRows = (ctx: SchemaContext, collection: EntityKey): DerivedListRow[] => {
+  const entity = resolveEntity(ctx, collection);
+  if (!entity) return [];
   const rows: (DerivedListRow & { order: number })[] = [];
 
   const walk = (specs: NativeFieldSpec[], prefix: string): void => {
@@ -107,11 +120,14 @@ export const deriveListRows = (entityKey: EntityKey): DerivedListRow[] => {
         walk(spec.objectFields, `${prefix}${spec.key}.`);
         continue;
       }
-      if (spec.ui?.list) {
+      if (spec.ui?.list?.icon) {
         rows.push({
           key: `${prefix}${spec.key}`,
-          icon: spec.ui.list.icon ?? '',
+          icon: spec.ui.list.icon,
           type: controlFor(spec),
+          // Um campo de referência declarado por tela é a mesma coisa que uma `fk` do registro: sem
+          // a entidade alvo aqui, o card mostraria o id cru no lugar do nome.
+          ...(spec.refEntity ? { refEntity: spec.refEntity } : {}),
           order: spec.ui.list.order ?? 0,
         });
       }
@@ -121,10 +137,10 @@ export const deriveListRows = (entityKey: EntityKey): DerivedListRow[] => {
   walk(entity.fields, '');
 
   for (const fk of entity.fks) {
-    if (!fk.ui?.list) continue;
+    if (!fk.ui?.list?.icon || rows.some((row) => row.key === fk.key)) continue;
     rows.push({
       key: fk.key,
-      icon: fk.ui.list.icon ?? '',
+      icon: fk.ui.list.icon,
       type: 'reference',
       refEntity: fk.targetCollection,
       order: fk.ui.list.order ?? 0,
@@ -135,3 +151,7 @@ export const deriveListRows = (entityKey: EntityKey): DerivedListRow[] => {
     .sort((a, b) => a.order - b.order)
     .map(({ key, icon, type, refEntity }) => ({ key, icon, type, refEntity }));
 };
+
+/** Atalho para as telas fixas, que leem o layout direto do código, sem o contexto do tenant. */
+export const deriveBuiltinListRows = (entityKey: EntityKey): DerivedListRow[] =>
+  deriveListRows(createSchemaContext(), entityKey);

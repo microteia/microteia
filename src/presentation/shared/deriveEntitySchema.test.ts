@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { CustomFieldType, FieldDefinition } from '../../domain/entities';
 import type { EntityKey } from '../../domain/schema/entityRegistry';
 import { createSchemaContext } from '../../domain/schema/pathResolver';
-import { deriveFormFields, deriveListRows } from './deriveEntitySchema';
+import { deriveBuiltinListRows, deriveFormFields, deriveListRows } from './deriveEntitySchema';
 import { SCREEN_ICON_KEYS } from './screenIcons';
 
 const CONTROL_TYPES: CustomFieldType[] = [
@@ -118,7 +118,7 @@ describe('todo ícone declarado em ui.list existe no catálogo', () => {
   const ENTITIES: EntityKey[] = ['persons', 'cases', 'contracts', 'deadlines', 'financials'];
 
   it.each(ENTITIES)('%s', (entity) => {
-    for (const row of deriveListRows(entity)) {
+    for (const row of deriveBuiltinListRows(entity)) {
       expect(SCREEN_ICON_KEYS, `ícone "${row.icon}" (campo ${row.key})`).toContain(row.icon);
     }
   });
@@ -132,18 +132,18 @@ describe('nenhuma entidade expõe o FK de etiquetas no formulário', () => {
 
 describe('deriveListRows — linhas do card derivam de ui.list, ordenadas', () => {
   it('retorna as linhas na ordem configurada, com ícone', () => {
-    const rows = deriveListRows('persons');
+    const rows = deriveBuiltinListRows('persons');
     expect(rows.map((r) => r.key)).toEqual(['cpf', 'cnpj', 'email', 'phone', 'occupation', 'address.city']);
     for (const row of rows) expect(row.icon).toBeTruthy();
   });
 
   it('carrega o controle do campo, para o card formatar moeda/data', () => {
-    const rows = deriveListRows('cases');
+    const rows = deriveBuiltinListRows('cases');
     expect(rows.find((r) => r.key === 'causeValue')?.type).toBe('currency');
   });
 
   it('deriva também as relações, marcando a entidade alvo para resolver o rótulo', () => {
-    const rows = deriveListRows('cases');
+    const rows = deriveBuiltinListRows('cases');
     expect(rows.find((r) => r.key === 'responsibleLawyerId')).toMatchObject({
       type: 'reference',
       refEntity: 'persons',
@@ -151,8 +151,136 @@ describe('deriveListRows — linhas do card derivam de ui.list, ordenadas', () =
   });
 
   it('ordena campos e relações juntos pelo ui.list.order', () => {
-    expect(deriveListRows('cases').map((r) => r.key)).toEqual(
+    expect(deriveBuiltinListRows('cases').map((r) => r.key)).toEqual(
       ['responsibleLawyerId', 'area', 'instance', 'court', 'causeValue'],
     );
+  });
+});
+
+describe('deriveListRows — coleção sem entidade no registro', () => {
+  it('não tem linha declarada em código: devolve vazio em vez de estourar', () => {
+    expect(deriveBuiltinListRows('medico')).toEqual([]);
+  });
+});
+
+describe('ui.filter vira filtro da listagem', () => {
+  it('os campos que o Processo filtra chegam marcados como filtráveis', () => {
+    const fields = deriveFormFields(emptyCtx, 'cases');
+    const filterable = fields.filter((field) => field.filterable).map((field) => field.key);
+    expect(filterable).toEqual(expect.arrayContaining([
+      'area', 'type', 'phase', 'status', 'instance', 'court', 'courtDistrict', 'judge', 'filedAt',
+      'responsibleLawyerId', 'contractId', 'activePoleIds', 'passivePoleIds',
+    ]));
+  });
+
+  it('campo sem a marca não vira filtro', () => {
+    const fields = deriveFormFields(emptyCtx, 'cases');
+    expect(fields.find((field) => field.key === 'caseNumber')?.filterable).toBe(false);
+  });
+});
+
+/**
+ * O teste que guarda o objetivo da migração: uma TELA sozinha — sem nenhuma entrada no
+ * `entityRegistry` — precisa descrever a coleção por inteiro, card incluído. É essa propriedade que
+ * permitirá remover `cases` (e as demais entidades de escritório) do kernel sem perder nada.
+ */
+describe('uma tela declara a coleção sem ajuda do registro', () => {
+  const declared: FieldDefinition[] = [
+    { key: 'title', label: 'Título', type: 'text', required: true, order: 0, origin: 'plugin' },
+    {
+      key: 'area', label: 'Área', type: 'select', required: false, order: 1, origin: 'plugin',
+      lookupCollection: 'caseAreas', showInList: true, listIcon: 'scales', filterable: true,
+    },
+    {
+      key: 'responsibleLawyerId', label: 'Advogado responsável', type: 'reference', required: false,
+      order: 2, origin: 'plugin', refEntity: 'persons', showInList: true, listIcon: 'scales',
+    },
+  ];
+  const ctx = createSchemaContext([
+    { id: 'processos_ext', collection: 'processos', titleSingular: 'Processo', titleFieldKey: 'title', fields: declared },
+  ]);
+
+  it('os campos declarados viram o formulário da coleção', () => {
+    expect(deriveFormFields(ctx, 'processos').map((field) => field.key))
+      .toEqual(['title', 'area', 'responsibleLawyerId']);
+  });
+
+  it('o ícone de listagem declarado vira meta-linha do card, como o ui.list do registro', () => {
+    expect(deriveListRows(ctx, 'processos')).toEqual([
+      { key: 'area', icon: 'scales', type: 'select', refEntity: undefined },
+      { key: 'responsibleLawyerId', icon: 'scales', type: 'reference', refEntity: 'persons' },
+    ]);
+  });
+
+  it('a tela não reivindica o próprio nome como coleção', () => {
+    expect(deriveFormFields(ctx, 'processos_ext')).toEqual([]);
+  });
+});
+
+describe('duas telas descrevendo a mesma coleção', () => {
+  const pluginScreen = {
+    id: 'processo-clone',
+    collection: 'cases',
+    titleSingular: 'Processo (clone)',
+    titlePlural: 'Processos (clone)',
+    titleFieldKey: 'title',
+    fields: [{ key: 'area', label: 'Área do processo', type: 'select' as const, required: false, order: 1, origin: 'plugin' as const }],
+  };
+  const tenantScreen = {
+    id: 'cases',
+    titleSingular: 'Processo',
+    titleFieldKey: 'title',
+    fields: [{ key: 'area', label: 'Área (ajustada)', type: 'select' as const, required: false, order: 1, origin: 'design' as const }],
+  };
+
+  it('o ajuste do escritório prevalece sobre o que a extensão declara', () => {
+    const ctx = createSchemaContext([pluginScreen, tenantScreen]);
+    expect(byKey(deriveFormFields(ctx, 'cases')).get('area')?.label).toBe('Área (ajustada)');
+  });
+
+  it('a tela-visão não renomeia a entidade — o rótulo continua o da entidade', () => {
+    const ctx = createSchemaContext([pluginScreen]);
+    expect(deriveFormFields(ctx, 'cases').length).toBeGreaterThan(1);
+    expect(byKey(deriveFormFields(ctx, 'cases')).get('area')?.label).toBe('Área do processo');
+  });
+});
+
+/**
+ * O estado REAL quando a extensão "Processo (clone)" está instalada: a declaração dela chega pela
+ * coleção `cases`, sobre o que o registro do kernel já declara. O card e o formulário precisam sair
+ * idênticos aos da tela nativa — nem linha a mais, nem relação duplicada.
+ */
+describe('extensão descrevendo uma coleção que o registro também descreve', () => {
+  const screenFields: FieldDefinition[] = [
+    {
+      key: 'area', label: 'Área', type: 'select', required: false, order: 4, origin: 'plugin',
+      lookupCollection: 'caseAreas', showInList: true, listIcon: 'scales', listOrder: 1,
+    },
+    {
+      key: 'responsibleLawyerId', label: 'Advogado responsável', type: 'reference', required: false,
+      order: 14, origin: 'plugin', refEntity: 'persons', showInList: true, listIcon: 'scales', listOrder: 0,
+    },
+  ];
+  const ctx = createSchemaContext([
+    {
+      id: 'processo-clone', collection: 'cases', titleSingular: 'Processo (clone)',
+      titleFieldKey: 'title', fields: screenFields,
+    },
+  ]);
+
+  it('as meta-linhas do card saem na mesma ordem da tela nativa', () => {
+    expect(deriveListRows(ctx, 'cases').map((row) => row.key))
+      .toEqual(deriveBuiltinListRows('cases').map((row) => row.key));
+  });
+
+  it('a relação declarada pela tela não duplica a `fk` de mesmo nome', () => {
+    const keys = deriveFormFields(ctx, 'cases').map((field) => field.key);
+    expect(keys.filter((key) => key === 'responsibleLawyerId')).toHaveLength(1);
+    expect(keys).toHaveLength(new Set(keys).size);
+  });
+
+  it('a declaração da extensão vence a do registro no campo que as duas descrevem', () => {
+    const rows = deriveListRows(ctx, 'cases');
+    expect(rows.find((row) => row.key === 'responsibleLawyerId')?.refEntity).toBe('persons');
   });
 });

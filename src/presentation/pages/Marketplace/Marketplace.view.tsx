@@ -15,11 +15,13 @@ import {
   RiArchiveLine,
   RiPuzzle2Line,
   RiShieldCheckLine,
+  RiInformationLine,
 } from 'react-icons/ri';
 import { Button } from '../../components/ui/Button';
 import { InfoBanner } from '../../components/ui/InfoBanner';
 import { ConfirmModal } from '../../components/ui/ConfirmModal';
 import { Modal } from '../../components/ui/Modal';
+import { WidgetRenderer } from '../../components/ui/WidgetRenderer';
 import { useMarketplaceViewModel } from './Marketplace.viewmodel';
 import type { Author, ExtensionRow, MarketplaceFilter, StatusBadge } from './Marketplace.viewmodel';
 import { S } from './Marketplace.styles';
@@ -38,6 +40,7 @@ const STATUS_LABEL: Record<StatusBadge, { label: string; tone: Tone }> = {
   pending: { label: 'Em análise', tone: 'warning' },
   deprecated: { label: 'Obsoleta', tone: 'neutral' },
   private: { label: 'Privada', tone: 'neutral' },
+  builtin: { label: 'Do sistema', tone: 'info' },
 };
 
 const AuthorLine: React.FC<{ author: Author }> = ({ author }) => {
@@ -60,7 +63,7 @@ const RowView: React.FC<{ row: ExtensionRow; busy: boolean; vm: ReturnType<typeo
 
     <S.RowMain>
       <S.TitleLine>
-        <S.Name>{row.name}</S.Name>
+        <S.NameButton type="button" title="Ver detalhes" onClick={() => vm.openDetails(row.id)}>{row.name}</S.NameButton>
         <S.Badges>
           {row.installBadge === 'active' && <S.Badge $tone="success"><S.BadgeDot $tone="success" />Ativa</S.Badge>}
           {row.installBadge === 'inactive' && <S.Badge $tone="neutral"><S.BadgeDot $tone="neutral" />Inativa</S.Badge>}
@@ -83,6 +86,9 @@ const RowView: React.FC<{ row: ExtensionRow; busy: boolean; vm: ReturnType<typeo
     </S.RowMain>
 
     <S.RowActions onClick={(e) => e.stopPropagation()}>
+      <S.ActionButton title="Ver detalhes" onClick={() => vm.openDetails(row.id)}>
+        <RiInformationLine size={17} />
+      </S.ActionButton>
       {row.canEdit && (
         <S.ActionButton title="Editar" disabled={busy} onClick={() => vm.edit(row.id)}>
           <RiPencilLine size={17} />
@@ -230,6 +236,26 @@ export const MarketplaceView: React.FC = () => {
         onConfirm={vm.confirmRemove}
         onCancel={vm.cancelRemove}
       />
+
+      {vm.detailsRow && (
+        <Modal title={vm.detailsRow.name} size="large" onClose={vm.closeDetails}>
+          <S.DetailsIntro>{vm.detailsRow.description || vm.detailsRow.summary}</S.DetailsIntro>
+          {/* A descrição rica do pacote (Widget DSL) — dado, renderizado pelos componentes do
+              Microteia. Extensão sem `overview` mostra só o resumo acima. */}
+          <WidgetRenderer spec={vm.detailsRow.overview} />
+          <S.DetailsMeta>
+            <span>v{vm.detailsRow.version}</span>
+            <S.MetaSep>·</S.MetaSep>
+            <span>{vm.detailsRow.id}</span>
+            {vm.detailsRow.author.name && (
+              <>
+                <S.MetaSep>·</S.MetaSep>
+                <span>{vm.detailsRow.author.name}</span>
+              </>
+            )}
+          </S.DetailsMeta>
+        </Modal>
+      )}
 
       {vm.reviewTarget && (
         <Modal title={`Revisar o código de "${vm.reviewTarget.name}"`} size="large" onClose={vm.cancelReview}>

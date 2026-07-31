@@ -1,4 +1,4 @@
-import { deriveListRows } from '../../shared/deriveEntitySchema';
+import { deriveBuiltinListRows } from '../../shared/deriveEntitySchema';
 
 // A listagem de Pessoas deriva da fonte única (ENTITY_REGISTRY.persons — regras no campo,
 // apresentação no `ui`). Os campos do FORMULÁRIO vêm de `useEntityFormFields`, que aplica também
@@ -24,5 +24,5 @@ export const PERSON_LIST_CONFIG: PersonListConfig = {
   titleKey: 'name',
   subtitle: { key: 'type', icon: 'user' },
   showTags: true,
-  rows: deriveListRows('persons'),
+  rows: deriveBuiltinListRows('persons'),
 };

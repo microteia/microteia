@@ -66,6 +66,12 @@ export const setRecordRulesFieldRulePresets = (presets: FieldRulePreset[]): void
   rebuild();
 };
 
+/**
+ * A tela que declara `dataCollection` entra pela COLEÇÃO que descreve, não pelo próprio nome: o que
+ * ela declara vale para todo mundo que grava naquela coleção, venha de qual tela vier. É o que
+ * permite uma extensão descrever inteiramente uma entidade — e continuar descrevendo depois que a
+ * declaração equivalente sair do kernel.
+ */
 export const toSchemaScreens = (
   definitions: {
     id: string;
@@ -74,10 +80,12 @@ export const toSchemaScreens = (
     titleFieldKey: string;
     fields: FieldDefinition[];
     tagCollection?: string | null;
+    dataCollection?: string | null;
   }[],
 ): SchemaScreen[] =>
   definitions.map((definition) => ({
     id: definition.id,
+    collection: definition.dataCollection ?? undefined,
     titleSingular: definition.titleSingular,
     titlePlural: definition.titlePlural,
     titleFieldKey: definition.titleFieldKey,

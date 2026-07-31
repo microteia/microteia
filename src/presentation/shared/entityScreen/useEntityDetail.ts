@@ -30,6 +30,11 @@ export interface EntityDetailConfig<TRecord extends { id: string }> {
   tabKey: string;
   /** Chave da entidade ('cases', 'contracts', … ou o id da tela dinâmica) — usada para achar as telas filhas. */
   entityKey: string;
+  /**
+   * Tela que CONFIGURA este detalhe (ações do cabeçalho). Só difere de `entityKey` numa tela que é
+   * visão sobre a coleção de outra entidade: a configuração é da tela, os registros são da coleção.
+   */
+  configScreenKey?: string;
   parse: (tabKey: string) => { isNew: boolean; recordId: string | null; cloneSourceId: string | null };
   findInStore: (id: string) => TRecord | null;
   getById?: (id: string) => Promise<TRecord | null>;
@@ -95,7 +100,7 @@ export function useEntityDetail<TRecord extends { id: string }>(
   config: EntityDetailConfig<TRecord>,
 ): EntityDetail<TRecord> {
   const {
-    tabKey, entityKey, parse, findInStore, getById, recordToValues, resolveTabTitle, resolveTitleFromValues,
+    tabKey, entityKey, configScreenKey, parse, findInStore, getById, recordToValues, resolveTabTitle, resolveTitleFromValues,
     validate, create, update, messages, deepLinkKey, cloneKey, remove, removedMessage,
     removeErrorMessage, notesPort, documentsPort, hasNotes, hasDocuments,
     afterCreate = 'reopen', returnTabKey,
@@ -244,8 +249,8 @@ export function useEntityDetail<TRecord extends { id: string }>(
   }, [record, getById, recordToValues, sourceRecord, isClone]);
 
   const viewActionIds = useMemo(
-    () => getDefinition(entityKey)?.viewActionIds ?? [],
-    [getDefinition, entityKey],
+    () => getDefinition(configScreenKey ?? entityKey)?.viewActionIds ?? [],
+    [getDefinition, configScreenKey, entityKey],
   );
 
   const screenActions = useScreenActions({

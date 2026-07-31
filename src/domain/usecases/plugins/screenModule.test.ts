@@ -136,6 +136,21 @@ describe('materializeScreen', () => {
   });
 });
 
+describe('tela ligada a uma coleção existente (dataCollection)', () => {
+  it('preserva a coleção alvo verbatim — é o nome universal da entidade, não uma tela do pacote', () => {
+    const keyMap = new Map([['venda', 'venda']]);
+    const bound: ScreenModuleTemplate = { ...template, dataCollection: 'cases', fields: [] };
+    const { input } = materializeScreen(bound, 'com.acme.vendas', keyMap, 'u1');
+    expect(input.dataCollection).toBe('cases');
+  });
+
+  it('tela comum não ganha vínculo nenhum', () => {
+    const keyMap = new Map([['venda', 'venda']]);
+    const { input } = materializeScreen(template, 'com.acme.vendas', keyMap, 'u1');
+    expect(input.dataCollection).toBeNull();
+  });
+});
+
 describe('materializePluginScreens', () => {
   it('materializa todas as telas do plugin', () => {
     const plugin: MarketplacePlugin = {

@@ -26,10 +26,23 @@ export interface ScreenModuleTemplate {
   /** Sem `origin`: a instalação carimba `plugin` em cada campo. */
   fields: TemplateField[];
   titleFieldKey: string;
+  /** Campo do subtítulo do detalhe e do rótulo da aba. Ver `ScreenDefinition.subtitleFieldKey`. */
+  subtitleFieldKey?: string | null;
   hasNotes?: boolean;
   hasDocuments?: boolean;
   hasTags?: boolean;
   tagCollection?: string | null;
+  /**
+   * Instala a tela sobre uma coleção que já existe no destino, em vez de criar uma coleção própria —
+   * o nome universal de uma entidade do kernel (`cases`), igual em todo escritório, como em
+   * `ScreenPatchTemplate` com `targetKind: 'collection'`.
+   *
+   * Aqui `fields` continua sendo a declaração COMPLETA do esquema daquela coleção, e não deve ser
+   * omitida: uma tela que herdasse os campos do kernel deixaria de funcionar no dia em que a
+   * entidade nativa fosse removida — que é exatamente o destino do projeto. Ver
+   * `ScreenDefinition.dataCollection`.
+   */
+  dataCollection?: string;
   listActions?: ScreenListAction[];
   sidebarOrder?: number;
   enabled?: boolean;

@@ -14,9 +14,14 @@ import { buildFieldRulePresetCatalog } from './fieldRulePresets';
  * A tela como o schema a enxerga. O `id` é, por definição, o nome da COLEÇÃO no Firestore — para as
  * fixas ('persons') tanto quanto para as do Form Design ('medico') e as de extensão
  * ('vendas__produto').
+ *
+ * `collection` é a exceção que confirma a regra: a coleção deixa de ser a IDENTIDADE da tela e passa
+ * a ser uma propriedade dela, para que uma tela (tipicamente de extensão) possa declarar o esquema de
+ * uma coleção que não leva o seu nome. Ausente = a coleção é o `id`, como sempre.
  */
 export interface SchemaScreen {
   id: string;
+  collection?: string;
   titleSingular: string;
   titlePlural?: string;
   titleFieldKey: string;
@@ -70,6 +75,43 @@ const BUILTIN_TAG_LISTS: SchemaTagList[] = Object.values(ENTITY_REGISTRY)
     label: `Etiquetas: ${entity.labelPlural}`,
   }));
 
+const screenCollection = (screen: SchemaScreen): string => screen.collection ?? screen.id;
+
+/**
+ * Duas telas podem descrever a MESMA coleção: a que a possui pelo nome
+ * (`screenDefinitions/cases`, onde vivem os ajustes do escritório) e uma tela de extensão que
+ * declara o esquema dela. As duas declarações se somam por chave de campo, e a da tela DONA entra
+ * por último — o ajuste do escritório prevalece sobre o que o pacote declara. Rótulos, campo-título
+ * e etiquetas também vêm da dona quando ela existe; na falta dela, da declaração que sobrou. É o que
+ * mantém a coleção descrita depois que a entidade sai do kernel.
+ */
+const mergeSchemaScreens = (base: SchemaScreen, next: SchemaScreen, collection: string): SchemaScreen => {
+  // A tela DONA do nome (`screenDefinitions/cases`) dá rótulos e campo-título; a outra só acrescenta
+  // campos. Assim uma tela-visão chamada "Processo (clone)" não renomeia a entidade Processo.
+  const owner = next.id === collection ? next : base;
+  const byKey = new Map(base.fields.map((field) => [field.key, field]));
+  for (const field of next.fields) byKey.set(field.key, field);
+  return {
+    ...owner,
+    collection,
+    fields: [...byKey.values()],
+    tagCollection: owner.tagCollection ?? base.tagCollection ?? next.tagCollection,
+  };
+};
+
+const indexScreens = (screens: Iterable<SchemaScreen>): Map<string, SchemaScreen> => {
+  const map = new Map<string, SchemaScreen>();
+  for (const screen of screens) {
+    const collection = screenCollection(screen);
+    const existing = map.get(collection);
+    map.set(
+      collection,
+      existing ? mergeSchemaScreens(existing, screen, collection) : { ...screen, collection },
+    );
+  }
+  return map;
+};
+
 export const createSchemaContext = (
   screens: Iterable<SchemaScreen> = [],
   tenantLookups: Iterable<SchemaLookup> = [],
@@ -77,7 +119,7 @@ export const createSchemaContext = (
   tenantFieldRulePresets: Iterable<FieldRulePreset> = [],
 ): SchemaContext => ({
   registry: ENTITY_REGISTRY,
-  screens: new Map([...screens].map((screen) => [screen.id, screen])),
+  screens: indexScreens(screens),
   lookups: new Map(
     [...BUILTIN_LOOKUPS, ...tenantLookups].map((lookup) => [lookup.collection, lookup]),
   ),
@@ -124,7 +166,15 @@ export const fieldDefinitionToNativeSpec = (field: FieldDefinition): NativeField
       ...(undefinedIfNull(field.mask) ? { mask: field.mask as NonNullable<FieldDefinition['mask']> } : {}),
       ...(undefinedIfNull(field.section) ? { section: field.section as string } : {}),
       ...(undefinedIfNull(field.placeholder) ? { placeholder: field.placeholder as string } : {}),
-      ...(field.showInList ? { list: { order: field.order } } : {}),
+      ...(field.showInList
+        ? {
+            list: {
+              order: undefinedIfNull(field.listOrder) ?? field.order,
+              ...(undefinedIfNull(field.listIcon) ? { icon: field.listIcon as string } : {}),
+            },
+          }
+        : {}),
+      ...(field.filterable ? { filter: true } : {}),
       // `hiddenInForm` vira `ui.form: false`, o mesmo sinal que o registro usa para os campos que
       // nunca vão ao formulário — um caminho só para as duas origens.
       ...(field.hiddenInForm ? { form: false } : {}),
@@ -186,6 +236,9 @@ export const nativeSpecToFieldDefinition = (
   logic: spec.logic ?? null,
   aggregation: spec.aggregation ?? null,
   showInList: spec.ui?.list !== undefined,
+  listIcon: spec.ui?.list?.icon ?? null,
+  listOrder: spec.ui?.list?.order ?? null,
+  filterable: spec.ui?.filter === true,
   hiddenInForm: spec.ui?.form === false,
 });
 
@@ -239,10 +292,10 @@ export const resolveEntityFields = (ctx: SchemaContext, collection: string): Nat
 };
 
 const screenEntityMetadata = (screen: SchemaScreen, fields: NativeFieldSpec[]): EntityMetadata => ({
-  key: screen.id,
-  collection: screen.id,
+  key: screenCollection(screen),
+  collection: screenCollection(screen),
   ...(screen.tagCollection ? { tagCollection: screen.tagCollection } : {}),
-  eventPrefix: screen.id,
+  eventPrefix: screenCollection(screen),
   labelSingular: screen.titleSingular,
   labelPlural: screen.titlePlural ?? screen.titleSingular,
   displayNameFields: [screen.titleFieldKey],
@@ -267,11 +320,14 @@ export const resolveEntity = (ctx: SchemaContext, collection: string): EntityMet
   if (!entity) return screenEntityMetadata(screen as SchemaScreen, fields);
   if (!screen) return entity;
 
+  // Só a tela que leva o nome da coleção renomeia a entidade fixa (ver `mergeSchemaScreens`).
+  const ownsName = screen.id === collection;
+
   return {
     ...entity,
     fields,
-    labelSingular: screen.titleSingular,
-    labelPlural: screen.titlePlural ?? entity.labelPlural,
+    labelSingular: ownsName ? screen.titleSingular : entity.labelSingular,
+    labelPlural: ownsName ? (screen.titlePlural ?? entity.labelPlural) : entity.labelPlural,
     // A tela do tenant pode redirecionar as etiquetas da entidade fixa para outra coleção — é assim
     // que Processos e uma tela nova passam a compartilhar as mesmas etiquetas.
     ...(screen.tagCollection ? { tagCollection: screen.tagCollection } : {}),

@@ -13,6 +13,10 @@ import type { CustomFieldCardItem } from '../../hooks/useCustomFieldListing';
 import { generateDeepLink } from '../../../infrastructure/deeplink/deepLinkUtils';
 import { buildNewTabKey, buildViewTabKey, buildCloneTabKey, buildChildNewTabKey } from '../../../shared/constants/dynamicScreenKeys';
 import { resolveRecordTitle, sortFieldsByOrder } from '../../../domain/services/customFieldValues';
+import { isBoundScreen, screenDataCollection } from '../../../domain/services/screenDataCollection';
+import { useEntityFormFields } from '../useEntityFormFields';
+import { useSchemaContext } from '../useSchemaContext';
+import { deriveListRows } from '../deriveEntitySchema';
 import type { ActionDefinition, ActionStatusCode, CustomFieldValue, EntityRecord, ScreenDefinition, Tag, ScreenListAction } from '../../../domain/entities';
 import type { TagStoreAdapter } from '../../components/ui/TagManager';
 import type { FilterDef, FilterToken } from '../../components/ui/CompositeFilter';
@@ -51,6 +55,8 @@ export interface RecordListSource {
 
 export interface RecordListViewModel {
   definition: ScreenDefinition | null;
+  /** Coleção dos registros — a chave da tela, ou a coleção alvo quando ela é uma visão. */
+  collection: string;
   isAvailable: boolean;
   isLoading: boolean;
   records: EntityRecord[];
@@ -98,24 +104,41 @@ export const useRecordListViewModel = (source: RecordListSource): RecordListView
   const definition = useMemo(() => getDefinition(screenKey) ?? null, [getDefinition, screenKey]);
   const isAvailable = !!definition && definition.origin !== 'builtin' && definition.enabled;
 
+  // Onde os registros vivem. Numa tela BOUND é a coleção de outra entidade — daí toda leitura,
+  // gravação, etiqueta e ação abaixo usar `collection`, e não a chave da tela.
+  const collection = definition ? screenDataCollection(definition) : screenKey;
+  const isBound = !!definition && isBoundScreen(definition);
+
+  // Numa tela ligada a outra coleção, os campos vêm da COLEÇÃO — a declaração dela própria somada à
+  // de quem mais a descreva (o registro do kernel enquanto existir, e os ajustes do escritório).
+  const boundFields = useEntityFormFields(isBound ? collection : '');
+  const schemaContext = useSchemaContext();
+
   // Na aba do pai, todos os registros têm o mesmo vínculo: filtrar ou exibir esse campo não
   // informa nada. É o mesmo motivo pelo qual ele não vai ao formulário do filho.
   const sortedFields = useMemo(() => {
     if (!definition) return [];
-    const fields = sortFieldsByOrder(definition.fields);
+    const fields = isBound ? boundFields.fields : sortFieldsByOrder(definition.fields);
     return parent ? fields.filter((field) => field.key !== parent.fieldKey) : fields;
-  }, [definition, parent]);
+  }, [definition, isBound, boundFields.fields, parent]);
+
+  // Campo que já é meta-linha do card (tem ícone de listagem declarado) não se repete no bloco de
+  // campos adicionais — seria a mesma informação duas vezes no cartão.
+  const listRowKeys = useMemo(
+    () => new Set(deriveListRows(schemaContext, collection).map((row) => row.key)),
+    [schemaContext, collection],
+  );
 
   const listing = useCustomFieldListing(sortedFields);
 
   const records = useMemo(() => {
-    const all = recordsByCollection[screenKey] ?? [];
+    const all = recordsByCollection[collection] ?? [];
     if (!parent) return all;
     return all.filter((record) => record[parent.fieldKey] === parent.recordId);
-  }, [recordsByCollection, screenKey, parent]);
+  }, [recordsByCollection, collection, parent]);
 
-  
-  const tags = useTags().getTags(useTagCollection(screenKey));
+
+  const tags = useTags().getTags(useTagCollection(collection));
 
   const tagOptions = useMemo<FilterDef['options']>(() =>
     tags.map((t) => ({ value: t.id, label: t.name, color: t.color })),
@@ -152,8 +175,10 @@ export const useRecordListViewModel = (source: RecordListSource): RecordListView
 
   const getCardItems = useCallback(
     (record: EntityRecord): CustomFieldCardItem[] =>
-      listing.cardItems(record).filter((item) => item.key !== definition?.titleFieldKey),
-    [listing, definition],
+      listing
+        .cardItems(record)
+        .filter((item) => item.key !== definition?.titleFieldKey && !listRowKeys.has(item.key)),
+    [listing, definition, listRowKeys],
   );
 
   const getCardTitle = useCallback(
@@ -199,7 +224,7 @@ export const useRecordListViewModel = (source: RecordListSource): RecordListView
     try {
       const response = await runAction({
         actionId: action.id,
-        source: screenKey,
+        source: collection,
         context: record,
         recordId: record.id,
         isNew: false,
@@ -212,7 +237,7 @@ export const useRecordListViewModel = (source: RecordListSource): RecordListView
       if (status.message) notify(status.message, STATUS_TONE[status.code]);
 
       await dispatchActionOutcome(response.outcome, record as Record<string, CustomFieldValue>, {
-        save: (override) => updateRecord(screenKey, record.id, override ?? record),
+        save: (override) => updateRecord(collection, record.id, override ?? record),
         clone: () => onClone(record),
         remove: () => setRecordToDelete(record),
         refresh: () => storeEvents.emit(StoreEvents.RECORDS_UPDATED),
@@ -223,7 +248,7 @@ export const useRecordListViewModel = (source: RecordListSource): RecordListView
     } finally {
       setRunningActionId(null);
     }
-  }, [runAction, screenKey, notify, updateRecord, onClone]);
+  }, [runAction, collection, notify, updateRecord, onClone]);
 
   const getCardActions = useCallback((record: EntityRecord): RecordCardAction[] => {
     const handlers: Record<ScreenListAction, RecordCardAction> = {
@@ -259,10 +284,10 @@ export const useRecordListViewModel = (source: RecordListSource): RecordListView
 
   const tagIdsOf = useCallback((entityId: string) => records.find((r) => r.id === entityId)?.tagIds ?? [], [records]);
   const setRecordTags = useCallback(
-    (entityId: string, tagIds: string[]) => updateRecord(screenKey, entityId, { tagIds }),
-    [updateRecord, screenKey],
+    (entityId: string, tagIds: string[]) => updateRecord(collection, entityId, { tagIds }),
+    [updateRecord, collection],
   );
-  const tagAdapter = useTagAdapter(screenKey, tagIdsOf, setRecordTags);
+  const tagAdapter = useTagAdapter(collection, tagIdsOf, setRecordTags);
 
   const closeTagManager = useCallback(() => setTagManagerRecord(null), []);
   const cancelDelete = useCallback(() => setRecordToDelete(null), []);
@@ -271,7 +296,7 @@ export const useRecordListViewModel = (source: RecordListSource): RecordListView
     if (!recordToDelete) return;
     setIsDeleting(true);
     try {
-      await deleteRecord(screenKey, recordToDelete.id);
+      await deleteRecord(collection, recordToDelete.id);
       notify('Registro excluído com sucesso.', 'success');
       setRecordToDelete(null);
     } catch {
@@ -279,10 +304,11 @@ export const useRecordListViewModel = (source: RecordListSource): RecordListView
     } finally {
       setIsDeleting(false);
     }
-  }, [recordToDelete, deleteRecord, screenKey, notify]);
+  }, [recordToDelete, deleteRecord, collection, notify]);
 
   return {
     definition,
+    collection,
     isAvailable,
     isLoading: definitionsLoading || recordsLoading,
     records,

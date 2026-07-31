@@ -9,6 +9,7 @@ import {
   buildInitialFormValues,
   collectRequiredErrors,
   formValuesToStoredValues,
+  readRecordText,
   resolveRecordTitle,
   sortFieldsByOrder,
   validateRequiredFields,
@@ -20,6 +21,8 @@ import { useRecordDocumentsPort, useRecordNotesPort } from '../entityScreen/useR
 import type { RecordDetailViewModel } from '../../components/layout/RecordDetailSurface';
 import type { CustomFieldValue, EntityRecord } from '../../../domain/entities';
 import { useTagAdapter } from '../entityScreen/useTagAdapter';
+import { isBoundScreen, screenDataCollection } from '../../../domain/services/screenDataCollection';
+import { useEntityFormFields } from '../useEntityFormFields';
 
 type Values = Record<string, CustomFieldValue>;
 
@@ -54,8 +57,18 @@ export const useEntityDetailVM = (
   const isAvailable = !!definition && definition.origin !== 'builtin';
   const isAdmin = tenantRole === 'admin';
 
-  const sortedFields = useMemo(() => (definition ? sortFieldsByOrder(definition.fields) : []), [definition]);
+  // Numa tela BOUND os registros (e as regras de gravação) são os da coleção alvo — ver
+  // `screenDataCollection`. A chave da tela segue endereçando só as abas desta extensão.
+  const collection = definition ? screenDataCollection(definition) : screenKey;
+  const isBound = !!definition && isBoundScreen(definition);
+  const boundFields = useEntityFormFields(isBound ? collection : '');
+
+  const sortedFields = useMemo(
+    () => (isBound ? boundFields.fields : definition ? sortFieldsByOrder(definition.fields) : []),
+    [isBound, boundFields.fields, definition],
+  );
   const titleFieldKey = definition?.titleFieldKey ?? '';
+  const subtitleFieldKey = definition?.subtitleFieldKey ?? '';
 
   const parseTab = useCallback((tk: string) => {
     const rest = tk.startsWith(editKeyPrefix) ? tk.slice(editKeyPrefix.length) : '';
@@ -69,12 +82,12 @@ export const useEntityDetailVM = (
   const getByIdUC = useMemo(() => makeGetRecordByIdUseCase(recordRepository), [recordRepository]);
 
   const findInStore = useCallback(
-    (id: string) => (recordsByCollection[screenKey] ?? []).find((r) => r.id === id) ?? null,
-    [recordsByCollection, screenKey],
+    (id: string) => (recordsByCollection[collection] ?? []).find((r) => r.id === id) ?? null,
+    [recordsByCollection, collection],
   );
   const getById = useCallback(
-    (id: string) => (currentTenant ? getByIdUC.execute(currentTenant.id, screenKey, id) : Promise.resolve(null)),
-    [getByIdUC, currentTenant, screenKey],
+    (id: string) => (currentTenant ? getByIdUC.execute(currentTenant.id, collection, id) : Promise.resolve(null)),
+    [getByIdUC, currentTenant, collection],
   );
 
   const recordToValues = useCallback(
@@ -82,13 +95,16 @@ export const useEntityDetailVM = (
     [sortedFields],
   );
 
+  // Rótulo da aba: o subtítulo declarado quando existe (curto e único, como o número do processo),
+  // senão o título. Mesma escolha das telas fixas.
   const resolveTabTitle = useCallback(
     (record: EntityRecord | null, isNew: boolean) => {
       if (!definition) return null;
       if (isNew) return `Novo ${definition.titleSingular}`;
-      return record ? resolveRecordTitle(record, titleFieldKey) : null;
+      if (!record) return null;
+      return readRecordText(record, subtitleFieldKey) || resolveRecordTitle(record, titleFieldKey);
     },
-    [definition, titleFieldKey],
+    [definition, subtitleFieldKey, titleFieldKey],
   );
 
   const resolveTitleFromValues = useCallback(
@@ -99,7 +115,7 @@ export const useEntityDetailVM = (
   const validate = useCallback(
     (values: Values): EntityValidationResult | null => {
       const fieldErrors = collectRequiredErrors(sortedFields, values);
-      const issues = validateRecordRules(screenKey, formValuesToStoredValues(sortedFields, values));
+      const issues = validateRecordRules(collection, formValuesToStoredValues(sortedFields, values));
       issues.forEach((issue) => {
         if (!fieldErrors[issue.path]) fieldErrors[issue.path] = issue.error;
       });
@@ -107,36 +123,36 @@ export const useEntityDetailVM = (
       const message = validateRequiredFields(sortedFields, values) ?? describeRuleIssues(issues);
       return { message, fieldErrors };
     },
-    [sortedFields, screenKey],
+    [sortedFields, collection],
   );
 
   const create = useCallback(
     async (values: Values) => {
       const stored = formValuesToStoredValues(sortedFields, values);
-      const created = await createRecord(screenKey, { ...stored, createdBy: user?.id ?? '' });
+      const created = await createRecord(collection, { ...stored, createdBy: user?.id ?? '' });
       return { id: created.id, title: resolveRecordTitle(created, titleFieldKey) };
     },
-    [sortedFields, titleFieldKey, createRecord, screenKey, user],
+    [sortedFields, titleFieldKey, createRecord, collection, user],
   );
 
   const update = useCallback(
     async (id: string, values: Values) => {
-      await updateRecord(screenKey, id, {
+      await updateRecord(collection, id, {
         ...formValuesToStoredValues(sortedFields, values),
         updatedBy: user?.id ?? '',
         updatedByName: effectiveName,
         updatedByPhotoURL: user?.photoURL ?? '',
       });
     },
-    [sortedFields, updateRecord, screenKey, user, effectiveName],
+    [sortedFields, updateRecord, collection, user, effectiveName],
   );
 
   const deepLinkKey = useCallback((id: string) => `${editKeyPrefix}${id}`, [editKeyPrefix]);
   const cloneKey = useCallback((id: string) => `${editKeyPrefix}clone:${id}`, [editKeyPrefix]);
-  const remove = useCallback((id: string) => deleteRecord(screenKey, id), [deleteRecord, screenKey]);
+  const remove = useCallback((id: string) => deleteRecord(collection, id), [deleteRecord, collection]);
 
-  const notesPort = useRecordNotesPort(screenKey);
-  const documentsPort = useRecordDocumentsPort(screenKey);
+  const notesPort = useRecordNotesPort(collection);
+  const documentsPort = useRecordDocumentsPort(collection);
 
   const messages = useMemo(() => ({
     created: `${definition?.titleSingular ?? 'Registro'} cadastrado com sucesso!`,
@@ -146,7 +162,8 @@ export const useEntityDetailVM = (
 
   const detail = useEntityDetail<EntityRecord>({
     tabKey,
-    entityKey: screenKey,
+    entityKey: collection,
+    configScreenKey: screenKey,
     parse: parseTab,
     findInStore,
     getById,
@@ -170,12 +187,16 @@ export const useEntityDetailVM = (
 
     const sourceRecord = detail.record;
 
+  // Cabeçalho: título e subtítulo do REGISTRO, como nas telas fixas.
+  const recordTitle = sourceRecord ? readRecordText(sourceRecord, titleFieldKey) : '';
+  const recordSubtitle = sourceRecord ? readRecordText(sourceRecord, subtitleFieldKey) : '';
+
   const tagIdsOf = useCallback(() => sourceRecord?.tagIds ?? [], [sourceRecord]);
   const setRecordTags = useCallback(
-    (entityId: string, tagIds: string[]) => updateRecord(screenKey, entityId, { tagIds }),
-    [updateRecord, screenKey],
+    (entityId: string, tagIds: string[]) => updateRecord(collection, entityId, { tagIds }),
+    [updateRecord, collection],
   );
-  const tagAdapter = useTagAdapter(screenKey, tagIdsOf, setRecordTags);
+  const tagAdapter = useTagAdapter(collection, tagIdsOf, setRecordTags);
 
   return {
     definition,
@@ -186,6 +207,8 @@ export const useEntityDetailVM = (
     screenKey,
     recordId,
     recordNotFound: detail.recordNotFound,
+    recordTitle,
+    recordSubtitle,
     sortedFields,
     formValues: detail.values,
     setFieldValue: detail.setFieldValue,

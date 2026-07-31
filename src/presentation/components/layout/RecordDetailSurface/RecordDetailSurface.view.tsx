@@ -28,6 +28,10 @@ export interface RecordDetailViewModel {
   screenKey: string;
   recordId: string | null;
   recordNotFound: boolean;
+  /** Título do REGISTRO (campo-título). Vazio → o cabeçalho cai no nome da tela. */
+  recordTitle: string;
+  /** Subtítulo do registro (`subtitleFieldKey`), abaixo do título. Vazio → sem subtítulo. */
+  recordSubtitle: string;
   sortedFields: FieldDefinition[];
   formValues: Record<string, CustomFieldValue>;
   setFieldValue: (fieldKey: string, value: CustomFieldValue) => void;
@@ -118,7 +122,8 @@ export const RecordDetailSurface: React.FC<RecordDetailSurfaceProps> = ({ vm, re
       screenActions={vm.screenActions}
       isAdmin={vm.isAdmin}
       avatar={getScreenIcon(definition.icon, 22)}
-      title={vm.isNew ? `Novo ${definition.titleSingular}` : definition.titleSingular}
+      title={vm.isNew ? `Novo ${definition.titleSingular}` : (vm.recordTitle || definition.titleSingular)}
+      subtitle={!vm.isNew && vm.recordSubtitle ? vm.recordSubtitle : undefined}
       tags={appliedTags}
       showTags={!vm.isNew && definition.hasTags}
       copyLinkDone={vm.copyLinkDone}

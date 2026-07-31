@@ -1,4 +1,4 @@
-import { deriveListRows, type DerivedListRow } from '../../shared/deriveEntitySchema';
+import { deriveBuiltinListRows, type DerivedListRow } from '../../shared/deriveEntitySchema';
 
 /**
  * Linhas do card de Lançamento — derivadas de `ui.list` no ENTITY_REGISTRY.
@@ -7,4 +7,4 @@ import { deriveListRows, type DerivedListRow } from '../../shared/deriveEntitySc
  * isso seguem montados na view. O valor vai no `footer` (com sinal e cor por tipo) e a categoria é o
  * título. Campos simples novos aparecem no card só declarando `ui.list` no registry.
  */
-export const FINANCIAL_LIST_ROWS: DerivedListRow[] = deriveListRows('financials');
+export const FINANCIAL_LIST_ROWS: DerivedListRow[] = deriveBuiltinListRows('financials');

@@ -25,6 +25,14 @@ describe('toSchemaScreens', () => {
     expect(screen.tagCollection).toBeUndefined();
   });
 
+  it('a tela que descreve outra coleção viaja com ela — é lá que a declaração vale', () => {
+    const screens = toSchemaScreens([
+      { id: 'processo-clone', titleSingular: 'Processo', titleFieldKey: 'title', fields, dataCollection: 'cases' },
+      { id: 'produtos', titleSingular: 'Produto', titleFieldKey: 'nome', fields },
+    ]);
+    expect(screens.map((screen) => screen.collection)).toEqual(['cases', undefined]);
+  });
+
   it('preserva o resto da tela', () => {
     const [screen] = toSchemaScreens([
       { id: 'produtos', titleSingular: 'Produto', titlePlural: 'Produtos', titleFieldKey: 'nome', fields },

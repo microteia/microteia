@@ -6,9 +6,8 @@ import { processoClonePlugin } from './processoClone';
 
 /**
  * Extensões de exemplo, mantidas como MOLDE de autoria e como fixtures dos testes da máquina de
- * instalação — NÃO são mais embarcadas no catálogo (ver `MARKETPLACE_CATALOG`, hoje vazio). Extensões
- * de primeira-parte (ex.: "Kanban de Processos") são entregues como `.json` para importar, não fixas
- * no código. Cada exemplo prova um mecanismo:
+ * instalação — fora do catálogo embutido de propósito (ver `MARKETPLACE_CATALOG`, que traz só as de
+ * primeira parte). Cada exemplo prova um mecanismo:
  * - `boasVindasPlugin` — só um workflow, materializado no tenant (o motor já o executa).
  * - `guiaPlugin` — só UI (item de menu + página em Widget DSL), carregada ao vivo pelo host; nada gravado.
  */
@@ -173,10 +172,19 @@ export const guiaPlugin: MarketplacePlugin =
 export { vendasPlugin, kanbanCasesPlugin, processoClonePlugin };
 
 /**
- * Catálogo do Marketplace EMBUTIDO — hoje vazio de propósito. Extensões de primeira-parte (Kanban de
- * Processos, Processo (clone)…) são distribuídas como `.json` para o usuário importar em Minhas
- * Extensões; ao instalar, a cópia ganha self-trust (tem `views`) e a tela em código executa. A
- * confiança NÃO depende deste catálogo (ver `extensionRecordFrom`/`installedExtensionRecords`); esta
- * lista existe só para o eventual caminho de "publicar do bundle".
+ * Catálogo do Marketplace EMBUTIDO: extensões de PRIMEIRA PARTE que viajam no bundle da aplicação.
+ * Aparecem em Extensões com o selo "Do sistema", instalam com um clique e — por virem do próprio
+ * código da aplicação — dispensam o gesto de revisão de código (`hasTrustedProvenance`), então a
+ * tela em código executa direto. É o caminho curto para desenvolver e testar uma extensão nossa:
+ * editar o `.ts`, recarregar, "Atualizar" na linha da extensão.
+ *
+ * O botão "Atualizar" aparece sempre que o pacote embutido difere do instalado, e não só quando a
+ * versão sobe — durante o desenvolvimento a versão costuma ficar parada enquanto o código muda.
+ *
+ * O mesmo pacote também é distribuível como `.json` (`extension-templates/`, gerado por
+ * `npm run build:extensions`), para importar em escritórios que não rodam este bundle.
  */
-export const MARKETPLACE_CATALOG: MarketplacePlugin[] = [];
+export const MARKETPLACE_CATALOG: MarketplacePlugin[] = [
+  processoClonePlugin,
+  kanbanCasesPlugin,
+];

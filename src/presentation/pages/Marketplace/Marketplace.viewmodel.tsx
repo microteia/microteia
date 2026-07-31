@@ -6,17 +6,19 @@ import { useTenant } from '../../../stores/useTenant';
 import { useAuth } from '../../../stores/useAuth';
 import { useNotification } from '../../../stores/useNotification';
 import { useWorkspace } from '../../../stores/useWorkspace';
-import { serializePackage } from '../../../domain/usecases/plugins/packageSerialization';
+import { packageFingerprint, serializePackage } from '../../../domain/usecases/plugins/packageSerialization';
 import { isVersionGreater } from '../../../domain/usecases/plugins/publicExtension';
 import { extensionCodeOf, extensionHasCode } from '../../../domain/usecases/plugins/extensionCodeTrust';
 import { useExtensionCodeTrust } from '../../../stores/useExtensionCodeTrust';
+import { MARKETPLACE_CATALOG } from '../../../plugins/marketplace/catalog';
+import type { MarketplacePlugin } from '../../../domain/entities/MarketplacePlugin';
 
 export interface Author {
   name: string | null;
   photoURL: string | null;
 }
 
-export type StatusBadge = 'published' | 'pending' | 'deprecated' | 'private';
+export type StatusBadge = 'published' | 'pending' | 'deprecated' | 'private' | 'builtin';
 export type InstallBadge = 'active' | 'inactive';
 export type InstallAction = 'install' | 'update';
 
@@ -30,6 +32,9 @@ export interface ExtensionRow {
   version: string;
   author: Author;
   hasCode: boolean;
+  /** Descrição rica (Widget DSL) do pacote, exibida no modal de detalhes. */
+  overview: unknown;
+  description: string;
 
   installBadge: InstallBadge | null;
   statusBadge: StatusBadge | null;
@@ -56,9 +61,16 @@ export interface ExtensionRow {
   mine: boolean;
   installed: boolean;
   isPublic: boolean;
+  /** Vem do catálogo embutido no bundle — extensão de primeira parte, sempre disponível. */
+  isBuiltin: boolean;
 }
 
 export type MarketplaceFilter = 'all' | 'installed' | 'mine' | 'catalog';
+
+/** Índice do catálogo embutido — as extensões de primeira parte que viajam no bundle. */
+const BUILTIN_BY_ID = new Map<string, MarketplacePlugin>(
+  MARKETPLACE_CATALOG.map((plugin) => [plugin.manifest.id, plugin]),
+);
 
 export interface MarketplaceViewModel {
   canManage: boolean;
@@ -70,6 +82,9 @@ export interface MarketplaceViewModel {
   busyId: string | null;
   removeTarget: { id: string; name: string } | null;
   reviewTarget: { id: string; name: string; code: string } | null;
+  detailsRow: ExtensionRow | null;
+  openDetails: (id: string) => void;
+  closeDetails: () => void;
   openReview: (id: string) => void;
   confirmReview: () => Promise<void>;
   cancelReview: () => void;
@@ -106,6 +121,7 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
   const [removeTarget, setRemoveTarget] = useState<{ id: string; name: string } | null>(null);
   const [filter, setFilter] = useState<MarketplaceFilter>('all');
   const [reviewTarget, setReviewTarget] = useState<{ id: string; name: string; code: string } | null>(null);
+  const [detailsId, setDetailsId] = useState<string | null>(null);
 
   const trustedIds = useExtensionCodeTrust(installed);
 
@@ -158,6 +174,23 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
     };
   }, [extensions, user]);
 
+  /**
+   * Entrada de instalação vinda do CATÁLOGO EMBUTIDO. Autoria é a do publisher declarado no manifest
+   * — não há um usuário por trás, é código da aplicação.
+   */
+  const builtinInputOf = useCallback((id: string): InstallExtensionInput | null => {
+    const plugin = BUILTIN_BY_ID.get(id);
+    if (!plugin) return null;
+    return {
+      package: plugin,
+      source: 'builtin',
+      version: plugin.manifest.version,
+      authorId: '',
+      authorName: plugin.manifest.publisher?.name ?? 'Microteia',
+      authorPhotoURL: null,
+    };
+  }, []);
+
   const publicInputOf = useCallback((domain: string): InstallExtensionInput | null => {
     const pub = publicOf(domain);
     if (!pub) return null;
@@ -182,24 +215,40 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
     return isVersionGreater(best.version, installedVersion) ? best : null;
   }, [privateInputOf, publicInputOf, publicOf]);
 
+  /**
+   * Reinstalar do bundle é oferecido sempre que o pacote embutido DIFERE do instalado — e não só
+   * quando a versão sobe. Durante o desenvolvimento de uma extensão de primeira parte a versão
+   * costuma ficar parada enquanto o código muda; comparar o conteúdo é o que faz o botão aparecer
+   * na hora certa.
+   */
+  const builtinUpdateOf = useCallback((id: string, inst: { package: MarketplacePlugin }): InstallExtensionInput | null => {
+    const input = builtinInputOf(id);
+    if (!input) return null;
+    // Impressão CANÔNICA dos dois lados: a cópia instalada volta do Firestore com as chaves em outra
+    // ordem, e uma comparação literal acusaria atualização a cada render.
+    return packageFingerprint(input.package) === packageFingerprint(inst.package) ? null : input;
+  }, [builtinInputOf]);
+
   const rows = useMemo<ExtensionRow[]>(() => {
     const ids = new Set<string>();
     extensions.forEach((e) => ids.add(e.id));
     installed.forEach((i) => ids.add(i.id));
     publicExtensions.forEach((p) => { if (p.status === 'approved' || canModerate) ids.add(p.domain); });
+    BUILTIN_BY_ID.forEach((_, id) => ids.add(id));
 
     const list: ExtensionRow[] = [];
     for (const id of ids) {
       const priv = extensions.find((e) => e.id === id);
       const inst = installed.find((i) => i.id === id);
       const pub = publicOf(id);
+      const builtin = BUILTIN_BY_ID.get(id) ?? null;
 
       const mine = Boolean(priv);
       const installed_ = Boolean(inst);
       const publicStatus = pub?.status ?? null;
       const isApproved = publicStatus === 'approved';
 
-      const pkg = inst?.package ?? priv?.package ?? pub?.package;
+      const pkg = inst?.package ?? priv?.package ?? pub?.package ?? builtin;
       if (!pkg) continue;
 
       const author: Author = inst
@@ -208,23 +257,27 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
           ? { name: priv.createdByName ?? null, photoURL: priv.createdByPhotoURL ?? null }
           : { name: pub?.ownerName || null, photoURL: pub?.ownerPhotoURL ?? null };
 
-      const updateAvailable = inst ? updateSourceOf(id, inst.installedVersion) !== null : false;
+      const updateAvailable = inst
+        ? (updateSourceOf(id, inst.installedVersion) !== null || (!!builtin && builtinUpdateOf(id, inst) !== null))
+        : false;
       const install: InstallAction | null = inst
         ? (updateAvailable ? 'update' : null)
-        : (mine || isApproved ? 'install' : null);
+        : (mine || isApproved || !!builtin ? 'install' : null);
 
       const statusBadge: StatusBadge | null = publicStatus === 'approved' ? 'published'
         : publicStatus === 'pending' ? 'pending'
           : publicStatus === 'deprecated' ? 'deprecated'
-            : mine ? 'private' : null;
+            : mine ? 'private' : builtin ? 'builtin' : null;
 
       list.push({
         id,
         name: pkg.manifest.name,
         summary: pkg.summary,
-        version: inst?.installedVersion ?? priv?.package.manifest.version ?? pub?.version ?? '',
+        version: inst?.installedVersion ?? priv?.package.manifest.version ?? pub?.version ?? builtin?.manifest.version ?? '',
         author,
         hasCode: hasCodeOf(pkg.views),
+        overview: pkg.overview ?? null,
+        description: pkg.manifest.description ?? '',
         installBadge: inst ? (inst.active ? 'active' : 'inactive') : null,
         statusBadge,
         updateAvailable,
@@ -234,7 +287,9 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
         canToggleActive: installed_,
         published: publicStatus !== null,
         canPublish: mine,
-        canDownload: mine || Boolean(inst && inst.authorId === user?.id),
+        // Do embutido também: é o pacote que o `npm run build:extensions` gera, útil para levar a
+        // extensão a um escritório que não roda este bundle.
+        canDownload: mine || !!builtin || Boolean(inst && inst.authorId === user?.id),
         canUninstall: installed_,
         canDelete: mine,
         canApprove: canModerate && publicStatus === 'pending',
@@ -245,11 +300,12 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
         mine,
         installed: installed_,
         isPublic: isApproved,
+        isBuiltin: !!builtin,
       });
     }
 
     return list.sort((a, b) => rankOf(a) - rankOf(b) || a.name.localeCompare(b.name));
-  }, [extensions, installed, publicExtensions, publicOf, updateSourceOf, canModerate, user, installedNeedsReview]);
+  }, [extensions, installed, publicExtensions, publicOf, updateSourceOf, builtinUpdateOf, canModerate, user, installedNeedsReview]);
 
   const counts = useMemo<Record<MarketplaceFilter, number>>(() => ({
     all: rows.length,
@@ -283,7 +339,9 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
     const priv = extensions.find((e) => e.id === id);
     if (priv) { downloadPackage(id, serializePackage(priv.package)); return; }
     const inst = installed.find((e) => e.id === id);
-    if (inst) downloadPackage(id, serializePackage(inst.package));
+    if (inst) { downloadPackage(id, serializePackage(inst.package)); return; }
+    const builtin = BUILTIN_BY_ID.get(id);
+    if (builtin) downloadPackage(id, serializePackage(builtin));
   }, [extensions, installed, downloadPackage]);
 
   const publish = useCallback(async (id: string) => {
@@ -306,14 +364,14 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
   const install = useCallback((id: string) => {
     const inst = installed.find((e) => e.id === id);
     if (inst) {
-      const input = updateSourceOf(id, inst.installedVersion);
+      const input = updateSourceOf(id, inst.installedVersion) ?? builtinUpdateOf(id, inst);
       if (!input) return Promise.resolve();
       return run(id, () => installCopy(input), 'Extensão atualizada.');
     }
-    const input = privateInputOf(id) ?? publicInputOf(id);
+    const input = privateInputOf(id) ?? publicInputOf(id) ?? builtinInputOf(id);
     if (!input) return Promise.resolve();
     return run(id, () => installCopy(input), 'Instalada no escritório.');
-  }, [installed, updateSourceOf, privateInputOf, publicInputOf, run, installCopy]);
+  }, [installed, updateSourceOf, builtinUpdateOf, privateInputOf, publicInputOf, builtinInputOf, run, installCopy]);
 
   const toggleActive = useCallback(
     (id: string, active: boolean) => run(id, () => setInstalledActive(id, active), active ? 'Extensão ativada.' : 'Extensão desativada.'),
@@ -347,6 +405,14 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
   }, [installed]);
 
   const cancelReview = useCallback(() => setReviewTarget(null), []);
+
+  const openDetails = useCallback((id: string) => setDetailsId(id), []);
+  const closeDetails = useCallback(() => setDetailsId(null), []);
+
+  const detailsRow = useMemo(
+    () => rows.find((row) => row.id === detailsId) ?? null,
+    [rows, detailsId],
+  );
 
   const confirmReview = useCallback(async () => {
     if (!reviewTarget) return;
@@ -388,6 +454,9 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
     busyId,
     removeTarget,
     reviewTarget,
+    detailsRow,
+    openDetails,
+    closeDetails,
     openReview,
     confirmReview,
     cancelReview,

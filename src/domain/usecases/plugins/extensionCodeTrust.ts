@@ -9,7 +9,8 @@ export type { ExtensionCodeTrust } from '../../entities/InstalledExtension';
  * Uma extensão sem `views`/`startup` instala telas, campos e workflows sem executar nada — não passa
  * por aqui. Com código, a regra é procedência OU gesto explícito:
  *
- * - veio do catálogo público (`source: 'public'`, aprovado por SYSTEM) → roda;
+ * - veio do catálogo público (`source: 'public'`, aprovado por SYSTEM) ou do catálogo embutido no
+ *   bundle (`source: 'builtin'`, o próprio código da aplicação) → roda;
  * - fora dele (um `.json` importado, seu ou de terceiro) → só roda depois de um admin abrir a fonte
  *   e confiar, e a confiança vale para AQUELE código.
  *
@@ -46,6 +47,14 @@ export const isFromPublicCatalog = (extension: InstalledExtension): boolean =>
   extension.source === 'public';
 
 /**
+ * A procedência dispensa o gesto de revisão: catálogo público (revisado na publicação) ou catálogo
+ * EMBUTIDO, cujo código é o da própria aplicação — pedir a um admin que revise o código que já veio
+ * no bundle não acrescentaria garantia nenhuma.
+ */
+export const hasTrustedProvenance = (extension: InstalledExtension): boolean =>
+  isFromPublicCatalog(extension) || extension.source === 'builtin';
+
+/**
  * A extensão pode executar código? Sem código, a pergunta não se aplica e a resposta é `true` — quem
  * chama usa isto só para decidir `trusted`, e um pacote sem código não recebe implementações.
  */
@@ -54,7 +63,7 @@ export const isExtensionCodeTrusted = (
   currentHash: string | null,
 ): boolean => {
   if (!extensionHasCode(extension.package)) return true;
-  if (isFromPublicCatalog(extension)) return true;
+  if (hasTrustedProvenance(extension)) return true;
   const trust = extension.codeTrust;
   return !!trust && !!currentHash && trust.hash === currentHash;
 };
