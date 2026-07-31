@@ -8,7 +8,7 @@ export type ActionDefinitionInput = Omit<
 export interface RunActionInput {
   tenantId: string;
   actionId: string;
-  /** Tela que disparou a action ('persons', 'cases', ou o id da tela dinâmica). */
+  /** Tela que disparou a action ('persons', 'contracts', ou o id da tela dinâmica). */
   source: string;
   context: Record<string, unknown>;
   recordId?: string | null;

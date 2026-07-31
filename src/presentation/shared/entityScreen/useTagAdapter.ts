@@ -6,15 +6,18 @@ import type { TagStoreAdapter } from '../../components/ui/TagManager/TagManager.
 import type { Tag } from '../../../domain/entities';
 
 /**
- * A coleção de etiquetas de uma tela, resolvida pelo contexto: a declarada em código para uma tela
- * fixa (`cases` → `caseTags`) e a de `tagCollection` para as demais. Vazio = a tela não tem
- * etiquetas.
+ * A coleção de etiquetas de uma tela. `declared` é o que a PRÓPRIA tela declara — é ele que manda,
+ * porque é a tela que está sendo exibida; sem ele, a resposta vem da entidade da coleção, que é
+ * como duas telas passam a compartilhar as mesmas etiquetas. Vazio = a tela não tem etiquetas.
+ *
+ * A precedência importa: a entidade só existe enquanto alguma tela a descreve, e uma tela recém
+ * instalada já sabe as próprias etiquetas antes de qualquer outra coisa estar no lugar.
  */
-export const useTagCollection = (entityCollection: string): string => {
+export const useTagCollection = (entityCollection: string, declared?: string | null): string => {
   const ctx = useSchemaContext();
   return useMemo(
-    () => resolveEntity(ctx, entityCollection)?.tagCollection ?? '',
-    [ctx, entityCollection],
+    () => declared?.trim() || resolveEntity(ctx, entityCollection)?.tagCollection || '',
+    [ctx, entityCollection, declared],
   );
 };
 
@@ -27,8 +30,9 @@ export const useTagAdapter = (
   entityCollection: string,
   tagIdsOf: (entityId: string) => string[],
   setRecordTags: (entityId: string, tagIds: string[]) => Promise<void> | void,
+  declaredCollection?: string | null,
 ): TagStoreAdapter => {
-  const collection = useTagCollection(entityCollection);
+  const collection = useTagCollection(entityCollection, declaredCollection);
   const { getTags, createTag, updateTag, deleteTag } = useTags();
 
   const tags = getTags(collection);

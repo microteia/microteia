@@ -1,4 +1,4 @@
-import type { MarketplacePlugin, ScreenPatchTemplate } from '../../entities/MarketplacePlugin';
+import type { LookupModuleTemplate, MarketplacePlugin, ScreenPatchTemplate } from '../../entities/MarketplacePlugin';
 import type { IWorkflowDefinitionRepository } from '../../repositories/IWorkflowDefinitionRepository';
 import type { IPluginInstallationRepository } from '../../repositories/IPluginInstallationRepository';
 import type { IScreenDefinitionRepository, ScreenDefinitionInput } from '../../repositories/IScreenDefinitionRepository';
@@ -13,12 +13,14 @@ import type { LifecycleResult } from './PluginLifecycleUseCases';
 import { buildScreenKeyMap, isAdoptedScreen, materializeScreen, ownerSet } from './screenModule';
 import {
   actionInputFromTemplate,
+  buildScreenEventMap,
   rewriteStepLiteral,
   scriptInputFromTemplate,
   workflowInputFromTemplate,
 } from './packageMaterialize';
 import { workflowOutRefs } from './pluginReferences';
 import type { ILookupDefinitionRepository } from '../../repositories/ILookupDefinitionRepository';
+import type { ILookupRepository } from '../../repositories/ILookupRepository';
 import { isLookupCollection } from '../../schema/lookupRegistry';
 import type { ITagDefinitionRepository } from '../../repositories/ITagDefinitionRepository';
 import { ENTITY_REGISTRY_LIST } from '../../schema/entityRegistry';
@@ -38,6 +40,8 @@ export interface ArtifactDeps {
   scriptRepository: IScriptRepository;
   lookupDefinitionRepository: ILookupDefinitionRepository;
   tagDefinitionRepository: ITagDefinitionRepository;
+  /** Opções das listas — só para SEMEAR uma lista vazia na instalação. */
+  lookupRepository: ILookupRepository;
 }
 
 export interface MarketplaceDeps extends ArtifactDeps {
@@ -153,6 +157,7 @@ const materializeArtifacts = async (
     ...(plugin.tagLists ?? []).map((tagList) => tagList.collection),
   ]);
   const screenKeyMap = buildScreenKeyMap(plugin.screens ?? [], existingScreens, takenCollections);
+  const screenEventMap = buildScreenEventMap(plugin.screens ?? [], screenKeyMap);
 
   const existingWorkflows = await deps.workflowRepository.getWorkflowDefinitions(tenantId);
   const workflowMap = new Map<string, string>();
@@ -164,7 +169,7 @@ const materializeArtifacts = async (
       workflowMap.set(template.templateId, existing.id);
       const owners = addOwner(ownerSet(existing), pluginId);
       if (revOf(template) > revOf(existing)) {
-        const input = workflowInputFromTemplate(template, pluginId, scriptMap, screenKeyMap);
+        const input = workflowInputFromTemplate(template, pluginId, scriptMap, screenEventMap);
         // Reescreve o conteúdo mas PRESERVA o estado local do tenant (`enabled`) e o dono primário.
         await deps.workflowRepository.updateWorkflowDefinition(tenantId, existing.id, {
           ...input,
@@ -177,7 +182,7 @@ const materializeArtifacts = async (
         await deps.workflowRepository.updateWorkflowDefinition(tenantId, existing.id, { ownerPluginIds: owners, ownerPluginId: existing.ownerPluginId ?? pluginId });
       }
     } else {
-      const input = workflowInputFromTemplate(template, pluginId, scriptMap, screenKeyMap);
+      const input = workflowInputFromTemplate(template, pluginId, scriptMap, screenEventMap);
       const created = await deps.workflowRepository.createWorkflowDefinition(tenantId, input);
       workflowMap.set(template.templateId, created.id);
       touchedWorkflows.push({ templateId: template.templateId, id: created.id });
@@ -190,7 +195,7 @@ const materializeArtifacts = async (
     if (!workflowOutRefs(template).some((ref) => ref.kind === 'workflow')) continue;
     const touched = touchedWorkflows.find((w) => w.templateId === template.templateId);
     if (!touched) continue;
-    const input = workflowInputFromTemplate(template, pluginId, scriptMap, screenKeyMap);
+    const input = workflowInputFromTemplate(template, pluginId, scriptMap, screenEventMap);
     const steps = rewriteStepLiteral(input.steps, 'targetWorkflowId', workflowMap);
     await deps.workflowRepository.updateWorkflowSteps(tenantId, touched.id, steps);
   }
@@ -260,8 +265,55 @@ const upsertPluginScreens = async (
         }
       : input;
     await deps.screenRepository.upsert(tenantId, screenKey, merged);
+    await ensureTargetCollectionScreen(deps, tenantId, input, userId, existingScreens);
   }
   return nextKeys;
+};
+
+/**
+ * Uma tela que descreve OUTRA coleção (`dataCollection`) precisa que a coleção alvo tenha o próprio
+ * documento em `screenDefinitions`: é ele que as Security Rules consultam para autorizar a escrita
+ * (`isDeclaredScreen`) e para ler quem pode gravar (`writeRoles`). Sem isso, a permissão declarada
+ * pela extensão não chegaria às rules, que não têm como procurar "a tela que aponta para esta
+ * coleção".
+ *
+ * O documento existente é preservado — só a permissão é acertada. É a mesma baseline que o Form
+ * Design grava no primeiro ajuste de uma tela do kernel.
+ */
+const ensureTargetCollectionScreen = async (
+  deps: ArtifactDeps,
+  tenantId: string,
+  input: ScreenDefinitionInput,
+  userId: string,
+  existingScreens: ScreenDefinition[],
+): Promise<void> => {
+  const target = input.dataCollection?.trim();
+  if (!target) return;
+  // Identidade do registro junto com a permissão: é por `titleFieldKey`/`subtitleFieldKey` que
+  // qualquer tela resolve o rótulo de um registro desta coleção (um campo de referência, uma
+  // menção, a busca). Só preenche o que está vazio — ajuste do escritório não é sobrescrito.
+  const declared = {
+    writeRoles: input.writeRoles ?? null,
+    titleFieldKey: input.titleFieldKey,
+    subtitleFieldKey: input.subtitleFieldKey ?? null,
+  };
+  const existing = existingScreens.find((screen) => screen.id === target);
+  if (existing) {
+    const merged = {
+      ...screenToInput(existing),
+      writeRoles: declared.writeRoles,
+      titleFieldKey: existing.titleFieldKey || declared.titleFieldKey,
+      subtitleFieldKey: existing.subtitleFieldKey ?? declared.subtitleFieldKey,
+    };
+    if (JSON.stringify(merged) === JSON.stringify(screenToInput(existing))) return;
+    await deps.screenRepository.upsert(tenantId, target, merged);
+    return;
+  }
+  await deps.screenRepository.upsert(tenantId, target, {
+    ...builtinScreenBaseline(target),
+    ...declared,
+    createdBy: userId,
+  });
 };
 
 // --- Complementos: campos que o pacote acrescenta a telas que JÁ existem no escritório -----------
@@ -374,6 +426,31 @@ const declarePluginLookups = async (
       ownerPluginIds: owners,
       createdBy: current?.createdBy ?? userId,
     });
+    await seedLookupOptions(deps, tenantId, template, userId);
+  }
+};
+
+/**
+ * Semeia as opções de uma lista VAZIA. Lista com qualquer opção não é tocada: dali em diante ela é
+ * dado do escritório, e reinstalar ou atualizar a extensão não pode ressuscitar o que alguém
+ * removeu nem sobrescrever o que renomeou.
+ */
+const seedLookupOptions = async (
+  deps: ArtifactDeps,
+  tenantId: string,
+  template: LookupModuleTemplate,
+  userId: string,
+): Promise<void> => {
+  if (!template.options?.length) return;
+  const current = await deps.lookupRepository.getAll(tenantId, template.collection);
+  if (current.length > 0) return;
+  for (const option of template.options) {
+    await deps.lookupRepository.create(
+      tenantId,
+      template.collection,
+      { key: option.key, label: option.label, ...(option.color ? { color: option.color } : {}) },
+      userId,
+    );
   }
 };
 

@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useMemo } from 'react';
 import { jsx, jsxs, Fragment } from 'react/jsx-runtime';
 import styled, { useTheme } from 'styled-components';
 import { Button } from '../../components/ui/Button';
@@ -41,16 +41,15 @@ import {
   parseCurrencyDigits,
   toDateInputValue,
 } from '../../../utils/formatters';
-import { useCaseStore } from '../../../stores/useCaseStore';
 import { usePersonStore } from '../../../stores/usePersonStore';
 import { useWorkspace } from '../../../stores/useWorkspace';
 import { useNotification } from '../../../stores/useNotification';
 import { generateDeepLink } from '../../../infrastructure/deeplink/deepLinkUtils';
 import { useSavedViewState } from './useSavedViewState';
 import { useEntity } from './useEntity';
-import type { CasePhase } from '../../../domain/entities';
 import { useLookups } from '../../../stores/useLookups';
-import type { LookupOption } from '../../../domain/entities';
+import { useRecords } from '../../../stores/useRecords';
+import type { EntityRecord, EntityRecordValues, LookupOption } from '../../../domain/entities';
 
 /**
  * ATENÇÃO: ao adicionar/remover/modificar módulos aqui, atualize também as definições TypeScript
@@ -69,29 +68,26 @@ import type { LookupOption } from '../../../domain/entities';
  * silencioso: uma extensão que tenta importar algo fora da superfície falha visivelmente.
  */
 
-const useCases = (): {
-  cases: ReturnType<typeof useCaseStore>['cases'];
-  updatePhase: (caseId: string, phaseKey: string) => Promise<void>;
-} => {
-  const { cases, updateCase } = useCaseStore();
-  const updatePhase = useCallback(
-    (caseId: string, phaseKey: string) => updateCase(caseId, { phase: phaseKey as CasePhase }),
-    [updateCase],
-  );
-  return { cases, updatePhase };
+/**
+ * Os registros de QUALQUER coleção descrita por uma tela do escritório, e a gravação parcial de um
+ * deles. É a porta genérica de dados da ponte: nenhuma entidade de negócio tem hook próprio aqui —
+ * quem sabe o que é um processo é a extensão que o declara, não o kernel.
+ */
+const useCollection = (collection: string): EntityRecord[] => {
+  const { recordsByCollection } = useRecords();
+  return useMemo(() => recordsByCollection[collection] ?? [], [recordsByCollection, collection]);
 };
 
-/**
- * Opções de QUALQUER lista pelo nome da coleção — do kernel ou criada no tenant. Os três atalhos
- * abaixo continuam existindo porque extensões publicadas já os usam; são só apelidos deste.
- */
+const useUpdateRecord = (): ((collection: string, recordId: string, data: EntityRecordValues) => Promise<void>) => {
+  const { updateRecord } = useRecords();
+  return useCallback(
+    (collection, recordId, data) => updateRecord(collection, recordId, data),
+    [updateRecord],
+  );
+};
+
+/** Opções de QUALQUER lista pelo nome da coleção — do kernel ou criada no tenant. */
 const useLookup = (collection: string): LookupOption[] => useLookups().getOptions(collection);
-
-const useCasePhases = (): LookupOption[] => useLookup('casePhases');
-
-const useCaseAreas = (): LookupOption[] => useLookup('caseAreas');
-
-const useCaseStatuses = (): LookupOption[] => useLookup('caseStatuses');
 
 const usePersons = (): ReturnType<typeof usePersonStore>['persons'] => usePersonStore().persons;
 
@@ -141,11 +137,9 @@ const dataModule = {
   useEntityList,
   useEntityForm,
   useEntityDetailVM,
-  useCases,
+  useCollection,
+  useUpdateRecord,
   useLookup,
-  useCasePhases,
-  useCaseAreas,
-  useCaseStatuses,
   usePersons,
   useWorkspace,
   useNotify,

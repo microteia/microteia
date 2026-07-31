@@ -40,6 +40,7 @@ export const PluginStoreProvider: React.FC<{ children: React.ReactNode }> = ({ c
     actionRepository,
     scriptRepository,
     lookupDefinitionRepository,
+    lookupRepository,
     tagDefinitionRepository,
   } = useDI();
 
@@ -57,6 +58,7 @@ export const PluginStoreProvider: React.FC<{ children: React.ReactNode }> = ({ c
       actionRepository,
       scriptRepository,
       lookupDefinitionRepository,
+      lookupRepository,
       tagDefinitionRepository,
     };
     return {
@@ -66,7 +68,7 @@ export const PluginStoreProvider: React.FC<{ children: React.ReactNode }> = ({ c
       enable: makeEnablePluginUseCase(pluginInstallationRepository),
       disable: makeDisablePluginUseCase(pluginInstallationRepository),
     };
-  }, [workflowDefinitionRepository, pluginInstallationRepository, screenDefinitionRepository, actionRepository, scriptRepository, lookupDefinitionRepository, tagDefinitionRepository]);
+  }, [workflowDefinitionRepository, pluginInstallationRepository, screenDefinitionRepository, actionRepository, scriptRepository, lookupDefinitionRepository, lookupRepository, tagDefinitionRepository]);
 
   useEffect(() => {
     if (!currentTenant) {

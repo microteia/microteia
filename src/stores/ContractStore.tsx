@@ -59,7 +59,6 @@ export const ContractStoreProvider: React.FC<{ children: React.ReactNode }> = ({
     await uc.delete.execute(currentTenant.id, contractId, actor);
     setContracts((prev) => prev.filter((c) => c.id !== contractId));
     storeEvents.emit(StoreEvents.CONTRACTS_UPDATED);
-    storeEvents.emit(StoreEvents.CASES_UPDATED);
   }, [currentTenant, uc.delete, user, effectiveName]);
 
   return (

@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { LookupContext } from './useLookups';
 import { useTenant } from './useTenant';
 import { useAuth } from './useAuth';
+import { useScreenDefinitions } from './useScreenDefinitions';
 import { useDI } from '../infrastructure/di/useDI';
 import {
   makeAddLookupOptionUseCase,
@@ -12,6 +13,7 @@ import {
 } from '../domain/usecases/lookups';
 import { LOOKUP_REGISTRY_LIST } from '../domain/schema/lookupRegistry';
 import { setRecordRulesLookups } from '../data/utils/recordRulesGate';
+import { screenLookupCollections } from '../domain/services/screenDataCollection';
 import type { SchemaLookup } from '../domain/schema/screenEntity';
 import type { LookupDefinition, LookupOption } from '../domain/entities';
 
@@ -32,6 +34,7 @@ const EMPTY_OPTIONS: LookupOption[] = [];
 export const LookupStoreProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { currentTenant } = useTenant();
   const { user } = useAuth();
+  const { definitions: screens } = useScreenDefinitions();
   const { lookupRepository, lookupDefinitionRepository } = useDI();
 
   const [optionsByCollection, setOptionsByCollection] = useState<Record<string, LookupOption[]>>({});
@@ -55,15 +58,24 @@ export const LookupStoreProvider: React.FC<{ children: React.ReactNode }> = ({ c
     return uc.subscribeDefinitions.execute(currentTenant.id, setDefinitions);
   }, [currentTenant, uc.subscribeDefinitions]);
 
+  const screenLookups = useMemo<SchemaLookup[]>(() => screenLookupCollections(screens), [screens]);
+
   const availableLookups = useMemo<SchemaLookup[]>(
-    () => [
-      ...BUILTIN_LOOKUPS,
-      ...definitions.map((definition) => ({
-        collection: definition.collection,
-        label: definition.label,
-      })),
-    ],
-    [definitions],
+    () => {
+      const byCollection = new Map<string, SchemaLookup>();
+      for (const lookup of [
+        ...BUILTIN_LOOKUPS,
+        ...screenLookups,
+        ...definitions.map((definition) => ({
+          collection: definition.collection,
+          label: definition.label,
+        })),
+      ]) {
+        byCollection.set(lookup.collection, lookup);
+      }
+      return [...byCollection.values()];
+    },
+    [definitions, screenLookups],
   );
 
   const subscribedCollections = useMemo(

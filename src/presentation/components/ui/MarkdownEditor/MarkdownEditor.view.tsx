@@ -16,7 +16,6 @@ import { S } from './MarkdownEditor.styles';
 import { MentionMenu } from '../MentionMenu';
 import { ExtensionMentionModal } from '../ExtensionMentionModal';
 import { NewsMentionModal } from '../NewsMentionModal';
-import { CaseMentionModal } from '../CaseMentionModal';
 import { ClientMentionModal } from '../PersonMentionModal';
 import { ContractMentionModal } from '../ContractMentionModal';
 import { WorkflowMentionModal } from '../WorkflowMentionModal';
@@ -138,13 +137,6 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = (props) => {
         <NewsMentionModal
           onClose={vm.closeNewsPicker}
           onSelect={vm.insertNewsLink}
-        />
-      )}
-
-      {vm.casePickerOpen && (
-        <CaseMentionModal
-          onClose={vm.closeCasePicker}
-          onSelect={vm.insertCaseLink}
         />
       )}
 

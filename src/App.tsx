@@ -10,7 +10,6 @@ import { TenantStoreProvider } from './stores/TenantStore';
 import { PersonStoreProvider } from './stores/PersonStore';
 import { TagStoreProvider } from './stores/TagStore';
 import { LookupStoreProvider } from './stores/LookupStore';
-import { CaseStoreProvider } from './stores/CaseStore';
 import { ContractStoreProvider } from './stores/ContractStore';
 import { DeadlineStoreProvider } from './stores/DeadlineStore';
 import { FinancialStoreProvider } from './stores/FinancialStore';
@@ -70,9 +69,9 @@ const App: React.FC = () => {
                   <ProtectedRoute>
                     <TenantStoreProvider>
                       <PersonStoreProvider>
+                        <ScreenDefinitionStoreProvider>
                         <TagStoreProvider>
                         <LookupStoreProvider>
-                        <CaseStoreProvider>
                           <ContractStoreProvider>
                           <DeadlineStoreProvider>
                             <FinancialStoreProvider>
@@ -82,7 +81,6 @@ const App: React.FC = () => {
                                     <NewsTagStoreProvider>
                                       <NewsInteractionStoreProvider>
                                         <SavedFilterStoreProvider>
-                                          <ScreenDefinitionStoreProvider>
                                           <RecordStoreProvider>
                                           <WorkflowStoreProvider>
                                           <ScriptStoreProvider>
@@ -120,7 +118,6 @@ const App: React.FC = () => {
                                           </ScriptStoreProvider>
                                           </WorkflowStoreProvider>
                                           </RecordStoreProvider>
-                                          </ScreenDefinitionStoreProvider>
                                         </SavedFilterStoreProvider>
                                       </NewsInteractionStoreProvider>
                                     </NewsTagStoreProvider>
@@ -130,9 +127,9 @@ const App: React.FC = () => {
                             </FinancialStoreProvider>
                           </DeadlineStoreProvider>
                           </ContractStoreProvider>
-                        </CaseStoreProvider>
                         </LookupStoreProvider>
                         </TagStoreProvider>
+                        </ScreenDefinitionStoreProvider>
                       </PersonStoreProvider>
                     </TenantStoreProvider>
                   </ProtectedRoute>

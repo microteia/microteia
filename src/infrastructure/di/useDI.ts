@@ -13,15 +13,12 @@ import type { INewsDocumentRepository } from '../../domain/repositories/INewsDoc
 import type { ISavedFilterRepository } from '../../domain/repositories/ISavedFilterRepository';
 import type { ITenantRepository } from '../../domain/repositories/ITenantRepository';
 import type { IPersonRepository } from '../../domain/repositories/IPersonRepository';
-import type { ICaseRepository } from '../../domain/repositories/ICaseRepository';
 import type { IDeadlineRepository } from '../../domain/repositories/IDeadlineRepository';
 import type { IFinancialRepository } from '../../domain/repositories/IFinancialRepository';
 import type { IFinancialDocumentRepository } from '../../domain/repositories/IFinancialDocumentRepository';
 import type { ITextAnnotationRepository } from '../../domain/repositories/ITextAnnotationRepository';
 import type { IPersonNoteRepository } from '../../domain/repositories/IPersonNoteRepository';
 import type { IPersonDocumentRepository } from '../../domain/repositories/IPersonDocumentRepository';
-import type { ICaseNoteRepository } from '../../domain/repositories/ICaseNoteRepository';
-import type { ICaseDocumentRepository } from '../../domain/repositories/ICaseDocumentRepository';
 import type { IContractRepository } from '../../domain/repositories/IContractRepository';
 import type { IContractNoteRepository } from '../../domain/repositories/IContractNoteRepository';
 import type { IContractDocumentRepository } from '../../domain/repositories/IContractDocumentRepository';
@@ -72,9 +69,6 @@ export interface DIContainer {
   personRepository: IPersonRepository;
   personNoteRepository: IPersonNoteRepository;
   personDocumentRepository: IPersonDocumentRepository;
-  caseRepository: ICaseRepository;
-  caseNoteRepository: ICaseNoteRepository;
-  caseDocumentRepository: ICaseDocumentRepository;
   contractRepository: IContractRepository;
   contractNoteRepository: IContractNoteRepository;
   contractDocumentRepository: IContractDocumentRepository;

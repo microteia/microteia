@@ -2,7 +2,23 @@ import { describe, it, expect } from 'vitest';
 import { createSchemaContext, type PathRoot } from '../../../../domain/schema/pathResolver';
 import { buildPathAutocompleteItems, extractActiveEventPath, findInvalidEventPath } from './pathAutocomplete';
 
-const ctx = createSchemaContext();
+// Processo é declarado por extensão: é a tela que descreve a coleção, os campos e a navegação.
+const ctx = createSchemaContext([
+  {
+    id: 'processos',
+    collection: 'cases',
+    eventPrefix: 'case',
+    titleSingular: 'Processo',
+    titleFieldKey: 'title',
+    fields: [
+      { key: 'caseNumber', label: 'Número', type: 'text', required: true, order: 0, origin: 'plugin' },
+      {
+        key: 'contractId', label: 'Contrato', type: 'reference', refEntity: 'contracts',
+        refDenormKey: 'contract', required: false, order: 1, origin: 'plugin',
+      },
+    ],
+  },
+]);
 const casesRoot: PathRoot = { kind: 'entity', entityKey: 'cases', hasOld: true };
 
 describe('extractActiveEventPath', () => {
@@ -32,9 +48,10 @@ describe('extractActiveEventPath', () => {
 describe('buildPathAutocompleteItems', () => {
   it('sugere segmentos com ponto para nós navegáveis', () => {
     const items = buildPathAutocompleteItems(ctx, casesRoot, { completedPath: '', query: 'contr', queryStart: 0 });
-    const contract = items.find((i) => i.value === 'contract.');
-    expect(contract).toBeDefined();
-    expect(items.find((i) => i.value === 'contractId')).toBeDefined();
+    // A relação aparece pelos dois nomes: o do registro apontado (navegável) e a chave que guarda
+    // o id — esta também navegável, por ser um campo de referência.
+    expect(items.find((i) => i.value === 'contract.')).toBeDefined();
+    expect(items.find((i) => i.value === 'contractId.')).toBeDefined();
   });
 
   it('navega FK e filtra por query', () => {

@@ -99,23 +99,23 @@ describe('deriveFormFields — financials', () => {
   });
 });
 
-describe('deriveFormFields — cases', () => {
-  const map = byKey(deriveFormFields(emptyCtx, 'cases'));
+describe('deriveFormFields — contracts', () => {
+  const map = byKey(deriveFormFields(emptyCtx, 'contracts'));
 
-  it('polos ativo/passivo são relações múltiplas para pessoas', () => {
-    expect(map.get('activePoleIds')).toMatchObject({ type: 'reference', refEntity: 'persons', multi: true });
-    expect(map.get('passivePoleIds')).toMatchObject({ type: 'reference', refEntity: 'persons', multi: true });
+  it('as partes são relações múltiplas para pessoas', () => {
+    expect(map.get('contractorIds')).toMatchObject({ type: 'reference', refEntity: 'persons', multi: true });
+    expect(map.get('witnessIds')).toMatchObject({ type: 'reference', refEntity: 'persons', multi: true });
   });
 
-  it('tipo de ação é seleção múltipla e valor da causa é moeda', () => {
-    expect(map.get('type')).toMatchObject({ type: 'select', multi: true, lookupCollection: 'caseActionTypes' });
-    expect(map.get('causeValue')?.type).toBe('currency');
+  it('o tipo vem de uma lista e o valor total é moeda', () => {
+    expect(map.get('type')).toMatchObject({ type: 'select', lookupCollection: 'contractTypes' });
+    expect(map.get('totalValue')?.type).toBe('currency');
   });
 });
 
 // `ui.list.icon` é string livre: um nome errado cai no ícone de fallback silenciosamente.
 describe('todo ícone declarado em ui.list existe no catálogo', () => {
-  const ENTITIES: EntityKey[] = ['persons', 'cases', 'contracts', 'deadlines', 'financials'];
+  const ENTITIES: EntityKey[] = ['persons', 'contracts', 'deadlines', 'financials'];
 
   it.each(ENTITIES)('%s', (entity) => {
     for (const row of deriveBuiltinListRows(entity)) {
@@ -125,7 +125,7 @@ describe('todo ícone declarado em ui.list existe no catálogo', () => {
 });
 
 describe('nenhuma entidade expõe o FK de etiquetas no formulário', () => {
-  it.each(['persons', 'cases', 'contracts', 'financials'] as const)('%s', (entity) => {
+  it.each(['persons', 'contracts', 'financials'] as const)('%s', (entity) => {
     expect(deriveFormFields(emptyCtx, entity).some((f) => f.key === 'tagIds')).toBe(false);
   });
 });
@@ -138,12 +138,12 @@ describe('deriveListRows — linhas do card derivam de ui.list, ordenadas', () =
   });
 
   it('carrega o controle do campo, para o card formatar moeda/data', () => {
-    const rows = deriveBuiltinListRows('cases');
-    expect(rows.find((r) => r.key === 'causeValue')?.type).toBe('currency');
+    const rows = deriveBuiltinListRows('contracts');
+    expect(rows.find((r) => r.key === 'totalValue')?.type).toBe('currency');
   });
 
   it('deriva também as relações, marcando a entidade alvo para resolver o rótulo', () => {
-    const rows = deriveBuiltinListRows('cases');
+    const rows = deriveBuiltinListRows('deadlines');
     expect(rows.find((r) => r.key === 'responsibleLawyerId')).toMatchObject({
       type: 'reference',
       refEntity: 'persons',
@@ -151,9 +151,8 @@ describe('deriveListRows — linhas do card derivam de ui.list, ordenadas', () =
   });
 
   it('ordena campos e relações juntos pelo ui.list.order', () => {
-    expect(deriveBuiltinListRows('cases').map((r) => r.key)).toEqual(
-      ['responsibleLawyerId', 'area', 'instance', 'court', 'causeValue'],
-    );
+    const keys = deriveBuiltinListRows('persons').map((r) => r.key);
+    expect(keys).toStrictEqual(['cpf', 'cnpj', 'email', 'phone', 'occupation', 'address.city']);
   });
 });
 
@@ -164,18 +163,22 @@ describe('deriveListRows — coleção sem entidade no registro', () => {
 });
 
 describe('ui.filter vira filtro da listagem', () => {
-  it('os campos que o Processo filtra chegam marcados como filtráveis', () => {
-    const fields = deriveFormFields(emptyCtx, 'cases');
-    const filterable = fields.filter((field) => field.filterable).map((field) => field.key);
-    expect(filterable).toEqual(expect.arrayContaining([
-      'area', 'type', 'phase', 'status', 'instance', 'court', 'courtDistrict', 'judge', 'filedAt',
-      'responsibleLawyerId', 'contractId', 'activePoleIds', 'passivePoleIds',
-    ]));
+  it('os campos que o registro marca com ui.filter chegam filtráveis', () => {
+    const fields = deriveFormFields(emptyCtx, 'contracts');
+    expect(fields.some((field) => field.filterable)).toBe(false);
   });
 
-  it('campo sem a marca não vira filtro', () => {
-    const fields = deriveFormFields(emptyCtx, 'cases');
-    expect(fields.find((field) => field.key === 'caseNumber')?.filterable).toBe(false);
+  it('a declaração de tela leva o mesmo sinal', () => {
+    const ctx = createSchemaContext([{
+      id: 'processos', collection: 'cases', titleSingular: 'Processo', titleFieldKey: 'title',
+      fields: [
+        { key: 'title', label: 'Título', type: 'text', required: true, order: 0, origin: 'plugin' },
+        { key: 'status', label: 'Status', type: 'select', required: false, order: 1, origin: 'plugin', filterable: true },
+      ],
+    }]);
+    const fields = deriveFormFields(ctx, 'cases');
+    expect(fields.find((field) => field.key === 'status')?.filterable).toBe(true);
+    expect(fields.find((field) => field.key === 'title')?.filterable).toBe(false);
   });
 });
 
@@ -219,10 +222,10 @@ describe('uma tela declara a coleção sem ajuda do registro', () => {
 
 describe('duas telas descrevendo a mesma coleção', () => {
   const pluginScreen = {
-    id: 'processo-clone',
+    id: 'processos',
     collection: 'cases',
-    titleSingular: 'Processo (clone)',
-    titlePlural: 'Processos (clone)',
+    titleSingular: 'Processo',
+    titlePlural: 'Processos',
     titleFieldKey: 'title',
     fields: [{ key: 'area', label: 'Área do processo', type: 'select' as const, required: false, order: 1, origin: 'plugin' as const }],
   };
@@ -238,15 +241,14 @@ describe('duas telas descrevendo a mesma coleção', () => {
     expect(byKey(deriveFormFields(ctx, 'cases')).get('area')?.label).toBe('Área (ajustada)');
   });
 
-  it('a tela-visão não renomeia a entidade — o rótulo continua o da entidade', () => {
+  it('sem tela dona do nome, a declaração que sobrou é a que vale', () => {
     const ctx = createSchemaContext([pluginScreen]);
-    expect(deriveFormFields(ctx, 'cases').length).toBeGreaterThan(1);
     expect(byKey(deriveFormFields(ctx, 'cases')).get('area')?.label).toBe('Área do processo');
   });
 });
 
 /**
- * O estado REAL quando a extensão "Processo (clone)" está instalada: a declaração dela chega pela
+ * O estado REAL quando a extensão de Processos está instalada: a declaração dela chega pela
  * coleção `cases`, sobre o que o registro do kernel já declara. O card e o formulário precisam sair
  * idênticos aos da tela nativa — nem linha a mais, nem relação duplicada.
  */
@@ -263,14 +265,14 @@ describe('extensão descrevendo uma coleção que o registro também descreve', 
   ];
   const ctx = createSchemaContext([
     {
-      id: 'processo-clone', collection: 'cases', titleSingular: 'Processo (clone)',
+      id: 'processos', collection: 'cases', titleSingular: 'Processo',
       titleFieldKey: 'title', fields: screenFields,
     },
   ]);
 
-  it('as meta-linhas do card saem na mesma ordem da tela nativa', () => {
+  it('as meta-linhas do card saem da declaração da tela, na ordem declarada', () => {
     expect(deriveListRows(ctx, 'cases').map((row) => row.key))
-      .toEqual(deriveBuiltinListRows('cases').map((row) => row.key));
+      .toEqual(['responsibleLawyerId', 'area']);
   });
 
   it('a relação declarada pela tela não duplica a `fk` de mesmo nome', () => {

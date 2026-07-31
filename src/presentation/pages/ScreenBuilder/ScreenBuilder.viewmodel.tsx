@@ -484,6 +484,8 @@ const toSaveInput = (def: ScreenDefinition): ScreenDefinitionSaveInput => ({
   tagCollection: def.tagCollection ?? '',
   // Sem isto, salvar qualquer outra coisa na tela desfaria o vínculo com a coleção alvo.
   dataCollection: def.dataCollection ?? null,
+  eventPrefix: def.eventPrefix ?? null,
+  writeRoles: def.writeRoles ?? null,
   listActions: def.listActions,
   viewActionIds: def.viewActionIds,
   cardActionIds: def.cardActionIds,

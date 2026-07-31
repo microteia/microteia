@@ -228,33 +228,75 @@ const stepEntity = (
     };
   }
 
+  // Campo de referência navegado pelo NOME do registro apontado (`contract` para `contractId`) —
+  // o equivalente, para uma entidade declarada por tela, do `denormKey` das relações do registro.
+  const fieldByRefDenormKey = entity.fields.find((f) => f.refDenormKey === name && f.refEntity);
+  if (fieldByRefDenormKey) {
+    return stepDenormalizedReference(ctx, state, {
+      key: fieldByRefDenormKey.key,
+      denormKey: name,
+      targetCollection: fieldByRefDenormKey.refEntity as string,
+      multi: fieldByRefDenormKey.multi === true,
+      fields: 'all',
+    }, segment, maxFkDepth);
+  }
+
   const fkByDenormKey = entity.fks.find((fk) => fk.denormKey === name);
   if (fkByDenormKey) {
-    const depth = state.depth + 1;
-    if (depth > maxFkDepth) {
-      return invalid(state, `Profundidade máxima de ${maxFkDepth} referências excedida`);
-    }
-    const parentPath = joinSegments(state.path);
-    const prefix = parentPath ? `${parentPath}.` : '';
-    const path = [...state.path, segment];
-    const target = resolveEntity(ctx, fkByDenormKey.targetCollection);
-    const hop: FkHop = {
-      atPath: `${prefix}${fkByDenormKey.key}`,
+    return stepDenormalizedReference(ctx, state, {
+      key: fkByDenormKey.key,
+      denormKey: fkByDenormKey.denormKey,
       targetCollection: fkByDenormKey.targetCollection,
-      materializeAt: `${prefix}${fkByDenormKey.denormKey}`,
-      mode: 'denormKey',
       multi: fkByDenormKey.multi === true,
       fields: fkByDenormKey.denormalizedFields ?? 'all',
-    };
-    const nextCursor: Cursor = fkByDenormKey.multi
-      ? { kind: 'entityList', entity: target, collection: fkByDenormKey.targetCollection }
-      : target
-        ? { kind: 'entity', entity: target }
-        : { kind: 'externalRecord', collection: fkByDenormKey.targetCollection };
-    return { cursor: nextCursor, hops: [...state.hops, hop], depth, path };
+    }, segment, maxFkDepth);
   }
 
   return { ...state, cursor: { kind: 'unknown' }, path: [...state.path, segment] };
+};
+
+interface DenormalizedReference {
+  key: string;
+  denormKey: string;
+  targetCollection: string;
+  multi: boolean;
+  fields: string[] | 'all';
+}
+
+/**
+ * Salto que LÊ de uma chave (`contractId`) e MATERIALIZA em outra (`contract`) — a forma como uma
+ * relação aparece nas expressões. Serve tanto às relações do registro quanto aos campos de
+ * referência que declaram `refDenormKey`.
+ */
+const stepDenormalizedReference = (
+  ctx: SchemaContext,
+  state: WalkState,
+  reference: DenormalizedReference,
+  segment: PathSegment,
+  maxFkDepth: number,
+): WalkState => {
+  const depth = state.depth + 1;
+  if (depth > maxFkDepth) {
+    return invalid(state, `Profundidade máxima de ${maxFkDepth} referências excedida`);
+  }
+  const parentPath = joinSegments(state.path);
+  const prefix = parentPath ? `${parentPath}.` : '';
+  const path = [...state.path, segment];
+  const target = resolveEntity(ctx, reference.targetCollection);
+  const hop: FkHop = {
+    atPath: `${prefix}${reference.key}`,
+    targetCollection: reference.targetCollection,
+    materializeAt: `${prefix}${reference.denormKey}`,
+    mode: 'denormKey',
+    multi: reference.multi,
+    fields: reference.fields,
+  };
+  const cursor: Cursor = reference.multi
+    ? { kind: 'entityList', entity: target, collection: reference.targetCollection }
+    : target
+      ? { kind: 'entity', entity: target }
+      : { kind: 'externalRecord', collection: reference.targetCollection };
+  return { cursor, hops: [...state.hops, hop], depth, path };
 };
 
 const stepCursor = (
@@ -359,9 +401,15 @@ export const resolvePath = (
   return { valid: true, node: cursorToNode(state.cursor), hops: state.hops, depth: state.depth };
 };
 
+/**
+ * O rótulo da lista sai do CONTEXTO — que já reúne as do kernel e as declaradas pelo escritório ou
+ * por extensão. Antes só o registro do kernel dava nome, e a lista de uma entidade instalada
+ * aparecia pelo nome cru da coleção.
+ */
 const scalarDetail = (ctx: SchemaContext, lookupCollection?: string): string | undefined => {
-  if (!lookupCollection || !ctx.lookups.has(lookupCollection)) return undefined;
-  return `Lista: ${LOOKUP_REGISTRY[lookupCollection] ? getLookupLabel(lookupCollection) : lookupCollection}`;
+  const lookup = lookupCollection ? ctx.lookups.get(lookupCollection) : undefined;
+  if (!lookup) return undefined;
+  return `Lista: ${LOOKUP_REGISTRY[lookup.collection] ? getLookupLabel(lookup.collection) : lookup.label}`;
 };
 
 const nativeFieldSuggestion = (ctx: SchemaContext, field: NativeFieldSpec): PathSuggestion => {
@@ -404,6 +452,17 @@ const entitySuggestions = (
 
   for (const field of entity.fields) {
     suggestions.push(nativeFieldSuggestion(ctx, field));
+    // O campo guarda o id; a navegação pelo registro apontado tem nome próprio e também se sugere,
+    // senão quem escreve a expressão não descobriria `contract` a partir de `contractId`.
+    if (field.refEntity && field.refDenormKey) {
+      suggestions.push({
+        insertText: field.refDenormKey,
+        label: field.label,
+        kind: field.multi ? 'fkList' : 'fk',
+        detail: resolveEntity(ctx, field.refEntity)?.labelSingular ?? field.refEntity,
+        isLeaf: false,
+      });
+    }
   }
 
   for (const fk of entity.fks) {

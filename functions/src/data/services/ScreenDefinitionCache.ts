@@ -61,10 +61,15 @@ export class ScreenDefinitionCache implements IScreenDefinitionProvider {
       const data = doc.data();
       return {
         id: doc.id,
+        // A tela pode descrever uma coleção que não leva o nome dela; é por essa coleção que a
+        // declaração vale, aqui como no front.
+        collection: typeof data.dataCollection === 'string' ? data.dataCollection : undefined,
         titleSingular: typeof data.titleSingular === 'string' ? data.titleSingular : doc.id,
         titlePlural: typeof data.titlePlural === 'string' ? data.titlePlural : undefined,
         titleFieldKey: typeof data.titleFieldKey === 'string' ? data.titleFieldKey : '',
         fields: Array.isArray(data.fields) ? (data.fields as FieldDefinition[]) : [],
+        tagCollection: typeof data.tagCollection === 'string' ? data.tagCollection : undefined,
+        eventPrefix: typeof data.eventPrefix === 'string' ? data.eventPrefix : undefined,
       };
     });
 

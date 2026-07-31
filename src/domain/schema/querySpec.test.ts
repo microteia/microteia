@@ -42,7 +42,7 @@ describe('resolveQueryTable', () => {
   });
 
   it('resolve lookup para a própria coleção', () => {
-    expect(resolveQueryTable('caseAreas', ctx)).toMatchObject({ physicalCollection: 'caseAreas', root: { kind: 'fields' } });
+    expect(resolveQueryTable('contractTypes', ctx)).toMatchObject({ physicalCollection: 'contractTypes', root: { kind: 'fields' } });
   });
 
   it('retorna null para tabela inexistente', () => {

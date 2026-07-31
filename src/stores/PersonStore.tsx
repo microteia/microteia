@@ -66,7 +66,6 @@ export const PersonStoreProvider: React.FC<{ children: React.ReactNode }> = ({ c
     await uc.delete.execute(currentTenant.id, personId, actor);
     setPersons((prev) => prev.filter((c) => c.id !== personId));
     storeEvents.emit(StoreEvents.PERSONS_UPDATED);
-    storeEvents.emit(StoreEvents.CASES_UPDATED);
     storeEvents.emit(StoreEvents.DEADLINES_UPDATED);
     storeEvents.emit(StoreEvents.FINANCIALS_UPDATED);
   }, [currentTenant, uc.delete, user, effectiveName]);

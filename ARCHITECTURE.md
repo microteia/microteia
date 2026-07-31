@@ -1847,8 +1847,8 @@ sob qualquer nome.
   a tela pela coleção que ela descreve, e `createSchemaContext` MESCLA as declarações quando mais de
   uma tela descreve a mesma (`mergeSchemaScreens`): os campos se somam por chave, com a tela DONA do
   nome (`screenDefinitions/cases`, onde ficam os ajustes do escritório) entrando por último. Rótulos,
-  campo-título e etiquetas vêm da dona quando ela existe — uma tela chamada "Processo (clone)" não
-  renomeia a entidade Processo. Na falta dela, valem os da declaração que sobrou: é isso que mantém a
+  campo-título e etiquetas vêm da dona quando ela existe — uma segunda tela sobre a mesma coleção
+  não renomeia a entidade. Na falta dela, valem os da declaração que sobrou: é isso que mantém a
   coleção descrita depois que a entidade sai do kernel.
 - **A extensão declara TUDO.** Uma tela ligada a `cases` que herdasse os campos do registro morreria
   junto com ele. Por isso o pacote declara o esquema inteiro — campos, `lookupCollection` (as listas
@@ -1866,7 +1866,7 @@ sob qualquer nome.
   store tipado dela (dois listeners sobre `cases`). É o preço de rodar as duas lado a lado.
 - **Fora do Form Design:** uma tela-visão não aparece na montagem de telas. Quem configura os campos
   da coleção é a tela que leva o nome dela — duas portas para o mesmo esquema só confundiriam.
-- **Primeiro consumidor:** `src/plugins/marketplace/processoClone.ts`.
+- **Primeiro consumidor:** `src/plugins/marketplace/processo.ts`.
 
 **Autoria do card, dos filtros e do cabeçalho — o que faltava para uma extensão reproduzir uma tela
 fixa.** Declarações que só existiam em código passaram a ter forma de autoria, disponível a qualquer
@@ -1895,15 +1895,97 @@ campos adicionais o que já virou linha, para não repetir a informação. Campo
 markdown): são duas apresentações diferentes de propósito, e agora as duas são declaráveis.
 `deriveBuiltinListRows(entityKey)` é o atalho das telas fixas, que leem o layout direto do código.
 
-**O que ainda falta para tirar `cases` do kernel** (o inventário que este passo levantou):
+**Uma extensão declara a entidade INTEIRA.** O que antes só existia em código do kernel virou
+declaração de pacote, e é o que permite a entidade mudar de dono sem mudar nada para quem usa:
 
-| Pendência | Hoje | O que precisa acontecer |
+| Capacidade | Declaração | Sem ela |
 |---|---|---|
-| Prefixo de evento | `eventPrefix: 'case'` no registro → `case.saved` | sem o registro o prefixo vira o nome da coleção (`cases.saved`); ou a tela declara o prefixo, ou os workflows são renomeados |
-| Rules | `match /cases` NOMEADA, e `cases` em `RESERVED_COLLECTIONS` | ao sair do registro, `cases` cai no curinga, que exige `exists(screenDefinitions/cases)` — a tela precisa passar a se chamar `cases` (a chave deixa de ser reservada no mesmo movimento) |
-| Denormalização de FK | `fks[].denormKey/denormalizedFields` só existem no registro | as relações declaradas por tela precisam do equivalente, ou os pontos que leem nome denormalizado passam a hidratar por `refEntity` |
-| Telas e stores nativos | `Cases`, `ViewCase`, `useCaseStore`, `FirebaseCaseRepository`, deep links `view-case:` | saem junto, substituídos pelas views da extensão |
-| Entidades filhas | `deadlines`/`financials` apontam para `cases` por `fks` | migram no mesmo modelo, uma de cada vez |
+| Opções de partida das listas | `lookups[].options` — semeadas **só em lista vazia**, na instalação | um escritório novo instalaria a extensão e não teria nenhuma Área, Fase ou Status |
+| Nome dos eventos | `ScreenDefinition.eventPrefix` (`case` → `case.saved`) | a coleção passaria a emitir `cases.saved` e toda automação que escuta `case.*` pararia |
+| Quem pode gravar | `ScreenDefinition.writeRoles` (`['admin','lawyer']`), lido pelo curinga das rules | a entidade perderia a restrição que a regra nomeada dava, e qualquer membro com escrita passaria a editar |
+
+Detalhes que valem registrar:
+
+- **Semeadura idempotente por vazio.** `seedLookupOptions` lê a lista antes; qualquer opção presente
+  cancela a semeadura. É o que impede reinstalar/atualizar de ressuscitar uma opção que o escritório
+  removeu. Enquanto a lista ainda for do kernel (`isLookupCollection`), a declaração do pacote fica
+  inerte — o `getAll` do repositório mescla os defaults do código e a lista nunca está "vazia".
+- **Prefixo declarado sem custo no caminho quente.** `publishWorkflowEventOnEntityChange` resolve
+  pelo registro primeiro (`hasRegistryEventPrefix`); só quando ele não responde consulta o
+  `ScreenDefinitionCache` (TTL de 5 min, já carregado pelo motor). Falha na consulta volta à
+  convenção — nenhum evento se perde por causa de uma leitura.
+- **O prefixo é da COLEÇÃO, não da tela que o declarou.** Duas telas descrevem a mesma coleção: a da
+  extensão, que declara `eventPrefix`, e a que leva o nome dela, materializada só para as rules
+  lerem a permissão. Quem declara o prefixo prevalece nos dois lados — `mergeSchemaScreens` o
+  carrega para a tela mesclada e `declaredEventPrefix` procura **quem declara**, não a primeira tela
+  da coleção (a de permissão vem antes na ordem alfabética dos documentos). Deixar a dona do nome
+  responder trocaria o nome dos eventos sozinho: o gatilho ofereceria `cases.saved` enquanto o motor
+  publica `case.saved`, e nenhuma automação dispararia.
+- **`writeRoles` mora no documento da COLEÇÃO.** As rules não têm como procurar "a tela que aponta
+  para esta coleção", então a instalação de uma tela com `dataCollection` materializa/atualiza
+  `screenDefinitions/{coleção}` com a permissão (`ensureTargetCollectionScreen`), preservando o que
+  já existe no documento. O curinga só aplica a checagem quando o documento de tela existe — uma
+  lista de opções ou um conjunto de etiquetas passa pelo mesmo `match` e não tem tela.
+
+**Leitura tolerante enquanto há dois escritores.** `data/utils/toDateValue.ts` normaliza o que vem
+num campo de data (`Timestamp`, `Date`, texto ISO ou `aaaa-mm-dd`, mapa `{ seconds }`) e devolve
+`null` para o resto. A coerção de escrita (`coerceWriteValue`) garante o formato dali para a frente,
+mas não reescreve o passado: um documento gravado antes dela — ou por um caminho que não passou pelo
+portão — derrubava a listagem inteira com `filedAt.getTime is not a function`. O repositório de
+Processo lê por ele; os demais repositórios fixos ganham o mesmo tratamento quando a coleção deles
+passar a ter mais de um escritor.
+
+**Processo saiu do kernel — o que a remoção exigiu.** A entidade não existe mais em
+`entityRegistry.ts`, nem as oito listas dela em `lookupRegistry.ts`/`lookupDefaults.ts`. Foram
+apagados as páginas (`Cases`, `ViewCase`), o `CaseStore`, três repositórios e três interfaces, os
+use cases de nota e documento, o tipo `Case` e suas uniões, o plugin `core.cases`, o
+`CaseMentionModal` e os deep links `view-case:`/`new-case`. `cases` e `caseTags` saíram de
+`RESERVED_COLLECTIONS`, e o `firestore.rules` perdeu a regra nomeada de Processos, as oito de listas
+e a de etiquetas — tudo passa pelo curinga, com a permissão vindo de `writeRoles`.
+
+As peças que o kernel ganhou para que as telas ainda nativas continuassem funcionando:
+
+| Peça | Papel |
+|---|---|
+| `useCollectionRecords` / `useCaseRecords` | leitura tipada de uma coleção que o kernel não declara — o TIPO é do consumidor (`CaseRecord`), e a normalização (texto, lista, data) mora no hook |
+| `useOpenRecord(collection, id)` | abre o detalhe do registro pela tela que DESCREVE a coleção; nenhuma tela precisa conhecer a chave de aba de uma extensão |
+| `FieldDefinition.refDenormKey` | a relação declarada por tela é navegável pelo nome do registro apontado (`event.contract.client.name`), como as `fks` do registro — é o que preserva as automações do escritório |
+| `screenEventEntry` por prefixo | o catálogo resolve `case.saved` pela tela que declara `eventPrefix`, e não pelo nome da coleção |
+| `useCollection`/`useUpdateRecord` na ponte | a API das extensões perdeu `useCases`/`useCasePhases`/`useCaseAreas`/`useCaseStatuses`: nenhuma entidade de negócio tem hook próprio no kernel |
+
+Diferenças assumidas em relação ao que o registro fazia:
+
+- **Sem subconjunto denormalizado.** Uma `fk` do registro declarava `denormalizedFields`; a relação
+  declarada por tela hidrata o registro inteiro (`fields: 'all'`). É uma leitura só, o mesmo custo.
+- **A relação é navegável pelos dois nomes** — `contractId.number` e `contract.number` —, porque a
+  chave continua sendo um campo de referência.
+- **A tela precisa estar instalada.** Prazos, Financeiro, Agenda, Pushes, Contratos e os painéis
+  leem `cases` pelo `RecordStore`, que só assina coleções descritas por alguma tela. Sem a extensão,
+  a lista vem vazia e a tela mostra o estado vazio — em vez de dado errado.
+- **Etiquetas e listas viraram documento.** `caseTags` e as oito listas passam a ter
+  `tagDefinitions`/`lookupDefinitions` próprios, criados na instalação — é o que as rules genéricas
+  consultam.
+
+**A tela exibida responde primeiro pelas próprias etiquetas.** `useTagCollection(collection,
+declared)` usa o `tagCollection` da tela que está na frente do usuário e só cai na resolução pela
+ENTIDADE quando ela não declara nada — que é como duas telas compartilham o mesmo conjunto. A
+precedência importa porque a entidade só existe enquanto alguma tela a descreve: uma tela recém
+instalada já sabe as próprias etiquetas antes de o resto do contexto estar montado. Foi o que fez as
+etiquetas de Processo reaparecerem depois da migração.
+
+**A declaração da TELA basta para assinar coleções auxiliares.** `TagStore` e `LookupStore` assinavam
+o registro do kernel mais os documentos de declaração (`tagDefinitions`/`lookupDefinitions`). Com a
+entidade fora do kernel, `caseTags` e as oito listas passaram a depender só do documento — e as
+etiquetas já vinculadas sumiram da tela, embora continuassem gravadas: ninguém as assinava. Agora os
+dois stores derivam também das telas (`screenTagCollections`/`screenLookupCollections`, em
+`domain/services/screenDataCollection.ts`): a coleção existe porque uma tela aponta para ela.
+Consequência prática: `ScreenDefinitionStoreProvider` subiu na árvore de providers, acima de
+`TagStoreProvider`/`LookupStoreProvider`.
+
+**O que continua no kernel, e por quê:** `deadlines` e `financials` ainda declaram `caseId` com
+`targetCollection: 'cases'`. Uma relação aponta para uma COLEÇÃO — não exige que ela esteja no
+registro —, então o vínculo segue válido e some quando essas duas entidades migrarem pelo mesmo
+caminho.
 
 ### Telas fixas por Schema — piloto (Pessoas)
 
@@ -2920,6 +3002,27 @@ cada artefato (tela→actions/telas, action→workflow, workflow→scripts/workf
 `validatePackage(pkg)` exige que toda referência esteja **incluída no pacote**, seja **coleção fixa do
 core**, ou esteja **coberta por dependência declarada** (chave `<slug>__x` de uma `dependencies` — a
 convenção antiga, mantida por compatibilidade; hoje só `core.ui` é declarada como dependência). É a MESMA checagem que o export (dry-run) e o import usam — simétrico e agnóstico.
+
+**O gatilho de um workflow é uma referência a uma tela — mas o nome do evento não é a chave dela.**
+`screenEventPrefix(tela)` é o ponto único que traduz tela em nome de evento no empacotamento:
+`eventPrefix` declarado, senão a coleção que ela descreve, senão a chave. As duas pontas param de
+supor que prefixo e chave são a mesma palavra:
+
+| Ponta | O que faz | Sem isso |
+|---|---|---|
+| `workflowOutRefs(workflow, telas)` | acha a tela pelo que ela EMITE e referencia a **chave** dela | um pacote com automação em `case.saved` acusaria uma tela "case" inexistente e não exportaria |
+| `buildScreenEventMap(telas, screenKeyMap)` | mapeia só a tela cujo evento leva a chave dela — a única que muda de nome na instalação | um prefixo declarado seria namespaceado e a automação nasceria escutando um evento que ninguém publica |
+| `eventPrefixIssues(telas)` | recusa prefixo reservado pelo motor, prefixo de entidade fixa em OUTRA coleção e duas coleções publicando o mesmo evento | uma tela `medico` declarando `person` faria toda gravação de médico disparar as automações de Pessoa |
+
+O prefixo de eventos é um nome **global**, como a coleção: quem escuta não sabe qual extensão
+publica. Declarar o prefixo da própria coleção fixa (`cases` → `case`) é o oposto de uma colisão —
+é a continuidade que deixa a entidade sair do kernel sem renomear evento nenhum, e por isso a
+checagem compara a coleção, não só o nome.
+
+`splitEntityEventName` reconhece o evento de FILHO (`person_note.saved`) por composição — prefixo de
+entidade do registro mais `_note`/`_document` —, e não por "tem underscore": chave com underscore é
+o normal de uma tela trazida por dependência (`com-microteia-vendas__produto`), e barrá-la fazia o
+gatilho dela passar despercebido no empacotamento.
 
 **Escopo desta fase:** materialização/instalação. A autoria ("Criar Plugin": marcar artefatos +
 manifest → validar como dry-run de import → gerar `.json`/publicar) e o upgrade são as fases seguintes.

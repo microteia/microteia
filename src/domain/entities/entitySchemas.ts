@@ -35,6 +35,15 @@ export interface FieldDefinition {
   multi?: boolean;
   mask?: CustomFieldMask | null;
   refEntity?: string | null;
+  /**
+   * Nome pelo qual o registro APONTADO é navegado nas expressões e automações
+   * (`event.contract.client.name`), quando ele difere da chave do campo (`contractId`). Ausente, a
+   * navegação é pela própria chave.
+   *
+   * Existe para que uma entidade declarada por extensão preserve os caminhos que as automações do
+   * escritório já usam: era o `denormKey` que só as relações do kernel tinham.
+   */
+  refDenormKey?: string | null;
   lookupCollection?: string | null;
   placeholder?: string | null;
   showInList?: boolean;
@@ -129,6 +138,19 @@ export interface ScreenDefinition {
    * do kernel, resta a da extensão. Ver "A coleção é propriedade da tela" no ARCHITECTURE.md.
    */
   dataCollection?: string | null;
+  /**
+   * Prefixo dos eventos de automação desta coleção (`case` → `case.saved`). Ausente = o nome da
+   * coleção. Existe para que uma entidade possa mudar de dono — sair do kernel e passar a ser
+   * declarada por uma extensão — sem renomear os eventos que as automações do escritório escutam.
+   */
+  eventPrefix?: string | null;
+  /**
+   * Papéis do tenant que podem CRIAR e EDITAR registros desta coleção. Ausente = a permissão padrão
+   * (qualquer membro com escrita). É o que permite uma tela declarar uma restrição mais estrita —
+   * "só advogado ou admin mexe em processo" — sem que a regra precise citar a coleção pelo nome no
+   * `firestore.rules`, que a lê do documento da tela. Exclusão segue sendo só admin.
+   */
+  writeRoles?: string[] | null;
   listActions: ScreenListAction[];
   /** Ids de `ActionDefinition` exibidos no cabeçalho da tela de detalhe. */
   viewActionIds: string[];
@@ -136,7 +158,7 @@ export interface ScreenDefinition {
   cardActionIds: string[];
   /**
    * Quando presente, a tela é FILHA de outra: sai do menu lateral e da busca ⌘K, e seus registros
-   * aparecem como uma aba do registro-pai. Aceita a chave de uma tela fixa ('cases', 'contracts'…)
+   * aparecem como uma aba do registro-pai. Aceita a chave de uma tela fixa ('contracts', 'persons'…)
    * ou o id de uma tela dinâmica.
    */
   parentEntity?: string | null;

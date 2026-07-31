@@ -27,13 +27,6 @@ const FLAT_ENTITY_CONFIG: Record<string, AuditableEntityConfig> = {
     getDisplayName: (d) => asString(d.name),
     getEntityLink: (_tenantId, docId) => `view-person:${docId}`,
   },
-  cases: {
-    entityKey: 'Case',
-    entityLabel: 'Processo',
-    entityLabelPlural: 'Processos',
-    getDisplayName: (d) => asString(d.title ?? d.caseNumber),
-    getEntityLink: (_tenantId, docId) => `view-case:${docId}`,
-  },
   contracts: {
     entityKey: 'Contract',
     entityLabel: 'Contrato',
@@ -118,22 +111,6 @@ const NESTED_ENTITY_CONFIG: Record<string, Record<string, AuditableEntityConfig>
       entityLabelPlural: 'Documentos de Pessoas',
       getDisplayName: (d) => asString(d.name),
       getEntityLink: (_tenantId, _docId, parentId) => `view-person:${parentId}`,
-    },
-  },
-  cases: {
-    notes: {
-      entityKey: 'CaseNote',
-      entityLabel: 'Nota de Processo',
-      entityLabelPlural: 'Notas de Processos',
-      getDisplayName: (d) => truncate(asString(d.title ?? d.text, 'Nota'), 60),
-      getEntityLink: (_tenantId, _docId, parentId) => `view-case:${parentId}`,
-    },
-    documents: {
-      entityKey: 'CaseDocument',
-      entityLabel: 'Documento de Processo',
-      entityLabelPlural: 'Documentos de Processos',
-      getDisplayName: (d) => asString(d.name),
-      getEntityLink: (_tenantId, _docId, parentId) => `view-case:${parentId}`,
     },
   },
   contracts: {

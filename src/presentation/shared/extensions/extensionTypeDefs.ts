@@ -580,23 +580,12 @@ const UI_MODULE_DEFS = `declare module '@microteia/ui' {
 }`;
 
 const DATA_MODULE_DEFS = `declare module '@microteia/data' {
-  export interface Case {
-    id: string;
-    title: string;
-    number?: string;
-    phase: string;
-    area?: string;
-    status?: string;
-    createdAt: Date;
-    [key: string]: any;
-  }
 
-  /** Hook para acessar e manipular processos do escritório. */
-  export function useCases(): {
-    cases: Case[];
-    /** Atualiza a fase de um processo. */
-    updatePhase: (caseId: string, phaseKey: string) => Promise<void>;
-  };
+  /** Registros de qualquer coleção descrita por uma tela do escritório. */
+  export function useCollection(collection: string): any[];
+
+  /** Grava campos de um registro de qualquer coleção. */
+  export function useUpdateRecord(): (collection: string, recordId: string, data: Record<string, any>) => Promise<void>;
 
   export interface LookupOption {
     key: string;
@@ -609,28 +598,8 @@ const DATA_MODULE_DEFS = `declare module '@microteia/data' {
    */
   export function useLookup(collection: string): LookupOption[];
 
-  export interface PhaseConfig {
-    key: string;
-    label: string;
-    color: string;
-  }
-  /** Hook para acessar as configurações de fases de processos. */
-  export function useCasePhases(): PhaseConfig[];
 
-  export interface AreaConfig {
-    key: string;
-    label: string;
-  }
-  /** Hook para acessar as configurações de áreas de processos. */
-  export function useCaseAreas(): AreaConfig[];
 
-  export interface StatusConfig {
-    key: string;
-    label: string;
-    color: string;
-  }
-  /** Hook para acessar as configurações de status de processos. */
-  export function useCaseStatuses(): StatusConfig[];
 
   export interface Person {
     id: string;

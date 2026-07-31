@@ -11,13 +11,6 @@ const LEGACY_FK_SCHEMA = {
   persons: {
     tagIds: { targetCollection: 'personTags', multi: true },
   },
-  cases: {
-    contractId: { targetCollection: 'contracts', denormalizedFields: ['number', 'title', 'type', 'status'] },
-    responsibleLawyerId: { targetCollection: 'persons', denormalizedFields: ['name', 'type', 'email'] },
-    activePoleIds: { targetCollection: 'persons', multi: true },
-    passivePoleIds: { targetCollection: 'persons', multi: true },
-    tagIds: { targetCollection: 'caseTags', multi: true },
-  },
   deadlines: {
     caseId: { targetCollection: 'cases', denormalizedFields: ['caseNumber', 'title', 'area'] },
     responsibleLawyerId: { targetCollection: 'persons', denormalizedFields: ['name', 'type', 'email'] },
@@ -43,8 +36,6 @@ const LEGACY_FK_SCHEMA = {
 const LEGACY_LOOKUP_COLLECTIONS = [
   'personTypes', 'personOccupations', 'personNationalities', 'personMaritalStatuses',
   'personCities', 'personRelationships', 'personGenders',
-  'caseAreas', 'casePhases', 'caseStatuses', 'caseInstances', 'caseActionTypes',
-  'caseCourts', 'caseDistricts', 'caseJudges',
   'documentTypes', 'newsCategories',
   'contractTypes', 'contractCategories', 'contractStatuses', 'contractObjects',
   'contractAdjustmentIndexes', 'contractAdjustmentPeriodicities', 'contractCurrencies',
@@ -55,7 +46,6 @@ const LEGACY_LOOKUP_COLLECTIONS = [
 
 const LEGACY_DEFAULT_DENORM_FIELDS: Record<string, string[]> = {
   persons: ['name', 'type', 'email'],
-  cases: ['caseNumber', 'title', 'area'],
   contracts: ['number', 'title', 'type'],
   deadlines: ['type', 'dueDate', 'priority'],
   financials: ['type', 'amount', 'dueDate'],
@@ -77,10 +67,10 @@ describe('entityRegistry — compatibilidade com o schema legado', () => {
 
   it('mantém os conjuntos de entidades com custom fields e referenciáveis', () => {
     expect([...CUSTOM_FIELD_ENABLED_ENTITIES].sort()).toStrictEqual(
-      ['persons', 'cases', 'deadlines', 'financials', 'contracts'].sort(),
+      ['persons', 'deadlines', 'financials', 'contracts'].sort(),
     );
     expect([...BUILTIN_REF_ENTITIES].sort()).toStrictEqual(
-      ['persons', 'cases', 'contracts', 'deadlines', 'financials', 'members'].sort(),
+      ['persons', 'contracts', 'deadlines', 'financials', 'members'].sort(),
     );
   });
 
@@ -91,7 +81,6 @@ describe('entityRegistry — compatibilidade com o schema legado', () => {
     expect(prefixes).toStrictEqual({
       persons: 'person',
       contracts: 'contract',
-      cases: 'case',
       deadlines: 'deadline',
       financials: 'financial',
       pushes: 'push',
@@ -113,14 +102,14 @@ describe('lookupRegistry — compatibilidade com LOOKUP_COLLECTIONS legado', () 
 
 describe('helpers do registry', () => {
   it('resolve entidade por coleção', () => {
-    expect(getEntityByCollection('cases')?.labelSingular).toBe('Processo');
+    expect(getEntityByCollection('contracts')?.labelSingular).toBe('Contrato');
     expect(getEntityByCollection('inexistente')).toBeUndefined();
   });
 
   it('resolve displayName pela ordem de fallback', () => {
-    const cases = ENTITY_REGISTRY.cases;
-    expect(getEntityDisplayName(cases, { title: 'Ação X', caseNumber: '001' })).toBe('Ação X');
-    expect(getEntityDisplayName(cases, { caseNumber: '001' })).toBe('001');
-    expect(getEntityDisplayName(cases, {})).toBeUndefined();
+    const contracts = ENTITY_REGISTRY.contracts;
+    expect(getEntityDisplayName(contracts, { title: 'Contrato X', number: '001' })).toBe('Contrato X');
+    expect(getEntityDisplayName(contracts, { number: '001' })).toBe('001');
+    expect(getEntityDisplayName(contracts, {})).toBeUndefined();
   });
 });

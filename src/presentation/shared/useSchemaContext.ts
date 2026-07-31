@@ -21,6 +21,7 @@ export const useSchemaContext = (): SchemaContext => {
           titleFieldKey: definition.titleFieldKey,
           fields: definition.fields,
           tagCollection: definition.tagCollection,
+          eventPrefix: definition.eventPrefix,
         })),
         availableLookups,
         availableTagLists,

@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef, useMemo } from 'react';
-import type { News, Case, Person, Contract } from '../../../../domain/entities';
+import type { News, Person, Contract } from '../../../../domain/entities';
 import type { WorkflowDefinition } from '../../../../domain/entities/Workflow';
 import { MENTION_COMMANDS, type MentionCommand } from '../MentionMenu/MentionMenu.viewmodel';
 import { useExtensionMentionProviders, type ExtensionMentionProvider, type MentionResult } from '../../../shared/extensions/extensionServices';
@@ -55,9 +55,6 @@ export interface MarkdownEditorViewModel {
   newsPickerOpen: boolean;
   closeNewsPicker: () => void;
   insertNewsLink: (n: News) => void;
-  casePickerOpen: boolean;
-  closeCasePicker: () => void;
-  insertCaseLink: (c: Case) => void;
   personPickerOpen: boolean;
   closePersonPicker: () => void;
   insertPersonLink: (c: Person) => void;
@@ -109,7 +106,6 @@ export const useMarkdownEditorViewModel = (
   });
   const [mentionHighlightedIndex, setMentionHighlightedIndex] = useState(0);
   const [newsPickerOpen, setNewsPickerOpen] = useState(false);
-  const [casePickerOpen, setCasePickerOpen] = useState(false);
   const [personPickerOpen, setPersonPickerOpen] = useState(false);
   const [contractPickerOpen, setContractPickerOpen] = useState(false);
   const [workflowPickerOpen, setWorkflowPickerOpen] = useState(false);
@@ -145,7 +141,6 @@ export const useMarkdownEditorViewModel = (
       mentionRangeRef.current = { start: mentionState.triggerStart, end };
       closeMention();
       if (key === 'news') setNewsPickerOpen(true);
-      if (key === 'case') setCasePickerOpen(true);
       if (key === 'person') setPersonPickerOpen(true);
       if (key === 'contract') setContractPickerOpen(true);
       if (key === 'workflow') setWorkflowPickerOpen(true);
@@ -190,14 +185,6 @@ export const useMarkdownEditorViewModel = (
     [insertLink],
   );
 
-  const insertCaseLink = useCallback(
-    (c: Case) => {
-      insertLink(c.title, `/microteia/view-case:${c.id}`);
-      setCasePickerOpen(false);
-    },
-    [insertLink],
-  );
-
   const insertExtMentionLink = useCallback(
     (result: MentionResult) => {
       insertLink(result.title, `/microteia/${result.tabKey}`);
@@ -209,7 +196,6 @@ export const useMarkdownEditorViewModel = (
   const closeExtMention = useCallback(() => setExtMentionProvider(null), []);
 
   const closeNewsPicker = useCallback(() => setNewsPickerOpen(false), []);
-  const closeCasePicker = useCallback(() => setCasePickerOpen(false), []);
   const closePersonPicker = useCallback(() => setPersonPickerOpen(false), []);
   const closeContractPicker = useCallback(() => setContractPickerOpen(false), []);
   const closeWorkflowPicker = useCallback(() => setWorkflowPickerOpen(false), []);
@@ -387,9 +373,6 @@ export const useMarkdownEditorViewModel = (
     newsPickerOpen,
     closeNewsPicker,
     insertNewsLink,
-    casePickerOpen,
-    closeCasePicker,
-    insertCaseLink,
     personPickerOpen,
     closePersonPicker,
     insertPersonLink,

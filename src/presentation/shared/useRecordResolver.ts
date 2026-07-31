@@ -1,7 +1,6 @@
 import { useCallback, useMemo } from 'react';
 import { useRecords } from '../../stores/useRecords';
 import { usePersonStore } from '../../stores/usePersonStore';
-import { useCaseStore } from '../../stores/useCaseStore';
 import { useContractStore } from '../../stores/useContractStore';
 import { useDeadlineStore } from '../../stores/useDeadlineStore';
 import { useFinancialStore } from '../../stores/useFinancialStore';
@@ -22,7 +21,6 @@ const indexById = <T extends Identified>(items: T[]): Map<string, T> =>
 export const useRecordResolver = (): RecordResolver => {
   const { recordsByCollection } = useRecords();
   const { persons } = usePersonStore();
-  const { cases } = useCaseStore();
   const { contracts } = useContractStore();
   const { deadlines } = useDeadlineStore();
   const { financials } = useFinancialStore();
@@ -30,12 +28,11 @@ export const useRecordResolver = (): RecordResolver => {
   const nativeIndexes = useMemo(
     () => ({
       persons: indexById(persons),
-      cases: indexById(cases),
       contracts: indexById(contracts),
       deadlines: indexById(deadlines),
       financials: indexById(financials),
     }),
-    [persons, cases, contracts, deadlines, financials],
+    [persons, contracts, deadlines, financials],
   );
 
   const dynamicIndexes = useMemo(() => {

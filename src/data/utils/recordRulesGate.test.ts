@@ -27,7 +27,7 @@ describe('toSchemaScreens', () => {
 
   it('a tela que descreve outra coleção viaja com ela — é lá que a declaração vale', () => {
     const screens = toSchemaScreens([
-      { id: 'processo-clone', titleSingular: 'Processo', titleFieldKey: 'title', fields, dataCollection: 'cases' },
+      { id: 'processos', titleSingular: 'Processo', titleFieldKey: 'title', fields, dataCollection: 'cases' },
       { id: 'produtos', titleSingular: 'Produto', titleFieldKey: 'nome', fields },
     ]);
     expect(screens.map((screen) => screen.collection)).toEqual(['cases', undefined]);

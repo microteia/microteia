@@ -7,7 +7,6 @@ import type { ScreenListAction } from '../../domain/entities';
  */
 const SUPPORTED: Record<string, ScreenListAction[]> = {
   persons: ['copyLink', 'clone', 'manageTags', 'delete'],
-  cases: ['copyLink', 'clone', 'manageTags', 'delete'],
   contracts: ['copyLink', 'clone', 'manageTags', 'delete'],
   financials: ['copyLink', 'clone', 'manageTags', 'delete'],
   deadlines: ['copyLink', 'delete'],
@@ -19,7 +18,6 @@ const SUPPORTED: Record<string, ScreenListAction[]> = {
  */
 const DEFAULTS: Record<string, ScreenListAction[]> = {
   persons: ['manageTags'],
-  cases: [],
   contracts: [],
   financials: ['delete'],
   deadlines: ['delete'],

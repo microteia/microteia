@@ -3,7 +3,8 @@ import { useTheme } from 'styled-components';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isToday, addMonths, subMonths } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useDeadlineStore } from '../../../stores/useDeadlineStore';
-import { useCaseStore } from '../../../stores/useCaseStore';
+import { CASES_COLLECTION, useCaseRecords } from '../../shared/useCollectionRecords';
+import { useOpenRecord } from '../../shared/useOpenRecord';
 import { usePersonStore } from '../../../stores/usePersonStore';
 import { useWorkspace } from '../../../stores/useWorkspace';
 import { useAuth } from '../../../stores/useAuth';
@@ -77,7 +78,8 @@ const atDayTime = (date: Date, hours: number, minutes: number): Date =>
 
 export const useCalendarViewModel = (): CalendarViewModel => {
   const { deadlines, completeDeadline, updateDeadline } = useDeadlineStore();
-  const { cases } = useCaseStore();
+  const cases = useCaseRecords();
+  const openRecord = useOpenRecord();
   const { persons } = usePersonStore();
   const { openTab } = useWorkspace();
   const { user } = useAuth();
@@ -221,8 +223,8 @@ export const useCalendarViewModel = (): CalendarViewModel => {
   }, [openTab]);
 
   const handleOpenCase = useCallback((caseId: string) => {
-    openTab(`view-case:${caseId}`);
-  }, [openTab]);
+    openRecord(CASES_COLLECTION, caseId);
+  }, [openRecord]);
 
   const handleDragStart = useCallback((deadlineId: string) => {
     setDraggingDeadlineId(deadlineId);

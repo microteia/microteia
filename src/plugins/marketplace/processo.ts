@@ -1,27 +1,26 @@
-import type { MarketplacePlugin, ScreenModuleTemplate, TemplateField } from '../../domain/entities/MarketplacePlugin';
+import type {
+  LookupModuleTemplate,
+  MarketplacePlugin,
+  ScreenModuleTemplate,
+  TemplateField,
+} from '../../domain/entities/MarketplacePlugin';
+import type { CustomFieldOption } from '../../domain/entities';
 import { nav, page } from '../contributionBuilders';
 
 /**
- * "Processo (clone)" — a tela de Processos recriada inteiramente como Extensão, SOBRE OS MESMOS
- * DADOS: `dataCollection: 'cases'` aponta a tela para a coleção onde os processos do escritório já
- * estão, e o pacote declara o ESQUEMA INTEIRO dessa coleção (campos, listas de opções, relações,
- * seções, linhas do card e filtros).
+ * **Processo** — a entidade de processo judicial do escritório, inteira, declarada por extensão: os
+ * campos, as listas de opções (com as opções de partida), as relações, as etiquetas, o cartão da
+ * listagem, os filtros, o prefixo dos eventos de automação e quem pode gravar. O kernel não precisa
+ * conhecer nada disso.
  *
- * As duas declarações — a desta extensão e a do `entityRegistry` — descrevem hoje a mesma coleção e
- * se sobrepõem campo a campo, sem conflito. Esse é o ponto: **o dia em que `cases` sair do kernel,
- * nada aqui muda e nenhum registro se move.** Basta a tela deixar de ser uma visão e passar a se
- * chamar `cases` (a chave deixa de ser reservada quando a entidade sai). Se, em vez disso, o pacote
- * herdasse os campos do registro, a extensão morreria junto com a entidade nativa — e a migração
- * não existiria.
- *
- * Enquanto as duas convivem: os ajustes do escritório na tela de Processos (Form Design) continuam
- * prevalecendo sobre o que o pacote declara, e os campos personalizados que ele acrescentou a
- * Processos aparecem aqui também.
+ * `dataCollection: 'cases'` aponta para a coleção onde os processos já estão — a entidade muda de
+ * dono sem que um registro se mova, e sem renomear os eventos (`case.saved`) que as automações do
+ * escritório escutam.
  *
  * O `sourceId` estável é o elo entre a tela instalada e as views: elas resolvem a tela por ele,
  * imunes a qualquer desambiguação da chave instalada.
  */
-const SOURCE_ID = 'microteia:processo-clone';
+const SOURCE_ID = 'microteia:processo';
 
 const IDENTIFICACAO = 'Identificação';
 const CLASSIFICACAO = 'Classificação';
@@ -30,11 +29,8 @@ const FINANCEIRO = 'Financeiro e Responsável';
 const PARTES = 'Partes';
 
 /**
- * O esquema da coleção, declarado por extensão. Cada `lookupCollection` aponta para uma lista de
- * opções do escritório — as MESMAS que a tela nativa usa, com as mesmas cores —, e `listIcon` +
- * `listOrder` dizem quais campos viram linha do card e em que ordem (o responsável vem primeiro no
- * card, embora seja um dos últimos campos do formulário). Nada aqui é cópia de dado: listas de
- * opções e etiquetas são do escritório e sobrevivem à desinstalação.
+ * `listIcon` + `listOrder` dizem quais campos viram linha do cartão e em que ordem — o responsável é
+ * a primeira linha, embora seja um dos últimos campos do formulário.
  */
 const FIELDS: TemplateField[] = [
   { key: 'caseNumber', label: 'Número do processo', type: 'text', required: true, order: 2, section: IDENTIFICACAO },
@@ -56,45 +52,97 @@ const FIELDS: TemplateField[] = [
   { key: 'passivePoleIds', label: 'Polo passivo', type: 'reference', required: false, order: 1, section: PARTES, refEntity: 'persons', multi: true, placeholder: 'Selecione as pessoas...', filterable: true },
 ];
 
+const opts = (labels: string[]): CustomFieldOption[] => labels.map((label) => ({ key: label, label }));
+
+const colored = (entries: [string, string][]): CustomFieldOption[] =>
+  entries.map(([label, color]) => ({ key: label, label, color }));
+
+/**
+ * As listas de opções que os campos referenciam, com as opções de PARTIDA. São semeadas só quando a
+ * lista está vazia no escritório: dali em diante as opções são dele — acrescentar, renomear e
+ * remover valem, e nem a atualização nem a remoção da extensão as toca. As cores são nomes de token
+ * do tema, resolvidos pela aplicação.
+ */
+const LOOKUPS: LookupModuleTemplate[] = [
+  {
+    collection: 'caseAreas',
+    label: 'Processo: Área do Direito',
+    options: opts([
+      'Cível', 'Criminal', 'Trabalhista', 'Tributário', 'Família', 'Consumidor', 'Administrativo',
+      'Constitucional', 'Ambiental', 'Imobiliário', 'Empresarial', 'Digital', 'Outros',
+    ]),
+  },
+  {
+    collection: 'casePhases',
+    label: 'Processo: Fase Processual',
+    options: colored([
+      ['Fase Inicial', 'casePhaseInitial'],
+      ['Instrução', 'casePhaseInstruction'],
+      ['Sentença', 'casePhaseSentence'],
+      ['Recurso', 'casePhaseAppeal'],
+      ['Execução', 'casePhaseExecution'],
+      ['RPV', 'casePhaseExecution'],
+      ['Precatório', 'casePhaseExecution'],
+      ['Arquivado', 'casePhaseArchived'],
+    ]),
+  },
+  {
+    collection: 'caseStatuses',
+    label: 'Processo: Status',
+    options: colored([
+      ['Em Andamento', 'caseStatusInProgress'],
+      ['Procedente', 'caseStatusWon'],
+      ['Procedente em Parte', 'caseStatusWon'],
+      ['Improcedente', 'caseStatusLost'],
+      ['Acordo', 'caseStatusSettlement'],
+      ['Arquivado', 'caseStatusArchived'],
+      ['Suspenso', 'caseStatusSuspended'],
+      ['Extinto', 'caseStatusLost'],
+      ['Rejeitado', 'caseStatusArchived'],
+    ]),
+  },
+  {
+    collection: 'caseInstances',
+    label: 'Processo: Instância',
+    options: opts(['1º Grau', '2º Grau', 'Turma Recursal', 'STJ', 'STF', 'TST', 'TSE']),
+  },
+  { collection: 'caseActionTypes', label: 'Processo: Tipo de Ação' },
+  { collection: 'caseCourts', label: 'Processo: Vara/Tribunal' },
+  { collection: 'caseDistricts', label: 'Processo: Comarca' },
+  { collection: 'caseJudges', label: 'Processo: Juiz(a)' },
+];
+
 const PROCESSO_SCREEN: ScreenModuleTemplate = {
-  key: 'processo-clone',
+  key: 'processos',
   sourceId: SOURCE_ID,
-  sourceRev: 2,
-  titleSingular: 'Processo (clone)',
-  titlePlural: 'Processos (clone)',
+  sourceRev: 3,
+  titleSingular: 'Processo',
+  titlePlural: 'Processos',
   icon: 'folder',
-  // A coleção onde os processos do escritório já estão. Não é cópia nem espelho: é a mesma.
   dataCollection: 'cases',
   fields: FIELDS,
   titleFieldKey: 'title',
   // O número do processo: subtítulo no cabeçalho do detalhe e rótulo da aba — curto e único, cabe
-  // na aba melhor do que o título. Mesma escolha da tela nativa.
+  // na aba melhor do que o título.
   subtitleFieldKey: 'caseNumber',
   hasNotes: true,
   hasDocuments: true,
   hasTags: true,
-  // As etiquetas de Processo, declaradas para que a tela continue tendo etiquetas quando a
-  // entidade sair do kernel — hoje é exatamente o que o registro aponta.
   tagCollection: 'caseTags',
+  // Os eventos que as automações escutam continuam sendo `case.saved`/`case.deleted`.
+  eventPrefix: 'case',
+  // Processo não é cadastro de rotina: secretária lê, advogado e admin gravam.
+  writeRoles: ['admin', 'lawyer'],
   listActions: ['copyLink', 'clone', 'manageTags', 'delete'],
   sidebarOrder: 0,
   hideFromSidebar: true,
 };
 
 /**
- * A view de código (lista rica). Escrita SÓ contra `@microteia/*`, `react` e `styled-components`.
- *
- * Aqui está o ponto da prova: em vez de remontar a lista na mão, ela REUTILIZA a mesma superfície
- * padrão das telas nativas — `RecordListSurface`, alimentada por `useEntityList(sourceId)`. Com isso
- * o TÍTULO, os FILTROS (com cor), as META-LINHAS do card (área, instância, vara, valor da causa e o
- * advogado responsável — derivadas do `ui.list` da própria entidade `cases`), as ETIQUETAS e as
- * AÇÕES vêm todos da CONFIGURAÇÃO: a extensão não fixa nada.
- *
- * A view só injeta o que a arquitetura reserva aos SLOTS por ser exclusivo desta tela: o subtítulo
- * (número do processo + chip de dias em trâmite), os badges coloridos de Status/Fase e o quadro de
- * polos — os mesmos três pedaços que a tela nativa injeta, com o mesmo CSS, todo ele em tokens do
- * tema. As cores de Status/Fase saem das listas de opções do escritório (`caseStatuses`,
- * `casePhases`), como na nativa: nada de cor fixa no código da extensão.
+ * A listagem. `RecordListSurface` + `useEntityList` trazem título, filtros, meta-linhas do cartão,
+ * etiquetas e ações da CONFIGURAÇÃO da tela; a view injeta pelos slots só o que é exclusivo do
+ * Processo: o número com o chip de dias em trâmite, os badges de Status/Fase e o quadro de polos.
+ * As cores dos badges saem das listas de opções do escritório — nenhuma cor fixa aqui.
  */
 const PROCESSO_SOURCE = `
 import { useMemo } from 'react';
@@ -103,8 +151,8 @@ import { RecordListSurface, Badge, InfoBanner } from '@microteia/ui';
 import { useEntityList, useLookup, usePersons, useWorkspace } from '@microteia/data';
 import { getConfigColor } from '@microteia/theme';
 
-const SOURCE_ID = 'microteia:processo-clone';
-const EDIT_PREFIX = 'processo-clone-edit:';
+const SOURCE_ID = 'microteia:processo';
+const EDIT_PREFIX = 'processo-edit:';
 
 const Badges = styled.div\`
   display: flex;
@@ -197,7 +245,7 @@ function daysSince(value) {
   return diff < 0 ? 0 : diff;
 }
 
-export default function ProcessoCloneView() {
+export default function ProcessosView() {
   const theme = useTheme();
   const list = useEntityList(SOURCE_ID, { editKeyPrefix: EDIT_PREFIX });
   const persons = usePersons();
@@ -212,7 +260,7 @@ export default function ProcessoCloneView() {
   }, [persons]);
 
   if (!list.definition) {
-    return <div style={{ padding: '24px' }}><InfoBanner message='Tela "Processos (clone)" não encontrada. Instale a extensão para ativá-la.' variant="warning" /></div>;
+    return <div style={{ padding: '24px' }}><InfoBanner message='Tela "Processos" não encontrada. Instale a extensão para ativá-la.' variant="warning" /></div>;
   }
 
   const namesOf = (ids) => asArray(ids).map((id) => personById[id] ? personById[id].name : '').filter(Boolean);
@@ -272,19 +320,16 @@ export default function ProcessoCloneView() {
 `;
 
 /**
- * A tela de EDIÇÃO própria da extensão. Reaproveita a MESMA superfície de detalhe do sistema
- * (`RecordDetailSurface`, alimentada por `useEntityDetailVM`): cabeçalho com salvar (verde)/excluir
- * (vermelho)/clonar/copiar-link/etiquetas nos mesmos ícones, abas Dados/Anotações/Documentos, seções
- * e campos do schema (grade 1fr 1fr) — tudo governado pela configuração (Form Design). Diferença do
- * detalhe nativo: os links (copiar link, clonar, reabrir ao salvar) apontam para ESTE editor, via
- * `editKeyPrefix`. Para um layout de campos próprio, passar `renderData` (usa `FieldInput`/`EntityForm`).
+ * O detalhe (criar/editar). `RecordDetailSurface` monta cabeçalho, abas e formulário a partir do
+ * schema; `editKeyPrefix` faz copiar-link, duplicar e reabrir-ao-salvar apontarem para esta tela.
+ * Para um layout de campos próprio, passar `renderData`.
  */
 const EDIT_SOURCE = `
 import { RecordDetailSurface } from '@microteia/ui';
 import { useEntityDetailVM } from '@microteia/data';
 
-const SOURCE_ID = 'microteia:processo-clone';
-const EDIT_PREFIX = 'processo-clone-edit:';
+const SOURCE_ID = 'microteia:processo';
+const EDIT_PREFIX = 'processo-edit:';
 
 export default function EditProcessoView({ tabKey }) {
   const vm = useEntityDetailVM(SOURCE_ID, tabKey, { editKeyPrefix: EDIT_PREFIX });
@@ -293,18 +338,17 @@ export default function EditProcessoView({ tabKey }) {
 `;
 
 /**
- * O STARTUP da extensão: roda uma vez ao carregar o escritório e REGISTRA SERVIÇOS no host. Aqui,
- * comandos de ⌘K próprios — "Novo processo (clone)", "Abrir Processos (clone)" e a busca dos registros
- * — todos abrindo as telas DA EXTENSÃO (não as nativas). Resolve a tela pelo `sourceId` no contexto do
- * comando, então acompanha a instalação. É a prova do conceito "extensão registra serviços via código".
+ * O STARTUP da extensão: roda uma vez ao carregar o escritório e registra serviços no host — os
+ * comandos de ⌘K ("Novo processo", "Abrir Processos", a busca dos registros) e a menção `@processo`
+ * das anotações. Resolve a tela pelo `sourceId`, então acompanha a instalação.
  */
 const STARTUP_SOURCE = `
 import { Icon } from '@microteia/ui';
 
-const SOURCE_ID = 'microteia:processo-clone';
-const EDIT_PREFIX = 'processo-clone-edit:';
-const LIST_KEY = 'processo-clone';
-const GROUP = 'Processos (clone)';
+const SOURCE_ID = 'microteia:processo';
+const EDIT_PREFIX = 'processo-edit:';
+const LIST_KEY = 'processos';
+const GROUP = 'Processos';
 
 export default function startup(host) {
   host.commands.register({
@@ -316,17 +360,17 @@ export default function startup(host) {
       if (!screen) return [];
       const icon = <Icon name="folder" size={16} />;
       const items = [];
-      if ('novo processo clone'.indexOf(q) !== -1) {
-        items.push({ id: 'proc-clone:new', title: 'Novo processo (clone)', group: GROUP, icon, onSelect: () => { ctx.openTab(EDIT_PREFIX + 'new'); ctx.close(); } });
+      if ('novo processo'.indexOf(q) !== -1) {
+        items.push({ id: 'processo:new', title: 'Novo processo', group: GROUP, icon, onSelect: () => { ctx.openTab(EDIT_PREFIX + 'new'); ctx.close(); } });
       }
-      if ('abrir processos clone'.indexOf(q) !== -1) {
-        items.push({ id: 'proc-clone:list', title: 'Abrir Processos (clone)', group: GROUP, icon, onSelect: () => { ctx.openTab(LIST_KEY); ctx.close(); } });
+      if ('abrir processos'.indexOf(q) !== -1) {
+        items.push({ id: 'processo:list', title: 'Abrir Processos', group: GROUP, icon, onSelect: () => { ctx.openTab(LIST_KEY); ctx.close(); } });
       }
       const collection = screen.dataCollection || screen.id;
       for (const r of ctx.records) {
         const title = r[screen.titleFieldKey];
         if (r.collection === collection && title && title.toLowerCase().indexOf(q) !== -1) {
-          items.push({ id: 'proc-clone:' + r.id, title, subtitle: 'Processo (clone)', group: GROUP, icon, onSelect: () => { ctx.openTab(EDIT_PREFIX + r.id); ctx.close(); } });
+          items.push({ id: 'processo:' + r.id, title, subtitle: 'Processo', group: GROUP, icon, onSelect: () => { ctx.openTab(EDIT_PREFIX + r.id); ctx.close(); } });
         }
       }
       return items.slice(0, 9);
@@ -334,9 +378,9 @@ export default function startup(host) {
   });
 
   host.mentions.register({
-    key: 'processo-clone',
-    label: 'Processo (clone)',
-    description: 'Inserir link para um processo (clone)',
+    key: 'processo',
+    label: 'Processo',
+    description: 'Inserir link para um processo',
     icon: 'folder',
     search(query, ctx) {
       const screen = ctx.screenDefinitions.find((s) => (s.sourceId || s.id) === SOURCE_ID);
@@ -348,29 +392,29 @@ export default function startup(host) {
         .map((r) => ({ record: r, title: r[screen.titleFieldKey] }))
         .filter(({ title }) => title && (!q || title.toLowerCase().indexOf(q) !== -1))
         .slice(0, 20)
-        .map(({ record, title }) => ({ id: record.id, title, subtitle: 'Processo (clone)', tabKey: EDIT_PREFIX + record.id }));
+        .map(({ record, title }) => ({ id: record.id, title, subtitle: 'Processo', tabKey: EDIT_PREFIX + record.id }));
     },
   });
 }
 `;
 
-export const processoClonePlugin: MarketplacePlugin = {
+export const processoPlugin: MarketplacePlugin = {
   manifest: {
-    id: 'com.microteia.processo-clone',
+    id: 'com.microteia.processo',
     version: '2.0.0',
     kernel: '^1.0.0',
-    name: 'Processo (clone)',
+    name: 'Processos',
     description: 'A tela de Processos recriada como extensão, sobre os MESMOS processos do escritório — o caminho de migração de uma tela fixa para o modelo de extensão.',
     publisher: { name: 'Microteia' },
     dependencies: { 'core.ui': '^1.0.0' },
     contributes: [
-      nav({ key: 'processo-clone', label: 'Processos (clone)', icon: 'folder', order: 105 }),
-      page({ key: 'processo-clone', title: 'Processos (clone)', icon: 'folder' }, 'processo-clone'),
-      page({ key: '', keyPrefix: 'processo-clone-edit:', title: 'Editar processo', icon: 'folder' }, 'processo-clone-edit'),
+      nav({ key: 'processos', label: 'Processos', icon: 'folder', order: 105 }),
+      page({ key: 'processos', title: 'Processos', icon: 'folder' }, 'processos'),
+      page({ key: '', keyPrefix: 'processo-edit:', title: 'Editar processo', icon: 'folder' }, 'processo-edit'),
     ],
   },
   summary:
-    'Recria a tela de Processos como extensão SOBRE OS MESMOS DADOS: a tela é uma visão da entidade Processo, com os campos, as listas de opções, as etiquetas, as anotações e os documentos que já existem. Cards, filtros e ações vêm da configuração; o subtítulo, os badges e os polos, da tela em código. Prova que uma tela fixa pode virar extensão sem migrar um único registro.',
+    'A tela de Processos do escritório: cadastro completo com número, partes (polo ativo e passivo), área, fase, status, instância, vara, comarca, juiz, valor da causa, advogado responsável e contrato — com etiquetas, anotações e documentos por processo.',
   overview: {
     type: 'stack',
     gap: 'lg',
@@ -378,35 +422,38 @@ export const processoClonePlugin: MarketplacePlugin = {
       {
         type: 'markdown',
         content:
-          'A extensão **Processo (clone)** reproduz a tela de Processos do escritório usando apenas o mecanismo de extensões — e trabalhando **nos mesmos processos**.\n\nNada é duplicado: os registros, as listas de opções (Área, Fase, Status…), as etiquetas, as anotações e os documentos são os do Processo de sempre. Abrir a tela nova é ver os mesmos dados, com a mesma aparência.',
+          'A extensão **Processos** traz o controle de processos judiciais do escritório: cada processo com número, partes, classificação, tribunal, valor da causa e responsável, além de etiquetas, anotações e documentos.\n\nAs listas de Área, Fase, Status, Instância, Vara, Comarca e Juiz já vêm preenchidas e são suas: acrescente, renomeie ou remova opções à vontade — elas ficam no escritório mesmo que a extensão seja removida.',
       },
       {
         type: 'keyValue',
         items: [
-          { label: 'Adiciona', value: 'Item "Processos (clone)" no menu' },
-          { label: 'Dados', value: 'Os processos do escritório — sem cópia' },
-          { label: 'Detalhe', value: 'Formulário nativo (campos, etiquetas, notas, documentos)' },
+          { label: 'Adiciona', value: 'Item "Processos" no menu' },
+          { label: 'Cadastro', value: '17 campos, em 5 seções' },
+          { label: 'Por processo', value: 'Etiquetas, anotações e documentos' },
+          { label: 'Quem grava', value: 'Advogado e administrador' },
         ],
       },
       {
         type: 'banner',
-        message: 'Esta tela trabalha nos processos reais do escritório: o que você criar, alterar ou excluir aqui vale também na tela de Processos. Remover a extensão remove apenas a tela — nenhum processo é apagado.',
-        variant: 'warning',
+        message: 'Remover a extensão remove a tela, nunca os processos: os registros, as listas de opções e as etiquetas continuam no escritório e voltam a aparecer se ela for instalada de novo.',
+        variant: 'info',
       },
     ],
   },
   workflows: [],
   screens: [PROCESSO_SCREEN],
+  lookups: LOOKUPS,
+  tagLists: [{ collection: 'caseTags', label: 'Etiquetas: Processos' }],
   startup: STARTUP_SOURCE,
   views: [
     {
-      key: 'processo-clone',
-      title: 'Processos (clone)',
+      key: 'processos',
+      title: 'Processos',
       icon: 'folder',
       source: PROCESSO_SOURCE,
     },
     {
-      key: 'processo-clone-edit',
+      key: 'processo-edit',
       title: 'Editar processo',
       icon: 'folder',
       source: EDIT_SOURCE,

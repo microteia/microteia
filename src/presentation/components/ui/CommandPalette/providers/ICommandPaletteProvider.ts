@@ -1,8 +1,9 @@
 import type React from 'react';
-import type { News, Person, Case, Contract, Financial, EntityRecord, ScreenDefinition, TenantRole, UserRole } from '../../../../../domain/entities';
+import type { News, Person, Contract, Financial, EntityRecord, ScreenDefinition, TenantRole, UserRole } from '../../../../../domain/entities';
 import type { WorkflowDefinition } from '../../../../../domain/entities/Workflow';
 import type { ThemeMode } from '../../../../../shared/types';
 import type { UiPageMetadata } from '../../../../shared/uiExtensionPoints';
+import type { CaseRecord } from '../../../../shared/useCollectionRecords';
 
 export interface CommandPaletteItem {
   id: string;
@@ -19,7 +20,7 @@ export interface CommandPaletteAppContext {
   close: () => void;
   news: News[];
   persons: Person[];
-  cases: Case[];
+  cases: CaseRecord[];
   contracts: Contract[];
   financials: Financial[];
   records: EntityRecord[];

@@ -24,7 +24,6 @@ const ENTITY_EVENT_ICONS: Record<string, IconType> = {
 
 const LOOKUP_GROUP_ICONS: Record<WorkflowLookupGroup, IconType> = {
   person: RiTeamLine,
-  case: RiFolderLine,
   contract: RiFileTextLine,
   deadline: RiTimeLine,
   financial: RiMoneyDollarCircleLine,

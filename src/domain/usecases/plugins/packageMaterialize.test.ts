@@ -1,7 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import type { WorkflowStep } from '../../entities/Workflow';
+import type { ScreenModuleTemplate } from '../../entities/MarketplacePlugin';
 import {
   actionInputFromTemplate,
+  buildScreenEventMap,
   rewriteStepLiteral,
   scriptInputFromTemplate,
   workflowInputFromTemplate,
@@ -72,6 +74,44 @@ describe('workflowInputFromTemplate', () => {
     expect(input.enabled).toBe(true);
     expect(input.eventName).toBe('com-acme-x__venda.saved');
     expect((input.steps[0].configuration.scriptId as { value: string }).value).toBe('scr-real');
+  });
+});
+
+/**
+ * O gatilho é reescrito porque a CHAVE da tela pode mudar na instalação. Um prefixo declarado não
+ * muda: é nome global, e reescrevê-lo faria a automação escutar um evento que ninguém publica.
+ */
+describe('buildScreenEventMap', () => {
+  const screen = (overrides: Partial<ScreenModuleTemplate> & { key: string }): ScreenModuleTemplate => ({
+    titleSingular: 'T', titlePlural: 'T', icon: 'apps', titleFieldKey: 'n',
+    fields: [{ key: 'n', label: 'N', type: 'text', required: true, order: 0 }],
+    ...overrides,
+  });
+
+  it('mapeia a tela cujo evento leva a chave dela', () => {
+    const map = buildScreenEventMap([screen({ key: 'venda' })], new Map([['venda', 'venda_2']]));
+    expect(map.get('venda')).toBe('venda_2');
+  });
+
+  it('não toca no prefixo declarado, nem quando a chave da tela muda', () => {
+    const map = buildScreenEventMap(
+      [screen({ key: 'processos', dataCollection: 'cases', eventPrefix: 'case' })],
+      new Map([['processos', 'processos_2']]),
+    );
+    expect(map.size).toBe(0);
+  });
+
+  it('a tela que descreve outra coleção emite por ela, não pela chave instalada', () => {
+    const map = buildScreenEventMap(
+      [screen({ key: 'kanban', dataCollection: 'cases' })],
+      new Map([['kanban', 'kanban_2']]),
+    );
+    expect(map.size).toBe(0);
+  });
+
+  it('chave que atravessa a instalação intacta não vira reescrita', () => {
+    const map = buildScreenEventMap([screen({ key: 'venda' })], new Map([['venda', 'venda']]));
+    expect(map.size).toBe(0);
   });
 });
 

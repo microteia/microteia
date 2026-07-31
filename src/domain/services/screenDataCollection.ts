@@ -20,3 +20,51 @@ export const screenDataCollection = (screen: ScreenCollectionSource): string =>
  */
 export const isBoundScreen = (screen: ScreenCollectionSource): boolean =>
   screenDataCollection(screen) !== screen.id;
+
+/** A tela como as coleções derivadas a enxergam: só o que declara nomes de outras coleções. */
+export interface ScreenCollectionDeclaration {
+  titleSingular: string;
+  titlePlural?: string;
+  tagCollection?: string | null;
+  fields: { label: string; lookupCollection?: string | null }[];
+}
+
+export interface DerivedCollection {
+  collection: string;
+  label: string;
+}
+
+const dedupe = (items: DerivedCollection[]): DerivedCollection[] => {
+  const byCollection = new Map<string, DerivedCollection>();
+  for (const item of items) byCollection.set(item.collection, item);
+  return [...byCollection.values()];
+};
+
+/**
+ * As coleções de ETIQUETAS que as telas do escritório declaram.
+ *
+ * Existe porque a declaração da TELA basta: a coleção existe porque uma tela aponta para ela, tenha
+ * ou não documento em `tagDefinitions`. Sem isso, uma entidade que saiu do kernel e passou a ser
+ * declarada por extensão ficaria com as etiquetas invisíveis — elas continuam gravadas, mas ninguém
+ * as assina.
+ */
+export const screenTagCollections = (screens: ScreenCollectionDeclaration[]): DerivedCollection[] =>
+  dedupe(
+    screens
+      .filter((screen) => !!screen.tagCollection?.trim())
+      .map((screen) => ({
+        collection: (screen.tagCollection as string).trim(),
+        label: `Etiquetas: ${screen.titlePlural || screen.titleSingular}`,
+      })),
+  );
+
+/** Mesmo princípio para as LISTAS DE OPÇÕES que os campos das telas referenciam. */
+export const screenLookupCollections = (screens: ScreenCollectionDeclaration[]): DerivedCollection[] =>
+  dedupe(
+    screens.flatMap((screen) => screen.fields
+      .filter((field) => !!field.lookupCollection?.trim())
+      .map((field) => ({
+        collection: (field.lookupCollection as string).trim(),
+        label: `${screen.titleSingular}: ${field.label}`,
+      }))),
+  );

@@ -5,7 +5,7 @@
 // ═══════════════════════════════════════════════════════════════════════════
 
 import type { EntityKey, EntityMetadata, NativeFieldSpec, NativeFieldType } from './entityRegistry';
-import { ENTITY_REGISTRY, getEntityByCollection } from './entityRegistry';
+import { ENTITY_REGISTRY, getEntityByCollection, getEntityByEventPrefix } from './entityRegistry';
 import type { PathRoot, SchemaContext } from './pathResolver';
 import type { WorkflowParameter } from '../entities/Workflow';
 import { isEntityCollection, resolveEntity } from './screenEntity';
@@ -32,7 +32,6 @@ const OLD_FIELD: WorkflowEventFieldOption = { path: 'old', label: 'Dados anterio
 const ENTITY_EVENT_ORDER: EntityKey[] = [
   'persons',
   'contracts',
-  'cases',
   'deadlines',
   'financials',
   'pushes',
@@ -170,8 +169,8 @@ const parentObjectField = (entity: EntityMetadata): NativeFieldSpec => ({
   ],
 });
 
-const NOTE_PARENTS: EntityKey[] = ['cases', 'persons', 'contracts', 'deadlines', 'financials'];
-const DOCUMENT_PARENTS: EntityKey[] = ['cases', 'persons', 'contracts', 'financials'];
+const NOTE_PARENTS: EntityKey[] = ['persons', 'contracts', 'deadlines', 'financials'];
+const DOCUMENT_PARENTS: EntityKey[] = ['persons', 'contracts', 'financials'];
 
 const nestedEntries = (
   parents: EntityKey[],
@@ -306,20 +305,37 @@ const ENTITY_EVENT_ACTIONS = ['saved', 'deleted'] as const;
 export type EntityEventAction = (typeof ENTITY_EVENT_ACTIONS)[number];
 
 /**
+ * `person_note.saved` é o evento de um FILHO (nota, documento) da entidade fixa, não o de uma
+ * coleção. A checagem é por composição — prefixo de entidade do registro + sufixo do filho — e não
+ * por "tem underscore": chave com underscore é o normal de uma tela trazida por dependência
+ * (`vendas__produto`), e barrá-la fazia o gatilho dela passar despercebido no empacotamento.
+ */
+const NESTED_EVENT_SUFFIXES = ['_note', '_document'] as const;
+
+const isNestedEntityEvent = (prefix: string): boolean =>
+  NESTED_EVENT_SUFFIXES.some(
+    (suffix) => prefix.endsWith(suffix) && !!getEntityByEventPrefix(prefix.slice(0, -suffix.length)),
+  );
+
+/**
  * Separa `<coleção>.saved` / `<coleção>.deleted`. Devolve `null` para os eventos que não são de
  * entidade (`lookup.*`, `case_note.*`, `workflow.called`) — o empacotamento usa isto para saber
  * qual tela um gatilho referencia.
+ *
+ * O que sai é o PREFIXO, não a coleção: ele coincide com o nome da coleção na maioria das telas, mas
+ * uma que declara `eventPrefix` emite por um nome próprio. Quem precisa da tela resolve o prefixo
+ * contra as telas que conhece (`screenEventPrefix`), em vez de tratá-lo como chave.
  */
 export const splitEntityEventName = (
   eventName: string,
-): { collection: string; action: EntityEventAction } | null => {
+): { prefix: string; action: EntityEventAction } | null => {
   const separator = eventName.lastIndexOf('.');
   if (separator <= 0) return null;
   const action = eventName.slice(separator + 1) as EntityEventAction;
   if (!ENTITY_EVENT_ACTIONS.includes(action)) return null;
-  const collection = eventName.slice(0, separator);
-  if (collection.includes('_') || collection === 'lookup' || collection === 'workflow') return null;
-  return { collection, action };
+  const prefix = eventName.slice(0, separator);
+  if (isNestedEntityEvent(prefix) || prefix === 'lookup' || prefix === 'workflow') return null;
+  return { prefix, action };
 };
 
 /**
@@ -343,9 +359,16 @@ const screenEventEntry = (
   if (lookup && !isBuiltinLookupCollection(collection)) {
     return declaredLookupEntry(lookup.collection, lookup.label, action);
   }
-  if (!isEntityCollection(ctx, collection)) return undefined;
+  if (isEntityCollection(ctx, collection)) {
+    const entity = resolveEntity(ctx, collection);
+    return entity ? entityEntry(entity, action) : undefined;
+  }
 
-  const entity = resolveEntity(ctx, collection);
+  // O prefixo pode não ser o nome da coleção: uma tela declara `eventPrefix` para preservar os
+  // eventos que as automações já escutam quando a entidade muda de dono (`cases` → `case.saved`).
+  const declared = [...ctx.screens.values()].find((screen) => screen.eventPrefix === collection);
+  if (!declared) return undefined;
+  const entity = resolveEntity(ctx, declared.collection ?? declared.id);
   return entity ? entityEntry(entity, action) : undefined;
 };
 

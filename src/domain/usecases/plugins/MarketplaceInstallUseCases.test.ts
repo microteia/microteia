@@ -11,7 +11,8 @@ import type { IActionRepository, ActionDefinitionInput } from '../../repositorie
 import type { IScriptRepository } from '../../repositories/IScriptRepository';
 import type { LifecycleActor } from '../../services/pluginLifecycle';
 import type { ILookupDefinitionRepository, LookupDefinitionInput } from '../../repositories/ILookupDefinitionRepository';
-import type { LookupDefinition, TagDefinition } from '../../entities';
+import type { LookupDefinition, LookupOption, TagDefinition } from '../../entities';
+import type { ILookupRepository } from '../../repositories/ILookupRepository';
 import type { ITagDefinitionRepository, TagDefinitionInput } from '../../repositories/ITagDefinitionRepository';
 import {
   makeInstallMarketplacePluginUseCase,
@@ -144,6 +145,20 @@ class FakeLookupDefinitions implements ILookupDefinitionRepository {
   }
 }
 
+/** As OPÇÕES de uma lista, para provar a semeadura: só entra opção em coleção vazia. */
+class FakeLookupOptions implements ILookupRepository {
+  options: Record<string, LookupOption[]> = {};
+  subscribe(): () => void { return () => {}; }
+  async getAll(_tenantId: string, collection: string): Promise<LookupOption[]> {
+    return this.options[collection] ?? [];
+  }
+  async create(_tenantId: string, collection: string, option: LookupOption): Promise<LookupOption> {
+    this.options[collection] = [...(this.options[collection] ?? []), option];
+    return option;
+  }
+  async delete(): Promise<void> {}
+}
+
 /** Mesmo racional do fake de listas: as ETIQUETAS não são representadas aqui de propósito. */
 class FakeTagDefinitions implements ITagDefinitionRepository {
   items: TagDefinition[] = [];
@@ -170,6 +185,7 @@ let screens: FakeScreens;
 let actions: FakeActions;
 let scripts: FakeScripts;
 let lookupDefinitions: FakeLookupDefinitions;
+let lookupOptions: FakeLookupOptions;
 let tagDefinitions: FakeTagDefinitions;
 
 const deps = () => ({
@@ -179,6 +195,7 @@ const deps = () => ({
   actionRepository: actions as unknown as IActionRepository,
   scriptRepository: scripts as unknown as IScriptRepository,
   lookupDefinitionRepository: lookupDefinitions,
+  lookupRepository: lookupOptions,
   tagDefinitionRepository: tagDefinitions,
 });
 
@@ -189,6 +206,7 @@ beforeEach(() => {
   actions = new FakeActions();
   scripts = new FakeScripts();
   lookupDefinitions = new FakeLookupDefinitions();
+  lookupOptions = new FakeLookupOptions();
   tagDefinitions = new FakeTagDefinitions();
 });
 
@@ -364,6 +382,42 @@ describe('Uninstall — listas de opções sobrevivem', () => {
   });
 
   /**
+   * Opções SEMENTE: uma extensão entrega a entidade pronta para uso (as Áreas e Fases de um
+   * Processo) sem que o kernel conheça nenhuma delas. Só valem para lista vazia — o que já existe
+   * é dado do escritório.
+   */
+  it('semeia as opções de partida quando a lista está vazia', async () => {
+    const seeded: MarketplacePlugin = {
+      ...lookupPlugin('com.acme.med'),
+      lookups: [{
+        collection: 'medico_especialidade',
+        label: 'Especialidade',
+        options: [{ key: 'Clínico', label: 'Clínico' }, { key: 'Pediatra', label: 'Pediatra', color: 'blue' }],
+      }],
+    };
+    await makeInstallMarketplacePluginUseCase(deps()).execute(seeded, actor);
+    expect(lookupOptions.options.medico_especialidade).toEqual([
+      { key: 'Clínico', label: 'Clínico' },
+      { key: 'Pediatra', label: 'Pediatra', color: 'blue' },
+    ]);
+  });
+
+  it('lista com opções não é semeada — nem reinstalar ressuscita o que o escritório removeu', async () => {
+    const d = deps();
+    lookupOptions.options.medico_especialidade = [{ key: 'Cirurgião', label: 'Cirurgião' }];
+    const seeded: MarketplacePlugin = {
+      ...lookupPlugin('com.acme.med'),
+      lookups: [{
+        collection: 'medico_especialidade',
+        label: 'Especialidade',
+        options: [{ key: 'Clínico', label: 'Clínico' }],
+      }],
+    };
+    await makeInstallMarketplacePluginUseCase(d).execute(seeded, actor);
+    expect(lookupOptions.options.medico_especialidade).toEqual([{ key: 'Cirurgião', label: 'Cirurgião' }]);
+  });
+
+  /**
    * O bug que originou a mudança: as opções cadastradas pelo escritório sumiam junto com a tela.
    * Agora a desinstalação mexe só na DECLARAÇÃO — a coleção de dados nunca é tocada, e recriar a
    * lista com o mesmo nome reaproveita tudo.
@@ -391,7 +445,7 @@ describe('Uninstall — listas de opções sobrevivem', () => {
 
   it('lista do kernel não vira documento — ela já é declarada em código', async () => {
     const plugin = lookupPlugin('com.acme.kernel');
-    plugin.lookups = [{ collection: 'caseCourts', label: 'Vara/Tribunal' }];
+    plugin.lookups = [{ collection: 'contractBanks', label: 'Banco' }];
     await makeInstallMarketplacePluginUseCase(deps()).execute(plugin, actor);
     expect(lookupDefinitions.items).toEqual([]);
   });
@@ -443,7 +497,7 @@ describe('Uninstall — etiquetas sobrevivem', () => {
 
   it('conjunto do kernel não vira documento — já é declarado no registro', async () => {
     const plugin = taggedPlugin('com.acme.kernel');
-    plugin.tagLists = [{ collection: 'caseTags', label: 'Etiquetas: Processos' }];
+    plugin.tagLists = [{ collection: 'contractTags', label: 'Etiquetas: Contratos' }];
     await makeInstallMarketplacePluginUseCase(deps()).execute(plugin, actor);
     expect(tagDefinitions.items).toEqual([]);
   });
@@ -944,5 +998,65 @@ describe('Complemento apontando para a tela do PRÓPRIO pacote (pacote legado)',
     await applyPackageArtifacts(d, pkg(), actor);
 
     expect(screens.store.get('produtos')!.fields.map((f) => f.key)).toEqual(['nome', 'preco']);
+  });
+});
+
+/**
+ * Uma tela que descreve OUTRA coleção precisa que a coleção alvo tenha documento próprio em
+ * `screenDefinitions`: é o que as Security Rules consultam para autorizar a escrita e para ler quem
+ * pode gravar. As rules não têm como procurar "a tela que aponta para esta coleção".
+ */
+describe('Tela sobre uma coleção existente', () => {
+  const boundPlugin: MarketplacePlugin = {
+    summary: 'Sobre uma coleção que já existe',
+    manifest: { id: 'com.acme.proc', version: '1.0.0', kernel: '^1.0.0', name: 'P' },
+    workflows: [],
+    screens: [{
+      key: 'processos',
+      titleSingular: 'Processo',
+      titlePlural: 'Processos',
+      icon: 'folder',
+      titleFieldKey: 'title',
+      dataCollection: 'cases',
+      eventPrefix: 'case',
+      writeRoles: ['admin', 'lawyer'],
+      fields: [{ key: 'title', label: 'Título', type: 'text', required: true, order: 0 }],
+    }],
+  };
+
+  it('grava a tela e o documento da coleção alvo, com a permissão declarada', async () => {
+    await makeInstallMarketplacePluginUseCase(deps()).execute(boundPlugin, actor);
+
+    const screen = screens.store.get('processos');
+    expect(screen).toMatchObject({ dataCollection: 'cases', eventPrefix: 'case', writeRoles: ['admin', 'lawyer'] });
+
+    const target = screens.store.get('cases');
+    expect(target?.writeRoles, 'as rules leem writeRoles no documento da COLEÇÃO').toEqual(['admin', 'lawyer']);
+  });
+
+  it('a coleção alvo que já tem documento é preservada — só a permissão é acertada', async () => {
+    const d = deps();
+    await screens.upsert('t1', 'cases', {
+      origin: 'builtin',
+      titleSingular: 'Processo',
+      titlePlural: 'Processos',
+      icon: 'folder',
+      titleFieldKey: '',
+      fields: [{ key: 'meu', label: 'Meu', type: 'text', required: false, order: 0, origin: 'design' }],
+      hasNotes: false,
+      hasDocuments: false,
+      hasTags: false,
+      listActions: [],
+      viewActionIds: [],
+      cardActionIds: [],
+      sidebarOrder: 0,
+      enabled: true,
+      createdBy: 'u1',
+    });
+    await makeInstallMarketplacePluginUseCase(d).execute(boundPlugin, actor);
+
+    const target = screens.store.get('cases');
+    expect(target?.fields.map((f) => f.key)).toEqual(['meu']);
+    expect(target?.writeRoles).toEqual(['admin', 'lawyer']);
   });
 });

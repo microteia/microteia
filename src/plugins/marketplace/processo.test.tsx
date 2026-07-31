@@ -7,7 +7,7 @@ import { materializePluginScreens } from '../../domain/usecases/plugins/screenMo
 import { evaluateExtensionView } from '../../presentation/shared/extensions/evaluateExtensionView';
 import { UI_PAGE_POINT } from '../../presentation/shared/uiExtensionPoints';
 import type { PluginInstallation } from '../../domain/entities/PluginInstallation';
-import { processoClonePlugin } from './processoClone';
+import { processoPlugin } from './processo';
 
 const installation = (pluginId: string): PluginInstallation => ({
   pluginId,
@@ -21,22 +21,22 @@ const installation = (pluginId: string): PluginInstallation => ({
   updatedAt: new Date(),
 });
 
-describe('processoClonePlugin', () => {
+describe('processoPlugin', () => {
   it('carrega no host como extensão trusted, com as duas páginas de código, sem erros', () => {
     const host = createPluginHost();
     const records = [
       ...CORE_PLUGINS,
-      ...installedPluginRecords([processoClonePlugin], [installation(processoClonePlugin.manifest.id)]),
+      ...installedPluginRecords([processoPlugin], [installation(processoPlugin.manifest.id)]),
     ];
     const result = host.load(records);
 
     expect(result.diagnostics.filter((d) => d.severity === 'error')).toEqual([]);
-    expect(host.isLoaded(processoClonePlugin.manifest.id)).toBe(true);
+    expect(host.isLoaded(processoPlugin.manifest.id)).toBe(true);
 
     const pageKeys = host.contributions
       .query(UI_PAGE_POINT)
       .map((c) => (c.impl as { key?: string } | undefined)?.key);
-    expect(pageKeys).toEqual(expect.arrayContaining(['processo-clone', 'processo-clone-edit']));
+    expect(pageKeys).toEqual(expect.arrayContaining(['processos', 'processo-edit']));
   });
 
   /**
@@ -48,7 +48,7 @@ describe('processoClonePlugin', () => {
    *    quebraria no dia em que `cases` saísse do kernel, que é justamente o destino do projeto.
    */
   it('aponta para a coleção de Processos e declara o esquema dela por inteiro', () => {
-    const [{ input }] = materializePluginScreens(processoClonePlugin, 'u1');
+    const [{ input }] = materializePluginScreens(processoPlugin, 'u1');
 
     expect(input.dataCollection).toBe('cases');
     expect(input.titleFieldKey).toBe('title');
@@ -76,7 +76,7 @@ describe('processoClonePlugin', () => {
   });
 
   it('as fontes reais das views compilam pelo runtime (não caem no fallback)', () => {
-    for (const view of processoClonePlugin.views ?? []) {
+    for (const view of processoPlugin.views ?? []) {
       const Component = evaluateExtensionView(`test::${view.key}`, view.source);
       expect(typeof Component, view.key).toBe('function');
     }

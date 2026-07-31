@@ -24,14 +24,14 @@ const without = (pluginId: string): PluginRecord[] =>
  * de regressão da Etapa 2: se uma tela se perder no caminho, este teste acusa.
  */
 const PAGE_KEYS_ANTES_DA_MIGRACAO = [
-  'access-management', 'actions', 'add-news', 'audit-logs', 'calendar', 'cases', 'contracts',
+  'access-management', 'actions', 'add-news', 'audit-logs', 'calendar', 'contracts',
   'dashboard', 'dashboard-pushes', 'data-function-reference', 'data-processor', 'deadlines',
   'dyn:', 'edit-news:', 'edit-workflow-step:', 'financial-dashboard', 'financials',
-  'function-reference', 'new-action', 'new-case', 'new-case:clone:', 'new-contract',
+  'function-reference', 'new-action', 'new-contract',
   'new-contract:clone:', 'new-deadline', 'new-dyn:', 'new-financial', 'new-financial:clone:',
   'new-person', 'new-person:clone:', 'new-script', 'new-workflow', 'new-workflow:clone:', 'news',
   'persons', 'profile', 'pushes', 'screen-builder', 'scripts', 'tenant-settings',
-  'tenant-settings:', 'view-action:', 'view-case:', 'view-contract:', 'view-deadline:',
+  'tenant-settings:', 'view-action:', 'view-contract:', 'view-deadline:',
   'view-dyn:', 'view-financial:', 'view-news:', 'view-person:', 'view-script:', 'view-workflow:',
   'workflows',
   // Adicionadas depois da migração (a lista é o guarda de "nenhuma tela some", não um congelamento):
@@ -113,7 +113,7 @@ describe('core plugins — paridade com o registro anterior', () => {
     });
 
     expect(items.map((item) => item.key)).toEqual([
-      'dashboard', 'calendar', 'persons', 'cases', 'contracts', 'deadlines',
+      'dashboard', 'calendar', 'persons', 'contracts', 'deadlines',
       'financials', 'pushes', 'news', 'tenant-settings', 'audit-logs',
     ]);
   });
@@ -136,7 +136,6 @@ describe('core plugins — resolução de aba', () => {
     ['persons', 'PersonsView'],
     ['view-person:abc123', 'ViewPersonView'],
     ['new-person:clone:abc123', 'ViewPersonView'],
-    ['view-case:xyz', 'ViewCaseView'],
     ['dyn:minha-tela', 'DynamicRecordListView'],
     ['view-dyn:minha-tela:reg1', 'ViewDynamicRecordView'],
     ['tenant-settings', 'TenantSettingsView'],
@@ -180,9 +179,9 @@ describe('core plugins — remoção limpa (critério de aceite da Etapa 2)', ()
     const { host } = hostWith(without('core.persons'));
     const pages = host.contributions.query(UI_PAGE_POINT);
 
-    expect(resolvePageContribution(pages, 'cases')).toBeDefined();
+    expect(resolvePageContribution(pages, 'contracts')).toBeDefined();
     expect(resolvePageContribution(pages, 'financials')).toBeDefined();
-    expect(host.contributions.query(UI_NAV_POINT).length).toBe(10);
+    expect(host.contributions.query(UI_NAV_POINT).length).toBe(9);
   });
 
   it('remover core.ui derruba todos os módulos de UI, porque ninguém declara os pontos', () => {

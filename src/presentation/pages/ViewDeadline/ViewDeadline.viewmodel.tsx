@@ -1,7 +1,7 @@
 import { useCallback, useMemo } from 'react';
 import { useTheme } from 'styled-components';
 import { useDeadlineStore } from '../../../stores/useDeadlineStore';
-import { useCaseStore } from '../../../stores/useCaseStore';
+import { useCaseRecords } from '../../shared/useCollectionRecords';
 import { useAuth } from '../../../stores/useAuth';
 import { useTenant } from '../../../stores/useTenant';
 import { useEntityFormFields } from '../../shared/useEntityFormFields';
@@ -118,7 +118,7 @@ export interface ViewDeadlineViewModel {
 
 export const useViewDeadlineViewModel = (tabKey: string): ViewDeadlineViewModel => {
   const { deadlines, createDeadline, updateDeadline } = useDeadlineStore();
-  const { cases } = useCaseStore();
+  const cases = useCaseRecords();
   const { user, effectiveName } = useAuth();
   const { tenantRole } = useTenant();
   const theme = useTheme();

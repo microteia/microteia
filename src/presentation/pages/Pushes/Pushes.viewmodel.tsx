@@ -4,7 +4,8 @@ import { usePush } from '../../../stores/usePush';
 import { usePushInteraction } from '../../../stores/usePushInteraction';
 import { useWorkspace } from '../../../stores/useWorkspace';
 import { useDeadlineStore } from '../../../stores/useDeadlineStore';
-import { useCaseStore } from '../../../stores/useCaseStore';
+import { CASES_COLLECTION, useCaseRecords } from '../../shared/useCollectionRecords';
+import { useOpenRecord } from '../../shared/useOpenRecord';
 import { useTenant } from '../../../stores/useTenant';
 import { useLookups } from '../../../stores/useLookups';
 import { setNavigationIntent } from '../../../infrastructure/navigation/navigationIntent';
@@ -108,7 +109,8 @@ export const usePushesViewModel = (): PushesViewModel => {
   const { getInteraction, markAsRead, unreadCount } = usePushInteraction();
   const { openTab } = useWorkspace();
   const { deadlines } = useDeadlineStore();
-  const { cases } = useCaseStore();
+  const cases = useCaseRecords();
+  const openRecord = useOpenRecord();
   const { getOptions } = useLookups();
   const phaseConfigs = getOptions('casePhases');
   const statusConfigs = getOptions('caseStatuses');
@@ -195,13 +197,10 @@ export const usePushesViewModel = (): PushesViewModel => {
         ? cases.find((c) => c.caseNumber === push.processNumber)
         : undefined;
 
-      // Campos com fallback para dados do Case quando vazios no Push
+      // Campos com fallback para o processo vinculado quando vazios no Push
       const displayCourt = push.court || matchingCase?.court || undefined;
       const displayActiveParty = push.activeParty || undefined;
-      const displayPassiveParty = push.passiveParty ||
-        (matchingCase?.opposingParties && matchingCase.opposingParties.length > 0
-          ? matchingCase.opposingParties.map(p => p.name).join(', ')
-          : undefined);
+      const displayPassiveParty = push.passiveParty || undefined;
       const displayLegalClass = push.legalClass || matchingCase?.title || undefined;
       const displayFilingDate = push.filingDate || matchingCase?.filedAt || undefined;
       const displayCauseValue = matchingCase?.causeValue ?? undefined;
@@ -318,8 +317,8 @@ export const usePushesViewModel = (): PushesViewModel => {
   }, [deadlines, openTab]);
 
   const handleOpenCase = useCallback((caseId: string) => {
-    openTab(`view-case:${caseId}`);
-  }, [openTab]);
+    openRecord(CASES_COLLECTION, caseId);
+  }, [openRecord]);
 
   const getPhaseColor = useCallback((phase: string): string => {
     return getConfigColor(phaseConfigs, phase, theme);

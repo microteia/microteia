@@ -20,11 +20,22 @@ const field = (partial: Partial<FieldDefinition> & Pick<FieldDefinition, 'key' |
 });
 
 const ctx = createSchemaContext([
+  /**
+   * Processo é declarado por extensão sobre a coleção `cases`: campos e relações vêm da tela, e
+   * `refDenormKey` preserva a navegação (`contract.number`) que as automações já usavam.
+   */
   {
-    id: 'cases',
+    id: 'processos',
+    collection: 'cases',
+    eventPrefix: 'case',
     titleSingular: 'Processo',
     titleFieldKey: 'title',
     fields: [
+      field({ key: 'title', label: 'Título', type: 'text' }),
+      field({ key: 'caseNumber', label: 'Número', type: 'text' }),
+      field({ key: 'area', label: 'Área', type: 'select', lookupCollection: 'caseAreas' }),
+      field({ key: 'contractId', label: 'Contrato', type: 'reference', refEntity: 'contracts', refDenormKey: 'contract' }),
+      field({ key: 'activePoleIds', label: 'Polo ativo', type: 'reference', refEntity: 'persons', refDenormKey: 'activePole', multi: true }),
       field({ key: 'tarefa', label: 'Tarefa Principal', type: 'reference', refEntity: 'tarefas' }),
       field({ key: 'observacao', label: 'Observação', type: 'text' }),
       field({ key: 'urgente', label: 'Urgente', type: 'checkbox' }),
@@ -47,7 +58,7 @@ const ctx = createSchemaContext([
     titleFieldKey: 'nome',
     fields: [field({ key: 'nome', label: 'Nome', type: 'text' })],
   },
-]);
+], [{ collection: 'caseAreas', label: 'Processo: Área do Direito' }]);
 
 const casesRoot: PathRoot = { kind: 'entity', entityKey: 'cases', hasOld: true };
 
@@ -107,7 +118,7 @@ describe('resolvePath — FKs fixas', () => {
         materializeAt: 'contract',
         mode: 'denormKey',
         multi: false,
-        fields: ['number', 'title', 'type', 'status'],
+        fields: 'all',
       },
     ]);
   });
@@ -148,9 +159,9 @@ describe('resolvePath — FKs fixas', () => {
     expect(resolution.error).toContain('lista');
   });
 
-  it('mantém o campo FK cru como escalar', () => {
-    expect(resolvePath(ctx, casesRoot, parsePath('contractId')).node).toMatchObject({ kind: 'scalar', type: 'string' });
-    expect(resolvePath(ctx, casesRoot, parsePath('activePoleIds')).node).toMatchObject({ kind: 'scalar', type: 'stringArray' });
+  it('a relação é navegável pelo nome do registro apontado', () => {
+    expect(resolvePath(ctx, casesRoot, parsePath('contract')).node).toMatchObject({ kind: 'entity' });
+    expect(resolvePath(ctx, casesRoot, parsePath('activePole')).node).toMatchObject({ kind: 'entityList' });
   });
 
   it('resolve changeType como string em evento com old', () => {
@@ -281,10 +292,12 @@ describe('suggestNextSegments', () => {
   it('sugere campos fixos, os declarados pelo tenant, FKs navegáveis e old na raiz', () => {
     const suggestions = suggestNextSegments(ctx, casesRoot, []);
     const byText = Object.fromEntries(suggestions.map((s) => [s.insertText, s]));
-    expect(byText.caseNumber).toMatchObject({ isLeaf: true, kind: 'field' });
+    expect(byText.caseNumber).toMatchObject({ isLeaf: true, kind: 'customField' });
     expect(byText.contract).toMatchObject({ isLeaf: false, kind: 'fk', detail: 'Contrato' });
     expect(byText.activePole).toMatchObject({ isLeaf: false, kind: 'fkList' });
-    expect(byText.contractId).toMatchObject({ isLeaf: true });
+    // A relação declarada por tela é navegável pelos dois nomes: a chave que guarda o id e o nome
+    // do registro apontado.
+    expect(byText.contractId).toMatchObject({ isLeaf: false });
     expect(byText.observacao).toMatchObject({ isLeaf: true, kind: 'customField' });
     expect(byText.tarefa).toMatchObject({ isLeaf: false, kind: 'reference', detail: 'Tarefa' });
     expect(byText.old).toMatchObject({ isLeaf: false });

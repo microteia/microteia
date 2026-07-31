@@ -7,12 +7,18 @@ import type { WorkflowDefinition, WorkflowEvent } from '../entities/Workflow';
 import { fakeScreenProvider } from '../../domain/repositories/fakeScreenProvider';
 
 const screens: SchemaScreen[] = [
+  // Processo é declarado por extensão: a coleção, o prefixo dos eventos e os campos — inclusive a
+  // relação com Contrato — vêm da tela, não de um registro no kernel.
   {
-    id: 'cases',
+    id: 'processos',
+    collection: 'cases',
+    eventPrefix: 'case',
     titleSingular: 'Processo',
     titleFieldKey: 'title',
     fields: [
-      { key: 'tarefa', label: 'Tarefa', type: 'reference', refEntity: 'tarefas', required: false, order: 0, origin: 'design' },
+      { key: 'caseNumber', label: 'Número', type: 'text', required: false, order: 0, origin: 'plugin' },
+      { key: 'contractId', label: 'Contrato', type: 'reference', refEntity: 'contracts', refDenormKey: 'contract', required: false, order: 1, origin: 'plugin' },
+      { key: 'tarefa', label: 'Tarefa', type: 'reference', refEntity: 'tarefas', required: false, order: 2, origin: 'design' },
     ],
   },
   {

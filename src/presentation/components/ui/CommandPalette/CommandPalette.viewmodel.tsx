@@ -3,7 +3,7 @@ import { useCommandPalette } from '../../../../stores/useCommandPalette';
 import { useWorkspace } from '../../../../stores/useWorkspace';
 import { useNews } from '../../../../stores/useNews';
 import { usePersonStore } from '../../../../stores/usePersonStore';
-import { useCaseStore } from '../../../../stores/useCaseStore';
+import { useCaseRecords } from '../../../shared/useCollectionRecords';
 import { useContractStore } from '../../../../stores/useContractStore';
 import { useFinancialStore } from '../../../../stores/useFinancialStore';
 import { useRecords } from '../../../../stores/useRecords';
@@ -37,7 +37,7 @@ export const useCommandPaletteViewModel = (): CommandPaletteViewModel => {
   const { openTab } = useWorkspace();
   const { news } = useNews();
   const { persons } = usePersonStore();
-  const { cases } = useCaseStore();
+  const cases = useCaseRecords();
   const { contracts } = useContractStore();
   const { financials } = useFinancialStore();
   const { allRecords } = useRecords();

@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 import { serializePackage } from '../src/domain/usecases/plugins/packageSerialization';
 import type { MarketplacePlugin } from '../src/domain/entities/MarketplacePlugin';
 import { kanbanCasesPlugin } from '../src/plugins/marketplace/kanbanCases';
-import { processoClonePlugin } from '../src/plugins/marketplace/processoClone';
+import { processoPlugin } from '../src/plugins/marketplace/processo';
 
 /**
  * O `.ts` é a fonte; o `.json` de `extension-templates/` é o artefato distribuível, gerado por
@@ -13,7 +13,7 @@ import { processoClonePlugin } from '../src/plugins/marketplace/processoClone';
  * uma tela diferente da que está no repositório, sem nenhum aviso.
  */
 const TEMPLATES: { file: string; plugin: MarketplacePlugin }[] = [
-  { file: 'extension-templates/processo.json', plugin: processoClonePlugin },
+  { file: 'extension-templates/processo.json', plugin: processoPlugin },
   { file: 'extension-templates/kanban-processos.json', plugin: kanbanCasesPlugin },
 ];
 

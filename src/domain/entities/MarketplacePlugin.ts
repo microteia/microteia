@@ -2,7 +2,7 @@ import type { PluginManifest } from '../schema/plugin/pluginManifest';
 import type { WorkflowDefinition } from './Workflow';
 import type { Script } from './Script';
 import type { ActionDefinition } from './Action';
-import type { FieldDefinition, ScreenListAction } from './entitySchemas';
+import type { CustomFieldOption, FieldDefinition, ScreenListAction } from './entitySchemas';
 
 /**
  * Uma tela (entidade) que a extensão instala no escritório. É uma ScreenDefinition autoral: a
@@ -43,6 +43,10 @@ export interface ScreenModuleTemplate {
    * `ScreenDefinition.dataCollection`.
    */
   dataCollection?: string;
+  /** Prefixo dos eventos da coleção. Ver `ScreenDefinition.eventPrefix`. */
+  eventPrefix?: string | null;
+  /** Papéis que podem gravar. Ver `ScreenDefinition.writeRoles`. */
+  writeRoles?: string[] | null;
   listActions?: ScreenListAction[];
   sidebarOrder?: number;
   enabled?: boolean;
@@ -120,6 +124,14 @@ export interface ViewModuleTemplate {
 export interface LookupModuleTemplate {
   collection: string;
   label: string;
+  /**
+   * Opções SEMENTE: o ponto de partida da lista num escritório que ainda não a tem. São gravadas na
+   * instalação **apenas quando a coleção está vazia** — a partir daí as opções são dado do
+   * escritório, e nem a atualização nem a reinstalação da extensão as toca. É o que permite a uma
+   * extensão entregar uma entidade pronta para uso (as Áreas, Fases e Status de um Processo) sem
+   * que o kernel precise conhecer nenhuma delas.
+   */
+  options?: CustomFieldOption[];
 }
 
 export interface MarketplacePlugin {

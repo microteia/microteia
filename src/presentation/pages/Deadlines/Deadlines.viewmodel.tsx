@@ -2,7 +2,8 @@ import { useState, useMemo, useCallback } from 'react';
 import { useTheme } from 'styled-components';
 import { useAuth } from '../../../stores/useAuth';
 import { useDeadlineStore } from '../../../stores/useDeadlineStore';
-import { useCaseStore } from '../../../stores/useCaseStore';
+import { CASES_COLLECTION, useCaseRecords } from '../../shared/useCollectionRecords';
+import { useOpenRecord } from '../../shared/useOpenRecord';
 import { usePersonStore } from '../../../stores/usePersonStore';
 import { useWorkspace } from '../../../stores/useWorkspace';
 import { useNotification } from '../../../stores/useNotification';
@@ -58,7 +59,8 @@ export const useDeadlinesViewModel = (): DeadlinesViewModel => {
   const { user } = useAuth();
   const { getOptions } = useLookups();
   const typeConfigs = getOptions('deadlineTypes');
-  const { cases } = useCaseStore();
+  const cases = useCaseRecords();
+  const openRecord = useOpenRecord();
   const { persons } = usePersonStore();
   const { openTab } = useWorkspace();
   const { notify } = useNotification();
@@ -210,7 +212,7 @@ export const useDeadlinesViewModel = (): DeadlinesViewModel => {
 
   const openNewDeadline = useCallback(() => openTab('new-deadline'), [openTab]);
   const openDeadline = useCallback((d: Deadline) => openTab(`view-deadline:${d.id}`), [openTab]);
-  const openCase = useCallback((caseId: string) => openTab(`view-case:${caseId}`), [openTab]);
+  const openCase = useCallback((caseId: string) => openRecord(CASES_COLLECTION, caseId), [openRecord]);
 
   const handleDelete = useCallback((d: Deadline) => setDeadlineToDelete(d), []);
 

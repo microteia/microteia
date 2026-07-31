@@ -1,5 +1,6 @@
 import { ENTITY_REGISTRY_LIST } from '../schema/entityRegistry';
 import { isLookupCollection } from '../schema/lookupRegistry';
+import type { SchemaScreen } from '../schema/screenEntity';
 import { RESERVED_COLLECTIONS } from '../schema/screenEntity';
 
 export type WorkflowEventPrefix = string;
@@ -30,3 +31,29 @@ export const getWorkflowEventPrefix = (collection: string): WorkflowEventPrefix 
   if (RESERVED_COLLECTIONS.has(collection)) return undefined;
   return collection;
 };
+
+/**
+ * O prefixo que a TELA declara para a coleção, quando declara. É o que permite uma entidade sair do
+ * kernel e passar a ser descrita por uma extensão sem renomear os eventos que as automações já
+ * escutam (`cases` continua emitindo `case.saved`).
+ *
+ * Só é consultado quando o registro não responde pela coleção — as entidades ainda fixas seguem no
+ * caminho rápido, sem leitura nenhuma.
+ *
+ * A busca é por quem DECLARA, não pela primeira tela da coleção: a mesma coleção costuma ser
+ * descrita por duas telas — a da extensão, que declara o prefixo, e a que leva o nome da coleção,
+ * criada só para as Security Rules enxergarem a permissão. A segunda vem antes na ordem alfabética
+ * dos documentos e calaria a declaração da primeira.
+ */
+export const declaredEventPrefix = (
+  screens: SchemaScreen[],
+  collection: string,
+): WorkflowEventPrefix | undefined =>
+  screens
+    .filter((screen) => (screen.collection ?? screen.id) === collection)
+    .map((screen) => screen.eventPrefix?.trim())
+    .find((prefix): prefix is string => !!prefix);
+
+/** A coleção tem prefixo declarado no REGISTRO? Se sim, nem vale consultar as telas. */
+export const hasRegistryEventPrefix = (collection: string): boolean =>
+  FLAT_ENTITY_PREFIXES[collection] !== undefined;

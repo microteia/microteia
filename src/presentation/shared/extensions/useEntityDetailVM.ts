@@ -196,7 +196,7 @@ export const useEntityDetailVM = (
     (entityId: string, tagIds: string[]) => updateRecord(collection, entityId, { tagIds }),
     [updateRecord, collection],
   );
-  const tagAdapter = useTagAdapter(collection, tagIdsOf, setRecordTags);
+  const tagAdapter = useTagAdapter(collection, tagIdsOf, setRecordTags, definition?.tagCollection);
 
   return {
     definition,

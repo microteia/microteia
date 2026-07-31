@@ -20,7 +20,6 @@ export type EntityKey = string;
 /** As entidades nativas do Microteia. Mantida como união só para documentar o conjunto fixo. */
 export type BuiltinEntityKey =
   | 'persons'
-  | 'cases'
   | 'contracts'
   | 'deadlines'
   | 'financials'
@@ -29,12 +28,11 @@ export type BuiltinEntityKey =
   | 'news';
 
 export const BUILTIN_ENTITY_KEYS: readonly BuiltinEntityKey[] = [
-  'persons', 'cases', 'contracts', 'deadlines', 'financials', 'members', 'pushes', 'news',
+  'persons', 'contracts', 'deadlines', 'financials', 'members', 'pushes', 'news',
 ] as const;
 
 export type WorkflowEntityEventPrefix =
   | 'person'
-  | 'case'
   | 'contract'
   | 'deadline'
   | 'financial'
@@ -68,6 +66,8 @@ export interface NativeFieldSpec {
   lookupCollection?: string;
   objectFields?: NativeFieldSpec[];
   refEntity?: string;
+  /** Nome de navegação do registro apontado — o `denormKey` das relações do registro. */
+  refDenormKey?: string;
   multi?: boolean;
   list?: boolean;
   required?: boolean;
@@ -247,79 +247,6 @@ export const ENTITY_REGISTRY: Record<EntityKey, EntityMetadata> = {
     ],
     fks: [
       { key: 'tagIds', label: 'Etiquetas', targetCollection: 'personTags', denormKey: 'tag', multi: true,
-        ui: { form: false } },
-    ],
-    supportsCustomFields: true,
-    referenceable: true,
-  },
-  cases: {
-    key: 'cases',
-    collection: 'cases',
-    tagCollection: 'caseTags',
-    eventPrefix: 'case',
-    labelSingular: 'Processo',
-    labelPlural: 'Processos',
-    displayNameFields: ['title', 'caseNumber'],
-    referenceDenormFields: ['caseNumber', 'title', 'area'],
-    fields: [
-      { key: 'caseNumber', label: 'Número do processo', type: 'string', required: true,
-        ui: { section: 'Identificação', order: 2 } },
-      { key: 'title', label: 'Título', type: 'string', required: true,
-        ui: { section: 'Identificação', order: 3 } },
-      { key: 'area', label: 'Área', type: 'string', lookupCollection: 'caseAreas',
-        optionsAllowUserAdd: true,
-        ui: { control: 'select', section: 'Classificação', order: 4, list: { icon: 'scales', order: 1 }, filter: true } },
-      { key: 'type', label: 'Tipo de ação', type: 'stringArray', lookupCollection: 'caseActionTypes',
-        optionsAllowUserAdd: true,
-        ui: { control: 'select', section: 'Classificação', order: 5, filter: true } },
-      { key: 'phase', label: 'Fase', type: 'string', lookupCollection: 'casePhases',
-        optionsAllowUserAdd: true,
-        ui: { control: 'select', section: 'Classificação', order: 6, filter: true } },
-      { key: 'status', label: 'Status', type: 'string', lookupCollection: 'caseStatuses',
-        optionsAllowUserAdd: true, optionsColored: true,
-        ui: { control: 'select', section: 'Classificação', order: 7, filter: true } },
-      { key: 'instance', label: 'Instância', type: 'string', lookupCollection: 'caseInstances',
-        optionsAllowUserAdd: true,
-        ui: { control: 'select', section: 'Tribunal', order: 8, list: { icon: 'scales', order: 2 }, filter: true } },
-      { key: 'court', label: 'Vara/Tribunal', type: 'string', lookupCollection: 'caseCourts',
-        optionsAllowUserAdd: true,
-        ui: { control: 'select', section: 'Tribunal', order: 9, list: { icon: 'scales', order: 3 }, filter: true } },
-      { key: 'courtDistrict', label: 'Comarca', type: 'string', lookupCollection: 'caseDistricts',
-        optionsAllowUserAdd: true,
-        ui: { control: 'select', section: 'Tribunal', order: 10, filter: true } },
-      { key: 'judge', label: 'Juiz(a)', type: 'string', lookupCollection: 'caseJudges',
-        optionsAllowUserAdd: true,
-        ui: { control: 'select', section: 'Tribunal', order: 11, filter: true } },
-      { key: 'filedAt', label: 'Data de distribuição', type: 'date',
-        ui: { section: 'Tribunal', order: 12, filter: true } },
-      { key: 'causeValue', label: 'Valor da causa', type: 'number',
-        ui: { control: 'currency', section: 'Financeiro e Responsável', order: 13, list: { icon: 'moneyDollar', order: 4 } } },
-      { key: 'notes', label: 'Observações', type: 'string',
-        ui: { control: 'textarea', section: 'Financeiro e Responsável', order: 16 } },
-    ],
-    fks: [
-      {
-        key: 'contractId',
-        label: 'Contrato',
-        targetCollection: 'contracts',
-        denormKey: 'contract',
-        denormalizedFields: ['number', 'title', 'type', 'status'],
-        ui: { section: 'Financeiro e Responsável', order: 15, placeholder: 'Selecione o contrato...', filter: true },
-      },
-      {
-        key: 'responsibleLawyerId',
-        label: 'Advogado responsável',
-        targetCollection: 'persons',
-        denormKey: 'responsibleLawyer',
-        denormalizedFields: ['name', 'type', 'email'],
-        ui: { section: 'Financeiro e Responsável', order: 14, placeholder: 'Selecione o responsável...',
-              list: { icon: 'scales', order: 0 }, filter: true },
-      },
-      { key: 'activePoleIds', label: 'Polo ativo', targetCollection: 'persons', denormKey: 'activePole', multi: true,
-        ui: { section: 'Partes', order: 0, placeholder: 'Selecione as pessoas...', filter: true } },
-      { key: 'passivePoleIds', label: 'Polo passivo', targetCollection: 'persons', denormKey: 'passivePole', multi: true,
-        ui: { section: 'Partes', order: 1, placeholder: 'Selecione as pessoas...', filter: true } },
-      { key: 'tagIds', label: 'Etiquetas', targetCollection: 'caseTags', denormKey: 'tag', multi: true,
         ui: { form: false } },
     ],
     supportsCustomFields: true,

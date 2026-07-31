@@ -21,6 +21,8 @@ const persisted: PersistedKeys = {
   titleFieldKey: 'name',
   subtitleFieldKey: 'document',
   dataCollection: 'cases',
+  eventPrefix: 'case',
+  writeRoles: ['admin', 'lawyer'],
   hasNotes: true,
   hasDocuments: true,
   hasTags: true,
@@ -71,8 +73,8 @@ describe('mapScreenDefinition', () => {
   });
 
   it('a tela de uma entidade fixa é builtin, esteja ou não gravado no documento', () => {
-    expect(mapScreenDefinition('cases', {}, 'tenant-1').origin).toBe('builtin');
-    expect(mapScreenDefinition('cases', { origin: 'design' }, 'tenant-1').origin).toBe('builtin');
+    expect(mapScreenDefinition('contracts', {}, 'tenant-1').origin).toBe('builtin');
+    expect(mapScreenDefinition('contracts', { origin: 'design' }, 'tenant-1').origin).toBe('builtin');
   });
 
   it('campo sem origin herda a da tela; com ownerPluginId, é da extensão', () => {

@@ -15,7 +15,6 @@ export interface DynamicTabInfo {
 /** Chaves de aba de detalhe das telas fixas — o resto é tela dinâmica. */
 const BUILTIN_VIEW_PREFIX: Record<string, string> = {
   persons: 'view-person:',
-  cases: 'view-case:',
   contracts: 'view-contract:',
   financials: 'view-financial:',
   deadlines: 'view-deadline:',

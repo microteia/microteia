@@ -12,10 +12,19 @@ const field = (partial: Partial<FieldDefinition> & Pick<FieldDefinition, 'key' |
 
 const ctx = createSchemaContext([
   {
-    id: 'cases',
+    id: 'processos',
+    collection: 'cases',
+    eventPrefix: 'case',
     titleSingular: 'Processo',
     titleFieldKey: 'title',
-    fields: [field({ key: 'tarefa', label: 'Tarefa', type: 'reference', refEntity: 'tarefas' })],
+    fields: [
+      field({ key: 'caseNumber', label: 'Número', type: 'text' }),
+      field({ key: 'status', label: 'Status', type: 'text' }),
+      field({ key: 'contractId', label: 'Contrato', type: 'reference', refEntity: 'contracts', refDenormKey: 'contract' }),
+      field({ key: 'responsibleLawyerId', label: 'Advogado', type: 'reference', refEntity: 'persons', refDenormKey: 'responsibleLawyer' }),
+      field({ key: 'activePoleIds', label: 'Polo ativo', type: 'reference', refEntity: 'persons', refDenormKey: 'activePole', multi: true }),
+      field({ key: 'tarefa', label: 'Tarefa', type: 'reference', refEntity: 'tarefas' }),
+    ],
   },
   {
     id: 'tarefas',
@@ -47,10 +56,14 @@ describe('buildHydrationPlan', () => {
     expect(level2Targets).toStrictEqual(['contract.client']);
   });
 
-  it('propaga a chave FK do salto seguinte para os fields do hop pai', () => {
+  /**
+   * A relação declarada por tela traz o registro INTEIRO — não há subconjunto denormalizado a
+   * declarar, e uma leitura já custa o mesmo. O salto seguinte encontra a chave que precisa.
+   */
+  it('o salto de uma relação declarada busca o registro completo', () => {
     const plan = buildHydrationPlan(ctx, casesRoot, ['contract.client.name']);
     const contractHop = plan.levels[0].find((hop) => hop.materializeAt === 'contract');
-    expect(contractHop?.fields).toContain('clientId');
+    expect(contractHop?.fields).toBe('all');
   });
 
   it('reporta caminhos inválidos sem abortar o plano', () => {

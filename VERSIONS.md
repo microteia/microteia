@@ -11,6 +11,49 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [2.0.5] — 2026-07-31
+
+- **Automações agora podem ser empacotadas junto com a tela que as dispara.** Antes, ao montar uma extensão, uma automação de Processos travava a exportação reclamando de uma tela inexistente.
+- Ao instalar uma extensão, o gatilho das automações passa a apontar sempre para a tela certa — inclusive quando a tela chega junto com outra extensão da qual ela depende.
+- O sistema passa a avisar, ainda na montagem da extensão, quando duas telas disputariam o mesmo evento ou quando uma tela usaria um evento que já é de Pessoas, Contratos ou Prazos — o que faria automações do escritório dispararem na hora errada.
+
+## [2.0.4] — 2026-07-31
+
+- Corrigido o gatilho das **automações de Processo**: a lista de eventos oferecia "Processos alterado" com um nome que o sistema nunca publicava, e a automação simplesmente não rodava. O evento de Processo volta a ser um só — o mesmo de sempre —, tanto na hora de escolher o gatilho quanto na hora de disparar.
+- Automações criadas nesse intervalo podem estar apontadas para o gatilho antigo: abra a automação e escolha novamente **Ao salvar: Processo**.
+
+## [2.0.3] — 2026-07-31
+
+- As **etiquetas dos processos** voltaram a aparecer na listagem e na tela do processo. A tela agora responde pelas próprias etiquetas, em vez de depender de outra configuração estar no lugar.
+
+## [2.0.2] — 2026-07-31
+
+- Corrigido o desaparecimento das **etiquetas dos processos** depois da migração: elas continuavam gravadas, mas não apareciam nem na listagem nem na tela do processo. As listas de opções (Área, Fase, Status…) de qualquer tela instalada por extensão passaram pelo mesmo conserto.
+
+## [2.0.1] — 2026-07-31
+
+- Corrigidas as regras de segurança do banco, que não compilavam após a saída de Processos do sistema e impediam a publicação.
+
+## [2.0.0] — 2026-07-31
+
+- **Processos agora é uma extensão.** A tela deixou de fazer parte do sistema e passou a ser instalada como qualquer outra extensão — os mesmos processos, as mesmas listas, etiquetas, anotações e documentos, sem nenhuma migração de dados.
+- Prazos, Financeiro, Contratos, Agenda, Publicações e os painéis continuam mostrando e abrindo os processos normalmente, desde que a extensão **Processos** esteja instalada e ativa no escritório.
+- As automações que reagem a processos seguem funcionando com os mesmos gatilhos e os mesmos caminhos de campo.
+- Quem pode criar e editar processos continua sendo advogado e administrador.
+
+> **Atenção:** instale (ou mantenha instalada) a extensão **Processos** em cada escritório. Sem ela, as telas que dependem de processos ficam vazias.
+
+## [1.9.1] — 2026-07-31
+
+- Corrigido o erro que deixava a tela de Processos em branco quando algum processo tinha a data de distribuição gravada num formato antigo. A listagem passou a entender esses valores em vez de parar.
+
+## [1.9.0] — 2026-07-31
+
+- A extensão "Processos (clone)" virou a extensão **Processos** — a de verdade, sem cópia e sem apelido. Ela agora traz o cadastro completo: os campos, as listas de Área, Fase, Status, Instância, Vara, Comarca e Juiz **já preenchidas**, as etiquetas, o cartão da listagem e os filtros.
+- As listas de opções que vêm com uma extensão são apenas o **ponto de partida**: assim que o escritório acrescenta, renomeia ou remove uma opção, ela é dele — atualizar ou remover a extensão nunca mexe no que foi ajustado.
+- Uma tela agora pode definir **quem tem permissão de gravar** nos seus registros. Em Processos, continua valendo o de sempre: advogado e administrador criam e editam, os demais consultam.
+- As automações que escutam eventos de Processo continuam funcionando exatamente como antes.
+
 ## [1.8.1] — 2026-07-31
 
 - Corrigido o aviso de **Atualização** que ficava aceso para as extensões do sistema mesmo logo depois de instalá-las.

@@ -105,6 +105,8 @@ const screenToTemplate = (screen: ScreenDefinition): ScreenModuleTemplate =>
     hasTags: screen.hasTags,
     tagCollection: screen.tagCollection ?? undefined,
     dataCollection: screen.dataCollection ?? undefined,
+    eventPrefix: screen.eventPrefix ?? undefined,
+    writeRoles: screen.writeRoles ?? undefined,
     listActions: screen.listActions,
     sidebarOrder: screen.sidebarOrder,
     enabled: screen.enabled,

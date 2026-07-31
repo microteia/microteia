@@ -82,7 +82,7 @@ export const toDateFieldInput = (value: unknown): string => {
 
 /**
  * `stored` é o REGISTRO INTEIRO — os campos moram na raiz do documento, então basta ler pela chave.
- * Aceita `object` para que uma entidade tipada (Person, Case…) seja passada diretamente: interfaces
+ * Aceita `object` para que uma entidade tipada (Person, Contract…) seja passada diretamente: interfaces
  * não são atribuíveis a `Record<string, unknown>`, e o cast ficaria em cada chamada.
  */
 export const buildInitialFormValues = (

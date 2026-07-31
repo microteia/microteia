@@ -33,6 +33,8 @@ export interface SchemaScreen {
   titleFieldKey: string;
   fields: FieldDefinition[];
   tagCollection?: string | null;
+  /** Prefixo declarado dos eventos da coleção. Ausente = o nome da coleção. */
+  eventPrefix?: string | null;
 }
 
 /** A lista de opções como o schema a enxerga. `collection` é o nome da coleção sob o tenant. */
@@ -92,8 +94,8 @@ const screenCollection = (screen: SchemaScreen): string => screen.collection ?? 
  * mantém a coleção descrita depois que a entidade sai do kernel.
  */
 const mergeSchemaScreens = (base: SchemaScreen, next: SchemaScreen, collection: string): SchemaScreen => {
-  // A tela DONA do nome (`screenDefinitions/cases`) dá rótulos e campo-título; a outra só acrescenta
-  // campos. Assim uma tela-visão chamada "Processo (clone)" não renomeia a entidade Processo.
+  // A tela DONA do nome dá rótulos e campo-título; a outra só acrescenta campos — assim uma
+  // segunda tela sobre a mesma coleção não renomeia a entidade.
   const owner = next.id === collection ? next : base;
   const byKey = new Map(base.fields.map((field) => [field.key, field]));
   for (const field of next.fields) byKey.set(field.key, field);
@@ -102,6 +104,10 @@ const mergeSchemaScreens = (base: SchemaScreen, next: SchemaScreen, collection: 
     collection,
     fields: [...byKey.values()],
     tagCollection: owner.tagCollection ?? base.tagCollection ?? next.tagCollection,
+    // O prefixo dos eventos é da COLEÇÃO, não da tela que o declarou: quem declara é a extensão que
+    // trouxe a entidade para fora do kernel, enquanto a dona do nome é um documento de baseline que
+    // nada sabe de eventos. Deixar a dona prevalecer aqui renomearia os eventos do escritório.
+    eventPrefix: owner.eventPrefix ?? base.eventPrefix ?? next.eventPrefix,
   };
 };
 
@@ -189,6 +195,7 @@ export const fieldDefinitionToNativeSpec = (field: FieldDefinition): NativeField
   if (field.required) spec.required = true;
   if (field.multi) spec.multi = true;
   if (undefinedIfNull(field.refEntity)) spec.refEntity = field.refEntity as string;
+  if (undefinedIfNull(field.refDenormKey)) spec.refDenormKey = field.refDenormKey as string;
   if (undefinedIfNull(field.lookupCollection)) spec.lookupCollection = field.lookupCollection as string;
   if (field.options) spec.options = field.options;
   if (field.optionsAllowUserAdd) spec.optionsAllowUserAdd = true;
@@ -234,6 +241,7 @@ export const nativeSpecToFieldDefinition = (
   mask: spec.ui?.mask ?? null,
   lookupCollection: spec.lookupCollection ?? null,
   refEntity: spec.refEntity ?? null,
+  refDenormKey: spec.refDenormKey ?? null,
   multi: spec.multi ?? (spec.type === 'stringArray' ? true : undefined),
   optionsAllowUserAdd: spec.optionsAllowUserAdd,
   optionsColored: spec.optionsColored,
@@ -301,7 +309,7 @@ const screenEntityMetadata = (screen: SchemaScreen, fields: NativeFieldSpec[]): 
   key: screenCollection(screen),
   collection: screenCollection(screen),
   ...(screen.tagCollection ? { tagCollection: screen.tagCollection } : {}),
-  eventPrefix: screenCollection(screen),
+  eventPrefix: screen.eventPrefix ?? screenCollection(screen),
   labelSingular: screen.titleSingular,
   labelPlural: screen.titlePlural ?? screen.titleSingular,
   displayNameFields: [screen.titleFieldKey],
@@ -376,7 +384,6 @@ export const RESERVED_COLLECTIONS: ReadonlySet<string> = new Set<string>([
   'extensions',
   'installed_extensions',
   'personTags',
-  'caseTags',
   'contractTags',
   'financialTags',
   'notes',

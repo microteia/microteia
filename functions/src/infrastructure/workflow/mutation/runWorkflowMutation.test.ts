@@ -239,9 +239,9 @@ describe('runWorkflowUpsert', () => {
 
   it('grava title em entidades nativas que o têm como campo próprio', async () => {
     const repo = new FakeMutationRepository();
-    repo.seed('cases', 'c1', { title: 'Antigo' });
+    repo.seed('contracts', 'c1', { title: 'Antigo' });
     const outcome = await runWorkflowUpsert(
-      { table: 'cases', id: 'c1', data: { title: 'Novo título' } },
+      { table: 'contracts', id: 'c1', data: { title: 'Novo título' } },
       context(),
       deps(repo),
       { ignoreUnwritableFields: true },

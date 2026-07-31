@@ -3,6 +3,7 @@ import {
   WORKFLOW_EVENT_CATALOG,
   WORKFLOW_CALLED_EVENT,
   buildWorkflowEventCatalog,
+  splitEntityEventName,
   eventNameToEntityKey,
   eventNameToRoot,
   getWorkflowEventFields,
@@ -16,11 +17,19 @@ const entry = (name: string) => WORKFLOW_EVENT_CATALOG.find((e) => e.name === na
 const paths = (name: string) => (entry(name)?.fields ?? []).map((f) => f.path);
 
 const tenantCtx = createSchemaContext([
+  // Processo vem de extensão: coleção `cases`, eventos `case.*`, campos declarados no pacote.
   {
-    id: 'cases',
+    id: 'processos',
+    collection: 'cases',
+    eventPrefix: 'case',
     titleSingular: 'Processo',
     titleFieldKey: 'title',
-    fields: [{ key: 'tarefa', label: 'Tarefa', type: 'text', required: false, order: 0, origin: 'design' }],
+    fields: [
+      { key: 'title', label: 'Título', type: 'text', required: true, order: 0, origin: 'plugin' },
+      { key: 'caseNumber', label: 'Número', type: 'text', required: true, order: 1, origin: 'plugin' },
+      { key: 'contractId', label: 'Contrato', type: 'reference', refEntity: 'contracts', refDenormKey: 'contract', required: false, order: 2, origin: 'plugin' },
+      { key: 'tarefa', label: 'Tarefa', type: 'text', required: false, order: 3, origin: 'design' },
+    ],
   },
   {
     id: 'medico',
@@ -34,17 +43,19 @@ const tenantCtx = createSchemaContext([
 describe('eventCatalog — derivação do registry', () => {
   it('mantém os eventos das entidades com rótulos PT-BR', () => {
     expect(entry('person.saved')?.label).toBe('Ao salvar: Pessoa');
-    expect(entry('case.deleted')?.label).toBe('Ao excluir: Processo');
+    expect(entry('contract.deleted')?.label).toBe('Ao excluir: Contrato');
     expect(entry('lookup.saved')?.label).toBe('Ao salvar: Item de Lista');
+    // Processo saiu do kernel: o evento dele só existe no catálogo do escritório que o instalou.
+    expect(entry('case.saved')).toBeUndefined();
   });
 
   it('deriva os caminhos denormalizados das FKs (fim do hardcode)', () => {
-    const casePaths = paths('case.saved');
-    expect(casePaths).toEqual(
-      expect.arrayContaining(['contract.id', 'contract.number', 'contract.title', 'responsibleLawyer.name', 'contractId']),
+    const contractPaths = paths('contract.saved');
+    expect(contractPaths).toEqual(
+      expect.arrayContaining(['client.id', 'client.name', 'responsible.name', 'clientId']),
     );
-    const caseEntry = entry('case.saved');
-    expect(caseEntry?.fields.find((f) => f.path === 'contract.number')?.label).toBe('Contrato: Número');
+    const contractEntry = entry('contract.saved');
+    expect(contractEntry?.fields.find((f) => f.path === 'client.name')?.label).toBe('Cliente: Nome');
     expect(paths('deadline.saved')).toEqual(expect.arrayContaining(['case.caseNumber', 'case.title', 'case.area']));
     expect(paths('financial.saved')).toEqual(expect.arrayContaining(['person.name', 'contract.number']));
   });
@@ -63,7 +74,7 @@ describe('eventCatalog — derivação do registry', () => {
   });
 
   it('gera eventos de nota/documento com pai denormalizado do registry', () => {
-    expect(paths('case_note.saved')).toEqual(expect.arrayContaining(['content', 'parent.id', 'parent.caseNumber']));
+    expect(paths('contract_note.saved')).toEqual(expect.arrayContaining(['content', 'parent.id', 'parent.number']));
     expect(paths('financial_document.deleted')).toEqual(expect.arrayContaining(['fileName', 'parent.amount']));
     expect(entry('deadline_document.saved')).toBeUndefined();
   });
@@ -91,12 +102,81 @@ describe('buildWorkflowEventCatalog', () => {
     expect(names.filter((n) => n === 'case.saved')).toHaveLength(1);
     expect(names).not.toContain('cases.saved');
   });
+
+  /**
+   * A forma real do escritório: além da tela da extensão, existe o documento que leva o nome da
+   * coleção, criado na instalação para as Security Rules lerem a permissão. Ele não declara evento
+   * nenhum — e não pode roubar o nome dos eventos, senão o gatilho oferece `cases.saved` enquanto o
+   * motor publica `case.saved` e nenhuma automação dispara.
+   */
+  it('a tela de permissão da coleção não renomeia os eventos', () => {
+    const ctx = createSchemaContext([
+      {
+        id: 'cases',
+        titleSingular: 'Processo',
+        titleFieldKey: 'title',
+        fields: [],
+      },
+      {
+        id: 'processos',
+        collection: 'cases',
+        eventPrefix: 'case',
+        titleSingular: 'Processo',
+        titleFieldKey: 'title',
+        fields: [{ key: 'caseNumber', label: 'Número', type: 'text', required: true, order: 0, origin: 'plugin' }],
+      },
+    ]);
+    const names = buildWorkflowEventCatalog(ctx).map((e) => e.name);
+    expect(names).toContain('case.saved');
+    expect(names).toContain('case.deleted');
+    expect(names).not.toContain('cases.saved');
+    expect(eventNameToRoot('case.saved', ctx)).toMatchObject({ kind: 'entity', entityKey: 'cases' });
+  });
+});
+
+describe('splitEntityEventName', () => {
+  it('separa prefixo e ação', () => {
+    expect(splitEntityEventName('case.saved')).toEqual({ prefix: 'case', action: 'saved' });
+    expect(splitEntityEventName('medico.deleted')).toEqual({ prefix: 'medico', action: 'deleted' });
+  });
+
+  it('não são eventos de coleção: filhos das fixas, listas e chamada de workflow', () => {
+    expect(splitEntityEventName('person_note.saved')).toBeNull();
+    expect(splitEntityEventName('contract_document.deleted')).toBeNull();
+    expect(splitEntityEventName('lookup.saved')).toBeNull();
+    expect(splitEntityEventName('workflow.called')).toBeNull();
+  });
+
+  /**
+   * Chave com underscore é o normal de uma tela trazida por dependência. O que a distingue de um
+   * evento de filho é a composição (prefixo de entidade fixa + `_note`/`_document`), não o caractere.
+   */
+  it('a chave namespaced de uma dependência é um evento de coleção', () => {
+    expect(splitEntityEventName('com-microteia-vendas__produto.saved')).toEqual({
+      prefix: 'com-microteia-vendas__produto',
+      action: 'saved',
+    });
+    expect(splitEntityEventName('medico_note.saved')).toMatchObject({ prefix: 'medico_note' });
+  });
 });
 
 describe('eventNameToRoot / eventNameToEntityKey', () => {
   it('resolve raiz de entidade com hasOld por ação', () => {
-    expect(eventNameToRoot('case.saved')).toMatchObject({ kind: 'entity', entityKey: 'cases', hasOld: true });
-    expect(eventNameToRoot('case.deleted')).toMatchObject({ hasOld: false });
+    expect(eventNameToRoot('contract.saved')).toMatchObject({ kind: 'entity', entityKey: 'contracts', hasOld: true });
+    expect(eventNameToRoot('contract.deleted')).toMatchObject({ hasOld: false });
+  });
+
+  /**
+   * O evento da entidade que saiu do kernel: o nome vem do `eventPrefix` que a tela declara, e a
+   * raiz é a COLEÇÃO dela. É o que mantém `case.saved` valendo depois da migração.
+   */
+  it('resolve o evento pelo prefixo que a tela declara', () => {
+    expect(eventNameToRoot('case.saved', tenantCtx)).toMatchObject({
+      kind: 'entity',
+      entityKey: 'cases',
+      hasOld: true,
+    });
+    expect(eventNameToRoot('case.saved')).toBeNull();
   });
 
   it('resolve a tela do tenant como entidade própria', () => {
@@ -109,12 +189,12 @@ describe('eventNameToRoot / eventNameToEntityKey', () => {
 
   it('resolve raiz de campos para eventos de sistema e lookup', () => {
     expect(eventNameToRoot('lookup.saved')?.kind).toBe('fields');
-    expect(eventNameToRoot('case_note.saved')?.kind).toBe('fields');
+    expect(eventNameToRoot('contract_note.saved')?.kind).toBe('fields');
     expect(eventNameToRoot('desconhecido.saved', tenantCtx)).toBeNull();
   });
 
   it('mantém o mapeamento legado de entityKey', () => {
-    expect(eventNameToEntityKey('case.saved')).toBe('cases');
+    expect(eventNameToEntityKey('case.saved', tenantCtx)).toBe('cases');
     expect(eventNameToEntityKey('lookup.saved')).toBe('lookups');
     expect(eventNameToEntityKey('medico.saved', tenantCtx)).toBe('medico');
     expect(eventNameToEntityKey('desconhecido.saved', tenantCtx)).toBeNull();
@@ -142,7 +222,9 @@ describe('workflow.called — parâmetros dinâmicos', () => {
   });
 
   it('hidrata um parâmetro-referência: event.processo.title gera hop para cases', () => {
-    const ctx = createSchemaContext();
+    // A coleção alvo é descrita por uma tela: sem ela no contexto, o salto existe mas o campo do
+    // destino é desconhecido — exatamente como para qualquer entidade não instalada.
+    const ctx = tenantCtx;
     const root = workflowParametersToRoot(parameters);
     const resolution = resolvePath(ctx, root, parsePath('processo.title'));
     expect(resolution.valid).toBe(true);

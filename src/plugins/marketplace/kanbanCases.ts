@@ -17,9 +17,13 @@ import { useMemo, useState, useCallback } from 'react';
 import { useTheme } from 'styled-components';
 import { CompositeFilter, SearchSelect } from '@microteia/ui';
 import {
-  useCases, useCasePhases, useCaseAreas, useCaseStatuses,
+  useCollection, useUpdateRecord, useLookup,
   usePersons, useWorkspace, useNotify, useSavedViewState,
 } from '@microteia/data';
+
+const CASES = 'cases';
+// A aba de edição da extensão de Processos, que apresenta esta mesma coleção.
+const EDIT_PREFIX = 'processo-edit:';
 
 const inList = (values, value) => Array.isArray(values) && value != null && values.indexOf(value) !== -1;
 
@@ -36,10 +40,11 @@ function matchesTokens(caseItem, tokens) {
 
 export default function KanbanCasesView() {
   const theme = useTheme();
-  const { cases, updatePhase } = useCases();
-  const phases = useCasePhases();
-  const areas = useCaseAreas();
-  const statuses = useCaseStatuses();
+  const cases = useCollection(CASES);
+  const updateRecord = useUpdateRecord();
+  const phases = useLookup('casePhases');
+  const areas = useLookup('caseAreas');
+  const statuses = useLookup('caseStatuses');
   const persons = usePersons();
   const { openTab } = useWorkspace();
   const notify = useNotify();
@@ -86,10 +91,10 @@ export default function KanbanCasesView() {
     if (!id) return;
     const item = cases.find((c) => c.id === id);
     if (!item || item.phase === phaseKey) return;
-    updatePhase(id, phaseKey)
+    updateRecord(CASES, id, { phase: phaseKey })
       .then(() => notify('Processo movido para "' + (phaseByKey[phaseKey] ? phaseByKey[phaseKey].label : phaseKey) + '".', 'success'))
       .catch(() => notify('Não foi possível mover o processo.', 'error'));
-  }, [draggedId, cases, updatePhase, notify, phaseByKey]);
+  }, [draggedId, cases, updateRecord, notify, phaseByKey]);
 
   const page = { display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' };
   const header = { padding: '16px 20px', borderBottom: '1px solid ' + theme.colors.border, display: 'flex', flexDirection: 'column', gap: '12px', flexShrink: 0 };
@@ -140,7 +145,7 @@ export default function KanbanCasesView() {
                       draggable
                       onDragStart={() => setDraggedId(c.id)}
                       onDragEnd={() => { setDraggedId(null); setOverPhase(null); }}
-                      onClick={() => openTab('view-case:' + c.id)}
+                      onClick={() => openTab(EDIT_PREFIX + c.id)}
                       style={cardStyle(phase && phase.color)}
                     >
                       <div style={cardTitle}>{c.title || c.caseNumber || 'Processo'}</div>

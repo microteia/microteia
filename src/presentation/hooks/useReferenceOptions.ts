@@ -1,13 +1,12 @@
 import { useMemo } from 'react';
 import { usePersonStore } from '../../stores/usePersonStore';
-import { useCaseStore } from '../../stores/useCaseStore';
 import { useContractStore } from '../../stores/useContractStore';
 import { useFinancialStore } from '../../stores/useFinancialStore';
 import { useDeadlineStore } from '../../stores/useDeadlineStore';
 import { useRecords } from '../../stores/useRecords';
 import { useScreenDefinitions } from '../../stores/useScreenDefinitions';
 import { useTenant } from '../../stores/useTenant';
-import { resolveRecordTitle } from '../../domain/services/customFieldValues';
+import { readRecordText, resolveRecordTitle } from '../../domain/services/customFieldValues';
 import { formatCurrencyBRL } from '../../utils/formatters';
 
 export interface ReferenceOption {
@@ -18,7 +17,6 @@ export interface ReferenceOption {
 
 export const useReferenceOptions = (): Record<string, ReferenceOption[]> => {
   const { persons } = usePersonStore();
-  const { cases } = useCaseStore();
   const { contracts } = useContractStore();
   const { financials } = useFinancialStore();
   const { deadlines } = useDeadlineStore();
@@ -34,9 +32,6 @@ export const useReferenceOptions = (): Record<string, ReferenceOption[]> => {
       members: members
         .map((m) => ({ value: m.userId, label: m.displayName }))
         .sort((a, b) => a.label.localeCompare(b.label)),
-      cases: cases
-        .map((c) => ({ value: c.id, label: c.title, meta: c.caseNumber }))
-        .sort((a, b) => a.label.localeCompare(b.label)),
       contracts: contracts
         .map((c) => ({ value: c.id, label: c.title, meta: c.number }))
         .sort((a, b) => a.label.localeCompare(b.label)),
@@ -48,15 +43,23 @@ export const useReferenceOptions = (): Record<string, ReferenceOption[]> => {
         }))
         .sort((a, b) => a.label.localeCompare(b.label)),
       deadlines: deadlines
-        .map((d) => ({ value: d.id, label: `${d.type} — ${cases.find((c) => c.id === d.caseId)?.title ?? '—'}` }))
+        .map((d) => ({ value: d.id, label: d.type }))
         .sort((a, b) => a.label.localeCompare(b.label)),
     };
+    // Toda coleção descrita por uma tela do escritório entra pelo mesmo caminho: o rótulo sai do
+    // campo-título e o complemento do campo-subtítulo, ambos declarados na tela.
     Object.entries(recordsByCollection).forEach(([collection, records]) => {
-      const titleFieldKey = getDefinition(collection)?.titleFieldKey ?? '';
+      const definition = getDefinition(collection);
+      const titleFieldKey = definition?.titleFieldKey ?? '';
+      const subtitleFieldKey = definition?.subtitleFieldKey ?? '';
       map[collection] = records
-        .map((r) => ({ value: r.id, label: resolveRecordTitle(r, titleFieldKey) }))
+        .map((r) => ({
+          value: r.id,
+          label: resolveRecordTitle(r, titleFieldKey),
+          meta: readRecordText(r, subtitleFieldKey) || undefined,
+        }))
         .sort((a, b) => a.label.localeCompare(b.label));
     });
     return map;
-  }, [persons, cases, contracts, financials, deadlines, recordsByCollection, getDefinition, members]);
+  }, [persons, contracts, financials, deadlines, recordsByCollection, getDefinition, members]);
 };

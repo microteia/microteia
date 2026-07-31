@@ -51,7 +51,7 @@ describe('parseDynamicTabKey', () => {
 
 describe('buildEntityViewTabKey — volta para o pai, fixo ou dinâmico', () => {
   it('usa a chave própria de cada tela fixa', () => {
-    expect(buildEntityViewTabKey('cases', 'c1')).toBe('view-case:c1');
+    expect(buildEntityViewTabKey('contracts', 'c1')).toBe('view-contract:c1');
     expect(buildEntityViewTabKey('contracts', 'k1')).toBe('view-contract:k1');
     expect(buildEntityViewTabKey('persons', 'p1')).toBe('view-person:p1');
     expect(buildEntityViewTabKey('financials', 'f1')).toBe('view-financial:f1');

@@ -244,59 +244,10 @@ service cloud.firestore {
         allow delete: if isTenantAdmin(tenantId);
       }
 
-      // Etiquetas de processos (tenant-scoped) — qualquer membro com escrita cria; só admin deleta
-      match /caseTags/{tagId} {
-        allow read: if isMember(tenantId);
-        allow create, update: if canWriteInTenant(tenantId);
-        allow delete: if isTenantAdmin(tenantId);
-      }
-
       // Etiquetas de contratos (tenant-scoped) — qualquer membro com escrita cria; só admin deleta
       match /contractTags/{tagId} {
         allow read: if isMember(tenantId);
         allow create, update: if canWriteInTenant(tenantId);
-        allow delete: if isTenantAdmin(tenantId);
-      }
-
-      // Lookups de processo — qualquer membro lê; qualquer membro com escrita cria; só admin deleta
-      match /caseAreas/{id} {
-        allow read: if isMember(tenantId);
-        allow create: if canWriteInTenant(tenantId);
-        allow delete: if isTenantAdmin(tenantId);
-      }
-      match /casePhases/{id} {
-        allow read: if isMember(tenantId);
-        allow create: if canWriteInTenant(tenantId);
-        allow delete: if isTenantAdmin(tenantId);
-      }
-      match /caseStatuses/{id} {
-        allow read: if isMember(tenantId);
-        allow create: if canWriteInTenant(tenantId);
-        allow delete: if isTenantAdmin(tenantId);
-      }
-      match /caseInstances/{id} {
-        allow read: if isMember(tenantId);
-        allow create: if canWriteInTenant(tenantId);
-        allow delete: if isTenantAdmin(tenantId);
-      }
-      match /caseActionTypes/{id} {
-        allow read: if isMember(tenantId);
-        allow create: if canWriteInTenant(tenantId);
-        allow delete: if isTenantAdmin(tenantId);
-      }
-      match /caseCourts/{id} {
-        allow read: if isMember(tenantId);
-        allow create: if canWriteInTenant(tenantId);
-        allow delete: if isTenantAdmin(tenantId);
-      }
-      match /caseDistricts/{id} {
-        allow read: if isMember(tenantId);
-        allow create: if canWriteInTenant(tenantId);
-        allow delete: if isTenantAdmin(tenantId);
-      }
-      match /caseJudges/{id} {
-        allow read: if isMember(tenantId);
-        allow create: if canWriteInTenant(tenantId);
         allow delete: if isTenantAdmin(tenantId);
       }
 
@@ -312,35 +263,6 @@ service cloud.firestore {
         allow read: if isMember(tenantId);
         allow create: if canWriteInTenant(tenantId);
         allow delete: if isTenantAdmin(tenantId);
-      }
-
-      // Processos
-      match /cases/{caseId} {
-        allow read: if isMember(tenantId);
-        allow create, update: if isTenantLawyerOrAdmin(tenantId);
-        allow delete: if isTenantAdmin(tenantId);
-
-        // Anotações do processo — criação por qualquer membro com escrita; exclusão só admin.
-        // update só é usado para o stamp de autoria de exclusão (deletedBy*).
-        match /notes/{noteId} {
-          allow read: if isMember(tenantId);
-          allow create: if canWriteInTenant(tenantId);
-          allow update: if isTenantAdmin(tenantId)
-            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['deletedBy', 'deletedByName', 'deletedByPhotoURL'])
-            && request.resource.data.deletedBy == request.auth.uid;
-          allow delete: if isTenantAdmin(tenantId);
-        }
-
-        // Documentos do processo — upload por qualquer membro com escrita; exclusão só admin.
-        // update só é usado para o stamp de autoria de exclusão (deletedBy*).
-        match /documents/{documentId} {
-          allow read: if isMember(tenantId);
-          allow create: if canWriteInTenant(tenantId);
-          allow update: if isTenantAdmin(tenantId)
-            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['deletedBy', 'deletedByName', 'deletedByPhotoURL'])
-            && request.resource.data.deletedBy == request.auth.uid;
-          allow delete: if isTenantAdmin(tenantId);
-        }
       }
 
       // Lookups de contrato — qualquer membro lê; qualquer membro com escrita cria; só admin deleta
@@ -584,8 +506,8 @@ service cloud.firestore {
       //
       // A lista de reservadas é OBRIGATÓRIA: o Firestore avalia todas as regras que casam e libera
       // se qualquer uma liberar. Sem ela, este bloco anularia as regras mais estritas acima
-      // (workflow_executions com `write: if false`, members sem create/delete, cases exigindo
-      // advogado ou admin). É espelho de RESERVED_COLLECTIONS em domain/schema/screenEntity.ts,
+      // (workflow_executions com `write: if false`, members sem create/delete). É espelho de
+      // RESERVED_COLLECTIONS em domain/schema/screenEntity.ts,
       // e o teste screenEntity.test.ts compara as duas pontas.
       //
       // A ESCRITA exige ainda que exista a tela declarada, para que nenhuma coleção inventada
@@ -593,8 +515,7 @@ service cloud.firestore {
       // leitura de documento por consulta não pagaria o que protege.
       function isReservedCollection(name) {
         return name in [
-        'actions', 'aiConnections', 'caseActionTypes', 'caseAreas', 'caseCourts', 'caseDistricts',
-        'caseInstances', 'caseJudges', 'casePhases', 'caseStatuses', 'caseTags', 'cases',
+        'actions', 'aiConnections',
         'contractAdjustmentIndexes', 'contractAdjustmentPeriodicities', 'contractBanks',
         'contractCategories', 'contractCostCenters', 'contractCurrencies', 'contractObjects',
         'contractPaymentMethods', 'contractStatuses', 'contractTags', 'contractTypes', 'contracts',
@@ -624,10 +545,28 @@ service cloud.firestore {
         return !isReservedCollection(name)
           && (isDeclaredScreen(name) || isDeclaredLookup(name) || isDeclaredTagList(name));
       }
+      // A tela pode declarar QUEM grava nos seus registros (`writeRoles`), quando a permissão
+      // padrão do escritório é larga demais para ela — "só advogado ou admin mexe em processo".
+      // Ausente (o normal), vale a permissão padrão. É o que permite uma entidade sair do kernel
+      // sem levar junto a regra nomeada que a protegia.
+      function screenWriteRoles(name) {
+        return get(/databases/$(database)/documents/tenants/$(tenantId)/screenDefinitions/$(name))
+          .data.get('writeRoles', []);
+      }
+      // `isDeclaredScreen` primeiro: uma lista de opções ou um conjunto de etiquetas passa por este
+      // mesmo curinga e NÃO tem documento de tela — o `get` abaixo falharia e negaria a escrita.
+      function passesScreenWriteRoles(name) {
+        return isSystemOrSupport()
+          || !isDeclaredScreen(name)
+          || screenWriteRoles(name).size() == 0
+          || memberData(tenantId).role in screenWriteRoles(name);
+      }
 
       match /{screenCollection}/{recordId} {
         allow read: if !isReservedCollection(screenCollection) && isMember(tenantId);
-        allow create, update: if isWritableScreen(screenCollection) && canWriteInTenant(tenantId);
+        allow create, update: if isWritableScreen(screenCollection)
+          && canWriteInTenant(tenantId)
+          && passesScreenWriteRoles(screenCollection);
         allow delete: if isWritableScreen(screenCollection) && isTenantAdmin(tenantId);
 
         // Anotações do registro — mesmo modelo das entidades fixas: qualquer membro com escrita

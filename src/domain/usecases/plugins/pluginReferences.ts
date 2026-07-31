@@ -9,6 +9,7 @@ import type { InputMapping, WorkflowStep } from '../../entities/Workflow';
 import { getEntityByCollection, getEntityByEventPrefix } from '../../schema/entityRegistry';
 import { splitEntityEventName } from '../../schema/eventCatalog';
 import { isLookupCollection } from '../../schema/lookupRegistry';
+import { screenEventPrefix, templateCollection } from './screenModule';
 
 export type RefKind = 'screen' | 'action' | 'workflow' | 'script';
 
@@ -77,7 +78,19 @@ export const screenPatchOutRefs = (patch: ScreenPatchTemplate): PackageRef[] => 
 export const actionOutRefs = (action: ActionModuleTemplate): PackageRef[] =>
   action.workflowId ? [{ kind: 'workflow', id: action.workflowId, from: `ação "${action.key}"` }] : [];
 
-export const workflowOutRefs = (workflow: WorkflowModuleTemplate): PackageRef[] => {
+/**
+ * O gatilho de um workflow é uma referência a uma TELA — por isso entra aqui. Mas o nome do evento
+ * não é a chave dela: quem declara `eventPrefix` (ou descreve outra coleção) emite por um nome
+ * próprio. A tela é achada pelo que cada uma EMITE (`screenEventPrefix`), e a referência aponta a
+ * chave dela; supor que prefixo e chave são a mesma palavra acusaria uma tela inexistente.
+ *
+ * Prefixo que nenhuma tela do pacote emite e que não é do kernel continua virando referência pelo
+ * próprio nome: é o caso legítimo de uma automação que dispara com algo que o pacote não leva.
+ */
+export const workflowOutRefs = (
+  workflow: WorkflowModuleTemplate,
+  screens: ScreenModuleTemplate[] = [],
+): PackageRef[] => {
   const refs: PackageRef[] = [];
   const from = `automação "${workflow.name}"`;
 
@@ -88,8 +101,12 @@ export const workflowOutRefs = (workflow: WorkflowModuleTemplate): PackageRef[] 
     if (targetWorkflowId) refs.push({ kind: 'workflow', id: targetWorkflowId, from });
   }
   const event = splitEntityEventName(workflow.eventName);
-  if (event && !isCoreCollection(event.collection) && !getEntityByEventPrefix(event.collection)) {
-    refs.push({ kind: 'screen', id: event.collection, from });
+  if (event) {
+    const emitter = screens.find((screen) => screenEventPrefix(screen) === event.prefix);
+    if (emitter) refs.push({ kind: 'screen', id: emitter.key, from });
+    else if (!isCoreCollection(event.prefix) && !getEntityByEventPrefix(event.prefix)) {
+      refs.push({ kind: 'screen', id: event.prefix, from });
+    }
   }
   return refs;
 };
@@ -98,7 +115,7 @@ export const packageOutRefs = (pkg: MarketplacePlugin): PackageRef[] => [
   ...(pkg.screens ?? []).flatMap(screenOutRefs),
   ...(pkg.screenPatches ?? []).flatMap(screenPatchOutRefs),
   ...(pkg.actions ?? []).flatMap(actionOutRefs),
-  ...pkg.workflows.flatMap(workflowOutRefs),
+  ...pkg.workflows.flatMap((workflow) => workflowOutRefs(workflow, pkg.screens ?? [])),
 ];
 
 export interface PackageValidationIssue {
@@ -142,6 +159,54 @@ const patchTargetIssue = (
 };
 
 /**
+ * O prefixo de eventos é um nome GLOBAL, como a coleção: quem escuta `case.saved` não sabe — nem
+ * pode saber — qual extensão publica. Daí as três checagens:
+ *
+ * - **Nome que o motor não lê.** `lookup`, `workflow` e os eventos de filho (`person_note`) são
+ *   dele; uma tela que emitisse por esses nomes nunca teria o gatilho resolvido.
+ * - **Prefixo que já é do kernel.** Uma tela `medico` declarando `person` faria toda gravação de
+ *   médico disparar as automações de Pessoa do escritório. Declarar o prefixo da PRÓPRIA coleção
+ *   fixa é o oposto: é a continuidade que deixa uma entidade sair do kernel sem renomear eventos.
+ * - **Duas telas, um nome.** Só é colisão quando as coleções são diferentes — duas telas sobre a
+ *   MESMA coleção emitindo o mesmo evento é o esperado, há um só fluxo de dados ali.
+ */
+const eventPrefixIssues = (screens: ScreenModuleTemplate[]): PackageValidationIssue[] => {
+  const issues: PackageValidationIssue[] = [];
+  const collectionByPrefix = new Map<string, string>();
+
+  for (const screen of screens) {
+    const prefix = screenEventPrefix(screen);
+    const collection = templateCollection(screen);
+    const ref: PackageRef = { kind: 'screen', id: screen.key, from: `tela "${screen.key}"` };
+
+    if (!splitEntityEventName(`${prefix}.saved`)) {
+      issues.push({
+        ref,
+        message: `a tela "${screen.key}" emitiria "${prefix}.saved", um nome reservado pelo motor de automações — declare outro \`eventPrefix\`.`,
+      });
+    }
+
+    const kernelEntity = getEntityByEventPrefix(prefix);
+    if (kernelEntity && kernelEntity.collection !== collection) {
+      issues.push({
+        ref,
+        message: `a tela "${screen.key}" declara o prefixo "${prefix}", que é de ${kernelEntity.labelPlural} — as automações de ${kernelEntity.labelPlural} passariam a disparar com "${collection}".`,
+      });
+    }
+
+    const taken = collectionByPrefix.get(prefix);
+    if (taken && taken !== collection) {
+      issues.push({
+        ref,
+        message: `a tela "${screen.key}" emitiria "${prefix}.saved", nome que "${taken}" já usa neste pacote — duas coleções não podem publicar o mesmo evento.`,
+      });
+    }
+    collectionByPrefix.set(prefix, collection);
+  }
+  return issues;
+};
+
+/**
  * Valida a integridade referencial de um pacote — a MESMA checagem no export (dry-run) e no import.
  * Toda referência de saída precisa estar: (1) incluída no pacote, (2) numa coleção fixa do core, ou
  * (3) coberta por uma dependência declarada (chave namespaced `<slug-do-plugin>__x` de uma
@@ -181,6 +246,7 @@ export const validatePackage = (pkg: MarketplacePlugin): PackageValidationIssue[
 
   return [
     ...targetIssues,
+    ...eventPrefixIssues(pkg.screens ?? []),
     ...packageOutRefs(pkg)
       .filter((ref) => !bundled(ref) && !coveredByDependency(ref))
       .map((ref) => ({

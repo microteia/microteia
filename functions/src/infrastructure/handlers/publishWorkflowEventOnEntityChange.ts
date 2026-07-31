@@ -1,7 +1,11 @@
 import { onDocumentWritten } from 'firebase-functions/v2/firestore';
 import { getDb } from '../firebase/initFirebase';
 import { getDI } from '../di/container';
-import { getWorkflowEventPrefix } from '../../domain/services/workflowEventEntities';
+import {
+  declaredEventPrefix,
+  getWorkflowEventPrefix,
+  hasRegistryEventPrefix,
+} from '../../domain/services/workflowEventEntities';
 import { publishEvent } from '../workflow/publishEvent';
 
 /**
@@ -17,6 +21,22 @@ import { publishEvent } from '../workflow/publishEvent';
  * Suporta as entidades fixas, os lookups e QUALQUER tela do tenant (que emite pelo nome da
  * própria coleção — ver `getWorkflowEventPrefix`).
  */
+/** O prefixo declarado pela tela, quando houver; senão, o da convenção. Falha volta à convenção. */
+const resolveEventPrefix = async (
+  tenantId: string,
+  collection: string,
+  convention: string,
+): Promise<string> => {
+  if (hasRegistryEventPrefix(collection) || convention === 'lookup') return convention;
+  try {
+    const screens = await getDI().getScreenDefinitionCache().getScreens(tenantId);
+    return declaredEventPrefix(screens, collection) ?? convention;
+  } catch (error) {
+    console.error(`[workflow] Falha ao resolver o prefixo de ${tenantId}/${collection}:`, error);
+    return convention;
+  }
+};
+
 export const publishWorkflowEventOnEntityChange = onDocumentWritten(
   { document: 'tenants/{tenantId}/{collection}/{docId}', region: 'southamerica-east1' },
   async (event) => {
@@ -24,10 +44,14 @@ export const publishWorkflowEventOnEntityChange = onDocumentWritten(
     if (collection === 'screenDefinitions') {
       getDI().getScreenDefinitionCache().invalidate(tenantId);
     }
-    const prefix = getWorkflowEventPrefix(collection);
-    if (!prefix) return;
+    const convention = getWorkflowEventPrefix(collection);
+    if (!convention) return;
 
     try {
+      // A coleção do registro resolve sem leitura; para as demais, a TELA pode declarar outro
+      // prefixo (uma entidade que saiu do kernel mantendo o nome dos eventos). O cache de telas já
+      // é carregado pelo motor e tem TTL, então a consulta não custa uma leitura por escrita.
+      const prefix = await resolveEventPrefix(tenantId, collection, convention);
       const before = event.data?.before;
       const after = event.data?.after;
       const beforeExists = before?.exists ?? false;

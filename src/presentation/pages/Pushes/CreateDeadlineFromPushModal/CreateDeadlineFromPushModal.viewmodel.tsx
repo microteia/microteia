@@ -1,6 +1,6 @@
 import { useState, useMemo, useCallback } from 'react';
 import { useTheme } from 'styled-components';
-import { useCaseStore } from '../../../../stores/useCaseStore';
+import { useCaseRecords } from '../../../shared/useCollectionRecords';
 import { useDeadlineStore } from '../../../../stores/useDeadlineStore';
 import { useTenant } from '../../../../stores/useTenant';
 import { usePersonStore } from '../../../../stores/usePersonStore';
@@ -47,7 +47,7 @@ export const useCreateDeadlineFromPushViewModel = (
   push: Push,
   onClose: () => void,
 ): CreateDeadlineFromPushViewModel => {
-  const { cases } = useCaseStore();
+  const cases = useCaseRecords();
   const { createDeadline } = useDeadlineStore();
   const { getOptions, addOption, removeOption } = useLookups();
   const typeConfigs = getOptions('deadlineTypes');

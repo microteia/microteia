@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import type { MarketplacePlugin } from '../../entities/MarketplacePlugin';
+import type { MarketplacePlugin, ScreenModuleTemplate } from '../../entities/MarketplacePlugin';
 import { isCoreCollection, validatePackage, workflowOutRefs } from './pluginReferences';
 
 const base = (overrides: Partial<MarketplacePlugin>): MarketplacePlugin => ({
@@ -12,8 +12,8 @@ const base = (overrides: Partial<MarketplacePlugin>): MarketplacePlugin => ({
 describe('isCoreCollection', () => {
   it('reconhece entidades fixas e lookups', () => {
     expect(isCoreCollection('persons')).toBe(true);
-    expect(isCoreCollection('cases')).toBe(true);
-    expect(isCoreCollection('caseAreas')).toBe(true);
+    expect(isCoreCollection('contracts')).toBe(true);
+    expect(isCoreCollection('contractTypes')).toBe(true);
   });
   it('não reconhece chave de tela namespaced', () => {
     expect(isCoreCollection('com-acme-vendas__produto')).toBe(false);
@@ -38,6 +38,91 @@ describe('workflowOutRefs', () => {
       { kind: 'workflow', id: 'wf-2', from: 'automação "W"' },
       { kind: 'screen', id: 'venda', from: 'automação "W"' },
     ]);
+  });
+
+  /**
+   * O nome do evento deixou de ser a chave da tela quando ela passou a poder declarar o prefixo. A
+   * referência tem de achar a tela pelo que ela EMITE — senão o gatilho `case.saved` da extensão
+   * Processos acusaria uma tela "case" que nunca existiu.
+   */
+  it('acha a tela do gatilho pelo prefixo declarado, não pelo nome do evento', () => {
+    const workflow = {
+      templateId: 'wf', name: 'W', eventName: 'case.saved', version: 1,
+      condition: { kind: 'AlwaysTrue' } as const, steps: [],
+    };
+    const processos = {
+      key: 'processos', titleSingular: 'Processo', titlePlural: 'Processos', icon: 'gavel',
+      titleFieldKey: 'title', dataCollection: 'cases', eventPrefix: 'case',
+      fields: [{ key: 'title', label: 'Título', type: 'text' as const, required: true, order: 0 }],
+    };
+    expect(workflowOutRefs(workflow, [processos])).toEqual([
+      { kind: 'screen', id: 'processos', from: 'automação "W"' },
+    ]);
+  });
+
+  it('gatilho de tela trazida por dependência não passa despercebido', () => {
+    const refs = workflowOutRefs({
+      templateId: 'wf', name: 'W', eventName: 'com-microteia-vendas__produto.saved', version: 1,
+      condition: { kind: 'AlwaysTrue' }, steps: [],
+    });
+    expect(refs).toEqual([
+      { kind: 'screen', id: 'com-microteia-vendas__produto', from: 'automação "W"' },
+    ]);
+  });
+
+  it('evento de filho de entidade fixa não é gatilho de tela', () => {
+    const refs = workflowOutRefs({
+      templateId: 'wf', name: 'W', eventName: 'person_note.saved', version: 1,
+      condition: { kind: 'AlwaysTrue' }, steps: [],
+    });
+    expect(refs).toEqual([]);
+  });
+});
+
+describe('validatePackage — prefixo de eventos', () => {
+  const screen = (overrides: Partial<ScreenModuleTemplate> & { key: string }): ScreenModuleTemplate => ({
+    titleSingular: 'T', titlePlural: 'T', icon: 'apps', titleFieldKey: 'n',
+    fields: [{ key: 'n', label: 'N', type: 'text', required: true, order: 0 }],
+    ...overrides,
+  });
+
+  it('a entidade que sai do kernel mantém o próprio prefixo', () => {
+    const pkg = base({
+      screens: [screen({ key: 'processos', dataCollection: 'cases', eventPrefix: 'case' })],
+    });
+    expect(validatePackage(pkg)).toEqual([]);
+  });
+
+  it('recusa o prefixo de uma entidade fixa em outra coleção', () => {
+    const pkg = base({ screens: [screen({ key: 'medico', eventPrefix: 'person' })] });
+    const issues = validatePackage(pkg);
+    expect(issues).toHaveLength(1);
+    expect(issues[0].message).toContain('Pessoas');
+  });
+
+  it('recusa duas coleções publicando o mesmo evento', () => {
+    const pkg = base({
+      screens: [
+        screen({ key: 'medico', eventPrefix: 'atendimento' }),
+        screen({ key: 'clinica', eventPrefix: 'atendimento' }),
+      ],
+    });
+    expect(validatePackage(pkg).map((i) => i.ref.id)).toEqual(['clinica']);
+  });
+
+  it('duas telas sobre a MESMA coleção emitem o mesmo evento sem colidir', () => {
+    const pkg = base({
+      screens: [
+        screen({ key: 'processos', dataCollection: 'cases', eventPrefix: 'case' }),
+        screen({ key: 'processos_kanban', dataCollection: 'cases', eventPrefix: 'case' }),
+      ],
+    });
+    expect(validatePackage(pkg)).toEqual([]);
+  });
+
+  it('recusa nome reservado pelo motor', () => {
+    const pkg = base({ screens: [screen({ key: 'medico', eventPrefix: 'lookup' })] });
+    expect(validatePackage(pkg)).toHaveLength(1);
   });
 });
 

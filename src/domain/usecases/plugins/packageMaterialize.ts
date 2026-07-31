@@ -1,5 +1,6 @@
 import type {
   ActionModuleTemplate,
+  ScreenModuleTemplate,
   ScriptModuleTemplate,
   WorkflowModuleTemplate,
 } from '../../entities/MarketplacePlugin';
@@ -7,7 +8,7 @@ import type { WorkflowDefinition, WorkflowStep } from '../../entities/Workflow';
 import type { Script } from '../../entities/Script';
 import type { ActionDefinitionInput } from '../../repositories/IActionRepository';
 import { splitEntityEventName } from '../../schema/eventCatalog';
-import { installedScreenKey } from './screenModule';
+import { installedScreenKey, screenEventPrefix } from './screenModule';
 
 export type IdMap = Map<string, string>;
 
@@ -68,22 +69,43 @@ export const scriptInputFromTemplate = (template: ScriptModuleTemplate, pluginId
 };
 
 /**
+ * `prefixoNoPacote → prefixoInstalado`, para os gatilhos dos workflows.
+ *
+ * Só entra aqui a tela cujo evento leva a CHAVE dela: é a única que pode mudar de nome na instalação
+ * (sufixo por nome ocupado, ou a chave de uma tela que já existia no escritório). Prefixo declarado —
+ * direto ou pela coleção que a tela descreve — é nome global e atravessa a instalação intacto;
+ * reescrevê-lo faria a automação escutar um evento que ninguém publica.
+ */
+export const buildScreenEventMap = (
+  screens: ScreenModuleTemplate[],
+  screenKeyMap: IdMap,
+): IdMap => {
+  const eventMap: IdMap = new Map();
+  for (const screen of screens) {
+    const prefix = screenEventPrefix(screen);
+    if (prefix !== screen.key) continue;
+    const installed = screenKeyMap.get(screen.key);
+    if (installed && installed !== prefix) eventMap.set(prefix, installed);
+  }
+  return eventMap;
+};
+
+/**
  * Passada 1 do workflow: remove `templateId`, marca o dono, nasce habilitado, reescreve `scriptId`
- * pelos ids reais dos scripts e namespaceia a tela-gatilho. `targetWorkflowId` continua em template
- * (só é remapeado na passada 2, quando todos os workflows já têm id).
+ * pelos ids reais dos scripts e acerta o gatilho pela tela instalada. `targetWorkflowId` continua em
+ * template (só é remapeado na passada 2, quando todos os workflows já têm id).
  */
 export const workflowInputFromTemplate = (
   template: WorkflowModuleTemplate,
   pluginId: string,
   scriptMap: IdMap,
-  screenKeyMap: IdMap,
+  screenEventMap: IdMap,
 ): WorkflowInput => {
   const rest = withoutTemplateId(template);
   const steps = rewriteStepLiteral(rest.steps ?? [], 'scriptId', scriptMap);
-  // O gatilho é `<coleção>.saved`: a coleção é a chave de template da tela e vira a instalada.
   const event = splitEntityEventName(rest.eventName);
-  const eventName = event && screenKeyMap.has(event.collection)
-    ? `${screenKeyMap.get(event.collection)}.${event.action}`
+  const eventName = event && screenEventMap.has(event.prefix)
+    ? `${screenEventMap.get(event.prefix)}.${event.action}`
     : rest.eventName;
   return stripUndefined({
     ...rest, steps, eventName, ownerPluginId: pluginId, ownerPluginIds: [pluginId], sourceId: template.templateId, sourceRev: template.sourceRev ?? null, enabled: true,

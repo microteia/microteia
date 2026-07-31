@@ -18,7 +18,7 @@ const ctx = createSchemaContext(
 
 describe('SchemaContext — as listas do kernel e do tenant num conjunto só', () => {
   it('resolve as duas origens pelo mesmo caminho', () => {
-    expect(isLookupTable(ctx, 'caseCourts')).toBe(true);
+    expect(isLookupTable(ctx, 'contractBanks')).toBe(true);
     expect(isLookupTable(ctx, 'medico_especialidade')).toBe(true);
     expect(isLookupTable(ctx, 'inexistente')).toBe(false);
   });
@@ -33,7 +33,7 @@ describe('nome de lista', () => {
     expect(lookupIdIssue('')).toBeTruthy();
     expect(lookupIdIssue('minha-lista')).toBeTruthy();
     expect(lookupIdIssue('1lista')).toBeTruthy();
-    expect(lookupIdIssue('caseCourts')).toBeTruthy();
+    expect(lookupIdIssue('contractBanks')).toBeTruthy();
     expect(lookupIdIssue('lookupDefinitions')).toBeTruthy();
   });
 
@@ -60,19 +60,19 @@ describe('nome de lista', () => {
 describe('conjuntos de etiquetas', () => {
   it('os do kernel entram no contexto mesmo sem declaração do tenant', () => {
     const semTenant = createSchemaContext();
-    expect(semTenant.tagLists.has('caseTags')).toBe(true);
+    expect(semTenant.tagLists.has('contractTags')).toBe(true);
     expect(semTenant.tagLists.has('personTags')).toBe(true);
   });
 
   it('a tela do tenant pode redirecionar as etiquetas de uma entidade fixa', () => {
     const compartilhado = createSchemaContext(
-      [{ id: 'cases', titleSingular: 'Processo', titleFieldKey: 'title', fields: [], tagCollection: 'medico_tags' }],
+      [{ id: 'contracts', titleSingular: 'Contrato', titleFieldKey: 'title', fields: [], tagCollection: 'medico_tags' }],
       [],
       [{ collection: 'medico_tags', label: 'Etiquetas: Médicos' }],
     );
-    expect(resolveEntity(compartilhado, 'cases')?.tagCollection).toBe('medico_tags');
+    expect(resolveEntity(compartilhado, 'contracts')?.tagCollection).toBe('medico_tags');
     // Sem redirecionamento, vale a declarada em código.
-    expect(resolveEntity(createSchemaContext(), 'cases')?.tagCollection).toBe('caseTags');
+    expect(resolveEntity(createSchemaContext(), 'contracts')?.tagCollection).toBe('contractTags');
   });
 
   /** Tela, lista e etiquetas caem no MESMO curinga das rules: um nome só pode ter um dono. */
@@ -81,7 +81,7 @@ describe('conjuntos de etiquetas', () => {
     expect(tagListIdIssue('medico_especialidade', ctx)).toBe('"medico_especialidade" já é o nome de uma lista de opções');
     expect(screenIdIssue('medico_tags', ctx)).toBe('"medico_tags" já é o nome de um conjunto de etiquetas');
     expect(lookupIdIssue('medico_tags', ctx)).toBe('"medico_tags" já é o nome de um conjunto de etiquetas');
-    expect(tagListIdIssue('caseTags')).toBeTruthy();
+    expect(tagListIdIssue('contractTags')).toBeTruthy();
     expect(tagListIdIssue('medico_tags')).toBeUndefined();
   });
 });

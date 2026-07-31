@@ -81,6 +81,7 @@ export const toSchemaScreens = (
     fields: FieldDefinition[];
     tagCollection?: string | null;
     dataCollection?: string | null;
+    eventPrefix?: string | null;
   }[],
 ): SchemaScreen[] =>
   definitions.map((definition) => ({
@@ -91,6 +92,7 @@ export const toSchemaScreens = (
     titleFieldKey: definition.titleFieldKey,
     fields: definition.fields,
     tagCollection: definition.tagCollection,
+    eventPrefix: definition.eventPrefix,
   }));
 
 const tableHasComputedFields = (table: string): boolean =>

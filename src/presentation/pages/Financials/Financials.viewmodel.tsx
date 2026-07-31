@@ -1,7 +1,8 @@
 import { useState, useMemo, useCallback, useEffect } from 'react';
 import { useTheme } from 'styled-components';
 import { useFinancialStore } from '../../../stores/useFinancialStore';
-import { useCaseStore } from '../../../stores/useCaseStore';
+import { CASES_COLLECTION, useCaseRecords } from '../../shared/useCollectionRecords';
+import { useOpenRecord } from '../../shared/useOpenRecord';
 import { usePersonStore } from '../../../stores/usePersonStore';
 import { useContractStore } from '../../../stores/useContractStore';
 import { useWorkspace } from '../../../stores/useWorkspace';
@@ -79,7 +80,8 @@ export const useFinancialsViewModel = (): FinancialsViewModel => {
   const tags = getTags(useTagCollection('financials'));
   const { getOptions } = useLookups();
   const statusConfigs = getOptions('financialStatuses');
-  const { cases } = useCaseStore();
+  const cases = useCaseRecords();
+  const openRecord = useOpenRecord();
   const { persons } = usePersonStore();
   const { contracts } = useContractStore();
   const { openTab } = useWorkspace();
@@ -203,7 +205,7 @@ export const useFinancialsViewModel = (): FinancialsViewModel => {
   const setRecordTags = useCallback((entityId: string, tagIds: string[]) => updateFinancial(entityId, { tagIds }), [updateFinancial]);
   const tagAdapter = useTagAdapter('financials', tagIdsOf, setRecordTags);
   const openPerson = useCallback((personId: string | null | undefined) => { if (personId) openTab(`view-person:${personId}`); }, [openTab]);
-  const openCase = useCallback((caseId: string | null | undefined) => { if (caseId) openTab(`view-case:${caseId}`); }, [openTab]);
+  const openCase = useCallback((caseId: string | null | undefined) => { if (caseId) openRecord(CASES_COLLECTION, caseId); }, [openRecord]);
   const openContract = useCallback((contractId: string | null | undefined) => { if (contractId) openTab(`view-contract:${contractId}`); }, [openTab]);
 
   const handleDelete = useCallback((f: Financial) => { setFinancialToDelete(f); }, []);

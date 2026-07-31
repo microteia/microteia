@@ -138,7 +138,8 @@ export const useRecordListViewModel = (source: RecordListSource): RecordListView
   }, [recordsByCollection, collection, parent]);
 
 
-  const tags = useTags().getTags(useTagCollection(collection));
+  const tagCollection = useTagCollection(collection, definition?.tagCollection);
+  const tags = useTags().getTags(tagCollection);
 
   const tagOptions = useMemo<FilterDef['options']>(() =>
     tags.map((t) => ({ value: t.id, label: t.name, color: t.color })),
@@ -287,7 +288,7 @@ export const useRecordListViewModel = (source: RecordListSource): RecordListView
     (entityId: string, tagIds: string[]) => updateRecord(collection, entityId, { tagIds }),
     [updateRecord, collection],
   );
-  const tagAdapter = useTagAdapter(collection, tagIdsOf, setRecordTags);
+  const tagAdapter = useTagAdapter(collection, tagIdsOf, setRecordTags, definition?.tagCollection);
 
   const closeTagManager = useCallback(() => setTagManagerRecord(null), []);
   const cancelDelete = useCallback(() => setRecordToDelete(null), []);

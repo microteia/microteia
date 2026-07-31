@@ -1,4 +1,4 @@
-export type LookupGroup = 'person' | 'case' | 'contract' | 'deadline' | 'financial' | 'document' | 'news';
+export type LookupGroup = 'person' | 'contract' | 'deadline' | 'financial' | 'document' | 'news';
 
 export interface LookupMetadata {
   collection: string;
@@ -15,14 +15,6 @@ const LOOKUP_LIST: LookupMetadata[] = [
   { collection: 'personCities', group: 'person', screenLabel: 'Pessoa', entityLabel: 'Cidade' },
   { collection: 'personRelationships', group: 'person', screenLabel: 'Pessoa', entityLabel: 'Relacionamento' },
   { collection: 'personGenders', group: 'person', screenLabel: 'Pessoa', entityLabel: 'Sexo' },
-  { collection: 'caseAreas', group: 'case', screenLabel: 'Processo', entityLabel: 'Área do Direito' },
-  { collection: 'casePhases', group: 'case', screenLabel: 'Processo', entityLabel: 'Fase Processual' },
-  { collection: 'caseStatuses', group: 'case', screenLabel: 'Processo', entityLabel: 'Status' },
-  { collection: 'caseInstances', group: 'case', screenLabel: 'Processo', entityLabel: 'Instância' },
-  { collection: 'caseActionTypes', group: 'case', screenLabel: 'Processo', entityLabel: 'Tipo de Ação' },
-  { collection: 'caseCourts', group: 'case', screenLabel: 'Processo', entityLabel: 'Vara/Tribunal' },
-  { collection: 'caseDistricts', group: 'case', screenLabel: 'Processo', entityLabel: 'Comarca' },
-  { collection: 'caseJudges', group: 'case', screenLabel: 'Processo', entityLabel: 'Juiz(a)' },
   { collection: 'documentTypes', group: 'document', screenLabel: 'Documentos', entityLabel: 'Tipo' },
   { collection: 'newsCategories', group: 'news', screenLabel: 'Notícias', entityLabel: 'Categoria' },
   { collection: 'contractTypes', group: 'contract', screenLabel: 'Contrato', entityLabel: 'Tipo' },

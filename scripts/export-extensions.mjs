@@ -20,7 +20,7 @@ const OUTPUT_DIR = 'extension-templates';
 
 /** Arquivo distribuído → export do módulo de catálogo que o origina. */
 const TEMPLATES = {
-  'processo.json': 'processoClonePlugin',
+  'processo.json': 'processoPlugin',
   'kanban-processos.json': 'kanbanCasesPlugin',
 };
 

@@ -20,6 +20,25 @@ export const installedScreenKey = (templateKey: string, taken: ReadonlySet<strin
   return ensureUniqueKey(base, new Set([...taken, ...RESERVED_COLLECTIONS]));
 };
 
+/** A coleção que a tela do pacote opera: a que ela declara descrever ou, no silêncio, a própria chave. */
+export const templateCollection = (screen: Pick<ScreenModuleTemplate, 'key' | 'dataCollection'>): string =>
+  screen.dataCollection?.trim() || screen.key;
+
+/**
+ * O prefixo dos eventos que a tela do pacote emite (`<prefixo>.saved` / `.deleted`).
+ *
+ * É o ponto único que traduz "tela" em "nome de evento" no empacotamento, e existe porque as duas
+ * coisas deixaram de ser a mesma palavra: o evento nasce da CHAVE da tela, salvo quando ela descreve
+ * outra coleção ou declara o prefixo — aí o nome é declarado, não derivado.
+ *
+ * A distinção importa na instalação: a chave pode mudar (ganhar sufixo, ou ser a de uma tela que já
+ * existia no escritório), enquanto prefixo e coleção são nomes globais e atravessam intactos. Ver
+ * `buildScreenEventMap`.
+ */
+export const screenEventPrefix = (
+  screen: Pick<ScreenModuleTemplate, 'key' | 'dataCollection' | 'eventPrefix'>,
+): string => screen.eventPrefix?.trim() || templateCollection(screen);
+
 /** Id UNIVERSAL da tela: o `sourceId` do template; na falta (tela legada), a própria chave. */
 export const templateSourceId = (screen: Pick<ScreenModuleTemplate, 'key' | 'sourceId'>): string =>
   screen.sourceId ?? screen.key;
@@ -133,6 +152,8 @@ export const materializeScreen = (
     // Nome universal da coleção alvo: NÃO passa por `keyMap` (não é tela do pacote) nem por
     // desambiguação — é a entidade que já existe no escritório.
     dataCollection: template.dataCollection ?? null,
+    eventPrefix: template.eventPrefix ?? null,
+    writeRoles: template.writeRoles ?? null,
     listActions: template.listActions ?? [],
     viewActionIds: mapActionIds(template.viewActionIds),
     cardActionIds: mapActionIds(template.cardActionIds),

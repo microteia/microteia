@@ -27,7 +27,6 @@ export const storeEvents = new StoreEventEmitter();
 export const StoreEvents = {
   PERSONS_UPDATED: 'persons:updated',
   PERSON_TAG_UPDATED: 'person_tag:updated',
-  CASES_UPDATED: 'cases:updated',
   CASE_TAG_UPDATED: 'case_tag:updated',
   CONTRACTS_UPDATED: 'contracts:updated',
   CONTRACT_TAG_UPDATED: 'contract_tag:updated',

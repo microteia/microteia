@@ -1,12 +1,13 @@
 import { useMemo, useState } from 'react';
 import { useTheme } from 'styled-components';
 import { useDeadlineStore } from '../../../stores/useDeadlineStore';
-import { useCaseStore } from '../../../stores/useCaseStore';
+import { CASES_COLLECTION, useCaseRecords, type CaseRecord } from '../../shared/useCollectionRecords';
+import { useOpenRecord } from '../../shared/useOpenRecord';
 import { useFinancialStore } from '../../../stores/useFinancialStore';
 import { usePersonStore } from '../../../stores/usePersonStore';
 import { useWorkspace } from '../../../stores/useWorkspace';
 import { setNavigationIntent } from '../../../infrastructure/navigation/navigationIntent';
-import type { Deadline, Case, DeadlinePriority } from '../../../domain/entities';
+import type { Deadline, DeadlinePriority } from '../../../domain/entities';
 import type { FilterToken } from '../../components/ui/CompositeFilter';
 
 export interface KPIStat {
@@ -40,7 +41,7 @@ export interface DashboardViewModel {
   kpis: KPIStat[];
   upcomingDeadlines: UpcomingDeadline[];
   overdueDeadlines: OverdueDeadline[];
-  recentCases: Case[];
+  recentCases: CaseRecord[];
   allDeadlines: Deadline[];
   pendingIncome: number;
   pendingExpense: number;
@@ -71,7 +72,8 @@ const toISODate = (d: Date): string => {
 
 export const useDashboardViewModel = (): DashboardViewModel => {
   const { deadlines, isLoading: loadingDeadlines } = useDeadlineStore();
-  const { cases, isLoading: loadingCases } = useCaseStore();
+  const cases = useCaseRecords();
+  const openRecord = useOpenRecord();
   const { financials, isLoading: loadingFinancials } = useFinancialStore();
   const { persons, isLoading: loadingPersons } = usePersonStore();
   const { openTab } = useWorkspace();
@@ -86,7 +88,7 @@ export const useDashboardViewModel = (): DashboardViewModel => {
     'Crítica': theme.colors.danger,
   }), [theme]);
 
-  const isLoading = loadingDeadlines || loadingCases || loadingFinancials || loadingPersons;
+  const isLoading = loadingDeadlines || loadingFinancials || loadingPersons;
 
   const todayStart = useMemo(() => {
     const now = new Date();
@@ -157,9 +159,9 @@ export const useDashboardViewModel = (): DashboardViewModel => {
     [pendingFinancials],
   );
 
-  const recentCases = useMemo<Case[]>(() =>
+  const recentCases = useMemo<CaseRecord[]>(() =>
     [...activeCases]
-      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+      .sort((a, b) => (b.createdAt?.getTime() ?? 0) - (a.createdAt?.getTime() ?? 0))
       .slice(0, 5),
     [activeCases],
   );
@@ -193,7 +195,7 @@ export const useDashboardViewModel = (): DashboardViewModel => {
     setNavigationIntent('financial-dashboard', financialOpenFilterTokens());
     openTab('financial-dashboard');
   };
-  const openCase = (caseId: string) => openTab(`view-case:${caseId}`);
+  const openCase = (caseId: string) => openRecord(CASES_COLLECTION, caseId);
   const openDeadline = (deadline: Deadline) => openTab(`view-deadline:${deadline.id}`);
   const getPriorityColor = (priority: DeadlinePriority) => priorityColorMap[priority] ?? theme.colors.textSecondary;
   const formatAmount = (v: number) => fmt.format(v);

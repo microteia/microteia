@@ -21,8 +21,8 @@ describe('opções que o kernel já traz', () => {
   });
 
   it('as cores vêm como token do tema, para o tema claro e o escuro renderizarem diferente', () => {
-    const emAndamento = lookupDefaultsFor('caseStatuses').find((option) => option.key === 'Em Andamento');
-    expect(emAndamento?.color).toBe('caseStatusInProgress');
+    const vigente = lookupDefaultsFor('contractStatuses').find((option) => option.key === 'Vigente');
+    expect(vigente?.color).toBe('contractStatusActive');
   });
 
   it('toda coleção com defaults existe no registro de listas', () => {
@@ -32,13 +32,13 @@ describe('opções que o kernel já traz', () => {
   });
 
   it('a opção do tenant com o mesmo rótulo de uma fixa não duplica na lista', () => {
-    const merged = mergeLookupDefaults(lookupDefaultsFor('caseStatuses'), [
-      { key: 'Acordo', label: 'Acordo', isStatic: false },
+    const merged = mergeLookupDefaults(lookupDefaultsFor('contractStatuses'), [
+      { key: 'Vigente', label: 'Vigente', isStatic: false },
       { key: 'Homologado', label: 'Homologado', isStatic: false },
     ]);
 
-    expect(merged.filter((option) => option.label === 'Acordo')).toHaveLength(1);
-    expect(merged.find((option) => option.label === 'Acordo')?.isStatic).toBe(true);
+    expect(merged.filter((option) => option.label === 'Vigente')).toHaveLength(1);
+    expect(merged.find((option) => option.label === 'Vigente')?.isStatic).toBe(true);
     expect(merged.find((option) => option.label === 'Homologado')?.isStatic).toBe(false);
   });
 });

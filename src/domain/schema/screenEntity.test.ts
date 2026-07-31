@@ -78,15 +78,15 @@ describe('resolveEntity — uma tela é uma entidade', () => {
   });
 
   it('sem tela do tenant, a entidade é exatamente a declarada em código', () => {
-    const entity = resolveEntity(createSchemaContext(), 'cases');
-    expect(entity?.fields.some((f) => f.key === 'caseNumber')).toBe(true);
+    const entity = resolveEntity(createSchemaContext(), 'contracts');
+    expect(entity?.fields.some((f) => f.key === 'number')).toBe(true);
   });
 
   it('coleção que não é entidade nem tela não resolve', () => {
     expect(resolveEntity(ctx, 'inexistente')).toBeUndefined();
     expect(isEntityCollection(ctx, 'inexistente')).toBe(false);
     expect(isEntityCollection(ctx, 'medico')).toBe(true);
-    expect(isEntityCollection(ctx, 'cases')).toBe(true);
+    expect(isEntityCollection(ctx, 'contracts')).toBe(true);
   });
 });
 
@@ -138,7 +138,7 @@ describe('nomes de coleção reservados', () => {
     expect(screenIdIssue('1medico')).toBeTruthy();
     expect(screenIdIssue('persons')).toBeTruthy();
     expect(screenIdIssue('workflow_executions')).toBeTruthy();
-    expect(screenIdIssue('caseAreas')).toBeTruthy();
+    expect(screenIdIssue('contractTypes')).toBeTruthy();
   });
 
   it('aceita um nome livre', () => {

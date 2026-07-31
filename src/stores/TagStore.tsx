@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { TagContext } from './useTags';
 import { useTenant } from './useTenant';
 import { useAuth } from './useAuth';
+import { useScreenDefinitions } from './useScreenDefinitions';
 import { useDI } from '../infrastructure/di/useDI';
 import {
   makeCreateTagUseCase,
@@ -13,6 +14,7 @@ import {
 } from '../domain/usecases/tags';
 import { ENTITY_REGISTRY_LIST } from '../domain/schema/entityRegistry';
 import { setRecordRulesTagLists } from '../data/utils/recordRulesGate';
+import { screenTagCollections } from '../domain/services/screenDataCollection';
 import type { SchemaTagList } from '../domain/schema/screenEntity';
 import type { Tag, TagDefinition } from '../domain/entities';
 
@@ -35,6 +37,7 @@ const EMPTY_TAGS: Tag[] = [];
 export const TagStoreProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { currentTenant } = useTenant();
   const { user, effectiveName, effectivePhotoURL } = useAuth();
+  const { definitions: screens } = useScreenDefinitions();
   const { tagRepository, tagDefinitionRepository } = useDI();
 
   const [tagsByCollection, setTagsByCollection] = useState<Record<string, Tag[]>>({});
@@ -58,15 +61,24 @@ export const TagStoreProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     return uc.subscribeDefinitions.execute(currentTenant.id, setDefinitions);
   }, [currentTenant, uc.subscribeDefinitions]);
 
+  const screenTagLists = useMemo<SchemaTagList[]>(() => screenTagCollections(screens), [screens]);
+
   const availableTagLists = useMemo<SchemaTagList[]>(
-    () => [
-      ...BUILTIN_TAG_LISTS,
-      ...definitions.map((definition) => ({
-        collection: definition.collection,
-        label: definition.label,
-      })),
-    ],
-    [definitions],
+    () => {
+      const byCollection = new Map<string, SchemaTagList>();
+      for (const tagList of [
+        ...BUILTIN_TAG_LISTS,
+        ...screenTagLists,
+        ...definitions.map((definition) => ({
+          collection: definition.collection,
+          label: definition.label,
+        })),
+      ]) {
+        byCollection.set(tagList.collection, tagList);
+      }
+      return [...byCollection.values()];
+    },
+    [definitions, screenTagLists],
   );
 
   const subscribedCollections = useMemo(
@@ -93,16 +105,31 @@ export const TagStoreProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     setRecordRulesTagLists(availableTagLists);
   }, [availableTagLists]);
 
+  /**
+   * Pedir as etiquetas de uma coleção que ninguém assina é o sintoma de uma tela cuja
+   * `tagCollection` não chegou até aqui — as etiquetas existem no banco e a tela mostra vazio. Sem
+   * este aviso o caso é invisível: não há erro, só uma lista vazia.
+   */
   const getTags = useCallback(
-    (collection: string): Tag[] => tagsByCollection[collection] ?? EMPTY_TAGS,
-    [tagsByCollection],
+    (collection: string): Tag[] => {
+      if (!collection) return EMPTY_TAGS;
+      if (!(collection in tagsByCollection)) {
+        console.warn(`[TagStore] "${collection}" não está entre as coleções assinadas:`, subscribedCollections.split('\n'));
+        return EMPTY_TAGS;
+      }
+      return tagsByCollection[collection] ?? EMPTY_TAGS;
+    },
+    [tagsByCollection, subscribedCollections],
   );
 
   const createTag = useCallback(async (collection: string, name: string, color: string) => {
     if (!currentTenant || !user) throw new Error('Not authenticated');
     // Coleção vazia significa tela sem `tagCollection` resolvido. Falhar aqui, com o motivo, evita
     // um caminho inválido no Firestore e o erro genérico que ele produz.
-    if (!collection) throw new Error('A tela não tem um conjunto de etiquetas configurado.');
+    if (!collection) {
+      console.error('[TagStore] createTag sem coleção: a tela não resolveu `tagCollection`.');
+      throw new Error('A tela não tem um conjunto de etiquetas configurado.');
+    }
     return uc.create.execute(currentTenant.id, collection, {
       name,
       color,

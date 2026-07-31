@@ -1,17 +1,18 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTheme } from 'styled-components';
 import { useContractStore } from '../../../stores/useContractStore';
-import { useCaseStore } from '../../../stores/useCaseStore';
+import { CASES_COLLECTION, useCaseRecords, type CaseRecord } from '../../shared/useCollectionRecords';
+import { useOpenRecord } from '../../shared/useOpenRecord';
+import { useRecords } from '../../../stores/useRecords';
 import { useAuth } from '../../../stores/useAuth';
 import { useTenant } from '../../../stores/useTenant';
-import { useWorkspace } from '../../../stores/useWorkspace';
 import { useNotification } from '../../../stores/useNotification';
 import { useLookups } from '../../../stores/useLookups';
 import { useEntityFormFields } from '../../shared/useEntityFormFields';
 import { useDI } from '../../../infrastructure/di/useDI';
 import { toDateInputValue } from '../../../utils/formatters';
 import type {
-  Case, Contract, CustomFieldValue, FieldDefinition,
+  Contract, CustomFieldValue, FieldDefinition,
 } from '../../../domain/entities';
 import type { TagStoreAdapter } from '../../components/ui/TagManager/TagManager.viewmodel';
 import type { EntityDetailExtraTab, EntityDetailTab } from '../../components/layout/EntityDetailView';
@@ -188,24 +189,25 @@ export interface ViewContractViewModel {
   cancelDeleteContract: () => void;
 
   // Aba própria do Contrato: processos vinculados.
-  linkedCases: Case[];
+  linkedCases: CaseRecord[];
   unlinkedCaseOptions: SearchSelectOption[];
   caseToAdd: string;
   setCaseToAdd: (v: string) => void;
   handleLinkCase: (caseId: string) => Promise<void>;
-  handleUnlinkCase: (c: Case) => Promise<void>;
-  handleOpenCase: (c: Case) => void;
+  handleUnlinkCase: (c: CaseRecord) => Promise<void>;
+  handleOpenCase: (c: CaseRecord) => void;
   getCaseStatusColor: (status: string) => string;
 }
 
 export const useViewContractViewModel = (tabKey: string): ViewContractViewModel => {
   const { contracts, createContract, updateContract, deleteContract } = useContractStore();
   const { getOptions } = useLookups();
-  const { cases, updateCase } = useCaseStore();
+  const cases = useCaseRecords();
+  const { updateRecord } = useRecords();
+  const openRecord = useOpenRecord();
   const caseStatusConfigs = getOptions('caseStatuses');
   const { user, effectiveName } = useAuth();
   const { tenantRole } = useTenant();
-  const { openTab } = useWorkspace();
   const { notify } = useNotification();
   const { contractNoteRepository, contractDocumentRepository } = useDI();
   const theme = useTheme();
@@ -315,25 +317,25 @@ export const useViewContractViewModel = (tabKey: string): ViewContractViewModel 
   const handleLinkCase = useCallback(async (caseId: string) => {
     if (!contract) return;
     try {
-      await updateCase(caseId, { contractId: contract.id });
+      await updateRecord(CASES_COLLECTION, caseId, { contractId: contract.id });
       notify('Processo vinculado ao contrato.', 'success');
     } catch {
       notify('Erro ao vincular processo.', 'error');
     } finally {
       setCaseToAdd('');
     }
-  }, [contract, updateCase, notify]);
+  }, [contract, updateRecord, notify]);
 
-  const handleUnlinkCase = useCallback(async (c: Case) => {
+  const handleUnlinkCase = useCallback(async (c: CaseRecord) => {
     try {
-      await updateCase(c.id, { contractId: null });
+      await updateRecord(CASES_COLLECTION, c.id, { contractId: null });
       notify('Processo desvinculado do contrato.', 'success');
     } catch {
       notify('Erro ao desvincular processo.', 'error');
     }
-  }, [updateCase, notify]);
+  }, [updateRecord, notify]);
 
-  const handleOpenCase = useCallback((c: Case) => openTab(`view-case:${c.id}`), [openTab]);
+  const handleOpenCase = useCallback((c: CaseRecord) => openRecord(CASES_COLLECTION, c.id), [openRecord]);
 
   const getCaseStatusColor = useCallback(
     (status: string): string => getConfigColor(caseStatusConfigs, status, theme),
