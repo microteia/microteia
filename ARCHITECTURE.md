@@ -2154,27 +2154,66 @@ porque o campo "Centro de custo" do **Financeiro** — que ainda é do kernel �
 lista. Duas telas compartilhando uma lista de opções é o arranjo normal (`lookupCollection` igual),
 e não um resíduo.
 
+### As ações do registro viram contribuições
+
+Copiar link, Duplicar, Etiquetas e Excluir eram as ÚNICAS ações que o kernel sabia desenhar: quatro
+`if` em código, ligadas por caixa de seleção (`listActions`), sem ícone configurável, sem ordem, sem
+expressão. Não eram Actions — Action, no sistema, executa um workflow, e essas quatro são operações
+de TELA, sem nada para rodar no servidor.
+
+O ponto **`ui.record.action`** resolve a diferença. Uma ação de registro é uma contribuição como
+qualquer outra: metadata declarada (chave, rótulo, ícone, ordem, `hiddenWhen`) mais uma implementação
+de código que recebe um **host** estreito — o registro, onde ele vive e as operações que a tela sabe
+executar. `core.records` contribui as cinco (as quatro de sempre mais **Desvincular**), e o kernel
+deixa de conhecer qualquer uma pelo nome: some o mapa fixo de ícones, some o `Record<ScreenListAction,
+…>` de handlers, some o `if` que decidia quem aparece.
+
+```ts
+recordAction({ key: 'copyLink', title: 'Copiar link', icon: 'link', order: 0 }, 'CopyLinkRecordAction')
+```
+
+**O host diz ONDE, o comando diz O QUÊ.** `recordTabKey`/`cloneTabKey` vêm do host, não do comando:
+a listagem genérica usa `view-dyn:`, uma extensão com editor próprio usa o prefixo dela, o cabeçalho
+do detalhe usa o `deepLinkKey` que a tela declarou. Antes, a ponte das extensões reescrevia o
+`onClick` de "duplicar" e "copiar link" procurando pela CHAVE da ação — ela precisava conhecer o nome
+de cada ação do kernel. Agora só endereça o registro.
+
+**Uma Action do escritório pode executar um comando.** `ActionDefinition.command` é a alternativa a
+`workflowId`: presente, a ação roda a operação de tela em vez de chamar uma automação. É o que põe
+as embutidas e as do escritório na MESMA lista, e o que faltava para "toda ação é uma Action". A tela
+de Ação escolhe entre as duas; uma superfície que não saiba executar comandos (`runRecordCommand`
+ausente) simplesmente não mostra a ação, em vez de mostrar um botão que falha.
+
 ### Onde a ação aparece muda o que ela significa
 
-`ActionExprContext` ganhou `surface`: `detail` (cabeçalho do registro), `list` (cartão da listagem
-própria) ou `parentTab` (cartão dentro da aba de outro registro). É variável de expressão como
-`isNew` e `role`, então uma extensão esconde a própria ação onde ela não cabe —
-`hiddenWhen: 'surface == "parentTab"'`.
+O escopo das expressões ganhou duas variáveis ortogonais — `surface` diz ONDE, `relation` diz O QUÊ:
 
-Existe porque a mesma ação é lida de formas diferentes conforme o lugar. O caso que a motivou: na
+| Variável | Valores | Significa |
+|---|---|---|
+| `surface` | `detail`, `list`, `parentTab` | cabeçalho do registro, cartão da listagem própria, cartão dentro da aba de outro registro |
+| `relation` | `none`, `owned`, `related` | o registro não está na aba de ninguém, é FILHO do pai, ou é entidade de topo que apenas aponta para ele |
+
+Existem porque a mesma ação é lida de formas diferentes conforme o lugar. O caso que as motivou: na
 aba "Processos" de um contrato, o cartão oferecia **Excluir** — e ali o gesto que o usuário faz é
 "tirar daqui", não "apagar o processo inteiro do escritório".
 
-**O slot destrutivo do card muda com a relação**, e isso o kernel decide sozinho, sem declaração:
+**O slot destrutivo é decidido por DECLARAÇÃO, não pelo kernel.** Excluir e Desvincular dividem o
+mesmo `slot` (`delete`), e o `hiddenWhen` de cada uma escolhe:
 
-| Aba | Ação destrutiva | Por quê |
+| Ação | `hiddenWhen` | Aparece |
 |---|---|---|
-| filho (`owned`) | **Excluir** | o registro é parte do pai; apagá-lo dali é o esperado |
-| relacionado (`related`) | **Desvincular** | o registro é uma entidade de topo que só aponta para o pai; limpar o vínculo é uma gravação comum, e por isso não exige admin |
+| Excluir | `relation == "related"` | fora de aba, e na aba de um filho de verdade — o registro é parte do pai |
+| Desvincular | `relation != "related"` | só na aba de um relacionado; limpa o campo de vínculo, e por ser gravação comum não exige admin |
 
-Desvincular também devolve, pelo caminho declarativo, o que a migração de Contrato tinha perdido: o
-par vincular/desvincular da aba "Processos". Vincular é criar pela aba (já nasce ligado) ou preencher
-o campo na tela do próprio registro.
+`slot` é o que permite duas ações disputarem o mesmo lugar: a tela habilita `delete` uma vez, e a
+relação decide qual das duas o usuário vê. Desvincular também devolve, pelo caminho declarativo, o
+que a migração de Contrato tinha perdido: o par vincular/desvincular da aba "Processos". Vincular é
+criar pela aba (já nasce ligado) ou preencher o campo na tela do próprio registro.
+
+**O que ainda não é declaração:** `listActions` continua sendo a configuração das embutidas, e o
+cabeçalho do detalhe continua com os botões fixos de gravar/copiar/duplicar/excluir. Unificar as duas
+listas numa só ("Ações") exige criar documentos de `ActionDefinition` por escritório — migração de
+dados, não refatoração —, e é o passo seguinte.
 
 ### Uma referência aponta para a COLEÇÃO
 

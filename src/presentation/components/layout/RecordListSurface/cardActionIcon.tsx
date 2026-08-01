@@ -1,26 +1,15 @@
 import React from 'react';
-import { RiLinkM, RiLinkUnlinkM, RiFileCopyLine, RiPriceTag3Line, RiDeleteBinLine } from 'react-icons/ri';
 import { getScreenIcon } from '../../../shared/screenIcons';
 import type { RecordCardAction } from '../../../shared/entityScreen/useRecordListViewModel';
-import type { ScreenListAction } from '../../../../domain/entities';
 
 /**
- * `unlink` não é uma `ScreenListAction` configurável: é o que o slot de exclusão VIRA dentro da aba
- * de um pai relacionado, onde apagar o registro seria destruir uma entidade de topo.
- */
-const ACTION_ICONS: Record<ScreenListAction | 'unlink', React.ReactNode> = {
-  copyLink: <RiLinkM size={14} />,
-  clone: <RiFileCopyLine size={14} />,
-  manageTags: <RiPriceTag3Line size={14} />,
-  delete: <RiDeleteBinLine size={14} />,
-  unlink: <RiLinkUnlinkM size={14} />,
-};
-
-/**
- * Ícone de uma ação de registro (RecordCardAction): as embutidas (copyLink/clone/manageTags/delete)
- * têm ícone fixo; as customizadas trazem `iconKey` do registro de ícones das telas. Partilhado pela
- * lista padrão e pela ponte de extensões, para que a mesma ação apareça igual onde quer que seja
- * renderizada (linha do card, cabeçalho de edição, dropdown…).
+ * Ícone de uma ação de registro (RecordCardAction). Toda ação declara o seu no catálogo curado de
+ * telas — as embutidas na metadata da contribuição, as do escritório no cadastro da Action. O kernel
+ * tinha aqui um mapa fixo para copiar-link/duplicar/etiquetas/excluir; ele sumiu junto com o resto
+ * do que o kernel sabia sobre elas.
+ *
+ * Partilhado pela lista padrão e pela ponte de extensões, para que a mesma ação apareça igual onde
+ * quer que seja renderizada (linha do card, cabeçalho de edição, dropdown…).
  */
 export const cardActionIcon = (action: RecordCardAction, size = 14): React.ReactNode =>
-  action.iconKey ? getScreenIcon(action.iconKey, size) : ACTION_ICONS[action.key as ScreenListAction | 'unlink'];
+  action.iconKey ? getScreenIcon(action.iconKey, size) : null;

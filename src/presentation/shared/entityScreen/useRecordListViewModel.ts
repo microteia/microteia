@@ -7,18 +7,19 @@ import { useNotification } from '../../../stores/useNotification';
 import { useActions } from '../../../stores/useActions';
 import { storeEvents, StoreEvents } from '../../../infrastructure/events/StoreEventEmitter';
 import { isActionDisabled, isActionHidden } from '../../../domain/schema/actionExpression';
-import type { ActionSurface } from '../../../domain/schema/actionExpression';
+import type { ActionRelation, ActionSurface } from '../../../domain/schema/actionExpression';
 import { dispatchActionOutcome } from './useScreenActions';
 import { useCustomFieldListing } from '../../hooks/useCustomFieldListing';
 import type { CustomFieldCardItem } from '../../hooks/useCustomFieldListing';
-import { generateDeepLink } from '../../../infrastructure/deeplink/deepLinkUtils';
 import { buildNewTabKey, buildViewTabKey, buildCloneTabKey, buildChildNewTabKey } from '../../../shared/constants/dynamicScreenKeys';
 import { resolveRecordTitle, sortFieldsByOrder } from '../../../domain/services/customFieldValues';
 import { isBoundScreen, isOwnedByParentScreen, screenDataCollection } from '../../../domain/services/screenDataCollection';
 import { useEntityFormFields } from '../useEntityFormFields';
 import { useSchemaContext } from '../useSchemaContext';
+import { useRecordActions } from '../recordActions/useRecordActions';
+import type { RecordActionHost } from '../recordActions/recordActionHost';
 import { deriveListRows } from '../deriveEntitySchema';
-import type { ActionDefinition, ActionStatusCode, CustomFieldValue, EntityRecord, ScreenDefinition, Tag, ScreenListAction } from '../../../domain/entities';
+import type { ActionDefinition, ActionStatusCode, CustomFieldValue, EntityRecord, ScreenDefinition, Tag } from '../../../domain/entities';
 import type { TagStoreAdapter } from '../../components/ui/TagManager';
 import type { FilterDef, FilterToken } from '../../components/ui/CompositeFilter';
 import { useTagAdapter, useTagCollection } from './useTagAdapter';
@@ -52,6 +53,12 @@ export interface RecordListSource {
   /** Chave dos filtros salvos do CompositeFilter. */
   savedFiltersKey: string;
   parent?: RecordListParent;
+  /**
+   * Como esta tela ENDEREÇA um registro. Ausente, valem as abas genéricas (`view-dyn:`); uma
+   * extensão com editor próprio passa as dela, e as ações de copiar link e duplicar apontam para
+   * lá sem que nenhuma delas precise saber que existe uma extensão.
+   */
+  recordTabKeys?: (recordId: string) => { view: string; clone: string };
 }
 
 export interface RecordListViewModel {
@@ -91,7 +98,7 @@ export interface RecordListViewModel {
  * Com `parent`, a lista é restrita aos filhos daquele registro e o "novo" já nasce vinculado.
  */
 export const useRecordListViewModel = (source: RecordListSource): RecordListViewModel => {
-  const { screenKey, savedFiltersKey, parent } = source;
+  const { screenKey, savedFiltersKey, parent, recordTabKeys } = source;
   const { getDefinition, isLoading: definitionsLoading } = useScreenDefinitions();
   const { recordsByCollection, isLoading: recordsLoading, updateRecord, deleteRecord } = useRecords();
   const { openTab } = useWorkspace();
@@ -224,32 +231,40 @@ export const useRecordListViewModel = (source: RecordListSource): RecordListView
     [openTab, screenKey],
   );
 
-  const onCopyLink = useCallback((record: EntityRecord) => {
-    void navigator.clipboard.writeText(generateDeepLink(buildViewTabKey(screenKey, record.id)));
-    notify('Link copiado para a área de transferência.', 'success');
-  }, [screenKey, notify]);
-
   const onClone = useCallback(
     (record: EntityRecord) => openTab(buildCloneTabKey(screenKey, record.id)),
     [openTab, screenKey],
   );
 
   /**
-   * Na aba de um pai RELACIONADO o registro NÃO pertence a ele: é uma entidade de topo que apenas
-   * aponta para o pai. Numa aba de filho de verdade (`owned`), o registro é parte do pai e excluir
-   * ali é legítimo.
+   * O que o registro é para o pai da aba em que aparece. É o que decide, por expressão declarada,
+   * se a ação destrutiva do card apaga o registro ou apenas o desliga do pai.
    */
-  const isRelatedTab = !!parent && !!definition && !isOwnedByParentScreen(definition);
+  const relation: ActionRelation = !parent || !definition
+    ? 'none'
+    : isOwnedByParentScreen(definition) ? 'owned' : 'related';
 
-  const onUnlink = useCallback(async (record: EntityRecord) => {
-    if (!parent) return;
-    try {
-      await updateRecord(collection, record.id, { [parent.fieldKey]: null });
-      notify('Registro desvinculado.', 'success');
-    } catch {
-      notify('Não foi possível desvincular o registro.', 'error');
-    }
-  }, [parent, updateRecord, collection, notify]);
+  const recordActions = useRecordActions();
+
+  /**
+   * O que o kernel entrega a uma ação de registro. Estreito de propósito: o comando não enxerga
+   * store nem repositório, só o registro e as operações que a tela sabe executar.
+   */
+  const buildActionHost = useCallback((record: EntityRecord): RecordActionHost => ({
+    record,
+    collection,
+    screenKey,
+    surface: parent ? 'parentTab' : 'list',
+    parent: parent ? { fieldKey: parent.fieldKey, recordId: parent.recordId } : null,
+    recordTabKey: recordTabKeys?.(record.id).view ?? buildViewTabKey(screenKey, record.id),
+    cloneTabKey: recordTabKeys?.(record.id).clone ?? buildCloneTabKey(screenKey, record.id),
+    openTab,
+    notify,
+    patchRecord: (patch) => updateRecord(collection, record.id, patch),
+    copyText: (text) => navigator.clipboard.writeText(text),
+    openTagManager: () => setTagManagerRecord(record),
+    requestDelete: () => setRecordToDelete(record),
+  }), [collection, screenKey, parent, openTab, notify, updateRecord, recordTabKeys]);
 
   const cardActionDefs = useMemo(
     () => getActionsByIds(definition?.cardActionIds ?? []),
@@ -259,6 +274,17 @@ export const useRecordListViewModel = (source: RecordListSource): RecordListView
   const runCardAction = useCallback(async (action: ActionDefinition, record: EntityRecord) => {
     setRunningActionId(action.id);
     try {
+      // Ação que executa um COMANDO do sistema não vai ao servidor: é uma operação de tela, e roda
+      // pelo mesmo host das ações embutidas.
+      if (action.command) {
+        const resolved = recordActions.find((candidate) => candidate.metadata.key === action.command);
+        if (!resolved) {
+          notify(`A ação "${action.title}" aponta para um comando que não existe.`, 'error');
+          return;
+        }
+        await resolved.run(buildActionHost(record));
+        return;
+      }
       const response = await runAction({
         actionId: action.id,
         source: collection,
@@ -285,34 +311,36 @@ export const useRecordListViewModel = (source: RecordListSource): RecordListView
     } finally {
       setRunningActionId(null);
     }
-  }, [runAction, collection, notify, updateRecord, onClone]);
+  }, [runAction, collection, notify, updateRecord, onClone, recordActions, buildActionHost]);
 
   const getCardActions = useCallback((record: EntityRecord): RecordCardAction[] => {
-    const handlers: Record<ScreenListAction, RecordCardAction> = {
-      copyLink: { key: 'copyLink', title: 'Copiar link', onClick: () => onCopyLink(record) },
-      clone: { key: 'clone', title: 'Duplicar', onClick: () => onClone(record) },
-      manageTags: { key: 'manageTags', title: 'Gerenciar etiquetas', onClick: () => setTagManagerRecord(record) },
-      // O slot destrutivo do card muda de significado dentro da aba de um pai relacionado: ali o
-      // gesto que o usuário faz é "tirar daqui", e excluir apagaria uma entidade de topo inteira.
-      // Desvincular é uma gravação comum (limpa o campo de vínculo), daí não exigir admin.
-      delete: isRelatedTab
-        ? { key: 'unlink', title: 'Desvincular', onClick: () => void onUnlink(record) }
-        : { key: 'delete', title: 'Excluir', danger: true, onClick: () => setRecordToDelete(record) },
-    };
-    const native = (definition?.listActions ?? [])
-      .filter((action) => (action !== 'delete' || isAdmin || isRelatedTab) && (action !== 'manageTags' || !!definition?.hasTags))
-      .map((action) => handlers[action]);
-
     const exprContext = {
       values: record,
       record,
       isNew: false,
       isDirty: false,
       role: tenantRole ?? '',
-      // Onde a ação está sendo desenhada — é o que permite uma extensão esconder a própria ação
-      // dentro da aba de outro registro (`hiddenWhen: 'surface == "parentTab"'`).
+      // Onde a ação está sendo desenhada, e o que o registro é para o pai da aba. É o que permite
+      // uma extensão esconder a própria ação dentro da aba de outro registro.
       surface: (parent ? 'parentTab' : 'list') as ActionSurface,
+      relation,
     };
+
+    // As ações que a tela habilitou, resolvidas pelo SLOT: `delete` traz excluir e desvincular, e
+    // o `hiddenWhen` de cada uma decide qual o usuário vê. O kernel não conhece nenhuma pelo nome.
+    const enabledSlots = new Set<string>(definition?.listActions ?? []);
+    const native = recordActions
+      .filter((action) => enabledSlots.has(action.slot))
+      .filter((action) => !action.metadata.requiresTenantAdmin || isAdmin)
+      .filter((action) => !action.metadata.requiresTags || !!definition?.hasTags)
+      .filter((action) => !isActionHidden(action.metadata.hiddenWhen, exprContext))
+      .map<RecordCardAction>((action) => ({
+        key: action.metadata.key,
+        title: action.metadata.title,
+        danger: action.metadata.danger,
+        iconKey: action.metadata.icon,
+        onClick: () => void action.run(buildActionHost(record)),
+      }));
     const custom = cardActionDefs
       .filter((action) => !isActionHidden(action.hiddenWhen, exprContext))
       .map<RecordCardAction>((action) => ({
@@ -325,7 +353,7 @@ export const useRecordListViewModel = (source: RecordListSource): RecordListView
       }));
 
     return [...native, ...custom];
-  }, [definition, isAdmin, isRelatedTab, onUnlink, parent, onCopyLink, onClone, cardActionDefs, tenantRole, runningActionId, runCardAction]);
+  }, [definition, isAdmin, parent, relation, recordActions, buildActionHost, cardActionDefs, tenantRole, runningActionId, runCardAction]);
 
   const tagIdsOf = useCallback((entityId: string) => records.find((r) => r.id === entityId)?.tagIds ?? [], [records]);
   const setRecordTags = useCallback(

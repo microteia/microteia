@@ -5,12 +5,14 @@ import type {
   UiCommandMetadata,
   UiNavMetadata,
   UiPageMetadata,
+  UiRecordActionMetadata,
 } from '../presentation/shared/uiExtensionPoints';
 import {
   UI_API_VERSION,
   UI_COMMAND_POINT,
   UI_NAV_POINT,
   UI_PAGE_POINT,
+  UI_RECORD_ACTION_POINT,
 } from '../presentation/shared/uiExtensionPoints';
 
 export type PageComponent = React.ComponentType<{ tabKey: string }>;
@@ -63,6 +65,18 @@ export const nav = (metadata: UiNavMetadata): Contribution => ({
   id: slug(metadata.key),
   apiVersion: UI_API_VERSION,
   metadata: { ...metadata } as unknown as Record<string, unknown>,
+});
+
+/**
+ * Uma ação sobre um registro (cartão da listagem, cabeçalho do detalhe). O `id` sai da chave, como
+ * nas telas: é estável entre versões, e é por ele que o Marketplace compara uma com a seguinte.
+ */
+export const recordAction = (metadata: UiRecordActionMetadata, implKey: string): Contribution => ({
+  point: UI_RECORD_ACTION_POINT,
+  id: slug(metadata.key),
+  apiVersion: UI_API_VERSION,
+  metadata: { ...metadata } as unknown as Record<string, unknown>,
+  impl: { kind: 'code', key: implKey },
 });
 
 export const command = (id: string, metadata: UiCommandMetadata, implKey: string): Contribution => ({

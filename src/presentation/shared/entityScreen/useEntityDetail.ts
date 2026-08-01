@@ -3,10 +3,12 @@ import { useWorkspace } from '../../../stores/useWorkspace';
 import { useNotification } from '../../../stores/useNotification';
 import { useTenant } from '../../../stores/useTenant';
 import { useScreenDefinitions } from '../../../stores/useScreenDefinitions';
+import { useRecords } from '../../../stores/useRecords';
+import { useRecordActions } from '../recordActions/useRecordActions';
 import { applyResult, useScreenActions } from './useScreenActions';
 import type { ScreenActions } from './useScreenActions';
 import { setValueByPath } from '../../../domain/services/customFieldValues';
-import type { CustomFieldValue } from '../../../domain/entities';
+import type { CustomFieldValue, EntityRecord } from '../../../domain/entities';
 import type { EntityDetailExtraTab, EntityDetailTab } from '../../components/layout/EntityDetailView';
 import { useChildScreenTabs } from './useChildScreenTabs';
 import { useEntityDetailChrome } from './useEntityDetailChrome';
@@ -110,6 +112,8 @@ export function useEntityDetail<TRecord extends { id: string }>(
   const { notify } = useNotification();
   const { currentTenant } = useTenant();
   const { getDefinition } = useScreenDefinitions();
+  const { updateRecord } = useRecords();
+  const recordActions = useRecordActions();
 
   const { isNew, recordId, cloneSourceId } = useMemo(() => parse(tabKey), [parse, tabKey]);
   const isClone = cloneSourceId !== null;
@@ -253,7 +257,34 @@ export function useEntityDetail<TRecord extends { id: string }>(
     [getDefinition, configScreenKey, entityKey],
   );
 
+  /**
+   * O host das ações de registro no CABEÇALHO. Um ponto só para todas as telas de detalhe: os
+   * endereços de aba vêm do que a própria tela declarou (`deepLinkKey`/`cloneKey`), e não de uma
+   * convenção que o comando teria de adivinhar.
+   */
+  const runRecordCommand = useCallback(async (commandKey: string) => {
+    if (!record) return;
+    const command = recordActions.find((candidate) => candidate.metadata.key === commandKey);
+    if (!command) return;
+    await command.run({
+      record: record as unknown as EntityRecord,
+      collection: entityKey,
+      screenKey: configScreenKey ?? entityKey,
+      surface: 'detail',
+      parent: null,
+      recordTabKey: deepLinkKey(record.id),
+      cloneTabKey: cloneKey(record.id),
+      openTab,
+      notify,
+      patchRecord: (patch) => updateRecord(entityKey, record.id, patch),
+      copyText: (text) => navigator.clipboard.writeText(text),
+      openTagManager: chrome.openTagManager,
+      requestDelete: chrome.requestDelete,
+    });
+  }, [record, recordActions, entityKey, configScreenKey, deepLinkKey, cloneKey, openTab, notify, updateRecord, chrome.openTagManager, chrome.requestDelete]);
+
   const screenActions = useScreenActions({
+    runRecordCommand,
     screenKey: entityKey,
     actionIds: viewActionIds,
     values,

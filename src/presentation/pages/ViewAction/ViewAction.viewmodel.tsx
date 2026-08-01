@@ -6,6 +6,7 @@ import { useWorkspace } from '../../../stores/useWorkspace';
 import { useNotification } from '../../../stores/useNotification';
 import { WORKFLOW_CALLED_EVENT } from '../../../domain/schema/eventCatalog';
 import { getScreenIconOptions } from '../../shared/screenIcons';
+import { useRecordActions } from '../../shared/recordActions/useRecordActions';
 import type { ActionDefinition } from '../../../domain/entities';
 import type { WorkflowVariable } from '../../components/ui/ExpressionEditor/autocompleteHelpers';
 import type { SearchSelectOption } from '../../components/ui/SearchSelect';
@@ -15,6 +16,7 @@ export interface ActionFormState {
   title: string;
   icon: string;
   workflowId: string;
+  command: string;
   hiddenWhen: string;
   disabledWhen: string;
   activeWhen: string;
@@ -29,6 +31,7 @@ const EMPTY_FORM: ActionFormState = {
   title: '',
   icon: 'apps',
   workflowId: '',
+  command: '',
   hiddenWhen: '',
   disabledWhen: '',
   activeWhen: '',
@@ -43,6 +46,7 @@ const toForm = (action: ActionDefinition): ActionFormState => ({
   title: action.title,
   icon: action.icon,
   workflowId: action.workflowId,
+  command: action.command ?? '',
   hiddenWhen: action.hiddenWhen ?? '',
   disabledWhen: action.disabledWhen ?? '',
   activeWhen: action.activeWhen ?? '',
@@ -61,6 +65,7 @@ export interface ViewActionViewModel {
   iconOptions: SearchSelectOption[];
   workflowOptions: { value: string; label: string }[];
   expressionVariables: WorkflowVariable[];
+  commandOptions: SearchSelectOption[];
   canSave: boolean;
   isSaving: boolean;
   handleSave: () => Promise<void>;
@@ -76,6 +81,7 @@ export const useViewActionViewModel = (tabKey: string): ViewActionViewModel => {
   const { tenantRole } = useTenant();
   const { closeTab, openTab, setTabTitle, activePanelId } = useWorkspace();
   const { notify } = useNotification();
+  const recordActions = useRecordActions();
 
   const isNew = tabKey === 'new-action';
   const actionId = isNew ? null : tabKey.replace('view-action:', '');
@@ -127,11 +133,30 @@ export const useViewActionViewModel = (tabKey: string): ViewActionViewModel => {
     { name: 'isDirty', definedBy: 'Há alterações não gravadas' },
     { name: 'role', definedBy: 'Papel do usuário no escritório' },
     { name: 'surface', definedBy: 'Onde a ação aparece: detail, list ou parentTab' },
+    { name: 'relation', definedBy: 'O registro dentro da aba do pai: none, owned ou related' },
   ], []);
 
+  /**
+   * Os comandos do sistema que uma ação pode executar em vez de um fluxo. Vêm do ponto de extensão,
+   * não de uma lista escrita aqui: uma extensão que registre o seu aparece nesta lista sozinha.
+   */
+  const commandOptions = useMemo<SearchSelectOption[]>(
+    () => [
+      { value: '', label: 'Executar um fluxo de trabalho' },
+      ...recordActions.map((action) => ({
+        value: action.metadata.key,
+        label: action.metadata.title,
+        meta: action.metadata.key,
+      })),
+    ],
+    [recordActions],
+  );
+
+  // Uma ação executa UMA coisa: um comando do sistema ou um fluxo de trabalho. O comando dispensa
+  // o fluxo — não há o que rodar no servidor.
   const canSave = formData.key.trim() !== ''
     && formData.title.trim() !== ''
-    && formData.workflowId !== ''
+    && (formData.command !== '' || formData.workflowId !== '')
     && !isSaving;
 
   const handleSave = useCallback(async () => {
@@ -142,7 +167,8 @@ export const useViewActionViewModel = (tabKey: string): ViewActionViewModel => {
         key: formData.key.trim(),
         title: formData.title.trim(),
         icon: formData.icon,
-        workflowId: formData.workflowId,
+        workflowId: formData.command ? '' : formData.workflowId,
+        command: formData.command || null,
         hiddenWhen: formData.hiddenWhen.trim() || null,
         activeWhen: formData.activeWhen.trim() || null,
         disabledWhen: formData.disabledWhen.trim() || null,
@@ -193,6 +219,7 @@ export const useViewActionViewModel = (tabKey: string): ViewActionViewModel => {
     iconOptions,
     workflowOptions,
     expressionVariables,
+    commandOptions,
     canSave,
     isSaving,
     handleSave,

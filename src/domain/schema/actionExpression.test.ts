@@ -33,6 +33,21 @@ describe('surface — onde a ação aparece', () => {
   });
 });
 
+/**
+ * `relation` é ortogonal a `surface`: aquela diz ONDE a ação aparece, esta diz O QUE o registro é
+ * para o pai da aba — e é a diferença entre apagar o registro e apenas desligá-lo do pai.
+ */
+describe('relation — o que o registro é para o pai', () => {
+  it('sem declaração, o registro não está dentro da aba de ninguém', () => {
+    expect(isActionHidden('relation == "none"', ctx({}))).toBe(true);
+  });
+
+  it('distingue o filho do relacionado', () => {
+    expect(isActionHidden('relation == "related"', ctx({}, { relation: 'related' }))).toBe(true);
+    expect(isActionHidden('relation == "related"', ctx({}, { relation: 'owned' }))).toBe(false);
+  });
+});
+
 describe('isActionHidden / isActionDisabled', () => {
   it('sem expressão, a ação aparece e está habilitada', () => {
     expect(isActionHidden(undefined, ctx({}))).toBe(false);

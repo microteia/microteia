@@ -1,6 +1,14 @@
 import type { PluginRecord } from '../../kernel';
-import { command, lazyView, page } from '../contributionBuilders';
+import { command, lazyView, page, recordAction } from '../contributionBuilders';
 import { DynamicRecordCommandProvider } from '../../presentation/components/ui/CommandPalette/providers/DynamicRecordCommandProvider';
+import {
+  RECORD_ACTION_METADATA,
+  cloneCommand,
+  copyLinkCommand,
+  deleteCommand,
+  manageTagsCommand,
+  unlinkCommand,
+} from './recordActionCommands';
 
 export const coreRecordsPlugin: PluginRecord = {
   trusted: true,
@@ -9,6 +17,11 @@ export const coreRecordsPlugin: PluginRecord = {
     DynamicRecordListView: lazyView(() => import('../../presentation/pages/DynamicRecordList/DynamicRecordList.view'), 'DynamicRecordListView'),
     ViewDynamicRecordView: lazyView(() => import('../../presentation/pages/ViewDynamicRecord/ViewDynamicRecord.view'), 'ViewDynamicRecordView'),
     DynamicRecordCommandProvider,
+    CopyLinkRecordAction: copyLinkCommand,
+    CloneRecordAction: cloneCommand,
+    ManageTagsRecordAction: manageTagsCommand,
+    DeleteRecordAction: deleteCommand,
+    UnlinkRecordAction: unlinkCommand,
   },
   manifest: {
     id: 'core.records',
@@ -22,6 +35,13 @@ export const coreRecordsPlugin: PluginRecord = {
       page({ key: '', keyPrefix: 'new-dyn:', title: 'Novo registro', icon: 'layoutGrid' }, 'ViewDynamicRecordView'),
       page({ key: '', keyPrefix: 'view-dyn:', title: 'Registro', icon: 'layoutGrid' }, 'ViewDynamicRecordView'),
       command('dynamic-record', { group: 'Registros' }, 'DynamicRecordCommandProvider'),
+      // As ações que todo registro oferece. Contribuições como quaisquer outras: remover uma linha
+      // daqui tira a ação de toda tela, sem que o kernel saiba que ela existia.
+      recordAction(RECORD_ACTION_METADATA.copyLink, 'CopyLinkRecordAction'),
+      recordAction(RECORD_ACTION_METADATA.clone, 'CloneRecordAction'),
+      recordAction(RECORD_ACTION_METADATA.manageTags, 'ManageTagsRecordAction'),
+      recordAction(RECORD_ACTION_METADATA.delete, 'DeleteRecordAction'),
+      recordAction(RECORD_ACTION_METADATA.unlink, 'UnlinkRecordAction'),
     ],
   },
 };

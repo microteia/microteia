@@ -11,6 +11,12 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [2.6.0] — 2026-08-01
+
+- As ações do cartão — **Copiar link, Duplicar, Etiquetas, Excluir** e a nova **Desvincular** — deixaram de ser fixas no sistema. Agora são declaradas, como qualquer recurso trazido por uma extensão: uma extensão pode acrescentar a sua ao cartão de qualquer tela.
+- Na tela de **Ação**, o campo "O que a ação executa" permite escolher entre um **comando do sistema** (copiar link, duplicar, etiquetas, excluir, desvincular) e um fluxo de trabalho. Comandos não precisam de automação nenhuma.
+- Nas expressões das Ações, a nova variável `relation` diz o que o registro é para o registro que o contém: nenhum, filho ou relacionado.
+
 ## [2.5.0] — 2026-08-01
 
 - Na aba **Processos** de um contrato, o botão de excluir do cartão virou **Desvincular** — ele agora tira o processo daquele contrato em vez de apagar o processo inteiro. Excluir de verdade continua na tela de Processos.

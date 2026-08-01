@@ -23,6 +23,13 @@ export interface ActionCommandTarget {
 }
 
 export interface ScreenActionTarget extends ActionCommandTarget {
+  /**
+   * Executa um COMANDO do sistema (`copyLink`, `delete`, `manageTags`…) sobre o registro aberto.
+   * Ausente, a tela não sabe executar comandos e as ações que dependem de um simplesmente não
+   * aparecem — mesma tolerância dos demais callbacks: capacidade que falta é botão que não existe,
+   * nunca botão que falha.
+   */
+  runRecordCommand?: (command: string) => void | Promise<void>;
   screenKey: string;
   actionIds: string[];
   values: Record<string, unknown>;
@@ -139,7 +146,7 @@ export const dispatchActionOutcome = async (
 export const useScreenActions = (target: ScreenActionTarget): ScreenActions => {
   const {
     screenKey, actionIds, values, record, recordId, isNew, isDirty,
-    applyValues, setFieldErrors, save, clone, remove, refresh, close,
+    applyValues, setFieldErrors, save, clone, remove, refresh, close, runRecordCommand,
   } = target;
 
   const { getActionsByIds, runAction } = useActions();
@@ -164,6 +171,11 @@ export const useScreenActions = (target: ScreenActionTarget): ScreenActions => {
   const execute = useCallback(async (action: ActionDefinition) => {
     setRunningActionId(action.id);
     try {
+      // Ação que executa um COMANDO do sistema não vai ao servidor: é operação de tela.
+      if (action.command) {
+        await runRecordCommand?.(action.command);
+        return;
+      }
       const response = await runAction({
         actionId: action.id,
         source: screenKey,
@@ -189,7 +201,7 @@ export const useScreenActions = (target: ScreenActionTarget): ScreenActions => {
     } finally {
       setRunningActionId(null);
     }
-  }, [runAction, screenKey, values, recordId, isNew, notify, setFieldErrors, applyValues, save, refresh, clone, remove, close]);
+  }, [runAction, screenKey, values, recordId, isNew, notify, setFieldErrors, applyValues, save, refresh, clone, remove, close, runRecordCommand]);
 
   const requestRun = useCallback((action: ActionDefinition) => {
     if (action.confirmMessage && action.confirmMessage.trim() !== '') {
@@ -210,6 +222,8 @@ export const useScreenActions = (target: ScreenActionTarget): ScreenActions => {
 
   const buttons = useMemo<ScreenActionButton[]>(
     () => available
+      // Ação de comando numa tela que não sabe executá-lo não vira botão morto: some.
+      .filter((action) => !action.command || !!runRecordCommand)
       .filter((action) => !isActionHidden(action.hiddenWhen, exprContext))
       .map((action) => ({
         key: action.id,
@@ -220,7 +234,7 @@ export const useScreenActions = (target: ScreenActionTarget): ScreenActions => {
         active: actionActiveState(action.activeWhen, exprContext),
         onClick: () => requestRun(action),
       })),
-    [available, exprContext, runningActionId, requestRun],
+    [available, exprContext, runningActionId, requestRun, runRecordCommand],
   );
 
   return { buttons, runningActionId, pendingAction, confirmPendingAction, cancelPendingAction };

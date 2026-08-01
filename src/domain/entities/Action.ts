@@ -10,6 +10,17 @@ export interface ActionDefinition {
   title: string;
   icon: string;
   workflowId: string;
+  /**
+   * COMANDO do sistema que a ação executa, no lugar de um fluxo de trabalho: `copyLink`, `clone`,
+   * `manageTags`, `delete`, `unlink` — ou qualquer outro registrado no ponto `ui.record.action`.
+   * Presente, `workflowId` é ignorado.
+   *
+   * Existe porque nem toda ação é automação. Copiar link, duplicar e excluir são operações de tela:
+   * não têm o que rodar no servidor, e antes só existiam como caixa de seleção do kernel. Como
+   * comando, elas entram na MESMA lista das ações do escritório — com ícone, ordem, `hiddenWhen` e
+   * confirmação próprios.
+   */
+  command?: string | null;
   hiddenWhen?: string | null;
   disabledWhen?: string | null;
   /**

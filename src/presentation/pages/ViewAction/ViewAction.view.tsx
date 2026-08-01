@@ -95,6 +95,21 @@ export const ViewActionView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
               />
             </S.Field>
             <S.Field>
+              <Label>O que a ação executa *</Label>
+              <SearchSelect
+                options={vm.commandOptions}
+                value={vm.formData.command}
+                onChange={(command) => vm.setFormData({ command })}
+                placeholder="Escolha o que executar"
+              />
+              <S.SectionHint>
+                Um <strong>comando do sistema</strong> é uma operação de tela — copiar link,
+                duplicar, etiquetas, excluir, desvincular — e não precisa de fluxo nenhum. Escolha
+                &quot;Executar um fluxo de trabalho&quot; para a ação chamar uma automação.
+              </S.SectionHint>
+            </S.Field>
+            {!vm.formData.command && (
+            <S.Field>
               <Label>Fluxo de trabalho *</Label>
               <SearchSelect
                 options={vm.workflowOptions}
@@ -113,6 +128,7 @@ export const ViewActionView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
                 devolver erros por campo, use <code>object("code", …, "fieldErrors", …)</code>.
               </S.SectionHint>
             </S.Field>
+            )}
             <S.Field>
               <Checkbox
                 label="Ativa"

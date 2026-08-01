@@ -23,15 +23,27 @@ export interface ActionExprContext {
    * - `parentTab` — cartão dentro da aba de um registro-pai.
    */
   surface?: ActionSurface;
+  /**
+   * O que o registro é para o pai da aba em que aparece. Ortogonal a `surface`: aquela diz ONDE, esta
+   * diz O QUÊ — e é a diferença entre apagar e desligar.
+   *
+   * - `none` — não está dentro da aba de ninguém.
+   * - `owned` — é FILHO do pai: existe por causa dele, e excluí-lo ali é o esperado.
+   * - `related` — é uma entidade de topo que apenas aponta para o pai: o gesto que cabe é
+   *   desvincular, e excluir destruiria o registro inteiro.
+   */
+  relation?: ActionRelation;
 }
 
 export type ActionSurface = 'detail' | 'list' | 'parentTab';
+
+export type ActionRelation = 'none' | 'owned' | 'related';
 
 /**
  * Nomes reservados sobrescrevem campos de mesma chave: um campo chamado `record` não fica acessível na
  * raiz do escopo, mas segue legível por `record.record`.
  */
-export const ACTION_RESERVED_VARIABLES = ['record', 'isNew', 'isDirty', 'role', 'surface'] as const;
+export const ACTION_RESERVED_VARIABLES = ['record', 'isNew', 'isDirty', 'role', 'surface', 'relation'] as const;
 
 const buildScope = (ctx: ActionExprContext): Record<string, unknown> => ({
   ...ctx.values,
@@ -40,6 +52,7 @@ const buildScope = (ctx: ActionExprContext): Record<string, unknown> => ({
   isDirty: ctx.isDirty,
   role: ctx.role,
   surface: ctx.surface ?? 'detail',
+  relation: ctx.relation ?? 'none',
 });
 
 export const isActionHidden = (expr: string | null | undefined, ctx: ActionExprContext): boolean =>

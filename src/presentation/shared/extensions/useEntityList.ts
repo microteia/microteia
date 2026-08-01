@@ -1,11 +1,7 @@
-import { useCallback, useMemo } from 'react';
+import { useMemo } from 'react';
 import { useScreenDefinitions } from '../../../stores/useScreenDefinitions';
-import { useWorkspace } from '../../../stores/useWorkspace';
-import { useNotification } from '../../../stores/useNotification';
-import { useRecordListViewModel, type RecordListViewModel, type RecordCardAction } from '../entityScreen/useRecordListViewModel';
+import { useRecordListViewModel, type RecordListViewModel } from '../entityScreen/useRecordListViewModel';
 import { buildListTabKey } from '../../../shared/constants/dynamicScreenKeys';
-import { generateDeepLink } from '../../../infrastructure/deeplink/deepLinkUtils';
-import type { EntityRecord } from '../../../domain/entities';
 
 export interface EntityListOptions {
   /**
@@ -29,38 +25,30 @@ export interface EntityListOptions {
 export const useEntityList = (sourceId: string, options: EntityListOptions = {}): RecordListViewModel => {
   const { editKeyPrefix } = options;
   const { dynamicScreens } = useScreenDefinitions();
-  const { openTab } = useWorkspace();
-  const { notify } = useNotification();
 
   const screenKey = useMemo(
     () => dynamicScreens.find((definition) => (definition.sourceId ?? definition.id) === sourceId)?.id ?? '',
     [dynamicScreens, sourceId],
   );
 
-  const vm = useRecordListViewModel({ screenKey, savedFiltersKey: buildListTabKey(screenKey) });
-
-  const getCardActions = useCallback(
-    (record: EntityRecord): RecordCardAction[] => {
-      const base = vm.getCardActions(record);
-      if (!editKeyPrefix) return base;
-      return base.map((action) => {
-        if (action.key === 'clone') {
-          return { ...action, onClick: () => openTab(`${editKeyPrefix}clone:${record.id}`) };
-        }
-        if (action.key === 'copyLink') {
-          return {
-            ...action,
-            onClick: () => {
-              void navigator.clipboard.writeText(generateDeepLink(`${editKeyPrefix}${record.id}`));
-              notify('Link copiado para a área de transferência.', 'success');
-            },
-          };
-        }
-        return action;
-      });
-    },
-    [vm, editKeyPrefix, openTab, notify],
+  /**
+   * O endereço do registro NESTA extensão. Antes as ações de duplicar e copiar link eram
+   * reescritas aqui uma a uma, pela chave — a ponte precisava conhecer o nome de cada ação do
+   * kernel. Agora quem endereça é a listagem, e as ações só perguntam ao host.
+   */
+  const recordTabKeys = useMemo(
+    () => (editKeyPrefix
+      ? (recordId: string) => ({
+          view: `${editKeyPrefix}${recordId}`,
+          clone: `${editKeyPrefix}clone:${recordId}`,
+        })
+      : undefined),
+    [editKeyPrefix],
   );
 
-  return editKeyPrefix ? { ...vm, getCardActions } : vm;
+  return useRecordListViewModel({
+    screenKey,
+    savedFiltersKey: buildListTabKey(screenKey),
+    recordTabKeys,
+  });
 };
