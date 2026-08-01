@@ -20,9 +20,15 @@ describe('opções que o kernel já traz', () => {
     expect(lookupDefaultsFor('medico_especialidade')).toEqual([]);
   });
 
-  it('as cores vêm como token do tema, para o tema claro e o escuro renderizarem diferente', () => {
-    const pago = lookupDefaultsFor('financialStatuses').find((option) => option.key === 'Pago');
-    expect(pago?.color).toBe('success');
+  /** Cor de opção fixa é sempre TOKEN do tema — nunca hex —, para o tema claro e o escuro
+   *  renderizarem diferente. Hoje nenhuma lista do kernel tem cor: as coloridas saíram com as
+   *  entidades, e a regra vale para a próxima que entrar. */
+  it('as cores das opções fixas vêm como token do tema, nunca como hex', () => {
+    for (const options of Object.values(LOOKUP_DEFAULTS)) {
+      for (const option of options) {
+        if (option.color) expect(option.color).not.toMatch(/^#|^rgb/);
+      }
+    }
   });
 
   it('toda coleção com defaults existe no registro de listas', () => {
@@ -32,13 +38,13 @@ describe('opções que o kernel já traz', () => {
   });
 
   it('a opção do tenant com o mesmo rótulo de uma fixa não duplica na lista', () => {
-    const merged = mergeLookupDefaults(lookupDefaultsFor('financialStatuses'), [
-      { key: 'Pago', label: 'Pago', isStatic: false },
+    const merged = mergeLookupDefaults(lookupDefaultsFor('documentTypes'), [
+      { key: 'Contrato', label: 'Contrato', isStatic: false },
       { key: 'Renegociado', label: 'Renegociado', isStatic: false },
     ]);
 
-    expect(merged.filter((option) => option.label === 'Pago')).toHaveLength(1);
-    expect(merged.find((option) => option.label === 'Pago')?.isStatic).toBe(true);
+    expect(merged.filter((option) => option.label === 'Contrato')).toHaveLength(1);
+    expect(merged.find((option) => option.label === 'Contrato')?.isStatic).toBe(true);
     expect(merged.find((option) => option.label === 'Renegociado')?.isStatic).toBe(false);
   });
 });

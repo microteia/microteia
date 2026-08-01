@@ -55,7 +55,7 @@ describe('buildEntityViewTabKey — volta para o pai, fixo ou dinâmico', () => 
     // que as descreve.
     expect(buildEntityViewTabKey('persons', 'p1')).toBe('view-dyn:persons:p1');
     expect(buildEntityViewTabKey('contracts', 'c1')).toBe('view-dyn:contracts:c1');
-    expect(buildEntityViewTabKey('financials', 'f1')).toBe('view-financial:f1');
+    expect(buildEntityViewTabKey('financials', 'f1')).toBe('view-dyn:financials:f1');
     expect(buildEntityViewTabKey('deadlines', 'd1')).toBe('view-deadline:d1');
   });
 

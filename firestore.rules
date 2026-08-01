@@ -184,12 +184,6 @@ service cloud.firestore {
         allow delete: if isTenantAdmin(tenantId);
       }
 
-      match /contractCostCenters/{id} {
-        allow read: if isMember(tenantId);
-        allow create: if canWriteInTenant(tenantId);
-        allow delete: if isTenantAdmin(tenantId);
-      }
-
       // Tipos de prazo (lookup dinâmico por tenant) — qualquer membro com escrita cria; só admin deleta
       match /deadlineTypes/{id} {
         allow read: if isMember(tenantId);
@@ -202,43 +196,6 @@ service cloud.firestore {
         allow read: if isMember(tenantId);
         allow create, update: if canWriteInTenant(tenantId);
         allow delete: if isTenantLawyerOrAdmin(tenantId);
-      }
-
-      // Financeiro
-      match /financials/{financialId} {
-        allow read: if isMember(tenantId);
-        allow create, update: if isTenantLawyerOrAdmin(tenantId);
-        allow delete: if isTenantAdmin(tenantId);
-
-        // Documentos do lançamento financeiro — upload por qualquer membro com escrita; exclusão só admin.
-        // update só é usado para o stamp de autoria de exclusão (deletedBy*).
-        match /documents/{documentId} {
-          allow read: if isMember(tenantId);
-          allow create: if canWriteInTenant(tenantId);
-          allow update: if isTenantAdmin(tenantId)
-            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['deletedBy', 'deletedByName', 'deletedByPhotoURL'])
-            && request.resource.data.deletedBy == request.auth.uid;
-          allow delete: if isTenantAdmin(tenantId);
-        }
-      }
-
-      // Etiquetas de lançamentos financeiros (tenant-scoped) — qualquer membro com escrita cria; só admin deleta
-      match /financialTags/{tagId} {
-        allow read: if isMember(tenantId);
-        allow create, update: if canWriteInTenant(tenantId);
-        allow delete: if isTenantAdmin(tenantId);
-      }
-
-      // Lookups de financeiro — qualquer membro lê; qualquer membro com escrita cria; só admin deleta
-      match /financialCategories/{id} {
-        allow read: if isMember(tenantId);
-        allow create: if canWriteInTenant(tenantId);
-        allow delete: if isTenantAdmin(tenantId);
-      }
-      match /financialStatuses/{id} {
-        allow read: if isMember(tenantId);
-        allow create: if canWriteInTenant(tenantId);
-        allow delete: if isTenantAdmin(tenantId);
       }
 
       // Pushes do Tribunal (notificações de email processadas)
@@ -359,9 +316,8 @@ service cloud.firestore {
       // leitura de documento por consulta não pagaria o que protege.
       function isReservedCollection(name) {
         return name in [
-        'actions', 'aiConnections', 'contractCostCenters',
+        'actions', 'aiConnections',
         'deadlineTypes', 'deadlines', 'documentTypes', 'documents', 'extensions',
-        'financialCategories', 'financialStatuses', 'financialTags', 'financials',
         'installed_extensions', 'lookupDefinitions', 'members', 'news', 'newsCategories', 'notes',
         'tagDefinitions', 'plugin_installations',
         'pushes', 'screenDefinitions', 'scripts', 'secrets', 'tags', 'workflow_definitions',

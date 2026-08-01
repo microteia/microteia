@@ -327,7 +327,7 @@ describe('formatAndValidateRecord — tipo declarado', () => {
 
   it('a data de uma tela do tenant é gravada como a de uma tela fixa', () => {
     const doTenant = formatAndValidateRecord(ctx, 'audiencias', { data: '2026-07-15' }).data.data;
-    const fixa = formatAndValidateRecord(ctx, 'financials', { dueDate: '2026-07-15' }).data.dueDate;
+    const fixa = formatAndValidateRecord(ctx, 'deadlines', { dueDate: '2026-07-15' }).data.dueDate;
 
     expect(doTenant).toEqual(fixa);
   });

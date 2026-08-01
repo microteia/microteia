@@ -543,60 +543,24 @@ interface Deadline {
 }
 ```
 
-### Entidade Financial (Financeiro)
+### Financeiro — declarado por extensão
 
-```typescript
-type FinancialType = 'Receita' | 'Despesa';
-type PaymentMethod = 'PIX' | 'Transferência' | 'Dinheiro' | 'Cartão' | 'Cheque' | 'Outro';
+`financials` não está no `entityRegistry.ts`. Quem descreve a coleção é a extensão **Financeiro**
+(`com.microteia.financeiro`, `dataCollection: 'financials'`, `eventPrefix: 'financial'`,
+`tagCollection: 'financialTags'`, `writeRoles: ['admin', 'lawyer']`), com 14 campos em 4 seções e
+quatro listas de opções com as opções de partida. Ver "Financeiro sai do kernel".
 
-interface Financial {
-  id: string;
-  tenantId: string;
-  caseId?: string | null;          // número do processo resolvido em tempo de renderização via useCaseStore()
-  personId?: string | null;        // nome da pessoa resolvido em tempo de renderização via usePersonStore()
-  contractId?: string | null;      // número do contrato resolvido em tempo de renderização via useContractStore()
-  type: FinancialType;
-  category: string;          // dinâmico via FinancialLookupConfig (kind: 'categories')
-  costCenter?: string | null; // dinâmico, reaproveita o mesmo lookup de Centro de Custo de Contract (kind: 'costCenters')
-  amount: number;            // Sempre positivo; type determina se é entrada ou saída
-  dueDate: Date;
-  paymentDate?: Date | null;
-  cancelDate?: Date | null;
-  status: string;            // dinâmico via FinancialLookupConfig (kind: 'statuses'); valores: 'Aberto', 'Pago', 'Cancelado'
-  paymentMethod?: PaymentMethod | null;
-  invoiceNumber?: string | null;
-  notes?: string | null;
-  tagIds?: string[];
-  createdAt: Date;
-  createdBy: string;
-  updatedAt: Date;
-}
-```
+### Etiquetas e documentos do Financeiro
 
-`category` e `status` seguem o mesmo padrão Estático + Dinâmico de `Contract` (ver "Valores Estáticos e Dinâmicos"), com lookup próprio (`FinancialLookupConfig`/`FinancialLookupKind`, coleções `financialCategories`/`financialStatuses`). `costCenter` **não** tem coleção própria: reaproveita o lookup `costCenters` de `useContractLookup()`, para que Contratos e Financeiro compartilhem a mesma lista de centros de custo do escritório. `caseId`/`personId`/`contractId` não guardam nome/número espelhado — são resolvidos em tempo de renderização a partir dos respectivos stores (`useCaseStore`/`usePersonStore`/`useContractStore`); ao excluir um `Contract`/`Case`/`Person`, os `financials` vinculados **não** são alterados nem excluídos (podem ficar órfãos — ver "Cascata de Exclusão"). Não há campo de descrição livre: `category` é o identificador principal exibido nos cards e nas abas.
+As etiquetas vivem em `tenants/{tenantId}/financialTags/{id}` e os documentos em
+`tenants/{tenantId}/financials/{financialId}/documents/{id}` (Storage:
+`tenants/{tenantId}/financials/{financialId}/{timestamp}_{filename}`) — as duas coleções são
+DECLARADAS pela extensão (`tagCollection`, `hasDocuments`), e servidas pelo repositório e pelo store
+genéricos, como os de qualquer tela.
 
-### Entidade FinancialTag
-
-Tags de tenant para classificação de lançamentos financeiros. Mesmo padrão de `PersonTag`/`CaseTag`/`ContractTag`: repositório, usecases (`financialtags/`) e store (`FinancialTagStore`/`useFinancialTagStore`) próprios, sem entidade `Tag` genérica compartilhada.
-
-```typescript
-interface FinancialTag {
-  id: string;
-  tenantId: string;
-  name: string;
-  color: string;
-  createdAt: Date;
-  createdBy: string;
-}
-```
-
-Coleção Firestore: `tenants/{tenantId}/financialTags/{id}`
-
-### Entidade FinancialDocument
-
-Documentos anexados a um lançamento financeiro. Mesmo padrão de `PersonDocument`/`CaseDocument`/`ContractDocument`. Coleção: `tenants/{tenantId}/financials/{financialId}/documents/{id}`. Storage path: `tenants/{tenantId}/financials/{financialId}/{timestamp}_{filename}`.
-
-`type` referencia a `key` de um `DocumentTypeConfig` — o catálogo de tipos de documento (coleção `tenants/{tenantId}/documentTypes`, acessado via `useDocumentTypeLookup()`) é **compartilhado por tenant** entre Pessoa, Processo, Contrato, Financeiro e Notícias: um tipo criado em qualquer uma dessas telas aparece nas demais. O documento em si, porém, é sempre filho de uma única entidade — não há coleção `documents` genérica.
+`type` de um documento referencia a `key` de um `DocumentTypeConfig` — o catálogo de tipos (coleção
+`tenants/{tenantId}/documentTypes`) é **compartilhado por tenant** entre todas as telas que anexam
+documentos: um tipo criado em qualquer uma aparece nas demais.
 
 ### Entidade NewsDocument
 
@@ -2153,10 +2117,45 @@ processo". Ligar um processo a um contrato é preencher o campo **Contrato** no 
 criar um processo pela aba do contrato já o traz vinculado. É uma porta a menos para a mesma ação,
 não uma ação a menos.
 
-**Duas listas ficaram para trás de propósito:** `contractCostCenters` continua declarada no kernel,
-porque o campo "Centro de custo" do **Financeiro** — que ainda é do kernel — aponta para a mesma
-lista. Duas telas compartilhando uma lista de opções é o arranjo normal (`lookupCollection` igual),
-e não um resíduo.
+**Uma lista compartilhada:** `contractCostCenters` é declarada pela extensão de **Contratos**, e o
+campo "Centro de custo" do **Financeiro** aponta para ela. Duas telas compartilhando uma lista de
+opções é o arranjo normal (`lookupCollection` igual), e é por isso que o Financeiro não a redeclara —
+quem instala as duas extensões tem uma lista só.
+
+### Financeiro sai do kernel — e o que a declaração ainda não alcançava
+
+A quarta migração pelo mesmo caminho: `financials` não está mais no `entityRegistry.ts`, e quem
+descreve a coleção é a extensão **Financeiro** (`com.microteia.financeiro`, `dataCollection:
+'financials'`, `eventPrefix: 'financial'`, `tagCollection: 'financialTags'`, `writeRoles: ['admin',
+'lawyer']`, quatro listas de opções com as opções de partida). Foram apagados as páginas
+(`Financials`, `ViewFinancial`), o `FinancialStore`, dois repositórios e duas interfaces, os use
+cases de lançamento e documento, os tipos `Financial`/`FinancialTag`/`FinancialDocument`, o plugin
+`core.financials`, o `FinancialCommandProvider` e as abas `financials`/`view-financial:`/
+`new-financial`. As regras nomeadas de `financials`, `financialTags`, das duas listas e de
+`contractCostCenters` saíram do `firestore.rules` — tudo passa pelo curinga.
+
+Financeiro é a ponta da cadeia: aponta para Pessoa, Processo e Contrato, e depende das três.
+
+| Capacidade | Declaração | Sem ela |
+|---|---|---|
+| Filtrar data por PERÍODO | campo `date` com `filterable` vira duas pontas, "(de)" e "(até)" | o Financeiro montava `dueDateFrom`/`dueDateTo` em código, e nenhuma outra tela alcançava o mesmo |
+| Somar o que está filtrado | slots `summary` e `headerActions` do `RecordListSurface` | uma soma sobre os registros filtrados não se declara campo a campo |
+| Abrir já filtrado | `useEntityList({ defaultFilterTokens })` | a primeira tela do Financeiro seria o histórico inteiro do escritório |
+| Abrir a LISTAGEM de uma coleção de fora | `useOpenScreenList` | o painel do escritório apontava para a aba fixa `financials`, que deixou de existir |
+
+**Os gestos do fluxo viraram Actions.** Registrar pagamento, estornar e registrar cancelamento eram
+`if`s na view (`f.status === 'Aberto' ? [...] : []`). Cada um é agora uma **Action** sobre um
+workflow de três passos — Montar Objeto com os campos a gravar (`today()` carimba a data) → Gravar
+Registro → resposta com a mensagem e `actions: ['refresh']` — e quem decide se aparece é uma
+expressão sobre o registro (`hiddenWhen: 'isNew or status != "Aberto"'`). É a mesma máquina que o
+escritório usa no Form Design, e o mesmo caminho do interruptor de status da Pessoa.
+
+**O que ficou no kernel, e por quê.** O **Painel Financeiro** (`core.financial-dashboard`) continua
+sendo tela de código: é um relatório de gráficos (`recharts`), e a API curada das extensões ainda não
+expõe biblioteca de gráfico. Ele já não conhece entidade nenhuma declarada em código — lê a coleção
+pelo caminho genérico (`useFinancialRecords`, mesmo contrato de leitura de `useCaseRecords` e irmãos)
+e navega por `useOpenScreenList`. Sai do kernel no dia em que uma extensão puder desenhar os mesmos
+gráficos.
 
 ### As ações do registro viram contribuições
 

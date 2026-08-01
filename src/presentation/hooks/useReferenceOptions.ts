@@ -1,12 +1,9 @@
 import { useMemo } from 'react';
-import { usePersonRecords } from '../shared/useCollectionRecords';
-import { useFinancialStore } from '../../stores/useFinancialStore';
 import { useDeadlineStore } from '../../stores/useDeadlineStore';
 import { useRecords } from '../../stores/useRecords';
 import { useScreenDefinitions } from '../../stores/useScreenDefinitions';
 import { useTenant } from '../../stores/useTenant';
 import { readRecordText, resolveRecordTitle } from '../../domain/services/customFieldValues';
-import { formatCurrencyBRL } from '../../utils/formatters';
 
 export interface ReferenceOption {
   value: string;
@@ -15,28 +12,18 @@ export interface ReferenceOption {
 }
 
 export const useReferenceOptions = (): Record<string, ReferenceOption[]> => {
-  const persons = usePersonRecords();
-  const { financials } = useFinancialStore();
   const { deadlines } = useDeadlineStore();
   const { recordsByCollection } = useRecords();
   const { getDefinition } = useScreenDefinitions();
   const { members } = useTenant();
 
   return useMemo(() => {
-    // `persons` e `contracts` não aparecem aqui: as coleções são descritas por telas do escritório
-    // e entram pelo caminho genérico abaixo, como qualquer outra — o rótulo vira o campo-título e o
-    // complemento, o subtítulo. A lista local de pessoas serve só ao complemento do lançamento
-    // financeiro, que mostra o nome da pessoa vinculada.
+    // Só o que NÃO é tela do escritório fica nomeado aqui. `persons`, `contracts`, `cases` e
+    // `financials` entram pelo caminho genérico abaixo, como qualquer coleção descrita por uma tela:
+    // o rótulo sai do campo-título e o complemento, do subtítulo.
     const map: Record<string, ReferenceOption[]> = {
       members: members
         .map((m) => ({ value: m.userId, label: m.displayName }))
-        .sort((a, b) => a.label.localeCompare(b.label)),
-      financials: financials
-        .map((f) => ({
-          value: f.id,
-          label: `${f.category} — ${formatCurrencyBRL(f.amount)}`,
-          meta: (f.personId ? persons.find((p) => p.id === f.personId)?.name : undefined) ?? undefined,
-        }))
         .sort((a, b) => a.label.localeCompare(b.label)),
       deadlines: deadlines
         .map((d) => ({ value: d.id, label: d.type }))
@@ -57,5 +44,5 @@ export const useReferenceOptions = (): Record<string, ReferenceOption[]> => {
         .sort((a, b) => a.label.localeCompare(b.label));
     });
     return map;
-  }, [persons, financials, deadlines, recordsByCollection, getDefinition, members]);
+  }, [deadlines, recordsByCollection, getDefinition, members]);
 };

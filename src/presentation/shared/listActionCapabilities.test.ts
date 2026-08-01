@@ -6,10 +6,8 @@ describe('supportedListActions', () => {
     expect(supportedListActions('deadlines')).toEqual(['copyLink', 'delete']);
   });
 
-  it('as demais telas fixas oferecem as quatro', () => {
-    for (const key of ['persons', 'financials']) {
-      expect(supportedListActions(key)).toHaveLength(4);
-    }
+  it('a tela que ainda é fixa oferece as quatro', () => {
+    expect(supportedListActions('persons')).toHaveLength(4);
   });
 
   it('tela desconhecida não oferece nada', () => {
@@ -20,7 +18,6 @@ describe('supportedListActions', () => {
 describe('resolveListActions — sem configuração, mantém o card de hoje', () => {
   it('lista vazia cai no padrão da tela', () => {
     expect(resolveListActions('persons', [])).toEqual(['manageTags']);
-    expect(resolveListActions('financials', [])).toEqual(['delete']);
     expect(resolveListActions('deadlines', [])).toEqual(['delete']);
     // Contrato saiu do kernel: as ações do card dele vêm da tela declarada pela extensão.
     expect(resolveListActions('contracts', [])).toEqual([]);

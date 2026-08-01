@@ -59,7 +59,7 @@ describe('resolveNestedEntityConfig', () => {
   });
 
   it('subcoleção fixa continua com o nome do código', async () => {
-    const config = await resolveNestedEntityConfig(provider, 't1', 'financials', 'documents');
-    expect(config?.entityLabel).toBe('Documento de Financeiro');
+    const config = await resolveNestedEntityConfig(provider, 't1', 'screenDefinitions', 'tags');
+    expect(config?.entityLabel).toBe('Etiqueta de Tela Personalizada');
   });
 });

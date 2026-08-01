@@ -74,8 +74,8 @@ describe('useOpenRecord', () => {
 
   /** Entidade ainda do kernel: vale a chave fixa de sempre. */
   it('coleção fixa abre pela aba do kernel', () => {
-    open('financials', 'f1');
-    expect(openTab).toHaveBeenCalledWith('view-financial:f1');
+    open('deadlines', 'd1');
+    expect(openTab).toHaveBeenCalledWith('view-deadline:d1');
   });
 
   /** Extensão desinstalada: nada abre, em vez de uma aba morta. */

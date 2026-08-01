@@ -13,8 +13,6 @@ import type { INewsDocumentRepository } from '../../domain/repositories/INewsDoc
 import type { ISavedFilterRepository } from '../../domain/repositories/ISavedFilterRepository';
 import type { ITenantRepository } from '../../domain/repositories/ITenantRepository';
 import type { IDeadlineRepository } from '../../domain/repositories/IDeadlineRepository';
-import type { IFinancialRepository } from '../../domain/repositories/IFinancialRepository';
-import type { IFinancialDocumentRepository } from '../../domain/repositories/IFinancialDocumentRepository';
 import type { ITextAnnotationRepository } from '../../domain/repositories/ITextAnnotationRepository';
 import type { IPushRepository, IPushInteractionRepository } from '../../domain/repositories/IPushRepository';
 import type { IAuditLogRepository } from '../../domain/repositories/IAuditLogRepository';
@@ -61,8 +59,6 @@ export interface DIContainer {
   savedFilterRepository: ISavedFilterRepository;
   tenantRepository: ITenantRepository;
   deadlineRepository: IDeadlineRepository;
-  financialRepository: IFinancialRepository;
-  financialDocumentRepository: IFinancialDocumentRepository;
   textAnnotationRepository: ITextAnnotationRepository;
   pushRepository: IPushRepository;
   pushInteractionRepository: IPushInteractionRepository;

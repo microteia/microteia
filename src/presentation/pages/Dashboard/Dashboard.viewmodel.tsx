@@ -3,7 +3,8 @@ import { useTheme } from 'styled-components';
 import { useDeadlineStore } from '../../../stores/useDeadlineStore';
 import { CASES_COLLECTION, useCaseRecords, type CaseRecord } from '../../shared/useCollectionRecords';
 import { useOpenRecord } from '../../shared/useOpenRecord';
-import { useFinancialStore } from '../../../stores/useFinancialStore';
+import { FINANCIALS_COLLECTION, useFinancialRecords } from '../../shared/useCollectionRecords';
+import { useOpenScreenList } from '../../shared/useOpenScreenList';
 import { usePersonRecords } from '../../shared/useCollectionRecords';
 import { useWorkspace } from '../../../stores/useWorkspace';
 import { setNavigationIntent } from '../../../infrastructure/navigation/navigationIntent';
@@ -74,7 +75,8 @@ export const useDashboardViewModel = (): DashboardViewModel => {
   const { deadlines, isLoading: loadingDeadlines } = useDeadlineStore();
   const cases = useCaseRecords();
   const openRecord = useOpenRecord();
-  const { financials, isLoading: loadingFinancials } = useFinancialStore();
+  const financials = useFinancialRecords();
+  const openScreenList = useOpenScreenList();
   const persons = usePersonRecords();
   const { openTab } = useWorkspace();
   const theme = useTheme();
@@ -88,7 +90,7 @@ export const useDashboardViewModel = (): DashboardViewModel => {
     'Crítica': theme.colors.danger,
   }), [theme]);
 
-  const isLoading = loadingDeadlines || loadingFinancials;
+  const isLoading = loadingDeadlines;
 
   const todayStart = useMemo(() => {
     const now = new Date();
@@ -146,7 +148,7 @@ export const useDashboardViewModel = (): DashboardViewModel => {
 
   const pendingFinancials = useMemo(() => {
     const cutoffMs = financialCutoffDay.getTime() + msInDay - 1;
-    return financials.filter((f) => f.status === 'Aberto' && f.dueDate.getTime() <= cutoffMs);
+    return financials.filter((f) => f.status === 'Aberto' && !!f.dueDate && f.dueDate.getTime() <= cutoffMs);
   }, [financials, financialCutoffDay]);
 
   const pendingIncome = useMemo(() =>
@@ -189,7 +191,7 @@ export const useDashboardViewModel = (): DashboardViewModel => {
   ];
   const openFinancials = () => {
     setNavigationIntent('financials', financialOpenFilterTokens());
-    openTab('financials');
+    openScreenList(FINANCIALS_COLLECTION);
   };
   const openFinancialDashboard = () => {
     setNavigationIntent('financial-dashboard', financialOpenFilterTokens());

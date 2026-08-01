@@ -1,4 +1,4 @@
-export type LookupGroup = 'deadline' | 'financial' | 'document' | 'news';
+export type LookupGroup = 'deadline' | 'document' | 'news';
 
 export interface LookupMetadata {
   collection: string;
@@ -14,10 +14,7 @@ const LOOKUP_LIST: LookupMetadata[] = [
   // mesma lista — as duas telas compartilham as opções, como dois campos com o mesmo
   // `lookupCollection`. Por isso ela fica, enquanto as outras nove listas de Contrato saíram junto
   // com a entidade.
-  { collection: 'contractCostCenters', group: 'financial', screenLabel: 'Financeiro', entityLabel: 'Centro de Custo' },
   { collection: 'deadlineTypes', group: 'deadline', screenLabel: 'Prazo', entityLabel: 'Tipo' },
-  { collection: 'financialCategories', group: 'financial', screenLabel: 'Financeiro', entityLabel: 'Categoria' },
-  { collection: 'financialStatuses', group: 'financial', screenLabel: 'Financeiro', entityLabel: 'Status' },
 ];
 
 export const LOOKUP_REGISTRY: Record<string, LookupMetadata> = Object.fromEntries(

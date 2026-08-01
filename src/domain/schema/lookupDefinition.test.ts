@@ -24,7 +24,7 @@ describe('SchemaContext — as listas do kernel e do tenant num conjunto só', (
   });
 
   it('a lista do kernel entra mesmo sem declaração no tenant', () => {
-    expect(isLookupTable(createSchemaContext(), 'financialCategories')).toBe(true);
+    expect(isLookupTable(createSchemaContext(), 'deadlineTypes')).toBe(true);
   });
 });
 
@@ -60,21 +60,21 @@ describe('nome de lista', () => {
 describe('conjuntos de etiquetas', () => {
   it('os do kernel entram no contexto mesmo sem declaração do tenant', () => {
     const semTenant = createSchemaContext();
-    // Só `financialTags` resta em código: as etiquetas de Pessoa, Processo e Contrato saíram com
-    // as entidades e agora são declaradas pelas extensões.
-    expect(semTenant.tagLists.has('financialTags')).toBe(true);
+    // NENHUMA resta em código: as etiquetas de Pessoa, Processo, Contrato e Financeiro saíram com as
+    // entidades e são declaradas pelas extensões que as trazem.
+    expect(semTenant.tagLists.has('financialTags')).toBe(false);
     expect(semTenant.tagLists.has('contractTags')).toBe(false);
   });
 
-  it('a tela do tenant pode redirecionar as etiquetas de uma entidade fixa', () => {
+  it('a tela do tenant declara para onde vão as etiquetas dos seus registros', () => {
     const compartilhado = createSchemaContext(
       [{ id: 'financials', titleSingular: 'Financeiro', titleFieldKey: 'category', fields: [], tagCollection: 'medico_tags' }],
       [],
       [{ collection: 'medico_tags', label: 'Etiquetas: Médicos' }],
     );
     expect(resolveEntity(compartilhado, 'financials')?.tagCollection).toBe('medico_tags');
-    // Sem redirecionamento, vale a declarada em código.
-    expect(resolveEntity(createSchemaContext(), 'financials')?.tagCollection).toBe('financialTags');
+    // Sem tela nenhuma, a coleção não resolve para entidade — e portanto não tem etiquetas.
+    expect(resolveEntity(createSchemaContext(), 'financials')).toBeUndefined();
   });
 
   /** Tela, lista e etiquetas caem no MESMO curinga das rules: um nome só pode ter um dono. */
@@ -83,7 +83,7 @@ describe('conjuntos de etiquetas', () => {
     expect(tagListIdIssue('medico_especialidade', ctx)).toBe('"medico_especialidade" já é o nome de uma lista de opções');
     expect(screenIdIssue('medico_tags', ctx)).toBe('"medico_tags" já é o nome de um conjunto de etiquetas');
     expect(lookupIdIssue('medico_tags', ctx)).toBe('"medico_tags" já é o nome de um conjunto de etiquetas');
-    expect(tagListIdIssue('financialTags')).toBeTruthy();
+    expect(tagListIdIssue('deadlines')).toBeTruthy();
     expect(tagListIdIssue('medico_tags')).toBeUndefined();
   });
 });

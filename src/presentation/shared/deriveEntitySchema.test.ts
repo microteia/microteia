@@ -93,41 +93,14 @@ describe('deriveFormFields — relações (fks) viram campos reference', () => {
   });
 });
 
-describe('deriveFormFields — financials', () => {
-  const map = byKey(deriveFormFields(emptyCtx, 'financials'));
-
-  it('valor usa controle de moeda e obrigatórios vêm do registry', () => {
-    expect(map.get('amount')).toMatchObject({ type: 'currency', required: true });
-    expect(map.get('category')).toMatchObject({ type: 'select', required: true, lookupCollection: 'financialCategories' });
-    expect(map.get('status')).toMatchObject({ type: 'select', required: true, optionsColored: true });
-    expect(map.get('dueDate')).toMatchObject({ type: 'date', required: true });
-  });
-
-  it('centro de custo aponta para o lookup compartilhado com Contratos', () => {
-    expect(map.get('costCenter')?.lookupCollection).toBe('contractCostCenters');
-  });
-
-  it('as três relações viram campos reference', () => {
-    expect(map.get('caseId')).toMatchObject({ type: 'reference', refEntity: 'cases' });
-    expect(map.get('personId')).toMatchObject({ type: 'reference', refEntity: 'persons' });
-    expect(map.get('contractId')).toMatchObject({ type: 'reference', refEntity: 'contracts' });
-  });
-});
-
 // `ui.list.icon` é string livre: um nome errado cai no ícone de fallback silenciosamente.
 describe('todo ícone declarado em ui.list existe no catálogo', () => {
-  const ENTITIES: EntityKey[] = ['deadlines', 'financials'];
+  const ENTITIES: EntityKey[] = ['deadlines'];
 
   it.each(ENTITIES)('%s', (entity) => {
     for (const row of deriveBuiltinListRows(entity)) {
       expect(SCREEN_ICON_KEYS, `ícone "${row.icon}" (campo ${row.key})`).toContain(row.icon);
     }
-  });
-});
-
-describe('nenhuma entidade expõe o FK de etiquetas no formulário', () => {
-  it.each(['financials'] as const)('%s', (entity) => {
-    expect(deriveFormFields(emptyCtx, entity).some((f) => f.key === 'tagIds')).toBe(false);
   });
 });
 
@@ -165,7 +138,7 @@ describe('deriveListRows — coleção sem entidade no registro', () => {
 
 describe('ui.filter vira filtro da listagem', () => {
   it('os campos que o registro marca com ui.filter chegam filtráveis', () => {
-    const fields = deriveFormFields(emptyCtx, 'financials');
+    const fields = deriveFormFields(emptyCtx, 'deadlines');
     expect(fields.some((field) => field.filterable)).toBe(false);
   });
 

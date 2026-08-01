@@ -10,7 +10,6 @@ import { TenantStoreProvider } from './stores/TenantStore';
 import { TagStoreProvider } from './stores/TagStore';
 import { LookupStoreProvider } from './stores/LookupStore';
 import { DeadlineStoreProvider } from './stores/DeadlineStore';
-import { FinancialStoreProvider } from './stores/FinancialStore';
 import { PushStoreProvider } from './stores/PushStore';
 import { PushInteractionStoreProvider } from './stores/PushInteractionStore';
 import { NewsStoreProvider } from './stores/NewsStore';
@@ -70,7 +69,6 @@ const App: React.FC = () => {
                         <TagStoreProvider>
                         <LookupStoreProvider>
                           <DeadlineStoreProvider>
-                            <FinancialStoreProvider>
                               <PushStoreProvider>
                                 <PushInteractionStoreProvider>
                                   <NewsStoreProvider>
@@ -120,7 +118,6 @@ const App: React.FC = () => {
                                   </NewsStoreProvider>
                                 </PushInteractionStoreProvider>
                               </PushStoreProvider>
-                            </FinancialStoreProvider>
                           </DeadlineStoreProvider>
                         </LookupStoreProvider>
                         </TagStoreProvider>

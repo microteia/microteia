@@ -99,15 +99,15 @@ describe('resolveEntity — uma tela é uma entidade', () => {
   });
 
   it('sem tela do tenant, a entidade é exatamente a declarada em código', () => {
-    const entity = resolveEntity(createSchemaContext(), 'financials');
-    expect(entity?.fields.some((f) => f.key === 'amount')).toBe(true);
+    const entity = resolveEntity(createSchemaContext(), 'deadlines');
+    expect(entity?.fields.some((f) => f.key === 'dueDate')).toBe(true);
   });
 
   it('coleção que não é entidade nem tela não resolve', () => {
     expect(resolveEntity(ctx, 'inexistente')).toBeUndefined();
     expect(isEntityCollection(ctx, 'inexistente')).toBe(false);
     expect(isEntityCollection(ctx, 'medico')).toBe(true);
-    expect(isEntityCollection(ctx, 'financials')).toBe(true);
+    expect(isEntityCollection(ctx, 'deadlines')).toBe(true);
   });
 });
 
@@ -157,9 +157,9 @@ describe('nomes de coleção reservados', () => {
     expect(screenIdIssue('')).toBeTruthy();
     expect(screenIdIssue('meu-cadastro')).toBeTruthy();
     expect(screenIdIssue('1medico')).toBeTruthy();
-    expect(screenIdIssue('financials')).toBeTruthy();
+    expect(screenIdIssue('deadlines')).toBeTruthy();
     expect(screenIdIssue('workflow_executions')).toBeTruthy();
-    expect(screenIdIssue('contractCostCenters')).toBeTruthy();
+    expect(screenIdIssue('deadlineTypes')).toBeTruthy();
   });
 
   it('aceita um nome livre', () => {

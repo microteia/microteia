@@ -3,7 +3,6 @@ import {
   RiTeamLine,
   RiFolderLine,
   RiTimeLine,
-  RiMoneyDollarCircleLine,
   RiInboxLine,
   RiNewspaperLine,
   RiFileCopyLine,
@@ -16,13 +15,11 @@ const ENTITY_EVENT_ICONS: Record<string, IconType> = {
   person: RiTeamLine,
   case: RiFolderLine,
   deadline: RiTimeLine,
-  financial: RiMoneyDollarCircleLine,
   push: RiInboxLine,
 };
 
 const LOOKUP_GROUP_ICONS: Record<WorkflowLookupGroup, IconType> = {
   deadline: RiTimeLine,
-  financial: RiMoneyDollarCircleLine,
   document: RiFileCopyLine,
   news: RiNewspaperLine,
 };

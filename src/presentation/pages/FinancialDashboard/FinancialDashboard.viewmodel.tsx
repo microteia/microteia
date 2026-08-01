@@ -13,10 +13,11 @@ import {
   format,
 } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { useFinancialStore } from '../../../stores/useFinancialStore';
+import { useRecords } from '../../../stores/useRecords';
+import { FINANCIALS_COLLECTION, useFinancialRecords } from '../../shared/useCollectionRecords';
+import { useOpenScreenList } from '../../shared/useOpenScreenList';
 import { useCaseRecords } from '../../shared/useCollectionRecords';
 import { useContractRecords, usePersonRecords } from '../../shared/useCollectionRecords';
-import { useWorkspace } from '../../../stores/useWorkspace';
 import { useLookups } from '../../../stores/useLookups';
 import { consumeNavigationIntent, setNavigationIntent, subscribeNavigationIntent } from '../../../infrastructure/navigation/navigationIntent';
 import { getConfigColor } from '../../../shared/styles/colorUtils';
@@ -26,7 +27,11 @@ import {
   computeFinancialSummary,
   filterFinancialsByTokens,
 } from '../../shared/financials/financialFilters';
-import type { Financial, FinancialType } from '../../../domain/entities';
+import type { FinancialLike } from '../../shared/financials/financialFilters';
+
+/** O tipo do lançamento como o painel o usa. A lista de opções é do escritório; estes dois nomes são
+ *  os que o painel separa em receita e despesa. */
+export type FinancialType = 'Receita' | 'Despesa';
 import type { FilterDef, FilterOption, FilterToken } from '../../components/ui/CompositeFilter';
 import { useTags } from '../../../stores/useTags';
 import { useTagCollection } from '../../shared/entityScreen/useTagAdapter';
@@ -92,12 +97,20 @@ export interface FinancialDashboardViewModel {
 const currencyFmt = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
 const compactFmt = new Intl.NumberFormat('pt-BR', { notation: 'compact', maximumFractionDigits: 1 });
 
-const sumAmount = (list: Financial[]): number => list.reduce((s, f) => s + f.amount, 0);
+const sumAmount = (list: FinancialLike[]): number => list.reduce((s, f) => s + f.amount, 0);
 
 const AGING_BUCKET_DAYS = [7, 15, 30] as const;
 
 export const useFinancialDashboardViewModel = (): FinancialDashboardViewModel => {
-  const { financials, isLoading } = useFinancialStore();
+  // Os lançamentos vêm da coleção que a extensão de Financeiro descreve — sem vencimento, um
+  // lançamento não tem lugar em nenhum eixo do painel.
+  const allFinancials = useFinancialRecords();
+  const { isLoading } = useRecords();
+  const financials = useMemo(
+    () => allFinancials.filter((f): f is FinancialLike => f.dueDate !== null),
+    [allFinancials],
+  );
+  const openScreenList = useOpenScreenList();
   const { getOptions } = useLookups();
   const statusConfigs = getOptions('financialStatuses');
   const categoryConfigs = getOptions('financialCategories');
@@ -106,7 +119,6 @@ export const useFinancialDashboardViewModel = (): FinancialDashboardViewModel =>
   const cases = useCaseRecords();
   const persons = usePersonRecords();
   const contracts = useContractRecords();
-  const { openTab } = useWorkspace();
   const theme = useTheme();
 
   const [filterTokens, setFilterTokens] = useState<FilterToken[]>(
@@ -159,8 +171,8 @@ export const useFinancialDashboardViewModel = (): FinancialDashboardViewModel =>
 
   const openFinancials = useCallback(() => {
     setNavigationIntent('financials', filterTokens);
-    openTab('financials');
-  }, [openTab, filterTokens]);
+    openScreenList(FINANCIALS_COLLECTION);
+  }, [openScreenList, filterTokens]);
 
   const summary = useMemo(() => computeFinancialSummary(filteredFinancials), [filteredFinancials]);
 
@@ -303,7 +315,8 @@ export const useFinancialDashboardViewModel = (): FinancialDashboardViewModel =>
       else if (diffDays <= AGING_BUCKET_DAYS[2]) bucketIndex = 3;
       else bucketIndex = 4;
 
-      buckets[bucketIndex][f.type] += f.amount;
+      // O tipo é dado do escritório: só as duas categorias que o painel separa entram na faixa.
+      if (f.type === 'Receita' || f.type === 'Despesa') buckets[bucketIndex][f.type] += f.amount;
     });
 
     return buckets;

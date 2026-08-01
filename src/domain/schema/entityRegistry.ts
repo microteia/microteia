@@ -20,18 +20,16 @@ export type EntityKey = string;
 /** As entidades nativas do Microteia. Mantida como união só para documentar o conjunto fixo. */
 export type BuiltinEntityKey =
   | 'deadlines'
-  | 'financials'
   | 'members'
   | 'pushes'
   | 'news';
 
 export const BUILTIN_ENTITY_KEYS: readonly BuiltinEntityKey[] = [
-  'deadlines', 'financials', 'members', 'pushes', 'news',
+  'deadlines', 'members', 'pushes', 'news',
 ] as const;
 
 export type WorkflowEntityEventPrefix =
   | 'deadline'
-  | 'financial'
   | 'push';
 
 export type NativeFieldType = 'string' | 'number' | 'boolean' | 'date' | 'stringArray' | 'object';
@@ -119,15 +117,6 @@ export interface EntityMetadata {
 }
 
 
-const FINANCIAL_TYPE_OPTIONS: CustomFieldOption[] = [
-  { key: 'Receita', label: 'Receita' },
-  { key: 'Despesa', label: 'Despesa' },
-];
-
-const PAYMENT_METHOD_OPTIONS: CustomFieldOption[] = [
-  'PIX', 'Transferência', 'Dinheiro', 'Cartão', 'Cheque', 'Outro',
-].map((m) => ({ key: m, label: m }));
-
 // `color` aceita token do tema (resolvido por resolveColor) — nunca hex literal.
 const DEADLINE_PRIORITY_OPTIONS: CustomFieldOption[] = [
   { key: 'Baixa', label: 'Baixa', color: 'success' },
@@ -181,71 +170,6 @@ export const ENTITY_REGISTRY: Record<EntityKey, EntityMetadata> = {
         ui: { section: 'Responsável e Detalhes', order: 5, placeholder: 'Selecione o responsável...',
               list: { icon: 'scales', order: 3 } },
       },
-    ],
-    supportsCustomFields: true,
-    referenceable: true,
-  },
-  financials: {
-    key: 'financials',
-    collection: 'financials',
-    tagCollection: 'financialTags',
-    eventPrefix: 'financial',
-    labelSingular: 'Financeiro',
-    labelPlural: 'Financeiro',
-    displayNameFields: ['category'],
-    referenceDenormFields: ['type', 'amount', 'dueDate'],
-    fields: [
-      { key: 'type', label: 'Tipo', type: 'string', required: true, options: FINANCIAL_TYPE_OPTIONS,
-        ui: { control: 'select', section: 'Lançamento', order: 0, placeholder: 'Selecione o tipo...' } },
-      { key: 'category', label: 'Categoria', type: 'string', lookupCollection: 'financialCategories',
-        required: true, optionsAllowUserAdd: true,
-        ui: { control: 'select', section: 'Lançamento', order: 1, placeholder: 'Selecione a categoria...' } },
-      { key: 'amount', label: 'Valor', type: 'number', required: true,
-        ui: { control: 'currency', section: 'Lançamento', order: 2 } },
-      { key: 'status', label: 'Status', type: 'string', lookupCollection: 'financialStatuses',
-        required: true, optionsAllowUserAdd: true, optionsColored: true,
-        ui: { control: 'select', section: 'Lançamento', order: 3, placeholder: 'Selecione o status...' } },
-      { key: 'dueDate', label: 'Data de vencimento', type: 'date', required: true,
-        ui: { section: 'Datas', order: 4 } },
-      { key: 'paymentDate', label: 'Data de pagamento', type: 'date', ui: { section: 'Datas', order: 5 } },
-      { key: 'cancelDate', label: 'Data de cancelamento', type: 'date', ui: { section: 'Datas', order: 6 } },
-      { key: 'paymentMethod', label: 'Forma de pagamento', type: 'string', options: PAYMENT_METHOD_OPTIONS,
-        ui: { control: 'select', section: 'Pagamento', order: 7, placeholder: 'Selecione a forma...' } },
-      // O centro de custo é compartilhado com Contratos (useContractLookup) — daí a coleção `contractCostCenters`.
-      { key: 'costCenter', label: 'Centro de custo', type: 'string', lookupCollection: 'contractCostCenters',
-        optionsAllowUserAdd: true,
-        ui: { control: 'select', section: 'Pagamento', order: 8, placeholder: 'Selecione o centro de custo...', list: { icon: 'wallet', order: 0 } } },
-      { key: 'invoiceNumber', label: 'Número da nota', type: 'string', ui: { section: 'Pagamento', order: 9 } },
-      { key: 'notes', label: 'Observações', type: 'string',
-        ui: { control: 'textarea', section: 'Vínculos e Observações', order: 13 } },
-    ],
-    fks: [
-      {
-        key: 'caseId',
-        label: 'Processo',
-        targetCollection: 'cases',
-        denormKey: 'case',
-        denormalizedFields: ['caseNumber', 'title'],
-        ui: { section: 'Vínculos e Observações', order: 10, placeholder: 'Selecione o processo...' },
-      },
-      {
-        key: 'personId',
-        label: 'Pessoa',
-        targetCollection: 'persons',
-        denormKey: 'person',
-        denormalizedFields: ['name', 'type'],
-        ui: { section: 'Vínculos e Observações', order: 11, placeholder: 'Selecione a pessoa...' },
-      },
-      {
-        key: 'contractId',
-        label: 'Contrato',
-        targetCollection: 'contracts',
-        denormKey: 'contract',
-        denormalizedFields: ['number', 'title'],
-        ui: { section: 'Vínculos e Observações', order: 12, placeholder: 'Selecione o contrato...' },
-      },
-      { key: 'tagIds', label: 'Etiquetas', targetCollection: 'financialTags', denormKey: 'tag', multi: true,
-        ui: { form: false } },
     ],
     supportsCustomFields: true,
     referenceable: true,

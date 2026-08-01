@@ -1,5 +1,5 @@
 import styled from 'styled-components';
-import type { FinancialType } from '../../../domain/entities';
+import type { FinancialType } from './FinancialDashboard.viewmodel';
 
 export const S = {
   Page: styled.div`

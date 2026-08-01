@@ -29,22 +29,6 @@ const DECLARED: Record<string, Omit<LookupOption, 'isStatic'>[]> = {
     { key: 'Recibo', label: 'Recibo' },
     { key: 'Outros', label: 'Outros' },
   ],
-  financialCategories: [
-    { key: 'Honorários', label: 'Honorários' },
-    { key: 'Êxito', label: 'Êxito' },
-    { key: 'Mensalidade', label: 'Mensalidade' },
-    { key: 'Custas Judiciais', label: 'Custas Judiciais' },
-    { key: 'Perícia', label: 'Perícia' },
-    { key: 'Deslocamento', label: 'Deslocamento' },
-    { key: 'Escritório', label: 'Escritório' },
-    { key: 'Impostos', label: 'Impostos' },
-    { key: 'Outros', label: 'Outros' },
-  ],
-  financialStatuses: [
-    { key: 'Aberto', label: 'Aberto', color: 'warning' },
-    { key: 'Pago', label: 'Pago', color: 'success' },
-    { key: 'Cancelado', label: 'Cancelado', color: 'textSecondary' },
-  ],
   newsCategories: [
     { key: 'GENERAL', label: 'Geral' },
     { key: 'JURISPRUDENCE', label: 'Jurisprudência' },

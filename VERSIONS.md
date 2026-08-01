@@ -11,6 +11,14 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [3.0.0] — 2026-08-01
+
+- O **Financeiro** deixa de ser uma tela de fábrica e passa a ser uma extensão, como Pessoas, Contratos e Processos. Nenhum lançamento foi movido: a tela, as etiquetas, as listas de Categoria, Status e Forma de Pagamento continuam as mesmas — e o Centro de Custo segue sendo o mesmo dos Contratos. **É necessário instalar a extensão "Financeiro" em Extensões** para o item voltar ao menu.
+- Registrar pagamento, estornar e registrar cancelamento passam a ser ações configuráveis do lançamento, e não mais botões fixos: aparecem conforme o status, e o escritório pode ajustá-las como qualquer outra ação.
+- A listagem do Financeiro abre no mês corrente e mostra os totais do que está filtrado — recebido, pago, saldo e o previsto do que ainda está em aberto.
+- O **Painel Financeiro** continua onde estava, com os mesmos gráficos, e segue acessível pelo próprio Financeiro e pela tela inicial.
+- Filtros de data em qualquer tela agora aceitam período: "(de)" e "(até)".
+
 ## [2.9.0] — 2026-08-01
 
 - Os filtros de **data** de qualquer tela passam a ser por período: cada campo de data oferece "(de)" e "(até)", e cada ponta funciona sozinha. Antes só era possível filtrar por uma data exata, o que raramente é o que se procura numa listagem.

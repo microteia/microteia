@@ -76,8 +76,8 @@ describe('mapScreenDefinition', () => {
   });
 
   it('a tela de uma entidade fixa é builtin, esteja ou não gravado no documento', () => {
-    expect(mapScreenDefinition('financials', {}, 'tenant-1').origin).toBe('builtin');
-    expect(mapScreenDefinition('financials', { origin: 'design' }, 'tenant-1').origin).toBe('builtin');
+    expect(mapScreenDefinition('deadlines', {}, 'tenant-1').origin).toBe('builtin');
+    expect(mapScreenDefinition('deadlines', { origin: 'design' }, 'tenant-1').origin).toBe('builtin');
   });
 
   it('campo sem origin herda a da tela; com ownerPluginId, é da extensão', () => {

@@ -11,8 +11,8 @@ const base = (overrides: Partial<MarketplacePlugin>): MarketplacePlugin => ({
 
 describe('isCoreCollection', () => {
   it('reconhece entidades fixas e lookups', () => {
-    expect(isCoreCollection('financials')).toBe(true);
-    expect(isCoreCollection('financialCategories')).toBe(true);
+    expect(isCoreCollection('deadlines')).toBe(true);
+    expect(isCoreCollection('deadlineTypes')).toBe(true);
     // Contrato saiu do kernel: `contracts` deixa de ser nome do core e vira referência a cobrir
     // por dependência declarada.
     expect(isCoreCollection('contracts')).toBe(false);
@@ -74,7 +74,7 @@ describe('workflowOutRefs', () => {
 
   it('evento de filho de entidade fixa não é gatilho de tela', () => {
     const refs = workflowOutRefs({
-      templateId: 'wf', name: 'W', eventName: 'financial_note.saved', version: 1,
+      templateId: 'wf', name: 'W', eventName: 'deadline_note.saved', version: 1,
       condition: { kind: 'AlwaysTrue' }, steps: [],
     });
     expect(refs).toEqual([]);
@@ -96,10 +96,10 @@ describe('validatePackage — prefixo de eventos', () => {
   });
 
   it('recusa o prefixo de uma entidade fixa em outra coleção', () => {
-    const pkg = base({ screens: [screen({ key: 'medico', eventPrefix: 'financial' })] });
+    const pkg = base({ screens: [screen({ key: 'medico', eventPrefix: 'deadline' })] });
     const issues = validatePackage(pkg);
     expect(issues).toHaveLength(1);
-    expect(issues[0].message).toContain('Financeiro');
+    expect(issues[0].message).toContain('Prazo');
   });
 
   it('recusa duas coleções publicando o mesmo evento', () => {
@@ -139,11 +139,11 @@ describe('validatePackage', () => {
     expect(validatePackage(pkg)).toEqual([]);
   });
 
-  it('referência ao core (financials) é sempre satisfeita', () => {
+  it('referência ao core (deadlines) é sempre satisfeita', () => {
     const pkg = base({
       screens: [{ key: 'venda', titleSingular: 'V', titlePlural: 'V', icon: 'apps', titleFieldKey: 'n', fields: [
         { key: 'n', label: 'N', type: 'text', required: true, order: 0 },
-        { key: 'lancamento', label: 'Lançamento', type: 'reference', refEntity: 'financials', required: false, order: 1 },
+        { key: 'lancamento', label: 'Lançamento', type: 'reference', refEntity: 'deadlines', required: false, order: 1 },
       ] }],
     });
     expect(validatePackage(pkg)).toEqual([]);
@@ -217,7 +217,7 @@ describe('validatePackage', () => {
 
 describe('validatePackage — complementos de tela', () => {
   const patch = (over: Partial<MarketplacePlugin['screenPatches'] extends (infer T)[] | undefined ? T : never>) => ({
-    target: 'financials',
+    target: 'deadlines',
     fields: [{ key: 'crm', label: 'CRM', type: 'text' as const, required: false, order: 0 }],
     ...over,
   });

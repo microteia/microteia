@@ -65,12 +65,12 @@ const { useScreenBuilderViewModel } = await import('./ScreenBuilder.viewmodel');
 
 const builtinDefinition = (overrides: Partial<ScreenDefinition> = {}): ScreenDefinition =>
   ({
-    id: 'financials',
+    id: 'deadlines',
     tenantId: 't1',
     origin: 'builtin',
-    titleSingular: 'Financeiro',
-    titlePlural: 'Financeiro',
-    icon: 'moneyDollar',
+    titleSingular: 'Prazo',
+    titlePlural: 'Prazos',
+    icon: 'calendar',
     fields: [],
     titleFieldKey: '',
     hasNotes: false,
@@ -105,7 +105,7 @@ describe('ScreenBuilder — ajuste de campo do sistema', () => {
   it('campo do sistema salva mesmo quando o estado tripa uma validação de opções', async () => {
     const { result } = renderHook(() => useScreenBuilderViewModel());
 
-    act(() => result.current.openEditField('financials', 'category'));
+    act(() => result.current.openEditField('deadlines', 'type'));
     expect(result.current.fieldModalIsNative).toBe(true);
 
     // Campo fixo do tipo seleção cujas opções vêm de um lookup — sem `staticOptions` e sem permitir
@@ -126,23 +126,23 @@ describe('ScreenBuilder — ajuste de campo do sistema', () => {
     expect(saveDefinition).toHaveBeenCalledTimes(1);
 
     const [screenKey] = saveDefinition.mock.calls[0] as unknown as [string, ScreenDefinition];
-    expect(screenKey).toBe('financials');
-    expect(savedField('category')).toMatchObject({ label: 'Categoria', origin: 'builtin' });
+    expect(screenKey).toBe('deadlines');
+    expect(savedField('type')).toMatchObject({ label: 'Categoria', origin: 'builtin' });
   });
 
   it('materializa a declaração INTEIRA do campo do kernel na primeira edição', async () => {
     const { result } = renderHook(() => useScreenBuilderViewModel());
 
-    act(() => result.current.openEditField('financials', 'amount'));
+    act(() => result.current.openEditField('deadlines', 'dueDate'));
     act(() => result.current.updateFieldForm({
       logicOnChange: 'object("apelido", name)',
       logicHiddenWhen: "type == 'PJ'",
     }));
     await act(async () => { await result.current.handleSaveField(); });
 
-    expect(savedField('amount')).toMatchObject({
-      key: 'amount',
-      label: 'Valor',
+    expect(savedField('dueDate')).toMatchObject({
+      key: 'dueDate',
+      label: 'Data de vencimento',
       origin: 'builtin',
       required: true,
       logic: { hiddenWhen: "type == 'PJ'", onChange: 'object("apelido", name)' },
@@ -152,11 +152,11 @@ describe('ScreenBuilder — ajuste de campo do sistema', () => {
   it('grava regra e validação do campo do kernel — o backend lê a mesma lista', async () => {
     const { result } = renderHook(() => useScreenBuilderViewModel());
 
-    act(() => result.current.openEditField('financials', 'invoiceNumber'));
+    act(() => result.current.openEditField('deadlines', 'description'));
     act(() => result.current.updateFieldForm({ logicValidate: "if(isEmpty(value), 'Obrigatório', null)" }));
     await act(async () => { await result.current.handleSaveField(); });
 
-    expect(savedField('invoiceNumber')?.logic?.validate).toBe("if(isEmpty(value), 'Obrigatório', null)");
+    expect(savedField('description')?.logic?.validate).toBe("if(isEmpty(value), 'Obrigatório', null)");
   });
 
   it('preserva os ajustes dos outros campos ao salvar um', async () => {
@@ -165,33 +165,33 @@ describe('ScreenBuilder — ajuste de campo do sistema', () => {
     });
 
     const { result } = renderHook(() => useScreenBuilderViewModel());
-    act(() => result.current.openEditField('financials', 'amount'));
-    act(() => result.current.updateFieldForm({ label: 'Valor total' }));
+    act(() => result.current.openEditField('deadlines', 'dueDate'));
+    act(() => result.current.updateFieldForm({ label: 'Vencimento do prazo' }));
     await act(async () => { await result.current.handleSaveField(); });
 
     expect(savedField('notes')?.label).toBe('Observações do lançamento');
-    expect(savedField('amount')?.label).toBe('Valor total');
+    expect(savedField('dueDate')?.label).toBe('Vencimento do prazo');
   });
 
   it('restaurar padrão remove só a entrada daquele campo', async () => {
     storeState.definition = builtinDefinition({
       fields: [
-        { key: 'amount', label: 'X', type: 'text', required: true, order: 1, origin: 'builtin' },
+        { key: 'dueDate', label: 'X', type: 'text', required: true, order: 1, origin: 'builtin' },
         { key: 'notes', label: 'Observações do lançamento', type: 'text', required: false, order: 2, origin: 'builtin' },
       ],
     });
 
     const { result } = renderHook(() => useScreenBuilderViewModel());
-    await act(async () => { await result.current.restoreNativeField('financials', 'amount'); });
+    await act(async () => { await result.current.restoreNativeField('deadlines', 'dueDate'); });
 
     expect(savedFields().map((f) => f.key)).toEqual(['notes']);
   });
 
   it('reordenar grava posições absolutas na mesma lista', async () => {
     const { result } = renderHook(() => useScreenBuilderViewModel());
-    await act(async () => { await result.current.moveField('financials', 'amount', 1); });
+    await act(async () => { await result.current.moveField('deadlines', 'dueDate', 1); });
 
-    const moved = savedField('amount');
+    const moved = savedField('dueDate');
     expect(moved?.origin).toBe('builtin');
     expect(typeof moved?.order).toBe('number');
   });
@@ -206,18 +206,18 @@ describe('ScreenBuilder — ajuste de campo do sistema', () => {
     });
 
     const { result } = renderHook(() => useScreenBuilderViewModel());
-    await act(async () => { await result.current.moveField('financials', 'apelido', -1); });
+    await act(async () => { await result.current.moveField('deadlines', 'apelido', -1); });
 
     expect(savedField('apelido')).toMatchObject({ filterable: true, listLabel: 'Como chamar' });
   });
 
   it('campo novo entra na última posição da tela do kernel', async () => {
     const { result } = renderHook(() => useScreenBuilderViewModel());
-    act(() => result.current.selectScreen('financials'));
+    act(() => result.current.selectScreen('deadlines'));
     const lastNativeOrder = (result.current.selectedScreen?.fields ?? [])
       .reduce((max, field) => Math.max(max, field.order), -1);
 
-    act(() => result.current.openCreateField('financials'));
+    act(() => result.current.openCreateField('deadlines'));
     act(() => result.current.updateFieldForm({ label: 'Apelido', fieldKey: 'apelido', type: 'text' }));
     await act(async () => { await result.current.handleSaveField(); });
 
@@ -231,8 +231,8 @@ describe('ScreenBuilder — ajuste de campo do sistema', () => {
     });
 
     const { result } = renderHook(() => useScreenBuilderViewModel());
-    expect(result.current.isNativeField('financials', 'amount')).toBe(true);
-    expect(result.current.isNativeField('financials', 'apelido')).toBe(false);
+    expect(result.current.isNativeField('deadlines', 'dueDate')).toBe(true);
+    expect(result.current.isNativeField('deadlines', 'apelido')).toBe(false);
   });
 });
 
@@ -298,10 +298,10 @@ describe('ScreenBuilder — tela ligada a outra coleção', () => {
   });
 
   it('uma visão sobre coleção AINDA do kernel continua fora — a linha fixa já a configura', () => {
-    storeState.definition = boundScreen({ id: 'financeiro-kanban', dataCollection: 'financials' });
+    storeState.definition = boundScreen({ id: 'prazos-kanban', dataCollection: 'deadlines' });
     const { result } = renderHook(() => useScreenBuilderViewModel());
 
-    expect(result.current.dynamicListEntries.map((entry) => entry.key)).not.toContain('financeiro-kanban');
+    expect(result.current.dynamicListEntries.map((entry) => entry.key)).not.toContain('prazos-kanban');
   });
 });
 

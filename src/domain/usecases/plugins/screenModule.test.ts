@@ -30,7 +30,7 @@ describe('installedScreenKey', () => {
   });
 
   it('nome reservado pelo sistema nunca é reivindicado', () => {
-    expect(installedScreenKey('financials')).toBe('financials_2');
+    expect(installedScreenKey('deadlines')).toBe('deadlines_2');
     expect(installedScreenKey('notes')).toBe('notes_2');
   });
 

@@ -12,25 +12,16 @@ const LEGACY_FK_SCHEMA = {
     caseId: { targetCollection: 'cases', denormalizedFields: ['caseNumber', 'title', 'area'] },
     responsibleLawyerId: { targetCollection: 'persons', denormalizedFields: ['name', 'type', 'email'] },
   },
-  financials: {
-    caseId: { targetCollection: 'cases', denormalizedFields: ['caseNumber', 'title'] },
-    personId: { targetCollection: 'persons', denormalizedFields: ['name', 'type'] },
-    contractId: { targetCollection: 'contracts', denormalizedFields: ['number', 'title'] },
-    tagIds: { targetCollection: 'financialTags', multi: true },
-  },
 };
 
-// `contractCostCenters` sobrevive à saída de Contrato do kernel porque o campo "Centro de custo"
-// do Financeiro aponta para a mesma lista — as nove outras foram junto com a entidade.
+// O que restou no kernel depois que Pessoa, Contrato, Processo e Financeiro saíram: as listas das
+// entidades que ainda são de código. As demais vivem nas extensões que as declaram.
 const LEGACY_LOOKUP_COLLECTIONS = [
-  'documentTypes', 'newsCategories', 'contractCostCenters',
-  'deadlineTypes',
-  'financialCategories', 'financialStatuses',
+  'documentTypes', 'newsCategories', 'deadlineTypes',
 ];
 
 const LEGACY_DEFAULT_DENORM_FIELDS: Record<string, string[]> = {
   deadlines: ['type', 'dueDate', 'priority'],
-  financials: ['type', 'amount', 'dueDate'],
   members: ['name', 'email'],
 };
 
@@ -48,11 +39,9 @@ describe('entityRegistry — compatibilidade com o schema legado', () => {
   });
 
   it('mantém os conjuntos de entidades com custom fields e referenciáveis', () => {
-    expect([...CUSTOM_FIELD_ENABLED_ENTITIES].sort()).toStrictEqual(
-      ['deadlines', 'financials'].sort(),
-    );
+    expect([...CUSTOM_FIELD_ENABLED_ENTITIES].sort()).toStrictEqual(['deadlines']);
     expect([...BUILTIN_REF_ENTITIES].sort()).toStrictEqual(
-      ['deadlines', 'financials', 'members'].sort(),
+      ['deadlines', 'members'].sort(),
     );
   });
 
@@ -62,7 +51,6 @@ describe('entityRegistry — compatibilidade com o schema legado', () => {
     );
     expect(prefixes).toStrictEqual({
       deadlines: 'deadline',
-      financials: 'financial',
       pushes: 'push',
     });
   });
@@ -82,9 +70,10 @@ describe('lookupRegistry — compatibilidade com LOOKUP_COLLECTIONS legado', () 
 
 describe('helpers do registry', () => {
   it('resolve entidade por coleção', () => {
-    expect(getEntityByCollection('financials')?.labelSingular).toBe('Financeiro');
-    // Contrato saiu do kernel: quem descreve a coleção é a extensão, e o registro não a conhece.
+    expect(getEntityByCollection('deadlines')?.labelSingular).toBe('Prazo');
+    // Contrato e Financeiro saíram do kernel: quem descreve as coleções são as extensões.
     expect(getEntityByCollection('contracts')).toBeUndefined();
+    expect(getEntityByCollection('financials')).toBeUndefined();
     expect(getEntityByCollection('inexistente')).toBeUndefined();
   });
 

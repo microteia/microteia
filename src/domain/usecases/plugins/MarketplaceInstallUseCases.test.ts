@@ -495,11 +495,13 @@ describe('Uninstall — etiquetas sobrevivem', () => {
     ]);
   });
 
-  it('conjunto do kernel não vira documento — já é declarado no registro', async () => {
+  /** Nenhum conjunto de etiquetas resta em código: todos vêm das extensões que trazem as entidades,
+   *  e por isso todo conjunto declarado por um pacote ganha o seu documento. */
+  it('conjunto de etiquetas do pacote vira documento no escritório', async () => {
     const plugin = taggedPlugin('com.acme.kernel');
-    plugin.tagLists = [{ collection: 'financialTags', label: 'Etiquetas: Financeiro' }];
+    plugin.tagLists = [{ collection: 'caseTags', label: 'Etiquetas: Processos' }];
     await makeInstallMarketplacePluginUseCase(deps()).execute(plugin, actor);
-    expect(tagDefinitions.items).toEqual([]);
+    expect(tagDefinitions.items.map((item) => item.collection)).toContain('caseTags');
   });
 });
 
@@ -880,7 +882,7 @@ describe('Adoção de tela do tenant (Form Design → extensão → desinstalar 
 });
 
 describe('Complementos — campos acrescentados a telas que já existem', () => {
-  const patchPlugin = (id: string, fieldKeys: string[], target = 'financials'): MarketplacePlugin => ({
+  const patchPlugin = (id: string, fieldKeys: string[], target = 'deadlines'): MarketplacePlugin => ({
     summary: 'S',
     manifest: { id, version: '1.0.0', kernel: '^1.0.0', name: id },
     workflows: [],
@@ -890,8 +892,8 @@ describe('Complementos — campos acrescentados a telas que já existem', () => 
     }],
   });
 
-  const financialsScreen = (fields: ScreenDefinition['fields']): ScreenDefinition => ({
-    id: 'financials', tenantId: 't1', origin: 'builtin',
+  const deadlinesScreen = (fields: ScreenDefinition['fields']): ScreenDefinition => ({
+    id: 'deadlines', tenantId: 't1', origin: 'builtin',
     titleSingular: 'Financeiro', titlePlural: 'Financeiro', icon: 'apps', fields,
     titleFieldKey: '', hasNotes: false, hasDocuments: false, hasTags: false,
     listActions: [], viewActionIds: [], cardActionIds: [],
@@ -901,29 +903,29 @@ describe('Complementos — campos acrescentados a telas que já existem', () => 
   it('cria o documento da tela do kernel que ainda não tinha, com o campo da extensão', async () => {
     await makeInstallMarketplacePluginUseCase(deps()).execute(patchPlugin('com.acme.crm', ['crm']), actor);
 
-    const financials = screens.store.get('financials')!;
-    expect(financials.fields.map((f) => f.key)).toEqual(['crm']);
-    expect(financials.fields[0].ownerPluginId).toBe('com.acme.crm');
-    expect(financials.fields[0].origin).toBe('plugin');
+    const prazos = screens.store.get('deadlines')!;
+    expect(prazos.fields.map((f) => f.key)).toEqual(['crm']);
+    expect(prazos.fields[0].ownerPluginId).toBe('com.acme.crm');
+    expect(prazos.fields[0].origin).toBe('plugin');
     // A tela continua do kernel: a extensão não vira dona dela.
-    expect(financials.origin).toBe('builtin');
-    expect(financials.ownerPluginId ?? null).toBeNull();
-    expect(financials.sidebarOrder).toBe(0);
+    expect(prazos.origin).toBe('builtin');
+    expect(prazos.ownerPluginId ?? null).toBeNull();
+    expect(prazos.sidebarOrder).toBe(0);
   });
 
   it('preserva os campos do escritório e os de outra extensão na mesma tela', async () => {
-    screens.store.set('financials', financialsScreen([
+    screens.store.set('deadlines', deadlinesScreen([
       { key: 'meu', label: 'Meu', type: 'text', required: false, order: 0, origin: 'design', ownerPluginId: null },
       { key: 'outro', label: 'Outro', type: 'text', required: false, order: 1, origin: 'plugin', ownerPluginId: 'com.b' },
     ]));
 
     await makeInstallMarketplacePluginUseCase(deps()).execute(patchPlugin('com.acme.crm', ['crm']), actor);
 
-    expect(screens.store.get('financials')!.fields.map((f) => f.key)).toEqual(['meu', 'outro', 'crm']);
+    expect(screens.store.get('deadlines')!.fields.map((f) => f.key)).toEqual(['meu', 'outro', 'crm']);
   });
 
   it('desinstalar leva só os campos da extensão — a tela e os demais campos ficam', async () => {
-    screens.store.set('financials', financialsScreen([
+    screens.store.set('deadlines', deadlinesScreen([
       { key: 'meu', label: 'Meu', type: 'text', required: false, order: 0, origin: 'design', ownerPluginId: null },
     ]));
     await makeInstallMarketplacePluginUseCase(deps()).execute(patchPlugin('com.acme.crm', ['crm', 'oab']), actor);
@@ -931,18 +933,18 @@ describe('Complementos — campos acrescentados a telas que já existem', () => 
     const result = await makeUninstallMarketplacePluginUseCase(deps()).execute('com.acme.crm', actor);
 
     expect(result).toMatchObject({ ok: true, removedScreens: 0, removedPatchFields: 2 });
-    const financials = screens.store.get('financials')!;
-    expect(financials.fields.map((f) => f.key)).toEqual(['meu']);
-    expect(financials.origin).toBe('builtin');
+    const prazos = screens.store.get('deadlines')!;
+    expect(prazos.fields.map((f) => f.key)).toEqual(['meu']);
+    expect(prazos.origin).toBe('builtin');
   });
 
   it('reaplicar é idempotente e remove o campo que sumiu da versão nova', async () => {
     const d = deps();
     await applyPackageArtifacts(d, patchPlugin('com.acme.crm', ['crm', 'oab']), actor);
-    expect(screens.store.get('financials')!.fields.map((f) => f.key)).toEqual(['crm', 'oab']);
+    expect(screens.store.get('deadlines')!.fields.map((f) => f.key)).toEqual(['crm', 'oab']);
 
     await applyPackageArtifacts(d, patchPlugin('com.acme.crm', ['crm']), actor);
-    expect(screens.store.get('financials')!.fields.map((f) => f.key)).toEqual(['crm']);
+    expect(screens.store.get('deadlines')!.fields.map((f) => f.key)).toEqual(['crm']);
   });
 
   it('complemento cujo alvo NÃO existe no escritório é ignorado, sem criar tela', async () => {
@@ -955,7 +957,7 @@ describe('Complementos — campos acrescentados a telas que já existem', () => 
 
   it('alvo por sourceId acha a tela de outra extensão pela chave que ela recebeu no destino', async () => {
     screens.store.set('produtos_2', {
-      ...financialsScreen([]), id: 'produtos_2', origin: 'plugin', sourceId: 'src-produtos',
+      ...deadlinesScreen([]), id: 'produtos_2', origin: 'plugin', sourceId: 'src-produtos',
       ownerPluginId: 'com.b', ownerPluginIds: ['com.b'],
     });
 

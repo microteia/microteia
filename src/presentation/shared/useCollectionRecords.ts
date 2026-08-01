@@ -80,6 +80,25 @@ export interface ContractRecord {
   tagIds: string[];
 }
 
+/**
+ * A forma de um LANÇAMENTO FINANCEIRO como as telas ainda nativas (o painel do escritório) precisam
+ * lê-lo. Mesmo contrato de leitura dos demais: a declaração da entidade vive na extensão que instala
+ * a tela de Financeiro.
+ */
+export interface FinancialRecord {
+  id: string;
+  type: string;
+  category: string;
+  status: string;
+  amount: number;
+  dueDate: Date | null;
+  paymentDate: Date | null;
+  personId: string | null;
+  caseId: string | null;
+  contractId: string | null;
+  tagIds: string[];
+}
+
 /** A coleção dos processos. Nomeada uma vez para que a chave não se espalhe pelas telas. */
 export const CASES_COLLECTION = 'cases';
 
@@ -88,6 +107,9 @@ export const PERSONS_COLLECTION = 'persons';
 
 /** A coleção dos contratos. Mesmo motivo. */
 export const CONTRACTS_COLLECTION = 'contracts';
+
+/** A coleção dos lançamentos financeiros. Mesmo motivo. */
+export const FINANCIALS_COLLECTION = 'financials';
 
 const text = (value: unknown): string => (typeof value === 'string' ? value : '');
 const list = (value: unknown): string[] => (Array.isArray(value) ? value.filter((v): v is string => typeof v === 'string') : []);
@@ -166,6 +188,29 @@ export const useContractRecords = (): ContractRecord[] => {
         tagIds: list(record.tagIds),
       }))
       .sort((a, b) => a.number.localeCompare(b.number)),
+    [records],
+  );
+};
+
+/** Os lançamentos na forma acima, do vencimento mais recente para o mais antigo. */
+export const useFinancialRecords = (): FinancialRecord[] => {
+  const records = useCollectionRecords<Record<string, unknown> & { id: string }>(FINANCIALS_COLLECTION);
+  return useMemo(
+    () => records
+      .map((record) => ({
+        id: record.id,
+        type: text(record.type),
+        category: text(record.category),
+        status: text(record.status),
+        amount: typeof record.amount === 'number' ? record.amount : 0,
+        dueDate: toDateValue(record.dueDate),
+        paymentDate: toDateValue(record.paymentDate),
+        personId: ref(record.personId),
+        caseId: ref(record.caseId),
+        contractId: ref(record.contractId),
+        tagIds: list(record.tagIds),
+      }))
+      .sort((a, b) => (b.dueDate?.getTime() ?? 0) - (a.dueDate?.getTime() ?? 0)),
     [records],
   );
 };

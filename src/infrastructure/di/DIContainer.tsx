@@ -15,8 +15,6 @@ import { FirebaseNewsDocumentRepository } from '../../data/repositories/Firebase
 import { FirebaseSavedFilterRepository } from '../../data/repositories/FirebaseSavedFilterRepository';
 import { FirebaseTenantRepository } from '../../data/repositories/FirebaseTenantRepository';
 import { FirebaseDeadlineRepository } from '../../data/repositories/FirebaseDeadlineRepository';
-import { FirebaseFinancialRepository } from '../../data/repositories/FirebaseFinancialRepository';
-import { FirebaseFinancialDocumentRepository } from '../../data/repositories/FirebaseFinancialDocumentRepository';
 import { FirebasePushRepository } from '../../data/repositories/FirebasePushRepository';
 import { FirebasePushInteractionRepository } from '../../data/repositories/FirebasePushInteractionRepository';
 import { FirebaseTextAnnotationRepository } from '../../data/repositories/FirebaseTextAnnotationRepository';
@@ -64,8 +62,6 @@ export const DIProvider: React.FC<{ children: React.ReactNode }> = ({ children }
     savedFilterRepository:    new FirebaseSavedFilterRepository(),
     tenantRepository:         new FirebaseTenantRepository(),
     deadlineRepository:       new FirebaseDeadlineRepository(),
-    financialRepository:      new FirebaseFinancialRepository(),
-    financialDocumentRepository: new FirebaseFinancialDocumentRepository(),
     textAnnotationRepository: new FirebaseTextAnnotationRepository(),
     pushRepository:           new FirebasePushRepository(),
     pushInteractionRepository: new FirebasePushInteractionRepository(),

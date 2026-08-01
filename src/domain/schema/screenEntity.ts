@@ -393,7 +393,6 @@ export const RESERVED_COLLECTIONS: ReadonlySet<string> = new Set<string>([
   'plugin_installations',
   'extensions',
   'installed_extensions',
-  'financialTags',
   'notes',
   'documents',
   'tags',

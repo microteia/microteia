@@ -29,13 +29,6 @@ const FLAT_ENTITY_CONFIG: Record<string, AuditableEntityConfig> = {
     getDisplayName: (d) => asString(d.description, 'Prazo'),
     getEntityLink: (_tenantId, docId) => `view-deadline:${docId}`,
   },
-  financials: {
-    entityKey: 'Financial',
-    entityLabel: 'Financeiro',
-    entityLabelPlural: 'Financeiro',
-    getDisplayName: (d) => asString(d.category),
-    getEntityLink: (_tenantId, docId) => `view-financial:${docId}`,
-  },
   members: {
     entityKey: 'TenantMember',
     entityLabel: 'Membro',
@@ -52,12 +45,6 @@ const FLAT_ENTITY_CONFIG: Record<string, AuditableEntityConfig> = {
     entityKey: 'CaseTag',
     entityLabel: 'Etiqueta de Processo',
     entityLabelPlural: 'Etiquetas de Processos',
-    getDisplayName: (d) => asString(d.name),
-  },
-  financialTags: {
-    entityKey: 'FinancialTag',
-    entityLabel: 'Etiqueta de Financeiro',
-    entityLabelPlural: 'Etiquetas de Financeiro',
     getDisplayName: (d) => asString(d.name),
   },
   pushes: {
@@ -79,15 +66,6 @@ const FLAT_ENTITY_CONFIG: Record<string, AuditableEntityConfig> = {
 };
 
 const NESTED_ENTITY_CONFIG: Record<string, Record<string, AuditableEntityConfig>> = {
-  financials: {
-    documents: {
-      entityKey: 'FinancialDocument',
-      entityLabel: 'Documento de Financeiro',
-      entityLabelPlural: 'Documentos de Financeiro',
-      getDisplayName: (d) => asString(d.name),
-      getEntityLink: (_tenantId, _docId, parentId) => `view-financial:${parentId}`,
-    },
-  },
   __screenRecord__: {
     notes: {
       entityKey: 'RecordNote',

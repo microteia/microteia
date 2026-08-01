@@ -70,26 +70,26 @@ const tenantCtx = createSchemaContext([
 describe('eventCatalog — derivação do registry', () => {
   it('mantém os eventos das entidades com rótulos PT-BR', () => {
     expect(entry('deadline.saved')?.label).toBe('Ao salvar: Prazo');
-    expect(entry('financial.deleted')?.label).toBe('Ao excluir: Financeiro');
+    expect(entry('deadline.deleted')?.label).toBe('Ao excluir: Prazo');
     expect(entry('lookup.saved')?.label).toBe('Ao salvar: Item de Lista');
-    // Processo, Pessoa e Contrato saíram do kernel: os eventos deles só existem no catálogo do
-    // escritório que instalou as extensões.
+    // Processo, Pessoa, Contrato e Financeiro saíram do kernel: os eventos deles só existem no
+    // catálogo do escritório que instalou as extensões.
     expect(entry('case.saved')).toBeUndefined();
     expect(entry('person.saved')).toBeUndefined();
     expect(entry('contract.saved')).toBeUndefined();
+    expect(entry('financial.saved')).toBeUndefined();
   });
 
   it('deriva os caminhos denormalizados das FKs (fim do hardcode)', () => {
     expect(paths('deadline.saved')).toEqual(expect.arrayContaining(['case.caseNumber', 'case.title', 'case.area']));
-    expect(paths('financial.saved')).toEqual(expect.arrayContaining(['person.name', 'contract.number', 'personId']));
     // O RÓTULO do campo apontado sai do registro; com Pessoa fora dele, resta a chave crua. O
     // caminho continua resolvendo — é ele que a automação usa.
-    expect(entry('financial.saved')?.fields.map((f) => f.path)).toEqual(expect.arrayContaining(['person.name']));
+    expect(paths('deadline.saved')).toEqual(expect.arrayContaining(['responsibleLawyer.name', 'responsibleLawyerId']));
   });
 
   it('inclui old apenas em eventos saved', () => {
-    expect(paths('financial.saved')).toContain('old');
-    expect(paths('financial.deleted')).not.toContain('old');
+    expect(paths('deadline.saved')).toContain('old');
+    expect(paths('deadline.deleted')).not.toContain('old');
   });
 
   /**
@@ -107,7 +107,7 @@ describe('eventCatalog — derivação do registry', () => {
 
   it('gera eventos de nota/documento com pai denormalizado do registry', () => {
     expect(paths('deadline_note.saved')).toEqual(expect.arrayContaining(['content', 'parent.id', 'parent.type']));
-    expect(paths('financial_document.deleted')).toEqual(expect.arrayContaining(['fileName', 'parent.amount']));
+    // Documento de entidade fixa não existe mais: a última que os tinha (Financeiro) saiu do kernel.
     expect(entry('deadline_document.saved')).toBeUndefined();
   });
 });
@@ -130,7 +130,7 @@ describe('getWorkflowEventFields', () => {
 describe('buildWorkflowEventCatalog', () => {
   it('acrescenta um par de eventos por tela do tenant, sem duplicar as fixas', () => {
     const names = buildWorkflowEventCatalog(tenantCtx).map((e) => e.name);
-    expect(names).toEqual(expect.arrayContaining(['financial.saved', 'medico.saved', 'medico.deleted']));
+    expect(names).toEqual(expect.arrayContaining(['deadline.saved', 'medico.saved', 'medico.deleted']));
     expect(names.filter((n) => n === 'person.saved')).toHaveLength(1);
     expect(names.filter((n) => n === 'contract.saved')).toHaveLength(1);
     expect(names.filter((n) => n === 'case.saved')).toHaveLength(1);
@@ -176,7 +176,6 @@ describe('splitEntityEventName', () => {
 
   it('não são eventos de coleção: filhos das fixas, listas e chamada de workflow', () => {
     expect(splitEntityEventName('deadline_note.saved')).toBeNull();
-    expect(splitEntityEventName('financial_document.deleted')).toBeNull();
     expect(splitEntityEventName('lookup.saved')).toBeNull();
     expect(splitEntityEventName('workflow.called')).toBeNull();
   });
@@ -198,8 +197,8 @@ describe('splitEntityEventName', () => {
 
 describe('eventNameToRoot / eventNameToEntityKey', () => {
   it('resolve raiz de entidade com hasOld por ação', () => {
-    expect(eventNameToRoot('financial.saved')).toMatchObject({ kind: 'entity', entityKey: 'financials', hasOld: true });
-    expect(eventNameToRoot('financial.deleted')).toMatchObject({ hasOld: false });
+    expect(eventNameToRoot('deadline.saved')).toMatchObject({ kind: 'entity', entityKey: 'deadlines', hasOld: true });
+    expect(eventNameToRoot('deadline.deleted')).toMatchObject({ hasOld: false });
   });
 
   /**

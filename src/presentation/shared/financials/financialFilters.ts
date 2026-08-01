@@ -1,9 +1,17 @@
 import type { CaseRecord, ContractRecord } from '../useCollectionRecords';
 import type { DefaultTheme } from 'styled-components';
 import { getConfigColor } from '../../../shared/styles/colorUtils';
-import type { Financial, LookupOption } from '../../../domain/entities';
+import type { LookupOption } from '../../../domain/entities';
+import type { FinancialRecord } from '../useCollectionRecords';
 import type { PersonRecord } from '../useCollectionRecords';
 import type { FilterDef, FilterOption, FilterToken } from '../../components/ui/CompositeFilter';
+
+/**
+ * O lançamento como o painel o lê: `FinancialRecord` com vencimento garantido. A entidade não é mais
+ * do kernel — quem a declara é a extensão de Financeiro —, e aqui só interessam os campos que o
+ * filtro e o resumo tocam.
+ */
+export type FinancialLike = FinancialRecord & { dueDate: Date };
 
 export interface FinancialSearchLookups {
   cases: CaseRecord[];
@@ -69,7 +77,7 @@ export const buildTokenMap = (tokens: FilterToken[]): Record<string, string[]> =
   return map;
 };
 
-export const filterFinancialsByTokens = (financials: Financial[], tokens: FilterToken[], lookups: FinancialSearchLookups): Financial[] => {
+export const filterFinancialsByTokens = (financials: FinancialLike[], tokens: FilterToken[], lookups: FinancialSearchLookups): FinancialLike[] => {
   const tokenMap = buildTokenMap(tokens);
   const caseById: Record<string, CaseRecord> = {};
   lookups.cases.forEach((c) => { caseById[c.id] = c; });
@@ -141,7 +149,7 @@ export interface FinancialSummary {
   projectedBalance: number;
 }
 
-export const computeFinancialSummary = (financials: Financial[]): FinancialSummary => {
+export const computeFinancialSummary = (financials: FinancialLike[]): FinancialSummary => {
   const totalIncome = financials.filter((f) => f.type === 'Receita' && f.status === 'Pago').reduce((s, f) => s + f.amount, 0);
   const totalExpense = financials.filter((f) => f.type === 'Despesa' && f.status === 'Pago').reduce((s, f) => s + f.amount, 0);
   const pendingIncome = financials.filter((f) => f.type === 'Receita' && f.status === 'Aberto').reduce((s, f) => s + f.amount, 0);

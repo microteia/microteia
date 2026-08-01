@@ -269,7 +269,9 @@ import { getConfigColor } from '@microteia/theme';
 import { formatCurrencyBRL, formatDate } from '@microteia/format';
 
 const SOURCE_ID = 'microteia:financeiro';
-const DASHBOARD_KEY = 'financeiro-painel';
+// O painel de gráficos ainda é uma tela do kernel (a API das extensões não expõe biblioteca de
+// gráfico). Ele lê a coleção pelo caminho genérico, então não conhece o Financeiro em código.
+const DASHBOARD_KEY = 'financial-dashboard';
 
 const Header = styled.div\`
   display: flex;

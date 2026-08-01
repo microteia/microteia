@@ -1,5 +1,5 @@
 import type React from 'react';
-import type { News, Financial, EntityRecord, ScreenDefinition, TenantRole, UserRole } from '../../../../../domain/entities';
+import type { News, EntityRecord, ScreenDefinition, TenantRole, UserRole } from '../../../../../domain/entities';
 import type { PersonRecord } from '../../../../shared/useCollectionRecords';
 import type { WorkflowDefinition } from '../../../../../domain/entities/Workflow';
 import type { ThemeMode } from '../../../../../shared/types';
@@ -23,7 +23,6 @@ export interface CommandPaletteAppContext {
   persons: PersonRecord[];
   cases: CaseRecord[];
   contracts: ContractRecord[];
-  financials: Financial[];
   records: EntityRecord[];
   screenDefinitions: ScreenDefinition[];
   workflows: WorkflowDefinition[];
