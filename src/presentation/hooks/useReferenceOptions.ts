@@ -1,6 +1,5 @@
 import { useMemo } from 'react';
 import { usePersonRecords } from '../shared/useCollectionRecords';
-import { useContractStore } from '../../stores/useContractStore';
 import { useFinancialStore } from '../../stores/useFinancialStore';
 import { useDeadlineStore } from '../../stores/useDeadlineStore';
 import { useRecords } from '../../stores/useRecords';
@@ -17,7 +16,6 @@ export interface ReferenceOption {
 
 export const useReferenceOptions = (): Record<string, ReferenceOption[]> => {
   const persons = usePersonRecords();
-  const { contracts } = useContractStore();
   const { financials } = useFinancialStore();
   const { deadlines } = useDeadlineStore();
   const { recordsByCollection } = useRecords();
@@ -25,15 +23,13 @@ export const useReferenceOptions = (): Record<string, ReferenceOption[]> => {
   const { members } = useTenant();
 
   return useMemo(() => {
-    // `persons` não aparece aqui: a coleção é descrita por uma tela do escritório e entra pelo
-    // caminho genérico abaixo, como qualquer outra. A lista local serve só ao complemento do
-    // lançamento financeiro, que mostra o nome da pessoa vinculada.
+    // `persons` e `contracts` não aparecem aqui: as coleções são descritas por telas do escritório
+    // e entram pelo caminho genérico abaixo, como qualquer outra — o rótulo vira o campo-título e o
+    // complemento, o subtítulo. A lista local de pessoas serve só ao complemento do lançamento
+    // financeiro, que mostra o nome da pessoa vinculada.
     const map: Record<string, ReferenceOption[]> = {
       members: members
         .map((m) => ({ value: m.userId, label: m.displayName }))
-        .sort((a, b) => a.label.localeCompare(b.label)),
-      contracts: contracts
-        .map((c) => ({ value: c.id, label: c.title, meta: c.number }))
         .sort((a, b) => a.label.localeCompare(b.label)),
       financials: financials
         .map((f) => ({
@@ -61,5 +57,5 @@ export const useReferenceOptions = (): Record<string, ReferenceOption[]> => {
         .sort((a, b) => a.label.localeCompare(b.label));
     });
     return map;
-  }, [persons, contracts, financials, deadlines, recordsByCollection, getDefinition, members]);
+  }, [persons, financials, deadlines, recordsByCollection, getDefinition, members]);
 };

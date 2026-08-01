@@ -20,9 +20,6 @@ import { FirebaseFinancialDocumentRepository } from '../../data/repositories/Fir
 import { FirebasePushRepository } from '../../data/repositories/FirebasePushRepository';
 import { FirebasePushInteractionRepository } from '../../data/repositories/FirebasePushInteractionRepository';
 import { FirebaseTextAnnotationRepository } from '../../data/repositories/FirebaseTextAnnotationRepository';
-import { FirebaseContractRepository } from '../../data/repositories/FirebaseContractRepository';
-import { FirebaseContractNoteRepository } from '../../data/repositories/FirebaseContractNoteRepository';
-import { FirebaseContractDocumentRepository } from '../../data/repositories/FirebaseContractDocumentRepository';
 import { FirebaseAuditLogRepository } from '../../data/repositories/FirebaseAuditLogRepository';
 import { FirebaseAuditLogService } from '../../data/services/FirebaseAuditLogService';
 import { FirebaseScreenDefinitionRepository } from '../../data/repositories/FirebaseScreenDefinitionRepository';
@@ -66,9 +63,6 @@ export const DIProvider: React.FC<{ children: React.ReactNode }> = ({ children }
     newsDocumentRepository:   new FirebaseNewsDocumentRepository(),
     savedFilterRepository:    new FirebaseSavedFilterRepository(),
     tenantRepository:         new FirebaseTenantRepository(),
-    contractRepository:         new FirebaseContractRepository(),
-    contractNoteRepository:     new FirebaseContractNoteRepository(),
-    contractDocumentRepository: new FirebaseContractDocumentRepository(),
     deadlineRepository:       new FirebaseDeadlineRepository(),
     financialRepository:      new FirebaseFinancialRepository(),
     financialDocumentRepository: new FirebaseFinancialDocumentRepository(),

@@ -34,6 +34,7 @@ import { useEntityForm } from './useEntityForm';
 import { useEntityDetailVM } from './useEntityDetailVM';
 import {
   formatCurrencyBRL,
+  formatDate,
   onlyNumbers,
   parseCurrencyDigits,
   toDateInputValue,
@@ -147,6 +148,7 @@ const dataModule = {
  */
 const formatModule = {
   formatCurrencyBRL,
+  formatDate,
   parseCurrencyDigits,
   toDateInputValue,
   applyMask: applyMaskTemplate,

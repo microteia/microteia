@@ -5,6 +5,7 @@ import { serializePackage } from '../src/domain/usecases/plugins/packageSerializ
 import { validatePackage } from '../src/domain/usecases/plugins/pluginReferences';
 import type { MarketplacePlugin } from '../src/domain/entities/MarketplacePlugin';
 import { kanbanCasesPlugin } from '../src/plugins/marketplace/kanbanCases';
+import { contratoPlugin } from '../src/plugins/marketplace/contrato';
 import { pessoaPlugin } from '../src/plugins/marketplace/pessoa';
 import { processoPlugin } from '../src/plugins/marketplace/processo';
 
@@ -16,6 +17,7 @@ import { processoPlugin } from '../src/plugins/marketplace/processo';
  */
 const TEMPLATES: { file: string; plugin: MarketplacePlugin }[] = [
   { file: 'extension-templates/pessoa.json', plugin: pessoaPlugin },
+  { file: 'extension-templates/contrato.json', plugin: contratoPlugin },
   { file: 'extension-templates/processo.json', plugin: processoPlugin },
   { file: 'extension-templates/kanban-processos.json', plugin: kanbanCasesPlugin },
 ];
@@ -36,6 +38,7 @@ describe('pacotes distribuíveis das extensões de primeira parte', () => {
 describe('integridade referencial das extensões de primeira parte', () => {
   it.each([
     ['Pessoas', pessoaPlugin],
+    ['Contratos', contratoPlugin],
     ['Processos', processoPlugin],
     ['Kanban de Processos', kanbanCasesPlugin],
   ])('%s valida sem pendências', (_name, plugin) => {

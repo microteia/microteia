@@ -21,12 +21,12 @@ const field = (overrides: Partial<FieldDefinition> & Pick<FieldDefinition, 'key'
 
 const ctx = createSchemaContext([
   {
-    id: 'contracts',
-    titleSingular: 'Contrato',
-    titleFieldKey: 'title',
+    id: 'financials',
+    titleSingular: 'Financeiro',
+    titleFieldKey: 'category',
     fields: [
       field({ key: 'apelido', label: 'Apelido', order: 50 }),
-      field({ key: 'title', label: 'Título do contrato', origin: 'builtin', required: true, order: 1 }),
+      field({ key: 'category', label: 'Categoria do lançamento', origin: 'builtin', required: true, order: 1 }),
     ],
   },
   /**
@@ -72,14 +72,14 @@ describe('resolveEntity — uma tela é uma entidade', () => {
   });
 
   it('mescla os campos do tenant sobre os declarados em código, na entidade fixa', () => {
-    const keys = resolveEntityFields(ctx, 'contracts').map((f) => f.key);
-    // O campo do tenant entra ao final; os fixos continuam todos lá, sem duplicar `title`.
+    const keys = resolveEntityFields(ctx, 'financials').map((f) => f.key);
+    // O campo do tenant entra ao final; os fixos continuam todos lá, sem duplicar `category`.
     expect(keys).toContain('apelido');
-    expect(keys.filter((key) => key === 'title')).toHaveLength(1);
+    expect(keys.filter((key) => key === 'category')).toHaveLength(1);
 
-    const title = resolveEntityFields(ctx, 'contracts').find((f) => f.key === 'title');
-    expect(title?.label).toBe('Título do contrato');
-    expect(title?.origin).toBe('builtin');
+    const category = resolveEntityFields(ctx, 'financials').find((f) => f.key === 'category');
+    expect(category?.label).toBe('Categoria do lançamento');
+    expect(category?.origin).toBe('builtin');
   });
 
   /**
@@ -99,15 +99,15 @@ describe('resolveEntity — uma tela é uma entidade', () => {
   });
 
   it('sem tela do tenant, a entidade é exatamente a declarada em código', () => {
-    const entity = resolveEntity(createSchemaContext(), 'contracts');
-    expect(entity?.fields.some((f) => f.key === 'number')).toBe(true);
+    const entity = resolveEntity(createSchemaContext(), 'financials');
+    expect(entity?.fields.some((f) => f.key === 'amount')).toBe(true);
   });
 
   it('coleção que não é entidade nem tela não resolve', () => {
     expect(resolveEntity(ctx, 'inexistente')).toBeUndefined();
     expect(isEntityCollection(ctx, 'inexistente')).toBe(false);
     expect(isEntityCollection(ctx, 'medico')).toBe(true);
-    expect(isEntityCollection(ctx, 'contracts')).toBe(true);
+    expect(isEntityCollection(ctx, 'financials')).toBe(true);
   });
 });
 
@@ -157,9 +157,9 @@ describe('nomes de coleção reservados', () => {
     expect(screenIdIssue('')).toBeTruthy();
     expect(screenIdIssue('meu-cadastro')).toBeTruthy();
     expect(screenIdIssue('1medico')).toBeTruthy();
-    expect(screenIdIssue('contracts')).toBeTruthy();
+    expect(screenIdIssue('financials')).toBeTruthy();
     expect(screenIdIssue('workflow_executions')).toBeTruthy();
-    expect(screenIdIssue('contractTypes')).toBeTruthy();
+    expect(screenIdIssue('contractCostCenters')).toBeTruthy();
   });
 
   it('aceita um nome livre', () => {

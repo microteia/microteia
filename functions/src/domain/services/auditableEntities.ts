@@ -20,13 +20,6 @@ export const asString = (v: unknown, fallback = 'sem nome'): string =>
   typeof v === 'string' && v.trim() ? v.trim() : fallback;
 
 const FLAT_ENTITY_CONFIG: Record<string, AuditableEntityConfig> = {
-  contracts: {
-    entityKey: 'Contract',
-    entityLabel: 'Contrato',
-    entityLabelPlural: 'Contratos',
-    getDisplayName: (d) => asString(d.title ?? d.number),
-    getEntityLink: (_tenantId, docId) => `view-contract:${docId}`,
-  },
   deadlines: {
     entityKey: 'Deadline',
     entityLabel: 'Prazo',
@@ -59,12 +52,6 @@ const FLAT_ENTITY_CONFIG: Record<string, AuditableEntityConfig> = {
     entityLabelPlural: 'Etiquetas de Processos',
     getDisplayName: (d) => asString(d.name),
   },
-  contractTags: {
-    entityKey: 'ContractTag',
-    entityLabel: 'Etiqueta de Contrato',
-    entityLabelPlural: 'Etiquetas de Contratos',
-    getDisplayName: (d) => asString(d.name),
-  },
   financialTags: {
     entityKey: 'FinancialTag',
     entityLabel: 'Etiqueta de Financeiro',
@@ -90,22 +77,6 @@ const FLAT_ENTITY_CONFIG: Record<string, AuditableEntityConfig> = {
 };
 
 const NESTED_ENTITY_CONFIG: Record<string, Record<string, AuditableEntityConfig>> = {
-  contracts: {
-    notes: {
-      entityKey: 'ContractNote',
-      entityLabel: 'Nota de Contrato',
-      entityLabelPlural: 'Notas de Contratos',
-      getDisplayName: (d) => truncate(asString(d.title ?? d.text, 'Nota'), 60),
-      getEntityLink: (_tenantId, _docId, parentId) => `view-contract:${parentId}`,
-    },
-    documents: {
-      entityKey: 'ContractDocument',
-      entityLabel: 'Documento de Contrato',
-      entityLabelPlural: 'Documentos de Contratos',
-      getDisplayName: (d) => asString(d.name),
-      getEntityLink: (_tenantId, _docId, parentId) => `view-contract:${parentId}`,
-    },
-  },
   financials: {
     documents: {
       entityKey: 'FinancialDocument',

@@ -54,6 +54,8 @@ export interface ScreenModuleTemplate {
   hideFromSidebar?: boolean;
   parentEntity?: string | null;
   parentFieldKey?: string | null;
+  /** Posse ou visão sobre o pai. Ver `ScreenDefinition.parentRelation`. */
+  parentRelation?: 'owned' | 'related' | null;
   viewActionIds?: string[];
   cardActionIds?: string[];
 }

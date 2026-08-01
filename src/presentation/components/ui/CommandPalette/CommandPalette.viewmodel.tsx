@@ -3,8 +3,7 @@ import { useCommandPalette } from '../../../../stores/useCommandPalette';
 import { useWorkspace } from '../../../../stores/useWorkspace';
 import { useNews } from '../../../../stores/useNews';
 import { usePersonRecords } from '../../../shared/useCollectionRecords';
-import { useCaseRecords } from '../../../shared/useCollectionRecords';
-import { useContractStore } from '../../../../stores/useContractStore';
+import { useCaseRecords, useContractRecords } from '../../../shared/useCollectionRecords';
 import { useFinancialStore } from '../../../../stores/useFinancialStore';
 import { useRecords } from '../../../../stores/useRecords';
 import { useScreenDefinitions } from '../../../../stores/useScreenDefinitions';
@@ -38,7 +37,7 @@ export const useCommandPaletteViewModel = (): CommandPaletteViewModel => {
   const { news } = useNews();
   const persons = usePersonRecords();
   const cases = useCaseRecords();
-  const { contracts } = useContractStore();
+  const contracts = useContractRecords();
   const { financials } = useFinancialStore();
   const { allRecords } = useRecords();
   const { definitions: screenDefinitions } = useScreenDefinitions();

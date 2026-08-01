@@ -79,6 +79,18 @@ export interface FieldDefinition {
    * reproduzir esse padrão — o usuário escolheria o mesmo valor a cada registro.
    */
   defaultValue?: CustomFieldValue;
+  /**
+   * Código GERADO com que o campo nasce num registro novo, quando ele está vazio. O padrão descreve
+   * a forma, caractere a caractere: `A` é letra, `0` é dígito, `*` é letra ou dígito, e qualquer
+   * outro caractere entra literal (`AA-0000`). O valor sorteado não se repete entre os registros já
+   * carregados da coleção, e continua editável — é uma sugestão, não um carimbo.
+   *
+   * Diferente de `defaultValue`, que semeia um valor FIXO: aqui o valor é diferente a cada registro.
+   * Existe porque um cadastro costuma ter um identificador curto que ninguém quer digitar (o número
+   * do contrato, um protocolo, um código de peça) e a entidade fixa o sorteava em código — sem isto,
+   * uma tela declarada não teria como reproduzi-lo.
+   */
+  autoValue?: { pattern: string } | null;
   rules?: FieldRules | null;
   logic?: FieldLogic | null;
   aggregation?: FieldAggregation | null;
@@ -180,6 +192,21 @@ export interface ScreenDefinition {
   parentEntity?: string | null;
   /** Campo `reference` desta tela que guarda o id do registro-pai. */
   parentFieldKey?: string | null;
+  /**
+   * O que `parentEntity` significa. Duas coisas vinham juntas e agora se separam:
+   *
+   * - `owned` (padrão, o comportamento de sempre): o registro PERTENCE ao pai. A tela sai do menu e
+   *   da busca ⌘K, o campo de vínculo não aparece no formulário (já vem preenchido) e salvar volta
+   *   para o pai.
+   * - `related`: o pai apenas MOSTRA os registros que apontam para ele. A tela continua de topo, com
+   *   menu e busca próprios, e o campo de vínculo segue no formulário — é por ele que se liga e
+   *   desliga um registro do outro.
+   *
+   * `related` existe porque duas entidades de topo podem se relacionar sem que uma seja parte da
+   * outra: o Contrato lista os Processos ligados a ele, e Processos continua uma tela do escritório.
+   * Sem a distinção, declarar a aba rebaixaria a tela a filha.
+   */
+  parentRelation?: 'owned' | 'related' | null;
   /**
    * Presente quando a tela foi trazida por uma extensão. `managed: true` a torna gerenciada: sua
    * estrutura é somente-leitura no Form Design (só a extensão altera/remove), embora o usuário

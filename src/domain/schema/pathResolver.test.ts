@@ -59,6 +59,23 @@ const ctx = createSchemaContext([
     fields: [field({ key: 'nome', label: 'Nome', type: 'text' })],
   },
   /**
+   * Contrato também vem de extensão, sobre a coleção `contracts`. `client` é a relação com Pessoa
+   * pelo nome de navegação que as automações do escritório já usam — é o segundo salto de
+   * `contract.client.name`.
+   */
+  {
+    id: 'contratos',
+    collection: 'contracts',
+    eventPrefix: 'contract',
+    titleSingular: 'Contrato',
+    titleFieldKey: 'title',
+    fields: [
+      field({ key: 'number', label: 'Número', type: 'text' }),
+      field({ key: 'title', label: 'Título', type: 'text' }),
+      field({ key: 'clientId', label: 'Cliente', type: 'reference', refEntity: 'persons', refDenormKey: 'client' }),
+    ],
+  },
+  /**
    * Pessoa também vem de extensão. O endereço é declarado em caminho pontilhado — o objeto aninhado
    * do kernel, agora nascido de uma declaração de tela, com lookup no campo de dentro.
    */
@@ -151,7 +168,9 @@ describe('resolvePath — FKs fixas', () => {
       materializeAt: 'contract.client',
       mode: 'denormKey',
       multi: false,
-      fields: ['name', 'type', 'email'],
+      // A relação declarada por TELA não lista campos denormalizados: hidrata o registro inteiro,
+      // onde a `fk` do kernel trazia só `name`, `type` e `email`.
+      fields: 'all',
     });
   });
 

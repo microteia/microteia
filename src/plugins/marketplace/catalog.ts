@@ -3,6 +3,7 @@ import { nav, widgetPage } from '../contributionBuilders';
 import { vendasPlugin } from './vendas';
 import { kanbanCasesPlugin } from './kanbanCases';
 import { brasilPlugin } from './brasil';
+import { contratoPlugin } from './contrato';
 import { pessoaPlugin } from './pessoa';
 import { processoPlugin } from './processo';
 
@@ -171,7 +172,7 @@ export const guiaPlugin: MarketplacePlugin =
     workflows: [],
   };
 
-export { vendasPlugin, kanbanCasesPlugin, brasilPlugin, pessoaPlugin, processoPlugin };
+export { vendasPlugin, kanbanCasesPlugin, brasilPlugin, pessoaPlugin, contratoPlugin, processoPlugin };
 
 /**
  * Catálogo do Marketplace EMBUTIDO: extensões de PRIMEIRA PARTE que viajam no bundle da aplicação.
@@ -189,6 +190,7 @@ export { vendasPlugin, kanbanCasesPlugin, brasilPlugin, pessoaPlugin, processoPl
 export const MARKETPLACE_CATALOG: MarketplacePlugin[] = [
   brasilPlugin,
   pessoaPlugin,
+  contratoPlugin,
   processoPlugin,
   kanbanCasesPlugin,
 ];

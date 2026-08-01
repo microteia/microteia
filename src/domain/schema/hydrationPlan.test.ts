@@ -32,6 +32,18 @@ const ctx = createSchemaContext([
     titleFieldKey: 'nome',
     fields: [field({ key: 'nome', label: 'Nome', type: 'text' })],
   },
+  {
+    id: 'contratos',
+    collection: 'contracts',
+    eventPrefix: 'contract',
+    titleSingular: 'Contrato',
+    titleFieldKey: 'title',
+    fields: [
+      field({ key: 'number', label: 'Número', type: 'text' }),
+      field({ key: 'title', label: 'Título', type: 'text' }),
+      field({ key: 'clientId', label: 'Cliente', type: 'reference', refEntity: 'persons', refDenormKey: 'client' }),
+    ],
+  },
 ]);
 
 const casesRoot: PathRoot = { kind: 'entity', entityKey: 'cases', hasOld: true };

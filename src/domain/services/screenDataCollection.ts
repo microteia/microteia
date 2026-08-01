@@ -21,6 +21,19 @@ export const screenDataCollection = (screen: ScreenCollectionSource): string =>
 export const isBoundScreen = (screen: ScreenCollectionSource): boolean =>
   screenDataCollection(screen) !== screen.id;
 
+export type ScreenParentSource = Pick<ScreenDefinition, 'parentEntity' | 'parentRelation'>;
+
+/**
+ * A tela é FILHA de outra — os registros dela pertencem ao pai. É o que a tira do menu lateral e da
+ * busca ⌘K, esconde o campo de vínculo do formulário e faz o registro voltar para o pai ao salvar.
+ *
+ * Declarar `parentEntity` sozinho já não basta: com `parentRelation: 'related'` o pai apenas MOSTRA
+ * os registros que apontam para ele, e a tela continua sendo uma entidade de topo. O ponto único
+ * existe para que as quatro decisões acima nunca divirjam entre si.
+ */
+export const isOwnedByParentScreen = (screen: ScreenParentSource): boolean =>
+  !!screen.parentEntity && (screen.parentRelation ?? 'owned') === 'owned';
+
 /** A tela como as coleções derivadas a enxergam: só o que declara nomes de outras coleções. */
 export interface ScreenCollectionDeclaration {
   titleSingular: string;

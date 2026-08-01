@@ -11,6 +11,14 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [2.4.0] — 2026-08-01
+
+- **Contratos agora é uma extensão.** A tela é a mesma, com os mesmos contratos, o mesmo número, as mesmas listas de Tipo, Categoria, Status, Objeto, Banco e Centro de Custo, e as mesmas etiquetas, anotações e documentos — mas passa a ser instalada e atualizada como qualquer outra extensão do escritório. Instale na ordem **Brasil → Pessoas → Contratos → Processos**: cada uma precisa da anterior.
+- O **número do contrato** continua sendo sugerido ao criar (duas letras e quatro dígitos, sem repetir um já usado) e continua editável.
+- Dentro de um contrato, a aba **Processos** segue mostrando os processos ligados a ele, e criar um processo por ali já o traz vinculado. Para ligar um processo que já existe, use o campo **Contrato** na tela do próprio processo.
+- Corrigido: ao criar uma opção nova pelo próprio campo, numa lista que tem cor por item, a opção nascia sem cor nenhuma. Agora ela recebe uma cor da paleta, diferente das que já estão na lista.
+- Corrigido: o valor sugerido de um campo (como "Pessoa Física" em Pessoas) não estava aparecendo ao cadastrar.
+
 ## [2.3.1] — 2026-08-01
 
 - **Automação agora tem identificador legível.** Ao criar, você escolhe um nome curto (ex: `avisar-cliente`) — ou deixa em branco e ele é criado a partir do nome. É por ele que uma Ação escolhe qual automação executar, e ele não muda depois de criada.

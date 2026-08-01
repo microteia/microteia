@@ -9,7 +9,6 @@ import { AuthProvider } from './stores/AuthContext';
 import { TenantStoreProvider } from './stores/TenantStore';
 import { TagStoreProvider } from './stores/TagStore';
 import { LookupStoreProvider } from './stores/LookupStore';
-import { ContractStoreProvider } from './stores/ContractStore';
 import { DeadlineStoreProvider } from './stores/DeadlineStore';
 import { FinancialStoreProvider } from './stores/FinancialStore';
 import { PushStoreProvider } from './stores/PushStore';
@@ -70,7 +69,6 @@ const App: React.FC = () => {
                         <ScreenDefinitionStoreProvider>
                         <TagStoreProvider>
                         <LookupStoreProvider>
-                          <ContractStoreProvider>
                           <DeadlineStoreProvider>
                             <FinancialStoreProvider>
                               <PushStoreProvider>
@@ -124,7 +122,6 @@ const App: React.FC = () => {
                               </PushStoreProvider>
                             </FinancialStoreProvider>
                           </DeadlineStoreProvider>
-                          </ContractStoreProvider>
                         </LookupStoreProvider>
                         </TagStoreProvider>
                         </ScreenDefinitionStoreProvider>

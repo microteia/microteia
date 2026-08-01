@@ -1,10 +1,10 @@
 import type React from 'react';
-import type { News, Contract, Financial, EntityRecord, ScreenDefinition, TenantRole, UserRole } from '../../../../../domain/entities';
+import type { News, Financial, EntityRecord, ScreenDefinition, TenantRole, UserRole } from '../../../../../domain/entities';
 import type { PersonRecord } from '../../../../shared/useCollectionRecords';
 import type { WorkflowDefinition } from '../../../../../domain/entities/Workflow';
 import type { ThemeMode } from '../../../../../shared/types';
 import type { UiPageMetadata } from '../../../../shared/uiExtensionPoints';
-import type { CaseRecord } from '../../../../shared/useCollectionRecords';
+import type { CaseRecord, ContractRecord } from '../../../../shared/useCollectionRecords';
 
 export interface CommandPaletteItem {
   id: string;
@@ -22,7 +22,7 @@ export interface CommandPaletteAppContext {
   news: News[];
   persons: PersonRecord[];
   cases: CaseRecord[];
-  contracts: Contract[];
+  contracts: ContractRecord[];
   financials: Financial[];
   records: EntityRecord[];
   screenDefinitions: ScreenDefinition[];

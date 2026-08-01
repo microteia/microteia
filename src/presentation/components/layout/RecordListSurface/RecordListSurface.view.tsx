@@ -26,6 +26,12 @@ interface RecordListSurfaceProps {
   renderSubtitle?: (record: EntityRecord) => React.ReactNode;
   renderBelowHeader?: (record: EntityRecord) => React.ReactNode;
   /**
+   * Linhas ACRESCENTADAS ao começo das meta-linhas do card, para o que a declaração de um campo não
+   * alcança: uma composição de dois campos (a vigência do contrato é "início – fim"; separadas, as
+   * duas datas ficariam sem sentido). As linhas declaradas em `listIcon` seguem depois, intactas.
+   */
+  renderMetaRows?: (record: EntityRecord) => { key: string; icon?: React.ReactNode; value: string }[];
+  /**
    * Redireciona abrir/criar registro para uma tela PRÓPRIA (ex.: um editor de código da extensão),
    * no lugar do detalhe dinâmico nativo. Ausentes, mantêm o comportamento padrão (`vm.openRecord`/
    * `vm.openNewRecord`).
@@ -41,7 +47,7 @@ interface RecordListSurfaceProps {
  * Listagem de registros de uma tela customizada. A mesma superfície serve à janela própria da tela
  * e à aba de registros filhos dentro do pai — só muda a variante do `EntityListView`.
  */
-export const RecordListSurface: React.FC<RecordListSurfaceProps> = ({ vm, definition, variant = 'page', renderSubtitle, renderBelowHeader, onOpenRecord, onNewRecord, emptyTitle, emptyActionLabel }) => {
+export const RecordListSurface: React.FC<RecordListSurfaceProps> = ({ vm, definition, variant = 'page', renderSubtitle, renderBelowHeader, renderMetaRows, onOpenRecord, onNewRecord, emptyTitle, emptyActionLabel }) => {
   const openRecord = onOpenRecord ?? vm.openRecord;
   const openNewRecord = onNewRecord ?? vm.openNewRecord;
   const modals = <EntityListModals vm={vm} />;
@@ -86,13 +92,15 @@ export const RecordListSurface: React.FC<RecordListSurfaceProps> = ({ vm, defini
       {vm.filteredRecords.map((record) => {
         const recordTags = vm.tags.filter((t) => record.tagIds?.includes(t.id));
         const items = vm.getCardItems(record);
-        const metaRows = listRows
-          .map((row) => ({
-            key: row.key,
-            icon: getScreenIcon(row.icon, 12),
-            value: resolveRow(record as unknown as Record<string, unknown>, row),
-          }))
-          .filter((row) => row.value !== '');
+        const metaRows = [
+          ...(renderMetaRows?.(record) ?? []),
+          ...listRows
+            .map((row) => ({
+              key: row.key,
+              icon: getScreenIcon(row.icon, 12),
+              value: resolveRow(record as unknown as Record<string, unknown>, row),
+            })),
+        ].filter((row) => row.value !== '');
         return (
           <EntityListCard
             key={record.id}

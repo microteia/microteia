@@ -18,29 +18,17 @@ const LEGACY_FK_SCHEMA = {
     contractId: { targetCollection: 'contracts', denormalizedFields: ['number', 'title'] },
     tagIds: { targetCollection: 'financialTags', multi: true },
   },
-  contracts: {
-    clientId: { targetCollection: 'persons', denormalizedFields: ['name', 'type', 'email'] },
-    responsibleId: { targetCollection: 'persons', denormalizedFields: ['name', 'type', 'email'] },
-    contractorIds: { targetCollection: 'persons', multi: true },
-    contracteeIds: { targetCollection: 'persons', multi: true },
-    witnessIds: { targetCollection: 'persons', multi: true },
-    contractorLawyerIds: { targetCollection: 'persons', multi: true },
-    contracteeLawyerIds: { targetCollection: 'persons', multi: true },
-    tagIds: { targetCollection: 'contractTags', multi: true },
-  },
 };
 
+// `contractCostCenters` sobrevive à saída de Contrato do kernel porque o campo "Centro de custo"
+// do Financeiro aponta para a mesma lista — as nove outras foram junto com a entidade.
 const LEGACY_LOOKUP_COLLECTIONS = [
-  'documentTypes', 'newsCategories',
-  'contractTypes', 'contractCategories', 'contractStatuses', 'contractObjects',
-  'contractAdjustmentIndexes', 'contractAdjustmentPeriodicities', 'contractCurrencies',
-  'contractPaymentMethods', 'contractBanks', 'contractCostCenters',
+  'documentTypes', 'newsCategories', 'contractCostCenters',
   'deadlineTypes',
   'financialCategories', 'financialStatuses',
 ];
 
 const LEGACY_DEFAULT_DENORM_FIELDS: Record<string, string[]> = {
-  contracts: ['number', 'title', 'type'],
   deadlines: ['type', 'dueDate', 'priority'],
   financials: ['type', 'amount', 'dueDate'],
   members: ['name', 'email'],
@@ -61,10 +49,10 @@ describe('entityRegistry — compatibilidade com o schema legado', () => {
 
   it('mantém os conjuntos de entidades com custom fields e referenciáveis', () => {
     expect([...CUSTOM_FIELD_ENABLED_ENTITIES].sort()).toStrictEqual(
-      ['deadlines', 'financials', 'contracts'].sort(),
+      ['deadlines', 'financials'].sort(),
     );
     expect([...BUILTIN_REF_ENTITIES].sort()).toStrictEqual(
-      ['contracts', 'deadlines', 'financials', 'members'].sort(),
+      ['deadlines', 'financials', 'members'].sort(),
     );
   });
 
@@ -73,7 +61,6 @@ describe('entityRegistry — compatibilidade com o schema legado', () => {
       ENTITY_REGISTRY_LIST.filter((entity) => entity.eventPrefix).map((entity) => [entity.collection, entity.eventPrefix]),
     );
     expect(prefixes).toStrictEqual({
-      contracts: 'contract',
       deadlines: 'deadline',
       financials: 'financial',
       pushes: 'push',
@@ -95,14 +82,15 @@ describe('lookupRegistry — compatibilidade com LOOKUP_COLLECTIONS legado', () 
 
 describe('helpers do registry', () => {
   it('resolve entidade por coleção', () => {
-    expect(getEntityByCollection('contracts')?.labelSingular).toBe('Contrato');
+    expect(getEntityByCollection('financials')?.labelSingular).toBe('Financeiro');
+    // Contrato saiu do kernel: quem descreve a coleção é a extensão, e o registro não a conhece.
+    expect(getEntityByCollection('contracts')).toBeUndefined();
     expect(getEntityByCollection('inexistente')).toBeUndefined();
   });
 
   it('resolve displayName pela ordem de fallback', () => {
-    const contracts = ENTITY_REGISTRY.contracts;
-    expect(getEntityDisplayName(contracts, { title: 'Contrato X', number: '001' })).toBe('Contrato X');
-    expect(getEntityDisplayName(contracts, { number: '001' })).toBe('001');
-    expect(getEntityDisplayName(contracts, {})).toBeUndefined();
+    const deadlines = ENTITY_REGISTRY.deadlines;
+    expect(getEntityDisplayName(deadlines, { description: 'Audiência', type: 'Audiência' })).toBe('Audiência');
+    expect(getEntityDisplayName(deadlines, {})).toBeUndefined();
   });
 });

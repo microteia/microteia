@@ -2008,6 +2008,12 @@ formulário rico. O que o kernel precisou aprender:
 |---|---|---|
 | Objeto aninhado criado pela tela | chave pontilhada (`address.city`) — `upsertFieldAtPath` CRIA o ramo | a chave virava um campo literal `"address.city"` na raiz do documento; só o kernel conseguia ter objeto aninhado |
 | Valor de partida do campo | `FieldDefinition.defaultValue` | "Pessoa Física" e "Ativo" eram embutidos no formulário em código; a tela declarada começaria sempre vazia |
+
+> **Ida-e-volta do schema:** `defaultValue` e `autoValue` viajam também no `NativeFieldSpec` — a
+> forma canônica que `fieldDefinitionToNativeSpec`/`nativeSpecToFieldDefinition` convertem. Uma tela
+> LIGADA a outra coleção (`dataCollection`) resolve os campos por esse caminho, então uma propriedade
+> que não faça a volta some em silêncio: era o que acontecia com o `defaultValue` de Pessoa, que
+> nunca chegava ao formulário.
 | Subtítulo do cartão | `subtitleFieldKey` passa a alimentar também o card (`RecordListSurface`) | o subtítulo só existia por slot de CÓDIGO — um cadastro simples precisaria de uma view em código só para isso |
 | Leitura por caminho | `readValueByPath`, no card, nos filtros e no ida-e-volta do formulário | o campo dentro do objeto não aparecia no cartão, não filtrava e não voltava ao formulário — tudo em silêncio |
 | Linha do cartão pelo ícone | `listIcon` sozinho já produz a meta-linha | `listIcon` sem `showInList` era um silêncio, contrariando o que a própria declaração promete |
@@ -2093,6 +2099,70 @@ dependencies: {
 `validatePackage` passa a considerar a referência coberta. A dependência é **dura**: sem Pessoas
 instalada, o `PluginHost` recusa carregar Processos (`dependency.missing`) em vez de carregá-la com
 os campos de pessoa apontando para o vazio.
+
+### Contrato sai do kernel — e a relação que não é posse
+
+A terceira migração pelo mesmo caminho: `contracts` não está mais em `entityRegistry.ts`, e quem
+descreve a coleção é a extensão **Contratos** (`com.microteia.contrato`, `dataCollection:
+'contracts'`, `eventPrefix: 'contract'`, `tagCollection: 'contractTags'`, `writeRoles: ['admin',
+'lawyer']`, dez listas de opções com as opções de partida). Foram apagados as páginas (`Contracts`,
+`ViewContract`), o `ContractStore`, três repositórios e três interfaces, os use cases de contrato,
+nota e documento, o tipo `Contract` e suas uniões, o plugin `core.contracts`, o
+`ContractCommandProvider`, o `ContractMentionModal` e os deep links
+`view-contract:`/`new-contract`. As regras nomeadas de `contracts`, `contractTags` e de nove das dez
+listas saíram do `firestore.rules` — tudo passa pelo curinga.
+
+Contrato fica no MEIO da cadeia — aponta para Pessoa e é apontado por Processo —, e é o que cobrou
+do kernel as capacidades abaixo.
+
+| Capacidade | Declaração | Sem ela |
+|---|---|---|
+| Código gerado no registro novo | `FieldDefinition.autoValue: { pattern }` | o número do contrato era sorteado em código, no ViewModel da tela fixa |
+| Uma tela dentro de outra, sem virar filha | `ScreenDefinition.parentRelation: 'related'` | declarar a aba rebaixaria Processos a tela filha: sem menu, sem ⌘K e sem o campo "Contrato" no formulário |
+| Linha de cartão que a declaração não alcança | slot `renderMetaRows` do `RecordListSurface` | a vigência ("início – fim") é composição de dois campos; separadas, as duas datas ficam sem sentido no cartão |
+| Data no formato do escritório, nas extensões | `formatDate` em `@microteia/format` | cada view de extensão reescreveria o próprio formatador |
+
+**`autoValue` — o código que ninguém quer digitar.** O padrão descreve a forma caractere a caractere
+(`A` letra, `0` dígito, `*` alfanumérico; o resto é literal), e o valor sorteado não se repete entre
+os registros já carregados da coleção. `AA0000` reproduz exatamente o número que a tela fixa
+sorteava. Diferente de `defaultValue`, que semeia um valor FIXO, aqui o valor muda a cada registro —
+e continua editável, porque é sugestão, não carimbo. Sortear é IMPURO: o gerador (`services/
+autoValue.ts`) só é chamado do EFEITO que semeia o formulário de um registro novo, nunca no corpo do
+componente nem dentro de um `useMemo` — a mesma disciplina que a tela fixa seguia.
+
+**`parentRelation` — posse e visão eram a mesma coisa, e não são.** `parentEntity` significava duas
+coisas ao mesmo tempo: "os registros aparecem numa aba do pai" e "esta tela não existe sozinha". Para
+o Contrato mostrar os processos ligados a ele, só a primeira serve. A distinção agora é explícita:
+
+| `parentRelation` | Aba no pai | Menu e ⌘K | Campo de vínculo no formulário | Salvar volta ao pai |
+|---|---|---|---|---|
+| `owned` (padrão) | sim | não | escondido (já vem preenchido) | sim |
+| `related` | sim | sim | visível — é por ele que se liga e desliga | não |
+
+`isOwnedByParentScreen` (em `services/screenDataCollection.ts`) é o ponto único que as quatro
+decisões consultam; separadas, elas divergiriam. Processos declara `parentEntity: 'contracts'`,
+`parentFieldKey: 'contractId'`, `parentRelation: 'related'` — o que também torna a dependência
+Processo → Contrato explícita, na mesma forma longa que já ligava Processo a Pessoa.
+
+**O que mudou para o usuário:** a aba "Processos" do contrato deixou de ter o seletor "Vincular um
+processo". Ligar um processo a um contrato é preencher o campo **Contrato** no próprio processo — e
+criar um processo pela aba do contrato já o traz vinculado. É uma porta a menos para a mesma ação,
+não uma ação a menos.
+
+**Duas listas ficaram para trás de propósito:** `contractCostCenters` continua declarada no kernel,
+porque o campo "Centro de custo" do **Financeiro** — que ainda é do kernel — aponta para a mesma
+lista. Duas telas compartilhando uma lista de opções é o arranjo normal (`lookupCollection` igual),
+e não um resíduo.
+
+### Uma lista colorida não ganha item sem cor
+
+`optionsColored` dizia como as opções são LIDAS, e nada sobre como uma opção NASCE. O resultado
+aparecia no dropdown com "adicionar novo": a opção recém-criada saía sem cor nenhuma, apagada ao lado
+das que vieram declaradas pela extensão. `nextLookupOptionColor` (em `shared/styles/colorUtils.ts`)
+fecha o ciclo — a opção criada pelo usuário nasce colorida quando o campo declara `optionsColored`
+**ou** quando a lista já tem opções com cor (a lista mostra o que é, mesmo sem a declaração). A cor
+sai da paleta do tema a partir do azul, parando na primeira ainda não usada naquela lista, para que
+duas opções seguidas não saiam iguais.
 
 ### Telas fixas por Schema — piloto (Pessoas)
 

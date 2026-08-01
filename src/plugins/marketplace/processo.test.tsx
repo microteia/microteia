@@ -8,6 +8,7 @@ import { evaluateExtensionView } from '../../presentation/shared/extensions/eval
 import { UI_PAGE_POINT } from '../../presentation/shared/uiExtensionPoints';
 import type { PluginInstallation } from '../../domain/entities/PluginInstallation';
 import { brasilPlugin } from './brasil';
+import { contratoPlugin } from './contrato';
 import { pessoaPlugin } from './pessoa';
 import { processoPlugin } from './processo';
 
@@ -26,14 +27,16 @@ const installation = (pluginId: string): PluginInstallation => ({
 describe('processoPlugin', () => {
   it('carrega no host como extensão trusted, com as duas páginas de código, sem erros', () => {
     const host = createPluginHost();
-    // Processos depende de Pessoas: os campos de responsável e de polos apontam para `persons`.
+    // Processos depende de Pessoas (responsável e polos apontam para `persons`) e de Contratos
+    // (o campo "Contrato" aponta para `contracts`, e a aba de processos vive no registro dele).
     const records = [
       ...CORE_PLUGINS,
       ...installedPluginRecords(
-        [brasilPlugin, pessoaPlugin, processoPlugin],
+        [brasilPlugin, pessoaPlugin, contratoPlugin, processoPlugin],
         [
           installation(brasilPlugin.manifest.id),
           installation(pessoaPlugin.manifest.id),
+          installation(contratoPlugin.manifest.id),
           installation(processoPlugin.manifest.id),
         ],
       ),
@@ -49,9 +52,10 @@ describe('processoPlugin', () => {
     expect(pageKeys).toEqual(expect.arrayContaining(['processos', 'processo-edit']));
   });
 
-  /** A dependência é dura de propósito: sem Pessoas, os campos de responsável e polos não teriam
-   *  a quem apontar — a extensão não carrega, em vez de carregar meio funcionando. */
-  it('sem a extensão de Pessoas instalada, o host recusa carregar Processos', () => {
+  /** A dependência é dura de propósito: sem Pessoas nem Contratos, os campos de responsável, polos
+   *  e contrato não teriam a quem apontar — a extensão não carrega, em vez de carregar meio
+   *  funcionando. */
+  it('sem as extensões de que depende, o host recusa carregar Processos', () => {
     const host = createPluginHost();
     const result = host.load([
       ...CORE_PLUGINS,
@@ -78,6 +82,11 @@ describe('processoPlugin', () => {
     // O número do processo dá o subtítulo do detalhe e o rótulo da aba, como na tela nativa.
     expect(input.subtitleFieldKey).toBe('caseNumber');
     expect(input.tagCollection).toBe('caseTags');
+    // A relação com Contrato é de VISÃO: o contrato mostra os processos dele, e Processos continua
+    // uma tela de topo — com menu, busca e o campo "Contrato" no formulário.
+    expect(input.parentEntity).toBe('contracts');
+    expect(input.parentFieldKey).toBe('contractId');
+    expect(input.parentRelation).toBe('related');
 
     const byKey = new Map(input.fields.map((field) => [field.key, field]));
     expect([...byKey.keys()]).toEqual(expect.arrayContaining([

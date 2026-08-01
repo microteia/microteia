@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
 import { useScreenDefinitions } from '../../../stores/useScreenDefinitions';
 import { useRecords } from '../../../stores/useRecords';
 import { useTenant } from '../../../stores/useTenant';
@@ -32,7 +32,8 @@ import type {
 import type { TagStoreAdapter } from '../../components/ui/TagManager';
 import type { EntityDetailExtraTab, EntityDetailTab } from '../../components/layout/EntityDetailView';
 import { useTagAdapter } from '../../shared/entityScreen/useTagAdapter';
-import { isBoundScreen, screenDataCollection } from '../../../domain/services/screenDataCollection';
+import { isBoundScreen, isOwnedByParentScreen, screenDataCollection } from '../../../domain/services/screenDataCollection';
+import { autoValueFields, generateAutoValue } from '../../../domain/services/autoValue';
 import { useEntityFormFields } from '../../shared/useEntityFormFields';
 import type {
   CustomFieldValue,
@@ -211,10 +212,12 @@ export const useViewDynamicRecordViewModel = (tabKey: string): ViewDynamicRecord
   const remove = useCallback((id: string) => deleteRecord(collection, id), [deleteRecord, collection]);
 
   // Registro filho volta para o pai ao salvar. Na criação o pai vem da chave da aba; na edição,
-  // do valor já gravado no campo de vínculo.
+  // do valor já gravado no campo de vínculo. Vale só para o registro que PERTENCE ao pai — o
+  // relacionado é uma tela de topo, e sair dela ao salvar seria perder o lugar.
   const returnTabKey = useMemo(() => {
+    if (!definition || !isOwnedByParentScreen(definition)) return undefined;
     if (parentContext) return buildEntityViewTabKey(parentContext.entity, parentContext.id);
-    if (!definition?.parentEntity || !definition.parentFieldKey || !recordId) return undefined;
+    if (!definition.parentEntity || !definition.parentFieldKey || !recordId) return undefined;
     const existing = (recordsByCollection[collection] ?? []).find((r) => r.id === recordId);
     const parentId = existing?.[definition.parentFieldKey];
     return typeof parentId === 'string' && parentId
@@ -223,9 +226,10 @@ export const useViewDynamicRecordViewModel = (tabKey: string): ViewDynamicRecord
   }, [parentContext, definition, recordId, recordsByCollection, collection]);
 
   // O campo de vínculo não vai ao formulário (já vem preenchido), mas segue em `sortedFields`
-  // para ser gravado normalmente.
+  // para ser gravado normalmente. Só quando o registro PERTENCE ao pai: numa relação de visão o
+  // campo é justamente o que liga e desliga um registro do outro.
   const formFields = useMemo(
-    () => (definition?.parentFieldKey
+    () => (definition?.parentFieldKey && definition && isOwnedByParentScreen(definition)
       ? sortedFields.filter((f) => f.key !== definition.parentFieldKey)
       : sortedFields),
     [sortedFields, definition],
@@ -266,7 +270,29 @@ export const useViewDynamicRecordViewModel = (tabKey: string): ViewDynamicRecord
     returnTabKey,
   });
 
-    const sourceRecord = detail.record;
+  const sourceRecord = detail.record;
+  const { setFieldValue } = detail;
+
+  /**
+   * Os códigos gerados (`autoValue`) de um registro NOVO. Fica em efeito porque sortear é impuro, e
+   * só semeia o campo vazio: o valor sugerido continua editável, e um clone que já trouxe código
+   * preenchido não é sobrescrito. A unicidade é conferida contra os registros já carregados da
+   * coleção — a mesma garantia que a tela fixa dava.
+   */
+  const pendingAutoValues = useMemo(
+    () => (detail.isNew
+      ? autoValueFields(sortedFields).filter((field) => !readRecordText(detail.values, field.key))
+      : []),
+    [detail.isNew, detail.values, sortedFields],
+  );
+  const collectionRecords = recordsByCollection[collection];
+
+  useEffect(() => {
+    for (const field of pendingAutoValues) {
+      const taken = new Set((collectionRecords ?? []).map((record) => readRecordText(record, field.key)));
+      setFieldValue(field.key, generateAutoValue(field.pattern, taken));
+    }
+  }, [pendingAutoValues, collectionRecords, setFieldValue]);
 
   // Cabeçalho: título e subtítulo do REGISTRO, como nas telas fixas.
   const recordTitle = sourceRecord ? readRecordText(sourceRecord, titleFieldKey) : '';

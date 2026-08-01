@@ -26,14 +26,14 @@ const { useEntityFormFields } = await import('./useEntityFormFields');
 
 const definition = (overrides: Partial<ScreenDefinition>): ScreenDefinition =>
   ({
-    id: 'contracts',
+    id: 'financials',
     tenantId: 't1',
     origin: 'builtin',
-    titleSingular: 'Contrato',
-    titlePlural: 'Contratos',
-    icon: 'fileText',
+    titleSingular: 'Financeiro',
+    titlePlural: 'Financeiro',
+    icon: 'moneyDollar',
     fields: [],
-    titleFieldKey: 'title',
+    titleFieldKey: 'category',
     hasNotes: false,
     hasDocuments: false,
     hasTags: false,
@@ -63,9 +63,9 @@ beforeEach(() => {
 
 describe('useEntityFormFields', () => {
   it('sem tela do tenant, devolve os campos declarados em código', () => {
-    const { result } = renderHook(() => useEntityFormFields('contracts'));
-    const name = result.current.fields.find((f) => f.key === 'title');
-    expect(name?.label).toBe('Título');
+    const { result } = renderHook(() => useEntityFormFields('financials'));
+    const name = result.current.fields.find((f) => f.key === 'category');
+    expect(name?.label).toBe('Categoria');
     expect(name?.origin).toBe('builtin');
     expect(result.current.addedFields).toHaveLength(0);
   });
@@ -73,35 +73,35 @@ describe('useEntityFormFields', () => {
   it('um campo materializado com origin builtin sobrescreve a declaração de código', () => {
     storeState.definitions = [definition({
       fields: [field({
-        key: 'name',
-        label: 'Nome completo',
+        key: 'invoiceNumber',
+        label: 'Número da NF-e',
         origin: 'builtin',
-        logic: { onChange: 'object("apelido", name)' },
+        logic: { onChange: 'object("apelido", invoiceNumber)' },
       })],
     })];
 
-    const { result } = renderHook(() => useEntityFormFields('contracts'));
-    const name = result.current.fields.find((f) => f.key === 'name');
+    const { result } = renderHook(() => useEntityFormFields('financials'));
+    const name = result.current.fields.find((f) => f.key === 'invoiceNumber');
 
-    expect(name?.label).toBe('Nome completo');
-    expect(name?.logic?.onChange).toBe('object("apelido", name)');
+    expect(name?.label).toBe('Número da NF-e');
+    expect(name?.logic?.onChange).toBe('object("apelido", invoiceNumber)');
     // Continua sendo do kernel: não entra na lista de adicionais nem pode ser excluído.
-    expect(result.current.addedFields.some((f) => f.key === 'name')).toBe(false);
+    expect(result.current.addedFields.some((f) => f.key === 'invoiceNumber')).toBe(false);
   });
 
   it('esconde do formulário o campo marcado como oculto', () => {
     storeState.definitions = [definition({
-      fields: [field({ key: 'cpf', label: 'CPF', origin: 'builtin', hiddenInForm: true })],
+      fields: [field({ key: 'notes', label: 'Observações', origin: 'builtin', hiddenInForm: true })],
     })];
 
-    const { result } = renderHook(() => useEntityFormFields('contracts'));
-    expect(result.current.fields.some((f) => f.key === 'cpf')).toBe(false);
+    const { result } = renderHook(() => useEntityFormFields('financials'));
+    expect(result.current.fields.some((f) => f.key === 'notes')).toBe(false);
   });
 
   it('campo do tenant entra na mesma lista dos fixos, ordenado pelo `order` absoluto', () => {
     storeState.definitions = [definition({ fields: [field({ key: 'apelido', order: 99 })] })];
 
-    const { result } = renderHook(() => useEntityFormFields('contracts'));
+    const { result } = renderHook(() => useEntityFormFields('financials'));
     const keys = result.current.fields.map((f) => f.key);
 
     expect(keys).toContain('apelido');
@@ -114,28 +114,28 @@ describe('useEntityFormFields', () => {
       fields: [
         field({ key: 'type', label: 'Tipo', origin: 'builtin', order: 0 }),
         field({ key: 'apelido', order: 1 }),
-        field({ key: 'name', label: 'Nome', origin: 'builtin', order: 2 }),
+        field({ key: 'amount', label: 'Valor', origin: 'builtin', order: 2 }),
       ],
     })];
 
-    const { result } = renderHook(() => useEntityFormFields('contracts'));
+    const { result } = renderHook(() => useEntityFormFields('financials'));
     const keys = result.current.fields.map((f) => f.key);
 
-    expect(keys.indexOf('apelido')).toBeLessThan(keys.indexOf('name'));
+    expect(keys.indexOf('apelido')).toBeLessThan(keys.indexOf('amount'));
     expect(keys.indexOf('type')).toBeLessThan(keys.indexOf('apelido'));
   });
 
   it('cada campo carrega a própria lista de opções, seja do kernel ou do tenant', () => {
     storeState.definitions = [definition({
-      fields: [field({ key: 'especialidade', type: 'select', lookupCollection: 'contracts_especialidade' })],
+      fields: [field({ key: 'especialidade', type: 'select', lookupCollection: 'financials_especialidade' })],
     })];
 
-    const { result } = renderHook(() => useEntityFormFields('contracts'));
+    const { result } = renderHook(() => useEntityFormFields('financials'));
     const { fields } = result.current;
 
     // O campo do tenant aponta para a lista declarada; o do kernel, para a do registro. Não existe
     // mais um índice por tela: a lista está no campo, e é isso que permite compartilhá-la.
-    expect(fields.find((f) => f.key === 'especialidade')?.lookupCollection).toBe('contracts_especialidade');
-    expect(fields.find((f) => f.key === 'type')?.lookupCollection).toBe('contractTypes');
+    expect(fields.find((f) => f.key === 'especialidade')?.lookupCollection).toBe('financials_especialidade');
+    expect(fields.find((f) => f.key === 'category')?.lookupCollection).toBe('financialCategories');
   });
 });

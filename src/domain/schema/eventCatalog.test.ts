@@ -45,6 +45,20 @@ const tenantCtx = createSchemaContext([
     ],
   },
   {
+    // Contrato também vem de extensão: coleção `contracts`, eventos `contract.*`, e a relação com
+    // Pessoa pelo nome de navegação que as automações do escritório já usam.
+    id: 'contratos',
+    collection: 'contracts',
+    eventPrefix: 'contract',
+    titleSingular: 'Contrato',
+    titleFieldKey: 'title',
+    fields: [
+      { key: 'number', label: 'Número', type: 'text', required: true, order: 0, origin: 'plugin' },
+      { key: 'title', label: 'Título', type: 'text', required: true, order: 1, origin: 'plugin' },
+      { key: 'clientId', label: 'Cliente', type: 'reference', refEntity: 'persons', refDenormKey: 'client', required: false, order: 2, origin: 'plugin' },
+    ],
+  },
+  {
     id: 'medico',
     titleSingular: 'Médico',
     titlePlural: 'Médicos',
@@ -55,31 +69,27 @@ const tenantCtx = createSchemaContext([
 
 describe('eventCatalog — derivação do registry', () => {
   it('mantém os eventos das entidades com rótulos PT-BR', () => {
-    expect(entry('contract.saved')?.label).toBe('Ao salvar: Contrato');
-    expect(entry('contract.deleted')?.label).toBe('Ao excluir: Contrato');
+    expect(entry('deadline.saved')?.label).toBe('Ao salvar: Prazo');
+    expect(entry('financial.deleted')?.label).toBe('Ao excluir: Financeiro');
     expect(entry('lookup.saved')?.label).toBe('Ao salvar: Item de Lista');
-    // Processo e Pessoa saíram do kernel: os eventos deles só existem no catálogo do escritório
-    // que instalou as extensões.
+    // Processo, Pessoa e Contrato saíram do kernel: os eventos deles só existem no catálogo do
+    // escritório que instalou as extensões.
     expect(entry('case.saved')).toBeUndefined();
     expect(entry('person.saved')).toBeUndefined();
+    expect(entry('contract.saved')).toBeUndefined();
   });
 
   it('deriva os caminhos denormalizados das FKs (fim do hardcode)', () => {
-    const contractPaths = paths('contract.saved');
-    expect(contractPaths).toEqual(
-      expect.arrayContaining(['client.id', 'client.name', 'responsible.name', 'clientId']),
-    );
+    expect(paths('deadline.saved')).toEqual(expect.arrayContaining(['case.caseNumber', 'case.title', 'case.area']));
+    expect(paths('financial.saved')).toEqual(expect.arrayContaining(['person.name', 'contract.number', 'personId']));
     // O RÓTULO do campo apontado sai do registro; com Pessoa fora dele, resta a chave crua. O
     // caminho continua resolvendo — é ele que a automação usa.
-    const contractEntry = entry('contract.saved');
-    expect(contractEntry?.fields.map((f) => f.path)).toEqual(expect.arrayContaining(['client.name']));
-    expect(paths('deadline.saved')).toEqual(expect.arrayContaining(['case.caseNumber', 'case.title', 'case.area']));
-    expect(paths('financial.saved')).toEqual(expect.arrayContaining(['person.name', 'contract.number']));
+    expect(entry('financial.saved')?.fields.map((f) => f.path)).toEqual(expect.arrayContaining(['person.name']));
   });
 
   it('inclui old apenas em eventos saved', () => {
-    expect(paths('contract.saved')).toContain('old');
-    expect(paths('contract.deleted')).not.toContain('old');
+    expect(paths('financial.saved')).toContain('old');
+    expect(paths('financial.deleted')).not.toContain('old');
   });
 
   /**
@@ -96,7 +106,7 @@ describe('eventCatalog — derivação do registry', () => {
   });
 
   it('gera eventos de nota/documento com pai denormalizado do registry', () => {
-    expect(paths('contract_note.saved')).toEqual(expect.arrayContaining(['content', 'parent.id', 'parent.number']));
+    expect(paths('deadline_note.saved')).toEqual(expect.arrayContaining(['content', 'parent.id', 'parent.type']));
     expect(paths('financial_document.deleted')).toEqual(expect.arrayContaining(['fileName', 'parent.amount']));
     expect(entry('deadline_document.saved')).toBeUndefined();
   });
@@ -120,8 +130,9 @@ describe('getWorkflowEventFields', () => {
 describe('buildWorkflowEventCatalog', () => {
   it('acrescenta um par de eventos por tela do tenant, sem duplicar as fixas', () => {
     const names = buildWorkflowEventCatalog(tenantCtx).map((e) => e.name);
-    expect(names).toEqual(expect.arrayContaining(['contract.saved', 'medico.saved', 'medico.deleted']));
+    expect(names).toEqual(expect.arrayContaining(['financial.saved', 'medico.saved', 'medico.deleted']));
     expect(names.filter((n) => n === 'person.saved')).toHaveLength(1);
+    expect(names.filter((n) => n === 'contract.saved')).toHaveLength(1);
     expect(names.filter((n) => n === 'case.saved')).toHaveLength(1);
     expect(names).not.toContain('cases.saved');
   });
@@ -164,8 +175,8 @@ describe('splitEntityEventName', () => {
   });
 
   it('não são eventos de coleção: filhos das fixas, listas e chamada de workflow', () => {
-    expect(splitEntityEventName('contract_note.saved')).toBeNull();
-    expect(splitEntityEventName('contract_document.deleted')).toBeNull();
+    expect(splitEntityEventName('deadline_note.saved')).toBeNull();
+    expect(splitEntityEventName('financial_document.deleted')).toBeNull();
     expect(splitEntityEventName('lookup.saved')).toBeNull();
     expect(splitEntityEventName('workflow.called')).toBeNull();
   });
@@ -187,8 +198,8 @@ describe('splitEntityEventName', () => {
 
 describe('eventNameToRoot / eventNameToEntityKey', () => {
   it('resolve raiz de entidade com hasOld por ação', () => {
-    expect(eventNameToRoot('contract.saved')).toMatchObject({ kind: 'entity', entityKey: 'contracts', hasOld: true });
-    expect(eventNameToRoot('contract.deleted')).toMatchObject({ hasOld: false });
+    expect(eventNameToRoot('financial.saved')).toMatchObject({ kind: 'entity', entityKey: 'financials', hasOld: true });
+    expect(eventNameToRoot('financial.deleted')).toMatchObject({ hasOld: false });
   });
 
   /**
@@ -214,7 +225,7 @@ describe('eventNameToRoot / eventNameToEntityKey', () => {
 
   it('resolve raiz de campos para eventos de sistema e lookup', () => {
     expect(eventNameToRoot('lookup.saved')?.kind).toBe('fields');
-    expect(eventNameToRoot('contract_note.saved')?.kind).toBe('fields');
+    expect(eventNameToRoot('deadline_note.saved')?.kind).toBe('fields');
     expect(eventNameToRoot('desconhecido.saved', tenantCtx)).toBeNull();
   });
 

@@ -9,7 +9,7 @@ import { computeFieldValues } from '../../../../domain/schema/recordRules';
 import { buildHydratedFieldScope } from '../../../../domain/schema/referenceScope';
 import { useRecordResolver } from '../../../shared/useRecordResolver';
 import { useFieldChangeEffects } from './useFieldChangeEffects';
-import { resolveColor, resolveFieldOptionColor } from '../../../../shared/styles/colorUtils';
+import { nextLookupOptionColor, resolveColor, resolveFieldOptionColor } from '../../../../shared/styles/colorUtils';
 import type { CustomFieldValue, FieldDefinition } from '../../../../domain/entities';
 import type { DynamicSelectOption } from '../DynamicSelect';
 import type { ReferenceOption } from '../../../hooks/useReferenceOptions';
@@ -172,9 +172,15 @@ export const useCustomFieldsSectionViewModel = (props: CustomFieldsSectionProps)
 
   const handleAddOption = useCallback(
     async (field: FieldDefinition, label: string): Promise<void> => {
-      if (field.lookupCollection) await addOption(field.lookupCollection, label);
+      if (!field.lookupCollection) return;
+      const existing = getOptions(field.lookupCollection).map((option) => option.color);
+      await addOption(
+        field.lookupCollection,
+        label,
+        nextLookupOptionColor(existing, field.optionsColored, theme),
+      );
     },
-    [addOption],
+    [addOption, getOptions, theme],
   );
 
   const handleDeleteOption = useCallback(

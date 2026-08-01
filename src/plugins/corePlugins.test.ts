@@ -24,14 +24,14 @@ const without = (pluginId: string): PluginRecord[] =>
  * de regressão da Etapa 2: se uma tela se perder no caminho, este teste acusa.
  */
 const PAGE_KEYS_ANTES_DA_MIGRACAO = [
-  'access-management', 'actions', 'add-news', 'audit-logs', 'calendar', 'contracts',
+  'access-management', 'actions', 'add-news', 'audit-logs', 'calendar',
   'dashboard', 'dashboard-pushes', 'data-function-reference', 'data-processor', 'deadlines',
   'dyn:', 'edit-news:', 'edit-workflow-step:', 'financial-dashboard', 'financials',
-  'function-reference', 'new-action', 'new-contract',
-  'new-contract:clone:', 'new-deadline', 'new-dyn:', 'new-financial', 'new-financial:clone:',
+  'function-reference', 'new-action',
+  'new-deadline', 'new-dyn:', 'new-financial', 'new-financial:clone:',
   'new-script', 'new-workflow', 'new-workflow:clone:', 'news',
   'profile', 'pushes', 'screen-builder', 'scripts', 'tenant-settings',
-  'tenant-settings:', 'view-action:', 'view-contract:', 'view-deadline:',
+  'tenant-settings:', 'view-action:', 'view-deadline:',
   'view-dyn:', 'view-financial:', 'view-news:', 'view-script:', 'view-workflow:',
   'workflows',
   // Adicionadas depois da migração (a lista é o guarda de "nenhuma tela some", não um congelamento):
@@ -39,7 +39,7 @@ const PAGE_KEYS_ANTES_DA_MIGRACAO = [
 ].sort();
 
 describe('core plugins — carga', () => {
-  it('carrega os 12 plugins internos sem nenhum diagnóstico', () => {
+  it('carrega os plugins internos sem nenhum diagnóstico', () => {
     const { result } = hostWith(CORE_PLUGINS);
     expect(result.diagnostics).toEqual([]);
     expect(result.skipped).toEqual([]);
@@ -49,7 +49,7 @@ describe('core plugins — carga', () => {
   it('carrega core.ui antes de quem depende dele', () => {
     const { result } = hostWith(CORE_PLUGINS);
     const posicao = (id: string) => result.loaded.indexOf(id);
-    expect(posicao('core.ui')).toBeLessThan(posicao('core.contracts'));
+    expect(posicao('core.ui')).toBeLessThan(posicao('core.financials'));
     expect(posicao('core.ui')).toBeLessThan(posicao('core.workspace'));
   });
 
@@ -113,7 +113,7 @@ describe('core plugins — paridade com o registro anterior', () => {
     });
 
     expect(items.map((item) => item.key)).toEqual([
-      'dashboard', 'calendar', 'contracts', 'deadlines',
+      'dashboard', 'calendar', 'deadlines',
       'financials', 'pushes', 'news', 'tenant-settings', 'audit-logs',
     ]);
   });
@@ -133,9 +133,9 @@ describe('core plugins — resolução de aba', () => {
   const pages = () => host.contributions.query(UI_PAGE_POINT);
 
   it.each([
-    ['contracts', 'ContractsView'],
-    ['view-contract:abc123', 'ViewContractView'],
-    ['new-contract:clone:abc123', 'ViewContractView'],
+    ['financials', 'FinancialsView'],
+    ['view-financial:abc123', 'ViewFinancialView'],
+    ['new-financial:clone:abc123', 'ViewFinancialView'],
     ['dyn:minha-tela', 'DynamicRecordListView'],
     ['view-dyn:minha-tela:reg1', 'ViewDynamicRecordView'],
     ['tenant-settings', 'TenantSettingsView'],
@@ -146,8 +146,8 @@ describe('core plugins — resolução de aba', () => {
   });
 
   it('prefere o prefixo mais longo quando dois casam', () => {
-    const contribution = resolvePageContribution(pages(), 'new-contract:clone:abc');
-    expect(pageMetadataOf(contribution!).keyPrefix).toBe('new-contract:clone:');
+    const contribution = resolvePageContribution(pages(), 'new-financial:clone:abc');
+    expect(pageMetadataOf(contribution!).keyPrefix).toBe('new-financial:clone:');
   });
 
   it('devolve undefined para aba desconhecida', () => {
@@ -156,32 +156,32 @@ describe('core plugins — resolução de aba', () => {
 });
 
 describe('core plugins — remoção limpa (critério de aceite da Etapa 2)', () => {
-  it('remover core.contracts some com a tela, o item de menu e o comando ⌘K', () => {
-    const { host, result } = hostWith(without('core.contracts'));
+  it('remover core.financials some com a tela, o item de menu e o comando ⌘K', () => {
+    const { host, result } = hostWith(without('core.financials'));
 
     expect(result.diagnostics).toEqual([]);
-    expect(host.isLoaded('core.contracts')).toBe(false);
+    expect(host.isLoaded('core.financials')).toBe(false);
 
     const pages = host.contributions.query(UI_PAGE_POINT);
-    expect(resolvePageContribution(pages, 'contracts')).toBeUndefined();
-    expect(resolvePageContribution(pages, 'view-contract:abc')).toBeUndefined();
+    expect(resolvePageContribution(pages, 'financials')).toBeUndefined();
+    expect(resolvePageContribution(pages, 'view-financial:abc')).toBeUndefined();
 
     const navKeys = host.contributions.query(UI_NAV_POINT).map((c) => navMetadataOf(c).key);
-    expect(navKeys).not.toContain('contracts');
+    expect(navKeys).not.toContain('financials');
 
     const commandIds = host.contributions.query(UI_COMMAND_POINT).map((c) => c.id);
-    expect(commandIds).not.toContain('contract');
+    expect(commandIds).not.toContain('financial');
 
-    expect(host.implementations.keysOf('core.contracts')).toEqual([]);
+    expect(host.implementations.keysOf('core.financials')).toEqual([]);
   });
 
   it('os demais módulos continuam intactos após a remoção', () => {
-    const { host } = hostWith(without('core.contracts'));
+    const { host } = hostWith(without('core.financials'));
     const pages = host.contributions.query(UI_PAGE_POINT);
 
-    expect(resolvePageContribution(pages, 'financials')).toBeDefined();
     expect(resolvePageContribution(pages, 'deadlines')).toBeDefined();
-    expect(host.contributions.query(UI_NAV_POINT).length).toBe(8);
+    expect(resolvePageContribution(pages, 'news')).toBeDefined();
+    expect(host.contributions.query(UI_NAV_POINT).length).toBe(7);
   });
 
   it('remover core.ui derruba todos os módulos de UI, porque ninguém declara os pontos', () => {

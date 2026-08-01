@@ -35,7 +35,23 @@ const processosScreen: SchemaScreen = {
   ],
 };
 
-const screenProvider: IScreenDefinitionProvider = fakeScreenProvider([personsScreen, processosScreen]);
+// Contrato também vem de extensão, com a lista de opções que ela declara.
+const contratosScreen: SchemaScreen = {
+  id: 'contratos',
+  collection: 'contracts',
+  eventPrefix: 'contract',
+  titleSingular: 'Contrato',
+  titleFieldKey: 'title',
+  fields: [
+    { key: 'number', label: 'Número', type: 'text', required: true, order: 0, origin: 'plugin' },
+    { key: 'title', label: 'Título', type: 'text', required: true, order: 1, origin: 'plugin' },
+  ],
+};
+
+const screenProvider: IScreenDefinitionProvider = fakeScreenProvider(
+  [personsScreen, processosScreen, contratosScreen],
+  [{ collection: 'contractTypes', label: 'Contrato: Tipo' }],
+);
 
 interface WriteCall {
   tenantId: string;

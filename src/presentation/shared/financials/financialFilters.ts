@@ -1,14 +1,14 @@
-import type { CaseRecord } from '../useCollectionRecords';
+import type { CaseRecord, ContractRecord } from '../useCollectionRecords';
 import type { DefaultTheme } from 'styled-components';
 import { getConfigColor } from '../../../shared/styles/colorUtils';
-import type { Contract, Financial, LookupOption } from '../../../domain/entities';
+import type { Financial, LookupOption } from '../../../domain/entities';
 import type { PersonRecord } from '../useCollectionRecords';
 import type { FilterDef, FilterOption, FilterToken } from '../../components/ui/CompositeFilter';
 
 export interface FinancialSearchLookups {
   cases: CaseRecord[];
   persons: PersonRecord[];
-  contracts: Contract[];
+  contracts: ContractRecord[];
 }
 
 export interface FinancialFilterOptions {
@@ -75,7 +75,7 @@ export const filterFinancialsByTokens = (financials: Financial[], tokens: Filter
   lookups.cases.forEach((c) => { caseById[c.id] = c; });
   const personById: Record<string, PersonRecord> = {};
   lookups.persons.forEach((p) => { personById[p.id] = p; });
-  const contractById: Record<string, Contract> = {};
+  const contractById: Record<string, ContractRecord> = {};
   lookups.contracts.forEach((c) => { contractById[c.id] = c; });
   const searchQ = (tokenMap['search']?.[0] ?? '').toLowerCase();
   const typeFilter = tokenMap['type'] ?? [];

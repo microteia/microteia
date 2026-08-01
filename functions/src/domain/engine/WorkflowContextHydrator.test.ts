@@ -21,6 +21,19 @@ const screens: SchemaScreen[] = [
       { key: 'tarefa', label: 'Tarefa', type: 'reference', refEntity: 'tarefas', required: false, order: 2, origin: 'design' },
     ],
   },
+  // Contrato também vem de extensão — é a tela dele que dá o segundo salto (`contract.client`).
+  {
+    id: 'contratos',
+    collection: 'contracts',
+    eventPrefix: 'contract',
+    titleSingular: 'Contrato',
+    titleFieldKey: 'title',
+    fields: [
+      { key: 'number', label: 'Número', type: 'text', required: false, order: 0, origin: 'plugin' },
+      { key: 'status', label: 'Status', type: 'text', required: false, order: 1, origin: 'plugin' },
+      { key: 'clientId', label: 'Cliente', type: 'reference', refEntity: 'persons', refDenormKey: 'client', required: false, order: 2, origin: 'plugin' },
+    ],
+  },
   {
     id: 'tarefas',
     titleSingular: 'Tarefa',

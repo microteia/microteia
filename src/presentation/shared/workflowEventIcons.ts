@@ -1,7 +1,6 @@
 import type { IconType } from 'react-icons';
 import {
   RiTeamLine,
-  RiFileTextLine,
   RiFolderLine,
   RiTimeLine,
   RiMoneyDollarCircleLine,
@@ -15,7 +14,6 @@ import type { WorkflowLookupGroup } from '../../domain/services/workflowLookupCa
 
 const ENTITY_EVENT_ICONS: Record<string, IconType> = {
   person: RiTeamLine,
-  contract: RiFileTextLine,
   case: RiFolderLine,
   deadline: RiTimeLine,
   financial: RiMoneyDollarCircleLine,
@@ -23,7 +21,6 @@ const ENTITY_EVENT_ICONS: Record<string, IconType> = {
 };
 
 const LOOKUP_GROUP_ICONS: Record<WorkflowLookupGroup, IconType> = {
-  contract: RiFileTextLine,
   deadline: RiTimeLine,
   financial: RiMoneyDollarCircleLine,
   document: RiFileCopyLine,

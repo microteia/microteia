@@ -45,3 +45,35 @@ export const resolveFieldOptionColor = (
   optionsColored: boolean | undefined,
   theme: DefaultTheme,
 ): string | undefined => (optionsColored ? resolveColor(color, theme) : undefined);
+
+/**
+ * A cor com que NASCE uma opção criada pelo usuário no próprio campo. Uma lista colorida não pode
+ * ganhar item sem cor: as opções que vieram declaradas aparecem coloridas e a recém-criada ficava
+ * apagada no meio delas.
+ *
+ * "A lista é colorida" tem duas fontes, e basta uma: o campo declarar `optionsColored` (lista ainda
+ * vazia, mas nascida colorida) ou as opções já existentes terem cor (a lista mostra o que é, mesmo
+ * que o campo não declare nada). Fora disso devolve `undefined` — inventar cor em lista sem cor
+ * mudaria a aparência de quem nunca pediu.
+ *
+ * A escolha percorre a paleta do tema a partir do azul e para na primeira cor ainda não usada na
+ * lista, para que duas opções seguidas não saiam iguais; esgotada a paleta, volta a girar. Cores
+ * declaradas como token do tema (`caseStatusWon`) entram na comparação já resolvidas.
+ */
+export const nextLookupOptionColor = (
+  existingColors: readonly (string | undefined)[],
+  optionsColored: boolean | undefined,
+  theme: DefaultTheme,
+): string | undefined => {
+  const used = new Set(
+    existingColors
+      .map((color) => resolveColor(color, theme, false))
+      .filter((color): color is string => !!color),
+  );
+  if (!optionsColored && used.size === 0) return undefined;
+
+  const palette = theme.tagColors;
+  const start = Math.max(palette.findIndex((color) => color.label === 'Azul'), 0);
+  const rotated = palette.map((_, index) => palette[(start + index) % palette.length]);
+  return (rotated.find((color) => !used.has(color.value)) ?? rotated[used.size % palette.length]).value;
+};

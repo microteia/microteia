@@ -11,6 +11,25 @@ const personsScreen: SchemaScreen = {
   fields: [{ key: 'apelido', label: 'Apelido', type: 'text', required: false, order: 0, origin: 'design' }],
 };
 
+/**
+ * Contrato vem de extensão: a coleção `contracts` é descrita por uma tela, com as relações que a
+ * consulta navega (`client.name`) e os campos que ela projeta.
+ */
+const contractsScreen: SchemaScreen = {
+  id: 'contratos',
+  collection: 'contracts',
+  eventPrefix: 'contract',
+  titleSingular: 'Contrato',
+  titleFieldKey: 'title',
+  fields: [
+    { key: 'number', label: 'Número', type: 'text', required: false, order: 0, origin: 'plugin' },
+    { key: 'title', label: 'Título', type: 'text', required: false, order: 1, origin: 'plugin' },
+    { key: 'status', label: 'Status', type: 'text', required: false, order: 2, origin: 'plugin' },
+    { key: 'clientId', label: 'Cliente', type: 'reference', refEntity: 'persons', refDenormKey: 'client', required: false, order: 3, origin: 'plugin' },
+    { key: 'contractorIds', label: 'Contratantes', type: 'reference', refEntity: 'persons', refDenormKey: 'contractor', multi: true, required: false, order: 4, origin: 'plugin' },
+  ],
+};
+
 const dynamicScreen: SchemaScreen = {
   id: 'processos',
   titleSingular: 'Processo',
@@ -18,7 +37,9 @@ const dynamicScreen: SchemaScreen = {
   fields: [{ key: 'prioridade', label: 'Prioridade', type: 'text', required: false, order: 0, origin: 'design' }],
 };
 
-const ctx = createSchemaContext([personsScreen, dynamicScreen]);
+const ctx = createSchemaContext([personsScreen, contractsScreen, dynamicScreen], [
+  { collection: 'contractTypes', label: 'Contrato: Tipo' },
+]);
 
 const spec = (overrides: Partial<QuerySpec>): QuerySpec => ({
   table: 'contracts',

@@ -20,6 +20,20 @@ const personsScreen: SchemaScreen = {
   fields: [{ key: 'apelido', label: 'Apelido', type: 'text', required: false, order: 0, origin: 'design' }],
 };
 
+// Contrato vem de extensão: é a tela que descreve a coleção consultada e a relação com Pessoa.
+const contractsScreen: SchemaScreen = {
+  id: 'contratos',
+  collection: 'contracts',
+  eventPrefix: 'contract',
+  titleSingular: 'Contrato',
+  titleFieldKey: 'title',
+  fields: [
+    { key: 'status', label: 'Status', type: 'text', required: false, order: 0, origin: 'plugin' },
+    { key: 'totalValue', label: 'Valor total', type: 'currency', required: false, order: 1, origin: 'plugin' },
+    { key: 'clientId', label: 'Cliente', type: 'reference', refEntity: 'persons', refDenormKey: 'client', required: false, order: 2, origin: 'plugin' },
+  ],
+};
+
 interface QueryCall {
   collection: string;
   equalityFilters: WorkflowEqualityFilter[];
@@ -47,7 +61,7 @@ class FakeFetcher implements IWorkflowRecordFetcher {
   }
 }
 
-const screenProvider: IScreenDefinitionProvider = fakeScreenProvider([personsScreen]);
+const screenProvider: IScreenDefinitionProvider = fakeScreenProvider([personsScreen, contractsScreen]);
 
 const logger = { info: () => {}, warn: () => {}, error: () => {} };
 

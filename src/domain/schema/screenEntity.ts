@@ -196,6 +196,8 @@ export const fieldDefinitionToNativeSpec = (field: FieldDefinition): NativeField
   if (field.options) spec.options = field.options;
   if (field.optionsAllowUserAdd) spec.optionsAllowUserAdd = true;
   if (field.optionsColored) spec.optionsColored = true;
+  if (field.defaultValue !== undefined) spec.defaultValue = field.defaultValue;
+  if (undefinedIfNull(field.autoValue)) spec.autoValue = field.autoValue as { pattern: string };
   if (undefinedIfNull(field.rules)) spec.rules = field.rules as NonNullable<FieldDefinition['rules']>;
   if (undefinedIfNull(field.logic)) spec.logic = field.logic as NonNullable<FieldDefinition['logic']>;
   if (undefinedIfNull(field.aggregation)) {
@@ -242,6 +244,8 @@ export const nativeSpecToFieldDefinition = (
   optionsAllowUserAdd: spec.optionsAllowUserAdd,
   optionsColored: spec.optionsColored,
   options: spec.options,
+  defaultValue: spec.defaultValue,
+  autoValue: spec.autoValue ?? null,
   rules: spec.rules ?? null,
   logic: spec.logic ?? null,
   aggregation: spec.aggregation ?? null,
@@ -389,7 +393,6 @@ export const RESERVED_COLLECTIONS: ReadonlySet<string> = new Set<string>([
   'plugin_installations',
   'extensions',
   'installed_extensions',
-  'contractTags',
   'financialTags',
   'notes',
   'documents',

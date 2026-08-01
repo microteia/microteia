@@ -22,6 +22,7 @@ const OUTPUT_DIR = 'extension-templates';
 const TEMPLATES = {
   'brasil.json': 'brasilPlugin',
   'pessoa.json': 'pessoaPlugin',
+  'contrato.json': 'contratoPlugin',
   'processo.json': 'processoPlugin',
   'kanban-processos.json': 'kanbanCasesPlugin',
 };

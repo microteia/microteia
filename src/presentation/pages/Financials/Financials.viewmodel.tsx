@@ -3,8 +3,7 @@ import { useTheme } from 'styled-components';
 import { useFinancialStore } from '../../../stores/useFinancialStore';
 import { CASES_COLLECTION, useCaseRecords } from '../../shared/useCollectionRecords';
 import { useOpenRecord } from '../../shared/useOpenRecord';
-import { usePersonRecords } from '../../shared/useCollectionRecords';
-import { useContractStore } from '../../../stores/useContractStore';
+import { useContractRecords, usePersonRecords } from '../../shared/useCollectionRecords';
 import { useWorkspace } from '../../../stores/useWorkspace';
 import { useNotification } from '../../../stores/useNotification';
 import { useScreenDefinitions } from '../../../stores/useScreenDefinitions';
@@ -83,7 +82,7 @@ export const useFinancialsViewModel = (): FinancialsViewModel => {
   const cases = useCaseRecords();
   const openRecord = useOpenRecord();
   const persons = usePersonRecords();
-  const { contracts } = useContractStore();
+  const contracts = useContractRecords();
   const { openTab } = useWorkspace();
   const { notify } = useNotification();
   const { getScreenFieldsFor, getDefinition } = useScreenDefinitions();

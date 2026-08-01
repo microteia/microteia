@@ -3,6 +3,7 @@ import type { ICommandPaletteProvider, CommandPaletteAppContext, CommandPaletteI
 import { buildListTabKey, buildViewTabKey } from '../../../../../shared/constants/dynamicScreenKeys';
 import { getScreenIcon } from '../../../../shared/screenIcons';
 import { resolveRecordTitle } from '../../../../../domain/services/customFieldValues';
+import { isOwnedByParentScreen } from '../../../../../domain/services/screenDataCollection';
 
 const contains = (text: string | null | undefined, query: string) =>
   !!text && text.toLowerCase().includes(query.toLowerCase());
@@ -16,7 +17,7 @@ export const DynamicRecordCommandProvider: ICommandPaletteProvider = {
     // Telas filhas existem só dentro do registro-pai: ficam fora do ⌘K, e como `screenByKey`
     // limita os registros, os filhos também não aparecem na busca.
     const enabledScreens = screenDefinitions.filter(
-      (def) => def.origin !== 'builtin' && def.enabled && !def.parentEntity,
+      (def) => def.origin !== 'builtin' && def.enabled && !isOwnedByParentScreen(def),
     );
     const screenByKey = new Map(enabledScreens.map((def) => [def.id, def]));
 

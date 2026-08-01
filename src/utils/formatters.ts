@@ -27,6 +27,18 @@ export const parseCurrencyDigits = (raw: string): number | null => {
  * usando os componentes de data locais (nunca toISOString, que desloca
  * o dia em fusos com offset negativo, ex: horário de Brasília à noite).
  */
+/**
+ * Uma data no formato que o escritório lê. Aceita `Date`, string ISO ou Timestamp já convertido —
+ * a mesma coleção tem documentos de épocas diferentes, e quem exibe não deve precisar se defender
+ * disso. Valor irreconhecível vira string vazia, nunca "Invalid Date".
+ */
+export const formatDate = (value: unknown): string => {
+  if (value === null || value === undefined || value === '') return '';
+  const date = value instanceof Date ? value : new Date(String(value));
+  if (Number.isNaN(date.getTime())) return '';
+  return date.toLocaleDateString('pt-BR');
+};
+
 export const toDateInputValue = (d: Date | null | undefined): string => {
   if (!d) return '';
   const year = d.getFullYear();

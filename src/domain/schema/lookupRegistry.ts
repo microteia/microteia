@@ -1,4 +1,4 @@
-export type LookupGroup = 'contract' | 'deadline' | 'financial' | 'document' | 'news';
+export type LookupGroup = 'deadline' | 'financial' | 'document' | 'news';
 
 export interface LookupMetadata {
   collection: string;
@@ -10,16 +10,11 @@ export interface LookupMetadata {
 const LOOKUP_LIST: LookupMetadata[] = [
   { collection: 'documentTypes', group: 'document', screenLabel: 'Documentos', entityLabel: 'Tipo' },
   { collection: 'newsCategories', group: 'news', screenLabel: 'Notícias', entityLabel: 'Categoria' },
-  { collection: 'contractTypes', group: 'contract', screenLabel: 'Contrato', entityLabel: 'Tipo' },
-  { collection: 'contractCategories', group: 'contract', screenLabel: 'Contrato', entityLabel: 'Categoria' },
-  { collection: 'contractStatuses', group: 'contract', screenLabel: 'Contrato', entityLabel: 'Status' },
-  { collection: 'contractObjects', group: 'contract', screenLabel: 'Contrato', entityLabel: 'Objeto' },
-  { collection: 'contractAdjustmentIndexes', group: 'contract', screenLabel: 'Contrato', entityLabel: 'Índice de Reajuste' },
-  { collection: 'contractAdjustmentPeriodicities', group: 'contract', screenLabel: 'Contrato', entityLabel: 'Periodicidade de Reajuste' },
-  { collection: 'contractCurrencies', group: 'contract', screenLabel: 'Contrato', entityLabel: 'Moeda' },
-  { collection: 'contractPaymentMethods', group: 'contract', screenLabel: 'Contrato', entityLabel: 'Forma de Pagamento' },
-  { collection: 'contractBanks', group: 'contract', screenLabel: 'Contrato', entityLabel: 'Banco' },
-  { collection: 'contractCostCenters', group: 'contract', screenLabel: 'Contrato', entityLabel: 'Centro de Custo' },
+  // O centro de custo é do FINANCEIRO, que é do kernel, e a extensão de Contratos aponta para a
+  // mesma lista — as duas telas compartilham as opções, como dois campos com o mesmo
+  // `lookupCollection`. Por isso ela fica, enquanto as outras nove listas de Contrato saíram junto
+  // com a entidade.
+  { collection: 'contractCostCenters', group: 'financial', screenLabel: 'Financeiro', entityLabel: 'Centro de Custo' },
   { collection: 'deadlineTypes', group: 'deadline', screenLabel: 'Prazo', entityLabel: 'Tipo' },
   { collection: 'financialCategories', group: 'financial', screenLabel: 'Financeiro', entityLabel: 'Categoria' },
   { collection: 'financialStatuses', group: 'financial', screenLabel: 'Financeiro', entityLabel: 'Status' },

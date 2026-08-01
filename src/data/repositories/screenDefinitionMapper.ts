@@ -67,6 +67,7 @@ export const mapScreenDefinition = (
   cardActionIds: (d.cardActionIds as string[] | undefined) ?? [],
   parentEntity: (d.parentEntity as string | null | undefined) ?? null,
   parentFieldKey: (d.parentFieldKey as string | null | undefined) ?? null,
+  parentRelation: (d.parentRelation as ScreenDefinition['parentRelation']) ?? null,
   ownerPluginId: (d.ownerPluginId as string | null | undefined) ?? null,
   ownerPluginIds: (d.ownerPluginIds as string[] | null | undefined) ?? null,
   sourceId: (d.sourceId as string | null | undefined) ?? null,

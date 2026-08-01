@@ -114,23 +114,9 @@ describe('deriveFormFields — financials', () => {
   });
 });
 
-describe('deriveFormFields — contracts', () => {
-  const map = byKey(deriveFormFields(emptyCtx, 'contracts'));
-
-  it('as partes são relações múltiplas para pessoas', () => {
-    expect(map.get('contractorIds')).toMatchObject({ type: 'reference', refEntity: 'persons', multi: true });
-    expect(map.get('witnessIds')).toMatchObject({ type: 'reference', refEntity: 'persons', multi: true });
-  });
-
-  it('o tipo vem de uma lista e o valor total é moeda', () => {
-    expect(map.get('type')).toMatchObject({ type: 'select', lookupCollection: 'contractTypes' });
-    expect(map.get('totalValue')?.type).toBe('currency');
-  });
-});
-
 // `ui.list.icon` é string livre: um nome errado cai no ícone de fallback silenciosamente.
 describe('todo ícone declarado em ui.list existe no catálogo', () => {
-  const ENTITIES: EntityKey[] = ['contracts', 'deadlines', 'financials'];
+  const ENTITIES: EntityKey[] = ['deadlines', 'financials'];
 
   it.each(ENTITIES)('%s', (entity) => {
     for (const row of deriveBuiltinListRows(entity)) {
@@ -140,7 +126,7 @@ describe('todo ícone declarado em ui.list existe no catálogo', () => {
 });
 
 describe('nenhuma entidade expõe o FK de etiquetas no formulário', () => {
-  it.each(['contracts', 'financials'] as const)('%s', (entity) => {
+  it.each(['financials'] as const)('%s', (entity) => {
     expect(deriveFormFields(emptyCtx, entity).some((f) => f.key === 'tagIds')).toBe(false);
   });
 });
@@ -153,8 +139,8 @@ describe('deriveListRows — linhas do card derivam de ui.list, ordenadas', () =
   });
 
   it('carrega o controle do campo, para o card formatar moeda/data', () => {
-    const rows = deriveBuiltinListRows('contracts');
-    expect(rows.find((r) => r.key === 'totalValue')?.type).toBe('currency');
+    const rows = deriveBuiltinListRows('deadlines');
+    expect(rows.find((r) => r.key === 'dueDate')?.type).toBe('date');
   });
 
   it('deriva também as relações, marcando a entidade alvo para resolver o rótulo', () => {
@@ -179,7 +165,7 @@ describe('deriveListRows — coleção sem entidade no registro', () => {
 
 describe('ui.filter vira filtro da listagem', () => {
   it('os campos que o registro marca com ui.filter chegam filtráveis', () => {
-    const fields = deriveFormFields(emptyCtx, 'contracts');
+    const fields = deriveFormFields(emptyCtx, 'financials');
     expect(fields.some((field) => field.filterable)).toBe(false);
   });
 

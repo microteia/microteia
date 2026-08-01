@@ -1,6 +1,5 @@
 import { useCallback, useMemo } from 'react';
 import { useRecords } from '../../stores/useRecords';
-import { useContractStore } from '../../stores/useContractStore';
 import { useDeadlineStore } from '../../stores/useDeadlineStore';
 import { useFinancialStore } from '../../stores/useFinancialStore';
 import type { RecordResolver } from '../../domain/schema/referenceScope';
@@ -19,19 +18,18 @@ const indexById = <T extends Identified>(items: T[]): Map<string, T> =>
  */
 export const useRecordResolver = (): RecordResolver => {
   const { recordsByCollection } = useRecords();
-  const { contracts } = useContractStore();
   const { deadlines } = useDeadlineStore();
   const { financials } = useFinancialStore();
 
-  // Só as entidades que ainda vivem em store próprio. As descritas por tela — `persons` entre elas —
-  // já estão em `recordsByCollection`, e cada uma que sai do kernel simplesmente some daqui.
+  // Só as entidades que ainda vivem em store próprio. As descritas por tela — `persons` e
+  // `contracts` entre elas — já estão em `recordsByCollection`, e cada uma que sai do kernel
+  // simplesmente some daqui.
   const nativeIndexes = useMemo(
     () => ({
-      contracts: indexById(contracts),
       deadlines: indexById(deadlines),
       financials: indexById(financials),
     }),
-    [contracts, deadlines, financials],
+    [deadlines, financials],
   );
 
   const dynamicIndexes = useMemo(() => {

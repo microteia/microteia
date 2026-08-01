@@ -31,6 +31,8 @@ const persisted: PersistedKeys = {
   cardActionIds: ['a2'],
   parentEntity: 'cases',
   parentFieldKey: 'caseId',
+  parentRelation: 'related',
+  hideFromSidebar: true,
   ownerPluginId: 'com.acme.vendas',
   ownerPluginIds: ['com.acme.vendas'],
   sourceId: 'src-123',
@@ -73,8 +75,8 @@ describe('mapScreenDefinition', () => {
   });
 
   it('a tela de uma entidade fixa é builtin, esteja ou não gravado no documento', () => {
-    expect(mapScreenDefinition('contracts', {}, 'tenant-1').origin).toBe('builtin');
-    expect(mapScreenDefinition('contracts', { origin: 'design' }, 'tenant-1').origin).toBe('builtin');
+    expect(mapScreenDefinition('financials', {}, 'tenant-1').origin).toBe('builtin');
+    expect(mapScreenDefinition('financials', { origin: 'design' }, 'tenant-1').origin).toBe('builtin');
   });
 
   it('campo sem origin herda a da tela; com ownerPluginId, é da extensão', () => {

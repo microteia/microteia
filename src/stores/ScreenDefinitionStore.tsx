@@ -9,6 +9,7 @@ import { makeGetScreenDefinitionsUseCase } from '../domain/usecases/screendefini
 import { makeSaveScreenDefinitionUseCase } from '../domain/usecases/screendefinitions/SaveScreenDefinitionUseCase';
 import { makeDeleteScreenDefinitionUseCase } from '../domain/usecases/screendefinitions/DeleteScreenDefinitionUseCase';
 import { sortFieldsByOrder } from '../domain/services/customFieldValues';
+import { isOwnedByParentScreen } from '../domain/services/screenDataCollection';
 import { setRecordRulesScreens, toSchemaScreens } from '../data/utils/recordRulesGate';
 import type { DeletionActor, FieldDefinition, ScreenDefinition } from '../domain/entities';
 
@@ -68,9 +69,9 @@ export const ScreenDefinitionStoreProvider: React.FC<{ children: React.ReactNode
 
   // Telas filhas existem só dentro do registro-pai: sem menu lateral e sem ⌘K. Elas seguem em
   // `dynamicScreens` porque o RecordStore precisa assinar seus registros e o ScreenBuilder
-  // precisa listá-las para configuração.
+  // precisa listá-las para configuração. A tela apenas RELACIONADA a um pai continua no menu.
   const sidebarScreens = useMemo(
-    () => dynamicScreens.filter((def) => !def.parentEntity && !def.hideFromSidebar),
+    () => dynamicScreens.filter((def) => !isOwnedByParentScreen(def) && !def.hideFromSidebar),
     [dynamicScreens],
   );
 

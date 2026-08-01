@@ -546,6 +546,8 @@ const UI_MODULE_DEFS = `declare module '@microteia/ui' {
     variant?: 'page' | 'embedded';
     renderSubtitle?: (record: any) => React.ReactNode;
     renderBelowHeader?: (record: any) => React.ReactNode;
+    /** Linhas acrescentadas ao começo do card — para o que a declaração de um campo não alcança. */
+    renderMetaRows?: (record: any) => { key: string; icon?: React.ReactNode; value: string }[];
     onOpenRecord?: (record: any) => void;
     onNewRecord?: () => void;
     /** Textos do estado vazio, quando a tela prefere os seus aos genéricos. */
@@ -726,6 +728,9 @@ const FORMAT_MODULE_DEFS = `declare module '@microteia/format' {
 
   /** Converte Date para string no formato ISO de input[type=date] (YYYY-MM-DD). */
   export function toDateInputValue(date: Date): string;
+
+  /** Data no formato do escritório (dd/mm/aaaa). Aceita Date ou string; inválida vira ''. */
+  export function formatDate(value: unknown): string;
 
 
 

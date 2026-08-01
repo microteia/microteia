@@ -65,11 +65,29 @@ export interface PersonRecord {
   tagIds: string[];
 }
 
+/**
+ * A forma de um CONTRATO como as telas ainda nativas (Financeiro, painéis) precisam lê-lo. Não é a
+ * declaração da entidade — essa vive na extensão que instala a tela de Contratos —, é o contrato de
+ * LEITURA de quem exibe um contrato vinculado.
+ */
+export interface ContractRecord {
+  id: string;
+  number: string;
+  title: string;
+  status: string;
+  type: string;
+  clientId: string | null;
+  tagIds: string[];
+}
+
 /** A coleção dos processos. Nomeada uma vez para que a chave não se espalhe pelas telas. */
 export const CASES_COLLECTION = 'cases';
 
 /** A coleção das pessoas. Mesmo motivo. */
 export const PERSONS_COLLECTION = 'persons';
+
+/** A coleção dos contratos. Mesmo motivo. */
+export const CONTRACTS_COLLECTION = 'contracts';
 
 const text = (value: unknown): string => (typeof value === 'string' ? value : '');
 const list = (value: unknown): string[] => (Array.isArray(value) ? value.filter((v): v is string => typeof v === 'string') : []);
@@ -129,6 +147,25 @@ export const usePersonRecords = (): PersonRecord[] => {
         tagIds: list(record.tagIds),
       }))
       .sort((a, b) => a.name.localeCompare(b.name)),
+    [records],
+  );
+};
+
+/** Os contratos na forma acima, ordenados por número — a ordem em que as telas os oferecem. */
+export const useContractRecords = (): ContractRecord[] => {
+  const records = useCollectionRecords<Record<string, unknown> & { id: string }>(CONTRACTS_COLLECTION);
+  return useMemo(
+    () => records
+      .map((record) => ({
+        id: record.id,
+        number: text(record.number),
+        title: text(record.title),
+        status: text(record.status),
+        type: text(record.type),
+        clientId: ref(record.clientId),
+        tagIds: list(record.tagIds),
+      }))
+      .sort((a, b) => a.number.localeCompare(b.number)),
     [records],
   );
 };

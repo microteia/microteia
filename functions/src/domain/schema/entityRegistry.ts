@@ -25,7 +25,6 @@ export type EntityKey = string;
 
 /** As entidades nativas do Microteia. Mantida como união só para documentar o conjunto fixo. */
 export type BuiltinEntityKey =
-  | 'contracts'
   | 'deadlines'
   | 'financials'
   | 'members'
@@ -33,11 +32,10 @@ export type BuiltinEntityKey =
   | 'news';
 
 export const BUILTIN_ENTITY_KEYS: readonly BuiltinEntityKey[] = [
-  'contracts', 'deadlines', 'financials', 'members', 'pushes', 'news',
+  'deadlines', 'financials', 'members', 'pushes', 'news',
 ] as const;
 
 export type WorkflowEntityEventPrefix =
-  | 'contract'
   | 'deadline'
   | 'financial'
   | 'push';
@@ -78,6 +76,14 @@ export interface NativeFieldSpec {
   options?: CustomFieldOption[];
   optionsAllowUserAdd?: boolean;
   optionsColored?: boolean;
+  /**
+   * Valor de partida de um registro novo. Ver `FieldDefinition.defaultValue`. O tipo é escrito por
+   * extenso (e não como `CustomFieldValue`) porque quem o declara importa deste arquivo — a seta
+   * contrária fecharia o ciclo.
+   */
+  defaultValue?: string | string[] | number | boolean | null;
+  /** Código gerado de um registro novo. Ver `FieldDefinition.autoValue`. */
+  autoValue?: { pattern: string };
   rules?: FieldRules;
   logic?: FieldLogic;
   aggregation?: FieldAggregation;
@@ -137,112 +143,6 @@ const DEADLINE_PRIORITY_OPTIONS: CustomFieldOption[] = [
 ];
 
 export const ENTITY_REGISTRY: Record<EntityKey, EntityMetadata> = {
-  contracts: {
-    key: 'contracts',
-    collection: 'contracts',
-    tagCollection: 'contractTags',
-    eventPrefix: 'contract',
-    labelSingular: 'Contrato',
-    labelPlural: 'Contratos',
-    displayNameFields: ['title', 'number'],
-    referenceDenormFields: ['number', 'title', 'type'],
-    fields: [
-      { key: 'number', label: 'Número', type: 'string', required: true,
-        ui: { section: 'Identificação', order: 0 } },
-      { key: 'title', label: 'Título', type: 'string', required: true,
-        ui: { section: 'Identificação', order: 1 } },
-      { key: 'type', label: 'Tipo', type: 'string', lookupCollection: 'contractTypes',
-        required: true, optionsAllowUserAdd: true,
-        ui: { control: 'select', section: 'Identificação', order: 2 } },
-      { key: 'category', label: 'Categoria', type: 'string', lookupCollection: 'contractCategories',
-        required: true, optionsAllowUserAdd: true,
-        ui: { control: 'select', section: 'Identificação', order: 3 } },
-      { key: 'status', label: 'Status', type: 'string', lookupCollection: 'contractStatuses',
-        required: true, optionsAllowUserAdd: true, optionsColored: true,
-        ui: { control: 'select', section: 'Identificação', order: 4 } },
-      { key: 'object', label: 'Objeto', type: 'string', lookupCollection: 'contractObjects',
-        optionsAllowUserAdd: true,
-        ui: { control: 'select', section: 'Identificação', order: 5 } },
-      { key: 'draftedAt', label: 'Data de elaboração', type: 'date',
-        ui: { section: 'Datas e vigência', order: 13 } },
-      { key: 'signedAt', label: 'Data de assinatura', type: 'date',
-        ui: { section: 'Datas e vigência', order: 14 } },
-      { key: 'effectiveStart', label: 'Início de vigência', type: 'date',
-        ui: { section: 'Datas e vigência', order: 15 } },
-      { key: 'effectiveEnd', label: 'Fim de vigência', type: 'date',
-        ui: { section: 'Datas e vigência', order: 16 } },
-      { key: 'autoRenewal', label: 'Renovação automática', type: 'boolean',
-        ui: { control: 'checkbox', section: 'Datas e vigência', order: 17, placeholder: 'Renova automaticamente' } },
-      { key: 'renewalDate', label: 'Data de renovação', type: 'date',
-        ui: { section: 'Datas e vigência', order: 18 } },
-      { key: 'terminationDate', label: 'Data de rescisão', type: 'date',
-        ui: { section: 'Datas e vigência', order: 19 } },
-      { key: 'initialValue', label: 'Valor inicial', type: 'number',
-        ui: { control: 'currency', section: 'Condições financeiras', order: 20 } },
-      { key: 'monthlyValue', label: 'Valor mensal', type: 'number',
-        ui: { control: 'currency', section: 'Condições financeiras', order: 21 } },
-      { key: 'totalValue', label: 'Valor total', type: 'number',
-        ui: { control: 'currency', section: 'Condições financeiras', order: 22, list: { icon: 'moneyDollar', order: 1 } } },
-      { key: 'adjustmentIndex', label: 'Índice de reajuste', type: 'string', lookupCollection: 'contractAdjustmentIndexes',
-        optionsAllowUserAdd: true,
-        ui: { control: 'select', section: 'Condições financeiras', order: 23 } },
-      { key: 'adjustmentPeriodicity', label: 'Periodicidade de reajuste', type: 'string', lookupCollection: 'contractAdjustmentPeriodicities',
-        optionsAllowUserAdd: true,
-        ui: { control: 'select', section: 'Condições financeiras', order: 24 } },
-      { key: 'currency', label: 'Moeda', type: 'string', lookupCollection: 'contractCurrencies',
-        optionsAllowUserAdd: true,
-        ui: { control: 'select', section: 'Condições financeiras', order: 25 } },
-      { key: 'paymentMethod', label: 'Forma de pagamento', type: 'string', lookupCollection: 'contractPaymentMethods',
-        optionsAllowUserAdd: true,
-        ui: { control: 'select', section: 'Condições financeiras', order: 26 } },
-      { key: 'dueDay', label: 'Dia de vencimento', type: 'number',
-        ui: { section: 'Condições financeiras', order: 27 } },
-      { key: 'installments', label: 'Parcelas', type: 'number',
-        ui: { section: 'Condições financeiras', order: 28 } },
-      { key: 'bank', label: 'Banco', type: 'string', lookupCollection: 'contractBanks',
-        optionsAllowUserAdd: true,
-        ui: { control: 'select', section: 'Dados bancários', order: 29 } },
-      { key: 'bankAccount', label: 'Conta bancária', type: 'string',
-        ui: { section: 'Dados bancários', order: 30, placeholder: 'Agência / número' } },
-      { key: 'pixKey', label: 'Chave PIX', type: 'string',
-        ui: { section: 'Dados bancários', order: 31 } },
-      { key: 'costCenter', label: 'Centro de custo', type: 'string', lookupCollection: 'contractCostCenters',
-        optionsAllowUserAdd: true,
-        ui: { control: 'select', section: 'Dados bancários', order: 32 } },
-    ],
-    fks: [
-      {
-        key: 'clientId',
-        label: 'Cliente',
-        targetCollection: 'persons',
-        denormKey: 'client',
-        denormalizedFields: ['name', 'type', 'email'],
-        ui: { section: 'Partes envolvidas', order: 11, placeholder: 'Selecione o cliente...' },
-      },
-      {
-        key: 'responsibleId',
-        label: 'Responsável',
-        targetCollection: 'persons',
-        denormKey: 'responsible',
-        denormalizedFields: ['name', 'type', 'email'],
-        ui: { section: 'Partes envolvidas', order: 12, placeholder: 'Selecione o responsável...' },
-      },
-      { key: 'contractorIds', label: 'Contratantes', targetCollection: 'persons', denormKey: 'contractor', multi: true,
-        ui: { section: 'Partes envolvidas', order: 6, placeholder: 'Selecione...' } },
-      { key: 'contracteeIds', label: 'Contratados', targetCollection: 'persons', denormKey: 'contractee', multi: true,
-        ui: { section: 'Partes envolvidas', order: 7, placeholder: 'Selecione...' } },
-      { key: 'witnessIds', label: 'Testemunhas', targetCollection: 'persons', denormKey: 'witness', multi: true,
-        ui: { section: 'Partes envolvidas', order: 8, placeholder: 'Selecione...' } },
-      { key: 'contractorLawyerIds', label: 'Advogados dos contratantes', targetCollection: 'persons', denormKey: 'contractorLawyer', multi: true,
-        ui: { section: 'Partes envolvidas', order: 9, placeholder: 'Selecione...' } },
-      { key: 'contracteeLawyerIds', label: 'Advogados dos contratados', targetCollection: 'persons', denormKey: 'contracteeLawyer', multi: true,
-        ui: { section: 'Partes envolvidas', order: 10, placeholder: 'Selecione...' } },
-      { key: 'tagIds', label: 'Etiquetas', targetCollection: 'contractTags', denormKey: 'tag', multi: true,
-        ui: { form: false } },
-    ],
-    supportsCustomFields: true,
-    referenceable: true,
-  },
   deadlines: {
     key: 'deadlines',
     collection: 'deadlines',

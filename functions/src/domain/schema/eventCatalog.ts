@@ -30,7 +30,6 @@ const CHANGE_TYPE_FIELD: WorkflowEventFieldOption = { path: 'changeType', label:
 const OLD_FIELD: WorkflowEventFieldOption = { path: 'old', label: 'Dados anteriores (objeto)' };
 
 const ENTITY_EVENT_ORDER: EntityKey[] = [
-  'contracts',
   'deadlines',
   'financials',
   'pushes',
@@ -168,8 +167,8 @@ const parentObjectField = (entity: EntityMetadata): NativeFieldSpec => ({
   ],
 });
 
-const NOTE_PARENTS: EntityKey[] = ['contracts', 'deadlines', 'financials'];
-const DOCUMENT_PARENTS: EntityKey[] = ['contracts', 'financials'];
+const NOTE_PARENTS: EntityKey[] = ['deadlines', 'financials'];
+const DOCUMENT_PARENTS: EntityKey[] = ['financials'];
 
 const nestedEntries = (
   parents: EntityKey[],

@@ -18,6 +18,21 @@ const ctx = createSchemaContext([
       },
     ],
   },
+  // Contrato também vem de extensão: é a tela dele que dá o segundo salto da navegação.
+  {
+    id: 'contratos',
+    collection: 'contracts',
+    eventPrefix: 'contract',
+    titleSingular: 'Contrato',
+    titleFieldKey: 'title',
+    fields: [
+      { key: 'number', label: 'Número', type: 'text', required: true, order: 0, origin: 'plugin' },
+      {
+        key: 'clientId', label: 'Cliente', type: 'reference', refEntity: 'persons',
+        refDenormKey: 'client', required: false, order: 1, origin: 'plugin',
+      },
+    ],
+  },
 ]);
 const casesRoot: PathRoot = { kind: 'entity', entityKey: 'cases', hasOld: true };
 

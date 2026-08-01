@@ -11,7 +11,7 @@ const template: ScreenModuleTemplate = {
   titleFieldKey: 'numero',
   fields: [
     { key: 'numero', label: 'Número', type: 'text', required: true, order: 0 },
-    { key: 'cliente', label: 'Cliente', type: 'reference', refEntity: 'contracts', required: true, order: 1 },
+    { key: 'cliente', label: 'Cliente', type: 'reference', refEntity: 'financials', required: true, order: 1 },
     {
       key: 'total', label: 'Total', type: 'currency', required: false, order: 2,
       aggregation: { from: 'item', via: 'venda', op: 'sum', field: 'total' },
@@ -30,7 +30,7 @@ describe('installedScreenKey', () => {
   });
 
   it('nome reservado pelo sistema nunca é reivindicado', () => {
-    expect(installedScreenKey('contracts')).toBe('contracts_2');
+    expect(installedScreenKey('financials')).toBe('financials_2');
     expect(installedScreenKey('notes')).toBe('notes_2');
   });
 
@@ -88,7 +88,7 @@ describe('materializeScreen', () => {
 
   it('reescreve aggregation.from para a tela do pacote e preserva ref ao core', () => {
     const { input } = materializeScreen(template, 'com.acme.vendas', keyMap, 'u1');
-    expect(input.fields.find((f) => f.key === 'cliente')?.refEntity).toBe('contracts');
+    expect(input.fields.find((f) => f.key === 'cliente')?.refEntity).toBe('financials');
     expect(input.fields.find((f) => f.key === 'total')?.aggregation?.from).toBe('item');
   });
 

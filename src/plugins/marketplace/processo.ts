@@ -115,7 +115,7 @@ const LOOKUPS: LookupModuleTemplate[] = [
 const PROCESSO_SCREEN: ScreenModuleTemplate = {
   key: 'processos',
   sourceId: SOURCE_ID,
-  sourceRev: 3,
+  sourceRev: 4,
   titleSingular: 'Processo',
   titlePlural: 'Processos',
   icon: 'folder',
@@ -134,6 +134,12 @@ const PROCESSO_SCREEN: ScreenModuleTemplate = {
   // Processo não é cadastro de rotina: secretária lê, advogado e admin gravam.
   writeRoles: ['admin', 'lawyer'],
   listActions: ['copyLink', 'clone', 'manageTags', 'delete'],
+  // O Contrato MOSTRA os processos ligados a ele, numa aba do registro dele. `related` (e não a
+  // posse) é o que mantém Processos uma tela de topo, com menu, busca e o campo "Contrato" no
+  // formulário — é por ele que se liga e desliga um processo de um contrato.
+  parentEntity: 'contracts',
+  parentFieldKey: 'contractId',
+  parentRelation: 'related',
   sidebarOrder: 0,
   hideFromSidebar: true,
 };
@@ -401,7 +407,7 @@ export default function startup(host) {
 export const processoPlugin: MarketplacePlugin = {
   manifest: {
     id: 'com.microteia.processo',
-    version: '2.0.0',
+    version: '2.1.0',
     kernel: '^1.0.0',
     name: 'Processos',
     description: 'A tela de Processos recriada como extensão, sobre os MESMOS processos do escritório — o caminho de migração de uma tela fixa para o modelo de extensão.',
@@ -412,6 +418,7 @@ export const processoPlugin: MarketplacePlugin = {
     dependencies: {
       'core.ui': '^1.0.0',
       'com.microteia.pessoa': { version: '^1.0.0', collections: ['persons'] },
+      'com.microteia.contrato': { version: '^1.0.0', collections: ['contracts'] },
     },
     contributes: [
       nav({ key: 'processos', label: 'Processos', icon: 'folder', order: 105 }),

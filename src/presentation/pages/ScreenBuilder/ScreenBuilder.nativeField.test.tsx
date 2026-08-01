@@ -58,14 +58,14 @@ vi.mock('../../../stores/useScreenDefinitions', () => ({
 
 const { useScreenBuilderViewModel } = await import('./ScreenBuilder.viewmodel');
 
-const contractsDefinition = (overrides: Partial<ScreenDefinition> = {}): ScreenDefinition =>
+const builtinDefinition = (overrides: Partial<ScreenDefinition> = {}): ScreenDefinition =>
   ({
-    id: 'contracts',
+    id: 'financials',
     tenantId: 't1',
     origin: 'builtin',
-    titleSingular: 'Pessoa',
-    titlePlural: 'Pessoas',
-    icon: 'user',
+    titleSingular: 'Financeiro',
+    titlePlural: 'Financeiro',
+    icon: 'moneyDollar',
     fields: [],
     titleFieldKey: '',
     hasNotes: false,
@@ -93,14 +93,14 @@ const savedField = (key: string, call = 0): FieldDefinition | undefined =>
 beforeEach(() => {
   saveDefinition.mockClear();
   notify.mockClear();
-  storeState.definition = contractsDefinition();
+  storeState.definition = builtinDefinition();
 });
 
 describe('ScreenBuilder — ajuste de campo do sistema', () => {
   it('campo do sistema salva mesmo quando o estado tripa uma validação de opções', async () => {
     const { result } = renderHook(() => useScreenBuilderViewModel());
 
-    act(() => result.current.openEditField('contracts', 'category'));
+    act(() => result.current.openEditField('financials', 'category'));
     expect(result.current.fieldModalIsNative).toBe(true);
 
     // Campo fixo do tipo seleção cujas opções vêm de um lookup — sem `staticOptions` e sem permitir
@@ -121,23 +121,23 @@ describe('ScreenBuilder — ajuste de campo do sistema', () => {
     expect(saveDefinition).toHaveBeenCalledTimes(1);
 
     const [screenKey] = saveDefinition.mock.calls[0] as unknown as [string, ScreenDefinition];
-    expect(screenKey).toBe('contracts');
+    expect(screenKey).toBe('financials');
     expect(savedField('category')).toMatchObject({ label: 'Categoria', origin: 'builtin' });
   });
 
   it('materializa a declaração INTEIRA do campo do kernel na primeira edição', async () => {
     const { result } = renderHook(() => useScreenBuilderViewModel());
 
-    act(() => result.current.openEditField('contracts', 'title'));
+    act(() => result.current.openEditField('financials', 'amount'));
     act(() => result.current.updateFieldForm({
       logicOnChange: 'object("apelido", name)',
       logicHiddenWhen: "type == 'PJ'",
     }));
     await act(async () => { await result.current.handleSaveField(); });
 
-    expect(savedField('title')).toMatchObject({
-      key: 'title',
-      label: 'Título',
+    expect(savedField('amount')).toMatchObject({
+      key: 'amount',
+      label: 'Valor',
       origin: 'builtin',
       required: true,
       logic: { hiddenWhen: "type == 'PJ'", onChange: 'object("apelido", name)' },
@@ -147,53 +147,53 @@ describe('ScreenBuilder — ajuste de campo do sistema', () => {
   it('grava regra e validação do campo do kernel — o backend lê a mesma lista', async () => {
     const { result } = renderHook(() => useScreenBuilderViewModel());
 
-    act(() => result.current.openEditField('contracts', 'number'));
+    act(() => result.current.openEditField('financials', 'invoiceNumber'));
     act(() => result.current.updateFieldForm({ logicValidate: "if(isEmpty(value), 'Obrigatório', null)" }));
     await act(async () => { await result.current.handleSaveField(); });
 
-    expect(savedField('number')?.logic?.validate).toBe("if(isEmpty(value), 'Obrigatório', null)");
+    expect(savedField('invoiceNumber')?.logic?.validate).toBe("if(isEmpty(value), 'Obrigatório', null)");
   });
 
   it('preserva os ajustes dos outros campos ao salvar um', async () => {
-    storeState.definition = contractsDefinition({
-      fields: [{ key: 'object', label: 'Objeto do contrato', type: 'text', required: false, order: 2, origin: 'builtin' }],
+    storeState.definition = builtinDefinition({
+      fields: [{ key: 'notes', label: 'Observações do lançamento', type: 'text', required: false, order: 2, origin: 'builtin' }],
     });
 
     const { result } = renderHook(() => useScreenBuilderViewModel());
-    act(() => result.current.openEditField('contracts', 'title'));
-    act(() => result.current.updateFieldForm({ label: 'Título completo' }));
+    act(() => result.current.openEditField('financials', 'amount'));
+    act(() => result.current.updateFieldForm({ label: 'Valor total' }));
     await act(async () => { await result.current.handleSaveField(); });
 
-    expect(savedField('object')?.label).toBe('Objeto do contrato');
-    expect(savedField('title')?.label).toBe('Título completo');
+    expect(savedField('notes')?.label).toBe('Observações do lançamento');
+    expect(savedField('amount')?.label).toBe('Valor total');
   });
 
   it('restaurar padrão remove só a entrada daquele campo', async () => {
-    storeState.definition = contractsDefinition({
+    storeState.definition = builtinDefinition({
       fields: [
-        { key: 'title', label: 'X', type: 'text', required: true, order: 1, origin: 'builtin' },
-        { key: 'object', label: 'Objeto do contrato', type: 'text', required: false, order: 2, origin: 'builtin' },
+        { key: 'amount', label: 'X', type: 'text', required: true, order: 1, origin: 'builtin' },
+        { key: 'notes', label: 'Observações do lançamento', type: 'text', required: false, order: 2, origin: 'builtin' },
       ],
     });
 
     const { result } = renderHook(() => useScreenBuilderViewModel());
-    await act(async () => { await result.current.restoreNativeField('contracts', 'title'); });
+    await act(async () => { await result.current.restoreNativeField('financials', 'amount'); });
 
-    expect(savedFields().map((f) => f.key)).toEqual(['object']);
+    expect(savedFields().map((f) => f.key)).toEqual(['notes']);
   });
 
   it('reordenar grava posições absolutas na mesma lista', async () => {
     const { result } = renderHook(() => useScreenBuilderViewModel());
-    await act(async () => { await result.current.moveField('contracts', 'title', 1); });
+    await act(async () => { await result.current.moveField('financials', 'amount', 1); });
 
-    const moved = savedField('title');
+    const moved = savedField('amount');
     expect(moved?.origin).toBe('builtin');
     expect(typeof moved?.order).toBe('number');
   });
 
   /** A lista exibida vem da forma canônica do schema, que não carrega tudo que a autoria guarda. */
   it('reordenar preserva os ajustes de autoria do campo movido', async () => {
-    storeState.definition = contractsDefinition({
+    storeState.definition = builtinDefinition({
       fields: [{
         key: 'apelido', label: 'Apelido', type: 'text', required: false, order: 21, origin: 'design',
         filterable: true, showInList: true, listLabel: 'Como chamar',
@@ -201,18 +201,18 @@ describe('ScreenBuilder — ajuste de campo do sistema', () => {
     });
 
     const { result } = renderHook(() => useScreenBuilderViewModel());
-    await act(async () => { await result.current.moveField('contracts', 'apelido', -1); });
+    await act(async () => { await result.current.moveField('financials', 'apelido', -1); });
 
     expect(savedField('apelido')).toMatchObject({ filterable: true, listLabel: 'Como chamar' });
   });
 
   it('campo novo entra na última posição da tela do kernel', async () => {
     const { result } = renderHook(() => useScreenBuilderViewModel());
-    act(() => result.current.selectScreen('contracts'));
+    act(() => result.current.selectScreen('financials'));
     const lastNativeOrder = (result.current.selectedScreen?.fields ?? [])
       .reduce((max, field) => Math.max(max, field.order), -1);
 
-    act(() => result.current.openCreateField('contracts'));
+    act(() => result.current.openCreateField('financials'));
     act(() => result.current.updateFieldForm({ label: 'Apelido', fieldKey: 'apelido', type: 'text' }));
     await act(async () => { await result.current.handleSaveField(); });
 
@@ -221,13 +221,13 @@ describe('ScreenBuilder — ajuste de campo do sistema', () => {
   });
 
   it('distingue campo do kernel de campo do usuário pela origem', () => {
-    storeState.definition = contractsDefinition({
+    storeState.definition = builtinDefinition({
       fields: [{ key: 'apelido', label: 'Apelido', type: 'text', required: false, order: 0, origin: 'design' }],
     });
 
     const { result } = renderHook(() => useScreenBuilderViewModel());
-    expect(result.current.isNativeField('contracts', 'title')).toBe(true);
-    expect(result.current.isNativeField('contracts', 'apelido')).toBe(false);
+    expect(result.current.isNativeField('financials', 'amount')).toBe(true);
+    expect(result.current.isNativeField('financials', 'apelido')).toBe(false);
   });
 });
 
@@ -293,10 +293,10 @@ describe('ScreenBuilder — tela ligada a outra coleção', () => {
   });
 
   it('uma visão sobre coleção AINDA do kernel continua fora — a linha fixa já a configura', () => {
-    storeState.definition = boundScreen({ id: 'contratos-kanban', dataCollection: 'contracts' });
+    storeState.definition = boundScreen({ id: 'financeiro-kanban', dataCollection: 'financials' });
     const { result } = renderHook(() => useScreenBuilderViewModel());
 
-    expect(result.current.dynamicListEntries.map((entry) => entry.key)).not.toContain('contratos-kanban');
+    expect(result.current.dynamicListEntries.map((entry) => entry.key)).not.toContain('financeiro-kanban');
   });
 });
 
