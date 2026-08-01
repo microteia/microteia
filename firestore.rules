@@ -184,11 +184,164 @@ service cloud.firestore {
         allow delete: if isTenantAdmin(tenantId);
       }
 
-      // Centro de custo — do Financeiro, compartilhado com a extensão de Contratos
       match /contractCostCenters/{id} {
         allow read: if isMember(tenantId);
         allow create: if canWriteInTenant(tenantId);
         allow delete: if isTenantAdmin(tenantId);
+      }
+
+      // Tipos de prazo (lookup dinâmico por tenant) — qualquer membro com escrita cria; só admin deleta
+      match /deadlineTypes/{id} {
+        allow read: if isMember(tenantId);
+        allow create: if canWriteInTenant(tenantId);
+        allow delete: if isTenantAdmin(tenantId);
+      }
+
+      // Prazos
+      match /deadlines/{deadlineId} {
+        allow read: if isMember(tenantId);
+        allow create, update: if canWriteInTenant(tenantId);
+        allow delete: if isTenantLawyerOrAdmin(tenantId);
+      }
+
+      // Financeiro
+      match /financials/{financialId} {
+        allow read: if isMember(tenantId);
+        allow create, update: if isTenantLawyerOrAdmin(tenantId);
+        allow delete: if isTenantAdmin(tenantId);
+
+        // Documentos do lançamento financeiro — upload por qualquer membro com escrita; exclusão só admin.
+        // update só é usado para o stamp de autoria de exclusão (deletedBy*).
+        match /documents/{documentId} {
+          allow read: if isMember(tenantId);
+          allow create: if canWriteInTenant(tenantId);
+          allow update: if isTenantAdmin(tenantId)
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['deletedBy', 'deletedByName', 'deletedByPhotoURL'])
+            && request.resource.data.deletedBy == request.auth.uid;
+          allow delete: if isTenantAdmin(tenantId);
+        }
+      }
+
+      // Etiquetas de lançamentos financeiros (tenant-scoped) — qualquer membro com escrita cria; só admin deleta
+      match /financialTags/{tagId} {
+        allow read: if isMember(tenantId);
+        allow create, update: if canWriteInTenant(tenantId);
+        allow delete: if isTenantAdmin(tenantId);
+      }
+
+      // Lookups de financeiro — qualquer membro lê; qualquer membro com escrita cria; só admin deleta
+      match /financialCategories/{id} {
+        allow read: if isMember(tenantId);
+        allow create: if canWriteInTenant(tenantId);
+        allow delete: if isTenantAdmin(tenantId);
+      }
+      match /financialStatuses/{id} {
+        allow read: if isMember(tenantId);
+        allow create: if canWriteInTenant(tenantId);
+        allow delete: if isTenantAdmin(tenantId);
+      }
+
+      // Pushes do Tribunal (notificações de email processadas)
+      match /pushes/{pushId} {
+        allow read: if isMember(tenantId);
+        // Cloud Functions criam pushes (via Admin SDK, ignora estas regras)
+        // Membros podem atualizar status; updatedBy* é o carimbo de autoria (auditoria)
+        allow update: if isMember(tenantId)
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedBy', 'updatedByName', 'updatedByPhotoURL']);
+        // Stamp de autoria de exclusão (deletedBy*), gravado logo antes do delete — só quem
+        // pode de fato deletar (admin) pode gravar esse stamp.
+        allow update: if isTenantAdmin(tenantId)
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['deletedBy', 'deletedByName', 'deletedByPhotoURL'])
+          && request.resource.data.deletedBy == request.auth.uid;
+        // Somente admin pode deletar
+        allow delete: if isTenantAdmin(tenantId);
+      }
+
+      // ─── Workflow Engine (Automações) ────────────────────────────────────────
+      // Definições de automação — feature administrativa; só admin cria/edita/exclui.
+      // `steps` fica embutido no próprio documento (ver "Workflow Engine" no corpo do doc).
+      // Workflows públicos (isPublic === true) podem ser lidos por qualquer tenant autenticado
+      // para permitir cópia (ver "Workflows Públicos" no corpo do doc).
+      match /workflow_definitions/{workflowId} {
+        allow read: if request.auth != null && 
+        (isMember(tenantId) || resource.data.isPublic == true);
+        allow create, update, delete: if isTenantAdmin(tenantId);
+      }
+
+      // Scripts reutilizáveis executados pelo Step "Script" (sandbox QuickJS) — feature
+      // administrativa; só admin cria/edita/exclui. Ver "Step Script" no corpo do doc.
+      match /scripts/{scriptId} {
+        allow read: if isMember(tenantId);
+        allow create, update, delete: if isTenantAdmin(tenantId);
+      }
+
+      // Ações customizadas exibidas nas telas de dados (botão -> workflow síncrono).
+      // Todo membro lê (precisa montar os botões da tela); só admin configura.
+      // Ver "Actions Customizadas" no corpo do doc.
+      match /actions/{actionId} {
+        allow read: if isMember(tenantId);
+        allow create, update, delete: if isTenantAdmin(tenantId);
+      }
+
+      // Plugins instalados no escritório (Marketplace). Todo membro lê — o app precisa saber
+      // quais extensões estão ativas para montar contribuições; só admin instala/atualiza/remove.
+      match /plugin_installations/{pluginId} {
+        allow read: if isMember(tenantId);
+        allow create, update, delete: if isTenantAdmin(tenantId);
+      }
+
+      // Extensões PRIVADAS do escritório (criadas na tela "Criar extensão"). Todo membro lê —
+      // as ativas contribuem telas/menu no Kernel do tenant; só admin cria/edita/remove.
+      match /extensions/{extensionId} {
+        allow read: if isMember(tenantId);
+        allow create, update, delete: if isTenantAdmin(tenantId);
+      }
+
+      // Extensões INSTALADAS (cópias fiéis da área pública ou de uma privada). Todo membro lê — as
+      // ativas contribuem no Kernel; só admin instala/atualiza/desinstala. Independentes da fonte.
+      match /installed_extensions/{extensionId} {
+        allow read: if isMember(tenantId);
+        allow create, update, delete: if isTenantAdmin(tenantId);
+      }
+
+      // Event Bus do motor — qualquer membro com escrita pode publicar um evento;
+      // coleção append-only, ninguém lê/edita/exclui pelo client (só a Cloud Function
+      // onWorkflowEventCreated, via Admin SDK, que ignora estas regras).
+      match /workflow_events/{eventId} {
+        allow create: if canWriteInTenant(tenantId);
+        allow read, update, delete: if false;
+      }
+
+      // Histórico de execução — só a Cloud Function grava (Admin SDK); membros só leem.
+      match /workflow_executions/{executionId} {
+        allow read: if isMember(tenantId);
+        allow write: if false;
+      }
+
+      // ─── Listas de opções declaradas pelo tenant ─────────────────────────────
+      // O gêmeo, do lado do Firestore, do LOOKUP_REGISTRY de código. O id do documento É o nome da
+      // coleção onde as opções ficam, e é este `exists()` que autoriza a escrita nela lá embaixo.
+      match /lookupDefinitions/{lookupCollection} {
+        allow read: if isMember(tenantId);
+        allow create, update: if canWriteInTenant(tenantId);
+        allow delete: if isTenantAdmin(tenantId);
+      }
+
+      // ─── Conjuntos de etiquetas declarados pelo tenant ───────────────────────
+      // Mesmo papel de lookupDefinitions: o id do documento É o nome da coleção onde as etiquetas
+      // ficam, e é este `exists()` que autoriza a escrita nela lá embaixo.
+      match /tagDefinitions/{tagCollection} {
+        allow read: if isMember(tenantId);
+        allow create, update: if canWriteInTenant(tenantId);
+        allow delete: if isTenantAdmin(tenantId);
+      }
+
+      // ─── Telas Dinâmicas (Personalização) ────────────────────────────────────
+      // Definições de telas e campos customizados — membro lê; só admin configura
+      match /screenDefinitions/{screenId} {
+        allow read: if isMember(tenantId);
+        allow create, update, delete: if isTenantAdmin(tenantId);
+
       }
 
       // ─── Registros de qualquer tela ─────────────────────────────────────────

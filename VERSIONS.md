@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [2.4.1] — 2026-08-01
+
+- Corrigido com urgência um erro na publicação das permissões da versão anterior, que fazia toda gravação em Prazos, Financeiro, Automações, Scripts, Ações e Extensões ser recusada com "permissão insuficiente" — inclusive a instalação da própria extensão de Contratos. É necessário publicar as permissões novamente.
+
 ## [2.4.0] — 2026-08-01
 
 - **Contratos agora é uma extensão.** A tela é a mesma, com os mesmos contratos, o mesmo número, as mesmas listas de Tipo, Categoria, Status, Objeto, Banco e Centro de Custo, e as mesmas etiquetas, anotações e documentos — mas passa a ser instalada e atualizada como qualquer outra extensão do escritório. Instale na ordem **Brasil → Pessoas → Contratos → Processos**: cada uma precisa da anterior.
