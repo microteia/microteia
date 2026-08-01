@@ -1,0 +1,757 @@
+{
+  "manifest": {
+    "id": "com.microteia.financeiro",
+    "version": "1.0.0",
+    "kernel": "^1.0.0",
+    "name": "Financeiro",
+    "description": "Os lançamentos financeiros do escritório recriados como extensão, sobre os MESMOS lançamentos — a quarta entidade a sair do kernel.",
+    "publisher": {
+      "name": "Microteia"
+    },
+    "dependencies": {
+      "core.ui": "^1.0.0",
+      "com.microteia.pessoa": {
+        "version": "^1.0.0",
+        "collections": [
+          "persons"
+        ]
+      },
+      "com.microteia.contrato": {
+        "version": "^1.0.0",
+        "collections": [
+          "contracts"
+        ]
+      },
+      "com.microteia.processo": {
+        "version": "^2.0.0",
+        "collections": [
+          "cases"
+        ]
+      }
+    },
+    "contributes": [
+      {
+        "point": "ui.nav",
+        "id": "financeiro",
+        "apiVersion": "1.0.0",
+        "metadata": {
+          "key": "financeiro",
+          "label": "Financeiro",
+          "icon": "moneyDollar",
+          "order": 70
+        }
+      },
+      {
+        "point": "ui.page",
+        "id": "financeiro",
+        "apiVersion": "1.0.0",
+        "metadata": {
+          "key": "financeiro",
+          "title": "Financeiro",
+          "icon": "moneyDollar"
+        },
+        "impl": {
+          "kind": "code",
+          "key": "financeiro"
+        }
+      }
+    ]
+  },
+  "summary": "O controle financeiro do escritório: receitas e despesas com categoria, valor, vencimento, pagamento, forma, centro de custo e nota, vinculadas a pessoa, processo e contrato — com etiquetas, documentos e os gestos de registrar pagamento, estornar e cancelar.",
+  "overview": {
+    "type": "stack",
+    "gap": "lg",
+    "children": [
+      {
+        "type": "markdown",
+        "content": "A extensão **Financeiro** traz os lançamentos do escritório: cada receita ou despesa com categoria, valor, vencimento e status, ligada à pessoa, ao processo e ao contrato de origem.\n\nA listagem abre no mês corrente e mostra os totais do que está filtrado — recebido, pago, saldo e o previsto do que ainda está em aberto. Registrar pagamento, estornar e registrar cancelamento são gestos do próprio cartão.\n\nAs listas de Categoria, Status e Forma de Pagamento já vêm preenchidas e são suas; o Centro de Custo é o mesmo dos Contratos."
+      },
+      {
+        "type": "keyValue",
+        "items": [
+          {
+            "label": "Adiciona",
+            "value": "Item \"Financeiro\" no menu"
+          },
+          {
+            "label": "Cadastro",
+            "value": "14 campos, em 4 seções"
+          },
+          {
+            "label": "Por lançamento",
+            "value": "Etiquetas e documentos"
+          },
+          {
+            "label": "Quem grava",
+            "value": "Advogado e administrador"
+          }
+        ]
+      },
+      {
+        "type": "banner",
+        "message": "Remover a extensão remove a tela, nunca os lançamentos: os registros, as listas de opções e as etiquetas continuam no escritório e voltam a aparecer se ela for instalada de novo.",
+        "variant": "info"
+      }
+    ]
+  },
+  "workflows": [
+    {
+      "templateId": "wf-financeiro-pagar",
+      "name": "Registrar pagamento",
+      "description": "Marca o lançamento como Pago e carimba a data de pagamento de hoje.",
+      "eventName": "workflow.called",
+      "version": 1,
+      "condition": {
+        "kind": "AlwaysTrue"
+      },
+      "steps": [
+        {
+          "id": "montar",
+          "stepDefinitionId": "map",
+          "type": "Action",
+          "order": 0,
+          "enabled": true,
+          "configuration": {
+            "map": {
+              "kind": "Literal",
+              "value": {
+                "name": "lancamento",
+                "fields": [
+                  {
+                    "name": "id",
+                    "value": {
+                      "kind": "Expression",
+                      "expression": "event.recordId"
+                    }
+                  },
+                  {
+                    "name": "status",
+                    "value": {
+                      "kind": "Literal",
+                      "value": "Pago"
+                    }
+                  },
+                  {
+                    "name": "paymentDate",
+                    "value": {
+                      "kind": "Expression",
+                      "expression": "today()"
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "id": "gravar",
+          "stepDefinitionId": "upsert",
+          "type": "Action",
+          "order": 1,
+          "enabled": true,
+          "configuration": {
+            "upsert": {
+              "kind": "Literal",
+              "value": {
+                "table": "financials",
+                "source": "input",
+                "property": "lancamento"
+              }
+            }
+          }
+        },
+        {
+          "id": "responder",
+          "stepDefinitionId": "map",
+          "type": "Action",
+          "order": 2,
+          "enabled": true,
+          "configuration": {
+            "map": {
+              "kind": "Literal",
+              "value": {
+                "name": "",
+                "fields": [
+                  {
+                    "name": "status",
+                    "value": {
+                      "kind": "Literal",
+                      "value": "Pagamento registrado."
+                    }
+                  },
+                  {
+                    "name": "actions",
+                    "value": {
+                      "kind": "Literal",
+                      "value": [
+                        "refresh"
+                      ]
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "templateId": "wf-financeiro-estornar",
+      "name": "Estornar pagamento",
+      "description": "Devolve o lançamento para Aberto e limpa a data de pagamento.",
+      "eventName": "workflow.called",
+      "version": 1,
+      "condition": {
+        "kind": "AlwaysTrue"
+      },
+      "steps": [
+        {
+          "id": "montar",
+          "stepDefinitionId": "map",
+          "type": "Action",
+          "order": 0,
+          "enabled": true,
+          "configuration": {
+            "map": {
+              "kind": "Literal",
+              "value": {
+                "name": "lancamento",
+                "fields": [
+                  {
+                    "name": "id",
+                    "value": {
+                      "kind": "Expression",
+                      "expression": "event.recordId"
+                    }
+                  },
+                  {
+                    "name": "status",
+                    "value": {
+                      "kind": "Literal",
+                      "value": "Aberto"
+                    }
+                  },
+                  {
+                    "name": "paymentDate",
+                    "value": {
+                      "kind": "Literal",
+                      "value": null
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "id": "gravar",
+          "stepDefinitionId": "upsert",
+          "type": "Action",
+          "order": 1,
+          "enabled": true,
+          "configuration": {
+            "upsert": {
+              "kind": "Literal",
+              "value": {
+                "table": "financials",
+                "source": "input",
+                "property": "lancamento"
+              }
+            }
+          }
+        },
+        {
+          "id": "responder",
+          "stepDefinitionId": "map",
+          "type": "Action",
+          "order": 2,
+          "enabled": true,
+          "configuration": {
+            "map": {
+              "kind": "Literal",
+              "value": {
+                "name": "",
+                "fields": [
+                  {
+                    "name": "status",
+                    "value": {
+                      "kind": "Literal",
+                      "value": "Pagamento estornado."
+                    }
+                  },
+                  {
+                    "name": "actions",
+                    "value": {
+                      "kind": "Literal",
+                      "value": [
+                        "refresh"
+                      ]
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "templateId": "wf-financeiro-cancelar",
+      "name": "Registrar cancelamento",
+      "description": "Marca o lançamento como Cancelado e carimba a data de cancelamento de hoje.",
+      "eventName": "workflow.called",
+      "version": 1,
+      "condition": {
+        "kind": "AlwaysTrue"
+      },
+      "steps": [
+        {
+          "id": "montar",
+          "stepDefinitionId": "map",
+          "type": "Action",
+          "order": 0,
+          "enabled": true,
+          "configuration": {
+            "map": {
+              "kind": "Literal",
+              "value": {
+                "name": "lancamento",
+                "fields": [
+                  {
+                    "name": "id",
+                    "value": {
+                      "kind": "Expression",
+                      "expression": "event.recordId"
+                    }
+                  },
+                  {
+                    "name": "status",
+                    "value": {
+                      "kind": "Literal",
+                      "value": "Cancelado"
+                    }
+                  },
+                  {
+                    "name": "cancelDate",
+                    "value": {
+                      "kind": "Expression",
+                      "expression": "today()"
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "id": "gravar",
+          "stepDefinitionId": "upsert",
+          "type": "Action",
+          "order": 1,
+          "enabled": true,
+          "configuration": {
+            "upsert": {
+              "kind": "Literal",
+              "value": {
+                "table": "financials",
+                "source": "input",
+                "property": "lancamento"
+              }
+            }
+          }
+        },
+        {
+          "id": "responder",
+          "stepDefinitionId": "map",
+          "type": "Action",
+          "order": 2,
+          "enabled": true,
+          "configuration": {
+            "map": {
+              "kind": "Literal",
+              "value": {
+                "name": "",
+                "fields": [
+                  {
+                    "name": "status",
+                    "value": {
+                      "kind": "Literal",
+                      "value": "Cancelamento registrado."
+                    }
+                  },
+                  {
+                    "name": "actions",
+                    "value": {
+                      "kind": "Literal",
+                      "value": [
+                        "refresh"
+                      ]
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "actions": [
+    {
+      "templateId": "act-financeiro-pagar",
+      "key": "financeiro_pagar",
+      "title": "Registrar pagamento",
+      "icon": "checkboxCircle",
+      "workflowId": "wf-financeiro-pagar",
+      "hiddenWhen": "isNew or status != \"Aberto\"",
+      "danger": false,
+      "enabled": true,
+      "order": 0
+    },
+    {
+      "templateId": "act-financeiro-estornar",
+      "key": "financeiro_estornar",
+      "title": "Estornar pagamento",
+      "icon": "history",
+      "workflowId": "wf-financeiro-estornar",
+      "hiddenWhen": "isNew or status != \"Pago\"",
+      "danger": false,
+      "enabled": true,
+      "order": 1
+    },
+    {
+      "templateId": "act-financeiro-cancelar",
+      "key": "financeiro_cancelar",
+      "title": "Registrar cancelamento",
+      "icon": "closeCircle",
+      "workflowId": "wf-financeiro-cancelar",
+      "hiddenWhen": "isNew or status == \"Cancelado\"",
+      "danger": true,
+      "enabled": true,
+      "order": 2
+    }
+  ],
+  "screens": [
+    {
+      "key": "financeiro",
+      "sourceId": "microteia:financeiro",
+      "sourceRev": 1,
+      "titleSingular": "Lançamento",
+      "titlePlural": "Financeiro",
+      "icon": "moneyDollar",
+      "dataCollection": "financials",
+      "fields": [
+        {
+          "key": "type",
+          "label": "Tipo",
+          "type": "select",
+          "required": true,
+          "order": 0,
+          "section": "Lançamento",
+          "lookupCollection": "financialTypes",
+          "optionsColored": true,
+          "filterable": true,
+          "placeholder": "Selecione o tipo..."
+        },
+        {
+          "key": "category",
+          "label": "Categoria",
+          "type": "select",
+          "required": true,
+          "order": 1,
+          "section": "Lançamento",
+          "lookupCollection": "financialCategories",
+          "optionsAllowUserAdd": true,
+          "filterable": true,
+          "placeholder": "Selecione a categoria..."
+        },
+        {
+          "key": "amount",
+          "label": "Valor",
+          "type": "currency",
+          "required": true,
+          "order": 2,
+          "section": "Lançamento"
+        },
+        {
+          "key": "status",
+          "label": "Status",
+          "type": "select",
+          "required": true,
+          "order": 3,
+          "section": "Lançamento",
+          "lookupCollection": "financialStatuses",
+          "optionsAllowUserAdd": true,
+          "optionsColored": true,
+          "filterable": true,
+          "placeholder": "Selecione o status..."
+        },
+        {
+          "key": "dueDate",
+          "label": "Vencimento",
+          "type": "date",
+          "required": true,
+          "order": 4,
+          "section": "Datas",
+          "filterable": true
+        },
+        {
+          "key": "paymentDate",
+          "label": "Data de pagamento",
+          "type": "date",
+          "required": false,
+          "order": 5,
+          "section": "Datas",
+          "filterable": true
+        },
+        {
+          "key": "cancelDate",
+          "label": "Data de cancelamento",
+          "type": "date",
+          "required": false,
+          "order": 6,
+          "section": "Datas"
+        },
+        {
+          "key": "paymentMethod",
+          "label": "Forma de pagamento",
+          "type": "select",
+          "required": false,
+          "order": 7,
+          "section": "Pagamento",
+          "lookupCollection": "financialPaymentMethods",
+          "optionsAllowUserAdd": true,
+          "filterable": true,
+          "placeholder": "Selecione a forma..."
+        },
+        {
+          "key": "costCenter",
+          "label": "Centro de custo",
+          "type": "select",
+          "required": false,
+          "order": 8,
+          "section": "Pagamento",
+          "lookupCollection": "contractCostCenters",
+          "optionsAllowUserAdd": true,
+          "filterable": true,
+          "showInList": true,
+          "listIcon": "wallet",
+          "listOrder": 3
+        },
+        {
+          "key": "invoiceNumber",
+          "label": "Número da nota",
+          "type": "text",
+          "required": false,
+          "order": 9,
+          "section": "Pagamento"
+        },
+        {
+          "key": "personId",
+          "label": "Pessoa",
+          "type": "reference",
+          "required": false,
+          "order": 10,
+          "section": "Vínculos e Observações",
+          "refEntity": "persons",
+          "placeholder": "Selecione a pessoa...",
+          "filterable": true,
+          "showInList": true,
+          "listIcon": "team",
+          "listOrder": 0
+        },
+        {
+          "key": "caseId",
+          "label": "Processo",
+          "type": "reference",
+          "required": false,
+          "order": 11,
+          "section": "Vínculos e Observações",
+          "refEntity": "cases",
+          "placeholder": "Selecione o processo...",
+          "filterable": true,
+          "showInList": true,
+          "listIcon": "folder",
+          "listOrder": 1
+        },
+        {
+          "key": "contractId",
+          "label": "Contrato",
+          "type": "reference",
+          "required": false,
+          "order": 12,
+          "section": "Vínculos e Observações",
+          "refEntity": "contracts",
+          "placeholder": "Selecione o contrato...",
+          "filterable": true,
+          "showInList": true,
+          "listIcon": "fileText",
+          "listOrder": 2
+        },
+        {
+          "key": "notes",
+          "label": "Observações",
+          "type": "textarea",
+          "required": false,
+          "order": 13,
+          "section": "Vínculos e Observações"
+        }
+      ],
+      "titleFieldKey": "category",
+      "subtitleFieldKey": "type",
+      "hasNotes": false,
+      "hasDocuments": true,
+      "hasTags": true,
+      "tagCollection": "financialTags",
+      "eventPrefix": "financial",
+      "writeRoles": [
+        "admin",
+        "lawyer"
+      ],
+      "listActions": [
+        "copyLink",
+        "clone",
+        "manageTags",
+        "delete"
+      ],
+      "viewActionIds": [
+        "act-financeiro-pagar",
+        "act-financeiro-estornar",
+        "act-financeiro-cancelar"
+      ],
+      "cardActionIds": [
+        "act-financeiro-pagar",
+        "act-financeiro-estornar",
+        "act-financeiro-cancelar"
+      ],
+      "sidebarOrder": 0,
+      "hideFromSidebar": true
+    }
+  ],
+  "lookups": [
+    {
+      "collection": "financialTypes",
+      "label": "Financeiro: Tipo",
+      "options": [
+        {
+          "key": "Receita",
+          "label": "Receita",
+          "color": "revenue"
+        },
+        {
+          "key": "Despesa",
+          "label": "Despesa",
+          "color": "expense"
+        }
+      ]
+    },
+    {
+      "collection": "financialCategories",
+      "label": "Financeiro: Categoria",
+      "options": [
+        {
+          "key": "Honorários",
+          "label": "Honorários"
+        },
+        {
+          "key": "Êxito",
+          "label": "Êxito"
+        },
+        {
+          "key": "Mensalidade",
+          "label": "Mensalidade"
+        },
+        {
+          "key": "Custas Judiciais",
+          "label": "Custas Judiciais"
+        },
+        {
+          "key": "Perícia",
+          "label": "Perícia"
+        },
+        {
+          "key": "Deslocamento",
+          "label": "Deslocamento"
+        },
+        {
+          "key": "Escritório",
+          "label": "Escritório"
+        },
+        {
+          "key": "Impostos",
+          "label": "Impostos"
+        },
+        {
+          "key": "Outros",
+          "label": "Outros"
+        }
+      ]
+    },
+    {
+      "collection": "financialStatuses",
+      "label": "Financeiro: Status",
+      "options": [
+        {
+          "key": "Aberto",
+          "label": "Aberto",
+          "color": "warning"
+        },
+        {
+          "key": "Pago",
+          "label": "Pago",
+          "color": "success"
+        },
+        {
+          "key": "Cancelado",
+          "label": "Cancelado",
+          "color": "textSecondary"
+        }
+      ]
+    },
+    {
+      "collection": "financialPaymentMethods",
+      "label": "Financeiro: Forma de Pagamento",
+      "options": [
+        {
+          "key": "PIX",
+          "label": "PIX"
+        },
+        {
+          "key": "Transferência",
+          "label": "Transferência"
+        },
+        {
+          "key": "Dinheiro",
+          "label": "Dinheiro"
+        },
+        {
+          "key": "Cartão",
+          "label": "Cartão"
+        },
+        {
+          "key": "Cheque",
+          "label": "Cheque"
+        },
+        {
+          "key": "Outro",
+          "label": "Outro"
+        }
+      ]
+    }
+  ],
+  "tagLists": [
+    {
+      "collection": "financialTags",
+      "label": "Etiquetas: Financeiro"
+    }
+  ],
+  "startup": "\nimport { Icon } from '@microteia/ui';\n\nconst SOURCE_ID = 'microteia:financeiro';\nconst LIST_KEY = 'financeiro';\nconst GROUP = 'Financeiro';\n\nconst viewKey = (screen, id) => 'view-dyn:' + screen.id + ':' + id;\n\nexport default function startup(host) {\n  host.commands.register({\n    group: GROUP,\n    getItems(query, ctx) {\n      const q = String(query || '').toLowerCase().trim();\n      if (!q) return [];\n      const screen = ctx.screenDefinitions.find((s) => (s.sourceId || s.id) === SOURCE_ID);\n      if (!screen) return [];\n      const icon = <Icon name=\"moneyDollar\" size={16} />;\n      const items = [];\n      if ('novo lancamento'.indexOf(q) !== -1 || 'novo lançamento'.indexOf(q) !== -1) {\n        items.push({ id: 'financeiro:new', title: 'Novo lançamento', group: GROUP, icon, onSelect: () => { ctx.openTab('new-dyn:' + screen.id); ctx.close(); } });\n      }\n      if ('abrir financeiro'.indexOf(q) !== -1) {\n        items.push({ id: 'financeiro:list', title: 'Abrir Financeiro', group: GROUP, icon, onSelect: () => { ctx.openTab(LIST_KEY); ctx.close(); } });\n      }\n      const collection = screen.dataCollection || screen.id;\n      for (const r of ctx.records) {\n        const title = r[screen.titleFieldKey];\n        if (r.collection === collection && title && title.toLowerCase().indexOf(q) !== -1) {\n          items.push({ id: 'financeiro:' + r.id, title, subtitle: r.type || 'Lançamento', group: GROUP, icon, onSelect: () => { ctx.openTab(viewKey(screen, r.id)); ctx.close(); } });\n        }\n      }\n      return items.slice(0, 9);\n    },\n  });\n\n  host.mentions.register({\n    key: 'lancamento',\n    label: 'Lançamento',\n    description: 'Inserir link para um lançamento financeiro',\n    icon: 'moneyDollar',\n    search(query, ctx) {\n      const screen = ctx.screenDefinitions.find((s) => (s.sourceId || s.id) === SOURCE_ID);\n      if (!screen) return [];\n      const q = String(query || '').toLowerCase().trim();\n      const collection = screen.dataCollection || screen.id;\n      return ctx.records\n        .filter((r) => r.collection === collection)\n        .map((r) => ({ record: r, title: r[screen.titleFieldKey] }))\n        .filter(({ title }) => title && (!q || title.toLowerCase().indexOf(q) !== -1))\n        .slice(0, 20)\n        .map(({ record, title }) => ({ id: record.id, title, subtitle: record.type || 'Lançamento', tabKey: viewKey(screen, record.id) }));\n    },\n  });\n}\n",
+  "views": [
+    {
+      "key": "financeiro",
+      "title": "Financeiro",
+      "icon": "moneyDollar",
+      "source": "\nimport { useMemo, useState } from 'react';\nimport { styled, useTheme } from 'styled-components';\nimport { RecordListSurface, Badge, Button, InfoBanner } from '@microteia/ui';\nimport { useEntityList, useLookup, useWorkspace } from '@microteia/data';\nimport { getConfigColor } from '@microteia/theme';\nimport { formatCurrencyBRL, formatDate } from '@microteia/format';\n\nconst SOURCE_ID = 'microteia:financeiro';\nconst DASHBOARD_KEY = 'financeiro-painel';\n\nconst Header = styled.div`\n  display: flex;\n  align-items: center;\n  gap: ${({ theme }) => theme.spacing.xs};\n`;\n\nconst Totals = styled.div`\n  display: flex;\n  flex-wrap: wrap;\n  gap: ${({ theme }) => theme.spacing.lg};\n  padding: ${({ theme }) => theme.spacing.sm + ' ' + theme.spacing.xl};\n  border-bottom: 1px solid ${({ theme }) => theme.colors.border};\n  background: ${({ theme }) => theme.colors.surface};\n`;\n\nconst Total = styled.div`\n  display: flex;\n  flex-direction: column;\n  gap: 2px;\n  min-width: 0;\n`;\n\nconst TotalLabel = styled.span`\n  font-size: 10px;\n  font-weight: 600;\n  letter-spacing: 0.05em;\n  text-transform: uppercase;\n  color: ${({ theme }) => theme.colors.textMuted};\n`;\n\nconst TotalValue = styled.span`\n  font-size: ${({ theme }) => theme.fontSizes.md};\n  font-weight: 700;\n  font-family: ${({ theme }) => theme.fonts.mono};\n  color: ${({ $color, theme }) => $color || theme.colors.text};\n`;\n\nconst CardRow = styled.div`\n  display: flex;\n  align-items: center;\n  justify-content: space-between;\n  gap: ${({ theme }) => theme.spacing.sm};\n  flex-wrap: wrap;\n`;\n\nconst Amount = styled.span`\n  font-size: ${({ theme }) => theme.fontSizes.md};\n  font-weight: 700;\n  font-family: ${({ theme }) => theme.fonts.mono};\n  color: ${({ $color }) => $color};\n  white-space: nowrap;\n`;\n\nconst startOfMonth = () => {\n  const now = new Date();\n  return new Date(now.getFullYear(), now.getMonth(), 1);\n};\n\nconst endOfMonth = () => {\n  const now = new Date();\n  return new Date(now.getFullYear(), now.getMonth() + 1, 0);\n};\n\nconst iso = (date) => {\n  const pad = (n) => String(n).padStart(2, '0');\n  return date.getFullYear() + '-' + pad(date.getMonth() + 1) + '-' + pad(date.getDate());\n};\n\n// O mês corrente é a visão útil de quem abre o Financeiro: sem isso, a primeira tela é o histórico\n// inteiro do escritório.\nconst MES_CORRENTE = [\n  { key: 'dueDate', values: [iso(startOfMonth())] },\n  { key: 'dueDate:ate', values: [iso(endOfMonth())] },\n];\n\nconst sum = (records, type, status) => records\n  .filter((r) => r.type === type && r.status === status)\n  .reduce((total, r) => total + (Number(r.amount) || 0), 0);\n\nexport default function FinanceiroView() {\n  const theme = useTheme();\n  const list = useEntityList(SOURCE_ID, { defaultFilterTokens: MES_CORRENTE });\n  const statusOptions = useLookup('financialStatuses');\n  const typeOptions = useLookup('financialTypes');\n  const { openTab } = useWorkspace();\n  const [showTotals, setShowTotals] = useState(true);\n\n  const totals = useMemo(() => {\n    const records = list.filteredRecords;\n    const recebido = sum(records, 'Receita', 'Pago');\n    const pago = sum(records, 'Despesa', 'Pago');\n    const aReceber = sum(records, 'Receita', 'Aberto');\n    const aPagar = sum(records, 'Despesa', 'Aberto');\n    return { recebido, pago, saldo: recebido - pago, aReceber, aPagar, previsto: aReceber - aPagar };\n  }, [list.filteredRecords]);\n\n  if (!list.definition) {\n    return <div style={{ padding: '24px' }}><InfoBanner message='Tela \"Financeiro\" não encontrada. Instale a extensão para ativá-la.' variant=\"warning\" /></div>;\n  }\n\n  const amountColor = (record) => record.type === 'Despesa' ? theme.colors.expense : theme.colors.revenue;\n\n  const statusColor = (record) => {\n    const vencido = record.status === 'Aberto' && record.dueDate && iso(new Date()) > String(record.dueDate).slice(0, 10);\n    return vencido ? theme.colors.danger : getConfigColor(statusOptions, record.status, theme);\n  };\n\n  const renderBelowHeader = (record) => (\n    <CardRow>\n      <Badge color={statusColor(record)}>{record.status}</Badge>\n      <Amount $color={amountColor(record)}>\n        {record.type === 'Despesa' ? '-' : '+'} {formatCurrencyBRL(Number(record.amount) || 0)}\n      </Amount>\n    </CardRow>\n  );\n\n  // As três datas numa linha só: separadas, \"12/08 · 15/08\" vira duas linhas que não se explicam.\n  const renderMetaRows = (record) => {\n    const parts = [formatDate(record.dueDate)];\n    if (record.paymentDate) parts.push('pago em ' + formatDate(record.paymentDate));\n    if (record.cancelDate) parts.push('cancelado em ' + formatDate(record.cancelDate));\n    return [{ key: 'datas', value: parts.filter(Boolean).join(' · ') }];\n  };\n\n  const total = (label, value, color) => (\n    <Total>\n      <TotalLabel>{label}</TotalLabel>\n      <TotalValue $color={color}>{formatCurrencyBRL(value)}</TotalValue>\n    </Total>\n  );\n\n  const summary = showTotals ? (\n    <Totals>\n      {total('Recebido', totals.recebido, theme.colors.revenue)}\n      {total('Pago', totals.pago, theme.colors.expense)}\n      {total('Saldo', totals.saldo, totals.saldo < 0 ? theme.colors.expense : theme.colors.revenue)}\n      {total('A receber', totals.aReceber, theme.colors.textSecondary)}\n      {total('A pagar', totals.aPagar, theme.colors.textSecondary)}\n      {total('Previsto', totals.previsto, totals.previsto < 0 ? theme.colors.expense : theme.colors.revenue)}\n    </Totals>\n  ) : null;\n\n  const headerActions = (\n    <Header>\n      <Button variant=\"ghost\" onClick={() => setShowTotals((prev) => !prev)}>\n        {showTotals ? 'Ocultar totais' : 'Mostrar totais'}\n      </Button>\n      <Button variant=\"ghost\" onClick={() => openTab(DASHBOARD_KEY)}>Painel</Button>\n    </Header>\n  );\n\n  return (\n    <RecordListSurface\n      vm={list}\n      definition={list.definition}\n      renderBelowHeader={renderBelowHeader}\n      renderMetaRows={renderMetaRows}\n      headerActions={headerActions}\n      summary={summary}\n      emptyTitle=\"Nenhum lançamento encontrado\"\n      emptyActionLabel=\"Cadastrar primeiro lançamento\"\n    />\n  );\n}\n"
+    }
+  ]
+}
