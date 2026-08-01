@@ -1,26 +1,27 @@
 import { onDocumentWritten } from 'firebase-functions/v2/firestore';
 import { getDI } from '../di/container';
-import { getFlatEntityConfig } from '../../domain/services/auditableEntities';
+import { resolveFlatEntityConfig } from '../../domain/services/auditableEntities';
 import { computeChangedFields, normalizeAllFields, buildAuditText, resolveSeverity, ACTION_TITLE } from '../../domain/services/auditDiff';
 import { logAuditError } from './shared/logAuditError';
 import type { AuditAction } from '../../domain/entities/AuditLog';
 
 /**
- * Escuta qualquer escrita em `tenants/{tenantId}/{collection}/{docId}` e gera um AuditLog
- * quando a coleção está na allowlist de `getFlatEntityConfig` (persons, cases, contracts,
- * deadlines, financials, members, *Tags, pushes). Coleções fora da allowlist (lookups,
- * aiConnections, etc.) são ignoradas rapidamente. Uma entrada da allowlist pode restringir
- * quais ações audita via `auditActions` (ex: pushes só audita UPDATE/DELETE, pois a criação
- * é automática).
+ * Escuta qualquer escrita em `tenants/{tenantId}/{collection}/{docId}` e gera um AuditLog para as
+ * coleções fixas do kernel (deadlines, financials, members, *Tags, pushes) e para toda coleção de
+ * tela declarada — que se identifica pela declaração do tenant, ver `resolveFlatEntityConfig`.
+ * Coleções de infraestrutura (lookups, aiConnections, etc.) são ignoradas. Uma coleção fixa pode
+ * restringir quais ações audita via `auditActions` (ex: pushes só audita UPDATE/DELETE, pois a
+ * criação é automática).
  */
 export const auditFlatEntityChange = onDocumentWritten(
   { document: 'tenants/{tenantId}/{collection}/{docId}', region: 'southamerica-east1' },
   async (event) => {
     const { tenantId, collection, docId } = event.params;
-    const config = getFlatEntityConfig(collection);
-    if (!config) return;
 
     try {
+      const config = await resolveFlatEntityConfig(getDI().getScreenDefinitionCache(), tenantId, collection);
+      if (!config) return;
+
       const before = event.data?.before;
       const after = event.data?.after;
       const beforeExists = before?.exists ?? false;

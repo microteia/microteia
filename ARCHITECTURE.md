@@ -740,11 +740,15 @@ Em vez de uma Cloud Function por coleção monitorada (o que exigiria ~17 deploy
 
 | Handler | Trigger | Cobre |
 |---|---|---|
-| `auditFlatEntityChange` | `onDocumentWritten('tenants/{tenantId}/{collection}/{docId}')` | `persons`, `cases`, `contracts`, `deadlines`, `financials`, `members`, `personTags`, `caseTags`, `contractTags`, `financialTags`, `pushes` |
-| `auditNestedEntityChange` | `onDocumentWritten('tenants/{tenantId}/{parent}/{parentId}/{sub}/{docId}')` | `notes`/`documents` de `persons`/`cases`/`contracts` (+ `documents` de `financials`) |
+| `auditFlatEntityChange` | `onDocumentWritten('tenants/{tenantId}/{collection}/{docId}')` | `deadlines`, `financials`, `members`, `*Tags`, `pushes`, `screenDefinitions` — **e toda coleção de tela declarada** (`persons`, `cases`, `contracts`, as do Form Design…) |
+| `auditNestedEntityChange` | `onDocumentWritten('tenants/{tenantId}/{parent}/{parentId}/{sub}/{docId}')` | `notes`/`documents` de qualquer registro de tela declarada (+ `documents` de `financials`, `tags` de `screenDefinitions`) |
 | `auditTenantDeleted` | `onDocumentDeleted('tenants/{tenantId}')` | Exclusão do escritório inteiro — sempre `severity: 'CRITICAL'` |
 | `auditNewsChange` / `auditNewsCommentChange` / `auditNewsTagChange` | `onDocumentWritten('news/{docId}')` / `'newsComments/{docId}'` / `'newsTags/{docId}'` | Notícias, Comentários de Notícias e Etiquetas de Notícias — ver subseção própria abaixo |
 | `backupDeletedAuditLog` | `onDocumentDeleted('auditLogs/{logId}')` | Backup frio no Storage (ver abaixo) |
+
+**Quem dá nome à entidade auditada:** a tabela do código só descreve o que é do kernel. Para toda coleção que não é reservada nem fixa, `resolveFlatEntityConfig`/`resolveNestedEntityConfig` (`auditableEntities.ts`) resolvem a identidade pela declaração do TENANT — `resolveEntity(ctx, collection)`, a mesma resolução que a tela e a automação usam —, tirando dela o título no singular e no plural e os campos que dão nome ao registro (`displayNameFields`). É por isso que o log diz "Contrato" no dia em que Contrato deixa de ser do kernel e vira extensão; enquanto a identidade vinha de uma lista fixa, o mesmo log dizia "Registro". Sem tela que descreva a coleção (extensão desinstalada, coleção órfã), sobra o rótulo genérico. As telas vêm do `ScreenDefinitionCache` (TTL de 5 min), e só são lidas quando a coleção não é fixa.
+
+O que o log GRAVA em `entity` é a **coleção** (`contracts`, `contracts#notes` para a subcoleção), nunca o título: a coleção é o que o filtro casa e não muda quando a tela é renomeada. O rótulo é resolvido a cada exibição por `entityLabel(entity, dynamicScreens)` (`presentation/pages/AuditLogs/auditLogLabels.ts`), que também alimenta as opções do filtro por entidade (`entityFilterOptions`); `ENTITY_LABELS` continua no arquivo para os logs anteriores à migração, que guardam `Person`/`Case`/`Contract`.
 
 Uma entrada de `auditableEntities.ts` pode restringir quais ações geram log via `auditActions?: AuditAction[]`. Único caso hoje: `pushes` audita só `['UPDATE', 'DELETE']` — a criação é automática (Cloud Function do webhook do Gmail), então não é um evento administrativo digno de log; a triagem manual do status e a exclusão são.
 
@@ -1714,7 +1718,7 @@ Nota: as coleções de lista (`caseCourts`, `medico_especialidade`…) **não** 
 
 ### Auditoria e ⌘K
 
-- `screenDefinitions` está na allowlist nomeada de `functions/src/domain/services/auditableEntities.ts`. Para os REGISTROS, `getFlatEntityConfig` cai numa configuração genérica sempre que a coleção não é reservada nem tem config própria — é assim que uma tela criada em runtime passa a ser auditada sem tocar em código. O nome de exibição é heurístico (`nome`/`name`/`titulo`/`title`): o auditor não carrega o schema do tenant.
+- `screenDefinitions` está na allowlist nomeada de `functions/src/domain/services/auditableEntities.ts`. Para os REGISTROS, a configuração é derivada sempre que a coleção não é reservada nem tem config própria — é assim que uma tela criada em runtime passa a ser auditada sem tocar em código. Nome da entidade e nome do registro vêm da declaração do tenant (`resolveEntity`); a heurística antiga (`nome`/`name`/`titulo`/`title`) só age quando nenhum `displayNameField` está preenchido. Ver "Quem dá nome à entidade auditada".
 - O diff de auditoria (`auditDiff.ts`) **não achata mais nada** — os campos já estão na raiz do documento.
 - Busca no ⌘K: `DynamicRecordCommandProvider` (grupo "Telas Personalizadas") resolve o título por `titleFieldKey` e oferece "Abrir {titlePlural}" por tela; os dados entram no `CommandPaletteAppContext` via `useRecords().allRecords` e `useScreenDefinitions().definitions`.
 - **Deploy:** as entradas de allowlist e o flatten do diff exigem deploy das Cloud Functions junto do release correspondente.

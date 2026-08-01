@@ -1,7 +1,10 @@
 import type { Firestore } from 'firebase-admin/firestore';
 import type { AuditFieldDiff, IFkNameEnricherService } from '../../domain/repositories/IFkNameEnricherService';
+import type { IScreenDefinitionProvider } from '../../domain/repositories/IScreenDefinitionProvider';
+import type { SchemaContext } from '../../domain/schema/pathResolver';
 import type { EntityData } from '../../domain/services/auditDiff';
 import { ENTITY_FK_SCHEMA, type FkFieldSpec } from '../../domain/entities/entitySchemas';
+import { resolveEntity } from '../../domain/schema/screenEntity';
 import { getFlatEntityConfig } from '../../domain/services/auditableEntities';
 
 interface EntityRef {
@@ -10,23 +13,23 @@ interface EntityRef {
 }
 
 export class FkNameEnricherService implements IFkNameEnricherService {
-  constructor(private readonly db: Firestore) {}
+  constructor(
+    private readonly db: Firestore,
+    private readonly screenProvider: IScreenDefinitionProvider,
+  ) {}
 
   /**
-   * Campos `reference` que a tela do tenant declara para a coleção — indexados pela própria chave,
-   * porque moram na raiz do documento como qualquer outro campo.
+   * Campos `reference` da coleção — os fixos do código e os que a tela do tenant declara, pela MESMA
+   * resolução que a tela e a automação usam. A tela é encontrada pela coleção que ela descreve, e não
+   * pela própria chave: `contratos` descreve `contracts`.
    */
-  private async getDynamicFkSchema(tenantId: string, collection: string): Promise<Record<string, FkFieldSpec>> {
-    const snap = await this.db.doc(`tenants/${tenantId}/screenDefinitions/${collection}`).get();
-    if (!snap.exists) return {};
-
-    const fields = (snap.data()?.fields as Array<Record<string, unknown>>) ?? [];
-    const schema: Record<string, FkFieldSpec> = {};
-    for (const field of fields) {
-      if (field.type !== 'reference' || !field.refEntity) continue;
-      schema[field.key as string] = {
-        targetCollection: field.refEntity as string,
-        multi: field.multi === true,
+  private fkSchemaOf(ctx: SchemaContext, collection: string): Record<string, FkFieldSpec> {
+    const schema: Record<string, FkFieldSpec> = { ...ENTITY_FK_SCHEMA[collection] };
+    for (const field of resolveEntity(ctx, collection)?.fields ?? []) {
+      if (!field.refEntity) continue;
+      schema[field.key] = {
+        targetCollection: field.refEntity,
+        multi: field.multi === true || field.type === 'stringArray',
       };
     }
     return schema;
@@ -34,8 +37,8 @@ export class FkNameEnricherService implements IFkNameEnricherService {
 
   async enrichDiff(tenantId: string, collection: string, screenKey: string | undefined, diff: AuditFieldDiff): Promise<AuditFieldDiff> {
     void screenKey;
-    const dynamicSchema = await this.getDynamicFkSchema(tenantId, collection);
-    const schema = { ...ENTITY_FK_SCHEMA[collection], ...dynamicSchema };
+    const ctx = await this.screenProvider.getSchemaContext(tenantId);
+    const schema = this.fkSchemaOf(ctx, collection);
     if (Object.keys(schema).length === 0) return diff;
 
     const refs = new Map<string, EntityRef>();
@@ -60,7 +63,8 @@ export class FkNameEnricherService implements IFkNameEnricherService {
     snapshots.forEach((snap, i) => {
       if (!snap.exists) return;
       const ref = uniqueRefs[i];
-      const name = getFlatEntityConfig(ref.collection)?.getDisplayName(snap.data() as EntityData);
+      const config = getFlatEntityConfig(ref.collection, resolveEntity(ctx, ref.collection));
+      const name = config?.getDisplayName(snap.data() as EntityData);
       if (name) nameByRef.set(`${ref.collection}:${ref.id}`, name);
     });
 

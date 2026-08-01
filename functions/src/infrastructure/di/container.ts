@@ -332,7 +332,7 @@ class DIContainer {
 
   getFkNameEnricherService(): IFkNameEnricherService {
     if (!this.fkNameEnricherService) {
-      this.fkNameEnricherService = new FkNameEnricherService(getDb());
+      this.fkNameEnricherService = new FkNameEnricherService(getDb(), this.getScreenDefinitionCache());
     }
     return this.fkNameEnricherService;
   }

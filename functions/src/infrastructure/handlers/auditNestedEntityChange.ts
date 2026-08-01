@@ -1,6 +1,6 @@
 import { onDocumentWritten } from 'firebase-functions/v2/firestore';
 import { getDI } from '../di/container';
-import { getNestedEntityConfig } from '../../domain/services/auditableEntities';
+import { resolveNestedEntityConfig } from '../../domain/services/auditableEntities';
 import { computeChangedFields, normalizeAllFields, buildAuditText, resolveSeverity, ACTION_TITLE } from '../../domain/services/auditDiff';
 import { logAuditError } from './shared/logAuditError';
 import type { AuditAction } from '../../domain/entities/AuditLog';
@@ -14,11 +14,11 @@ export const auditNestedEntityChange = onDocumentWritten(
   { document: 'tenants/{tenantId}/{parent}/{parentId}/{sub}/{docId}', region: 'southamerica-east1' },
   async (event) => {
     const { tenantId, parent, parentId, sub, docId } = event.params;
-    const config = getNestedEntityConfig(parent, sub);
-    if (!config) return;
-
     const collectionLabel = `${parent}/${parentId}/${sub}`;
     try {
+      const config = await resolveNestedEntityConfig(getDI().getScreenDefinitionCache(), tenantId, parent, sub);
+      if (!config) return;
+
       const before = event.data?.before;
       const after = event.data?.after;
       const beforeExists = before?.exists ?? false;

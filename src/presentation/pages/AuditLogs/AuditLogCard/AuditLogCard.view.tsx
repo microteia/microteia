@@ -5,7 +5,7 @@ import { UserAvatar } from '../../../components/ui/UserAvatar';
 import { MarkdownContent } from '../../../components/ui/MarkdownContent';
 import { S, severityColor, actionColor } from './AuditLogCard.styles';
 import type { AuditLogRow } from '../AuditLogs.viewmodel';
-import { entityLabel, ACTION_LABELS } from '../auditLogLabels';
+import { ACTION_LABELS } from '../auditLogLabels';
 import type { AuditSeverity } from '../../../../domain/entities';
 
 function formatLogTime(d: Date): string {
@@ -27,7 +27,7 @@ interface AuditLogCardProps {
 }
 
 export const AuditLogCardView: React.FC<AuditLogCardProps> = ({ row, onToggleExpand, onOpenEntity }) => {
-  const { log, expanded, tenantName } = row;
+  const { log, expanded, tenantName, entityLabel } = row;
   // Há para onde ir quando o log guarda a coleção do registro (o caminho novo) ou a chave de aba
   // fixa (os logs anteriores).
   const canOpenRecord = !!log.linkCollection || !!log.entityLink;
@@ -43,7 +43,7 @@ export const AuditLogCardView: React.FC<AuditLogCardProps> = ({ row, onToggleExp
         <S.Time>{formatLogTime(log.createdAt)}</S.Time>
         <S.Summary>
           <S.ActionChip $color={actionColor(theme, log.action)}>{ACTION_LABELS[log.action]}</S.ActionChip>
-          <S.Chip>{entityLabel(log.entity)}</S.Chip>
+          <S.Chip>{entityLabel}</S.Chip>
           {tenantName && <S.Chip>{tenantName}</S.Chip>}
           <S.SummaryText>{log.title}</S.SummaryText>
         </S.Summary>

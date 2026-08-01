@@ -11,6 +11,13 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [2.7.1] — 2026-08-01
+
+- Corrigido: na **Auditoria**, as alterações dos cadastros que viraram extensões apareciam como "Registro" — "Alteração na entidade de Registros" — em vez do nome real. Cada lançamento volta a dizer Pessoa, Processo, Contrato ou o nome da tela criada no escritório, e as notas e documentos aparecem como "Nota de Contrato", "Documento de Pessoa" e assim por diante.
+- O nome da entidade na Auditoria passa a ser lido da própria tela: renomeou a tela, os lançamentos antigos já aparecem com o nome novo. Telas criadas pelo escritório também ganham nome próprio, no lugar do rótulo genérico.
+- O filtro **Entidade** da Auditoria agora lista as telas do escritório, e não só os cadastros de fábrica.
+- Corrigido: nos detalhes de uma alteração, campos que apontam para outro cadastro (o contrato de um processo, por exemplo) voltam a mostrar o nome do registro em vez do código interno.
+
 ## [2.7.0] — 2026-08-01
 
 - Corrigido: na **Auditoria**, o botão "Ir para o registro" abria uma tela vazia nos cadastros que passaram a ser extensões (Pessoas, Processos, Contratos). O registro agora é aberto na tela que o apresenta hoje — e continuará certo mesmo que a tela mude de nome amanhã.

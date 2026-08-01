@@ -5,12 +5,13 @@ import { useAuditLogAlert } from '../../../stores/useAuditLogAlert';
 import { useAuth } from '../../../stores/useAuth';
 import { useTenant } from '../../../stores/useTenant';
 import { useWorkspace } from '../../../stores/useWorkspace';
+import { useScreenDefinitions } from '../../../stores/useScreenDefinitions';
 import { useDI } from '../../../infrastructure/di/useDI';
 import { useOpenRecord } from '../../shared/useOpenRecord';
 import { makeGetAllTenantsUseCase } from '../../../domain/usecases/tenants/GetAllTenantsUseCase';
 import type { AuditLog, AuditAction, AuditSeverity, Tenant } from '../../../domain/entities';
 import type { FilterDef, FilterToken } from '../../components/ui/CompositeFilter';
-import { ENTITY_LABELS, ACTION_LABELS, SEVERITY_LABELS } from './auditLogLabels';
+import { entityLabel, entityFilterOptions, ACTION_LABELS, SEVERITY_LABELS } from './auditLogLabels';
 import { severityColor, actionColor } from './AuditLogCard/AuditLogCard.styles';
 
 const MY_OFFICE = 'MY_OFFICE';
@@ -20,6 +21,7 @@ export interface AuditLogRow {
   log: AuditLog;
   expanded: boolean;
   tenantName: string | null;
+  entityLabel: string;
 }
 
 export interface AuditLogsViewModel {
@@ -42,6 +44,7 @@ export const useAuditLogsViewModel = (): AuditLogsViewModel => {
   const { userRole } = useAuth();
   const { currentTenant, tenantRole } = useTenant();
   const { openTab } = useWorkspace();
+  const { dynamicScreens } = useScreenDefinitions();
   const openRecord = useOpenRecord();
   const { tenantRepository } = useDI();
   const { logs, loading, hasMore, error, search, loadMore } = useAuditLogStore();
@@ -69,8 +72,8 @@ export const useAuditLogsViewModel = (): AuditLogsViewModel => {
   }, [allTenants]);
 
   const entityOptions = useMemo<FilterDef['options']>(
-    () => Object.entries(ENTITY_LABELS).map(([value, label]) => ({ value, label })),
-    [],
+    () => entityFilterOptions(dynamicScreens),
+    [dynamicScreens],
   );
 
   const actionOptions = useMemo<FilterDef['options']>(
@@ -157,8 +160,9 @@ export const useAuditLogsViewModel = (): AuditLogsViewModel => {
         log,
         expanded: expandedIds.has(log.id),
         tenantName: isSystem ? (tenantsById.get(log.tenantId)?.name ?? null) : null,
+        entityLabel: entityLabel(log.entity, dynamicScreens),
       }));
-  }, [logs, tokenMap, expandedIds, isSystem, tenantsById]);
+  }, [logs, tokenMap, expandedIds, isSystem, tenantsById, dynamicScreens]);
 
   const toggleExpand = useCallback((id: string) => {
     setExpandedIds((prev) => {

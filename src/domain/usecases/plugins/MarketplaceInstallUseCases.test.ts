@@ -1060,3 +1060,33 @@ describe('Tela sobre uma coleção existente', () => {
     expect(target?.writeRoles).toEqual(['admin', 'lawyer']);
   });
 });
+
+/**
+ * O escritório que instalou Processos antes do editor próprio ficar declarado tem a tela gravada sem
+ * `recordTabPrefix` — e quem abre o registro de fora cai no detalhe genérico. Atualizar a extensão
+ * precisa reescrever a propriedade na tela que já existe, e não só nas instalações novas.
+ */
+describe('atualização de extensão reescreve as propriedades da tela existente', () => {
+  it('a tela instalada sem editor próprio ganha o prefixo na atualização', async () => {
+    const { processoPlugin } = await import('../../../plugins/marketplace/processo');
+    const d = deps();
+
+    const antigo: MarketplacePlugin = {
+      ...processoPlugin,
+      screens: (processoPlugin.screens ?? []).map((screen) => ({
+        ...screen,
+        recordTabPrefix: undefined,
+        sourceRev: (screen.sourceRev ?? 1) - 1,
+      })),
+    };
+    await applyPackageArtifacts(d, antigo, actor);
+    const instalada = (await screens.getAll('t1')).find((s) => s.id === 'processos')!;
+    expect(instalada.recordTabPrefix ?? null).toBeNull();
+
+    await applyPackageArtifacts(d, processoPlugin, actor);
+
+    const atualizada = (await screens.getAll('t1')).find((s) => s.id === 'processos')!;
+    expect(atualizada.recordTabPrefix).toBe('processo-edit:');
+    expect(atualizada.id).toBe(instalada.id);
+  });
+});
