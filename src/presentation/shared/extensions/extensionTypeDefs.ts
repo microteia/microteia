@@ -727,17 +727,9 @@ const FORMAT_MODULE_DEFS = `declare module '@microteia/format' {
   /** Converte Date para string no formato ISO de input[type=date] (YYYY-MM-DD). */
   export function toDateInputValue(date: Date): string;
 
-  /** Formata CPF (123.456.789-00). */
-  export function formatCPF(value: string): string;
 
-  /** Formata CNPJ (12.345.678/0001-00). */
-  export function formatCNPJ(value: string): string;
 
-  /** Formata telefone ((11) 91234-5678). */
-  export function formatPhone(value: string): string;
 
-  /** Formata CEP (12345-678). */
-  export function formatCEP(value: string): string;
 
   /** Remove tudo que não é número de uma string. */
   export function onlyNumbers(value: string): string;

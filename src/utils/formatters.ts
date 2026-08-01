@@ -1,20 +1,6 @@
-import {
-  formatCepBr,
-  formatCnpj,
-  formatCpf,
-  formatPhoneBr,
-  onlyDigits,
-} from '../domain/schema/fieldRules';
+import { onlyDigits } from '../domain/schema/fieldRules';
 
 export const onlyNumbers = onlyDigits;
-
-export const formatCPF = formatCpf;
-
-export const formatCNPJ = formatCnpj;
-
-export const formatPhone = formatPhoneBr;
-
-export const formatCEP = formatCepBr;
 
 const brlFormatter = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
 

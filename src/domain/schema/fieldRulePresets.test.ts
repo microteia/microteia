@@ -1,18 +1,26 @@
 import { describe, expect, it } from 'vitest';
 import { applyFormat, checkValue } from './fieldRules';
 import type { FieldRulePresetConflict } from './fieldRulePresets';
-import { BR_FIELD_RULE_PRESETS } from '../../plugins/marketplace/brasil';
 import {
   applyFormatOps,
   applyMaskTemplate,
   buildFieldRulePresetCatalog,
-  formatCepBr,
-  formatCnpj,
-  formatCpf,
-  formatPhoneBr,
   maskPlaceholder,
   onlyDigits,
 } from './fieldRulePresets';
+import {
+  BR_FIELD_RULE_PRESETS,
+  CEP_TEMPLATE,
+  CNPJ_TEMPLATE,
+  CPF_TEMPLATE,
+  PHONE_TEMPLATES,
+} from '../../plugins/marketplace/brasil';
+
+/** Os formatadores do país saíram do kernel: o que resta é o MOTOR, aplicado ao template declarado. */
+const formatCpf = (value: string): string => applyMaskTemplate(value, [CPF_TEMPLATE]);
+const formatCnpj = (value: string): string => applyMaskTemplate(value, [CNPJ_TEMPLATE]);
+const formatPhoneBr = (value: string): string => applyMaskTemplate(value, PHONE_TEMPLATES);
+const formatCepBr = (value: string): string => applyMaskTemplate(value, [CEP_TEMPLATE]);
 
 /**
  * Os formatadores que o kernel trazia chumbados, preservados aqui como ORÁCULO: o motor genérico de

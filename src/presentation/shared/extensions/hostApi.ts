@@ -28,15 +28,12 @@ import { cardActionIcon } from '../../components/layout/RecordListSurface/cardAc
 import { RecordDetailSurface } from '../../components/layout/RecordDetailSurface';
 import { Icon } from './HostIcon';
 import { resolveColor, getConfigColor, getDefaultTagColor } from '../../../shared/styles/colorUtils';
+import { applyMaskTemplate } from '../../../domain/schema/fieldRules';
 import { useEntityList } from './useEntityList';
 import { useEntityForm } from './useEntityForm';
 import { useEntityDetailVM } from './useEntityDetailVM';
 import {
-  formatCEP,
-  formatCNPJ,
-  formatCPF,
   formatCurrencyBRL,
-  formatPhone,
   onlyNumbers,
   parseCurrencyDigits,
   toDateInputValue,
@@ -143,14 +140,16 @@ const dataModule = {
   generateDeepLink,
 } as const;
 
+/**
+ * Máscara pelo MOTOR, não por documento: `applyMask('52998224725', ['###.###.###-##'])`. O kernel
+ * não conhece CPF, CNPJ nem telefone — quem os conhece é a extensão do país, que declara os
+ * templates. Uma extensão que precise mascarar declara o template que quiser.
+ */
 const formatModule = {
   formatCurrencyBRL,
   parseCurrencyDigits,
   toDateInputValue,
-  formatCPF,
-  formatCNPJ,
-  formatPhone,
-  formatCEP,
+  applyMask: applyMaskTemplate,
   onlyNumbers,
 } as const;
 

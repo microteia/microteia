@@ -233,28 +233,6 @@ export const isValidCnpj = (value: string): boolean => {
   return digit === Number(cnpj.charAt(13));
 };
 
-// ─── Templates de máscara do Brasil ───────────────────────────────────────────
-
-/**
- * Os templates e os formatadores do BRASIL. A DECLARAÇÃO que os usa vive na extensão
- * (`plugins/marketplace/brasil.ts`); o que sobra aqui são as funções — `formatCpf` e companhia
- * ainda são chamadas por `utils/formatters.ts`, e o teste-oráculo as compara com o motor genérico.
- * Saem daqui quando o último consumidor em código sair.
- */
-
-export const CPF_TEMPLATE = '###.###.###-##';
-export const CNPJ_TEMPLATE = '##.###.###/####-##';
-export const PHONE_TEMPLATES = ['(##) ####-####', '(##) #####-####'];
-export const CEP_TEMPLATE = '#####-###';
-
-export const formatCpf = (value: string): string => applyMaskTemplate(value, [CPF_TEMPLATE]);
-
-export const formatCnpj = (value: string): string => applyMaskTemplate(value, [CNPJ_TEMPLATE]);
-
-export const formatPhoneBr = (value: string): string => applyMaskTemplate(value, PHONE_TEMPLATES);
-
-export const formatCepBr = (value: string): string => applyMaskTemplate(value, [CEP_TEMPLATE]);
-
 // ─── Catálogo do núcleo ───────────────────────────────────────────────────────
 
 /**

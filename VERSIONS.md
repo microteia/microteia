@@ -11,10 +11,11 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
-## [2.3.0] — 2026-07-31
+## [2.3.1] — 2026-08-01
 
 - **Automação agora tem identificador legível.** Ao criar, você escolhe um nome curto (ex: `avisar-cliente`) — ou deixa em branco e ele é criado a partir do nome. É por ele que uma Ação escolhe qual automação executar, e ele não muda depois de criada.
 - Na tela de **Ação**, novo campo **"Ligada quando (interruptor)"**: preenchido, o botão passa a mostrar o estado do registro em verde ou vermelho, em vez de só disparar.
+- As máscaras de CPF, CNPJ, telefone e CEP saíram por completo do sistema e agora pertencem à extensão **Brasil** — inclusive o formato de cada uma. Nada muda na tela: os campos continuam com a mesma máscara de sempre.
 
 ## [2.2.0] — 2026-07-31
 

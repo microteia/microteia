@@ -1,12 +1,6 @@
 import type { MarketplacePlugin } from '../../domain/entities/MarketplacePlugin';
 import { fieldRulePresetContribution, lookupProviderContribution } from '../../domain/schema/dataExtensionPoints';
 import type { FieldRulePreset } from '../../domain/schema/fieldRulePresets';
-import {
-  CEP_TEMPLATE,
-  CNPJ_TEMPLATE,
-  CPF_TEMPLATE,
-  PHONE_TEMPLATES,
-} from '../../domain/schema/fieldRulePresets';
 import type { LookupProviderSpec } from '../../domain/schema/lookupProviderSpec';
 
 /**
@@ -24,6 +18,16 @@ import type { LookupProviderSpec } from '../../domain/schema/lookupProviderSpec'
  * As CHAVES são as mesmas de antes (`cpf`, `cnpj`, `phone`, `cep`, `viacep`), então os campos já
  * gravados continuam válidos: muda quem responde pelo significado da chave, não a chave.
  */
+/**
+ * Os TEMPLATES das máscaras do país. `#` é dígito, e o motor genérico do kernel
+ * (`applyMaskTemplate`) os aplica — ele não sabe o que é um CPF, só sabe preencher um template.
+ * Vários templates na mesma máscara alternam pelo tamanho: telefone fixo e celular, CPF e CNPJ.
+ */
+export const CPF_TEMPLATE = '###.###.###-##';
+export const CNPJ_TEMPLATE = '##.###.###/####-##';
+export const PHONE_TEMPLATES = ['(##) ####-####', '(##) #####-####'];
+export const CEP_TEMPLATE = '#####-###';
+
 /**
  * Os formatos do país. `mask` é o que o campo mostra enquanto se digita; `format`, o que fica
  * GRAVADO; `validate`, o que recusa o valor. `isCPF`/`isCNPJ` são funções do avaliador de

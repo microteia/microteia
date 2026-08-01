@@ -2048,11 +2048,20 @@ As CHAVES não mudaram (`preset: 'cpf'` segue sendo `'cpf'`), então nenhum camp
 migração — muda quem responde pelo significado da chave. Sem a extensão instalada, o campo continua
 existindo e guardando o que tem; perde a máscara, a conferência e o preenchimento por CEP.
 
-**Resíduo assumido:** `isCPF`/`isCNPJ` continuam no avaliador de expressões (`fieldExpression.ts`),
-ao lado de `length` e `upper`. O dígito verificador é ALGORITMO, e o avaliador é o runtime
-compartilhado front/back — tirá-lo de lá exige um catálogo de funções contribuído por código, com o
-tier trusted também no backend. A DECLARAÇÃO (máscara, rótulo, quando aplicar) já saiu; o par de
-funções é o que resta.
+**Os TEMPLATES também saíram.** `CPF_TEMPLATE`, `CNPJ_TEMPLATE`, `PHONE_TEMPLATES` e `CEP_TEMPLATE`
+vivem na extensão; no kernel restou `applyMaskTemplate`, que preenche um template qualquer e não sabe
+o que é um documento. Junto foram os formatadores `formatCpf`/`formatCnpj`/`formatPhoneBr`/
+`formatCepBr` e os atalhos `formatCPF`/`formatCNPJ`/`formatPhone`/`formatCEP` de `utils/formatters`.
+
+A API curada das extensões acompanhou: `@microteia/format` perdeu os quatro e ganhou
+`applyMask(value, templates)` — quem precisa de máscara declara o template que quiser, e o kernel
+segue sem conhecer país nenhum.
+
+**Resíduos assumidos:** `isCPF`/`isCNPJ` (avaliador de expressões, front) e `formatCPF`/`formatCNPJ`
+(catálogo de expressões do backend) continuam no kernel, ao lado de `length` e `upper`. São FUNÇÕES
+de um catálogo, e expandi-lo por extensão é uma frente própria — quando existir, elas saem por ela.
+O `formatPhone` local de `pages/Profile` é o outro: o telefone do próprio usuário ainda é um campo
+em código, fora do caminho declarativo.
 
 ### Uma ação pode ser um INTERRUPTOR
 

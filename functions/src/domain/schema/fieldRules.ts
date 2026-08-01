@@ -146,10 +146,6 @@ export {
   isEmptyRuleValue,
   applyMaskTemplate,
   maskPlaceholder,
-  formatCpf,
-  formatCnpj,
-  formatPhoneBr,
-  formatCepBr,
   isValidCpf,
   isValidCnpj,
 } from './fieldRulePresets';
