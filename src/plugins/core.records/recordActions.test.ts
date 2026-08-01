@@ -8,6 +8,16 @@ import type { ActionExprContext } from '../../domain/schema/actionExpression';
 import { SCREEN_ICON_KEYS } from '../../presentation/shared/screenIcons';
 import { RECORD_ACTION_METADATA, unlinkCommand } from './recordActionCommands';
 import type { RecordActionHost } from '../../presentation/shared/recordActions/recordActionHost';
+import type { ResolvedRecordAction } from '../../presentation/shared/recordActions/useRecordActions';
+import { listActionOptionsFrom } from '../../presentation/pages/ScreenBuilder/ScreenBuilder.viewmodel';
+
+/** As cinco do core.records na forma em que a tela as consome. */
+const builtinResolved = (): ResolvedRecordAction[] =>
+  Object.values(RECORD_ACTION_METADATA).map((metadata) => ({
+    slot: metadata.slot ?? metadata.key,
+    metadata,
+    run: vi.fn(),
+  }));
 
 const metadataOf = (): UiRecordActionMetadata[] => {
   const host = createPluginHost();
@@ -77,6 +87,36 @@ describe('o slot destrutivo é decidido por declaração', () => {
       (key) => !isActionHidden(RECORD_ACTION_METADATA[key].hiddenWhen, ctx({ relation })),
     );
     expect(visible).toEqual([expected]);
+  });
+});
+
+/**
+ * A porta que o ponto abriu só é porta se a CONFIGURAÇÃO da tela alcançar a ação nova. Enquanto
+ * `ScreenListAction` foi uma união fechada e as caixas do Form Design uma lista literal, uma
+ * extensão registrava a ação dela e nenhuma tela conseguia habilitá-la.
+ */
+describe('uma ação de extensão alcança a configuração da tela', () => {
+  const extensionAction: ResolvedRecordAction = {
+    slot: 'exportPdf',
+    metadata: { key: 'exportPdf', title: 'Exportar PDF', icon: 'fileText', order: 9 },
+    run: vi.fn(),
+  };
+
+  it('a caixa da aba "Listagem" sai das contribuições, não de uma lista escrita à mão', () => {
+    const options = listActionOptionsFrom([...builtinResolved(), extensionAction]);
+    expect(options.map((option) => option.key)).toContain('exportPdf');
+  });
+
+  it('excluir e desvincular são UMA caixa: dividem o slot', () => {
+    const options = listActionOptionsFrom(builtinResolved());
+    expect(options.filter((option) => option.key === 'delete')).toHaveLength(1);
+    expect(options.find((option) => option.key === 'delete')?.label).toBe('Excluir');
+  });
+
+  it('a caixa carrega a dependência de etiquetas que a ação declarou', () => {
+    const options = listActionOptionsFrom(builtinResolved());
+    expect(options.find((option) => option.key === 'manageTags')?.requiresTags).toBe(true);
+    expect(options.find((option) => option.key === 'clone')?.requiresTags).toBe(false);
   });
 });
 

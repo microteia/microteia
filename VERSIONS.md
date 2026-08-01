@@ -11,9 +11,13 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [2.6.1] — 2026-08-01
+
+- Uma ação de cartão trazida por uma **extensão** agora aparece na aba "Listagem" do Form Design, ao lado de Copiar link, Duplicar, Etiquetas e Excluir — é lá que se escolhe quais o cartão oferece. Sem isso, a ação da extensão existia mas nenhuma tela conseguia habilitá-la.
+
 ## [2.6.0] — 2026-08-01
 
-- As ações do cartão — **Copiar link, Duplicar, Etiquetas, Excluir** e a nova **Desvincular** — deixaram de ser fixas no sistema. Agora são declaradas, como qualquer recurso trazido por uma extensão: uma extensão pode acrescentar a sua ao cartão de qualquer tela.
+- As ações do cartão — **Copiar link, Duplicar, Etiquetas, Excluir** e a nova **Desvincular** — deixaram de ser fixas no sistema. Agora são declaradas, como qualquer recurso trazido por uma extensão.
 - Na tela de **Ação**, o campo "O que a ação executa" permite escolher entre um **comando do sistema** (copiar link, duplicar, etiquetas, excluir, desvincular) e um fluxo de trabalho. Comandos não precisam de automação nenhuma.
 - Nas expressões das Ações, a nova variável `relation` diz o que o registro é para o registro que o contém: nenhum, filho ou relacionado.
 

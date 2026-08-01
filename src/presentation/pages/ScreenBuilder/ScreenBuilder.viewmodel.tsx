@@ -8,6 +8,8 @@ import { useActions } from '../../../stores/useActions';
 import { ensureUniqueKey, slugifyFieldKey, sortFieldsByOrder, validateFieldKey } from '../../../domain/services/customFieldValues';
 import { getDefaultTagColor } from '../../../shared/styles/colorUtils';
 import { getScreenIconOptions } from '../../shared/screenIcons';
+import { useRecordActions } from '../../shared/recordActions/useRecordActions';
+import type { ResolvedRecordAction } from '../../shared/recordActions/useRecordActions';
 import { resolveListActions, supportedListActions } from '../../shared/listActionCapabilities';
 import type { CustomFieldMask, CustomFieldType, FieldDefinition, ScreenDefinition, ScreenListAction } from '../../../domain/entities';
 import type { AggregationOp, FieldAggregation, FieldLookupBinding, FieldLogic, FieldRules, FormatPreset, FormatRule, ValidateCheck, ValidateRule } from '../../../domain/schema/fieldRules';
@@ -84,12 +86,34 @@ export interface ScreenFormState {
   subtitleFieldKey: string;
 }
 
-export const LIST_ACTION_OPTIONS: { key: ScreenListAction; label: string }[] = [
-  { key: 'copyLink', label: 'Copiar link' },
-  { key: 'clone', label: 'Duplicar' },
-  { key: 'manageTags', label: 'Gerenciar etiquetas' },
-  { key: 'delete', label: 'Excluir' },
-];
+/**
+ * Uma caixa por SLOT de ação do cartão. A lista era literal aqui — quatro nomes escritos à mão —, o
+ * que fechava a porta que o ponto `ui.record.action` abriu: uma extensão registrava a ação dela e
+ * nenhuma tela conseguia habilitá-la, porque a configuração não a oferecia.
+ *
+ * Duas ações no mesmo slot (excluir e desvincular) são UMA caixa: a tela habilita o slot, e a
+ * expressão de cada uma decide qual o usuário vê.
+ */
+export interface ListActionOption {
+  key: ScreenListAction;
+  label: string;
+  requiresTags: boolean;
+}
+
+export const listActionOptionsFrom = (actions: ResolvedRecordAction[]): ListActionOption[] => {
+  const bySlot = new Map<string, ListActionOption>();
+  for (const action of actions) {
+    // O rótulo da caixa é o da ação que dá NOME ao slot; as que apenas o dividem não o renomeiam.
+    const owner = action.metadata.key === action.slot;
+    if (!owner && bySlot.has(action.slot)) continue;
+    bySlot.set(action.slot, {
+      key: action.slot,
+      label: action.metadata.title,
+      requiresTags: !!action.metadata.requiresTags,
+    });
+  }
+  return [...bySlot.values()];
+};
 
 export interface FieldOptionFormItem {
   label: string;
@@ -166,7 +190,7 @@ export interface ScreenBuilderViewModel {
   screenModalTabs: { key: ScreenModalTab; label: string }[];
   screenModalTab: ScreenModalTab;
   setScreenModalTab: (tab: ScreenModalTab) => void;
-  modalListActionOptions: { key: ScreenListAction; label: string }[];
+  modalListActionOptions: ListActionOption[];
   actionOptions: { value: string; label: string }[];
   setScreenViewActionIds: (ids: string[]) => void;
   setScreenCardActionIds: (ids: string[]) => void;
@@ -519,6 +543,13 @@ const builtinSaveInput = (key: string): ScreenDefinitionSaveInput => builtinScre
 export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
   const { tenantRole } = useTenant();
   const { definitions, dynamicScreens, isLoading, saveDefinition, deleteDefinition } = useScreenDefinitions();
+  const recordActions = useRecordActions();
+
+  /** Os slots cujas ações só fazem sentido numa tela com etiquetas — declarado, não presumido. */
+  const tagDependentSlots = useMemo(
+    () => new Set(recordActions.filter((action) => action.metadata.requiresTags).map((action) => action.slot)),
+    [recordActions],
+  );
   const schemaContext = useSchemaContext();
   const fieldRulePresets = useFieldRulePresets();
   const { availableLookups, declareLookup } = useLookups();
@@ -725,9 +756,9 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
     setScreenForm((prev) => {
       const next = { ...prev, ...patch };
       if (screenModalIsBuiltin || next.hasTags) return next;
-      return { ...next, listActions: next.listActions.filter((a) => a !== 'manageTags') };
+      return { ...next, listActions: next.listActions.filter((a) => !tagDependentSlots.has(a)) };
     });
-  }, [screenModalIsBuiltin]);
+  }, [screenModalIsBuiltin, tagDependentSlots]);
 
   const actionOptions = useMemo(
     () => actions.filter((action) => action.enabled).map((action) => ({ value: action.id, label: action.title })),
@@ -806,7 +837,7 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
       hasDocuments: def.hasDocuments,
       hasTags: def.hasTags,
       tagCollection: def.tagCollection ?? '',
-      listActions: def.hasTags ? def.listActions : def.listActions.filter((a) => a !== 'manageTags'),
+      listActions: def.hasTags ? def.listActions : def.listActions.filter((a) => !tagDependentSlots.has(a)),
       viewActionIds: def.viewActionIds,
       cardActionIds: def.cardActionIds,
       childLinks,
@@ -815,7 +846,7 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
       subtitleFieldKey: def.subtitleFieldKey ?? '',
     });
     setScreenModal({ screenKey });
-  }, [getDefinitionByKey, dynamicDefinitions]);
+  }, [getDefinitionByKey, dynamicDefinitions, tagDependentSlots]);
 
   const closeScreenModal = useCallback(() => setScreenModal(null), []);
 
@@ -898,11 +929,13 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
     [modalScreenFields],
   );
 
+  const listActionOptions = useMemo(() => listActionOptionsFrom(recordActions), [recordActions]);
+
   const modalListActionOptions = useMemo(() => {
-    if (!screenModalIsBuiltin) return LIST_ACTION_OPTIONS;
+    if (!screenModalIsBuiltin) return listActionOptions;
     const supported = supportedListActions(screenModal?.screenKey ?? '');
-    return LIST_ACTION_OPTIONS.filter((option) => supported.includes(option.key));
-  }, [screenModalIsBuiltin, screenModal]);
+    return listActionOptions.filter((option) => supported.includes(option.key));
+  }, [screenModalIsBuiltin, screenModal, listActionOptions]);
 
   // Nas telas do sistema não há "Geral" (título, ícone e abas são fixos), e "Registros filhos"
   // só existe quando alguma tela aponta para esta.

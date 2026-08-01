@@ -116,7 +116,16 @@ export interface FieldDefinition {
 
 // ─── Definição de Tela ────────────────────────────────────────────────────────
 
-export type ScreenListAction = 'copyLink' | 'clone' | 'manageTags' | 'delete';
+/**
+ * Ação do cartão de um registro, pelo SLOT que ela ocupa. Aberta para `string` pelo mesmo motivo de
+ * `EntityKey`: o conjunto passou a ser DADO — as ações são contribuições do ponto
+ * `ui.record.action` —, e não uma união fechada no tipo. Uma extensão que registre a sua aparece na
+ * configuração da tela sozinha; fechado aqui, o nome dela nunca poderia ser habilitado.
+ *
+ * As quatro de sempre (`copyLink`, `clone`, `manageTags`, `delete`) continuam sendo os slots que o
+ * `core.records` contribui.
+ */
+export type ScreenListAction = string;
 
 /**
  * Uma tela É uma entidade, e o seu `id` É o nome da coleção no Firestore:

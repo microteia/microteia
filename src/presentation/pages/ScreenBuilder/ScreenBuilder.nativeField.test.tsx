@@ -44,7 +44,12 @@ vi.mock('../../../infrastructure/di/useDI', () => ({
 }));
 // Sem extensão instalada, o catálogo de máscaras/formatações é só o do núcleo — o que a autoria
 // enxerga aqui é exatamente o mesmo conjunto de antes.
-vi.mock('../../../stores/useKernel', () => ({ useContributions: () => [] }));
+// Sem contribuições de ação de registro: a aba "Listagem" fica sem caixas, e é o que este teste
+// exercita — o ajuste de CAMPO não depende delas.
+vi.mock('../../../stores/useKernel', () => ({
+  useContributions: () => [],
+  useKernel: () => ({ host: { implementations: { resolve: () => undefined } } }),
+}));
 vi.mock('../../../stores/useScreenDefinitions', () => ({
   useScreenDefinitions: () => ({
     definitions: storeState.definition ? [storeState.definition] : [],

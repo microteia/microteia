@@ -2210,10 +2210,30 @@ relação decide qual das duas o usuário vê. Desvincular também devolve, pelo
 que a migração de Contrato tinha perdido: o par vincular/desvincular da aba "Processos". Vincular é
 criar pela aba (já nasce ligado) ou preencher o campo na tela do próprio registro.
 
-**O que ainda não é declaração:** `listActions` continua sendo a configuração das embutidas, e o
-cabeçalho do detalhe continua com os botões fixos de gravar/copiar/duplicar/excluir. Unificar as duas
-listas numa só ("Ações") exige criar documentos de `ActionDefinition` por escritório — migração de
-dados, não refatoração —, e é o passo seguinte.
+**Como uma ação embutida CHEGA à tela.** Não pela tela de Ações: são dois caminhos distintos, e o
+das embutidas já existia.
+
+| Configuração | O que lista | Onde se configura |
+|---|---|---|
+| `listActions` | os SLOTS de ação de registro que a tela oferece | aba "Listagem" do Form Design (caixas) |
+| `cardActionIds` / `viewActionIds` | `ActionDefinition` do escritório | aba "Ações" do Form Design |
+
+`getCardActions` percorre as ações contribuídas e fica com aquelas cujo `slot` está em
+`listActions`. Nenhum documento é criado, nada é vinculado à mão: a caixa que sempre existiu virou o
+vínculo. Uma tela nova nasce com as quatro marcadas porque `resolveListActions` cai no padrão.
+
+Para que isso valesse também para uma ação NOVA, duas coisas tiveram de abrir:
+
+- **`ScreenListAction` virou `string`**, pelo mesmo motivo de `EntityKey`: o conjunto é DADO, não
+  união fechada. Fechado, o nome da ação de uma extensão nunca poderia ser gravado em `listActions`.
+- **As caixas da aba "Listagem" saem das contribuições** (`listActionOptionsFrom`), não de uma lista
+  literal. Duas ações no mesmo slot são UMA caixa, e a caixa carrega a dependência de etiquetas que a
+  ação declarou (`requiresTags`) — o Form Design não conhece mais a palavra `manageTags`.
+
+**O que ainda não é declaração:** o cabeçalho do detalhe continua com os botões fixos de
+gravar/copiar/duplicar/excluir, e `listActions` e "Ações" continuam sendo duas listas. Unificá-las
+exige criar documentos de `ActionDefinition` por escritório — migração de dados, não refatoração —, e
+é o passo seguinte.
 
 ### Uma referência aponta para a COLEÇÃO
 

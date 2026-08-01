@@ -445,7 +445,7 @@ export const ScreenBuilderView: React.FC = () => {
                   label={option.label}
                   checked={vm.screenForm.listActions.includes(option.key)}
                   onChange={() => vm.toggleListAction(option.key)}
-                  disabled={!vm.screenModalIsBuiltin && option.key === 'manageTags' && !vm.screenForm.hasTags}
+                  disabled={!vm.screenModalIsBuiltin && option.requiresTags && !vm.screenForm.hasTags}
                 />
               </S.CheckboxCell>
             ))}
