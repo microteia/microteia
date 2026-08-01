@@ -69,6 +69,8 @@ const isTimestampLike = (value: unknown): value is { toDate: () => Date } =>
  * o controle do formulário fala `aaaa-mm-dd`. A conversão usa o fuso local, o mesmo em que a data
  * foi montada na gravação, para o dia exibido ser o dia escolhido.
  */
+const BR_DATE = /^(\d{2})[/-](\d{2})[/-](\d{4})$/;
+
 export const toDateFieldInput = (value: unknown): string => {
   const date = value instanceof Date ? value : isTimestampLike(value) ? value.toDate() : null;
   if (date) {
@@ -77,7 +79,15 @@ export const toDateFieldInput = (value: unknown): string => {
     const day = String(date.getDate()).padStart(2, '0');
     return `${date.getFullYear()}-${month}-${day}`;
   }
-  return typeof value === 'string' ? value.slice(0, 10) : '';
+  if (typeof value !== 'string') return '';
+  // Uma data também chega como TEXTO — de uma importação, de um script, de uma automação que gravou
+  // o que o usuário digitou. Em `dd/mm/aaaa` o corte cru devolvia "15/08/2026" no lugar de uma data
+  // ISO: o formulário exibia vazio e a comparação de intervalo passava a mentir em silêncio (a ordem
+  // alfabética de "15/..." e "2026-..." não é a cronológica).
+  const br = BR_DATE.exec(value.trim());
+  if (br) return `${br[3]}-${br[2]}-${br[1]}`;
+  const iso = value.slice(0, 10);
+  return /^\d{4}-\d{2}-\d{2}$/.test(iso) ? iso : '';
 };
 
 /**

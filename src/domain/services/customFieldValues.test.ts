@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildInitialFormValues, readRecordText, resolveRecordTabTitle, resolveRecordTitle, setValueByPath } from './customFieldValues';
+import { buildInitialFormValues, readRecordText, resolveRecordTabTitle, resolveRecordTitle, setValueByPath, toDateFieldInput } from './customFieldValues';
 import type { CustomFieldValue, FieldDefinition } from '../entities/entitySchemas';
 
 type Values = Record<string, CustomFieldValue>;
@@ -105,5 +105,34 @@ describe('resolveRecordTabTitle', () => {
 
   it('tela sem subtítulo declarado funciona igual', () => {
     expect(resolveRecordTabTitle({ name: 'Maria' }, 'name', '')).toBe('Maria');
+  });
+});
+
+/**
+ * A data guardada nem sempre é um `Date`: uma importação, um script ou uma automação gravam TEXTO.
+ * Enquanto o corte era cru, `dd/mm/aaaa` virava "15/08/2026" — o formulário exibia vazio e o filtro
+ * de intervalo comparava alfabeticamente contra `aaaa-mm-dd`, deixando de excluir o que devia.
+ */
+describe('toDateFieldInput', () => {
+  it('lê Date e Timestamp pelo dia local', () => {
+    expect(toDateFieldInput(new Date(2026, 7, 15))).toBe('2026-08-15');
+    expect(toDateFieldInput({ toDate: () => new Date(2026, 7, 15) })).toBe('2026-08-15');
+  });
+
+  it('lê texto ISO, com ou sem hora', () => {
+    expect(toDateFieldInput('2026-08-15')).toBe('2026-08-15');
+    expect(toDateFieldInput('2026-08-15T03:00:00.000Z')).toBe('2026-08-15');
+  });
+
+  it('lê a data no formato do escritório', () => {
+    expect(toDateFieldInput('15/08/2026')).toBe('2026-08-15');
+    expect(toDateFieldInput('15-08-2026')).toBe('2026-08-15');
+  });
+
+  it('o que não é data devolve vazio, em vez de um texto que finge ser', () => {
+    expect(toDateFieldInput('em breve')).toBe('');
+    expect(toDateFieldInput(1755216000000)).toBe('');
+    expect(toDateFieldInput(null)).toBe('');
+    expect(toDateFieldInput(new Date('x'))).toBe('');
   });
 });

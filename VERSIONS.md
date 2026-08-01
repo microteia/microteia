@@ -11,6 +11,11 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [3.0.4] — 2026-08-01
+
+- Corrigido: uma data guardada como texto (vinda de importação, script ou automação) deixava de ser reconhecida — o campo aparecia vazio no formulário e o filtro por período a ignorava em silêncio. Agora tanto `15/08/2026` quanto o formato interno são lidos como a mesma data.
+- Corrigido: no cartão do Financeiro, o destaque vermelho de lançamento vencido não estava sendo aplicado.
+
 ## [3.0.3] — 2026-08-01
 
 - Na busca rápida (⌘K), um **contrato** também é encontrado pelo número, como já acontecia com os processos.

@@ -376,7 +376,9 @@ export default function FinanceiroView() {
   const amountColor = (record) => record.type === 'Despesa' ? theme.colors.expense : theme.colors.revenue;
 
   const statusColor = (record) => {
-    const vencido = record.status === 'Aberto' && record.dueDate && iso(new Date()) > String(record.dueDate).slice(0, 10);
+    // A data chega como Date (o store converte o Timestamp): comparar pelo DIA, no fuso do
+    // escritório. Comparar como texto não funciona: String(new Date()) é "Wed Aug 12 2026".
+    const vencido = record.status === 'Aberto' && record.dueDate && iso(new Date(record.dueDate)) < iso(new Date());
     return vencido ? theme.colors.danger : getConfigColor(statusOptions, record.status, theme);
   };
 
