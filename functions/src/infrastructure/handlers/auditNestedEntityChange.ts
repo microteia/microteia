@@ -71,6 +71,9 @@ export const auditNestedEntityChange = onDocumentWritten(
         severity,
         entity: config.entityKey,
         entityId: docId,
+        // O que se abre é o PAI: a nota e o documento não têm tela própria.
+        linkCollection: parent,
+        linkRecordId: parentId,
         entityLink,
         text,
       });

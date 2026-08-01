@@ -23,12 +23,14 @@ const SeverityIcon: React.FC<{ severity: AuditSeverity; color: string }> = ({ se
 interface AuditLogCardProps {
   row: AuditLogRow;
   onToggleExpand: () => void;
-  onOpenEntity: (link: string) => void;
+  onOpenEntity: (log: AuditLogRow['log']) => void;
 }
 
 export const AuditLogCardView: React.FC<AuditLogCardProps> = ({ row, onToggleExpand, onOpenEntity }) => {
   const { log, expanded, tenantName } = row;
-  const entityLink = log.entityLink;
+  // Há para onde ir quando o log guarda a coleção do registro (o caminho novo) ou a chave de aba
+  // fixa (os logs anteriores).
+  const canOpenRecord = !!log.linkCollection || !!log.entityLink;
   const theme = useTheme();
 
   return (
@@ -58,8 +60,8 @@ export const AuditLogCardView: React.FC<AuditLogCardProps> = ({ row, onToggleExp
             <MarkdownContent>{log.text}</MarkdownContent>
           </S.Body>
 
-          {entityLink && !(log.action === 'DELETE') && (
-            <S.LinkButton onClick={() => onOpenEntity(entityLink)}>
+          {canOpenRecord && !(log.action === 'DELETE') && (
+            <S.LinkButton onClick={() => onOpenEntity(log)}>
               Ir para o registro
             </S.LinkButton>
           )}

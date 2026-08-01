@@ -2235,6 +2235,32 @@ gravar/copiar/duplicar/excluir, e `listActions` e "Ações" continuam sendo duas
 exige criar documentos de `ActionDefinition` por escritório — migração de dados, não refatoração —, e
 é o passo seguinte.
 
+### Quem abre um registro de fora não guarda a chave da aba
+
+Abrir um registro a partir de OUTRO lugar — a Auditoria, uma menção no editor, o card de outra tela —
+é resolver uma COLEÇÃO na tela que a apresenta **hoje**. Guardar a chave de aba envelhece: o log de
+auditoria gravava `view-person:{id}`, e no dia em que Pessoa saiu do kernel o botão "Ir para o
+registro" passou a abrir uma tela vazia. A Cloud Function que grava o log não tem como saber a chave
+certa — ela depende das telas instaladas naquele escritório.
+
+Duas peças resolvem:
+
+- **O log guarda a coleção, não a aba.** `AuditLog.linkCollection` + `linkRecordId` (para um filho —
+  nota, documento — é o PAI, que é quem tem tela). `entityLink` fica como está, para os registros
+  gravados antes disto: a UI só o usa quando a coleção falta.
+- **A tela declara como endereça um registro.** `ScreenDefinition.recordTabPrefix` — a chave é
+  `prefixo + id`. Ausente, vale a aba genérica (`view-dyn:<chave>:`). Existe porque uma extensão pode
+  trazer o próprio editor: sem a declaração, o mesmo processo abria numa tela pela menção
+  (`processo-edit:`) e noutra pela auditoria.
+
+`useOpenRecord` é o ponto único que junta as duas: acha a tela que descreve a coleção, respeita o
+`recordTabPrefix` dela e, na falta de tela, cai na aba FIXA — se houver.
+
+> **`view-dyn:` também começa com `view-`.** A checagem anterior (`builtin.startsWith('view-')`)
+> aceitava a aba dinâmica como se fosse fixa, e uma coleção sem tela nenhuma — extensão desinstalada —
+> abria aba morta. `builtinViewTabKey` devolve `null` quando não há aba fixa: "não existe" e "a
+> dinâmica" são respostas diferentes.
+
 ### Uma referência aponta para a COLEÇÃO
 
 O seletor "Tela vinculada" do Form Design oferecia as telas dinâmicas pela CHAVE (`contratos`)

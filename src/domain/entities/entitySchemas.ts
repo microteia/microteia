@@ -170,6 +170,16 @@ export interface ScreenDefinition {
    */
   dataCollection?: string | null;
   /**
+   * Prefixo da aba que abre UM registro desta tela: a chave é `prefixo + id`. Ausente, vale a aba
+   * genérica (`view-dyn:<chave>:`).
+   *
+   * Existe porque uma extensão pode trazer o próprio editor (`processo-edit:`), e quem abre um
+   * registro de fora — a Auditoria, uma menção, o card de outra tela — não tem como adivinhar isso.
+   * Sem a declaração, cada chamador reinventava o endereço: o mesmo processo abria numa tela pela
+   * menção e noutra pela auditoria.
+   */
+  recordTabPrefix?: string | null;
+  /**
    * Prefixo dos eventos de automação desta coleção (`case` → `case.saved`). Ausente = o nome da
    * coleção. Existe para que uma entidade possa mudar de dono — sair do kernel e passar a ser
    * declarada por uma extensão — sem renomear os eventos que as automações do escritório escutam.

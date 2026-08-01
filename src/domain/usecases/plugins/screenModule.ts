@@ -153,6 +153,7 @@ export const materializeScreen = (
     // desambiguação — é a entidade que já existe no escritório.
     dataCollection: template.dataCollection ?? null,
     eventPrefix: template.eventPrefix ?? null,
+    recordTabPrefix: template.recordTabPrefix ?? null,
     writeRoles: template.writeRoles ?? null,
     listActions: template.listActions ?? [],
     viewActionIds: mapActionIds(template.viewActionIds),

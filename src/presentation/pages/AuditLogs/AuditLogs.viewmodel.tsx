@@ -6,6 +6,7 @@ import { useAuth } from '../../../stores/useAuth';
 import { useTenant } from '../../../stores/useTenant';
 import { useWorkspace } from '../../../stores/useWorkspace';
 import { useDI } from '../../../infrastructure/di/useDI';
+import { useOpenRecord } from '../../shared/useOpenRecord';
 import { makeGetAllTenantsUseCase } from '../../../domain/usecases/tenants/GetAllTenantsUseCase';
 import type { AuditLog, AuditAction, AuditSeverity, Tenant } from '../../../domain/entities';
 import type { FilterDef, FilterToken } from '../../components/ui/CompositeFilter';
@@ -34,13 +35,14 @@ export interface AuditLogsViewModel {
   setFilterTokens: (tokens: FilterToken[]) => void;
   toggleExpand: (id: string) => void;
   loadMore: () => void;
-  openEntity: (link: string) => void;
+  openEntity: (log: AuditLog) => void;
 }
 
 export const useAuditLogsViewModel = (): AuditLogsViewModel => {
   const { userRole } = useAuth();
   const { currentTenant, tenantRole } = useTenant();
   const { openTab } = useWorkspace();
+  const openRecord = useOpenRecord();
   const { tenantRepository } = useDI();
   const { logs, loading, hasMore, error, search, loadMore } = useAuditLogStore();
   const { markAllAsRead } = useAuditLogAlert();
@@ -166,7 +168,18 @@ export const useAuditLogsViewModel = (): AuditLogsViewModel => {
     });
   }, []);
 
-  const openEntity = useCallback((link: string) => openTab(link), [openTab]);
+  /**
+   * O registro é aberto pela COLEÇÃO, resolvida no clique — a tela que a apresenta pode ter mudado
+   * desde que o log foi gravado, e uma entidade que saiu do kernel mudou de aba (`view-person:`
+   * virou `view-dyn:pessoas:`). `entityLink` é a chave fixa dos logs anteriores a isto.
+   */
+  const openEntity = useCallback((log: AuditLog) => {
+    if (log.linkCollection && log.linkRecordId) {
+      openRecord(log.linkCollection, log.linkRecordId);
+      return;
+    }
+    if (log.entityLink) openTab(log.entityLink);
+  }, [openRecord, openTab]);
 
   return {
     isUnauthorized,

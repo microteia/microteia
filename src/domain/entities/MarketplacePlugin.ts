@@ -45,6 +45,8 @@ export interface ScreenModuleTemplate {
   dataCollection?: string;
   /** Prefixo dos eventos da coleção. Ver `ScreenDefinition.eventPrefix`. */
   eventPrefix?: string | null;
+  /** Prefixo da aba que abre um registro. Ver `ScreenDefinition.recordTabPrefix`. */
+  recordTabPrefix?: string | null;
   /** Papéis que podem gravar. Ver `ScreenDefinition.writeRoles`. */
   writeRoles?: string[] | null;
   listActions?: ScreenListAction[];

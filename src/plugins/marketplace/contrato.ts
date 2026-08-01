@@ -163,7 +163,7 @@ const LOOKUPS: LookupModuleTemplate[] = [
 const CONTRATO_SCREEN: ScreenModuleTemplate = {
   key: 'contratos',
   sourceId: SOURCE_ID,
-  sourceRev: 1,
+  sourceRev: 2,
   titleSingular: 'Contrato',
   titlePlural: 'Contratos',
   icon: 'fileText',
@@ -179,6 +179,8 @@ const CONTRATO_SCREEN: ScreenModuleTemplate = {
   tagCollection: 'contractTags',
   // Os eventos que as automações escutam continuam sendo `contract.saved`/`contract.deleted`.
   eventPrefix: 'contract',
+  // Contrato tem editor próprio, pelo mesmo motivo de Processo.
+  recordTabPrefix: 'contrato-edit:',
   // A mesma permissão que a regra nomeada de `contracts` dava: secretária lê, advogado e admin
   // gravam. Declarada na tela, é o `firestore.rules` que a lê do documento dela.
   writeRoles: ['admin', 'lawyer'],
@@ -405,7 +407,7 @@ export default function startup(host) {
 export const contratoPlugin: MarketplacePlugin = {
   manifest: {
     id: 'com.microteia.contrato',
-    version: '1.0.0',
+    version: '1.1.0',
     kernel: '^1.0.0',
     name: 'Contratos',
     description: 'A tela de Contratos recriada como extensão, sobre os MESMOS contratos do escritório — cadastro, partes, vigência, condições financeiras e dados bancários.',

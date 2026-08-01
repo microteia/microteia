@@ -19,13 +19,21 @@ const BUILTIN_VIEW_PREFIX: Record<string, string> = {
 };
 
 /**
+ * A aba de detalhe de uma tela FIXA, ou `null` quando a entidade não tem uma. Existe separada de
+ * `buildEntityViewTabKey` porque "não há aba fixa" e "a aba dinâmica" são respostas diferentes:
+ * quem só sabe o nome de uma coleção precisa distinguir as duas para não abrir aba morta.
+ */
+export const builtinViewTabKey = (entityKey: string, recordId: string): string | null => {
+  const prefix = BUILTIN_VIEW_PREFIX[entityKey];
+  return prefix ? `${prefix}${recordId}` : null;
+};
+
+/**
  * Aba de detalhe de um registro, seja de tela fixa ou dinâmica. Usado para voltar ao pai
  * depois de salvar um registro filho.
  */
-export const buildEntityViewTabKey = (entityKey: string, recordId: string): string => {
-  const prefix = BUILTIN_VIEW_PREFIX[entityKey];
-  return prefix ? `${prefix}${recordId}` : `${DYN_VIEW_PREFIX}${entityKey}:${recordId}`;
-};
+export const buildEntityViewTabKey = (entityKey: string, recordId: string): string =>
+  builtinViewTabKey(entityKey, recordId) ?? `${DYN_VIEW_PREFIX}${entityKey}:${recordId}`;
 
 /** Novo registro filho, carregando o pai a quem ele pertence (e a quem voltar ao salvar). */
 export const buildChildNewTabKey = (screenKey: string, parentEntity: string, parentId: string): string =>

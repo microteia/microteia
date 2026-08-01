@@ -81,6 +81,8 @@ export const auditFlatEntityChange = onDocumentWritten(
         entity: config.entityKey,
         entityId: docId,
         entityLink,
+        linkCollection: collection,
+        linkRecordId: docId,
         text,
       });
     } catch (error) {

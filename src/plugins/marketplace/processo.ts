@@ -115,7 +115,7 @@ const LOOKUPS: LookupModuleTemplate[] = [
 const PROCESSO_SCREEN: ScreenModuleTemplate = {
   key: 'processos',
   sourceId: SOURCE_ID,
-  sourceRev: 4,
+  sourceRev: 5,
   titleSingular: 'Processo',
   titlePlural: 'Processos',
   icon: 'folder',
@@ -131,6 +131,9 @@ const PROCESSO_SCREEN: ScreenModuleTemplate = {
   tagCollection: 'caseTags',
   // Os eventos que as automações escutam continuam sendo `case.saved`/`case.deleted`.
   eventPrefix: 'case',
+  // Processo tem editor próprio: quem abre um processo de fora (auditoria, menção, card de outra
+  // tela) chega nesta aba, e não no detalhe genérico.
+  recordTabPrefix: 'processo-edit:',
   // Processo não é cadastro de rotina: secretária lê, advogado e admin gravam.
   writeRoles: ['admin', 'lawyer'],
   listActions: ['copyLink', 'clone', 'manageTags', 'delete'],
@@ -407,7 +410,7 @@ export default function startup(host) {
 export const processoPlugin: MarketplacePlugin = {
   manifest: {
     id: 'com.microteia.processo',
-    version: '2.1.0',
+    version: '2.2.0',
     kernel: '^1.0.0',
     name: 'Processos',
     description: 'A tela de Processos recriada como extensão, sobre os MESMOS processos do escritório — o caminho de migração de uma tela fixa para o modelo de extensão.',

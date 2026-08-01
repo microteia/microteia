@@ -106,6 +106,7 @@ const screenToTemplate = (screen: ScreenDefinition): ScreenModuleTemplate =>
     tagCollection: screen.tagCollection ?? undefined,
     dataCollection: screen.dataCollection ?? undefined,
     eventPrefix: screen.eventPrefix ?? undefined,
+    recordTabPrefix: screen.recordTabPrefix ?? undefined,
     writeRoles: screen.writeRoles ?? undefined,
     listActions: screen.listActions,
     sidebarOrder: screen.sidebarOrder,

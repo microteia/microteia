@@ -87,6 +87,9 @@ describe('processoPlugin', () => {
     expect(input.parentEntity).toBe('contracts');
     expect(input.parentFieldKey).toBe('contractId');
     expect(input.parentRelation).toBe('related');
+    // O editor PRÓPRIO da extensão: quem abre um processo de fora (auditoria, menção, card de
+    // outra tela) chega nesta aba, e não no detalhe genérico.
+    expect(input.recordTabPrefix).toBe('processo-edit:');
 
     const byKey = new Map(input.fields.map((field) => [field.key, field]));
     expect([...byKey.keys()]).toEqual(expect.arrayContaining([

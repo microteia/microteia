@@ -1,7 +1,7 @@
 {
   "manifest": {
     "id": "com.microteia.contrato",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "kernel": "^1.0.0",
     "name": "Contratos",
     "description": "A tela de Contratos recriada como extensão, sobre os MESMOS contratos do escritório — cadastro, partes, vigência, condições financeiras e dados bancários.",
@@ -102,7 +102,7 @@
     {
       "key": "contratos",
       "sourceId": "microteia:contrato",
-      "sourceRev": 1,
+      "sourceRev": 2,
       "titleSingular": "Contrato",
       "titlePlural": "Contratos",
       "icon": "fileText",
@@ -441,6 +441,7 @@
       "hasTags": true,
       "tagCollection": "contractTags",
       "eventPrefix": "contract",
+      "recordTabPrefix": "contrato-edit:",
       "writeRoles": [
         "admin",
         "lawyer"

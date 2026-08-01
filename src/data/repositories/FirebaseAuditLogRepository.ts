@@ -31,6 +31,8 @@ const toAuditLog = (id: string, d: Record<string, unknown>): AuditLog => ({
   entity: d.entity as string,
   entityId: d.entityId as string,
   entityLink: d.entityLink as string | undefined,
+  linkCollection: d.linkCollection as string | undefined,
+  linkRecordId: d.linkRecordId as string | undefined,
   text: d.text as string,
   createdAt: toDate(d.createdAt),
   expiresAt: toDate(d.expiresAt),

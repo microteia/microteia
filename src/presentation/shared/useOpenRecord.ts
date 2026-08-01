@@ -2,7 +2,7 @@ import { useCallback } from 'react';
 import { useScreenDefinitions } from '../../stores/useScreenDefinitions';
 import { useWorkspace } from '../../stores/useWorkspace';
 import { screenDataCollection } from '../../domain/services/screenDataCollection';
-import { buildEntityViewTabKey, buildViewTabKey } from '../../shared/constants/dynamicScreenKeys';
+import { builtinViewTabKey, buildViewTabKey } from '../../shared/constants/dynamicScreenKeys';
 
 /**
  * Abre o detalhe de um registro por COLEÇÃO, sem saber que tela o apresenta.
@@ -23,11 +23,15 @@ export const useOpenRecord = (): ((collection: string, recordId: string) => void
       if (!recordId) return;
       const screen = dynamicScreens.find((definition) => screenDataCollection(definition) === collection);
       if (screen) {
-        openTab(buildViewTabKey(screen.id, recordId));
+        // A tela pode trazer o próprio editor (`processo-edit:`); no silêncio, vale a aba genérica.
+        const prefix = screen.recordTabPrefix?.trim();
+        openTab(prefix ? `${prefix}${recordId}` : buildViewTabKey(screen.id, recordId));
         return;
       }
-      const builtin = buildEntityViewTabKey(collection, recordId);
-      if (builtin.startsWith('view-')) openTab(builtin);
+      // Sem tela que descreva a coleção, só resta a aba FIXA — se houver. Cair na aba dinâmica
+      // aqui abriria uma tela vazia: é o caso da extensão desinstalada.
+      const builtin = builtinViewTabKey(collection, recordId);
+      if (builtin) openTab(builtin);
     },
     [dynamicScreens, openTab],
   );

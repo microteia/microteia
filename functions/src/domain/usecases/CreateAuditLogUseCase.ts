@@ -13,6 +13,8 @@ export interface CreateAuditLogInput {
   entity: string;
   entityId: string;
   entityLink?: string;
+  linkCollection?: string;
+  linkRecordId?: string;
   text: string;
 }
 
@@ -33,6 +35,8 @@ export const makeCreateAuditLogUseCase = (repo: IAuditLogRepository): CreateAudi
     entity: input.entity,
     entityId: input.entityId,
     entityLink: input.entityLink,
+    linkCollection: input.linkCollection,
+    linkRecordId: input.linkRecordId,
     text: input.text,
   }),
 });

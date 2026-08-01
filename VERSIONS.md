@@ -11,6 +11,12 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [2.7.0] — 2026-08-01
+
+- Corrigido: na **Auditoria**, o botão "Ir para o registro" abria uma tela vazia nos cadastros que passaram a ser extensões (Pessoas, Processos, Contratos). O registro agora é aberto na tela que o apresenta hoje — e continuará certo mesmo que a tela mude de nome amanhã.
+- **Processos** e **Contratos** passam a abrir sempre na tela própria da extensão, venha o clique da Auditoria, de uma menção numa anotação ou do cartão de outra tela. Antes, cada caminho podia levar a uma tela diferente. É necessário atualizar as duas extensões em Extensões.
+- Corrigido: pedir para abrir um registro de um cadastro cuja extensão foi removida abria uma aba em branco; agora simplesmente não abre.
+
 ## [2.6.1] — 2026-08-01
 
 - Uma ação de cartão trazida por uma **extensão** agora aparece na aba "Listagem" do Form Design, ao lado de Copiar link, Duplicar, Etiquetas e Excluir — é lá que se escolhe quais o cartão oferece. Sem isso, a ação da extensão existia mas nenhuma tela conseguia habilitá-la.

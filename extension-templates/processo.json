@@ -1,7 +1,7 @@
 {
   "manifest": {
     "id": "com.microteia.processo",
-    "version": "2.1.0",
+    "version": "2.2.0",
     "kernel": "^1.0.0",
     "name": "Processos",
     "description": "A tela de Processos recriada como extensão, sobre os MESMOS processos do escritório — o caminho de migração de uma tela fixa para o modelo de extensão.",
@@ -108,7 +108,7 @@
     {
       "key": "processos",
       "sourceId": "microteia:processo",
-      "sourceRev": 4,
+      "sourceRev": 5,
       "titleSingular": "Processo",
       "titlePlural": "Processos",
       "icon": "folder",
@@ -314,6 +314,7 @@
       "hasTags": true,
       "tagCollection": "caseTags",
       "eventPrefix": "case",
+      "recordTabPrefix": "processo-edit:",
       "writeRoles": [
         "admin",
         "lawyer"
