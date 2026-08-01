@@ -706,6 +706,14 @@ const DATA_MODULE_DEFS = `declare module '@microteia/data' {
   /** Hook para controlar abas do workspace. */
   export function useWorkspace(): WorkspaceHook;
 
+  /**
+   * Abre o detalhe de um registro pela COLEÇÃO, sem saber que tela o apresenta: quem responde é a
+   * tela instalada hoje (a genérica, ou o editor próprio de quem declara um). É o caminho para
+   * abrir um registro de outra entidade — um processo a partir de um quadro, o contrato de um
+   * lançamento. Coleção sem tela nenhuma não abre nada.
+   */
+  export function useOpenRecord(): (collection: string, recordId: string) => void;
+
   /** Função para notificar o usuário (toast). */
   export function useNotify(): (message: string, variant?: 'success' | 'error' | 'info') => void;
 

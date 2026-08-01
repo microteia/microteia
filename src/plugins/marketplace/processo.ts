@@ -115,7 +115,7 @@ const LOOKUPS: LookupModuleTemplate[] = [
 const PROCESSO_SCREEN: ScreenModuleTemplate = {
   key: 'processos',
   sourceId: SOURCE_ID,
-  sourceRev: 5,
+  sourceRev: 6,
   titleSingular: 'Processo',
   titlePlural: 'Processos',
   icon: 'folder',
@@ -131,9 +131,10 @@ const PROCESSO_SCREEN: ScreenModuleTemplate = {
   tagCollection: 'caseTags',
   // Os eventos que as automações escutam continuam sendo `case.saved`/`case.deleted`.
   eventPrefix: 'case',
-  // Processo tem editor próprio: quem abre um processo de fora (auditoria, menção, card de outra
-  // tela) chega nesta aba, e não no detalhe genérico.
-  recordTabPrefix: 'processo-edit:',
+  // Sem `recordTabPrefix`: o detalhe é o GENÉRICO (`view-dyn:processos:{id}`). O formulário que o
+  // schema monta é idêntico ao que a extensão desenhava em código — manter um editor próprio só
+  // duplicaria a mesma tela. O que a extensão ainda desenha é o CARTÃO da listagem, que o genérico
+  // não tem como adivinhar (polos, chip de dias em trâmite).
   // Processo não é cadastro de rotina: secretária lê, advogado e admin gravam.
   writeRoles: ['admin', 'lawyer'],
   listActions: ['copyLink', 'clone', 'manageTags', 'delete'],
@@ -157,11 +158,10 @@ const PROCESSO_SOURCE = `
 import { useMemo } from 'react';
 import { styled, useTheme } from 'styled-components';
 import { RecordListSurface, Badge, InfoBanner } from '@microteia/ui';
-import { useCollection, useEntityList, useLookup, useWorkspace } from '@microteia/data';
+import { useCollection, useEntityList, useLookup } from '@microteia/data';
 import { getConfigColor } from '@microteia/theme';
 
 const SOURCE_ID = 'microteia:processo';
-const EDIT_PREFIX = 'processo-edit:';
 
 const Badges = styled.div\`
   display: flex;
@@ -256,11 +256,10 @@ function daysSince(value) {
 
 export default function ProcessosView() {
   const theme = useTheme();
-  const list = useEntityList(SOURCE_ID, { editKeyPrefix: EDIT_PREFIX });
+  const list = useEntityList(SOURCE_ID);
   const persons = useCollection('persons');
   const statusOptions = useLookup('caseStatuses');
   const phaseOptions = useLookup('casePhases');
-  const { openTab } = useWorkspace();
 
   const personById = useMemo(() => {
     const map = {};
@@ -321,28 +320,8 @@ export default function ProcessosView() {
       renderBelowHeader={renderBelowHeader}
       emptyTitle="Nenhum processo encontrado"
       emptyActionLabel="Cadastrar primeiro processo"
-      onOpenRecord={(record) => openTab(EDIT_PREFIX + record.id)}
-      onNewRecord={() => openTab(EDIT_PREFIX + 'new')}
     />
   );
-}
-`;
-
-/**
- * O detalhe (criar/editar). `RecordDetailSurface` monta cabeçalho, abas e formulário a partir do
- * schema; `editKeyPrefix` faz copiar-link, duplicar e reabrir-ao-salvar apontarem para esta tela.
- * Para um layout de campos próprio, passar `renderData`.
- */
-const EDIT_SOURCE = `
-import { RecordDetailSurface } from '@microteia/ui';
-import { useEntityDetailVM } from '@microteia/data';
-
-const SOURCE_ID = 'microteia:processo';
-const EDIT_PREFIX = 'processo-edit:';
-
-export default function EditProcessoView({ tabKey }) {
-  const vm = useEntityDetailVM(SOURCE_ID, tabKey, { editKeyPrefix: EDIT_PREFIX });
-  return <RecordDetailSurface vm={vm} />;
 }
 `;
 
@@ -355,9 +334,10 @@ const STARTUP_SOURCE = `
 import { Icon } from '@microteia/ui';
 
 const SOURCE_ID = 'microteia:processo';
-const EDIT_PREFIX = 'processo-edit:';
 const LIST_KEY = 'processos';
 const GROUP = 'Processos';
+
+const viewKey = (screen, id) => 'view-dyn:' + screen.id + ':' + id;
 
 export default function startup(host) {
   host.commands.register({
@@ -370,7 +350,7 @@ export default function startup(host) {
       const icon = <Icon name="folder" size={16} />;
       const items = [];
       if ('novo processo'.indexOf(q) !== -1) {
-        items.push({ id: 'processo:new', title: 'Novo processo', group: GROUP, icon, onSelect: () => { ctx.openTab(EDIT_PREFIX + 'new'); ctx.close(); } });
+        items.push({ id: 'processo:new', title: 'Novo processo', group: GROUP, icon, onSelect: () => { ctx.openTab('new-dyn:' + screen.id); ctx.close(); } });
       }
       if ('abrir processos'.indexOf(q) !== -1) {
         items.push({ id: 'processo:list', title: 'Abrir Processos', group: GROUP, icon, onSelect: () => { ctx.openTab(LIST_KEY); ctx.close(); } });
@@ -379,7 +359,7 @@ export default function startup(host) {
       for (const r of ctx.records) {
         const title = r[screen.titleFieldKey];
         if (r.collection === collection && title && title.toLowerCase().indexOf(q) !== -1) {
-          items.push({ id: 'processo:' + r.id, title, subtitle: 'Processo', group: GROUP, icon, onSelect: () => { ctx.openTab(EDIT_PREFIX + r.id); ctx.close(); } });
+          items.push({ id: 'processo:' + r.id, title, subtitle: 'Processo', group: GROUP, icon, onSelect: () => { ctx.openTab(viewKey(screen, r.id)); ctx.close(); } });
         }
       }
       return items.slice(0, 9);
@@ -401,7 +381,7 @@ export default function startup(host) {
         .map((r) => ({ record: r, title: r[screen.titleFieldKey] }))
         .filter(({ title }) => title && (!q || title.toLowerCase().indexOf(q) !== -1))
         .slice(0, 20)
-        .map(({ record, title }) => ({ id: record.id, title, subtitle: 'Processo', tabKey: EDIT_PREFIX + record.id }));
+        .map(({ record, title }) => ({ id: record.id, title, subtitle: 'Processo', tabKey: viewKey(screen, record.id) }));
     },
   });
 }
@@ -410,7 +390,7 @@ export default function startup(host) {
 export const processoPlugin: MarketplacePlugin = {
   manifest: {
     id: 'com.microteia.processo',
-    version: '2.2.0',
+    version: '2.3.0',
     kernel: '^1.0.0',
     name: 'Processos',
     description: 'A tela de Processos recriada como extensão, sobre os MESMOS processos do escritório — o caminho de migração de uma tela fixa para o modelo de extensão.',
@@ -426,7 +406,6 @@ export const processoPlugin: MarketplacePlugin = {
     contributes: [
       nav({ key: 'processos', label: 'Processos', icon: 'folder', order: 105 }),
       page({ key: 'processos', title: 'Processos', icon: 'folder' }, 'processos'),
-      page({ key: '', keyPrefix: 'processo-edit:', title: 'Editar processo', icon: 'folder' }, 'processo-edit'),
     ],
   },
   summary:
@@ -467,12 +446,6 @@ export const processoPlugin: MarketplacePlugin = {
       title: 'Processos',
       icon: 'folder',
       source: PROCESSO_SOURCE,
-    },
-    {
-      key: 'processo-edit',
-      title: 'Editar processo',
-      icon: 'folder',
-      source: EDIT_SOURCE,
     },
   ],
 };

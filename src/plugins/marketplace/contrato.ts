@@ -163,7 +163,7 @@ const LOOKUPS: LookupModuleTemplate[] = [
 const CONTRATO_SCREEN: ScreenModuleTemplate = {
   key: 'contratos',
   sourceId: SOURCE_ID,
-  sourceRev: 2,
+  sourceRev: 3,
   titleSingular: 'Contrato',
   titlePlural: 'Contratos',
   icon: 'fileText',
@@ -179,8 +179,9 @@ const CONTRATO_SCREEN: ScreenModuleTemplate = {
   tagCollection: 'contractTags',
   // Os eventos que as automações escutam continuam sendo `contract.saved`/`contract.deleted`.
   eventPrefix: 'contract',
-  // Contrato tem editor próprio, pelo mesmo motivo de Processo.
-  recordTabPrefix: 'contrato-edit:',
+  // Sem `recordTabPrefix`: o detalhe é o GENÉRICO (`view-dyn:contratos:{id}`), pelo mesmo motivo de
+  // Processo — o formulário do schema já é o mesmo que a extensão desenharia. O que sobra de
+  // exclusivo é o CARTÃO da listagem.
   // A mesma permissão que a regra nomeada de `contracts` dava: secretária lê, advogado e admin
   // gravam. Declarada na tela, é o `firestore.rules` que a lê do documento dela.
   writeRoles: ['admin', 'lawyer'],
@@ -200,12 +201,11 @@ const CONTRATO_SOURCE = `
 import { useMemo } from 'react';
 import { styled, useTheme } from 'styled-components';
 import { RecordListSurface, Badge, Icon, InfoBanner } from '@microteia/ui';
-import { useCollection, useEntityList, useLookup, useWorkspace } from '@microteia/data';
+import { useCollection, useEntityList, useLookup } from '@microteia/data';
 import { getConfigColor } from '@microteia/theme';
 import { formatDate } from '@microteia/format';
 
 const SOURCE_ID = 'microteia:contrato';
-const EDIT_PREFIX = 'contrato-edit:';
 
 const Badges = styled.div\`
   display: flex;
@@ -258,10 +258,9 @@ const asArray = (v) => Array.isArray(v) ? v : (v == null || v === '' ? [] : [v])
 
 export default function ContratosView() {
   const theme = useTheme();
-  const list = useEntityList(SOURCE_ID, { editKeyPrefix: EDIT_PREFIX });
+  const list = useEntityList(SOURCE_ID);
   const persons = useCollection('persons');
   const statusOptions = useLookup('contractStatuses');
-  const { openTab } = useWorkspace();
 
   const personById = useMemo(() => {
     const map = {};
@@ -319,27 +318,8 @@ export default function ContratosView() {
       renderMetaRows={renderMetaRows}
       emptyTitle="Nenhum contrato encontrado"
       emptyActionLabel="Cadastrar primeiro contrato"
-      onOpenRecord={(record) => openTab(EDIT_PREFIX + record.id)}
-      onNewRecord={() => openTab(EDIT_PREFIX + 'new')}
     />
   );
-}
-`;
-
-/**
- * O detalhe (criar/editar). `RecordDetailSurface` monta cabeçalho, abas e formulário a partir do
- * schema — inclusive a aba "Processos", que vem da relação declarada pela extensão de Processos.
- */
-const EDIT_SOURCE = `
-import { RecordDetailSurface } from '@microteia/ui';
-import { useEntityDetailVM } from '@microteia/data';
-
-const SOURCE_ID = 'microteia:contrato';
-const EDIT_PREFIX = 'contrato-edit:';
-
-export default function EditContratoView({ tabKey }) {
-  const vm = useEntityDetailVM(SOURCE_ID, tabKey, { editKeyPrefix: EDIT_PREFIX });
-  return <RecordDetailSurface vm={vm} />;
 }
 `;
 
@@ -352,9 +332,10 @@ const STARTUP_SOURCE = `
 import { Icon } from '@microteia/ui';
 
 const SOURCE_ID = 'microteia:contrato';
-const EDIT_PREFIX = 'contrato-edit:';
 const LIST_KEY = 'contratos';
 const GROUP = 'Contratos';
+
+const viewKey = (screen, id) => 'view-dyn:' + screen.id + ':' + id;
 
 export default function startup(host) {
   host.commands.register({
@@ -367,7 +348,7 @@ export default function startup(host) {
       const icon = <Icon name="fileText" size={16} />;
       const items = [];
       if ('novo contrato'.indexOf(q) !== -1) {
-        items.push({ id: 'contrato:new', title: 'Novo contrato', group: GROUP, icon, onSelect: () => { ctx.openTab(EDIT_PREFIX + 'new'); ctx.close(); } });
+        items.push({ id: 'contrato:new', title: 'Novo contrato', group: GROUP, icon, onSelect: () => { ctx.openTab('new-dyn:' + screen.id); ctx.close(); } });
       }
       if ('abrir contratos'.indexOf(q) !== -1) {
         items.push({ id: 'contrato:list', title: 'Abrir Contratos', group: GROUP, icon, onSelect: () => { ctx.openTab(LIST_KEY); ctx.close(); } });
@@ -376,7 +357,7 @@ export default function startup(host) {
       for (const r of ctx.records) {
         const title = r[screen.titleFieldKey];
         if (r.collection === collection && title && title.toLowerCase().indexOf(q) !== -1) {
-          items.push({ id: 'contrato:' + r.id, title, subtitle: r.number || 'Contrato', group: GROUP, icon, onSelect: () => { ctx.openTab(EDIT_PREFIX + r.id); ctx.close(); } });
+          items.push({ id: 'contrato:' + r.id, title, subtitle: r.number || 'Contrato', group: GROUP, icon, onSelect: () => { ctx.openTab(viewKey(screen, r.id)); ctx.close(); } });
         }
       }
       return items.slice(0, 9);
@@ -398,7 +379,7 @@ export default function startup(host) {
         .map((r) => ({ record: r, title: r[screen.titleFieldKey] }))
         .filter(({ title }) => title && (!q || title.toLowerCase().indexOf(q) !== -1))
         .slice(0, 20)
-        .map(({ record, title }) => ({ id: record.id, title, subtitle: record.number || 'Contrato', tabKey: EDIT_PREFIX + record.id }));
+        .map(({ record, title }) => ({ id: record.id, title, subtitle: record.number || 'Contrato', tabKey: viewKey(screen, record.id) }));
     },
   });
 }
@@ -407,7 +388,7 @@ export default function startup(host) {
 export const contratoPlugin: MarketplacePlugin = {
   manifest: {
     id: 'com.microteia.contrato',
-    version: '1.1.0',
+    version: '1.2.0',
     kernel: '^1.0.0',
     name: 'Contratos',
     description: 'A tela de Contratos recriada como extensão, sobre os MESMOS contratos do escritório — cadastro, partes, vigência, condições financeiras e dados bancários.',
@@ -421,7 +402,6 @@ export const contratoPlugin: MarketplacePlugin = {
     contributes: [
       nav({ key: 'contratos', label: 'Contratos', icon: 'fileText', order: 110 }),
       page({ key: 'contratos', title: 'Contratos', icon: 'fileText' }, 'contratos'),
-      page({ key: '', keyPrefix: 'contrato-edit:', title: 'Editar contrato', icon: 'fileText' }, 'contrato-edit'),
     ],
   },
   summary:
@@ -462,12 +442,6 @@ export const contratoPlugin: MarketplacePlugin = {
       title: 'Contratos',
       icon: 'fileText',
       source: CONTRATO_SOURCE,
-    },
-    {
-      key: 'contrato-edit',
-      title: 'Editar contrato',
-      icon: 'fileText',
-      source: EDIT_SOURCE,
     },
   ],
 };

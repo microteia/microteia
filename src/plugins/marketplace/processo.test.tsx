@@ -49,7 +49,10 @@ describe('processoPlugin', () => {
     const pageKeys = host.contributions
       .query(UI_PAGE_POINT)
       .map((c) => (c.impl as { key?: string } | undefined)?.key);
-    expect(pageKeys).toEqual(expect.arrayContaining(['processos', 'processo-edit']));
+    // Só a LISTAGEM é de código. O detalhe é o genérico do kernel: o formulário que o schema monta
+    // já é o que a extensão desenharia, e duplicá-lo em código só criaria duas telas para manter.
+    expect(pageKeys).toContain('processos');
+    expect(pageKeys).not.toContain('processo-edit');
   });
 
   /** A dependência é dura de propósito: sem Pessoas nem Contratos, os campos de responsável, polos
@@ -87,9 +90,9 @@ describe('processoPlugin', () => {
     expect(input.parentEntity).toBe('contracts');
     expect(input.parentFieldKey).toBe('contractId');
     expect(input.parentRelation).toBe('related');
-    // O editor PRÓPRIO da extensão: quem abre um processo de fora (auditoria, menção, card de
-    // outra tela) chega nesta aba, e não no detalhe genérico.
-    expect(input.recordTabPrefix).toBe('processo-edit:');
+    // Sem editor próprio: quem abre um processo de fora (auditoria, menção, card de outra tela)
+    // chega ao detalhe genérico, que é o mesmo formulário.
+    expect(input.recordTabPrefix ?? null).toBeNull();
 
     const byKey = new Map(input.fields.map((field) => [field.key, field]));
     expect([...byKey.keys()]).toEqual(expect.arrayContaining([

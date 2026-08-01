@@ -11,6 +11,13 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [2.8.0] — 2026-08-01
+
+- As telas de **Processo** e **Contrato** passam a usar o mesmo formulário de detalhe das demais telas do sistema. O formulário é idêntico ao anterior — o que muda é que ele agora ocupa a largura toda da área, e passa a ser um só: qualquer ajuste feito no Form Design vale para todos os caminhos que abrem o registro.
+- O cartão da listagem de Processos e Contratos continua como era, com as partes, o tempo de trâmite e a vigência.
+- Corrigido: o cartão do **Kanban de Processos** abre o processo na tela que o apresenta, em vez de uma aba fixa.
+- É necessário atualizar **Processos**, **Contratos** e **Kanban de Processos** em Extensões.
+
 ## [2.7.1] — 2026-08-01
 
 - Corrigido: na **Auditoria**, as alterações dos cadastros que viraram extensões apareciam como "Registro" — "Alteração na entidade de Registros" — em vez do nome real. Cada lançamento volta a dizer Pessoa, Processo, Contrato ou o nome da tela criada no escritório, e as notas e documentos aparecem como "Nota de Contrato", "Documento de Pessoa" e assim por diante.

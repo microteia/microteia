@@ -29,8 +29,10 @@ export const S = {
     white-space: nowrap;
   `,
 
+  // Sem largura máxima: o formulário ocupa a área toda, como o das telas trazidas por extensão
+  // (`RecordDetailSurface`). São o MESMO formulário — uma trava de 800px aqui fazia a mesma tela
+  // parecer duas, conforme quem a apresentasse.
   FormWrapper: styled.div`
-    max-width: 800px;
     display: flex;
     flex-direction: column;
     gap: ${({ theme }) => theme.spacing.lg};

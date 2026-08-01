@@ -18,12 +18,10 @@ import { useTheme } from 'styled-components';
 import { CompositeFilter, SearchSelect } from '@microteia/ui';
 import {
   useCollection, useUpdateRecord, useLookup,
-  useWorkspace, useNotify, useSavedViewState,
+  useOpenRecord, useNotify, useSavedViewState,
 } from '@microteia/data';
 
 const CASES = 'cases';
-// A aba de edição da extensão de Processos, que apresenta esta mesma coleção.
-const EDIT_PREFIX = 'processo-edit:';
 
 const inList = (values, value) => Array.isArray(values) && value != null && values.indexOf(value) !== -1;
 
@@ -46,7 +44,7 @@ export default function KanbanCasesView() {
   const areas = useLookup('caseAreas');
   const statuses = useLookup('caseStatuses');
   const persons = useCollection('persons');
-  const { openTab } = useWorkspace();
+  const openRecord = useOpenRecord();
   const notify = useNotify();
 
   const [state, setState] = useSavedViewState('kanban.cases', { columns: null, tokens: [] });
@@ -145,7 +143,7 @@ export default function KanbanCasesView() {
                       draggable
                       onDragStart={() => setDraggedId(c.id)}
                       onDragEnd={() => { setDraggedId(null); setOverPhase(null); }}
-                      onClick={() => openTab(EDIT_PREFIX + c.id)}
+                      onClick={() => openRecord(CASES, c.id)}
                       style={cardStyle(phase && phase.color)}
                     >
                       <div style={cardTitle}>{c.title || c.caseNumber || 'Processo'}</div>
@@ -183,7 +181,7 @@ function AddColumn(props) {
 export const kanbanCasesPlugin: MarketplacePlugin = {
   manifest: {
     id: 'com.microteia.kanban-processos',
-    version: '1.0.0',
+    version: '1.1.0',
     kernel: '^1.0.0',
     name: 'Kanban de Processos',
     description: 'Uma visão Kanban dos processos, com uma coluna por Fase e arrastar-para-mover.',

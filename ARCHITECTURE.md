@@ -2258,7 +2258,25 @@ Duas peças resolvem:
   (`processo-edit:`) e noutra pela auditoria.
 
 `useOpenRecord` é o ponto único que junta as duas: acha a tela que descreve a coleção, respeita o
-`recordTabPrefix` dela e, na falta de tela, cai na aba FIXA — se houver.
+`recordTabPrefix` dela e, na falta de tela, cai na aba FIXA — se houver. Ele é exportado em
+`@microteia/data`: uma extensão que MOSTRA registros de uma coleção que não é dela (o Kanban mostra
+`cases`) abre pela coleção, sem conhecer quem a apresenta.
+
+#### A extensão que abre mão do editor próprio
+
+Processos e Contratos nasceram com duas views de código, lista e detalhe. O detalhe foi **removido**:
+`RecordDetailSurface` + `useEntityDetailVM` montam exatamente o formulário que `ViewDynamicRecord`
+monta a partir do mesmo schema — eram duas telas idênticas para manter, e a auditoria e as menções
+precisavam de uma declaração a mais (`recordTabPrefix`) só para escolher entre elas. Hoje as duas
+extensões declaram apenas a LISTAGEM, que é onde o cartão foge do que a declaração alcança (os polos
+do processo, o chip de dias em trâmite, a vigência do contrato).
+
+O caminho continua aberto: `recordTabPrefix` e `RecordDetailSurface` seguem no kernel para a extensão
+que precise de um detalhe que o schema não descreva. A régua é essa — **desenhe em código só o que a
+declaração não alcança.**
+
+> A trava de `max-width: 800px` do formulário dinâmico saiu junto: era a única diferença visível
+> entre o detalhe genérico e o de extensão, e fazia a mesma tela parecer duas.
 
 > **`view-dyn:` também começa com `view-`.** A checagem anterior (`builtin.startsWith('view-')`)
 > aceitava a aba dinâmica como se fosse fixa, e uma coleção sem tela nenhuma — extensão desinstalada —

@@ -40,6 +40,7 @@ import {
   toDateInputValue,
 } from '../../../utils/formatters';
 import { useWorkspace } from '../../../stores/useWorkspace';
+import { useOpenRecord } from '../useOpenRecord';
 import { useNotification } from '../../../stores/useNotification';
 import { generateDeepLink } from '../../../infrastructure/deeplink/deepLinkUtils';
 import { useSavedViewState } from './useSavedViewState';
@@ -136,6 +137,7 @@ const dataModule = {
   useUpdateRecord,
   useLookup,
   useWorkspace,
+  useOpenRecord,
   useNotify,
   useSavedViewState,
   generateDeepLink,

@@ -1062,31 +1062,49 @@ describe('Tela sobre uma coleção existente', () => {
 });
 
 /**
- * O escritório que instalou Processos antes do editor próprio ficar declarado tem a tela gravada sem
- * `recordTabPrefix` — e quem abre o registro de fora cai no detalhe genérico. Atualizar a extensão
- * precisa reescrever a propriedade na tela que já existe, e não só nas instalações novas.
+ * Uma propriedade nova da tela (o `recordTabPrefix`, a permissão, o campo de vínculo) chega ao
+ * escritório pela ATUALIZAÇÃO da extensão. Se o upsert só valesse para instalações novas, quem já
+ * tinha a tela ficaria eternamente na declaração antiga — foi o que se viu quando o registro abria
+ * no detalhe genérico apesar de a extensão declarar editor próprio.
  */
 describe('atualização de extensão reescreve as propriedades da tela existente', () => {
-  it('a tela instalada sem editor próprio ganha o prefixo na atualização', async () => {
-    const { processoPlugin } = await import('../../../plugins/marketplace/processo');
-    const d = deps();
+  const comPrefixo = (recordTabPrefix: string | undefined, sourceRev: number): MarketplacePlugin => ({
+    summary: 'S',
+    manifest: { id: 'com.acme.ficha', version: '1.0.0', kernel: '^1.0.0', name: 'Ficha' },
+    workflows: [],
+    screens: [{
+      key: 'fichas',
+      sourceId: 'acme:ficha',
+      sourceRev,
+      titleSingular: 'Ficha',
+      titlePlural: 'Fichas',
+      icon: 'apps',
+      fields: [],
+      titleFieldKey: 'nome',
+      recordTabPrefix,
+    }],
+  });
 
-    const antigo: MarketplacePlugin = {
-      ...processoPlugin,
-      screens: (processoPlugin.screens ?? []).map((screen) => ({
-        ...screen,
-        recordTabPrefix: undefined,
-        sourceRev: (screen.sourceRev ?? 1) - 1,
-      })),
-    };
-    await applyPackageArtifacts(d, antigo, actor);
-    const instalada = (await screens.getAll('t1')).find((s) => s.id === 'processos')!;
+  it('a tela instalada sem editor próprio ganha o prefixo na atualização', async () => {
+    const d = deps();
+    await applyPackageArtifacts(d, comPrefixo(undefined, 1), actor);
+    const instalada = (await screens.getAll('t1')).find((s) => s.id === 'fichas')!;
     expect(instalada.recordTabPrefix ?? null).toBeNull();
 
-    await applyPackageArtifacts(d, processoPlugin, actor);
+    await applyPackageArtifacts(d, comPrefixo('ficha-edit:', 2), actor);
 
-    const atualizada = (await screens.getAll('t1')).find((s) => s.id === 'processos')!;
-    expect(atualizada.recordTabPrefix).toBe('processo-edit:');
+    const atualizada = (await screens.getAll('t1')).find((s) => s.id === 'fichas')!;
+    expect(atualizada.recordTabPrefix).toBe('ficha-edit:');
     expect(atualizada.id).toBe(instalada.id);
+  });
+
+  /** E o caminho de volta: a extensão que ABRE MÃO do editor próprio devolve o registro ao genérico. */
+  it('a tela que deixa de declarar o editor volta ao detalhe genérico', async () => {
+    const d = deps();
+    await applyPackageArtifacts(d, comPrefixo('ficha-edit:', 1), actor);
+    await applyPackageArtifacts(d, comPrefixo(undefined, 2), actor);
+
+    const atualizada = (await screens.getAll('t1')).find((s) => s.id === 'fichas')!;
+    expect(atualizada.recordTabPrefix ?? null).toBeNull();
   });
 });
