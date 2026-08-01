@@ -41,13 +41,20 @@ interface RecordListSurfaceProps {
   /** Textos do estado vazio, quando a tela prefere os seus aos genéricos. */
   emptyTitle?: string;
   emptyActionLabel?: string;
+  /**
+   * Conteúdo próprio da PÁGINA (não do card): `headerActions` entra no cabeçalho, antes do botão
+   * "novo"; `summary` ocupa a faixa entre o cabeçalho e o filtro. É o que uma barra de totais precisa
+   * — uma soma sobre os registros filtrados não é declarável campo a campo.
+   */
+  headerActions?: React.ReactNode;
+  summary?: React.ReactNode;
 }
 
 /**
  * Listagem de registros de uma tela customizada. A mesma superfície serve à janela própria da tela
  * e à aba de registros filhos dentro do pai — só muda a variante do `EntityListView`.
  */
-export const RecordListSurface: React.FC<RecordListSurfaceProps> = ({ vm, definition, variant = 'page', renderSubtitle, renderBelowHeader, renderMetaRows, onOpenRecord, onNewRecord, emptyTitle, emptyActionLabel }) => {
+export const RecordListSurface: React.FC<RecordListSurfaceProps> = ({ vm, definition, variant = 'page', renderSubtitle, renderBelowHeader, renderMetaRows, onOpenRecord, onNewRecord, emptyTitle, emptyActionLabel, headerActions, summary }) => {
   const openRecord = onOpenRecord ?? vm.openRecord;
   const openNewRecord = onNewRecord ?? vm.openNewRecord;
   const modals = <EntityListModals vm={vm} />;
@@ -87,6 +94,8 @@ export const RecordListSurface: React.FC<RecordListSurfaceProps> = ({ vm, defini
       emptyIcon={<RiApps2Line />}
       emptyTitle={emptyTitle ?? 'Nenhum registro encontrado'}
       emptyActionLabel={emptyActionLabel ?? `Cadastrar ${definition.titleSingular.toLowerCase()}`}
+      headerExtra={headerActions}
+      belowHeader={summary}
       modals={modals}
     >
       {vm.filteredRecords.map((record) => {

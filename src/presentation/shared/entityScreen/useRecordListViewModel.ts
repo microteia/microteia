@@ -59,6 +59,8 @@ export interface RecordListSource {
    * lá sem que nenhuma delas precise saber que existe uma extensão.
    */
   recordTabKeys?: (recordId: string) => { view: string; clone: string };
+  /** Filtros com que a listagem abre. Ver `EntityListOptions.defaultFilterTokens`. */
+  defaultFilterTokens?: FilterToken[];
 }
 
 export interface RecordListViewModel {
@@ -98,7 +100,7 @@ export interface RecordListViewModel {
  * Com `parent`, a lista é restrita aos filhos daquele registro e o "novo" já nasce vinculado.
  */
 export const useRecordListViewModel = (source: RecordListSource): RecordListViewModel => {
-  const { screenKey, savedFiltersKey, parent, recordTabKeys } = source;
+  const { screenKey, savedFiltersKey, parent, recordTabKeys, defaultFilterTokens } = source;
   const { getDefinition, isLoading: definitionsLoading } = useScreenDefinitions();
   const { recordsByCollection, isLoading: recordsLoading, updateRecord, deleteRecord } = useRecords();
   const { openTab } = useWorkspace();
@@ -106,7 +108,7 @@ export const useRecordListViewModel = (source: RecordListSource): RecordListView
   const { notify } = useNotification();
   const { getActionsByIds, runAction } = useActions();
 
-  const [filterTokens, setFilterTokens] = useState<FilterToken[]>([]);
+  const [filterTokens, setFilterTokens] = useState<FilterToken[]>(defaultFilterTokens ?? []);
   const [tagManagerRecord, setTagManagerRecord] = useState<EntityRecord | null>(null);
   const [recordToDelete, setRecordToDelete] = useState<EntityRecord | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);

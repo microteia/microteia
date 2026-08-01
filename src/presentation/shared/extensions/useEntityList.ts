@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { useScreenDefinitions } from '../../../stores/useScreenDefinitions';
 import { useRecordListViewModel, type RecordListViewModel } from '../entityScreen/useRecordListViewModel';
 import { buildListTabKey } from '../../../shared/constants/dynamicScreenKeys';
+import type { FilterToken } from '../../components/ui/CompositeFilter';
 
 export interface EntityListOptions {
   /**
@@ -10,6 +11,12 @@ export interface EntityListOptions {
    * card coerente com a lista e o editor da extensão.
    */
   editKeyPrefix?: string;
+  /**
+   * Filtros com que a listagem ABRE. Existe para a tela cuja visão útil não é "tudo": o Financeiro
+   * abre no mês corrente, senão a primeira coisa que o usuário vê é o histórico inteiro do
+   * escritório. É ponto de partida — o usuário troca à vontade, e a troca não volta atrás.
+   */
+  defaultFilterTokens?: FilterToken[];
 }
 
 /**
@@ -23,7 +30,7 @@ export interface EntityListOptions {
  * O QUE aparece continua governado pela configuração da tela — não por algo fixo no código.
  */
 export const useEntityList = (sourceId: string, options: EntityListOptions = {}): RecordListViewModel => {
-  const { editKeyPrefix } = options;
+  const { editKeyPrefix, defaultFilterTokens } = options;
   const { dynamicScreens } = useScreenDefinitions();
 
   const screenKey = useMemo(
@@ -50,5 +57,6 @@ export const useEntityList = (sourceId: string, options: EntityListOptions = {})
     screenKey,
     savedFiltersKey: buildListTabKey(screenKey),
     recordTabKeys,
+    defaultFilterTokens,
   });
 };

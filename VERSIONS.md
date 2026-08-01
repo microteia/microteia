@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [2.9.0] — 2026-08-01
+
+- Os filtros de **data** de qualquer tela passam a ser por período: cada campo de data oferece "(de)" e "(até)", e cada ponta funciona sozinha. Antes só era possível filtrar por uma data exata, o que raramente é o que se procura numa listagem.
+
 ## [2.8.0] — 2026-08-01
 
 - As telas de **Processo** e **Contrato** passam a usar o mesmo formulário de detalhe das demais telas do sistema. O formulário é idêntico ao anterior — o que muda é que ele agora ocupa a largura toda da área, e passa a ser um só: qualquer ajuste feito no Form Design vale para todos os caminhos que abrem o registro.

@@ -553,6 +553,10 @@ const UI_MODULE_DEFS = `declare module '@microteia/ui' {
     /** Textos do estado vazio, quando a tela prefere os seus aos genéricos. */
     emptyTitle?: string;
     emptyActionLabel?: string;
+    /** Ações extras no cabeçalho da página, antes do botão "novo". */
+    headerActions?: React.ReactNode;
+    /** Faixa entre o cabeçalho e o filtro — o lugar de uma barra de totais. */
+    summary?: React.ReactNode;
   }
   export function RecordListSurface(props: RecordListSurfaceProps): JSX.Element;
 
@@ -654,6 +658,11 @@ const DATA_MODULE_DEFS = `declare module '@microteia/data' {
   export interface EntityListOptions {
     /** Prefixo da tela de edição própria da extensão (para abrir/duplicar nela). */
     editKeyPrefix?: string;
+    /**
+     * Filtros com que a listagem ABRE, quando "tudo" não é a visão útil (o Financeiro abre no mês
+     * corrente). O usuário troca à vontade depois — é ponto de partida, não trava.
+     */
+    defaultFilterTokens?: { key: string; values: string[] }[];
   }
   /**
    * Hook para listagem de entidade dinâmica com filtros e ações de card.

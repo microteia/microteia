@@ -11,6 +11,16 @@ import type { FilterDef, FilterOption } from '../components/ui/CompositeFilter';
 export const CUSTOM_FIELD_FILTER_PREFIX = 'cf-';
 
 /**
+ * Sufixo da metade "até" de um filtro de data. Um campo de data filtra por INTERVALO: uma data exata
+ * quase nunca é o que se procura numa listagem (vencimento no mês, distribuição no ano), e era o que
+ * obrigava a tela de Financeiro a montar `dueDateFrom`/`dueDateTo` em código.
+ *
+ * `:` não aparece em chave de campo (que é slug, com `.` só para campo dentro de objeto), então o
+ * sufixo nunca colide com um campo de verdade.
+ */
+export const FILTER_RANGE_TO_SUFFIX = ':ate';
+
+/**
  * O REGISTRO inteiro: filtrar e exibir é ler pela chave do campo. É `object` (e não
  * `Record<string, unknown>`) para aceitar as entidades tipadas sem cast.
  */
@@ -108,7 +118,8 @@ export const useCustomFieldListing = (
           });
           break;
         case 'date':
-          defs.push({ key, label: field.label, type: 'date' });
+          defs.push({ key, label: `${field.label} (de)`, type: 'date' });
+          defs.push({ key: `${key}${FILTER_RANGE_TO_SUFFIX}`, label: `${field.label} (até)`, type: 'date' });
           break;
         default:
           defs.push({ key, label: field.label, type: 'text', placeholder: field.label });
@@ -119,9 +130,23 @@ export const useCustomFieldListing = (
 
   const matchesFilters = useCallback((values: RecordValues | undefined, tokenMap: Record<string, string[]>): boolean => {
     for (const field of filterableFields) {
-      const tokenValues = tokenMap[`${filterKeyPrefix}${field.key}`] ?? [];
-      if (tokenValues.length === 0) continue;
+      const key = `${filterKeyPrefix}${field.key}`;
+      const tokenValues = tokenMap[key] ?? [];
       const value = fieldValue(values, field);
+      // A data casa por INTERVALO, e cada ponta vale sozinha: só "de", só "até", ou os dois. Ambas as
+      // pontas são inclusivas, e a comparação é entre strings `AAAA-MM-DD` — ordem lexicográfica e
+      // cronológica coincidem, sem fuso no meio.
+      if (field.type === 'date') {
+        const from = tokenValues[0];
+        const to = tokenMap[`${key}${FILTER_RANGE_TO_SUFFIX}`]?.[0];
+        if (!from && !to) continue;
+        const iso = toDateFieldInput(value);
+        if (!iso) return false;
+        if (from && iso < from) return false;
+        if (to && iso > to) return false;
+        continue;
+      }
+      if (tokenValues.length === 0) continue;
       switch (field.type) {
         case 'select':
         case 'reference':
@@ -133,9 +158,6 @@ export const useCustomFieldListing = (
           break;
         case 'checkbox':
           if (String(value === true) !== tokenValues[0]) return false;
-          break;
-        case 'date':
-          if (toDateFieldInput(value) !== tokenValues[0]) return false;
           break;
         default: {
           const query = tokenValues[0]?.toLowerCase() ?? '';
