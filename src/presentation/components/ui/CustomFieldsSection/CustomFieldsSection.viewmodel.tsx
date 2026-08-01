@@ -3,7 +3,7 @@ import { useTheme } from 'styled-components';
 import { useLookups } from '../../../../stores/useLookups';
 import { useTenant } from '../../../../stores/useTenant';
 import { useReferenceOptions } from '../../../hooks/useReferenceOptions';
-import { sortFieldsByOrder } from '../../../../domain/services/customFieldValues';
+import { readValueByPath, sortFieldsByOrder } from '../../../../domain/services/customFieldValues';
 import { evaluateFieldBoolean, evaluateFieldValidation } from '../../../../domain/schema/fieldExpression';
 import { computeFieldValues } from '../../../../domain/schema/recordRules';
 import { buildHydratedFieldScope } from '../../../../domain/schema/referenceScope';
@@ -19,13 +19,7 @@ export interface LookupOptionSet {
   dynamicOptions: DynamicSelectOption[];
 }
 
-const readByPath = (values: Record<string, unknown>, key: string): unknown => {
-  if (!key.includes('.')) return values[key];
-  return key.split('.').reduce<unknown>(
-    (acc, part) => (acc !== null && typeof acc === 'object' ? (acc as Record<string, unknown>)[part] : undefined),
-    values,
-  );
-};
+const readByPath = readValueByPath;
 
 export interface CustomFieldsSectionProps {
   fields: FieldDefinition[];

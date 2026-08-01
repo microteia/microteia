@@ -17,6 +17,7 @@ export interface ActionFormState {
   workflowId: string;
   hiddenWhen: string;
   disabledWhen: string;
+  activeWhen: string;
   confirmMessage: string;
   danger: boolean;
   enabled: boolean;
@@ -30,6 +31,7 @@ const EMPTY_FORM: ActionFormState = {
   workflowId: '',
   hiddenWhen: '',
   disabledWhen: '',
+  activeWhen: '',
   confirmMessage: '',
   danger: false,
   enabled: true,
@@ -43,6 +45,7 @@ const toForm = (action: ActionDefinition): ActionFormState => ({
   workflowId: action.workflowId,
   hiddenWhen: action.hiddenWhen ?? '',
   disabledWhen: action.disabledWhen ?? '',
+  activeWhen: action.activeWhen ?? '',
   confirmMessage: action.confirmMessage ?? '',
   danger: action.danger,
   enabled: action.enabled,
@@ -140,6 +143,7 @@ export const useViewActionViewModel = (tabKey: string): ViewActionViewModel => {
         icon: formData.icon,
         workflowId: formData.workflowId,
         hiddenWhen: formData.hiddenWhen.trim() || null,
+        activeWhen: formData.activeWhen.trim() || null,
         disabledWhen: formData.disabledWhen.trim() || null,
         confirmMessage: formData.confirmMessage.trim() || null,
         danger: formData.danger,

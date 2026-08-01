@@ -20,13 +20,6 @@ export const asString = (v: unknown, fallback = 'sem nome'): string =>
   typeof v === 'string' && v.trim() ? v.trim() : fallback;
 
 const FLAT_ENTITY_CONFIG: Record<string, AuditableEntityConfig> = {
-  persons: {
-    entityKey: 'Person',
-    entityLabel: 'Pessoa',
-    entityLabelPlural: 'Pessoas',
-    getDisplayName: (d) => asString(d.name),
-    getEntityLink: (_tenantId, docId) => `view-person:${docId}`,
-  },
   contracts: {
     entityKey: 'Contract',
     entityLabel: 'Contrato',
@@ -97,22 +90,6 @@ const FLAT_ENTITY_CONFIG: Record<string, AuditableEntityConfig> = {
 };
 
 const NESTED_ENTITY_CONFIG: Record<string, Record<string, AuditableEntityConfig>> = {
-  persons: {
-    notes: {
-      entityKey: 'PersonNote',
-      entityLabel: 'Nota de Pessoa',
-      entityLabelPlural: 'Notas de Pessoas',
-      getDisplayName: (d) => truncate(asString(d.title ?? d.text, 'Nota'), 60),
-      getEntityLink: (_tenantId, _docId, parentId) => `view-person:${parentId}`,
-    },
-    documents: {
-      entityKey: 'PersonDocument',
-      entityLabel: 'Documento de Pessoa',
-      entityLabelPlural: 'Documentos de Pessoas',
-      getDisplayName: (d) => asString(d.name),
-      getEntityLink: (_tenantId, _docId, parentId) => `view-person:${parentId}`,
-    },
-  },
   contracts: {
     notes: {
       entityKey: 'ContractNote',

@@ -47,8 +47,29 @@ export interface CaseRecord {
   createdAt: Date | null;
 }
 
+/**
+ * A forma de uma PESSOA como as telas ainda nativas (Contratos, Prazos, Financeiro, Agenda, painéis,
+ * paleta de comandos) precisam lê-la. Não é a declaração da entidade — essa vive na extensão que
+ * instala a tela de Pessoas —, é o contrato de LEITURA de quem exibe uma pessoa vinculada.
+ */
+export interface PersonRecord {
+  id: string;
+  name: string;
+  type: string;
+  email: string;
+  cpf: string;
+  cnpj: string;
+  phone: string;
+  status: string;
+  relationship: string;
+  tagIds: string[];
+}
+
 /** A coleção dos processos. Nomeada uma vez para que a chave não se espalhe pelas telas. */
 export const CASES_COLLECTION = 'cases';
+
+/** A coleção das pessoas. Mesmo motivo. */
+export const PERSONS_COLLECTION = 'persons';
 
 const text = (value: unknown): string => (typeof value === 'string' ? value : '');
 const list = (value: unknown): string[] => (Array.isArray(value) ? value.filter((v): v is string => typeof v === 'string') : []);
@@ -80,6 +101,34 @@ export const useCaseRecords = (): CaseRecord[] => {
       tagIds: list(record.tagIds),
       createdAt: toDateValue(record.createdAt),
     })),
+    [records],
+  );
+};
+
+/**
+ * As pessoas na forma acima, ordenadas por nome — a ordem em que toda tela as apresenta.
+ *
+ * A normalização mora aqui pelo mesmo motivo dos processos: a coleção tem mais de um escritor e
+ * documentos de épocas diferentes, então campo ausente vira vazio e nenhuma tela precisa se defender
+ * disso.
+ */
+export const usePersonRecords = (): PersonRecord[] => {
+  const records = useCollectionRecords<Record<string, unknown> & { id: string }>(PERSONS_COLLECTION);
+  return useMemo(
+    () => records
+      .map((record) => ({
+        id: record.id,
+        name: text(record.name),
+        type: text(record.type),
+        email: text(record.email),
+        cpf: text(record.cpf),
+        cnpj: text(record.cnpj),
+        phone: text(record.phone),
+        status: text(record.status),
+        relationship: text(record.relationship),
+        tagIds: list(record.tagIds),
+      }))
+      .sort((a, b) => a.name.localeCompare(b.name)),
     [records],
   );
 };

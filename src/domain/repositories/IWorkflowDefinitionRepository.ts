@@ -4,9 +4,11 @@ export interface IWorkflowDefinitionRepository {
   getWorkflowDefinitions(tenantId: string): Promise<WorkflowDefinition[]>;
   subscribeToWorkflowDefinitions(tenantId: string, onUpdate: (definitions: WorkflowDefinition[]) => void): () => void;
   getWorkflowDefinitionById(tenantId: string, id: string): Promise<WorkflowDefinition | null>;
+  /** `id` presente = identificador escolhido por quem cria; ausente = gerado pelo banco. */
   createWorkflowDefinition(
     tenantId: string,
     data: Omit<WorkflowDefinition, 'id' | 'tenantId' | 'createdAt' | 'updatedAt'>,
+    id?: string,
   ): Promise<WorkflowDefinition>;
   updateWorkflowDefinition(
     tenantId: string,

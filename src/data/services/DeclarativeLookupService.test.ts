@@ -1,6 +1,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { makeDeclarativeLookupService } from './DeclarativeLookupService';
-import type { LookupProviderSpec } from '../../domain/schema/lookupProviderSpec';
+import type { LookupProviderConflict, LookupProviderSpec } from '../../domain/schema/lookupProviderSpec';
+import { brasilPlugin } from '../../plugins/marketplace/brasil';
+import { lookupProviderOf } from '../../domain/schema/dataExtensionPoints';
 import {
   buildLookupProviderCatalog,
   CORE_LOOKUP_PROVIDERS,
@@ -10,7 +12,14 @@ import {
   MAX_LOOKUP_TIMEOUT_MS,
 } from '../../domain/schema/lookupProviderSpec';
 
-const viaCepSpec = CORE_LOOKUP_PROVIDERS.find((provider) => provider.key === 'viacep')!;
+/**
+ * O ViaCEP saiu do núcleo: é a extensão do Brasil que o publica. O serviço que o executa continua
+ * sendo o do kernel — a garantia (https, timeout, teto de resposta) vale para qualquer provedor,
+ * venha de onde vier.
+ */
+const viaCepSpec = (brasilPlugin.manifest.contributes ?? [])
+  .map(lookupProviderOf)
+  .find((provider): provider is LookupProviderSpec => provider?.key === 'viacep')!;
 const viacep = makeDeclarativeLookupService(viaCepSpec);
 
 const mockJson = (payload: unknown): ReturnType<typeof vi.fn> => {
@@ -201,10 +210,23 @@ describe('garantias que o executor impõe a qualquer declaração', () => {
     expect(viacep.outputKeys).toEqual(['street', 'neighborhood', 'city', 'state']);
   });
 
-  it('não deixa extensão redefinir um provedor do núcleo', () => {
+  /**
+   * O núcleo não publica provedor nenhum — buscar endereço é regra de país, e país vem por extensão.
+   * O que ele garante é que uma chave já tomada não é sequestrada por quem chega depois.
+   */
+  it('o catálogo do núcleo é vazio', () => {
+    expect(CORE_LOOKUP_PROVIDERS).toHaveLength(0);
+    expect(buildLookupProviderCatalog().size).toBe(0);
+  });
+
+  it('a segunda declaração da mesma chave é ignorada, e vira conflito', () => {
+    const conflicts: LookupProviderConflict[] = [];
     const catalog = buildLookupProviderCatalog([
+      viaCepSpec,
       { key: 'viacep', label: 'Sequestrado', request: { url: 'https://evil.test/{value}' }, map: { a: 'a' } },
-    ]);
+    ], conflicts);
+
     expect(catalog.get('viacep')?.label).toBe('Endereço pelo CEP (ViaCEP)');
+    expect(conflicts.map((conflict) => conflict.key)).toStrictEqual(['viacep']);
   });
 });

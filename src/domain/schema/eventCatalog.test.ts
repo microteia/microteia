@@ -32,6 +32,19 @@ const tenantCtx = createSchemaContext([
     ],
   },
   {
+    // Pessoa também vem de extensão: coleção `persons`, eventos `person.*`, endereço declarado em
+    // caminho pontilhado — é o objeto aninhado nascendo de uma declaração de tela.
+    id: 'pessoas',
+    collection: 'persons',
+    eventPrefix: 'person',
+    titleSingular: 'Pessoa',
+    titleFieldKey: 'name',
+    fields: [
+      { key: 'name', label: 'Nome', type: 'text', required: true, order: 0, origin: 'plugin' },
+      { key: 'address.city', label: 'Cidade', type: 'text', required: false, order: 1, origin: 'plugin' },
+    ],
+  },
+  {
     id: 'medico',
     titleSingular: 'Médico',
     titlePlural: 'Médicos',
@@ -42,11 +55,13 @@ const tenantCtx = createSchemaContext([
 
 describe('eventCatalog — derivação do registry', () => {
   it('mantém os eventos das entidades com rótulos PT-BR', () => {
-    expect(entry('person.saved')?.label).toBe('Ao salvar: Pessoa');
+    expect(entry('contract.saved')?.label).toBe('Ao salvar: Contrato');
     expect(entry('contract.deleted')?.label).toBe('Ao excluir: Contrato');
     expect(entry('lookup.saved')?.label).toBe('Ao salvar: Item de Lista');
-    // Processo saiu do kernel: o evento dele só existe no catálogo do escritório que o instalou.
+    // Processo e Pessoa saíram do kernel: os eventos deles só existem no catálogo do escritório
+    // que instalou as extensões.
     expect(entry('case.saved')).toBeUndefined();
+    expect(entry('person.saved')).toBeUndefined();
   });
 
   it('deriva os caminhos denormalizados das FKs (fim do hardcode)', () => {
@@ -54,19 +69,26 @@ describe('eventCatalog — derivação do registry', () => {
     expect(contractPaths).toEqual(
       expect.arrayContaining(['client.id', 'client.name', 'responsible.name', 'clientId']),
     );
+    // O RÓTULO do campo apontado sai do registro; com Pessoa fora dele, resta a chave crua. O
+    // caminho continua resolvendo — é ele que a automação usa.
     const contractEntry = entry('contract.saved');
-    expect(contractEntry?.fields.find((f) => f.path === 'client.name')?.label).toBe('Cliente: Nome');
+    expect(contractEntry?.fields.map((f) => f.path)).toEqual(expect.arrayContaining(['client.name']));
     expect(paths('deadline.saved')).toEqual(expect.arrayContaining(['case.caseNumber', 'case.title', 'case.area']));
     expect(paths('financial.saved')).toEqual(expect.arrayContaining(['person.name', 'contract.number']));
   });
 
   it('inclui old apenas em eventos saved', () => {
-    expect(paths('person.saved')).toContain('old');
-    expect(paths('person.deleted')).not.toContain('old');
+    expect(paths('contract.saved')).toContain('old');
+    expect(paths('contract.deleted')).not.toContain('old');
   });
 
-  it('achata campos de objeto aninhado (address)', () => {
-    expect(paths('person.saved')).toContain('address.city');
+  /**
+   * O objeto aninhado agora nasce de uma DECLARAÇÃO de tela: os campos vêm em caminho pontilhado
+   * (`address.city`), a resolução os aninha e o catálogo os achata de volta.
+   */
+  it('achata campos de objeto aninhado declarados por tela', () => {
+    const fields = getWorkflowEventFields('person.saved', tenantCtx).map((f) => f.path);
+    expect(fields).toContain('address.city');
   });
 
   it('não oferece eventos de news (nunca publicados pelo backend)', () => {
@@ -98,7 +120,8 @@ describe('getWorkflowEventFields', () => {
 describe('buildWorkflowEventCatalog', () => {
   it('acrescenta um par de eventos por tela do tenant, sem duplicar as fixas', () => {
     const names = buildWorkflowEventCatalog(tenantCtx).map((e) => e.name);
-    expect(names).toEqual(expect.arrayContaining(['person.saved', 'medico.saved', 'medico.deleted']));
+    expect(names).toEqual(expect.arrayContaining(['contract.saved', 'medico.saved', 'medico.deleted']));
+    expect(names.filter((n) => n === 'person.saved')).toHaveLength(1);
     expect(names.filter((n) => n === 'case.saved')).toHaveLength(1);
     expect(names).not.toContain('cases.saved');
   });
@@ -141,7 +164,7 @@ describe('splitEntityEventName', () => {
   });
 
   it('não são eventos de coleção: filhos das fixas, listas e chamada de workflow', () => {
-    expect(splitEntityEventName('person_note.saved')).toBeNull();
+    expect(splitEntityEventName('contract_note.saved')).toBeNull();
     expect(splitEntityEventName('contract_document.deleted')).toBeNull();
     expect(splitEntityEventName('lookup.saved')).toBeNull();
     expect(splitEntityEventName('workflow.called')).toBeNull();
@@ -157,6 +180,8 @@ describe('splitEntityEventName', () => {
       action: 'saved',
     });
     expect(splitEntityEventName('medico_note.saved')).toMatchObject({ prefix: 'medico_note' });
+    // `person` deixou de ser prefixo do registro, então `person_note` volta a ser nome de coleção.
+    expect(splitEntityEventName('person_note.saved')).toMatchObject({ prefix: 'person_note' });
   });
 });
 

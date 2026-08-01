@@ -148,7 +148,7 @@ const PROCESSO_SOURCE = `
 import { useMemo } from 'react';
 import { styled, useTheme } from 'styled-components';
 import { RecordListSurface, Badge, InfoBanner } from '@microteia/ui';
-import { useEntityList, useLookup, usePersons, useWorkspace } from '@microteia/data';
+import { useCollection, useEntityList, useLookup, useWorkspace } from '@microteia/data';
 import { getConfigColor } from '@microteia/theme';
 
 const SOURCE_ID = 'microteia:processo';
@@ -248,7 +248,7 @@ function daysSince(value) {
 export default function ProcessosView() {
   const theme = useTheme();
   const list = useEntityList(SOURCE_ID, { editKeyPrefix: EDIT_PREFIX });
-  const persons = usePersons();
+  const persons = useCollection('persons');
   const statusOptions = useLookup('caseStatuses');
   const phaseOptions = useLookup('casePhases');
   const { openTab } = useWorkspace();
@@ -406,7 +406,13 @@ export const processoPlugin: MarketplacePlugin = {
     name: 'Processos',
     description: 'A tela de Processos recriada como extensão, sobre os MESMOS processos do escritório — o caminho de migração de uma tela fixa para o modelo de extensão.',
     publisher: { name: 'Microteia' },
-    dependencies: { 'core.ui': '^1.0.0' },
+    // Processo APONTA para pessoas (responsável, polo ativo, polo passivo): a coleção `persons` vem
+    // da extensão de Pessoas, e é ela que precisa estar instalada para esses campos terem o que
+    // oferecer. `collections` é o que liga o nome global da coleção a quem a instala.
+    dependencies: {
+      'core.ui': '^1.0.0',
+      'com.microteia.pessoa': { version: '^1.0.0', collections: ['persons'] },
+    },
     contributes: [
       nav({ key: 'processos', label: 'Processos', icon: 'folder', order: 105 }),
       page({ key: 'processos', title: 'Processos', icon: 'folder' }, 'processos'),

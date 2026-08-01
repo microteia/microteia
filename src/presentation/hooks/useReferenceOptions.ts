@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { usePersonStore } from '../../stores/usePersonStore';
+import { usePersonRecords } from '../shared/useCollectionRecords';
 import { useContractStore } from '../../stores/useContractStore';
 import { useFinancialStore } from '../../stores/useFinancialStore';
 import { useDeadlineStore } from '../../stores/useDeadlineStore';
@@ -16,7 +16,7 @@ export interface ReferenceOption {
 }
 
 export const useReferenceOptions = (): Record<string, ReferenceOption[]> => {
-  const { persons } = usePersonStore();
+  const persons = usePersonRecords();
   const { contracts } = useContractStore();
   const { financials } = useFinancialStore();
   const { deadlines } = useDeadlineStore();
@@ -25,10 +25,10 @@ export const useReferenceOptions = (): Record<string, ReferenceOption[]> => {
   const { members } = useTenant();
 
   return useMemo(() => {
+    // `persons` não aparece aqui: a coleção é descrita por uma tela do escritório e entra pelo
+    // caminho genérico abaixo, como qualquer outra. A lista local serve só ao complemento do
+    // lançamento financeiro, que mostra o nome da pessoa vinculada.
     const map: Record<string, ReferenceOption[]> = {
-      persons: persons
-        .map((p) => ({ value: p.id, label: p.name }))
-        .sort((a, b) => a.label.localeCompare(b.label)),
       members: members
         .map((m) => ({ value: m.userId, label: m.displayName }))
         .sort((a, b) => a.label.localeCompare(b.label)),

@@ -146,7 +146,9 @@ export const EntityDetailView: React.FC<EntityDetailViewProps> = ({
               disabled={action.disabled}
               title={action.title}
             >
-              {getScreenIcon(action.iconKey, 14)}
+              {action.active === undefined
+                ? getScreenIcon(action.iconKey, 14)
+                : <S.ToggleIcon $on={action.active}>{getScreenIcon(action.iconKey, 14)}</S.ToggleIcon>}
             </Button>
           )
         ))}

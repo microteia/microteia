@@ -2,7 +2,7 @@ import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { useCommandPalette } from '../../../../stores/useCommandPalette';
 import { useWorkspace } from '../../../../stores/useWorkspace';
 import { useNews } from '../../../../stores/useNews';
-import { usePersonStore } from '../../../../stores/usePersonStore';
+import { usePersonRecords } from '../../../shared/useCollectionRecords';
 import { useCaseRecords } from '../../../shared/useCollectionRecords';
 import { useContractStore } from '../../../../stores/useContractStore';
 import { useFinancialStore } from '../../../../stores/useFinancialStore';
@@ -36,7 +36,7 @@ export const useCommandPaletteViewModel = (): CommandPaletteViewModel => {
   const { close } = useCommandPalette();
   const { openTab } = useWorkspace();
   const { news } = useNews();
-  const { persons } = usePersonStore();
+  const persons = usePersonRecords();
   const cases = useCaseRecords();
   const { contracts } = useContractStore();
   const { financials } = useFinancialStore();

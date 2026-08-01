@@ -1,5 +1,6 @@
 import { useCallback } from 'react';
 import { format } from 'date-fns';
+import { readValueByPath } from '../../domain/services/customFieldValues';
 import { useReferenceOptions } from '../hooks/useReferenceOptions';
 import { formatCurrencyBRL } from '../../utils/formatters';
 import type { DerivedListRow } from './deriveEntitySchema';
@@ -22,7 +23,9 @@ export const useListRowResolver = (): ((record: Record<string, unknown>, row: De
   const referenceOptions = useReferenceOptions();
 
   return useCallback((record, row) => {
-    const raw = record[row.key];
+    // A chave da linha é um caminho: um campo dentro de um objeto declarado (`address.city`) chega
+    // aqui pontilhado, como `deriveListRows` o monta.
+    const raw = readValueByPath(record, row.key);
     if (row.type === 'reference' && row.refEntity) {
       const options = referenceOptions[row.refEntity] ?? [];
       const labelOf = (id: unknown) => options.find((option) => option.value === id)?.label ?? '';

@@ -153,6 +153,19 @@ export const ViewActionView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
                 workflowVariables={vm.expressionVariables}
               />
             </S.Field>
+            <S.Field>
+              <Label>Ligada quando (interruptor)</Label>
+              <S.SectionHint>
+                Preenchida, o botão passa a MOSTRAR o estado do registro: verde quando a expressão é
+                verdadeira, vermelho quando falsa. Em branco, é um botão comum, que só dispara.
+              </S.SectionHint>
+              <ExpressionEditor
+                value={vm.formData.activeWhen}
+                onChange={(activeWhen) => vm.setFormData({ activeWhen })}
+                placeholder='ex: status != "Inativo"'
+                workflowVariables={vm.expressionVariables}
+              />
+            </S.Field>
           </S.SectionBody>
         </S.Section>
 

@@ -37,6 +37,7 @@ import type { InsertTarget } from '../../shared/workflowHelpers';
 import type { WorkflowDefinition, WorkflowExecution, WorkflowStep, Condition, WorkflowParameter } from '../../../domain/entities/Workflow';
 import type { RunModalResult } from '../../components/ui/RunModal';
 import type { StepDefinitionSummary, StepCategory } from '../../../domain/entities/WorkflowStepCatalog';
+import { deriveWorkflowId, workflowIdIssue } from '../../../domain/services/workflowIdentity';
 
 export type ViewWorkflowTab = 'general' | 'conditions' | 'steps' | 'executions';
 
@@ -99,6 +100,8 @@ export const PARAMETER_TYPE_OPTIONS: { value: WorkflowParameter['type']; label: 
 ];
 
 export interface WorkflowFormData {
+  /** Identificador escolhido na criação. Em branco, é derivado do nome ao salvar. */
+  workflowId: string;
   name: string;
   description: string;
   eventName: string;
@@ -109,6 +112,7 @@ export interface WorkflowFormData {
 const sanitizeParameters = sanitizeWorkflowParameters;
 
 const buildForm = (w: WorkflowDefinition | null): WorkflowFormData => ({
+  workflowId: '',
   name: w?.name ?? '',
   description: w?.description ?? '',
   eventName: w?.eventName ?? '',
@@ -135,6 +139,10 @@ export const LOOKUP_COLLECTION_OPTIONS = WORKFLOW_LOOKUP_COLLECTIONS.map((entry)
 
 export interface ViewWorkflowViewModel {
   isNew: boolean;
+  /** Identificador da automação já criada — o que as Ações guardam. */
+  workflowIdValue: string;
+  suggestedWorkflowId: string;
+  workflowIdError: string | undefined;
   workflow: WorkflowDefinition | null;
   activeTab: ViewWorkflowTab;
   setActiveTab: (tab: ViewWorkflowTab) => void;
@@ -384,6 +392,24 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
     [workflow, eventNameOptions],
   );
 
+  /**
+   * O identificador que a automação terá. Só é editável na criação: as Ações e os pacotes guardam
+   * esse nome, e trocá-lo depois faria todos deixarem de encontrá-la.
+   */
+  const takenWorkflowIds = useMemo(() => new Set(workflows.map((w) => w.id)), [workflows]);
+
+  const suggestedWorkflowId = useMemo(
+    () => (formData.name.trim() ? deriveWorkflowId(formData.name, takenWorkflowIds) : ''),
+    [formData.name, takenWorkflowIds],
+  );
+
+  const workflowIdError = useMemo(
+    () => (isNew && formData.workflowId.trim()
+      ? workflowIdIssue(formData.workflowId, takenWorkflowIds)
+      : undefined),
+    [isNew, formData.workflowId, takenWorkflowIds],
+  );
+
   const isLookupEvent = useMemo(() => isLookupEventName(formData.eventName), [formData.eventName]);
 
   // Mesma ideia de isScreenKeyRecognized, mas para a lista de lookup escolhida.
@@ -475,7 +501,8 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
         if (lookupCollection) createData.lookupCollection = lookupCollection;
         if (parameters) createData.parameters = parameters;
 
-        const created = await createWorkflow(createData as Parameters<typeof createWorkflow>[0]);
+        const chosenId = formData.workflowId.trim() || deriveWorkflowId(formData.name, takenWorkflowIds);
+        const created = await createWorkflow(createData as Parameters<typeof createWorkflow>[0], chosenId);
         notify('Automação criada.', 'success');
         closeTab(tabKey, activePanelId ?? 'main');
         openTab(`view-workflow:${created.id}`);
@@ -497,7 +524,7 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
     } finally {
       setIsSaving(false);
     }
-  }, [currentTenant, isNew, formData, isLookupEvent, isCalledEvent, cloneSource, createWorkflow, updateWorkflow, workflow, notify, closeTab, tabKey, activePanelId, openTab]);
+  }, [takenWorkflowIds, currentTenant, isNew, formData, isLookupEvent, isCalledEvent, cloneSource, createWorkflow, updateWorkflow, workflow, notify, closeTab, tabKey, activePanelId, openTab]);
 
   const toggleEnabled = useCallback(() => {
     if (!workflow) return;
@@ -905,6 +932,9 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
 
   return {
     isNew,
+    workflowIdValue: workflowId,
+    suggestedWorkflowId,
+    workflowIdError,
     workflow,
     activeTab,
     setActiveTab,

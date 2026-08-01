@@ -1,0 +1,51 @@
+import { describe, expect, it } from 'vitest';
+import type { ActionExprContext } from './actionExpression';
+import { actionActiveState, isActionDisabled, isActionHidden } from './actionExpression';
+
+const ctx = (values: Record<string, unknown>, overrides: Partial<ActionExprContext> = {}): ActionExprContext => ({
+  values,
+  record: values,
+  isNew: false,
+  isDirty: false,
+  role: 'admin',
+  ...overrides,
+});
+
+describe('isActionHidden / isActionDisabled', () => {
+  it('sem expressão, a ação aparece e está habilitada', () => {
+    expect(isActionHidden(undefined, ctx({}))).toBe(false);
+    expect(isActionDisabled(null, ctx({}))).toBe(false);
+  });
+
+  /** É assim que uma ação que opera sobre o registro se esconde enquanto ele não existe. */
+  it('esconde a ação num registro novo', () => {
+    expect(isActionHidden('isNew', ctx({}, { isNew: true }))).toBe(true);
+    expect(isActionHidden('isNew', ctx({}, { isNew: false }))).toBe(false);
+  });
+});
+
+/**
+ * `activeWhen` é o que transforma um botão de ação num INTERRUPTOR: ele passa a mostrar o estado do
+ * registro. `undefined` (sem declaração) é diferente de `false` — um é "não é interruptor", o outro
+ * é "interruptor desligado".
+ */
+describe('actionActiveState', () => {
+  it('sem declaração, a ação não é um interruptor', () => {
+    expect(actionActiveState(undefined, ctx({ status: 'Ativo' }))).toBeUndefined();
+    expect(actionActiveState('  ', ctx({ status: 'Ativo' }))).toBeUndefined();
+  });
+
+  it('liga e desliga pelo valor do registro', () => {
+    expect(actionActiveState('status != "Inativo"', ctx({ status: 'Ativo' }))).toBe(true);
+    expect(actionActiveState('status != "Inativo"', ctx({ status: 'Inativo' }))).toBe(false);
+  });
+
+  /**
+   * Registro sem o campo: a expressão não resolve e o interruptor fica DESLIGADO — a mesma leitura
+   * que o botão em código dava (`status === 'Ativo'`), e a mais segura: um estado desconhecido não
+   * se apresenta como ligado.
+   */
+  it('registro sem o campo fica desligado', () => {
+    expect(actionActiveState('status != "Inativo"', ctx({}))).toBe(false);
+  });
+});

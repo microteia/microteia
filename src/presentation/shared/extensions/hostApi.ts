@@ -41,7 +41,6 @@ import {
   parseCurrencyDigits,
   toDateInputValue,
 } from '../../../utils/formatters';
-import { usePersonStore } from '../../../stores/usePersonStore';
 import { useWorkspace } from '../../../stores/useWorkspace';
 import { useNotification } from '../../../stores/useNotification';
 import { generateDeepLink } from '../../../infrastructure/deeplink/deepLinkUtils';
@@ -88,8 +87,6 @@ const useUpdateRecord = (): ((collection: string, recordId: string, data: Entity
 
 /** Opções de QUALQUER lista pelo nome da coleção — do kernel ou criada no tenant. */
 const useLookup = (collection: string): LookupOption[] => useLookups().getOptions(collection);
-
-const usePersons = (): ReturnType<typeof usePersonStore>['persons'] => usePersonStore().persons;
 
 const useNotify = (): ReturnType<typeof useNotification>['notify'] => useNotification().notify;
 
@@ -140,7 +137,6 @@ const dataModule = {
   useCollection,
   useUpdateRecord,
   useLookup,
-  usePersons,
   useWorkspace,
   useNotify,
   useSavedViewState,

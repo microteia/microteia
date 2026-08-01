@@ -63,6 +63,16 @@ export interface FieldDefinition {
    */
   listOrder?: number | null;
   filterable?: boolean;
+  /**
+   * Valor com que o campo NASCE num registro novo — o que o formulário mostra antes de o usuário
+   * tocar nele. Só semeia: o valor é livremente editável, ao contrário de `logic.compute`, que
+   * deriva sempre, e de `logic.onChange`, que reage a outro campo.
+   *
+   * Existe porque um cadastro tem quase sempre um caso dominante ("Pessoa Física", "Ativo") que a
+   * entidade fixa embutia em código no formulário. Sem ele, uma tela declarada não teria como
+   * reproduzir esse padrão — o usuário escolheria o mesmo valor a cada registro.
+   */
+  defaultValue?: CustomFieldValue;
   rules?: FieldRules | null;
   logic?: FieldLogic | null;
   aggregation?: FieldAggregation | null;

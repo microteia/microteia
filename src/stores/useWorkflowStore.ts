@@ -4,7 +4,7 @@ import type { WorkflowDefinition, WorkflowStep } from '../domain/entities/Workfl
 export interface WorkflowStoreContextValue {
   workflows: WorkflowDefinition[];
   isLoading: boolean;
-  createWorkflow: (data: Omit<WorkflowDefinition, 'id' | 'tenantId' | 'createdAt' | 'updatedAt'>) => Promise<WorkflowDefinition>;
+  createWorkflow: (data: Omit<WorkflowDefinition, 'id' | 'tenantId' | 'createdAt' | 'updatedAt'>, id?: string) => Promise<WorkflowDefinition>;
   updateWorkflow: (id: string, data: Partial<Omit<WorkflowDefinition, 'id' | 'tenantId' | 'createdAt'>>) => Promise<void>;
   updateWorkflowSteps: (id: string, steps: WorkflowStep[]) => Promise<void>;
   deleteWorkflow: (id: string) => Promise<void>;

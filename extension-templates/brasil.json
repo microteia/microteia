@@ -1,0 +1,224 @@
+{
+  "manifest": {
+    "id": "com.microteia.brasil",
+    "version": "1.0.0",
+    "kernel": "^1.0.0",
+    "name": "Brasil",
+    "description": "Documentos, telefone, CEP e busca de endereço do Brasil — as regras de país que o sistema não embute.",
+    "publisher": {
+      "name": "Microteia"
+    },
+    "contributes": [
+      {
+        "point": "data.field.preset",
+        "id": "cpf",
+        "apiVersion": "1.0.0",
+        "metadata": {
+          "key": "cpf",
+          "label": "CPF (000.000.000-00)",
+          "mask": {
+            "templates": [
+              "###.###.###-##"
+            ],
+            "inputMode": "numeric"
+          },
+          "format": [
+            {
+              "op": "digits"
+            },
+            {
+              "op": "mask",
+              "templates": [
+                "###.###.###-##"
+              ]
+            }
+          ],
+          "validate": {
+            "expression": "isCPF(value)",
+            "message": "CPF inválido"
+          }
+        }
+      },
+      {
+        "point": "data.field.preset",
+        "id": "cnpj",
+        "apiVersion": "1.0.0",
+        "metadata": {
+          "key": "cnpj",
+          "label": "CNPJ (00.000.000/0000-00)",
+          "mask": {
+            "templates": [
+              "##.###.###/####-##"
+            ],
+            "inputMode": "numeric"
+          },
+          "format": [
+            {
+              "op": "digits"
+            },
+            {
+              "op": "mask",
+              "templates": [
+                "##.###.###/####-##"
+              ]
+            }
+          ],
+          "validate": {
+            "expression": "isCNPJ(value)",
+            "message": "CNPJ inválido"
+          }
+        }
+      },
+      {
+        "point": "data.field.preset",
+        "id": "cpf-cnpj",
+        "apiVersion": "1.0.0",
+        "metadata": {
+          "key": "cpfCnpj",
+          "label": "CPF ou CNPJ",
+          "mask": {
+            "templates": [
+              "###.###.###-##",
+              "##.###.###/####-##"
+            ],
+            "inputMode": "numeric"
+          },
+          "format": [
+            {
+              "op": "digits"
+            },
+            {
+              "op": "mask",
+              "templates": [
+                "###.###.###-##",
+                "##.###.###/####-##"
+              ]
+            }
+          ],
+          "validate": {
+            "expression": "isCPF(value) or isCNPJ(value)",
+            "message": "CPF ou CNPJ inválido"
+          }
+        }
+      },
+      {
+        "point": "data.field.preset",
+        "id": "phone",
+        "apiVersion": "1.0.0",
+        "metadata": {
+          "key": "phone",
+          "label": "Telefone ((00) 00000-0000)",
+          "mask": {
+            "templates": [
+              "(##) ####-####",
+              "(##) #####-####"
+            ],
+            "placeholder": "(00) 00000-0000",
+            "inputMode": "numeric"
+          },
+          "format": [
+            {
+              "op": "digits"
+            },
+            {
+              "op": "mask",
+              "templates": [
+                "(##) ####-####",
+                "(##) #####-####"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "point": "data.field.preset",
+        "id": "cep",
+        "apiVersion": "1.0.0",
+        "metadata": {
+          "key": "cep",
+          "label": "CEP (00000-000)",
+          "mask": {
+            "templates": [
+              "#####-###"
+            ],
+            "inputMode": "numeric"
+          },
+          "format": [
+            {
+              "op": "digits"
+            },
+            {
+              "op": "mask",
+              "templates": [
+                "#####-###"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "point": "data.external.lookup",
+        "id": "viacep",
+        "apiVersion": "1.0.0",
+        "metadata": {
+          "key": "viacep",
+          "label": "Endereço pelo CEP (ViaCEP)",
+          "input": [
+            {
+              "op": "digits"
+            }
+          ],
+          "when": "length(value) == 8",
+          "request": {
+            "url": "https://viacep.com.br/ws/{value}/json/"
+          },
+          "map": {
+            "street": "logradouro",
+            "neighborhood": "bairro",
+            "city": "localidade",
+            "state": "uf"
+          },
+          "failWhen": {
+            "path": "erro",
+            "message": "CEP não encontrado"
+          },
+          "errorMessage": "Não foi possível consultar o CEP"
+        }
+      }
+    ]
+  },
+  "summary": "Traz CPF, CNPJ, telefone e CEP com máscara e conferência automática, mais o preenchimento de endereço a partir do CEP. É a base brasileira que outras extensões usam nos seus cadastros.",
+  "overview": {
+    "type": "stack",
+    "gap": "lg",
+    "children": [
+      {
+        "type": "markdown",
+        "content": "A extensão **Brasil** ensina ao sistema os formatos daqui:\n\n- **CPF** e **CNPJ** com máscara e conferência do dígito verificador — documento inválido é recusado na digitação.\n- **Telefone** com DDD, fixo ou celular.\n- **CEP** com máscara.\n- **Endereço pelo CEP**: ao digitar o CEP, rua, bairro, cidade e estado se preenchem sozinhos.\n\nQualquer cadastro do escritório pode usar esses formatos nos seus campos — não só os que já vêm prontos."
+      },
+      {
+        "type": "keyValue",
+        "items": [
+          {
+            "label": "Formatos",
+            "value": "CPF, CNPJ, CPF ou CNPJ, telefone, CEP"
+          },
+          {
+            "label": "Busca externa",
+            "value": "Endereço pelo CEP (ViaCEP)"
+          },
+          {
+            "label": "Usada por",
+            "value": "Pessoas — e por qualquer tela que você criar"
+          }
+        ]
+      },
+      {
+        "type": "banner",
+        "message": "Sem esta extensão, os campos de CPF, CNPJ, telefone e CEP continuam existindo e guardando o que já foi digitado — mas perdem a máscara, a conferência e o preenchimento pelo CEP.",
+        "variant": "warning"
+      }
+    ]
+  },
+  "workflows": []
+}

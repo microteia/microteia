@@ -24,7 +24,7 @@ describe('SchemaContext — as listas do kernel e do tenant num conjunto só', (
   });
 
   it('a lista do kernel entra mesmo sem declaração no tenant', () => {
-    expect(isLookupTable(createSchemaContext(), 'personTypes')).toBe(true);
+    expect(isLookupTable(createSchemaContext(), 'contractTypes')).toBe(true);
   });
 });
 
@@ -61,7 +61,7 @@ describe('conjuntos de etiquetas', () => {
   it('os do kernel entram no contexto mesmo sem declaração do tenant', () => {
     const semTenant = createSchemaContext();
     expect(semTenant.tagLists.has('contractTags')).toBe(true);
-    expect(semTenant.tagLists.has('personTags')).toBe(true);
+    expect(semTenant.tagLists.has('financialTags')).toBe(true);
   });
 
   it('a tela do tenant pode redirecionar as etiquetas de uma entidade fixa', () => {

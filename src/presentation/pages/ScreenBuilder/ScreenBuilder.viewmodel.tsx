@@ -27,9 +27,9 @@ import { useLookups } from '../../../stores/useLookups';
 import { useTags } from '../../../stores/useTags';
 import { deriveFormFields } from '../../shared/deriveEntitySchema';
 import { RESERVED_COLLECTIONS, builtinScreenBaseline, derivedLookupCollection, derivedTagCollection, lookupIdIssue, screenIdIssue, tagListIdIssue } from '../../../domain/schema/screenEntity';
-import { isBoundScreen } from '../../../domain/services/screenDataCollection';
+import { isBoundScreen, screenDataCollection } from '../../../domain/services/screenDataCollection';
 import type { EntityKey } from '../../../domain/schema/entityRegistry';
-import { getEntityByCollection } from '../../../domain/schema/entityRegistry';
+import { ENTITY_REGISTRY, ENTITY_REGISTRY_LIST, getEntityByCollection } from '../../../domain/schema/entityRegistry';
 import type { WorkflowVariable } from '../../components/ui/ExpressionEditor/autocompleteHelpers';
 import type { SearchSelectOption } from '../../components/ui/SearchSelect';
 import type { ColorSwatchOption } from '../../components/ui/ColorSwatchPicker';
@@ -244,13 +244,17 @@ export interface ScreenBuilderViewModel {
   deletingField: boolean;
 }
 
-const BUILTIN_SCREENS: { key: string; label: string }[] = [
-  { key: 'persons', label: 'Pessoas' },
-  { key: 'cases', label: 'Processos' },
-  { key: 'contracts', label: 'Contratos' },
-  { key: 'financials', label: 'Financeiro' },
-  { key: 'deadlines', label: 'Prazos' },
-];
+/**
+ * As telas FIXAS do Form Design — derivadas do registro, nunca listadas à mão.
+ *
+ * Uma lista escrita aqui sobrevive à entidade: quando Processo e Pessoa saíram do kernel, elas
+ * continuaram aparecendo como "tela do sistema" mesmo sem extensão instalada, oferecendo um
+ * formulário sem esquema por trás. Derivando, a tela some no dia em que a entidade sai — e a que
+ * a substitui aparece pelo caminho normal, como qualquer tela do escritório.
+ */
+const BUILTIN_SCREENS: { key: string; label: string }[] = ENTITY_REGISTRY_LIST
+  .filter((entity) => entity.supportsCustomFields)
+  .map((entity) => ({ key: entity.collection, label: entity.labelPlural }));
 
 const FIELD_TYPE_LABELS: Record<CustomFieldType, string> = {
   text: 'Texto',
@@ -551,12 +555,20 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
   const [draggedFieldKey, setDraggedFieldKey] = useState<string | null>(null);
   const [dragOverFieldKey, setDragOverFieldKey] = useState<string | null>(null);
 
-  // Tela que é VISÃO sobre outra coleção (`dataCollection`) fica de fora: ela não tem esquema
-  // próprio. Quem configura os campos é a tela da entidade alvo — mostrá-la aqui só ofereceria um
-  // formulário cujos ajustes nada fariam.
+  /**
+   * Uma tela ligada a outra coleção (`dataCollection`) só fica de fora quando a coleção é uma
+   * entidade DO KERNEL: aí a linha fixa já a configura, e duas portas para o mesmo esquema apenas
+   * confundiriam.
+   *
+   * Quando a entidade saiu do kernel, a tela ligada passa a ser a ÚNICA que descreve a coleção —
+   * esconder ainda seria deixar Pessoas e Processos sem porta nenhuma no Form Design, que foi o que
+   * aconteceu. O documento que leva o nome da coleção não substitui: ele existe só para as rules
+   * lerem a permissão, sem campos e sem UI.
+   */
   const dynamicDefinitions = useMemo(
     () => definitions
-      .filter((def) => def.origin !== 'builtin' && !isBoundScreen(def))
+      .filter((def) => def.origin !== 'builtin')
+      .filter((def) => !isBoundScreen(def) || !(screenDataCollection(def) in ENTITY_REGISTRY))
       .sort((a, b) => a.sidebarOrder - b.sidebarOrder),
     [definitions],
   );
@@ -579,7 +591,9 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
     }
     for (const def of definitions) {
       if (map[def.id]) continue;
-      map[def.id] = deriveFormFields(schemaContext, def.id);
+      // O esquema mora na COLEÇÃO, não na chave da tela: numa tela ligada, resolver pela chave
+      // devolveria uma lista vazia — o Form Design mostraria a tela sem campo nenhum.
+      map[def.id] = deriveFormFields(schemaContext, screenDataCollection(def));
     }
     return map;
   }, [schemaContext, definitions]);
@@ -809,17 +823,21 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
   const childCandidates = useMemo<ChildCandidate[]>(() => {
     const current = screenModal?.screenKey;
     if (!current) return [];
+    // Uma relação aponta para a COLEÇÃO, não para a chave da tela: numa tela ligada, comparar com a
+    // chave não encontraria filho nenhum.
+    const currentDef = getDefinitionByKey(current);
+    const currentCollection = currentDef ? screenDataCollection(currentDef) : current;
     return dynamicDefinitions
       .filter((def) => def.id !== current)
       .map((def) => ({
         key: def.id,
         label: def.titlePlural,
         fieldOptions: def.fields
-          .filter((field) => field.type === 'reference' && field.refEntity === current)
+          .filter((field) => field.type === 'reference' && field.refEntity === currentCollection)
           .map((field) => ({ value: field.key, label: field.label })),
       }))
       .filter((candidate) => candidate.fieldOptions.length > 0);
-  }, [dynamicDefinitions, screenModal]);
+  }, [dynamicDefinitions, screenModal, getDefinitionByKey]);
 
   const toggleChildScreen = useCallback((childKey: string) => {
     setScreenForm((prev) => {
@@ -847,27 +865,38 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
     [],
   );
 
-  const titleFieldOptions = useMemo<SearchSelectOption[]>(() => {
-    if (!screenModal?.screenKey) return [];
-    const def = getDefinitionByKey(screenModal.screenKey);
-    if (!def) return [];
-    return def.fields
-      .filter((f) => f.type === 'text' && f.required)
-      .map((f) => ({ value: f.key, label: f.label }));
-  }, [screenModal, getDefinitionByKey]);
+  /**
+   * Os campos que a tela REALMENTE renderiza — os declarados em código, os da extensão e os do
+   * escritório, já mesclados. Ler `def.fields` deixava de fora tudo que não está materializado no
+   * documento, e numa tela ligada a outra coleção nem sempre é o documento que descreve o esquema.
+   */
+  const modalScreenFields = useMemo<FieldDefinition[]>(() => {
+    const key = screenModal?.screenKey;
+    if (!key) return [];
+    return resolvedFieldsByScreen[key] ?? getDefinitionByKey(key)?.fields ?? [];
+  }, [screenModal, resolvedFieldsByScreen, getDefinitionByKey]);
 
-  /** O subtítulo aceita qualquer campo de texto (não precisa ser obrigatório) e pode ser nenhum. */
-  const subtitleFieldOptions = useMemo<SearchSelectOption[]>(() => {
-    if (!screenModal?.screenKey) return [];
-    const def = getDefinitionByKey(screenModal.screenKey);
-    if (!def) return [];
-    return [
+  const titleFieldOptions = useMemo<SearchSelectOption[]>(
+    () => modalScreenFields
+      .filter((f) => f.type === 'text' && f.required)
+      .map((f) => ({ value: f.key, label: f.label })),
+    [modalScreenFields],
+  );
+
+  /**
+   * O subtítulo aceita qualquer campo que caiba numa LINHA ao lado do título — inclusive seleção e
+   * relação, que o cartão e o cabeçalho resolvem para o rótulo, e não para o id ou a chave. Ficam de
+   * fora só o texto longo e o markdown, que não cabem, e o Sim/Não, que nada informa ali.
+   */
+  const subtitleFieldOptions = useMemo<SearchSelectOption[]>(
+    () => [
       { value: '', label: 'Nenhum' },
-      ...def.fields
-        .filter((f) => f.type === 'text' || f.type === 'masked')
+      ...modalScreenFields
+        .filter((f) => f.type !== 'textarea' && f.type !== 'markdown' && f.type !== 'checkbox')
         .map((f) => ({ value: f.key, label: f.label })),
-    ];
-  }, [screenModal, getDefinitionByKey]);
+    ],
+    [modalScreenFields],
+  );
 
   const modalListActionOptions = useMemo(() => {
     if (!screenModalIsBuiltin) return LIST_ACTION_OPTIONS;
@@ -1218,13 +1247,16 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
   // Só faz sentido agregar de uma tela que aponte de volta para esta: é o vínculo pai/filho que
   // define quais registros pertencem ao agregado.
   const aggregationChildScreens = useMemo(
-    () =>
-      dynamicScreens.filter(
-        (def) =>
-          def.id !== fieldModal?.screenKey &&
-          def.fields.some((f) => f.type === 'reference' && f.refEntity === fieldModal?.screenKey),
-      ),
-    [dynamicScreens, fieldModal],
+    () => {
+      const key = fieldModal?.screenKey;
+      if (!key) return [];
+      const owner = getDefinitionByKey(key);
+      const collection = owner ? screenDataCollection(owner) : key;
+      return dynamicScreens.filter(
+        (def) => def.id !== key && def.fields.some((f) => f.type === 'reference' && f.refEntity === collection),
+      );
+    },
+    [dynamicScreens, fieldModal, getDefinitionByKey],
   );
 
   const aggregationFromOptions = useMemo<SearchSelectOption[]>(

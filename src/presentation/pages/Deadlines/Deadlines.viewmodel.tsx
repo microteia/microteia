@@ -4,7 +4,7 @@ import { useAuth } from '../../../stores/useAuth';
 import { useDeadlineStore } from '../../../stores/useDeadlineStore';
 import { CASES_COLLECTION, useCaseRecords } from '../../shared/useCollectionRecords';
 import { useOpenRecord } from '../../shared/useOpenRecord';
-import { usePersonStore } from '../../../stores/usePersonStore';
+import { usePersonRecords } from '../../shared/useCollectionRecords';
 import { useWorkspace } from '../../../stores/useWorkspace';
 import { useNotification } from '../../../stores/useNotification';
 import { useScreenDefinitions } from '../../../stores/useScreenDefinitions';
@@ -61,7 +61,7 @@ export const useDeadlinesViewModel = (): DeadlinesViewModel => {
   const typeConfigs = getOptions('deadlineTypes');
   const cases = useCaseRecords();
   const openRecord = useOpenRecord();
-  const { persons } = usePersonStore();
+  const persons = usePersonRecords();
   const { openTab } = useWorkspace();
   const { notify } = useNotification();
   const { getScreenFieldsFor, getDefinition } = useScreenDefinitions();

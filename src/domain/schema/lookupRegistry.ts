@@ -1,4 +1,4 @@
-export type LookupGroup = 'person' | 'contract' | 'deadline' | 'financial' | 'document' | 'news';
+export type LookupGroup = 'contract' | 'deadline' | 'financial' | 'document' | 'news';
 
 export interface LookupMetadata {
   collection: string;
@@ -8,13 +8,6 @@ export interface LookupMetadata {
 }
 
 const LOOKUP_LIST: LookupMetadata[] = [
-  { collection: 'personTypes', group: 'person', screenLabel: 'Pessoa', entityLabel: 'Tipo' },
-  { collection: 'personOccupations', group: 'person', screenLabel: 'Pessoa', entityLabel: 'Profissão' },
-  { collection: 'personNationalities', group: 'person', screenLabel: 'Pessoa', entityLabel: 'Nacionalidade' },
-  { collection: 'personMaritalStatuses', group: 'person', screenLabel: 'Pessoa', entityLabel: 'Estado Civil' },
-  { collection: 'personCities', group: 'person', screenLabel: 'Pessoa', entityLabel: 'Cidade' },
-  { collection: 'personRelationships', group: 'person', screenLabel: 'Pessoa', entityLabel: 'Relacionamento' },
-  { collection: 'personGenders', group: 'person', screenLabel: 'Pessoa', entityLabel: 'Sexo' },
   { collection: 'documentTypes', group: 'document', screenLabel: 'Documentos', entityLabel: 'Tipo' },
   { collection: 'newsCategories', group: 'news', screenLabel: 'Notícias', entityLabel: 'Categoria' },
   { collection: 'contractTypes', group: 'contract', screenLabel: 'Contrato', entityLabel: 'Tipo' },

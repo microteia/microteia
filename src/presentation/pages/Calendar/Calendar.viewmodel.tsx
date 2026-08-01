@@ -5,7 +5,7 @@ import { ptBR } from 'date-fns/locale';
 import { useDeadlineStore } from '../../../stores/useDeadlineStore';
 import { CASES_COLLECTION, useCaseRecords } from '../../shared/useCollectionRecords';
 import { useOpenRecord } from '../../shared/useOpenRecord';
-import { usePersonStore } from '../../../stores/usePersonStore';
+import { usePersonRecords } from '../../shared/useCollectionRecords';
 import { useWorkspace } from '../../../stores/useWorkspace';
 import { useAuth } from '../../../stores/useAuth';
 import { useNotification } from '../../../stores/useNotification';
@@ -80,7 +80,7 @@ export const useCalendarViewModel = (): CalendarViewModel => {
   const { deadlines, completeDeadline, updateDeadline } = useDeadlineStore();
   const cases = useCaseRecords();
   const openRecord = useOpenRecord();
-  const { persons } = usePersonStore();
+  const persons = usePersonRecords();
   const { openTab } = useWorkspace();
   const { user } = useAuth();
   const { notify } = useNotification();

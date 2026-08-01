@@ -1,0 +1,712 @@
+{
+  "manifest": {
+    "id": "com.microteia.pessoa",
+    "version": "1.0.0",
+    "kernel": "^1.0.0",
+    "name": "Pessoas",
+    "description": "O cadastro de pessoas do escritório recriado como extensão, sobre as MESMAS pessoas já cadastradas — clientes, partes, contatos, fornecedores e sócios.",
+    "publisher": {
+      "name": "Microteia"
+    },
+    "dependencies": {
+      "com.microteia.brasil": "^1.0.0"
+    }
+  },
+  "summary": "O cadastro de pessoas do escritório: pessoa física ou jurídica, com CPF/CNPJ validados, contatos, dados pessoais, endereço preenchido pelo CEP e relacionamento — com etiquetas, anotações e documentos por pessoa.",
+  "overview": {
+    "type": "stack",
+    "gap": "lg",
+    "children": [
+      {
+        "type": "markdown",
+        "content": "A extensão **Pessoas** traz o cadastro de todo mundo com quem o escritório se relaciona: clientes, partes, contatos, fornecedores e sócios.\n\nO formulário se adapta ao tipo: em **Pessoa Física** aparecem CPF, profissão, nacionalidade, estado civil, nascimento e sexo; em **Pessoa Jurídica**, o CNPJ. O CPF e o CNPJ são conferidos na digitação, e o endereço se preenche sozinho a partir do CEP.\n\nAs listas de Tipo, Relacionamento, Estado Civil, Sexo, Nacionalidade, Profissão e Cidade já vêm preenchidas e são suas: acrescente, renomeie ou remova opções à vontade — elas ficam no escritório mesmo que a extensão seja removida."
+      },
+      {
+        "type": "keyValue",
+        "items": [
+          {
+            "label": "Adiciona",
+            "value": "Item \"Pessoas\" no menu"
+          },
+          {
+            "label": "Cadastro",
+            "value": "22 campos, com endereço por CEP"
+          },
+          {
+            "label": "Por pessoa",
+            "value": "Etiquetas, anotações e documentos"
+          },
+          {
+            "label": "No editor",
+            "value": "Menção @pessoa nas anotações"
+          }
+        ]
+      },
+      {
+        "type": "banner",
+        "message": "Processos, Contratos, Prazos e Financeiro apontam para as pessoas deste cadastro — sem a extensão instalada, esses vínculos aparecem vazios. Remover a extensão remove a tela, nunca as pessoas: os registros, as listas de opções e as etiquetas continuam no escritório.",
+        "variant": "warning"
+      }
+    ]
+  },
+  "workflows": [
+    {
+      "templateId": "wf-pessoa-status",
+      "name": "Ativar/Inativar Pessoa",
+      "description": "Alterna o status da pessoa entre Ativo e Inativo. Chamado pela ação do cabeçalho.",
+      "eventName": "workflow.called",
+      "version": 1,
+      "condition": {
+        "kind": "AlwaysTrue"
+      },
+      "steps": [
+        {
+          "id": "montar",
+          "stepDefinitionId": "map",
+          "type": "Action",
+          "order": 0,
+          "enabled": true,
+          "configuration": {
+            "map": {
+              "kind": "Literal",
+              "value": {
+                "name": "pessoa",
+                "fields": [
+                  {
+                    "name": "id",
+                    "value": {
+                      "kind": "Expression",
+                      "expression": "event.recordId"
+                    }
+                  },
+                  {
+                    "name": "status",
+                    "value": {
+                      "kind": "Expression",
+                      "expression": "if(event.context.status == \"Inativo\", \"Ativo\", \"Inativo\")"
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "id": "gravar",
+          "stepDefinitionId": "upsert",
+          "type": "Action",
+          "order": 1,
+          "enabled": true,
+          "configuration": {
+            "upsert": {
+              "kind": "Literal",
+              "value": {
+                "table": "persons",
+                "source": "input",
+                "property": "pessoa"
+              }
+            }
+          }
+        },
+        {
+          "id": "responder",
+          "stepDefinitionId": "map",
+          "type": "Action",
+          "order": 2,
+          "enabled": true,
+          "configuration": {
+            "map": {
+              "kind": "Literal",
+              "value": {
+                "name": "",
+                "fields": [
+                  {
+                    "name": "status",
+                    "value": {
+                      "kind": "Expression",
+                      "expression": "if(event.context.status == \"Inativo\", \"Pessoa ativada.\", \"Pessoa inativada.\")"
+                    }
+                  },
+                  {
+                    "name": "actions",
+                    "value": {
+                      "kind": "Literal",
+                      "value": [
+                        "refresh"
+                      ]
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "actions": [
+    {
+      "templateId": "act-pessoa-status",
+      "key": "pessoa_status",
+      "title": "Ativar/Inativar",
+      "icon": "toggle",
+      "workflowId": "wf-pessoa-status",
+      "hiddenWhen": "isNew",
+      "activeWhen": "status != \"Inativo\"",
+      "danger": false,
+      "enabled": true,
+      "order": 0
+    }
+  ],
+  "screens": [
+    {
+      "key": "pessoas",
+      "sourceId": "microteia:pessoa",
+      "sourceRev": 1,
+      "titleSingular": "Pessoa",
+      "titlePlural": "Pessoas",
+      "icon": "team",
+      "dataCollection": "persons",
+      "fields": [
+        {
+          "key": "type",
+          "label": "Tipo",
+          "type": "select",
+          "required": true,
+          "order": 0,
+          "lookupCollection": "personTypes",
+          "optionsAllowUserAdd": true,
+          "defaultValue": "Pessoa Física",
+          "filterable": true,
+          "listIcon": "user"
+        },
+        {
+          "key": "name",
+          "label": "Nome",
+          "type": "text",
+          "required": true,
+          "order": 1
+        },
+        {
+          "key": "cpf",
+          "label": "CPF",
+          "type": "masked",
+          "required": false,
+          "order": 2,
+          "mask": "cpf",
+          "rules": {
+            "format": {
+              "preset": "digits"
+            },
+            "validate": {
+              "check": "cpf"
+            }
+          },
+          "logic": {
+            "hiddenWhen": "type != \"Pessoa Física\""
+          },
+          "listIcon": "contacts",
+          "listOrder": 0
+        },
+        {
+          "key": "cnpj",
+          "label": "CNPJ",
+          "type": "masked",
+          "required": false,
+          "order": 3,
+          "mask": "cnpj",
+          "rules": {
+            "format": {
+              "preset": "digits"
+            },
+            "validate": {
+              "check": "cnpj"
+            }
+          },
+          "logic": {
+            "hiddenWhen": "type != \"Pessoa Jurídica\""
+          },
+          "listIcon": "contacts",
+          "listOrder": 1
+        },
+        {
+          "key": "email",
+          "label": "E-mail",
+          "type": "text",
+          "required": false,
+          "order": 4,
+          "placeholder": "email@exemplo.com",
+          "rules": {
+            "format": {
+              "preset": "trim"
+            },
+            "validate": {
+              "pattern": "^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$",
+              "message": "E-mail inválido"
+            }
+          },
+          "listIcon": "mail",
+          "listOrder": 2
+        },
+        {
+          "key": "phone",
+          "label": "Telefone",
+          "type": "masked",
+          "required": false,
+          "order": 5,
+          "mask": "phone",
+          "rules": {
+            "format": {
+              "preset": "digits"
+            },
+            "validate": {
+              "pattern": "^\\d{10,11}$",
+              "message": "Telefone deve ter DDD + 8 ou 9 dígitos"
+            }
+          },
+          "listIcon": "phone",
+          "listOrder": 3
+        },
+        {
+          "key": "secondaryPhone",
+          "label": "Telefone Secundário",
+          "type": "masked",
+          "required": false,
+          "order": 6,
+          "mask": "phone",
+          "rules": {
+            "format": {
+              "preset": "digits"
+            },
+            "validate": {
+              "pattern": "^\\d{10,11}$",
+              "message": "Telefone deve ter DDD + 8 ou 9 dígitos"
+            }
+          }
+        },
+        {
+          "key": "relationship",
+          "label": "Relacionamento",
+          "type": "select",
+          "required": false,
+          "order": 7,
+          "lookupCollection": "personRelationships",
+          "optionsAllowUserAdd": true,
+          "optionsColored": true,
+          "filterable": true
+        },
+        {
+          "key": "occupation",
+          "label": "Profissão",
+          "type": "select",
+          "required": false,
+          "order": 8,
+          "lookupCollection": "personOccupations",
+          "optionsAllowUserAdd": true,
+          "logic": {
+            "hiddenWhen": "type != \"Pessoa Física\""
+          },
+          "filterable": true,
+          "listIcon": "briefcase",
+          "listOrder": 4
+        },
+        {
+          "key": "nationality",
+          "label": "Nacionalidade",
+          "type": "select",
+          "required": false,
+          "order": 9,
+          "lookupCollection": "personNationalities",
+          "optionsAllowUserAdd": true,
+          "logic": {
+            "hiddenWhen": "type != \"Pessoa Física\""
+          },
+          "filterable": true
+        },
+        {
+          "key": "maritalStatus",
+          "label": "Estado Civil",
+          "type": "select",
+          "required": false,
+          "order": 10,
+          "lookupCollection": "personMaritalStatuses",
+          "optionsAllowUserAdd": true,
+          "logic": {
+            "hiddenWhen": "type != \"Pessoa Física\""
+          },
+          "filterable": true
+        },
+        {
+          "key": "birthDate",
+          "label": "Data de Nascimento",
+          "type": "date",
+          "required": false,
+          "order": 11,
+          "logic": {
+            "hiddenWhen": "type != \"Pessoa Física\""
+          }
+        },
+        {
+          "key": "gender",
+          "label": "Sexo",
+          "type": "select",
+          "required": false,
+          "order": 12,
+          "lookupCollection": "personGenders",
+          "optionsAllowUserAdd": true,
+          "logic": {
+            "hiddenWhen": "type != \"Pessoa Física\""
+          }
+        },
+        {
+          "key": "address.zipCode",
+          "label": "CEP",
+          "type": "masked",
+          "required": false,
+          "order": 13,
+          "section": "Endereço",
+          "mask": "cep",
+          "rules": {
+            "format": {
+              "preset": "digits"
+            },
+            "validate": {
+              "pattern": "^\\d{8}$",
+              "message": "CEP deve ter 8 dígitos"
+            }
+          },
+          "logic": {
+            "onChangeLookup": {
+              "provider": "viacep",
+              "targetPrefix": "address"
+            }
+          }
+        },
+        {
+          "key": "address.street",
+          "label": "Rua / Avenida",
+          "type": "text",
+          "required": false,
+          "order": 14,
+          "section": "Endereço"
+        },
+        {
+          "key": "address.number",
+          "label": "Número",
+          "type": "text",
+          "required": false,
+          "order": 15,
+          "section": "Endereço"
+        },
+        {
+          "key": "address.complement",
+          "label": "Complemento",
+          "type": "text",
+          "required": false,
+          "order": 16,
+          "section": "Endereço",
+          "placeholder": "Apto, Sala..."
+        },
+        {
+          "key": "address.neighborhood",
+          "label": "Bairro",
+          "type": "text",
+          "required": false,
+          "order": 17,
+          "section": "Endereço"
+        },
+        {
+          "key": "address.city",
+          "label": "Cidade",
+          "type": "select",
+          "required": false,
+          "order": 18,
+          "section": "Endereço",
+          "lookupCollection": "personCities",
+          "optionsAllowUserAdd": true,
+          "filterable": true,
+          "listIcon": "map",
+          "listOrder": 5
+        },
+        {
+          "key": "address.state",
+          "label": "Estado",
+          "type": "select",
+          "required": false,
+          "order": 19,
+          "section": "Endereço",
+          "options": [
+            {
+              "key": "AC",
+              "label": "AC"
+            },
+            {
+              "key": "AL",
+              "label": "AL"
+            },
+            {
+              "key": "AP",
+              "label": "AP"
+            },
+            {
+              "key": "AM",
+              "label": "AM"
+            },
+            {
+              "key": "BA",
+              "label": "BA"
+            },
+            {
+              "key": "CE",
+              "label": "CE"
+            },
+            {
+              "key": "DF",
+              "label": "DF"
+            },
+            {
+              "key": "ES",
+              "label": "ES"
+            },
+            {
+              "key": "GO",
+              "label": "GO"
+            },
+            {
+              "key": "MA",
+              "label": "MA"
+            },
+            {
+              "key": "MT",
+              "label": "MT"
+            },
+            {
+              "key": "MS",
+              "label": "MS"
+            },
+            {
+              "key": "MG",
+              "label": "MG"
+            },
+            {
+              "key": "PA",
+              "label": "PA"
+            },
+            {
+              "key": "PB",
+              "label": "PB"
+            },
+            {
+              "key": "PR",
+              "label": "PR"
+            },
+            {
+              "key": "PE",
+              "label": "PE"
+            },
+            {
+              "key": "PI",
+              "label": "PI"
+            },
+            {
+              "key": "RJ",
+              "label": "RJ"
+            },
+            {
+              "key": "RN",
+              "label": "RN"
+            },
+            {
+              "key": "RS",
+              "label": "RS"
+            },
+            {
+              "key": "RO",
+              "label": "RO"
+            },
+            {
+              "key": "RR",
+              "label": "RR"
+            },
+            {
+              "key": "SC",
+              "label": "SC"
+            },
+            {
+              "key": "SP",
+              "label": "SP"
+            },
+            {
+              "key": "SE",
+              "label": "SE"
+            },
+            {
+              "key": "TO",
+              "label": "TO"
+            }
+          ]
+        },
+        {
+          "key": "notes",
+          "label": "Observações",
+          "type": "textarea",
+          "required": false,
+          "order": 20,
+          "placeholder": "Informações adicionais sobre a pessoa"
+        },
+        {
+          "key": "status",
+          "label": "Status",
+          "type": "select",
+          "required": false,
+          "order": 21,
+          "options": [
+            {
+              "key": "Ativo",
+              "label": "Ativo"
+            },
+            {
+              "key": "Inativo",
+              "label": "Inativo"
+            }
+          ],
+          "defaultValue": "Ativo",
+          "filterable": true
+        }
+      ],
+      "titleFieldKey": "name",
+      "subtitleFieldKey": "type",
+      "hasNotes": true,
+      "hasDocuments": true,
+      "hasTags": true,
+      "tagCollection": "personTags",
+      "eventPrefix": "person",
+      "listActions": [
+        "copyLink",
+        "clone",
+        "manageTags",
+        "delete"
+      ],
+      "viewActionIds": [
+        "act-pessoa-status"
+      ],
+      "sidebarOrder": 30
+    }
+  ],
+  "lookups": [
+    {
+      "collection": "personTypes",
+      "label": "Pessoa: Tipo",
+      "options": [
+        {
+          "key": "Pessoa Física",
+          "label": "Pessoa Física"
+        },
+        {
+          "key": "Pessoa Jurídica",
+          "label": "Pessoa Jurídica"
+        }
+      ]
+    },
+    {
+      "collection": "personRelationships",
+      "label": "Pessoa: Relacionamento",
+      "options": [
+        {
+          "key": "Cliente",
+          "label": "Cliente",
+          "color": "relationshipCliente"
+        },
+        {
+          "key": "Parte",
+          "label": "Parte",
+          "color": "relationshipParte"
+        },
+        {
+          "key": "Contato",
+          "label": "Contato",
+          "color": "relationshipContato"
+        },
+        {
+          "key": "Fornecedor",
+          "label": "Fornecedor",
+          "color": "relationshipFornecedor"
+        },
+        {
+          "key": "Sócio",
+          "label": "Sócio",
+          "color": "relationshipSocio"
+        }
+      ]
+    },
+    {
+      "collection": "personMaritalStatuses",
+      "label": "Pessoa: Estado Civil",
+      "options": [
+        {
+          "key": "Solteiro(a)",
+          "label": "Solteiro(a)"
+        },
+        {
+          "key": "Casado(a)",
+          "label": "Casado(a)"
+        },
+        {
+          "key": "Divorciado(a)",
+          "label": "Divorciado(a)"
+        },
+        {
+          "key": "Viúvo(a)",
+          "label": "Viúvo(a)"
+        },
+        {
+          "key": "União estável",
+          "label": "União estável"
+        }
+      ]
+    },
+    {
+      "collection": "personGenders",
+      "label": "Pessoa: Sexo",
+      "options": [
+        {
+          "key": "Masculino",
+          "label": "Masculino"
+        },
+        {
+          "key": "Feminino",
+          "label": "Feminino"
+        },
+        {
+          "key": "Não Informado",
+          "label": "Não Informado"
+        }
+      ]
+    },
+    {
+      "collection": "personNationalities",
+      "label": "Pessoa: Nacionalidade",
+      "options": [
+        {
+          "key": "Brasileira",
+          "label": "Brasileira"
+        }
+      ]
+    },
+    {
+      "collection": "personOccupations",
+      "label": "Pessoa: Profissão"
+    },
+    {
+      "collection": "personCities",
+      "label": "Pessoa: Cidade"
+    }
+  ],
+  "tagLists": [
+    {
+      "collection": "personTags",
+      "label": "Etiquetas: Pessoas"
+    }
+  ],
+  "startup": "\nexport default function startup(host) {\n  host.mentions.register({\n    key: 'pessoa',\n    label: 'Pessoa',\n    description: 'Inserir link para uma pessoa',\n    icon: 'team',\n    search(query, ctx) {\n      const screen = ctx.screenDefinitions.find((s) => (s.sourceId || s.id) === 'microteia:pessoa');\n      if (!screen) return [];\n      const q = String(query || '').toLowerCase().trim();\n      const collection = screen.dataCollection || screen.id;\n      return ctx.records\n        .filter((r) => r.collection === collection)\n        .map((r) => ({ record: r, title: r[screen.titleFieldKey] }))\n        .filter(({ title }) => title && (!q || title.toLowerCase().indexOf(q) !== -1))\n        .slice(0, 20)\n        .map(({ record, title }) => ({\n          id: record.id,\n          title,\n          subtitle: record.type || 'Pessoa',\n          tabKey: 'view-dyn:' + screen.id + ':' + record.id,\n        }));\n    },\n  });\n}\n"
+}

@@ -70,6 +70,10 @@ export interface RecordListViewModel {
   openRecord: (record: EntityRecord) => void;
   getCardItems: (record: EntityRecord) => CustomFieldCardItem[];
   getCardTitle: (record: EntityRecord) => string;
+  /** Texto do campo declarado como subtítulo (`subtitleFieldKey`), já resolvido para rótulo. */
+  getCardSubtitle: (record: EntityRecord) => string;
+  /** Ícone da linha de subtítulo do card, quando o campo declara um. */
+  cardSubtitleIconKey: string | null;
   getCardActions: (record: EntityRecord) => RecordCardAction[];
   tagAdapter: TagStoreAdapter;
   tagManagerRecord: EntityRecord | null;
@@ -192,6 +196,20 @@ export const useRecordListViewModel = (source: RecordListSource): RecordListView
       return resolveRecordTitle(record, definition?.titleFieldKey ?? '');
     },
     [definition, listing],
+  );
+
+  const subtitleField = useMemo(
+    () => sortedFields.find((field) => field.key === definition?.subtitleFieldKey) ?? null,
+    [sortedFields, definition],
+  );
+
+  const getCardSubtitle = useCallback(
+    (record: EntityRecord): string => {
+      if (!subtitleField) return '';
+      const value = listing.displayValue(record, subtitleField);
+      return value === '—' ? '' : value;
+    },
+    [subtitleField, listing],
   );
 
   const openNewRecord = useCallback(
@@ -323,6 +341,8 @@ export const useRecordListViewModel = (source: RecordListSource): RecordListView
     openRecord,
     getCardItems,
     getCardTitle,
+    getCardSubtitle,
+    cardSubtitleIconKey: subtitleField?.listIcon ?? null,
     getCardActions,
     tagAdapter,
     tagManagerRecord,

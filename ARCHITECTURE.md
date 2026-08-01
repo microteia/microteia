@@ -1009,10 +1009,6 @@ src/
     │   ├── TenantSelector/
     │   ├── Dashboard/
     │   ├── Calendar/
-    │   ├── Persons/
-    │   ├── ViewPerson/
-    │   ├── Cases/
-    │   ├── ViewCase/
     │   ├── Contracts/
     │   ├── ViewContract/
     │   ├── Deadlines/
@@ -1864,8 +1860,17 @@ sob qualquer nome.
   exclusão nunca alcança dados de outra entidade.
 - **Custo assumido:** enquanto as duas telas coexistirem, o `RecordStore` assina a coleção além do
   store tipado dela (dois listeners sobre `cases`). É o preço de rodar as duas lado a lado.
-- **Fora do Form Design:** uma tela-visão não aparece na montagem de telas. Quem configura os campos
-  da coleção é a tela que leva o nome dela — duas portas para o mesmo esquema só confundiriam.
+- **No Form Design, uma porta só por esquema:** a tela ligada some da montagem de telas **enquanto a
+  coleção for uma entidade do kernel** — a linha fixa já a configura, e duas portas para o mesmo
+  esquema confundiriam. Quando a entidade sai do kernel, a tela ligada passa a ser a única que
+  descreve a coleção e aparece normalmente; o documento que leva o nome da coleção não a substitui,
+  porque existe só para as rules lerem a permissão (sem campos, sem UI). Nela, os campos são
+  resolvidos pela COLEÇÃO, não pela chave da tela.
+- **As telas FIXAS do Form Design saem do registro** (`ENTITY_REGISTRY_LIST` filtrado por
+  `supportsCustomFields`), nunca de uma lista literal. Uma lista escrita à mão sobrevive à entidade:
+  Processo e Pessoa continuaram aparecendo como "tela do sistema" depois de saírem do kernel, sem
+  esquema por trás e sem extensão instalada. Derivando, a tela some no dia da saída, e a que a
+  substitui aparece pelo caminho normal das telas do escritório.
 - **Primeiro consumidor:** `src/plugins/marketplace/processo.ts`.
 
 **Autoria do card, dos filtros e do cabeçalho — o que faltava para uma extensão reproduzir uma tela
@@ -1986,6 +1991,99 @@ Consequência prática: `ScreenDefinitionStoreProvider` subiu na árvore de prov
 `targetCollection: 'cases'`. Uma relação aponta para uma COLEÇÃO — não exige que ela esteja no
 registro —, então o vínculo segue válido e some quando essas duas entidades migrarem pelo mesmo
 caminho.
+
+### Pessoa sai do kernel — a entidade mais referenciada do escritório
+
+A segunda migração pelo mesmo caminho: `persons` não está mais em `entityRegistry.ts`, e quem
+descreve a coleção é a extensão **Pessoas** (`com.microteia.pessoa`, `dataCollection: 'persons'`,
+`eventPrefix: 'person'`, `tagCollection: 'personTags'`, sete listas de opções com as opções de
+partida). Foram apagados as páginas (`Persons`, `ViewPerson`), o `PersonStore`, três repositórios e
+três interfaces, os use cases, o tipo `Person` e suas uniões, o plugin `core.persons`, o
+`PersonCommandProvider`, o `ClientMentionModal` e os deep links `view-person:`/`new-person`.
+
+Pessoa expôs o que Processo não expunha, porque é **apontada** por quase todo mundo e tem um
+formulário rico. O que o kernel precisou aprender:
+
+| Capacidade | Declaração | Sem ela |
+|---|---|---|
+| Objeto aninhado criado pela tela | chave pontilhada (`address.city`) — `upsertFieldAtPath` CRIA o ramo | a chave virava um campo literal `"address.city"` na raiz do documento; só o kernel conseguia ter objeto aninhado |
+| Valor de partida do campo | `FieldDefinition.defaultValue` | "Pessoa Física" e "Ativo" eram embutidos no formulário em código; a tela declarada começaria sempre vazia |
+| Subtítulo do cartão | `subtitleFieldKey` passa a alimentar também o card (`RecordListSurface`) | o subtítulo só existia por slot de CÓDIGO — um cadastro simples precisaria de uma view em código só para isso |
+| Leitura por caminho | `readValueByPath`, no card, nos filtros e no ida-e-volta do formulário | o campo dentro do objeto não aparecia no cartão, não filtrava e não voltava ao formulário — tudo em silêncio |
+| Linha do cartão pelo ícone | `listIcon` sozinho já produz a meta-linha | `listIcon` sem `showInList` era um silêncio, contrariando o que a própria declaração promete |
+
+Detalhes que valem registrar:
+
+- **O campo do subtítulo não se repete como meta-linha.** Mesma regra que já valia entre as
+  meta-linhas e o bloco de campos adicionais: a mesma informação não aparece duas vezes no cartão.
+- **A menção `@pessoa` virou registro da extensão** (`host.mentions.register`, no `startup`), como
+  `@processo`. O kernel perdeu a entrada fixa no `MENTION_COMMANDS` e o modal correspondente.
+- **`usePersons` saiu da ponte das extensões.** Quem precisa das pessoas usa `useCollection('persons')`
+  — nenhuma entidade de negócio tem hook próprio no kernel.
+- **Diferenças assumidas:** o cabeçalho do detalhe mostra o ícone da tela no lugar da inicial do
+  nome; o botão de Ativar/Inativar deu lugar ao campo `status` no formulário (select com valor de
+  partida "Ativo"); e os eventos `person_note.*`/`person_document.*` saíram do catálogo, como
+  aconteceu com `case_note.*`.
+
+### O que é de PAÍS não fica no kernel
+
+CPF, CNPJ, telefone, CEP e a busca de endereço pelo CEP eram do núcleo. São regras do **Brasil** — e
+um sistema que será internacionalizado não pode carregá-las em toda instalação, nem crescer
+empilhando o próximo país ao lado do anterior no mesmo código. Elas viraram a extensão
+`com.microteia.brasil` (`plugins/marketplace/brasil.ts`), que as publica pelos pontos que já
+existiam:
+
+| Declaração | Ponto de extensão | Antes |
+|---|---|---|
+| `cpf`, `cnpj`, `cpfCnpj`, `phone`, `cep` | `data.field.preset` | `CORE_FIELD_RULE_PRESETS` |
+| `viacep` | `data.external.lookup` | `CORE_LOOKUP_PROVIDERS` |
+
+O que **fica** no núcleo é o que vale em qualquer lugar: `digits`, `trim`, `upper`, `lower` — e o
+motor que executa tudo (template de máscara, pipeline de formatação, avaliador de expressão) mais as
+garantias da busca externa (`https` obrigatório, timeout com teto, resposta com tamanho máximo,
+nenhuma credencial). `CORE_LOOKUP_PROVIDERS` ficou **vazio**: o ponto continua ali para o dia em que
+existir uma busca que valha no mundo todo.
+
+As CHAVES não mudaram (`preset: 'cpf'` segue sendo `'cpf'`), então nenhum campo já gravado precisa de
+migração — muda quem responde pelo significado da chave. Sem a extensão instalada, o campo continua
+existindo e guardando o que tem; perde a máscara, a conferência e o preenchimento por CEP.
+
+**Resíduo assumido:** `isCPF`/`isCNPJ` continuam no avaliador de expressões (`fieldExpression.ts`),
+ao lado de `length` e `upper`. O dígito verificador é ALGORITMO, e o avaliador é o runtime
+compartilhado front/back — tirá-lo de lá exige um catálogo de funções contribuído por código, com o
+tier trusted também no backend. A DECLARAÇÃO (máscara, rótulo, quando aplicar) já saiu; o par de
+funções é o que resta.
+
+### Uma ação pode ser um INTERRUPTOR
+
+`ActionDefinition.activeWhen` é uma expressão que diz quando a ação está **ligada**. Declarada, o
+botão passa a mostrar o estado do registro — verde ligado, vermelho desligado — em vez de só
+disparar; ausente (o normal), o botão é o de sempre. Como `hiddenWhen` e `disabledWhen`, vale só na
+UI, sobre os valores do formulário e o registro gravado.
+
+Existe porque um cadastro costuma ter um estado que se alterna (ativo/inativo, arquivado,
+destacado), e isso só existia em código, no cabeçalho de uma tela fixa. O Ativar/Inativar de Pessoa é
+o primeiro consumidor: `hiddenWhen: 'isNew'` (registro novo nasce Ativo e ainda não existe para
+alternar), `activeWhen: 'status != "Inativo"'`, e um workflow de três passos — Montar Objeto com o
+status invertido → Gravar Registro → devolver `actions: ['refresh']` para a tela recarregar.
+
+**Uma dependência pode trazer uma COLEÇÃO, e precisa dizer isso.** Processos aponta para `persons`
+(responsável, polo ativo, polo passivo). Enquanto Pessoa era do kernel, `isCoreCollection` resolvia;
+fora dele, a referência passou a ser uma tela que o pacote não leva. A convenção antiga só cobria
+chave namespaced (`<slug>__x`), que não serve aqui: uma entidade que sai do kernel **mantém o nome
+global da coleção** — se ganhasse prefixo, os registros mudariam de lugar. Por isso a dependência
+aceita a forma longa:
+
+```ts
+dependencies: {
+  'com.microteia.pessoa': { version: '^1.0.0', collections: ['persons'] },
+}
+```
+
+`dependencyRange`/`dependencyCollections` (em `plugin/pluginManifest.ts`) leem as duas formas, e
+`validatePackage` passa a considerar a referência coberta. A dependência é **dura**: sem Pessoas
+instalada, o `PluginHost` recusa carregar Processos (`dependency.missing`) em vez de carregá-la com
+os campos de pessoa apontando para o vazio.
 
 ### Telas fixas por Schema — piloto (Pessoas)
 

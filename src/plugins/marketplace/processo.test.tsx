@@ -7,6 +7,8 @@ import { materializePluginScreens } from '../../domain/usecases/plugins/screenMo
 import { evaluateExtensionView } from '../../presentation/shared/extensions/evaluateExtensionView';
 import { UI_PAGE_POINT } from '../../presentation/shared/uiExtensionPoints';
 import type { PluginInstallation } from '../../domain/entities/PluginInstallation';
+import { brasilPlugin } from './brasil';
+import { pessoaPlugin } from './pessoa';
 import { processoPlugin } from './processo';
 
 const installation = (pluginId: string): PluginInstallation => ({
@@ -24,9 +26,17 @@ const installation = (pluginId: string): PluginInstallation => ({
 describe('processoPlugin', () => {
   it('carrega no host como extensão trusted, com as duas páginas de código, sem erros', () => {
     const host = createPluginHost();
+    // Processos depende de Pessoas: os campos de responsável e de polos apontam para `persons`.
     const records = [
       ...CORE_PLUGINS,
-      ...installedPluginRecords([processoPlugin], [installation(processoPlugin.manifest.id)]),
+      ...installedPluginRecords(
+        [brasilPlugin, pessoaPlugin, processoPlugin],
+        [
+          installation(brasilPlugin.manifest.id),
+          installation(pessoaPlugin.manifest.id),
+          installation(processoPlugin.manifest.id),
+        ],
+      ),
     ];
     const result = host.load(records);
 
@@ -37,6 +47,19 @@ describe('processoPlugin', () => {
       .query(UI_PAGE_POINT)
       .map((c) => (c.impl as { key?: string } | undefined)?.key);
     expect(pageKeys).toEqual(expect.arrayContaining(['processos', 'processo-edit']));
+  });
+
+  /** A dependência é dura de propósito: sem Pessoas, os campos de responsável e polos não teriam
+   *  a quem apontar — a extensão não carrega, em vez de carregar meio funcionando. */
+  it('sem a extensão de Pessoas instalada, o host recusa carregar Processos', () => {
+    const host = createPluginHost();
+    const result = host.load([
+      ...CORE_PLUGINS,
+      ...installedPluginRecords([processoPlugin], [installation(processoPlugin.manifest.id)]),
+    ]);
+
+    expect(host.isLoaded(processoPlugin.manifest.id)).toBe(false);
+    expect(result.diagnostics.map((d) => d.code)).toContain('dependency.missing');
   });
 
   /**

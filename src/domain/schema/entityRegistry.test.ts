@@ -8,9 +8,6 @@ import {
 } from '../entities/entitySchemas';
 
 const LEGACY_FK_SCHEMA = {
-  persons: {
-    tagIds: { targetCollection: 'personTags', multi: true },
-  },
   deadlines: {
     caseId: { targetCollection: 'cases', denormalizedFields: ['caseNumber', 'title', 'area'] },
     responsibleLawyerId: { targetCollection: 'persons', denormalizedFields: ['name', 'type', 'email'] },
@@ -34,8 +31,6 @@ const LEGACY_FK_SCHEMA = {
 };
 
 const LEGACY_LOOKUP_COLLECTIONS = [
-  'personTypes', 'personOccupations', 'personNationalities', 'personMaritalStatuses',
-  'personCities', 'personRelationships', 'personGenders',
   'documentTypes', 'newsCategories',
   'contractTypes', 'contractCategories', 'contractStatuses', 'contractObjects',
   'contractAdjustmentIndexes', 'contractAdjustmentPeriodicities', 'contractCurrencies',
@@ -45,7 +40,6 @@ const LEGACY_LOOKUP_COLLECTIONS = [
 ];
 
 const LEGACY_DEFAULT_DENORM_FIELDS: Record<string, string[]> = {
-  persons: ['name', 'type', 'email'],
   contracts: ['number', 'title', 'type'],
   deadlines: ['type', 'dueDate', 'priority'],
   financials: ['type', 'amount', 'dueDate'],
@@ -67,10 +61,10 @@ describe('entityRegistry — compatibilidade com o schema legado', () => {
 
   it('mantém os conjuntos de entidades com custom fields e referenciáveis', () => {
     expect([...CUSTOM_FIELD_ENABLED_ENTITIES].sort()).toStrictEqual(
-      ['persons', 'deadlines', 'financials', 'contracts'].sort(),
+      ['deadlines', 'financials', 'contracts'].sort(),
     );
     expect([...BUILTIN_REF_ENTITIES].sort()).toStrictEqual(
-      ['persons', 'contracts', 'deadlines', 'financials', 'members'].sort(),
+      ['contracts', 'deadlines', 'financials', 'members'].sort(),
     );
   });
 
@@ -79,7 +73,6 @@ describe('entityRegistry — compatibilidade com o schema legado', () => {
       ENTITY_REGISTRY_LIST.filter((entity) => entity.eventPrefix).map((entity) => [entity.collection, entity.eventPrefix]),
     );
     expect(prefixes).toStrictEqual({
-      persons: 'person',
       contracts: 'contract',
       deadlines: 'deadline',
       financials: 'financial',

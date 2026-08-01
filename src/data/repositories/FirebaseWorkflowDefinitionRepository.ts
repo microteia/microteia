@@ -4,6 +4,7 @@ import {
   getDoc,
   getDocs,
   addDoc,
+  setDoc,
   updateDoc,
   deleteDoc,
   query,
@@ -67,12 +68,27 @@ export class FirebaseWorkflowDefinitionRepository implements IWorkflowDefinition
   async createWorkflowDefinition(
     tenantId: string,
     data: Omit<WorkflowDefinition, 'id' | 'tenantId' | 'createdAt' | 'updatedAt'>,
+    id?: string,
   ): Promise<WorkflowDefinition> {
-    const ref = await addDoc(definitionsRef(tenantId), {
+    const payload = {
       ...pruneUndefined(data),
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
-    });
+    };
+
+    // Identificador escolhido: o documento leva o nome, e a checagem prévia evita sobrescrever uma
+    // automação existente — `setDoc` gravaria por cima sem avisar.
+    if (id) {
+      const ref = doc(definitionsRef(tenantId), id);
+      if ((await getDoc(ref)).exists()) {
+        throw new Error(`Já existe uma automação com o identificador "${id}".`);
+      }
+      await setDoc(ref, payload);
+      const snap = await getDoc(ref);
+      return mapDefinition(id, snap.data() as Record<string, unknown>, tenantId);
+    }
+
+    const ref = await addDoc(definitionsRef(tenantId), payload);
     const snap = await getDoc(ref);
     return mapDefinition(ref.id, snap.data() as Record<string, unknown>, tenantId);
   }

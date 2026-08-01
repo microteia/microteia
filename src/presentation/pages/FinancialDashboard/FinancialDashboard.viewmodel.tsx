@@ -15,7 +15,7 @@ import {
 import { ptBR } from 'date-fns/locale';
 import { useFinancialStore } from '../../../stores/useFinancialStore';
 import { useCaseRecords } from '../../shared/useCollectionRecords';
-import { usePersonStore } from '../../../stores/usePersonStore';
+import { usePersonRecords } from '../../shared/useCollectionRecords';
 import { useContractStore } from '../../../stores/useContractStore';
 import { useWorkspace } from '../../../stores/useWorkspace';
 import { useLookups } from '../../../stores/useLookups';
@@ -105,7 +105,7 @@ export const useFinancialDashboardViewModel = (): FinancialDashboardViewModel =>
   const { getTags } = useTags();
   const tags = getTags(useTagCollection('financials'));
   const cases = useCaseRecords();
-  const { persons } = usePersonStore();
+  const persons = usePersonRecords();
   const { contracts } = useContractStore();
   const { openTab } = useWorkspace();
   const theme = useTheme();

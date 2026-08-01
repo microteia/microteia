@@ -27,6 +27,23 @@ export interface PluginLifecycle {
   onUninstall?: PluginLifecycleHook;
 }
 
+/**
+ * Uma dependência declarada: a faixa de versão sozinha, ou a faixa mais as COLEÇÕES que ela traz.
+ *
+ * A forma longa existe porque uma entidade que sai do kernel mantém o nome GLOBAL da coleção
+ * (`persons`) — ela não ganha o prefixo da extensão que passou a descrevê-la, senão os registros
+ * mudariam de lugar. Sem dizer o que a dependência traz, a validação não teria como distinguir
+ * "referencia uma coleção que a extensão de Pessoas instala" de "referencia uma tela que ninguém
+ * tem": as duas são apenas um nome.
+ */
+export type PluginDependency = string | { version: string; collections?: string[] };
+
+export const dependencyRange = (dependency: PluginDependency): string =>
+  typeof dependency === 'string' ? dependency : dependency.version;
+
+export const dependencyCollections = (dependency: PluginDependency): string[] =>
+  typeof dependency === 'string' ? [] : (dependency.collections ?? []);
+
 export interface PluginManifest {
   id: string;
   version: string;
@@ -36,7 +53,7 @@ export interface PluginManifest {
   icon?: string;
   homepage?: string;
   publisher?: PluginPublisher;
-  dependencies?: Record<string, string>;
+  dependencies?: Record<string, PluginDependency>;
   provides?: CapabilityProvision[];
   consumes?: CapabilityRequirement[];
   permissions?: string[];
@@ -130,8 +147,9 @@ const validateDependencies = (manifest: PluginManifest): PluginDiagnostic[] => {
     ];
   }
 
-  return Object.entries(dependencies).flatMap(([dependencyId, range]) => {
+  return Object.entries(dependencies).flatMap(([dependencyId, dependency]) => {
     const diagnostics: PluginDiagnostic[] = [];
+    const range = dependencyRange(dependency as PluginDependency);
     if (!isValidPluginId(dependencyId)) {
       diagnostics.push(
         error({

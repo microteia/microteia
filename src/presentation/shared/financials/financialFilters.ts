@@ -1,12 +1,13 @@
 import type { CaseRecord } from '../useCollectionRecords';
 import type { DefaultTheme } from 'styled-components';
 import { getConfigColor } from '../../../shared/styles/colorUtils';
-import type {  Contract, Financial, LookupOption, Person } from '../../../domain/entities';
+import type { Contract, Financial, LookupOption } from '../../../domain/entities';
+import type { PersonRecord } from '../useCollectionRecords';
 import type { FilterDef, FilterOption, FilterToken } from '../../components/ui/CompositeFilter';
 
 export interface FinancialSearchLookups {
   cases: CaseRecord[];
-  persons: Person[];
+  persons: PersonRecord[];
   contracts: Contract[];
 }
 
@@ -72,7 +73,7 @@ export const filterFinancialsByTokens = (financials: Financial[], tokens: Filter
   const tokenMap = buildTokenMap(tokens);
   const caseById: Record<string, CaseRecord> = {};
   lookups.cases.forEach((c) => { caseById[c.id] = c; });
-  const personById: Record<string, Person> = {};
+  const personById: Record<string, PersonRecord> = {};
   lookups.persons.forEach((p) => { personById[p.id] = p; });
   const contractById: Record<string, Contract> = {};
   lookups.contracts.forEach((c) => { contractById[c.id] = c; });

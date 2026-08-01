@@ -309,6 +309,7 @@ export const ViewWorkflowView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
               disabled={
                 vm.isSaving ||
                 !vm.formData.name ||
+                !!vm.workflowIdError ||
                 !vm.formData.eventName ||
                 (vm.isLookupEvent && !vm.formData.lookupCollection) ||
                 (vm.isCalledEvent && vm.hasParameterErrors)
@@ -355,6 +356,22 @@ export const ViewWorkflowView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
                   onChange={(e) => vm.setFormData({ name: e.target.value })}
                   placeholder="ex: Criar prazo ao salvar processo"
                 />
+              </InputGroup>
+
+              <InputGroup>
+                <Label>Identificador</Label>
+                <Input
+                  value={vm.isNew ? vm.formData.workflowId : vm.workflowIdValue}
+                  onChange={(e) => vm.setFormData({ workflowId: e.target.value })}
+                  placeholder={vm.suggestedWorkflowId || 'ex: avisar-cliente'}
+                  disabled={!vm.isNew}
+                />
+                <S.FieldHint>
+                  {vm.isNew
+                    ? 'É por ele que uma Ação escolhe esta automação. Em branco, criamos um a partir do nome. Não muda depois de criada.'
+                    : 'O identificador não muda depois que a automação é criada — as Ações e os pacotes que apontam para ela deixariam de encontrá-la.'}
+                </S.FieldHint>
+                {vm.workflowIdError && <S.FieldError>{vm.workflowIdError}</S.FieldError>}
               </InputGroup>
 
               <InputGroup>

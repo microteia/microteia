@@ -18,7 +18,7 @@ import { useTheme } from 'styled-components';
 import { CompositeFilter, SearchSelect } from '@microteia/ui';
 import {
   useCollection, useUpdateRecord, useLookup,
-  usePersons, useWorkspace, useNotify, useSavedViewState,
+  useWorkspace, useNotify, useSavedViewState,
 } from '@microteia/data';
 
 const CASES = 'cases';
@@ -45,7 +45,7 @@ export default function KanbanCasesView() {
   const phases = useLookup('casePhases');
   const areas = useLookup('caseAreas');
   const statuses = useLookup('caseStatuses');
-  const persons = usePersons();
+  const persons = useCollection('persons');
   const { openTab } = useWorkspace();
   const notify = useNotify();
 

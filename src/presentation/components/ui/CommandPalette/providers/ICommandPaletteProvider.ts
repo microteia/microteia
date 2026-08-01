@@ -1,5 +1,6 @@
 import type React from 'react';
-import type { News, Person, Contract, Financial, EntityRecord, ScreenDefinition, TenantRole, UserRole } from '../../../../../domain/entities';
+import type { News, Contract, Financial, EntityRecord, ScreenDefinition, TenantRole, UserRole } from '../../../../../domain/entities';
+import type { PersonRecord } from '../../../../shared/useCollectionRecords';
 import type { WorkflowDefinition } from '../../../../../domain/entities/Workflow';
 import type { ThemeMode } from '../../../../../shared/types';
 import type { UiPageMetadata } from '../../../../shared/uiExtensionPoints';
@@ -19,7 +20,7 @@ export interface CommandPaletteAppContext {
   openTab: (key: string) => void;
   close: () => void;
   news: News[];
-  persons: Person[];
+  persons: PersonRecord[];
   cases: CaseRecord[];
   contracts: Contract[];
   financials: Financial[];

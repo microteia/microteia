@@ -1,7 +1,7 @@
 import { useState, useMemo, useCallback } from 'react';
 import { useTheme } from 'styled-components';
 import { useContractStore } from '../../../stores/useContractStore';
-import { usePersonStore } from '../../../stores/usePersonStore';
+import { usePersonRecords } from '../../shared/useCollectionRecords';
 import { useTenant } from '../../../stores/useTenant';
 import { useWorkspace } from '../../../stores/useWorkspace';
 import { useScreenDefinitions } from '../../../stores/useScreenDefinitions';
@@ -50,7 +50,7 @@ export const useContractsViewModel = (): ContractsViewModel => {
   const { contracts, isLoading, deleteContract, updateContract } = useContractStore();
   const { getTags } = useTags();
   const tags = getTags(useTagCollection('contracts'));
-  const { persons } = usePersonStore();
+  const persons = usePersonRecords();
   const { tenantRole } = useTenant();
   const { getOptions } = useLookups();
   const typeConfigs = getOptions('contractTypes');

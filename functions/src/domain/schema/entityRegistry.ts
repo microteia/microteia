@@ -25,7 +25,6 @@ export type EntityKey = string;
 
 /** As entidades nativas do Microteia. Mantida como união só para documentar o conjunto fixo. */
 export type BuiltinEntityKey =
-  | 'persons'
   | 'contracts'
   | 'deadlines'
   | 'financials'
@@ -34,11 +33,10 @@ export type BuiltinEntityKey =
   | 'news';
 
 export const BUILTIN_ENTITY_KEYS: readonly BuiltinEntityKey[] = [
-  'persons', 'contracts', 'deadlines', 'financials', 'members', 'pushes', 'news',
+  'contracts', 'deadlines', 'financials', 'members', 'pushes', 'news',
 ] as const;
 
 export type WorkflowEntityEventPrefix =
-  | 'person'
   | 'contract'
   | 'deadline'
   | 'financial'
@@ -120,23 +118,6 @@ export interface EntityMetadata {
   referenceable: boolean;
 }
 
-// O formato canônico gravado no Firestore para documentos, telefones e CEP é o de DÍGITOS PUROS
-// (a máscara existe só na tela). As regras abaixo normalizam para esse formato e validam em cima
-// dele — nunca introduza aqui um preset com máscara, sob pena de mudar o shape do dado gravado.
-const EMAIL_PATTERN = '^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$';
-
-const PHONE_RULES: FieldRules = {
-  format: { preset: 'digits' },
-  validate: { pattern: '^\\d{10,11}$', message: 'Telefone deve ter DDD + 8 ou 9 dígitos' },
-};
-
-const CEP_RULES: FieldRules = {
-  format: { preset: 'digits' },
-  validate: { pattern: '^\\d{8}$', message: 'CEP deve ter 8 dígitos' },
-};
-
-const PF_ONLY = 'type != "Pessoa Física"';
-const PJ_ONLY = 'type != "Pessoa Jurídica"';
 
 const FINANCIAL_TYPE_OPTIONS: CustomFieldOption[] = [
   { key: 'Receita', label: 'Receita' },
@@ -155,109 +136,7 @@ const DEADLINE_PRIORITY_OPTIONS: CustomFieldOption[] = [
   { key: 'Crítica', label: 'Crítica', color: 'danger' },
 ];
 
-const BR_STATE_OPTIONS: CustomFieldOption[] = [
-  'AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG','PA','PB',
-  'PR','PE','PI','RJ','RN','RS','RO','RR','SC','SP','SE','TO',
-].map((uf) => ({ key: uf, label: uf, isStatic: true }));
-
 export const ENTITY_REGISTRY: Record<EntityKey, EntityMetadata> = {
-  persons: {
-    key: 'persons',
-    collection: 'persons',
-    tagCollection: 'personTags',
-    eventPrefix: 'person',
-    labelSingular: 'Pessoa',
-    labelPlural: 'Pessoas',
-    displayNameFields: ['name'],
-    referenceDenormFields: ['name', 'type', 'email'],
-    fields: [
-      { key: 'type', label: 'Tipo', type: 'string', lookupCollection: 'personTypes',
-        required: true, optionsAllowUserAdd: true,
-        ui: { control: 'select', order: 0 } },
-      { key: 'name', label: 'Nome', type: 'string', required: true,
-        ui: { order: 1 } },
-      {
-        key: 'cpf',
-        label: 'CPF',
-        type: 'string',
-        rules: { format: { preset: 'digits' }, validate: { check: 'cpf' } },
-        logic: { hiddenWhen: PF_ONLY },
-        ui: { control: 'masked', mask: 'cpf', order: 2, list: { icon: 'contacts', order: 0 } },
-      },
-      {
-        key: 'cnpj',
-        label: 'CNPJ',
-        type: 'string',
-        rules: { format: { preset: 'digits' }, validate: { check: 'cnpj' } },
-        logic: { hiddenWhen: PJ_ONLY },
-        ui: { control: 'masked', mask: 'cnpj', order: 3, list: { icon: 'contacts', order: 1 } },
-      },
-      {
-        key: 'email',
-        label: 'E-mail',
-        type: 'string',
-        rules: {
-          format: { preset: 'trim' },
-          validate: { pattern: EMAIL_PATTERN, message: 'E-mail inválido' },
-        },
-        ui: { placeholder: 'email@exemplo.com', order: 4, list: { icon: 'mail', order: 2 } },
-      },
-      { key: 'phone', label: 'Telefone', type: 'string', rules: PHONE_RULES,
-        ui: { control: 'masked', mask: 'phone', order: 5, list: { icon: 'phone', order: 3 } } },
-      { key: 'secondaryPhone', label: 'Telefone Secundário', type: 'string', rules: PHONE_RULES,
-        ui: { control: 'masked', mask: 'phone', order: 6 } },
-      { key: 'relationship', label: 'Relacionamento', type: 'string', lookupCollection: 'personRelationships',
-        optionsAllowUserAdd: true,
-        ui: { control: 'select', order: 7 } },
-      { key: 'occupation', label: 'Profissão', type: 'string', lookupCollection: 'personOccupations',
-        optionsAllowUserAdd: true, logic: { hiddenWhen: PF_ONLY },
-        ui: { control: 'select', order: 8, list: { icon: 'briefcase', order: 4 } } },
-      { key: 'nationality', label: 'Nacionalidade', type: 'string', lookupCollection: 'personNationalities',
-        optionsAllowUserAdd: true, logic: { hiddenWhen: PF_ONLY },
-        ui: { control: 'select', order: 9 } },
-      { key: 'maritalStatus', label: 'Estado Civil', type: 'string', lookupCollection: 'personMaritalStatuses',
-        optionsAllowUserAdd: true, logic: { hiddenWhen: PF_ONLY },
-        ui: { control: 'select', order: 10 } },
-      { key: 'birthDate', label: 'Data de Nascimento', type: 'date',
-        logic: { hiddenWhen: PF_ONLY },
-        ui: { order: 11 } },
-      { key: 'gender', label: 'Sexo', type: 'string', lookupCollection: 'personGenders',
-        optionsAllowUserAdd: true, logic: { hiddenWhen: PF_ONLY },
-        ui: { control: 'select', order: 12 } },
-      {
-        key: 'address',
-        label: 'Endereço',
-        type: 'object',
-        objectFields: [
-          { key: 'zipCode', label: 'CEP', type: 'string', rules: CEP_RULES,
-            logic: { onChangeLookup: { provider: 'viacep', targetPrefix: 'address' } },
-            ui: { control: 'masked', mask: 'cep', section: 'Endereço', order: 13 } },
-          { key: 'street', label: 'Rua / Avenida', type: 'string',
-            ui: { section: 'Endereço', order: 14 } },
-          { key: 'number', label: 'Número', type: 'string',
-            ui: { section: 'Endereço', order: 15 } },
-          { key: 'complement', label: 'Complemento', type: 'string',
-            ui: { section: 'Endereço', order: 16, placeholder: 'Apto, Sala...' } },
-          { key: 'neighborhood', label: 'Bairro', type: 'string',
-            ui: { section: 'Endereço', order: 17 } },
-          { key: 'city', label: 'Cidade', type: 'string', lookupCollection: 'personCities',
-            optionsAllowUserAdd: true,
-            ui: { control: 'select', section: 'Endereço', order: 18, list: { icon: 'map', order: 5 } } },
-          { key: 'state', label: 'Estado', type: 'string', options: BR_STATE_OPTIONS,
-            ui: { control: 'select', section: 'Endereço', order: 19 } },
-        ],
-      },
-      { key: 'notes', label: 'Observações', type: 'string',
-        ui: { control: 'textarea', order: 20, placeholder: 'Informações adicionais sobre a pessoa' } },
-      { key: 'status', label: 'Status', type: 'string', ui: { form: false } },
-    ],
-    fks: [
-      { key: 'tagIds', label: 'Etiquetas', targetCollection: 'personTags', denormKey: 'tag', multi: true,
-        ui: { form: false } },
-    ],
-    supportsCustomFields: true,
-    referenceable: true,
-  },
   contracts: {
     key: 'contracts',
     collection: 'contracts',

@@ -9,11 +9,20 @@ import type { WorkflowContext } from '../../../domain/entities/WorkflowContext';
 import type { WorkflowEvent } from '../../../domain/entities/Workflow';
 import { fakeScreenProvider } from '../../../domain/repositories/fakeScreenProvider';
 
+/**
+ * Pessoa vem de extensão: a tela declara a coleção inteira (`name`), e o escritório acrescenta o
+ * que quiser (`apelido`). Para a gravação por automação as duas origens são a mesma coisa.
+ */
 const personsScreen: SchemaScreen = {
-  id: 'persons',
+  id: 'pessoas',
+  collection: 'persons',
+  eventPrefix: 'person',
   titleSingular: 'Pessoa',
   titleFieldKey: 'name',
-  fields: [{ key: 'apelido', label: 'Apelido', type: 'text', required: false, order: 0, origin: 'design' }],
+  fields: [
+    { key: 'name', label: 'Nome', type: 'text', required: true, order: 0, origin: 'plugin' },
+    { key: 'apelido', label: 'Apelido', type: 'text', required: false, order: 1, origin: 'design' },
+  ],
 };
 
 const processosScreen: SchemaScreen = {
@@ -137,10 +146,10 @@ describe('runWorkflowUpsert', () => {
 
   it('grava valores de lista (lookup)', async () => {
     const repo = new FakeMutationRepository();
-    const outcome = await upsert(repo, { table: 'personTypes', data: { key: 'cliente', label: 'Cliente' } });
+    const outcome = await upsert(repo, { table: 'contractTypes', data: { key: 'servico', label: 'Serviço' } });
 
     expect(outcome.ok).toBe(true);
-    expect(repo.createCalls[0].collection).toBe('personTypes');
+    expect(repo.createCalls[0].collection).toBe('contractTypes');
   });
 
   it('bloqueia gravação em entidades sensíveis (members, pushes, news)', async () => {

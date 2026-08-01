@@ -14,15 +14,12 @@ import { FirebaseNewsCommentRepository } from '../../data/repositories/FirebaseN
 import { FirebaseNewsDocumentRepository } from '../../data/repositories/FirebaseNewsDocumentRepository';
 import { FirebaseSavedFilterRepository } from '../../data/repositories/FirebaseSavedFilterRepository';
 import { FirebaseTenantRepository } from '../../data/repositories/FirebaseTenantRepository';
-import { FirebasePersonRepository } from '../../data/repositories/FirebasePersonRepository';
 import { FirebaseDeadlineRepository } from '../../data/repositories/FirebaseDeadlineRepository';
 import { FirebaseFinancialRepository } from '../../data/repositories/FirebaseFinancialRepository';
 import { FirebaseFinancialDocumentRepository } from '../../data/repositories/FirebaseFinancialDocumentRepository';
 import { FirebasePushRepository } from '../../data/repositories/FirebasePushRepository';
 import { FirebasePushInteractionRepository } from '../../data/repositories/FirebasePushInteractionRepository';
 import { FirebaseTextAnnotationRepository } from '../../data/repositories/FirebaseTextAnnotationRepository';
-import { FirebasePersonNoteRepository } from '../../data/repositories/FirebasePersonNoteRepository';
-import { FirebasePersonDocumentRepository } from '../../data/repositories/FirebasePersonDocumentRepository';
 import { FirebaseContractRepository } from '../../data/repositories/FirebaseContractRepository';
 import { FirebaseContractNoteRepository } from '../../data/repositories/FirebaseContractNoteRepository';
 import { FirebaseContractDocumentRepository } from '../../data/repositories/FirebaseContractDocumentRepository';
@@ -69,9 +66,6 @@ export const DIProvider: React.FC<{ children: React.ReactNode }> = ({ children }
     newsDocumentRepository:   new FirebaseNewsDocumentRepository(),
     savedFilterRepository:    new FirebaseSavedFilterRepository(),
     tenantRepository:         new FirebaseTenantRepository(),
-    personRepository:         new FirebasePersonRepository(),
-    personNoteRepository:     new FirebasePersonNoteRepository(),
-    personDocumentRepository: new FirebasePersonDocumentRepository(),
     contractRepository:         new FirebaseContractRepository(),
     contractNoteRepository:     new FirebaseContractNoteRepository(),
     contractDocumentRepository: new FirebaseContractDocumentRepository(),

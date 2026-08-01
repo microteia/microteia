@@ -111,32 +111,6 @@ const DECLARED: Record<string, Omit<LookupOption, 'isStatic'>[]> = {
     { key: 'CIRCULAR', label: 'Circular' },
     { key: 'UPDATE', label: 'Atualização' },
   ],
-  personGenders: [
-    { key: 'Masculino', label: 'Masculino' },
-    { key: 'Feminino', label: 'Feminino' },
-    { key: 'Não Informado', label: 'Não Informado' },
-  ],
-  personMaritalStatuses: [
-    { key: 'Solteiro(a)', label: 'Solteiro(a)' },
-    { key: 'Casado(a)', label: 'Casado(a)' },
-    { key: 'Divorciado(a)', label: 'Divorciado(a)' },
-    { key: 'Viúvo(a)', label: 'Viúvo(a)' },
-    { key: 'União estável', label: 'União estável' },
-  ],
-  personNationalities: [
-    { key: 'Brasileira', label: 'Brasileira' },
-  ],
-  personRelationships: [
-    { key: 'Cliente', label: 'Cliente', color: 'relationshipCliente' },
-    { key: 'Parte', label: 'Parte', color: 'relationshipParte' },
-    { key: 'Contato', label: 'Contato', color: 'relationshipContato' },
-    { key: 'Fornecedor', label: 'Fornecedor', color: 'relationshipFornecedor' },
-    { key: 'Sócio', label: 'Sócio', color: 'relationshipSocio' },
-  ],
-  personTypes: [
-    { key: 'Pessoa Física', label: 'Pessoa Física' },
-    { key: 'Pessoa Jurídica', label: 'Pessoa Jurídica' },
-  ],
 };
 
 /**

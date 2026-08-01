@@ -2,8 +2,24 @@ import { describe, expect, it } from 'vitest';
 import type { WorkflowParameter } from '../entities/Workflow';
 import { createSchemaContext } from './pathResolver';
 import { validateObject } from './validateSpec';
+import { BR_FIELD_RULE_PRESETS } from '../../plugins/marketplace/brasil';
 
-const ctx = createSchemaContext([]);
+/** Pessoa vem de extensão: é a TELA que declara o CPF e a validação do dígito verificador. */
+const ctx = createSchemaContext([
+  {
+    id: 'pessoas',
+    collection: 'persons',
+    titleSingular: 'Pessoa',
+    titleFieldKey: 'name',
+    fields: [
+      { key: 'name', label: 'Nome', type: 'text', required: false, order: 0, origin: 'plugin' },
+      {
+        key: 'cpf', label: 'CPF', type: 'masked', mask: 'cpf', required: false, order: 1, origin: 'plugin',
+        rules: { format: { preset: 'digits' }, validate: { check: 'cpf' } },
+      },
+    ],
+  },
+], [], [], BR_FIELD_RULE_PRESETS);
 
 const param = (overrides: Partial<WorkflowParameter> & Pick<WorkflowParameter, 'key'>): WorkflowParameter => ({
   label: overrides.key,

@@ -21,13 +21,27 @@ const field = (overrides: Partial<FieldDefinition> & Pick<FieldDefinition, 'key'
 
 const ctx = createSchemaContext([
   {
-    id: 'persons',
+    id: 'contracts',
+    titleSingular: 'Contrato',
+    titleFieldKey: 'title',
+    fields: [
+      field({ key: 'apelido', label: 'Apelido', order: 50 }),
+      field({ key: 'title', label: 'Título do contrato', origin: 'builtin', required: true, order: 1 }),
+    ],
+  },
+  /**
+   * Pessoa é declarada por extensão: o endereço vem em caminho pontilhado, e o objeto aninhado
+   * NASCE da declaração — não há mais entidade em código para trazer o ramo.
+   */
+  {
+    id: 'pessoas',
+    collection: 'persons',
     titleSingular: 'Pessoa',
     titleFieldKey: 'name',
     fields: [
-      field({ key: 'apelido', label: 'Apelido', order: 50 }),
-      field({ key: 'name', label: 'Nome completo', origin: 'builtin', required: true, order: 1 }),
-      field({ key: 'address.city', label: 'Município', origin: 'builtin', order: 18 }),
+      field({ key: 'name', label: 'Nome' }),
+      field({ key: 'address.city', label: 'Município', order: 18 }),
+      field({ key: 'address.street', label: 'Rua', order: 19 }),
     ],
   },
   {
@@ -58,23 +72,30 @@ describe('resolveEntity — uma tela é uma entidade', () => {
   });
 
   it('mescla os campos do tenant sobre os declarados em código, na entidade fixa', () => {
-    const keys = resolveEntityFields(ctx, 'persons').map((f) => f.key);
-    // O campo do tenant entra ao final; os fixos continuam todos lá, sem duplicar `name`.
+    const keys = resolveEntityFields(ctx, 'contracts').map((f) => f.key);
+    // O campo do tenant entra ao final; os fixos continuam todos lá, sem duplicar `title`.
     expect(keys).toContain('apelido');
-    expect(keys.filter((key) => key === 'name')).toHaveLength(1);
+    expect(keys.filter((key) => key === 'title')).toHaveLength(1);
 
-    const name = resolveEntityFields(ctx, 'persons').find((f) => f.key === 'name');
-    expect(name?.label).toBe('Nome completo');
-    expect(name?.origin).toBe('builtin');
+    const title = resolveEntityFields(ctx, 'contracts').find((f) => f.key === 'title');
+    expect(title?.label).toBe('Título do contrato');
+    expect(title?.origin).toBe('builtin');
   });
 
-  it('um ajuste em caminho pontilhado desce no objeto aninhado, sem achatá-lo', () => {
-    const address = resolveEntityFields(ctx, 'persons').find((f) => f.key === 'address');
+  /**
+   * A tela declara a FOLHA (`address.city`) e o ramo nasce dela. Sem isso, a chave pontilhada viraria
+   * um campo literal na raiz do documento — o objeto aninhado só existiria se o kernel o declarasse,
+   * e nenhuma entidade fora do kernel conseguiria ter um.
+   */
+  it('a tela cria o objeto aninhado a partir do caminho pontilhado', () => {
+    const fields = resolveEntityFields(ctx, 'persons');
+    expect(fields.some((f) => f.key === 'address.city')).toBe(false);
+
+    const address = fields.find((f) => f.key === 'address');
     expect(address?.type).toBe('object');
-    const city = address?.objectFields?.find((f) => f.key === 'city');
-    expect(city?.label).toBe('Município');
-    // Os irmãos declarados em código continuam intactos.
-    expect(address?.objectFields?.some((f) => f.key === 'street')).toBe(true);
+    expect(address?.objectFields?.find((f) => f.key === 'city')?.label).toBe('Município');
+    // Duas folhas do mesmo ramo entram no MESMO objeto.
+    expect(address?.objectFields?.map((f) => f.key)).toStrictEqual(['city', 'street']);
   });
 
   it('sem tela do tenant, a entidade é exatamente a declarada em código', () => {
@@ -136,7 +157,7 @@ describe('nomes de coleção reservados', () => {
     expect(screenIdIssue('')).toBeTruthy();
     expect(screenIdIssue('meu-cadastro')).toBeTruthy();
     expect(screenIdIssue('1medico')).toBeTruthy();
-    expect(screenIdIssue('persons')).toBeTruthy();
+    expect(screenIdIssue('contracts')).toBeTruthy();
     expect(screenIdIssue('workflow_executions')).toBeTruthy();
     expect(screenIdIssue('contractTypes')).toBeTruthy();
   });

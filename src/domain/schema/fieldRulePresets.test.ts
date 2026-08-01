@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { applyFormat, checkValue } from './fieldRules';
 import type { FieldRulePresetConflict } from './fieldRulePresets';
+import { BR_FIELD_RULE_PRESETS } from '../../plugins/marketplace/brasil';
 import {
   applyFormatOps,
   applyMaskTemplate,
@@ -85,7 +86,7 @@ describe('applyMaskTemplate — paridade com os formatadores removidos do kernel
 
   it('escolhe entre CPF e CNPJ pelo tamanho, como o preset cpfCnpj fazia', () => {
     for (const input of prefixes(SAMPLE)) {
-      expect(applyFormat(input, { preset: 'cpfCnpj' })).toBe(legacyCpfCnpj(input));
+      expect(applyFormat(input, { preset: 'cpfCnpj' }, buildFieldRulePresetCatalog(BR_FIELD_RULE_PRESETS))).toBe(legacyCpfCnpj(input));
     }
   });
 
@@ -106,15 +107,35 @@ describe('applyMaskTemplate — paridade com os formatadores removidos do kernel
 
 describe('presets do núcleo aplicados por chave', () => {
   it.each([
+    ['digits', 'a1b2c3', '123'],
+    ['upper', 'ana', 'ANA'],
+    ['lower', 'ANA', 'ana'],
+    ['trim', '  ana  ', 'ana'],
+  ])('%s formata como antes', (preset, input, expected) => {
+    expect(applyFormat(input, { preset })).toBe(expected);
+  });
+
+  /** Documento e telefone são regra de PAÍS: sem a extensão do Brasil, a chave não existe. */
+  it('o núcleo não conhece CPF, CNPJ, telefone nem CEP', () => {
+    expect(applyFormat('52998224725', { preset: 'cpf' })).toBe('52998224725');
+    expect(checkValue('111.111.111-11', { check: 'cpf' }, 'Documento')).toBeUndefined();
+  });
+});
+
+/**
+ * Os mesmos formatos de sempre, agora vindos da extensão do Brasil — é o catálogo que o escritório
+ * enxerga depois de instalá-la, e o que prova que a saída não mudou ao sair do kernel.
+ */
+describe('presets do Brasil, declarados por extensão', () => {
+  const catalog = buildFieldRulePresetCatalog(BR_FIELD_RULE_PRESETS);
+
+  it.each([
     ['cpf', '52998224725', '529.982.247-25'],
     ['cnpj', '11222333000181', '11.222.333/0001-81'],
     ['phone', '11933334444', '(11) 93333-4444'],
     ['cep', '01310100', '01310-100'],
-    ['digits', 'a1b2c3', '123'],
-    ['upper', 'ana', 'ANA'],
-    ['lower', 'ANA', 'ana'],
   ])('%s formata como antes', (preset, input, expected) => {
-    expect(applyFormat(input, { preset })).toBe(expected);
+    expect(applyFormat(input, { preset }, catalog)).toBe(expected);
   });
 
   it.each([
@@ -122,8 +143,8 @@ describe('presets do núcleo aplicados por chave', () => {
     ['cnpj', '11.222.333/0001-81', '11.222.333/0001-99'],
     ['cpfCnpj', '52998224725', '52998224720'],
   ])('%s valida pelo dígito verificador', (check, valid, invalid) => {
-    expect(checkValue(valid, { check }, 'Documento')).toBeUndefined();
-    expect(checkValue(invalid, { check }, 'Documento')).toBeDefined();
+    expect(checkValue(valid, { check }, 'Documento', catalog)).toBeUndefined();
+    expect(checkValue(invalid, { check }, 'Documento', catalog)).toBeDefined();
   });
 });
 
@@ -152,11 +173,11 @@ describe('catálogo declarado', () => {
   it('não deixa uma extensão redefinir uma chave do núcleo', () => {
     const conflicts: FieldRulePresetConflict[] = [];
     const catalog = buildFieldRulePresetCatalog(
-      [{ key: 'cpf', label: 'CPF sequestrado', format: [{ op: 'upper' }] }],
+      [{ key: 'digits', label: 'Dígitos sequestrados', format: [{ op: 'upper' }] }],
       conflicts,
     );
-    expect(catalog.get('cpf')?.label).toBe('CPF (000.000.000-00)');
-    expect(conflicts.map((conflict) => conflict.key)).toEqual(['cpf']);
+    expect(catalog.get('digits')?.label).toBe('Somente números');
+    expect(conflicts.map((conflict) => conflict.key)).toEqual(['digits']);
   });
 
   it('resolve um preset declarado por extensão', () => {

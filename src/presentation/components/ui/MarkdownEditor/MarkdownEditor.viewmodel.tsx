@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef, useMemo } from 'react';
-import type { News, Person, Contract } from '../../../../domain/entities';
+import type { News, Contract } from '../../../../domain/entities';
 import type { WorkflowDefinition } from '../../../../domain/entities/Workflow';
 import { MENTION_COMMANDS, type MentionCommand } from '../MentionMenu/MentionMenu.viewmodel';
 import { useExtensionMentionProviders, type ExtensionMentionProvider, type MentionResult } from '../../../shared/extensions/extensionServices';
@@ -55,9 +55,6 @@ export interface MarkdownEditorViewModel {
   newsPickerOpen: boolean;
   closeNewsPicker: () => void;
   insertNewsLink: (n: News) => void;
-  personPickerOpen: boolean;
-  closePersonPicker: () => void;
-  insertPersonLink: (c: Person) => void;
   contractPickerOpen: boolean;
   closeContractPicker: () => void;
   insertContractLink: (c: Contract) => void;
@@ -106,7 +103,6 @@ export const useMarkdownEditorViewModel = (
   });
   const [mentionHighlightedIndex, setMentionHighlightedIndex] = useState(0);
   const [newsPickerOpen, setNewsPickerOpen] = useState(false);
-  const [personPickerOpen, setPersonPickerOpen] = useState(false);
   const [contractPickerOpen, setContractPickerOpen] = useState(false);
   const [workflowPickerOpen, setWorkflowPickerOpen] = useState(false);
   const [extMentionProvider, setExtMentionProvider] = useState<ExtensionMentionProvider | null>(null);
@@ -141,7 +137,6 @@ export const useMarkdownEditorViewModel = (
       mentionRangeRef.current = { start: mentionState.triggerStart, end };
       closeMention();
       if (key === 'news') setNewsPickerOpen(true);
-      if (key === 'person') setPersonPickerOpen(true);
       if (key === 'contract') setContractPickerOpen(true);
       if (key === 'workflow') setWorkflowPickerOpen(true);
       if (key.startsWith(EXT_MENTION_PREFIX)) {
@@ -196,17 +191,8 @@ export const useMarkdownEditorViewModel = (
   const closeExtMention = useCallback(() => setExtMentionProvider(null), []);
 
   const closeNewsPicker = useCallback(() => setNewsPickerOpen(false), []);
-  const closePersonPicker = useCallback(() => setPersonPickerOpen(false), []);
   const closeContractPicker = useCallback(() => setContractPickerOpen(false), []);
   const closeWorkflowPicker = useCallback(() => setWorkflowPickerOpen(false), []);
-
-  const insertPersonLink = useCallback(
-    (c: Person) => {
-      insertLink(c.name, `/microteia/view-person:${c.id}`);
-      setPersonPickerOpen(false);
-    },
-    [insertLink],
-  );
 
   const insertContractLink = useCallback(
     (c: Contract) => {
@@ -373,9 +359,6 @@ export const useMarkdownEditorViewModel = (
     newsPickerOpen,
     closeNewsPicker,
     insertNewsLink,
-    personPickerOpen,
-    closePersonPicker,
-    insertPersonLink,
     contractPickerOpen,
     closeContractPicker,
     insertContractLink,

@@ -58,7 +58,25 @@ const ctx = createSchemaContext([
     titleFieldKey: 'nome',
     fields: [field({ key: 'nome', label: 'Nome', type: 'text' })],
   },
-], [{ collection: 'caseAreas', label: 'Processo: Área do Direito' }]);
+  /**
+   * Pessoa também vem de extensão. O endereço é declarado em caminho pontilhado — o objeto aninhado
+   * do kernel, agora nascido de uma declaração de tela, com lookup no campo de dentro.
+   */
+  {
+    id: 'pessoas',
+    collection: 'persons',
+    eventPrefix: 'person',
+    titleSingular: 'Pessoa',
+    titleFieldKey: 'name',
+    fields: [
+      field({ key: 'name', label: 'Nome', type: 'text' }),
+      field({ key: 'address.city', label: 'Cidade', type: 'select', lookupCollection: 'personCities' }),
+    ],
+  },
+], [
+  { collection: 'caseAreas', label: 'Processo: Área do Direito' },
+  { collection: 'personCities', label: 'Pessoa: Cidade' },
+]);
 
 const casesRoot: PathRoot = { kind: 'entity', entityKey: 'cases', hasOld: true };
 

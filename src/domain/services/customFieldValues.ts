@@ -89,33 +89,43 @@ export const buildInitialFormValues = (
   fields: FieldDefinition[],
   stored?: object | null,
 ): Record<string, CustomFieldValue> => {
-  const record = stored as Record<string, unknown> | null | undefined;
-  const form: Record<string, CustomFieldValue> = {};
+  const record = (stored ?? {}) as object;
+  // Registro NOVO: é onde o valor declarado de partida entra. Num registro existente, o que vale é
+  // o que está gravado — inclusive o vazio que o usuário deixou de propósito.
+  const isNew = stored === null || stored === undefined;
+  let form: Record<string, CustomFieldValue> = {};
+  const put = (key: string, value: CustomFieldValue): void => {
+    form = setValueByPath(form, key, value);
+  };
+
   fields.forEach((field) => {
-    const value = record?.[field.key] as CustomFieldValue | undefined;
+    const stored = readValueByPath(record, field.key) as CustomFieldValue | undefined;
+    const value = isNew && stored === undefined && field.defaultValue !== undefined
+      ? field.defaultValue
+      : stored;
     switch (field.type) {
       case 'checkbox':
-        form[field.key] = typeof value === 'boolean' ? value : false;
+        put(field.key, typeof value === 'boolean' ? value : false);
         break;
       case 'currency':
-        form[field.key] = typeof value === 'number' ? value : null;
+        put(field.key, typeof value === 'number' ? value : null);
         break;
       case 'number':
-        form[field.key] = typeof value === 'number' ? String(value) : '';
+        put(field.key, typeof value === 'number' ? String(value) : '');
         break;
       case 'date':
-        form[field.key] = toDateFieldInput(value);
+        put(field.key, toDateFieldInput(value));
         break;
       case 'select':
       case 'reference':
         if (field.multi) {
-          form[field.key] = Array.isArray(value) ? value : [];
+          put(field.key, Array.isArray(value) ? value : []);
         } else {
-          form[field.key] = typeof value === 'string' ? value : '';
+          put(field.key, typeof value === 'string' ? value : '');
         }
         break;
       default:
-        form[field.key] = typeof value === 'string' ? value : '';
+        put(field.key, typeof value === 'string' ? value : '');
     }
   });
   return form;
@@ -125,32 +135,36 @@ export const formValuesToStoredValues = (
   fields: FieldDefinition[],
   form: Record<string, CustomFieldValue>,
 ): Record<string, CustomFieldValue> => {
-  const stored: Record<string, CustomFieldValue> = {};
+  let stored: Record<string, CustomFieldValue> = {};
+  const put = (key: string, value: CustomFieldValue): void => {
+    stored = setValueByPath(stored, key, value);
+  };
+
   fields.forEach((field) => {
-    const value = form[field.key];
+    const value = readValueByPath(form, field.key) as CustomFieldValue | undefined;
     switch (field.type) {
       case 'checkbox':
-        stored[field.key] = value === true;
+        put(field.key, value === true);
         break;
       case 'currency':
-        stored[field.key] = typeof value === 'number' ? value : null;
+        put(field.key, typeof value === 'number' ? value : null);
         break;
       case 'number': {
         const raw = typeof value === 'string' ? value.trim() : '';
-        stored[field.key] = raw !== '' && !Number.isNaN(Number(raw)) ? Number(raw) : null;
+        put(field.key, raw !== '' && !Number.isNaN(Number(raw)) ? Number(raw) : null);
         break;
       }
       case 'select':
       case 'reference':
         if (field.multi) {
-          stored[field.key] = Array.isArray(value) ? value : [];
+          put(field.key, Array.isArray(value) ? value : []);
         } else {
-          stored[field.key] = typeof value === 'string' && value !== '' ? value : null;
+          put(field.key, typeof value === 'string' && value !== '' ? value : null);
         }
         break;
       default: {
         const raw = typeof value === 'string' ? value.trim() : '';
-        stored[field.key] = raw !== '' ? raw : null;
+        put(field.key, raw !== '' ? raw : null);
       }
     }
   });
@@ -180,7 +194,7 @@ export const validateRequiredFields = (
   form: Record<string, CustomFieldValue>,
 ): string | null => {
   const missing = sortFieldsByOrder(fields).find(
-    (field) => field.required && !hasFormValue(field, form[field.key]),
+    (field) => field.required && !hasFormValue(field, readValueByPath(form, field.key) as CustomFieldValue | undefined),
   );
   return missing ? requiredFieldError(missing) : null;
 };
@@ -191,14 +205,30 @@ export const collectRequiredErrors = (
 ): Record<string, string> => {
   const errors: Record<string, string> = {};
   sortFieldsByOrder(fields).forEach((field) => {
-    if (field.required && !hasFormValue(field, form[field.key])) {
+    if (field.required && !hasFormValue(field, readValueByPath(form, field.key) as CustomFieldValue | undefined)) {
       errors[field.key] = requiredFieldError(field);
     }
   });
   return errors;
 };
 
-/** Nome de exibição do registro — o valor do campo eleito como título na tela. */
+/**
+ * Leitura por caminho pontilhado — o par de `setValueByPath`.
+ *
+ * A chave de um campo é um CAMINHO, não um nome: um objeto aninhado (`address`) é declarado campo a
+ * campo (`address.city`), e é assim que ele chega ao formulário, ao card e aos filtros. Ler pela
+ * raiz devolvia `undefined` para todo campo dentro de um objeto — a cidade sumia do cartão e o
+ * filtro por ela não casava nada, sem erro nenhum.
+ */
+export const readValueByPath = (values: object, key: string): unknown => {
+  if (!key) return undefined;
+  if (!key.includes('.')) return (values as Record<string, unknown>)[key];
+  return key.split('.').reduce<unknown>(
+    (acc, part) => (acc !== null && typeof acc === 'object' ? (acc as Record<string, unknown>)[part] : undefined),
+    values,
+  );
+};
+
 /**
  * Texto CRU de um campo do registro, ou vazio — a diferença para `resolveRecordTitle` é não inventar
  * "Sem título": quem chama precisa distinguir "não tem" para cair no próximo candidato (o nome da
@@ -206,20 +236,21 @@ export const collectRequiredErrors = (
  */
 export const readRecordText = (values: object, fieldKey: string): string => {
   if (!fieldKey) return '';
-  const value = (values as Record<string, unknown>)[fieldKey];
+  const value = readValueByPath(values, fieldKey);
   return typeof value === 'string' ? value.trim() : '';
 };
 
+/** Nome de exibição do registro — o valor do campo eleito como título na tela. */
 export const resolveRecordTitle = (
   values: object,
   titleFieldKey: string,
 ): string => {
-  const value = (values as Record<string, unknown>)[titleFieldKey];
+  const value = readValueByPath(values, titleFieldKey);
   return typeof value === 'string' && value.trim() !== '' ? value.trim() : 'Sem título';
 };
 
 /**
- * Escrita imutável por caminho pontilhado (espelha o readByPath do CustomFieldsSection).
+ * Escrita imutável por caminho pontilhado (espelha `readValueByPath`).
  * Chave sem "." grava no topo; "address.street" grava aninhado, criando o ramo se preciso.
  */
 export const setValueByPath = (

@@ -3,7 +3,7 @@ import { useTheme } from 'styled-components';
 import { useLookups } from '../../stores/useLookups';
 import { useReferenceOptions } from './useReferenceOptions';
 import { formatCurrencyBRL } from '../../utils/formatters';
-import { toDateFieldInput } from '../../domain/services/customFieldValues';
+import { readValueByPath, toDateFieldInput } from '../../domain/services/customFieldValues';
 import { resolveColor, resolveFieldOptionColor } from '../../shared/styles/colorUtils';
 import type { CustomFieldValue, FieldDefinition } from '../../domain/entities';
 import type { FilterDef, FilterOption } from '../components/ui/CompositeFilter';
@@ -11,10 +11,18 @@ import type { FilterDef, FilterOption } from '../components/ui/CompositeFilter';
 export const CUSTOM_FIELD_FILTER_PREFIX = 'cf-';
 
 /**
- * O REGISTRO inteiro: com os campos na raiz do documento, filtrar e exibir é ler pela chave. É
- * `object` (e não `Record<string, unknown>`) para aceitar as entidades tipadas sem cast.
+ * O REGISTRO inteiro: filtrar e exibir é ler pela chave do campo. É `object` (e não
+ * `Record<string, unknown>`) para aceitar as entidades tipadas sem cast.
  */
 export type RecordValues = object;
+
+/**
+ * A chave do campo é um CAMINHO: um campo dentro de um objeto declarado chega como `address.city`.
+ * Ler pela raiz devolvia `undefined` — o campo não aparecia no cartão e o filtro por ele não casava
+ * registro nenhum, sem erro à vista.
+ */
+const fieldValue = (values: RecordValues | undefined, field: FieldDefinition): CustomFieldValue =>
+  readValueByPath(values ?? {}, field.key) as CustomFieldValue;
 
 export interface CustomFieldBadgeItem {
   label: string;
@@ -113,7 +121,7 @@ export const useCustomFieldListing = (
     for (const field of filterableFields) {
       const tokenValues = tokenMap[`${filterKeyPrefix}${field.key}`] ?? [];
       if (tokenValues.length === 0) continue;
-      const value = (values as Record<string, CustomFieldValue> | undefined)?.[field.key];
+      const value = fieldValue(values, field);
       switch (field.type) {
         case 'select':
         case 'reference':
@@ -140,7 +148,7 @@ export const useCustomFieldListing = (
   }, [filterableFields, filterKeyPrefix]);
 
   const displayValue = useCallback((values: RecordValues | undefined, field: FieldDefinition): string => {
-    const value = (values as Record<string, CustomFieldValue> | undefined)?.[field.key];
+    const value = fieldValue(values, field);
     if (value == null || value === '') return '—';
     switch (field.type) {
       case 'date':
@@ -169,7 +177,7 @@ export const useCustomFieldListing = (
   }, [selectOptionLabels, referenceOptionsByEntity]);
 
   const selectBadges = useCallback((values: RecordValues | undefined, field: FieldDefinition): CustomFieldBadgeItem[] => {
-    const value = (values as Record<string, CustomFieldValue> | undefined)?.[field.key];
+    const value = fieldValue(values, field);
     const selectedKeys = Array.isArray(value) ? value : (typeof value === 'string' && value ? [value] : []);
     const options = new Map(selectOptionLabels(field).map((o) => [o.value, o]));
     return selectedKeys.map((key) => {

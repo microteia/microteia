@@ -12,6 +12,15 @@ export interface ActionDefinition {
   workflowId: string;
   hiddenWhen?: string | null;
   disabledWhen?: string | null;
+  /**
+   * Expressão que diz quando a ação está LIGADA — o que a transforma num interruptor: o botão passa
+   * a mostrar o estado atual do registro, em vez de só disparar. Ausente (o normal) = botão comum.
+   *
+   * Existe porque um cadastro costuma ter um estado que se alterna (ativo/inativo, arquivado,
+   * destacado) e antes isso só existia em código, no cabeçalho de uma tela fixa. Como `hiddenWhen` e
+   * `disabledWhen`, é avaliada só na UI, com os valores do formulário e o registro gravado.
+   */
+  activeWhen?: string | null;
   confirmMessage?: string | null;
   danger: boolean;
   enabled: boolean;

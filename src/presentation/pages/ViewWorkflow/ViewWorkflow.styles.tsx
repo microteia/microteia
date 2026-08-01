@@ -222,6 +222,19 @@ export const S = {
     gap: ${({ theme }) => theme.spacing.lg};
   `,
 
+  FieldHint: styled.p`
+    margin: 0;
+    font-size: ${({ theme }) => theme.fontSizes.xs};
+    color: ${({ theme }) => theme.colors.textMuted};
+    line-height: 1.4;
+  `,
+
+  FieldError: styled.p`
+    margin: 0;
+    font-size: ${({ theme }) => theme.fontSizes.xs};
+    color: ${({ theme }) => theme.colors.danger};
+  `,
+
   StepsToolbar: styled.div`
     display: flex;
     align-items: center;

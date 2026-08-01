@@ -118,6 +118,15 @@ export const S = {
     }
   `,
 
+  /**
+   * A ação que é INTERRUPTOR mostra o estado do registro pela cor: ligado em `success`, desligado em
+   * `danger` — a mesma leitura que o botão de ativar/inativar tinha quando era código de tela.
+   */
+  ToggleIcon: styled.span<{ $on: boolean }>`
+    display: inline-flex;
+    color: ${({ $on, theme }) => ($on ? theme.colors.success : theme.colors.danger)};
+  `,
+
   Tags: styled.div`
     display: flex;
     flex-wrap: wrap;

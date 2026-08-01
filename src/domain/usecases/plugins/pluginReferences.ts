@@ -9,6 +9,7 @@ import type { InputMapping, WorkflowStep } from '../../entities/Workflow';
 import { getEntityByCollection, getEntityByEventPrefix } from '../../schema/entityRegistry';
 import { splitEntityEventName } from '../../schema/eventCatalog';
 import { isLookupCollection } from '../../schema/lookupRegistry';
+import { dependencyCollections } from '../../schema/plugin/pluginManifest';
 import { screenEventPrefix, templateCollection } from './screenModule';
 
 export type RefKind = 'screen' | 'action' | 'workflow' | 'script';
@@ -128,7 +129,7 @@ const slug = (value: string): string =>
 
 /**
  * O alvo de um complemento precisa ser universal — igual em todo escritório. Por nome, só coleção
- * fixa do core (`persons`): a chave de uma tela do tenant de destino não é conhecida no pacote, e a
+ * fixa do core (`contracts`): a chave de uma tela do tenant de destino não é conhecida no pacote, e a
  * de uma tela do próprio pacote seria ambígua (os campos pertencem à tela, e não a um complemento).
  * Para estender a tela de OUTRA extensão, o alvo é o `sourceId` universal dela, que não dá para
  * conferir aqui — se ela não estiver instalada, o complemento simplesmente não se aplica.
@@ -218,10 +219,19 @@ export const validatePackage = (pkg: MarketplacePlugin): PackageValidationIssue[
   const actionIds = new Set((pkg.actions ?? []).map((a) => a.templateId));
   const workflowIds = new Set(pkg.workflows.map((w) => w.templateId));
   const scriptIds = new Set((pkg.scripts ?? []).map((s) => s.templateId));
-  const dependencySlugs = Object.keys(pkg.manifest.dependencies ?? {}).map(slug);
+  const dependencies = Object.entries(pkg.manifest.dependencies ?? {});
+  const dependencySlugs = dependencies.map(([id]) => slug(id));
+  // As coleções que as dependências declaram trazer. Uma entidade que saiu do kernel mantém o nome
+  // GLOBAL (`persons`) — não ganha o prefixo da extensão que a descreve, senão os registros mudariam
+  // de lugar —, então é a declaração que liga o nome à extensão que o instala.
+  const dependencyCollectionNames = new Set(
+    dependencies.flatMap(([, dependency]) => dependencyCollections(dependency)),
+  );
 
   const coveredByDependency = (ref: PackageRef): boolean =>
-    ref.kind === 'screen' && dependencySlugs.some((depSlug) => ref.id.startsWith(`${depSlug}__`));
+    ref.kind === 'screen'
+    && (dependencyCollectionNames.has(ref.id)
+      || dependencySlugs.some((depSlug) => ref.id.startsWith(`${depSlug}__`)));
 
   const bundled = (ref: PackageRef): boolean => {
     switch (ref.kind) {

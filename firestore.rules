@@ -170,80 +170,6 @@ service cloud.firestore {
         allow update: if isTenantAdmin(tenantId);
       }
 
-      // Lookups de pessoa — qualquer membro lê; qualquer membro com escrita cria; só admin deleta
-      match /personTypes/{id} {
-        allow read: if isMember(tenantId);
-        allow create: if canWriteInTenant(tenantId);
-        allow delete: if isTenantAdmin(tenantId);
-      }
-      match /personOccupations/{id} {
-        allow read: if isMember(tenantId);
-        allow create: if canWriteInTenant(tenantId);
-        allow delete: if isTenantAdmin(tenantId);
-      }
-      match /personNationalities/{id} {
-        allow read: if isMember(tenantId);
-        allow create: if canWriteInTenant(tenantId);
-        allow delete: if isTenantAdmin(tenantId);
-      }
-      match /personMaritalStatuses/{id} {
-        allow read: if isMember(tenantId);
-        allow create: if canWriteInTenant(tenantId);
-        allow delete: if isTenantAdmin(tenantId);
-      }
-      match /personCities/{id} {
-        allow read: if isMember(tenantId);
-        allow create: if canWriteInTenant(tenantId);
-        allow delete: if isTenantAdmin(tenantId);
-      }
-      match /personRelationships/{id} {
-        allow read: if isMember(tenantId);
-        allow create: if canWriteInTenant(tenantId);
-        allow delete: if isTenantAdmin(tenantId);
-      }
-      match /personGenders/{id} {
-        allow read: if isMember(tenantId);
-        allow create: if canWriteInTenant(tenantId);
-        allow delete: if isTenantAdmin(tenantId);
-      }
-
-      // Pessoas
-      match /persons/{personId} {
-        allow read: if isMember(tenantId);
-        allow create, update: if canWriteInTenant(tenantId);
-        allow delete: if isTenantAdmin(tenantId);
-
-        // Anotações da pessoa — criação por qualquer membro com escrita; exclusão só admin.
-        // update só é usado para o stamp de autoria de exclusão (deletedBy*), gravado logo
-        // antes do delete (ver "Autoria de exclusão").
-        match /notes/{noteId} {
-          allow read: if isMember(tenantId);
-          allow create: if canWriteInTenant(tenantId);
-          allow update: if isTenantAdmin(tenantId)
-            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['deletedBy', 'deletedByName', 'deletedByPhotoURL'])
-            && request.resource.data.deletedBy == request.auth.uid;
-          allow delete: if isTenantAdmin(tenantId);
-        }
-
-        // Documentos da pessoa — upload por qualquer membro com escrita; exclusão só admin.
-        // update só é usado para o stamp de autoria de exclusão (deletedBy*).
-        match /documents/{documentId} {
-          allow read: if isMember(tenantId);
-          allow create: if canWriteInTenant(tenantId);
-          allow update: if isTenantAdmin(tenantId)
-            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['deletedBy', 'deletedByName', 'deletedByPhotoURL'])
-            && request.resource.data.deletedBy == request.auth.uid;
-          allow delete: if isTenantAdmin(tenantId);
-        }
-      }
-
-      // Etiquetas de pessoas (tenant-scoped) — qualquer membro com escrita cria; só admin deleta
-      match /personTags/{tagId} {
-        allow read: if isMember(tenantId);
-        allow create, update: if canWriteInTenant(tenantId);
-        allow delete: if isTenantAdmin(tenantId);
-      }
-
       // Etiquetas de contratos (tenant-scoped) — qualquer membro com escrita cria; só admin deleta
       match /contractTags/{tagId} {
         allow read: if isMember(tenantId);
@@ -522,10 +448,7 @@ service cloud.firestore {
         'deadlineTypes', 'deadlines', 'documentTypes', 'documents', 'extensions',
         'financialCategories', 'financialStatuses', 'financialTags', 'financials',
         'installed_extensions', 'lookupDefinitions', 'members', 'news', 'newsCategories', 'notes',
-        'tagDefinitions',
-        'personCities',
-        'personGenders', 'personMaritalStatuses', 'personNationalities', 'personOccupations',
-        'personRelationships', 'personTags', 'personTypes', 'persons', 'plugin_installations',
+        'tagDefinitions', 'plugin_installations',
         'pushes', 'screenDefinitions', 'scripts', 'secrets', 'tags', 'workflow_definitions',
         'workflow_events', 'workflow_executions'
         ];

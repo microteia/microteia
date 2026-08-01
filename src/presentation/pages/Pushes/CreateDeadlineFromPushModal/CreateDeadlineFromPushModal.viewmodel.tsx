@@ -3,7 +3,7 @@ import { useTheme } from 'styled-components';
 import { useCaseRecords } from '../../../shared/useCollectionRecords';
 import { useDeadlineStore } from '../../../../stores/useDeadlineStore';
 import { useTenant } from '../../../../stores/useTenant';
-import { usePersonStore } from '../../../../stores/usePersonStore';
+import { usePersonRecords } from '../../../shared/useCollectionRecords';
 import { useAuth } from '../../../../stores/useAuth';
 import { usePush } from '../../../../stores/usePush';
 import { usePushInteraction } from '../../../../stores/usePushInteraction';
@@ -52,7 +52,7 @@ export const useCreateDeadlineFromPushViewModel = (
   const { getOptions, addOption, removeOption } = useLookups();
   const typeConfigs = getOptions('deadlineTypes');
   const { currentTenant, tenantRole } = useTenant();
-  const { persons } = usePersonStore();
+  const persons = usePersonRecords();
   const isAdmin = tenantRole === 'admin';
   const { user } = useAuth();
   const { updateStatus } = usePush();

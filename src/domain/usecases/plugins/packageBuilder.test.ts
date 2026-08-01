@@ -219,10 +219,10 @@ describe('buildPackage — complementos de tela', () => {
   it('empacota só os campos do autor, com alvo pelo nome quando a tela é do kernel', () => {
     const pkg = buildPackage({
       manifest, summary: 's', screens: [], actions: [], workflows: [], scripts: [],
-      patchedScreens: [withOwnField({ id: 'persons', origin: 'builtin' })],
+      patchedScreens: [withOwnField({ id: 'contracts', origin: 'builtin' })],
     });
     expect(pkg.screenPatches).toHaveLength(1);
-    expect(pkg.screenPatches?.[0].target).toBe('persons');
+    expect(pkg.screenPatches?.[0].target).toBe('contracts');
     expect(pkg.screenPatches?.[0].targetKind).toBe('collection');
     expect(pkg.screenPatches?.[0].fields.map((f) => f.key)).toEqual(['crm']);
     expect(pkg.screens).toBeUndefined();
@@ -240,7 +240,7 @@ describe('buildPackage — complementos de tela', () => {
   it('tela sem campo do autor não vira complemento', () => {
     const pkg = buildPackage({
       manifest, summary: 's', screens: [], actions: [], workflows: [], scripts: [],
-      patchedScreens: [screen({ id: 'persons', origin: 'builtin', fields: [] })],
+      patchedScreens: [screen({ id: 'contracts', origin: 'builtin', fields: [] })],
     });
     expect(pkg.screenPatches).toBeUndefined();
   });
@@ -249,18 +249,18 @@ describe('buildPackage — complementos de tela', () => {
     const pkg = buildPackage({
       manifest, summary: 's', screens: [], actions: [], workflows: [], scripts: [],
       patchedScreens: [screen({
-        id: 'persons', origin: 'builtin',
-        fields: [{ key: 'porte', label: 'Porte', type: 'select', lookupCollection: 'personsPorte', required: false, order: 0, origin: 'design', ownerPluginId: null }],
+        id: 'contracts', origin: 'builtin',
+        fields: [{ key: 'porte', label: 'Porte', type: 'select', lookupCollection: 'contractsPorte', required: false, order: 0, origin: 'design', ownerPluginId: null }],
       })],
-      availableLookups: [{ collection: 'personsPorte', label: 'Porte' }],
+      availableLookups: [{ collection: 'contractsPorte', label: 'Porte' }],
     });
-    expect(pkg.lookups).toEqual([{ collection: 'personsPorte', label: 'Porte' }]);
+    expect(pkg.lookups).toEqual([{ collection: 'contractsPorte', label: 'Porte' }]);
   });
 
   it('o pacote resultante passa na mesma validação do import', () => {
     const pkg = buildPackage({
       manifest, summary: 's', screens: [], actions: [], workflows: [], scripts: [],
-      patchedScreens: [withOwnField({ id: 'persons', origin: 'builtin' })],
+      patchedScreens: [withOwnField({ id: 'contracts', origin: 'builtin' })],
     });
     const roundTrip = parsePackage(serializePackage(pkg));
     expect(roundTrip.ok).toBe(true);

@@ -35,6 +35,7 @@ const mapAction = (id: string, d: Record<string, unknown>, tenantId: string): Ac
   icon: (d.icon as string | undefined) ?? 'apps',
   workflowId: (d.workflowId as string | undefined) ?? '',
   hiddenWhen: (d.hiddenWhen as string | null | undefined) ?? null,
+  activeWhen: (d.activeWhen as string | null | undefined) ?? null,
   disabledWhen: (d.disabledWhen as string | null | undefined) ?? null,
   confirmMessage: (d.confirmMessage as string | null | undefined) ?? null,
   danger: (d.danger as boolean | undefined) ?? false,

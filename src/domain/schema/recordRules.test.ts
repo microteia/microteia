@@ -3,6 +3,7 @@ import type { FieldDefinition } from '../entities/entitySchemas';
 import { createSchemaContext } from './pathResolver';
 import type { SchemaScreen } from './pathResolver';
 import { computeFieldValues, formatAndValidateRecord } from './recordRules';
+import { BR_FIELD_RULE_PRESETS } from '../../plugins/marketplace/brasil';
 
 const field = (overrides: Partial<FieldDefinition> & Pick<FieldDefinition, 'key' | 'label'>): FieldDefinition => ({
   origin: 'design',
@@ -12,12 +13,33 @@ const field = (overrides: Partial<FieldDefinition> & Pick<FieldDefinition, 'key'
   ...overrides,
 });
 
+/**
+ * Pessoa é declarada por extensão: máscara, formatação e validação (inclusive o dígito verificador
+ * do CPF) vêm da TELA, e valem igual na gravação por automação — que é o que este arquivo cobre.
+ */
 const screens: SchemaScreen[] = [
   {
-    id: 'persons',
+    id: 'pessoas',
+    collection: 'persons',
     titleSingular: 'Pessoa',
     titleFieldKey: 'name',
     fields: [
+      field({ key: 'name', label: 'Nome' }),
+      field({
+        key: 'cpf',
+        label: 'CPF',
+        type: 'masked',
+        mask: 'cpf',
+        rules: { format: { preset: 'digits' }, validate: { check: 'cpf' } },
+      }),
+      field({
+        key: 'address.zipCode',
+        label: 'CEP',
+        type: 'masked',
+        mask: 'cep',
+        rules: { format: { preset: 'digits' }, validate: { pattern: '^\\d{8}$', message: 'CEP deve ter 8 dígitos' } },
+      }),
+      field({ key: 'address.street', label: 'Rua' }),
       field({
         key: 'registro',
         label: 'Registro OAB',
@@ -42,7 +64,8 @@ const screens: SchemaScreen[] = [
   },
 ];
 
-const ctx = createSchemaContext(screens);
+// O escritório tem a extensão do Brasil instalada — é dela que vêm CPF e CEP.
+const ctx = createSchemaContext(screens, [], [], BR_FIELD_RULE_PRESETS);
 
 describe('formatAndValidateRecord — campos nativos', () => {
   it('formata e valida um campo nativo com regra', () => {

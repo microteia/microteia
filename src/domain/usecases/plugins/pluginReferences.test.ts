@@ -11,7 +11,6 @@ const base = (overrides: Partial<MarketplacePlugin>): MarketplacePlugin => ({
 
 describe('isCoreCollection', () => {
   it('reconhece entidades fixas e lookups', () => {
-    expect(isCoreCollection('persons')).toBe(true);
     expect(isCoreCollection('contracts')).toBe(true);
     expect(isCoreCollection('contractTypes')).toBe(true);
   });
@@ -72,7 +71,7 @@ describe('workflowOutRefs', () => {
 
   it('evento de filho de entidade fixa não é gatilho de tela', () => {
     const refs = workflowOutRefs({
-      templateId: 'wf', name: 'W', eventName: 'person_note.saved', version: 1,
+      templateId: 'wf', name: 'W', eventName: 'contract_note.saved', version: 1,
       condition: { kind: 'AlwaysTrue' }, steps: [],
     });
     expect(refs).toEqual([]);
@@ -94,10 +93,10 @@ describe('validatePackage — prefixo de eventos', () => {
   });
 
   it('recusa o prefixo de uma entidade fixa em outra coleção', () => {
-    const pkg = base({ screens: [screen({ key: 'medico', eventPrefix: 'person' })] });
+    const pkg = base({ screens: [screen({ key: 'medico', eventPrefix: 'contract' })] });
     const issues = validatePackage(pkg);
     expect(issues).toHaveLength(1);
-    expect(issues[0].message).toContain('Pessoas');
+    expect(issues[0].message).toContain('Contratos');
   });
 
   it('recusa duas coleções publicando o mesmo evento', () => {
@@ -137,11 +136,11 @@ describe('validatePackage', () => {
     expect(validatePackage(pkg)).toEqual([]);
   });
 
-  it('referência ao core (persons) é sempre satisfeita', () => {
+  it('referência ao core (contracts) é sempre satisfeita', () => {
     const pkg = base({
       screens: [{ key: 'venda', titleSingular: 'V', titlePlural: 'V', icon: 'apps', titleFieldKey: 'n', fields: [
         { key: 'n', label: 'N', type: 'text', required: true, order: 0 },
-        { key: 'cliente', label: 'Cliente', type: 'reference', refEntity: 'persons', required: false, order: 1 },
+        { key: 'cliente', label: 'Cliente', type: 'reference', refEntity: 'contracts', required: false, order: 1 },
       ] }],
     });
     expect(validatePackage(pkg)).toEqual([]);
@@ -174,6 +173,34 @@ describe('validatePackage', () => {
     expect(validatePackage(pkg)).toEqual([]);
   });
 
+  /**
+   * Uma entidade que saiu do kernel mantém o nome global da coleção. A dependência declara O QUE
+   * traz — sem isso, `persons` seria indistinguível de uma tela que ninguém tem.
+   */
+  it('coleção de uma dependência declarada satisfaz a referência', () => {
+    const pkg = base({
+      manifest: {
+        id: 'com.acme.processos', version: '1.0.0', kernel: '^1.0.0', name: 'Processos',
+        dependencies: { 'com.microteia.pessoa': { version: '^1.0.0', collections: ['persons'] } },
+      },
+      screens: [{ key: 'processo', titleSingular: 'P', titlePlural: 'P', icon: 'apps', titleFieldKey: 'n', fields: [
+        { key: 'n', label: 'N', type: 'text', required: true, order: 0 },
+        { key: 'advogado', label: 'Advogado', type: 'reference', refEntity: 'persons', required: false, order: 1 },
+      ] }],
+    });
+    expect(validatePackage(pkg)).toEqual([]);
+  });
+
+  it('a mesma referência sem a dependência declarada é pendente', () => {
+    const pkg = base({
+      screens: [{ key: 'processo', titleSingular: 'P', titlePlural: 'P', icon: 'apps', titleFieldKey: 'n', fields: [
+        { key: 'advogado', label: 'Advogado', type: 'reference', refEntity: 'persons', required: false, order: 0 },
+        { key: 'n', label: 'N', type: 'text', required: true, order: 1 },
+      ] }],
+    });
+    expect(validatePackage(pkg).map((i) => i.ref.id)).toEqual(['persons']);
+  });
+
   it('referência a outro plugin SEM dependência declarada é pendente', () => {
     const pkg = base({
       screens: [{ key: 'pedido', titleSingular: 'P', titlePlural: 'P', icon: 'apps', titleFieldKey: 'n', fields: [
@@ -187,7 +214,7 @@ describe('validatePackage', () => {
 
 describe('validatePackage — complementos de tela', () => {
   const patch = (over: Partial<MarketplacePlugin['screenPatches'] extends (infer T)[] | undefined ? T : never>) => ({
-    target: 'persons',
+    target: 'contracts',
     fields: [{ key: 'crm', label: 'CRM', type: 'text' as const, required: false, order: 0 }],
     ...over,
   });

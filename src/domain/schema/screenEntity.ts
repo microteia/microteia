@@ -172,7 +172,9 @@ export const fieldDefinitionToNativeSpec = (field: FieldDefinition): NativeField
       ...(undefinedIfNull(field.mask) ? { mask: field.mask as NonNullable<FieldDefinition['mask']> } : {}),
       ...(undefinedIfNull(field.section) ? { section: field.section as string } : {}),
       ...(undefinedIfNull(field.placeholder) ? { placeholder: field.placeholder as string } : {}),
-      ...(field.showInList
+      // O ÍCONE basta para o campo virar linha do card: é o que a declaração de `listIcon` promete,
+      // e exigir junto o "exibir na listagem" fazia a declaração da extensão virar um silêncio.
+      ...(field.showInList || undefinedIfNull(field.listIcon)
         ? {
             list: {
               order: undefinedIfNull(field.listOrder) ?? field.order,
@@ -256,6 +258,11 @@ export const nativeSpecToFieldDefinition = (
  * Insere `spec` na posição de `path`, substituindo o campo de mesma chave. Caminhos pontilhados
  * descem em `objectFields` — é assim que um ajuste do usuário sobre `address.city` sobrescreve o
  * campo aninhado declarado em código, sem achatar a estrutura do documento.
+ *
+ * O ramo intermediário é CRIADO quando não existe. Antes, descer só funcionava sobre um objeto que
+ * o `entityRegistry` já declarasse: uma tela que declarasse `address.zipCode` do zero gravava um
+ * campo de chave literal "address.zipCode" na raiz do documento, e o caminho não resolvia. Com a
+ * entidade fora do kernel, ninguém mais declara o ramo — quem declara a folha declara o caminho.
  */
 const upsertFieldAtPath = (
   fields: NativeFieldSpec[],
@@ -274,10 +281,15 @@ const upsertFieldAtPath = (
 
   const index = fields.findIndex((field) => field.key === head);
   const parent = index === -1 ? undefined : fields[index];
-  if (!parent?.objectFields) return [...fields, { ...spec, key: path.join('.') }];
+  // O rótulo do ramo criado é a própria chave: o formulário agrupa pelo `section` de cada folha, e
+  // nenhuma tela exibe o objeto em si.
+  const branch: NativeFieldSpec = parent?.objectFields
+    ? parent
+    : { key: head, label: head, type: 'object', objectFields: [] };
 
-  const next = [...fields];
-  next[index] = { ...parent, objectFields: upsertFieldAtPath(parent.objectFields, rest, spec) };
+  const next = index === -1 ? [...fields, branch] : [...fields];
+  const at = index === -1 ? next.length - 1 : index;
+  next[at] = { ...branch, objectFields: upsertFieldAtPath(branch.objectFields ?? [], rest, spec) };
   return next;
 };
 
@@ -377,7 +389,6 @@ export const RESERVED_COLLECTIONS: ReadonlySet<string> = new Set<string>([
   'plugin_installations',
   'extensions',
   'installed_extensions',
-  'personTags',
   'contractTags',
   'financialTags',
   'notes',

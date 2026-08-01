@@ -3,7 +3,7 @@ import { findDuplicateContributions, validateContribution } from '../domain/sche
 import type { PluginDiagnostic } from '../domain/schema/plugin/diagnostics';
 import { error, hasErrors, isContributionScoped, warning } from '../domain/schema/plugin/diagnostics';
 import type { PluginManifest } from '../domain/schema/plugin/pluginManifest';
-import { validatePluginManifest } from '../domain/schema/plugin/pluginManifest';
+import { dependencyRange, validatePluginManifest } from '../domain/schema/plugin/pluginManifest';
 import { KERNEL_VERSION } from '../domain/schema/plugin/kernelVersion';
 import { satisfiesRange } from '../domain/schema/plugin/semver';
 import type { CapabilityRegistry } from './CapabilityRegistry';
@@ -142,7 +142,8 @@ export const createPluginHost = (options: PluginHostOptions = {}): PluginHost =>
       changed = false;
       for (const pluginId of sortedIds(eligible.keys())) {
         const dependencies = eligible.get(pluginId)?.manifest.dependencies ?? {};
-        for (const [dependencyId, range] of Object.entries(dependencies)) {
+        for (const [dependencyId, declaredDependency] of Object.entries(dependencies)) {
+          const range = dependencyRange(declaredDependency);
           const dependency = eligible.get(dependencyId);
           if (!dependency) {
             diagnostics.push(

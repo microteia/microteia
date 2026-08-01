@@ -11,6 +11,27 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [2.3.0] — 2026-07-31
+
+- **Automação agora tem identificador legível.** Ao criar, você escolhe um nome curto (ex: `avisar-cliente`) — ou deixa em branco e ele é criado a partir do nome. É por ele que uma Ação escolhe qual automação executar, e ele não muda depois de criada.
+- Na tela de **Ação**, novo campo **"Ligada quando (interruptor)"**: preenchido, o botão passa a mostrar o estado do registro em verde ou vermelho, em vez de só disparar.
+
+## [2.2.0] — 2026-07-31
+
+- **Nova extensão "Brasil"**: CPF, CNPJ, telefone e CEP com máscara e conferência, mais o preenchimento de endereço pelo CEP. O que valia só para o Brasil saiu do sistema e virou uma extensão — quem opera em outro país não carrega mais regra que não usa, e qualquer cadastro que você criar pode usar esses formatos.
+- **Instale "Brasil" junto com "Pessoas":** é dela que vêm o CPF, o CNPJ, o telefone e o CEP do cadastro de pessoas. Sem ela os campos continuam guardando o que já foi digitado, mas sem máscara nem conferência.
+- O **Ativar/Inativar** voltou ao cabeçalho da pessoa, como botão que mostra o estado: verde para ativa, vermelho para inativa. Ele aparece só depois que a pessoa é salva — pessoa nova já nasce ativa.
+
+## [2.1.0] — 2026-07-31
+
+- **Pessoas agora é uma extensão**, como já era Processos — com as MESMAS pessoas já cadastradas. Nada mudou de lugar: clientes, partes, contatos, etiquetas, anotações, documentos e os vínculos com processos, contratos, prazos e lançamentos continuam exatamente onde estavam.
+- O cadastro segue completo: CPF e CNPJ conferidos na digitação, formulário que se adapta a Pessoa Física ou Jurídica, endereço preenchido pelo CEP e as listas de Tipo, Relacionamento, Estado Civil, Sexo, Nacionalidade, Profissão e Cidade — que passam a ser suas para acrescentar, renomear ou remover.
+- **Instale a extensão "Pessoas" antes de atualizar Processos:** Processos usa as pessoas para o advogado responsável e para os polos, e por isso agora depende dela.
+- Duas mudanças na tela: o **Ativo/Inativo** virou um campo do formulário, no lugar do botão no topo; e o cabeçalho passa a mostrar o ícone da tela em vez da inicial do nome.
+- A menção **@pessoa** nas anotações continua funcionando — agora vem junto com a extensão.
+- Corrigido o **Personalizar Telas**: ele oferecia "Pessoas" e "Processos" como telas do sistema mesmo sem as extensões instaladas (com um formulário que não configurava nada) e, depois de instaladas, não as oferecia de jeito nenhum. Agora as duas aparecem na lista e aceitam campos próprios do escritório.
+- No **Campo Subtítulo** da configuração de tela, a lista trazia só campos de texto: um campo de seleção já escolhido aparecia como "Registro não encontrado". Agora qualquer campo que caiba numa linha pode ser o subtítulo — seleção e relação inclusive, mostradas pelo rótulo.
+
 ## [2.0.5] — 2026-07-31
 
 - **Automações agora podem ser empacotadas junto com a tela que as dispara.** Antes, ao montar uma extensão, uma automação de Processos travava a exportação reclamando de uma tela inexistente.

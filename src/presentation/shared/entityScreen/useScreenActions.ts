@@ -3,7 +3,7 @@ import { useActions } from '../../../stores/useActions';
 import { useNotification } from '../../../stores/useNotification';
 import { useTenant } from '../../../stores/useTenant';
 import { setValueByPath } from '../../../domain/services/customFieldValues';
-import { isActionDisabled, isActionHidden } from '../../../domain/schema/actionExpression';
+import { actionActiveState, isActionDisabled, isActionHidden } from '../../../domain/schema/actionExpression';
 import type { ActionDefinition, ActionOutcome, ActionStatusCode, CustomFieldValue } from '../../../domain/entities';
 
 type Values = Record<string, CustomFieldValue>;
@@ -38,6 +38,11 @@ export interface ScreenActionButton {
   title: string;
   danger: boolean;
   disabled: boolean;
+  /**
+   * Estado do interruptor, quando a ação declara `activeWhen`: `true` ligado, `false` desligado.
+   * `undefined` = ação comum, que só dispara — e o botão é o de sempre.
+   */
+  active?: boolean;
   onClick: () => void;
 }
 
@@ -210,6 +215,7 @@ export const useScreenActions = (target: ScreenActionTarget): ScreenActions => {
         title: action.title,
         danger: action.danger,
         disabled: runningActionId !== null || isActionDisabled(action.disabledWhen, exprContext),
+        active: actionActiveState(action.activeWhen, exprContext),
         onClick: () => requestRun(action),
       })),
     [available, exprContext, runningActionId, requestRun],

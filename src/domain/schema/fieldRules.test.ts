@@ -1,9 +1,14 @@
 import { describe, expect, it } from 'vitest';
+import { buildFieldRulePresetCatalog } from './fieldRulePresets';
+import { BR_FIELD_RULE_PRESETS } from '../../plugins/marketplace/brasil';
+
+/** CPF e CNPJ vêm da extensão do Brasil; o catálogo abaixo é o de um escritório que a instalou. */
+const br = buildFieldRulePresetCatalog(BR_FIELD_RULE_PRESETS);
 import { applyFormat, checkValue, formatAndValidate, isEmptyRuleValue } from './fieldRules';
 
 describe('applyFormat', () => {
   it('aplica um preset', () => {
-    expect(applyFormat('52998224725', { preset: 'cpf' })).toBe('529.982.247-25');
+    expect(applyFormat('52998224725', { preset: 'cpf' }, br)).toBe('529.982.247-25');
     expect(applyFormat('  Ana  ', { preset: 'trim' })).toBe('Ana');
     expect(applyFormat('A@B.COM', { preset: 'lower' })).toBe('a@b.com');
   });
@@ -43,10 +48,10 @@ describe('checkValue', () => {
   });
 
   it('valida dígito verificador de CPF e CNPJ', () => {
-    expect(checkValue('529.982.247-25', { check: 'cpf' }, 'CPF')).toBeUndefined();
-    expect(checkValue('111.111.111-11', { check: 'cpf' }, 'CPF')).toBe('CPF inválido');
-    expect(checkValue('11.222.333/0001-81', { check: 'cnpj' }, 'CNPJ')).toBeUndefined();
-    expect(checkValue('11.111.111/1111-11', { check: 'cnpj' }, 'CNPJ')).toBe('CNPJ inválido');
+    expect(checkValue('529.982.247-25', { check: 'cpf' }, 'CPF', br)).toBeUndefined();
+    expect(checkValue('111.111.111-11', { check: 'cpf' }, 'CPF', br)).toBe('CPF inválido');
+    expect(checkValue('11.222.333/0001-81', { check: 'cnpj' }, 'CNPJ', br)).toBeUndefined();
+    expect(checkValue('11.111.111/1111-11', { check: 'cnpj' }, 'CNPJ', br)).toBe('CNPJ inválido');
   });
 
   it('valida por regex com mensagem customizada', () => {
@@ -67,6 +72,7 @@ describe('formatAndValidate', () => {
       { format: { preset: 'cpf' }, validate: { check: 'cpf' } },
       'cpf',
       'CPF',
+      br,
     );
     expect(outcome.value).toBe('529.982.247-25');
     expect(outcome.issue).toBeUndefined();
@@ -78,6 +84,7 @@ describe('formatAndValidate', () => {
       { format: { preset: 'cpf' }, validate: { check: 'cpf' } },
       'cpf',
       'CPF',
+      br,
     );
     expect(outcome.issue).toEqual({ path: 'cpf', label: 'CPF', error: 'CPF inválido' });
   });

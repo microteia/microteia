@@ -108,26 +108,15 @@ export interface LookupProviderConflict {
 // ─── Catálogo do núcleo ───────────────────────────────────────────────────────
 
 /**
- * O ViaCEP deixou de ser uma classe do kernel e virou DECLARAÇÃO. A chave segue `viacep`, então o
- * campo `address.zipCode` de Pessoa (`entityRegistry`) continua valendo sem migração.
+ * VAZIO de propósito. Uma busca externa é sempre de alguém: o ViaCEP atende endereços do BRASIL, e
+ * um provedor de país não pode viajar no kernel de um sistema que será internacionalizado — quem o
+ * publica é a extensão `com.microteia.brasil`.
+ *
+ * O ponto continua existindo, e com ele a garantia que o kernel dá a QUALQUER provedor: `https`
+ * obrigatório, timeout com teto, resposta com tamanho máximo e nenhuma credencial. Se um dia houver
+ * uma busca que valha em todo lugar, é aqui que ela entra.
  */
-export const CORE_LOOKUP_PROVIDERS: LookupProviderSpec[] = [
-  {
-    key: 'viacep',
-    label: 'Endereço pelo CEP (ViaCEP)',
-    input: [{ op: 'digits' }],
-    when: 'length(value) == 8',
-    request: { url: 'https://viacep.com.br/ws/{value}/json/' },
-    map: {
-      street: 'logradouro',
-      neighborhood: 'bairro',
-      city: 'localidade',
-      state: 'uf',
-    },
-    failWhen: { path: 'erro', message: 'CEP não encontrado' },
-    errorMessage: 'Não foi possível consultar o CEP',
-  },
-];
+export const CORE_LOOKUP_PROVIDERS: LookupProviderSpec[] = [];
 
 /** Chave já ocupada não é sobrescrita — espelha a política do catálogo de regras de campo. */
 export const buildLookupProviderCatalog = (

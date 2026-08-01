@@ -600,18 +600,6 @@ const DATA_MODULE_DEFS = `declare module '@microteia/data' {
 
 
 
-
-  export interface Person {
-    id: string;
-    name: string;
-    email?: string;
-    phone?: string;
-    document?: string;
-    [key: string]: any;
-  }
-  /** Hook para acessar a lista de pessoas (clientes, contatos) do escritório. */
-  export function usePersons(): Person[];
-
   export interface EntityFieldOption {
     key: string;
     label: string;

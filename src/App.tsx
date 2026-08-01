@@ -7,7 +7,6 @@ import { CORE_PLUGINS } from './plugins';
 import { ThemeProvider } from './stores/ThemeContext';
 import { AuthProvider } from './stores/AuthContext';
 import { TenantStoreProvider } from './stores/TenantStore';
-import { PersonStoreProvider } from './stores/PersonStore';
 import { TagStoreProvider } from './stores/TagStore';
 import { LookupStoreProvider } from './stores/LookupStore';
 import { ContractStoreProvider } from './stores/ContractStore';
@@ -68,7 +67,6 @@ const App: React.FC = () => {
                 element={
                   <ProtectedRoute>
                     <TenantStoreProvider>
-                      <PersonStoreProvider>
                         <ScreenDefinitionStoreProvider>
                         <TagStoreProvider>
                         <LookupStoreProvider>
@@ -130,7 +128,6 @@ const App: React.FC = () => {
                         </LookupStoreProvider>
                         </TagStoreProvider>
                         </ScreenDefinitionStoreProvider>
-                      </PersonStoreProvider>
                     </TenantStoreProvider>
                   </ProtectedRoute>
                 }

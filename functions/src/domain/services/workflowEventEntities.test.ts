@@ -16,7 +16,14 @@ const screen = (id: string, extra: Partial<SchemaScreen> = {}): SchemaScreen => 
 
 describe('getWorkflowEventPrefix', () => {
   it('entidade do registro mantém o prefixo declarado em código', () => {
-    expect(getWorkflowEventPrefix('persons')).toBe('person');
+    expect(getWorkflowEventPrefix('contracts')).toBe('contract');
+  });
+
+  /** Pessoa saiu do registro: a convenção devolve o nome da coleção, e a TELA declara `person`. */
+  it('entidade que saiu do kernel cai na convenção, à espera da declaração', () => {
+    expect(getWorkflowEventPrefix('persons')).toBe('persons');
+    expect(declaredEventPrefix([screen('pessoas', { collection: 'persons', eventPrefix: 'person' })], 'persons'))
+      .toBe('person');
   });
 
   it('lista de opções do kernel emite pelo prefixo comum', () => {
@@ -67,7 +74,7 @@ describe('declaredEventPrefix', () => {
   });
 
   it('o caminho rápido responde por quem ainda está no registro', () => {
-    expect(hasRegistryEventPrefix('persons')).toBe(true);
+    expect(hasRegistryEventPrefix('contracts')).toBe(true);
     expect(hasRegistryEventPrefix('medico')).toBe(false);
   });
 });

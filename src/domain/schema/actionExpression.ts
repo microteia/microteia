@@ -34,3 +34,13 @@ export const isActionHidden = (expr: string | null | undefined, ctx: ActionExprC
 
 export const isActionDisabled = (expr: string | null | undefined, ctx: ActionExprContext): boolean =>
   evaluateFieldBoolean(expr, { value: null, data: buildScope(ctx) });
+
+/**
+ * A ação está LIGADA? Só faz sentido quando ela declara `activeWhen`; sem declaração, `undefined`
+ * diz "não é um interruptor" — diferente de `false`, que é o interruptor desligado.
+ */
+export const actionActiveState = (
+  expr: string | null | undefined,
+  ctx: ActionExprContext,
+): boolean | undefined =>
+  expr?.trim() ? evaluateFieldBoolean(expr, { value: null, data: buildScope(ctx) }) : undefined;

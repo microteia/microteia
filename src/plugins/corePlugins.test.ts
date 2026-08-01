@@ -29,10 +29,10 @@ const PAGE_KEYS_ANTES_DA_MIGRACAO = [
   'dyn:', 'edit-news:', 'edit-workflow-step:', 'financial-dashboard', 'financials',
   'function-reference', 'new-action', 'new-contract',
   'new-contract:clone:', 'new-deadline', 'new-dyn:', 'new-financial', 'new-financial:clone:',
-  'new-person', 'new-person:clone:', 'new-script', 'new-workflow', 'new-workflow:clone:', 'news',
-  'persons', 'profile', 'pushes', 'screen-builder', 'scripts', 'tenant-settings',
+  'new-script', 'new-workflow', 'new-workflow:clone:', 'news',
+  'profile', 'pushes', 'screen-builder', 'scripts', 'tenant-settings',
   'tenant-settings:', 'view-action:', 'view-contract:', 'view-deadline:',
-  'view-dyn:', 'view-financial:', 'view-news:', 'view-person:', 'view-script:', 'view-workflow:',
+  'view-dyn:', 'view-financial:', 'view-news:', 'view-script:', 'view-workflow:',
   'workflows',
   // Adicionadas depois da migração (a lista é o guarda de "nenhuma tela some", não um congelamento):
   'marketplace', 'plugin-author', 'plugin-author:',
@@ -49,7 +49,7 @@ describe('core plugins — carga', () => {
   it('carrega core.ui antes de quem depende dele', () => {
     const { result } = hostWith(CORE_PLUGINS);
     const posicao = (id: string) => result.loaded.indexOf(id);
-    expect(posicao('core.ui')).toBeLessThan(posicao('core.persons'));
+    expect(posicao('core.ui')).toBeLessThan(posicao('core.contracts'));
     expect(posicao('core.ui')).toBeLessThan(posicao('core.workspace'));
   });
 
@@ -113,7 +113,7 @@ describe('core plugins — paridade com o registro anterior', () => {
     });
 
     expect(items.map((item) => item.key)).toEqual([
-      'dashboard', 'calendar', 'persons', 'contracts', 'deadlines',
+      'dashboard', 'calendar', 'contracts', 'deadlines',
       'financials', 'pushes', 'news', 'tenant-settings', 'audit-logs',
     ]);
   });
@@ -133,9 +133,9 @@ describe('core plugins — resolução de aba', () => {
   const pages = () => host.contributions.query(UI_PAGE_POINT);
 
   it.each([
-    ['persons', 'PersonsView'],
-    ['view-person:abc123', 'ViewPersonView'],
-    ['new-person:clone:abc123', 'ViewPersonView'],
+    ['contracts', 'ContractsView'],
+    ['view-contract:abc123', 'ViewContractView'],
+    ['new-contract:clone:abc123', 'ViewContractView'],
     ['dyn:minha-tela', 'DynamicRecordListView'],
     ['view-dyn:minha-tela:reg1', 'ViewDynamicRecordView'],
     ['tenant-settings', 'TenantSettingsView'],
@@ -146,8 +146,8 @@ describe('core plugins — resolução de aba', () => {
   });
 
   it('prefere o prefixo mais longo quando dois casam', () => {
-    const contribution = resolvePageContribution(pages(), 'new-person:clone:abc');
-    expect(pageMetadataOf(contribution!).keyPrefix).toBe('new-person:clone:');
+    const contribution = resolvePageContribution(pages(), 'new-contract:clone:abc');
+    expect(pageMetadataOf(contribution!).keyPrefix).toBe('new-contract:clone:');
   });
 
   it('devolve undefined para aba desconhecida', () => {
@@ -156,32 +156,32 @@ describe('core plugins — resolução de aba', () => {
 });
 
 describe('core plugins — remoção limpa (critério de aceite da Etapa 2)', () => {
-  it('remover core.persons some com a tela, o item de menu e o comando ⌘K', () => {
-    const { host, result } = hostWith(without('core.persons'));
+  it('remover core.contracts some com a tela, o item de menu e o comando ⌘K', () => {
+    const { host, result } = hostWith(without('core.contracts'));
 
     expect(result.diagnostics).toEqual([]);
-    expect(host.isLoaded('core.persons')).toBe(false);
+    expect(host.isLoaded('core.contracts')).toBe(false);
 
     const pages = host.contributions.query(UI_PAGE_POINT);
-    expect(resolvePageContribution(pages, 'persons')).toBeUndefined();
-    expect(resolvePageContribution(pages, 'view-person:abc')).toBeUndefined();
+    expect(resolvePageContribution(pages, 'contracts')).toBeUndefined();
+    expect(resolvePageContribution(pages, 'view-contract:abc')).toBeUndefined();
 
     const navKeys = host.contributions.query(UI_NAV_POINT).map((c) => navMetadataOf(c).key);
-    expect(navKeys).not.toContain('persons');
+    expect(navKeys).not.toContain('contracts');
 
     const commandIds = host.contributions.query(UI_COMMAND_POINT).map((c) => c.id);
-    expect(commandIds).not.toContain('person');
+    expect(commandIds).not.toContain('contract');
 
-    expect(host.implementations.keysOf('core.persons')).toEqual([]);
+    expect(host.implementations.keysOf('core.contracts')).toEqual([]);
   });
 
   it('os demais módulos continuam intactos após a remoção', () => {
-    const { host } = hostWith(without('core.persons'));
+    const { host } = hostWith(without('core.contracts'));
     const pages = host.contributions.query(UI_PAGE_POINT);
 
-    expect(resolvePageContribution(pages, 'contracts')).toBeDefined();
     expect(resolvePageContribution(pages, 'financials')).toBeDefined();
-    expect(host.contributions.query(UI_NAV_POINT).length).toBe(9);
+    expect(resolvePageContribution(pages, 'deadlines')).toBeDefined();
+    expect(host.contributions.query(UI_NAV_POINT).length).toBe(8);
   });
 
   it('remover core.ui derruba todos os módulos de UI, porque ninguém declara os pontos', () => {

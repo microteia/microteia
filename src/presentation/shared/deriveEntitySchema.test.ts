@@ -4,6 +4,7 @@ import type { EntityKey } from '../../domain/schema/entityRegistry';
 import { createSchemaContext } from '../../domain/schema/pathResolver';
 import { deriveBuiltinListRows, deriveFormFields, deriveListRows } from './deriveEntitySchema';
 import { SCREEN_ICON_KEYS } from './screenIcons';
+import { pessoaPlugin } from '../../plugins/marketplace/pessoa';
 
 const CONTROL_TYPES: CustomFieldType[] = [
   'text', 'textarea', 'number', 'currency', 'date', 'checkbox', 'select', 'masked', 'reference', 'markdown',
@@ -11,11 +12,25 @@ const CONTROL_TYPES: CustomFieldType[] = [
 
 const emptyCtx = createSchemaContext();
 
+/**
+ * Pessoa saiu do kernel: o formulário e o card dela nascem da TELA que a extensão declara. O
+ * contexto abaixo é o pacote real — é o que prova que a extensão reproduz o que o registro fazia.
+ */
+const pessoaScreen = pessoaPlugin.screens![0];
+const pessoaCtx = createSchemaContext([{
+  id: pessoaScreen.key,
+  collection: pessoaScreen.dataCollection,
+  titleSingular: pessoaScreen.titleSingular,
+  titlePlural: pessoaScreen.titlePlural,
+  titleFieldKey: pessoaScreen.titleFieldKey,
+  fields: pessoaScreen.fields.map((field) => ({ ...field, origin: 'plugin' as const })),
+}]);
+
 const byKey = (fields: FieldDefinition[]): Map<string, FieldDefinition> =>
   new Map(fields.map((field) => [field.key, field]));
 
-describe('deriveFormFields — campos fixos derivam do ENTITY_REGISTRY como FieldDefinition', () => {
-  const fields = deriveFormFields(emptyCtx, 'persons');
+describe('deriveFormFields — a tela declarada vira FieldDefinition, como os campos fixos', () => {
+  const fields = deriveFormFields(pessoaCtx, 'persons');
   const map = byKey(fields);
 
   it('todo campo derivado é um FieldDefinition válido (mesmo modelo dos campos dinâmicos)', () => {
@@ -47,7 +62,7 @@ describe('deriveFormFields — campos fixos derivam do ENTITY_REGISTRY como Fiel
   });
 
   it('respeita ui.form:false (status não entra no formulário)', () => {
-    expect(map.has('status')).toBe(false);
+    expect(byKey(deriveFormFields(emptyCtx, 'deadlines')).has('status')).toBe(false);
   });
 
   it('não deriva o FK de etiquetas como campo (quem trata é o TagManager)', () => {
@@ -115,7 +130,7 @@ describe('deriveFormFields — contracts', () => {
 
 // `ui.list.icon` é string livre: um nome errado cai no ícone de fallback silenciosamente.
 describe('todo ícone declarado em ui.list existe no catálogo', () => {
-  const ENTITIES: EntityKey[] = ['persons', 'contracts', 'deadlines', 'financials'];
+  const ENTITIES: EntityKey[] = ['contracts', 'deadlines', 'financials'];
 
   it.each(ENTITIES)('%s', (entity) => {
     for (const row of deriveBuiltinListRows(entity)) {
@@ -125,14 +140,14 @@ describe('todo ícone declarado em ui.list existe no catálogo', () => {
 });
 
 describe('nenhuma entidade expõe o FK de etiquetas no formulário', () => {
-  it.each(['persons', 'contracts', 'financials'] as const)('%s', (entity) => {
+  it.each(['contracts', 'financials'] as const)('%s', (entity) => {
     expect(deriveFormFields(emptyCtx, entity).some((f) => f.key === 'tagIds')).toBe(false);
   });
 });
 
 describe('deriveListRows — linhas do card derivam de ui.list, ordenadas', () => {
   it('retorna as linhas na ordem configurada, com ícone', () => {
-    const rows = deriveBuiltinListRows('persons');
+    const rows = deriveListRows(pessoaCtx, 'persons').filter((row) => row.key !== 'type');
     expect(rows.map((r) => r.key)).toEqual(['cpf', 'cnpj', 'email', 'phone', 'occupation', 'address.city']);
     for (const row of rows) expect(row.icon).toBeTruthy();
   });
@@ -151,7 +166,7 @@ describe('deriveListRows — linhas do card derivam de ui.list, ordenadas', () =
   });
 
   it('ordena campos e relações juntos pelo ui.list.order', () => {
-    const keys = deriveBuiltinListRows('persons').map((r) => r.key);
+    const keys = deriveListRows(pessoaCtx, 'persons').filter((row) => row.key !== 'type').map((r) => r.key);
     expect(keys).toStrictEqual(['cpf', 'cnpj', 'email', 'phone', 'occupation', 'address.city']);
   });
 });

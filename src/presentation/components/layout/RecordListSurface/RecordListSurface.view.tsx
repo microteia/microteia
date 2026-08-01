@@ -19,8 +19,9 @@ interface RecordListSurfaceProps {
   /**
    * Slots OPCIONAIS para conteúdo específico da tela — o que uma extensão injeta sem abrir mão do
    * resto padrão (ações, filtros, etiquetas e modais continuam vindo da configuração/Form Design).
-   * `renderSubtitle` alimenta o subtítulo do card; `renderBelowHeader`, a faixa logo abaixo do
-   * cabeçalho (ex.: badges próprios, colunas de polos). Ausentes, o card é o padrão de sempre.
+   * `renderSubtitle` SUBSTITUI o subtítulo declarado (`subtitleFieldKey`) quando a tela precisa de
+   * mais do que um campo ali; `renderBelowHeader` alimenta a faixa logo abaixo do cabeçalho (ex.:
+   * badges próprios, colunas de polos). Ausentes, o card é o padrão de sempre.
    */
   renderSubtitle?: (record: EntityRecord) => React.ReactNode;
   renderBelowHeader?: (record: EntityRecord) => React.ReactNode;
@@ -49,7 +50,19 @@ export const RecordListSurface: React.FC<RecordListSurfaceProps> = ({ vm, defini
   // As meta-linhas que a COLEÇÃO declara — venham do registro do kernel ou da tela que a descreve
   // (`listIcon`). Sem nenhuma declarada, o card segue só com os campos marcados "exibir na
   // listagem". Mesmo caminho das listas fixas: mesma aparência, mesma ordem.
-  const listRows = deriveListRows(schemaContext, vm.collection);
+  // O campo do subtítulo não se repete como meta-linha: seria a mesma informação duas vezes no
+  // cartão, como já vale entre as meta-linhas e o bloco de campos adicionais.
+  const listRows = deriveListRows(schemaContext, vm.collection)
+    .filter((row) => row.key !== definition.subtitleFieldKey);
+  // O campo declarado como subtítulo serve ao cartão como já serve ao cabeçalho do detalhe e ao
+  // rótulo da aba: uma declaração, três lugares. Sem ela, o cartão segue só com título e linhas.
+  const declaredSubtitle = (record: EntityRecord): React.ReactNode => {
+    const text = vm.getCardSubtitle(record);
+    if (!text) return undefined;
+    return vm.cardSubtitleIconKey
+      ? <>{getScreenIcon(vm.cardSubtitleIconKey, 12)}{text}</>
+      : text;
+  };
 
   return (
     <EntityListView
@@ -86,7 +99,7 @@ export const RecordListSurface: React.FC<RecordListSurfaceProps> = ({ vm, defini
             onClick={() => openRecord(record)}
             avatar={getScreenIcon(definition.icon, 22)}
             title={vm.getCardTitle(record)}
-            subtitle={renderSubtitle?.(record)}
+            subtitle={renderSubtitle ? renderSubtitle(record) : declaredSubtitle(record)}
             belowHeader={renderBelowHeader?.(record)}
             metaRows={metaRows}
             tags={recordTags}

@@ -233,12 +233,19 @@ export const isValidCnpj = (value: string): boolean => {
   return digit === Number(cnpj.charAt(13));
 };
 
-// ─── Máscaras nomeadas do núcleo ──────────────────────────────────────────────
+// ─── Templates de máscara do Brasil ───────────────────────────────────────────
 
-const CPF_TEMPLATE = '###.###.###-##';
-const CNPJ_TEMPLATE = '##.###.###/####-##';
-const PHONE_TEMPLATES = ['(##) ####-####', '(##) #####-####'];
-const CEP_TEMPLATE = '#####-###';
+/**
+ * Os templates e os formatadores do BRASIL. A DECLARAÇÃO que os usa vive na extensão
+ * (`plugins/marketplace/brasil.ts`); o que sobra aqui são as funções — `formatCpf` e companhia
+ * ainda são chamadas por `utils/formatters.ts`, e o teste-oráculo as compara com o motor genérico.
+ * Saem daqui quando o último consumidor em código sair.
+ */
+
+export const CPF_TEMPLATE = '###.###.###-##';
+export const CNPJ_TEMPLATE = '##.###.###/####-##';
+export const PHONE_TEMPLATES = ['(##) ####-####', '(##) #####-####'];
+export const CEP_TEMPLATE = '#####-###';
 
 export const formatCpf = (value: string): string => applyMaskTemplate(value, [CPF_TEMPLATE]);
 
@@ -251,44 +258,11 @@ export const formatCepBr = (value: string): string => applyMaskTemplate(value, [
 // ─── Catálogo do núcleo ───────────────────────────────────────────────────────
 
 /**
- * As mesmas chaves que o kernel gravava como união fechada, agora DECLARADAS. Os campos existentes
- * continuam válidos sem migração: o que era `format.preset: 'cpf'` segue sendo `'cpf'` — muda apenas
- * quem responde pelo significado da chave.
+ * O que o núcleo declara: transformações de texto que valem em qualquer país e em qualquer negócio.
+ * Máscara e validação de documento, telefone ou código postal NÃO entram aqui — são de país, e
+ * chegam por extensão.
  */
 export const CORE_FIELD_RULE_PRESETS: FieldRulePreset[] = [
-  {
-    key: 'cpf',
-    label: 'CPF (000.000.000-00)',
-    mask: { templates: [CPF_TEMPLATE], inputMode: 'numeric' },
-    format: [{ op: 'digits' }, { op: 'mask', templates: [CPF_TEMPLATE] }],
-    validate: { expression: 'isCPF(value)', message: 'CPF inválido' },
-  },
-  {
-    key: 'cnpj',
-    label: 'CNPJ (00.000.000/0000-00)',
-    mask: { templates: [CNPJ_TEMPLATE], inputMode: 'numeric' },
-    format: [{ op: 'digits' }, { op: 'mask', templates: [CNPJ_TEMPLATE] }],
-    validate: { expression: 'isCNPJ(value)', message: 'CNPJ inválido' },
-  },
-  {
-    key: 'cpfCnpj',
-    label: 'CPF ou CNPJ',
-    mask: { templates: [CPF_TEMPLATE, CNPJ_TEMPLATE], inputMode: 'numeric' },
-    format: [{ op: 'digits' }, { op: 'mask', templates: [CPF_TEMPLATE, CNPJ_TEMPLATE] }],
-    validate: { expression: 'isCPF(value) or isCNPJ(value)', message: 'CPF ou CNPJ inválido' },
-  },
-  {
-    key: 'phone',
-    label: 'Telefone ((00) 00000-0000)',
-    mask: { templates: PHONE_TEMPLATES, placeholder: '(00) 00000-0000', inputMode: 'numeric' },
-    format: [{ op: 'digits' }, { op: 'mask', templates: PHONE_TEMPLATES }],
-  },
-  {
-    key: 'cep',
-    label: 'CEP (00000-000)',
-    mask: { templates: [CEP_TEMPLATE], inputMode: 'numeric' },
-    format: [{ op: 'digits' }, { op: 'mask', templates: [CEP_TEMPLATE] }],
-  },
   { key: 'digits', label: 'Somente números', format: [{ op: 'digits' }] },
   { key: 'trim', label: 'Remover espaços das pontas', format: [{ op: 'trim' }] },
   { key: 'upper', label: 'MAIÚSCULAS', format: [{ op: 'upper' }] },

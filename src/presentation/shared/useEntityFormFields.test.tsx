@@ -26,14 +26,14 @@ const { useEntityFormFields } = await import('./useEntityFormFields');
 
 const definition = (overrides: Partial<ScreenDefinition>): ScreenDefinition =>
   ({
-    id: 'persons',
+    id: 'contracts',
     tenantId: 't1',
     origin: 'builtin',
-    titleSingular: 'Pessoa',
-    titlePlural: 'Pessoas',
-    icon: 'user',
+    titleSingular: 'Contrato',
+    titlePlural: 'Contratos',
+    icon: 'fileText',
     fields: [],
-    titleFieldKey: 'name',
+    titleFieldKey: 'title',
     hasNotes: false,
     hasDocuments: false,
     hasTags: false,
@@ -63,9 +63,9 @@ beforeEach(() => {
 
 describe('useEntityFormFields', () => {
   it('sem tela do tenant, devolve os campos declarados em código', () => {
-    const { result } = renderHook(() => useEntityFormFields('persons'));
-    const name = result.current.fields.find((f) => f.key === 'name');
-    expect(name?.label).toBe('Nome');
+    const { result } = renderHook(() => useEntityFormFields('contracts'));
+    const name = result.current.fields.find((f) => f.key === 'title');
+    expect(name?.label).toBe('Título');
     expect(name?.origin).toBe('builtin');
     expect(result.current.addedFields).toHaveLength(0);
   });
@@ -80,7 +80,7 @@ describe('useEntityFormFields', () => {
       })],
     })];
 
-    const { result } = renderHook(() => useEntityFormFields('persons'));
+    const { result } = renderHook(() => useEntityFormFields('contracts'));
     const name = result.current.fields.find((f) => f.key === 'name');
 
     expect(name?.label).toBe('Nome completo');
@@ -94,14 +94,14 @@ describe('useEntityFormFields', () => {
       fields: [field({ key: 'cpf', label: 'CPF', origin: 'builtin', hiddenInForm: true })],
     })];
 
-    const { result } = renderHook(() => useEntityFormFields('persons'));
+    const { result } = renderHook(() => useEntityFormFields('contracts'));
     expect(result.current.fields.some((f) => f.key === 'cpf')).toBe(false);
   });
 
   it('campo do tenant entra na mesma lista dos fixos, ordenado pelo `order` absoluto', () => {
     storeState.definitions = [definition({ fields: [field({ key: 'apelido', order: 99 })] })];
 
-    const { result } = renderHook(() => useEntityFormFields('persons'));
+    const { result } = renderHook(() => useEntityFormFields('contracts'));
     const keys = result.current.fields.map((f) => f.key);
 
     expect(keys).toContain('apelido');
@@ -118,7 +118,7 @@ describe('useEntityFormFields', () => {
       ],
     })];
 
-    const { result } = renderHook(() => useEntityFormFields('persons'));
+    const { result } = renderHook(() => useEntityFormFields('contracts'));
     const keys = result.current.fields.map((f) => f.key);
 
     expect(keys.indexOf('apelido')).toBeLessThan(keys.indexOf('name'));
@@ -127,15 +127,15 @@ describe('useEntityFormFields', () => {
 
   it('cada campo carrega a própria lista de opções, seja do kernel ou do tenant', () => {
     storeState.definitions = [definition({
-      fields: [field({ key: 'especialidade', type: 'select', lookupCollection: 'persons_especialidade' })],
+      fields: [field({ key: 'especialidade', type: 'select', lookupCollection: 'contracts_especialidade' })],
     })];
 
-    const { result } = renderHook(() => useEntityFormFields('persons'));
+    const { result } = renderHook(() => useEntityFormFields('contracts'));
     const { fields } = result.current;
 
     // O campo do tenant aponta para a lista declarada; o do kernel, para a do registro. Não existe
     // mais um índice por tela: a lista está no campo, e é isso que permite compartilhá-la.
-    expect(fields.find((f) => f.key === 'especialidade')?.lookupCollection).toBe('persons_especialidade');
-    expect(fields.find((f) => f.key === 'type')?.lookupCollection).toBe('personTypes');
+    expect(fields.find((f) => f.key === 'especialidade')?.lookupCollection).toBe('contracts_especialidade');
+    expect(fields.find((f) => f.key === 'type')?.lookupCollection).toBe('contractTypes');
   });
 });
