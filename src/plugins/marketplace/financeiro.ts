@@ -230,7 +230,7 @@ const ACTIONS: ActionModuleTemplate[] = [
 const FINANCEIRO_SCREEN: ScreenModuleTemplate = {
   key: 'financeiro',
   sourceId: SOURCE_ID,
-  sourceRev: 1,
+  sourceRev: 2,
   titleSingular: 'Lançamento',
   titlePlural: 'Financeiro',
   icon: 'moneyDollar',
@@ -366,7 +366,7 @@ export default function FinanceiroView() {
     const pago = sum(records, 'Despesa', 'Pago');
     const aReceber = sum(records, 'Receita', 'Aberto');
     const aPagar = sum(records, 'Despesa', 'Aberto');
-    return { recebido, pago, saldo: recebido - pago, aReceber, aPagar, previsto: aReceber - aPagar };
+    return { recebido, pago, saldo: recebido - pago, aReceber, aPagar, previsto: recebido - pago - aReceber - aPagar };
   }, [list.filteredRecords]);
 
   if (!list.definition) {
@@ -503,7 +503,7 @@ export default function startup(host) {
 export const financeiroPlugin: MarketplacePlugin = {
   manifest: {
     id: 'com.microteia.financeiro',
-    version: '1.0.0',
+    version: '1.0.1',
     kernel: '^1.0.0',
     name: 'Financeiro',
     description: 'Os lançamentos financeiros do escritório recriados como extensão, sobre os MESMOS lançamentos — a quarta entidade a sair do kernel.',

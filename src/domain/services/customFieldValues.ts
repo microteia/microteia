@@ -250,6 +250,22 @@ export const resolveRecordTitle = (
 };
 
 /**
+ * Rótulo da ABA de um registro: o campo-TÍTULO.
+ *
+ * É por ele que o usuário reconhece o que está aberto, e é o mesmo nome que a listagem, a busca e
+ * uma menção mostram — a aba discordar das outras três é o que fazia o mesmo registro parecer dois.
+ * O subtítulo entra só quando o título está vazio, para a aba não ficar "Sem título".
+ */
+export const resolveRecordTabTitle = (
+  values: object,
+  titleFieldKey: string,
+  subtitleFieldKey: string,
+): string =>
+  readRecordText(values, titleFieldKey)
+  || readRecordText(values, subtitleFieldKey)
+  || resolveRecordTitle(values, titleFieldKey);
+
+/**
  * Escrita imutável por caminho pontilhado (espelha `readValueByPath`).
  * Chave sem "." grava no topo; "address.street" grava aninhado, criando o ramo se preciso.
  */

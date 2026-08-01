@@ -236,7 +236,7 @@ const PESSOA_SCREEN: ScreenModuleTemplate = {
   dataCollection: 'persons',
   fields: FIELDS,
   titleFieldKey: 'name',
-  // O tipo é o subtítulo: no cabeçalho do detalhe, no rótulo da aba e na linha sob o nome no cartão.
+  // O tipo é o subtítulo: no cabeçalho do detalhe e na linha sob o nome no cartão.
   subtitleFieldKey: 'type',
   hasNotes: true,
   hasDocuments: true,

@@ -122,8 +122,8 @@ const PROCESSO_SCREEN: ScreenModuleTemplate = {
   dataCollection: 'cases',
   fields: FIELDS,
   titleFieldKey: 'title',
-  // O número do processo: subtítulo no cabeçalho do detalhe e rótulo da aba — curto e único, cabe
-  // na aba melhor do que o título.
+  // O número do processo é o subtítulo: aparece sob o título no cabeçalho do detalhe e na linha
+  // sob o título do cartão. O rótulo da ABA é o título, como em toda tela.
   subtitleFieldKey: 'caseNumber',
   hasNotes: true,
   hasDocuments: true,

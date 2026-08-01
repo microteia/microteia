@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildInitialFormValues, readRecordText, resolveRecordTitle, setValueByPath } from './customFieldValues';
+import { buildInitialFormValues, readRecordText, resolveRecordTabTitle, resolveRecordTitle, setValueByPath } from './customFieldValues';
 import type { CustomFieldValue, FieldDefinition } from '../entities/entitySchemas';
 
 type Values = Record<string, CustomFieldValue>;
@@ -81,5 +81,29 @@ describe('readRecordText', () => {
     expect(readRecordText(record, 'inexistente')).toBe('');
     expect(readRecordText(record, 'causeValue')).toBe('');
     expect(resolveRecordTitle(record, 'title')).toBe('Sem título');
+  });
+});
+
+/**
+ * A aba leva o TÍTULO do registro, não o subtítulo. A aba discordar da listagem, da busca e da
+ * menção — que sempre mostraram o título — fazia o mesmo registro parecer dois.
+ */
+describe('resolveRecordTabTitle', () => {
+  it('a aba leva o título do registro', () => {
+    const processo = { title: 'Ação de Cobrança', caseNumber: '123-4567' };
+    expect(resolveRecordTabTitle(processo, 'title', 'caseNumber')).toBe('Ação de Cobrança');
+  });
+
+  it('sem título preenchido, o subtítulo evita uma aba "Sem título"', () => {
+    const processo = { title: '   ', caseNumber: '123-4567' };
+    expect(resolveRecordTabTitle(processo, 'title', 'caseNumber')).toBe('123-4567');
+  });
+
+  it('sem os dois, sobra o rótulo genérico', () => {
+    expect(resolveRecordTabTitle({}, 'title', 'caseNumber')).toBe('Sem título');
+  });
+
+  it('tela sem subtítulo declarado funciona igual', () => {
+    expect(resolveRecordTabTitle({ name: 'Maria' }, 'name', '')).toBe('Maria');
   });
 });

@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [3.0.1] — 2026-08-01
+
+- A aba de um registro aberto passa a mostrar o **nome** dele, e não mais o código: um processo abre como "Ação de Cobrança" em vez do número, um contrato pelo título. É o mesmo nome que a listagem, a busca e as menções já mostravam — o número segue no cabeçalho da tela e no cartão, logo abaixo do nome.
+
 ## [3.0.0] — 2026-08-01
 
 - O **Financeiro** deixa de ser uma tela de fábrica e passa a ser uma extensão, como Pessoas, Contratos e Processos. Nenhum lançamento foi movido: a tela, as etiquetas, as listas de Categoria, Status e Forma de Pagamento continuam as mesmas — e o Centro de Custo segue sendo o mesmo dos Contratos. **É necessário instalar a extensão "Financeiro" em Extensões** para o item voltar ao menu.

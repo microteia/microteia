@@ -141,9 +141,12 @@ export interface ScreenDefinition {
   fields: FieldDefinition[];
   titleFieldKey: string;
   /**
-   * Campo exibido como SUBTÍTULO no detalhe (abaixo do título, ao lado do ícone) e como rótulo da
-   * ABA — tipicamente um identificador curto e único, que cabe melhor numa aba do que o título
-   * (o número do processo, o número do contrato). Ausente = sem subtítulo, e a aba leva o título.
+   * Campo exibido como SUBTÍTULO no detalhe (abaixo do título, ao lado do ícone) e na linha sob o
+   * título do cartão — tipicamente um identificador curto que complementa o nome (o número do
+   * processo, o número do contrato). Ausente = sem subtítulo.
+   *
+   * O rótulo da ABA é sempre o campo-TÍTULO: é por ele que o usuário reconhece o registro aberto, e
+   * é o mesmo nome que a listagem, a busca e uma menção mostram.
    */
   subtitleFieldKey?: string | null;
   hasNotes: boolean;

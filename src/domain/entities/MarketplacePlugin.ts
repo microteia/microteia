@@ -26,7 +26,7 @@ export interface ScreenModuleTemplate {
   /** Sem `origin`: a instalação carimba `plugin` em cada campo. */
   fields: TemplateField[];
   titleFieldKey: string;
-  /** Campo do subtítulo do detalhe e do rótulo da aba. Ver `ScreenDefinition.subtitleFieldKey`. */
+  /** Campo do subtítulo do detalhe e do cartão. Ver `ScreenDefinition.subtitleFieldKey`. */
   subtitleFieldKey?: string | null;
   hasNotes?: boolean;
   hasDocuments?: boolean;

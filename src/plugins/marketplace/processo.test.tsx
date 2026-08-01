@@ -82,7 +82,7 @@ describe('processoPlugin', () => {
 
     expect(input.dataCollection).toBe('cases');
     expect(input.titleFieldKey).toBe('title');
-    // O número do processo dá o subtítulo do detalhe e o rótulo da aba, como na tela nativa.
+    // O número do processo dá o subtítulo do detalhe e a linha sob o título do cartão.
     expect(input.subtitleFieldKey).toBe('caseNumber');
     expect(input.tagCollection).toBe('caseTags');
     // A relação com Contrato é de VISÃO: o contrato mostra os processos dele, e Processos continua

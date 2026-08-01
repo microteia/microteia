@@ -170,8 +170,8 @@ const CONTRATO_SCREEN: ScreenModuleTemplate = {
   dataCollection: 'contracts',
   fields: FIELDS,
   titleFieldKey: 'title',
-  // O número: subtítulo no cabeçalho do detalhe e rótulo da aba — curto e único, cabe melhor ali
-  // do que o título.
+  // O número é o subtítulo: sob o título no cabeçalho do detalhe e na linha sob o título do
+  // cartão. O rótulo da ABA é o título, como em toda tela.
   subtitleFieldKey: 'number',
   hasNotes: true,
   hasDocuments: true,

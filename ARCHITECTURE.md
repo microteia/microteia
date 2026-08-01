@@ -1850,12 +1850,14 @@ tela:
 | `FieldDefinition.listIcon` | `ui.list.icon` | o campo vira META-LINHA do card, com ícone |
 | `FieldDefinition.listOrder` | `ui.list.order` | posição da linha no card, quando difere da ordem do campo no formulário (no Processo o responsável é a 1ª linha e o 15º campo) |
 | `FieldDefinition.filterable` | `ui.filter` | o campo vira filtro do `CompositeFilter` |
-| `ScreenDefinition.subtitleFieldKey` | — | campo do SUBTÍTULO do detalhe (abaixo do título) e do rótulo da ABA; ausente, a aba leva o título |
+| `ScreenDefinition.subtitleFieldKey` | — | campo do SUBTÍTULO: no detalhe (abaixo do título) e na linha sob o título do cartão |
 
-`subtitleFieldKey` existe porque uma aba é estreita: um identificador curto e único (número do
-processo, número do contrato) cabe melhor nela do que o título. `RecordDetailSurface` e o detalhe
-dinâmico passaram a mostrar o TÍTULO DO REGISTRO no cabeçalho (com o nome da tela como fallback), em
-vez do nome da tela sempre — alinhando o runtime compartilhado ao que as telas fixas já faziam.
+`subtitleFieldKey` complementa o nome com um identificador curto (número do processo, número do
+contrato) nos dois lugares em que há espaço para ele. **O rótulo da ABA é sempre o campo-TÍTULO** —
+é por ele que o usuário reconhece o registro aberto, e é o mesmo nome que a listagem, a busca e uma
+menção mostram; o subtítulo só entra se o título estiver vazio. `RecordDetailSurface` e o detalhe
+dinâmico mostram o TÍTULO DO REGISTRO no cabeçalho (com o nome da tela como fallback), em vez do
+nome da tela sempre.
 
 Uma relação pode chegar pelos dois lados — como `fk` do registro e como campo `reference` declarado
 pela tela. `deriveFormFields`/`deriveListRows` descartam a `fk` quando a chave já veio da tela: a

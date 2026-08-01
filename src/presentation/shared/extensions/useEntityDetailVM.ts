@@ -10,6 +10,7 @@ import {
   collectRequiredErrors,
   formValuesToStoredValues,
   readRecordText,
+  resolveRecordTabTitle,
   resolveRecordTitle,
   sortFieldsByOrder,
   validateRequiredFields,
@@ -95,14 +96,15 @@ export const useEntityDetailVM = (
     [sortedFields],
   );
 
-  // Rótulo da aba: o subtítulo declarado quando existe (curto e único, como o número do processo),
-  // senão o título. Mesma escolha das telas fixas.
+  // Rótulo da aba: o campo-TÍTULO do registro — é por ele que o usuário reconhece o que está aberto,
+  // e é o mesmo nome que aparece na listagem, na busca e numa menção. O subtítulo só entra quando o
+  // título está vazio, para a aba não ficar "Sem título".
   const resolveTabTitle = useCallback(
     (record: EntityRecord | null, isNew: boolean) => {
       if (!definition) return null;
       if (isNew) return `Novo ${definition.titleSingular}`;
       if (!record) return null;
-      return readRecordText(record, subtitleFieldKey) || resolveRecordTitle(record, titleFieldKey);
+      return resolveRecordTabTitle(record, titleFieldKey, subtitleFieldKey);
     },
     [definition, subtitleFieldKey, titleFieldKey],
   );
