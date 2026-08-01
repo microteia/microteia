@@ -133,7 +133,11 @@ export const ViewActionView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
           <S.SectionBody>
             <S.SectionHint>
               Reavaliadas ao abrir a tela e a cada alteração de campo. Além dos campos da tela, use
-              <code> record</code>, <code>isNew</code>, <code>isDirty</code> e <code>role</code>.
+              <code> record</code>, <code>isNew</code>, <code>isDirty</code>, <code>role</code> e
+              <code> surface</code> — onde a ação está sendo desenhada:{' '}
+              <code>&quot;detail&quot;</code> (cabeçalho do registro), <code>&quot;list&quot;</code>{' '}
+              (cartão da listagem) ou <code>&quot;parentTab&quot;</code> (cartão dentro da aba de
+              outro registro).
             </S.SectionHint>
             <S.Field>
               <Label>Ocultar quando</Label>

@@ -157,6 +157,8 @@ export const useScreenActions = (target: ScreenActionTarget): ScreenActions => {
     isNew,
     isDirty,
     role: tenantRole ?? '',
+    // O cabeçalho do registro aberto — a superfície em que uma ação sempre coube.
+    surface: 'detail' as const,
   }), [values, record, isNew, isDirty, tenantRole]);
 
   const execute = useCallback(async (action: ActionDefinition) => {

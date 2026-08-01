@@ -1,14 +1,19 @@
 import React from 'react';
-import { RiLinkM, RiFileCopyLine, RiPriceTag3Line, RiDeleteBinLine } from 'react-icons/ri';
+import { RiLinkM, RiLinkUnlinkM, RiFileCopyLine, RiPriceTag3Line, RiDeleteBinLine } from 'react-icons/ri';
 import { getScreenIcon } from '../../../shared/screenIcons';
 import type { RecordCardAction } from '../../../shared/entityScreen/useRecordListViewModel';
 import type { ScreenListAction } from '../../../../domain/entities';
 
-const ACTION_ICONS: Record<ScreenListAction, React.ReactNode> = {
+/**
+ * `unlink` não é uma `ScreenListAction` configurável: é o que o slot de exclusão VIRA dentro da aba
+ * de um pai relacionado, onde apagar o registro seria destruir uma entidade de topo.
+ */
+const ACTION_ICONS: Record<ScreenListAction | 'unlink', React.ReactNode> = {
   copyLink: <RiLinkM size={14} />,
   clone: <RiFileCopyLine size={14} />,
   manageTags: <RiPriceTag3Line size={14} />,
   delete: <RiDeleteBinLine size={14} />,
+  unlink: <RiLinkUnlinkM size={14} />,
 };
 
 /**
@@ -18,4 +23,4 @@ const ACTION_ICONS: Record<ScreenListAction, React.ReactNode> = {
  * renderizada (linha do card, cabeçalho de edição, dropdown…).
  */
 export const cardActionIcon = (action: RecordCardAction, size = 14): React.ReactNode =>
-  action.iconKey ? getScreenIcon(action.iconKey, size) : ACTION_ICONS[action.key as ScreenListAction];
+  action.iconKey ? getScreenIcon(action.iconKey, size) : ACTION_ICONS[action.key as ScreenListAction | 'unlink'];

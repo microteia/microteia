@@ -13,13 +13,25 @@ export interface ActionExprContext {
   isDirty: boolean;
   /** Papel do usuário no escritório: `admin`, `lawyer`, `secretary` ou `user`. */
   role: string;
+  /**
+   * ONDE a ação está sendo desenhada. A mesma ação faz sentidos diferentes conforme a superfície:
+   * dentro da aba de outro registro, uma ação destrutiva costuma ser lida como "tirar daqui" quando
+   * na verdade apaga o registro inteiro.
+   *
+   * - `detail` — cabeçalho do registro aberto (o padrão quando não se diz nada).
+   * - `list` — cartão da listagem própria da tela.
+   * - `parentTab` — cartão dentro da aba de um registro-pai.
+   */
+  surface?: ActionSurface;
 }
+
+export type ActionSurface = 'detail' | 'list' | 'parentTab';
 
 /**
  * Nomes reservados sobrescrevem campos de mesma chave: um campo chamado `record` não fica acessível na
  * raiz do escopo, mas segue legível por `record.record`.
  */
-export const ACTION_RESERVED_VARIABLES = ['record', 'isNew', 'isDirty', 'role'] as const;
+export const ACTION_RESERVED_VARIABLES = ['record', 'isNew', 'isDirty', 'role', 'surface'] as const;
 
 const buildScope = (ctx: ActionExprContext): Record<string, unknown> => ({
   ...ctx.values,
@@ -27,6 +39,7 @@ const buildScope = (ctx: ActionExprContext): Record<string, unknown> => ({
   isNew: ctx.isNew,
   isDirty: ctx.isDirty,
   role: ctx.role,
+  surface: ctx.surface ?? 'detail',
 });
 
 export const isActionHidden = (expr: string | null | undefined, ctx: ActionExprContext): boolean =>

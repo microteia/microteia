@@ -11,6 +11,12 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [2.5.0] — 2026-08-01
+
+- Na aba **Processos** de um contrato, o botão de excluir do cartão virou **Desvincular** — ele agora tira o processo daquele contrato em vez de apagar o processo inteiro. Excluir de verdade continua na tela de Processos.
+- Corrigido: ao editar um campo de **Referência** no Form Design, a propriedade "Tela vinculada" mostrava "Registro não encontrado", embora o campo estivesse correto e funcionando.
+- Nas **Ações**, as expressões "Ocultar quando" e "Desabilitar quando" ganharam a variável `surface`, que diz onde o botão está sendo desenhado: no cabeçalho do registro, no cartão da listagem ou no cartão dentro da aba de outro registro.
+
 ## [2.4.1] — 2026-08-01
 
 - Corrigido com urgência um erro na publicação das permissões da versão anterior, que fazia toda gravação em Prazos, Financeiro, Automações, Scripts, Ações e Extensões ser recusada com "permissão insuficiente" — inclusive a instalação da própria extensão de Contratos. É necessário publicar as permissões novamente.

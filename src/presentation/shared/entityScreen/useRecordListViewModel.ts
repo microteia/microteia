@@ -7,13 +7,14 @@ import { useNotification } from '../../../stores/useNotification';
 import { useActions } from '../../../stores/useActions';
 import { storeEvents, StoreEvents } from '../../../infrastructure/events/StoreEventEmitter';
 import { isActionDisabled, isActionHidden } from '../../../domain/schema/actionExpression';
+import type { ActionSurface } from '../../../domain/schema/actionExpression';
 import { dispatchActionOutcome } from './useScreenActions';
 import { useCustomFieldListing } from '../../hooks/useCustomFieldListing';
 import type { CustomFieldCardItem } from '../../hooks/useCustomFieldListing';
 import { generateDeepLink } from '../../../infrastructure/deeplink/deepLinkUtils';
 import { buildNewTabKey, buildViewTabKey, buildCloneTabKey, buildChildNewTabKey } from '../../../shared/constants/dynamicScreenKeys';
 import { resolveRecordTitle, sortFieldsByOrder } from '../../../domain/services/customFieldValues';
-import { isBoundScreen, screenDataCollection } from '../../../domain/services/screenDataCollection';
+import { isBoundScreen, isOwnedByParentScreen, screenDataCollection } from '../../../domain/services/screenDataCollection';
 import { useEntityFormFields } from '../useEntityFormFields';
 import { useSchemaContext } from '../useSchemaContext';
 import { deriveListRows } from '../deriveEntitySchema';
@@ -233,6 +234,23 @@ export const useRecordListViewModel = (source: RecordListSource): RecordListView
     [openTab, screenKey],
   );
 
+  /**
+   * Na aba de um pai RELACIONADO o registro NÃO pertence a ele: é uma entidade de topo que apenas
+   * aponta para o pai. Numa aba de filho de verdade (`owned`), o registro é parte do pai e excluir
+   * ali é legítimo.
+   */
+  const isRelatedTab = !!parent && !!definition && !isOwnedByParentScreen(definition);
+
+  const onUnlink = useCallback(async (record: EntityRecord) => {
+    if (!parent) return;
+    try {
+      await updateRecord(collection, record.id, { [parent.fieldKey]: null });
+      notify('Registro desvinculado.', 'success');
+    } catch {
+      notify('Não foi possível desvincular o registro.', 'error');
+    }
+  }, [parent, updateRecord, collection, notify]);
+
   const cardActionDefs = useMemo(
     () => getActionsByIds(definition?.cardActionIds ?? []),
     [getActionsByIds, definition],
@@ -274,10 +292,15 @@ export const useRecordListViewModel = (source: RecordListSource): RecordListView
       copyLink: { key: 'copyLink', title: 'Copiar link', onClick: () => onCopyLink(record) },
       clone: { key: 'clone', title: 'Duplicar', onClick: () => onClone(record) },
       manageTags: { key: 'manageTags', title: 'Gerenciar etiquetas', onClick: () => setTagManagerRecord(record) },
-      delete: { key: 'delete', title: 'Excluir', danger: true, onClick: () => setRecordToDelete(record) },
+      // O slot destrutivo do card muda de significado dentro da aba de um pai relacionado: ali o
+      // gesto que o usuário faz é "tirar daqui", e excluir apagaria uma entidade de topo inteira.
+      // Desvincular é uma gravação comum (limpa o campo de vínculo), daí não exigir admin.
+      delete: isRelatedTab
+        ? { key: 'unlink', title: 'Desvincular', onClick: () => void onUnlink(record) }
+        : { key: 'delete', title: 'Excluir', danger: true, onClick: () => setRecordToDelete(record) },
     };
     const native = (definition?.listActions ?? [])
-      .filter((action) => (action !== 'delete' || isAdmin) && (action !== 'manageTags' || !!definition?.hasTags))
+      .filter((action) => (action !== 'delete' || isAdmin || isRelatedTab) && (action !== 'manageTags' || !!definition?.hasTags))
       .map((action) => handlers[action]);
 
     const exprContext = {
@@ -286,6 +309,9 @@ export const useRecordListViewModel = (source: RecordListSource): RecordListView
       isNew: false,
       isDirty: false,
       role: tenantRole ?? '',
+      // Onde a ação está sendo desenhada — é o que permite uma extensão esconder a própria ação
+      // dentro da aba de outro registro (`hiddenWhen: 'surface == "parentTab"'`).
+      surface: (parent ? 'parentTab' : 'list') as ActionSurface,
     };
     const custom = cardActionDefs
       .filter((action) => !isActionHidden(action.hiddenWhen, exprContext))
@@ -299,7 +325,7 @@ export const useRecordListViewModel = (source: RecordListSource): RecordListView
       }));
 
     return [...native, ...custom];
-  }, [definition, isAdmin, onCopyLink, onClone, cardActionDefs, tenantRole, runningActionId, runCardAction]);
+  }, [definition, isAdmin, isRelatedTab, onUnlink, parent, onCopyLink, onClone, cardActionDefs, tenantRole, runningActionId, runCardAction]);
 
   const tagIdsOf = useCallback((entityId: string) => records.find((r) => r.id === entityId)?.tagIds ?? [], [records]);
   const setRecordTags = useCallback(

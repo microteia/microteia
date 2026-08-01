@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   isBoundScreen,
+  isOwnedByParentScreen,
   screenDataCollection,
   screenLookupCollections,
   screenTagCollections,
@@ -24,6 +25,26 @@ describe('screenDataCollection', () => {
 
   it('espaço em branco não vale como vínculo', () => {
     expect(screenDataCollection({ id: 'medico', dataCollection: '  ' })).toBe('medico');
+  });
+});
+
+/**
+ * Posse e visão vinham juntas em `parentEntity` e agora se separam. A distinção decide QUATRO
+ * coisas de uma vez — menu, ⌘K, campo de vínculo no formulário e volta ao pai ao salvar —, mais o
+ * gesto destrutivo do card: no filho de verdade, excluir; no relacionado, desvincular.
+ */
+describe('isOwnedByParentScreen', () => {
+  it('sem pai, a tela não pertence a ninguém', () => {
+    expect(isOwnedByParentScreen({ parentEntity: null, parentRelation: null })).toBe(false);
+  });
+
+  it('declarar o pai sem dizer mais nada continua sendo posse', () => {
+    expect(isOwnedByParentScreen({ parentEntity: 'contracts', parentRelation: null })).toBe(true);
+    expect(isOwnedByParentScreen({ parentEntity: 'contracts', parentRelation: 'owned' })).toBe(true);
+  });
+
+  it('`related` é visão: a tela continua de topo', () => {
+    expect(isOwnedByParentScreen({ parentEntity: 'contracts', parentRelation: 'related' })).toBe(false);
   });
 });
 

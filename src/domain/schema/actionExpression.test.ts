@@ -11,6 +11,28 @@ const ctx = (values: Record<string, unknown>, overrides: Partial<ActionExprConte
   ...overrides,
 });
 
+/**
+ * `surface` diz ONDE a ação está sendo desenhada. A mesma ação faz sentidos diferentes conforme o
+ * lugar: dentro da aba de outro registro, uma ação destrutiva é lida como "tirar daqui" quando na
+ * verdade apaga o registro inteiro. Declarada, a extensão decide sozinha onde a ação não cabe.
+ */
+describe('surface — onde a ação aparece', () => {
+  it('sem declaração, a superfície é o detalhe', () => {
+    expect(isActionHidden('surface == "detail"', ctx({}))).toBe(true);
+  });
+
+  it('a ação se esconde dentro da aba de um pai', () => {
+    const naAba = ctx({}, { surface: 'parentTab' });
+    expect(isActionHidden('surface == "parentTab"', naAba)).toBe(true);
+    expect(isActionHidden('surface == "parentTab"', ctx({}, { surface: 'list' }))).toBe(false);
+  });
+
+  /** Campo do registro chamado `surface` não sequestra a variável reservada. */
+  it('a variável reservada vence um campo de mesmo nome', () => {
+    expect(isActionHidden('surface == "list"', ctx({ surface: 'detail' }, { surface: 'list' }))).toBe(true);
+  });
+});
+
 describe('isActionHidden / isActionDisabled', () => {
   it('sem expressão, a ação aparece e está habilitada', () => {
     expect(isActionHidden(undefined, ctx({}))).toBe(false);

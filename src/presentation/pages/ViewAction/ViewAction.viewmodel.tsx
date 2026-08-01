@@ -126,6 +126,7 @@ export const useViewActionViewModel = (tabKey: string): ViewActionViewModel => {
     { name: 'isNew', definedBy: 'Registro ainda não gravado' },
     { name: 'isDirty', definedBy: 'Há alterações não gravadas' },
     { name: 'role', definedBy: 'Papel do usuário no escritório' },
+    { name: 'surface', definedBy: 'Onde a ação aparece: detail, list ou parentTab' },
   ], []);
 
   const canSave = formData.key.trim() !== ''

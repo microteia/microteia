@@ -1213,15 +1213,37 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
     [fieldForm.type],
   );
 
+  /**
+   * As telas que um campo de referência pode apontar. O valor é a COLEÇÃO, nunca a chave da tela: é
+   * `refEntity: 'contracts'` que o formulário resolve em runtime, e é assim que uma relação sobrevive
+   * a uma entidade mudando de dono — a coleção tem nome global, a chave varia por escritório.
+   *
+   * Oferecer a chave deixava o campo já gravado sem a própria opção: a tela de Contratos entrava
+   * como `contratos` enquanto o campo guardava `contracts`, e o seletor acusava "Registro não
+   * encontrado (contracts)" com tudo funcionando por baixo.
+   *
+   * Duas telas podem descrever a MESMA coleção (a de extensão e o documento de baseline que só
+   * carrega a permissão): entra uma opção só, com o rótulo de quem tem título.
+   */
   const refEntityOptions = useMemo<SearchSelectOption[]>(() => {
-    const dynamicOptions = dynamicScreens
-      .filter((def) => def.id !== fieldModal?.screenKey)
-      .map((def) => ({ value: def.id, label: def.titlePlural }));
+    const currentCollection = fieldModal
+      ? screenDataCollection(getDefinitionByKey(fieldModal.screenKey) ?? { id: fieldModal.screenKey, dataCollection: null })
+      : null;
+
+    const byCollection = new Map<string, SearchSelectOption>();
+    for (const def of dynamicScreens) {
+      const collection = screenDataCollection(def);
+      if (collection === currentCollection) continue;
+      const existing = byCollection.get(collection);
+      if (existing && existing.label) continue;
+      byCollection.set(collection, { value: collection, label: def.titlePlural || collection });
+    }
+
     return [
       ...BUILTIN_SCREENS.map((b) => ({ value: b.key, label: b.label })),
-      ...dynamicOptions,
+      ...byCollection.values(),
     ];
-  }, [dynamicScreens, fieldModal]);
+  }, [dynamicScreens, fieldModal, getDefinitionByKey]);
 
   const lookupOptions = useMemo<SearchSelectOption[]>(
     () => availableLookups.map((lookup) => ({ value: lookup.collection, label: `${lookup.label} (${lookup.collection})` })),

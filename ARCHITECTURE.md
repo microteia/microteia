@@ -2154,6 +2154,40 @@ porque o campo "Centro de custo" do **Financeiro** — que ainda é do kernel �
 lista. Duas telas compartilhando uma lista de opções é o arranjo normal (`lookupCollection` igual),
 e não um resíduo.
 
+### Onde a ação aparece muda o que ela significa
+
+`ActionExprContext` ganhou `surface`: `detail` (cabeçalho do registro), `list` (cartão da listagem
+própria) ou `parentTab` (cartão dentro da aba de outro registro). É variável de expressão como
+`isNew` e `role`, então uma extensão esconde a própria ação onde ela não cabe —
+`hiddenWhen: 'surface == "parentTab"'`.
+
+Existe porque a mesma ação é lida de formas diferentes conforme o lugar. O caso que a motivou: na
+aba "Processos" de um contrato, o cartão oferecia **Excluir** — e ali o gesto que o usuário faz é
+"tirar daqui", não "apagar o processo inteiro do escritório".
+
+**O slot destrutivo do card muda com a relação**, e isso o kernel decide sozinho, sem declaração:
+
+| Aba | Ação destrutiva | Por quê |
+|---|---|---|
+| filho (`owned`) | **Excluir** | o registro é parte do pai; apagá-lo dali é o esperado |
+| relacionado (`related`) | **Desvincular** | o registro é uma entidade de topo que só aponta para o pai; limpar o vínculo é uma gravação comum, e por isso não exige admin |
+
+Desvincular também devolve, pelo caminho declarativo, o que a migração de Contrato tinha perdido: o
+par vincular/desvincular da aba "Processos". Vincular é criar pela aba (já nasce ligado) ou preencher
+o campo na tela do próprio registro.
+
+### Uma referência aponta para a COLEÇÃO
+
+O seletor "Tela vinculada" do Form Design oferecia as telas dinâmicas pela CHAVE (`contratos`)
+enquanto o campo guarda a COLEÇÃO (`refEntity: 'contracts'`) — que é o que `useReferenceOptions`
+resolve em runtime. Resultado: o campo já gravado não achava a própria opção e o seletor acusava
+"Registro não encontrado (contracts)", com tudo funcionando por baixo.
+
+A opção passa a valer `screenDataCollection(def)`. Numa tela comum é a mesma coisa (a chave É a
+coleção); numa tela ligada a outra coleção, é o nome global — o mesmo que sobrevive à entidade mudar
+de dono. Duas telas que descrevam a mesma coleção (a de extensão e o documento de baseline que só
+carrega a permissão) entram como uma opção só.
+
 ### Uma lista colorida não ganha item sem cor
 
 `optionsColored` dizia como as opções são LIDAS, e nada sobre como uma opção NASCE. O resultado
