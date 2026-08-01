@@ -337,13 +337,30 @@ const GROUP = 'Contratos';
 
 const viewKey = (screen, id) => 'view-dyn:' + screen.id + ':' + id;
 
+const screenOf = (ctx) => ctx.screenDefinitions.find((s) => (s.sourceId || s.id) === SOURCE_ID);
+const textOf = (record, key) => (key && typeof record[key] === 'string' ? record[key] : '');
+
+/**
+ * A busca casa só o TÍTULO do contrato. O número segue aparecendo na linha do resultado — é o que
+ * distingue dois contratos de mesmo título —, mas não entra na busca.
+ */
+const matches = (record, screen, q) => {
+  if (!q) return true;
+  return textOf(record, screen.titleFieldKey).toLowerCase().indexOf(q) !== -1;
+};
+
+const recordsOf = (ctx, screen) => {
+  const collection = screen.dataCollection || screen.id;
+  return ctx.records.filter((r) => r.collection === collection && textOf(r, screen.titleFieldKey));
+};
+
 export default function startup(host) {
   host.commands.register({
     group: GROUP,
     getItems(query, ctx) {
       const q = String(query || '').toLowerCase().trim();
       if (!q) return [];
-      const screen = ctx.screenDefinitions.find((s) => (s.sourceId || s.id) === SOURCE_ID);
+      const screen = screenOf(ctx);
       if (!screen) return [];
       const icon = <Icon name="fileText" size={16} />;
       const items = [];
@@ -353,12 +370,16 @@ export default function startup(host) {
       if ('abrir contratos'.indexOf(q) !== -1) {
         items.push({ id: 'contrato:list', title: 'Abrir Contratos', group: GROUP, icon, onSelect: () => { ctx.openTab(LIST_KEY); ctx.close(); } });
       }
-      const collection = screen.dataCollection || screen.id;
-      for (const r of ctx.records) {
-        const title = r[screen.titleFieldKey];
-        if (r.collection === collection && title && title.toLowerCase().indexOf(q) !== -1) {
-          items.push({ id: 'contrato:' + r.id, title, subtitle: r.number || 'Contrato', group: GROUP, icon, onSelect: () => { ctx.openTab(viewKey(screen, r.id)); ctx.close(); } });
-        }
+      for (const r of recordsOf(ctx, screen)) {
+        if (!matches(r, screen, q)) continue;
+        items.push({
+          id: 'contrato:' + r.id,
+          title: textOf(r, screen.titleFieldKey),
+          subtitle: textOf(r, screen.subtitleFieldKey) || 'Contrato',
+          group: GROUP,
+          icon,
+          onSelect: () => { ctx.openTab(viewKey(screen, r.id)); ctx.close(); },
+        });
       }
       return items.slice(0, 9);
     },
@@ -370,16 +391,18 @@ export default function startup(host) {
     description: 'Inserir link para um contrato',
     icon: 'fileText',
     search(query, ctx) {
-      const screen = ctx.screenDefinitions.find((s) => (s.sourceId || s.id) === SOURCE_ID);
+      const screen = screenOf(ctx);
       if (!screen) return [];
       const q = String(query || '').toLowerCase().trim();
-      const collection = screen.dataCollection || screen.id;
-      return ctx.records
-        .filter((r) => r.collection === collection)
-        .map((r) => ({ record: r, title: r[screen.titleFieldKey] }))
-        .filter(({ title }) => title && (!q || title.toLowerCase().indexOf(q) !== -1))
+      return recordsOf(ctx, screen)
+        .filter((r) => matches(r, screen, q))
         .slice(0, 20)
-        .map(({ record, title }) => ({ id: record.id, title, subtitle: record.number || 'Contrato', tabKey: viewKey(screen, record.id) }));
+        .map((record) => ({
+          id: record.id,
+          title: textOf(record, screen.titleFieldKey),
+          subtitle: textOf(record, screen.subtitleFieldKey) || 'Contrato',
+          tabKey: viewKey(screen, record.id),
+        }));
     },
   });
 }
@@ -388,7 +411,7 @@ export default function startup(host) {
 export const contratoPlugin: MarketplacePlugin = {
   manifest: {
     id: 'com.microteia.contrato',
-    version: '1.2.0',
+    version: '1.3.0',
     kernel: '^1.0.0',
     name: 'Contratos',
     description: 'A tela de Contratos recriada como extensão, sobre os MESMOS contratos do escritório — cadastro, partes, vigência, condições financeiras e dados bancários.',

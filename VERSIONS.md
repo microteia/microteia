@@ -11,6 +11,11 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [3.0.2] — 2026-08-01
+
+- **Pessoas** volta a aparecer na busca rápida (⌘K): dá para procurar uma pessoa pelo nome, abrir o cadastro ou criar uma nova por ali, como já acontecia com Processos e Contratos.
+- Na busca rápida, um **processo** também é encontrado pelo número, e não só pelo título. Nas demais telas a busca segue pelo nome do registro.
+
 ## [3.0.1] — 2026-08-01
 
 - A aba de um registro aberto passa a mostrar o **nome** dele, e não mais o código: um processo abre como "Ação de Cobrança" em vez do número, um contrato pelo título. É o mesmo nome que a listagem, a busca e as menções já mostravam — o número segue no cabeçalho da tela e no cartão, logo abaixo do nome.
