@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [3.0.3] — 2026-08-01
+
+- Na busca rápida (⌘K), um **contrato** também é encontrado pelo número, como já acontecia com os processos.
+
 ## [3.0.2] — 2026-08-01
 
 - **Pessoas** volta a aparecer na busca rápida (⌘K): dá para procurar uma pessoa pelo nome, abrir o cadastro ou criar uma nova por ali, como já acontecia com Processos e Contratos.

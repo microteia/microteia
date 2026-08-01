@@ -341,12 +341,15 @@ const screenOf = (ctx) => ctx.screenDefinitions.find((s) => (s.sourceId || s.id)
 const textOf = (record, key) => (key && typeof record[key] === 'string' ? record[key] : '');
 
 /**
- * A busca casa só o TÍTULO do contrato. O número segue aparecendo na linha do resultado — é o que
- * distingue dois contratos de mesmo título —, mas não entra na busca.
+ * A busca casa o TÍTULO **e o SUBTÍTULO**: o subtítulo do contrato é o NÚMERO, e procurar um
+ * contrato por ele é tão comum quanto pelo título — o mesmo de Processos. Onde o subtítulo é
+ * classificação (o tipo da pessoa, o do lançamento), a extensão casa só o título, senão devolveria
+ * o cadastro inteiro a quem digitasse "fis".
  */
 const matches = (record, screen, q) => {
   if (!q) return true;
-  return textOf(record, screen.titleFieldKey).toLowerCase().indexOf(q) !== -1;
+  const haystack = (textOf(record, screen.titleFieldKey) + ' ' + textOf(record, screen.subtitleFieldKey)).toLowerCase();
+  return haystack.indexOf(q) !== -1;
 };
 
 const recordsOf = (ctx, screen) => {
@@ -411,7 +414,7 @@ export default function startup(host) {
 export const contratoPlugin: MarketplacePlugin = {
   manifest: {
     id: 'com.microteia.contrato',
-    version: '1.3.0',
+    version: '1.3.1',
     kernel: '^1.0.0',
     name: 'Contratos',
     description: 'A tela de Contratos recriada como extensão, sobre os MESMOS contratos do escritório — cadastro, partes, vigência, condições financeiras e dados bancários.',

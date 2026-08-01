@@ -64,11 +64,11 @@ describe('startup das extensões de entidade', () => {
   });
 
   /**
-   * O subtítulo do PROCESSO é o número — procurar por ele é tão comum quanto pelo título. Nas demais
-   * telas o subtítulo é classificação (o tipo da pessoa, o do lançamento): casá-lo devolveria o
-   * cadastro inteiro a quem digitasse "fis".
+   * Quem casa o subtítulo é quem o usa como IDENTIFICADOR: o número do processo, o do contrato.
+   * Onde ele é classificação (o tipo da pessoa, o do lançamento), a busca fica só no título — casá-lo
+   * devolveria o cadastro inteiro a quem digitasse "fis".
    */
-  it('só Processos busca também pelo subtítulo', () => {
+  it('busca pelo subtítulo só onde ele identifica o registro', () => {
     const processo = rodarStartup(processoPlugin).commands[0];
     const registros = [{ id: 'c1', title: 'Ação de Cobrança', caseNumber: '938333' }];
     expect(processo.getItems('938', contexto(processoPlugin, registros)).map((i) => i.id)).toEqual(['processo:c1']);
@@ -82,7 +82,12 @@ describe('startup das extensões de entidade', () => {
     const contrato = rodarStartup(contratoPlugin).commands[0];
     const contratos = [{ id: 'k1', title: 'Aluguel', number: 'AB1234' }];
     expect(contrato.getItems('alug', contexto(contratoPlugin, contratos)).map((i) => i.id)).toEqual(['contrato:k1']);
-    expect(contrato.getItems('AB12'.toLowerCase(), contexto(contratoPlugin, contratos))).toEqual([]);
+    expect(contrato.getItems('ab12', contexto(contratoPlugin, contratos)).map((i) => i.id)).toEqual(['contrato:k1']);
+
+    const financeiro = rodarStartup(financeiroPlugin).commands[0];
+    const lancamentos = [{ id: 'f1', category: 'Honorários', type: 'Receita' }];
+    expect(financeiro.getItems('honor', contexto(financeiroPlugin, lancamentos)).map((i) => i.id)).toEqual(['financeiro:f1']);
+    expect(financeiro.getItems('receita', contexto(financeiroPlugin, lancamentos))).toEqual([]);
   });
 
   it('o resultado mostra o subtítulo do registro, mesmo onde a busca não o casa', () => {
