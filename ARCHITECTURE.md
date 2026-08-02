@@ -2189,6 +2189,36 @@ O `scripts/prazoCriarWorkflow.test.ts` roda essa declaração no **motor de verd
 lugar que enxerga as duas pontas (o pacote em `src/`, o motor em `functions/`), e é o que garante que
 um erro de digitação em `output.buscarProcesso.first.id` não chegue ao escritório do cliente.
 
+#### Declarar uma automação que a AUTORIA consegue reabrir
+
+Uma automação que viaja numa extensão é instalada no escritório, e lá vira um registro comum: o
+admin abre, lê e ajusta pelo construtor de sempre. **Executar não basta** — o motor resolve as cinco
+variantes de `InputMapping`, os construtores da autoria não, e uma declaração que eles não sabem ler
+mente na tela e se perde no primeiro toque. Duas regras, com as armadilhas que as originaram:
+
+| Onde | O que declarar | O que NÃO declarar, e por quê |
+|---|---|---|
+| Valor de um filtro do "Buscar Registros" | `Literal` ou `Expression` (`event.caseNumber`) | `Event`/`Output`/`Variable` **rodam**, mas o construtor só tem controle para os dois primeiros: a linha abre como "Valor fixo" VAZIO, e mexer nela apaga o filtro |
+| Condição sobre a saída de um step | nó de **Expressão** (`output.buscarProcesso.count < 1`) | `FieldComparison` com `outputs.…` **roda**, mas o seletor de campo dela só oferece os campos do EVENTO — o caminho aparece marcado como inválido |
+
+A comparação continua valendo para o que ela sabe oferecer: um campo do evento
+(`event.payload.responsibleLawyerName`) é mais legível como comparação do que como expressão. E note
+o par de nomes que engana: a comparação lê o **contexto cru** (`outputs`, plural), a expressão lê o
+**escopo publicado** para ela (`output`, singular) — é o singular que o autocomplete oferece, e
+escrever o plural numa expressão devolve indefinido em silêncio.
+
+**Por que não estender os construtores em vez de restringir a declaração.** Dar às duas pontas de uma
+comparação um seletor de quatro origens (fixo / do evento / de step anterior / expressão) multiplica o
+widget e cria dois jeitos de dizer a mesma coisa. O nó de **Expressão** já cobre o conjunto inteiro,
+com autocomplete sobre `event`, `input`, `output` e as variáveis — é a saída que o próprio construtor
+oferece, e é a que o pacote usa. O que valeria a pena um dia é menor e cirúrgico: fazer o seletor de
+campo da comparação oferecer também as saídas dos steps, como o editor de expressão já faz.
+
+`src/plugins/marketplace/authoringRoundTrip.test.ts` guarda as duas regras para **todo** o
+`MARKETPLACE_CATALOG`, lendo as origens aceitas do próprio construtor
+(`QUERY_VALUE_MAPPING_KINDS`) e os campos oferecidos de `buildConditionEventFields` — não de uma
+cópia da lista. Nenhum teste de execução pega esse defeito: as duas declarações erradas passam.
+
 Workflows existentes que usem o Step `create-deadline` param de resolver o passo e precisam ser
 refeitos — chamando este workflow, ou com Gravar Registro direto.
 

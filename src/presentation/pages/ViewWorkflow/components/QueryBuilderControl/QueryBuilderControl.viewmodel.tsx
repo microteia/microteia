@@ -47,6 +47,19 @@ export const OPERATOR_OPTIONS: OperatorOption[] = [
 
 export const operatorNeedsValue = (op: QueryOperator): boolean => !QUERY_OPERATORS_WITHOUT_VALUE.includes(op);
 
+/**
+ * As origens que o valor de um filtro aceita NESTA tela. O motor resolve as cinco variantes de
+ * `InputMapping`, mas só estas duas têm controle aqui — e uma consulta gravada com outra abriria
+ * mostrando "Valor fixo" vazio, perdendo o filtro no primeiro toque. Exportada para que quem
+ * DECLARA uma consulta (uma extensão, um pacote) possa ser conferido contra o que a autoria lê.
+ */
+export const QUERY_VALUE_MAPPING_KINDS = ['Literal', 'Expression'] as const;
+
+export const QUERY_VALUE_KIND_OPTIONS: SearchSelectOption[] = [
+  { value: 'Literal', label: 'Valor fixo' },
+  { value: 'Expression', label: 'Expressão' },
+];
+
 const EMPTY_SPEC: QuerySpec = { table: '', where: [], orderBy: [], limit: DEFAULT_LIMIT, projections: [] };
 
 const collectPaths = (ctx: SchemaContext, root: PathRoot): SearchSelectOption[] => {

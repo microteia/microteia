@@ -7,7 +7,7 @@ import type {
   WorkflowModuleTemplate,
 } from '../../domain/entities/MarketplacePlugin';
 import type { CustomFieldOption } from '../../domain/entities';
-import type { WorkflowStep } from '../../domain/entities/Workflow';
+import type { Condition, WorkflowStep } from '../../domain/entities/Workflow';
 import { nav, page } from '../contributionBuilders';
 
 /**
@@ -177,7 +177,14 @@ const erro = (id: string, order: number, expression: string): WorkflowStep[] => 
   },
 ];
 
-const buscar = (id: string, order: number, table: string, path: string, parameter: string): WorkflowStep => ({
+/**
+ * O valor de um filtro vai como EXPRESSÃO, e não como `{ kind: 'Event' }`, embora o motor resolva os
+ * dois: o construtor de consulta do Form Design só oferece "Valor fixo" e "Expressão". Um mapping
+ * `Event` roda, mas aparece ali como "Valor fixo" **vazio** — o escritório abriria a automação
+ * instalada e leria uma mentira, e o primeiro toque na linha apagaria o filtro. Declaração que a
+ * autoria não sabe reabrir é declaração quebrada, ainda que execute.
+ */
+const buscar = (id: string, order: number, table: string, path: string, expression: string): WorkflowStep => ({
   id,
   stepDefinitionId: 'query',
   type: 'Action',
@@ -188,12 +195,25 @@ const buscar = (id: string, order: number, table: string, path: string, paramete
       kind: 'Literal',
       value: {
         table,
-        where: [{ path, op: 'eq', value: { kind: 'Event', path: parameter } }],
+        where: [{ path, op: 'eq', value: { kind: 'Expression', expression } }],
         limit: 1,
         projections: [],
       },
     },
   },
+});
+
+/**
+ * "Não achou nada" é uma EXPRESSÃO, não uma comparação de campo. A comparação lê o caminho contra o
+ * contexto inteiro — `outputs.buscarProcesso.count` funciona —, mas o seletor de campo dela só
+ * oferece os campos do EVENTO: o caminho aparece marcado em vermelho, como se estivesse errado.
+ * O nó de expressão do mesmo construtor já autocompleta `output.` (as saídas dos steps anteriores),
+ * que é onde essa informação mora. Note o singular: a comparação enxerga o contexto cru (`outputs`),
+ * a expressão enxerga o escopo publicado para ela (`output`).
+ */
+const naoEncontrou = (stepId: string): Condition => ({
+  kind: 'Expression',
+  expression: `output.${stepId}.count < 1`,
 });
 
 const CRIAR_WORKFLOW: WorkflowModuleTemplate = {
@@ -219,20 +239,14 @@ const CRIAR_WORKFLOW: WorkflowModuleTemplate = {
     { key: 'responsibleLawyerName', label: 'Advogado responsável (nome exato)', type: 'String', required: false },
   ],
   steps: [
-    buscar('buscarProcesso', 0, 'cases', 'caseNumber', 'caseNumber'),
+    buscar('buscarProcesso', 0, 'cases', 'caseNumber', 'event.caseNumber'),
     {
       id: 'processoEncontrado',
       stepDefinitionId: '',
       type: 'Condition',
       order: 1,
       enabled: true,
-      condition: {
-        kind: 'FieldComparison',
-        fieldPath: 'outputs.buscarProcesso.count',
-        operator: '<',
-        value: 1,
-        valueType: 'literal',
-      },
+      condition: naoEncontrou('buscarProcesso'),
       configuration: {},
       branches: {
         whenTrue: erro('processo', 0, 'concat("Processo ", event.caseNumber, " não encontrado.")'),
@@ -255,20 +269,14 @@ const CRIAR_WORKFLOW: WorkflowModuleTemplate = {
       configuration: {},
       branches: {
         whenTrue: [
-          buscar('buscarAdvogado', 0, 'persons', 'name', 'responsibleLawyerName'),
+          buscar('buscarAdvogado', 0, 'persons', 'name', 'event.responsibleLawyerName'),
           {
             id: 'advogadoEncontrado',
             stepDefinitionId: '',
             type: 'Condition',
             order: 1,
             enabled: true,
-            condition: {
-              kind: 'FieldComparison',
-              fieldPath: 'outputs.buscarAdvogado.count',
-              operator: '<',
-              value: 1,
-              valueType: 'literal',
-            },
+            condition: naoEncontrou('buscarAdvogado'),
             configuration: {},
             branches: {
               whenTrue: erro('advogado', 0, 'concat("Advogado \\"", event.responsibleLawyerName, "\\" não encontrado.")'),

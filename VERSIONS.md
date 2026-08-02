@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [4.1.1] — 2026-08-02
+
+- Corrigido: a automação **"Criar Prazo"**, ao ser aberta em Automações, mostrava a busca pelo processo como um filtro em branco e marcava a checagem de "processo não encontrado" como se estivesse errada. Ela sempre funcionou — o que estava errado era o que a tela mostrava —, mas quem abrisse para ajustar podia apagar a busca sem perceber. Agora ela abre exatamente como foi escrita.
+
 ## [4.1.0] — 2026-08-02
 
 - A extensão **Prazos** passa a instalar a automação **"Criar Prazo"**, que outras automações podem chamar — ela substitui, com vantagem, o passo "Criar Prazo" que existia antes. Em vez de pedir o código interno do processo e do advogado, ela pede o **número do processo** e o **nome do advogado responsável**, encontra os dois e só então cria o prazo.

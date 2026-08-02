@@ -177,8 +177,8 @@
                     "path": "caseNumber",
                     "op": "eq",
                     "value": {
-                      "kind": "Event",
-                      "path": "caseNumber"
+                      "kind": "Expression",
+                      "expression": "event.caseNumber"
                     }
                   }
                 ],
@@ -195,11 +195,8 @@
           "order": 1,
           "enabled": true,
           "condition": {
-            "kind": "FieldComparison",
-            "fieldPath": "outputs.buscarProcesso.count",
-            "operator": "<",
-            "value": 1,
-            "valueType": "literal"
+            "kind": "Expression",
+            "expression": "output.buscarProcesso.count < 1"
           },
           "configuration": {},
           "branches": {
@@ -279,8 +276,8 @@
                           "path": "name",
                           "op": "eq",
                           "value": {
-                            "kind": "Event",
-                            "path": "responsibleLawyerName"
+                            "kind": "Expression",
+                            "expression": "event.responsibleLawyerName"
                           }
                         }
                       ],
@@ -297,11 +294,8 @@
                 "order": 1,
                 "enabled": true,
                 "condition": {
-                  "kind": "FieldComparison",
-                  "fieldPath": "outputs.buscarAdvogado.count",
-                  "operator": "<",
-                  "value": 1,
-                  "valueType": "literal"
+                  "kind": "Expression",
+                  "expression": "output.buscarAdvogado.count < 1"
                 },
                 "configuration": {},
                 "branches": {

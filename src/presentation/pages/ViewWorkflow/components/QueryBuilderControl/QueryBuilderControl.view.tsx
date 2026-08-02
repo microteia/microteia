@@ -5,15 +5,10 @@ import { MultiSearchSelect } from '../../../../components/ui/MultiSearchSelect';
 import { Input } from '../../../../components/ui/Input';
 import { ExpressionEditor } from '../../../../components/ui/ExpressionEditor';
 import { S } from './QueryBuilderControl.styles';
-import { operatorNeedsValue, useQueryBuilderControlViewModel } from './QueryBuilderControl.viewmodel';
+import { QUERY_VALUE_KIND_OPTIONS, operatorNeedsValue, useQueryBuilderControlViewModel } from './QueryBuilderControl.viewmodel';
 import type { QueryBuilderControlProps } from './QueryBuilderControl.viewmodel';
 import type { InputMapping } from '../../../../../domain/entities/Workflow';
 import type { QueryOperator } from '../../../../../domain/schema/querySpec';
-
-const VALUE_KIND_OPTIONS = [
-  { value: 'Literal', label: 'Valor fixo' },
-  { value: 'Expression', label: 'Expressão' },
-];
 
 const DIRECTION_OPTIONS = [
   { value: 'asc', label: 'Crescente' },
@@ -31,7 +26,7 @@ export const QueryBuilderControl: React.FC<QueryBuilderControlProps> = (props) =
       <S.ValueEditor>
         <S.KindRow>
           <SearchSelect
-            options={VALUE_KIND_OPTIONS}
+            options={QUERY_VALUE_KIND_OPTIONS}
             value={kind}
             onChange={(next) =>
               vm.updateFilter(index, {
