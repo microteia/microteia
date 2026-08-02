@@ -11,6 +11,11 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [4.1.2] — 2026-08-02
+
+- Corrigido: **"Atualizar" uma extensão não atualizava as automações**. A mensagem dizia que tinha atualizado, mas as automações, as ações e os scripts continuavam como na primeira instalação — só desinstalar e instalar de novo trazia a versão nova. Agora atualizar traz tudo.
+- A atualização continua preservando o que é seu: os campos que você acrescentou à tela, as ações que configurou e as automações que deixou desligadas seguem como estavam.
+
 ## [4.1.1] — 2026-08-02
 
 - Corrigido: a automação **"Criar Prazo"**, ao ser aberta em Automações, mostrava a busca pelo processo como um filtro em branco e marcava a checagem de "processo não encontrado" como se estivesse errada. Ela sempre funcionou — o que estava errado era o que a tela mostrava —, mas quem abrisse para ajustar podia apagar a busca sem perceber. Agora ela abre exatamente como foi escrita.

@@ -3694,6 +3694,30 @@ editar o `.ts`, recarregar, "Atualizar" na linha da extensão. O botão "Atualiz
 pacote embutido **difere** do instalado, não só quando a versão sobe: durante o desenvolvimento a
 versão fica parada enquanto o código muda.
 
+#### "Atualizar" converge — não desinstala e instala de novo
+
+`applyPackageArtifacts` é uma operação de CONVERGÊNCIA, e é assim de propósito. Ela reescreve o que o
+pacote traz, **remove** o que sumiu dele (`releaseVanishedGeneratedArtifacts`) e **preserva** o que é
+do escritório: os campos que o escritório acrescentou à tela da extensão (`preservedUserFields`), as
+ações que configurou no Form Design (`viewActionIds`/`cardActionIds` em união), a tela adotada que já
+existia antes (`isAdoptedScreen`, devolvida na desinstalação em vez de apagada) e a automação que o
+escritório DESLIGOU (`enabled`). Os ids dos artefatos também não mudam — um workflow do escritório que
+chama o da extensão por `targetWorkflowId` continua chamando o mesmo, e o histórico de execuções não
+fica órfão.
+
+Desinstalar e instalar de novo perderia essas cinco coisas e renumeraria os artefatos. É por isso que
+"Atualizar" não é o par das duas operações, ainda que o resultado pareça o mesmo de fora.
+
+**O que quebrava, e por quê.** O conteúdo de script, workflow e action só era reescrito quando a
+revisão de origem que chegava era maior (`revOf(template) > revOf(existing)`). O catálogo embutido é
+escrito à mão e não carimba revisão nesses três — os dois lados ficavam em `0`, e `0 > 0` congelava o
+artefato na PRIMEIRA instalação, para sempre. O botão aparecia (ele compara conteúdo), a mensagem
+dizia "Extensão atualizada" e nada mudava; só desinstalar e instalar resolvia. As telas nunca tiveram
+essa trava. Hoje a regra é `shouldRewriteContent`: reescreve quando não há revisão materializada com
+que comparar, ou quando a que chega é maior; um pacote SEM revisão não sobrescreve uma cópia
+versionada, que é o caso para o qual a revisão existe — duas extensões carregando o mesmo `sourceId`,
+e a mais velha não pode regredir a mais nova.
+
 O MESMO pacote também é distribuível como `.json` em `extension-templates/`, para escritórios que não
 rodam este bundle. O arquivo é **gerado**, nunca editado à mão:
 

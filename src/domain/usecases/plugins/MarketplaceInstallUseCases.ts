@@ -85,9 +85,30 @@ const unionIds = (base: string[] = [], extra: string[] = []): string[] => {
   return [...base, ...extra.filter((id) => !seen.has(id))];
 };
 
-/** Revisão de origem de um artefato (0 quando ausente — legado materializado antes do campo). O
- * conteúdo só é reescrito quando a revisão que CHEGA (template) é estritamente maior que a atual. */
-const revOf = (a: { sourceRev?: number | null }): number => a.sourceRev ?? 0;
+/**
+ * Reescrever, ou não, o conteúdo já materializado de um artefato de id gerado (script, workflow,
+ * action) com o que o pacote traz.
+ *
+ * A revisão de origem existe para o caso de DUPLICIDADE: duas extensões carregando o mesmo artefato
+ * (mesmo `sourceId`), e a mais velha não pode sobrescrever a cópia mais nova que o escritório já
+ * tem. Ela decide, portanto, quando há revisão dos DOIS lados para comparar.
+ *
+ * Sem revisão do lado materializado, reescreve. Era aqui que "Atualizar" não atualizava: o catálogo
+ * embutido é escrito à mão e não carimba revisão em workflow, action nem script, então os dois lados
+ * ficavam em `0` e a comparação `0 > 0` congelava o artefato na PRIMEIRA instalação — para sempre. O
+ * botão aparecia (ele compara o CONTEÚDO do pacote), dizia "Extensão atualizada" e não reescrevia
+ * nada; só desinstalar e instalar de novo resolvia. As telas nunca tiveram essa trava — sempre
+ * foram reescritas com a mescla do que é do escritório —, e é esse o comportamento que vale aqui.
+ */
+const shouldRewriteContent = (
+  template: { sourceRev?: number | null },
+  existing: { sourceRev?: number | null },
+): boolean => {
+  if (existing.sourceRev == null) return true;
+  // Pacote sem revisão não sobrescreve uma cópia versionada: não há como saber qual é a mais nova.
+  if (template.sourceRev == null) return false;
+  return template.sourceRev > existing.sourceRev;
+};
 
 const screenToInput = (screen: ScreenDefinition): ScreenDefinitionInput => {
   const clone = { ...screen } as Record<string, unknown>;
@@ -132,7 +153,7 @@ const materializeArtifacts = async (
     if (existing) {
       scriptMap.set(template.templateId, existing.id);
       const owners = addOwner(ownerSet(existing), pluginId);
-      if (revOf(template) > revOf(existing)) {
+      if (shouldRewriteContent(template, existing)) {
         await deps.scriptRepository.updateScript(tenantId, existing.id, {
           ...scriptInputFromTemplate(template, pluginId),
           ownerPluginIds: owners,
@@ -168,7 +189,7 @@ const materializeArtifacts = async (
     if (existing) {
       workflowMap.set(template.templateId, existing.id);
       const owners = addOwner(ownerSet(existing), pluginId);
-      if (revOf(template) > revOf(existing)) {
+      if (shouldRewriteContent(template, existing)) {
         const input = workflowInputFromTemplate(template, pluginId, scriptMap, screenEventMap);
         // Reescreve o conteúdo mas PRESERVA o estado local do tenant (`enabled`) e o dono primário.
         await deps.workflowRepository.updateWorkflowDefinition(tenantId, existing.id, {
@@ -207,7 +228,7 @@ const materializeArtifacts = async (
     if (existing) {
       actionMap.set(template.templateId, existing.id);
       const owners = addOwner(ownerSet(existing), pluginId);
-      if (revOf(template) > revOf(existing)) {
+      if (shouldRewriteContent(template, existing)) {
         await deps.actionRepository.update(tenantId, existing.id, {
           ...actionInputFromTemplate(template, pluginId, workflowMap, userId),
           ownerPluginIds: owners,

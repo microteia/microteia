@@ -18,7 +18,12 @@ export interface ScreenModuleTemplate {
   key: string;
   /** Id UNIVERSAL de origem da tela — deduplica a mesma tela entre extensões na instalação. */
   sourceId?: string;
-  /** Revisão de origem (epoch ms do `updatedAt` no autor) — decide se a atualização reescreve a tela. */
+  /**
+   * Revisão de origem (epoch ms do `updatedAt` no autor). Carimbada na tela materializada e usada na
+   * deduplicação entre pacotes. A TELA não é gatilhada por ela: toda aplicação do pacote reescreve a
+   * declaração e remescla o que é do escritório (campos acrescentados, ações configuradas). Quem
+   * consulta a revisão são os artefatos de id gerado — ver `shouldRewriteContent`.
+   */
   sourceRev?: number | null;
   titleSingular: string;
   titlePlural: string;

@@ -767,6 +767,52 @@ describe('Atualização por sourceRev — reescrita in-place, sem duplicar nem r
     expect(wf[0].ownerPluginIds).toEqual(['com.a', 'com.b']);
   });
 
+  /**
+   * O caso do catálogo EMBUTIDO, escrito à mão: nenhum workflow, action ou script carimba revisão.
+   * Enquanto a regra era `0 > 0`, o artefato congelava na primeira instalação — "Atualizar" dizia
+   * que atualizou e não mudava nada, e só desinstalar e instalar de novo resolvia.
+   */
+  it('sem revisão dos DOIS lados, o conteúdo é reescrito — é o que "Atualizar" precisa fazer', async () => {
+    const d = deps();
+    await applyPackageArtifacts(d, rev('com.a', undefined, 'V1'), actor);
+    const antes = (await workflows.getWorkflowDefinitions('t1'))[0];
+
+    await applyPackageArtifacts(d, rev('com.a', undefined, 'V2'), actor);
+
+    const depois = await workflows.getWorkflowDefinitions('t1');
+    expect(depois).toHaveLength(1);
+    // Mesmo id: quem chama este workflow por id continua chamando o mesmo.
+    expect(depois[0].id).toBe(antes.id);
+    expect(depois[0].name).toBe('V2');
+    expect((await actions.getAll('t1'))[0].title).toBe('V2');
+    expect((await scripts.getScripts('t1'))[0].name).toBe('V2-s');
+  });
+
+  it('pacote SEM revisão não sobrescreve uma cópia versionada — não há como saber qual é a mais nova', async () => {
+    const d = deps();
+    await applyPackageArtifacts(d, rev('com.a', 200, 'VERSIONADO'), actor);
+    await applyPackageArtifacts(d, rev('com.b', undefined, 'SEM REVISÃO'), actor);
+
+    expect((await workflows.getWorkflowDefinitions('t1'))[0].name).toBe('VERSIONADO');
+  });
+
+  /**
+   * O estado LOCAL do escritório sobrevive à atualização. É o que separa "atualizar" de "desinstalar
+   * e instalar de novo": a automação que o escritório desligou continua desligada, e o id não muda.
+   */
+  it('a atualização preserva o que é do escritório: a automação desligada continua desligada', async () => {
+    const d = deps();
+    await applyPackageArtifacts(d, rev('com.a', undefined, 'V1'), actor);
+    const wf = (await workflows.getWorkflowDefinitions('t1'))[0];
+    await workflows.updateWorkflowDefinition('t1', wf.id, { enabled: false });
+
+    await applyPackageArtifacts(d, rev('com.a', undefined, 'V2'), actor);
+
+    const depois = (await workflows.getWorkflowDefinitions('t1'))[0];
+    expect(depois.name).toBe('V2');
+    expect(depois.enabled).toBe(false);
+  });
+
   it('legado sem sourceRev (=0) é atualizado uma vez quando chega template com revisão', async () => {
     const d = deps();
     await applyPackageArtifacts(d, rev('com.a', undefined, 'V1'), actor);
