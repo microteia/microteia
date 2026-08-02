@@ -11,6 +11,15 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [4.0.0] — 2026-08-01
+
+- **Prazos** passa a ser uma extensão, como já são Pessoas, Processos, Contratos e Financeiro. A tela é a mesma de sempre: o cartão continua com a faixa colorida da prioridade, o número do processo clicável, os dias que faltam para vencer e os selos de situação e prioridade — e a lista continua abrindo nos pendentes, do vencimento mais próximo ao mais distante. Nenhum prazo foi movido.
+- Tipo, Prioridade e Status do prazo viram **listas do escritório**: dá para renomear, mudar a cor e acrescentar opções em Configurações, como em qualquer outra lista.
+- "Marcar como concluído" continua no cartão e na tela do prazo, agora como uma ação configurável — o escritório pode ajustar quando ela aparece.
+- Ao clicar em "Prazos Vencidos" no Painel, ou nos prazos de uma intimação, a lista abre **já filtrada** — o que antes era montado e se perdia pelo caminho. O mesmo vale para os atalhos de Processos e do Financeiro.
+- Corrigido: nas listas e nos cartões, o registro vinculado (a pessoa, o processo, o contrato) voltou a aparecer pelo nome, em vez de "Sem título".
+- **Atenção, administrador:** o passo de automação "Criar Prazo" foi descontinuado. Automações que o usavam precisam ser refeitas com o passo **Gravar Registro**, escolhendo a tabela "deadlines". Excluir um prazo passa a ser permitido só ao administrador, como já valia nos demais cadastros.
+
 ## [3.0.4] — 2026-08-01
 
 - Corrigido: uma data guardada como texto (vinda de importação, script ou automação) deixava de ser reconhecida — o campo aparecia vazio no formulário e o filtro por período a ignorava em silêncio. Agora tanto `15/08/2026` quanto o formato interno são lidos como a mesma data.

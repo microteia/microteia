@@ -1,7 +1,7 @@
 import { useState, useMemo, useCallback } from 'react';
 import { useTheme } from 'styled-components';
-import { useCaseRecords } from '../../../shared/useCollectionRecords';
-import { useDeadlineStore } from '../../../../stores/useDeadlineStore';
+import { DEADLINES_COLLECTION, useCaseRecords } from '../../../shared/useCollectionRecords';
+import { useRecords } from '../../../../stores/useRecords';
 import { useTenant } from '../../../../stores/useTenant';
 import { usePersonRecords } from '../../../shared/useCollectionRecords';
 import { useAuth } from '../../../../stores/useAuth';
@@ -9,8 +9,11 @@ import { usePush } from '../../../../stores/usePush';
 import { usePushInteraction } from '../../../../stores/usePushInteraction';
 import { useNotification } from '../../../../stores/useNotification';
 import { useLookups } from '../../../../stores/useLookups';
-import type { Push, DeadlinePriority, DeadlineStatus } from '../../../../domain/entities';
+import type { Push } from '../../../../domain/entities';
 import type { DynamicSelectOption } from '../../../components/ui/DynamicSelect';
+
+/** As quatro prioridades que o modal oferece. Ver a nota em `Calendar.viewmodel`. */
+type DeadlinePriority = 'Baixa' | 'Média' | 'Alta' | 'Crítica';
 
 export interface CreateDeadlineFromPushFormData {
   type: string;
@@ -48,7 +51,7 @@ export const useCreateDeadlineFromPushViewModel = (
   onClose: () => void,
 ): CreateDeadlineFromPushViewModel => {
   const cases = useCaseRecords();
-  const { createDeadline } = useDeadlineStore();
+  const { createRecord } = useRecords();
   const { getOptions, addOption, removeOption } = useLookups();
   const typeConfigs = getOptions('deadlineTypes');
   const { currentTenant, tenantRole } = useTenant();
@@ -154,7 +157,7 @@ export const useCreateDeadlineFromPushViewModel = (
     setIsSaving(true);
     try {
       const dueDate = new Date(`${formData.dueDate}T23:59:00`);
-      const status: DeadlineStatus = dueDate < new Date() ? 'Vencido' : 'Pendente';
+      const status = dueDate < new Date() ? 'Vencido' : 'Pendente';
 
       const payload = {
         type: formData.type,
@@ -171,7 +174,7 @@ export const useCreateDeadlineFromPushViewModel = (
         createdBy: user.id,
       };
 
-      await createDeadline(payload);
+      await createRecord(DEADLINES_COLLECTION, payload);
 
       // Atualizar status do push para 'reviewed' e marcar como lido
       try {
@@ -206,7 +209,7 @@ export const useCreateDeadlineFromPushViewModel = (
     push,
     user,
     currentTenant,
-    createDeadline,
+    createRecord,
     updateStatus,
     markAsRead,
     notify,

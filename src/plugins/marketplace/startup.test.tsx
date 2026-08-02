@@ -5,6 +5,7 @@ import type { MarketplacePlugin } from '../../domain/entities/MarketplacePlugin'
 import { contratoPlugin } from './contrato';
 import { financeiroPlugin } from './financeiro';
 import { pessoaPlugin } from './pessoa';
+import { prazoPlugin } from './prazo';
 import { processoPlugin } from './processo';
 
 interface Registro {
@@ -51,6 +52,7 @@ describe('startup das extensões de entidade', () => {
     ['Processos', processoPlugin],
     ['Contratos', contratoPlugin],
     ['Financeiro', financeiroPlugin],
+    ['Prazos', prazoPlugin],
   ])('%s registra comandos de ⌘K e menção', (_nome, plugin) => {
     const { commands, mentions } = rodarStartup(plugin);
     expect(commands).toHaveLength(1);
@@ -88,6 +90,11 @@ describe('startup das extensões de entidade', () => {
     const lancamentos = [{ id: 'f1', category: 'Honorários', type: 'Receita' }];
     expect(financeiro.getItems('honor', contexto(financeiroPlugin, lancamentos)).map((i) => i.id)).toEqual(['financeiro:f1']);
     expect(financeiro.getItems('receita', contexto(financeiroPlugin, lancamentos))).toEqual([]);
+
+    const prazo = rodarStartup(prazoPlugin).commands[0];
+    const prazos = [{ id: 'd1', type: 'Audiência', status: 'Pendente' }];
+    expect(prazo.getItems('audi', contexto(prazoPlugin, prazos)).map((i) => i.id)).toEqual(['prazo:d1']);
+    expect(prazo.getItems('pend', contexto(prazoPlugin, prazos))).toEqual([]);
   });
 
   it('o resultado mostra o subtítulo do registro, mesmo onde a busca não o casa', () => {

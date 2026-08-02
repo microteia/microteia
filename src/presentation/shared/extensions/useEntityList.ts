@@ -3,6 +3,7 @@ import { useScreenDefinitions } from '../../../stores/useScreenDefinitions';
 import { useRecordListViewModel, type RecordListViewModel } from '../entityScreen/useRecordListViewModel';
 import { buildListTabKey } from '../../../shared/constants/dynamicScreenKeys';
 import type { FilterToken } from '../../components/ui/CompositeFilter';
+import type { EntityRecord } from '../../../domain/entities';
 
 export interface EntityListOptions {
   /**
@@ -17,6 +18,15 @@ export interface EntityListOptions {
    * escritório. É ponto de partida — o usuário troca à vontade, e a troca não volta atrás.
    */
   defaultFilterTokens?: FilterToken[];
+  /**
+   * Ordem em que a listagem apresenta os registros. Sem ela vale a ordem da coleção — o mais recente
+   * primeiro —, que é a certa para um cadastro e a errada para uma agenda: uma lista de prazos se lê
+   * do vencimento mais próximo ao mais distante, e o mais recente cadastrado não é o mais urgente.
+   *
+   * Declare o comparador FORA do componente: uma função nova a cada render refaz a ordenação a cada
+   * render, sem que nada tenha mudado.
+   */
+  sortRecords?: (a: EntityRecord, b: EntityRecord) => number;
 }
 
 /**
@@ -30,7 +40,7 @@ export interface EntityListOptions {
  * O QUE aparece continua governado pela configuração da tela — não por algo fixo no código.
  */
 export const useEntityList = (sourceId: string, options: EntityListOptions = {}): RecordListViewModel => {
-  const { editKeyPrefix, defaultFilterTokens } = options;
+  const { editKeyPrefix, defaultFilterTokens, sortRecords } = options;
   const { dynamicScreens } = useScreenDefinitions();
 
   const screenKey = useMemo(
@@ -58,5 +68,6 @@ export const useEntityList = (sourceId: string, options: EntityListOptions = {})
     savedFiltersKey: buildListTabKey(screenKey),
     recordTabKeys,
     defaultFilterTokens,
+    sortRecords,
   });
 };

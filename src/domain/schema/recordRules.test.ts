@@ -325,13 +325,6 @@ describe('formatAndValidateRecord — tipo declarado', () => {
     expect([value.getFullYear(), value.getMonth() + 1, value.getDate()]).toEqual([2026, 7, 15]);
   });
 
-  it('a data de uma tela do tenant é gravada como a de uma tela fixa', () => {
-    const doTenant = formatAndValidateRecord(ctx, 'audiencias', { data: '2026-07-15' }).data.data;
-    const fixa = formatAndValidateRecord(ctx, 'deadlines', { dueDate: '2026-07-15' }).data.dueDate;
-
-    expect(doTenant).toEqual(fixa);
-  });
-
   it('data vazia é ausência de data, não texto vazio', () => {
     expect(formatAndValidateRecord(ctx, 'audiencias', { data: '' }).data.data).toBeNull();
     expect(formatAndValidateRecord(ctx, 'audiencias', { data: null }).data.data).toBeNull();

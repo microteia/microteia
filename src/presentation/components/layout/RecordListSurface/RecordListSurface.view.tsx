@@ -32,6 +32,12 @@ interface RecordListSurfaceProps {
    */
   renderMetaRows?: (record: EntityRecord) => { key: string; icon?: React.ReactNode; value: string }[];
   /**
+   * Cor da faixa no alto do card, por registro. É o realce que se lê de UMA olhada na lista inteira,
+   * antes de ler qualquer texto — a prioridade de um prazo, a criticidade de um chamado. Ausente, o
+   * card não tem faixa.
+   */
+  accentColor?: (record: EntityRecord) => string | undefined;
+  /**
    * Redireciona abrir/criar registro para uma tela PRÓPRIA (ex.: um editor de código da extensão),
    * no lugar do detalhe dinâmico nativo. Ausentes, mantêm o comportamento padrão (`vm.openRecord`/
    * `vm.openNewRecord`).
@@ -54,7 +60,7 @@ interface RecordListSurfaceProps {
  * Listagem de registros de uma tela customizada. A mesma superfície serve à janela própria da tela
  * e à aba de registros filhos dentro do pai — só muda a variante do `EntityListView`.
  */
-export const RecordListSurface: React.FC<RecordListSurfaceProps> = ({ vm, definition, variant = 'page', renderSubtitle, renderBelowHeader, renderMetaRows, onOpenRecord, onNewRecord, emptyTitle, emptyActionLabel, headerActions, summary }) => {
+export const RecordListSurface: React.FC<RecordListSurfaceProps> = ({ vm, definition, variant = 'page', renderSubtitle, renderBelowHeader, renderMetaRows, accentColor, onOpenRecord, onNewRecord, emptyTitle, emptyActionLabel, headerActions, summary }) => {
   const openRecord = onOpenRecord ?? vm.openRecord;
   const openNewRecord = onNewRecord ?? vm.openNewRecord;
   const modals = <EntityListModals vm={vm} />;
@@ -114,6 +120,7 @@ export const RecordListSurface: React.FC<RecordListSurfaceProps> = ({ vm, defini
           <EntityListCard
             key={record.id}
             onClick={() => openRecord(record)}
+            accentColor={accentColor?.(record)}
             avatar={getScreenIcon(definition.icon, 22)}
             title={vm.getCardTitle(record)}
             subtitle={renderSubtitle ? renderSubtitle(record) : declaredSubtitle(record)}

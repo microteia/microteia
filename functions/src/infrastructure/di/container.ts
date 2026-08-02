@@ -57,10 +57,8 @@ import type { IGmailService } from '../../data/services/GmailService';
 import type { IEmailParserService } from '../../data/services/EmailParserService';
 import type { IGmailAuthService } from '../../domain/repositories/IGmailAuthService';
 import type { IGmailWatchService } from '../../domain/repositories/IGmailWatchService';
-import { FirebaseDeadlineRepository } from '../../data/repositories/FirebaseDeadlineRepository';
 import { FirebaseWorkflowDefinitionRepository } from '../../data/repositories/FirebaseWorkflowDefinitionRepository';
 import { FirebaseWorkflowExecutionRepository } from '../../data/repositories/FirebaseWorkflowExecutionRepository';
-import type { IDeadlineRepository } from '../../domain/repositories/IDeadlineRepository';
 import type { IWorkflowDefinitionRepository } from '../../domain/repositories/IWorkflowDefinitionRepository';
 import type { IWorkflowExecutionRepository } from '../../domain/repositories/IWorkflowExecutionRepository';
 import { makeRunWorkflowsForEventUseCase } from '../../domain/usecases/RunWorkflowsForEventUseCase';
@@ -110,7 +108,6 @@ class DIContainer {
   private removeTenantMemberUC?: RemoveTenantMemberUseCase;
   private userRepo?: IUserRepository;
   private bootstrapUserUC?: BootstrapUserUseCase;
-  private deadlineRepo?: IDeadlineRepository;
   private workflowDefinitionRepo?: IWorkflowDefinitionRepository;
   private workflowExecutionRepo?: IWorkflowExecutionRepository;
   private runWorkflowsForEventUC?: RunWorkflowsForEventUseCase;
@@ -355,13 +352,6 @@ class DIContainer {
     return this.logClientErrorUC;
   }
 
-  getDeadlineRepository(): IDeadlineRepository {
-    if (!this.deadlineRepo) {
-      this.deadlineRepo = new FirebaseDeadlineRepository(getDb());
-    }
-    return this.deadlineRepo;
-  }
-
   getWorkflowDefinitionRepository(): IWorkflowDefinitionRepository {
     if (!this.workflowDefinitionRepo) {
       this.workflowDefinitionRepo = new FirebaseWorkflowDefinitionRepository(getDb());
@@ -451,7 +441,6 @@ class DIContainer {
   async ensureWorkflowStepsRegistered(): Promise<void> {
     if (this.workflowStepsRegistered) return;
     registerStepsFromPlugins({
-      deadlineRepository: this.getDeadlineRepository(),
       createAuditLogUseCase: this.getCreateAuditLogUseCase(),
       workflowQueryRepository: new FirestoreWorkflowQueryRepository(getDb()),
       workflowRecordFetcher: new FirestoreWorkflowRecordFetcher(getDb()),

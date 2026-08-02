@@ -75,9 +75,14 @@ describe('mapScreenDefinition', () => {
     expect(mapped.icon).toBe('apps');
   });
 
-  it('a tela de uma entidade fixa é builtin, esteja ou não gravado no documento', () => {
-    expect(mapScreenDefinition('deadlines', {}, 'tenant-1').origin).toBe('builtin');
-    expect(mapScreenDefinition('deadlines', { origin: 'design' }, 'tenant-1').origin).toBe('builtin');
+  /**
+   * Nenhuma entidade do kernel aceita mais campos adicionais — Prazo foi a última —, então nenhuma
+   * chave de tela é reconhecida como fixa e o `origin` gravado é sempre o que vale.
+   */
+  it('sem entidade fixa que a reivindique, vale o origin gravado', () => {
+    expect(mapScreenDefinition('deadlines', { origin: 'plugin' }, 'tenant-1').origin).toBe('plugin');
+    expect(mapScreenDefinition('deadlines', { ownerPluginId: 'com.microteia.prazo' }, 'tenant-1').origin).toBe('plugin');
+    expect(mapScreenDefinition('deadlines', {}, 'tenant-1').origin).toBe('design');
   });
 
   it('campo sem origin herda a da tela; com ownerPluginId, é da extensão', () => {

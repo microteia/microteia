@@ -16,10 +16,10 @@ import { useTheme } from 'styled-components';
 import { useDeadlineChartsViewModel, type PeriodDays } from './DeadlineCharts.viewmodel';
 import { S } from './DeadlineCharts.styles';
 import { MarkerChip } from '../MarkerChip';
-import type { Deadline } from '../../../../domain/entities';
+import type { DeadlineRecord } from '../../../shared/useCollectionRecords';
 
 export interface DeadlineChartsProps {
-  deadlines: Deadline[];
+  deadlines: DeadlineRecord[];
 }
 
 const PERIOD_OPTIONS: PeriodDays[] = [7, 15, 30, 60];

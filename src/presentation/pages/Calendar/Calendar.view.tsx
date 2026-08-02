@@ -3,7 +3,6 @@ import { useTheme } from 'styled-components';
 import { RiArrowLeftSLine, RiArrowRightSLine, RiScalesLine, RiCheckLine } from 'react-icons/ri';
 import { useCalendarViewModel } from './Calendar.viewmodel';
 import { S } from './Calendar.styles';
-import type { DeadlinePriority } from '../../../domain/entities';
 import type { PriorityFilter } from './Calendar.viewmodel';
 
 export const CalendarView: React.FC = () => {
@@ -144,7 +143,7 @@ export const CalendarView: React.FC = () => {
             <S.LegendItem
               key={opt.key}
               $active={vm.filterPriority === opt.key}
-              onClick={() => vm.setFilterPriority(opt.key as DeadlinePriority)}
+              onClick={() => vm.setFilterPriority(opt.key)}
             >
               <S.LegendDot $color={opt.color} style={{ opacity: vm.filterPriority === 'all' || vm.filterPriority === opt.key ? 1 : 0.3 }} />
               <span>{opt.label}</span>

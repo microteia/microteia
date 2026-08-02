@@ -24,6 +24,7 @@ const TEMPLATES = {
   'pessoa.json': 'pessoaPlugin',
   'contrato.json': 'contratoPlugin',
   'processo.json': 'processoPlugin',
+  'prazo.json': 'prazoPlugin',
   'financeiro.json': 'financeiroPlugin',
   'kanban-processos.json': 'kanbanCasesPlugin',
 };

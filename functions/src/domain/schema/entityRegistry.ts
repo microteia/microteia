@@ -25,18 +25,15 @@ export type EntityKey = string;
 
 /** As entidades nativas do Microteia. Mantida como união só para documentar o conjunto fixo. */
 export type BuiltinEntityKey =
-  | 'deadlines'
   | 'members'
   | 'pushes'
   | 'news';
 
 export const BUILTIN_ENTITY_KEYS: readonly BuiltinEntityKey[] = [
-  'deadlines', 'members', 'pushes', 'news',
+  'members', 'pushes', 'news',
 ] as const;
 
-export type WorkflowEntityEventPrefix =
-  | 'deadline'
-  | 'push';
+export type WorkflowEntityEventPrefix = 'push';
 
 export type NativeFieldType = 'string' | 'number' | 'boolean' | 'date' | 'stringArray' | 'object';
 
@@ -123,63 +120,7 @@ export interface EntityMetadata {
 }
 
 
-// `color` aceita token do tema (resolvido por resolveColor) — nunca hex literal.
-const DEADLINE_PRIORITY_OPTIONS: CustomFieldOption[] = [
-  { key: 'Baixa', label: 'Baixa', color: 'success' },
-  { key: 'Média', label: 'Média', color: 'warning' },
-  { key: 'Alta', label: 'Alta', color: 'secondary' },
-  { key: 'Crítica', label: 'Crítica', color: 'danger' },
-];
-
 export const ENTITY_REGISTRY: Record<EntityKey, EntityMetadata> = {
-  deadlines: {
-    key: 'deadlines',
-    collection: 'deadlines',
-    eventPrefix: 'deadline',
-    labelSingular: 'Prazo',
-    labelPlural: 'Prazos',
-    displayNameFields: ['description'],
-    referenceDenormFields: ['type', 'dueDate', 'priority'],
-    fields: [
-      { key: 'type', label: 'Tipo', type: 'string', lookupCollection: 'deadlineTypes',
-        required: true, optionsAllowUserAdd: true,
-        ui: { control: 'select', section: 'Identificação', order: 0, placeholder: 'Selecione o tipo...' } },
-      { key: 'priority', label: 'Prioridade', type: 'string', required: true,
-        options: DEADLINE_PRIORITY_OPTIONS, optionsColored: true,
-        ui: { control: 'select', section: 'Identificação', order: 1, placeholder: 'Selecione a prioridade...' } },
-      { key: 'dueDate', label: 'Data de vencimento', type: 'date', required: true,
-        ui: { section: 'Datas', order: 3, list: { icon: 'calendar', order: 1 } } },
-      { key: 'completedAt', label: 'Data de conclusão', type: 'date',
-        ui: { section: 'Datas', order: 4, list: { icon: 'calendarCheck', order: 2 } } },
-      { key: 'description', label: 'Descrição', type: 'string',
-        ui: { control: 'textarea', section: 'Responsável e Detalhes', order: 6, placeholder: 'Detalhes sobre o prazo, documentos necessários, etc.', list: { icon: 'fileText', order: 4 } } },
-      { key: 'status', label: 'Status', type: 'string', ui: { form: false } },
-      { key: 'notes', label: 'Observações', type: 'string', ui: { form: false } },
-    ],
-    fks: [
-      {
-        key: 'caseId',
-        label: 'Processo',
-        targetCollection: 'cases',
-        denormKey: 'case',
-        denormalizedFields: ['caseNumber', 'title', 'area'],
-        required: true,
-        ui: { section: 'Identificação', order: 2, placeholder: 'Selecione o processo...',
-              list: { icon: 'folder', order: 0 } },
-      },
-      {
-        key: 'responsibleLawyerId',
-        label: 'Advogado responsável',
-        targetCollection: 'persons',
-        denormKey: 'responsibleLawyer',
-        denormalizedFields: ['name', 'type', 'email'],
-        ui: { section: 'Responsável e Detalhes', order: 5, placeholder: 'Selecione o responsável...',
-              list: { icon: 'scales', order: 3 } },
-      },
-    ],
-    supportsCustomFields: true,
-    referenceable: true,
-  },
   members: {
     key: 'members',
     collection: 'members',

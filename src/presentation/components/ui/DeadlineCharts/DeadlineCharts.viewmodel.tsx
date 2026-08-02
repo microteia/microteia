@@ -1,7 +1,7 @@
 import { useState, useMemo, useCallback } from 'react';
 import { useTheme } from 'styled-components';
 import { startOfDay, addDays, subDays, format, eachDayOfInterval } from 'date-fns';
-import type { Deadline } from '../../../../domain/entities';
+import type { DeadlineRecord } from '../../../shared/useCollectionRecords';
 
 export type DateReferenceMode = 'dueDate' | 'completedAt';
 export type PeriodDays = 7 | 15 | 30 | 60;
@@ -75,7 +75,7 @@ const savePeriodDays = (value: PeriodDays): void => {
 };
 
 export const useDeadlineChartsViewModel = (
-  deadlines: Deadline[],
+  deadlines: DeadlineRecord[],
 ): DeadlineChartsViewModel => {
   const theme = useTheme();
   const [showCharts, setShowCharts] = useState(() => loadShowCharts());
@@ -150,6 +150,7 @@ export const useDeadlineChartsViewModel = (
       startDate = today;
       endDate = addDays(today, periodDays);
       return deadlines.filter((d) => {
+        if (!d.dueDate) return false;
         const refDate = startOfDay(d.dueDate);
         return refDate >= startDate && refDate <= endDate;
       });
@@ -205,10 +206,9 @@ export const useDeadlineChartsViewModel = (
 
       allTypes.forEach((type) => {
         const count = filteredDeadlines.filter((d) => {
-          const refDate =
-            dateMode === 'completedAt' && d.completedAt
-              ? startOfDay(d.completedAt)
-              : startOfDay(d.dueDate);
+          const reference = dateMode === 'completedAt' && d.completedAt ? d.completedAt : d.dueDate;
+          if (!reference) return false;
+          const refDate = startOfDay(reference);
           return d.type === type && refDate >= dayStart && refDate < dayEnd;
         }).length;
         row[type] = count;

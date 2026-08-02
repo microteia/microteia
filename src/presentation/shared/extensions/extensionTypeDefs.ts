@@ -548,6 +548,8 @@ const UI_MODULE_DEFS = `declare module '@microteia/ui' {
     renderBelowHeader?: (record: any) => React.ReactNode;
     /** Linhas acrescentadas ao começo do card — para o que a declaração de um campo não alcança. */
     renderMetaRows?: (record: any) => { key: string; icon?: React.ReactNode; value: string }[];
+    /** Cor da faixa no alto do card, por registro — o realce que se lê antes de qualquer texto. */
+    accentColor?: (record: any) => string | undefined;
     onOpenRecord?: (record: any) => void;
     onNewRecord?: () => void;
     /** Textos do estado vazio, quando a tela prefere os seus aos genéricos. */
@@ -663,6 +665,11 @@ const DATA_MODULE_DEFS = `declare module '@microteia/data' {
      * corrente). O usuário troca à vontade depois — é ponto de partida, não trava.
      */
     defaultFilterTokens?: { key: string; values: string[] }[];
+    /**
+     * Ordem em que a listagem apresenta os registros. Sem ela vale a ordem da coleção — o mais
+     * recente primeiro. Declare o comparador FORA do componente.
+     */
+    sortRecords?: (a: any, b: any) => number;
   }
   /**
    * Hook para listagem de entidade dinâmica com filtros e ações de card.

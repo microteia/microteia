@@ -63,10 +63,10 @@ beforeEach(() => {
 
 describe('useEntityFormFields', () => {
   it('sem tela do tenant, devolve os campos declarados em código', () => {
-    const { result } = renderHook(() => useEntityFormFields('deadlines'));
-    const name = result.current.fields.find((f) => f.key === 'type');
-    expect(name?.label).toBe('Tipo');
-    expect(name?.origin).toBe('builtin');
+    const { result } = renderHook(() => useEntityFormFields('pushes'));
+    const numero = result.current.fields.find((f) => f.key === 'processNumber');
+    expect(numero?.label).toBe('Número do processo');
+    expect(numero?.origin).toBe('builtin');
     expect(result.current.addedFields).toHaveLength(0);
   });
 
@@ -125,17 +125,20 @@ describe('useEntityFormFields', () => {
     expect(keys.indexOf('type')).toBeLessThan(keys.indexOf('apelido'));
   });
 
-  it('cada campo carrega a própria lista de opções, seja do kernel ou do tenant', () => {
+  it('cada campo carrega a própria lista de opções', () => {
     storeState.definitions = [definition({
-      fields: [field({ key: 'especialidade', type: 'select', lookupCollection: 'prazos_especialidade' })],
+      fields: [
+        field({ key: 'especialidade', type: 'select', lookupCollection: 'prazos_especialidade' }),
+        field({ key: 'tipo', type: 'select', lookupCollection: 'deadlineTypes' }),
+      ],
     })];
 
     const { result } = renderHook(() => useEntityFormFields('deadlines'));
     const { fields } = result.current;
 
-    // O campo do tenant aponta para a lista declarada; o do kernel, para a do registro. Não existe
-    // mais um índice por tela: a lista está no campo, e é isso que permite compartilhá-la.
+    // Não existe um índice de listas por TELA: a lista está no campo, e é isso que permite dois
+    // campos — de telas diferentes, inclusive — compartilharem as mesmas opções.
     expect(fields.find((f) => f.key === 'especialidade')?.lookupCollection).toBe('prazos_especialidade');
-    expect(fields.find((f) => f.key === 'type')?.lookupCollection).toBe('deadlineTypes');
+    expect(fields.find((f) => f.key === 'tipo')?.lookupCollection).toBe('deadlineTypes');
   });
 });

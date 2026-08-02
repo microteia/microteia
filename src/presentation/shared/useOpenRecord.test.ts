@@ -72,15 +72,15 @@ describe('useOpenRecord', () => {
     expect(openTab).toHaveBeenCalledWith('view-dyn:processos:c1');
   });
 
-  /** Entidade ainda do kernel: vale a chave fixa de sempre. */
-  it('coleção fixa abre pela aba do kernel', () => {
-    open('deadlines', 'd1');
-    expect(openTab).toHaveBeenCalledWith('view-deadline:d1');
-  });
-
-  /** Extensão desinstalada: nada abre, em vez de uma aba morta. */
+  /**
+   * Extensão desinstalada: nada abre, em vez de uma aba morta. Não há mais nenhuma aba FIXA de
+   * detalhe no kernel — Prazo foi a última entidade a ter uma —, então este é o destino de toda
+   * coleção que nenhuma tela descreve.
+   */
   it('coleção sem tela e sem aba fixa não abre nada', () => {
     open('produtos', 'x1');
+    expect(openTab).not.toHaveBeenCalled();
+    open('deadlines', 'd1');
     expect(openTab).not.toHaveBeenCalled();
   });
 });

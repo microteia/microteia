@@ -1,23 +1,17 @@
 import type { ScreenListAction } from '../../domain/entities';
 
 /**
- * Quais das ações genéricas do card cada tela fixa consegue oferecer. Prazos não tem etiquetas
- * (sem FK de tag no registry) nem clonar (o próprio detalhe não oferece), então essas ficam fora
- * da configuração em vez de aparecerem sem efeito.
+ * Quais das ações genéricas do card cada tela FIXA consegue oferecer, e o que ela exibia antes de a
+ * configuração existir.
+ *
+ * Os dois mapas estão VAZIOS desde que Prazo — a última entidade do kernel a ter tela de registro —
+ * saiu para uma extensão. Uma tela de extensão declara as próprias ações (`listActions`) e não passa
+ * por aqui; o mecanismo continua no lugar para o dia em que o kernel voltar a ter uma tela fixa,
+ * porque o que ele protege é o card de quem nunca configurou nada.
  */
-const SUPPORTED: Record<string, ScreenListAction[]> = {
-  persons: ['copyLink', 'clone', 'manageTags', 'delete'],
-  deadlines: ['copyLink', 'delete'],
-};
+const SUPPORTED: Record<string, ScreenListAction[]> = {};
 
-/**
- * O que cada tela fixa exibia antes de a configuração existir. Serve de padrão para não regredir
- * o card de quem nunca configurou.
- */
-const DEFAULTS: Record<string, ScreenListAction[]> = {
-  persons: ['manageTags'],
-  deadlines: ['delete'],
-};
+const DEFAULTS: Record<string, ScreenListAction[]> = {};
 
 export const supportedListActions = (entityKey: string): ScreenListAction[] =>
   SUPPORTED[entityKey] ?? [];

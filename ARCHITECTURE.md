@@ -20,8 +20,8 @@ O projeto usa **Clean Architecture + MVVM** com separação estrita em camadas. 
 │                .styles.tsx                  │
 ├─────────────────────────────────────────────┤
 │                 Stores                      │  ← Contextos React globais por domínio
-│  TenantStore · PersonStore · CaseStore      │
-│  DeadlineStore · FinancialStore · NewsStore │
+│  TenantStore · RecordStore · LookupStore    │
+│  TagStore · PushStore · NewsStore           │
 ├─────────────────────────────────────────────┤
 │               Domain                        │  ← Regras de negócio, zero dependências
 │   entities/ · repositories/ · usecases/    │
@@ -108,8 +108,6 @@ npm run verify          # typecheck + lint + verify-schemas
 | `ContractLookupConfig` | `tenants/{tenantId}/contractTypes/{id}`, `contractCategories`, `contractStatuses`, `contractObjects`, `contractAdjustmentIndexes`, `contractAdjustmentPeriodicities`, `contractCurrencies`, `contractPaymentMethods`, `contractBanks`, `contractCostCenters` | Sim |
 | `ContractNote` | `tenants/{tenantId}/contracts/{contractId}/notes/{id}` | Sim |
 | `ContractDocument` | `tenants/{tenantId}/contracts/{contractId}/documents/{id}` | Sim |
-| `Deadline` | `tenants/{tenantId}/deadlines/{id}` | Sim |
-| `DeadlineTypeConfig` | `tenants/{tenantId}/deadlineTypes/{id}` | Sim |
 | `Financial` | `tenants/{tenantId}/financials/{id}` | Sim |
 | `FinancialTag` | `tenants/{tenantId}/financialTags/{id}` | Sim |
 | `FinancialDocument` | `tenants/{tenantId}/financials/{financialId}/documents/{id}` | Sim |
@@ -293,7 +291,7 @@ Todo o onboarding de um usuário novo (`users/{uid}`, `userProfiles/{uid}` e o t
 
 ### `TenantMember` não é entidade de domínio — não use como alvo de FK
 
-`members` existe **exclusivamente** para autenticação (quem entra no tenant e com qual papel) e para auditoria (`createdBy`/`updatedBy`/`completedBy`, e o `auditFlatEntityChange`). Nenhum campo de negócio referencia `members`: campos como "Advogado responsável" (`Case.responsibleLawyerId`, `Deadline.responsibleLawyerId`) e "Responsável" (`Contract.responsibleId`) são FKs para **`persons`**, com `denormalizedFields: ['name', 'type', 'email']`. Um responsável é uma Pessoa do escritório, exista ou não uma conta de login correspondente — e continua válido depois que o membro sai do tenant.
+`members` existe **exclusivamente** para autenticação (quem entra no tenant e com qual papel) e para auditoria (`createdBy`/`updatedBy`/`completedBy`, e o `auditFlatEntityChange`). Nenhum campo de negócio referencia `members`: campos como "Advogado responsável" (o do Processo e o do Prazo) e "Responsável" (`Contract.responsibleId`) são FKs para **`persons`**, com `denormalizedFields: ['name', 'type', 'email']`. Um responsável é uma Pessoa do escritório, exista ou não uma conta de login correspondente — e continua válido depois que o membro sai do tenant.
 
 Registros gravados antes dessa correção guardam um `userId` de membro nesses campos; o valor não resolve mais para uma Pessoa e aparece como **valor órfão sinalizado** no `SearchSelect`, até ser reapontado manualmente para a Pessoa correta.
 
@@ -522,26 +520,12 @@ Documentos anexados a um contrato. Mesmo padrão de `PersonDocument`/`CaseDocume
 - Puro átomo de apresentação (sem `useState`/efeitos) — não tem `.viewmodel.tsx`, só `.view.tsx` + `.styles.tsx`, no padrão de `TagIconButton`.
 - Ao adicionar uma nova legenda de gráfico com toggle de série, use `<MarkerChip color={...} active={...} onClick={...}>{label}</MarkerChip>` em vez de criar um styled-component de badge ad-hoc.
 
-### Entidade Deadline (Prazo)
+### Prazos — declarado por extensão
 
-```typescript
-interface Deadline {
-  id: string;
-  tenantId: string;
-  title: string;
-  type: DeadlineType;       // 'judicial' | 'extrajudicial' | 'internal' | 'hearing' | 'meeting'
-  caseId?: string;                 // título/número do processo resolvidos em tempo de renderização via useCaseStore()
-  dueDate: Date;
-  priority: 'low' | 'medium' | 'high' | 'critical';
-  status: 'pending' | 'completed' | 'expired' | 'cancelled';
-  responsibleLawyerId?: string | null; // FK para Pessoa; nome resolvido em tempo de renderização via usePersonStore()
-  description?: string;
-  completedAt?: Date;
-  completedBy?: string;
-  createdAt: Date;
-  updatedAt: Date;
-}
-```
+`deadlines` não está no `entityRegistry.ts`. Quem descreve a coleção é a extensão **Prazos**
+(`com.microteia.prazo`, `dataCollection: 'deadlines'`, `eventPrefix: 'deadline'`), com 8 campos em 3
+seções e três listas de opções (`deadlineTypes`, `deadlinePriorities`, `deadlineStatuses`) com as
+opções de partida. Ver "Prazos sai do kernel".
 
 ### Financeiro — declarado por extensão
 
@@ -704,7 +688,7 @@ Em vez de uma Cloud Function por coleção monitorada (o que exigiria ~17 deploy
 
 | Handler | Trigger | Cobre |
 |---|---|---|
-| `auditFlatEntityChange` | `onDocumentWritten('tenants/{tenantId}/{collection}/{docId}')` | `deadlines`, `financials`, `members`, `*Tags`, `pushes`, `screenDefinitions` — **e toda coleção de tela declarada** (`persons`, `cases`, `contracts`, as do Form Design…) |
+| `auditFlatEntityChange` | `onDocumentWritten('tenants/{tenantId}/{collection}/{docId}')` | `members`, `*Tags`, `pushes`, `screenDefinitions` — **e toda coleção de tela declarada** (`persons`, `cases`, `contracts`, `deadlines`, `financials`, as do Form Design…) |
 | `auditNestedEntityChange` | `onDocumentWritten('tenants/{tenantId}/{parent}/{parentId}/{sub}/{docId}')` | `notes`/`documents` de qualquer registro de tela declarada (+ `documents` de `financials`, `tags` de `screenDefinitions`) |
 | `auditTenantDeleted` | `onDocumentDeleted('tenants/{tenantId}')` | Exclusão do escritório inteiro — sempre `severity: 'CRITICAL'` |
 | `auditNewsChange` / `auditNewsCommentChange` / `auditNewsTagChange` | `onDocumentWritten('news/{docId}')` / `'newsComments/{docId}'` / `'newsTags/{docId}'` | Notícias, Comentários de Notícias e Etiquetas de Notícias — ver subseção própria abaixo |
@@ -718,7 +702,7 @@ Uma entrada de `auditableEntities.ts` pode restringir quais ações geram log vi
 
 **Diff e Markdown** (`functions/src/domain/services/auditDiff.ts`): `computeChangedFields` retorna um `FieldDiff { before, after }` com os valores **antigos e novos** de cada campo alterado (UPDATE); `normalizeAllFields` retorna todos os campos do documento (DELETE). Ambos normalizam `Timestamp`/`Date` para o formato brasileiro `dd/mm/aaaa` (ou `dd/mm/aaaa HH:mm` quando o horário não é meia-noite), para o JSON ficar legível em português. `buildAuditText` monta a frase + bloco **Antes:** (UPDATE e DELETE) + bloco **Depois:** (só UPDATE) em \`\`\`json\`\`\`; CREATE não inclui bloco (nada "mudou" ainda).
 
-**Autoria:** CREATE/UPDATE usam os campos denormalizados `updatedBy`/`updatedByName`/`updatedByPhotoURL` (adicionados a `Person`, `Case`, `Contract`, `Deadline`, `Financial`, `PersonTag`, `CaseTag`, `ContractTag`, `FinancialTag`, `TenantMember` — preenchidos pelo frontend a cada update) quando presentes; senão a Cloud Function resolve via `UserProfileLookupService`.
+**Autoria:** CREATE/UPDATE usam os campos denormalizados `updatedBy`/`updatedByName`/`updatedByPhotoURL` (preenchidos pelo frontend a cada update, em todo registro de tela e nos membros do tenant) quando presentes; senão a Cloud Function resolve via `UserProfileLookupService`.
 
 **DELETE tem stamp próprio** (`deletedBy`/`deletedByName`/`deletedByPhotoURL`, mesmo padrão de `updatedBy*`), gravado por um `updateDoc` que antecede o `deleteDoc` — ver `stampDeletionActor` (`src/data/utils/stampDeletionActor.ts`), chamado por todo `Firebase[Entidade]Repository.delete*` das entidades auditadas (flat e nested). O tipo `DeletionActor` (`domain/entities/index.ts`) e o `actor` são montados no Store (via `useAuth()`) para entidades com Store próprio, ou no ViewModel para notes/documents (que não têm Store, chamam o UseCase direto) — nunca no Repository, que não tem acesso a `AuthContext`. As triggers (`auditFlatEntityChange`/`auditNestedEntityChange`) preferem `deletedBy*` do snapshot `before`; só caem no fallback antigo (`updatedBy`/`createdBy`, para flat, ou só `createdBy`, para nested) se o documento não tiver o stamp — caso de documentos já apagados antes desta mudança.
 
@@ -814,7 +798,7 @@ TenantSelector (usuário escolhe qual escritório)
     ↓
 setCurrentTenant(tenant)
     ├── persiste tenantId em localStorage['microteia:lastTenantId']
-    └── PersonStore, CaseStore, DeadlineStore, FinancialStore
+    └── RecordStore, LookupStore, TagStore
           iniciam onSnapshot() do tenant selecionado
 ```
 
@@ -866,7 +850,6 @@ src/
 │   │   ├── IContractNoteRepository.ts
 │   │   ├── IContractDocumentRepository.ts
 │   │   ├── IContractLookupRepository.ts   # genérico, parametrizado por ContractLookupKind
-│   │   ├── IDeadlineRepository.ts
 │   │   ├── IFinancialRepository.ts
 │   │   ├── IFinancialTagRepository.ts
 │   │   ├── IPushRepository.ts
@@ -891,7 +874,6 @@ src/
 │       ├── contracttags/
 │       ├── contractnotes/
 │       ├── contractdocuments/
-│       ├── deadlines/
 │       ├── financials/
 │       ├── financialtags/
 │       ├── pushes/
@@ -918,7 +900,6 @@ src/
 │   │   ├── FirebaseContractNoteRepository.ts
 │   │   ├── FirebaseContractDocumentRepository.ts
 │   │   ├── FirebaseContractLookupRepository.ts
-│   │   ├── FirebaseDeadlineRepository.ts
 │   │   ├── FirebaseFinancialRepository.ts
 │   │   ├── FirebaseFinancialTagRepository.ts
 │   │   ├── FirebasePushRepository.ts
@@ -958,7 +939,6 @@ src/
 │   ├── ContractStore.tsx + useContractStore.ts
 │   ├── ContractTagStore.tsx + useContractTagStore.ts
 │   ├── ContractLookupStore.tsx + useContractLookup.ts
-│   ├── DeadlineStore.tsx + useDeadlineStore.ts
 │   ├── FinancialStore.tsx + useFinancialStore.ts
 │   ├── FinancialTagStore.tsx + useFinancialTagStore.ts
 │   ├── PushStore.tsx + usePush.ts
@@ -979,7 +959,6 @@ src/
     │   ├── Calendar/
     │   ├── Contracts/
     │   ├── ViewContract/
-    │   ├── Deadlines/
     │   ├── Financials/
     │   ├── Pushes/
     │   ├── DashboardPushes/
@@ -1421,7 +1400,6 @@ Arquivos `.tsx` exportam **apenas** componentes React. Hooks e tipos ficam em `.
 | `ContractStore` | Contratos do tenant atual, CRUD de contratos |
 | `ContractTagStore` | Etiquetas de contratos do tenant atual, CRUD de tags, aplicação de tags em contratos |
 | `ContractLookupStore` | Configs estático+dinâmico dos 10 lookups de contrato (tipo, categoria, status, objeto, índice/periodicidade de reajuste, moeda, forma de pagamento, banco, centro de custo) |
-| `DeadlineStore` | Prazos do tenant atual, CRUD + `completeDeadline` |
 | `FinancialStore` | Receitas/despesas do tenant atual, CRUD + `markPaid` |
 | `FinancialTagStore` | Etiquetas de lançamentos financeiros do tenant atual, CRUD de tags, aplicação de tags em lançamentos |
 | `PushStore` | Pushes do tribunal do tenant atual, CRUD + `updateStatus` |
@@ -1435,7 +1413,7 @@ Arquivos `.tsx` exportam **apenas** componentes React. Hooks e tipos ficam em `.
 
 ### Stores que dependem do tenant
 
-`PersonStore`, `CaseStore`, `ContractStore`, `DeadlineStore`, `FinancialStore`, `PushStore`, `WorkflowStore` escutam `currentTenant` via `useTenant()`. Se `currentTenant` for `null`, limpam o estado e não fazem queries.
+`RecordStore`, `LookupStore`, `TagStore`, `PushStore`, `WorkflowStore` escutam `currentTenant` via `useTenant()`. Se `currentTenant` for `null`, limpam o estado e não fazem queries.
 
 ---
 
@@ -1448,10 +1426,8 @@ Arquivos `.tsx` exportam **apenas** componentes React. Hooks e tipos ficam em `.
 | Evento | Emitido por | Assina |
 |---|---|---|
 | `PERSONS_UPDATED` | `PersonStore` | — |
-| `CASES_UPDATED` | `CaseStore` | `DeadlineStore` (atualiza nomes de processo nos prazos) |
 | `CONTRACTS_UPDATED` | `ContractStore` | — |
 | `CONTRACT_TAG_UPDATED` | `ContractTagStore` | — |
-| `DEADLINES_UPDATED` | `DeadlineStore` | — |
 | `FINANCIALS_UPDATED` | `FinancialStore` | — |
 | `FINANCIAL_TAG_UPDATED` | `FinancialTagStore` | — |
 | `PUSH_UPDATED` | `PushStore` | `PushInteractionStore` (re-sincroniza contadores) |
@@ -1487,7 +1463,7 @@ useEffect(() => {
 ## Cascata de Exclusão
 
 **Regra atual: não há cascata entre entidades de negócio.** Excluir `Person`, `Case`, `Contract`,
-`Deadline` ou `Financial` apaga **apenas** o documento alvo. Filhos/relacionados podem ficar órfãos
+um registro de tela apaga **apenas** o documento alvo. Filhos/relacionados podem ficar órfãos
 (ex.: prazos de um processo excluído continuam existindo, apontando para um `caseId` inexistente) — é
 uma decisão consciente: a complexidade de manter cascata consistente não compensava. Vincular por FK
 não implica exclusão em cascata; um registro órfão simplesmente deixa de resolver o nome/objeto da
@@ -1496,7 +1472,7 @@ referência na tela.
 | Entidade excluída | O use case remove |
 |---|---|
 | `Tenant` | Toda a subárvore do tenant (operação de nível de conta, não coberta pelos `Delete*UseCase` de entidade) |
-| `Person` / `Case` / `Contract` / `Deadline` / `Financial` | — (apenas o próprio documento) |
+| Registro de qualquer tela (Pessoa, Processo, Contrato, Prazo, Lançamento…) | — (apenas o próprio documento) |
 | `Push` | Todos os `pushInteractions` onde `pushId === id` — **infra, roda no backend** (ver nota abaixo) |
 | `PushInteraction` | — (folha) |
 
@@ -1603,7 +1579,7 @@ Recurso que permite ao **admin do tenant** criar telas próprias em runtime e ad
 Um único doc `ScreenDefinition` em `tenants/{tenantId}/screenDefinitions/{screenKey}` descreve tanto telas dinâmicas quanto os campos extras das telas padrão:
 
 - **Tela dinâmica:** `builtin: false`. O doc id (`screenKey`) é o slug do título plural, gerado na criação e imutável. Possui `titleSingular/titlePlural`, `icon` (chave do set curado em `presentation/shared/screenIcons.tsx`), `fields`, `titleFieldKey` (campo texto obrigatório usado como título do registro na aba e no ⌘K), `hasNotes`/`hasDocuments`/`hasTags` (recursos opcionais), `sidebarOrder` e `enabled` (desativa sem excluir).
-- **Campos das telas padrão:** `builtin: true` com doc id fixo igual à coleção da entidade (`persons`, `cases`, `contracts`, `financials`, `deadlines`). Criado lazy no primeiro save. Somente `fields` é relevante.
+- **Campos das telas padrão:** `builtin: true` com doc id fixo igual à coleção da entidade. Criado lazy no primeiro save. Somente `fields` é relevante. **Nenhuma entidade do kernel está mais nessa situação** — Prazo foi a última a sair —, então hoje toda tela do Form Design é de extensão ou do próprio escritório; o mecanismo continua para o dia em que o kernel voltar a ter uma tela fixa.
 
 `FieldDefinition`: `key` (slug do label na criação; **imutável** — renomear o label não altera a key, preservando dados e histórico de auditoria), `label`, `type` (`text | textarea | number | currency | date | checkbox | select | masked | reference` — **type também é imutável** após criação), `required`, `order`, `section`, `options` (estáticas, para `select`), `optionsAllowUserAdd`, `multi`, `mask` (`cpf | cnpj | phone | cep`), `refEntity` (coleção padrão ou screenKey dinâmico), `placeholder`, `showInList`, `filterable`.
 
@@ -1957,7 +1933,7 @@ dois stores derivam também das telas (`screenTagCollections`/`screenLookupColle
 Consequência prática: `ScreenDefinitionStoreProvider` subiu na árvore de providers, acima de
 `TagStoreProvider`/`LookupStoreProvider`.
 
-**O que continua no kernel, e por quê:** `deadlines` e `financials` ainda declaram `caseId` com
+**O que continuava no kernel, e por quê:** `deadlines` e `financials` ainda declaravam `caseId` com
 `targetCollection: 'cases'`. Uma relação aponta para uma COLEÇÃO — não exige que ela esteja no
 registro —, então o vínculo segue válido e some quando essas duas entidades migrarem pelo mesmo
 caminho.
@@ -2158,6 +2134,60 @@ expõe biblioteca de gráfico. Ele já não conhece entidade nenhuma declarada e
 pelo caminho genérico (`useFinancialRecords`, mesmo contrato de leitura de `useCaseRecords` e irmãos)
 e navega por `useOpenScreenList`. Sai do kernel no dia em que uma extensão puder desenhar os mesmos
 gráficos.
+
+### Prazos sai do kernel — a última entidade de escritório
+
+A quinta migração pelo mesmo caminho, e a que fecha a série: `deadlines` não está mais no
+`entityRegistry.ts`, e quem descreve a coleção é a extensão **Prazos** (`com.microteia.prazo`,
+`dataCollection: 'deadlines'`, `eventPrefix: 'deadline'`, 8 campos em 3 seções e três listas de
+opções com as opções de partida). Foram apagados as páginas (`Deadlines`, `ViewDeadline`), o
+`DeadlineStore`, dois repositórios (front e backend) e duas interfaces, os use cases, os tipos
+`Deadline`/`DeadlineStatus`/`DeadlinePriority`, o plugin `core.deadlines` e as abas
+`deadlines`/`view-deadline:`/`new-deadline`. As regras nomeadas de `deadlines` e `deadlineTypes`
+saíram do `firestore.rules` — tudo passa pelo curinga — e o índice composto `caseId`+`dueDate`
+saiu do `firestore.indexes.json`, porque a leitura passou a ser a genérica da coleção.
+
+Prazo cobrou três capacidades que a declaração ainda não alcançava — todas genéricas, nenhuma sobre
+prazo:
+
+| Capacidade | Declaração | Sem ela |
+|---|---|---|
+| Faixa de destaque no cartão | `accentColor(record)` no `RecordListSurface` | a prioridade do prazo só se leria depois de ler o texto do cartão |
+| Ordem da listagem | `useEntityList({ sortRecords })` | a agenda abriria na ordem de CADASTRO, e o prazo mais recente não é o mais urgente |
+| Abrir a listagem já filtrada | `useOpenScreenList(collection, filterTokens)` + a intenção consumida pelo `useRecordListViewModel` | o painel e o cartão de um push endereçavam a intenção pela CHAVE da tela, que passou a variar por escritório |
+
+A terceira fechou um buraco que a migração do Financeiro tinha deixado em aberto: o painel do
+escritório ainda deixava o recado para `'financials'` e `'cases'`, chaves de tela que não existem
+mais — o filtro era montado e ninguém o lia. Agora quem endereça é a resolução por coleção, e a
+listagem consome a intenção na primeira montagem (aba abrindo) e por assinatura (aba já aberta).
+
+**Concluir virou Action.** Marcar um prazo como concluído era um `if` na view seguido de uma chamada
+de store; é agora uma **Action** sobre um workflow de três passos — Montar Objeto (`today()` carimba
+a conclusão) → Gravar Registro → resposta com `actions: ['refresh']` —, e quem decide se o gesto
+aparece é `hiddenWhen: 'isNew or status == "Concluído" or status == "Cancelado"'`.
+
+**O Step "Criar Prazo" saiu junto.** `CreateDeadlineStep` era o último passo de workflow que
+conhecia uma entidade de escritório pelo nome: recebia `IDeadlineRepository` e gravava em
+`deadlines`. Criar um prazo é gravar um registro, e quem faz isso é o Step genérico **Gravar
+Registro** (`upsert`), com `table: 'deadlines'` — o mesmo que a Action de concluir usa. Workflows
+existentes que usem `create-deadline` param de resolver o passo e precisam ser refeitos com Gravar
+Registro.
+
+**O que ficou no kernel, e por quê.** A **Agenda** (`calendar`), o **Painel** e os **Pushes** do
+tribunal continuam sendo telas de código, e continuam lendo e escrevendo prazos — pelo caminho
+GENÉRICO: `useDeadlineRecords()` (mesmo contrato de leitura de `useCaseRecords` e irmãos) para ler,
+`useRecords().updateRecord/createRecord` para gravar, `useOpenRecord`/`useOpenScreenList` para
+navegar. Nenhuma delas conhece uma entidade declarada em código; sem a extensão instalada, a lista
+vem vazia e a tela mostra o estado vazio, em vez de dado errado.
+
+**O que a migração custou, e é aceitável.** (1) A busca da listagem casa os textos do registro
+(tipo, descrição, status), não mais o número do processo — quem procura por processo tem o filtro
+"Processo", com o número no rótulo. (2) Os caminhos denormalizados (`event.case.caseNumber`) saem do
+catálogo de eventos, como já saíram nas quatro migrações anteriores: o evento oferece o `caseId`, e o
+registro apontado é resolvido na hora em que a expressão o pede. (3) Excluir um prazo passa a ser do
+admin (a regra curinga), onde antes o advogado também podia — o mesmo que já vale para Pessoa,
+Processo, Contrato e Financeiro. (4) No cartão, os botões de hover saem na ordem "copiar link,
+excluir, concluir": as ações nativas vêm antes das declaradas.
 
 ### As ações do registro viram contribuições
 
@@ -2420,9 +2450,11 @@ motor com Admin SDK. Nenhum módulo importa ou conhece o motor.
    `ExpressionEngine`, `InputMapping`, `ConditionEvaluator`) — zero import de qualquer módulo
    de domínio nomeado (Prazo, Processo, Financeiro, etc).
 2. **Steps-plugin** (`functions/src/infrastructure/workflow/steps/`) — cada Step depende
-   exatamente do repositório de domínio que precisa: `CreateDeadlineStep` → `IDeadlineRepository`
-   (mínimo, próprio do motor); `NotifyStep`/`RegisterAuditStep` → `IAuditLogRepository` (já
-   existente, reaproveitado); `SetVariableStep` → nenhuma dependência externa.
+   exatamente do repositório de que precisa: `UpsertStep`/`RemoveStep`/`QueryStep` → os
+   repositórios GENÉRICOS de registro (nenhuma entidade pelo nome);
+   `NotifyStep`/`RegisterAuditStep` → `IAuditLogRepository` (já existente, reaproveitado);
+   `SetVariableStep` → nenhuma dependência externa. Nenhum Step conhece mais uma entidade de
+   escritório: `CreateDeadlineStep`, o último que conhecia, saiu com a entidade Prazo.
 3. **Composition root** (`functions/src/infrastructure/workflow/registerSteps.ts`) — único
    arquivo que conhece o `StepRegistry` **e** os plugins concretos, ligando os dois no cold
    start (`ensureWorkflowStepsRegistered` no DI container). Adicionar um Step novo nunca exige
@@ -2463,8 +2495,7 @@ mesma `StepDefinition` é usada duas vezes no mesmo workflow) e `VariableInputMa
 
 ### Campo `EntityReference` — seletor de entidade em "Valor fixo"
 
-Um input de Step com `type: 'EntityReference'` (ex: `caseId` e `responsibleLawyerId` do
-`CreateDeadlineStep`) declara também `entityType?: string` — a mesma chave usada por
+Um input de Step com `type: 'EntityReference'` declara também `entityType?: string` — a mesma chave usada por
 `FieldDefinition.refEntity` nos Custom Fields do ScreenBuilder: `'cases'`, `'persons'`,
 `'contracts'`, `'financials'`, `'deadlines'`, `'members'` (usuários do tenant, não é uma
 coleção de domínio) ou o `id` de uma `ScreenDefinition` de entidade customizada. Quando o
@@ -2681,11 +2712,6 @@ coleção → prefixo de evento é **derivado do `ENTITY_REGISTRY`/`LOOKUP_REGIS
 
 | Entidade | Coleção Firestore | Prefixo do evento |
 |---|---|---|
-| Pessoa | `persons` | `person` |
-| Contrato | `contracts` | `contract` |
-| Processo | `cases` | `case` |
-| Prazo | `deadlines` | `deadline` |
-| Financeiro | `financials` | `financial` |
 | Push | `pushes` | `push` |
 | Item de Lista (qualquer lookup) | `personTypes`, `caseAreas`, `contractTypes`, `deadlineTypes`, `financialCategories`, etc. (lista fechada em `LOOKUP_COLLECTIONS`) | `lookup` |
 
@@ -2718,8 +2744,8 @@ prefixo `values.`/`customValues.` e sem lista dinâmica à parte.
 
 ### v1 — implementado vs preparado
 
-**Implementado:** `ActionStep` com 4 Steps reais (`CreateDeadlineStep`, `NotifyStep`,
-`RegisterAuditStep`, `SetVariableStep`), execução sequencial fail-fast, publicação automática de
+**Implementado:** `ActionStep` com Steps reais (`NotifyStep`, `RegisterAuditStep`,
+`SetVariableStep`, e depois `MapStep`, `UpsertStep`, `RemoveStep`, `QueryStep`, `ScriptStep`…), execução sequencial fail-fast, publicação automática de
 eventos `saved`/`deleted` para as 8 entidades da tabela acima, e o sistema completo de condições:
 `AlwaysTrue`, `FieldComparison` (com `valueType` literal/expression/eventField), `Expression`
 (expressão pura avaliada pelo `ExpressionEngine` e convertida para booleano), `LogicalAnd`,
@@ -3870,7 +3896,6 @@ A tabela abaixo é **derivada** do `firestore.indexes.json` e existe só para re
 |---|---|---|
 | `auditLogs` | `tenantId` ASC, `createdAt` DESC | `getPage` — auditoria por escritório, mais recente primeiro |
 | `auditLogs` | `tenantId` ASC, `severity` ASC, `createdAt` ASC | `countUnreadCritical` — badge de falhas CRITICAL não lidas |
-| `tenants/{id}/deadlines` | `caseId` ASC, `dueDate` ASC | `getDeadlinesByCase` |
 | `tenants/{id}/financials` | `caseId` ASC, `dueDate` DESC | `getFinancialsByCase` |
 | `tenants/{id}/financials` | `personId` ASC, `dueDate` DESC | `getFinancialsByPerson` (cascata de exclusão de `Person`) |
 | `tenants/{id}/financials` | `type` ASC, `dueDate` ASC | `getFinancialsByType` (serve a ordenação DESC pelo percurso inverso) |

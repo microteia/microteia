@@ -1,10 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import type { CustomFieldType, FieldDefinition } from '../../domain/entities';
-import type { EntityKey } from '../../domain/schema/entityRegistry';
 import { createSchemaContext } from '../../domain/schema/pathResolver';
-import { deriveBuiltinListRows, deriveFormFields, deriveListRows } from './deriveEntitySchema';
+import { deriveFormFields, deriveListRows } from './deriveEntitySchema';
 import { SCREEN_ICON_KEYS } from './screenIcons';
+import { MARKETPLACE_CATALOG } from '../../plugins/marketplace/catalog';
 import { pessoaPlugin } from '../../plugins/marketplace/pessoa';
+import { prazoPlugin } from '../../plugins/marketplace/prazo';
 
 const CONTROL_TYPES: CustomFieldType[] = [
   'text', 'textarea', 'number', 'currency', 'date', 'checkbox', 'select', 'masked', 'reference', 'markdown',
@@ -24,6 +25,17 @@ const pessoaCtx = createSchemaContext([{
   titlePlural: pessoaScreen.titlePlural,
   titleFieldKey: pessoaScreen.titleFieldKey,
   fields: pessoaScreen.fields.map((field) => ({ ...field, origin: 'plugin' as const })),
+}]);
+
+/** Prazo saiu do kernel junto com Pessoa — e é ele que traz relações (processo, advogado). */
+const prazoScreen = prazoPlugin.screens![0];
+const prazoCtx = createSchemaContext([{
+  id: prazoScreen.key,
+  collection: prazoScreen.dataCollection,
+  titleSingular: prazoScreen.titleSingular,
+  titlePlural: prazoScreen.titlePlural,
+  titleFieldKey: prazoScreen.titleFieldKey,
+  fields: prazoScreen.fields.map((field) => ({ ...field, origin: 'plugin' as const })),
 }]);
 
 const byKey = (fields: FieldDefinition[]): Map<string, FieldDefinition> =>
@@ -61,47 +73,42 @@ describe('deriveFormFields — a tela declarada vira FieldDefinition, como os ca
     expect(map.get('address.zipCode')?.mask).toBe('cep');
   });
 
-  it('respeita ui.form:false (status não entra no formulário)', () => {
-    expect(byKey(deriveFormFields(emptyCtx, 'deadlines')).has('status')).toBe(false);
-  });
-
   it('não deriva o FK de etiquetas como campo (quem trata é o TagManager)', () => {
     expect(map.has('tagIds')).toBe(false);
   });
 });
 
-describe('deriveFormFields — relações (fks) viram campos reference', () => {
-  const map = byKey(deriveFormFields(emptyCtx, 'deadlines'));
+describe('deriveFormFields — a relação declarada vira campo reference', () => {
+  const map = byKey(deriveFormFields(prazoCtx, 'deadlines'));
 
-  it('deriva o FK como reference apontando para a coleção alvo', () => {
+  it('a relação aponta para a coleção alvo', () => {
     expect(map.get('caseId')).toMatchObject({ type: 'reference', refEntity: 'cases', required: true });
     expect(map.get('responsibleLawyerId')).toMatchObject({ type: 'reference', refEntity: 'persons' });
   });
 
-  it('mantém campos e relações ordenados por ui.order', () => {
-    const fields = deriveFormFields(emptyCtx, 'deadlines');
+  it('mantém os campos na ordem declarada', () => {
+    const fields = deriveFormFields(prazoCtx, 'deadlines');
     const orders = fields.map((f) => f.order);
     expect(orders).toEqual([...orders].sort((a, b) => a - b));
     expect(fields.map((f) => f.key)).toEqual(
-      ['type', 'priority', 'caseId', 'dueDate', 'completedAt', 'responsibleLawyerId', 'description'],
+      ['type', 'priority', 'status', 'caseId', 'dueDate', 'completedAt', 'responsibleLawyerId', 'description'],
     );
-  });
-
-  it('campos derivados (status) e observações ficam fora do formulário', () => {
-    expect(map.has('status')).toBe(false);
-    expect(map.has('notes')).toBe(false);
   });
 });
 
-// `ui.list.icon` é string livre: um nome errado cai no ícone de fallback silenciosamente.
-describe('todo ícone declarado em ui.list existe no catálogo', () => {
-  const ENTITIES: EntityKey[] = ['deadlines'];
-
-  it.each(ENTITIES)('%s', (entity) => {
-    for (const row of deriveBuiltinListRows(entity)) {
-      expect(SCREEN_ICON_KEYS, `ícone "${row.icon}" (campo ${row.key})`).toContain(row.icon);
-    }
-  });
+// `listIcon` é string livre: um nome errado cai no ícone de fallback silenciosamente.
+describe('todo ícone de listagem declarado por uma extensão existe no catálogo', () => {
+  it.each(MARKETPLACE_CATALOG.map((plugin) => [plugin.manifest.name, plugin] as const))(
+    '%s',
+    (_name, plugin) => {
+      for (const screen of plugin.screens ?? []) {
+        for (const field of screen.fields) {
+          if (!field.listIcon) continue;
+          expect(SCREEN_ICON_KEYS, `ícone "${field.listIcon}" (campo ${field.key})`).toContain(field.listIcon);
+        }
+      }
+    },
+  );
 });
 
 describe('deriveListRows — linhas do card derivam de ui.list, ordenadas', () => {
@@ -112,12 +119,12 @@ describe('deriveListRows — linhas do card derivam de ui.list, ordenadas', () =
   });
 
   it('carrega o controle do campo, para o card formatar moeda/data', () => {
-    const rows = deriveBuiltinListRows('deadlines');
+    const rows = deriveListRows(prazoCtx, 'deadlines');
     expect(rows.find((r) => r.key === 'dueDate')?.type).toBe('date');
   });
 
   it('deriva também as relações, marcando a entidade alvo para resolver o rótulo', () => {
-    const rows = deriveBuiltinListRows('deadlines');
+    const rows = deriveListRows(prazoCtx, 'deadlines');
     expect(rows.find((r) => r.key === 'responsibleLawyerId')).toMatchObject({
       type: 'reference',
       refEntity: 'persons',
@@ -132,17 +139,12 @@ describe('deriveListRows — linhas do card derivam de ui.list, ordenadas', () =
 
 describe('deriveListRows — coleção sem entidade no registro', () => {
   it('não tem linha declarada em código: devolve vazio em vez de estourar', () => {
-    expect(deriveBuiltinListRows('medico')).toEqual([]);
+    expect(deriveListRows(emptyCtx, 'medico')).toEqual([]);
   });
 });
 
-describe('ui.filter vira filtro da listagem', () => {
-  it('os campos que o registro marca com ui.filter chegam filtráveis', () => {
-    const fields = deriveFormFields(emptyCtx, 'deadlines');
-    expect(fields.some((field) => field.filterable)).toBe(false);
-  });
-
-  it('a declaração de tela leva o mesmo sinal', () => {
+describe('a marca de filtro atravessa a derivação', () => {
+  it('a declaração de tela leva o sinal até o campo derivado', () => {
     const ctx = createSchemaContext([{
       id: 'processos', collection: 'cases', titleSingular: 'Processo', titleFieldKey: 'title',
       fields: [

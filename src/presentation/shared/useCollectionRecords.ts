@@ -99,6 +99,29 @@ export interface FinancialRecord {
   tagIds: string[];
 }
 
+/**
+ * A forma de um PRAZO como as telas ainda nativas (a agenda, o painel do escritório, os gráficos, os
+ * pushes do tribunal) precisam lê-lo. Mesmo contrato de leitura dos demais: a declaração da entidade
+ * vive na extensão que instala a tela de Prazos.
+ *
+ * `dueDate` é anulável como todo campo de data que vem da coleção: o prazo pode ter sido gravado por
+ * uma automação ou uma importação que não a preencheu, e a agenda precisa poder ignorá-lo em vez de
+ * quebrar.
+ */
+export interface DeadlineRecord {
+  id: string;
+  type: string;
+  status: string;
+  priority: string;
+  description: string;
+  caseId: string | null;
+  responsibleLawyerId: string | null;
+  dueDate: Date | null;
+  completedAt: Date | null;
+  pushIds: string[];
+  createdAt: Date | null;
+}
+
 /** A coleção dos processos. Nomeada uma vez para que a chave não se espalhe pelas telas. */
 export const CASES_COLLECTION = 'cases';
 
@@ -110,6 +133,9 @@ export const CONTRACTS_COLLECTION = 'contracts';
 
 /** A coleção dos lançamentos financeiros. Mesmo motivo. */
 export const FINANCIALS_COLLECTION = 'financials';
+
+/** A coleção dos prazos. Mesmo motivo. */
+export const DEADLINES_COLLECTION = 'deadlines';
 
 const text = (value: unknown): string => (typeof value === 'string' ? value : '');
 const list = (value: unknown): string[] => (Array.isArray(value) ? value.filter((v): v is string => typeof v === 'string') : []);
@@ -188,6 +214,29 @@ export const useContractRecords = (): ContractRecord[] => {
         tagIds: list(record.tagIds),
       }))
       .sort((a, b) => a.number.localeCompare(b.number)),
+    [records],
+  );
+};
+
+/** Os prazos na forma acima, do vencimento mais próximo ao mais distante — a ordem de uma agenda. */
+export const useDeadlineRecords = (): DeadlineRecord[] => {
+  const records = useCollectionRecords<Record<string, unknown> & { id: string }>(DEADLINES_COLLECTION);
+  return useMemo(
+    () => records
+      .map((record) => ({
+        id: record.id,
+        type: text(record.type),
+        status: text(record.status),
+        priority: text(record.priority),
+        description: text(record.description),
+        caseId: ref(record.caseId),
+        responsibleLawyerId: ref(record.responsibleLawyerId),
+        dueDate: toDateValue(record.dueDate),
+        completedAt: toDateValue(record.completedAt),
+        pushIds: list(record.pushIds),
+        createdAt: toDateValue(record.createdAt),
+      }))
+      .sort((a, b) => (a.dueDate?.getTime() ?? Infinity) - (b.dueDate?.getTime() ?? Infinity)),
     [records],
   );
 };

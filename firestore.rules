@@ -184,20 +184,6 @@ service cloud.firestore {
         allow delete: if isTenantAdmin(tenantId);
       }
 
-      // Tipos de prazo (lookup dinâmico por tenant) — qualquer membro com escrita cria; só admin deleta
-      match /deadlineTypes/{id} {
-        allow read: if isMember(tenantId);
-        allow create: if canWriteInTenant(tenantId);
-        allow delete: if isTenantAdmin(tenantId);
-      }
-
-      // Prazos
-      match /deadlines/{deadlineId} {
-        allow read: if isMember(tenantId);
-        allow create, update: if canWriteInTenant(tenantId);
-        allow delete: if isTenantLawyerOrAdmin(tenantId);
-      }
-
       // Pushes do Tribunal (notificações de email processadas)
       match /pushes/{pushId} {
         allow read: if isMember(tenantId);
@@ -317,7 +303,7 @@ service cloud.firestore {
       function isReservedCollection(name) {
         return name in [
         'actions', 'aiConnections',
-        'deadlineTypes', 'deadlines', 'documentTypes', 'documents', 'extensions',
+        'documentTypes', 'documents', 'extensions',
         'installed_extensions', 'lookupDefinitions', 'members', 'news', 'newsCategories', 'notes',
         'tagDefinitions', 'plugin_installations',
         'pushes', 'screenDefinitions', 'scripts', 'secrets', 'tags', 'workflow_definitions',

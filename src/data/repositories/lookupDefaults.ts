@@ -9,14 +9,6 @@ import type { LookupOption } from '../../domain/entities';
  * opção do tenant com a mesma chave ou o mesmo rótulo de uma fixa não aparece duas vezes.
  */
 const DECLARED: Record<string, Omit<LookupOption, 'isStatic'>[]> = {
-  deadlineTypes: [
-    { key: 'Audiência', label: 'Audiência' },
-    { key: 'Recurso', label: 'Recurso' },
-    { key: 'Contestação', label: 'Contestação' },
-    { key: 'Petição', label: 'Petição' },
-    { key: 'Pagamento', label: 'Pagamento' },
-    { key: 'Outro', label: 'Outro' },
-  ],
   documentTypes: [
     { key: 'Contrato', label: 'Contrato' },
     { key: 'Procuração', label: 'Procuração' },

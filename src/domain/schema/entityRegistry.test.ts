@@ -7,27 +7,24 @@ import {
   BUILTIN_REF_ENTITIES,
 } from '../entities/entitySchemas';
 
-const LEGACY_FK_SCHEMA = {
-  deadlines: {
-    caseId: { targetCollection: 'cases', denormalizedFields: ['caseNumber', 'title', 'area'] },
-    responsibleLawyerId: { targetCollection: 'persons', denormalizedFields: ['name', 'type', 'email'] },
-  },
-};
-
-// O que restou no kernel depois que Pessoa, Contrato, Processo e Financeiro saíram: as listas das
-// entidades que ainda são de código. As demais vivem nas extensões que as declaram.
+// O que restou no kernel depois que Pessoa, Contrato, Processo, Financeiro e Prazo saíram: as listas
+// das entidades que ainda são de código. As demais vivem nas extensões que as declaram.
 const LEGACY_LOOKUP_COLLECTIONS = [
-  'documentTypes', 'newsCategories', 'deadlineTypes',
+  'documentTypes', 'newsCategories',
 ];
 
 const LEGACY_DEFAULT_DENORM_FIELDS: Record<string, string[]> = {
-  deadlines: ['type', 'dueDate', 'priority'],
   members: ['name', 'email'],
 };
 
 describe('entityRegistry — compatibilidade com o schema legado', () => {
-  it('deriva ENTITY_FK_SCHEMA idêntico ao literal antigo', () => {
-    expect(ENTITY_FK_SCHEMA).toStrictEqual(LEGACY_FK_SCHEMA);
+  /**
+   * Nenhuma entidade do kernel tem mais relação declarada em código: as que tinham saíram para as
+   * extensões, onde a relação é um campo `reference` da tela. O esquema derivado é o vazio — e é
+   * ele que precisa continuar sendo gerado sem estourar.
+   */
+  it('sem entidade com relação no kernel, o esquema derivado é vazio', () => {
+    expect(ENTITY_FK_SCHEMA).toStrictEqual({});
   });
 
   it('mantém a convenção denormKey = key sem sufixo Id/Ids', () => {
@@ -39,10 +36,8 @@ describe('entityRegistry — compatibilidade com o schema legado', () => {
   });
 
   it('mantém os conjuntos de entidades com custom fields e referenciáveis', () => {
-    expect([...CUSTOM_FIELD_ENABLED_ENTITIES].sort()).toStrictEqual(['deadlines']);
-    expect([...BUILTIN_REF_ENTITIES].sort()).toStrictEqual(
-      ['deadlines', 'members'].sort(),
-    );
+    expect([...CUSTOM_FIELD_ENABLED_ENTITIES]).toStrictEqual([]);
+    expect([...BUILTIN_REF_ENTITIES].sort()).toStrictEqual(['members']);
   });
 
   it('mantém os prefixos de evento das coleções flat', () => {
@@ -50,7 +45,6 @@ describe('entityRegistry — compatibilidade com o schema legado', () => {
       ENTITY_REGISTRY_LIST.filter((entity) => entity.eventPrefix).map((entity) => [entity.collection, entity.eventPrefix]),
     );
     expect(prefixes).toStrictEqual({
-      deadlines: 'deadline',
       pushes: 'push',
     });
   });
@@ -70,16 +64,18 @@ describe('lookupRegistry — compatibilidade com LOOKUP_COLLECTIONS legado', () 
 
 describe('helpers do registry', () => {
   it('resolve entidade por coleção', () => {
-    expect(getEntityByCollection('deadlines')?.labelSingular).toBe('Prazo');
-    // Contrato e Financeiro saíram do kernel: quem descreve as coleções são as extensões.
+    expect(getEntityByCollection('pushes')?.labelSingular).toBe('Push');
+    // Contrato, Financeiro e Prazo saíram do kernel: quem descreve as coleções são as extensões.
     expect(getEntityByCollection('contracts')).toBeUndefined();
     expect(getEntityByCollection('financials')).toBeUndefined();
+    expect(getEntityByCollection('deadlines')).toBeUndefined();
     expect(getEntityByCollection('inexistente')).toBeUndefined();
   });
 
   it('resolve displayName pela ordem de fallback', () => {
-    const deadlines = ENTITY_REGISTRY.deadlines;
-    expect(getEntityDisplayName(deadlines, { description: 'Audiência', type: 'Audiência' })).toBe('Audiência');
-    expect(getEntityDisplayName(deadlines, {})).toBeUndefined();
+    const pushes = ENTITY_REGISTRY.pushes;
+    expect(getEntityDisplayName(pushes, { processNumber: '938333' })).toBe('938333');
+    expect(getEntityDisplayName(pushes, { subject: 'Intimação', processNumber: '938333' })).toBe('Intimação');
+    expect(getEntityDisplayName(pushes, {})).toBeUndefined();
   });
 });

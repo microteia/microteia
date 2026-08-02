@@ -2,21 +2,28 @@ import { useState, useMemo, useCallback, useEffect } from 'react';
 import { useTheme } from 'styled-components';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isToday, addMonths, subMonths } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { useDeadlineStore } from '../../../stores/useDeadlineStore';
-import { CASES_COLLECTION, useCaseRecords } from '../../shared/useCollectionRecords';
+import { CASES_COLLECTION, DEADLINES_COLLECTION, useCaseRecords, useDeadlineRecords } from '../../shared/useCollectionRecords';
+import type { DeadlineRecord } from '../../shared/useCollectionRecords';
 import { useOpenRecord } from '../../shared/useOpenRecord';
+import { useOpenScreenList } from '../../shared/useOpenScreenList';
 import { usePersonRecords } from '../../shared/useCollectionRecords';
-import { useWorkspace } from '../../../stores/useWorkspace';
-import { useAuth } from '../../../stores/useAuth';
+import { useRecords } from '../../../stores/useRecords';
 import { useNotification } from '../../../stores/useNotification';
-import type { Deadline, DeadlinePriority, DeadlineStatus } from '../../../domain/entities';
+
+/**
+ * Situação e prioridade de um prazo são LISTAS DO ESCRITÓRIO, declaradas pela extensão que traz a
+ * tela — a agenda só conhece os quatro nomes que precisa colorir e ordenar, e trata qualquer outro
+ * como o caso neutro. Foi o que substituiu as uniões fechadas `DeadlineStatus`/`DeadlinePriority`.
+ */
+type DeadlinePriority = 'Baixa' | 'Média' | 'Alta' | 'Crítica';
+type DeadlineStatus = 'Pendente' | 'Concluído' | 'Vencido' | 'Cancelado';
 
 export interface DayDeadlineItem {
-  deadline: Deadline;
+  deadline: DeadlineRecord;
   color: string;
   isOverdue: boolean;
   isCompleted: boolean;
-  caseId: string;
+  caseId: string | null;
   statusColor: string;
   caseExists: boolean;
   caseNumber: string | null;
@@ -55,7 +62,7 @@ export interface CalendarViewModel {
   openDeadlines: () => void;
   handleCompleteDeadline: (deadlineId: string) => Promise<void>;
   handleOpenDeadline: (deadlineId: string) => void;
-  handleOpenCase: (caseId: string) => void;
+  handleOpenCase: (caseId: string | null) => void;
   getStatusColor: (status: string) => string;
   getPriorityColor: (priority: string) => string;
 
@@ -70,19 +77,19 @@ export interface CalendarViewModel {
 
 const PRIORITIES: DeadlinePriority[] = ['Baixa', 'Média', 'Alta', 'Crítica'];
 
-const getDisplayDate = (d: Deadline): Date =>
+const getDisplayDate = (d: DeadlineRecord): Date | null =>
   d.status === 'Concluído' && d.completedAt ? d.completedAt : d.dueDate;
 
 const atDayTime = (date: Date, hours: number, minutes: number): Date =>
   new Date(date.getFullYear(), date.getMonth(), date.getDate(), hours, minutes, 0);
 
 export const useCalendarViewModel = (): CalendarViewModel => {
-  const { deadlines, completeDeadline, updateDeadline } = useDeadlineStore();
+  const deadlines = useDeadlineRecords();
+  const { updateRecord } = useRecords();
   const cases = useCaseRecords();
   const openRecord = useOpenRecord();
+  const openScreenList = useOpenScreenList();
   const persons = usePersonRecords();
-  const { openTab } = useWorkspace();
-  const { user } = useAuth();
   const { notify } = useNotification();
   const theme = useTheme();
 
@@ -145,9 +152,12 @@ export const useCalendarViewModel = (): CalendarViewModel => {
     return days.map((date) => {
       const dateKey = format(date, 'yyyy-MM-dd');
       const items: DayDeadlineItem[] = filteredDeadlines
-        .filter((d) => format(getDisplayDate(d), 'yyyy-MM-dd') === dateKey)
+        .filter((d) => {
+          const displayDate = getDisplayDate(d);
+          return !!displayDate && format(displayDate, 'yyyy-MM-dd') === dateKey;
+        })
         .sort((a, b) => {
-          const pri: DeadlinePriority[] = ['Crítica', 'Alta', 'Média', 'Baixa'];
+          const pri: string[] = ['Crítica', 'Alta', 'Média', 'Baixa'];
           return pri.indexOf(a.priority) - pri.indexOf(b.priority);
         })
         .map((d) => {
@@ -156,7 +166,7 @@ export const useCalendarViewModel = (): CalendarViewModel => {
           return {
             deadline: d,
             color: getPriorityColor(d.priority),
-            isOverdue: d.status === 'Pendente' && d.dueDate.getTime() < now.getTime() && !isToday(d.dueDate),
+            isOverdue: d.status === 'Pendente' && !!d.dueDate && d.dueDate.getTime() < now.getTime() && !isToday(d.dueDate),
             isCompleted: d.status === 'Concluído',
             caseId: d.caseId,
             statusColor: getStatusColor(d.status),
@@ -180,14 +190,14 @@ export const useCalendarViewModel = (): CalendarViewModel => {
   const stats = useMemo<CalendarStats>(() => {
     const monthKey = currentMonth.toISOString().slice(0, 7);
     const monthDeadlines = filteredDeadlines.filter(
-      (d) => d.dueDate.toISOString().slice(0, 7) === monthKey,
+      (d) => d.dueDate?.toISOString().slice(0, 7) === monthKey,
     );
     const now = new Date();
     return {
       total: monthDeadlines.length,
-      pending: monthDeadlines.filter((d) => d.status === 'Pendente' && d.dueDate >= now).length,
+      pending: monthDeadlines.filter((d) => d.status === 'Pendente' && !!d.dueDate && d.dueDate >= now).length,
       completed: monthDeadlines.filter((d) => d.status === 'Concluído').length,
-      overdue: monthDeadlines.filter((d) => d.status === 'Pendente' && d.dueDate < now).length,
+      overdue: monthDeadlines.filter((d) => d.status === 'Pendente' && !!d.dueDate && d.dueDate < now).length,
     };
   }, [filteredDeadlines, currentMonth]);
 
@@ -206,24 +216,23 @@ export const useCalendarViewModel = (): CalendarViewModel => {
   const goToPrevMonth = useCallback(() => setCurrentMonth((m) => subMonths(m, 1)), []);
   const goToNextMonth = useCallback(() => setCurrentMonth((m) => addMonths(m, 1)), []);
   const goToToday    = useCallback(() => setCurrentMonth(startOfMonth(new Date())), []);
-  const openDeadlines = useCallback(() => openTab('deadlines'), [openTab]);
+  const openDeadlines = useCallback(() => openScreenList(DEADLINES_COLLECTION), [openScreenList]);
 
   const handleCompleteDeadline = useCallback(async (deadlineId: string) => {
-    if (!user) return;
     try {
-      await completeDeadline(deadlineId, user.id);
+      await updateRecord(DEADLINES_COLLECTION, deadlineId, { status: 'Concluído', completedAt: new Date() });
       notify('Prazo marcado como concluído.', 'success');
     } catch {
       notify('Erro ao concluir prazo.', 'error');
     }
-  }, [completeDeadline, user, notify]);
+  }, [updateRecord, notify]);
 
   const handleOpenDeadline = useCallback((deadlineId: string) => {
-    openTab(`view-deadline:${deadlineId}`);
-  }, [openTab]);
+    openRecord(DEADLINES_COLLECTION, deadlineId);
+  }, [openRecord]);
 
-  const handleOpenCase = useCallback((caseId: string) => {
-    openRecord(CASES_COLLECTION, caseId);
+  const handleOpenCase = useCallback((caseId: string | null) => {
+    if (caseId) openRecord(CASES_COLLECTION, caseId);
   }, [openRecord]);
 
   const handleDragStart = useCallback((deadlineId: string) => {
@@ -249,22 +258,23 @@ export const useCalendarViewModel = (): CalendarViewModel => {
     if (!deadlineId) return;
 
     const deadline = deadlines.find((d) => d.id === deadlineId);
-    if (!deadline || format(getDisplayDate(deadline), 'yyyy-MM-dd') === format(date, 'yyyy-MM-dd')) return;
+    const displayDate = deadline ? getDisplayDate(deadline) : null;
+    if (!deadline || (displayDate && format(displayDate, 'yyyy-MM-dd') === format(date, 'yyyy-MM-dd'))) return;
 
     try {
       if (deadline.status === 'Concluído') {
-        await updateDeadline(deadlineId, { completedAt: atDayTime(date, 12, 0) });
+        await updateRecord(DEADLINES_COLLECTION, deadlineId, { completedAt: atDayTime(date, 12, 0) });
       } else if (deadline.status === 'Cancelado') {
-        await updateDeadline(deadlineId, { dueDate: atDayTime(date, 23, 59) });
+        await updateRecord(DEADLINES_COLLECTION, deadlineId, { dueDate: atDayTime(date, 23, 59) });
       } else {
         const dueDate = atDayTime(date, 23, 59);
         const status: DeadlineStatus = dueDate.getTime() < Date.now() ? 'Vencido' : 'Pendente';
-        await updateDeadline(deadlineId, { dueDate, status });
+        await updateRecord(DEADLINES_COLLECTION, deadlineId, { dueDate, status });
       }
     } catch {
       notify('Erro ao mover o prazo.', 'error');
     }
-  }, [deadlines, updateDeadline, notify]);
+  }, [deadlines, updateRecord, notify]);
 
   return {
     currentMonth,

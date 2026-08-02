@@ -1,4 +1,3 @@
-import type { IDeadlineRepository } from '../../domain/repositories/IDeadlineRepository';
 import type { IWorkflowQueryRepository } from '../../domain/repositories/IWorkflowQueryRepository';
 import type { IWorkflowRecordFetcher } from '../../domain/repositories/IWorkflowRecordFetcher';
 import type { IWorkflowMutationRepository } from '../../domain/repositories/IWorkflowMutationRepository';
@@ -13,7 +12,6 @@ import type { RunCalledWorkflowUseCase } from '../../domain/usecases/RunCalledWo
  * ciclo (loader importa manifest, manifest importaria loader).
  */
 export interface RegisterStepsDeps {
-  deadlineRepository: IDeadlineRepository;
   createAuditLogUseCase: CreateAuditLogUseCase;
   workflowQueryRepository: IWorkflowQueryRepository;
   workflowRecordFetcher: IWorkflowRecordFetcher;

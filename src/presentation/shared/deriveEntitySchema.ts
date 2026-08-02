@@ -1,6 +1,6 @@
 import type { EntityKey, FkSpec, NativeFieldSpec } from '../../domain/schema/entityRegistry';
 import type { SchemaContext } from '../../domain/schema/pathResolver';
-import { createSchemaContext, nativeSpecToFieldDefinition, resolveEntity } from '../../domain/schema/screenEntity';
+import { nativeSpecToFieldDefinition, resolveEntity } from '../../domain/schema/screenEntity';
 import type { CustomFieldType, FieldDefinition } from '../../domain/entities';
 
 /**
@@ -151,7 +151,3 @@ export const deriveListRows = (ctx: SchemaContext, collection: EntityKey): Deriv
     .sort((a, b) => a.order - b.order)
     .map(({ key, icon, type, refEntity }) => ({ key, icon, type, refEntity }));
 };
-
-/** Atalho para as telas fixas, que leem o layout direto do código, sem o contexto do tenant. */
-export const deriveBuiltinListRows = (entityKey: EntityKey): DerivedListRow[] =>
-  deriveListRows(createSchemaContext(), entityKey);

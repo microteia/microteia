@@ -69,27 +69,32 @@ const tenantCtx = createSchemaContext([
 
 describe('eventCatalog — derivação do registry', () => {
   it('mantém os eventos das entidades com rótulos PT-BR', () => {
-    expect(entry('deadline.saved')?.label).toBe('Ao salvar: Prazo');
-    expect(entry('deadline.deleted')?.label).toBe('Ao excluir: Prazo');
+    expect(entry('push.saved')?.label).toBe('Ao salvar: Push');
+    expect(entry('push.deleted')?.label).toBe('Ao excluir: Push');
     expect(entry('lookup.saved')?.label).toBe('Ao salvar: Item de Lista');
-    // Processo, Pessoa, Contrato e Financeiro saíram do kernel: os eventos deles só existem no
-    // catálogo do escritório que instalou as extensões.
+    // Processo, Pessoa, Contrato, Financeiro e Prazo saíram do kernel: os eventos deles só existem
+    // no catálogo do escritório que instalou as extensões.
     expect(entry('case.saved')).toBeUndefined();
     expect(entry('person.saved')).toBeUndefined();
     expect(entry('contract.saved')).toBeUndefined();
     expect(entry('financial.saved')).toBeUndefined();
+    expect(entry('deadline.saved')).toBeUndefined();
   });
 
-  it('deriva os caminhos denormalizados das FKs (fim do hardcode)', () => {
-    expect(paths('deadline.saved')).toEqual(expect.arrayContaining(['case.caseNumber', 'case.title', 'case.area']));
-    // O RÓTULO do campo apontado sai do registro; com Pessoa fora dele, resta a chave crua. O
-    // caminho continua resolvendo — é ele que a automação usa.
-    expect(paths('deadline.saved')).toEqual(expect.arrayContaining(['responsibleLawyer.name', 'responsibleLawyerId']));
+  /**
+   * Os caminhos denormalizados (`case.caseNumber`) eram derivados das `fks` do REGISTRO, e saíram
+   * junto com a última entidade que as tinha. Numa tela declarada, o evento oferece o campo de
+   * relação — o ID —, e o registro apontado é resolvido na hora em que a expressão o pede
+   * (`WorkflowContextHydrator`), não listado de antemão.
+   */
+  it('a relação declarada pela tela chega ao evento pelo campo de id', () => {
+    const fields = getWorkflowEventFields('case.saved', tenantCtx).map((f) => f.path);
+    expect(fields).toContain('contractId');
   });
 
   it('inclui old apenas em eventos saved', () => {
-    expect(paths('deadline.saved')).toContain('old');
-    expect(paths('deadline.deleted')).not.toContain('old');
+    expect(paths('push.saved')).toContain('old');
+    expect(paths('push.deleted')).not.toContain('old');
   });
 
   /**
@@ -105,10 +110,13 @@ describe('eventCatalog — derivação do registry', () => {
     expect(entry('news.saved')).toBeUndefined();
   });
 
-  it('gera eventos de nota/documento com pai denormalizado do registry', () => {
-    expect(paths('deadline_note.saved')).toEqual(expect.arrayContaining(['content', 'parent.id', 'parent.type']));
-    // Documento de entidade fixa não existe mais: a última que os tinha (Financeiro) saiu do kernel.
-    expect(entry('deadline_document.saved')).toBeUndefined();
+  /**
+   * Nota e documento de entidade FIXA não existem mais: a última que os tinha (Prazo) saiu do
+   * kernel. As anotações de um registro seguem existindo — só que a tela que as declara é de
+   * extensão, e o evento nasce do `eventPrefix` dela.
+   */
+  it('não há mais nota nem documento de entidade fixa no catálogo do kernel', () => {
+    expect(WORKFLOW_EVENT_CATALOG.filter((e) => /_note\.|_document\./.test(e.name))).toEqual([]);
   });
 });
 
@@ -130,7 +138,7 @@ describe('getWorkflowEventFields', () => {
 describe('buildWorkflowEventCatalog', () => {
   it('acrescenta um par de eventos por tela do tenant, sem duplicar as fixas', () => {
     const names = buildWorkflowEventCatalog(tenantCtx).map((e) => e.name);
-    expect(names).toEqual(expect.arrayContaining(['deadline.saved', 'medico.saved', 'medico.deleted']));
+    expect(names).toEqual(expect.arrayContaining(['push.saved', 'medico.saved', 'medico.deleted']));
     expect(names.filter((n) => n === 'person.saved')).toHaveLength(1);
     expect(names.filter((n) => n === 'contract.saved')).toHaveLength(1);
     expect(names.filter((n) => n === 'case.saved')).toHaveLength(1);
@@ -175,7 +183,7 @@ describe('splitEntityEventName', () => {
   });
 
   it('não são eventos de coleção: filhos das fixas, listas e chamada de workflow', () => {
-    expect(splitEntityEventName('deadline_note.saved')).toBeNull();
+    expect(splitEntityEventName('push_note.saved')).toBeNull();
     expect(splitEntityEventName('lookup.saved')).toBeNull();
     expect(splitEntityEventName('workflow.called')).toBeNull();
   });
@@ -190,15 +198,17 @@ describe('splitEntityEventName', () => {
       action: 'saved',
     });
     expect(splitEntityEventName('medico_note.saved')).toMatchObject({ prefix: 'medico_note' });
-    // `person` deixou de ser prefixo do registro, então `person_note` volta a ser nome de coleção.
+    // `person` e `deadline` deixaram de ser prefixos do registro, então `person_note` e
+    // `deadline_note` voltam a ser nomes de coleção.
     expect(splitEntityEventName('person_note.saved')).toMatchObject({ prefix: 'person_note' });
+    expect(splitEntityEventName('deadline_note.saved')).toMatchObject({ prefix: 'deadline_note' });
   });
 });
 
 describe('eventNameToRoot / eventNameToEntityKey', () => {
   it('resolve raiz de entidade com hasOld por ação', () => {
-    expect(eventNameToRoot('deadline.saved')).toMatchObject({ kind: 'entity', entityKey: 'deadlines', hasOld: true });
-    expect(eventNameToRoot('deadline.deleted')).toMatchObject({ hasOld: false });
+    expect(eventNameToRoot('push.saved')).toMatchObject({ kind: 'entity', entityKey: 'pushes', hasOld: true });
+    expect(eventNameToRoot('push.deleted')).toMatchObject({ hasOld: false });
   });
 
   /**
@@ -224,7 +234,7 @@ describe('eventNameToRoot / eventNameToEntityKey', () => {
 
   it('resolve raiz de campos para eventos de sistema e lookup', () => {
     expect(eventNameToRoot('lookup.saved')?.kind).toBe('fields');
-    expect(eventNameToRoot('deadline_note.saved')?.kind).toBe('fields');
+    expect(eventNameToRoot('push_note.saved')).toBeNull();
     expect(eventNameToRoot('desconhecido.saved', tenantCtx)).toBeNull();
   });
 

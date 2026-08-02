@@ -1,15 +1,19 @@
 import { useMemo, useState } from 'react';
 import { useTheme } from 'styled-components';
-import { useDeadlineStore } from '../../../stores/useDeadlineStore';
-import { CASES_COLLECTION, useCaseRecords, type CaseRecord } from '../../shared/useCollectionRecords';
+import { CASES_COLLECTION, PERSONS_COLLECTION, useCaseRecords, type CaseRecord } from '../../shared/useCollectionRecords';
 import { useOpenRecord } from '../../shared/useOpenRecord';
-import { FINANCIALS_COLLECTION, useFinancialRecords } from '../../shared/useCollectionRecords';
+import { DEADLINES_COLLECTION, FINANCIALS_COLLECTION, useDeadlineRecords, useFinancialRecords } from '../../shared/useCollectionRecords';
+import type { DeadlineRecord } from '../../shared/useCollectionRecords';
 import { useOpenScreenList } from '../../shared/useOpenScreenList';
 import { usePersonRecords } from '../../shared/useCollectionRecords';
 import { useWorkspace } from '../../../stores/useWorkspace';
+import { useRecords } from '../../../stores/useRecords';
 import { setNavigationIntent } from '../../../infrastructure/navigation/navigationIntent';
-import type { Deadline, DeadlinePriority } from '../../../domain/entities';
+import { FILTER_RANGE_TO_SUFFIX } from '../../hooks/useCustomFieldListing';
 import type { FilterToken } from '../../components/ui/CompositeFilter';
+
+/** As quatro prioridades que o painel colore. Ver a nota em `Calendar.viewmodel`. */
+type DeadlinePriority = 'Baixa' | 'Média' | 'Alta' | 'Crítica';
 
 export interface KPIStat {
   label: string;
@@ -19,7 +23,7 @@ export interface KPIStat {
 }
 
 export interface UpcomingDeadline {
-  deadline: Deadline;
+  deadline: DeadlineRecord;
   daysLeft: number;
   isToday: boolean;
   isTomorrow: boolean;
@@ -29,7 +33,7 @@ export interface UpcomingDeadline {
 }
 
 export interface OverdueDeadline {
-  deadline: Deadline;
+  deadline: DeadlineRecord;
   daysOverdue: number;
   priorityColor: string;
   caseNumberDisplay: string;
@@ -43,7 +47,7 @@ export interface DashboardViewModel {
   upcomingDeadlines: UpcomingDeadline[];
   overdueDeadlines: OverdueDeadline[];
   recentCases: CaseRecord[];
-  allDeadlines: Deadline[];
+  allDeadlines: DeadlineRecord[];
   pendingIncome: number;
   pendingExpense: number;
   financialPeriodDays: FinancialPeriodDays;
@@ -55,9 +59,9 @@ export interface DashboardViewModel {
   openDeadlinesOverdue: () => void;
   openFinancials: () => void;
   openFinancialDashboard: () => void;
-  openCase: (caseId: string) => void;
-  openDeadline: (deadline: Deadline) => void;
-  getPriorityColor: (priority: DeadlinePriority) => string;
+  openCase: (caseId: string | null) => void;
+  openDeadline: (deadline: DeadlineRecord) => void;
+  getPriorityColor: (priority: string) => string;
 }
 
 const fmt = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -72,7 +76,8 @@ const toISODate = (d: Date): string => {
 };
 
 export const useDashboardViewModel = (): DashboardViewModel => {
-  const { deadlines, isLoading: loadingDeadlines } = useDeadlineStore();
+  const deadlines = useDeadlineRecords();
+  const { isLoading } = useRecords();
   const cases = useCaseRecords();
   const openRecord = useOpenRecord();
   const financials = useFinancialRecords();
@@ -90,8 +95,6 @@ export const useDashboardViewModel = (): DashboardViewModel => {
     'Crítica': theme.colors.danger,
   }), [theme]);
 
-  const isLoading = loadingDeadlines;
-
   const todayStart = useMemo(() => {
     const now = new Date();
     return new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -108,15 +111,15 @@ export const useDashboardViewModel = (): DashboardViewModel => {
 
   const overdueDeadlines = useMemo<OverdueDeadline[]>(() =>
     deadlines
-      .filter((d) =>
+      .filter((d) => !!d.dueDate && (
         d.status === 'Vencido' ||
-        (d.status === 'Pendente' && d.dueDate.getTime() < todayStart.getTime()),
-      )
-      .sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime())
+        (d.status === 'Pendente' && d.dueDate.getTime() < todayStart.getTime())
+      ))
+      .sort((a, b) => (a.dueDate?.getTime() ?? 0) - (b.dueDate?.getTime() ?? 0))
       .map((d) => ({
         deadline: d,
-        daysOverdue: Math.floor((todayStart.getTime() - d.dueDate.getTime()) / msInDay),
-        priorityColor: priorityColorMap[d.priority] ?? theme.colors.textSecondary,
+        daysOverdue: Math.floor((todayStart.getTime() - (d.dueDate?.getTime() ?? 0)) / msInDay),
+        priorityColor: priorityColorMap[d.priority as DeadlinePriority] ?? theme.colors.textSecondary,
         caseNumberDisplay: cases.find((c) => c.id === d.caseId)?.caseNumber ?? '—',
       })),
     [deadlines, todayStart, priorityColorMap, theme, cases],
@@ -125,17 +128,17 @@ export const useDashboardViewModel = (): DashboardViewModel => {
   const upcomingDeadlines = useMemo<UpcomingDeadline[]>(() => {
     const cutoff = todayStart.getTime() + sevenDaysMs;
     return pendingDeadlines
-      .filter((d) => d.dueDate.getTime() >= todayStart.getTime() && d.dueDate.getTime() <= cutoff)
-      .sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime())
+      .filter((d) => !!d.dueDate && d.dueDate.getTime() >= todayStart.getTime() && d.dueDate.getTime() <= cutoff)
+      .sort((a, b) => (a.dueDate?.getTime() ?? 0) - (b.dueDate?.getTime() ?? 0))
       .map((d) => {
-        const daysDiff = Math.floor((d.dueDate.getTime() - todayStart.getTime()) / msInDay);
+        const daysDiff = Math.floor(((d.dueDate?.getTime() ?? 0) - todayStart.getTime()) / msInDay);
         return {
           deadline: d,
           daysLeft: daysDiff,
           isToday: daysDiff === 0,
           isTomorrow: daysDiff === 1,
           isOverdue: false,
-          priorityColor: priorityColorMap[d.priority] ?? theme.colors.textSecondary,
+          priorityColor: priorityColorMap[d.priority as DeadlinePriority] ?? theme.colors.textSecondary,
           caseNumberDisplay: cases.find((c) => c.id === d.caseId)?.caseNumber ?? '—',
         };
       });
@@ -169,37 +172,30 @@ export const useDashboardViewModel = (): DashboardViewModel => {
   );
 
   const kpis = useMemo<KPIStat[]>(() => [
-    { label: 'Processos Ativos',    value: activeCases.length,       color: theme.colors.kpiCases,             onClick: () => openTab('cases')     },
-    { label: 'Pessoas Ativas',      value: activePersons.length,     color: theme.colors.kpiPersons,           onClick: () => openTab('persons')   },
-    { label: 'Prazos Pendentes',    value: pendingDeadlines.length,  color: theme.colors.kpiDeadlinesPending,  onClick: () => openTab('deadlines') },
-    { label: 'Prazos Vencidos',     value: overdueDeadlines.length,  color: theme.colors.kpiDeadlinesOverdue,  onClick: () => openTab('deadlines') },
-  ], [activeCases.length, activePersons.length, pendingDeadlines.length, overdueDeadlines.length, openTab, theme]);
+    { label: 'Processos Ativos',    value: activeCases.length,       color: theme.colors.kpiCases,             onClick: () => openScreenList(CASES_COLLECTION)   },
+    { label: 'Pessoas Ativas',      value: activePersons.length,     color: theme.colors.kpiPersons,           onClick: () => openScreenList(PERSONS_COLLECTION) },
+    { label: 'Prazos Pendentes',    value: pendingDeadlines.length,  color: theme.colors.kpiDeadlinesPending,  onClick: () => openScreenList(DEADLINES_COLLECTION) },
+    { label: 'Prazos Vencidos',     value: overdueDeadlines.length,  color: theme.colors.kpiDeadlinesOverdue,  onClick: () => openScreenList(DEADLINES_COLLECTION) },
+  ], [activeCases.length, activePersons.length, pendingDeadlines.length, overdueDeadlines.length, openScreenList, theme]);
 
-  const openCases = () => openTab('cases');
-  const openCasesActive = () => {
-    setNavigationIntent('cases', [{ key: 'status', values: ['Em Andamento'] }]);
-    openTab('cases');
-  };
-  const openDeadlines = () => openTab('deadlines');
-  const openDeadlinesOverdue = () => {
-    setNavigationIntent('deadlines', [{ key: 'status', values: ['Vencido'] }]);
-    openTab('deadlines');
-  };
+  const openCases = () => openScreenList(CASES_COLLECTION);
+  const openCasesActive = () =>
+    openScreenList(CASES_COLLECTION, [{ key: 'status', values: ['Em Andamento'] }]);
+  const openDeadlines = () => openScreenList(DEADLINES_COLLECTION);
+  const openDeadlinesOverdue = () =>
+    openScreenList(DEADLINES_COLLECTION, [{ key: 'status', values: ['Vencido'] }]);
   const financialOpenFilterTokens = (): FilterToken[] => [
     { key: 'status', values: ['Aberto'] },
-    { key: 'dueDateTo', values: [toISODate(financialCutoffDay)] },
+    { key: `dueDate${FILTER_RANGE_TO_SUFFIX}`, values: [toISODate(financialCutoffDay)] },
   ];
-  const openFinancials = () => {
-    setNavigationIntent('financials', financialOpenFilterTokens());
-    openScreenList(FINANCIALS_COLLECTION);
-  };
+  const openFinancials = () => openScreenList(FINANCIALS_COLLECTION, financialOpenFilterTokens());
   const openFinancialDashboard = () => {
     setNavigationIntent('financial-dashboard', financialOpenFilterTokens());
     openTab('financial-dashboard');
   };
-  const openCase = (caseId: string) => openRecord(CASES_COLLECTION, caseId);
-  const openDeadline = (deadline: Deadline) => openTab(`view-deadline:${deadline.id}`);
-  const getPriorityColor = (priority: DeadlinePriority) => priorityColorMap[priority] ?? theme.colors.textSecondary;
+  const openCase = (caseId: string | null) => { if (caseId) openRecord(CASES_COLLECTION, caseId); };
+  const openDeadline = (deadline: DeadlineRecord) => openRecord(DEADLINES_COLLECTION, deadline.id);
+  const getPriorityColor = (priority: string) => priorityColorMap[priority as DeadlinePriority] ?? theme.colors.textSecondary;
   const formatAmount = (v: number) => fmt.format(v);
 
   return {

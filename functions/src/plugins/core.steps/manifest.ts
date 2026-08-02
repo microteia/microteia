@@ -4,7 +4,6 @@ import type { StepFactory } from '../workflowExtensionPoints';
 import { workflowStep } from '../workflowExtensionPoints';
 import { makeCallWorkflowStepDefinition } from '../../infrastructure/workflow/steps/CallWorkflowStep';
 import { makeScriptStepDefinition } from '../../infrastructure/workflow/steps/ScriptStep';
-import { makeCreateDeadlineStepDefinition } from '../../infrastructure/workflow/steps/CreateDeadlineStep';
 import { makeNotifyStepDefinition } from '../../infrastructure/workflow/steps/NotifyStep';
 import { makeExitStepDefinition } from '../../infrastructure/workflow/steps/ExitStep';
 import { makeMapStepDefinition } from '../../infrastructure/workflow/steps/MapStep';
@@ -16,7 +15,6 @@ import { makeRegisterAuditStepDefinition } from '../../infrastructure/workflow/s
 import { makeSetVariableStepDefinition } from '../../infrastructure/workflow/steps/SetVariableStep';
 
 const factories: Record<string, StepFactory> = {
-  CreateDeadline: (deps) => makeCreateDeadlineStepDefinition(deps.deadlineRepository),
   Notify: (deps) => makeNotifyStepDefinition(deps.createAuditLogUseCase),
   RegisterAudit: (deps) => makeRegisterAuditStepDefinition(deps.createAuditLogUseCase),
   SetVariable: () => makeSetVariableStepDefinition(),
@@ -46,7 +44,6 @@ export const coreStepsPlugin: PluginRecord = {
     name: 'Passos Padrão',
     dependencies: { 'core.workflow': '^1.0.0' },
     contributes: [
-      workflowStep({ stepDefinitionId: 'create-deadline', name: 'Criar Prazo', category: 'Action' }, 'CreateDeadline'),
       workflowStep({ stepDefinitionId: 'notify', name: 'Notificar', category: 'Notification' }, 'Notify'),
       workflowStep({ stepDefinitionId: 'register-audit', name: 'Registrar Auditoria', category: 'Action' }, 'RegisterAudit'),
       workflowStep({ stepDefinitionId: 'set-variable', name: 'Definir Variável', category: 'Action' }, 'SetVariable'),

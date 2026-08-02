@@ -19,7 +19,6 @@ const ENTITY_EVENT_ICONS: Record<string, IconType> = {
 };
 
 const LOOKUP_GROUP_ICONS: Record<WorkflowLookupGroup, IconType> = {
-  deadline: RiTimeLine,
   document: RiFileCopyLine,
   news: RiNewspaperLine,
 };

@@ -33,20 +33,6 @@
       ]
     },
     {
-      "collectionGroup": "deadlines",
-      "queryScope": "COLLECTION",
-      "fields": [
-        {
-          "fieldPath": "caseId",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "dueDate",
-          "order": "ASCENDING"
-        }
-      ]
-    },
-    {
       "collectionGroup": "financials",
       "queryScope": "COLLECTION",
       "fields": [

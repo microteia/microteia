@@ -1,18 +1,15 @@
 // @vitest-environment jsdom
 import { act, renderHook } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { FieldDefinition, ScreenDefinition } from '../../../domain/entities';
+import type { ScreenDefinition } from '../../../domain/entities';
 import { createSchemaContext } from '../../../domain/schema/pathResolver';
 import { ENTITY_REGISTRY_LIST } from '../../../domain/schema/entityRegistry';
 
 /**
- * O campo do kernel (`origin: 'builtin'`) segue o MESMO caminho de gravação dos demais: a primeira
- * edição materializa a declaração inteira em `fields[]`, e a partir daí o documento é a verdade.
- * O que ele não aceita é ser excluído.
- *
- * Também é a regressão da ordem das validações em `handleSaveField`: um campo fixo do tipo seleção
- * (opções vindas de um lookup, sem `staticOptions`) não pode ser recusado com "Adicione ao menos
- * uma opção".
+ * O que o Form Design oferece como TELA sai do registro e das telas do escritório — nunca de uma
+ * lista escrita à mão. Prazo foi a última entidade do kernel a aceitar campos adicionais; com a
+ * saída dela, nenhuma linha de "tela do sistema" resta, e toda tela ajustável é a de uma extensão
+ * ou a do próprio escritório.
  */
 
 const saveDefinition = vi.fn(async () => ({}) as ScreenDefinition);
@@ -63,177 +60,10 @@ vi.mock('../../../stores/useScreenDefinitions', () => ({
 
 const { useScreenBuilderViewModel } = await import('./ScreenBuilder.viewmodel');
 
-const builtinDefinition = (overrides: Partial<ScreenDefinition> = {}): ScreenDefinition =>
-  ({
-    id: 'deadlines',
-    tenantId: 't1',
-    origin: 'builtin',
-    titleSingular: 'Prazo',
-    titlePlural: 'Prazos',
-    icon: 'calendar',
-    fields: [],
-    titleFieldKey: '',
-    hasNotes: false,
-    hasDocuments: false,
-    hasTags: false,
-    listActions: [],
-    viewActionIds: [],
-    cardActionIds: [],
-    sidebarOrder: 0,
-    enabled: true,
-    createdAt: new Date(),
-    createdBy: 'u1',
-    updatedAt: new Date(),
-    ...overrides,
-  }) as ScreenDefinition;
-
-const savedFields = (call = 0): FieldDefinition[] => {
-  const [, payload] = saveDefinition.mock.calls[call] as unknown as [string, ScreenDefinition];
-  return payload.fields;
-};
-
-const savedField = (key: string, call = 0): FieldDefinition | undefined =>
-  savedFields(call).find((field) => field.key === key);
-
 beforeEach(() => {
   saveDefinition.mockClear();
   notify.mockClear();
-  storeState.definition = builtinDefinition();
-});
-
-describe('ScreenBuilder — ajuste de campo do sistema', () => {
-  it('campo do sistema salva mesmo quando o estado tripa uma validação de opções', async () => {
-    const { result } = renderHook(() => useScreenBuilderViewModel());
-
-    act(() => result.current.openEditField('deadlines', 'type'));
-    expect(result.current.fieldModalIsNative).toBe(true);
-
-    // Campo fixo do tipo seleção cujas opções vêm de um lookup — sem `staticOptions` e sem permitir
-    // criação pelo usuário. Nenhum campo nativo está nessa combinação HOJE, mas um assim não pode
-    // ficar impossível de ajustar quando for declarado no registry.
-    act(() => result.current.updateFieldForm({
-      label: 'Categoria',
-      type: 'select',
-      staticOptions: [],
-      optionsAllowUserAdd: false,
-    }));
-    await act(async () => { await result.current.handleSaveField(); });
-
-    expect(notify).not.toHaveBeenCalledWith(
-      expect.stringContaining('Adicione ao menos uma opção'),
-      'error',
-    );
-    expect(saveDefinition).toHaveBeenCalledTimes(1);
-
-    const [screenKey] = saveDefinition.mock.calls[0] as unknown as [string, ScreenDefinition];
-    expect(screenKey).toBe('deadlines');
-    expect(savedField('type')).toMatchObject({ label: 'Categoria', origin: 'builtin' });
-  });
-
-  it('materializa a declaração INTEIRA do campo do kernel na primeira edição', async () => {
-    const { result } = renderHook(() => useScreenBuilderViewModel());
-
-    act(() => result.current.openEditField('deadlines', 'dueDate'));
-    act(() => result.current.updateFieldForm({
-      logicOnChange: 'object("apelido", name)',
-      logicHiddenWhen: "type == 'PJ'",
-    }));
-    await act(async () => { await result.current.handleSaveField(); });
-
-    expect(savedField('dueDate')).toMatchObject({
-      key: 'dueDate',
-      label: 'Data de vencimento',
-      origin: 'builtin',
-      required: true,
-      logic: { hiddenWhen: "type == 'PJ'", onChange: 'object("apelido", name)' },
-    });
-  });
-
-  it('grava regra e validação do campo do kernel — o backend lê a mesma lista', async () => {
-    const { result } = renderHook(() => useScreenBuilderViewModel());
-
-    act(() => result.current.openEditField('deadlines', 'description'));
-    act(() => result.current.updateFieldForm({ logicValidate: "if(isEmpty(value), 'Obrigatório', null)" }));
-    await act(async () => { await result.current.handleSaveField(); });
-
-    expect(savedField('description')?.logic?.validate).toBe("if(isEmpty(value), 'Obrigatório', null)");
-  });
-
-  it('preserva os ajustes dos outros campos ao salvar um', async () => {
-    storeState.definition = builtinDefinition({
-      fields: [{ key: 'notes', label: 'Observações do lançamento', type: 'text', required: false, order: 2, origin: 'builtin' }],
-    });
-
-    const { result } = renderHook(() => useScreenBuilderViewModel());
-    act(() => result.current.openEditField('deadlines', 'dueDate'));
-    act(() => result.current.updateFieldForm({ label: 'Vencimento do prazo' }));
-    await act(async () => { await result.current.handleSaveField(); });
-
-    expect(savedField('notes')?.label).toBe('Observações do lançamento');
-    expect(savedField('dueDate')?.label).toBe('Vencimento do prazo');
-  });
-
-  it('restaurar padrão remove só a entrada daquele campo', async () => {
-    storeState.definition = builtinDefinition({
-      fields: [
-        { key: 'dueDate', label: 'X', type: 'text', required: true, order: 1, origin: 'builtin' },
-        { key: 'notes', label: 'Observações do lançamento', type: 'text', required: false, order: 2, origin: 'builtin' },
-      ],
-    });
-
-    const { result } = renderHook(() => useScreenBuilderViewModel());
-    await act(async () => { await result.current.restoreNativeField('deadlines', 'dueDate'); });
-
-    expect(savedFields().map((f) => f.key)).toEqual(['notes']);
-  });
-
-  it('reordenar grava posições absolutas na mesma lista', async () => {
-    const { result } = renderHook(() => useScreenBuilderViewModel());
-    await act(async () => { await result.current.moveField('deadlines', 'dueDate', 1); });
-
-    const moved = savedField('dueDate');
-    expect(moved?.origin).toBe('builtin');
-    expect(typeof moved?.order).toBe('number');
-  });
-
-  /** A lista exibida vem da forma canônica do schema, que não carrega tudo que a autoria guarda. */
-  it('reordenar preserva os ajustes de autoria do campo movido', async () => {
-    storeState.definition = builtinDefinition({
-      fields: [{
-        key: 'apelido', label: 'Apelido', type: 'text', required: false, order: 21, origin: 'design',
-        filterable: true, showInList: true, listLabel: 'Como chamar',
-      }],
-    });
-
-    const { result } = renderHook(() => useScreenBuilderViewModel());
-    await act(async () => { await result.current.moveField('deadlines', 'apelido', -1); });
-
-    expect(savedField('apelido')).toMatchObject({ filterable: true, listLabel: 'Como chamar' });
-  });
-
-  it('campo novo entra na última posição da tela do kernel', async () => {
-    const { result } = renderHook(() => useScreenBuilderViewModel());
-    act(() => result.current.selectScreen('deadlines'));
-    const lastNativeOrder = (result.current.selectedScreen?.fields ?? [])
-      .reduce((max, field) => Math.max(max, field.order), -1);
-
-    act(() => result.current.openCreateField('deadlines'));
-    act(() => result.current.updateFieldForm({ label: 'Apelido', fieldKey: 'apelido', type: 'text' }));
-    await act(async () => { await result.current.handleSaveField(); });
-
-    expect(lastNativeOrder).toBeGreaterThan(0);
-    expect(savedField('apelido')?.order).toBe(lastNativeOrder + 1);
-  });
-
-  it('distingue campo do kernel de campo do usuário pela origem', () => {
-    storeState.definition = builtinDefinition({
-      fields: [{ key: 'apelido', label: 'Apelido', type: 'text', required: false, order: 0, origin: 'design' }],
-    });
-
-    const { result } = renderHook(() => useScreenBuilderViewModel());
-    expect(result.current.isNativeField('deadlines', 'dueDate')).toBe(true);
-    expect(result.current.isNativeField('deadlines', 'apelido')).toBe(false);
-  });
+  storeState.definition = undefined;
 });
 
 /**
@@ -259,6 +89,7 @@ describe('ScreenBuilder — telas fixas vêm do registro', () => {
 
     expect(keys).not.toContain('persons');
     expect(keys).not.toContain('cases');
+    expect(keys).not.toContain('deadlines');
   });
 });
 
@@ -295,13 +126,6 @@ describe('ScreenBuilder — tela ligada a outra coleção', () => {
 
     act(() => result.current.selectScreen('pessoas'));
     expect(result.current.selectedScreen?.fields.map((f) => f.key)).toStrictEqual(['name', 'cpf']);
-  });
-
-  it('uma visão sobre coleção AINDA do kernel continua fora — a linha fixa já a configura', () => {
-    storeState.definition = boundScreen({ id: 'prazos-kanban', dataCollection: 'deadlines' });
-    const { result } = renderHook(() => useScreenBuilderViewModel());
-
-    expect(result.current.dynamicListEntries.map((entry) => entry.key)).not.toContain('prazos-kanban');
   });
 });
 

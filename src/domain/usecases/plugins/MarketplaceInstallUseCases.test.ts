@@ -445,7 +445,7 @@ describe('Uninstall — listas de opções sobrevivem', () => {
 
   it('lista do kernel não vira documento — ela já é declarada em código', async () => {
     const plugin = lookupPlugin('com.acme.kernel');
-    plugin.lookups = [{ collection: 'deadlineTypes', label: 'Tipo de prazo' }];
+    plugin.lookups = [{ collection: 'documentTypes', label: 'Tipo de documento' }];
     await makeInstallMarketplacePluginUseCase(deps()).execute(plugin, actor);
     expect(lookupDefinitions.items).toEqual([]);
   });
@@ -882,7 +882,7 @@ describe('Adoção de tela do tenant (Form Design → extensão → desinstalar 
 });
 
 describe('Complementos — campos acrescentados a telas que já existem', () => {
-  const patchPlugin = (id: string, fieldKeys: string[], target = 'deadlines'): MarketplacePlugin => ({
+  const patchPlugin = (id: string, fieldKeys: string[], target = 'pushes'): MarketplacePlugin => ({
     summary: 'S',
     manifest: { id, version: '1.0.0', kernel: '^1.0.0', name: id },
     workflows: [],
@@ -892,40 +892,41 @@ describe('Complementos — campos acrescentados a telas que já existem', () => 
     }],
   });
 
-  const deadlinesScreen = (fields: ScreenDefinition['fields']): ScreenDefinition => ({
-    id: 'deadlines', tenantId: 't1', origin: 'builtin',
-    titleSingular: 'Financeiro', titlePlural: 'Financeiro', icon: 'apps', fields,
+  const pushesScreen = (fields: ScreenDefinition['fields']): ScreenDefinition => ({
+    id: 'pushes', tenantId: 't1', origin: 'builtin',
+    titleSingular: 'Push', titlePlural: 'Pushes', icon: 'apps', fields,
     titleFieldKey: '', hasNotes: false, hasDocuments: false, hasTags: false,
     listActions: [], viewActionIds: [], cardActionIds: [],
     sidebarOrder: 0, enabled: true, createdAt: new Date(), createdBy: 'u1', updatedAt: new Date(),
   });
 
-  it('cria o documento da tela do kernel que ainda não tinha, com o campo da extensão', async () => {
+  it('acrescenta o campo à tela que já existe, sem virar dona dela', async () => {
+    screens.store.set('pushes', pushesScreen([]));
+
     await makeInstallMarketplacePluginUseCase(deps()).execute(patchPlugin('com.acme.crm', ['crm']), actor);
 
-    const prazos = screens.store.get('deadlines')!;
-    expect(prazos.fields.map((f) => f.key)).toEqual(['crm']);
-    expect(prazos.fields[0].ownerPluginId).toBe('com.acme.crm');
-    expect(prazos.fields[0].origin).toBe('plugin');
-    // A tela continua do kernel: a extensão não vira dona dela.
-    expect(prazos.origin).toBe('builtin');
-    expect(prazos.ownerPluginId ?? null).toBeNull();
-    expect(prazos.sidebarOrder).toBe(0);
+    const alvo = screens.store.get('pushes')!;
+    expect(alvo.fields.map((f) => f.key)).toEqual(['crm']);
+    expect(alvo.fields[0].ownerPluginId).toBe('com.acme.crm');
+    expect(alvo.fields[0].origin).toBe('plugin');
+    // A tela continua de quem era: a extensão não vira dona dela.
+    expect(alvo.origin).toBe('builtin');
+    expect(alvo.ownerPluginId ?? null).toBeNull();
   });
 
   it('preserva os campos do escritório e os de outra extensão na mesma tela', async () => {
-    screens.store.set('deadlines', deadlinesScreen([
+    screens.store.set('pushes', pushesScreen([
       { key: 'meu', label: 'Meu', type: 'text', required: false, order: 0, origin: 'design', ownerPluginId: null },
       { key: 'outro', label: 'Outro', type: 'text', required: false, order: 1, origin: 'plugin', ownerPluginId: 'com.b' },
     ]));
 
     await makeInstallMarketplacePluginUseCase(deps()).execute(patchPlugin('com.acme.crm', ['crm']), actor);
 
-    expect(screens.store.get('deadlines')!.fields.map((f) => f.key)).toEqual(['meu', 'outro', 'crm']);
+    expect(screens.store.get('pushes')!.fields.map((f) => f.key)).toEqual(['meu', 'outro', 'crm']);
   });
 
   it('desinstalar leva só os campos da extensão — a tela e os demais campos ficam', async () => {
-    screens.store.set('deadlines', deadlinesScreen([
+    screens.store.set('pushes', pushesScreen([
       { key: 'meu', label: 'Meu', type: 'text', required: false, order: 0, origin: 'design', ownerPluginId: null },
     ]));
     await makeInstallMarketplacePluginUseCase(deps()).execute(patchPlugin('com.acme.crm', ['crm', 'oab']), actor);
@@ -933,18 +934,19 @@ describe('Complementos — campos acrescentados a telas que já existem', () => 
     const result = await makeUninstallMarketplacePluginUseCase(deps()).execute('com.acme.crm', actor);
 
     expect(result).toMatchObject({ ok: true, removedScreens: 0, removedPatchFields: 2 });
-    const prazos = screens.store.get('deadlines')!;
+    const prazos = screens.store.get('pushes')!;
     expect(prazos.fields.map((f) => f.key)).toEqual(['meu']);
     expect(prazos.origin).toBe('builtin');
   });
 
   it('reaplicar é idempotente e remove o campo que sumiu da versão nova', async () => {
+    screens.store.set('pushes', pushesScreen([]));
     const d = deps();
     await applyPackageArtifacts(d, patchPlugin('com.acme.crm', ['crm', 'oab']), actor);
-    expect(screens.store.get('deadlines')!.fields.map((f) => f.key)).toEqual(['crm', 'oab']);
+    expect(screens.store.get('pushes')!.fields.map((f) => f.key)).toEqual(['crm', 'oab']);
 
     await applyPackageArtifacts(d, patchPlugin('com.acme.crm', ['crm']), actor);
-    expect(screens.store.get('deadlines')!.fields.map((f) => f.key)).toEqual(['crm']);
+    expect(screens.store.get('pushes')!.fields.map((f) => f.key)).toEqual(['crm']);
   });
 
   it('complemento cujo alvo NÃO existe no escritório é ignorado, sem criar tela', async () => {
@@ -957,7 +959,7 @@ describe('Complementos — campos acrescentados a telas que já existem', () => 
 
   it('alvo por sourceId acha a tela de outra extensão pela chave que ela recebeu no destino', async () => {
     screens.store.set('produtos_2', {
-      ...deadlinesScreen([]), id: 'produtos_2', origin: 'plugin', sourceId: 'src-produtos',
+      ...pushesScreen([]), id: 'produtos_2', origin: 'plugin', sourceId: 'src-produtos',
       ownerPluginId: 'com.b', ownerPluginIds: ['com.b'],
     });
 

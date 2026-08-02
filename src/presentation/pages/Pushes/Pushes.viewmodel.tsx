@@ -3,12 +3,12 @@ import { useTheme } from 'styled-components';
 import { usePush } from '../../../stores/usePush';
 import { usePushInteraction } from '../../../stores/usePushInteraction';
 import { useWorkspace } from '../../../stores/useWorkspace';
-import { useDeadlineStore } from '../../../stores/useDeadlineStore';
+import { DEADLINES_COLLECTION, useDeadlineRecords } from '../../shared/useCollectionRecords';
+import { useOpenScreenList } from '../../shared/useOpenScreenList';
 import { CASES_COLLECTION, useCaseRecords } from '../../shared/useCollectionRecords';
 import { useOpenRecord } from '../../shared/useOpenRecord';
 import { useTenant } from '../../../stores/useTenant';
 import { useLookups } from '../../../stores/useLookups';
-import { setNavigationIntent } from '../../../infrastructure/navigation/navigationIntent';
 import { getConfigColor } from '../../../shared/styles/colorUtils';
 import type { Push } from '../../../domain/entities';
 import type { FilterDef, FilterToken } from '../../components/ui/CompositeFilter';
@@ -108,7 +108,8 @@ export const usePushesViewModel = (): PushesViewModel => {
   const { pushes, updateStatus, deletePush } = usePush();
   const { getInteraction, markAsRead, unreadCount } = usePushInteraction();
   const { openTab } = useWorkspace();
-  const { deadlines } = useDeadlineStore();
+  const deadlines = useDeadlineRecords();
+  const openScreenList = useOpenScreenList();
   const cases = useCaseRecords();
   const openRecord = useOpenRecord();
   const { getOptions } = useLookups();
@@ -189,7 +190,7 @@ export const usePushesViewModel = (): PushesViewModel => {
       const linkedDeadlines = deadlines.filter((d) => d.pushIds?.includes(push.id));
       const linkedDeadlineIds = linkedDeadlines.map((d) => d.id);
       const mostRecentDeadlineId = linkedDeadlines.length > 0
-        ? linkedDeadlines.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())[0].id
+        ? [...linkedDeadlines].sort((a, b) => (b.createdAt?.getTime() ?? 0) - (a.createdAt?.getTime() ?? 0))[0].id
         : undefined;
 
       // Buscar o case correspondente ao número do processo
@@ -206,12 +207,10 @@ export const usePushesViewModel = (): PushesViewModel => {
       const displayCauseValue = matchingCase?.causeValue ?? undefined;
 
       // Encontrar o prazo mais próximo do vencimento (menor dueDate)
-      const earliestDueDate = linkedDeadlines.length > 0
-        ? linkedDeadlines.reduce((earliest, d) =>
-            !earliest || d.dueDate.getTime() < earliest.getTime() ? d.dueDate : earliest,
-            undefined as Date | undefined
-          )
-        : undefined;
+      const earliestDueDate = linkedDeadlines.reduce<Date | undefined>(
+        (earliest, d) => (d.dueDate && (!earliest || d.dueDate.getTime() < earliest.getTime()) ? d.dueDate : earliest),
+        undefined,
+      );
 
       return {
         push,
@@ -307,14 +306,13 @@ export const usePushesViewModel = (): PushesViewModel => {
   }, []);
 
   const handleOpenDeadline = useCallback((deadlineId: string) => {
-    // Buscar o deadline para pegar o caseId
+    // O prazo é apresentado dentro da lista da tela que descreve a coleção, filtrada pelo processo
+    // dele — a chave do filtro é a do CAMPO declarado (`caseId`), não um nome inventado aqui.
     const deadline = deadlines.find((d) => d.id === deadlineId);
     if (deadline?.caseId) {
-      // Configurar filtro de processo e abrir página de Deadlines
-      setNavigationIntent('deadlines', [{ key: 'case', values: [deadline.caseId] }]);
-      openTab('deadlines');
+      openScreenList(DEADLINES_COLLECTION, [{ key: 'caseId', values: [deadline.caseId] }]);
     }
-  }, [deadlines, openTab]);
+  }, [deadlines, openScreenList]);
 
   const handleOpenCase = useCallback((caseId: string) => {
     openRecord(CASES_COLLECTION, caseId);

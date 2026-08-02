@@ -35,9 +35,9 @@ describe('resolveFlatEntityConfig', () => {
   });
 
   it('coleção fixa do kernel continua com o nome do código', async () => {
-    const config = await resolveFlatEntityConfig(provider, 't1', 'deadlines');
-    expect(config?.entityLabel).toBe('Prazo');
-    expect(config?.entityKey).toBe('Deadline');
+    const config = await resolveFlatEntityConfig(provider, 't1', 'members');
+    expect(config?.entityLabel).toBe('Membro');
+    expect(config?.entityKey).toBe('TenantMember');
   });
 
   it('coleção de infraestrutura não é auditada', async () => {

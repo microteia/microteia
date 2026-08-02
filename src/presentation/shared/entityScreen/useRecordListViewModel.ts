@@ -1,4 +1,4 @@
-import { useMemo, useState, useCallback } from 'react';
+import { useMemo, useState, useCallback, useEffect } from 'react';
 import { useScreenDefinitions } from '../../../stores/useScreenDefinitions';
 import { useRecords } from '../../../stores/useRecords';
 import { useWorkspace } from '../../../stores/useWorkspace';
@@ -19,6 +19,7 @@ import { useSchemaContext } from '../useSchemaContext';
 import { useRecordActions } from '../recordActions/useRecordActions';
 import type { RecordActionHost } from '../recordActions/recordActionHost';
 import { deriveListRows } from '../deriveEntitySchema';
+import { consumeNavigationIntent, subscribeNavigationIntent } from '../../../infrastructure/navigation/navigationIntent';
 import type { ActionDefinition, ActionStatusCode, CustomFieldValue, EntityRecord, ScreenDefinition, Tag } from '../../../domain/entities';
 import type { TagStoreAdapter } from '../../components/ui/TagManager';
 import type { FilterDef, FilterToken } from '../../components/ui/CompositeFilter';
@@ -61,6 +62,8 @@ export interface RecordListSource {
   recordTabKeys?: (recordId: string) => { view: string; clone: string };
   /** Filtros com que a listagem abre. Ver `EntityListOptions.defaultFilterTokens`. */
   defaultFilterTokens?: FilterToken[];
+  /** Ordem em que a listagem apresenta os registros. Ver `EntityListOptions.sortRecords`. */
+  sortRecords?: (a: EntityRecord, b: EntityRecord) => number;
 }
 
 export interface RecordListViewModel {
@@ -100,7 +103,7 @@ export interface RecordListViewModel {
  * Com `parent`, a lista é restrita aos filhos daquele registro e o "novo" já nasce vinculado.
  */
 export const useRecordListViewModel = (source: RecordListSource): RecordListViewModel => {
-  const { screenKey, savedFiltersKey, parent, recordTabKeys, defaultFilterTokens } = source;
+  const { screenKey, savedFiltersKey, parent, recordTabKeys, defaultFilterTokens, sortRecords } = source;
   const { getDefinition, isLoading: definitionsLoading } = useScreenDefinitions();
   const { recordsByCollection, isLoading: recordsLoading, updateRecord, deleteRecord } = useRecords();
   const { openTab } = useWorkspace();
@@ -108,11 +111,31 @@ export const useRecordListViewModel = (source: RecordListSource): RecordListView
   const { notify } = useNotification();
   const { getActionsByIds, runAction } = useActions();
 
-  const [filterTokens, setFilterTokens] = useState<FilterToken[]>(defaultFilterTokens ?? []);
+  /**
+   * Abrir a listagem JÁ FILTRADA: o painel manda ver "prazos vencidos", o cartão de um push manda ver
+   * os prazos daquele processo. O recado é endereçado pela CHAVE DA TELA, e quem o deixa não precisa
+   * conhecê-la — resolve a coleção e fala com quem a descreve (`useOpenScreenList`).
+   *
+   * São dois caminhos porque são duas situações: a aba que ainda vai abrir recebe o recado guardado
+   * (`consume`, na primeira montagem), e a que já está aberta recebe pela assinatura — sem ela, clicar
+   * de novo no painel traria a mesma tela com o filtro anterior.
+   */
+  const [filterTokens, setFilterTokens] = useState<FilterToken[]>(
+    () => (screenKey ? consumeNavigationIntent(screenKey) as FilterToken[] | undefined : undefined)
+      ?? defaultFilterTokens
+      ?? [],
+  );
   const [tagManagerRecord, setTagManagerRecord] = useState<EntityRecord | null>(null);
   const [recordToDelete, setRecordToDelete] = useState<EntityRecord | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [runningActionId, setRunningActionId] = useState<string | null>(null);
+
+  useEffect(
+    () => (screenKey
+      ? subscribeNavigationIntent(screenKey, (tokens) => setFilterTokens(tokens as FilterToken[]))
+      : undefined),
+    [screenKey],
+  );
 
   const isAdmin = tenantRole === 'admin';
   const definition = useMemo(() => getDefinition(screenKey) ?? null, [getDefinition, screenKey]);
@@ -175,7 +198,7 @@ export const useRecordListViewModel = (source: RecordListSource): RecordListView
   const filteredRecords = useMemo(() => {
     const searchQ = (tokenMap['search']?.[0] ?? '').toLowerCase();
     const tagFilter = tokenMap['tag'] ?? [];
-    return records.filter((record) => {
+    const matched = records.filter((record) => {
       if (searchQ) {
         const haystack = Object.values(record)
           .filter((v): v is string => typeof v === 'string')
@@ -186,7 +209,10 @@ export const useRecordListViewModel = (source: RecordListSource): RecordListView
       if (tagFilter.length > 0 && !tagFilter.some((tid) => record.tagIds?.includes(tid))) return false;
       return listing.matchesFilters(record, tokenMap);
     });
-  }, [records, tokenMap, listing]);
+    // Sem ordem declarada vale a da coleção (mais recente primeiro). A tela cuja leitura DEPENDE da
+    // ordem — uma agenda de prazos se lê do mais próximo ao mais distante — informa a sua.
+    return sortRecords ? [...matched].sort(sortRecords) : matched;
+  }, [records, tokenMap, listing, sortRecords]);
 
   const getCardItems = useCallback(
     (record: EntityRecord): CustomFieldCardItem[] =>

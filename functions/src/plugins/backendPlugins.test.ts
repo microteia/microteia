@@ -17,9 +17,13 @@ const hostWith = (records: PluginRecord[]) => {
 const without = (pluginId: string): PluginRecord[] =>
   BACKEND_PLUGINS.filter((record) => record.manifest.id !== pluginId);
 
-/** Os 12 Steps que o `registerSteps` fixo registrava antes da migração para contribuições. */
+/**
+ * Os Steps que o `registerSteps` fixo registrava antes da migração para contribuições. `create-deadline`
+ * saiu com a entidade Prazo: criar um prazo é gravar um registro, e quem faz isso é o Step genérico
+ * "Gravar Registro" (`upsert`) — o motor não conhece mais nenhuma entidade de escritório pelo nome.
+ */
 const STEPS_ANTES_DA_MIGRACAO = [
-  'call-workflow', 'create-deadline', 'exit', 'map', 'notify', 'query',
+  'call-workflow', 'exit', 'map', 'notify', 'query',
   'register-audit', 'remove', 'script', 'set-variable', 'upsert', 'validate-object',
 ].sort();
 

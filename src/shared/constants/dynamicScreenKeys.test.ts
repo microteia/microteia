@@ -49,14 +49,14 @@ describe('parseDynamicTabKey', () => {
   });
 });
 
-describe('buildEntityViewTabKey — volta para o pai, fixo ou dinâmico', () => {
-  it('usa a chave própria de cada tela fixa', () => {
-    // `persons` e `contracts` saíram do kernel: sem prefixo fixo, caem na aba dinâmica da tela
-    // que as descreve.
+describe('buildEntityViewTabKey — volta para o pai', () => {
+  it('sem prefixo fixo, toda coleção cai na aba dinâmica da tela que a descreve', () => {
+    // Pessoa, Contrato, Financeiro e Prazo saíram do kernel, e com eles a última aba fixa de
+    // detalhe: hoje nenhuma coleção tem prefixo próprio em código.
     expect(buildEntityViewTabKey('persons', 'p1')).toBe('view-dyn:persons:p1');
     expect(buildEntityViewTabKey('contracts', 'c1')).toBe('view-dyn:contracts:c1');
     expect(buildEntityViewTabKey('financials', 'f1')).toBe('view-dyn:financials:f1');
-    expect(buildEntityViewTabKey('deadlines', 'd1')).toBe('view-deadline:d1');
+    expect(buildEntityViewTabKey('deadlines', 'd1')).toBe('view-dyn:deadlines:d1');
   });
 
   it('cai na chave dinâmica para telas customizadas', () => {

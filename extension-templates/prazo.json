@@ -1,0 +1,430 @@
+{
+  "manifest": {
+    "id": "com.microteia.prazo",
+    "version": "1.0.0",
+    "kernel": "^1.0.0",
+    "name": "Prazos",
+    "description": "O controle de prazos do escritório recriado como extensão, sobre os MESMOS prazos — a quinta entidade a sair do kernel.",
+    "publisher": {
+      "name": "Microteia"
+    },
+    "dependencies": {
+      "core.ui": "^1.0.0",
+      "com.microteia.pessoa": {
+        "version": "^1.0.0",
+        "collections": [
+          "persons"
+        ]
+      },
+      "com.microteia.processo": {
+        "version": "^2.0.0",
+        "collections": [
+          "cases"
+        ]
+      }
+    },
+    "contributes": [
+      {
+        "point": "ui.nav",
+        "id": "prazos",
+        "apiVersion": "1.0.0",
+        "metadata": {
+          "key": "prazos",
+          "label": "Prazos",
+          "icon": "time",
+          "order": 60
+        }
+      },
+      {
+        "point": "ui.page",
+        "id": "prazos",
+        "apiVersion": "1.0.0",
+        "metadata": {
+          "key": "prazos",
+          "title": "Prazos",
+          "icon": "time"
+        },
+        "impl": {
+          "kind": "code",
+          "key": "prazos"
+        }
+      }
+    ]
+  },
+  "summary": "A agenda de prazos do escritório: tipo, prioridade, vencimento e responsável, sempre ligados a um processo — com a lista aberta nos pendentes, ordenada do vencimento mais próximo ao mais distante, e o gesto de marcar como concluído no próprio cartão.",
+  "overview": {
+    "type": "stack",
+    "gap": "lg",
+    "children": [
+      {
+        "type": "markdown",
+        "content": "A extensão **Prazos** traz o controle de prazos do escritório: cada prazo com tipo, prioridade, vencimento e advogado responsável, ligado ao processo de origem.\n\nA listagem abre nos prazos pendentes e se lê do vencimento mais próximo ao mais distante. Cada cartão mostra, de uma olhada, a prioridade na faixa colorida do alto, o número do processo e quantos dias faltam — ou há quantos dias venceu. Marcar como concluído é um gesto do próprio cartão.\n\nAs listas de Tipo, Prioridade e Status já vêm preenchidas e são suas."
+      },
+      {
+        "type": "keyValue",
+        "items": [
+          {
+            "label": "Adiciona",
+            "value": "Item \"Prazos\" no menu"
+          },
+          {
+            "label": "Cadastro",
+            "value": "8 campos, em 3 seções"
+          },
+          {
+            "label": "No cartão",
+            "value": "Faixa de prioridade e dias para vencer"
+          },
+          {
+            "label": "Abre em",
+            "value": "Prazos pendentes"
+          }
+        ]
+      },
+      {
+        "type": "banner",
+        "message": "Remover a extensão remove a tela, nunca os prazos: os registros e as listas de opções continuam no escritório e voltam a aparecer se ela for instalada de novo.",
+        "variant": "info"
+      }
+    ]
+  },
+  "workflows": [
+    {
+      "templateId": "wf-prazo-concluir",
+      "name": "Marcar prazo como concluído",
+      "description": "Marca o prazo como Concluído e carimba a data de conclusão de hoje.",
+      "eventName": "workflow.called",
+      "version": 1,
+      "condition": {
+        "kind": "AlwaysTrue"
+      },
+      "steps": [
+        {
+          "id": "montar",
+          "stepDefinitionId": "map",
+          "type": "Action",
+          "order": 0,
+          "enabled": true,
+          "configuration": {
+            "map": {
+              "kind": "Literal",
+              "value": {
+                "name": "prazo",
+                "fields": [
+                  {
+                    "name": "id",
+                    "value": {
+                      "kind": "Expression",
+                      "expression": "event.recordId"
+                    }
+                  },
+                  {
+                    "name": "status",
+                    "value": {
+                      "kind": "Literal",
+                      "value": "Concluído"
+                    }
+                  },
+                  {
+                    "name": "completedAt",
+                    "value": {
+                      "kind": "Expression",
+                      "expression": "today()"
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "id": "gravar",
+          "stepDefinitionId": "upsert",
+          "type": "Action",
+          "order": 1,
+          "enabled": true,
+          "configuration": {
+            "upsert": {
+              "kind": "Literal",
+              "value": {
+                "table": "deadlines",
+                "source": "input",
+                "property": "prazo"
+              }
+            }
+          }
+        },
+        {
+          "id": "responder",
+          "stepDefinitionId": "map",
+          "type": "Action",
+          "order": 2,
+          "enabled": true,
+          "configuration": {
+            "map": {
+              "kind": "Literal",
+              "value": {
+                "name": "",
+                "fields": [
+                  {
+                    "name": "status",
+                    "value": {
+                      "kind": "Literal",
+                      "value": "Prazo marcado como concluído."
+                    }
+                  },
+                  {
+                    "name": "actions",
+                    "value": {
+                      "kind": "Literal",
+                      "value": [
+                        "refresh"
+                      ]
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "actions": [
+    {
+      "templateId": "act-prazo-concluir",
+      "key": "prazo_concluir",
+      "title": "Marcar como concluído",
+      "icon": "check",
+      "workflowId": "wf-prazo-concluir",
+      "hiddenWhen": "isNew or status == \"Concluído\" or status == \"Cancelado\"",
+      "danger": false,
+      "enabled": true,
+      "order": 0
+    }
+  ],
+  "screens": [
+    {
+      "key": "prazos",
+      "sourceId": "microteia:prazo",
+      "sourceRev": 1,
+      "titleSingular": "Prazo",
+      "titlePlural": "Prazos",
+      "icon": "time",
+      "dataCollection": "deadlines",
+      "fields": [
+        {
+          "key": "type",
+          "label": "Tipo",
+          "type": "select",
+          "required": true,
+          "order": 0,
+          "section": "Identificação",
+          "lookupCollection": "deadlineTypes",
+          "optionsAllowUserAdd": true,
+          "filterable": true,
+          "placeholder": "Selecione o tipo..."
+        },
+        {
+          "key": "priority",
+          "label": "Prioridade",
+          "type": "select",
+          "required": true,
+          "order": 1,
+          "section": "Identificação",
+          "lookupCollection": "deadlinePriorities",
+          "optionsColored": true,
+          "filterable": true,
+          "placeholder": "Selecione a prioridade..."
+        },
+        {
+          "key": "status",
+          "label": "Status",
+          "type": "select",
+          "required": true,
+          "order": 2,
+          "section": "Identificação",
+          "lookupCollection": "deadlineStatuses",
+          "optionsColored": true,
+          "filterable": true,
+          "placeholder": "Selecione o status..."
+        },
+        {
+          "key": "caseId",
+          "label": "Processo",
+          "type": "reference",
+          "required": true,
+          "order": 3,
+          "section": "Identificação",
+          "refEntity": "cases",
+          "placeholder": "Selecione o processo...",
+          "filterable": true,
+          "showInList": true,
+          "listIcon": "folder",
+          "listOrder": 0
+        },
+        {
+          "key": "dueDate",
+          "label": "Data de vencimento",
+          "type": "date",
+          "required": true,
+          "order": 4,
+          "section": "Datas",
+          "filterable": true,
+          "showInList": true,
+          "listIcon": "calendar",
+          "listOrder": 1
+        },
+        {
+          "key": "completedAt",
+          "label": "Data de conclusão",
+          "type": "date",
+          "required": false,
+          "order": 5,
+          "section": "Datas",
+          "filterable": true,
+          "showInList": true,
+          "listIcon": "calendarCheck",
+          "listOrder": 2
+        },
+        {
+          "key": "responsibleLawyerId",
+          "label": "Advogado responsável",
+          "type": "reference",
+          "required": false,
+          "order": 6,
+          "section": "Responsável e Detalhes",
+          "refEntity": "persons",
+          "placeholder": "Selecione o responsável...",
+          "filterable": true,
+          "showInList": true,
+          "listIcon": "scales",
+          "listOrder": 3
+        },
+        {
+          "key": "description",
+          "label": "Descrição",
+          "type": "textarea",
+          "required": false,
+          "order": 7,
+          "section": "Responsável e Detalhes",
+          "placeholder": "Detalhes sobre o prazo, documentos necessários, etc.",
+          "showInList": true,
+          "listIcon": "fileText",
+          "listOrder": 4
+        }
+      ],
+      "titleFieldKey": "type",
+      "subtitleFieldKey": "status",
+      "hasNotes": false,
+      "hasDocuments": false,
+      "hasTags": false,
+      "eventPrefix": "deadline",
+      "listActions": [
+        "copyLink",
+        "delete"
+      ],
+      "viewActionIds": [
+        "act-prazo-concluir"
+      ],
+      "cardActionIds": [
+        "act-prazo-concluir"
+      ],
+      "sidebarOrder": 0,
+      "hideFromSidebar": true
+    }
+  ],
+  "lookups": [
+    {
+      "collection": "deadlineTypes",
+      "label": "Prazo: Tipo",
+      "options": [
+        {
+          "key": "Audiência",
+          "label": "Audiência"
+        },
+        {
+          "key": "Recurso",
+          "label": "Recurso"
+        },
+        {
+          "key": "Contestação",
+          "label": "Contestação"
+        },
+        {
+          "key": "Petição",
+          "label": "Petição"
+        },
+        {
+          "key": "Pagamento",
+          "label": "Pagamento"
+        },
+        {
+          "key": "Outro",
+          "label": "Outro"
+        }
+      ]
+    },
+    {
+      "collection": "deadlinePriorities",
+      "label": "Prazo: Prioridade",
+      "options": [
+        {
+          "key": "Baixa",
+          "label": "Baixa",
+          "color": "success"
+        },
+        {
+          "key": "Média",
+          "label": "Média",
+          "color": "warning"
+        },
+        {
+          "key": "Alta",
+          "label": "Alta",
+          "color": "secondary"
+        },
+        {
+          "key": "Crítica",
+          "label": "Crítica",
+          "color": "danger"
+        }
+      ]
+    },
+    {
+      "collection": "deadlineStatuses",
+      "label": "Prazo: Status",
+      "options": [
+        {
+          "key": "Pendente",
+          "label": "Pendente",
+          "color": "info"
+        },
+        {
+          "key": "Concluído",
+          "label": "Concluído",
+          "color": "success"
+        },
+        {
+          "key": "Vencido",
+          "label": "Vencido",
+          "color": "danger"
+        },
+        {
+          "key": "Cancelado",
+          "label": "Cancelado",
+          "color": "textSecondary"
+        }
+      ]
+    }
+  ],
+  "startup": "\nimport { Icon } from '@microteia/ui';\n\nconst SOURCE_ID = 'microteia:prazo';\nconst LIST_KEY = 'prazos';\nconst GROUP = 'Prazos';\n\nconst viewKey = (screen, id) => 'view-dyn:' + screen.id + ':' + id;\n\nconst screenOf = (ctx) => ctx.screenDefinitions.find((s) => (s.sourceId || s.id) === SOURCE_ID);\nconst textOf = (record, key) => (key && typeof record[key] === 'string' ? record[key] : '');\n\n/**\n * A busca casa só o TÍTULO (o tipo do prazo). O subtítulo é o STATUS, uma classificação que todo\n * registro repete: casá-la devolveria a agenda inteira para quem digitasse \"pen\". Quem inclui o\n * subtítulo é Processos e Contratos, onde ele é o NÚMERO do registro.\n */\nconst matches = (record, screen, q) => {\n  if (!q) return true;\n  return textOf(record, screen.titleFieldKey).toLowerCase().indexOf(q) !== -1;\n};\n\nconst recordsOf = (ctx, screen) => {\n  const collection = screen.dataCollection || screen.id;\n  return ctx.records.filter((r) => r.collection === collection && textOf(r, screen.titleFieldKey));\n};\n\nexport default function startup(host) {\n  host.commands.register({\n    group: GROUP,\n    getItems(query, ctx) {\n      const q = String(query || '').toLowerCase().trim();\n      if (!q) return [];\n      const screen = screenOf(ctx);\n      if (!screen) return [];\n      const icon = <Icon name=\"time\" size={16} />;\n      const items = [];\n      if ('novo prazo'.indexOf(q) !== -1) {\n        items.push({ id: 'prazo:new', title: 'Novo prazo', group: GROUP, icon, onSelect: () => { ctx.openTab('new-dyn:' + screen.id); ctx.close(); } });\n      }\n      if ('abrir prazos'.indexOf(q) !== -1) {\n        items.push({ id: 'prazo:list', title: 'Abrir Prazos', group: GROUP, icon, onSelect: () => { ctx.openTab(LIST_KEY); ctx.close(); } });\n      }\n      for (const r of recordsOf(ctx, screen)) {\n        if (!matches(r, screen, q)) continue;\n        items.push({\n          id: 'prazo:' + r.id,\n          title: textOf(r, screen.titleFieldKey),\n          subtitle: textOf(r, screen.subtitleFieldKey) || 'Prazo',\n          group: GROUP,\n          icon,\n          onSelect: () => { ctx.openTab(viewKey(screen, r.id)); ctx.close(); },\n        });\n      }\n      return items.slice(0, 9);\n    },\n  });\n\n  host.mentions.register({\n    key: 'prazo',\n    label: 'Prazo',\n    description: 'Inserir link para um prazo',\n    icon: 'time',\n    search(query, ctx) {\n      const screen = screenOf(ctx);\n      if (!screen) return [];\n      const q = String(query || '').toLowerCase().trim();\n      return recordsOf(ctx, screen)\n        .filter((r) => matches(r, screen, q))\n        .slice(0, 20)\n        .map((record) => ({\n          id: record.id,\n          title: textOf(record, screen.titleFieldKey),\n          subtitle: textOf(record, screen.subtitleFieldKey) || 'Prazo',\n          tabKey: viewKey(screen, record.id),\n        }));\n    },\n  });\n}\n",
+  "views": [
+    {
+      "key": "prazos",
+      "title": "Prazos",
+      "icon": "time",
+      "source": "\nimport { useMemo } from 'react';\nimport { styled, useTheme } from 'styled-components';\nimport { Icon, RecordListSurface, InfoBanner } from '@microteia/ui';\nimport { useEntityList, useCollection, useLookup, useOpenRecord } from '@microteia/data';\nimport { getConfigColor } from '@microteia/theme';\n\nconst SOURCE_ID = 'microteia:prazo';\n\nconst CaseRow = styled.div`\n  display: flex;\n  align-items: center;\n  gap: ${({ theme }) => theme.spacing.xs};\n  margin-top: 2px;\n  min-width: 0;\n`;\n\nconst CaseNumber = styled.button`\n  font-size: ${({ theme }) => theme.fontSizes.xs};\n  color: ${({ theme }) => theme.colors.textMuted};\n  font-family: ${({ theme }) => theme.fonts.mono};\n  background: none;\n  border: none;\n  padding: 0;\n  cursor: pointer;\n  text-align: left;\n  white-space: nowrap;\n  overflow: hidden;\n  text-overflow: ellipsis;\n  min-width: 0;\n  transition: ${({ theme }) => theme.transitions.fast};\n\n  &:hover { color: ${({ theme }) => theme.colors.primary}; text-decoration: underline; }\n`;\n\nconst DaysChip = styled.span`\n  display: inline-flex;\n  align-items: center;\n  gap: 2px;\n  flex-shrink: 0;\n  margin-left: auto;\n  padding: 1px 7px;\n  border-radius: ${({ theme }) => theme.borderRadius.full};\n  font-size: 10px;\n  font-weight: 600;\n  font-family: ${({ theme }) => theme.fonts.mono};\n  white-space: nowrap;\n  background: ${({ $tone, theme }) => $tone ? theme.colors[$tone] + '20' : theme.colors.surfaceHover};\n  color: ${({ $tone, theme }) => $tone ? theme.colors[$tone] : theme.colors.textMuted};\n  border: 1px solid ${({ $tone, theme }) => $tone ? theme.colors[$tone] + '44' : theme.colors.border};\n`;\n\nconst Badges = styled.div`\n  display: flex;\n  align-items: center;\n  gap: 6px;\n  min-width: 0;\n  overflow: hidden;\n`;\n\nconst MetaBadge = styled.span`\n  display: inline-flex;\n  align-items: center;\n  padding: 1px 6px;\n  border-radius: ${({ theme }) => theme.borderRadius.full};\n  font-size: 10px;\n  font-weight: 500;\n  background: ${({ $color }) => $color + '20'};\n  color: ${({ $color }) => $color};\n  border: 1px solid ${({ $color }) => $color + '40'};\n  flex-shrink: 0;\n`;\n\nconst dateOf = (value) => {\n  if (!value) return null;\n  const d = value instanceof Date ? value : new Date(String(value));\n  return isNaN(d.getTime()) ? null : d;\n};\n\nconst startOfDay = (date) => {\n  const copy = new Date(date);\n  copy.setHours(0, 0, 0, 0);\n  return copy;\n};\n\nconst daysUntilDue = (record) => {\n  const due = dateOf(record.dueDate);\n  if (!due) return null;\n  return Math.round((startOfDay(due).getTime() - startOfDay(new Date()).getTime()) / 86400000);\n};\n\nconst isOverdue = (record) => {\n  const due = dateOf(record.dueDate);\n  return record.status === 'Pendente' && !!due && due.getTime() < Date.now();\n};\n\nconst PRIORITY_ORDER = { 'Crítica': 3, 'Alta': 2, 'Média': 1, 'Baixa': 0 };\n\n/**\n * A lista de prazos se lê do vencimento mais PRÓXIMO ao mais distante — é uma agenda, não um\n * cadastro —, e o empate do dia se desfaz pela prioridade. Fora do componente de propósito: um\n * comparador novo a cada render reordenaria a lista inteira sem que nada tivesse mudado.\n */\nconst byDueDateThenPriority = (a, b) => {\n  const at = dateOf(a.dueDate) ? dateOf(a.dueDate).getTime() : Infinity;\n  const bt = dateOf(b.dueDate) ? dateOf(b.dueDate).getTime() : Infinity;\n  if (at !== bt) return at - bt;\n  const ap = PRIORITY_ORDER[a.priority] != null ? PRIORITY_ORDER[a.priority] : -1;\n  const bp = PRIORITY_ORDER[b.priority] != null ? PRIORITY_ORDER[b.priority] : -1;\n  return bp - ap;\n};\n\n// A visão útil de quem abre Prazos é o que ainda está de pé: sem isso, a primeira tela é o histórico\n// inteiro do escritório, com os concluídos misturados aos pendentes.\nconst PENDENTES = [{ key: 'status', values: ['Pendente'] }];\n\nexport default function PrazosView() {\n  const theme = useTheme();\n  const list = useEntityList(SOURCE_ID, { defaultFilterTokens: PENDENTES, sortRecords: byDueDateThenPriority });\n  const cases = useCollection('cases');\n  const statusOptions = useLookup('deadlineStatuses');\n  const priorityOptions = useLookup('deadlinePriorities');\n  const openRecord = useOpenRecord();\n\n  const caseNumberById = useMemo(() => {\n    const map = {};\n    for (const item of cases) map[item.id] = item.caseNumber || '';\n    return map;\n  }, [cases]);\n\n  if (!list.definition) {\n    return <div style={{ padding: '24px' }}><InfoBanner message='Tela \"Prazos\" não encontrada. Instale a extensão para ativá-la.' variant=\"warning\" /></div>;\n  }\n\n  const priorityColor = (record) => getConfigColor(priorityOptions, record.priority, theme);\n\n  const renderDaysChip = (record) => {\n    if (record.status === 'Concluído') return <DaysChip $tone=\"success\">Concluído</DaysChip>;\n    if (record.status === 'Cancelado') return <DaysChip>Cancelado</DaysChip>;\n    const days = daysUntilDue(record);\n    if (days == null) return null;\n    if (isOverdue(record)) {\n      return <DaysChip $tone=\"danger\"><Icon name=\"alert\" size={10} />{Math.abs(days)}d vencido</DaysChip>;\n    }\n    if (days === 0) return <DaysChip $tone=\"warning\">Hoje</DaysChip>;\n    if (days === 1) return <DaysChip $tone=\"warning\">Amanhã</DaysChip>;\n    return <DaysChip>{days}d</DaysChip>;\n  };\n\n  const renderSubtitle = (record) => {\n    const number = caseNumberById[record.caseId];\n    return (\n      <CaseRow>\n        {number ? (\n          <CaseNumber\n            title={'Abrir processo ' + number}\n            onClick={(e) => { e.stopPropagation(); openRecord('cases', record.caseId); }}\n          >\n            {number}\n          </CaseNumber>\n        ) : null}\n        {renderDaysChip(record)}\n      </CaseRow>\n    );\n  };\n\n  const renderBelowHeader = (record) => (\n    <Badges>\n      <MetaBadge $color={getConfigColor(statusOptions, record.status, theme)}>{record.status}</MetaBadge>\n      <MetaBadge $color={priorityColor(record)}>{record.priority}</MetaBadge>\n    </Badges>\n  );\n\n  return (\n    <RecordListSurface\n      vm={list}\n      definition={list.definition}\n      accentColor={priorityColor}\n      renderSubtitle={renderSubtitle}\n      renderBelowHeader={renderBelowHeader}\n      emptyTitle=\"Nenhum prazo encontrado\"\n      emptyActionLabel=\"Cadastrar primeiro prazo\"\n    />\n  );\n}\n"
+    }
+  ]
+}

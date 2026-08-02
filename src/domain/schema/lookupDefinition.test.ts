@@ -18,13 +18,13 @@ const ctx = createSchemaContext(
 
 describe('SchemaContext — as listas do kernel e do tenant num conjunto só', () => {
   it('resolve as duas origens pelo mesmo caminho', () => {
-    expect(isLookupTable(ctx, 'deadlineTypes')).toBe(true);
+    expect(isLookupTable(ctx, 'documentTypes')).toBe(true);
     expect(isLookupTable(ctx, 'medico_especialidade')).toBe(true);
     expect(isLookupTable(ctx, 'inexistente')).toBe(false);
   });
 
   it('a lista do kernel entra mesmo sem declaração no tenant', () => {
-    expect(isLookupTable(createSchemaContext(), 'deadlineTypes')).toBe(true);
+    expect(isLookupTable(createSchemaContext(), 'documentTypes')).toBe(true);
   });
 });
 
@@ -33,7 +33,7 @@ describe('nome de lista', () => {
     expect(lookupIdIssue('')).toBeTruthy();
     expect(lookupIdIssue('minha-lista')).toBeTruthy();
     expect(lookupIdIssue('1lista')).toBeTruthy();
-    expect(lookupIdIssue('deadlineTypes')).toBeTruthy();
+    expect(lookupIdIssue('documentTypes')).toBeTruthy();
     expect(lookupIdIssue('lookupDefinitions')).toBeTruthy();
   });
 
@@ -83,7 +83,7 @@ describe('conjuntos de etiquetas', () => {
     expect(tagListIdIssue('medico_especialidade', ctx)).toBe('"medico_especialidade" já é o nome de uma lista de opções');
     expect(screenIdIssue('medico_tags', ctx)).toBe('"medico_tags" já é o nome de um conjunto de etiquetas');
     expect(lookupIdIssue('medico_tags', ctx)).toBe('"medico_tags" já é o nome de um conjunto de etiquetas');
-    expect(tagListIdIssue('deadlines')).toBeTruthy();
+    expect(tagListIdIssue('pushes')).toBeTruthy();
     expect(tagListIdIssue('medico_tags')).toBeUndefined();
   });
 });

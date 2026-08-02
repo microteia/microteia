@@ -149,36 +149,6 @@ export interface TenantMember {
   deletedByPhotoURL?: string;
 }
 
-// ─── Deadlines (Prazos) ───────────────────────────────────────────────────────
-
-export type DeadlineStatus = 'Pendente' | 'Concluído' | 'Vencido' | 'Cancelado';
-export type DeadlinePriority = 'Baixa' | 'Média' | 'Alta' | 'Crítica';
-
-export interface Deadline {
-  id: string;
-  tenantId: string;
-  caseId: string;
-  description?: string | null;
-  dueDate: Date;
-  type: string;
-  priority: DeadlinePriority;
-  status: DeadlineStatus;
-  responsibleLawyerId?: string | null;
-  completedAt?: Date | null;
-  completedBy?: string | null;
-  notes?: string | null;
-  pushIds?: string[];
-  createdAt: Date;
-  createdBy: string;
-  updatedAt: Date;
-  updatedBy?: string;
-  updatedByName?: string;
-  updatedByPhotoURL?: string;
-  deletedBy?: string;
-  deletedByName?: string;
-  deletedByPhotoURL?: string;
-}
-
 // ─── Calendar events ──────────────────────────────────────────────────────────
 
 export type CalendarEventType = 'deadline' | 'hearing' | 'meeting' | 'other';
@@ -190,10 +160,10 @@ export interface CalendarEvent {
   end: Date;
   resource: {
     type: CalendarEventType;
-    priority?: DeadlinePriority;
+    priority?: string;
     caseNumber?: string;
     personName?: string;
-    status?: DeadlineStatus;
+    status?: string;
     deadlineId?: string;
   };
 }

@@ -22,13 +22,6 @@ export const asString = (v: unknown, fallback = 'sem nome'): string =>
   typeof v === 'string' && v.trim() ? v.trim() : fallback;
 
 const FLAT_ENTITY_CONFIG: Record<string, AuditableEntityConfig> = {
-  deadlines: {
-    entityKey: 'Deadline',
-    entityLabel: 'Prazo',
-    entityLabelPlural: 'Prazos',
-    getDisplayName: (d) => asString(d.description, 'Prazo'),
-    getEntityLink: (_tenantId, docId) => `view-deadline:${docId}`,
-  },
   members: {
     entityKey: 'TenantMember',
     entityLabel: 'Membro',

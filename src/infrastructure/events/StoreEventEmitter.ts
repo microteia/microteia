@@ -28,7 +28,6 @@ export const StoreEvents = {
   PERSONS_UPDATED: 'persons:updated',
   PERSON_TAG_UPDATED: 'person_tag:updated',
   CASE_TAG_UPDATED: 'case_tag:updated',
-  DEADLINES_UPDATED: 'deadlines:updated',
   NEWS_UPDATED: 'news:updated',
   NEWS_TAG_UPDATED: 'news_tag:updated',
   PUSH_UPDATED: 'push:updated',

@@ -1,38 +1,24 @@
 import { describe, expect, it } from 'vitest';
 import { resolveListActions, supportedListActions } from './listActionCapabilities';
 
+/**
+ * Nenhuma entidade do kernel tem mais tela de registro — Prazo foi a última a sair. O que este
+ * módulo governa, então, é o SILÊNCIO: uma coleção que ele não descreve não pode ganhar ações do
+ * card por engano, nem mesmo por configuração gravada. Quem declara as ações de uma tela de
+ * extensão é a própria tela (`listActions`), que não passa por aqui.
+ */
 describe('supportedListActions', () => {
-  it('Prazos não oferece etiquetas nem duplicar — a entidade não suporta', () => {
-    expect(supportedListActions('deadlines')).toEqual(['copyLink', 'delete']);
-  });
-
-  it('a tela que ainda é fixa oferece as quatro', () => {
-    expect(supportedListActions('persons')).toHaveLength(4);
-  });
-
-  it('tela desconhecida não oferece nada', () => {
+  it('coleção que o kernel não descreve não oferece nada', () => {
+    expect(supportedListActions('deadlines')).toEqual([]);
+    expect(supportedListActions('persons')).toEqual([]);
     expect(supportedListActions('vendas')).toEqual([]);
   });
 });
 
-describe('resolveListActions — sem configuração, mantém o card de hoje', () => {
-  it('lista vazia cai no padrão da tela', () => {
-    expect(resolveListActions('persons', [])).toEqual(['manageTags']);
-    expect(resolveListActions('deadlines', [])).toEqual(['delete']);
-    // Contrato saiu do kernel: as ações do card dele vêm da tela declarada pela extensão.
-    expect(resolveListActions('contracts', [])).toEqual([]);
-  });
-
-  it('undefined (tela fixa sem definição gravada) também cai no padrão', () => {
-    expect(resolveListActions('persons', undefined)).toEqual(['manageTags']);
-  });
-
-  it('configuração explícita prevalece sobre o padrão', () => {
-    expect(resolveListActions('persons', ['copyLink', 'delete'])).toEqual(['copyLink', 'delete']);
-  });
-
-  it('descarta ação que a entidade não suporta, mesmo se gravada', () => {
-    expect(resolveListActions('deadlines', ['manageTags', 'clone', 'copyLink']))
-      .toEqual(['copyLink']);
+describe('resolveListActions', () => {
+  it('sem tela fixa que a suporte, nenhuma ação sobrevive à filtragem', () => {
+    expect(resolveListActions('deadlines', [])).toEqual([]);
+    expect(resolveListActions('deadlines', ['manageTags', 'clone', 'copyLink'])).toEqual([]);
+    expect(resolveListActions('contracts', undefined)).toEqual([]);
   });
 });
