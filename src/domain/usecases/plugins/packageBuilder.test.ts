@@ -62,6 +62,21 @@ describe('buildPackage', () => {
     expect(pkg.workflows[0].templateId).toBe('wf-1');
   });
 
+  /**
+   * Reexportar não pode trocar a identidade do artefato pela do escritório que reexportou: quem
+   * aponta para ele de outro pacote aponta pelo identificador de ORIGEM.
+   */
+  it('o artefato que veio de um pacote é exportado com o identificador de origem', () => {
+    const pkg = buildPackage({
+      ...empty, manifest, summary: 's',
+      actions: [action({ id: 'ativar-inativar', sourceId: 'act-pessoa-status', workflowId: 'wf-1' })],
+      workflows: [workflow({ id: 'ativar-inativar-pessoa', sourceId: 'wf-pessoa-status' })],
+    });
+
+    expect(pkg.actions?.[0].templateId).toBe('act-pessoa-status');
+    expect(pkg.workflows[0].templateId).toBe('wf-pessoa-status');
+  });
+
   it('inclui views de código e sobrevive ao round-trip serialize→parse', () => {
     const pkg = buildPackage({
       ...empty, manifest, summary: 's',

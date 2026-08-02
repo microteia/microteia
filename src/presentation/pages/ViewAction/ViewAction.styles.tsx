@@ -121,6 +121,11 @@ export const S = {
     color: ${({ theme }) => theme.colors.textMuted};
   `,
 
+  FieldError: styled.p`
+    font-size: ${({ theme }) => theme.fontSizes.xs};
+    color: ${({ theme }) => theme.colors.danger};
+  `,
+
   Field: styled.div`
     display: flex;
     flex-direction: column;

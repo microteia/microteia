@@ -4,7 +4,7 @@ import type { Script } from '../domain/entities/Script';
 export interface ScriptStoreContextValue {
   scripts: Script[];
   isLoading: boolean;
-  createScript: (data: Omit<Script, 'id' | 'tenantId' | 'createdAt' | 'updatedAt'>) => Promise<Script>;
+  createScript: (data: Omit<Script, 'id' | 'tenantId' | 'createdAt' | 'updatedAt'>, id?: string) => Promise<Script>;
   updateScript: (id: string, data: Partial<Omit<Script, 'id' | 'tenantId' | 'createdAt'>>) => Promise<void>;
   deleteScript: (id: string) => Promise<void>;
 }

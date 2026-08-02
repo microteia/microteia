@@ -19,6 +19,7 @@ import {
   workflowInputFromTemplate,
 } from './packageMaterialize';
 import { workflowOutRefs } from './pluginReferences';
+import { installedArtifactId } from '../../services/artifactIdentity';
 import type { ILookupDefinitionRepository } from '../../repositories/ILookupDefinitionRepository';
 import type { ILookupRepository } from '../../repositories/ILookupRepository';
 import { isLookupCollection } from '../../schema/lookupRegistry';
@@ -148,6 +149,7 @@ const materializeArtifacts = async (
 
   const existingScripts = await deps.scriptRepository.getScripts(tenantId);
   const scriptMap = new Map<string, string>();
+  const takenScriptIds = new Set(existingScripts.map((script) => script.id));
   for (const template of plugin.scripts ?? []) {
     const existing = existingScripts.find((s) => s.sourceId === template.templateId);
     if (existing) {
@@ -163,7 +165,9 @@ const materializeArtifacts = async (
         await deps.scriptRepository.updateScript(tenantId, existing.id, { ownerPluginIds: owners, ownerPluginId: existing.ownerPluginId ?? pluginId });
       }
     } else {
-      const created = await deps.scriptRepository.createScript(tenantId, scriptInputFromTemplate(template, pluginId));
+      const localId = installedArtifactId(template.templateId, template.name, takenScriptIds);
+      const created = await deps.scriptRepository.createScript(tenantId, scriptInputFromTemplate(template, pluginId), localId);
+      takenScriptIds.add(created.id);
       scriptMap.set(template.templateId, created.id);
     }
   }
@@ -182,6 +186,7 @@ const materializeArtifacts = async (
 
   const existingWorkflows = await deps.workflowRepository.getWorkflowDefinitions(tenantId);
   const workflowMap = new Map<string, string>();
+  const takenWorkflowIds = new Set(existingWorkflows.map((workflow) => workflow.id));
   // Workflows TOCADOS (criados OU reescritos in-place) — os que a passada 2 precisa remapear.
   const touchedWorkflows: { templateId: string; id: string }[] = [];
   for (const template of plugin.workflows) {
@@ -204,7 +209,9 @@ const materializeArtifacts = async (
       }
     } else {
       const input = workflowInputFromTemplate(template, pluginId, scriptMap, screenEventMap);
-      const created = await deps.workflowRepository.createWorkflowDefinition(tenantId, input);
+      const localId = installedArtifactId(template.templateId, template.name, takenWorkflowIds);
+      const created = await deps.workflowRepository.createWorkflowDefinition(tenantId, input, localId);
+      takenWorkflowIds.add(created.id);
       workflowMap.set(template.templateId, created.id);
       touchedWorkflows.push({ templateId: template.templateId, id: created.id });
     }
@@ -223,6 +230,7 @@ const materializeArtifacts = async (
 
   const existingActions = await deps.actionRepository.getAll(tenantId);
   const actionMap = new Map<string, string>();
+  const takenActionIds = new Set(existingActions.map((action) => action.id));
   for (const template of plugin.actions ?? []) {
     const existing = existingActions.find((a) => a.sourceId === template.templateId);
     if (existing) {
@@ -241,7 +249,9 @@ const materializeArtifacts = async (
       const created = await deps.actionRepository.create(
         tenantId,
         actionInputFromTemplate(template, pluginId, workflowMap, userId),
+        installedArtifactId(template.templateId, template.title, takenActionIds),
       );
+      takenActionIds.add(created.id);
       actionMap.set(template.templateId, created.id);
     }
   }

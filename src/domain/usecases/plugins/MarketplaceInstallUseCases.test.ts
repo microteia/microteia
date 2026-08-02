@@ -47,8 +47,11 @@ class FakeWorkflows {
   async getWorkflowDefinitions(tenantId: string) {
     return [...this.store.values()].filter((w) => w.tenantId === tenantId);
   }
-  async createWorkflowDefinition(tenantId: string, data: Omit<WorkflowDefinition, 'id' | 'tenantId' | 'createdAt' | 'updatedAt'>) {
-    const workflow = { ...data, id: `wf-${(this.seq += 1)}`, tenantId, createdAt: new Date(), updatedAt: new Date() } as WorkflowDefinition;
+  // Honra o id ESCOLHIDO e recusa duplicata, como o repositório real — sem isso o dublê provaria
+  // que a instalação chama o método, e não que o identificador chega ao documento.
+  async createWorkflowDefinition(tenantId: string, data: Omit<WorkflowDefinition, 'id' | 'tenantId' | 'createdAt' | 'updatedAt'>, id?: string) {
+    if (id && this.store.has(id)) throw new Error(`Já existe uma automação com o identificador "${id}".`);
+    const workflow = { ...data, id: id ?? `gen-${(this.seq += 1)}`, tenantId, createdAt: new Date(), updatedAt: new Date() } as WorkflowDefinition;
     this.store.set(workflow.id, workflow);
     return workflow;
   }
@@ -91,8 +94,9 @@ class FakeActions {
   async getAll(tenantId: string) {
     return [...this.store.values()].filter((a) => a.tenantId === tenantId);
   }
-  async create(tenantId: string, data: ActionDefinitionInput) {
-    const action = { ...data, id: `act-${(this.seq += 1)}`, tenantId, createdAt: new Date(), updatedAt: new Date() } as ActionDefinition;
+  async create(tenantId: string, data: ActionDefinitionInput, id?: string) {
+    if (id && this.store.has(id)) throw new Error(`Já existe uma ação com o identificador "${id}".`);
+    const action = { ...data, id: id ?? `gen-${(this.seq += 1)}`, tenantId, createdAt: new Date(), updatedAt: new Date() } as ActionDefinition;
     this.store.set(action.id, action);
     return action;
   }
@@ -110,8 +114,9 @@ class FakeScripts {
   async getScripts(tenantId: string) {
     return [...this.store.values()].filter((s) => s.tenantId === tenantId);
   }
-  async createScript(tenantId: string, data: Omit<Script, 'id' | 'tenantId' | 'createdAt' | 'updatedAt'>) {
-    const script = { ...data, id: `scr-${(this.seq += 1)}`, tenantId, createdAt: new Date(), updatedAt: new Date() } as Script;
+  async createScript(tenantId: string, data: Omit<Script, 'id' | 'tenantId' | 'createdAt' | 'updatedAt'>, id?: string) {
+    if (id && this.store.has(id)) throw new Error(`Já existe um script com o identificador "${id}".`);
+    const script = { ...data, id: id ?? `gen-${(this.seq += 1)}`, tenantId, createdAt: new Date(), updatedAt: new Date() } as Script;
     this.store.set(script.id, script);
     return script;
   }
@@ -709,6 +714,73 @@ describe('applyPackageArtifacts / releasePackageArtifacts — fluxo de extensõe
     expect(await actions.getAll('t1')).toEqual([]);
     expect(await workflows.getWorkflowDefinitions('t1')).toEqual([]);
     expect(await scripts.getScripts('t1')).toEqual([]);
+  });
+});
+
+/**
+ * O identificador do pacote É o id do documento no escritório. Antes o banco gerava o id, e a mesma
+ * tela mostrava `avisar-cliente` para a automação criada à mão e `NehhFXIJ40ZcaCV2SLjT` para a
+ * instalada por pacote — o que também deixava sem resposta a pergunta "por qual nome uma extensão
+ * de terceiro apontaria para esta automação?".
+ */
+describe('Identificador legível — o templateId do pacote vira o id do artefato', () => {
+  const identificado = (id: string): MarketplacePlugin => ({
+    summary: 'S',
+    manifest: { id, version: '1.0.0', kernel: '^1.0.0', name: id },
+    scripts: [{ templateId: 'scr-notificar', name: 'Notificar', sourceTs: 'x', compiledJs: 'y', inputParams: [], outputParams: [] }],
+    workflows: [{
+      templateId: 'wf-pessoa-status', name: 'Ativar/Inativar Pessoa', eventName: 'workflow.called',
+      version: 1, condition: { kind: 'AlwaysTrue' }, steps: [],
+    }],
+    actions: [{ templateId: 'act-pessoa-status', key: 'status_pessoa', title: 'Ativar/Inativar', icon: 'apps', workflowId: 'wf-pessoa-status', danger: false, enabled: true, order: 0 }],
+  });
+
+  it('os três artefatos nascem com o identificador do pacote, e não com um id gerado', async () => {
+    await applyPackageArtifacts(deps(), identificado('com.a'), actor);
+
+    expect((await workflows.getWorkflowDefinitions('t1'))[0].id).toBe('wf-pessoa-status');
+    expect((await actions.getAll('t1'))[0].id).toBe('act-pessoa-status');
+    expect((await scripts.getScripts('t1'))[0].id).toBe('scr-notificar');
+  });
+
+  it('o id e o sourceId passam a ser a mesma coisa — um conceito, não dois', async () => {
+    await applyPackageArtifacts(deps(), identificado('com.a'), actor);
+
+    const wf = (await workflows.getWorkflowDefinitions('t1'))[0];
+    expect(wf.sourceId).toBe(wf.id);
+  });
+
+  it('a ação aponta para a automação pelo identificador dela', async () => {
+    await applyPackageArtifacts(deps(), identificado('com.a'), actor);
+    expect((await actions.getAll('t1'))[0].workflowId).toBe('wf-pessoa-status');
+  });
+
+  /**
+   * O escritório é dono do espaço de nomes: se ele já tem uma automação com aquele identificador, a
+   * que chega recebe um derivado do NOME. O `sourceId` continua o universal — é ele que liga um
+   * pacote ao outro, e é por isso que o id local pode divergir sem quebrar nada.
+   */
+  it('identificador já ocupado no escritório: a que chega deriva do nome, e o sourceId não muda', async () => {
+    await workflows.createWorkflowDefinition('t1', { name: 'Minha', eventName: 'workflow.called' } as never, 'wf-pessoa-status');
+
+    await applyPackageArtifacts(deps(), identificado('com.a'), actor);
+
+    const instalada = (await workflows.getWorkflowDefinitions('t1')).find((w) => w.sourceId === 'wf-pessoa-status')!;
+    expect(instalada.id).toBe('ativar-inativar-pessoa');
+    expect(instalada.sourceId).toBe('wf-pessoa-status');
+    expect((await actions.getAll('t1'))[0].workflowId).toBe('ativar-inativar-pessoa');
+  });
+
+  /** Pacote exportado antes do identificador: o templateId é o id do banco de origem, e não serve. */
+  it('templateId que é um id de banco vira um identificador derivado do nome', async () => {
+    const legado = identificado('com.a');
+    legado.workflows[0].templateId = 'NehhFXIJ40ZcaCV2SLjT';
+
+    await applyPackageArtifacts(deps(), legado, actor);
+
+    const wf = (await workflows.getWorkflowDefinitions('t1'))[0];
+    expect(wf.id).toBe('ativar-inativar-pessoa');
+    expect(wf.sourceId).toBe('NehhFXIJ40ZcaCV2SLjT');
   });
 });
 

@@ -60,6 +60,21 @@ export const ViewScriptView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
                 />
               </S.Field>
               <S.Field>
+                <Label>Identificador</Label>
+                <Input
+                  value={vm.formData.scriptId}
+                  onChange={(e) => vm.setFormData({ scriptId: e.target.value })}
+                  placeholder={vm.suggestedScriptId || 'ex: calcular-prazo'}
+                  disabled={!vm.isNew}
+                />
+                <S.SectionHint>
+                  {vm.isNew
+                    ? 'É por ele que um Step e um pacote apontam para este script. Em branco, criamos um a partir do nome. Não muda depois de criado.'
+                    : 'O identificador não muda depois que o script é criado — os Steps e os pacotes que apontam para ele deixariam de encontrá-lo.'}
+                </S.SectionHint>
+                {vm.scriptIdError && <S.FieldError>{vm.scriptIdError}</S.FieldError>}
+              </S.Field>
+              <S.Field>
                 <Label>Descrição</Label>
                 <Textarea
                   value={vm.formData.description}

@@ -66,7 +66,22 @@ export const ViewActionView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
           <S.SectionTitle>Geral</S.SectionTitle>
           <S.SectionBody>
             <S.Field>
-              <Label>Identificador *</Label>
+              <Label>Identificador</Label>
+              <Input
+                value={vm.isNew ? vm.formData.actionId : vm.actionId}
+                onChange={(e) => vm.setFormData({ actionId: e.target.value })}
+                placeholder={vm.suggestedActionId || 'ex: ativar-inativar'}
+                disabled={!vm.isNew}
+              />
+              <S.SectionHint>
+                {vm.isNew
+                  ? 'É por ele que uma tela e um pacote apontam para esta ação. Em branco, criamos um a partir do título. Não muda depois de criada.'
+                  : 'O identificador não muda depois que a ação é criada — as telas e os pacotes que apontam para ela deixariam de encontrá-la.'}
+              </S.SectionHint>
+              {vm.actionIdError && <S.FieldError>{vm.actionIdError}</S.FieldError>}
+            </S.Field>
+            <S.Field>
+              <Label>Chave para o fluxo *</Label>
               <Input
                 value={vm.formData.key}
                 onChange={(e) => vm.setFormData({ key: e.target.value })}
@@ -74,7 +89,7 @@ export const ViewActionView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
               />
               <S.SectionHint>
                 Chega ao fluxo de trabalho no parâmetro <code>action</code>, para que um mesmo fluxo
-                atenda mais de uma ação.
+                atenda mais de uma ação. Não é o identificador: duas ações PODEM compartilhá-la.
               </S.SectionHint>
             </S.Field>
             <S.Field>

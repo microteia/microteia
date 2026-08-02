@@ -11,6 +11,7 @@ import {
   limit,
   Timestamp,
   serverTimestamp,
+  setDoc,
   onSnapshot,
 } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
@@ -74,12 +75,26 @@ export class FirebaseScriptRepository implements IScriptRepository {
   async createScript(
     tenantId: string,
     data: Omit<Script, 'id' | 'tenantId' | 'createdAt' | 'updatedAt'>,
+    id?: string,
   ): Promise<Script> {
-    const ref = await addDoc(scriptsRef(tenantId), {
+    const payload = {
       ...data,
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
-    });
+    };
+
+    // Identificador escolhido: ver `FirebaseActionRepository.create`.
+    if (id) {
+      const ref = doc(scriptsRef(tenantId), id);
+      if ((await getDoc(ref)).exists()) {
+        throw new Error(`Já existe um script com o identificador "${id}".`);
+      }
+      await setDoc(ref, payload);
+      const snap = await getDoc(ref);
+      return mapScript(id, snap.data() as Record<string, unknown>, tenantId);
+    }
+
+    const ref = await addDoc(scriptsRef(tenantId), payload);
     const snap = await getDoc(ref);
     return mapScript(ref.id, snap.data() as Record<string, unknown>, tenantId);
   }

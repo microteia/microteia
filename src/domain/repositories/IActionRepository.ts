@@ -25,7 +25,11 @@ export interface IActionRepository {
   getAll(tenantId: string): Promise<ActionDefinition[]>;
   subscribeToActions(tenantId: string, onUpdate: (actions: ActionDefinition[]) => void): () => void;
   getById(tenantId: string, actionId: string): Promise<ActionDefinition | null>;
-  create(tenantId: string, data: ActionDefinitionInput): Promise<ActionDefinition>;
+  /**
+   * `id` é o IDENTIFICADOR escolhido (`avisar-cliente`), e não um id gerado: é ele que a tela mostra
+   * e que um pacote carrega. Ausente, o banco gera um — o caminho de quem ainda não escolheu.
+   */
+  create(tenantId: string, data: ActionDefinitionInput, id?: string): Promise<ActionDefinition>;
   update(tenantId: string, actionId: string, data: Partial<ActionDefinitionInput>): Promise<void>;
   delete(tenantId: string, actionId: string, actor: DeletionActor): Promise<void>;
   runAction(input: RunActionInput): Promise<RunActionResult>;

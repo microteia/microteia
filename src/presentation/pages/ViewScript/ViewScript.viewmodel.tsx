@@ -1,6 +1,7 @@
 import { useState, useMemo, useCallback, useEffect } from 'react';
 import { transform } from 'sucrase';
 import { useScriptStore } from '../../../stores/useScriptStore';
+import { artifactIdIssue, deriveArtifactId } from '../../../domain/services/artifactIdentity';
 import { useDI } from '../../../infrastructure/di/useDI';
 import { useTenant } from '../../../stores/useTenant';
 import { useWorkspace } from '../../../stores/useWorkspace';
@@ -63,6 +64,8 @@ const transpile = (sourceTs: string): { compiledJs: string } | { error: string }
 };
 
 export interface ScriptFormData {
+  /** Id do documento — o que um Step e um pacote guardam para apontar para este script. */
+  scriptId: string;
   name: string;
   description: string;
   sourceTs: string;
@@ -71,6 +74,7 @@ export interface ScriptFormData {
 }
 
 const buildForm = (script: Script | null): ScriptFormData => ({
+  scriptId: script?.id ?? '',
   name: script?.name ?? '',
   description: script?.description ?? '',
   sourceTs: script?.sourceTs ?? DEFAULT_SOURCE,
@@ -80,6 +84,9 @@ const buildForm = (script: Script | null): ScriptFormData => ({
 
 export interface ViewScriptViewModel {
   isNew: boolean;
+  /** O identificador: editável só na inclusão, sugerido a partir do nome. */
+  suggestedScriptId: string;
+  scriptIdError: string | undefined;
   script: Script | null;
   formData: ScriptFormData;
   scriptTypeDefs: string;
@@ -119,6 +126,7 @@ export const useViewScriptViewModel = (tabKey: string): ViewScriptViewModel => {
   const scriptId = isNew ? '' : tabKey.replace('view-script:', '');
 
   const { scripts, createScript, updateScript, deleteScript } = useScriptStore();
+  const takenScriptIds = useMemo(() => new Set(scripts.map((item) => item.id)), [scripts]);
   const { scriptRepository } = useDI();
   const { currentTenant } = useTenant();
   const { setTabTitle, closeTab, openTab, activePanelId } = useWorkspace();
@@ -132,6 +140,18 @@ export const useViewScriptViewModel = (tabKey: string): ViewScriptViewModel => {
   );
 
   const [formData, setFormDataState] = useState<ScriptFormData>(() => buildForm(null));
+
+  const suggestedScriptId = useMemo(
+    () => (formData.name.trim() ? deriveArtifactId(formData.name, takenScriptIds) : ''),
+    [formData.name, takenScriptIds],
+  );
+
+  const scriptIdError = useMemo(
+    () => (isNew && formData.scriptId.trim()
+      ? artifactIdIssue(formData.scriptId, takenScriptIds, 'script')
+      : undefined),
+    [isNew, formData.scriptId, takenScriptIds],
+  );
   const [isSaving, setIsSaving] = useState(false);
   const [runModalOpen, setRunModalOpen] = useState(false);
   const [scriptToDelete, setScriptToDelete] = useState<Script | null>(null);
@@ -246,6 +266,11 @@ export const useViewScriptViewModel = (tabKey: string): ViewScriptViewModel => {
       return;
     }
 
+    if (scriptIdError) {
+      notify(scriptIdError, 'error');
+      return;
+    }
+
     setIsSaving(true);
     try {
       const data = {
@@ -258,7 +283,8 @@ export const useViewScriptViewModel = (tabKey: string): ViewScriptViewModel => {
       };
 
       if (isNew) {
-        const created = await createScript(data);
+        const chosenId = formData.scriptId.trim() || deriveArtifactId(formData.name, takenScriptIds);
+        const created = await createScript(data, chosenId);
         notify('Script criado.', 'success');
         closeTab(tabKey, activePanelId ?? 'main');
         openTab(`view-script:${created.id}`);
@@ -272,7 +298,7 @@ export const useViewScriptViewModel = (tabKey: string): ViewScriptViewModel => {
     } finally {
       setIsSaving(false);
     }
-  }, [currentTenant, formData, isNew, script, createScript, updateScript, notify, closeTab, tabKey, activePanelId, openTab]);
+  }, [currentTenant, formData, isNew, script, scriptIdError, takenScriptIds, createScript, updateScript, notify, closeTab, tabKey, activePanelId, openTab]);
 
   const openRunModal = useCallback(() => {
     const compiled = transpile(formData.sourceTs);
@@ -341,6 +367,8 @@ export const useViewScriptViewModel = (tabKey: string): ViewScriptViewModel => {
 
   return {
     isNew,
+    suggestedScriptId,
+    scriptIdError,
     script,
     formData,
     scriptTypeDefs,

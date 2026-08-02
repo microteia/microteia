@@ -182,6 +182,11 @@ export const S = {
     gap: ${({ theme }) => theme.spacing.sm};
   `,
 
+  FieldError: styled.p`
+    font-size: ${({ theme }) => theme.fontSizes.xs};
+    color: ${({ theme }) => theme.colors.danger};
+  `,
+
   SectionHint: styled.p`
     font-size: ${({ theme }) => theme.fontSizes.xs};
     color: ${({ theme }) => theme.colors.textMuted};

@@ -37,7 +37,7 @@ import type { InsertTarget } from '../../shared/workflowHelpers';
 import type { WorkflowDefinition, WorkflowExecution, WorkflowStep, Condition, WorkflowParameter } from '../../../domain/entities/Workflow';
 import type { RunModalResult } from '../../components/ui/RunModal';
 import type { StepDefinitionSummary, StepCategory } from '../../../domain/entities/WorkflowStepCatalog';
-import { deriveWorkflowId, workflowIdIssue } from '../../../domain/services/workflowIdentity';
+import { artifactIdIssue, deriveArtifactId } from '../../../domain/services/artifactIdentity';
 
 export type ViewWorkflowTab = 'general' | 'conditions' | 'steps' | 'executions';
 
@@ -399,13 +399,13 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
   const takenWorkflowIds = useMemo(() => new Set(workflows.map((w) => w.id)), [workflows]);
 
   const suggestedWorkflowId = useMemo(
-    () => (formData.name.trim() ? deriveWorkflowId(formData.name, takenWorkflowIds) : ''),
+    () => (formData.name.trim() ? deriveArtifactId(formData.name, takenWorkflowIds) : ''),
     [formData.name, takenWorkflowIds],
   );
 
   const workflowIdError = useMemo(
     () => (isNew && formData.workflowId.trim()
-      ? workflowIdIssue(formData.workflowId, takenWorkflowIds)
+      ? artifactIdIssue(formData.workflowId, takenWorkflowIds)
       : undefined),
     [isNew, formData.workflowId, takenWorkflowIds],
   );
@@ -501,7 +501,7 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
         if (lookupCollection) createData.lookupCollection = lookupCollection;
         if (parameters) createData.parameters = parameters;
 
-        const chosenId = formData.workflowId.trim() || deriveWorkflowId(formData.name, takenWorkflowIds);
+        const chosenId = formData.workflowId.trim() || deriveArtifactId(formData.name, takenWorkflowIds);
         const created = await createWorkflow(createData as Parameters<typeof createWorkflow>[0], chosenId);
         notify('Automação criada.', 'success');
         closeTab(tabKey, activePanelId ?? 'main');

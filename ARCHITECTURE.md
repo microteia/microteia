@@ -3708,6 +3708,40 @@ fica órfão.
 Desinstalar e instalar de novo perderia essas cinco coisas e renumeraria os artefatos. É por isso que
 "Atualizar" não é o par das duas operações, ainda que o resultado pareça o mesmo de fora.
 
+#### O identificador de uma automação, ação ou script
+
+Os três são artefatos de **id gerado** — diferente de uma tela, cuja chave é o nome da coleção. O id
+do documento É o identificador, e é ele que viaja: o `templateId` que o pacote carrega vira o id do
+documento no escritório que instala (`installedArtifactId`, em `domain/services/artifactIdentity.ts`).
+Um conceito, e não um par de nomes a conciliar.
+
+O identificador segue o padrão das chaves de tela — `^[a-z][a-z0-9-]*$`, no máximo 60 caracteres. Nas
+três telas ele é **editável só na inclusão**, com sugestão derivada do nome; depois de criado não
+muda, porque quem aponta para o artefato aponta por ele.
+
+Dois casos em que o identificador do pacote não serve, e o instalador deriva um do nome:
+
+- **Pacote antigo**, exportado quando o `templateId` era o id do banco de origem
+  (`NehhFXIJ40ZcaCV2SLjT`, que nem passa no padrão);
+- **Nome já ocupado** no escritório de destino — o espaço de nomes é dele.
+
+Nos dois, o **`sourceId` continua sendo o universal**: é ele que deduplica o artefato entre pacotes
+(dois pacotes trazendo o mesmo `sourceId` compartilham um artefato, por refcount de donos) e é por ele
+que a reexportação preserva a identidade em vez de trocá-la pela do escritório que reexportou
+(`templateIdOf`, no `packageBuilder`). Id local e `sourceId` coincidem no caso normal e divergem nos
+dois acima — e é justamente por poderem divergir que a divergência não quebra nada.
+
+**A `key` de uma Ação não é identidade.** Ela é o valor que chega ao fluxo no parâmetro `action`,
+para que um mesmo fluxo atenda mais de uma ação — logo, **pode repetir de propósito**. A tela a
+chamava de "Identificador", que era o rótulo errado no lugar mais confuso possível; hoje é "Chave
+para o fluxo", e "Identificador" é o id.
+
+**O que ainda NÃO existe:** referenciar de um pacote um workflow/action/script trazido por OUTRA
+extensão. `validatePackage` só aceita referência externa de `kind: 'screen'` (por nome de coleção ou
+por chave namespaced de dependência); para os três artefatos de id gerado, a referência precisa estar
+dentro do próprio pacote. O identificador legível é a base para isso — sem ele não havia por qual
+nome apontar —, mas a capacidade em si é trabalho à parte.
+
 **O que quebrava, e por quê.** O conteúdo de script, workflow e action só era reescrito quando a
 revisão de origem que chegava era maior (`revOf(template) > revOf(existing)`). O catálogo embutido é
 escrito à mão e não carimba revisão nesses três — os dois lados ficavam em `0`, e `0 > 0` congelava o

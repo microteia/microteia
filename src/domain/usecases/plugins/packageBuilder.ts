@@ -190,9 +190,17 @@ const screenToPatch = (screen: ScreenDefinition): ScreenPatchTemplate | null => 
   });
 };
 
+/**
+ * O `templateId` é o IDENTIFICADOR de origem, não o id local. Para o artefato que veio de um pacote,
+ * é o `sourceId` — reexportar preserva a identidade em vez de trocá-la pela do escritório que
+ * reexportou. Para o criado aqui, os dois já são a mesma coisa.
+ */
+const templateIdOf = (artifact: { id: string; sourceId?: string | null }): string =>
+  artifact.sourceId ?? artifact.id;
+
 const actionToTemplate = (action: ActionDefinition): ActionModuleTemplate =>
   stripUndefined({
-    templateId: action.id,
+    templateId: templateIdOf(action),
     ...omit(action, [
       'id', 'tenantId', 'ownerPluginId',
       'createdAt', 'createdBy', 'updatedAt', 'updatedBy', 'updatedByName', 'updatedByPhotoURL',
@@ -202,14 +210,14 @@ const actionToTemplate = (action: ActionDefinition): ActionModuleTemplate =>
 
 const workflowToTemplate = (workflow: WorkflowDefinition): WorkflowModuleTemplate =>
   stripUndefined({
-    templateId: workflow.id,
+    templateId: templateIdOf(workflow),
     ...omit(workflow, ['id', 'tenantId', 'ownerPluginId', 'enabled', 'createdAt', 'updatedAt']),
     sourceRev: workflow.updatedAt.getTime(),
   }) as WorkflowModuleTemplate;
 
 const scriptToTemplate = (script: Script): ScriptModuleTemplate =>
   stripUndefined({
-    templateId: script.id,
+    templateId: templateIdOf(script),
     ...omit(script, ['id', 'tenantId', 'ownerPluginId', 'createdAt', 'updatedAt']),
     sourceRev: script.updatedAt.getTime(),
   }) as ScriptModuleTemplate;

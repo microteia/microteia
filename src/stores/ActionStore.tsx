@@ -79,7 +79,7 @@ export const ActionStoreProvider: React.FC<{ children: React.ReactNode }> = ({ c
     [actions],
   );
 
-  const createAction = useCallback(async (data: ActionSaveInput) => {
+  const createAction = useCallback(async (data: ActionSaveInput, id?: string) => {
     if (!currentTenant || !user) throw new Error('Not authenticated');
     const created = await uc.create.execute(currentTenant.id, {
       ...data,
@@ -87,7 +87,7 @@ export const ActionStoreProvider: React.FC<{ children: React.ReactNode }> = ({ c
       updatedBy: user.id,
       updatedByName: effectiveName,
       updatedByPhotoURL: user.photoURL ?? '',
-    });
+    }, id);
     storeEvents.emit(StoreEvents.ACTIONS_UPDATED);
     return created;
   }, [currentTenant, user, effectiveName, uc.create]);

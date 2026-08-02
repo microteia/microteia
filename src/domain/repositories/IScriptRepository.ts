@@ -24,9 +24,11 @@ export interface IScriptRepository {
   getScripts(tenantId: string): Promise<Script[]>;
   subscribeToScripts(tenantId: string, onUpdate: (scripts: Script[]) => void): () => void;
   getScriptById(tenantId: string, id: string): Promise<Script | null>;
+  /** `id` é o IDENTIFICADOR escolhido. Ver `IActionRepository.create`. */
   createScript(
     tenantId: string,
     data: Omit<Script, 'id' | 'tenantId' | 'createdAt' | 'updatedAt'>,
+    id?: string,
   ): Promise<Script>;
   updateScript(
     tenantId: string,

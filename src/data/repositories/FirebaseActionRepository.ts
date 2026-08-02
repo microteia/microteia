@@ -9,6 +9,7 @@ import {
   orderBy,
   query,
   serverTimestamp,
+  setDoc,
   Timestamp,
   updateDoc,
 } from 'firebase/firestore';
@@ -75,12 +76,26 @@ export class FirebaseActionRepository implements IActionRepository {
     return snap.exists() ? mapAction(snap.id, snap.data(), tenantId) : null;
   }
 
-  async create(tenantId: string, data: ActionDefinitionInput): Promise<ActionDefinition> {
-    const ref = await addDoc(actionsRef(tenantId), {
+  async create(tenantId: string, data: ActionDefinitionInput, id?: string): Promise<ActionDefinition> {
+    const payload = {
       ...stripUndefined(data),
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
-    });
+    };
+
+    // Identificador escolhido: o documento leva o nome, e a checagem prévia evita sobrescrever uma
+    // ação existente — `setDoc` gravaria por cima sem avisar.
+    if (id) {
+      const ref = doc(actionsRef(tenantId), id);
+      if ((await getDoc(ref)).exists()) {
+        throw new Error(`Já existe uma ação com o identificador "${id}".`);
+      }
+      await setDoc(ref, payload);
+      const snap = await getDoc(ref);
+      return mapAction(id, snap.data() as Record<string, unknown>, tenantId);
+    }
+
+    const ref = await addDoc(actionsRef(tenantId), payload);
     const snap = await getDoc(ref);
     return mapAction(ref.id, snap.data() as Record<string, unknown>, tenantId);
   }

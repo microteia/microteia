@@ -5,9 +5,10 @@ export type CreateScriptUseCase = {
   execute: (
     tenantId: string,
     data: Omit<Script, 'id' | 'tenantId' | 'createdAt' | 'updatedAt'>,
+    id?: string,
   ) => Promise<Script>;
 };
 
 export const makeCreateScriptUseCase = (repo: IScriptRepository): CreateScriptUseCase => ({
-  execute: (tenantId, data) => repo.createScript(tenantId, data),
+  execute: (tenantId, data, id) => repo.createScript(tenantId, data, id),
 });

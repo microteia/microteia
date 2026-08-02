@@ -11,6 +11,14 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [4.2.0] — 2026-08-02
+
+- **Automações, ações e scripts ganham um identificador legível.** Antes, o que a tela mostrava como identificador era um código do banco (`NehhFXIJ40ZcaCV2SLjT`) sempre que o artefato vinha de uma extensão — enquanto o criado à mão ao lado mostrava um nome. Agora é um nome nos dois casos: a automação de Pessoa passa a se chamar `wf-pessoa-status`, que é como a extensão a nomeia.
+- Ao criar uma automação, uma ação ou um script, você pode **escolher o identificador**; em branco, ele é criado a partir do nome. Depois de criado não muda, porque é por ele que as telas, as ações e os pacotes encontram o artefato.
+- Na tela de Ação, o campo que se chamava "Identificador" passou a se chamar **"Chave para o fluxo"** — é o que ele sempre foi: o valor que chega ao fluxo de trabalho, e que duas ações podem compartilhar de propósito. O identificador de verdade agora tem campo próprio.
+- Exportar uma extensão preserva o identificador de origem dos artefatos, em vez de trocá-lo pelo código local.
+- Os artefatos **já instalados continuam com o código antigo** — nada foi renumerado, para não quebrar o que aponta para eles. O nome legível vale para o que for instalado ou criado daqui em diante.
+
 ## [4.1.2] — 2026-08-02
 
 - Corrigido: **"Atualizar" uma extensão não atualizava as automações**. A mensagem dizia que tinha atualizado, mas as automações, as ações e os scripts continuavam como na primeira instalação — só desinstalar e instalar de novo trazia a versão nova. Agora atualizar traz tudo.

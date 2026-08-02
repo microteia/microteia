@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useActions } from '../../../stores/useActions';
+import { artifactIdIssue, deriveArtifactId } from '../../../domain/services/artifactIdentity';
 import { useWorkflowStore } from '../../../stores/useWorkflowStore';
 import { useTenant } from '../../../stores/useTenant';
 import { useWorkspace } from '../../../stores/useWorkspace';
@@ -12,6 +13,8 @@ import type { WorkflowVariable } from '../../components/ui/ExpressionEditor/auto
 import type { SearchSelectOption } from '../../components/ui/SearchSelect';
 
 export interface ActionFormState {
+  /** Id do documento — o que uma tela e um pacote guardam para apontar para esta ação. */
+  actionId: string;
   key: string;
   title: string;
   icon: string;
@@ -27,6 +30,7 @@ export interface ActionFormState {
 }
 
 const EMPTY_FORM: ActionFormState = {
+  actionId: '',
   key: '',
   title: '',
   icon: 'apps',
@@ -42,6 +46,7 @@ const EMPTY_FORM: ActionFormState = {
 };
 
 const toForm = (action: ActionDefinition): ActionFormState => ({
+  actionId: action.id,
   key: action.key,
   title: action.title,
   icon: action.icon,
@@ -59,6 +64,11 @@ const toForm = (action: ActionDefinition): ActionFormState => ({
 export interface ViewActionViewModel {
   isAdmin: boolean;
   isNew: boolean;
+  /** O identificador do documento: editável só na inclusão, sugerido a partir do título. */
+  suggestedActionId: string;
+  actionIdError: string | undefined;
+  /** O identificador já gravado — a tela o mostra em modo leitura depois da criação. */
+  actionId: string;
   notFound: boolean;
   formData: ActionFormState;
   setFormData: (patch: Partial<ActionFormState>) => void;
@@ -154,7 +164,22 @@ export const useViewActionViewModel = (tabKey: string): ViewActionViewModel => {
 
   // Uma ação executa UMA coisa: um comando do sistema ou um fluxo de trabalho. O comando dispensa
   // o fluxo — não há o que rodar no servidor.
-  const canSave = formData.key.trim() !== ''
+  const takenActionIds = useMemo(() => new Set(actions.map((item) => item.id)), [actions]);
+
+  const suggestedActionId = useMemo(
+    () => (formData.title.trim() ? deriveArtifactId(formData.title, takenActionIds) : ''),
+    [formData.title, takenActionIds],
+  );
+
+  const actionIdError = useMemo(
+    () => (isNew && formData.actionId.trim()
+      ? artifactIdIssue(formData.actionId, takenActionIds, 'ação')
+      : undefined),
+    [isNew, formData.actionId, takenActionIds],
+  );
+
+  const canSave = !actionIdError
+    && formData.key.trim() !== ''
     && formData.title.trim() !== ''
     && (formData.command !== '' || formData.workflowId !== '')
     && !isSaving;
@@ -178,7 +203,8 @@ export const useViewActionViewModel = (tabKey: string): ViewActionViewModel => {
         order: formData.order,
       };
       if (isNew) {
-        const created = await createAction(payload);
+        const chosenId = formData.actionId.trim() || deriveArtifactId(formData.title, takenActionIds);
+        const created = await createAction(payload, chosenId);
         notify('Ação criada com sucesso.', 'success');
         closeTab(tabKey, activePanelId);
         openTab(`view-action:${created.id}`);
@@ -192,7 +218,7 @@ export const useViewActionViewModel = (tabKey: string): ViewActionViewModel => {
     } finally {
       setIsSaving(false);
     }
-  }, [canSave, formData, isNew, action, createAction, updateAction, notify, closeTab, openTab, tabKey, activePanelId]);
+  }, [canSave, formData, isNew, action, takenActionIds, createAction, updateAction, notify, closeTab, openTab, tabKey, activePanelId]);
 
   const handleDelete = useCallback(() => setActionToDelete(action), [action]);
   const cancelDelete = useCallback(() => setActionToDelete(null), []);
@@ -213,6 +239,9 @@ export const useViewActionViewModel = (tabKey: string): ViewActionViewModel => {
   return {
     isAdmin: tenantRole === 'admin',
     isNew,
+    suggestedActionId,
+    actionIdError,
+    actionId: action?.id ?? '',
     notFound: !isNew && !action,
     formData,
     setFormData,

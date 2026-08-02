@@ -13,7 +13,7 @@ export interface ActionStoreState {
   getAction: (actionId: string) => ActionDefinition | undefined;
   /** Actions habilitadas para os ids informados, na ordem configurada. */
   getActionsByIds: (actionIds: string[]) => ActionDefinition[];
-  createAction: (data: ActionSaveInput) => Promise<ActionDefinition>;
+  createAction: (data: ActionSaveInput, id?: string) => Promise<ActionDefinition>;
   updateAction: (actionId: string, data: Partial<ActionSaveInput>) => Promise<void>;
   deleteAction: (actionId: string) => Promise<void>;
   runAction: (input: Omit<RunActionInput, 'tenantId'>) => Promise<RunActionResult>;
