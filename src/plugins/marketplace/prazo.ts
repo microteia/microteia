@@ -7,6 +7,7 @@ import type {
   WorkflowModuleTemplate,
 } from '../../domain/entities/MarketplacePlugin';
 import type { CustomFieldOption } from '../../domain/entities';
+import type { WorkflowStep } from '../../domain/entities/Workflow';
 import { nav, page } from '../contributionBuilders';
 
 /**
@@ -18,8 +19,9 @@ import { nav, page } from '../contributionBuilders';
  *
  * O que ANTES era código do kernel e agora é declaração: o botão "marcar como concluído" virou uma
  * **Action** sobre um workflow, com a expressão que decide quando ele aparece; a prioridade e o
- * status, que eram uniões fechadas no tipo, viraram listas de opções do escritório; e a ordem da
- * lista (do vencimento mais próximo ao mais distante) virou o comparador que a listagem recebe.
+ * status, que eram uniões fechadas no tipo, viraram listas de opções do escritório; a ordem da
+ * lista (do vencimento mais próximo ao mais distante) virou o comparador que a listagem recebe; e o
+ * Step "Criar Prazo" do motor virou um WORKFLOW da própria extensão.
  */
 const SOURCE_ID = 'microteia:prazo';
 
@@ -123,6 +125,251 @@ const CONCLUIR_WORKFLOW: WorkflowModuleTemplate = {
             fields: [
               { name: 'status', value: { kind: 'Literal', value: 'Prazo marcado como concluído.' } },
               { name: 'actions', value: { kind: 'Literal', value: ['refresh'] } },
+            ],
+          },
+        },
+      },
+    },
+  ],
+};
+
+/**
+ * **Criar Prazo** — o que era o Step `create-deadline` do kernel, agora como workflow chamável da
+ * própria extensão. A diferença não é só de forma: o Step exigia o **id** do processo e o do
+ * advogado, e quem chama um workflow raramente os tem em mãos — quem analisa uma intimação tem o
+ * NÚMERO do processo e o NOME do advogado.
+ *
+ * Por isso o workflow resolve os dois antes de gravar, e **para** quando não acha: um prazo pendurado
+ * num processo inexistente é pior do que um erro na cara de quem chamou. O advogado é opcional; o
+ * processo, não.
+ *
+ * O caminho de erro é sempre o mesmo par — Montar Objeto com `{ ok: false, error }` e Encerrar
+ * Workflow —, porque o Encerrar não produz saída própria: o retorno do workflow é a saída do passo
+ * anterior a ele.
+ */
+const erro = (id: string, order: number, expression: string): WorkflowStep[] => [
+  {
+    id: `${id}Mensagem`,
+    stepDefinitionId: 'map',
+    type: 'Action',
+    order,
+    enabled: true,
+    configuration: {
+      map: {
+        kind: 'Literal',
+        value: {
+          name: '',
+          fields: [
+            { name: 'ok', value: { kind: 'Literal', value: false } },
+            { name: 'error', value: { kind: 'Expression', expression } },
+          ],
+        },
+      },
+    },
+  },
+  {
+    id: `${id}Sair`,
+    stepDefinitionId: 'exit',
+    type: 'Action',
+    order: order + 1,
+    enabled: true,
+    configuration: {},
+  },
+];
+
+const buscar = (id: string, order: number, table: string, path: string, parameter: string): WorkflowStep => ({
+  id,
+  stepDefinitionId: 'query',
+  type: 'Action',
+  order,
+  enabled: true,
+  configuration: {
+    query: {
+      kind: 'Literal',
+      value: {
+        table,
+        where: [{ path, op: 'eq', value: { kind: 'Event', path: parameter } }],
+        limit: 1,
+        projections: [],
+      },
+    },
+  },
+});
+
+const CRIAR_WORKFLOW: WorkflowModuleTemplate = {
+  templateId: 'wf-prazo-criar',
+  name: 'Criar Prazo',
+  description: 'Cria um prazo a partir do NÚMERO do processo e do NOME do advogado responsável, resolvendo os dois antes de gravar. Encerra com erro se o processo não existir, ou se o advogado informado não for encontrado.',
+  eventName: 'workflow.called',
+  version: 1,
+  condition: { kind: 'AlwaysTrue' },
+  parameters: [
+    { key: 'caseNumber', label: 'Número do processo', type: 'String', required: true },
+    { key: 'type', label: 'Tipo de prazo', type: 'String', required: true, defaultValue: 'Petição' },
+    { key: 'dueDate', label: 'Data de vencimento', type: 'Date', required: true },
+    {
+      key: 'priority',
+      label: 'Prioridade',
+      type: 'select',
+      required: false,
+      defaultValue: 'Média',
+      options: ['Baixa', 'Média', 'Alta', 'Crítica'].map((value) => ({ value, label: value })),
+    },
+    { key: 'description', label: 'Descrição', type: 'String', required: false },
+    { key: 'responsibleLawyerName', label: 'Advogado responsável (nome exato)', type: 'String', required: false },
+  ],
+  steps: [
+    buscar('buscarProcesso', 0, 'cases', 'caseNumber', 'caseNumber'),
+    {
+      id: 'processoEncontrado',
+      stepDefinitionId: '',
+      type: 'Condition',
+      order: 1,
+      enabled: true,
+      condition: {
+        kind: 'FieldComparison',
+        fieldPath: 'outputs.buscarProcesso.count',
+        operator: '<',
+        value: 1,
+        valueType: 'literal',
+      },
+      configuration: {},
+      branches: {
+        whenTrue: erro('processo', 0, 'concat("Processo ", event.caseNumber, " não encontrado.")'),
+        whenFalse: [],
+      },
+    },
+    {
+      id: 'advogadoInformado',
+      stepDefinitionId: '',
+      type: 'Condition',
+      order: 2,
+      enabled: true,
+      condition: {
+        kind: 'FieldComparison',
+        fieldPath: 'event.payload.responsibleLawyerName',
+        operator: 'isNotEmpty',
+        value: null,
+        valueType: 'literal',
+      },
+      configuration: {},
+      branches: {
+        whenTrue: [
+          buscar('buscarAdvogado', 0, 'persons', 'name', 'responsibleLawyerName'),
+          {
+            id: 'advogadoEncontrado',
+            stepDefinitionId: '',
+            type: 'Condition',
+            order: 1,
+            enabled: true,
+            condition: {
+              kind: 'FieldComparison',
+              fieldPath: 'outputs.buscarAdvogado.count',
+              operator: '<',
+              value: 1,
+              valueType: 'literal',
+            },
+            configuration: {},
+            branches: {
+              whenTrue: erro('advogado', 0, 'concat("Advogado \\"", event.responsibleLawyerName, "\\" não encontrado.")'),
+              whenFalse: [],
+            },
+          },
+          // Os dois ramos publicam a MESMA chave: o passo que monta o prazo lê `input.responsibleLawyerId`
+          // sem saber por qual caminho o fluxo passou.
+          {
+            id: 'advogadoResolvido',
+            stepDefinitionId: 'map',
+            type: 'Action',
+            order: 2,
+            enabled: true,
+            configuration: {
+              map: {
+                kind: 'Literal',
+                value: {
+                  name: '',
+                  fields: [
+                    { name: 'responsibleLawyerId', value: { kind: 'Expression', expression: 'output.buscarAdvogado.first.id' } },
+                  ],
+                },
+              },
+            },
+          },
+        ],
+        whenFalse: [
+          {
+            id: 'semAdvogado',
+            stepDefinitionId: 'map',
+            type: 'Action',
+            order: 0,
+            enabled: true,
+            configuration: {
+              map: {
+                kind: 'Literal',
+                value: {
+                  name: '',
+                  fields: [
+                    { name: 'responsibleLawyerId', value: { kind: 'Literal', value: null } },
+                  ],
+                },
+              },
+            },
+          },
+        ],
+      },
+    },
+    {
+      id: 'montarPrazo',
+      stepDefinitionId: 'map',
+      type: 'Action',
+      order: 3,
+      enabled: true,
+      configuration: {
+        map: {
+          kind: 'Literal',
+          value: {
+            name: 'prazo',
+            fields: [
+              { name: 'caseId', value: { kind: 'Expression', expression: 'output.buscarProcesso.first.id' } },
+              { name: 'type', value: { kind: 'Event', path: 'type' } },
+              { name: 'dueDate', value: { kind: 'Event', path: 'dueDate' } },
+              { name: 'priority', value: { kind: 'Event', path: 'priority' } },
+              { name: 'description', value: { kind: 'Event', path: 'description' } },
+              { name: 'responsibleLawyerId', value: { kind: 'Expression', expression: 'input.responsibleLawyerId' } },
+              // Nasce pendente, sempre. "Vencido" é situação derivada da data, e é a listagem que a
+              // pinta — carimbá-la aqui congelaria no registro algo que muda sozinho amanhã.
+              { name: 'status', value: { kind: 'Literal', value: 'Pendente' } },
+              { name: 'completedAt', value: { kind: 'Literal', value: null } },
+            ],
+          },
+        },
+      },
+    },
+    {
+      id: 'gravarPrazo',
+      stepDefinitionId: 'upsert',
+      type: 'Action',
+      order: 4,
+      enabled: true,
+      configuration: {
+        upsert: { kind: 'Literal', value: { table: 'deadlines', source: 'input', property: 'prazo' } },
+      },
+    },
+    {
+      id: 'responder',
+      stepDefinitionId: 'map',
+      type: 'Action',
+      order: 5,
+      enabled: true,
+      configuration: {
+        map: {
+          kind: 'Literal',
+          value: {
+            name: '',
+            fields: [
+              { name: 'ok', value: { kind: 'Literal', value: true } },
+              { name: 'deadlineId', value: { kind: 'Expression', expression: 'output.gravarPrazo.id' } },
+              { name: 'status', value: { kind: 'Literal', value: 'Prazo criado.' } },
             ],
           },
         },
@@ -267,9 +514,12 @@ const daysUntilDue = (record) => {
   return Math.round((startOfDay(due).getTime() - startOfDay(new Date()).getTime()) / 86400000);
 };
 
+// Vencido é comparação de DIA, não de instante: um prazo gravado por automação nasce à meia-noite,
+// e comparar por instante o marcaria como vencido às 00h01 do próprio dia — "0d vencido" onde o
+// cartão deve dizer "Hoje". É a mesma unidade que daysUntilDue usa.
 const isOverdue = (record) => {
   const due = dateOf(record.dueDate);
-  return record.status === 'Pendente' && !!due && due.getTime() < Date.now();
+  return record.status === 'Pendente' && !!due && startOfDay(due).getTime() < startOfDay(new Date()).getTime();
 };
 
 const PRIORITY_ORDER = { 'Crítica': 3, 'Alta': 2, 'Média': 1, 'Baixa': 0 };
@@ -451,7 +701,7 @@ export default function startup(host) {
 export const prazoPlugin: MarketplacePlugin = {
   manifest: {
     id: 'com.microteia.prazo',
-    version: '1.0.0',
+    version: '1.1.0',
     kernel: '^1.0.0',
     name: 'Prazos',
     description: 'O controle de prazos do escritório recriado como extensão, sobre os MESMOS prazos — a quinta entidade a sair do kernel.',
@@ -469,7 +719,7 @@ export const prazoPlugin: MarketplacePlugin = {
     ],
   },
   summary:
-    'A agenda de prazos do escritório: tipo, prioridade, vencimento e responsável, sempre ligados a um processo — com a lista aberta nos pendentes, ordenada do vencimento mais próximo ao mais distante, e o gesto de marcar como concluído no próprio cartão.',
+    'A agenda de prazos do escritório: tipo, prioridade, vencimento e responsável, sempre ligados a um processo — com a lista aberta nos pendentes, ordenada do vencimento mais próximo ao mais distante, o gesto de marcar como concluído no próprio cartão e a automação "Criar Prazo", que encontra o processo pelo número antes de gravar.',
   overview: {
     type: 'stack',
     gap: 'lg',
@@ -477,7 +727,7 @@ export const prazoPlugin: MarketplacePlugin = {
       {
         type: 'markdown',
         content:
-          'A extensão **Prazos** traz o controle de prazos do escritório: cada prazo com tipo, prioridade, vencimento e advogado responsável, ligado ao processo de origem.\n\nA listagem abre nos prazos pendentes e se lê do vencimento mais próximo ao mais distante. Cada cartão mostra, de uma olhada, a prioridade na faixa colorida do alto, o número do processo e quantos dias faltam — ou há quantos dias venceu. Marcar como concluído é um gesto do próprio cartão.\n\nAs listas de Tipo, Prioridade e Status já vêm preenchidas e são suas.',
+          'A extensão **Prazos** traz o controle de prazos do escritório: cada prazo com tipo, prioridade, vencimento e advogado responsável, ligado ao processo de origem.\n\nA listagem abre nos prazos pendentes e se lê do vencimento mais próximo ao mais distante. Cada cartão mostra, de uma olhada, a prioridade na faixa colorida do alto, o número do processo e quantos dias faltam — ou há quantos dias venceu. Marcar como concluído é um gesto do próprio cartão.\n\nVem junto a automação **Criar Prazo**, que outras automações podem chamar: ela recebe o NÚMERO do processo e o NOME do advogado, encontra os dois e só então grava — se o processo não existir, ela para e avisa, em vez de criar um prazo solto.\n\nAs listas de Tipo, Prioridade e Status já vêm preenchidas e são suas.',
       },
       {
         type: 'keyValue',
@@ -485,6 +735,7 @@ export const prazoPlugin: MarketplacePlugin = {
           { label: 'Adiciona', value: 'Item "Prazos" no menu' },
           { label: 'Cadastro', value: '8 campos, em 3 seções' },
           { label: 'No cartão', value: 'Faixa de prioridade e dias para vencer' },
+          { label: 'Automações', value: 'Criar Prazo e Marcar como concluído' },
           { label: 'Abre em', value: 'Prazos pendentes' },
         ],
       },
@@ -495,7 +746,7 @@ export const prazoPlugin: MarketplacePlugin = {
       },
     ],
   },
-  workflows: [CONCLUIR_WORKFLOW],
+  workflows: [CRIAR_WORKFLOW, CONCLUIR_WORKFLOW],
   actions: ACTIONS,
   screens: [PRAZOS_SCREEN],
   lookups: LOOKUPS,

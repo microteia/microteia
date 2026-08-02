@@ -2166,12 +2166,31 @@ de store; é agora uma **Action** sobre um workflow de três passos — Montar O
 a conclusão) → Gravar Registro → resposta com `actions: ['refresh']` —, e quem decide se o gesto
 aparece é `hiddenWhen: 'isNew or status == "Concluído" or status == "Cancelado"'`.
 
-**O Step "Criar Prazo" saiu junto.** `CreateDeadlineStep` era o último passo de workflow que
+**O Step "Criar Prazo" virou WORKFLOW.** `CreateDeadlineStep` era o último passo de workflow que
 conhecia uma entidade de escritório pelo nome: recebia `IDeadlineRepository` e gravava em
-`deadlines`. Criar um prazo é gravar um registro, e quem faz isso é o Step genérico **Gravar
-Registro** (`upsert`), com `table: 'deadlines'` — o mesmo que a Action de concluir usa. Workflows
-existentes que usem `create-deadline` param de resolver o passo e precisam ser refeitos com Gravar
-Registro.
+`deadlines`. A funcionalidade não se perdeu — mudou de camada. A extensão instala o workflow
+chamável **"Criar Prazo"** (`wf-prazo-criar`, `eventName: 'workflow.called'`), montado só com os
+passos genéricos do motor:
+
+| Passo | O que faz |
+|---|---|
+| Buscar Registros (`query`) | acha o processo por `caseNumber` |
+| Condição | `outputs.buscarProcesso.count < 1` → Montar Objeto `{ ok: false, error }` + Encerrar Workflow |
+| Condição | advogado informado? → busca por `name` e repete o mesmo par de erro; os dois ramos publicam `responsibleLawyerId`, um com o id achado e o outro com `null` |
+| Montar Objeto → Gravar Registro (`upsert`) | monta o prazo e grava em `deadlines` |
+
+E ele é MELHOR que o Step que substituiu: o Step exigia o **id** do processo e o do advogado, e quem
+chama um workflow raramente os tem em mãos — quem analisa uma intimação tem o NÚMERO do processo e o
+NOME do advogado. O workflow resolve os dois e **para** quando não acha, em vez de pendurar um prazo
+num processo inexistente. Encerrar Workflow não produz saída própria, então o retorno é a saída do
+passo anterior: daí o par "Montar Objeto com o erro + Encerrar".
+
+O `scripts/prazoCriarWorkflow.test.ts` roda essa declaração no **motor de verdade** — é o único
+lugar que enxerga as duas pontas (o pacote em `src/`, o motor em `functions/`), e é o que garante que
+um erro de digitação em `output.buscarProcesso.first.id` não chegue ao escritório do cliente.
+
+Workflows existentes que usem o Step `create-deadline` param de resolver o passo e precisam ser
+refeitos — chamando este workflow, ou com Gravar Registro direto.
 
 **O que ficou no kernel, e por quê.** A **Agenda** (`calendar`), o **Painel** e os **Pushes** do
 tribunal continuam sendo telas de código, e continuam lendo e escrevendo prazos — pelo caminho

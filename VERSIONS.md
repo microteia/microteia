@@ -11,6 +11,12 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [4.1.0] — 2026-08-02
+
+- A extensão **Prazos** passa a instalar a automação **"Criar Prazo"**, que outras automações podem chamar — ela substitui, com vantagem, o passo "Criar Prazo" que existia antes. Em vez de pedir o código interno do processo e do advogado, ela pede o **número do processo** e o **nome do advogado responsável**, encontra os dois e só então cria o prazo.
+- Se o processo não for encontrado, a automação **para e avisa**, em vez de criar um prazo solto apontando para um processo que não existe. O mesmo vale para o advogado, quando informado — deixá-lo em branco continua sendo permitido.
+- Corrigido: um prazo que vence hoje aparecia como vencido quando tinha sido criado por uma automação. Agora "hoje" é hoje, e "vencido" só a partir do dia seguinte.
+
 ## [4.0.0] — 2026-08-01
 
 - **Prazos** passa a ser uma extensão, como já são Pessoas, Processos, Contratos e Financeiro. A tela é a mesma de sempre: o cartão continua com a faixa colorida da prioridade, o número do processo clicável, os dias que faltam para vencer e os selos de situação e prioridade — e a lista continua abrindo nos pendentes, do vencimento mais próximo ao mais distante. Nenhum prazo foi movido.

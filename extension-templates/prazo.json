@@ -1,7 +1,7 @@
 {
   "manifest": {
     "id": "com.microteia.prazo",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "kernel": "^1.0.0",
     "name": "Prazos",
     "description": "O controle de prazos do escritório recriado como extensão, sobre os MESMOS prazos — a quinta entidade a sair do kernel.",
@@ -51,14 +51,14 @@
       }
     ]
   },
-  "summary": "A agenda de prazos do escritório: tipo, prioridade, vencimento e responsável, sempre ligados a um processo — com a lista aberta nos pendentes, ordenada do vencimento mais próximo ao mais distante, e o gesto de marcar como concluído no próprio cartão.",
+  "summary": "A agenda de prazos do escritório: tipo, prioridade, vencimento e responsável, sempre ligados a um processo — com a lista aberta nos pendentes, ordenada do vencimento mais próximo ao mais distante, o gesto de marcar como concluído no próprio cartão e a automação \"Criar Prazo\", que encontra o processo pelo número antes de gravar.",
   "overview": {
     "type": "stack",
     "gap": "lg",
     "children": [
       {
         "type": "markdown",
-        "content": "A extensão **Prazos** traz o controle de prazos do escritório: cada prazo com tipo, prioridade, vencimento e advogado responsável, ligado ao processo de origem.\n\nA listagem abre nos prazos pendentes e se lê do vencimento mais próximo ao mais distante. Cada cartão mostra, de uma olhada, a prioridade na faixa colorida do alto, o número do processo e quantos dias faltam — ou há quantos dias venceu. Marcar como concluído é um gesto do próprio cartão.\n\nAs listas de Tipo, Prioridade e Status já vêm preenchidas e são suas."
+        "content": "A extensão **Prazos** traz o controle de prazos do escritório: cada prazo com tipo, prioridade, vencimento e advogado responsável, ligado ao processo de origem.\n\nA listagem abre nos prazos pendentes e se lê do vencimento mais próximo ao mais distante. Cada cartão mostra, de uma olhada, a prioridade na faixa colorida do alto, o número do processo e quantos dias faltam — ou há quantos dias venceu. Marcar como concluído é um gesto do próprio cartão.\n\nVem junto a automação **Criar Prazo**, que outras automações podem chamar: ela recebe o NÚMERO do processo e o NOME do advogado, encontra os dois e só então grava — se o processo não existir, ela para e avisa, em vez de criar um prazo solto.\n\nAs listas de Tipo, Prioridade e Status já vêm preenchidas e são suas."
       },
       {
         "type": "keyValue",
@@ -76,6 +76,10 @@
             "value": "Faixa de prioridade e dias para vencer"
           },
           {
+            "label": "Automações",
+            "value": "Criar Prazo e Marcar como concluído"
+          },
+          {
             "label": "Abre em",
             "value": "Prazos pendentes"
           }
@@ -89,6 +93,445 @@
     ]
   },
   "workflows": [
+    {
+      "templateId": "wf-prazo-criar",
+      "name": "Criar Prazo",
+      "description": "Cria um prazo a partir do NÚMERO do processo e do NOME do advogado responsável, resolvendo os dois antes de gravar. Encerra com erro se o processo não existir, ou se o advogado informado não for encontrado.",
+      "eventName": "workflow.called",
+      "version": 1,
+      "condition": {
+        "kind": "AlwaysTrue"
+      },
+      "parameters": [
+        {
+          "key": "caseNumber",
+          "label": "Número do processo",
+          "type": "String",
+          "required": true
+        },
+        {
+          "key": "type",
+          "label": "Tipo de prazo",
+          "type": "String",
+          "required": true,
+          "defaultValue": "Petição"
+        },
+        {
+          "key": "dueDate",
+          "label": "Data de vencimento",
+          "type": "Date",
+          "required": true
+        },
+        {
+          "key": "priority",
+          "label": "Prioridade",
+          "type": "select",
+          "required": false,
+          "defaultValue": "Média",
+          "options": [
+            {
+              "value": "Baixa",
+              "label": "Baixa"
+            },
+            {
+              "value": "Média",
+              "label": "Média"
+            },
+            {
+              "value": "Alta",
+              "label": "Alta"
+            },
+            {
+              "value": "Crítica",
+              "label": "Crítica"
+            }
+          ]
+        },
+        {
+          "key": "description",
+          "label": "Descrição",
+          "type": "String",
+          "required": false
+        },
+        {
+          "key": "responsibleLawyerName",
+          "label": "Advogado responsável (nome exato)",
+          "type": "String",
+          "required": false
+        }
+      ],
+      "steps": [
+        {
+          "id": "buscarProcesso",
+          "stepDefinitionId": "query",
+          "type": "Action",
+          "order": 0,
+          "enabled": true,
+          "configuration": {
+            "query": {
+              "kind": "Literal",
+              "value": {
+                "table": "cases",
+                "where": [
+                  {
+                    "path": "caseNumber",
+                    "op": "eq",
+                    "value": {
+                      "kind": "Event",
+                      "path": "caseNumber"
+                    }
+                  }
+                ],
+                "limit": 1,
+                "projections": []
+              }
+            }
+          }
+        },
+        {
+          "id": "processoEncontrado",
+          "stepDefinitionId": "",
+          "type": "Condition",
+          "order": 1,
+          "enabled": true,
+          "condition": {
+            "kind": "FieldComparison",
+            "fieldPath": "outputs.buscarProcesso.count",
+            "operator": "<",
+            "value": 1,
+            "valueType": "literal"
+          },
+          "configuration": {},
+          "branches": {
+            "whenTrue": [
+              {
+                "id": "processoMensagem",
+                "stepDefinitionId": "map",
+                "type": "Action",
+                "order": 0,
+                "enabled": true,
+                "configuration": {
+                  "map": {
+                    "kind": "Literal",
+                    "value": {
+                      "name": "",
+                      "fields": [
+                        {
+                          "name": "ok",
+                          "value": {
+                            "kind": "Literal",
+                            "value": false
+                          }
+                        },
+                        {
+                          "name": "error",
+                          "value": {
+                            "kind": "Expression",
+                            "expression": "concat(\"Processo \", event.caseNumber, \" não encontrado.\")"
+                          }
+                        }
+                      ]
+                    }
+                  }
+                }
+              },
+              {
+                "id": "processoSair",
+                "stepDefinitionId": "exit",
+                "type": "Action",
+                "order": 1,
+                "enabled": true,
+                "configuration": {}
+              }
+            ],
+            "whenFalse": []
+          }
+        },
+        {
+          "id": "advogadoInformado",
+          "stepDefinitionId": "",
+          "type": "Condition",
+          "order": 2,
+          "enabled": true,
+          "condition": {
+            "kind": "FieldComparison",
+            "fieldPath": "event.payload.responsibleLawyerName",
+            "operator": "isNotEmpty",
+            "value": null,
+            "valueType": "literal"
+          },
+          "configuration": {},
+          "branches": {
+            "whenTrue": [
+              {
+                "id": "buscarAdvogado",
+                "stepDefinitionId": "query",
+                "type": "Action",
+                "order": 0,
+                "enabled": true,
+                "configuration": {
+                  "query": {
+                    "kind": "Literal",
+                    "value": {
+                      "table": "persons",
+                      "where": [
+                        {
+                          "path": "name",
+                          "op": "eq",
+                          "value": {
+                            "kind": "Event",
+                            "path": "responsibleLawyerName"
+                          }
+                        }
+                      ],
+                      "limit": 1,
+                      "projections": []
+                    }
+                  }
+                }
+              },
+              {
+                "id": "advogadoEncontrado",
+                "stepDefinitionId": "",
+                "type": "Condition",
+                "order": 1,
+                "enabled": true,
+                "condition": {
+                  "kind": "FieldComparison",
+                  "fieldPath": "outputs.buscarAdvogado.count",
+                  "operator": "<",
+                  "value": 1,
+                  "valueType": "literal"
+                },
+                "configuration": {},
+                "branches": {
+                  "whenTrue": [
+                    {
+                      "id": "advogadoMensagem",
+                      "stepDefinitionId": "map",
+                      "type": "Action",
+                      "order": 0,
+                      "enabled": true,
+                      "configuration": {
+                        "map": {
+                          "kind": "Literal",
+                          "value": {
+                            "name": "",
+                            "fields": [
+                              {
+                                "name": "ok",
+                                "value": {
+                                  "kind": "Literal",
+                                  "value": false
+                                }
+                              },
+                              {
+                                "name": "error",
+                                "value": {
+                                  "kind": "Expression",
+                                  "expression": "concat(\"Advogado \\\"\", event.responsibleLawyerName, \"\\\" não encontrado.\")"
+                                }
+                              }
+                            ]
+                          }
+                        }
+                      }
+                    },
+                    {
+                      "id": "advogadoSair",
+                      "stepDefinitionId": "exit",
+                      "type": "Action",
+                      "order": 1,
+                      "enabled": true,
+                      "configuration": {}
+                    }
+                  ],
+                  "whenFalse": []
+                }
+              },
+              {
+                "id": "advogadoResolvido",
+                "stepDefinitionId": "map",
+                "type": "Action",
+                "order": 2,
+                "enabled": true,
+                "configuration": {
+                  "map": {
+                    "kind": "Literal",
+                    "value": {
+                      "name": "",
+                      "fields": [
+                        {
+                          "name": "responsibleLawyerId",
+                          "value": {
+                            "kind": "Expression",
+                            "expression": "output.buscarAdvogado.first.id"
+                          }
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            ],
+            "whenFalse": [
+              {
+                "id": "semAdvogado",
+                "stepDefinitionId": "map",
+                "type": "Action",
+                "order": 0,
+                "enabled": true,
+                "configuration": {
+                  "map": {
+                    "kind": "Literal",
+                    "value": {
+                      "name": "",
+                      "fields": [
+                        {
+                          "name": "responsibleLawyerId",
+                          "value": {
+                            "kind": "Literal",
+                            "value": null
+                          }
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "montarPrazo",
+          "stepDefinitionId": "map",
+          "type": "Action",
+          "order": 3,
+          "enabled": true,
+          "configuration": {
+            "map": {
+              "kind": "Literal",
+              "value": {
+                "name": "prazo",
+                "fields": [
+                  {
+                    "name": "caseId",
+                    "value": {
+                      "kind": "Expression",
+                      "expression": "output.buscarProcesso.first.id"
+                    }
+                  },
+                  {
+                    "name": "type",
+                    "value": {
+                      "kind": "Event",
+                      "path": "type"
+                    }
+                  },
+                  {
+                    "name": "dueDate",
+                    "value": {
+                      "kind": "Event",
+                      "path": "dueDate"
+                    }
+                  },
+                  {
+                    "name": "priority",
+                    "value": {
+                      "kind": "Event",
+                      "path": "priority"
+                    }
+                  },
+                  {
+                    "name": "description",
+                    "value": {
+                      "kind": "Event",
+                      "path": "description"
+                    }
+                  },
+                  {
+                    "name": "responsibleLawyerId",
+                    "value": {
+                      "kind": "Expression",
+                      "expression": "input.responsibleLawyerId"
+                    }
+                  },
+                  {
+                    "name": "status",
+                    "value": {
+                      "kind": "Literal",
+                      "value": "Pendente"
+                    }
+                  },
+                  {
+                    "name": "completedAt",
+                    "value": {
+                      "kind": "Literal",
+                      "value": null
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "id": "gravarPrazo",
+          "stepDefinitionId": "upsert",
+          "type": "Action",
+          "order": 4,
+          "enabled": true,
+          "configuration": {
+            "upsert": {
+              "kind": "Literal",
+              "value": {
+                "table": "deadlines",
+                "source": "input",
+                "property": "prazo"
+              }
+            }
+          }
+        },
+        {
+          "id": "responder",
+          "stepDefinitionId": "map",
+          "type": "Action",
+          "order": 5,
+          "enabled": true,
+          "configuration": {
+            "map": {
+              "kind": "Literal",
+              "value": {
+                "name": "",
+                "fields": [
+                  {
+                    "name": "ok",
+                    "value": {
+                      "kind": "Literal",
+                      "value": true
+                    }
+                  },
+                  {
+                    "name": "deadlineId",
+                    "value": {
+                      "kind": "Expression",
+                      "expression": "output.gravarPrazo.id"
+                    }
+                  },
+                  {
+                    "name": "status",
+                    "value": {
+                      "kind": "Literal",
+                      "value": "Prazo criado."
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        }
+      ]
+    },
     {
       "templateId": "wf-prazo-concluir",
       "name": "Marcar prazo como concluído",
@@ -424,7 +867,7 @@
       "key": "prazos",
       "title": "Prazos",
       "icon": "time",
-      "source": "\nimport { useMemo } from 'react';\nimport { styled, useTheme } from 'styled-components';\nimport { Icon, RecordListSurface, InfoBanner } from '@microteia/ui';\nimport { useEntityList, useCollection, useLookup, useOpenRecord } from '@microteia/data';\nimport { getConfigColor } from '@microteia/theme';\n\nconst SOURCE_ID = 'microteia:prazo';\n\nconst CaseRow = styled.div`\n  display: flex;\n  align-items: center;\n  gap: ${({ theme }) => theme.spacing.xs};\n  margin-top: 2px;\n  min-width: 0;\n`;\n\nconst CaseNumber = styled.button`\n  font-size: ${({ theme }) => theme.fontSizes.xs};\n  color: ${({ theme }) => theme.colors.textMuted};\n  font-family: ${({ theme }) => theme.fonts.mono};\n  background: none;\n  border: none;\n  padding: 0;\n  cursor: pointer;\n  text-align: left;\n  white-space: nowrap;\n  overflow: hidden;\n  text-overflow: ellipsis;\n  min-width: 0;\n  transition: ${({ theme }) => theme.transitions.fast};\n\n  &:hover { color: ${({ theme }) => theme.colors.primary}; text-decoration: underline; }\n`;\n\nconst DaysChip = styled.span`\n  display: inline-flex;\n  align-items: center;\n  gap: 2px;\n  flex-shrink: 0;\n  margin-left: auto;\n  padding: 1px 7px;\n  border-radius: ${({ theme }) => theme.borderRadius.full};\n  font-size: 10px;\n  font-weight: 600;\n  font-family: ${({ theme }) => theme.fonts.mono};\n  white-space: nowrap;\n  background: ${({ $tone, theme }) => $tone ? theme.colors[$tone] + '20' : theme.colors.surfaceHover};\n  color: ${({ $tone, theme }) => $tone ? theme.colors[$tone] : theme.colors.textMuted};\n  border: 1px solid ${({ $tone, theme }) => $tone ? theme.colors[$tone] + '44' : theme.colors.border};\n`;\n\nconst Badges = styled.div`\n  display: flex;\n  align-items: center;\n  gap: 6px;\n  min-width: 0;\n  overflow: hidden;\n`;\n\nconst MetaBadge = styled.span`\n  display: inline-flex;\n  align-items: center;\n  padding: 1px 6px;\n  border-radius: ${({ theme }) => theme.borderRadius.full};\n  font-size: 10px;\n  font-weight: 500;\n  background: ${({ $color }) => $color + '20'};\n  color: ${({ $color }) => $color};\n  border: 1px solid ${({ $color }) => $color + '40'};\n  flex-shrink: 0;\n`;\n\nconst dateOf = (value) => {\n  if (!value) return null;\n  const d = value instanceof Date ? value : new Date(String(value));\n  return isNaN(d.getTime()) ? null : d;\n};\n\nconst startOfDay = (date) => {\n  const copy = new Date(date);\n  copy.setHours(0, 0, 0, 0);\n  return copy;\n};\n\nconst daysUntilDue = (record) => {\n  const due = dateOf(record.dueDate);\n  if (!due) return null;\n  return Math.round((startOfDay(due).getTime() - startOfDay(new Date()).getTime()) / 86400000);\n};\n\nconst isOverdue = (record) => {\n  const due = dateOf(record.dueDate);\n  return record.status === 'Pendente' && !!due && due.getTime() < Date.now();\n};\n\nconst PRIORITY_ORDER = { 'Crítica': 3, 'Alta': 2, 'Média': 1, 'Baixa': 0 };\n\n/**\n * A lista de prazos se lê do vencimento mais PRÓXIMO ao mais distante — é uma agenda, não um\n * cadastro —, e o empate do dia se desfaz pela prioridade. Fora do componente de propósito: um\n * comparador novo a cada render reordenaria a lista inteira sem que nada tivesse mudado.\n */\nconst byDueDateThenPriority = (a, b) => {\n  const at = dateOf(a.dueDate) ? dateOf(a.dueDate).getTime() : Infinity;\n  const bt = dateOf(b.dueDate) ? dateOf(b.dueDate).getTime() : Infinity;\n  if (at !== bt) return at - bt;\n  const ap = PRIORITY_ORDER[a.priority] != null ? PRIORITY_ORDER[a.priority] : -1;\n  const bp = PRIORITY_ORDER[b.priority] != null ? PRIORITY_ORDER[b.priority] : -1;\n  return bp - ap;\n};\n\n// A visão útil de quem abre Prazos é o que ainda está de pé: sem isso, a primeira tela é o histórico\n// inteiro do escritório, com os concluídos misturados aos pendentes.\nconst PENDENTES = [{ key: 'status', values: ['Pendente'] }];\n\nexport default function PrazosView() {\n  const theme = useTheme();\n  const list = useEntityList(SOURCE_ID, { defaultFilterTokens: PENDENTES, sortRecords: byDueDateThenPriority });\n  const cases = useCollection('cases');\n  const statusOptions = useLookup('deadlineStatuses');\n  const priorityOptions = useLookup('deadlinePriorities');\n  const openRecord = useOpenRecord();\n\n  const caseNumberById = useMemo(() => {\n    const map = {};\n    for (const item of cases) map[item.id] = item.caseNumber || '';\n    return map;\n  }, [cases]);\n\n  if (!list.definition) {\n    return <div style={{ padding: '24px' }}><InfoBanner message='Tela \"Prazos\" não encontrada. Instale a extensão para ativá-la.' variant=\"warning\" /></div>;\n  }\n\n  const priorityColor = (record) => getConfigColor(priorityOptions, record.priority, theme);\n\n  const renderDaysChip = (record) => {\n    if (record.status === 'Concluído') return <DaysChip $tone=\"success\">Concluído</DaysChip>;\n    if (record.status === 'Cancelado') return <DaysChip>Cancelado</DaysChip>;\n    const days = daysUntilDue(record);\n    if (days == null) return null;\n    if (isOverdue(record)) {\n      return <DaysChip $tone=\"danger\"><Icon name=\"alert\" size={10} />{Math.abs(days)}d vencido</DaysChip>;\n    }\n    if (days === 0) return <DaysChip $tone=\"warning\">Hoje</DaysChip>;\n    if (days === 1) return <DaysChip $tone=\"warning\">Amanhã</DaysChip>;\n    return <DaysChip>{days}d</DaysChip>;\n  };\n\n  const renderSubtitle = (record) => {\n    const number = caseNumberById[record.caseId];\n    return (\n      <CaseRow>\n        {number ? (\n          <CaseNumber\n            title={'Abrir processo ' + number}\n            onClick={(e) => { e.stopPropagation(); openRecord('cases', record.caseId); }}\n          >\n            {number}\n          </CaseNumber>\n        ) : null}\n        {renderDaysChip(record)}\n      </CaseRow>\n    );\n  };\n\n  const renderBelowHeader = (record) => (\n    <Badges>\n      <MetaBadge $color={getConfigColor(statusOptions, record.status, theme)}>{record.status}</MetaBadge>\n      <MetaBadge $color={priorityColor(record)}>{record.priority}</MetaBadge>\n    </Badges>\n  );\n\n  return (\n    <RecordListSurface\n      vm={list}\n      definition={list.definition}\n      accentColor={priorityColor}\n      renderSubtitle={renderSubtitle}\n      renderBelowHeader={renderBelowHeader}\n      emptyTitle=\"Nenhum prazo encontrado\"\n      emptyActionLabel=\"Cadastrar primeiro prazo\"\n    />\n  );\n}\n"
+      "source": "\nimport { useMemo } from 'react';\nimport { styled, useTheme } from 'styled-components';\nimport { Icon, RecordListSurface, InfoBanner } from '@microteia/ui';\nimport { useEntityList, useCollection, useLookup, useOpenRecord } from '@microteia/data';\nimport { getConfigColor } from '@microteia/theme';\n\nconst SOURCE_ID = 'microteia:prazo';\n\nconst CaseRow = styled.div`\n  display: flex;\n  align-items: center;\n  gap: ${({ theme }) => theme.spacing.xs};\n  margin-top: 2px;\n  min-width: 0;\n`;\n\nconst CaseNumber = styled.button`\n  font-size: ${({ theme }) => theme.fontSizes.xs};\n  color: ${({ theme }) => theme.colors.textMuted};\n  font-family: ${({ theme }) => theme.fonts.mono};\n  background: none;\n  border: none;\n  padding: 0;\n  cursor: pointer;\n  text-align: left;\n  white-space: nowrap;\n  overflow: hidden;\n  text-overflow: ellipsis;\n  min-width: 0;\n  transition: ${({ theme }) => theme.transitions.fast};\n\n  &:hover { color: ${({ theme }) => theme.colors.primary}; text-decoration: underline; }\n`;\n\nconst DaysChip = styled.span`\n  display: inline-flex;\n  align-items: center;\n  gap: 2px;\n  flex-shrink: 0;\n  margin-left: auto;\n  padding: 1px 7px;\n  border-radius: ${({ theme }) => theme.borderRadius.full};\n  font-size: 10px;\n  font-weight: 600;\n  font-family: ${({ theme }) => theme.fonts.mono};\n  white-space: nowrap;\n  background: ${({ $tone, theme }) => $tone ? theme.colors[$tone] + '20' : theme.colors.surfaceHover};\n  color: ${({ $tone, theme }) => $tone ? theme.colors[$tone] : theme.colors.textMuted};\n  border: 1px solid ${({ $tone, theme }) => $tone ? theme.colors[$tone] + '44' : theme.colors.border};\n`;\n\nconst Badges = styled.div`\n  display: flex;\n  align-items: center;\n  gap: 6px;\n  min-width: 0;\n  overflow: hidden;\n`;\n\nconst MetaBadge = styled.span`\n  display: inline-flex;\n  align-items: center;\n  padding: 1px 6px;\n  border-radius: ${({ theme }) => theme.borderRadius.full};\n  font-size: 10px;\n  font-weight: 500;\n  background: ${({ $color }) => $color + '20'};\n  color: ${({ $color }) => $color};\n  border: 1px solid ${({ $color }) => $color + '40'};\n  flex-shrink: 0;\n`;\n\nconst dateOf = (value) => {\n  if (!value) return null;\n  const d = value instanceof Date ? value : new Date(String(value));\n  return isNaN(d.getTime()) ? null : d;\n};\n\nconst startOfDay = (date) => {\n  const copy = new Date(date);\n  copy.setHours(0, 0, 0, 0);\n  return copy;\n};\n\nconst daysUntilDue = (record) => {\n  const due = dateOf(record.dueDate);\n  if (!due) return null;\n  return Math.round((startOfDay(due).getTime() - startOfDay(new Date()).getTime()) / 86400000);\n};\n\n// Vencido é comparação de DIA, não de instante: um prazo gravado por automação nasce à meia-noite,\n// e comparar por instante o marcaria como vencido às 00h01 do próprio dia — \"0d vencido\" onde o\n// cartão deve dizer \"Hoje\". É a mesma unidade que daysUntilDue usa.\nconst isOverdue = (record) => {\n  const due = dateOf(record.dueDate);\n  return record.status === 'Pendente' && !!due && startOfDay(due).getTime() < startOfDay(new Date()).getTime();\n};\n\nconst PRIORITY_ORDER = { 'Crítica': 3, 'Alta': 2, 'Média': 1, 'Baixa': 0 };\n\n/**\n * A lista de prazos se lê do vencimento mais PRÓXIMO ao mais distante — é uma agenda, não um\n * cadastro —, e o empate do dia se desfaz pela prioridade. Fora do componente de propósito: um\n * comparador novo a cada render reordenaria a lista inteira sem que nada tivesse mudado.\n */\nconst byDueDateThenPriority = (a, b) => {\n  const at = dateOf(a.dueDate) ? dateOf(a.dueDate).getTime() : Infinity;\n  const bt = dateOf(b.dueDate) ? dateOf(b.dueDate).getTime() : Infinity;\n  if (at !== bt) return at - bt;\n  const ap = PRIORITY_ORDER[a.priority] != null ? PRIORITY_ORDER[a.priority] : -1;\n  const bp = PRIORITY_ORDER[b.priority] != null ? PRIORITY_ORDER[b.priority] : -1;\n  return bp - ap;\n};\n\n// A visão útil de quem abre Prazos é o que ainda está de pé: sem isso, a primeira tela é o histórico\n// inteiro do escritório, com os concluídos misturados aos pendentes.\nconst PENDENTES = [{ key: 'status', values: ['Pendente'] }];\n\nexport default function PrazosView() {\n  const theme = useTheme();\n  const list = useEntityList(SOURCE_ID, { defaultFilterTokens: PENDENTES, sortRecords: byDueDateThenPriority });\n  const cases = useCollection('cases');\n  const statusOptions = useLookup('deadlineStatuses');\n  const priorityOptions = useLookup('deadlinePriorities');\n  const openRecord = useOpenRecord();\n\n  const caseNumberById = useMemo(() => {\n    const map = {};\n    for (const item of cases) map[item.id] = item.caseNumber || '';\n    return map;\n  }, [cases]);\n\n  if (!list.definition) {\n    return <div style={{ padding: '24px' }}><InfoBanner message='Tela \"Prazos\" não encontrada. Instale a extensão para ativá-la.' variant=\"warning\" /></div>;\n  }\n\n  const priorityColor = (record) => getConfigColor(priorityOptions, record.priority, theme);\n\n  const renderDaysChip = (record) => {\n    if (record.status === 'Concluído') return <DaysChip $tone=\"success\">Concluído</DaysChip>;\n    if (record.status === 'Cancelado') return <DaysChip>Cancelado</DaysChip>;\n    const days = daysUntilDue(record);\n    if (days == null) return null;\n    if (isOverdue(record)) {\n      return <DaysChip $tone=\"danger\"><Icon name=\"alert\" size={10} />{Math.abs(days)}d vencido</DaysChip>;\n    }\n    if (days === 0) return <DaysChip $tone=\"warning\">Hoje</DaysChip>;\n    if (days === 1) return <DaysChip $tone=\"warning\">Amanhã</DaysChip>;\n    return <DaysChip>{days}d</DaysChip>;\n  };\n\n  const renderSubtitle = (record) => {\n    const number = caseNumberById[record.caseId];\n    return (\n      <CaseRow>\n        {number ? (\n          <CaseNumber\n            title={'Abrir processo ' + number}\n            onClick={(e) => { e.stopPropagation(); openRecord('cases', record.caseId); }}\n          >\n            {number}\n          </CaseNumber>\n        ) : null}\n        {renderDaysChip(record)}\n      </CaseRow>\n    );\n  };\n\n  const renderBelowHeader = (record) => (\n    <Badges>\n      <MetaBadge $color={getConfigColor(statusOptions, record.status, theme)}>{record.status}</MetaBadge>\n      <MetaBadge $color={priorityColor(record)}>{record.priority}</MetaBadge>\n    </Badges>\n  );\n\n  return (\n    <RecordListSurface\n      vm={list}\n      definition={list.definition}\n      accentColor={priorityColor}\n      renderSubtitle={renderSubtitle}\n      renderBelowHeader={renderBelowHeader}\n      emptyTitle=\"Nenhum prazo encontrado\"\n      emptyActionLabel=\"Cadastrar primeiro prazo\"\n    />\n  );\n}\n"
     }
   ]
 }
