@@ -67,12 +67,11 @@ export type WritableTableOutcome =
 
 /**
  * Entidades legíveis mas NUNCA graváveis por automação: são mantidas por fluxos próprios com
- * invariantes que uma automação não respeitaria (limite de membros, ingestão de e-mail, publicação).
+ * invariantes que uma automação não respeitaria (limite de membros, publicação).
  * Uma DENYLIST, e não uma allowlist: qualquer tela nova é gravável por padrão.
  */
 const NON_WRITABLE_ENTITY_KEYS: ReadonlySet<EntityKey> = new Set<EntityKey>([
   'members',
-  'pushes',
   'news',
 ]);
 

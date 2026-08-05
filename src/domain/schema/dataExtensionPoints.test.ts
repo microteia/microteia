@@ -39,7 +39,7 @@ describe('contribuições de dados — cobertura', () => {
 
   it('todo id de contribuição é um slug válido', () => {
     const ids = ENTITY_CONTRIBUTIONS.map((c) => c.id);
-    expect(ids).toContain('pushes');
+    expect(ids).toContain('news');
     for (const id of ids) expect(id).toMatch(/^[a-z0-9][a-z0-9-]*$/);
   });
 });

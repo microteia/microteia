@@ -9,8 +9,6 @@ import { AuthProvider } from './stores/AuthContext';
 import { TenantStoreProvider } from './stores/TenantStore';
 import { TagStoreProvider } from './stores/TagStore';
 import { LookupStoreProvider } from './stores/LookupStore';
-import { PushStoreProvider } from './stores/PushStore';
-import { PushInteractionStoreProvider } from './stores/PushInteractionStore';
 import { NewsStoreProvider } from './stores/NewsStore';
 import { NewsTagStoreProvider } from './stores/NewsTagStore';
 import { NewsInteractionStoreProvider } from './stores/NewsInteractionStore';
@@ -67,8 +65,6 @@ const App: React.FC = () => {
                         <ScreenDefinitionStoreProvider>
                         <TagStoreProvider>
                         <LookupStoreProvider>
-                              <PushStoreProvider>
-                                <PushInteractionStoreProvider>
                                   <NewsStoreProvider>
                                     <NewsTagStoreProvider>
                                       <NewsInteractionStoreProvider>
@@ -114,8 +110,6 @@ const App: React.FC = () => {
                                       </NewsInteractionStoreProvider>
                                     </NewsTagStoreProvider>
                                   </NewsStoreProvider>
-                                </PushInteractionStoreProvider>
-                              </PushStoreProvider>
                         </LookupStoreProvider>
                         </TagStoreProvider>
                         </ScreenDefinitionStoreProvider>

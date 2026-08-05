@@ -464,6 +464,33 @@ const UI_MODULE_DEFS = `declare module '@microteia/ui' {
   }
   export function ConfirmModal(props: ConfirmModalProps): JSX.Element;
 
+  /** Um item do menu suspenso. */
+  export interface DropdownItem {
+    id: string;
+    label: string;
+    icon?: React.ReactNode;
+    onClick: () => void;
+    variant?: 'default' | 'danger';
+  }
+  /** Props do Dropdown. */
+  export interface DropdownProps {
+    trigger: React.ReactNode;
+    items: DropdownItem[];
+    align?: 'left' | 'right';
+  }
+  export function Dropdown(props: DropdownProps): JSX.Element;
+
+  /**
+   * Props do HtmlView — HTML de TERCEIRO num quadro isolado (sem script, sem acesso à origem da
+   * aplicação). O conteúdo rola dentro da moldura: a altura é fixa por desenho.
+   */
+  export interface HtmlViewProps {
+    html: string;
+    height?: number;
+    emptyMessage?: string;
+  }
+  export function HtmlView(props: HtmlViewProps): JSX.Element;
+
   /** Props do Spinner. */
   export interface SpinnerProps {
     size?: 'sm' | 'md' | 'lg';
@@ -552,6 +579,8 @@ const UI_MODULE_DEFS = `declare module '@microteia/ui' {
     accentColor?: (record: any) => string | undefined;
     onOpenRecord?: (record: any) => void;
     onNewRecord?: () => void;
+    /** A tela cria registros. Falso some com o botão "novo" — a lista que só o sistema alimenta. */
+    canCreate?: boolean;
     /** Textos do estado vazio, quando a tela prefere os seus aos genéricos. */
     emptyTitle?: string;
     emptyActionLabel?: string;

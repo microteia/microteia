@@ -230,6 +230,7 @@ import {
   RiSimCardLine,
   RiSmartphoneLine,
   RiSparkling2Line,
+  RiMore2Line,
   RiSpyLine,
   RiStarLine,
   RiStethoscopeLine,
@@ -536,6 +537,7 @@ const SCREEN_ICON_OPTIONS: ScreenIconOption[] = [
   { key: 'flowChart', label: 'Fluxograma', Icon: RiFlowChart },
   { key: 'cursor', label: 'Cursor', Icon: RiCursorLine },
   { key: 'sparkling', label: 'Inteligência Artificial', Icon: RiSparkling2Line },
+  { key: 'more', label: 'Mais opções', Icon: RiMore2Line },
 ];
 
 const SCREEN_ICONS: Record<string, IconType> = Object.fromEntries(

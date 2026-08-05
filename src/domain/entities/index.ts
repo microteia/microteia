@@ -403,9 +403,7 @@ export type {
   RecordNote,
 } from './EntityRecord';
 
-// ─── Push ─────────────────────────────────────────────────────────────────────
 
-export type { Push, PushMovement, PushStatus, PushInteraction } from './Push';
 
 // ─── Audit Logs ───────────────────────────────────────────────────────────────
 

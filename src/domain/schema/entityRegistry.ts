@@ -20,14 +20,11 @@ export type EntityKey = string;
 /** As entidades nativas do Microteia. Mantida como união só para documentar o conjunto fixo. */
 export type BuiltinEntityKey =
   | 'members'
-  | 'pushes'
   | 'news';
 
 export const BUILTIN_ENTITY_KEYS: readonly BuiltinEntityKey[] = [
-  'members', 'pushes', 'news',
+  'members', 'news',
 ] as const;
-
-export type WorkflowEntityEventPrefix = 'push';
 
 export type NativeFieldType = 'string' | 'number' | 'boolean' | 'date' | 'stringArray' | 'object';
 
@@ -131,26 +128,6 @@ export const ENTITY_REGISTRY: Record<EntityKey, EntityMetadata> = {
     fks: [],
     supportsCustomFields: false,
     referenceable: true,
-  },
-  pushes: {
-    key: 'pushes',
-    collection: 'pushes',
-    eventPrefix: 'push',
-    labelSingular: 'Push',
-    labelPlural: 'Pushes',
-    displayNameFields: ['subject', 'processNumber'],
-    referenceDenormFields: ['subject', 'processNumber'],
-    fields: [
-      { key: 'subject', label: 'Assunto', type: 'string' },
-      { key: 'from', label: 'Remetente', type: 'string' },
-      { key: 'processNumber', label: 'Número do processo', type: 'string' },
-      { key: 'court', label: 'Órgão', type: 'string' },
-      { key: 'status', label: 'Status', type: 'string' },
-      { key: 'receivedAt', label: 'Data de recebimento', type: 'date' },
-    ],
-    fks: [],
-    supportsCustomFields: false,
-    referenceable: false,
   },
   news: {
     key: 'news',

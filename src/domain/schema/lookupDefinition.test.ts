@@ -83,7 +83,7 @@ describe('conjuntos de etiquetas', () => {
     expect(tagListIdIssue('medico_especialidade', ctx)).toBe('"medico_especialidade" já é o nome de uma lista de opções');
     expect(screenIdIssue('medico_tags', ctx)).toBe('"medico_tags" já é o nome de um conjunto de etiquetas');
     expect(lookupIdIssue('medico_tags', ctx)).toBe('"medico_tags" já é o nome de um conjunto de etiquetas');
-    expect(tagListIdIssue('pushes')).toBeTruthy();
+    expect(tagListIdIssue('members')).toBeTruthy();
     expect(tagListIdIssue('medico_tags')).toBeUndefined();
   });
 });

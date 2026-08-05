@@ -25,12 +25,12 @@ const without = (pluginId: string): PluginRecord[] =>
  */
 const PAGE_KEYS_ANTES_DA_MIGRACAO = [
   'access-management', 'actions', 'add-news', 'audit-logs', 'calendar',
-  'dashboard', 'dashboard-pushes', 'data-function-reference', 'data-processor',
+  'dashboard', 'data-function-reference', 'data-processor',
   'dyn:', 'edit-news:', 'edit-workflow-step:', 'financial-dashboard',
   'function-reference', 'new-action',
   'new-dyn:',
   'new-script', 'new-workflow', 'new-workflow:clone:', 'news',
-  'profile', 'pushes', 'screen-builder', 'scripts', 'tenant-settings',
+  'profile', 'screen-builder', 'scripts', 'tenant-settings',
   'tenant-settings:', 'view-action:',
   'view-dyn:', 'view-news:', 'view-script:', 'view-workflow:',
   'workflows',
@@ -50,7 +50,7 @@ describe('core plugins — carga', () => {
     const { result } = hostWith(CORE_PLUGINS);
     const posicao = (id: string) => result.loaded.indexOf(id);
     expect(posicao('core.ui')).toBeLessThan(posicao('core.workspace'));
-    expect(posicao('core.ui')).toBeLessThan(posicao('core.pushes'));
+    expect(posicao('core.ui')).toBeLessThan(posicao('core.news'));
   });
 
   it('toda contribuição de tela resolve um componente', () => {
@@ -114,7 +114,7 @@ describe('core plugins — paridade com o registro anterior', () => {
 
     expect(items.map((item) => item.key)).toEqual([
       'dashboard', 'calendar',
-      'pushes', 'news', 'tenant-settings', 'audit-logs',
+      'news', 'tenant-settings', 'audit-logs',
     ]);
   });
 
@@ -177,9 +177,8 @@ describe('core plugins — remoção limpa (critério de aceite da Etapa 2)', ()
     const { host } = hostWith(without('core.news'));
     const pages = host.contributions.query(UI_PAGE_POINT);
 
-    expect(resolvePageContribution(pages, 'pushes')).toBeDefined();
     expect(resolvePageContribution(pages, 'calendar')).toBeDefined();
-    expect(host.contributions.query(UI_NAV_POINT).length).toBe(5);
+    expect(host.contributions.query(UI_NAV_POINT).length).toBe(4);
   });
 
   it('remover core.ui derruba todos os módulos de UI, porque ninguém declara os pontos', () => {

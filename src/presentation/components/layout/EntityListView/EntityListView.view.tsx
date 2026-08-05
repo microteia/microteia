@@ -31,6 +31,13 @@ export interface EntityListViewProps {
    */
   variant?: 'page' | 'embedded';
 
+  /**
+   * A tela CRIA registros. `false` some com o botão "novo" e com a chamada do estado vazio — é a
+   * listagem cujos registros nascem fora dela: o e-mail que o tribunal manda, o registro que uma
+   * automação grava. Botão que abriria um formulário sem sentido é pior do que botão nenhum.
+   */
+  canCreate?: boolean;
+
   /** Ações extras no cabeçalho, antes do botão "novo" (ex.: Dashboard, ocultar totais). */
   headerExtra?: React.ReactNode;
   /** Faixa entre o cabeçalho e o filtro (ex.: barra de totais do Financeiro). */
@@ -57,6 +64,7 @@ export const EntityListView: React.FC<EntityListViewProps> = ({
   emptyTitle,
   emptyActionLabel,
   variant = 'page',
+  canCreate = true,
   headerExtra,
   belowHeader,
   children,
@@ -77,7 +85,7 @@ export const EntityListView: React.FC<EntityListViewProps> = ({
         ))}
         <S.HeaderActions>
           {headerExtra}
-          <Button onClick={onNew} title={newTitle}>{addIcon}</Button>
+          {canCreate && <Button onClick={onNew} title={newTitle}>{addIcon}</Button>}
         </S.HeaderActions>
       </S.Header>
 
@@ -100,10 +108,12 @@ export const EntityListView: React.FC<EntityListViewProps> = ({
           <S.EmptyState>
             <S.EmptyIcon>{emptyIcon}</S.EmptyIcon>
             <S.EmptyTitle>{emptyTitle}</S.EmptyTitle>
-            <Button onClick={onNew} variant="secondary">
-              {addIcon}
-              {emptyActionLabel}
-            </Button>
+            {canCreate && (
+              <Button onClick={onNew} variant="secondary">
+                {addIcon}
+                {emptyActionLabel}
+              </Button>
+            )}
           </S.EmptyState>
         ) : (
           <S.Grid>{children}</S.Grid>

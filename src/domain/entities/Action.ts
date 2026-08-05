@@ -33,6 +33,25 @@ export interface ActionDefinition {
    */
   activeWhen?: string | null;
   confirmMessage?: string | null;
+  /**
+   * A ação PERGUNTA antes de executar: abre o formulário dos parâmetros do fluxo de trabalho, como a
+   * execução manual de uma automação, e só dispara depois que o usuário confirma.
+   *
+   * É declaração explícita, e não dedução a partir de "o fluxo tem parâmetros": todo fluxo chamado
+   * por uma Action já recebe `action`, `source`, `context`, `recordId` e `isNew`, e quase nenhum deve
+   * abrir tela. Ausente (o normal), a ação dispara direto.
+   */
+  promptParameters?: boolean | null;
+  /**
+   * Com o que cada parâmetro chega PREENCHIDO, por EXPRESSÃO no mesmo escopo do `hiddenWhen` (campos
+   * do registro na raiz, mais `record`, `isNew`, `role`, `surface`). Chave = parâmetro do fluxo.
+   *
+   * Existe porque o nome do campo na tela raramente é o nome do parâmetro no fluxo: o push guarda
+   * `processNumber` e o fluxo "Criar Prazo" pede `caseNumber`. Parâmetro sem entrada aqui ainda é
+   * preenchido quando existe um campo de mesmo nome — o mapa é para quando os nomes divergem, ou
+   * quando o valor é derivado.
+   */
+  parameterDefaults?: Record<string, string> | null;
   danger: boolean;
   enabled: boolean;
   order: number;

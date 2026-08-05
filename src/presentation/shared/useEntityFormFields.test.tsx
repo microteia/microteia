@@ -63,10 +63,10 @@ beforeEach(() => {
 
 describe('useEntityFormFields', () => {
   it('sem tela do tenant, devolve os campos declarados em código', () => {
-    const { result } = renderHook(() => useEntityFormFields('pushes'));
-    const numero = result.current.fields.find((f) => f.key === 'processNumber');
-    expect(numero?.label).toBe('Número do processo');
-    expect(numero?.origin).toBe('builtin');
+    const { result } = renderHook(() => useEntityFormFields('news'));
+    const titulo = result.current.fields.find((f) => f.key === 'title');
+    expect(titulo?.label).toBe('Título');
+    expect(titulo?.origin).toBe('builtin');
     expect(result.current.addedFields).toHaveLength(0);
   });
 

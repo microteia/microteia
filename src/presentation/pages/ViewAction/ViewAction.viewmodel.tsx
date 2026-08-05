@@ -8,6 +8,7 @@ import { useNotification } from '../../../stores/useNotification';
 import { WORKFLOW_CALLED_EVENT } from '../../../domain/schema/eventCatalog';
 import { getScreenIconOptions } from '../../shared/screenIcons';
 import { useRecordActions } from '../../shared/recordActions/useRecordActions';
+import { ACTION_SYSTEM_PARAMETERS } from '../../shared/entityScreen/useActionParameterPrompt';
 import type { ActionDefinition } from '../../../domain/entities';
 import type { WorkflowVariable } from '../../components/ui/ExpressionEditor/autocompleteHelpers';
 import type { SearchSelectOption } from '../../components/ui/SearchSelect';
@@ -24,6 +25,10 @@ export interface ActionFormState {
   disabledWhen: string;
   activeWhen: string;
   confirmMessage: string;
+  /** A ação abre o formulário dos parâmetros do fluxo antes de executar. */
+  promptParameters: boolean;
+  /** Parâmetro do fluxo → expressão com que o campo abre preenchido. */
+  parameterDefaults: Record<string, string>;
   danger: boolean;
   enabled: boolean;
   order: number;
@@ -40,6 +45,8 @@ const EMPTY_FORM: ActionFormState = {
   disabledWhen: '',
   activeWhen: '',
   confirmMessage: '',
+  promptParameters: false,
+  parameterDefaults: {},
   danger: false,
   enabled: true,
   order: 0,
@@ -56,10 +63,25 @@ const toForm = (action: ActionDefinition): ActionFormState => ({
   disabledWhen: action.disabledWhen ?? '',
   activeWhen: action.activeWhen ?? '',
   confirmMessage: action.confirmMessage ?? '',
+  promptParameters: action.promptParameters === true,
+  parameterDefaults: action.parameterDefaults ?? {},
   danger: action.danger,
   enabled: action.enabled,
   order: action.order,
 });
+
+/** Expressão em branco não vira registro no banco: ausente e vazia dizem a mesma coisa. */
+const cleanParameterDefaults = (defaults: Record<string, string>): Record<string, string> =>
+  Object.fromEntries(
+    Object.entries(defaults).filter(([, expression]) => expression.trim() !== ''),
+  );
+
+/** Um parâmetro do fluxo-alvo que a ação pode perguntar — e pré-preencher. */
+export interface PromptableParameter {
+  key: string;
+  label: string;
+  required: boolean;
+}
 
 export interface ViewActionViewModel {
   isAdmin: boolean;
@@ -76,6 +98,9 @@ export interface ViewActionViewModel {
   workflowOptions: { value: string; label: string }[];
   expressionVariables: WorkflowVariable[];
   commandOptions: SearchSelectOption[];
+  /** Os parâmetros do fluxo escolhido, fora os cinco que o sistema sempre entrega. */
+  promptableParameters: PromptableParameter[];
+  setParameterDefault: (key: string, expression: string) => void;
   canSave: boolean;
   isSaving: boolean;
   handleSave: () => Promise<void>;
@@ -162,6 +187,20 @@ export const useViewActionViewModel = (tabKey: string): ViewActionViewModel => {
     [recordActions],
   );
 
+  const promptableParameters = useMemo<PromptableParameter[]>(() => {
+    const workflow = workflows.find((candidate) => candidate.id === formData.workflowId);
+    return (workflow?.parameters ?? [])
+      .filter((param) => !ACTION_SYSTEM_PARAMETERS.has(param.key))
+      .map((param) => ({ key: param.key, label: param.label || param.key, required: !!param.required }));
+  }, [workflows, formData.workflowId]);
+
+  const setParameterDefault = useCallback((key: string, expression: string) => {
+    setForm((prev) => ({
+      ...prev,
+      parameterDefaults: { ...prev.parameterDefaults, [key]: expression },
+    }));
+  }, []);
+
   // Uma ação executa UMA coisa: um comando do sistema ou um fluxo de trabalho. O comando dispensa
   // o fluxo — não há o que rodar no servidor.
   const takenActionIds = useMemo(() => new Set(actions.map((item) => item.id)), [actions]);
@@ -198,6 +237,8 @@ export const useViewActionViewModel = (tabKey: string): ViewActionViewModel => {
         activeWhen: formData.activeWhen.trim() || null,
         disabledWhen: formData.disabledWhen.trim() || null,
         confirmMessage: formData.confirmMessage.trim() || null,
+        promptParameters: formData.command ? null : formData.promptParameters,
+        parameterDefaults: cleanParameterDefaults(formData.parameterDefaults),
         danger: formData.danger,
         enabled: formData.enabled,
         order: formData.order,
@@ -249,6 +290,8 @@ export const useViewActionViewModel = (tabKey: string): ViewActionViewModel => {
     workflowOptions,
     expressionVariables,
     commandOptions,
+    promptableParameters,
+    setParameterDefault,
     canSave,
     isSaving,
     handleSave,

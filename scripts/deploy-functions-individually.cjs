@@ -39,7 +39,6 @@ const ALL_FUNCTIONS = [
   'auditNewsTagChange',
   'backupDeletedAuditLog',
   'logClientError',
-  'cascadeDeletePushInteractions',
   'onWorkflowEventCreated',
   'getWorkflowStepCatalog',
   'publishWorkflowEventOnEntityChange',

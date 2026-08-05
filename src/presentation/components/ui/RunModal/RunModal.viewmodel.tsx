@@ -19,8 +19,19 @@ export interface RunModalProps {
   title: string;
   parameters: WorkflowParameter[];
   runLabel?: string;
+  /**
+   * Com o que o formulário ABRE. Serve à ação que pergunta antes de executar: o registro da tela já
+   * responde parte do que o fluxo pede, e reescrever à mão o que está na tela é trabalho inútil.
+   */
+  initialValues?: Record<string, unknown>;
+  /**
+   * O modal só COLETA: confirma, fecha, e quem chamou cuida do resto. É o modo da Action, cujo
+   * resultado já é tratado pelo caminho de sempre (mensagem, recarregar a lista) — mostrar aqui o
+   * JSON de saída seria a tela de depuração de um fluxo aparecendo para quem só clicou num botão.
+   */
+  collectOnly?: boolean;
   onClose: () => void;
-  onRun: (providedParams: Record<string, unknown>) => Promise<RunModalResult>;
+  onRun: (providedParams: Record<string, unknown>) => Promise<RunModalResult | void>;
 }
 
 type BuildOutcome =
@@ -39,10 +50,46 @@ const skeletonValue = (param: WorkflowParameter): unknown => {
   return '';
 };
 
-const buildDefaultJson = (parameters: WorkflowParameter[]): string => {
+/**
+ * O valor de partida vira TEXTO, que é como o formulário guarda tudo: o campo de data espera
+ * `aaaa-mm-dd`, o de sim/não espera `"true"`, e lista e objeto voltam a ser JSON — a mesma forma que
+ * `buildProvidedParams` lê de volta na hora de montar os parâmetros.
+ */
+const toFormText = (value: unknown, param: WorkflowParameter): string => {
+  if (value === null || value === undefined) return '';
+  if (param.list || param.type === 'Object') return JSON.stringify(value, null, 2);
+  if (typeof value === 'boolean') return value ? 'true' : 'false';
+  if (value instanceof Date) return value.toISOString().slice(0, 10);
+  if (param.type === 'Date' && typeof value === 'string') return value.slice(0, 10);
+  return String(value);
+};
+
+const buildInitialValues = (
+  parameters: WorkflowParameter[],
+  initialValues: Record<string, unknown> | undefined,
+): Record<string, string> => {
+  if (!initialValues) return {};
+  const out: Record<string, string> = {};
+  for (const param of parameters) {
+    if (!(param.key in initialValues)) continue;
+    const text = toFormText(initialValues[param.key], param);
+    if (text !== '') out[param.key] = text;
+  }
+  return out;
+};
+
+const buildDefaultJson = (
+  parameters: WorkflowParameter[],
+  initialValues?: Record<string, unknown>,
+): string => {
   if (parameters.length === 0) return '{}';
   const skeleton: Record<string, unknown> = {};
-  for (const param of parameters) skeleton[param.key] = skeletonValue(param);
+  for (const param of parameters) {
+    const provided = initialValues?.[param.key];
+    skeleton[param.key] = provided === undefined || provided === null
+      ? skeletonValue(param)
+      : provided;
+  }
   return JSON.stringify(skeleton, null, 2);
 };
 
@@ -107,11 +154,13 @@ export interface RunModalViewModel {
 }
 
 export const useRunModalViewModel = (props: RunModalProps): RunModalViewModel => {
-  const { parameters, runLabel = 'Executar', onClose, onRun } = props;
+  const { parameters, runLabel = 'Executar', initialValues, collectOnly = false, onClose, onRun } = props;
 
   const [mode, setMode] = useState<'form' | 'json'>('form');
-  const [values, setValues] = useState<Record<string, string>>({});
-  const [jsonText, setJsonText] = useState(() => buildDefaultJson(parameters));
+  const [values, setValues] = useState<Record<string, string>>(
+    () => buildInitialValues(parameters, initialValues),
+  );
+  const [jsonText, setJsonText] = useState(() => buildDefaultJson(parameters, initialValues));
   const [phase, setPhase] = useState<'input' | 'result'>('input');
   const [running, setRunning] = useState(false);
   const [result, setResult] = useState<RunModalResult | null>(null);
@@ -128,10 +177,17 @@ export const useRunModalViewModel = (props: RunModalProps): RunModalViewModel =>
     if (running) return;
     const built = buildProvidedParams(mode, jsonText, values, parameters);
     if (!built.ok) return;
+    // Só coleta: dispara e sai de cena. Esperar aqui deixaria o modal travado durante a execução,
+    // sem nada a mostrar no fim — o retorno já é tratado por quem chamou.
+    if (collectOnly) {
+      void onRun(built.params);
+      onClose();
+      return;
+    }
     setRunning(true);
     try {
       const outcomeResult = await onRun(built.params);
-      setResult(outcomeResult);
+      setResult(outcomeResult ?? null);
     } catch (error) {
       setResult({
         status: 'FAILED',
@@ -143,7 +199,7 @@ export const useRunModalViewModel = (props: RunModalProps): RunModalViewModel =>
       setRunning(false);
       setPhase('result');
     }
-  }, [running, mode, jsonText, values, parameters, onRun]);
+  }, [running, mode, jsonText, values, parameters, collectOnly, onRun, onClose]);
 
   const handleReset = useCallback(() => {
     setPhase('input');

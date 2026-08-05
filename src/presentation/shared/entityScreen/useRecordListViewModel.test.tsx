@@ -34,6 +34,7 @@ vi.mock('../../../stores/useNotification', () => ({ useNotification: () => ({ no
 vi.mock('../../../stores/useActions', () => ({ useActions: () => ({ getActionsByIds: () => [], runAction: vi.fn() }) }));
 vi.mock('../../../stores/useLookups', () => ({ useLookups: () => ({ getOptions: () => [], availableLookups: [] }) }));
 vi.mock('../../../stores/useTags', () => ({ useTags: () => ({ getTags: () => [], availableTagLists: [], declareTagList: vi.fn(), setTags: vi.fn() }) }));
+vi.mock('../../../stores/useWorkflowStore', () => ({ useWorkflowStore: () => ({ workflows: [] }) }));
 vi.mock('../recordActions/useRecordActions', () => ({ useRecordActions: () => [] }));
 
 const { useRecordListViewModel } = await import('./useRecordListViewModel');

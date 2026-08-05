@@ -15,10 +15,6 @@ const screen = (id: string, extra: Partial<SchemaScreen> = {}): SchemaScreen => 
 });
 
 describe('getWorkflowEventPrefix', () => {
-  it('entidade do registro mantém o prefixo declarado em código', () => {
-    expect(getWorkflowEventPrefix('pushes')).toBe('push');
-  });
-
   /** Pessoa saiu do registro: a convenção devolve o nome da coleção, e a TELA declara `person`. */
   it('entidade que saiu do kernel cai na convenção, à espera da declaração', () => {
     expect(getWorkflowEventPrefix('persons')).toBe('persons');
@@ -79,8 +75,13 @@ describe('declaredEventPrefix', () => {
     expect(declaredEventPrefix([screen('cases', { eventPrefix: '  ' })], 'cases')).toBeUndefined();
   });
 
-  it('o caminho rápido responde por quem ainda está no registro', () => {
-    expect(hasRegistryEventPrefix('pushes')).toBe(true);
+  /**
+   * Ninguém mais está no registro com prefixo próprio: `pushes` era o último, e saiu levando o
+   * prefixo para a declaração da tela. O caminho rápido continua existindo — e continua sabendo
+   * responder que não — porque é ele que evita uma leitura de telas a cada escrita de documento.
+   */
+  it('o caminho rápido responde que ninguém mais está no registro', () => {
+    expect(hasRegistryEventPrefix('pushes')).toBe(false);
     expect(hasRegistryEventPrefix('medico')).toBe(false);
   });
 });

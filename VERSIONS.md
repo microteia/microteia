@@ -11,6 +11,22 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [4.3.0] — 2026-08-02
+
+- **Os Pushes do Tribunal viraram uma extensão.** A caixa de intimações continua no mesmo lugar, com as mesmas intimações, mas agora é você quem manda nela: dá para acrescentar campos, mudar o que aparece no cartão e criar ações próprias, como já acontece com Pessoas, Processos, Contratos, Financeiro e Prazos.
+- O item **"Pushes do Tribunal"** no menu, e o atalho no alto da tela, mostram **quantas intimações ainda esperam triagem** — e o número desce sozinho conforme você as revisa.
+- O menu **"Ações"** de cada intimação agora sai da configuração da tela. Além de "Gerar prazo", "Marcar como revisado" e "Arquivar", qualquer ação que você criar aparece ali.
+- **"Gerar prazo"** abre o formulário já preenchido: o número do processo e a descrição vêm da própria intimação. Ele encontra o processo pelo número antes de gravar — se o processo não estiver cadastrado, avisa em vez de criar um prazo solto — e marca a intimação como revisada.
+- O **corpo do e-mail** passou a ser exibido dentro de uma moldura isolada do sistema. Nada que venha de fora executa aqui dentro, nem quando o remetente parece confiável.
+- Uma ação sua pode agora **perguntar antes de executar**, abrindo os campos que o fluxo de trabalho precisa — com o que a tela já sabe responder vindo preenchido.
+
+### O que mudou de comportamento
+
+- O controle de **lido/não lido por pessoa** foi removido, junto com "Marcar todos como lidos". O contador do menu passou a contar as intimações **pendentes**, e a triagem é a situação da própria intimação: Pendente → Revisado → Arquivado.
+- O **Dashboard de Pushes** foi removido e será refeito.
+- O cartão da intimação mostra **apenas o que é dela**. A fase e o status do processo vinculado, e os prazos gerados, saíram desta versão. O link direto para o processo — e o aviso de "processo não cadastrado" — continuam.
+- Excluir uma intimação segue sendo do administrador. Alterá-la passou a ser de administradores e advogados.
+
 ## [4.2.0] — 2026-08-02
 
 - **Automações, ações e scripts ganham um identificador legível.** Antes, o que a tela mostrava como identificador era um código do banco (`NehhFXIJ40ZcaCV2SLjT`) sempre que o artefato vinha de uma extensão — enquanto o criado à mão ao lado mostrava um nome. Agora é um nome nos dois casos: a automação de Pessoa passa a se chamar `wf-pessoa-status`, que é como a extensão a nomeia.

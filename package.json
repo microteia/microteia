@@ -1,7 +1,7 @@
 {
   "name": "microteia",
   "private": true,
-  "version": "4.2.0",
+  "version": "4.3.0",
   "type": "module",
   "scripts": {
     "predev": "npm run sync-schemas",
@@ -30,7 +30,7 @@
     "deploy:auth": "npm run build:functions && firebase deploy --only functions:getUserInfo,functions:checkNicknameAvailability,functions:claimNickname,functions:onUserCreated --project ${TARGET:-dev}",
     "deploy:tenant": "npm run build:functions && firebase deploy --only functions:addTenantMember,functions:removeTenantMember --project ${TARGET:-dev}",
     "deploy:gmail": "npm run build:functions && firebase deploy --only functions:gmailPush,functions:renewGmailWatches,functions:exchangeGmailCode --project ${TARGET:-dev}",
-    "deploy:util": "npm run build:functions && firebase deploy --only functions:callAIProxy,functions:logClientError,functions:cascadeDeletePushInteractions --project ${TARGET:-dev}",
+    "deploy:util": "npm run build:functions && firebase deploy --only functions:callAIProxy,functions:logClientError --project ${TARGET:-dev}",
     "deploy:functions": "npm run build:functions && firebase deploy --only functions --project ${TARGET:-dev}",
     "deploy:functions:individual": "node scripts/deploy-functions-individually.cjs"
   },

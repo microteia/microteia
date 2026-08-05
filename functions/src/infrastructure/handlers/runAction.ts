@@ -11,6 +11,7 @@ interface RunActionRequest {
   context: Record<string, unknown>;
   recordId?: string | null;
   isNew: boolean;
+  params?: Record<string, unknown>;
 }
 
 interface RunActionResponse {
@@ -32,7 +33,7 @@ export const runAction = onCall(
       throw new HttpsError('unauthenticated', 'Autenticação necessária.');
     }
 
-    const { tenantId, actionId, source, context, recordId, isNew } = request.data as RunActionRequest;
+    const { tenantId, actionId, source, context, recordId, isNew, params } = request.data as RunActionRequest;
 
     if (!tenantId) throw new HttpsError('invalid-argument', 'Escritório não informado.');
     if (!actionId) throw new HttpsError('invalid-argument', 'Ação não informada.');
@@ -53,11 +54,15 @@ export const runAction = onCall(
     await di.ensureWorkflowStepsRegistered();
 
     // O contexto vai cru: `formatAndValidateParameters`, dentro do executor, poda e coage os campos
-    // contra os `fields` declarados no parâmetro `context` do workflow-alvo.
+    // contra os `fields` declarados no parâmetro `context` do workflow-alvo — o que também descarta
+    // qualquer parâmetro informado pelo usuário que o fluxo não declare.
     const result = await di.getRunCalledWorkflowUseCase().execute({
       tenantId,
       targetWorkflowId: action.workflowId,
       params: {
+        // Os informados primeiro, de propósito: os cinco do sistema são a última palavra, e um
+        // parâmetro chamado `recordId` vindo da tela não passa a mandar em qual registro age.
+        ...(params ?? {}),
         action: action.key ?? '',
         source: source ?? '',
         context: context ?? {},

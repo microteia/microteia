@@ -44,6 +44,8 @@ interface RecordListSurfaceProps {
    */
   onOpenRecord?: (record: EntityRecord) => void;
   onNewRecord?: () => void;
+  /** A tela cria registros. Ver `EntityListViewProps.canCreate`. */
+  canCreate?: boolean;
   /** Textos do estado vazio, quando a tela prefere os seus aos genéricos. */
   emptyTitle?: string;
   emptyActionLabel?: string;
@@ -60,7 +62,7 @@ interface RecordListSurfaceProps {
  * Listagem de registros de uma tela customizada. A mesma superfície serve à janela própria da tela
  * e à aba de registros filhos dentro do pai — só muda a variante do `EntityListView`.
  */
-export const RecordListSurface: React.FC<RecordListSurfaceProps> = ({ vm, definition, variant = 'page', renderSubtitle, renderBelowHeader, renderMetaRows, accentColor, onOpenRecord, onNewRecord, emptyTitle, emptyActionLabel, headerActions, summary }) => {
+export const RecordListSurface: React.FC<RecordListSurfaceProps> = ({ vm, definition, variant = 'page', renderSubtitle, renderBelowHeader, renderMetaRows, accentColor, onOpenRecord, onNewRecord, canCreate, emptyTitle, emptyActionLabel, headerActions, summary }) => {
   const openRecord = onOpenRecord ?? vm.openRecord;
   const openNewRecord = onNewRecord ?? vm.openNewRecord;
   const modals = <EntityListModals vm={vm} />;
@@ -89,6 +91,7 @@ export const RecordListSurface: React.FC<RecordListSurfaceProps> = ({ vm, defini
       title={definition.titlePlural}
       titleIcon={getScreenIcon(definition.icon, 22)}
       onNew={openNewRecord}
+      canCreate={canCreate}
       newTitle={`Novo ${definition.titleSingular}`}
       filterDefs={vm.filterDefs}
       filterTokens={vm.filterTokens}

@@ -13,6 +13,8 @@ import { Input, Textarea } from '../../components/ui/Input';
 import { MaskedInput } from '../../components/ui/MaskedInput';
 import { CurrencyInput } from '../../components/ui/CurrencyInput';
 import { Modal } from '../../components/ui/Modal';
+import { Dropdown } from '../../components/ui/Dropdown';
+import { HtmlView } from '../../components/ui/HtmlView';
 import { ConfirmModal } from '../../components/ui/ConfirmModal';
 import { Spinner } from '../../components/ui/Spinner';
 import { Checkbox } from '../../components/ui/Checkbox';
@@ -105,6 +107,8 @@ const uiModule = {
   CurrencyInput,
   Modal,
   ConfirmModal,
+  Dropdown,
+  HtmlView,
   Spinner,
   Checkbox,
   EntityListView,

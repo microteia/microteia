@@ -22,7 +22,6 @@ export { auditTenantDeleted } from './infrastructure/handlers/auditTenantDeleted
 export { auditNewsChange, auditNewsCommentChange, auditNewsTagChange } from './infrastructure/handlers/auditNewsEntityChange';
 export { backupDeletedAuditLog } from './infrastructure/handlers/backupDeletedAuditLog';
 export { logClientError } from './infrastructure/handlers/logClientError';
-export { cascadeDeletePushInteractions } from './infrastructure/handlers/cascadeDeletePushInteractions';
 export { onWorkflowEventCreated } from './infrastructure/handlers/onWorkflowEventCreated';
 export { getWorkflowStepCatalog } from './infrastructure/handlers/getWorkflowStepCatalog';
 export { publishWorkflowEventOnEntityChange } from './infrastructure/handlers/publishWorkflowEventOnEntityChange';

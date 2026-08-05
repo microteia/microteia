@@ -40,6 +40,8 @@ const mapAction = (id: string, d: Record<string, unknown>, tenantId: string): Ac
   activeWhen: (d.activeWhen as string | null | undefined) ?? null,
   disabledWhen: (d.disabledWhen as string | null | undefined) ?? null,
   confirmMessage: (d.confirmMessage as string | null | undefined) ?? null,
+  promptParameters: (d.promptParameters as boolean | null | undefined) ?? null,
+  parameterDefaults: (d.parameterDefaults as Record<string, string> | null | undefined) ?? null,
   danger: (d.danger as boolean | undefined) ?? false,
   enabled: (d.enabled as boolean | undefined) ?? true,
   order: (d.order as number | undefined) ?? 0,

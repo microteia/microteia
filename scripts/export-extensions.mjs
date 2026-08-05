@@ -25,6 +25,7 @@ const TEMPLATES = {
   'contrato.json': 'contratoPlugin',
   'processo.json': 'processoPlugin',
   'prazo.json': 'prazoPlugin',
+  'push.json': 'pushPlugin',
   'financeiro.json': 'financeiroPlugin',
   'kanban-processos.json': 'kanbanCasesPlugin',
 };

@@ -13,6 +13,12 @@ export interface RunActionInput {
   context: Record<string, unknown>;
   recordId?: string | null;
   isNew: boolean;
+  /**
+   * Parâmetros que o USUÁRIO informou, quando a ação declara `promptParameters`. Chegam ao fluxo ao
+   * lado dos cinco fixos, que sempre vencem: `action`, `source`, `context`, `recordId` e `isNew` são
+   * do sistema, e um parâmetro de mesmo nome vindo daqui não os substitui.
+   */
+  params?: Record<string, unknown>;
 }
 
 export interface RunActionResult {

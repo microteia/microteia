@@ -4,6 +4,8 @@ import { useNotification } from '../../../stores/useNotification';
 import { useTenant } from '../../../stores/useTenant';
 import { setValueByPath } from '../../../domain/services/customFieldValues';
 import { actionActiveState, isActionDisabled, isActionHidden } from '../../../domain/schema/actionExpression';
+import { useActionParameterPrompt } from './useActionParameterPrompt';
+import type { ActionParameterPromptController } from './useActionParameterPrompt';
 import type { ActionDefinition, ActionOutcome, ActionStatusCode, CustomFieldValue } from '../../../domain/entities';
 
 type Values = Record<string, CustomFieldValue>;
@@ -60,6 +62,8 @@ export interface ScreenActions {
   pendingAction: ActionDefinition | null;
   confirmPendingAction: () => void;
   cancelPendingAction: () => void;
+  /** Pedido de parâmetros de uma ação que pergunta antes de executar. */
+  parameterPrompt: ActionParameterPromptController;
 }
 
 const STATUS_TONE: Record<ActionStatusCode, 'success' | 'warning' | 'error'> = {
@@ -168,7 +172,10 @@ export const useScreenActions = (target: ScreenActionTarget): ScreenActions => {
     surface: 'detail' as const,
   }), [values, record, isNew, isDirty, tenantRole]);
 
-  const execute = useCallback(async (action: ActionDefinition) => {
+  const execute = useCallback(async (
+    action: ActionDefinition,
+    params?: Record<string, unknown>,
+  ) => {
     setRunningActionId(action.id);
     try {
       // Ação que executa um COMANDO do sistema não vai ao servidor: é operação de tela.
@@ -182,6 +189,7 @@ export const useScreenActions = (target: ScreenActionTarget): ScreenActions => {
         context: values,
         recordId,
         isNew,
+        params,
       });
 
       if (response.error || !response.outcome) {
@@ -203,20 +211,28 @@ export const useScreenActions = (target: ScreenActionTarget): ScreenActions => {
     }
   }, [runAction, screenKey, values, recordId, isNew, notify, setFieldErrors, applyValues, save, refresh, clone, remove, close, runRecordCommand]);
 
+  const parameterPrompt = useActionParameterPrompt();
+
+  /** Pergunta os parâmetros, se a ação os pedir; senão dispara direto. */
+  const runOrAsk = useCallback((action: ActionDefinition) => {
+    const asked = parameterPrompt.request(action, exprContext, (params) => void execute(action, params));
+    if (!asked) void execute(action);
+  }, [parameterPrompt, exprContext, execute]);
+
   const requestRun = useCallback((action: ActionDefinition) => {
     if (action.confirmMessage && action.confirmMessage.trim() !== '') {
       setPendingAction(action);
       return;
     }
-    void execute(action);
-  }, [execute]);
+    runOrAsk(action);
+  }, [runOrAsk]);
 
   const confirmPendingAction = useCallback(() => {
     if (!pendingAction) return;
     const action = pendingAction;
     setPendingAction(null);
-    void execute(action);
-  }, [pendingAction, execute]);
+    runOrAsk(action);
+  }, [pendingAction, runOrAsk]);
 
   const cancelPendingAction = useCallback(() => setPendingAction(null), []);
 
@@ -237,5 +253,5 @@ export const useScreenActions = (target: ScreenActionTarget): ScreenActions => {
     [available, exprContext, runningActionId, requestRun, runRecordCommand],
   );
 
-  return { buttons, runningActionId, pendingAction, confirmPendingAction, cancelPendingAction };
+  return { buttons, runningActionId, pendingAction, confirmPendingAction, cancelPendingAction, parameterPrompt };
 };

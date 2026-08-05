@@ -14,7 +14,6 @@ import { createSchemaContext, resolvePath, parsePath } from './pathResolver';
 import type { WorkflowParameter } from '../entities/Workflow';
 
 const entry = (name: string) => WORKFLOW_EVENT_CATALOG.find((e) => e.name === name);
-const paths = (name: string) => (entry(name)?.fields ?? []).map((f) => f.path);
 
 const tenantCtx = createSchemaContext([
   // Processo vem de extensão: coleção `cases`, eventos `case.*`, campos declarados no pacote.
@@ -69,11 +68,10 @@ const tenantCtx = createSchemaContext([
 
 describe('eventCatalog — derivação do registry', () => {
   it('mantém os eventos das entidades com rótulos PT-BR', () => {
-    expect(entry('push.saved')?.label).toBe('Ao salvar: Push');
-    expect(entry('push.deleted')?.label).toBe('Ao excluir: Push');
     expect(entry('lookup.saved')?.label).toBe('Ao salvar: Item de Lista');
-    // Processo, Pessoa, Contrato, Financeiro e Prazo saíram do kernel: os eventos deles só existem
-    // no catálogo do escritório que instalou as extensões.
+    // Processo, Pessoa, Contrato, Financeiro, Prazo e Push saíram do kernel: os eventos deles só
+    // existem no catálogo do escritório que instalou as extensões.
+    expect(entry('push.saved')).toBeUndefined();
     expect(entry('case.saved')).toBeUndefined();
     expect(entry('person.saved')).toBeUndefined();
     expect(entry('contract.saved')).toBeUndefined();
@@ -93,8 +91,9 @@ describe('eventCatalog — derivação do registry', () => {
   });
 
   it('inclui old apenas em eventos saved', () => {
-    expect(paths('push.saved')).toContain('old');
-    expect(paths('push.deleted')).not.toContain('old');
+    const fieldsOf = (name: string) => getWorkflowEventFields(name, tenantCtx).map((f) => f.path);
+    expect(fieldsOf('medico.saved')).toContain('old');
+    expect(fieldsOf('medico.deleted')).not.toContain('old');
   });
 
   /**
@@ -138,7 +137,7 @@ describe('getWorkflowEventFields', () => {
 describe('buildWorkflowEventCatalog', () => {
   it('acrescenta um par de eventos por tela do tenant, sem duplicar as fixas', () => {
     const names = buildWorkflowEventCatalog(tenantCtx).map((e) => e.name);
-    expect(names).toEqual(expect.arrayContaining(['push.saved', 'medico.saved', 'medico.deleted']));
+    expect(names).toEqual(expect.arrayContaining(['lookup.saved', 'medico.saved', 'medico.deleted']));
     expect(names.filter((n) => n === 'person.saved')).toHaveLength(1);
     expect(names.filter((n) => n === 'contract.saved')).toHaveLength(1);
     expect(names.filter((n) => n === 'case.saved')).toHaveLength(1);
@@ -182,8 +181,7 @@ describe('splitEntityEventName', () => {
     expect(splitEntityEventName('medico.deleted')).toEqual({ prefix: 'medico', action: 'deleted' });
   });
 
-  it('não são eventos de coleção: filhos das fixas, listas e chamada de workflow', () => {
-    expect(splitEntityEventName('push_note.saved')).toBeNull();
+  it('não são eventos de coleção: listas e chamada de workflow', () => {
     expect(splitEntityEventName('lookup.saved')).toBeNull();
     expect(splitEntityEventName('workflow.called')).toBeNull();
   });
@@ -198,17 +196,18 @@ describe('splitEntityEventName', () => {
       action: 'saved',
     });
     expect(splitEntityEventName('medico_note.saved')).toMatchObject({ prefix: 'medico_note' });
-    // `person` e `deadline` deixaram de ser prefixos do registro, então `person_note` e
-    // `deadline_note` voltam a ser nomes de coleção.
+    // Nenhum prefixo é mais do registro, então `person_note`, `deadline_note` e `push_note` voltam
+    // a ser nomes de coleção como qualquer outro.
     expect(splitEntityEventName('person_note.saved')).toMatchObject({ prefix: 'person_note' });
     expect(splitEntityEventName('deadline_note.saved')).toMatchObject({ prefix: 'deadline_note' });
+    expect(splitEntityEventName('push_note.saved')).toMatchObject({ prefix: 'push_note' });
   });
 });
 
 describe('eventNameToRoot / eventNameToEntityKey', () => {
   it('resolve raiz de entidade com hasOld por ação', () => {
-    expect(eventNameToRoot('push.saved')).toMatchObject({ kind: 'entity', entityKey: 'pushes', hasOld: true });
-    expect(eventNameToRoot('push.deleted')).toMatchObject({ hasOld: false });
+    expect(eventNameToRoot('medico.saved', tenantCtx)).toMatchObject({ kind: 'entity', entityKey: 'medico', hasOld: true });
+    expect(eventNameToRoot('medico.deleted', tenantCtx)).toMatchObject({ hasOld: false });
   });
 
   /**

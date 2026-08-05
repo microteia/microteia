@@ -13,7 +13,6 @@ import type { INewsDocumentRepository } from '../../domain/repositories/INewsDoc
 import type { ISavedFilterRepository } from '../../domain/repositories/ISavedFilterRepository';
 import type { ITenantRepository } from '../../domain/repositories/ITenantRepository';
 import type { ITextAnnotationRepository } from '../../domain/repositories/ITextAnnotationRepository';
-import type { IPushRepository, IPushInteractionRepository } from '../../domain/repositories/IPushRepository';
 import type { IAuditLogRepository } from '../../domain/repositories/IAuditLogRepository';
 import type { IAuditLogService } from '../../domain/repositories/IAuditLogService';
 import type { IScreenDefinitionRepository } from '../../domain/repositories/IScreenDefinitionRepository';
@@ -58,8 +57,6 @@ export interface DIContainer {
   savedFilterRepository: ISavedFilterRepository;
   tenantRepository: ITenantRepository;
   textAnnotationRepository: ITextAnnotationRepository;
-  pushRepository: IPushRepository;
-  pushInteractionRepository: IPushInteractionRepository;
   auditLogRepository: IAuditLogRepository;
   auditLogService: IAuditLogService;
   screenDefinitionRepository: IScreenDefinitionRepository;

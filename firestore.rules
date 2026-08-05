@@ -184,22 +184,6 @@ service cloud.firestore {
         allow delete: if isTenantAdmin(tenantId);
       }
 
-      // Pushes do Tribunal (notificações de email processadas)
-      match /pushes/{pushId} {
-        allow read: if isMember(tenantId);
-        // Cloud Functions criam pushes (via Admin SDK, ignora estas regras)
-        // Membros podem atualizar status; updatedBy* é o carimbo de autoria (auditoria)
-        allow update: if isMember(tenantId)
-          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedBy', 'updatedByName', 'updatedByPhotoURL']);
-        // Stamp de autoria de exclusão (deletedBy*), gravado logo antes do delete — só quem
-        // pode de fato deletar (admin) pode gravar esse stamp.
-        allow update: if isTenantAdmin(tenantId)
-          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['deletedBy', 'deletedByName', 'deletedByPhotoURL'])
-          && request.resource.data.deletedBy == request.auth.uid;
-        // Somente admin pode deletar
-        allow delete: if isTenantAdmin(tenantId);
-      }
-
       // ─── Workflow Engine (Automações) ────────────────────────────────────────
       // Definições de automação — feature administrativa; só admin cria/edita/exclui.
       // `steps` fica embutido no próprio documento (ver "Workflow Engine" no corpo do doc).
@@ -306,7 +290,7 @@ service cloud.firestore {
         'documentTypes', 'documents', 'extensions',
         'installed_extensions', 'lookupDefinitions', 'members', 'news', 'newsCategories', 'notes',
         'tagDefinitions', 'plugin_installations',
-        'pushes', 'screenDefinitions', 'scripts', 'secrets', 'tags', 'workflow_definitions',
+        'screenDefinitions', 'scripts', 'secrets', 'tags', 'workflow_definitions',
         'workflow_events', 'workflow_executions'
         ];
       }
@@ -452,14 +436,6 @@ service cloud.firestore {
                 && request.resource.data.isRead == false));
       allow delete: if request.auth != null
         && resource.data.userId == request.auth.uid;
-    }
-
-    // ─── Interações com pushes ────────────────────────────────────────────────
-
-    match /pushInteractions/{interactionId} {
-      allow read: if request.auth != null;
-      allow write: if request.auth != null
-        && request.resource.data.userId == request.auth.uid;
     }
 
     // ─── Comentários de boletins ──────────────────────────────────────────────

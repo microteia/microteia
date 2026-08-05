@@ -9,6 +9,7 @@ import {
 } from 'react-icons/ri';
 import { S } from './EntityDetailView.styles';
 import { Button } from '../../ui/Button';
+import { ActionParametersModal } from '../../ui/ActionParametersModal';
 import { ConfirmModal } from '../../ui/ConfirmModal';
 import { NotesPanel, DocumentsPanel } from '../EntityDetailPanels';
 import { getScreenIcon } from '../../../shared/screenIcons';
@@ -212,5 +213,7 @@ export const EntityDetailView: React.FC<EntityDetailViewProps> = ({
         onCancel={screenActions.cancelPendingAction}
       />
     )}
+
+    {screenActions && <ActionParametersModal controller={screenActions.parameterPrompt} />}
   </S.Page>
 );

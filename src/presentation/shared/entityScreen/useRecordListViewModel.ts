@@ -9,6 +9,8 @@ import { storeEvents, StoreEvents } from '../../../infrastructure/events/StoreEv
 import { isActionDisabled, isActionHidden } from '../../../domain/schema/actionExpression';
 import type { ActionRelation, ActionSurface } from '../../../domain/schema/actionExpression';
 import { dispatchActionOutcome } from './useScreenActions';
+import { useActionParameterPrompt } from './useActionParameterPrompt';
+import type { ActionParameterPromptController } from './useActionParameterPrompt';
 import { useCustomFieldListing } from '../../hooks/useCustomFieldListing';
 import type { CustomFieldCardItem } from '../../hooks/useCustomFieldListing';
 import { buildNewTabKey, buildViewTabKey, buildCloneTabKey, buildChildNewTabKey } from '../../../shared/constants/dynamicScreenKeys';
@@ -88,6 +90,8 @@ export interface RecordListViewModel {
   /** Ícone da linha de subtítulo do card, quando o campo declara um. */
   cardSubtitleIconKey: string | null;
   getCardActions: (record: EntityRecord) => RecordCardAction[];
+  /** O pedido de parâmetros de uma ação que pergunta antes de executar. Renderizado pelos modais. */
+  parameterPrompt: ActionParameterPromptController;
   tagAdapter: TagStoreAdapter;
   tagManagerRecord: EntityRecord | null;
   closeTagManager: () => void;
@@ -299,7 +303,13 @@ export const useRecordListViewModel = (source: RecordListSource): RecordListView
     [getActionsByIds, definition],
   );
 
-  const runCardAction = useCallback(async (action: ActionDefinition, record: EntityRecord) => {
+  const parameterPrompt = useActionParameterPrompt();
+
+  const runCardAction = useCallback(async (
+    action: ActionDefinition,
+    record: EntityRecord,
+    params?: Record<string, unknown>,
+  ) => {
     setRunningActionId(action.id);
     try {
       // Ação que executa um COMANDO do sistema não vai ao servidor: é uma operação de tela, e roda
@@ -319,6 +329,7 @@ export const useRecordListViewModel = (source: RecordListSource): RecordListView
         context: record,
         recordId: record.id,
         isNew: false,
+        params,
       });
       if (response.error || !response.outcome) {
         notify(response.error ?? 'Não foi possível executar a ação.', 'error');
@@ -377,11 +388,20 @@ export const useRecordListViewModel = (source: RecordListSource): RecordListView
         danger: action.danger,
         iconKey: action.icon,
         disabled: runningActionId !== null || isActionDisabled(action.disabledWhen, exprContext),
-        onClick: () => void runCardAction(action, record),
+        // A ação que PERGUNTA abre o formulário e só dispara depois; o pedido leva consigo sobre qual
+        // registro age, e o disparo que sai dali é o mesmo de sempre.
+        onClick: () => {
+          const asked = parameterPrompt.request(
+            action,
+            exprContext,
+            (params) => void runCardAction(action, record, params),
+          );
+          if (!asked) void runCardAction(action, record);
+        },
       }));
 
     return [...native, ...custom];
-  }, [definition, isAdmin, parent, relation, recordActions, buildActionHost, cardActionDefs, tenantRole, runningActionId, runCardAction]);
+  }, [definition, isAdmin, parent, relation, recordActions, buildActionHost, cardActionDefs, tenantRole, runningActionId, runCardAction, parameterPrompt]);
 
   const tagIdsOf = useCallback((entityId: string) => records.find((r) => r.id === entityId)?.tagIds ?? [], [records]);
   const setRecordTags = useCallback(
@@ -426,6 +446,7 @@ export const useRecordListViewModel = (source: RecordListSource): RecordListView
     getCardSubtitle,
     cardSubtitleIconKey: subtitleField?.listIcon ?? null,
     getCardActions,
+    parameterPrompt,
     tagAdapter,
     tagManagerRecord,
     closeTagManager,

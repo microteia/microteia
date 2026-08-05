@@ -14,8 +14,6 @@ import { FirebaseNewsCommentRepository } from '../../data/repositories/FirebaseN
 import { FirebaseNewsDocumentRepository } from '../../data/repositories/FirebaseNewsDocumentRepository';
 import { FirebaseSavedFilterRepository } from '../../data/repositories/FirebaseSavedFilterRepository';
 import { FirebaseTenantRepository } from '../../data/repositories/FirebaseTenantRepository';
-import { FirebasePushRepository } from '../../data/repositories/FirebasePushRepository';
-import { FirebasePushInteractionRepository } from '../../data/repositories/FirebasePushInteractionRepository';
 import { FirebaseTextAnnotationRepository } from '../../data/repositories/FirebaseTextAnnotationRepository';
 import { FirebaseAuditLogRepository } from '../../data/repositories/FirebaseAuditLogRepository';
 import { FirebaseAuditLogService } from '../../data/services/FirebaseAuditLogService';
@@ -61,8 +59,6 @@ export const DIProvider: React.FC<{ children: React.ReactNode }> = ({ children }
     savedFilterRepository:    new FirebaseSavedFilterRepository(),
     tenantRepository:         new FirebaseTenantRepository(),
     textAnnotationRepository: new FirebaseTextAnnotationRepository(),
-    pushRepository:           new FirebasePushRepository(),
-    pushInteractionRepository: new FirebasePushInteractionRepository(),
     auditLogRepository:       new FirebaseAuditLogRepository(),
     auditLogService:          new FirebaseAuditLogService(),
     screenDefinitionRepository: new FirebaseScreenDefinitionRepository(),

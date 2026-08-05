@@ -1,7 +1,6 @@
 import React from 'react';
 import {
   RiNewspaperLine,
-  RiInboxLine,
   RiBuildingLine,
   RiArrowDownSLine,
   RiCheckLine,
@@ -89,16 +88,19 @@ export const TopBar: React.FC = () => {
       </S.Left>
 
       <S.Right>
-        <S.IconButton
-          onClick={vm.handlePushClick}
-          title="Pushes do Tribunal"
-          $active={vm.unreadPushCount > 0}
-        >
-          <RiInboxLine size={18} />
-          {vm.unreadPushCount > 0 && (
-            <S.Badge>{vm.unreadPushCount > 99 ? '99+' : vm.unreadPushCount}</S.Badge>
-          )}
-        </S.IconButton>
+        {vm.shortcuts.map((shortcut) => (
+          <S.IconButton
+            key={shortcut.key}
+            onClick={() => vm.handleShortcutClick(shortcut.key)}
+            title={shortcut.label}
+            $active={shortcut.count > 0}
+          >
+            {shortcut.icon}
+            {shortcut.count > 0 && (
+              <S.Badge>{shortcut.count > 99 ? '99+' : shortcut.count}</S.Badge>
+            )}
+          </S.IconButton>
+        ))}
 
         <S.IconButton
           onClick={vm.handleNewsClick}

@@ -21,7 +21,7 @@ O projeto usa **Clean Architecture + MVVM** com separação estrita em camadas. 
 ├─────────────────────────────────────────────┤
 │                 Stores                      │  ← Contextos React globais por domínio
 │  TenantStore · RecordStore · LookupStore    │
-│  TagStore · PushStore · NewsStore           │
+│  TagStore · NewsStore · RecordStore          │
 ├─────────────────────────────────────────────┤
 │               Domain                        │  ← Regras de negócio, zero dependências
 │   entities/ · repositories/ · usecases/    │
@@ -113,8 +113,7 @@ npm run verify          # typecheck + lint + verify-schemas
 | `FinancialDocument` | `tenants/{tenantId}/financials/{financialId}/documents/{id}` | Sim |
 | `FinancialLookupConfig` | `tenants/{tenantId}/financialCategories/{id}`, `financialStatuses` | Sim |
 | `DocumentTypeConfig` (compartilhado) | `tenants/{tenantId}/documentTypes/{id}` | Sim |
-| `Push` | `tenants/{tenantId}/pushes/{id}` | Sim |
-| `PushInteraction` | `pushInteractions/{uid}_{pushId}` | Não |
+| `Push` (extensão `com.microteia.push`; escrito pela ingestão do Gmail) | `tenants/{tenantId}/pushes/{id}` | Sim |
 | `News` | `news/{id}` | Parcial: `tenantId=null` = Sistema (global); `tenantId=string` = Escritório |
 | `NewsCategoryConfig` | `tenants/{tenantId}/newsCategories/{id}` | Sim |
 | `NewsTag` | `newsTags/{id}` | Não |
@@ -572,6 +571,18 @@ Upload e exclusão exigem a mesma permissão de edição da notícia (`canEdit` 
 
 Notificações de e-mail recebidas de tribunais (PJe) processadas automaticamente pela Cloud Function `gmailPush`. Armazenadas por tenant para isolamento de dados. Contém dados processuais extraídos via regex ou IA.
 
+> **A tela é da extensão `com.microteia.push`; o gravador é o backend.** O Push saiu do kernel do
+> frontend — não há mais `Push` em `domain/entities`, `PushStore`, `IPushRepository` nem página
+> `Pushes/`. Quem descreve os campos, a listagem, os filtros e as ações é o pacote (`plugins/marketplace/push.ts`),
+> lendo `tenants/{tenantId}/pushes` pelo `RecordStore` genérico. O tipo `Push` **continua existindo
+> em `functions/src`**, porque a ingestão é quem escreve esses documentos e ela é do servidor: a
+> forma abaixo é a forma que o backend grava.
+>
+> O estado **lido/não-lido por usuário** (`pushInteractions`) foi REMOVIDO junto com a migração. Ele
+> não tinha forma declarativa, e o que ele alimentava — o contador no menu — passou a ser uma
+> contagem declarada (`badge` da contribuição `ui.nav`, ver "Contador no item de menu"). A triagem
+> agora é só a situação do próprio push: Pendente → Revisado → Arquivado.
+
 ```typescript
 interface Push {
   id: string;
@@ -628,25 +639,6 @@ Deploy: `firebase deploy --only firestore:indexes` (configurado em `firestore.in
 3. **Parsers por formato (`parsers/*.ts`).** `ProjudiTJBAEmailParser` (texto, 1 intimação), `TJBAEmailParser` (PJe Push, 1 processo + tabela de movimentações), `PublicacoesOnlineParser` e `RecorteDigitalEmailParser` (agregadores do DJEN/TJBA, **N** intimações por e-mail, com formatos textuais distintos), além de `TJMAEmailParser`, `TRTEmailParser` e o genérico `CNJEmailParser`. Cada parser se auto-filtra por assinatura de conteúdo.
 4. **Detecção (`EmailParserService`).** Primeiro por remetente (`parserByEmail`/`parserByPattern`); se não casar, por **conteúdo** (percorre os parsers e aceita o primeiro que extrair dados — vários remetentes compartilham o mesmo formato de tribunal). O `CNJEmailParser` genérico fica por último para não sequestrar e-mails.
 5. **Fallback de IA (com portão de CNJ).** Só é acionado se nenhum parser extraiu dados **e** o conteúdo contém ao menos um número CNJ (`hasCNJ`) — evita chamadas (e custo) de IA em e-mails sem informação jurídica. A IA é provider-agnóstica (credenciais do tenant) e retorna **todos** os processos do e-mail (não só o primeiro). Sem CNJ, gera um Push `status: 'fault'` com a mensagem "Sem número de processo (CNJ) — IA não acionada".
-
-### Entidade PushInteraction
-
-Rastreamento de interação do usuário com pushes (lido/não lido). Estrutura similar a `NewsInteraction` para consistência.
-
-```typescript
-interface PushInteraction {
-  id: string;               // Formato: {userId}_{pushId}
-  userId: string;
-  pushId: string;
-  isRead: boolean;
-  readAt?: Date;
-  createdAt: Date;
-}
-```
-
-Coleção Firestore: `pushInteractions/{uid}_{pushId}` (raiz)
-
-**Motivação da estrutura raiz:** Permite query eficiente por `userId` para calcular contador de não lidos sem carregar todos os pushes do tenant.
 
 ---
 
@@ -773,9 +765,9 @@ await auditLogService.logError({
 
 ### Badge de falhas críticas não lidas
 
-Ao lado do item "Auditoria" no `WorkspaceSidebar` aparece um badge com a contagem de logs `severity: 'CRITICAL'` não lidos do tenant atual — mesmo mecanismo visual de News/Pushes (`S.NavBadge`/`S.NavBadgeDot`). Só é controlado leitura/não-lida para `CRITICAL`; os demais tipos de log não têm esse conceito.
+Ao lado do item "Auditoria" no `WorkspaceSidebar` aparece um badge com a contagem de logs `severity: 'CRITICAL'` não lidos do tenant atual — mesmo mecanismo visual do contador declarado (`S.NavBadge`/`S.NavBadgeDot`). Só é controlado leitura/não-lida para `CRITICAL`; os demais tipos de log não têm esse conceito.
 
-Em vez de replicar o padrão de interação por item (`pushInteractions`/`newsInteractions`, um doc por usuário+item com toggle individual), usa-se um **cursor de leitura**: um único doc por `(userId, tenantId)` em `auditLogReadCursors/{userId}_{tenantId}` guardando `lastReadAt`. Não lidas = logs `CRITICAL` do tenant com `createdAt > lastReadAt` (`IAuditLogRepository.subscribeToCriticalUnread`, `onSnapshot` com `limit(100)` como teto de segurança). Abrir a tela de Auditoria (`AuditLogs.viewmodel.tsx`) chama `markAllCriticalAsRead`, que avança o cursor para "agora" e zera o badge — não há como marcar um log individual como não lido de novo. Essa escolha é deliberada: é mais simples, gera menos escritas que um doc por log, e reflete exatamente o comportamento pedido ("marcar como lida ao abrir a tela"), diferente de News/Pushes onde cada item é lido individualmente.
+Em vez de replicar o padrão de interação por item (`newsInteractions`, um doc por usuário+item com toggle individual), usa-se um **cursor de leitura**: um único doc por `(userId, tenantId)` em `auditLogReadCursors/{userId}_{tenantId}` guardando `lastReadAt`. Não lidas = logs `CRITICAL` do tenant com `createdAt > lastReadAt` (`IAuditLogRepository.subscribeToCriticalUnread`, `onSnapshot` com `limit(100)` como teto de segurança). Abrir a tela de Auditoria (`AuditLogs.viewmodel.tsx`) chama `markAllCriticalAsRead`, que avança o cursor para "agora" e zera o badge — não há como marcar um log individual como não lido de novo. Essa escolha é deliberada: é mais simples, gera menos escritas que um doc por log, e reflete exatamente o comportamento pedido ("marcar como lida ao abrir a tela"), diferente de News, onde cada item é lido individualmente.
 
 `AuditLogAlertStore`/`useAuditLogAlert` só assina a query de não lidas quando há `currentTenant` **e** o usuário é admin do tenant ou `SYSTEM` — mesma condição de visibilidade do item de menu, e também a única em que a Security Rule de `auditLogs` permite a leitura.
 
@@ -852,8 +844,6 @@ src/
 │   │   ├── IContractLookupRepository.ts   # genérico, parametrizado por ContractLookupKind
 │   │   ├── IFinancialRepository.ts
 │   │   ├── IFinancialTagRepository.ts
-│   │   ├── IPushRepository.ts
-│   │   ├── IPushInteractionRepository.ts
 │   │   ├── INewsRepository.ts
 │   │   ├── INewsTagRepository.ts
 │   │   ├── INewsInteractionRepository.ts
@@ -876,8 +866,6 @@ src/
 │       ├── contractdocuments/
 │       ├── financials/
 │       ├── financialtags/
-│       ├── pushes/
-│       ├── pushinteractions/
 │       ├── news/
 │       ├── newstags/
 │       ├── newsinteractions/
@@ -902,8 +890,6 @@ src/
 │   │   ├── FirebaseContractLookupRepository.ts
 │   │   ├── FirebaseFinancialRepository.ts
 │   │   ├── FirebaseFinancialTagRepository.ts
-│   │   ├── FirebasePushRepository.ts
-│   │   ├── FirebasePushInteractionRepository.ts
 │   │   ├── FirebaseNewsRepository.ts
 │   │   ├── FirebaseNewsTagRepository.ts
 │   │   ├── FirebaseNewsInteractionRepository.ts
@@ -941,8 +927,6 @@ src/
 │   ├── ContractLookupStore.tsx + useContractLookup.ts
 │   ├── FinancialStore.tsx + useFinancialStore.ts
 │   ├── FinancialTagStore.tsx + useFinancialTagStore.ts
-│   ├── PushStore.tsx + usePush.ts
-│   ├── PushInteractionStore.tsx + usePushInteraction.ts
 │   ├── NewsStore.tsx + useNews.ts
 │   ├── NewsTagStore.tsx + useNewsTag.ts
 │   ├── NewsInteractionStore.tsx + useNewsInteraction.ts
@@ -960,8 +944,6 @@ src/
     │   ├── Contracts/
     │   ├── ViewContract/
     │   ├── Financials/
-    │   ├── Pushes/
-    │   ├── DashboardPushes/
     │   ├── News/
     │   ├── AddNews/
     │   ├── ViewNews/
@@ -1402,8 +1384,6 @@ Arquivos `.tsx` exportam **apenas** componentes React. Hooks e tipos ficam em `.
 | `ContractLookupStore` | Configs estático+dinâmico dos 10 lookups de contrato (tipo, categoria, status, objeto, índice/periodicidade de reajuste, moeda, forma de pagamento, banco, centro de custo) |
 | `FinancialStore` | Receitas/despesas do tenant atual, CRUD + `markPaid` |
 | `FinancialTagStore` | Etiquetas de lançamentos financeiros do tenant atual, CRUD de tags, aplicação de tags em lançamentos |
-| `PushStore` | Pushes do tribunal do tenant atual, CRUD + `updateStatus` |
-| `PushInteractionStore` | Rastreamento de leitura de pushes por usuário |
 | `NewsStore` | Notícias do sistema + do tenant atual, CRUD + curtidas |
 | `NewsTagStore` | Etiquetas de boletins |
 | `NewsInteractionStore` | Leitura, salvos, curtidas por usuário |
@@ -1413,7 +1393,7 @@ Arquivos `.tsx` exportam **apenas** componentes React. Hooks e tipos ficam em `.
 
 ### Stores que dependem do tenant
 
-`RecordStore`, `LookupStore`, `TagStore`, `PushStore`, `WorkflowStore` escutam `currentTenant` via `useTenant()`. Se `currentTenant` for `null`, limpam o estado e não fazem queries.
+`RecordStore`, `LookupStore`, `TagStore`, `WorkflowStore` escutam `currentTenant` via `useTenant()`. Se `currentTenant` for `null`, limpam o estado e não fazem queries.
 
 ---
 
@@ -1430,7 +1410,6 @@ Arquivos `.tsx` exportam **apenas** componentes React. Hooks e tipos ficam em `.
 | `CONTRACT_TAG_UPDATED` | `ContractTagStore` | — |
 | `FINANCIALS_UPDATED` | `FinancialStore` | — |
 | `FINANCIAL_TAG_UPDATED` | `FinancialTagStore` | — |
-| `PUSH_UPDATED` | `PushStore` | `PushInteractionStore` (re-sincroniza contadores) |
 | `NEWS_UPDATED` | `NewsStore` | `NewsTagStore`, `NewsInteractionStore` |
 | `WORKFLOWS_UPDATED` | `WorkflowStore` | — |
 
@@ -1473,15 +1452,12 @@ referência na tela.
 |---|---|
 | `Tenant` | Toda a subárvore do tenant (operação de nível de conta, não coberta pelos `Delete*UseCase` de entidade) |
 | Registro de qualquer tela (Pessoa, Processo, Contrato, Prazo, Lançamento…) | — (apenas o próprio documento) |
-| `Push` | Todos os `pushInteractions` onde `pushId === id` — **infra, roda no backend** (ver nota abaixo) |
-| `PushInteraction` | — (folha) |
 
 `makeDeletePersonUseCase`/`makeDeleteCaseUseCase`/`makeDeleteContractUseCase`
 (`domain/usecases/{persons,cases,contracts}/Delete*UseCase.ts`) são hoje factories de **um único
 repositório** que apenas chamam `repo.delete[Entidade](tenantId, id, actor)`, repassando o
 `DeletionActor` para a auditoria creditar quem excluiu.
 
-**Exceção — cascata de `Push` roda na Cloud Function, não no use case:** `pushInteractions` é coleção raiz (não tenant-scoped) e sua Security Rule só permite que cada usuário escreva/apague a própria interação (`request.resource.data.userId == request.auth.uid`) — não haveria como o `DeletePushUseCase` do client (rodando como o admin que está excluindo o `Push`, não como cada usuário que leu/interagiu com ele) apagar as interações de outras pessoas. Por isso a cascata é feita por `cascadeDeletePushInteractions` (`functions/src/infrastructure/handlers/cascadeDeletePushInteractions.ts`), um `onDocumentDeleted('tenants/{tenantId}/pushes/{pushId}')` que usa Admin SDK (ignora as regras) para apagar todos os `pushInteractions` daquele `pushId`. `PushInteraction` não é uma entidade auditada (fora da allowlist de `auditableEntities.ts`), então essa cascata não gera entradas em `auditLogs`.
 
 ---
 
@@ -2222,8 +2198,8 @@ cópia da lista. Nenhum teste de execução pega esse defeito: as duas declaraç
 Workflows existentes que usem o Step `create-deadline` param de resolver o passo e precisam ser
 refeitos — chamando este workflow, ou com Gravar Registro direto.
 
-**O que ficou no kernel, e por quê.** A **Agenda** (`calendar`), o **Painel** e os **Pushes** do
-tribunal continuam sendo telas de código, e continuam lendo e escrevendo prazos — pelo caminho
+**O que ficou no kernel, e por quê.** A **Agenda** (`calendar`) e o **Painel** continuam sendo telas
+de código, e continuam lendo e escrevendo prazos — pelo caminho
 GENÉRICO: `useDeadlineRecords()` (mesmo contrato de leitura de `useCaseRecords` e irmãos) para ler,
 `useRecords().updateRecord/createRecord` para gravar, `useOpenRecord`/`useOpenScreenList` para
 navegar. Nenhuma delas conhece uma entidade declarada em código; sem a extensão instalada, a lista
@@ -2237,6 +2213,81 @@ registro apontado é resolvido na hora em que a expressão o pede. (3) Excluir u
 admin (a regra curinga), onde antes o advogado também podia — o mesmo que já vale para Pessoa,
 Processo, Contrato e Financeiro. (4) No cartão, os botões de hover saem na ordem "copiar link,
 excluir, concluir": as ações nativas vêm antes das declaradas.
+
+### Pushes do Tribunal sai do kernel — e leva três capacidades novas
+
+`com.microteia.push` (`src/plugins/marketplace/push.ts`) recria a caixa de intimações inteira por
+declaração, sobre os MESMOS documentos: `dataCollection: 'pushes'`, `eventPrefix: 'push'` (as
+automações que escutam `push.saved` seguem valendo), 15 campos em 3 seções e a lista de situações
+como lookup do escritório.
+
+A entidade é diferente das cinco anteriores num ponto que muda tudo: **ninguém a cria pela tela**.
+Quem escreve os documentos é a ingestão do Gmail, no servidor (`functions/src/.../gmailPush.ts`, que
+NÃO saiu — ver "Entidade Push"). Isso quebrou três coisas que o kernel só sabia fazer para entidade
+que nasce de formulário, e as três viraram capacidade declarada.
+
+**1. Contador no item de menu (`badge`).** A contribuição `ui.nav` passa a aceitar
+`badge: { collection, when? }` — uma contagem dos registros de uma coleção que satisfazem uma
+expressão booleana (`useNavBadgeCount`). O Push declara
+`badge: { collection: 'pushes', when: 'status == "pending"' }`, e o mesmo dado alimenta o selo da
+barra lateral E o atalho do `TopBar`, que antes tinha o ícone da caixa de intimações escrito à mão.
+
+É contagem de REGISTROS, e o limite é de propósito: o selo precisa ser calculável sem executar código
+da extensão (para valer também para quem não traz código nenhum) e precisa se atualizar sozinho
+quando o dado muda — o que só a assinatura da coleção garante. Isso custou o **lido/não-lido por
+usuário**: `pushInteractions` foi removida, com o store, o repositório, as regras e a Cloud Function
+de cascata. Não havia forma declarativa para estado por usuário, e o que ela alimentava era
+exatamente este contador. A triagem passa a ser a situação do próprio push.
+
+**2. Ação que PERGUNTA antes de executar (`promptParameters` + `parameterDefaults`).** "Gerar prazo"
+era um formulário escrito à mão dentro da tela. Agora a Action declara `promptParameters: true`, e o
+kernel abre o formulário dos parâmetros do fluxo-alvo (o mesmo `RunModal` da execução manual, em modo
+`collectOnly`) antes de disparar — `useActionParameterPrompt`, compartilhado pelo cartão da listagem
+(`useRecordListViewModel`) e pelo cabeçalho do registro (`useScreenActions`).
+
+É declaração explícita, e não dedução a partir de "o fluxo tem parâmetros": TODO fluxo chamado por
+uma Action já recebe `action`, `source`, `context`, `recordId` e `isNew`, e quase nenhum deve abrir
+tela. Esses cinco não entram no formulário, e são a última palavra ao montar os parâmetros no
+`runAction` — um parâmetro chamado `recordId` vindo da tela não passa a mandar em qual registro a
+ação age.
+
+`parameterDefaults` é um mapa `parâmetro do fluxo → EXPRESSÃO`, avaliada no mesmo escopo do
+`hiddenWhen` (campos do registro na raiz, mais `record`, `isNew`, `role`, `surface`). Existe porque o
+nome do campo na tela raramente é o nome do parâmetro no fluxo: o push guarda `processNumber` e o
+fluxo pede `caseNumber`. Parâmetro sem entrada no mapa ainda é preenchido pelo campo de mesmo nome —
+o mapa é para a divergência de nome e para o valor derivado (`concat("Gerado a partir do push: ",
+subject)`).
+
+**3. Listagem sem criação (`canCreate`).** `EntityListView`/`RecordListSurface` aceitam
+`canCreate={false}`, que some com o botão "novo" e com a chamada do estado vazio. Botão que abriria
+um formulário sem sentido é pior do que botão nenhum.
+
+**O menu "Ações" é do Form Design, não do código.** O cartão do push é uma peça de leitura (cabeçalho
+do e-mail, bloco processual, corpo da mensagem), então a view não usa `RecordListSurface` — monta os
+cartões sobre `EntityListView`. Mas o menu suspenso é preenchido por `list.getCardActions(record)`:
+o que aparece ali continua governado por `listActions` + `cardActionIds`, e uma extensão de terceiro
+acrescenta a sua ação sem tocar no código da tela. `Dropdown` e `cardActionIcon` passaram a fazer
+parte da API curada para isso.
+
+**O corpo do e-mail: `HtmlView`.** HTML de terceiro é renderizado num `<iframe srcdoc>` SEM
+`allow-scripts` e SEM `allow-same-origin` — script não roda, e se rodasse não alcançaria nossa
+origem, nosso DOM nem o token do Firebase no `localStorage`. Links seguem clicáveis (`allow-popups` +
+`<base target="_blank">`), formulários e navegação de topo não. A limpeza por texto (`sanitizeHtml`)
+continua, como SEGUNDA linha: limpeza de HTML de terceiro é uma corrida que o defensor não vence
+(comentário condicional, atributo com entidade, `<svg><script>`), então ela serve para o conteúdo
+chegar sóbrio, não para torná-lo seguro. A consequência prática é que a decisão de "fonte confiável"
+da extensão deixou de ser crítica: errar ali custa uma página feia, e não a sessão de quem lê. O
+preço é a altura fixa com rolagem interna — medir o conteúdo exigiria um script dentro da moldura,
+que é o que ela existe para impedir.
+
+**O que a migração custou.** (1) O lido/não-lido por usuário e o "Marcar todos como lidos" (acima).
+(2) O **Dashboard de Pushes** foi removido inteiro, para ser refeito depois. (3) O cartão não mostra
+mais a fase e o status do processo vinculado nem os prazos gerados — só o que é do push. O **link
+para o processo** e o aviso "Processo não cadastrado" ficaram. (4) `pushes` saiu de
+`RESERVED_COLLECTIONS`, da denylist de mutação e da regra nomeada do `firestore.rules`: passa pelo
+curinga de tela, com `writeRoles: ['admin', 'lawyer']` declarado. Onde antes um membro só podia
+alterar `status`, agora admin e advogado gravam qualquer campo — que é o que permite uma extensão
+acrescentar um campo próprio ao push.
 
 ### As ações do registro viram contribuições
 
@@ -2759,9 +2810,11 @@ publica o evento correspondente — o próprio módulo nem sabe que o motor exis
 coleção → prefixo de evento é **derivado do `ENTITY_REGISTRY`/`LOOKUP_REGISTRY`** em
 `functions/src/domain/services/workflowEventEntities.ts`:
 
+Nenhuma entidade do registro declara mais prefixo próprio — `pushes` (`push.*`) era a última, e
+saiu levando o prefixo para a declaração da TELA (`eventPrefix`). Restam os lookups:
+
 | Entidade | Coleção Firestore | Prefixo do evento |
 |---|---|---|
-| Push | `pushes` | `push` |
 | Item de Lista (qualquer lookup) | `personTypes`, `caseAreas`, `contractTypes`, `deadlineTypes`, `financialCategories`, etc. (lista fechada em `LOOKUP_COLLECTIONS`) | `lookup` |
 
 Toda entidade tem exatamente dois eventos: `<prefixo>.saved` (criação **ou** atualização — o
@@ -2946,7 +2999,9 @@ Contraparte de escrita do Step "Buscar Registros" e da ponte `query`. Permitem q
 (`FirestoreWorkflowMutationRepository`).
 
 - **Escopo de escrita (DENYLIST)** — `src/domain/schema/mutationSpec.ts` (`resolveWritableTable`):
-  **bloqueados** `members` (papéis/permissões), `pushes` e `news` (infra). Todo o resto é gravável,
+  **bloqueados** `members` (papéis/permissões) e `news` (infra). `pushes` saiu da denylist com a
+  migração da extensão: a triagem ("Revisado", "Arquivar", "Gerar prazo") é feita por workflow, e um
+  workflow que não pudesse gravar no push não teria como triá-lo. Todo o resto é gravável,
   inclusive uma tela criada agora — a inversão de allowlist para denylist é o que torna o modelo
   extensível sem tocar no kernel.
 - **Segurança de tenant** — o `tenantId` vem **sempre** de `context.execution.tenantId`; o `spec`

@@ -23,9 +23,7 @@ const ID_FIELD: WorkflowEventFieldOption = { path: 'id', label: 'Id' };
 const CHANGE_TYPE_FIELD: WorkflowEventFieldOption = { path: 'changeType', label: 'Tipo da mudança ("created" ou "updated")' };
 const OLD_FIELD: WorkflowEventFieldOption = { path: 'old', label: 'Dados anteriores (objeto)' };
 
-const ENTITY_EVENT_ORDER: EntityKey[] = [
-  'pushes',
-];
+const ENTITY_EVENT_ORDER: EntityKey[] = [];
 
 const flattenNativeFields = (
   fields: NativeFieldSpec[],

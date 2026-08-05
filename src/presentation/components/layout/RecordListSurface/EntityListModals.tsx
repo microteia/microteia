@@ -1,4 +1,5 @@
 import React from 'react';
+import { ActionParametersModal } from '../../ui/ActionParametersModal';
 import { ConfirmModal } from '../../ui/ConfirmModal';
 import { TagManager } from '../../ui/TagManager';
 import type { RecordListViewModel } from '../../../shared/entityScreen/useRecordListViewModel';
@@ -24,5 +25,6 @@ export const EntityListModals: React.FC<{ vm: RecordListViewModel }> = ({ vm }) 
       onConfirm={() => void vm.confirmDelete()}
       onCancel={vm.cancelDelete}
     />
+    <ActionParametersModal controller={vm.parameterPrompt} />
   </>
 );

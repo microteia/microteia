@@ -159,6 +159,56 @@ export const ViewActionView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
           </S.SectionBody>
         </S.Section>
 
+        {!vm.formData.command && (
+          <S.Section>
+            <S.SectionTitle>Perguntar antes de executar</S.SectionTitle>
+            <S.SectionBody>
+              <S.Field>
+                <Checkbox
+                  label="Abrir o formulário dos parâmetros do fluxo"
+                  checked={vm.formData.promptParameters}
+                  onChange={() => vm.setFormData({ promptParameters: !vm.formData.promptParameters })}
+                />
+                <S.SectionHint>
+                  A ação abre uma janela com os parâmetros do fluxo e só executa depois que o usuário
+                  confirma. É declaração explícita de propósito: fluxo com parâmetro é o normal, e
+                  quase nenhum deve abrir tela. Os cinco que o sistema sempre entrega —{' '}
+                  <code>action</code>, <code>source</code>, <code>context</code>,{' '}
+                  <code>recordId</code> e <code>isNew</code> — não são perguntados.
+                </S.SectionHint>
+              </S.Field>
+              {vm.formData.promptParameters && (
+                vm.promptableParameters.length === 0 ? (
+                  <InfoBanner message="O fluxo escolhido não pede nada além dos parâmetros do sistema. Sem nada a perguntar, a ação executa direto." />
+                ) : (
+                  <>
+                    <S.SectionHint>
+                      Com o que cada campo ABRE preenchido, por expressão sobre o registro da tela.
+                      Em branco, o campo abre com o valor do campo de MESMO NOME, se existir — o mapa
+                      é para quando os nomes divergem (a tela guarda{' '}
+                      <code>processNumber</code>, o fluxo pede <code>caseNumber</code>).
+                    </S.SectionHint>
+                    {vm.promptableParameters.map((param) => (
+                      <S.Field key={param.key}>
+                        <Label>
+                          {param.label}
+                          {param.required && ' *'}
+                        </Label>
+                        <ExpressionEditor
+                          value={vm.formData.parameterDefaults[param.key] ?? ''}
+                          onChange={(expression) => vm.setParameterDefault(param.key, expression)}
+                          placeholder={`ex: ${param.key}`}
+                          workflowVariables={vm.expressionVariables}
+                        />
+                      </S.Field>
+                    ))}
+                  </>
+                )
+              )}
+            </S.SectionBody>
+          </S.Section>
+        )}
+
         <S.Section>
           <S.SectionTitle>Comportamento por expressão</S.SectionTitle>
           <S.SectionBody>

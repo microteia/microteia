@@ -9,9 +9,9 @@ import { useScreenDefinitions } from '../../../../stores/useScreenDefinitions';
 import { buildListTabKey } from '../../../../shared/constants/dynamicScreenKeys';
 import { getScreenIcon } from '../../../shared/screenIcons';
 import { useNavContributions } from '../../../shared/useUiContributions';
+import { useNavBadgeCount } from '../../../shared/useNavBadgeCount';
 import { visibleNavItems } from '../../../shared/resolveUiContributions';
 import { DYNAMIC_SCREEN_NAV_ORDER } from '../../../shared/uiExtensionPoints';
-import { usePushInteraction } from '../../../../stores/usePushInteraction';
 import { useAuditLogAlert } from '../../../../stores/useAuditLogAlert';
 import type { User } from '../../../../domain/entities';
 import type { ThemeMode } from '../../../../shared/types';
@@ -20,6 +20,8 @@ export interface NavItem {
   key: string;
   label: string;
   icon: React.ReactNode;
+  /** Contador do item. `0` = sem selo. */
+  badge: number;
   requiresTenantAdmin?: boolean;
 }
 
@@ -45,9 +47,6 @@ const THEME_OPTIONS: ThemeOption[] = [
 export interface WorkspaceSidebarViewModel {
   collapsed: boolean;
   navItems: NavItem[];
-  unreadNewsCount: number;
-  unreadPushCount: number;
-  unreadCriticalAuditCount: number;
   activeKey: string | null;
   isMenuOpen: boolean;
   isThemeSubOpen: boolean;
@@ -89,7 +88,6 @@ export const useWorkspaceSidebarViewModel = (): WorkspaceSidebarViewModel => {
   const { mode, setTheme } = useTheme();
   const { open: openCommandPalette } = useCommandPalette();
   const { unreadCount: unreadNewsCount } = useNewsInteraction();
-  const { unreadCount: unreadPushCount } = usePushInteraction();
   const { unreadCriticalCount: unreadCriticalAuditCount } = useAuditLogAlert();
   const { sidebarScreens } = useScreenDefinitions();
   const navContributions = useNavContributions();
@@ -101,23 +99,43 @@ export const useWorkspaceSidebarViewModel = (): WorkspaceSidebarViewModel => {
   const canAccessScreenBuilder = isAdmin || tenantRole === 'admin';
   const canAccessDataProcessor = isAdmin || tenantRole === 'admin' || tenantRole === 'lawyer';
 
+  /**
+   * O selo de cada item. Duas origens, e a diferença entre elas é o que ainda falta sair do kernel:
+   * a DECLARADA (`badge` da contribuição) é uma contagem de registros que qualquer extensão escreve;
+   * as duas de baixo contam o que cada usuário ainda não leu — estado por usuário, que não tem forma
+   * declarativa hoje.
+   */
+  const badgeCount = useNavBadgeCount();
+  const kernelBadge = useCallback((key: string): number => {
+    if (key === 'news') return unreadNewsCount;
+    if (key === 'audit-logs') return unreadCriticalAuditCount;
+    return 0;
+  }, [unreadNewsCount, unreadCriticalAuditCount]);
+
   const navItems = useMemo(() => {
     const contributed = visibleNavItems(navContributions, {
       isSystemAdmin: isAdmin,
       isTenantAdmin: tenantRole === 'admin',
-    }).map((item) => ({ key: item.key, label: item.label, icon: getScreenIcon(item.icon, 20), order: item.order }));
+    }).map((item) => ({
+      key: item.key,
+      label: item.label,
+      icon: getScreenIcon(item.icon, 20),
+      order: item.order,
+      badge: item.badge ? badgeCount(item.badge) : kernelBadge(item.key),
+    }));
 
     const dynamicItems = sidebarScreens.map((def) => ({
       key: buildListTabKey(def.id),
       label: def.titlePlural,
       icon: getScreenIcon(def.icon, 18),
       order: DYNAMIC_SCREEN_NAV_ORDER,
+      badge: 0,
     }));
 
     return [...contributed, ...dynamicItems]
       .sort((a, b) => a.order - b.order)
-      .map(({ key, label, icon }): NavItem => ({ key, label, icon }));
-  }, [navContributions, isAdmin, tenantRole, sidebarScreens]);
+      .map(({ key, label, icon, badge }): NavItem => ({ key, label, icon, badge }));
+  }, [navContributions, isAdmin, tenantRole, sidebarScreens, badgeCount, kernelBadge]);
 
   const toggleCollapse = useCallback(() => setCollapsed(c => !c), []);
 
@@ -193,9 +211,6 @@ export const useWorkspaceSidebarViewModel = (): WorkspaceSidebarViewModel => {
   return {
     collapsed,
     navItems,
-    unreadNewsCount,
-    unreadPushCount,
-    unreadCriticalAuditCount,
     activeKey,
     isMenuOpen,
     isThemeSubOpen,

@@ -40,13 +40,13 @@ describe('entityRegistry — compatibilidade com o schema legado', () => {
     expect([...BUILTIN_REF_ENTITIES].sort()).toStrictEqual(['members']);
   });
 
-  it('mantém os prefixos de evento das coleções flat', () => {
-    const prefixes = Object.fromEntries(
-      ENTITY_REGISTRY_LIST.filter((entity) => entity.eventPrefix).map((entity) => [entity.collection, entity.eventPrefix]),
-    );
-    expect(prefixes).toStrictEqual({
-      pushes: 'push',
-    });
+  /**
+   * Nenhuma entidade do registro declara mais prefixo próprio: a última que o fazia era `pushes`
+   * (`push.saved`), e ela saiu do kernel levando o prefixo para a declaração da TELA. O teste
+   * continua para acusar o dia em que alguém reintroduzir um prefixo em código.
+   */
+  it('nenhuma entidade do registro declara prefixo de evento próprio', () => {
+    expect(ENTITY_REGISTRY_LIST.filter((entity) => entity.eventPrefix)).toStrictEqual([]);
   });
 
   it('mantém os campos de denormalização padrão das entidades referenciáveis', () => {
@@ -64,18 +64,19 @@ describe('lookupRegistry — compatibilidade com LOOKUP_COLLECTIONS legado', () 
 
 describe('helpers do registry', () => {
   it('resolve entidade por coleção', () => {
-    expect(getEntityByCollection('pushes')?.labelSingular).toBe('Push');
-    // Contrato, Financeiro e Prazo saíram do kernel: quem descreve as coleções são as extensões.
+    expect(getEntityByCollection('news')?.labelSingular).toBe('Comunicado');
+    // Contrato, Financeiro, Prazo e Push saíram do kernel: quem descreve as coleções são as extensões.
     expect(getEntityByCollection('contracts')).toBeUndefined();
     expect(getEntityByCollection('financials')).toBeUndefined();
     expect(getEntityByCollection('deadlines')).toBeUndefined();
+    expect(getEntityByCollection('pushes')).toBeUndefined();
     expect(getEntityByCollection('inexistente')).toBeUndefined();
   });
 
   it('resolve displayName pela ordem de fallback', () => {
-    const pushes = ENTITY_REGISTRY.pushes;
-    expect(getEntityDisplayName(pushes, { processNumber: '938333' })).toBe('938333');
-    expect(getEntityDisplayName(pushes, { subject: 'Intimação', processNumber: '938333' })).toBe('Intimação');
-    expect(getEntityDisplayName(pushes, {})).toBeUndefined();
+    const members = ENTITY_REGISTRY.members;
+    expect(getEntityDisplayName(members, { email: 'ana@escritorio.com' })).toBe('ana@escritorio.com');
+    expect(getEntityDisplayName(members, { name: 'Ana', email: 'ana@escritorio.com' })).toBe('Ana');
+    expect(getEntityDisplayName(members, {})).toBeUndefined();
   });
 });

@@ -28,12 +28,30 @@ export interface UiPageMetadata {
   requiredRole?: UserRole;
 }
 
+/**
+ * O CONTADOR de um item de menu — o selo que diz "há dez coisas te esperando aqui" antes de a tela
+ * ser aberta. Declarativo por inteiro: uma contagem de registros de uma coleção, restrita por uma
+ * expressão booleana avaliada sobre cada registro.
+ *
+ * É contagem de REGISTROS, e não de qualquer número que a extensão queira exibir. Isso é limite de
+ * propósito: o selo precisa ser calculável sem rodar código da extensão, para valer também para
+ * quem não tem código nenhum, e precisa se atualizar sozinho quando os dados mudam — o que só a
+ * assinatura da coleção garante.
+ */
+export interface UiNavBadge {
+  /** Coleção contada. Sem tela que a descreva, o selo simplesmente não aparece. */
+  collection: string;
+  /** Expressão booleana sobre cada registro (campos na raiz). Ausente, conta todos. */
+  when?: string;
+}
+
 export interface UiNavMetadata {
   key: string;
   label: string;
   icon: string;
   order: number;
   requiresTenantAdmin?: boolean;
+  badge?: UiNavBadge;
 }
 
 export interface UiCommandMetadata {

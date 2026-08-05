@@ -1,15 +1,31 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useWorkspace } from '../../../../stores/useWorkspace';
 import { useNewsInteraction } from '../../../../stores/useNewsInteraction';
-import { usePushInteraction } from '../../../../stores/usePushInteraction';
 import { useTenant } from '../../../../stores/useTenant';
+import { useNavContributions } from '../../../shared/useUiContributions';
+import { navMetadataOf } from '../../../shared/resolveUiContributions';
+import { useNavBadgeCount } from '../../../shared/useNavBadgeCount';
+import { getScreenIcon } from '../../../shared/screenIcons';
 import type { Tenant } from '../../../../domain/entities';
+
+/**
+ * Um atalho com CONTADOR no alto da tela. Sai das mesmas contribuições de menu que alimentam a barra
+ * lateral: o item que declara um selo aparece aqui também, e some daqui quando a extensão sai — o
+ * ícone da caixa de intimações era escrito à mão neste componente, e o kernel tinha de saber que
+ * existiam pushes para desenhá-lo.
+ */
+export interface TopBarShortcut {
+  key: string;
+  label: string;
+  icon: React.ReactNode;
+  count: number;
+}
 
 export interface TopBarViewModel {
   unreadNewsCount: number;
-  unreadPushCount: number;
+  shortcuts: TopBarShortcut[];
   handleNewsClick: () => void;
-  handlePushClick: () => void;
+  handleShortcutClick: (key: string) => void;
   currentTenant: Tenant | null;
   availableTenants: Tenant[];
   filteredTenants: Tenant[];
@@ -27,8 +43,9 @@ export interface TopBarViewModel {
 export const useTopBarViewModel = (): TopBarViewModel => {
   const { openTab } = useWorkspace();
   const { unreadCount } = useNewsInteraction();
-  const { unreadCount: unreadPushCount } = usePushInteraction();
   const { currentTenant, availableTenants, selectTenant } = useTenant();
+  const navContributions = useNavContributions();
+  const badgeCount = useNavBadgeCount();
 
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isSwitching, setIsSwitching] = useState(false);
@@ -50,9 +67,22 @@ export const useTopBarViewModel = (): TopBarViewModel => {
     openTab('news');
   }, [openTab]);
 
-  const handlePushClick = useCallback(() => {
-    openTab('pushes');
+  const handleShortcutClick = useCallback((key: string) => {
+    openTab(key);
   }, [openTab]);
+
+  const shortcuts = useMemo<TopBarShortcut[]>(
+    () => navContributions
+      .map(navMetadataOf)
+      .filter((metadata) => !!metadata.badge)
+      .map((metadata) => ({
+        key: metadata.key,
+        label: metadata.label,
+        icon: getScreenIcon(metadata.icon, 18),
+        count: badgeCount(metadata.badge),
+      })),
+    [navContributions, badgeCount],
+  );
 
   const handleTenantButtonClick = useCallback(() => {
     if (availableTenants.length <= 1) return;
@@ -120,9 +150,9 @@ export const useTopBarViewModel = (): TopBarViewModel => {
 
   return {
     unreadNewsCount: unreadCount,
-    unreadPushCount,
+    shortcuts,
     handleNewsClick,
-    handlePushClick,
+    handleShortcutClick,
     currentTenant,
     availableTenants,
     filteredTenants,
