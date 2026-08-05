@@ -712,7 +712,7 @@ export default function startup(host) {
 export const pushPlugin: MarketplacePlugin = {
   manifest: {
     id: 'com.microteia.push',
-    version: '1.0.0',
+    version: '1.0.1',
     kernel: '^1.0.0',
     name: 'Pushes do Tribunal',
     description: 'A caixa de intimações do escritório recriada como extensão, sobre os MESMOS pushes — a sexta entidade a sair do kernel.',

@@ -279,13 +279,21 @@ const upsertPluginScreens = async (
     const { screenKey, input } = materializeScreen(template, pluginId, screenKeyMap, userId, actionMap);
     nextKeys.add(screenKey);
     const existing = existingScreens.find((s) => s.id === screenKey);
+    // Tela que o tenant já tinha (Form Design/kernel) e a extensão passou a declarar: a origem
+    // continua sendo dela — é o que garante a devolução na desinstalação, em vez da exclusão.
+    //
+    // Uma tela `builtin` que já é DESTE pacote não é dessas: baseline de coleção nasce sem dono, então
+    // o par `builtin` + este plugin só existe onde a baseline foi gravada por cima da própria tela
+    // (tela cuja chave É a coleção que ela descreve). Retomá-la como do pacote conserta o documento na
+    // reinstalação — sem isso a tela some do Form Design e das listagens para sempre.
+    const adopted = existing
+      ? isAdoptedScreen(existing) && !(existing.origin === 'builtin' && ownerSet(existing).includes(pluginId))
+      : false;
     const merged = existing
       ? {
           ...input,
-          // Tela que o tenant já tinha (Form Design/kernel) e a extensão passou a declarar: a origem
-          // continua sendo dela — é o que garante a devolução na desinstalação, em vez da exclusão.
-          origin: isAdoptedScreen(existing) ? existing.origin : input.origin,
-          managed: isAdoptedScreen(existing) ? (existing.managed ?? false) : input.managed,
+          origin: adopted ? existing.origin : input.origin,
+          managed: adopted ? (existing.managed ?? false) : input.managed,
           ownerPluginId: existing.ownerPluginId ?? pluginId,
           ownerPluginIds: addOwner(ownerSet(existing), pluginId),
           fields: [...input.fields, ...preservedUserFields(existing.fields, input.fields, pluginId)],
@@ -296,7 +304,7 @@ const upsertPluginScreens = async (
         }
       : input;
     await deps.screenRepository.upsert(tenantId, screenKey, merged);
-    await ensureTargetCollectionScreen(deps, tenantId, input, userId, existingScreens);
+    await ensureTargetCollectionScreen(deps, tenantId, screenKey, input, userId, existingScreens);
   }
   return nextKeys;
 };
@@ -310,16 +318,21 @@ const upsertPluginScreens = async (
  *
  * O documento existente é preservado — só a permissão é acertada. É a mesma baseline que o Form
  * Design grava no primeiro ajuste de uma tela do kernel.
+ *
+ * Quando a coleção alvo é a PRÓPRIA chave da tela, não há segundo documento a garantir: a tela do
+ * pacote já É o documento que as rules leem, e com a declaração inteira. Gravar a baseline aqui a
+ * rebaixaria a `builtin` sem campos — e uma tela `builtin` sai das listagens e do Form Design.
  */
 const ensureTargetCollectionScreen = async (
   deps: ArtifactDeps,
   tenantId: string,
+  screenKey: string,
   input: ScreenDefinitionInput,
   userId: string,
   existingScreens: ScreenDefinition[],
 ): Promise<void> => {
   const target = input.dataCollection?.trim();
-  if (!target) return;
+  if (!target || target === screenKey) return;
   // Identidade do registro junto com a permissão: é por `titleFieldKey`/`subtitleFieldKey` que
   // qualquer tela resolve o rótulo de um registro desta coleção (um campo de referência, uma
   // menção, a busca). Só preenche o que está vazio — ajuste do escritório não é sobrescrito.

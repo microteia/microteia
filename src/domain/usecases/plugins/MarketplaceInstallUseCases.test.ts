@@ -1184,6 +1184,98 @@ describe('Tela sobre uma coleção existente', () => {
 });
 
 /**
+ * A tela cuja CHAVE é a própria coleção que ela descreve — a caixa de intimações foi a primeira. Ela
+ * já é o documento que as rules leem, então não há baseline a garantir: gravá-la rebaixava a tela
+ * recém-instalada a `builtin` sem campos, e uma tela `builtin` some das listagens e do Form Design.
+ */
+describe('Tela cuja chave é a própria coleção', () => {
+  const selfBound: MarketplacePlugin = {
+    summary: 'A chave é a coleção',
+    manifest: { id: 'com.acme.push', version: '1.0.0', kernel: '^1.0.0', name: 'Push' },
+    workflows: [],
+    screens: [{
+      key: 'pushes',
+      sourceId: 'acme:push',
+      titleSingular: 'Push',
+      titlePlural: 'Pushes',
+      icon: 'inbox',
+      titleFieldKey: 'subject',
+      dataCollection: 'pushes',
+      eventPrefix: 'push',
+      writeRoles: ['admin', 'lawyer'],
+      fields: [{ key: 'subject', label: 'Assunto', type: 'text', required: false, order: 0 }],
+    }],
+  };
+
+  it('a instalação não grava a baseline por cima da própria tela', async () => {
+    await makeInstallMarketplacePluginUseCase(deps()).execute(selfBound, actor);
+
+    const screen = screens.store.get('pushes');
+    expect(screen?.origin, 'a tela continua sendo do pacote').toBe('plugin');
+    expect(screen?.fields.map((f) => f.key)).toEqual(['subject']);
+    expect(screen?.titlePlural).toBe('Pushes');
+    expect(screen?.writeRoles, 'as rules leem writeRoles neste mesmo documento').toEqual(['admin', 'lawyer']);
+  });
+
+  it('a tela rebaixada a builtin por uma instalação antiga é retomada na reinstalação', async () => {
+    const d = deps();
+    await screens.upsert('t1', 'pushes', {
+      origin: 'builtin',
+      titleSingular: 'pushes',
+      titlePlural: 'pushes',
+      icon: 'apps',
+      titleFieldKey: 'subject',
+      fields: [],
+      hasNotes: false,
+      hasDocuments: false,
+      hasTags: false,
+      listActions: [],
+      viewActionIds: [],
+      cardActionIds: [],
+      sidebarOrder: 0,
+      enabled: true,
+      sourceId: 'acme:push',
+      ownerPluginId: 'com.acme.push',
+      ownerPluginIds: ['com.acme.push'],
+      createdBy: 'u1',
+    });
+
+    await applyPackageArtifacts(d, selfBound, actor);
+
+    const screen = screens.store.get('pushes');
+    expect(screen?.origin).toBe('plugin');
+    expect(screen?.fields.map((f) => f.key)).toEqual(['subject']);
+    expect(screen?.titlePlural).toBe('Pushes');
+  });
+
+  it('a tela que o escritório já tinha continua sendo dele', async () => {
+    const d = deps();
+    await screens.upsert('t1', 'pushes', {
+      origin: 'design',
+      titleSingular: 'Push',
+      titlePlural: 'Pushes',
+      icon: 'inbox',
+      titleFieldKey: 'subject',
+      fields: [],
+      hasNotes: false,
+      hasDocuments: false,
+      hasTags: false,
+      listActions: [],
+      viewActionIds: [],
+      cardActionIds: [],
+      sidebarOrder: 0,
+      enabled: true,
+      sourceId: 'acme:push',
+      createdBy: 'u1',
+    });
+
+    await applyPackageArtifacts(d, selfBound, actor);
+
+    expect(screens.store.get('pushes')?.origin, 'adotada: a desinstalação a devolve').toBe('design');
+  });
+});
+
+/**
  * Uma propriedade nova da tela (o `recordTabPrefix`, a permissão, o campo de vínculo) chega ao
  * escritório pela ATUALIZAÇÃO da extensão. Se o upsert só valesse para instalações novas, quem já
  * tinha a tela ficaria eternamente na declaração antiga — foi o que se viu quando o registro abria

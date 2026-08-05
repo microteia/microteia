@@ -11,6 +11,11 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [4.3.1] — 2026-08-05
+
+- Corrigido o problema que fazia a tela **"Pushes do Tribunal"** abrir com o aviso de tela não encontrada logo depois de instalar a extensão: o item aparecia no menu e no alto da tela, mas a caixa de intimações não abria e a tela sumia do **Form Design**.
+- Quem já instalou a extensão não precisa de nada além de clicar em **"Atualizar"** na tela de Extensões: a tela volta ao lugar, com os campos, o contador e o menu "Ações" completos.
+
 ## [4.3.0] — 2026-08-02
 
 - **Os Pushes do Tribunal viraram uma extensão.** A caixa de intimações continua no mesmo lugar, com as mesmas intimações, mas agora é você quem manda nela: dá para acrescentar campos, mudar o que aparece no cartão e criar ações próprias, como já acontece com Pessoas, Processos, Contratos, Financeiro e Prazos.
