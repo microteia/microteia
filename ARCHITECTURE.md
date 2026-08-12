@@ -2065,12 +2065,15 @@ Registro → resposta com a mensagem e `actions: ['refresh']` — e quem decide 
 expressão sobre o registro (`hiddenWhen: 'isNew or status != "Aberto"'`). É a mesma máquina que o
 escritório usa no Form Design, e o mesmo caminho do interruptor de status da Pessoa.
 
-**O que ficou no kernel, e por quê.** O **Painel Financeiro** (`core.financial-dashboard`) continua
-sendo tela de código: é um relatório de gráficos (`recharts`), e a API curada das extensões ainda não
-expõe biblioteca de gráfico. Ele já não conhece entidade nenhuma declarada em código — lê a coleção
-pelo caminho genérico (`useFinancialRecords`, mesmo contrato de leitura de `useCaseRecords` e irmãos)
-e navega por `useOpenScreenList`. Sai do kernel no dia em que uma extensão puder desenhar os mesmos
-gráficos.
+**O que NÃO ficou no kernel.** O **Painel Financeiro** era a última peça do Financeiro em código: um
+relatório de gráficos (`recharts`) publicado pelo plugin `core.financial-dashboard`, com a aba
+`financial-dashboard`, o botão "Painel" da listagem da extensão e o atalho "Dashboard" do painel do
+escritório. Foi **removido** — o plugin, a página (`FinancialDashboard`), os filtros compartilhados
+(`presentation/shared/financials`) e as três chamadas. Uma tela de relatório do Financeiro é
+declaração de extensão, não código do kernel; enquanto a API curada não expuser biblioteca de
+gráfico, ela não existe — chumbar um relatório de um domínio no kernel para contornar isso é
+exatamente o que o fundamento arquitetural proíbe. O que sobrou de gráfico no kernel (`recharts`)
+serve o `DeadlineCharts` do painel do escritório.
 
 ### Prazos sai do kernel — a última entidade de escritório
 

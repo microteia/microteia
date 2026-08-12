@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [5.1.0] — 2026-08-12
+
+- **O Painel Financeiro foi retirado.** A tela de gráficos do Financeiro era a última peça daquele módulo presa ao núcleo do sistema, fora do alcance de quem monta as telas do escritório. Saíram com ela o botão "Painel" da listagem de Financeiro e o atalho "Dashboard" do painel de abertura. Os lançamentos, os filtros, os totais do período e todos os gestos da listagem continuam exatamente como estavam — nenhum dado foi tocado. Relatórios do Financeiro voltarão pelo mesmo caminho de todo o resto: como extensão.
+
 ## [5.0.3] — 2026-08-12
 
 - **O contador de notícias não lidas voltou a ser redondo.** Com um número só ele saía achatado, em forma de oval; agora é uma bolinha, e vira pílula quando passa de nove.

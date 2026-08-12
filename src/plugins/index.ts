@@ -1,7 +1,6 @@
 import type { PluginRecord } from '../kernel';
 import { coreUiPlugin } from './core.ui/manifest';
 import { coreWorkspacePlugin } from './core.workspace/manifest';
-import { coreFinancialDashboardPlugin } from './core.financial-dashboard/manifest';
 import { coreRecordsPlugin } from './core.records/manifest';
 import { coreAutomationPlugin } from './core.automation/manifest';
 import { coreAdminPlugin } from './core.admin/manifest';
@@ -16,7 +15,6 @@ import { coreMarketplacePlugin } from './core.marketplace/manifest';
 export const CORE_PLUGINS: PluginRecord[] = [
   coreUiPlugin,
   coreWorkspacePlugin,
-  coreFinancialDashboardPlugin,
   coreRecordsPlugin,
   coreAutomationPlugin,
   coreAdminPlugin,

@@ -26,7 +26,7 @@ const without = (pluginId: string): PluginRecord[] =>
 const PAGE_KEYS_ANTES_DA_MIGRACAO = [
   'access-management', 'actions', 'audit-logs', 'calendar',
   'dashboard', 'data-function-reference', 'data-processor',
-  'dyn:', 'edit-workflow-step:', 'financial-dashboard',
+  'dyn:', 'edit-workflow-step:',
   'function-reference', 'new-action',
   'new-dyn:',
   'new-script', 'new-workflow', 'new-workflow:clone:',
@@ -133,7 +133,6 @@ describe('core plugins — resolução de aba', () => {
   const pages = () => host.contributions.query(UI_PAGE_POINT);
 
   it.each([
-    ['financial-dashboard', 'FinancialDashboardView'],
     ['dyn:minha-tela', 'DynamicRecordListView'],
     ['view-dyn:minha-tela:reg1', 'ViewDynamicRecordView'],
     ['tenant-settings', 'TenantSettingsView'],

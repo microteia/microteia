@@ -6,9 +6,7 @@ import { DEADLINES_COLLECTION, FINANCIALS_COLLECTION, useDeadlineRecords, useFin
 import type { DeadlineRecord } from '../../shared/useCollectionRecords';
 import { useOpenScreenList } from '../../shared/useOpenScreenList';
 import { usePersonRecords } from '../../shared/useCollectionRecords';
-import { useWorkspace } from '../../../stores/useWorkspace';
 import { useRecords } from '../../../stores/useRecords';
-import { setNavigationIntent } from '../../../infrastructure/navigation/navigationIntent';
 import { FILTER_RANGE_TO_SUFFIX } from '../../hooks/useCustomFieldListing';
 import type { FilterToken } from '../../components/ui/CompositeFilter';
 
@@ -58,7 +56,6 @@ export interface DashboardViewModel {
   openDeadlines: () => void;
   openDeadlinesOverdue: () => void;
   openFinancials: () => void;
-  openFinancialDashboard: () => void;
   openCase: (caseId: string | null) => void;
   openDeadline: (deadline: DeadlineRecord) => void;
   getPriorityColor: (priority: string) => string;
@@ -83,7 +80,6 @@ export const useDashboardViewModel = (): DashboardViewModel => {
   const financials = useFinancialRecords();
   const openScreenList = useOpenScreenList();
   const persons = usePersonRecords();
-  const { openTab } = useWorkspace();
   const theme = useTheme();
 
   const [financialPeriodDays, setFinancialPeriodDays] = useState<FinancialPeriodDays>(30);
@@ -189,10 +185,6 @@ export const useDashboardViewModel = (): DashboardViewModel => {
     { key: `dueDate${FILTER_RANGE_TO_SUFFIX}`, values: [toISODate(financialCutoffDay)] },
   ];
   const openFinancials = () => openScreenList(FINANCIALS_COLLECTION, financialOpenFilterTokens());
-  const openFinancialDashboard = () => {
-    setNavigationIntent('financial-dashboard', financialOpenFilterTokens());
-    openTab('financial-dashboard');
-  };
   const openCase = (caseId: string | null) => { if (caseId) openRecord(CASES_COLLECTION, caseId); };
   const openDeadline = (deadline: DeadlineRecord) => openRecord(DEADLINES_COLLECTION, deadline.id);
   const getPriorityColor = (priority: string) => priorityColorMap[priority as DeadlinePriority] ?? theme.colors.textSecondary;
@@ -215,7 +207,6 @@ export const useDashboardViewModel = (): DashboardViewModel => {
     openDeadlines,
     openDeadlinesOverdue,
     openFinancials,
-    openFinancialDashboard,
     openCase,
     openDeadline,
     getPriorityColor,

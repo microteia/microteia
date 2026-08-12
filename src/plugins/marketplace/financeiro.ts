@@ -257,21 +257,18 @@ const FINANCEIRO_SCREEN: ScreenModuleTemplate = {
 /**
  * A listagem. Do padrão vêm filtros (inclusive o período de vencimento, que agora é um filtro de
  * data como outro qualquer), etiquetas, ações do cartão e os modais; a view injeta o que é do
- * Financeiro: a faixa de totais sobre os registros FILTRADOS, o valor com sinal e cor no cartão, a
- * linha que compõe as três datas e o atalho para o painel.
+ * Financeiro: a faixa de totais sobre os registros FILTRADOS, o valor com sinal e cor no cartão e a
+ * linha que compõe as três datas.
  */
 const FINANCEIRO_SOURCE = `
 import { useMemo, useState } from 'react';
 import { styled, useTheme } from 'styled-components';
 import { RecordListSurface, Badge, Button, InfoBanner } from '@microteia/ui';
-import { useEntityList, useLookup, useWorkspace } from '@microteia/data';
+import { useEntityList, useLookup } from '@microteia/data';
 import { getConfigColor } from '@microteia/theme';
 import { formatCurrencyBRL, formatDate } from '@microteia/format';
 
 const SOURCE_ID = 'microteia:financeiro';
-// O painel de gráficos ainda é uma tela do kernel (a API das extensões não expõe biblioteca de
-// gráfico). Ele lê a coleção pelo caminho genérico, então não conhece o Financeiro em código.
-const DASHBOARD_KEY = 'financial-dashboard';
 
 const Header = styled.div\`
   display: flex;
@@ -357,7 +354,6 @@ export default function FinanceiroView() {
   const list = useEntityList(SOURCE_ID, { defaultFilterTokens: MES_CORRENTE });
   const statusOptions = useLookup('financialStatuses');
   const typeOptions = useLookup('financialTypes');
-  const { openTab } = useWorkspace();
   const [showTotals, setShowTotals] = useState(true);
 
   const totals = useMemo(() => {
@@ -422,7 +418,6 @@ export default function FinanceiroView() {
       <Button variant="ghost" onClick={() => setShowTotals((prev) => !prev)}>
         {showTotals ? 'Ocultar totais' : 'Mostrar totais'}
       </Button>
-      <Button variant="ghost" onClick={() => openTab(DASHBOARD_KEY)}>Painel</Button>
     </Header>
   );
 
@@ -529,7 +524,7 @@ export default function startup(host) {
 export const financeiroPlugin: MarketplacePlugin = {
   manifest: {
     id: 'com.microteia.financeiro',
-    version: '1.0.2',
+    version: '1.0.3',
     kernel: '^1.0.0',
     name: 'Financeiro',
     description: 'Os lançamentos financeiros do escritório recriados como extensão, sobre os MESMOS lançamentos — a quarta entidade a sair do kernel.',
