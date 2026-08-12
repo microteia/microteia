@@ -6,6 +6,7 @@ export interface ScriptOutputParam {
   type: WorkflowParameterType;
   list?: boolean;
   entityType?: string;
+  lookupCollection?: string;
   fields?: ScriptOutputParam[];
 }
 

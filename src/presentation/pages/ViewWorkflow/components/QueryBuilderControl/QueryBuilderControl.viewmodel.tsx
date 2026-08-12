@@ -113,8 +113,9 @@ export const useQueryBuilderControlViewModel = (
       label: entity.labelPlural,
       meta: 'Cadastro',
     }));
-    const screens = [...ctx.screens.values()].map((screen) => ({
-      value: screen.id,
+    // A CHAVE do mapa é a coleção — é ela que o motor resolve. A `id` da tela pode ser outro nome.
+    const screens = [...ctx.screens.entries()].map(([collection, screen]) => ({
+      value: collection,
       label: screen.titleSingular,
       meta: 'Personalizada',
     }));

@@ -152,7 +152,8 @@ const referenceType = (param: WorkflowParameter, screens: SchemaScreen[], depth:
   return BUILTIN_REF_ENTITIES.has(entityType)
     ? builtinReferenceType(entityType, depth)
     : customReferenceType(
-        screens.find((screen) => screen.id === entityType),
+        // A referência guarda a COLEÇÃO; a tela responde por ela mesmo quando leva outro nome.
+        screens.find((screen) => (screen.collection ?? screen.id) === entityType),
         depth,
       );
 };
@@ -169,6 +170,7 @@ const singleParamType = (param: WorkflowParameter, screens: SchemaScreen[], dept
       return referenceType(param, screens, depth);
     case 'Object':
       return objectLiteral(paramMembers(param.fields ?? [], screens, depth + 1), depth);
+    case 'lookup':
     case 'select':
     case 'String':
     default:

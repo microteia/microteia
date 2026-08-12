@@ -56,6 +56,17 @@ export const useReferenceOptions = (): Record<string, ReferenceOption[]> => {
         }))
         .sort((a, b) => a.label.localeCompare(b.label));
     });
+
+    // A CHAVE da tela também responde, ao lado da coleção. Quem aponta para uma entidade grava a
+    // coleção — mas declarações antigas guardaram a chave da tela (`processos` no lugar de `cases`),
+    // e uma referência gravada assim ficava com a lista vazia, sem nada a escolher. Aqui ela volta a
+    // achar os registros; o autor não precisa reabrir o que já declarou.
+    dynamicScreens.forEach((definition) => {
+      const collection = screenDataCollection(definition);
+      if (definition.id !== collection && map[collection] && !map[definition.id]) {
+        map[definition.id] = map[collection];
+      }
+    });
     return map;
-  }, [recordsByCollection, definitionByCollection, members]);
+  }, [recordsByCollection, definitionByCollection, dynamicScreens, members]);
 };

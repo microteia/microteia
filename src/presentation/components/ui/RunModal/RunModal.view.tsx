@@ -3,10 +3,7 @@ import { RiPlayLine, RiCloseLine } from 'react-icons/ri';
 import { S } from './RunModal.styles';
 import { useRunModalViewModel, type RunModalProps, type RunModalLogLevel } from './RunModal.viewmodel';
 import { Button } from '../Button';
-import { Input } from '../Input';
-import { DateInput } from '../DateInput';
-import { SearchSelect } from '../SearchSelect';
-import type { WorkflowParameter } from '../../../../domain/entities/Workflow';
+import { ParameterField } from '../ParameterField';
 
 type Tone = 'success' | 'danger' | 'warning' | 'muted';
 
@@ -29,57 +26,8 @@ const statusLabel = (status: 'SUCCESS' | 'FAILED' | 'PARTIAL' | null): string =>
   return 'Concluído';
 };
 
-const BOOLEAN_OPTIONS = [
-  { value: '', label: '(não informar)' },
-  { value: 'true', label: 'Sim' },
-  { value: 'false', label: 'Não' },
-];
-
 export const RunModal: React.FC<RunModalProps> = (props) => {
   const vm = useRunModalViewModel(props);
-
-  const renderField = (param: WorkflowParameter): React.ReactNode => {
-    if (param.list || param.type === 'Object') {
-      return (
-        <S.JsonArea
-          $compact
-          value={vm.getValue(param.key)}
-          onChange={(e) => vm.setValue(param.key, e.target.value)}
-          placeholder={param.list ? '[ ... ]' : '{ ... }'}
-          spellCheck={false}
-        />
-      );
-    }
-    if (param.type === 'Date') {
-      return <DateInput value={vm.getValue(param.key)} onChange={(v) => vm.setValue(param.key, v)} />;
-    }
-    if (param.type === 'Boolean') {
-      return (
-        <SearchSelect
-          options={BOOLEAN_OPTIONS}
-          value={vm.getValue(param.key)}
-          onChange={(v) => vm.setValue(param.key, v)}
-        />
-      );
-    }
-    if (param.type === 'select') {
-      return (
-        <SearchSelect
-          options={[{ value: '', label: '(não informar)' }, ...(param.options ?? [])]}
-          value={vm.getValue(param.key)}
-          onChange={(v) => vm.setValue(param.key, v)}
-        />
-      );
-    }
-    return (
-      <Input
-        value={vm.getValue(param.key)}
-        onChange={(e) => vm.setValue(param.key, e.target.value)}
-        placeholder={param.type === 'Number' ? '0' : ''}
-        inputMode={param.type === 'Number' ? 'decimal' : undefined}
-      />
-    );
-  };
 
   return (
     <S.Overlay onClick={(e) => e.target === e.currentTarget && vm.handleClose()}>
@@ -116,7 +64,11 @@ export const RunModal: React.FC<RunModalProps> = (props) => {
                           {param.required && <S.Required>*</S.Required>}
                           <S.FieldKey>{param.key}</S.FieldKey>
                         </S.FieldLabel>
-                        {renderField(param)}
+                        <ParameterField
+                          parameter={param}
+                          value={vm.getValue(param.key)}
+                          onChange={(value) => vm.setValue(param.key, value)}
+                        />
                       </S.Field>
                     ))
                   ) : (

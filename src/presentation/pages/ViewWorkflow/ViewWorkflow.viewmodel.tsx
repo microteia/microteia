@@ -11,9 +11,9 @@ import { useStepCatalog } from '../../../stores/useStepCatalog';
 import { WORKFLOW_CALLED_EVENT, buildWorkflowEventCatalog, getWorkflowEventFields, eventNameToEntityKey, workflowParametersToFieldOptions } from '../../../domain/services/workflowEventCatalog';
 import type { SchemaContext } from '../../../domain/schema/pathResolver';
 import { useSchemaContext } from '../../shared/useSchemaContext';
+import { useEntityReferenceOptions, useLookupCollectionOptions } from '../../shared/useParameterOptions';
 import type { WorkflowEventFieldOption } from '../../../domain/services/workflowEventCatalog';
 import { WORKFLOW_LOOKUP_COLLECTIONS } from '../../../domain/services/workflowLookupCatalog';
-import { ENTITY_REGISTRY } from '../../../domain/schema/entityRegistry';
 import { siblingParameterErrors, hasParameterErrorsDeep, sanitizeWorkflowParameters, cloneParameterInList } from '../../../domain/schema/workflowParameters';
 import { getWorkflowEventIcon, getWorkflowLookupGroupIcon } from '../../shared/workflowEventIcons';
 import { getScreenIconType } from '../../shared/screenIcons';
@@ -96,6 +96,7 @@ export const PARAMETER_TYPE_OPTIONS: { value: WorkflowParameter['type']; label: 
   { value: 'Date', label: 'Data' },
   { value: 'Boolean', label: 'Booleano' },
   { value: 'select', label: 'Lista de opções' },
+  { value: 'lookup', label: 'Lista do escritório' },
   { value: 'EntityReference', label: 'Referência a entidade' },
   { value: 'Object', label: 'Objeto (aninhado)' },
 ];
@@ -205,6 +206,7 @@ export interface ViewWorkflowViewModel {
   isLookupCollectionRecognized: boolean;
   isCalledEvent: boolean;
   parameterEntityOptions: { value: string; label: string }[];
+  parameterLookupOptions: { value: string; label: string }[];
   parameterErrors: (string | undefined)[];
   hasParameterErrors: boolean;
   addParameter: () => void;
@@ -259,7 +261,7 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
   const { setTabTitle, closeTab, openTab, activePanelId } = useWorkspace();
   const { notify } = useNotification();
   const { workflowExecutionRepository, dataProcessorRepository } = useDI();
-  const { dynamicScreens, getDefinition } = useScreenDefinitions();
+  const { getDefinition } = useScreenDefinitions();
   const ctx = useSchemaContext();
   const { stepCatalog, loadCatalog } = useStepCatalog();
 
@@ -421,13 +423,8 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
 
   const isCalledEvent = useMemo(() => isCalledEventName(formData.eventName), [formData.eventName]);
 
-  const parameterEntityOptions = useMemo(() => {
-    const builtin = Object.values(ENTITY_REGISTRY)
-      .filter((entity) => entity.referenceable)
-      .map((entity) => ({ value: entity.collection, label: entity.labelPlural }));
-    const custom = dynamicScreens.map((def) => ({ value: def.id, label: def.titlePlural }));
-    return [...builtin, ...custom];
-  }, [dynamicScreens]);
+  const parameterEntityOptions = useEntityReferenceOptions();
+  const parameterLookupOptions = useLookupCollectionOptions();
 
   const parameterErrors = useMemo<(string | undefined)[]>(
     () => (isCalledEvent ? siblingParameterErrors(formData.parameters) : []),
@@ -1000,6 +997,7 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
     isLookupCollectionRecognized,
     isCalledEvent,
     parameterEntityOptions,
+    parameterLookupOptions,
     parameterErrors,
     hasParameterErrors,
     addParameter,

@@ -1,7 +1,7 @@
 {
   "manifest": {
     "id": "com.microteia.prazo",
-    "version": "1.1.0",
+    "version": "1.1.1",
     "kernel": "^1.0.0",
     "name": "Prazos",
     "description": "O controle de prazos do escritório recriado como extensão, sobre os MESMOS prazos — a quinta entidade a sair do kernel.",
@@ -112,7 +112,8 @@
         {
           "key": "type",
           "label": "Tipo de prazo",
-          "type": "String",
+          "type": "lookup",
+          "lookupCollection": "deadlineTypes",
           "required": true,
           "defaultValue": "Petição"
         },
@@ -125,27 +126,10 @@
         {
           "key": "priority",
           "label": "Prioridade",
-          "type": "select",
+          "type": "lookup",
+          "lookupCollection": "deadlinePriorities",
           "required": false,
-          "defaultValue": "Média",
-          "options": [
-            {
-              "value": "Baixa",
-              "label": "Baixa"
-            },
-            {
-              "value": "Média",
-              "label": "Média"
-            },
-            {
-              "value": "Alta",
-              "label": "Alta"
-            },
-            {
-              "value": "Crítica",
-              "label": "Crítica"
-            }
-          ]
+          "defaultValue": "Média"
         },
         {
           "key": "description",

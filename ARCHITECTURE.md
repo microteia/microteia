@@ -2609,14 +2609,63 @@ mesma `StepDefinition` é usada duas vezes no mesmo workflow) e `VariableInputMa
 ### Campo `EntityReference` — seletor de entidade em "Valor fixo"
 
 Um input de Step com `type: 'EntityReference'` declara também `entityType?: string` — a mesma chave usada por
-`FieldDefinition.refEntity` nos Custom Fields do ScreenBuilder: `'cases'`, `'persons'`,
-`'contracts'`, `'financials'`, `'deadlines'`, `'members'` (usuários do tenant, não é uma
-coleção de domínio) ou o `id` de uma `ScreenDefinition` de entidade customizada. Quando o
+`FieldDefinition.refEntity` nos Custom Fields do ScreenBuilder: a **COLEÇÃO** apontada (`'cases'`,
+`'persons'`, `'contracts'`, `'financials'`, `'deadlines'`, `'members'` — usuários do tenant, não é uma
+coleção de domínio — ou a coleção de uma tela do Form Design/extensão). Quando o
 usuário escolhe mapping "Valor fixo" para esse campo, o `StepEditorModal`
 (`renderLiteralControl`) renderiza `EntityReferenceControl`, que resolve as opções via
 `useReferenceOptions()` (mesmo hook do `useCustomFieldListing`) filtrado por `entityType` — sem
 duplicar a lógica de carregar cada store de entidade. Sem `entityType` declarado, cai no
 fallback de texto livre (comportamento anterior).
+
+> **É a coleção, nunca a chave da tela.** A tela de extensão declara `dataCollection` e opera uma
+> coleção que não leva o nome dela (`processos` → `cases`); todo o resto do sistema — registros,
+> `SchemaContext`, hidratação — é indexado pela coleção. Um `entityType` com a chave da tela não
+> encontra nada, e o seletor abre vazio. Os seletores de entidade saem de
+> `useEntityReferenceOptions()` (`presentation/shared/useParameterOptions.ts`), que só oferece
+> coleções; para o que já foi gravado com a chave, `useReferenceOptions()` responde também pela
+> chave da tela (alias), de modo que declarações antigas continuam achando seus registros.
+
+### O parâmetro como CONTROLE — um formulário só para todas as superfícies
+
+`WorkflowParameter` é preenchido em três telas: o Step "Chamar Workflow"/"Executar Script", o botão
+**Executar** de um fluxo ou script (`RunModal`) e a ação que pergunta antes de disparar
+(`ActionParametersModal`, o mesmo `RunModal` em modo `collectOnly`). A tradução "tipo declarado →
+controle" vive num ponto único, `presentation/shared/parameterInputs.ts`:
+
+| Função | Devolve | Quem usa |
+|---|---|---|
+| `parameterToInputDefinition(param)` | o `InputDefinition` da **folha** | `ParameterField` (RunModal) e o valor padrão do editor |
+| `flattenParameterInputs(param)` | um input por folha, com id `param.<chave>[.<campo>]` | `EditWorkflowStep` (inputs dinâmicos do alvo) |
+
+`components/ui/ParameterField` é o campo de UM parâmetro: delega a `EntityReferenceControl` (lista de
+registros da coleção), a `LiteralOptionsControl` (opções estáticas ou lista do escritório) e, quando
+`list: true` sobre um tipo de escolha fechada, a `MultiSearchSelect`. Objeto e lista de tipo livre
+continuam como JSON. Os dois controles moram em `components/ui/` justamente porque não são do editor
+de Steps: são de quem precisa pedir um valor.
+
+O `RunModal` transporta tudo como **texto** (data em `aaaa-mm-dd`, sim/não em `"true"`, lista e objeto
+em JSON) — `ParameterField` serializa a seleção múltipla de volta para JSON por isso. Um valor inicial
+que chega como vínculo inteiro (`{ id, nome }`) é reduzido ao `id`, que é o que o seletor casa e o que
+o fluxo recebe.
+
+### Parâmetro do tipo `lookup` — a lista de opções do escritório
+
+Além de `select` (opções escritas uma a uma no próprio parâmetro), um `WorkflowParameter` pode
+declarar `type: 'lookup'` + `lookupCollection` — a mesma chave que um campo de tela usa, resolvida
+pelo `LookupStore` (listas do kernel e as declaradas pelo tenant, no mesmo mapa). O valor do
+parâmetro é a **CHAVE** da opção, como no registro; no `SchemaContext` ele é um `string` com
+`lookupCollection`, então o IntelliSense e as regras o tratam como o campo equivalente.
+
+No DSL JSON avançado: `{ "situacao": { "type": "lookup", "lookupCollection": "pushStatuses" } }` — o
+atalho de uma linha (`"situacao": "lookup"`) é recusado, pela mesma razão do `EntityReference`: sem a
+coleção não há o que escolher. `parameterLookupCollections()` reúne as listas pedidas por um conjunto
+de parâmetros, e é por ela que o empacotamento de uma extensão leva junto as listas de que os fluxos
+e scripts dependem (`packageBuilder`).
+
+> **Limite conhecido:** no Processador de Dados (IA), um parâmetro `lookup` chega ao prompt como
+> texto livre — as opções vivem no Firestore do tenant e o `runWorkflow` monta o esquema sem lê-las.
+> O valor preenchido pela IA não é conferido contra a lista (um `select`, sim).
 
 ### Passo "Buscar Registros" (Query) — consulta tipada à base do tenant
 
@@ -3995,7 +4044,7 @@ presentation); a implementação vive só aqui, porque `src/utils` não é sincr
 
 > **Parâmetro como lista (`list: true`).** Flag ortogonal em `WorkflowParameter`/`ScriptOutputParam`: o
 > resto do parâmetro descreve **um item** e `list` diz "vários deles" (lista de escalar, de `select`, de
-> `EntityReference` ou de `Object`). Substitui o antigo `multi` do `EntityReference` (removido — um conceito
+> `lookup`, de `EntityReference` ou de `Object`). Substitui o antigo `multi` do `EntityReference` (removido — um conceito
 > só). No editor visual é o seletor **Quantidade** (Único/Vários), disponível para todos os tipos; no DSL
 > JSON é a propriedade `"list": true`. Um parâmetro-lista não tem `default`. No IntelliSense de paths a
 > lista é tratada como **folha opaca** (sem indexação de elemento no autocomplete); dentro de Scripts o
@@ -4018,11 +4067,34 @@ presentation); a implementação vive só aqui, porque `src/utils` não é sincr
 > Firestore como Timestamp, porque `formatAndValidateRecord` coage pelo `type` do campo. Sem isso
 > uma tela do Form Design gravaria a data como texto — indistinguível no console, mas quebrando
 > `addDays(event.campo, n)` no workflow que a própria tela dispara, enquanto a mesma expressão
-> funcionaria numa tela fixa (cujos mappers escritos à mão já convertiam). A data pura (`aaaa-mm-dd`)
-> é montada no **fuso local**: ela nomeia um dia, e `new Date('2026-07-15')` daria meia-noite UTC —
-> o dia anterior no horário do escritório. Na volta, `toDateFieldInput` (`customFieldValues.ts`)
-> devolve `Date`/Timestamp ao formato do controle, e `FirebaseRecordRepository` converte Timestamps
-> em `Date` de forma genérica, já que uma coleção de tela não tem mapper escrito à mão.
+> funcionaria numa tela fixa (cujos mappers escritos à mão já convertiam). Na volta,
+> `toDateFieldInput` (`customFieldValues.ts`) devolve `Date`/Timestamp ao formato do controle, e
+> `FirebaseRecordRepository` converte Timestamps em `Date` de forma genérica, já que uma coleção de
+> tela não tem mapper escrito à mão.
+
+### Um DIA vira instante ao MEIO-DIA EM UTC
+
+`aaaa-mm-dd` nomeia um **dia**; o Firestore só guarda **instantes**. Quem escolhe a hora é
+`parseDateOnly` (`domain/schema/mutationSpec.ts`), o ponto único por onde passam o campo de data do
+formulário, o parâmetro de fluxo digitado no "Executar", o que a IA preenche e o que um script grava.
+
+Meia-noite não serve, e por dois motivos que se somam:
+
+| Montada em | Resultado | Sintoma |
+|---|---|---|
+| meia-noite **UTC** (o fuso de quem executa no servidor) | `00:00Z` | 12/08 digitado volta **11/08** no escritório |
+| meia-noite **do fuso de quem grava** | `03:00Z` na tela, `00:00Z` no servidor | o mesmo dia vira dois instantes conforme a origem da gravação |
+
+**Meio-dia em UTC** é o único instante que se lê como o mesmo dia em qualquer escritório entre UTC-11
+e UTC+11, e é igual dos dois lados da fronteira. `anchorDay(instant)` aplica a mesma âncora ao dia de
+um instante — é o que `today()` devolve às automações, para que `completedAt`, `paymentDate` e
+`cancelDate` carimbem o dia em que o gesto aconteceu. Datas gravadas antes desta regra continuam se
+lendo no dia certo; o que muda é onde as novas caem.
+
+> **Limite conhecido:** `today()` no servidor é o dia **UTC**. Entre 21h e a meia-noite no horário de
+> Brasília o servidor já virou a página, e a automação carimba o dia seguinte. Resolver isso de vez
+> pede o **fuso do escritório**, que hoje não é declarado em lugar nenhum — quando existir, é
+> `anchorDay` e `parseDateOnly` que passam a recebê-lo.
 
 O `SchemaContext` do front precisa das `ScreenDefinition`s do tenant, e um repositório não alcança um
 Store React — por isso `data/utils/recordRulesGate.ts` mantém um contexto de módulo que o

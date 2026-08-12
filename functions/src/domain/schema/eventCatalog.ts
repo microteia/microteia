@@ -209,6 +209,7 @@ const WORKFLOW_PARAM_TYPE_MAP: Record<Exclude<WorkflowParameter['type'], 'Entity
   Date: 'date',
   Boolean: 'boolean',
   select: 'string',
+  lookup: 'string',
 };
 
 export const isScalarParameterType = (type: WorkflowParameter['type']): boolean =>
@@ -230,6 +231,7 @@ export const workflowParameterToNativeField = (parameter: WorkflowParameter): Na
     return parameter.list ? { ...spec, list: true } : spec;
   }
   const spec: NativeFieldSpec = { key: parameter.key, label: parameter.label, type: WORKFLOW_PARAM_TYPE_MAP[parameter.type] ?? 'string' };
+  if (parameter.type === 'lookup' && parameter.lookupCollection) spec.lookupCollection = parameter.lookupCollection;
   return parameter.list ? { ...spec, list: true } : spec;
 };
 

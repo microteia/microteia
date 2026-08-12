@@ -222,14 +222,43 @@ export const validateRemoveSpec = (spec: RemoveSpec, ctx: SchemaContext): Mutati
 
 const DATE_ONLY_PATTERN = /^(\d{4})-(\d{2})-(\d{2})$/;
 
+/**
+ * A hora em que um DIA vira instante.
+ *
+ * "2026-08-12" é o formato do campo de data e nomeia um DIA, não um instante — mas só instante se
+ * grava, e alguém tem de escolher a hora. Meia-noite não serve, por dois motivos que se somam:
+ * montada em UTC (o fuso de quem executa no SERVIDOR) ela cai no dia anterior do escritório — o
+ * prazo digitado 12/08 voltava 11/08 —, e montada no fuso de quem grava o mesmo dia vira dois
+ * instantes diferentes conforme a gravação venha da tela ou de uma automação.
+ *
+ * MEIO-DIA EM UTC é o único instante que se lê como o mesmo dia em qualquer escritório entre UTC-11
+ * e UTC+11, e é o mesmo dos dois lados da fronteira. Datas gravadas antes desta regra (meia-noite
+ * local) continuam se lendo no dia certo — o que muda é só onde as novas caem.
+ */
+const DAY_ANCHOR_UTC_HOUR = 12;
+
+/**
+ * A data-só-dia como instante, ou `null` quando o texto não é um dia puro. É o ponto ÚNICO dessa
+ * conversão: o campo do formulário, o parâmetro de um fluxo e o valor que a IA preenche entram
+ * todos por aqui.
+ */
+export const parseDateOnly = (text: string): Date | null => {
+  const dayOnly = DATE_ONLY_PATTERN.exec(text.trim());
+  if (!dayOnly) return null;
+  return new Date(
+    Date.UTC(Number(dayOnly[1]), Number(dayOnly[2]) - 1, Number(dayOnly[3]), DAY_ANCHOR_UTC_HOUR),
+  );
+};
+
+/** O DIA em que um instante cai, na mesma âncora — o que `today()` devolve a uma automação. */
+export const anchorDay = (instant: Date): Date =>
+  new Date(
+    Date.UTC(instant.getUTCFullYear(), instant.getUTCMonth(), instant.getUTCDate(), DAY_ANCHOR_UTC_HOUR),
+  );
+
 const isTimestampLike = (value: unknown): value is { toDate: () => Date } =>
   !!value && typeof value === 'object' && typeof (value as { toDate?: unknown }).toDate === 'function';
 
-/**
- * "2026-07-15" é o formato do campo de data do formulário e nomeia um DIA, não um instante. Lido
- * por `new Date(...)` ele viraria meia-noite em UTC — que no fuso do escritório é o dia anterior, e
- * o formulário reabriria mostrando 14/07. Por isso a data pura é montada no fuso local.
- */
 export const coerceWriteValue = (type: NativeFieldType | undefined, value: unknown): unknown => {
   if (value === null || value === undefined) return null;
   switch (type) {
@@ -240,8 +269,8 @@ export const coerceWriteValue = (type: NativeFieldType | undefined, value: unkno
       if (typeof value === 'string') {
         const trimmed = value.trim();
         if (trimmed === '') return null;
-        const dayOnly = DATE_ONLY_PATTERN.exec(trimmed);
-        if (dayOnly) return new Date(Number(dayOnly[1]), Number(dayOnly[2]) - 1, Number(dayOnly[3]));
+        const dayOnly = parseDateOnly(trimmed);
+        if (dayOnly) return dayOnly;
         const parsed = new Date(trimmed);
         return Number.isNaN(parsed.getTime()) ? value : parsed;
       }

@@ -1,10 +1,5 @@
 import type { ExpressionFunction } from '../FunctionRegistry';
-
-const startOfDay = (date: Date): Date => {
-  const copy = new Date(date);
-  copy.setHours(0, 0, 0, 0);
-  return copy;
-};
+import { anchorDay } from '../../../schema/mutationSpec';
 
 const formatDate = (date: Date, format: string): string => {
   const year = date.getFullYear();
@@ -50,10 +45,20 @@ const dateDiff = (date1: Date, date2: Date, unit: string): number => {
   }
 };
 
+/**
+ * `today()` devolve um DIA — quem quer o instante tem `now()`. Por isso ele cai na mesma âncora de
+ * uma data digitada (meio-dia em UTC): carimbado em `completedAt`, `paymentDate` ou `cancelDate`, o
+ * dia que se lê na tela é o dia em que a automação rodou. Antes era meia-noite do fuso do SERVIDOR
+ * (UTC), que no escritório é o dia anterior — concluir um prazo hoje registrava ontem.
+ *
+ * O dia é o dia UTC: entre 21h e a meia-noite no horário de Brasília o servidor já virou a página, e
+ * `today()` devolve o dia seguinte. Resolver isso de vez pede o fuso do escritório, que hoje não é
+ * declarado em lugar nenhum.
+ */
 export const todayFn: ExpressionFunction = {
   name: 'today',
-  call: (_args, context) => startOfDay(context.services.now()),
-  description: 'Retorna a data de hoje (início do dia)',
+  call: (_args, context) => anchorDay(context.services.now()),
+  description: 'Retorna a data de hoje (o dia, sem hora)',
   signature: 'today()',
   example: 'today()',
   category: 'Data',

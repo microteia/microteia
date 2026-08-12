@@ -75,6 +75,7 @@ export const PARAMETER_TYPE_VALUES: WorkflowParameterType[] = [
   'Date',
   'Boolean',
   'select',
+  'lookup',
   'EntityReference',
   'Object',
 ];
@@ -83,6 +84,7 @@ interface ParameterLike {
   key: string;
   type: WorkflowParameterType;
   entityType?: string;
+  lookupCollection?: string;
   fields?: ParameterLike[];
 }
 
@@ -94,6 +96,7 @@ export const siblingParameterErrors = (parameters: ParameterLike[]): (string | u
     if (seen.has(parameter.key)) return 'Chave duplicada';
     seen.add(parameter.key);
     if (parameter.type === 'EntityReference' && !parameter.entityType) return 'Selecione a entidade referenciada';
+    if (parameter.type === 'lookup' && !parameter.lookupCollection) return 'Selecione a lista de opções';
     if (parameter.type === 'Object' && (parameter.fields ?? []).length === 0) return 'Adicione ao menos um campo ao objeto';
     return undefined;
   });
@@ -134,6 +137,7 @@ export const sanitizeWorkflowParameters = (parameters: WorkflowParameter[]): Wor
     if (parameter.required) clean.required = true;
     if (parameter.list) clean.list = true;
     if (parameter.type === 'EntityReference' && parameter.entityType) clean.entityType = parameter.entityType;
+    if (parameter.type === 'lookup' && parameter.lookupCollection) clean.lookupCollection = parameter.lookupCollection;
     if (parameter.type === 'select' && parameter.options) clean.options = parameter.options;
     if (parameter.type === 'Object') clean.fields = sanitizeWorkflowParameters(parameter.fields ?? []);
     if (!parameter.list && isScalarParameterType(parameter.type) && parameter.defaultValue !== undefined && parameter.defaultValue !== '') {
@@ -149,9 +153,27 @@ export const sanitizeScriptOutputParams = (parameters: ScriptOutputParam[]): Scr
     const clean: ScriptOutputParam = { key: parameter.key, label: parameter.label, type: parameter.type };
     if (parameter.list) clean.list = true;
     if (parameter.type === 'EntityReference' && parameter.entityType) clean.entityType = parameter.entityType;
+    if (parameter.type === 'lookup' && parameter.lookupCollection) clean.lookupCollection = parameter.lookupCollection;
     if (parameter.type === 'Object') clean.fields = sanitizeScriptOutputParams(parameter.fields ?? []);
     return clean;
   });
+
+/**
+ * As LISTAS DE OPÇÕES que um conjunto de parâmetros referencia, coleção a coleção. Mesmo papel do
+ * `lookupCollection` de um campo de tela: é por aqui que o empacotamento de uma extensão descobre
+ * que precisa carregar a lista junto com o fluxo que a pede.
+ */
+export const parameterLookupCollections = (parameters: ParameterLike[] = []): string[] => {
+  const collections = new Set<string>();
+  const walk = (list: ParameterLike[]): void => {
+    for (const parameter of list) {
+      if (parameter.type === 'lookup' && parameter.lookupCollection) collections.add(parameter.lookupCollection);
+      if (parameter.type === 'Object') walk(parameter.fields ?? []);
+    }
+  };
+  walk(parameters);
+  return [...collections];
+};
 
 const isPlainObject = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -169,6 +191,7 @@ const parameterToDslValue = (parameter: WorkflowParameter): unknown => {
     parameter.defaultValue !== undefined ||
     rules !== undefined ||
     parameter.type === 'EntityReference' ||
+    parameter.type === 'lookup' ||
     parameter.type === 'select' ||
     parameter.type === 'Object';
 
@@ -178,6 +201,7 @@ const parameterToDslValue = (parameter: WorkflowParameter): unknown => {
   if (parameter.required) rich.required = true;
   if (parameter.list) rich.list = true;
   if (parameter.type === 'EntityReference' && parameter.entityType) rich.entityType = parameter.entityType;
+  if (parameter.type === 'lookup' && parameter.lookupCollection) rich.lookupCollection = parameter.lookupCollection;
   if (parameter.type === 'select' && parameter.options) rich.options = parameter.options;
   if (!parameter.list && parameter.defaultValue !== undefined) rich.default = parameter.defaultValue;
   if (rules) rich.rules = rules;
@@ -214,6 +238,10 @@ const parseDslNode = (key: string, value: unknown, path: string, errors: string[
       errors.push(`${path}: uma referência precisa da forma completa com "entityType"`);
       return null;
     }
+    if (value === 'lookup') {
+      errors.push(`${path}: uma lista do escritório precisa da forma completa com "lookupCollection"`);
+      return null;
+    }
     return { key, label: key, type: value };
   }
 
@@ -244,6 +272,12 @@ const parseDslNode = (key: string, value: unknown, path: string, errors: string[
       return null;
     }
     parameter.entityType = value.entityType;
+  } else if (type === 'lookup') {
+    if (typeof value.lookupCollection !== 'string' || !value.lookupCollection) {
+      errors.push(`${path}: lista do escritório exige "lookupCollection"`);
+      return null;
+    }
+    parameter.lookupCollection = value.lookupCollection;
   } else if (type === 'select') {
     if (!Array.isArray(value.options)) {
       errors.push(`${path}: lista de opções exige "options" (array)`);

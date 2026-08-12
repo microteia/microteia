@@ -10,18 +10,19 @@ const CodeEditor = lazy(() =>
 );
 
 const PROPERTY_REFERENCE: { name: string; usage: string; description: string }[] = [
-  { name: 'type', usage: 'todos', description: 'String, Number, Date, Boolean, select, EntityReference ou Object. Atalho: "chave": "String".' },
+  { name: 'type', usage: 'todos', description: 'String, Number, Date, Boolean, select, lookup, EntityReference ou Object. Atalho: "chave": "String".' },
   { name: 'label', usage: 'opcional', description: 'Nome amigável exibido ao usuário. Se omitido, usa a própria chave.' },
   { name: 'required', usage: 'opcional', description: 'true torna o preenchimento obrigatório.' },
   { name: 'list', usage: 'todos', description: 'true indica que o valor é uma lista (vários itens) do tipo definido.' },
   { name: 'default', usage: 'tipos simples', description: 'Valor padrão quando nada é informado (String, Number, Date, Boolean, select).' },
   { name: 'options', usage: 'select', description: 'Lista de opções, ex.: ["Alta", "Média", "Baixa"].' },
-  { name: 'entityType', usage: 'EntityReference', description: 'Entidade referenciada, ex.: "clients", "cases".' },
+  { name: 'entityType', usage: 'EntityReference', description: 'Coleção referenciada, ex.: "persons", "cases".' },
+  { name: 'lookupCollection', usage: 'lookup', description: 'Lista de opções do escritório, ex.: "caseStatuses", "personTypes".' },
   { name: 'fields', usage: 'Object', description: 'Objeto com os campos internos, no mesmo formato.' },
 ];
 
 export const AdvancedParametersEditor: React.FC<AdvancedParametersEditorProps> = (props) => {
-  const { parameters, errors, typeOptions, entityOptions, variant, onAdd, onUpdate, onRemove, onClone } = props;
+  const { parameters, errors, typeOptions, entityOptions, lookupOptions, variant, onAdd, onUpdate, onRemove, onClone } = props;
   const vm = useAdvancedParametersEditorViewModel(props);
 
   return (
@@ -41,6 +42,7 @@ export const AdvancedParametersEditor: React.FC<AdvancedParametersEditorProps> =
           errors={errors}
           typeOptions={typeOptions}
           entityOptions={entityOptions}
+          lookupOptions={lookupOptions}
           variant={variant}
           onAdd={onAdd}
           onUpdate={onUpdate}

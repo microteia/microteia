@@ -138,9 +138,9 @@ export const S = {
     color: ${({ theme }) => theme.colors.danger};
   `,
 
-  JsonArea: styled.textarea<{ $compact?: boolean }>`
+  JsonArea: styled.textarea`
     width: 100%;
-    min-height: ${({ $compact }) => ($compact ? '90px' : '220px')};
+    min-height: 220px;
     padding: ${({ theme }) => theme.spacing.md};
     border: 1px solid ${({ theme }) => theme.colors.border};
     border-radius: ${({ theme }) => theme.borderRadius.md};

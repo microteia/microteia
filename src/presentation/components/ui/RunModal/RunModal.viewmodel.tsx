@@ -51,12 +51,25 @@ const skeletonValue = (param: WorkflowParameter): unknown => {
 };
 
 /**
+ * O registro que a tela já respondeu pode chegar como o vínculo inteiro (`{ id, nome }`) ou só como
+ * o id. O seletor escolhe pelo id, e é ele que o fluxo recebe.
+ */
+const referenceId = (value: unknown): string =>
+  typeof value === 'object' && value !== null && 'id' in value
+    ? String((value as { id: unknown }).id)
+    : String(value);
+
+/**
  * O valor de partida vira TEXTO, que é como o formulário guarda tudo: o campo de data espera
  * `aaaa-mm-dd`, o de sim/não espera `"true"`, e lista e objeto voltam a ser JSON — a mesma forma que
  * `buildProvidedParams` lê de volta na hora de montar os parâmetros.
  */
 const toFormText = (value: unknown, param: WorkflowParameter): string => {
   if (value === null || value === undefined) return '';
+  if (param.type === 'EntityReference') {
+    const ids = Array.isArray(value) ? value.map(referenceId) : referenceId(value);
+    return param.list ? JSON.stringify(ids) : String(ids);
+  }
   if (param.list || param.type === 'Object') return JSON.stringify(value, null, 2);
   if (typeof value === 'boolean') return value ? 'true' : 'false';
   if (value instanceof Date) return value.toISOString().slice(0, 10);

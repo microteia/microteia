@@ -14,6 +14,7 @@ export interface WorkflowParametersEditorProps {
   errors: (string | undefined)[];
   typeOptions: { value: WorkflowParameter['type']; label: string }[];
   entityOptions: { value: string; label: string }[];
+  lookupOptions: { value: string; label: string }[];
   onAdd: () => void;
   onUpdate: (index: number, patch: Partial<WorkflowParameter>) => void;
   onRemove: (index: number) => void;
@@ -35,7 +36,7 @@ export interface WorkflowParametersEditorViewModel {
 export const useWorkflowParametersEditorViewModel = (
   props: WorkflowParametersEditorProps,
 ): WorkflowParametersEditorViewModel => {
-  const { parameters, typeOptions, entityOptions, onAdd, onRemove, onClone } = props;
+  const { parameters, typeOptions, entityOptions, lookupOptions, onAdd, onRemove, onClone } = props;
   const [expanded, setExpanded] = useState<Set<number>>(new Set());
 
   const isExpanded = useCallback((index: number) => expanded.has(index), [expanded]);
@@ -86,11 +87,14 @@ export const useWorkflowParametersEditorViewModel = (
       if (parameter.type === 'EntityReference' && parameter.entityType) {
         parts.push(entityOptions.find((option) => option.value === parameter.entityType)?.label ?? parameter.entityType);
       }
+      if (parameter.type === 'lookup' && parameter.lookupCollection) {
+        parts.push(lookupOptions.find((option) => option.value === parameter.lookupCollection)?.label ?? parameter.lookupCollection);
+      }
       if (parameter.list) parts.push('vários');
       if (parameter.required) parts.push('obrigatório');
       return `${name} — ${parts.join(' · ')}`;
     },
-    [typeOptions, entityOptions],
+    [typeOptions, entityOptions, lookupOptions],
   );
 
   const presets = useFieldRulePresets();

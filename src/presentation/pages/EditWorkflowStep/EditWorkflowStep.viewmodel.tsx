@@ -11,6 +11,7 @@ import { workflowParameterToNativeField } from '../../../domain/schema/eventCata
 import type { PathRoot } from '../../../domain/schema/pathResolver';
 import type { NativeFieldSpec } from '../../../domain/schema/entityRegistry';
 import { getStepIcon } from '../../shared/stepIcons';
+import { flattenParameterInputs } from '../../shared/parameterInputs';
 import {
   getStepDisplayName,
   findStepInTree,
@@ -93,36 +94,6 @@ const objectOutputConfigOf = (
   step: WorkflowStep,
   definition: StepDefinitionSummary,
 ): MapStepConfig | null => mapConfigOf(step, definition) ?? validateConfigOf(step, definition);
-
-const parameterToInputDefinitions = (
-  parameter: WorkflowParameter,
-  idPrefix = 'param',
-  labelPrefix = '',
-): InputDefinition[] => {
-  const id = `${idPrefix}.${parameter.key}`;
-  const label = labelPrefix ? `${labelPrefix} › ${parameter.label}` : parameter.label;
-  if (parameter.list) {
-    return [{ id, label: `${label} (lista)`, required: parameter.required ?? false, type: 'String' }];
-  }
-  if (parameter.type === 'Object') {
-    return (parameter.fields ?? []).flatMap((child) => parameterToInputDefinitions(child, id, label));
-  }
-  const base = { id, label, required: parameter.required ?? false, rules: parameter.rules };
-  switch (parameter.type) {
-    case 'EntityReference':
-      return [{ ...base, type: 'EntityReference', entityType: parameter.entityType }];
-    case 'select':
-      return [{ ...base, type: 'String', options: { kind: 'Static', options: parameter.options ?? [] } }];
-    case 'Number':
-      return [{ ...base, type: 'Number' }];
-    case 'Date':
-      return [{ ...base, type: 'Date' }];
-    case 'Boolean':
-      return [{ ...base, type: 'Boolean' }];
-    default:
-      return [{ ...base, type: 'String' }];
-  }
-};
 
 const emptyMappingFor = (kind: InputMapping['kind']): InputMapping => {
   switch (kind) {
@@ -360,7 +331,7 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
     const source = dynamicTargetKind === 'script'
       ? (targetScript?.inputParams ?? [])
       : (targetWorkflow?.parameters ?? []);
-    const paramInputs = source.flatMap((parameter) => parameterToInputDefinitions(parameter));
+    const paramInputs = source.flatMap((parameter) => flattenParameterInputs(parameter));
     return [...selectedDefinition.inputs, ...paramInputs];
   }, [selectedDefinition, dynamicInputsSourceId, dynamicTargetKind, targetWorkflow, targetScript]);
 

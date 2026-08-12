@@ -173,18 +173,15 @@ const GERAR_PRAZO_WORKFLOW: WorkflowModuleTemplate = {
   eventName: 'workflow.called',
   version: 1,
   condition: { kind: 'AlwaysTrue' },
+  // Tipo e prioridade saem das MESMAS listas do campo do prazo (`deadlineTypes`,
+  // `deadlinePriorities`), declaradas pela extensão de Prazos — a de quem o formulário depende. Copiar
+  // as opções para dentro do fluxo era garantir que elas envelhecessem: o escritório acrescenta um
+  // tipo na tela de Prazos e o formulário do push continuava oferecendo os quatro de fábrica.
   parameters: [
     { key: 'caseNumber', label: 'Número do processo', type: 'String', required: true },
-    { key: 'type', label: 'Tipo de prazo', type: 'String', required: true, defaultValue: 'Petição' },
+    { key: 'type', label: 'Tipo de prazo', type: 'lookup', lookupCollection: 'deadlineTypes', required: true, defaultValue: 'Petição' },
     { key: 'dueDate', label: 'Data de vencimento', type: 'Date', required: true },
-    {
-      key: 'priority',
-      label: 'Prioridade',
-      type: 'select',
-      required: false,
-      defaultValue: 'Média',
-      options: ['Baixa', 'Média', 'Alta', 'Crítica'].map((value) => ({ value, label: value })),
-    },
+    { key: 'priority', label: 'Prioridade', type: 'lookup', lookupCollection: 'deadlinePriorities', required: false, defaultValue: 'Média' },
     { key: 'description', label: 'Descrição', type: 'String', required: false },
   ],
   steps: [
@@ -222,7 +219,10 @@ const GERAR_PRAZO_WORKFLOW: WorkflowModuleTemplate = {
       { name: 'dueDate', value: { kind: 'Event', path: 'dueDate' } },
       { name: 'priority', value: { kind: 'Event', path: 'priority' } },
       { name: 'description', value: { kind: 'Event', path: 'description' } },
-      { name: 'status', value: literal('pending') },
+      // A situação de um prazo é a CHAVE da lista `deadlineStatuses`, que é o próprio rótulo em
+      // português. Gravar "pending" — herança de quando Prazos era do kernel — criava um prazo com
+      // uma situação que nenhuma opção responde: fora do filtro "Pendente" e sem cor na listagem.
+      { name: 'status', value: literal('Pendente') },
       { name: 'completedAt', value: literal(null) },
     ]),
     upsert('gravarPrazo', 3, 'deadlines', 'prazo'),
@@ -714,7 +714,7 @@ export default function startup(host) {
 export const pushPlugin: MarketplacePlugin = {
   manifest: {
     id: 'com.microteia.push',
-    version: '1.0.2',
+    version: '1.0.3',
     kernel: '^1.0.0',
     name: 'Pushes do Tribunal',
     description: 'A caixa de intimações do escritório recriada como extensão, sobre os MESMOS pushes — a sexta entidade a sair do kernel.',

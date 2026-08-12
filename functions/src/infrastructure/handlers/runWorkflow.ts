@@ -5,6 +5,7 @@ import { publishEvent } from '../workflow/publishEvent';
 import { WORKFLOW_CALLED_EVENT } from '../../domain/schema/eventCatalog';
 import { describeRuleIssues } from '../../domain/schema/fieldRules';
 import { formatAndValidateParameters } from '../../domain/schema/parameterRules';
+import { parseDateOnly } from '../../domain/schema/mutationSpec';
 import { AIResponseFormatError } from '../../domain/usecases/CallAIUseCase';
 import type { WorkflowParameter } from '../../domain/entities/Workflow';
 
@@ -157,7 +158,12 @@ const coerce = (param: WorkflowParameter, value: unknown): unknown => {
       return ['true', '1', 'sim', 'yes'].includes(s);
     }
     case 'Date': {
-      const d = value instanceof Date ? value : new Date(String(value));
+      if (value instanceof Date) return value;
+      // Um dia puro ("2026-08-12") nunca vira meia-noite: aqui é o servidor, e meia-noite em UTC é
+      // ontem no escritório. `parseDateOnly` é o mesmo ponto por onde a tela grava uma data.
+      const dayOnly = parseDateOnly(String(value));
+      if (dayOnly) return dayOnly;
+      const d = new Date(String(value));
       return Number.isNaN(d.getTime()) ? null : d;
     }
     case 'select': {

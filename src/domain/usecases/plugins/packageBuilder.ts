@@ -12,6 +12,7 @@ import type { PluginManifest } from '../../schema/plugin/pluginManifest';
 import type { ActionDefinition, ScreenDefinition } from '../../entities';
 import type { Script } from '../../entities/Script';
 import type { WorkflowDefinition } from '../../entities/Workflow';
+import { parameterLookupCollections } from '../../schema/workflowParameters';
 
 export interface PackageSelection {
   screens: ScreenDefinition[];
@@ -230,6 +231,13 @@ const scriptToTemplate = (script: Script): ScriptModuleTemplate =>
  * O rótulo vem da declaração do tenant quando ela existe; para uma lista do kernel (`caseCourts`),
  * cai no próprio nome — o pacote não precisa saber a diferença, e a instalação também não.
  */
+/** Os parâmetros vistos como um campo qualquer: só o que `collectLookups` precisa enxergar. */
+const parameterLookupHost = (
+  parameters: Parameters<typeof parameterLookupCollections>[0],
+): { fields: { lookupCollection?: string | null }[] } => ({
+  fields: parameterLookupCollections(parameters).map((collection) => ({ lookupCollection: collection })),
+});
+
 const collectLookups = (
   fieldHosts: { fields: { lookupCollection?: string | null }[] }[],
   available: LookupModuleTemplate[],
@@ -293,13 +301,23 @@ export const buildPackage = (input: BuildPackageInput): MarketplacePlugin => {
     ],
     (patch) => patch.target,
   );
-  // As listas e etiquetas que os campos empacotados referenciam — os do complemento junto com os das
-  // telas, porque um campo de seleção acrescentado a `persons` precisa da lista dele declarada igual.
-  const lookups = collectLookups([...screens, ...screenPatches], input.availableLookups ?? []);
   const tagLists = collectTagLists(screens, input.availableTagLists ?? []);
   const actions = dedupeBy([...input.actions.map(actionToTemplate), ...(input.carried?.actions ?? [])], (a) => a.templateId);
   const scripts = dedupeBy([...input.scripts.map(scriptToTemplate), ...(input.carried?.scripts ?? [])], (s) => s.templateId);
   const workflows = dedupeBy([...input.workflows.map(workflowToTemplate), ...(input.carried?.workflows ?? [])], (w) => w.templateId);
+  // As listas e etiquetas que o pacote referencia — os campos do complemento junto com os das telas,
+  // porque um campo de seleção acrescentado a `persons` precisa da lista dele declarada igual, e os
+  // PARÂMETROS de fluxos e scripts, porque um fluxo que pede "Situação" precisa chegar com a lista
+  // que ele oferece para escolher.
+  const lookups = collectLookups(
+    [
+      ...screens,
+      ...screenPatches,
+      ...workflows.map((workflow) => parameterLookupHost(workflow.parameters)),
+      ...scripts.flatMap((script) => [parameterLookupHost(script.inputParams), parameterLookupHost(script.outputParams)]),
+    ],
+    input.availableLookups ?? [],
+  );
   return {
     manifest: input.manifest,
     summary: input.summary,

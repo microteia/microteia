@@ -3,6 +3,7 @@ import { RiAddLine, RiDeleteBinLine, RiArrowDownSLine, RiArrowRightSLine, RiFile
 import { Input, Label } from '../../../../components/ui/Input';
 import { SearchSelect } from '../../../../components/ui/SearchSelect';
 import { DateInput } from '../../../../components/ui/DateInput';
+import { LiteralOptionsControl } from '../../../../components/ui/LiteralOptionsControl';
 import { S } from './WorkflowParametersEditor.styles';
 import { useWorkflowParametersEditorViewModel } from './WorkflowParametersEditor.viewmodel';
 import type { WorkflowParametersEditorProps } from './WorkflowParametersEditor.viewmodel';
@@ -11,6 +12,7 @@ import { siblingParameterErrors, cloneParameterInList } from '../../../../../dom
 import { isScalarParameterType } from '../../../../../domain/schema/eventCatalog';
 import type { FieldRules, FormatPreset, ValidateCheck } from '../../../../../domain/schema/fieldRules';
 import type { FieldRulePresetOption } from '../../../../shared/useFieldRulePresets';
+import { parameterToInputDefinition } from '../../../../shared/parameterInputs';
 
 const REQUIRED_OPTIONS = [
   { value: 'optional', label: 'Opcional' },
@@ -55,6 +57,16 @@ const DefaultValueField: React.FC<{
     );
   }
 
+  if (parameter.type === 'lookup') {
+    return (
+      <LiteralOptionsControl
+        input={parameterToInputDefinition(parameter)}
+        value={typeof parameter.defaultValue === 'string' ? parameter.defaultValue : ''}
+        onChange={(value) => setDefault(value || undefined)}
+      />
+    );
+  }
+
   if (parameter.type === 'select') {
     return (
       <SearchSelect
@@ -85,7 +97,7 @@ const DefaultValueField: React.FC<{
 };
 
 export const WorkflowParametersEditor: React.FC<WorkflowParametersEditorProps> = (props) => {
-  const { parameters, errors, typeOptions, entityOptions, onUpdate, variant = 'input' } = props;
+  const { parameters, errors, typeOptions, entityOptions, lookupOptions, onUpdate, variant = 'input' } = props;
   const cloneLabel = variant === 'output' ? 'Clonar parâmetro de saída' : 'Clonar parâmetro';
   const vm = useWorkflowParametersEditorViewModel(props);
 
@@ -133,6 +145,7 @@ export const WorkflowParametersEditor: React.FC<WorkflowParametersEditorProps> =
                   index={index}
                   typeOptions={typeOptions}
                   entityOptions={entityOptions}
+                  lookupOptions={lookupOptions}
                   onUpdate={onUpdate}
                   variant={variant}
                   formatOptions={vm.formatOptions}
@@ -146,6 +159,7 @@ export const WorkflowParametersEditor: React.FC<WorkflowParametersEditorProps> =
                       errors={siblingParameterErrors(parameter.fields ?? [])}
                       typeOptions={typeOptions}
                       entityOptions={entityOptions}
+                      lookupOptions={lookupOptions}
                       variant={variant}
                       onAdd={() =>
                         onUpdate(index, { fields: [...(parameter.fields ?? []), { key: '', label: '', type: 'String' }] })
@@ -185,11 +199,12 @@ const ParameterFields: React.FC<{
   index: number;
   typeOptions: WorkflowParametersEditorProps['typeOptions'];
   entityOptions: WorkflowParametersEditorProps['entityOptions'];
+  lookupOptions: WorkflowParametersEditorProps['lookupOptions'];
   onUpdate: WorkflowParametersEditorProps['onUpdate'];
   variant: NonNullable<WorkflowParametersEditorProps['variant']>;
   formatOptions: FieldRulePresetOption[];
   validateOptions: FieldRulePresetOption[];
-}> = ({ parameter, error, index, typeOptions, entityOptions, onUpdate, variant, formatOptions, validateOptions }) => {
+}> = ({ parameter, error, index, typeOptions, entityOptions, lookupOptions, onUpdate, variant, formatOptions, validateOptions }) => {
   const isInput = variant === 'input';
   return (
   <>
@@ -220,6 +235,7 @@ const ParameterFields: React.FC<{
             onUpdate(index, {
               type: type as WorkflowParameter['type'],
               entityType: undefined,
+              lookupCollection: undefined,
               options: undefined,
               defaultValue: undefined,
               fields: type === 'Object' ? [] : undefined,
@@ -300,6 +316,18 @@ const ParameterFields: React.FC<{
             value={parameter.entityType ?? ''}
             onChange={(entityType) => onUpdate(index, { entityType })}
             placeholder="Selecione a entidade..."
+          />
+        </S.Cell>
+      )}
+
+      {parameter.type === 'lookup' && (
+        <S.Cell>
+          <Label>Lista de opções</Label>
+          <SearchSelect
+            options={lookupOptions}
+            value={parameter.lookupCollection ?? ''}
+            onChange={(lookupCollection) => onUpdate(index, { lookupCollection })}
+            placeholder="Selecione a lista..."
           />
         </S.Cell>
       )}

@@ -1,9 +1,9 @@
 import { useTheme } from 'styled-components';
-import { resolveColor } from '../../../../../shared/styles/colorUtils';
-import type { InputDefinition } from '../../../../../domain/entities/WorkflowStepCatalog';
-import type { DynamicSelectOption } from '../../../../components/ui/DynamicSelect';
-import type { SearchSelectOption } from '../../../../components/ui/SearchSelect';
-import { useLookups } from '../../../../../stores/useLookups';
+import { resolveColor } from '../../../../shared/styles/colorUtils';
+import type { InputDefinition } from '../../../../domain/entities/WorkflowStepCatalog';
+import type { DynamicSelectOption } from '../DynamicSelect';
+import type { SearchSelectOption } from '../SearchSelect';
+import { useLookups } from '../../../../stores/useLookups';
 
 export interface LiteralOptionsControlProps {
   input: InputDefinition;

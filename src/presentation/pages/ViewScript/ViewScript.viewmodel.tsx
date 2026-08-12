@@ -7,8 +7,9 @@ import { useTenant } from '../../../stores/useTenant';
 import { useWorkspace } from '../../../stores/useWorkspace';
 import { useNotification } from '../../../stores/useNotification';
 import { useScreenDefinitions } from '../../../stores/useScreenDefinitions';
+import { toSchemaScreens } from '../../../data/utils/recordRulesGate';
+import { useEntityReferenceOptions, useLookupCollectionOptions } from '../../shared/useParameterOptions';
 import { useExpressionFunctions } from '../../../stores/useExpressionFunctions';
-import { ENTITY_REGISTRY } from '../../../domain/schema/entityRegistry';
 import {
   siblingParameterErrors,
   hasParameterErrorsDeep,
@@ -43,6 +44,7 @@ export const SCRIPT_PARAMETER_TYPE_OPTIONS: { value: WorkflowParameter['type']; 
   { value: 'Date', label: 'Data' },
   { value: 'Boolean', label: 'Booleano' },
   { value: 'select', label: 'Lista de opções' },
+  { value: 'lookup', label: 'Lista do escritório' },
   { value: 'EntityReference', label: 'Referência a entidade' },
   { value: 'Object', label: 'Objeto (aninhado)' },
 ];
@@ -93,6 +95,7 @@ export interface ViewScriptViewModel {
   setFormData: (data: Partial<ScriptFormData>) => void;
   typeOptions: { value: WorkflowParameter['type']; label: string }[];
   entityOptions: { value: string; label: string }[];
+  lookupOptions: { value: string; label: string }[];
   inputParamErrors: (string | undefined)[];
   outputParamErrors: (string | undefined)[];
   addInputParam: () => void;
@@ -185,16 +188,11 @@ export const useViewScriptViewModel = (tabKey: string): ViewScriptViewModel => {
     setFormDataState((prev) => ({ ...prev, ...data }));
   }, []);
 
-  const entityOptions = useMemo(() => {
-    const builtin = Object.values(ENTITY_REGISTRY)
-      .filter((entity) => entity.referenceable)
-      .map((entity) => ({ value: entity.collection, label: entity.labelPlural }));
-    const custom = dynamicScreens.map((def) => ({ value: def.id, label: def.titlePlural }));
-    return [...builtin, ...custom];
-  }, [dynamicScreens]);
+  const entityOptions = useEntityReferenceOptions();
+  const lookupOptions = useLookupCollectionOptions();
 
   const scriptTypeDefs = useMemo(
-    () => buildScriptTypeDefs(formData.inputParams, expressionFunctions, dynamicScreens),
+    () => buildScriptTypeDefs(formData.inputParams, expressionFunctions, toSchemaScreens(dynamicScreens)),
     [formData.inputParams, expressionFunctions, dynamicScreens],
   );
 
@@ -375,6 +373,7 @@ export const useViewScriptViewModel = (tabKey: string): ViewScriptViewModel => {
     setFormData,
     typeOptions: SCRIPT_PARAMETER_TYPE_OPTIONS,
     entityOptions,
+    lookupOptions,
     inputParamErrors,
     outputParamErrors,
     addInputParam,

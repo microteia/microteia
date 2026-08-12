@@ -1,7 +1,7 @@
 import React from 'react';
-import { Input } from '../../../../components/ui/Input';
-import { SearchSelect } from '../../../../components/ui/SearchSelect';
-import { DynamicSelect } from '../../../../components/ui/DynamicSelect';
+import { Input } from '../Input';
+import { SearchSelect } from '../SearchSelect';
+import { DynamicSelect } from '../DynamicSelect';
 import { useLiteralOptionsViewModel } from './LiteralOptionsControl.viewmodel';
 import type { LiteralOptionsControlProps } from './LiteralOptionsControl.viewmodel';
 

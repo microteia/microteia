@@ -63,6 +63,7 @@ export const ValidateBuilderControl: React.FC<ValidateBuilderControlProps> = (pr
           errors={vm.parameterErrors}
           typeOptions={vm.typeOptions}
           entityOptions={vm.entityOptions}
+          lookupOptions={vm.lookupOptions}
           onAdd={vm.addParameter}
           onUpdate={vm.updateParameter}
           onRemove={vm.removeParameter}

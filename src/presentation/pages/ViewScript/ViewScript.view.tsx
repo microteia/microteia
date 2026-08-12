@@ -102,6 +102,7 @@ export const ViewScriptView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
                 errors={vm.inputParamErrors}
                 typeOptions={vm.typeOptions}
                 entityOptions={vm.entityOptions}
+                lookupOptions={vm.lookupOptions}
                 onAdd={vm.addInputParam}
                 onUpdate={vm.updateInputParam}
                 onRemove={vm.removeInputParam}
@@ -301,6 +302,7 @@ const nomes = r.results.map((p) => p.name);`}</S.Pre>
                 errors={vm.outputParamErrors}
                 typeOptions={vm.typeOptions}
                 entityOptions={vm.entityOptions}
+                lookupOptions={vm.lookupOptions}
                 onAdd={vm.addOutputParam}
                 onUpdate={vm.updateOutputParam as unknown as AdvancedParametersEditorProps['onUpdate']}
                 onRemove={vm.removeOutputParam}

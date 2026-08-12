@@ -121,7 +121,7 @@ export type Condition =
   | NotCondition
   | ExpressionCondition;
 
-export type WorkflowParameterType = 'String' | 'Number' | 'Date' | 'Boolean' | 'select' | 'EntityReference' | 'Object';
+export type WorkflowParameterType = 'String' | 'Number' | 'Date' | 'Boolean' | 'select' | 'lookup' | 'EntityReference' | 'Object';
 
 export interface WorkflowParameter {
   key: string;
@@ -129,7 +129,13 @@ export interface WorkflowParameter {
   type: WorkflowParameterType;
   required?: boolean;
   list?: boolean;
+  /** Só relevante quando type é 'EntityReference': a COLEÇÃO apontada, nunca a chave da tela. */
   entityType?: string;
+  /**
+   * Só relevante quando type é 'lookup': a coleção da lista de opções do escritório (a mesma chave
+   * que um campo de tela usa em `lookupCollection`). O valor do parâmetro é a CHAVE da opção.
+   */
+  lookupCollection?: string;
   options?: { value: string; label: string }[];
   fields?: WorkflowParameter[];
   defaultValue?: unknown;

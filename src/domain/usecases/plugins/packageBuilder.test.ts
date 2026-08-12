@@ -272,6 +272,26 @@ describe('buildPackage — complementos de tela', () => {
     expect(pkg.lookups).toEqual([{ collection: 'membersPorte', label: 'Porte' }]);
   });
 
+  it('a lista de opções que um PARÂMETRO de fluxo pede é declarada no pacote', () => {
+    const pkg = buildPackage({
+      ...empty, manifest, summary: 's',
+      workflows: [workflow({
+        id: 'wf-1',
+        parameters: [
+          { key: 'situacao', label: 'Situação', type: 'lookup', lookupCollection: 'pushStatuses' },
+          { key: 'dados', label: 'Dados', type: 'Object', fields: [
+            { key: 'area', label: 'Área', type: 'lookup', lookupCollection: 'caseAreas' },
+          ] },
+        ],
+      })],
+      availableLookups: [{ collection: 'pushStatuses', label: 'Situação do push' }],
+    });
+    expect(pkg.lookups).toEqual([
+      { collection: 'pushStatuses', label: 'Situação do push' },
+      { collection: 'caseAreas', label: 'caseAreas' },
+    ]);
+  });
+
   it('o pacote resultante passa na mesma validação do import', () => {
     const pkg = buildPackage({
       manifest, summary: 's', screens: [], actions: [], workflows: [], scripts: [],

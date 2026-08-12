@@ -425,6 +425,7 @@ export const ViewWorkflowView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
                     errors={vm.parameterErrors}
                     typeOptions={PARAMETER_TYPE_OPTIONS}
                     entityOptions={vm.parameterEntityOptions}
+                    lookupOptions={vm.parameterLookupOptions}
                     onAdd={vm.addParameter}
                     onUpdate={vm.updateParameter}
                     onRemove={vm.removeParameter}

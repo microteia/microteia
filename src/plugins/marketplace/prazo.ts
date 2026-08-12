@@ -225,16 +225,11 @@ const CRIAR_WORKFLOW: WorkflowModuleTemplate = {
   condition: { kind: 'AlwaysTrue' },
   parameters: [
     { key: 'caseNumber', label: 'Número do processo', type: 'String', required: true },
-    { key: 'type', label: 'Tipo de prazo', type: 'String', required: true, defaultValue: 'Petição' },
+    // As mesmas listas do formulário de prazo, e não uma cópia das opções: o que o escritório
+    // acrescentar na tela aparece aqui no mesmo instante.
+    { key: 'type', label: 'Tipo de prazo', type: 'lookup', lookupCollection: 'deadlineTypes', required: true, defaultValue: 'Petição' },
     { key: 'dueDate', label: 'Data de vencimento', type: 'Date', required: true },
-    {
-      key: 'priority',
-      label: 'Prioridade',
-      type: 'select',
-      required: false,
-      defaultValue: 'Média',
-      options: ['Baixa', 'Média', 'Alta', 'Crítica'].map((value) => ({ value, label: value })),
-    },
+    { key: 'priority', label: 'Prioridade', type: 'lookup', lookupCollection: 'deadlinePriorities', required: false, defaultValue: 'Média' },
     { key: 'description', label: 'Descrição', type: 'String', required: false },
     { key: 'responsibleLawyerName', label: 'Advogado responsável (nome exato)', type: 'String', required: false },
   ],
@@ -709,7 +704,7 @@ export default function startup(host) {
 export const prazoPlugin: MarketplacePlugin = {
   manifest: {
     id: 'com.microteia.prazo',
-    version: '1.1.0',
+    version: '1.1.1',
     kernel: '^1.0.0',
     name: 'Prazos',
     description: 'O controle de prazos do escritório recriado como extensão, sobre os MESMOS prazos — a quinta entidade a sair do kernel.',

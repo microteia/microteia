@@ -1,5 +1,6 @@
 import { useCallback, useMemo } from 'react';
 import { useSchemaContext } from '../../../../shared/useSchemaContext';
+import { useLookupCollectionOptions } from '../../../../shared/useParameterOptions';
 import { ENTITY_REGISTRY_LIST } from '../../../../../domain/schema/entityRegistry';
 import { PARAMETER_TYPE_VALUES, cloneParameterInList, siblingParameterErrors } from '../../../../../domain/schema/workflowParameters';
 import type { ValidateStepConfig } from '../../../../../domain/schema/validateSpec';
@@ -19,6 +20,7 @@ const PARAMETER_TYPE_LABELS: Record<WorkflowParameterType, string> = {
   Date: 'Data',
   Boolean: 'Sim/Não',
   select: 'Lista de opções',
+  lookup: 'Lista do escritório',
   EntityReference: 'Referência a registro',
   Object: 'Objeto',
 };
@@ -29,6 +31,7 @@ export interface ValidateBuilderControlViewModel {
   parameterErrors: (string | undefined)[];
   sourceOptions: SearchSelectOption[];
   entityOptions: SearchSelectOption[];
+  lookupOptions: SearchSelectOption[];
   typeOptions: { value: WorkflowParameterType; label: string }[];
   setSource: (source: string) => void;
   setProperty: (property: string) => void;
@@ -64,13 +67,20 @@ export const useValidateBuilderControlViewModel = (
       label: entity.labelPlural,
       meta: 'Cadastro',
     }));
-    const screens = [...ctx.screens.values()].map((screen) => ({
-      value: screen.id,
-      label: screen.titleSingular,
-      meta: 'Personalizada',
-    }));
+    // O mapa de telas já é indexado pela COLEÇÃO — é ela que `resolveEntity` responde, e é ela que
+    // o objeto validado guarda. A chave da tela aqui apontaria para uma entidade que ninguém acha.
+    const named = new Set(entities.map((entity) => entity.value));
+    const screens = [...ctx.screens.entries()]
+      .filter(([collection]) => !named.has(collection))
+      .map(([collection, screen]) => ({
+        value: collection,
+        label: screen.titleSingular,
+        meta: 'Personalizada',
+      }));
     return [{ value: '', label: 'Nenhuma (objeto anônimo)' }, ...entities, ...screens];
   }, [ctx]);
+
+  const lookupOptions = useLookupCollectionOptions();
 
   const typeOptions = useMemo<{ value: WorkflowParameterType; label: string }[]>(
     () => PARAMETER_TYPE_VALUES.map((type) => ({ value: type, label: PARAMETER_TYPE_LABELS[type] })),
@@ -128,6 +138,7 @@ export const useValidateBuilderControlViewModel = (
     parameterErrors,
     sourceOptions,
     entityOptions,
+    lookupOptions,
     typeOptions,
     setSource,
     setProperty,

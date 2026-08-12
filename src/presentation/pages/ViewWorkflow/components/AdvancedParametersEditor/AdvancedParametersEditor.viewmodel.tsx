@@ -10,6 +10,7 @@ export interface AdvancedParametersEditorProps {
   errors: (string | undefined)[];
   typeOptions: { value: WorkflowParameter['type']; label: string }[];
   entityOptions: { value: string; label: string }[];
+  lookupOptions: { value: string; label: string }[];
   variant?: WorkflowParametersEditorVariant;
   onAdd: () => void;
   onUpdate: (index: number, patch: Partial<WorkflowParameter>) => void;

@@ -11,6 +11,18 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [4.5.0] — 2026-08-12
+
+- Ao executar uma automação, ou ao clicar em uma ação que pergunta antes de disparar, um parâmetro que aponta para um cadastro passou a abrir a **lista de registros** para escolher — Processos, Pessoas, Contratos, qualquer tela do escritório. Antes só havia um campo de texto esperando que você soubesse o código do registro de cor.
+- Quando o parâmetro aceita **vários** registros, a escolha é múltipla, com as etiquetas do que já foi selecionado.
+- Novo tipo de parâmetro: **Lista do escritório**. Em vez de redigitar as opções uma a uma, o parâmetro passa a usar a mesma lista já mantida no escritório (Situação, Área, Tipo, Status…) — e quem executa escolhe dela, com direito a acrescentar uma opção nova ali mesmo.
+- Uma extensão que leve uma automação com esse tipo de parâmetro passa a carregar junto a lista de opções que ela pede, para que a automação chegue pronta no escritório que a instalar.
+- Corrigido o seletor de entidade dos parâmetros, que oferecia telas cujos registros nunca apareciam para escolher.
+- **Gerar prazo** (a partir de uma intimação) e **Criar prazo** passaram a oferecer o **Tipo** e a **Prioridade** que estão cadastrados no escritório, em vez de uma lista fixa de quatro opções escrita dentro da automação. O que você acrescentar na tela de Prazos aparece no formulário no mesmo instante.
+- **Corrigida a data que voltava um dia antes.** Uma data digitada em qualquer formulário de automação (o vencimento de um prazo, por exemplo) era gravada como 11/08 quando você escolhia 12/08. Uma data agora é sempre o **dia** que você escolheu, seja ela digitada na tela, preenchida pela inteligência artificial ou calculada por uma automação.
+- Pelo mesmo motivo, o **dia carimbado pelas automações** passou a ser o dia certo: concluir um prazo, dar baixa num pagamento ou cancelar um lançamento registravam a véspera.
+- Corrigido: o prazo gerado a partir de uma intimação nascia com uma situação que a tela não reconhecia — ele não aparecia no filtro "Pendente" nem recebia cor na listagem. Agora nasce **Pendente**, como o prazo criado por qualquer outro caminho. Os prazos gerados antes desta versão precisam ter a situação corrigida uma vez, abrindo o prazo e escolhendo "Pendente".
+
 ## [4.4.0] — 2026-08-12
 
 - No editor de expressões de uma automação, digitar `output.` passou a listar os passos anteriores do fluxo; ao escolher um deles, a lista continua nas saídas daquele passo. Antes o menu repetia as próprias palavras `event`, `input` e `output`, e não havia como descobrir pela tela o que escrever ali.

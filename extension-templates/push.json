@@ -1,7 +1,7 @@
 {
   "manifest": {
     "id": "com.microteia.push",
-    "version": "1.0.2",
+    "version": "1.0.3",
     "kernel": "^1.0.0",
     "name": "Pushes do Tribunal",
     "description": "A caixa de intimações do escritório recriada como extensão, sobre os MESMOS pushes — a sexta entidade a sair do kernel.",
@@ -117,7 +117,8 @@
         {
           "key": "type",
           "label": "Tipo de prazo",
-          "type": "String",
+          "type": "lookup",
+          "lookupCollection": "deadlineTypes",
           "required": true,
           "defaultValue": "Petição"
         },
@@ -130,27 +131,10 @@
         {
           "key": "priority",
           "label": "Prioridade",
-          "type": "select",
+          "type": "lookup",
+          "lookupCollection": "deadlinePriorities",
           "required": false,
-          "defaultValue": "Média",
-          "options": [
-            {
-              "value": "Baixa",
-              "label": "Baixa"
-            },
-            {
-              "value": "Média",
-              "label": "Média"
-            },
-            {
-              "value": "Alta",
-              "label": "Alta"
-            },
-            {
-              "value": "Crítica",
-              "label": "Crítica"
-            }
-          ]
+          "defaultValue": "Média"
         },
         {
           "key": "description",
@@ -287,7 +271,7 @@
                     "name": "status",
                     "value": {
                       "kind": "Literal",
-                      "value": "pending"
+                      "value": "Pendente"
                     }
                   },
                   {

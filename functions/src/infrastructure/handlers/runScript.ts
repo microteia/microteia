@@ -4,6 +4,7 @@ import { getDb } from '../firebase/initFirebase';
 import { applyParameterDefaults } from '../../domain/schema/eventCatalog';
 import { describeRuleIssues } from '../../domain/schema/fieldRules';
 import { formatAndValidateParameters } from '../../domain/schema/parameterRules';
+import { parseDateOnly } from '../../domain/schema/mutationSpec';
 import { runScriptSandbox } from '../workflow/sandbox/runScriptSandbox';
 import { FirestoreWorkflowQueryRepository } from '../../data/services/FirestoreWorkflowQueryRepository';
 import { FirestoreWorkflowRecordFetcher } from '../../data/services/FirestoreWorkflowRecordFetcher';
@@ -40,7 +41,10 @@ const coerceScalar = (param: WorkflowParameter, value: unknown): unknown => {
       return ['true', '1', 'sim', 'yes'].includes(String(value).trim().toLowerCase());
     }
     case 'Date': {
-      const d = value instanceof Date ? value : new Date(String(value));
+      if (value instanceof Date) return value;
+      const dayOnly = parseDateOnly(String(value));
+      if (dayOnly) return dayOnly;
+      const d = new Date(String(value));
       return Number.isNaN(d.getTime()) ? value : d;
     }
     default:
