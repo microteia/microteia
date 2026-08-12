@@ -95,7 +95,7 @@ export const ViewDynamicRecordView: React.FC<{ tabKey: string }> = ({ tabKey }) 
       onManageTags={vm.openTagManager}
       onSave={() => void vm.handleSave()}
       isSaving={vm.isSaving}
-      showDelete={!vm.isNew && vm.isAdmin}
+      showDelete={!vm.isNew && vm.canDelete}
       onDelete={vm.requestDelete}
       activeTab={vm.activeTab}
       setActiveTab={vm.setActiveTab}

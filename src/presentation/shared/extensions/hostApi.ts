@@ -23,7 +23,11 @@ import { CustomFieldMetaRows } from '../../components/ui/CustomFieldMetaRows';
 import { CustomFieldsSection } from '../../components/ui/CustomFieldsSection';
 import { FieldInput } from '../../components/ui/FieldInput';
 import { CardAtoms } from '../../components/ui/EntityListCard/atoms';
+import { MarkdownContent } from '../../components/ui/MarkdownContent';
+import { MarkdownEditor } from '../../components/ui/MarkdownEditor';
+import { UserAvatar } from '../../components/ui/UserAvatar';
 import { EntityListView } from '../../components/layout/EntityListView';
+import { DocumentsPanel } from '../../components/layout/EntityDetailPanels/DocumentsPanel';
 import { RecordListSurface } from '../../components/layout/RecordListSurface';
 import { EntityListModals } from '../../components/layout/RecordListSurface/EntityListModals';
 import { cardActionIcon } from '../../components/layout/RecordListSurface/cardActionIcon';
@@ -43,7 +47,12 @@ import {
 } from '../../../utils/formatters';
 import { useWorkspace } from '../../../stores/useWorkspace';
 import { useOpenRecord } from '../useOpenRecord';
+import { useAuth } from '../../../stores/useAuth';
+import { useTenant } from '../../../stores/useTenant';
 import { useNotification } from '../../../stores/useNotification';
+import { useRecordDocumentsPort } from '../entityScreen/useRecordPorts';
+import { useEntityDocuments } from '../entityScreen/useEntityDocuments';
+import type { EntityDocumentsController } from '../entityScreen/types';
 import { generateDeepLink } from '../../../infrastructure/deeplink/deepLinkUtils';
 import { useSavedViewState } from './useSavedViewState';
 import { useEntity } from './useEntity';
@@ -86,6 +95,63 @@ const useUpdateRecord = (): ((collection: string, recordId: string, data: Entity
   );
 };
 
+const useCreateRecord = (): ((collection: string, data: EntityRecordValues) => Promise<EntityRecord>) => {
+  const { createRecord } = useRecords();
+  return useCallback((collection, data) => createRecord(collection, data), [createRecord]);
+};
+
+const useDeleteRecord = (): ((collection: string, recordId: string) => Promise<void>) => {
+  const { deleteRecord } = useRecords();
+  return useCallback((collection, recordId) => deleteRecord(collection, recordId), [deleteRecord]);
+};
+
+/**
+ * QUEM está usando o sistema. É o que uma tela precisa para saber o que é MEU: a notícia que eu ainda
+ * não li, o comentário que eu posso editar, a curtida que já é minha. Sem isso, "por usuário" só
+ * existia como código dentro do kernel.
+ *
+ * É identificação, não permissão: quem barra a gravação é a regra do Firestore, e uma extensão que
+ * decidisse acesso por este objeto estaria decidindo no lugar errado.
+ */
+export interface ExtensionViewer {
+  id: string;
+  name: string;
+  photoURL: string | null;
+  /** Papel GLOBAL: `SYSTEM`, `SUPPORT` ou `USER`. */
+  role: string;
+  /** Papel no escritório corrente: `admin`, `lawyer`, `secretary` ou `user`. */
+  tenantRole: string;
+}
+
+const useCurrentUser = (): ExtensionViewer => {
+  const { user, userRole, effectiveName, effectivePhotoURL } = useAuth();
+  const { tenantRole } = useTenant();
+  return useMemo(
+    () => ({
+      id: user?.id ?? '',
+      name: effectiveName,
+      photoURL: effectivePhotoURL,
+      role: userRole ?? '',
+      tenantRole: tenantRole ?? '',
+    }),
+    [user, userRole, effectiveName, effectivePhotoURL, tenantRole],
+  );
+};
+
+/**
+ * Os DOCUMENTOS de um registro — a mesma subcoleção e o mesmo controlador que a aba "Documentos" do
+ * detalhe nativo usa. Existe em par com `DocumentsPanel` no `@microteia/ui`: a extensão que desenha o
+ * próprio detalhe não precisa reescrever upload, tipo, exclusão e confirmação.
+ */
+const useRecordDocuments = (
+  collection: string,
+  recordId: string | null,
+  enabled = true,
+): EntityDocumentsController => {
+  const port = useRecordDocumentsPort(collection);
+  return useEntityDocuments({ enabled, recordId, port });
+};
+
 /** Opções de QUALQUER lista pelo nome da coleção — do kernel ou criada no tenant. */
 const useLookup = (collection: string): LookupOption[] => useLookups().getOptions(collection);
 
@@ -114,6 +180,10 @@ const uiModule = {
   EntityListView,
   EntityListCard,
   CustomFieldMetaRows,
+  MarkdownContent,
+  MarkdownEditor,
+  UserAvatar,
+  DocumentsPanel,
   RecordListSurface,
   RecordDetailSurface,
   EntityListModals,
@@ -138,7 +208,11 @@ const dataModule = {
   useEntityForm,
   useEntityDetailVM,
   useCollection,
+  useCreateRecord,
   useUpdateRecord,
+  useDeleteRecord,
+  useRecordDocuments,
+  useCurrentUser,
   useLookup,
   useWorkspace,
   useOpenRecord,

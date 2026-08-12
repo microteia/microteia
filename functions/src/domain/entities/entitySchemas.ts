@@ -198,9 +198,22 @@ export interface ScreenDefinition {
    * Papéis do tenant que podem CRIAR e EDITAR registros desta coleção. Ausente = a permissão padrão
    * (qualquer membro com escrita). É o que permite uma tela declarar uma restrição mais estrita —
    * "só advogado ou admin mexe em processo" — sem que a regra precise citar a coleção pelo nome no
-   * `firestore.rules`, que a lê do documento da tela. Exclusão segue sendo só admin.
+   * `firestore.rules`, que a lê do documento da tela. Exclusão: ver `authorCanDelete`.
    */
   writeRoles?: string[] | null;
+  /**
+   * QUEM CRIOU pode excluir o que criou, mesmo sem ser admin do escritório. Ausente (o normal),
+   * exclusão é só de admin — a regra que vale para um cadastro, onde apagar é ato de gestão.
+   *
+   * Existe para a entidade em que autoria É o dono: um comentário, um recado. Obrigar o autor a
+   * chamar um admin para apagar o próprio comentário não protege nada, e era a última coisa que
+   * prendia esse tipo de tela ao kernel — a regra nomeada que dizia `resource.data.userId ==
+   * request.auth.uid`. Declarada aqui, a mesma frase vale para qualquer tela, venha de onde vier.
+   *
+   * O autor é o `createdBy` do registro, carimbado na criação. Vale nas duas pontas: o
+   * `firestore.rules` a lê do documento da tela, e a UI mostra a ação de excluir por ela.
+   */
+  authorCanDelete?: boolean | null;
   listActions: ScreenListAction[];
   /** Ids de `ActionDefinition` exibidos no cabeçalho da tela de detalhe. */
   viewActionIds: string[];
@@ -252,6 +265,17 @@ export interface ScreenDefinition {
    * não a torna filha de ninguém: continua uma entidade de topo, só sem entrada de menu automática.
    */
   hideFromSidebar?: boolean | null;
+  /**
+   * A tela filha NÃO vira aba do registro-pai. Par de `hideFromSidebar`, e pelo mesmo motivo: quem
+   * apresenta os filhos é OUTRA tela — tipicamente a view de código que já os desenha com layout
+   * próprio, onde a conversa de uma notícia se lê embaixo dela, e não numa aba do formulário.
+   *
+   * Não desfaz o vínculo: a tela continua filha para tudo o mais (fora do menu e do ⌘K, ação
+   * destrutiva lida como "tirar daqui", registro novo já nascendo ligado ao pai). Sem ela, a única
+   * forma de esconder a aba era abrir mão de `parentEntity`, e aí os registros filhos voltavam a
+   * aparecer na busca e ganhavam uma listagem própria — que é justamente o que não se quer.
+   */
+  hideFromParentTabs?: boolean | null;
   sidebarOrder: number;
   enabled: boolean;
   createdAt: Date;

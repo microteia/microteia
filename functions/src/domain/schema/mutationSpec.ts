@@ -72,7 +72,6 @@ export type WritableTableOutcome =
  */
 const NON_WRITABLE_ENTITY_KEYS: ReadonlySet<EntityKey> = new Set<EntityKey>([
   'members',
-  'news',
 ]);
 
 export const LOOKUP_WRITABLE_FIELDS: readonly string[] = ['key', 'label', 'color'];
@@ -82,6 +81,8 @@ const SYSTEM_MANAGED_KEYS: ReadonlySet<string> = new Set([
   'createdAt',
   'updatedAt',
   'createdBy',
+  'createdByName',
+  'createdByPhotoURL',
   'updatedBy',
   'updatedByName',
   'updatedByPhotoURL',

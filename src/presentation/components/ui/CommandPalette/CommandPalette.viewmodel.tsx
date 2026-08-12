@@ -1,7 +1,6 @@
 import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { useCommandPalette } from '../../../../stores/useCommandPalette';
 import { useWorkspace } from '../../../../stores/useWorkspace';
-import { useNews } from '../../../../stores/useNews';
 import { usePersonRecords } from '../../../shared/useCollectionRecords';
 import { useCaseRecords, useContractRecords } from '../../../shared/useCollectionRecords';
 import { useRecords } from '../../../../stores/useRecords';
@@ -33,7 +32,6 @@ export interface CommandPaletteViewModel {
 export const useCommandPaletteViewModel = (): CommandPaletteViewModel => {
   const { close } = useCommandPalette();
   const { openTab } = useWorkspace();
-  const { news } = useNews();
   const persons = usePersonRecords();
   const cases = useCaseRecords();
   const contracts = useContractRecords();
@@ -63,7 +61,6 @@ export const useCommandPaletteViewModel = (): CommandPaletteViewModel => {
     () => ({
       openTab,
       close,
-      news,
       persons,
       cases,
       contracts,
@@ -77,7 +74,7 @@ export const useCommandPaletteViewModel = (): CommandPaletteViewModel => {
       tenantRole,
       navigablePages,
     }),
-    [openTab, close, news, persons, cases, contracts, allRecords, screenDefinitions, workflows, mode, setTheme, signOut, userRole, tenantRole, navigablePages],
+    [openTab, close, persons, cases, contracts, allRecords, screenDefinitions, workflows, mode, setTheme, signOut, userRole, tenantRole, navigablePages],
   );
 
   const groups = useMemo<CommandPaletteGroup[]>(() => {

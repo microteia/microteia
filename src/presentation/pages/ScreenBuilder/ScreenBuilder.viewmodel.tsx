@@ -514,6 +514,7 @@ const toSaveInput = (def: ScreenDefinition): ScreenDefinitionSaveInput => ({
   dataCollection: def.dataCollection ?? null,
   eventPrefix: def.eventPrefix ?? null,
   writeRoles: def.writeRoles ?? null,
+  authorCanDelete: def.authorCanDelete ?? null,
   listActions: def.listActions,
   viewActionIds: def.viewActionIds,
   cardActionIds: def.cardActionIds,
@@ -526,6 +527,7 @@ const toSaveInput = (def: ScreenDefinition): ScreenDefinitionSaveInput => ({
   ownerPluginId: def.ownerPluginId ?? null,
   managed: def.managed ?? null,
   hideFromSidebar: def.hideFromSidebar ?? null,
+  hideFromParentTabs: def.hideFromParentTabs ?? null,
 });
 
 const buildDynamicMeta = (def: ScreenDefinition, fieldCount: number): string => {

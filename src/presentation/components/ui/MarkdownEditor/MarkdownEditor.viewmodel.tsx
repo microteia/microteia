@@ -1,5 +1,4 @@
 import { useState, useCallback, useRef, useMemo } from 'react';
-import type { News } from '../../../../domain/entities';
 import type { WorkflowDefinition } from '../../../../domain/entities/Workflow';
 import { MENTION_COMMANDS, type MentionCommand } from '../MentionMenu/MentionMenu.viewmodel';
 import { useExtensionMentionProviders, type ExtensionMentionProvider, type MentionResult } from '../../../shared/extensions/extensionServices';
@@ -52,9 +51,6 @@ export interface MarkdownEditorViewModel {
   extMentionProvider: ExtensionMentionProvider | null;
   closeExtMention: () => void;
   insertExtMentionLink: (result: MentionResult) => void;
-  newsPickerOpen: boolean;
-  closeNewsPicker: () => void;
-  insertNewsLink: (n: News) => void;
   workflowPickerOpen: boolean;
   closeWorkflowPicker: () => void;
   insertWorkflowLink: (w: WorkflowDefinition) => void;
@@ -99,7 +95,6 @@ export const useMarkdownEditorViewModel = (
     position: null,
   });
   const [mentionHighlightedIndex, setMentionHighlightedIndex] = useState(0);
-  const [newsPickerOpen, setNewsPickerOpen] = useState(false);
   const [workflowPickerOpen, setWorkflowPickerOpen] = useState(false);
   const [extMentionProvider, setExtMentionProvider] = useState<ExtensionMentionProvider | null>(null);
 
@@ -132,7 +127,6 @@ export const useMarkdownEditorViewModel = (
       const end = mentionState.triggerStart + mentionState.query.length + 1;
       mentionRangeRef.current = { start: mentionState.triggerStart, end };
       closeMention();
-      if (key === 'news') setNewsPickerOpen(true);
       if (key === 'workflow') setWorkflowPickerOpen(true);
       if (key.startsWith(EXT_MENTION_PREFIX)) {
         const providerKey = key.slice(EXT_MENTION_PREFIX.length);
@@ -167,14 +161,6 @@ export const useMarkdownEditorViewModel = (
     [props, textareaRef],
   );
 
-  const insertNewsLink = useCallback(
-    (n: News) => {
-      insertLink(n.title, `/microteia/view-news:${n.id}`);
-      setNewsPickerOpen(false);
-    },
-    [insertLink],
-  );
-
   const insertExtMentionLink = useCallback(
     (result: MentionResult) => {
       insertLink(result.title, `/microteia/${result.tabKey}`);
@@ -185,7 +171,6 @@ export const useMarkdownEditorViewModel = (
 
   const closeExtMention = useCallback(() => setExtMentionProvider(null), []);
 
-  const closeNewsPicker = useCallback(() => setNewsPickerOpen(false), []);
   const closeWorkflowPicker = useCallback(() => setWorkflowPickerOpen(false), []);
 
   const insertWorkflowLink = useCallback(
@@ -342,9 +327,6 @@ export const useMarkdownEditorViewModel = (
     extMentionProvider,
     closeExtMention,
     insertExtMentionLink,
-    newsPickerOpen,
-    closeNewsPicker,
-    insertNewsLink,
     workflowPickerOpen,
     closeWorkflowPicker,
     insertWorkflowLink,

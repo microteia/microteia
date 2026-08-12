@@ -35,7 +35,17 @@ vi.mock('../../../stores/useActions', () => ({ useActions: () => ({ getActionsBy
 vi.mock('../../../stores/useLookups', () => ({ useLookups: () => ({ getOptions: () => [], availableLookups: [] }) }));
 vi.mock('../../../stores/useTags', () => ({ useTags: () => ({ getTags: () => [], availableTagLists: [], declareTagList: vi.fn(), setTags: vi.fn() }) }));
 vi.mock('../../../stores/useWorkflowStore', () => ({ useWorkflowStore: () => ({ workflows: [] }) }));
-vi.mock('../recordActions/useRecordActions', () => ({ useRecordActions: () => [] }));
+let copiado = '';
+vi.mock('../recordActions/useRecordActions', () => ({
+  useRecordActions: () => [{
+    slot: 'copyLink',
+    metadata: { key: 'copyLink', title: 'Copiar link', icon: 'link', order: 0 },
+    run: (host: { recordTabKey: string }) => { copiado = host.recordTabKey; },
+  }],
+}));
+vi.mock('../../../stores/useAuth', () => ({
+  useAuth: () => ({ user: { id: 'u1', photoURL: null }, userRole: 'USER', effectiveName: 'Fulano' }),
+}));
 
 const { useRecordListViewModel } = await import('./useRecordListViewModel');
 
@@ -138,5 +148,42 @@ describe('useRecordListViewModel — intenção de navegação', () => {
   it('sem recado, valem os filtros de partida declarados pela tela', () => {
     const { result } = listar(source({ defaultFilterTokens: [{ key: 'status', values: ['Pendente'] }] }));
     expect(result.current.filteredRecords.map((r) => r.id)).toEqual(['a', 'c']);
+  });
+});
+
+/**
+ * O ENDEREÇO de um registro é o que a tela declara. Sem isto, a auditoria e as menções abriam a tela
+ * de leitura de uma notícia enquanto "copiar link" copiava o endereço do formulário: o mesmo registro
+ * com dois endereços, e o da área de transferência não era o que o usuário estava vendo.
+ */
+describe('useRecordListViewModel — endereço do registro', () => {
+  it('sem prefixo declarado, copiar link usa a aba genérica', () => {
+    state.definition = { ...definition(), listActions: ['copyLink'] } as ScreenDefinition;
+    const { result } = listar(source());
+
+    result.current.getCardActions(state.records[0]).find((a) => a.key === 'copyLink')!.onClick();
+    expect(copiado).toBe('view-dyn:prazos:a');
+  });
+
+  it('com `recordTabPrefix`, copiar link aponta para a tela que a declaração escolheu', () => {
+    state.definition = {
+      ...definition(),
+      listActions: ['copyLink'],
+      recordTabPrefix: 'news-read:',
+    } as ScreenDefinition;
+    const { result } = listar(source());
+
+    result.current.getCardActions(state.records[0]).find((a) => a.key === 'copyLink')!.onClick();
+    expect(copiado).toBe('news-read:a');
+  });
+
+  it('o host da lista ainda vence a declaração, para a extensão que endereça diferente', () => {
+    state.definition = { ...definition(), listActions: ['copyLink'], recordTabPrefix: 'news-read:' } as ScreenDefinition;
+    const { result } = listar(source({
+      recordTabKeys: (id: string) => ({ view: `proprio:${id}`, clone: `proprio:clone:${id}` }),
+    }));
+
+    result.current.getCardActions(state.records[0]).find((a) => a.key === 'copyLink')!.onClick();
+    expect(copiado).toBe('proprio:a');
   });
 });

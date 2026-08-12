@@ -75,20 +75,6 @@
       ]
     },
     {
-      "collectionGroup": "news",
-      "queryScope": "COLLECTION",
-      "fields": [
-        {
-          "fieldPath": "tenantId",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "createdAt",
-          "order": "DESCENDING"
-        }
-      ]
-    },
-    {
       "collectionGroup": "pushes",
       "queryScope": "COLLECTION",
       "fields": [

@@ -21,14 +21,6 @@ const DECLARED: Record<string, Omit<LookupOption, 'isStatic'>[]> = {
     { key: 'Recibo', label: 'Recibo' },
     { key: 'Outros', label: 'Outros' },
   ],
-  newsCategories: [
-    { key: 'GENERAL', label: 'Geral' },
-    { key: 'JURISPRUDENCE', label: 'Jurisprudência' },
-    { key: 'LEGISLATION', label: 'Legislação' },
-    { key: 'ANNOUNCEMENT', label: 'Comunicado' },
-    { key: 'CIRCULAR', label: 'Circular' },
-    { key: 'UPDATE', label: 'Atualização' },
-  ],
 };
 
 /**

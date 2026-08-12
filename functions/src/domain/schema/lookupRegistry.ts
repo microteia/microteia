@@ -4,7 +4,7 @@
 // Para alterar, edite a fonte e rode: npm run sync-schemas
 // ═══════════════════════════════════════════════════════════════════════════
 
-export type LookupGroup = 'document' | 'news';
+export type LookupGroup = 'document';
 
 export interface LookupMetadata {
   collection: string;
@@ -15,7 +15,6 @@ export interface LookupMetadata {
 
 const LOOKUP_LIST: LookupMetadata[] = [
   { collection: 'documentTypes', group: 'document', screenLabel: 'Documentos', entityLabel: 'Tipo' },
-  { collection: 'newsCategories', group: 'news', screenLabel: 'Notícias', entityLabel: 'Categoria' },
 ];
 
 export const LOOKUP_REGISTRY: Record<string, LookupMetadata> = Object.fromEntries(

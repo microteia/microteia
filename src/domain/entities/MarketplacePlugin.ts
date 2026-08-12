@@ -54,11 +54,15 @@ export interface ScreenModuleTemplate {
   recordTabPrefix?: string | null;
   /** Papéis que podem gravar. Ver `ScreenDefinition.writeRoles`. */
   writeRoles?: string[] | null;
+  /** O autor exclui o que criou. Ver `ScreenDefinition.authorCanDelete`. */
+  authorCanDelete?: boolean | null;
   listActions?: ScreenListAction[];
   sidebarOrder?: number;
   enabled?: boolean;
   /** Mantém a tela fora do menu (entidade de topo sem entrada automática). Ver `ScreenDefinition`. */
   hideFromSidebar?: boolean;
+  /** A tela filha não vira aba do pai. Ver `ScreenDefinition.hideFromParentTabs`. */
+  hideFromParentTabs?: boolean;
   parentEntity?: string | null;
   parentFieldKey?: string | null;
   /** Posse ou visão sobre o pai. Ver `ScreenDefinition.parentRelation`. */

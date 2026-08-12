@@ -131,10 +131,10 @@ export const useEntityDetailVM = (
   const create = useCallback(
     async (values: Values) => {
       const stored = formValuesToStoredValues(sortedFields, values);
-      const created = await createRecord(collection, { ...stored, createdBy: user?.id ?? '' });
+      const created = await createRecord(collection, stored);
       return { id: created.id, title: resolveRecordTitle(created, titleFieldKey) };
     },
-    [sortedFields, titleFieldKey, createRecord, collection, user],
+    [sortedFields, titleFieldKey, createRecord, collection],
   );
 
   const update = useCallback(
@@ -200,12 +200,17 @@ export const useEntityDetailVM = (
   );
   const tagAdapter = useTagAdapter(collection, tagIdsOf, setRecordTags, definition?.tagCollection);
 
+  // Excluir é de admin, salvo onde a tela declara que a autoria É a posse. Espelha o `firestore.rules`.
+  const canDelete = isAdmin
+    || (!!definition?.authorCanDelete && !!sourceRecord && sourceRecord.createdBy === user?.id);
+
   return {
     definition,
     isAvailable,
     isLoadingDefinition,
     isNew: detail.isNew,
     isAdmin,
+    canDelete,
     screenKey,
     recordId,
     recordNotFound: detail.recordNotFound,

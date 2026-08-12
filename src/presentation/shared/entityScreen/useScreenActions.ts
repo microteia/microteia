@@ -6,6 +6,7 @@ import { setValueByPath } from '../../../domain/services/customFieldValues';
 import { actionActiveState, isActionDisabled, isActionHidden } from '../../../domain/schema/actionExpression';
 import { useActionParameterPrompt } from './useActionParameterPrompt';
 import type { ActionParameterPromptController } from './useActionParameterPrompt';
+import { useExprViewer } from '../useExprViewer';
 import type { ActionDefinition, ActionOutcome, ActionStatusCode, CustomFieldValue } from '../../../domain/entities';
 
 type Values = Record<string, CustomFieldValue>;
@@ -156,6 +157,7 @@ export const useScreenActions = (target: ScreenActionTarget): ScreenActions => {
   const { getActionsByIds, runAction } = useActions();
   const { notify } = useNotification();
   const { tenantRole } = useTenant();
+  const viewer = useExprViewer();
 
   const [runningActionId, setRunningActionId] = useState<string | null>(null);
   const [pendingAction, setPendingAction] = useState<ActionDefinition | null>(null);
@@ -170,7 +172,8 @@ export const useScreenActions = (target: ScreenActionTarget): ScreenActions => {
     role: tenantRole ?? '',
     // O cabeçalho do registro aberto — a superfície em que uma ação sempre coube.
     surface: 'detail' as const,
-  }), [values, record, isNew, isDirty, tenantRole]);
+    user: viewer,
+  }), [values, record, isNew, isDirty, tenantRole, viewer]);
 
   const execute = useCallback(async (
     action: ActionDefinition,

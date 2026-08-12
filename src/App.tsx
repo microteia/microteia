@@ -9,9 +9,6 @@ import { AuthProvider } from './stores/AuthContext';
 import { TenantStoreProvider } from './stores/TenantStore';
 import { TagStoreProvider } from './stores/TagStore';
 import { LookupStoreProvider } from './stores/LookupStore';
-import { NewsStoreProvider } from './stores/NewsStore';
-import { NewsTagStoreProvider } from './stores/NewsTagStore';
-import { NewsInteractionStoreProvider } from './stores/NewsInteractionStore';
 import { SavedFilterStoreProvider } from './stores/SavedFilterStore';
 import { ScreenDefinitionStoreProvider } from './stores/ScreenDefinitionStore';
 import { ActionStoreProvider } from './stores/ActionStore';
@@ -65,9 +62,6 @@ const App: React.FC = () => {
                         <ScreenDefinitionStoreProvider>
                         <TagStoreProvider>
                         <LookupStoreProvider>
-                                  <NewsStoreProvider>
-                                    <NewsTagStoreProvider>
-                                      <NewsInteractionStoreProvider>
                                         <SavedFilterStoreProvider>
                                           <RecordStoreProvider>
                                           <WorkflowStoreProvider>
@@ -107,9 +101,6 @@ const App: React.FC = () => {
                                           </WorkflowStoreProvider>
                                           </RecordStoreProvider>
                                         </SavedFilterStoreProvider>
-                                      </NewsInteractionStoreProvider>
-                                    </NewsTagStoreProvider>
-                                  </NewsStoreProvider>
                         </LookupStoreProvider>
                         </TagStoreProvider>
                         </ScreenDefinitionStoreProvider>

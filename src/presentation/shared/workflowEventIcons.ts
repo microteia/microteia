@@ -4,7 +4,6 @@ import {
   RiFolderLine,
   RiTimeLine,
   RiInboxLine,
-  RiNewspaperLine,
   RiFileCopyLine,
   RiApps2Line,
   RiListCheck2,
@@ -20,7 +19,6 @@ const ENTITY_EVENT_ICONS: Record<string, IconType> = {
 
 const LOOKUP_GROUP_ICONS: Record<WorkflowLookupGroup, IconType> = {
   document: RiFileCopyLine,
-  news: RiNewspaperLine,
 };
 
 export const CUSTOM_RECORD_EVENT_ICON: IconType = RiApps2Line;

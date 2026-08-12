@@ -13,10 +13,11 @@ import { useActionParameterPrompt } from './useActionParameterPrompt';
 import type { ActionParameterPromptController } from './useActionParameterPrompt';
 import { useCustomFieldListing } from '../../hooks/useCustomFieldListing';
 import type { CustomFieldCardItem } from '../../hooks/useCustomFieldListing';
-import { buildNewTabKey, buildViewTabKey, buildCloneTabKey, buildChildNewTabKey } from '../../../shared/constants/dynamicScreenKeys';
+import { buildNewTabKey, buildViewTabKey, buildCloneTabKey, buildChildNewTabKey, recordTabKeyOf } from '../../../shared/constants/dynamicScreenKeys';
 import { resolveRecordTitle, sortFieldsByOrder } from '../../../domain/services/customFieldValues';
 import { isBoundScreen, isOwnedByParentScreen, screenDataCollection } from '../../../domain/services/screenDataCollection';
 import { useEntityFormFields } from '../useEntityFormFields';
+import { useExprViewer } from '../useExprViewer';
 import { useSchemaContext } from '../useSchemaContext';
 import { useRecordActions } from '../recordActions/useRecordActions';
 import type { RecordActionHost } from '../recordActions/recordActionHost';
@@ -114,6 +115,7 @@ export const useRecordListViewModel = (source: RecordListSource): RecordListView
   const { tenantRole } = useTenant();
   const { notify } = useNotification();
   const { getActionsByIds, runAction } = useActions();
+  const viewer = useExprViewer();
 
   /**
    * Abrir a listagem JÁ FILTRADA: o painel manda ver "prazos vencidos", o cartão de um push manda ver
@@ -288,7 +290,11 @@ export const useRecordListViewModel = (source: RecordListSource): RecordListView
     screenKey,
     surface: parent ? 'parentTab' : 'list',
     parent: parent ? { fieldKey: parent.fieldKey, recordId: parent.recordId } : null,
-    recordTabKey: recordTabKeys?.(record.id).view ?? buildViewTabKey(screenKey, record.id),
+    // O endereço do registro é o que a TELA declara (`recordTabPrefix`), e não a aba genérica: a
+    // notícia se lê em `news-read:`, e era esse link que "copiar link" tinha de pôr na área de
+    // transferência. O host da lista pode sobrepor (`recordTabKeys`) quando a extensão endereça
+    // diferente do que a tela declara.
+    recordTabKey: recordTabKeys?.(record.id).view ?? recordTabKeyOf(definition, screenKey, record.id),
     cloneTabKey: recordTabKeys?.(record.id).clone ?? buildCloneTabKey(screenKey, record.id),
     openTab,
     notify,
@@ -296,7 +302,7 @@ export const useRecordListViewModel = (source: RecordListSource): RecordListView
     copyText: (text) => navigator.clipboard.writeText(text),
     openTagManager: () => setTagManagerRecord(record),
     requestDelete: () => setRecordToDelete(record),
-  }), [collection, screenKey, parent, openTab, notify, updateRecord, recordTabKeys]);
+  }), [collection, screenKey, definition, parent, openTab, notify, updateRecord, recordTabKeys]);
 
   const cardActionDefs = useMemo(
     () => getActionsByIds(definition?.cardActionIds ?? []),
@@ -363,14 +369,19 @@ export const useRecordListViewModel = (source: RecordListSource): RecordListView
       // uma extensão esconder a própria ação dentro da aba de outro registro.
       surface: (parent ? 'parentTab' : 'list') as ActionSurface,
       relation,
+      user: viewer,
     };
 
     // As ações que a tela habilitou, resolvidas pelo SLOT: `delete` traz excluir e desvincular, e
     // o `hiddenWhen` de cada uma decide qual o usuário vê. O kernel não conhece nenhuma pelo nome.
     const enabledSlots = new Set<string>(definition?.listActions ?? []);
+    // O portão de admin cede à declaração da tela: onde a autoria é a posse (`authorCanDelete`),
+    // quem escreveu enxerga a ação sobre o que escreveu. Espelha o `firestore.rules` — a UI não
+    // oferece o que o servidor recusaria, nem esconde o que ele aceita.
+    const isAuthorOfRecord = !!definition?.authorCanDelete && record.createdBy === viewer.id;
     const native = recordActions
       .filter((action) => enabledSlots.has(action.slot))
-      .filter((action) => !action.metadata.requiresTenantAdmin || isAdmin)
+      .filter((action) => !action.metadata.requiresTenantAdmin || isAdmin || isAuthorOfRecord)
       .filter((action) => !action.metadata.requiresTags || !!definition?.hasTags)
       .filter((action) => !isActionHidden(action.metadata.hiddenWhen, exprContext))
       .map<RecordCardAction>((action) => ({
@@ -401,7 +412,7 @@ export const useRecordListViewModel = (source: RecordListSource): RecordListView
       }));
 
     return [...native, ...custom];
-  }, [definition, isAdmin, parent, relation, recordActions, buildActionHost, cardActionDefs, tenantRole, runningActionId, runCardAction, parameterPrompt]);
+  }, [definition, isAdmin, parent, relation, recordActions, buildActionHost, cardActionDefs, tenantRole, viewer, runningActionId, runCardAction, parameterPrompt]);
 
   const tagIdsOf = useCallback((entityId: string) => records.find((r) => r.id === entityId)?.tagIds ?? [], [records]);
   const setRecordTags = useCallback(

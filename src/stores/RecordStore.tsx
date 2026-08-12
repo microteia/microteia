@@ -62,12 +62,23 @@ export const RecordStoreProvider: React.FC<{ children: React.ReactNode }> = ({ c
     [recordsByCollection],
   );
 
+  /**
+   * A AUTORIA é carimbada aqui, e não em cada tela que grava: o formulário dinâmico, o editor de
+   * extensão e o `useEntityForm` gravavam os três o mesmo `createdBy`, e nenhum deles o nome — que é
+   * o que uma listagem precisa para mostrar quem escreveu. Um valor explícito em `data` ainda vence,
+   * para o caso em que quem cria não é quem está logado.
+   */
   const createRecord = useCallback(async (collection: string, data: EntityRecordValues) => {
     if (!currentTenant) throw new Error('No tenant selected');
-    const item = await uc.create.execute(currentTenant.id, collection, data);
+    const item = await uc.create.execute(currentTenant.id, collection, {
+      createdBy: user?.id ?? '',
+      createdByName: effectiveName,
+      createdByPhotoURL: user?.photoURL ?? '',
+      ...data,
+    });
     storeEvents.emit(StoreEvents.RECORDS_UPDATED);
     return item;
-  }, [currentTenant, uc.create]);
+  }, [currentTenant, uc.create, user, effectiveName]);
 
   const updateRecord = useCallback(async (
     collection: string,

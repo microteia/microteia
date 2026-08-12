@@ -16,7 +16,9 @@ export const useChildScreenTabs = (
   const { dynamicScreens } = useScreenDefinitions();
 
   const childScreens = useMemo(
-    () => dynamicScreens.filter((def) => def.parentEntity === entityKey && !!def.parentFieldKey),
+    () => dynamicScreens.filter(
+      (def) => def.parentEntity === entityKey && !!def.parentFieldKey && !def.hideFromParentTabs,
+    ),
     [dynamicScreens, entityKey],
   );
 

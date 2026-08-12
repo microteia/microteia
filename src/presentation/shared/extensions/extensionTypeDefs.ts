@@ -522,6 +522,37 @@ const UI_MODULE_DEFS = `declare module '@microteia/ui' {
   }
   export function CustomFieldMetaRows(props: CustomFieldMetaRowsProps): JSX.Element;
 
+  /** Renderiza Markdown já estilizado — o mesmo do conteúdo de uma anotação. */
+  export interface MarkdownContentProps {
+    children?: string;
+  }
+  export function MarkdownContent(props: MarkdownContentProps): JSX.Element;
+
+  /** Editor de Markdown com barra de formatação, menções (@) e pré-visualização. */
+  export interface MarkdownEditorProps {
+    value: string;
+    onChange: (value: string) => void;
+    placeholder?: string;
+    readOnly?: boolean;
+  }
+  export function MarkdownEditor(props: MarkdownEditorProps): JSX.Element;
+
+  /** Foto do usuário, com as iniciais como recurso quando a imagem falta ou falha. */
+  export interface UserAvatarProps {
+    src: string | null;
+    name: string;
+    size?: number;
+    showBorder?: boolean;
+  }
+  export function UserAvatar(props: UserAvatarProps): JSX.Element;
+
+  /** A aba "Documentos" inteira, alimentada por useRecordDocuments do '@microteia/data'. */
+  export interface DocumentsPanelProps {
+    controller: any;
+    isAdmin: boolean;
+  }
+  export function DocumentsPanel(props: DocumentsPanelProps): JSX.Element;
+
   /** Props do CustomFieldsSection. */
   export interface CustomFieldsSectionProps {
     fields: any[];
@@ -625,6 +656,34 @@ const DATA_MODULE_DEFS = `declare module '@microteia/data' {
 
   /** Grava campos de um registro de qualquer coleção. */
   export function useUpdateRecord(): (collection: string, recordId: string, data: Record<string, any>) => Promise<void>;
+
+  /** Cria um registro numa coleção. A autoria (quem criou, nome e foto) é carimbada pelo host. */
+  export function useCreateRecord(): (collection: string, data: Record<string, any>) => Promise<any>;
+
+  /** Exclui um registro (com as notas e documentos dele, como a exclusão nativa). */
+  export function useDeleteRecord(): (collection: string, recordId: string) => Promise<void>;
+
+  /**
+   * QUEM está usando o sistema — o que a tela precisa para saber o que é MEU (o que ainda não li, o
+   * comentário que posso editar, a curtida que já é minha). É identificação, não permissão: quem
+   * barra a gravação é a regra do servidor.
+   */
+  export interface ExtensionViewer {
+    id: string;
+    name: string;
+    photoURL: string | null;
+    /** Papel GLOBAL: 'SYSTEM', 'SUPPORT' ou 'USER'. */
+    role: string;
+    /** Papel no escritório corrente: 'admin', 'lawyer', 'secretary' ou 'user'. */
+    tenantRole: string;
+  }
+  export function useCurrentUser(): ExtensionViewer;
+
+  /**
+   * Os DOCUMENTOS de um registro, com o mesmo controlador da aba "Documentos" nativa. Entregue ao
+   * componente DocumentsPanel do '@microteia/ui', dá a aba inteira — upload, tipo e exclusão.
+   */
+  export function useRecordDocuments(collection: string, recordId: string | null, enabled?: boolean): any;
 
   export interface LookupOption {
     key: string;

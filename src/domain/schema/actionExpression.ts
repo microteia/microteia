@@ -1,6 +1,24 @@
 import { evaluateFieldBoolean } from './fieldExpression';
 
 /**
+ * QUEM ESTÁ OLHANDO, no escopo de uma expressão de UI (`user.id`, `user.name`, `user.role`).
+ *
+ * Existe porque `role` sozinho não distingue duas pessoas do mesmo papel, e há declaração que
+ * depende exatamente disso: "excluir só a MINHA notícia", "o que EU ainda não li". Sem o usuário no
+ * escopo, esse tipo de regra só existia como código dentro de uma tela do kernel.
+ *
+ * É variável de UI, como o resto deste módulo: o backend não a reavalia. Uma expressão que decidisse
+ * PERMISSÃO por ela estaria decidindo no lugar errado — quem barra é a regra do Firestore.
+ */
+export interface ExprViewer {
+  id: string;
+  name: string;
+  role: string;
+}
+
+export const EMPTY_VIEWER: ExprViewer = { id: '', name: '', role: '' };
+
+/**
  * Contexto das expressões `hiddenWhen` / `disabledWhen` de uma Action. Puramente de UI — o backend não
  * as reavalia, do mesmo modo que `FieldLogic.hiddenWhen`/`disabledWhen`.
  */
@@ -33,6 +51,8 @@ export interface ActionExprContext {
    *   desvincular, e excluir destruiria o registro inteiro.
    */
   relation?: ActionRelation;
+  /** Quem está olhando. Ausente, vale o usuário vazio — nenhuma expressão sobre ele acerta. */
+  user?: ExprViewer;
 }
 
 export type ActionSurface = 'detail' | 'list' | 'parentTab';
@@ -43,7 +63,7 @@ export type ActionRelation = 'none' | 'owned' | 'related';
  * Nomes reservados sobrescrevem campos de mesma chave: um campo chamado `record` não fica acessível na
  * raiz do escopo, mas segue legível por `record.record`.
  */
-export const ACTION_RESERVED_VARIABLES = ['record', 'isNew', 'isDirty', 'role', 'surface', 'relation'] as const;
+export const ACTION_RESERVED_VARIABLES = ['record', 'isNew', 'isDirty', 'role', 'surface', 'relation', 'user'] as const;
 
 const buildScope = (ctx: ActionExprContext): Record<string, unknown> => ({
   ...ctx.values,
@@ -53,6 +73,7 @@ const buildScope = (ctx: ActionExprContext): Record<string, unknown> => ({
   role: ctx.role,
   surface: ctx.surface ?? 'detail',
   relation: ctx.relation ?? 'none',
+  user: ctx.user ?? EMPTY_VIEWER,
 });
 
 export const isActionHidden = (expr: string | null | undefined, ctx: ActionExprContext): boolean =>

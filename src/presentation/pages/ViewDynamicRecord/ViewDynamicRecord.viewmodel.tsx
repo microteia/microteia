@@ -8,8 +8,8 @@ import { makeGetRecordByIdUseCase } from '../../../domain/usecases/records/GetRe
 import {
   buildCloneTabKey,
   buildEntityViewTabKey,
-  buildViewTabKey,
   parseDynamicTabKey,
+  recordTabKeyOf,
 } from '../../../shared/constants/dynamicScreenKeys';
 import {
   buildInitialFormValues,
@@ -52,6 +52,8 @@ export interface ViewDynamicRecordViewModel {
   isNew: boolean;
   screenActions: ScreenActions;
   isAdmin: boolean;
+  /** Excluir é de admin — ou do autor, quando a tela declara `authorCanDelete`. */
+  canDelete: boolean;
   screenKey: string;
   recordId: string | null;
   activeTab: EntityDetailTab;
@@ -191,10 +193,10 @@ export const useViewDynamicRecordViewModel = (tabKey: string): ViewDynamicRecord
   const create = useCallback(
     async (values: Values) => {
       const stored = formValuesToStoredValues(sortedFields, values);
-      const created = await createRecord(collection, { ...stored, createdBy: user?.id ?? '' });
+      const created = await createRecord(collection, stored);
       return { id: created.id, title: resolveRecordTitle(created, titleFieldKey) };
     },
-    [sortedFields, titleFieldKey, createRecord, collection, user],
+    [sortedFields, titleFieldKey, createRecord, collection],
   );
 
   const update = useCallback(
@@ -209,7 +211,10 @@ export const useViewDynamicRecordViewModel = (tabKey: string): ViewDynamicRecord
     [sortedFields, updateRecord, collection, user, effectiveName],
   );
 
-  const deepLinkKey = useCallback((id: string) => buildViewTabKey(screenKey, id), [screenKey]);
+  const deepLinkKey = useCallback(
+    (id: string) => recordTabKeyOf(definition, screenKey, id),
+    [definition, screenKey],
+  );
   const cloneKey = useCallback((id: string) => buildCloneTabKey(screenKey, id), [screenKey]);
   const remove = useCallback((id: string) => deleteRecord(collection, id), [deleteRecord, collection]);
 
@@ -307,6 +312,10 @@ export const useViewDynamicRecordViewModel = (tabKey: string): ViewDynamicRecord
   );
   const tagAdapter = useTagAdapter(collection, tagIdsOf, setRecordTags, definition?.tagCollection);
 
+  // Excluir é de admin, salvo onde a tela declara que a autoria É a posse. Espelha o `firestore.rules`.
+  const canDelete = isAdmin
+    || (!!definition?.authorCanDelete && !!sourceRecord && sourceRecord.createdBy === user?.id);
+
   return {
     definition,
     isAvailable,
@@ -314,6 +323,7 @@ export const useViewDynamicRecordViewModel = (tabKey: string): ViewDynamicRecord
     isNew: detail.isNew,
     screenActions: detail.screenActions,
     isAdmin,
+    canDelete,
     screenKey,
     recordId,
     activeTab: detail.activeTab,

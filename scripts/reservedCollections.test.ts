@@ -43,7 +43,7 @@ describe('coleções reservadas', () => {
       'workflow_definitions', 'workflow_events', 'workflow_executions',
       'actions', 'scripts', 'aiConnections',
       'plugin_installations', 'extensions', 'installed_extensions',
-      'members', 'news',
+      'members',
     ];
 
     for (const collection of REQUIRED) {

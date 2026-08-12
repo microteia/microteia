@@ -72,3 +72,22 @@ export const parseDynamicTabKey = (tabKey: string): DynamicTabInfo | null => {
   }
   return null;
 };
+
+/**
+ * O ENDEREÇO de um registro segundo a tela que o apresenta: o `recordTabPrefix` declarado ou, no
+ * silêncio, a aba genérica (`view-dyn:`).
+ *
+ * Existe porque a declaração precisa valer em TODAS as pontas que endereçam um registro — abrir pela
+ * coleção (`useOpenRecord`), copiar o link e duplicar pelo cartão, e o link do cabeçalho do detalhe.
+ * Enquanto só a primeira a respeitava, uma tela com detalhe próprio abria pela auditoria na tela
+ * certa e copiava o endereço da errada: o mesmo registro passava a ter dois endereços, e o que ia
+ * para a área de transferência não era o que o usuário estava vendo.
+ */
+export const recordTabKeyOf = (
+  screen: { id: string; recordTabPrefix?: string | null } | null | undefined,
+  screenKey: string,
+  recordId: string,
+): string => {
+  const prefix = screen?.recordTabPrefix?.trim();
+  return prefix ? `${prefix}${recordId}` : buildViewTabKey(screenKey, recordId);
+};

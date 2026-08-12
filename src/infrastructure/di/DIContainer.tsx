@@ -6,12 +6,6 @@ import { FirebaseUserRepository } from '../../data/repositories/FirebaseUserRepo
 import { FirebaseUserProfileRepository } from '../../data/repositories/FirebaseUserProfileRepository';
 import { FirebaseAIConnectionRepository } from '../../data/repositories/FirebaseAIConnectionRepository';
 import { FirebaseGmailConnectionRepository } from '../../data/repositories/FirebaseGmailConnectionRepository';
-import { FirebaseNewsRepository } from '../../data/repositories/FirebaseNewsRepository';
-import { FirebaseNewsInteractionRepository } from '../../data/repositories/FirebaseNewsInteractionRepository';
-import { FirebaseNewsTagRepository } from '../../data/repositories/FirebaseNewsTagRepository';
-import { FirebaseNewsTagLinkRepository } from '../../data/repositories/FirebaseNewsTagLinkRepository';
-import { FirebaseNewsCommentRepository } from '../../data/repositories/FirebaseNewsCommentRepository';
-import { FirebaseNewsDocumentRepository } from '../../data/repositories/FirebaseNewsDocumentRepository';
 import { FirebaseSavedFilterRepository } from '../../data/repositories/FirebaseSavedFilterRepository';
 import { FirebaseTenantRepository } from '../../data/repositories/FirebaseTenantRepository';
 import { FirebaseTextAnnotationRepository } from '../../data/repositories/FirebaseTextAnnotationRepository';
@@ -50,12 +44,6 @@ export const DIProvider: React.FC<{ children: React.ReactNode }> = ({ children }
     userProfileRepository:    new FirebaseUserProfileRepository(),
     aiConnectionRepository:   new FirebaseAIConnectionRepository(),
     gmailConnectionRepository: new FirebaseGmailConnectionRepository(),
-    newsRepository:           new FirebaseNewsRepository(),
-    newsInteractionRepository: new FirebaseNewsInteractionRepository(),
-    newsTagRepository:        new FirebaseNewsTagRepository(),
-    newsTagLinkRepository:    new FirebaseNewsTagLinkRepository(),
-    newsCommentRepository:    new FirebaseNewsCommentRepository(),
-    newsDocumentRepository:   new FirebaseNewsDocumentRepository(),
     savedFilterRepository:    new FirebaseSavedFilterRepository(),
     tenantRepository:         new FirebaseTenantRepository(),
     textAnnotationRepository: new FirebaseTextAnnotationRepository(),

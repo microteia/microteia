@@ -24,15 +24,15 @@ const without = (pluginId: string): PluginRecord[] =>
  * de regressão da Etapa 2: se uma tela se perder no caminho, este teste acusa.
  */
 const PAGE_KEYS_ANTES_DA_MIGRACAO = [
-  'access-management', 'actions', 'add-news', 'audit-logs', 'calendar',
+  'access-management', 'actions', 'audit-logs', 'calendar',
   'dashboard', 'data-function-reference', 'data-processor',
-  'dyn:', 'edit-news:', 'edit-workflow-step:', 'financial-dashboard',
+  'dyn:', 'edit-workflow-step:', 'financial-dashboard',
   'function-reference', 'new-action',
   'new-dyn:',
-  'new-script', 'new-workflow', 'new-workflow:clone:', 'news',
+  'new-script', 'new-workflow', 'new-workflow:clone:',
   'profile', 'screen-builder', 'scripts', 'tenant-settings',
   'tenant-settings:', 'view-action:',
-  'view-dyn:', 'view-news:', 'view-script:', 'view-workflow:',
+  'view-dyn:', 'view-script:', 'view-workflow:',
   'workflows',
   // Adicionadas depois da migração (a lista é o guarda de "nenhuma tela some", não um congelamento):
   'marketplace', 'plugin-author', 'plugin-author:',
@@ -50,7 +50,7 @@ describe('core plugins — carga', () => {
     const { result } = hostWith(CORE_PLUGINS);
     const posicao = (id: string) => result.loaded.indexOf(id);
     expect(posicao('core.ui')).toBeLessThan(posicao('core.workspace'));
-    expect(posicao('core.ui')).toBeLessThan(posicao('core.news'));
+    expect(posicao('core.ui')).toBeLessThan(posicao('core.records'));
   });
 
   it('toda contribuição de tela resolve um componente', () => {
@@ -114,7 +114,7 @@ describe('core plugins — paridade com o registro anterior', () => {
 
     expect(items.map((item) => item.key)).toEqual([
       'dashboard', 'calendar',
-      'news', 'tenant-settings', 'audit-logs',
+      'tenant-settings', 'audit-logs',
     ]);
   });
 
@@ -154,31 +154,32 @@ describe('core plugins — resolução de aba', () => {
 });
 
 describe('core plugins — remoção limpa (critério de aceite da Etapa 2)', () => {
-  it('remover core.news some com a tela, o item de menu e o comando ⌘K', () => {
-    const { host, result } = hostWith(without('core.news'));
+  it('remover core.workspace some com as telas, os itens de menu e os comandos ⌘K', () => {
+    const { host, result } = hostWith(without('core.workspace'));
 
     expect(result.diagnostics).toEqual([]);
-    expect(host.isLoaded('core.news')).toBe(false);
+    expect(host.isLoaded('core.workspace')).toBe(false);
 
     const pages = host.contributions.query(UI_PAGE_POINT);
-    expect(resolvePageContribution(pages, 'news')).toBeUndefined();
-    expect(resolvePageContribution(pages, 'view-news:abc')).toBeUndefined();
+    expect(resolvePageContribution(pages, 'dashboard')).toBeUndefined();
+    expect(resolvePageContribution(pages, 'calendar')).toBeUndefined();
 
     const navKeys = host.contributions.query(UI_NAV_POINT).map((c) => navMetadataOf(c).key);
-    expect(navKeys).not.toContain('news');
+    expect(navKeys).not.toContain('dashboard');
+    expect(navKeys).not.toContain('calendar');
 
     const commandIds = host.contributions.query(UI_COMMAND_POINT).map((c) => c.id);
-    expect(commandIds).not.toContain('news');
+    expect(commandIds).not.toContain('navigation');
 
-    expect(host.implementations.keysOf('core.news')).toEqual([]);
+    expect(host.implementations.keysOf('core.workspace')).toEqual([]);
   });
 
   it('os demais módulos continuam intactos após a remoção', () => {
-    const { host } = hostWith(without('core.news'));
+    const { host } = hostWith(without('core.workspace'));
     const pages = host.contributions.query(UI_PAGE_POINT);
 
-    expect(resolvePageContribution(pages, 'calendar')).toBeDefined();
-    expect(host.contributions.query(UI_NAV_POINT).length).toBe(4);
+    expect(resolvePageContribution(pages, 'audit-logs')).toBeDefined();
+    expect(host.contributions.query(UI_NAV_POINT).length).toBe(2);
   });
 
   it('remover core.ui derruba todos os módulos de UI, porque ninguém declara os pontos', () => {

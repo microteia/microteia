@@ -18,13 +18,9 @@ export const SCHEMA_VERSION = 1;
 export type EntityKey = string;
 
 /** As entidades nativas do Microteia. Mantida como união só para documentar o conjunto fixo. */
-export type BuiltinEntityKey =
-  | 'members'
-  | 'news';
+export type BuiltinEntityKey = 'members';
 
-export const BUILTIN_ENTITY_KEYS: readonly BuiltinEntityKey[] = [
-  'members', 'news',
-] as const;
+export const BUILTIN_ENTITY_KEYS: readonly BuiltinEntityKey[] = ['members'] as const;
 
 export type NativeFieldType = 'string' | 'number' | 'boolean' | 'date' | 'stringArray' | 'object';
 
@@ -128,25 +124,6 @@ export const ENTITY_REGISTRY: Record<EntityKey, EntityMetadata> = {
     fks: [],
     supportsCustomFields: false,
     referenceable: true,
-  },
-  news: {
-    key: 'news',
-    collection: 'news',
-    labelSingular: 'Comunicado',
-    labelPlural: 'Comunicados',
-    displayNameFields: ['title'],
-    referenceDenormFields: ['title'],
-    fields: [
-      { key: 'title', label: 'Título', type: 'string' },
-      { key: 'content', label: 'Conteúdo', type: 'string' },
-      { key: 'priority', label: 'Prioridade', type: 'string' },
-      { key: 'category', label: 'Categoria', type: 'string', lookupCollection: 'newsCategories' },
-      { key: 'createdBy', label: 'Criado por', type: 'string' },
-      { key: 'publishedAt', label: 'Data de publicação', type: 'date' },
-    ],
-    fks: [],
-    supportsCustomFields: false,
-    referenceable: false,
   },
 };
 

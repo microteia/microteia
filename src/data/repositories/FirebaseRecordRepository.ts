@@ -59,6 +59,8 @@ const mapRecord = (
   collection,
   createdAt: toDate(d.createdAt),
   createdBy: (d.createdBy as string | undefined) ?? '',
+  createdByName: d.createdByName as string | undefined,
+  createdByPhotoURL: d.createdByPhotoURL as string | undefined,
   updatedAt: toDate(d.updatedAt),
   updatedBy: d.updatedBy as string | undefined,
   updatedByName: d.updatedByName as string | undefined,

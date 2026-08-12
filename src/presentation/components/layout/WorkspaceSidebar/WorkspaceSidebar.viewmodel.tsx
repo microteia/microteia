@@ -4,7 +4,6 @@ import { useAuth } from '../../../../stores/useAuth';
 import { useTenant } from '../../../../stores/useTenant';
 import { useTheme } from '../../../../stores/useTheme';
 import { useCommandPalette } from '../../../../stores/useCommandPalette';
-import { useNewsInteraction } from '../../../../stores/useNewsInteraction';
 import { useScreenDefinitions } from '../../../../stores/useScreenDefinitions';
 import { buildListTabKey } from '../../../../shared/constants/dynamicScreenKeys';
 import { getScreenIcon } from '../../../shared/screenIcons';
@@ -87,7 +86,6 @@ export const useWorkspaceSidebarViewModel = (): WorkspaceSidebarViewModel => {
   const { tenantRole } = useTenant();
   const { mode, setTheme } = useTheme();
   const { open: openCommandPalette } = useCommandPalette();
-  const { unreadCount: unreadNewsCount } = useNewsInteraction();
   const { unreadCriticalCount: unreadCriticalAuditCount } = useAuditLogAlert();
   const { sidebarScreens } = useScreenDefinitions();
   const navContributions = useNavContributions();
@@ -100,17 +98,15 @@ export const useWorkspaceSidebarViewModel = (): WorkspaceSidebarViewModel => {
   const canAccessDataProcessor = isAdmin || tenantRole === 'admin' || tenantRole === 'lawyer';
 
   /**
-   * O selo de cada item. Duas origens, e a diferença entre elas é o que ainda falta sair do kernel:
-   * a DECLARADA (`badge` da contribuição) é uma contagem de registros que qualquer extensão escreve;
-   * as duas de baixo contam o que cada usuário ainda não leu — estado por usuário, que não tem forma
-   * declarativa hoje.
+   * O selo de cada item. Duas origens: a DECLARADA (`badge` da contribuição), que é uma contagem de
+   * registros — e enxerga `user`, então conta também o que ESTE usuário não leu —, e a de baixo, que
+   * conta falhas críticas de auditoria ainda não vistas: o único selo que resta no kernel.
    */
   const badgeCount = useNavBadgeCount();
   const kernelBadge = useCallback((key: string): number => {
-    if (key === 'news') return unreadNewsCount;
     if (key === 'audit-logs') return unreadCriticalAuditCount;
     return 0;
-  }, [unreadNewsCount, unreadCriticalAuditCount]);
+  }, [unreadCriticalAuditCount]);
 
   const navItems = useMemo(() => {
     const contributed = visibleNavItems(navContributions, {

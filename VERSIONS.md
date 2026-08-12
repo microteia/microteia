@@ -11,6 +11,22 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [5.0.1] — 2026-08-12
+
+- **Marcar uma notícia como não lida voltou a funcionar.** O botão tirava a marca de leitura e a própria tela a repunha no instante seguinte: nada mudava, e o contador no menu não voltava. Agora a notícia volta mesmo para as não lidas, e o número ao lado de "Notícias" sobe junto.
+- **"Copiar link" de uma notícia agora leva à leitura**, e não à tela de edição — é o mesmo endereço que a busca e as menções já abriam. Vale para qualquer tela que tenha uma tela de leitura própria.
+- **A aba "Comentários" saiu do formulário de edição da notícia.** Comentar já se faz na própria notícia, embaixo do texto; a aba repetia a conversa no lugar em que ninguém a procura.
+
+## [5.0.0] — 2026-08-12
+
+- **Notícias agora é uma extensão.** O mural do escritório deixou de fazer parte do núcleo do sistema e passou a ser uma extensão que se instala e se remove — como Processos, Pessoas, Contratos, Prazos, Financeiro e Pushes já são. A tela continua a mesma: o cartão com o autor à esquerda, o resumo, as curtidas, as visualizações e os comentários; a leitura em página inteira, com o conteúdo, as etiquetas, os documentos anexados e a conversa embaixo.
+- **O contador de não lidas continua sendo o seu.** O número ao lado de "Notícias", no menu e no alto da tela, conta o que **você** ainda não leu — e desce sozinho assim que você abre cada notícia. Guardar para depois, curtir e marcar como não lida seguem funcionando exatamente como antes, cada um com o seu.
+- **Quem publica agora pode excluir o que publicou**, sem depender de um administrador. O mesmo vale para cada comentário: quem escreveu apaga o que escreveu.
+- **Uma ação pode aparecer só para o dono do registro.** Ao configurar as ações de uma tela, agora é possível dizer "esta ação só aparece para quem criou o registro" — antes só era possível distinguir por papel (administrador, advogado, secretária).
+- **Todo registro passa a guardar quem o criou, com nome e foto**, e não apenas quem o alterou por último. É o que permite uma listagem mostrar o autor de cada item.
+- **Importante — as notícias antigas não vêm junto.** A extensão começa vazia: as notícias, os comentários, as etiquetas e os documentos publicados até aqui não são transferidos. As notícias do Sistema, visíveis a todos os escritórios, deixaram de existir — toda notícia agora é do seu escritório.
+- **Para voltar a ter Notícias, instale a extensão** em Extensões, no menu do seu avatar.
+
 ## [4.6.0] — 2026-08-12
 
 - **Cálculo de datas nas expressões das ações e dos campos.** `addDays` já aparecia na lista de funções e era aceita pelo editor, mas não funcionava na hora de usar: uma ação com `addDays(today(), 15)` no vencimento simplesmente não abria. Agora funciona — e com ela vieram todas as outras funções que faltavam desse lado: `formatDate`, `dateDiff`, `year`, `month`, `day`, `dayOfWeek`, `isWeekend`, `now`, `split`, `join`, `interpolate`, `formatMoney`, `formatCPF`, `formatCNPJ`, `sum`, `avg`, `first`, `last` e `delete`. O que a lista de funções oferece é o que de fato funciona.

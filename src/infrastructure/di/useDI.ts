@@ -4,12 +4,6 @@ import type { IUserRepository } from '../../domain/repositories/IUserRepository'
 import type { IUserProfileRepository } from '../../domain/repositories/IUserProfileRepository';
 import type { IAIConnectionRepository } from '../../domain/repositories/IAIConnectionRepository';
 import type { IGmailConnectionRepository } from '../../domain/repositories/IGmailConnectionRepository';
-import type { INewsRepository } from '../../domain/repositories/INewsRepository';
-import type { INewsInteractionRepository } from '../../domain/repositories/INewsInteractionRepository';
-import type { INewsTagRepository } from '../../domain/repositories/INewsTagRepository';
-import type { INewsTagLinkRepository } from '../../domain/repositories/INewsTagLinkRepository';
-import type { INewsCommentRepository } from '../../domain/repositories/INewsCommentRepository';
-import type { INewsDocumentRepository } from '../../domain/repositories/INewsDocumentRepository';
 import type { ISavedFilterRepository } from '../../domain/repositories/ISavedFilterRepository';
 import type { ITenantRepository } from '../../domain/repositories/ITenantRepository';
 import type { ITextAnnotationRepository } from '../../domain/repositories/ITextAnnotationRepository';
@@ -48,12 +42,6 @@ export interface DIContainer {
   userProfileRepository: IUserProfileRepository;
   aiConnectionRepository: IAIConnectionRepository;
   gmailConnectionRepository: IGmailConnectionRepository;
-  newsRepository: INewsRepository;
-  newsInteractionRepository: INewsInteractionRepository;
-  newsTagRepository: INewsTagRepository;
-  newsTagLinkRepository: INewsTagLinkRepository;
-  newsCommentRepository: INewsCommentRepository;
-  newsDocumentRepository: INewsDocumentRepository;
   savedFilterRepository: ISavedFilterRepository;
   tenantRepository: ITenantRepository;
   textAnnotationRepository: ITextAnnotationRepository;

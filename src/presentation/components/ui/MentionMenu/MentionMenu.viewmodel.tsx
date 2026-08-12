@@ -1,5 +1,5 @@
 import type React from 'react';
-import { RiNewspaperLine, RiFlowChart } from 'react-icons/ri';
+import { RiFlowChart } from 'react-icons/ri';
 import { useMemo } from 'react';
 
 export interface MentionCommand {
@@ -10,12 +10,6 @@ export interface MentionCommand {
 }
 
 export const MENTION_COMMANDS: MentionCommand[] = [
-  {
-    key: 'news',
-    label: 'Notícia',
-    description: 'Inserir link para uma notícia',
-    icon: RiNewspaperLine,
-  },
   {
     key: 'workflow',
     label: 'Automação',

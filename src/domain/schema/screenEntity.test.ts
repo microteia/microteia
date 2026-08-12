@@ -99,15 +99,15 @@ describe('resolveEntity — uma tela é uma entidade', () => {
   });
 
   it('sem tela do tenant, a entidade é exatamente a declarada em código', () => {
-    const entity = resolveEntity(createSchemaContext(), 'news');
-    expect(entity?.fields.some((f) => f.key === 'title')).toBe(true);
+    const entity = resolveEntity(createSchemaContext(), 'members');
+    expect(entity?.fields.some((f) => f.key === 'name')).toBe(true);
   });
 
   it('coleção que não é entidade nem tela não resolve', () => {
     expect(resolveEntity(ctx, 'inexistente')).toBeUndefined();
     expect(isEntityCollection(ctx, 'inexistente')).toBe(false);
     expect(isEntityCollection(ctx, 'medico')).toBe(true);
-    expect(isEntityCollection(ctx, 'news')).toBe(true);
+    expect(isEntityCollection(ctx, 'members')).toBe(true);
   });
 });
 

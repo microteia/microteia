@@ -10,7 +10,7 @@ import {
 // O que restou no kernel depois que Pessoa, Contrato, Processo, Financeiro e Prazo saíram: as listas
 // das entidades que ainda são de código. As demais vivem nas extensões que as declaram.
 const LEGACY_LOOKUP_COLLECTIONS = [
-  'documentTypes', 'newsCategories',
+  'documentTypes',
 ];
 
 const LEGACY_DEFAULT_DENORM_FIELDS: Record<string, string[]> = {
@@ -64,8 +64,9 @@ describe('lookupRegistry — compatibilidade com LOOKUP_COLLECTIONS legado', () 
 
 describe('helpers do registry', () => {
   it('resolve entidade por coleção', () => {
-    expect(getEntityByCollection('news')?.labelSingular).toBe('Comunicado');
-    // Contrato, Financeiro, Prazo e Push saíram do kernel: quem descreve as coleções são as extensões.
+    expect(getEntityByCollection('members')?.labelSingular).toBe('Membro');
+    // Contrato, Financeiro, Prazo, Push e Notícia saíram do kernel: quem descreve as coleções são as extensões.
+    expect(getEntityByCollection('news')).toBeUndefined();
     expect(getEntityByCollection('contracts')).toBeUndefined();
     expect(getEntityByCollection('financials')).toBeUndefined();
     expect(getEntityByCollection('deadlines')).toBeUndefined();

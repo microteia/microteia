@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useWorkspace } from '../../../../stores/useWorkspace';
-import { useNewsInteraction } from '../../../../stores/useNewsInteraction';
 import { useTenant } from '../../../../stores/useTenant';
 import { useNavContributions } from '../../../shared/useUiContributions';
 import { navMetadataOf } from '../../../shared/resolveUiContributions';
@@ -22,9 +21,7 @@ export interface TopBarShortcut {
 }
 
 export interface TopBarViewModel {
-  unreadNewsCount: number;
   shortcuts: TopBarShortcut[];
-  handleNewsClick: () => void;
   handleShortcutClick: (key: string) => void;
   currentTenant: Tenant | null;
   availableTenants: Tenant[];
@@ -42,7 +39,6 @@ export interface TopBarViewModel {
 
 export const useTopBarViewModel = (): TopBarViewModel => {
   const { openTab } = useWorkspace();
-  const { unreadCount } = useNewsInteraction();
   const { currentTenant, availableTenants, selectTenant } = useTenant();
   const navContributions = useNavContributions();
   const badgeCount = useNavBadgeCount();
@@ -62,10 +58,6 @@ export const useTopBarViewModel = (): TopBarViewModel => {
       tenant.name.toLowerCase().includes(query)
     );
   }, [availableTenants, searchQuery]);
-
-  const handleNewsClick = useCallback(() => {
-    openTab('news');
-  }, [openTab]);
 
   const handleShortcutClick = useCallback((key: string) => {
     openTab(key);
@@ -149,9 +141,7 @@ export const useTopBarViewModel = (): TopBarViewModel => {
   }, [isDropdownOpen]);
 
   return {
-    unreadNewsCount: unreadCount,
     shortcuts,
-    handleNewsClick,
     handleShortcutClick,
     currentTenant,
     availableTenants,

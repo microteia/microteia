@@ -16,6 +16,14 @@ export interface RecordIdentity {
   tagIds?: string[];
   createdAt: Date;
   createdBy: string;
+  /**
+   * Nome e foto de quem CRIOU, carimbados na criação como `updatedByName`/`updatedByPhotoURL` já
+   * eram na gravação. Existem porque `createdBy` é um uid, e uma listagem que mostre o autor não tem
+   * de onde tirar o nome: a lista de membros é outra coleção, e um registro velho pode ter sido
+   * criado por quem já saiu do escritório.
+   */
+  createdByName?: string;
+  createdByPhotoURL?: string;
   updatedAt: Date;
   updatedBy?: string;
   updatedByName?: string;

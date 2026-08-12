@@ -27,6 +27,7 @@ const TEMPLATES = {
   'prazo.json': 'prazoPlugin',
   'push.json': 'pushPlugin',
   'financeiro.json': 'financeiroPlugin',
+  'noticia.json': 'noticiaPlugin',
   'kanban-processos.json': 'kanbanCasesPlugin',
 };
 

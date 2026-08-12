@@ -1,6 +1,5 @@
 import React from 'react';
 import {
-  RiNewspaperLine,
   RiBuildingLine,
   RiArrowDownSLine,
   RiCheckLine,
@@ -101,17 +100,6 @@ export const TopBar: React.FC = () => {
             )}
           </S.IconButton>
         ))}
-
-        <S.IconButton
-          onClick={vm.handleNewsClick}
-          title="Notícias"
-          $active={vm.unreadNewsCount > 0}
-        >
-          <RiNewspaperLine size={18} />
-          {vm.unreadNewsCount > 0 && (
-            <S.Badge>{vm.unreadNewsCount > 99 ? '99+' : vm.unreadNewsCount}</S.Badge>
-          )}
-        </S.IconButton>
       </S.Right>
     </S.Bar>
   );

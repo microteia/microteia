@@ -21,7 +21,7 @@ O projeto usa **Clean Architecture + MVVM** com separação estrita em camadas. 
 ├─────────────────────────────────────────────┤
 │                 Stores                      │  ← Contextos React globais por domínio
 │  TenantStore · RecordStore · LookupStore    │
-│  TagStore · NewsStore · RecordStore          │
+│  TagStore · RecordStore                      │
 ├─────────────────────────────────────────────┤
 │               Domain                        │  ← Regras de negócio, zero dependências
 │   entities/ · repositories/ · usecases/    │
@@ -114,12 +114,8 @@ npm run verify          # typecheck + lint + verify-schemas
 | `FinancialLookupConfig` | `tenants/{tenantId}/financialCategories/{id}`, `financialStatuses` | Sim |
 | `DocumentTypeConfig` (compartilhado) | `tenants/{tenantId}/documentTypes/{id}` | Sim |
 | `Push` (extensão `com.microteia.push`; escrito pela ingestão do Gmail) | `tenants/{tenantId}/pushes/{id}` | Sim |
-| `News` | `news/{id}` | Parcial: `tenantId=null` = Sistema (global); `tenantId=string` = Escritório |
-| `NewsCategoryConfig` | `tenants/{tenantId}/newsCategories/{id}` | Sim |
-| `NewsTag` | `newsTags/{id}` | Não |
-| `NewsInteraction` | `newsInteractions/{uid}_{newsId}` | Não |
-| `NewsComment` | `newsComments/{id}` | Não |
-| `NewsDocument` | `newsDocuments/{id}` | Não |
+| `Notícia` (extensão `com.microteia.noticia`) | `tenants/{tenantId}/news/{id}` | Sim |
+| `Comentário` (extensão `com.microteia.noticia`) | `tenants/{tenantId}/newsComments/{id}` | Sim |
 | `SavedFilter` | `savedFilters/{uid}_{screenKey}` | Não |
 | `AuditLog` | `auditLogs/{id}` | Sim (campo `tenantId`, coleção flat) |
 | `WorkflowDefinition` | `tenants/{tenantId}/workflow_definitions/{id}` (steps embutidos como array) | Sim |
@@ -545,28 +541,6 @@ genéricos, como os de qualquer tela.
 `tenants/{tenantId}/documentTypes`) é **compartilhado por tenant** entre todas as telas que anexam
 documentos: um tipo criado em qualquer uma aparece nas demais.
 
-### Entidade NewsDocument
-
-Documentos anexados a uma notícia (aba "Documentos" em `ViewNews`). Mesmo padrão visual e de UX de `PersonDocument`/`CaseDocument`/`ContractDocument`/`FinancialDocument`, mas **não** é filho de subcoleção de tenant: como `News` pode ser do Sistema (`tenantId: null`, visível a todos) ou de um escritório específico, `NewsDocument` segue o mesmo padrão de `NewsComment` — coleção de topo `newsDocuments/{id}` com campo `newsId` apontando para a notícia. Storage path: `news/{newsId}/{timestamp}_{filename}` (também fora do prefixo `tenants/{tenantId}/...`).
-
-```typescript
-interface NewsDocument {
-  id: string;
-  newsId: string;
-  name: string;
-  type?: string;
-  description?: string;
-  url: string;
-  storagePath: string;
-  createdBy: string;
-  createdByName: string;
-  createdByPhotoUrl?: string;
-  createdAt: Date;
-}
-```
-
-Upload e exclusão exigem a mesma permissão de edição da notícia (`canEdit` em `ViewNews.viewmodel.tsx`: autor, admin do tenant da notícia, ou ADMIN do sistema para notícias do Sistema); leitura é aberta a qualquer autenticado, mesmo padrão de `NewsComment` — ver "Firestore Security Rules" para detalhes.
-
 ### Entidade Push
 
 Notificações de e-mail recebidas de tribunais (PJe) processadas automaticamente pela Cloud Function `gmailPush`. Armazenadas por tenant para isolamento de dados. Contém dados processuais extraídos via regex ou IA.
@@ -683,7 +657,6 @@ Em vez de uma Cloud Function por coleção monitorada (o que exigiria ~17 deploy
 | `auditFlatEntityChange` | `onDocumentWritten('tenants/{tenantId}/{collection}/{docId}')` | `members`, `*Tags`, `pushes`, `screenDefinitions` — **e toda coleção de tela declarada** (`persons`, `cases`, `contracts`, `deadlines`, `financials`, as do Form Design…) |
 | `auditNestedEntityChange` | `onDocumentWritten('tenants/{tenantId}/{parent}/{parentId}/{sub}/{docId}')` | `notes`/`documents` de qualquer registro de tela declarada (+ `documents` de `financials`, `tags` de `screenDefinitions`) |
 | `auditTenantDeleted` | `onDocumentDeleted('tenants/{tenantId}')` | Exclusão do escritório inteiro — sempre `severity: 'CRITICAL'` |
-| `auditNewsChange` / `auditNewsCommentChange` / `auditNewsTagChange` | `onDocumentWritten('news/{docId}')` / `'newsComments/{docId}'` / `'newsTags/{docId}'` | Notícias, Comentários de Notícias e Etiquetas de Notícias — ver subseção própria abaixo |
 | `backupDeletedAuditLog` | `onDocumentDeleted('auditLogs/{logId}')` | Backup frio no Storage (ver abaixo) |
 
 **Quem dá nome à entidade auditada:** a tabela do código só descreve o que é do kernel. Para toda coleção que não é reservada nem fixa, `resolveFlatEntityConfig`/`resolveNestedEntityConfig` (`auditableEntities.ts`) resolvem a identidade pela declaração do TENANT — `resolveEntity(ctx, collection)`, a mesma resolução que a tela e a automação usam —, tirando dela o título no singular e no plural e os campos que dão nome ao registro (`displayNameFields`). É por isso que o log diz "Contrato" no dia em que Contrato deixa de ser do kernel e vira extensão; enquanto a identidade vinha de uma lista fixa, o mesmo log dizia "Registro". Sem tela que descreva a coleção (extensão desinstalada, coleção órfã), sobra o rótulo genérico. As telas vêm do `ScreenDefinitionCache` (TTL de 5 min), e só são lidas quando a coleção não é fixa.
@@ -715,16 +688,6 @@ Membro de tenant (`TenantMember`) é removido via Cloud Function callable (`remo
 
 O nome fica **congelado no `text` do log como era no momento do evento** — se a entidade referenciada for renomeada depois, o histórico não muda retroativamente (comportamento correto para uma trilha de auditoria). Coleções sem nenhum campo FK conhecido (`members`, `*Tags`, `pushes`, `screenDefinitions`) não disparam nenhuma leitura extra — `enrichDiff` retorna o diff inalterado assim que a tabela de schema resolvida está vazia.
 
-### Auditoria de Notícias, Comentários de Notícias e Etiquetas de Notícias
-
-`news/{id}`, `newsComments/{id}` e `newsTags/{id}` são coleções **raiz** (fora de `tenants/{tenantId}/...`), então não são cobertas pelas triggers genéricas — ganham três triggers dedicadas em `functions/src/infrastructure/handlers/auditNewsEntityChange.ts`, todas auditando CREATE/UPDATE/DELETE:
-
-- **`tenantId` do log:** `News.tenantId` já existe no documento (`null` = notícia do Sistema, string = notícia do escritório) — usa-se `?? 'SYSTEM'`. `NewsComment` não guarda `tenantId` próprio — a trigger busca o `news/{newsId}` pai para herdar o valor. `NewsTag` não tem conceito de tenant (etiqueta é por usuário) — sempre `'SYSTEM'`. Um log com `tenantId: 'SYSTEM'` só aparece para o papel `SYSTEM` (mesmo mecanismo de "Todas os Escritórios" já usado pelo erro global do pipeline).
-- **Ator (CREATE/UPDATE):** nenhuma das três entidades tem um uid de editor denormalizado — `News`/`NewsComment` guardam `authorName`/`authorPhotoURL` na criação e só `editedByName` (sem uid) na edição. O log usa esse nome quando presente; o `userId` do log usa o `userId` do autor original. `NewsTag` não denormaliza nada — sempre resolve via `UserProfileLookupService`.
-- **Ator (DELETE):** as três entidades têm o mesmo stamp `deletedBy`/`deletedByName`/`deletedByPhotoURL` das demais entidades auditadas (ver "Autoria de exclusão"), gravado por `stampDeletionActor` antes do `deleteDoc` em `FirebaseNewsRepository`/`FirebaseNewsCommentRepository`/`FirebaseNewsTagRepository`. `resolveNewsActor`/`resolveNewsActorUid` (`auditNewsEntityChange.ts`) preferem esse stamp; só caem para `userId`/`resolveActor` se o documento não tiver `deletedBy` (legado).
-- **Filtro de ruído próprio:** além dos campos de bookkeeping padrão, essas triggers ignoram `likeCount`/`likedBy`/`viewCount`/`commentCount` (News) e `likeCount`/`likedBy` (NewsComment) — são escritas de engajamento do usuário (curtir, visualizar, contador de comentários), não uma ação administrativa. Por isso `computeChangedFields`/`normalizeAllFields` aceitam um terceiro parâmetro opcional `extraIgnoredKeys: string[]`.
-- **`entityLink`:** `view-news:{id}` para Notícias e para Comentários (aponta para o post pai via `newsId`); Etiquetas não têm link, igual às demais `*Tags`.
-
 ### Retenção (TTL) e backup frio
 
 `expiresAt` é calculado como `createdAt + 30 dias`. **Passo manual obrigatório:** habilitar a política de TTL no Firestore Console (Firestore → TTL → coleção `auditLogs`, campo `expiresAt`) — não é configurável via código/regra.
@@ -737,7 +700,7 @@ O upload seta `metadata.metadata.firebaseStorageDownloadTokens` (`crypto.randomU
 
 ### Tela de Auditoria (frontend)
 
-`presentation/pages/AuditLogs/` (MVVM + `AuditLogCard/`, padrão de `News/`+`NewsCard`). Somente leitura — `AuditLogStore` **não usa `onSnapshot`** (desvio deliberado do padrão dos outros stores): como `auditLogs` cresce indefinidamente, a store faz busca paginada por cursor (`limit` + `startAfter`) sob demanda via `IAuditLogRepository.getPage`. Acesso restrito a admin do tenant (e SYSTEM, que vê todos os escritórios via filtro "Todos os Escritórios" — usa `ITenantRepository.getAllTenants()`, exclusivo para SYSTEM). Item de navegação em `WorkspaceSidebar` só aparece para esses papéis (`NavItem.requiresTenantAdmin`). O card usa `MarkdownContent` para renderizar `text`, com "Ver mais/Ver menos" (estado `expandedIds` no ViewModel da página, não no card) e um botão de deeplink quando `entityLink` existe.
+`presentation/pages/AuditLogs/` (MVVM + `AuditLogCard/`). Somente leitura — `AuditLogStore` **não usa `onSnapshot`** (desvio deliberado do padrão dos outros stores): como `auditLogs` cresce indefinidamente, a store faz busca paginada por cursor (`limit` + `startAfter`) sob demanda via `IAuditLogRepository.getPage`. Acesso restrito a admin do tenant (e SYSTEM, que vê todos os escritórios via filtro "Todos os Escritórios" — usa `ITenantRepository.getAllTenants()`, exclusivo para SYSTEM). Item de navegação em `WorkspaceSidebar` só aparece para esses papéis (`NavItem.requiresTenantAdmin`). O card usa `MarkdownContent` para renderizar `text`, com "Ver mais/Ver menos" (estado `expandedIds` no ViewModel da página, não no card) e um botão de deeplink quando `entityLink` existe.
 
 **Filtros — só o escopo de escritório vai para o Firestore.** `IAuditLogRepository.getPage` só aceita `tenantId` (+ paginação) — é a **única** query real (`where('tenantId','==',X) + orderBy('createdAt','desc')`), exigindo um **único** índice composto (`auditLogs`: `tenantId` ASC, `createdAt` DESC — ver seção de índices). Os filtros de Entidade/Ação/Severidade/Busca do `CompositeFilter` são aplicados **client-side**, em `AuditLogs.viewmodel.tsx`, sobre a página já carregada — decisão deliberada para não exigir um índice composto por combinação de filtro (`tenantId`+`entity`, `tenantId`+`action`, etc.), o que tornaria o setup inicial muito mais frágil. Trade-off aceito: um filtro pode não encontrar resultados que existem em páginas ainda não carregadas — nesse caso, use "Carregar mais" antes de filtrar.
 
@@ -767,7 +730,7 @@ await auditLogService.logError({
 
 Ao lado do item "Auditoria" no `WorkspaceSidebar` aparece um badge com a contagem de logs `severity: 'CRITICAL'` não lidos do tenant atual — mesmo mecanismo visual do contador declarado (`S.NavBadge`/`S.NavBadgeDot`). Só é controlado leitura/não-lida para `CRITICAL`; os demais tipos de log não têm esse conceito.
 
-Em vez de replicar o padrão de interação por item (`newsInteractions`, um doc por usuário+item com toggle individual), usa-se um **cursor de leitura**: um único doc por `(userId, tenantId)` em `auditLogReadCursors/{userId}_{tenantId}` guardando `lastReadAt`. Não lidas = logs `CRITICAL` do tenant com `createdAt > lastReadAt` (`IAuditLogRepository.subscribeToCriticalUnread`, `onSnapshot` com `limit(100)` como teto de segurança). Abrir a tela de Auditoria (`AuditLogs.viewmodel.tsx`) chama `markAllCriticalAsRead`, que avança o cursor para "agora" e zera o badge — não há como marcar um log individual como não lido de novo. Essa escolha é deliberada: é mais simples, gera menos escritas que um doc por log, e reflete exatamente o comportamento pedido ("marcar como lida ao abrir a tela"), diferente de News, onde cada item é lido individualmente.
+Em vez de replicar o padrão de leitura por item (um vetor de ids no próprio documento, como a extensão de Notícias faz com `readBy`), usa-se um **cursor de leitura**: um único doc por `(userId, tenantId)` em `auditLogReadCursors/{userId}_{tenantId}` guardando `lastReadAt`. Não lidas = logs `CRITICAL` do tenant com `createdAt > lastReadAt` (`IAuditLogRepository.subscribeToCriticalUnread`, `onSnapshot` com `limit(100)` como teto de segurança). Abrir a tela de Auditoria (`AuditLogs.viewmodel.tsx`) chama `markAllCriticalAsRead`, que avança o cursor para "agora" e zera o badge — não há como marcar um log individual como não lido de novo. Essa escolha é deliberada: é mais simples, gera menos escritas que um doc por log, e reflete exatamente o comportamento pedido ("marcar como lida ao abrir a tela"), diferente de Notícias, onde cada item é lido individualmente.
 
 `AuditLogAlertStore`/`useAuditLogAlert` só assina a query de não lidas quando há `currentTenant` **e** o usuário é admin do tenant ou `SYSTEM` — mesma condição de visibilidade do item de menu, e também a única em que a Security Rule de `auditLogs` permite a leitura.
 
@@ -844,11 +807,6 @@ src/
 │   │   ├── IContractLookupRepository.ts   # genérico, parametrizado por ContractLookupKind
 │   │   ├── IFinancialRepository.ts
 │   │   ├── IFinancialTagRepository.ts
-│   │   ├── INewsRepository.ts
-│   │   ├── INewsTagRepository.ts
-│   │   ├── INewsInteractionRepository.ts
-│   │   ├── INewsCommentRepository.ts
-│   │   ├── INewsDocumentRepository.ts
 │   │   ├── ISavedFilterRepository.ts
 │   │   ├── IWorkflowDefinitionRepository.ts
 │   │   ├── IWorkflowExecutionRepository.ts
@@ -866,11 +824,6 @@ src/
 │       ├── contractdocuments/
 │       ├── financials/
 │       ├── financialtags/
-│       ├── news/
-│       ├── newstags/
-│       ├── newsinteractions/
-│       ├── newscomments/
-│       ├── newsdocuments/
 │       ├── workflows/
 │       ├── workflowexecutions/
 │       └── stepcatalog/
@@ -890,10 +843,6 @@ src/
 │   │   ├── FirebaseContractLookupRepository.ts
 │   │   ├── FirebaseFinancialRepository.ts
 │   │   ├── FirebaseFinancialTagRepository.ts
-│   │   ├── FirebaseNewsRepository.ts
-│   │   ├── FirebaseNewsTagRepository.ts
-│   │   ├── FirebaseNewsInteractionRepository.ts
-│   │   ├── FirebaseNewsCommentRepository.ts
 │   │   └── FirebaseSavedFilterRepository.ts
 │   └── storage/
 │       └── FirebaseStorageRepository.ts
@@ -927,9 +876,6 @@ src/
 │   ├── ContractLookupStore.tsx + useContractLookup.ts
 │   ├── FinancialStore.tsx + useFinancialStore.ts
 │   ├── FinancialTagStore.tsx + useFinancialTagStore.ts
-│   ├── NewsStore.tsx + useNews.ts
-│   ├── NewsTagStore.tsx + useNewsTag.ts
-│   ├── NewsInteractionStore.tsx + useNewsInteraction.ts
 │   ├── SavedFilterStore.tsx + useSavedFilter.ts
 │   ├── WorkspaceStore.tsx + useWorkspace.ts
 │   ├── CommandPaletteContext.tsx + useCommandPalette.ts
@@ -944,9 +890,6 @@ src/
     │   ├── Contracts/
     │   ├── ViewContract/
     │   ├── Financials/
-    │   ├── News/
-    │   ├── AddNews/
-    │   ├── ViewNews/
     │   ├── TenantSettings/
     │   ├── AccessManagement/
     │   └── Profile/
@@ -1384,9 +1327,6 @@ Arquivos `.tsx` exportam **apenas** componentes React. Hooks e tipos ficam em `.
 | `ContractLookupStore` | Configs estático+dinâmico dos 10 lookups de contrato (tipo, categoria, status, objeto, índice/periodicidade de reajuste, moeda, forma de pagamento, banco, centro de custo) |
 | `FinancialStore` | Receitas/despesas do tenant atual, CRUD + `markPaid` |
 | `FinancialTagStore` | Etiquetas de lançamentos financeiros do tenant atual, CRUD de tags, aplicação de tags em lançamentos |
-| `NewsStore` | Notícias do sistema + do tenant atual, CRUD + curtidas |
-| `NewsTagStore` | Etiquetas de boletins |
-| `NewsInteractionStore` | Leitura, salvos, curtidas por usuário |
 | `WorkspaceStore` | Tabs abertas no shell, tab ativa |
 | `ThemeStore` | Tema visual com persistência em localStorage (`'microteia-theme'`) |
 | `WorkflowStore` | Automações (`WorkflowDefinition`) do tenant atual — CRUD de definição + steps embutidos. Execuções (`WorkflowExecution`) e catálogo de Steps são lidos direto via `useDI()` nas viewmodels de `ViewWorkflow`, sem store próprio (dado local à página, não compartilhado entre telas) |
@@ -1410,7 +1350,6 @@ Arquivos `.tsx` exportam **apenas** componentes React. Hooks e tipos ficam em `.
 | `CONTRACT_TAG_UPDATED` | `ContractTagStore` | — |
 | `FINANCIALS_UPDATED` | `FinancialStore` | — |
 | `FINANCIAL_TAG_UPDATED` | `FinancialTagStore` | — |
-| `NEWS_UPDATED` | `NewsStore` | `NewsTagStore`, `NewsInteractionStore` |
 | `WORKFLOWS_UPDATED` | `WorkflowStore` | — |
 
 ### Regra para nova entidade com store próprio
@@ -1563,7 +1502,7 @@ Um único doc `ScreenDefinition` em `tenants/{tenantId}/screenDefinitions/{scree
 
 A regra que unifica: **`optionsAllowUserAdd: true` exige `lookupCollection`** — lista aberta *é* lista em coleção. O campo `options` inline continua existindo, e só, para lista fechada.
 
-**A identidade da opção é a `key`; o `label` é só o que se lê.** O registro guarda a chave, e é por ela que o formulário grava (`CustomFieldsSection`), que a listagem filtra e que o cartão resolve o rótulo (`useCustomFieldListing`), que a ponte das extensões devolve as opções (`useEntity.optionsFor`) e que o construtor de condições compara (`useLookupValues`) — a mesma regra que `getConfigColor` e o `LiteralOptionsControl` das automações já usavam. Na opção cadastrada pelo escritório os dois são o mesmo texto (`addOption` grava `key = label`), e por isso a distinção passava despercebida enquanto essas três pontas usavam o rótulo como valor. A lista **declarada** — do kernel (`newsCategories`: `GENERAL`/"Geral") ou de extensão (`pushStatuses`: `pending`/"Pendente") — é que expõe o erro: o filtro não casava registro nenhum e o chip exibia a chave crua. Ao declarar uma lista cuja chave difere do rótulo, a chave é sempre **o que já está gravado nos documentos**.
+**A identidade da opção é a `key`; o `label` é só o que se lê.** O registro guarda a chave, e é por ela que o formulário grava (`CustomFieldsSection`), que a listagem filtra e que o cartão resolve o rótulo (`useCustomFieldListing`), que a ponte das extensões devolve as opções (`useEntity.optionsFor`) e que o construtor de condições compara (`useLookupValues`) — a mesma regra que `getConfigColor` e o `LiteralOptionsControl` das automações já usavam. Na opção cadastrada pelo escritório os dois são o mesmo texto (`addOption` grava `key = label`), e por isso a distinção passava despercebida enquanto essas três pontas usavam o rótulo como valor. A lista **declarada** — de extensão (`newsCategories`: `GENERAL`/"Geral"; `pushStatuses`: `pending`/"Pendente") — é que expõe o erro: o filtro não casava registro nenhum e o chip exibia a chave crua. Ao declarar uma lista cuja chave difere do rótulo, a chave é sempre **o que já está gravado nos documentos**.
 
 | | Declaração da lista | Regra no Firestore |
 |---|---|---|
@@ -1836,6 +1775,7 @@ declaração de pacote, e é o que permite a entidade mudar de dono sem mudar na
 | Opções de partida das listas | `lookups[].options` — semeadas **só em lista vazia**, na instalação | um escritório novo instalaria a extensão e não teria nenhuma Área, Fase ou Status |
 | Nome dos eventos | `ScreenDefinition.eventPrefix` (`case` → `case.saved`) | a coleção passaria a emitir `cases.saved` e toda automação que escuta `case.*` pararia |
 | Quem pode gravar | `ScreenDefinition.writeRoles` (`['admin','lawyer']`), lido pelo curinga das rules | a entidade perderia a restrição que a regra nomeada dava, e qualquer membro com escrita passaria a editar |
+| Quem pode EXCLUIR | `ScreenDefinition.authorCanDelete`, lido pelo mesmo curinga | exclusão seria sempre de admin, e o autor de um comentário precisaria de um admin para apagar o que escreveu |
 
 Detalhes que valem registrar:
 
@@ -1854,6 +1794,10 @@ Detalhes que valem registrar:
   da coleção (a de permissão vem antes na ordem alfabética dos documentos). Deixar a dona do nome
   responder trocaria o nome dos eventos sozinho: o gatilho ofereceria `cases.saved` enquanto o motor
   publica `case.saved`, e nenhuma automação dispararia.
+- **`authorCanDelete` anda com `writeRoles`.** Mesma trilha (documento da tela → curinga das rules →
+  `canDelete` na UI) e mesma razão de existir: a permissão é da COLEÇÃO, não de quem a declarou. A
+  exclusão continua sendo de admin por padrão; a declaração abre a exceção de quem CRIOU o registro,
+  para a entidade em que a autoria é a posse.
 - **`writeRoles` mora no documento da COLEÇÃO.** As rules não têm como procurar "a tela que aponta
   para esta coleção", então a instalação de uma tela com `dataCollection` materializa/atualiza
   `screenDefinitions/{coleção}` com a permissão (`ensureTargetCollectionScreen`), preservando o que
@@ -2245,6 +2189,10 @@ usuário**: `pushInteractions` foi removida, com o store, o repositório, as reg
 de cascata. Não havia forma declarativa para estado por usuário, e o que ela alimentava era
 exatamente este contador. A triagem passa a ser a situação do próprio push.
 
+> A expressão do selo ganhou `user` depois, com Notícias, e o lido/não-lido por usuário passou a ser
+> declarável — ver "Notícias sai do kernel". Para Pushes a decisão continua valendo: a triagem de uma
+> intimação é do escritório, não de cada pessoa.
+
 **2. Ação que PERGUNTA antes de executar (`promptParameters` + `parameterDefaults`).** "Gerar prazo"
 era um formulário escrito à mão dentro da tela. Agora a Action declara `promptParameters: true`, e o
 kernel abre o formulário dos parâmetros do fluxo-alvo (o mesmo `RunModal` da execução manual, em modo
@@ -2313,6 +2261,98 @@ para o processo** e o aviso "Processo não cadastrado" ficaram. (4) `pushes` sai
 curinga de tela, com `writeRoles: ['admin', 'lawyer']` declarado. Onde antes um membro só podia
 alterar `status`, agora admin e advogado gravam qualquer campo — que é o que permite uma extensão
 acrescentar um campo próprio ao push.
+
+### Notícias sai do kernel — e o dado deixa de ser só do registro
+
+`com.microteia.noticia` (`src/plugins/marketplace/noticia.ts`) é a sétima entidade a sair, e a
+primeira em que o que importa não é o REGISTRO, e sim a relação entre o registro e **quem está
+olhando**: o que eu já li, o que eu guardei para depois, o que eu curti. Era isso que prendia o mural
+ao kernel — três stores, seis repositórios e quatro coleções de raiz só para responder "para mim".
+
+**O estado por usuário vira vetor no próprio documento.** `readBy`, `savedBy` e `likedBy` são listas
+de id no doc da notícia, do mesmo feitio do `likedBy` que ela sempre teve. `newsInteractions` (um doc
+por usuário e por notícia), `newsTagLinks` (etiqueta por usuário) e `newsDocuments` deixaram de
+existir; documentos passaram para a subcoleção genérica de qualquer registro, e etiquetas para o
+conjunto do escritório (`tagCollection: 'newsTags'`).
+
+O ganho não é de espaço, é de forma: o não-lido deixa de ter contador, coleção e store, e passa a ser
+uma pergunta que a listagem já sabe responder. O preço é o limite: um vetor por notícia cresce com o
+escritório, e essa é a régua para quando o padrão serve — engajamento de dezenas de pessoas, não de
+milhares. Duas pessoas curtindo ao mesmo tempo também podem se sobrescrever: o vetor é lido, alterado
+e gravado inteiro, sem `arrayUnion`.
+
+**O selo do menu ficou PESSOAL — `user` no escopo das expressões.** Toda expressão de UI passa a ver
+`user.id`, `user.name` e `user.role` (`ExprViewer`, em `domain/schema/actionExpression.ts`; montado
+uma vez por `useExprViewer`). O item de menu declara:
+
+```ts
+badge: { collection: 'news', when: 'not contains(readBy, user.id) and createdBy != user.id' }
+```
+
+— e o selo conta o que ESTE usuário não leu, sem contador em lugar nenhum. Vale também no `hiddenWhen`
+de uma Action, que antes só distinguia PAPÉIS (`role`): "só o autor vê esta ação" não era escrevível.
+É variável de UI, e só: quem decide permissão é a regra do Firestore.
+
+**`authorCanDelete` — quem escreveu apaga o que escreveu.** A exclusão de um registro era, no curinga
+das rules e na UI, sempre de admin. Isso serve a um cadastro e não serve a um comentário: obrigar o
+autor a chamar um admin para apagar o próprio comentário não protege nada. A tela declara
+`authorCanDelete: true` e a regra passa a aceitar `isTenantAdmin(tenantId) ||
+(canWriteInTenant(tenantId) && screenAuthorCanDelete(c) && resource.data.createdBy == request.auth.uid)`.
+A UI espelha a mesma frase (`canDelete` no detalhe, `isAuthorOfRecord` no cartão): não oferece o que o
+servidor recusaria, nem esconde o que ele aceitaria. É a última frase que a regra nomeada de
+`newsComments` dizia à mão, e agora vale para qualquer tela.
+
+**A autoria passa a ser carimbada na criação.** `createdByName` e `createdByPhotoURL` entram no
+registro como `updatedByName`/`updatedByPhotoURL` já entravam na gravação, e o carimbo saiu das três
+telas que gravavam (formulário dinâmico, editor de extensão, `useEntityForm`) para o
+`RecordStore.createRecord`, que é onde o usuário corrente existe. Sem eles, uma listagem que mostre o
+autor não teria de onde tirar o nome: `createdBy` é um uid, e quem o criou pode já ter saído do
+escritório.
+
+**O comentário é uma TELA FILHA, não uma anotação.** A anotação nativa não tem edição nem curtida, e
+as duas são metade do que um comentário é. Como tela (`newsComments`, `parentEntity: 'news'`,
+`parentRelation: 'owned'`), ele ganha de graça o que qualquer registro tem — autoria carimbada,
+auditoria, exclusão pelo autor —, e a extensão só desenha a conversa.
+
+`parentEntity` empacotava TRÊS efeitos: fora do menu, fora do ⌘K e uma aba no registro-pai. A notícia
+quer os dois primeiros e não o terceiro — a conversa se lê embaixo dela, e como aba do formulário
+seria a mesma coisa duas vezes, no lugar onde ninguém a procura. Daí `hideFromParentTabs`, par de
+`hideFromSidebar` e pelo mesmo motivo: quem apresenta é OUTRA tela. Sem ele, a única saída seria abrir
+mão de `parentEntity` — e aí os comentários voltariam ao ⌘K, como registros pesquisáveis pelo próprio
+texto, e ganhariam uma listagem própria. Comentar, editar ou excluir um
+comentário devolve a notícia à caixa de todos: `readBy` fica só com quem acabou de mexer, o que a
+coleção de interações fazia com uma escrita por usuário.
+
+**O endereço de um registro é o que a tela declara.** `recordTabPrefix` existia desde a saída de
+Processo, mas só `useOpenRecord` o respeitava: a auditoria e as menções abriam a leitura enquanto
+"copiar link" copiava o endereço do FORMULÁRIO. O mesmo registro tinha dois endereços, e o que ia
+para a área de transferência não era o que o usuário estava vendo. `recordTabKeyOf`
+(`shared/constants/dynamicScreenKeys.ts`) é o ponto único, usado agora também pelas ações do cartão
+(`useRecordListViewModel`) e pelo link do cabeçalho do detalhe. O host da lista (`recordTabKeys`)
+continua vencendo a declaração, para a extensão que endereça diferente do que a tela declara.
+
+**Duas views de código, e nenhum formulário.** A LISTAGEM (`news`) é o cartão de leitura — autor à
+esquerda, resumo, e a linha de convívio embaixo —, montado sobre `EntityListView` em `layout="list"`;
+o menu "Ações" sai de `getCardActions`, então continua governado pelo Form Design. A LEITURA
+(`news-read:`) é o artigo, os comentários e a aba de documentos. **Editar e criar são o formulário
+NATIVO** (`view-dyn:`/`new-dyn:`), que o schema descreve inteiro — a régua de sempre: desenhe em
+código só o que a declaração não alcança. `recordTabPrefix: 'news-read:'` faz a auditoria, as menções
+e o ⌘K abrirem a leitura, e não o formulário.
+
+**A ponte cresceu no que "por usuário" exige:** `useCurrentUser` (quem está usando — identificação,
+nunca permissão), `useCreateRecord`/`useDeleteRecord`, `useRecordDocuments` + o componente
+`DocumentsPanel` (a aba de documentos nativa, inteira, em uma linha), e `MarkdownContent`,
+`MarkdownEditor` e `UserAvatar` no `@microteia/ui`.
+
+**O que a migração custou.** (1) A **notícia do Sistema** (`tenantId: null`, visível a todos os
+escritórios) deixou de existir: a coleção saiu da raiz para `tenants/{tid}/news`, e toda notícia é do
+escritório. (2) Os documentos da raiz (`news`, `newsComments`, `newsInteractions`, `newsTags`,
+`newsTagLinks`, `newsDocuments`) **não foram migrados** — a extensão nasce vazia, e as coleções
+antigas ficam órfãs. (3) As etiquetas eram por usuário e passaram a ser do escritório. (4) `writeRoles`
+fica aberto, porque curtir e marcar como lida são gravações no próprio documento da notícia: qualquer
+membro com escrita pode editar qualquer notícia pelo formulário, e o que restringe é a UI (o lápis só
+aparece para o autor e para o admin), não a regra. (5) Excluir uma notícia não apaga os comentários
+dela — o kernel não cascateia registros de tela filha, e isso vale para qualquer tela com pai.
 
 ### As ações do registro viram contribuições
 
@@ -2479,7 +2519,7 @@ Primeiro passo de unificação: o formulário "Dados" de `ViewPerson` é renderi
 
 **Abas extras no detalhe (Fase C, Contratos):** o `EntityDetailView` aceita `extraTabs?: { key; label; content }[]`, para abas próprias da tela além de Dados/Anotações/Documentos — o caso real é a aba **Processos** do Contrato (vincular/desvincular processos). Com isso `EntityDetailTab` passou de union fechado para `string`; as telas seguem usando `'data' | 'notes' | 'documents'`, e os viewmodels expõem `activeTab: EntityDetailTab`. **Trade-off consciente:** perde-se a checagem de digitação das chaves fixas; a alternativa (generics acumulando as chaves extras por tela) foi descartada por complicar a assinatura do shell em troca de pouco.
 
-**Fase C — concluída.** Detalhe e lista de todas as telas fixas rodam no runtime compartilhado (Pessoas, Prazos, Financeiro, Processos, Contratos) — Notícias ficou fora por ser um feed com comentários, não um cadastro registro-a-registro. Números: Contratos 872→~390 (viewmodel) e ~640→~140 (view); Processos 717→~300; Financeiro 510→~250.
+**Fase C — concluída.** Detalhe e lista de todas as telas fixas rodam no runtime compartilhado (Pessoas, Prazos, Financeiro, Processos, Contratos). Notícias ficou fora por ser um feed com comentários, e por isso saiu do kernel por outro caminho — ver "Notícias sai do kernel". Números: Contratos 872→~390 (viewmodel) e ~640→~140 (view); Processos 717→~300; Financeiro 510→~250.
 
 **Cards das listas fixas — schema + slots (Fase C, listas):** as quatro listas fixas (Processos, Contratos, Prazos, Financeiro) deixaram o markup manual e passaram a usar `EntityListView` + `EntityListCard`. As meta-linhas comuns vêm de **`ui.list` no registry** via `deriveListRows`, que também percorre as **relações (`fks`)** — nesse caso emite `type: 'reference'` + `refEntity`, e o `useListRowResolver` (`presentation/shared/listRows.ts`) traduz o ID para o rótulo pelo mesmo `useReferenceOptions` que alimenta os campos `reference` do formulário, além de formatar moeda/data pelo `type`. **Para incluir/reordenar uma linha de card, edite `ui.list` do campo no registry — não a view.**
 
@@ -2520,7 +2560,7 @@ Um botão configurável nas telas de dados que dispara um **workflow síncrono**
 
 **Viewmodel genérico (Fase A, fecho) — `useEntityDetail`:** o núcleo restante (parse do tabKey, resolução do registro com `findInStore` + fallback opcional `getById` + `recordNotFound`, o **estado único de `values`** com `setFieldValue`, a orquestração de salvar — validar → montar payload → create/update → `notify` → reabrir aba → título — e o efeito de título da aba) vive em `presentation/shared/entityScreen/useEntityDetail.ts`, compondo `useEntityDetailChrome`/`useEntityNotes`/`useEntityDocuments`. `ViewPerson` e `ViewDynamicRecord` viraram **adapters finos**: montam um `config` (stores tipados, `recordToValues`/`valuesToPayload`, `resolveTabTitle`, `create`/`update`/`validate`, ports, flags `hasNotes`/`hasDocuments`) e adicionam só seus overrides (Person: lookups tipados + toggle de status). O `values` é **um mapa só** (nativo aninhado + custom flat); `setFieldValue` grava por caminho via **`setValueByPath`** (`domain/services/customFieldValues.ts`, com teste) — chave com `.` aninha (`address.street`), sem `.` grava no topo. A **máscara** é 100% dirigida por `field.mask`: o `MaskedInput` formata no render (formatters idempotentes), então nenhuma tela pré-formata. Os ports de notes/docs são genéricos (`useNotesPort`/`useDocumentsPort` sobre a interface de repositório, com `extra` opcional p/ o `screenKey` do dinâmico); os 14 use cases `make*Note/Document*` foram removidos.
 
-**Fase C — migrar as fixas restantes (em andamento):** Prazos foi a primeira (Notícias ficou fora do escopo: é um feed com comentários, não um cadastro registro-a-registro). Três recursos novos, todos **aditivos** (defaults preservam Pessoas/dinâmicas):
+**Fase C — migrar as fixas restantes (em andamento):** Prazos foi a primeira (Notícias ficou fora deste escopo: é um feed com comentários, não um cadastro registro-a-registro). Três recursos novos, todos **aditivos** (defaults preservam Pessoas/dinâmicas):
 - **`deriveFormFields` deriva `fks`** como campos `reference` (ex.: `caseId` → `cases`, `responsibleLawyerId` → `persons`) — o `useReferenceOptions` já resolve as opções de `persons/members/cases/contracts/financials/deadlines` + telas dinâmicas. FKs de etiqueta ficam fora do formulário com `ui: { form: false }` (quem trata é o TagManager). `FkSpec` ganhou `required?`/`ui?`; `NativeFieldSpec` ganhou `optionsColored?`. Os campos derivados são reordenados por `order` no fim da derivação.
 - **`useEntityDetail`**: `afterCreate: 'reopen' | 'close'` (Prazos **fecha** a aba ao criar; o padrão continua reabrindo em edição) e **`remove` opcional** (telas sem exclusão no detalhe).
 - **`EntityDetailView`**: `showCopyLink`/`showClone` opcionais (default `true`).
@@ -3112,7 +3152,7 @@ Contraparte de escrita do Step "Buscar Registros" e da ponte `query`. Permitem q
 (`FirestoreWorkflowMutationRepository`).
 
 - **Escopo de escrita (DENYLIST)** — `src/domain/schema/mutationSpec.ts` (`resolveWritableTable`):
-  **bloqueados** `members` (papéis/permissões) e `news` (infra). `pushes` saiu da denylist com a
+  **bloqueado** `members` (papéis/permissões). `pushes` e `news` saíram da denylist com as
   migração da extensão: a triagem ("Revisado", "Arquivar", "Gerar prazo") é feita por workflow, e um
   workflow que não pudesse gravar no push não teria como triá-lo. Todo o resto é gravável,
   inclusive uma tela criada agora — a inversão de allowlist para denylist é o que torna o modelo
@@ -4197,7 +4237,6 @@ A tabela abaixo é **derivada** do `firestore.indexes.json` e existe só para re
 | `tenants/{id}/financials` | `caseId` ASC, `dueDate` DESC | `getFinancialsByCase` |
 | `tenants/{id}/financials` | `personId` ASC, `dueDate` DESC | `getFinancialsByPerson` (cascata de exclusão de `Person`) |
 | `tenants/{id}/financials` | `type` ASC, `dueDate` ASC | `getFinancialsByType` (serve a ordenação DESC pelo percurso inverso) |
-| `news` | `tenantId` ASC, `createdAt` DESC | `getNews` / `subscribeToNews` — notícias por escopo (sistema ou tenant) |
 | `tenants/{id}/pushes` | `emailId` ASC, `processNumber` ASC | `getByEmailIdAndProcessNumber` — deduplicação de intimações |
 | `tenants/{id}/workflow_definitions` | `eventName` ASC, `enabled` ASC | `findEnabledByEvent` — o gatilho do motor localiza workflows por evento |
 | `tenants/{id}/workflow_executions` | `workflowDefinitionId` ASC, `startedAt` DESC | Aba "Execuções" de um workflow, mais recente primeiro |
@@ -4218,14 +4257,14 @@ Deeplinks permitem compartilhar links diretos para tabs específicas.
 ### Formato
 
 ```
-https://microteia.app/view-news:{newsId}
+https://microteia.app/news-read:{newsId}
 ```
 
 ### Geração
 
 ```typescript
 import { generateDeepLink } from '../infrastructure/deeplink/deepLinkUtils';
-const link = generateDeepLink(`view-news:${newsId}`);
+const link = generateDeepLink(`news-read:${newsId}`);
 ```
 
 ### Resolução
@@ -4308,7 +4347,6 @@ Acessado via `Cmd+K` (Mac) ou `Ctrl+K` (Windows). Providers registrados em `Comm
 | Provider | Descrição |
 |---|---|
 | `NavigationCommandProvider` | Navega para páginas do `pageRegistry` |
-| `NewsCommandProvider` | Busca boletins pelo título/resumo |
 | `PersonCommandProvider` | Busca pessoas por nome/CPF/CNPJ/email/telefone |
 | `CaseCommandProvider` | Busca processos por título/número |
 | `ContractCommandProvider` | Busca contratos por título/número |

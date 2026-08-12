@@ -93,40 +93,6 @@ service firebase.storage {
         && isTenantAdminOrElevated(tenantId);
     }
 
-    // ─── Documentos de boletins ───────────────────────────────────────────────
-    // Path: news/{newsId}/{filename}
-    // Não é escopado por tenant (News pode ser do Sistema, tenantId null),
-    // então a permissão de escrita espelha canEdit de ViewNews.viewmodel.tsx
-    // via leitura cruzada do Firestore.
-    function newsTenantId(newsId) {
-      return firestore.get(/databases/(default)/documents/news/$(newsId)).data.tenantId;
-    }
-    function newsCreator(newsId) {
-      return firestore.get(/databases/(default)/documents/news/$(newsId)).data.userId;
-    }
-    function isSystemAdminUser() {
-      return firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role == 'SYSTEM';
-    }
-    function canViewNews(newsId) {
-      let tenantId = newsTenantId(newsId);
-      return isSystemAdminUser()
-        || (tenantId != null && isTenantMemberOrElevated(tenantId));
-    }
-    function canEditNews(newsId) {
-      let tenantId = newsTenantId(newsId);
-      return isSystemAdminUser()
-        || (tenantId != null
-            && isTenantMemberOrElevated(tenantId)
-            && (newsCreator(newsId) == request.auth.uid || isTenantAdminOrElevated(tenantId)));
-    }
-    match /news/{newsId}/{allPaths=**} {
-      allow read: if request.auth != null && canViewNews(newsId);
-      allow create: if request.auth != null
-        && request.resource.size < 20 * 1024 * 1024        // máximo 20 MB
-        && canEditNews(newsId);
-      allow delete: if request.auth != null && canEditNews(newsId);
-    }
-
     // ─── Backup frio de Logs de Auditoria ────────────────────────────────────
     // Path: tenants/{tenantId}/logs/{entity}/{logId}.json
     // Escrito somente pela Cloud Function backupDeletedAuditLog (Admin SDK).

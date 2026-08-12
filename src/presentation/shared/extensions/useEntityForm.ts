@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useScreenDefinitions } from '../../../stores/useScreenDefinitions';
 import { useRecords } from '../../../stores/useRecords';
-import { useAuth } from '../../../stores/useAuth';
 import {
   buildInitialFormValues,
   collectRequiredErrors,
@@ -37,7 +36,6 @@ export interface EntityForm {
 export const useEntityForm = (sourceId: string, recordId?: string | null): EntityForm => {
   const { dynamicScreens } = useScreenDefinitions();
   const { recordsByCollection, createRecord, updateRecord } = useRecords();
-  const { user } = useAuth();
 
   const screen = useMemo(
     () => dynamicScreens.find((definition) => (definition.sourceId ?? definition.id) === sourceId) ?? null,
@@ -94,7 +92,7 @@ export const useEntityForm = (sourceId: string, recordId?: string | null): Entit
     setIsSaving(true);
     try {
       if (isNew) {
-        const created = await createRecord(screenKey, { ...stored, createdBy: user?.id ?? '' });
+        const created = await createRecord(screenKey, stored);
         setIsDirty(false);
         return { id: created.id };
       }
@@ -107,7 +105,7 @@ export const useEntityForm = (sourceId: string, recordId?: string | null): Entit
     } finally {
       setIsSaving(false);
     }
-  }, [fields, values, screenKey, isNew, record, createRecord, updateRecord, user]);
+  }, [fields, values, screenKey, isNew, record, createRecord, updateRecord]);
 
   return { screen, screenKey, fields, isNew, values, getValue, setValue, errors, validate, save, isSaving };
 };
