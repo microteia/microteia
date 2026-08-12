@@ -9,6 +9,12 @@ import type { FilterDef, FilterToken } from '../../ui/CompositeFilter';
 export interface EntityListViewProps {
   title: string;
   titleIcon?: React.ReactNode;
+  /**
+   * Peça colada ao TÍTULO — tipicamente um contador ("3 não lidas"). Diferente de `headerExtra`, que
+   * fica do lado das ações: um número que qualifica a tela pertence ao nome dela, e ao lado do botão
+   * "novo" ele se lê como parte do botão.
+   */
+  titleExtra?: React.ReactNode;
   onNew: () => void;
   newTitle: string;
   newIcon?: React.ReactNode;
@@ -57,6 +63,7 @@ export interface EntityListViewProps {
 export const EntityListView: React.FC<EntityListViewProps> = ({
   title,
   titleIcon,
+  titleExtra,
   onNew,
   newTitle,
   newIcon,
@@ -83,14 +90,13 @@ export const EntityListView: React.FC<EntityListViewProps> = ({
   return (
     <S.Page $embedded={embedded}>
       <S.Header $embedded={embedded}>
-        {!embedded && (titleIcon ? (
+        {!embedded && (
           <S.TitleRow>
             {titleIcon}
             <S.Title>{title}</S.Title>
+            {titleExtra}
           </S.TitleRow>
-        ) : (
-          <S.Title>{title}</S.Title>
-        ))}
+        )}
         <S.HeaderActions>
           {headerExtra}
           {canCreate && <Button onClick={onNew} title={newTitle}>{addIcon}</Button>}

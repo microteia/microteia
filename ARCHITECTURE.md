@@ -1776,6 +1776,7 @@ declaração de pacote, e é o que permite a entidade mudar de dono sem mudar na
 | Nome dos eventos | `ScreenDefinition.eventPrefix` (`case` → `case.saved`) | a coleção passaria a emitir `cases.saved` e toda automação que escuta `case.*` pararia |
 | Quem pode gravar | `ScreenDefinition.writeRoles` (`['admin','lawyer']`), lido pelo curinga das rules | a entidade perderia a restrição que a regra nomeada dava, e qualquer membro com escrita passaria a editar |
 | Quem pode EXCLUIR | `ScreenDefinition.authorCanDelete`, lido pelo mesmo curinga | exclusão seria sempre de admin, e o autor de um comentário precisaria de um admin para apagar o que escreveu |
+| Quem grava CAMPO ISOLADO | `ScreenDefinition.memberWritableFields`, lido pelo mesmo curinga | o papel `user` (somente leitura) não conseguiria marcar uma notícia como lida nem curtir, e o selo pessoal do menu ficaria preso |
 
 Detalhes que valem registrar:
 
@@ -1794,6 +1795,16 @@ Detalhes que valem registrar:
   da coleção (a de permissão vem antes na ordem alfabética dos documentos). Deixar a dona do nome
   responder trocaria o nome dos eventos sozinho: o gatilho ofereceria `cases.saved` enquanto o motor
   publica `case.saved`, e nenhuma automação dispararia.
+- **`writeRoles` ALARGA, e não só estreita.** Declarada, a lista é a autoridade e substitui a
+  permissão padrão do escritório — é o que põe `user` (somente leitura no resto do sistema) a
+  comentar num mural. Ausente, vale o padrão de sempre. Enquanto ela só sabia estreitar (um `&&` com
+  `canWriteInTenant`), uma entidade participativa não tinha como sair do kernel: a exceção que a
+  regra nomeada abria não era escrevível.
+- **`memberWritableFields` é a porta do "por usuário".** Gravação no documento que OUTRA pessoa
+  criou, limitada aos campos declarados: a alteração é recusada se tocar em qualquer um fora da
+  lista (`affectedKeys().hasOnly(...)`, mais o `updatedAt` que o repositório sempre carimba). Existe
+  porque marcar como lida, curtir e guardar para depois são gravações — e exigir permissão de
+  ESCRITA na tela para elas transformaria todo leitor num editor.
 - **`authorCanDelete` anda com `writeRoles`.** Mesma trilha (documento da tela → curinga das rules →
   `canDelete` na UI) e mesma razão de existir: a permissão é da COLEÇÃO, não de quem a declarou. A
   exclusão continua sendo de admin por padrão; a declaração abre a exceção de quem CRIOU o registro,
@@ -2269,6 +2280,15 @@ primeira em que o que importa não é o REGISTRO, e sim a relação entre o regi
 olhando**: o que eu já li, o que eu guardei para depois, o que eu curti. Era isso que prendia o mural
 ao kernel — três stores, seis repositórios e quatro coleções de raiz só para responder "para mim".
 
+**Ler é GRAVAR, e isso mudou duas permissões.** Um membro convidado nasce com o papel `user`, que é
+somente leitura — e, sem exceção, ele não conseguiria marcar uma notícia como lida, curtir nem
+comentar. Não é detalhe do mural: as regras nomeadas de `/news` abriam essa exceção à mão
+(`affectedKeys().hasOnly(['likedBy','likeCount'])`, e o `newsComments` que qualquer autenticado
+criava). As duas viraram declaração — `memberWritableFields` e o `writeRoles` que agora ALARGA — e
+estão descritas em "Uma extensão declara a entidade INTEIRA". A falha era pior por ser MUDA: a
+gravação era recusada, a atualização otimista do store só acontece depois do `await`, e o selo ficava
+preso sem nenhum aviso. As views da extensão passaram a avisar em toda gravação recusada.
+
 **O estado por usuário vira vetor no próprio documento.** `readBy`, `savedBy` e `likedBy` são listas
 de id no doc da notícia, do mesmo feitio do `likedBy` que ela sempre teve. `newsInteractions` (um doc
 por usuário e por notícia), `newsTagLinks` (etiqueta por usuário) e `newsDocuments` deixaram de
@@ -2348,10 +2368,10 @@ nunca permissão), `useCreateRecord`/`useDeleteRecord`, `useRecordDocuments` + o
 escritórios) deixou de existir: a coleção saiu da raiz para `tenants/{tid}/news`, e toda notícia é do
 escritório. (2) Os documentos da raiz (`news`, `newsComments`, `newsInteractions`, `newsTags`,
 `newsTagLinks`, `newsDocuments`) **não foram migrados** — a extensão nasce vazia, e as coleções
-antigas ficam órfãs. (3) As etiquetas eram por usuário e passaram a ser do escritório. (4) `writeRoles`
-fica aberto, porque curtir e marcar como lida são gravações no próprio documento da notícia: qualquer
-membro com escrita pode editar qualquer notícia pelo formulário, e o que restringe é a UI (o lápis só
-aparece para o autor e para o admin), não a regra. (5) Excluir uma notícia não apaga os comentários
+antigas ficam órfãs. (3) As etiquetas eram por usuário e passaram a ser do escritório. (4) Editar o CONTEÚDO de
+uma notícia segue a permissão padrão do escritório, então qualquer membro com escrita pode editar
+qualquer notícia pelo formulário — o que restringe é a UI (o lápis só aparece para o autor e para o
+admin), não a regra. (5) Excluir uma notícia não apaga os comentários
 dela — o kernel não cascateia registros de tela filha, e isso vale para qualquer tela com pai.
 
 ### As ações do registro viram contribuições

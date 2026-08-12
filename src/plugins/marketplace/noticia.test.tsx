@@ -93,6 +93,23 @@ describe('noticiaPlugin', () => {
     expect(newsScreen().recordTabPrefix).toBe('news-read:');
   });
 
+  /**
+   * Um membro convidado nasce com o papel `user`, que é somente leitura no resto do sistema. Sem a
+   * declaração, ele não conseguia sequer marcar uma notícia como lida — e o selo do menu ficava
+   * preso para sempre. É o que as regras nomeadas de `news` diziam à mão.
+   */
+  it('qualquer membro grava o que é "por usuário", e só isso', () => {
+    expect(newsScreen().memberWritableFields)
+      .toEqual(['readBy', 'savedBy', 'likedBy', 'viewCount']);
+    // O CONTEÚDO segue a permissão padrão do escritório: a lista não abre a edição da notícia.
+    expect(newsScreen().writeRoles).toBeNull();
+  });
+
+  /** Num mural, comentar é de todo mundo — a lista declarada ALARGA a permissão padrão. */
+  it('comentar é de todo mundo, inclusive de quem só lê', () => {
+    expect(commentScreen().writeRoles).toContain('user');
+  });
+
   it('quem publica apaga o que publicou — nas duas telas', () => {
     expect(newsScreen().authorCanDelete).toBe(true);
     expect(commentScreen().authorCanDelete).toBe(true);

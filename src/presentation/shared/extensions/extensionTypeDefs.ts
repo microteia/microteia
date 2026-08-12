@@ -591,6 +591,8 @@ const UI_MODULE_DEFS = `declare module '@microteia/ui' {
     layout?: 'grid' | 'list';
     title?: string;
     titleIcon?: React.ReactNode;
+    /** Peça colada ao TÍTULO (um contador, por exemplo), e não ao lado do botão "novo". */
+    titleExtra?: React.ReactNode;
     onNew?: () => void;
     newTitle?: string;
     filterDefs?: any[];

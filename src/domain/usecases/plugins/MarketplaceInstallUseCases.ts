@@ -338,6 +338,7 @@ const ensureTargetCollectionScreen = async (
   // menção, a busca). Só preenche o que está vazio — ajuste do escritório não é sobrescrito.
   const declared = {
     writeRoles: input.writeRoles ?? null,
+    memberWritableFields: input.memberWritableFields ?? null,
     authorCanDelete: input.authorCanDelete ?? null,
     titleFieldKey: input.titleFieldKey,
     subtitleFieldKey: input.subtitleFieldKey ?? null,
@@ -347,6 +348,7 @@ const ensureTargetCollectionScreen = async (
     const merged = {
       ...screenToInput(existing),
       writeRoles: declared.writeRoles,
+      memberWritableFields: declared.memberWritableFields,
       authorCanDelete: declared.authorCanDelete,
       titleFieldKey: existing.titleFieldKey || declared.titleFieldKey,
       subtitleFieldKey: existing.subtitleFieldKey ?? declared.subtitleFieldKey,

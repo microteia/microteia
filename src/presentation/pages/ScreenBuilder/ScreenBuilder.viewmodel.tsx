@@ -514,6 +514,7 @@ const toSaveInput = (def: ScreenDefinition): ScreenDefinitionSaveInput => ({
   dataCollection: def.dataCollection ?? null,
   eventPrefix: def.eventPrefix ?? null,
   writeRoles: def.writeRoles ?? null,
+  memberWritableFields: def.memberWritableFields ?? null,
   authorCanDelete: def.authorCanDelete ?? null,
   listActions: def.listActions,
   viewActionIds: def.viewActionIds,

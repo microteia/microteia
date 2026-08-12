@@ -1,7 +1,7 @@
 {
   "name": "microteia",
   "private": true,
-  "version": "5.0.1",
+  "version": "5.0.2",
   "type": "module",
   "scripts": {
     "predev": "npm run sync-schemas",
@@ -26,7 +26,7 @@
     "deploy:rules": "firebase deploy --only firestore:rules,storage --project ${TARGET:-dev}",
     "deploy:indexes": "firebase deploy --only firestore:indexes --project ${TARGET:-dev}",
     "deploy:workflow": "npm run build:functions && firebase deploy --only functions:onWorkflowEventCreated,functions:publishWorkflowEventOnEntityChange,functions:recomputeAggregatesOnEntityChange,functions:onNoteChange,functions:onDocumentChange,functions:getExpressionFunctions,functions:getWorkflowStepCatalog,functions:detectWorkflows,functions:runWorkflow,functions:runScript,functions:runAction --project ${TARGET:-dev}",
-    "deploy:audit": "npm run build:functions && firebase deploy --only functions:auditFlatEntityChange,functions:auditNestedEntityChange,functions:auditTenantDeleted,functions:auditNewsChange,functions:auditNewsCommentChange,functions:auditNewsTagChange,functions:backupDeletedAuditLog --project ${TARGET:-dev}",
+    "deploy:audit": "npm run build:functions && firebase deploy --only functions:auditFlatEntityChange,functions:auditNestedEntityChange,functions:auditTenantDeleted,functions:backupDeletedAuditLog --project ${TARGET:-dev}",
     "deploy:auth": "npm run build:functions && firebase deploy --only functions:getUserInfo,functions:checkNicknameAvailability,functions:claimNickname,functions:onUserCreated --project ${TARGET:-dev}",
     "deploy:tenant": "npm run build:functions && firebase deploy --only functions:addTenantMember,functions:removeTenantMember --project ${TARGET:-dev}",
     "deploy:gmail": "npm run build:functions && firebase deploy --only functions:gmailPush,functions:renewGmailWatches,functions:exchangeGmailCode --project ${TARGET:-dev}",

@@ -95,9 +95,13 @@ const NEWS_SCREEN: ScreenModuleTemplate = {
   // Quem abre a notícia de FORA — a auditoria, uma menção, o ⌘K — cai na LEITURA, não no formulário.
   recordTabPrefix: READ_TAB_PREFIX,
   listActions: ['copyLink', 'manageTags', 'delete'],
-  // Publicar é de qualquer um no escritório, e tem de ser: curtir, marcar como lida e guardar para
-  // depois são gravações no próprio documento da notícia.
+  // Editar o CONTEÚDO segue a permissão padrão do escritório. O que é "por usuário" — marcar como
+  // lida, curtir, guardar para depois — é gravação no documento que outra pessoa criou, e por isso
+  // sai por outra porta: qualquer membro grava estes quatro campos e nada mais. Sem isso, quem tem o
+  // papel `user` (somente leitura) não conseguia sequer marcar uma notícia como lida, e o selo do
+  // menu ficava preso para sempre.
   writeRoles: null,
+  memberWritableFields: ['readBy', 'savedBy', 'likedBy', 'viewCount'],
   // Quem publicou apaga o que publicou, sem depender de um admin.
   authorCanDelete: true,
   // O item de menu é declarado à parte, para levar o selo.
@@ -123,7 +127,10 @@ const COMMENTS_SCREEN: ScreenModuleTemplate = {
   // a mesma coisa duas vezes — e no lugar em que ninguém a procura.
   hideFromParentTabs: true,
   listActions: ['delete'],
-  writeRoles: null,
+  // Num mural, comentar é de TODO MUNDO — inclusive de quem só lê o resto do escritório. É o que a
+  // regra nomeada de `newsComments` dizia (qualquer autenticado cria o próprio comentário), e aqui a
+  // lista declarada ALARGA a permissão padrão em vez de estreitá-la.
+  writeRoles: ['admin', 'lawyer', 'secretary', 'user'],
   authorCanDelete: true,
   hideFromSidebar: true,
 };
@@ -142,12 +149,11 @@ const NEWS_LIST_SOURCE = `
 import { useMemo } from 'react';
 import { styled } from 'styled-components';
 import { Dropdown, EntityListModals, EntityListView, Icon, InfoBanner, UserAvatar, cardActionIcon } from '@microteia/ui';
-import { useCurrentUser, useEntity, useEntityList, useLookup, useUpdateRecord, useWorkspace } from '@microteia/data';
+import { useCurrentUser, useEntity, useEntityList, useLookup, useNotify, useUpdateRecord, useWorkspace } from '@microteia/data';
 
 const SOURCE_ID = 'microteia:news';
 const COMMENT_SOURCE_ID = 'microteia:news-comment';
 const READ_TAB_PREFIX = 'news-read:';
-const COLLECTION = 'news';
 
 const Card = styled.article\`
   background: \${({ theme }) => theme.colors.surface};
@@ -404,7 +410,18 @@ export default function NewsListView() {
   const comments = useEntity(COMMENT_SOURCE_ID);
   const categories = useLookup('newsCategories');
   const updateRecord = useUpdateRecord();
+  const notify = useNotify();
   const { openTab } = useWorkspace();
+
+  // A coleção é a que a TELA resolve, e não um nome fixo: a instalação pode desambiguar a chave, e
+  // uma gravação endereçada à coleção errada falha calada.
+  const collection = list.collection;
+
+  const patch = (record, data) => {
+    void updateRecord(collection, record.id, data).catch(() => {
+      notify('Não foi possível gravar. Verifique se você tem permissão neste escritório.', 'error');
+    });
+  };
 
   const filterDefs = useMemo(() => list.filterDefs.concat([READ_FILTER]), [list.filterDefs]);
 
@@ -458,15 +475,15 @@ export default function NewsListView() {
     return option ? option.label : record.category || 'Geral';
   };
 
-  const toggleLike = (record) => updateRecord(COLLECTION, record.id, {
+  const toggleLike = (record) => patch(record, {
     likedBy: has(record.likedBy, me.id) ? without(record.likedBy, me.id) : withValue(record.likedBy, me.id),
   });
 
-  const toggleSaved = (record) => updateRecord(COLLECTION, record.id, {
+  const toggleSaved = (record) => patch(record, {
     savedBy: has(record.savedBy, me.id) ? without(record.savedBy, me.id) : withValue(record.savedBy, me.id),
   });
 
-  const markAsUnread = (record) => updateRecord(COLLECTION, record.id, {
+  const markAsUnread = (record) => patch(record, {
     readBy: without(record.readBy, me.id),
   });
 
@@ -579,7 +596,7 @@ export default function NewsListView() {
       layout="list"
       onNew={list.openNewRecord}
       newTitle="Nova Notícia"
-      headerExtra={unreadCount > 0 ? <HeaderCount>{unreadCount}</HeaderCount> : null}
+      titleExtra={unreadCount > 0 ? <HeaderCount>{unreadCount}</HeaderCount> : null}
       filterDefs={filterDefs}
       filterTokens={list.filterTokens}
       onFilterChange={list.setFilterTokens}
@@ -616,13 +633,12 @@ import {
 } from '@microteia/ui';
 import {
   useCreateRecord, useCurrentUser, useDeleteRecord, useEntity, useEntityList,
-  useLookup, useRecordDocuments, useUpdateRecord, useWorkspace,
+  useLookup, useNotify, useRecordDocuments, useUpdateRecord, useWorkspace,
 } from '@microteia/data';
 
 const SOURCE_ID = 'microteia:news';
 const COMMENT_SOURCE_ID = 'microteia:news-comment';
 const READ_TAB_PREFIX = 'news-read:';
-const COLLECTION = 'news';
 const TRUNCATE = 500;
 
 const Root = styled.div\`
@@ -1161,7 +1177,11 @@ export default function NewsReadView({ tabKey }) {
   const createRecord = useCreateRecord();
   const updateRecord = useUpdateRecord();
   const deleteRecord = useDeleteRecord();
+  const notify = useNotify();
   const { setTabTitle } = useWorkspace();
+
+  // A coleção é a que a TELA resolve, e não um nome fixo — ver a listagem.
+  const collection = list.collection;
 
   const [activeTab, setActiveTab] = useState('news');
   const [collapsed, setCollapsed] = useState(false);
@@ -1174,7 +1194,7 @@ export default function NewsReadView({ tabKey }) {
   const [confirmDeleteId, setConfirmDeleteId] = useState(null);
   const [readMarked, setReadMarked] = useState(false);
 
-  const docs = useRecordDocuments(COLLECTION, newsId, activeTab === 'documents');
+  const docs = useRecordDocuments(collection, newsId, activeTab === 'documents');
 
   const record = useMemo(
     () => list.records.find((item) => item.id === newsId) || null,
@@ -1207,11 +1227,15 @@ export default function NewsReadView({ tabKey }) {
     if (!record || !me.id || readMarked) return;
     setReadMarked(true);
     if (has(record.readBy, me.id)) return;
-    void updateRecord(COLLECTION, record.id, {
+    void updateRecord(collection, record.id, {
       readBy: withValue(record.readBy, me.id),
       viewCount: (record.viewCount || 0) + 1,
+    }).catch(() => {
+      // Marcar como lida é gravação no documento de OUTRA pessoa. Se ela for recusada, o selo do
+      // menu não desce — e um selo que não desce sem explicação é pior do que o aviso.
+      notify('Não foi possível registrar a leitura desta notícia.', 'error');
     });
-  }, [record, me.id, readMarked, updateRecord]);
+  }, [record, me.id, readMarked, collection, updateRecord, notify]);
 
   if (!list.definition) {
     return (
@@ -1235,22 +1259,26 @@ export default function NewsReadView({ tabKey }) {
     .filter(Boolean);
   const actions = list.getCardActions(record);
 
-  const toggleLike = () => updateRecord(COLLECTION, record.id, {
+  const patch = (data) => updateRecord(collection, record.id, data).catch(() => {
+    notify('Não foi possível gravar. Verifique se você tem permissão neste escritório.', 'error');
+  });
+
+  const toggleLike = () => patch({
     likedBy: hasLiked ? without(record.likedBy, me.id) : withValue(record.likedBy, me.id),
   });
 
-  const toggleSaved = () => updateRecord(COLLECTION, record.id, {
+  const toggleSaved = () => patch({
     savedBy: isSaved ? without(record.savedBy, me.id) : withValue(record.savedBy, me.id),
   });
 
-  const markAsUnread = () => updateRecord(COLLECTION, record.id, {
+  const markAsUnread = () => patch({
     readBy: without(record.readBy, me.id),
   });
 
   // Comentar, editar e excluir um comentário devolvem a notícia à caixa de todos: o vetor de leitura
   // fica só com quem acabou de mexer. É o que a coleção de interações fazia com uma escrita por
   // usuário, e aqui é uma só.
-  const reopenForEveryone = () => updateRecord(COLLECTION, record.id, { readBy: [me.id] });
+  const reopenForEveryone = () => patch({ readBy: [me.id] });
 
   const submitComment = async () => {
     if (!newContent.trim()) return;

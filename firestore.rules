@@ -287,21 +287,39 @@ service cloud.firestore {
         return !isReservedCollection(name)
           && (isDeclaredScreen(name) || isDeclaredLookup(name) || isDeclaredTagList(name));
       }
-      // A tela pode declarar QUEM grava nos seus registros (`writeRoles`), quando a permissão
-      // padrão do escritório é larga demais para ela — "só advogado ou admin mexe em processo".
-      // Ausente (o normal), vale a permissão padrão. É o que permite uma entidade sair do kernel
-      // sem levar junto a regra nomeada que a protegia.
+      // A tela pode declarar QUEM grava nos seus registros (`writeRoles`). Declarada, a lista é a
+      // AUTORIDADE — serve tanto para ESTREITAR ("só advogado ou admin mexe em processo") quanto
+      // para ALARGAR ("no mural todo mundo comenta", incluindo o papel `user`, somente leitura no
+      // resto do sistema). Ausente (o normal), vale a permissão padrão do escritório. É o que
+      // permite uma entidade sair do kernel sem levar junto a regra nomeada que a protegia.
       function screenWriteRoles(name) {
         return get(/databases/$(database)/documents/tenants/$(tenantId)/screenDefinitions/$(name))
           .data.get('writeRoles', []);
       }
+      function declaresWriteRoles(name) {
+        return isDeclaredScreen(name) && screenWriteRoles(name).size() > 0;
+      }
       // `isDeclaredScreen` primeiro: uma lista de opções ou um conjunto de etiquetas passa por este
-      // mesmo curinga e NÃO tem documento de tela — o `get` abaixo falharia e negaria a escrita.
+      // mesmo curinga e NÃO tem documento de tela — o `get` acima falharia e negaria a escrita.
       function passesScreenWriteRoles(name) {
         return isSystemOrSupport()
-          || !isDeclaredScreen(name)
-          || screenWriteRoles(name).size() == 0
-          || memberData(tenantId).role in screenWriteRoles(name);
+          || (declaresWriteRoles(name)
+                ? (isMember(tenantId) && memberData(tenantId).role in screenWriteRoles(name))
+                : canWriteInTenant(tenantId));
+      }
+      // Campos que QUALQUER membro grava, mesmo sem permissão de escrita na tela: o "por usuário" de
+      // um mural — marcar como lida, curtir, guardar para depois. São gravações no documento que
+      // OUTRA pessoa criou, e por isso o limite é a própria lista: a alteração é recusada se tocar
+      // em qualquer campo fora dela. `updatedAt` entra porque o repositório sempre o carimba.
+      function screenMemberWritableFields(name) {
+        return get(/databases/$(database)/documents/tenants/$(tenantId)/screenDefinitions/$(name))
+          .data.get('memberWritableFields', []);
+      }
+      function touchesOnlyMemberWritableFields(name) {
+        return isDeclaredScreen(name)
+          && screenMemberWritableFields(name).size() > 0
+          && request.resource.data.diff(resource.data).affectedKeys()
+               .hasOnly(screenMemberWritableFields(name).concat(['updatedAt']));
       }
       // Exclusão é ato de gestão, e por isso é de admin. A exceção é a tela que declara
       // `authorCanDelete`: ali a autoria É a posse — um comentário, um recado —, e quem escreveu
@@ -318,12 +336,14 @@ service cloud.firestore {
 
       match /{screenCollection}/{recordId} {
         allow read: if !isReservedCollection(screenCollection) && isMember(tenantId);
-        allow create, update: if isWritableScreen(screenCollection)
-          && canWriteInTenant(tenantId)
+        allow create: if isWritableScreen(screenCollection)
           && passesScreenWriteRoles(screenCollection);
+        allow update: if isWritableScreen(screenCollection)
+          && (passesScreenWriteRoles(screenCollection)
+              || (isMember(tenantId) && touchesOnlyMemberWritableFields(screenCollection)));
         allow delete: if isWritableScreen(screenCollection)
           && (isTenantAdmin(tenantId)
-              || (canWriteInTenant(tenantId)
+              || (passesScreenWriteRoles(screenCollection)
                   && screenAuthorCanDelete(screenCollection)
                   && isRecordAuthor()));
 

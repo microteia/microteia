@@ -196,11 +196,26 @@ export interface ScreenDefinition {
   eventPrefix?: string | null;
   /**
    * Papéis do tenant que podem CRIAR e EDITAR registros desta coleção. Ausente = a permissão padrão
-   * (qualquer membro com escrita). É o que permite uma tela declarar uma restrição mais estrita —
-   * "só advogado ou admin mexe em processo" — sem que a regra precise citar a coleção pelo nome no
-   * `firestore.rules`, que a lê do documento da tela. Exclusão: ver `authorCanDelete`.
+   * do escritório (`admin`, `lawyer`, `secretary`). Declarada, a lista é a AUTORIDADE — e por isso
+   * serve tanto para estreitar ("só advogado ou admin mexe em processo") quanto para alargar ("no
+   * mural do escritório todo mundo comenta", incluindo o papel `user`, que é somente leitura no
+   * resto do sistema). A regra a lê do documento da tela, sem citar a coleção pelo nome.
+   *
+   * Exclusão: ver `authorCanDelete`. Gravação de campo isolado por quem não grava a tela inteira:
+   * ver `memberWritableFields`.
    */
   writeRoles?: string[] | null;
+  /**
+   * Campos que QUALQUER membro do escritório grava, mesmo sem permissão de escrita na tela. É o
+   * "por usuário" de um mural: marcar como lida, curtir, guardar para depois — gravações no
+   * documento que OUTRA pessoa criou, e que não são edição do conteúdo dela.
+   *
+   * O limite é a própria lista: a alteração é recusada se tocar em qualquer campo fora dela. Era o
+   * que as regras nomeadas de `news` diziam à mão (`affectedKeys().hasOnly(['likedBy','likeCount'])`),
+   * e sem a declaração o papel `user` — somente leitura — não conseguia sequer marcar uma notícia
+   * como lida, o que deixava o selo do menu preso para sempre.
+   */
+  memberWritableFields?: string[] | null;
   /**
    * QUEM CRIOU pode excluir o que criou, mesmo sem ser admin do escritório. Ausente (o normal),
    * exclusão é só de admin — a regra que vale para um cadastro, onde apagar é ato de gestão.

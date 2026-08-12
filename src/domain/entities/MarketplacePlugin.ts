@@ -54,6 +54,8 @@ export interface ScreenModuleTemplate {
   recordTabPrefix?: string | null;
   /** Papéis que podem gravar. Ver `ScreenDefinition.writeRoles`. */
   writeRoles?: string[] | null;
+  /** Campos que qualquer membro grava. Ver `ScreenDefinition.memberWritableFields`. */
+  memberWritableFields?: string[] | null;
   /** O autor exclui o que criou. Ver `ScreenDefinition.authorCanDelete`. */
   authorCanDelete?: boolean | null;
   listActions?: ScreenListAction[];

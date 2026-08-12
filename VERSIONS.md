@@ -11,6 +11,13 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [5.0.2] — 2026-08-12
+
+- **A notícia agora sai das não lidas para todo mundo.** Quem entrou no escritório como usuário comum não conseguia registrar a leitura — o selo ficava preso mesmo depois de abrir a notícia, e nada avisava o motivo. Marcar como lida, curtir e guardar para depois voltaram a valer para qualquer pessoa do escritório, como sempre valeram.
+- **Comentar voltou a ser de todo mundo.** Quem só tem acesso de leitura ao escritório pode comentar nas notícias — o mural é o lugar em que todos participam.
+- **Gravação recusada agora avisa.** Quando uma ação numa notícia não pode ser gravada, a tela diz — antes falhava em silêncio e o resultado simplesmente não aparecia.
+- **O contador de não lidas mudou de lugar:** agora fica ao lado da palavra "Notícias", no alto da tela, e não mais colado ao botão de nova notícia.
+
 ## [5.0.1] — 2026-08-12
 
 - **Marcar uma notícia como não lida voltou a funcionar.** O botão tirava a marca de leitura e a própria tela a repunha no instante seguinte: nada mudava, e o contador no menu não voltava. Agora a notícia volta mesmo para as não lidas, e o número ao lado de "Notícias" sobe junto.

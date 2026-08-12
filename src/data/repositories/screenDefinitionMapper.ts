@@ -63,6 +63,7 @@ export const mapScreenDefinition = (
   eventPrefix: (d.eventPrefix as string | null | undefined) ?? null,
   recordTabPrefix: (d.recordTabPrefix as string | null | undefined) ?? null,
   writeRoles: (d.writeRoles as string[] | null | undefined) ?? null,
+  memberWritableFields: (d.memberWritableFields as string[] | null | undefined) ?? null,
   authorCanDelete: (d.authorCanDelete as boolean | null | undefined) ?? null,
   listActions: (d.listActions as ScreenDefinition['listActions'] | undefined) ?? [],
   viewActionIds: (d.viewActionIds as string[] | undefined) ?? [],
