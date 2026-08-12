@@ -23,14 +23,18 @@ const EXPRESSION_OPERATORS = {
   power: true,
   remainder: true,
   subtract: true,
-  length: true,
+  // Desligado junto com `round`: como operador built-in, `length(null)` devolvia 4 (o expr-eval vira
+  // `null` em "null" e conta as letras). Como função, campo vazio conta 0.
+  length: false,
   in: true,
   min: true,
   max: true,
   abs: true,
   ceil: true,
   floor: true,
-  round: true,
+  // Desligado de propósito: `round` precisa ser FUNÇÃO para aceitar as casas decimais que o catálogo
+  // anuncia (`round(3.14159, 2)`). Como operador unário do expr-eval ele nem parseava o 2º argumento.
+  round: false,
   sqrt: true,
   assignment: false,
   fndef: false,
@@ -44,6 +48,66 @@ const asText = (value: unknown): string => {
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const UNSAFE_PATH_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
+
+const DAY_ONLY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+
+const isTimestampLike = (value: unknown): value is { toDate: () => Date } =>
+  !!value && typeof value === 'object' && typeof (value as { toDate?: unknown }).toDate === 'function';
+
+/**
+ * Uma data chega aqui em qualquer das formas que o registro conhece: `Date`, `Timestamp` do
+ * Firestore, milissegundos ou texto. O texto de DIA (`YYYY-MM-DD`) — o que `today()` devolve e o que
+ * um campo de data guarda — vira meia-noite LOCAL, e não UTC: assim o dia que entra é o dia que sai,
+ * sem o deslocamento de um fuso negativo comer a véspera.
+ */
+const toDate = (value: unknown): Date | null => {
+  if (value instanceof Date) return Number.isNaN(value.getTime()) ? null : value;
+  if (isTimestampLike(value)) return toDate(value.toDate());
+  if (typeof value === 'number') return Number.isFinite(value) ? new Date(value) : null;
+  if (typeof value !== 'string') return null;
+  const trimmed = value.trim();
+  if (trimmed === '') return null;
+  if (DAY_ONLY_PATTERN.test(trimmed)) {
+    const [year, month, day] = trimmed.split('-').map(Number);
+    return new Date(year, month - 1, day);
+  }
+  const parsed = new Date(trimmed);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+};
+
+const isDayOnly = (value: unknown): boolean =>
+  typeof value === 'string' && DAY_ONLY_PATTERN.test(value.trim());
+
+const padded = (value: number): string => String(value).padStart(2, '0');
+
+const asDayText = (date: Date): string =>
+  `${date.getFullYear()}-${padded(date.getMonth() + 1)}-${padded(date.getDate())}`;
+
+const asNumber = (value: unknown): number => {
+  if (typeof value === 'number') return value;
+  const parsed = Number(asText(value).replace(',', '.'));
+  return Number.isFinite(parsed) ? parsed : Number.NaN;
+};
+
+const DATE_DIFF_DIVISORS: Record<string, number> = {
+  days: 86400000,
+  dias: 86400000,
+  hours: 3600000,
+  horas: 3600000,
+  minutes: 60000,
+  minutos: 60000,
+  seconds: 1000,
+  segundos: 1000,
+};
+
+const MONEY_LOCALES: Record<string, { locale: string; currency: string }> = {
+  'pt-br': { locale: 'pt-BR', currency: 'BRL' },
+  'en-us': { locale: 'en-US', currency: 'USD' },
+  'eu': { locale: 'de-DE', currency: 'EUR' },
+};
+
+const numbersOf = (value: unknown): number[] =>
+  Array.isArray(value) ? value.map(asNumber).filter((item) => Number.isFinite(item)) : [];
 
 const splitPath = (path: unknown): string[] =>
   asText(path)
@@ -73,6 +137,16 @@ const matchesItem = (item: unknown, search: unknown): boolean => {
 
 // Nomes deliberadamente iguais aos do catálogo de funções do Workflow, para que o ExpressionEditor
 // não acuse "função desconhecida". Apenas funções PURAS (sem WorkflowContext) entram aqui.
+//
+// A COBERTURA é o contrato: o editor valida a expressão contra o catálogo do Workflow, que vem do
+// servidor. Uma função que exista lá e falte aqui é aprovada na tela e estoura na hora de avaliar —
+// foi o que aconteceu com `addDays`. Quem acrescentar função ao catálogo do Workflow acrescenta o
+// par PURO aqui, e o teste de cobertura em `fieldExpression.test.ts` cobra isso.
+//
+// Fora da lista, de propósito: `getVar` (lê o `WorkflowContext`, que não existe no registro) e todo
+// nome que o `expr-eval` reserva como OPERADOR — `and`/`or` (erro de sintaxe como função) e
+// `not`/`abs`/`ceil`/`floor` (o operador unário resolve antes, deixando órfã qualquer função
+// registrada com esse nome). Todos funcionam pelo built-in, na forma que o operador aceita.
 const FIELD_EXPRESSION_FUNCTIONS: Record<string, (...args: unknown[]) => unknown> = {
   if: (condition, whenTrue, whenFalse) => (condition ? whenTrue : whenFalse),
   concat: (...args) => args.map(asText).join(''),
@@ -100,7 +174,104 @@ const FIELD_EXPRESSION_FUNCTIONS: Record<string, (...args: unknown[]) => unknown
     asText(value).substring(Number(start) || 0, end === undefined ? undefined : Number(end)),
   replace: (value, search, replacement) =>
     asText(value).split(asText(search)).join(asText(replacement)),
+  split: (value, separator) => asText(value).split(asText(separator)),
+  join: (array, separator) =>
+    (Array.isArray(array) ? array : []).map(asText).join(separator === undefined ? '' : asText(separator)),
+  interpolate: (template, ...values) => {
+    const named =
+      values.length === 1 && values[0] !== null && typeof values[0] === 'object' && !Array.isArray(values[0])
+        ? (values[0] as Record<string, unknown>)
+        : null;
+    return asText(template).replace(/\{([\w.]+)\}/g, (_match, token: string) => {
+      const found = /^\d+$/.test(token) ? values[Number(token)] : resolvePath(named, splitPath(token));
+      if (found === null || found === undefined) return '';
+      return typeof found === 'object' ? JSON.stringify(found) : String(found);
+    });
+  },
+  formatMoney: (value, locale) => {
+    const amount = asNumber(value);
+    if (!Number.isFinite(amount)) return '';
+    const config = MONEY_LOCALES[asText(locale === undefined ? 'pt-br' : locale).toLowerCase()] ?? MONEY_LOCALES['pt-br'];
+    return new Intl.NumberFormat(config.locale, { style: 'currency', currency: config.currency })
+      .format(amount)
+      .replace(/[\u00A0\u202F]/g, ' ');
+  },
+  formatCPF: (value) => {
+    const clean = onlyDigits(asText(value));
+    return clean.length === 11 ? clean.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4') : asText(value);
+  },
+  formatCNPJ: (value) => {
+    const clean = onlyDigits(asText(value));
+    return clean.length === 14
+      ? clean.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, '$1.$2.$3/$4-$5')
+      : asText(value);
+  },
+  round: (value, decimals) => {
+    const amount = asNumber(value);
+    if (!Number.isFinite(amount)) return null;
+    const places = decimals === undefined ? 0 : asNumber(decimals);
+    const multiplier = Math.pow(10, Number.isFinite(places) ? places : 0);
+    return Math.round(amount * multiplier) / multiplier;
+  },
+  sum: (array) => numbersOf(array).reduce((total, item) => total + item, 0),
+  avg: (array) => {
+    const numbers = numbersOf(array);
+    return numbers.length === 0 ? 0 : numbers.reduce((total, item) => total + item, 0) / numbers.length;
+  },
+  first: (array) => (Array.isArray(array) && array.length > 0 ? array[0] : null),
+  last: (array) => (Array.isArray(array) && array.length > 0 ? array[array.length - 1] : null),
+  delete: (key, target) => {
+    if (target === null || typeof target !== 'object' || Array.isArray(target)) return target;
+    const clone = { ...(target as Record<string, unknown>) };
+    delete clone[asText(key)];
+    return clone;
+  },
   today: () => new Date().toISOString().slice(0, 10),
+  now: () => new Date().toISOString(),
+  /**
+   * O RESULTADO tem a forma da ENTRADA: dia entra, dia sai (`YYYY-MM-DD`, que é o que um campo de
+   * data guarda e o que `today()` devolve); instante entra, instante sai. Assim
+   * `addDays(today(), 15)` cai direto num campo de data, sem conversão pelo caminho.
+   */
+  addDays: (value, days) => {
+    const date = toDate(value);
+    const amount = asNumber(days);
+    if (!date || !Number.isFinite(amount)) return null;
+    const shifted = new Date(date);
+    shifted.setDate(shifted.getDate() + amount);
+    return isDayOnly(value) ? asDayText(shifted) : shifted.toISOString();
+  },
+  formatDate: (value, format) => {
+    const date = toDate(value);
+    if (!date) return '';
+    return asText(format)
+      .replace('YYYY', String(date.getFullYear()))
+      .replace('MM', padded(date.getMonth() + 1))
+      .replace('DD', padded(date.getDate()))
+      .replace('HH', padded(date.getHours()))
+      .replace('mm', padded(date.getMinutes()))
+      .replace('ss', padded(date.getSeconds()));
+  },
+  dateDiff: (first, second, unit) => {
+    const from = toDate(first);
+    const to = toDate(second);
+    if (!from || !to) return null;
+    const divisor = DATE_DIFF_DIVISORS[asText(unit === undefined ? 'days' : unit).toLowerCase()];
+    if (!divisor) return null;
+    return Math.floor((from.getTime() - to.getTime()) / divisor);
+  },
+  dayOfWeek: (value) => toDate(value)?.getDay() ?? null,
+  isWeekend: (value) => {
+    const date = toDate(value);
+    if (!date) return false;
+    return date.getDay() === 0 || date.getDay() === 6;
+  },
+  year: (value) => toDate(value)?.getFullYear() ?? null,
+  month: (value) => {
+    const date = toDate(value);
+    return date ? date.getMonth() + 1 : null;
+  },
+  day: (value) => toDate(value)?.getDate() ?? null,
   // `expr-eval` tem literal de array mas não de objeto — daí a forma por pares, mesma solução já
   // adotada no status compacto das Actions. object('preco', 10) → { preco: 10 }.
   object: (...args) => {
@@ -129,6 +300,10 @@ const buildParser = (): Parser => {
 };
 
 const fieldParser = buildParser();
+
+/** O catálogo desta ponta, para o teste que o confronta com o catálogo do Workflow. */
+export const FIELD_EXPRESSION_FUNCTION_NAMES: readonly string[] =
+  Object.keys(FIELD_EXPRESSION_FUNCTIONS);
 
 const buildScope = (ctx: FieldExprContext): Record<string, unknown> => ({
   null: null,

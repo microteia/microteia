@@ -199,3 +199,108 @@ describe('contains/indexOf com referências hidratadas', () => {
     expect(evaluateFieldExpression("indexOf(ids, 'p9')", ctx)).toBe(-1);
   });
 });
+
+describe('funções de data', () => {
+  const ctx = { value: null, data: { type: 'Embargos de Declaração', vencimento: '2026-08-12' } };
+
+  it('addDays devolve DIA quando recebe dia — a forma que um campo de data guarda', () => {
+    expect(evaluateFieldExpression("addDays('2026-08-12', 15)", ctx)).toBe('2026-08-27');
+    expect(evaluateFieldExpression('addDays(vencimento, 5)', ctx)).toBe('2026-08-17');
+    expect(evaluateFieldExpression('addDays(today(), 0)', ctx)).toBe(evaluateFieldExpression('today()', ctx));
+  });
+
+  it('addDays atravessa a virada do mês e aceita dias negativos', () => {
+    expect(evaluateFieldExpression("addDays('2026-08-28', 5)", ctx)).toBe('2026-09-02');
+    expect(evaluateFieldExpression("addDays('2026-03-01', -1)", ctx)).toBe('2026-02-28');
+  });
+
+  /** O caso relatado: o prazo do Workflow, calculado pela expressão do parâmetro da ação. */
+  it('compõe com if para o prazo que depende do tipo', () => {
+    const expr = 'addDays(vencimento, if(type == "Embargos de Declaração", 5, 15))';
+    expect(evaluateFieldExpression(expr, ctx)).toBe('2026-08-17');
+    expect(evaluateFieldExpression(expr, { value: null, data: { ...ctx.data, type: 'Recurso' } }))
+      .toBe('2026-08-27');
+  });
+
+  it('addDays com data inválida ou dias não-numéricos devolve null, sem estourar', () => {
+    expect(evaluateFieldExpression("addDays('', 5)", ctx)).toBe(null);
+    expect(evaluateFieldExpression("addDays('2026-08-12', 'muitos')", ctx)).toBe(null);
+  });
+
+  it('aceita Date e Timestamp do Firestore, não só texto', () => {
+    const data = { asDate: new Date(2026, 7, 12), asTimestamp: { toDate: () => new Date(2026, 7, 12) } };
+    expect(evaluateFieldExpression("formatDate(asDate, 'DD/MM/YYYY')", { value: null, data })).toBe('12/08/2026');
+    expect(evaluateFieldExpression("formatDate(asTimestamp, 'DD/MM/YYYY')", { value: null, data })).toBe('12/08/2026');
+  });
+
+  it('formatDate, year, month, day, dayOfWeek e isWeekend', () => {
+    expect(evaluateFieldExpression("formatDate(vencimento, 'DD/MM/YYYY')", ctx)).toBe('12/08/2026');
+    expect(evaluateFieldExpression('year(vencimento)', ctx)).toBe(2026);
+    expect(evaluateFieldExpression('month(vencimento)', ctx)).toBe(8);
+    expect(evaluateFieldExpression('day(vencimento)', ctx)).toBe(12);
+    expect(evaluateFieldExpression('dayOfWeek(vencimento)', ctx)).toBe(3);
+    expect(evaluateFieldExpression('isWeekend(vencimento)', ctx)).toBe(false);
+    expect(evaluateFieldExpression("isWeekend('2026-08-15')", ctx)).toBe(true);
+  });
+
+  it('dateDiff em dias e em horas', () => {
+    expect(evaluateFieldExpression("dateDiff('2026-08-20', vencimento, 'days')", ctx)).toBe(8);
+    expect(evaluateFieldExpression("dateDiff('2026-08-20', vencimento, 'dias')", ctx)).toBe(8);
+    expect(evaluateFieldExpression("dateDiff(vencimento, '2026-08-20', 'days')", ctx)).toBe(-8);
+    expect(evaluateFieldExpression("dateDiff('2026-08-13', vencimento, 'horas')", ctx)).toBe(24);
+    expect(evaluateFieldExpression("dateDiff('2026-08-13', vencimento, 'anos')", ctx)).toBe(null);
+  });
+});
+
+describe('demais funções trazidas do catálogo do Workflow', () => {
+  const ctx = { value: null, data: { nome: 'Ana', valores: [10, 20, 30], cpf: '12345678910' } };
+
+  it('split, join e interpolate', () => {
+    expect(evaluateFieldExpression("join(split('a,b,c', ','), ' | ')", ctx)).toEqual('a | b | c');
+    expect(evaluateFieldExpression("interpolate('Olá {0}, tudo bem?', nome)", ctx)).toBe('Olá Ana, tudo bem?');
+    expect(evaluateFieldExpression("interpolate('Olá {quem}', object('quem', nome))", ctx)).toBe('Olá Ana');
+  });
+
+  it('sum, avg, first e last', () => {
+    expect(evaluateFieldExpression('sum(valores)', ctx)).toBe(60);
+    expect(evaluateFieldExpression('avg(valores)', ctx)).toBe(20);
+    expect(evaluateFieldExpression('first(valores)', ctx)).toBe(10);
+    expect(evaluateFieldExpression('last(valores)', ctx)).toBe(30);
+    expect(evaluateFieldExpression('sum(nome)', ctx)).toBe(0);
+  });
+
+  it('round passa a aceitar as casas decimais que o catálogo anuncia', () => {
+    expect(evaluateFieldExpression('round(3.14159, 2)', ctx)).toBe(3.14);
+    expect(evaluateFieldExpression('round(3.7)', ctx)).toBe(4);
+    expect(evaluateFieldExpression('round(1234.567, 1)', ctx)).toBe(1234.6);
+    expect(evaluateFieldExpression("round('nao e numero')", ctx)).toBe(null);
+  });
+
+  it('length conta campo vazio como 0, e não como as 4 letras de "null"', () => {
+    expect(evaluateFieldExpression("length('texto')", ctx)).toBe(5);
+    expect(evaluateFieldExpression('length(valores)', ctx)).toBe(3);
+    expect(evaluateFieldExpression('length(nulo)', { value: null, data: { nulo: null } })).toBe(0);
+    expect(evaluateFieldExpression("length('')", ctx)).toBe(0);
+    expect(evaluateFieldExpression('length(12345)', ctx)).toBe(5);
+  });
+
+  /** Resolvidos pelos OPERADORES do expr-eval — seguem funcionando sem função registrada. */
+  it('not, abs, floor e ceil continuam valendo pelo operador', () => {
+    expect(evaluateFieldExpression('not(1 == 2)', ctx)).toBe(true);
+    expect(evaluateFieldExpression('abs(0 - 5)', ctx)).toBe(5);
+    expect(evaluateFieldExpression('floor(3.7)', ctx)).toBe(3);
+    expect(evaluateFieldExpression('ceil(3.2)', ctx)).toBe(4);
+    expect(evaluateFieldExpression('1 == 1 and 2 == 2', ctx)).toBe(true);
+    expect(evaluateFieldExpression('1 == 9 or 2 == 2', ctx)).toBe(true);
+  });
+
+  it('delete e os formatadores de documento', () => {
+    expect(evaluateFieldExpression("delete('b', object('a', 1, 'b', 2))", ctx)).toEqual({ a: 1 });
+    expect(evaluateFieldExpression('formatCPF(cpf)', ctx)).toBe('123.456.789-10');
+    expect(evaluateFieldExpression("formatCNPJ('12345678000190')", ctx)).toBe('12.345.678/0001-90');
+  });
+
+  it('formatMoney no padrão brasileiro', () => {
+    expect(evaluateFieldExpression('formatMoney(1234.5)', ctx)).toBe('R$ 1.234,50');
+  });
+});

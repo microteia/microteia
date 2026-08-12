@@ -33,13 +33,13 @@ const context = (values: Record<string, unknown>): ActionExprContext => ({
 
 describe('buildPromptInitialValues', () => {
   it('o campo de MESMO NOME preenche o parâmetro, sem mapa nenhum', () => {
-    const values = buildPromptInitialValues(action(), [param('type')], context({ type: 'Petição' }));
+    const { values } = buildPromptInitialValues(action(), [param('type')], context({ type: 'Petição' }));
     expect(values).toEqual({ type: 'Petição' });
   });
 
   /** O caso que motivou o mapa: a tela guarda `processNumber`, o fluxo pede `caseNumber`. */
   it('a expressão declarada vence o casamento por nome', () => {
-    const values = buildPromptInitialValues(
+    const { values } = buildPromptInitialValues(
       action({ parameterDefaults: { caseNumber: 'processNumber' } }),
       [param('caseNumber')],
       context({ processNumber: '0801234-56.2024.8.05.0001', caseNumber: 'ignorado' }),
@@ -48,7 +48,7 @@ describe('buildPromptInitialValues', () => {
   });
 
   it('a expressão pode DERIVAR o valor, e não só copiar um campo', () => {
-    const values = buildPromptInitialValues(
+    const { values } = buildPromptInitialValues(
       action({ parameterDefaults: { description: 'concat("Gerado a partir do push: ", subject)' } }),
       [param('description')],
       context({ subject: 'Intimação' }),
@@ -61,7 +61,7 @@ describe('buildPromptInitialValues', () => {
    * escrito no campo, que é o que o usuário leria como valor.
    */
   it('parâmetro sem expressão e sem campo correspondente não entra', () => {
-    const values = buildPromptInitialValues(
+    const { values } = buildPromptInitialValues(
       action({ parameterDefaults: { dueDate: '   ' } }),
       [param('dueDate'), param('priority')],
       context({ subject: 'Intimação', priority: null }),
@@ -70,11 +70,47 @@ describe('buildPromptInitialValues', () => {
   });
 
   it('expressão em branco cai no casamento por nome', () => {
-    const values = buildPromptInitialValues(
+    const { values } = buildPromptInitialValues(
       action({ parameterDefaults: { type: '' } }),
       [param('type')],
       context({ type: 'Recurso' }),
     );
     expect(values).toEqual({ type: 'Recurso' });
+  });
+
+  it('calcula datas com addDays — a expressão que só existia no catálogo do Workflow', () => {
+    const { values, failures } = buildPromptInitialValues(
+      action({ parameterDefaults: { dueDate: 'addDays("2026-08-12", if(type == "Embargos de Declaração", 5, 15))' } }),
+      [param('dueDate')],
+      context({ type: 'Embargos de Declaração' }),
+    );
+    expect(values).toEqual({ dueDate: '2026-08-17' });
+    expect(failures).toEqual([]);
+  });
+
+  /**
+   * O caso que motivou a mudança: a tela não abria e o erro só existia no console do navegador.
+   * Agora o formulário abre, o parâmetro recai no campo de mesmo nome e a falha é relatada.
+   */
+  it('expressão que estoura vira falha relatada, sem derrubar o formulário', () => {
+    const { values, failures } = buildPromptInitialValues(
+      action({ parameterDefaults: { dueDate: 'naoExisteEssaFuncao(today(), 5)' } }),
+      [param('dueDate'), param('type')],
+      context({ dueDate: '2026-08-12', type: 'Recurso' }),
+    );
+    expect(values).toEqual({ dueDate: '2026-08-12', type: 'Recurso' });
+    expect(failures).toHaveLength(1);
+    expect(failures[0].key).toBe('dueDate');
+    expect(failures[0].message).toContain('naoExisteEssaFuncao');
+    expect(failures[0].message).toContain('função');
+  });
+
+  it('campo inexistente na expressão é relatado como campo, não como função', () => {
+    const { failures } = buildPromptInitialValues(
+      action({ parameterDefaults: { dueDate: 'campoQueNaoExiste + 1' } }),
+      [param('dueDate')],
+      context({}),
+    );
+    expect(failures[0].message).toContain('campo "campoQueNaoExiste"');
   });
 });

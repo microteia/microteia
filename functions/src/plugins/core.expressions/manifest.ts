@@ -12,19 +12,26 @@ import {
 } from '../../domain/engine/expression/builtins/stringFns';
 import { getVarFn } from '../../domain/engine/expression/builtins/getVarFn';
 import {
-  roundFn, floorFn, ceilFn, absFn, minFn, maxFn, sumFn, avgFn,
+  roundFn, minFn, maxFn, sumFn, avgFn,
 } from '../../domain/engine/expression/builtins/mathFns';
 import {
   firstFn, lastFn, containsFn, indexOfFn, mapFn,
 } from '../../domain/engine/expression/builtins/arrayFns';
 import { objectFn, deleteFn } from '../../domain/engine/expression/builtins/objectFns';
 import {
-  andFn, orFn, notFn, isEmptyFn, isNullFn, isNotNullFn, coalesceFn,
+  isEmptyFn, isNullFn, isNotNullFn, coalesceFn,
 } from '../../domain/engine/expression/builtins/logicFns';
 import {
   isCPFFn, isCNPJFn, isEmailFn, formatCPFFn, formatCNPJFn,
 } from '../../domain/engine/expression/builtins/validationFns';
 
+/**
+ * Só entra aqui o que o `expr-eval` de fato ROTEIA para uma função registrada. Nome que ele reserva
+ * como operador nunca chega até aqui: `and`/`or` dão erro de sintaxe e `not`/`abs`/`ceil`/`floor` são
+ * resolvidos pelo operador unário, deixando a implementação órfã. Todos continuam
+ * disponíveis e documentados pelo `operatorRegistry`, na forma que funciona. Ver o teste de paridade
+ * em `domain/engine/expression/fieldExpressionParity.test.ts`.
+ */
 const BUILTIN_FUNCTIONS: ExpressionFunction[] = [
   todayFn, nowFn, formatDateFn, dayOfWeekFn, isWeekendFn, dateDiffFn, yearFn, monthFn, dayFn,
   addDaysFn,
@@ -32,10 +39,10 @@ const BUILTIN_FUNCTIONS: ExpressionFunction[] = [
   concatFn, lowerFn, upperFn, lengthFn, trimFn, replaceFn, substringFn, startsWithFn, endsWithFn,
   splitFn, joinFn, interpolateFn, onlyNumberFn, formatMoneyFn,
   getVarFn,
-  roundFn, floorFn, ceilFn, absFn, minFn, maxFn, sumFn, avgFn,
+  roundFn, minFn, maxFn, sumFn, avgFn,
   firstFn, lastFn, containsFn, indexOfFn, mapFn,
   objectFn, deleteFn,
-  andFn, orFn, notFn, isEmptyFn, isNullFn, isNotNullFn, coalesceFn,
+  isEmptyFn, isNullFn, isNotNullFn, coalesceFn,
   isCPFFn, isCNPJFn, isEmailFn, formatCPFFn, formatCNPJFn,
 ];
 

@@ -147,10 +147,12 @@ export const validateExpressionWithParser = (
                     abs: true,
                     ceil: true,
                     floor: true,
-                    round: true,
+                    // `round` é função (aceita casas decimais), não operador — ver mathFns.ts
+                    round: false,
                     trunc: true,
                     exp: true,
-                    length: true,
+                    // `length` é função (trata vazio como 0), não operador — ver stringFns.ts
+                    length: false,
                     in: true,
                     random: true,
                     min: true,

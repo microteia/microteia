@@ -401,21 +401,18 @@ export const ceilFunction: ExpressionOperator = {
   category: 'Matemática',
 };
 
+/**
+ * `round` e `length` NÃO são documentados como operadores: são FUNÇÕES de verdade (`roundFn` em
+ * `mathFns.ts`, `lengthFn` em `stringFns.ts`), porque só assim aceitam as casas decimais e tratam o
+ * campo vazio como 0. Documentá-los aqui também duplicaria a entrada no editor, e a versão sem
+ * `minArgs`/`maxArgs` venceria — desligando a checagem de argumentos.
+ */
 export const floorFunction: ExpressionOperator = {
   symbol: 'floor',
   name: 'Arredondar para Baixo',
   description: 'Arredonda um número para baixo (próximo inteiro menor)',
   usage: 'floor(número)',
   example: 'floor(4.9) → 4',
-  category: 'Matemática',
-};
-
-export const roundFunction: ExpressionOperator = {
-  symbol: 'round',
-  name: 'Arredondar',
-  description: 'Arredonda um número para o inteiro mais próximo',
-  usage: 'round(número)',
-  example: 'round(4.5) → 5',
   category: 'Matemática',
 };
 
@@ -464,11 +461,3 @@ export const randomFunction: ExpressionOperator = {
   category: 'Matemática',
 };
 
-export const lengthFunction: ExpressionOperator = {
-  symbol: 'length',
-  name: 'Comprimento',
-  description: 'Retorna o tamanho de um array ou string',
-  usage: 'length(array_ou_string)',
-  example: 'length([1, 2, 3]) → 3',
-  category: 'Operador',
-};

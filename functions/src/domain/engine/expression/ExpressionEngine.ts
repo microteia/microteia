@@ -10,8 +10,8 @@ import {
   sinFunction, cosFunction, tanFunction, asinFunction, acosFunction, atanFunction,
   sinhFunction, coshFunction, tanhFunction, asinhFunction, acoshFunction, atanhFunction,
   sqrtFunction, cbrtFunction, logFunction, lnFunction, log10Function, log2Function, lgFunction, log1pFunction,
-  expFunction, expm1Function, absFunction, ceilFunction, floorFunction, roundFunction, truncFunction,
-  signFunction, minFunction, maxFunction, randomFunction, lengthFunction,
+  expFunction, expm1Function, absFunction, ceilFunction, floorFunction, truncFunction,
+  signFunction, minFunction, maxFunction, randomFunction,
 } from './builtins/operators';
 
 
@@ -23,9 +23,69 @@ import {
   sinFunction, cosFunction, tanFunction, asinFunction, acosFunction, atanFunction,
   sinhFunction, coshFunction, tanhFunction, asinhFunction, acoshFunction, atanhFunction,
   sqrtFunction, cbrtFunction, logFunction, lnFunction, log10Function, log2Function, lgFunction, log1pFunction,
-  expFunction, expm1Function, absFunction, ceilFunction, floorFunction, roundFunction, truncFunction,
-  signFunction, minFunction, maxFunction, randomFunction, lengthFunction,
+  expFunction, expm1Function, absFunction, ceilFunction, floorFunction, truncFunction,
+  signFunction, minFunction, maxFunction, randomFunction,
 ].forEach((op) => operatorRegistry.register(op));
+
+/**
+ * Configuração ÚNICA do parser. Exportada porque o teste de paridade a usa para PROVAR que toda
+ * função do catálogo é de fato alcançável: nome que o `expr-eval` reserva como operador nunca
+ * chega à função registrada, e o catálogo não pode anunciar o que não roda.
+ */
+export const ENGINE_PARSER_OPERATORS = {
+  add: true,
+  comparison: true,
+  concatenate: true,
+  conditional: true,
+  divide: true,
+  factorial: true,
+  logical: true,
+  multiply: true,
+  power: true,
+  remainder: true,
+  subtract: true,
+  sin: true,
+  cos: true,
+  tan: true,
+  asin: true,
+  acos: true,
+  atan: true,
+  sinh: true,
+  cosh: true,
+  tanh: true,
+  asinh: true,
+  acosh: true,
+  atanh: true,
+  sqrt: true,
+  log: true,
+  ln: true,
+  lg: true,
+  log10: true,
+  abs: true,
+  ceil: true,
+  floor: true,
+  // Desligado de propósito: `round` precisa ser FUNÇÃO para aceitar as casas
+  // decimais que o catálogo anuncia. Como operador unário do expr-eval ele engolia
+  // o segundo argumento e `round(3.14159, 2)` nem parseava. Ver `mathFns.ts`.
+  round: false,
+  trunc: true,
+  exp: true,
+  // Desligado junto com `round`, e pelo mesmo motivo: como operador built-in, `length(null)` devolvia
+  // 4 (o expr-eval vira `null` em "null" e conta as letras). Ver `stringFns.ts`.
+  length: false,
+  in: true,
+  random: true,
+  min: true,
+  max: true,
+  cbrt: true,
+  expm1: true,
+  log1p: true,
+  sign: true,
+  log2: true,
+  // Desativados por segurança para manter o Step puramente avaliativo:
+  assignment: false,
+  fndef: false,
+} as const;
 
 const buildVariablesContext = (context: WorkflowContext): Record<string, unknown> => {
   const variables: Record<string, unknown> = {
@@ -117,59 +177,10 @@ class ExpressionEngineImpl implements ExpressionEngine {
         throw new Error(`Falta fechar aspas (${stringChar === '"' ? 'aspas duplas "' : "aspas simples '"})`);
       }
 
-      const parser = new Parser(
-        { 
-          allowMemberAccess: true,
-          operators: {
-                    add: true,
-                    comparison: true,
-                    concatenate: true,
-                    conditional: true,
-                    divide: true,
-                    factorial: true,
-                    logical: true,
-                    multiply: true,
-                    power: true,
-                    remainder: true,
-                    subtract: true,
-                    sin: true,
-                    cos: true,
-                    tan: true,
-                    asin: true,
-                    acos: true,
-                    atan: true,
-                    sinh: true,
-                    cosh: true,
-                    tanh: true,
-                    asinh: true,
-                    acosh: true,
-                    atanh: true,
-                    sqrt: true,
-                    log: true,
-                    ln: true,
-                    lg: true,
-                    log10: true,
-                    abs: true,
-                    ceil: true,
-                    floor: true,
-                    round: true,
-                    trunc: true,
-                    exp: true,
-                    length: true,
-                    in: true,
-                    random: true,
-                    min: true,
-                    max: true,
-                    cbrt: true,
-                    expm1: true,
-                    log1p: true,
-                    sign: true,
-                    log2: true,
-                    // Desativados por segurança para manter o Step puramente avaliativo:
-                    assignment: false, 
-                    fndef: false
-                  }
-        });
+      const parser = new Parser({
+        allowMemberAccess: true,
+        operators: { ...ENGINE_PARSER_OPERATORS },
+      });
       const variables = buildVariablesContext(context);
       const functions = buildFunctionsContext(context);
 

@@ -1,5 +1,16 @@
 import type { ExpressionFunction } from '../FunctionRegistry';
 
+/**
+ * `floor`, `ceil` e `abs` NÃO moram aqui: são operadores unários do `expr-eval` e o parser os resolve
+ * antes de consultar as funções registradas — as implementações daqui nunca eram chamadas. Continuam
+ * funcionando pelo built-in e documentados no `operatorRegistry`.
+ *
+ * `round` é a exceção que justifica a regra: o built-in aceita UM argumento, então a assinatura que
+ * este catálogo anuncia (`round(número, casasDecimais?)`) era um erro de sintaxe — o próprio exemplo,
+ * `round(3.14159, 2)`, não parseava. Por isso o operador `round` é desligado nas configurações do
+ * parser (`ExpressionEngine.ts` e `fieldExpression.ts`): assim esta implementação é alcançada e a
+ * assinatura anunciada passa a valer.
+ */
 export const roundFn: ExpressionFunction = {
   name: 'round',
   call: ([value, decimals = 0]) => {
@@ -18,54 +29,6 @@ export const roundFn: ExpressionFunction = {
   category: 'Operador',
   minArgs: 1,
   maxArgs: 2,
-};
-
-export const floorFn: ExpressionFunction = {
-  name: 'floor',
-  call: ([value]) => {
-    if (typeof value !== 'number') {
-      throw new Error('floor: argumento deve ser um número');
-    }
-    return Math.floor(value);
-  },
-  description: 'Arredonda um número para baixo',
-  signature: 'floor(número)',
-  example: 'floor(3.7)',
-  category: 'Operador',
-  minArgs: 1,
-  maxArgs: 1,
-};
-
-export const ceilFn: ExpressionFunction = {
-  name: 'ceil',
-  call: ([value]) => {
-    if (typeof value !== 'number') {
-      throw new Error('ceil: argumento deve ser um número');
-    }
-    return Math.ceil(value);
-  },
-  description: 'Arredonda um número para cima',
-  signature: 'ceil(número)',
-  example: 'ceil(3.2)',
-  category: 'Operador',
-  minArgs: 1,
-  maxArgs: 1,
-};
-
-export const absFn: ExpressionFunction = {
-  name: 'abs',
-  call: ([value]) => {
-    if (typeof value !== 'number') {
-      throw new Error('abs: argumento deve ser um número');
-    }
-    return Math.abs(value);
-  },
-  description: 'Retorna o valor absoluto de um número',
-  signature: 'abs(número)',
-  example: 'abs(-5)',
-  category: 'Operador',
-  minArgs: 1,
-  maxArgs: 1,
 };
 
 export const minFn: ExpressionFunction = {

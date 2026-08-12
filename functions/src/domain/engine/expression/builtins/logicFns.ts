@@ -1,36 +1,12 @@
 import type { ExpressionFunction } from '../FunctionRegistry';
 
-export const andFn: ExpressionFunction = {
-  name: 'and',
-  call: (args) => args.every((arg) => Boolean(arg)),
-  description: 'Retorna verdadeiro se todos os argumentos forem verdadeiros',
-  signature: 'and(condição1, condição2, ...)',
-  example: 'and(5 > 3, 10 < 20)',
-  category: 'Condicional',
-  minArgs: 1,
-};
-
-export const orFn: ExpressionFunction = {
-  name: 'or',
-  call: (args) => args.some((arg) => Boolean(arg)),
-  description: 'Retorna verdadeiro se pelo menos um argumento for verdadeiro',
-  signature: 'or(condição1, condição2, ...)',
-  example: 'or(5 > 10, 10 < 20)',
-  category: 'Condicional',
-  minArgs: 1,
-};
-
-export const notFn: ExpressionFunction = {
-  name: 'not',
-  call: ([value]) => !value,
-  description: 'Inverte um valor booleano',
-  signature: 'not(valor)',
-  example: 'not(5 > 10)',
-  category: 'Condicional',
-  minArgs: 1,
-  maxArgs: 1,
-};
-
+/**
+ * `and`, `or` e `not` NÃO moram aqui: o `expr-eval` os reserva como OPERADORES. `and(a, b)` nem
+ * parseia ("unexpected TOP: and") e `not(a)` é resolvido pelo operador unário antes de chegar a
+ * qualquer função registrada. Enquanto estiveram no catálogo, o editor os oferecia como função e o
+ * usuário escrevia algo que só falhava na hora de executar. A forma que funciona — `a and b`,
+ * `a or b`, `not a` — é documentada no `operatorRegistry` (`builtins/operators.ts`).
+ */
 export const isEmptyFn: ExpressionFunction = {
   name: 'isEmpty',
   call: ([value]) => {

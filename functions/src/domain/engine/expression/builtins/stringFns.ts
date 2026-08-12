@@ -32,13 +32,19 @@ export const upperFn: ExpressionFunction = {
   maxArgs: 1,
 };
 
+/**
+ * Só é alcançada porque o operador `length` é DESLIGADO nas configurações de parser — o built-in do
+ * `expr-eval` respondia antes e transformava `null` em `"null"`, devolvendo 4 para um campo vazio.
+ * Aqui vazio é 0, que é o que `length(campo) > 0` sempre quis dizer.
+ */
 export const lengthFn: ExpressionFunction = {
   name: 'length',
   call: ([value]) => {
-    if (typeof value === 'string' || Array.isArray(value)) return value.length;
-    return 0;
+    if (value === null || value === undefined) return 0;
+    if (Array.isArray(value)) return value.length;
+    return String(value).length;
   },
-  description: 'Retorna o tamanho de um texto ou array',
+  description: 'Retorna o tamanho de um texto ou array (vazio conta como 0)',
   signature: 'length(valor)',
   example: 'length("texto")',
   category: 'Texto',

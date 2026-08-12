@@ -11,6 +11,15 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [4.6.0] — 2026-08-12
+
+- **Cálculo de datas nas expressões das ações e dos campos.** `addDays` já aparecia na lista de funções e era aceita pelo editor, mas não funcionava na hora de usar: uma ação com `addDays(today(), 15)` no vencimento simplesmente não abria. Agora funciona — e com ela vieram todas as outras funções que faltavam desse lado: `formatDate`, `dateDiff`, `year`, `month`, `day`, `dayOfWeek`, `isWeekend`, `now`, `split`, `join`, `interpolate`, `formatMoney`, `formatCPF`, `formatCNPJ`, `sum`, `avg`, `first`, `last` e `delete`. O que a lista de funções oferece é o que de fato funciona.
+- **Erro em expressão deixou de ser invisível.** Quando uma expressão de parâmetro não podia ser calculada, a tela de "Gerar Prazo" (e qualquer outra ação que pergunta antes de disparar) não abria, sem aviso nenhum — o motivo só existia no console do navegador. Agora o formulário abre normalmente, o campo vem em branco para você preencher à mão, e um aviso na tela diz qual parâmetro falhou e por quê, com a mensagem escrita em português: "a função X não existe", "o campo Y não existe nesta tela".
+- **A lista de funções deixou de oferecer o que não funciona.** Seis entradas — `and`, `or`, `not`, `abs`, `ceil` e `floor` — apareciam como funções, mas o sistema nunca as executava daquela forma: `and(a, b)` e `or(a, b)` davam erro de sintaxe, e as demais eram atendidas internamente por outro caminho, o que tornava a descrição da lista incorreta. Saíram da lista de funções e continuam disponíveis exatamente como sempre funcionaram, agora descritas do jeito certo: `a and b`, `a or b`, `not a`, `abs(x)`, `floor(x)`, `ceil(x)`.
+- **`round` passou a arredondar com casas decimais, como sempre prometeu.** A lista mostrava o exemplo `round(3.14159, 2)`, mas escrevê-lo dava erro. Agora funciona: `round(3.14159, 2)` resulta em `3.14`, e `round(3.7)` continua resultando em `4`.
+- **`length` passou a contar campo vazio como zero.** Em um campo sem preenchimento, `length` devolvia **4** — o sistema contava as letras da palavra que usa internamente para "vazio". Uma condição como `length(observacao) > 0` dava verdadeira mesmo com o campo em branco. Agora vazio conta 0, texto conta as letras e lista conta os itens.
+- Uma verificação automática passou a conferir, a cada alteração, se toda função anunciada é realmente executável — para que a lista de funções nunca mais prometa o que não entrega.
+
 ## [4.5.0] — 2026-08-12
 
 - Ao executar uma automação, ou ao clicar em uma ação que pergunta antes de disparar, um parâmetro que aponta para um cadastro passou a abrir a **lista de registros** para escolher — Processos, Pessoas, Contratos, qualquer tela do escritório. Antes só havia um campo de texto esperando que você soubesse o código do registro de cor.

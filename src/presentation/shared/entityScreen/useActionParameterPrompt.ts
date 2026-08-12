@@ -1,5 +1,6 @@
 import { useCallback, useState } from 'react';
 import { useWorkflowStore } from '../../../stores/useWorkflowStore';
+import { useNotification } from '../../../stores/useNotification';
 import { evaluateFieldExpression } from '../../../domain/schema/fieldExpression';
 import type { ActionExprContext } from '../../../domain/schema/actionExpression';
 import type { ActionDefinition } from '../../../domain/entities';
@@ -50,32 +51,67 @@ const buildScope = (context: ActionExprContext): Record<string, unknown> => ({
   relation: context.relation ?? 'none',
 });
 
+const IDENTIFIER_PATTERN = /^[A-Za-z_$][\w$]*$/;
+
+/**
+ * O `expr-eval` fala de "undefined variable" tanto para o campo que não existe quanto para a FUNÇÃO
+ * que não existe — e quem escreveu `addDays(...)` não reconhece o próprio erro nessa frase. Olhar a
+ * expressão diz de qual dos dois se trata: nome seguido de parêntese é chamada de função.
+ */
+const describeExpressionError = (expression: string, error: unknown): string => {
+  const raw = error instanceof Error ? error.message : String(error);
+  const name = /undefined variable:\s*(\S+)/.exec(raw)?.[1];
+  if (!name || !IDENTIFIER_PATTERN.test(name)) return raw;
+  return new RegExp(`\\b${name}\\s*\\(`).test(expression)
+    ? `a função "${name}" não existe nas expressões de campo`
+    : `o campo "${name}" não existe nesta tela`;
+};
+
+export interface PromptInitialValues {
+  values: Record<string, unknown>;
+  /** As expressões que estouraram, já em linguagem de quem as escreveu. */
+  failures: { key: string; label: string; message: string }[];
+}
+
 /**
  * Com o que o formulário abre. Duas origens, nesta ordem: a EXPRESSÃO que a ação declarou para o
  * parâmetro, e — só na falta dela — o campo de mesmo nome na tela. A expressão vem primeiro porque é
  * a declaração explícita; o casamento por nome é a conveniência de quem não precisou declarar nada.
+ *
+ * Expressão que estoura NÃO derruba o formulário: ela vira uma falha relatada, o parâmetro recai no
+ * campo de mesmo nome e a tela abre para ser preenchida à mão. Antes o erro subia pelo handler do
+ * clique — a tela simplesmente não abria, e o motivo só existia no console do navegador.
  */
 export const buildPromptInitialValues = (
   action: ActionDefinition,
   parameters: WorkflowParameter[],
   context: ActionExprContext,
-): Record<string, unknown> => {
+): PromptInitialValues => {
   const scope = buildScope(context);
   const defaults = action.parameterDefaults ?? {};
-  const out: Record<string, unknown> = {};
+  const values: Record<string, unknown> = {};
+  const failures: PromptInitialValues['failures'] = [];
 
   for (const param of parameters) {
     const expression = defaults[param.key];
     if (expression && expression.trim() !== '') {
-      const value = evaluateFieldExpression(expression, { value: null, data: scope });
-      if (value !== undefined && value !== null) out[param.key] = value;
-      continue;
+      try {
+        const value = evaluateFieldExpression(expression, { value: null, data: scope });
+        if (value !== undefined && value !== null) values[param.key] = value;
+        continue;
+      } catch (error) {
+        failures.push({
+          key: param.key,
+          label: param.label || param.key,
+          message: describeExpressionError(expression, error),
+        });
+      }
     }
     const fromScreen = context.values[param.key];
-    if (fromScreen !== undefined && fromScreen !== null) out[param.key] = fromScreen;
+    if (fromScreen !== undefined && fromScreen !== null) values[param.key] = fromScreen;
   }
 
-  return out;
+  return { values, failures };
 };
 
 /**
@@ -90,6 +126,7 @@ export const buildPromptInitialValues = (
  */
 export const useActionParameterPrompt = (): ActionParameterPromptController => {
   const { workflows } = useWorkflowStore();
+  const { notify } = useNotification();
   const [pending, setPending] = useState<ActionParameterPrompt | null>(null);
 
   const parametersOf = useCallback((workflowId: string): WorkflowParameter[] => {
@@ -105,14 +142,13 @@ export const useActionParameterPrompt = (): ActionParameterPromptController => {
     if (!action.promptParameters || action.command) return false;
     const parameters = parametersOf(action.workflowId);
     if (parameters.length === 0) return false;
-    setPending({
-      action,
-      parameters,
-      initialValues: buildPromptInitialValues(action, parameters, context),
-      run,
-    });
+    const { values, failures } = buildPromptInitialValues(action, parameters, context);
+    for (const failure of failures) {
+      notify(`Não foi possível calcular "${failure.label}": ${failure.message}.`, 'warning');
+    }
+    setPending({ action, parameters, initialValues: values, run });
     return true;
-  }, [parametersOf]);
+  }, [parametersOf, notify]);
 
   const cancel = useCallback(() => setPending(null), []);
 

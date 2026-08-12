@@ -37,6 +37,20 @@ const FUNCOES_ANTES_DA_MIGRACAO = [
   'startsWith', 'substring', 'sum', 'today', 'trim', 'upper', 'year',
 ].sort();
 
+/**
+ * Saíram do catálogo por serem INALCANÇÁVEIS: o `expr-eval` reserva esses nomes como operadores e
+ * nunca roteia a chamada para a função registrada — `and(a, b)` e `or(a, b)` nem parseiam, e
+ * `not`/`abs`/`ceil`/`floor` são resolvidos pelo operador unário antes. Continuam
+ * funcionando pela forma que o parser aceita (`a and b`, `not a`, `abs(x)`), documentada no
+ * `operatorRegistry`. A sonda que prova isso está em
+ * `domain/engine/expression/fieldExpressionParity.test.ts`.
+ */
+const REMOVIDAS_POR_SEREM_INALCANCAVEIS = ['abs', 'and', 'ceil', 'floor', 'not', 'or'];
+
+const FUNCOES_ESPERADAS = FUNCOES_ANTES_DA_MIGRACAO.filter(
+  (name) => !REMOVIDAS_POR_SEREM_INALCANCAVEIS.includes(name),
+);
+
 describe('plugins do backend — carga', () => {
   it('carrega sem nenhum diagnóstico', () => {
     const { result } = hostWith(BACKEND_PLUGINS);
@@ -79,14 +93,14 @@ describe('plugins do backend — paridade com o registro fixo', () => {
     expect(ids).toEqual(STEPS_ANTES_DA_MIGRACAO);
   });
 
-  it('nenhuma função de expressão se perdeu na migração', () => {
+  it('nenhuma função de expressão se perdeu na migração, além das removidas por serem inalcançáveis', () => {
     const { host } = hostWith(BACKEND_PLUGINS);
     const names = host.contributions
       .query(EXPRESSION_FUNCTION_POINT)
       .map((contribution) => (contribution.metadata as { name: string }).name)
       .sort();
 
-    expect(names).toEqual(FUNCOES_ANTES_DA_MIGRACAO);
+    expect(names).toEqual(FUNCOES_ESPERADAS);
   });
 
   it('a fábrica de cada Step produz a StepDefinition com o id declarado na metadata', () => {
@@ -133,7 +147,7 @@ describe('plugins do backend — remoção limpa', () => {
     expect(result.diagnostics).toEqual([]);
     expect(host.contributions.query(WORKFLOW_STEP_POINT)).toEqual([]);
     expect(host.contributions.query(EXPRESSION_FUNCTION_POINT)).toHaveLength(
-      FUNCOES_ANTES_DA_MIGRACAO.length,
+      FUNCOES_ESPERADAS.length,
     );
     expect(host.implementations.keysOf('core.steps')).toEqual([]);
   });
