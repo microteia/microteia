@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [5.0.3] — 2026-08-12
+
+- **O contador de notícias não lidas voltou a ser redondo.** Com um número só ele saía achatado, em forma de oval; agora é uma bolinha, e vira pílula quando passa de nove.
+
 ## [5.0.2] — 2026-08-12
 
 - **A notícia agora sai das não lidas para todo mundo.** Quem entrou no escritório como usuário comum não conseguia registrar a leitura — o selo ficava preso mesmo depois de abrir a notícia, e nada avisava o motivo. Marcar como lida, curtir e guardar para depois voltaram a valer para qualquer pessoa do escritório, como sempre valeram.

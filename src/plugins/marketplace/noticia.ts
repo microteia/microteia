@@ -365,15 +365,22 @@ const IconBtn = styled.button\`
   }
 \`;
 
+// Um contador é REDONDO com um dígito e vira pílula com dois. Altura e largura mínima iguais, com o
+// texto centrado pelo próprio flex: num span de texto corrido o espaçamento vertical não empurra a
+// caixa, e a bolinha sai achatada.
 const HeaderCount = styled.span\`
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: \${({ theme }) => theme.borderRadius.full};
   background: \${({ theme }) => theme.colors.danger};
   color: \${({ theme }) => theme.colors.white};
   font-size: \${({ theme }) => theme.fontSizes.xs};
   font-weight: 700;
-  border-radius: \${({ theme }) => theme.borderRadius.full};
-  padding: 2px 7px;
-  min-width: 20px;
-  text-align: center;
+  line-height: 1;
 \`;
 
 const stamp = (value) => {
