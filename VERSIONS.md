@@ -11,6 +11,14 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [4.4.0] — 2026-08-12
+
+- No editor de expressões de uma automação, digitar `output.` passou a listar os passos anteriores do fluxo; ao escolher um deles, a lista continua nas saídas daquele passo. Antes o menu repetia as próprias palavras `event`, `input` e `output`, e não havia como descobrir pela tela o que escrever ali.
+- O passo de uma automação passou a ter **um só nome**, o **Identificador**, no lugar do antigo "Nome (opcional)". É ele que aparece no fluxo e é por ele que as expressões leem as saídas do passo (`output.buscarProcesso`) — não há mais como o passo se chamar de um jeito na tela e de outro na expressão.
+- O identificador é escolhido na criação, já vem sugerido pelo tipo do passo (`query1`, `map2`) e não muda depois, para não quebrar os passos que apontam para ele. Condições e repetições nascem com `condicao1`, `repeticao1`.
+- Os passos que você já tem continuam exatamente como estão, com o nome que você deu a eles.
+- Copiar uma automação deixou de embaralhar a identidade dos passos: a cópia sai fiel, com as expressões e as ligações entre passos intactas.
+
 ## [4.3.2] — 2026-08-12
 
 - Na tela de Pushes do Tribunal, o filtro por situação passou a mostrar o nome que se lê ("Pendente", "Revisado") em vez do código interno — e voltou a filtrar de verdade. A correção vale para qualquer tela cujo campo use uma lista de opções.

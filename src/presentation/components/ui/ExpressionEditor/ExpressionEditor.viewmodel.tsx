@@ -27,7 +27,7 @@ export interface ExpressionEditorProps {
 
 export interface AutocompleteState {
   active: boolean;
-  mode: 'function' | 'field' | 'context' | 'input' | 'input-field';
+  mode: 'function' | 'field' | 'input' | 'input-field' | 'output';
   query: string;
   pathBase: string;
   triggerStart: number;
@@ -245,12 +245,19 @@ export const useExpressionEditorViewModel = (
       props.onChange(newValue);
 
       const canReopen = !item.snippet && item.value.endsWith('.');
+      // Em `output.` a consulta é sempre o trecho inteiro depois do ponto da raiz (`buscarProcesso.`),
+      // então escolher o step reabre o menu no mesmo ponto de disparo, agora listando as saídas dele.
       const reopened = canReopen
-        ? autocompleteState.mode === 'input-field' && inputRoot
-          ? { path: extractActiveInputPath(newValue.slice(0, cursorPos)), mode: 'input-field' as const }
-          : pathRoot
-            ? { path: extractActiveEventPath(newValue.slice(0, cursorPos)), mode: 'field' as const }
-            : null
+        ? autocompleteState.mode === 'output'
+          ? {
+              path: { completedPath: '', query: item.value, queryStart: autocompleteState.triggerStart },
+              mode: 'output' as const,
+            }
+          : autocompleteState.mode === 'input-field' && inputRoot
+            ? { path: extractActiveInputPath(newValue.slice(0, cursorPos)), mode: 'input-field' as const }
+            : pathRoot
+              ? { path: extractActiveEventPath(newValue.slice(0, cursorPos)), mode: 'field' as const }
+              : null
         : null;
       if (reopened && reopened.path) {
         setAutocompleteState({
@@ -401,7 +408,7 @@ export const useExpressionEditorViewModel = (
 
         setAutocompleteState({
           active: true,
-          mode: 'context',
+          mode: 'output',
           query,
           pathBase: '',
           triggerStart,

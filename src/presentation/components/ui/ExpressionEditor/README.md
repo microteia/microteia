@@ -68,7 +68,7 @@ Sugestões de padrões comuns com placeholders:
 Autocomplete para:
 - `event.` → campos do evento que disparou o workflow
 - `input.` → dados de entrada configurados para o step
-- `output.` → saídas de steps anteriores
+- `output.` → steps anteriores (pelo **Identificador**) e, escolhido um, as saídas dele
 
 #### 3. **Categorias Visuais**
 Cada função/snippet mostra sua categoria:
@@ -293,7 +293,8 @@ const COMMON_SNIPPETS: AutocompleteItem[] = [
 
 3. **Contextos:**
    - Digite `event.` → veja campos disponíveis
-   - Digite `input.` ou `output.` → veja sugestões de contexto
+   - Digite `input.` → veja as saídas achatadas dos steps anteriores
+   - Digite `output.` → veja os steps anteriores; escolha um e veja as saídas dele (steps de id GUID não aparecem, porque `output.<guid>` não parseia)
 
 4. **Categorias:**
    - Abra o autocomplete → veja badges de categoria ao lado de cada função

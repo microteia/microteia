@@ -21,6 +21,9 @@ import {
   replaceStepInTree,
   removeStepFromTree,
   returningStepsOf,
+  isReferenceableStepId,
+  suggestStepIdentifier,
+  stepIdentifierIssue,
 } from '../../shared/workflowHelpers';
 import type { InsertTarget, BranchKey } from '../../shared/workflowHelpers';
 import type { WorkflowEventFieldOption } from '../../../domain/services/workflowEventCatalog';
@@ -152,8 +155,11 @@ export interface EditWorkflowStepViewModel {
   selectedStepIcon: IconType | null;
   isDefinitionLocked: boolean;
   selectDefinition: (stepDefinitionId: string) => void;
-  signature: string;
-  setSignature: (signature: string) => void;
+  stepIdentifier: string;
+  setStepIdentifier: (identifier: string) => void;
+  stepIdentifierHint: string;
+  stepIdentifierError: string | null;
+  isStepIdentifierLocked: boolean;
   configuration: Record<string, InputMapping>;
   effectiveInputs: InputDefinition[];
   dynamicInputsSourceId: string | null;
@@ -254,7 +260,8 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
   const isLoopStep = editingStep?.type === 'Loop';
 
   const [selectedDefinitionId, setSelectedDefinitionId] = useState('');
-  const [signature, setSignature] = useState('');
+  const [stepIdentifier, setStepIdentifier] = useState('');
+  const [identifierTouched, setIdentifierTouched] = useState(false);
   const [configuration, setConfiguration] = useState<Record<string, InputMapping>>({});
   const [enabled, setEnabled] = useState(true);
   const [pendingCondition, setPendingCondition] = useState<Condition>({ kind: 'AlwaysTrue' });
@@ -289,7 +296,8 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- reinicializa o form ao montar ou mudar de step
     setSelectedDefinitionId(editingStep?.stepDefinitionId ?? '');
-    setSignature(editingStep?.signature ?? '');
+    setStepIdentifier(editingStep?.id ?? '');
+    setIdentifierTouched(false);
     // Nó Loop guarda a origem da lista em `loop.source`; expõe-a como configuration['source']
     // para reusar os mesmos controles de mapeamento de qualquer outro input.
     setConfiguration(
@@ -426,7 +434,36 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
     } else {
       setConfiguration({});
     }
-  }, [stepCatalog]);
+
+    // O identificador nasce do tipo (`query1`, `callWorkflow2`) e acompanha a troca de tipo enquanto
+    // o usuário não tiver escrito o dele — depois disso, o que ele escolheu manda.
+    if (!editingStep && !identifierTouched) {
+      setStepIdentifier(stepDefinitionId ? suggestStepIdentifier(existingSteps, stepDefinitionId) : '');
+    }
+  }, [stepCatalog, editingStep, identifierTouched, existingSteps]);
+
+  const updateStepIdentifier = useCallback((identifier: string) => {
+    setIdentifierTouched(true);
+    setStepIdentifier(identifier);
+  }, []);
+
+  // Só faz sentido validar o que ainda pode ser escolhido: depois de criado, o identificador é a
+  // identidade do Step — renomeá-lo quebraria os mapeamentos "Saída de outro step" que o apontam.
+  const stepIdentifierError = useMemo(
+    () => (editingStep ? undefined : stepIdentifierIssue(stepIdentifier, existingSteps)),
+    [editingStep, stepIdentifier, existingSteps],
+  );
+
+  // O formulário abre com o campo vazio, porque o identificador sugerido só nasce quando o tipo é
+  // escolhido — reclamar antes disso seria abrir a tela em vermelho sem o usuário ter feito nada.
+  const visibleStepIdentifierError = identifierTouched || stepIdentifier ? stepIdentifierError : undefined;
+
+  const stepIdentifierHint = useMemo(() => {
+    if (!editingStep) return 'Definido na criação e imutável depois. É por ele que as expressões leem as saídas deste step.';
+    if (isConditionStep) return 'Identifica este nó no fluxo. Uma condição não publica saída para as expressões.';
+    if (isReferenceableStepId(editingStep.id)) return `Nas expressões, as saídas deste step ficam em output.${editingStep.id}.`;
+    return 'Gerado automaticamente antes dos identificadores legíveis, não é escrevível numa expressão. Para ler as saídas deste step use input. ou o mapeamento "Saída de outro step".';
+  }, [editingStep, isConditionStep]);
 
   const setMapping = useCallback((inputId: string, mapping: InputMapping) => {
     setConfiguration((prev) => ({ ...prev, [inputId]: mapping }));
@@ -673,10 +710,11 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
     if (isConditionStep) return true;
     if (isLoopStep) return !!configuration.source && !!loopItemName.trim() && !!loopOutputName.trim();
     if (!selectedDefinition) return false;
+    if (stepIdentifierError) return false;
     return effectiveInputs
       .filter((input) => input.required)
       .every((input) => configuration[input.id] !== undefined);
-  }, [isConditionStep, isLoopStep, configuration, loopItemName, loopOutputName, selectedDefinition, effectiveInputs]);
+  }, [isConditionStep, isLoopStep, configuration, loopItemName, loopOutputName, selectedDefinition, effectiveInputs, stepIdentifierError]);
 
   const handleSave = useCallback(async () => {
     if (!workflow) return;
@@ -690,7 +728,8 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
           stepDefinitionId: '',
           type: 'Condition',
           order: editingStep.order,
-          ...(signature.trim() ? { signature: signature.trim() } : {}),
+          ...(editingStep.signature ? { signature: editingStep.signature } : {}),
+          ...(editingStep.name ? { name: editingStep.name } : {}),
           configuration: {},
           enabled,
           condition: pendingCondition,
@@ -719,7 +758,8 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
           stepDefinitionId: '',
           type: 'Loop',
           order: editingStep.order,
-          ...(signature.trim() ? { signature: signature.trim() } : {}),
+          ...(editingStep.signature ? { signature: editingStep.signature } : {}),
+          ...(editingStep.name ? { name: editingStep.name } : {}),
           configuration: {},
           enabled,
           loop: {
@@ -745,11 +785,12 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
     setIsSaving(true);
     try {
       const step: WorkflowStep = {
-        id: editingStep?.id ?? crypto.randomUUID(),
+        id: editingStep?.id ?? stepIdentifier.trim(),
         stepDefinitionId: selectedDefinition.id,
         type: selectedDefinition.type,
         order: editingStep?.order ?? 0,
-        ...(signature.trim() ? { signature: signature.trim() } : {}),
+        ...(editingStep?.signature ? { signature: editingStep.signature } : {}),
+        ...(editingStep?.name ? { name: editingStep.name } : {}),
         configuration,
         enabled,
       };
@@ -779,7 +820,7 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
     existingSteps,
     insertTarget,
     insertIndex,
-    signature,
+    stepIdentifier,
     configuration,
     enabled,
     pendingCondition,
@@ -819,8 +860,11 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
     selectedStepIcon,
     isDefinitionLocked: !!editingStep,
     selectDefinition,
-    signature,
-    setSignature,
+    stepIdentifier,
+    setStepIdentifier: updateStepIdentifier,
+    stepIdentifierHint,
+    stepIdentifierError: visibleStepIdentifierError ?? null,
+    isStepIdentifierLocked: !!editingStep,
     configuration,
     effectiveInputs,
     dynamicInputsSourceId,

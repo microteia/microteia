@@ -32,6 +32,7 @@ import {
   reorderSiblings,
   moveStepToLocation,
   parseParentKey,
+  suggestStepIdentifier,
 } from '../../shared/workflowHelpers';
 import type { InsertTarget } from '../../shared/workflowHelpers';
 import type { WorkflowDefinition, WorkflowExecution, WorkflowStep, Condition, WorkflowParameter } from '../../../domain/entities/Workflow';
@@ -495,7 +496,11 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
           enabled: true,
           version: 1,
           condition: { kind: 'AlwaysTrue' },
-          steps: cloneSource ? cloneSource.steps.map((step) => ({ ...step, id: crypto.randomUUID() })) : [],
+          // O id do Step é único DENTRO da automação, e é o nome pelo qual as expressões o chamam
+          // (`output.buscarProcesso`). Reidentificar na cópia apagava justamente esse vínculo — e só
+          // reidentificava os Steps de topo, deixando os de dentro de uma Condição apontando para
+          // ids que não existiam mais. A cópia preserva os ids.
+          steps: cloneSource ? cloneSource.steps : [],
         };
         if (formData.description) createData.description = formData.description;
         if (lookupCollection) createData.lookupCollection = lookupCollection;
@@ -656,7 +661,7 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
   const openAddCondition = useCallback(async (target?: InsertTarget, index?: number) => {
     if (!workflow) return;
     const conditionStep: WorkflowStep = {
-      id: crypto.randomUUID(),
+      id: suggestStepIdentifier(workflow.steps, 'condicao'),
       stepDefinitionId: '',
       type: 'Condition',
       order: 0,
@@ -678,7 +683,7 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
   const openAddLoop = useCallback(async (target?: InsertTarget, index?: number) => {
     if (!workflow) return;
     const loopStep: WorkflowStep = {
-      id: crypto.randomUUID(),
+      id: suggestStepIdentifier(workflow.steps, 'repeticao'),
       stepDefinitionId: '',
       type: 'Loop',
       order: 0,

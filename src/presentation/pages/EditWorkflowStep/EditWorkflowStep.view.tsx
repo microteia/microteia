@@ -305,13 +305,9 @@ export const EditWorkflowStepView: React.FC<{ tabKey: string }> = ({ tabKey }) =
         <S.Content>
           <S.Form>
             <InputGroup>
-              <Label>Nome (opcional)</Label>
-              <Input
-                value={vm.signature}
-                onChange={(e) => vm.setSignature(e.target.value)}
-                placeholder="ex: Verificar valor da causa"
-              />
-              <S.HelpText>Nome para identificar esta condição no fluxo.</S.HelpText>
+              <Label>Identificador</Label>
+              <Input value={vm.stepIdentifier} readOnly disabled />
+              <S.HelpText>{vm.stepIdentifierHint}</S.HelpText>
             </InputGroup>
             <S.StepsDivider />
             <S.ConditionToolbar>
@@ -360,13 +356,9 @@ export const EditWorkflowStepView: React.FC<{ tabKey: string }> = ({ tabKey }) =
         <S.Content>
           <S.Form>
             <InputGroup>
-              <Label>Nome (opcional)</Label>
-              <Input
-                value={vm.signature}
-                onChange={(e) => vm.setSignature(e.target.value)}
-                placeholder="ex: Para cada processo encontrado"
-              />
-              <S.HelpText>Nome para identificar esta repetição no fluxo.</S.HelpText>
+              <Label>Identificador</Label>
+              <Input value={vm.stepIdentifier} readOnly disabled />
+              <S.HelpText>{vm.stepIdentifierHint}</S.HelpText>
             </InputGroup>
             <S.StepsDivider />
             <S.Field>
@@ -422,15 +414,17 @@ export const EditWorkflowStepView: React.FC<{ tabKey: string }> = ({ tabKey }) =
           </InputGroup>
 
           <InputGroup>
-            <Label>Nome (opcional)</Label>
+            <Label>Identificador</Label>
             <Input
-              value={vm.signature}
-              onChange={(e) => vm.setSignature(e.target.value)}
-              placeholder="ex: Criar prazo de contestação"
+              value={vm.stepIdentifier}
+              onChange={(e) => vm.setStepIdentifier(e.target.value)}
+              placeholder="ex: buscarProcesso"
+              disabled={vm.isStepIdentifierLocked}
+              readOnly={vm.isStepIdentifierLocked}
             />
-            <S.HelpText>
-              Use para diferenciar steps do mesmo tipo. Se deixar em branco, será usado o nome padrão do step.
-            </S.HelpText>
+            {vm.stepIdentifierError
+              ? <S.HelpText $error>{vm.stepIdentifierError}</S.HelpText>
+              : <S.HelpText>{vm.stepIdentifierHint}</S.HelpText>}
           </InputGroup>
 
           {vm.selectedDefinition && vm.effectiveInputs.length > 0 && <S.StepsDivider />}

@@ -67,9 +67,9 @@ export const S = {
     font-size: ${({ theme }) => theme.fontSizes.xs};
   `,
 
-  HelpText: styled.p`
+  HelpText: styled.p<{ $error?: boolean }>`
     font-size: ${({ theme }) => theme.fontSizes.xs};
-    color: ${({ theme }) => theme.colors.textMuted};
+    color: ${({ theme, $error }) => ($error ? theme.colors.danger : theme.colors.textMuted)};
     margin: 0;
   `,
 

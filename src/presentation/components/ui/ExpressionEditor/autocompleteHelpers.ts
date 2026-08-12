@@ -1,3 +1,5 @@
+import { isReferenceableStepId } from '../../../shared/workflowHelpers';
+
 export interface AutocompleteItem {
   value: string;
   label: string;
@@ -101,7 +103,7 @@ const CONTEXT_VARIABLES: Record<ExpressionContextRoot, AutocompleteItem> = {
 };
 
 export const buildAutocompleteItems = (
-  mode: 'function' | 'field' | 'context' | 'input',
+  mode: 'function' | 'field' | 'input' | 'output',
   query: string,
   functions: FunctionDefinition[],
   eventFields: EventField[],
@@ -206,12 +208,40 @@ export const buildAutocompleteItems = (
         category: 'Variável',
       })),
     );
-  } else if (mode === 'context') {
-    items.push(
-      ...contextRoots
-        .map((root) => CONTEXT_VARIABLES[root])
-        .filter((c) => c.value.toLowerCase().includes(q)),
-    );
+  } else if (mode === 'output') {
+    // A consulta é tudo o que veio depois de `output.`: sem ponto, o usuário ainda escolhe o STEP;
+    // com ponto, o prefixo já fixou o step e o que resta filtra as saídas dele.
+    const referenceable = stepOutputFields.filter((field) => isReferenceableStepId(field.stepId));
+    const separator = query.indexOf('.');
+
+    if (separator >= 0) {
+      const stepId = query.slice(0, separator);
+      const outputQuery = query.slice(separator + 1).toLowerCase();
+      items.push(
+        ...referenceable
+          .filter((field) => field.stepId === stepId && field.outputId.toLowerCase().includes(outputQuery))
+          .map((field) => ({
+            value: `${field.stepId}.${field.outputId}`,
+            label: field.outputId,
+            description: `${field.stepName} → ${field.outputLabel}`,
+            category: 'Output',
+          })),
+      );
+    } else {
+      const offered = new Set<string>();
+      referenceable.forEach((field) => {
+        if (offered.has(field.stepId) || !field.stepId.toLowerCase().includes(q)) return;
+        offered.add(field.stepId);
+        items.push({
+          value: `${field.stepId}.`,
+          label: field.stepId,
+          // Desde que o Step passou a se chamar pelo próprio identificador, nome e id coincidem na
+          // maioria dos casos — repetir o mesmo texto na descrição só ocuparia a linha de baixo.
+          ...(field.stepName === field.stepId ? {} : { description: field.stepName }),
+          category: 'Step',
+        });
+      });
+    }
   }
 
   return items.sort((a, b) => {

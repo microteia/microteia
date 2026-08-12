@@ -12,6 +12,10 @@ import {
   removeStepFromTree,
   reorderSiblings,
   returningStepsOf,
+  getStepDisplayName,
+  isReferenceableStepId,
+  suggestStepIdentifier,
+  stepIdentifierIssue,
   EXIT_STEP_DEFINITION_ID,
 } from './workflowHelpers';
 
@@ -316,5 +320,53 @@ describe('returningStepsOf', () => {
   it('respeita `order`, não a posição no array', () => {
     const steps = [exit('X', 2), action('B', 1), action('A', 0)];
     expect(ids(returningStepsOf(steps))).toEqual(['B']);
+  });
+});
+
+describe('workflowHelpers — identificador do Step', () => {
+  it('aceita identificador escrevível numa expressão e recusa GUID', () => {
+    expect(isReferenceableStepId('buscarProcesso')).toBe(true);
+    expect(isReferenceableStepId('_query1')).toBe(true);
+    expect(isReferenceableStepId('9f1c2b7e-3d4a-4c55-8a11-0e6f2d9b7a10')).toBe(false);
+    expect(isReferenceableStepId('1query')).toBe(false);
+    expect(isReferenceableStepId('buscar processo')).toBe(false);
+  });
+
+  it('sugere o identificador a partir do tipo, numerando a partir de 1', () => {
+    expect(suggestStepIdentifier([], 'query')).toBe('query1');
+  });
+
+  it('cameliza tipo com hífen, que não é escrevível numa expressão', () => {
+    expect(suggestStepIdentifier([], 'call-workflow')).toBe('callWorkflow1');
+  });
+
+  it('pula os números já ocupados, inclusive dentro de ramos e corpos', () => {
+    const steps = [action('query1', 0), cond('c', 1, [action('query2', 0)], [loop('l', 1, [action('query3', 0)])])];
+    expect(suggestStepIdentifier(steps, 'query')).toBe('query4');
+  });
+
+  it('recusa vazio, formato inválido e duplicata em qualquer nível da árvore', () => {
+    const steps = [cond('c', 0, [action('query1', 0)], [])];
+    expect(stepIdentifierIssue('', steps)).toBeDefined();
+    expect(stepIdentifierIssue('buscar processo', steps)).toBeDefined();
+    expect(stepIdentifierIssue('query1', steps)).toBeDefined();
+    expect(stepIdentifierIssue('query2', steps)).toBeUndefined();
+  });
+});
+
+describe('getStepDisplayName — identificador como nome exibido', () => {
+  const definition = { id: 'query', name: 'Buscar Registros' } as Parameters<typeof getStepDisplayName>[1];
+
+  it('mostra o identificador quando ele é referenciável', () => {
+    expect(getStepDisplayName(action('buscarProcesso', 0), definition)).toBe('buscarProcesso');
+  });
+
+  it('cai no nome do tipo quando o id é um GUID legado', () => {
+    expect(getStepDisplayName(action('9f1c2b7e-3d4a-4c55-8a11-0e6f2d9b7a10', 0), definition)).toBe('Buscar Registros');
+  });
+
+  it('o rótulo livre legado ainda tem precedência sobre o identificador', () => {
+    const legado = { ...action('buscarProcesso', 0), signature: 'Verificar valor da causa' };
+    expect(getStepDisplayName(legado, definition)).toBe('Verificar valor da causa');
   });
 });

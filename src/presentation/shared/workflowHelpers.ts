@@ -3,10 +3,21 @@ import type { StepDefinitionSummary } from '../../domain/entities/WorkflowStepCa
 import { CONDITION_OPERATOR_LABELS, EVENT_FIELD_PATH_PREFIX } from './conditionHelpers';
 
 /**
+ * O `id` é a identidade do Step no motor: é por ele que `context.outputs` é indexado, e portanto é
+ * ele que uma expressão escreve (`output.buscarProcesso.count`). Só vale como referência se for um
+ * identificador que o parser aceite — `output.<guid>` não parseia, nem por colchete (o `expr-eval`
+ * não resolve `output["<guid>"]`). Daí os Steps nascerem hoje com um id legível e numerado.
+ */
+const STEP_IDENTIFIER = /^[a-zA-Z_][a-zA-Z0-9_]*$/;
+
+export const isReferenceableStepId = (stepId: string): boolean => STEP_IDENTIFIER.test(stepId);
+
+/**
  * Retorna o nome de exibição de um step, com prioridade:
- * 1. signature (nome customizado fornecido pelo usuário)
- * 2. name (nome padrão do step definition)
- * 3. fallback (ex: stepDefinitionId)
+ * 1. signature (rótulo livre, herdado dos Steps criados antes do identificador único)
+ * 2. name (idem, nunca escrito pela tela atual)
+ * 3. id, quando referenciável — é o nome pelo qual as expressões chamam o Step
+ * 4. nome do tipo (o nó do grafo mostra o tipo na segunda linha quando o título já diz outra coisa)
  */
 export const getStepDisplayName = (
   step: WorkflowStep,
@@ -15,10 +26,43 @@ export const getStepDisplayName = (
 ): string => {
   if (step.signature) return step.signature;
   if (step.name) return step.name;
+  if (isReferenceableStepId(step.id)) return step.id;
   if (definition?.name) return definition.name;
   if (step.type === 'Condition') return 'Condição';
   if (step.type === 'Loop') return 'Repetição';
   return fallback ?? step.stepDefinitionId;
+};
+
+const camelize = (value: string): string =>
+  value
+    .split(/[^a-zA-Z0-9]+/)
+    .filter(Boolean)
+    .map((part, index) => (index === 0 ? part : `${part.charAt(0).toUpperCase()}${part.slice(1)}`))
+    .join('');
+
+/**
+ * Sugere o identificador de um Step novo a partir do tipo dele, numerando até achar um livre na
+ * árvore inteira: `query1`, `query2`, `callWorkflow1`. O tipo entra camelizado porque ids de
+ * StepDefinition têm hífen (`call-workflow`), que não é escrevível numa expressão.
+ */
+export const suggestStepIdentifier = (steps: WorkflowStep[], base: string): string => {
+  const root = camelize(base).replace(/^[0-9]+/, '') || 'step';
+  const taken = new Set(flattenSteps(steps).map((step) => step.id));
+  let sequence = 1;
+  while (taken.has(`${root}${sequence}`)) sequence += 1;
+  return `${root}${sequence}`;
+};
+
+export const stepIdentifierIssue = (value: string, steps: WorkflowStep[]): string | undefined => {
+  const trimmed = value.trim();
+  if (!trimmed) return 'Informe um identificador.';
+  if (!isReferenceableStepId(trimmed)) {
+    return 'Use letras, números e _, começando por letra — é assim que ele é escrito numa expressão.';
+  }
+  if (flattenSteps(steps).some((step) => step.id === trimmed)) {
+    return 'Já existe um step com este identificador nesta automação.';
+  }
+  return undefined;
 };
 
 // ─────────────────────────────────────────────────────────────────────────────

@@ -2915,6 +2915,45 @@ faz o equivalente a partir do alvo de inserção. O `ConditionBuilder` ganhou pr
 enxerguem as saídas dos Steps anteriores (ex.: decidir com base no resultado de um Script:
 `output.aprovado == true`).
 
+**`output.` no autocomplete, e o id como identidade do Step.** `context.outputs` é indexado pelo
+**`step.id`** — nunca pelo `name`/`signature`. Digitar `output.` no `ExpressionEditor` abre o modo
+`'output'`, que lista os Steps anteriores (label = id, descrição = `getStepDisplayName`); escolhido
+um, o menu reabre no MESMO ponto de disparo listando as saídas dele (`output.buscarProcesso.count`).
+A consulta desse modo é sempre o trecho inteiro depois do ponto da raiz, e é o prefixo antes do
+próximo ponto que fixa o Step — por isso o `triggerStart` não anda entre as duas etapas. O modo
+`'context'`, que respondia ali antes e só reoferecia as palavras `event`/`input`/`output`, deixou de
+existir.
+
+Só entram na lista os ids que passam por `isReferenceableStepId` (`workflowHelpers.ts`): `output.<guid>`
+**não parseia** — nem por colchete, porque o `expr-eval` não resolve `output["<guid>"]`. Um Step de
+GUID lê-se por `input.` ou pelo mapeamento "Saída de outro step" (que guarda o `stepId` e independe da
+sintaxe de expressão).
+
+#### Identificador do Step — um conceito, não dois
+
+O Step tinha **três** campos de nome, e nenhum deles harmônico: `id` (a identidade que o motor usa),
+`signature` (o campo "Nome (opcional)" da tela) e `name` (letra morta — nenhum código do app jamais
+escreveu nele). Um Step podia então ter Nome em branco e um `output.buscarProcesso` funcionando ao
+lado, sem nada na tela ligando as duas pontas. O campo livre foi **removido**: sobra o
+**Identificador**, escolhido na criação e imutável depois.
+
+| | Regra |
+|---|---|
+| Step comum | `EditWorkflowStep` sugere `<tipo><n>` (`query1`, `callWorkflow2`) ao escolher o tipo, e para de sugerir assim que o usuário digita o seu. `stepIdentifierIssue` valida formato e unicidade **na árvore inteira** (`flattenSteps`), e bloqueia o Salvar |
+| Condição / Repetição | criadas direto no grafo, nascem com `condicao<n>` / `repeticao<n>` (`suggestStepIdentifier` em `ViewWorkflow.viewmodel`) e são somente leitura na edição |
+| Steps já existentes | mantêm o GUID e o `signature` que tiverem — `getStepDisplayName` ainda lê `signature`/`name` **antes** do id, para não apagar rótulo nenhum. Não há renomeação: mudá-lo quebraria os `OutputInputMapping.stepId` que o apontam |
+
+`getStepDisplayName` passou a devolver o **id** quando ele é referenciável (depois dos dois rótulos
+legados, antes do nome do tipo). O grafo não perde informação com isso: o nó já mostra o tipo na
+segunda linha, e `getStepTypeLabel` já trocava para `categoria · nome do tipo` justamente quando o
+título diz outra coisa — então `buscarProcesso` no título faz aparecer `Dados · Buscar Registros`
+embaixo, que antes ficava implícito.
+
+**Cópia de automação preserva os ids dos Steps.** `handleSaveGeneral` reidentificava os Steps do
+clone com `crypto.randomUUID()` — o que agora apagaria o vínculo de toda expressão `output.<id>` da
+cópia. E só reidentificava os de topo, deixando os de dentro de uma Condição apontando para ids
+inexistentes. O id é único **dentro** da automação, então a cópia o mantém verbatim.
+
 **UI** (`ViewWorkflow`): grafo e lista renderizam a árvore recursivamente (`FlowLevel`/`ListLevel`
 em `ViewWorkflow.view.tsx`); o nó Condição abre duas raias "Verdadeiro"/"Falso" (tokens
 `theme.colors.success`/`warning`) com botões de adicionar Step/Condição por ramo. O drag & drop
