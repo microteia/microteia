@@ -1563,6 +1563,8 @@ Um único doc `ScreenDefinition` em `tenants/{tenantId}/screenDefinitions/{scree
 
 A regra que unifica: **`optionsAllowUserAdd: true` exige `lookupCollection`** — lista aberta *é* lista em coleção. O campo `options` inline continua existindo, e só, para lista fechada.
 
+**A identidade da opção é a `key`; o `label` é só o que se lê.** O registro guarda a chave, e é por ela que o formulário grava (`CustomFieldsSection`), que a listagem filtra e que o cartão resolve o rótulo (`useCustomFieldListing`), que a ponte das extensões devolve as opções (`useEntity.optionsFor`) e que o construtor de condições compara (`useLookupValues`) — a mesma regra que `getConfigColor` e o `LiteralOptionsControl` das automações já usavam. Na opção cadastrada pelo escritório os dois são o mesmo texto (`addOption` grava `key = label`), e por isso a distinção passava despercebida enquanto essas três pontas usavam o rótulo como valor. A lista **declarada** — do kernel (`newsCategories`: `GENERAL`/"Geral") ou de extensão (`pushStatuses`: `pending`/"Pendente") — é que expõe o erro: o filtro não casava registro nenhum e o chip exibia a chave crua. Ao declarar uma lista cuja chave difere do rótulo, a chave é sempre **o que já está gravado nos documentos**.
+
 | | Declaração da lista | Regra no Firestore |
 |---|---|---|
 | Kernel (`caseCourts`) | `LOOKUP_REGISTRY` (código) + defaults em `data/repositories/lookupDefaults.ts` | bloco nomeado; nome em `RESERVED_COLLECTIONS` |
@@ -2268,6 +2270,17 @@ cartões sobre `EntityListView`. Mas o menu suspenso é preenchido por `list.get
 o que aparece ali continua governado por `listActions` + `cardActionIds`, e uma extensão de terceiro
 acrescenta a sua ação sem tocar no código da tela. `Dropdown` e `cardActionIcon` passaram a fazer
 parte da API curada para isso.
+
+**O menu não é cortado por quem rola.** `Dropdown` abre num **portal**, posicionado pelo mesmo
+`useAnchoredDropdown` dos seletores do kernel: ancorado à janela, virando para cima quando não há
+espaço abaixo. Preso ao card por `position: absolute`, o menu do último cartão da lista ficava dentro
+do contêiner que rola e simplesmente não aparecia. O hook ganhou `align` (a borda pela qual o painel
+se alinha ao gatilho — `'right'` para o gatilho estreito, cujo painel é mais largo que ele) e
+`minWidth`, e passou a medir a largura real do painel já aberto para não jogá-lo fora da tela.
+
+**4. Largura do cartão (`layout`).** `EntityListView` aceita `layout="list"`, que dá a largura
+inteira a cada cartão, contra o `"grid"` padrão de colunas de 320px. É a diferença entre o cartão que
+RESUME um cadastro e o que se LÊ: o corpo de um e-mail de intimação não cabe em meia coluna.
 
 **O corpo do e-mail: `HtmlView`.** HTML de terceiro é renderizado num `<iframe srcdoc>` SEM
 `allow-scripts` e SEM `allow-same-origin` — script não roda, e se rodasse não alcançaria nossa

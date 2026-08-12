@@ -144,7 +144,7 @@ export const useCustomFieldsSectionViewModel = (props: CustomFieldsSectionProps)
       const fromKernel = getOptions(field.lookupCollection ?? '')
         .filter((option) => option.isStatic)
         .map((option) => ({
-          value: option.label,
+          value: option.key,
           label: option.label,
           color: resolveColor(option.color, theme, false),
         }));
@@ -157,13 +157,17 @@ export const useCustomFieldsSectionViewModel = (props: CustomFieldsSectionProps)
    * As opções cadastradas pelo usuário moram na COLEÇÃO que o campo declara em `lookupCollection` —
    * `caseCourts` para um campo do kernel, `medico_especialidade` para um do Form Design. Um caminho
    * só: nada aqui pergunta de onde o campo veio.
+   *
+   * O valor gravado é a CHAVE da opção, e não o rótulo: é assim que a listagem filtra e é assim que
+   * a lista cuja chave difere do rótulo (`pending` / "Pendente") continua legível dos dois lados. Na
+   * opção cadastrada no escritório os dois são o mesmo texto.
    */
   const dynamicSelectOptions = useCallback(
     (field: FieldDefinition): DynamicSelectOption[] =>
       getOptions(field.lookupCollection ?? '')
         .filter((option) => !option.isStatic)
         .map((option) => ({
-          value: option.label,
+          value: option.key,
           label: option.label,
           color: resolveColor(option.color, theme, false),
         })),

@@ -73,17 +73,26 @@ export const useCustomFieldListing = (
   const listFields = useMemo(() => fields.filter((f) => f.showInList), [fields]);
   const filterableFields = useMemo(() => fields.filter((f) => f.filterable), [fields]);
 
+  /**
+   * O valor de uma opção é a CHAVE, tanto na lista declarada no campo quanto na lista de opções —
+   * é o que está gravado no registro. Enquanto a lista devolvia o rótulo como valor, a lista cuja
+   * chave difere do rótulo não filtrava nada (o registro guarda `pending`, o filtro procurava
+   * `Pendente`) e o chip do filtro exibia a chave crua. Nas opções cadastradas no escritório chave e
+   * rótulo são o mesmo texto, e por isso nada muda para elas.
+   */
   const selectOptionLabels = useCallback((field: FieldDefinition): FilterOption[] => {
     const staticOptions = (field.options ?? []).map((o) => ({
       value: o.key,
       label: o.label,
       color: resolveFieldOptionColor(o.color, field.optionsColored, theme),
     }));
-    const dynamicOptions = getOptions(field.lookupCollection ?? '').map((option) => ({
-      value: option.label,
-      label: option.label,
-      color: resolveColor(option.color, theme, false),
-    }));
+    const dynamicOptions = getOptions(field.lookupCollection ?? '')
+      .filter((option) => !staticOptions.some((existing) => existing.value === option.key))
+      .map((option) => ({
+        value: option.key,
+        label: option.label,
+        color: resolveColor(option.color, theme, false),
+      }));
     return [...staticOptions, ...dynamicOptions];
   }, [getOptions, theme]);
 

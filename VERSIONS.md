@@ -11,6 +11,12 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [4.3.2] — 2026-08-12
+
+- Na tela de Pushes do Tribunal, o filtro por situação passou a mostrar o nome que se lê ("Pendente", "Revisado") em vez do código interno — e voltou a filtrar de verdade. A correção vale para qualquer tela cujo campo use uma lista de opções.
+- Cada intimação voltou a ocupar a largura inteira da tela, como antes: o corpo do e-mail se lê sem apertar.
+- O menu "Ações" deixou de ficar escondido quando a intimação está no pé da lista — agora ele abre para cima quando não há espaço abaixo. Vale para todos os menus do mesmo tipo no sistema.
+
 ## [4.3.1] — 2026-08-05
 
 - Corrigido o problema que fazia a tela **"Pushes do Tribunal"** abrir com o aviso de tela não encontrada logo depois de instalar a extensão: o item aparecia no menu e no alto da tela, mas a caixa de intimações não abria e a tela sumia do **Form Design**.

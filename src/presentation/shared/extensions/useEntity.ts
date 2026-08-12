@@ -81,8 +81,8 @@ export const useEntity = (sourceId: string): ExtensionEntity => {
         color: option.color,
       }));
       const extra: EntityFieldOption[] = getOptions(field?.lookupCollection ?? '')
-        .filter((option) => !staticOptions.some((existing) => existing.key === option.label))
-        .map((option) => ({ key: option.label, label: option.label, color: option.color }));
+        .filter((option) => !staticOptions.some((existing) => existing.key === option.key))
+        .map((option) => ({ key: option.key, label: option.label, color: option.color }));
       return [...staticOptions, ...extra];
     },
     [screen, fields, getOptions],

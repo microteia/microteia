@@ -309,7 +309,8 @@ const PUSHES_SCREEN: ScreenModuleTemplate = {
 /**
  * A listagem. Não usa a superfície padrão de cartões: o cartão de um push é uma peça de leitura —
  * cabeçalho do e-mail, bloco processual, corpo da mensagem — e não um resumo de cadastro. O que vem
- * do padrão é a moldura (`EntityListView`), os filtros derivados dos campos, os modais e, sobretudo,
+ * do padrão é a moldura (`EntityListView`) — em `layout="list"`, porque o cartão de leitura quer a
+ * largura inteira —, os filtros derivados dos campos, os modais e, sobretudo,
  * as AÇÕES: o menu "Ações" é montado a partir de `getCardActions`, então o que aparece ali continua
  * governado pelo Form Design, e uma extensão de terceiro acrescenta a sua sem tocar neste código.
  */
@@ -631,6 +632,7 @@ export default function PushesView() {
     <EntityListView
       title={list.definition.titlePlural}
       titleIcon={<Icon name="inbox" size={22} />}
+      layout="list"
       onNew={() => {}}
       newTitle=""
       canCreate={false}
@@ -712,7 +714,7 @@ export default function startup(host) {
 export const pushPlugin: MarketplacePlugin = {
   manifest: {
     id: 'com.microteia.push',
-    version: '1.0.1',
+    version: '1.0.2',
     kernel: '^1.0.0',
     name: 'Pushes do Tribunal',
     description: 'A caixa de intimações do escritório recriada como extensão, sobre os MESMOS pushes — a sexta entidade a sair do kernel.',

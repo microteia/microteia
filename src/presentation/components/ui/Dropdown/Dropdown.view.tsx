@@ -1,67 +1,40 @@
-import React, { useState, useRef, useCallback, useEffect } from 'react';
+import React from 'react';
+import ReactDOM from 'react-dom';
 import { S } from './Dropdown.styles';
+import { useDropdownViewModel, type DropdownProps } from './Dropdown.viewmodel';
 
-export interface DropdownItem {
-  id: string;
-  label: string;
-  icon?: React.ReactNode;
-  onClick: () => void;
-  variant?: 'default' | 'danger';
-}
-
-export interface DropdownProps {
-  trigger: React.ReactNode;
-  items: DropdownItem[];
-  align?: 'left' | 'right';
-}
-
-export const Dropdown: React.FC<DropdownProps> = ({ trigger, items, align = 'left' }) => {
-  const [isOpen, setIsOpen] = useState(false);
-  const containerRef = useRef<HTMLDivElement>(null);
-
-  const handleToggle = useCallback(() => {
-    setIsOpen((prev) => !prev);
-  }, []);
-
-  const handleItemClick = useCallback((onClick: () => void) => {
-    onClick();
-    setIsOpen(false);
-  }, []);
-
-  useEffect(() => {
-    if (!isOpen) return;
-
-    const handleClickOutside = (event: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
-        setIsOpen(false);
-      }
-    };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, [isOpen]);
+/* eslint-disable react-hooks/refs -- o ViewModel expõe refs só para passar ao DOM; nada lê .current no render */
+export const Dropdown: React.FC<DropdownProps> = (props) => {
+  const vm = useDropdownViewModel(props);
 
   return (
-    <S.Container ref={containerRef}>
-      <S.Trigger onClick={handleToggle}>
-        {trigger}
+    <S.Container ref={vm.containerRef}>
+      <S.Trigger onClick={vm.handleToggle}>
+        {props.trigger}
       </S.Trigger>
-      {isOpen && (
-        <S.Menu $align={align}>
-          {items.map((item) => (
+      {vm.isOpen && ReactDOM.createPortal(
+        <S.Menu
+          ref={vm.menuRef}
+          $top={vm.dropPos.top}
+          $bottom={vm.dropPos.bottom}
+          $left={vm.dropPos.left}
+          $minWidth={vm.dropPos.minWidth}
+          $maxHeight={vm.dropPos.maxHeight}
+        >
+          {props.items.map((item) => (
             <S.MenuItem
               key={item.id}
-              onClick={() => handleItemClick(item.onClick)}
+              onClick={() => vm.handleItemClick(item.onClick)}
               $variant={item.variant}
             >
               {item.icon && <S.MenuItemIcon>{item.icon}</S.MenuItemIcon>}
               <S.MenuItemLabel>{item.label}</S.MenuItemLabel>
             </S.MenuItem>
           ))}
-        </S.Menu>
+        </S.Menu>,
+        document.body,
       )}
     </S.Container>
   );
 };
+/* eslint-enable react-hooks/refs */

@@ -16,8 +16,9 @@ export interface LookupValuesState {
  * atrás dela não existe mais um mapa de 30 linhas ligando coleção a store: qualquer lista responde,
  * inclusive as que o tenant criou depois do build.
  *
- * O VALOR gravado no registro é o rótulo, não a chave: é o que as telas fixas sempre fizeram, e o
- * que o formulário mostra ao usuário.
+ * O VALOR é a CHAVE da opção — o que está gravado no registro —, e o rótulo é o que se lê. Na opção
+ * cadastrada pelo escritório os dois são o mesmo texto; na lista declarada, cuja chave difere do
+ * rótulo, comparar pelo rótulo era comparar com o que não está no documento.
  */
 export const useLookupValues = (): LookupValuesState => {
   const { getOptions } = useLookups();
@@ -25,7 +26,7 @@ export const useLookupValues = (): LookupValuesState => {
   const getLookupOptions = useCallback(
     (collection: string): LookupValueOption[] =>
       getOptions(collection).map((option) => ({
-        value: option.label,
+        value: option.key,
         label: option.label,
         color: option.color,
       })),

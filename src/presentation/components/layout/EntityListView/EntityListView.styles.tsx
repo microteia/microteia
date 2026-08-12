@@ -65,9 +65,11 @@ export const S = {
     : `${theme.spacing.lg} ${theme.spacing.xl}`)};
   `,
 
-  Grid: styled.div`
+  Grid: styled.div<{ $layout?: 'grid' | 'list' }>`
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    grid-template-columns: ${({ $layout }) => ($layout === 'list'
+    ? '1fr'
+    : 'repeat(auto-fill, minmax(320px, 1fr))')};
     gap: ${({ theme }) => theme.spacing.md};
   `,
 

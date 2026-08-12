@@ -556,6 +556,8 @@ const UI_MODULE_DEFS = `declare module '@microteia/ui' {
   /** Props do EntityListView. */
   export interface EntityListViewProps {
     variant?: 'page' | 'embedded';
+    /** 'grid' (padrão) distribui os cards em colunas; 'list' dá a largura inteira a cada card. */
+    layout?: 'grid' | 'list';
     title?: string;
     titleIcon?: React.ReactNode;
     onNew?: () => void;

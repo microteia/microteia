@@ -38,6 +38,13 @@ export interface EntityListViewProps {
    */
   canCreate?: boolean;
 
+  /**
+   * Como os cards se distribuem. `'grid'` (padrão) enche a largura com colunas de 320px — a forma de
+   * um cadastro, cujo card é um resumo. `'list'` dá a largura INTEIRA a cada card, para a listagem
+   * cujo card é uma peça de leitura: o e-mail de uma intimação não se lê em meia coluna.
+   */
+  layout?: 'grid' | 'list';
+
   /** Ações extras no cabeçalho, antes do botão "novo" (ex.: Dashboard, ocultar totais). */
   headerExtra?: React.ReactNode;
   /** Faixa entre o cabeçalho e o filtro (ex.: barra de totais do Financeiro). */
@@ -64,6 +71,7 @@ export const EntityListView: React.FC<EntityListViewProps> = ({
   emptyTitle,
   emptyActionLabel,
   variant = 'page',
+  layout = 'grid',
   canCreate = true,
   headerExtra,
   belowHeader,
@@ -116,7 +124,7 @@ export const EntityListView: React.FC<EntityListViewProps> = ({
             )}
           </S.EmptyState>
         ) : (
-          <S.Grid>{children}</S.Grid>
+          <S.Grid $layout={layout}>{children}</S.Grid>
         )}
       </S.Content>
 

@@ -16,6 +16,14 @@ interface UseAnchoredDropdownParams {
   anchorRef: React.RefObject<HTMLElement | null>;
   dropdownRef: React.RefObject<HTMLElement | null>;
   desiredMaxHeight?: number;
+  /**
+   * A borda pela qual o painel se alinha ao gatilho. `'left'` (padrão) serve ao campo, que tem a
+   * largura do painel; `'right'` serve ao gatilho ESTREITO — um botão de menu —, cujo painel é mais
+   * largo que ele e cresceria para fora da tela se abrisse pela esquerda.
+   */
+  align?: 'left' | 'right';
+  /** Largura mínima do painel, quando ela não vem do gatilho. */
+  minWidth?: number;
 }
 
 interface UseAnchoredDropdownResult {
@@ -42,6 +50,8 @@ export const useAnchoredDropdown = ({
   anchorRef,
   dropdownRef,
   desiredMaxHeight = DEFAULT_MAX_HEIGHT,
+  align = 'left',
+  minWidth: desiredMinWidth = 0,
 }: UseAnchoredDropdownParams): UseAnchoredDropdownResult => {
   const [dropPos, setDropPos] = useState<AnchoredDropdownPosition>(initialPosition);
   const rafRef = useRef(0);
@@ -75,15 +85,19 @@ export const useAnchoredDropdown = ({
       bottom = viewportHeight - rect.top + GAP;
     }
 
-    const minWidth = rect.width;
-    let left = rect.left;
-    if (left + minWidth > viewportWidth - VIEWPORT_MARGIN) {
-      left = Math.max(VIEWPORT_MARGIN, viewportWidth - minWidth - VIEWPORT_MARGIN);
+    // A largura real do painel já aberto entra na conta: sem ela, o painel mais largo que o gatilho
+    // era posicionado como se coubesse onde não cabe. Na primeira abertura ainda não há o que medir,
+    // e valem o gatilho e a largura mínima pedida.
+    const minWidth = Math.max(rect.width, desiredMinWidth);
+    const width = Math.max(minWidth, dropdownRef.current?.offsetWidth ?? 0);
+    let left = align === 'right' ? rect.right - width : rect.left;
+    if (left + width > viewportWidth - VIEWPORT_MARGIN) {
+      left = Math.max(VIEWPORT_MARGIN, viewportWidth - width - VIEWPORT_MARGIN);
     }
     if (left < VIEWPORT_MARGIN) left = VIEWPORT_MARGIN;
 
     setDropPos({ top, bottom, left, minWidth, maxHeight, placement });
-  }, [anchorRef, desiredMaxHeight]);
+  }, [anchorRef, dropdownRef, desiredMaxHeight, align, desiredMinWidth]);
 
   useEffect(() => {
     if (!open) return;

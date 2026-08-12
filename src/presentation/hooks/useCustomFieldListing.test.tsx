@@ -4,7 +4,11 @@ import { describe, expect, it, vi } from 'vitest';
 import type { FieldDefinition } from '../../domain/entities';
 
 vi.mock('../../stores/useLookups', () => ({
-  useLookups: () => ({ getOptions: () => [] }),
+  useLookups: () => ({
+    getOptions: (collection: string) => (collection === 'situacoes'
+      ? [{ key: 'pending', label: 'Pendente' }, { key: 'reviewed', label: 'Revisado' }]
+      : []),
+  }),
 }));
 
 vi.mock('./useReferenceOptions', () => ({
@@ -62,5 +66,41 @@ describe('filtro de data por intervalo', () => {
   it('sem filtro nenhum, tudo passa; sem data no registro, o intervalo exclui', () => {
     expect(matches('2026-01-01', {})).toBe(true);
     expect(listing().matchesFilters({}, { dueDate: ['2026-08-01'] })).toBe(false);
+  });
+});
+
+const status: FieldDefinition = {
+  key: 'status',
+  label: 'Situação',
+  type: 'select',
+  required: false,
+  order: 0,
+  filterable: true,
+  lookupCollection: 'situacoes',
+} as FieldDefinition;
+
+const statusListing = () => renderHook(() => useCustomFieldListing([status])).result.current;
+
+/**
+ * O valor de uma opção é a CHAVE — o que está gravado no registro —, e o rótulo é só o que se lê. Na
+ * lista cadastrada no escritório os dois são o mesmo texto, e por isso a troca passava despercebida;
+ * na lista cuja chave difere do rótulo (a situação de um push é `pending`, e se lê "Pendente") o
+ * filtro não casava registro nenhum e o chip exibia a chave crua.
+ */
+describe('filtro de lista de opções', () => {
+  it('o filtro oferece o rótulo e vale pela chave', () => {
+    expect(statusListing().filterDefs[0].options).toEqual([
+      { value: 'pending', label: 'Pendente', color: undefined },
+      { value: 'reviewed', label: 'Revisado', color: undefined },
+    ]);
+  });
+
+  it('casa o registro pela chave gravada', () => {
+    expect(statusListing().matchesFilters({ status: 'pending' }, { status: ['pending'] })).toBe(true);
+    expect(statusListing().matchesFilters({ status: 'reviewed' }, { status: ['pending'] })).toBe(false);
+  });
+
+  it('o cartão exibe o rótulo, e não a chave', () => {
+    expect(statusListing().displayValue({ status: 'pending' }, status)).toBe('Pendente');
   });
 });

@@ -20,17 +20,28 @@ export const S = {
     }
   `,
 
-  Menu: styled.div<{ $align?: 'left' | 'right' }>`
-    position: absolute;
-    top: calc(100% + 0.5rem);
-    ${({ $align }) => $align === 'right' ? 'right: 0;' : 'left: 0;'}
-    min-width: 200px;
+  // Ancorado à JANELA, e não ao card: o menu de um card no rodapé da lista era cortado pelo
+  // contêiner que rola, e é o mesmo posicionamento que os seletores do kernel já usam.
+  Menu: styled.div<{
+    $top: number | null;
+    $bottom: number | null;
+    $left: number;
+    $minWidth: number;
+    $maxHeight: number;
+  }>`
+    position: fixed;
+    top: ${({ $top }) => ($top != null ? `${$top}px` : 'auto')};
+    bottom: ${({ $bottom }) => ($bottom != null ? `${$bottom}px` : 'auto')};
+    left: ${({ $left }) => $left}px;
+    min-width: ${({ $minWidth }) => $minWidth}px;
+    max-height: ${({ $maxHeight }) => $maxHeight}px;
     background: ${({ theme }) => theme.colors.background};
     border: 1px solid ${({ theme }) => theme.colors.border};
     border-radius: ${({ theme }) => theme.borderRadius.md};
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-    z-index: 1000;
-    overflow: hidden;
+    box-shadow: 0 16px 48px ${({ theme }) => theme.colors.shadow};
+    z-index: 9999;
+    overflow-x: hidden;
+    overflow-y: auto;
   `,
 
   MenuItem: styled.button<{ $variant?: 'default' | 'danger' }>`
