@@ -3731,6 +3731,46 @@ o clique no cartão leva ao prazo, e de lá ao processo. (3) `calendarToday`/`ca
 no tema, sem consumidor no kernel. (4) Os campos que uma extensão acrescenta ao item só aparecem se
 ela estiver instalada; sem o patch, o `upsert` descarta os valores com aviso no log, em vez de falhar.
 
+#### O Financeiro na agenda — a segunda extensão pela MESMA porta
+
+`com.microteia.financeiro` (que passou a depender de `com.microteia.calendar`) repete a anatomia do
+Prazo, artefato por artefato: complemento de tela, espelho em `financial.saved`, remoção em
+`financial.deleted`, mutirão chamável, uma Action no cartão e uma no arrasto. **Nenhuma linha do
+Calendário mudou** — é essa repetição, e não a primeira integração, que mostra que a agenda é
+agnóstica de fato.
+
+Quatro decisões que o segundo consumidor obrigou a nomear, e que valem para o terceiro:
+
+**As chaves do complemento são da EXTENSÃO, não do assunto** (`financialStatus`, `financialAmount`,
+`financialPersonId`). `applyScreenPatches` substitui na tela alvo o campo de mesma chave
+independentemente de quem o declarou, e `releaseScreenPatches` leva embora o que é do pluginId que
+sai. Se o Financeiro declarasse `personId` — que o Prazo já usa para o advogado —, instalar um
+roubaria o campo do outro e desinstalá-lo apagaria o filtro que o outro oferece, num escritório que
+não mexeu em nada. Numa tela compartilhada, a chave pertence a quem a declarou primeiro, e a
+segunda extensão traz a sua. O teste `não disputa com o Prazo nenhuma chave de campo da agenda`
+guarda a regra.
+
+**A situação da ORIGEM viaja no item, e não só a da agenda.** A agenda tem duas situações
+(`pending`/`closed`); o lançamento tem três (Aberto, Pago, Cancelado) e uma data para cada uma. Sem
+`financialStatus` no item, o arrasto de um lançamento cancelado carimbaria a data de pagamento — a
+agenda não teria como distinguir. Regra geral: o que o gesto de arrasto precisa DECIDIR tem de estar
+no item, porque `event.context` é o item, nunca o registro de origem.
+
+**A tradução assimétrica das listas do escritório.** `financialStatuses` aceita opções novas
+(`optionsAllowUserAdd`), então a expressão pergunta pelo que ENCERRA (`status == "Pago" or status ==
+"Cancelado" ? "closed" : "pending"`) em vez de pelo que está aberto: uma situação inventada amanhã
+nasce pendente e continua visível, em vez de sumir da agenda como resolvida.
+
+**A prioridade da agenda é, na prática, a faixa colorida.** Um lançamento não tem prioridade; o que
+se lê à distância é se o dinheiro entra ou sai — daí Receita em `low` (verde) e Despesa em `high`. O
+valor vai com sinal (`0 - amount` para despesa, que é como o cartão do Financeiro já o lê), e é o
+`currency` do complemento que o formata no item. Traduções desse tipo são sempre da origem: a agenda
+não ganhou vocabulário nenhum.
+
+`scripts/financeiroCalendarWorkflow.test.ts` roda a declaração no motor de verdade, como o irmão do
+Prazo, e cobre o que só o motor prova: o mutirão idempotente, o espelho reescrevendo o mesmo
+documento e as três datas do arrasto (vencimento, pagamento, cancelamento) conforme a situação.
+
 ### Integridade do Marketplace — publicar válido e ver por que falhou
 
 Duas guardas que fecham buracos da carga por tenant:

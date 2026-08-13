@@ -11,6 +11,13 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [7.3.0] — 2026-08-13
+
+- **Os lançamentos financeiros passaram a aparecer no Calendário.** Cada receita ou despesa aparece no dia em que vence — e, depois de paga, no dia do pagamento. O cartão mostra o valor com sinal (verde quando entra, roxo quando sai) e a pessoa do lançamento, e a agenda ganhou filtros por situação e por pessoa do Financeiro.
+- **Registrar o pagamento e remarcar um lançamento agora podem ser feitos pela própria agenda.** O botão de registrar pagamento aparece no cartão enquanto a conta está em aberto; arrastar o cartão para outro dia muda o vencimento — ou a data de pagamento, ou a de cancelamento, conforme a situação do lançamento.
+- Para pôr na agenda os lançamentos que já existiam, execute a automação **"Sincronizar lançamentos no calendário"**, escolhendo a situação (comece por "Aberto"). Ela pode ser executada quantas vezes for preciso: nenhum lançamento aparece duas vezes.
+- A extensão Financeiro passou a exigir a extensão **Calendário** instalada.
+
 ## [7.2.2] — 2026-08-13
 
 - **Arrastar um item no Calendário passou a responder na hora.** O cartão vai para o dia novo assim que você o solta, ligeiramente esmaecido enquanto a confirmação não chega — antes ele voltava ao lugar e só saltava depois. Se o movimento for recusado, ele volta imediatamente; e se o sistema decidir uma data diferente da que você soltou, o cartão se ajusta para a data correta.

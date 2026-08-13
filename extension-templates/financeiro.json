@@ -1,7 +1,7 @@
 {
   "manifest": {
     "id": "com.microteia.financeiro",
-    "version": "1.0.3",
+    "version": "1.1.0",
     "kernel": "^1.0.0",
     "name": "Financeiro",
     "description": "Os lançamentos financeiros do escritório recriados como extensão, sobre os MESMOS lançamentos — a quarta entidade a sair do kernel.",
@@ -26,6 +26,12 @@
         "version": "^2.0.0",
         "collections": [
           "cases"
+        ]
+      },
+      "com.microteia.calendar": {
+        "version": "^1.0.0",
+        "collections": [
+          "calendar"
         ]
       }
     },
@@ -72,17 +78,31 @@
           "kind": "code",
           "key": "widget-financeiro-resumo"
         }
+      },
+      {
+        "point": "calendar.moveaction",
+        "id": "financeiro-mover",
+        "apiVersion": "1.0.0",
+        "metadata": {
+          "key": "financeiro.mover",
+          "title": "Remarcar o lançamento",
+          "description": "Arrastar um lançamento para outro dia muda o vencimento — ou a data de pagamento ou de cancelamento, conforme a situação dele.",
+          "icon": "moneyDollar",
+          "order": 0,
+          "origem": "financials",
+          "actionSourceId": "act-financeiro-calendar-mover"
+        }
       }
     ]
   },
-  "summary": "O controle financeiro do escritório: receitas e despesas com categoria, valor, vencimento, pagamento, forma, centro de custo e nota, vinculadas a pessoa, processo e contrato — com etiquetas, documentos e os gestos de registrar pagamento, estornar e cancelar.",
+  "summary": "O controle financeiro do escritório: receitas e despesas com categoria, valor, vencimento, pagamento, forma, centro de custo e nota, vinculadas a pessoa, processo e contrato — com etiquetas, documentos, os gestos de registrar pagamento, estornar e cancelar, e cada lançamento aparecendo no Calendário no dia em que vence.",
   "overview": {
     "type": "stack",
     "gap": "lg",
     "children": [
       {
         "type": "markdown",
-        "content": "A extensão **Financeiro** traz os lançamentos do escritório: cada receita ou despesa com categoria, valor, vencimento e status, ligada à pessoa, ao processo e ao contrato de origem.\n\nA listagem abre no mês corrente e mostra os totais do que está filtrado — recebido, pago, saldo e o previsto do que ainda está em aberto. Registrar pagamento, estornar e registrar cancelamento são gestos do próprio cartão.\n\nAs listas de Categoria, Status e Forma de Pagamento já vêm preenchidas e são suas; o Centro de Custo é o mesmo dos Contratos."
+        "content": "A extensão **Financeiro** traz os lançamentos do escritório: cada receita ou despesa com categoria, valor, vencimento e status, ligada à pessoa, ao processo e ao contrato de origem.\n\nA listagem abre no mês corrente e mostra os totais do que está filtrado — recebido, pago, saldo e o previsto do que ainda está em aberto. Registrar pagamento, estornar e registrar cancelamento são gestos do próprio cartão.\n\nCada lançamento aparece também no **Calendário**, no dia em que vence — e, depois de pago, no dia do pagamento. O valor aparece no cartão com sinal, receitas em verde e despesas em roxo; registrar o pagamento é um gesto do próprio cartão da agenda, e arrastá-lo para outro dia remarca o lançamento. Para os lançamentos que já existiam antes de instalar, rode a automação \"Sincronizar lançamentos no calendário\".\n\nAs listas de Categoria, Status e Forma de Pagamento já vêm preenchidas e são suas; o Centro de Custo é o mesmo dos Contratos."
       },
       {
         "type": "keyValue",
@@ -98,6 +118,10 @@
           {
             "label": "Por lançamento",
             "value": "Etiquetas e documentos"
+          },
+          {
+            "label": "No Calendário",
+            "value": "Um item por lançamento, no dia do vencimento"
           },
           {
             "label": "Quem grava",
@@ -412,6 +436,926 @@
           }
         }
       ]
+    },
+    {
+      "templateId": "wf-financeiro-calendar-sync",
+      "name": "Espelhar lançamento no calendário",
+      "description": "Mantém na agenda um item para cada lançamento: cria na primeira gravação e atualiza nas seguintes.",
+      "eventName": "financial.saved",
+      "version": 1,
+      "condition": {
+        "kind": "AlwaysTrue"
+      },
+      "steps": [
+        {
+          "id": "buscarItem",
+          "stepDefinitionId": "query",
+          "type": "Action",
+          "order": 0,
+          "enabled": true,
+          "configuration": {
+            "query": {
+              "kind": "Literal",
+              "value": {
+                "table": "calendar",
+                "where": [
+                  {
+                    "path": "origemId",
+                    "op": "eq",
+                    "value": {
+                      "kind": "Expression",
+                      "expression": "event.id"
+                    }
+                  }
+                ],
+                "limit": 1,
+                "projections": []
+              }
+            }
+          }
+        },
+        {
+          "id": "buscarItemExiste",
+          "stepDefinitionId": "",
+          "type": "Condition",
+          "order": 1,
+          "enabled": true,
+          "condition": {
+            "kind": "Expression",
+            "expression": "output.buscarItem.count < 1"
+          },
+          "configuration": {},
+          "branches": {
+            "whenTrue": [
+              {
+                "id": "buscarItemSem",
+                "stepDefinitionId": "map",
+                "type": "Action",
+                "order": 0,
+                "enabled": true,
+                "configuration": {
+                  "map": {
+                    "kind": "Literal",
+                    "value": {
+                      "name": "",
+                      "fields": [
+                        {
+                          "name": "itemId",
+                          "value": {
+                            "kind": "Literal",
+                            "value": null
+                          }
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            ],
+            "whenFalse": [
+              {
+                "id": "buscarItemCom",
+                "stepDefinitionId": "map",
+                "type": "Action",
+                "order": 0,
+                "enabled": true,
+                "configuration": {
+                  "map": {
+                    "kind": "Literal",
+                    "value": {
+                      "name": "",
+                      "fields": [
+                        {
+                          "name": "itemId",
+                          "value": {
+                            "kind": "Expression",
+                            "expression": "output.buscarItem.first.id"
+                          }
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "montarItem",
+          "stepDefinitionId": "map",
+          "type": "Action",
+          "order": 2,
+          "enabled": true,
+          "configuration": {
+            "map": {
+              "kind": "Literal",
+              "value": {
+                "name": "item",
+                "fields": [
+                  {
+                    "name": "id",
+                    "value": {
+                      "kind": "Expression",
+                      "expression": "input.itemId"
+                    }
+                  },
+                  {
+                    "name": "title",
+                    "value": {
+                      "kind": "Expression",
+                      "expression": "event.category"
+                    }
+                  },
+                  {
+                    "name": "status",
+                    "value": {
+                      "kind": "Expression",
+                      "expression": "event.status == \"Pago\" or event.status == \"Cancelado\" ? \"closed\" : \"pending\""
+                    }
+                  },
+                  {
+                    "name": "priority",
+                    "value": {
+                      "kind": "Expression",
+                      "expression": "event.type == \"Despesa\" ? \"high\" : \"low\""
+                    }
+                  },
+                  {
+                    "name": "date",
+                    "value": {
+                      "kind": "Expression",
+                      "expression": "event.dueDate"
+                    }
+                  },
+                  {
+                    "name": "finishDate",
+                    "value": {
+                      "kind": "Expression",
+                      "expression": "coalesce(event.paymentDate, event.cancelDate)"
+                    }
+                  },
+                  {
+                    "name": "description",
+                    "value": {
+                      "kind": "Expression",
+                      "expression": "event.notes"
+                    }
+                  },
+                  {
+                    "name": "origem",
+                    "value": {
+                      "kind": "Literal",
+                      "value": "financials"
+                    }
+                  },
+                  {
+                    "name": "origemId",
+                    "value": {
+                      "kind": "Expression",
+                      "expression": "event.id"
+                    }
+                  },
+                  {
+                    "name": "financialStatus",
+                    "value": {
+                      "kind": "Expression",
+                      "expression": "event.status"
+                    }
+                  },
+                  {
+                    "name": "financialAmount",
+                    "value": {
+                      "kind": "Expression",
+                      "expression": "event.type == \"Despesa\" ? 0 - event.amount : event.amount"
+                    }
+                  },
+                  {
+                    "name": "financialPersonId",
+                    "value": {
+                      "kind": "Expression",
+                      "expression": "event.personId"
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "id": "gravarItem",
+          "stepDefinitionId": "upsert",
+          "type": "Action",
+          "order": 3,
+          "enabled": true,
+          "configuration": {
+            "upsert": {
+              "kind": "Literal",
+              "value": {
+                "table": "calendar",
+                "source": "input",
+                "property": "item"
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "templateId": "wf-financeiro-calendar-sincronizar",
+      "name": "Sincronizar lançamentos no calendário",
+      "description": "Põe na agenda os lançamentos que já existiam antes da integração. Pode ser executado quantas vezes for preciso: cada lançamento tem no máximo um item, e rodar de novo apenas o atualiza. Processa até 100 lançamentos por execução, dentro da situação escolhida.",
+      "eventName": "workflow.called",
+      "version": 1,
+      "condition": {
+        "kind": "AlwaysTrue"
+      },
+      "parameters": [
+        {
+          "key": "status",
+          "label": "Situação dos lançamentos a sincronizar",
+          "type": "lookup",
+          "lookupCollection": "financialStatuses",
+          "required": true,
+          "defaultValue": "Aberto"
+        }
+      ],
+      "steps": [
+        {
+          "id": "buscarLancamentos",
+          "stepDefinitionId": "query",
+          "type": "Action",
+          "order": 0,
+          "enabled": true,
+          "configuration": {
+            "query": {
+              "kind": "Literal",
+              "value": {
+                "table": "financials",
+                "where": [
+                  {
+                    "path": "status",
+                    "op": "eq",
+                    "value": {
+                      "kind": "Expression",
+                      "expression": "event.status"
+                    }
+                  }
+                ],
+                "orderBy": [
+                  {
+                    "path": "dueDate",
+                    "dir": "desc"
+                  }
+                ],
+                "limit": 100,
+                "projections": []
+              }
+            }
+          }
+        },
+        {
+          "id": "cadaLancamento",
+          "stepDefinitionId": "",
+          "type": "Loop",
+          "order": 1,
+          "enabled": true,
+          "configuration": {},
+          "loop": {
+            "source": {
+              "kind": "Expression",
+              "expression": "output.buscarLancamentos.results"
+            },
+            "itemName": "lancamento",
+            "outputName": "itens",
+            "body": [
+              {
+                "id": "buscarItem",
+                "stepDefinitionId": "query",
+                "type": "Action",
+                "order": 0,
+                "enabled": true,
+                "configuration": {
+                  "query": {
+                    "kind": "Literal",
+                    "value": {
+                      "table": "calendar",
+                      "where": [
+                        {
+                          "path": "origemId",
+                          "op": "eq",
+                          "value": {
+                            "kind": "Expression",
+                            "expression": "output.cadaLancamento.id"
+                          }
+                        }
+                      ],
+                      "limit": 1,
+                      "projections": []
+                    }
+                  }
+                }
+              },
+              {
+                "id": "buscarItemExiste",
+                "stepDefinitionId": "",
+                "type": "Condition",
+                "order": 1,
+                "enabled": true,
+                "condition": {
+                  "kind": "Expression",
+                  "expression": "output.buscarItem.count < 1"
+                },
+                "configuration": {},
+                "branches": {
+                  "whenTrue": [
+                    {
+                      "id": "buscarItemSem",
+                      "stepDefinitionId": "map",
+                      "type": "Action",
+                      "order": 0,
+                      "enabled": true,
+                      "configuration": {
+                        "map": {
+                          "kind": "Literal",
+                          "value": {
+                            "name": "",
+                            "fields": [
+                              {
+                                "name": "itemId",
+                                "value": {
+                                  "kind": "Literal",
+                                  "value": null
+                                }
+                              }
+                            ]
+                          }
+                        }
+                      }
+                    }
+                  ],
+                  "whenFalse": [
+                    {
+                      "id": "buscarItemCom",
+                      "stepDefinitionId": "map",
+                      "type": "Action",
+                      "order": 0,
+                      "enabled": true,
+                      "configuration": {
+                        "map": {
+                          "kind": "Literal",
+                          "value": {
+                            "name": "",
+                            "fields": [
+                              {
+                                "name": "itemId",
+                                "value": {
+                                  "kind": "Expression",
+                                  "expression": "output.buscarItem.first.id"
+                                }
+                              }
+                            ]
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "montarItem",
+                "stepDefinitionId": "map",
+                "type": "Action",
+                "order": 2,
+                "enabled": true,
+                "configuration": {
+                  "map": {
+                    "kind": "Literal",
+                    "value": {
+                      "name": "item",
+                      "fields": [
+                        {
+                          "name": "id",
+                          "value": {
+                            "kind": "Expression",
+                            "expression": "input.itemId"
+                          }
+                        },
+                        {
+                          "name": "title",
+                          "value": {
+                            "kind": "Expression",
+                            "expression": "output.cadaLancamento.category"
+                          }
+                        },
+                        {
+                          "name": "status",
+                          "value": {
+                            "kind": "Expression",
+                            "expression": "output.cadaLancamento.status == \"Pago\" or output.cadaLancamento.status == \"Cancelado\" ? \"closed\" : \"pending\""
+                          }
+                        },
+                        {
+                          "name": "priority",
+                          "value": {
+                            "kind": "Expression",
+                            "expression": "output.cadaLancamento.type == \"Despesa\" ? \"high\" : \"low\""
+                          }
+                        },
+                        {
+                          "name": "date",
+                          "value": {
+                            "kind": "Expression",
+                            "expression": "output.cadaLancamento.dueDate"
+                          }
+                        },
+                        {
+                          "name": "finishDate",
+                          "value": {
+                            "kind": "Expression",
+                            "expression": "coalesce(output.cadaLancamento.paymentDate, output.cadaLancamento.cancelDate)"
+                          }
+                        },
+                        {
+                          "name": "description",
+                          "value": {
+                            "kind": "Expression",
+                            "expression": "output.cadaLancamento.notes"
+                          }
+                        },
+                        {
+                          "name": "origem",
+                          "value": {
+                            "kind": "Literal",
+                            "value": "financials"
+                          }
+                        },
+                        {
+                          "name": "origemId",
+                          "value": {
+                            "kind": "Expression",
+                            "expression": "output.cadaLancamento.id"
+                          }
+                        },
+                        {
+                          "name": "financialStatus",
+                          "value": {
+                            "kind": "Expression",
+                            "expression": "output.cadaLancamento.status"
+                          }
+                        },
+                        {
+                          "name": "financialAmount",
+                          "value": {
+                            "kind": "Expression",
+                            "expression": "output.cadaLancamento.type == \"Despesa\" ? 0 - output.cadaLancamento.amount : output.cadaLancamento.amount"
+                          }
+                        },
+                        {
+                          "name": "financialPersonId",
+                          "value": {
+                            "kind": "Expression",
+                            "expression": "output.cadaLancamento.personId"
+                          }
+                        }
+                      ]
+                    }
+                  }
+                }
+              },
+              {
+                "id": "gravarItem",
+                "stepDefinitionId": "upsert",
+                "type": "Action",
+                "order": 3,
+                "enabled": true,
+                "configuration": {
+                  "upsert": {
+                    "kind": "Literal",
+                    "value": {
+                      "table": "calendar",
+                      "source": "input",
+                      "property": "item"
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "responder",
+          "stepDefinitionId": "map",
+          "type": "Action",
+          "order": 2,
+          "enabled": true,
+          "configuration": {
+            "map": {
+              "kind": "Literal",
+              "value": {
+                "name": "",
+                "fields": [
+                  {
+                    "name": "sincronizados",
+                    "value": {
+                      "kind": "Expression",
+                      "expression": "output.buscarLancamentos.count"
+                    }
+                  },
+                  {
+                    "name": "status",
+                    "value": {
+                      "kind": "Expression",
+                      "expression": "output.buscarLancamentos.count >= 100 ? \"Sincronizados 100 lançamentos — o teto de uma execução. Rode de novo para alcançar os demais.\" : concat(\"Sincronizados \", output.buscarLancamentos.count, \" lançamento(s) no calendário.\")"
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "templateId": "wf-financeiro-calendar-remover",
+      "name": "Retirar lançamento do calendário",
+      "description": "Exclui da agenda o item do lançamento que foi removido.",
+      "eventName": "financial.deleted",
+      "version": 1,
+      "condition": {
+        "kind": "AlwaysTrue"
+      },
+      "steps": [
+        {
+          "id": "buscarItem",
+          "stepDefinitionId": "query",
+          "type": "Action",
+          "order": 0,
+          "enabled": true,
+          "configuration": {
+            "query": {
+              "kind": "Literal",
+              "value": {
+                "table": "calendar",
+                "where": [
+                  {
+                    "path": "origemId",
+                    "op": "eq",
+                    "value": {
+                      "kind": "Expression",
+                      "expression": "event.id"
+                    }
+                  }
+                ],
+                "limit": 1,
+                "projections": []
+              }
+            }
+          }
+        },
+        {
+          "id": "itemExiste",
+          "stepDefinitionId": "",
+          "type": "Condition",
+          "order": 1,
+          "enabled": true,
+          "condition": {
+            "kind": "Expression",
+            "expression": "output.buscarItem.count < 1"
+          },
+          "configuration": {},
+          "branches": {
+            "whenTrue": [
+              {
+                "id": "semItemSair",
+                "stepDefinitionId": "exit",
+                "type": "Action",
+                "order": 0,
+                "enabled": true,
+                "configuration": {}
+              }
+            ],
+            "whenFalse": []
+          }
+        },
+        {
+          "id": "excluirItem",
+          "stepDefinitionId": "remove",
+          "type": "Action",
+          "order": 2,
+          "enabled": true,
+          "configuration": {
+            "remove": {
+              "kind": "Literal",
+              "value": {
+                "table": "calendar",
+                "id": {
+                  "kind": "Expression",
+                  "expression": "output.buscarItem.first.id"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "templateId": "wf-financeiro-calendar-pagar",
+      "name": "Registrar pagamento pela agenda",
+      "description": "Marca como Pago o lançamento que deu origem ao item do calendário, com a data de hoje.",
+      "eventName": "workflow.called",
+      "version": 1,
+      "condition": {
+        "kind": "AlwaysTrue"
+      },
+      "steps": [
+        {
+          "id": "montar",
+          "stepDefinitionId": "map",
+          "type": "Action",
+          "order": 0,
+          "enabled": true,
+          "configuration": {
+            "map": {
+              "kind": "Literal",
+              "value": {
+                "name": "lancamento",
+                "fields": [
+                  {
+                    "name": "id",
+                    "value": {
+                      "kind": "Expression",
+                      "expression": "event.context.origemId"
+                    }
+                  },
+                  {
+                    "name": "status",
+                    "value": {
+                      "kind": "Literal",
+                      "value": "Pago"
+                    }
+                  },
+                  {
+                    "name": "paymentDate",
+                    "value": {
+                      "kind": "Expression",
+                      "expression": "today()"
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "id": "gravar",
+          "stepDefinitionId": "upsert",
+          "type": "Action",
+          "order": 1,
+          "enabled": true,
+          "configuration": {
+            "upsert": {
+              "kind": "Literal",
+              "value": {
+                "table": "financials",
+                "source": "input",
+                "property": "lancamento"
+              }
+            }
+          }
+        },
+        {
+          "id": "responder",
+          "stepDefinitionId": "map",
+          "type": "Action",
+          "order": 2,
+          "enabled": true,
+          "configuration": {
+            "map": {
+              "kind": "Literal",
+              "value": {
+                "name": "",
+                "fields": [
+                  {
+                    "name": "status",
+                    "value": {
+                      "kind": "Literal",
+                      "value": "Pagamento registrado."
+                    }
+                  },
+                  {
+                    "name": "actions",
+                    "value": {
+                      "kind": "Literal",
+                      "value": [
+                        "refresh"
+                      ]
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "templateId": "wf-financeiro-calendar-mover",
+      "name": "Remarcar lançamento pela agenda",
+      "description": "Muda o vencimento do lançamento — ou a data de pagamento, ou a de cancelamento, conforme a situação dele — quando o item é arrastado para outro dia.",
+      "eventName": "workflow.called",
+      "version": 1,
+      "condition": {
+        "kind": "AlwaysTrue"
+      },
+      "parameters": [
+        {
+          "key": "targetDate",
+          "label": "Novo dia",
+          "type": "Date",
+          "required": true
+        }
+      ],
+      "steps": [
+        {
+          "id": "jaPago",
+          "stepDefinitionId": "",
+          "type": "Condition",
+          "order": 0,
+          "enabled": true,
+          "condition": {
+            "kind": "Expression",
+            "expression": "event.context.financialStatus == \"Pago\""
+          },
+          "configuration": {},
+          "branches": {
+            "whenTrue": [
+              {
+                "id": "remarcarPagamento",
+                "stepDefinitionId": "map",
+                "type": "Action",
+                "order": 0,
+                "enabled": true,
+                "configuration": {
+                  "map": {
+                    "kind": "Literal",
+                    "value": {
+                      "name": "lancamento",
+                      "fields": [
+                        {
+                          "name": "id",
+                          "value": {
+                            "kind": "Expression",
+                            "expression": "event.context.origemId"
+                          }
+                        },
+                        {
+                          "name": "paymentDate",
+                          "value": {
+                            "kind": "Expression",
+                            "expression": "event.targetDate"
+                          }
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            ],
+            "whenFalse": [
+              {
+                "id": "jaCancelado",
+                "stepDefinitionId": "",
+                "type": "Condition",
+                "order": 0,
+                "enabled": true,
+                "condition": {
+                  "kind": "Expression",
+                  "expression": "event.context.financialStatus == \"Cancelado\""
+                },
+                "configuration": {},
+                "branches": {
+                  "whenTrue": [
+                    {
+                      "id": "remarcarCancelamento",
+                      "stepDefinitionId": "map",
+                      "type": "Action",
+                      "order": 0,
+                      "enabled": true,
+                      "configuration": {
+                        "map": {
+                          "kind": "Literal",
+                          "value": {
+                            "name": "lancamento",
+                            "fields": [
+                              {
+                                "name": "id",
+                                "value": {
+                                  "kind": "Expression",
+                                  "expression": "event.context.origemId"
+                                }
+                              },
+                              {
+                                "name": "cancelDate",
+                                "value": {
+                                  "kind": "Expression",
+                                  "expression": "event.targetDate"
+                                }
+                              }
+                            ]
+                          }
+                        }
+                      }
+                    }
+                  ],
+                  "whenFalse": [
+                    {
+                      "id": "remarcarVencimento",
+                      "stepDefinitionId": "map",
+                      "type": "Action",
+                      "order": 0,
+                      "enabled": true,
+                      "configuration": {
+                        "map": {
+                          "kind": "Literal",
+                          "value": {
+                            "name": "lancamento",
+                            "fields": [
+                              {
+                                "name": "id",
+                                "value": {
+                                  "kind": "Expression",
+                                  "expression": "event.context.origemId"
+                                }
+                              },
+                              {
+                                "name": "dueDate",
+                                "value": {
+                                  "kind": "Expression",
+                                  "expression": "event.targetDate"
+                                }
+                              }
+                            ]
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "gravar",
+          "stepDefinitionId": "upsert",
+          "type": "Action",
+          "order": 1,
+          "enabled": true,
+          "configuration": {
+            "upsert": {
+              "kind": "Literal",
+              "value": {
+                "table": "financials",
+                "source": "input",
+                "property": "lancamento"
+              }
+            }
+          }
+        },
+        {
+          "id": "responder",
+          "stepDefinitionId": "map",
+          "type": "Action",
+          "order": 2,
+          "enabled": true,
+          "configuration": {
+            "map": {
+              "kind": "Literal",
+              "value": {
+                "name": "",
+                "fields": [
+                  {
+                    "name": "status",
+                    "value": {
+                      "kind": "Literal",
+                      "value": "Lançamento remarcado."
+                    }
+                  },
+                  {
+                    "name": "actions",
+                    "value": {
+                      "kind": "Literal",
+                      "value": [
+                        "refresh"
+                      ]
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        }
+      ]
     }
   ],
   "actions": [
@@ -447,6 +1391,27 @@
       "danger": true,
       "enabled": true,
       "order": 2
+    },
+    {
+      "templateId": "act-financeiro-calendar-pagar",
+      "key": "financeiro_calendar_pagar",
+      "title": "Registrar pagamento",
+      "icon": "checkboxCircle",
+      "workflowId": "wf-financeiro-calendar-pagar",
+      "hiddenWhen": "origem != \"financials\" or financialStatus != \"Aberto\"",
+      "danger": false,
+      "enabled": true,
+      "order": 3
+    },
+    {
+      "templateId": "act-financeiro-calendar-mover",
+      "key": "financeiro_calendar_mover",
+      "title": "Remarcar lançamento",
+      "icon": "time",
+      "workflowId": "wf-financeiro-calendar-mover",
+      "danger": false,
+      "enabled": true,
+      "order": 4
     }
   ],
   "screens": [
@@ -644,6 +1609,52 @@
       ],
       "sidebarOrder": 0,
       "hideFromSidebar": true
+    }
+  ],
+  "screenPatches": [
+    {
+      "target": "microteia:calendar",
+      "targetKind": "sourceId",
+      "cardActionIds": [
+        "act-financeiro-calendar-pagar"
+      ],
+      "fields": [
+        {
+          "key": "financialStatus",
+          "label": "Situação do lançamento",
+          "type": "select",
+          "required": false,
+          "order": 30,
+          "section": "Financeiro",
+          "lookupCollection": "financialStatuses",
+          "optionsColored": true,
+          "filterable": true
+        },
+        {
+          "key": "financialAmount",
+          "label": "Valor",
+          "type": "currency",
+          "required": false,
+          "order": 31,
+          "section": "Financeiro",
+          "showInList": true,
+          "listIcon": "moneyDollar",
+          "listOrder": 20
+        },
+        {
+          "key": "financialPersonId",
+          "label": "Pessoa do lançamento",
+          "type": "reference",
+          "required": false,
+          "order": 32,
+          "section": "Financeiro",
+          "refEntity": "persons",
+          "filterable": true,
+          "showInList": true,
+          "listIcon": "team",
+          "listOrder": 21
+        }
+      ]
     }
   ],
   "lookups": [
