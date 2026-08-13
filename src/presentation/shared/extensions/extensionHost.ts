@@ -26,7 +26,7 @@ export interface ExtensionHost {
   };
   widgets: {
     /**
-     * Coloca um cartão numa superfície de outra tela (o Painel, por exemplo). A extensão declara o
+     * Coloca um cartão numa superfície de outra tela (o Dashboard, por exemplo). A extensão declara o
      * padrão — se vem ligado e com que largura —; quem decide de fato é a configuração da
      * superfície, editada na tela de Configurações.
      */

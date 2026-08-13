@@ -703,9 +703,9 @@ export default function startup(host) {
 
 
 /**
- * Os WIDGETS do Painel. Eles são desta extensão de propósito: quem sabe o que é um prazo pendente,
- * o que é vencer e como se lê uma prioridade é ela — o Painel só oferece o lugar. Instalar Prazos
- * faz os cartões aparecerem; desinstalar os retira, sem que o Painel saiba de nada.
+ * Os WIDGETS do Dashboard. Eles são desta extensão de propósito: quem sabe o que é um prazo pendente,
+ * o que é vencer e como se lê uma prioridade é ela — o Dashboard só oferece o lugar. Instalar Prazos
+ * faz os cartões aparecerem; desinstalar os retira, sem que o Dashboard saiba de nada.
  */
 const WIDGET_HELPERS = `
 const DAY = 86400000;

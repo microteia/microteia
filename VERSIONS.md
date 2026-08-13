@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [6.0.1] — 2026-08-12
+
+- **A tela de abertura chama-se Dashboard**, e não "Painel", em todo o sistema: no menu, na tela de Configurações e na lista de extensões. Um nome só, no lugar de dois.
+
 ## [6.0.0] — 2026-08-12
 
 - **O Painel agora é seu.** A tela de abertura deixou de ser uma peça fixa do sistema e passou a ser montada por você: cada cartão — processos em andamento, pessoas ativas, prazos da semana, prazos vencidos, resumo do financeiro, análise de prazos — pode ser ligado, desligado, reordenado e ter a largura escolhida (1, 2 ou 3 colunas).

@@ -446,7 +446,7 @@ const Empty = styled.div\`
 `;
 
 /**
- * Os WIDGETS do Painel. O número de processos ativos e a lista dos mais recentes eram cartões
+ * Os WIDGETS do Dashboard. O número de processos ativos e a lista dos mais recentes eram cartões
  * escritos no kernel; agora são desta extensão, que é quem sabe o que é um processo "Em Andamento".
  */
 const PROCESSOS_NUMEROS_SOURCE = `

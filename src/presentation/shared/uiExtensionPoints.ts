@@ -93,7 +93,7 @@ export interface UiRecordActionMetadata {
  *
  * O widget declara o PADRÃO (vem ligado? que largura?); quem manda de fato é a configuração
  * `<superfície>.widgets`, editada pelo escritório e pelo usuário. Sem valor gravado, o padrão vale —
- * é o que faz uma extensão recém-instalada já aparecer no Painel sem ninguém configurar nada.
+ * é o que faz uma extensão recém-instalada já aparecer no Dashboard sem ninguém configurar nada.
  */
 export interface UiWidgetMetadata {
   surface: string;
@@ -157,7 +157,7 @@ export const UI_EXTENSION_POINTS: ExtensionPointDefinition[] = [
     id: UI_WIDGET_POINT,
     apiVersion: UI_API_VERSION,
     title: 'Widget de superfície',
-    description: 'Acrescenta um cartão a uma superfície (o Painel, por exemplo), ligado e ordenado pela configuração.',
+    description: 'Acrescenta um cartão a uma superfície (o Dashboard, por exemplo), ligado e ordenado pela configuração.',
     ownerPluginId: 'core.ui',
     allowedImplKinds: ['code', 'widget'],
     implRequired: true,

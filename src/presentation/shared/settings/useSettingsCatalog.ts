@@ -20,7 +20,7 @@ import { isWidgetSpec, type WidgetSpec } from '../widget/widgetSpec';
  *    único caminho de quem não pode entregar código;
  * 2. **Registro no `startup`** — código de extensão confiável, que entrega o componente pronto.
  *
- * Quem consome não distingue as duas, e é isso que faz o Painel e a tela de Configurações não
+ * Quem consome não distingue as duas, e é isso que faz o Dashboard e a tela de Configurações não
  * conhecerem nenhuma extensão em particular.
  */
 

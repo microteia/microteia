@@ -29,7 +29,7 @@ const TEMPLATES = {
   'financeiro.json': 'financeiroPlugin',
   'noticia.json': 'noticiaPlugin',
   'kanban-processos.json': 'kanbanCasesPlugin',
-  'painel.json': 'painelPlugin',
+  'dashboard.json': 'dashboardPlugin',
 };
 
 const check = process.argv.includes('--check');

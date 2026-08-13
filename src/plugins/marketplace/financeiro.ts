@@ -523,7 +523,7 @@ export default function startup(host) {
 
 
 /**
- * O WIDGET do Painel: o que há para receber e para pagar dentro de um horizonte de dias. Era o
+ * O WIDGET do Dashboard: o que há para receber e para pagar dentro de um horizonte de dias. Era o
  * cartão "Financeiro" do painel escrito no kernel — inclusive o seletor de 7/15/30 dias —, e agora é
  * desta extensão, a única que sabe o que é uma receita em aberto.
  */

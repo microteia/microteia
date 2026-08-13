@@ -8,7 +8,7 @@ import { UI_SETTINGS_POINT, UI_WIDGET_POINT } from '../../presentation/shared/ui
 import type { PluginInstallation } from '../../domain/entities/PluginInstallation';
 import type { SettingsSection } from '../../domain/schema/settings';
 import { MARKETPLACE_CATALOG } from './catalog';
-import { painelPlugin } from './painel';
+import { dashboardPlugin } from './dashboard';
 
 const installation = (pluginId: string): PluginInstallation => ({
   pluginId,
@@ -31,12 +31,12 @@ const hostWithCatalog = () => {
   return { host, result };
 };
 
-describe('painelPlugin', () => {
+describe('dashboardPlugin', () => {
   it('carrega no host e contribui a tela, o menu e a seção de configuração', () => {
     const { host, result } = hostWithCatalog();
 
     expect(result.diagnostics.filter((d) => d.severity === 'error')).toEqual([]);
-    expect(host.isLoaded(painelPlugin.manifest.id)).toBe(true);
+    expect(host.isLoaded(dashboardPlugin.manifest.id)).toBe(true);
 
     const secoes = host.contributions
       .query(UI_SETTINGS_POINT)
@@ -45,17 +45,17 @@ describe('painelPlugin', () => {
   });
 
   /**
-   * O ponto do Painel: ele não conhece widget nenhum. Se esta lista dependesse de algo escrito na
-   * extensão do Painel, instalar uma extensão nova não faria cartão aparecer.
+   * O ponto do Dashboard: ele não conhece widget nenhum. Se esta lista dependesse de algo escrito na
+   * extensão do Dashboard, instalar uma extensão nova não faria cartão aparecer.
    */
   it('não declara nenhum widget — quem os traz são as extensões de domínio', () => {
-    const widgetKeys = (painelPlugin.manifest.contributes ?? [])
+    const widgetKeys = (dashboardPlugin.manifest.contributes ?? [])
       .filter((contribution) => contribution.point === UI_WIDGET_POINT);
     expect(widgetKeys).toEqual([]);
   });
 
-  it('a configuração do Painel aponta para a superfície e aceita os dois escopos', () => {
-    const contribution = (painelPlugin.manifest.contributes ?? [])
+  it('a configuração do Dashboard aponta para a superfície e aceita os dois escopos', () => {
+    const contribution = (dashboardPlugin.manifest.contributes ?? [])
       .find((item) => item.point === UI_SETTINGS_POINT);
     const secao = contribution?.metadata as unknown as SettingsSection;
     const [propriedade] = secao.properties;
@@ -67,14 +67,14 @@ describe('painelPlugin', () => {
   });
 
   it('a fonte da view compila pelo runtime (não cai no fallback)', () => {
-    for (const view of painelPlugin.views ?? []) {
+    for (const view of dashboardPlugin.views ?? []) {
       const Component = evaluateExtensionView(`test::${view.key}`, view.source);
       expect(typeof Component, view.key).toBe('function');
     }
   });
 });
 
-describe('widgets do Painel — o catálogo inteiro', () => {
+describe('widgets do Dashboard — o catálogo inteiro', () => {
   it('todo widget contribuído tem view correspondente e compila', () => {
     for (const plugin of MARKETPLACE_CATALOG) {
       const views = new Map((plugin.views ?? []).map((view) => [view.key, view.source]));

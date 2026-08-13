@@ -2162,12 +2162,13 @@ cópia da lista. Nenhum teste de execução pega esse defeito: as duas declaraç
 Workflows existentes que usem o Step `create-deadline` param de resolver o passo e precisam ser
 refeitos — chamando este workflow, ou com Gravar Registro direto.
 
-**O que ficou no kernel, e por quê.** A **Agenda** (`calendar`) e o **Painel** continuam sendo telas
-de código, e continuam lendo e escrevendo prazos — pelo caminho
+**O que ficou no kernel, e por quê.** A **Agenda** (`calendar`) continua sendo tela de código, e
+continua lendo e escrevendo prazos — pelo caminho
 GENÉRICO: `useDeadlineRecords()` (mesmo contrato de leitura de `useCaseRecords` e irmãos) para ler,
 `useRecords().updateRecord/createRecord` para gravar, `useOpenRecord`/`useOpenScreenList` para
-navegar. Nenhuma delas conhece uma entidade declarada em código; sem a extensão instalada, a lista
-vem vazia e a tela mostra o estado vazio, em vez de dado errado.
+navegar. Ela não conhece uma entidade declarada em código; sem a extensão instalada, a lista
+vem vazia e a tela mostra o estado vazio, em vez de dado errado. (O Painel, que estava nesta mesma
+condição, saiu depois — ver "O Dashboard saiu do kernel".)
 
 **O que a migração custou, e é aceitável.** (1) A busca da listagem casa os textos do registro
 (tipo, descrição, status), não mais o número do processo — quem procura por processo tem o filtro
@@ -3532,13 +3533,13 @@ aviso naquele espaço, não um painel em branco.
 **Duas origens, uma saída.** `useSettingsCatalog` funde a contribuição de manifest (declarativa, o
 único caminho de quem não entrega código) com o registro em tempo de execução do `startup`
 (`host.widgets.register`, `host.settings.register`). Quem consome não distingue as duas — é isso que
-faz o Painel e a tela de Configurações não conhecerem nenhuma extensão em particular.
+faz o Dashboard e a tela de Configurações não conhecerem nenhuma extensão em particular.
 
-### O Painel saiu do kernel (extensão `com.microteia.painel`)
+### O Dashboard saiu do kernel (extensão `com.microteia.dashboard`)
 
 O Dashboard era a última tela do núcleo a importar `useCaseRecords`, `useDeadlineRecords` e
 `useFinancialRecords` — três domínios que já haviam saído do kernel como extensão. Hoje a extensão
-**Painel** entrega só o LUGAR: a página, o item de menu e a seção de Configurações que ordena a
+**Dashboard** entrega só o LUGAR: a página, o item de menu e a seção de Configurações que ordena a
 superfície `dashboard`. Ela não declara widget nenhum (há teste): os cartões são das extensões que
 conhecem cada assunto — Pessoas, Processos, Prazos e Financeiro. Instalar uma delas faz o cartão
 aparecer; remover, sumir.
@@ -3888,7 +3889,7 @@ não dispara é pior que guarda nenhuma.
 | — ✅ | Fatia vertical: plugin de exemplo instalável ponta a ponta (workflow + página Extensões) |
 | 7 ◑ | Marketplace: registro global + publish (SYSTEM); falta versões por plugin e publish com validação |
 | 6 ✅ | Widget DSL (estático) — plugin instalado entrega tela por widget; falta só ligação a dados |
-| 8 ✅ | Configuração declarativa (`ui.settings`) + superfícies de widget (`ui.widget`): o Painel sai do kernel e vira extensão |
+| 8 ✅ | Configuração declarativa (`ui.settings`) + superfícies de widget (`ui.widget`): o Dashboard sai do kernel e vira extensão |
 | 7 | Marketplace: `plugin_registry`, publicação e instalação |
 
 ---

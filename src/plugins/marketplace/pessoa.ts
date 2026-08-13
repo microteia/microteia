@@ -342,7 +342,7 @@ export default function startup(host) {
 
 
 /**
- * O WIDGET do Painel: quantas pessoas estão ativas. O número era um dos quatro cartões escritos no
+ * O WIDGET do Dashboard: quantas pessoas estão ativas. O número era um dos quatro cartões escritos no
  * kernel; quem sabe o que é uma pessoa ativa é esta extensão, que declara o campo `status`.
  */
 const PESSOAS_NUMEROS_SOURCE = `
