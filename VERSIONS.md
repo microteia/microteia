@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [7.2.2] — 2026-08-13
+
+- **Arrastar um item no Calendário passou a responder na hora.** O cartão vai para o dia novo assim que você o solta, ligeiramente esmaecido enquanto a confirmação não chega — antes ele voltava ao lugar e só saltava depois. Se o movimento for recusado, ele volta imediatamente; e se o sistema decidir uma data diferente da que você soltou, o cartão se ajusta para a data correta.
+
 ## [7.2.1] — 2026-08-13
 
 - **Uma extensão que oferece um botão em tela de outra não o perde mais ao ser reexportada.** Ao gerar o arquivo da extensão, os botões que ela pendura no cartão ou no detalhe de uma tela existente viajam junto com os campos — e a tela onde ela só oferece um botão, sem acrescentar campo nenhum, passa a aparecer na lista de artefatos com o resumo do que leva.

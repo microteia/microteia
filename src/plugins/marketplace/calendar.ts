@@ -328,8 +328,10 @@ const EventCard = styled.div\`
   border-left: 3px solid \${({ $color }) => $color};
   border-right: 3px solid \${({ $color }) => $color};
   background: \${({ theme, $done }) => $done ? theme.colors.background : theme.colors.primary + '08'};
-  opacity: \${({ $done, $dragging }) => $dragging ? 0.35 : $done ? 0.72 : 1};
+  opacity: \${({ $done, $dragging, $pending }) => $dragging ? 0.35 : $pending ? 0.5 : $done ? 0.72 : 1};
   cursor: \${({ $dragging }) => $dragging ? 'grabbing' : 'grab'};
+  /* A caminho: o cartão já está no dia novo, mas quem confirma é a origem. */
+  border-top: 1px dashed \${({ $pending, theme }) => $pending ? theme.colors.primary : 'transparent'};
   transition: opacity \${({ theme }) => theme.transitions.fast}, transform \${({ theme }) => theme.transitions.fast}, box-shadow \${({ theme }) => theme.transitions.fast};
 
   &:hover {
@@ -521,6 +523,24 @@ const displayDate = (record) => {
   return dateOf(record.date);
 };
 
+/**
+ * ONDE o cartão aparece. Normalmente é o dia do dado; enquanto a origem não responde ao arrasto, é
+ * o dia para onde ele foi levado — senão o cartão volta ao lugar e o gesto parece ter falhado,
+ * embora esteja a caminho.
+ *
+ * A aposta se desfaz SOZINHA, e é isso que a torna segura: ela só vale enquanto o registro ainda
+ * está onde estava ('from'). Assim que a gravação chega, o item deixa de casar com 'from' e quem
+ * manda volta a ser o dado — inclusive quando a origem decide um TERCEIRO dia, que é a razão de a
+ * agenda não poder simplesmente confiar no dia que o usuário soltou.
+ */
+const positionOf = (record, moves) => {
+  const shown = displayDate(record);
+  const key = shown ? dayKey(shown) : null;
+  const move = moves[record.id];
+  if (move && move.from === key) return { key: move.to, pending: true };
+  return { key, pending: false };
+};
+
 const PRIORITY_ORDER = { critical: 3, high: 2, medium: 1, low: 0 };
 
 const byPriority = (a, b) => {
@@ -555,6 +575,8 @@ export default function CalendarView() {
   });
   const [draggingId, setDraggingId] = useState(null);
   const [dragOverKey, setDragOverKey] = useState(null);
+  // O arrasto em trânsito: { [id]: { from, to } }. Ver positionOf.
+  const [moves, setMoves] = useState({});
   const scrollerRef = useRef(null);
 
   const records = list.filteredRecords;
@@ -566,11 +588,9 @@ export default function CalendarView() {
     return daysOfMonth(month).map((date) => {
       const key = dayKey(date);
       const items = records
-        .filter((record) => {
-          const shown = displayDate(record);
-          return !!shown && dayKey(shown) === key;
-        })
-        .sort(byPriority);
+        .map((record) => ({ record, position: positionOf(record, moves) }))
+        .filter((item) => item.position.key === key)
+        .sort((a, b) => byPriority(a.record, b.record));
       return {
         date,
         key,
@@ -580,7 +600,7 @@ export default function CalendarView() {
         items,
       };
     });
-  }, [month, records]);
+  }, [month, records, moves]);
 
   const stats = useMemo(() => {
     const prefix = month.getFullYear() + '-' + pad(month.getMonth() + 1);
@@ -649,6 +669,7 @@ export default function CalendarView() {
       params,
     });
     if (!result.ok && result.message) notify(result.message, 'error');
+    return result.ok;
   }, [runAction, notify]);
 
   /**
@@ -691,7 +712,25 @@ export default function CalendarView() {
       return;
     }
 
-    await executarMovimento(handler, record, { targetDate: day.key });
+    /**
+     * A aposta é feita ANTES de chamar, e é só visual: o cartão aparece no dia novo enquanto a
+     * origem decide. Recusado, ela é desfeita na hora e o cartão volta; aceito, ela se desfaz
+     * sozinha quando o registro chega gravado (ver positionOf).
+     *
+     * Uma origem que responda "sucesso" sem mover nada deixaria o cartão adiantado até a próxima
+     * leitura da coleção. É o preço de não inventar um relógio aqui — e o sinal certo continua
+     * sendo o dado, não um tempo que a agenda arbitrasse.
+     */
+    setMoves((prev) => ({ ...prev, [record.id]: { from: shown ? dayKey(shown) : null, to: day.key } }));
+
+    const ok = await executarMovimento(handler, record, { targetDate: day.key });
+    if (!ok) {
+      setMoves((prev) => {
+        const next = {};
+        for (const id of Object.keys(prev)) if (id !== record.id) next[id] = prev[id];
+        return next;
+      });
+    }
   }, [records, moveActions, moveLayout, executarMovimento, notify, isVisible]);
 
   if (!list.definition) {
@@ -762,12 +801,13 @@ export default function CalendarView() {
               </DayHeader>
 
               <DayEvents>
-                {day.items.map((record) => (
+                {day.items.map(({ record, position }) => (
                   <EventCard
                     key={record.id}
                     $color={priorityColor(record)}
                     $done={isClosed(record)}
                     $dragging={draggingId === record.id}
+                    $pending={position.pending}
                     draggable
                     onDragStart={(e) => {
                       e.dataTransfer.setData('text/plain', record.id);

@@ -3648,6 +3648,15 @@ Duas consequências que vale nomear:
   ação própria pendurada), e o grupo virou "Campos e ações em telas existentes", com o resumo do que
   cada uma leva. Nenhuma caixa nova para marcar: quem escolhe a ação já a escolheu no grupo "Ações".
 
+**O cartão se move ANTES da resposta, e a aposta se desfaz sozinha.** Quem grava é a origem, pelo
+servidor, e esperar a ida-e-volta fazia o cartão voltar ao lugar e só depois saltar para o dia novo —
+o gesto parecia ter falhado. A agenda guarda o arrasto em trânsito (`{ id: { from, to } }`) e
+`positionOf` prefere o destino **enquanto o registro ainda estiver em `from`**. Não há relógio nem
+invalidação por tempo: assim que a gravação chega, o item deixa de casar com `from` e quem manda
+volta a ser o dado — inclusive quando a origem decide um TERCEIRO dia, que é a razão de a agenda não
+poder simplesmente confiar no dia em que o usuário soltou. Recusa desfaz a aposta na hora; o cartão
+em trânsito aparece esmaecido, com um traço no topo.
+
 **Arrastar não grava: pergunta.** A agenda não decide o que "mudar de dia" significa — um prazo
 pendente foi adiado, um concluído foi concluído noutro dia, uma parcela talvez nem possa mudar. Ela
 consulta as contribuições de `calendar.moveaction`, filtra pela `origem` do item e executa a
