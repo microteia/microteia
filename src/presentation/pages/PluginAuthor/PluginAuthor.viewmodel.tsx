@@ -226,6 +226,17 @@ const union = (a: Set<string>, b: Set<string>): Set<string> => new Set([...a, ..
 
 const EDIT_PREFIX = 'plugin-author:';
 
+/** O que esta tela de terceiro leva do pacote, em uma linha: "2 campo(s) e 1 ação(ões) seu(s)". */
+const patchSummaryOf = (screen: ScreenDefinition, ownActionIds: ReadonlySet<string>): string => {
+  const campos = screen.fields.filter((field) => field.origin === 'design').length;
+  const acoes = [...(screen.cardActionIds ?? []), ...(screen.viewActionIds ?? [])]
+    .filter((id) => ownActionIds.has(id)).length;
+  const partes: string[] = [];
+  if (campos > 0) partes.push(`${campos} campo(s)`);
+  if (acoes > 0) partes.push(`${acoes} ação(ões)`);
+  return `${partes.join(' e ')} seu(s)`;
+};
+
 export const usePluginAuthorViewModel = (tabKey?: string): PluginAuthorViewModel => {
   const { saveExtension, extensionOf } = useTenantExtensions();
   const { openTab } = useWorkspace();
@@ -399,11 +410,22 @@ export const usePluginAuthorViewModel = (tabKey?: string): PluginAuthorViewModel
     () => new Set(carried.screens.map((template) => template.sourceId ?? template.key)),
     [carried.screens],
   );
+  const ownActionIds = useMemo(
+    () => new Set(actions.filter((a) => !a.ownerPluginId).map((a) => a.id)),
+    [actions],
+  );
+  /**
+   * Telas de terceiros onde o autor pôs algo SEU — um campo que ele acrescentou, ou uma ação dele
+   * pendurada no cartão/detalhe. As duas coisas viajam no mesmo complemento, então as duas precisam
+   * fazer a tela aparecer aqui: exigir campo próprio deixava de fora justamente a tela em que a
+   * extensão só oferece um gesto, e o gesto se perdia na exportação.
+   */
   const patchableScreens = useMemo(
     () => definitions.filter((d) => d.origin !== 'design'
-      && d.fields.some((f) => f.origin === 'design')
+      && (d.fields.some((f) => f.origin === 'design')
+        || [...(d.cardActionIds ?? []), ...(d.viewActionIds ?? [])].some((id) => ownActionIds.has(id)))
       && !carriedScreenSourceIds.has(d.sourceId ?? d.id)),
-    [definitions, carriedScreenSourceIds],
+    [definitions, carriedScreenSourceIds, ownActionIds],
   );
   const patchTargetOf = useCallback(
     (screen: ScreenDefinition): string => (screen.origin === 'builtin' ? screen.id : (screen.sourceId ?? screen.id)),
@@ -519,10 +541,10 @@ export const usePluginAuthorViewModel = (tabKey?: string): PluginAuthorViewModel
       options: [...carriedOptions.screens, ...ownScreens.map((d) => ({ id: d.id, label: d.titlePlural || d.id, icon: d.icon, selected: effective.screens.has(d.id), locked: required.screens.has(d.id) }))],
     },
     {
-      kind: 'screenPatches', title: 'Campos em telas existentes',
+      kind: 'screenPatches', title: 'Campos e ações em telas existentes',
       options: [...carriedOptions.screenPatches, ...patchableScreens.map((d) => ({
         id: d.id,
-        label: `${d.titlePlural || d.id} (${d.fields.filter((f) => f.origin === 'design').length} campo(s) seu(s))`,
+        label: `${d.titlePlural || d.id} (${patchSummaryOf(d, ownActionIds)})`,
         icon: d.icon,
         selected: effective.screenPatches.has(d.id),
         locked: false,
@@ -540,7 +562,7 @@ export const usePluginAuthorViewModel = (tabKey?: string): PluginAuthorViewModel
       kind: 'scripts', title: 'Scripts',
       options: [...carriedOptions.scripts, ...ownScripts.map((s) => ({ id: s.id, label: s.name, selected: effective.scripts.has(s.id), locked: required.scripts.has(s.id) }))],
     },
-  ], [carriedOptions, ownScreens, patchableScreens, ownActions, ownWorkflows, ownScripts, effective, required]);
+  ], [carriedOptions, ownScreens, patchableScreens, ownActionIds, ownActions, ownWorkflows, ownScripts, effective, required]);
 
   const toggle = useCallback((kind: ArtifactKind, id: string) => {
     if (carriedOptions[kind].some((o) => o.id === id)) { removeCarried(kind, id); return; } // remove o embarcado

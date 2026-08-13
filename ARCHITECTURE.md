@@ -3631,10 +3631,22 @@ apenas as entradas que apontam para ação DESTA extensão — o que o escritór
 Sem isso, o único caminho seria o admin ligar a ação à mão depois de instalar, e "instalar" deixaria
 de ser suficiente.
 
-> **Limite conhecido:** `screenToPatch` (o export da autoria) empacota só os campos `origin: 'design'`
-> da tela de terceiro — não as ações. Um pacote escrito à mão declara `cardActionIds` no complemento;
-> um reexportado pela tela de autoria perde essa parte. Fechar isso exige a autoria oferecer a
-> escolha das ações por tela complementada, que é trabalho de UI, não deste contrato.
+**A ida-e-volta fecha por DERIVAÇÃO, sem escolha nova na autoria.** `screenToPatch` empacota de uma
+tela de terceiro o que é do pacote — e a regra é a mesma para as duas coisas: um campo viaja por ser
+`origin: 'design'`, uma ação viaja por **já estar no pacote**. O mapa `acaoDoPacote` (id instalado →
+`templateId`, restrito às ações que o pacote leva) é o mesmo par que `toTemplateRefs` usa nas telas
+próprias, com a diferença de que aqui ele também FILTRA: ação de outra extensão pendurada na mesma
+tela não é do autor para distribuir, e se viajasse viraria referência a artefato ausente — o que o
+`validatePackage` recusaria, com razão.
+
+Duas consequências que vale nomear:
+
+- **Tela sem campo próprio agora vira complemento**, se houver uma ação do pacote nela. Antes o
+  critério era só "tem campo `design`", e a tela em que a extensão oferece apenas um GESTO ficava de
+  fora — exatamente o caso do "Marcar como concluído" na agenda.
+- **A autoria oferece essa tela na lista** (`patchableScreens` passou a aceitar campo próprio **ou**
+  ação própria pendurada), e o grupo virou "Campos e ações em telas existentes", com o resumo do que
+  cada uma leva. Nenhuma caixa nova para marcar: quem escolhe a ação já a escolheu no grupo "Ações".
 
 **Arrastar não grava: pergunta.** A agenda não decide o que "mudar de dia" significa — um prazo
 pendente foi adiado, um concluído foi concluído noutro dia, uma parcela talvez nem possa mudar. Ela

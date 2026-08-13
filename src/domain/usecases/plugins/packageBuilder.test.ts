@@ -252,12 +252,71 @@ describe('buildPackage — complementos de tela', () => {
     expect(pkg.screenPatches?.[0].targetKind).toBe('sourceId');
   });
 
-  it('tela sem campo do autor não vira complemento', () => {
+  it('tela sem nada do autor não vira complemento', () => {
     const pkg = buildPackage({
       manifest, summary: 's', screens: [], actions: [], workflows: [], scripts: [],
       patchedScreens: [screen({ id: 'members', origin: 'builtin', fields: [] })],
     });
     expect(pkg.screenPatches).toBeUndefined();
+  });
+
+  /**
+   * A AÇÃO segue o mesmo critério do campo: viaja por estar no pacote. É o que dispensa uma escolha
+   * nova na autoria e o que fecha a ida-e-volta — sem isso, reexportar uma extensão perdia o gesto
+   * que ela oferecia na tela de outra, e a atualização o apagava do escritório.
+   */
+  it('empacota as ações do pacote penduradas na tela de terceiro, pelo templateId', () => {
+    const minha = action({ id: 'act-real', sourceId: 'act-template' });
+    const pkg = buildPackage({
+      manifest, summary: 's', screens: [], scripts: [],
+      actions: [minha],
+      workflows: [workflow({ id: 'wf-1' })],
+      patchedScreens: [withOwnField({
+        id: 'members', origin: 'builtin',
+        cardActionIds: ['act-real'], viewActionIds: ['act-real'],
+      })],
+    });
+
+    // O id REAL não viaja: quem viaja é o `templateId`, que é o mesmo que a instalação remapeia.
+    expect(pkg.screenPatches?.[0].cardActionIds).toEqual(['act-template']);
+    expect(pkg.screenPatches?.[0].viewActionIds).toEqual(['act-template']);
+    expect(validatePackage(pkg)).toEqual([]);
+  });
+
+  it('ação de OUTRA extensão na mesma tela não viaja', () => {
+    const pkg = buildPackage({
+      manifest, summary: 's', screens: [], workflows: [], scripts: [],
+      actions: [],
+      installedActions: [action({ id: 'act-de-outra', sourceId: 'src-de-outra', ownerPluginId: 'com.b' })],
+      patchedScreens: [withOwnField({ id: 'members', origin: 'builtin', cardActionIds: ['act-de-outra'] })],
+    });
+
+    // Ela não é do autor para distribuir — e se viajasse, o pacote referenciaria um artefato que
+    // não inclui, que é exatamente o que o validador recusa.
+    expect(pkg.screenPatches?.[0].cardActionIds).toBeUndefined();
+    expect(validatePackage(pkg)).toEqual([]);
+  });
+
+  /**
+   * A tela em que a extensão só pendura um GESTO — nenhum campo próprio. Antes ela não virava
+   * complemento e o gesto não viajava; é o caso do "Marcar como concluído" na agenda.
+   */
+  it('tela onde o autor só pendurou uma ação também vira complemento', () => {
+    const minha = action({ id: 'act-real', sourceId: 'act-template' });
+    const pkg = buildPackage({
+      manifest, summary: 's', screens: [], scripts: [],
+      actions: [minha],
+      workflows: [workflow({ id: 'wf-1' })],
+      patchedScreens: [screen({
+        id: 'agenda_2', origin: 'plugin', sourceId: 'src-agenda', fields: [],
+        cardActionIds: ['act-real'],
+      })],
+    });
+
+    expect(pkg.screenPatches).toHaveLength(1);
+    expect(pkg.screenPatches?.[0].target).toBe('src-agenda');
+    expect(pkg.screenPatches?.[0].fields).toEqual([]);
+    expect(pkg.screenPatches?.[0].cardActionIds).toEqual(['act-template']);
   });
 
   it('a lista de opções que um campo do complemento usa é declarada no pacote', () => {

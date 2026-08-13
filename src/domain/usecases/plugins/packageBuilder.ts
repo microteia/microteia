@@ -177,19 +177,38 @@ const toTemplateRefs = (
 };
 
 /**
- * O inverso da instalação para uma tela de TERCEIROS: empacota só os campos que o autor acrescentou
- * — os do kernel (`builtin`) e os de outra extensão (`plugin`) não são dele para distribuir. O alvo
- * viaja pelo nome quando é coleção fixa (universal em todo escritório) e pelo `sourceId` quando é
- * tela de outra extensão, cuja chave instalada varia. Tela sem campo próprio não vira complemento.
+ * O inverso da instalação para uma tela de TERCEIROS: empacota o que é DO PACOTE naquela tela — os
+ * campos que o autor acrescentou (os do kernel e os de outra extensão não são dele para distribuir)
+ * e as ações do pacote que estão penduradas nela.
+ *
+ * As ações seguem exatamente o mesmo critério dos campos, e é isso que dispensa uma escolha nova na
+ * autoria: assim como um campo viaja por ser `origin: 'design'`, uma ação viaja por já estar no
+ * pacote — `pertence` responde as duas perguntas com a mesma regra. Uma tela onde o autor pendurou só
+ * uma ação, sem campo nenhum, também vira complemento; antes ela não viajava, e o gesto se perdia.
+ *
+ * O alvo viaja pelo nome quando é coleção fixa (universal em todo escritório) e pelo `sourceId`
+ * quando é tela de outra extensão, cuja chave instalada varia.
  */
-const screenToPatch = (screen: ScreenDefinition): ScreenPatchTemplate | null => {
+const screenToPatch = (
+  screen: ScreenDefinition,
+  /** Ação instalada → `templateId`, restrita às que VÃO no pacote. Fora dela, nada viaja. */
+  pertence: ReadonlyMap<string, string>,
+): ScreenPatchTemplate | null => {
   const own = screen.fields.filter((field) => field.origin === 'design');
-  if (own.length === 0) return null;
+  const ownActions = (ids: string[] | undefined): string[] =>
+    (ids ?? []).map((id) => pertence.get(id)).filter((id): id is string => id !== undefined);
+
+  const cardActionIds = ownActions(screen.cardActionIds);
+  const viewActionIds = ownActions(screen.viewActionIds);
+  if (own.length === 0 && cardActionIds.length === 0 && viewActionIds.length === 0) return null;
+
   const byCollection = screen.origin === 'builtin';
   return stripUndefined({
     target: byCollection ? screen.id : (screen.sourceId ?? screen.id),
     targetKind: byCollection ? ('collection' as const) : ('sourceId' as const),
     fields: own.map((field) => omit(field, ['origin', 'ownerPluginId'])) as unknown as ScreenPatchTemplate['fields'],
+    cardActionIds: cardActionIds.length > 0 ? cardActionIds : undefined,
+    viewActionIds: viewActionIds.length > 0 ? viewActionIds : undefined,
     sourceRev: screen.updatedAt.getTime(),
   });
 };
@@ -297,15 +316,31 @@ export const buildPackage = (input: BuildPackageInput): MarketplacePlugin => {
   });
 
   const screens = dedupeBy([...input.screens.map(screenToTemplate), ...carriedScreens], (s) => s.key);
+  const actions = dedupeBy([...input.actions.map(actionToTemplate), ...(input.carried?.actions ?? [])], (a) => a.templateId);
+
+  /**
+   * Ação INSTALADA → `templateId`, só para as que este pacote leva. É o mesmo par de mapas que
+   * `toTemplateRefs` usa nas telas próprias; aqui ele também FILTRA, porque um complemento que
+   * apontasse para ação de outra extensão viraria referência a artefato que o pacote não inclui — o
+   * `validatePackage` recusaria, e com razão.
+   */
+  const noPacote = new Set(actions.map((action) => action.templateId));
+  const acaoDoPacote = new Map(
+    [...(input.installedActions ?? []), ...input.actions]
+      .map((action) => [action.id, templateIdOf(action)] as const)
+      .filter(([, templateId]) => noPacote.has(templateId)),
+  );
+
   const screenPatches = dedupeBy(
     [
-      ...(input.patchedScreens ?? []).map(screenToPatch).filter((patch): patch is ScreenPatchTemplate => patch !== null),
+      ...(input.patchedScreens ?? [])
+        .map((screen) => screenToPatch(screen, acaoDoPacote))
+        .filter((patch): patch is ScreenPatchTemplate => patch !== null),
       ...(input.carried?.screenPatches ?? []),
     ],
     (patch) => patch.target,
   );
   const tagLists = collectTagLists(screens, input.availableTagLists ?? []);
-  const actions = dedupeBy([...input.actions.map(actionToTemplate), ...(input.carried?.actions ?? [])], (a) => a.templateId);
   const scripts = dedupeBy([...input.scripts.map(scriptToTemplate), ...(input.carried?.scripts ?? [])], (s) => s.templateId);
   const workflows = dedupeBy([...input.workflows.map(workflowToTemplate), ...(input.carried?.workflows ?? [])], (w) => w.templateId);
   // As listas e etiquetas que o pacote referencia — os campos do complemento junto com os das telas,

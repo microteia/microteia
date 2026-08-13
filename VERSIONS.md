@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [7.2.1] — 2026-08-13
+
+- **Uma extensão que oferece um botão em tela de outra não o perde mais ao ser reexportada.** Ao gerar o arquivo da extensão, os botões que ela pendura no cartão ou no detalhe de uma tela existente viajam junto com os campos — e a tela onde ela só oferece um botão, sem acrescentar campo nenhum, passa a aparecer na lista de artefatos com o resumo do que leva.
+
 ## [7.2.0] — 2026-08-13
 
 - **As ações do cartão do Calendário agora são suas.** Elas passaram a sair de "Ações do card na listagem", no Form Design da entidade Calendário — a mesma lista de qualquer outra tela. Você acrescenta, tira e reordena o que aparece no cartão, e as extensões que instalar entram nessa mesma lista, à sua vista. Em Configurações › Calendário fica só o que não tem equivalente em nenhuma tela: a lista de quem responde quando um item é arrastado para outro dia.
