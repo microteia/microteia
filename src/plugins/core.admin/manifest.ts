@@ -1,5 +1,7 @@
 import type { PluginRecord } from '../../kernel';
 import { lazyView, nav, page } from '../contributionBuilders';
+import { messageBundleContribution } from '../../domain/schema/i18n/extensionPoints';
+import { coreMessage, CORE_ADMIN_MESSAGES } from '../coreMessages';
 
 export const coreAdminPlugin: PluginRecord = {
   trusted: true,
@@ -16,13 +18,14 @@ export const coreAdminPlugin: PluginRecord = {
     name: 'Administração do Escritório',
     dependencies: { 'core.ui': '^1.0.0' },
     contributes: [
-      page({ key: 'tenant-settings', title: 'Escritório', icon: 'building', fullBleed: true }, 'TenantSettingsView'),
-      page({ key: '', keyPrefix: 'tenant-settings:', title: 'Escritório', icon: 'building', fullBleed: true }, 'TenantSettingsView'),
-      page({ key: 'access-management', title: 'Gestão de Acessos', icon: 'shieldUser', requiredRole: 'SYSTEM' }, 'AccessManagementView'),
-      page({ key: 'audit-logs', title: 'Auditoria', icon: 'history' }, 'AuditLogsView'),
-      page({ key: 'data-processor', title: 'Processador de Dados', icon: 'sparkling' }, 'DataProcessorView'),
-      nav({ key: 'tenant-settings', label: 'Escritório', icon: 'building', order: 110 }),
-      nav({ key: 'audit-logs', label: 'Auditoria', icon: 'history', order: 120, requiresTenantAdmin: true }),
+      messageBundleContribution(coreMessage('core.admin', CORE_ADMIN_MESSAGES)),
+      page({ key: 'tenant-settings', title: '@core.admin/page.tenant-settings', icon: 'building', fullBleed: true }, 'TenantSettingsView'),
+      page({ key: '', keyPrefix: 'tenant-settings:', title: '@core.admin/page.tenant-settings', icon: 'building', fullBleed: true }, 'TenantSettingsView'),
+      page({ key: 'access-management', title: '@core.admin/page.access-management', icon: 'shieldUser', requiredRole: 'SYSTEM' }, 'AccessManagementView'),
+      page({ key: 'audit-logs', title: '@core.admin/page.audit-logs', icon: 'history' }, 'AuditLogsView'),
+      page({ key: 'data-processor', title: '@core.admin/page.data-processor', icon: 'sparkling' }, 'DataProcessorView'),
+      nav({ key: 'tenant-settings', label: '@core.admin/nav.tenant-settings', icon: 'building', order: 110 }),
+      nav({ key: 'audit-logs', label: '@core.admin/nav.audit-logs', icon: 'history', order: 120, requiresTenantAdmin: true }),
     ],
   },
 };

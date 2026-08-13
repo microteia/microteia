@@ -14,7 +14,7 @@ import { makePublishPluginUseCase } from '../domain/usecases/plugins/PublishPlug
 import { useKernel } from './useKernel';
 import { storeEvents, StoreEvents } from '../infrastructure/events/StoreEventEmitter';
 import { parsePackage } from '../domain/usecases/plugins/packageSerialization';
-import { validatePackage } from '../domain/usecases/plugins/pluginReferences';
+import { packageSizeIssues, validatePackage } from '../domain/usecases/plugins/pluginReferences';
 import { validatePluginManifest } from '../domain/schema/plugin/pluginManifest';
 import type { ImportPackageResult, PluginSource } from './usePluginStore';
 import type { LifecycleActor } from '../domain/services/pluginLifecycle';
@@ -146,8 +146,12 @@ export const PluginStoreProvider: React.FC<{ children: React.ReactNode }> = ({ c
         validateContributions: false,
       });
       const refErrors = validatePackage(pkg);
-      if (manifestErrors.length > 0 || refErrors.length > 0) {
-        return { ok: false, error: manifestErrors[0]?.message ?? refErrors[0].message };
+      const sizeErrors = packageSizeIssues(pkg);
+      if (manifestErrors.length > 0 || refErrors.length > 0 || sizeErrors.length > 0) {
+        return {
+          ok: false,
+          error: manifestErrors[0]?.message ?? refErrors[0]?.message ?? sizeErrors[0],
+        };
       }
       const alreadyInstalled = installations.some((i) => i.pluginId === pkg.manifest.id);
       const error = alreadyInstalled ? await upgrade(pkg) : await install(pkg);

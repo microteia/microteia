@@ -1,5 +1,6 @@
 import type { IGmailConnectionRepository } from '../repositories/IGmailConnectionRepository';
 import type { ITenantMemberRepository } from '../repositories/ITenantMemberRepository';
+import { notFound, permissionDenied } from '../errors/DomainError';
 
 /**
  * Revogar é apagar a conexão e o token dela. A conferência de DONO é aqui, e não só a de papel:
@@ -18,13 +19,13 @@ export const makeRevokeGmailConnectionUseCase = (
     const role = await tenantMemberRepo.getMemberRole(tenantId, userId);
 
     if (role !== 'admin') {
-      throw new Error('Apenas administradores podem revogar contas Gmail.');
+      throw permissionDenied('Apenas administradores podem revogar contas Gmail.');
     }
 
     const connections = await gmailConnectionRepo.getConnectionsByTenant(tenantId);
 
     if (!connections.some((connection) => connection.id === connectionId)) {
-      throw new Error('Conexão não encontrada neste escritório.');
+      throw notFound('Conexão não encontrada neste escritório.');
     }
 
     await gmailConnectionRepo.deleteConnection(connectionId);

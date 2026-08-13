@@ -9,6 +9,8 @@ import {
   manageTagsCommand,
   unlinkCommand,
 } from './recordActionCommands';
+import { messageBundleContribution } from '../../domain/schema/i18n/extensionPoints';
+import { coreMessage, CORE_RECORDS_MESSAGES } from '../coreMessages';
 
 export const coreRecordsPlugin: PluginRecord = {
   trusted: true,
@@ -30,10 +32,11 @@ export const coreRecordsPlugin: PluginRecord = {
     name: 'Telas Personalizadas',
     dependencies: { 'core.ui': '^1.0.0' },
     contributes: [
-      page({ key: 'screen-builder', title: 'Form Design', icon: 'layoutGrid' }, 'ScreenBuilderView'),
-      page({ key: '', keyPrefix: 'dyn:', title: 'Tela personalizada', icon: 'layoutGrid' }, 'DynamicRecordListView'),
-      page({ key: '', keyPrefix: 'new-dyn:', title: 'Novo registro', icon: 'layoutGrid' }, 'ViewDynamicRecordView'),
-      page({ key: '', keyPrefix: 'view-dyn:', title: 'Registro', icon: 'layoutGrid' }, 'ViewDynamicRecordView'),
+      messageBundleContribution(coreMessage('core.records', CORE_RECORDS_MESSAGES)),
+      page({ key: 'screen-builder', title: '@core.records/page.screen-builder', icon: 'layoutGrid' }, 'ScreenBuilderView'),
+      page({ key: '', keyPrefix: 'dyn:', title: '@core.records/page.dynamic-list', icon: 'layoutGrid' }, 'DynamicRecordListView'),
+      page({ key: '', keyPrefix: 'new-dyn:', title: '@core.records/page.dynamic-new', icon: 'layoutGrid' }, 'ViewDynamicRecordView'),
+      page({ key: '', keyPrefix: 'view-dyn:', title: '@core.records/page.dynamic-record', icon: 'layoutGrid' }, 'ViewDynamicRecordView'),
       command('dynamic-record', { group: 'Registros' }, 'DynamicRecordCommandProvider'),
       // As ações que todo registro oferece. Contribuições como quaisquer outras: remover uma linha
       // daqui tira a ação de toda tela, sem que o kernel saiba que ela existia.

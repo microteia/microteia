@@ -7,6 +7,7 @@ import { applyPackageArtifacts, releasePackageArtifacts, type ArtifactDeps } fro
 import { storeEvents, StoreEvents } from '../infrastructure/events/StoreEventEmitter';
 import type { InstalledExtension } from '../domain/entities/InstalledExtension';
 import { hashExtensionCode } from '../domain/usecases/plugins/extensionCodeTrust';
+import { translationOverwriteIssue } from '../domain/usecases/i18n/translationPackage';
 
 // Telas usam refresh por evento (não assinam onSnapshot ao vivo como workflows/actions/scripts).
 // Sem estes emits, uma tela materializada na instalação não aparece no Form Design nem no menu.
@@ -68,6 +69,14 @@ export const InstalledExtensionStoreProvider: React.FC<{ children: React.ReactNo
     if (!currentTenant || !user) return;
     const id = input.package.manifest.id;
     const existing = installed.find((extension) => extension.id === id);
+
+    /**
+     * A guarda fica AQUI, e não na tela que importa, porque esta é a porta por onde toda instalação
+     * passa — do catálogo embutido, do registro público, da extensão privada e do arquivo escolhido
+     * à mão. Posta em qualquer tela, bastaria importar pela outra para burlá-la.
+     */
+    const overwrite = translationOverwriteIssue(input.package, existing?.package);
+    if (overwrite) throw new Error(overwrite);
     // Cópia independente e fiel: preserva apenas o estado local `active`; todo o resto vem da fonte.
     const extension: InstalledExtension = {
       id,

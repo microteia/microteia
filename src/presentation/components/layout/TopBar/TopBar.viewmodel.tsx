@@ -3,6 +3,7 @@ import { useWorkspace } from '../../../../stores/useWorkspace';
 import { useTenant } from '../../../../stores/useTenant';
 import { useNavContributions } from '../../../shared/useUiContributions';
 import { navMetadataOf } from '../../../shared/resolveUiContributions';
+import { useLabel } from '../../../shared/i18n/useT';
 import { useNavBadgeCount } from '../../../shared/useNavBadgeCount';
 import { getScreenIcon } from '../../../shared/screenIcons';
 import type { Tenant } from '../../../../domain/entities';
@@ -63,17 +64,19 @@ export const useTopBarViewModel = (): TopBarViewModel => {
     openTab(key);
   }, [openTab]);
 
+  const label = useLabel();
+
   const shortcuts = useMemo<TopBarShortcut[]>(
     () => navContributions
       .map(navMetadataOf)
       .filter((metadata) => !!metadata.badge)
       .map((metadata) => ({
         key: metadata.key,
-        label: metadata.label,
+        label: label(metadata.label),
         icon: getScreenIcon(metadata.icon, 18),
         count: badgeCount(metadata.badge),
       })),
-    [navContributions, badgeCount],
+    [navContributions, badgeCount, label],
   );
 
   const handleTenantButtonClick = useCallback(() => {

@@ -31,6 +31,7 @@ const TEMPLATES = {
   'kanban-processos.json': 'kanbanCasesPlugin',
   'dashboard.json': 'dashboardPlugin',
   'calendar.json': 'calendarPlugin',
+  'locale-pt-br.json': 'localePtBrPlugin',
 };
 
 const check = process.argv.includes('--check');

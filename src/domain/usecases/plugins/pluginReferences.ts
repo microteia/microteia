@@ -211,6 +211,44 @@ const eventPrefixIssues = (screens: ScreenModuleTemplate[]): PackageValidationIs
 };
 
 /**
+ * O TAMANHO de um pacote, e por que ele passou a importar.
+ *
+ * Uma extensão instalada é gravada como UM documento (`installed_extensions/{id}`), com o pacote
+ * inteiro dentro. O Firestore recusa documento acima de 1 MiB, e a recusa aconteceria na gravação —
+ * depois de o usuário ter escolhido o arquivo, com uma mensagem do banco que não explica nada.
+ *
+ * Até aqui nenhum pacote chegava perto (o maior tem 88 KB). Um pacote de TRADUÇÃO é a primeira coisa
+ * capaz de chegar: um idioma completo do sistema são milhares de pares chave/texto. Daí a guarda —
+ * o limite vira um recado em português, antes de gravar, com a saída ("divida por idioma") junto.
+ */
+const PACKAGE_ADVISORY_BYTES = 400 * 1024;
+
+const PACKAGE_MAX_BYTES = 800 * 1024;
+
+const packageBytes = (pkg: MarketplacePlugin): number => {
+  const json = JSON.stringify(pkg);
+  return typeof TextEncoder === 'undefined' ? json.length : new TextEncoder().encode(json).length;
+};
+
+const asKb = (bytes: number): string => `${Math.round(bytes / 1024)} KB`;
+
+/** Recusa o pacote grande demais para caber no documento da instalação. Vazio quando cabe. */
+export const packageSizeIssues = (pkg: MarketplacePlugin): string[] => {
+  const bytes = packageBytes(pkg);
+  if (bytes <= PACKAGE_MAX_BYTES) return [];
+  return [
+    `O pacote tem ${asKb(bytes)} e não caberia no documento da instalação (o limite prático é ${asKb(PACKAGE_MAX_BYTES)}). Divida-o — um pacote por idioma, ou um por conjunto de telas.`,
+  ];
+};
+
+/** O aviso de que o pacote está grande, mas ainda instala. Para a tela de autoria, não para o import. */
+export const packageSizeAdvisory = (pkg: MarketplacePlugin): string | undefined => {
+  const bytes = packageBytes(pkg);
+  if (bytes <= PACKAGE_ADVISORY_BYTES || bytes > PACKAGE_MAX_BYTES) return undefined;
+  return `O pacote tem ${asKb(bytes)}. Acima de ${asKb(PACKAGE_MAX_BYTES)} ele deixa de caber no documento da instalação — convém dividi-lo antes de crescer mais.`;
+};
+
+/**
  * Valida a integridade referencial de um pacote — a MESMA checagem no export (dry-run) e no import.
  * Toda referência de saída precisa estar: (1) incluída no pacote, (2) numa coleção fixa do core, ou
  * (3) coberta por uma dependência declarada (chave namespaced `<slug-do-plugin>__x` de uma

@@ -1,6 +1,7 @@
 import type { ITenantRepository, AddTenantMemberInput } from '../repositories/ITenantRepository';
 import type { ITenantMemberRepository } from '../repositories/ITenantMemberRepository';
 import type { IUserRepository } from '../repositories/IUserRepository';
+import { permissionDenied } from '../errors/DomainError';
 
 export type AddTenantMemberUseCase = {
   execute: (tenantId: string, member: Omit<AddTenantMemberInput, 'addedBy'>, requesterId: string) => Promise<void>;
@@ -20,7 +21,7 @@ export const makeAddTenantMemberUseCase = (
     if (requesterRole !== 'admin') {
       const globalRole = await userRepo.getUserRole(requesterId);
       if (globalRole !== 'SYSTEM' && globalRole !== 'SUPPORT') {
-        throw new Error('Somente administradores do escritório podem adicionar membros.');
+        throw permissionDenied('Somente administradores do escritório podem adicionar membros.');
       }
     }
 

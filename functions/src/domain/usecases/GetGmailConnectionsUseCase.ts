@@ -1,6 +1,7 @@
 import type { IGmailConnectionRepository } from '../repositories/IGmailConnectionRepository';
 import type { ITenantMemberRepository } from '../repositories/ITenantMemberRepository';
 import type { GmailConnection } from '../entities/GmailConnection';
+import { permissionDenied } from '../errors/DomainError';
 
 /**
  * As contas autorizadas de um escritório. Passou a ser leitura de servidor quando as conexões
@@ -19,7 +20,7 @@ export const makeGetGmailConnectionsUseCase = (
     const role = await tenantMemberRepo.getMemberRole(tenantId, userId);
 
     if (role !== 'admin') {
-      throw new Error('Apenas administradores podem ver as contas Gmail do escritório.');
+      throw permissionDenied('Apenas administradores podem ver as contas Gmail do escritório.');
     }
 
     return gmailConnectionRepo.getConnectionsByTenant(tenantId);

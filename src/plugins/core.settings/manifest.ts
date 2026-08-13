@@ -1,5 +1,7 @@
 import type { PluginRecord } from '../../kernel';
 import { lazyView, nav, page } from '../contributionBuilders';
+import { messageBundleContribution } from '../../domain/schema/i18n/extensionPoints';
+import { coreMessage, CORE_SETTINGS_MESSAGES } from '../coreMessages';
 
 /**
  * O hospedeiro das configurações. Ele não declara NENHUMA configuração — só a tela que renderiza as
@@ -19,8 +21,9 @@ export const coreSettingsPlugin: PluginRecord = {
     description: 'A tela onde plugins registram o que aceitam configurar, no escritório e por usuário.',
     dependencies: { 'core.ui': '^1.0.0' },
     contributes: [
-      page({ key: 'settings', title: 'Configurações', icon: 'settings', fullBleed: true }, 'SettingsView'),
-      nav({ key: 'settings', label: 'Configurações', icon: 'settings', order: 115 }),
+      messageBundleContribution(coreMessage('core.settings', CORE_SETTINGS_MESSAGES)),
+      page({ key: 'settings', title: '@core.settings/page.settings', icon: 'settings', fullBleed: true }, 'SettingsView'),
+      nav({ key: 'settings', label: '@core.settings/nav.settings', icon: 'settings', order: 115 }),
     ],
   },
 };

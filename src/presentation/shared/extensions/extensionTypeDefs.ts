@@ -720,6 +720,8 @@ const DATA_MODULE_DEFS = `declare module '@microteia/data' {
     tenantRole: string;
     /** O escritório corrente — o que uma função do servidor recebe para saber onde agir. */
     tenantId: string;
+    /** O idioma em vigor para esta pessoa (BCP-47: 'en', 'pt-BR'). */
+    locale: string;
   }
   export function useCurrentUser(): ExtensionViewer;
 
@@ -926,8 +928,16 @@ const DATA_MODULE_DEFS = `declare module '@microteia/data' {
 }`;
 
 const FORMAT_MODULE_DEFS = `declare module '@microteia/format' {
-  /** Formata número como moeda brasileira (R$ 1.234,56). */
+  /**
+   * Formata número como moeda no idioma em vigor.
+   * O nome carrega "BRL" por história: prefira 'formatCurrency' em código novo.
+   */
   export function formatCurrencyBRL(value: number): string;
+
+  /**
+   * Formata número como moeda no idioma em vigor. Sem 'currency', usa a moeda padrão do idioma.
+   */
+  export function formatCurrency(value: number, currency?: string): string;
 
   /** Converte string de moeda para número (centavos). */
   export function parseCurrencyDigits(value: string): number;
@@ -935,15 +945,53 @@ const FORMAT_MODULE_DEFS = `declare module '@microteia/format' {
   /** Converte Date para string no formato ISO de input[type=date] (YYYY-MM-DD). */
   export function toDateInputValue(date: Date): string;
 
-  /** Data no formato do escritório (dd/mm/aaaa). Aceita Date ou string; inválida vira ''. */
+  /** Data no formato do idioma em vigor. Aceita Date ou string; inválida vira ''. */
   export function formatDate(value: unknown): string;
 
-
-
-
+  /** Aplica uma máscara por template ('###.###.###-##'). */
+  export function applyMask(value: string, templates: string[]): string;
 
   /** Remove tudo que não é número de uma string. */
   export function onlyNumbers(value: string): string;
+}`;
+
+const I18N_MODULE_DEFS = `declare module '@microteia/i18n' {
+  /**
+   * O tradutor do seu namespace — normalmente o id da sua extensão.
+   *
+   *   const t = useT('com.acme.contratos');
+   *   t('form.title')                 // com.acme.contratos/form.title
+   *   t('core.ui/action.save')        // chave ABSOLUTA: reaproveita o texto do núcleo
+   *   t('items', { count: 3 })        // usa 'items.one' / 'items.other' pelo plural do idioma
+   *
+   * Os textos vêm de contribuições ao ponto 'i18n.messages'. Chave sem tradução devolve a própria
+   * chave — uma extensão sem catálogo continua funcionando.
+   */
+  export function useT(namespace: string): (key: string, params?: Record<string, unknown>) => string;
+
+  /**
+   * Resolve um rótulo declarativo: '@ns/chave' vira tradução, texto comum passa intacto.
+   * É o que mantém fora da tradução o que o escritório digitou.
+   */
+  export function useLabel(): (value: string | null | undefined) => string;
+
+  /** O idioma em vigor, os disponíveis e como trocá-lo. */
+  export function useLocale(): {
+    locale: string;
+    preferred: string | null;
+    available: string[];
+    setLocale: (locale: string) => void;
+  };
+
+  /** Formatações já presas ao idioma em vigor. */
+  export function useLocaleFormat(): {
+    formatDate: (value: unknown) => string;
+    formatDateTime: (value: unknown) => string;
+    formatNumber: (value: number | null | undefined, options?: Intl.NumberFormatOptions) => string;
+    formatMoney: (value: number | null | undefined, currency?: string) => string;
+    compareText: (a: string, b: string) => number;
+    currency: string;
+  };
 }`;
 
 const THEME_MODULE_DEFS = `declare module '@microteia/theme' {
@@ -999,6 +1047,7 @@ export const buildExtensionTypeDefs = (): string => [
   UI_MODULE_DEFS,
   DATA_MODULE_DEFS,
   FORMAT_MODULE_DEFS,
+  I18N_MODULE_DEFS,
   THEME_MODULE_DEFS,
   SETTINGS_MODULE_DEFS,
   FUNCTIONS_MODULE_DEFS,

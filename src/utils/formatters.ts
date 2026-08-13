@@ -1,15 +1,31 @@
 import { onlyDigits } from '../domain/schema/fieldRules';
+import { ambientLocale } from '../domain/schema/i18n/localeGate';
+import { currencyForLocale, formatDateFor, formatMoneyFor } from '../domain/schema/i18n/localeFormat';
 
 export const onlyNumbers = onlyDigits;
 
-const brlFormatter = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
+/**
+ * Fachada de apresentação da formatação. As assinaturas NÃO mudam, e isso é requisito, não estilo:
+ * este módulo viaja até as extensões como `@microteia/format` (ver `hostApi.ts`), e acrescentar um
+ * parâmetro de idioma quebraria toda extensão instalada. O idioma chega pelo contexto de módulo que
+ * o `LocaleProvider` empurra — mesmo mecanismo de `recordRulesGate`.
+ *
+ * Enquanto ninguém tiver escolhido idioma, `ambientLocale()` devolve o de sempre e nada muda de
+ * aparência. Ver `LEGACY_LOCALE`.
+ */
 
 /**
- * Formata um valor numérico como moeda BRL: R$ 1.234,56
+ * Formata um valor como moeda no idioma corrente.
+ *
+ * O nome carrega "BRL" por história, não por comportamento: mantê-lo é o que impede a quebra das
+ * extensões que já o importam. `formatCurrency` é o nome certo para código novo.
  */
-export const formatCurrencyBRL = (value: number | null | undefined): string => {
-  if (value === null || value === undefined) return '';
-  return brlFormatter.format(value);
+export const formatCurrencyBRL = (value: number | null | undefined): string =>
+  formatCurrency(value);
+
+export const formatCurrency = (value: number | null | undefined, currency?: string): string => {
+  const locale = ambientLocale();
+  return formatMoneyFor(locale, value, currency ?? currencyForLocale(locale));
 };
 
 /**
@@ -23,22 +39,18 @@ export const parseCurrencyDigits = (raw: string): number | null => {
 };
 
 /**
- * Converte um Date para o formato aaaa-mm-dd de um <input type="date">,
- * usando os componentes de data locais (nunca toISOString, que desloca
- * o dia em fusos com offset negativo, ex: horário de Brasília à noite).
- */
-/**
  * Uma data no formato que o escritório lê. Aceita `Date`, string ISO ou Timestamp já convertido —
  * a mesma coleção tem documentos de épocas diferentes, e quem exibe não deve precisar se defender
  * disso. Valor irreconhecível vira string vazia, nunca "Invalid Date".
  */
-export const formatDate = (value: unknown): string => {
-  if (value === null || value === undefined || value === '') return '';
-  const date = value instanceof Date ? value : new Date(String(value));
-  if (Number.isNaN(date.getTime())) return '';
-  return date.toLocaleDateString('pt-BR');
-};
+export const formatDate = (value: unknown): string => formatDateFor(ambientLocale(), value);
 
+/**
+ * Converte um Date para o formato aaaa-mm-dd de um <input type="date">, usando os componentes de
+ * data LOCAIS (nunca toISOString, que desloca o dia em fusos com offset negativo, ex: horário de
+ * Brasília à noite). Não passa pelo idioma de propósito: `aaaa-mm-dd` é o formato do CONTROLE HTML,
+ * igual em toda língua — traduzi-lo quebraria o campo.
+ */
 export const toDateInputValue = (d: Date | null | undefined): string => {
   if (!d) return '';
   const year = d.getFullYear();

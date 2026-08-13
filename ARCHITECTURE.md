@@ -53,6 +53,8 @@ Os metadados de entidades são **compartilhados** entre frontend e Cloud Functio
 | `domain/schema/hydrationPlan.ts` | Planner puro: caminhos → `FkHop[]` deduplicados em níveis BFS (propaga a chave FK do salto seguinte para os fields do hop pai). |
 | `domain/schema/materialize.ts` | Materializer puro: aplica cada `MaterializationMode` (`denormKey` para FKs fixas, `replaceValue` para references de campos customizados) sobre o payload. |
 | `domain/entities/entitySchemas.ts` | Tipos (`FieldDefinition`, `ScreenDefinition`, `CustomFieldType`…) e derivações do registry (`ENTITY_FK_SCHEMA`, `CUSTOM_FIELD_ENABLED_ENTITIES`, `BUILTIN_REF_ENTITIES`, `resolveRefEntityCollection`). |
+| `domain/schema/settings.ts` | Contrato de configuração (`SettingsSection`, `SettingsProperty`, `resolveSetting`). Compartilhado porque o backend precisa saber em que idioma falar — ver "Idioma". |
+| `domain/schema/i18n/*` | O motor de idioma inteiro: negociação, catálogo de mensagens, referência `@`, formatação por `Intl` e o gate do idioma ambiente. Ver "Idioma — tradução como contribuição". |
 
 ### Regras — NÃO-NEGOCIÁVEIS
 
@@ -3327,7 +3329,7 @@ Arquivos **compartilhados**: fonte única em `src/domain/schema/plugin/`, cópia
 | `extensionPoint.ts` | `ExtensionPointDefinition` + compatibilidade de `apiVersion` |
 | `contribution.ts` | `Contribution`, `ImplRef` e a **ordenação determinística** |
 | `pluginManifest.ts` | `PluginManifest` + `validatePluginManifest` |
-| `kernelVersion.ts` | `KERNEL_VERSION` — versão do contrato Kernel↔plugins |
+| `kernelVersion.ts` | `KERNEL_VERSION` — versão do contrato Kernel↔plugins. Em `1.1.0`: o ponto `i18n.messages` foi **acrescentado**, e adição é minor |
 
 ### Versionamento em três eixos — não confundir
 
@@ -4340,6 +4342,321 @@ com `serializePackage` — o mesmo formato do botão "Baixar .json". `scripts/ex
 **O que continua em aberto, e é honesto registrar:** não há CSP (`connect-src`), `manifest.permissions`
 segue declarado e não consultado (inclusive o domínio `net`), e `installedPluginRecords` continua sem
 chamador — a decisão de confiança vive agora em `extensionCodeTrust`.
+
+## Idioma — tradução como contribuição
+
+**O inglês é o idioma-fonte (`DEFAULT_LOCALE = 'en'`); todo outro idioma é uma tradução dele.** Não há
+biblioteca de i18n, e não há subsistema novo: uma tradução é uma **contribuição**, e um pacote de
+traduções é uma **extensão comum**.
+
+> **Status:** Fases 1 (motor), 2 (piloto) e 3 (baixar/traduzir/importar) concluídas. O piloto cobre
+> menu, abas, ⌘K e a tela de Configurações; o restante dos textos migra incrementalmente. Ver "O que
+> falta" ao fim da seção.
+
+### A decisão que dispensou um subsistema
+
+Um pacote de tradução é uma extensão cujo manifest contribui **apenas** ao ponto `i18n.messages` — sem
+telas, sem workflows, sem código. A consequência é que instalar, atualizar, desinstalar, o refcount de
+artefatos, o Marketplace e a confiança de código **funcionam sem uma linha de alteração**. E como o
+pacote não tem `views` nem `startup`, ele dispensa o gesto de "Revisar e confiar" (`extensionCodeTrust`)
+— não há código para revisar.
+
+É também por isso que **nenhuma regra do Firestore mudou e nenhum índice foi criado**: não há coleção
+nova. A tradução viaja dentro do pacote, no documento que a instalação já gravava.
+
+### O ponto — `domain/schema/i18n/extensionPoints.ts` (sincronizado)
+
+```ts
+{ id: 'i18n.messages', apiVersion: '1.0.0', ownerPluginId: 'core.i18n',
+  allowedImplKinds: [], implRequired: false, multiple: true }
+```
+
+`allowedImplKinds: []` não é omissão — é a decisão central. Metadata pura pode vir de **qualquer**
+plugin, inclusive de um `.json` montado à mão. A `metadata` é um `MessageBundle`:
+
+```ts
+interface MessageBundle { locale: LocaleCode; namespace: string; messages: Record<string, string>; }
+```
+
+**`namespace` é o id do plugin DONO do texto, não o de quem traduz.** Um pacote de terceiro declara
+`namespace: 'core.ui'` para traduzir a barra lateral. É essa separação que permite a um único pacote
+cobrir o núcleo e as extensões de uma vez.
+
+O plugin `core.i18n` (`src/plugins/core.i18n/manifest.ts`) declara o ponto e as duas preferências —
+e **nenhuma tradução**, de propósito: quem tem texto é quem o escreveu. Se ele carregasse os idiomas,
+acrescentar um exigiria commit no núcleo.
+
+### Duas ordens que não se confundem — `buildMessageCatalog`
+
+| Entre | Regra | Por quê |
+|---|---|---|
+| **Idiomas** | o mais específico sobrepõe: `en` → `pt` → `pt-BR` | um pacote regional COMPLETA o do idioma em vez de substituí-lo |
+| **Bundles do mesmo idioma** | o **primeiro** vence e não é sobrescrito | `bundles` chega na ordem do `ContributionRegistry` (prioridade desc, depois `pluginId`/`id`), então "primeiro" = "maior prioridade", determinístico entre um boot e outro — **nunca** a ordem de instalação |
+
+O segundo espelha `fieldRulePresets` ("chave já ocupada não é redefinida"). Um pacote que queira
+sobrepor a tradução de outro declara `priority` maior.
+
+### Tolerância a falha — a mesma dos presets de campo
+
+Chave ausente devolve **a própria chave**, nunca vazio: uma tela com `core.ui/nav.settings` escrito
+nela é feia, mas é diagnosticável e continua clicável — uma tela com botões em branco não é nem uma
+coisa nem outra. Metadata malformada de terceiro é descartada (`asMessageBundle` devolve `null`) sem
+lançar. Um pacote desinstalado não pode inutilizar o sistema.
+
+### A referência `@` — o que traduz e o que não traduz
+
+Uma extensão embarca `titleSingular: 'Processo'`. Para traduzir isso sem inventar um campo paralelo em
+cada tipo de template, qualquer rótulo declarativo aceita uma referência:
+
+```ts
+titleSingular: '@com.microteia.processo/screen.title'
+```
+
+`resolveLabel(catalog, value)` resolve. A regra única separa os dois lados do problema:
+
+- o que a **extensão declara** começa com `@` e traduz;
+- o que o **escritório digitou** no Form Design ("Contrato de Locação") não começa com `@` e volta
+  literal, intocado — **dado de tenant fica fora da tradução, por construção**.
+
+Sem isso seria preciso um `titleSingularKey` ao lado de cada `titleSingular`, em telas, campos, listas,
+ações, widgets e configurações — dobrando o contrato inteiro para resolver metade dele. Um `@` no meio
+da frase (`suporte@microteia.app`) não é referência: o padrão exige o `@` na primeira posição e a barra
+separando namespace e chave.
+
+### A preferência — `user > tenant > default`, sem mecanismo novo
+
+`core.i18n` contribui a seção `ui.settings` com `i18n.locale` e `i18n.timezone`, ambas
+`scopes: ['tenant', 'user']`. A resolução já existia em `resolveSetting`.
+
+`SettingsPropertyType` ganhou **`locale`**, pelo mesmo motivo que `widgets` e `contributions` já vivem
+lá: as opções **não são declaráveis** — dependem de quais pacotes estão instalados naquele escritório
+naquele momento. Declarar a lista no manifest congelaria os idiomas existentes no núcleo.
+
+O valor é validado pela **forma**, nunca contra a lista de instalados: validar contra ela faria a
+preferência de quem escolheu espanhol ser descartada no dia em que o pacote fosse desativado, voltando
+sozinha ao inglês. Idioma sem tradução instalada simplesmente cai no idioma-fonte ao resolver o texto.
+
+`i18n.timezone` fecha a lacuna que `dateFns.ts` documentava como não resolvida ("pede o fuso do
+escritório, que hoje não é declarado"). **Declarado nesta fase; `anchorDay`/`parseDateOnly` ainda não o
+consomem.**
+
+### Os dois provedores — e por que são dois
+
+`stores/LocaleContext.tsx` exporta `LocaleProvider` e `TenantLocaleProvider`. Eles são o **mesmo**
+componente montado duas vezes, e isso não é redundância:
+
+| Onde | Enxerga | Serve |
+|---|---|---|
+| `LocaleProvider`, acima do `BrowserRouter` (junto do `ThemeProvider`) | contribuições de `CORE_PLUGINS` | as telas **públicas** — `SettingsStoreProvider` só existe dentro do `ProtectedRoute` |
+| `TenantLocaleProvider`, dentro do `TenantKernelProvider` | + os pacotes **instalados**, + a configuração `i18n.locale` | o workspace |
+
+O de dentro sombreia o de fora pelo mesmo `LocaleContext` — exatamente o que o Kernel já faz com
+`TenantKernelProvider`. Como o provedor lê `useContributions` do host **mais próximo**, isso funciona
+sem nenhuma plumbing adicional.
+
+### O idioma ambiente — `localeGate.ts` (sincronizado)
+
+`src/utils/formatters.ts` é **API pública congelada**: viaja até as extensões como `@microteia/format`.
+Acrescentar um parâmetro de idioma quebraria toda extensão instalada. Por isso o idioma chega por
+**contexto de módulo**, empurrado pelo `LocaleProvider` — o mesmo mecanismo de `recordRulesGate`:
+
+```ts
+configuredLocale(): LocaleCode | null   // o que foi configurado, ou null
+ambientLocale():    LocaleCode          // o que USAR para formatar — nunca null
+```
+
+> ⚠️ **`LEGACY_LOCALE = 'pt-BR'` é dívida deliberada e datada.** Enquanto NINGUÉM tiver configurado um
+> idioma, a formatação continua exatamente como era (`dd/mm/aaaa`, `R$`). Sem essa âncora, publicar o
+> motor seria uma troca silenciosa de formato para todo escritório existente — o que um release de
+> infraestrutura não tem o direito de fazer. **Sai na virada de major**, quando o pacote `pt-BR` passar
+> a ser instalado por padrão nos escritórios existentes.
+
+### As APIs
+
+| Quem | Como |
+|---|---|
+| Front | `useT(namespace)` e `useLabel()` (`presentation/shared/i18n/useT.ts`); `useLocaleFormat()` para data/número/moeda |
+| Extensões | módulo `@microteia/i18n` em `HOST_MODULES` (`useT`, `useLabel`, `useLocale`, `useLocaleFormat`) + `ExtensionViewer.locale` |
+| Backend | `translate(catalog, key, params)` do módulo sincronizado |
+
+`t('core.ui/action.save')` — chave com `/` é **absoluta** e ignora o namespace de quem chama: é como
+uma extensão reaproveita um texto do núcleo em vez de traduzir de novo o que já está traduzido.
+
+Plural é `Intl.PluralRules`, não `n > 1 ? 's' : ''` — a convenção é a chave sufixada (`items.one`,
+`items.other`). A regra do inglês e a do português coincidem; a do polonês tem três formas. Escrever a
+condição à mão travaria o projeto nas línguas parecidas com a nossa, que é o que este trabalho desfaz.
+
+Interpolação é `{nome}` — a **mesma** sintaxe de `interpolate` no catálogo de expressões, de propósito.
+
+> **Exceção registrada: `useT()` é permitido DENTRO da View.** É a única quebra da regra "a View só
+> chama `use[Nome]ViewModel()`". Traduzir é leitura pura de apresentação — sem estado, sem ref, sem
+> efeito —, e obrigar cada um dos ~4.000 literais a atravessar o ViewModel dobraria a interface de todo
+> ViewModel do projeto sem separar nada que já não esteja separado. `useState`/`useEffect`/`useRef` na
+> View continuam **proibidos**.
+
+### Ao acrescentar um módulo a `HOST_MODULES`
+
+Regra já existente, reforçada aqui porque foi seguida nesta fase: todo módulo novo exige o bloco
+`declare module` correspondente em `extensionTypeDefs.ts` (`I18N_MODULE_DEFS`), senão o autor de
+extensões perde o IntelliSense sem nenhum aviso.
+
+### Guarda de tamanho do pacote — `pluginReferences.ts`
+
+Uma extensão instalada é gravada como **um** documento (`installed_extensions/{id}`), com o pacote
+inteiro dentro; o Firestore recusa acima de 1 MiB. Até aqui nenhum pacote chegava perto (o maior tem
+88 KB). Um pacote de tradução é a primeira coisa capaz de chegar: um idioma completo são milhares de
+pares chave/texto.
+
+| Função | Limite | Efeito |
+|---|---|---|
+| `packageSizeAdvisory` | 400 KB | aviso na tela de autoria; **não** bloqueia |
+| `packageSizeIssues` | 800 KB | recusa na importação (`PluginStore`, `TenantExtensionStore`) e na autoria |
+
+São funções **à parte** de `validatePackage` de propósito: `PackageValidationIssue` exige um `ref` de
+`RefKind`, e a tela de autoria **reescreve** a mensagem a partir dele — um problema de tamanho passaria
+por ali virando uma frase sem sentido sobre referências.
+
+### O piloto — onde a tradução já chega
+
+Os sete plugins do núcleo publicam o catálogo `en` (fonte em `src/plugins/coreMessages.ts`, um arquivo
+só porque **é ele que o modelo de tradução exporta**: quem traduz quer UMA lista, não oito). Cada
+bundle continua carimbado com o `namespace` do plugin dono do texto.
+
+Os rótulos declarados viraram referência — `nav({ key: 'audit-logs', label: '@core.admin/nav.audit-logs' })` —
+e `resolveLabel` é aplicado em **cinco pontos de render**, todos escolhidos por serem o lugar onde o
+rótulo vira texto pela última vez:
+
+| Ponto | Arquivo |
+|---|---|
+| Menu lateral | `WorkspaceSidebar.viewmodel.tsx` |
+| Título da aba | `TabBar.viewmodel.tsx` |
+| Atalhos com selo | `TopBar.viewmodel.tsx` |
+| ⌘K | `CommandPalette.viewmodel.tsx` |
+| Configurações (seções, propriedades, widgets) | `settings/useSettingsCatalog.ts` |
+
+Nos dois últimos, a resolução acontece **na montagem do catálogo, não na View** — e isso tem
+consequência: a busca passa a casar com o texto que a pessoa lê. Traduzido na View, procurar por
+"idioma" não acharia a seção cujo rótulo diz "Idioma".
+
+Nos mesmos pontos passam rótulos de **tela do escritório** (`def.titlePlural`, `tabTitleOverrides`).
+Eles não são referência e voltam intactos — atravessam `label()` só para haver **um** caminho de
+rótulo, não dois.
+
+### O pacote `com.microteia.locale-pt-br`
+
+O português saiu do sistema e virou pacote (`src/plugins/marketplace/localePtBr.ts`, no catálogo
+embutido, distribuído como `extension-templates/locale-pt-br.json`). Sem tela, sem workflow, sem
+código — só contribuições. `localePilot.test.ts` cobre as duas direções: instalado, a interface é
+português; **desinstalado, ela volta inteira ao inglês**. Esse segundo teste é o que define
+"agnóstico" — uma chave que sumisse ali seria sinal de português ainda escrito no núcleo.
+
+Um terceiro teste exige que **toda chave publicada em `en` exista no pacote**, para a tradução não
+ganhar furo quando o núcleo acrescentar um texto.
+
+> ⚠️ **O que um escritório existente vê.** Enquanto ninguém escolhe idioma, o pedido é `LEGACY_LOCALE`
+> (`pt-BR`), e não o idioma-fonte. Com o pacote instalado, tudo continua exatamente como era; **sem o
+> pacote, os rótulos do piloto passam a ler em inglês**. É deliberado: o inglês é o destino declarado,
+> e instalar o pacote é um clique. Na virada de major o pacote passa a ser instalado por padrão nos
+> escritórios existentes, e `LEGACY_LOCALE` sai junto.
+
+### Baixar, traduzir, importar — a tela de Traduções
+
+**Não existe formato de tradução.** O que a tela baixa é um `MarketplacePlugin` comum — o mesmo
+arquivo que a tela de Extensões exporta e importa —, com uma contribuição `i18n.messages` por
+namespace e os textos já preenchidos para o tradutor sobrescrever. Domínio em
+`domain/usecases/i18n/translationPackage.ts`.
+
+> **Um formato próprio existiu na 7.7.0 e foi removido na 7.8.0.** Ele obrigava a manter dois `.json`
+> parecidos e **incompatíveis** (`traducao-pt-BR.json` × `com.microteia.locale-pt-br.json`), dois
+> validadores e dois caminhos de importação — para entregar exatamente o que o formato de pacote já
+> entregava. O sintoma foi um usuário perguntando qual dos dois arquivos era qual; a resposta certa
+> era que não deveria haver dois. Não houve migração porque nenhuma tradução tinha sido feita ainda.
+
+Consequência de projeto: **uma porta só, nos dois sentidos.** O arquivo baixado aqui é importável em
+Extensões, e uma extensão de idioma exportada de lá é importável aqui. A tela de Traduções é um
+ATALHO — parse, validação e `install` são os mesmos —, e a única coisa que ela acrescenta é recusar
+um pacote que não seja de tradução, porque quem está ali veio instalar um idioma.
+
+**Um valor por chave, pré-preenchido.** `buildTranslationPackage` semeia cada chave com a tradução
+que já existe para aquele idioma, ou com o texto-fonte quando ainda não há. O tradutor sobrescreve
+por cima. Não há par `source`/`target`: uma chave deixada em inglês dentro de um pacote `pt-BR`
+renderiza em inglês — exatamente o que o fallback faria —, então distinguir "intocada" de "traduzida"
+não muda nada visível e não paga o custo de dobrar o arquivo.
+
+### A guarda de sobreposição — `translationOverwriteIssue`
+
+Instalar por cima de um id existente é atualização normal e não se mexe nisso. O que se recusa é a
+troca de **natureza**, e a regra é **simétrica**:
+
+| Instalado | Chegando | Resultado |
+|---|---|---|
+| extensão com telas/automações | pacote só de tradução | **recusa** — instalar apagaria o trabalho do escritório |
+| pacote de idioma | extensão com telas/automações | **recusa** — a interface trocaria de língua por um arquivo que ninguém associou a idioma |
+| idioma | idioma | passa (é atualização) |
+
+As duas direções são o mesmo erro visto de lados opostos; recusar só a primeira deixaria a segunda
+aberta. `isTranslationOnlyPackage` é deliberadamente estrito: **toda** contribuição precisa ser
+`i18n.messages` e o pacote não pode trazer nenhum outro artefato.
+
+**A guarda vive no `install` do `InstalledExtensionStore`**, não na tela que importa — é a porta por
+onde passam catálogo embutido, registro público, extensão privada e arquivo escolhido à mão. Posta em
+qualquer tela, bastaria importar pela outra para burlá-la.
+
+### Idiomas instalados — lista sem ação
+
+A tela lista, e não remove. Um idioma é uma extensão, e quem remove extensão é a tela de Extensões;
+repetir o gesto aqui criaria uma segunda porta para a mesma operação, com metade do contexto.
+
+`inUse` marca **um** pacote só. Quando dois cobrem o mesmo idioma, quem vence as chaves disputadas é
+o primeiro na ordem determinística do registro (prioridade, depois `pluginId`) — os demais ganham o
+selo **"Sem efeito"** e um aviso. Marcar os dois como "em uso", como esta tela fazia, escondia
+justamente o problema de haver dois.
+
+> `languageTitle` capitaliza o nome vindo do `Intl`: "português (Brasil)" é correto como substantivo
+> dentro de uma frase e errado como TÍTULO de um pacote, ao lado de "Financeiro" e "Processos".
+
+### O que falta (fases seguintes)
+
+1. **Backend** — `ScreenDefinitionCache` passa a montar o catálogo e a ler o idioma junto do que já lê
+   (custo zero de leitura). O pré-requisito disso — o desvio de fluxo por texto — **já foi removido**;
+   ver "Erro de domínio com código" abaixo.
+2. **Migração incremental** — regra ESLint barrando literal novo, ligada por diretório e ampliada
+   conforme as telas migram.
+
+### Erro de domínio com código — `functions/src/domain/errors/DomainError.ts`
+
+Pré-requisito de qualquer tradução no backend, e uma correção de valor próprio.
+
+Os handlers decidiam o código HTTP lendo o **texto** da mensagem:
+
+```ts
+throw new HttpsError(message.includes('Apenas administradores') ? 'permission-denied' : 'internal', message);
+```
+
+Eram **12 desvios em 5 handlers** (`gmailConnections`, `exchangeGmailCode`, `addTenantMember`,
+`removeTenantMember`, `claimNickname`), casando frases como `'já é membro'`, `'não encontrada'`,
+`'inválido'`, `'não é permitido'`. Duas falhas se somavam: reescrever a frase — corrigir uma vírgula,
+trocar "escritório" por "organização" — mudava silenciosamente o código devolvido ao cliente; e
+traduzir a mensagem quebrava o desvio inteiro, **sem erro de compilação e sem teste vermelho**.
+
+Hoje o domínio lança um erro que carrega o que ele É:
+
+```ts
+throw permissionDenied('Apenas administradores podem revogar contas Gmail.');
+// no handler:
+throw new HttpsError(domainErrorCode(err) ?? 'internal', message);
+```
+
+`DomainErrorCode` cobre `permission-denied`, `not-found`, `invalid-argument`, `already-exists` e
+`failed-precondition`; `domainErrorCode` devolve `null` para o que não é erro de domínio — e `null`
+vira `internal`, porque erro sem código declarado é, por definição, um que ninguém previu. A mensagem
+volta a ser o que sempre deveria ter sido: texto para uma pessoa ler, livre para mudar e ser traduzido.
+
+> **Não confundir com `MEMBER_LIMIT_REACHED`** (`handlers/addTenantMember.ts`), que é comparação
+> EXATA com um sentinela — um código disfarçado de mensagem, não uma frase em português. Não é
+> risco de tradução e foi deixado como está.
+
+---
 
 ## Camada de Regras de Campo (validação e formatação)
 

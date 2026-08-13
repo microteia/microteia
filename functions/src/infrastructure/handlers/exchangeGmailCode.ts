@@ -1,6 +1,7 @@
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { defineString } from 'firebase-functions/params';
 import { getDI } from '../di/container';
+import { domainErrorCode } from '../../domain/errors/DomainError';
 
 const googleClientId = defineString('GOOGLE_CLIENT_ID');
 const googleClientSecret = defineString('GOOGLE_CLIENT_SECRET');
@@ -60,15 +61,7 @@ export const exchangeGmailCode = onCall(
     } catch (err) {
       if (err instanceof HttpsError) throw err;
       const message = err instanceof Error ? err.message : 'Erro ao trocar código OAuth.';
-      
-      if (message.includes('não é membro')) {
-        throw new HttpsError('permission-denied', message);
-      }
-      if (message.includes('Apenas administradores')) {
-        throw new HttpsError('permission-denied', message);
-      }
-      
-      throw new HttpsError('internal', message);
+      throw new HttpsError(domainErrorCode(err) ?? 'internal', message);
     }
   },
 );

@@ -5,6 +5,7 @@ import { useScreenDefinitions } from '../../../../stores/useScreenDefinitions';
 import { useResolvePage } from '../../../shared/useUiContributions';
 import { parseDynamicTabKey } from '../../../../shared/constants/dynamicScreenKeys';
 import { getScreenIcon } from '../../../shared/screenIcons';
+import { useLabel } from '../../../shared/i18n/useT';
 
 export interface ContextMenuState {
   visible: boolean;
@@ -38,6 +39,7 @@ export const useTabBarViewModel = ({ panelId }: TabBarProps): TabBarViewModel =>
   const { panels, activePanelId, tabTitleOverrides, activateTab, closeTab, closeOtherTabs, closePanel, splitPanel } = useWorkspace();
   const { definitions } = useScreenDefinitions();
   const resolvePage = useResolvePage();
+  const label = useLabel();
   const panel = panels[panelId];
   const hasMultiplePanels = Object.keys(panels).length > 1;
   const isPanelActive = hasMultiplePanels && activePanelId === panelId;
@@ -48,7 +50,10 @@ export const useTabBarViewModel = ({ panelId }: TabBarProps): TabBarViewModel =>
 
   const tabs = (panel?.tabKeys ?? []).map(key => {
     const resolved = resolvePage(key);
-    const title = tabTitleOverrides[key] ?? resolved?.metadata.title ?? key;
+    // `tabTitleOverrides` é o título de um REGISTRO (dado do escritório) e nunca é referência;
+    // `metadata.title` vem da contribuição e pode ser. Sem contribuição resolvida, a chave da aba é
+    // o último recurso — por isso o ternário, e não `?? key`: `label` devolve '' e nunca nulo.
+    const title = tabTitleOverrides[key] ?? (resolved ? label(resolved.metadata.title) : key);
     const dynamicInfo = parseDynamicTabKey(key);
     const dynamicScreen = dynamicInfo ? definitions.find((d) => d.id === dynamicInfo.screenKey) : undefined;
     const icon = dynamicScreen

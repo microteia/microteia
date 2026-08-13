@@ -4,6 +4,7 @@ import type { ITenantMemberRepository } from '../repositories/ITenantMemberRepos
 import type { IGmailConnectionRepository } from '../repositories/IGmailConnectionRepository';
 import type { GmailConnection } from '../entities/GmailConnection';
 import type { GmailAuthConfig } from '../entities/GmailTokens';
+import { permissionDenied } from '../errors/DomainError';
 
 /**
  * A autorização INTEIRA acontece aqui: trocar o código, registrar a escuta da caixa e gravar a
@@ -36,7 +37,7 @@ export const makeExchangeGmailCodeUseCase = (
     const member = await tenantMemberRepo.getMember(tenantId, userId);
 
     if (member?.role !== 'admin') {
-      throw new Error('Apenas administradores podem autorizar contas Gmail.');
+      throw permissionDenied('Apenas administradores podem autorizar contas Gmail.');
     }
 
     const tokens = await gmailAuthService.exchangeCode(code, config);

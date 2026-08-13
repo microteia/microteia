@@ -1,5 +1,7 @@
 import type { PluginRecord } from '../../kernel';
 import { lazyView, page } from '../contributionBuilders';
+import { messageBundleContribution } from '../../domain/schema/i18n/extensionPoints';
+import { coreMessage, CORE_MARKETPLACE_MESSAGES } from '../coreMessages';
 
 export const coreMarketplacePlugin: PluginRecord = {
   trusted: true,
@@ -14,9 +16,10 @@ export const coreMarketplacePlugin: PluginRecord = {
     name: 'Extensões',
     dependencies: { 'core.ui': '^1.0.0' },
     contributes: [
-      page({ key: 'marketplace', title: 'Extensões', icon: 'store' }, 'MarketplaceView'),
-      page({ key: 'plugin-author', title: 'Criar extensão', icon: 'magic' }, 'PluginAuthorView'),
-      page({ key: '', keyPrefix: 'plugin-author:', title: 'Editar extensão', icon: 'magic' }, 'PluginAuthorView'),
+      messageBundleContribution(coreMessage('core.marketplace', CORE_MARKETPLACE_MESSAGES)),
+      page({ key: 'marketplace', title: '@core.marketplace/page.marketplace', icon: 'store' }, 'MarketplaceView'),
+      page({ key: 'plugin-author', title: '@core.marketplace/page.plugin-author', icon: 'magic' }, 'PluginAuthorView'),
+      page({ key: '', keyPrefix: 'plugin-author:', title: '@core.marketplace/page.plugin-author-edit', icon: 'magic' }, 'PluginAuthorView'),
     ],
   },
 };

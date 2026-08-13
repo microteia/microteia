@@ -9,7 +9,12 @@ import { useTenant } from '../../../stores/useTenant';
 import { useAuth } from '../../../stores/useAuth';
 import { useNotification } from '../../../stores/useNotification';
 import { buildPackage, type CarriedTemplates } from '../../../domain/usecases/plugins/packageBuilder';
-import { packageOutRefs, validatePackage } from '../../../domain/usecases/plugins/pluginReferences';
+import {
+  packageOutRefs,
+  packageSizeAdvisory,
+  packageSizeIssues,
+  validatePackage,
+} from '../../../domain/usecases/plugins/pluginReferences';
 import { serializePackage } from '../../../domain/usecases/plugins/packageSerialization';
 import { isValidPluginId, validatePluginManifest } from '../../../domain/schema/plugin/pluginManifest';
 import { KERNEL_VERSION } from '../../../domain/schema/plugin/kernelVersion';
@@ -201,6 +206,8 @@ export interface PluginAuthorViewModel {
   startupError: string | null;
   selectedCount: number;
   issues: string[];
+  /** Aviso de tamanho: o pacote instala, mas está a caminho do limite do documento. */
+  sizeAdvisory?: string;
   canExport: boolean;
   canSave: boolean;
   busy: boolean;
@@ -649,9 +656,13 @@ export const usePluginAuthorViewModel = (tabKey?: string): PluginAuthorViewModel
     ...validatePackage(pkg).map((issue) =>
       `${issue.ref.from} referencia ${KIND_LABEL[issue.ref.kind]} "${nameOf(issue.ref.kind, issue.ref.id)}", que pertence a outra extensão. Ela será exigida na instalação.`,
     ),
+    ...packageSizeIssues(pkg),
     ...viewIssues,
     ...(startupError ? [`O código de inicialização não compila: ${startupError}.`] : []),
   ], [manifest, form.summary, pkg, nameOf, viewIssues, startupError]);
+
+  /** Não bloqueia exportar — só avisa que o pacote está a caminho do limite do documento. */
+  const sizeAdvisory = useMemo(() => packageSizeAdvisory(pkg), [pkg]);
 
   const canExport = selectedCount > 0 && issues.length === 0;
   // Salvar um rascunho editável exige só um domínio (id) válido — pendências não bloqueiam salvar,
@@ -715,6 +726,7 @@ export const usePluginAuthorViewModel = (tabKey?: string): PluginAuthorViewModel
     startupError,
     selectedCount,
     issues,
+    sizeAdvisory,
     canExport,
     canSave,
     busy,

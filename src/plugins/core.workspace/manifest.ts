@@ -2,6 +2,8 @@ import type { PluginRecord } from '../../kernel';
 import { command, lazyView, page } from '../contributionBuilders';
 import { NavigationCommandProvider } from '../../presentation/components/ui/CommandPalette/providers/NavigationCommandProvider';
 import { SystemCommandProvider } from '../../presentation/components/ui/CommandPalette/providers/SystemCommandProvider';
+import { messageBundleContribution } from '../../domain/schema/i18n/extensionPoints';
+import { coreMessage, CORE_WORKSPACE_MESSAGES } from '../coreMessages';
 
 export const coreWorkspacePlugin: PluginRecord = {
   trusted: true,
@@ -17,7 +19,8 @@ export const coreWorkspacePlugin: PluginRecord = {
     name: 'Área de Trabalho',
     dependencies: { 'core.ui': '^1.0.0' },
     contributes: [
-      page({ key: 'profile', title: 'Meu Perfil', icon: 'user' }, 'ProfileView'),
+      messageBundleContribution(coreMessage('core.workspace', CORE_WORKSPACE_MESSAGES)),
+      page({ key: 'profile', title: '@core.workspace/page.profile', icon: 'user' }, 'ProfileView'),
       command('navigation', { group: 'Navegação' }, 'NavigationCommandProvider'),
       command('system', { group: 'Sistema' }, 'SystemCommandProvider'),
     ],

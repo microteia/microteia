@@ -1,0 +1,123 @@
+{
+  "summary": "Deixa a Microteia em português do Brasil. Traduz os textos do sistema e pode ser desinstalado a qualquer momento, devolvendo a interface ao inglês.",
+  "workflows": [],
+  "manifest": {
+    "id": "com.microteia.locale-pt-br",
+    "version": "1.0.0",
+    "kernel": "^1.0.0",
+    "name": "Português (Brasil)",
+    "description": "Tradução da Microteia para português do Brasil.",
+    "icon": "globe",
+    "publisher": {
+      "name": "Microteia"
+    },
+    "contributes": [
+      {
+        "point": "i18n.messages",
+        "id": "pt-br.core.ui",
+        "apiVersion": "1.0.0",
+        "metadata": {
+          "locale": "pt-BR",
+          "namespace": "core.ui",
+          "messages": {
+            "action.save": "Salvar",
+            "action.cancel": "Cancelar",
+            "action.delete": "Excluir",
+            "action.close": "Fechar",
+            "select.placeholder": "Selecione..."
+          }
+        }
+      },
+      {
+        "point": "i18n.messages",
+        "id": "pt-br.core.admin",
+        "apiVersion": "1.0.0",
+        "metadata": {
+          "locale": "pt-BR",
+          "namespace": "core.admin",
+          "messages": {
+            "page.tenant-settings": "Escritório",
+            "page.access-management": "Gestão de Acessos",
+            "page.audit-logs": "Auditoria",
+            "page.data-processor": "Processador de Dados",
+            "nav.tenant-settings": "Escritório",
+            "nav.audit-logs": "Auditoria"
+          }
+        }
+      },
+      {
+        "point": "i18n.messages",
+        "id": "pt-br.core.marketplace",
+        "apiVersion": "1.0.0",
+        "metadata": {
+          "locale": "pt-BR",
+          "namespace": "core.marketplace",
+          "messages": {
+            "page.marketplace": "Extensões",
+            "page.plugin-author": "Criar extensão",
+            "page.plugin-author-edit": "Editar extensão"
+          }
+        }
+      },
+      {
+        "point": "i18n.messages",
+        "id": "pt-br.core.records",
+        "apiVersion": "1.0.0",
+        "metadata": {
+          "locale": "pt-BR",
+          "namespace": "core.records",
+          "messages": {
+            "page.screen-builder": "Form Design",
+            "page.dynamic-list": "Tela personalizada",
+            "page.dynamic-new": "Novo registro",
+            "page.dynamic-record": "Registro"
+          }
+        }
+      },
+      {
+        "point": "i18n.messages",
+        "id": "pt-br.core.workspace",
+        "apiVersion": "1.0.0",
+        "metadata": {
+          "locale": "pt-BR",
+          "namespace": "core.workspace",
+          "messages": {
+            "page.profile": "Meu Perfil"
+          }
+        }
+      },
+      {
+        "point": "i18n.messages",
+        "id": "pt-br.core.settings",
+        "apiVersion": "1.0.0",
+        "metadata": {
+          "locale": "pt-BR",
+          "namespace": "core.settings",
+          "messages": {
+            "page.settings": "Configurações",
+            "nav.settings": "Configurações"
+          }
+        }
+      },
+      {
+        "point": "i18n.messages",
+        "id": "pt-br.core.i18n",
+        "apiVersion": "1.0.0",
+        "metadata": {
+          "locale": "pt-BR",
+          "namespace": "core.i18n",
+          "messages": {
+            "section.title": "Idioma e região",
+            "section.description": "Como este escritório lê texto, datas e valores. A preferência pessoal, quando existir, vence a do escritório.",
+            "locale.label": "Idioma",
+            "locale.description": "Os idiomas disponíveis vêm dos pacotes de tradução instalados. Texto sem tradução aparece no idioma original.",
+            "timezone.label": "Fuso horário",
+            "timezone.description": "Usado para decidir a que dia pertence um instante. Em branco, vale o fuso de quem está com a tela aberta.",
+            "page.translations": "Traduções",
+            "nav.translations": "Traduções"
+          }
+        }
+      }
+    ]
+  }
+}

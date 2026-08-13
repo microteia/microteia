@@ -11,6 +11,7 @@ import {
 import { UI_SETTINGS_POINT, UI_WIDGET_POINT, type UiWidgetMetadata } from '../uiExtensionPoints';
 import type { SettingsProperty, SettingsSection } from '../../../domain/schema/settings';
 import { isWidgetSpec, type WidgetSpec } from '../widget/widgetSpec';
+import { useLabel, useLocaleFormat } from '../i18n/useT';
 
 /**
  * O catálogo do que existe para configurar e para renderizar. Duas origens chegam aqui e saem
@@ -63,13 +64,38 @@ const asWidgetMetadata = (metadata: Record<string, unknown>): UiWidgetMetadata |
   };
 };
 
-const byOrderThenTitle = (a: SettingsSection, b: SettingsSection): number =>
-  (a.order ?? 0) - (b.order ?? 0) || a.title.localeCompare(b.title, 'pt-BR');
+/**
+ * A seção com título, rótulos e descrições já RESOLVIDOS. Traduzir aqui — na montagem do catálogo,
+ * e não em cada `{section.title}` da View — tem uma consequência que a View não teria: a busca da
+ * tela (`matchesSettingsQuery`) passa a casar com o texto que a pessoa está lendo. Traduzido na
+ * View, procurar por "idioma" não acharia a seção cujo rótulo diz "Idioma".
+ */
+const translateSection = (
+  section: ExtensionSettingsSection,
+  label: (value: string | null | undefined) => string,
+): ExtensionSettingsSection => ({
+  ...section,
+  title: label(section.title),
+  description: section.description === undefined ? undefined : label(section.description),
+  properties: section.properties.map((property) => ({
+    ...property,
+    label: label(property.label),
+    description: property.description === undefined ? undefined : label(property.description),
+    options: property.options?.map((option) => ({ ...option, label: label(option.label) })),
+  })),
+});
+
+const byOrderThenTitle = (
+  compare: (a: string, b: string) => number,
+) => (a: SettingsSection, b: SettingsSection): number =>
+  (a.order ?? 0) - (b.order ?? 0) || compare(a.title, b.title);
 
 /** As seções declaradas, deduplicadas por chave — a registrada em código vence a declarativa. */
 export const useSettingsSections = (): ExtensionSettingsSection[] => {
   const contributions = useContributions(UI_SETTINGS_POINT);
   const registered = useExtensionSettingsSections();
+  const label = useLabel();
+  const { compareText } = useLocaleFormat();
 
   return useMemo(() => {
     const byKey = new Map<string, ExtensionSettingsSection>();
@@ -78,8 +104,10 @@ export const useSettingsSections = (): ExtensionSettingsSection[] => {
       if (section) byKey.set(section.key, section);
     }
     for (const section of registered) byKey.set(section.key, section);
-    return Array.from(byKey.values()).sort(byOrderThenTitle);
-  }, [contributions, registered]);
+    return Array.from(byKey.values())
+      .map((section) => translateSection(section, label))
+      .sort(byOrderThenTitle(compareText));
+  }, [contributions, registered, label, compareText]);
 };
 
 /** Os widgets de uma superfície, na ordem declarada — a configuração reordena depois. */
@@ -87,6 +115,8 @@ export const useSurfaceWidgets = (surface: string): SurfaceWidgetDescriptor[] =>
   const { host } = useKernel();
   const contributions = useContributions(UI_WIDGET_POINT);
   const registered = useExtensionSurfaceWidgets();
+  const label = useLabel();
+  const { compareText } = useLocaleFormat();
 
   return useMemo(() => {
     const byKey = new Map<string, SurfaceWidgetDescriptor>();
@@ -117,8 +147,12 @@ export const useSurfaceWidgets = (surface: string): SurfaceWidgetDescriptor[] =>
       byKey.set(widget.key, { ...widget, pluginId: widget.key, component: widget.component });
     }
 
-    return Array.from(byKey.values()).sort(
-      (a, b) => (a.order ?? 0) - (b.order ?? 0) || a.title.localeCompare(b.title, 'pt-BR'),
-    );
-  }, [contributions, registered, surface, host]);
+    return Array.from(byKey.values())
+      .map((widget) => ({
+        ...widget,
+        title: label(widget.title),
+        description: widget.description === undefined ? undefined : label(widget.description),
+      }))
+      .sort((a, b) => (a.order ?? 0) - (b.order ?? 0) || compareText(a.title, b.title));
+  }, [contributions, registered, surface, host, label, compareText]);
 };

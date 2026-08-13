@@ -197,6 +197,12 @@ export const PluginAuthorView: React.FC<{ tabKey?: string }> = ({ tabKey }) => {
           </S.TreeContainer>
         </S.Section>
 
+        {vm.sizeAdvisory && vm.selectedCount > 0 && (
+          <S.Section>
+            <InfoBanner message={vm.sizeAdvisory} />
+          </S.Section>
+        )}
+
         {vm.issues.length > 0 && vm.selectedCount > 0 && (
           <S.Section>
             <S.SectionTitle>Pendências</S.SectionTitle>

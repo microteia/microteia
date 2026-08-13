@@ -5,6 +5,7 @@ import { KernelProvider } from './stores/KernelContext';
 import { TenantKernelProvider } from './stores/TenantKernelProvider';
 import { CORE_PLUGINS } from './plugins';
 import { ThemeProvider } from './stores/ThemeContext';
+import { LocaleProvider, TenantLocaleProvider } from './stores/LocaleContext';
 import { AuthProvider } from './stores/AuthContext';
 import { TenantStoreProvider } from './stores/TenantStore';
 import { TagStoreProvider } from './stores/TagStore';
@@ -45,6 +46,7 @@ const App: React.FC = () => {
     <KernelProvider records={CORE_PLUGINS}>
     <DIProvider>
       <ThemeProvider>
+        <LocaleProvider>
         <AuthProvider>
           <ExpressionFunctionStoreProvider>
           <BrowserRouter>
@@ -82,9 +84,11 @@ const App: React.FC = () => {
                                                 <TextAnnotationStoreProvider>
                                                   <AppErrorBoundary>
                                                     <TenantKernelProvider>
-                                                      <FieldRulePresetBridge />
-                                                      <ExtensionStartupHost />
-                                                      <WorkspaceShell />
+                                                      <TenantLocaleProvider>
+                                                        <FieldRulePresetBridge />
+                                                        <ExtensionStartupHost />
+                                                        <WorkspaceShell />
+                                                      </TenantLocaleProvider>
                                                     </TenantKernelProvider>
                                                   </AppErrorBoundary>
                                                 </TextAnnotationStoreProvider>
@@ -115,6 +119,7 @@ const App: React.FC = () => {
           </BrowserRouter>
           </ExpressionFunctionStoreProvider>
         </AuthProvider>
+        </LocaleProvider>
       </ThemeProvider>
     </DIProvider>
     </KernelProvider>

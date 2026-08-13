@@ -2,6 +2,7 @@ import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { defineString } from 'firebase-functions/params';
 import { getDI } from '../di/container';
 import { GMAIL_READONLY_SCOPE } from '../../domain/entities/GmailConnection';
+import { domainErrorCode } from '../../domain/errors/DomainError';
 
 const googleClientId = defineString('GOOGLE_CLIENT_ID');
 
@@ -44,7 +45,7 @@ export const listGmailConnections = onCall(
       };
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Erro ao listar contas Gmail.';
-      throw new HttpsError(message.includes('Apenas administradores') ? 'permission-denied' : 'internal', message);
+      throw new HttpsError(domainErrorCode(err) ?? 'internal', message);
     }
   },
 );
@@ -70,13 +71,7 @@ export const revokeGmailConnection = onCall(
       return { revoked: true };
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Erro ao revogar conta Gmail.';
-      if (message.includes('Apenas administradores')) {
-        throw new HttpsError('permission-denied', message);
-      }
-      if (message.includes('não encontrada')) {
-        throw new HttpsError('not-found', message);
-      }
-      throw new HttpsError('internal', message);
+      throw new HttpsError(domainErrorCode(err) ?? 'internal', message);
     }
   },
 );

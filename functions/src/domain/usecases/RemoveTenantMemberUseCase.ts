@@ -1,6 +1,7 @@
 import type { ITenantRepository } from '../repositories/ITenantRepository';
 import type { ITenantMemberRepository } from '../repositories/ITenantMemberRepository';
 import type { IUserRepository } from '../repositories/IUserRepository';
+import { permissionDenied } from '../errors/DomainError';
 
 export type RemoveTenantMemberUseCase = {
   execute: (tenantId: string, userId: string, requesterId: string) => Promise<void>;
@@ -16,7 +17,7 @@ export const makeRemoveTenantMemberUseCase = (
     if (requesterRole !== 'admin') {
       const globalRole = await userRepo.getUserRole(requesterId);
       if (globalRole !== 'SYSTEM' && globalRole !== 'SUPPORT') {
-        throw new Error('Somente administradores do escritório podem remover membros.');
+        throw permissionDenied('Somente administradores do escritório podem remover membros.');
       }
     }
 

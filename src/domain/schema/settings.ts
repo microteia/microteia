@@ -20,6 +20,10 @@ export const SETTINGS_SCOPES: SettingsScope[] = ['tenant', 'user'];
  * `widgets` não é um tipo primitivo: é a lista ordenada de widgets de uma superfície (o Painel, por
  * exemplo), com ligado/desligado e largura por item. Vive aqui — e não como tela especial — porque
  * quem a edita é a mesma tela de Configurações, e o valor continua sendo JSON comum.
+ *
+ * `locale` segue a mesma linha: um `select` cujas opções NÃO são declaráveis, porque dependem de
+ * quais pacotes de tradução estão instalados naquele escritório naquele momento. Declarar a lista no
+ * manifest congelaria os idiomas existentes no núcleo — exatamente o que este tipo evita.
  */
 export type SettingsPropertyType =
   | 'boolean'
@@ -29,7 +33,8 @@ export type SettingsPropertyType =
   | 'stringList'
   | 'json'
   | 'widgets'
-  | 'contributions';
+  | 'contributions'
+  | 'locale';
 
 export interface SettingsPropertyOption {
   value: string;
@@ -201,6 +206,16 @@ export const validateSettingValue = (property: SettingsProperty, value: unknown)
         ? null
         : 'Cada item precisa ter uma chave e, se informado, ligado/desligado.';
     }
+    /**
+     * Um idioma é aceito pela FORMA, nunca por pertencer a uma lista. Validar contra os pacotes
+     * instalados faria a preferência de quem escolheu espanhol ser descartada no dia em que o pacote
+     * fosse desativado — e voltar sozinha para o inglês sem ninguém ter pedido. Idioma sem tradução
+     * instalada simplesmente cai no idioma-fonte na hora de resolver o texto.
+     */
+    case 'locale':
+      return typeof value === 'string' && /^[a-z]{2,3}(-[A-Za-z0-9]+)*$/.test(value.trim())
+        ? null
+        : 'Informe um idioma no formato "en" ou "pt-BR".';
     case 'json':
       return value === undefined ? 'Informe um valor.' : null;
     default:

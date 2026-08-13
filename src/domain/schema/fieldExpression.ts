@@ -5,6 +5,8 @@
 
 import { Parser } from 'expr-eval';
 import { isEmptyRuleValue, isValidCnpj, isValidCpf, onlyDigits } from './fieldRulePresets';
+import { ambientLocale } from './i18n/localeGate';
+import { currencyForLocale, formatMoneyFor } from './i18n/localeFormat';
 
 export interface FieldExprContext {
   value: unknown;
@@ -100,6 +102,12 @@ const DATE_DIFF_DIVISORS: Record<string, number> = {
   segundos: 1000,
 };
 
+/**
+ * APELIDOS herdados de `formatMoney`, de quando o segundo argumento era uma união de três valores.
+ * Continuam valendo porque há automação escrita com eles gravada em escritório — `eu` em particular
+ * nem é um idioma, é o rótulo que se deu ao euro. Qualquer outro valor é lido como idioma BCP-47
+ * comum, e a moeda sai de `currencyForLocale`.
+ */
 const MONEY_LOCALES: Record<string, { locale: string; currency: string }> = {
   'pt-br': { locale: 'pt-BR', currency: 'BRL' },
   'en-us': { locale: 'en-US', currency: 'USD' },
@@ -191,10 +199,14 @@ const FIELD_EXPRESSION_FUNCTIONS: Record<string, (...args: unknown[]) => unknown
   formatMoney: (value, locale) => {
     const amount = asNumber(value);
     if (!Number.isFinite(amount)) return '';
-    const config = MONEY_LOCALES[asText(locale === undefined ? 'pt-br' : locale).toLowerCase()] ?? MONEY_LOCALES['pt-br'];
-    return new Intl.NumberFormat(config.locale, { style: 'currency', currency: config.currency })
-      .format(amount)
-      .replace(/[\u00A0\u202F]/g, ' ');
+    if (locale === undefined) {
+      const ambient = ambientLocale();
+      return formatMoneyFor(ambient, amount, currencyForLocale(ambient));
+    }
+    const requested = asText(locale);
+    const alias = MONEY_LOCALES[requested.toLowerCase()];
+    if (alias) return formatMoneyFor(alias.locale, amount, alias.currency);
+    return formatMoneyFor(requested, amount, currencyForLocale(requested));
   },
   formatCPF: (value) => {
     const clean = onlyDigits(asText(value));

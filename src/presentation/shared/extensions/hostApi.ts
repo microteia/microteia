@@ -42,17 +42,20 @@ import { useEntityList } from './useEntityList';
 import { useEntityForm } from './useEntityForm';
 import { useEntityDetailVM } from './useEntityDetailVM';
 import {
+  formatCurrency,
   formatCurrencyBRL,
   formatDate,
   onlyNumbers,
   parseCurrencyDigits,
   toDateInputValue,
 } from '../../../utils/formatters';
+import { useLabel, useLocaleFormat, useT } from '../i18n/useT';
 import { useWorkspace } from '../../../stores/useWorkspace';
 import { useOpenRecord } from '../useOpenRecord';
 import { useOpenScreenList } from '../useOpenScreenList';
 import { useAuth } from '../../../stores/useAuth';
 import { useTenant } from '../../../stores/useTenant';
+import { useLocale } from '../../../stores/useLocale';
 import { useNotification } from '../../../stores/useNotification';
 import { useRecordDocumentsPort } from '../entityScreen/useRecordPorts';
 import { useEntityDocuments } from '../entityScreen/useEntityDocuments';
@@ -135,11 +138,18 @@ export interface ExtensionViewer {
    * do servidor recebe o escritório como argumento.
    */
   tenantId: string;
+  /**
+   * O idioma em vigor para esta pessoa (BCP-47: `en`, `pt-BR`). Está aqui, e não só em
+   * `@microteia/i18n`, porque uma extensão frequentemente precisa dele como DADO — para escolher um
+   * texto vindo do próprio registro, ou para mandá-lo ao servidor junto da chamada.
+   */
+  locale: string;
 }
 
 const useCurrentUser = (): ExtensionViewer => {
   const { user, userRole, effectiveName, effectivePhotoURL } = useAuth();
   const { tenantRole, currentTenant } = useTenant();
+  const { locale } = useLocale();
   return useMemo(
     () => ({
       id: user?.id ?? '',
@@ -148,8 +158,9 @@ const useCurrentUser = (): ExtensionViewer => {
       role: userRole ?? '',
       tenantRole: tenantRole ?? '',
       tenantId: currentTenant?.id ?? '',
+      locale,
     }),
-    [user, userRole, effectiveName, effectivePhotoURL, tenantRole, currentTenant],
+    [user, userRole, effectiveName, effectivePhotoURL, tenantRole, currentTenant, locale],
   );
 };
 
@@ -299,11 +310,27 @@ const dataModule = {
  */
 const formatModule = {
   formatCurrencyBRL,
+  formatCurrency,
   formatDate,
   parseCurrencyDigits,
   toDateInputValue,
   applyMask: applyMaskTemplate,
   onlyNumbers,
+} as const;
+
+/**
+ * O idioma como CAPACIDADE da extensão, e não só como dado do visitante.
+ *
+ * `useT` recebe o namespace de quem chama, o que faz uma extensão traduzir os próprios textos com o
+ * mesmo mecanismo do núcleo — e, passando uma chave absoluta (`core.ui/action.save`), reaproveitar o
+ * que o núcleo já traduziu em vez de traduzir de novo. Uma extensão que não declara catálogo nenhum
+ * continua funcionando: chave sem tradução devolve a própria chave.
+ */
+const i18nModule = {
+  useT,
+  useLabel,
+  useLocale,
+  useLocaleFormat,
 } as const;
 
 export const HOST_MODULES: Record<string, unknown> = {
@@ -314,6 +341,7 @@ export const HOST_MODULES: Record<string, unknown> = {
   '@microteia/ui': uiModule,
   '@microteia/data': dataModule,
   '@microteia/format': formatModule,
+  '@microteia/i18n': i18nModule,
   '@microteia/theme': themeModule,
   '@microteia/settings': settingsModule,
   '@microteia/functions': functionsModule,

@@ -1,5 +1,6 @@
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { getDI } from '../di/container';
+import { domainErrorCode } from '../../domain/errors/DomainError';
 
 interface ClaimNicknameRequest {
   nickname?: string;
@@ -28,20 +29,7 @@ export const claimNickname = onCall(
       if (err instanceof HttpsError) throw err;
       const message = err instanceof Error ? err.message : 'Erro ao reivindicar apelido.';
       
-      if (message.includes('já possui um apelido')) {
-        throw new HttpsError('already-exists', message);
-      }
-      if (message.includes('já está em uso')) {
-        throw new HttpsError('already-exists', message);
-      }
-      if (message.includes('inválido')) {
-        throw new HttpsError('invalid-argument', message);
-      }
-      if (message.includes('não é permitido')) {
-        throw new HttpsError('invalid-argument', message);
-      }
-      
-      throw new HttpsError('internal', message);
+      throw new HttpsError(domainErrorCode(err) ?? 'internal', message);
     }
   },
 );

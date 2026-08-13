@@ -1,6 +1,7 @@
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import type { ITenantRepository, AddTenantMemberInput, CreateTenantInput } from '../../domain/repositories/ITenantRepository';
 import type { Tenant } from '../../domain/entities/Tenant';
+import { alreadyExists, notFound } from '../../domain/errors/DomainError';
 
 export class FirebaseTenantRepository implements ITenantRepository {
   private readonly db = getFirestore();
@@ -67,11 +68,11 @@ export class FirebaseTenantRepository implements ITenantRepository {
     await this.db.runTransaction(async (tx) => {
       const tenantSnap = await tx.get(tenantRef);
       if (!tenantSnap.exists) {
-        throw new Error('Escritório não encontrado.');
+        throw notFound('Escritório não encontrado.');
       }
       const memberSnap = await tx.get(memberRef);
       if (memberSnap.exists) {
-        throw new Error('Este usuário já é membro do escritório.');
+        throw alreadyExists('Este usuário já é membro do escritório.');
       }
 
       const data = tenantSnap.data()!;

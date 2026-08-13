@@ -1,5 +1,6 @@
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { getDI } from '../di/container';
+import { domainErrorCode } from '../../domain/errors/DomainError';
 
 interface AddTenantMemberRequest {
   tenantId?: string;
@@ -40,17 +41,7 @@ export const addTenantMember = onCall(
       if (message === 'MEMBER_LIMIT_REACHED') {
         throw new HttpsError('resource-exhausted', 'Limite de membros do escritório atingido.');
       }
-      if (message.includes('já é membro')) {
-        throw new HttpsError('already-exists', message);
-      }
-      if (message.includes('Somente administradores')) {
-        throw new HttpsError('permission-denied', message);
-      }
-      if (message.includes('não encontrado')) {
-        throw new HttpsError('not-found', message);
-      }
-
-      throw new HttpsError('internal', message);
+      throw new HttpsError(domainErrorCode(err) ?? 'internal', message);
     }
   },
 );

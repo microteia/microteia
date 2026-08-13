@@ -14,6 +14,7 @@ import { DYNAMIC_SCREEN_NAV_ORDER } from '../../../shared/uiExtensionPoints';
 import { useAuditLogAlert } from '../../../../stores/useAuditLogAlert';
 import type { User } from '../../../../domain/entities';
 import type { ThemeMode } from '../../../../shared/types';
+import { useLabel } from '../../../shared/i18n/useT';
 
 export interface NavItem {
   key: string;
@@ -108,13 +109,15 @@ export const useWorkspaceSidebarViewModel = (): WorkspaceSidebarViewModel => {
     return 0;
   }, [unreadCriticalAuditCount]);
 
+  const label = useLabel();
+
   const navItems = useMemo(() => {
     const contributed = visibleNavItems(navContributions, {
       isSystemAdmin: isAdmin,
       isTenantAdmin: tenantRole === 'admin',
     }).map((item) => ({
       key: item.key,
-      label: item.label,
+      label: label(item.label),
       icon: getScreenIcon(item.icon, 20),
       order: item.order,
       badge: item.badge ? badgeCount(item.badge) : kernelBadge(item.key),
@@ -122,7 +125,9 @@ export const useWorkspaceSidebarViewModel = (): WorkspaceSidebarViewModel => {
 
     const dynamicItems = sidebarScreens.map((def) => ({
       key: buildListTabKey(def.id),
-      label: def.titlePlural,
+      // Tela do escritório: `titlePlural` é texto digitado por ele, nunca referência — `label` o
+      // devolve intacto. Passa pela mesma função só para haver UM caminho de rótulo, não dois.
+      label: label(def.titlePlural),
       icon: getScreenIcon(def.icon, 18),
       order: DYNAMIC_SCREEN_NAV_ORDER,
       badge: 0,
@@ -131,7 +136,7 @@ export const useWorkspaceSidebarViewModel = (): WorkspaceSidebarViewModel => {
     return [...contributed, ...dynamicItems]
       .sort((a, b) => a.order - b.order)
       .map(({ key, label, icon, badge }): NavItem => ({ key, label, icon, badge }));
-  }, [navContributions, isAdmin, tenantRole, sidebarScreens, badgeCount, kernelBadge]);
+  }, [navContributions, isAdmin, tenantRole, sidebarScreens, badgeCount, kernelBadge, label]);
 
   const toggleCollapse = useCallback(() => setCollapsed(c => !c), []);
 

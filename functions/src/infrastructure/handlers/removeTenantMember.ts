@@ -1,5 +1,6 @@
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { getDI } from '../di/container';
+import { domainErrorCode } from '../../domain/errors/DomainError';
 
 interface RemoveTenantMemberRequest {
   tenantId?: string;
@@ -29,11 +30,7 @@ export const removeTenantMember = onCall(
       if (err instanceof HttpsError) throw err;
       const message = err instanceof Error ? err.message : 'Erro ao remover membro.';
 
-      if (message.includes('Somente administradores')) {
-        throw new HttpsError('permission-denied', message);
-      }
-
-      throw new HttpsError('internal', message);
+      throw new HttpsError(domainErrorCode(err) ?? 'internal', message);
     }
   },
 );

@@ -11,6 +11,36 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [7.8.0] — 2026-08-13
+
+- **Traduzir ficou mais simples: existe um arquivo só.** Antes havia dois arquivos `.json` parecidos e que não se encaixavam — um "modelo de tradução" e uma "extensão de idioma". Agora existe apenas a extensão de idioma: é o que se baixa, é o que se traduz e é o que se importa. O mesmo arquivo funciona tanto na tela de Traduções quanto na de Extensões.
+- **O arquivo tem um campo por texto, já preenchido.** Você sobrescreve o que quiser traduzir e deixa o resto como está — o que não for traduzido continua aparecendo no idioma original.
+- **O sistema agora impede uma troca perigosa.** Um arquivo de idioma não pode mais tomar o lugar de uma extensão que tem telas e automações (nem o contrário) por coincidência de identificador: em vez de sobrescrever, o sistema recusa e explica o que fazer.
+- **A lista de idiomas instalados avisa quando há dois pacotes para o mesmo idioma.** Só um deles vale; o outro passa a aparecer como "Sem efeito", em vez de os dois dizerem "Em uso" e esconderem o problema.
+- Para desativar ou remover um idioma, use a tela de Extensões — a tela de Traduções apenas lista, sem duplicar o gesto.
+- Corrigido o nome do idioma criado pela tela, que vinha com inicial minúscula.
+
+## [7.7.0] — 2026-08-13
+
+- **Agora é possível traduzir a Microteia para qualquer idioma, sem programar.** A nova tela **Traduções** (no menu, para administradores) entrega um arquivo com todos os textos do sistema — os do próprio Microteia e os das extensões instaladas, na mesma lista. Traduza, devolva o arquivo, e o idioma passa a estar disponível para todo o escritório.
+- **O arquivo mostra o texto original ao lado do campo a preencher**, então dá para traduzir sem adivinhar o que cada frase significa — e, ao baixá-lo de novo mais tarde, ele já vem preenchido com o que foi traduzido antes, deixando em branco só o que falta.
+- **Texto não traduzido continua aparecendo no idioma original**, nunca em branco. Uma tradução pela metade é utilizável desde o primeiro dia.
+- O idioma importado aparece em Extensões como qualquer outro, podendo ser desativado ou removido — e a tela de Traduções lista os idiomas instalados, indicando qual está em uso.
+
+## [7.6.0] — 2026-08-13
+
+- **O português virou um pacote — e por isso qualquer idioma pode existir.** Em Extensões há agora **Português (Brasil)**, com o selo "Do sistema". Instalado, o menu, as abas, a busca do ⌘K e a tela de Configurações aparecem em português exatamente como sempre apareceram; desinstalado, voltam ao inglês. Nada no sistema trata o português de forma especial, que é o que permite acrescentar espanhol, alemão ou qualquer outro do mesmo jeito.
+- **Ao subir para esta versão, instale o pacote Português (Brasil)** para manter a interface como está. Sem ele, os textos do menu e das Configurações passam a ser lidos em inglês — o idioma padrão do sistema.
+- **A busca das Configurações agora encontra pelo texto que você lê.** Procurar por "idioma" acha a seção Idioma, mesmo que ela tenha outro nome no idioma original.
+- Corrigido um problema em que reescrever a frase de uma mensagem de erro podia mudar, sem aviso, o comportamento do sistema ao recusar uma operação — por exemplo ao tentar autorizar uma conta de e-mail sem ser administrador.
+
+## [7.5.0] — 2026-08-13
+
+- **O Microteia deixou de ser um sistema em um idioma só.** Nasce a base para que o sistema seja lido em qualquer língua: em Configurações há agora a seção **Idioma e região**, onde o escritório escolhe o idioma padrão e cada pessoa pode escolher o seu — a preferência pessoal sempre vence a do escritório.
+- **Um idioma novo passa a ser uma extensão, como qualquer outra.** Para acrescentar um idioma não é preciso alterar o sistema: basta instalar um pacote de traduções, do mesmo jeito que se instala uma extensão. Ele pode traduzir tanto os textos do próprio Microteia quanto os de outras extensões instaladas, e desinstalá-lo devolve tudo ao idioma original.
+- **Datas, valores e ordenação passam a acompanhar o idioma escolhido.** Um escritório em inglês lê as datas e a moeda como se lê em inglês, sem que ninguém precise configurar formato algum. Enquanto nenhum idioma for escolhido, tudo continua exatamente como está hoje.
+- Ao montar uma extensão, a tela de autoria agora avisa quando o pacote está ficando grande demais para ser instalado, com a orientação de como dividi-lo — antes esse limite só aparecia como um erro incompreensível na hora de instalar.
+
 ## [7.4.0] — 2026-08-13
 
 - **A configuração das intimações mudou de lugar, e agora pertence à extensão de Pushes.** A aba "Push" das Configurações do Escritório deixou de existir: as contas de e-mail monitoradas passam a ser administradas em **Recebimento**, botão no alto da tela "Pushes do Tribunal" (visível para o administrador) — ou pelo ⌘K, procurando por "recebimento", "gmail" ou "e-mail".

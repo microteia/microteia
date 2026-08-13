@@ -12,6 +12,8 @@ import {
   type SettingsProperty,
   type WidgetLayoutEntry,
 } from '../../../domain/schema/settings';
+import { useLocale } from '../../../stores/useLocale';
+import { localeDisplayName } from '../../../domain/schema/i18n/localeFormat';
 
 interface SettingsFieldProps {
   property: SettingsProperty;
@@ -25,6 +27,8 @@ interface SettingsFieldProps {
  * plugin declara `boolean` e ganha uma caixa de seleção sem escrever interface nenhuma.
  */
 export const SettingsField: React.FC<SettingsFieldProps> = ({ property, value, disabled, onChange }) => {
+  const { available } = useLocale();
+
   switch (property.type) {
     case 'boolean':
       return (
@@ -56,6 +60,22 @@ export const SettingsField: React.FC<SettingsFieldProps> = ({ property, value, d
         <SearchSelect
           value={typeof value === 'string' ? value : ''}
           options={(property.options ?? []).map((option) => ({ value: option.value, label: option.label }))}
+          disabled={disabled}
+          onChange={(next) => onChange(next)}
+          placeholder="Selecione..."
+        />
+      );
+
+    /**
+     * As opções são os idiomas INSTALADOS, não uma lista declarada: acrescentar um idioma é instalar
+     * um pacote de tradução, nunca editar o núcleo. O idioma-fonte está sempre entre eles, então um
+     * escritório sem nenhum pacote continua tendo o que escolher.
+     */
+    case 'locale':
+      return (
+        <SearchSelect
+          value={typeof value === 'string' ? value : ''}
+          options={available.map((locale) => ({ value: locale, label: localeDisplayName(locale) }))}
           disabled={disabled}
           onChange={(next) => onChange(next)}
           placeholder="Selecione..."
