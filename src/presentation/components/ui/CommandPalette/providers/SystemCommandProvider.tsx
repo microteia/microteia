@@ -6,7 +6,6 @@ import {
   RiRobot2Line,
   RiPaletteLine,
   RiTeamLine,
-  RiMailLine,
 } from 'react-icons/ri';
 import type { ICommandPaletteProvider, CommandPaletteAppContext, CommandPaletteItem } from './ICommandPaletteProvider';
 import type { ThemeMode } from '../../../../../shared/types';
@@ -64,16 +63,6 @@ export const SystemCommandProvider: ICommandPaletteProvider = {
         group: 'Sistema',
         icon: <RiRobot2Line size={16} />,
         onSelect: () => { openTab('tenant-settings:ai'); close(); },
-      });
-    }
-
-    if (tenantRole === 'admin' && (!query || contains('push', query) || contains('gmail', query) || contains('email', query) || contains('notificações', query) || contains('configuração', query))) {
-      items.push({
-        id: 'sys:push',
-        title: 'Configuração de Push',
-        group: 'Sistema',
-        icon: <RiMailLine size={16} />,
-        onSelect: () => { openTab('tenant-settings:push'); close(); },
       });
     }
 

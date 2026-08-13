@@ -2,6 +2,11 @@ import { onMessagePublished } from 'firebase-functions/v2/pubsub';
 import { defineString } from 'firebase-functions/params';
 import { getDI } from '../di/container';
 import { GmailPushRunLogger } from './shared/gmailPushRunLogger';
+import {
+  PUSH_ALLOWED_SENDERS_KEY,
+  PUSH_ALLOWED_SUBJECTS_KEY,
+  resolveIngestionList,
+} from '../../domain/services/pushIngestionFilters';
 
 const googleClientId = defineString('GOOGLE_CLIENT_ID');
 const googleClientSecret = defineString('GOOGLE_CLIENT_SECRET');
@@ -74,6 +79,7 @@ export const gmailPush = onMessagePublished(
       const emailParserService = di.getEmailParserService();
       const createOrUpdatePushUC = di.getCreateOrUpdatePushUseCase();
       const tenantRepo = di.getTenantRepository();
+      const tenantSettingsRepo = di.getTenantSettingsRepository();
       
       // Buscar todas as conexões Gmail com este email
       const connections = await gmailConnectionRepo.getConnectionsByEmail(emailAddress);
@@ -101,8 +107,9 @@ export const gmailPush = onMessagePublished(
 
         runLogger.log('info', `Processando : ${tenant.name}`);
 
-        const allowedSenders = tenant.allowedSenders ?? [];
-        const allowedSubjects = tenant.allowedSubjects ?? [];
+        const settings = await tenantSettingsRepo.getTenantValues(connection.tenantId);
+        const allowedSenders = resolveIngestionList(settings, PUSH_ALLOWED_SENDERS_KEY, tenant.allowedSenders);
+        const allowedSubjects = resolveIngestionList(settings, PUSH_ALLOWED_SUBJECTS_KEY, tenant.allowedSubjects);
 
         runLogger.log('info', `Remetentes permitidos: ${JSON.stringify(allowedSenders)}`);
         runLogger.log('info', `Assuntos permitidos: ${JSON.stringify(allowedSubjects)}`);

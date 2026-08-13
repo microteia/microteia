@@ -4,7 +4,6 @@ import { useTenantSettingsViewModel } from './TenantSettings.viewmodel';
 import { OfficeTab } from './OfficeTab';
 import { MembersTab } from './MembersTab';
 import { AITab } from './AITab';
-import { PushTab } from './PushTab';
 
 export const TenantSettingsView: React.FC<{ tabKey?: string }> = ({ tabKey }) => {
   const initialTab =
@@ -12,9 +11,7 @@ export const TenantSettingsView: React.FC<{ tabKey?: string }> = ({ tabKey }) =>
       ? 'ai'
       : tabKey === 'tenant-settings:members'
         ? 'members'
-        : tabKey === 'tenant-settings:push'
-          ? 'push'
-          : 'office';
+        : 'office';
 
   const vm = useTenantSettingsViewModel(initialTab);
 
@@ -36,11 +33,6 @@ export const TenantSettingsView: React.FC<{ tabKey?: string }> = ({ tabKey }) =>
         {vm.isAdmin && (
           <S.Tab $active={vm.activeTab === 'ai'} onClick={() => vm.setActiveTab('ai')}>
             Conexão IA
-          </S.Tab>
-        )}
-        {vm.isAdmin && (
-          <S.Tab $active={vm.activeTab === 'push'} onClick={() => vm.setActiveTab('push')}>
-            Push
           </S.Tab>
         )}
       </S.TabsBar>
@@ -70,13 +62,6 @@ export const TenantSettingsView: React.FC<{ tabKey?: string }> = ({ tabKey }) =>
           </S.Section>
         )}
 
-        {vm.activeTab === 'push' && vm.isAdmin && (
-          <S.Section>
-            <S.SectionBody>
-              <PushTab />
-            </S.SectionBody>
-          </S.Section>
-        )}
       </S.Content>
     </S.Page>
   );

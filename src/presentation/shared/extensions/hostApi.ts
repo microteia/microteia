@@ -1,4 +1,5 @@
 import React, { useCallback, useMemo } from 'react';
+import { httpsCallable } from 'firebase/functions';
 import { jsx, jsxs, Fragment } from 'react/jsx-runtime';
 import styled, { useTheme } from 'styled-components';
 import { Button } from '../../components/ui/Button';
@@ -128,11 +129,17 @@ export interface ExtensionViewer {
   role: string;
   /** Papel no escritório corrente: `admin`, `lawyer`, `secretary` ou `user`. */
   tenantRole: string;
+  /**
+   * O escritório em que se está trabalhando. É o que uma extensão precisa para dizer ao backend
+   * EM QUAL escritório ela age — a coleção de dados já vem endereçada pelos hooks, mas uma função
+   * do servidor recebe o escritório como argumento.
+   */
+  tenantId: string;
 }
 
 const useCurrentUser = (): ExtensionViewer => {
   const { user, userRole, effectiveName, effectivePhotoURL } = useAuth();
-  const { tenantRole } = useTenant();
+  const { tenantRole, currentTenant } = useTenant();
   return useMemo(
     () => ({
       id: user?.id ?? '',
@@ -140,10 +147,37 @@ const useCurrentUser = (): ExtensionViewer => {
       photoURL: effectivePhotoURL,
       role: userRole ?? '',
       tenantRole: tenantRole ?? '',
+      tenantId: currentTenant?.id ?? '',
     }),
-    [user, userRole, effectiveName, effectivePhotoURL, tenantRole],
+    [user, userRole, effectiveName, effectivePhotoURL, tenantRole, currentTenant],
   );
 };
+
+/**
+ * Uma FUNÇÃO DO SERVIDOR, pelo nome. É a porta da extensão para o que só o backend pode fazer —
+ * guardar um segredo, falar com um serviço externo, escrever onde o navegador não alcança.
+ *
+ * Genérica de propósito: o kernel não conhece nenhuma função em particular, e quem decide o que a
+ * chamada pode fazer é a própria função, que valida autenticação e papel do lado de lá. Isto é
+ * ergonomia e auditoria — não é fronteira de segurança: código de extensão roda com `fetch` ao
+ * alcance (ver "Fronteira de confiança do código de extensão").
+ */
+const useCallable = <Request, Response>(
+  name: string,
+): ((payload?: Request) => Promise<Response>) =>
+  useCallback(
+    async (payload?: Request) => {
+      // A configuração do Firebase entra na CHAMADA, não na carga do módulo: a ponte é importada
+      // por quem só quer avaliar uma tela de extensão (o autor de extensões, os testes), e exigir
+      // as variáveis de ambiente ali derrubaria os dois.
+      const { functions } = await import('../../../infrastructure/firebase/config');
+      const result = await httpsCallable<Request | Record<string, never>, Response>(functions, name)(
+        payload ?? {},
+      );
+      return result.data;
+    },
+    [name],
+  );
 
 /**
  * Os DOCUMENTOS de um registro — a mesma subcoleção e o mesmo controlador que a aba "Documentos" do
@@ -215,6 +249,15 @@ const settingsModule = {
   useSettingValue,
 } as const;
 
+/**
+ * O que só o servidor faz. Um módulo próprio — e não mais um hook dentro de `@microteia/data` —
+ * porque a natureza da chamada é outra: aqui a extensão sai da base do escritório e fala com uma
+ * função, com o custo e a latência que isso tem.
+ */
+const functionsModule = {
+  useCallable,
+} as const;
+
 const themeModule = {
   resolveColor,
   getConfigColor,
@@ -273,4 +316,5 @@ export const HOST_MODULES: Record<string, unknown> = {
   '@microteia/format': formatModule,
   '@microteia/theme': themeModule,
   '@microteia/settings': settingsModule,
+  '@microteia/functions': functionsModule,
 };

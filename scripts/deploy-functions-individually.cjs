@@ -26,6 +26,8 @@ const ALL_FUNCTIONS = [
   'checkNicknameAvailability',
   'claimNickname',
   'exchangeGmailCode',
+  'listGmailConnections',
+  'revokeGmailConnection',
   'addTenantMember',
   'removeTenantMember',
   'onUserCreated',

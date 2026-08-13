@@ -166,7 +166,9 @@ interface GmailConnection {
 }
 ```
 
-Coleção Firestore: `gmailConnections/{id}` (raiz)
+Coleção Firestore: `gmailConnections/{id}` (raiz). **Fechada para o cliente** — ver "Fluxo OAuth do
+Gmail" abaixo: a tela que a administra é da extensão `com.microteia.push`, e fala com ela por
+callables.
 
 **Motivação da estrutura:**
 Quando o Gmail envia notificação Pub/Sub com `{ emailAddress, historyId }`, a Cloud Function precisa descobrir **qual(is) tenant(s)** possui esse email. Com a coleção no nível raiz, basta fazer:
@@ -210,28 +212,31 @@ O Microteia implementa o **Authorization Code Flow** do Google OAuth para obter 
 
 **Solução: `initCodeClient` + Cloud Function**
 
-1. **Frontend** (`initCodeClient`):
-   - Abre popup OAuth do Google
-   - Recebe um **código de autorização** (`response.code`)
-   - Envia código para Cloud Function `exchangeGmailCode`
+1. **Tela da extensão** (`initCodeClient`, na view `push-settings` de `com.microteia.push`):
+   - Carrega o script do Google **sob demanda** (não está mais no `index.html`)
+   - Abre o popup OAuth e recebe um **código de autorização** (`response.code`)
+   - Envia o código para a callable `exchangeGmailCode`, com o `tenantId`
 
-2. **Backend** (Cloud Function):
-   - Recebe código do frontend
-   - Usa **Client Secret** (seguro no backend) para trocar código por tokens
-   - Retorna `{ access_token, refresh_token, expires_in, email, scopes }`
-   - **Client Secret nunca exposto ao frontend**
+2. **Backend** (`exchangeGmailCode` → `ExchangeGmailCodeUseCase`), que faz a autorização INTEIRA:
+   - Confere que quem pediu é **admin do tenant** (papel lido do documento de membro)
+   - Usa o **Client Secret** (seguro no backend) para trocar o código por tokens
+   - Registra o `watch` da caixa (`GmailWatchService`) e obtém `historyId`/`expiration`
+   - **Grava** a conexão e o token (`saveConnection`, upsert por `tenantId + email`)
+   - Devolve à tela apenas a conexão: `{ id, email, authorizedByName, authorizedAt, expiration }`
 
-3. **Frontend salva tokens**:
-   - Grava em `gmailConnections/{id}/tokens/current`
-   - Security Rules: `allow write: if isTenantAdmin(tenantId)` (primeira gravação)
-   - Security Rules: `allow read: if false` (nunca lê de volta)
+3. **O navegador nunca vê credencial.** Nem o Client Secret, nem o `refresh_token`: a partir daqui,
+   `gmailConnections` é `allow read, write: if false` nas regras — listar e revogar também são
+   callables (`listGmailConnections`, `revokeGmailConnection`), com a mesma conferência de papel e
+   de **dono** (o id da conexão precisa pertencer ao tenant que pergunta).
 
 4. **Cloud Functions renovam tokens**:
    - Leem tokens usando Admin SDK (ignora Security Rules)
    - Quando `access_token` expira, usam `refresh_token` para obter novo
    - Atualizam subcoleção `tokens/current` automaticamente
 
-**Configuração necessária:**
+**Configuração necessária** — só no backend. O `VITE_GOOGLE_CLIENT_ID` deixou de existir: o
+`clientId` (que é público) volta na resposta de `listGmailConnections`, junto com o escopo pedido,
+para que a tela não guarde configuração de Google em lugar nenhum.
 
 ```bash
 # Firebase Functions (não commitar!)
@@ -239,21 +244,18 @@ firebase functions:config:set \
   google.client_id="..." \
   google.client_secret="..." \
   google.redirect_uri="postmessage"
-
-# Frontend (.env)
-VITE_GOOGLE_CLIENT_ID=...
 ```
 
 **Segurança:**
-- ✅ `refresh_token` **sempre** retornado (Authorization Code Flow)
+- ✅ `refresh_token` **sempre** retornado (Authorization Code Flow) — e só ao servidor
 - ✅ Client Secret protegido no backend
-- ✅ Tokens nunca trafegam de volta ao frontend após salvos
+- ✅ Nenhum token trafega para o frontend, nem na autorização
 - ✅ Cloud Functions gerenciam renovação sem interação do usuário
-- ✅ Subcoleções `tokens/` isoladas (não retornam com `gmailConnections`)
+- ✅ `gmailConnections` e `tokens/` fechados para o cliente (só Admin SDK)
 
-**Prevenção de duplicatas:**
-- Ao autorizar email já existente, atualiza tokens da conexão existente (não cria duplicata)
-- Lógica de deduplicação no frontend antes de chamar `createGmailConnectionUC` vs `updateGmailTokenUC`
+**Prevenção de duplicatas:** `saveConnection` procura a conexão por `tenantId + email` antes de
+criar. Reautorizar a mesma conta atualiza a conexão e o token existentes — a deduplicação é do
+servidor, e não mais do frontend.
 ### Entidade Tenant
 
 ```typescript
@@ -1077,9 +1079,10 @@ A localização do Firestore precisa bater com a região das functions — gatil
 funcionam entre regiões diferentes.
 
 Regras, índices e código são os mesmos arquivos versionados dos dois lados — só o projeto de
-destino muda. O que **não** é replicado: dados, usuários e as credenciais OAuth do Google (o
-`VITE_GOOGLE_CLIENT_ID` e o `GOOGLE_CLIENT_SECRET` precisam ser criados no Console do Google Cloud
-do projeto de dev; usar os de produção faria o desenvolvimento ler caixas de e-mail reais).
+destino muda. O que **não** é replicado: dados, usuários e as credenciais OAuth do Google
+(`GOOGLE_CLIENT_ID` e `GOOGLE_CLIENT_SECRET`, parâmetros das functions, precisam ser criados no
+Console do Google Cloud do projeto de dev; usar os de produção faria o desenvolvimento ler caixas
+de e-mail reais).
 
 ### Checklist ao Criar Cloud Function
 
@@ -2280,6 +2283,55 @@ para o processo** e o aviso "Processo não cadastrado" ficaram. (4) `pushes` sai
 curinga de tela, com `writeRoles: ['admin', 'lawyer']` declarado. Onde antes um membro só podia
 alterar `status`, agora admin e advogado gravam qualquer campo — que é o que permite uma extensão
 acrescentar um campo próprio ao push.
+
+### A CONFIGURAÇÃO do Push sai do kernel — e o navegador deixa de guardar credencial
+
+A tela saiu com a migração acima, mas a **aba "Push"** das Configurações do Escritório ficou: um
+quarto botão na tela de Escritório que só existia para uma extensão — e, com ela, `GmailConnection`,
+`GmailToken`, o repositório, três use cases, a entrada no `DIContainer`, dois campos no `Tenant` e o
+script do Google no `index.html`. Tudo isso saiu.
+
+**O que era uma aba virou três declarações**, todas de `com.microteia.push`:
+
+| O que | Como | Onde aparece |
+|---|---|---|
+| Remetentes e assuntos permitidos | `settingsSection` com duas propriedades `stringList` | Configurações → Pushes do Tribunal |
+| Contas Gmail autorizadas | `ui.page` + view `push-settings` | Botão "Recebimento" no alto da tela de Pushes, e ⌘K |
+| Abrir a tela | comando do `startup`, com `ctx.tenantRole === 'admin'` | ⌘K |
+
+**Por que os dois filtros foram para Configurações e as contas não.** Remetente e assunto são DADO:
+uma lista de textos que a tela genérica de Configurações já sabe editar, guardar nos dois escopos e
+exportar em JSON. Autorizar uma conta não é dado — é um GESTO entre o navegador, o Google e o nosso
+servidor, e não há declaração que o expresse. Cada um foi para o lugar do seu tipo, em vez de uma
+tela nova reunir os dois só porque antes moravam na mesma aba.
+
+**A ingestão lê as duas listas do lugar novo, e cai no antigo quando ele é o que existe**
+(`domain/services/pushIngestionFilters.ts`, puro e testado): `push.allowedSenders` e
+`push.allowedSubjects` no documento `tenants/{tid}/settings/tenant`; na ausência da CHAVE, os campos
+`allowedSenders`/`allowedSubjects` do escritório. Escritório que nunca abriu a tela nova filtra
+exatamente como filtrava — não houve migração de dados. Lista gravada **vazia** não cai para o campo
+antigo: apagar todos os remetentes é uma escolha, não a ausência dela.
+
+**As credenciais deixaram o navegador.** Antes, `exchangeGmailCode` devolvia `access_token` e
+`refresh_token` ao frontend, que os gravava em `gmailConnections/{id}/tokens/current`. Agora a
+callable faz a autorização inteira — troca o código, registra o `watch` e grava conexão e token — e
+devolve só a conexão. Com isso, `gmailConnections` passou a `allow read, write: if false`: listar e
+revogar viraram `listGmailConnections` e `revokeGmailConnection`, que conferem papel de admin **e**
+posse da conexão pelo tenant que pergunta. O layout no Firestore não mudou em nada — a ingestão e a
+renovação de watches continuam lendo os mesmos documentos.
+
+**A ponte curada ganhou um módulo, e ele é genérico:** `@microteia/functions` com
+`useCallable(nome)` — uma função do servidor, pela qual a extensão faz o que só o backend pode fazer.
+O kernel não conhece nenhuma função em particular, e quem decide o que a chamada pode fazer é a
+própria função, do lado de lá. Não é fronteira de segurança (código de extensão já tem `fetch` ao
+alcance — ver "Fronteira de confiança do código de extensão"); é ergonomia, tipo e um lugar único
+para auditar. `ExtensionViewer` ganhou `tenantId` pelo mesmo motivo: uma callable recebe o escritório
+como argumento.
+
+**O script do Google entra sob demanda.** `https://accounts.google.com/gsi/client` saiu do
+`index.html` — onde era baixado por todo usuário, de todo escritório, instalasse ou não a extensão —
+e é carregado pela própria tela de recebimento, na primeira vez que ela abre. O `VITE_GOOGLE_CLIENT_ID`
+foi eliminado: o `clientId` (público) volta na resposta de `listGmailConnections`, junto com o escopo.
 
 ### Notícias sai do kernel — e o dado deixa de ser só do registro
 
@@ -3518,10 +3570,18 @@ vazia por definição.
 | `ui.widget` | `surface`, `key`, `title`, `defaultEnabled`, `defaultSpan`, `order`, `requiredRole` | `code` (interno/extensão confiável) ou `widget` (Widget DSL) |
 
 **O contrato é dado puro** (`domain/schema/settings.ts`, testado): `SettingsProperty` declara
-`type` (`boolean`, `number`, `text`, `select`, `json`, `widgets`, `contributions`), `default` e os `scopes` que
+`type` (`boolean`, `number`, `text`, `select`, `stringList`, `json`, `widgets`, `contributions`), `default` e os `scopes` que
 aceita. Por ser serializável, a mesma declaração viaja no `.json` de uma extensão até um escritório
 que não roda este bundle — e é o que torna a edição em JSON tão legítima quanto a visual: as duas
 escrevem no mesmo lugar, validadas pela mesma função.
+
+**`stringList` é a lista de textos** — o `TagInput` do kernel como editor declarado. Existe porque a
+alternativa, para uma extensão que precisa de "vários endereços", era `json` (um campo onde o
+usuário digita colchetes) ou uma tela própria. `itemPlaceholder` dá o exemplo dentro do campo e
+`itemPattern` valida cada item por expressão regular **em texto**, para a declaração continuar
+serializável; regex quebrada vira "sem padrão", nunca exceção — declaração de extensão não pode
+derrubar a tela de Configurações. Primeira consumidora: os remetentes e assuntos permitidos da
+extensão de Pushes.
 
 **Dois escopos, uma resolução:** `usuário → escritório → padrão declarado`. `resolveSetting` pula o
 escopo que a propriedade não aceita (resíduo no banco de uma declaração desligada não volta a valer)

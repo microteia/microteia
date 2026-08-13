@@ -11,6 +11,7 @@ export { getUserInfo } from './infrastructure/handlers/getUserInfo';
 export { checkNicknameAvailability } from './infrastructure/handlers/checkNicknameAvailability';
 export { claimNickname } from './infrastructure/handlers/claimNickname';
 export { exchangeGmailCode } from './infrastructure/handlers/exchangeGmailCode';
+export { listGmailConnections, revokeGmailConnection } from './infrastructure/handlers/gmailConnections';
 export { addTenantMember } from './infrastructure/handlers/addTenantMember';
 export { removeTenantMember } from './infrastructure/handlers/removeTenantMember';
 export { onUserCreated } from './infrastructure/handlers/onUserCreated';

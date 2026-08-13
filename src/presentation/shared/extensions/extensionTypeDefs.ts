@@ -718,6 +718,8 @@ const DATA_MODULE_DEFS = `declare module '@microteia/data' {
     role: string;
     /** Papel no escritório corrente: 'admin', 'lawyer', 'secretary' ou 'user'. */
     tenantRole: string;
+    /** O escritório corrente — o que uma função do servidor recebe para saber onde agir. */
+    tenantId: string;
   }
   export function useCurrentUser(): ExtensionViewer;
 
@@ -973,6 +975,18 @@ const SETTINGS_MODULE_DEFS = `declare module '@microteia/settings' {
   export function useSettingValue(key: string): unknown;
 }`;
 
+const FUNCTIONS_MODULE_DEFS = `declare module '@microteia/functions' {
+  /**
+   * Uma função do servidor, pelo nome. Devolve a chamada já pronta: 'callable(payload)' resolve
+   * com o que a função retornou, ou rejeita com o erro que ela lançou.
+   *
+   * Quem valida autenticação e papel é a própria função, do lado do servidor.
+   */
+  export function useCallable<Request = any, Response = any>(
+    name: string,
+  ): (payload?: Request) => Promise<Response>;
+}`;
+
 /**
  * Gera a string completa de definições TypeScript para os módulos disponíveis em extensões.
  * Usada como `extraLib` do Monaco Editor no PluginAuthor para prover IntelliSense.
@@ -987,4 +1001,5 @@ export const buildExtensionTypeDefs = (): string => [
   FORMAT_MODULE_DEFS,
   THEME_MODULE_DEFS,
   SETTINGS_MODULE_DEFS,
+  FUNCTIONS_MODULE_DEFS,
 ].join('\n\n');

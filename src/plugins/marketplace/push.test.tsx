@@ -6,7 +6,8 @@ import { installedPluginRecords } from '../../domain/usecases/plugins/installedP
 import { materializePluginScreens } from '../../domain/usecases/plugins/screenModule';
 import { evaluateExtensionView } from '../../presentation/shared/extensions/evaluateExtensionView';
 import { navMetadataOf } from '../../presentation/shared/resolveUiContributions';
-import { UI_NAV_POINT, UI_PAGE_POINT } from '../../presentation/shared/uiExtensionPoints';
+import { UI_NAV_POINT, UI_PAGE_POINT, UI_SETTINGS_POINT } from '../../presentation/shared/uiExtensionPoints';
+import type { SettingsSection } from '../../domain/schema/settings';
 import { RESERVED_COLLECTIONS } from '../../domain/schema/screenEntity';
 import { resolveWritableTable } from '../../domain/schema/mutationSpec';
 import { createSchemaContext } from '../../domain/schema/pathResolver';
@@ -50,6 +51,44 @@ describe('pushPlugin', () => {
       .query(UI_PAGE_POINT)
       .map((c) => (c.impl as { key?: string } | undefined)?.key);
     expect(pageKeys).toContain('pushes');
+    expect(pageKeys).toContain('push-settings');
+  });
+
+  /**
+   * A aba "Push" das Configurações do Escritório só servia a esta extensão, e por isso saiu do
+   * kernel junto com a tela. O que a substitui são duas declarações: a tela de recebimento (o gesto
+   * de autorizar uma conta, que não é dado) e a seção de Configurações (as duas listas de filtro,
+   * que são).
+   */
+  it('traz o recebimento como tela própria, sem item de menu', () => {
+    const contributions = pushPlugin.manifest.contributes ?? [];
+    const navKeys = contributions
+      .filter((contribution) => contribution.point === UI_NAV_POINT)
+      .map((contribution) => contribution.metadata.key);
+
+    expect(navKeys).toEqual(['pushes']);
+    expect((pushPlugin.views ?? []).map((view) => view.key)).toContain('push-settings');
+  });
+
+  /**
+   * As chaves são CONTRATO com a ingestão: é por elas que o `gmailPush` lê os filtros no servidor.
+   * O escopo é só o do escritório — não existe ingestão "por usuário" que honrasse a preferência
+   * pessoal.
+   */
+  it('declara os filtros da ingestão como configuração do escritório', () => {
+    const section = (pushPlugin.manifest.contributes ?? [])
+      .find((contribution) => contribution.point === UI_SETTINGS_POINT)
+      ?.metadata as unknown as SettingsSection | undefined;
+
+    expect(section?.key).toBe('push');
+
+    const byKey = new Map((section?.properties ?? []).map((property) => [property.key, property]));
+    expect([...byKey.keys()]).toEqual(['push.allowedSenders', 'push.allowedSubjects']);
+    for (const property of byKey.values()) {
+      expect(property.type).toBe('stringList');
+      expect(property.scopes).toEqual(['tenant']);
+      expect(property.default).toEqual([]);
+    }
   });
 
   /**

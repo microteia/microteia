@@ -16,6 +16,7 @@ import { FirebaseNicknameRepository } from '../../data/repositories/FirebaseNick
 import { FirebaseGmailConnectionRepository } from '../../data/repositories/FirebaseGmailConnectionRepository';
 import { FirebasePushRepository } from '../../data/repositories/FirebasePushRepository';
 import { FirebaseTenantRepository } from '../../data/repositories/FirebaseTenantRepository';
+import { FirebaseTenantSettingsRepository } from '../../data/repositories/FirebaseTenantSettingsRepository';
 import { GoogleAuthService } from '../../data/services/GoogleAuthService';
 import { GmailWatchService } from '../../data/services/GmailWatchService';
 import { GmailService } from '../../data/services/GmailService';
@@ -27,6 +28,8 @@ import { makeGetUserInfoUseCase } from '../../domain/usecases/GetUserInfoUseCase
 import { makeCheckNicknameAvailabilityUseCase } from '../../domain/usecases/CheckNicknameAvailabilityUseCase';
 import { makeClaimNicknameUseCase } from '../../domain/usecases/ClaimNicknameUseCase';
 import { makeExchangeGmailCodeUseCase } from '../../domain/usecases/ExchangeGmailCodeUseCase';
+import { makeGetGmailConnectionsUseCase } from '../../domain/usecases/GetGmailConnectionsUseCase';
+import { makeRevokeGmailConnectionUseCase } from '../../domain/usecases/RevokeGmailConnectionUseCase';
 import { makeCreatePushUseCase } from '../../domain/usecases/CreatePushUseCase';
 import { makeUpdatePushUseCase } from '../../domain/usecases/UpdatePushUseCase';
 import { makeCreateOrUpdatePushUseCase } from '../../domain/usecases/CreateOrUpdatePushUseCase';
@@ -40,6 +43,8 @@ import type { GetUserInfoUseCase } from '../../domain/usecases/GetUserInfoUseCas
 import type { CheckNicknameAvailabilityUseCase } from '../../domain/usecases/CheckNicknameAvailabilityUseCase';
 import type { ClaimNicknameUseCase } from '../../domain/usecases/ClaimNicknameUseCase';
 import type { ExchangeGmailCodeUseCase } from '../../domain/usecases/ExchangeGmailCodeUseCase';
+import type { GetGmailConnectionsUseCase } from '../../domain/usecases/GetGmailConnectionsUseCase';
+import type { RevokeGmailConnectionUseCase } from '../../domain/usecases/RevokeGmailConnectionUseCase';
 import type { CreatePushUseCase } from '../../domain/usecases/CreatePushUseCase';
 import type { UpdatePushUseCase } from '../../domain/usecases/UpdatePushUseCase';
 import type { CreateOrUpdatePushUseCase } from '../../domain/usecases/CreateOrUpdatePushUseCase';
@@ -51,6 +56,7 @@ import type { IAIConnectionRepository } from '../../domain/repositories/IAIConne
 import type { IGmailConnectionRepository } from '../../domain/repositories/IGmailConnectionRepository';
 import type { IPushRepository } from '../../domain/repositories/IPushRepository';
 import type { ITenantRepository } from '../../domain/repositories/ITenantRepository';
+import type { ITenantSettingsRepository } from '../../domain/repositories/ITenantSettingsRepository';
 import type { ITenantMemberRepository } from '../../domain/repositories/ITenantMemberRepository';
 import type { IUserRepository } from '../../domain/repositories/IUserRepository';
 import type { IGmailService } from '../../data/services/GmailService';
@@ -84,6 +90,7 @@ class DIContainer {
   private gmailConnectionRepo?: IGmailConnectionRepository;
   private pushRepo?: IPushRepository;
   private tenantRepo?: ITenantRepository;
+  private tenantSettingsRepo?: ITenantSettingsRepository;
   private gmailService?: IGmailService;
   private emailParserService?: IEmailParserService;
   private googleAuthService?: IGmailAuthService;
@@ -100,6 +107,8 @@ class DIContainer {
   private checkNicknameAvailabilityUC?: CheckNicknameAvailabilityUseCase;
   private claimNicknameUC?: ClaimNicknameUseCase;
   private exchangeGmailCodeUC?: ExchangeGmailCodeUseCase;
+  private getGmailConnectionsUC?: GetGmailConnectionsUseCase;
+  private revokeGmailConnectionUC?: RevokeGmailConnectionUseCase;
   private createPushUC?: CreatePushUseCase;
   private updatePushUC?: UpdatePushUseCase;
   private createOrUpdatePushUC?: CreateOrUpdatePushUseCase;
@@ -193,13 +202,36 @@ class DIContainer {
 
   getExchangeGmailCodeUseCase(): ExchangeGmailCodeUseCase {
     if (!this.exchangeGmailCodeUC) {
-      const db = getDb();
       const gmailAuthService = new GoogleAuthService();
       const gmailWatchService = new GmailWatchService();
-      const tenantMemberRepo = new FirebaseTenantMemberRepository(db);
-      this.exchangeGmailCodeUC = makeExchangeGmailCodeUseCase(gmailAuthService, gmailWatchService, tenantMemberRepo);
+      this.exchangeGmailCodeUC = makeExchangeGmailCodeUseCase(
+        gmailAuthService,
+        gmailWatchService,
+        this.getTenantMemberRepository(),
+        this.getGmailConnectionRepository(),
+      );
     }
     return this.exchangeGmailCodeUC;
+  }
+
+  getGetGmailConnectionsUseCase(): GetGmailConnectionsUseCase {
+    if (!this.getGmailConnectionsUC) {
+      this.getGmailConnectionsUC = makeGetGmailConnectionsUseCase(
+        this.getGmailConnectionRepository(),
+        this.getTenantMemberRepository(),
+      );
+    }
+    return this.getGmailConnectionsUC;
+  }
+
+  getRevokeGmailConnectionUseCase(): RevokeGmailConnectionUseCase {
+    if (!this.revokeGmailConnectionUC) {
+      this.revokeGmailConnectionUC = makeRevokeGmailConnectionUseCase(
+        this.getGmailConnectionRepository(),
+        this.getTenantMemberRepository(),
+      );
+    }
+    return this.revokeGmailConnectionUC;
   }
 
   getGmailConnectionRepository(): IGmailConnectionRepository {
@@ -275,6 +307,13 @@ class DIContainer {
       this.tenantRepo = new FirebaseTenantRepository();
     }
     return this.tenantRepo;
+  }
+
+  getTenantSettingsRepository(): ITenantSettingsRepository {
+    if (!this.tenantSettingsRepo) {
+      this.tenantSettingsRepo = new FirebaseTenantSettingsRepository();
+    }
+    return this.tenantSettingsRepo;
   }
 
   getTenantMemberRepository(): ITenantMemberRepository {

@@ -5,7 +5,6 @@ import { FirebaseAuthRepository } from '../../data/repositories/FirebaseAuthRepo
 import { FirebaseUserRepository } from '../../data/repositories/FirebaseUserRepository';
 import { FirebaseUserProfileRepository } from '../../data/repositories/FirebaseUserProfileRepository';
 import { FirebaseAIConnectionRepository } from '../../data/repositories/FirebaseAIConnectionRepository';
-import { FirebaseGmailConnectionRepository } from '../../data/repositories/FirebaseGmailConnectionRepository';
 import { FirebaseSavedFilterRepository } from '../../data/repositories/FirebaseSavedFilterRepository';
 import { FirebaseTenantRepository } from '../../data/repositories/FirebaseTenantRepository';
 import { FirebaseTextAnnotationRepository } from '../../data/repositories/FirebaseTextAnnotationRepository';
@@ -44,7 +43,6 @@ export const DIProvider: React.FC<{ children: React.ReactNode }> = ({ children }
     userRepository:           new FirebaseUserRepository(),
     userProfileRepository:    new FirebaseUserProfileRepository(),
     aiConnectionRepository:   new FirebaseAIConnectionRepository(),
-    gmailConnectionRepository: new FirebaseGmailConnectionRepository(),
     savedFilterRepository:    new FirebaseSavedFilterRepository(),
     settingsRepository:       new FirebaseSettingsRepository(),
     tenantRepository:         new FirebaseTenantRepository(),

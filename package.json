@@ -1,7 +1,7 @@
 {
   "name": "microteia",
   "private": true,
-  "version": "7.3.0",
+  "version": "7.4.0",
   "type": "module",
   "scripts": {
     "predev": "npm run sync-schemas",
@@ -29,7 +29,7 @@
     "deploy:audit": "npm run build:functions && firebase deploy --only functions:auditFlatEntityChange,functions:auditNestedEntityChange,functions:auditTenantDeleted,functions:backupDeletedAuditLog --project ${TARGET:-dev}",
     "deploy:auth": "npm run build:functions && firebase deploy --only functions:getUserInfo,functions:checkNicknameAvailability,functions:claimNickname,functions:onUserCreated --project ${TARGET:-dev}",
     "deploy:tenant": "npm run build:functions && firebase deploy --only functions:addTenantMember,functions:removeTenantMember --project ${TARGET:-dev}",
-    "deploy:gmail": "npm run build:functions && firebase deploy --only functions:gmailPush,functions:renewGmailWatches,functions:exchangeGmailCode --project ${TARGET:-dev}",
+    "deploy:gmail": "npm run build:functions && firebase deploy --only functions:gmailPush,functions:renewGmailWatches,functions:exchangeGmailCode,functions:listGmailConnections,functions:revokeGmailConnection --project ${TARGET:-dev}",
     "deploy:util": "npm run build:functions && firebase deploy --only functions:callAIProxy,functions:logClientError --project ${TARGET:-dev}",
     "deploy:functions": "npm run build:functions && firebase deploy --only functions --project ${TARGET:-dev}",
     "deploy:functions:individual": "node scripts/deploy-functions-individually.cjs"

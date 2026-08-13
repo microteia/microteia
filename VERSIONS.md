@@ -11,6 +11,13 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [7.4.0] — 2026-08-13
+
+- **A configuração das intimações mudou de lugar, e agora pertence à extensão de Pushes.** A aba "Push" das Configurações do Escritório deixou de existir: as contas de e-mail monitoradas passam a ser administradas em **Recebimento**, botão no alto da tela "Pushes do Tribunal" (visível para o administrador) — ou pelo ⌘K, procurando por "recebimento", "gmail" ou "e-mail".
+- **Os remetentes e os assuntos permitidos agora ficam em Configurações → Pushes do Tribunal.** Continuam valendo exatamente como estavam: nada precisa ser digitado de novo. Ao alterá-los pela primeira vez no lugar novo, é a partir dali que a leitura da caixa passa a se guiar.
+- **A autorização da conta de e-mail ficou mais segura.** A permissão concedida ao Google passou a ser trocada e guardada inteiramente no servidor — nenhuma credencial da caixa de e-mail passa mais pelo navegador. Autorizar, reautorizar e revogar continuam do mesmo jeito, com um clique.
+- Quem não usa a extensão de Pushes deixa de ver essa configuração, e a tela de Escritório fica com o que é de todo escritório: dados, membros e conexão de IA.
+
 ## [7.3.0] — 2026-08-13
 
 - **Os lançamentos financeiros passaram a aparecer no Calendário.** Cada receita ou despesa aparece no dia em que vence — e, depois de paga, no dia do pagamento. O cartão mostra o valor com sinal (verde quando entra, roxo quando sai) e a pessoa do lançamento, e a agenda ganhou filtros por situação e por pessoa do Financeiro.

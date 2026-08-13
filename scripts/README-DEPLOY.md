@@ -93,41 +93,6 @@ Iniciando deploys individuais...
 ...
 ```
 
-## Lista de todas as functions
-
-O script deployará estas 30 functions (na ordem):
-
-1. callAIProxy
-2. copyPublicWorkflow
-3. detectWorkflows
-4. runWorkflow
-5. getUserInfo
-6. checkNicknameAvailability
-7. claimNickname
-8. exchangeGmailCode
-9. addTenantMember
-10. removeTenantMember
-11. onUserCreated
-12. gmailPush
-13. renewGmailWatches
-14. auditFlatEntityChange
-15. auditNestedEntityChange
-16. auditTenantDeleted
-17. auditNewsChange
-18. auditNewsCommentChange
-19. auditNewsTagChange
-20. backupDeletedAuditLog
-21. logClientError
-22. cascadeDeletePushInteractions
-23. onWorkflowEventCreated
-24. getWorkflowStepCatalog
-25. publishWorkflowEventOnEntityChange
-26. onNoteChange
-27. onDocumentChange
-28. syncPublicWorkflowOnWrite
-29. syncPublicWorkflowOnDelete
-30. getExpressionFunctions
-
 ## Tempo estimado
 
 Com delay de 30s entre deploys:

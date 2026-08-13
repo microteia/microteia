@@ -28,8 +28,6 @@ const mapTenant = (id: string, d: Record<string, unknown>): Tenant => ({
   phone: (d.phone as string | null) ?? null,
   address: (d.address as string | null) ?? null,
   logoURL: (d.logoURL as string | null) ?? null,
-  allowedSenders: (d.allowedSenders as string[] | undefined) ?? [],
-  allowedSubjects: (d.allowedSubjects as string[] | undefined) ?? [],
   plan: (d.plan as Tenant['plan'] | undefined) ?? 'solo',
   memberLimit: (d.memberLimit as number | null | undefined) ?? null,
   memberCount: (d.memberCount as number | undefined) ?? 0,

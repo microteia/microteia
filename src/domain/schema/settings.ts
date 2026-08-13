@@ -26,6 +26,7 @@ export type SettingsPropertyType =
   | 'number'
   | 'text'
   | 'select'
+  | 'stringList'
   | 'json'
   | 'widgets'
   | 'contributions';
@@ -47,6 +48,14 @@ export interface SettingsProperty {
   options?: SettingsPropertyOption[];
   min?: number;
   max?: number;
+  /** Texto de apoio dentro do campo de um `stringList`. */
+  itemPlaceholder?: string;
+  /**
+   * Expressão regular que cada item de um `stringList` precisa satisfazer — em texto, para a
+   * declaração continuar serializável. Padrão inválido é ignorado: uma extensão com regex quebrada
+   * não pode impedir a configuração de ser editada.
+   */
+  itemPattern?: string;
   /** Escopos que aceitam valor. Sem escopo de usuário, a preferência é só do escritório. */
   scopes: SettingsScope[];
   /** Superfície cujos widgets esta propriedade ordena. Só faz sentido em `type: 'widgets'`. */
@@ -128,6 +137,19 @@ const isWidgetLayoutEntry = (item: unknown): boolean => {
   );
 };
 
+/**
+ * O padrão de um `stringList`, compilado com tolerância: regex inválida vira "sem padrão", e não
+ * exceção — a declaração vem de uma extensão, e uma expressão quebrada não pode derrubar a tela.
+ */
+export const stringListPattern = (property: SettingsProperty): RegExp | null => {
+  if (!property.itemPattern) return null;
+  try {
+    return new RegExp(property.itemPattern);
+  } catch {
+    return null;
+  }
+};
+
 const isContributionLayoutEntry = (item: unknown): boolean => {
   if (typeof item !== 'object' || item === null) return false;
   const entry = item as Record<string, unknown>;
@@ -155,6 +177,17 @@ export const validateSettingValue = (property: SettingsProperty, value: unknown)
       if (typeof value !== 'string') return 'Informe uma das opções.';
       const allowed = (property.options ?? []).map((option) => option.value);
       return allowed.includes(value) ? null : 'Informe uma das opções.';
+    }
+    case 'stringList': {
+      if (!Array.isArray(value)) return 'Informe uma lista de textos.';
+      if (!value.every((item) => typeof item === 'string' && item.trim() !== '')) {
+        return 'Cada item precisa ser um texto não vazio.';
+      }
+      const pattern = stringListPattern(property);
+      if (pattern && !value.every((item) => pattern.test(item as string))) {
+        return 'Há item fora do formato esperado.';
+      }
+      return null;
     }
     case 'widgets': {
       if (!Array.isArray(value)) return 'Informe uma lista de widgets.';

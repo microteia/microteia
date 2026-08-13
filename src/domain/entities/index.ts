@@ -70,29 +70,6 @@ export interface AIConnection {
   createdAt: Date;
 }
 
-// ─── Gmail Connections ────────────────────────────────────────────────────────
-
-export interface GmailConnection {
-  id: string;
-  tenantId: string;
-  email: string;
-  scopes: string[];
-  authorizedBy: string;
-  authorizedByName: string;
-  authorizedAt: Date;
-  historyId?: string;
-  expiration?: string;
-}
-
-export interface GmailToken {
-  id: string;
-  connectionId: string;
-  tenantId: string;
-  accessToken: string;
-  refreshToken: string;
-  expiresAt: Date;
-}
-
 // ─── Tenant (Escritório) ──────────────────────────────────────────────────────
 
 export type TenantRole = 'admin' | 'lawyer' | 'secretary' | 'user';
@@ -124,8 +101,6 @@ export interface Tenant {
   phone?: string | null;
   address?: string | null;
   logoURL?: string | null;
-  allowedSenders?: string[];
-  allowedSubjects?: string[];
   plan: TenantPlan;
   memberLimit: number | null;
   memberCount: number;

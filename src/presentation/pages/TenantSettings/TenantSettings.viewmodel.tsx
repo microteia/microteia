@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
 import { useTenant } from '../../../stores/useTenant';
 
-export type TenantSettingsTab = 'office' | 'members' | 'ai' | 'push';
+export type TenantSettingsTab = 'office' | 'members' | 'ai';
 
 export interface TenantSettingsViewModel {
   isAdmin: boolean;

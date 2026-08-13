@@ -78,6 +78,8 @@ Funções para integração com Gmail (push notifications, renovação de watche
 - `gmailPush`
 - `renewGmailWatches`
 - `exchangeGmailCode`
+- `listGmailConnections`
+- `revokeGmailConnection`
 
 **Deploy:**
 ```bash

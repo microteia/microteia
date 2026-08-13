@@ -89,23 +89,20 @@ service cloud.firestore {
         && resource.data.userId == request.auth.uid;
     }
 
-    // ─── Conexões Gmail (Push) — nível raiz ──────────────────────────────────
+    // ─── Conexões Gmail (Push) — nível raiz, SÓ do servidor ──────────────────
     // Armazenadas fora de tenants/{tenantId} para permitir query por email
     // na Cloud Function sem precisar varrer todos os tenants.
-    // SOMENTE admin do tenant dono pode ler/escrever.
+    //
+    // NENHUM acesso pelo cliente: autorizar, listar e revogar são callables
+    // (exchangeGmailCode, listGmailConnections, revokeGmailConnection), que conferem
+    // o papel de admin do tenant DONO e escrevem pelo Admin SDK. O navegador deixou
+    // de gravar o refresh_token — ele nem chega até lá.
 
     match /gmailConnections/{connectionId} {
-      allow read, update, delete: if request.auth != null
-        && isTenantAdmin(resource.data.tenantId);
-      allow create: if request.auth != null
-        && isTenantAdmin(request.resource.data.tenantId);
-      
-      // Tokens OAuth: admin pode ESCREVER (autorização inicial), mas NUNCA LER
-      // Cloud Functions (Admin SDK) leem/renovam tokens, ignorando estas regras
+      allow read, write: if false;
+
       match /tokens/{tokenId} {
-        allow read: if false;                                // Frontend NUNCA lê tokens
-        allow write: if request.auth != null                 // Admin do tenant dono pode salvar
-          && isTenantAdmin(get(/databases/$(database)/documents/gmailConnections/$(connectionId)).data.tenantId);
+        allow read, write: if false;
       }
     }
 

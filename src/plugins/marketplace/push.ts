@@ -8,7 +8,7 @@ import type {
 } from '../../domain/entities/MarketplacePlugin';
 import type { CustomFieldOption } from '../../domain/entities';
 import type { WorkflowStep } from '../../domain/entities/Workflow';
-import { nav, page } from '../contributionBuilders';
+import { nav, page, settingsSection } from '../contributionBuilders';
 
 /**
  * **Pushes do Tribunal** — os e-mails de intimação que o escritório recebe, declarados por extensão.
@@ -24,6 +24,17 @@ import { nav, page } from '../contributionBuilders';
  * valendo.
  */
 const SOURCE_ID = 'microteia:push';
+
+/**
+ * As duas listas que decidem QUAIS e-mails viram push. Eram campos do escritório — o kernel sabendo
+ * o que é remetente de tribunal —, e hoje são configuração declarada por esta extensão: quem instala
+ * a caixa de intimações ganha as duas listas; quem a remove, deixa de tê-las.
+ *
+ * A chave leva o namespace da seção (`push.`), como toda propriedade, e é por ela que a ingestão
+ * as lê no servidor. As chaves são contrato com o backend: renomeá-las é mudar as duas pontas.
+ */
+const ALLOWED_SENDERS_KEY = 'push.allowedSenders';
+const ALLOWED_SUBJECTS_KEY = 'push.allowedSubjects';
 
 const MENSAGEM = 'Mensagem';
 const PROCESSO = 'Processo';
@@ -318,7 +329,7 @@ const PUSHES_SOURCE = `
 import { useMemo, useState } from 'react';
 import { styled, useTheme } from 'styled-components';
 import { Button, Dropdown, EntityListModals, EntityListView, HtmlView, Icon, InfoBanner, cardActionIcon } from '@microteia/ui';
-import { useEntityList, useCollection, useLookup, useOpenRecord } from '@microteia/data';
+import { useEntityList, useCollection, useCurrentUser, useLookup, useOpenRecord, useWorkspace } from '@microteia/data';
 import { getConfigColor } from '@microteia/theme';
 
 const SOURCE_ID = 'microteia:push';
@@ -464,6 +475,12 @@ const HeaderCount = styled.span\`
   font-weight: 700;
 \`;
 
+const HeaderTools = styled.div\`
+  display: flex;
+  align-items: center;
+  gap: \${({ theme }) => theme.spacing.sm};
+\`;
+
 const dateOf = (value) => {
   if (!value) return null;
   const d = value instanceof Date ? value : new Date(String(value));
@@ -517,6 +534,8 @@ export default function PushesView() {
   const cases = useCollection('cases');
   const statusOptions = useLookup('pushStatuses');
   const openRecord = useOpenRecord();
+  const viewer = useCurrentUser();
+  const { openTab } = useWorkspace();
   const [expanded, setExpanded] = useState({});
 
   const caseIdByNumber = useMemo(() => {
@@ -636,7 +655,17 @@ export default function PushesView() {
       onNew={() => {}}
       newTitle=""
       canCreate={false}
-      headerExtra={pendingCount > 0 ? <HeaderCount>{pendingCount}</HeaderCount> : null}
+      headerExtra={(
+        <HeaderTools>
+          {pendingCount > 0 ? <HeaderCount>{pendingCount}</HeaderCount> : null}
+          {viewer.tenantRole === 'admin' ? (
+            <Button size="sm" variant="ghost" title="Configurar recebimento" onClick={() => openTab('push-settings')}>
+              <Icon name="settings" size={16} />
+              Recebimento
+            </Button>
+          ) : null}
+        </HeaderTools>
+      )}
       filterDefs={list.filterDefs}
       filterTokens={list.filterTokens}
       onFilterChange={list.setFilterTokens}
@@ -656,6 +685,377 @@ export default function PushesView() {
 `;
 
 /**
+ * **Recebimento de Pushes** — a tela que era a aba "Push" das Configurações do Escritório.
+ *
+ * Ela saiu do kernel pelo mesmo motivo da listagem: só serve a esta extensão. O que ficou no lugar
+ * não é uma tela de configuração genérica — as duas listas de filtro viraram configuração declarada
+ * (`ui.settings`), editada na tela de Configurações como qualquer outra. Aqui fica o que NÃO é
+ * dado: o gesto de autorizar uma conta de e-mail no Google, que é uma conversa entre o navegador, o
+ * Google e o nosso servidor.
+ *
+ * Nenhuma credencial passa por esta tela. O navegador recebe um CÓDIGO do Google e o entrega a
+ * `exchangeGmailCode`; o servidor troca o código por tokens, registra a escuta da caixa e grava a
+ * conexão. A tela nunca vê `refresh_token`, e por isso `gmailConnections` deixou de ser legível
+ * pelo cliente: listar e revogar também são funções do servidor.
+ */
+const SETTINGS_SOURCE = `
+import { useCallback, useEffect, useState } from 'react';
+import { styled, useTheme } from 'styled-components';
+import { Button, ConfirmModal, Icon, InfoBanner, Spinner } from '@microteia/ui';
+import { useCurrentUser, useNotify, useWorkspace } from '@microteia/data';
+import { useSettingValue } from '@microteia/settings';
+import { useCallable } from '@microteia/functions';
+
+const GSI_SRC = 'https://accounts.google.com/gsi/client';
+
+const Page = styled.div\`
+  padding: \${({ theme }) => theme.spacing.xl};
+  height: 100%;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: \${({ theme }) => theme.spacing.xl};
+\`;
+
+const Header = styled.div\`
+  display: flex;
+  align-items: center;
+  gap: \${({ theme }) => theme.spacing.sm};
+\`;
+
+const Title = styled.h1\`
+  margin: 0;
+  font-size: \${({ theme }) => theme.fontSizes.xl};
+  color: \${({ theme }) => theme.colors.text};
+\`;
+
+const Section = styled.section\`
+  display: flex;
+  flex-direction: column;
+  gap: \${({ theme }) => theme.spacing.sm};
+\`;
+
+const SectionTitle = styled.h2\`
+  margin: 0;
+  font-size: \${({ theme }) => theme.fontSizes.md};
+  color: \${({ theme }) => theme.colors.text};
+\`;
+
+const SectionText = styled.p\`
+  margin: 0;
+  font-size: \${({ theme }) => theme.fontSizes.sm};
+  color: \${({ theme }) => theme.colors.textSecondary};
+\`;
+
+const Card = styled.div\`
+  display: flex;
+  align-items: center;
+  gap: \${({ theme }) => theme.spacing.md};
+  background: \${({ theme }) => theme.colors.surface};
+  border: 1px solid \${({ theme }) => theme.colors.border};
+  border-radius: \${({ theme }) => theme.borderRadius.lg};
+  padding: \${({ theme }) => theme.spacing.md};
+\`;
+
+const CardBody = styled.div\`
+  flex: 1;
+  min-width: 0;
+\`;
+
+const CardName = styled.div\`
+  font-size: \${({ theme }) => theme.fontSizes.sm};
+  font-weight: 600;
+  color: \${({ theme }) => theme.colors.text};
+\`;
+
+const CardMeta = styled.div\`
+  font-size: \${({ theme }) => theme.fontSizes.xs};
+  color: \${({ theme }) => theme.colors.textMuted};
+\`;
+
+const IconWrapper = styled.div\`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: \${({ theme }) => theme.borderRadius.md};
+  color: \${({ $color }) => $color};
+  background: \${({ $color }) => $color + '1a'};
+\`;
+
+const Empty = styled.div\`
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: \${({ theme }) => theme.spacing.sm};
+  padding: \${({ theme }) => theme.spacing.xl};
+  border: 1px dashed \${({ theme }) => theme.colors.border};
+  border-radius: \${({ theme }) => theme.borderRadius.lg};
+  color: \${({ theme }) => theme.colors.textMuted};
+  font-size: \${({ theme }) => theme.fontSizes.sm};
+\`;
+
+const Chips = styled.div\`
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+\`;
+
+const Chip = styled.span\`
+  padding: 2px 10px;
+  border-radius: \${({ theme }) => theme.borderRadius.full};
+  border: 1px solid \${({ theme }) => theme.colors.border};
+  background: \${({ theme }) => theme.colors.surface};
+  font-size: \${({ theme }) => theme.fontSizes.xs};
+  color: \${({ theme }) => theme.colors.textSecondary};
+\`;
+
+const Row = styled.div\`
+  display: flex;
+  align-items: center;
+  gap: \${({ theme }) => theme.spacing.sm};
+  flex-wrap: wrap;
+\`;
+
+const List = styled.div\`
+  display: flex;
+  flex-direction: column;
+  gap: \${({ theme }) => theme.spacing.sm};
+\`;
+
+/**
+ * O serviço de identidade do Google entra sob DEMANDA, e só aqui: quem nunca abre esta tela não
+ * baixa script de terceiro nenhum — o que antes acontecia para todo mundo, no HTML da aplicação.
+ */
+const loadGoogleIdentity = () => new Promise((resolve, reject) => {
+  const ready = () => (window.google && window.google.accounts ? window.google : null);
+  const found = ready();
+  if (found) return resolve(found);
+
+  const fail = () => reject(new Error('Não foi possível carregar o serviço de identidade do Google.'));
+  const done = () => { const google = ready(); return google ? resolve(google) : fail(); };
+
+  const existing = document.querySelector('script[src="' + GSI_SRC + '"]');
+  if (existing) {
+    existing.addEventListener('load', done);
+    existing.addEventListener('error', fail);
+    return;
+  }
+
+  const script = document.createElement('script');
+  script.src = GSI_SRC;
+  script.async = true;
+  script.defer = true;
+  script.addEventListener('load', done);
+  script.addEventListener('error', fail);
+  document.head.appendChild(script);
+});
+
+const stamp = (value) => {
+  const date = new Date(String(value));
+  return isNaN(date.getTime())
+    ? ''
+    : date.toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+};
+
+const asList = (value) => (Array.isArray(value) ? value.filter((item) => typeof item === 'string') : []);
+
+export default function PushSettingsView() {
+  const theme = useTheme();
+  const viewer = useCurrentUser();
+  const notify = useNotify();
+  const { openTab } = useWorkspace();
+  const listConnections = useCallable('listGmailConnections');
+  const exchangeCode = useCallable('exchangeGmailCode');
+  const revokeConnection = useCallable('revokeGmailConnection');
+
+  const senders = asList(useSettingValue('${ALLOWED_SENDERS_KEY}'));
+  const subjects = asList(useSettingValue('${ALLOWED_SUBJECTS_KEY}'));
+
+  const [setup, setSetup] = useState({ connections: [], clientId: '', scope: '' });
+  const [isLoading, setIsLoading] = useState(true);
+  const [isAuthorizing, setIsAuthorizing] = useState(false);
+  const [error, setError] = useState(null);
+  const [confirm, setConfirm] = useState({ open: false, id: '', email: '' });
+
+  const isAdmin = viewer.tenantRole === 'admin';
+
+  const load = useCallback(async () => {
+    // Quem não é admin não pergunta ao servidor — e não fica esperando: a callable recusaria, e o
+    // giro do carregando ficaria para sempre na tela de quem só passou por aqui.
+    if (!isAdmin || !viewer.tenantId) {
+      setIsLoading(false);
+      return;
+    }
+    try {
+      const data = await listConnections({ tenantId: viewer.tenantId });
+      setSetup({ connections: data.connections || [], clientId: data.clientId || '', scope: data.scope || '' });
+      setError(null);
+    } catch (err) {
+      setError(err && err.message ? err.message : 'Erro ao carregar as contas autorizadas.');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [isAdmin, viewer.tenantId, listConnections]);
+
+  useEffect(() => { void load(); }, [load]);
+
+  const authorize = useCallback(async () => {
+    setIsAuthorizing(true);
+    try {
+      const google = await loadGoogleIdentity();
+      if (!setup.clientId) throw new Error('O escritório não tem credencial do Google configurada no servidor.');
+
+      const client = google.accounts.oauth2.initCodeClient({
+        client_id: setup.clientId,
+        scope: setup.scope,
+        ux_mode: 'popup',
+        callback: async (response) => {
+          if (response.error) {
+            notify('Erro na autorização: ' + response.error, 'error');
+            setIsAuthorizing(false);
+            return;
+          }
+          if (!response.code) {
+            notify('Código de autorização não recebido.', 'error');
+            setIsAuthorizing(false);
+            return;
+          }
+          try {
+            const connection = await exchangeCode({ code: response.code, tenantId: viewer.tenantId });
+            await load();
+            notify('Conta ' + connection.email + ' autorizada.', 'success');
+          } catch (err) {
+            notify(err && err.message ? err.message : 'Erro ao concluir a autorização.', 'error');
+          } finally {
+            setIsAuthorizing(false);
+          }
+        },
+      });
+
+      client.requestCode();
+    } catch (err) {
+      notify(err && err.message ? err.message : 'Erro ao iniciar a autorização.', 'error');
+      setIsAuthorizing(false);
+    }
+  }, [setup.clientId, setup.scope, viewer.tenantId, exchangeCode, load, notify]);
+
+  const runRevoke = useCallback(async () => {
+    const { id } = confirm;
+    setConfirm({ open: false, id: '', email: '' });
+    try {
+      await revokeConnection({ tenantId: viewer.tenantId, connectionId: id });
+      await load();
+      notify('Autorização removida.', 'success');
+    } catch (err) {
+      notify(err && err.message ? err.message : 'Erro ao remover a autorização.', 'error');
+    }
+  }, [confirm, viewer.tenantId, revokeConnection, load, notify]);
+
+  const renderFilter = (title, items, empty) => (
+    <Section>
+      <SectionTitle>{title}</SectionTitle>
+      {items.length > 0 ? <Chips>{items.map((item) => <Chip key={item}>{item}</Chip>)}</Chips> : <SectionText>{empty}</SectionText>}
+    </Section>
+  );
+
+  return (
+    <Page>
+      <Header>
+        <Icon name="mailOpen" size={22} />
+        <Title>Recebimento de Pushes</Title>
+      </Header>
+
+      {!isAdmin ? (
+        <InfoBanner message="Só o administrador do escritório configura o recebimento de intimações." variant="info" />
+      ) : null}
+
+      <Section>
+        <SectionTitle>Contas de e-mail monitoradas</SectionTitle>
+        <SectionText>
+          As intimações são lidas destas contas. Autorizar é um acordo entre você e o Google: o
+          escritório recebe permissão de LEITURA da caixa, e as credenciais ficam no servidor.
+        </SectionText>
+
+        {isLoading ? <Spinner /> : (
+          <>
+            {error ? <InfoBanner message={error} variant="warning" /> : null}
+
+            {setup.connections.length === 0 ? (
+              <Empty>
+                <Icon name="mail" size={28} />
+                <span>Nenhuma conta autorizada neste escritório.</span>
+              </Empty>
+            ) : (
+              <List>
+                {setup.connections.map((connection) => (
+                  <Card key={connection.id}>
+                    <IconWrapper $color={theme.colors.primary}><Icon name="mail" size={18} /></IconWrapper>
+                    <CardBody>
+                      <CardName>{connection.email}</CardName>
+                      <CardMeta>
+                        Autorizado por {connection.authorizedByName || 'alguém do escritório'} em {stamp(connection.authorizedAt)}
+                      </CardMeta>
+                    </CardBody>
+                    <Row>
+                      <Button size="sm" variant="ghost" title="Reautorizar" disabled={!isAdmin || isAuthorizing} onClick={() => void authorize()}>
+                        <Icon name="mailCheck" size={16} />
+                      </Button>
+                      <Button size="sm" variant="ghost" title="Revogar acesso" disabled={!isAdmin} onClick={() => setConfirm({ open: true, id: connection.id, email: connection.email })}>
+                        <Icon name="linkUnlink" size={16} />
+                      </Button>
+                    </Row>
+                  </Card>
+                ))}
+              </List>
+            )}
+
+            <Row>
+              <Button disabled={!isAdmin || isAuthorizing} onClick={() => void authorize()}>
+                <Icon name="mailAdd" size={16} />
+                {isAuthorizing ? 'Autorizando...' : 'Autorizar conta Gmail'}
+              </Button>
+            </Row>
+          </>
+        )}
+      </Section>
+
+      {renderFilter(
+        'Remetentes permitidos',
+        senders,
+        'Nenhum remetente informado: valem os e-mails do Judiciário (.jus.br) e os portais de publicação.',
+      )}
+
+      {renderFilter(
+        'Assuntos permitidos',
+        subjects,
+        'Nenhum assunto informado: todo e-mail dos remetentes permitidos é processado.',
+      )}
+
+      <Row>
+        <SectionText>As duas listas são editadas em Configurações → Pushes do Tribunal.</SectionText>
+        <Button size="sm" variant="ghost" onClick={() => openTab('settings')}>
+          <Icon name="settings" size={16} />
+          Abrir Configurações
+        </Button>
+      </Row>
+
+      <ConfirmModal
+        isOpen={confirm.open}
+        title="Remover autorização"
+        message={'Deseja remover a autorização da conta "' + confirm.email + '"? As intimações já recebidas continuam no escritório.'}
+        confirmLabel="Remover"
+        variant="danger"
+        onConfirm={() => void runRevoke()}
+        onCancel={() => setConfirm({ open: false, id: '', email: '' })}
+      />
+    </Page>
+  );
+}
+`;
+
+/**
  * O STARTUP: só a menção `@push` das anotações e os comandos de ⌘K. Não há "novo push" — a caixa não
  * se preenche à mão.
  */
@@ -664,6 +1064,7 @@ import { Icon } from '@microteia/ui';
 
 const SOURCE_ID = 'microteia:push';
 const LIST_KEY = 'pushes';
+const SETTINGS_KEY = 'push-settings';
 const GROUP = 'Pushes';
 
 const screenOf = (ctx) => ctx.screenDefinitions.find((s) => (s.sourceId || s.id) === SOURCE_ID);
@@ -694,6 +1095,18 @@ export default function startup(host) {
       if ('abrir pushes do tribunal'.indexOf(q) !== -1) {
         items.push({ id: 'push:list', title: 'Abrir Pushes do Tribunal', group: GROUP, icon, onSelect: () => { ctx.openTab(LIST_KEY); ctx.close(); } });
       }
+      // O recebimento é do administrador — e é o que se procura por "gmail", "e-mail" ou
+      // "recebimento", nunca por "push". Era um comando do kernel; saiu junto com a tela.
+      if (ctx.tenantRole === 'admin' && 'configurar recebimento de pushes gmail e-mail intimações'.indexOf(q) !== -1) {
+        items.push({
+          id: 'push:settings',
+          title: 'Configurar recebimento de Pushes',
+          subtitle: 'Contas de e-mail monitoradas',
+          group: GROUP,
+          icon: <Icon name="mailOpen" size={16} />,
+          onSelect: () => { ctx.openTab(SETTINGS_KEY); ctx.close(); },
+        });
+      }
       for (const r of recordsOf(ctx, screen)) {
         if (!matches(r, q)) continue;
         items.push({
@@ -714,7 +1127,7 @@ export default function startup(host) {
 export const pushPlugin: MarketplacePlugin = {
   manifest: {
     id: 'com.microteia.push',
-    version: '1.0.3',
+    version: '1.1.0',
     kernel: '^1.0.0',
     name: 'Pushes do Tribunal',
     description: 'A caixa de intimações do escritório recriada como extensão, sobre os MESMOS pushes — a sexta entidade a sair do kernel.',
@@ -737,6 +1150,42 @@ export const pushPlugin: MarketplacePlugin = {
         badge: { collection: 'pushes', when: 'status == "pending"' },
       }),
       page({ key: 'pushes', title: 'Pushes do Tribunal', icon: 'inbox' }, 'pushes'),
+      // O recebimento NÃO ganha item de menu: quem o abre já está na caixa de intimações (ou o
+      // procura no ⌘K). Um segundo item na barra, para uma tela que só o administrador usa e só
+      // de vez em quando, custaria mais atenção do que economiza.
+      page({ key: 'push-settings', title: 'Recebimento de Pushes', icon: 'mailOpen' }, 'push-settings'),
+      settingsSection({
+        key: 'push',
+        title: 'Pushes do Tribunal',
+        icon: 'inbox',
+        order: 60,
+        description: 'Quais e-mails o escritório aceita como intimação.',
+        properties: [
+          {
+            key: ALLOWED_SENDERS_KEY,
+            label: 'Remetentes permitidos',
+            description:
+              'Só mensagens destes endereços viram intimação. Sem nenhum, valem os e-mails do Judiciário (.jus.br) e os portais de publicação.',
+            type: 'stringList',
+            itemPlaceholder: 'pje@tjba.jus.br',
+            itemPattern: '^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$',
+            default: [],
+            // Só o escritório: quem lê estas listas é a ingestão, no servidor, e ela não roda "por
+            // usuário" — preferência pessoal aqui seria uma configuração que ninguém consegue honrar.
+            scopes: ['tenant'],
+          },
+          {
+            key: ALLOWED_SUBJECTS_KEY,
+            label: 'Assuntos permitidos',
+            description:
+              'Textos que precisam aparecer no assunto do e-mail. Sem nenhum, todo e-mail dos remetentes permitidos é processado.',
+            type: 'stringList',
+            itemPlaceholder: 'intimação',
+            default: [],
+            scopes: ['tenant'],
+          },
+        ],
+      }),
     ],
   },
   summary:
@@ -748,7 +1197,7 @@ export const pushPlugin: MarketplacePlugin = {
       {
         type: 'markdown',
         content:
-          'A extensão **Pushes do Tribunal** traz a caixa de intimações do escritório: os e-mails que o tribunal envia, já com o número do processo, as partes e a classe judicial extraídos.\n\nO item no menu mostra **quantas intimações ainda esperam triagem**, e a lista abre exatamente nelas. Cada cartão liga direto para o processo quando ele já está cadastrado — e avisa, quando não está.\n\nDo menu **Ações** de cada intimação sai o essencial: **gerar um prazo** (que abre um formulário já preenchido com o processo e a descrição, encontra o processo pelo número e marca a intimação como revisada), marcar como **revisado** ou **arquivar**.\n\nO corpo do e-mail é exibido dentro de uma moldura **isolada**: nada que venha de fora executa dentro do sistema.',
+          'A extensão **Pushes do Tribunal** traz a caixa de intimações do escritório: os e-mails que o tribunal envia, já com o número do processo, as partes e a classe judicial extraídos.\n\nO item no menu mostra **quantas intimações ainda esperam triagem**, e a lista abre exatamente nelas. Cada cartão liga direto para o processo quando ele já está cadastrado — e avisa, quando não está.\n\nDo menu **Ações** de cada intimação sai o essencial: **gerar um prazo** (que abre um formulário já preenchido com o processo e a descrição, encontra o processo pelo número e marca a intimação como revisada), marcar como **revisado** ou **arquivar**.\n\nA extensão traz também o **recebimento**: a tela onde o administrador autoriza as contas de e-mail monitoradas, e as listas de **remetentes** e **assuntos** permitidos, em Configurações.\n\nO corpo do e-mail é exibido dentro de uma moldura **isolada**: nada que venha de fora executa dentro do sistema.',
       },
       {
         type: 'keyValue',
@@ -756,12 +1205,13 @@ export const pushPlugin: MarketplacePlugin = {
           { label: 'Adiciona', value: 'Item "Pushes do Tribunal" no menu, com contador' },
           { label: 'Cadastro', value: '15 campos, em 3 seções' },
           { label: 'Automações', value: 'Gerar prazo do push e Triar push' },
+          { label: 'Configuração', value: 'Contas de e-mail, remetentes e assuntos permitidos' },
           { label: 'Abre em', value: 'Intimações pendentes' },
         ],
       },
       {
         type: 'banner',
-        message: 'Os pushes são criados pela leitura automática da caixa de e-mail, nunca à mão — por isso a listagem não tem botão de "novo". A configuração da conta de e-mail continua nas Configurações do escritório.',
+        message: 'Os pushes são criados pela leitura automática da caixa de e-mail, nunca à mão — por isso a listagem não tem botão de "novo". Quem autoriza a conta de e-mail é o administrador, em "Recebimento", no alto da própria tela de Pushes.',
         variant: 'info',
       },
       {
@@ -782,6 +1232,12 @@ export const pushPlugin: MarketplacePlugin = {
       title: 'Pushes do Tribunal',
       icon: 'inbox',
       source: PUSHES_SOURCE,
+    },
+    {
+      key: 'push-settings',
+      title: 'Recebimento de Pushes',
+      icon: 'mailOpen',
+      source: SETTINGS_SOURCE,
     },
   ],
 };

@@ -2,10 +2,12 @@ import React from 'react';
 import { Checkbox } from '../../components/ui/Checkbox';
 import { Input } from '../../components/ui/Input';
 import { SearchSelect } from '../../components/ui/SearchSelect';
+import { TagInput } from '../../components/ui/TagInput';
 import { WidgetLayoutEditor } from './WidgetLayoutEditor';
 import { ContributionListEditor } from './ContributionListEditor';
 import {
   settingsToJson,
+  stringListPattern,
   type ContributionLayoutEntry,
   type SettingsProperty,
   type WidgetLayoutEntry,
@@ -59,6 +61,20 @@ export const SettingsField: React.FC<SettingsFieldProps> = ({ property, value, d
           placeholder="Selecione..."
         />
       );
+
+    case 'stringList': {
+      const pattern = stringListPattern(property);
+      return (
+        <TagInput
+          value={Array.isArray(value) ? (value as string[]) : []}
+          disabled={disabled}
+          placeholder={property.itemPlaceholder ?? 'Digite e pressione Enter'}
+          hint="Pressione Enter para adicionar. Clique no × para remover."
+          validator={pattern ? (item) => pattern.test(item) : undefined}
+          onChange={(items) => onChange(items)}
+        />
+      );
+    }
 
     case 'widgets':
       return (

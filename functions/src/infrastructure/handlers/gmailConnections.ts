@@ -1,0 +1,82 @@
+import { onCall, HttpsError } from 'firebase-functions/v2/https';
+import { defineString } from 'firebase-functions/params';
+import { getDI } from '../di/container';
+import { GMAIL_READONLY_SCOPE } from '../../domain/entities/GmailConnection';
+
+const googleClientId = defineString('GOOGLE_CLIENT_ID');
+
+/**
+ * As contas Gmail autorizadas do escritório, mais o que a tela precisa para autorizar uma nova: o
+ * id do cliente OAuth e o escopo pedido.
+ *
+ * Os três na MESMA resposta porque são uma coisa só do ponto de vista de quem abre a tela — e
+ * porque o id do cliente é do backend, onde a credencial já vive. A tela da extensão não guarda
+ * configuração de Google em lugar nenhum.
+ */
+export const listGmailConnections = onCall(
+  { region: 'southamerica-east1', cors: true },
+  async (request) => {
+    if (!request.auth) {
+      throw new HttpsError('unauthenticated', 'Autenticação necessária.');
+    }
+
+    const { tenantId } = (request.data ?? {}) as { tenantId?: string };
+
+    if (!tenantId) {
+      throw new HttpsError('invalid-argument', 'tenantId é obrigatório.');
+    }
+
+    try {
+      const connections = await getDI()
+        .getGetGmailConnectionsUseCase()
+        .execute(tenantId, request.auth.uid);
+
+      return {
+        connections: connections.map((connection) => ({
+          id: connection.id,
+          email: connection.email,
+          authorizedByName: connection.authorizedByName,
+          authorizedAt: connection.authorizedAt.toISOString(),
+          expiration: connection.expiration ?? null,
+        })),
+        clientId: googleClientId.value(),
+        scope: GMAIL_READONLY_SCOPE,
+      };
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Erro ao listar contas Gmail.';
+      throw new HttpsError(message.includes('Apenas administradores') ? 'permission-denied' : 'internal', message);
+    }
+  },
+);
+
+export const revokeGmailConnection = onCall(
+  { region: 'southamerica-east1', cors: true },
+  async (request) => {
+    if (!request.auth) {
+      throw new HttpsError('unauthenticated', 'Autenticação necessária.');
+    }
+
+    const { tenantId, connectionId } = (request.data ?? {}) as {
+      tenantId?: string;
+      connectionId?: string;
+    };
+
+    if (!tenantId || !connectionId) {
+      throw new HttpsError('invalid-argument', 'tenantId e connectionId são obrigatórios.');
+    }
+
+    try {
+      await getDI().getRevokeGmailConnectionUseCase().execute(tenantId, request.auth.uid, connectionId);
+      return { revoked: true };
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Erro ao revogar conta Gmail.';
+      if (message.includes('Apenas administradores')) {
+        throw new HttpsError('permission-denied', message);
+      }
+      if (message.includes('não encontrada')) {
+        throw new HttpsError('not-found', message);
+      }
+      throw new HttpsError('internal', message);
+    }
+  },
+);

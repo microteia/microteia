@@ -41,21 +41,21 @@ export const exchangeGmailCode = onCall(
     try {
       const di = getDI();
       const useCase = di.getExchangeGmailCodeUseCase();
-      
-      const tokens = await useCase.execute(code, tenantId, request.auth.uid, {
+
+      const connection = await useCase.execute(code, tenantId, request.auth.uid, {
         clientId,
         clientSecret,
         redirectUri,
       }, topicName);
 
+      // Os tokens NÃO voltam: quem os grava é o próprio caso de uso, e o `refresh_token` é a
+      // credencial de longo prazo da caixa de e-mail — ela não tem o que fazer no navegador.
       return {
-        email: tokens.email,
-        accessToken: tokens.accessToken,
-        refreshToken: tokens.refreshToken,
-        expiresIn: tokens.expiresIn,
-        scopes: tokens.scopes,
-        historyId: tokens.historyId,
-        expiration: tokens.expiration,
+        id: connection.id,
+        email: connection.email,
+        authorizedByName: connection.authorizedByName,
+        authorizedAt: connection.authorizedAt.toISOString(),
+        expiration: connection.expiration ?? null,
       };
     } catch (err) {
       if (err instanceof HttpsError) throw err;
