@@ -55,7 +55,15 @@ export interface ActionExprContext {
   user?: ExprViewer;
 }
 
-export type ActionSurface = 'detail' | 'list' | 'parentTab';
+/**
+ * Superfície é DADO, não união fechada — pelo mesmo motivo de `EntityKey` e `ScreenListAction`. O
+ * kernel desenha três (`detail`, `list`, `parentTab`), mas uma extensão que inventa uma superfície
+ * própria — a agenda, um quadro — precisa poder nomeá-la, senão a expressão que distingue "no
+ * cartão" de "no calendário" nunca poderia ser escrita fora do bundle.
+ */
+export type ActionSurface = string;
+
+export const BUILTIN_ACTION_SURFACES = ['detail', 'list', 'parentTab'] as const;
 
 export type ActionRelation = 'none' | 'owned' | 'related';
 

@@ -286,6 +286,7 @@ const FIELD_TYPE_LABELS: Record<CustomFieldType, string> = {
   number: 'Número',
   currency: 'Moeda (R$)',
   date: 'Data',
+  time: 'Hora',
   checkbox: 'Sim/Não',
   select: 'Seleção',
   masked: 'Com máscara',

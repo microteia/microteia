@@ -8,6 +8,7 @@ import { evaluateExtensionView } from '../../presentation/shared/extensions/eval
 import { UI_PAGE_POINT } from '../../presentation/shared/uiExtensionPoints';
 import type { PluginInstallation } from '../../domain/entities/PluginInstallation';
 import { brasilPlugin } from './brasil';
+import { calendarPlugin } from './calendar';
 import { contratoPlugin } from './contrato';
 import { pessoaPlugin } from './pessoa';
 import { prazoPlugin } from './prazo';
@@ -25,7 +26,7 @@ const installation = (pluginId: string): PluginInstallation => ({
   updatedAt: new Date(),
 });
 
-const CADEIA = [brasilPlugin, pessoaPlugin, contratoPlugin, processoPlugin, prazoPlugin];
+const CADEIA = [brasilPlugin, pessoaPlugin, contratoPlugin, processoPlugin, calendarPlugin, prazoPlugin];
 
 describe('prazoPlugin', () => {
   it('carrega no host como extensão trusted, com a página da listagem, sem erros', () => {
@@ -106,7 +107,7 @@ describe('prazoPlugin', () => {
    * oferece a qualquer escritório.
    */
   it('concluir é uma ação sobre workflow, com o quando declarado', () => {
-    const [concluir] = prazoPlugin.actions ?? [];
+    const concluir = (prazoPlugin.actions ?? []).find((action) => action.templateId === 'act-prazo-concluir')!;
     const workflowIds = new Set(prazoPlugin.workflows.map((workflow) => workflow.templateId));
 
     expect(concluir.templateId).toBe('act-prazo-concluir');

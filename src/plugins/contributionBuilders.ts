@@ -122,3 +122,21 @@ export const settingsSection = (section: SettingsSection): Contribution => ({
   apiVersion: UI_API_VERSION,
   metadata: { ...section } as unknown as Record<string, unknown>,
 });
+
+/**
+ * Uma contribuição de METADATA para um ponto QUALQUER — inclusive um publicado por outra extensão.
+ * Os construtores acima existem porque o ponto é do kernel e a forma da metadata é conhecida aqui;
+ * um ponto de terceiro não tem como ganhar construtor próprio, e sem esta porta a única saída seria
+ * cada pacote montar o objeto à mão e repetir a versão da API.
+ */
+export const pointContribution = (
+  point: string,
+  id: string,
+  metadata: Record<string, unknown>,
+  apiVersion = '1.0.0',
+): Contribution => ({
+  point,
+  id: slug(id),
+  apiVersion,
+  metadata: { ...metadata },
+});

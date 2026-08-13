@@ -24,7 +24,7 @@ const without = (pluginId: string): PluginRecord[] =>
  * de regressão da Etapa 2: se uma tela se perder no caminho, este teste acusa.
  */
 const PAGE_KEYS_ANTES_DA_MIGRACAO = [
-  'access-management', 'actions', 'audit-logs', 'calendar',
+  'access-management', 'actions', 'audit-logs',
   'data-function-reference', 'data-processor',
   'dyn:', 'edit-workflow-step:',
   'function-reference', 'new-action',
@@ -113,7 +113,6 @@ describe('core plugins — paridade com o registro anterior', () => {
     });
 
     expect(items.map((item) => item.key)).toEqual([
-      'calendar',
       'tenant-settings', 'settings', 'audit-logs',
     ]);
   });
@@ -160,10 +159,7 @@ describe('core plugins — remoção limpa (critério de aceite da Etapa 2)', ()
     expect(host.isLoaded('core.workspace')).toBe(false);
 
     const pages = host.contributions.query(UI_PAGE_POINT);
-    expect(resolvePageContribution(pages, 'calendar')).toBeUndefined();
-
-    const navKeys = host.contributions.query(UI_NAV_POINT).map((c) => navMetadataOf(c).key);
-    expect(navKeys).not.toContain('calendar');
+    expect(resolvePageContribution(pages, 'profile')).toBeUndefined();
 
     const commandIds = host.contributions.query(UI_COMMAND_POINT).map((c) => c.id);
     expect(commandIds).not.toContain('navigation');

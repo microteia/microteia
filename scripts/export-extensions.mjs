@@ -30,6 +30,7 @@ const TEMPLATES = {
   'noticia.json': 'noticiaPlugin',
   'kanban-processos.json': 'kanbanCasesPlugin',
   'dashboard.json': 'dashboardPlugin',
+  'calendar.json': 'calendarPlugin',
 };
 
 const check = process.argv.includes('--check');

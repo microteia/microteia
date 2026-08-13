@@ -58,6 +58,9 @@ import { useEntityDocuments } from '../entityScreen/useEntityDocuments';
 import type { EntityDocumentsController } from '../entityScreen/types';
 import { generateDeepLink } from '../../../infrastructure/deeplink/deepLinkUtils';
 import { useSavedViewState } from './useSavedViewState';
+import { usePointContributions } from './usePointContributions';
+import { useRunRecordAction } from './useRunRecordAction';
+import { useActionGate } from './useActionGate';
 import { useEntity } from './useEntity';
 import { useLookups } from '../../../stores/useLookups';
 import { useSettingValue } from '../settings/useSettingValue';
@@ -236,6 +239,14 @@ const dataModule = {
   useNotify,
   useSavedViewState,
   generateDeepLink,
+  /**
+   * O ponto de extensão como PORTA entre extensões: uma publica o ponto, outra o preenche, e
+   * nenhuma das duas se conhece. Devolve só a metadata declarada — implementação não atravessa.
+   */
+  useContributions: usePointContributions,
+  useRunAction: useRunRecordAction,
+  /** A mesma avaliação de `hiddenWhen` do cartão nativo, para quem desenha a própria superfície. */
+  useActionVisible: useActionGate,
 } as const;
 
 /**

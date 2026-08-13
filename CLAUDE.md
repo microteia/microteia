@@ -240,7 +240,7 @@ O `ARCHITECTURE.md` **não** guarda cópia das regras; a tabela de índices que 
 8. **Lista filtrável?** Use `CompositeFilter` com `screenKey`. Seleção única → `SearchSelect`; múltipla → `MultiSearchSelect`. Nunca `<select>` nativo.
 9. **Feedback ao usuário?** Use `notify(...)`; exclusões via `ConfirmModal`. Nunca `window.alert/confirm`.
 10. **Tarja/aviso informativo?** Use `<InfoBanner message="..." variant="warning"|"info" />` de `ui/InfoBanner`. **Nunca** crie um `<p>` ou `<div>` estilizado ad-hoc para esse fim. `warning` (padrão) = borda âmbar, para alertas de impacto amplo. `info` = borda primária, para restrições de permissão ou modo somente-leitura.
-11. **Campo de data?** Use `<DateInput />` de `ui/DateInput`. **Nunca** `<input type="date">` direto nem outro wrapper. Ver "Componente DateInput" no `ARCHITECTURE.md`.
+11. **Campo de data ou hora?** Use `<DateInput />` de `ui/DateInput` e `<TimeInput />` de `ui/TimeInput`. **Nunca** `<input type="date">` / `<input type="time">` direto nem outro wrapper. Ver "Componente DateInput" e "Componente TimeInput" no `ARCHITECTURE.md`.
 
 ---
 

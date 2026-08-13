@@ -1,7 +1,7 @@
 {
   "name": "microteia",
   "private": true,
-  "version": "6.0.1",
+  "version": "7.1.0",
   "type": "module",
   "scripts": {
     "predev": "npm run sync-schemas",

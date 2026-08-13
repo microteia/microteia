@@ -11,6 +11,20 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [7.1.0] — 2026-08-13
+
+- **Os prazos antigos agora entram no Calendário.** Uma automação nova, "Sincronizar prazos no calendário", leva para a agenda os prazos que já existiam antes — os que foram criados depois já entram sozinhos. Ela fica na tela de Automações, com o botão **Executar**: escolha a situação (pendentes, concluídos…) e rode.
+- **Pode rodar quantas vezes quiser, sem bagunça.** Cada prazo tem no máximo um compromisso na agenda: executar de novo apenas atualiza o que já está lá, nunca cria repetido. Cada execução cuida de até 100 prazos da situação escolhida — se houver mais, é só rodar de novo, e o resumo ao final avisa.
+
+## [7.0.0] — 2026-08-13
+
+- **O Calendário deixou de ser só a agenda dos prazos.** Ele continua exatamente como você conhece — os dias lado a lado, a rolagem que abre no dia de hoje, a cor da prioridade em cada cartão, arrastar para remarcar —, mas agora qualquer parte do sistema pode marcar compromissos nele. Hoje quem faz isso são os Prazos; amanhã pode ser uma audiência, uma reunião ou o vencimento de uma parcela, sem que a agenda precise ser mudada.
+- **Cada compromisso leva ao seu registro.** Clicar num cartão abre direto o registro que o originou — o prazo, o processo, o que for. E o compromisso se mantém sozinho: alterou o prazo, o cartão muda; excluiu o prazo, o cartão some.
+- **A agenda ganhou busca e filtros completos**, no mesmo formato do resto do sistema: por situação, por prioridade, por período — e também por processo e por advogado responsável, quando o compromisso vem de um prazo.
+- **Arrastar um cartão para outro dia agora respeita a regra de cada tipo de compromisso.** Um prazo pendente que muda de dia tem o vencimento adiado; um já concluído tem a data de conclusão corrigida. Em Configurações › Calendário você vê e ordena quem responde por esse gesto.
+- **Novo campo de hora nos cadastros.** Ao montar uma tela, "Hora" entra ao lado de "Data" como tipo de campo, com o seletor próprio.
+- Marcar um compromisso como concluído continua a um clique, no próprio cartão — e o botão só aparece no que ainda está pendente.
+
 ## [6.0.1] — 2026-08-12
 
 - **A tela de abertura chama-se Dashboard**, e não "Painel", em todo o sistema: no menu, na tela de Configurações e na lista de extensões. Um nome só, no lugar de dois.

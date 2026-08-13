@@ -114,6 +114,7 @@ export type CustomFieldType =
   | 'number'
   | 'currency'
   | 'date'
+  | 'time'
   | 'checkbox'
   | 'select'
   | 'masked'

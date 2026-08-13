@@ -3,12 +3,13 @@ import type {
   LookupModuleTemplate,
   MarketplacePlugin,
   ScreenModuleTemplate,
+  ScreenPatchTemplate,
   TemplateField,
   WorkflowModuleTemplate,
 } from '../../domain/entities/MarketplacePlugin';
 import type { CustomFieldOption } from '../../domain/entities';
 import type { Condition, WorkflowStep } from '../../domain/entities/Workflow';
-import { nav, page, surfaceWidget } from '../contributionBuilders';
+import { nav, page, pointContribution, surfaceWidget } from '../contributionBuilders';
 
 /**
  * **Prazos** — o controle de prazos do escritório, inteiro, declarado por extensão: campos, listas de
@@ -381,7 +382,476 @@ const CRIAR_WORKFLOW: WorkflowModuleTemplate = {
   ],
 };
 
+/**
+ * ─── O prazo na AGENDA ────────────────────────────────────────────────────────────────────────
+ *
+ * O Calendário não sabe o que é um prazo, e não vai saber: ele apresenta itens de uma entidade
+ * própria (`calendar`), e quem põe um item lá continua dono dele. Toda a integração abaixo é do
+ * Prazo, e cabe em quatro peças:
+ *
+ * | Peça | O que faz |
+ * |---|---|
+ * | complemento de tela | acrescenta ao item do calendário o processo e a pessoa — que viram filtro |
+ * | dois workflows de espelho | `deadline.saved` mantém o item em dia, `deadline.deleted` o remove |
+ * | duas actions | concluir pelo cartão, e remarcar ao arrastar para outro dia |
+ * | duas contribuições | dizem à agenda que estes gestos existem para itens de origem `deadlines` |
+ *
+ * O par que endereça o prazo é `origem: 'deadlines'` + `origemId`. É por ele que o clique no cartão
+ * abre o prazo, que a sincronização encontra o item a atualizar, e que a agenda escolhe QUEM
+ * responde ao arrasto — sem que nenhuma das duas pontas conheça a outra por dentro.
+ */
+const CALENDAR_SOURCE_ID = 'microteia:calendar';
+const CALENDAR_COLLECTION = 'calendar';
+
+/**
+ * O que o Prazo acrescenta ao item do calendário. Os dois campos são `filterable`: é assim que a
+ * agenda ganha o filtro por processo e por advogado sem ter uma linha sobre nenhum dos dois — o
+ * `CompositeFilter` dela é montado a partir dos campos que a TELA declara, e a tela é a soma do que
+ * o Calendário trouxe com o que as extensões acrescentaram.
+ */
+const CALENDAR_PATCH: ScreenPatchTemplate = {
+  target: CALENDAR_SOURCE_ID,
+  targetKind: 'sourceId',
+  fields: [
+    { key: 'caseId', label: 'Processo', type: 'reference', required: false, order: 20, section: 'Processo', refEntity: 'cases', filterable: true, showInList: true, listIcon: 'folder', listOrder: 10 },
+    { key: 'personId', label: 'Advogado responsável', type: 'reference', required: false, order: 21, section: 'Processo', refEntity: 'persons', filterable: true, showInList: true, listIcon: 'scales', listOrder: 11 },
+  ],
+};
+
+/**
+ * A situação e a prioridade do prazo são RÓTULOS do escritório ("Pendente", "Crítica"); as do
+ * calendário são chaves estáveis (`pending`, `critical`), porque quem as grava é uma automação e
+ * não pode depender de um rótulo que o escritório renomeia. A tradução é daqui — é o preço, pequeno
+ * e explícito, de as duas entidades serem independentes.
+ */
+const statusExpr = (prazo: string): string => `${prazo}.status == "Concluído" ? "closed" : "pending"`;
+
+const priorityExpr = (prazo: string): string =>
+  `${prazo}.priority == "Crítica" ? "critical" : (${prazo}.priority == "Alta" ? "high"`
+  + ` : (${prazo}.priority == "Baixa" ? "low" : "medium"))`;
+
+/**
+ * O item da agenda montado a partir de um prazo. O `prazo` é o CAMINHO de onde ele vem — `event`
+ * quando o gatilho é a gravação, `output.cadaPrazo` quando é a repetição do mutirão.
+ *
+ * Ser um construtor só, e não duas declarações parecidas, é o que garante que as duas portas
+ * gravem o MESMO item: um campo acrescentado aqui aparece nas duas, e um esquecido não some só de
+ * uma delas.
+ */
+const montarItem = (id: string, order: number, prazo: string): WorkflowStep => ({
+  id,
+  stepDefinitionId: 'map',
+  type: 'Action',
+  order,
+  enabled: true,
+  configuration: {
+    map: {
+      kind: 'Literal',
+      value: {
+        name: 'item',
+        fields: [
+          { name: 'id', value: { kind: 'Expression', expression: 'input.itemId' } },
+          { name: 'title', value: { kind: 'Expression', expression: `${prazo}.type` } },
+          { name: 'status', value: { kind: 'Expression', expression: statusExpr(prazo) } },
+          { name: 'priority', value: { kind: 'Expression', expression: priorityExpr(prazo) } },
+          { name: 'date', value: { kind: 'Expression', expression: `${prazo}.dueDate` } },
+          { name: 'finishDate', value: { kind: 'Expression', expression: `${prazo}.completedAt` } },
+          { name: 'description', value: { kind: 'Expression', expression: `${prazo}.description` } },
+          { name: 'origem', value: { kind: 'Literal', value: 'deadlines' } },
+          { name: 'origemId', value: { kind: 'Expression', expression: `${prazo}.id` } },
+          { name: 'caseId', value: { kind: 'Expression', expression: `${prazo}.caseId` } },
+          { name: 'personId', value: { kind: 'Expression', expression: `${prazo}.responsibleLawyerId` } },
+        ],
+      },
+    },
+  },
+});
+
+const gravarItem = (id: string, order: number): WorkflowStep => ({
+  id,
+  stepDefinitionId: 'upsert',
+  type: 'Action',
+  order,
+  enabled: true,
+  configuration: {
+    upsert: { kind: 'Literal', value: { table: CALENDAR_COLLECTION, source: 'input', property: 'item' } },
+  },
+});
+
+/**
+ * "Já existe item para este prazo?" — a pergunta que torna o espelho IDEMPOTENTE. Os dois ramos
+ * publicam a mesma chave (`input.itemId`), como no "Criar Prazo": o passo que monta o item não sabe
+ * por qual caminho o fluxo passou, e o Gravar Registro inclui quando ela é nula e atualiza quando
+ * não é. Ler `output.<busca>.first.id` direto pareceria mais curto e quebraria na primeira vez —
+ * sem item, `first` é nulo.
+ */
+const acharItem = (busca: string, order: number, prazoIdExpr: string): WorkflowStep[] => [
+  buscar(busca, order, CALENDAR_COLLECTION, 'origemId', prazoIdExpr),
+  {
+    id: `${busca}Existe`,
+    stepDefinitionId: '',
+    type: 'Condition',
+    order: order + 1,
+    enabled: true,
+    condition: naoEncontrou(busca),
+    configuration: {},
+    branches: {
+      whenTrue: [publicarItemId(`${busca}Sem`, 0, null)],
+      whenFalse: [publicarItemId(`${busca}Com`, 0, `output.${busca}.first.id`)],
+    },
+  },
+];
+
+const publicarItemId = (id: string, order: number, expression: string | null): WorkflowStep => ({
+  id,
+  stepDefinitionId: 'map',
+  type: 'Action',
+  order,
+  enabled: true,
+  configuration: {
+    map: {
+      kind: 'Literal',
+      value: {
+        name: '',
+        fields: [
+          {
+            name: 'itemId',
+            value: expression === null
+              ? { kind: 'Literal', value: null }
+              : { kind: 'Expression', expression },
+          },
+        ],
+      },
+    },
+  },
+});
+
+/**
+ * O ESPELHO. Roda a cada gravação de prazo e deixa o item da agenda igual ao prazo — criando-o na
+ * primeira vez, atualizando-o depois.
+ */
+const CALENDAR_SYNC_WORKFLOW: WorkflowModuleTemplate = {
+  templateId: 'wf-prazo-calendar-sync',
+  name: 'Espelhar prazo no calendário',
+  description: 'Mantém na agenda um item para cada prazo: cria na primeira gravação e atualiza nas seguintes.',
+  eventName: 'deadline.saved',
+  version: 1,
+  condition: { kind: 'AlwaysTrue' },
+  steps: [
+    ...acharItem('buscarItem', 0, 'event.id'),
+    montarItem('montarItem', 2, 'event'),
+    gravarItem('gravarItem', 3),
+  ],
+};
+
+/**
+ * O MUTIRÃO — o espelho aplicado a quem já existia. O gatilho de gravação só alcança o prazo que
+ * for salvo depois da instalação; este workflow é o que traz para a agenda os prazos que já
+ * estavam no escritório, e pode ser chamado quantas vezes se quiser.
+ *
+ * **Rodar de novo não duplica nada** porque cada iteração faz a MESMA pergunta do espelho — existe
+ * item com este `origemId`? — antes de gravar. Duas execuções seguidas produzem exatamente o mesmo
+ * resultado; a segunda apenas reescreve os itens com os valores que eles já tinham.
+ *
+ * **Por que a situação é um parâmetro, e não "todos de uma vez".** O Step de consulta varre no
+ * máximo 300 documentos e devolve no máximo 100 — teto do motor, não desta declaração. Só o
+ * operador de igualdade é resolvido no SERVIDOR: filtrar por situação faz a varredura acontecer
+ * dentro daquela fatia, em vez de nos 300 primeiros prazos do escritório inteiro. Daí o desenho:
+ * uma execução por situação, e o passo final avisa quando a execução bateu no teto.
+ */
+const CALENDAR_BACKFILL_WORKFLOW: WorkflowModuleTemplate = {
+  templateId: 'wf-prazo-calendar-sincronizar',
+  name: 'Sincronizar prazos no calendário',
+  description:
+    'Põe na agenda os prazos que já existiam antes da integração. Pode ser executado quantas vezes'
+    + ' for preciso: cada prazo tem no máximo um item, e rodar de novo apenas o atualiza. Processa'
+    + ' até 100 prazos por execução, dentro da situação escolhida.',
+  eventName: 'workflow.called',
+  version: 1,
+  condition: { kind: 'AlwaysTrue' },
+  parameters: [
+    {
+      key: 'status',
+      label: 'Situação dos prazos a sincronizar',
+      type: 'lookup',
+      lookupCollection: 'deadlineStatuses',
+      required: true,
+      defaultValue: 'Pendente',
+    },
+  ],
+  steps: [
+    {
+      id: 'buscarPrazos',
+      stepDefinitionId: 'query',
+      type: 'Action',
+      order: 0,
+      enabled: true,
+      configuration: {
+        query: {
+          kind: 'Literal',
+          value: {
+            table: 'deadlines',
+            where: [{ path: 'status', op: 'eq', value: { kind: 'Expression', expression: 'event.status' } }],
+            orderBy: [{ path: 'dueDate', dir: 'desc' }],
+            limit: 100,
+            projections: [],
+          },
+        },
+      },
+    },
+    {
+      id: 'cadaPrazo',
+      stepDefinitionId: '',
+      type: 'Loop',
+      order: 1,
+      enabled: true,
+      configuration: {},
+      loop: {
+        source: { kind: 'Expression', expression: 'output.buscarPrazos.results' },
+        itemName: 'prazo',
+        outputName: 'itens',
+        // Dentro do corpo, o prazo da vez é `output.cadaPrazo` — o nó de repetição publica o item
+        // corrente sob a própria chave, e as saídas do corpo são zeradas a cada volta.
+        body: [
+          ...acharItem('buscarItem', 0, 'output.cadaPrazo.id'),
+          montarItem('montarItem', 2, 'output.cadaPrazo'),
+          gravarItem('gravarItem', 3),
+        ],
+      },
+    },
+    {
+      id: 'responder',
+      stepDefinitionId: 'map',
+      type: 'Action',
+      order: 2,
+      enabled: true,
+      configuration: {
+        map: {
+          kind: 'Literal',
+          value: {
+            name: '',
+            fields: [
+              { name: 'sincronizados', value: { kind: 'Expression', expression: 'output.buscarPrazos.count' } },
+              {
+                name: 'status',
+                value: {
+                  kind: 'Expression',
+                  expression:
+                    'output.buscarPrazos.count >= 100'
+                    + ' ? "Sincronizados 100 prazos — o teto de uma execução. Rode de novo para alcançar os demais."'
+                    + ' : concat("Sincronizados ", output.buscarPrazos.count, " prazo(s) no calendário.")',
+                },
+              },
+            ],
+          },
+        },
+      },
+    },
+  ],
+};
+
+/** Prazo excluído, item fora da agenda. Sem item, o fluxo encerra — não há o que excluir. */
+const CALENDAR_REMOVE_WORKFLOW: WorkflowModuleTemplate = {
+  templateId: 'wf-prazo-calendar-remover',
+  name: 'Retirar prazo do calendário',
+  description: 'Exclui da agenda o item do prazo que foi removido.',
+  eventName: 'deadline.deleted',
+  version: 1,
+  condition: { kind: 'AlwaysTrue' },
+  steps: [
+    buscar('buscarItem', 0, CALENDAR_COLLECTION, 'origemId', 'event.id'),
+    {
+      id: 'itemExiste',
+      stepDefinitionId: '',
+      type: 'Condition',
+      order: 1,
+      enabled: true,
+      condition: naoEncontrou('buscarItem'),
+      configuration: {},
+      branches: {
+        whenTrue: [
+          { id: 'semItemSair', stepDefinitionId: 'exit', type: 'Action', order: 0, enabled: true, configuration: {} },
+        ],
+        whenFalse: [],
+      },
+    },
+    {
+      id: 'excluirItem',
+      stepDefinitionId: 'remove',
+      type: 'Action',
+      order: 2,
+      enabled: true,
+      configuration: {
+        remove: {
+          kind: 'Literal',
+          value: {
+            table: CALENDAR_COLLECTION,
+            id: { kind: 'Expression', expression: 'output.buscarItem.first.id' },
+          },
+        },
+      },
+    },
+  ],
+};
+
+const responder = (id: string, order: number, message: string): WorkflowStep => ({
+  id,
+  stepDefinitionId: 'map',
+  type: 'Action',
+  order,
+  enabled: true,
+  configuration: {
+    map: {
+      kind: 'Literal',
+      value: {
+        name: '',
+        fields: [
+          { name: 'status', value: { kind: 'Literal', value: message } },
+          { name: 'actions', value: { kind: 'Literal', value: ['refresh'] } },
+        ],
+      },
+    },
+  },
+});
+
+/**
+ * Concluir pelo cartão da agenda. É o MESMO gesto que existe na listagem de prazos, e por isso ele
+ * grava no PRAZO, não no item: quem atualiza a agenda é o espelho, na sequência. Escrever direto no
+ * item deixaria a agenda dizendo "concluído" sobre um prazo que continua pendente.
+ *
+ * O prazo é encontrado pelo `origemId` do item que a agenda mandou — `event.context` é o registro
+ * sobre o qual a ação foi disparada.
+ */
+const CALENDAR_CONCLUIR_WORKFLOW: WorkflowModuleTemplate = {
+  templateId: 'wf-prazo-calendar-concluir',
+  name: 'Concluir prazo pela agenda',
+  description: 'Marca como concluído o prazo que deu origem ao item do calendário.',
+  eventName: 'workflow.called',
+  version: 1,
+  condition: { kind: 'AlwaysTrue' },
+  steps: [
+    {
+      id: 'montar',
+      stepDefinitionId: 'map',
+      type: 'Action',
+      order: 0,
+      enabled: true,
+      configuration: {
+        map: {
+          kind: 'Literal',
+          value: {
+            name: 'prazo',
+            fields: [
+              { name: 'id', value: { kind: 'Expression', expression: 'event.context.origemId' } },
+              { name: 'status', value: { kind: 'Literal', value: 'Concluído' } },
+              { name: 'completedAt', value: { kind: 'Expression', expression: 'today()' } },
+            ],
+          },
+        },
+      },
+    },
+    {
+      id: 'gravar',
+      stepDefinitionId: 'upsert',
+      type: 'Action',
+      order: 1,
+      enabled: true,
+      configuration: {
+        upsert: { kind: 'Literal', value: { table: 'deadlines', source: 'input', property: 'prazo' } },
+      },
+    },
+    responder('responder', 2, 'Prazo marcado como concluído.'),
+  ],
+};
+
+const remarcar = (id: string, order: number, field: string): WorkflowStep => ({
+  id,
+  stepDefinitionId: 'map',
+  type: 'Action',
+  order,
+  enabled: true,
+  configuration: {
+    map: {
+      kind: 'Literal',
+      value: {
+        name: 'prazo',
+        fields: [
+          { name: 'id', value: { kind: 'Expression', expression: 'event.context.origemId' } },
+          { name: field, value: { kind: 'Expression', expression: 'event.targetDate' } },
+        ],
+      },
+    },
+  },
+});
+
+/**
+ * Arrastar o cartão para outro dia. O que a mudança SIGNIFICA é decisão daqui, e não da agenda: um
+ * prazo pendente que muda de dia foi adiado (muda o vencimento); um prazo concluído que muda de dia
+ * foi concluído noutro dia (muda a conclusão). É a mesma leitura que a agenda antiga tinha em
+ * código — só que agora quem a sustenta é quem conhece prazo.
+ *
+ * "Vencido" continua sem ser carimbado: é situação derivada da data, que a listagem pinta. Gravá-la
+ * aqui congelaria no registro algo que muda sozinho amanhã.
+ */
+const CALENDAR_MOVER_WORKFLOW: WorkflowModuleTemplate = {
+  templateId: 'wf-prazo-calendar-mover',
+  name: 'Remarcar prazo pela agenda',
+  description: 'Muda o vencimento do prazo (ou a data de conclusão, se ele já estiver concluído) quando o item é arrastado para outro dia.',
+  eventName: 'workflow.called',
+  version: 1,
+  condition: { kind: 'AlwaysTrue' },
+  parameters: [
+    { key: 'targetDate', label: 'Novo dia', type: 'Date', required: true },
+  ],
+  steps: [
+    {
+      id: 'jaConcluido',
+      stepDefinitionId: '',
+      type: 'Condition',
+      order: 0,
+      enabled: true,
+      condition: { kind: 'Expression', expression: 'event.context.status == "closed"' },
+      configuration: {},
+      branches: {
+        whenTrue: [remarcar('remarcarConclusao', 0, 'completedAt')],
+        whenFalse: [remarcar('remarcarVencimento', 0, 'dueDate')],
+      },
+    },
+    {
+      id: 'gravar',
+      stepDefinitionId: 'upsert',
+      type: 'Action',
+      order: 1,
+      enabled: true,
+      configuration: {
+        upsert: { kind: 'Literal', value: { table: 'deadlines', source: 'input', property: 'prazo' } },
+      },
+    },
+    responder('responder', 2, 'Prazo remarcado.'),
+  ],
+};
+
 const ACTIONS: ActionModuleTemplate[] = [
+  {
+    templateId: 'act-prazo-calendar-concluir',
+    key: 'prazo_calendar_concluir',
+    title: 'Marcar como concluído',
+    icon: 'check',
+    workflowId: 'wf-prazo-calendar-concluir',
+    danger: false,
+    enabled: true,
+    order: 0,
+  },
+  {
+    templateId: 'act-prazo-calendar-mover',
+    key: 'prazo_calendar_mover',
+    title: 'Remarcar prazo',
+    icon: 'time',
+    workflowId: 'wf-prazo-calendar-mover',
+    danger: false,
+    enabled: true,
+    order: 1,
+  },
   {
     templateId: 'act-prazo-concluir',
     key: 'prazo_concluir',
@@ -1188,6 +1658,9 @@ export const prazoPlugin: MarketplacePlugin = {
       'core.ui': '^1.0.0',
       'com.microteia.pessoa': { version: '^1.0.0', collections: ['persons'] },
       'com.microteia.processo': { version: '^2.0.0', collections: ['cases'] },
+      // O prazo se mostra na agenda, e a agenda é de outra extensão: sem ela, a coleção `calendar`
+      // não existe e o espelho gravaria no vazio.
+      'com.microteia.calendar': { version: '^1.0.0', collections: ['calendar'] },
     },
     contributes: [
       nav({ key: 'prazos', label: 'Prazos', icon: 'time', order: 60 }),
@@ -1196,6 +1669,27 @@ export const prazoPlugin: MarketplacePlugin = {
       surfaceWidget({ surface: 'dashboard', key: 'prazo.proximos', title: 'Prazos nos próximos 7 dias', description: 'Os prazos pendentes que vencem nesta semana.', icon: 'calendar', defaultSpan: 1, order: 40 }, 'widget-prazos-proximos'),
       surfaceWidget({ surface: 'dashboard', key: 'prazo.vencidos', title: 'Prazos vencidos', description: 'O que passou do vencimento e continua pendente.', icon: 'alarmWarning', defaultSpan: 1, order: 50 }, 'widget-prazos-vencidos'),
       surfaceWidget({ surface: 'dashboard', key: 'prazo.analise', title: 'Análise de prazos', description: 'Gráficos por tipo, por vencimento ou por conclusão.', icon: 'barChart', defaultSpan: 3, order: 90 }, 'widget-prazos-analise'),
+      // Os dois gestos que o Prazo oferece DENTRO da agenda. A `origem` é o que faz a agenda os
+      // oferecer só para os itens dela; o `actionSourceId` é o endereço estável da Action, já que o
+      // id real só nasce na instalação.
+      pointContribution('calendar.action', 'prazo-concluir', {
+        key: 'prazo.concluir',
+        title: 'Marcar como concluído',
+        icon: 'check',
+        order: 0,
+        origem: 'deadlines',
+        actionSourceId: 'act-prazo-calendar-concluir',
+        hiddenWhen: 'status == "closed"',
+      }),
+      pointContribution('calendar.moveaction', 'prazo-mover', {
+        key: 'prazo.mover',
+        title: 'Remarcar o prazo',
+        description: 'Arrastar um prazo para outro dia muda o vencimento — ou a data de conclusão, se ele já estiver concluído.',
+        icon: 'time',
+        order: 0,
+        origem: 'deadlines',
+        actionSourceId: 'act-prazo-calendar-mover',
+      }),
     ],
   },
   summary:
@@ -1226,9 +1720,18 @@ export const prazoPlugin: MarketplacePlugin = {
       },
     ],
   },
-  workflows: [CRIAR_WORKFLOW, CONCLUIR_WORKFLOW],
+  workflows: [
+    CRIAR_WORKFLOW,
+    CONCLUIR_WORKFLOW,
+    CALENDAR_SYNC_WORKFLOW,
+    CALENDAR_BACKFILL_WORKFLOW,
+    CALENDAR_REMOVE_WORKFLOW,
+    CALENDAR_CONCLUIR_WORKFLOW,
+    CALENDAR_MOVER_WORKFLOW,
+  ],
   actions: ACTIONS,
   screens: [PRAZOS_SCREEN],
+  screenPatches: [CALENDAR_PATCH],
   lookups: LOOKUPS,
   startup: STARTUP_SOURCE,
   views: [

@@ -505,6 +505,12 @@ Documentos anexados a um contrato. Mesmo padrão de `PersonDocument`/`CaseDocume
 - Estilização já usa o tema (`theme.colors.inputBackground`, `theme.colors.border`, etc.) — não duplique o CSS de input de data em outro lugar.
 - Ao adicionar uma entidade com campo de data (ex: `dueDate`, `completedAt`, data de vencimento), o formulário correspondente (`.view.tsx`) deve renderizar `<DateInput value={...} onChange={...} />`, com a conversão de/para `Date` feita no ViewModel.
 
+### Componente TimeInput — campo de hora padrão
+
+`presentation/components/ui/TimeInput.tsx` é o irmão do `DateInput` para o tipo de campo **`time`**, e vale a mesma regra: nunca `<input type="time">` direto nem outro wrapper. Mesmas props (`value` no formato `HH:mm`, `onChange`, `disabled?`, `id?`), mesmo botão de limpar, mesma estilização por tema.
+
+**Hora é `string`, não instante** (`CUSTOM_FIELD_SCALAR_TYPES.time = 'string'`). Um horário sem dia não tem fuso: gravá-lo como data faria o mesmo `09:00` mudar de valor conforme quem lê — o oposto do que a seção "Um DIA vira instante ao MEIO-DIA EM UTC" resolve para datas. Como o valor é `HH:mm`, a ordenação lexicográfica e a cronológica coincidem, e o filtro cai no caminho de texto sem precisar de tratamento próprio.
+
 ### Componente MarkerChip — badge de seleção com marcador lateral
 
 `presentation/components/ui/MarkerChip/` é o componente padrão para chips coloridos e clicáveis que alternam a visibilidade de uma série/categoria em legendas de gráfico (ex.: tipos de prazo em "Análise de Prazos", categorias em "Distribuição por Categoria" do Financeiro). Substitui o padrão antigo de preencher o badge inteiro com a cor quando selecionado.
@@ -1583,7 +1589,7 @@ Nota: as coleções de lista (`caseCourts`, `medico_especialidade`…) **não** 
 ### Navegação e renderização
 
 - **tabKeys** (builders/parser em `shared/constants/dynamicScreenKeys.ts`): `dyn:{screenKey}` (listagem), `new-dyn:{screenKey}`, `new-dyn:{screenKey}:clone:{recordId}` e `view-dyn:{screenKey}:{recordId}`. Os três prefixos estão registrados no `pageRegistry` apontando para `DynamicRecordList` e `ViewDynamicRecord`; o título real da aba é definido em runtime via `setTabTitle` (o ícone da aba é o genérico — o ícone escolhido pelo admin aparece no Sidebar).
-- **Motor de renderização:** `ui/CustomFieldsSection` renderiza qualquer `FieldDefinition[]` (agrupado por `section`) a partir de `values` + `onChange(fieldKey, value)`. Mapa de tipo→componente: text/number→`Input`, textarea→`Textarea`, currency→`CurrencyInput`, date→`DateInput`, checkbox nativo estilizado, select→`DynamicSelect` (opções fixas — as declaradas no campo mais as `isStatic` da lista — e as cadastradas pelo escritório, com `onAdd`/`onDelete`, todas resolvidas por `lookupCollection`), masked→`ui/MaskedInput` (novo wrapper das máscaras de `utils/formatters.ts`), reference→`SearchSelect`/`MultiSearchSelect` com opções de `presentation/hooks/useReferenceOptions.ts` (mapeia `refEntity` → registros do store correspondente, incluindo outras telas dinâmicas).
+- **Motor de renderização:** `ui/CustomFieldsSection` renderiza qualquer `FieldDefinition[]` (agrupado por `section`) a partir de `values` + `onChange(fieldKey, value)`. Mapa de tipo→componente: text/number→`Input`, textarea→`Textarea`, currency→`CurrencyInput`, date→`DateInput`, time→`TimeInput`, checkbox nativo estilizado, select→`DynamicSelect` (opções fixas — as declaradas no campo mais as `isStatic` da lista — e as cadastradas pelo escritório, com `onAdd`/`onDelete`, todas resolvidas por `lookupCollection`), masked→`ui/MaskedInput` (novo wrapper das máscaras de `utils/formatters.ts`), reference→`SearchSelect`/`MultiSearchSelect` com opções de `presentation/hooks/useReferenceOptions.ts` (mapeia `refEntity` → registros do store correspondente, incluindo outras telas dinâmicas).
 - **Listagem (dinâmica e padrão) — hook `useCustomFieldListing`:** a lógica de `showInList`/`filterable` vive em `presentation/hooks/useCustomFieldListing.ts`. O hook recebe `(screenKey, fields, filterKeyPrefix)` e devolve: `filterDefs` do `CompositeFilter` a partir dos campos `filterable` (select/reference→multiselect, checkbox→Sim/Não, date→date com igualdade exata, demais→texto), o matcher `matchesFilters(values, tokenMap)`, e `cardItems(values)` (pares label/valor dos campos `showInList`, formatados por tipo) renderizados pelo componente `ui/CustomFieldMetaRows`.
 - **Listagem dinâmica:** `DynamicRecordList` usa o hook sem prefixo de chave e com `savedFiltersScreenKey = tabKey`; exclui o `titleFieldKey` dos `cardItems`. Tela desativada/excluída renderiza `InfoBanner`, nunca quebra.
 - **Listagens padrão:** as cinco listagens builtin (Pessoas, Processos, Contratos, Financeiro, Prazos) obtêm os campos via `getScreenFieldsFor(collection)` e usam o hook com `CUSTOM_FIELD_FILTER_PREFIX` (`cf-`) nas chaves dos `FilterDef` — o prefixo evita colisão com os filtros nativos (`status`, `type`, `city`…). Cada ViewModel anexa `...customListing.filterDefs` aos defs nativos, encerra o predicado de filtragem com `customListing.matchesFilters(entidade, tokenMap)` e expõe `getCustomFieldItems(entidade)`; a View renderiza `<CustomFieldMetaRows items={...} />` no cartão, após o bloco de metadados nativo.
@@ -2162,13 +2168,11 @@ cópia da lista. Nenhum teste de execução pega esse defeito: as duas declaraç
 Workflows existentes que usem o Step `create-deadline` param de resolver o passo e precisam ser
 refeitos — chamando este workflow, ou com Gravar Registro direto.
 
-**O que ficou no kernel, e por quê.** A **Agenda** (`calendar`) continua sendo tela de código, e
-continua lendo e escrevendo prazos — pelo caminho
-GENÉRICO: `useDeadlineRecords()` (mesmo contrato de leitura de `useCaseRecords` e irmãos) para ler,
-`useRecords().updateRecord/createRecord` para gravar, `useOpenRecord`/`useOpenScreenList` para
-navegar. Ela não conhece uma entidade declarada em código; sem a extensão instalada, a lista
-vem vazia e a tela mostra o estado vazio, em vez de dado errado. (O Painel, que estava nesta mesma
-condição, saiu depois — ver "O Dashboard saiu do kernel".)
+**O que ficou no kernel, e por quê.** A **Agenda** (`calendar`) continuou sendo tela de código, lendo
+e escrevendo prazos pelo caminho GENÉRICO (`useDeadlineRecords()` para ler, `useRecords()` para
+gravar). Ela não conhecia uma entidade declarada em código; sem a extensão instalada, abria vazia em
+vez de mostrar dado errado. Foi a última a sair — ver "O Calendário saiu do kernel"; o Painel, que
+estava na mesma condição, saiu antes ("O Dashboard saiu do kernel").
 
 **O que a migração custou, e é aceitável.** (1) A busca da listagem casa os textos do registro
 (tipo, descrição, status), não mais o número do processo — quem procura por processo tem o filtro
@@ -3506,7 +3510,7 @@ vazia por definição.
 | `ui.widget` | `surface`, `key`, `title`, `defaultEnabled`, `defaultSpan`, `order`, `requiredRole` | `code` (interno/extensão confiável) ou `widget` (Widget DSL) |
 
 **O contrato é dado puro** (`domain/schema/settings.ts`, testado): `SettingsProperty` declara
-`type` (`boolean`, `number`, `text`, `select`, `json`, `widgets`), `default` e os `scopes` que
+`type` (`boolean`, `number`, `text`, `select`, `json`, `widgets`, `contributions`), `default` e os `scopes` que
 aceita. Por ser serializável, a mesma declaração viaja no `.json` de uma extensão até um escritório
 que não roda este bundle — e é o que torna a edição em JSON tão legítima quanto a visual: as duas
 escrevem no mesmo lugar, validadas pela mesma função.
@@ -3535,6 +3539,14 @@ aviso naquele espaço, não um painel em branco.
 (`host.widgets.register`, `host.settings.register`). Quem consome não distingue as duas — é isso que
 faz o Dashboard e a tela de Configurações não conhecerem nenhuma extensão em particular.
 
+**`contributions` é o `widgets` generalizado.** A propriedade declara um `point` em vez de uma
+`surface`, e o que ela liga/desliga e ordena são as contribuições registradas naquele ponto —
+`{ key, enabled }[]`, sem a largura, que só faz sentido numa grade. `resolveContributionLayout` faz
+a mesma conciliação de `resolveWidgetLayout` (o que chegou depois entra no fim, o que sumiu não
+deixa buraco) e o editor é o `ContributionListEditor`, irmão do `WidgetLayoutEditor`. Existe porque
+a alternativa era cada extensão inventar uma tela própria para "escolher quem participa" — a
+primeira consumidora é a lista de ações de arrasto do Calendário.
+
 ### O Dashboard saiu do kernel (extensão `com.microteia.dashboard`)
 
 O Dashboard era a última tela do núcleo a importar `useCaseRecords`, `useDeadlineRecords` e
@@ -3555,6 +3567,119 @@ entra por `lazy`: quem nunca abre um gráfico não a baixa.
 `DonutChart` e `useOpenScreenList` (abrir a listagem de uma coleção, com filtros, sem saber que tela
 a apresenta), mais o módulo `@microteia/settings` com `useSettingValue`. Ampliar a superfície segue
 sendo decisão consciente — e os `extensionTypeDefs` foram atualizados junto, como manda a regra.
+
+### O Calendário saiu do kernel — a agenda que não sabe o que apresenta
+
+A última tela de código do núcleo a conhecer uma entidade de escritório. Ela lia prazos, escrevia
+prazos e sabia o que era "vencido", "concluído" e "prioridade crítica" — três vocabulários de
+domínio dentro de `presentation/pages/`. A extensão **Calendário** (`com.microteia.calendar`) a
+recria inteira, com a MESMA interface — a barra de números, a navegação por mês, as colunas de dia
+com rolagem que abre em hoje, o cartão colorido pela prioridade, o arrastar entre dias, a legenda
+que filtra — e nenhuma linha sobre prazo.
+
+**O item da agenda é uma ENTIDADE, não uma projeção.** A tela `calendar` (10 campos: título,
+situação, prioridade, descrição, `date`/`hour`, `finishDate`/`finishHour`, `origem`/`origemId`)
+existe só para aparecer na agenda. Quem tem data a mostrar mantém um item lá e continua dono dele:
+criou, atualiza e exclui. O par `origem` (a **coleção**) + `origemId` é o endereço do dono — é por
+ele que o clique no cartão abre o registro certo (`useOpenRecord`, que resolve a tela que o
+apresenta HOJE) e que a sincronização acha o item a atualizar.
+
+A alternativa — a agenda ler as coleções e projetar itens — é o que ela fazia, e é o que a prendia
+ao kernel: para incluir uma audiência, alguém teria de editar a agenda. Duplicar os campos custa uma
+gravação a mais por registro e paga com o desacoplamento inteiro.
+
+**Ninguém edita um item.** `writeRoles: ['admin']` + `listActions: []` + `hideFromSidebar: true`, e a
+página nunca abre o detalhe do item (abre o da origem). Editar à mão criaria uma verdade paralela
+que a próxima gravação da origem apaga. O admin fica de fora da trava de propósito: é a única saída
+para um item órfão de uma sincronização quebrada, e a regra do curinga não sabe expressar "ninguém"
+(`declaresWriteRoles` exige lista não-vazia).
+
+**Dois pontos de extensão, publicados pela própria extensão** — é o primeiro ponto do sistema que
+não é do kernel:
+
+| Ponto | Metadata | Quem preenche |
+|---|---|---|
+| `calendar.action` | `key`, `title`, `icon`, `order`, `origem`, `actionSourceId`, `hiddenWhen` | a extensão dona do registro de origem |
+| `calendar.moveaction` | idem | idem |
+
+Os dois são **metadata pura** (`allowedImplKinds: []`): uma extensão de terceiro, que não pode
+entregar código, participa da agenda pelo mesmo caminho que uma de primeira parte. E os dois
+endereçam a Action pelo **`templateId` do pacote** (`Action.sourceId` depois de instalada), porque o
+id real nasce na instalação e um manifest não tem como conhecê-lo.
+
+**Arrastar não grava: pergunta.** A agenda não decide o que "mudar de dia" significa — um prazo
+pendente foi adiado, um concluído foi concluído noutro dia, uma parcela talvez nem possa mudar. Ela
+consulta as contribuições de `calendar.moveaction`, filtra pela `origem` do item e executa a
+PRIMEIRA que sobra, com `params: { targetDate }`. Quem escolhe quais participam e em que ordem é a
+configuração `calendar.moveActions` (`type: 'contributions'`), em Configurações › Calendário. Rodar
+todas faria a extensão do Financeiro receber o arrasto de um prazo.
+
+**O que o kernel ganhou, e só isso** — quatro capacidades genéricas, nenhuma sobre calendário:
+
+| Capacidade | Sem ela |
+|---|---|
+| Tipo de campo `time` + `TimeInput` | `hour`/`finishHour` seriam texto com máscara, sem hora válida |
+| `useContributions(point)` na API curada | código de extensão não enxergaria ponto nenhum, e a porta entre extensões não existiria |
+| `useRunAction()` na API curada | o arrasto não teria como passar a data destino — `getCardActions` só devolve `onClick` sem argumentos |
+| `useActionVisible()` na API curada | o `hiddenWhen` declarado por terceiro seria ignorado, ou reavaliado com outra semântica |
+| `ActionSurface` virou `string` | uma superfície nova (`calendar`) não poderia ser nomeada fora do bundle |
+| `SettingsProperty` do tipo `contributions` | a lista de quem responde ao arrasto viraria tela própria da extensão |
+
+`usePointContributions` devolve só `{ pluginId, id, metadata }` — **`impl` não atravessa a ponte**.
+Resolver implementação é carregar código de um plugin no contexto de outro; o único caminho de
+execução que a ponte oferece é o declarado (uma Action, pelo motor). Pelo mesmo motivo,
+`useRunRecordAction` recusa Action de **comando de tela**: comando é operação da superfície que o
+desenha, e já chega ao cartão pelo caminho de sempre.
+
+**O Prazo como primeiro consumidor** (`com.microteia.prazo`, que passou a depender da agenda). Quatro
+peças, todas dele:
+
+| Peça | O que faz |
+|---|---|
+| `screenPatches` | acrescenta `caseId`/`personId` ao item — e, sendo `filterable`, viram filtro da agenda sozinhos |
+| `wf-prazo-calendar-sync` (`deadline.saved`) | espelha o prazo no item: busca por `origemId`, cria na primeira vez, atualiza depois |
+| `wf-prazo-calendar-sincronizar` (`workflow.called`) | o MUTIRÃO: põe na agenda os prazos anteriores à instalação |
+| `wf-prazo-calendar-remover` (`deadline.deleted`) | tira o item da agenda |
+| duas Actions + duas contribuições | concluir pelo cartão, e remarcar ao arrastar |
+
+**O mutirão é o espelho aplicado a quem já existia.** O gatilho de gravação só alcança o prazo salvo
+depois da instalação; o workflow chamável (executado pelo botão "Executar" da tela de Automações —
+não é Action, não tem superfície) percorre os que já estavam lá. **Rodar de novo não duplica nada**,
+e a garantia é estrutural: gatilho e mutirão compartilham os construtores `acharItem` → `montarItem`
+→ `gravarItem`, então cada volta da repetição faz a MESMA pergunta antes de gravar (existe item com
+este `origemId`?) e o `upsert` inclui quando `input.itemId` é nulo e atualiza quando não é.
+
+**Por que a situação é parâmetro, e não "todos de uma vez".** É teto do MOTOR, não da declaração: o
+Step de consulta varre no máximo `MAX_SCAN` (300) documentos e devolve no máximo `MAX_QUERY_LIMIT`
+(100), e **só o operador `eq` é resolvido no servidor** (o resto é filtrado em memória, depois da
+varredura). Filtrar por situação faz a varredura acontecer dentro daquela fatia, em vez de nos 300
+primeiros prazos do escritório. Daí o desenho: uma execução por situação, e o passo final avisa
+quando bateu no teto de 100.
+
+`scripts/prazoCalendarWorkflow.test.ts` roda essa declaração no **motor de verdade**, com um banco em
+memória que grava — é o que permite executar o mesmo workflow três vezes e conferir que sobraram os
+MESMOS dois documentos. A promessa "não duplica" não está escrita em lugar nenhum da declaração: ela
+emerge da pergunta que cada volta faz, e nenhum teste sobre a forma do JSON a alcançaria.
+
+**As duas Actions gravam no PRAZO, nunca no item** — quem atualiza a agenda é o espelho, na
+sequência. Escrever direto no item deixaria a agenda dizendo "concluído" sobre um prazo pendente.
+
+**A tradução de vocabulário é do Prazo.** As listas do calendário têm chaves estáveis em inglês
+(`pending`/`closed`, `low`…`critical`) porque quem grava um item é uma automação: um rótulo
+renomeado no escritório não pode quebrar o espelho. As do prazo são os rótulos que os registros já
+guardam (`"Pendente"`, `"Crítica"`). A conversão vive em duas expressões ternárias do workflow de
+sincronismo — pequena, explícita, e o preço de as duas entidades serem independentes.
+
+**Uma armadilha do espelho:** ler `output.buscarItem.first.id` direto parece mais curto e quebra na
+primeira gravação — sem item, `first` é `null`. Os dois ramos da condição publicam a mesma chave
+(`input.itemId`), como no "Criar Prazo"; o passo que monta o item não sabe por qual caminho o fluxo
+passou.
+
+**O que a migração custou.** (1) O backfill é manual e por fatia: o admin roda o mutirão uma vez por
+situação, até 100 prazos por execução. (2) O número do processo, que era um link clicável no cartão, é hoje uma meta-linha comum —
+o clique no cartão leva ao prazo, e de lá ao processo. (3) `calendarToday`/`calendarEvent` continuam
+no tema, sem consumidor no kernel. (4) Os campos que uma extensão acrescenta ao item só aparecem se
+ela estiver instalada; sem o patch, o `upsert` descarta os valores com aviso no log, em vez de falhar.
 
 ### Integridade do Marketplace — publicar válido e ver por que falhou
 

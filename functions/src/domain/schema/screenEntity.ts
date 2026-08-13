@@ -153,6 +153,9 @@ export const CUSTOM_FIELD_SCALAR_TYPES: Record<Exclude<CustomFieldType, 'referen
   number: 'number',
   currency: 'number',
   date: 'date',
+  // Hora é STRING `HH:mm`, não instante: um horário sem dia não tem fuso, e gravá-lo como data
+  // faria o mesmo "09:00" mudar de valor conforme quem lê. Ver "Um DIA vira instante ao MEIO-DIA".
+  time: 'string',
   checkbox: 'boolean',
 };
 

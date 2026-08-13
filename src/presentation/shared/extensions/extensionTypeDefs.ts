@@ -879,6 +879,48 @@ const DATA_MODULE_DEFS = `declare module '@microteia/data' {
 
   /** Gera um deeplink para uma rota do sistema. */
   export function generateDeepLink(path: string): string;
+
+  export interface PointContribution {
+    /** Quem declarou a contribuição. */
+    pluginId: string;
+    id: string;
+    metadata: Record<string, any>;
+  }
+  /**
+   * As contribuições de um PONTO de extensão — a porta entre extensões: uma publica o ponto no
+   * manifest ('extensionPoints'), outra o preenche em 'contributes', e nenhuma conhece a outra.
+   * Devolve só a metadata declarada; implementação não atravessa a ponte.
+   */
+  export function useContributions(point: string): PointContribution[];
+
+  export interface RunActionRequest {
+    /** A Action pelo 'templateId' do pacote — o endereço estável entre escritórios. */
+    actionSourceId?: string;
+    /** A Action pelo id real, quando quem chama já o tem. */
+    actionId?: string;
+    collection: string;
+    recordId: string;
+    record: Record<string, any>;
+    /** Parâmetros da Action — o que esta porta tem e o botão pronto do card não tem. */
+    params?: Record<string, any>;
+  }
+  /**
+   * Executa uma Action do escritório sobre um registro, COM PARÂMETROS. É o caminho do gesto que
+   * não é botão (arrastar um cartão para outro dia precisa dizer qual é o dia). Vale para Action de
+   * workflow; comando de tela é recusado com mensagem.
+   */
+  export function useRunAction(): (request: RunActionRequest) => Promise<{ ok: boolean; message: string | null }>;
+
+  /**
+   * Avalia a expressão 'hiddenWhen' de uma ação contra um registro, com o MESMO escopo do cartão
+   * nativo (os campos na raiz, mais record, role, surface e user). Devolve true quando a ação deve
+   * aparecer. Sem expressão, aparece — ausência não é ocultação.
+   */
+  export function useActionVisible(): (
+    hiddenWhen: string | null | undefined,
+    record: Record<string, any>,
+    surface?: string,
+  ) => boolean;
 }`;
 
 const FORMAT_MODULE_DEFS = `declare module '@microteia/format' {

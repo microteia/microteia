@@ -1,6 +1,7 @@
 import React from 'react';
 import { Input, Textarea } from '../Input';
 import { DateInput } from '../DateInput';
+import { TimeInput } from '../TimeInput';
 import { CurrencyInput } from '../CurrencyInput';
 import { MaskedInput } from '../MaskedInput';
 import { DynamicSelect } from '../DynamicSelect';
@@ -51,6 +52,14 @@ export const FieldControl: React.FC<{ field: FieldDefinition; vm: CustomFieldsSe
     case 'date':
       return (
         <DateInput
+          value={vm.getString(field.key)}
+          onChange={(value) => vm.setValue(field.key, value)}
+          disabled={isDisabled}
+        />
+      );
+    case 'time':
+      return (
+        <TimeInput
           value={vm.getString(field.key)}
           onChange={(value) => vm.setValue(field.key, value)}
           disabled={isDisabled}

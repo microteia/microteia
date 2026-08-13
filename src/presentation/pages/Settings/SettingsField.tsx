@@ -3,7 +3,13 @@ import { Checkbox } from '../../components/ui/Checkbox';
 import { Input } from '../../components/ui/Input';
 import { SearchSelect } from '../../components/ui/SearchSelect';
 import { WidgetLayoutEditor } from './WidgetLayoutEditor';
-import { settingsToJson, type SettingsProperty, type WidgetLayoutEntry } from '../../../domain/schema/settings';
+import { ContributionListEditor } from './ContributionListEditor';
+import {
+  settingsToJson,
+  type ContributionLayoutEntry,
+  type SettingsProperty,
+  type WidgetLayoutEntry,
+} from '../../../domain/schema/settings';
 
 interface SettingsFieldProps {
   property: SettingsProperty;
@@ -61,6 +67,16 @@ export const SettingsField: React.FC<SettingsFieldProps> = ({ property, value, d
           value={value}
           disabled={disabled}
           onChange={(entries: WidgetLayoutEntry[]) => onChange(entries)}
+        />
+      );
+
+    case 'contributions':
+      return (
+        <ContributionListEditor
+          point={property.point ?? property.key}
+          value={value}
+          disabled={disabled}
+          onChange={(entries: ContributionLayoutEntry[]) => onChange(entries)}
         />
       );
 

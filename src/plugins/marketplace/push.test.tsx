@@ -12,6 +12,7 @@ import { resolveWritableTable } from '../../domain/schema/mutationSpec';
 import { createSchemaContext } from '../../domain/schema/pathResolver';
 import type { PluginInstallation } from '../../domain/entities/PluginInstallation';
 import { brasilPlugin } from './brasil';
+import { calendarPlugin } from './calendar';
 import { contratoPlugin } from './contrato';
 import { pessoaPlugin } from './pessoa';
 import { prazoPlugin } from './prazo';
@@ -30,7 +31,7 @@ const installation = (pluginId: string): PluginInstallation => ({
   updatedAt: new Date(),
 });
 
-const CADEIA = [brasilPlugin, pessoaPlugin, contratoPlugin, processoPlugin, prazoPlugin, pushPlugin];
+const CADEIA = [brasilPlugin, pessoaPlugin, contratoPlugin, processoPlugin, calendarPlugin, prazoPlugin, pushPlugin];
 
 const screen = () => materializePluginScreens(pushPlugin, 'u1')[0].input;
 

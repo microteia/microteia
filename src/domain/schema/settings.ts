@@ -27,7 +27,8 @@ export type SettingsPropertyType =
   | 'text'
   | 'select'
   | 'json'
-  | 'widgets';
+  | 'widgets'
+  | 'contributions';
 
 export interface SettingsPropertyOption {
   value: string;
@@ -50,6 +51,11 @@ export interface SettingsProperty {
   scopes: SettingsScope[];
   /** Superfície cujos widgets esta propriedade ordena. Só faz sentido em `type: 'widgets'`. */
   surface?: string;
+  /**
+   * Ponto de extensão cujas contribuições esta propriedade liga/desliga e ordena. Só faz sentido em
+   * `type: 'contributions'` — é o `widgets` generalizado para um ponto qualquer.
+   */
+  point?: string;
 }
 
 export interface SettingsSection {
@@ -72,6 +78,15 @@ export interface WidgetLayoutEntry {
   key: string;
   enabled: boolean;
   span: number;
+}
+
+/**
+ * Um item da lista de contribuições de um ponto. É o `WidgetLayoutEntry` sem a largura: o que se
+ * configura aqui é PARTICIPAR e em QUE ORDEM — não onde aparece na grade.
+ */
+export interface ContributionLayoutEntry {
+  key: string;
+  enabled: boolean;
 }
 
 export const MIN_WIDGET_SPAN = 1;
@@ -113,6 +128,13 @@ const isWidgetLayoutEntry = (item: unknown): boolean => {
   );
 };
 
+const isContributionLayoutEntry = (item: unknown): boolean => {
+  if (typeof item !== 'object' || item === null) return false;
+  const entry = item as Record<string, unknown>;
+  if (typeof entry.key !== 'string' || entry.key.length === 0) return false;
+  return entry.enabled === undefined || typeof entry.enabled === 'boolean';
+};
+
 /**
  * Devolve a mensagem do problema, ou `null` quando o valor serve. Nunca lança: um valor inválido
  * vindo do banco ou de um JSON editado à mão precisa virar aviso na tela, não tela em branco.
@@ -139,6 +161,12 @@ export const validateSettingValue = (property: SettingsProperty, value: unknown)
       return value.every(isWidgetLayoutEntry)
         ? null
         : 'Cada item precisa ter uma chave e, se informada, largura entre 1 e 3.';
+    }
+    case 'contributions': {
+      if (!Array.isArray(value)) return 'Informe uma lista de itens.';
+      return value.every(isContributionLayoutEntry)
+        ? null
+        : 'Cada item precisa ter uma chave e, se informado, ligado/desligado.';
     }
     case 'json':
       return value === undefined ? 'Informe um valor.' : null;
@@ -200,6 +228,43 @@ export const resolveWidgetLayout = (
     const span = typeof entry?.span === 'number' ? entry.span : (widget.defaultSpan ?? 1);
     const enabled = typeof entry?.enabled === 'boolean' ? entry.enabled : (widget.defaultEnabled ?? true);
     return { key: widget.key, enabled, span: Math.min(Math.max(span, MIN_WIDGET_SPAN), MAX_WIDGET_SPAN) };
+  });
+};
+
+export interface ContributionLayoutDefaults {
+  key: string;
+  defaultEnabled?: boolean;
+  order?: number;
+}
+
+/**
+ * O mesmo conciliar de `resolveWidgetLayout`, para as contribuições de um ponto: a ordem escolhida
+ * é preservada, o que a extensão registrou depois entra no fim, e o que sumiu não deixa buraco.
+ */
+export const resolveContributionLayout = (
+  stored: unknown,
+  available: ContributionLayoutDefaults[],
+): ContributionLayoutEntry[] => {
+  const entries = (Array.isArray(stored) ? stored : []).filter(isContributionLayoutEntry) as Array<{
+    key: string;
+    enabled?: boolean;
+  }>;
+  const byKey = new Map(entries.map((entry) => [entry.key, entry]));
+
+  const known = [...available].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+  const ordered: ContributionLayoutDefaults[] = [];
+  for (const entry of entries) {
+    const match = known.find((item) => item.key === entry.key);
+    if (match && !ordered.includes(match)) ordered.push(match);
+  }
+  for (const item of known) if (!ordered.includes(item)) ordered.push(item);
+
+  return ordered.map((item) => {
+    const entry = byKey.get(item.key);
+    return {
+      key: item.key,
+      enabled: typeof entry?.enabled === 'boolean' ? entry.enabled : (item.defaultEnabled ?? true),
+    };
   });
 };
 

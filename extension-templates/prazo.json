@@ -21,6 +21,12 @@
         "collections": [
           "cases"
         ]
+      },
+      "com.microteia.calendar": {
+        "version": "^1.0.0",
+        "collections": [
+          "calendar"
+        ]
       }
     },
     "contributes": [
@@ -119,6 +125,34 @@
         "impl": {
           "kind": "code",
           "key": "widget-prazos-analise"
+        }
+      },
+      {
+        "point": "calendar.action",
+        "id": "prazo-concluir",
+        "apiVersion": "1.0.0",
+        "metadata": {
+          "key": "prazo.concluir",
+          "title": "Marcar como concluído",
+          "icon": "check",
+          "order": 0,
+          "origem": "deadlines",
+          "actionSourceId": "act-prazo-calendar-concluir",
+          "hiddenWhen": "status == \"closed\""
+        }
+      },
+      {
+        "point": "calendar.moveaction",
+        "id": "prazo-mover",
+        "apiVersion": "1.0.0",
+        "metadata": {
+          "key": "prazo.mover",
+          "title": "Remarcar o prazo",
+          "description": "Arrastar um prazo para outro dia muda o vencimento — ou a data de conclusão, se ele já estiver concluído.",
+          "icon": "time",
+          "order": 0,
+          "origem": "deadlines",
+          "actionSourceId": "act-prazo-calendar-mover"
         }
       }
     ]
@@ -681,9 +715,886 @@
           }
         }
       ]
+    },
+    {
+      "templateId": "wf-prazo-calendar-sync",
+      "name": "Espelhar prazo no calendário",
+      "description": "Mantém na agenda um item para cada prazo: cria na primeira gravação e atualiza nas seguintes.",
+      "eventName": "deadline.saved",
+      "version": 1,
+      "condition": {
+        "kind": "AlwaysTrue"
+      },
+      "steps": [
+        {
+          "id": "buscarItem",
+          "stepDefinitionId": "query",
+          "type": "Action",
+          "order": 0,
+          "enabled": true,
+          "configuration": {
+            "query": {
+              "kind": "Literal",
+              "value": {
+                "table": "calendar",
+                "where": [
+                  {
+                    "path": "origemId",
+                    "op": "eq",
+                    "value": {
+                      "kind": "Expression",
+                      "expression": "event.id"
+                    }
+                  }
+                ],
+                "limit": 1,
+                "projections": []
+              }
+            }
+          }
+        },
+        {
+          "id": "buscarItemExiste",
+          "stepDefinitionId": "",
+          "type": "Condition",
+          "order": 1,
+          "enabled": true,
+          "condition": {
+            "kind": "Expression",
+            "expression": "output.buscarItem.count < 1"
+          },
+          "configuration": {},
+          "branches": {
+            "whenTrue": [
+              {
+                "id": "buscarItemSem",
+                "stepDefinitionId": "map",
+                "type": "Action",
+                "order": 0,
+                "enabled": true,
+                "configuration": {
+                  "map": {
+                    "kind": "Literal",
+                    "value": {
+                      "name": "",
+                      "fields": [
+                        {
+                          "name": "itemId",
+                          "value": {
+                            "kind": "Literal",
+                            "value": null
+                          }
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            ],
+            "whenFalse": [
+              {
+                "id": "buscarItemCom",
+                "stepDefinitionId": "map",
+                "type": "Action",
+                "order": 0,
+                "enabled": true,
+                "configuration": {
+                  "map": {
+                    "kind": "Literal",
+                    "value": {
+                      "name": "",
+                      "fields": [
+                        {
+                          "name": "itemId",
+                          "value": {
+                            "kind": "Expression",
+                            "expression": "output.buscarItem.first.id"
+                          }
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "montarItem",
+          "stepDefinitionId": "map",
+          "type": "Action",
+          "order": 2,
+          "enabled": true,
+          "configuration": {
+            "map": {
+              "kind": "Literal",
+              "value": {
+                "name": "item",
+                "fields": [
+                  {
+                    "name": "id",
+                    "value": {
+                      "kind": "Expression",
+                      "expression": "input.itemId"
+                    }
+                  },
+                  {
+                    "name": "title",
+                    "value": {
+                      "kind": "Expression",
+                      "expression": "event.type"
+                    }
+                  },
+                  {
+                    "name": "status",
+                    "value": {
+                      "kind": "Expression",
+                      "expression": "event.status == \"Concluído\" ? \"closed\" : \"pending\""
+                    }
+                  },
+                  {
+                    "name": "priority",
+                    "value": {
+                      "kind": "Expression",
+                      "expression": "event.priority == \"Crítica\" ? \"critical\" : (event.priority == \"Alta\" ? \"high\" : (event.priority == \"Baixa\" ? \"low\" : \"medium\"))"
+                    }
+                  },
+                  {
+                    "name": "date",
+                    "value": {
+                      "kind": "Expression",
+                      "expression": "event.dueDate"
+                    }
+                  },
+                  {
+                    "name": "finishDate",
+                    "value": {
+                      "kind": "Expression",
+                      "expression": "event.completedAt"
+                    }
+                  },
+                  {
+                    "name": "description",
+                    "value": {
+                      "kind": "Expression",
+                      "expression": "event.description"
+                    }
+                  },
+                  {
+                    "name": "origem",
+                    "value": {
+                      "kind": "Literal",
+                      "value": "deadlines"
+                    }
+                  },
+                  {
+                    "name": "origemId",
+                    "value": {
+                      "kind": "Expression",
+                      "expression": "event.id"
+                    }
+                  },
+                  {
+                    "name": "caseId",
+                    "value": {
+                      "kind": "Expression",
+                      "expression": "event.caseId"
+                    }
+                  },
+                  {
+                    "name": "personId",
+                    "value": {
+                      "kind": "Expression",
+                      "expression": "event.responsibleLawyerId"
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "id": "gravarItem",
+          "stepDefinitionId": "upsert",
+          "type": "Action",
+          "order": 3,
+          "enabled": true,
+          "configuration": {
+            "upsert": {
+              "kind": "Literal",
+              "value": {
+                "table": "calendar",
+                "source": "input",
+                "property": "item"
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "templateId": "wf-prazo-calendar-sincronizar",
+      "name": "Sincronizar prazos no calendário",
+      "description": "Põe na agenda os prazos que já existiam antes da integração. Pode ser executado quantas vezes for preciso: cada prazo tem no máximo um item, e rodar de novo apenas o atualiza. Processa até 100 prazos por execução, dentro da situação escolhida.",
+      "eventName": "workflow.called",
+      "version": 1,
+      "condition": {
+        "kind": "AlwaysTrue"
+      },
+      "parameters": [
+        {
+          "key": "status",
+          "label": "Situação dos prazos a sincronizar",
+          "type": "lookup",
+          "lookupCollection": "deadlineStatuses",
+          "required": true,
+          "defaultValue": "Pendente"
+        }
+      ],
+      "steps": [
+        {
+          "id": "buscarPrazos",
+          "stepDefinitionId": "query",
+          "type": "Action",
+          "order": 0,
+          "enabled": true,
+          "configuration": {
+            "query": {
+              "kind": "Literal",
+              "value": {
+                "table": "deadlines",
+                "where": [
+                  {
+                    "path": "status",
+                    "op": "eq",
+                    "value": {
+                      "kind": "Expression",
+                      "expression": "event.status"
+                    }
+                  }
+                ],
+                "orderBy": [
+                  {
+                    "path": "dueDate",
+                    "dir": "desc"
+                  }
+                ],
+                "limit": 100,
+                "projections": []
+              }
+            }
+          }
+        },
+        {
+          "id": "cadaPrazo",
+          "stepDefinitionId": "",
+          "type": "Loop",
+          "order": 1,
+          "enabled": true,
+          "configuration": {},
+          "loop": {
+            "source": {
+              "kind": "Expression",
+              "expression": "output.buscarPrazos.results"
+            },
+            "itemName": "prazo",
+            "outputName": "itens",
+            "body": [
+              {
+                "id": "buscarItem",
+                "stepDefinitionId": "query",
+                "type": "Action",
+                "order": 0,
+                "enabled": true,
+                "configuration": {
+                  "query": {
+                    "kind": "Literal",
+                    "value": {
+                      "table": "calendar",
+                      "where": [
+                        {
+                          "path": "origemId",
+                          "op": "eq",
+                          "value": {
+                            "kind": "Expression",
+                            "expression": "output.cadaPrazo.id"
+                          }
+                        }
+                      ],
+                      "limit": 1,
+                      "projections": []
+                    }
+                  }
+                }
+              },
+              {
+                "id": "buscarItemExiste",
+                "stepDefinitionId": "",
+                "type": "Condition",
+                "order": 1,
+                "enabled": true,
+                "condition": {
+                  "kind": "Expression",
+                  "expression": "output.buscarItem.count < 1"
+                },
+                "configuration": {},
+                "branches": {
+                  "whenTrue": [
+                    {
+                      "id": "buscarItemSem",
+                      "stepDefinitionId": "map",
+                      "type": "Action",
+                      "order": 0,
+                      "enabled": true,
+                      "configuration": {
+                        "map": {
+                          "kind": "Literal",
+                          "value": {
+                            "name": "",
+                            "fields": [
+                              {
+                                "name": "itemId",
+                                "value": {
+                                  "kind": "Literal",
+                                  "value": null
+                                }
+                              }
+                            ]
+                          }
+                        }
+                      }
+                    }
+                  ],
+                  "whenFalse": [
+                    {
+                      "id": "buscarItemCom",
+                      "stepDefinitionId": "map",
+                      "type": "Action",
+                      "order": 0,
+                      "enabled": true,
+                      "configuration": {
+                        "map": {
+                          "kind": "Literal",
+                          "value": {
+                            "name": "",
+                            "fields": [
+                              {
+                                "name": "itemId",
+                                "value": {
+                                  "kind": "Expression",
+                                  "expression": "output.buscarItem.first.id"
+                                }
+                              }
+                            ]
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "montarItem",
+                "stepDefinitionId": "map",
+                "type": "Action",
+                "order": 2,
+                "enabled": true,
+                "configuration": {
+                  "map": {
+                    "kind": "Literal",
+                    "value": {
+                      "name": "item",
+                      "fields": [
+                        {
+                          "name": "id",
+                          "value": {
+                            "kind": "Expression",
+                            "expression": "input.itemId"
+                          }
+                        },
+                        {
+                          "name": "title",
+                          "value": {
+                            "kind": "Expression",
+                            "expression": "output.cadaPrazo.type"
+                          }
+                        },
+                        {
+                          "name": "status",
+                          "value": {
+                            "kind": "Expression",
+                            "expression": "output.cadaPrazo.status == \"Concluído\" ? \"closed\" : \"pending\""
+                          }
+                        },
+                        {
+                          "name": "priority",
+                          "value": {
+                            "kind": "Expression",
+                            "expression": "output.cadaPrazo.priority == \"Crítica\" ? \"critical\" : (output.cadaPrazo.priority == \"Alta\" ? \"high\" : (output.cadaPrazo.priority == \"Baixa\" ? \"low\" : \"medium\"))"
+                          }
+                        },
+                        {
+                          "name": "date",
+                          "value": {
+                            "kind": "Expression",
+                            "expression": "output.cadaPrazo.dueDate"
+                          }
+                        },
+                        {
+                          "name": "finishDate",
+                          "value": {
+                            "kind": "Expression",
+                            "expression": "output.cadaPrazo.completedAt"
+                          }
+                        },
+                        {
+                          "name": "description",
+                          "value": {
+                            "kind": "Expression",
+                            "expression": "output.cadaPrazo.description"
+                          }
+                        },
+                        {
+                          "name": "origem",
+                          "value": {
+                            "kind": "Literal",
+                            "value": "deadlines"
+                          }
+                        },
+                        {
+                          "name": "origemId",
+                          "value": {
+                            "kind": "Expression",
+                            "expression": "output.cadaPrazo.id"
+                          }
+                        },
+                        {
+                          "name": "caseId",
+                          "value": {
+                            "kind": "Expression",
+                            "expression": "output.cadaPrazo.caseId"
+                          }
+                        },
+                        {
+                          "name": "personId",
+                          "value": {
+                            "kind": "Expression",
+                            "expression": "output.cadaPrazo.responsibleLawyerId"
+                          }
+                        }
+                      ]
+                    }
+                  }
+                }
+              },
+              {
+                "id": "gravarItem",
+                "stepDefinitionId": "upsert",
+                "type": "Action",
+                "order": 3,
+                "enabled": true,
+                "configuration": {
+                  "upsert": {
+                    "kind": "Literal",
+                    "value": {
+                      "table": "calendar",
+                      "source": "input",
+                      "property": "item"
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "responder",
+          "stepDefinitionId": "map",
+          "type": "Action",
+          "order": 2,
+          "enabled": true,
+          "configuration": {
+            "map": {
+              "kind": "Literal",
+              "value": {
+                "name": "",
+                "fields": [
+                  {
+                    "name": "sincronizados",
+                    "value": {
+                      "kind": "Expression",
+                      "expression": "output.buscarPrazos.count"
+                    }
+                  },
+                  {
+                    "name": "status",
+                    "value": {
+                      "kind": "Expression",
+                      "expression": "output.buscarPrazos.count >= 100 ? \"Sincronizados 100 prazos — o teto de uma execução. Rode de novo para alcançar os demais.\" : concat(\"Sincronizados \", output.buscarPrazos.count, \" prazo(s) no calendário.\")"
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "templateId": "wf-prazo-calendar-remover",
+      "name": "Retirar prazo do calendário",
+      "description": "Exclui da agenda o item do prazo que foi removido.",
+      "eventName": "deadline.deleted",
+      "version": 1,
+      "condition": {
+        "kind": "AlwaysTrue"
+      },
+      "steps": [
+        {
+          "id": "buscarItem",
+          "stepDefinitionId": "query",
+          "type": "Action",
+          "order": 0,
+          "enabled": true,
+          "configuration": {
+            "query": {
+              "kind": "Literal",
+              "value": {
+                "table": "calendar",
+                "where": [
+                  {
+                    "path": "origemId",
+                    "op": "eq",
+                    "value": {
+                      "kind": "Expression",
+                      "expression": "event.id"
+                    }
+                  }
+                ],
+                "limit": 1,
+                "projections": []
+              }
+            }
+          }
+        },
+        {
+          "id": "itemExiste",
+          "stepDefinitionId": "",
+          "type": "Condition",
+          "order": 1,
+          "enabled": true,
+          "condition": {
+            "kind": "Expression",
+            "expression": "output.buscarItem.count < 1"
+          },
+          "configuration": {},
+          "branches": {
+            "whenTrue": [
+              {
+                "id": "semItemSair",
+                "stepDefinitionId": "exit",
+                "type": "Action",
+                "order": 0,
+                "enabled": true,
+                "configuration": {}
+              }
+            ],
+            "whenFalse": []
+          }
+        },
+        {
+          "id": "excluirItem",
+          "stepDefinitionId": "remove",
+          "type": "Action",
+          "order": 2,
+          "enabled": true,
+          "configuration": {
+            "remove": {
+              "kind": "Literal",
+              "value": {
+                "table": "calendar",
+                "id": {
+                  "kind": "Expression",
+                  "expression": "output.buscarItem.first.id"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "templateId": "wf-prazo-calendar-concluir",
+      "name": "Concluir prazo pela agenda",
+      "description": "Marca como concluído o prazo que deu origem ao item do calendário.",
+      "eventName": "workflow.called",
+      "version": 1,
+      "condition": {
+        "kind": "AlwaysTrue"
+      },
+      "steps": [
+        {
+          "id": "montar",
+          "stepDefinitionId": "map",
+          "type": "Action",
+          "order": 0,
+          "enabled": true,
+          "configuration": {
+            "map": {
+              "kind": "Literal",
+              "value": {
+                "name": "prazo",
+                "fields": [
+                  {
+                    "name": "id",
+                    "value": {
+                      "kind": "Expression",
+                      "expression": "event.context.origemId"
+                    }
+                  },
+                  {
+                    "name": "status",
+                    "value": {
+                      "kind": "Literal",
+                      "value": "Concluído"
+                    }
+                  },
+                  {
+                    "name": "completedAt",
+                    "value": {
+                      "kind": "Expression",
+                      "expression": "today()"
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "id": "gravar",
+          "stepDefinitionId": "upsert",
+          "type": "Action",
+          "order": 1,
+          "enabled": true,
+          "configuration": {
+            "upsert": {
+              "kind": "Literal",
+              "value": {
+                "table": "deadlines",
+                "source": "input",
+                "property": "prazo"
+              }
+            }
+          }
+        },
+        {
+          "id": "responder",
+          "stepDefinitionId": "map",
+          "type": "Action",
+          "order": 2,
+          "enabled": true,
+          "configuration": {
+            "map": {
+              "kind": "Literal",
+              "value": {
+                "name": "",
+                "fields": [
+                  {
+                    "name": "status",
+                    "value": {
+                      "kind": "Literal",
+                      "value": "Prazo marcado como concluído."
+                    }
+                  },
+                  {
+                    "name": "actions",
+                    "value": {
+                      "kind": "Literal",
+                      "value": [
+                        "refresh"
+                      ]
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "templateId": "wf-prazo-calendar-mover",
+      "name": "Remarcar prazo pela agenda",
+      "description": "Muda o vencimento do prazo (ou a data de conclusão, se ele já estiver concluído) quando o item é arrastado para outro dia.",
+      "eventName": "workflow.called",
+      "version": 1,
+      "condition": {
+        "kind": "AlwaysTrue"
+      },
+      "parameters": [
+        {
+          "key": "targetDate",
+          "label": "Novo dia",
+          "type": "Date",
+          "required": true
+        }
+      ],
+      "steps": [
+        {
+          "id": "jaConcluido",
+          "stepDefinitionId": "",
+          "type": "Condition",
+          "order": 0,
+          "enabled": true,
+          "condition": {
+            "kind": "Expression",
+            "expression": "event.context.status == \"closed\""
+          },
+          "configuration": {},
+          "branches": {
+            "whenTrue": [
+              {
+                "id": "remarcarConclusao",
+                "stepDefinitionId": "map",
+                "type": "Action",
+                "order": 0,
+                "enabled": true,
+                "configuration": {
+                  "map": {
+                    "kind": "Literal",
+                    "value": {
+                      "name": "prazo",
+                      "fields": [
+                        {
+                          "name": "id",
+                          "value": {
+                            "kind": "Expression",
+                            "expression": "event.context.origemId"
+                          }
+                        },
+                        {
+                          "name": "completedAt",
+                          "value": {
+                            "kind": "Expression",
+                            "expression": "event.targetDate"
+                          }
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            ],
+            "whenFalse": [
+              {
+                "id": "remarcarVencimento",
+                "stepDefinitionId": "map",
+                "type": "Action",
+                "order": 0,
+                "enabled": true,
+                "configuration": {
+                  "map": {
+                    "kind": "Literal",
+                    "value": {
+                      "name": "prazo",
+                      "fields": [
+                        {
+                          "name": "id",
+                          "value": {
+                            "kind": "Expression",
+                            "expression": "event.context.origemId"
+                          }
+                        },
+                        {
+                          "name": "dueDate",
+                          "value": {
+                            "kind": "Expression",
+                            "expression": "event.targetDate"
+                          }
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "gravar",
+          "stepDefinitionId": "upsert",
+          "type": "Action",
+          "order": 1,
+          "enabled": true,
+          "configuration": {
+            "upsert": {
+              "kind": "Literal",
+              "value": {
+                "table": "deadlines",
+                "source": "input",
+                "property": "prazo"
+              }
+            }
+          }
+        },
+        {
+          "id": "responder",
+          "stepDefinitionId": "map",
+          "type": "Action",
+          "order": 2,
+          "enabled": true,
+          "configuration": {
+            "map": {
+              "kind": "Literal",
+              "value": {
+                "name": "",
+                "fields": [
+                  {
+                    "name": "status",
+                    "value": {
+                      "kind": "Literal",
+                      "value": "Prazo remarcado."
+                    }
+                  },
+                  {
+                    "name": "actions",
+                    "value": {
+                      "kind": "Literal",
+                      "value": [
+                        "refresh"
+                      ]
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        }
+      ]
     }
   ],
   "actions": [
+    {
+      "templateId": "act-prazo-calendar-concluir",
+      "key": "prazo_calendar_concluir",
+      "title": "Marcar como concluído",
+      "icon": "check",
+      "workflowId": "wf-prazo-calendar-concluir",
+      "danger": false,
+      "enabled": true,
+      "order": 0
+    },
+    {
+      "templateId": "act-prazo-calendar-mover",
+      "key": "prazo_calendar_mover",
+      "title": "Remarcar prazo",
+      "icon": "time",
+      "workflowId": "wf-prazo-calendar-mover",
+      "danger": false,
+      "enabled": true,
+      "order": 1
+    },
     {
       "templateId": "act-prazo-concluir",
       "key": "prazo_concluir",
@@ -825,6 +1736,40 @@
       ],
       "sidebarOrder": 0,
       "hideFromSidebar": true
+    }
+  ],
+  "screenPatches": [
+    {
+      "target": "microteia:calendar",
+      "targetKind": "sourceId",
+      "fields": [
+        {
+          "key": "caseId",
+          "label": "Processo",
+          "type": "reference",
+          "required": false,
+          "order": 20,
+          "section": "Processo",
+          "refEntity": "cases",
+          "filterable": true,
+          "showInList": true,
+          "listIcon": "folder",
+          "listOrder": 10
+        },
+        {
+          "key": "personId",
+          "label": "Advogado responsável",
+          "type": "reference",
+          "required": false,
+          "order": 21,
+          "section": "Processo",
+          "refEntity": "persons",
+          "filterable": true,
+          "showInList": true,
+          "listIcon": "scales",
+          "listOrder": 11
+        }
+      ]
     }
   ],
   "lookups": [
