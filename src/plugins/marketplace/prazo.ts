@@ -8,7 +8,7 @@ import type {
 } from '../../domain/entities/MarketplacePlugin';
 import type { CustomFieldOption } from '../../domain/entities';
 import type { Condition, WorkflowStep } from '../../domain/entities/Workflow';
-import { nav, page } from '../contributionBuilders';
+import { nav, page, surfaceWidget } from '../contributionBuilders';
 
 /**
  * **Prazos** — o controle de prazos do escritório, inteiro, declarado por extensão: campos, listas de
@@ -701,6 +701,479 @@ export default function startup(host) {
 }
 `;
 
+
+/**
+ * Os WIDGETS do Painel. Eles são desta extensão de propósito: quem sabe o que é um prazo pendente,
+ * o que é vencer e como se lê uma prioridade é ela — o Painel só oferece o lugar. Instalar Prazos
+ * faz os cartões aparecerem; desinstalar os retira, sem que o Painel saiba de nada.
+ */
+const WIDGET_HELPERS = `
+const DAY = 86400000;
+
+const startOfToday = () => {
+  const now = new Date();
+  return new Date(now.getFullYear(), now.getMonth(), now.getDate());
+};
+
+const dayTime = (value) => {
+  if (!value) return null;
+  const date = new Date(value);
+  if (isNaN(date.getTime())) return null;
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
+};
+
+const isOverdue = (deadline, today) => {
+  const due = dayTime(deadline.dueDate);
+  if (due === null) return false;
+  return deadline.status === 'Vencido' || (deadline.status === 'Pendente' && due < today);
+};
+`;
+
+const WIDGET_CARD = `
+const Card = styled.div\`
+  background: \${({ theme }) => theme.colors.surface};
+  border: 1px solid \${({ theme }) => theme.colors.border};
+  border-radius: \${({ theme }) => theme.borderRadius.lg};
+  padding: \${({ theme }) => theme.spacing.lg};
+  display: flex;
+  flex-direction: column;
+  gap: \${({ theme }) => theme.spacing.md};
+  height: 100%;
+\`;
+
+const Head = styled.div\`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: \${({ theme }) => theme.spacing.sm};
+\`;
+
+const Title = styled.h3\`
+  font-size: \${({ theme }) => theme.fontSizes.md};
+  font-weight: 600;
+  color: \${({ theme }) => theme.colors.text};
+\`;
+
+const Empty = styled.div\`
+  padding: \${({ theme }) => theme.spacing.lg};
+  text-align: center;
+  color: \${({ theme }) => theme.colors.textMuted};
+  font-size: \${({ theme }) => theme.fontSizes.sm};
+\`;
+
+const List = styled.div\`
+  display: flex;
+  flex-direction: column;
+  gap: \${({ theme }) => theme.spacing.sm};
+\`;
+
+const Item = styled.div\`
+  display: flex;
+  align-items: center;
+  gap: \${({ theme }) => theme.spacing.sm};
+  padding: \${({ theme }) => theme.spacing.sm} \${({ theme }) => theme.spacing.md};
+  border: 1px solid \${({ theme }) => theme.colors.border};
+  border-radius: \${({ theme }) => theme.borderRadius.md};
+  background: \${({ theme }) => theme.colors.background};
+  cursor: pointer;
+  &:hover { border-color: \${({ theme }) => theme.colors.primary}; }
+\`;
+
+const Bar = styled.div\`
+  width: 4px;
+  height: 32px;
+  border-radius: 4px;
+  flex-shrink: 0;
+  background: \${({ $color }) => $color};
+\`;
+
+const Info = styled.div\`
+  flex: 1;
+  min-width: 0;
+\`;
+
+const ItemTitle = styled.div\`
+  font-size: \${({ theme }) => theme.fontSizes.sm};
+  font-weight: 500;
+  color: \${({ theme }) => theme.colors.text};
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+\`;
+
+const ItemSub = styled.div\`
+  font-size: \${({ theme }) => theme.fontSizes.xs};
+  color: \${({ theme }) => theme.colors.textMuted};
+  font-family: \${({ theme }) => theme.fonts.mono};
+\`;
+
+const Chip = styled.span\`
+  flex-shrink: 0;
+  padding: 1px 7px;
+  border-radius: \${({ theme }) => theme.borderRadius.full};
+  font-size: 10px;
+  font-weight: 600;
+  font-family: \${({ theme }) => theme.fonts.mono};
+  white-space: nowrap;
+  color: \${({ $color, theme }) => $color || theme.colors.textMuted};
+  border: 1px solid \${({ $color, theme }) => $color || theme.colors.border};
+\`;
+`;
+
+const PRAZOS_NUMEROS_SOURCE = `
+import { useMemo } from 'react';
+import { styled, useTheme } from 'styled-components';
+import { useCollection, useOpenScreenList } from '@microteia/data';
+${WIDGET_HELPERS}
+${WIDGET_CARD}
+const Stats = styled.div\`
+  display: flex;
+  gap: \${({ theme }) => theme.spacing.lg};
+\`;
+
+const Stat = styled.button\`
+  flex: 1;
+  background: none;
+  border: none;
+  padding: 0;
+  text-align: left;
+  cursor: pointer;
+\`;
+
+const Value = styled.div\`
+  font-size: \${({ theme }) => theme.fontSizes['2xl']};
+  font-weight: 700;
+  line-height: 1.2;
+  color: \${({ $color, theme }) => $color || theme.colors.text};
+\`;
+
+const Label = styled.div\`
+  font-size: \${({ theme }) => theme.fontSizes.sm};
+  color: \${({ theme }) => theme.colors.textMuted};
+\`;
+
+export default function PrazosNumerosWidget() {
+  const theme = useTheme();
+  const deadlines = useCollection('deadlines');
+  const openList = useOpenScreenList();
+
+  const counts = useMemo(() => {
+    const today = startOfToday().getTime();
+    return {
+      pendentes: deadlines.filter((d) => d.status === 'Pendente').length,
+      vencidos: deadlines.filter((d) => isOverdue(d, today)).length,
+    };
+  }, [deadlines]);
+
+  return (
+    <Card>
+      <Head><Title>Prazos</Title></Head>
+      <Stats>
+        <Stat onClick={() => openList('deadlines', [{ key: 'status', values: ['Pendente'] }])}>
+          <Value>{counts.pendentes}</Value>
+          <Label>Pendentes</Label>
+        </Stat>
+        <Stat onClick={() => openList('deadlines', [{ key: 'status', values: ['Vencido'] }])}>
+          <Value $color={counts.vencidos > 0 ? theme.colors.danger : undefined}>{counts.vencidos}</Value>
+          <Label>Vencidos</Label>
+        </Stat>
+      </Stats>
+    </Card>
+  );
+}
+`;
+
+const PRAZOS_PROXIMOS_SOURCE = `
+import { useMemo } from 'react';
+import { styled, useTheme } from 'styled-components';
+import { Button } from '@microteia/ui';
+import { useCollection, useLookup, useOpenRecord, useOpenScreenList } from '@microteia/data';
+import { getConfigColor } from '@microteia/theme';
+${WIDGET_HELPERS}
+${WIDGET_CARD}
+export default function PrazosProximosWidget() {
+  const theme = useTheme();
+  const deadlines = useCollection('deadlines');
+  const cases = useCollection('cases');
+  const priorities = useLookup('deadlinePriorities');
+  const openRecord = useOpenRecord();
+  const openList = useOpenScreenList();
+
+  const items = useMemo(() => {
+    const today = startOfToday().getTime();
+    const limit = today + 7 * DAY;
+    return deadlines
+      .filter((d) => d.status === 'Pendente')
+      .filter((d) => {
+        const due = dayTime(d.dueDate);
+        return due !== null && due >= today && due <= limit;
+      })
+      .sort((a, b) => dayTime(a.dueDate) - dayTime(b.dueDate))
+      .map((d) => {
+        const days = Math.round((dayTime(d.dueDate) - today) / DAY);
+        const relatedCase = cases.find((c) => c.id === d.caseId);
+        return {
+          record: d,
+          days,
+          caseNumber: relatedCase ? relatedCase.caseNumber : '—',
+        };
+      });
+  }, [deadlines, cases]);
+
+  return (
+    <Card>
+      <Head>
+        <Title>Prazos nos Próximos 7 Dias</Title>
+        <Button size="sm" variant="ghost" onClick={() => openList('deadlines', [{ key: 'status', values: ['Pendente'] }])}>
+          Ver todos
+        </Button>
+      </Head>
+      {items.length === 0 ? (
+        <Empty>Nenhum prazo nos próximos 7 dias 🎉</Empty>
+      ) : (
+        <List>
+          {items.map((item) => (
+            <Item key={item.record.id} onClick={() => openRecord('deadlines', item.record.id)}>
+              <Bar $color={getConfigColor(priorities, item.record.priority, theme)} />
+              <Info>
+                <ItemTitle>{item.record.type}</ItemTitle>
+                <ItemSub>{item.caseNumber}</ItemSub>
+              </Info>
+              <Chip $color={item.days <= 1 ? theme.colors.warning : undefined}>
+                {item.days === 0 ? 'Hoje' : item.days === 1 ? 'Amanhã' : item.days + 'd'}
+              </Chip>
+            </Item>
+          ))}
+        </List>
+      )}
+    </Card>
+  );
+}
+`;
+
+const PRAZOS_VENCIDOS_SOURCE = `
+import { useMemo } from 'react';
+import { styled, useTheme } from 'styled-components';
+import { Button } from '@microteia/ui';
+import { useCollection, useLookup, useOpenRecord, useOpenScreenList } from '@microteia/data';
+import { getConfigColor } from '@microteia/theme';
+${WIDGET_HELPERS}
+${WIDGET_CARD}
+export default function PrazosVencidosWidget() {
+  const theme = useTheme();
+  const deadlines = useCollection('deadlines');
+  const cases = useCollection('cases');
+  const priorities = useLookup('deadlinePriorities');
+  const openRecord = useOpenRecord();
+  const openList = useOpenScreenList();
+
+  const items = useMemo(() => {
+    const today = startOfToday().getTime();
+    return deadlines
+      .filter((d) => isOverdue(d, today))
+      .sort((a, b) => dayTime(a.dueDate) - dayTime(b.dueDate))
+      .slice(0, 6)
+      .map((d) => {
+        const relatedCase = cases.find((c) => c.id === d.caseId);
+        return {
+          record: d,
+          days: Math.round((today - dayTime(d.dueDate)) / DAY),
+          caseNumber: relatedCase ? relatedCase.caseNumber : '—',
+        };
+      });
+  }, [deadlines, cases]);
+
+  return (
+    <Card>
+      <Head>
+        <Title>Prazos Vencidos</Title>
+        <Button size="sm" variant="ghost" onClick={() => openList('deadlines', [{ key: 'status', values: ['Vencido'] }])}>
+          Ver todos
+        </Button>
+      </Head>
+      {items.length === 0 ? (
+        <Empty>Nenhum prazo vencido 👍</Empty>
+      ) : (
+        <List>
+          {items.map((item) => (
+            <Item key={item.record.id} onClick={() => openRecord('deadlines', item.record.id)}>
+              <Bar $color={getConfigColor(priorities, item.record.priority, theme)} />
+              <Info>
+                <ItemTitle>{item.record.type}</ItemTitle>
+                <ItemSub>{item.caseNumber}</ItemSub>
+              </Info>
+              <Chip $color={theme.colors.danger}>{item.days}d vencido</Chip>
+            </Item>
+          ))}
+        </List>
+      )}
+    </Card>
+  );
+}
+`;
+
+/**
+ * A "Análise de Prazos" que era um componente do kernel (`DeadlineCharts`), agora widget desta
+ * extensão. O kernel ficou só com a PRIMITIVA de gráfico (`TimeSeriesChart`/`DonutChart`), que não
+ * sabe o que desenha; a regra — vencimento para frente, conclusão para trás, uma série por tipo — é
+ * de quem conhece prazo.
+ */
+const PRAZOS_ANALISE_SOURCE = `
+import { useMemo, useState } from 'react';
+import { styled, useTheme } from 'styled-components';
+import { TimeSeriesChart, DonutChart } from '@microteia/ui';
+import { useCollection } from '@microteia/data';
+${WIDGET_HELPERS}
+${WIDGET_CARD}
+const Controls = styled.div\`
+  display: flex;
+  flex-wrap: wrap;
+  gap: \${({ theme }) => theme.spacing.xs};
+  align-items: center;
+\`;
+
+const Toggle = styled.button\`
+  border: 1px solid \${({ theme }) => theme.colors.border};
+  border-radius: \${({ theme }) => theme.borderRadius.md};
+  padding: \${({ theme }) => theme.spacing.xs} \${({ theme }) => theme.spacing.sm};
+  font-size: \${({ theme }) => theme.fontSizes.xs};
+  font-weight: 600;
+  cursor: pointer;
+  background: \${({ $active, theme }) => ($active ? theme.colors.primary : 'transparent')};
+  color: \${({ $active, theme }) => ($active ? theme.colors.white : theme.colors.textSecondary)};
+\`;
+
+const Panels = styled.div\`
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: \${({ theme }) => theme.spacing.lg};
+  @media (max-width: 900px) { grid-template-columns: 1fr; }
+\`;
+
+const Legend = styled.div\`
+  display: flex;
+  flex-direction: column;
+  gap: \${({ theme }) => theme.spacing.xs};
+  font-size: \${({ theme }) => theme.fontSizes.xs};
+  color: \${({ theme }) => theme.colors.textSecondary};
+\`;
+
+const LegendRow = styled.div\`
+  display: flex;
+  align-items: center;
+  gap: \${({ theme }) => theme.spacing.sm};
+\`;
+
+const Dot = styled.span\`
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: \${({ $color }) => $color};
+  flex-shrink: 0;
+\`;
+
+const PERIODS = [7, 15, 30, 60];
+
+const label = (time) => {
+  const date = new Date(time);
+  const pad = (n) => String(n).padStart(2, '0');
+  return pad(date.getDate()) + '/' + pad(date.getMonth() + 1);
+};
+
+export default function PrazosAnaliseWidget() {
+  const theme = useTheme();
+  const deadlines = useCollection('deadlines');
+  const [mode, setMode] = useState('dueDate');
+  const [period, setPeriod] = useState(30);
+  const [hidden, setHidden] = useState([]);
+
+  const palette = [
+    theme.colors.primary, theme.colors.secondary, theme.colors.success,
+    theme.colors.warning, theme.colors.danger, theme.colors.info,
+  ];
+
+  const analysis = useMemo(() => {
+    const today = startOfToday().getTime();
+    const isCompleted = mode === 'completedAt';
+    const start = isCompleted ? today - period * DAY : today;
+    const end = isCompleted ? today : today + period * DAY;
+
+    const inPeriod = deadlines.filter((d) => {
+      const reference = dayTime(isCompleted ? d.completedAt : d.dueDate);
+      return reference !== null && reference >= start && reference <= end;
+    });
+
+    const types = Array.from(new Set(inPeriod.map((d) => d.type || 'Sem tipo'))).sort();
+    const colorOf = {};
+    types.forEach((type, index) => { colorOf[type] = palette[index % palette.length]; });
+
+    const rows = [];
+    for (let time = start; time <= end; time += DAY) {
+      const row = { date: label(time) };
+      for (const type of types) {
+        row[type] = inPeriod.filter((d) => {
+          const reference = dayTime(isCompleted ? d.completedAt : d.dueDate);
+          return (d.type || 'Sem tipo') === type && reference === time;
+        }).length;
+      }
+      rows.push(row);
+    }
+
+    const slices = types
+      .map((type) => ({
+        name: type,
+        value: inPeriod.filter((d) => (d.type || 'Sem tipo') === type).length,
+        color: colorOf[type],
+      }))
+      .filter((slice) => slice.value > 0)
+      .sort((a, b) => b.value - a.value);
+
+    return { rows, slices, types, colorOf, total: inPeriod.length };
+  }, [deadlines, mode, period, palette]);
+
+  const series = analysis.types
+    .filter((type) => hidden.indexOf(type) === -1)
+    .map((type) => ({ key: type, label: type, color: analysis.colorOf[type] }));
+
+  const toggleType = (type) => setHidden((prev) =>
+    prev.indexOf(type) === -1 ? prev.concat([type]) : prev.filter((item) => item !== type));
+
+  return (
+    <Card>
+      <Head>
+        <Title>Análise de Prazos</Title>
+        <Controls>
+          <Toggle $active={mode === 'dueDate'} onClick={() => setMode('dueDate')}>Por vencimento</Toggle>
+          <Toggle $active={mode === 'completedAt'} onClick={() => setMode('completedAt')}>Por conclusão</Toggle>
+          {PERIODS.map((days) => (
+            <Toggle key={days} $active={period === days} onClick={() => setPeriod(days)}>{days}d</Toggle>
+          ))}
+        </Controls>
+      </Head>
+      {analysis.total === 0 ? (
+        <Empty>Nenhum prazo no período</Empty>
+      ) : (
+        <Panels>
+          <TimeSeriesChart data={analysis.rows} xKey="date" series={series} height={240} />
+          <div>
+            <DonutChart data={analysis.slices} height={180} />
+            <Legend>
+              {analysis.slices.map((slice) => (
+                <LegendRow key={slice.name} onClick={() => toggleType(slice.name)} style={{ cursor: 'pointer', opacity: hidden.indexOf(slice.name) === -1 ? 1 : 0.4 }}>
+                  <Dot $color={slice.color} />
+                  <span>{slice.name}</span>
+                  <span>{Math.round((slice.value / analysis.total) * 100)}%</span>
+                </LegendRow>
+              ))}
+            </Legend>
+          </div>
+        </Panels>
+      )}
+    </Card>
+  );
+}
+`;
+
 export const prazoPlugin: MarketplacePlugin = {
   manifest: {
     id: 'com.microteia.prazo',
@@ -719,6 +1192,10 @@ export const prazoPlugin: MarketplacePlugin = {
     contributes: [
       nav({ key: 'prazos', label: 'Prazos', icon: 'time', order: 60 }),
       page({ key: 'prazos', title: 'Prazos', icon: 'time' }, 'prazos'),
+      surfaceWidget({ surface: 'dashboard', key: 'prazo.numeros', title: 'Prazos em números', description: 'Quantos prazos estão pendentes e quantos venceram.', icon: 'time', defaultSpan: 1, order: 20 }, 'widget-prazos-numeros'),
+      surfaceWidget({ surface: 'dashboard', key: 'prazo.proximos', title: 'Prazos nos próximos 7 dias', description: 'Os prazos pendentes que vencem nesta semana.', icon: 'calendar', defaultSpan: 1, order: 40 }, 'widget-prazos-proximos'),
+      surfaceWidget({ surface: 'dashboard', key: 'prazo.vencidos', title: 'Prazos vencidos', description: 'O que passou do vencimento e continua pendente.', icon: 'alarmWarning', defaultSpan: 1, order: 50 }, 'widget-prazos-vencidos'),
+      surfaceWidget({ surface: 'dashboard', key: 'prazo.analise', title: 'Análise de prazos', description: 'Gráficos por tipo, por vencimento ou por conclusão.', icon: 'barChart', defaultSpan: 3, order: 90 }, 'widget-prazos-analise'),
     ],
   },
   summary:
@@ -761,5 +1238,9 @@ export const prazoPlugin: MarketplacePlugin = {
       icon: 'time',
       source: PRAZOS_SOURCE,
     },
+    { key: 'widget-prazos-numeros', title: 'Prazos em números', icon: 'time', source: PRAZOS_NUMEROS_SOURCE },
+    { key: 'widget-prazos-proximos', title: 'Prazos nos próximos 7 dias', icon: 'calendar', source: PRAZOS_PROXIMOS_SOURCE },
+    { key: 'widget-prazos-vencidos', title: 'Prazos vencidos', icon: 'alarmWarning', source: PRAZOS_VENCIDOS_SOURCE },
+    { key: 'widget-prazos-analise', title: 'Análise de prazos', icon: 'barChart', source: PRAZOS_ANALISE_SOURCE },
   ],
 };

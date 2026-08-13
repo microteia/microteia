@@ -399,6 +399,7 @@ export const RESERVED_COLLECTIONS: ReadonlySet<string> = new Set<string>([
   'lookupDefinitions',
   'tagDefinitions',
   'secrets',
+  'settings',
   ...LOOKUP_REGISTRY_LIST.map((lookup) => lookup.collection),
 ]);
 

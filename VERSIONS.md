@@ -11,6 +11,14 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [6.0.0] — 2026-08-12
+
+- **O Painel agora é seu.** A tela de abertura deixou de ser uma peça fixa do sistema e passou a ser montada por você: cada cartão — processos em andamento, pessoas ativas, prazos da semana, prazos vencidos, resumo do financeiro, análise de prazos — pode ser ligado, desligado, reordenado e ter a largura escolhida (1, 2 ou 3 colunas).
+- **Nasceu a tela de Configurações.** Um lugar único onde tudo o que aceita ajuste aparece, com busca no topo e duas abas: **Escritório**, onde o administrador define o padrão de todos, e **Usuário**, onde cada pessoa monta o seu por cima — sem alterar o dos demais. Quem prefere ver tudo de uma vez pode alternar para a edição em **JSON**, com o documento inteiro na tela e conferência do que foi digitado.
+- **Cada cartão do Painel pertence à extensão que entende do assunto.** Instalar Financeiro faz o resumo financeiro aparecer no Painel; remover a extensão retira o cartão, sem deixar espaço vazio e sem tocar em nenhum lançamento. O mesmo vale para Processos, Pessoas e Prazos.
+- **A análise de prazos continua inteira** — os gráficos por tipo, por vencimento ou por conclusão, nos períodos de 7, 15, 30 e 60 dias —, agora como um cartão que você pode posicionar onde quiser, ou desligar.
+- **O Painel virou uma extensão.** Ele é instalado e removido como qualquer outra, e passa a ser o lugar onde qualquer extensão nova pode oferecer o seu próprio cartão.
+
 ## [5.1.0] — 2026-08-12
 
 - **O Painel Financeiro foi retirado.** A tela de gráficos do Financeiro era a última peça daquele módulo presa ao núcleo do sistema, fora do alcance de quem monta as telas do escritório. Saíram com ela o botão "Painel" da listagem de Financeiro e o atalho "Dashboard" do painel de abertura. Os lançamentos, os filtros, os totais do período e todos os gestos da listagem continuam exatamente como estavam — nenhum dado foi tocado. Relatórios do Financeiro voltarão pelo mesmo caminho de todo o resto: como extensão.

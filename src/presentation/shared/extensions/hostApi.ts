@@ -26,6 +26,8 @@ import { CardAtoms } from '../../components/ui/EntityListCard/atoms';
 import { MarkdownContent } from '../../components/ui/MarkdownContent';
 import { MarkdownEditor } from '../../components/ui/MarkdownEditor';
 import { UserAvatar } from '../../components/ui/UserAvatar';
+import { WidgetSurface } from '../../components/ui/WidgetSurface';
+import { DonutChart, TimeSeriesChart } from '../../components/ui/Chart';
 import { EntityListView } from '../../components/layout/EntityListView';
 import { DocumentsPanel } from '../../components/layout/EntityDetailPanels/DocumentsPanel';
 import { RecordListSurface } from '../../components/layout/RecordListSurface';
@@ -47,6 +49,7 @@ import {
 } from '../../../utils/formatters';
 import { useWorkspace } from '../../../stores/useWorkspace';
 import { useOpenRecord } from '../useOpenRecord';
+import { useOpenScreenList } from '../useOpenScreenList';
 import { useAuth } from '../../../stores/useAuth';
 import { useTenant } from '../../../stores/useTenant';
 import { useNotification } from '../../../stores/useNotification';
@@ -57,6 +60,7 @@ import { generateDeepLink } from '../../../infrastructure/deeplink/deepLinkUtils
 import { useSavedViewState } from './useSavedViewState';
 import { useEntity } from './useEntity';
 import { useLookups } from '../../../stores/useLookups';
+import { useSettingValue } from '../settings/useSettingValue';
 import { useRecords } from '../../../stores/useRecords';
 import type { EntityRecord, EntityRecordValues, LookupOption } from '../../../domain/entities';
 
@@ -179,6 +183,9 @@ const uiModule = {
   Checkbox,
   EntityListView,
   EntityListCard,
+  WidgetSurface,
+  TimeSeriesChart,
+  DonutChart,
   CustomFieldMetaRows,
   MarkdownContent,
   MarkdownEditor,
@@ -194,6 +201,15 @@ const uiModule = {
   Icon,
   styled,
   useTheme,
+} as const;
+
+/**
+ * O valor EM VIGOR de uma configuração, pela chave — já resolvido entre o padrão declarado, o do
+ * escritório e o do usuário. A extensão lê o que declarou na própria seção de Configurações; para
+ * gravar, quem manda é a tela de Configurações, não o widget.
+ */
+const settingsModule = {
+  useSettingValue,
 } as const;
 
 const themeModule = {
@@ -216,6 +232,7 @@ const dataModule = {
   useLookup,
   useWorkspace,
   useOpenRecord,
+  useOpenScreenList,
   useNotify,
   useSavedViewState,
   generateDeepLink,
@@ -244,4 +261,5 @@ export const HOST_MODULES: Record<string, unknown> = {
   '@microteia/data': dataModule,
   '@microteia/format': formatModule,
   '@microteia/theme': themeModule,
+  '@microteia/settings': settingsModule,
 };

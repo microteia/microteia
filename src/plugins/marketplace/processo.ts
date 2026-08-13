@@ -5,7 +5,7 @@ import type {
   TemplateField,
 } from '../../domain/entities/MarketplacePlugin';
 import type { CustomFieldOption } from '../../domain/entities';
-import { nav, page } from '../contributionBuilders';
+import { nav, page, surfaceWidget } from '../contributionBuilders';
 
 /**
  * **Processo** — a entidade de processo judicial do escritório, inteira, declarada por extensão: os
@@ -411,6 +411,183 @@ export default function startup(host) {
 }
 `;
 
+
+const CARD_STYLES = `
+const Card = styled.div\`
+  background: \${({ theme }) => theme.colors.surface};
+  border: 1px solid \${({ theme }) => theme.colors.border};
+  border-radius: \${({ theme }) => theme.borderRadius.lg};
+  padding: \${({ theme }) => theme.spacing.lg};
+  display: flex;
+  flex-direction: column;
+  gap: \${({ theme }) => theme.spacing.md};
+  height: 100%;
+\`;
+
+const Head = styled.div\`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: \${({ theme }) => theme.spacing.sm};
+\`;
+
+const Title = styled.h3\`
+  font-size: \${({ theme }) => theme.fontSizes.md};
+  font-weight: 600;
+  color: \${({ theme }) => theme.colors.text};
+\`;
+
+const Empty = styled.div\`
+  padding: \${({ theme }) => theme.spacing.lg};
+  text-align: center;
+  color: \${({ theme }) => theme.colors.textMuted};
+  font-size: \${({ theme }) => theme.fontSizes.sm};
+\`;
+`;
+
+/**
+ * Os WIDGETS do Painel. O número de processos ativos e a lista dos mais recentes eram cartões
+ * escritos no kernel; agora são desta extensão, que é quem sabe o que é um processo "Em Andamento".
+ */
+const PROCESSOS_NUMEROS_SOURCE = `
+import { useMemo } from 'react';
+import { styled } from 'styled-components';
+import { useCollection, useOpenScreenList } from '@microteia/data';
+${CARD_STYLES}
+const Value = styled.div\`
+  font-size: \${({ theme }) => theme.fontSizes['2xl']};
+  font-weight: 700;
+  line-height: 1.2;
+  color: \${({ theme }) => theme.colors.text};
+\`;
+
+const Label = styled.div\`
+  font-size: \${({ theme }) => theme.fontSizes.sm};
+  color: \${({ theme }) => theme.colors.textMuted};
+\`;
+
+const Stat = styled.button\`
+  background: none;
+  border: none;
+  padding: 0;
+  text-align: left;
+  cursor: pointer;
+\`;
+
+export default function ProcessosNumerosWidget() {
+  const cases = useCollection('cases');
+  const openList = useOpenScreenList();
+  const ativos = useMemo(() => cases.filter((c) => c.status === 'Em Andamento').length, [cases]);
+
+  return (
+    <Card>
+      <Head><Title>Processos</Title></Head>
+      <Stat onClick={() => openList('cases', [{ key: 'status', values: ['Em Andamento'] }])}>
+        <Value>{ativos}</Value>
+        <Label>Em andamento</Label>
+      </Stat>
+    </Card>
+  );
+}
+`;
+
+const PROCESSOS_RECENTES_SOURCE = `
+import { useMemo } from 'react';
+import { styled } from 'styled-components';
+import { Button } from '@microteia/ui';
+import { useCollection, useOpenRecord, useOpenScreenList } from '@microteia/data';
+import { formatDate } from '@microteia/format';
+${CARD_STYLES}
+const List = styled.div\`
+  display: flex;
+  flex-direction: column;
+  gap: \${({ theme }) => theme.spacing.sm};
+\`;
+
+const Item = styled.div\`
+  display: flex;
+  align-items: center;
+  gap: \${({ theme }) => theme.spacing.sm};
+  padding: \${({ theme }) => theme.spacing.sm} \${({ theme }) => theme.spacing.md};
+  border: 1px solid \${({ theme }) => theme.colors.border};
+  border-radius: \${({ theme }) => theme.borderRadius.md};
+  background: \${({ theme }) => theme.colors.background};
+  cursor: pointer;
+  &:hover { border-color: \${({ theme }) => theme.colors.primary}; }
+\`;
+
+const Info = styled.div\`
+  flex: 1;
+  min-width: 0;
+\`;
+
+const ItemTitle = styled.div\`
+  font-size: \${({ theme }) => theme.fontSizes.sm};
+  font-weight: 500;
+  color: \${({ theme }) => theme.colors.text};
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+\`;
+
+const ItemSub = styled.div\`
+  font-size: \${({ theme }) => theme.fontSizes.xs};
+  color: \${({ theme }) => theme.colors.textMuted};
+  font-family: \${({ theme }) => theme.fonts.mono};
+\`;
+
+const When = styled.span\`
+  font-size: 10px;
+  font-family: \${({ theme }) => theme.fonts.mono};
+  color: \${({ theme }) => theme.colors.textMuted};
+  flex-shrink: 0;
+\`;
+
+const time = (value) => {
+  if (!value) return 0;
+  const date = new Date(value);
+  return isNaN(date.getTime()) ? 0 : date.getTime();
+};
+
+export default function ProcessosRecentesWidget() {
+  const cases = useCollection('cases');
+  const openRecord = useOpenRecord();
+  const openList = useOpenScreenList();
+
+  const items = useMemo(() => cases
+    .filter((c) => c.status === 'Em Andamento')
+    .slice()
+    .sort((a, b) => time(b.createdAt) - time(a.createdAt))
+    .slice(0, 5), [cases]);
+
+  return (
+    <Card>
+      <Head>
+        <Title>Processos Recentes</Title>
+        <Button size="sm" variant="ghost" onClick={() => openList('cases', [{ key: 'status', values: ['Em Andamento'] }])}>
+          Ver todos
+        </Button>
+      </Head>
+      {items.length === 0 ? (
+        <Empty>Nenhum processo ativo</Empty>
+      ) : (
+        <List>
+          {items.map((item) => (
+            <Item key={item.id} onClick={() => openRecord('cases', item.id)}>
+              <Info>
+                <ItemTitle>{item.title}</ItemTitle>
+                <ItemSub>{item.caseNumber}</ItemSub>
+              </Info>
+              {item.filedAt ? <When>{formatDate(item.filedAt)}</When> : null}
+            </Item>
+          ))}
+        </List>
+      )}
+    </Card>
+  );
+}
+`;
+
 export const processoPlugin: MarketplacePlugin = {
   manifest: {
     id: 'com.microteia.processo',
@@ -430,6 +607,8 @@ export const processoPlugin: MarketplacePlugin = {
     contributes: [
       nav({ key: 'processos', label: 'Processos', icon: 'folder', order: 105 }),
       page({ key: 'processos', title: 'Processos', icon: 'folder' }, 'processos'),
+      surfaceWidget({ surface: 'dashboard', key: 'processo.numeros', title: 'Processos em números', description: 'Quantos processos estão em andamento.', icon: 'folder', defaultSpan: 1, order: 10 }, 'widget-processos-numeros'),
+      surfaceWidget({ surface: 'dashboard', key: 'processo.recentes', title: 'Processos recentes', description: 'Os últimos processos cadastrados que seguem em andamento.', icon: 'folder', defaultSpan: 1, order: 60 }, 'widget-processos-recentes'),
     ],
   },
   summary:
@@ -471,5 +650,7 @@ export const processoPlugin: MarketplacePlugin = {
       icon: 'folder',
       source: PROCESSO_SOURCE,
     },
+    { key: 'widget-processos-numeros', title: 'Processos em números', icon: 'folder', source: PROCESSOS_NUMEROS_SOURCE },
+    { key: 'widget-processos-recentes', title: 'Processos recentes', icon: 'folder', source: PROCESSOS_RECENTES_SOURCE },
   ],
 };

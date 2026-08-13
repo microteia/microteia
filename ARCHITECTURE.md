@@ -885,7 +885,7 @@ src/
     ├── pages/
     │   ├── Login/
     │   ├── TenantSelector/
-    │   ├── Dashboard/
+    │   ├── Settings/
     │   ├── Calendar/
     │   ├── Contracts/
     │   ├── ViewContract/
@@ -3491,6 +3491,70 @@ depender da carga por tenant.
 **Falta para o Widget DSL completo:** ligação a dados (`source: query:/script:/field:`) e `when` por
 expressão — o que torna um widget dinâmico, não só descritivo.
 
+### Configuração declarativa e superfícies de widget
+
+A tela de **Configurações** (`core.settings`, `presentation/pages/Settings/`) é o hospedeiro genérico
+do que os plugins declaram — o mesmo desenho do Settings do VS Code, com os dois escopos em abas, a
+busca no topo, o editor visual e a alternância para **JSON**, que grava exatamente o mesmo documento.
+O kernel não conhece **nenhuma** configuração em particular: se nada for contribuído, a tela está
+vazia por definição.
+
+| Ponto | Metadata | `impl` |
+|---|---|---|
+| `ui.settings` | uma `SettingsSection` inteira (chave, título, ícone, propriedades) | nenhuma |
+| `ui.widget` | `surface`, `key`, `title`, `defaultEnabled`, `defaultSpan`, `order`, `requiredRole` | `code` (interno/extensão confiável) ou `widget` (Widget DSL) |
+
+**O contrato é dado puro** (`domain/schema/settings.ts`, testado): `SettingsProperty` declara
+`type` (`boolean`, `number`, `text`, `select`, `json`, `widgets`), `default` e os `scopes` que
+aceita. Por ser serializável, a mesma declaração viaja no `.json` de uma extensão até um escritório
+que não roda este bundle — e é o que torna a edição em JSON tão legítima quanto a visual: as duas
+escrevem no mesmo lugar, validadas pela mesma função.
+
+**Dois escopos, uma resolução:** `usuário → escritório → padrão declarado`. `resolveSetting` pula o
+escopo que a propriedade não aceita (resíduo no banco de uma declaração desligada não volta a valer)
+e pula valor inválido (cai para o próximo nível em vez de quebrar quem consome). Um valor gravado
+para uma chave **desconhecida** é preservado na edição em JSON: a extensão dona pode estar
+desativada no momento, e apagá-la em silêncio perderia a configuração dela.
+
+**Persistência** em `tenants/{tid}/settings`, dois documentos: `tenant` (o padrão do escritório, só
+admin grava) e `user_{uid}` (a preferência pessoal, só o dono). O uid vai no NOME do documento para
+que a regra decida a escrita pelo caminho, sem ler nada. Todo membro **lê** os dois — sem ler o
+padrão, ninguém saberia o que está herdando. Coleção nova ⇒ `npm run deploy:rules`, e `settings`
+entrou em `RESERVED_COLLECTIONS` (as duas pontas, como manda a regra do curinga de coleções).
+
+**Uma superfície é um NOME, não uma tela.** `<WidgetSurface surface="dashboard" />` renderiza o que
+estiver registrado naquele nome, na ordem e na largura que a configuração `dashboard.widgets`
+mandar. `resolveWidgetLayout` concilia o gravado com o registrado: o widget que a extensão instalou
+depois entra no fim, o que sumiu não deixa buraco, e a ordem escolhida é respeitada. Cada widget
+renderiza dentro do **próprio limite de erro** — com dezenas de extensões, um cartão quebrado é um
+aviso naquele espaço, não um painel em branco.
+
+**Duas origens, uma saída.** `useSettingsCatalog` funde a contribuição de manifest (declarativa, o
+único caminho de quem não entrega código) com o registro em tempo de execução do `startup`
+(`host.widgets.register`, `host.settings.register`). Quem consome não distingue as duas — é isso que
+faz o Painel e a tela de Configurações não conhecerem nenhuma extensão em particular.
+
+### O Painel saiu do kernel (extensão `com.microteia.painel`)
+
+O Dashboard era a última tela do núcleo a importar `useCaseRecords`, `useDeadlineRecords` e
+`useFinancialRecords` — três domínios que já haviam saído do kernel como extensão. Hoje a extensão
+**Painel** entrega só o LUGAR: a página, o item de menu e a seção de Configurações que ordena a
+superfície `dashboard`. Ela não declara widget nenhum (há teste): os cartões são das extensões que
+conhecem cada assunto — Pessoas, Processos, Prazos e Financeiro. Instalar uma delas faz o cartão
+aparecer; remover, sumir.
+
+**A primitiva de gráfico ficou; o gráfico de prazos foi junto com Prazos.** `DeadlineCharts` sabia o
+que era vencimento, conclusão e prioridade — conhecimento de domínio dentro de `components/ui/`. Foi
+substituído por `TimeSeriesChart`/`DonutChart` (`components/ui/Chart/`), que recebem séries prontas
+com rótulo e cor e **não sabem o que desenham**; a regra (vencimento para frente, conclusão para
+trás, uma série por tipo) virou o widget "Análise de prazos" da extensão. A biblioteca de gráficos
+entra por `lazy`: quem nunca abre um gráfico não a baixa.
+
+**A API curada ganhou o necessário para isso, e só isso:** `WidgetSurface`, `TimeSeriesChart`,
+`DonutChart` e `useOpenScreenList` (abrir a listagem de uma coleção, com filtros, sem saber que tela
+a apresenta), mais o módulo `@microteia/settings` com `useSettingValue`. Ampliar a superfície segue
+sendo decisão consciente — e os `extensionTypeDefs` foram atualizados junto, como manda a regra.
+
 ### Integridade do Marketplace — publicar válido e ver por que falhou
 
 Duas guardas que fecham buracos da carga por tenant:
@@ -3824,6 +3888,7 @@ não dispara é pior que guarda nenhuma.
 | — ✅ | Fatia vertical: plugin de exemplo instalável ponta a ponta (workflow + página Extensões) |
 | 7 ◑ | Marketplace: registro global + publish (SYSTEM); falta versões por plugin e publish com validação |
 | 6 ✅ | Widget DSL (estático) — plugin instalado entrega tela por widget; falta só ligação a dados |
+| 8 ✅ | Configuração declarativa (`ui.settings`) + superfícies de widget (`ui.widget`): o Painel sai do kernel e vira extensão |
 | 7 | Marketplace: `plugin_registry`, publicação e instalação |
 
 ---

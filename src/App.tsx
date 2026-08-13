@@ -10,6 +10,7 @@ import { TenantStoreProvider } from './stores/TenantStore';
 import { TagStoreProvider } from './stores/TagStore';
 import { LookupStoreProvider } from './stores/LookupStore';
 import { SavedFilterStoreProvider } from './stores/SavedFilterStore';
+import { SettingsStoreProvider } from './stores/SettingsStore';
 import { ScreenDefinitionStoreProvider } from './stores/ScreenDefinitionStore';
 import { ActionStoreProvider } from './stores/ActionStore';
 import { RecordStoreProvider } from './stores/RecordStore';
@@ -62,6 +63,7 @@ const App: React.FC = () => {
                         <ScreenDefinitionStoreProvider>
                         <TagStoreProvider>
                         <LookupStoreProvider>
+                                        <SettingsStoreProvider>
                                         <SavedFilterStoreProvider>
                                           <RecordStoreProvider>
                                           <WorkflowStoreProvider>
@@ -101,6 +103,7 @@ const App: React.FC = () => {
                                           </WorkflowStoreProvider>
                                           </RecordStoreProvider>
                                         </SavedFilterStoreProvider>
+                                        </SettingsStoreProvider>
                         </LookupStoreProvider>
                         </TagStoreProvider>
                         </ScreenDefinitionStoreProvider>

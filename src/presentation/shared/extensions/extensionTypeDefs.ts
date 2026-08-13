@@ -339,6 +339,46 @@ const UI_MODULE_DEFS = `declare module '@microteia/ui' {
   }
   export function Button(props: ButtonProps): JSX.Element;
 
+  /**
+   * A GRADE de widgets de uma superfície. Renderiza o que as extensões instaladas registraram
+   * naquele nome, na ordem e na largura definidas em Configurações. Não recebe os widgets: quem os
+   * conhece é o registro, não quem hospeda.
+   */
+  export interface WidgetSurfaceProps {
+    surface: string;
+    emptyMessage?: string;
+  }
+  export function WidgetSurface(props: WidgetSurfaceProps): JSX.Element;
+
+  /**
+   * Gráfico de série temporal. Cada série é uma linha, com rótulo e cor decididos por quem tem o
+   * dado — o componente não conhece o assunto do gráfico.
+   */
+  export interface ChartSeries {
+    key: string;
+    label: string;
+    color: string;
+  }
+  export interface TimeSeriesChartProps {
+    data: Array<Record<string, string | number>>;
+    xKey: string;
+    series: ChartSeries[];
+    height?: number;
+  }
+  export function TimeSeriesChart(props: TimeSeriesChartProps): JSX.Element;
+
+  /** Gráfico de rosca: uma fatia por item, com a cor que o dado mandar. */
+  export interface DonutSlice {
+    name: string;
+    value: number;
+    color: string;
+  }
+  export interface DonutChartProps {
+    data: DonutSlice[];
+    height?: number;
+  }
+  export function DonutChart(props: DonutChartProps): JSX.Element;
+
   /** Props da tarja informativa. */
   export interface InfoBannerProps {
     message: string;
@@ -822,6 +862,12 @@ const DATA_MODULE_DEFS = `declare module '@microteia/data' {
    */
   export function useOpenRecord(): (collection: string, recordId: string) => void;
 
+  /**
+   * Abre a LISTAGEM de uma coleção pelo nome dela, sem saber que tela a apresenta. Os filtros são o
+   * recado para a tela de destino ("abra mostrando só os vencidos").
+   */
+  export function useOpenScreenList(): (collection: string, filterTokens?: Array<{ key: string; values: string[] }>) => void;
+
   /** Função para notificar o usuário (toast). */
   export function useNotify(): (message: string, variant?: 'success' | 'error' | 'info') => void;
 
@@ -876,6 +922,15 @@ const THEME_MODULE_DEFS = `declare module '@microteia/theme' {
   export function getDefaultTagColor(index: number): string;
 }`;
 
+
+const SETTINGS_MODULE_DEFS = `declare module '@microteia/settings' {
+  /**
+   * O valor em vigor de uma configuração, pela chave completa ('painel.widgets'). Já resolvido:
+   * preferência do usuário, senão padrão do escritório, senão o padrão declarado.
+   */
+  export function useSettingValue(key: string): unknown;
+}`;
+
 /**
  * Gera a string completa de definições TypeScript para os módulos disponíveis em extensões.
  * Usada como `extraLib` do Monaco Editor no PluginAuthor para prover IntelliSense.
@@ -889,4 +944,5 @@ export const buildExtensionTypeDefs = (): string => [
   DATA_MODULE_DEFS,
   FORMAT_MODULE_DEFS,
   THEME_MODULE_DEFS,
+  SETTINGS_MODULE_DEFS,
 ].join('\n\n');

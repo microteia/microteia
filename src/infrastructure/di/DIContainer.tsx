@@ -29,6 +29,7 @@ import { FirebasePluginRegistryRepository } from '../../data/repositories/Fireba
 import { FirebaseTenantExtensionRepository } from '../../data/repositories/FirebaseTenantExtensionRepository';
 import { FirebaseInstalledExtensionRepository } from '../../data/repositories/FirebaseInstalledExtensionRepository';
 import { FirebasePublicExtensionRepository } from '../../data/repositories/FirebasePublicExtensionRepository';
+import { FirebaseSettingsRepository } from '../../data/repositories/FirebaseSettingsRepository';
 import { DIContext } from './useDI';
 import type { DIContainer } from './useDI';
 
@@ -45,6 +46,7 @@ export const DIProvider: React.FC<{ children: React.ReactNode }> = ({ children }
     aiConnectionRepository:   new FirebaseAIConnectionRepository(),
     gmailConnectionRepository: new FirebaseGmailConnectionRepository(),
     savedFilterRepository:    new FirebaseSavedFilterRepository(),
+    settingsRepository:       new FirebaseSettingsRepository(),
     tenantRepository:         new FirebaseTenantRepository(),
     textAnnotationRepository: new FirebaseTextAnnotationRepository(),
     auditLogRepository:       new FirebaseAuditLogRepository(),

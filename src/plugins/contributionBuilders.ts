@@ -1,11 +1,13 @@
 import React, { lazy } from 'react';
 import type { Contribution } from '../domain/schema/plugin/contribution';
 import type { WidgetSpec } from '../presentation/shared/widget/widgetSpec';
+import type { SettingsSection } from '../domain/schema/settings';
 import type {
   UiCommandMetadata,
   UiNavMetadata,
   UiPageMetadata,
   UiRecordActionMetadata,
+  UiWidgetMetadata,
 } from '../presentation/shared/uiExtensionPoints';
 import {
   UI_API_VERSION,
@@ -13,6 +15,8 @@ import {
   UI_NAV_POINT,
   UI_PAGE_POINT,
   UI_RECORD_ACTION_POINT,
+  UI_SETTINGS_POINT,
+  UI_WIDGET_POINT,
 } from '../presentation/shared/uiExtensionPoints';
 
 export type PageComponent = React.ComponentType<{ tabKey: string }>;
@@ -85,4 +89,36 @@ export const command = (id: string, metadata: UiCommandMetadata, implKey: string
   apiVersion: UI_API_VERSION,
   metadata: { ...metadata } as unknown as Record<string, unknown>,
   impl: { kind: 'code', key: implKey },
+});
+
+/**
+ * Um widget de superfície implementado em CÓDIGO (plugin interno). O `id` sai da chave, como nas
+ * telas: é estável entre versões e é por ele que o Marketplace compara uma com a seguinte.
+ */
+export const surfaceWidget = (metadata: UiWidgetMetadata, implKey: string): Contribution => ({
+  point: UI_WIDGET_POINT,
+  id: slug(`${metadata.surface}-${metadata.key}`),
+  apiVersion: UI_API_VERSION,
+  metadata: { ...metadata } as unknown as Record<string, unknown>,
+  impl: { kind: 'code', key: implKey },
+});
+
+/** Um widget DECLARATIVO (Widget DSL) — o caminho de quem não pode entregar código. */
+export const surfaceWidgetSpec = (metadata: UiWidgetMetadata, spec: WidgetSpec): Contribution => ({
+  point: UI_WIDGET_POINT,
+  id: slug(`${metadata.surface}-${metadata.key}`),
+  apiVersion: UI_API_VERSION,
+  metadata: { ...metadata } as unknown as Record<string, unknown>,
+  impl: { kind: 'widget', spec: spec as unknown as Record<string, unknown> },
+});
+
+/**
+ * Uma seção da tela de Configurações. Não tem `impl`: a declaração das propriedades É a
+ * contribuição, e é o hospedeiro genérico que sabe desenhar cada tipo.
+ */
+export const settingsSection = (section: SettingsSection): Contribution => ({
+  point: UI_SETTINGS_POINT,
+  id: slug(section.key),
+  apiVersion: UI_API_VERSION,
+  metadata: { ...section } as unknown as Record<string, unknown>,
 });

@@ -7,6 +7,7 @@ import type {
   WorkflowModuleTemplate,
 } from '../../domain/entities/MarketplacePlugin';
 import type { CustomFieldOption } from '../../domain/entities';
+import { surfaceWidget } from '../contributionBuilders';
 
 /**
  * **Pessoa** — o cadastro de pessoas do escritório, inteiro, declarado por extensão: os campos e as
@@ -339,6 +340,70 @@ export default function startup(host) {
 }
 `;
 
+
+/**
+ * O WIDGET do Painel: quantas pessoas estão ativas. O número era um dos quatro cartões escritos no
+ * kernel; quem sabe o que é uma pessoa ativa é esta extensão, que declara o campo `status`.
+ */
+const PESSOAS_NUMEROS_SOURCE = `
+import { useMemo } from 'react';
+import { styled } from 'styled-components';
+import { useCollection, useOpenScreenList } from '@microteia/data';
+
+const Card = styled.div\`
+  background: \${({ theme }) => theme.colors.surface};
+  border: 1px solid \${({ theme }) => theme.colors.border};
+  border-radius: \${({ theme }) => theme.borderRadius.lg};
+  padding: \${({ theme }) => theme.spacing.lg};
+  display: flex;
+  flex-direction: column;
+  gap: \${({ theme }) => theme.spacing.md};
+  height: 100%;
+\`;
+
+const Title = styled.h3\`
+  font-size: \${({ theme }) => theme.fontSizes.md};
+  font-weight: 600;
+  color: \${({ theme }) => theme.colors.text};
+\`;
+
+const Stat = styled.button\`
+  background: none;
+  border: none;
+  padding: 0;
+  text-align: left;
+  cursor: pointer;
+\`;
+
+const Value = styled.div\`
+  font-size: \${({ theme }) => theme.fontSizes['2xl']};
+  font-weight: 700;
+  line-height: 1.2;
+  color: \${({ theme }) => theme.colors.text};
+\`;
+
+const Label = styled.div\`
+  font-size: \${({ theme }) => theme.fontSizes.sm};
+  color: \${({ theme }) => theme.colors.textMuted};
+\`;
+
+export default function PessoasNumerosWidget() {
+  const persons = useCollection('persons');
+  const openList = useOpenScreenList();
+  const ativas = useMemo(() => persons.filter((p) => p.status !== 'Inativo').length, [persons]);
+
+  return (
+    <Card>
+      <Title>Pessoas</Title>
+      <Stat onClick={() => openList('persons', [{ key: 'status', values: ['Ativo'] }])}>
+        <Value>{ativas}</Value>
+        <Label>Ativas</Label>
+      </Stat>
+    </Card>
+  );
+}
+`;
+
 export const pessoaPlugin: MarketplacePlugin = {
   manifest: {
     id: 'com.microteia.pessoa',
@@ -349,7 +414,10 @@ export const pessoaPlugin: MarketplacePlugin = {
     publisher: { name: 'Microteia' },
     // O CPF, o CNPJ, o telefone, o CEP e a busca de endereço são formatos do BRASIL: vêm da extensão
     // do país, não do kernel. Sem ela, os campos existem mas perdem máscara e conferência.
-    dependencies: { 'com.microteia.brasil': '^1.0.0' },
+    dependencies: { 'com.microteia.brasil': '^1.0.0', 'core.ui': '^1.0.0' },
+    contributes: [
+      surfaceWidget({ surface: 'dashboard', key: 'pessoa.numeros', title: 'Pessoas em números', description: 'Quantas pessoas estão ativas no cadastro.', icon: 'team', defaultSpan: 1, order: 30 }, 'widget-pessoas-numeros'),
+    ],
     // Nenhuma contribuição de UI: a tela instalada já produz o item de menu, a listagem e o
     // detalhe pelo caminho das telas do escritório. Código só entraria aqui se a tela precisasse
     // de algo que a declaração não alcança — não é o caso de um cadastro.
@@ -387,4 +455,7 @@ export const pessoaPlugin: MarketplacePlugin = {
   lookups: LOOKUPS,
   tagLists: [{ collection: 'personTags', label: 'Etiquetas: Pessoas' }],
   startup: STARTUP_SOURCE,
+  views: [
+    { key: 'widget-pessoas-numeros', title: 'Pessoas em números', icon: 'team', source: PESSOAS_NUMEROS_SOURCE },
+  ],
 };

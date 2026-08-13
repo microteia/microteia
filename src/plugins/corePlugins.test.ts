@@ -25,7 +25,7 @@ const without = (pluginId: string): PluginRecord[] =>
  */
 const PAGE_KEYS_ANTES_DA_MIGRACAO = [
   'access-management', 'actions', 'audit-logs', 'calendar',
-  'dashboard', 'data-function-reference', 'data-processor',
+  'data-function-reference', 'data-processor',
   'dyn:', 'edit-workflow-step:',
   'function-reference', 'new-action',
   'new-dyn:',
@@ -35,7 +35,7 @@ const PAGE_KEYS_ANTES_DA_MIGRACAO = [
   'view-dyn:', 'view-script:', 'view-workflow:',
   'workflows',
   // Adicionadas depois da migração (a lista é o guarda de "nenhuma tela some", não um congelamento):
-  'marketplace', 'plugin-author', 'plugin-author:',
+  'marketplace', 'plugin-author', 'plugin-author:', 'settings',
 ].sort();
 
 describe('core plugins — carga', () => {
@@ -113,8 +113,8 @@ describe('core plugins — paridade com o registro anterior', () => {
     });
 
     expect(items.map((item) => item.key)).toEqual([
-      'dashboard', 'calendar',
-      'tenant-settings', 'audit-logs',
+      'calendar',
+      'tenant-settings', 'settings', 'audit-logs',
     ]);
   });
 
@@ -160,11 +160,9 @@ describe('core plugins — remoção limpa (critério de aceite da Etapa 2)', ()
     expect(host.isLoaded('core.workspace')).toBe(false);
 
     const pages = host.contributions.query(UI_PAGE_POINT);
-    expect(resolvePageContribution(pages, 'dashboard')).toBeUndefined();
     expect(resolvePageContribution(pages, 'calendar')).toBeUndefined();
 
     const navKeys = host.contributions.query(UI_NAV_POINT).map((c) => navMetadataOf(c).key);
-    expect(navKeys).not.toContain('dashboard');
     expect(navKeys).not.toContain('calendar');
 
     const commandIds = host.contributions.query(UI_COMMAND_POINT).map((c) => c.id);
@@ -178,7 +176,7 @@ describe('core plugins — remoção limpa (critério de aceite da Etapa 2)', ()
     const pages = host.contributions.query(UI_PAGE_POINT);
 
     expect(resolvePageContribution(pages, 'audit-logs')).toBeDefined();
-    expect(host.contributions.query(UI_NAV_POINT).length).toBe(2);
+    expect(host.contributions.query(UI_NAV_POINT).length).toBe(3);
   });
 
   it('remover core.ui derruba todos os módulos de UI, porque ninguém declara os pontos', () => {

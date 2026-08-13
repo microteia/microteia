@@ -209,6 +209,18 @@ service cloud.firestore {
         allow create, update, delete: if isTenantAdmin(tenantId);
       }
 
+      // Configurações declaradas por plugins. Dois documentos, e o caminho decide quem grava:
+      // `tenant` é o padrão do escritório (só admin) e `user_{uid}` é a preferência pessoal, que só
+      // o dono escreve. Todo membro LÊ os dois — a resolução (usuário vence escritório) acontece no
+      // cliente, e sem ler o padrão ninguém saberia o que herdar.
+      match /settings/{settingsDocId} {
+        allow read: if isMember(tenantId);
+        allow create, update: if settingsDocId == 'tenant'
+          ? isTenantAdmin(tenantId)
+          : settingsDocId == 'user_' + request.auth.uid && isMember(tenantId);
+        allow delete: if isTenantAdmin(tenantId);
+      }
+
       // Event Bus do motor — qualquer membro com escrita pode publicar um evento;
       // coleção append-only, ninguém lê/edita/exclui pelo client (só a Cloud Function
       // onWorkflowEventCreated, via Admin SDK, que ignora estas regras).
@@ -268,7 +280,7 @@ service cloud.firestore {
         'documentTypes', 'documents', 'extensions',
         'installed_extensions', 'lookupDefinitions', 'members', 'notes',
         'tagDefinitions', 'plugin_installations',
-        'screenDefinitions', 'scripts', 'secrets', 'tags', 'workflow_definitions',
+        'screenDefinitions', 'scripts', 'secrets', 'settings', 'tags', 'workflow_definitions',
         'workflow_events', 'workflow_executions'
         ];
       }

@@ -1,0 +1,149 @@
+import { describe, it, expect } from 'vitest';
+import {
+  emptySettingsValues,
+  parseSettingsJson,
+  resolveSetting,
+  resolveWidgetLayout,
+  validateSettingValue,
+  type SettingsProperty,
+  type SettingsSection,
+} from './settings';
+
+const booleanProperty: SettingsProperty = {
+  key: 'agenda.compacta',
+  label: 'Agenda compacta',
+  type: 'boolean',
+  default: false,
+  scopes: ['tenant', 'user'],
+};
+
+const tenantOnly: SettingsProperty = {
+  key: 'escritorio.horario',
+  label: 'Horário',
+  type: 'text',
+  default: '09:00',
+  scopes: ['tenant'],
+};
+
+const sections = (properties: SettingsProperty[]): SettingsSection[] => [
+  { key: 'x', title: 'Seção', properties },
+];
+
+describe('resolveSetting — usuário vence escritório, que vence o padrão', () => {
+  it('sem nada gravado, vale o padrão declarado', () => {
+    expect(resolveSetting(booleanProperty, emptySettingsValues())).toEqual({ value: false, scope: null });
+  });
+
+  it('o valor do escritório vale quando o usuário não tem o seu', () => {
+    const values = { tenant: { 'agenda.compacta': true }, user: {} };
+    expect(resolveSetting(booleanProperty, values)).toEqual({ value: true, scope: 'tenant' });
+  });
+
+  it('a preferência do usuário vence a do escritório', () => {
+    const values = { tenant: { 'agenda.compacta': true }, user: { 'agenda.compacta': false } };
+    expect(resolveSetting(booleanProperty, values)).toEqual({ value: false, scope: 'user' });
+  });
+
+  /** Resíduo no banco de um escopo que a declaração não aceita mais não pode voltar a valer. */
+  it('ignora o escopo que a propriedade não aceita', () => {
+    const values = { tenant: {}, user: { 'escritorio.horario': '23:00' } };
+    expect(resolveSetting(tenantOnly, values)).toEqual({ value: '09:00', scope: null });
+  });
+
+  /** Valor inválido gravado cai para o próximo nível em vez de quebrar quem o consome. */
+  it('valor gravado inválido cai para o padrão', () => {
+    const values = { tenant: { 'agenda.compacta': 'sim' }, user: {} };
+    expect(resolveSetting(booleanProperty, values)).toEqual({ value: false, scope: null });
+  });
+});
+
+describe('validateSettingValue', () => {
+  it('cobra o tipo de cada declaração', () => {
+    expect(validateSettingValue(booleanProperty, true)).toBeNull();
+    expect(validateSettingValue(booleanProperty, 'sim')).not.toBeNull();
+  });
+
+  it('respeita mínimo e máximo do número', () => {
+    const property: SettingsProperty = {
+      key: 'n', label: 'N', type: 'number', default: 1, min: 1, max: 3, scopes: ['user'],
+    };
+    expect(validateSettingValue(property, 2)).toBeNull();
+    expect(validateSettingValue(property, 0)).not.toBeNull();
+    expect(validateSettingValue(property, 4)).not.toBeNull();
+  });
+
+  it('só aceita uma das opções declaradas no select', () => {
+    const property: SettingsProperty = {
+      key: 's', label: 'S', type: 'select', default: 'a', scopes: ['user'],
+      options: [{ value: 'a', label: 'A' }, { value: 'b', label: 'B' }],
+    };
+    expect(validateSettingValue(property, 'b')).toBeNull();
+    expect(validateSettingValue(property, 'c')).not.toBeNull();
+  });
+
+  it('a lista de widgets exige chave e largura dentro da grade', () => {
+    const property: SettingsProperty = {
+      key: 'w', label: 'W', type: 'widgets', default: [], scopes: ['user'], surface: 'dashboard',
+    };
+    expect(validateSettingValue(property, [{ key: 'a', enabled: true, span: 2 }])).toBeNull();
+    expect(validateSettingValue(property, [{ key: 'a', span: 9 }])).not.toBeNull();
+    expect(validateSettingValue(property, 'nada')).not.toBeNull();
+  });
+});
+
+describe('resolveWidgetLayout — o que sumiu não deixa buraco, o que chegou entra no fim', () => {
+  const available = [
+    { key: 'a', defaultSpan: 1, order: 10 },
+    { key: 'b', defaultSpan: 2, order: 20 },
+    { key: 'novo', defaultSpan: 3, defaultEnabled: false, order: 30 },
+  ];
+
+  it('preserva a ordem escolhida e acrescenta o que apareceu depois', () => {
+    const stored = [{ key: 'b', enabled: true, span: 1 }, { key: 'a', enabled: false, span: 3 }];
+    expect(resolveWidgetLayout(stored, available)).toEqual([
+      { key: 'b', enabled: true, span: 1 },
+      { key: 'a', enabled: false, span: 3 },
+      { key: 'novo', enabled: false, span: 3 },
+    ]);
+  });
+
+  it('descarta a entrada de um widget que não existe mais', () => {
+    const stored = [{ key: 'sumiu', enabled: true, span: 2 }, { key: 'a', enabled: true, span: 1 }];
+    expect(resolveWidgetLayout(stored, available).map((entry) => entry.key)).toEqual(['a', 'b', 'novo']);
+  });
+
+  it('sem nada gravado, vale o padrão de cada widget, na ordem declarada', () => {
+    expect(resolveWidgetLayout(undefined, available)).toEqual([
+      { key: 'a', enabled: true, span: 1 },
+      { key: 'b', enabled: true, span: 2 },
+      { key: 'novo', enabled: false, span: 3 },
+    ]);
+  });
+});
+
+describe('parseSettingsJson — o documento escrito à mão', () => {
+  it('erro de sintaxe não aproveita nada', () => {
+    const parsed = parseSettingsJson(sections([booleanProperty]), '{ isto não é json', 'user');
+    expect(parsed.syntaxError).not.toBeNull();
+    expect(parsed.values).toEqual({});
+  });
+
+  it('recusa a chave conhecida com valor inválido e mantém as demais', () => {
+    const text = JSON.stringify({ 'agenda.compacta': 'sim', outra: 1 });
+    const parsed = parseSettingsJson(sections([booleanProperty]), text, 'user');
+    expect(parsed.errors.map((issue) => issue.key)).toEqual(['agenda.compacta']);
+    expect(parsed.values).toEqual({ outra: 1 });
+  });
+
+  /** A extensão dona da chave pode estar desativada agora — apagá-la perderia a configuração dela. */
+  it('preserva chave desconhecida', () => {
+    const parsed = parseSettingsJson(sections([booleanProperty]), '{"de.outra.extensao": 42}', 'user');
+    expect(parsed.errors).toEqual([]);
+    expect(parsed.values).toEqual({ 'de.outra.extensao': 42 });
+  });
+
+  it('recusa gravar no escopo que a propriedade não aceita', () => {
+    const parsed = parseSettingsJson(sections([tenantOnly]), '{"escritorio.horario": "10:00"}', 'user');
+    expect(parsed.errors.map((issue) => issue.key)).toEqual(['escritorio.horario']);
+  });
+});

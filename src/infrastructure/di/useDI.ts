@@ -5,6 +5,7 @@ import type { IUserProfileRepository } from '../../domain/repositories/IUserProf
 import type { IAIConnectionRepository } from '../../domain/repositories/IAIConnectionRepository';
 import type { IGmailConnectionRepository } from '../../domain/repositories/IGmailConnectionRepository';
 import type { ISavedFilterRepository } from '../../domain/repositories/ISavedFilterRepository';
+import type { ISettingsRepository } from '../../domain/repositories/ISettingsRepository';
 import type { ITenantRepository } from '../../domain/repositories/ITenantRepository';
 import type { ITextAnnotationRepository } from '../../domain/repositories/ITextAnnotationRepository';
 import type { IAuditLogRepository } from '../../domain/repositories/IAuditLogRepository';
@@ -43,6 +44,7 @@ export interface DIContainer {
   aiConnectionRepository: IAIConnectionRepository;
   gmailConnectionRepository: IGmailConnectionRepository;
   savedFilterRepository: ISavedFilterRepository;
+  settingsRepository: ISettingsRepository;
   tenantRepository: ITenantRepository;
   textAnnotationRepository: ITextAnnotationRepository;
   auditLogRepository: IAuditLogRepository;

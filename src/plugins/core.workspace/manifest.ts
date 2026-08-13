@@ -6,7 +6,6 @@ import { SystemCommandProvider } from '../../presentation/components/ui/CommandP
 export const coreWorkspacePlugin: PluginRecord = {
   trusted: true,
   implementations: {
-    DashboardView: lazyView(() => import('../../presentation/pages/Dashboard/Dashboard.view'), 'DashboardView'),
     CalendarView: lazyView(() => import('../../presentation/pages/Calendar/Calendar.view'), 'CalendarView'),
     ProfileView: lazyView(() => import('../../presentation/pages/Profile/Profile.view'), 'ProfileView'),
     NavigationCommandProvider,
@@ -19,10 +18,8 @@ export const coreWorkspacePlugin: PluginRecord = {
     name: 'Área de Trabalho',
     dependencies: { 'core.ui': '^1.0.0' },
     contributes: [
-      page({ key: 'dashboard', title: 'Dashboard', icon: 'dashboard' }, 'DashboardView'),
       page({ key: 'calendar', title: 'Calendário', icon: 'calendar' }, 'CalendarView'),
       page({ key: 'profile', title: 'Meu Perfil', icon: 'user' }, 'ProfileView'),
-      nav({ key: 'dashboard', label: 'Dashboard', icon: 'dashboard', order: 10 }),
       nav({ key: 'calendar', label: 'Calendário', icon: 'calendar', order: 20 }),
       command('navigation', { group: 'Navegação' }, 'NavigationCommandProvider'),
       command('system', { group: 'Sistema' }, 'SystemCommandProvider'),

@@ -10,6 +10,7 @@ import { prazoPlugin } from './prazo';
 import { processoPlugin } from './processo';
 import { noticiaPlugin } from './noticia';
 import { pushPlugin } from './push';
+import { painelPlugin } from './painel';
 
 /**
  * Extensões de exemplo, mantidas como MOLDE de autoria e como fixtures dos testes da máquina de
@@ -176,7 +177,7 @@ export const guiaPlugin: MarketplacePlugin =
     workflows: [],
   };
 
-export { vendasPlugin, kanbanCasesPlugin, brasilPlugin, pessoaPlugin, contratoPlugin, processoPlugin, financeiroPlugin, prazoPlugin, pushPlugin, noticiaPlugin };
+export { vendasPlugin, kanbanCasesPlugin, brasilPlugin, pessoaPlugin, contratoPlugin, processoPlugin, financeiroPlugin, prazoPlugin, pushPlugin, noticiaPlugin, painelPlugin };
 
 /**
  * Catálogo do Marketplace EMBUTIDO: extensões de PRIMEIRA PARTE que viajam no bundle da aplicação.
@@ -193,6 +194,7 @@ export { vendasPlugin, kanbanCasesPlugin, brasilPlugin, pessoaPlugin, contratoPl
  */
 export const MARKETPLACE_CATALOG: MarketplacePlugin[] = [
   brasilPlugin,
+  painelPlugin,
   pessoaPlugin,
   contratoPlugin,
   processoPlugin,

@@ -1,0 +1,111 @@
+{
+  "manifest": {
+    "id": "com.microteia.painel",
+    "version": "1.0.0",
+    "kernel": "^1.0.0",
+    "name": "Painel",
+    "description": "A tela de abertura do escritório, montada com os widgets que cada extensão oferece.",
+    "publisher": {
+      "name": "Microteia"
+    },
+    "dependencies": {
+      "core.ui": "^1.0.0"
+    },
+    "contributes": [
+      {
+        "point": "ui.nav",
+        "id": "dashboard",
+        "apiVersion": "1.0.0",
+        "metadata": {
+          "key": "dashboard",
+          "label": "Painel",
+          "icon": "dashboard",
+          "order": 10
+        }
+      },
+      {
+        "point": "ui.page",
+        "id": "dashboard",
+        "apiVersion": "1.0.0",
+        "metadata": {
+          "key": "dashboard",
+          "title": "Painel",
+          "icon": "dashboard",
+          "fullBleed": true
+        },
+        "impl": {
+          "kind": "code",
+          "key": "painel"
+        }
+      },
+      {
+        "point": "ui.settings",
+        "id": "dashboard",
+        "apiVersion": "1.0.0",
+        "metadata": {
+          "key": "dashboard",
+          "title": "Painel",
+          "icon": "dashboard",
+          "order": 10,
+          "description": "O que aparece na tela de abertura, em que ordem e com que largura.",
+          "properties": [
+            {
+              "key": "dashboard.widgets",
+              "label": "Widgets do Painel",
+              "description": "Marque os cartões que devem aparecer, escolha a largura de cada um (1 a 3 colunas) e use as setas para ordenar. O que a extensão instalar depois entra no fim da lista.",
+              "type": "widgets",
+              "surface": "dashboard",
+              "default": [],
+              "scopes": [
+                "tenant",
+                "user"
+              ]
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "summary": "A tela de abertura do escritório: uma grade de widgets que cada extensão instalada oferece. Você escolhe quais aparecem, em que ordem e com que largura — e cada pessoa pode montar o painel do seu jeito.",
+  "overview": {
+    "type": "stack",
+    "gap": "lg",
+    "children": [
+      {
+        "type": "markdown",
+        "content": "O **Painel** é a tela que abre quando você entra no escritório. Ele não tem conteúdo próprio: mostra os **widgets** que as outras extensões oferecem — os números dos processos, os prazos que vencem, o resumo do financeiro.\n\nEm **Configurações → Painel** você liga e desliga cada widget, define a largura (1, 2 ou 3 colunas) e a ordem. O administrador define o painel padrão do escritório em **Escritório**; cada pessoa pode montar o seu em **Usuário**."
+      },
+      {
+        "type": "keyValue",
+        "items": [
+          {
+            "label": "Adiciona",
+            "value": "Item \"Painel\" no menu"
+          },
+          {
+            "label": "Conteúdo",
+            "value": "Widgets das extensões instaladas"
+          },
+          {
+            "label": "Configuração",
+            "value": "Por escritório e por usuário"
+          }
+        ]
+      },
+      {
+        "type": "banner",
+        "message": "Instalar uma extensão que ofereça widgets faz os cartões dela aparecerem aqui automaticamente; remover a extensão os retira, sem deixar espaço vazio.",
+        "variant": "info"
+      }
+    ]
+  },
+  "workflows": [],
+  "views": [
+    {
+      "key": "painel",
+      "title": "Painel",
+      "icon": "dashboard",
+      "source": "\nimport { WidgetSurface } from '@microteia/ui';\nimport { styled } from 'styled-components';\n\nconst Page = styled.div`\n  padding: ${({ theme }) => theme.spacing.xl};\n  height: 100%;\n  overflow-y: auto;\n`;\n\nexport default function PainelView() {\n  return (\n    <Page>\n      <WidgetSurface\n        surface=\"dashboard\"\n        emptyMessage=\"Nenhum widget disponível. Instale extensões (Processos, Prazos, Financeiro…) para o Painel ganhar conteúdo.\"\n      />\n    </Page>\n  );\n}\n"
+    }
+  ]
+}

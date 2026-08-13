@@ -86,6 +86,32 @@ export interface UiRecordActionMetadata {
   requiresTags?: boolean;
 }
 
+/**
+ * Um WIDGET de uma superfície — um cartão que uma extensão coloca numa tela que ela não escreveu.
+ * A superfície é um nome (`dashboard`), não uma tela específica: quem a hospeda declara o nome, e
+ * quem contribui não precisa conhecer nada além dele.
+ *
+ * O widget declara o PADRÃO (vem ligado? que largura?); quem manda de fato é a configuração
+ * `<superfície>.widgets`, editada pelo escritório e pelo usuário. Sem valor gravado, o padrão vale —
+ * é o que faz uma extensão recém-instalada já aparecer no Painel sem ninguém configurar nada.
+ */
+export interface UiWidgetMetadata {
+  surface: string;
+  key: string;
+  title: string;
+  description?: string;
+  /** Chave do conjunto curado de `screenIcons` — nunca um componente. */
+  icon?: string;
+  defaultEnabled?: boolean;
+  /** Largura em colunas da grade da superfície (1 a 3). */
+  defaultSpan?: number;
+  order?: number;
+  requiredRole?: UserRole;
+}
+
+export const UI_WIDGET_POINT = 'ui.widget';
+export const UI_SETTINGS_POINT = 'ui.settings';
+
 export const UI_EXTENSION_POINTS: ExtensionPointDefinition[] = [
   {
     id: UI_PAGE_POINT,
@@ -125,6 +151,26 @@ export const UI_EXTENSION_POINTS: ExtensionPointDefinition[] = [
     ownerPluginId: 'core.ui',
     allowedImplKinds: ['code'],
     implRequired: true,
+    multiple: true,
+  },
+  {
+    id: UI_WIDGET_POINT,
+    apiVersion: UI_API_VERSION,
+    title: 'Widget de superfície',
+    description: 'Acrescenta um cartão a uma superfície (o Painel, por exemplo), ligado e ordenado pela configuração.',
+    ownerPluginId: 'core.ui',
+    allowedImplKinds: ['code', 'widget'],
+    implRequired: true,
+    multiple: true,
+  },
+  {
+    id: UI_SETTINGS_POINT,
+    apiVersion: UI_API_VERSION,
+    title: 'Seção de configuração',
+    description: 'Declara uma seção da tela de Configurações, com as propriedades que o plugin aceita.',
+    ownerPluginId: 'core.ui',
+    allowedImplKinds: [],
+    implRequired: false,
     multiple: true,
   },
 ];
