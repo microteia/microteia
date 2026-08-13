@@ -398,9 +398,20 @@ const applyScreenPatches = async (
   tenantId: string,
   userId: string,
   existingScreens: ScreenDefinition[],
+  actionMap: Map<string, string>,
 ): Promise<Set<string>> => {
   const pluginId = plugin.manifest.id;
   const patched = new Set<string>();
+  /**
+   * As ações do complemento ACRESCENTAM à lista da tela alvo, sem reordenar nem apagar o que o
+   * escritório configurou: a lista é dele, e o complemento só pede um lugar nela. Reaplicar o mesmo
+   * pacote não duplica (a chave já está lá), e uma ação que sumiu da versão nova sai pelo release.
+   */
+  const mergeActionIds = (current: string[] | undefined, templateIds: string[] | undefined): string[] => {
+    const ids = (templateIds ?? []).map((id) => actionMap.get(id) ?? id);
+    return [...(current ?? []), ...ids.filter((id) => !(current ?? []).includes(id))];
+  };
+
   for (const patch of plugin.screenPatches ?? []) {
     const target = resolvePatchTarget(patch, existingScreens);
     if (!target) continue;
@@ -420,6 +431,8 @@ const applyScreenPatches = async (
     await deps.screenRepository.upsert(tenantId, target.screenKey, stripUndefined({
       ...target.base,
       fields: [...kept, ...patchFields],
+      cardActionIds: mergeActionIds(target.base.cardActionIds, patch.cardActionIds),
+      viewActionIds: mergeActionIds(target.base.viewActionIds, patch.viewActionIds),
       createdBy: target.base.createdBy || userId,
     }));
     patched.add(target.screenKey);
@@ -438,13 +451,30 @@ const releaseScreenPatches = async (
   pluginId: string,
   screens: ScreenDefinition[],
 ): Promise<number> => {
+  // As ações que ESTE plugin instalou. A tela alvo é de outro dono, então não dá para varrer por
+  // posse da tela: o que sai são as entradas que apontam para ação dele — as demais ficam, mesmo
+  // que o escritório as tenha acrescentado à mão depois.
+  const ownActionIds = new Set(
+    (await deps.actionRepository.getAll(tenantId))
+      .filter((action) => ownerSet(action).includes(pluginId))
+      .map((action) => action.id),
+  );
+  const withoutOwn = (ids: string[] | undefined): string[] => (ids ?? []).filter((id) => !ownActionIds.has(id));
+
   let removedFields = 0;
   for (const screen of screens) {
     if (ownerSet(screen).includes(pluginId)) continue;
     const fields = screen.fields.filter((field) => field.ownerPluginId !== pluginId);
-    if (fields.length === screen.fields.length) continue;
+    const cardActionIds = withoutOwn(screen.cardActionIds);
+    const viewActionIds = withoutOwn(screen.viewActionIds);
+    const touched = fields.length !== screen.fields.length
+      || cardActionIds.length !== (screen.cardActionIds ?? []).length
+      || viewActionIds.length !== (screen.viewActionIds ?? []).length;
+    if (!touched) continue;
     removedFields += screen.fields.length - fields.length;
-    await deps.screenRepository.upsert(tenantId, screen.id, { ...screenToInput(screen), fields });
+    await deps.screenRepository.upsert(tenantId, screen.id, {
+      ...screenToInput(screen), fields, cardActionIds, viewActionIds,
+    });
   }
   return removedFields;
 };
@@ -697,7 +727,7 @@ export const applyPackageArtifacts = async (
   for (const screen of existingScreens.filter((s) => ownerSet(s).includes(pluginId))) {
     if (!nextKeys.has(screen.id)) await releaseScreen(deps, tenantId, screen, pluginId, actor);
   }
-  const patched = await applyScreenPatches(deps, plugin, tenantId, userId, await deps.screenRepository.getAll(tenantId));
+  const patched = await applyScreenPatches(deps, plugin, tenantId, userId, await deps.screenRepository.getAll(tenantId), actionMap);
   // Complemento que sumiu da versão nova: os campos dele saem da tela que deixou de ser alvo.
   await releaseScreenPatches(
     deps, tenantId, pluginId,
@@ -763,7 +793,7 @@ export const makeInstallMarketplacePluginUseCase = (
     await declarePluginLookups(deps, plugin, tenantId, userId);
     await declarePluginTagLists(deps, plugin, tenantId, userId);
     await upsertPluginScreens(deps, plugin, tenantId, userId, screenKeyMap, actionMap, existingScreens);
-    await applyScreenPatches(deps, plugin, tenantId, userId, await deps.screenRepository.getAll(tenantId));
+    await applyScreenPatches(deps, plugin, tenantId, userId, await deps.screenRepository.getAll(tenantId), actionMap);
 
     await deps.installationRepository.save(outcome.value);
     return { ok: true, installation: outcome.value };

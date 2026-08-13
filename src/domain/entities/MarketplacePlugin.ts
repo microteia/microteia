@@ -88,6 +88,20 @@ export interface ScreenPatchTemplate {
   targetKind?: 'collection' | 'sourceId';
   /** Sem `origin`: a instalação carimba `plugin` e o `ownerPluginId` em cada campo. */
   fields: TemplateField[];
+  /**
+   * Ações do pacote que a extensão pendura no cartão e no detalhe da tela ALVO — `templateId`s,
+   * remapeados para os ids gerados na instalação, exatamente como em `ScreenModuleTemplate`.
+   *
+   * Existe porque a lista de ações de uma tela é CONFIGURAÇÃO dela (a aba "Ações" do Form Design), e
+   * não um mecanismo paralelo: uma extensão que oferece um gesto sobre a tela de outra precisa
+   * chegar à mesma lista que o escritório edita à mão — senão haveria duas origens para a mesma
+   * pergunta ("o que aparece neste cartão?"), e o usuário só conseguiria mexer numa delas.
+   *
+   * São ACRESCENTADAS às que já estão lá, nunca substituem: a tela é do destino, e o complemento não
+   * manda no que o escritório configurou. A desinstalação retira apenas as que vieram desta extensão.
+   */
+  cardActionIds?: string[];
+  viewActionIds?: string[];
   /** Revisão de origem, no mesmo contrato dos demais artefatos. */
   sourceRev?: number | null;
 }

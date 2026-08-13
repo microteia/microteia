@@ -16,6 +16,7 @@ import {
   RiPuzzle2Line,
   RiShieldCheckLine,
   RiInformationLine,
+  RiErrorWarningLine,
 } from 'react-icons/ri';
 import { Button } from '../../components/ui/Button';
 import { InfoBanner } from '../../components/ui/InfoBanner';
@@ -67,6 +68,7 @@ const RowView: React.FC<{ row: ExtensionRow; busy: boolean; vm: ReturnType<typeo
         <S.Badges>
           {row.installBadge === 'active' && <S.Badge $tone="success"><S.BadgeDot $tone="success" />Ativa</S.Badge>}
           {row.installBadge === 'inactive' && <S.Badge $tone="neutral"><S.BadgeDot $tone="neutral" />Inativa</S.Badge>}
+          {row.failed && <S.Badge $tone="danger"><S.BadgeDot $tone="danger" />Não carregou</S.Badge>}
           {row.updateAvailable && <S.Badge $tone="primary">Atualização</S.Badge>}
           {row.statusBadge && <S.Badge $tone={STATUS_LABEL[row.statusBadge].tone}>{STATUS_LABEL[row.statusBadge].label}</S.Badge>}
           {row.hasCode && <S.Badge $tone="info">Com código</S.Badge>}
@@ -75,6 +77,19 @@ const RowView: React.FC<{ row: ExtensionRow; busy: boolean; vm: ReturnType<typeo
       </S.TitleLine>
 
       {row.summary && <S.Summary>{row.summary}</S.Summary>}
+
+      {/* O que o Kernel recusou nesta extensão. Instalada e ativa, mas com um erro aqui, ela não
+          está no ar — e antes o único sintoma era a tela sumir do menu, sem explicação. */}
+      {row.problems.length > 0 && (
+        <S.Problems>
+          {row.problems.map((problem, index) => (
+            <S.Problem key={index} $error={problem.severity === 'error'}>
+              <RiErrorWarningLine size={13} />
+              <span>{problem.message}</span>
+            </S.Problem>
+          ))}
+        </S.Problems>
+      )}
 
       <S.Meta>
         <AuthorLine author={row.author} />

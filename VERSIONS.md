@@ -11,6 +11,11 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [7.2.0] — 2026-08-13
+
+- **As ações do cartão do Calendário agora são suas.** Elas passaram a sair de "Ações do card na listagem", no Form Design da entidade Calendário — a mesma lista de qualquer outra tela. Você acrescenta, tira e reordena o que aparece no cartão, e as extensões que instalar entram nessa mesma lista, à sua vista. Em Configurações › Calendário fica só o que não tem equivalente em nenhuma tela: a lista de quem responde quando um item é arrastado para outro dia.
+- **Extensão que não carregou agora avisa.** Quando uma extensão depende de outra que não está instalada (ou é incompatível), a tela de Extensões passa a mostrar o motivo na linha dela, com o selo "Não carregou". Antes, o único sinal era a tela sumir do menu, sem explicação.
+
 ## [7.1.0] — 2026-08-13
 
 - **Os prazos antigos agora entram no Calendário.** Uma automação nova, "Sincronizar prazos no calendário", leva para a agenda os prazos que já existiam antes — os que foram criados depois já entram sozinhos. Ela fica na tela de Automações, com o botão **Executar**: escolha a situação (pendentes, concluídos…) e rode.

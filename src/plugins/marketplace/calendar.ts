@@ -19,22 +19,22 @@ import { nav, page, settingsSection } from '../contributionBuilders';
  * nunca escreve no registro de origem, e por isso não precisa saber que ele existe — guarda apenas
  * `origem` (a COLEÇÃO) e `origemId`, e é por esse par que o clique no cartão abre o registro certo.
  *
- * Os dois pontos de extensão abaixo são a porta para quem quer participar da agenda sem que a
- * agenda o conheça:
+ * **Os gestos do cartão são configuração da TELA, não deste código.** Eles saem de "Ações do card na
+ * listagem" do Form Design da entidade Calendário — a mesma lista que qualquer listagem do sistema
+ * usa, e que o escritório edita à vontade. Uma extensão que queira oferecer um gesto acrescenta a
+ * Action dela àquela lista pelo complemento de tela; não há ponto de extensão próprio para isso,
+ * porque haveria duas origens para a mesma pergunta ("o que aparece neste cartão?") e o usuário só
+ * conseguiria mexer numa delas.
  *
- * | Ponto | Quem preenche | Onde aparece |
- * |---|---|---|
- * | `calendar.action` | a extensão dona do registro de origem | botão no cartão, sob o mouse |
- * | `calendar.moveAction` | idem | a ação executada ao arrastar o item para outro dia |
- *
- * As duas apontam para uma Action do escritório pelo `sourceId` (o `templateId` do pacote que a
- * instalou) — é o endereço estável, já que o id real nasce na instalação. Arrastar não grava nada
- * por conta própria: quem decide o que "mudar de dia" significa é a origem, que pode adiar o prazo,
- * remarcar a audiência ou recusar o movimento.
+ * O único ponto próprio é o do ARRASTO — `calendar.moveaction` —, e ele é próprio porque não tem
+ * equivalente em lugar nenhum: nenhuma listagem tem o gesto de "mudar de dia", então não há lista do
+ * Form Design onde ele caberia. A contribuição aponta para uma Action do escritório pelo `sourceId`
+ * (o `templateId` do pacote que a instalou), o endereço estável já que o id real nasce na
+ * instalação. Arrastar não grava nada por conta própria: quem decide o que "mudar de dia" significa
+ * é a origem, que pode adiar o prazo, remarcar a audiência ou recusar o movimento.
  */
 const SOURCE_ID = 'microteia:calendar';
 
-const CALENDAR_ACTION_POINT = 'calendar.action';
 const CALENDAR_MOVE_POINT = 'calendar.moveaction';
 
 const IDENTIFICACAO = 'Item';
@@ -113,16 +113,6 @@ const CALENDAR_SCREEN: ScreenModuleTemplate = {
 
 const EXTENSION_POINTS: ExtensionPointDefinition[] = [
   {
-    id: CALENDAR_ACTION_POINT,
-    apiVersion: '1.0.0',
-    title: 'Ação no cartão do calendário',
-    description: 'Um gesto oferecido no cartão da agenda, executado sobre o registro de origem.',
-    ownerPluginId: 'com.microteia.calendar',
-    allowedImplKinds: [],
-    implRequired: false,
-    multiple: true,
-  },
-  {
     id: CALENDAR_MOVE_POINT,
     apiVersion: '1.0.0',
     title: 'Ação ao mover um item de dia',
@@ -144,7 +134,7 @@ const EXTENSION_POINTS: ExtensionPointDefinition[] = [
 const CALENDAR_SOURCE = `
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { styled, useTheme } from 'styled-components';
-import { CompositeFilter, Icon, InfoBanner } from '@microteia/ui';
+import { CompositeFilter, EntityListModals, Icon, InfoBanner, cardActionIcon } from '@microteia/ui';
 import {
   useEntityList, useContributions, useRunAction, useActionVisible, useOpenRecord, useLookup, useNotify,
 } from '@microteia/data';
@@ -153,7 +143,6 @@ import { useSettingValue } from '@microteia/settings';
 
 const SOURCE_ID = 'microteia:calendar';
 const COLLECTION = 'calendar';
-const ACTION_POINT = 'calendar.action';
 const MOVE_POINT = 'calendar.moveaction';
 const MOVE_SETTING = 'calendar.moveActions';
 
@@ -551,7 +540,6 @@ const servesRecord = (contribution, record) => {
 export default function CalendarView() {
   const theme = useTheme();
   const list = useEntityList(SOURCE_ID);
-  const cardActions = useContributions(ACTION_POINT);
   const moveActions = useContributions(MOVE_POINT);
   const moveLayout = useSettingValue(MOVE_SETTING);
   const runAction = useRunAction();
@@ -567,7 +555,6 @@ export default function CalendarView() {
   });
   const [draggingId, setDraggingId] = useState(null);
   const [dragOverKey, setDragOverKey] = useState(null);
-  const [runningId, setRunningId] = useState(null);
   const scrollerRef = useRef(null);
 
   const records = list.filteredRecords;
@@ -653,34 +640,16 @@ export default function CalendarView() {
     list.setFilterTokens(key === null ? others : others.concat([{ key: 'priority', values: [key] }]));
   }, [list]);
 
-  const execute = useCallback(async (contribution, record, params) => {
-    setRunningId(record.id + ':' + contribution.id);
-    try {
-      const result = await runAction({
-        actionSourceId: text(contribution.metadata.actionSourceId),
-        collection: COLLECTION,
-        recordId: record.id,
-        record,
-        params,
-      });
-      if (!result.ok && result.message) notify(result.message, 'error');
-    } finally {
-      setRunningId(null);
-    }
+  const executarMovimento = useCallback(async (contribution, record, params) => {
+    const result = await runAction({
+      actionSourceId: text(contribution.metadata.actionSourceId),
+      collection: COLLECTION,
+      recordId: record.id,
+      record,
+      params,
+    });
+    if (!result.ok && result.message) notify(result.message, 'error');
   }, [runAction, notify]);
-
-  /**
-   * O gesto aparece quando a origem o oferece PARA AQUELE item: a declaração diz a coleção que
-   * atende e a expressão que o esconde — "concluir" não cabe no que já está concluído. A agenda não
-   * conhece nenhuma das duas regras, só as aplica.
-   */
-  const actionsFor = useCallback(
-    (record) => cardActions.filter((contribution) => (
-      servesRecord(contribution, record)
-        && isVisible(contribution.metadata.hiddenWhen, record, 'calendar')
-    )),
-    [cardActions, isVisible],
-  );
 
   /**
    * Arrastar não grava: pergunta. A lista de quem responde ao movimento é a das Configurações — o
@@ -722,8 +691,8 @@ export default function CalendarView() {
       return;
     }
 
-    await execute(handler, record, { targetDate: day.key });
-  }, [records, moveActions, moveLayout, execute, notify]);
+    await executarMovimento(handler, record, { targetDate: day.key });
+  }, [records, moveActions, moveLayout, executarMovimento, notify, isVisible]);
 
   if (!list.definition) {
     return (
@@ -844,17 +813,24 @@ export default function CalendarView() {
                       ) : null}
                     </EventMeta>
 
-                    {actionsFor(record).length > 0 ? (
+                    {/*
+                      Os gestos do cartão vêm da CONFIGURAÇÃO da tela — "Ações do card na listagem"
+                      do Form Design —, resolvidos pelo mesmo caminho de qualquer listagem: as ações
+                      nativas que a tela habilitou mais as do escritório, já com a expressão de
+                      visibilidade avaliada registro a registro. A agenda não conhece nenhuma pelo nome, e o
+                      usuário acrescenta ou tira quantas quiser sem tocar neste código.
+                    */}
+                    {list.getCardActions(record).length > 0 ? (
                       <CardActions className="calendar-card-actions">
-                        {actionsFor(record).map((contribution) => (
+                        {list.getCardActions(record).map((action) => (
                           <CardActionButton
-                            key={contribution.id}
+                            key={action.key}
                             type="button"
-                            title={text(contribution.metadata.title)}
-                            disabled={runningId === record.id + ':' + contribution.id}
-                            onClick={(e) => { e.stopPropagation(); execute(contribution, record); }}
+                            title={action.title}
+                            disabled={action.disabled}
+                            onClick={(e) => { e.stopPropagation(); action.onClick(); }}
                           >
-                            <Icon name={text(contribution.metadata.icon) || 'check'} size={11} />
+                            {cardActionIcon(action, 11)}
                           </CardActionButton>
                         ))}
                       </CardActions>
@@ -883,6 +859,11 @@ export default function CalendarView() {
           ))}
         </Legend>
       </CalendarCard>
+
+      {/* Ação que pergunta parâmetros antes de executar, confirmação de exclusão e etiquetas — os
+          mesmos modais da listagem padrão. Sem eles, uma ação com parâmetros ficaria esperando por
+          uma pergunta que ninguém desenha. */}
+      <EntityListModals vm={list} />
     </>
   );
 }

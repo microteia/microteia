@@ -271,6 +271,23 @@ export const S = {
     text-overflow: ellipsis;
   `,
 
+  Problems: styled.div`
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    margin-top: ${({ theme }) => theme.spacing.xs};
+  `,
+
+  Problem: styled.div<{ $error: boolean }>`
+    display: flex;
+    align-items: flex-start;
+    gap: 6px;
+    font-size: ${({ theme }) => theme.fontSizes.xs};
+    color: ${({ theme, $error }) => ($error ? theme.colors.danger : theme.colors.warning)};
+
+    svg { flex-shrink: 0; margin-top: 2px; }
+  `,
+
   Meta: styled.div`
     display: flex;
     align-items: center;

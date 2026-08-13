@@ -105,12 +105,18 @@ describe('calendarPlugin', () => {
     expect(prioridade?.options?.map((option) => option.color)).toEqual(['success', 'warning', 'secondary', 'danger']);
   });
 
-  it('publica os dois pontos de extensão que fazem dela uma porta', () => {
+  /**
+   * UM ponto só, e é o do arrasto. O gesto do CARTÃO não tem ponto próprio de propósito: ele sai da
+   * lista de ações da tela (a aba "Ações" do Form Design), que é onde o escritório já mexe. Dois
+   * caminhos para a mesma pergunta — "o que aparece neste cartão?" — deixariam metade da resposta
+   * fora do alcance do usuário.
+   */
+  it('publica só o ponto do arrasto — o gesto do cartão é configuração da tela', () => {
     const pontos = (calendarPlugin.manifest.extensionPoints ?? []).map((point) => point.id);
-    expect(pontos).toEqual(['calendar.action', 'calendar.moveaction']);
+    expect(pontos).toEqual(['calendar.moveaction']);
 
-    // Metadata pura: nenhum dos dois carrega implementação, então uma extensão de TERCEIRO (que não
-    // pode entregar código) participa da agenda pelo mesmo caminho que uma de primeira parte.
+    // Metadata pura: sem implementação, uma extensão de TERCEIRO (que não pode entregar código)
+    // participa do arrasto pelo mesmo caminho que uma de primeira parte.
     for (const point of calendarPlugin.manifest.extensionPoints ?? []) {
       expect(point.allowedImplKinds).toEqual([]);
       expect(point.implRequired).toBe(false);
@@ -182,25 +188,40 @@ describe('prazoPlugin na agenda', () => {
   });
 
   /**
+   * O gesto do cartão chega pela lista de ações da tela alvo — o mesmo lugar que o Form Design
+   * edita. Instalar já o deixa no cartão; sem isso, a ação ficaria no escritório sem aparecer em
+   * lugar nenhum até um admin ligá-la à mão.
+   */
+  it('o gesto de concluir entra pela lista de ações da tela, não por contribuição', () => {
+    const [patch] = prazoPlugin.screenPatches ?? [];
+    const templateIds = new Set((prazoPlugin.actions ?? []).map((action) => action.templateId));
+
+    expect(patch.cardActionIds).toEqual(['act-prazo-calendar-concluir']);
+    expect(templateIds.has(patch.cardActionIds![0])).toBe(true);
+
+    const concluir = (prazoPlugin.actions ?? [])
+      .find((action) => action.templateId === 'act-prazo-calendar-concluir')!;
+    // A expressão é avaliada sobre o ITEM DA AGENDA: a origem restringe o gesto aos itens de prazo
+    // (a lista serve a agenda inteira), e a situação usa a CHAVE da agenda, não o rótulo do prazo.
+    expect(concluir.hiddenWhen).toBe('origem != "deadlines" or status == "closed"');
+  });
+
+  /**
    * A contribuição endereça a Action pelo `templateId` do pacote (`sourceId` depois de instalada) —
    * o id real só nasce na instalação, e um manifest não tem como conhecê-lo.
    */
-  it('as contribuições apontam para Actions que o próprio pacote instala', () => {
+  it('a contribuição do arrasto aponta para uma Action que o próprio pacote instala', () => {
     const contribuicoes = (prazoPlugin.manifest.contributes ?? [])
       .filter((contribution) => contribution.point.startsWith('calendar.'));
     const templateIds = new Set((prazoPlugin.actions ?? []).map((action) => action.templateId));
     const workflowIds = new Set(prazoPlugin.workflows.map((workflow) => workflow.templateId));
 
-    expect(contribuicoes.map((contribution) => contribution.point)).toEqual([
-      'calendar.action', 'calendar.moveaction',
-    ]);
+    expect(contribuicoes.map((contribution) => contribution.point)).toEqual(['calendar.moveaction']);
 
-    for (const contribution of contribuicoes) {
-      const metadata = contribution.metadata as { origem?: string; actionSourceId?: string };
-      // Sem a origem, o gesto do prazo apareceria no item de qualquer outra extensão.
-      expect(metadata.origem).toBe('deadlines');
-      expect(templateIds.has(metadata.actionSourceId ?? '')).toBe(true);
-    }
+    const metadata = contribuicoes[0].metadata as { origem?: string; actionSourceId?: string };
+    // Sem a origem, o arrasto de qualquer item cairia no prazo.
+    expect(metadata.origem).toBe('deadlines');
+    expect(templateIds.has(metadata.actionSourceId ?? '')).toBe(true);
 
     for (const action of prazoPlugin.actions ?? []) {
       expect(workflowIds.has(action.workflowId ?? '')).toBe(true);

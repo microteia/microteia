@@ -128,20 +128,6 @@
         }
       },
       {
-        "point": "calendar.action",
-        "id": "prazo-concluir",
-        "apiVersion": "1.0.0",
-        "metadata": {
-          "key": "prazo.concluir",
-          "title": "Marcar como concluído",
-          "icon": "check",
-          "order": 0,
-          "origem": "deadlines",
-          "actionSourceId": "act-prazo-calendar-concluir",
-          "hiddenWhen": "status == \"closed\""
-        }
-      },
-      {
         "point": "calendar.moveaction",
         "id": "prazo-mover",
         "apiVersion": "1.0.0",
@@ -1581,6 +1567,7 @@
       "title": "Marcar como concluído",
       "icon": "check",
       "workflowId": "wf-prazo-calendar-concluir",
+      "hiddenWhen": "origem != \"deadlines\" or status == \"closed\"",
       "danger": false,
       "enabled": true,
       "order": 0
@@ -1742,6 +1729,9 @@
     {
       "target": "microteia:calendar",
       "targetKind": "sourceId",
+      "cardActionIds": [
+        "act-prazo-calendar-concluir"
+      ],
       "fields": [
         {
           "key": "caseId",

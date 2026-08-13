@@ -3297,6 +3297,14 @@ implementação proibida viram `PluginDiagnostic` com `code` e `path` — a cont
 **as demais do mesmo plugin continuam válidas**. Com centenas de plugins instalados, um plugin
 quebrado não pode derrubar o boot.
 
+**E o diagnóstico é MOSTRADO.** Por muito tempo ninguém lia `usePluginDiagnostics`: uma extensão que
+falhava — dependência que falta, ponto inexistente, kernel incompatível — simplesmente sumia do menu,
+sem erro, sem aviso, e com a linha dela na tela de Extensões dizendo "Ativa". A tela agora agrupa os
+diagnósticos por `pluginId` e os exibe na própria linha, com o selo **"Não carregou"** quando há
+severidade `error`. Sem isso, a granularidade da falha era invisível justamente para quem podia
+consertá-la — e o sintoma ("a tela sumiu") não aponta para a causa ("falta instalar a outra
+extensão").
+
 ### Ordenação determinística — não é detalhe
 
 `compareContributions` ordena por prioridade (maior primeiro), depois `pluginId`, depois `id`, todos
@@ -3594,18 +3602,39 @@ que a próxima gravação da origem apaga. O admin fica de fora da trava de prop
 para um item órfão de uma sincronização quebrada, e a regra do curinga não sabe expressar "ninguém"
 (`declaresWriteRoles` exige lista não-vazia).
 
-**Dois pontos de extensão, publicados pela própria extensão** — é o primeiro ponto do sistema que
-não é do kernel:
+**O gesto do cartão é CONFIGURAÇÃO DA TELA, não um ponto de extensão.** Ele sai de "Ações do card na
+listagem" (a aba "Ações" do Form Design da entidade Calendário), resolvido por `getCardActions` como
+em qualquer listagem — as nativas que a tela habilitou mais as do escritório, com `hiddenWhen`
+avaliado registro a registro. Um ponto próprio para isso seria uma **segunda origem para a mesma
+pergunta** ("o que aparece neste cartão?"), e o usuário só conseguiria mexer numa delas: as ações
+declaradas por extensão ficariam fora da tela que existe justamente para configurá-las.
+
+**Um ponto próprio, e só um: `calendar.moveaction`** — o primeiro ponto do sistema que não é do
+kernel. Ele é próprio porque não tem equivalente em lugar nenhum: nenhuma listagem tem o gesto de
+"mudar de dia", então não há lista do Form Design onde ele caberia.
 
 | Ponto | Metadata | Quem preenche |
 |---|---|---|
-| `calendar.action` | `key`, `title`, `icon`, `order`, `origem`, `actionSourceId`, `hiddenWhen` | a extensão dona do registro de origem |
-| `calendar.moveaction` | idem | idem |
+| `calendar.moveaction` | `key`, `title`, `icon`, `order`, `origem`, `actionSourceId`, `hiddenWhen` | a extensão dona do registro de origem |
 
-Os dois são **metadata pura** (`allowedImplKinds: []`): uma extensão de terceiro, que não pode
-entregar código, participa da agenda pelo mesmo caminho que uma de primeira parte. E os dois
-endereçam a Action pelo **`templateId` do pacote** (`Action.sourceId` depois de instalada), porque o
-id real nasce na instalação e um manifest não tem como conhecê-lo.
+É **metadata pura** (`allowedImplKinds: []`): uma extensão de terceiro, que não pode entregar código,
+participa do arrasto pelo mesmo caminho que uma de primeira parte. E endereça a Action pelo
+**`templateId` do pacote** (`Action.sourceId` depois de instalada), porque o id real nasce na
+instalação e um manifest não tem como conhecê-lo.
+
+**Como a ação de uma extensão CHEGA à lista da tela de outra: `ScreenPatchTemplate.cardActionIds`.**
+O complemento de tela passou a carregar, além dos campos, `cardActionIds`/`viewActionIds` com
+`templateId`s do pacote — remapeados na instalação como em `ScreenModuleTemplate`. Eles são
+**acrescentados** à lista da tela alvo, nunca a substituem: a lista é do escritório, e o complemento
+só pede um lugar nela. Reaplicar o pacote não duplica (a chave já está lá), e a desinstalação retira
+apenas as entradas que apontam para ação DESTA extensão — o que o escritório acrescentou à mão fica.
+Sem isso, o único caminho seria o admin ligar a ação à mão depois de instalar, e "instalar" deixaria
+de ser suficiente.
+
+> **Limite conhecido:** `screenToPatch` (o export da autoria) empacota só os campos `origin: 'design'`
+> da tela de terceiro — não as ações. Um pacote escrito à mão declara `cardActionIds` no complemento;
+> um reexportado pela tela de autoria perde essa parte. Fechar isso exige a autoria oferecer a
+> escolha das ações por tela complementada, que é trabalho de UI, não deste contrato.
 
 **Arrastar não grava: pergunta.** A agenda não decide o que "mudar de dia" significa — um prazo
 pendente foi adiado, um concluído foi concluído noutro dia, uma parcela talvez nem possa mudar. Ela
@@ -3636,11 +3665,11 @@ peças, todas dele:
 
 | Peça | O que faz |
 |---|---|
-| `screenPatches` | acrescenta `caseId`/`personId` ao item — e, sendo `filterable`, viram filtro da agenda sozinhos |
+| `screenPatches` | acrescenta `caseId`/`personId` ao item (que, sendo `filterable`, viram filtro sozinhos) e põe "Marcar como concluído" na lista de ações do cartão |
 | `wf-prazo-calendar-sync` (`deadline.saved`) | espelha o prazo no item: busca por `origemId`, cria na primeira vez, atualiza depois |
 | `wf-prazo-calendar-sincronizar` (`workflow.called`) | o MUTIRÃO: põe na agenda os prazos anteriores à instalação |
 | `wf-prazo-calendar-remover` (`deadline.deleted`) | tira o item da agenda |
-| duas Actions + duas contribuições | concluir pelo cartão, e remarcar ao arrastar |
+| duas Actions | concluir (pela lista de ações do complemento) e remarcar (pela contribuição do arrasto) |
 
 **O mutirão é o espelho aplicado a quem já existia.** O gatilho de gravação só alcança o prazo salvo
 depois da instalação; o workflow chamável (executado pelo botão "Executar" da tela de Automações —

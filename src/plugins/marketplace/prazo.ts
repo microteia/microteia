@@ -412,6 +412,10 @@ const CALENDAR_COLLECTION = 'calendar';
 const CALENDAR_PATCH: ScreenPatchTemplate = {
   target: CALENDAR_SOURCE_ID,
   targetKind: 'sourceId',
+  // O gesto de concluir entra na MESMA lista que o escritório edita no Form Design da agenda ("Ações
+  // do card na listagem"), e não num mecanismo paralelo: instalar já o deixa no cartão, e quem
+  // quiser tirá-lo, reordená-lo ou pôr outro ao lado faz isso pela tela de sempre.
+  cardActionIds: ['act-prazo-calendar-concluir'],
   fields: [
     { key: 'caseId', label: 'Processo', type: 'reference', required: false, order: 20, section: 'Processo', refEntity: 'cases', filterable: true, showInList: true, listIcon: 'folder', listOrder: 10 },
     { key: 'personId', label: 'Advogado responsável', type: 'reference', required: false, order: 21, section: 'Processo', refEntity: 'persons', filterable: true, showInList: true, listIcon: 'scales', listOrder: 11 },
@@ -838,6 +842,14 @@ const ACTIONS: ActionModuleTemplate[] = [
     title: 'Marcar como concluído',
     icon: 'check',
     workflowId: 'wf-prazo-calendar-concluir',
+    /**
+     * A expressão é avaliada sobre o ITEM DA AGENDA, não sobre o prazo — é o registro do cartão em
+     * que o gesto aparece. Daí `status == "closed"` (a chave da agenda) e não `"Concluído"` (o
+     * rótulo do prazo). A segunda metade é o que mantém o gesto do prazo restrito aos itens dele: a
+     * mesma lista de ações serve a agenda inteira, e sem isso ele apareceria no item de qualquer
+     * outra extensão.
+     */
+    hiddenWhen: 'origem != "deadlines" or status == "closed"',
     danger: false,
     enabled: true,
     order: 0,
@@ -1669,18 +1681,10 @@ export const prazoPlugin: MarketplacePlugin = {
       surfaceWidget({ surface: 'dashboard', key: 'prazo.proximos', title: 'Prazos nos próximos 7 dias', description: 'Os prazos pendentes que vencem nesta semana.', icon: 'calendar', defaultSpan: 1, order: 40 }, 'widget-prazos-proximos'),
       surfaceWidget({ surface: 'dashboard', key: 'prazo.vencidos', title: 'Prazos vencidos', description: 'O que passou do vencimento e continua pendente.', icon: 'alarmWarning', defaultSpan: 1, order: 50 }, 'widget-prazos-vencidos'),
       surfaceWidget({ surface: 'dashboard', key: 'prazo.analise', title: 'Análise de prazos', description: 'Gráficos por tipo, por vencimento ou por conclusão.', icon: 'barChart', defaultSpan: 3, order: 90 }, 'widget-prazos-analise'),
-      // Os dois gestos que o Prazo oferece DENTRO da agenda. A `origem` é o que faz a agenda os
-      // oferecer só para os itens dela; o `actionSourceId` é o endereço estável da Action, já que o
-      // id real só nasce na instalação.
-      pointContribution('calendar.action', 'prazo-concluir', {
-        key: 'prazo.concluir',
-        title: 'Marcar como concluído',
-        icon: 'check',
-        order: 0,
-        origem: 'deadlines',
-        actionSourceId: 'act-prazo-calendar-concluir',
-        hiddenWhen: 'status == "closed"',
-      }),
+      // O gesto de ARRASTO. É o único que precisa de contribuição: o de concluir vai pela lista de
+      // ações da tela (ver `CALENDAR_PATCH`), porque lá existe a lista equivalente — para "mudar de
+      // dia" não existe. A `origem` é o que faz a agenda oferecê-lo só aos itens de prazo; o
+      // `actionSourceId` é o endereço estável da Action, já que o id real só nasce na instalação.
       pointContribution('calendar.moveaction', 'prazo-mover', {
         key: 'prazo.mover',
         title: 'Remarcar o prazo',

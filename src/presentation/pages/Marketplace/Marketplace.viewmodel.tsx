@@ -10,6 +10,7 @@ import { packageFingerprint, serializePackage } from '../../../domain/usecases/p
 import { isVersionGreater } from '../../../domain/usecases/plugins/publicExtension';
 import { extensionCodeOf, extensionHasCode } from '../../../domain/usecases/plugins/extensionCodeTrust';
 import { useExtensionCodeTrust } from '../../../stores/useExtensionCodeTrust';
+import { usePluginDiagnostics } from '../../../stores/useKernel';
 import { MARKETPLACE_CATALOG } from '../../../plugins/marketplace/catalog';
 import type { MarketplacePlugin } from '../../../domain/entities/MarketplacePlugin';
 
@@ -63,6 +64,19 @@ export interface ExtensionRow {
   isPublic: boolean;
   /** Vem do catálogo embutido no bundle — extensão de primeira parte, sempre disponível. */
   isBuiltin: boolean;
+  /**
+   * O que o Kernel recusou nesta extensão ao montar o escritório — dependência que falta, ponto de
+   * extensão inexistente, versão incompatível. Instalada e ativa, mas com um erro aqui, ela NÃO
+   * está no ar: sem isso o sintoma era a tela sumir do menu, sem nada que explicasse.
+   */
+  problems: ExtensionProblem[];
+  /** Há erro (não só aviso): o plugin inteiro não carregou. */
+  failed: boolean;
+}
+
+export interface ExtensionProblem {
+  severity: string;
+  message: string;
 }
 
 export type MarketplaceFilter = 'all' | 'installed' | 'mine' | 'catalog';
@@ -124,6 +138,22 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
   const [detailsId, setDetailsId] = useState<string | null>(null);
 
   const trustedIds = useExtensionCodeTrust(installed);
+
+  /**
+   * Os diagnósticos do host, agrupados por extensão. O Kernel já os produzia a cada carga e ninguém
+   * os lia: uma extensão que falhava por dependência simplesmente desaparecia do menu, em silêncio.
+   */
+  const diagnostics = usePluginDiagnostics();
+  const problemsByPlugin = useMemo(() => {
+    const byPlugin = new Map<string, ExtensionProblem[]>();
+    for (const diagnostic of diagnostics) {
+      if (!diagnostic.pluginId) continue;
+      const list = byPlugin.get(diagnostic.pluginId) ?? [];
+      list.push({ severity: diagnostic.severity, message: diagnostic.message });
+      byPlugin.set(diagnostic.pluginId, list);
+    }
+    return byPlugin;
+  }, [diagnostics]);
 
   /**
    * Cópias instaladas que têm código e ainda não podem executá-lo. Enquanto o hash não termina de ser
@@ -264,6 +294,8 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
         ? (updateAvailable ? 'update' : null)
         : (mine || isApproved || !!builtin ? 'install' : null);
 
+      const problems = problemsByPlugin.get(id) ?? [];
+
       const statusBadge: StatusBadge | null = publicStatus === 'approved' ? 'published'
         : publicStatus === 'pending' ? 'pending'
           : publicStatus === 'deprecated' ? 'deprecated'
@@ -301,11 +333,13 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
         installed: installed_,
         isPublic: isApproved,
         isBuiltin: !!builtin,
+        problems,
+        failed: problems.some((problem) => problem.severity === 'error'),
       });
     }
 
     return list.sort((a, b) => rankOf(a) - rankOf(b) || a.name.localeCompare(b.name));
-  }, [extensions, installed, publicExtensions, publicOf, updateSourceOf, builtinUpdateOf, canModerate, user, installedNeedsReview]);
+  }, [extensions, installed, publicExtensions, publicOf, updateSourceOf, builtinUpdateOf, canModerate, user, installedNeedsReview, problemsByPlugin]);
 
   const counts = useMemo<Record<MarketplaceFilter, number>>(() => ({
     all: rows.length,

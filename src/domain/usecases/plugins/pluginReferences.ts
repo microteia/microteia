@@ -73,6 +73,9 @@ export const screenPatchOutRefs = (patch: ScreenPatchTemplate): PackageRef[] => 
   for (const target of targets) {
     if (!isCoreCollection(target)) refs.push({ kind: 'screen', id: target, from });
   }
+  for (const actionId of [...(patch.viewActionIds ?? []), ...(patch.cardActionIds ?? [])]) {
+    refs.push({ kind: 'action', id: actionId, from });
+  }
   return refs;
 };
 

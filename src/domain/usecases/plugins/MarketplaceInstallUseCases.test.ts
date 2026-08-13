@@ -1093,6 +1093,60 @@ describe('Complementos — campos acrescentados a telas que já existem', () => 
     expect(alvo.fields.map((f) => f.key)).toEqual(['ncm']);
     expect(alvo.ownerPluginIds).toEqual(['com.b']);
   });
+
+  /**
+   * Uma extensão que oferece um GESTO sobre a tela de outra chega pela mesma lista que o Form Design
+   * edita — a aba "Ações". Não há mecanismo paralelo: fosse por um caminho próprio, metade do que
+   * aparece no cartão ficaria fora do alcance de quem configura a tela.
+   */
+  const comAcao = (id: string): MarketplacePlugin => ({
+    summary: 'S',
+    manifest: { id, version: '1.0.0', kernel: '^1.0.0', name: id },
+    workflows: [{
+      templateId: 'wf-x', name: 'W', eventName: 'workflow.called', version: 1,
+      condition: { kind: 'AlwaysTrue' }, steps: [],
+    }],
+    actions: [{
+      templateId: 'act-x', key: 'x', title: 'Fazer X', icon: 'check',
+      workflowId: 'wf-x', enabled: true, order: 0, danger: false,
+    }],
+    screenPatches: [{ target: 'pushes', fields: [], cardActionIds: ['act-x'], viewActionIds: ['act-x'] }],
+  });
+
+  it('a ação do complemento entra na lista da tela alvo, com o id gerado na instalação', async () => {
+    screens.store.set('pushes', pushesScreen([]));
+
+    await makeInstallMarketplacePluginUseCase(deps()).execute(comAcao('com.acme.gesto'), actor);
+
+    const [acao] = await actions.getAll('t1');
+    const alvo = screens.store.get('pushes')!;
+    // O `templateId` do pacote não vai para a tela: quem vai é o id REAL, gerado agora.
+    expect(alvo.cardActionIds).toEqual([acao.id]);
+    expect(alvo.viewActionIds).toEqual([acao.id]);
+    expect(acao.sourceId).toBe('act-x');
+    // A tela continua de quem era — a posse fica no artefato, não na lista.
+    expect(alvo.ownerPluginId ?? null).toBeNull();
+  });
+
+  it('não duplica ao reinstalar, e preserva o que o escritório pôs na lista', async () => {
+    screens.store.set('pushes', { ...pushesScreen([]), cardActionIds: ['acao-do-escritorio'] });
+
+    await makeInstallMarketplacePluginUseCase(deps()).execute(comAcao('com.acme.gesto'), actor);
+    await makeInstallMarketplacePluginUseCase(deps()).execute(comAcao('com.acme.gesto'), actor);
+
+    const [acao] = await actions.getAll('t1');
+    expect(screens.store.get('pushes')!.cardActionIds).toEqual(['acao-do-escritorio', acao.id]);
+  });
+
+  it('desinstalar tira só a ação da extensão da lista — a do escritório fica', async () => {
+    screens.store.set('pushes', { ...pushesScreen([]), cardActionIds: ['acao-do-escritorio'] });
+    await makeInstallMarketplacePluginUseCase(deps()).execute(comAcao('com.acme.gesto'), actor);
+
+    await makeUninstallMarketplacePluginUseCase(deps()).execute('com.acme.gesto', actor);
+
+    expect(screens.store.get('pushes')!.cardActionIds).toEqual(['acao-do-escritorio']);
+    expect(screens.store.get('pushes')!.viewActionIds).toEqual([]);
+  });
 });
 
 describe('Complemento apontando para a tela do PRÓPRIO pacote (pacote legado)', () => {
