@@ -1,4 +1,4 @@
-# CLAUDE.md — Microteia: Plataforma de Aplicações de Negócio (PaaS)
+# CLAUDE.md — Microteia: An AI-First Business Application Platform (PAIFD)
 
 > Manual operacional para o Claude Code. É curto de propósito: contém o que fazer **em toda sessão**.
 > A referência detalhada (regras Firestore, pipelines, padrões por feature) vive em `ARCHITECTURE.md`.

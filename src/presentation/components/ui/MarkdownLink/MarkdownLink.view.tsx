@@ -1,6 +1,6 @@
 import React from 'react';
 import { useWorkspace } from '../../../../stores/useWorkspace';
-import { isCuratinoLink, parseCuratinoTabKey } from '../../../../infrastructure/deeplink/deepLinkUtils';
+import { isMicroteiaLink, parseMicroteiaTabKey } from '../../../../infrastructure/deeplink/deepLinkUtils';
 import { S } from './MarkdownLink.styles';
 
 export interface MarkdownLinkProps {
@@ -11,8 +11,8 @@ export interface MarkdownLinkProps {
 export const MarkdownLink: React.FC<MarkdownLinkProps> = ({ href, children }) => {
   const { openTab } = useWorkspace();
 
-  if (isCuratinoLink(href)) {
-    const tabKey = parseCuratinoTabKey(href);
+  if (isMicroteiaLink(href)) {
+    const tabKey = parseMicroteiaTabKey(href);
     return (
       <S.Link
         href={href}

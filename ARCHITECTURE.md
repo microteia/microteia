@@ -1,4 +1,4 @@
-# Arquitetura da Microteia — Plataforma de Aplicações de Negócio (SaaS)
+# Arquitetura da Microteia — An AI-First Business Application Platform (PAIFD)
 
 > Documento de referência para desenvolvimento e manutenção. Toda nova feature deve seguir este padrão.
 >

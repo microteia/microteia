@@ -175,7 +175,7 @@ export const LoginView: React.FC = () => {
         </S.Logo>
         <S.Title>Microteia</S.Title>
         <S.Subtitle>
-          Plataforma de aplicações de negócio. Crie sistemas personalizados de forma declarativa e extensível.
+          An AI-First Business Application Platform. Crie sistemas personalizados de forma declarativa e extensível.
         </S.Subtitle>
         <S.Form>
           <S.InputGroup>
