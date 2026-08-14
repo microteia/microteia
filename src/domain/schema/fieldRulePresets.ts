@@ -241,10 +241,10 @@ export const isValidCnpj = (value: string): boolean => {
  * chegam por extensão.
  */
 export const CORE_FIELD_RULE_PRESETS: FieldRulePreset[] = [
-  { key: 'digits', label: 'Somente números', format: [{ op: 'digits' }] },
-  { key: 'trim', label: 'Remover espaços das pontas', format: [{ op: 'trim' }] },
-  { key: 'upper', label: 'MAIÚSCULAS', format: [{ op: 'upper' }] },
-  { key: 'lower', label: 'minúsculas', format: [{ op: 'lower' }] },
+  { key: 'digits', label: '@core.ui/preset.digits', format: [{ op: 'digits' }] },
+  { key: 'trim', label: '@core.ui/preset.trim', format: [{ op: 'trim' }] },
+  { key: 'upper', label: '@core.ui/preset.upper', format: [{ op: 'upper' }] },
+  { key: 'lower', label: '@core.ui/preset.lower', format: [{ op: 'lower' }] },
 ];
 
 export interface FieldRulePresetConflict {

@@ -1,1 +1,2 @@
-export const CORE_DATA: Record<string, string> = {};
+export const CORE_DATA: Record<string, string> = {
+};

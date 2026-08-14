@@ -184,7 +184,8 @@ describe('catálogo declarado', () => {
       [{ key: 'digits', label: 'Dígitos sequestrados', format: [{ op: 'upper' }] }],
       conflicts,
     );
-    expect(catalog.get('digits')?.label).toBe('Somente números');
+    // O rótulo do preset do núcleo é uma REFERÊNCIA; o ponto de render é que a resolve.
+    expect(catalog.get('digits')?.label).toBe('@core.ui/preset.digits');
     expect(conflicts.map((conflict) => conflict.key)).toEqual(['digits']);
   });
 

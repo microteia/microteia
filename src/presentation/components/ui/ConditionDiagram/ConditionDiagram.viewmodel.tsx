@@ -8,7 +8,7 @@ import {
   createDefaultComparisonCondition,
   createDefaultExpressionCondition,
 } from '../../../shared/conditionHelpers';
-import { useT } from '../../../shared/i18n/useT';
+import { useT, useLabel } from '../../../shared/i18n/useT';
 
 export type ConditionPath = number[];
 
@@ -76,16 +76,18 @@ export const useConditionDiagramViewModel = (props: ConditionDiagramProps): Cond
   const { condition, eventName, parameters, onChange, onRequestEdit } = props;
   const schemaContext = useSchemaContext();
   const t = useT('core.ui');
+  const label = useLabel();
 
   const fieldLabelByPath = useMemo(() => {
     const eventFields = buildConditionEventFields(eventName, schemaContext, parameters);
     const map = new Map<string, string>();
     eventFields.forEach((field) => {
-      map.set(field.path, field.label);
-      map.set(`${EVENT_FIELD_PATH_PREFIX}${field.path}`, field.label);
+      const resolved = label(field.label);
+      map.set(field.path, resolved);
+      map.set(`${EVENT_FIELD_PATH_PREFIX}${field.path}`, resolved);
     });
     return map;
-  }, [eventName, schemaContext, parameters]);
+  }, [eventName, schemaContext, parameters, label]);
 
   const getFieldLabel = useCallback(
     (fieldPath: string) => fieldLabelByPath.get(fieldPath) ?? fieldPath,

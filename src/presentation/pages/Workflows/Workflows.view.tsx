@@ -8,14 +8,17 @@ import { Button } from '../../components/ui/Button';
 import { ConfirmModal } from '../../components/ui/ConfirmModal';
 import { Spinner } from '../../components/ui/Spinner';
 
+import { useT } from '../../shared/i18n/useT';
+
 export const WorkflowsView: React.FC = () => {
   const vm = useWorkflowsViewModel();
+  const t = useT('core.automation');
 
   return (
     <S.Page>
       <S.Header>
-        <S.Title>Workflow</S.Title>
-        <Button onClick={vm.openNewWorkflow} title="Nova Automação">
+        <S.Title>{t('page.workflows')}</S.Title>
+        <Button onClick={vm.openNewWorkflow} title={t('page.new-workflow')}>
           <RiAddLine size={16} />
         </Button>
       </S.Header>
@@ -25,7 +28,7 @@ export const WorkflowsView: React.FC = () => {
           defs={vm.filterDefs}
           tokens={vm.filterTokens}
           onChange={vm.setFilterTokens}
-          placeholder="Filtrar workflows..."
+          placeholder={t('workflow.filter.placeholder')}
           screenKey={vm.savedFiltersScreenKey}
         />
       </S.Toolbar>
@@ -38,10 +41,10 @@ export const WorkflowsView: React.FC = () => {
         ) : vm.filteredWorkflows.length === 0 ? (
           <S.EmptyState>
             <S.EmptyIcon><RiFlowChart /></S.EmptyIcon>
-            <S.EmptyTitle>Nenhuma automação encontrada</S.EmptyTitle>
+            <S.EmptyTitle>{t('workflow.list.empty')}</S.EmptyTitle>
             <Button onClick={vm.openNewWorkflow} variant="secondary">
               <RiAddLine size={14} />
-              Criar primeira automação
+              {t('workflow.create-first')}
             </Button>
           </S.EmptyState>
         ) : (
@@ -63,7 +66,7 @@ export const WorkflowsView: React.FC = () => {
                     {w.enabled ? 'Habilitado' : 'Desabilitado'}
                   </S.EnabledBadge>
                   <S.DeleteBtn
-                    title="Excluir automação"
+                    title={t('workflow.delete')}
                     onClick={(e) => { e.stopPropagation(); vm.handleDelete(w); }}
                   >
                     <RiDeleteBinLine size={14} />
@@ -79,9 +82,9 @@ export const WorkflowsView: React.FC = () => {
         isOpen={!!vm.workflowToDelete}
         onConfirm={() => void vm.confirmDelete()}
         onCancel={vm.cancelDelete}
-        title="Excluir Automação"
-        message={`Tem certeza que deseja excluir a automação "${vm.workflowToDelete?.name}"? Esta ação não pode ser desfeita.`}
-        confirmLabel="Excluir"
+        title={t('workflow.delete')}
+        message={t('workflow.delete.message', { name: vm.workflowToDelete?.name ?? '' })}
+        confirmLabel={t('core.ui/action.delete')}
         variant="danger"
       />
     </S.Page>

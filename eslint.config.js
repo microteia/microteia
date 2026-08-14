@@ -18,6 +18,10 @@ const MIGRATED_TO_SOURCE_LANGUAGE = [
   'src/presentation/pages/PluginAuthor/**/*.{ts,tsx}',
   'src/plugins/core.*/**/*.{ts,tsx}',
   'src/plugins/messages/**/*.{ts,tsx}',
+  'src/presentation/pages/Workflows/**/*.{ts,tsx}',
+  'src/presentation/shared/screenIcons.tsx',
+  'src/domain/schema/eventCatalog.ts',
+  'src/domain/schema/fieldRulePresets.ts',
 ]
 
 export default defineConfig([

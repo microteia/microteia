@@ -14,7 +14,7 @@ import {
   buildConditionEventFields,
   conditionOperatorKey,
 } from '../../../shared/conditionHelpers';
-import { useT } from '../../../shared/i18n/useT';
+import { useT, useLabel } from '../../../shared/i18n/useT';
 
 export type ConditionMode = 'always' | 'custom';
 export type GroupOperator = 'and' | 'or';
@@ -220,6 +220,7 @@ export const useConditionBuilderViewModel = (
 ): ConditionBuilderViewModel => {
   const schemaContext = useSchemaContext();
   const t = useT('core.ui');
+  const label = useLabel();
 
   const operatorOptions = useMemo<SearchSelectOption[]>(
     () => OPERATOR_ENTRIES.map(([value, key]) => ({ value, label: t(key) })),
@@ -302,8 +303,8 @@ export const useConditionBuilderViewModel = (
 
   const fieldOptions = useMemo(
     (): SearchSelectOption[] =>
-      eventFields.map((f) => ({ value: `${EVENT_FIELD_PATH_PREFIX}${f.path}`, label: f.label })),
-    [eventFields],
+      eventFields.map((f) => ({ value: `${EVENT_FIELD_PATH_PREFIX}${f.path}`, label: label(f.label) })),
+    [eventFields, label],
   );
 
   const fieldLabelByPath = useMemo(

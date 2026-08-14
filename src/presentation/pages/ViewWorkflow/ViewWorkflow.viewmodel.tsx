@@ -11,7 +11,7 @@ import { useStepCatalog } from '../../../stores/useStepCatalog';
 import { WORKFLOW_CALLED_EVENT, buildWorkflowEventCatalog, getWorkflowEventFields, eventNameToEntityKey, workflowParametersToFieldOptions } from '../../../domain/services/workflowEventCatalog';
 import type { SchemaContext } from '../../../domain/schema/pathResolver';
 import { useSchemaContext } from '../../shared/useSchemaContext';
-import { useT } from '../../shared/i18n/useT';
+import { useT, useLabel } from '../../shared/i18n/useT';
 import { useEntityReferenceOptions, useLookupCollectionOptions } from '../../shared/useParameterOptions';
 import type { WorkflowEventFieldOption } from '../../../domain/services/workflowEventCatalog';
 import { WORKFLOW_LOOKUP_COLLECTIONS } from '../../../domain/services/workflowLookupCatalog';
@@ -128,10 +128,17 @@ const buildForm = (w: WorkflowDefinition | null): WorkflowFormData => ({
  * Opções de gatilho do tenant: os eventos fixos mais um par por tela do Form Design ou de extensão.
  * Depende do contexto de schema porque as telas do tenant são DADO, não código.
  */
-export const buildEventNameOptions = (ctx: SchemaContext) =>
+export const buildEventNameOptions = (
+  label: (value: string, params?: Record<string, unknown>) => string,
+  ctx: SchemaContext,
+) =>
   buildWorkflowEventCatalog(ctx).map((entry) => ({
     value: entry.name,
-    label: entry.label,
+    // O rótulo é composto: a referência traz "Ao salvar: {name}" e `name` pode, por sua vez, ser
+    // outra referência (entidade nativa) ou o nome que o escritório digitou.
+    label: entry.labelParams
+      ? label(entry.label, { name: label(entry.labelParams.name) })
+      : label(entry.label),
     icon: getWorkflowEventIcon(entry.name),
   }));
 
@@ -266,6 +273,7 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
   const { getDefinition } = useScreenDefinitions();
   const ctx = useSchemaContext();
   const tUi = useT('core.ui');
+  const label = useLabel();
   const t = useT('core.automation');
   const { stepCatalog, loadCatalog } = useStepCatalog();
 
@@ -392,7 +400,7 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
   // Se o eventName gravado não corresponde a nenhum evento do catálogo atual (ex: automação
   // criada antes de uma renomeação de evento), os pickers de "Do evento" não têm o que listar
   // e caem para texto livre — este flag avisa o usuário na aba Geral para escolher de novo.
-  const eventNameOptions = useMemo(() => buildEventNameOptions(ctx), [ctx]);
+  const eventNameOptions = useMemo(() => buildEventNameOptions(label, ctx), [ctx, label]);
 
   const isEventNameRecognized = useMemo(
     () => !workflow || eventNameOptions.some((option) => option.value === workflow.eventName),

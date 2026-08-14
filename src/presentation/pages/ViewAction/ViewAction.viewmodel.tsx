@@ -150,10 +150,10 @@ export const useViewActionViewModel = (tabKey: string): ViewActionViewModel => {
   const iconOptions = useMemo<SearchSelectOption[]>(
     () => getScreenIconOptions().map((option) => ({
       value: option.key,
-      label: option.label,
+      label: label(option.label),
       icon: option.Icon,
     })),
-    [],
+    [label],
   );
 
   // Só workflows do tipo "chamado" podem ser alvo: são os únicos que declaram parâmetros de entrada.

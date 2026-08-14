@@ -898,10 +898,10 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
   const iconOptions = useMemo<SearchSelectOption[]>(
     () => getScreenIconOptions().map((option) => ({
       value: option.key,
-      label: option.label,
+      label: label(option.label),
       icon: option.Icon,
     })),
-    [],
+    [label],
   );
 
   /**
@@ -1235,24 +1235,24 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
   );
 
   const maskOptions = useMemo<SearchSelectOption[]>(
-    () => buildMaskPresetOptions(fieldRulePresets, fieldForm.type),
-    [fieldRulePresets, fieldForm.type],
+    () => buildMaskPresetOptions(label, fieldRulePresets, fieldForm.type),
+    [fieldRulePresets, fieldForm.type, label],
   );
 
   const formatPresetOptions = useMemo<SearchSelectOption[]>(
     () => [
-      { value: '', label: 'Nenhuma' },
-      ...buildFormatPresetOptions(fieldRulePresets, fieldForm.type),
+      { value: '', label: t('core.automation/parameter.preset.none') },
+      ...buildFormatPresetOptions(label, fieldRulePresets, fieldForm.type),
     ],
-    [fieldRulePresets, fieldForm.type],
+    [fieldRulePresets, fieldForm.type, label, t],
   );
 
   const validateCheckOptions = useMemo<SearchSelectOption[]>(
     () => [
-      { value: '', label: 'Nenhuma' },
-      ...buildValidatePresetOptions(fieldRulePresets, fieldForm.type),
+      { value: '', label: t('core.automation/parameter.preset.none') },
+      ...buildValidatePresetOptions(label, fieldRulePresets, fieldForm.type),
     ],
-    [fieldRulePresets, fieldForm.type],
+    [fieldRulePresets, fieldForm.type, label, t],
   );
 
   const fieldSupportsRules = useMemo(
@@ -1352,10 +1352,10 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
 
   const lookupProviderOptions = useMemo<SearchSelectOption[]>(
     () => [
-      { value: '', label: 'Nenhuma' },
+      { value: '', label: t('core.automation/parameter.preset.none') },
       ...externalLookupProviders.map((provider) => ({ value: provider.value, label: provider.label })),
     ],
-    [externalLookupProviders],
+    [externalLookupProviders, t],
   );
 
   /**

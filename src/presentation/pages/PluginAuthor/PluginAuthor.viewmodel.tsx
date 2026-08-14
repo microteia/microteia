@@ -31,7 +31,7 @@ import type { RefKind } from '../../../domain/usecases/plugins/pluginReferences'
 import type { MarketplacePlugin, ViewModuleTemplate } from '../../../domain/entities/MarketplacePlugin';
 import type { SearchSelectOption } from '../../components/ui/SearchSelect';
 
-import { useT, type TranslateFn } from '../../shared/i18n/useT';
+import { useT, type TranslateFn, useLabel } from '../../shared/i18n/useT';
 
 const viewStarter = (t: TranslateFn): string => t('author.template.view');
 
@@ -159,6 +159,7 @@ const patchSummaryOf = (t: TranslateFn, screen: ScreenDefinition, ownActionIds: 
 };
 
 export const usePluginAuthorViewModel = (tabKey?: string): PluginAuthorViewModel => {
+  const label = useLabel();
   const { saveExtension, extensionOf } = useTenantExtensions();
   const { openTab } = useWorkspace();
   const { definitions } = useScreenDefinitions();
@@ -238,8 +239,8 @@ export const usePluginAuthorViewModel = (tabKey?: string): PluginAuthorViewModel
   }, []);
 
   const iconOptions = useMemo<SearchSelectOption[]>(
-    () => getScreenIconOptions().map((option) => ({ value: option.key, label: option.label, icon: option.Icon })),
-    [],
+    () => getScreenIconOptions().map((option) => ({ value: option.key, label: label(option.label), icon: option.Icon })),
+    [label],
   );
 
   const addView = useCallback(() => {

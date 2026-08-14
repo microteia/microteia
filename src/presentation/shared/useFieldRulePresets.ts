@@ -7,6 +7,7 @@ import type { FieldRulePreset, FieldRulePresetCatalog } from '../../domain/schem
 import { buildFieldRulePresetCatalog } from '../../domain/schema/fieldRulePresets';
 import { useContributions } from '../../stores/useKernel';
 
+
 export interface FieldRulePresetOption {
   value: string;
   label: string;
@@ -28,7 +29,13 @@ export const useFieldRulePresets = (): FieldRulePresetCatalog => {
   }, [contributions]);
 };
 
+/**
+ * O rótulo do preset é uma REFERÊNCIA de mensagem (`@core.data/preset.digits`) para os do núcleo, e
+ * texto do autor para os que vêm de extensão. `resolve` é o `useLabel()` de quem renderiza: um
+ * caminho só serve aos dois, e é o que impede a referência de vazar para a tela.
+ */
 const toOptions = (
+  resolve: (value: string) => string,
   catalog: FieldRulePresetCatalog,
   accepts: (preset: FieldRulePreset) => boolean,
   fieldType?: string,
@@ -39,20 +46,23 @@ const toOptions = (
       (preset) =>
         !fieldType || !preset.appliesTo || preset.appliesTo.some((type) => type === fieldType),
     )
-    .map((preset) => ({ value: preset.key, label: preset.label }));
+    .map((preset) => ({ value: preset.key, label: resolve(preset.label) }));
 
 export const maskPresetOptions = (
+  resolve: (value: string) => string,
   catalog: FieldRulePresetCatalog,
   fieldType?: string,
-): FieldRulePresetOption[] => toOptions(catalog, (preset) => !!preset.mask, fieldType);
+): FieldRulePresetOption[] => toOptions(resolve, catalog, (preset) => !!preset.mask, fieldType);
 
 export const formatPresetOptions = (
+  resolve: (value: string) => string,
   catalog: FieldRulePresetCatalog,
   fieldType?: string,
 ): FieldRulePresetOption[] =>
-  toOptions(catalog, (preset) => !!preset.format?.length, fieldType);
+  toOptions(resolve, catalog, (preset) => !!preset.format?.length, fieldType);
 
 export const validatePresetOptions = (
+  resolve: (value: string) => string,
   catalog: FieldRulePresetCatalog,
   fieldType?: string,
-): FieldRulePresetOption[] => toOptions(catalog, (preset) => !!preset.validate, fieldType);
+): FieldRulePresetOption[] => toOptions(resolve, catalog, (preset) => !!preset.validate, fieldType);

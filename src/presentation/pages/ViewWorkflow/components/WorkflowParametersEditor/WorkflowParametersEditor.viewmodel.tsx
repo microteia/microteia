@@ -1,7 +1,7 @@
 import { useState, useCallback, useMemo } from 'react';
 import type { WorkflowParameter } from '../../../../../domain/entities/Workflow';
 import type { FieldRulePresetOption } from '../../../../shared/useFieldRulePresets';
-import { useT } from '../../../../shared/i18n/useT';
+import { useT, useLabel } from '../../../../shared/i18n/useT';
 
 import {
   formatPresetOptions,
@@ -41,6 +41,7 @@ export const useWorkflowParametersEditorViewModel = (
   const { parameters, typeOptions, entityOptions, lookupOptions, onAdd, onRemove, onClone } = props;
   const [expanded, setExpanded] = useState<Set<number>>(new Set());
   const t = useT('core.automation');
+  const label = useLabel();
 
   const isExpanded = useCallback((index: number) => expanded.has(index), [expanded]);
 
@@ -103,13 +104,13 @@ export const useWorkflowParametersEditorViewModel = (
   const presets = useFieldRulePresets();
 
   const formatOptions = useMemo<FieldRulePresetOption[]>(
-    () => [{ value: '', label: 'Nenhuma' }, ...formatPresetOptions(presets)],
-    [presets],
+    () => [{ value: '', label: t('parameter.preset.none') }, ...formatPresetOptions(label, presets)],
+    [presets, label, t],
   );
 
   const validateOptions = useMemo<FieldRulePresetOption[]>(
-    () => [{ value: '', label: 'Nenhuma' }, ...validatePresetOptions(presets)],
-    [presets],
+    () => [{ value: '', label: t('parameter.preset.none') }, ...validatePresetOptions(label, presets)],
+    [presets, label, t],
   );
 
   return {

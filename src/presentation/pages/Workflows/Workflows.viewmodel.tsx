@@ -5,6 +5,8 @@ import { useNotification } from '../../../stores/useNotification';
 import type { WorkflowDefinition } from '../../../domain/entities/Workflow';
 import type { FilterDef, FilterToken, FilterOption } from '../../components/ui/CompositeFilter';
 
+import { useT } from '../../shared/i18n/useT';
+
 export interface WorkflowsViewModel {
   filteredWorkflows: WorkflowDefinition[];
   isLoading: boolean;
@@ -25,6 +27,7 @@ export const useWorkflowsViewModel = (): WorkflowsViewModel => {
   const { workflows, isLoading, updateWorkflow, deleteWorkflow } = useWorkflowStore();
   const { openTab } = useWorkspace();
   const { notify } = useNotification();
+  const t = useT('core.automation');
 
   const [filterTokens, setFilterTokens] = useState<FilterToken[]>([]);
   const [workflowToDelete, setWorkflowToDelete] = useState<WorkflowDefinition | null>(null);
@@ -35,7 +38,7 @@ export const useWorkflowsViewModel = (): WorkflowsViewModel => {
   }, [workflows]);
 
   const filterDefs = useMemo<FilterDef[]>(() => [
-    { key: 'search', label: 'Busca', type: 'text', placeholder: 'Nome da automação...' },
+    { key: 'search', label: 'Busca', type: 'text', placeholder: t('workflow.filter.name') },
     { key: 'eventName', label: 'Evento', type: 'select', options: eventOptions },
     {
       key: 'enabled', label: 'Status', type: 'select', options: [
@@ -43,7 +46,7 @@ export const useWorkflowsViewModel = (): WorkflowsViewModel => {
         { value: 'false', label: 'Desabilitado' },
       ],
     },
-  ], [eventOptions]);
+  ], [eventOptions, t]);
 
   const tokenMap = useMemo(() => {
     const map: Record<string, string[]> = {};
@@ -72,8 +75,8 @@ export const useWorkflowsViewModel = (): WorkflowsViewModel => {
   }, [openTab]);
 
   const toggleEnabled = useCallback((w: WorkflowDefinition) => {
-    void updateWorkflow(w.id, { enabled: !w.enabled }).catch(() => notify('Erro ao atualizar automação.', 'error'));
-  }, [updateWorkflow, notify]);
+    void updateWorkflow(w.id, { enabled: !w.enabled }).catch(() => notify(t('workflow.update-failed'), 'error'));
+  }, [updateWorkflow, notify, t]);
 
   const handleDelete = useCallback((w: WorkflowDefinition) => {
     setWorkflowToDelete(w);
@@ -85,13 +88,13 @@ export const useWorkflowsViewModel = (): WorkflowsViewModel => {
     if (!workflowToDelete) return;
     try {
       await deleteWorkflow(workflowToDelete.id);
-      notify('Automação excluída.', 'success');
+      notify(t('workflow.deleted'), 'success');
     } catch {
-      notify('Erro ao excluir automação.', 'error');
+      notify(t('workflow.delete-failed'), 'error');
     } finally {
       setWorkflowToDelete(null);
     }
-  }, [workflowToDelete, deleteWorkflow, notify]);
+  }, [workflowToDelete, deleteWorkflow, notify, t]);
 
   return {
     filteredWorkflows,

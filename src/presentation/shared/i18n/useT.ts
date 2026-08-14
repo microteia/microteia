@@ -40,9 +40,9 @@ export const useT = (namespace: string): TranslateFn => {
  * pode ser tanto uma referência (`@com.acme.docs/screen.title`) quanto o texto que o escritório
  * digitou. Texto comum passa intacto: é o que mantém o dado do escritório fora da tradução.
  */
-export const useLabel = (): ((value: string | null | undefined) => string) => {
+export const useLabel = (): ((value: string | null | undefined, params?: MessageParams) => string) => {
   const { catalog } = useOptionalLocale();
-  return useCallback((value) => resolveLabel(catalog, value), [catalog]);
+  return useCallback((value, params) => resolveLabel(catalog, value, params), [catalog]);
 };
 
 export interface LocaleFormatters {

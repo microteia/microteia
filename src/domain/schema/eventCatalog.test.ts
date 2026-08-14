@@ -67,8 +67,14 @@ const tenantCtx = createSchemaContext([
 ]);
 
 describe('eventCatalog — derivação do registry', () => {
-  it('mantém os eventos das entidades com rótulos PT-BR', () => {
-    expect(entry('lookup.saved')?.label).toBe('Ao salvar: Item de Lista');
+  /**
+   * O rótulo deixou de ser frase e virou REFERÊNCIA + parâmetro: este módulo é compartilhado com o
+   * backend e não pode conhecer catálogo de idioma, então a composição ("Ao salvar: X") acontece no
+   * ponto de render.
+   */
+  it('declara o evento como referência de mensagem, com a parte variável em labelParams', () => {
+    expect(entry('lookup.saved')?.label).toBe('@core.automation/event.on-save');
+    expect(entry('lookup.saved')?.labelParams).toEqual({ name: '@core.automation/event.lookup-item' });
     // Processo, Pessoa, Contrato, Financeiro, Prazo e Push saíram do kernel: os eventos deles só
     // existem no catálogo do escritório que instalou as extensões.
     expect(entry('push.saved')).toBeUndefined();
@@ -253,7 +259,7 @@ describe('workflow.called — parâmetros dinâmicos', () => {
 
   it('oferece o evento "Chamado por outro workflow" com raiz de campos', () => {
     const entry = WORKFLOW_EVENT_CATALOG.find((e) => e.name === WORKFLOW_CALLED_EVENT);
-    expect(entry?.label).toBe('Chamado por outro workflow');
+    expect(entry?.label).toBe('@core.automation/event.called');
     expect(eventNameToRoot(WORKFLOW_CALLED_EVENT)?.kind).toBe('fields');
   });
 

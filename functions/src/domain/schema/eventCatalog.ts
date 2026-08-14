@@ -20,14 +20,20 @@ export interface WorkflowEventFieldOption {
 
 export interface WorkflowEventCatalogEntry {
   name: string;
+  /**
+   * Referência de mensagem (`@ns/chave`) ou o texto que o escritório digitou. O rótulo de evento é
+   * COMPOSTO — "Ao salvar: Processo" —, e a parte variável vem em `labelParams`, porque este módulo
+   * é compartilhado com o backend e não pode conhecer catálogo de idioma.
+   */
   label: string;
+  labelParams?: Record<string, string>;
   fields: WorkflowEventFieldOption[];
   root: PathRoot;
 }
 
 const ID_FIELD: WorkflowEventFieldOption = { path: 'id', label: 'Id' };
-const CHANGE_TYPE_FIELD: WorkflowEventFieldOption = { path: 'changeType', label: 'Tipo da mudança ("created" ou "updated")' };
-const OLD_FIELD: WorkflowEventFieldOption = { path: 'old', label: 'Dados anteriores (objeto)' };
+const CHANGE_TYPE_FIELD: WorkflowEventFieldOption = { path: 'changeType', label: '@core.automation/event-field.change-type' };
+const OLD_FIELD: WorkflowEventFieldOption = { path: 'old', label: '@core.automation/event-field.old' };
 
 const ENTITY_EVENT_ORDER: EntityKey[] = [];
 
@@ -78,9 +84,11 @@ const buildEntry = (
   hasOld: boolean,
   fields: WorkflowEventFieldOption[],
   rootBase: PathRootBase,
+  labelParams?: Record<string, string>,
 ): WorkflowEventCatalogEntry => ({
   name,
   label,
+  labelParams,
   fields: [ID_FIELD, ...(hasOld ? [CHANGE_TYPE_FIELD, OLD_FIELD] : []), ...fields],
   root: { ...rootBase, hasOld },
 });
@@ -88,25 +96,27 @@ const buildEntry = (
 const entityEntry = (entity: EntityMetadata, action: 'saved' | 'deleted'): WorkflowEventCatalogEntry =>
   buildEntry(
     `${entity.eventPrefix}.${action}`,
-    `Ao ${action === 'saved' ? 'salvar' : 'excluir'}: ${entity.labelSingular}`,
+    action === 'saved' ? '@core.automation/event.on-save' : '@core.automation/event.on-delete',
     action === 'saved',
     entityEventFields(entity),
     { kind: 'entity', entityKey: entity.key },
+    { name: entity.labelSingular },
   );
 
 const LOOKUP_EVENT_FIELDS: NativeFieldSpec[] = [
-  { key: 'key', label: 'Chave', type: 'string' },
-  { key: 'label', label: 'Rótulo', type: 'string' },
-  { key: 'collection', label: 'Coleção', type: 'string' },
+  { key: 'key', label: '@core.automation/event-field.key', type: 'string' },
+  { key: 'label', label: '@core.automation/event-field.label', type: 'string' },
+  { key: 'collection', label: '@core.automation/event-field.collection', type: 'string' },
 ];
 
 const lookupEntry = (action: 'saved' | 'deleted'): WorkflowEventCatalogEntry =>
   buildEntry(
     `lookup.${action}`,
-    `Ao ${action === 'saved' ? 'salvar' : 'excluir'}: Item de Lista`,
+    action === 'saved' ? '@core.automation/event.on-save' : '@core.automation/event.on-delete',
     action === 'saved',
     flattenNativeFields(LOOKUP_EVENT_FIELDS),
     { kind: 'fields', fields: LOOKUP_EVENT_FIELDS },
+    { name: '@core.automation/event.lookup-item' },
   );
 
 /**
@@ -115,9 +125,9 @@ const lookupEntry = (action: 'saved' | 'deleted'): WorkflowEventCatalogEntry =>
  * um evento só serve às 30 listas do kernel; aqui o nome do evento já diz qual lista é.
  */
 const DECLARED_LOOKUP_FIELDS: NativeFieldSpec[] = [
-  { key: 'key', label: 'Chave', type: 'string' },
-  { key: 'label', label: 'Rótulo', type: 'string' },
-  { key: 'color', label: 'Cor', type: 'string' },
+  { key: 'key', label: '@core.automation/event-field.key', type: 'string' },
+  { key: 'label', label: '@core.automation/event-field.label', type: 'string' },
+  { key: 'color', label: '@core.automation/event-field.color', type: 'string' },
 ];
 
 const declaredLookupEntry = (
@@ -127,18 +137,19 @@ const declaredLookupEntry = (
 ): WorkflowEventCatalogEntry =>
   buildEntry(
     `${collection}.${action}`,
-    `Ao ${action === 'saved' ? 'salvar' : 'excluir'}: ${label}`,
+    action === 'saved' ? '@core.automation/event.on-save' : '@core.automation/event.on-delete',
     action === 'saved',
     flattenNativeFields(DECLARED_LOOKUP_FIELDS),
     { kind: 'fields', fields: DECLARED_LOOKUP_FIELDS },
+    { name: label },
   );
 
 const NOTE_FIELDS: NativeFieldSpec[] = [
   { key: 'parentId', label: 'Id da entidade pai', type: 'string' },
   { key: 'parentType', label: 'Tipo da entidade pai', type: 'string' },
-  { key: 'content', label: 'Conteúdo', type: 'string' },
+  { key: 'content', label: '@core.automation/event-field.content', type: 'string' },
   { key: 'createdBy', label: 'Criado por', type: 'string' },
-  { key: 'createdAt', label: 'Data de criação', type: 'date' },
+  { key: 'createdAt', label: '@core.automation/event-field.created-at', type: 'date' },
 ];
 
 const DOCUMENT_FIELDS: NativeFieldSpec[] = [
@@ -188,7 +199,7 @@ const orderedEntities = ENTITY_EVENT_ORDER.map((key) => ENTITY_REGISTRY[key]).fi
 
 const workflowCalledEntry: WorkflowEventCatalogEntry = {
   name: WORKFLOW_CALLED_EVENT,
-  label: 'Chamado por outro workflow',
+  label: '@core.automation/event.called',
   fields: [],
   root: { kind: 'fields', fields: [], hasOld: false },
 };

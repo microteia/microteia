@@ -4803,6 +4803,39 @@ tela.
 > quem não instala o pacote pt-BR do contrato. Antes de tratá-lo como documento vigente em inglês,
 > ele precisa de revisão jurídica.
 
+### Rótulo composto — referência com `labelParams`
+
+O gatilho de um workflow se lê "Ao salvar: Processo": um verbo do produto mais o nome de uma entidade
+que pode ser do sistema OU do escritório. `eventCatalog.ts` é **compartilhado com o backend** e não
+pode conhecer catálogo de idioma, então o rótulo não podia ser montado ali.
+
+`WorkflowEventCatalogEntry` ganhou `labelParams`: `label` guarda a referência
+(`@core.automation/event.on-save`) e `labelParams.name` guarda a parte variável — que, por sua vez,
+pode ser outra referência. Quem renderiza resolve as duas camadas:
+
+```ts
+label(entry.label, { name: label(entry.labelParams.name) })
+```
+
+`useLabel()` passou a aceitar parâmetros para isso; `resolveLabel` já os suportava.
+
+> Verificado antes de mexer: o backend importa de `eventCatalog` apenas `WORKFLOW_CALLED_EVENT`,
+> `eventNameToRoot` e `applyParameterDefaults` — **nunca os rótulos**. Por isso a mudança de tipo é
+> segura dos dois lados.
+
+### O texto mora com quem o MOSTRA quando o dono não pode carregá-lo
+
+Os rótulos dos presets de campo ("Somente números") ficaram em **`core.ui`**, e não em `core.data`,
+que é o dono do dado.
+
+A primeira tentativa foi a óbvia: `core.data` contribui o próprio bundle. Ela quebrou dois testes ao
+mesmo tempo — sem `core.i18n`, a contribuição vai para um ponto não declarado e vira diagnóstico; e
+declarar a dependência arrastaria `core.data` para dentro da cadeia `core.i18n → core.ui`, matando a
+propriedade de que **`core.data` é o único plugin que sobrevive sem a UI**.
+
+O preset é dado; o RÓTULO dele é interface, mostrado pelo editor de campo. Deixá-lo em `core.ui`
+mantém `core.data` puro e não custa nada — foi o teste que apontou o desenho certo.
+
 ### A guarda de regressão — `MIGRATED_TO_SOURCE_LANGUAGE`
 
 A migração é longa, e o risco não é errar uma tela: é uma tela migrada voltar a receber português na

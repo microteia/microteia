@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [7.14.0] — 2026-08-14
+
+- A lista de Automações, os gatilhos disponíveis, as formatações prontas dos campos e os nomes dos 266 ícones passaram a acompanhar o idioma escolhido.
+
 ## [7.13.0] — 2026-08-14
 
 - Corrigidos mais de duzentos textos que continuavam fixos em português nas telas de Automações, Form Design, criação de extensões e nos componentes da interface — botões, rótulos e mensagens que não acompanhavam o idioma escolhido.
