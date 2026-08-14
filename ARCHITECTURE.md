@@ -4809,14 +4809,30 @@ A migração é longa, e o risco não é errar uma tela: é uma tela migrada vol
 alteração seguinte. `eslint.config.js` declara uma zona que **cresce a cada diretório concluído**, no
 mesmo espírito das zonas que já barram o Kernel de importar plugin.
 
-O gatilho é o **acento**, não uma lista de palavras. Ele não pega "Salvar", mas pega quase toda frase
-real e **não produz falso positivo em inglês** — como guarda de regressão, errar para menos é o que a
-mantém utilizável. Três seletores cobrem os três lugares onde o texto aparece: `Literal` (atributo e
-constante), `JSXText` (texto solto no meio da marcação) e `TemplateElement` (crase).
+A regra é **agnóstica de idioma** onde consegue ser: dentro da zona, texto de usuário não pode ser
+literal — nem em português, nem em inglês. `JSXText` e os atributos que carregam texto (`title`,
+`label`, `placeholder`, `message`, `alt`, `confirmLabel`…) exigem `{t('chave')}`.
 
-> `JSXText` justificou a regra sozinho: a varredura por string literal que guiou a migração **não
-> enxergava texto solto de JSX**, e a regra achou 21 casos já dentro de `presentation/components`,
-> que estava dado como concluído.
+> ⚠️ **A primeira versão disparava só por ACENTO, e isso foi um erro medido.** O raciocínio era que
+> o acento pega "quase toda frase real" sem produzir falso positivo em inglês. Ele não pega "Nome",
+> "Geral", "Salvar", "Habilitado", "Mover para cima" — e **palavra curta sem acento é a maior parte
+> do texto de interface**. Um teste feito com o pacote pt-BR DESLIGADO, justamente para caçar o que
+> tivesse ficado para trás, encontrou **242 desses em diretórios dados como concluídos**.
+
+O gatilho por acento **continua**, aplicado a `Literal` e `TemplateElement`, para o que não é JSX:
+notificação, item de `options`, mensagem montada dentro de uma função.
+
+> `JSXText` já havia justificado a regra antes: a varredura por string literal que guiou a migração
+> **não enxergava texto solto de JSX**, e a regra achou 21 casos em `presentation/components`, que
+> estava dado como concluído.
+
+Nome próprio e legenda de tecla física — "Microteia", "Esc", "Enter" — não traduzem em idioma nenhum
+e saem por `eslint-disable-next-line` com justificativa. São as únicas exceções.
+
+> **Chave não pode carregar duas frases.** `mention.insert-link` acumulou o cabeçalho do menu
+> ("Inserir link") e a descrição parametrizada ("Inserir link para {label}"); a segunda venceu e o
+> cabeçalho renderizaria `{label}` cru. Chave é identidade de UMA frase — quando o mesmo texto serve
+> a dois lugares por acaso, são duas chaves.
 
 Fora da zona ficam os testes — nome de teste é comunicação nossa e continua em português — e os
 arquivos `*.styles.tsx`, onde o comentário de CSS vive dentro do template literal e não há texto de
