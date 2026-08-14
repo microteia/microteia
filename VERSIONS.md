@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [7.11.0] — 2026-08-14
+
+- A tela de Form Design — o desenho das telas, os campos, as máscaras, as validações e os valores calculados — passou a acompanhar o idioma escolhido.
+
 ## [7.10.0] — 2026-08-14
 
 - O sistema passou a falar inglês por padrão, e o português virou um pacote de idioma que se instala e se desinstala como qualquer outra extensão. Com o pacote instalado, tudo continua exatamente como estava.

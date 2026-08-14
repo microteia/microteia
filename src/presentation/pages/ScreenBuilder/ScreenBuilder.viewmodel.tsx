@@ -36,7 +36,7 @@ import type { WorkflowVariable } from '../../components/ui/ExpressionEditor/auto
 import type { SearchSelectOption } from '../../components/ui/SearchSelect';
 import type { ColorSwatchOption } from '../../components/ui/ColorSwatchPicker';
 
-import { useLabel } from '../../shared/i18n/useT';
+import { useLabel, useT, type TranslateFn } from '../../shared/i18n/useT';
 
 export interface BuiltinScreenRow {
   key: string;
@@ -282,18 +282,18 @@ const BUILTIN_SCREENS: { key: string; label: string }[] = ENTITY_REGISTRY_LIST
   .filter((entity) => entity.supportsCustomFields)
   .map((entity) => ({ key: entity.collection, label: entity.labelPlural }));
 
-const FIELD_TYPE_LABELS: Record<CustomFieldType, string> = {
-  text: 'Texto',
-  textarea: 'Texto longo',
-  number: 'Número',
-  currency: 'Moeda (R$)',
-  date: 'Data',
-  time: 'Hora',
-  checkbox: 'Sim/Não',
-  select: 'Seleção',
-  masked: 'Com máscara',
-  reference: 'Vínculo com registro',
-  markdown: 'Markdown',
+const FIELD_TYPE_KEYS: Record<CustomFieldType, string> = {
+  text: 'field.type.text',
+  textarea: 'field.type.textarea',
+  number: 'field.type.number',
+  currency: 'field.type.currency',
+  date: 'field.type.date',
+  time: 'field.type.time',
+  checkbox: 'field.type.checkbox',
+  select: 'field.type.select',
+  masked: 'field.type.masked',
+  reference: 'field.type.reference',
+  markdown: 'field.type.markdown',
 };
 
 const EMPTY_SCREEN_FORM: ScreenFormState = {
@@ -534,11 +534,11 @@ const toSaveInput = (def: ScreenDefinition): ScreenDefinitionSaveInput => ({
   hideFromParentTabs: def.hideFromParentTabs ?? null,
 });
 
-const buildDynamicMeta = (def: ScreenDefinition, fieldCount: number): string => {
-  const parts = [`${fieldCount} campo(s)`];
-  if (def.hasNotes) parts.push('Anotações');
-  if (def.hasDocuments) parts.push('Documentos');
-  if (def.hasTags) parts.push('Etiquetas');
+const buildDynamicMeta = (t: TranslateFn, def: ScreenDefinition, fieldCount: number): string => {
+  const parts = [t('screen.meta.fields', { count: fieldCount })];
+  if (def.hasNotes) parts.push(t('core.ui/tab.notes'));
+  if (def.hasDocuments) parts.push(t('core.ui/tab.documents'));
+  if (def.hasTags) parts.push(t('core.ui/tags.title'));
   return parts.join(' · ');
 };
 
@@ -551,6 +551,7 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
   const { definitions, dynamicScreens, isLoading, saveDefinition, deleteDefinition } = useScreenDefinitions();
   const recordActions = useRecordActions();
   const label = useLabel();
+  const t = useT('core.records');
 
   /** Os slots cujas ações só fazem sentido numa tela com etiquetas — declarado, não presumido. */
   const tagDependentSlots = useMemo(
@@ -686,10 +687,10 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
       key: def.id,
       icon: def.icon,
       title: def.titlePlural,
-      meta: buildDynamicMeta(def, fieldsByScreen[def.id]?.length ?? 0),
+      meta: buildDynamicMeta(t, def, fieldsByScreen[def.id]?.length ?? 0),
       disabled: !def.enabled,
     })),
-    [dynamicDefinitions, fieldsByScreen],
+    [dynamicDefinitions, fieldsByScreen, t],
   );
 
   const builtinListEntries = useMemo<ScreenListEntry[]>(
@@ -721,7 +722,7 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
         key: def.id,
         icon: def.icon,
         title: def.titlePlural,
-        meta: buildDynamicMeta(def, fieldsByScreen[def.id]?.length ?? 0),
+        meta: buildDynamicMeta(t, def, fieldsByScreen[def.id]?.length ?? 0),
         enabled: def.enabled,
         canMoveUp: dynIndex > 0,
         canMoveDown: dynIndex < dynamicDefinitions.length - 1,
@@ -743,14 +744,14 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
       };
     }
     return null;
-  }, [selectedKey, dynamicDefinitions, builtinRows, fieldsByScreen]);
+  }, [selectedKey, dynamicDefinitions, builtinRows, fieldsByScreen, t]);
 
   const getDefinitionByKey = useCallback(
     (screenKey: string) => definitions.find((def) => def.id === screenKey),
     [definitions],
   );
 
-  const fieldTypeLabel = useCallback((type: CustomFieldType) => FIELD_TYPE_LABELS[type], []);
+  const fieldTypeLabel = useCallback((type: CustomFieldType) => FIELD_TYPE_KEYS[type], []);
 
   const isTitleField = useCallback((screenKey: string, fieldKey: string) => {
     const def = getDefinitionByKey(screenKey);
@@ -953,13 +954,13 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
   // Nas telas do sistema não há "Geral" (título, ícone e abas são fixos), e "Registros filhos"
   // só existe quando alguma tela aponta para esta.
   const screenModalTabs = useMemo<{ key: ScreenModalTab; label: string }[]>(() => [
-    ...(screenModalIsBuiltin ? [] : [{ key: 'general' as const, label: 'Geral' }]),
-    { key: 'list' as const, label: 'Listagem' },
-    { key: 'actions' as const, label: 'Ações' },
+    ...(screenModalIsBuiltin ? [] : [{ key: 'general' as const, label: t('screen.tab.general') }]),
+    { key: 'list' as const, label: t('screen.tab.list') },
+    { key: 'actions' as const, label: t('screen.tab.actions') },
     ...(!!screenModal?.screenKey && childCandidates.length > 0
-      ? [{ key: 'children' as const, label: 'Registros filhos' }]
+      ? [{ key: 'children' as const, label: t('screen.tab.children') }]
       : []),
-  ], [screenModalIsBuiltin, screenModal, childCandidates]);
+  ], [screenModalIsBuiltin, screenModal, childCandidates, t]);
 
   const activeScreenModalTab = useMemo<ScreenModalTab>(
     () => (screenModalTabs.some((tab) => tab.key === screenModalTab)
@@ -998,14 +999,14 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
       && BUILTIN_SCREENS.some((b) => b.key === screenModal.screenKey);
     if (!isBuiltinParent && (!screenForm.titleSingular.trim() || !screenForm.titlePlural.trim())) {
       setScreenModalTab('general');
-      notify('Informe o título no singular e no plural.', 'error');
+      notify(t('screen.error.titles-required'), 'error');
       return;
     }
     const childMissingField = Object.entries(screenForm.childLinks).find(([, field]) => !field);
     if (childMissingField) {
       const label = childCandidates.find((c) => c.key === childMissingField[0])?.label ?? 'registro filho';
       setScreenModalTab('children');
-      notify(`Escolha o campo de vínculo de "${label}".`, 'error');
+      notify(t('screen.error.link-field-required', { label }), 'error');
       return;
     }
     setSavingScreen(true);
@@ -1118,7 +1119,7 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
           sidebarOrder: maxOrder + 1,
           enabled: true,
         });
-        notify('Tela criada com sucesso! Um campo "Nome" foi adicionado como título.', 'success');
+        notify(t('screen.created'), 'success');
         setSelectedKeyState(screenKey);
       }
       setScreenModal(null);
@@ -1128,7 +1129,7 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
     } finally {
       setSavingScreen(false);
     }
-  }, [screenForm, screenModal, getDefinitionByKey, saveDefinition, definitions, dynamicDefinitions, childCandidates, persistChildLinks, notify, schemaContext, declareTagList]);
+  }, [screenForm, screenModal, getDefinitionByKey, saveDefinition, definitions, dynamicDefinitions, childCandidates, persistChildLinks, notify, schemaContext, declareTagList, t]);
 
   const toggleScreenEnabled = useCallback(async (screenKey: string) => {
     const def = getDefinitionByKey(screenKey);
@@ -1162,12 +1163,12 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
 
   const requestDeleteScreen = useCallback((screenKey: string) => {
     if (isManagedScreen(screenKey)) {
-      notify('Esta tela pertence a uma extensão. Remova a extensão para excluí-la.', 'info');
+      notify(t('screen.managed.cannot-delete'), 'info');
       return;
     }
     const def = getDefinitionByKey(screenKey);
     if (def) setDeleteScreenTarget(def);
-  }, [getDefinitionByKey, isManagedScreen, notify]);
+  }, [getDefinitionByKey, isManagedScreen, notify, t]);
 
   const cancelDeleteScreen = useCallback(() => setDeleteScreenTarget(null), []);
 
@@ -1176,14 +1177,14 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
     setDeletingScreen(true);
     try {
       await deleteDefinition(deleteScreenTarget.id);
-      notify('Tela excluída com sucesso.', 'success');
+      notify(t('screen.deleted'), 'success');
       setDeleteScreenTarget(null);
     } catch (err) {
       notify(err instanceof Error ? err.message : 'Erro ao excluir a tela.', 'error');
     } finally {
       setDeletingScreen(false);
     }
-  }, [deleteScreenTarget, deleteDefinition, notify]);
+  }, [deleteScreenTarget, deleteDefinition, notify, t]);
 
   const openCreateField = useCallback((screenKey: string) => {
     setFieldForm({ ...EMPTY_FIELD_FORM, optionColorInput: defaultTagColor });
@@ -1226,9 +1227,9 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
   const closeFieldModal = useCallback(() => setFieldModal(null), []);
 
   const typeOptions = useMemo<SearchSelectOption[]>(
-    () => (Object.keys(FIELD_TYPE_LABELS) as CustomFieldType[]).map((type) => ({
+    () => (Object.keys(FIELD_TYPE_KEYS) as CustomFieldType[]).map((type) => ({
       value: type,
-      label: FIELD_TYPE_LABELS[type],
+      label: FIELD_TYPE_KEYS[type],
     })),
     [],
   );
@@ -1401,7 +1402,7 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
   const fieldExpressionVariables = useMemo<WorkflowVariable[]>(() => {
     if (!fieldModal) return [];
     const seen = new Set<string>();
-    const vars: WorkflowVariable[] = [{ name: 'value', definedBy: 'Valor do próprio campo' }];
+    const vars: WorkflowVariable[] = [{ name: 'value', definedBy: t('field.expression.own-value') }];
     seen.add('value');
     const push = (name: string, definedBy: string) => {
       if (seen.has(name)) return;
@@ -1424,7 +1425,7 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
     }
 
     return vars;
-  }, [fieldModal, getDefinitionByKey]);
+  }, [fieldModal, getDefinitionByKey, t]);
 
   const handleSaveField = useCallback(async () => {
     if (!fieldModal) return;
@@ -1464,7 +1465,7 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
       && fieldForm.staticOptions.length === 0
       && !fieldForm.optionsAllowUserAdd
     ) {
-      reject('general', 'Adicione ao menos uma opção ou permita que usuários criem opções.');
+      reject('general', t('field.error.options-required'));
       return;
     }
     // Só um nome NOVO passa pela validação. Uma lista que já existe é escolha legítima — inclusive
@@ -1478,7 +1479,7 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
       }
     }
     if (fieldForm.type === 'masked' && !fieldForm.mask) {
-      reject('general', 'Escolha a máscara do campo.');
+      reject('general', t('field.error.mask-required'));
       return;
     }
     if (fieldForm.type === 'reference' && !fieldForm.refEntity) {
@@ -1486,29 +1487,29 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
       return;
     }
     if (isInvalidRegex(fieldForm.ruleValidatePattern)) {
-      reject('advanced', 'A expressão regular de validação é inválida.');
+      reject('advanced', t('field.error.validate-regex'));
       return;
     }
     if (isInvalidRegex(fieldForm.ruleFormatPattern)) {
-      reject('advanced', 'A expressão regular de formatação é inválida.');
+      reject('advanced', t('field.error.format-regex'));
       return;
     }
     if (fieldForm.logicCompute.trim()) {
       const computeKey = fieldModal.fieldKey ?? (fieldForm.fieldKey.trim() || slugifyFieldKey(label));
       const screenFields = getDefinitionByKey(fieldModal.screenKey)?.fields ?? [];
       if (findComputeCycle(screenFields, computeKey, fieldForm.logicCompute.trim())) {
-        reject('advanced', 'O valor calculado depende de si mesmo — reveja as expressões dos campos calculados.');
+        reject('advanced', t('field.error.compute-cycle'));
         return;
       }
     }
     const aggregation = buildFieldAggregation(fieldForm);
     if (aggregation) {
       if (aggregation.op !== 'count' && !aggregation.field) {
-        reject('advanced', 'Escolha o campo do filho a ser somado (só a contagem dispensa o campo).');
+        reject('advanced', t('field.error.aggregation-field'));
         return;
       }
       if (aggregationCreatesCycle(schemaContext, fieldModal.screenKey, aggregation.from)) {
-        reject('advanced', 'Essa agregação fecha um ciclo entre telas — o valor nunca se estabilizaria.');
+        reject('advanced', t('field.error.aggregation-cycle'));
         return;
       }
     }
@@ -1603,7 +1604,7 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
     } finally {
       setSavingField(false);
     }
-  }, [fieldModal, fieldForm, fieldModalIsTitleField, getDefinitionByKey, saveDefinition, notify, schemaContext, resolvedField, resolvedFieldsByScreen, declareLookup]);
+  }, [fieldModal, fieldForm, fieldModalIsTitleField, getDefinitionByKey, saveDefinition, notify, schemaContext, resolvedField, resolvedFieldsByScreen, declareLookup, t]);
 
   /**
    * Grava a ordem da lista como posições absolutas em `fields[]`. Um campo já gravado viaja como
@@ -1678,13 +1679,13 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
 
   const requestDeleteField = useCallback((screenKey: string, fieldKey: string) => {
     if (isPluginField(screenKey, fieldKey)) {
-      notify('Este campo pertence a uma extensão e não pode ser excluído.', 'info');
+      notify(t('field.managed.cannot-delete'), 'info');
       return;
     }
     const def = getDefinitionByKey(screenKey);
     const field = def?.fields.find((f) => f.key === fieldKey);
     if (field) setDeleteFieldTarget({ screenKey, field });
-  }, [getDefinitionByKey, isPluginField, notify]);
+  }, [getDefinitionByKey, isPluginField, notify, t]);
 
   /** Um campo do kernel só está "ajustado" depois de materializado no documento da tela. */
   const hasNativeOverride = useCallback(
@@ -1705,11 +1706,11 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
     if (rest.length === def.fields.length) return;
     try {
       await saveDefinition(screenKey, { ...toSaveInput(def), fields: rest });
-      notify('Campo restaurado ao padrão do sistema.', 'success');
+      notify(t('field.restored'), 'success');
     } catch {
       notify('Erro ao restaurar o campo.', 'error');
     }
-  }, [getDefinitionByKey, saveDefinition, notify]);
+  }, [getDefinitionByKey, saveDefinition, notify, t]);
 
   const cancelDeleteField = useCallback(() => setDeleteFieldTarget(null), []);
 
@@ -1721,14 +1722,14 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
     try {
       const nextFields = def.fields.filter((f) => f.key !== deleteFieldTarget.field.key);
       await saveDefinition(def.id, { ...toSaveInput(def), fields: nextFields });
-      notify('Campo excluído com sucesso.', 'success');
+      notify(t('field.deleted'), 'success');
       setDeleteFieldTarget(null);
     } catch {
       notify('Erro ao excluir o campo.', 'error');
     } finally {
       setDeletingField(false);
     }
-  }, [deleteFieldTarget, getDefinitionByKey, saveDefinition, notify]);
+  }, [deleteFieldTarget, getDefinitionByKey, saveDefinition, notify, t]);
 
   return {
     isAdmin,
@@ -1760,8 +1761,10 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
     screenModalTab: activeScreenModalTab,
     setScreenModalTab,
     screenModalTitle: screenModalIsBuiltin
-      ? `Configurações de ${BUILTIN_SCREENS.find((b) => b.key === screenModal?.screenKey)?.label ?? 'Tela'}`
-      : (screenModal?.screenKey ? 'Editar Tela' : 'Nova Tela'),
+      ? t('screen.modal.builtin', {
+        name: BUILTIN_SCREENS.find((b) => b.key === screenModal?.screenKey)?.label ?? t('screen.fallback'),
+      })
+      : t(screenModal?.screenKey ? 'screen.modal.edit' : 'screen.modal.new'),
     screenForm,
     updateScreenForm,
     toggleListAction,

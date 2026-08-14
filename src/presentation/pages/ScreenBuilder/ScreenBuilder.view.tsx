@@ -27,7 +27,12 @@ import { ColorDot } from '../../components/ui/Badge';
 import { getScreenIcon } from '../../shared/screenIcons';
 import type { FieldDefinition } from '../../../domain/entities';
 
-const FieldRows: React.FC<{ vm: ScreenBuilderViewModel; screenKey: string; fields: FieldDefinition[] }> = ({ vm, screenKey, fields }) => (
+import { useT } from '../../shared/i18n/useT';
+
+const FieldRows: React.FC<{ vm: ScreenBuilderViewModel; screenKey: string; fields: FieldDefinition[] }> = ({ vm, screenKey, fields }) => {
+  const t = useT('core.records');
+
+  return (
   <S.FieldList>
     {fields.length === 0 && <S.EmptyHint>Nenhum campo definido.</S.EmptyHint>}
     {fields.map((field, index) => (
@@ -47,25 +52,25 @@ const FieldRows: React.FC<{ vm: ScreenBuilderViewModel; screenKey: string; field
         }}
         onDragEnd={vm.handleFieldDragEnd}
       >
-        <S.DragHandle title="Arrastar para reordenar">
+        <S.DragHandle title={t('field.drag')}>
           <RiDraggable size={16} />
         </S.DragHandle>
         <S.FieldInfo>
           <S.FieldName>
             {field.label}
             {field.required ? ' *' : ''}
-            {vm.isTitleField(screenKey, field.key) ? ' (título)' : ''}
+            {vm.isTitleField(screenKey, field.key) ? ` (${t('field.title-marker')})` : ''}
           </S.FieldName>
           <S.FieldMeta>
             {vm.isNativeField(screenKey, field.key)
-              ? 'Do sistema · '
+              ? `${t('field.origin.native')} · `
               : vm.isPluginField(screenKey, field.key)
-                ? 'Extensão · '
+                ? `${t('field.origin.plugin')} · `
                 : ''}
             {vm.fieldTypeLabel(field.type)}
             {field.section ? ` · ${field.section}` : ''}
             {` · fieldName: ${field.key}`}
-            {vm.hasNativeOverride(screenKey, field.key) ? ' · ajustado' : ''}
+            {vm.hasNativeOverride(screenKey, field.key) ? ` · ${t('field.adjusted')}` : ''}
           </S.FieldMeta>
         </S.FieldInfo>
         <S.CardActions>
@@ -88,7 +93,7 @@ const FieldRows: React.FC<{ vm: ScreenBuilderViewModel; screenKey: string; field
           </S.IconButton>
           {vm.isNativeField(screenKey, field.key) ? (
             <S.IconButton
-              title="Restaurar padrão do sistema"
+              title={t('field.restore')}
               disabled={!vm.hasNativeOverride(screenKey, field.key)}
               onClick={() => void vm.restoreNativeField(screenKey, field.key)}
             >
@@ -98,8 +103,8 @@ const FieldRows: React.FC<{ vm: ScreenBuilderViewModel; screenKey: string; field
             <S.DangerIconButton
               title={
                 vm.isPluginField(screenKey, field.key)
-                  ? 'Campo de extensão — não pode ser excluído'
-                  : 'Excluir campo'
+                  ? t('field.managed.cannot-delete.short')
+                  : t('field.delete')
               }
               disabled={vm.isTitleField(screenKey, field.key) || vm.isPluginField(screenKey, field.key)}
               onClick={() => vm.requestDeleteField(screenKey, field.key)}
@@ -111,9 +116,13 @@ const FieldRows: React.FC<{ vm: ScreenBuilderViewModel; screenKey: string; field
       </S.FieldRow>
     ))}
   </S.FieldList>
-);
+  );
+};
 
-const ScreenDetailPane: React.FC<{ vm: ScreenBuilderViewModel; screen: SelectedScreenState }> = ({ vm, screen }) => (
+const ScreenDetailPane: React.FC<{ vm: ScreenBuilderViewModel; screen: SelectedScreenState }> = ({ vm, screen }) => {
+  const t = useT('core.records');
+
+  return (
   <S.DetailCard $disabled={!screen.enabled}>
     <S.ScreenCardHeader>
       <S.ScreenIcon>{getScreenIcon(screen.icon)}</S.ScreenIcon>
@@ -121,9 +130,9 @@ const ScreenDetailPane: React.FC<{ vm: ScreenBuilderViewModel; screen: SelectedS
         <S.ScreenName>
           {screen.title}
           {vm.isManagedScreen(screen.key) && (
-            <S.PluginBadge title={vm.managedScreenOwner(screen.key) ?? undefined}>Extensão</S.PluginBadge>
+            <S.PluginBadge title={vm.managedScreenOwner(screen.key) ?? undefined}>{t('badge.extension')}</S.PluginBadge>
           )}
-          {!screen.enabled && <S.DisabledBadge>Desativada</S.DisabledBadge>}
+          {!screen.enabled && <S.DisabledBadge>{t('badge.disabled')}</S.DisabledBadge>}
         </S.ScreenName>
         <S.ScreenMeta>{screen.meta}</S.ScreenMeta>
       </S.ScreenInfo>
@@ -149,11 +158,11 @@ const ScreenDetailPane: React.FC<{ vm: ScreenBuilderViewModel; screen: SelectedS
           >
             {screen.enabled ? <RiEyeLine size={16} /> : <RiEyeOffLine size={16} />}
           </S.IconButton>
-          <S.IconButton title="Editar tela" onClick={() => vm.openEditScreen(screen.key)}>
+          <S.IconButton title={t('screen.edit')} onClick={() => vm.openEditScreen(screen.key)}>
             <RiPencilLine size={16} />
           </S.IconButton>
           <S.DangerIconButton
-            title={vm.isManagedScreen(screen.key) ? 'Tela de extensão — remova a extensão para excluir' : 'Excluir tela'}
+            title={t(vm.isManagedScreen(screen.key) ? 'screen.managed.cannot-delete.short' : 'screen.delete')}
             disabled={vm.isManagedScreen(screen.key)}
             onClick={() => vm.requestDeleteScreen(screen.key)}
           >
@@ -177,9 +186,11 @@ const ScreenDetailPane: React.FC<{ vm: ScreenBuilderViewModel; screen: SelectedS
       </Button>
     </S.CardFooter>
   </S.DetailCard>
-);
+  );
+};
 
 export const ScreenBuilderView: React.FC = () => {
+  const t = useT('core.records');
   const vm = useScreenBuilderViewModel();
 
   if (!vm.isAdmin) {
@@ -191,7 +202,7 @@ export const ScreenBuilderView: React.FC = () => {
         <S.BannerWrapper>
           <InfoBanner
             variant="info"
-            message="Somente administradores do escritório podem configurar telas e campos personalizados."
+            message={t('screen-builder.admin-only')}
           />
         </S.BannerWrapper>
       </S.Page>
@@ -202,7 +213,7 @@ export const ScreenBuilderView: React.FC = () => {
     <S.Page>
       <S.Header>
         <S.Title>Form Design</S.Title>
-        <Button onClick={vm.openCreateScreen} title="Nova Tela">
+        <Button onClick={vm.openCreateScreen} title={t('screen.modal.new')}>
           <RiAddLine size={18} />
         </Button>
       </S.Header>
@@ -210,12 +221,10 @@ export const ScreenBuilderView: React.FC = () => {
       <S.Content>
         <S.Sidebar>
           <S.SidebarSection>
-            <S.SectionTitle>Telas customizadas</S.SectionTitle>
-            <S.SectionHint>
-              Crie telas próprias do escritório, com campos, listagem, filtros e busca no atalho ⌘K.
-            </S.SectionHint>
+            <S.SectionTitle>{t('screen-builder.custom')}</S.SectionTitle>
+            <S.SectionHint>{t('screen-builder.custom.hint')}</S.SectionHint>
             {vm.dynamicListEntries.length === 0 && (
-              <S.EmptyHint>Nenhuma tela customizada criada ainda.</S.EmptyHint>
+              <S.EmptyHint>{t('screen-builder.custom.empty')}</S.EmptyHint>
             )}
             <S.ScreenList>
               {vm.dynamicListEntries.map((entry) => (
@@ -229,7 +238,7 @@ export const ScreenBuilderView: React.FC = () => {
                   <S.ScreenListInfo>
                     <S.ScreenListName>
                       {entry.title}
-                      {entry.disabled && <S.DisabledBadge>Desativada</S.DisabledBadge>}
+                      {entry.disabled && <S.DisabledBadge>{t('badge.disabled')}</S.DisabledBadge>}
                     </S.ScreenListName>
                     <S.ScreenListMeta>{entry.meta}</S.ScreenListMeta>
                   </S.ScreenListInfo>
@@ -239,11 +248,8 @@ export const ScreenBuilderView: React.FC = () => {
           </S.SidebarSection>
 
           <S.SidebarSection>
-            <S.SectionTitle>Campos adicionais das telas padrão</S.SectionTitle>
-            <S.SectionHint>
-              Adicione campos personalizados às telas já existentes do sistema. Eles aparecem na seção
-              "Campos adicionais" do formulário de cada tela.
-            </S.SectionHint>
+            <S.SectionTitle>{t('screen-builder.builtin')}</S.SectionTitle>
+            <S.SectionHint>{t('screen-builder.builtin.hint')}</S.SectionHint>
             <S.ScreenList>
               {vm.builtinListEntries.map((entry) => (
                 <S.ScreenListItem
@@ -296,7 +302,7 @@ export const ScreenBuilderView: React.FC = () => {
             {vm.screenModalTab === 'general' && !vm.screenModalIsBuiltin && (
               <>
                 <InputGroup>
-                  <Label>Título (singular) *</Label>
+                  <Label>{t('screen.title-singular')}</Label>
                   <Input
                     value={vm.screenForm.titleSingular}
                     onChange={(e) => vm.updateScreenForm({ titleSingular: e.target.value })}
@@ -304,7 +310,7 @@ export const ScreenBuilderView: React.FC = () => {
                   />
                 </InputGroup>
                 <InputGroup>
-                  <Label>Título (plural) *</Label>
+                  <Label>{t('screen.title-plural')}</Label>
                   <Input
                     value={vm.screenForm.titlePlural}
                     onChange={(e) => vm.updateScreenForm({ titlePlural: e.target.value })}
@@ -312,27 +318,27 @@ export const ScreenBuilderView: React.FC = () => {
                   />
                 </InputGroup>
                 <InputGroup>
-                  <Label>Ícone</Label>
+                  <Label>{t('screen.icon')}</Label>
                   <SearchSelect
                     options={vm.iconOptions}
                     value={vm.screenForm.icon}
                     onChange={(value) => vm.updateScreenForm({ icon: value })}
-                    placeholder="Escolha um ícone"
+                    placeholder={t('screen.icon.placeholder')}
                   />
                 </InputGroup>
                 {vm.screenModalIsEdit && vm.titleFieldOptions.length > 0 && (
                   <>
                     <InputGroup>
-                      <Label>Campo Título</Label>
+                      <Label>{t('screen.title-field')}</Label>
                       <SearchSelect
                         options={vm.titleFieldOptions}
                         value={vm.screenForm.titleFieldKey}
                         onChange={(value) => vm.updateScreenForm({ titleFieldKey: value })}
-                        placeholder="Escolha o campo título"
+                        placeholder={t('screen.title-field.placeholder')}
                       />
                     </InputGroup>
                     <InputGroup>
-                      <Label>Campo Subtítulo</Label>
+                      <Label>{t('screen.subtitle-field')}</Label>
                       <SearchSelect
                         options={vm.subtitleFieldOptions}
                         value={vm.screenForm.subtitleFieldKey}
@@ -345,7 +351,7 @@ export const ScreenBuilderView: React.FC = () => {
                 <S.RulesDivider>Abas do registro</S.RulesDivider>
                 <S.CheckboxCell>
                   <Checkbox
-                    label="Habilitar aba de Anotações"
+                    label={t('screen.enable-notes')}
                     checked={vm.screenForm.hasNotes}
                     onChange={(next) => vm.updateScreenForm({ hasNotes: next })}
                   />
@@ -374,9 +380,9 @@ export const ScreenBuilderView: React.FC = () => {
                         placeholder={vm.suggestedTagCollection}
                       />
                       <S.FieldHint>
-                        As etiquetas criadas ficam neste conjunto, e continuam lá mesmo se a tela for
-                        excluída. Em branco, o sistema cria
-                        {vm.suggestedTagCollection ? ` "${vm.suggestedTagCollection}"` : ' um conjunto para esta tela'}.
+                        {vm.suggestedTagCollection
+                          ? t('screen.tag-collection.hint.suggested', { name: vm.suggestedTagCollection })
+                          : t('screen.tag-collection.hint')}
                       </S.FieldHint>
                     </InputGroup>
                     <InputGroup>
@@ -393,7 +399,7 @@ export const ScreenBuilderView: React.FC = () => {
                 {vm.screenModalIsEdit && (
                   <S.CheckboxCell>
                     <Checkbox
-                      label="Tela ativa (visível no menu lateral)"
+                      label={t('screen.enabled')}
                       checked={vm.screenForm.enabled}
                       onChange={(next) => vm.updateScreenForm({ enabled: next })}
                     />
@@ -424,7 +430,7 @@ export const ScreenBuilderView: React.FC = () => {
                       </S.CheckboxCell>
                       {isChild && candidate.fieldOptions.length > 1 ? (
                         <InputGroup>
-                          <Label>{`Campo de vínculo de ${candidate.label} *`}</Label>
+                          <Label>{t('screen.link-field', { label: candidate.label })}</Label>
                           <SearchSelect
                             options={candidate.fieldOptions}
                             value={linkField}
@@ -452,21 +458,21 @@ export const ScreenBuilderView: React.FC = () => {
             {vm.screenModalTab === 'actions' && (
               <>
                 <InputGroup>
-                  <Label>Ações da tela de detalhe</Label>
+                  <Label>{t('screen.detail-actions')}</Label>
                   <MultiSearchSelect
                     options={vm.actionOptions}
                     values={vm.screenForm.viewActionIds}
                     onChange={vm.setScreenViewActionIds}
-                    placeholder="Nenhuma ação"
+                    placeholder={t('screen.actions.none')}
                   />
                 </InputGroup>
                 <InputGroup>
-                  <Label>Ações do card na listagem</Label>
+                  <Label>{t('screen.card-actions')}</Label>
                   <MultiSearchSelect
                     options={vm.actionOptions}
                     values={vm.screenForm.cardActionIds}
                     onChange={vm.setScreenCardActionIds}
-                    placeholder="Nenhuma ação"
+                    placeholder={t('screen.actions.none')}
                   />
                 </InputGroup>
               </>
@@ -486,10 +492,10 @@ export const ScreenBuilderView: React.FC = () => {
         <Modal title={vm.fieldModalIsNative ? 'Ajustar Campo do Sistema' : (vm.fieldModalIsEdit ? 'Editar Campo' : 'Novo Campo')} onClose={vm.closeFieldModal} size="xlarge">
           <S.ModalTabs>
             <S.ModalTabBtn $active={vm.fieldModalTab === 'general'} onClick={() => vm.setFieldModalTab('general')}>
-              Geral
+              {t('screen.tab.general')}
             </S.ModalTabBtn>
             <S.ModalTabBtn $active={vm.fieldModalTab === 'advanced'} onClick={() => vm.setFieldModalTab('advanced')}>
-              Avançado
+              {t('field.tab.advanced')}
             </S.ModalTabBtn>
           </S.ModalTabs>
           <S.ModalForm>
@@ -497,7 +503,7 @@ export const ScreenBuilderView: React.FC = () => {
               <S.FullRow>
                 <InfoBanner
                   variant="info"
-                  message="Campo do sistema: pode ser configurado à vontade, mas não excluído. A chave e o tipo ficam fixos porque definem como o valor é gravado."
+                  message={t('field.native.banner')}
                 />
               </S.FullRow>
             )}
@@ -508,7 +514,7 @@ export const ScreenBuilderView: React.FC = () => {
               <Input
                 value={vm.fieldForm.label}
                 onChange={(e) => vm.updateFieldForm({ label: e.target.value })}
-                placeholder="Ex: Data de aniversário"
+                placeholder={t('field.label.placeholder')}
               />
             </InputGroup>
             {!vm.fieldModalIsNative && (
@@ -518,14 +524,12 @@ export const ScreenBuilderView: React.FC = () => {
               <Input
                 value={vm.fieldForm.fieldKey}
                 onChange={(e) => vm.updateFieldForm({ fieldKey: e.target.value })}
-                placeholder="Ex: data_nascimento"
+                placeholder={t('field.key.placeholder')}
                 disabled={vm.fieldModalIsEdit}
-                title={vm.fieldModalIsEdit ? 'O nome do campo na base não pode ser alterado após criação' : 'Use apenas letras minúsculas, números, underscore (_) ou $. Deve começar com letra, underscore ou $. Este é o nome usado em workflows e integrações.'}
+                title={t(vm.fieldModalIsEdit ? 'field.key.locked' : 'field.key.hint')}
               />
               {!vm.fieldModalIsEdit && (
-                <S.FieldHint>
-                  Use apenas letras minúsculas, números, underscore (_) ou $. Deve começar com letra, underscore ou $. Este é o nome usado em workflows e integrações.
-                </S.FieldHint>
+                <S.FieldHint>{t('field.key.hint')}</S.FieldHint>
               )}
             </InputGroup>
             {!vm.fieldModalIsEdit && (
@@ -541,12 +545,12 @@ export const ScreenBuilderView: React.FC = () => {
             )}
             {vm.fieldForm.type === 'masked' && (
               <InputGroup>
-                <Label>Máscara *</Label>
+                <Label>{t('field.mask')}</Label>
                 <SearchSelect
                   options={vm.maskOptions}
                   value={vm.fieldForm.mask}
                   onChange={(value) => vm.updateFieldForm({ mask: value as typeof vm.fieldForm.mask })}
-                  placeholder="Escolha a máscara"
+                  placeholder={t('field.mask.placeholder')}
                 />
               </InputGroup>
             )}
@@ -564,7 +568,7 @@ export const ScreenBuilderView: React.FC = () => {
                 {!vm.fieldModalIsEdit && (
                   <S.CheckboxCell>
                     <Checkbox
-                      label="Permitir múltiplas seleções"
+                      label={t('field.multi')}
                       checked={vm.fieldForm.multi}
                       onChange={(next) => vm.updateFieldForm({ multi: next })}
                     />
@@ -576,13 +580,13 @@ export const ScreenBuilderView: React.FC = () => {
               <>
                 <S.CheckboxRow>
                   <Checkbox
-                    label="Opções com cor"
+                    label={t('field.colored-options')}
                     checked={vm.fieldForm.optionsColored}
                     onChange={(next) => vm.updateFieldForm({ optionsColored: next })}
                   />
                 </S.CheckboxRow>
                 <InputGroup $fullWidth>
-                  <Label>Opções</Label>
+                  <Label>{t('field.options')}</Label>
                   {vm.fieldForm.optionsColored && (
                     <ColorSwatchPicker
                       colors={vm.tagColors}
@@ -600,7 +604,7 @@ export const ScreenBuilderView: React.FC = () => {
                           vm.addStaticOption();
                         }
                       }}
-                      placeholder="Digite uma opção e pressione Enter"
+                      placeholder={t('field.options.placeholder')}
                     />
                     <Button variant="secondary" onClick={vm.addStaticOption}>Adicionar</Button>
                   </S.OptionInputRow>
@@ -618,7 +622,7 @@ export const ScreenBuilderView: React.FC = () => {
                 </InputGroup>
                 <S.CheckboxCell>
                   <Checkbox
-                    label="Permitir que usuários adicionem novas opções"
+                    label={t('field.allow-new-options')}
                     checked={vm.fieldForm.optionsAllowUserAdd}
                     onChange={(next) => vm.updateFieldForm({ optionsAllowUserAdd: next })}
                   />
@@ -626,16 +630,16 @@ export const ScreenBuilderView: React.FC = () => {
                 {vm.fieldForm.optionsAllowUserAdd && (
                   <>
                     <InputGroup>
-                      <Label>Lista de opções</Label>
+                      <Label>{t('field.lookup')}</Label>
                       <Input
                         value={vm.fieldForm.lookupCollection}
                         onChange={(e) => vm.updateFieldForm({ lookupCollection: e.target.value })}
                         placeholder={vm.suggestedLookupCollection}
                       />
                       <S.FieldHint>
-                        As opções cadastradas pelos usuários ficam nesta lista, e continuam lá mesmo
-                        se a tela for excluída. Em branco, o sistema cria
-                        {vm.suggestedLookupCollection ? ` "${vm.suggestedLookupCollection}"` : ' uma lista para este campo'}.
+                        {vm.suggestedLookupCollection
+                          ? t('field.lookup-collection.hint.suggested', { name: vm.suggestedLookupCollection })
+                          : t('field.lookup-collection.hint')}
                       </S.FieldHint>
                     </InputGroup>
                     <InputGroup>
@@ -644,7 +648,7 @@ export const ScreenBuilderView: React.FC = () => {
                         options={vm.lookupOptions}
                         value={vm.fieldForm.lookupCollection}
                         onChange={(value) => vm.updateFieldForm({ lookupCollection: value })}
-                        placeholder="Escolha para compartilhar as opções com outra tela"
+                        placeholder={t('field.lookup.placeholder')}
                       />
                     </InputGroup>
                   </>
@@ -652,7 +656,7 @@ export const ScreenBuilderView: React.FC = () => {
                 {!vm.fieldModalIsEdit && (
                   <S.CheckboxCell>
                     <Checkbox
-                      label="Permitir múltiplas seleções"
+                      label={t('field.multi')}
                       checked={vm.fieldForm.multi}
                       onChange={(next) => vm.updateFieldForm({ multi: next })}
                     />
@@ -663,11 +667,11 @@ export const ScreenBuilderView: React.FC = () => {
               </>
             )}
             <InputGroup>
-              <Label>Seção do formulário</Label>
+              <Label>{t('field.section')}</Label>
               <Input
                 value={vm.fieldForm.section}
                 onChange={(e) => vm.updateFieldForm({ section: e.target.value })}
-                placeholder="Opcional — agrupa campos sob um título"
+                placeholder={t('field.section.placeholder')}
               />
             </InputGroup>
             <InputGroup>
@@ -681,7 +685,7 @@ export const ScreenBuilderView: React.FC = () => {
             <S.RulesDivider>Comportamento na tela</S.RulesDivider>
             <S.CheckboxCell>
               <Checkbox
-                label="Preenchimento obrigatório"
+                label={t('field.required')}
                 checked={vm.fieldModalIsTitleField ? true : vm.fieldForm.required}
                 disabled={vm.fieldModalIsTitleField}
                 onChange={(next) => vm.updateFieldForm({ required: next })}
@@ -689,7 +693,7 @@ export const ScreenBuilderView: React.FC = () => {
             </S.CheckboxCell>
             <S.CheckboxCell>
               <Checkbox
-                label="Disponível como filtro na listagem"
+                label={t('field.filterable')}
                 checked={vm.fieldForm.filterable}
                 onChange={(next) => vm.updateFieldForm({ filterable: next })}
               />
@@ -703,11 +707,11 @@ export const ScreenBuilderView: React.FC = () => {
             </S.CheckboxCell>
             {vm.fieldForm.showInList ? (
               <InputGroup>
-                <Label>Título no card da listagem</Label>
+                <Label>{t('field.card-label')}</Label>
                 <Input
                   value={vm.fieldForm.listLabel}
                   onChange={(e) => vm.updateFieldForm({ listLabel: e.target.value })}
-                  placeholder="Opcional — se vazio, o valor aparece sem título no card"
+                  placeholder={t('field.card-label.placeholder')}
                 />
               </InputGroup>
             ) : <div />}
@@ -718,9 +722,9 @@ export const ScreenBuilderView: React.FC = () => {
               <>
                 {vm.fieldSupportsRules && (
                   <>
-                    <S.RulesDivider>Formatação e validação</S.RulesDivider>
+                    <S.RulesDivider>{t('field.rules')}</S.RulesDivider>
                     <InputGroup>
-                      <Label>Formatação pronta</Label>
+                      <Label>{t('core.automation/parameter.format-preset')}</Label>
                       <SearchSelect
                         options={vm.formatPresetOptions}
                         value={vm.fieldForm.ruleFormatPreset}
@@ -729,7 +733,7 @@ export const ScreenBuilderView: React.FC = () => {
                       />
                     </InputGroup>
                     <InputGroup>
-                      <Label>Validação pronta</Label>
+                      <Label>{t('core.automation/parameter.validate-preset')}</Label>
                       <SearchSelect
                         options={vm.validateCheckOptions}
                         value={vm.fieldForm.ruleValidateCheck}
@@ -738,7 +742,7 @@ export const ScreenBuilderView: React.FC = () => {
                       />
                     </InputGroup>
                     <InputGroup>
-                      <Label>Formatação por expressão regular</Label>
+                      <Label>{t('field.format-regex')}</Label>
                       <Input
                         value={vm.fieldForm.ruleFormatPattern}
                         onChange={(e) => vm.updateFieldForm({ ruleFormatPattern: e.target.value })}
@@ -754,7 +758,7 @@ export const ScreenBuilderView: React.FC = () => {
                       />
                     </InputGroup>
                     <InputGroup>
-                      <Label>Validação por expressão regular</Label>
+                      <Label>{t('field.validate-regex')}</Label>
                       <Input
                         value={vm.fieldForm.ruleValidatePattern}
                         onChange={(e) => vm.updateFieldForm({ ruleValidatePattern: e.target.value })}
@@ -766,7 +770,7 @@ export const ScreenBuilderView: React.FC = () => {
                       <Input
                         value={vm.fieldForm.ruleValidateMessage}
                         onChange={(e) => vm.updateFieldForm({ ruleValidateMessage: e.target.value })}
-                        placeholder="Exibida quando o valor não passa na validação"
+                        placeholder={t('field.validate-message.placeholder')}
                       />
                     </InputGroup>
                   </>
@@ -776,12 +780,12 @@ export const ScreenBuilderView: React.FC = () => {
                     <S.RulesDivider>Valor vindo dos registros filhos</S.RulesDivider>
                     <S.FullRow>
                       <InfoBanner
-                        message="Use para totalizar registros de outra tela vinculados a este — como o total dos itens de uma venda. O valor é recalculado automaticamente sempre que um filho é criado, alterado ou excluído."
+                        message={t('field.aggregation.banner')}
                         variant="info"
                       />
                     </S.FullRow>
                     <InputGroup>
-                      <Label>Tela dos filhos</Label>
+                      <Label>{t('field.aggregation.from')}</Label>
                       <SearchSelect
                         options={vm.aggregationFromOptions}
                         value={vm.fieldForm.aggregationFrom}
@@ -797,16 +801,16 @@ export const ScreenBuilderView: React.FC = () => {
                             options={vm.aggregationViaOptions}
                             value={vm.fieldForm.aggregationVia}
                             onChange={(value) => vm.updateFieldForm({ aggregationVia: value })}
-                            placeholder="Escolha o vínculo"
+                            placeholder={t('field.aggregation.link.placeholder')}
                           />
                         </InputGroup>
                         <InputGroup>
-                          <Label>Operação</Label>
+                          <Label>{t('field.aggregation.operation')}</Label>
                           <SearchSelect
                             options={vm.aggregationOpOptions}
                             value={vm.fieldForm.aggregationOp}
                             onChange={(value) => vm.updateFieldForm({ aggregationOp: value as typeof vm.fieldForm.aggregationOp })}
-                            placeholder="Escolha a operação"
+                            placeholder={t('field.aggregation.operation.placeholder')}
                           />
                         </InputGroup>
                         {vm.fieldForm.aggregationOp !== 'count' && (
@@ -835,14 +839,14 @@ export const ScreenBuilderView: React.FC = () => {
                     )}
                   </>
                 )}
-                <S.RulesDivider>Comportamento por expressão</S.RulesDivider>
+                <S.RulesDivider>{t('field.expression-behaviour')}</S.RulesDivider>
                 <S.FullRow>
                   <InfoBanner
-                    message="Nas expressões, referencie os campos da tela pela chave (ex.: status, valor) — comece a digitar para ver as sugestões. Use value para o valor do próprio campo. Em Ocultar, Desabilitar e Ao alterar, um campo de vínculo pode ser navegado (ex.: produto.preco); em Validação e Valor calculado ele vale como identificador, pois essas duas também são conferidas no servidor."
+                    message={t('field.expression.banner')}
                     variant="info"
                   />
                   <InputGroup>
-                    <Label>Valor calculado (preenche o campo automaticamente)</Label>
+                    <Label>{t('field.expression.compute')}</Label>
                     <ExpressionEditor
                       value={vm.fieldForm.logicCompute}
                       onChange={(value) => vm.updateFieldForm({ logicCompute: value })}
@@ -851,12 +855,12 @@ export const ScreenBuilderView: React.FC = () => {
                     />
                   </InputGroup>
                   <InputGroup>
-                    <Label>Validação (retorna a mensagem de erro, ou vazio/null se válido)</Label>
+                    <Label>{t('field.expression.validate')}</Label>
                     <ExpressionEditor
                       value={vm.fieldForm.logicValidate}
                       onChange={(value) => vm.updateFieldForm({ logicValidate: value })}
                       workflowVariables={vm.fieldExpressionVariables}
-                      placeholder="Ex: if(isEmpty(value) and status == 'ativo', 'Obrigatório para ativos', null)"
+                      placeholder={t('field.expression.validate.placeholder')}
                     />
                   </InputGroup>
                 </S.FullRow>
@@ -894,11 +898,11 @@ export const ScreenBuilderView: React.FC = () => {
                     <S.FullRow>
                       <InfoBanner
                         variant="info"
-                        message={`Ao preencher este campo, o valor digitado é enviado para ${vm.selectedLookupProvider.host ?? 'o provedor'}. Chaves devolvidas: ${vm.selectedLookupProvider.outputKeys.join(', ')}.`}
+                        message={t('field.provider.banner', { host: vm.selectedLookupProvider.host ?? t('field.provider.fallback'), keys: vm.selectedLookupProvider.outputKeys.join(', ') })}
                       />
                     </S.FullRow>
                     <InputGroup>
-                      <Label>Preencher dentro de (opcional)</Label>
+                      <Label>{t('field.provider.target')}</Label>
                       <Input
                         value={vm.fieldForm.lookupTargetPrefix}
                         onChange={(e) => vm.updateFieldForm({ lookupTargetPrefix: e.target.value })}
@@ -913,7 +917,7 @@ export const ScreenBuilderView: React.FC = () => {
                     value={vm.fieldForm.logicHiddenWhen}
                     onChange={(value) => vm.updateFieldForm({ logicHiddenWhen: value })}
                     workflowVariables={vm.fieldExpressionVariables}
-                    placeholder="Ex: eletrico == false (some quando NÃO for elétrico)"
+                    placeholder={t('field.expression.hidden.placeholder')}
                   />
                 </InputGroup>
               </>
@@ -931,7 +935,7 @@ export const ScreenBuilderView: React.FC = () => {
       <ConfirmModal
         isOpen={vm.deleteScreenTarget !== null}
         title="Excluir tela"
-        message={`Tem certeza que deseja excluir a tela "${vm.deleteScreenTarget?.titlePlural ?? ''}"? Esta ação não pode ser desfeita.`}
+        message={t('screen.delete.message', { name: vm.deleteScreenTarget?.titlePlural ?? '' })}
         variant="danger"
         confirmLabel="Excluir"
         loading={vm.deletingScreen}
@@ -942,7 +946,7 @@ export const ScreenBuilderView: React.FC = () => {
       <ConfirmModal
         isOpen={vm.deleteFieldTarget !== null}
         title="Excluir campo"
-        message={`Tem certeza que deseja excluir o campo "${vm.deleteFieldTarget?.field.label ?? ''}"? Os valores já preenchidos deixarão de ser exibidos.`}
+        message={t('field.delete.message', { name: vm.deleteFieldTarget?.field.label ?? '' })}
         variant="danger"
         confirmLabel="Excluir"
         loading={vm.deletingField}
