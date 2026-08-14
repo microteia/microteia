@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [7.12.0] — 2026-08-14
+
+- A tela de criação de extensões — incluindo o editor de telas de código e os modelos de exemplo — passou a acompanhar o idioma escolhido.
+
 ## [7.11.0] — 2026-08-14
 
 - A tela de Form Design — o desenho das telas, os campos, as máscaras, as validações e os valores calculados — passou a acompanhar o idioma escolhido.

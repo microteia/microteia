@@ -11,15 +11,18 @@ import { ExtensionPreviewHost } from '../../../shared/extensions/ExtensionPrevie
 import { useCodeViewEditorModalViewModel, type CodeViewEditorModalProps } from './CodeViewEditorModal.viewmodel';
 import { S } from './CodeViewEditorModal.styles';
 
+import { useT } from '../../../shared/i18n/useT';
+
 const swallowPreviewError = (): void => { /* erros de render aparecem no fallback do ErrorBoundary */ };
 
 export const CodeViewEditorModal: React.FC<CodeViewEditorModalProps> = ({ isOpen, view, iconOptions, onChange, onClose, extensionTypeDefs }) => {
+  const t = useT('core.marketplace');
   const vm = useCodeViewEditorModalViewModel();
   if (!isOpen || !view) return null;
 
   return (
     <Modal 
-      title={`Tela de código — ${view.title || view.key || 'sem título'}`} 
+      title={t('author.view.modal-title', { name: view.title || view.key || t('author.view.untitled') })} 
       onClose={onClose} 
       size="xlarge"
       maximizable
@@ -28,24 +31,24 @@ export const CodeViewEditorModal: React.FC<CodeViewEditorModalProps> = ({ isOpen
     >
       <S.Fields>
         <S.Field>
-          Título
+          {t('author.view.title')}
           <S.Input value={view.title} onChange={(e) => onChange({ title: e.target.value })} />
         </S.Field>
         <S.Field>
-          Chave (menu e endereço)
+          {t('author.view.key')}
           <S.Input value={view.key} onChange={(e) => onChange({ key: e.target.value })} placeholder="minha-tela" />
         </S.Field>
         <S.Field>
-          Ícone
-          <SearchSelect options={iconOptions} value={view.icon} onChange={(icon) => onChange({ icon })} placeholder="Ícone" />
+          {t('screen.icon')}
+          <SearchSelect options={iconOptions} value={view.icon} onChange={(icon) => onChange({ icon })} placeholder={t('screen.icon')} />
         </S.Field>
       </S.Fields>
 
       <S.Toolbar>
         <Button variant="ghost" size="sm" onClick={vm.togglePreview}>
-          <RiEyeLine size={16} /> {vm.previewOpen ? 'Ocultar pré-visualização' : 'Pré-visualizar ao lado'}
+          <RiEyeLine size={16} /> {t(vm.previewOpen ? 'author.preview.hide' : 'author.preview.show')}
         </Button>
-        {view.error && <S.Error>Não compila: {view.error}</S.Error>}
+        {view.error && <S.Error>{t('author.compile-error.detail', { error: view.error })}</S.Error>}
       </S.Toolbar>
 
       <S.Split>
@@ -56,7 +59,7 @@ export const CodeViewEditorModal: React.FC<CodeViewEditorModalProps> = ({ isOpen
             <S.PreviewPane>
               <ErrorBoundary
                 key={view.source}
-                fallback={<InfoBanner message="Não foi possível renderizar a pré-visualização. Verifique o código." variant="warning" />}
+                fallback={<InfoBanner message={t('author.preview.failed')} variant="warning" />}
                 onError={swallowPreviewError}
               >
                 <ExtensionPreviewHost source={view.source} />

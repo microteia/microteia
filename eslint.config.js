@@ -15,6 +15,7 @@ const MIGRATED_TO_SOURCE_LANGUAGE = [
   'src/presentation/pages/License/**/*.{ts,tsx}',
   'src/presentation/pages/ViewWorkflow/**/*.{ts,tsx}',
   'src/presentation/pages/ScreenBuilder/**/*.{ts,tsx}',
+  'src/presentation/pages/PluginAuthor/**/*.{ts,tsx}',
   'src/plugins/core.*/**/*.{ts,tsx}',
   'src/plugins/messages/**/*.{ts,tsx}',
 ]

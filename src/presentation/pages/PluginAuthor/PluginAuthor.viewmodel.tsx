@@ -31,105 +31,19 @@ import type { RefKind } from '../../../domain/usecases/plugins/pluginReferences'
 import type { MarketplacePlugin, ViewModuleTemplate } from '../../../domain/entities/MarketplacePlugin';
 import type { SearchSelectOption } from '../../components/ui/SearchSelect';
 
-const VIEW_STARTER = `import { useCasePhases } from '@microteia/data';
+import { useT, type TranslateFn } from '../../shared/i18n/useT';
 
-export default function View() {
-  const phases = useCasePhases();
-  return (
-    <div style={{ padding: 16 }}>
-      Minha extensão — {phases.length} fase(s) cadastrada(s).
-    </div>
-  );
-}
-`;
+const viewStarter = (t: TranslateFn): string => t('author.template.view');
 
-const STARTUP_TEMPLATE = `// import { Icon } from '@microteia/ui';
-
-export default function startup(host) {
-  /*
-  // Exemplo: registrar comandos no Command Palette (⌘K)
-  host.commands.register({
-    group: 'Minha Extensão',
-    getItems(query, ctx) {
-      const q = String(query || '').toLowerCase().trim();
-      if (!q) return [];
-      
-      // const icon = <Icon name="star" size={16} />;
-      const items = [];
-      
-      // Comando fixo (ex: "novo item")
-      if ('novo item da extensão'.indexOf(q) !== -1) {
-        items.push({
-          id: 'minha-ext:novo',
-          title: 'Novo item da extensão',
-          group: 'Minha Extensão',
-          // icon,
-          onSelect: () => {
-            ctx.openTab('minha-tela:new');
-            ctx.close();
-          }
-        });
-      }
-      
-      // Busca em registros (exemplo: entidades customizadas)
-      // for (const r of ctx.customRecords) {
-      //   if (r.screenKey === 'minha-tela' && r.title?.toLowerCase().indexOf(q) !== -1) {
-      //     items.push({
-      //       id: 'minha-ext:' + r.id,
-      //       title: r.title,
-      //       subtitle: 'Minha Extensão',
-      //       group: 'Minha Extensão',
-      //       icon,
-      //       onSelect: () => { ctx.openTab('minha-tela:' + r.id); ctx.close(); }
-      //     });
-      //   }
-      // }
-      
-      return items.slice(0, 9);
-    },
-  });
-  */
-
-  /*
-  // Exemplo: registrar menção @ no chat
-  host.mentions.register({
-    key: 'minha-mencao',
-    label: 'Minha Menção',
-    description: 'Inserir link para um item da extensão',
-    icon: 'star',
-    search(query, ctx) {
-      const q = String(query || '').toLowerCase().trim();
-      
-      // Retornar lista de opções para o usuário escolher
-      // return ctx.customRecords
-      //   .filter((r) => r.screenKey === 'minha-tela' && r.title && (!q || r.title.toLowerCase().indexOf(q) !== -1))
-      //   .slice(0, 20)
-      //   .map((r) => ({
-      //     id: r.id,
-      //     title: r.title,
-      //     subtitle: 'Minha Extensão',
-      //     tabKey: 'minha-tela:' + r.id
-      //   }));
-      
-      return [];
-    },
-  });
-  */
-
-  // Opcional: retornar função de cleanup para desregistrar ao descarregar a extensão
-  // return () => {
-  //   // Cleanup se necessário
-  // };
-}
-`;
+const startupTemplate = (t: TranslateFn): string => t('author.template.startup');
 
 const KEY_PATTERN = /^[a-z0-9][a-z0-9-]*$/;
 
-const KIND_LABEL: Record<RefKind, string> = {
-  screen: 'a tela',
-  action: 'a ação',
-  workflow: 'a automação',
-  script: 'o script',
+const KIND_KEY: Record<RefKind, string> = {
+  screen: 'author.kind.screen',
+  action: 'author.kind.action',
+  workflow: 'author.kind.workflow',
+  script: 'author.kind.script',
 };
 
 const STUB_MANIFEST: PluginManifest = { id: 'seu.plugin', version: '1.0.0', kernel: '^1.0.0', name: 'x' };
@@ -234,14 +148,14 @@ const union = (a: Set<string>, b: Set<string>): Set<string> => new Set([...a, ..
 const EDIT_PREFIX = 'plugin-author:';
 
 /** O que esta tela de terceiro leva do pacote, em uma linha: "2 campo(s) e 1 ação(ões) seu(s)". */
-const patchSummaryOf = (screen: ScreenDefinition, ownActionIds: ReadonlySet<string>): string => {
+const patchSummaryOf = (t: TranslateFn, screen: ScreenDefinition, ownActionIds: ReadonlySet<string>): string => {
   const campos = screen.fields.filter((field) => field.origin === 'design').length;
   const acoes = [...(screen.cardActionIds ?? []), ...(screen.viewActionIds ?? [])]
     .filter((id) => ownActionIds.has(id)).length;
-  const partes: string[] = [];
-  if (campos > 0) partes.push(`${campos} campo(s)`);
-  if (acoes > 0) partes.push(`${acoes} ação(ões)`);
-  return `${partes.join(' e ')} seu(s)`;
+  const parts: string[] = [];
+  if (campos > 0) parts.push(t('author.patch.fields', { count: campos }));
+  if (acoes > 0) parts.push(t('author.patch.actions', { count: acoes }));
+  return t('author.patch.summary', { parts: parts.join(t('author.patch.join')) });
 };
 
 export const usePluginAuthorViewModel = (tabKey?: string): PluginAuthorViewModel => {
@@ -254,6 +168,7 @@ export const usePluginAuthorViewModel = (tabKey?: string): PluginAuthorViewModel
   const { tenantRole } = useTenant();
   const { userRole } = useAuth();
   const { notify } = useNotification();
+  const t = useT('core.marketplace');
 
   const canManage = userRole === 'SYSTEM' || tenantRole === 'admin';
   const editingId = tabKey && tabKey.startsWith(EDIT_PREFIX) ? tabKey.slice(EDIT_PREFIX.length) : null;
@@ -289,7 +204,7 @@ export const usePluginAuthorViewModel = (tabKey?: string): PluginAuthorViewModel
 
   const [views, setViews] = useState<CodeViewForm[]>(() =>
     (editingPackage?.views ?? []).map((v) => ({ uid: crypto.randomUUID(), key: v.key, title: v.title, icon: v.icon, source: v.source })));
-  const [startup, setStartup] = useState<string>(() => editingPackage?.startup ?? STARTUP_TEMPLATE);
+  const [startup, setStartup] = useState<string>(() => editingPackage?.startup ?? startupTemplate(t));
 
   const startupError = useMemo<string | null>(() => {
     if (!startup.trim()) return null;
@@ -331,11 +246,11 @@ export const usePluginAuthorViewModel = (tabKey?: string): PluginAuthorViewModel
     const uid = crypto.randomUUID();
     setViews((prev) => {
       const n = prev.length + 1;
-      return [...prev, { uid, key: `tela-${n}`, title: `Tela ${n}`, icon: 'layoutGrid', source: VIEW_STARTER }];
+      return [...prev, { uid, key: `tela-${n}`, title: `Tela ${n}`, icon: 'layoutGrid', source: viewStarter(t) }];
     });
     setSelectedViewId(uid);
     setEditorOpen(true);
-  }, []);
+  }, [t]);
 
   const removeView = useCallback((id: string) => {
     setViews((prev) => prev.filter((v) => v.uid !== id));
@@ -376,16 +291,16 @@ export const usePluginAuthorViewModel = (tabKey?: string): PluginAuthorViewModel
   const viewErrors = useMemo<Record<string, string | null>>(() => {
     const map: Record<string, string | null> = {};
     for (const v of views) {
-      if (!v.source.trim()) { map[v.uid] = 'sem código'; continue; }
+      if (!v.source.trim()) { map[v.uid] = t('author.view.no-code'); continue; }
       const result = compileExtensionView(v.source);
       map[v.uid] = result.ok ? null : result.error;
     }
     return map;
-  }, [views]);
+  }, [views, t]);
 
   const codeViews = useMemo<CodeViewItem[]>(
-    () => views.map((v) => ({ id: v.uid, title: v.title.trim() || v.key.trim() || 'Sem título', icon: v.icon, hasError: Boolean(viewErrors[v.uid]) })),
-    [views, viewErrors],
+    () => views.map((v) => ({ id: v.uid, title: v.title.trim() || v.key.trim() || t('author.view.untitled'), icon: v.icon, hasError: Boolean(viewErrors[v.uid]) })),
+    [views, viewErrors, t],
   );
 
   const selectedView = useMemo<CodeViewEditing | null>(() => {
@@ -548,28 +463,28 @@ export const usePluginAuthorViewModel = (tabKey?: string): PluginAuthorViewModel
       options: [...carriedOptions.screens, ...ownScreens.map((d) => ({ id: d.id, label: d.titlePlural || d.id, icon: d.icon, selected: effective.screens.has(d.id), locked: required.screens.has(d.id) }))],
     },
     {
-      kind: 'screenPatches', title: 'Campos e ações em telas existentes',
+      kind: 'screenPatches', title: t('author.group.screen-patches'),
       options: [...carriedOptions.screenPatches, ...patchableScreens.map((d) => ({
         id: d.id,
-        label: `${d.titlePlural || d.id} (${patchSummaryOf(d, ownActionIds)})`,
+        label: `${d.titlePlural || d.id} (${patchSummaryOf(t, d, ownActionIds)})`,
         icon: d.icon,
         selected: effective.screenPatches.has(d.id),
         locked: false,
       }))],
     },
     {
-      kind: 'actions', title: 'Ações',
+      kind: 'actions', title: t('core.automation/page.actions'),
       options: [...carriedOptions.actions, ...ownActions.map((a) => ({ id: a.id, label: a.title || a.key, icon: a.icon, selected: effective.actions.has(a.id), locked: required.actions.has(a.id) }))],
     },
     {
-      kind: 'workflows', title: 'Automações',
+      kind: 'workflows', title: t('core.automation/page.workflows'),
       options: [...carriedOptions.workflows, ...ownWorkflows.map((w) => ({ id: w.id, label: w.name, selected: effective.workflows.has(w.id), locked: required.workflows.has(w.id) }))],
     },
     {
       kind: 'scripts', title: 'Scripts',
       options: [...carriedOptions.scripts, ...ownScripts.map((s) => ({ id: s.id, label: s.name, selected: effective.scripts.has(s.id), locked: required.scripts.has(s.id) }))],
     },
-  ], [carriedOptions, ownScreens, patchableScreens, ownActionIds, ownActions, ownWorkflows, ownScripts, effective, required]);
+  ], [carriedOptions, ownScreens, patchableScreens, ownActionIds, ownActions, ownWorkflows, ownScripts, effective, required, t]);
 
   const toggle = useCallback((kind: ArtifactKind, id: string) => {
     if (carriedOptions[kind].some((o) => o.id === id)) { removeCarried(kind, id); return; } // remove o embarcado
@@ -638,28 +553,32 @@ export const usePluginAuthorViewModel = (tabKey?: string): PluginAuthorViewModel
     const seen = new Set<string>();
     for (const v of views) {
       const key = v.key.trim();
-      const label = v.title.trim() || key || 'tela de código';
-      if (!key) out.push(`A tela de código "${label}" precisa de uma chave.`);
-      else if (!KEY_PATTERN.test(key)) out.push(`A chave "${key}" é inválida: use minúsculas, números e "-".`);
-      else if (seen.has(key)) out.push(`A chave "${key}" está repetida entre as telas de código.`);
+      const label = v.title.trim() || key || t('author.view.fallback');
+      if (!key) out.push(t('author.issue.view-key-required', { label }));
+      else if (!KEY_PATTERN.test(key)) out.push(t('author.issue.view-key-invalid', { key }));
+      else if (seen.has(key)) out.push(t('author.issue.view-key-duplicated', { key }));
       seen.add(key);
-      if (!v.title.trim()) out.push('Uma tela de código precisa de um título.');
+      if (!v.title.trim()) out.push(t('author.issue.view-title-required'));
       const error = viewErrors[v.uid];
-      if (error) out.push(`A tela de código "${label}" não compila: ${error}.`);
+      if (error) out.push(t('author.issue.view-compile', { label, error }));
     }
     return out;
-  }, [views, viewErrors]);
+  }, [views, viewErrors, t]);
 
   const issues = useMemo<string[]>(() => [
     ...validatePluginManifest(manifest, { kernelVersion: KERNEL_VERSION, validateContributions: false }).map((d) => d.message),
-    ...(form.summary.trim() ? [] : ['A extensão precisa de uma descrição curta (resumo).']),
+    ...(form.summary.trim() ? [] : [t('author.issue.summary-required')]),
     ...validatePackage(pkg).map((issue) =>
-      `${issue.ref.from} referencia ${KIND_LABEL[issue.ref.kind]} "${nameOf(issue.ref.kind, issue.ref.id)}", que pertence a outra extensão. Ela será exigida na instalação.`,
+      t('author.issue.external-ref', {
+        from: issue.ref.from,
+        kind: t(KIND_KEY[issue.ref.kind]),
+        name: nameOf(issue.ref.kind, issue.ref.id),
+      }),
     ),
     ...packageSizeIssues(pkg),
     ...viewIssues,
-    ...(startupError ? [`O código de inicialização não compila: ${startupError}.`] : []),
-  ], [manifest, form.summary, pkg, nameOf, viewIssues, startupError]);
+    ...(startupError ? [t('author.issue.startup-compile', { error: startupError })] : []),
+  ], [manifest, form.summary, pkg, nameOf, viewIssues, startupError, t]);
 
   /** Não bloqueia exportar — só avisa que o pacote está a caminho do limite do documento. */
   const sizeAdvisory = useMemo(() => packageSizeAdvisory(pkg), [pkg]);
@@ -679,23 +598,23 @@ export const usePluginAuthorViewModel = (tabKey?: string): PluginAuthorViewModel
     anchor.download = `${manifest.id || 'extensao'}.json`;
     anchor.click();
     URL.revokeObjectURL(url);
-    notify('Arquivo da extensão gerado.', 'success');
-  }, [pkg, manifest.id, notify]);
+    notify(t('author.exported'), 'success');
+  }, [pkg, manifest.id, notify, t]);
 
   const save = useCallback(async () => {
     if (!canSave) return;
     setBusy(true);
     try {
       await saveExtension(pkg);
-      notify(`${manifest.name || manifest.id} salvo em Minhas Extensões.`, 'success');
+      notify(t('author.saved', { name: manifest.name || manifest.id }), 'success');
       openTab('marketplace');
     } catch (err) {
-      console.error('[plugin-author] falha ao salvar extensão:', err);
-      notify(`Não foi possível salvar: ${err instanceof Error ? err.message : String(err)}`, 'error');
+      console.error('[plugin-author] failed to save extension:', err);
+      notify(t('author.save-failed', { detail: err instanceof Error ? err.message : String(err) }), 'error');
     } finally {
       setBusy(false);
     }
-  }, [canSave, saveExtension, pkg, manifest.name, manifest.id, notify, openTab]);
+  }, [canSave, saveExtension, pkg, manifest.name, manifest.id, notify, openTab, t]);
 
   return {
     canManage,
