@@ -38,7 +38,7 @@ export const ParameterField: React.FC<ParameterFieldProps> = (props) => {
         options={vm.multiOptions}
         values={vm.multiValues}
         onChange={vm.setMultiValues}
-        placeholder="Selecione..."
+        placeholder={t('select.placeholder')}
       />
     );
   }

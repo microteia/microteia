@@ -121,7 +121,7 @@ export const WorkflowMentionModal: React.FC<WorkflowMentionModalProps> = (props)
           )}
 
           <S.Footer>
-            <Button variant="secondary" onClick={props.onClose}>Cancelar</Button>
+            <Button variant="secondary" onClick={props.onClose}>{t('action.cancel')}</Button>
           </S.Footer>
         </Content>
       </Container>

@@ -54,4 +54,5 @@ export const CORE_WORKSPACE_MESSAGES: Record<string, string> = {
 
   'command.group.navigation': 'Navigation',
   'command.group.system': 'System',
+  'login.field.email.placeholder': 'you@email.com',
 };

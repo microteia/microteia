@@ -42,7 +42,7 @@ export const QueryBuilderControl: React.FC<QueryBuilderControlProps> = (props) =
             <ExpressionEditor
               value={mapping?.kind === 'Expression' ? mapping.expression : ''}
               onChange={(expression) => vm.updateFilter(index, { ...predicate, value: { kind: 'Expression', expression } })}
-              placeholder="ex: event.status"
+              placeholder={t('query.expression.placeholder')}
               eventFields={props.eventFields}
               pathRoot={props.pathRoot}
               inputRoot={props.inputRoot}
@@ -53,7 +53,7 @@ export const QueryBuilderControl: React.FC<QueryBuilderControlProps> = (props) =
             <Input
               value={mapping?.kind === 'Literal' ? String(mapping.value ?? '') : ''}
               onChange={(e) => vm.updateFilter(index, { ...predicate, value: { kind: 'Literal', value: e.target.value } })}
-              placeholder="Valor"
+              placeholder={t('mapping.value.placeholder')}
             />
           )}
         </S.KindRow>
@@ -64,12 +64,12 @@ export const QueryBuilderControl: React.FC<QueryBuilderControlProps> = (props) =
   return (
     <S.Container>
       <S.Section>
-        <S.SectionTitle>Tabela</S.SectionTitle>
+        <S.SectionTitle>{t('query.table')}</S.SectionTitle>
         <SearchSelect
           options={vm.tableOptions}
           value={spec.table}
           onChange={vm.setTable}
-          placeholder="Selecione a tabela..."
+          placeholder={t('query.table.placeholder')}
         />
         {vm.issuesByField.table && <S.Issue>{vm.issuesByField.table}</S.Issue>}
       </S.Section>
@@ -77,7 +77,7 @@ export const QueryBuilderControl: React.FC<QueryBuilderControlProps> = (props) =
       {spec.table && (
         <>
           <S.Section>
-            <S.SectionTitle>Filtros</S.SectionTitle>
+            <S.SectionTitle>{t('query.filters')}</S.SectionTitle>
             {spec.where.length === 0 && <S.Empty>{t('query.filters.empty')}</S.Empty>}
             {spec.where.map((predicate, index) => (
               <React.Fragment key={index}>
@@ -86,16 +86,16 @@ export const QueryBuilderControl: React.FC<QueryBuilderControlProps> = (props) =
                     options={vm.pathOptions}
                     value={predicate.path}
                     onChange={(path) => vm.updateFilter(index, { ...predicate, path })}
-                    placeholder="Campo..."
+                    placeholder={t('query.field.placeholder')}
                   />
                   <SearchSelect
                     options={vm.operatorOptions}
                     value={predicate.op}
                     onChange={(op) => vm.updateFilter(index, { ...predicate, op: op as QueryOperator })}
-                    placeholder="Operador..."
+                    placeholder={t('query.operator.placeholder')}
                   />
                   {operatorNeedsValue(predicate.op) ? renderValueEditor(index, predicate.value) : <span />}
-                  <S.RemoveButton onClick={() => vm.removeFilter(index)} title="Remover filtro">
+                  <S.RemoveButton onClick={() => vm.removeFilter(index)} title={t('query.filter.remove')}>
                     <RiDeleteBinLine size={14} />
                   </S.RemoveButton>
                 </S.FilterRow>
@@ -103,7 +103,7 @@ export const QueryBuilderControl: React.FC<QueryBuilderControlProps> = (props) =
               </React.Fragment>
             ))}
             <S.AddButton onClick={vm.addFilter}>
-              <RiAddLine size={14} /> Adicionar filtro
+              <RiAddLine size={14} /> {t('query.filter.add')}
             </S.AddButton>
           </S.Section>
 
@@ -125,7 +125,7 @@ export const QueryBuilderControl: React.FC<QueryBuilderControlProps> = (props) =
                   options={vm.pathOptions}
                   value={order.path}
                   onChange={(path) => vm.updateOrderBy(index, { ...order, path })}
-                  placeholder="Campo..."
+                  placeholder={t('query.field.placeholder')}
                 />
                 <SearchSelect
                   options={DIRECTION_OPTIONS}
@@ -143,7 +143,7 @@ export const QueryBuilderControl: React.FC<QueryBuilderControlProps> = (props) =
           </S.Section>
 
           <S.Section>
-            <S.SectionTitle>Limite</S.SectionTitle>
+            <S.SectionTitle>{t('query.limit')}</S.SectionTitle>
             <S.LimitRow>
               <Input
                 type="number"

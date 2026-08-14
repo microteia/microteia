@@ -39,7 +39,7 @@ export const TextAnnotationToolbar: React.FC<TextAnnotationToolbarProps> = ({
       $active={activeFormats.underline}
       style={{ textDecoration: 'underline' }}
       onMouseDown={(e) => { e.preventDefault(); onFormat('underline'); }}
-      title="Sublinhado"
+      title={t('markdown.underline')}
     >
       U
     </S.FormatButton>
@@ -48,7 +48,7 @@ export const TextAnnotationToolbar: React.FC<TextAnnotationToolbarProps> = ({
       $active={activeFormats.strikethrough}
       style={{ textDecoration: 'line-through' }}
       onMouseDown={(e) => { e.preventDefault(); onFormat('strikethrough'); }}
-      title="Riscado"
+      title={t('markdown.strikethrough')}
     >
       S
     </S.FormatButton>

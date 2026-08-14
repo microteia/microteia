@@ -60,7 +60,7 @@ export const MappingValueControl: React.FC<MappingValueControlProps> = (props) =
           <Input
             value={String(mapping.value ?? '')}
             onChange={(e) => onChange({ kind: 'Literal', value: e.target.value })}
-            placeholder="Valor"
+            placeholder={t('mapping.value.placeholder')}
           />
         );
       case 'Event':
@@ -69,13 +69,13 @@ export const MappingValueControl: React.FC<MappingValueControlProps> = (props) =
             options={props.eventFields.map((f) => ({ value: f.path, label: f.label }))}
             value={mapping.path}
             onChange={(path) => onChange({ kind: 'Event', path })}
-            placeholder="Campo do evento..."
+            placeholder={t('mapping.event-field.placeholder')}
           />
         ) : (
           <Input
             value={mapping.path}
             onChange={(e) => onChange({ kind: 'Event', path: e.target.value })}
-            placeholder="ex: caseId"
+            placeholder={t('mapping.path.placeholder')}
           />
         );
       case 'Expression':
@@ -83,7 +83,7 @@ export const MappingValueControl: React.FC<MappingValueControlProps> = (props) =
           <ExpressionEditor
             value={mapping.expression}
             onChange={(expression) => onChange({ kind: 'Expression', expression })}
-            placeholder="ex: event.campo || input.campo || variavel"
+            placeholder={t('mapping.expression.placeholder')}
             eventFields={props.eventFields}
             pathRoot={props.pathRoot}
             inputRoot={props.inputRoot}
@@ -128,7 +128,7 @@ export const MappingValueControl: React.FC<MappingValueControlProps> = (props) =
         options={kindOptions}
         value={mapping?.kind ?? ''}
         onChange={(kind) => onChange(emptyMappingFor(kind as MappingKind))}
-        placeholder="Origem..."
+        placeholder={t('mapping.source.placeholder')}
         disabled={kindOptions.length === 1}
       />
       {renderEditor()}

@@ -64,10 +64,17 @@ export default defineConfig([
   // o que impede o que já migrou de regredir. Ver "Idioma" no CLAUDE.md e "A migração para o
   // idioma-fonte" no ARCHITECTURE.md.
   //
-  // O gatilho é o ACENTO, e não uma lista de palavras: ele não pega "Salvar", mas pega quase toda
-  // frase real e não produz falso positivo em inglês. Como guarda de regressão, errar para menos é
-  // o que a mantém utilizável — e foi assim mesmo que ela achou textos de JSX que a varredura por
-  // string literal não enxergava.
+  // A regra é AGNÓSTICA DE IDIOMA onde consegue ser: dentro da zona, texto de usuário não pode ser
+  // literal — nem em português, nem em inglês. `JSXText` e os atributos que carregam texto (`title`,
+  // `label`, `placeholder`, `message`…) exigem `{t('chave')}`.
+  //
+  // A primeira versão disparava só por ACENTO, e isso foi um erro medido: ela não via "Nome",
+  // "Geral", "Salvar", "Habilitado", "Mover para cima" — e um teste com o pacote pt-BR DESLIGADO
+  // encontrou 242 desses em diretórios dados como concluídos. Palavra curta sem acento é a maior
+  // parte do texto de interface, justamente o que a regra precisava pegar.
+  //
+  // O gatilho por acento CONTINUA, aplicado a `Literal` e `TemplateElement`, para o que não é JSX:
+  // notificação, item de `options`, mensagem de erro montada em função.
   //
   // Fora da zona ficam os testes (nome de teste é comunicação nossa e continua em português) e os
   // catálogos de tradução, que é justamente onde o português deve estar.
@@ -86,8 +93,12 @@ export default defineConfig([
           message: 'Texto em português no código. O idioma-fonte é o inglês: crie a chave em src/plugins/messages/ e chame useT(); a tradução vai para o pacote pt-BR.',
         },
         {
-          selector: 'JSXText[value=/[áàâãéêíóôõúüçÁÀÂÃÉÊÍÓÔÕÚÜÇ]/]',
-          message: 'Texto em português no JSX. O idioma-fonte é o inglês: crie a chave em src/plugins/messages/ e renderize {t(\'chave\')}.',
+          selector: 'JSXText[value=/[A-Za-zÀ-ÿ]{2}/]',
+          message: 'Texto solto no JSX. Todo texto de usuário vem do catálogo: renderize {t(\'chave\')} em vez de escrever a frase. Nome próprio (marca) precisa de eslint-disable-next-line com justificativa.',
+        },
+        {
+          selector: "JSXAttribute[name.name=/^(title|label|placeholder|message|subtitle|description|hint|summary|alt|aria-label|confirmLabel|cancelLabel|runLabel|emptyMessage|deleteConfirmTitle|deleteConfirmMessage)$/] > Literal[value=/[A-Za-zÀ-ÿ]{2}/]",
+          message: 'Texto de usuário como literal num atributo. Passe {t(\'chave\')}: o atributo é lido por quem usa o sistema, então ele traduz.',
         },
         {
           selector: 'TemplateElement[value.raw=/[áàâãéêíóôõúüçÁÀÂÃÉÊÍÓÔÕÚÜÇ]/]',

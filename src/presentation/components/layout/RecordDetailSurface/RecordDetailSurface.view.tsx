@@ -109,10 +109,10 @@ export const RecordDetailSurface: React.FC<RecordDetailSurfaceProps> = ({ vm, re
       )}
       <ConfirmModal
         isOpen={vm.recordToDelete !== null}
-        title="Excluir registro"
+        title={t('record.delete.title')}
         message={t('record.delete.message', { title: vm.recordToDelete?.title ?? '' })}
         variant="danger"
-        confirmLabel="Excluir"
+        confirmLabel={t('action.delete')}
         loading={vm.isDeleting}
         onConfirm={() => void vm.confirmDelete()}
         onCancel={vm.cancelDelete}

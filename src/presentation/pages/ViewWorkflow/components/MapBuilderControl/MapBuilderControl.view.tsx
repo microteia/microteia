@@ -21,7 +21,7 @@ export const MapBuilderControl: React.FC<MapBuilderControlProps> = (props) => {
         <Input
           value={config.name ?? ''}
           onChange={(e) => vm.setName(e.target.value)}
-          placeholder="ex: person"
+          placeholder={t('map.name.placeholder')}
         />
         <S.HelpText>
           {config.name?.trim()
@@ -42,14 +42,14 @@ export const MapBuilderControl: React.FC<MapBuilderControlProps> = (props) => {
       </S.Section>
 
       <S.Section>
-        <S.SectionTitle>Campos</S.SectionTitle>
-        {config.fields.length === 0 && <S.Empty>Nenhum campo — adicione ao menos um campo.</S.Empty>}
+        <S.SectionTitle>{t('map.fields')}</S.SectionTitle>
+        {config.fields.length === 0 && <S.Empty>{t('map.fields.empty')}</S.Empty>}
         {config.fields.map((field, index) => (
           <S.FieldRow key={index}>
             <Input
               value={field.name}
               onChange={(e) => vm.updateField(index, { ...field, name: e.target.value })}
-              placeholder="Nome do campo..."
+              placeholder={t('map.field.placeholder')}
             />
             <MappingValueControl
               mapping={field.value}
@@ -62,13 +62,13 @@ export const MapBuilderControl: React.FC<MapBuilderControlProps> = (props) => {
               priorStepOptions={props.priorStepOptions}
               getStepOutputs={props.getStepOutputs}
             />
-            <S.RemoveButton onClick={() => vm.removeField(index)} title="Remover campo">
+            <S.RemoveButton onClick={() => vm.removeField(index)} title={t('map.field.remove')}>
               <RiDeleteBinLine size={14} />
             </S.RemoveButton>
           </S.FieldRow>
         ))}
         <S.AddButton onClick={vm.addField}>
-          <RiAddLine size={14} /> Adicionar campo
+          <RiAddLine size={14} /> {t('map.field.add')}
         </S.AddButton>
       </S.Section>
     </S.Container>

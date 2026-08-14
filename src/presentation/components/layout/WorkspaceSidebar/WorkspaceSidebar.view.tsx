@@ -31,14 +31,16 @@ export const WorkspaceSidebar: React.FC = () => {
       <S.LogoArea $collapsed={vm.collapsed}>
         <S.LogoLeft>
           <S.LogoIcon $collapsed={vm.collapsed}>
-            <img src="/logo.png" alt="Microteia" />
+            {/* eslint-disable-next-line no-restricted-syntax -- "Microteia" é a MARCA: não traduz em idioma nenhum. */}
+          <img src="/logo.png" alt="Microteia" />
           </S.LogoIcon>
           {!vm.collapsed && (
             <S.LogoText>
               <S.AppNameRow>
-                <S.AppName>Microteia</S.AppName>
+                {/* eslint-disable-next-line no-restricted-syntax -- "Microteia" é a MARCA: não traduz em idioma nenhum. */}
+            <S.AppName>Microteia</S.AppName>
               </S.AppNameRow>
-              <S.AppTagline>Curador da Advocacia</S.AppTagline>
+              <S.AppTagline>{t('app.tagline')}</S.AppTagline>
             </S.LogoText>
           )}
         </S.LogoLeft>
@@ -59,14 +61,14 @@ export const WorkspaceSidebar: React.FC = () => {
         <RiSearchLine size={15} />
         {!vm.collapsed && (
           <>
-            <S.SearchLabel>Pesquisar…</S.SearchLabel>
+            <S.SearchLabel>{t('action.search')}</S.SearchLabel>
             <S.SearchKbd>{vm.searchShortcut}</S.SearchKbd>
           </>
         )}
       </S.SearchTrigger>
 
       <S.Nav>
-        {!vm.collapsed && <S.NavLabel>Menu</S.NavLabel>}
+        {!vm.collapsed && <S.NavLabel>{t('sidebar.menu')}</S.NavLabel>}
         {vm.navItems.map(({ key, label, icon, badge }) => {
           return (
             <S.NavItem
@@ -94,7 +96,7 @@ export const WorkspaceSidebar: React.FC = () => {
               <S.MenuGroup>
                 <S.MenuItem onClick={vm.handleProfileClick}>
                   <RiUserLine size={16} />
-                  Meu Perfil
+                  {t('core.workspace/page.profile')}
                 </S.MenuItem>
                 {vm.isAdmin && (
                   <S.MenuItem onClick={vm.handleAccessManagementClick}>
@@ -117,7 +119,7 @@ export const WorkspaceSidebar: React.FC = () => {
                 {vm.canAccessScreenBuilder && (
                   <S.MenuItem onClick={vm.handleScriptsClick}>
                     <RiCodeBoxLine size={16} />
-                    Scripts
+                    {t('core.automation/page.scripts')}
                   </S.MenuItem>
                 )}
                 {vm.canAccessScreenBuilder && (
@@ -176,7 +178,7 @@ export const WorkspaceSidebar: React.FC = () => {
               <S.MenuGroup>
                 <S.MenuItem $danger onClick={vm.handleSignOut}>
                   <RiLogoutBoxLine size={16} />
-                  Sair
+                  {t('command.system.signout')}
                 </S.MenuItem>
               </S.MenuGroup>
             </S.UserMenu>

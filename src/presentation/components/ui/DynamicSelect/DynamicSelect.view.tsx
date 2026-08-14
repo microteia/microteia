@@ -89,7 +89,7 @@ export const DynamicSelect: React.FC<DynamicSelectProps> = (props) => {
             )}
             <S.TriggerRight>
               {selectedOptions.length > 0 && !disabled && (
-                <S.ClearBtn onClick={handleClearAll} title="Limpar tudo">
+                <S.ClearBtn onClick={handleClearAll} title={t('action.clear-all')}>
                   <RiCloseLine size={14} />
                 </S.ClearBtn>
               )}
@@ -111,7 +111,7 @@ export const DynamicSelect: React.FC<DynamicSelectProps> = (props) => {
             </S.TriggerLabel>
             <S.TriggerRight>
               {selectedOption && !disabled && (
-                <S.ClearBtn onClick={handleClear} title="Limpar">
+                <S.ClearBtn onClick={handleClear} title={t('action.clear')}>
                   <RiCloseLine size={14} />
                 </S.ClearBtn>
               )}
@@ -200,7 +200,7 @@ export const DynamicSelect: React.FC<DynamicSelectProps> = (props) => {
               >
                 <RiAddLine size={14} />
                 <S.AddLabel>
-                  Adicionar <S.AddQueryText>"{query.trim()}" ?</S.AddQueryText>
+                  {t('action.add')} <S.AddQueryText>"{query.trim()}" ?</S.AddQueryText>
                 </S.AddLabel>
               </S.AddRow>
             )}
@@ -213,7 +213,7 @@ export const DynamicSelect: React.FC<DynamicSelectProps> = (props) => {
         isOpen={pendingDelete !== null}
         title={deleteConfirmTitle}
         message={deleteConfirmMessage}
-        confirmLabel="Excluir"
+        confirmLabel={t('action.delete')}
         variant="danger"
         loading={deleteLoading}
         onConfirm={handleConfirmDelete}

@@ -303,7 +303,7 @@ export const MultiSearchSelect: React.FC<MultiSearchSelectProps> = ({
         )}
         <TriggerRight>
           {(selectedOptions.length > 0 || orphanValues.length > 0) && !disabled && (
-            <ClearBtn type="button" onClick={handleClearAll} title="Limpar tudo">
+            <ClearBtn type="button" onClick={handleClearAll} title={t('action.clear-all')}>
               <RiCloseLine size={14} />
             </ClearBtn>
           )}
@@ -329,7 +329,7 @@ export const MultiSearchSelect: React.FC<MultiSearchSelectProps> = ({
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="Buscar..."
+              placeholder={t('action.search')}
             />
           </SearchRow>
           <OptionList>

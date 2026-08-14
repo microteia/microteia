@@ -3,6 +3,8 @@ import styled from 'styled-components';
 import { Button } from './Button';
 import { RiCloseLine, RiFullscreenLine, RiFullscreenExitLine } from 'react-icons/ri';
 
+import { useT } from '../../shared/i18n/useT';
+
 const Overlay = styled.div`
   position: fixed;
   inset: 0;
@@ -98,6 +100,7 @@ export const Modal: React.FC<ModalProps> = ({
   maximized = false,
   onToggleMaximize,
 }) => {
+  const t = useT('core.ui');
   useEffect(() => {
     const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
     window.addEventListener('keydown', handler);
@@ -115,7 +118,7 @@ export const Modal: React.FC<ModalProps> = ({
                 {maximized ? <RiFullscreenExitLine size={20} /> : <RiFullscreenLine size={20} />}
               </CloseButton>
             )}
-            <CloseButton variant="ghost" onClick={onClose} title="Fechar">
+            <CloseButton variant="ghost" onClick={onClose} title={t('action.close')}>
               <RiCloseLine size={20} />
             </CloseButton>
           </HeaderActions>

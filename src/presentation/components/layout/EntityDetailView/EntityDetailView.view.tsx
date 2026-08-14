@@ -127,12 +127,12 @@ export const EntityDetailView: React.FC<EntityDetailViewProps> = ({
 
       <S.HeaderActions>
         {!isNew && showCopyLink && (
-          <Button variant="ghost" size="sm" onClick={onCopyLink} title="Copiar link">
+          <Button variant="ghost" size="sm" onClick={onCopyLink} title={t('core.records/action.copy-link')}>
             {copyLinkDone ? <RiCheckLine size={14} /> : <RiLinkM size={14} />}
           </Button>
         )}
         {!isNew && showClone && (
-          <Button variant="ghost" size="sm" onClick={onClone} title="Clonar">
+          <Button variant="ghost" size="sm" onClick={onClone} title={t('core.records/action.clone')}>
             <RiFileCopyLine size={14} />
           </Button>
         )}
@@ -158,7 +158,7 @@ export const EntityDetailView: React.FC<EntityDetailViewProps> = ({
           )
         ))}
         {!isNew && showTagsAction && (
-          <Button variant="ghost" size="sm" onClick={onManageTags} title="Gerenciar etiquetas">
+          <Button variant="ghost" size="sm" onClick={onManageTags} title={t('core.records/action.manage-tags')}>
             <RiPriceTag3Line size={14} />
           </Button>
         )}
@@ -168,7 +168,7 @@ export const EntityDetailView: React.FC<EntityDetailViewProps> = ({
           </S.SaveBtn>
         )}
         {showDelete && (
-          <S.DeleteBtn onClick={onDelete} title="Excluir">
+          <S.DeleteBtn onClick={onDelete} title={t('action.delete')}>
             <RiDeleteBinLine size={14} />
           </S.DeleteBtn>
         )}
@@ -211,7 +211,7 @@ export const EntityDetailView: React.FC<EntityDetailViewProps> = ({
         title={screenActions.pendingAction?.title ?? ''}
         message={screenActions.pendingAction?.confirmMessage ?? ''}
         variant={screenActions.pendingAction?.danger ? 'danger' : 'default'}
-        confirmLabel="Executar"
+        confirmLabel={t('action.run')}
         loading={screenActions.runningActionId !== null}
         onConfirm={screenActions.confirmPendingAction}
         onCancel={screenActions.cancelPendingAction}

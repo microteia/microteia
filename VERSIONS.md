@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [7.13.0] — 2026-08-14
+
+- Corrigidos mais de duzentos textos que continuavam fixos em português nas telas de Automações, Form Design, criação de extensões e nos componentes da interface — botões, rótulos e mensagens que não acompanhavam o idioma escolhido.
+
 ## [7.12.0] — 2026-08-14
 
 - A tela de criação de extensões — incluindo o editor de telas de código e os modelos de exemplo — passou a acompanhar o idioma escolhido.

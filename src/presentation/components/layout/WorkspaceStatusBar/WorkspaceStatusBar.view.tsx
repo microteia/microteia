@@ -3,7 +3,10 @@ import { RiBuilding2Line, RiKeyboardLine, RiShieldCheckLine, RiVipCrownLine } fr
 import { useWorkspaceStatusBarViewModel } from './WorkspaceStatusBar.viewmodel';
 import { S } from './WorkspaceStatusBar.styles';
 
+import { useT } from '../../../shared/i18n/useT';
+
 export const WorkspaceStatusBar: React.FC = () => {
+  const t = useT('core.ui');
   const vm = useWorkspaceStatusBarViewModel();
 
   return (
@@ -29,11 +32,11 @@ export const WorkspaceStatusBar: React.FC = () => {
       <S.Side>
         <S.Item>
           <RiKeyboardLine />
-          ⌘K Paleta de comandos
+          {t('status.command-palette')}
         </S.Item>
         <S.Link href="/license" target="_blank" rel="noopener noreferrer">
           <RiShieldCheckLine />
-          Termos e Privacidade
+          {t('status.terms')}
         </S.Link>
         <S.Item>v{vm.version}</S.Item>
       </S.Side>

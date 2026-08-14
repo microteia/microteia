@@ -147,7 +147,7 @@ export const CompositeFilter: React.FC<CompositeFilterProps> = ({
               {tokens.length > 0 && (
                 <S.DropdownFooter>
                   <S.FooterCount>
-                    {tokens.length} filtro{tokens.length !== 1 ? 's' : ''} ativo{tokens.length !== 1 ? 's' : ''}
+                    {t('filter.active', { count: tokens.length })}
                   </S.FooterCount>
                 </S.DropdownFooter>
               )}
@@ -158,13 +158,13 @@ export const CompositeFilter: React.FC<CompositeFilterProps> = ({
             vm.activeDef.type === 'text' ? (
               <S.TextHint>
                 <RiCornerDownLeftLine size={14} />
-                Pressione Enter para aplicar
+                {t('filter.enter-to-apply')}
               </S.TextHint>
             ) : vm.activeDef.type === 'date' ? (
               <>
                 <S.TextHint>
                   <RiCornerDownLeftLine size={14} />
-                  Selecione a data no campo acima
+                  {t('filter.pick-date')}
                 </S.TextHint>
                 <S.DropdownFooter>
                   <S.FooterCount>
@@ -176,7 +176,7 @@ export const CompositeFilter: React.FC<CompositeFilterProps> = ({
                       onClick={(e) => { e.stopPropagation(); vm.onConfirmMulti(); }}
                       $variant="primary"
                     >
-                      Aplicar
+                      {t('action.apply')}
                     </S.FooterBtn>
                   </S.FooterActions>
                 </S.DropdownFooter>
@@ -219,7 +219,7 @@ export const CompositeFilter: React.FC<CompositeFilterProps> = ({
                       onClick={(e) => { e.stopPropagation(); vm.onConfirmMulti(); }}
                       $variant="primary"
                     >
-                      Aplicar
+                      {t('action.apply')}
                     </S.FooterBtn>
                   </S.FooterActions>
                 </S.DropdownFooter>

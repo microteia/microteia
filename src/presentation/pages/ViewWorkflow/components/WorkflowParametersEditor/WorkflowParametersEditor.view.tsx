@@ -157,7 +157,7 @@ export const WorkflowParametersEditor: React.FC<WorkflowParametersEditorProps> =
                 />
                 {parameter.type === 'Object' && (
                   <S.NestedBox>
-                    <S.NestedLabel>Campos do objeto</S.NestedLabel>
+                    <S.NestedLabel>{t('parameter.object-fields')}</S.NestedLabel>
                     <WorkflowParametersEditor
                       parameters={parameter.fields ?? []}
                       errors={siblingParameterErrors(parameter.fields ?? [])}
@@ -219,7 +219,7 @@ const ParameterFields: React.FC<{
         <Input
           value={parameter.label}
           onChange={(e) => onUpdate(index, { label: e.target.value })}
-          placeholder="ex: Order ID"
+          placeholder={t('parameter.label.placeholder')}
         />
       </S.Cell>
       <S.Cell>
@@ -227,12 +227,12 @@ const ParameterFields: React.FC<{
         <Input
           value={parameter.key}
           onChange={(e) => onUpdate(index, { key: e.target.value })}
-          placeholder="ex: orderId"
+          placeholder={t('parameter.key.placeholder')}
         />
         {error && <S.Error>{error}</S.Error>}
       </S.Cell>
       <S.Cell>
-        <Label>Tipo</Label>
+        <Label>{t('parameter.type')}</Label>
         <SearchSelect
           options={typeOptions}
           value={parameter.type}
@@ -246,7 +246,7 @@ const ParameterFields: React.FC<{
               fields: type === 'Object' ? [] : undefined,
             })
           }
-          placeholder="Tipo..."
+          placeholder={t('parameter.type.placeholder')}
         />
       </S.Cell>
     </S.Line>
@@ -267,7 +267,7 @@ const ParameterFields: React.FC<{
                   nextOptions[optionIndex] = { value: e.target.value, label: e.target.value };
                   onUpdate(index, { options: nextOptions });
                 }}
-                placeholder="ex: Alta"
+                placeholder={t('parameter.option.placeholder')}
               />
               <S.RemoveBtn
                 type="button"
@@ -293,7 +293,7 @@ const ParameterFields: React.FC<{
     <S.SubLine>
       {isInput && (
         <S.Cell>
-          <Label>Preenchimento</Label>
+          <Label>{t('parameter.filling')}</Label>
           <SearchSelect
             options={requiredOptions(t)}
             value={parameter.required ? 'required' : 'optional'}
@@ -304,7 +304,7 @@ const ParameterFields: React.FC<{
       )}
 
       <S.Cell>
-        <Label>Quantidade</Label>
+        <Label>{t('parameter.cardinality')}</Label>
         <SearchSelect
           options={listOptions(t)}
           value={parameter.list ? 'list' : 'single'}
@@ -315,12 +315,12 @@ const ParameterFields: React.FC<{
 
       {parameter.type === 'EntityReference' && (
         <S.Cell>
-          <Label>Entidade referenciada</Label>
+          <Label>{t('parameter.entity')}</Label>
           <SearchSelect
             options={entityOptions}
             value={parameter.entityType ?? ''}
             onChange={(entityType) => onUpdate(index, { entityType })}
-            placeholder="Selecione a entidade..."
+            placeholder={t('parameter.entity.placeholder')}
           />
         </S.Cell>
       )}
@@ -332,7 +332,7 @@ const ParameterFields: React.FC<{
             options={lookupOptions}
             value={parameter.lookupCollection ?? ''}
             onChange={(lookupCollection) => onUpdate(index, { lookupCollection })}
-            placeholder="Selecione a lista..."
+            placeholder={t('parameter.lookup.placeholder')}
           />
         </S.Cell>
       )}
@@ -408,19 +408,19 @@ const ParameterRulesFields: React.FC<{
 
       <S.SubLine>
         <S.Cell>
-          <Label>Formatar (procurar)</Label>
+          <Label>{t('parameter.format.search')}</Label>
           <Input
             value={rules?.format?.pattern ?? ''}
             onChange={(e) => patchRules({ format: { pattern: e.target.value } })}
-            placeholder="ex: ^(\d{3})(\d{3})(\d{3})(\d{2})$"
+            placeholder={t('parameter.format.search.placeholder')}
           />
         </S.Cell>
         <S.Cell>
-          <Label>Formatar (substituir por)</Label>
+          <Label>{t('parameter.format.replace')}</Label>
           <Input
             value={rules?.format?.replacement ?? ''}
             onChange={(e) => patchRules({ format: { replacement: e.target.value } })}
-            placeholder="ex: $1.$2.$3-$4"
+            placeholder={t('parameter.format.replace.placeholder')}
           />
         </S.Cell>
       </S.SubLine>
@@ -431,11 +431,11 @@ const ParameterRulesFields: React.FC<{
           <Input
             value={rules?.validate?.pattern ?? ''}
             onChange={(e) => patchRules({ validate: { pattern: e.target.value } })}
-            placeholder="ex: ^[A-Z]{2}\d{6}$"
+            placeholder={t('parameter.validate.placeholder')}
           />
         </S.Cell>
         <S.Cell>
-          <Label>Mensagem de erro</Label>
+          <Label>{t('parameter.error-message')}</Label>
           <Input
             value={rules?.validate?.message ?? ''}
             onChange={(e) => patchRules({ validate: { message: e.target.value } })}

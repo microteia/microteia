@@ -22,18 +22,18 @@ export const RemoveBuilderControl: React.FC<RemoveBuilderControlProps> = (props)
   return (
     <S.Container>
       <S.Section>
-        <S.SectionTitle>Tabela</S.SectionTitle>
+        <S.SectionTitle>{t('query.table')}</S.SectionTitle>
         <SearchSelect
           options={vm.tableOptions}
           value={config.table}
           onChange={vm.setTable}
-          placeholder="Selecione a tabela..."
+          placeholder={t('query.table.placeholder')}
         />
       </S.Section>
 
       {config.table && (
         <S.Section>
-          <S.SectionTitle>Id do registro a excluir</S.SectionTitle>
+          <S.SectionTitle>{t('remove.record-id')}</S.SectionTitle>
           <S.ValueEditor>
             <SearchSelect
               options={valueKindOptions(t)}
@@ -46,7 +46,7 @@ export const RemoveBuilderControl: React.FC<RemoveBuilderControlProps> = (props)
               <ExpressionEditor
                 value={config.id?.kind === 'Expression' ? config.id.expression : ''}
                 onChange={(expression) => vm.setId({ kind: 'Expression', expression })}
-                placeholder="ex: query('...').first.id"
+                placeholder={t('remove.expression.placeholder')}
                 eventFields={props.eventFields}
                 pathRoot={props.pathRoot}
                 inputRoot={props.inputRoot}
@@ -57,7 +57,7 @@ export const RemoveBuilderControl: React.FC<RemoveBuilderControlProps> = (props)
               <Input
                 value={config.id?.kind === 'Literal' ? String(config.id.value ?? '') : ''}
                 onChange={(e) => vm.setId({ kind: 'Literal', value: e.target.value })}
-                placeholder="Id do registro"
+                placeholder={t('remove.record-id.placeholder')}
               />
             )}
           </S.ValueEditor>

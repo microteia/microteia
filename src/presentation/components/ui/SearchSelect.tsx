@@ -272,7 +272,7 @@ export const SearchSelect: React.FC<SearchSelectProps> = ({
           {selected ? selected.label : isOrphan ? t('reference.not-found', { id: value }) : placeholder}
         </TriggerLabel>
         {(selected || isOrphan) && !disabled && (
-          <ClearBtn onClick={handleClear} title="Limpar">
+          <ClearBtn onClick={handleClear} title={t('action.clear')}>
             <RiCloseLine size={14} />
           </ClearBtn>
         )}
@@ -287,12 +287,12 @@ export const SearchSelect: React.FC<SearchSelectProps> = ({
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="Buscar..."
+              placeholder={t('action.search')}
             />
           </SearchRow>
           <OptionList>
             {filtered.length === 0 ? (
-              <EmptyMsg>Nenhum resultado encontrado</EmptyMsg>
+              <EmptyMsg>{t('search.no-results')}</EmptyMsg>
             ) : (
               filtered.map((opt, idx) => (
                 <OptionItem

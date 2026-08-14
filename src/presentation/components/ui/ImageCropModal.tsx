@@ -99,15 +99,15 @@ export const ImageCropModal: React.FC<ImageCropModalProps> = ({ imageSrc, onCrop
     <Overlay onClick={(e) => e.target === e.currentTarget && onClose()}>
       <Container>
         <Header>
-          <Title>Confirmar foto de perfil</Title>
+          <Title>{t('image.confirm-title')}</Title>
           <CloseBtn onClick={onClose}><RiCloseLine size={20} /></CloseBtn>
         </Header>
         <PreviewImg src={imageSrc} alt={t('image.preview')} />
         <Actions>
-          <Btn onClick={onClose}>Cancelar</Btn>
+          <Btn onClick={onClose}>{t('action.cancel')}</Btn>
           <Btn $primary onClick={handleConfirm}>
             <RiCheckLine size={16} />
-            Usar esta foto
+            {t('image.use')}
           </Btn>
         </Actions>
       </Container>

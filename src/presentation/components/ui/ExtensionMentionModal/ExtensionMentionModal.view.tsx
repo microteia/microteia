@@ -6,6 +6,8 @@ import { useRecords } from '../../../../stores/useRecords';
 import { useScreenDefinitions } from '../../../../stores/useScreenDefinitions';
 import type { ExtensionMentionProvider, MentionResult } from '../../../shared/extensions/extensionServices';
 
+import { useT } from '../../../shared/i18n/useT';
+
 export interface ExtensionMentionModalProps {
   provider: ExtensionMentionProvider;
   onSelect: (result: MentionResult) => void;
@@ -18,6 +20,7 @@ export interface ExtensionMentionModalProps {
  * usar os stores com segurança — só monta dentro do contexto do escritório, ao acionar o `@`.
  */
 export const ExtensionMentionModal: React.FC<ExtensionMentionModalProps> = ({ provider, onSelect, onClose }) => {
+  const t = useT('core.ui');
   const { allRecords } = useRecords();
   const { definitions } = useScreenDefinitions();
   const [query, setQuery] = useState('');
@@ -34,13 +37,13 @@ export const ExtensionMentionModal: React.FC<ExtensionMentionModalProps> = ({ pr
           type="text"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Buscar..."
+          placeholder={t('action.search')}
           autoFocus
         />
       </S.Search>
       <S.List>
         {results.length === 0 ? (
-          <S.Empty>Nada encontrado.</S.Empty>
+          <S.Empty>{t('search.nothing-found')}</S.Empty>
         ) : (
           results.map((result) => (
             <S.Item key={result.id} type="button" onClick={() => onSelect(result)}>

@@ -74,4 +74,9 @@ export const CORE_MARKETPLACE_MESSAGES: Record<string, string> = {
   'author.issue.startup-compile': 'The startup code does not compile: {error}.',
   'author.issue.external-ref':
     '{from} references {kind} "{name}", which belongs to another extension. It will be required at install time.',
+
+  'author.field.id': 'Identifier',
+  'author.field.id.placeholder': 'com.yourfirm.sales',
+  'author.field.name.placeholder': 'Sales',
+  'author.view.key.placeholder': 'my-screen',
 };

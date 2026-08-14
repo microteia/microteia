@@ -39,7 +39,7 @@ export const RunModal: React.FC<RunModalProps> = (props) => {
             <RiPlayLine size={18} />
             {props.title}
           </S.Title>
-          <S.CloseBtn type="button" onClick={vm.handleClose} title="Fechar">
+          <S.CloseBtn type="button" onClick={vm.handleClose} title={t('action.close')}>
             <RiCloseLine size={18} />
           </S.CloseBtn>
         </S.Header>
@@ -54,7 +54,7 @@ export const RunModal: React.FC<RunModalProps> = (props) => {
                       {t('run.mode.form')}
                     </S.ModeTab>
                     <S.ModeTab $active={vm.mode === 'json'} type="button" onClick={() => vm.setMode('json')}>
-                      JSON
+                      {t('run.mode.json')}
                     </S.ModeTab>
                   </S.ModeTabs>
 
@@ -109,7 +109,7 @@ export const RunModal: React.FC<RunModalProps> = (props) => {
               </div>
 
               <div>
-                <S.SectionLabel>Logs</S.SectionLabel>
+                <S.SectionLabel>{t('run.logs')}</S.SectionLabel>
                 {vm.result && vm.result.logs.length > 0 ? (
                   <S.LogList>
                     {vm.result.logs.map((entry, index) => {
@@ -134,7 +134,7 @@ export const RunModal: React.FC<RunModalProps> = (props) => {
           {vm.phase === 'input' ? (
             <>
               <Button variant="secondary" onClick={vm.handleClose} disabled={vm.running}>
-                Cancelar
+                {t('action.cancel')}
               </Button>
               <Button variant="primary" onClick={() => void vm.handleRun()} disabled={!vm.canRun} $isLoading={vm.running}>
                 {vm.runLabel}
@@ -143,10 +143,10 @@ export const RunModal: React.FC<RunModalProps> = (props) => {
           ) : (
             <>
               <Button variant="secondary" onClick={vm.handleClose}>
-                Fechar
+                {t('action.close')}
               </Button>
               <Button variant="primary" onClick={vm.handleReset}>
-                Executar novamente
+                {t('run.again')}
               </Button>
             </>
           )}

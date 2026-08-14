@@ -52,9 +52,9 @@ export const PluginAuthorView: React.FC<{ tabKey?: string }> = ({ tabKey }) => {
           <S.Card>
             <S.FormGrid>
               <S.Field>
-                Identificador
+                {t('author.field.id')}
                 <S.Input
-                  placeholder="com.seuescritorio.vendas"
+                  placeholder={t('author.field.id.placeholder')}
                   value={vm.form.id}
                   readOnly={vm.editing}
                   onChange={(e) => vm.updateForm({ id: e.target.value })}
@@ -63,7 +63,7 @@ export const PluginAuthorView: React.FC<{ tabKey?: string }> = ({ tabKey }) => {
               </S.Field>
               <S.Field>
                 {t('author.field.name')}
-                <S.Input placeholder="Vendas" value={vm.form.name} onChange={(e) => vm.updateForm({ name: e.target.value })} />
+                <S.Input placeholder={t('author.field.name.placeholder')} value={vm.form.name} onChange={(e) => vm.updateForm({ name: e.target.value })} />
               </S.Field>
               <S.Field>
                 {t('author.field.version')}

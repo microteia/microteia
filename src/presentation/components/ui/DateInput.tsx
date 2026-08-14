@@ -2,6 +2,8 @@ import React from 'react';
 import styled from 'styled-components';
 import { RiCloseLine } from 'react-icons/ri';
 
+import { useT } from '../../shared/i18n/useT';
+
 const Wrapper = styled.div`
   position: relative;
   width: 100%;
@@ -62,6 +64,7 @@ export interface DateInputProps {
 }
 
 export const DateInput: React.FC<DateInputProps> = ({ value, onChange, disabled, id }) => {
+  const t = useT('core.ui');
   return (
     <Wrapper>
       <StyledInput
@@ -73,7 +76,7 @@ export const DateInput: React.FC<DateInputProps> = ({ value, onChange, disabled,
         $hasValue={!!value}
       />
       {value && !disabled && (
-        <ClearButton type="button" onClick={() => onChange('')} title="Limpar data">
+        <ClearButton type="button" onClick={() => onChange('')} title={t('date.clear')}>
           <RiCloseLine size={14} />
         </ClearButton>
       )}

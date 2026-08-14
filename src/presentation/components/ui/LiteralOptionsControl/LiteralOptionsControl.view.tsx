@@ -5,11 +5,14 @@ import { DynamicSelect } from '../DynamicSelect';
 import { useLiteralOptionsViewModel } from './LiteralOptionsControl.viewmodel';
 import type { LiteralOptionsControlProps } from './LiteralOptionsControl.viewmodel';
 
+import { useT } from '../../../shared/i18n/useT';
+
 export const LiteralOptionsControl: React.FC<LiteralOptionsControlProps> = ({ input, value, onChange }) => {
+  const t = useT('core.ui');
   const vm = useLiteralOptionsViewModel(input);
 
   if (vm.mode === 'static') {
-    return <SearchSelect options={vm.options} value={value} onChange={onChange} placeholder="Selecione..." />;
+    return <SearchSelect options={vm.options} value={value} onChange={onChange} placeholder={t('select.placeholder')} />;
   }
 
   if (vm.mode === 'dynamic') {
@@ -21,7 +24,7 @@ export const LiteralOptionsControl: React.FC<LiteralOptionsControlProps> = ({ in
         onChange={onChange}
         onAdd={vm.onAdd}
         onDelete={vm.onDelete}
-        placeholder="Selecione..."
+        placeholder={t('select.placeholder')}
       />
     );
   }

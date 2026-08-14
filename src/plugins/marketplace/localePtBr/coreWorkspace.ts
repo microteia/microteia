@@ -53,4 +53,5 @@ export const CORE_WORKSPACE: Record<string, string> = {
 
   'command.group.navigation': 'Navegação',
   'command.group.system': 'Sistema',
+  'login.field.email.placeholder': 'seu@email.com',
 };

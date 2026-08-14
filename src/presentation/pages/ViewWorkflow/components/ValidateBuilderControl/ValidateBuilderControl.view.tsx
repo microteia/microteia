@@ -16,23 +16,23 @@ export const ValidateBuilderControl: React.FC<ValidateBuilderControlProps> = (pr
   return (
     <S.Container>
       <S.Section>
-        <S.SectionTitle>Origem dos dados</S.SectionTitle>
+        <S.SectionTitle>{t('upsert.source')}</S.SectionTitle>
         <SearchSelect
           options={vm.sourceOptions}
           value={config.source}
           onChange={vm.setSource}
-          placeholder="Selecione a origem..."
+          placeholder={t('upsert.source.placeholder')}
         />
       </S.Section>
 
       <S.Section>
-        <S.SectionTitle>Propriedade (opcional)</S.SectionTitle>
+        <S.SectionTitle>{t('upsert.property')}</S.SectionTitle>
         <Input
           value={config.property ?? ''}
           onChange={(e) => vm.setProperty(e.target.value)}
-          placeholder="ex: person"
+          placeholder={t('map.name.placeholder')}
         />
-        <S.Hint>Deixe em branco para validar o objeto inteiro da origem.</S.Hint>
+        <S.Hint>{t('validate.property.hint')}</S.Hint>
       </S.Section>
 
       <S.Section>
@@ -53,7 +53,7 @@ export const ValidateBuilderControl: React.FC<ValidateBuilderControlProps> = (pr
         <Input
           value={config.outputName}
           onChange={(e) => vm.setOutputName(e.target.value)}
-          placeholder="ex: person"
+          placeholder={t('map.name.placeholder')}
         />
       </S.Section>
 

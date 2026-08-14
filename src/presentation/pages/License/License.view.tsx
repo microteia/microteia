@@ -25,6 +25,7 @@ export const LicenseView: React.FC = () => {
         )}
 
         <S.Logo>
+          {/* eslint-disable-next-line no-restricted-syntax -- "Microteia" é a MARCA: não traduz em idioma nenhum. */}
           <img src="/logo.png" alt="Microteia" style={{ width: '64px', height: '64px' }} />
         </S.Logo>
 

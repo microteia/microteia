@@ -36,7 +36,7 @@ export const CodeViewEditorModal: React.FC<CodeViewEditorModalProps> = ({ isOpen
         </S.Field>
         <S.Field>
           {t('author.view.key')}
-          <S.Input value={view.key} onChange={(e) => onChange({ key: e.target.value })} placeholder="minha-tela" />
+          <S.Input value={view.key} onChange={(e) => onChange({ key: e.target.value })} placeholder={t('author.view.key.placeholder')} />
         </S.Field>
         <S.Field>
           {t('screen.icon')}

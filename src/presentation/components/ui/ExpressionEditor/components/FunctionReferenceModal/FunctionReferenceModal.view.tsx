@@ -36,7 +36,7 @@ export const FunctionReferenceModal: React.FC<FunctionReferenceModalProps> = ({ 
               </S.FunctionHeader>
               <S.Signature>{fn.signature}</S.Signature>
               <S.Description>{fn.description}</S.Description>
-              <S.ExampleLabel>Exemplo</S.ExampleLabel>
+              <S.ExampleLabel>{t('expression.reference.example')}</S.ExampleLabel>
               <S.Example>{fn.example}</S.Example>
             </S.FunctionCard>
           ))}

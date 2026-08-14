@@ -22,12 +22,13 @@ export const CommandPalette: React.FC = () => {
             onChange={(e) => vm.handleQueryChange(e.target.value)}
             placeholder={t('command.search.placeholder')}
           />
-          <S.KbdHint>Esc</S.KbdHint>
+          {/* eslint-disable-next-line no-restricted-syntax -- legenda da TECLA física; não muda com o idioma. */}
+            <S.KbdHint>Esc</S.KbdHint>
         </S.InputRow>
 
         <S.Results>
           {vm.groups.length === 0 ? (
-            <S.Empty>Nenhum resultado encontrado.</S.Empty>
+            <S.Empty>{t('search.no-results')}</S.Empty>
           ) : (
             vm.groups.map((group) => (
               <div key={group.name}>
@@ -53,11 +54,12 @@ export const CommandPalette: React.FC = () => {
 
         <S.Footer>
           <S.FooterKey>↑↓</S.FooterKey>
-          <span>navegar</span>
+          <span>{t('command.hint.navigate')}</span>
           <S.FooterKey>↵</S.FooterKey>
-          <span>abrir</span>
-          <S.FooterKey>Esc</S.FooterKey>
-          <span>fechar</span>
+          <span>{t('command.hint.open')}</span>
+          {/* eslint-disable-next-line no-restricted-syntax -- legenda da TECLA física; não muda com o idioma. */}
+              <S.FooterKey>Esc</S.FooterKey>
+          <span>{t('command.hint.close')}</span>
         </S.Footer>
       </S.Dialog>
     </S.Overlay>

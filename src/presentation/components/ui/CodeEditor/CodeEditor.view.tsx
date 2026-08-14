@@ -5,7 +5,10 @@ import { S } from './CodeEditor.styles';
 import { useCodeEditorViewModel, type CodeEditorProps } from './CodeEditor.viewmodel';
 import '../../../../infrastructure/monaco/setupMonaco';
 
+import { useT } from '../../../shared/i18n/useT';
+
 export const CodeEditor: React.FC<CodeEditorProps> = (props) => {
+  const t = useT('core.ui');
   const vm = useCodeEditorViewModel(props);
 
   return (
@@ -18,11 +21,11 @@ export const CodeEditor: React.FC<CodeEditorProps> = (props) => {
             onChange={vm.toggleAutoFormat}
           />
           <S.Switch $on={vm.autoFormat} />
-          Formatar ao digitar
+          {t('code-editor.auto-format')}
         </S.Toggle>
         <S.FormatBtn type="button" onClick={vm.handleFormat}>
           <RiMagicLine size={14} />
-          Formatar
+          {t('code-editor.format')}
         </S.FormatBtn>
       </S.Toolbar>
       <S.EditorArea $minHeight={vm.minHeight}>
@@ -34,7 +37,7 @@ export const CodeEditor: React.FC<CodeEditorProps> = (props) => {
           onChange={vm.handleChange}
           onMount={vm.handleMount}
           options={vm.editorOptions}
-          loading={<S.Loading>Carregando editor…</S.Loading>}
+          loading={<S.Loading>{t('code-editor.loading')}</S.Loading>}
         />
       </S.EditorArea>
     </S.Wrapper>

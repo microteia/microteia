@@ -28,7 +28,7 @@ export const WorkspaceShell: React.FC = () => {
           <TopBar />
           {initError ? (
             <S.ErrorBanner>
-              <S.ErrorTitle>Falha ao conectar ao banco de dados</S.ErrorTitle>
+              <S.ErrorTitle>{t('error.db-connect')}</S.ErrorTitle>
               <S.ErrorDetail>
                 {initError.includes('permission') || initError.includes('insufficient')
                   ? t('error.firestore-rules')

@@ -8,6 +8,8 @@ import { TabBar } from '../TabBar';
 import { useSplitResizerViewModel } from './WorkspacePanelNode.viewmodel';
 import { S } from './WorkspacePanelNode.styles';
 
+import { useT } from '../../../shared/i18n/useT';
+
 interface WorkspacePanelNodeProps {
   node: PanelNode;
 }
@@ -18,6 +20,7 @@ export const WorkspacePanelNode: React.FC<WorkspacePanelNodeProps> = ({ node }) 
 };
 
 const PanelLeaf: React.FC<{ panelId: string }> = ({ panelId }) => {
+  const t = useT('core.ui');
   const { panels, activePanelId, setActivePanelId } = useWorkspace();
   const resolvePage = useResolvePage();
   const panel = panels[panelId];
@@ -34,7 +37,7 @@ const PanelLeaf: React.FC<{ panelId: string }> = ({ panelId }) => {
         {tabKeys.length === 0 ? (
           <S.EmptyPanel>
             <S.EmptyIcon><RiLayoutGridLine /></S.EmptyIcon>
-            Clique em um item do menu para abrir
+            {t('workspace.empty')}
           </S.EmptyPanel>
         ) : (
           tabKeys.map((tabKey) => {

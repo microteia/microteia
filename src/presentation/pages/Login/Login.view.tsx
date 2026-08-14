@@ -18,6 +18,7 @@ export const LoginView: React.FC = () => {
       <S.Page>
         <S.Card>
           <S.Logo>
+            {/* eslint-disable-next-line no-restricted-syntax -- "Microteia" é a MARCA: não traduz em idioma nenhum. */}
             <img src="/logo.png" alt="Microteia" style={{ width: '80px', height: '80px' }} />
           </S.Logo>
           <S.VerifyEmailIcon>
@@ -52,6 +53,7 @@ export const LoginView: React.FC = () => {
             <RiArrowLeftLine /> {t('action.back')}
           </S.BackLink>
           <S.Logo>
+            {/* eslint-disable-next-line no-restricted-syntax -- "Microteia" é a MARCA: não traduz em idioma nenhum. */}
             <img src="/logo.png" alt="Microteia" style={{ width: '80px', height: '80px' }} />
           </S.Logo>
           <S.Title>{t('login.reset.title')}</S.Title>
@@ -62,7 +64,7 @@ export const LoginView: React.FC = () => {
               <Input
                 id="reset-email"
                 type="email"
-                placeholder="seu@email.com"
+                placeholder={t('login.field.email.placeholder')}
                 value={vm.emailField}
                 onChange={(e) => vm.handleEmailChange(e.target.value)}
                 disabled={vm.loading}
@@ -85,9 +87,10 @@ export const LoginView: React.FC = () => {
       <S.Page>
         <S.Card>
           <S.BackLink onClick={vm.goToLogin}>
-            <RiArrowLeftLine /> Voltar
+            <RiArrowLeftLine /> {t('action.back')}
           </S.BackLink>
           <S.Logo>
+            {/* eslint-disable-next-line no-restricted-syntax -- "Microteia" é a MARCA: não traduz em idioma nenhum. */}
             <img src="/logo.png" alt="Microteia" style={{ width: '80px', height: '80px' }} />
           </S.Logo>
           <S.Title>{t('login.signup.title')}</S.Title>
@@ -108,7 +111,7 @@ export const LoginView: React.FC = () => {
               <Input
                 id="signup-email"
                 type="email"
-                placeholder="seu@email.com"
+                placeholder={t('login.field.email.placeholder')}
                 value={vm.emailField}
                 onChange={(e) => vm.handleEmailChange(e.target.value)}
                 disabled={vm.loading}
@@ -169,8 +172,10 @@ export const LoginView: React.FC = () => {
     <S.Page>
       <S.Card>
         <S.Logo>
-          <img src="/logo.png" alt="Microteia" style={{ width: '80px', height: '80px' }} />
+          {/* eslint-disable-next-line no-restricted-syntax -- "Microteia" é a MARCA: não traduz em idioma nenhum. */}
+            <img src="/logo.png" alt="Microteia" style={{ width: '80px', height: '80px' }} />
         </S.Logo>
+        {/* eslint-disable-next-line no-restricted-syntax -- "Microteia" é a MARCA: não traduz em idioma nenhum. */}
         <S.Title>Microteia</S.Title>
         <S.Subtitle>{t('login.tagline')}</S.Subtitle>
         <S.Form>
@@ -179,7 +184,7 @@ export const LoginView: React.FC = () => {
             <Input
               id="login-email"
               type="email"
-              placeholder="seu@email.com"
+              placeholder={t('login.field.email.placeholder')}
               value={vm.emailField}
               onChange={(e) => vm.handleEmailChange(e.target.value)}
               disabled={vm.loading}

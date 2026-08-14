@@ -139,7 +139,7 @@ const FlowLevel: React.FC<LevelProps> = ({ vm, steps, parentKey, target }) => {
           onDragOver={(e) => vm.handleStepDragOverNode(e, parentKey, index)}
           onDrop={vm.handleStepDrop}
         >
-          <S.DragHandle title="Arraste para reordenar">
+          <S.DragHandle title={t('core.records/field.drag')}>
             <RiDraggable size={16} />
           </S.DragHandle>
           <S.StepOrder>{index + 1}</S.StepOrder>
@@ -244,16 +244,16 @@ const ListLevel: React.FC<{ vm: ViewWorkflowViewModel; steps: WorkflowStep[] }> 
                   <RiToggleLine size={14} />
                 </S.ToggleIcon>
               </S.IconBtn>
-              <S.IconBtn title="Mover para cima" disabled={index === 0} onClick={() => void vm.moveStep(step, 'up')}>
+              <S.IconBtn title={t('core.records/action.move-up')} disabled={index === 0} onClick={() => void vm.moveStep(step, 'up')}>
                 <RiArrowUpLine size={14} />
               </S.IconBtn>
-              <S.IconBtn title="Mover para baixo" disabled={index === steps.length - 1} onClick={() => void vm.moveStep(step, 'down')}>
+              <S.IconBtn title={t('core.records/action.move-down')} disabled={index === steps.length - 1} onClick={() => void vm.moveStep(step, 'down')}>
                 <RiArrowDownLine size={14} />
               </S.IconBtn>
-              <S.IconBtn title="Editar" onClick={() => vm.openEditStep(step)}>
+              <S.IconBtn title={t('core.ui/condition.edit')} onClick={() => vm.openEditStep(step)}>
                 <RiEditLine size={14} />
               </S.IconBtn>
-              <S.IconBtn title="Excluir" onClick={() => vm.handleDeleteStep(step)}>
+              <S.IconBtn title={t('core.ui/action.delete')} onClick={() => vm.handleDeleteStep(step)}>
                 <RiDeleteBinLine size={14} />
               </S.IconBtn>
             </S.StepActions>
@@ -313,10 +313,10 @@ export const ViewWorkflowView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
               >
                 <RiPlayLine size={14} />
               </Button>
-              <Button variant="ghost" size="sm" onClick={vm.handleCopyDeepLink} title="Copiar link">
+              <Button variant="ghost" size="sm" onClick={vm.handleCopyDeepLink} title={t('core.records/action.copy-link')}>
                 {vm.copyLinkDone ? <RiCheckLine size={14} /> : <RiLinkM size={14} />}
               </Button>
-              <Button variant="ghost" size="sm" onClick={vm.handleClone} title="Clonar">
+              <Button variant="ghost" size="sm" onClick={vm.handleClone} title={t('core.records/action.clone')}>
                 <RiFileCopyLine size={14} />
               </Button>
               <Button variant="ghost" size="sm" title={vm.workflow.enabled ? 'Inativar' : 'Ativar'} onClick={vm.toggleEnabled}>
@@ -361,9 +361,9 @@ export const ViewWorkflowView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
 
       {!vm.isNew && (
         <S.TabBar>
-          <S.TabBtn $active={vm.activeTab === 'general'} onClick={() => vm.setActiveTab('general')}>Geral</S.TabBtn>
+          <S.TabBtn $active={vm.activeTab === 'general'} onClick={() => vm.setActiveTab('general')}>{t('core.records/screen.tab.general')}</S.TabBtn>
           <S.TabBtn $active={vm.activeTab === 'conditions'} onClick={() => vm.setActiveTab('conditions')}>{t('tab.conditions')}</S.TabBtn>
-          <S.TabBtn $active={vm.activeTab === 'steps'} onClick={() => vm.setActiveTab('steps')}>Steps</S.TabBtn>
+          <S.TabBtn $active={vm.activeTab === 'steps'} onClick={() => vm.setActiveTab('steps')}>{t('tab.steps')}</S.TabBtn>
           <S.TabBtn $active={vm.activeTab === 'executions'} onClick={() => vm.setActiveTab('executions')}>{t('tab.executions')}</S.TabBtn>
         </S.TabBar>
       )}
@@ -373,16 +373,16 @@ export const ViewWorkflowView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
           <S.ContentInner>
             <S.Form>
               <InputGroup>
-                <Label>Nome</Label>
+                <Label>{t('core.marketplace/author.field.name')}</Label>
                 <Input
                   value={vm.formData.name}
                   onChange={(e) => vm.setFormData({ name: e.target.value })}
-                  placeholder="ex: Criar prazo ao salvar processo"
+                  placeholder={t('workflow.name.placeholder')}
                 />
               </InputGroup>
 
               <InputGroup>
-                <Label>Identificador</Label>
+                <Label>{t('core.marketplace/author.field.id')}</Label>
                 <Input
                   value={vm.isNew ? vm.formData.workflowId : vm.workflowIdValue}
                   onChange={(e) => vm.setFormData({ workflowId: e.target.value })}
@@ -435,7 +435,7 @@ export const ViewWorkflowView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
                     options={LOOKUP_COLLECTION_OPTIONS}
                     value={vm.formData.lookupCollection}
                     onChange={(lookupCollection) => vm.setFormData({ lookupCollection })}
-                    placeholder="Selecione a lista..."
+                    placeholder={t('parameter.lookup.placeholder')}
                   />
                 </InputGroup>
               )}
@@ -527,7 +527,7 @@ export const ViewWorkflowView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
                 </S.ViewToggleBtn>
               </S.ViewToggle>
               {vm.stepsViewMode === 'list' && (
-                <Button onClick={() => vm.openAddStep()} title="Adicionar step">
+                <Button onClick={() => vm.openAddStep()} title={t('step.add')}>
                   <RiAddLine size={14} />
                 </Button>
               )}
@@ -538,7 +538,7 @@ export const ViewWorkflowView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
                 <S.TriggerNode>
                   {vm.headerIcon && <vm.headerIcon size={18} />}
                   <S.TriggerText>
-                    <S.TriggerKicker>Gatilho</S.TriggerKicker>
+                    <S.TriggerKicker>{t('workflow.trigger')}</S.TriggerKicker>
                     <S.TriggerLabel>{vm.eventLabel}</S.TriggerLabel>
                   </S.TriggerText>
                 </S.TriggerNode>
@@ -551,7 +551,7 @@ export const ViewWorkflowView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
               vm.steps.length === 0 ? (
                 <S.EmptyState>
                   <RiFlowChart size={40} style={{ opacity: 0.3 }} />
-                  <div>Nenhum step configurado ainda.</div>
+                  <div>{t('step.empty')}</div>
                 </S.EmptyState>
               ) : (
                 <S.List>
@@ -606,7 +606,7 @@ export const ViewWorkflowView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
                             return <S.StepProgressDot key={i} $status={status} title={status} />;
                           })}
                           <S.StepProgressLabel>
-                            {stepLogs.filter((l) => l.level === 'SUCCESS').length}/{stepLogs.length} steps
+                            {t('execution.step-progress', { done: stepLogs.filter((l) => l.level === 'SUCCESS').length, total: stepLogs.length })}
                           </S.StepProgressLabel>
                         </S.StepProgressBar>
                       )}
@@ -636,7 +636,7 @@ export const ViewWorkflowView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
                                 {log.contextInput && Object.keys(log.contextInput).length > 0 && (
                                   <S.DataSection>
                                     <S.DataToggle onClick={() => vm.toggleLogData(execution.id, i, 'contextInput')}>
-                                      {vm.isLogDataExpanded(execution.id, i, 'contextInput') ? '▼' : '▶'} Entrada ({Object.keys(log.contextInput).length})
+                                      {vm.isLogDataExpanded(execution.id, i, 'contextInput') ? '▼' : '▶'} {t('execution.inputs', { count: Object.keys(log.contextInput).length })}
                                     </S.DataToggle>
                                     {vm.isLogDataExpanded(execution.id, i, 'contextInput') && (
                                       <S.DataJson>{JSON.stringify(log.contextInput, null, 2)}</S.DataJson>
@@ -703,7 +703,7 @@ export const ViewWorkflowView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
         onCancel={vm.cancelDeleteWorkflow}
         title={t('workflow.delete')}
         message={t('workflow.delete.message', { name: vm.workflowToDelete?.name ?? '' })}
-        confirmLabel="Excluir"
+        confirmLabel={t('core.ui/action.delete')}
         variant="danger"
       />
     </S.Page>

@@ -55,11 +55,7 @@ export const AdvancedParametersEditor: React.FC<AdvancedParametersEditorProps> =
       ) : (
         <>
           <S.HintRow>
-            <S.Hint>
-              Use <code>&quot;chave&quot;: &quot;String&quot;</code> para um campo simples, ou um objeto com{' '}
-              <code>type</code>, <code>label</code>, <code>required</code>, <code>default</code> e{' '}
-              <code>fields</code> para controle total.
-            </S.Hint>
+            <S.Hint>{t('parameter.json.hint')}</S.Hint>
             <S.RefToggle type="button" onClick={vm.toggleReference}>
               {vm.showReference ? <RiArrowDownSLine size={14} /> : <RiArrowRightSLine size={14} />}
               <RiBookOpenLine size={14} /> {t('parameter.reference')}
@@ -70,9 +66,9 @@ export const AdvancedParametersEditor: React.FC<AdvancedParametersEditorProps> =
             <S.RefPanel>
               <S.RefTable>
                 <S.RefHeadRow>
-                  <span>Propriedade</span>
-                  <span>Aplica a</span>
-                  <span>Para que serve</span>
+                  <span>{t('parameter.ref.column.property')}</span>
+                  <span>{t('parameter.ref.column.applies-to')}</span>
+                  <span>{t('parameter.ref.column.purpose')}</span>
                 </S.RefHeadRow>
                 {propertyReference(t).map((item) => (
                   <S.RefRow key={item.name}>
@@ -83,15 +79,15 @@ export const AdvancedParametersEditor: React.FC<AdvancedParametersEditorProps> =
                 ))}
               </S.RefTable>
 
-              <S.RefExampleHeader>Exemplo completo</S.RefExampleHeader>
+              <S.RefExampleHeader>{t('parameter.example.title')}</S.RefExampleHeader>
               <S.RefExample>{parametersJsonExample(t)}</S.RefExample>
               <S.RefExampleBtn type="button" onClick={vm.insertExample}>
-                <RiFileTextLine size={14} /> Usar este exemplo
+                <RiFileTextLine size={14} /> {t('parameter.example.use')}
               </S.RefExampleBtn>
             </S.RefPanel>
           )}
 
-          <Suspense fallback={<S.Loading>Carregando editor…</S.Loading>}>
+          <Suspense fallback={<S.Loading>{t('core.ui/code-editor.loading')}</S.Loading>}>
             <CodeEditor language="json" value={vm.jsonText} onChange={vm.setJsonText} minHeight="260px" />
           </Suspense>
           {vm.jsonErrors.length > 0 && (
@@ -102,7 +98,7 @@ export const AdvancedParametersEditor: React.FC<AdvancedParametersEditorProps> =
             </S.ErrorBox>
           )}
           <S.ApplyBtn type="button" onClick={vm.applyJson}>
-            <RiCheckLine size={14} /> Aplicar JSON
+            <RiCheckLine size={14} /> {t('parameter.json.apply')}
           </S.ApplyBtn>
         </>
       )}
