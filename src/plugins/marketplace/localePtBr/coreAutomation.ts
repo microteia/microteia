@@ -250,4 +250,6 @@ export const CORE_AUTOMATION: Record<string, string> = {
   'workflow.list.empty': 'Nenhuma automação encontrada',
   'workflow.create-first': 'Criar primeira automação',
   'workflow.update-failed': 'Erro ao atualizar automação.',
+  'workflow.active': 'Ativo',
+  'workflow.inactive': 'Inativo',
 };

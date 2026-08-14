@@ -102,7 +102,7 @@ export const PluginAuthorView: React.FC<{ tabKey?: string }> = ({ tabKey }) => {
                 <S.TreeGroup key={group.kind}>
                   <S.TreeGroupHead
                     onClick={() => vm.toggleGroup(group.kind)}
-                    title={isExpanded ? 'Colapsar grupo' : 'Expandir grupo'}
+                    title={isExpanded ? t('author.group.collapse') : t('author.group.expand')}
                   >
                     <S.TreeToggle>
                       {isExpanded ? <RiArrowDownSLine size={16} /> : <RiArrowRightSLine size={16} />}

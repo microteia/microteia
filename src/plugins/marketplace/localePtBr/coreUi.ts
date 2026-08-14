@@ -614,4 +614,11 @@ export const CORE_UI: Record<string, string> = {
   'preset.trim': 'Remover espaços das pontas',
   'preset.upper': 'MAIÚSCULAS',
   'preset.lower': 'minúsculas',
+  'saving': 'Salvando...',
+  'action.copy': 'Copiar',
+  'action.copied': 'Copiado!',
+  'sidebar.expand': 'Expandir menu',
+  'sidebar.collapse': 'Recolher menu',
+  'modal.maximize': 'Maximizar',
+  'modal.restore': 'Restaurar',
 };

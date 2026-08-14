@@ -251,4 +251,6 @@ export const CORE_AUTOMATION_MESSAGES: Record<string, string> = {
   'workflow.list.empty': 'No automation found',
   'workflow.create-first': 'Create the first automation',
   'workflow.update-failed': 'Could not update the automation.',
+  'workflow.active': 'Active',
+  'workflow.inactive': 'Inactive',
 };

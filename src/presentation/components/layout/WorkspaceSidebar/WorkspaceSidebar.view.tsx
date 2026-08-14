@@ -45,7 +45,7 @@ export const WorkspaceSidebar: React.FC = () => {
           )}
         </S.LogoLeft>
 
-        <S.CollapseButton onClick={vm.toggleCollapse} title={vm.collapsed ? 'Expandir menu' : 'Recolher menu'}>
+        <S.CollapseButton onClick={vm.toggleCollapse} title={t(vm.collapsed ? 'sidebar.expand' : 'sidebar.collapse')}>
           {vm.collapsed
             ? <RiSidebarUnfoldLine size={18} />
             : <RiSidebarFoldLine size={18} />

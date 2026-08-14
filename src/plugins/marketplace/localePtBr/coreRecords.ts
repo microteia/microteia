@@ -185,4 +185,9 @@ export const CORE_RECORDS: Record<string, string> = {
   'field.expression.hidden': 'Ocultar quando (verdadeiro/falso)',
   'field.provider': 'Ao alterar, buscar dados externos',
   'field.provider.target.placeholder': 'Ex: address',
+  'screen.enable': 'Ativar tela',
+  'screen.disable': 'Desativar tela',
+  'field.modal.new': 'Novo Campo',
+  'field.modal.edit': 'Editar Campo',
+  'field.modal.native': 'Ajustar Campo do Sistema',
 };

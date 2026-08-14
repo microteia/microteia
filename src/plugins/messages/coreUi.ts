@@ -615,4 +615,11 @@ export const CORE_UI_MESSAGES: Record<string, string> = {
   'preset.trim': 'Trim surrounding spaces',
   'preset.upper': 'UPPERCASE',
   'preset.lower': 'lowercase',
+  'saving': 'Saving…',
+  'action.copy': 'Copy',
+  'action.copied': 'Copied!',
+  'sidebar.expand': 'Expand menu',
+  'sidebar.collapse': 'Collapse menu',
+  'modal.maximize': 'Maximize',
+  'modal.restore': 'Restore',
 };

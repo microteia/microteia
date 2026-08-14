@@ -186,4 +186,9 @@ export const CORE_RECORDS_MESSAGES: Record<string, string> = {
   'field.expression.hidden': 'Hide when (true/false)',
   'field.provider': 'On change, fetch external data',
   'field.provider.target.placeholder': 'Ex: address',
+  'screen.enable': 'Enable screen',
+  'screen.disable': 'Disable screen',
+  'field.modal.new': 'New field',
+  'field.modal.edit': 'Edit field',
+  'field.modal.native': 'Adjust system field',
 };

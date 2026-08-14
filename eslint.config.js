@@ -104,6 +104,18 @@ export default defineConfig([
           selector: "JSXAttribute[name.name=/^(title|label|placeholder|message|subtitle|description|hint|summary|alt|aria-label|confirmLabel|cancelLabel|runLabel|emptyMessage|deleteConfirmTitle|deleteConfirmMessage)$/] > Literal[value=/[A-Za-zÀ-ÿ]{2}/]",
           message: 'Texto de usuário como literal num atributo. Passe {t(\'chave\')}: o atributo é lido por quem usa o sistema, então ele traduz.',
         },
+        // `title={cond ? 'A' : 'B'}` escapava do seletor acima, que só olha o filho DIRETO do
+        // atributo: ali o filho é o container da expressão, e as frases ficam dentro do ternário.
+        // Foi assim que "Novo Campo" sobreviveu à varredura. Restringir a `ConditionalExpression`
+        // mantém `title={t('chave')}` fora — lá o literal é argumento de chamada.
+        {
+          selector: "JSXAttribute[name.name=/^(title|label|placeholder|message|subtitle|description|hint|summary|alt|aria-label|confirmLabel|cancelLabel|runLabel|emptyMessage|deleteConfirmTitle|deleteConfirmMessage)$/] > JSXExpressionContainer > ConditionalExpression > Literal[value=/[A-Za-zÀ-ÿ]{2}/]",
+          message: 'Texto de usuário dentro de um ternário no atributo. Traduza a CHAVE, não a frase: {t(cond ? \'chave.a\' : \'chave.b\')}.',
+        },
+        {
+          selector: "JSXAttribute[name.name=/^(title|label|placeholder|message|subtitle|description|hint|summary|alt|aria-label|confirmLabel|cancelLabel|runLabel|emptyMessage|deleteConfirmTitle|deleteConfirmMessage)$/] > JSXExpressionContainer > ConditionalExpression > ConditionalExpression > Literal[value=/[A-Za-zÀ-ÿ]{2}/]",
+          message: 'Texto de usuário dentro de um ternário no atributo. Traduza a CHAVE, não a frase: {t(cond ? \'chave.a\' : \'chave.b\')}.',
+        },
         {
           selector: 'TemplateElement[value.raw=/[áàâãéêíóôõúüçÁÀÂÃÉÊÍÓÔÕÚÜÇ]/]',
           message: 'Texto em português em template literal. O idioma-fonte é o inglês: use t(\'chave\', { param }) com interpolação {param}.',

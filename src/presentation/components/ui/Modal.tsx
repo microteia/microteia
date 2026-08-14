@@ -114,7 +114,7 @@ export const Modal: React.FC<ModalProps> = ({
           <Title>{title}</Title>
           <HeaderActions>
             {maximizable && onToggleMaximize && (
-              <CloseButton variant="ghost" onClick={onToggleMaximize} title={maximized ? 'Restaurar' : 'Maximizar'}>
+              <CloseButton variant="ghost" onClick={onToggleMaximize} title={t(maximized ? 'modal.restore' : 'modal.maximize')}>
                 {maximized ? <RiFullscreenExitLine size={20} /> : <RiFullscreenLine size={20} />}
               </CloseButton>
             )}

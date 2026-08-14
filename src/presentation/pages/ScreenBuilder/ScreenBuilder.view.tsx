@@ -153,7 +153,7 @@ const ScreenDetailPane: React.FC<{ vm: ScreenBuilderViewModel; screen: SelectedS
             <RiArrowDownSLine size={18} />
           </S.IconButton>
           <S.IconButton
-            title={screen.enabled ? 'Desativar tela' : 'Ativar tela'}
+            title={t(screen.enabled ? 'screen.disable' : 'screen.enable')}
             onClick={() => void vm.toggleScreenEnabled(screen.key)}
           >
             {screen.enabled ? <RiEyeLine size={16} /> : <RiEyeOffLine size={16} />}
@@ -487,7 +487,7 @@ export const ScreenBuilderView: React.FC = () => {
       )}
 
       {vm.fieldModalOpen && (
-        <Modal title={vm.fieldModalIsNative ? 'Ajustar Campo do Sistema' : (vm.fieldModalIsEdit ? 'Editar Campo' : 'Novo Campo')} onClose={vm.closeFieldModal} size="xlarge">
+        <Modal title={t(vm.fieldModalIsNative ? 'field.modal.native' : vm.fieldModalIsEdit ? 'field.modal.edit' : 'field.modal.new')} onClose={vm.closeFieldModal} size="xlarge">
           <S.ModalTabs>
             <S.ModalTabBtn $active={vm.fieldModalTab === 'general'} onClick={() => vm.setFieldModalTab('general')}>
               {t('screen.tab.general')}

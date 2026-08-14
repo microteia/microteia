@@ -751,7 +751,7 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
     [definitions],
   );
 
-  const fieldTypeLabel = useCallback((type: CustomFieldType) => FIELD_TYPE_KEYS[type], []);
+  const fieldTypeLabel = useCallback((type: CustomFieldType) => t(FIELD_TYPE_KEYS[type]), [t]);
 
   const isTitleField = useCallback((screenKey: string, fieldKey: string) => {
     const def = getDefinitionByKey(screenKey);
@@ -1229,9 +1229,9 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
   const typeOptions = useMemo<SearchSelectOption[]>(
     () => (Object.keys(FIELD_TYPE_KEYS) as CustomFieldType[]).map((type) => ({
       value: type,
-      label: FIELD_TYPE_KEYS[type],
+      label: t(FIELD_TYPE_KEYS[type]),
     })),
-    [],
+    [t],
   );
 
   const maskOptions = useMemo<SearchSelectOption[]>(

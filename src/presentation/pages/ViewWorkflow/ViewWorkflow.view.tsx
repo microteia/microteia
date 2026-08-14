@@ -150,7 +150,7 @@ const FlowLevel: React.FC<LevelProps> = ({ vm, steps, parentKey, target }) => {
             <S.NodeTitle>{getStepDisplayName(step, definition)}</S.NodeTitle>
             <S.NodeType>{isCondition ? vm.getConditionSummary(step) : isLoop ? vm.getLoopSummary(step) : vm.getStepTypeLabel(step)}</S.NodeType>
           </S.NodeBody>
-          <S.NodeStatusDot $enabled={step.enabled} title={step.enabled ? 'Ativo' : 'Inativo'} />
+          <S.NodeStatusDot $enabled={step.enabled} title={t(step.enabled ? 'workflow.active' : 'workflow.inactive')} />
           <StepNodeActions vm={vm} step={step} />
         </S.FlowNode>
         {step.type === 'Condition' && step.branches && (
@@ -239,7 +239,7 @@ const ListLevel: React.FC<{ vm: ViewWorkflowViewModel; steps: WorkflowStep[] }> 
                   : definition?.description && <S.StepDescription>{definition.description}</S.StepDescription>}
             </S.StepInfo>
             <S.StepActions>
-              <S.IconBtn title={step.enabled ? 'Inativar' : 'Ativar'} onClick={() => void vm.toggleStepEnabled(step)}>
+              <S.IconBtn title={t(step.enabled ? 'step.deactivate' : 'step.activate')} onClick={() => void vm.toggleStepEnabled(step)}>
                 <S.ToggleIcon $enabled={step.enabled}>
                   <RiToggleLine size={14} />
                 </S.ToggleIcon>
@@ -319,7 +319,7 @@ export const ViewWorkflowView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
               <Button variant="ghost" size="sm" onClick={vm.handleClone} title={t('core.records/action.clone')}>
                 <RiFileCopyLine size={14} />
               </Button>
-              <Button variant="ghost" size="sm" title={vm.workflow.enabled ? 'Inativar' : 'Ativar'} onClick={vm.toggleEnabled}>
+              <Button variant="ghost" size="sm" title={t(vm.workflow.enabled ? 'step.deactivate' : 'step.activate')} onClick={vm.toggleEnabled}>
                 <S.ToggleIcon $enabled={vm.workflow.enabled}>
                   <RiToggleLine size={14} />
                 </S.ToggleIcon>
@@ -337,7 +337,7 @@ export const ViewWorkflowView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
                 (vm.isLookupEvent && !vm.formData.lookupCollection) ||
                 (vm.isCalledEvent && vm.hasParameterErrors)
               }
-              title={vm.isSaving ? 'Salvando...' : 'Salvar'}
+              title={t(vm.isSaving ? 'core.ui/saving' : 'core.ui/action.save')}
             >
               <RiSaveLine size={14} />
             </S.SaveBtn>
@@ -346,7 +346,7 @@ export const ViewWorkflowView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
             <S.SaveBtn
               onClick={() => void vm.handleSaveCondition()}
               disabled={vm.isSaving}
-              title={vm.isSaving ? 'Salvando...' : 'Salvar'}
+              title={t(vm.isSaving ? 'core.ui/saving' : 'core.ui/action.save')}
             >
               <RiSaveLine size={14} />
             </S.SaveBtn>

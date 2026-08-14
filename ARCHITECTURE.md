@@ -4859,6 +4859,13 @@ notificação, item de `options`, mensagem montada dentro de uma função.
 > **não enxergava texto solto de JSX**, e a regra achou 21 casos em `presentation/components`, que
 > estava dado como concluído.
 
+> ⚠️ **O ternário no atributo escapava.** `title={cond ? 'Novo Campo' : 'Editar Campo'}` não é
+> pego pelo seletor de atributo, que olha o FILHO DIRETO: ali o filho é o container da expressão, e
+> as frases ficam dentro do ternário. Dois seletores ancorados em
+> `> JSXExpressionContainer > ConditionalExpression` fecham o buraco sem falso positivo — em
+> `title={t(cond ? 'a' : 'b')}` o ternário é filho da CHAMADA, não do container, e a regra não o
+> vê. É a diferença entre traduzir a chave e escrever a frase.
+
 Nome próprio e legenda de tecla física — "Microteia", "Esc", "Enter" — não traduzem em idioma nenhum
 e saem por `eslint-disable-next-line` com justificativa. São as únicas exceções.
 

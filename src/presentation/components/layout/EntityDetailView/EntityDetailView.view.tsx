@@ -163,7 +163,7 @@ export const EntityDetailView: React.FC<EntityDetailViewProps> = ({
           </Button>
         )}
         {(activeTab === 'data' || isNew) && (
-          <S.SaveBtn onClick={onSave} disabled={isSaving} title={isSaving ? 'Salvando...' : 'Salvar'}>
+          <S.SaveBtn onClick={onSave} disabled={isSaving} title={t(isSaving ? 'saving' : 'action.save')}>
             <RiSaveLine size={14} />
           </S.SaveBtn>
         )}

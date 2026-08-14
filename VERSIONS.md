@@ -11,6 +11,11 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [7.15.0] — 2026-08-14
+
+- Corrigida a lista de tipos de campo no Form Design, que exibia códigos internos em vez dos nomes.
+- Corrigidos os botões que mudam de texto conforme o estado — "Salvar/Salvando", "Ativar/Inativar", "Copiar/Copiado", "Novo Campo/Editar Campo" — que continuavam fixos em português.
+
 ## [7.14.0] — 2026-08-14
 
 - A lista de Automações, os gatilhos disponíveis, as formatações prontas dos campos e os nomes dos 266 ícones passaram a acompanhar o idioma escolhido.
