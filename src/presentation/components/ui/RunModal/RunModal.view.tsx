@@ -4,6 +4,7 @@ import { S } from './RunModal.styles';
 import { useRunModalViewModel, type RunModalProps, type RunModalLogLevel } from './RunModal.viewmodel';
 import { Button } from '../Button';
 import { ParameterField } from '../ParameterField';
+import { useT } from '../../../shared/i18n/useT';
 
 type Tone = 'success' | 'danger' | 'warning' | 'muted';
 
@@ -20,14 +21,15 @@ const statusTone = (status: 'SUCCESS' | 'FAILED' | 'PARTIAL' | null): 'success' 
   return 'success';
 };
 
-const statusLabel = (status: 'SUCCESS' | 'FAILED' | 'PARTIAL' | null): string => {
-  if (status === 'FAILED') return 'Falhou';
-  if (status === 'PARTIAL') return 'Parcial';
-  return 'Concluído';
+const statusKey = (status: 'SUCCESS' | 'FAILED' | 'PARTIAL' | null): string => {
+  if (status === 'FAILED') return 'run.status.failed';
+  if (status === 'PARTIAL') return 'run.status.partial';
+  return 'run.status.done';
 };
 
 export const RunModal: React.FC<RunModalProps> = (props) => {
   const vm = useRunModalViewModel(props);
+  const t = useT('core.ui');
 
   return (
     <S.Overlay onClick={(e) => e.target === e.currentTarget && vm.handleClose()}>
@@ -49,7 +51,7 @@ export const RunModal: React.FC<RunModalProps> = (props) => {
                 <>
                   <S.ModeTabs>
                     <S.ModeTab $active={vm.mode === 'form'} type="button" onClick={() => vm.setMode('form')}>
-                      Formulário
+                      {t('run.mode.form')}
                     </S.ModeTab>
                     <S.ModeTab $active={vm.mode === 'json'} type="button" onClick={() => vm.setMode('json')}>
                       JSON
@@ -82,7 +84,7 @@ export const RunModal: React.FC<RunModalProps> = (props) => {
                   )}
                 </>
               ) : (
-                <S.EmptyHint>Este item não tem parâmetros de entrada. Clique em {vm.runLabel} para executar.</S.EmptyHint>
+                <S.EmptyHint>{t('run.no-parameters', { action: vm.runLabel })}</S.EmptyHint>
               )}
 
               {vm.formError && <S.JsonError>{vm.formError}</S.JsonError>}
@@ -91,18 +93,18 @@ export const RunModal: React.FC<RunModalProps> = (props) => {
             <>
               <S.ResultHeader>
                 <S.StatusBadge $tone={statusTone(vm.result?.status ?? null)}>
-                  {statusLabel(vm.result?.status ?? null)}
+                  {t(statusKey(vm.result?.status ?? null))}
                 </S.StatusBadge>
               </S.ResultHeader>
 
               {vm.result?.error && <S.ErrorBox>{vm.result.error}</S.ErrorBox>}
 
               <div>
-                <S.SectionLabel>Saída</S.SectionLabel>
+                <S.SectionLabel>{t('run.output')}</S.SectionLabel>
                 {vm.outputsJson ? (
                   <S.Pre>{vm.outputsJson}</S.Pre>
                 ) : (
-                  <S.EmptyLogs>Nenhuma saída retornada.</S.EmptyLogs>
+                  <S.EmptyLogs>{t('run.output.empty')}</S.EmptyLogs>
                 )}
               </div>
 
@@ -121,7 +123,7 @@ export const RunModal: React.FC<RunModalProps> = (props) => {
                     })}
                   </S.LogList>
                 ) : (
-                  <S.EmptyLogs>Nenhum log registrado.</S.EmptyLogs>
+                  <S.EmptyLogs>{t('run.logs.empty')}</S.EmptyLogs>
                 )}
               </div>
             </>

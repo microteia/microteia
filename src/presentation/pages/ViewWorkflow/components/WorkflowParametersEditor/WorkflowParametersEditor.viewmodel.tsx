@@ -1,6 +1,8 @@
 import { useState, useCallback, useMemo } from 'react';
 import type { WorkflowParameter } from '../../../../../domain/entities/Workflow';
 import type { FieldRulePresetOption } from '../../../../shared/useFieldRulePresets';
+import { useT } from '../../../../shared/i18n/useT';
+
 import {
   formatPresetOptions,
   useFieldRulePresets,
@@ -38,6 +40,7 @@ export const useWorkflowParametersEditorViewModel = (
 ): WorkflowParametersEditorViewModel => {
   const { parameters, typeOptions, entityOptions, lookupOptions, onAdd, onRemove, onClone } = props;
   const [expanded, setExpanded] = useState<Set<number>>(new Set());
+  const t = useT('core.automation');
 
   const isExpanded = useCallback((index: number) => expanded.has(index), [expanded]);
 
@@ -82,7 +85,7 @@ export const useWorkflowParametersEditorViewModel = (
 
   const summaryFor = useCallback(
     (parameter: WorkflowParameter): string => {
-      const name = parameter.label.trim() || parameter.key.trim() || 'Sem nome';
+      const name = parameter.label.trim() || parameter.key.trim() || t('parameter.unnamed');
       const parts = [typeOptions.find((option) => option.value === parameter.type)?.label ?? parameter.type];
       if (parameter.type === 'EntityReference' && parameter.entityType) {
         parts.push(entityOptions.find((option) => option.value === parameter.entityType)?.label ?? parameter.entityType);
@@ -90,11 +93,11 @@ export const useWorkflowParametersEditorViewModel = (
       if (parameter.type === 'lookup' && parameter.lookupCollection) {
         parts.push(lookupOptions.find((option) => option.value === parameter.lookupCollection)?.label ?? parameter.lookupCollection);
       }
-      if (parameter.list) parts.push('vários');
-      if (parameter.required) parts.push('obrigatório');
+      if (parameter.list) parts.push(t('parameter.summary.list'));
+      if (parameter.required) parts.push(t('parameter.summary.required'));
       return `${name} — ${parts.join(' · ')}`;
     },
-    [typeOptions, entityOptions, lookupOptions],
+    [typeOptions, entityOptions, lookupOptions, t],
   );
 
   const presets = useFieldRulePresets();

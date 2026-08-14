@@ -177,3 +177,48 @@ export const translationOverwriteIssue = (
     ? `O identificador "${incoming.manifest.id}" já pertence à extensão "${name}", que não é um pacote de idioma. Altere o "id" do arquivo antes de importar — instalar por cima apagaria as telas e automações dela.`
     : `O identificador "${incoming.manifest.id}" já pertence ao idioma "${name}". Uma extensão com telas ou automações não pode tomar o lugar de um pacote de idioma: altere o "id" do arquivo.`;
 };
+
+/** Um pacote de idioma instalado, reduzido ao que decide se ele está valendo. */
+export interface LanguagePackUsage {
+  id: string;
+  locale: string;
+  active: boolean;
+  /** As chaves plenamente qualificadas (`namespace/chave`) que o pacote publica. */
+  keys: string[];
+}
+
+export interface LanguageUsage {
+  inUse: boolean;
+  shadowed: boolean;
+}
+
+/**
+ * Decide quais pacotes de idioma estão VALENDO, por chave disputada.
+ *
+ * A regra anterior era "o primeiro do idioma vale, os outros ficam sem efeito". Ela estava certa
+ * enquanto dois pacotes do mesmo idioma significassem necessariamente conflito, e passou a estar
+ * errada no dia em que um pacote cobriu só a interface e outro só o contrato jurídico: namespaces
+ * disjuntos, os dois valendo, nenhum sombreando nada — e a tela dizia "Sem efeito" para um pacote
+ * que estava funcionando.
+ *
+ * Aqui a pergunta é outra e é a certa: alguma chave DESTE pacote sobrevive à fusão? A ordem é a
+ * mesma de `buildMessageCatalog` — quem chega primeiro vence a chave disputada.
+ */
+export const resolveLanguageUsage = (
+  packs: LanguagePackUsage[],
+  currentLocale: string,
+): Record<string, LanguageUsage> => {
+  const usage: Record<string, LanguageUsage> = {};
+  const taken = new Set<string>();
+
+  for (const pack of packs) {
+    usage[pack.id] = { inUse: false, shadowed: false };
+    if (!pack.active || normalizeLocale(pack.locale) !== normalizeLocale(currentLocale)) continue;
+
+    const winning = pack.keys.filter((key) => !taken.has(key));
+    winning.forEach((key) => taken.add(key));
+    usage[pack.id] = { inUse: winning.length > 0, shadowed: winning.length === 0 };
+  }
+
+  return usage;
+};

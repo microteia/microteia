@@ -11,6 +11,20 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [7.10.0] — 2026-08-14
+
+- O sistema passou a falar inglês por padrão, e o português virou um pacote de idioma que se instala e se desinstala como qualquer outra extensão. Com o pacote instalado, tudo continua exatamente como estava.
+- A paleta de cores das etiquetas, os menus de condição, o editor de expressões, o editor de texto, os filtros de lista e a busca rápida (Ctrl+K) já acompanham o idioma escolhido — inclusive as palavras pelas quais a busca rápida encontra cada item.
+- Datas e horários exibidos nas anotações e nos documentos passaram a seguir o idioma e a região configurados, em vez de um formato fixo.
+- A tela de entrada no sistema também acompanha o idioma escolhido.
+- As páginas de apresentação do produto (início, funcionalidades, preços e contato) foram retiradas do sistema. Quem acessa o endereço principal vai direto para a tela de entrada.
+- Os Termos de Uso e a Política de Privacidade passaram a ter tradução própria, separada da tradução do sistema — e já acompanham o idioma escolhido mesmo para quem ainda não entrou na conta.
+- Corrigido um problema na tela de Traduções, que marcava como "Sem efeito" um pacote de idioma que estava funcionando normalmente.
+- Corrigido o campo de idioma em Configurações, que mostrava "Inglês" mesmo com o sistema exibindo tudo em português.
+- Quem ainda não escolheu um idioma passa a ver o sistema no idioma do próprio navegador, quando houver tradução para ele — em vez de o português ser assumido como padrão.
+- O idioma escolhido em Configurações passa a valer também nas telas abertas fora do escritório, como os Termos de Uso — antes elas ignoravam a escolha e seguiam o navegador.
+- A tela de Automações — o desenho do fluxo, os parâmetros, as condições, as consultas e o histórico de execuções — passou a acompanhar o idioma escolhido.
+
 ## [7.8.0] — 2026-08-13
 
 - **Traduzir ficou mais simples: existe um arquivo só.** Antes havia dois arquivos `.json` parecidos e que não se encaixavam — um "modelo de tradução" e uma "extensão de idioma". Agora existe apenas a extensão de idioma: é o que se baixa, é o que se traduz e é o que se importa. O mesmo arquivo funciona tanto na tela de Traduções quanto na de Extensões.

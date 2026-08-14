@@ -2,6 +2,8 @@ import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../stores/useAuth';
 
+import { useT } from '../../shared/i18n/useT';
+
 export type LoginMode = 'login' | 'signup' | 'forgot-password' | 'verify-email';
 
 export interface LoginViewModel {
@@ -32,30 +34,31 @@ export interface LoginViewModel {
   goToForgotPassword: () => void;
 }
 
-const TERMS_NOT_ACCEPTED_ERROR = 'Você precisa aceitar os Termos de Uso e a Política de Privacidade para continuar.';
+const TERMS_NOT_ACCEPTED_ERROR = 'login.error.terms-required';
 
-const mapAuthError = (error: unknown): string => {
+/** O erro do Firebase vira CHAVE, não frase: quem exibe é que traduz. */
+const authErrorKey = (error: unknown): string => {
   if (error && typeof error === 'object' && 'code' in error) {
     switch ((error as { code: string }).code) {
       case 'auth/invalid-credential':
       case 'auth/user-not-found':
       case 'auth/wrong-password':
-        return 'E-mail ou senha incorretos.';
+        return 'login.error.invalid-credentials';
       case 'auth/email-already-in-use':
-        return 'Este e-mail já está cadastrado.';
+        return 'login.error.email-in-use';
       case 'auth/weak-password':
-        return 'A senha deve ter pelo menos 6 caracteres.';
+        return 'login.error.weak-password';
       case 'auth/invalid-email':
-        return 'E-mail inválido.';
+        return 'login.error.invalid-email';
       case 'auth/too-many-requests':
-        return 'Muitas tentativas. Aguarde antes de tentar novamente.';
+        return 'login.error.too-many-requests';
       case 'auth/user-disabled':
-        return 'Esta conta foi desabilitada.';
+        return 'login.error.user-disabled';
       default:
-        return 'Ocorreu um erro. Tente novamente.';
+        return 'login.error.generic';
     }
   }
-  return 'Ocorreu um erro. Tente novamente.';
+  return 'login.error.generic';
 };
 
 export const useLoginViewModel = (): LoginViewModel => {
@@ -65,6 +68,7 @@ export const useLoginViewModel = (): LoginViewModel => {
     sendEmailVerification, sendPasswordResetEmail, checkEmailVerification, signOut,
   } = useAuth();
   const navigate = useNavigate();
+  const t = useT('core.workspace');
 
   const [mode, setMode] = useState<LoginMode>('login');
   const [loading, setLoading] = useState(false);
@@ -120,27 +124,27 @@ export const useLoginViewModel = (): LoginViewModel => {
     try {
       await signInWithEmail(emailField, passwordField);
     } catch (err) {
-      setError(mapAuthError(err));
+      setError(t(authErrorKey(err)));
     } finally {
       setLoading(false);
     }
-  }, [signInWithEmail, emailField, passwordField]);
+  }, [signInWithEmail, emailField, passwordField, t]);
 
   const handleEmailSignUp = useCallback(async () => {
     if (!termsAccepted) {
-      setError(TERMS_NOT_ACCEPTED_ERROR);
+      setError(t(TERMS_NOT_ACCEPTED_ERROR));
       return;
     }
     if (!displayNameField.trim()) {
-      setError('Informe seu nome completo.');
+      setError(t('login.error.name-required'));
       return;
     }
     if (passwordField !== confirmPasswordField) {
-      setError('As senhas não coincidem.');
+      setError(t('login.error.password-mismatch'));
       return;
     }
     if (passwordField.length < 6) {
-      setError('A senha deve ter pelo menos 6 caracteres.');
+      setError(t('login.error.weak-password'));
       return;
     }
     setLoading(true);
@@ -148,15 +152,15 @@ export const useLoginViewModel = (): LoginViewModel => {
     try {
       await signUpWithEmail(emailField, passwordField, displayNameField.trim());
     } catch (err) {
-      setError(mapAuthError(err));
+      setError(t(authErrorKey(err)));
     } finally {
       setLoading(false);
     }
-  }, [signUpWithEmail, emailField, passwordField, confirmPasswordField, displayNameField, termsAccepted]);
+  }, [signUpWithEmail, emailField, passwordField, confirmPasswordField, displayNameField, termsAccepted, t]);
 
   const handleGoogleLogin = useCallback(async () => {
     if (!termsAccepted) {
-      setError(TERMS_NOT_ACCEPTED_ERROR);
+      setError(t(TERMS_NOT_ACCEPTED_ERROR));
       return;
     }
     setLoading(true);
@@ -164,15 +168,15 @@ export const useLoginViewModel = (): LoginViewModel => {
     try {
       await signInWithGoogle();
     } catch {
-      setError('Erro ao fazer login com Google. Tente novamente.');
+      setError(t('login.error.google'));
     } finally {
       setLoading(false);
     }
-  }, [signInWithGoogle, termsAccepted]);
+  }, [signInWithGoogle, termsAccepted, t]);
 
   const handleFacebookLogin = useCallback(async () => {
     if (!termsAccepted) {
-      setError(TERMS_NOT_ACCEPTED_ERROR);
+      setError(t(TERMS_NOT_ACCEPTED_ERROR));
       return;
     }
     setLoading(true);
@@ -180,41 +184,41 @@ export const useLoginViewModel = (): LoginViewModel => {
     try {
       await signInWithFacebook();
     } catch {
-      setError('Erro ao fazer login com Facebook. Tente novamente.');
+      setError(t('login.error.facebook'));
     } finally {
       setLoading(false);
     }
-  }, [signInWithFacebook, termsAccepted]);
+  }, [signInWithFacebook, termsAccepted, t]);
 
   const handleForgotPassword = useCallback(async () => {
     if (!emailField.trim()) {
-      setError('Informe seu e-mail.');
+      setError(t('login.error.email-required'));
       return;
     }
     setLoading(true);
     setError('');
     try {
       await sendPasswordResetEmail(emailField);
-      setSuccessMessage('Se este e-mail estiver cadastrado, você receberá um link em instantes.');
+      setSuccessMessage(t('login.reset.sent'));
     } catch (err) {
-      setError(mapAuthError(err));
+      setError(t(authErrorKey(err)));
     } finally {
       setLoading(false);
     }
-  }, [sendPasswordResetEmail, emailField]);
+  }, [sendPasswordResetEmail, emailField, t]);
 
   const handleResendVerification = useCallback(async () => {
     setLoading(true);
     setError('');
     try {
       await sendEmailVerification();
-      setSuccessMessage('E-mail reenviado!');
+      setSuccessMessage(t('login.verify.resent'));
     } catch (err) {
-      setError(mapAuthError(err));
+      setError(t(authErrorKey(err)));
     } finally {
       setLoading(false);
     }
-  }, [sendEmailVerification]);
+  }, [sendEmailVerification, t]);
 
   const handleCheckVerification = useCallback(async () => {
     setLoading(true);
@@ -222,14 +226,14 @@ export const useLoginViewModel = (): LoginViewModel => {
     try {
       const verified = await checkEmailVerification();
       if (!verified) {
-        setError('Ainda não identificamos a verificação. Clique no link do e-mail e tente novamente.');
+        setError(t('login.error.not-verified-yet'));
       }
     } catch {
-      setError('Não foi possível verificar agora. Tente novamente.');
+      setError(t('login.error.verify-failed'));
     } finally {
       setLoading(false);
     }
-  }, [checkEmailVerification]);
+  }, [checkEmailVerification, t]);
 
   const handleCancelVerification = useCallback(async () => {
     setLoading(true);

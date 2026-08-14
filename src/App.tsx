@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { DIProvider } from './infrastructure/di/DIContainer';
 import { KernelProvider } from './stores/KernelContext';
 import { TenantKernelProvider } from './stores/TenantKernelProvider';
@@ -30,10 +30,6 @@ import { TextAnnotationStoreProvider } from './stores/TextAnnotationStore';
 import { ExpressionFunctionStoreProvider } from './stores/ExpressionFunctionStore';
 import { StepCatalogProvider } from './stores/StepCatalogStore';
 import { ProtectedRoute } from './routes/ProtectedRoute';
-import { HomeView } from './presentation/pages/Home/Home.view';
-import { FeaturesView } from './presentation/pages/Features/Features.view';
-import { PricingView } from './presentation/pages/Pricing/Pricing.view';
-import { ContactView } from './presentation/pages/Contact/Contact.view';
 import { LoginView } from './presentation/pages/Login/Login.view';
 import { LicenseView } from './presentation/pages/License/License.view';
 import { WorkspaceShell } from './presentation/components/layout/WorkspaceShell';
@@ -51,10 +47,7 @@ const App: React.FC = () => {
           <ExpressionFunctionStoreProvider>
           <BrowserRouter>
             <Routes>
-              <Route path="/" element={<HomeView />} />
-              <Route path="/funcionalidades" element={<FeaturesView />} />
-              <Route path="/precos" element={<PricingView />} />
-              <Route path="/contato" element={<ContactView />} />
+              <Route path="/" element={<Navigate to="/login" replace />} />
               <Route path="/login" element={<LoginView />} />
               <Route path="/license" element={<LicenseView />} />
               <Route

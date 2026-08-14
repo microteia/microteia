@@ -12,6 +12,7 @@ import type { EntityDocumentsController, EntityNotesController } from '../../../
 import type { TagStoreAdapter } from '../../ui/TagManager';
 import type { CustomFieldValue, EntityRecord, FieldDefinition, ScreenDefinition } from '../../../../domain/entities';
 
+import { useT } from '../../../shared/i18n/useT';
 /**
  * A superfície do DETALHE (criar/editar) de uma tela de registros — o par do `RecordDetailSurface`
  * para `RecordListSurface`. Renderiza a `EntityDetailView` (cabeçalho com salvar/excluir/clonar/
@@ -69,12 +70,13 @@ interface RecordDetailSurfaceProps {
 
 export const RecordDetailSurface: React.FC<RecordDetailSurfaceProps> = ({ vm, renderData }) => {
   const { definition } = vm;
+  const t = useT('core.ui');
 
   if (!vm.isAvailable || !definition) {
     return (
       <div style={{ padding: 24 }}>
         {vm.isLoadingDefinition ? <Spinner /> : (
-          <InfoBanner variant="info" message="Esta tela não está mais disponível. Ela pode ter sido desativada ou excluída." />
+          <InfoBanner variant="info" message={t('record.screen-unavailable')} />
         )}
       </div>
     );
@@ -83,7 +85,7 @@ export const RecordDetailSurface: React.FC<RecordDetailSurfaceProps> = ({ vm, re
   if (vm.recordNotFound) {
     return (
       <div style={{ padding: 24 }}>
-        <InfoBanner variant="info" message="Registro não encontrado. Ele pode ter sido excluído." />
+        <InfoBanner variant="info" message={t('record.not-found')} />
       </div>
     );
   }
@@ -108,7 +110,7 @@ export const RecordDetailSurface: React.FC<RecordDetailSurfaceProps> = ({ vm, re
       <ConfirmModal
         isOpen={vm.recordToDelete !== null}
         title="Excluir registro"
-        message={`Tem certeza que deseja excluir "${vm.recordToDelete?.title ?? ''}"? As anotações e documentos vinculados também serão excluídos. Esta ação não pode ser desfeita.`}
+        message={t('record.delete.message', { title: vm.recordToDelete?.title ?? '' })}
         variant="danger"
         confirmLabel="Excluir"
         loading={vm.isDeleting}

@@ -1,5 +1,7 @@
 import { useCallback, useMemo } from 'react';
 import { usePointContributions } from '../../../shared/extensions/usePointContributions';
+import { useLabel } from '../../../shared/i18n/useT';
+
 import {
   resolveContributionLayout,
   type ContributionLayoutDefaults,
@@ -40,6 +42,9 @@ export const useContributionListEditorViewModel = (
 ): ContributionListEditorViewModel => {
   const { point, value, onChange } = props;
   const contributions = usePointContributions(point);
+  // O editor lista contribuições de QUALQUER ponto — nativas, que declaram referência, e de
+  // extensão, que trazem o texto do autor. `label` é o caminho único que serve às duas.
+  const label = useLabel();
 
   const available = useMemo<ContributionLayoutDefaults[]>(
     () => contributions.map((contribution) => ({
@@ -60,15 +65,15 @@ export const useContributionListEditorViewModel = (
       const contribution = byKey.get(entry.key);
       return {
         ...entry,
-        title: text(contribution?.metadata.title) ?? entry.key,
-        description: text(contribution?.metadata.description),
+        title: label(text(contribution?.metadata.title)) || entry.key,
+        description: label(text(contribution?.metadata.description)) || undefined,
         icon: text(contribution?.metadata.icon),
         pluginId: contribution?.pluginId ?? '',
         isFirst: index === 0,
         isLast: index === entries.length - 1,
       };
     });
-  }, [entries, contributions]);
+  }, [entries, contributions, label]);
 
   const commit = useCallback((next: ContributionLayoutEntry[]) => {
     onChange(next.map(({ key, enabled }) => ({ key, enabled })));

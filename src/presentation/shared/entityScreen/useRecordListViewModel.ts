@@ -29,6 +29,8 @@ import type { FilterDef, FilterToken } from '../../components/ui/CompositeFilter
 import { useTagAdapter, useTagCollection } from './useTagAdapter';
 import { useTags } from '../../../stores/useTags';
 
+import { useT, useLabel } from '../i18n/useT';
+
 const STATUS_TONE: Record<ActionStatusCode, 'success' | 'warning' | 'error'> = {
   SUCCESS: 'success',
   WARNING: 'warning',
@@ -114,6 +116,8 @@ export const useRecordListViewModel = (source: RecordListSource): RecordListView
   const { openTab } = useWorkspace();
   const { tenantRole } = useTenant();
   const { notify } = useNotification();
+  const t = useT('core.records');
+  const label = useLabel();
   const { getActionsByIds, runAction } = useActions();
   const viewer = useExprViewer();
 
@@ -302,7 +306,8 @@ export const useRecordListViewModel = (source: RecordListSource): RecordListView
     copyText: (text) => navigator.clipboard.writeText(text),
     openTagManager: () => setTagManagerRecord(record),
     requestDelete: () => setRecordToDelete(record),
-  }), [collection, screenKey, definition, parent, openTab, notify, updateRecord, recordTabKeys]);
+    t,
+  }), [collection, screenKey, definition, parent, openTab, notify, updateRecord, recordTabKeys, t]);
 
   const cardActionDefs = useMemo(
     () => getActionsByIds(definition?.cardActionIds ?? []),
@@ -386,7 +391,7 @@ export const useRecordListViewModel = (source: RecordListSource): RecordListView
       .filter((action) => !isActionHidden(action.metadata.hiddenWhen, exprContext))
       .map<RecordCardAction>((action) => ({
         key: action.metadata.key,
-        title: action.metadata.title,
+        title: label(action.metadata.title),
         danger: action.metadata.danger,
         iconKey: action.metadata.icon,
         onClick: () => void action.run(buildActionHost(record)),
@@ -395,7 +400,7 @@ export const useRecordListViewModel = (source: RecordListSource): RecordListView
       .filter((action) => !isActionHidden(action.hiddenWhen, exprContext))
       .map<RecordCardAction>((action) => ({
         key: action.id,
-        title: action.title,
+        title: label(action.title),
         danger: action.danger,
         iconKey: action.icon,
         disabled: runningActionId !== null || isActionDisabled(action.disabledWhen, exprContext),
@@ -412,7 +417,7 @@ export const useRecordListViewModel = (source: RecordListSource): RecordListView
       }));
 
     return [...native, ...custom];
-  }, [definition, isAdmin, parent, relation, recordActions, buildActionHost, cardActionDefs, tenantRole, viewer, runningActionId, runCardAction, parameterPrompt]);
+  }, [definition, isAdmin, parent, relation, recordActions, buildActionHost, cardActionDefs, tenantRole, viewer, runningActionId, runCardAction, parameterPrompt, label]);
 
   const tagIdsOf = useCallback((entityId: string) => records.find((r) => r.id === entityId)?.tagIds ?? [], [records]);
   const setRecordTags = useCallback(

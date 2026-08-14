@@ -15,7 +15,7 @@ export const coreAdminPlugin: PluginRecord = {
     id: 'core.admin',
     version: '1.0.0',
     kernel: '^1.0.0',
-    name: 'Administração do Escritório',
+    name: 'Organization Administration',
     dependencies: { 'core.ui': '^1.0.0' },
     contributes: [
       messageBundleContribution(coreMessage('core.admin', CORE_ADMIN_MESSAGES)),

@@ -5,6 +5,7 @@ import type { IconType } from 'react-icons';
 import { RiSearchLine, RiCloseLine, RiCheckLine, RiErrorWarningLine } from 'react-icons/ri';
 import { useAnchoredDropdown } from '../../hooks/useAnchoredDropdown';
 
+import { useT } from '../../shared/i18n/useT';
 export interface SearchSelectOption {
   value: string;
   label: string;
@@ -83,7 +84,6 @@ const OrphanIcon = styled.span`
   flex-shrink: 0;
 `;
 
-const ORPHAN_TITLE = 'O registro referenciado não foi encontrado — pode ter sido excluído. O identificador foi mantido e permite localizar os dados na auditoria.';
 
 const ClearBtn = styled.span`
   display: flex;
@@ -196,6 +196,8 @@ export const SearchSelect: React.FC<SearchSelectProps> = ({
   placeholder = 'Selecione...',
   disabled,
 }) => {
+  const t = useT('core.ui');
+  const orphanTitle = t('reference.orphan.title');
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [activeIdx, setActiveIdx] = useState(0);
@@ -263,11 +265,11 @@ export const SearchSelect: React.FC<SearchSelectProps> = ({
         onClick={handleOpen}
         disabled={disabled}
       >
-        {isOrphan && <OrphanIcon title={ORPHAN_TITLE}><RiErrorWarningLine size={14} /></OrphanIcon>}
+        {isOrphan && <OrphanIcon title={orphanTitle}><RiErrorWarningLine size={14} /></OrphanIcon>}
         {selected?.color && <ColorDot $color={selected.color} />}
         {selected?.icon && <OptionIcon><selected.icon size={14} /></OptionIcon>}
-        <TriggerLabel $orphan={isOrphan} title={isOrphan ? ORPHAN_TITLE : undefined}>
-          {selected ? selected.label : isOrphan ? `Registro não encontrado (${value})` : placeholder}
+        <TriggerLabel $orphan={isOrphan} title={isOrphan ? orphanTitle : undefined}>
+          {selected ? selected.label : isOrphan ? t('reference.not-found', { id: value }) : placeholder}
         </TriggerLabel>
         {(selected || isOrphan) && !disabled && (
           <ClearBtn onClick={handleClear} title="Limpar">

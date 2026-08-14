@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { resetAmbientLocale, setAmbientLocale } from './i18n/localeGate';
 import { evaluateFieldBoolean, evaluateFieldExpression, evaluateFieldValidation, extractFieldExpressionDependencies } from './fieldExpression';
 
 describe('evaluateFieldExpression — escopo e literais', () => {
@@ -300,7 +301,26 @@ describe('demais funções trazidas do catálogo do Workflow', () => {
     expect(evaluateFieldExpression("formatCNPJ('12345678000190')", ctx)).toBe('12.345.678/0001-90');
   });
 
-  it('formatMoney no padrão brasileiro', () => {
+  /**
+   * `formatMoney` sem argumento de idioma segue o AMBIENTE. O teste passa a montar esse ambiente em
+   * vez de presumi-lo: antes ele afirmava o formato brasileiro sem configurar idioma nenhum, e só
+   * passava porque o gate tinha uma âncora `pt-BR` embutida. Com a âncora removida — o idioma agora
+   * é negociado com o navegador —, presumir o ambiente deixou de ser correto.
+   */
+  it('formatMoney segue o idioma em vigor', () => {
+    setAmbientLocale('pt-BR');
     expect(evaluateFieldExpression('formatMoney(1234.5)', ctx)).toBe('R$ 1.234,50');
+
+    setAmbientLocale('en-US');
+    expect(evaluateFieldExpression('formatMoney(1234.5)', ctx)).toBe('$1,234.50');
+
+    resetAmbientLocale();
+    expect(evaluateFieldExpression('formatMoney(1234.5)', ctx)).toBe('$1,234.50');
+  });
+
+  it('formatMoney com idioma explícito ignora o ambiente', () => {
+    setAmbientLocale('en-US');
+    expect(evaluateFieldExpression("formatMoney(1234.5, 'pt-BR')", ctx)).toBe('R$ 1.234,50');
+    resetAmbientLocale();
   });
 });

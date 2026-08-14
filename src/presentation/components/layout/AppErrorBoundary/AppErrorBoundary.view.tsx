@@ -5,8 +5,10 @@ import { S } from './AppErrorBoundary.styles';
 import { ErrorBoundary } from '../ErrorBoundary';
 import { Button } from '../../ui/Button';
 
+import { useT } from '../../../shared/i18n/useT';
 export const AppErrorBoundaryView: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const vm = useAppErrorBoundaryViewModel();
+  const t = useT('core.ui');
 
   return (
     <ErrorBoundary
@@ -14,9 +16,9 @@ export const AppErrorBoundaryView: React.FC<{ children: React.ReactNode }> = ({ 
       fallback={
         <S.Fallback>
           <RiErrorWarningLine size={40} />
-          <S.Title>Ocorreu um erro inesperado</S.Title>
-          <S.Text>A equipe técnica já foi notificada. Tente recarregar a página.</S.Text>
-          <Button variant="primary" onClick={vm.handleReload}>Recarregar</Button>
+          <S.Title>{t('error.unexpected.title')}</S.Title>
+          <S.Text>{t('error.unexpected.text')}</S.Text>
+          <Button variant="primary" onClick={vm.handleReload}>{t('error.reload')}</Button>
         </S.Fallback>
       }
     >

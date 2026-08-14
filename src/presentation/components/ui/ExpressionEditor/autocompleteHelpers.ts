@@ -1,4 +1,5 @@
 import { isReferenceableStepId } from '../../../shared/workflowHelpers';
+import type { TranslateFn } from '../../../shared/i18n/useT';
 
 export interface AutocompleteItem {
   value: string;
@@ -36,40 +37,40 @@ export interface WorkflowVariable {
   definedBy: string;
 }
 
-const COMMON_SNIPPETS: AutocompleteItem[] = [
+const commonSnippets = (t: TranslateFn): AutocompleteItem[] => [
   {
     value: 'if(condition, trueValue, falseValue)',
-    label: 'if - condicional',
-    description: 'Retorna um valor baseado em uma condição',
-    category: 'Snippet',
+    label: t('expression.snippet.if.label'),
+    description: t('expression.snippet.if.description'),
+    category: t('expression.category.snippet'),
     snippet: 'if(${1:condition}, ${2:trueValue}, ${3:falseValue})',
   },
   {
     value: 'formatDate(date, "DD/MM/YYYY")',
-    label: 'formatDate - data brasileira',
-    description: 'Formata data no padrão brasileiro',
-    category: 'Snippet',
+    label: t('expression.snippet.format-date.label'),
+    description: t('expression.snippet.format-date.description'),
+    category: t('expression.category.snippet'),
     snippet: 'formatDate(${1:date}, "DD/MM/YYYY")',
   },
   {
-    value: 'coalesce(value, "padrão")',
-    label: 'coalesce - valor padrão',
-    description: 'Usa valor padrão se for nulo',
-    category: 'Snippet',
-    snippet: 'coalesce(${1:value}, "${2:padrão}")',
+    value: 'coalesce(value, "default")',
+    label: t('expression.snippet.coalesce.label'),
+    description: t('expression.snippet.coalesce.description'),
+    category: t('expression.category.snippet'),
+    snippet: 'coalesce(${1:value}, "${2:default}")',
   },
   {
     value: 'concat(text1, " ", text2)',
-    label: 'concat - juntar textos',
-    description: 'Concatena múltiplos textos',
-    category: 'Snippet',
+    label: t('expression.snippet.concat.label'),
+    description: t('expression.snippet.concat.description'),
+    category: t('expression.category.snippet'),
     snippet: 'concat(${1:text1}, " ", ${2:text2})',
   },
   {
     value: 'dateDiff(date1, date2, "days")',
-    label: 'dateDiff - diferença em dias',
-    description: 'Calcula diferença entre datas',
-    category: 'Snippet',
+    label: t('expression.snippet.date-diff.label'),
+    description: t('expression.snippet.date-diff.description'),
+    category: t('expression.category.snippet'),
     snippet: 'dateDiff(${1:date1}, ${2:date2}, "days")',
   },
 ];
@@ -81,28 +82,29 @@ export type ExpressionContextRoot = 'event' | 'input' | 'output';
  * as expressões de campo e de Action rodam no `fieldExpression`, cujo escopo é plano (as variáveis
  * ficam na raiz). Sugeri-las ali levaria a `input.isNew`, que parseia mas resolve para indefinido.
  */
-const CONTEXT_VARIABLES: Record<ExpressionContextRoot, AutocompleteItem> = {
+const contextVariables = (t: TranslateFn): Record<ExpressionContextRoot, AutocompleteItem> => ({
   event: {
     value: 'event.',
     label: 'event',
-    description: 'Dados do evento que disparou o workflow',
-    category: 'Contexto',
+    description: t('expression.context.event'),
+    category: t('expression.category.context'),
   },
   input: {
     value: 'input.',
     label: 'input',
-    description: 'Dados de entrada configurados para este step',
-    category: 'Contexto',
+    description: t('expression.context.input'),
+    category: t('expression.category.context'),
   },
   output: {
     value: 'output.',
     label: 'output',
-    description: 'Saídas de steps anteriores do workflow',
-    category: 'Contexto',
+    description: t('expression.context.output'),
+    category: t('expression.category.context'),
   },
-};
+});
 
 export const buildAutocompleteItems = (
+  t: TranslateFn,
   mode: 'function' | 'field' | 'input' | 'output',
   query: string,
   functions: FunctionDefinition[],
@@ -159,19 +161,20 @@ export const buildAutocompleteItems = (
       ...matchingVariables.map((v) => ({
         value: v.name,
         label: v.name,
-        description: `Variável definida por: ${v.definedBy}`,
-        category: 'Variável',
+        description: t('expression.variable.defined-by', { by: v.definedBy }),
+        category: t('expression.category.variable'),
       })),
     );
 
     // Contextos (event, input, output) — só os que existem no escopo desta expressão
+    const roots = contextVariables(t);
     const matchingContexts = contextRoots
-      .map((root) => CONTEXT_VARIABLES[root])
+      .map((root) => roots[root])
       .filter((c) => !q || c.value.toLowerCase().includes(q) || c.label.toLowerCase().includes(q));
     items.push(...matchingContexts);
 
     if (includeSnippets && !isMemberQuery) {
-      const matchingSnippets = COMMON_SNIPPETS.filter(
+      const matchingSnippets = commonSnippets(t).filter(
         (s) => s.label.toLowerCase().includes(q) || s.value.toLowerCase().includes(q),
       );
       items.push(...matchingSnippets);
@@ -183,7 +186,7 @@ export const buildAutocompleteItems = (
         value: f.path,
         label: f.path,
         description: f.label,
-        category: 'Campo',
+        category: t('expression.category.field'),
       })),
     );
   } else if (mode === 'input') {
@@ -194,7 +197,7 @@ export const buildAutocompleteItems = (
         value: f.outputId,
         label: f.outputId,
         description: `${f.stepName} → ${f.outputLabel}`,
-        category: 'Output',
+        category: t('expression.category.output'),
       })),
     );
 
@@ -204,8 +207,8 @@ export const buildAutocompleteItems = (
       ...matchingVariables.map((v) => ({
         value: v.name,
         label: v.name,
-        description: `Variável: ${v.definedBy}`,
-        category: 'Variável',
+        description: t('expression.variable.short', { by: v.definedBy }),
+        category: t('expression.category.variable'),
       })),
     );
   } else if (mode === 'output') {
@@ -224,7 +227,7 @@ export const buildAutocompleteItems = (
             value: `${field.stepId}.${field.outputId}`,
             label: field.outputId,
             description: `${field.stepName} → ${field.outputLabel}`,
-            category: 'Output',
+            category: t('expression.category.output'),
           })),
       );
     } else {
@@ -238,7 +241,7 @@ export const buildAutocompleteItems = (
           // Desde que o Step passou a se chamar pelo próprio identificador, nome e id coincidem na
           // maioria dos casos — repetir o mesmo texto na descrição só ocuparia a linha de baixo.
           ...(field.stepName === field.stepId ? {} : { description: field.stepName }),
-          category: 'Step',
+          category: t('expression.category.step'),
         });
       });
     }

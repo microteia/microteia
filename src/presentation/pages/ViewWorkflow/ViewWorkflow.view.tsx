@@ -36,6 +36,8 @@ import { AdvancedParametersEditor } from './components/AdvancedParametersEditor'
 import { PARAMETER_TYPE_OPTIONS } from './ViewWorkflow.viewmodel';
 import { getStepDisplayName } from '../../shared/workflowHelpers';
 
+import { useT } from '../../shared/i18n/useT';
+
 const branchKeyOf = (conditionId: string, branch: BranchKey): string => `${conditionId}:${branch}`;
 
 const branchTarget = (conditionId: string, branch: BranchKey): InsertTarget => ({ kind: 'branch', conditionId, branch });
@@ -51,21 +53,28 @@ interface LevelProps {
   target: InsertTarget;
 }
 
-const AddControls: React.FC<{ vm: ViewWorkflowViewModel; target: InsertTarget }> = ({ vm, target }) => (
+const AddControls: React.FC<{ vm: ViewWorkflowViewModel; target: InsertTarget }> = ({ vm, target }) => {
+  const t = useT('core.automation');
+
+  return (
   <S.AddRow>
-    <S.AddNodeBtn onClick={() => vm.openAddStep(target)} title="Adicionar step">
+    <S.AddNodeBtn onClick={() => vm.openAddStep(target)} title={t('step.add')}>
       <RiAddLine size={18} />
     </S.AddNodeBtn>
-    <S.AddNodeBtn onClick={() => void vm.openAddCondition(target)} title="Adicionar condição">
+    <S.AddNodeBtn onClick={() => void vm.openAddCondition(target)} title={t('condition.add')}>
       <RiGitBranchLine size={16} />
     </S.AddNodeBtn>
-    <S.AddNodeBtn onClick={() => void vm.openAddLoop(target)} title="Adicionar repetição">
+    <S.AddNodeBtn onClick={() => void vm.openAddLoop(target)} title={t('loop.add')}>
       <RiLoopLeftLine size={16} />
     </S.AddNodeBtn>
   </S.AddRow>
-);
+  );
+};
 
-const ConnectorInsert: React.FC<{ vm: ViewWorkflowViewModel; parentKey: string; index: number; target: InsertTarget }> = ({ vm, parentKey, index, target }) => (
+const ConnectorInsert: React.FC<{ vm: ViewWorkflowViewModel; parentKey: string; index: number; target: InsertTarget }> = ({ vm, parentKey, index, target }) => {
+  const t = useT('core.automation');
+
+  return (
   <S.ConnectorZone
     $active={vm.draggingStepId !== null && vm.dropTarget?.parentKey === parentKey && vm.dropTarget.index === index}
     onDragOver={(e) => vm.handleStepDragOverGap(e, parentKey, index)}
@@ -73,37 +82,45 @@ const ConnectorInsert: React.FC<{ vm: ViewWorkflowViewModel; parentKey: string; 
   >
     {vm.draggingStepId === null && (
       <S.ConnectorActions>
-        <S.ConnectorBtn onClick={() => vm.openAddStep(target, index)} title="Inserir step aqui">
+        <S.ConnectorBtn onClick={() => vm.openAddStep(target, index)} title={t('step.insert-here')}>
           <RiAddLine size={14} />
         </S.ConnectorBtn>
-        <S.ConnectorBtn onClick={() => void vm.openAddCondition(target, index)} title="Inserir condição aqui">
+        <S.ConnectorBtn onClick={() => void vm.openAddCondition(target, index)} title={t('condition.insert-here')}>
           <RiGitBranchLine size={13} />
         </S.ConnectorBtn>
-        <S.ConnectorBtn onClick={() => void vm.openAddLoop(target, index)} title="Inserir repetição aqui">
+        <S.ConnectorBtn onClick={() => void vm.openAddLoop(target, index)} title={t('loop.insert-here')}>
           <RiLoopLeftLine size={13} />
         </S.ConnectorBtn>
       </S.ConnectorActions>
     )}
   </S.ConnectorZone>
-);
+  );
+};
 
-const StepNodeActions: React.FC<{ vm: ViewWorkflowViewModel; step: WorkflowStep }> = ({ vm, step }) => (
+const StepNodeActions: React.FC<{ vm: ViewWorkflowViewModel; step: WorkflowStep }> = ({ vm, step }) => {
+  const t = useT('core.automation');
+
+  return (
   <S.NodeActions>
-    <S.IconBtn title={step.enabled ? 'Inativar' : 'Ativar'} onClick={() => void vm.toggleStepEnabled(step)}>
+    <S.IconBtn title={t(step.enabled ? 'step.deactivate' : 'step.activate')} onClick={() => void vm.toggleStepEnabled(step)}>
       <S.ToggleIcon $enabled={step.enabled}>
         <RiToggleLine size={14} />
       </S.ToggleIcon>
     </S.IconBtn>
-    <S.IconBtn title="Editar" onClick={() => vm.openEditStep(step)}>
+    <S.IconBtn title={t('core.ui/condition.edit')} onClick={() => vm.openEditStep(step)}>
       <RiEditLine size={14} />
     </S.IconBtn>
-    <S.IconBtn title="Excluir" onClick={() => vm.handleDeleteStep(step)}>
+    <S.IconBtn title={t('core.ui/action.delete')} onClick={() => vm.handleDeleteStep(step)}>
       <RiDeleteBinLine size={14} />
     </S.IconBtn>
   </S.NodeActions>
-);
+  );
+};
 
-const FlowLevel: React.FC<LevelProps> = ({ vm, steps, parentKey, target }) => (
+const FlowLevel: React.FC<LevelProps> = ({ vm, steps, parentKey, target }) => {
+  const t = useT('core.automation');
+
+  return (
   <>
     {steps.map((step, index) => {
       const definition = vm.getStepDefinition(step.stepDefinitionId);
@@ -161,11 +178,11 @@ const FlowLevel: React.FC<LevelProps> = ({ vm, steps, parentKey, target }) => (
         )}
         {isLoop && step.loop && (
           <S.LoopBlock $dropActive={vm.draggingStepId !== null && vm.dropTarget?.parentKey === loopKeyOf(step.id)}>
-            <S.LoopHeader onClick={() => vm.toggleLoopCollapsed(step.id)} title={vm.isLoopCollapsed(step.id) ? 'Expandir' : 'Recolher'}>
+            <S.LoopHeader onClick={() => vm.toggleLoopCollapsed(step.id)} title={vm.isLoopCollapsed(step.id) ? t('core.ui/condition.expand') : t('core.ui/condition.collapse')}>
               <S.LoopChevron $collapsed={vm.isLoopCollapsed(step.id)}>
                 <RiArrowDownSLine size={16} />
               </S.LoopChevron>
-              <S.LoopLabel>Corpo da repetição</S.LoopLabel>
+              <S.LoopLabel>{t('loop.body')}</S.LoopLabel>
             </S.LoopHeader>
             {!vm.isLoopCollapsed(step.id) && (
               <S.LoopBody
@@ -193,9 +210,13 @@ const FlowLevel: React.FC<LevelProps> = ({ vm, steps, parentKey, target }) => (
     />
     <AddControls vm={vm} target={target} />
   </>
-);
+  );
+};
 
-const ListLevel: React.FC<{ vm: ViewWorkflowViewModel; steps: WorkflowStep[] }> = ({ vm, steps }) => (
+const ListLevel: React.FC<{ vm: ViewWorkflowViewModel; steps: WorkflowStep[] }> = ({ vm, steps }) => {
+  const t = useT('core.automation');
+
+  return (
   <>
     {steps.map((step, index) => {
       const definition = vm.getStepDefinition(step.stepDefinitionId);
@@ -248,11 +269,11 @@ const ListLevel: React.FC<{ vm: ViewWorkflowViewModel; steps: WorkflowStep[] }> 
           ))}
           {isLoop && step.loop && (
             <S.LoopListGroup>
-              <S.LoopHeader onClick={() => vm.toggleLoopCollapsed(step.id)} title={vm.isLoopCollapsed(step.id) ? 'Expandir' : 'Recolher'}>
+              <S.LoopHeader onClick={() => vm.toggleLoopCollapsed(step.id)} title={vm.isLoopCollapsed(step.id) ? t('core.ui/condition.expand') : t('core.ui/condition.collapse')}>
                 <S.LoopChevron $collapsed={vm.isLoopCollapsed(step.id)}>
                   <RiArrowDownSLine size={16} />
                 </S.LoopChevron>
-                <S.LoopLabel>Corpo da repetição</S.LoopLabel>
+                <S.LoopLabel>{t('loop.body')}</S.LoopLabel>
               </S.LoopHeader>
               {!vm.isLoopCollapsed(step.id) && (
                 <>
@@ -266,17 +287,19 @@ const ListLevel: React.FC<{ vm: ViewWorkflowViewModel; steps: WorkflowStep[] }> 
       );
     })}
   </>
-);
+  );
+};
 
 export const ViewWorkflowView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
   const vm = useViewWorkflowViewModel(tabKey);
+  const t = useT('core.automation');
 
   return (
     <S.Page>
       <S.Header>
         <S.TitleRow>
           {vm.headerIcon && <vm.headerIcon size={22} />}
-          <S.Title>{vm.isNew ? 'Nova Automação' : (vm.workflow?.name || 'Automação')}</S.Title>
+          <S.Title>{vm.isNew ? t('page.new-workflow') : (vm.workflow?.name || t('workflow.untitled'))}</S.Title>
         </S.TitleRow>
         <S.HeaderActions>
           {!vm.isNew && vm.workflow && (
@@ -329,7 +352,7 @@ export const ViewWorkflowView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
             </S.SaveBtn>
           )}
           {!vm.isNew && vm.workflow && (
-            <S.DeleteBtn onClick={vm.handleDeleteWorkflow} title="Excluir Automação">
+            <S.DeleteBtn onClick={vm.handleDeleteWorkflow} title={t('workflow.delete')}>
               <RiDeleteBinLine size={14} />
             </S.DeleteBtn>
           )}
@@ -339,9 +362,9 @@ export const ViewWorkflowView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
       {!vm.isNew && (
         <S.TabBar>
           <S.TabBtn $active={vm.activeTab === 'general'} onClick={() => vm.setActiveTab('general')}>Geral</S.TabBtn>
-          <S.TabBtn $active={vm.activeTab === 'conditions'} onClick={() => vm.setActiveTab('conditions')}>Condições</S.TabBtn>
+          <S.TabBtn $active={vm.activeTab === 'conditions'} onClick={() => vm.setActiveTab('conditions')}>{t('tab.conditions')}</S.TabBtn>
           <S.TabBtn $active={vm.activeTab === 'steps'} onClick={() => vm.setActiveTab('steps')}>Steps</S.TabBtn>
-          <S.TabBtn $active={vm.activeTab === 'executions'} onClick={() => vm.setActiveTab('executions')}>Execuções</S.TabBtn>
+          <S.TabBtn $active={vm.activeTab === 'executions'} onClick={() => vm.setActiveTab('executions')}>{t('tab.executions')}</S.TabBtn>
         </S.TabBar>
       )}
 
@@ -368,14 +391,14 @@ export const ViewWorkflowView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
                 />
                 <S.FieldHint>
                   {vm.isNew
-                    ? 'É por ele que uma Ação escolhe esta automação. Em branco, criamos um a partir do nome. Não muda depois de criada.'
-                    : 'O identificador não muda depois que a automação é criada — as Ações e os pacotes que apontam para ela deixariam de encontrá-la.'}
+                    ? t('workflow.identifier.new')
+                    : t('workflow.identifier.locked')}
                 </S.FieldHint>
                 {vm.workflowIdError && <S.FieldError>{vm.workflowIdError}</S.FieldError>}
               </InputGroup>
 
               <InputGroup>
-                <Label>Descrição</Label>
+                <Label>{t('field.description')}</Label>
                 <Textarea
                   value={vm.formData.description}
                   onChange={(e) => vm.setFormData({ description: e.target.value })}
@@ -384,28 +407,28 @@ export const ViewWorkflowView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
               </InputGroup>
 
               <InputGroup>
-                <Label>Evento que dispara a automação</Label>
+                <Label>{t('workflow.event')}</Label>
                 {!vm.isEventNameRecognized && (
                   <InfoBanner
                     variant="warning"
-                    message={`O evento salvo ("${vm.formData.eventName}") não existe mais na lista atual. Selecione o evento novamente e salve.`}
+                    message={t('workflow.event.missing', { event: vm.formData.eventName })}
                   />
                 )}
                 <SearchSelect
                   options={vm.eventNameOptions}
                   value={vm.formData.eventName}
                   onChange={(eventName) => vm.setFormData({ eventName })}
-                  placeholder="Selecione um evento..."
+                  placeholder={t('workflow.event.placeholder')}
                 />
               </InputGroup>
 
               {vm.isLookupEvent && (
                 <InputGroup>
-                  <Label>Lista</Label>
+                  <Label>{t('field.lookup')}</Label>
                   {!vm.isLookupCollectionRecognized && (
                     <InfoBanner
                       variant="warning"
-                      message="A lista salva neste gatilho não existe mais. Selecione a lista novamente e salve."
+                      message={t('workflow.lookup.missing')}
                     />
                   )}
                   <SearchSelect
@@ -419,11 +442,11 @@ export const ViewWorkflowView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
 
               {vm.isCalledEvent && (
                 <InputGroup>
-                  <Label>Parâmetros</Label>
+                  <Label>{t('field.parameters')}</Label>
                   <AdvancedParametersEditor
                     parameters={vm.formData.parameters}
                     errors={vm.parameterErrors}
-                    typeOptions={PARAMETER_TYPE_OPTIONS}
+                    typeOptions={PARAMETER_TYPE_OPTIONS.map((option) => ({ value: option.value, label: t(option.labelKey) }))}
                     entityOptions={vm.parameterEntityOptions}
                     lookupOptions={vm.parameterLookupOptions}
                     onAdd={vm.addParameter}
@@ -447,14 +470,14 @@ export const ViewWorkflowView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
                 <S.ViewToggleBtn
                   $active={vm.conditionViewMode === 'editor'}
                   onClick={() => vm.setConditionViewMode('editor')}
-                  title="Editor de condições"
+                  title={t('condition.editor')}
                 >
                   <RiEditLine size={14} />
                 </S.ViewToggleBtn>
                 <S.ViewToggleBtn
                   $active={vm.conditionViewMode === 'diagram'}
                   onClick={() => vm.setConditionViewMode('diagram')}
-                  title="Diagrama lógico"
+                  title={t('condition.diagram')}
                 >
                   <RiNodeTree size={14} />
                 </S.ViewToggleBtn>
@@ -491,14 +514,14 @@ export const ViewWorkflowView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
                 <S.ViewToggleBtn
                   $active={vm.stepsViewMode === 'flow'}
                   onClick={() => vm.setStepsViewMode('flow')}
-                  title="Visualização em fluxo"
+                  title={t('view.flow')}
                 >
                   <RiFlowChart size={14} />
                 </S.ViewToggleBtn>
                 <S.ViewToggleBtn
                   $active={vm.stepsViewMode === 'list'}
                   onClick={() => vm.setStepsViewMode('list')}
-                  title="Visualização em lista"
+                  title={t('view.list')}
                 >
                   <RiListUnordered size={14} />
                 </S.ViewToggleBtn>
@@ -541,13 +564,9 @@ export const ViewWorkflowView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
               isOpen={!!vm.stepToDelete}
               onConfirm={() => void vm.confirmDeleteStep()}
               onCancel={vm.cancelDeleteStep}
-              title={vm.stepToDelete?.type === 'Condition' ? 'Excluir Condição' : 'Excluir Step'}
-              message={
-                vm.stepToDelete?.type === 'Condition'
-                  ? 'Excluir esta condição também remove todos os steps dos ramos Verdadeiro e Falso. Esta ação não pode ser desfeita.'
-                  : 'Tem certeza que deseja excluir este step? Esta ação não pode ser desfeita.'
-              }
-              confirmLabel="Excluir"
+              title={t(vm.stepToDelete?.type === 'Condition' ? 'condition.delete.title' : 'step.delete.title')}
+              message={t(vm.stepToDelete?.type === 'Condition' ? 'condition.delete.message' : 'step.delete.message')}
+              confirmLabel={t('core.ui/action.delete')}
               variant="danger"
             />
           </S.StepsContentInner>
@@ -560,12 +579,12 @@ export const ViewWorkflowView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
             {vm.executionsError && (
               <InfoBanner
                 variant="warning"
-                message={`Não foi possível carregar as execuções (${vm.executionsError}). Isso costuma ser regra de segurança ou índice composto do Firestore ainda não configurado para "workflow_executions" — confira o console do navegador para o link de criação do índice, se houver.`}
+                message={t('executions.load-failed', { detail: vm.executionsError })}
               />
             )}
             {vm.executions.length === 0 ? (
               <S.EmptyState>
-                <div>Nenhuma execução registrada ainda.</div>
+                <div>{t('executions.empty')}</div>
               </S.EmptyState>
             ) : (
               <S.List>
@@ -628,7 +647,7 @@ export const ViewWorkflowView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
                                 {log.outputs && Object.keys(log.outputs).length > 0 && (
                                   <S.DataSection>
                                     <S.DataToggle onClick={() => vm.toggleLogData(execution.id, i, 'outputs')}>
-                                      {vm.isLogDataExpanded(execution.id, i, 'outputs') ? '▼' : '▶'} Saída ({Object.keys(log.outputs).length})
+                                      {vm.isLogDataExpanded(execution.id, i, 'outputs') ? '▼' : '▶'} {t('execution.outputs', { count: Object.keys(log.outputs).length })}
                                     </S.DataToggle>
                                     {vm.isLogDataExpanded(execution.id, i, 'outputs') && (
                                       <S.DataJson>{JSON.stringify(log.outputs, null, 2)}</S.DataJson>
@@ -652,7 +671,7 @@ export const ViewWorkflowView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
                       {Object.keys(execution.outputs).length > 0 && (
                         <S.GeneralOutputsSection>
                           <S.OutputsToggle onClick={() => vm.toggleExecutionOutputs(execution.id)}>
-                            {vm.isExecutionOutputsExpanded(execution.id) ? '▼' : '▶'} Saída geral ({Object.keys(execution.outputs).length})
+                            {vm.isExecutionOutputsExpanded(execution.id) ? '▼' : '▶'} {t('execution.outputs.all', { count: Object.keys(execution.outputs).length })}
                           </S.OutputsToggle>
                           {vm.isExecutionOutputsExpanded(execution.id) && (
                             <S.OutputsJson>{JSON.stringify(execution.outputs, null, 2)}</S.OutputsJson>
@@ -670,9 +689,9 @@ export const ViewWorkflowView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
 
       {vm.runModalOpen && (
         <RunModal
-          title={`Executar: ${vm.workflow?.name || 'Automação'}`}
+          title={t('workflow.run.title', { name: vm.workflow?.name || t('workflow.untitled') })}
           parameters={vm.runModalParameters}
-          runLabel="Executar Automação"
+          runLabel={t('workflow.run.action')}
           onClose={vm.closeRunModal}
           onRun={vm.runWorkflowForModal}
         />
@@ -682,8 +701,8 @@ export const ViewWorkflowView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
         isOpen={!!vm.workflowToDelete}
         onConfirm={() => void vm.confirmDeleteWorkflow()}
         onCancel={vm.cancelDeleteWorkflow}
-        title="Excluir Automação"
-        message={`Tem certeza que deseja excluir a automação "${vm.workflowToDelete?.name}"? Esta ação não pode ser desfeita.`}
+        title={t('workflow.delete')}
+        message={t('workflow.delete.message', { name: vm.workflowToDelete?.name ?? '' })}
         confirmLabel="Excluir"
         variant="danger"
       />

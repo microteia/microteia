@@ -5,7 +5,7 @@ const contains = (text: string | null | undefined, query: string) =>
   !!text && text.toLowerCase().includes(query.toLowerCase());
 
 export const WorkflowCommandProvider: ICommandPaletteProvider = {
-  group: 'Workflow',
+  group: '@core.automation/command.group',
 
   getItems(query: string, { workflows, openTab, close }: CommandPaletteAppContext): CommandPaletteItem[] {
     if (!query) return [];
@@ -18,7 +18,7 @@ export const WorkflowCommandProvider: ICommandPaletteProvider = {
           id: `workflow:${w.id}`,
           title: w.name,
           subtitle: w.eventName,
-          group: 'Workflow',
+          group: '@core.automation/command.group',
           icon: <Icon size={16} />,
           onSelect: () => {
             openTab(`view-workflow:${w.id}`);

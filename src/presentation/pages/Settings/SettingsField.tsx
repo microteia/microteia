@@ -27,7 +27,7 @@ interface SettingsFieldProps {
  * plugin declara `boolean` e ganha uma caixa de seleção sem escrever interface nenhuma.
  */
 export const SettingsField: React.FC<SettingsFieldProps> = ({ property, value, disabled, onChange }) => {
-  const { available } = useLocale();
+  const { available, locale, preferred } = useLocale();
 
   switch (property.type) {
     case 'boolean':
@@ -71,16 +71,27 @@ export const SettingsField: React.FC<SettingsFieldProps> = ({ property, value, d
      * um pacote de tradução, nunca editar o núcleo. O idioma-fonte está sempre entre eles, então um
      * escritório sem nenhum pacote continua tendo o que escolher.
      */
-    case 'locale':
+    case 'locale': {
+      /**
+       * Sem NADA gravado em escopo nenhum (`preferred === null`), o campo mostra o idioma EM VIGOR,
+       * e não o `default` declarado na propriedade. Sem isso a tela mente: `resolveSetting`
+       * devolveria `en` enquanto o provedor está rodando no idioma negociado com o navegador, e o
+       * escritório leria "Inglês" numa interface em português.
+       *
+       * Isto NÃO é dívida: é a leitura correta de um campo cujo valor efetivo, quando não gravado,
+       * depende de negociação e não do `default`.
+       */
+      const effective = preferred === null ? locale : value;
       return (
         <SearchSelect
-          value={typeof value === 'string' ? value : ''}
-          options={available.map((locale) => ({ value: locale, label: localeDisplayName(locale) }))}
+          value={typeof effective === 'string' ? effective : ''}
+          options={available.map((option) => ({ value: option, label: localeDisplayName(option) }))}
           disabled={disabled}
           onChange={(next) => onChange(next)}
           placeholder="Selecione..."
         />
       );
+    }
 
     case 'stringList': {
       const pattern = stringListPattern(property);

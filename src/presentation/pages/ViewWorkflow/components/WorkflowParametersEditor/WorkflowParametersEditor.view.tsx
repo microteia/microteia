@@ -14,20 +14,22 @@ import type { FieldRules, FormatPreset, ValidateCheck } from '../../../../../dom
 import type { FieldRulePresetOption } from '../../../../shared/useFieldRulePresets';
 import { parameterToInputDefinition } from '../../../../shared/parameterInputs';
 
-const REQUIRED_OPTIONS = [
-  { value: 'optional', label: 'Opcional' },
-  { value: 'required', label: 'Obrigatório' },
+import { useT, type TranslateFn } from '../../../../shared/i18n/useT';
+
+const requiredOptions = (t: TranslateFn) => [
+  { value: 'optional', label: t('parameter.optional') },
+  { value: 'required', label: t('parameter.required') },
 ];
 
-const LIST_OPTIONS = [
-  { value: 'single', label: 'Único' },
-  { value: 'list', label: 'Vários' },
+const listOptions = (t: TranslateFn) => [
+  { value: 'single', label: t('parameter.single') },
+  { value: 'list', label: t('parameter.list') },
 ];
 
-const BOOLEAN_DEFAULT_OPTIONS = [
-  { value: '', label: 'Sem padrão' },
-  { value: 'true', label: 'Sim' },
-  { value: 'false', label: 'Não' },
+const booleanDefaultOptions = (t: TranslateFn) => [
+  { value: '', label: t('parameter.no-default') },
+  { value: 'true', label: t('core.ui/boolean.yes') },
+  { value: 'false', label: t('core.ui/boolean.no') },
 ];
 
 const DefaultValueField: React.FC<{
@@ -35,6 +37,7 @@ const DefaultValueField: React.FC<{
   index: number;
   onUpdate: WorkflowParametersEditorProps['onUpdate'];
 }> = ({ parameter, index, onUpdate }) => {
+  const t = useT('core.automation');
   const setDefault = (value: unknown) => onUpdate(index, { defaultValue: value });
 
   if (parameter.type === 'Date') {
@@ -49,10 +52,10 @@ const DefaultValueField: React.FC<{
   if (parameter.type === 'Boolean') {
     return (
       <SearchSelect
-        options={BOOLEAN_DEFAULT_OPTIONS}
+        options={booleanDefaultOptions(t)}
         value={parameter.defaultValue === true ? 'true' : parameter.defaultValue === false ? 'false' : ''}
         onChange={(value) => setDefault(value === '' ? undefined : value === 'true')}
-        placeholder="Sem padrão"
+        placeholder={t('parameter.no-default')}
       />
     );
   }
@@ -70,10 +73,10 @@ const DefaultValueField: React.FC<{
   if (parameter.type === 'select') {
     return (
       <SearchSelect
-        options={[{ value: '', label: 'Sem padrão' }, ...(parameter.options ?? [])]}
+        options={[{ value: '', label: t('parameter.no-default') }, ...(parameter.options ?? [])]}
         value={typeof parameter.defaultValue === 'string' ? parameter.defaultValue : ''}
         onChange={(value) => setDefault(value || undefined)}
-        placeholder="Sem padrão"
+        placeholder={t('parameter.no-default')}
       />
     );
   }
@@ -91,21 +94,22 @@ const DefaultValueField: React.FC<{
         }
         return setDefault(raw);
       }}
-      placeholder="Sem padrão"
+      placeholder={t('parameter.no-default')}
     />
   );
 };
 
 export const WorkflowParametersEditor: React.FC<WorkflowParametersEditorProps> = (props) => {
   const { parameters, errors, typeOptions, entityOptions, lookupOptions, onUpdate, variant = 'input' } = props;
-  const cloneLabel = variant === 'output' ? 'Clonar parâmetro de saída' : 'Clonar parâmetro';
+  const t = useT('core.automation');
+  const cloneLabel = t(variant === 'output' ? 'parameter.clone.output' : 'parameter.clone');
   const vm = useWorkflowParametersEditorViewModel(props);
 
   return (
     <S.Container>
       {parameters.length === 0 && (
         <S.Empty>
-          {variant === 'output' ? 'Nenhum parâmetro de saída declarado.' : 'Nenhum parâmetro. Este workflow pode ser chamado sem receber dados.'}
+          {t(variant === 'output' ? 'parameter.empty.output' : 'parameter.empty.input')}
         </S.Empty>
       )}
 
@@ -117,12 +121,12 @@ export const WorkflowParametersEditor: React.FC<WorkflowParametersEditorProps> =
               <S.CollapseBtn
                 type="button"
                 onClick={() => vm.toggle(index)}
-                title={expanded ? 'Recolher parâmetro' : 'Expandir parâmetro'}
+                title={t(expanded ? 'parameter.collapse' : 'parameter.expand')}
               >
                 {expanded ? <RiArrowDownSLine size={18} /> : <RiArrowRightSLine size={18} />}
               </S.CollapseBtn>
               {expanded ? (
-                <S.HeaderTitle>{parameter.label.trim() || parameter.key.trim() || 'Novo parâmetro'}</S.HeaderTitle>
+                <S.HeaderTitle>{parameter.label.trim() || parameter.key.trim() || t('parameter.new')}</S.HeaderTitle>
               ) : (
                 <S.Summary type="button" onClick={() => vm.toggle(index)}>
                   {vm.summaryFor(parameter)}
@@ -132,7 +136,7 @@ export const WorkflowParametersEditor: React.FC<WorkflowParametersEditorProps> =
               <S.CloneBtn type="button" onClick={() => vm.handleClone(index)} title={cloneLabel}>
                 <RiFileCopyLine size={14} />
               </S.CloneBtn>
-              <S.RemoveBtn type="button" onClick={() => vm.handleRemove(index)} title="Remover parâmetro">
+              <S.RemoveBtn type="button" onClick={() => vm.handleRemove(index)} title={t('parameter.remove')}>
                 <RiDeleteBinLine size={14} />
               </S.RemoveBtn>
             </S.RowHeader>
@@ -187,7 +191,7 @@ export const WorkflowParametersEditor: React.FC<WorkflowParametersEditorProps> =
       })}
 
       <S.AddBtn type="button" onClick={vm.handleAdd}>
-        <RiAddLine size={14} /> Adicionar parâmetro
+        <RiAddLine size={14} /> {t('parameter.add')}
       </S.AddBtn>
     </S.Container>
   );
@@ -205,12 +209,13 @@ const ParameterFields: React.FC<{
   formatOptions: FieldRulePresetOption[];
   validateOptions: FieldRulePresetOption[];
 }> = ({ parameter, error, index, typeOptions, entityOptions, lookupOptions, onUpdate, variant, formatOptions, validateOptions }) => {
+  const t = useT('core.automation');
   const isInput = variant === 'input';
   return (
   <>
     <S.Line>
       <S.Cell>
-        <Label>Descrição</Label>
+        <Label>{t('field.description')}</Label>
         <Input
           value={parameter.label}
           onChange={(e) => onUpdate(index, { label: e.target.value })}
@@ -218,7 +223,7 @@ const ParameterFields: React.FC<{
         />
       </S.Cell>
       <S.Cell>
-        <Label>Nome do parâmetro</Label>
+        <Label>{t('parameter.name')}</Label>
         <Input
           value={parameter.key}
           onChange={(e) => onUpdate(index, { key: e.target.value })}
@@ -248,10 +253,10 @@ const ParameterFields: React.FC<{
 
     {isInput && parameter.type === 'select' && (
       <S.Cell>
-        <Label>Opções da lista</Label>
+        <Label>{t('parameter.options')}</Label>
         <S.OptionsBox>
           {(parameter.options ?? []).length === 0 && (
-            <S.OptionsHint>Adicione as opções que o usuário poderá escolher. O valor padrão é definido a partir delas.</S.OptionsHint>
+            <S.OptionsHint>{t('parameter.options.hint')}</S.OptionsHint>
           )}
           {(parameter.options ?? []).map((option, optionIndex) => (
             <S.OptionRow key={optionIndex}>
@@ -269,7 +274,7 @@ const ParameterFields: React.FC<{
                 onClick={() =>
                   onUpdate(index, { options: (parameter.options ?? []).filter((_, i) => i !== optionIndex) })
                 }
-                title="Remover opção"
+                title={t('parameter.option.remove')}
               >
                 <RiDeleteBinLine size={14} />
               </S.RemoveBtn>
@@ -279,7 +284,7 @@ const ParameterFields: React.FC<{
             type="button"
             onClick={() => onUpdate(index, { options: [...(parameter.options ?? []), { value: '', label: '' }] })}
           >
-            <RiAddLine size={14} /> Adicionar opção
+            <RiAddLine size={14} /> {t('parameter.option.add')}
           </S.AddBtn>
         </S.OptionsBox>
       </S.Cell>
@@ -290,7 +295,7 @@ const ParameterFields: React.FC<{
         <S.Cell>
           <Label>Preenchimento</Label>
           <SearchSelect
-            options={REQUIRED_OPTIONS}
+            options={requiredOptions(t)}
             value={parameter.required ? 'required' : 'optional'}
             onChange={(value) => onUpdate(index, { required: value === 'required' })}
             placeholder="..."
@@ -301,7 +306,7 @@ const ParameterFields: React.FC<{
       <S.Cell>
         <Label>Quantidade</Label>
         <SearchSelect
-          options={LIST_OPTIONS}
+          options={listOptions(t)}
           value={parameter.list ? 'list' : 'single'}
           onChange={(value) => onUpdate(index, { list: value === 'list' })}
           placeholder="..."
@@ -322,7 +327,7 @@ const ParameterFields: React.FC<{
 
       {parameter.type === 'lookup' && (
         <S.Cell>
-          <Label>Lista de opções</Label>
+          <Label>{t('parameter.lookup')}</Label>
           <SearchSelect
             options={lookupOptions}
             value={parameter.lookupCollection ?? ''}
@@ -334,7 +339,7 @@ const ParameterFields: React.FC<{
 
       {isInput && !parameter.list && isScalarParameterType(parameter.type) && (
         <S.Cell>
-          <Label>Valor padrão</Label>
+          <Label>{t('parameter.default')}</Label>
           <DefaultValueField parameter={parameter} index={index} onUpdate={onUpdate} />
         </S.Cell>
       )}
@@ -363,6 +368,7 @@ const ParameterRulesFields: React.FC<{
   formatOptions: FieldRulePresetOption[];
   validateOptions: FieldRulePresetOption[];
 }> = ({ parameter, index, onUpdate, formatOptions, validateOptions }) => {
+  const t = useT('core.automation');
   const rules = parameter.rules;
 
   // O valor é guardado cru enquanto o usuário digita (um regex pela metade é inválido, e
@@ -381,21 +387,21 @@ const ParameterRulesFields: React.FC<{
     <>
       <S.SubLine>
         <S.Cell>
-          <Label>Formatação pronta</Label>
+          <Label>{t('parameter.format-preset')}</Label>
           <SearchSelect
             options={formatOptions}
             value={rules?.format?.preset ?? ''}
             onChange={(value) => patchRules({ format: { preset: (value || undefined) as FormatPreset | undefined } })}
-            placeholder="Nenhuma"
+            placeholder={t('parameter.preset.none')}
           />
         </S.Cell>
         <S.Cell>
-          <Label>Validação pronta</Label>
+          <Label>{t('parameter.validate-preset')}</Label>
           <SearchSelect
             options={validateOptions}
             value={rules?.validate?.check ?? ''}
             onChange={(value) => patchRules({ validate: { check: (value || undefined) as ValidateCheck | undefined } })}
-            placeholder="Nenhuma"
+            placeholder={t('parameter.preset.none')}
           />
         </S.Cell>
       </S.SubLine>
@@ -421,7 +427,7 @@ const ParameterRulesFields: React.FC<{
 
       <S.SubLine>
         <S.Cell>
-          <Label>Validar (expressão regular)</Label>
+          <Label>{t('parameter.validate-regex')}</Label>
           <Input
             value={rules?.validate?.pattern ?? ''}
             onChange={(e) => patchRules({ validate: { pattern: e.target.value } })}
@@ -433,7 +439,7 @@ const ParameterRulesFields: React.FC<{
           <Input
             value={rules?.validate?.message ?? ''}
             onChange={(e) => patchRules({ validate: { message: e.target.value } })}
-            placeholder="Exibida quando o valor não passa"
+            placeholder={t('parameter.validate-message.placeholder')}
           />
         </S.Cell>
       </S.SubLine>

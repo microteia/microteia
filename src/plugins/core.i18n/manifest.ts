@@ -24,9 +24,9 @@ export const coreI18nPlugin: PluginRecord = {
     id: 'core.i18n',
     version: '1.0.0',
     kernel: '^1.0.0',
-    name: 'Núcleo de Idioma',
+    name: 'Language Core',
     description:
-      'Declara o ponto de extensão das traduções e as preferências de idioma e fuso horário do escritório.',
+      'Declares the translation extension point and the organization language and time zone preferences.',
     dependencies: { 'core.ui': '^1.0.0' },
     extensionPoints: I18N_EXTENSION_POINTS,
     contributes: [

@@ -11,6 +11,7 @@ import { useStepCatalog } from '../../../stores/useStepCatalog';
 import { WORKFLOW_CALLED_EVENT, buildWorkflowEventCatalog, getWorkflowEventFields, eventNameToEntityKey, workflowParametersToFieldOptions } from '../../../domain/services/workflowEventCatalog';
 import type { SchemaContext } from '../../../domain/schema/pathResolver';
 import { useSchemaContext } from '../../shared/useSchemaContext';
+import { useT } from '../../shared/i18n/useT';
 import { useEntityReferenceOptions, useLookupCollectionOptions } from '../../shared/useParameterOptions';
 import type { WorkflowEventFieldOption } from '../../../domain/services/workflowEventCatalog';
 import { WORKFLOW_LOOKUP_COLLECTIONS } from '../../../domain/services/workflowLookupCatalog';
@@ -80,25 +81,26 @@ const saveConditionViewMode = (mode: ConditionViewMode): void => {
   }
 };
 
-const STEP_CATEGORY_LABELS: Record<StepCategory, string> = {
-  Action: 'Ação',
-  Data: 'Dados',
-  Notification: 'Notificação',
-  Integration: 'Integração',
+/** A categoria vira CHAVE: o mapa é de módulo e quem renderiza é que traduz. */
+const STEP_CATEGORY_KEYS: Record<StepCategory, string> = {
+  Action: 'step.category.action',
+  Data: 'step.category.data',
+  Notification: 'step.category.notification',
+  Integration: 'step.category.integration',
 };
 
 const isLookupEventName = (eventName: string): boolean => eventName.startsWith('lookup.');
 const isCalledEventName = (eventName: string): boolean => eventName === WORKFLOW_CALLED_EVENT;
 
-export const PARAMETER_TYPE_OPTIONS: { value: WorkflowParameter['type']; label: string }[] = [
-  { value: 'String', label: 'Texto' },
-  { value: 'Number', label: 'Número' },
-  { value: 'Date', label: 'Data' },
-  { value: 'Boolean', label: 'Booleano' },
-  { value: 'select', label: 'Lista de opções' },
-  { value: 'lookup', label: 'Lista do escritório' },
-  { value: 'EntityReference', label: 'Referência a entidade' },
-  { value: 'Object', label: 'Objeto (aninhado)' },
+export const PARAMETER_TYPE_OPTIONS: { value: WorkflowParameter['type']; labelKey: string }[] = [
+  { value: 'String', labelKey: 'parameter.type.string' },
+  { value: 'Number', labelKey: 'parameter.type.number' },
+  { value: 'Date', labelKey: 'parameter.type.date' },
+  { value: 'Boolean', labelKey: 'parameter.type.boolean' },
+  { value: 'select', labelKey: 'parameter.type.select' },
+  { value: 'lookup', labelKey: 'parameter.type.lookup' },
+  { value: 'EntityReference', labelKey: 'parameter.type.entity-reference' },
+  { value: 'Object', labelKey: 'parameter.type.object' },
 ];
 
 export interface WorkflowFormData {
@@ -263,6 +265,8 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
   const { workflowExecutionRepository, dataProcessorRepository } = useDI();
   const { getDefinition } = useScreenDefinitions();
   const ctx = useSchemaContext();
+  const tUi = useT('core.ui');
+  const t = useT('core.automation');
   const { stepCatalog, loadCatalog } = useStepCatalog();
 
   const workflow = useMemo(
@@ -311,8 +315,8 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
   }, [workflow]);
 
   useEffect(() => {
-    if (workflow) setTabTitle(tabKey, workflow.name || 'Automação');
-  }, [workflow, tabKey, setTabTitle]);
+    if (workflow) setTabTitle(tabKey, workflow.name || t('workflow.untitled'));
+  }, [workflow, tabKey, setTabTitle, t]);
 
   useEffect(() => {
     if (!currentTenant || isNew) return;
@@ -505,7 +509,7 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
 
         const chosenId = formData.workflowId.trim() || deriveArtifactId(formData.name, takenWorkflowIds);
         const created = await createWorkflow(createData as Parameters<typeof createWorkflow>[0], chosenId);
-        notify('Automação criada.', 'success');
+        notify(t('workflow.created'), 'success');
         closeTab(tabKey, activePanelId ?? 'main');
         openTab(`view-workflow:${created.id}`);
       } else if (workflow) {
@@ -518,26 +522,26 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
         if (lookupCollection) updateData.lookupCollection = lookupCollection;
 
         await updateWorkflow(workflow.id, updateData as Parameters<typeof updateWorkflow>[1]);
-        notify('Automação salva.', 'success');
+        notify(t('workflow.saved'), 'success');
       }
     } catch (error) {
       console.error('[ViewWorkflow] handleSaveGeneral:', error);
-      notify('Erro ao salvar automação.', 'error');
+      notify(t('workflow.save-failed'), 'error');
     } finally {
       setIsSaving(false);
     }
-  }, [takenWorkflowIds, currentTenant, isNew, formData, isLookupEvent, isCalledEvent, cloneSource, createWorkflow, updateWorkflow, workflow, notify, closeTab, tabKey, activePanelId, openTab]);
+  }, [takenWorkflowIds, currentTenant, isNew, formData, isLookupEvent, isCalledEvent, cloneSource, createWorkflow, updateWorkflow, workflow, notify, closeTab, tabKey, activePanelId, openTab, t]);
 
   const toggleEnabled = useCallback(() => {
     if (!workflow) return;
     const next = !workflow.enabled;
     updateWorkflow(workflow.id, { enabled: next })
-      .then(() => notify(`Automação ${next ? 'ativada' : 'inativada'}.`, 'success'))
+      .then(() => notify(t(next ? 'workflow.activated' : 'workflow.deactivated'), 'success'))
       .catch((error) => {
         console.error('[ViewWorkflow] toggleEnabled:', error);
         notify('Erro ao alterar status.', 'error');
       });
-  }, [workflow, updateWorkflow, notify]);
+  }, [workflow, updateWorkflow, notify, t]);
 
   const handleConditionLocalChange = useCallback((condition: Condition) => {
     setPendingCondition(condition);
@@ -550,14 +554,14 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
     try {
       await updateWorkflow(workflow.id, { condition: pendingCondition });
       setConditionChanged(false);
-      notify('Condição salva.', 'success');
+      notify(t('condition.saved'), 'success');
     } catch (error) {
       console.error('[ViewWorkflow] handleSaveCondition:', error);
-      notify('Erro ao salvar condição.', 'error');
+      notify(t('condition.save-failed'), 'error');
     } finally {
       setIsSaving(false);
     }
-  }, [workflow, conditionChanged, pendingCondition, updateWorkflow, notify]);
+  }, [workflow, conditionChanged, pendingCondition, updateWorkflow, notify, t]);
 
   const handleCopyDeepLink = useCallback(() => {
     if (!workflow) return;
@@ -579,15 +583,15 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
     if (!workflowToDelete) return;
     try {
       await deleteWorkflow(workflowToDelete.id);
-      notify('Automação excluída.', 'success');
+      notify(t('workflow.deleted'), 'success');
       closeTab(tabKey, activePanelId);
     } catch (error) {
       console.error('[ViewWorkflow] confirmDeleteWorkflow:', error);
-      notify('Erro ao excluir automação.', 'error');
+      notify(t('workflow.delete-failed'), 'error');
     } finally {
       setWorkflowToDelete(null);
     }
-  }, [workflowToDelete, deleteWorkflow, notify, closeTab, tabKey, activePanelId]);
+  }, [workflowToDelete, deleteWorkflow, notify, closeTab, tabKey, activePanelId, t]);
 
   const cancelDeleteWorkflow = useCallback(() => setWorkflowToDelete(null), []);
 
@@ -673,9 +677,9 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
       : insertStepInto(workflow.steps, location, conditionStep);
     await updateWorkflowSteps(workflow.id, nextSteps).catch((error) => {
       console.error('[ViewWorkflow] openAddCondition:', error);
-      notify('Erro ao adicionar condição.', 'error');
+      notify(t('condition.add-failed'), 'error');
     });
-  }, [workflow, updateWorkflowSteps, notify]);
+  }, [workflow, updateWorkflowSteps, notify, t]);
 
   const openAddLoop = useCallback(async (target?: InsertTarget, index?: number) => {
     if (!workflow) return;
@@ -699,9 +703,9 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
       : insertStepInto(workflow.steps, location, loopStep);
     await updateWorkflowSteps(workflow.id, nextSteps).catch((error) => {
       console.error('[ViewWorkflow] openAddLoop:', error);
-      notify('Erro ao adicionar repetição.', 'error');
+      notify(t('loop.add-failed'), 'error');
     });
-  }, [workflow, updateWorkflowSteps, notify]);
+  }, [workflow, updateWorkflowSteps, notify, t]);
 
   const toggleLoopCollapsed = useCallback((loopId: string) => {
     setCollapsedLoopIds((prev) => {
@@ -727,14 +731,14 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
     const nextSteps = removeStepFromTree(workflow.steps, stepToDelete.id);
     try {
       await updateWorkflowSteps(workflow.id, nextSteps);
-      notify('Step excluído.', 'success');
+      notify(t('step.deleted'), 'success');
     } catch (error) {
       console.error('[ViewWorkflow] confirmDeleteStep:', error);
       notify('Erro ao excluir step.', 'error');
     } finally {
       setStepToDelete(null);
     }
-  }, [workflow, stepToDelete, updateWorkflowSteps, notify]);
+  }, [workflow, stepToDelete, updateWorkflowSteps, notify, t]);
 
   const moveStep = useCallback(async (step: WorkflowStep, direction: 'up' | 'down') => {
     if (!workflow) return;
@@ -778,17 +782,17 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
   }, [workflow, eventNameOptions]);
 
   const getStepTypeLabel = useCallback((step: WorkflowStep): string => {
-    if (step.type === 'Condition') return 'Condição';
-    if (step.type === 'Loop') return 'Repetição';
+    if (step.type === 'Condition') return t('step.type.condition');
+    if (step.type === 'Loop') return t('step.type.loop');
     const definition = getStepDefinition(step.stepDefinitionId);
     if (!definition) return step.stepDefinitionId;
-    const categoryLabel = STEP_CATEGORY_LABELS[definition.category] ?? definition.category;
+    const categoryLabel = t(STEP_CATEGORY_KEYS[definition.category] ?? definition.category);
     return getStepDisplayName(step, definition) === definition.name
       ? categoryLabel
       : `${categoryLabel} · ${definition.name}`;
-  }, [getStepDefinition]);
+  }, [getStepDefinition, t]);
 
-  const getConditionSummary = useCallback((step: WorkflowStep): string => describeCondition(step.condition), []);
+  const getConditionSummary = useCallback((step: WorkflowStep): string => describeCondition(tUi, step.condition), [tUi]);
 
   const getLoopSummary = useCallback((step: WorkflowStep): string => {
     if (!step.loop) return 'Para cada item';
@@ -857,12 +861,12 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
   );
 
   const runWorkflowDisabledReason = useMemo(() => {
-    if (!workflow) return 'Salve a automação antes de executar.';
+    if (!workflow) return t('workflow.run.save-first');
     if (!isCalledEventName(workflow.eventName)) {
-      return 'Só automações do tipo "Chamada por outro workflow" podem ser executadas aqui.';
+      return t('workflow.run.only-callable');
     }
     return null;
-  }, [workflow]);
+  }, [workflow, t]);
 
   const runModalParameters = useMemo(() => workflow?.parameters ?? [], [workflow]);
 
@@ -872,7 +876,7 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
   const runWorkflowForModal = useCallback(
     async (providedParams: Record<string, unknown>): Promise<RunModalResult> => {
       if (!currentTenant || !workflow) {
-        return { status: 'FAILED', outputs: null, logs: [], error: 'Automação não encontrada.' };
+        return { status: 'FAILED', outputs: null, logs: [], error: t('workflow.not-found') };
       }
       const tenantId = currentTenant.id;
       const targetWorkflowId = workflow.id;
@@ -914,7 +918,7 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
               status: 'FAILED',
               outputs: null,
               logs: [],
-              error: `Não foi possível acompanhar a execução: ${error.message}`,
+              error: t('workflow.run.watch-failed', { detail: error.message }),
             }),
         );
         timer = setTimeout(
@@ -923,13 +927,13 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
               status: 'FAILED',
               outputs: null,
               logs: [],
-              error: 'Tempo esgotado ao aguardar a execução. Confira na aba Execuções.',
+              error: t('workflow.run.timeout'),
             }),
           RUN_EXECUTION_TIMEOUT_MS,
         );
       });
     },
-    [currentTenant, workflow, dataProcessorRepository, workflowExecutionRepository],
+    [currentTenant, workflow, dataProcessorRepository, workflowExecutionRepository, t],
   );
 
   return {

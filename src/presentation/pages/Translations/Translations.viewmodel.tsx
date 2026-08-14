@@ -11,6 +11,7 @@ import {
   buildTranslationPackage,
   isTranslationOnlyPackage,
   languageTitle,
+  resolveLanguageUsage,
   suggestedPluginId,
   translationKeyCount,
 } from '../../../domain/usecases/i18n/translationPackage';
@@ -65,9 +66,14 @@ export const useTranslationsViewModel = (): TranslationsViewModel => {
    * a mesma operação, com o mesmo risco e metade do contexto (nada aqui mostra que a extensão pode
    * trazer outras coisas junto).
    *
-   * `inUse` é de UM só: quando dois pacotes cobrem o mesmo idioma, quem vence as chaves disputadas é
-   * o primeiro na ordem determinística do registro. Marcar os dois como "em uso" — como esta tela
-   * fazia — escondia justamente o problema de ter dois.
+   * "Em uso" e "Sem efeito" se decidem por CHAVE DISPUTADA, e não por "é o segundo pacote deste
+   * idioma". A regra anterior marcava o primeiro e chamava todos os outros de sem efeito — o que
+   * era certo quando dois pacotes do mesmo idioma sempre significavam conflito, e passou a ser
+   * falso no dia em que um pacote cobriu só `core.ui` e outro só `core.license`: namespaces
+   * disjuntos, os dois valendo, nenhum sombreando nada.
+   *
+   * Então: um pacote está EM USO se ao menos uma chave dele sobrevive à fusão, e SEM EFEITO se
+   * nenhuma sobrevive. A ordem é a mesma de `buildMessageCatalog` — quem chega primeiro vence.
    */
   const languages = useMemo<InstalledLanguage[]>(() => {
     const rows = installed
@@ -82,22 +88,24 @@ export const useTranslationsViewModel = (): TranslationsViewModel => {
           active: extension.active,
           inUse: false,
           shadowed: false,
+          keys: packBundles.flatMap((packBundle) =>
+            Object.keys(packBundle.messages).map((key) => `${packBundle.namespace}/${key}`),
+          ),
         };
       })
-      .filter((row): row is InstalledLanguage => row !== null)
+      .filter((row): row is InstalledLanguage & { keys: string[] } => row !== null)
       .sort((a, b) => (a.id < b.id ? -1 : 1));
 
-    const current = normalizeLocale(locale);
-    let winnerFound = false;
-    for (const row of rows) {
-      if (!row.active || row.locale !== current) continue;
-      if (winnerFound) row.shadowed = true;
-      else {
-        row.inUse = true;
-        winnerFound = true;
-      }
-    }
-    return rows;
+    const usage = resolveLanguageUsage(rows, locale);
+    return rows.map((row): InstalledLanguage => ({
+      id: row.id,
+      name: row.name,
+      locale: row.locale,
+      keyCount: row.keyCount,
+      active: row.active,
+      inUse: usage[row.id]?.inUse ?? false,
+      shadowed: usage[row.id]?.shadowed ?? false,
+    }));
   }, [installed, locale]);
 
   const isTargetValid = isValidLocale(targetLocale) && normalizeLocale(targetLocale) !== DEFAULT_LOCALE;

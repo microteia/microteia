@@ -7,14 +7,17 @@ import { S } from './MapBuilderControl.styles';
 import { useMapBuilderControlViewModel } from './MapBuilderControl.viewmodel';
 import type { MapBuilderControlProps } from './MapBuilderControl.viewmodel';
 
+import { useT } from '../../../../shared/i18n/useT';
+
 export const MapBuilderControl: React.FC<MapBuilderControlProps> = (props) => {
+  const t = useT('core.automation');
   const vm = useMapBuilderControlViewModel(props.value, props.onChange);
   const { config } = vm;
 
   return (
     <S.Container>
       <S.Section>
-        <S.SectionTitle>Nome do objeto (opcional)</S.SectionTitle>
+        <S.SectionTitle>{t('map.name')}</S.SectionTitle>
         <Input
           value={config.name ?? ''}
           onChange={(e) => vm.setName(e.target.value)}
@@ -23,19 +26,19 @@ export const MapBuilderControl: React.FC<MapBuilderControlProps> = (props) => {
         <S.HelpText>
           {config.name?.trim()
             ? `Os campos ficam agrupados num objeto: input.${config.name.trim()}.`
-            : 'Sem nome, cada campo fica disponível diretamente para os próximos steps (input.<campo>).'}
+            : t('map.name.hint-empty')}
         </S.HelpText>
       </S.Section>
 
       <S.Section>
-        <S.SectionTitle>Tipo (opcional)</S.SectionTitle>
+        <S.SectionTitle>{t('map.type')}</S.SectionTitle>
         <SearchSelect
           options={vm.typeOptions}
           value={config.type ?? ''}
           onChange={vm.setType}
-          placeholder="Selecione um cadastro para ajudar no preenchimento..."
+          placeholder={t('map.type.placeholder')}
         />
-        <S.HelpText>Só ajuda no preenchimento dos próximos steps — não altera a gravação.</S.HelpText>
+        <S.HelpText>{t('map.type.hint')}</S.HelpText>
       </S.Section>
 
       <S.Section>

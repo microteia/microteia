@@ -14,6 +14,8 @@ import { useChildScreenTabs } from './useChildScreenTabs';
 import { useEntityDetailChrome } from './useEntityDetailChrome';
 import { useEntityNotes } from './useEntityNotes';
 import { useEntityDocuments } from './useEntityDocuments';
+import { useT } from '../i18n/useT';
+
 import type {
   DocumentsPort,
   EntityDocumentsController,
@@ -110,6 +112,7 @@ export function useEntityDetail<TRecord extends { id: string }>(
 
   const { setTabTitle, closeTab, openTab, activePanelId } = useWorkspace();
   const { notify } = useNotification();
+  const t = useT('core.records');
   const { currentTenant } = useTenant();
   const { getDefinition } = useScreenDefinitions();
   const { updateRecord } = useRecords();
@@ -272,6 +275,7 @@ export function useEntityDetail<TRecord extends { id: string }>(
       screenKey: configScreenKey ?? entityKey,
       surface: 'detail',
       parent: null,
+      t,
       recordTabKey: deepLinkKey(record.id),
       cloneTabKey: cloneKey(record.id),
       openTab,
@@ -281,7 +285,7 @@ export function useEntityDetail<TRecord extends { id: string }>(
       openTagManager: chrome.openTagManager,
       requestDelete: chrome.requestDelete,
     });
-  }, [record, recordActions, entityKey, configScreenKey, deepLinkKey, cloneKey, openTab, notify, updateRecord, chrome.openTagManager, chrome.requestDelete]);
+  }, [record, recordActions, entityKey, configScreenKey, deepLinkKey, cloneKey, openTab, notify, updateRecord, chrome.openTagManager, chrome.requestDelete, t]);
 
   const screenActions = useScreenActions({
     runRecordCommand,

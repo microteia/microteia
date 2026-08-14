@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react';
 import { useExpressionFunctions } from '../../../../../../stores/useExpressionFunctions';
 import type { FilterDef, FilterToken } from '../../../CompositeFilter';
 
+import { useT } from '../../../../../shared/i18n/useT';
 export interface FunctionReferenceModalViewModel {
   filterDefs: FilterDef[];
   filterTokens: FilterToken[];
@@ -17,6 +18,7 @@ export interface FunctionReferenceModalViewModel {
 
 export const useFunctionReferenceModalViewModel = (): FunctionReferenceModalViewModel => {
   const { functions } = useExpressionFunctions();
+  const t = useT('core.ui');
   const [filterTokens, setFilterTokens] = useState<FilterToken[]>([]);
 
   const categoryOptions = useMemo(() => {
@@ -25,9 +27,9 @@ export const useFunctionReferenceModalViewModel = (): FunctionReferenceModalView
   }, [functions]);
 
   const filterDefs = useMemo<FilterDef[]>(() => [
-    { key: 'search', label: 'Busca', type: 'text', placeholder: 'Nome da função...' },
-    { key: 'category', label: 'Categoria', type: 'select', options: categoryOptions },
-  ], [categoryOptions]);
+    { key: 'search', label: t('filter.search'), type: 'text', placeholder: t('expression.reference.name-placeholder') },
+    { key: 'category', label: t('filter.category'), type: 'select', options: categoryOptions },
+  ], [categoryOptions, t]);
 
   const tokenMap = useMemo(() => {
     const map: Record<string, string[]> = {};

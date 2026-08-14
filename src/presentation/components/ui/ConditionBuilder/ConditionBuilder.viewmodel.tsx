@@ -9,10 +9,12 @@ import type { SearchSelectOption } from '../SearchSelect';
 import { useSchemaContext } from '../../../shared/useSchemaContext';
 import { useLookupValues } from '../../../shared/useLookupValues';
 import {
-  CONDITION_OPERATOR_LABELS,
+  CONDITION_OPERATOR_KEYS,
   EVENT_FIELD_PATH_PREFIX,
   buildConditionEventFields,
+  conditionOperatorKey,
 } from '../../../shared/conditionHelpers';
+import { useT } from '../../../shared/i18n/useT';
 
 export type ConditionMode = 'always' | 'custom';
 export type GroupOperator = 'and' | 'or';
@@ -71,9 +73,7 @@ export interface ConditionBuilderViewModel {
   getNodeSummary: (node: BuilderNode) => string;
 }
 
-const OPERATOR_OPTIONS: SearchSelectOption[] = Object.entries(CONDITION_OPERATOR_LABELS).map(
-  ([value, label]) => ({ value, label }),
-);
+const OPERATOR_ENTRIES = Object.entries(CONDITION_OPERATOR_KEYS);
 
 const newComparisonNode = (): BuilderComparisonNode => ({
   id: crypto.randomUUID(),
@@ -219,6 +219,12 @@ export const useConditionBuilderViewModel = (
   inputRoot: PathRoot | null = null,
 ): ConditionBuilderViewModel => {
   const schemaContext = useSchemaContext();
+  const t = useT('core.ui');
+
+  const operatorOptions = useMemo<SearchSelectOption[]>(
+    () => OPERATOR_ENTRIES.map(([value, key]) => ({ value, label: t(key) })),
+    [t],
+  );
 
   const [mode, setModeState] = useState<ConditionMode>(value.kind === 'AlwaysTrue' ? 'always' : 'custom');
   const [root, setRoot] = useState<BuilderGroupNode>(() => conditionToRoot(value));
@@ -306,24 +312,25 @@ export const useConditionBuilderViewModel = (
   );
 
   const getNodeSummary = useCallback((node: BuilderNode): string => {
-    const prefix = node.negated ? 'NÃO ' : '';
+    const prefix = node.negated ? `${t('condition.not')} ` : '';
     if (node.type === 'group') {
       const count = node.children.length;
-      return `${prefix}${count} ${count === 1 ? 'condição' : 'condições'} (${node.operator === 'and' ? 'E' : 'OU'})`;
+      const operator = node.operator === 'and' ? t('condition.operator.and') : t('condition.operator.or');
+      return `${prefix}${t('condition.summary.count', { count })} (${operator})`;
     }
     if (node.type === 'expression') {
-      return `${prefix}${node.expression || 'expressão vazia'}`;
+      return `${prefix}${node.expression || t('condition.expression.empty')}`;
     }
-    const field = node.fieldPath ? (fieldLabelByPath.get(node.fieldPath) ?? node.fieldPath) : 'campo não definido';
-    const operator = CONDITION_OPERATOR_LABELS[node.operator] ?? node.operator;
+    const field = node.fieldPath ? (fieldLabelByPath.get(node.fieldPath) ?? node.fieldPath) : t('condition.field.unset');
+    const operator = t(conditionOperatorKey(node.operator));
     if (node.operator === 'isEmpty' || node.operator === 'isNotEmpty') {
       return `${prefix}${field} ${operator}`;
     }
     const value = node.valueType === 'eventField'
       ? (fieldLabelByPath.get(node.value) ?? node.value)
-      : (node.value || 'valor não definido');
+      : (node.value || t('condition.value.unset'));
     return `${prefix}${field} ${operator} ${value}`;
-  }, [fieldLabelByPath]);
+  }, [fieldLabelByPath, t]);
 
   const emit = useCallback((nextRoot: BuilderGroupNode) => {
     setRoot(nextRoot);
@@ -407,7 +414,7 @@ export const useConditionBuilderViewModel = (
     setMode,
     root,
     fieldOptions,
-    operatorOptions: OPERATOR_OPTIONS,
+    operatorOptions,
     eventFields,
     pathRoot,
     stepOutputFields,

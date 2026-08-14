@@ -5,7 +5,7 @@ const contains = (text: string, query: string) =>
   text.toLowerCase().includes(query.toLowerCase());
 
 export const NavigationCommandProvider: ICommandPaletteProvider = {
-  group: 'Navegação',
+  group: '@core.workspace/command.group.navigation',
 
   getItems(query: string, { openTab, close, navigablePages }: CommandPaletteAppContext): CommandPaletteItem[] {
     const filtered = query
@@ -15,7 +15,7 @@ export const NavigationCommandProvider: ICommandPaletteProvider = {
     return filtered.map((page) => ({
       id: `nav:${page.key}`,
       title: page.title,
-      group: 'Navegação',
+      group: '@core.workspace/command.group.navigation',
       icon: getScreenIcon(page.icon, 20),
       keywords: [page.key],
       onSelect: () => {

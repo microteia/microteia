@@ -2,37 +2,40 @@ import React, { Suspense, lazy } from 'react';
 import { RiCheckLine, RiBookOpenLine, RiArrowDownSLine, RiArrowRightSLine, RiFileTextLine } from 'react-icons/ri';
 import { S } from './AdvancedParametersEditor.styles';
 import { WorkflowParametersEditor } from '../WorkflowParametersEditor';
-import { useAdvancedParametersEditorViewModel, PARAMETERS_JSON_EXAMPLE } from './AdvancedParametersEditor.viewmodel';
+import { useAdvancedParametersEditorViewModel, parametersJsonExample } from './AdvancedParametersEditor.viewmodel';
 import type { AdvancedParametersEditorProps } from './AdvancedParametersEditor.viewmodel';
+
+import { useT, type TranslateFn } from '../../../../shared/i18n/useT';
 
 const CodeEditor = lazy(() =>
   import('../../../../components/ui/CodeEditor').then((m) => ({ default: m.CodeEditor })),
 );
 
-const PROPERTY_REFERENCE: { name: string; usage: string; description: string }[] = [
-  { name: 'type', usage: 'todos', description: 'String, Number, Date, Boolean, select, lookup, EntityReference ou Object. Atalho: "chave": "String".' },
-  { name: 'label', usage: 'opcional', description: 'Nome amigável exibido ao usuário. Se omitido, usa a própria chave.' },
-  { name: 'required', usage: 'opcional', description: 'true torna o preenchimento obrigatório.' },
-  { name: 'list', usage: 'todos', description: 'true indica que o valor é uma lista (vários itens) do tipo definido.' },
-  { name: 'default', usage: 'tipos simples', description: 'Valor padrão quando nada é informado (String, Number, Date, Boolean, select).' },
-  { name: 'options', usage: 'select', description: 'Lista de opções, ex.: ["Alta", "Média", "Baixa"].' },
-  { name: 'entityType', usage: 'EntityReference', description: 'Coleção referenciada, ex.: "persons", "cases".' },
-  { name: 'lookupCollection', usage: 'lookup', description: 'Lista de opções do escritório, ex.: "caseStatuses", "personTypes".' },
-  { name: 'fields', usage: 'Object', description: 'Objeto com os campos internos, no mesmo formato.' },
+const propertyReference = (t: TranslateFn): { name: string; usage: string; description: string }[] => [
+  { name: 'type', usage: t('parameter.ref.usage.all'), description: t('parameter.ref.type') },
+  { name: 'label', usage: t('parameter.ref.usage.optional'), description: t('parameter.ref.label') },
+  { name: 'required', usage: t('parameter.ref.usage.optional'), description: t('parameter.ref.required') },
+  { name: 'list', usage: t('parameter.ref.usage.all'), description: t('parameter.ref.list') },
+  { name: 'default', usage: t('parameter.ref.usage.simple'), description: t('parameter.ref.default') },
+  { name: 'options', usage: 'select', description: t('parameter.ref.options') },
+  { name: 'entityType', usage: 'EntityReference', description: t('parameter.ref.entity-type') },
+  { name: 'lookupCollection', usage: 'lookup', description: t('parameter.ref.lookup-collection') },
+  { name: 'fields', usage: 'Object', description: t('parameter.ref.fields') },
 ];
 
 export const AdvancedParametersEditor: React.FC<AdvancedParametersEditorProps> = (props) => {
   const { parameters, errors, typeOptions, entityOptions, lookupOptions, variant, onAdd, onUpdate, onRemove, onClone } = props;
   const vm = useAdvancedParametersEditorViewModel(props);
+  const t = useT('core.automation');
 
   return (
     <S.Container>
       <S.Toolbar>
         <S.ModeBtn type="button" $active={vm.mode === 'visual'} onClick={vm.enterVisual}>
-          Visual
+          {t('parameter.mode.visual')}
         </S.ModeBtn>
         <S.ModeBtn type="button" $active={vm.mode === 'json'} onClick={vm.enterJson}>
-          JSON (avançado)
+          {t('parameter.mode.json')}
         </S.ModeBtn>
       </S.Toolbar>
 
@@ -59,7 +62,7 @@ export const AdvancedParametersEditor: React.FC<AdvancedParametersEditorProps> =
             </S.Hint>
             <S.RefToggle type="button" onClick={vm.toggleReference}>
               {vm.showReference ? <RiArrowDownSLine size={14} /> : <RiArrowRightSLine size={14} />}
-              <RiBookOpenLine size={14} /> Referência e exemplo
+              <RiBookOpenLine size={14} /> {t('parameter.reference')}
             </S.RefToggle>
           </S.HintRow>
 
@@ -71,7 +74,7 @@ export const AdvancedParametersEditor: React.FC<AdvancedParametersEditorProps> =
                   <span>Aplica a</span>
                   <span>Para que serve</span>
                 </S.RefHeadRow>
-                {PROPERTY_REFERENCE.map((item) => (
+                {propertyReference(t).map((item) => (
                   <S.RefRow key={item.name}>
                     <S.RefProp>{item.name}</S.RefProp>
                     <S.RefUsage>{item.usage}</S.RefUsage>
@@ -81,7 +84,7 @@ export const AdvancedParametersEditor: React.FC<AdvancedParametersEditorProps> =
               </S.RefTable>
 
               <S.RefExampleHeader>Exemplo completo</S.RefExampleHeader>
-              <S.RefExample>{PARAMETERS_JSON_EXAMPLE}</S.RefExample>
+              <S.RefExample>{parametersJsonExample(t)}</S.RefExample>
               <S.RefExampleBtn type="button" onClick={vm.insertExample}>
                 <RiFileTextLine size={14} /> Usar este exemplo
               </S.RefExampleBtn>

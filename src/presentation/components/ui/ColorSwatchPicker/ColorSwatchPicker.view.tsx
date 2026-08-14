@@ -1,5 +1,6 @@
 import React from 'react';
 import { S } from './ColorSwatchPicker.styles';
+import { useLabel } from '../../../shared/i18n/useT';
 
 export interface ColorSwatchOption {
   label: string;
@@ -12,7 +13,10 @@ interface ColorSwatchPickerProps {
   onChange: (color: string) => void;
 }
 
-export const ColorSwatchPicker: React.FC<ColorSwatchPickerProps> = ({ colors, value, onChange }) => (
+export const ColorSwatchPicker: React.FC<ColorSwatchPickerProps> = ({ colors, value, onChange }) => {
+  const label = useLabel();
+
+  return (
   <S.Palette>
     {colors.map((c) => (
       <S.Swatch
@@ -20,9 +24,10 @@ export const ColorSwatchPicker: React.FC<ColorSwatchPickerProps> = ({ colors, va
         type="button"
         $color={c.value}
         $selected={value === c.value}
-        title={c.label}
+        title={label(c.label)}
         onClick={() => onChange(c.value)}
       />
     ))}
   </S.Palette>
-);
+  );
+};

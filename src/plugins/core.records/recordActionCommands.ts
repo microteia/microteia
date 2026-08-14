@@ -15,7 +15,7 @@ import type { UiRecordActionMetadata } from '../../presentation/shared/uiExtensi
 
 export const copyLinkCommand: RecordActionCommand = async (host) => {
   await host.copyText(generateDeepLink(host.recordTabKey));
-  host.notify('Link copiado para a área de transferência.', 'success');
+  host.notify(host.t('action.copy-link.done'), 'success');
 };
 
 export const cloneCommand: RecordActionCommand = (host) => {
@@ -38,19 +38,19 @@ export const unlinkCommand: RecordActionCommand = async (host) => {
   if (!host.parent) return;
   try {
     await host.patchRecord({ [host.parent.fieldKey]: null });
-    host.notify('Registro desvinculado.', 'success');
+    host.notify(host.t('action.unlink.done'), 'success');
   } catch {
-    host.notify('Não foi possível desvincular o registro.', 'error');
+    host.notify(host.t('action.unlink.failed'), 'error');
   }
 };
 
 export const RECORD_ACTION_METADATA: Record<string, UiRecordActionMetadata> = {
-  copyLink: { key: 'copyLink', title: 'Copiar link', icon: 'link', order: 0 },
-  clone: { key: 'clone', title: 'Duplicar', icon: 'fileCopy', order: 1 },
-  manageTags: { key: 'manageTags', title: 'Gerenciar etiquetas', icon: 'priceTag3', order: 2, requiresTags: true },
+  copyLink: { key: 'copyLink', title: '@core.records/action.copy-link', icon: 'link', order: 0 },
+  clone: { key: 'clone', title: '@core.records/action.clone', icon: 'fileCopy', order: 1 },
+  manageTags: { key: 'manageTags', title: '@core.records/action.manage-tags', icon: 'priceTag3', order: 2, requiresTags: true },
   delete: {
     key: 'delete',
-    title: 'Excluir',
+    title: '@core.ui/action.delete',
     icon: 'deleteBin',
     order: 3,
     danger: true,
@@ -64,7 +64,7 @@ export const RECORD_ACTION_METADATA: Record<string, UiRecordActionMetadata> = {
     // Divide o slot destrutivo com excluir: a tela habilita `delete`, e a relação decide qual das
     // duas o usuário vê.
     slot: 'delete',
-    title: 'Desvincular',
+    title: '@core.records/action.unlink',
     icon: 'linkUnlink',
     order: 3,
     hiddenWhen: 'relation != "related"',

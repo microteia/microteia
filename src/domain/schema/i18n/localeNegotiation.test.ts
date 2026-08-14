@@ -3,6 +3,7 @@ import {
   DEFAULT_LOCALE,
   isValidLocale,
   localeChain,
+  negotiateFromCandidates,
   negotiateLocale,
   normalizeLocale,
   resolutionOrder,
@@ -74,5 +75,34 @@ describe('resolutionOrder', () => {
   it('não repete o idioma-fonte quando ele já está na cadeia', () => {
     expect(resolutionOrder('en')).toEqual(['en']);
     expect(resolutionOrder('en-GB')).toEqual(['en', 'en-GB']);
+  });
+});
+
+
+describe('negotiateFromCandidates', () => {
+  /**
+   * O caso que motivou a função: existir um catálogo `pt-BR` no bundle — o dos Termos de Uso — não
+   * pode fazer do português o padrão de quem nunca falou português.
+   */
+  it('um navegador em inglês não vira português só porque há catálogo português', () => {
+    expect(negotiateFromCandidates(['en-US'], ['en', 'pt-BR'], 'en')).toBe('en');
+  });
+
+  it('respeita a ordem de preferência do navegador', () => {
+    expect(negotiateFromCandidates(['es-AR', 'pt-BR', 'en'], ['en', 'pt-BR'], 'en')).toBe('pt-BR');
+  });
+
+  /** Cada candidato é testado pela cadeia inteira ANTES de passar ao próximo. */
+  it('casa pela cadeia do candidato antes de tentar o seguinte', () => {
+    expect(negotiateFromCandidates(['pt-BR', 'en'], ['en', 'pt'], 'en')).toBe('pt');
+  });
+
+  it('sem nenhum candidato disponível, cai no idioma-fonte', () => {
+    expect(negotiateFromCandidates(['de', 'fr'], ['en', 'pt-BR'], 'en')).toBe('en');
+    expect(negotiateFromCandidates([], ['en', 'pt-BR'], 'en')).toBe('en');
+  });
+
+  it('ignora candidato malformado sem lançar', () => {
+    expect(negotiateFromCandidates(['', '???', 'pt-BR'], ['en', 'pt-BR'], 'en')).toBe('pt-BR');
   });
 });

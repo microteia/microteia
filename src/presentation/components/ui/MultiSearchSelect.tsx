@@ -4,6 +4,7 @@ import styled from 'styled-components';
 import { RiSearchLine, RiCloseLine, RiCheckLine, RiArrowDownSLine, RiErrorWarningLine } from 'react-icons/ri';
 import { useAnchoredDropdown } from '../../hooks/useAnchoredDropdown';
 
+import { useT } from '../../shared/i18n/useT';
 export interface MultiSearchSelectOption {
   value: string;
   label: string;
@@ -78,7 +79,6 @@ const OrphanIcon = styled.span`
   flex-shrink: 0;
 `;
 
-const ORPHAN_TITLE = 'O registro referenciado não foi encontrado — pode ter sido excluído. O identificador foi mantido e permite localizar os dados na auditoria.';
 
 const PlaceholderText = styled.span`
   flex: 1;
@@ -214,6 +214,8 @@ export const MultiSearchSelect: React.FC<MultiSearchSelectProps> = ({
   placeholder = 'Selecionar...',
   disabled,
 }) => {
+  const t = useT('core.ui');
+  const orphanTitle = t('reference.orphan.title');
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [activeIdx, setActiveIdx] = useState(0);
@@ -290,9 +292,9 @@ export const MultiSearchSelect: React.FC<MultiSearchSelectProps> = ({
               </SelectedPill>
             ))}
             {orphanValues.map((val) => (
-              <SelectedPill key={val} $orphan title={ORPHAN_TITLE}>
+              <SelectedPill key={val} $orphan title={orphanTitle}>
                 <OrphanIcon><RiErrorWarningLine size={11} /></OrphanIcon>
-                {`Registro não encontrado (${val})`}
+                {t('reference.not-found', { id: val })}
               </SelectedPill>
             ))}
           </SelectedPills>
@@ -332,7 +334,7 @@ export const MultiSearchSelect: React.FC<MultiSearchSelectProps> = ({
           </SearchRow>
           <OptionList>
             {filtered.length === 0 ? (
-              <EmptyMsg>Nenhuma opção encontrada</EmptyMsg>
+              <EmptyMsg>{t('filter.no-options')}</EmptyMsg>
             ) : (
               filtered.map((opt, idx) => {
                 const selected = values.includes(opt.value);

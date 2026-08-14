@@ -1,6 +1,7 @@
 import React from 'react';
 import type { AnnotationHighlightColor } from '../../../../domain/entities';
 import { S } from './TextAnnotationToolbar.styles';
+import { useT } from '../../../shared/i18n/useT';
 import {
   HIGHLIGHT_COLORS,
   type TextAnnotationToolbarProps,
@@ -12,12 +13,15 @@ export const TextAnnotationToolbar: React.FC<TextAnnotationToolbarProps> = ({
   onFormat,
   onHighlight,
   onRemoveHighlight,
-}) => (
+}) => {
+  const t = useT('core.ui');
+
+  return (
   <S.Toolbar $x={position.x} $y={position.y}>
     <S.FormatButton
       $active={activeFormats.bold}
       onMouseDown={(e) => { e.preventDefault(); onFormat('bold'); }}
-      title="Negrito"
+      title={t('markdown.bold')}
     >
       B
     </S.FormatButton>
@@ -26,7 +30,7 @@ export const TextAnnotationToolbar: React.FC<TextAnnotationToolbarProps> = ({
       $active={activeFormats.italic}
       style={{ fontStyle: 'italic' }}
       onMouseDown={(e) => { e.preventDefault(); onFormat('italic'); }}
-      title="Itálico"
+      title={t('markdown.italic')}
     >
       I
     </S.FormatButton>
@@ -60,8 +64,9 @@ export const TextAnnotationToolbar: React.FC<TextAnnotationToolbarProps> = ({
           e.preventDefault();
           if (activeFormats.highlightColor === color) { onRemoveHighlight(); } else { onHighlight(color); }
         }}
-        title={`Marcação ${color}`}
+        title={t('annotation.highlight', { color })}
       />
     ))}
   </S.Toolbar>
-);
+  );
+};

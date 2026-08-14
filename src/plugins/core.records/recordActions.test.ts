@@ -110,7 +110,8 @@ describe('uma ação de extensão alcança a configuração da tela', () => {
   it('excluir e desvincular são UMA caixa: dividem o slot', () => {
     const options = listActionOptionsFrom(builtinResolved());
     expect(options.filter((option) => option.key === 'delete')).toHaveLength(1);
-    expect(options.find((option) => option.key === 'delete')?.label).toBe('Excluir');
+    // O rótulo é REFERÊNCIA de mensagem: quem a resolve é o ponto de render, não a montagem da caixa.
+    expect(options.find((option) => option.key === 'delete')?.label).toBe('@core.ui/action.delete');
   });
 
   it('a caixa carrega a dependência de etiquetas que a ação declarou', () => {
@@ -122,6 +123,8 @@ describe('uma ação de extensão alcança a configuração da tela', () => {
 
 describe('desvincular', () => {
   const host = (overrides: Partial<RecordActionHost> = {}): RecordActionHost => ({
+    // O tradutor de teste devolve a própria chave: aqui o que importa é QUE avisou, não a frase.
+    t: (key: string) => key,
     record: {
       id: 'r1',
       tenantId: 't1',

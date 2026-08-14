@@ -1,6 +1,13 @@
 import type { DefaultTheme } from 'styled-components';
 
 /**
+ * O rótulo da cor padrão. É uma REFERÊNCIA de mensagem, e não a palavra "Azul": a paleta do tema
+ * viaja até as extensões com a forma `{ label, value }` congelada, então o rótulo traduzível teve de
+ * caber dentro do próprio `label` em vez de ganhar um campo novo ao lado.
+ */
+export const DEFAULT_TAG_COLOR_LABEL = '@core.ui/color.blue';
+
+/**
  * Resolve uma cor que pode ser um hex literal (#fff) ou uma chave do tema (primary, danger, etc.).
  * Retorna undefined se colorValue for undefined/null.
  */
@@ -29,11 +36,11 @@ export const getConfigColor = <T extends { key: string; color?: string }>(
 
 /**
  * Cor padrão usada como pré-seleção em paletas de cor (etiquetas, opções de campos customizados).
- * Usa "Azul" se existir no tema, senão a primeira cor da paleta.
+ * Usa o azul se existir no tema, senão a primeira cor da paleta.
  */
 export const getDefaultTagColor = (theme: DefaultTheme): string => {
   const tagColors = theme.tagColors;
-  return tagColors.find((c) => c.label === 'Azul')?.value ?? tagColors[0].value;
+  return tagColors.find((c) => c.label === DEFAULT_TAG_COLOR_LABEL)?.value ?? tagColors[0].value;
 };
 
 /**
@@ -73,7 +80,7 @@ export const nextLookupOptionColor = (
   if (!optionsColored && used.size === 0) return undefined;
 
   const palette = theme.tagColors;
-  const start = Math.max(palette.findIndex((color) => color.label === 'Azul'), 0);
+  const start = Math.max(palette.findIndex((color) => color.label === DEFAULT_TAG_COLOR_LABEL), 0);
   const rotated = palette.map((_, index) => palette[(start + index) % palette.length]);
   return (rotated.find((color) => !used.has(color.value)) ?? rotated[used.size % palette.length]).value;
 };

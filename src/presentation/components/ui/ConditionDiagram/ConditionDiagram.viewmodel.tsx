@@ -2,12 +2,13 @@ import { useMemo, useCallback, useState } from 'react';
 import type { Condition, FieldComparisonCondition, WorkflowParameter } from '../../../../domain/entities/Workflow';
 import { useSchemaContext } from '../../../shared/useSchemaContext';
 import {
-  CONDITION_OPERATOR_LABELS,
+  conditionOperatorKey,
   EVENT_FIELD_PATH_PREFIX,
   buildConditionEventFields,
   createDefaultComparisonCondition,
   createDefaultExpressionCondition,
 } from '../../../shared/conditionHelpers';
+import { useT } from '../../../shared/i18n/useT';
 
 export type ConditionPath = number[];
 
@@ -74,6 +75,7 @@ const updateAtPath = (
 export const useConditionDiagramViewModel = (props: ConditionDiagramProps): ConditionDiagramViewModel => {
   const { condition, eventName, parameters, onChange, onRequestEdit } = props;
   const schemaContext = useSchemaContext();
+  const t = useT('core.ui');
 
   const fieldLabelByPath = useMemo(() => {
     const eventFields = buildConditionEventFields(eventName, schemaContext, parameters);
@@ -91,8 +93,8 @@ export const useConditionDiagramViewModel = (props: ConditionDiagramProps): Cond
   );
 
   const getOperatorLabel = useCallback(
-    (operator: FieldComparisonCondition['operator']) => CONDITION_OPERATOR_LABELS[operator] ?? operator,
-    [],
+    (operator: FieldComparisonCondition['operator']) => t(conditionOperatorKey(operator)),
+    [t],
   );
 
   const emit = useCallback((next: Condition | null) => {

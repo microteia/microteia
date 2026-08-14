@@ -3,19 +3,26 @@ import { getWorkflowEventFields, WORKFLOW_CALLED_EVENT, workflowParametersToFiel
 import type { WorkflowEventFieldOption } from '../../domain/services/workflowEventCatalog';
 import type { SchemaContext } from '../../domain/schema/pathResolver';
 
-export const CONDITION_OPERATOR_LABELS: Record<FieldComparisonCondition['operator'], string> = {
-  '==': 'é igual a',
-  '!=': 'é diferente de',
-  '>': 'é maior que',
-  '>=': 'é maior ou igual a',
-  '<': 'é menor que',
-  '<=': 'é menor ou igual a',
-  contains: 'contém',
-  startsWith: 'começa com',
-  endsWith: 'termina com',
-  isEmpty: 'está vazio',
-  isNotEmpty: 'não está vazio',
+/**
+ * O operador vira CHAVE de mensagem, e não frase. É um catálogo de módulo, consumido também fora de
+ * componente (`workflowHelpers`), então ele não pode chamar `useT` — quem renderiza traduz.
+ */
+export const CONDITION_OPERATOR_KEYS: Record<FieldComparisonCondition['operator'], string> = {
+  '==': 'condition.operator.eq',
+  '!=': 'condition.operator.neq',
+  '>': 'condition.operator.gt',
+  '>=': 'condition.operator.gte',
+  '<': 'condition.operator.lt',
+  '<=': 'condition.operator.lte',
+  contains: 'condition.operator.contains',
+  startsWith: 'condition.operator.starts-with',
+  endsWith: 'condition.operator.ends-with',
+  isEmpty: 'condition.operator.is-empty',
+  isNotEmpty: 'condition.operator.is-not-empty',
 };
+
+export const conditionOperatorKey = (operator: FieldComparisonCondition['operator']): string =>
+  CONDITION_OPERATOR_KEYS[operator] ?? operator;
 
 export const EVENT_FIELD_PATH_PREFIX = 'event.payload.';
 

@@ -6,14 +6,13 @@ import {
   RiFileTextLine,
   RiUploadLine,
 } from 'react-icons/ri';
-import { format } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
 import { S } from './panels.styles';
 import { Button } from '../../ui/Button';
 import { Spinner } from '../../ui/Spinner';
 import { ConfirmModal } from '../../ui/ConfirmModal';
 import { DynamicSelect } from '../../ui/DynamicSelect';
 import type { EntityDocumentsController } from '../../../shared/entityScreen/types';
+import { useT, useLocaleFormat } from '../../../shared/i18n/useT';
 
 interface DocumentsPanelProps {
   controller: EntityDocumentsController;
@@ -22,6 +21,8 @@ interface DocumentsPanelProps {
 
 export const DocumentsPanel: React.FC<DocumentsPanelProps> = ({ controller: vm, isAdmin }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const t = useT('core.ui');
+  const { formatLongDate } = useLocaleFormat();
 
   return (
     <>
@@ -35,7 +36,7 @@ export const DocumentsPanel: React.FC<DocumentsPanelProps> = ({ controller: vm, 
           disabled={vm.isUploadingDoc || !!vm.pendingFile}
         >
           <RiUploadLine size={14} />
-          Anexar Documento
+          {t('documents.attach')}
         </Button>
       </S.TabSectionHeader>
 
@@ -49,21 +50,21 @@ export const DocumentsPanel: React.FC<DocumentsPanelProps> = ({ controller: vm, 
                 dynamicOptions={vm.documentTypeDynamicOptions}
                 value={vm.pendingType}
                 onChange={vm.setPendingType}
-                placeholder="Tipo (opcional)"
+                placeholder={t('documents.type.placeholder')}
                 onAdd={vm.handleAddDocumentType}
                 onDelete={isAdmin ? vm.handleDeleteDocumentType : undefined}
-                deleteConfirmTitle="Excluir tipo de documento"
-                deleteConfirmMessage="Tem certeza que deseja excluir este tipo de documento?"
+                deleteConfirmTitle={t('documents.type.delete.title')}
+                deleteConfirmMessage={t('documents.type.delete.message')}
                 disabled={vm.isUploadingDoc}
               />
             </S.PendingFileContent>
             <S.PendingFileActions>
               <Button variant="ghost" size="sm" onClick={vm.handleCancelPendingUpload} disabled={vm.isUploadingDoc}>
                 <RiCloseLine size={14} />
-                Cancelar
+                {t('action.cancel')}
               </Button>
               <Button size="sm" onClick={() => void vm.handleConfirmUpload()} disabled={vm.isUploadingDoc}>
-                {vm.isUploadingDoc ? 'Enviando...' : 'Confirmar Envio'}
+                {vm.isUploadingDoc ? t('documents.uploading') : t('documents.confirm-upload')}
               </Button>
             </S.PendingFileActions>
           </S.PendingFileTopRow>
@@ -76,7 +77,7 @@ export const DocumentsPanel: React.FC<DocumentsPanelProps> = ({ controller: vm, 
       ) : vm.documents.length === 0 ? (
         <S.EmptyState>
           <S.EmptyIcon><RiFileTextLine /></S.EmptyIcon>
-          <div>Nenhum documento anexado.</div>
+          <div>{t('documents.empty')}</div>
         </S.EmptyState>
       ) : (
         <S.DocList>
@@ -95,17 +96,17 @@ export const DocumentsPanel: React.FC<DocumentsPanelProps> = ({ controller: vm, 
                       : (docItem.createdByName || 'U').charAt(0).toUpperCase()}
                   </S.DocUploaderAvatar>
                   <S.DocMeta>
-                    {docItem.createdByName} · {format(docItem.createdAt, "d 'de' MMM 'de' yyyy 'às' HH:mm", { locale: ptBR })}
+                    {docItem.createdByName} · {formatLongDate(docItem.createdAt)}
                   </S.DocMeta>
                 </S.DocUploaderRow>
               </S.DocContent>
               {docItem.type && <S.DocTypeBadge>{docItem.type}</S.DocTypeBadge>}
               <S.DocActions>
-                <Button variant="ghost" size="sm" onClick={() => window.open(docItem.url, '_blank', 'noopener,noreferrer')} title="Abrir documento">
+                <Button variant="ghost" size="sm" onClick={() => window.open(docItem.url, '_blank', 'noopener,noreferrer')} title={t('documents.open')}>
                   <RiExternalLinkLine size={14} />
                 </Button>
                 {isAdmin && (
-                  <Button variant="ghost" size="sm" onClick={() => vm.requestDeleteDoc(docItem)} title="Excluir documento">
+                  <Button variant="ghost" size="sm" onClick={() => vm.requestDeleteDoc(docItem)} title={t('documents.delete')}>
                     <RiDeleteBinLine size={13} />
                   </Button>
                 )}
@@ -119,9 +120,9 @@ export const DocumentsPanel: React.FC<DocumentsPanelProps> = ({ controller: vm, 
         isOpen={!!vm.docToDelete}
         onConfirm={() => void vm.confirmDeleteDoc()}
         onCancel={vm.cancelDeleteDoc}
-        title="Excluir Documento"
-        message={`Tem certeza que deseja excluir "${vm.docToDelete?.name}"? Esta ação não pode ser desfeita.`}
-        confirmLabel="Excluir"
+        title={t('documents.delete.title')}
+        message={t('documents.delete.message', { name: vm.docToDelete?.name ?? '' })}
+        confirmLabel={t('action.delete')}
         variant="danger"
       />
     </>

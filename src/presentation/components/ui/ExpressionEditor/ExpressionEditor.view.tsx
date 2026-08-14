@@ -5,10 +5,12 @@ import { useExpressionEditorViewModel } from './ExpressionEditor.viewmodel';
 import type { ExpressionEditorProps } from './ExpressionEditor.viewmodel';
 import { FunctionMenu } from './components/FunctionMenu/FunctionMenu.view';
 
+import { useT } from '../../../shared/i18n/useT';
 export type { ExpressionEditorProps };
 
 export const ExpressionEditor: React.FC<ExpressionEditorProps> = (props) => {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const t = useT('core.ui');
   const vm = useExpressionEditorViewModel(props, textareaRef);
 
   return (
@@ -21,7 +23,7 @@ export const ExpressionEditor: React.FC<ExpressionEditorProps> = (props) => {
             value={props.value}
             onChange={vm.handleChange}
             onKeyDown={vm.handleKeyDown}
-            placeholder={props.placeholder ?? 'Digite uma expressão...'}
+            placeholder={props.placeholder ?? t('expression.placeholder')}
             spellCheck={false}
           />
           <S.Brace>{'}'}</S.Brace>
@@ -36,7 +38,7 @@ export const ExpressionEditor: React.FC<ExpressionEditorProps> = (props) => {
 
         <S.FunctionRefButton onClick={vm.openFunctionRef}>
           <RiBookLine size={14} />
-          Ver funções disponíveis
+          {t('expression.see-functions')}
         </S.FunctionRefButton>
       </S.Container>
 

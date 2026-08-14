@@ -9,14 +9,16 @@ import type { PathRoot } from '../../../../../domain/schema/pathResolver';
 import type { WorkflowEventFieldOption } from '../../../../../domain/services/workflowEventCatalog';
 import type { StepOutputField, WorkflowVariable } from '../../../../components/ui/ExpressionEditor/autocompleteHelpers';
 
+import { useT, type TranslateFn } from '../../../../shared/i18n/useT';
+
 type MappingKind = InputMapping['kind'];
 
-const ALL_KIND_OPTIONS: { value: MappingKind; label: string }[] = [
-  { value: 'Literal', label: 'Valor fixo' },
-  { value: 'Event', label: 'Do evento' },
-  { value: 'Expression', label: 'Expressão' },
-  { value: 'Output', label: 'Saída de outro step' },
-  { value: 'Variable', label: 'Variável' },
+const allKindOptions = (t: TranslateFn): { value: MappingKind; label: string }[] => [
+  { value: 'Literal', label: t('mapping.kind.literal') },
+  { value: 'Event', label: t('mapping.kind.event') },
+  { value: 'Expression', label: t('mapping.kind.expression') },
+  { value: 'Output', label: t('mapping.kind.output') },
+  { value: 'Variable', label: t('mapping.kind.variable') },
 ];
 
 const emptyMappingFor = (kind: MappingKind): InputMapping => {
@@ -44,10 +46,11 @@ export interface MappingValueControlProps {
 }
 
 export const MappingValueControl: React.FC<MappingValueControlProps> = (props) => {
+  const t = useT('core.automation');
   const { mapping, onChange } = props;
   const kindOptions = props.allowedKinds
-    ? ALL_KIND_OPTIONS.filter((opt) => props.allowedKinds?.includes(opt.value))
-    : ALL_KIND_OPTIONS;
+    ? allKindOptions(t).filter((opt) => props.allowedKinds?.includes(opt.value))
+    : allKindOptions(t);
 
   const renderEditor = () => {
     if (!mapping) return null;
@@ -95,13 +98,13 @@ export const MappingValueControl: React.FC<MappingValueControlProps> = (props) =
               options={props.priorStepOptions}
               value={mapping.stepId}
               onChange={(stepId) => onChange({ kind: 'Output', stepId, outputId: '' })}
-              placeholder="Step anterior..."
+              placeholder={t('mapping.step.placeholder')}
             />
             <SearchSelect
               options={props.getStepOutputs(mapping.stepId)}
               value={mapping.outputId}
               onChange={(outputId) => onChange({ kind: 'Output', stepId: mapping.stepId, outputId })}
-              placeholder="Saída..."
+              placeholder={t('mapping.output.placeholder')}
               disabled={!mapping.stepId}
             />
           </S.OutputPickerRow>
@@ -111,7 +114,7 @@ export const MappingValueControl: React.FC<MappingValueControlProps> = (props) =
           <Input
             value={mapping.name}
             onChange={(e) => onChange({ kind: 'Variable', name: e.target.value })}
-            placeholder="Nome da variável"
+            placeholder={t('mapping.variable.placeholder')}
           />
         );
       default:

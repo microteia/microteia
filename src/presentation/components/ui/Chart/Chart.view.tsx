@@ -2,6 +2,7 @@ import React, { Suspense, lazy } from 'react';
 import { useTheme } from 'styled-components';
 import { S } from './Chart.styles';
 
+import { useT } from '../../../shared/i18n/useT';
 /**
  * As duas primitivas de GRÁFICO da plataforma — série temporal e rosca. Elas não sabem o que estão
  * desenhando: recebem linhas prontas, com rótulo e cor decididos por quem tem o dado. Foi assim que
@@ -105,6 +106,7 @@ const LazyDonut = lazy(async () => {
 
 export const TimeSeriesChart: React.FC<TimeSeriesChartProps> = ({ data, xKey, series, height = 240 }) => {
   const theme = useTheme();
+  const t = useT('core.ui');
   const chartTheme: ChartTheme = {
     grid: theme.colors.border,
     axis: theme.colors.textSecondary,
@@ -115,17 +117,21 @@ export const TimeSeriesChart: React.FC<TimeSeriesChartProps> = ({ data, xKey, se
 
   return (
     <S.Frame $height={height}>
-      <Suspense fallback={<S.Placeholder>Carregando gráfico…</S.Placeholder>}>
+      <Suspense fallback={<S.Placeholder>{t('chart.loading')}</S.Placeholder>}>
         <LazyTimeSeries data={data} xKey={xKey} series={series} chartTheme={chartTheme} />
       </Suspense>
     </S.Frame>
   );
 };
 
-export const DonutChart: React.FC<DonutChartProps> = ({ data, height = 240 }) => (
-  <S.Frame $height={height}>
-    <Suspense fallback={<S.Placeholder>Carregando gráfico…</S.Placeholder>}>
-      <LazyDonut data={data} />
-    </Suspense>
-  </S.Frame>
-);
+export const DonutChart: React.FC<DonutChartProps> = ({ data, height = 240 }) => {
+  const t = useT('core.ui');
+
+  return (
+    <S.Frame $height={height}>
+      <Suspense fallback={<S.Placeholder>{t('chart.loading')}</S.Placeholder>}>
+        <LazyDonut data={data} />
+      </Suspense>
+    </S.Frame>
+  );
+};

@@ -16,6 +16,7 @@ import { getScreenIcon } from '../../../shared/screenIcons';
 import type { EntityDocumentsController, EntityNotesController } from '../../../shared/entityScreen/types';
 import type { ScreenActions } from '../../../shared/entityScreen/useScreenActions';
 
+import { useT } from '../../../shared/i18n/useT';
 /** `'data' | 'notes' | 'documents'` — ou a chave de uma aba extra declarada em `extraTabs`. */
 export type EntityDetailTab = string;
 
@@ -100,7 +101,10 @@ export const EntityDetailView: React.FC<EntityDetailViewProps> = ({
   docsController,
   dataContent,
   modals,
-}) => (
+}) => {
+  const t = useT('core.ui');
+
+  return (
   <S.Page>
     <S.Header>
       <S.HeaderLeft>
@@ -173,12 +177,12 @@ export const EntityDetailView: React.FC<EntityDetailViewProps> = ({
 
     {!isNew && (showNotesTab || showDocsTab || (extraTabs?.length ?? 0) > 0) && (
       <S.TabBar>
-        <S.TabBtn $active={activeTab === 'data'} onClick={() => setActiveTab('data')}>Dados</S.TabBtn>
+        <S.TabBtn $active={activeTab === 'data'} onClick={() => setActiveTab('data')}>{t('tab.data')}</S.TabBtn>
         {showNotesTab && (
-          <S.TabBtn $active={activeTab === 'notes'} onClick={() => setActiveTab('notes')}>Anotações</S.TabBtn>
+          <S.TabBtn $active={activeTab === 'notes'} onClick={() => setActiveTab('notes')}>{t('tab.notes')}</S.TabBtn>
         )}
         {showDocsTab && (
-          <S.TabBtn $active={activeTab === 'documents'} onClick={() => setActiveTab('documents')}>Documentos</S.TabBtn>
+          <S.TabBtn $active={activeTab === 'documents'} onClick={() => setActiveTab('documents')}>{t('tab.documents')}</S.TabBtn>
         )}
         {extraTabs?.map((tab) => (
           <S.TabBtn key={tab.key} $active={activeTab === tab.key} onClick={() => setActiveTab(tab.key)}>
@@ -216,4 +220,5 @@ export const EntityDetailView: React.FC<EntityDetailViewProps> = ({
 
     {screenActions && <ActionParametersModal controller={screenActions.parameterPrompt} />}
   </S.Page>
-);
+  );
+};

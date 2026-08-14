@@ -6,8 +6,6 @@ import {
   RiDeleteBinLine,
   RiFileTextLine,
 } from 'react-icons/ri';
-import { format } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
 import { S } from './panels.styles';
 import { Button } from '../../ui/Button';
 import { Input } from '../../ui/Input';
@@ -16,19 +14,24 @@ import { ConfirmModal } from '../../ui/ConfirmModal';
 import { MarkdownEditor } from '../../ui/MarkdownEditor';
 import { MarkdownContent } from '../../ui/MarkdownContent';
 import type { EntityNotesController } from '../../../shared/entityScreen/types';
+import { useT, useLocaleFormat } from '../../../shared/i18n/useT';
 
 interface NotesPanelProps {
   controller: EntityNotesController;
   isAdmin: boolean;
 }
 
-export const NotesPanel: React.FC<NotesPanelProps> = ({ controller: vm, isAdmin }) => (
+export const NotesPanel: React.FC<NotesPanelProps> = ({ controller: vm, isAdmin }) => {
+  const t = useT('core.ui');
+  const { formatLongDate } = useLocaleFormat();
+
+  return (
   <>
     <S.TabSectionHeader>
       {!vm.isNoteEditorOpen && (
         <Button variant="secondary" size="sm" onClick={vm.openNoteEditor}>
           <RiAddLine size={14} />
-          Nova Anotação
+          {t('notes.new')}
         </Button>
       )}
     </S.TabSectionHeader>
@@ -39,22 +42,22 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ controller: vm, isAdmin 
           <Input
             value={vm.newNoteTitle}
             onChange={(e) => vm.setNewNoteTitle(e.target.value)}
-            placeholder="Título da anotação *"
+            placeholder={t('notes.title.placeholder')}
           />
         </S.NoteEditorTitleRow>
         <MarkdownEditor
           value={vm.newNoteText}
           onChange={vm.setNewNoteText}
-          placeholder="Conteúdo em Markdown..."
+          placeholder={t('notes.content.placeholder')}
         />
         <S.NoteEditorActions>
           <Button variant="ghost" size="sm" onClick={vm.closeNoteEditor}>
             <RiCloseLine size={14} />
-            Cancelar
+            {t('action.cancel')}
           </Button>
           <Button size="sm" onClick={() => void vm.handleAddNote()} disabled={vm.isAddingNote || !vm.newNoteTitle.trim() || !vm.newNoteText.trim()}>
             <RiAddLine size={14} />
-            {vm.isAddingNote ? 'Adicionando...' : 'Adicionar'}
+            {vm.isAddingNote ? t('notes.adding') : t('notes.add')}
           </Button>
         </S.NoteEditorActions>
       </S.NoteEditorCard>
@@ -65,7 +68,7 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ controller: vm, isAdmin 
     ) : vm.notes.length === 0 ? (
       <S.EmptyState>
         <S.EmptyIcon><RiFileTextLine /></S.EmptyIcon>
-        <div>Nenhuma anotação ainda.</div>
+        <div>{t('notes.empty')}</div>
       </S.EmptyState>
     ) : (
       <S.NoteList>
@@ -81,9 +84,9 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ controller: vm, isAdmin 
                       : (note.createdByName || 'U').charAt(0).toUpperCase()}
                   </S.NoteAvatar>
                   <S.NoteBody>
-                    <S.NoteTitle>{note.title || '(sem título)'}</S.NoteTitle>
+                    <S.NoteTitle>{note.title || t('notes.untitled')}</S.NoteTitle>
                     <S.NoteDate>
-                      {note.createdByName} · {format(note.createdAt, "d 'de' MMM 'de' yyyy", { locale: ptBR })}
+                      {note.createdByName} · {formatLongDate(note.createdAt)}
                     </S.NoteDate>
                   </S.NoteBody>
                   <S.NoteExpandIcon $expanded={isExpanded}>
@@ -91,7 +94,7 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ controller: vm, isAdmin 
                   </S.NoteExpandIcon>
                 </S.NoteCardClickArea>
                 {isAdmin && (
-                  <Button variant="ghost" size="sm" onClick={() => vm.requestDeleteNote(note)} title="Excluir anotação">
+                  <Button variant="ghost" size="sm" onClick={() => vm.requestDeleteNote(note)} title={t('notes.delete')}>
                     <RiDeleteBinLine size={13} />
                   </Button>
                 )}
@@ -114,10 +117,11 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ controller: vm, isAdmin 
       isOpen={!!vm.noteToDelete}
       onConfirm={() => void vm.confirmDeleteNote()}
       onCancel={vm.cancelDeleteNote}
-      title="Excluir Anotação"
-      message="Tem certeza que deseja excluir esta anotação? Esta ação não pode ser desfeita."
-      confirmLabel="Excluir"
+      title={t('notes.delete.title')}
+      message={t('notes.delete.message')}
+      confirmLabel={t('action.delete')}
       variant="danger"
     />
   </>
-);
+  );
+};

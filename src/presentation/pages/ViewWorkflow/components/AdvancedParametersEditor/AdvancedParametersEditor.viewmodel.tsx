@@ -3,6 +3,8 @@ import type { WorkflowParameter } from '../../../../../domain/entities/Workflow'
 import { parametersToDsl, dslToParameters } from '../../../../../domain/schema/workflowParameters';
 import type { WorkflowParametersEditorVariant } from '../WorkflowParametersEditor/WorkflowParametersEditor.viewmodel';
 
+import { useT, type TranslateFn } from '../../../../shared/i18n/useT';
+
 export type AdvancedParametersMode = 'visual' | 'json';
 
 export interface AdvancedParametersEditorProps {
@@ -32,41 +34,17 @@ export interface AdvancedParametersEditorViewModel {
   insertExample: () => void;
 }
 
-export const PARAMETERS_JSON_EXAMPLE = `{
-  "titulo": "String",
-  "valor": { "type": "Number", "label": "Valor", "required": true, "default": 0 },
-  "vencimento": { "type": "Date", "label": "Vencimento" },
-  "ativo": { "type": "Boolean", "label": "Ativo", "default": true },
-  "prioridade": {
-    "type": "select",
-    "label": "Prioridade",
-    "options": ["Alta", "Média", "Baixa"]
-  },
-  "cliente": { "type": "EntityReference", "label": "Cliente", "entityType": "clients" },
-  "envolvidos": { "type": "EntityReference", "label": "Envolvidos", "entityType": "clients", "list": true },
-  "tags": { "type": "String", "label": "Etiquetas", "list": true },
-  "itens": {
-    "type": "Object",
-    "label": "Itens",
-    "list": true,
-    "fields": {
-      "descricao": "String",
-      "valor": { "type": "Number", "label": "Valor" }
-    }
-  },
-  "endereco": {
-    "type": "Object",
-    "label": "Endereço",
-    "fields": {
-      "rua": "String",
-      "numero": { "type": "Number", "label": "Número" }
-    }
-  }
-}`;
+/**
+ * O exemplo colável do editor JSON. É CONTEÚDO de demonstração, não interface: as chaves imitam um
+ * cadastro que o autor reconheceria. Escrito no idioma-fonte como o resto do produto — quem traduzir
+ * pode querer trocar os nomes de exemplo, e por isso ele também sai do catálogo.
+ */
+export const parametersJsonExample = (t: TranslateFn): string => t('parameter.json-example');
 
 export const useAdvancedParametersEditorViewModel = (
   props: AdvancedParametersEditorProps,
 ): AdvancedParametersEditorViewModel => {
+  const t = useT('core.automation');
   const { parameters, onReplace } = props;
   const [mode, setMode] = useState<AdvancedParametersMode>('visual');
   const [jsonText, setJsonText] = useState('');
@@ -98,9 +76,9 @@ export const useAdvancedParametersEditorViewModel = (
   const toggleReference = useCallback(() => setShowReference((prev) => !prev), []);
 
   const insertExample = useCallback(() => {
-    setJsonText(PARAMETERS_JSON_EXAMPLE);
+    setJsonText(parametersJsonExample(t));
     setJsonErrors([]);
-  }, []);
+  }, [t]);
 
   return {
     mode,

@@ -11,7 +11,7 @@ import { useAuth } from '../../../../stores/useAuth';
 import { useTenant } from '../../../../stores/useTenant';
 import { useCommandProviders, usePageContributions } from '../../../shared/useUiContributions';
 import { navigablePages as selectNavigablePages } from '../../../shared/resolveUiContributions';
-import { useLabel } from '../../../shared/i18n/useT';
+import { useLabel, useT } from '../../../shared/i18n/useT';
 import type { CommandPaletteItem } from './providers/ICommandPaletteProvider';
 
 export interface CommandPaletteGroup {
@@ -45,6 +45,7 @@ export const useCommandPaletteViewModel = (): CommandPaletteViewModel => {
   const providers = useCommandProviders();
   const pageContributions = usePageContributions();
   const label = useLabel();
+  const t = useT('core.ui');
 
   // O ⌘K procura pelo TÍTULO — então ele precisa procurar pelo título que a pessoa lê, e não pela
   // referência declarada. Resolver aqui, e não na busca, mantém um caminho só para o rótulo.
@@ -78,8 +79,9 @@ export const useCommandPaletteViewModel = (): CommandPaletteViewModel => {
       userRole,
       tenantRole,
       navigablePages,
+      t,
     }),
-    [openTab, close, persons, cases, contracts, allRecords, screenDefinitions, workflows, mode, setTheme, signOut, userRole, tenantRole, navigablePages],
+    [openTab, close, persons, cases, contracts, allRecords, screenDefinitions, workflows, mode, setTheme, signOut, userRole, tenantRole, navigablePages, t],
   );
 
   const groups = useMemo<CommandPaletteGroup[]>(() => {
@@ -87,11 +89,11 @@ export const useCommandPaletteViewModel = (): CommandPaletteViewModel => {
     for (const provider of providers) {
       const items = provider.getItems(query, appContext);
       if (items.length > 0) {
-        result.push({ name: provider.group, items });
+        result.push({ name: label(provider.group), items });
       }
     }
     return result;
-  }, [query, appContext, providers]);
+  }, [query, appContext, providers, label]);
 
   const allItems = useMemo(() => groups.flatMap((g) => g.items), [groups]);
 

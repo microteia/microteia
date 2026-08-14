@@ -9,6 +9,7 @@ export {
   DEFAULT_LOCALE,
   isValidLocale,
   localeChain,
+  negotiateFromCandidates,
   negotiateLocale,
   normalizeLocale,
   resolutionOrder,
@@ -58,7 +59,6 @@ export {
 } from './extensionPoints';
 
 export {
-  LEGACY_LOCALE,
   ambientCatalog,
   ambientLocale,
   configuredLocale,

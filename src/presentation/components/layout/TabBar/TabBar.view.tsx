@@ -5,8 +5,10 @@ import { useTabBarViewModel } from './TabBar.viewmodel';
 import type { TabBarProps } from './TabBar.viewmodel';
 import { S } from './TabBar.styles';
 
+import { useT } from '../../../shared/i18n/useT';
 export const TabBar: React.FC<TabBarProps> = ({ panelId }) => {
   const vm = useTabBarViewModel({ panelId });
+  const t = useT('core.ui');
 
   return (
     <>
@@ -27,7 +29,7 @@ export const TabBar: React.FC<TabBarProps> = ({ panelId }) => {
               <S.CloseBtn
                 $active={tab.isActive}
                 onClick={e => vm.handleTabClose(e, tab.key)}
-                title="Fechar"
+                title={t('action.close')}
               >
                 <RiCloseLine size={13} />
               </S.CloseBtn>
@@ -35,7 +37,7 @@ export const TabBar: React.FC<TabBarProps> = ({ panelId }) => {
           ))}
         </S.TabList>
         {vm.canClosePanel && (
-          <S.PanelCloseBtn $active={vm.isPanelActive} onClick={vm.handleClosePanel} title="Fechar painel">
+          <S.PanelCloseBtn $active={vm.isPanelActive} onClick={vm.handleClosePanel} title={t('tab.close-panel')}>
             <RiCloseLine size={15} />
           </S.PanelCloseBtn>
         )}
@@ -50,11 +52,11 @@ export const TabBar: React.FC<TabBarProps> = ({ panelId }) => {
             <>
               <S.ContextItem onClick={() => vm.handleSplitFromMenu('horizontal')}>
                 <RiLayoutColumnLine size={15} />
-                Dividir à direita
+                {t('tab.split-right')}
               </S.ContextItem>
               <S.ContextItem onClick={() => vm.handleSplitFromMenu('vertical')}>
                 <RiLayoutRowLine size={15} />
-                Dividir abaixo
+                {t('tab.split-below')}
               </S.ContextItem>
               <S.ContextSeparator />
             </>
@@ -62,12 +64,12 @@ export const TabBar: React.FC<TabBarProps> = ({ panelId }) => {
           {vm.canCloseOthers && (
             <S.ContextItem onClick={vm.handleCloseOthersFromMenu}>
               <RiCloseCircleLine size={15} />
-              Fechar Outras
+              {t('tab.close-others')}
             </S.ContextItem>
           )}
           <S.ContextItem $danger onClick={vm.handleCloseFromMenu}>
             <RiCloseLine size={15} />
-            Fechar aba
+            {t('tab.close')}
           </S.ContextItem>
         </S.ContextMenu>,
         document.body,

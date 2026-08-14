@@ -8,59 +8,70 @@ import {
   RiTeamLine,
 } from 'react-icons/ri';
 import type { ICommandPaletteProvider, CommandPaletteAppContext, CommandPaletteItem } from './ICommandPaletteProvider';
+import type { TranslateFn } from '../../../../shared/i18n/useT';
 import type { ThemeMode } from '../../../../../shared/types';
+
+const GROUP = '@core.workspace/command.group.system';
 
 const contains = (text: string, query: string) =>
   text.toLowerCase().includes(query.toLowerCase());
 
-const THEME_OPTIONS: { mode: ThemeMode; label: string; light: boolean }[] = [
-  { mode: 'microteia', label: 'Tema Microteia', light: false },
-  { mode: 'dark',     label: 'Tema Escuro',   light: false },
-  { mode: 'light',    label: 'Tema Claro',    light: true  },
-  { mode: 'claude',   label: 'Tema Claude',   light: true  },
-  { mode: 'teams',    label: 'Tema Teams',    light: false },
-  { mode: 'bruma',    label: 'Tema Bruma',    light: true  },
-  { mode: 'kindle',   label: 'Tema Kindle',   light: true  },
-  { mode: 'themis',     label: 'Tema Themis',         light: true  },
-  { mode: 'themisDark', label: 'Tema Themis Noturno', light: false },
+/**
+ * As palavras pelas quais o ⌘K encontra um item vêm do CATÁLOGO, separadas por vírgula. Buscar é
+ * parte da tradução: quem usa o sistema em português procura por "aparência", e nenhuma tradução do
+ * rótulo faria essa palavra casar sozinha.
+ */
+const keywordsOf = (t: TranslateFn, key: string): string[] =>
+  t(key).split(',').map((word) => word.trim()).filter((word) => word !== '');
+
+const matchesAny = (t: TranslateFn, key: string, query: string) =>
+  keywordsOf(t, key).some((word) => contains(word, query) || contains(query, word));
+
+const THEME_MODES: { mode: ThemeMode; key: string; light: boolean }[] = [
+  { mode: 'microteia', key: 'theme.microteia', light: false },
+  { mode: 'dark', key: 'theme.dark', light: false },
+  { mode: 'light', key: 'theme.light', light: true },
+  { mode: 'claude', key: 'theme.claude', light: true },
+  { mode: 'teams', key: 'theme.teams', light: false },
+  { mode: 'bruma', key: 'theme.bruma', light: true },
+  { mode: 'kindle', key: 'theme.kindle', light: true },
+  { mode: 'themis', key: 'theme.themis', light: true },
+  { mode: 'themisDark', key: 'theme.themis-dark', light: false },
 ];
 
-const THEME_KEYWORDS = ['tema', 'theme', 'aparência', 'cor', 'cores', 'escuro', 'claro', 'dark', 'light'];
-
-const isThemeQuery = (query: string) =>
-  THEME_KEYWORDS.some((kw) => contains(kw, query) || contains(query, kw));
-
 export const SystemCommandProvider: ICommandPaletteProvider = {
-  group: 'Sistema',
+  group: GROUP,
 
-  getItems(query: string, { mode, setTheme, signOut, openTab, close, tenantRole }: CommandPaletteAppContext): CommandPaletteItem[] {
+  getItems(query: string, { mode, setTheme, signOut, openTab, close, tenantRole, t }: CommandPaletteAppContext): CommandPaletteItem[] {
     const items: CommandPaletteItem[] = [];
+    const themes = THEME_MODES.map((option) => ({ ...option, label: t(option.key) }));
+    const isThemeQuery = (value: string) => matchesAny(t, 'command.system.theme.keywords', value);
 
-    if (!query || contains('perfil', query) || contains('profile', query)) {
+    if (!query || matchesAny(t, 'command.system.profile.keywords', query)) {
       items.push({
         id: 'sys:profile',
-        title: 'Meu Perfil',
-        group: 'Sistema',
+        title: t('core.workspace/page.profile'),
+        group: GROUP,
         icon: <RiUserLine size={16} />,
         onSelect: () => { openTab('profile'); close(); },
       });
     }
 
-    if (tenantRole === 'admin' && (!query || contains('membros', query) || contains('equipe', query) || contains('team', query) || contains('usuários', query))) {
+    if (tenantRole === 'admin' && (!query || matchesAny(t, 'command.system.members.keywords', query))) {
       items.push({
         id: 'sys:members',
-        title: 'Membros',
-        group: 'Sistema',
+        title: t('command.system.members'),
+        group: GROUP,
         icon: <RiTeamLine size={16} />,
         onSelect: () => { openTab('tenant-settings:members'); close(); },
       });
     }
 
-    if (tenantRole === 'admin' && (!query || contains('ia', query) || contains('ai', query) || contains('inteligência', query) || contains('conexão', query))) {
+    if (tenantRole === 'admin' && (!query || matchesAny(t, 'command.system.ai.keywords', query))) {
       items.push({
         id: 'sys:ai',
-        title: 'Conexão de IA',
-        group: 'Sistema',
+        title: t('command.system.ai'),
+        group: GROUP,
         icon: <RiRobot2Line size={16} />,
         onSelect: () => { openTab('tenant-settings:ai'); close(); },
       });
@@ -68,29 +79,30 @@ export const SystemCommandProvider: ICommandPaletteProvider = {
 
     if (!query || isThemeQuery(query)) {
       if (query && isThemeQuery(query)) {
-        for (const opt of THEME_OPTIONS) {
-          if (opt.mode !== mode && contains(opt.label.toLowerCase(), query.toLowerCase().replace(/tema\s*/, '').trim() || '')) {
+        const bare = query.toLowerCase().replace(t('command.system.theme.prefix').toLowerCase(), '').trim();
+        for (const option of themes) {
+          if (option.mode !== mode && contains(option.label.toLowerCase(), bare)) {
             items.push({
-              id: `sys:theme:${opt.mode}`,
-              title: opt.label,
-              subtitle: mode === opt.mode ? 'Tema atual' : undefined,
-              group: 'Sistema',
-              icon: opt.light ? <RiSunLine size={16} /> : <RiMoonLine size={16} />,
-              keywords: ['tema', 'aparência'],
-              onSelect: () => { setTheme(opt.mode); close(); },
+              id: `sys:theme:${option.mode}`,
+              title: option.label,
+              subtitle: mode === option.mode ? t('command.system.theme.current') : undefined,
+              group: GROUP,
+              icon: option.light ? <RiSunLine size={16} /> : <RiMoonLine size={16} />,
+              keywords: keywordsOf(t, 'command.system.theme.keywords'),
+              onSelect: () => { setTheme(option.mode); close(); },
             });
           }
         }
-        if (!items.some((i) => i.id.startsWith('sys:theme:'))) {
-          for (const opt of THEME_OPTIONS) {
-            if (opt.mode !== mode) {
+        if (!items.some((item) => item.id.startsWith('sys:theme:'))) {
+          for (const option of themes) {
+            if (option.mode !== mode) {
               items.push({
-                id: `sys:theme:${opt.mode}`,
-                title: opt.label,
-                group: 'Sistema',
-                icon: opt.light ? <RiSunLine size={16} /> : <RiMoonLine size={16} />,
-                keywords: ['tema', 'aparência'],
-                onSelect: () => { setTheme(opt.mode); close(); },
+                id: `sys:theme:${option.mode}`,
+                title: option.label,
+                group: GROUP,
+                icon: option.light ? <RiSunLine size={16} /> : <RiMoonLine size={16} />,
+                keywords: keywordsOf(t, 'command.system.theme.keywords'),
+                onSelect: () => { setTheme(option.mode); close(); },
               });
             }
           }
@@ -98,23 +110,23 @@ export const SystemCommandProvider: ICommandPaletteProvider = {
       } else {
         items.push({
           id: 'sys:theme',
-          title: 'Alterar tema',
-          subtitle: 'Digite "tema" para ver opções',
-          group: 'Sistema',
+          title: t('command.system.theme'),
+          subtitle: t('command.system.theme.subtitle'),
+          group: GROUP,
           icon: <RiPaletteLine size={16} />,
           onSelect: () => {},
         });
       }
     }
 
-    if (!query || contains('sair', query) || contains('logout', query) || contains('desconectar', query)) {
+    if (!query || matchesAny(t, 'command.system.signout.keywords', query)) {
       items.push({
         id: 'sys:signout',
-        title: 'Sair',
-        subtitle: 'Encerrar sessão',
-        group: 'Sistema',
+        title: t('command.system.signout'),
+        subtitle: t('command.system.signout.subtitle'),
+        group: GROUP,
         icon: <RiLogoutBoxLine size={16} />,
-        keywords: ['sair', 'logout'],
+        keywords: keywordsOf(t, 'command.system.signout.keywords'),
         onSelect: () => { close(); void signOut(); },
       });
     }

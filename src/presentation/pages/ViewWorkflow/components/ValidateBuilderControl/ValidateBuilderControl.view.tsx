@@ -6,7 +6,10 @@ import { S } from './ValidateBuilderControl.styles';
 import { useValidateBuilderControlViewModel } from './ValidateBuilderControl.viewmodel';
 import type { ValidateBuilderControlProps } from './ValidateBuilderControl.viewmodel';
 
+import { useT } from '../../../../shared/i18n/useT';
+
 export const ValidateBuilderControl: React.FC<ValidateBuilderControlProps> = (props) => {
+  const t = useT('core.automation');
   const vm = useValidateBuilderControlViewModel(props.value, props.onChange);
   const { config } = vm;
 
@@ -33,22 +36,20 @@ export const ValidateBuilderControl: React.FC<ValidateBuilderControlProps> = (pr
       </S.Section>
 
       <S.Section>
-        <S.SectionTitle>Entidade (opcional)</S.SectionTitle>
+        <S.SectionTitle>{t('validate.entity')}</S.SectionTitle>
         <SearchSelect
           options={vm.entityOptions}
           value={config.entityType ?? ''}
           onChange={vm.setEntityType}
-          placeholder="Nenhuma (objeto anônimo)"
+          placeholder={t('validate.source.none')}
         />
         <S.Hint>
-          Com entidade e sem parâmetros, o objeto é validado pelo schema dela. Com os dois, a saída continua sendo
-          dessa entidade, mas as regras dos parâmetros substituem as do schema. Sem entidade, a saída é um objeto
-          formado apenas pelos parâmetros.
+          {t('validate.entity.hint')}
         </S.Hint>
       </S.Section>
 
       <S.Section>
-        <S.SectionTitle>Nome do objeto de saída</S.SectionTitle>
+        <S.SectionTitle>{t('validate.output-name')}</S.SectionTitle>
         <Input
           value={config.outputName}
           onChange={(e) => vm.setOutputName(e.target.value)}
@@ -57,7 +58,7 @@ export const ValidateBuilderControl: React.FC<ValidateBuilderControlProps> = (pr
       </S.Section>
 
       <S.Section>
-        <S.SectionTitle>Parâmetros</S.SectionTitle>
+        <S.SectionTitle>{t('field.parameters')}</S.SectionTitle>
         <WorkflowParametersEditor
           parameters={vm.parameters}
           errors={vm.parameterErrors}

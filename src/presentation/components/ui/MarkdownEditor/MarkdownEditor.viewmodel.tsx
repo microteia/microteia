@@ -1,20 +1,21 @@
 import { useState, useCallback, useRef, useMemo } from 'react';
 import type { WorkflowDefinition } from '../../../../domain/entities/Workflow';
-import { MENTION_COMMANDS, type MentionCommand } from '../MentionMenu/MentionMenu.viewmodel';
+import { mentionCommands as nativeMentionCommands, type MentionCommand } from '../MentionMenu/MentionMenu.viewmodel';
 import { useExtensionMentionProviders, type ExtensionMentionProvider, type MentionResult } from '../../../shared/extensions/extensionServices';
 import { getScreenIconType } from '../../../shared/screenIcons';
+import { useT } from '../../../shared/i18n/useT';
 
 const EXT_MENTION_PREFIX = 'ext:';
 
 export type EditorMode = 'edit' | 'split' | 'preview';
 
 export const HIGHLIGHT_COLORS = [
-  { value: '#fef3c7', label: 'Amarelo' },
-  { value: '#fecaca', label: 'Vermelho' },
-  { value: '#ddd6fe', label: 'Roxo' },
-  { value: '#bfdbfe', label: 'Azul' },
-  { value: '#bbf7d0', label: 'Verde' },
-  { value: '#fed7aa', label: 'Laranja' },
+  { value: '#fef3c7', label: '@core.ui/color.yellow' },
+  { value: '#fecaca', label: '@core.ui/color.red' },
+  { value: '#ddd6fe', label: '@core.ui/color.purple' },
+  { value: '#bfdbfe', label: '@core.ui/color.blue' },
+  { value: '#bbf7d0', label: '@core.ui/color.green' },
+  { value: '#fed7aa', label: '@core.ui/color.orange' },
 ] as const;
 
 export interface MarkdownEditorProps {
@@ -99,15 +100,16 @@ export const useMarkdownEditorViewModel = (
   const [extMentionProvider, setExtMentionProvider] = useState<ExtensionMentionProvider | null>(null);
 
   const extensionMentionProviders = useExtensionMentionProviders();
+  const t = useT('core.ui');
   const mentionCommands = useMemo<MentionCommand[]>(() => [
-    ...MENTION_COMMANDS,
+    ...nativeMentionCommands(t),
     ...extensionMentionProviders.map((provider) => ({
       key: `${EXT_MENTION_PREFIX}${provider.key}`,
       label: provider.label,
-      description: provider.description ?? `Inserir link para ${provider.label}`,
+      description: provider.description ?? t('mention.insert-link', { label: provider.label }),
       icon: getScreenIconType(provider.icon ?? 'apps'),
     })),
-  ], [extensionMentionProviders]);
+  ], [extensionMentionProviders, t]);
 
   const mentionRangeRef = useRef<{ start: number; end: number }>({ start: -1, end: -1 });
 

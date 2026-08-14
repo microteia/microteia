@@ -10,6 +10,7 @@ import { SearchSelect } from '../SearchSelect';
 import { Input } from '../Input';
 import { ExpressionEditor } from '../ExpressionEditor';
 import { RadioGroup } from '../RadioButton';
+import { useT } from '../../../shared/i18n/useT';
 
 export interface ConditionBuilderProps {
   value: Condition;
@@ -26,52 +27,54 @@ export interface ConditionBuilderProps {
 }
 
 const ConditionNode: React.FC<{ node: BuilderNode; vm: ConditionBuilderViewModel; isRoot?: boolean }> = ({ node, vm, isRoot = false }) => {
+  const t = useT('core.ui');
+
   if (node.type === 'group') {
     const collapsed = vm.isCollapsed(node.id);
     return (
       <S.GroupCard $operator={node.operator} id={`condition-node-${node.id}`} $focused={vm.focusedNodeId === node.id}>
         <S.GroupHeader>
-          <S.CollapseBtn onClick={() => vm.toggleCollapsed(node.id)} title={collapsed ? 'Expandir grupo' : 'Recolher grupo'}>
+          <S.CollapseBtn onClick={() => vm.toggleCollapsed(node.id)} title={collapsed ? t('condition.group.expand') : t('condition.group.collapse')}>
             {collapsed ? <RiArrowRightSLine size={16} /> : <RiArrowDownSLine size={16} />}
           </S.CollapseBtn>
           <S.OperatorToggle>
-            <S.OperatorBtn $active={node.operator === 'and'} onClick={() => vm.setGroupOperator(node.id, 'and')} title="Todas as condições devem ser verdadeiras">
-              E
+            <S.OperatorBtn $active={node.operator === 'and'} onClick={() => vm.setGroupOperator(node.id, 'and')} title={t('condition.operator.and.title')}>
+              {t('condition.operator.and')}
             </S.OperatorBtn>
-            <S.OperatorBtn $active={node.operator === 'or'} onClick={() => vm.setGroupOperator(node.id, 'or')} title="Pelo menos uma condição deve ser verdadeira">
-              OU
+            <S.OperatorBtn $active={node.operator === 'or'} onClick={() => vm.setGroupOperator(node.id, 'or')} title={t('condition.operator.or.title')}>
+              {t('condition.operator.or')}
             </S.OperatorBtn>
           </S.OperatorToggle>
           {!isRoot && (
-            <S.NegateBtn $active={node.negated} onClick={() => vm.toggleNegated(node.id)} title="Inverter o resultado do grupo (NÃO)">
-              NÃO
+            <S.NegateBtn $active={node.negated} onClick={() => vm.toggleNegated(node.id)} title={t('condition.group.invert')}>
+              {t('condition.not')}
             </S.NegateBtn>
           )}
           {collapsed && <S.CollapsedSummary>{vm.getNodeSummary(node)}</S.CollapsedSummary>}
           <S.GroupActions>
-            <S.GroupActionBtn onClick={() => vm.addComparison(node.id)} title="Adicionar comparação de campo">
+            <S.GroupActionBtn onClick={() => vm.addComparison(node.id)} title={t('condition.root.add-comparison')}>
               <RiAddLine size={14} />
-              Condição
+              {t('condition.label.condition')}
             </S.GroupActionBtn>
-            <S.GroupActionBtn onClick={() => vm.addExpression(node.id)} title="Adicionar expressão pura">
+            <S.GroupActionBtn onClick={() => vm.addExpression(node.id)} title={t('condition.root.add-expression')}>
               <RiFunctionLine size={14} />
-              Expressão
+              {t('condition.label.expression')}
             </S.GroupActionBtn>
-            <S.GroupActionBtn onClick={() => vm.addGroup(node.id)} title="Adicionar grupo aninhado">
+            <S.GroupActionBtn onClick={() => vm.addGroup(node.id)} title={t('condition.add.group.nested')}>
               <RiBracesLine size={14} />
-              Grupo
+              {t('condition.label.group')}
             </S.GroupActionBtn>
             {node.children.length > 1 && (
               <S.GroupActionBtn
                 onClick={() => vm.wrapGroupChildren(node.id)}
-                title="Envolver as condições deste grupo em um subgrupo — depois alterne o E/OU externo para montar lógicas como (A e B) ou C"
+                title={t('condition.group.wrap.hint')}
               >
                 <RiParenthesesLine size={14} />
-                Agrupar
+                {t('condition.label.wrap')}
               </S.GroupActionBtn>
             )}
             {!isRoot && (
-              <S.RemoveButton onClick={() => vm.removeNode(node.id)} title="Remover grupo">
+              <S.RemoveButton onClick={() => vm.removeNode(node.id)} title={t('condition.remove.group')}>
                 <RiDeleteBinLine size={14} />
               </S.RemoveButton>
             )}
@@ -83,7 +86,7 @@ const ConditionNode: React.FC<{ node: BuilderNode; vm: ConditionBuilderViewModel
             {node.children.map((child, index) => (
               <React.Fragment key={child.id}>
                 {index > 0 && (
-                  <S.JoinPill $operator={node.operator}>{node.operator === 'and' ? 'E' : 'OU'}</S.JoinPill>
+                  <S.JoinPill $operator={node.operator}>{node.operator === 'and' ? t('condition.operator.and') : t('condition.operator.or')}</S.JoinPill>
                 )}
                 <ConditionNode node={child} vm={vm} />
               </React.Fragment>
@@ -99,16 +102,16 @@ const ConditionNode: React.FC<{ node: BuilderNode; vm: ConditionBuilderViewModel
     return (
       <S.ConditionCard id={`condition-node-${node.id}`} $focused={vm.focusedNodeId === node.id}>
         <S.ConditionHeader>
-          <S.CollapseBtn onClick={() => vm.toggleCollapsed(node.id)} title={collapsed ? 'Expandir' : 'Recolher'}>
+          <S.CollapseBtn onClick={() => vm.toggleCollapsed(node.id)} title={collapsed ? t('condition.expand') : t('condition.collapse')}>
             {collapsed ? <RiArrowRightSLine size={16} /> : <RiArrowDownSLine size={16} />}
           </S.CollapseBtn>
-          <S.ConditionLabel>Expressão</S.ConditionLabel>
+          <S.ConditionLabel>{t('condition.label.expression')}</S.ConditionLabel>
           {collapsed && <S.CollapsedSummary>{vm.getNodeSummary(node)}</S.CollapsedSummary>}
           <S.HeaderActions>
-            <S.NegateBtn $active={node.negated} onClick={() => vm.toggleNegated(node.id)} title="Inverter o resultado (NÃO)">
-              NÃO
+            <S.NegateBtn $active={node.negated} onClick={() => vm.toggleNegated(node.id)} title={t('condition.invert')}>
+              {t('condition.not')}
             </S.NegateBtn>
-            <S.RemoveButton onClick={() => vm.removeNode(node.id)} title="Remover expressão">
+            <S.RemoveButton onClick={() => vm.removeNode(node.id)} title={t('condition.remove.expression')}>
               <RiDeleteBinLine size={14} />
             </S.RemoveButton>
           </S.HeaderActions>
@@ -118,14 +121,14 @@ const ConditionNode: React.FC<{ node: BuilderNode; vm: ConditionBuilderViewModel
             <ExpressionEditor
               value={node.expression}
               onChange={(expression) => vm.updateExpression(node.id, expression)}
-              placeholder="Ex: event.valor > 1000 and isWeekend(today()) == false"
+              placeholder={t('condition.expression.placeholder')}
               eventFields={vm.eventFields}
               pathRoot={vm.pathRoot}
               stepOutputFields={vm.stepOutputFields}
               workflowVariables={vm.workflowVariables}
               inputRoot={vm.inputRoot}
             />
-            <S.HelpText>A expressão deve resultar em verdadeiro ou falso.</S.HelpText>
+            <S.HelpText>{t('condition.expression.help')}</S.HelpText>
           </>
         )}
       </S.ConditionCard>
@@ -136,16 +139,16 @@ const ConditionNode: React.FC<{ node: BuilderNode; vm: ConditionBuilderViewModel
   return (
     <S.ConditionCard id={`condition-node-${node.id}`} $focused={vm.focusedNodeId === node.id}>
       <S.ConditionHeader>
-        <S.CollapseBtn onClick={() => vm.toggleCollapsed(node.id)} title={collapsed ? 'Expandir' : 'Recolher'}>
+        <S.CollapseBtn onClick={() => vm.toggleCollapsed(node.id)} title={collapsed ? t('condition.expand') : t('condition.collapse')}>
           {collapsed ? <RiArrowRightSLine size={16} /> : <RiArrowDownSLine size={16} />}
         </S.CollapseBtn>
-        <S.ConditionLabel>Comparação</S.ConditionLabel>
+        <S.ConditionLabel>{t('condition.label.comparison')}</S.ConditionLabel>
         {collapsed && <S.CollapsedSummary>{vm.getNodeSummary(node)}</S.CollapsedSummary>}
         <S.HeaderActions>
-          <S.NegateBtn $active={node.negated} onClick={() => vm.toggleNegated(node.id)} title="Inverter o resultado (NÃO)">
-            NÃO
+          <S.NegateBtn $active={node.negated} onClick={() => vm.toggleNegated(node.id)} title={t('condition.invert')}>
+            {t('condition.not')}
           </S.NegateBtn>
-          <S.RemoveButton onClick={() => vm.removeNode(node.id)} title="Remover condição">
+          <S.RemoveButton onClick={() => vm.removeNode(node.id)} title={t('condition.remove')}>
             <RiDeleteBinLine size={14} />
           </S.RemoveButton>
         </S.HeaderActions>
@@ -154,22 +157,22 @@ const ConditionNode: React.FC<{ node: BuilderNode; vm: ConditionBuilderViewModel
       {collapsed ? null : (<>
       <S.ConditionRow>
         <S.FieldGroup>
-          <S.Label>Campo</S.Label>
+          <S.Label>{t('condition.field')}</S.Label>
           <SearchSelect
             options={vm.fieldOptions}
             value={node.fieldPath}
             onChange={(path) => vm.updateComparison(node.id, { fieldPath: path })}
-            placeholder="Selecione um campo..."
+            placeholder={t('condition.field.placeholder')}
           />
         </S.FieldGroup>
 
         <S.FieldGroup>
-          <S.Label>Operador</S.Label>
+          <S.Label>{t('condition.operator')}</S.Label>
           <SearchSelect
             options={vm.operatorOptions}
             value={node.operator}
             onChange={(op) => vm.updateComparison(node.id, { operator: op as typeof node.operator })}
-            placeholder="Selecione..."
+            placeholder={t('select.placeholder')}
           />
         </S.FieldGroup>
       </S.ConditionRow>
@@ -182,15 +185,15 @@ const ConditionNode: React.FC<{ node: BuilderNode; vm: ConditionBuilderViewModel
               value={node.valueType}
               onChange={(valueType) => vm.updateComparison(node.id, { valueType: valueType as typeof node.valueType })}
               options={[
-                { label: 'Valor fixo', value: 'literal' },
-                { label: 'Expressão', value: 'expression' },
-                { label: 'Outro campo do evento', value: 'eventField' },
+                { label: t('condition.value-type.literal'), value: 'literal' },
+                { label: t('condition.label.expression'), value: 'expression' },
+                { label: t('condition.value-type.event-field'), value: 'eventField' },
               ]}
             />
           </S.ValueTypeRow>
 
           <S.FieldGroup>
-            <S.Label>Valor</S.Label>
+            <S.Label>{t('condition.value')}</S.Label>
             {node.valueType === 'literal' && (() => {
               const lookupOptions = vm.getLookupValueOptions(node.fieldPath);
               return lookupOptions ? (
@@ -198,13 +201,13 @@ const ConditionNode: React.FC<{ node: BuilderNode; vm: ConditionBuilderViewModel
                   options={lookupOptions}
                   value={node.value}
                   onChange={(value) => vm.updateComparison(node.id, { value })}
-                  placeholder="Selecione um valor..."
+                  placeholder={t('condition.value.placeholder')}
                 />
               ) : (
                 <Input
                   value={node.value}
                   onChange={(e) => vm.updateComparison(node.id, { value: e.target.value })}
-                  placeholder='Ex: "Ativo", 1000, etc.'
+                  placeholder={t('condition.value.literal.placeholder')}
                 />
               );
             })()}
@@ -212,7 +215,7 @@ const ConditionNode: React.FC<{ node: BuilderNode; vm: ConditionBuilderViewModel
               <ExpressionEditor
                 value={node.value}
                 onChange={(value) => vm.updateComparison(node.id, { value })}
-                placeholder='Ex: today(), now(), concat("Texto", campo)'
+                placeholder={t('condition.value.expression.placeholder')}
                 eventFields={vm.eventFields}
                 pathRoot={vm.pathRoot}
                 stepOutputFields={vm.stepOutputFields}
@@ -225,7 +228,7 @@ const ConditionNode: React.FC<{ node: BuilderNode; vm: ConditionBuilderViewModel
                 options={vm.fieldOptions}
                 value={node.value}
                 onChange={(path) => vm.updateComparison(node.id, { value: path })}
-                placeholder="Selecione um campo..."
+                placeholder={t('condition.field.placeholder')}
               />
             )}
           </S.FieldGroup>
@@ -238,19 +241,20 @@ const ConditionNode: React.FC<{ node: BuilderNode; vm: ConditionBuilderViewModel
 
 export const ConditionBuilder: React.FC<ConditionBuilderProps> = ({ value, onChange, eventName, focusPath, onFocusHandled, parameters, stepOutputFields, workflowVariables, inputRoot }) => {
   const vm = useConditionBuilderViewModel(value, onChange, eventName, focusPath, onFocusHandled, parameters, stepOutputFields, workflowVariables, inputRoot);
+  const t = useT('core.ui');
 
   return (
     <S.Container>
       <S.Section>
-        <S.SectionTitle>Quando executar esta automação?</S.SectionTitle>
+        <S.SectionTitle>{t('condition.when.title')}</S.SectionTitle>
 
         <RadioGroup
           name="execution-mode"
           value={vm.mode}
           onChange={(mode) => vm.setMode(mode as 'always' | 'custom')}
           options={[
-            { label: 'Sempre que o evento ocorrer', value: 'always' },
-            { label: 'Apenas quando as seguintes condições forem atendidas', value: 'custom' },
+            { label: t('condition.when.always'), value: 'always' },
+            { label: t('condition.when.custom'), value: 'custom' },
           ]}
         />
       </S.Section>
@@ -258,9 +262,7 @@ export const ConditionBuilder: React.FC<ConditionBuilderProps> = ({ value, onCha
       {vm.mode === 'custom' && (
         <S.Section>
           <ConditionNode node={vm.root} vm={vm} isRoot />
-          <S.HelpText>
-            Combine condições com E/OU e use grupos aninhados para montar lógicas como (A e B) ou C.
-          </S.HelpText>
+          <S.HelpText>{t('condition.help')}</S.HelpText>
         </S.Section>
       )}
     </S.Container>

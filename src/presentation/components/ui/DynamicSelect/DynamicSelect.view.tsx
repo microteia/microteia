@@ -13,10 +13,12 @@ import {
 import { ConfirmModal } from '../ConfirmModal';
 import { type DynamicSelectProps, useDynamicSelectViewModel } from './DynamicSelect.viewmodel';
 import * as S from './DynamicSelect.styles';
+import { useT } from '../../../shared/i18n/useT';
 
-const ORPHAN_TITLE = 'Este valor não está mais na lista de opções — pode ter sido excluído. O conteúdo foi mantido no registro.';
 
 export const DynamicSelect: React.FC<DynamicSelectProps> = (props) => {
+  const t = useT('core.ui');
+  const orphanTitle = t('dynamic-select.orphan.title');
   const {
     open,
     query,
@@ -73,7 +75,7 @@ export const DynamicSelect: React.FC<DynamicSelectProps> = (props) => {
                     key={opt.value}
                     $color={opt.color}
                     $orphan={opt.isOrphan}
-                    title={opt.isOrphan ? ORPHAN_TITLE : undefined}
+                    title={opt.isOrphan ? orphanTitle : undefined}
                   >
                     {opt.isOrphan
                       ? <S.OrphanIcon><RiErrorWarningLine size={11} /></S.OrphanIcon>
@@ -99,11 +101,11 @@ export const DynamicSelect: React.FC<DynamicSelectProps> = (props) => {
         ) : (
           <>
             {selectedOption?.isOrphan
-              ? <S.OrphanIcon title={ORPHAN_TITLE}><RiErrorWarningLine size={14} /></S.OrphanIcon>
+              ? <S.OrphanIcon title={orphanTitle}><RiErrorWarningLine size={14} /></S.OrphanIcon>
               : selectedOption?.color && <S.ColorDot $color={selectedOption.color} />}
             <S.TriggerLabel
               $orphan={selectedOption?.isOrphan}
-              title={selectedOption?.isOrphan ? ORPHAN_TITLE : undefined}
+              title={selectedOption?.isOrphan ? orphanTitle : undefined}
             >
               {selectedOption ? selectedOption.label : placeholder}
             </S.TriggerLabel>
@@ -137,14 +139,14 @@ export const DynamicSelect: React.FC<DynamicSelectProps> = (props) => {
               value={query}
               onChange={e => onQueryChange(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="Digite para buscar ou adicionar..."
+              placeholder={t('dynamic-select.search.placeholder')}
               disabled={addLoading}
             />
           </S.SearchRow>
 
           <S.OptionList>
             {filtered.length === 0 && !canAdd ? (
-              <S.EmptyMsg>Nenhum resultado encontrado</S.EmptyMsg>
+              <S.EmptyMsg>{t('dynamic-select.no-results')}</S.EmptyMsg>
             ) : (
               filtered.map((opt, idx) => (
                 <S.OptionItem
@@ -160,13 +162,13 @@ export const DynamicSelect: React.FC<DynamicSelectProps> = (props) => {
                   <S.OptionText>
                     <S.OptionLabel $orphan={opt.isOrphan}>{opt.label}</S.OptionLabel>
                     {opt.isOrphan
-                      ? <S.OptionMeta>{'Fora da lista de opções'}</S.OptionMeta>
+                      ? <S.OptionMeta>{t('dynamic-select.orphan.meta')}</S.OptionMeta>
                       : opt.meta && <S.OptionMeta>{opt.meta}</S.OptionMeta>}
                   </S.OptionText>
                   {hasOnAdd && opt.isOrphan && (
                     <S.RestoreBtn
                       type="button"
-                      title={`Adicionar "${opt.label}" à lista de opções`}
+                      title={t('dynamic-select.orphan.restore', { label: opt.label })}
                       onMouseDown={e => void handleRestoreClick(e, opt)}
                     >
                       <RiAddCircleLine size={15} />
@@ -175,7 +177,7 @@ export const DynamicSelect: React.FC<DynamicSelectProps> = (props) => {
                   {hasOnDelete && opt.isDynamic && (
                     <S.DeleteBtn
                       type="button"
-                      title={`Excluir ${opt.label}`}
+                      title={t('dynamic-select.option.delete', { label: opt.label })}
                       onMouseDown={e => handleDeleteClick(e, opt)}
                     >
                       <RiDeleteBin6Line size={13} />

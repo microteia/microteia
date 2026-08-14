@@ -1,4 +1,5 @@
 import { Parser } from 'expr-eval';
+import type { TranslateFn } from '../../../shared/i18n/useT';
 import type { ExpressionFunctionDef } from '../../../../stores/useExpressionFunctions';
 
 export interface ValidationResult {
@@ -39,7 +40,8 @@ const countFunctionArguments = (expression: string, openParenIndex: number): num
 };
 
 export const validateExpressionWithParser = (
-  expression: string, 
+  t: TranslateFn,
+  expression: string,
   availableFunctionDefs: ExpressionFunctionDef[],
 ): ValidationResult => {
   if (!expression.trim()) {
@@ -63,14 +65,14 @@ export const validateExpressionWithParser = (
   if (openParens > closeParens) {
     return {
       isValid: false,
-      message: `Falta fechar ${openParens - closeParens} parêntese${openParens - closeParens > 1 ? 's' : ''}`,
+      message: t('expression.error.unclosed-paren', { count: openParens - closeParens }),
     };
   }
 
   if (closeParens > openParens) {
     return {
       isValid: false,
-      message: `Parêntese${closeParens - openParens > 1 ? 's' : ''} de fechamento sem abertura`,
+      message: t('expression.error.unopened-paren', { count: closeParens - openParens }),
     };
   }
 
@@ -187,7 +189,7 @@ export const validateExpressionWithParser = (
         if (!availableFunctionDefs.some(f => f.name === fnName)) {
           return {
             isValid: false,
-            message: `Função desconhecida: "${fnName}". Veja as funções disponíveis.`,
+            message: t('expression.error.unknown-function', { name: fnName }),
           };
         }
         // Função está disponível mas não tem minArgs/maxArgs - pula validação de args
@@ -200,28 +202,28 @@ export const validateExpressionWithParser = (
       if (argCount < 0) {
         return {
           isValid: false,
-          message: `Função "${fnName}" não foi fechada corretamente`,
+          message: t('expression.error.function-unclosed', { name: fnName }),
         };
       }
 
       if (argCount < signature.minArgs) {
         return {
           isValid: false,
-          message: `Função "${fnName}" requer no mínimo ${signature.minArgs} argumento${signature.minArgs > 1 ? 's' : ''}, mas recebeu ${argCount}`,
+          message: t('expression.error.min-args', { name: fnName, count: signature.minArgs, received: argCount }),
         };
       }
 
       if (signature.maxArgs != null && argCount > signature.maxArgs) {
         return {
           isValid: false,
-          message: `Função "${fnName}" aceita no máximo ${signature.maxArgs} argumento${signature.maxArgs > 1 ? 's' : ''}, mas recebeu ${argCount}`,
+          message: t('expression.error.max-args', { name: fnName, count: signature.maxArgs, received: argCount }),
         };
       }
 
       match = functionPattern.exec(expression);
     }
 
-    return { isValid: true, message: 'Expressão válida ✓' };
+    return { isValid: true, message: t('expression.valid') };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     
@@ -229,42 +231,42 @@ export const validateExpressionWithParser = (
     if (errorMessage.includes('TEOF') || errorMessage.includes('EOF')) {
       return {
         isValid: false,
-        message: 'Expressão incompleta. Verifique se faltam argumentos ou parênteses de fechamento.',
+        message: t('expression.error.incomplete'),
       };
     }
 
     if (errorMessage.includes('unexpected TNAME')) {
       return {
         isValid: false,
-        message: 'Nome inesperado na expressão. Verifique a sintaxe.',
+        message: t('expression.error.unexpected-name'),
       };
     }
 
     if (errorMessage.includes('unexpected TNUMBER')) {
       return {
         isValid: false,
-        message: 'Número em posição incorreta. Verifique operadores e vírgulas.',
+        message: t('expression.error.unexpected-number'),
       };
     }
 
     if (errorMessage.includes('unexpected TSTRING')) {
       return {
         isValid: false,
-        message: 'Texto em posição incorreta. Verifique operadores e vírgulas.',
+        message: t('expression.error.unexpected-text'),
       };
     }
 
     if (errorMessage.includes('unexpected TCOMMA')) {
       return {
         isValid: false,
-        message: 'Vírgula em posição incorreta. Verifique os argumentos da função.',
+        message: t('expression.error.unexpected-comma'),
       };
     }
 
     if (errorMessage.includes('parse error')) {
       return {
         isValid: false,
-        message: 'Erro de sintaxe. Verifique a estrutura da expressão.',
+        message: t('expression.error.syntax'),
       };
     }
     
@@ -273,12 +275,12 @@ export const validateExpressionWithParser = (
       if (token) {
         return {
           isValid: false,
-          message: `Símbolo inesperado na expressão. Verifique a sintaxe próximo a "${token}".`,
+          message: t('expression.error.unexpected-symbol', { token }),
         };
       }
       return {
         isValid: false,
-        message: 'Erro de sintaxe. Verifique a estrutura da expressão.',
+        message: t('expression.error.syntax'),
       };
     }
 

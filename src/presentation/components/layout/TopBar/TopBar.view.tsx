@@ -9,8 +9,10 @@ import {
 import { useTopBarViewModel } from './TopBar.viewmodel';
 import { S } from './TopBar.styles';
 
+import { useT } from '../../../shared/i18n/useT';
 export const TopBar: React.FC = () => {
   const vm = useTopBarViewModel();
+  const t = useT('core.ui');
 
   const hasMultipleTenants = vm.availableTenants.length > 1;
 
@@ -25,7 +27,7 @@ export const TopBar: React.FC = () => {
               $clickable={hasMultipleTenants}
               $switching={vm.isSwitching}
               onClick={vm.handleTenantButtonClick}
-              title={hasMultipleTenants ? 'Trocar escritório' : vm.currentTenant.name}
+              title={hasMultipleTenants ? t('tenant.switch') : vm.currentTenant.name}
               disabled={vm.isSwitching}
             >
               {vm.isSwitching ? (
@@ -45,21 +47,21 @@ export const TopBar: React.FC = () => {
 
             {vm.isDropdownOpen && (
               <S.Dropdown ref={vm.dropdownRef}>
-                <S.DropdownHeader>Escritórios</S.DropdownHeader>
+                <S.DropdownHeader>{t('tenant.plural')}</S.DropdownHeader>
                 {vm.availableTenants.length > 3 && (
                   <S.SearchInputWrapper>
                     <RiSearchLine size={14} />
                     <S.SearchInput
                       ref={vm.searchInputRef}
                       type="text"
-                      placeholder="Pesquisar..."
+                      placeholder={t('action.search')}
                       value={vm.searchQuery}
                       onChange={vm.handleSearchChange}
                     />
                   </S.SearchInputWrapper>
                 )}
                 {vm.filteredTenants.length === 0 ? (
-                  <S.EmptyState>Nenhum escritório encontrado</S.EmptyState>
+                  <S.EmptyState>{t('tenant.none-found')}</S.EmptyState>
                 ) : (
                   vm.filteredTenants.map((tenant) => {
                     const isActive = tenant.id === vm.currentTenant?.id;

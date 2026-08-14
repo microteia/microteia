@@ -17,6 +17,7 @@ import { MentionMenu } from '../MentionMenu';
 import { ExtensionMentionModal } from '../ExtensionMentionModal';
 import { WorkflowMentionModal } from '../WorkflowMentionModal';
 import { MarkdownContent } from '../MarkdownContent';
+import { useT } from '../../../shared/i18n/useT';
 
 export type { MarkdownEditorProps };
 
@@ -27,6 +28,7 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = (props) => {
 
   const showEdit    = vm.mode === 'edit' || vm.mode === 'split';
   const showPreview = vm.mode === 'preview' || vm.mode === 'split';
+  const t = useT('core.ui');
   const showResizer = vm.mode === 'split';
 
   const editFlex    = vm.mode === 'split' ? vm.splitRatio : 1;
@@ -37,25 +39,25 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = (props) => {
       <S.Container>
         {!props.readOnly && (
           <S.Toolbar>
-            <S.ToolBtn title="Negrito" onClick={() => vm.insertFormat('**')}>
+            <S.ToolBtn title={t('markdown.bold')} onClick={() => vm.insertFormat('**')}>
               <RiBold size={14} />
             </S.ToolBtn>
-            <S.ToolBtn title="Itálico" onClick={() => vm.insertFormat('*')}>
+            <S.ToolBtn title={t('markdown.italic')} onClick={() => vm.insertFormat('*')}>
               <RiItalic size={14} />
             </S.ToolBtn>
-            <S.ToolBtn title="Sublinhado" onClick={() => vm.insertFormat('<u>', '</u>')}>
+            <S.ToolBtn title={t('markdown.underline')} onClick={() => vm.insertFormat('<u>', '</u>')}>
               <RiUnderline size={14} />
             </S.ToolBtn>
-            <S.ToolBtn title="Tachado" onClick={() => vm.insertFormat('~~')}>
+            <S.ToolBtn title={t('markdown.strikethrough')} onClick={() => vm.insertFormat('~~')}>
               <RiStrikethrough size={14} />
             </S.ToolBtn>
 
             <S.Separator />
 
-            <S.ToolBtn title="Lista numerada" onClick={() => vm.insertLinePrefix('1. ')}>
+            <S.ToolBtn title={t('markdown.list.ordered')} onClick={() => vm.insertLinePrefix('1. ')}>
               <RiListOrdered size={14} />
             </S.ToolBtn>
-            <S.ToolBtn title="Lista com marcadores" onClick={() => vm.insertLinePrefix('- ')}>
+            <S.ToolBtn title={t('markdown.list.bullet')} onClick={() => vm.insertLinePrefix('- ')}>
               <RiListUnordered size={14} />
             </S.ToolBtn>
 
@@ -71,14 +73,14 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = (props) => {
             ))}
 
             <S.ModeGroup>
-              <S.ModeBtn $active={vm.mode === 'edit'} onClick={() => vm.setMode('edit')} title="Somente edição">
-                <RiEditLine size={13} /> Editar
+              <S.ModeBtn $active={vm.mode === 'edit'} onClick={() => vm.setMode('edit')} title={t('markdown.mode.edit.title')}>
+                <RiEditLine size={13} /> {t('markdown.mode.edit')}
               </S.ModeBtn>
-              <S.ModeBtn $active={vm.mode === 'split'} onClick={() => vm.setMode('split')} title="Edição + prévia">
-                <RiLayoutColumnLine size={13} /> Dividir
+              <S.ModeBtn $active={vm.mode === 'split'} onClick={() => vm.setMode('split')} title={t('markdown.mode.split.title')}>
+                <RiLayoutColumnLine size={13} /> {t('markdown.mode.split')}
               </S.ModeBtn>
-              <S.ModeBtn $active={vm.mode === 'preview'} onClick={() => vm.setMode('preview')} title="Somente prévia">
-                <RiEyeLine size={13} /> Prévia
+              <S.ModeBtn $active={vm.mode === 'preview'} onClick={() => vm.setMode('preview')} title={t('markdown.mode.preview.title')}>
+                <RiEyeLine size={13} /> {t('markdown.mode.preview')}
               </S.ModeBtn>
             </S.ModeGroup>
           </S.Toolbar>
@@ -91,7 +93,7 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = (props) => {
               value={props.value}
               onChange={vm.handleTextareaChange}
               onKeyDown={vm.handleTextareaKeyDown}
-              placeholder={props.placeholder ?? 'Digite em Markdown... (@ para inserir links)'}
+              placeholder={props.placeholder ?? t('markdown.placeholder')}
               spellCheck={false}
             />
           </S.EditPane>
@@ -105,7 +107,7 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = (props) => {
               <MarkdownContent>{props.value}</MarkdownContent>
             ) : (
               <S.EmptyPreview>
-                {props.placeholder ?? 'A prévia aparecerá aqui...'}
+                {props.placeholder ?? t('markdown.preview.empty')}
               </S.EmptyPreview>
             )}
           </S.PreviewPane>

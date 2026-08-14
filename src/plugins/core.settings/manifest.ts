@@ -17,8 +17,8 @@ export const coreSettingsPlugin: PluginRecord = {
     id: 'core.settings',
     version: '1.0.0',
     kernel: '^1.0.0',
-    name: 'Configurações',
-    description: 'A tela onde plugins registram o que aceitam configurar, no escritório e por usuário.',
+    name: 'Settings',
+    description: 'The screen where plugins register what they accept configuring, per organization and per user.',
     dependencies: { 'core.ui': '^1.0.0' },
     contributes: [
       messageBundleContribution(coreMessage('core.settings', CORE_SETTINGS_MESSAGES)),

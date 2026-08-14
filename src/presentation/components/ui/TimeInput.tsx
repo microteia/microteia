@@ -2,6 +2,7 @@ import React from 'react';
 import styled from 'styled-components';
 import { RiCloseLine } from 'react-icons/ri';
 
+import { useT } from '../../shared/i18n/useT';
 const Wrapper = styled.div`
   position: relative;
   width: 100%;
@@ -62,6 +63,7 @@ export interface TimeInputProps {
 }
 
 export const TimeInput: React.FC<TimeInputProps> = ({ value, onChange, disabled, id }) => {
+  const t = useT('core.ui');
   return (
     <Wrapper>
       <StyledInput
@@ -73,7 +75,7 @@ export const TimeInput: React.FC<TimeInputProps> = ({ value, onChange, disabled,
         $hasValue={!!value}
       />
       {value && !disabled && (
-        <ClearButton type="button" onClick={() => onChange('')} title="Limpar horário">
+        <ClearButton type="button" onClick={() => onChange('')} title={t('time.clear')}>
           <RiCloseLine size={14} />
         </ClearButton>
       )}

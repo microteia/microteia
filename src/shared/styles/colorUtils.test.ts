@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { nextLookupOptionColor } from './colorUtils';
+import { DEFAULT_TAG_COLOR_LABEL, nextLookupOptionColor } from './colorUtils';
 import { darkTheme } from './theme';
 
-const AZUL = darkTheme.tagColors.find((color) => color.label === 'Azul')!.value;
-const INDIGO = darkTheme.tagColors.find((color) => color.label === 'Índigo')!.value;
+const AZUL = darkTheme.tagColors.find((color) => color.label === DEFAULT_TAG_COLOR_LABEL)!.value;
+const INDIGO = darkTheme.tagColors.find((color) => color.label === '@core.ui/color.indigo')!.value;
 
 /**
  * A opção criada pelo usuário no próprio campo tinha de nascer com cor: numa lista colorida, ela

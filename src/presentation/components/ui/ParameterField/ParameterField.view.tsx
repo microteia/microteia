@@ -8,11 +8,12 @@ import { SearchSelect } from '../SearchSelect';
 import { MultiSearchSelect } from '../MultiSearchSelect';
 import { EntityReferenceControl } from '../EntityReferenceControl';
 import { LiteralOptionsControl } from '../LiteralOptionsControl';
+import { useT, type TranslateFn } from '../../../shared/i18n/useT';
 
-const BOOLEAN_OPTIONS = [
-  { value: '', label: '(não informar)' },
-  { value: 'true', label: 'Sim' },
-  { value: 'false', label: 'Não' },
+const booleanOptions = (t: TranslateFn) => [
+  { value: '', label: t('parameter.unset') },
+  { value: 'true', label: t('boolean.yes') },
+  { value: 'false', label: t('boolean.no') },
 ];
 
 /**
@@ -21,6 +22,7 @@ const BOOLEAN_OPTIONS = [
  */
 export const ParameterField: React.FC<ParameterFieldProps> = (props) => {
   const vm = useParameterFieldViewModel(props);
+  const t = useT('core.ui');
 
   if (vm.mode === 'entity') {
     return <EntityReferenceControl input={vm.input} value={props.value} onChange={props.onChange} />;
@@ -57,7 +59,7 @@ export const ParameterField: React.FC<ParameterFieldProps> = (props) => {
   }
 
   if (vm.mode === 'boolean') {
-    return <SearchSelect options={BOOLEAN_OPTIONS} value={props.value} onChange={props.onChange} />;
+    return <SearchSelect options={booleanOptions(t)} value={props.value} onChange={props.onChange} />;
   }
 
   return (

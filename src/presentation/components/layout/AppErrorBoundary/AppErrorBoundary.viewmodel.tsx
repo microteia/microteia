@@ -14,7 +14,7 @@ export const useAppErrorBoundaryViewModel = (): AppErrorBoundaryViewModel => {
   const handleError = useCallback((error: Error) => {
     void auditLogService.logError({
       tenantId: currentTenant?.id ?? 'SYSTEM',
-      title: 'Erro não tratado na interface',
+      title: 'Unhandled interface error',
       entity: 'FRONTEND',
       error,
     });

@@ -15,6 +15,8 @@ import type { WorkflowEventFieldOption } from '../../../../../domain/services/wo
 import type { StepOutputField, WorkflowVariable } from '../../../../components/ui/ExpressionEditor/autocompleteHelpers';
 import type { SearchSelectOption } from '../../../../components/ui/SearchSelect';
 
+import { useT } from '../../../../shared/i18n/useT';
+
 export interface QueryBuilderControlProps {
   value: QuerySpec | undefined;
   onChange: (spec: QuerySpec) => void;
@@ -30,19 +32,25 @@ export interface OperatorOption {
   label: string;
 }
 
+/** O operador guarda a CHAVE; quem monta as opções traduz. */
+interface OperatorKey {
+  value: QueryOperator;
+  labelKey: string;
+}
+
 const DEFAULT_LIMIT = 20;
 const MAX_PATH_DEPTH = 3;
 
-export const OPERATOR_OPTIONS: OperatorOption[] = [
-  { value: 'eq', label: 'igual a' },
-  { value: 'neq', label: 'diferente de' },
-  { value: 'lt', label: 'menor que' },
-  { value: 'lte', label: 'menor ou igual a' },
-  { value: 'gt', label: 'maior que' },
-  { value: 'gte', label: 'maior ou igual a' },
-  { value: 'in', label: 'está na lista' },
-  { value: 'contains', label: 'contém' },
-  { value: 'exists', label: 'está preenchido' },
+const OPERATOR_KEYS: OperatorKey[] = [
+  { value: 'eq', labelKey: 'query.operator.eq' },
+  { value: 'neq', labelKey: 'query.operator.neq' },
+  { value: 'lt', labelKey: 'query.operator.lt' },
+  { value: 'lte', labelKey: 'query.operator.lte' },
+  { value: 'gt', labelKey: 'query.operator.gt' },
+  { value: 'gte', labelKey: 'query.operator.gte' },
+  { value: 'in', labelKey: 'query.operator.in' },
+  { value: 'contains', labelKey: 'query.operator.contains' },
+  { value: 'exists', labelKey: 'query.operator.exists' },
 ];
 
 export const operatorNeedsValue = (op: QueryOperator): boolean => !QUERY_OPERATORS_WITHOUT_VALUE.includes(op);
@@ -55,9 +63,9 @@ export const operatorNeedsValue = (op: QueryOperator): boolean => !QUERY_OPERATO
  */
 export const QUERY_VALUE_MAPPING_KINDS = ['Literal', 'Expression'] as const;
 
-export const QUERY_VALUE_KIND_OPTIONS: SearchSelectOption[] = [
-  { value: 'Literal', label: 'Valor fixo' },
-  { value: 'Expression', label: 'Expressão' },
+export const QUERY_VALUE_KIND_KEYS: { value: string; labelKey: string }[] = [
+  { value: 'Literal', labelKey: 'mapping.kind.literal' },
+  { value: 'Expression', labelKey: 'mapping.kind.expression' },
 ];
 
 const EMPTY_SPEC: QuerySpec = { table: '', where: [], orderBy: [], limit: DEFAULT_LIMIT, projections: [] };
@@ -105,6 +113,12 @@ export const useQueryBuilderControlViewModel = (
   onChange: QueryBuilderControlProps['onChange'],
 ): QueryBuilderControlViewModel => {
   const ctx = useSchemaContext();
+  const t = useT('core.automation');
+
+  const operatorOptions = useMemo<OperatorOption[]>(
+    () => OPERATOR_KEYS.map((option) => ({ value: option.value, label: t(option.labelKey) })),
+    [t],
+  );
   const spec = useMemo(() => value ?? EMPTY_SPEC, [value]);
 
   const tableOptions = useMemo<SearchSelectOption[]>(() => {
@@ -189,7 +203,7 @@ export const useQueryBuilderControlViewModel = (
     spec,
     tableOptions,
     pathOptions,
-    operatorOptions: OPERATOR_OPTIONS,
+    operatorOptions,
     issuesByField,
     setTable,
     addFilter,

@@ -21,8 +21,10 @@ import { useWorkspaceSidebarViewModel } from './WorkspaceSidebar.viewmodel';
 import { S } from './WorkspaceSidebar.styles';
 import { UserAvatar } from '../../ui/UserAvatar';
 
+import { useT } from '../../../shared/i18n/useT';
 export const WorkspaceSidebar: React.FC = () => {
   const vm = useWorkspaceSidebarViewModel();
+  const t = useT('core.ui');
 
   return (
     <S.Container $collapsed={vm.collapsed}>
@@ -97,19 +99,19 @@ export const WorkspaceSidebar: React.FC = () => {
                 {vm.isAdmin && (
                   <S.MenuItem onClick={vm.handleAccessManagementClick}>
                     <RiShieldUserLine size={16} />
-                    Gestão de Acessos
+                    {t('core.admin/page.access-management')}
                   </S.MenuItem>
                 )}
                 {vm.canAccessScreenBuilder && (
                   <S.MenuItem onClick={vm.handleScreenBuilderClick}>
                     <RiLayoutGridLine size={16} />
-                    Form Design
+                    {t('core.records/page.screen-builder')}
                   </S.MenuItem>
                 )}
                 {vm.canAccessScreenBuilder && (
                   <S.MenuItem onClick={vm.handleWorkflowsClick}>
                     <RiFlowChart size={16} />
-                    Workflow
+                    {t('core.automation/page.workflows')}
                   </S.MenuItem>
                 )}
                 {vm.canAccessScreenBuilder && (
@@ -121,19 +123,19 @@ export const WorkspaceSidebar: React.FC = () => {
                 {vm.canAccessScreenBuilder && (
                   <S.MenuItem onClick={vm.handleActionsClick}>
                     <RiCursorLine size={16} />
-                    Ações
+                    {t('core.automation/page.actions')}
                   </S.MenuItem>
                 )}
                 {vm.canAccessDataProcessor && (
                   <S.MenuItem onClick={vm.handleDataProcessorClick}>
                     <RiSparkling2Line size={16} />
-                    Processador de Dados
+                    {t('core.admin/page.data-processor')}
                   </S.MenuItem>
                 )}
                 {vm.canAccessScreenBuilder && (
                   <S.MenuItem onClick={vm.handleMarketplaceClick}>
                     <RiStoreLine size={16} />
-                    Extensões
+                    {t('core.marketplace/page.marketplace')}
                   </S.MenuItem>
                 )}
               </S.MenuGroup>
@@ -143,7 +145,7 @@ export const WorkspaceSidebar: React.FC = () => {
               <S.MenuGroup>
                 <S.ThemeSubToggle onClick={vm.toggleThemeSub}>
                   <RiPaletteLine size={16} />
-                  Aparência
+                  {t('menu.appearance')}
                   <S.ThemeSubArrow $open={vm.isThemeSubOpen}>
                     <RiArrowRightSLine size={16} />
                   </S.ThemeSubArrow>
@@ -181,7 +183,7 @@ export const WorkspaceSidebar: React.FC = () => {
           </>
         )}
 
-        <S.UserMenuTrigger onClick={vm.toggleMenu} title="Menu do usuário">
+        <S.UserMenuTrigger onClick={vm.toggleMenu} title={t('user.menu')}>
           <UserAvatar
             src={vm.effectivePhotoURL}
             name={vm.effectiveName ?? 'U'}

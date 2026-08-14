@@ -13,7 +13,7 @@ export const coreMarketplacePlugin: PluginRecord = {
     id: 'core.marketplace',
     version: '1.0.0',
     kernel: '^1.0.0',
-    name: 'Extensões',
+    name: 'Extensions',
     dependencies: { 'core.ui': '^1.0.0' },
     contributes: [
       messageBundleContribution(coreMessage('core.marketplace', CORE_MARKETPLACE_MESSAGES)),

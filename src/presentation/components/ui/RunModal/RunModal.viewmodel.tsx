@@ -1,6 +1,7 @@
 import { useCallback, useState } from 'react';
 import type { WorkflowParameter } from '../../../../domain/entities/Workflow';
 
+import { useT, type TranslateFn } from '../../../shared/i18n/useT';
 export type RunModalLogLevel = 'INFO' | 'WARN' | 'ERROR' | 'SUCCESS';
 
 export interface RunModalLog {
@@ -107,6 +108,7 @@ const buildDefaultJson = (
 };
 
 const buildProvidedParams = (
+  t: TranslateFn,
   mode: 'form' | 'json',
   jsonText: string,
   values: Record<string, string>,
@@ -118,11 +120,11 @@ const buildProvidedParams = (
     try {
       const parsed: unknown = JSON.parse(text);
       if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
-        return { ok: false, error: 'O JSON deve ser um objeto com os parâmetros de entrada.' };
+        return { ok: false, error: t('run.error.json-not-object') };
       }
       return { ok: true, params: parsed as Record<string, unknown> };
     } catch (error) {
-      return { ok: false, error: `JSON inválido: ${error instanceof Error ? error.message : ''}` };
+      return { ok: false, error: t('run.error.json-invalid', { detail: error instanceof Error ? error.message : '' }) };
     }
   }
 
@@ -135,7 +137,7 @@ const buildProvidedParams = (
       try {
         params[param.key] = JSON.parse(trimmed);
       } catch {
-        return { ok: false, error: `JSON inválido no campo "${param.label || param.key}".` };
+        return { ok: false, error: t('run.error.json-invalid-field', { field: param.label || param.key }) };
       }
     } else {
       if (raw === '') continue;
@@ -167,7 +169,8 @@ export interface RunModalViewModel {
 }
 
 export const useRunModalViewModel = (props: RunModalProps): RunModalViewModel => {
-  const { parameters, runLabel = 'Executar', initialValues, collectOnly = false, onClose, onRun } = props;
+  const t = useT('core.ui');
+  const { parameters, runLabel = t('run.execute'), initialValues, collectOnly = false, onClose, onRun } = props;
 
   const [mode, setMode] = useState<'form' | 'json'>('form');
   const [values, setValues] = useState<Record<string, string>>(
@@ -178,7 +181,7 @@ export const useRunModalViewModel = (props: RunModalProps): RunModalViewModel =>
   const [running, setRunning] = useState(false);
   const [result, setResult] = useState<RunModalResult | null>(null);
 
-  const outcome = buildProvidedParams(mode, jsonText, values, parameters);
+  const outcome = buildProvidedParams(t, mode, jsonText, values, parameters);
 
   const getValue = useCallback((key: string) => values[key] ?? '', [values]);
 
@@ -188,7 +191,7 @@ export const useRunModalViewModel = (props: RunModalProps): RunModalViewModel =>
 
   const handleRun = useCallback(async () => {
     if (running) return;
-    const built = buildProvidedParams(mode, jsonText, values, parameters);
+    const built = buildProvidedParams(t, mode, jsonText, values, parameters);
     if (!built.ok) return;
     // Só coleta: dispara e sai de cena. Esperar aqui deixaria o modal travado durante a execução,
     // sem nada a mostrar no fim — o retorno já é tratado por quem chamou.
@@ -212,7 +215,7 @@ export const useRunModalViewModel = (props: RunModalProps): RunModalViewModel =>
       setRunning(false);
       setPhase('result');
     }
-  }, [running, mode, jsonText, values, parameters, collectOnly, onRun, onClose]);
+  }, [running, mode, jsonText, values, parameters, collectOnly, onRun, onClose, t]);
 
   const handleReset = useCallback(() => {
     setPhase('input');

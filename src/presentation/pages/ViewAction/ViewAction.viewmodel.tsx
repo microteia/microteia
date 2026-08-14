@@ -13,6 +13,8 @@ import type { ActionDefinition } from '../../../domain/entities';
 import type { WorkflowVariable } from '../../components/ui/ExpressionEditor/autocompleteHelpers';
 import type { SearchSelectOption } from '../../components/ui/SearchSelect';
 
+import { useLabel } from '../../shared/i18n/useT';
+
 export interface ActionFormState {
   /** Id do documento — o que uma tela e um pacote guardam para apontar para esta ação. */
   actionId: string;
@@ -117,6 +119,7 @@ export const useViewActionViewModel = (tabKey: string): ViewActionViewModel => {
   const { closeTab, openTab, setTabTitle, activePanelId } = useWorkspace();
   const { notify } = useNotification();
   const recordActions = useRecordActions();
+  const label = useLabel();
 
   const isNew = tabKey === 'new-action';
   const actionId = isNew ? null : tabKey.replace('view-action:', '');
@@ -180,11 +183,11 @@ export const useViewActionViewModel = (tabKey: string): ViewActionViewModel => {
       { value: '', label: 'Executar um fluxo de trabalho' },
       ...recordActions.map((action) => ({
         value: action.metadata.key,
-        label: action.metadata.title,
+        label: label(action.metadata.title),
         meta: action.metadata.key,
       })),
     ],
-    [recordActions],
+    [recordActions, label],
   );
 
   const promptableParameters = useMemo<PromptableParameter[]>(() => {

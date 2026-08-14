@@ -6,12 +6,15 @@ import { S } from './RemoveBuilderControl.styles';
 import { useRemoveBuilderControlViewModel } from './RemoveBuilderControl.viewmodel';
 import type { RemoveBuilderControlProps } from './RemoveBuilderControl.viewmodel';
 
-const VALUE_KIND_OPTIONS = [
-  { value: 'Literal', label: 'Valor fixo' },
-  { value: 'Expression', label: 'Expressão' },
+import { useT, type TranslateFn } from '../../../../shared/i18n/useT';
+
+const valueKindOptions = (t: TranslateFn) => [
+  { value: 'Literal', label: t('mapping.kind.literal') },
+  { value: 'Expression', label: t('mapping.kind.expression') },
 ];
 
 export const RemoveBuilderControl: React.FC<RemoveBuilderControlProps> = (props) => {
+  const t = useT('core.automation');
   const vm = useRemoveBuilderControlViewModel(props.value, props.onChange);
   const { config } = vm;
   const kind = config.id?.kind === 'Expression' ? 'Expression' : 'Literal';
@@ -33,7 +36,7 @@ export const RemoveBuilderControl: React.FC<RemoveBuilderControlProps> = (props)
           <S.SectionTitle>Id do registro a excluir</S.SectionTitle>
           <S.ValueEditor>
             <SearchSelect
-              options={VALUE_KIND_OPTIONS}
+              options={valueKindOptions(t)}
               value={kind}
               onChange={(next) =>
                 vm.setId(next === 'Expression' ? { kind: 'Expression', expression: '' } : { kind: 'Literal', value: '' })

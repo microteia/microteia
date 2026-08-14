@@ -5,10 +5,12 @@ import { MultiSearchSelect } from '../../../../components/ui/MultiSearchSelect';
 import { Input } from '../../../../components/ui/Input';
 import { ExpressionEditor } from '../../../../components/ui/ExpressionEditor';
 import { S } from './QueryBuilderControl.styles';
-import { QUERY_VALUE_KIND_OPTIONS, operatorNeedsValue, useQueryBuilderControlViewModel } from './QueryBuilderControl.viewmodel';
+import { QUERY_VALUE_KIND_KEYS, operatorNeedsValue, useQueryBuilderControlViewModel } from './QueryBuilderControl.viewmodel';
 import type { QueryBuilderControlProps } from './QueryBuilderControl.viewmodel';
 import type { InputMapping } from '../../../../../domain/entities/Workflow';
 import type { QueryOperator } from '../../../../../domain/schema/querySpec';
+
+import { useT } from '../../../../shared/i18n/useT';
 
 const DIRECTION_OPTIONS = [
   { value: 'asc', label: 'Crescente' },
@@ -16,6 +18,7 @@ const DIRECTION_OPTIONS = [
 ];
 
 export const QueryBuilderControl: React.FC<QueryBuilderControlProps> = (props) => {
+  const t = useT('core.automation');
   const vm = useQueryBuilderControlViewModel(props.value, props.onChange);
   const { spec } = vm;
 
@@ -26,7 +29,7 @@ export const QueryBuilderControl: React.FC<QueryBuilderControlProps> = (props) =
       <S.ValueEditor>
         <S.KindRow>
           <SearchSelect
-            options={QUERY_VALUE_KIND_OPTIONS}
+            options={QUERY_VALUE_KIND_KEYS.map((option) => ({ value: option.value, label: t(option.labelKey) }))}
             value={kind}
             onChange={(next) =>
               vm.updateFilter(index, {
@@ -75,7 +78,7 @@ export const QueryBuilderControl: React.FC<QueryBuilderControlProps> = (props) =
         <>
           <S.Section>
             <S.SectionTitle>Filtros</S.SectionTitle>
-            {spec.where.length === 0 && <S.Empty>Nenhum filtro — todos os registros da tabela serão retornados.</S.Empty>}
+            {spec.where.length === 0 && <S.Empty>{t('query.filters.empty')}</S.Empty>}
             {spec.where.map((predicate, index) => (
               <React.Fragment key={index}>
                 <S.FilterRow>
@@ -105,17 +108,17 @@ export const QueryBuilderControl: React.FC<QueryBuilderControlProps> = (props) =
           </S.Section>
 
           <S.Section>
-            <S.SectionTitle>Projeções (campos retornados)</S.SectionTitle>
+            <S.SectionTitle>{t('query.projections')}</S.SectionTitle>
             <MultiSearchSelect
               options={vm.pathOptions}
               values={spec.projections}
               onChange={vm.setProjections}
-              placeholder="Todos os campos (padrão)"
+              placeholder={t('query.projections.placeholder')}
             />
           </S.Section>
 
           <S.Section>
-            <S.SectionTitle>Ordenação</S.SectionTitle>
+            <S.SectionTitle>{t('query.order-by')}</S.SectionTitle>
             {spec.orderBy?.map((order, index) => (
               <S.OrderRow key={index}>
                 <SearchSelect
@@ -129,13 +132,13 @@ export const QueryBuilderControl: React.FC<QueryBuilderControlProps> = (props) =
                   value={order.dir}
                   onChange={(dir) => vm.updateOrderBy(index, { ...order, dir: dir === 'desc' ? 'desc' : 'asc' })}
                 />
-                <S.RemoveButton onClick={() => vm.removeOrderBy(index)} title="Remover ordenação">
+                <S.RemoveButton onClick={() => vm.removeOrderBy(index)} title={t('query.order-by.remove')}>
                   <RiDeleteBinLine size={14} />
                 </S.RemoveButton>
               </S.OrderRow>
             ))}
             <S.AddButton onClick={vm.addOrderBy}>
-              <RiAddLine size={14} /> Adicionar ordenação
+              <RiAddLine size={14} /> {t('query.order-by.add')}
             </S.AddButton>
           </S.Section>
 

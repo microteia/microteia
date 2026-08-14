@@ -4,6 +4,7 @@ import { CompositeFilter } from '../../../CompositeFilter';
 import { S } from './FunctionReferenceModal.styles';
 import { useFunctionReferenceModalViewModel } from './FunctionReferenceModal.viewmodel';
 
+import { useT } from '../../../../../shared/i18n/useT';
 export interface FunctionReferenceModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -11,16 +12,17 @@ export interface FunctionReferenceModalProps {
 
 export const FunctionReferenceModal: React.FC<FunctionReferenceModalProps> = ({ isOpen, onClose }) => {
   const vm = useFunctionReferenceModalViewModel();
+  const t = useT('core.ui');
   if (!isOpen) return null;
 
   return (
-    <Modal title="Referência de Expressões" onClose={onClose} size="large">
+    <Modal title={t('core.automation/page.function-reference')} onClose={onClose} size="large">
       <S.FilterContainer>
         <CompositeFilter
           defs={vm.filterDefs}
           tokens={vm.filterTokens}
           onChange={vm.setFilterTokens}
-          placeholder="Buscar funções..."
+          placeholder={t('expression.reference.search')}
         />
       </S.FilterContainer>
 
@@ -40,9 +42,7 @@ export const FunctionReferenceModal: React.FC<FunctionReferenceModalProps> = ({ 
           ))}
         </S.FunctionGrid>
       ) : (
-        <S.EmptyState>
-          Nenhuma função encontrada com os filtros aplicados.
-        </S.EmptyState>
+        <S.EmptyState>{t('expression.reference.none-found')}</S.EmptyState>
       )}
     </Modal>
   );

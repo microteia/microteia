@@ -5,7 +5,7 @@
 // ═══════════════════════════════════════════════════════════════════════════
 
 import type { LocaleCode } from './localeNegotiation';
-import { normalizeLocale } from './localeNegotiation';
+import { DEFAULT_LOCALE, normalizeLocale } from './localeNegotiation';
 import type { MessageCatalog } from './messages';
 import { emptyCatalog } from './messages';
 
@@ -20,25 +20,21 @@ import { emptyCatalog } from './messages';
  * antes de executar a automação.
  */
 
-/**
- * O idioma em que este sistema falava antes de existir idioma nenhum.
- *
- * Enquanto NINGUÉM tiver configurado um idioma, a formatação continua exatamente como era — data em
- * `dd/mm/aaaa`, moeda em `R$`. Sem esta âncora, publicar o motor viraria uma troca silenciosa de
- * formato para todo escritório existente, o que um release de infraestrutura não tem o direito de
- * fazer. É dívida deliberada e datada: sai quando o pacote `pt-BR` passar a ser instalado por padrão
- * nos escritórios existentes, na virada de major.
- */
-export const LEGACY_LOCALE: LocaleCode = 'pt-BR';
-
 let ambient: LocaleCode | null = null;
 let catalog: MessageCatalog = emptyCatalog();
 
-/** O idioma configurado, ou `null` enquanto ninguém configurou nenhum. */
+/** O idioma em vigor, ou `null` antes de o provedor ter empurrado o primeiro. */
 export const configuredLocale = (): LocaleCode | null => ambient;
 
-/** O idioma a usar para FORMATAR. Nunca `null`: quem formata precisa de uma resposta. */
-export const ambientLocale = (): LocaleCode => ambient ?? LEGACY_LOCALE;
+/**
+ * O idioma a usar para FORMATAR. Nunca `null`: quem formata precisa de uma resposta.
+ *
+ * O fallback é o IDIOMA-FONTE. Já foi `pt-BR` — uma âncora hardcoded para que escritórios
+ * existentes não trocassem de formato ao subir o motor de idioma —, e ela saiu quando o provedor
+ * passou a negociar com o idioma do NAVEGADOR: um escritório brasileiro chega a `pt-BR` porque o
+ * navegador dele diz `pt-BR`, e não porque o código decidiu por ele.
+ */
+export const ambientLocale = (): LocaleCode => ambient ?? DEFAULT_LOCALE;
 
 export const setAmbientLocale = (locale: LocaleCode | null): void => {
   ambient = locale === null ? null : normalizeLocale(locale) || null;

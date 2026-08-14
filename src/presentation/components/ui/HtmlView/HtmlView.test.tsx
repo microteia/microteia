@@ -70,8 +70,13 @@ describe('HtmlView', () => {
     expect(srcDoc).toContain('<base target="_blank">');
   });
 
+  /**
+   * Sem `LocaleProvider` na árvore, `useT` devolve a PRÓPRIA CHAVE — é a tolerância do motor de
+   * idioma, e é justamente por isso que renderizar o átomo isolado não estoura. O que o teste
+   * verifica continua sendo o mesmo: conteúdo vazio produz mensagem, não moldura em branco.
+   */
   it('conteúdo vazio vira a mensagem, não uma moldura em branco', () => {
     const { container } = renderView('   ');
-    expect(container.querySelector('iframe')?.getAttribute('srcdoc')).toContain('Sem conteúdo disponível.');
+    expect(container.querySelector('iframe')?.getAttribute('srcdoc')).toContain('core.ui/html.empty');
   });
 });

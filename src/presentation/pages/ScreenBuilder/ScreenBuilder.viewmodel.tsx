@@ -36,6 +36,8 @@ import type { WorkflowVariable } from '../../components/ui/ExpressionEditor/auto
 import type { SearchSelectOption } from '../../components/ui/SearchSelect';
 import type { ColorSwatchOption } from '../../components/ui/ColorSwatchPicker';
 
+import { useLabel } from '../../shared/i18n/useT';
+
 export interface BuiltinScreenRow {
   key: string;
   label: string;
@@ -548,6 +550,7 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
   const { tenantRole } = useTenant();
   const { definitions, dynamicScreens, isLoading, saveDefinition, deleteDefinition } = useScreenDefinitions();
   const recordActions = useRecordActions();
+  const label = useLabel();
 
   /** Os slots cujas ações só fazem sentido numa tela com etiquetas — declarado, não presumido. */
   const tagDependentSlots = useMemo(
@@ -933,7 +936,13 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
     [modalScreenFields],
   );
 
-  const listActionOptions = useMemo(() => listActionOptionsFrom(recordActions), [recordActions]);
+  // O rótulo é resolvido AQUI, e não na View: a caixa lista ações nativas (referência) e de
+  // extensão (texto do autor) lado a lado, e um caminho só de rótulo é o que impede a referência de
+  // vazar para a tela.
+  const listActionOptions = useMemo(
+    () => listActionOptionsFrom(recordActions).map((option) => ({ ...option, label: label(option.label) })),
+    [recordActions, label],
+  );
 
   const modalListActionOptions = useMemo(() => {
     if (!screenModalIsBuiltin) return listActionOptions;

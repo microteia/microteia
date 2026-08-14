@@ -2,6 +2,7 @@ import React from 'react';
 import { S } from './HtmlView.styles';
 import { useHtmlViewViewModel, type HtmlViewProps } from './HtmlView.viewmodel';
 
+import { useT } from '../../../shared/i18n/useT';
 /**
  * HTML de TERCEIRO exibido dentro da aplicação — o corpo de um e-mail de tribunal, o texto de uma
  * publicação. Renderiza num quadro ISOLADO, e é o isolamento que o torna seguro de usar:
@@ -17,6 +18,7 @@ import { useHtmlViewViewModel, type HtmlViewProps } from './HtmlView.viewmodel';
  */
 export const HtmlView: React.FC<HtmlViewProps> = (props) => {
   const vm = useHtmlViewViewModel(props);
+  const t = useT('core.ui');
   return (
     <S.Frame
       $height={vm.height}
@@ -24,7 +26,7 @@ export const HtmlView: React.FC<HtmlViewProps> = (props) => {
       sandbox="allow-popups allow-popups-to-escape-sandbox"
       referrerPolicy="no-referrer"
       loading="lazy"
-      title="Conteúdo"
+      title={t('html.frame-title')}
     />
   );
 };

@@ -1,6 +1,7 @@
 import type { Condition, WorkflowStep } from '../../domain/entities/Workflow';
 import type { StepDefinitionSummary } from '../../domain/entities/WorkflowStepCatalog';
-import { CONDITION_OPERATOR_LABELS, EVENT_FIELD_PATH_PREFIX } from './conditionHelpers';
+import { conditionOperatorKey, EVENT_FIELD_PATH_PREFIX } from './conditionHelpers';
+import type { TranslateFn } from './i18n/useT';
 
 /**
  * O `id` é a identidade do Step no motor: é por ele que `context.outputs` é indexado, e portanto é
@@ -369,30 +370,37 @@ export const collectPriorStepsForInsert = (
   return [...collectPriorSteps(rootSteps, target.loopId), ...[...bodySteps].sort(byOrder)];
 };
 
-/** Resumo de uma linha de uma Condição, para exibir dentro do nó no grafo/lista. */
-export const describeCondition = (condition: Condition | undefined): string => {
-  if (!condition) return 'Sem condição';
+/**
+ * Resumo de uma linha de uma Condição, para exibir dentro do nó no grafo/lista.
+ *
+ * O tradutor entra por PARÂMETRO porque esta é uma função de módulo, chamada recursivamente e fora de
+ * componente — não há como ela chamar `useT` por conta própria.
+ */
+export const describeCondition = (t: TranslateFn, condition: Condition | undefined): string => {
+  if (!condition) return t('condition.summary.none');
   switch (condition.kind) {
     case 'AlwaysTrue':
-      return 'Sempre verdadeiro';
+      return t('condition.summary.always');
     case 'FieldComparison': {
-      const field = condition.fieldPath.replace(EVENT_FIELD_PATH_PREFIX, '') || '(campo)';
-      const operator = CONDITION_OPERATOR_LABELS[condition.operator] ?? condition.operator;
+      const field = condition.fieldPath.replace(EVENT_FIELD_PATH_PREFIX, '') || t('condition.summary.field');
+      const operator = t(conditionOperatorKey(condition.operator));
       if (condition.operator === 'isEmpty' || condition.operator === 'isNotEmpty') {
         return `${field} ${operator}`;
       }
       return `${field} ${operator} ${String(condition.value ?? '')}`.trim();
     }
     case 'Expression':
-      return condition.expression || '(expressão)';
+      return condition.expression || t('condition.summary.expression');
     case 'LogicalAnd':
-      return condition.conditions.map(describeCondition).join(' E ') || 'E';
+      return condition.conditions.map((child) => describeCondition(t, child)).join(` ${t('condition.operator.and')} `)
+        || t('condition.operator.and');
     case 'LogicalOr':
-      return condition.conditions.map(describeCondition).join(' OU ') || 'OU';
+      return condition.conditions.map((child) => describeCondition(t, child)).join(` ${t('condition.operator.or')} `)
+        || t('condition.operator.or');
     case 'Not':
-      return `NÃO (${describeCondition(condition.condition)})`;
+      return `${t('condition.not')} (${describeCondition(t, condition.condition)})`;
     default:
-      return 'Condição';
+      return t('condition.label.condition');
   }
 };
 

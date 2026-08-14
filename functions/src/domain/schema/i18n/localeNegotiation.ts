@@ -77,6 +77,30 @@ export const negotiateLocale = (
 };
 
 /**
+ * Negocia a partir de uma LISTA de candidatos, na ordem em que ela vem — é o formato de
+ * `navigator.languages`, que já chega ordenado pela preferência de quem está no navegador.
+ *
+ * Existe separada de `negotiateLocale` porque a pergunta é outra: lá é "tenho ESTE idioma?", aqui é
+ * "qual destes eu tenho primeiro?". Cada candidato é testado pela cadeia inteira (`pt-BR` → `pt`)
+ * antes de passar ao próximo, senão um navegador em `pt-BR` deixaria de casar com um catálogo `pt`
+ * só porque havia um `es` mais adiante na lista.
+ */
+export const negotiateFromCandidates = (
+  candidates: LocaleCode[],
+  available: LocaleCode[],
+  fallback: LocaleCode = DEFAULT_LOCALE,
+): LocaleCode => {
+  const offered = new Set(available.map((locale) => normalizeLocale(locale)));
+  for (const candidate of candidates) {
+    if (!isValidLocale(candidate)) continue;
+    for (const step of localeChain(candidate)) {
+      if (offered.has(step)) return step;
+    }
+  }
+  return normalizeLocale(fallback) || DEFAULT_LOCALE;
+};
+
+/**
  * A ordem em que os catálogos se empilham: do mais genérico ao mais específico, com o idioma-fonte
  * na base. Quem constrói o catálogo aplica nesta ordem, deixando o mais específico sobrepor.
  */

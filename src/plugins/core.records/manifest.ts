@@ -29,7 +29,7 @@ export const coreRecordsPlugin: PluginRecord = {
     id: 'core.records',
     version: '1.0.0',
     kernel: '^1.0.0',
-    name: 'Telas Personalizadas',
+    name: 'Custom Screens',
     dependencies: { 'core.ui': '^1.0.0' },
     contributes: [
       messageBundleContribution(coreMessage('core.records', CORE_RECORDS_MESSAGES)),
@@ -37,7 +37,7 @@ export const coreRecordsPlugin: PluginRecord = {
       page({ key: '', keyPrefix: 'dyn:', title: '@core.records/page.dynamic-list', icon: 'layoutGrid' }, 'DynamicRecordListView'),
       page({ key: '', keyPrefix: 'new-dyn:', title: '@core.records/page.dynamic-new', icon: 'layoutGrid' }, 'ViewDynamicRecordView'),
       page({ key: '', keyPrefix: 'view-dyn:', title: '@core.records/page.dynamic-record', icon: 'layoutGrid' }, 'ViewDynamicRecordView'),
-      command('dynamic-record', { group: 'Registros' }, 'DynamicRecordCommandProvider'),
+      command('dynamic-record', { group: '@core.records/command.group' }, 'DynamicRecordCommandProvider'),
       // As ações que todo registro oferece. Contribuições como quaisquer outras: remover uma linha
       // daqui tira a ação de toda tela, sem que o kernel saiba que ela existia.
       recordAction(RECORD_ACTION_METADATA.copyLink, 'CopyLinkRecordAction'),

@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { useTheme } from 'styled-components';
 import { sanitizeHtml } from './sanitizeHtml';
 
+import { useT } from '../../../shared/i18n/useT';
 export interface HtmlViewProps {
   html: string;
   /**
@@ -55,7 +56,8 @@ const buildSrcDoc = (
 <body>${body}</body></html>`;
 
 export const useHtmlViewViewModel = (props: HtmlViewProps): HtmlViewViewModel => {
-  const { html, height = DEFAULT_HEIGHT, emptyMessage = 'Sem conteúdo disponível.' } = props;
+  const t = useT('core.ui');
+  const { html, height = DEFAULT_HEIGHT, emptyMessage = t('html.empty') } = props;
   const theme = useTheme();
 
   const srcDoc = useMemo(() => {

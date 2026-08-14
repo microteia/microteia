@@ -7,8 +7,11 @@ import { Spinner } from '../../components/ui/Spinner';
 import { Input, Label } from '../../components/ui/Input';
 import { S } from './Login.styles';
 
+import { useT } from '../../shared/i18n/useT';
+
 export const LoginView: React.FC = () => {
   const vm = useLoginViewModel();
+  const t = useT('core.workspace');
 
   if (vm.mode === 'verify-email') {
     return (
@@ -20,21 +23,18 @@ export const LoginView: React.FC = () => {
           <S.VerifyEmailIcon>
             <RiMailSendLine />
           </S.VerifyEmailIcon>
-          <S.Title>Verifique seu e-mail</S.Title>
-          <S.VerifyEmailText>
-            Enviamos um link de verificação para <strong>{vm.emailField}</strong>.
-            Clique nele para ativar sua conta. Olhe a caixa de entrada e a pasta de spam.
-          </S.VerifyEmailText>
+          <S.Title>{t('login.verify.title')}</S.Title>
+          <S.VerifyEmailText>{t('login.verify.text', { email: vm.emailField })}</S.VerifyEmailText>
           <S.ButtonGroup>
             <Button $fullWidth size="lg" onClick={vm.handleCheckVerification} $isLoading={vm.loading} disabled={vm.loading}>
               {vm.loading ? <Spinner size={18} /> : null}
-              Já verifiquei
+              {t('login.verify.done')}
             </Button>
             <Button $fullWidth size="lg" variant="ghost" onClick={vm.handleResendVerification} $isLoading={vm.loading} disabled={vm.loading}>
-              Reenviar e-mail
+              {t('login.verify.resend')}
             </Button>
             <Button $fullWidth size="lg" variant="ghost" onClick={vm.handleCancelVerification} $isLoading={vm.loading} disabled={vm.loading}>
-              Usar outro método
+              {t('login.verify.other-method')}
             </Button>
           </S.ButtonGroup>
           {vm.successMessage && <S.SuccessMessage>{vm.successMessage}</S.SuccessMessage>}
@@ -49,18 +49,16 @@ export const LoginView: React.FC = () => {
       <S.Page>
         <S.Card>
           <S.BackLink onClick={vm.goToLogin}>
-            <RiArrowLeftLine /> Voltar
+            <RiArrowLeftLine /> {t('action.back')}
           </S.BackLink>
           <S.Logo>
             <img src="/logo.png" alt="Microteia" style={{ width: '80px', height: '80px' }} />
           </S.Logo>
-          <S.Title>Redefinir senha</S.Title>
-          <S.Subtitle>
-            Informe seu e-mail para receber o link de redefinição.
-          </S.Subtitle>
+          <S.Title>{t('login.reset.title')}</S.Title>
+          <S.Subtitle>{t('login.reset.subtitle')}</S.Subtitle>
           <S.Form>
             <S.InputGroup>
-              <Label htmlFor="reset-email">E-mail</Label>
+              <Label htmlFor="reset-email">{t('login.field.email')}</Label>
               <Input
                 id="reset-email"
                 type="email"
@@ -72,7 +70,7 @@ export const LoginView: React.FC = () => {
             </S.InputGroup>
             <Button $fullWidth size="lg" onClick={vm.handleForgotPassword} $isLoading={vm.loading} disabled={vm.loading}>
               {vm.loading ? <Spinner size={18} /> : null}
-              Enviar link
+              {t('login.reset.send')}
             </Button>
           </S.Form>
           {vm.successMessage && <S.SuccessMessage>{vm.successMessage}</S.SuccessMessage>}
@@ -92,21 +90,21 @@ export const LoginView: React.FC = () => {
           <S.Logo>
             <img src="/logo.png" alt="Microteia" style={{ width: '80px', height: '80px' }} />
           </S.Logo>
-          <S.Title>Criar conta</S.Title>
+          <S.Title>{t('login.signup.title')}</S.Title>
           <S.Form>
             <S.InputGroup>
-              <Label htmlFor="signup-name">Nome completo</Label>
+              <Label htmlFor="signup-name">{t('login.field.full-name')}</Label>
               <Input
                 id="signup-name"
                 type="text"
-                placeholder="Seu nome"
+                placeholder={t('login.field.full-name.placeholder')}
                 value={vm.displayNameField}
                 onChange={(e) => vm.handleDisplayNameChange(e.target.value)}
                 disabled={vm.loading}
               />
             </S.InputGroup>
             <S.InputGroup>
-              <Label htmlFor="signup-email">E-mail</Label>
+              <Label htmlFor="signup-email">{t('login.field.email')}</Label>
               <Input
                 id="signup-email"
                 type="email"
@@ -117,22 +115,22 @@ export const LoginView: React.FC = () => {
               />
             </S.InputGroup>
             <S.InputGroup>
-              <Label htmlFor="signup-password">Senha</Label>
+              <Label htmlFor="signup-password">{t('login.field.password')}</Label>
               <Input
                 id="signup-password"
                 type="password"
-                placeholder="Mínimo 6 caracteres"
+                placeholder={t('login.field.password.placeholder')}
                 value={vm.passwordField}
                 onChange={(e) => vm.handlePasswordChange(e.target.value)}
                 disabled={vm.loading}
               />
             </S.InputGroup>
             <S.InputGroup>
-              <Label htmlFor="signup-confirm">Confirmar senha</Label>
+              <Label htmlFor="signup-confirm">{t('login.field.confirm')}</Label>
               <Input
                 id="signup-confirm"
                 type="password"
-                placeholder="Repita a senha"
+                placeholder={t('login.field.confirm.placeholder')}
                 value={vm.confirmPasswordField}
                 onChange={(e) => vm.handleConfirmPasswordChange(e.target.value)}
                 disabled={vm.loading}
@@ -145,22 +143,22 @@ export const LoginView: React.FC = () => {
                 disabled={vm.loading}
               />
               <S.TermsText>
-                Li e aceito os{' '}
+                {t('login.terms.prefix')}{' '}
                 <S.TermsLink href="/license?from=login" target="_blank" rel="noopener noreferrer">
-                  Termos de Uso e a Política de Privacidade
+                  {t('login.terms.link')}
                 </S.TermsLink>
                 .
               </S.TermsText>
             </S.TermsRow>
             <Button $fullWidth size="lg" onClick={vm.handleEmailSignUp} $isLoading={vm.loading} disabled={vm.loading || !vm.termsAccepted}>
               {vm.loading ? <Spinner size={18} /> : null}
-              Criar conta
+              {t('login.signup.title')}
             </Button>
           </S.Form>
           {vm.error && <S.ErrorMessage>{vm.error}</S.ErrorMessage>}
           <S.SwitchModeText>
-            Já tem conta?{' '}
-            <S.SwitchModeLink onClick={vm.goToLogin}>Entrar</S.SwitchModeLink>
+            {t('login.switch.have-account')}{' '}
+            <S.SwitchModeLink onClick={vm.goToLogin}>{t('login.signin')}</S.SwitchModeLink>
           </S.SwitchModeText>
         </S.Card>
       </S.Page>
@@ -174,12 +172,10 @@ export const LoginView: React.FC = () => {
           <img src="/logo.png" alt="Microteia" style={{ width: '80px', height: '80px' }} />
         </S.Logo>
         <S.Title>Microteia</S.Title>
-        <S.Subtitle>
-          An AI-First Business Application Platform. Crie sistemas personalizados de forma declarativa e extensível.
-        </S.Subtitle>
+        <S.Subtitle>{t('login.tagline')}</S.Subtitle>
         <S.Form>
           <S.InputGroup>
-            <Label htmlFor="login-email">E-mail</Label>
+            <Label htmlFor="login-email">{t('login.field.email')}</Label>
             <Input
               id="login-email"
               type="email"
@@ -190,26 +186,26 @@ export const LoginView: React.FC = () => {
             />
           </S.InputGroup>
           <S.InputGroup>
-            <Label htmlFor="login-password">Senha</Label>
+            <Label htmlFor="login-password">{t('login.field.password')}</Label>
             <Input
               id="login-password"
               type="password"
-              placeholder="Sua senha"
+              placeholder={t('login.field.password.your')}
               value={vm.passwordField}
               onChange={(e) => vm.handlePasswordChange(e.target.value)}
               disabled={vm.loading}
             />
             <S.ForgotPasswordLink onClick={vm.goToForgotPassword}>
-              Esqueci minha senha
+              {t('login.forgot-password')}
             </S.ForgotPasswordLink>
           </S.InputGroup>
           <Button $fullWidth size="lg" onClick={vm.handleEmailLogin} $isLoading={vm.loading} disabled={vm.loading}>
             {vm.loading ? <Spinner size={18} /> : null}
-            Entrar
+            {t('login.signin')}
           </Button>
         </S.Form>
 
-        <S.Divider>ou</S.Divider>
+        <S.Divider>{t('login.divider')}</S.Divider>
 
         <S.TermsRow>
           <S.TermsCheckbox
@@ -218,9 +214,9 @@ export const LoginView: React.FC = () => {
             disabled={vm.loading}
           />
           <S.TermsText>
-            Li e aceito os{' '}
+            {t('login.terms.prefix')}{' '}
             <S.TermsLink href="/license?from=login" target="_blank" rel="noopener noreferrer">
-              Termos de Uso e a Política de Privacidade
+              {t('login.terms.link')}
             </S.TermsLink>
             .
           </S.TermsText>
@@ -235,14 +231,14 @@ export const LoginView: React.FC = () => {
           disabled={vm.loading || !vm.termsAccepted}
         >
           {vm.loading ? <Spinner size={18} /> : <FcGoogle size={20} />}
-          {vm.loading ? 'Entrando...' : 'Continuar com Google'}
+          {vm.loading ? t('login.signing-in') : t('login.google')}
         </Button>
 
         {vm.error && <S.ErrorMessage>{vm.error}</S.ErrorMessage>}
 
         <S.SwitchModeText>
-          Não tem conta?{' '}
-          <S.SwitchModeLink onClick={vm.goToSignUp}>Criar conta</S.SwitchModeLink>
+          {t('login.switch.no-account')}{' '}
+          <S.SwitchModeLink onClick={vm.goToSignUp}>{t('login.signup.title')}</S.SwitchModeLink>
         </S.SwitchModeText>
       </S.Card>
     </S.Page>

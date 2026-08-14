@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import type React from 'react';
 import { useAnchoredDropdown, type AnchoredDropdownPosition } from '../../../hooks/useAnchoredDropdown';
 
+import { useT } from '../../../shared/i18n/useT';
 export interface DynamicSelectOption {
   value: string;
   label: string;
@@ -68,6 +69,7 @@ export interface DynamicSelectViewModel {
 }
 
 export const useDynamicSelectViewModel = (props: DynamicSelectProps): DynamicSelectViewModel => {
+  const t = useT('core.ui');
   const {
     staticOptions = [],
     dynamicOptions = [],
@@ -146,10 +148,10 @@ export const useDynamicSelectViewModel = (props: DynamicSelectProps): DynamicSel
   const deleteConfirmMessage = useMemo(() =>
     deleteConfirmMessageProp ??
     (pendingDelete
-      ? `Deseja excluir "${pendingDelete.label}"? Esta ação não pode ser desfeita.`
+      ? t('dynamic-select.option.delete.message', { label: pendingDelete.label })
       : ''
     ),
-    [deleteConfirmMessageProp, pendingDelete]
+    [deleteConfirmMessageProp, pendingDelete, t]
   );
 
   const handleOpen = useCallback(() => {

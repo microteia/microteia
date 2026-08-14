@@ -10,8 +10,8 @@ export const onlyNumbers = onlyDigits;
  * parâmetro de idioma quebraria toda extensão instalada. O idioma chega pelo contexto de módulo que
  * o `LocaleProvider` empurra — mesmo mecanismo de `recordRulesGate`.
  *
- * Enquanto ninguém tiver escolhido idioma, `ambientLocale()` devolve o de sempre e nada muda de
- * aparência. Ver `LEGACY_LOCALE`.
+ * Antes de o provedor empurrar o primeiro idioma, `ambientLocale()` devolve o idioma-fonte. Ele não
+ * fica preso a um idioma fixo: o provedor negocia com o do navegador quando ninguém escolheu nada.
  */
 
 /**

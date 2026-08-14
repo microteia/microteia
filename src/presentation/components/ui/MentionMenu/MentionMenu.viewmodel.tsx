@@ -1,6 +1,7 @@
 import type React from 'react';
 import { RiFlowChart } from 'react-icons/ri';
 import { useMemo } from 'react';
+import { useT, type TranslateFn } from '../../../shared/i18n/useT';
 
 export interface MentionCommand {
   key: string;
@@ -9,11 +10,11 @@ export interface MentionCommand {
   icon: React.ComponentType<{ size?: number }>;
 }
 
-export const MENTION_COMMANDS: MentionCommand[] = [
+export const mentionCommands = (t: TranslateFn): MentionCommand[] => [
   {
     key: 'workflow',
-    label: 'Automação',
-    description: 'Inserir link para uma automação',
+    label: t('mention.workflow.label'),
+    description: t('mention.workflow.description'),
     icon: RiFlowChart,
   },
 ];
@@ -34,7 +35,8 @@ export interface MentionMenuViewModel {
 }
 
 export const useMentionMenuViewModel = (props: MentionMenuProps): MentionMenuViewModel => {
-  const commands = props.commands ?? MENTION_COMMANDS;
+  const t = useT('core.ui');
+  const commands = props.commands ?? mentionCommands(t);
   const filteredCommands = useMemo(() => {
     const q = props.query.toLowerCase();
     if (!q) return commands;

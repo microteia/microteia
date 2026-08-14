@@ -181,8 +181,13 @@ describe('core plugins — remoção limpa (critério de aceite da Etapa 2)', ()
     // Só core.data sobrevive: declara os próprios pontos e não depende de core.ui.
     expect(result.loaded).toEqual(['core.data']);
     expect(host.contributions.query(UI_PAGE_POINT)).toEqual([]);
+    // A cascata tem DOIS níveis desde que core.license passou a depender de core.i18n: quem depende
+    // direto de core.ui cai com `dependency.missing`, e quem depende de um caído cai com
+    // `dependency.disabled`. Aceitar os dois é o que prova que a queda é transitiva.
     expect(
-      result.diagnostics.filter((d) => d.pluginId !== 'core.data').every((d) => d.code === 'dependency.missing'),
+      result.diagnostics
+        .filter((d) => d.pluginId !== 'core.data')
+        .every((d) => d.code === 'dependency.missing' || d.code === 'dependency.disabled'),
     ).toBe(true);
   });
 });

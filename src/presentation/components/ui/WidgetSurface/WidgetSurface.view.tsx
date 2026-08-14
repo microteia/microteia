@@ -4,6 +4,7 @@ import { WidgetRenderer } from '../WidgetRenderer';
 import { useWidgetSurfaceViewModel, type SurfaceSlot } from './WidgetSurface.viewmodel';
 import { S } from './WidgetSurface.styles';
 
+import { useT } from '../../../shared/i18n/useT';
 interface WidgetSurfaceProps {
   /** O nome da superfície. Quem contribui um widget declara este mesmo nome. */
   surface: string;
@@ -16,11 +17,12 @@ const logWidgetFailure = (key: string) => (error: Error): void => {
 };
 
 const SurfaceWidgetSlot: React.FC<{ slot: SurfaceSlot }> = ({ slot }) => {
+  const t = useT('core.ui');
   const Component = slot.widget.component;
   return (
     <S.Slot $span={slot.span}>
       <ErrorBoundary
-        fallback={<S.Failure>Não foi possível exibir “{slot.widget.title}”.</S.Failure>}
+        fallback={<S.Failure>{t('widget.render-failed', { title: slot.widget.title })}</S.Failure>}
         onError={logWidgetFailure(slot.key)}
       >
         {Component ? <Component /> : <WidgetRenderer spec={slot.widget.spec} />}
@@ -39,13 +41,14 @@ const SurfaceWidgetSlot: React.FC<{ slot: SurfaceSlot }> = ({ slot }) => {
  */
 export const WidgetSurface: React.FC<WidgetSurfaceProps> = ({ surface, emptyMessage }) => {
   const vm = useWidgetSurfaceViewModel(surface);
+  const t = useT('core.ui');
 
   if (vm.slots.length === 0) {
     return (
       <S.Empty>
         {vm.isAllDisabled
-          ? 'Nenhum widget ativo. Ative os que você quer ver em Configurações.'
-          : (emptyMessage ?? 'Nenhum widget disponível. Instale uma extensão que ofereça widgets.')}
+          ? t('widget.none-active')
+          : (emptyMessage ?? t('widget.none-available'))}
       </S.Empty>
     );
   }

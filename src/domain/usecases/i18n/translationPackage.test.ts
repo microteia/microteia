@@ -3,6 +3,7 @@ import {
   buildTranslationPackage,
   isTranslationOnlyPackage,
   languageTitle,
+  resolveLanguageUsage,
   suggestedPluginId,
   translationKeyCount,
   translationOverwriteIssue,
@@ -192,5 +193,58 @@ describe('baixar → traduzir → importar', () => {
     const parsed = parsePackage(serializePackage(pkg));
     expect(parsed.ok).toBe(true);
     if (parsed.ok) expect(parsed.package.manifest.id).toBe('locale.es');
+  });
+});
+
+describe('resolveLanguageUsage', () => {
+  const pack = (id: string, keys: string[], active = true) => ({ id, locale: 'pt-BR', active, keys });
+
+  /**
+   * O caso que quebrou na prática: o pacote da interface e o do contrato jurídico cobrem namespaces
+   * DISJUNTOS. A regra antiga marcava o segundo como "Sem efeito" só por ser o segundo do idioma, e
+   * a tela dizia que um pacote funcionando não estava valendo.
+   */
+  it('dois pacotes de namespaces disjuntos valem os dois', () => {
+    const usage = resolveLanguageUsage(
+      [pack('interface', ['core.ui/action.save']), pack('contrato', ['core.license/page.title'])],
+      'pt-BR',
+    );
+    expect(usage.interface).toEqual({ inUse: true, shadowed: false });
+    expect(usage.contrato).toEqual({ inUse: true, shadowed: false });
+  });
+
+  it('quem disputa a mesma chave e chega depois fica sem efeito', () => {
+    const usage = resolveLanguageUsage(
+      [pack('primeiro', ['core.ui/action.save']), pack('segundo', ['core.ui/action.save'])],
+      'pt-BR',
+    );
+    expect(usage.primeiro).toEqual({ inUse: true, shadowed: false });
+    expect(usage.segundo).toEqual({ inUse: false, shadowed: true });
+  });
+
+  /** Sobreposição PARCIAL ainda vale: o que sobrevive é o que decide. */
+  it('quem perde uma chave mas vence outra continua em uso', () => {
+    const usage = resolveLanguageUsage(
+      [
+        pack('primeiro', ['core.ui/action.save']),
+        pack('segundo', ['core.ui/action.save', 'core.ui/action.cancel']),
+      ],
+      'pt-BR',
+    );
+    expect(usage.segundo).toEqual({ inUse: true, shadowed: false });
+  });
+
+  it('pacote de outro idioma ou desativado não entra na disputa', () => {
+    const usage = resolveLanguageUsage(
+      [
+        { id: 'outro-idioma', locale: 'es', active: true, keys: ['core.ui/action.save'] },
+        pack('desativado', ['core.ui/action.save'], false),
+        pack('valendo', ['core.ui/action.save']),
+      ],
+      'pt-BR',
+    );
+    expect(usage['outro-idioma']).toEqual({ inUse: false, shadowed: false });
+    expect(usage.desativado).toEqual({ inUse: false, shadowed: false });
+    expect(usage.valendo).toEqual({ inUse: true, shadowed: false });
   });
 });

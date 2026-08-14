@@ -180,6 +180,50 @@ Arquivos `.tsx` exportam **apenas** componentes React. Hooks e tipos ficam em `.
 
 ---
 
+## Idioma — NÃO-NEGOCIÁVEL
+
+**O código e todo texto DENTRO do código são em inglês. Sem exceção.**
+
+O inglês é o idioma-fonte do produto (`DEFAULT_LOCALE = 'en'`). Português é uma **tradução**, e vive
+exclusivamente no pacote `com.microteia.locale-pt-br` — nunca no núcleo.
+
+| O quê | Idioma | Onde vive |
+|---|---|---|
+| Identificador (variável, função, tipo, arquivo, chave de mensagem) | **inglês** | código |
+| Texto que o usuário lê (rótulo, botão, mensagem de erro, placeholder, título) | **inglês** | catálogo `en` em `src/plugins/messages/` |
+| Tradução desse texto | português | `src/plugins/marketplace/localePtBr/` |
+| Comentário de código, JSDoc | **português** | código |
+| `ARCHITECTURE.md`, `CLAUDE.md`, `VERSIONS.md`, README | **português** | raiz |
+| Mensagem de commit, nome de teste (`describe`/`it`) | **português** | git / `*.test.ts` |
+
+A regra separa **produto** de **comunicação**. O produto é falado em inglês porque tem de poder ser
+falado em qualquer idioma; a comunicação entre nós continua em português porque é nossa.
+
+**Nunca escreva uma frase em português destinada ao usuário.** Em vez disso:
+
+```ts
+// ERRADO
+<S.Title>Novo registro</S.Title>
+throw new Error('Automação não encontrada.');
+
+// CERTO — a frase nasce em inglês, no catálogo, e a chave é o que aparece no código
+const t = useT('core.records');
+<S.Title>{t('record.new')}</S.Title>          // CORE_RECORDS_MESSAGES['record.new'] = 'New record'
+throw notFound('error.workflow.not-found');   // resolvido no front pelo catálogo
+```
+
+Rótulo **declarativo** (manifest, contribuição, catálogo servido pelo backend) não usa `useT`: usa a
+referência `@namespace/chave`, resolvida por `useLabel()` no ponto de render. Ver "Idioma — tradução
+como contribuição" no `ARCHITECTURE.md`.
+
+Toda chave nova em `src/plugins/messages/` exige a entrada correspondente em
+`src/plugins/marketplace/localePtBr/` — `localePilot.test.ts` falha se faltar.
+
+**O que NUNCA entra no catálogo:** o que o escritório digitou (nome de tela do Form Design, rótulo de
+campo, opção de lista). Isso é dado do tenant, não texto do produto, e passa intacto por `useLabel()`.
+
+---
+
 ## Documentação
 
 **Sem comentários dentro do código** — nomes devem ser autoexplicativos. Documentação fica no `ARCHITECTURE.md`. (Exceção: comentário de justificativa de um `eslint-disable-next-line` pontual.)
@@ -251,6 +295,7 @@ O `ARCHITECTURE.md` **não** guarda cópia das regras; a tabela de índices que 
 - [ ] Styled-components com prefixo `$` nas props customizadas; zero valor hardcoded (tudo via tema)
 - [ ] Nenhum `style={{}}` inline desnecessário; nenhum `className`
 - [ ] Nenhum comentário desnecessário no código
+- [ ] **Zero frase em português destinada ao usuário**: texto novo nasce em inglês no catálogo `en` e ganha a chave correspondente no pacote pt-BR
 - [ ] `npx tsc -b --force` sem erros (ou `npm run typecheck`)
 - [ ] `npx eslint . --max-warnings 0` sem erros **nem warnings**
 - [ ] **Antes de commitar:** `version` incrementada em `package.json` + entrada nova no topo de `VERSIONS.md` (linguagem de usuário, diferente da mensagem de commit)

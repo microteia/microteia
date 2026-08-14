@@ -5,6 +5,7 @@ import { useSchemaContext } from '../../../shared/useSchemaContext';
 import type { PathRoot } from '../../../../domain/schema/pathResolver';
 import { parsePath, suggestNextSegments } from '../../../../domain/schema/pathResolver';
 import { validateExpressionWithParser } from './expressionValidator';
+import { useT } from '../../../shared/i18n/useT';
 import { buildAutocompleteItems, insertSnippet } from './autocompleteHelpers';
 import type { AutocompleteItem, ExpressionContextRoot, StepOutputField, WorkflowVariable } from './autocompleteHelpers';
 import { buildPathAutocompleteItems, extractActiveEventPath, extractActiveInputPath, findInvalidEventPath } from './pathAutocomplete';
@@ -102,6 +103,7 @@ export const useExpressionEditorViewModel = (
   const [highlightedIndex, setHighlightedIndex] = useState(0);
 
   const validationTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const t = useT('core.ui');
 
   const pathRoot = props.pathRoot ?? null;
   const inputRoot = props.inputRoot ?? null;
@@ -112,11 +114,11 @@ export const useExpressionEditorViewModel = (
     }
 
     validationTimerRef.current = setTimeout(() => {
-      const result = validateExpressionWithParser(props.value, functions);
+      const result = validateExpressionWithParser(t, props.value, functions);
       if (result.isValid && pathRoot) {
         const issue = findInvalidEventPath(schemaContext, pathRoot, props.value);
         if (issue) {
-          setValidationResult({ isValid: false, message: `Caminho "${issue.path}": ${issue.error}` });
+          setValidationResult({ isValid: false, message: t('expression.error.path', { path: issue.path, error: issue.error }) });
           return;
         }
       }
@@ -128,7 +130,7 @@ export const useExpressionEditorViewModel = (
         clearTimeout(validationTimerRef.current);
       }
     };
-  }, [props.value, functions, pathRoot, schemaContext]);
+  }, [props.value, functions, pathRoot, schemaContext, t]);
 
   // As raízes de contexto saem do que o chamador realmente forneceu: quem edita expressão de campo
   // ou de Action não passa nenhuma delas, e lá o escopo é plano (`isNew`, não `input.isNew`).
@@ -156,6 +158,7 @@ export const useExpressionEditorViewModel = (
       });
     }
     return buildAutocompleteItems(
+      t,
       autocompleteState.mode === 'input-field' ? 'input' : autocompleteState.mode,
       autocompleteState.query,
       functions,
@@ -178,6 +181,7 @@ export const useExpressionEditorViewModel = (
     props.stepOutputFields,
     props.workflowVariables,
     functions,
+    t,
   ]);
 
   // Calcula posição do autocomplete quando ativa ou muda de contexto
@@ -226,7 +230,7 @@ export const useExpressionEditorViewModel = (
         cursorPos = newCursor;
       } else {
         let insertion: string;
-        const isBareIdentifier = item.category === 'Variável' || item.category === 'Campo';
+        const isBareIdentifier = item.category === t('expression.category.variable') || item.category === t('expression.category.field');
         if (
           autocompleteState.mode === 'function' &&
           !isBareIdentifier &&
@@ -278,7 +282,7 @@ export const useExpressionEditorViewModel = (
         textarea.setSelectionRange(cursorPos, cursorPos);
       }, 0);
     },
-    [props, textareaRef, autocompleteState.triggerStart, autocompleteState.mode, pathRoot, inputRoot, closeAutocomplete],
+    [props, textareaRef, autocompleteState.triggerStart, autocompleteState.mode, pathRoot, inputRoot, closeAutocomplete, t],
   );
 
   const onAutocompleteHover = useCallback((index: number) => {

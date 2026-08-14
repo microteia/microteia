@@ -9,7 +9,7 @@ const contains = (text: string | null | undefined, query: string) =>
   !!text && text.toLowerCase().includes(query.toLowerCase());
 
 export const DynamicRecordCommandProvider: ICommandPaletteProvider = {
-  group: 'Telas Personalizadas',
+  group: '@core.records/command.group',
 
   getItems(query: string, { screenDefinitions, records, openTab, close }: CommandPaletteAppContext): CommandPaletteItem[] {
     if (!query) return [];
@@ -26,7 +26,7 @@ export const DynamicRecordCommandProvider: ICommandPaletteProvider = {
       .map((def) => ({
         id: `dyn-screen:${def.id}`,
         title: `Abrir ${def.titlePlural}`,
-        group: 'Telas Personalizadas',
+        group: '@core.records/command.group',
         icon: getScreenIcon(def.icon, 16),
         onSelect: () => {
           openTab(buildListTabKey(def.id));
@@ -46,7 +46,7 @@ export const DynamicRecordCommandProvider: ICommandPaletteProvider = {
           id: `dyn-record:${record.id}`,
           title,
           subtitle: screen?.titleSingular,
-          group: 'Telas Personalizadas',
+          group: '@core.records/command.group',
           icon: screen ? getScreenIcon(screen.icon, 16) : <RiLayoutGridLine size={16} />,
           onSelect: () => {
             openTab(buildViewTabKey(record.collection, record.id));

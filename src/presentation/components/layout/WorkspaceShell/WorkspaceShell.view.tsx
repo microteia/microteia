@@ -11,8 +11,10 @@ import { CommandPalette } from '../../ui/CommandPalette';
 import { useWorkspaceShellViewModel } from './WorkspaceShell.viewmodel';
 import { S } from './WorkspaceShell.styles';
 
+import { useT } from '../../../shared/i18n/useT';
 export const WorkspaceShell: React.FC = () => {
   useWorkspaceShellViewModel();
+  const t = useT('core.ui');
   const { layout } = useWorkspace();
   const { isOpen: isCommandPaletteOpen } = useCommandPalette();
   const { initError } = useTenant();
@@ -29,7 +31,7 @@ export const WorkspaceShell: React.FC = () => {
               <S.ErrorTitle>Falha ao conectar ao banco de dados</S.ErrorTitle>
               <S.ErrorDetail>
                 {initError.includes('permission') || initError.includes('insufficient')
-                  ? 'Permissões do Firestore não configuradas. Configure as regras de segurança no Firebase Console e recarregue a página.'
+                  ? t('error.firestore-rules')
                   : initError}
               </S.ErrorDetail>
             </S.ErrorBanner>

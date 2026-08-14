@@ -1,5 +1,7 @@
 import type { PluginRecord } from '../../kernel';
 import { command, lazyView, page } from '../contributionBuilders';
+import { messageBundleContribution } from '../../domain/schema/i18n/extensionPoints';
+import { coreMessage, CORE_AUTOMATION_MESSAGES } from '../coreMessages';
 import { WorkflowCommandProvider } from '../../presentation/components/ui/CommandPalette/providers/WorkflowCommandProvider';
 
 export const coreAutomationPlugin: PluginRecord = {
@@ -20,23 +22,24 @@ export const coreAutomationPlugin: PluginRecord = {
     id: 'core.automation',
     version: '1.0.0',
     kernel: '^1.0.0',
-    name: 'Automações',
+    name: 'Automations',
     dependencies: { 'core.ui': '^1.0.0' },
     contributes: [
-      page({ key: 'workflows', title: 'Automações', icon: 'flowChart' }, 'WorkflowsView'),
-      page({ key: 'new-workflow', title: 'Nova Automação', icon: 'flowChart' }, 'ViewWorkflowView'),
-      page({ key: '', keyPrefix: 'new-workflow:clone:', title: 'Nova Automação', icon: 'flowChart' }, 'ViewWorkflowView'),
-      page({ key: '', keyPrefix: 'view-workflow:', title: 'Automação', icon: 'flowChart' }, 'ViewWorkflowView'),
-      page({ key: '', keyPrefix: 'edit-workflow-step:', title: 'Editar Step', icon: 'flowChart' }, 'EditWorkflowStepView'),
-      page({ key: 'scripts', title: 'Scripts', icon: 'codeBox' }, 'ScriptsView'),
-      page({ key: 'new-script', title: 'Novo Script', icon: 'codeBox' }, 'ViewScriptView'),
-      page({ key: '', keyPrefix: 'view-script:', title: 'Script', icon: 'codeBox' }, 'ViewScriptView'),
-      page({ key: 'actions', title: 'Ações', icon: 'cursor' }, 'ActionsView'),
-      page({ key: 'new-action', title: 'Nova Ação', icon: 'cursor' }, 'ViewActionView'),
-      page({ key: '', keyPrefix: 'view-action:', title: 'Ação', icon: 'cursor' }, 'ViewActionView'),
-      page({ key: 'function-reference', title: 'Referência de Expressões', icon: 'bookSimple' }, 'FunctionReferenceView'),
-      page({ key: 'data-function-reference', title: 'Funções de Dados', icon: 'database2' }, 'DataFunctionReferenceView'),
-      command('workflow', { group: 'Automações' }, 'WorkflowCommandProvider'),
+      messageBundleContribution(coreMessage('core.automation', CORE_AUTOMATION_MESSAGES)),
+      page({ key: 'workflows', title: '@core.automation/page.workflows', icon: 'flowChart' }, 'WorkflowsView'),
+      page({ key: 'new-workflow', title: '@core.automation/page.new-workflow', icon: 'flowChart' }, 'ViewWorkflowView'),
+      page({ key: '', keyPrefix: 'new-workflow:clone:', title: '@core.automation/page.new-workflow', icon: 'flowChart' }, 'ViewWorkflowView'),
+      page({ key: '', keyPrefix: 'view-workflow:', title: '@core.automation/page.view-workflow', icon: 'flowChart' }, 'ViewWorkflowView'),
+      page({ key: '', keyPrefix: 'edit-workflow-step:', title: '@core.automation/page.edit-workflow-step', icon: 'flowChart' }, 'EditWorkflowStepView'),
+      page({ key: 'scripts', title: '@core.automation/page.scripts', icon: 'codeBox' }, 'ScriptsView'),
+      page({ key: 'new-script', title: '@core.automation/page.new-script', icon: 'codeBox' }, 'ViewScriptView'),
+      page({ key: '', keyPrefix: 'view-script:', title: '@core.automation/page.view-script', icon: 'codeBox' }, 'ViewScriptView'),
+      page({ key: 'actions', title: '@core.automation/page.actions', icon: 'cursor' }, 'ActionsView'),
+      page({ key: 'new-action', title: '@core.automation/page.new-action', icon: 'cursor' }, 'ViewActionView'),
+      page({ key: '', keyPrefix: 'view-action:', title: '@core.automation/page.view-action', icon: 'cursor' }, 'ViewActionView'),
+      page({ key: 'function-reference', title: '@core.automation/page.function-reference', icon: 'bookSimple' }, 'FunctionReferenceView'),
+      page({ key: 'data-function-reference', title: '@core.automation/page.data-function-reference', icon: 'database2' }, 'DataFunctionReferenceView'),
+      command('workflow', { group: '@core.automation/command.group' }, 'WorkflowCommandProvider'),
     ],
   },
 };

@@ -7,6 +7,7 @@ import {
 import { S } from './CompositeFilter.styles';
 import { useCompositeFilterViewModel } from './CompositeFilter.viewmodel';
 import type { FilterDef, FilterToken } from './CompositeFilter.viewmodel';
+import { useT, useLocaleFormat } from '../../../shared/i18n/useT';
 
 interface CompositeFilterProps {
   defs: FilterDef[];
@@ -20,21 +21,22 @@ export const CompositeFilter: React.FC<CompositeFilterProps> = ({
   defs,
   tokens,
   onChange,
-  placeholder = 'Adicionar filtro...',
+  placeholder,
   screenKey,
 }) => {
   const vm = useCompositeFilterViewModel(defs, tokens, onChange, screenKey);
+  const t = useT('core.ui');
+  const { formatDate } = useLocaleFormat();
   const defMap = Object.fromEntries(defs.map((d) => [d.key, d]));
   const isOpen = vm.phase !== 'idle' || vm.isSaving;
 
-  const formatDateBR = (iso: string): string =>
-    iso ? new Date(`${iso}T12:00:00`).toLocaleDateString('pt-BR') : '';
+  const formatIsoDay = (iso: string): string => (iso ? formatDate(`${iso}T12:00:00`) : '');
 
   const getChipDisplayValue = (token: FilterToken): string => {
     const def = defMap[token.key];
     if (!def) return token.values.join(', ');
     if (def.type === 'text') return token.values[0] ?? '';
-    if (def.type === 'date') return formatDateBR(token.values[0] ?? '');
+    if (def.type === 'date') return formatIsoDay(token.values[0] ?? '');
     return token.values
       .map((v) => def.options?.find((o) => o.value === v)?.label ?? v)
       .join(', ');
@@ -48,10 +50,10 @@ export const CompositeFilter: React.FC<CompositeFilterProps> = ({
 
   const inputPlaceholder = (() => {
     if (vm.phase === 'value-select' && vm.activeDef?.type === 'text') {
-      return vm.activeDef.placeholder ?? 'Digite e pressione Enter...';
+      return vm.activeDef.placeholder ?? t('filter.type-and-enter');
     }
-    if (vm.phase === 'filter-select') return 'Buscar filtro...';
-    if (tokens.length === 0) return placeholder;
+    if (vm.phase === 'filter-select') return t('filter.search.placeholder');
+    if (tokens.length === 0) return placeholder ?? t('filter.add');
     return '';
   })();
 
@@ -63,7 +65,7 @@ export const CompositeFilter: React.FC<CompositeFilterProps> = ({
           <S.SaveInput
             ref={vm.saveInputRef}
             value={vm.saveName}
-            placeholder="Nome do filtro..."
+            placeholder={t('filter.saved.name')}
             onChange={(e) => vm.onSaveNameChange(e.target.value)}
             onKeyDown={vm.onSaveInputKeyDown}
           />
@@ -87,17 +89,17 @@ export const CompositeFilter: React.FC<CompositeFilterProps> = ({
         <>
           {vm.phase === 'filter-select' && (
             <>
-              <S.DropdownHeader>Filtrar por</S.DropdownHeader>
+              <S.DropdownHeader>{t('filter.by')}</S.DropdownHeader>
 
               {screenKey && vm.screenFilters.length > 0 && (
                 <S.SavedSection>
-                  <S.SavedHeader>Filtros salvos</S.SavedHeader>
+                  <S.SavedHeader>{t('filter.saved')}</S.SavedHeader>
                   <S.SavedList>
                     {vm.screenFilters.map((sf) => (
                       <S.SavedItem key={sf.id}>
                         <S.SavedItemApply
                           type="button"
-                          title={`Aplicar: ${sf.name}`}
+                          title={t('filter.saved.apply', { name: sf.name })}
                           onClick={(e) => { e.stopPropagation(); vm.onApplySavedFilter(sf); }}
                         >
                           <S.SavedItemIcon><RiBookmarkLine size={12} /></S.SavedItemIcon>
@@ -105,7 +107,7 @@ export const CompositeFilter: React.FC<CompositeFilterProps> = ({
                         </S.SavedItemApply>
                         <S.SavedItemRemove
                           type="button"
-                          title="Remover filtro salvo"
+                          title={t('filter.saved.remove')}
                           onClick={(e) => { e.stopPropagation(); void vm.onRemoveSavedFilter(sf.id); }}
                         >
                           <RiCloseLine size={12} />
@@ -118,7 +120,7 @@ export const CompositeFilter: React.FC<CompositeFilterProps> = ({
 
               <S.OptionList>
                 {vm.filteredDefs.length === 0 ? (
-                  <S.EmptyMsg>Nenhum filtro disponível</S.EmptyMsg>
+                  <S.EmptyMsg>{t('filter.none-available')}</S.EmptyMsg>
                 ) : (
                   vm.filteredDefs.map((def, idx) => (
                     <S.OptionItem
@@ -129,13 +131,13 @@ export const CompositeFilter: React.FC<CompositeFilterProps> = ({
                     >
                       <S.OptionLabel>{def.label}</S.OptionLabel>
                       {def.type === 'multiselect' && (
-                        <S.OptionTypeBadge>múltiplos</S.OptionTypeBadge>
+                        <S.OptionTypeBadge>{t('filter.type.multiselect')}</S.OptionTypeBadge>
                       )}
                       {def.type === 'text' && (
-                        <S.OptionTypeBadge>texto</S.OptionTypeBadge>
+                        <S.OptionTypeBadge>{t('filter.type.text')}</S.OptionTypeBadge>
                       )}
                       {def.type === 'date' && (
-                        <S.OptionTypeBadge>data</S.OptionTypeBadge>
+                        <S.OptionTypeBadge>{t('filter.type.date')}</S.OptionTypeBadge>
                       )}
                     </S.OptionItem>
                   ))
@@ -166,7 +168,7 @@ export const CompositeFilter: React.FC<CompositeFilterProps> = ({
                 </S.TextHint>
                 <S.DropdownFooter>
                   <S.FooterCount>
-                    {vm.pendingMulti[0] ? 'Data definida' : 'Nenhuma data definida'}
+                    {vm.pendingMulti[0] ? t('filter.date.set') : t('filter.date.unset')}
                   </S.FooterCount>
                   <S.FooterActions>
                     <S.FooterBtn
@@ -183,7 +185,7 @@ export const CompositeFilter: React.FC<CompositeFilterProps> = ({
               <>
                 <S.OptionList>
                   {vm.filteredOptions.length === 0 ? (
-                    <S.EmptyMsg>Nenhuma opção encontrada</S.EmptyMsg>
+                    <S.EmptyMsg>{t('filter.no-options')}</S.EmptyMsg>
                   ) : (
                     vm.filteredOptions.map((opt, idx) => {
                       const isSelected = vm.pendingMulti.includes(opt.value);
@@ -208,8 +210,8 @@ export const CompositeFilter: React.FC<CompositeFilterProps> = ({
                 <S.DropdownFooter>
                   <S.FooterCount>
                     {vm.pendingMulti.length > 0
-                      ? `${vm.pendingMulti.length} selecionado${vm.pendingMulti.length !== 1 ? 's' : ''}`
-                      : 'Nenhum selecionado'}
+                      ? t('filter.selected', { count: vm.pendingMulti.length })
+                      : t('filter.none-selected')}
                   </S.FooterCount>
                   <S.FooterActions>
                     <S.FooterBtn
@@ -262,7 +264,7 @@ export const CompositeFilter: React.FC<CompositeFilterProps> = ({
                       {optLabel}
                       <S.ChipPillRemove
                         type="button"
-                        title="Remover este valor"
+                        title={t('filter.value.remove')}
                         onClick={(e) => { e.stopPropagation(); vm.onRemoveToken(token.key, value); }}
                       >
                         <RiCloseLine size={10} />
@@ -326,7 +328,7 @@ export const CompositeFilter: React.FC<CompositeFilterProps> = ({
       {screenKey && tokens.length > 0 && (
         <S.SaveBtn
           type="button"
-          title="Salvar filtro atual"
+          title={t('filter.save-current')}
           onClick={(e) => { e.stopPropagation(); vm.onStartSave(); }}
         >
           {vm.isSaving ? <RiBookmarkFill size={15} /> : <RiBookmarkLine size={15} />}
@@ -336,7 +338,7 @@ export const CompositeFilter: React.FC<CompositeFilterProps> = ({
       {tokens.length > 0 && (
         <S.ClearAll
           type="button"
-          title="Limpar todos os filtros"
+          title={t('filter.clear-all')}
           onClick={(e) => { e.stopPropagation(); vm.onClearAll(); }}
         >
           <RiCloseLine size={15} />

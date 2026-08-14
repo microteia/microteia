@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { CORE_PLUGINS } from './index';
 import { localePtBrPlugin } from './marketplace/localePtBr';
+import { ptBrLicensePlugin } from './bundledLocales/ptBrLicense';
 import { createPluginHost } from '../kernel';
 import type { PluginRecord } from '../kernel';
 import { hasErrors } from '../domain/schema/plugin/diagnostics';
@@ -89,7 +90,37 @@ describe('o pacote Português (Brasil)', () => {
     expect(resolveLabel(catalog, pageTitle(host, 'tenant-settings'))).toBe('Organization');
   });
 
-  /** Toda chave que o núcleo declara precisa existir no pacote — senão a tradução tem furo. */
+  /**
+   * O que define a separação: o pacote do SISTEMA não pode carregar o contrato jurídico. Se um dia
+   * uma chave de `core.license` vazar para cá, quem só quer a interface em português volta a baixar
+   * páginas de texto legal — que é exatamente o que a divisão em dois desfez.
+   */
+  it('não carrega o contrato jurídico junto do idioma do sistema', () => {
+    const namespaces = (localePtBrPlugin.manifest.contributes ?? [])
+      .map((contribution) => (contribution.metadata as { namespace?: string }).namespace);
+    expect(namespaces).not.toContain('core.license');
+
+    const licenseNamespaces = (ptBrLicensePlugin.manifest.contributes ?? [])
+      .map((contribution) => (contribution.metadata as { namespace?: string }).namespace);
+    expect(licenseNamespaces).toEqual(['core.license']);
+  });
+
+  /**
+   * O contrato traduz na tela PÚBLICA, e é isso que exige que ele seja embutido: `/license` é
+   * servida pelo `LocaleProvider` de cima, que só enxerga `CORE_PLUGINS`. Este teste falha no dia em
+   * que alguém o transformar de volta em extensão instalável — que foi o erro que o quebrou.
+   */
+  it('traduz o contrato sem nenhuma extensão instalada', () => {
+    const { host } = hostWith();
+    const catalog = catalogFor(host, 'pt-BR');
+    expect(resolveLabel(catalog, '@core.license/page.title')).toBe('Termos de Uso e Política de Privacidade');
+  });
+
+  /**
+   * Toda chave que o núcleo declara precisa existir em ALGUM pacote pt-BR — senão a tradução tem
+   * furo. São dois pacotes porque o contrato jurídico é distribuído à parte, e é a soma deles que
+   * tem de cobrir o núcleo.
+   */
   it('cobre todas as chaves publicadas pelo núcleo', () => {
     const { host } = hostWith([asRecord()]);
     const bundles = messageBundlesOf(host.contributions.query(I18N_MESSAGES_POINT));

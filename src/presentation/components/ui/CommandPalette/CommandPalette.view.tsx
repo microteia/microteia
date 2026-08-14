@@ -3,8 +3,10 @@ import { RiSearchLine } from 'react-icons/ri';
 import { useCommandPaletteViewModel } from './CommandPalette.viewmodel';
 import { S } from './CommandPalette.styles';
 
+import { useT } from '../../../shared/i18n/useT';
 export const CommandPalette: React.FC = () => {
   const vm = useCommandPaletteViewModel();
+  const t = useT('core.ui');
 
   /* eslint-disable react-hooks/refs -- vm ViewModel exposes ref only for DOM passing; no ref.current is read during render */
   return (
@@ -18,7 +20,7 @@ export const CommandPalette: React.FC = () => {
             ref={vm.inputRef}
             value={vm.query}
             onChange={(e) => vm.handleQueryChange(e.target.value)}
-            placeholder="Pesquisar páginas, jurisprudências, normas…"
+            placeholder={t('command.search.placeholder')}
           />
           <S.KbdHint>Esc</S.KbdHint>
         </S.InputRow>

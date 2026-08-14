@@ -4,6 +4,7 @@ import { S } from './ConditionDiagram.styles';
 import { useConditionDiagramViewModel } from './ConditionDiagram.viewmodel';
 import type { ConditionDiagramProps, ConditionDiagramViewModel, ConditionPath } from './ConditionDiagram.viewmodel';
 import type { Condition } from '../../../../domain/entities/Workflow';
+import { useT } from '../../../shared/i18n/useT';
 
 const DiagramNode: React.FC<{
   condition: Condition;
@@ -11,12 +12,14 @@ const DiagramNode: React.FC<{
   path: ConditionPath;
   parentIsNot?: boolean;
 }> = ({ condition, vm, path, parentIsNot = false }) => {
+  const t = useT('core.ui');
+
   switch (condition.kind) {
     case 'AlwaysTrue':
       return (
         <S.AlwaysPill>
           <RiCheckDoubleLine size={16} />
-          Sempre executa
+          {t('condition.always')}
         </S.AlwaysPill>
       );
 
@@ -26,9 +29,9 @@ const DiagramNode: React.FC<{
           <S.NotBadge
             onClick={() => vm.toggleNegated(path)}
             disabled={!vm.isInteractive}
-            title="Remover negação"
+            title={t('condition.negation.remove')}
           >
-            NÃO
+            {t('condition.not')}
           </S.NotBadge>
           <DiagramNode condition={condition.condition} vm={vm} path={[...path, 0]} parentIsNot />
         </S.NotWrapper>
@@ -37,52 +40,52 @@ const DiagramNode: React.FC<{
     case 'LogicalAnd':
     case 'LogicalOr': {
       const operator = condition.kind === 'LogicalAnd' ? 'and' : 'or';
-      const joinLabel = operator === 'and' ? 'e' : 'ou';
+      const joinLabel = operator === 'and' ? t('condition.join.and') : t('condition.join.or');
       const collapsed = vm.isCollapsed(path);
       const childCount = condition.conditions.length;
       return (
         <S.Group $operator={operator}>
           <S.GroupHeader>
-            <S.CollapseBtn onClick={() => vm.toggleCollapsed(path)} title={collapsed ? 'Expandir grupo' : 'Recolher grupo'}>
+            <S.CollapseBtn onClick={() => vm.toggleCollapsed(path)} title={collapsed ? t('condition.group.expand') : t('condition.group.collapse')}>
               {collapsed ? <RiArrowRightSLine size={16} /> : <RiArrowDownSLine size={16} />}
             </S.CollapseBtn>
             <S.GroupBadge
               $operator={operator}
               onClick={() => vm.toggleGroupOperator(path)}
               disabled={!vm.isInteractive}
-              title="Alternar entre E e OU"
+              title={t('condition.group.toggle-operator')}
             >
-              {operator === 'and' ? 'TODAS (E)' : 'QUALQUER (OU)'}
+              {operator === 'and' ? t('condition.group.all') : t('condition.group.any')}
             </S.GroupBadge>
             {collapsed && (
-              <S.EmptyHint>{childCount} {childCount === 1 ? 'condição oculta' : 'condições ocultas'}</S.EmptyHint>
+              <S.EmptyHint>{t('condition.hidden', { count: childCount })}</S.EmptyHint>
             )}
             {vm.isInteractive && (
               <S.NodeActions>
-                <S.ActionBtn title="Adicionar condição" onClick={() => vm.addComparison(path)}>
+                <S.ActionBtn title={t('condition.add.comparison')} onClick={() => vm.addComparison(path)}>
                   <RiAddLine size={13} />
                 </S.ActionBtn>
-                <S.ActionBtn title="Adicionar expressão" onClick={() => vm.addExpression(path)}>
+                <S.ActionBtn title={t('condition.add.expression')} onClick={() => vm.addExpression(path)}>
                   <RiFunctionLine size={13} />
                 </S.ActionBtn>
-                <S.ActionBtn title="Adicionar grupo" onClick={() => vm.addGroup(path)}>
+                <S.ActionBtn title={t('condition.add.group')} onClick={() => vm.addGroup(path)}>
                   <RiBracesLine size={13} />
                 </S.ActionBtn>
                 {condition.conditions.length > 1 && (
                   <S.ActionBtn
-                    title="Envolver as condições deste grupo em um subgrupo"
+                    title={t('condition.group.wrap')}
                     onClick={() => vm.wrapGroupChildren(path)}
                   >
                     <RiParenthesesLine size={13} />
                   </S.ActionBtn>
                 )}
                 {!parentIsNot && (
-                  <S.ActionBtn title="Negar o grupo (NÃO)" onClick={() => vm.toggleNegated(path)}>
-                    NÃO
+                  <S.ActionBtn title={t('condition.negate.group')} onClick={() => vm.toggleNegated(path)}>
+                    {t('condition.not')}
                   </S.ActionBtn>
                 )}
                 {path.length > 0 && (
-                  <S.ActionBtn $danger title="Remover grupo" onClick={() => vm.removeNode(path)}>
+                  <S.ActionBtn $danger title={t('condition.remove.group')} onClick={() => vm.removeNode(path)}>
                     <RiDeleteBinLine size={13} />
                   </S.ActionBtn>
                 )}
@@ -108,18 +111,18 @@ const DiagramNode: React.FC<{
         <S.Leaf>
           <S.ExpressionChip>
             <RiFunctionLine size={12} />
-            {condition.expression || <S.EmptyHint>expressão vazia</S.EmptyHint>}
+            {condition.expression || <S.EmptyHint>{t('condition.expression.empty')}</S.EmptyHint>}
           </S.ExpressionChip>
           {vm.isInteractive && (
             <S.NodeActions>
               {!parentIsNot && (
-                <S.ActionBtn title="Negar (NÃO)" onClick={() => vm.toggleNegated(path)}>NÃO</S.ActionBtn>
+                <S.ActionBtn title={t('condition.negate')} onClick={() => vm.toggleNegated(path)}>{t('condition.not')}</S.ActionBtn>
               )}
-              <S.ActionBtn title="Editar no editor de condições" onClick={() => vm.requestEdit(path)}>
+              <S.ActionBtn title={t('condition.edit')} onClick={() => vm.requestEdit(path)}>
                 <RiEditLine size={13} />
               </S.ActionBtn>
               {path.length > 0 && (
-                <S.ActionBtn $danger title="Remover expressão" onClick={() => vm.removeNode(path)}>
+                <S.ActionBtn $danger title={t('condition.remove.expression')} onClick={() => vm.removeNode(path)}>
                   <RiDeleteBinLine size={13} />
                 </S.ActionBtn>
               )}
@@ -134,34 +137,34 @@ const DiagramNode: React.FC<{
         <S.Leaf>
           {condition.fieldPath
             ? <S.FieldChip>{vm.getFieldLabel(condition.fieldPath)}</S.FieldChip>
-            : <S.EmptyHint>campo não definido</S.EmptyHint>}
+            : <S.EmptyHint>{t('condition.field.unset')}</S.EmptyHint>}
           <S.OperatorText>{vm.getOperatorLabel(condition.operator)}</S.OperatorText>
           {needsValue && condition.valueType === 'literal' && (
             String(condition.value ?? '') !== ''
               ? <S.ValueChip>{String(condition.value)}</S.ValueChip>
-              : <S.EmptyHint>valor não definido</S.EmptyHint>
+              : <S.EmptyHint>{t('condition.value.unset')}</S.EmptyHint>
           )}
           {needsValue && condition.valueType === 'expression' && (
             <S.ExpressionChip>
               <RiFunctionLine size={12} />
-              {String(condition.value ?? '') || <S.EmptyHint>expressão vazia</S.EmptyHint>}
+              {String(condition.value ?? '') || <S.EmptyHint>{t('condition.expression.empty')}</S.EmptyHint>}
             </S.ExpressionChip>
           )}
           {needsValue && condition.valueType === 'eventField' && (
             String(condition.value ?? '') !== ''
               ? <S.FieldChip>{vm.getFieldLabel(String(condition.value))}</S.FieldChip>
-              : <S.EmptyHint>campo não definido</S.EmptyHint>
+              : <S.EmptyHint>{t('condition.field.unset')}</S.EmptyHint>
           )}
           {vm.isInteractive && (
             <S.NodeActions>
               {!parentIsNot && (
-                <S.ActionBtn title="Negar (NÃO)" onClick={() => vm.toggleNegated(path)}>NÃO</S.ActionBtn>
+                <S.ActionBtn title={t('condition.negate')} onClick={() => vm.toggleNegated(path)}>{t('condition.not')}</S.ActionBtn>
               )}
-              <S.ActionBtn title="Editar no editor de condições" onClick={() => vm.requestEdit(path)}>
+              <S.ActionBtn title={t('condition.edit')} onClick={() => vm.requestEdit(path)}>
                 <RiEditLine size={13} />
               </S.ActionBtn>
               {path.length > 0 && (
-                <S.ActionBtn $danger title="Remover condição" onClick={() => vm.removeNode(path)}>
+                <S.ActionBtn $danger title={t('condition.remove')} onClick={() => vm.removeNode(path)}>
                   <RiDeleteBinLine size={13} />
                 </S.ActionBtn>
               )}
@@ -175,6 +178,7 @@ const DiagramNode: React.FC<{
 
 export const ConditionDiagram: React.FC<ConditionDiagramProps> = (props) => {
   const vm = useConditionDiagramViewModel(props);
+  const t = useT('core.ui');
   const { condition } = props;
   const showRootActions = vm.isInteractive && condition.kind !== 'LogicalAnd' && condition.kind !== 'LogicalOr';
 
@@ -183,17 +187,17 @@ export const ConditionDiagram: React.FC<ConditionDiagramProps> = (props) => {
       <DiagramNode condition={condition} vm={vm} path={[]} />
       {showRootActions && (
         <S.RootActions>
-          <S.RootActionBtn onClick={() => vm.addComparison(null)} title="Adicionar comparação de campo">
+          <S.RootActionBtn onClick={() => vm.addComparison(null)} title={t('condition.root.add-comparison')}>
             <RiAddLine size={14} />
-            Condição
+            {t('condition.label.condition')}
           </S.RootActionBtn>
-          <S.RootActionBtn onClick={() => vm.addExpression(null)} title="Adicionar expressão pura">
+          <S.RootActionBtn onClick={() => vm.addExpression(null)} title={t('condition.root.add-expression')}>
             <RiFunctionLine size={14} />
-            Expressão
+            {t('condition.label.expression')}
           </S.RootActionBtn>
-          <S.RootActionBtn onClick={() => vm.addGroup(null)} title="Adicionar grupo">
+          <S.RootActionBtn onClick={() => vm.addGroup(null)} title={t('condition.add.group')}>
             <RiBracesLine size={14} />
-            Grupo
+            {t('condition.label.group')}
           </S.RootActionBtn>
         </S.RootActions>
       )}

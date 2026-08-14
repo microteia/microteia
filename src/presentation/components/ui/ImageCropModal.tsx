@@ -2,6 +2,7 @@ import React, { useCallback } from 'react';
 import styled from 'styled-components';
 import { RiCloseLine, RiCheckLine } from 'react-icons/ri';
 
+import { useT } from '../../shared/i18n/useT';
 interface ImageCropModalProps {
   imageSrc: string;
   onCrop: (blob: Blob) => Promise<void>;
@@ -87,6 +88,7 @@ const Btn = styled.button<{ $primary?: boolean }>`
 `;
 
 export const ImageCropModal: React.FC<ImageCropModalProps> = ({ imageSrc, onCrop, onClose }) => {
+  const t = useT('core.ui');
   const handleConfirm = useCallback(async () => {
     const res = await fetch(imageSrc);
     const blob = await res.blob();
@@ -100,7 +102,7 @@ export const ImageCropModal: React.FC<ImageCropModalProps> = ({ imageSrc, onCrop
           <Title>Confirmar foto de perfil</Title>
           <CloseBtn onClick={onClose}><RiCloseLine size={20} /></CloseBtn>
         </Header>
-        <PreviewImg src={imageSrc} alt="Prévia da foto" />
+        <PreviewImg src={imageSrc} alt={t('image.preview')} />
         <Actions>
           <Btn onClick={onClose}>Cancelar</Btn>
           <Btn $primary onClick={handleConfirm}>

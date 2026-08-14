@@ -12,6 +12,7 @@ import { Checkbox } from '../Checkbox';
 import type { FieldDefinition } from '../../../../domain/entities';
 import type { CustomFieldsSectionViewModel } from './CustomFieldsSection.viewmodel';
 
+import { useT } from '../../../shared/i18n/useT';
 /**
  * O CONTROLE de um único campo, escolhido pelo `field.type` — a peça atômica que resolve tipo,
  * máscara, opções (estáticas/dinâmicas/lookup/referência) e o estado desabilitado. É partilhada pelo
@@ -20,6 +21,7 @@ import type { CustomFieldsSectionViewModel } from './CustomFieldsSection.viewmod
  */
 export const FieldControl: React.FC<{ field: FieldDefinition; vm: CustomFieldsSectionViewModel }> = ({ field, vm }) => {
   const isDisabled = vm.isFieldDisabled(field);
+  const t = useT('core.ui');
   switch (field.type) {
     case 'textarea':
       return (
@@ -100,8 +102,8 @@ export const FieldControl: React.FC<{ field: FieldDefinition; vm: CustomFieldsSe
           onDelete={field.optionsAllowUserAdd && vm.canDeleteOption
             ? (optionKey) => vm.handleDeleteOption(field, optionKey)
             : undefined}
-          deleteConfirmTitle="Excluir opção"
-          deleteConfirmMessage="Tem certeza que deseja excluir esta opção? Registros que a utilizam manterão o valor salvo."
+          deleteConfirmTitle={t('field.option.delete.title')}
+          deleteConfirmMessage={t('field.option.delete.message')}
         />
       );
     case 'reference':

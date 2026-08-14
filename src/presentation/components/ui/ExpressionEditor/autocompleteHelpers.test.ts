@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { buildAutocompleteItems } from './autocompleteHelpers';
+
+/** O tradutor de teste devolve a própria chave — aqui o que importa é a lista, não a frase. */
+const echo = (key: string) => key;
 import type { FunctionDefinition, StepOutputField, WorkflowVariable } from './autocompleteHelpers';
 
 const functions: FunctionDefinition[] = [
@@ -15,7 +18,7 @@ const variables: WorkflowVariable[] = [
 ];
 
 const build = (query: string) =>
-  buildAutocompleteItems('function', query, functions, [], [], variables);
+  buildAutocompleteItems(echo, 'function', query, functions, [], [], variables);
 
 describe('buildAutocompleteItems — navegação em campo de referência', () => {
   it('sugere os subcampos ao digitar o ponto', () => {
@@ -31,7 +34,7 @@ describe('buildAutocompleteItems — navegação em campo de referência', () =>
 
   it('não oferece funções nem atalhos numa consulta com ponto', () => {
     const items = build('produto.');
-    expect(items.every((item) => item.category === 'Variável')).toBe(true);
+    expect(items.every((item) => item.category === 'expression.category.variable')).toBe(true);
   });
 
   it('sem ponto, segue oferecendo funções normalmente', () => {
@@ -53,13 +56,13 @@ const stepOutputs: StepOutputField[] = [
 ];
 
 const buildOutput = (query: string) =>
-  buildAutocompleteItems('output', query, functions, [], stepOutputs, []);
+  buildAutocompleteItems(echo, 'output', query, functions, [], stepOutputs, []);
 
 describe('buildAutocompleteItems — escopo output', () => {
   it('lista os steps anteriores, uma vez cada, ao digitar o ponto da raiz', () => {
     const items = buildOutput('');
     expect(items.map((item) => item.label)).toEqual(['buscarProcesso', 'montarPrazo']);
-    expect(items.every((item) => item.category === 'Step')).toBe(true);
+    expect(items.every((item) => item.category === 'expression.category.step')).toBe(true);
   });
 
   it('descreve o step pelo nome exibido, e insere o id seguido de ponto', () => {
@@ -72,7 +75,7 @@ describe('buildAutocompleteItems — escopo output', () => {
     const mesmoNome: StepOutputField[] = [
       { stepId: 'montarPrazo', stepName: 'montarPrazo', outputId: 'prazo', outputLabel: 'prazo' },
     ];
-    const [item] = buildAutocompleteItems('output', '', functions, [], mesmoNome, []);
+    const [item] = buildAutocompleteItems(echo, 'output', '', functions, [], mesmoNome, []);
     expect(item.label).toBe('montarPrazo');
     expect(item.description).toBeUndefined();
   });

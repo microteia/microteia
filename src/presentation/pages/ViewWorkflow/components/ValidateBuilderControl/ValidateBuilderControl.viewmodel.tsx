@@ -7,6 +7,8 @@ import type { ValidateStepConfig } from '../../../../../domain/schema/validateSp
 import type { WorkflowParameter, WorkflowParameterType } from '../../../../../domain/entities/Workflow';
 import type { SearchSelectOption } from '../../../../components/ui/SearchSelect';
 
+import { useT } from '../../../../shared/i18n/useT';
+
 export interface ValidateBuilderControlProps {
   value: ValidateStepConfig | undefined;
   onChange: (config: ValidateStepConfig) => void;
@@ -14,15 +16,15 @@ export interface ValidateBuilderControlProps {
 
 const EMPTY_CONFIG: ValidateStepConfig = { source: 'input', outputName: '' };
 
-const PARAMETER_TYPE_LABELS: Record<WorkflowParameterType, string> = {
-  String: 'Texto',
-  Number: 'Número',
-  Date: 'Data',
-  Boolean: 'Sim/Não',
-  select: 'Lista de opções',
-  lookup: 'Lista do escritório',
-  EntityReference: 'Referência a registro',
-  Object: 'Objeto',
+const PARAMETER_TYPE_KEYS: Record<WorkflowParameterType, string> = {
+  String: 'parameter.type.string',
+  Number: 'parameter.type.number',
+  Date: 'parameter.type.date',
+  Boolean: 'parameter.type.boolean-label',
+  select: 'parameter.type.select',
+  lookup: 'parameter.type.lookup',
+  EntityReference: 'parameter.type.entity-record',
+  Object: 'parameter.type.object-short',
 };
 
 export interface ValidateBuilderControlViewModel {
@@ -48,6 +50,7 @@ export const useValidateBuilderControlViewModel = (
   onChange: ValidateBuilderControlProps['onChange'],
 ): ValidateBuilderControlViewModel => {
   const ctx = useSchemaContext();
+  const t = useT('core.automation');
   const config = useMemo(() => value ?? EMPTY_CONFIG, [value]);
   const parameters = useMemo(() => config.parameters ?? [], [config.parameters]);
 
@@ -75,16 +78,16 @@ export const useValidateBuilderControlViewModel = (
       .map(([collection, screen]) => ({
         value: collection,
         label: screen.titleSingular,
-        meta: 'Personalizada',
+        meta: t('source.custom'),
       }));
-    return [{ value: '', label: 'Nenhuma (objeto anônimo)' }, ...entities, ...screens];
-  }, [ctx]);
+    return [{ value: '', label: t('validate.source.none') }, ...entities, ...screens];
+  }, [ctx, t]);
 
   const lookupOptions = useLookupCollectionOptions();
 
   const typeOptions = useMemo<{ value: WorkflowParameterType; label: string }[]>(
-    () => PARAMETER_TYPE_VALUES.map((type) => ({ value: type, label: PARAMETER_TYPE_LABELS[type] })),
-    [],
+    () => PARAMETER_TYPE_VALUES.map((type) => ({ value: type, label: t(PARAMETER_TYPE_KEYS[type]) })),
+    [t],
   );
 
   const emit = useCallback((next: ValidateStepConfig) => onChange(next), [onChange]);

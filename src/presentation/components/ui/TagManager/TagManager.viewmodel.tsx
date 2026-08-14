@@ -2,6 +2,8 @@ import { useState, useCallback } from 'react';
 import { useTheme } from 'styled-components';
 import { useTenant } from '../../../../stores/useTenant';
 import { useNotification } from '../../../../stores/useNotification';
+import { DEFAULT_TAG_COLOR_LABEL } from '../../../../shared/styles/colorUtils';
+import { useT } from '../../../shared/i18n/useT';
 
 export type BaseTag = { id: string; name: string; color: string };
 
@@ -57,8 +59,9 @@ export const useTagManagerViewModel = (props: TagManagerProps): TagManagerViewMo
   const { notify } = useNotification();
   const isAdmin = tenantRole === 'admin';
   const theme = useTheme();
+  const t = useT('core.ui');
   const tagColors = theme.tagColors;
-  const defaultTagColor = tagColors.find((c) => c.label === 'Azul')?.value ?? tagColors[0].value;
+  const defaultTagColor = tagColors.find((c) => c.label === DEFAULT_TAG_COLOR_LABEL)?.value ?? tagColors[0].value;
 
   const appliedTags = getAppliedTags(entityId);
   const [appliedTagIds, setAppliedTagIds] = useState<string[]>(appliedTags.map((t) => t.id));
@@ -109,7 +112,7 @@ export const useTagManagerViewModel = (props: TagManagerProps): TagManagerViewMo
       setIsCreating(false);
       setNewTagName('');
     } catch {
-      notify('Erro ao criar etiqueta.', 'error');
+      notify(t('tags.error.create'), 'error');
     } finally {
       setSaving(false);
     }
@@ -131,7 +134,7 @@ export const useTagManagerViewModel = (props: TagManagerProps): TagManagerViewMo
       await updateTag(editingTag.id, { name: editName.trim(), color: editColor });
       setEditingTag(null);
     } catch {
-      notify('Erro ao salvar etiqueta.', 'error');
+      notify(t('tags.error.save'), 'error');
     } finally {
       setSaving(false);
     }
@@ -143,7 +146,7 @@ export const useTagManagerViewModel = (props: TagManagerProps): TagManagerViewMo
       const next = appliedTagIds.filter((tid) => tid !== id);
       setAppliedTagIds(next);
     } catch {
-      notify('Erro ao excluir etiqueta.', 'error');
+      notify(t('tags.error.delete'), 'error');
     }
   };
 

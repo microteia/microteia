@@ -5,13 +5,15 @@ import { Button } from '../Button';
 import { ColorSwatchPicker } from '../ColorSwatchPicker';
 import { S } from './TagManager.styles';
 import { useTagManagerViewModel, type TagManagerProps } from './TagManager.viewmodel';
+import { useT } from '../../../shared/i18n/useT';
 
 export const TagManager: React.FC<TagManagerProps> = (props) => {
   const vm = useTagManagerViewModel(props);
+  const t = useT('core.ui');
   const formActive = vm.isCreating || !!vm.editingTag;
 
   return (
-    <Modal title="Etiquetas" onClose={props.onClose}>
+    <Modal title={t('tags.title')} onClose={props.onClose}>
       <S.Body>
 
         <S.Toolbar>
@@ -20,7 +22,7 @@ export const TagManager: React.FC<TagManagerProps> = (props) => {
             <S.SearchInput
               value={vm.searchFilter}
               onChange={(e) => vm.setSearchFilter(e.target.value)}
-              placeholder="Pesquisar etiqueta..."
+              placeholder={t('tags.search.placeholder')}
             />
           </S.SearchWrapper>
           {!formActive && (
@@ -33,21 +35,21 @@ export const TagManager: React.FC<TagManagerProps> = (props) => {
         {vm.isCreating && (
           <S.FormBox>
             <S.FormHeader>
-              <S.FormLabel>Nova etiqueta</S.FormLabel>
-              <S.PreviewPill $color={vm.newTagColor}>{vm.newTagName || 'Prévia'}</S.PreviewPill>
+              <S.FormLabel>{t('tags.new')}</S.FormLabel>
+              <S.PreviewPill $color={vm.newTagColor}>{vm.newTagName || t('tags.preview')}</S.PreviewPill>
             </S.FormHeader>
             <S.NameInput
               value={vm.newTagName}
               onChange={(e) => vm.setNewTagName(e.target.value)}
-              placeholder="Nome da etiqueta..."
+              placeholder={t('tags.name.placeholder')}
               onKeyDown={(e) => { if (e.key === 'Enter') void vm.handleCreate(); if (e.key === 'Escape') vm.cancelCreate(); }}
               autoFocus
             />
             <ColorSwatchPicker colors={vm.tagColors} value={vm.newTagColor} onChange={vm.setNewTagColor} />
             <S.FormActions>
-              <Button variant="secondary" size="sm" onClick={vm.cancelCreate}>Cancelar</Button>
+              <Button variant="secondary" size="sm" onClick={vm.cancelCreate}>{t('action.cancel')}</Button>
               <Button size="sm" onClick={() => void vm.handleCreate()} disabled={vm.saving || !vm.newTagName.trim()}>
-                <RiAddLine size={14} /> Criar
+                <RiAddLine size={14} /> {t('tags.create')}
               </Button>
             </S.FormActions>
           </S.FormBox>
@@ -56,30 +58,30 @@ export const TagManager: React.FC<TagManagerProps> = (props) => {
         {vm.editingTag && (
           <S.FormBox>
             <S.FormHeader>
-              <S.FormLabel>Editar etiqueta</S.FormLabel>
-              <S.PreviewPill $color={vm.editColor}>{vm.editName || 'Prévia'}</S.PreviewPill>
+              <S.FormLabel>{t('tags.edit')}</S.FormLabel>
+              <S.PreviewPill $color={vm.editColor}>{vm.editName || t('tags.preview')}</S.PreviewPill>
             </S.FormHeader>
             <S.NameInput
               value={vm.editName}
               onChange={(e) => vm.setEditName(e.target.value)}
-              placeholder="Nome da etiqueta..."
+              placeholder={t('tags.name.placeholder')}
               onKeyDown={(e) => { if (e.key === 'Enter') void vm.handleSaveEdit(); if (e.key === 'Escape') vm.cancelEdit(); }}
               autoFocus
             />
             <ColorSwatchPicker colors={vm.tagColors} value={vm.editColor} onChange={vm.setEditColor} />
             <S.FormActions>
-              <Button variant="secondary" size="sm" onClick={vm.cancelEdit}>Cancelar</Button>
+              <Button variant="secondary" size="sm" onClick={vm.cancelEdit}>{t('action.cancel')}</Button>
               <Button size="sm" onClick={() => void vm.handleSaveEdit()} disabled={vm.saving || !vm.editName.trim()}>
-                Salvar
+                {t('action.save')}
               </Button>
             </S.FormActions>
           </S.FormBox>
         )}
 
         {vm.allTags.length === 0 ? (
-          <S.EmptyTags>Nenhuma etiqueta criada ainda.</S.EmptyTags>
+          <S.EmptyTags>{t('tags.empty')}</S.EmptyTags>
         ) : vm.appliedFilteredTags.length === 0 && vm.restFilteredTags.length === 0 ? (
-          <S.EmptyTags>Nenhuma etiqueta encontrada.</S.EmptyTags>
+          <S.EmptyTags>{t('tags.not-found')}</S.EmptyTags>
         ) : (
           <S.TagList>
             {vm.appliedFilteredTags.map((tag) => (
@@ -92,11 +94,11 @@ export const TagManager: React.FC<TagManagerProps> = (props) => {
                   </S.TagPill>
                 </S.TagRow>
                 <S.TagActions>
-                  <S.ActionBtn type="button" title="Editar etiqueta" onClick={(e) => { e.stopPropagation(); vm.startEdit(tag); }}>
+                  <S.ActionBtn type="button" title={t('tags.edit')} onClick={(e) => { e.stopPropagation(); vm.startEdit(tag); }}>
                     <RiEditLine size={13} />
                   </S.ActionBtn>
                   {vm.isAdmin && (
-                    <S.DangerBtn type="button" title="Excluir etiqueta" onClick={(e) => { e.stopPropagation(); void vm.handleDelete(tag.id); }}>
+                    <S.DangerBtn type="button" title={t('tags.delete')} onClick={(e) => { e.stopPropagation(); void vm.handleDelete(tag.id); }}>
                       <RiDeleteBinLine size={13} />
                     </S.DangerBtn>
                   )}
@@ -118,11 +120,11 @@ export const TagManager: React.FC<TagManagerProps> = (props) => {
                   </S.TagPill>
                 </S.TagRow>
                 <S.TagActions>
-                  <S.ActionBtn type="button" title="Editar etiqueta" onClick={(e) => { e.stopPropagation(); vm.startEdit(tag); }}>
+                  <S.ActionBtn type="button" title={t('tags.edit')} onClick={(e) => { e.stopPropagation(); vm.startEdit(tag); }}>
                     <RiEditLine size={13} />
                   </S.ActionBtn>
                   {vm.isAdmin && (
-                    <S.DangerBtn type="button" title="Excluir etiqueta" onClick={(e) => { e.stopPropagation(); void vm.handleDelete(tag.id); }}>
+                    <S.DangerBtn type="button" title={t('tags.delete')} onClick={(e) => { e.stopPropagation(); void vm.handleDelete(tag.id); }}>
                       <RiDeleteBinLine size={13} />
                     </S.DangerBtn>
                   )}

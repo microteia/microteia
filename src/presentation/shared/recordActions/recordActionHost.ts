@@ -1,5 +1,6 @@
 import type { EntityRecord } from '../../../domain/entities';
 import type { ActionSurface } from '../../../domain/schema/actionExpression';
+import type { TranslateFn } from '../i18n/useT';
 
 /**
  * O que o kernel entrega a uma ação de registro. É uma API estreita de propósito: o comando NÃO
@@ -32,6 +33,11 @@ export interface RecordActionHost {
   openTagManager: () => void;
   /** Abre a confirmação de exclusão do registro — a exclusão em si é da tela, não do comando. */
   requestDelete: () => void;
+  /**
+   * O tradutor do `core.records`. Vem no host pelo mesmo motivo que `notify`: o comando é função
+   * pura, executada fora de componente, e não tem como pendurar um hook.
+   */
+  t: TranslateFn;
 }
 
 export type RecordActionCommand = (host: RecordActionHost) => void | Promise<void>;

@@ -1,14 +1,29 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { I18N_MESSAGES_POINT, messageBundlesOf } from '../domain/schema/i18n/extensionPoints';
 import type { LocaleCode } from '../domain/schema/i18n/localeNegotiation';
-import { DEFAULT_LOCALE, negotiateLocale, normalizeLocale } from '../domain/schema/i18n/localeNegotiation';
+import { DEFAULT_LOCALE, negotiateFromCandidates, normalizeLocale } from '../domain/schema/i18n/localeNegotiation';
 import { buildMessageCatalog, localesOf } from '../domain/schema/i18n/messages';
-import { LEGACY_LOCALE, setAmbientCatalog, setAmbientLocale } from '../domain/schema/i18n/localeGate';
+import { setAmbientCatalog, setAmbientLocale } from '../domain/schema/i18n/localeGate';
 import { LocaleContext } from './useLocale';
 import { useContributions } from './useKernel';
 import { useSettings } from './useSettings';
 
 const STORAGE_KEY = 'microteia:locale';
+
+/**
+ * Os idiomas do NAVEGADOR, na ordem de preferência de quem está nele.
+ *
+ * É a única resposta honesta para "que idioma usar antes de alguém escolher". A alternativa que
+ * existia aqui era uma âncora hardcoded (`pt-BR`), que transformava a mera EXISTÊNCIA de um catálogo
+ * português em padrão do produto — inclusive para quem nunca falou português.
+ */
+const browserLocales = (): LocaleCode[] => {
+  if (typeof navigator === 'undefined') return [];
+  const languages = Array.isArray(navigator.languages) && navigator.languages.length > 0
+    ? navigator.languages
+    : [navigator.language];
+  return languages.filter((language): language is string => typeof language === 'string' && language !== '');
+};
 
 const LOCALE_SETTING_KEY = 'i18n.locale';
 
@@ -54,17 +69,23 @@ export const LocaleProvider: React.FC<LocaleProviderProps> = ({ children, prefer
   const requested = preferred ?? chosen;
 
   /**
-   * Sem NINGUÉM ter escolhido idioma, o pedido é o LEGADO — não o idioma-fonte.
+   * Escolha explícita vence; sem ela, negocia-se com o idioma do NAVEGADOR e, em último caso, com o
+   * idioma-fonte.
    *
-   * A diferença decide o que um escritório existente vê no dia em que esta versão sobe. Pedir o
-   * idioma-fonte viraria a interface para inglês sem ninguém ter tocado em nada; pedir o legado faz
-   * com que INSTALAR o pacote de português baste para tudo continuar como era — e, se o pacote não
-   * estiver instalado, a negociação cai no inglês, que é o destino declarado do projeto.
+   * O que isto desfaz: antes o pedido implícito era `pt-BR` fixo, então bastava existir QUALQUER
+   * catálogo português — o dos Termos de Uso, que viaja no bundle — para o português virar o padrão
+   * do produto, inclusive para quem nunca falou português. Idioma disponível não é idioma
+   * escolhido.
    *
-   * Sai junto com `LEGACY_LOCALE`, na virada de major.
+   * O navegador também resolve, sem âncora, o problema que a âncora existia para resolver: um
+   * escritório brasileiro chega a `pt-BR` porque o navegador dele diz `pt-BR`.
    */
   const locale = useMemo(
-    () => negotiateLocale(requested ?? LEGACY_LOCALE, available, DEFAULT_LOCALE),
+    () => negotiateFromCandidates(
+      requested === null ? browserLocales() : [requested],
+      available,
+      DEFAULT_LOCALE,
+    ),
     [requested, available],
   );
 
@@ -73,13 +94,17 @@ export const LocaleProvider: React.FC<LocaleProviderProps> = ({ children, prefer
   /**
    * O empurrão para o contexto de módulo: é o que permite a `src/utils/formatters.ts` — API pública
    * congelada, que as extensões importam como `@microteia/format` — passar a formatar no idioma certo
-   * sem mudar de assinatura. Enquanto ninguém escolheu idioma nenhum, o gate continua NULO de
-   * propósito, e a formatação segue exatamente como era.
+   * sem mudar de assinatura.
+   *
+   * O idioma NEGOCIADO vai para o gate mesmo quando ninguém escolheu nada. Antes ele ficava nulo
+   * nesse caso, e a formatação caía numa âncora `pt-BR` dentro do próprio gate; hoje formatar segue
+   * o mesmo idioma em que a interface está sendo lida, que é o único jeito de os dois não se
+   * contradizerem na tela.
    */
   useEffect(() => {
-    setAmbientLocale(requested === null ? null : locale);
+    setAmbientLocale(locale);
     setAmbientCatalog(catalog);
-  }, [requested, locale, catalog]);
+  }, [locale, catalog]);
 
   const setLocale = useCallback((next: LocaleCode) => {
     const normalized = normalizeLocale(next);
@@ -98,7 +123,7 @@ export const LocaleProvider: React.FC<LocaleProviderProps> = ({ children, prefer
 /**
  * A mesma coisa, dentro do escritório: o idioma passa a vir da configuração `i18n.locale`, onde a
  * preferência PESSOAL vence a do escritório — a mesma precedência que `resolveSetting` aplica a
- * qualquer configuração. Sem valor gravado em nenhum dos dois escopos, a escolha local do navegador
+ * qualquer configuração. Sem valor gravado em nenhum dos dois escopos, a negociação com o navegador
  * continua valendo, que é o que mantém a coerência com o que a pessoa viu antes de entrar.
  */
 export const TenantLocaleProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -110,6 +135,27 @@ export const TenantLocaleProvider: React.FC<{ children: React.ReactNode }> = ({ 
     const normalized = normalizeLocale(stored);
     return normalized === '' ? null : normalized;
   }, [values]);
+
+  /**
+   * A configuração é ESPELHADA no `localStorage`, e é isso que faz as telas públicas obedecerem à
+   * escolha de quem configurou.
+   *
+   * Sem o espelho, `/license` e `/login` — que rodam no provedor de CIMA, sem escritório nem sessão —
+   * nunca souberam da configuração: mudar o idioma em Configurações arrumava o workspace e deixava a
+   * licença no idioma do navegador. Como a licença abre em ABA NOVA, ela sequer compartilha a árvore
+   * de componentes; o `localStorage` é o único canal que as duas pontas enxergam.
+   *
+   * O espelho é FIEL, inclusive ao apagar: sem configuração gravada, o valor é removido em vez de
+   * ficar para trás. Sem isso, uma escolha antiga continuaria mandando nas telas públicas depois de
+   * a configuração ter sido limpa — que é como um valor obsoleto sobrevive a uma troca de versão.
+   *
+   * O sentido é só um: configuração → navegador. O `localStorage` é memória do navegador, não fonte
+   * de verdade; quem manda é a configuração do usuário e do escritório.
+   */
+  useEffect(() => {
+    if (preferred === null) localStorage.removeItem(STORAGE_KEY);
+    else localStorage.setItem(STORAGE_KEY, preferred);
+  }, [preferred]);
 
   return <LocaleProvider preferred={preferred}>{children}</LocaleProvider>;
 };

@@ -16,13 +16,13 @@ export const coreWorkspacePlugin: PluginRecord = {
     id: 'core.workspace',
     version: '1.0.0',
     kernel: '^1.0.0',
-    name: 'Área de Trabalho',
+    name: 'Workspace',
     dependencies: { 'core.ui': '^1.0.0' },
     contributes: [
       messageBundleContribution(coreMessage('core.workspace', CORE_WORKSPACE_MESSAGES)),
       page({ key: 'profile', title: '@core.workspace/page.profile', icon: 'user' }, 'ProfileView'),
-      command('navigation', { group: 'Navegação' }, 'NavigationCommandProvider'),
-      command('system', { group: 'Sistema' }, 'SystemCommandProvider'),
+      command('navigation', { group: '@core.workspace/command.group.navigation' }, 'NavigationCommandProvider'),
+      command('system', { group: '@core.workspace/command.group.system' }, 'SystemCommandProvider'),
     ],
   },
 };

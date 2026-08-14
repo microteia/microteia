@@ -9,6 +9,7 @@ import {
 } from './WorkflowMentionModal.viewmodel';
 import { S } from './WorkflowMentionModal.styles';
 
+import { useT } from '../../../shared/i18n/useT';
 const Overlay = styled.div`
   position: fixed;
   inset: 0;
@@ -72,6 +73,7 @@ const Content = styled.div`
 
 export const WorkflowMentionModal: React.FC<WorkflowMentionModalProps> = (props) => {
   const vm = useWorkflowMentionModalViewModel(props);
+  const t = useT('core.ui');
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -85,14 +87,14 @@ export const WorkflowMentionModal: React.FC<WorkflowMentionModalProps> = (props)
     <Overlay onClick={(e) => e.target === e.currentTarget && props.onClose()}>
       <Container>
         <Header>
-          <Title>Inserir Automação</Title>
+          <Title>{t('mention.workflow.insert')}</Title>
           <CloseBtn onClick={props.onClose}><RiCloseLine size={20} /></CloseBtn>
         </Header>
 
         <Content>
           <S.FilterBar>
             <S.KeywordInput
-              placeholder="Nome ou evento da automação..."
+              placeholder={t('mention.workflow.search')}
               value={vm.keyword}
               onChange={(e) => vm.setKeyword(e.target.value)}
               autoFocus
@@ -100,7 +102,7 @@ export const WorkflowMentionModal: React.FC<WorkflowMentionModalProps> = (props)
           </S.FilterBar>
 
           {vm.items.length === 0 ? (
-            <S.EmptyState>Nenhuma automação encontrada.</S.EmptyState>
+            <S.EmptyState>{t('mention.workflow.none-found')}</S.EmptyState>
           ) : (
             <S.CardList>
               {vm.items.map((w) => {

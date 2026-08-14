@@ -4349,9 +4349,10 @@ chamador — a decisão de confiança vive agora em `extensionCodeTrust`.
 biblioteca de i18n, e não há subsistema novo: uma tradução é uma **contribuição**, e um pacote de
 traduções é uma **extensão comum**.
 
-> **Status:** Fases 1 (motor), 2 (piloto) e 3 (baixar/traduzir/importar) concluídas. O piloto cobre
-> menu, abas, ⌘K e a tela de Configurações; o restante dos textos migra incrementalmente. Ver "O que
-> falta" ao fim da seção.
+> **Status:** Fases 1 (motor), 2 (piloto) e 3 (baixar/traduzir/importar) concluídas. A **fase 4 — a
+> migração dos textos do núcleo para o idioma-fonte — está em curso**: `presentation/components`
+> inteiro já migrou; `presentation/pages`, `presentation/shared`, `domain` e `functions/` ainda não.
+> Ver "A migração para o idioma-fonte" e "O que falta" ao fim da seção.
 
 ### A decisão que dispensou um subsistema
 
@@ -4465,11 +4466,11 @@ configuredLocale(): LocaleCode | null   // o que foi configurado, ou null
 ambientLocale():    LocaleCode          // o que USAR para formatar — nunca null
 ```
 
-> ⚠️ **`LEGACY_LOCALE = 'pt-BR'` é dívida deliberada e datada.** Enquanto NINGUÉM tiver configurado um
-> idioma, a formatação continua exatamente como era (`dd/mm/aaaa`, `R$`). Sem essa âncora, publicar o
-> motor seria uma troca silenciosa de formato para todo escritório existente — o que um release de
-> infraestrutura não tem o direito de fazer. **Sai na virada de major**, quando o pacote `pt-BR` passar
-> a ser instalado por padrão nos escritórios existentes.
+> **`LEGACY_LOCALE` foi REMOVIDO.** Ele fixava `pt-BR` como pedido implícito enquanto ninguém tivesse
+> escolhido idioma. Funcionava enquanto nenhum catálogo português viajasse no bundle — aí a
+> negociação caía em `en` de qualquer jeito. No dia em que os Termos de Uso em português passaram a
+> ser embutidos, a âncora encontrou o que casar e o **português virou o padrão do produto**, para
+> todo mundo, inclusive para quem nunca falou português. Ver "O idioma implícito vem do navegador".
 
 ### As APIs
 
@@ -4500,6 +4501,52 @@ Regra já existente, reforçada aqui porque foi seguida nesta fase: todo módulo
 `declare module` correspondente em `extensionTypeDefs.ts` (`I18N_MODULE_DEFS`), senão o autor de
 extensões perde o IntelliSense sem nenhum aviso.
 
+### As telas públicas obedecem à configuração — o espelho no `localStorage`
+
+O provedor de cima não enxerga configuração: `/login` e `/license` rodam antes de haver escritório e
+sessão. Isso criava uma incoerência que aparecia na primeira vez que alguém trocava de idioma:
+Configurações arrumava o workspace e **deixava a licença no idioma do navegador**. Pior, a licença
+abre em ABA NOVA — ela sequer compartilha a árvore de componentes, então nenhuma solução por
+contexto a alcançaria.
+
+`TenantLocaleProvider` **espelha** a configuração resolvida no `localStorage`, e é ali que as telas
+públicas a leem. O sentido é só um — configuração → navegador —, porque `localStorage` é memória do
+navegador e não fonte de verdade; quem manda continua sendo a preferência do usuário e do escritório.
+
+O espelho é fiel **inclusive ao apagar**: sem configuração gravada, a chave é removida em vez de
+ficar para trás. Sem isso, uma escolha antiga continuaria mandando nas telas públicas depois de a
+configuração ter sido limpa — e é assim que um valor obsoleto sobrevive a uma troca de versão e
+produz um sintoma que não corresponde a nenhuma configuração visível.
+
+> Um perfil de navegador guarda UMA chave. Duas contas na mesma janela compartilham o espelho, e a
+> última que abriu o workspace vence nas telas públicas. É o melhor sinal disponível fora da sessão,
+> e ele nunca contradiz o workspace de quem está logado.
+
+### O idioma implícito vem do navegador — `negotiateFromCandidates`
+
+Sem escolha explícita, o idioma sai de `navigator.languages`, na ordem de preferência de quem está
+no navegador, e só cai no idioma-fonte se nada casar.
+
+O que isso desfaz: o pedido implícito era `pt-BR` FIXO. Enquanto nenhum catálogo português viajava
+no bundle a diferença não aparecia — `available` era só `['en']` e a negociação caía em `en`. Ao
+embutir os Termos de Uso em português, `pt-BR` passou a estar sempre disponível, a âncora encontrou
+o que casar, e **a mera existência de um catálogo transformou o português no padrão do produto**.
+Idioma disponível não é idioma escolhido; foi o sintoma que revelou a confusão entre os dois.
+
+O navegador também resolve, sem âncora nenhuma, o problema que a âncora existia para resolver: um
+escritório brasileiro chega a `pt-BR` porque o navegador dele diz `pt-BR`, e não porque o código
+decidiu por ele. Quem tem o navegador em inglês passa a ler em inglês — é a mudança de comportamento
+que veio junto, e é a correta.
+
+`negotiateFromCandidates` vive ao lado de `negotiateLocale` porque a pergunta é outra: lá é "tenho
+ESTE idioma?", aqui é "qual destes eu tenho primeiro?". Cada candidato é testado pela cadeia inteira
+(`pt-BR` → `pt`) antes de passar ao seguinte — senão um navegador em `pt-BR` deixaria de casar com um
+catálogo `pt` só porque havia um `es` mais adiante na lista.
+
+**O gate passou a receber o idioma negociado sempre**, e não só quando alguém escolheu. Antes ele
+ficava nulo nesse caso e `ambientLocale()` caía na âncora; hoje formatar segue o mesmo idioma em que
+a interface está sendo lida — que é o único jeito de os dois não se contradizerem na tela.
+
 ### Guarda de tamanho do pacote — `pluginReferences.ts`
 
 Uma extensão instalada é gravada como **um** documento (`installed_extensions/{id}`), com o pacote
@@ -4518,9 +4565,15 @@ por ali virando uma frase sem sentido sobre referências.
 
 ### O piloto — onde a tradução já chega
 
-Os sete plugins do núcleo publicam o catálogo `en` (fonte em `src/plugins/coreMessages.ts`, um arquivo
-só porque **é ele que o modelo de tradução exporta**: quem traduz quer UMA lista, não oito). Cada
-bundle continua carimbado com o `namespace` do plugin dono do texto.
+Os nove plugins do núcleo publicam o catálogo `en` (fonte em `src/plugins/messages/`, **um módulo por
+namespace**). Era um arquivo só enquanto o piloto tinha ~40 chaves; virou pasta quando a migração
+inteira começou e a lista passou de duas centenas. A razão original de haver UM lugar continua
+atendida sem o arquivo único: `buildTranslationPackage` monta o modelo de tradução a partir do
+**catálogo**, não do arquivo — quem traduz recebe uma lista só, independente de como o repositório a
+divide. `src/plugins/coreMessages.ts` sobreviveu como barril, para que quem importa não precise saber
+da divisão. O pacote `pt-BR` espelha a mesma divisão em `src/plugins/marketplace/localePtBr/`.
+
+Cada bundle continua carimbado com o `namespace` do plugin dono do texto.
 
 Os rótulos declarados viraram referência — `nav({ key: 'audit-logs', label: '@core.admin/nav.audit-logs' })` —
 e `resolveLabel` é aplicado em **cinco pontos de render**, todos escolhidos por serem o lugar onde o
@@ -4553,11 +4606,10 @@ português; **desinstalado, ela volta inteira ao inglês**. Esse segundo teste �
 Um terceiro teste exige que **toda chave publicada em `en` exista no pacote**, para a tradução não
 ganhar furo quando o núcleo acrescentar um texto.
 
-> ⚠️ **O que um escritório existente vê.** Enquanto ninguém escolhe idioma, o pedido é `LEGACY_LOCALE`
-> (`pt-BR`), e não o idioma-fonte. Com o pacote instalado, tudo continua exatamente como era; **sem o
-> pacote, os rótulos do piloto passam a ler em inglês**. É deliberado: o inglês é o destino declarado,
-> e instalar o pacote é um clique. Na virada de major o pacote passa a ser instalado por padrão nos
-> escritórios existentes, e `LEGACY_LOCALE` sai junto.
+> **O que um escritório existente vê.** Enquanto ninguém escolhe idioma, o pedido vem do NAVEGADOR.
+> Um escritório brasileiro chega a `pt-BR` porque o navegador dele diz `pt-BR` — e então, com o
+> pacote instalado, tudo continua como era; sem o pacote, os rótulos já migrados leem em inglês.
+> Quem usa o navegador em inglês lê em inglês, que é o destino declarado do projeto.
 
 ### Baixar, traduzir, importar — a tela de Traduções
 
@@ -4615,13 +4667,177 @@ justamente o problema de haver dois.
 > `languageTitle` capitaliza o nome vindo do `Intl`: "português (Brasil)" é correto como substantivo
 > dentro de uma frase e errado como TÍTULO de um pacote, ao lado de "Financeiro" e "Processos".
 
+### A migração para o idioma-fonte — as três formas de traduzir
+
+O núcleo nasceu escrito em português. A migração o reescreve em inglês e devolve o português ao pacote
+`pt-BR`, e ela tem exatamente **três** formas — escolhidas pelo que o texto É, não por preferência:
+
+| Situação | Forma | Exemplo |
+|---|---|---|
+| Componente React (View ou ViewModel) | `useT(namespace)` | `t('condition.field')` |
+| Rótulo **declarativo** (manifest, tema, catálogo servido pelo backend) | referência `@ns/chave` + `useLabel()` no render | `title: '@core.automation/page.workflows'` |
+| Módulo **puro**, chamado fora de componente | o tradutor entra por **parâmetro** (`TranslateFn`) | `describeCondition(t, condition)` |
+
+A terceira é a que não era óbvia. `describeCondition`, `validateExpressionWithParser`,
+`buildAutocompleteItems` e os providers do ⌘K são funções de módulo — recursivas, ou chamadas a cada
+tecla, ou ambas. Nenhuma pode pendurar um hook. Passar `t` como **primeiro parâmetro** mantém a função
+pura e testável (o teste passa `(key) => key` e verifica a lista, não a frase), e é o mesmo movimento
+que o `CommandPaletteAppContext` faz ao carregar `t` junto de `openTab` e `close`.
+
+> **Constante de módulo com texto vira FUNÇÃO de `t`.** `MENTION_COMMANDS` virou `mentionCommands(t)`,
+> `PRODUCT_LINKS` virou `productLinks(t)`. Um array congelado no topo do arquivo é avaliado uma vez, na
+> importação — antes de existir catálogo —, então ele não tem como traduzir.
+
+**Buscar é parte de traduzir.** No ⌘K, as palavras que encontram um item saíram do código e viraram
+chave (`command.system.theme.keywords`, valores separados por vírgula). Sem isso, quem usa o sistema em
+português procuraria por "aparência" e não acharia o item de tema, por mais bem traduzido que o rótulo
+estivesse.
+
+### `useT` fora do provedor — tolerância, não exceção
+
+`useLocale` continua **estrito**: quem lê `available`/`setLocale` está montando o seletor de idioma, e
+ali estar fora do `LocaleProvider` é erro de montagem. Mas `useT` e `useLabel` passaram a ler por
+`useOptionalLocale`, que devolve um contexto vazio em vez de lançar.
+
+A razão é a mudança de escala: traduzir deixou de acontecer em cinco pontos de render e passou a
+acontecer em toda parte, inclusive em componente montado fora da árvore do provedor — um átomo
+renderizado isoladamente num teste, um `WidgetRenderer` de extensão instanciado à parte. Lançar ali
+derrubaria a tela inteira por causa de um rótulo, o que contradiz a regra do próprio motor: chave sem
+catálogo devolve **a própria chave**, nunca uma exceção.
+
+### A paleta de cores — rótulo traduzível dentro de `label`
+
+`theme.tagColors` viaja até as extensões com a forma `{ label, value }` **congelada**. Acrescentar um
+`labelKey` ao lado quebraria toda extensão instalada, então o rótulo traduzível teve de caber dentro do
+próprio `label`: ele passou a ser uma referência (`'@core.ui/color.blue'`), resolvida por `useLabel()`
+no `ColorSwatchPicker`. A busca pela cor padrão, que comparava com a palavra `'Azul'`, passou a comparar
+com `DEFAULT_TAG_COLOR_LABEL` — a mesma referência, exportada de `colorUtils.ts`.
+
+### O site do produto saiu do repositório
+
+As telas de marketing — início, funcionalidades, preços e contato — foram **removidas**, junto de
+`PublicHeader`, `PublicFooter` e dos 2,8 MB de capturas de tela que só elas usavam. `/` passou a
+redirecionar para `/login`, e o `Login` já mandava para `/app` quem estivesse autenticado, então
+nenhum caminho de entrada mudou.
+
+O motivo é de tradução, e é o mesmo que separou o contrato jurídico: **texto de venda não é texto de
+produto**. Ele muda por decisão comercial, é escrito para convencer e não para operar, e obrigava
+quem fosse traduzir a interface a traduzir também uma página de preços em reais. As chaves
+`home.*`, `features.*`, `pricing.*`, `contact.*` e `public.nav.*` saíram dos dois catálogos junto.
+
+Permanecem públicas apenas `/login` e `/license`: uma é porta de entrada, a outra tem de ser legível
+por quem ainda não entrou.
+
+### O contrato jurídico é um pacote à parte — `core.license`
+
+Os Termos de Uso e a Política de Privacidade ganharam **namespace próprio**, `core.license`, com um
+plugin de núcleo do mesmo nome como dono. O plugin não contribui tela (a rota `/license` é pública,
+fora do workspace); ele contribui **o texto**, e só.
+
+| | Pacote do sistema | Pacote do contrato |
+|---|---|---|
+| id | `com.microteia.locale-pt-br` | `locale.pt-br.license` |
+| cobre | `core.ui`, `core.admin`, `core.records`, … | **apenas** `core.license` |
+| distribuição | extensão **instalável** por escritório | **embutido** em `CORE_PLUGINS` |
+
+Dois motivos que se somam para separá-los: um contrato completo é **maior que toda a interface
+junta**, e quem revisa contrato não é quem revisa botão.
+
+**Por que o do contrato é EMBUTIDO, e não instalável.** `/license` é rota pública, servida pelo
+`LocaleProvider` de cima — o que enxerga apenas `CORE_PLUGINS`. Uma extensão instalada num tenant
+nunca chegaria lá, e é justamente quem ainda não tem conta, clicando em "Termos de Uso" no
+cadastro, que mais precisa ler o documento na própria língua. A tentativa de distribuí-lo como
+extensão foi feita e **não funcionou** — instalar o pacote não traduzia nada.
+
+O raciocínio de fundo é que instalar por tenant nunca fez sentido aqui: os Termos são o documento
+**da Microteia**, idêntico para todo escritório. Nunca foram dado de tenant. O idioma da INTERFACE,
+esse sim, é escolha do escritório e segue instalável.
+
+Acrescentar um idioma para o contrato é criar o arquivo em `src/plugins/bundledLocales/` e somar
+uma linha em `BUNDLED_LOCALE_PLUGINS`. Continua sendo um plugin; o que muda é que ele viaja no
+bundle.
+
+`localePilot.test.ts` trava os dois lados: o pacote do sistema **não pode** conter `core.license`,
+e o contrato tem de traduzir **sem nenhuma extensão instalada** — este segundo teste falha no dia
+em que alguém o transformar de volta em instalável.
+
+### O campo Idioma mostra o que VALE, não o `default` declarado
+
+Consequência visível de `LEGACY_LOCALE`, e que só apareceu quando o contrato jurídico passou a
+viajar no bundle.
+
+Sem nada gravado em escopo nenhum, `resolveSetting` devolve o `default` da propriedade — `en`. Mas o
+`LocaleProvider`, nessa mesma situação, pede `LEGACY_LOCALE` (`pt-BR`). Enquanto NENHUM catálogo
+`pt-BR` viajava no bundle, `available` era só `['en']`, a negociação caía em `en` e os dois
+concordavam **por acidente**. Com o `locale.pt-br.license` embutido, `pt-BR` passou a estar sempre
+disponível, a negociação passou a devolver `pt-BR` — e a tela de Configurações passou a dizer
+"Inglês" numa interface em português.
+
+`SettingsField`, no `case 'locale'`, mostra `useLocale().locale` quando `preferred === null`, ou
+seja: quando ninguém escolheu nada, ele reporta o idioma **em vigor**. Havendo valor gravado, o campo
+volta a mostrar o valor do escopo que está sendo editado — o que impede a aba "Escritório" de exibir
+a escolha pessoal de quem está olhando.
+
+> Some junto com `LEGACY_LOCALE`. Quando ele sair, `default` e negociação voltam a coincidir
+> sozinhos, e este desvio deixa de ter função.
+
+### "Em uso" e "Sem efeito" se decidem por chave, não por ordem
+
+A tela de Traduções marcava o primeiro pacote de um idioma como em uso e chamava todos os outros de
+"Sem efeito". A regra estava certa enquanto dois pacotes do mesmo idioma significassem conflito, e
+ficou **falsa** no dia em que um passou a cobrir só a interface e outro só o contrato: namespaces
+disjuntos, os dois valendo, nenhum sombreando nada — e a tela dizia "Sem efeito" para um pacote que
+estava funcionando.
+
+`resolveLanguageUsage` (`domain/usecases/i18n/translationPackage.ts`) faz a pergunta certa: **alguma
+chave deste pacote sobrevive à fusão?** Em uso = ao menos uma vence; sem efeito = nenhuma. A ordem é
+a mesma de `buildMessageCatalog`. Sobreposição parcial mantém o pacote em uso, que é o que se vê na
+tela.
+
+> `core.license` declara `dependencies: { 'core.i18n': '^1.0.0' }` porque contribui a um ponto que
+> o `core.i18n` declara. Isso deu à cascata de desligamento um SEGUNDO nível — sem `core.ui`, o
+> `core.i18n` cai com `dependency.missing` e o `core.license` cai com `dependency.disabled` —, e
+> `corePlugins.test.ts` passou a afirmar os dois códigos, que é o que prova a queda transitiva.
+
+> ⚠️ **O texto-fonte em inglês é uma tradução, não um original revisado.** Ele é o que aparece a
+> quem não instala o pacote pt-BR do contrato. Antes de tratá-lo como documento vigente em inglês,
+> ele precisa de revisão jurídica.
+
+### A guarda de regressão — `MIGRATED_TO_SOURCE_LANGUAGE`
+
+A migração é longa, e o risco não é errar uma tela: é uma tela migrada voltar a receber português na
+alteração seguinte. `eslint.config.js` declara uma zona que **cresce a cada diretório concluído**, no
+mesmo espírito das zonas que já barram o Kernel de importar plugin.
+
+O gatilho é o **acento**, não uma lista de palavras. Ele não pega "Salvar", mas pega quase toda frase
+real e **não produz falso positivo em inglês** — como guarda de regressão, errar para menos é o que a
+mantém utilizável. Três seletores cobrem os três lugares onde o texto aparece: `Literal` (atributo e
+constante), `JSXText` (texto solto no meio da marcação) e `TemplateElement` (crase).
+
+> `JSXText` justificou a regra sozinho: a varredura por string literal que guiou a migração **não
+> enxergava texto solto de JSX**, e a regra achou 21 casos já dentro de `presentation/components`,
+> que estava dado como concluído.
+
+Fora da zona ficam os testes — nome de teste é comunicação nossa e continua em português — e os
+arquivos `*.styles.tsx`, onde o comentário de CSS vive dentro do template literal e não há texto de
+usuário a proteger.
+
 ### O que falta (fases seguintes)
 
-1. **Backend** — `ScreenDefinitionCache` passa a montar o catálogo e a ler o idioma junto do que já lê
-   (custo zero de leitura). O pré-requisito disso — o desvio de fluxo por texto — **já foi removido**;
-   ver "Erro de domínio com código" abaixo.
-2. **Migração incremental** — regra ESLint barrando literal novo, ligada por diretório e ampliada
-   conforme as telas migram.
+1. **Terminar a migração do front** — restam ~897 ocorrências: `domain/schema` (~127),
+   `presentation/shared` (~123), `ScreenBuilder` (90), `PluginAuthor` (63), `ViewAction` (48),
+   `Marketplace` (46), `TenantSettings` (44), `DataProcessor` (43), `ViewScript` (40),
+   `EditWorkflowStep` (34), `domain/usecases` e `domain/services` (~46), e as telas menores. Já
+   limpos e dentro da zona da guarda: `presentation/components` inteiro, `Login`, `License`,
+   `ViewWorkflow` (a maior das telas, 131 ocorrências em 13 arquivos) e os plugins do núcleo.
+2. **Backend — catálogo declarativo** (~500 literais): nome/descrição/categoria das funções de
+   expressão, dos eventos e das configurações viram referência `@ns/chave`. Não exige wiring novo: o
+   front já resolve com `useLabel()` no ponto de render.
+3. **Backend — mensagem de runtime** (~230 literais): o erro passa a carregar uma CHAVE + parâmetros,
+   e quem exibe o toast traduz. Aproveita o `DomainError` com código que já existe; o pré-requisito
+   disso — o desvio de fluxo por texto — **já foi removido**, ver "Erro de domínio com código" abaixo.
+4. **Regra ESLint** barrando literal novo, ligada por diretório e ampliada conforme as telas migram —
+   é o que impede o que já migrou de regredir.
 
 ### Erro de domínio com código — `functions/src/domain/errors/DomainError.ts`
 

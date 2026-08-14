@@ -1,5 +1,5 @@
 import { useCallback, useMemo } from 'react';
-import { useLocale } from '../../../stores/useLocale';
+import { useOptionalLocale } from '../../../stores/useLocale';
 import type { MessageParams } from '../../../domain/schema/i18n/messages';
 import { qualifyKey, translate } from '../../../domain/schema/i18n/messages';
 import { resolveLabel } from '../../../domain/schema/i18n/messageRef';
@@ -8,6 +8,7 @@ import {
   currencyForLocale,
   formatDateFor,
   formatDateTimeFor,
+  formatLongDateFor,
   formatMoneyFor,
   formatNumberFor,
 } from '../../../domain/schema/i18n/localeFormat';
@@ -27,7 +28,7 @@ export type TranslateFn = (key: string, params?: MessageParams) => string;
  * > separado. `useState`/`useEffect`/`useRef` na View continuam proibidos.
  */
 export const useT = (namespace: string): TranslateFn => {
-  const { catalog } = useLocale();
+  const { catalog } = useOptionalLocale();
   return useCallback(
     (key, params) => translate(catalog, qualifyKey(namespace, key), params),
     [catalog, namespace],
@@ -40,13 +41,15 @@ export const useT = (namespace: string): TranslateFn => {
  * digitou. Texto comum passa intacto: é o que mantém o dado do escritório fora da tradução.
  */
 export const useLabel = (): ((value: string | null | undefined) => string) => {
-  const { catalog } = useLocale();
+  const { catalog } = useOptionalLocale();
   return useCallback((value) => resolveLabel(catalog, value), [catalog]);
 };
 
 export interface LocaleFormatters {
   formatDate: (value: unknown) => string;
   formatDateTime: (value: unknown) => string;
+  /** A data por extenso — "13 de agosto de 2026" —, para cartão e cabeçalho de detalhe. */
+  formatLongDate: (value: unknown) => string;
   formatNumber: (value: number | null | undefined, options?: Intl.NumberFormatOptions) => string;
   formatMoney: (value: number | null | undefined, currency?: string) => string;
   compareText: (a: string, b: string) => number;
@@ -56,11 +59,12 @@ export interface LocaleFormatters {
 
 /** As formatações já presas ao idioma corrente, para não repetir `locale` em cada chamada. */
 export const useLocaleFormat = (): LocaleFormatters => {
-  const { locale } = useLocale();
+  const { locale } = useOptionalLocale();
   return useMemo(
     () => ({
       formatDate: (value) => formatDateFor(locale, value),
       formatDateTime: (value) => formatDateTimeFor(locale, value),
+      formatLongDate: (value) => formatLongDateFor(locale, value),
       formatNumber: (value, options) => formatNumberFor(locale, value, options),
       formatMoney: (value, currency) => formatMoneyFor(locale, value, currency ?? currencyForLocale(locale)),
       compareText: (a, b) => compareTextFor(locale, a, b),
