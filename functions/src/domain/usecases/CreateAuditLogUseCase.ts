@@ -29,6 +29,7 @@ export const makeCreateAuditLogUseCase = (repo: IAuditLogRepository): CreateAudi
   execute: (input) => repo.create({
     tenantId: input.tenantId,
     title: input.title,
+    ...(input.titleParams ? { titleParams: input.titleParams } : {}),
     userId: input.userId,
     userName: input.userName,
     photoURL: input.photoURL,
@@ -41,5 +42,8 @@ export const makeCreateAuditLogUseCase = (repo: IAuditLogRepository): CreateAudi
     linkCollection: input.linkCollection,
     linkRecordId: input.linkRecordId,
     text: input.text,
+    // Os parâmetros só entram QUANDO existem: o Firestore recusa `undefined`, e um log sem
+    // interpolação (o de erro do sistema, por exemplo) não tem o que passar.
+    ...(input.textParams ? { textParams: input.textParams } : {}),
   }),
 });

@@ -11,6 +11,11 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [7.33.1] — 2026-08-15
+
+- Corrigido: na Auditoria, o resumo e o título de cada registro apareciam com códigos como `{user}` e `{action}` no lugar dos nomes.
+- Corrigido: o filtro por entidade oferecia a mesma coisa duas vezes — uma com o nome antigo do sistema e outra com o nome da extensão que a descreve hoje. Agora aparece só o nome atual, e os registros antigos passam a ser exibidos com ele também.
+
 #### [7.33.0] — 2026-08-15
 
 - A Auditoria passou a acompanhar o idioma escolhido, inclusive o resumo de cada registro e o nome da entidade alterada.

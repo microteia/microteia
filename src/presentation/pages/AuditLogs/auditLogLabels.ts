@@ -33,6 +33,30 @@ export const ENTITY_KEYS: Record<string, string> = {
   SYSTEM: 'audit.entity.system',
 };
 
+/**
+ * A COLEÇÃO que cada nome ANTIGO do kernel designava.
+ *
+ * Pessoa, Processo e Contrato saíram do kernel e hoje são telas de extensão. A chave continua no
+ * mapa acima para o log gravado naquela época permanecer legível — mas, sem esta tabela, a mesma
+ * coisa aparecia DUAS vezes no filtro: uma com o nome que o kernel usava e outra com o nome que a
+ * extensão deu. Aqui os dois se encontram: existindo a tela, ela é a dona do nome, e o log antigo
+ * passa a ser exibido com o título de hoje em vez de congelado no de ontem.
+ */
+const LEGACY_COLLECTION: Record<string, string> = {
+  Person: 'persons',
+  PersonNote: 'persons#notes',
+  PersonDocument: 'persons#documents',
+  Case: 'cases',
+  CaseNote: 'cases#notes',
+  CaseDocument: 'cases#documents',
+  Contract: 'contracts',
+  ContractNote: 'contracts#notes',
+  ContractDocument: 'contracts#documents',
+  Deadline: 'deadlines',
+  Financial: 'financials',
+  FinancialDocument: 'financials#documents',
+};
+
 export const ACTION_KEYS: Record<AuditAction, string> = {
   CREATE: 'audit.action.create',
   UPDATE: 'audit.action.update',
@@ -65,7 +89,8 @@ export const entityLabel = (
   entity: string,
   screens: ScreenDefinition[] = [],
 ): string => {
-  const [collection, part] = entity.split('#');
+  // Nome antigo do kernel: se a tela que herdou a coleção está instalada, ela dá o nome.
+  const [collection, part] = (LEGACY_COLLECTION[entity] ?? entity).split('#');
   const screen = screenTitle(screens, collection);
   if (!screen) {
     const key = ENTITY_KEYS[entity];
@@ -80,13 +105,27 @@ export interface EntityFilterOption {
   label: string;
 }
 
-/** As opções do filtro por entidade: as fixas do kernel mais o que o escritório declara. */
+/**
+ * As opções do filtro por entidade: as fixas do kernel mais o que o escritório declara.
+ *
+ * O nome antigo de uma coleção que HOJE tem tela fica de fora — a tela já a oferece, com o nome
+ * que o escritório vê. Oferecer os dois seria pedir para filtrar "Pessoa" ou "Person" e obter
+ * resultados diferentes para a mesma coisa.
+ */
 export const entityFilterOptions = (
   t: TranslateFn,
   resolve: (value: string) => string,
   screens: ScreenDefinition[] = [],
 ): EntityFilterOption[] => {
-  const options = Object.entries(ENTITY_KEYS).map(([value, key]) => ({ value, label: t(key) }));
+  const described = new Set(screens.map((screen) => screen.dataCollection ?? screen.id));
+  const isSupersededByScreen = (entity: string): boolean => {
+    const legacy = LEGACY_COLLECTION[entity];
+    return legacy !== undefined && described.has(legacy.split('#')[0]);
+  };
+
+  const options = Object.entries(ENTITY_KEYS)
+    .filter(([value]) => !isSupersededByScreen(value))
+    .map(([value, key]) => ({ value, label: t(key) }));
   for (const screen of screens) {
     const collection = screen.dataCollection ?? screen.id;
     options.push({ value: collection, label: resolve(screen.titleSingular) });
