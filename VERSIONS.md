@@ -11,6 +11,11 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [7.23.0] — 2026-08-15
+
+- O Processador de Dados, a tela de Funções de Dados e a tela de Traduções passaram a acompanhar o idioma escolhido, incluindo as mensagens de andamento e os avisos de erro.
+- As contagens em tela — "1 usuário" contra "2 usuários", "1 texto" contra "2 textos" — passaram a concordar corretamente em cada idioma.
+
 #### [7.22.0] — 2026-08-15
 
 - As telas de Gestão de Acessos, Auditoria, Scripts, Referência de Expressões, Telas Personalizadas e Registro passaram a acompanhar o idioma escolhido.

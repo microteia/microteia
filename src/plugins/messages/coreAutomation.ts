@@ -460,4 +460,33 @@ export const CORE_AUTOMATION_MESSAGES: Record<string, string> = {
   'scripts.filter.placeholder': 'Filter scripts…',
   'scripts.filter.search.placeholder': 'Script name…',
   'scripts.new': 'New Script',
+  'data-fn.category.delete': 'Deletion',
+  'data-fn.category.query': 'Query',
+  'data-fn.category.write': 'Write',
+  'data-fn.intro':
+    'The functions available inside a Script to reach the organization data. In all of them the current organization is applied automatically — it is not possible to reach the data of another organization.',
+  'data-fn.params': 'Parameters',
+  'data-fn.query.description':
+    'Searches records of any organization collection (fixed, custom or list). The current organization is applied automatically.',
+  'data-fn.query.limit': 'The maximum number of records returned.',
+  'data-fn.query.order-by': 'Optional sorting { path, dir: "asc" | "desc" }.',
+  'data-fn.query.projections': 'The fields returned (including fields of references, e.g. "client.name").',
+  'data-fn.query.returns': 'count (how many), results (the list) and first (the first record or null).',
+  'data-fn.query.table': 'The collection to query (e.g. "persons", "cases" or the key of a custom screen).',
+  'data-fn.query.where':
+    'A list of { path, op, value } filters. Operators: eq, neq, lt, lte, gt, gte, in, contains, exists.',
+  'data-fn.remove.description':
+    'Deletes a record by its id. It deletes only the given record (no cascade). The current organization is applied automatically.',
+  'data-fn.remove.id': 'The id of the record to delete.',
+  'data-fn.remove.returns': 'id (as given) and removed (true when the record existed and was deleted).',
+  'data-fn.remove.table': 'The collection of the record (fixed, custom or list).',
+  'data-fn.returns': 'Returns',
+  'data-fn.upsert.data':
+    'The fields to write, always at the root of the object — the same for fixed collections and for screens created in Form Design.',
+  'data-fn.upsert.description':
+    'Inserts or updates a record. Without "id" it inserts a new one; with "id" it updates the existing one. The current organization is applied automatically.',
+  'data-fn.upsert.id': 'Optional. Provide it to update an existing record; omit it to insert.',
+  'data-fn.upsert.returns':
+    'id (of the written record), created (true when inserted) and record (the written record).',
+  'data-fn.upsert.table': 'The collection to write to (fixed, custom or list).',
 };

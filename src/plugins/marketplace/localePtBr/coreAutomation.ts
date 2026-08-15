@@ -460,4 +460,34 @@ export const CORE_AUTOMATION: Record<string, string> = {
   'scripts.filter.placeholder': 'Filtrar scripts...',
   'scripts.filter.search.placeholder': 'Nome do script...',
   'scripts.new': 'Novo Script',
+  'data-fn.category.delete': 'Exclusão',
+  'data-fn.category.query': 'Consulta',
+  'data-fn.category.write': 'Gravação',
+  'data-fn.intro':
+    'Funções disponíveis dentro de um Script para acessar os dados do escritório. Em todas elas, o escritório atual é aplicado automaticamente — não é possível acessar dados de outro escritório.',
+  'data-fn.params': 'Parâmetros',
+  'data-fn.query.description':
+    'Pesquisa registros de qualquer cadastro do escritório (fixo, personalizado ou lista). O escritório atual é aplicado automaticamente.',
+  'data-fn.query.limit': 'Máximo de registros retornados.',
+  'data-fn.query.order-by': 'Ordenação opcional { path, dir: "asc" | "desc" }.',
+  'data-fn.query.projections': 'Campos retornados (inclui campos de referências, ex: "client.name").',
+  'data-fn.query.returns': 'count (quantidade), results (lista) e first (primeiro registro ou null).',
+  'data-fn.query.table':
+    'Cadastro a consultar (ex: "persons", "cases" ou a chave de uma tela personalizada).',
+  'data-fn.query.where':
+    'Lista de filtros { path, op, value }. Operadores: eq, neq, lt, lte, gt, gte, in, contains, exists.',
+  'data-fn.remove.description':
+    'Exclui um registro pelo seu id. Exclui apenas o registro informado (sem cascata). O escritório atual é aplicado automaticamente.',
+  'data-fn.remove.id': 'Id do registro a excluir.',
+  'data-fn.remove.returns': 'id (informado) e removed (true se o registro existia e foi excluído).',
+  'data-fn.remove.table': 'Cadastro do registro (fixo, personalizado ou lista).',
+  'data-fn.returns': 'Retorno',
+  'data-fn.upsert.data':
+    'Campos a gravar, sempre na raiz do objeto — vale igual para cadastros fixos e para telas criadas no Form Design.',
+  'data-fn.upsert.description':
+    'Inclui ou atualiza um registro. Sem "id" inclui um novo; com "id" atualiza o existente. O escritório atual é aplicado automaticamente.',
+  'data-fn.upsert.id': 'Opcional. Informe para atualizar um registro existente; omita para incluir.',
+  'data-fn.upsert.returns':
+    'id (do registro gravado), created (true se incluído) e record (registro gravado).',
+  'data-fn.upsert.table': 'Cadastro a gravar (fixo, personalizado ou lista).',
 };

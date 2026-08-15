@@ -20,7 +20,7 @@ import { packageSizeIssues, validatePackage } from '../../../domain/usecases/plu
 import { validatePluginManifest } from '../../../domain/schema/plugin/pluginManifest';
 import { KERNEL_VERSION } from '../../../domain/schema/plugin/kernelVersion';
 
-import { useLabel } from '../../shared/i18n/useT';
+import { useT, useLabel } from '../../shared/i18n/useT';
 export interface InstalledLanguage {
   id: string;
   name: string;
@@ -47,6 +47,7 @@ export interface TranslationsViewModel {
 }
 
 export const useTranslationsViewModel = (): TranslationsViewModel => {
+  const t = useT('core.i18n');
   const label = useLabel();
   const contributions = useContributions(I18N_MESSAGES_POINT);
   const { installed, install } = useInstalledExtensions();
@@ -160,7 +161,7 @@ export const useTranslationsViewModel = (): TranslationsViewModel => {
         const pkg = parsed.package;
         if (!isTranslationOnlyPackage(pkg)) {
           notify(
-            'Este arquivo não é um pacote de idioma. Para instalar uma extensão comum, use a tela de Extensões.',
+            t('translations.not-a-language-package'),
             'error',
           );
           return;
@@ -186,7 +187,10 @@ export const useTranslationsViewModel = (): TranslationsViewModel => {
         });
 
         notify(
-          `Idioma "${pkg.manifest.name}" instalado com ${translationKeyCount(pkg)} texto(s). Escolha-o em Configurações → Idioma e região.`,
+          t('translations.installed.success', {
+            name: pkg.manifest.name,
+            count: translationKeyCount(pkg),
+          }),
           'success',
         );
       } catch (error) {
@@ -195,7 +199,7 @@ export const useTranslationsViewModel = (): TranslationsViewModel => {
         setBusy(false);
       }
     },
-    [notify, install, user, effectiveName, label],
+    [notify, install, user, effectiveName, label, t],
   );
 
   /**

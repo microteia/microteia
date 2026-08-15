@@ -11,6 +11,7 @@ import { WORKFLOW_CALLED_EVENT } from '../../../domain/schema/eventCatalog';
 import type { AIConnection } from '../../../domain/entities';
 import type { WorkflowDefinition, WorkflowExecution, WorkflowParameter } from '../../../domain/entities/Workflow';
 
+import { useT } from '../../shared/i18n/useT';
 pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
 
 const EXECUTION_TIMEOUT_MS = 60000;
@@ -114,22 +115,22 @@ export interface DataProcessorViewModel {
 
 const STEP_ORDER: StepKey[] = ['source', 'ai', 'workflow', 'run'];
 
-const STEP_META: Record<StepKey, { title: string; hint: string }> = {
+const STEP_META: Record<StepKey, { titleKey: string; hintKey: string }> = {
   source: {
-    title: 'Origem dos dados',
-    hint: 'Cole um texto livre ou envie um PDF e escolha a página que deseja processar.',
+    titleKey: 'processor.step.source',
+    hintKey: 'processor.step.source.hint',
   },
   ai: {
-    title: 'Inteligência artificial',
-    hint: 'Escolha qual inteligência artificial vai interpretar o conteúdo.',
+    titleKey: 'processor.step.ai',
+    hintKey: 'processor.step.ai.hint',
   },
   workflow: {
-    title: 'Automação',
-    hint: 'Deixe a inteligência artificial sugerir a automação ideal ou escolha uma da lista.',
+    titleKey: 'processor.step.workflow',
+    hintKey: 'processor.step.workflow.hint',
   },
   run: {
-    title: 'Execução',
-    hint: 'Confira o resumo e execute a automação com os dados já preenchidos.',
+    titleKey: 'processor.step.run',
+    hintKey: 'processor.step.run.hint',
   },
 };
 
@@ -146,6 +147,7 @@ const makeLog = (level: ProcessorLogLevel, message: string, workflowId?: string)
 };
 
 export const useDataProcessorViewModel = (): DataProcessorViewModel => {
+  const t = useT('core.admin');
   const { currentTenant, tenantRole } = useTenant();
   const { openTab } = useWorkspace();
   const { notify } = useNotification();
@@ -262,7 +264,7 @@ export const useDataProcessorViewModel = (): DataProcessorViewModel => {
 
     extract()
       .catch(() => {
-        if (!cancelled) notify('Não foi possível ler a página selecionada do PDF.', 'error');
+        if (!cancelled) notify(t('processor.pdf.read-failed'), 'error');
       })
       .finally(() => {
         void destroyTask?.();
@@ -272,7 +274,7 @@ export const useDataProcessorViewModel = (): DataProcessorViewModel => {
     return () => {
       cancelled = true;
     };
-  }, [pdfFile, pdfPage, notify]);
+  }, [pdfFile, pdfPage, notify, t]);
 
   const onFreeTextChange = useCallback((value: string) => setFreeText(value), []);
 
@@ -301,9 +303,9 @@ export const useDataProcessorViewModel = (): DataProcessorViewModel => {
     () =>
       Array.from({ length: pdfPageCount }, (_, index) => ({
         value: String(index + 1),
-        label: `Página ${index + 1} de ${pdfPageCount}`,
+        label: t('processor.page.option', { page: index + 1, total: pdfPageCount }),
       })),
-    [pdfPageCount],
+    [pdfPageCount, t],
   );
 
   const onSelectConnection = useCallback((id: string) => setSelectedConnectionId(id), []);
@@ -327,7 +329,7 @@ export const useDataProcessorViewModel = (): DataProcessorViewModel => {
         name: w.name,
         description: w.description ?? '',
         eligible,
-        reason: eligible ? undefined : 'Possui parâmetros de referência (ainda não suportados).',
+        reason: eligible ? undefined : t('processor.workflow.has-references'),
         ranked: detectedOrder.includes(w.id),
       };
     });
@@ -337,7 +339,7 @@ export const useDataProcessorViewModel = (): DataProcessorViewModel => {
       return idx === -1 ? Number.MAX_SAFE_INTEGER : idx;
     };
     return [...mapped].sort((a, b) => rank(a.id) - rank(b.id));
-  }, [callableWorkflows, detectedOrder]);
+  }, [callableWorkflows, detectedOrder, t]);
 
   const selectedWorkflow = useMemo(
     () => callableWorkflows.find((w) => w.id === selectedWorkflowId) ?? null,
@@ -400,9 +402,15 @@ export const useDataProcessorViewModel = (): DataProcessorViewModel => {
               : reachable
                 ? 'upcoming'
                 : 'locked';
-        return { key, title: STEP_META[key].title, hint: STEP_META[key].hint, status, reachable };
+        return {
+          key,
+          title: t(STEP_META[key].titleKey),
+          hint: t(STEP_META[key].hintKey),
+          status,
+          reachable,
+        };
       }),
-    [currentStep, completedSteps, furthestReachableIndex],
+    [currentStep, completedSteps, furthestReachableIndex, t],
   );
 
   const onGoToStep = useCallback(
@@ -439,13 +447,13 @@ export const useDataProcessorViewModel = (): DataProcessorViewModel => {
     const withoutDescription = eligible.filter((w) => !(w.description ?? '').trim());
 
     const newLogs: ProcessorLogEntry[] = withoutDescription.map((w) =>
-      makeLog('warn', `"${w.name}" não foi enviada por não ter descrição cadastrada.`, w.id),
+      makeLog('warn', t('processor.log.no-description', { name: w.name }), w.id),
     );
 
     if (withDescription.length === 0) {
       setLogs([
         ...newLogs,
-        makeLog('error', 'Nenhuma automação com descrição disponível para detecção.'),
+        makeLog('error', t('processor.log.none-describable')),
       ]);
       return;
     }
@@ -462,22 +470,22 @@ export const useDataProcessorViewModel = (): DataProcessorViewModel => {
 
       setDetectedOrder(orderedWorkflowIds);
       if (orderedWorkflowIds.length === 0) {
-        setLogs((prev) => [...prev, makeLog('info', 'A IA não encontrou automação compatível com o texto.')]);
+        setLogs((prev) => [...prev, makeLog('info', t('processor.log.no-match'))]);
       } else {
         setSelectedWorkflowId(orderedWorkflowIds[0]);
         const names = orderedWorkflowIds
           .map((id) => callableWorkflows.find((w) => w.id === id)?.name ?? id)
           .join(' › ');
-        setLogs((prev) => [...prev, makeLog('success', `Automações compatíveis (por adequação): ${names}`)]);
+        setLogs((prev) => [...prev, makeLog('success', t('processor.log.matches', { names }))]);
       }
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Erro ao detectar automações.';
+      const message = err instanceof Error ? err.message : t('processor.detect-failed');
       setLogs((prev) => [...prev, makeLog('error', message)]);
       notify(message, 'error');
     } finally {
       setDetecting(false);
     }
-  }, [currentTenant, selectedConnectionId, trimmedText, callableWorkflows, dataProcessorRepository, notify]);
+  }, [currentTenant, selectedConnectionId, trimmedText, callableWorkflows, dataProcessorRepository, notify, t]);
 
   const setStage = useCallback((key: string, status: StageStatus, detail?: string) => {
     setRunStages((prev) => prev.map((s) => (s.key === key ? { ...s, status, detail } : s)));
@@ -494,26 +502,26 @@ export const useDataProcessorViewModel = (): DataProcessorViewModel => {
           if (!exec || exec.status === 'RUNNING') return;
           setResultExecution(exec);
           if (exec.status === 'SUCCESS') {
-            setStage('execute', 'success', 'Concluída com sucesso.');
+            setStage('execute', 'success', t('processor.stage.succeeded'));
           } else {
-            setStage('execute', 'error', 'A automação falhou.');
+            setStage('execute', 'error', t('processor.stage.failed'));
           }
           setRunning(false);
           clearObservation();
         },
         () => {
-          setStage('execute', 'error', 'Não foi possível acompanhar a execução.');
+          setStage('execute', 'error', t('processor.stage.untracked'));
           setRunning(false);
           clearObservation();
         },
       );
       timeoutRef.current = setTimeout(() => {
-        setStage('execute', 'error', 'Tempo esgotado ao aguardar a execução. Confira na aba Execuções.');
+        setStage('execute', 'error', t('processor.stage.timeout'));
         setRunning(false);
         clearObservation();
       }, EXECUTION_TIMEOUT_MS);
     },
-    [workflowExecutionRepository, clearObservation, setStage],
+    [workflowExecutionRepository, clearObservation, setStage, t],
   );
 
   const onRun = useCallback(async () => {
@@ -523,8 +531,8 @@ export const useDataProcessorViewModel = (): DataProcessorViewModel => {
     setResultExecution(null);
     setRunWorkflowId(targetId);
     setRunStages([
-      { key: 'prepare', label: 'Enviando dados e preenchendo a automação', status: 'running' },
-      { key: 'execute', label: 'Executando a automação', status: 'idle' },
+      { key: 'prepare', label: t('processor.stage.prepare'), status: 'running' },
+      { key: 'execute', label: t('processor.stage.execute'), status: 'idle' },
     ]);
     setRunning(true);
 
@@ -539,7 +547,7 @@ export const useDataProcessorViewModel = (): DataProcessorViewModel => {
       setStage('execute', 'running');
       observeExecution(currentTenant.id, targetId, eventId);
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Erro ao executar a automação.';
+      const message = err instanceof Error ? err.message : t('processor.run-failed');
       setStage('prepare', 'error', message);
       setRunning(false);
       notify(message, 'error');
@@ -553,6 +561,7 @@ export const useDataProcessorViewModel = (): DataProcessorViewModel => {
     observeExecution,
     setStage,
     notify,
+    t,
   ]);
 
   const onRestart = useCallback(() => {
@@ -578,8 +587,8 @@ export const useDataProcessorViewModel = (): DataProcessorViewModel => {
 
     steps,
     currentStep,
-    currentStepTitle: STEP_META[currentStep].title,
-    currentStepHint: STEP_META[currentStep].hint,
+    currentStepTitle: t(STEP_META[currentStep].titleKey),
+    currentStepHint: t(STEP_META[currentStep].hintKey),
     onGoToStep,
     onBack,
     onNext,

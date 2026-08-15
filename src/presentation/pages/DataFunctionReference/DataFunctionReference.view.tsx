@@ -4,7 +4,10 @@ import { CompositeFilter } from '../../components/ui/CompositeFilter';
 import { S } from './DataFunctionReference.styles';
 import { useDataFunctionReferenceViewModel } from './DataFunctionReference.viewmodel';
 
+import { useT, useLabel } from '../../shared/i18n/useT';
 export const DataFunctionReferenceView: React.FC = () => {
+  const t = useT('core.automation');
+  const label = useLabel();
   const vm = useDataFunctionReferenceViewModel();
 
   return (
@@ -12,22 +15,19 @@ export const DataFunctionReferenceView: React.FC = () => {
       <S.Header>
         <S.Title>
           <RiDatabase2Line size={22} />
-          Funções de Dados
+          {t('page.data-function-reference')}
         </S.Title>
       </S.Header>
 
       <S.Content>
-        <S.Intro>
-          Funções disponíveis dentro de um Script para acessar os dados do escritório. Em todas elas, o escritório atual
-          é aplicado automaticamente — não é possível acessar dados de outro escritório.
-        </S.Intro>
+        <S.Intro>{t('data-fn.intro')}</S.Intro>
 
         <S.FilterContainer>
           <CompositeFilter
             defs={vm.filterDefs}
             tokens={vm.filterTokens}
             onChange={vm.setFilterTokens}
-            placeholder="Buscar funções..."
+            placeholder={t('functions.filter.placeholder')}
           />
         </S.FilterContainer>
 
@@ -37,24 +37,24 @@ export const DataFunctionReferenceView: React.FC = () => {
               <S.FunctionCard key={fn.name}>
                 <S.FunctionHeader>
                   <S.FunctionName>{fn.name}</S.FunctionName>
-                  <S.CategoryBadge>{fn.category}</S.CategoryBadge>
+                  <S.CategoryBadge>{label(fn.category)}</S.CategoryBadge>
                 </S.FunctionHeader>
                 <S.Signature>{fn.signature}</S.Signature>
-                <S.Description>{fn.description}</S.Description>
+                <S.Description>{label(fn.description)}</S.Description>
 
-                <S.SubLabel>Parâmetros</S.SubLabel>
+                <S.SubLabel>{t('data-fn.params')}</S.SubLabel>
                 <S.ParamList>
                   {fn.params.map((param) => (
                     <S.ParamItem key={param.name}>
-                      <code>{param.name}</code> — {param.description}
+                      <code>{param.name}</code> — {label(param.description)}
                     </S.ParamItem>
                   ))}
                 </S.ParamList>
 
-                <S.SubLabel>Retorno</S.SubLabel>
-                <S.Description>{fn.returns}</S.Description>
+                <S.SubLabel>{t('data-fn.returns')}</S.SubLabel>
+                <S.Description>{label(fn.returns)}</S.Description>
 
-                <S.SubLabel>Exemplo</S.SubLabel>
+                <S.SubLabel>{t('functions.example')}</S.SubLabel>
                 <S.ExampleWrap>
                   <S.Example>{fn.example}</S.Example>
                 </S.ExampleWrap>
@@ -62,7 +62,7 @@ export const DataFunctionReferenceView: React.FC = () => {
             ))}
           </S.FunctionGrid>
         ) : (
-          <S.EmptyState>Nenhuma função encontrada com os filtros aplicados.</S.EmptyState>
+          <S.EmptyState>{t('functions.none-found')}</S.EmptyState>
         )}
       </S.Content>
     </S.Page>

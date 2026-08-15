@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import type { FilterDef, FilterToken } from '../../components/ui/CompositeFilter';
 
+import { useT, useLabel } from '../../shared/i18n/useT';
 export interface DataFunctionParam {
   name: string;
   description: string;
@@ -19,50 +20,50 @@ export interface DataFunctionDef {
 export const DATA_FUNCTIONS: DataFunctionDef[] = [
   {
     name: 'query',
-    category: 'Consulta',
+    category: '@core.automation/data-fn.category.query',
     signature: 'query(spec) → Promise<{ count, results, first }>',
     description:
-      'Pesquisa registros de qualquer cadastro do escritório (fixo, personalizado ou lista). O escritório atual é aplicado automaticamente.',
+      '@core.automation/data-fn.query.description',
     params: [
-      { name: 'table', description: 'Cadastro a consultar (ex: "persons", "cases" ou a chave de uma tela personalizada).' },
-      { name: 'where', description: 'Lista de filtros { path, op, value }. Operadores: eq, neq, lt, lte, gt, gte, in, contains, exists.' },
-      { name: 'orderBy', description: 'Ordenação opcional { path, dir: "asc" | "desc" }.' },
-      { name: 'limit', description: 'Máximo de registros retornados.' },
-      { name: 'projections', description: 'Campos retornados (inclui campos de referências, ex: "client.name").' },
+      { name: 'table', description: '@core.automation/data-fn.query.table' },
+      { name: 'where', description: '@core.automation/data-fn.query.where' },
+      { name: 'orderBy', description: '@core.automation/data-fn.query.order-by' },
+      { name: 'limit', description: '@core.automation/data-fn.query.limit' },
+      { name: 'projections', description: '@core.automation/data-fn.query.projections' },
     ],
-    returns: 'count (quantidade), results (lista) e first (primeiro registro ou null).',
+    returns: '@core.automation/data-fn.query.returns',
     example: `const r = await query({\n  table: 'cases',\n  where: [{ path: 'status', op: 'eq', value: 'Ativo' }],\n  projections: ['title', 'client.name'],\n  limit: 20,\n});\nlog(r.count, r.first?.title);`,
   },
   {
     name: 'upsert',
-    category: 'Gravação',
+    category: '@core.automation/data-fn.category.write',
     signature: 'upsert(spec) → Promise<{ id, created, record }>',
     description:
-      'Inclui ou atualiza um registro. Sem "id" inclui um novo; com "id" atualiza o existente. O escritório atual é aplicado automaticamente.',
+      '@core.automation/data-fn.upsert.description',
     params: [
-      { name: 'table', description: 'Cadastro a gravar (fixo, personalizado ou lista).' },
-      { name: 'id', description: 'Opcional. Informe para atualizar um registro existente; omita para incluir.' },
+      { name: 'table', description: '@core.automation/data-fn.upsert.table' },
+      { name: 'id', description: '@core.automation/data-fn.upsert.id' },
       {
         name: 'data',
         description:
-          'Campos a gravar, sempre na raiz do objeto — vale igual para cadastros fixos e para telas criadas no Form Design.',
+          '@core.automation/data-fn.upsert.data',
       },
     ],
-    returns: 'id (do registro gravado), created (true se incluído) e record (registro gravado).',
-    example: `const r = await upsert({\n  table: 'persons',\n  data: { name: 'Ana Souza', apelido: 'Aninha' },\n});\nlog(r.created ? 'incluída' : 'atualizada', r.id);`,
+    returns: '@core.automation/data-fn.upsert.returns',
+    example: `const r = await upsert({\n  table: 'persons',\n  data: { name: 'Ana Souza' },\n});\nlog(r.created, r.id);`,
   },
   {
     name: 'remove',
-    category: 'Exclusão',
+    category: '@core.automation/data-fn.category.delete',
     signature: 'remove(spec) → Promise<{ id, removed }>',
     description:
-      'Exclui um registro pelo seu id. Exclui apenas o registro informado (sem cascata). O escritório atual é aplicado automaticamente.',
+      '@core.automation/data-fn.remove.description',
     params: [
-      { name: 'table', description: 'Cadastro do registro (fixo, personalizado ou lista).' },
-      { name: 'id', description: 'Id do registro a excluir.' },
+      { name: 'table', description: '@core.automation/data-fn.remove.table' },
+      { name: 'id', description: '@core.automation/data-fn.remove.id' },
     ],
-    returns: 'id (informado) e removed (true se o registro existia e foi excluído).',
-    example: `const achado = await query({ table: 'persons', where: [{ path: 'cpf', op: 'eq', value: input.cpf }], limit: 1 });\nif (achado.first) {\n  await remove({ table: 'persons', id: achado.first.id });\n}`,
+    returns: '@core.automation/data-fn.remove.returns',
+    example: `const found = await query({ table: 'persons', where: [{ path: 'taxId', op: 'eq', value: input.taxId }], limit: 1 });\nif (found.first) {\n  await remove({ table: 'persons', id: found.first.id });\n}`,
   },
 ];
 
@@ -74,19 +75,27 @@ export interface DataFunctionReferenceViewModel {
 }
 
 export const useDataFunctionReferenceViewModel = (): DataFunctionReferenceViewModel => {
+  const t = useT('core.automation');
+  const label = useLabel();
   const [filterTokens, setFilterTokens] = useState<FilterToken[]>([]);
 
   const categoryOptions = useMemo(
-    () => Array.from(new Set(DATA_FUNCTIONS.map((fn) => fn.category))).map((cat) => ({ value: cat, label: cat })),
-    [],
+    () => Array.from(new Set(DATA_FUNCTIONS.map((fn) => fn.category)))
+      .map((category) => ({ value: category, label: label(category) })),
+    [label],
   );
 
   const filterDefs = useMemo<FilterDef[]>(
     () => [
-      { key: 'search', label: 'Busca', type: 'text', placeholder: 'Nome da função...' },
-      { key: 'category', label: 'Categoria', type: 'select', options: categoryOptions },
+      {
+        key: 'search',
+        label: t('core.ui/filter.search'),
+        type: 'text',
+        placeholder: t('functions.filter.search.placeholder'),
+      },
+      { key: 'category', label: t('core.ui/filter.category'), type: 'select', options: categoryOptions },
     ],
-    [categoryOptions],
+    [categoryOptions, t],
   );
 
   const tokenMap = useMemo(() => {

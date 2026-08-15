@@ -19,6 +19,7 @@ import { useDataProcessorViewModel } from './DataProcessor.viewmodel';
 import type { StepKey } from './DataProcessor.viewmodel';
 import { S } from './DataProcessor.styles';
 
+import { useT } from '../../shared/i18n/useT';
 const STEP_ICON: Record<StepKey, React.ReactNode> = {
   source: <RiFileTextLine />,
   ai: <RiRobot2Line />,
@@ -27,13 +28,14 @@ const STEP_ICON: Record<StepKey, React.ReactNode> = {
 };
 
 export const DataProcessorView: React.FC = () => {
+  const t = useT('core.admin');
   const vm = useDataProcessorViewModel();
 
   if (!vm.hasAccess) {
     return (
       <S.Page>
         <InfoBanner
-          message="O Processador de Dados está disponível apenas para administradores e advogados do escritório."
+          message={t('processor.restricted')}
           variant="info"
         />
       </S.Page>
@@ -43,11 +45,8 @@ export const DataProcessorView: React.FC = () => {
   return (
     <S.Page>
       <S.Header>
-        <S.Title>Processador de Dados</S.Title>
-        <S.Subtitle>
-          Transforme um texto ou um PDF em uma automação executada com os dados já preenchidos, em quatro
-          etapas.
-        </S.Subtitle>
+        <S.Title>{t('page.data-processor')}</S.Title>
+        <S.Subtitle>{t('processor.subtitle')}</S.Subtitle>
       </S.Header>
 
       <S.Stepper>
@@ -86,13 +85,13 @@ export const DataProcessorView: React.FC = () => {
                 {vm.pdfFileName ? (
                   <S.FileName>{vm.pdfFileName}</S.FileName>
                 ) : (
-                  <span>Nenhum PDF selecionado. O texto pode ser colado abaixo.</span>
+                  <span>{t('processor.pdf.none')}</span>
                 )}
               </S.DropzoneInfo>
               <S.Row>
                 <label htmlFor="dp-pdf-input">
                   <S.Button as="span" $variant="ghost">
-                    <RiFilePdf2Line /> {vm.pdfFileName ? 'Trocar PDF' : 'Selecionar PDF'}
+                    <RiFilePdf2Line /> {t(vm.pdfFileName ? 'processor.pdf.replace' : 'processor.pdf.select')}
                   </S.Button>
                 </label>
                 <S.HiddenFileInput
@@ -106,7 +105,7 @@ export const DataProcessorView: React.FC = () => {
                 />
                 {vm.pdfFileName && (
                   <S.Button $variant="ghost" onClick={vm.onClearPdf}>
-                    <RiCloseLine /> Remover
+                    <RiCloseLine /> {t('core.ui/action.remove')}
                   </S.Button>
                 )}
               </S.Row>
@@ -119,27 +118,27 @@ export const DataProcessorView: React.FC = () => {
                     options={vm.pdfPageOptions}
                     value={String(vm.pdfPage)}
                     onChange={vm.onSelectPdfPage}
-                    placeholder="Escolha a página"
-                    label="Página a processar"
+                    placeholder={t('processor.page.placeholder')}
+                    label={t('processor.page.label')}
                   />
                 </S.PageSelectorField>
               </S.PageSelector>
             )}
 
-            {vm.pdfExtracting && <S.Loading>Extraindo o conteúdo da página selecionada…</S.Loading>}
+            {vm.pdfExtracting && <S.Loading>{t('processor.pdf.extracting')}</S.Loading>}
 
             {vm.pdfPreviewUrl && (
               <S.CanvasWrapper>
-                <S.PreviewImg src={vm.pdfPreviewUrl} alt={`Página ${vm.pdfPage} do PDF`} />
+                <S.PreviewImg src={vm.pdfPreviewUrl} alt={t('processor.pdf.preview.alt', { page: vm.pdfPage })} />
               </S.CanvasWrapper>
             )}
 
             <S.TextArea
               value={vm.freeText}
               onChange={(e) => vm.onFreeTextChange(e.target.value)}
-              placeholder="Cole aqui o texto livre, ou selecione um PDF e escolha a página desejada…"
+              placeholder={t('processor.text.placeholder')}
             />
-            <S.FooterHint>{vm.textCharCount} caractere(s) prontos para processamento.</S.FooterHint>
+            <S.FooterHint>{t('processor.text.count', { count: vm.textCharCount })}</S.FooterHint>
           </S.Panel>
         )}
 
@@ -148,11 +147,11 @@ export const DataProcessorView: React.FC = () => {
             {vm.hasNoConnections ? (
               <>
                 <InfoBanner
-                  message="Nenhuma inteligência artificial cadastrada neste escritório."
+                  message={t('processor.ai.none')}
                   variant="warning"
                 />
                 <S.LinkButton onClick={vm.openAISettings}>
-                  Cadastrar uma IA nas configurações →
+                  {t('processor.ai.register')}
                 </S.LinkButton>
               </>
             ) : (
@@ -160,8 +159,8 @@ export const DataProcessorView: React.FC = () => {
                 options={vm.connectionOptions}
                 value={vm.selectedConnectionId}
                 onChange={vm.onSelectConnection}
-                placeholder={vm.connectionsLoading ? 'Carregando…' : 'Selecione a IA'}
-                label="IA a utilizar"
+                placeholder={t(vm.connectionsLoading ? 'core.ui/loading' : 'processor.ai.placeholder')}
+                label={t('processor.ai.label')}
               />
             )}
           </S.Panel>
@@ -171,13 +170,13 @@ export const DataProcessorView: React.FC = () => {
           <S.Panel>
             <S.SpaceBetween>
               <S.Button onClick={vm.onDetect} disabled={!vm.canDetect}>
-                <RiSparkling2Line /> {vm.detecting ? 'Detectando…' : 'Detectar automação por IA'}
+                <RiSparkling2Line /> {t(vm.detecting ? 'processor.detecting' : 'processor.detect')}
               </S.Button>
-              <S.FooterHint>Ou escolha manualmente uma automação da lista.</S.FooterHint>
+              <S.FooterHint>{t('processor.choose-manually')}</S.FooterHint>
             </S.SpaceBetween>
 
             {vm.workflowChoices.length === 0 ? (
-              <S.Empty>Nenhuma automação com gatilho “Chamado por outro workflow” cadastrada.</S.Empty>
+              <S.Empty>{t('processor.workflows.empty')}</S.Empty>
             ) : (
               <S.WorkflowList>
                 {vm.workflowChoices.map((choice) => (
@@ -191,11 +190,11 @@ export const DataProcessorView: React.FC = () => {
                   >
                     <S.WorkflowName>
                       {choice.name}
-                      {choice.ranked && <S.Tag>compatível</S.Tag>}
-                      {!choice.eligible && <S.Tag $tone="warning">referência</S.Tag>}
+                      {choice.ranked && <S.Tag>{t('processor.tag.compatible')}</S.Tag>}
+                      {!choice.eligible && <S.Tag $tone="warning">{t('processor.tag.reference')}</S.Tag>}
                     </S.WorkflowName>
                     <S.WorkflowDesc>
-                      {choice.reason ?? (choice.description || 'Sem descrição cadastrada.')}
+                      {choice.reason ?? (choice.description || t('processor.no-description'))}
                     </S.WorkflowDesc>
                   </S.WorkflowItem>
                 ))}
@@ -209,7 +208,7 @@ export const DataProcessorView: React.FC = () => {
                     <span>{log.message}</span>
                     {log.workflowId && (
                       <S.LinkButton onClick={() => vm.openWorkflow(log.workflowId as string)}>
-                        abrir
+                        {t('processor.log.open')}
                       </S.LinkButton>
                     )}
                   </S.LogLine>
@@ -223,20 +222,20 @@ export const DataProcessorView: React.FC = () => {
           <S.Panel>
             <S.Summary>
               <S.SummaryRow>
-                <S.SummaryLabel>Origem</S.SummaryLabel>
+                <S.SummaryLabel>{t('processor.summary.source')}</S.SummaryLabel>
                 <S.SummaryValue>
                   {vm.pdfFileName
-                    ? `${vm.pdfFileName} — página ${vm.pdfPage}`
-                    : `Texto livre — ${vm.textCharCount} caractere(s)`}
+                    ? t('processor.summary.pdf', { file: vm.pdfFileName, page: vm.pdfPage })
+                    : t('processor.summary.text', { count: vm.textCharCount })}
                 </S.SummaryValue>
               </S.SummaryRow>
               <S.SummaryRow>
-                <S.SummaryLabel>Inteligência</S.SummaryLabel>
-                <S.SummaryValue>{vm.selectedConnectionLabel || 'Nenhuma'}</S.SummaryValue>
+                <S.SummaryLabel>{t('processor.summary.ai')}</S.SummaryLabel>
+                <S.SummaryValue>{vm.selectedConnectionLabel || t('processor.summary.none')}</S.SummaryValue>
               </S.SummaryRow>
               <S.SummaryRow>
-                <S.SummaryLabel>Automação</S.SummaryLabel>
-                <S.SummaryValue>{vm.selectedWorkflowName || 'Nenhuma'}</S.SummaryValue>
+                <S.SummaryLabel>{t('processor.summary.workflow')}</S.SummaryLabel>
+                <S.SummaryValue>{vm.selectedWorkflowName || t('processor.summary.none')}</S.SummaryValue>
               </S.SummaryRow>
             </S.Summary>
 
@@ -259,7 +258,7 @@ export const DataProcessorView: React.FC = () => {
             {vm.resultExecution && vm.resultExecution.status !== 'SUCCESS' && (
               <S.ResultActions>
                 <S.LinkButton onClick={vm.openResultExecutions}>
-                  <RiExternalLinkLine /> Ver na aba Execuções da automação
+                  <RiExternalLinkLine /> {t('processor.open-executions')}
                 </S.LinkButton>
               </S.ResultActions>
             )}
@@ -268,23 +267,23 @@ export const DataProcessorView: React.FC = () => {
 
         <S.Footer>
           <S.Button $variant="ghost" onClick={vm.onBack} disabled={!vm.canGoBack}>
-            <RiArrowLeftLine /> Voltar
+            <RiArrowLeftLine /> {t('processor.back')}
           </S.Button>
 
           {vm.isLastStep ? (
             <S.Row>
               {vm.runSucceeded && (
                 <S.Button $variant="ghost" onClick={vm.onRestart}>
-                  <RiRefreshLine /> Novo processamento
+                  <RiRefreshLine /> {t('processor.restart')}
                 </S.Button>
               )}
               <S.Button onClick={vm.onRun} disabled={!vm.canRun}>
-                <RiPlayLine /> {vm.running ? 'Executando…' : 'Executar automação'}
+                <RiPlayLine /> {t(vm.running ? 'processor.running' : 'processor.run')}
               </S.Button>
             </S.Row>
           ) : (
             <S.Button onClick={vm.onNext} disabled={!vm.canGoNext}>
-              Avançar <RiArrowRightLine />
+              {t('processor.next')} <RiArrowRightLine />
             </S.Button>
           )}
         </S.Footer>
