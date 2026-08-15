@@ -17,10 +17,10 @@ export const addDaysFn: ExpressionFunction = {
     }
     return addDays(date, days);
   },
-  description: 'Adiciona dias a uma data',
-  signature: 'addDays(data, numeroDeDias)',
+  description: '@core.automation/expr.addDays.description',
+  signature: 'addDays(date, dayCount)',
   example: 'addDays(today(), 5)',
-  category: 'Data',
+  category: '@core.automation/expr.category.date',
   minArgs: 2,
   maxArgs: 2,
 };

@@ -23,10 +23,10 @@ export const roundFn: ExpressionFunction = {
     const multiplier = Math.pow(10, decimals);
     return Math.round(value * multiplier) / multiplier;
   },
-  description: 'Arredonda um número para a quantidade especificada de casas decimais',
-  signature: 'round(número, casasDecimais?)',
+  description: '@core.automation/expr.round.description',
+  signature: 'round(number, decimalPlaces?)',
   example: 'round(3.14159, 2)',
-  category: 'Operador',
+  category: '@core.automation/expr.category.operator',
   minArgs: 1,
   maxArgs: 2,
 };
@@ -45,10 +45,10 @@ export const minFn: ExpressionFunction = {
     });
     return Math.min(...numbers);
   },
-  description: 'Retorna o menor valor entre os números fornecidos',
-  signature: 'min(número1, número2, ...)',
+  description: '@core.automation/expr.min.description',
+  signature: 'min(number1, number2, ...)',
   example: 'min(10, 5, 8)',
-  category: 'Operador',
+  category: '@core.automation/expr.category.operator',
   minArgs: 1,
 };
 
@@ -66,10 +66,10 @@ export const maxFn: ExpressionFunction = {
     });
     return Math.max(...numbers);
   },
-  description: 'Retorna o maior valor entre os números fornecidos',
-  signature: 'max(número1, número2, ...)',
+  description: '@core.automation/expr.max.description',
+  signature: 'max(number1, number2, ...)',
   example: 'max(10, 5, 8)',
-  category: 'Operador',
+  category: '@core.automation/expr.category.operator',
   minArgs: 1,
 };
 
@@ -86,10 +86,10 @@ export const sumFn: ExpressionFunction = {
       return acc + value;
     }, 0);
   },
-  description: 'Soma todos os números em um array',
+  description: '@core.automation/expr.sum.description',
   signature: 'sum(array)',
   example: 'sum([1, 2, 3, 4])',
-  category: 'Operador',
+  category: '@core.automation/expr.category.operator',
   minArgs: 1,
   maxArgs: 1,
 };
@@ -111,10 +111,10 @@ export const avgFn: ExpressionFunction = {
     }, 0);
     return sum / array.length;
   },
-  description: 'Calcula a média dos números em um array',
+  description: '@core.automation/expr.avg.description',
   signature: 'avg(array)',
   example: 'avg([1, 2, 3, 4])',
-  category: 'Operador',
+  category: '@core.automation/expr.category.operator',
   minArgs: 1,
   maxArgs: 1,
 };

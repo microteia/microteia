@@ -57,10 +57,10 @@ export const isCPFFn: ExpressionFunction = {
     if (typeof value !== 'string') return false;
     return isValidCPF(value);
   },
-  description: 'Valida se um texto é um CPF válido',
-  signature: 'isCPF(texto)',
+  description: '@core.automation/expr.isCPF.description',
+  signature: 'isCPF(text)',
   example: 'isCPF("123.456.789-10")',
-  category: 'Condicional',
+  category: '@core.automation/expr.category.conditional',
   minArgs: 1,
   maxArgs: 1,
 };
@@ -71,10 +71,10 @@ export const isCNPJFn: ExpressionFunction = {
     if (typeof value !== 'string') return false;
     return isValidCNPJ(value);
   },
-  description: 'Valida se um texto é um CNPJ válido',
-  signature: 'isCNPJ(texto)',
+  description: '@core.automation/expr.isCNPJ.description',
+  signature: 'isCNPJ(text)',
   example: 'isCNPJ("12.345.678/0001-90")',
-  category: 'Condicional',
+  category: '@core.automation/expr.category.conditional',
   minArgs: 1,
   maxArgs: 1,
 };
@@ -85,10 +85,10 @@ export const isEmailFn: ExpressionFunction = {
     if (typeof value !== 'string') return false;
     return isValidEmail(value);
   },
-  description: 'Valida se um texto é um e-mail válido',
-  signature: 'isEmail(texto)',
+  description: '@core.automation/expr.isEmail.description',
+  signature: 'isEmail(text)',
   example: 'isEmail("email@exemplo.com")',
-  category: 'Condicional',
+  category: '@core.automation/expr.category.conditional',
   minArgs: 1,
   maxArgs: 1,
 };
@@ -105,10 +105,10 @@ export const formatCPFFn: ExpressionFunction = {
     }
     return clean.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
   },
-  description: 'Formata um CPF no padrão XXX.XXX.XXX-XX',
-  signature: 'formatCPF(texto)',
+  description: '@core.automation/expr.formatCPF.description',
+  signature: 'formatCPF(text)',
   example: 'formatCPF("12345678910")',
-  category: 'Texto',
+  category: '@core.automation/expr.category.text',
   minArgs: 1,
   maxArgs: 1,
 };
@@ -125,10 +125,10 @@ export const formatCNPJFn: ExpressionFunction = {
     }
     return clean.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, '$1.$2.$3/$4-$5');
   },
-  description: 'Formata um CNPJ no padrão XX.XXX.XXX/XXXX-XX',
-  signature: 'formatCNPJ(texto)',
+  description: '@core.automation/expr.formatCNPJ.description',
+  signature: 'formatCNPJ(text)',
   example: 'formatCNPJ("12345678000190")',
-  category: 'Texto',
+  category: '@core.automation/expr.category.text',
   minArgs: 1,
   maxArgs: 1,
 };

@@ -1,12 +1,38 @@
 import type { WorkflowContext } from '../../entities/WorkflowContext';
 
+/**
+ * A categoria de uma função como REFERÊNCIA de mensagem. Continua sendo uma UNIÃO fechada, e não
+ * `string`, porque era ela que barrava a categoria escrita errado — o que muda é que agora a lista
+ * é de chaves, e cada chave tem de existir no catálogo (conferido por `npm run verify-messages`).
+ */
+export const EXPRESSION_CATEGORIES = [
+  '@core.automation/expr.category.date',
+  '@core.automation/expr.category.text',
+  '@core.automation/expr.category.math',
+  '@core.automation/expr.category.logic',
+  '@core.automation/expr.category.validation',
+  '@core.automation/expr.category.conditional',
+  '@core.automation/expr.category.variable',
+  '@core.automation/expr.category.operator',
+  '@core.automation/expr.category.arithmetic',
+  '@core.automation/expr.category.comparison',
+  '@core.automation/expr.category.logical',
+  '@core.automation/expr.category.object',
+  '@core.automation/expr.category.list',
+  '@core.automation/expr.category.conversion',
+  '@core.automation/expr.category.context',
+] as const;
+
+export type ExpressionCategory = (typeof EXPRESSION_CATEGORIES)[number];
+
+
 export interface ExpressionFunction {
   name: string;
   call(args: unknown[], context: WorkflowContext): unknown;
   description: string;
   signature: string;
   example: string;
-  category: 'Data' | 'Texto' | 'Condicional' | 'Variável' | 'Operador';
+  category: ExpressionCategory;
   minArgs: number;
   maxArgs?: number; // undefined = ilimitado
 }

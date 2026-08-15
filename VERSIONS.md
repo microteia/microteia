@@ -11,6 +11,11 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [7.27.0] — 2026-08-15
+
+- A Referência de Expressões passou a acompanhar o idioma escolhido: a descrição e a categoria de cada função e operador.
+- A busca por função passou a procurar no texto que está na tela, e não mais no texto original.
+
 #### [7.26.0] — 2026-08-15
 
 - Concluída a tradução do sistema: todo texto que o Microteia mostra passou a vir do idioma escolhido, incluindo as mensagens de erro que aparecem ao instalar uma extensão, excluir uma tela, nomear uma lista ou salvar um registro.

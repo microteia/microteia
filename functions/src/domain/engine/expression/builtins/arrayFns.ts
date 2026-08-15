@@ -8,10 +8,10 @@ export const firstFn: ExpressionFunction = {
     }
     return array.length > 0 ? array[0] : undefined;
   },
-  description: 'Retorna o primeiro elemento de um array',
+  description: '@core.automation/expr.first.description',
   signature: 'first(array)',
   example: 'first([1, 2, 3])',
-  category: 'Operador',
+  category: '@core.automation/expr.category.operator',
   minArgs: 1,
   maxArgs: 1,
 };
@@ -24,10 +24,10 @@ export const lastFn: ExpressionFunction = {
     }
     return array.length > 0 ? array[array.length - 1] : undefined;
   },
-  description: 'Retorna o último elemento de um array',
+  description: '@core.automation/expr.last.description',
   signature: 'last(array)',
   example: 'last([1, 2, 3])',
-  category: 'Operador',
+  category: '@core.automation/expr.category.operator',
   minArgs: 1,
   maxArgs: 1,
 };
@@ -69,9 +69,9 @@ export const mapFn: ExpressionFunction = {
   },
   description:
     'Extrai uma propriedade de cada item de um array. Com compact = true, descarta os valores vazios',
-  signature: 'map(array, caminho, compact?)',
-  example: 'map(event.partes, "pessoa.nome", true)',
-  category: 'Operador',
+  signature: 'map(array, path, compact?)',
+  example: 'map(event.parties, "person.name", true)',
+  category: '@core.automation/expr.category.operator',
   minArgs: 2,
   maxArgs: 3,
 };
@@ -87,10 +87,10 @@ export const containsFn: ExpressionFunction = {
     }
     throw new Error('contains: primeiro argumento deve ser um array ou texto');
   },
-  description: 'Verifica se um array contém um valor, ou se um texto contém um trecho',
-  signature: 'contains(arrayOuTexto, valor)',
+  description: '@core.automation/expr.contains.description',
+  signature: 'contains(arrayOrText, value)',
   example: 'contains([1, 2, 3], 2)',
-  category: 'Operador',
+  category: '@core.automation/expr.category.operator',
   minArgs: 2,
   maxArgs: 2,
 };
@@ -106,10 +106,10 @@ export const indexOfFn: ExpressionFunction = {
     }
     throw new Error('indexOf: primeiro argumento deve ser um array ou texto');
   },
-  description: 'Retorna a posição de um valor em um array ou texto (-1 se não encontrado)',
-  signature: 'indexOf(arrayOuTexto, valor)',
+  description: '@core.automation/expr.indexOf.description',
+  signature: 'indexOf(arrayOrText, value)',
   example: 'indexOf([1, 2, 3], 2)',
-  category: 'Operador',
+  category: '@core.automation/expr.category.operator',
   minArgs: 2,
   maxArgs: 2,
 };

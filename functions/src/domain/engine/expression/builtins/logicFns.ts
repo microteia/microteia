@@ -16,10 +16,10 @@ export const isEmptyFn: ExpressionFunction = {
     if (typeof value === 'object') return Object.keys(value).length === 0;
     return false;
   },
-  description: 'Verifica se um valor está vazio (null, undefined, string vazia, array vazio, objeto vazio)',
-  signature: 'isEmpty(valor)',
+  description: '@core.automation/expr.isEmpty.description',
+  signature: 'isEmpty(value)',
   example: 'isEmpty("")',
-  category: 'Condicional',
+  category: '@core.automation/expr.category.conditional',
   minArgs: 1,
   maxArgs: 1,
 };
@@ -27,10 +27,10 @@ export const isEmptyFn: ExpressionFunction = {
 export const isNullFn: ExpressionFunction = {
   name: 'isNull',
   call: ([value]) => value === null || value === undefined,
-  description: 'Verifica se um valor é nulo ou indefinido',
-  signature: 'isNull(valor)',
+  description: '@core.automation/expr.isNull.description',
+  signature: 'isNull(value)',
   example: 'isNull(event.optionalField)',
-  category: 'Condicional',
+  category: '@core.automation/expr.category.conditional',
   minArgs: 1,
   maxArgs: 1,
 };
@@ -38,10 +38,10 @@ export const isNullFn: ExpressionFunction = {
 export const isNotNullFn: ExpressionFunction = {
   name: 'isNotNull',
   call: ([value]) => value !== null && value !== undefined,
-  description: 'Verifica se um valor não é nulo nem indefinido',
-  signature: 'isNotNull(valor)',
+  description: '@core.automation/expr.isNotNull.description',
+  signature: 'isNotNull(value)',
   example: 'isNotNull(event.name)',
-  category: 'Condicional',
+  category: '@core.automation/expr.category.conditional',
   minArgs: 1,
   maxArgs: 1,
 };
@@ -56,9 +56,9 @@ export const coalesceFn: ExpressionFunction = {
     }
     return null;
   },
-  description: 'Retorna o primeiro valor não-nulo/não-indefinido entre os argumentos',
-  signature: 'coalesce(valor1, valor2, ...)',
-  example: 'coalesce(event.name, "Sem nome")',
-  category: 'Condicional',
+  description: '@core.automation/expr.coalesce.description',
+  signature: 'coalesce(value1, value2, ...)',
+  example: 'coalesce(event.name, "No name")',
+  category: '@core.automation/expr.category.conditional',
   minArgs: 1,
 };

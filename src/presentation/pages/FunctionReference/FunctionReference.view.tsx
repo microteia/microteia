@@ -4,10 +4,9 @@ import { CompositeFilter } from '../../components/ui/CompositeFilter';
 import { S } from './FunctionReference.styles';
 import { useFunctionReferenceViewModel } from './FunctionReference.viewmodel';
 
-import { useT, useLabel } from '../../shared/i18n/useT';
+import { useT } from '../../shared/i18n/useT';
 export const FunctionReferenceView: React.FC = () => {
   const t = useT('core.automation');
-  const label = useLabel();
   const vm = useFunctionReferenceViewModel();
 
   if (vm.loading) {
@@ -67,10 +66,10 @@ export const FunctionReferenceView: React.FC = () => {
               <S.FunctionCard key={fn.name}>
                 <S.FunctionHeader>
                   <S.FunctionName>{fn.name}</S.FunctionName>
-                  <S.CategoryBadge>{label(fn.category)}</S.CategoryBadge>
+                  <S.CategoryBadge>{fn.category}</S.CategoryBadge>
                 </S.FunctionHeader>
                 <S.Signature>{fn.signature}</S.Signature>
-                <S.Description>{label(fn.description)}</S.Description>
+                <S.Description>{fn.description}</S.Description>
                 <S.ExampleLabel>{t('functions.example')}</S.ExampleLabel>
                 <S.Example>{fn.example}</S.Example>
               </S.FunctionCard>

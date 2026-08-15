@@ -12,10 +12,10 @@ export const objectFn: ExpressionFunction = {
     }
     return result;
   },
-  description: 'Constrói um objeto a partir de pares chave/valor',
-  signature: 'object(chave, valor, ...)',
-  example: 'object("nome", event.client.nome, "message", "olá")',
-  category: 'Operador',
+  description: '@core.automation/expr.object.description',
+  signature: 'object(key, value, ...)',
+  example: 'object("name", event.client.name, "message", "hello")',
+  category: '@core.automation/expr.category.operator',
   minArgs: 0,
 };
 
@@ -29,10 +29,10 @@ export const deleteFn: ExpressionFunction = {
     delete clone[String(key)];
     return clone;
   },
-  description: 'Remove uma propriedade de um objeto, devolvendo uma cópia sem alterá-lo',
-  signature: 'delete(chave, objeto)',
-  example: 'delete("nome", event)',
-  category: 'Operador',
+  description: '@core.automation/expr.delete.description',
+  signature: 'delete(key, object)',
+  example: 'delete("name", event)',
+  category: '@core.automation/expr.category.operator',
   minArgs: 2,
   maxArgs: 2,
 };

@@ -3,20 +3,20 @@ import type { ExpressionFunction } from '../FunctionRegistry';
 export const concatFn: ExpressionFunction = {
   name: 'concat',
   call: (args) => args.map((arg) => String(arg)).join(''),
-  description: 'Concatena valores em uma string',
-  signature: 'concat(valor1, valor2, ...)',
-  example: 'concat("Processo ", "123")',
-  category: 'Texto',
+  description: '@core.automation/expr.concat.description',
+  signature: 'concat(value1, value2, ...)',
+  example: 'concat("Case ", "123")',
+  category: '@core.automation/expr.category.text',
   minArgs: 1,
 };
 
 export const lowerFn: ExpressionFunction = {
   name: 'lower',
   call: ([value]) => String(value).toLowerCase(),
-  description: 'Converte texto para minúsculas',
-  signature: 'lower(texto)',
+  description: '@core.automation/expr.lower.description',
+  signature: 'lower(text)',
   example: 'lower("TEXTO")',
-  category: 'Texto',
+  category: '@core.automation/expr.category.text',
   minArgs: 1,
   maxArgs: 1,
 };
@@ -24,10 +24,10 @@ export const lowerFn: ExpressionFunction = {
 export const upperFn: ExpressionFunction = {
   name: 'upper',
   call: ([value]) => String(value).toUpperCase(),
-  description: 'Converte texto para MAIÚSCULAS',
-  signature: 'upper(texto)',
-  example: 'upper("texto")',
-  category: 'Texto',
+  description: '@core.automation/expr.upper.description',
+  signature: 'upper(text)',
+  example: 'upper("text")',
+  category: '@core.automation/expr.category.text',
   minArgs: 1,
   maxArgs: 1,
 };
@@ -44,10 +44,10 @@ export const lengthFn: ExpressionFunction = {
     if (Array.isArray(value)) return value.length;
     return String(value).length;
   },
-  description: 'Retorna o tamanho de um texto ou array (vazio conta como 0)',
-  signature: 'length(valor)',
-  example: 'length("texto")',
-  category: 'Texto',
+  description: '@core.automation/expr.length.description',
+  signature: 'length(value)',
+  example: 'length("text")',
+  category: '@core.automation/expr.category.text',
   minArgs: 1,
   maxArgs: 1,
 };
@@ -55,10 +55,10 @@ export const lengthFn: ExpressionFunction = {
 export const trimFn: ExpressionFunction = {
   name: 'trim',
   call: ([value]) => String(value).trim(),
-  description: 'Remove espaços em branco do início e fim do texto',
-  signature: 'trim(texto)',
-  example: 'trim("  texto  ")',
-  category: 'Texto',
+  description: '@core.automation/expr.trim.description',
+  signature: 'trim(text)',
+  example: 'trim("  text  ")',
+  category: '@core.automation/expr.category.text',
   minArgs: 1,
   maxArgs: 1,
 };
@@ -72,10 +72,10 @@ export const replaceFn: ExpressionFunction = {
     if (search === '') return text;
     return text.split(search).join(replacement);
   },
-  description: 'Substitui todas as ocorrências de um texto por outro',
-  signature: 'replace(texto, busca, substituição)',
+  description: '@core.automation/expr.replace.description',
+  signature: 'replace(text, search, replacement)',
   example: 'replace("foo bar foo", "foo", "baz")',
-  category: 'Texto',
+  category: '@core.automation/expr.category.text',
   minArgs: 3,
   maxArgs: 3,
 };
@@ -94,10 +94,10 @@ export const substringFn: ExpressionFunction = {
     }
     return end === undefined ? text.substring(start) : text.substring(start, end);
   },
-  description: 'Extrai parte de um texto entre dois índices',
-  signature: 'substring(texto, início, fim?)',
+  description: '@core.automation/expr.substring.description',
+  signature: 'substring(text, start, end?)',
   example: 'substring("processo", 0, 4)',
-  category: 'Texto',
+  category: '@core.automation/expr.category.text',
   minArgs: 2,
   maxArgs: 3,
 };
@@ -110,10 +110,10 @@ export const startsWithFn: ExpressionFunction = {
     }
     return text.startsWith(prefix);
   },
-  description: 'Verifica se o texto começa com um prefixo',
-  signature: 'startsWith(texto, prefixo)',
+  description: '@core.automation/expr.startsWith.description',
+  signature: 'startsWith(text, prefix)',
   example: 'startsWith("processo", "proc")',
-  category: 'Texto',
+  category: '@core.automation/expr.category.text',
   minArgs: 2,
   maxArgs: 2,
 };
@@ -126,10 +126,10 @@ export const endsWithFn: ExpressionFunction = {
     }
     return text.endsWith(suffix);
   },
-  description: 'Verifica se o texto termina com um sufixo',
-  signature: 'endsWith(texto, sufixo)',
+  description: '@core.automation/expr.endsWith.description',
+  signature: 'endsWith(text, suffix)',
   example: 'endsWith("arquivo.pdf", ".pdf")',
-  category: 'Texto',
+  category: '@core.automation/expr.category.text',
   minArgs: 2,
   maxArgs: 2,
 };
@@ -142,10 +142,10 @@ export const splitFn: ExpressionFunction = {
     }
     return text.split(separator);
   },
-  description: 'Divide um texto em um array usando um separador',
-  signature: 'split(texto, separador)',
+  description: '@core.automation/expr.split.description',
+  signature: 'split(text, separator)',
   example: 'split("a,b,c", ",")',
-  category: 'Texto',
+  category: '@core.automation/expr.category.text',
   minArgs: 2,
   maxArgs: 2,
 };
@@ -161,10 +161,10 @@ export const joinFn: ExpressionFunction = {
     }
     return array.map((item) => String(item)).join(separator);
   },
-  description: 'Junta os elementos de um array em uma string',
-  signature: 'join(array, separador?)',
+  description: '@core.automation/expr.join.description',
+  signature: 'join(array, separator?)',
   example: 'join(["a", "b", "c"], ", ")',
-  category: 'Texto',
+  category: '@core.automation/expr.category.text',
   minArgs: 1,
   maxArgs: 2,
 };
@@ -175,10 +175,10 @@ export const onlyNumberFn: ExpressionFunction = {
     if (value === null || value === undefined) return '';
     return String(value).replace(/\D/g, '');
   },
-  description: 'Retorna apenas os dígitos de um valor (texto ou número)',
-  signature: 'onlyNumber(valor)',
+  description: '@core.automation/expr.onlyNumber.description',
+  signature: 'onlyNumber(value)',
   example: 'onlyNumber("123.aaa.bb-fff.45")',
-  category: 'Texto',
+  category: '@core.automation/expr.category.text',
   minArgs: 1,
   maxArgs: 1,
 };
@@ -205,10 +205,10 @@ export const formatMoneyFn: ExpressionFunction = {
       .format(amount)
       .replace(/[\u00A0\u202F]/g, ' ');
   },
-  description: 'Formata um número como moeda; o padrão é pt-br (R$)',
-  signature: 'formatMoney(valor, locale?)',
+  description: '@core.automation/expr.formatMoney.description',
+  signature: 'formatMoney(value, locale?)',
   example: 'formatMoney(123.90, "pt-br")',
-  category: 'Texto',
+  category: '@core.automation/expr.category.text',
   minArgs: 1,
   maxArgs: 2,
 };
@@ -246,9 +246,9 @@ export const interpolateFn: ExpressionFunction = {
   },
   description:
     'Preenche um template: {0}, {1}… pegam os valores seguintes na ordem; {chave} pega o campo de um objeto passado como único valor',
-  signature: 'interpolate(template, valor0, valor1, ...)',
+  signature: 'interpolate(template, value0, value1, ...)',
   example:
     'interpolate("Tarefa {0} criada, ID: {1}", event.values.nome, event.values.id) ou interpolate("Olá {nome}", object("nome", "João"))',
-  category: 'Texto',
+  category: '@core.automation/expr.category.text',
   minArgs: 1,
 };

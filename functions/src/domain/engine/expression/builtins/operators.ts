@@ -4,65 +4,65 @@ import type { ExpressionOperator } from '../OperatorRegistry';
 
 export const addOperator: ExpressionOperator = {
   symbol: '+',
-  name: 'Adição',
-  description: 'Soma dois números',
+  name: '@core.automation/expr.add.name',
+  description: '@core.automation/expr.add.description',
   usage: 'a + b',
   example: '10 + 5 → 15',
-  category: 'Aritmético',
+  category: '@core.automation/expr.category.arithmetic',
 };
 
 export const subtractOperator: ExpressionOperator = {
   symbol: '-',
-  name: 'Subtração',
-  description: 'Subtrai o segundo número do primeiro',
+  name: '@core.automation/expr.subtract.name',
+  description: '@core.automation/expr.subtract.description',
   usage: 'a - b',
   example: '10 - 3 → 7',
-  category: 'Aritmético',
+  category: '@core.automation/expr.category.arithmetic',
 };
 
 export const multiplyOperator: ExpressionOperator = {
   symbol: '*',
-  name: 'Multiplicação',
-  description: 'Multiplica dois números',
+  name: '@core.automation/expr.multiply.name',
+  description: '@core.automation/expr.multiply.description',
   usage: 'a * b',
   example: '4 * 5 → 20',
-  category: 'Aritmético',
+  category: '@core.automation/expr.category.arithmetic',
 };
 
 export const divideOperator: ExpressionOperator = {
   symbol: '/',
-  name: 'Divisão',
-  description: 'Divide o primeiro número pelo segundo',
+  name: '@core.automation/expr.divide.name',
+  description: '@core.automation/expr.divide.description',
   usage: 'a / b',
   example: '20 / 4 → 5',
-  category: 'Aritmético',
+  category: '@core.automation/expr.category.arithmetic',
 };
 
 export const remainderOperator: ExpressionOperator = {
   symbol: '%',
   name: 'Resto da Divisão',
-  description: 'Retorna o resto da divisão inteira',
+  description: '@core.automation/expr.remainder.description',
   usage: 'a % b',
   example: '10 % 3 → 1',
-  category: 'Aritmético',
+  category: '@core.automation/expr.category.arithmetic',
 };
 
 export const powerOperator: ExpressionOperator = {
   symbol: '^',
-  name: 'Potência',
-  description: 'Eleva o primeiro número à potência do segundo',
+  name: '@core.automation/expr.power.name',
+  description: '@core.automation/expr.power.description',
   usage: 'a ^ b',
   example: '2 ^ 3 → 8',
-  category: 'Aritmético',
+  category: '@core.automation/expr.category.arithmetic',
 };
 
 export const factorialOperator: ExpressionOperator = {
   symbol: '!',
-  name: 'Fatorial',
-  description: 'Calcula o fatorial de um número (use com cuidado: apenas inteiros pequenos)',
+  name: '@core.automation/expr.factorial.name',
+  description: '@core.automation/expr.factorial.description',
   usage: 'n!',
   example: '5! → 120',
-  category: 'Aritmético',
+  category: '@core.automation/expr.category.arithmetic',
 };
 
 // ==================== OPERADORES DE COMPARAÇÃO ====================
@@ -70,84 +70,84 @@ export const factorialOperator: ExpressionOperator = {
 export const equalOperator: ExpressionOperator = {
   symbol: '==',
   name: 'Igual a',
-  description: 'Verifica se dois valores são iguais',
+  description: '@core.automation/expr.equal.description',
   usage: 'a == b',
   example: '5 == 5 → true',
-  category: 'Comparação',
+  category: '@core.automation/expr.category.comparison',
 };
 
 export const notEqualOperator: ExpressionOperator = {
   symbol: '!=',
   name: 'Diferente de',
-  description: 'Verifica se dois valores são diferentes',
+  description: '@core.automation/expr.notEqual.description',
   usage: 'a != b',
   example: '5 != 3 → true',
-  category: 'Comparação',
+  category: '@core.automation/expr.category.comparison',
 };
 
 export const lessThanOperator: ExpressionOperator = {
   symbol: '<',
-  name: 'Menor que',
-  description: 'Verifica se o primeiro valor é menor que o segundo',
+  name: '@core.automation/expr.lessThan.name',
+  description: '@core.automation/expr.lessThan.description',
   usage: 'a < b',
   example: '3 < 5 → true',
-  category: 'Comparação',
+  category: '@core.automation/expr.category.comparison',
 };
 
 export const lessOrEqualOperator: ExpressionOperator = {
   symbol: '<=',
   name: 'Menor ou igual a',
-  description: 'Verifica se o primeiro valor é menor ou igual ao segundo',
+  description: '@core.automation/expr.lessOrEqual.description',
   usage: 'a <= b',
   example: '5 <= 5 → true',
-  category: 'Comparação',
+  category: '@core.automation/expr.category.comparison',
 };
 
 export const greaterThanOperator: ExpressionOperator = {
   symbol: '>',
-  name: 'Maior que',
-  description: 'Verifica se o primeiro valor é maior que o segundo',
+  name: '@core.automation/expr.greaterThan.name',
+  description: '@core.automation/expr.greaterThan.description',
   usage: 'a > b',
   example: '10 > 5 → true',
-  category: 'Comparação',
+  category: '@core.automation/expr.category.comparison',
 };
 
 export const greaterOrEqualOperator: ExpressionOperator = {
   symbol: '>=',
   name: 'Maior ou igual a',
-  description: 'Verifica se o primeiro valor é maior ou igual ao segundo',
+  description: '@core.automation/expr.greaterOrEqual.description',
   usage: 'a >= b',
   example: '10 >= 10 → true',
-  category: 'Comparação',
+  category: '@core.automation/expr.category.comparison',
 };
 
 // ==================== OPERADORES LÓGICOS ====================
 
 export const andOperator: ExpressionOperator = {
   symbol: 'and',
-  name: 'E lógico',
-  description: 'Retorna true se ambas as condições forem verdadeiras',
+  name: '@core.automation/expr.and.name',
+  description: '@core.automation/expr.and.description',
   usage: 'a and b',
   example: '(5 > 3) and (2 < 4) → true',
-  category: 'Lógico',
+  category: '@core.automation/expr.category.logical',
 };
 
 export const orOperator: ExpressionOperator = {
   symbol: 'or',
   name: 'OU lógico',
-  description: 'Retorna true se pelo menos uma condição for verdadeira',
+  description: '@core.automation/expr.or.description',
   usage: 'a or b',
   example: '(5 < 3) or (2 < 4) → true',
-  category: 'Lógico',
+  category: '@core.automation/expr.category.logical',
 };
 
 export const notOperatorSymbol: ExpressionOperator = {
   symbol: 'not',
   name: 'NÃO lógico',
-  description: 'Inverte o valor booleano',
+  description: '@core.automation/expr.notOperatorSymbol.description',
   usage: 'not a',
   example: 'not (5 > 3) → false',
-  category: 'Lógico',
+  category: '@core.automation/expr.category.logical',
 };
 
 // ==================== OPERADOR CONDICIONAL ====================
@@ -155,250 +155,250 @@ export const notOperatorSymbol: ExpressionOperator = {
 export const ternaryOperator: ExpressionOperator = {
   symbol: '? :',
   name: 'Condicional (Ternário)',
-  description: 'Retorna um valor se a condição for verdadeira, outro se for falsa',
-  usage: 'condição ? valor_se_true : valor_se_false',
+  description: '@core.automation/expr.ternary.description',
+  usage: 'condition ? valueIfTrue : valueIfFalse',
   example: '(idade >= 18) ? "Maior" : "Menor"',
-  category: 'Condicional',
+  category: '@core.automation/expr.category.conditional',
 };
 
 // ==================== OPERADOR DE CONCATENAÇÃO ====================
 
 export const concatenateOperator: ExpressionOperator = {
   symbol: '||',
-  name: 'Concatenação',
-  description: 'Concatena dois valores como texto (alternativa ao concat())',
+  name: '@core.automation/expr.concatenate.name',
+  description: '@core.automation/expr.concatenate.description',
   usage: 'a || b',
-  example: '"Olá" || " " || "Mundo" → "Olá Mundo"',
-  category: 'Texto',
+  example: '"Hello" || " " || "World" → "Hello World"',
+  category: '@core.automation/expr.category.text',
 };
 
 // ==================== OPERADOR IN ====================
 
 export const inOperator: ExpressionOperator = {
   symbol: 'in',
-  name: 'Pertence a',
-  description: 'Verifica se um valor está presente em um array',
-  usage: 'valor in array',
+  name: '@core.automation/expr.in.name',
+  description: '@core.automation/expr.in.description',
+  usage: 'value in array',
   example: '5 in [1, 5, 10] → true',
-  category: 'Operador',
+  category: '@core.automation/expr.category.operator',
 };
 
 // ==================== FUNÇÕES MATEMÁTICAS BUILT-IN ====================
 
 export const sinFunction: ExpressionOperator = {
   symbol: 'sin',
-  name: 'Seno',
-  description: 'Calcula o seno de um ângulo em radianos',
-  usage: 'sin(ângulo)',
+  name: '@core.automation/expr.sinFunction.name',
+  description: '@core.automation/expr.sinFunction.description',
+  usage: 'sin(angle)',
   example: 'sin(0) → 0',
-  category: 'Matemática',
+  category: '@core.automation/expr.category.math',
 };
 
 export const cosFunction: ExpressionOperator = {
   symbol: 'cos',
-  name: 'Cosseno',
-  description: 'Calcula o cosseno de um ângulo em radianos',
-  usage: 'cos(ângulo)',
+  name: '@core.automation/expr.cosFunction.name',
+  description: '@core.automation/expr.cosFunction.description',
+  usage: 'cos(angle)',
   example: 'cos(0) → 1',
-  category: 'Matemática',
+  category: '@core.automation/expr.category.math',
 };
 
 export const tanFunction: ExpressionOperator = {
   symbol: 'tan',
-  name: 'Tangente',
-  description: 'Calcula a tangente de um ângulo em radianos',
-  usage: 'tan(ângulo)',
+  name: '@core.automation/expr.tanFunction.name',
+  description: '@core.automation/expr.tanFunction.description',
+  usage: 'tan(angle)',
   example: 'tan(0) → 0',
-  category: 'Matemática',
+  category: '@core.automation/expr.category.math',
 };
 
 export const asinFunction: ExpressionOperator = {
   symbol: 'asin',
   name: 'Arco Seno',
-  description: 'Calcula o arco seno (inverso do seno)',
-  usage: 'asin(valor)',
+  description: '@core.automation/expr.asinFunction.description',
+  usage: 'asin(value)',
   example: 'asin(0) → 0',
-  category: 'Matemática',
+  category: '@core.automation/expr.category.math',
 };
 
 export const acosFunction: ExpressionOperator = {
   symbol: 'acos',
   name: 'Arco Cosseno',
-  description: 'Calcula o arco cosseno (inverso do cosseno)',
-  usage: 'acos(valor)',
+  description: '@core.automation/expr.acosFunction.description',
+  usage: 'acos(value)',
   example: 'acos(1) → 0',
-  category: 'Matemática',
+  category: '@core.automation/expr.category.math',
 };
 
 export const atanFunction: ExpressionOperator = {
   symbol: 'atan',
   name: 'Arco Tangente',
-  description: 'Calcula o arco tangente (inverso da tangente)',
-  usage: 'atan(valor)',
+  description: '@core.automation/expr.atanFunction.description',
+  usage: 'atan(value)',
   example: 'atan(0) → 0',
-  category: 'Matemática',
+  category: '@core.automation/expr.category.math',
 };
 
 export const sinhFunction: ExpressionOperator = {
   symbol: 'sinh',
   name: 'Seno Hiperbólico',
-  description: 'Calcula o seno hiperbólico',
-  usage: 'sinh(valor)',
+  description: '@core.automation/expr.sinhFunction.description',
+  usage: 'sinh(value)',
   example: 'sinh(0) → 0',
-  category: 'Matemática',
+  category: '@core.automation/expr.category.math',
 };
 
 export const coshFunction: ExpressionOperator = {
   symbol: 'cosh',
   name: 'Cosseno Hiperbólico',
-  description: 'Calcula o cosseno hiperbólico',
-  usage: 'cosh(valor)',
+  description: '@core.automation/expr.coshFunction.description',
+  usage: 'cosh(value)',
   example: 'cosh(0) → 1',
-  category: 'Matemática',
+  category: '@core.automation/expr.category.math',
 };
 
 export const tanhFunction: ExpressionOperator = {
   symbol: 'tanh',
   name: 'Tangente Hiperbólica',
-  description: 'Calcula a tangente hiperbólica',
-  usage: 'tanh(valor)',
+  description: '@core.automation/expr.tanhFunction.description',
+  usage: 'tanh(value)',
   example: 'tanh(0) → 0',
-  category: 'Matemática',
+  category: '@core.automation/expr.category.math',
 };
 
 export const asinhFunction: ExpressionOperator = {
   symbol: 'asinh',
   name: 'Arco Seno Hiperbólico',
-  description: 'Calcula o arco seno hiperbólico',
-  usage: 'asinh(valor)',
+  description: '@core.automation/expr.asinhFunction.description',
+  usage: 'asinh(value)',
   example: 'asinh(0) → 0',
-  category: 'Matemática',
+  category: '@core.automation/expr.category.math',
 };
 
 export const acoshFunction: ExpressionOperator = {
   symbol: 'acosh',
   name: 'Arco Cosseno Hiperbólico',
-  description: 'Calcula o arco cosseno hiperbólico',
-  usage: 'acosh(valor)',
+  description: '@core.automation/expr.acoshFunction.description',
+  usage: 'acosh(value)',
   example: 'acosh(1) → 0',
-  category: 'Matemática',
+  category: '@core.automation/expr.category.math',
 };
 
 export const atanhFunction: ExpressionOperator = {
   symbol: 'atanh',
   name: 'Arco Tangente Hiperbólica',
-  description: 'Calcula o arco tangente hiperbólica',
-  usage: 'atanh(valor)',
+  description: '@core.automation/expr.atanhFunction.description',
+  usage: 'atanh(value)',
   example: 'atanh(0) → 0',
-  category: 'Matemática',
+  category: '@core.automation/expr.category.math',
 };
 
 export const sqrtFunction: ExpressionOperator = {
   symbol: 'sqrt',
   name: 'Raiz Quadrada',
-  description: 'Calcula a raiz quadrada de um número',
-  usage: 'sqrt(número)',
+  description: '@core.automation/expr.sqrtFunction.description',
+  usage: 'sqrt(number)',
   example: 'sqrt(16) → 4',
-  category: 'Matemática',
+  category: '@core.automation/expr.category.math',
 };
 
 export const cbrtFunction: ExpressionOperator = {
   symbol: 'cbrt',
   name: 'Raiz Cúbica',
-  description: 'Calcula a raiz cúbica de um número',
-  usage: 'cbrt(número)',
+  description: '@core.automation/expr.cbrtFunction.description',
+  usage: 'cbrt(number)',
   example: 'cbrt(27) → 3',
-  category: 'Matemática',
+  category: '@core.automation/expr.category.math',
 };
 
 export const logFunction: ExpressionOperator = {
   symbol: 'log',
   name: 'Logaritmo Natural (ln)',
-  description: 'Calcula o logaritmo natural (base e)',
-  usage: 'log(número)',
+  description: '@core.automation/expr.logFunction.description',
+  usage: 'log(number)',
   example: 'log(2.718281828459045) → 1',
-  category: 'Matemática',
+  category: '@core.automation/expr.category.math',
 };
 
 export const lnFunction: ExpressionOperator = {
   symbol: 'ln',
   name: 'Logaritmo Natural',
-  description: 'Calcula o logaritmo natural (base e) - alias para log',
-  usage: 'ln(número)',
+  description: '@core.automation/expr.lnFunction.description',
+  usage: 'ln(number)',
   example: 'ln(2.718281828459045) → 1',
-  category: 'Matemática',
+  category: '@core.automation/expr.category.math',
 };
 
 export const log10Function: ExpressionOperator = {
   symbol: 'log10',
   name: 'Logaritmo Base 10',
-  description: 'Calcula o logaritmo na base 10',
-  usage: 'log10(número)',
+  description: '@core.automation/expr.log10Function.description',
+  usage: 'log10(number)',
   example: 'log10(100) → 2',
-  category: 'Matemática',
+  category: '@core.automation/expr.category.math',
 };
 
 export const log2Function: ExpressionOperator = {
   symbol: 'log2',
   name: 'Logaritmo Base 2',
-  description: 'Calcula o logaritmo na base 2',
-  usage: 'log2(número)',
+  description: '@core.automation/expr.log2Function.description',
+  usage: 'log2(number)',
   example: 'log2(8) → 3',
-  category: 'Matemática',
+  category: '@core.automation/expr.category.math',
 };
 
 export const lgFunction: ExpressionOperator = {
   symbol: 'lg',
   name: 'Logaritmo Base 10 (lg)',
-  description: 'Calcula o logaritmo na base 10 - alias para log10',
-  usage: 'lg(número)',
+  description: '@core.automation/expr.lgFunction.description',
+  usage: 'lg(number)',
   example: 'lg(1000) → 3',
-  category: 'Matemática',
+  category: '@core.automation/expr.category.math',
 };
 
 export const log1pFunction: ExpressionOperator = {
   symbol: 'log1p',
   name: 'Logaritmo de 1 + x',
-  description: 'Calcula log(1 + x) com precisão para valores pequenos de x',
-  usage: 'log1p(número)',
+  description: '@core.automation/expr.log1pFunction.description',
+  usage: 'log1p(number)',
   example: 'log1p(0) → 0',
-  category: 'Matemática',
+  category: '@core.automation/expr.category.math',
 };
 
 export const expFunction: ExpressionOperator = {
   symbol: 'exp',
-  name: 'Exponencial',
-  description: 'Calcula e elevado à potência do número (e^x)',
-  usage: 'exp(número)',
+  name: '@core.automation/expr.expFunction.name',
+  description: '@core.automation/expr.expFunction.description',
+  usage: 'exp(number)',
   example: 'exp(1) → 2.718281828459045',
-  category: 'Matemática',
+  category: '@core.automation/expr.category.math',
 };
 
 export const expm1Function: ExpressionOperator = {
   symbol: 'expm1',
   name: 'Exponencial menos 1',
-  description: 'Calcula e^x - 1 com precisão para valores pequenos de x',
-  usage: 'expm1(número)',
+  description: '@core.automation/expr.expm1Function.description',
+  usage: 'expm1(number)',
   example: 'expm1(0) → 0',
-  category: 'Matemática',
+  category: '@core.automation/expr.category.math',
 };
 
 export const absFunction: ExpressionOperator = {
   symbol: 'abs',
   name: 'Valor Absoluto',
-  description: 'Retorna o valor absoluto (sem sinal) de um número',
-  usage: 'abs(número)',
+  description: '@core.automation/expr.absFunction.description',
+  usage: 'abs(number)',
   example: 'abs(-5) → 5',
-  category: 'Matemática',
+  category: '@core.automation/expr.category.math',
 };
 
 export const ceilFunction: ExpressionOperator = {
   symbol: 'ceil',
   name: 'Arredondar para Cima',
-  description: 'Arredonda um número para cima (próximo inteiro maior)',
-  usage: 'ceil(número)',
+  description: '@core.automation/expr.ceilFunction.description',
+  usage: 'ceil(number)',
   example: 'ceil(4.3) → 5',
-  category: 'Matemática',
+  category: '@core.automation/expr.category.math',
 };
 
 /**
@@ -410,54 +410,54 @@ export const ceilFunction: ExpressionOperator = {
 export const floorFunction: ExpressionOperator = {
   symbol: 'floor',
   name: 'Arredondar para Baixo',
-  description: 'Arredonda um número para baixo (próximo inteiro menor)',
-  usage: 'floor(número)',
+  description: '@core.automation/expr.floorFunction.description',
+  usage: 'floor(number)',
   example: 'floor(4.9) → 4',
-  category: 'Matemática',
+  category: '@core.automation/expr.category.math',
 };
 
 export const truncFunction: ExpressionOperator = {
   symbol: 'trunc',
-  name: 'Truncar',
-  description: 'Remove a parte decimal de um número',
-  usage: 'trunc(número)',
+  name: '@core.automation/expr.truncFunction.name',
+  description: '@core.automation/expr.truncFunction.description',
+  usage: 'trunc(number)',
   example: 'trunc(4.9) → 4',
-  category: 'Matemática',
+  category: '@core.automation/expr.category.math',
 };
 
 export const signFunction: ExpressionOperator = {
   symbol: 'sign',
-  name: 'Sinal',
-  description: 'Retorna -1 para negativos, 0 para zero, 1 para positivos',
-  usage: 'sign(número)',
+  name: '@core.automation/expr.signFunction.name',
+  description: '@core.automation/expr.signFunction.description',
+  usage: 'sign(number)',
   example: 'sign(-5) → -1',
-  category: 'Matemática',
+  category: '@core.automation/expr.category.math',
 };
 
 export const minFunction: ExpressionOperator = {
   symbol: 'min',
-  name: 'Mínimo',
-  description: 'Retorna o menor valor entre vários números',
+  name: '@core.automation/expr.minFunction.name',
+  description: '@core.automation/expr.minFunction.description',
   usage: 'min(a, b, c, ...)',
   example: 'min(5, 2, 8) → 2',
-  category: 'Matemática',
+  category: '@core.automation/expr.category.math',
 };
 
 export const maxFunction: ExpressionOperator = {
   symbol: 'max',
-  name: 'Máximo',
-  description: 'Retorna o maior valor entre vários números',
+  name: '@core.automation/expr.maxFunction.name',
+  description: '@core.automation/expr.maxFunction.description',
   usage: 'max(a, b, c, ...)',
   example: 'max(5, 2, 8) → 8',
-  category: 'Matemática',
+  category: '@core.automation/expr.category.math',
 };
 
 export const randomFunction: ExpressionOperator = {
   symbol: 'random',
   name: 'Número Aleatório',
-  description: 'Gera um número aleatório entre 0 e o valor fornecido (ou entre 0 e 1 se sem argumentos)',
+  description: '@core.automation/expr.randomFunction.description',
   usage: 'random(max?)',
-  example: 'random(10) → número entre 0 e 10',
-  category: 'Matemática',
+  example: 'random(10) → a number between 0 and 10',
+  category: '@core.automation/expr.category.math',
 };
 

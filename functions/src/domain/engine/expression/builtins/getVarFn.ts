@@ -15,10 +15,10 @@ export const getVarFn: ExpressionFunction = {
     
     return value;
   },
-  description: 'Obtém o valor de uma variável do contexto do workflow',
-  signature: 'getVar(nomeVariavel)',
+  description: '@core.automation/expr.getVar.description',
+  signature: 'getVar(variableName)',
   example: 'getVar("valorAnterior")',
-  category: 'Variável',
+  category: '@core.automation/expr.category.variable',
   minArgs: 1,
   maxArgs: 1,
 };

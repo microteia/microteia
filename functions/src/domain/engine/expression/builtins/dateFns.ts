@@ -58,10 +58,10 @@ const dateDiff = (date1: Date, date2: Date, unit: string): number => {
 export const todayFn: ExpressionFunction = {
   name: 'today',
   call: (_args, context) => anchorDay(context.services.now()),
-  description: 'Retorna a data de hoje (o dia, sem hora)',
+  description: '@core.automation/expr.today.description',
   signature: 'today()',
   example: 'today()',
-  category: 'Data',
+  category: '@core.automation/expr.category.date',
   minArgs: 0,
   maxArgs: 0,
 };
@@ -69,10 +69,10 @@ export const todayFn: ExpressionFunction = {
 export const nowFn: ExpressionFunction = {
   name: 'now',
   call: (_args, context) => context.services.now(),
-  description: 'Retorna a data e hora atual',
+  description: '@core.automation/expr.now.description',
   signature: 'now()',
   example: 'now()',
-  category: 'Data',
+  category: '@core.automation/expr.category.date',
   minArgs: 0,
   maxArgs: 0,
 };
@@ -88,10 +88,10 @@ export const formatDateFn: ExpressionFunction = {
     }
     return formatDate(date, format);
   },
-  description: 'Formata uma data usando um padrão (YYYY-MM-DD HH:mm:ss)',
-  signature: 'formatDate(data, formato)',
+  description: '@core.automation/expr.formatDate.description',
+  signature: 'formatDate(date, format)',
   example: 'formatDate(today(), "DD/MM/YYYY")',
-  category: 'Data',
+  category: '@core.automation/expr.category.date',
   minArgs: 2,
   maxArgs: 2,
 };
@@ -104,10 +104,10 @@ export const dayOfWeekFn: ExpressionFunction = {
     }
     return dayOfWeek(date);
   },
-  description: 'Retorna o dia da semana (0=Domingo, 1=Segunda, ..., 6=Sábado)',
-  signature: 'dayOfWeek(data)',
+  description: '@core.automation/expr.dayOfWeek.description',
+  signature: 'dayOfWeek(date)',
   example: 'dayOfWeek(today())',
-  category: 'Data',
+  category: '@core.automation/expr.category.date',
   minArgs: 1,
   maxArgs: 1,
 };
@@ -120,10 +120,10 @@ export const isWeekendFn: ExpressionFunction = {
     }
     return isWeekend(date);
   },
-  description: 'Verifica se a data é fim de semana (sábado ou domingo)',
-  signature: 'isWeekend(data)',
+  description: '@core.automation/expr.isWeekend.description',
+  signature: 'isWeekend(date)',
   example: 'isWeekend(today())',
-  category: 'Data',
+  category: '@core.automation/expr.category.date',
   minArgs: 1,
   maxArgs: 1,
 };
@@ -142,10 +142,10 @@ export const dateDiffFn: ExpressionFunction = {
     }
     return dateDiff(date1, date2, unit);
   },
-  description: 'Calcula a diferença entre duas datas em dias, horas, minutos ou segundos',
-  signature: 'dateDiff(data1, data2, unidade)',
+  description: '@core.automation/expr.dateDiff.description',
+  signature: 'dateDiff(date1, date2, unit)',
   example: 'dateDiff(today(), event.deadline, "days")',
-  category: 'Data',
+  category: '@core.automation/expr.category.date',
   minArgs: 2,
   maxArgs: 3,
 };
@@ -158,10 +158,10 @@ export const yearFn: ExpressionFunction = {
     }
     return date.getFullYear();
   },
-  description: 'Extrai o ano de uma data',
-  signature: 'year(data)',
+  description: '@core.automation/expr.year.description',
+  signature: 'year(date)',
   example: 'year(today())',
-  category: 'Data',
+  category: '@core.automation/expr.category.date',
   minArgs: 1,
   maxArgs: 1,
 };
@@ -174,10 +174,10 @@ export const monthFn: ExpressionFunction = {
     }
     return date.getMonth() + 1;
   },
-  description: 'Extrai o mês de uma data (1-12)',
-  signature: 'month(data)',
+  description: '@core.automation/expr.month.description',
+  signature: 'month(date)',
   example: 'month(today())',
-  category: 'Data',
+  category: '@core.automation/expr.category.date',
   minArgs: 1,
   maxArgs: 1,
 };
@@ -190,10 +190,10 @@ export const dayFn: ExpressionFunction = {
     }
     return date.getDate();
   },
-  description: 'Extrai o dia do mês de uma data (1-31)',
-  signature: 'day(data)',
+  description: '@core.automation/expr.day.description',
+  signature: 'day(date)',
   example: 'day(today())',
-  category: 'Data',
+  category: '@core.automation/expr.category.date',
   minArgs: 1,
   maxArgs: 1,
 };
