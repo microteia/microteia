@@ -95,4 +95,6 @@ export const CORE_WORKSPACE_MESSAGES: Record<string, string> = {
   'tenant.none-found':
     'No organization found for this user. Reload the page; if the problem persists, contact support.',
   'user.not-a-member': 'The user does not belong to this organization.',
+  'profile.nickname.bad-format': 'Invalid nickname format.',
+  'profile.nickname.not-allowed': 'This nickname is not allowed.',
 };

@@ -11,6 +11,11 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [7.30.0] — 2026-08-15
+
+- As recusas do Step Script, das gravações e consultas por automação, e do apelido no perfil passaram a acompanhar o idioma escolhido.
+- Os nomes dos operadores de expressão que ainda faltavam também foram traduzidos.
+
 #### [7.29.0] — 2026-08-15
 
 - O histórico de execução das automações passou a acompanhar o idioma escolhido: cada linha do log, o resultado de cada Step e as mensagens de erro de expressão.

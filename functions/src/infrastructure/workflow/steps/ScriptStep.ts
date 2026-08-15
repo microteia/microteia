@@ -45,10 +45,10 @@ export const makeScriptStepDefinition = (
 
       const script = await scriptRepository.findById(context.execution.tenantId, scriptId);
       if (!script) {
-        return { success: false, message: 'Script não encontrado' };
+        return { success: false, message: '@core.automation/step.script.not-found' };
       }
       if (!script.compiledJs.trim()) {
-        return { success: false, message: 'O Script selecionado está vazio' };
+        return { success: false, message: '@core.automation/step.script.empty' };
       }
 
       const paramEntries: [string, unknown][] = [];
@@ -61,7 +61,11 @@ export const makeScriptStepDefinition = (
         applyParameterDefaults(script.inputParams, buildNestedParams(paramEntries)),
       );
       if (ruled.issues.length > 0) {
-        return { success: false, message: `Parâmetros do Script inválidos: ${describeRuleIssues(ruled.issues)}` };
+        return {
+          success: false,
+          message: '@core.automation/handler.script.invalid-params',
+          messageParams: { detail: describeRuleIssues(ruled.issues) },
+        };
       }
       const scriptInput = ruled.data;
 

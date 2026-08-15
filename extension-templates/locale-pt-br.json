@@ -1429,7 +1429,9 @@
             "user.anonymous": "Usuário",
             "tenant.load-failed": "Falha ao carregar dados do escritório.",
             "tenant.none-found": "Nenhum escritório encontrado para este usuário. Recarregue a página; se o problema persistir, contate o suporte.",
-            "user.not-a-member": "Usuário não pertence a este escritório."
+            "user.not-a-member": "Usuário não pertence a este escritório.",
+            "profile.nickname.bad-format": "Formato de apelido inválido.",
+            "profile.nickname.not-allowed": "Este apelido não é permitido."
           }
         }
       },
@@ -2300,7 +2302,31 @@
             "expr.arg.third.string": "{fn}: terceiro argumento deve ser uma string",
             "expr.arg.variable-name": "{fn}: o nome da variável deve ser uma string",
             "expr.date-diff.unknown-unit": "Unidade de tempo desconhecida: {unit}",
-            "expr.get-var.not-found": "getVar: variável \"{name}\" não encontrada no contexto"
+            "expr.get-var.not-found": "getVar: variável \"{name}\" não encontrada no contexto",
+            "expr.acoshFunction.name": "Arco Cosseno Hiperbólico",
+            "expr.asinhFunction.name": "Arco Seno Hiperbólico",
+            "expr.atanhFunction.name": "Arco Tangente Hiperbólica",
+            "expr.cbrtFunction.name": "Raiz Cúbica",
+            "expr.coshFunction.name": "Cosseno Hiperbólico",
+            "expr.notOperatorSymbol.name": "NÃO lógico",
+            "expr.or.name": "OU lógico",
+            "expr.randomFunction.name": "Número Aleatório",
+            "expr.remainder.name": "Resto da Divisão",
+            "expr.sinhFunction.name": "Seno Hiperbólico",
+            "expr.tanhFunction.name": "Tangente Hiperbólica",
+            "expr.ternary.name": "Condicional (Ternário)",
+            "input.invalid": "Entrada \"{label}\" inválida: {detail}",
+            "input.required": "Entrada obrigatória \"{label}\" não foi informada",
+            "mutation.remove.invalid": "Exclusão inválida: {detail}",
+            "mutation.upsert.invalid": "Gravação inválida: {detail}",
+            "query.invalid": "Consulta inválida: {detail}",
+            "script.mutation-limit": "Limite de gravações/exclusões do Script excedido.",
+            "script.no-output-object": "O Script deve retornar um objeto com os campos de saída.",
+            "script.out-of-memory": "Limite de memória do Script excedido.",
+            "script.timeout": "Tempo de execução do Script excedido.",
+            "script.unsettled": "O Script não concluiu: a função principal retornou uma promessa não resolvida.",
+            "step.script.empty": "O Script selecionado está vazio",
+            "step.script.not-found": "Script não encontrado"
           }
         }
       },

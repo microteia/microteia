@@ -67,7 +67,8 @@ export interface RemoveResult {
 
 export type WorkflowMutationOutcome<T> =
   | { ok: true; value: T }
-  | { ok: false; error: string };
+  /** `error` é uma REFERÊNCIA de mensagem; `errorParams` traz o que a frase interpola. */
+  | { ok: false; error: string; errorParams?: Record<string, string> };
 
 const buildFieldPayload = (
   spec: UpsertSpec,
@@ -104,7 +105,11 @@ export async function runWorkflowUpsert(
 
   const issues = validateUpsertSpec(effectiveSpec, ctx);
   if (issues.length > 0) {
-    return { ok: false, error: `Gravação inválida: ${issues.map((i) => `${i.field}: ${i.error}`).join('; ')}` };
+    return {
+      ok: false,
+      error: '@core.automation/mutation.upsert.invalid',
+      errorParams: { detail: issues.map((issue) => `${issue.field}: ${issue.error}`).join('; ') },
+    };
   }
 
   const resolved = resolveWritableTable(effectiveSpec.table, ctx);
@@ -123,7 +128,11 @@ export async function runWorkflowUpsert(
     baseline: existing ?? undefined,
   });
   if (ruled.issues.length > 0) {
-    return { ok: false, error: `Gravação inválida: ${describeRuleIssues(ruled.issues)}` };
+    return {
+      ok: false,
+      error: '@core.automation/mutation.upsert.invalid',
+      errorParams: { detail: describeRuleIssues(ruled.issues) },
+    };
   }
   const ruledSpec: UpsertSpec = { ...effectiveSpec, data: ruled.data };
 
@@ -159,7 +168,11 @@ export async function runWorkflowRemove(
 
   const issues = validateRemoveSpec(spec, ctx);
   if (issues.length > 0) {
-    return { ok: false, error: `Exclusão inválida: ${issues.map((i) => `${i.field}: ${i.error}`).join('; ')}` };
+    return {
+      ok: false,
+      error: '@core.automation/mutation.remove.invalid',
+      errorParams: { detail: issues.map((issue) => `${issue.field}: ${issue.error}`).join('; ') },
+    };
   }
 
   const resolved = resolveWritableTable(spec.table, ctx);

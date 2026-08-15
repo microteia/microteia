@@ -5,6 +5,7 @@ import { expressionEngine } from './expression/ExpressionEngine';
 import { getValueAtPath, parsePath } from '../schema/pathResolver';
 import { applyFormat, checkValue, toEffectiveRules } from '../schema/fieldRules';
 
+import { LocalizedError } from '../errors/LocalizedError';
 const resolveEventPath = (payload: Record<string, unknown>, path: string): unknown =>
   getValueAtPath(payload, parsePath(path));
 
@@ -55,7 +56,10 @@ export const resolveInputsSafe = (
       value = mapping ? resolveMapping(mapping, context) : undefined;
       if (value === undefined) value = input.defaultValue;
       if (input.required && value === undefined) {
-        throw new Error(`Entrada obrigatória "${input.label}" não foi informada`);
+        throw new LocalizedError(
+          '@core.automation/input.required',
+          { label: input.label },
+        );
       }
 
       const rules = toEffectiveRules(input);
@@ -64,13 +68,19 @@ export const resolveInputsSafe = (
         const ruleIssue = checkValue(value, rules.validate, input.label);
         if (ruleIssue) {
           // O log/erro do motor guarda a CHAVE do motivo; a tela resolve quando o exibe.
-          throw new Error(`Entrada "${input.label}" inválida: ${ruleIssue.error}`);
+          throw new LocalizedError(
+            '@core.automation/input.invalid',
+            { label: input.label, detail: ruleIssue.error },
+          );
         }
       }
 
       const validationError = input.validator?.(value);
       if (validationError) {
-        throw new Error(`Entrada "${input.label}" inválida: ${validationError}`);
+        throw new LocalizedError(
+          '@core.automation/input.invalid',
+          { label: input.label, detail: validationError },
+        );
       }
       resolved[input.id] = value;
     } catch (error) {

@@ -27,7 +27,8 @@ export interface WorkflowQueryResult {
 
 export type WorkflowQueryOutcome =
   | { ok: true; value: WorkflowQueryResult }
-  | { ok: false; error: string };
+  /** `error` é uma REFERÊNCIA de mensagem; `errorParams` traz o que a frase interpola. */
+  | { ok: false; error: string; errorParams?: Record<string, string> };
 
 interface ResolvedPredicate extends QueryPredicate {
   resolvedValue: unknown;
@@ -166,12 +167,20 @@ export async function runWorkflowQuery(
 
   const issues = validateQuerySpec(spec, ctx);
   if (issues.length > 0) {
-    return { ok: false, error: `Consulta inválida: ${issues.map((i) => `${i.field}: ${i.error}`).join('; ')}` };
+    return {
+      ok: false,
+      error: '@core.automation/query.invalid',
+      errorParams: { detail: issues.map((issue) => `${issue.field}: ${issue.error}`).join('; ') },
+    };
   }
 
   const resolved = resolveQueryTable(spec.table, ctx);
   if (!resolved) {
-    return { ok: false, error: `Tabela "${spec.table}" não existe` };
+    return {
+      ok: false,
+      error: '@core.automation/mutation.table.unknown',
+      errorParams: { table: spec.table },
+    };
   }
 
   const predicates: ResolvedPredicate[] = spec.where.map((predicate) => ({

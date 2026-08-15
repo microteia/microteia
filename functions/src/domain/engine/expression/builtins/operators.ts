@@ -40,7 +40,7 @@ export const divideOperator: ExpressionOperator = {
 
 export const remainderOperator: ExpressionOperator = {
   symbol: '%',
-  name: 'Resto da Divisão',
+  name: '@core.automation/expr.remainder.name',
   description: '@core.automation/expr.remainder.description',
   usage: 'a % b',
   example: '10 % 3 → 1',
@@ -134,7 +134,7 @@ export const andOperator: ExpressionOperator = {
 
 export const orOperator: ExpressionOperator = {
   symbol: 'or',
-  name: 'OU lógico',
+  name: '@core.automation/expr.or.name',
   description: '@core.automation/expr.or.description',
   usage: 'a or b',
   example: '(5 < 3) or (2 < 4) → true',
@@ -143,7 +143,7 @@ export const orOperator: ExpressionOperator = {
 
 export const notOperatorSymbol: ExpressionOperator = {
   symbol: 'not',
-  name: 'NÃO lógico',
+  name: '@core.automation/expr.notOperatorSymbol.name',
   description: '@core.automation/expr.notOperatorSymbol.description',
   usage: 'not a',
   example: 'not (5 > 3) → false',
@@ -154,7 +154,7 @@ export const notOperatorSymbol: ExpressionOperator = {
 
 export const ternaryOperator: ExpressionOperator = {
   symbol: '? :',
-  name: 'Condicional (Ternário)',
+  name: '@core.automation/expr.ternary.name',
   description: '@core.automation/expr.ternary.description',
   usage: 'condition ? valueIfTrue : valueIfFalse',
   example: '(idade >= 18) ? "Maior" : "Menor"',
@@ -241,7 +241,7 @@ export const atanFunction: ExpressionOperator = {
 
 export const sinhFunction: ExpressionOperator = {
   symbol: 'sinh',
-  name: 'Seno Hiperbólico',
+  name: '@core.automation/expr.sinhFunction.name',
   description: '@core.automation/expr.sinhFunction.description',
   usage: 'sinh(value)',
   example: 'sinh(0) → 0',
@@ -250,7 +250,7 @@ export const sinhFunction: ExpressionOperator = {
 
 export const coshFunction: ExpressionOperator = {
   symbol: 'cosh',
-  name: 'Cosseno Hiperbólico',
+  name: '@core.automation/expr.coshFunction.name',
   description: '@core.automation/expr.coshFunction.description',
   usage: 'cosh(value)',
   example: 'cosh(0) → 1',
@@ -259,7 +259,7 @@ export const coshFunction: ExpressionOperator = {
 
 export const tanhFunction: ExpressionOperator = {
   symbol: 'tanh',
-  name: 'Tangente Hiperbólica',
+  name: '@core.automation/expr.tanhFunction.name',
   description: '@core.automation/expr.tanhFunction.description',
   usage: 'tanh(value)',
   example: 'tanh(0) → 0',
@@ -268,7 +268,7 @@ export const tanhFunction: ExpressionOperator = {
 
 export const asinhFunction: ExpressionOperator = {
   symbol: 'asinh',
-  name: 'Arco Seno Hiperbólico',
+  name: '@core.automation/expr.asinhFunction.name',
   description: '@core.automation/expr.asinhFunction.description',
   usage: 'asinh(value)',
   example: 'asinh(0) → 0',
@@ -277,7 +277,7 @@ export const asinhFunction: ExpressionOperator = {
 
 export const acoshFunction: ExpressionOperator = {
   symbol: 'acosh',
-  name: 'Arco Cosseno Hiperbólico',
+  name: '@core.automation/expr.acoshFunction.name',
   description: '@core.automation/expr.acoshFunction.description',
   usage: 'acosh(value)',
   example: 'acosh(1) → 0',
@@ -286,7 +286,7 @@ export const acoshFunction: ExpressionOperator = {
 
 export const atanhFunction: ExpressionOperator = {
   symbol: 'atanh',
-  name: 'Arco Tangente Hiperbólica',
+  name: '@core.automation/expr.atanhFunction.name',
   description: '@core.automation/expr.atanhFunction.description',
   usage: 'atanh(value)',
   example: 'atanh(0) → 0',
@@ -304,7 +304,7 @@ export const sqrtFunction: ExpressionOperator = {
 
 export const cbrtFunction: ExpressionOperator = {
   symbol: 'cbrt',
-  name: 'Raiz Cúbica',
+  name: '@core.automation/expr.cbrtFunction.name',
   description: '@core.automation/expr.cbrtFunction.description',
   usage: 'cbrt(number)',
   example: 'cbrt(27) → 3',
@@ -454,7 +454,7 @@ export const maxFunction: ExpressionOperator = {
 
 export const randomFunction: ExpressionOperator = {
   symbol: 'random',
-  name: 'Número Aleatório',
+  name: '@core.automation/expr.randomFunction.name',
   description: '@core.automation/expr.randomFunction.description',
   usage: 'random(max?)',
   example: 'random(10) → a number between 0 and 10',

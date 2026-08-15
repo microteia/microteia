@@ -9,6 +9,7 @@ import { runWorkflowRemove, runWorkflowUpsert } from '../mutation/runWorkflowMut
 import type { WorkflowMutationDeps } from '../mutation/runWorkflowMutation';
 import type { RemoveSpec, UpsertSpec } from '../../../domain/schema/mutationSpec';
 
+import { LocalizedError } from '../../../domain/errors/LocalizedError';
 const VM_SYNC_BURST_MS = 3000;
 const VM_TOTAL_DEADLINE_MS = 10000;
 const VM_POLL_TICK_MS = 15;
@@ -57,9 +58,9 @@ const friendlyError = (detail: unknown): string => {
     typeof detail === 'object' && detail !== null && 'message' in detail
       ? String((detail as { message: unknown }).message)
       : String(detail);
-  if (/interrupt/i.test(message)) return 'Tempo de execução do Script excedido.';
-  if (/out of memory|memory/i.test(message)) return 'Limite de memória do Script excedido.';
-  return `Erro de execução no Script: ${message}`;
+  if (/interrupt/i.test(message)) return '@core.automation/script.timeout';
+  if (/out of memory|memory/i.test(message)) return '@core.automation/script.out-of-memory';
+  return message;
 };
 
 const buildQuerySpec = (raw: unknown): QuerySpec => {
@@ -302,7 +303,7 @@ export async function runScriptSandbox(
       mutationCount += 1;
       return mutationCount > MAX_MUTATIONS;
     };
-    const MUTATION_LIMIT_MESSAGE = 'Limite de gravações/exclusões do Script excedido.';
+    const MUTATION_LIMIT_MESSAGE = '@core.automation/script.mutation-limit';
     registerAsyncBridge('upsert', overMutationLimit, MUTATION_LIMIT_MESSAGE, (arg) =>
       runWorkflowUpsert(buildUpsertSpec(arg), context, mutationDeps),
     );
@@ -355,7 +356,7 @@ export async function runScriptSandbox(
 
     const deadline = Date.now() + VM_TOTAL_DEADLINE_MS;
     while (!finished) {
-      if (Date.now() > deadline) throw new Error('Tempo de execução do Script excedido.');
+      if (Date.now() > deadline) throw new LocalizedError('@core.automation/script.timeout');
 
       vm.runtime.setInterruptHandler(shouldInterruptAfterDeadline(Date.now() + VM_SYNC_BURST_MS));
       const executed = vm.unwrapResult(vm.runtime.executePendingJobs());
@@ -375,7 +376,7 @@ export async function runScriptSandbox(
     }
 
     if (!finished) {
-      throw new Error('O Script não concluiu: a função principal retornou uma promessa não resolvida.');
+      throw new LocalizedError('@core.automation/script.unsettled');
     }
 
     const resolved = await settledPromise;
@@ -389,7 +390,7 @@ export async function runScriptSandbox(
     resolved.value.dispose();
 
     if (typeof output !== 'object' || output === null || Array.isArray(output)) {
-      throw new Error('O Script deve retornar um objeto com os campos de saída.');
+      throw new LocalizedError('@core.automation/script.no-output-object');
     }
     return output as Record<string, unknown>;
   } finally {

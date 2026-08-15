@@ -24,16 +24,16 @@ export const makeClaimNicknameUseCase = (
 ): ClaimNicknameUseCase => ({
   execute: async (nickname: string, userId: string) => {
     if (!isValidNicknameFormat(nickname)) {
-      throw invalidArgument('Formato de apelido inválido.');
+      throw invalidArgument('@core.workspace/profile.nickname.bad-format');
     }
 
     if (isNicknameBlocklisted(nickname)) {
-      throw invalidArgument('Este apelido não é permitido.');
+      throw invalidArgument('@core.workspace/profile.nickname.not-allowed');
     }
 
     const profile = await nicknameRepository.getUserProfile(userId);
     if (profile?.nicknameSetAt) {
-      throw alreadyExists('Você já possui um apelido e não pode alterá-lo.');
+      throw alreadyExists('@core.workspace/profile.nickname.already-set');
     }
 
     await nicknameRepository.claim(nickname, userId);
