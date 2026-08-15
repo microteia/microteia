@@ -7,7 +7,7 @@ export const makeMapStepDefinition = (): StepDefinition => ({
   version: 1,
   name: '@core.automation/step.map.name',
   description:
-    'Monta campos a partir de mapeamentos (nome e valor). Com um nome informado, agrupa tudo num objeto nomeado (útil para gravar com o step Gravar Registro). Sem nome, cada campo fica disponível diretamente como saída do step.',
+    '@core.automation/step.map.description',
   icon: 'RiBracketsLine',
   category: 'Data',
   type: 'Action',
@@ -31,7 +31,7 @@ export const makeMapStepDefinition = (): StepDefinition => ({
     execute: async (inputs, context) => {
       const config = inputs.map as MapStepConfig | undefined;
       if (!config || typeof config !== 'object' || !Array.isArray(config.fields)) {
-        return { success: false, message: 'Montagem de objeto não configurada' };
+        return { success: false, message: '@core.automation/step.map.not-configured' };
       }
 
       const object: Record<string, unknown> = {};

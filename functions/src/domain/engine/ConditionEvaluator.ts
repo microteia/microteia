@@ -3,6 +3,7 @@ import type { WorkflowContext } from '../entities/WorkflowContext';
 import { expressionEngine } from './expression/ExpressionEngine';
 import { getValueAtPath, parsePath } from '../schema/pathResolver';
 
+import { LocalizedError } from '../errors/LocalizedError';
 const getValueByPath = (obj: unknown, path: string): unknown => getValueAtPath(obj, parsePath(path));
 
 /**
@@ -58,7 +59,10 @@ const evaluateFieldComparison = (
     case 'endsWith':
       return String(fieldValue || '').toLowerCase().endsWith(String(compareValue || '').toLowerCase());
     default:
-      throw new Error(`Operador de comparação não suportado: "${condition.operator}"`);
+      throw new LocalizedError(
+        '@core.automation/condition.operator.unsupported',
+        { operator: String(condition.operator) },
+      );
   }
 };
 
@@ -101,6 +105,9 @@ export const evaluateCondition = (condition: Condition, context: WorkflowContext
       return !evaluateCondition(condition.condition, context);
 
     default:
-      throw new Error(`Tipo de condição não suportado: "${(condition as Condition).kind}"`);
+      throw new LocalizedError(
+        '@core.automation/condition.kind.unsupported',
+        { kind: String((condition as Condition).kind) },
+      );
   }
 };

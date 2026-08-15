@@ -246,13 +246,24 @@ export interface ViewWorkflowViewModel {
 
 const RUN_EXECUTION_TIMEOUT_MS = 60000;
 
-const mapExecutionToRunResult = (exec: WorkflowExecution): RunModalResult => {
+/** Esta é a execução que acabou de rodar, ainda não passada pela resolução da assinatura. */
+const mapExecutionToRunResult = (
+  exec: WorkflowExecution,
+  resolve: (message: string, params?: Record<string, string>) => string,
+): RunModalResult => {
   const lastError = [...exec.logs].reverse().find((entry) => entry.level === 'ERROR');
   return {
     status: exec.status === 'RUNNING' ? null : exec.status,
     outputs: exec.outputs ?? null,
-    logs: exec.logs.map((entry) => ({ level: entry.level, message: entry.message })),
-    error: exec.status === 'SUCCESS' ? null : (lastError?.message ?? null),
+    logs: exec.logs.map((entry) => ({
+      level: entry.level,
+      message: resolve(entry.message, entry.messageParams),
+    })),
+    error: exec.status === 'SUCCESS'
+      ? null
+      : lastError
+        ? resolve(lastError.message, lastError.messageParams)
+        : null,
   };
 }
 
@@ -334,7 +345,16 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
       currentTenant.id,
       workflowId,
       (newExecutions) => {
-        setExecutions(newExecutions);
+        // A mensagem de cada log vem do motor como REFERÊNCIA. Resolver na chegada — e não em
+        // cada ponto que exibe — vale também para o histórico antigo, que guarda a frase pronta e
+        // atravessa `resolveLabel` intacto.
+        setExecutions(newExecutions.map((execution) => ({
+          ...execution,
+          logs: execution.logs.map((entry) => ({
+            ...entry,
+            message: label(entry.message, entry.messageParams),
+          })),
+        })));
         // Auto-expandir steps com erro
         setExpandedStepResults((prev) => {
           const next = new Set(prev);
@@ -350,7 +370,7 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
       },
       (error) => setExecutionsError(error.message),
     );
-  }, [currentTenant, isNew, workflowId, workflowExecutionRepository]);
+  }, [currentTenant, isNew, workflowId, workflowExecutionRepository, label]);
 
   const setFormData = useCallback((data: Partial<WorkflowFormData>) => {
     setFormDataState((prev) => ({ ...prev, ...data }));
@@ -919,7 +939,7 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
           (execs) => {
             const exec = execs.find((e) => e.eventId === eventId);
             if (!exec || exec.status === 'RUNNING') return;
-            finish(mapExecutionToRunResult(exec));
+            finish(mapExecutionToRunResult(exec, label));
           },
           (error) =>
             finish({
@@ -941,7 +961,7 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
         );
       });
     },
-    [currentTenant, workflow, dataProcessorRepository, workflowExecutionRepository, t],
+    [currentTenant, workflow, dataProcessorRepository, workflowExecutionRepository, t, label],
   );
 
   return {

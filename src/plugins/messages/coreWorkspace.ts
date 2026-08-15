@@ -94,4 +94,5 @@ export const CORE_WORKSPACE_MESSAGES: Record<string, string> = {
   'tenant.load-failed': 'Could not load the organization data.',
   'tenant.none-found':
     'No organization found for this user. Reload the page; if the problem persists, contact support.',
+  'user.not-a-member': 'The user does not belong to this organization.',
 };

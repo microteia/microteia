@@ -11,6 +11,12 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [7.29.0] — 2026-08-15
+
+- O histórico de execução das automações passou a acompanhar o idioma escolhido: cada linha do log, o resultado de cada Step e as mensagens de erro de expressão.
+- As execuções antigas continuam legíveis exatamente como foram gravadas.
+- Corrigido: a mensagem amigável para função de expressão inexistente nunca aparecia, porque procurava um texto que o sistema não produzia.
+
 #### [7.28.1] — 2026-08-15
 
 - Os dois pontos de extensão de automação — passo e função de expressão — passaram a ter nome e descrição traduzidos.

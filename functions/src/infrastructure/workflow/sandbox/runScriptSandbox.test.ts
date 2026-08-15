@@ -93,7 +93,7 @@ describe('runScriptSandbox — compatibilidade fn.* (Expression) com QuickJS', (
   it('quando fn lança erro, main() rejeita e o output inteiro é perdido', async () => {
     await expect(
       run(wrapMain('return { cpf: fn.replace(input.cpf, ".", "") };'), { cpf: 12345 }),
-    ).rejects.toThrow(/replace/i);
+    ).rejects.toThrow(/expr\.arg\.all\.strings/);
   });
 
   it('fn.formatDate lida com Date atravessando a ponte host<->VM (tokens DD/MM/YYYY)', async () => {

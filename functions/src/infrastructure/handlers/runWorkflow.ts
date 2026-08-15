@@ -182,21 +182,21 @@ export const runWorkflow = onCall(
   { region: 'southamerica-east1', cors: true },
   async (request) => {
     if (!request.auth) {
-      throw new HttpsError('unauthenticated', 'Autenticação necessária.');
+      throw new HttpsError('unauthenticated', '@core.automation/handler.unauthenticated');
     }
 
     const { tenantId, connectionId, targetWorkflowId, text, providedParams } =
       request.data as RunWorkflowRequest;
 
     if (!tenantId || !targetWorkflowId) {
-      throw new HttpsError('invalid-argument', 'Parâmetros obrigatórios ausentes.');
+      throw new HttpsError('invalid-argument', '@core.automation/handler.params.missing');
     }
 
     try {
       const di = getDI();
       const role = await di.getTenantMemberRepository().getMemberRole(tenantId, request.auth.uid);
       if (role !== 'admin' && role !== 'lawyer') {
-        throw new HttpsError('permission-denied', 'Acesso restrito a administradores e advogados do escritório.');
+        throw new HttpsError('permission-denied', '@core.automation/handler.restricted');
       }
 
       const definition = await di.getWorkflowDefinitionRepository().findById(tenantId, targetWorkflowId);

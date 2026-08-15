@@ -18,7 +18,7 @@ export const listGmailConnections = onCall(
   { region: 'southamerica-east1', cors: true },
   async (request) => {
     if (!request.auth) {
-      throw new HttpsError('unauthenticated', 'Autenticação necessária.');
+      throw new HttpsError('unauthenticated', '@core.automation/handler.unauthenticated');
     }
 
     const { tenantId } = (request.data ?? {}) as { tenantId?: string };
@@ -54,7 +54,7 @@ export const revokeGmailConnection = onCall(
   { region: 'southamerica-east1', cors: true },
   async (request) => {
     if (!request.auth) {
-      throw new HttpsError('unauthenticated', 'Autenticação necessária.');
+      throw new HttpsError('unauthenticated', '@core.automation/handler.unauthenticated');
     }
 
     const { tenantId, connectionId } = (request.data ?? {}) as {

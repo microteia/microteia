@@ -36,13 +36,13 @@ export const detectWorkflows = onCall(
   { region: 'southamerica-east1', cors: true },
   async (request) => {
     if (!request.auth) {
-      throw new HttpsError('unauthenticated', 'Autenticação necessária.');
+      throw new HttpsError('unauthenticated', '@core.automation/handler.unauthenticated');
     }
 
     const { tenantId, connectionId, text, workflows } = request.data as DetectWorkflowsRequest;
 
     if (!tenantId || !connectionId || !text || !Array.isArray(workflows)) {
-      throw new HttpsError('invalid-argument', 'Parâmetros obrigatórios ausentes.');
+      throw new HttpsError('invalid-argument', '@core.automation/handler.params.missing');
     }
 
     const eligible = workflows.filter((w) => w && w.id && w.description);
@@ -54,7 +54,7 @@ export const detectWorkflows = onCall(
       const di = getDI();
       const role = await di.getTenantMemberRepository().getMemberRole(tenantId, request.auth.uid);
       if (role !== 'admin' && role !== 'lawyer') {
-        throw new HttpsError('permission-denied', 'Acesso restrito a administradores e advogados do escritório.');
+        throw new HttpsError('permission-denied', '@core.automation/handler.restricted');
       }
 
       const credentials = await di.getAIConnectionRepository().getCredentialsById(tenantId, connectionId);
@@ -77,7 +77,7 @@ export const detectWorkflows = onCall(
       return { orderedWorkflowIds };
     } catch (err) {
       if (err instanceof HttpsError) throw err;
-      const message = err instanceof Error ? err.message : 'Erro ao detectar automações.';
+      const message = err instanceof Error ? err.message : '@core.admin/processor.detect-failed';
       throw new HttpsError('internal', message);
     }
   },

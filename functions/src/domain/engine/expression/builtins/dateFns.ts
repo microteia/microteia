@@ -1,6 +1,7 @@
 import type { ExpressionFunction } from '../FunctionRegistry';
 import { anchorDay } from '../../../schema/mutationSpec';
 
+import { LocalizedError } from '../../../errors/LocalizedError';
 const formatDate = (date: Date, format: string): string => {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -41,7 +42,10 @@ const dateDiff = (date1: Date, date2: Date, unit: string): number => {
     case 'segundos':
       return Math.floor(diffMs / 1000);
     default:
-      throw new Error(`Unidade de tempo desconhecida: ${unit}`);
+      throw new LocalizedError(
+        '@core.automation/expr.date-diff.unknown-unit',
+        { unit: String(unit) },
+      );
   }
 };
 
@@ -81,10 +85,10 @@ export const formatDateFn: ExpressionFunction = {
   name: 'formatDate',
   call: ([date, format]) => {
     if (!(date instanceof Date)) {
-      throw new Error('formatDate: primeiro argumento deve ser uma Date');
+      throw new LocalizedError('@core.automation/expr.arg.first.date', { fn: 'formatDate' });
     }
     if (typeof format !== 'string') {
-      throw new Error('formatDate: segundo argumento deve ser uma string');
+      throw new LocalizedError('@core.automation/expr.arg.second.string', { fn: 'formatDate' });
     }
     return formatDate(date, format);
   },
@@ -100,7 +104,7 @@ export const dayOfWeekFn: ExpressionFunction = {
   name: 'dayOfWeek',
   call: ([date]) => {
     if (!(date instanceof Date)) {
-      throw new Error('dayOfWeek: argumento deve ser uma Date');
+      throw new LocalizedError('@core.automation/expr.arg.date', { fn: 'dayOfWeek' });
     }
     return dayOfWeek(date);
   },
@@ -116,7 +120,7 @@ export const isWeekendFn: ExpressionFunction = {
   name: 'isWeekend',
   call: ([date]) => {
     if (!(date instanceof Date)) {
-      throw new Error('isWeekend: argumento deve ser uma Date');
+      throw new LocalizedError('@core.automation/expr.arg.date', { fn: 'isWeekend' });
     }
     return isWeekend(date);
   },
@@ -132,13 +136,13 @@ export const dateDiffFn: ExpressionFunction = {
   name: 'dateDiff',
   call: ([date1, date2, unit = 'days']) => {
     if (!(date1 instanceof Date)) {
-      throw new Error('dateDiff: primeiro argumento deve ser uma Date');
+      throw new LocalizedError('@core.automation/expr.arg.first.date', { fn: 'dateDiff' });
     }
     if (!(date2 instanceof Date)) {
-      throw new Error('dateDiff: segundo argumento deve ser uma Date');
+      throw new LocalizedError('@core.automation/expr.arg.second.date', { fn: 'dateDiff' });
     }
     if (typeof unit !== 'string') {
-      throw new Error('dateDiff: terceiro argumento deve ser uma string');
+      throw new LocalizedError('@core.automation/expr.arg.third.string', { fn: 'dateDiff' });
     }
     return dateDiff(date1, date2, unit);
   },
@@ -154,7 +158,7 @@ export const yearFn: ExpressionFunction = {
   name: 'year',
   call: ([date]) => {
     if (!(date instanceof Date)) {
-      throw new Error('year: argumento deve ser uma Date');
+      throw new LocalizedError('@core.automation/expr.arg.date', { fn: 'year' });
     }
     return date.getFullYear();
   },
@@ -170,7 +174,7 @@ export const monthFn: ExpressionFunction = {
   name: 'month',
   call: ([date]) => {
     if (!(date instanceof Date)) {
-      throw new Error('month: argumento deve ser uma Date');
+      throw new LocalizedError('@core.automation/expr.arg.date', { fn: 'month' });
     }
     return date.getMonth() + 1;
   },
@@ -186,7 +190,7 @@ export const dayFn: ExpressionFunction = {
   name: 'day',
   call: ([date]) => {
     if (!(date instanceof Date)) {
-      throw new Error('day: argumento deve ser uma Date');
+      throw new LocalizedError('@core.automation/expr.arg.date', { fn: 'day' });
     }
     return date.getDate();
   },

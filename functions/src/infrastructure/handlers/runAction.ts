@@ -17,7 +17,9 @@ interface RunActionRequest {
 interface RunActionResponse {
   outcome: ActionOutcome | null;
   executionId: string | null;
+  /** REFERÊNCIA de mensagem; `errorParams` traz o que a frase interpola. */
   error: string | null;
+  errorParams?: Record<string, string>;
 }
 
 const failure = (message: string): RunActionResponse => ({
@@ -30,26 +32,26 @@ export const runAction = onCall(
   { region: 'southamerica-east1', cors: true },
   async (request): Promise<RunActionResponse> => {
     if (!request.auth) {
-      throw new HttpsError('unauthenticated', 'Autenticação necessária.');
+      throw new HttpsError('unauthenticated', '@core.automation/handler.unauthenticated');
     }
 
     const { tenantId, actionId, source, context, recordId, isNew, params } = request.data as RunActionRequest;
 
-    if (!tenantId) throw new HttpsError('invalid-argument', 'Escritório não informado.');
-    if (!actionId) throw new HttpsError('invalid-argument', 'Ação não informada.');
+    if (!tenantId) throw new HttpsError('invalid-argument', '@core.automation/handler.tenant.missing');
+    if (!actionId) throw new HttpsError('invalid-argument', '@core.automation/handler.action.missing');
 
     const di = getDI();
     const role = await di.getTenantMemberRepository().getMemberRole(tenantId, request.auth.uid);
     if (!role) {
-      throw new HttpsError('permission-denied', 'Você não é membro deste escritório.');
+      throw new HttpsError('permission-denied', '@core.automation/handler.not-member');
     }
 
     const snap = await getDb().doc(`tenants/${tenantId}/actions/${actionId}`).get();
-    if (!snap.exists) return failure('Ação não encontrada.');
+    if (!snap.exists) return failure('@core.automation/handler.action.not-found');
 
     const action = snap.data() as { key?: string; title?: string; workflowId?: string; enabled?: boolean };
-    if (action.enabled === false) return failure('Esta ação está desativada.');
-    if (!action.workflowId) return failure('Esta ação não tem um fluxo de trabalho vinculado.');
+    if (action.enabled === false) return failure('@core.automation/handler.action.disabled');
+    if (!action.workflowId) return failure('@core.automation/handler.action.no-workflow');
 
     await di.ensureWorkflowStepsRegistered();
 
@@ -73,14 +75,15 @@ export const runAction = onCall(
     });
 
     if (!result.found) {
-      return failure('O fluxo de trabalho vinculado não existe, está desativado, ou não é do tipo "Workflow chamado".');
+      return failure('@core.automation/handler.action.workflow-invalid');
     }
 
     if (result.status !== 'SUCCESS') {
       return {
         outcome: null,
         executionId: result.executionId,
-        error: `A execução de "${action.title ?? action.key ?? 'ação'}" falhou. Consulte as execuções do fluxo para os detalhes.`,
+        error: '@core.automation/handler.action.run-failed',
+        errorParams: { name: String(action.title ?? action.key ?? '') },
       };
     }
 
@@ -92,8 +95,7 @@ export const runAction = onCall(
       return {
         outcome: null,
         executionId: result.executionId,
-        error: 'O fluxo terminou sem devolver "result", "status" ou "actions". O último Step precisa'
-          + ' emitir as três chaves de uma vez — use "Montar Objeto" sem nome, ou um Step Script.',
+        error: '@core.automation/handler.action.no-result',
       };
     }
 

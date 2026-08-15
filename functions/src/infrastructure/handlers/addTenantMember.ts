@@ -15,7 +15,7 @@ export const addTenantMember = onCall(
   { region: 'southamerica-east1', cors: true },
   async (request) => {
     if (!request.auth) {
-      throw new HttpsError('unauthenticated', 'Autenticação necessária.');
+      throw new HttpsError('unauthenticated', '@core.automation/handler.unauthenticated');
     }
 
     const { tenantId, userId, role, displayName, email, photoURL } = request.data as AddTenantMemberRequest;

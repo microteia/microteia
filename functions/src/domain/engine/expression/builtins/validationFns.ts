@@ -1,5 +1,6 @@
 import type { ExpressionFunction } from '../FunctionRegistry';
 
+import { LocalizedError } from '../../../errors/LocalizedError';
 const isValidCPF = (cpf: string): boolean => {
   const clean = cpf.replace(/\D/g, '');
   if (clean.length !== 11) return false;
@@ -97,11 +98,11 @@ export const formatCPFFn: ExpressionFunction = {
   name: 'formatCPF',
   call: ([value]) => {
     if (typeof value !== 'string') {
-      throw new Error('formatCPF: argumento deve ser uma string');
+      throw new LocalizedError('@core.automation/expr.arg.string', { fn: 'formatCPF' });
     }
     const clean = value.replace(/\D/g, '');
     if (clean.length !== 11) {
-      throw new Error('formatCPF: CPF deve ter 11 dígitos');
+      throw new LocalizedError('@core.automation/expr.arg.cpf-length', { fn: 'formatCPF' });
     }
     return clean.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
   },
@@ -117,11 +118,11 @@ export const formatCNPJFn: ExpressionFunction = {
   name: 'formatCNPJ',
   call: ([value]) => {
     if (typeof value !== 'string') {
-      throw new Error('formatCNPJ: argumento deve ser uma string');
+      throw new LocalizedError('@core.automation/expr.arg.string', { fn: 'formatCNPJ' });
     }
     const clean = value.replace(/\D/g, '');
     if (clean.length !== 14) {
-      throw new Error('formatCNPJ: CNPJ deve ter 14 dígitos');
+      throw new LocalizedError('@core.automation/expr.arg.cnpj-length', { fn: 'formatCNPJ' });
     }
     return clean.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, '$1.$2.$3/$4-$5');
   },

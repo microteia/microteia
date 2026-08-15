@@ -17,7 +17,7 @@ export const exchangeGmailCode = onCall(
   { region: 'southamerica-east1', cors: true },
   async (request) => {
     if (!request.auth) {
-      throw new HttpsError('unauthenticated', 'Autenticação necessária.');
+      throw new HttpsError('unauthenticated', '@core.automation/handler.unauthenticated');
     }
 
     const { code, tenantId } = request.data as ExchangeGmailCodeRequest;

@@ -5,7 +5,7 @@ export const makeExitStepDefinition = (): StepDefinition => ({
   version: 1,
   name: '@core.automation/step.exit.name',
   description:
-    'Encerra o workflow neste ponto e devolve as saídas do step anterior como resultado. Útil para sair de dentro de um ramo de condição ou de uma repetição sem executar os steps seguintes.',
+    '@core.automation/step.exit.description',
   icon: 'RiLogoutBoxRLine',
   category: 'Action',
   type: 'Action',

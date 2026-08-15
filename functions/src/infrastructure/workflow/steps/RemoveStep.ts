@@ -9,7 +9,7 @@ export const makeRemoveStepDefinition = (deps: WorkflowMutationDeps): StepDefini
   version: 1,
   name: '@core.automation/step.remove.name',
   description:
-    'Exclui um registro de qualquer cadastro do escritório (fixo, personalizado ou lista) pelo seu id. Exclui apenas o registro informado, sem cascata.',
+    '@core.automation/step.remove.description',
   icon: 'RiDeleteBin6Line',
   category: 'Data',
   type: 'Action',
@@ -31,12 +31,12 @@ export const makeRemoveStepDefinition = (deps: WorkflowMutationDeps): StepDefini
     execute: async (inputs, context) => {
       const config = inputs.remove as RemoveStepConfig | undefined;
       if (!config || typeof config !== 'object' || !config.table || !config.id) {
-        return { success: false, message: 'Exclusão não configurada' };
+        return { success: false, message: '@core.automation/step.remove.not-configured' };
       }
 
       const resolvedId = resolveMapping(config.id, context);
       if (resolvedId === undefined || resolvedId === null || String(resolvedId).trim() === '') {
-        return { success: false, message: 'Id do registro a excluir não informado' };
+        return { success: false, message: '@core.automation/mutation.remove.id.missing' };
       }
 
       const spec: RemoveSpec = { table: config.table, id: String(resolvedId) };
@@ -48,7 +48,10 @@ export const makeRemoveStepDefinition = (deps: WorkflowMutationDeps): StepDefini
       const { id, removed } = outcome.value;
       return {
         success: true,
-        message: removed ? `Registro excluído de "${config.table}"` : 'Registro não encontrado',
+        message: removed
+          ? '@core.automation/step.remove.done'
+          : '@core.automation/step.remove.not-found',
+        messageParams: { table: config.table },
         outputs: { id, removed },
       };
     },

@@ -30,7 +30,9 @@ export interface WorkflowContext {
 
 export interface WorkflowResult {
   success: boolean;
+  /** REFERÊNCIA de mensagem; `messageParams` traz o que a frase interpola. */
   message?: string;
+  messageParams?: Record<string, string>;
   outputs?: Record<string, unknown>;
   // Encerra o workflow imediatamente após este step, atravessando ramos de condição e
   // repetições. O workflow retorna os outputs do último step executado antes do encerramento.

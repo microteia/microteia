@@ -1,10 +1,11 @@
 import type { ExpressionFunction } from '../FunctionRegistry';
 
+import { LocalizedError } from '../../../errors/LocalizedError';
 export const objectFn: ExpressionFunction = {
   name: 'object',
   call: (args) => {
     if (args.length % 2 !== 0) {
-      throw new Error('object: número de argumentos deve ser par (pares chave/valor)');
+      throw new LocalizedError('@core.automation/expr.arg.even-count', { fn: 'object' });
     }
     const result: Record<string, unknown> = {};
     for (let i = 0; i + 1 < args.length; i += 2) {

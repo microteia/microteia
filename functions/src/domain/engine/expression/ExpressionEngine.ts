@@ -3,6 +3,7 @@ import type { WorkflowContext } from '../../entities/WorkflowContext';
 import { expressionFunctions } from './FunctionRegistry';
 import { registerExpressionFunctionsFromPlugins } from '../../../infrastructure/workflow/loadWorkflowPlugins';
 import { operatorRegistry } from './OperatorRegistry';
+import { LocalizedError } from '../../errors/LocalizedError';
 import {
   addOperator, subtractOperator, multiplyOperator, divideOperator, remainderOperator, powerOperator, factorialOperator,
   equalOperator, notEqualOperator, lessThanOperator, lessOrEqualOperator, greaterThanOperator, greaterOrEqualOperator,
@@ -136,11 +137,14 @@ class ExpressionEngineImpl implements ExpressionEngine {
       const closeParens = (expression.match(/\)/g) || []).length;
       
       if (openParens > closeParens) {
-        throw new Error(`Falta fechar ${openParens - closeParens} parêntese${openParens - closeParens > 1 ? 's' : ''}`);
+        throw new LocalizedError(
+          '@core.automation/expr.error.unclosed-paren',
+          { count: String(openParens - closeParens) },
+        );
       }
 
       if (closeParens > openParens) {
-        throw new Error(`Parêntese${closeParens - openParens > 1 ? 's' : ''} de fechamento sem abertura`);
+        throw new LocalizedError('@core.automation/expr.error.unopened-paren');
       }
 
       // Verifica strings não fechadas
@@ -198,50 +202,57 @@ class ExpressionEngineImpl implements ExpressionEngine {
       const errorMessage = error instanceof Error ? error.message : String(error);
       
       // Erros já tratados pelas validações pré-parser
-      if (errorMessage.includes('Falta fechar') || errorMessage.includes('sem abertura')) {
-        throw new Error(errorMessage, { cause: error });
+      // Erro que ESTE código já lançou (com a referência dentro): repassa como está, em vez de
+      // reconhecê-lo pela frase — que era o que quebrava assim que a frase mudava de idioma.
+      if (error instanceof LocalizedError) {
+        throw error;
       }
 
       // Erros comuns do expr-eval traduzidos
       if (errorMessage.includes('TEOF') || errorMessage.includes('EOF')) {
-        throw new Error(
-          'Expressão incompleta. Verifique se faltam argumentos ou parênteses de fechamento.',
+        throw new LocalizedError(
+          '@core.automation/expr.error.incomplete',
+          undefined,
           { cause: error }
         );
       }
 
       if (errorMessage.includes('unexpected TNAME')) {
-        throw new Error(
-          'Nome inesperado na expressão. Verifique a sintaxe.',
+        throw new LocalizedError(
+          '@core.automation/expr.error.unexpected-name',
+          undefined,
           { cause: error }
         );
       }
 
       if (errorMessage.includes('unexpected TNUMBER')) {
-        throw new Error(
-          'Número em posição incorreta. Verifique operadores e vírgulas.',
+        throw new LocalizedError(
+          '@core.automation/expr.error.unexpected-number',
+          undefined,
           { cause: error }
         );
       }
 
       if (errorMessage.includes('unexpected TSTRING')) {
-        throw new Error(
-          'Texto em posição incorreta. Verifique operadores e vírgulas.',
+        throw new LocalizedError(
+          '@core.automation/expr.error.unexpected-string',
+          undefined,
           { cause: error }
         );
       }
 
       if (errorMessage.includes('unexpected TCOMMA')) {
-        throw new Error(
-          'Vírgula em posição incorreta. Verifique os argumentos da função.',
+        throw new LocalizedError(
+          '@core.automation/expr.error.unexpected-comma',
+          undefined,
           { cause: error }
         );
       }
       
       if (errorMessage.includes('not a valid integer') || errorMessage.includes('not a number')) {
-        throw new Error(
-          `Operação aritmética inválida. ${errorMessage}. ` +
-          `Verifique se está tentando somar/subtrair tipos incompatíveis (ex: Date + número).`,
+        throw new LocalizedError(
+          '@core.automation/expr.error.arithmetic',
+          { detail: errorMessage },
           { cause: error }
         );
       }
@@ -249,19 +260,9 @@ class ExpressionEngineImpl implements ExpressionEngine {
       if (errorMessage.includes('undefined') || errorMessage.includes('is not defined')) {
         const undefinedVar = errorMessage.match(/["']?(\w+)["']?\s+is not defined/)?.[1];
         if (undefinedVar) {
-          throw new Error(
-            `Variável ou função "${undefinedVar}" não encontrada. ` +
-            `Verifique se digitou corretamente ou se a função existe.`,
-            { cause: error }
-          );
-        }
-      }
-
-      if (errorMessage.includes('Função de expressão desconhecida')) {
-        const match = errorMessage.match(/desconhecida:\s*["']([^"']+)["']/);
-        if (match) {
-          throw new Error(
-            `Função "${match[1]}" não existe. Consulte a lista de funções disponíveis.`,
+          throw new LocalizedError(
+            '@core.automation/expr.error.undefined-name',
+            { name: undefinedVar },
             { cause: error }
           );
         }
@@ -270,18 +271,24 @@ class ExpressionEngineImpl implements ExpressionEngine {
       if (errorMessage.toLowerCase().includes('parse error') || errorMessage.includes('unexpected')) {
         const token = errorMessage.match(/unexpected\s+(\w+)/)?.[1];
         if (token) {
-          throw new Error(
-            `Símbolo inesperado na expressão. Verifique a sintaxe próximo a "${token}".`,
+          throw new LocalizedError(
+            '@core.automation/expr.error.unexpected-token',
+            { token },
             { cause: error }
           );
         }
-        throw new Error(
-          'Erro de sintaxe. Verifique a estrutura da expressão.',
+        throw new LocalizedError(
+          '@core.automation/expr.error.syntax',
+          undefined,
           { cause: error }
         );
       }
 
-      throw new Error(`Erro ao avaliar expressão: ${errorMessage}`, { cause: error });
+      throw new LocalizedError(
+        '@core.automation/expr.error.generic',
+        { detail: errorMessage },
+        { cause: error },
+      );
     }
   }
 }

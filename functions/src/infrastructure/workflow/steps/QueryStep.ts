@@ -41,7 +41,7 @@ export const makeQueryStepDefinition = (
     execute: async (inputs, context) => {
       const spec = inputs.query as QuerySpec | undefined;
       if (!spec || typeof spec !== 'object') {
-        return { success: false, message: 'Consulta não configurada' };
+        return { success: false, message: '@core.automation/step.query.not-configured' };
       }
 
       const outcome = await runWorkflowQuery(spec, context, { queryRepository, fetcher, screenProvider });

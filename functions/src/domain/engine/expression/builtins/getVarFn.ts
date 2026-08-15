@@ -1,16 +1,20 @@
 import type { ExpressionFunction } from '../FunctionRegistry';
 
+import { LocalizedError } from '../../../errors/LocalizedError';
 export const getVarFn: ExpressionFunction = {
   name: 'getVar',
   call: ([varName], context) => {
     if (typeof varName !== 'string') {
-      throw new Error('getVar: o nome da variável deve ser uma string');
+      throw new LocalizedError('@core.automation/expr.arg.variable-name', { fn: 'getVar' });
     }
     
     const value = context.variables[varName];
     
     if (value === undefined) {
-      throw new Error(`getVar: variável "${varName}" não encontrada no contexto`);
+      throw new LocalizedError(
+        '@core.automation/expr.get-var.not-found',
+        { name: String(varName) },
+      );
     }
     
     return value;

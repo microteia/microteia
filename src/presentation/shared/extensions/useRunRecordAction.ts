@@ -6,7 +6,7 @@ import { storeEvents, StoreEvents } from '../../../infrastructure/events/StoreEv
 import { dispatchActionOutcome } from '../entityScreen/useScreenActions';
 import type { ActionStatusCode, CustomFieldValue } from '../../../domain/entities';
 
-import { useT } from '../i18n/useT';
+import { useT, useLabel } from '../i18n/useT';
 
 const STATUS_TONE: Record<ActionStatusCode, 'success' | 'warning' | 'error'> = {
   SUCCESS: 'success',
@@ -49,6 +49,7 @@ export const useRunRecordAction = (): ((request: RunRecordActionRequest) => Prom
   const { updateRecord } = useRecords();
   const { notify } = useNotification();
   const t = useT('core.records');
+  const label = useLabel();
 
   return useCallback(async (request: RunRecordActionRequest): Promise<RunRecordActionResult> => {
     const { actionSourceId, actionId, collection, recordId, record, params } = request;
@@ -72,7 +73,9 @@ export const useRunRecordAction = (): ((request: RunRecordActionRequest) => Prom
       });
 
       if (response.error || !response.outcome) {
-        const message = response.error ?? t('action.run-failed');
+        const message = response.error
+          ? label(response.error, response.errorParams)
+          : t('action.run-failed');
         notify(message, 'error');
         return { ok: false, message };
       }
@@ -91,5 +94,5 @@ export const useRunRecordAction = (): ((request: RunRecordActionRequest) => Prom
       notify(t('action.run-failed'), 'error');
       return { ok: false, message: t('action.run-failed') };
     }
-  }, [actions, runAction, updateRecord, notify, t]);
+  }, [actions, runAction, updateRecord, notify, t, label]);
 };

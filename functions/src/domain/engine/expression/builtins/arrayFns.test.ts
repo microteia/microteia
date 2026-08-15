@@ -48,7 +48,7 @@ describe('mapFn', () => {
   });
 
   it('não-array é erro', () => {
-    expect(() => evaluate('map("texto", "x")')).toThrow(/array/);
+    expect(() => evaluate('map("texto", "x")')).toThrow('@core.automation/expr.arg.first.array');
   });
 });
 
@@ -67,7 +67,7 @@ describe('containsFn e indexOfFn — array e texto', () => {
   });
 
   it('rejeita alvo que não é array nem texto', () => {
-    expect(() => evaluate('contains(1, 2)')).toThrow(/array ou texto/);
-    expect(() => evaluate('indexOf(1, 2)')).toThrow(/array ou texto/);
+    expect(() => evaluate('contains(1, 2)')).toThrow('@core.automation/expr.arg.first.array-or-text');
+    expect(() => evaluate('indexOf(1, 2)')).toThrow('@core.automation/expr.arg.first.array-or-text');
   });
 });

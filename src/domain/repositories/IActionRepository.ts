@@ -24,7 +24,9 @@ export interface RunActionInput {
 export interface RunActionResult {
   outcome: ActionOutcome | null;
   executionId: string | null;
+  /** REFERÊNCIA de mensagem; `errorParams` traz o que a frase interpola. */
   error: string | null;
+  errorParams?: Record<string, string>;
 }
 
 export interface IActionRepository {

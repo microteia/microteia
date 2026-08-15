@@ -1,10 +1,11 @@
 import type { ExpressionFunction } from '../FunctionRegistry';
 
+import { LocalizedError } from '../../../errors/LocalizedError';
 export const firstFn: ExpressionFunction = {
   name: 'first',
   call: ([array]) => {
     if (!Array.isArray(array)) {
-      throw new Error('first: argumento deve ser um array');
+      throw new LocalizedError('@core.automation/expr.arg.array', { fn: 'first' });
     }
     return array.length > 0 ? array[0] : undefined;
   },
@@ -20,7 +21,7 @@ export const lastFn: ExpressionFunction = {
   name: 'last',
   call: ([array]) => {
     if (!Array.isArray(array)) {
-      throw new Error('last: argumento deve ser um array');
+      throw new LocalizedError('@core.automation/expr.arg.array', { fn: 'last' });
     }
     return array.length > 0 ? array[array.length - 1] : undefined;
   },
@@ -47,7 +48,7 @@ export const mapFn: ExpressionFunction = {
   name: 'map',
   call: ([array, path, compact]) => {
     if (!Array.isArray(array)) {
-      throw new Error('map: primeiro argumento deve ser um array');
+      throw new LocalizedError('@core.automation/expr.arg.first.array', { fn: 'map' });
     }
     const keys = String(path ?? '')
       .split('.')
@@ -85,7 +86,7 @@ export const containsFn: ExpressionFunction = {
     if (typeof target === 'string') {
       return target.includes(asSearchText(value));
     }
-    throw new Error('contains: primeiro argumento deve ser um array ou texto');
+    throw new LocalizedError('@core.automation/expr.arg.first.array-or-text', { fn: 'contains' });
   },
   description: '@core.automation/expr.contains.description',
   signature: 'contains(arrayOrText, value)',
@@ -104,7 +105,7 @@ export const indexOfFn: ExpressionFunction = {
     if (typeof target === 'string') {
       return target.indexOf(asSearchText(value));
     }
-    throw new Error('indexOf: primeiro argumento deve ser um array ou texto');
+    throw new LocalizedError('@core.automation/expr.arg.first.array-or-text', { fn: 'indexOf' });
   },
   description: '@core.automation/expr.indexOf.description',
   signature: 'indexOf(arrayOrText, value)',

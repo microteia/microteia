@@ -39,7 +39,7 @@ export const makeRegisterAuditStepDefinition = (createAuditLogUseCase: CreateAud
         tenantId: context.execution.tenantId,
         title: String(inputs.title),
         userId: 'system',
-        userName: 'Automação',
+        userName: '@core.automation/run.actor',
         photoURL: '',
         action: 'SYSTEM',
         severity: (inputs.severity as AuditSeverity) ?? 'LOW',

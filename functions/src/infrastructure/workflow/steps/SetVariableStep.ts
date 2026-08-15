@@ -15,15 +15,15 @@ const validateVariableName = (value: unknown): string | undefined => {
   const name = String(value);
   
   if (!name) {
-    return 'Nome da variável não pode ser vazio';
+    return '@core.automation/step.set-variable.name.empty';
   }
   
   if (!VALID_VARIABLE_NAME_PATTERN.test(name)) {
-    return 'Nome inválido: deve começar com letra, underscore ou $ e conter apenas letras, números, underscore ou $';
+    return '@core.automation/step.set-variable.name.invalid';
   }
   
   if (JS_RESERVED_WORDS.has(name)) {
-    return `"${name}" é uma palavra reservada do JavaScript e não pode ser usada como nome de variável`;
+    return '@core.automation/step.set-variable.name.reserved';
   }
   
   return undefined;
@@ -46,7 +46,7 @@ export const makeSetVariableStepDefinition = (): StepDefinition => ({
       type: 'String',
       allowedMappingKinds: ['Literal'],
       pattern: '^[a-zA-Z_$][a-zA-Z0-9_$]*$',
-      patternMessage: 'O nome deve começar com letra, underscore ou $ e conter apenas letras, números, underscore ou $',
+      patternMessage: '@core.automation/step.set-variable.name.invalid',
       validator: validateVariableName,
     },
     { id: 'value', label: '@core.automation/step.set-variable.label.valor', required: true, type: 'Expression' },
@@ -66,7 +66,8 @@ export const makeSetVariableStepDefinition = (): StepDefinition => ({
       
       return { 
         success: true, 
-        message: `Variável "${name}" definida com valor "${String(value)}"`,
+        message: '@core.automation/step.set-variable.done',
+        messageParams: { name, value: String(value) },
         outputs: {
           [name]: value,
         },

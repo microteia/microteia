@@ -30,7 +30,7 @@ export const makeCallWorkflowStepDefinition = (runCalledWorkflow: RunCalledWorkf
       id: 'waitForResult',
       label: '@core.automation/step.call-workflow.label.aguardar-retorno',
       description:
-        'Se ativado, executa o workflow-alvo e espera terminar, disponibilizando as saídas dele (as "Saída do Workflow") para os próximos passos. Se desativado, apenas dispara o workflow e segue em frente sem esperar.',
+        '@core.automation/step.call-workflow.wait.description',
       required: false,
       type: 'Boolean',
       defaultValue: false,
@@ -53,7 +53,11 @@ export const makeCallWorkflowStepDefinition = (runCalledWorkflow: RunCalledWorkf
 
       const depth = Number(context.event.payload.__callDepth ?? 0);
       if (depth >= MAX_CALL_DEPTH) {
-        return { success: false, message: `Profundidade máxima de ${MAX_CALL_DEPTH} chamadas de workflow excedida` };
+        return {
+          success: false,
+          message: '@core.automation/step.call-workflow.max-depth',
+          messageParams: { max: String(MAX_CALL_DEPTH) },
+        };
       }
 
       const paramEntries: [string, unknown][] = [];
@@ -82,14 +86,17 @@ export const makeCallWorkflowStepDefinition = (runCalledWorkflow: RunCalledWorkf
       });
 
       if (!result.found) {
-        return { success: false, message: 'Workflow-alvo não encontrado, desativado ou não é do tipo "Chamar Workflow"' };
+        return {
+          success: false,
+          message: '@core.automation/step.call-workflow.target-missing',
+        };
       }
 
       if (result.status !== 'SUCCESS') {
         return { success: false, message: `Workflow chamado terminou com status "${result.status}"` };
       }
 
-      return { success: true, message: 'Workflow chamado e concluído', outputs: result.outputs };
+      return { success: true, message: '@core.automation/step.call-workflow.done', outputs: result.outputs };
     },
   }),
 });

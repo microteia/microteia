@@ -21,7 +21,7 @@ export const makeNotifyStepDefinition = (createAuditLogUseCase: CreateAuditLogUs
         tenantId: context.execution.tenantId,
         title: String(inputs.title),
         userId: 'system',
-        userName: 'Automação',
+        userName: '@core.automation/run.actor',
         photoURL: '',
         action: 'SYSTEM',
         severity: 'CRITICAL',
@@ -31,7 +31,7 @@ export const makeNotifyStepDefinition = (createAuditLogUseCase: CreateAuditLogUs
         entityLink: undefined,
         text: String(inputs.message),
       });
-      return { success: true, message: 'Notificação registrada' };
+      return { success: true, message: '@core.automation/step.notify.done' };
     },
   }),
 });

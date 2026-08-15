@@ -24,7 +24,7 @@ export const makeLogClientErrorUseCase = (
   execute: async (input, requesterId) => {
     const isMember = await tenantMemberRepo.isMember(input.tenantId, requesterId);
     if (!isMember) {
-      throw new Error('Usuário não pertence a este escritório.');
+      throw new Error('@core.workspace/user.not-a-member');
     }
 
     const actor = await userProfileLookupService.resolveActor(requesterId);

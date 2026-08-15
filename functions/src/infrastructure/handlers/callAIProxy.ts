@@ -10,13 +10,13 @@ export const callAIProxy = onCall(
   { region: 'southamerica-east1', cors: true },
   async (request) => {
     if (!request.auth) {
-      throw new HttpsError('unauthenticated', 'Autenticação necessária.');
+      throw new HttpsError('unauthenticated', '@core.automation/handler.unauthenticated');
     }
 
     const { tenantId, iaQuestion } = request.data as CallAIRequest;
 
     if (!tenantId || !iaQuestion) {
-      throw new HttpsError('invalid-argument', 'Parâmetros obrigatórios ausentes.');
+      throw new HttpsError('invalid-argument', '@core.automation/handler.params.missing');
     }
 
     try {

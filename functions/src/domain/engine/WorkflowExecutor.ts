@@ -35,9 +35,20 @@ export const runWorkflow = async ({ definition, event, registry, services }: Run
     stepDefinitionId?: string,
     contextInput?: Record<string, unknown>,
     inputs?: Record<string, unknown>,
-    outputs?: Record<string, unknown>
+    outputs?: Record<string, unknown>,
+    messageParams?: Record<string, string>,
   ): void => {
-    logs.push({ stepId, stepDefinitionId, level, message, at: services.now(), contextInput, inputs, outputs });
+    logs.push({
+      stepId,
+      stepDefinitionId,
+      level,
+      message,
+      messageParams,
+      at: services.now(),
+      contextInput,
+      inputs,
+      outputs,
+    });
   };
 
   // Step cujo executor está rodando agora — usado para atribuir ao step certo as mensagens
@@ -93,29 +104,39 @@ export const runWorkflow = async ({ definition, event, registry, services }: Run
   }
 
   if (!conditionResult) {
-    log('INFO', 'Condição avaliada como falsa, execução ignorada');
+    log('INFO', '@core.automation/run.condition.false');
     return finish('SUCCESS', {});
   }
 
   if (definition.screenKey && event.payload.screenKey !== definition.screenKey) {
-    log('INFO', 'Execução ignorada: entidade customizada do evento não corresponde à tela configurada no gatilho');
+    log('INFO', '@core.automation/run.skipped.screen-mismatch');
     return finish('SUCCESS', {});
   }
 
   if (definition.lookupCollection && event.payload.collection !== definition.lookupCollection) {
-    log('INFO', 'Execução ignorada: lista do evento não corresponde à lista configurada no gatilho');
+    log('INFO', '@core.automation/run.skipped.lookup-mismatch');
     return finish('SUCCESS', {});
   }
 
   const requiredIssues = collectRequiredIssues(definition.parameters, event.payload);
   if (requiredIssues.length > 0) {
-    log('ERROR', `Parâmetros do workflow inválidos: ${describeRuleIssues(requiredIssues)}`);
+    log(
+      'ERROR',
+      '@core.automation/run.parameters.invalid',
+      undefined, undefined, undefined, undefined, undefined,
+      { detail: describeRuleIssues(requiredIssues) },
+    );
     return finish('FAILED', {});
   }
 
   const ruledParameters = formatAndValidateParameters(definition.parameters, event.payload);
   if (ruledParameters.issues.length > 0) {
-    log('ERROR', `Parâmetros do workflow inválidos: ${describeRuleIssues(ruledParameters.issues)}`);
+    log(
+      'ERROR',
+      '@core.automation/run.parameters.invalid',
+      undefined, undefined, undefined, undefined, undefined,
+      { detail: describeRuleIssues(ruledParameters.issues) },
+    );
     return finish('FAILED', {});
   }
 
@@ -162,19 +183,26 @@ export const runWorkflow = async ({ definition, event, registry, services }: Run
         let branchResult: boolean;
         try {
           if (!step.condition) {
-            throw new Error('StepCondition sem condição configurada');
+            throw new Error('@core.automation/run.condition.missing');
           }
           branchResult = evaluateCondition(step.condition, context);
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : String(error);
-          log('ERROR', `[Condição] ${errorMessage}`, step.id, undefined, context.input);
+          log(
+            'ERROR',
+            '@core.automation/run.condition.failed',
+            step.id, undefined, context.input, undefined, undefined,
+            { detail: errorMessage },
+          );
           return { ok: false };
         }
 
         const branch = branchResult ? step.branches?.whenTrue : step.branches?.whenFalse;
         log(
           'INFO',
-          `Condição avaliada como ${branchResult ? 'verdadeira' : 'falsa'} — ramo "${branchResult ? 'Verdadeiro' : 'Falso'}"`,
+          branchResult
+            ? '@core.automation/run.condition.true-branch'
+            : '@core.automation/run.condition.false-branch',
           step.id,
           undefined,
           context.input,
@@ -195,7 +223,7 @@ export const runWorkflow = async ({ definition, event, registry, services }: Run
 
       if (step.type === 'Loop') {
         if (!step.loop) {
-          log('ERROR', '[Repetição] Nó de repetição sem configuração', step.id, undefined, context.input);
+          log('ERROR', '@core.automation/run.loop.missing-config', step.id, undefined, context.input);
           return { ok: false };
         }
         const { source, itemName, outputName, body } = step.loop;
@@ -205,7 +233,12 @@ export const runWorkflow = async ({ definition, event, registry, services }: Run
           sourceValue = resolveMapping(source, context);
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : String(error);
-          log('ERROR', `[Repetição] ${errorMessage}`, step.id, undefined, context.input);
+          log(
+            'ERROR',
+            '@core.automation/run.loop.failed',
+            step.id, undefined, context.input, undefined, undefined,
+            { detail: errorMessage },
+          );
           return { ok: false };
         }
 
@@ -215,12 +248,13 @@ export const runWorkflow = async ({ definition, event, registry, services }: Run
 
         log(
           'INFO',
-          `Repetição sobre ${items.length} ${items.length === 1 ? 'item' : 'itens'}`,
+          '@core.automation/run.loop.start',
           step.id,
           undefined,
           context.input,
           undefined,
           { count: items.length },
+          { count: String(items.length) },
         );
 
         let loopFailed = false;
@@ -236,7 +270,7 @@ export const runWorkflow = async ({ definition, event, registry, services }: Run
           if (recur.halted) {
             // Encerramento dentro do corpo: não agrega nem limpa as saídas do corpo, porque o
             // retorno do workflow é justamente a saída do Step que rodou antes do encerramento.
-            log('INFO', 'Repetição interrompida por encerramento do workflow', step.id, undefined, context.input);
+            log('INFO', '@core.automation/run.loop.halted', step.id, undefined, context.input);
             return { ok: true, lastStepId: recur.lastStepId ?? lastStepId, halted: true };
           }
           results.push(recur.lastStepId ? context.outputs[recur.lastStepId] ?? {} : {});
@@ -251,12 +285,13 @@ export const runWorkflow = async ({ definition, event, registry, services }: Run
         context.outputs[step.id] = loopOutputs;
         log(
           'SUCCESS',
-          `Repetição concluída — ${results.length} ${results.length === 1 ? 'resultado' : 'resultados'}`,
+          '@core.automation/run.loop.done',
           step.id,
           undefined,
           context.input,
           undefined,
           loopOutputs,
+          { count: String(results.length) },
         );
         lastStepId = step.id;
         continue;
@@ -288,12 +323,22 @@ export const runWorkflow = async ({ definition, event, registry, services }: Run
         const result = await stepDefinition.createExecutor().execute(inputs, context);
 
         if (!result.success) {
-          log('ERROR', result.message ?? 'Step falhou sem mensagem', step.id, step.stepDefinitionId, context.input, inputs, undefined);
+          log(
+            'ERROR',
+            result.message ?? '@core.automation/run.step.failed-no-message',
+            step.id, step.stepDefinitionId, context.input, inputs, undefined,
+            result.messageParams,
+          );
           return { ok: false };
         }
 
         context.outputs[step.id] = result.outputs ?? {};
-        log('SUCCESS', result.message ?? `Step "${stepDefinition.name}" concluído`, step.id, step.stepDefinitionId, context.input, inputs, result.outputs);
+        log(
+          'SUCCESS',
+          result.message ?? '@core.automation/run.step.done',
+          step.id, step.stepDefinitionId, context.input, inputs, result.outputs,
+          result.messageParams ?? { name: stepDefinition.name },
+        );
 
         if (result.halt) {
           // Um Step de encerramento não produz saída própria: `lastStepId` continua apontando

@@ -8,8 +8,12 @@
 export class LocalizedError extends Error {
   readonly messageParams?: Record<string, string>;
 
-  constructor(message: string, messageParams?: Record<string, string>) {
-    super(message);
+  constructor(
+    message: string,
+    messageParams?: Record<string, string>,
+    options?: ErrorOptions,
+  ) {
+    super(message, options);
     this.name = 'LocalizedError';
     this.messageParams = messageParams;
   }

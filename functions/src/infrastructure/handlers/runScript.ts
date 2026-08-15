@@ -82,29 +82,33 @@ export const runScript = onCall(
   { region: 'southamerica-east1', cors: true },
   async (request) => {
     if (!request.auth) {
-      throw new HttpsError('unauthenticated', 'Autenticação necessária.');
+      throw new HttpsError('unauthenticated', '@core.automation/handler.unauthenticated');
     }
 
     const { tenantId, compiledJs, inputParams, providedParams } = request.data as RunScriptRequest;
 
     if (!tenantId) {
-      throw new HttpsError('invalid-argument', 'Escritório não informado.');
+      throw new HttpsError('invalid-argument', '@core.automation/handler.tenant.missing');
     }
     if (!compiledJs || !compiledJs.trim()) {
-      throw new HttpsError('invalid-argument', 'O código do Script está vazio.');
+      throw new HttpsError('invalid-argument', '@core.automation/script.error.empty');
     }
 
     const di = getDI();
     const role = await di.getTenantMemberRepository().getMemberRole(tenantId, request.auth.uid);
     if (role !== 'admin' && role !== 'lawyer') {
-      throw new HttpsError('permission-denied', 'Acesso restrito a administradores e advogados do escritório.');
+      throw new HttpsError('permission-denied', '@core.automation/handler.restricted');
     }
 
     const params = inputParams ?? [];
     const coerced = coerceProvidedParams(params, providedParams ?? {});
     const ruled = formatAndValidateParameters(params, applyParameterDefaults(params, coerced));
     if (ruled.issues.length > 0) {
-      throw new HttpsError('invalid-argument', `Parâmetros do Script inválidos: ${describeRuleIssues(ruled.issues)}`);
+      throw new HttpsError(
+        'invalid-argument',
+        '@core.automation/handler.script.invalid-params',
+        { messageParams: { detail: describeRuleIssues(ruled.issues) } },
+      );
     }
 
     const db = getDb();

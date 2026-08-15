@@ -1,5 +1,6 @@
 import type { ExpressionFunction } from '../FunctionRegistry';
 
+import { LocalizedError } from '../../../errors/LocalizedError';
 /**
  * `floor`, `ceil` e `abs` NÃO moram aqui: são operadores unários do `expr-eval` e o parser os resolve
  * antes de consultar as funções registradas — as implementações daqui nunca eram chamadas. Continuam
@@ -15,10 +16,10 @@ export const roundFn: ExpressionFunction = {
   name: 'round',
   call: ([value, decimals = 0]) => {
     if (typeof value !== 'number') {
-      throw new Error('round: primeiro argumento deve ser um número');
+      throw new LocalizedError('@core.automation/expr.arg.first.number', { fn: 'round' });
     }
     if (typeof decimals !== 'number') {
-      throw new Error('round: segundo argumento deve ser um número');
+      throw new LocalizedError('@core.automation/expr.arg.second.number', { fn: 'round' });
     }
     const multiplier = Math.pow(10, decimals);
     return Math.round(value * multiplier) / multiplier;
@@ -35,11 +36,11 @@ export const minFn: ExpressionFunction = {
   name: 'min',
   call: (args) => {
     if (args.length === 0) {
-      throw new Error('min: requer pelo menos um argumento');
+      throw new LocalizedError('@core.automation/expr.arg.at-least-one', { fn: 'min' });
     }
     const numbers = args.map((arg) => {
       if (typeof arg !== 'number') {
-        throw new Error('min: todos os argumentos devem ser números');
+        throw new LocalizedError('@core.automation/expr.arg.all.numbers', { fn: 'min' });
       }
       return arg;
     });
@@ -56,11 +57,11 @@ export const maxFn: ExpressionFunction = {
   name: 'max',
   call: (args) => {
     if (args.length === 0) {
-      throw new Error('max: requer pelo menos um argumento');
+      throw new LocalizedError('@core.automation/expr.arg.at-least-one', { fn: 'max' });
     }
     const numbers = args.map((arg) => {
       if (typeof arg !== 'number') {
-        throw new Error('max: todos os argumentos devem ser números');
+        throw new LocalizedError('@core.automation/expr.arg.all.numbers', { fn: 'max' });
       }
       return arg;
     });
@@ -77,11 +78,11 @@ export const sumFn: ExpressionFunction = {
   name: 'sum',
   call: ([array]) => {
     if (!Array.isArray(array)) {
-      throw new Error('sum: argumento deve ser um array');
+      throw new LocalizedError('@core.automation/expr.arg.array', { fn: 'sum' });
     }
     return array.reduce((acc, value) => {
       if (typeof value !== 'number') {
-        throw new Error('sum: todos os elementos do array devem ser números');
+        throw new LocalizedError('@core.automation/expr.arg.all-items.numbers', { fn: 'sum' });
       }
       return acc + value;
     }, 0);
@@ -98,14 +99,14 @@ export const avgFn: ExpressionFunction = {
   name: 'avg',
   call: ([array]) => {
     if (!Array.isArray(array)) {
-      throw new Error('avg: argumento deve ser um array');
+      throw new LocalizedError('@core.automation/expr.arg.array', { fn: 'avg' });
     }
     if (array.length === 0) {
       return 0;
     }
     const sum = array.reduce((acc, value) => {
       if (typeof value !== 'number') {
-        throw new Error('avg: todos os elementos do array devem ser números');
+        throw new LocalizedError('@core.automation/expr.arg.all-items.numbers', { fn: 'avg' });
       }
       return acc + value;
     }, 0);

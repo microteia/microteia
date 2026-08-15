@@ -1,5 +1,6 @@
 import type { ExpressionFunction } from '../FunctionRegistry';
 
+import { LocalizedError } from '../../../errors/LocalizedError';
 export const concatFn: ExpressionFunction = {
   name: 'concat',
   call: (args) => args.map((arg) => String(arg)).join(''),
@@ -67,7 +68,7 @@ export const replaceFn: ExpressionFunction = {
   name: 'replace',
   call: ([text, search, replacement]) => {
     if (typeof text !== 'string' || typeof search !== 'string' || typeof replacement !== 'string') {
-      throw new Error('replace: todos os argumentos devem ser strings');
+      throw new LocalizedError('@core.automation/expr.arg.all.strings', { fn: 'replace' });
     }
     if (search === '') return text;
     return text.split(search).join(replacement);
@@ -84,13 +85,13 @@ export const substringFn: ExpressionFunction = {
   name: 'substring',
   call: ([text, start, end]) => {
     if (typeof text !== 'string') {
-      throw new Error('substring: primeiro argumento deve ser uma string');
+      throw new LocalizedError('@core.automation/expr.arg.first.string', { fn: 'substring' });
     }
     if (typeof start !== 'number') {
-      throw new Error('substring: segundo argumento deve ser um número');
+      throw new LocalizedError('@core.automation/expr.arg.second.number', { fn: 'substring' });
     }
     if (end !== undefined && typeof end !== 'number') {
-      throw new Error('substring: terceiro argumento deve ser um número');
+      throw new LocalizedError('@core.automation/expr.arg.third.number', { fn: 'substring' });
     }
     return end === undefined ? text.substring(start) : text.substring(start, end);
   },
@@ -106,7 +107,7 @@ export const startsWithFn: ExpressionFunction = {
   name: 'startsWith',
   call: ([text, prefix]) => {
     if (typeof text !== 'string' || typeof prefix !== 'string') {
-      throw new Error('startsWith: ambos os argumentos devem ser strings');
+      throw new LocalizedError('@core.automation/expr.arg.both.strings', { fn: 'startsWith' });
     }
     return text.startsWith(prefix);
   },
@@ -122,7 +123,7 @@ export const endsWithFn: ExpressionFunction = {
   name: 'endsWith',
   call: ([text, suffix]) => {
     if (typeof text !== 'string' || typeof suffix !== 'string') {
-      throw new Error('endsWith: ambos os argumentos devem ser strings');
+      throw new LocalizedError('@core.automation/expr.arg.both.strings', { fn: 'endsWith' });
     }
     return text.endsWith(suffix);
   },
@@ -138,7 +139,7 @@ export const splitFn: ExpressionFunction = {
   name: 'split',
   call: ([text, separator]) => {
     if (typeof text !== 'string' || typeof separator !== 'string') {
-      throw new Error('split: ambos os argumentos devem ser strings');
+      throw new LocalizedError('@core.automation/expr.arg.both.strings', { fn: 'split' });
     }
     return text.split(separator);
   },
@@ -154,10 +155,10 @@ export const joinFn: ExpressionFunction = {
   name: 'join',
   call: ([array, separator = '']) => {
     if (!Array.isArray(array)) {
-      throw new Error('join: primeiro argumento deve ser um array');
+      throw new LocalizedError('@core.automation/expr.arg.first.array', { fn: 'join' });
     }
     if (typeof separator !== 'string') {
-      throw new Error('join: segundo argumento deve ser uma string');
+      throw new LocalizedError('@core.automation/expr.arg.second.string', { fn: 'join' });
     }
     return array.map((item) => String(item)).join(separator);
   },
@@ -195,10 +196,10 @@ export const formatMoneyFn: ExpressionFunction = {
   call: ([value, locale = 'pt-br']) => {
     const amount = typeof value === 'number' ? value : Number(String(value).replace(',', '.'));
     if (!Number.isFinite(amount)) {
-      throw new Error('formatMoney: primeiro argumento deve ser um número');
+      throw new LocalizedError('@core.automation/expr.arg.first.number', { fn: 'formatMoney' });
     }
     if (typeof locale !== 'string') {
-      throw new Error('formatMoney: segundo argumento deve ser uma string');
+      throw new LocalizedError('@core.automation/expr.arg.second.string', { fn: 'formatMoney' });
     }
     const config = moneyLocales[locale.toLowerCase()] ?? moneyLocales['pt-br'];
     return new Intl.NumberFormat(config.locale, { style: 'currency', currency: config.currency })
@@ -217,7 +218,7 @@ export const interpolateFn: ExpressionFunction = {
   name: 'interpolate',
   call: ([template, ...values]) => {
     if (typeof template !== 'string') {
-      throw new Error('interpolate: primeiro argumento deve ser uma string (template)');
+      throw new LocalizedError('@core.automation/expr.arg.first.template', { fn: 'interpolate' });
     }
 
     const namedSource =

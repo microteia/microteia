@@ -12,7 +12,7 @@ export const makeUpsertStepDefinition = (deps: WorkflowMutationDeps): StepDefini
   version: 2,
   name: '@core.automation/step.upsert.name',
   description:
-    'Inclui ou atualiza um registro de qualquer cadastro do escritório (fixo, personalizado ou lista) a partir de um objeto pronto vindo dos steps anteriores ou do evento. Se o objeto tiver um id, atualiza; senão, inclui.',
+    '@core.automation/step.upsert.description',
   icon: 'RiSaveLine',
   category: 'Data',
   type: 'Action',
@@ -35,7 +35,7 @@ export const makeUpsertStepDefinition = (deps: WorkflowMutationDeps): StepDefini
     execute: async (inputs, context) => {
       const config = inputs.upsert as UpsertStepConfig | undefined;
       if (!config || typeof config !== 'object' || !config.table || !config.source) {
-        return { success: false, message: 'Gravação não configurada' };
+        return { success: false, message: '@core.automation/step.upsert.not-configured' };
       }
 
       const source = config.source === 'event' ? context.event.payload : context.input;
@@ -44,7 +44,7 @@ export const makeUpsertStepDefinition = (deps: WorkflowMutationDeps): StepDefini
         : source;
 
       if (!isPlainObject(raw)) {
-        return { success: false, message: 'Origem da gravação não é um objeto válido' };
+        return { success: false, message: '@core.automation/step.upsert.invalid-source' };
       }
 
       const { id, ...data } = raw;
@@ -62,7 +62,10 @@ export const makeUpsertStepDefinition = (deps: WorkflowMutationDeps): StepDefini
       const { id: recordId, created, record } = outcome.value;
       return {
         success: true,
-        message: `Registro ${created ? 'incluído' : 'atualizado'} em "${config.table}"`,
+        message: created
+          ? '@core.automation/step.upsert.inserted'
+          : '@core.automation/step.upsert.updated',
+        messageParams: { table: config.table },
         outputs: { id: recordId, created, record },
       };
     },

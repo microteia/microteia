@@ -94,4 +94,5 @@ export const CORE_WORKSPACE: Record<string, string> = {
   'tenant.load-failed': 'Falha ao carregar dados do escritório.',
   'tenant.none-found':
     'Nenhum escritório encontrado para este usuário. Recarregue a página; se o problema persistir, contate o suporte.',
+  'user.not-a-member': 'Usuário não pertence a este escritório.',
 };

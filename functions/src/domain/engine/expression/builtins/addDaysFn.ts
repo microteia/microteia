@@ -1,5 +1,6 @@
 import type { ExpressionFunction } from '../FunctionRegistry';
 
+import { LocalizedError } from '../../../errors/LocalizedError';
 const addDays = (date: Date, days: number): Date => {
   const copy = new Date(date);
   copy.setDate(copy.getDate() + days);
@@ -10,10 +11,10 @@ export const addDaysFn: ExpressionFunction = {
   name: 'addDays',
   call: ([date, days]) => {
     if (!(date instanceof Date)) {
-      throw new Error('addDays: primeiro argumento deve ser uma Date');
+      throw new LocalizedError('@core.automation/expr.arg.first.date', { fn: 'addDays' });
     }
     if (typeof days !== 'number') {
-      throw new Error('addDays: segundo argumento deve ser um número');
+      throw new LocalizedError('@core.automation/expr.arg.second.number', { fn: 'addDays' });
     }
     return addDays(date, days);
   },

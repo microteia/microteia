@@ -13,7 +13,7 @@ export const makeValidateStepDefinition = (screenProvider: IScreenDefinitionProv
   version: 1,
   name: '@core.automation/step.validate-object.name',
   description:
-    'Valida e formata um objeto vindo do evento ou dos steps anteriores, seja pelo schema de um cadastro conhecido, seja por parâmetros próprios. Falha o workflow quando algum campo não passa nas regras, e devolve o objeto já validado e formatado.',
+    '@core.automation/step.validate.description',
   icon: 'RiShieldCheckLine',
   category: 'Data',
   type: 'Action',
@@ -37,7 +37,7 @@ export const makeValidateStepDefinition = (screenProvider: IScreenDefinitionProv
     execute: async (inputs, context) => {
       const config = inputs.validate as ValidateStepConfig | undefined;
       if (!config || typeof config !== 'object' || !config.source || !config.outputName?.trim()) {
-        return { success: false, message: 'Validação não configurada' };
+        return { success: false, message: '@core.automation/step.validate.not-configured' };
       }
 
       const source = config.source === 'event' ? context.event.payload : context.input;
@@ -46,14 +46,18 @@ export const makeValidateStepDefinition = (screenProvider: IScreenDefinitionProv
         : source;
 
       if (!isPlainObject(raw)) {
-        return { success: false, message: 'Origem da validação não é um objeto válido' };
+        return { success: false, message: '@core.automation/step.validate.invalid-source' };
       }
 
       const ctx = await screenProvider.getSchemaContext(context.execution.tenantId);
       const outcome = validateObject(ctx, config, raw);
 
       if (outcome.issues.length > 0) {
-        return { success: false, message: `Objeto inválido: ${describeRuleIssues(outcome.issues)}` };
+        return {
+          success: false,
+          message: '@core.automation/step.validate.invalid-object',
+          messageParams: { detail: describeRuleIssues(outcome.issues) },
+        };
       }
 
       return {
