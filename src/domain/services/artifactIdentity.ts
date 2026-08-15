@@ -1,3 +1,4 @@
+import type { TranslateFn } from '../../presentation/shared/i18n/useT';
 /**
  * O IDENTIFICADOR de um artefato de id gerado — automação, ação e script.
  *
@@ -15,8 +16,12 @@ const ARTIFACT_ID_PATTERN = /^[a-z][a-z0-9-]*$/;
 
 export const MAX_ARTIFACT_ID_LENGTH = 60;
 
-/** O artefato a que o identificador pertence — só para a mensagem falar a língua da tela. */
-export type ArtifactLabel = 'automação' | 'ação' | 'script';
+/**
+ * O artefato a que o identificador pertence. Vira SUFIXO de chave (`artifact.taken.workflow`) em vez
+ * de entrar na frase: em português a mensagem precisa concordar em gênero ("um script" × "uma
+ * ação"), e nenhuma interpolação resolve concordância — só a frase inteira por artefato resolve.
+ */
+export type ArtifactKind = 'workflow' | 'action' | 'script';
 
 export const isArtifactId = (id: string): boolean => {
   const trimmed = id.trim();
@@ -24,20 +29,21 @@ export const isArtifactId = (id: string): boolean => {
 };
 
 export const artifactIdIssue = (
+  t: TranslateFn,
   id: string,
   taken: ReadonlySet<string> = new Set(),
-  label: ArtifactLabel = 'automação',
+  kind: ArtifactKind = 'workflow',
 ): string | undefined => {
   const trimmed = id.trim();
-  if (!trimmed) return 'Informe o identificador';
+  if (!trimmed) return t('artifact.id.required');
   if (trimmed.length > MAX_ARTIFACT_ID_LENGTH) {
-    return `O identificador deve ter no máximo ${MAX_ARTIFACT_ID_LENGTH} caracteres`;
+    return t('artifact.id.too-long', { max: MAX_ARTIFACT_ID_LENGTH });
   }
   if (!ARTIFACT_ID_PATTERN.test(trimmed)) {
-    return 'Use apenas letras minúsculas, números e hífen, começando por letra (ex: "avisar-cliente")';
+    return t('artifact.id.invalid');
   }
   if (taken.has(trimmed)) {
-    return `Já existe ${label === 'script' ? 'um' : 'uma'} ${label} com o identificador "${trimmed}"`;
+    return t(`artifact.taken.${kind}`, { id: trimmed });
   }
   return undefined;
 };

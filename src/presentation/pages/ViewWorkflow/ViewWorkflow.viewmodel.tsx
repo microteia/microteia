@@ -420,9 +420,9 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
 
   const workflowIdError = useMemo(
     () => (isNew && formData.workflowId.trim()
-      ? artifactIdIssue(formData.workflowId, takenWorkflowIds)
+      ? artifactIdIssue(t, formData.workflowId, takenWorkflowIds)
       : undefined),
-    [isNew, formData.workflowId, takenWorkflowIds],
+    [isNew, formData.workflowId, takenWorkflowIds, t],
   );
 
   const isLookupEvent = useMemo(() => isLookupEventName(formData.eventName), [formData.eventName]);

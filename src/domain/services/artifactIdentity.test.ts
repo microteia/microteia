@@ -1,21 +1,24 @@
 import { describe, expect, it } from 'vitest';
 import { deriveArtifactId, artifactIdIssue, installedArtifactId } from './artifactIdentity';
 
+/** O tradutor de teste devolve a própria chave. */
+const echo = (key: string) => key;
+
 describe('artifactIdIssue', () => {
   it('aceita um nome curto em minúsculas com hífen', () => {
-    expect(artifactIdIssue('avisar-cliente')).toBeUndefined();
+    expect(artifactIdIssue(echo, 'avisar-cliente')).toBeUndefined();
   });
 
   it('recusa vazio, maiúsculas, espaço, símbolo e início por número', () => {
-    expect(artifactIdIssue('')).toBeTruthy();
-    expect(artifactIdIssue('Avisar')).toBeTruthy();
-    expect(artifactIdIssue('avisar cliente')).toBeTruthy();
-    expect(artifactIdIssue('avisar_cliente')).toBeTruthy();
-    expect(artifactIdIssue('1-avisar')).toBeTruthy();
+    expect(artifactIdIssue(echo, '')).toBeTruthy();
+    expect(artifactIdIssue(echo, 'Avisar')).toBeTruthy();
+    expect(artifactIdIssue(echo, 'avisar cliente')).toBeTruthy();
+    expect(artifactIdIssue(echo, 'avisar_cliente')).toBeTruthy();
+    expect(artifactIdIssue(echo, '1-avisar')).toBeTruthy();
   });
 
   it('recusa um identificador já usado', () => {
-    expect(artifactIdIssue('avisar', new Set(['avisar']))).toContain('Já existe');
+    expect(artifactIdIssue(echo, 'avisar', new Set(['avisar']))).toContain('artifact.taken.workflow');
   });
 });
 
@@ -31,13 +34,13 @@ describe('deriveArtifactId', () => {
   });
 
   it('nome que não produz identificador válido ganha prefixo', () => {
-    expect(artifactIdIssue(deriveArtifactId('123'))).toBeUndefined();
-    expect(artifactIdIssue(deriveArtifactId('!!!'))).toBeUndefined();
+    expect(artifactIdIssue(echo, deriveArtifactId('123'))).toBeUndefined();
+    expect(artifactIdIssue(echo, deriveArtifactId('!!!'))).toBeUndefined();
   });
 
   it('o resultado sempre passa na própria validação', () => {
     for (const name of ['Ação', 'a', 'ÁÉÍ ÓÚ', 'workflow 2 — teste']) {
-      expect(artifactIdIssue(deriveArtifactId(name))).toBeUndefined();
+      expect(artifactIdIssue(echo, deriveArtifactId(name))).toBeUndefined();
     }
   });
 });

@@ -4866,6 +4866,21 @@ notificação, item de `options`, mensagem montada dentro de uma função.
 > `title={t(cond ? 'a' : 'b')}` o ternário é filho da CHAMADA, não do container, e a regra não o
 > vê. É a diferença entre traduzir a chave e escrever a frase.
 
+**Prosa com `<code>` no meio vira UMA chave.** As dicas da tela de Ações misturavam frase e
+identificador (`Chega ao fluxo no parâmetro <code>action</code>, para que…`). Dividir isso em duas
+chaves — uma antes do `<code>`, outra depois — quebra na primeira língua com ordem de palavras
+diferente. A frase inteira virou uma chave só, com o identificador dentro do texto; a marcação `<code>`
+some daquele trecho, e é um preço menor que uma tradução impossível de fazer certo.
+
+O conteúdo de `<code>` que SOBROU (blocos autônomos) fica fora da regra: identificador não traduz,
+pelo mesmo motivo que `record` e `isNew` não traduzem no resto do código.
+
+**Concordância não se resolve por interpolação.** `artifactIdIssue` dizia "Já existe {uma|um} {ação|
+script}"; em português o artigo concorda com o gênero do substantivo, e nenhum `{param}` resolve isso.
+O tipo do artefato virou SUFIXO DE CHAVE (`artifact.taken.workflow`, `.action`, `.script`), e cada
+idioma escreve a frase inteira que precisa. `ArtifactLabel` (`'automação' | 'ação' | 'script'`) virou
+`ArtifactKind` (`'workflow' | 'action' | 'script'`) — o tipo deixou de ser texto e virou identidade.
+
 **Fora da zona, com motivo:** `extensionTypeDefs.ts`. Os blocos `declare module` entregues ao autor
 de extensão são **documentação de API**, não texto de runtime: viram IntelliSense no editor dele,
 não passam por catálogo e não teriam como ser traduzidos em tempo de execução. Eles devem ir para o

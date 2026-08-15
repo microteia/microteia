@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [7.17.0] — 2026-08-14
+
+- A tela de Ações — incluindo as explicações longas sobre fluxos, parâmetros e expressões — passou a acompanhar o idioma escolhido.
+
 ## [7.16.0] — 2026-08-14
 
 - As mensagens compartilhadas por várias telas — anotações, documentos, exclusão de registro e execução de ações — passaram a acompanhar o idioma escolhido.

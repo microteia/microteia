@@ -13,7 +13,7 @@ import type { ActionDefinition } from '../../../domain/entities';
 import type { WorkflowVariable } from '../../components/ui/ExpressionEditor/autocompleteHelpers';
 import type { SearchSelectOption } from '../../components/ui/SearchSelect';
 
-import { useLabel } from '../../shared/i18n/useT';
+import { useLabel, useT } from '../../shared/i18n/useT';
 
 export interface ActionFormState {
   /** Id do documento — o que uma tela e um pacote guardam para apontar para esta ação. */
@@ -113,6 +113,7 @@ export interface ViewActionViewModel {
 }
 
 export const useViewActionViewModel = (tabKey: string): ViewActionViewModel => {
+  const t = useT('core.automation');
   const { actions, createAction, updateAction, deleteAction } = useActions();
   const { workflows } = useWorkflowStore();
   const { tenantRole } = useTenant();
@@ -166,13 +167,13 @@ export const useViewActionViewModel = (tabKey: string): ViewActionViewModel => {
   );
 
   const expressionVariables = useMemo<WorkflowVariable[]>(() => [
-    { name: 'record', definedBy: 'Registro como está gravado' },
-    { name: 'isNew', definedBy: 'Registro ainda não gravado' },
-    { name: 'isDirty', definedBy: 'Há alterações não gravadas' },
-    { name: 'role', definedBy: 'Papel do usuário no escritório' },
-    { name: 'surface', definedBy: 'Onde a ação aparece: detail, list ou parentTab' },
-    { name: 'relation', definedBy: 'O registro dentro da aba do pai: none, owned ou related' },
-  ], []);
+    { name: 'record', definedBy: t('action.var.record') },
+    { name: 'isNew', definedBy: t('action.var.is-new') },
+    { name: 'isDirty', definedBy: t('action.var.is-dirty') },
+    { name: 'role', definedBy: t('action.var.role') },
+    { name: 'surface', definedBy: t('action.var.surface') },
+    { name: 'relation', definedBy: t('action.var.relation') },
+  ], [t]);
 
   /**
    * Os comandos do sistema que uma ação pode executar em vez de um fluxo. Vêm do ponto de extensão,
@@ -215,9 +216,9 @@ export const useViewActionViewModel = (tabKey: string): ViewActionViewModel => {
 
   const actionIdError = useMemo(
     () => (isNew && formData.actionId.trim()
-      ? artifactIdIssue(formData.actionId, takenActionIds, 'ação')
+      ? artifactIdIssue(t, formData.actionId, takenActionIds, 'action')
       : undefined),
-    [isNew, formData.actionId, takenActionIds],
+    [isNew, formData.actionId, takenActionIds, t],
   );
 
   const canSave = !actionIdError
@@ -249,20 +250,20 @@ export const useViewActionViewModel = (tabKey: string): ViewActionViewModel => {
       if (isNew) {
         const chosenId = formData.actionId.trim() || deriveArtifactId(formData.title, takenActionIds);
         const created = await createAction(payload, chosenId);
-        notify('Ação criada com sucesso.', 'success');
+        notify(t('action.created'), 'success');
         closeTab(tabKey, activePanelId);
         openTab(`view-action:${created.id}`);
       } else if (action) {
         await updateAction(action.id, payload);
-        notify('Ação atualizada com sucesso.', 'success');
+        notify(t('action.updated'), 'success');
       }
     } catch (error) {
       console.error('[ViewAction save]', error);
-      notify('Erro ao salvar a ação.', 'error');
+      notify(t('action.save-failed'), 'error');
     } finally {
       setIsSaving(false);
     }
-  }, [canSave, formData, isNew, action, takenActionIds, createAction, updateAction, notify, closeTab, openTab, tabKey, activePanelId]);
+  }, [canSave, formData, isNew, action, takenActionIds, createAction, updateAction, notify, closeTab, openTab, tabKey, activePanelId, t]);
 
   const handleDelete = useCallback(() => setActionToDelete(action), [action]);
   const cancelDelete = useCallback(() => setActionToDelete(null), []);
@@ -271,14 +272,14 @@ export const useViewActionViewModel = (tabKey: string): ViewActionViewModel => {
     if (!actionToDelete) return;
     try {
       await deleteAction(actionToDelete.id);
-      notify('Ação excluída.', 'success');
+      notify(t('action.deleted'), 'success');
       closeTab(tabKey, activePanelId);
     } catch {
-      notify('Erro ao excluir a ação.', 'error');
+      notify(t('action.delete-failed'), 'error');
     } finally {
       setActionToDelete(null);
     }
-  }, [actionToDelete, deleteAction, notify, closeTab, tabKey, activePanelId]);
+  }, [actionToDelete, deleteAction, notify, closeTab, tabKey, activePanelId, t]);
 
   return {
     isAdmin: tenantRole === 'admin',

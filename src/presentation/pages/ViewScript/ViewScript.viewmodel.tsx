@@ -22,6 +22,8 @@ import type { Script, ScriptOutputParam } from '../../../domain/entities/Script'
 import type { WorkflowParameter } from '../../../domain/entities/Workflow';
 import type { RunModalResult } from '../../components/ui/RunModal';
 
+import { useT } from '../../shared/i18n/useT';
+
 const DEFAULT_SOURCE = `async function main() {
   // 'input' contém os parâmetros de entrada configurados no Step.
   // 'fn.*' expõe as funções de expressão (ex: fn.formatDate, fn.dateDiff).
@@ -125,6 +127,7 @@ export interface ViewScriptViewModel {
 }
 
 export const useViewScriptViewModel = (tabKey: string): ViewScriptViewModel => {
+  const t = useT('core.automation');
   const isNew = tabKey === 'new-script';
   const scriptId = isNew ? '' : tabKey.replace('view-script:', '');
 
@@ -151,9 +154,9 @@ export const useViewScriptViewModel = (tabKey: string): ViewScriptViewModel => {
 
   const scriptIdError = useMemo(
     () => (isNew && formData.scriptId.trim()
-      ? artifactIdIssue(formData.scriptId, takenScriptIds, 'script')
+      ? artifactIdIssue(t, formData.scriptId, takenScriptIds, 'script')
       : undefined),
-    [isNew, formData.scriptId, takenScriptIds],
+    [isNew, formData.scriptId, takenScriptIds, t],
   );
   const [isSaving, setIsSaving] = useState(false);
   const [runModalOpen, setRunModalOpen] = useState(false);

@@ -19,6 +19,7 @@ const MIGRATED_TO_SOURCE_LANGUAGE = [
   'src/plugins/core.*/**/*.{ts,tsx}',
   'src/plugins/messages/**/*.{ts,tsx}',
   'src/presentation/pages/Workflows/**/*.{ts,tsx}',
+  'src/presentation/pages/ViewAction/**/*.{ts,tsx}',
   'src/presentation/shared/**/*.{ts,tsx}',
   'src/domain/schema/eventCatalog.ts',
   'src/domain/schema/fieldRulePresets.ts',
@@ -101,9 +102,17 @@ export default defineConfig([
           selector: 'Literal[value=/[áàâãéêíóôõúüçÁÀÂÃÉÊÍÓÔÕÚÜÇ]/]',
           message: 'Texto em português no código. O idioma-fonte é o inglês: crie a chave em src/plugins/messages/ e chame useT(); a tradução vai para o pacote pt-BR.',
         },
+        // `<code>action</code>` fica de fora: o conteúdo de `code` é IDENTIFICADOR, e identificador
+        // não traduz — pelo mesmo motivo que `record`, `isNew` e `status` não traduzem no resto do
+        // código. Sem essa exceção, a alternativa seria dissolver a marcação dentro da frase
+        // traduzida e perder a distinção visual entre prosa e símbolo numa dica técnica.
         {
-          selector: 'JSXText[value=/[A-Za-zÀ-ÿ]{2}/]',
+          selector: "JSXElement:not([openingElement.name.name='code']) > JSXText[value=/[A-Za-zÀ-ÿ]{2}/]",
           message: 'Texto solto no JSX. Todo texto de usuário vem do catálogo: renderize {t(\'chave\')} em vez de escrever a frase. Nome próprio (marca) precisa de eslint-disable-next-line com justificativa.',
+        },
+        {
+          selector: 'JSXFragment > JSXText[value=/[A-Za-zÀ-ÿ]{2}/]',
+          message: 'Texto solto no JSX. Todo texto de usuário vem do catálogo: renderize {t(\'chave\')} em vez de escrever a frase.',
         },
         {
           selector: "JSXAttribute[name.name=/^(title|label|placeholder|message|subtitle|description|hint|summary|alt|aria-label|confirmLabel|cancelLabel|runLabel|emptyMessage|deleteConfirmTitle|deleteConfirmMessage)$/] > Literal[value=/[A-Za-zÀ-ÿ]{2}/]",

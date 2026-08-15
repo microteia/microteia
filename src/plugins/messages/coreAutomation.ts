@@ -256,4 +256,69 @@ export const CORE_AUTOMATION_MESSAGES: Record<string, string> = {
   'step.id.required': 'Enter an identifier.',
   'step.id.hint': 'Use letters, numbers and _, starting with a letter — that is how it is written in an expression.',
   'step.id.duplicated': 'There is already a step with this identifier in this automation.',
+  'action.admin-only': 'Only organization administrators can configure actions.',
+  'action.not-found': 'This action no longer exists or was deleted.',
+  'action.created': 'Action created successfully.',
+  'action.updated': 'Action updated successfully.',
+  'action.save-failed': 'Could not save the action.',
+  'action.deleted': 'Action deleted.',
+  'action.delete': 'Delete action',
+  'action.delete-failed': 'Could not delete the action.',
+  'action.delete.message':
+    'Are you sure you want to delete the action "{title}"? The screens that show it will stop doing so.',
+  'action.id.placeholder': 'ex: toggle-active',
+  'action.id.hint':
+    'It is how a screen and a package point at this action. Left empty, we build one from the title. It does not change after creation.',
+  'action.id.locked':
+    'The identifier does not change after the action is created — the screens and packages pointing at it would stop finding it.',
+  'action.key': 'Key for the workflow *',
+  'action.key.placeholder': 'ex: send_email',
+  'action.key.hint':
+    'It reaches the workflow in the "action" parameter, so that one workflow serves more than one action. It is not the identifier: two actions MAY share it.',
+  'action.title': 'Title *',
+  'action.title.placeholder': 'ex: Send by e-mail',
+  'action.command': 'What the action runs *',
+  'action.command.placeholder': 'Choose what to run',
+  'action.command.hint':
+    'A system command is a screen operation — copy link, duplicate, tags, delete, unlink — and needs no workflow at all. Choose "Run a workflow" for the action to call an automation.',
+  'action.workflow': 'Workflow *',
+  'action.workflow.placeholder': 'Choose the workflow to run',
+  'action.workflow.hint':
+    'Only workflows of type "Called workflow" appear here. It receives the parameters "action", "source" and "context". The LAST Step must return "result", "status" and "actions" at once — use "Build Object" without a name, or a Script Step. Three "Workflow Output" Steps do not work: only the last one would count. The status accepts ["SUCCESS", "Message"] or just "SUCCESS"; to return per-field errors, use object("code", …, "fieldErrors", …).',
+  'action.enabled': 'Active',
+  'action.danger': 'Destructive action (highlighted in red)',
+  'action.prompt.section': 'Ask before running',
+  'action.prompt.label': 'Open the form with the workflow parameters',
+  'action.prompt.hint':
+    'The action opens a window with the workflow parameters and only runs after the user confirms. It is an explicit statement of purpose: a workflow with parameters is the norm, and almost none should open a screen. The five the system always delivers — "action", "source", "context", "recordId" and "isNew" — are not asked.',
+  'action.prompt.nothing':
+    'The chosen workflow asks for nothing beyond the system parameters. With nothing to ask, the action runs straight away.',
+  'action.prompt.defaults.hint':
+    'What each field OPENS filled with, by expression over the record on screen. Left empty, the field opens with the value of the field of the SAME NAME, if there is one — the map is for when the names differ (the screen holds "processNumber", the workflow asks for "caseNumber").',
+  'action.expression.hint':
+    'Re-evaluated when the screen opens and on every field change. Besides the screen fields, use "record", "isNew", "isDirty", "role" and "surface" — where the action is being drawn: "detail" (record header), "list" (list card) or "parentTab" (card inside another record\u2019s tab).',
+  'action.hidden-when': 'Hide when',
+  'action.hidden-when.placeholder': 'ex: isNew or role != "admin"',
+  'action.disabled-when': 'Disable when',
+  'action.disabled-when.placeholder': 'ex: isEmpty(email)',
+  'action.active-when': 'On when (switch)',
+  'action.active-when.placeholder': 'ex: status != "Inactive"',
+  'action.active-when.hint':
+    'When filled, the button starts SHOWING the state of the record: green when the expression is true, red when false. Left empty, it is an ordinary button that only fires.',
+  'action.confirm.section': 'Confirmation',
+  'action.confirm.label': 'Confirmation message',
+  'action.confirm.placeholder': 'Leave it empty to run without confirming.',
+  'action.var.record': 'The record as it is stored',
+  'action.var.is-new': 'Record not saved yet',
+  'action.var.is-dirty': 'There are unsaved changes',
+  'action.var.role': "The user's role in the organization",
+  'action.var.surface': 'Where the action appears: detail, list or parentTab',
+  'action.var.relation': "The record inside the parent's tab: none, owned or related",
+  'artifact.id.required': 'Enter the identifier',
+  'artifact.id.too-long': 'The identifier must be at most {max} characters',
+  'artifact.id.invalid':
+    'Use only lowercase letters, numbers and hyphen, starting with a letter (ex: "notify-client")',
+  'artifact.taken.workflow': 'There is already an automation with the identifier "{id}"',
+  'artifact.taken.action': 'There is already an action with the identifier "{id}"',
+  'artifact.taken.script': 'There is already a script with the identifier "{id}"',
 };

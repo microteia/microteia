@@ -9,17 +9,20 @@ import { ExpressionEditor } from '../../components/ui/ExpressionEditor';
 import { ConfirmModal } from '../../components/ui/ConfirmModal';
 import { InfoBanner } from '../../components/ui/InfoBanner';
 
+import { useT } from '../../shared/i18n/useT';
+
 export const ViewActionView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
   const vm = useViewActionViewModel(tabKey);
+  const t = useT('core.automation');
 
   if (!vm.isAdmin) {
     return (
       <S.Page>
         <S.Header>
-          <S.HeaderTitle><RiCursorLine size={20} />Ação</S.HeaderTitle>
+          <S.HeaderTitle><RiCursorLine size={20} />{t('page.view-action')}</S.HeaderTitle>
         </S.Header>
         <S.Content>
-          <InfoBanner variant="info" message="Somente administradores do escritório podem configurar ações." />
+          <InfoBanner variant="info" message={t('action.admin-only')} />
         </S.Content>
       </S.Page>
     );
@@ -29,10 +32,10 @@ export const ViewActionView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
     return (
       <S.Page>
         <S.Header>
-          <S.HeaderTitle><RiCursorLine size={20} />Ação</S.HeaderTitle>
+          <S.HeaderTitle><RiCursorLine size={20} />{t('page.view-action')}</S.HeaderTitle>
         </S.Header>
         <S.Content>
-          <InfoBanner message="Esta ação não existe mais ou foi excluída." />
+          <InfoBanner message={t('action.not-found')} />
         </S.Content>
       </S.Page>
     );
@@ -43,18 +46,18 @@ export const ViewActionView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
       <S.Header>
         <S.HeaderTitle>
           <RiCursorLine size={20} />
-          {vm.isNew ? 'Nova Ação' : (vm.formData.title || 'Ação')}
+          {vm.isNew ? t('page.new-action') : (vm.formData.title || t('page.view-action'))}
         </S.HeaderTitle>
         <S.HeaderActions>
           <S.SaveBtn
             onClick={() => void vm.handleSave()}
             disabled={!vm.canSave}
-            title={vm.isSaving ? 'Salvando...' : 'Salvar'}
+            title={t(vm.isSaving ? 'core.ui/saving' : 'core.ui/action.save')}
           >
             <RiSave3Line size={14} />
           </S.SaveBtn>
           {!vm.isNew && (
-            <S.DeleteBtn onClick={vm.handleDelete} title="Excluir ação">
+            <S.DeleteBtn onClick={vm.handleDelete} title={t('action.delete')}>
               <RiDeleteBinLine size={14} />
             </S.DeleteBtn>
           )}
@@ -63,95 +66,77 @@ export const ViewActionView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
 
       <S.Content>
         <S.Section>
-          <S.SectionTitle>Geral</S.SectionTitle>
+          <S.SectionTitle>{t('core.records/screen.tab.general')}</S.SectionTitle>
           <S.SectionBody>
             <S.Field>
-              <Label>Identificador</Label>
+              <Label>{t('core.marketplace/author.field.id')}</Label>
               <Input
                 value={vm.isNew ? vm.formData.actionId : vm.actionId}
                 onChange={(e) => vm.setFormData({ actionId: e.target.value })}
-                placeholder={vm.suggestedActionId || 'ex: ativar-inativar'}
+                placeholder={vm.suggestedActionId || t('action.id.placeholder')}
                 disabled={!vm.isNew}
               />
               <S.SectionHint>
-                {vm.isNew
-                  ? 'É por ele que uma tela e um pacote apontam para esta ação. Em branco, criamos um a partir do título. Não muda depois de criada.'
-                  : 'O identificador não muda depois que a ação é criada — as telas e os pacotes que apontam para ela deixariam de encontrá-la.'}
+                {t(vm.isNew ? 'action.id.hint' : 'action.id.locked')}
               </S.SectionHint>
               {vm.actionIdError && <S.FieldError>{vm.actionIdError}</S.FieldError>}
             </S.Field>
             <S.Field>
-              <Label>Chave para o fluxo *</Label>
+              <Label>{t('action.key')}</Label>
               <Input
                 value={vm.formData.key}
                 onChange={(e) => vm.setFormData({ key: e.target.value })}
-                placeholder="ex: send_email"
+                placeholder={t('action.key.placeholder')}
               />
-              <S.SectionHint>
-                Chega ao fluxo de trabalho no parâmetro <code>action</code>, para que um mesmo fluxo
-                atenda mais de uma ação. Não é o identificador: duas ações PODEM compartilhá-la.
-              </S.SectionHint>
+              <S.SectionHint>{t('action.key.hint')}</S.SectionHint>
             </S.Field>
             <S.Field>
-              <Label>Título *</Label>
+              <Label>{t('action.title')}</Label>
               <Input
                 value={vm.formData.title}
                 onChange={(e) => vm.setFormData({ title: e.target.value })}
-                placeholder="ex: Enviar por e-mail"
+                placeholder={t('action.title.placeholder')}
               />
             </S.Field>
             <S.Field>
-              <Label>Ícone</Label>
+              <Label>{t('core.records/screen.icon')}</Label>
               <SearchSelect
                 options={vm.iconOptions}
                 value={vm.formData.icon}
                 onChange={(icon) => vm.setFormData({ icon })}
-                placeholder="Escolha um ícone"
+                placeholder={t('core.records/screen.icon.placeholder')}
               />
             </S.Field>
             <S.Field>
-              <Label>O que a ação executa *</Label>
+              <Label>{t('action.command')}</Label>
               <SearchSelect
                 options={vm.commandOptions}
                 value={vm.formData.command}
                 onChange={(command) => vm.setFormData({ command })}
-                placeholder="Escolha o que executar"
+                placeholder={t('action.command.placeholder')}
               />
-              <S.SectionHint>
-                Um <strong>comando do sistema</strong> é uma operação de tela — copiar link,
-                duplicar, etiquetas, excluir, desvincular — e não precisa de fluxo nenhum. Escolha
-                &quot;Executar um fluxo de trabalho&quot; para a ação chamar uma automação.
-              </S.SectionHint>
+              <S.SectionHint>{t('action.command.hint')}</S.SectionHint>
             </S.Field>
             {!vm.formData.command && (
             <S.Field>
-              <Label>Fluxo de trabalho *</Label>
+              <Label>{t('action.workflow')}</Label>
               <SearchSelect
                 options={vm.workflowOptions}
                 value={vm.formData.workflowId}
                 onChange={(workflowId) => vm.setFormData({ workflowId })}
-                placeholder="Escolha o fluxo a executar"
+                placeholder={t('action.workflow.placeholder')}
               />
-              <S.SectionHint>
-                Apenas fluxos do tipo "Workflow chamado" aparecem aqui. Ele recebe os parâmetros
-                <code> action</code>, <code>source</code> e <code>context</code>.
-                O <strong>último</strong> Step precisa devolver <code>result</code>,{' '}
-                <code>status</code> e <code>actions</code> de uma vez — use "Montar Objeto" sem
-                nome, ou um Step Script. Três Steps de "Saída do Workflow" não funcionam: só o
-                último seria considerado. O status aceita{' '}
-                <code>["SUCCESS", "Mensagem"]</code> ou apenas <code>"SUCCESS"</code>; para
-                devolver erros por campo, use <code>object("code", …, "fieldErrors", …)</code>.
-              </S.SectionHint>
+              <S.SectionHint>{t('action.workflow.hint')}</S.SectionHint>
             </S.Field>
             )}
             <S.Field>
               <Checkbox
-                label="Ativa"
+                label={t('action.enabled')}
                 checked={vm.formData.enabled}
                 onChange={() => vm.setFormData({ enabled: !vm.formData.enabled })}
               />
               <Checkbox
-                label="Ação destrutiva (destaque em vermelho)"
+                label={t('action.danger')}
                 checked={vm.formData.danger}
                 onChange={() => vm.setFormData({ danger: !vm.formData.danger })}
               />
@@ -161,33 +146,22 @@ export const ViewActionView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
 
         {!vm.formData.command && (
           <S.Section>
-            <S.SectionTitle>Perguntar antes de executar</S.SectionTitle>
+            <S.SectionTitle>{t('action.prompt.section')}</S.SectionTitle>
             <S.SectionBody>
               <S.Field>
                 <Checkbox
-                  label="Abrir o formulário dos parâmetros do fluxo"
+                  label={t('action.prompt.label')}
                   checked={vm.formData.promptParameters}
                   onChange={() => vm.setFormData({ promptParameters: !vm.formData.promptParameters })}
                 />
-                <S.SectionHint>
-                  A ação abre uma janela com os parâmetros do fluxo e só executa depois que o usuário
-                  confirma. É declaração explícita de propósito: fluxo com parâmetro é o normal, e
-                  quase nenhum deve abrir tela. Os cinco que o sistema sempre entrega —{' '}
-                  <code>action</code>, <code>source</code>, <code>context</code>,{' '}
-                  <code>recordId</code> e <code>isNew</code> — não são perguntados.
-                </S.SectionHint>
+                <S.SectionHint>{t('action.prompt.hint')}</S.SectionHint>
               </S.Field>
               {vm.formData.promptParameters && (
                 vm.promptableParameters.length === 0 ? (
-                  <InfoBanner message="O fluxo escolhido não pede nada além dos parâmetros do sistema. Sem nada a perguntar, a ação executa direto." />
+                  <InfoBanner message={t('action.prompt.nothing')} />
                 ) : (
                   <>
-                    <S.SectionHint>
-                      Com o que cada campo ABRE preenchido, por expressão sobre o registro da tela.
-                      Em branco, o campo abre com o valor do campo de MESMO NOME, se existir — o mapa
-                      é para quando os nomes divergem (a tela guarda{' '}
-                      <code>processNumber</code>, o fluxo pede <code>caseNumber</code>).
-                    </S.SectionHint>
+                    <S.SectionHint>{t('action.prompt.defaults.hint')}</S.SectionHint>
                     {vm.promptableParameters.map((param) => (
                       <S.Field key={param.key}>
                         <Label>
@@ -210,44 +184,34 @@ export const ViewActionView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
         )}
 
         <S.Section>
-          <S.SectionTitle>Comportamento por expressão</S.SectionTitle>
+          <S.SectionTitle>{t('core.records/field.expression-behaviour')}</S.SectionTitle>
           <S.SectionBody>
-            <S.SectionHint>
-              Reavaliadas ao abrir a tela e a cada alteração de campo. Além dos campos da tela, use
-              <code> record</code>, <code>isNew</code>, <code>isDirty</code>, <code>role</code> e
-              <code> surface</code> — onde a ação está sendo desenhada:{' '}
-              <code>&quot;detail&quot;</code> (cabeçalho do registro), <code>&quot;list&quot;</code>{' '}
-              (cartão da listagem) ou <code>&quot;parentTab&quot;</code> (cartão dentro da aba de
-              outro registro).
-            </S.SectionHint>
+            <S.SectionHint>{t('action.expression.hint')}</S.SectionHint>
             <S.Field>
-              <Label>Ocultar quando</Label>
+              <Label>{t('action.hidden-when')}</Label>
               <ExpressionEditor
                 value={vm.formData.hiddenWhen}
                 onChange={(hiddenWhen) => vm.setFormData({ hiddenWhen })}
-                placeholder='ex: isNew or role != "admin"'
+                placeholder={t('action.hidden-when.placeholder')}
                 workflowVariables={vm.expressionVariables}
               />
             </S.Field>
             <S.Field>
-              <Label>Desabilitar quando</Label>
+              <Label>{t('action.disabled-when')}</Label>
               <ExpressionEditor
                 value={vm.formData.disabledWhen}
                 onChange={(disabledWhen) => vm.setFormData({ disabledWhen })}
-                placeholder="ex: isEmpty(email)"
+                placeholder={t('action.disabled-when.placeholder')}
                 workflowVariables={vm.expressionVariables}
               />
             </S.Field>
             <S.Field>
-              <Label>Ligada quando (interruptor)</Label>
-              <S.SectionHint>
-                Preenchida, o botão passa a MOSTRAR o estado do registro: verde quando a expressão é
-                verdadeira, vermelho quando falsa. Em branco, é um botão comum, que só dispara.
-              </S.SectionHint>
+              <Label>{t('action.active-when')}</Label>
+              <S.SectionHint>{t('action.active-when.hint')}</S.SectionHint>
               <ExpressionEditor
                 value={vm.formData.activeWhen}
                 onChange={(activeWhen) => vm.setFormData({ activeWhen })}
-                placeholder='ex: status != "Inativo"'
+                placeholder={t('action.active-when.placeholder')}
                 workflowVariables={vm.expressionVariables}
               />
             </S.Field>
@@ -255,14 +219,14 @@ export const ViewActionView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
         </S.Section>
 
         <S.Section>
-          <S.SectionTitle>Confirmação</S.SectionTitle>
+          <S.SectionTitle>{t('action.confirm.section')}</S.SectionTitle>
           <S.SectionBody>
             <S.Field>
-              <Label>Mensagem de confirmação</Label>
+              <Label>{t('action.confirm.label')}</Label>
               <Textarea
                 value={vm.formData.confirmMessage}
                 onChange={(e) => vm.setFormData({ confirmMessage: e.target.value })}
-                placeholder="Deixe em branco para executar sem confirmar."
+                placeholder={t('action.confirm.placeholder')}
                 rows={2}
               />
             </S.Field>
@@ -274,9 +238,9 @@ export const ViewActionView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
         isOpen={!!vm.actionToDelete}
         onConfirm={() => void vm.confirmDelete()}
         onCancel={vm.cancelDelete}
-        title="Excluir Ação"
-        message={`Tem certeza que deseja excluir a ação "${vm.actionToDelete?.title ?? ''}"? As telas que a exibem deixarão de mostrá-la.`}
-        confirmLabel="Excluir"
+        title={t('action.delete')}
+        message={t('action.delete.message', { title: vm.actionToDelete?.title ?? '' })}
+        confirmLabel={t('core.ui/action.delete')}
         variant="danger"
       />
     </S.Page>
