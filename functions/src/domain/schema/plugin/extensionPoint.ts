@@ -57,7 +57,8 @@ export const validateExtensionPoint = (
     diagnostics.push(
       error({
         code: 'extensionPoint.invalid',
-        message: `Ponto de extensão "${definition?.id}" é inválido. Use o formato "grupo.nome" (ex.: "ui.page").`,
+        message: '@core.marketplace/diagnostic.point.id.invalid',
+        messageParams: { id: String(definition?.id) },
         pluginId,
         path: at('id'),
       }),
@@ -67,7 +68,8 @@ export const validateExtensionPoint = (
     diagnostics.push(
       error({
         code: 'extensionPoint.invalid',
-        message: `O ponto "${definition?.id}" precisa de uma apiVersion em semver.`,
+        message: '@core.marketplace/diagnostic.point.api-version.invalid',
+        messageParams: { id: String(definition?.id) },
         pluginId,
         path: at('apiVersion'),
       }),
@@ -77,7 +79,8 @@ export const validateExtensionPoint = (
     diagnostics.push(
       error({
         code: 'extensionPoint.invalid',
-        message: `O ponto "${definition?.id}" precisa de um título.`,
+        message: '@core.marketplace/diagnostic.point.title.missing',
+        messageParams: { id: String(definition?.id) },
         pluginId,
         path: at('title'),
       }),
@@ -87,7 +90,8 @@ export const validateExtensionPoint = (
     diagnostics.push(
       error({
         code: 'extensionPoint.invalid',
-        message: `O ponto "${definition?.id}" precisa declarar allowedImplKinds.`,
+        message: '@core.marketplace/diagnostic.point.impl-kinds.missing',
+        messageParams: { id: String(definition?.id) },
         pluginId,
         path: at('allowedImplKinds'),
       }),
@@ -98,7 +102,8 @@ export const validateExtensionPoint = (
         diagnostics.push(
           error({
             code: 'extensionPoint.invalid',
-            message: `Tipo de implementação "${kind}" não existe. Use um de: ${IMPL_KINDS.join(', ')}.`,
+            message: '@core.marketplace/diagnostic.point.impl-kind.unknown',
+            messageParams: { kind: String(kind), allowed: IMPL_KINDS.join(', ') },
             pluginId,
             path: at(`allowedImplKinds[${kindIndex}]`),
           }),
@@ -109,7 +114,8 @@ export const validateExtensionPoint = (
       diagnostics.push(
         error({
           code: 'extensionPoint.invalid',
-          message: `O ponto "${definition.id}" exige implementação mas não permite nenhum tipo.`,
+          message: '@core.marketplace/diagnostic.point.impl-required-none-allowed',
+          messageParams: { id: definition.id },
           pluginId,
           path: at('allowedImplKinds'),
         }),

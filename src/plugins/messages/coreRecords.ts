@@ -200,4 +200,5 @@ export const CORE_RECORDS_MESSAGES: Record<string, string> = {
   'action.prompt.compute-failed': 'Could not compute "{label}": {message}.',
   'expression.error.unknown-function-name': 'the function "{name}" does not exist in field expressions',
   'expression.error.unknown-field': 'the field "{name}" does not exist on this screen',
+  'field.default-name': 'Name',
 };

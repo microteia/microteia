@@ -109,7 +109,7 @@ describe('validateExtensionPoint', () => {
       definition({ allowedImplKinds: [], implRequired: true }),
       'core.kernel',
     );
-    expect(diagnostics[0].message).toContain('não permite nenhum tipo');
+    expect(diagnostics[0].message).toBe('@core.marketplace/diagnostic.point.impl-required-none-allowed');
   });
 
   it('aceita ponto sem implementação e sem tipos permitidos', () => {

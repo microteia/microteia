@@ -8,20 +8,22 @@ import { ConfirmModal } from '../../components/ui/ConfirmModal';
 import { InfoBanner } from '../../components/ui/InfoBanner';
 import { Spinner } from '../../components/ui/Spinner';
 import { getScreenIcon } from '../../shared/screenIcons';
+import { useT } from '../../shared/i18n/useT';
 
 export const ActionsView: React.FC = () => {
+  const t = useT('core.automation');
   const vm = useActionsViewModel();
 
   if (!vm.isAdmin) {
     return (
       <S.Page>
         <S.Header>
-          <S.Title>Ações</S.Title>
+          <S.Title>{t('page.actions')}</S.Title>
         </S.Header>
         <S.Content>
           <InfoBanner
             variant="info"
-            message="Somente administradores do escritório podem configurar ações."
+            message={t('action.admin-only')}
           />
         </S.Content>
       </S.Page>
@@ -31,8 +33,8 @@ export const ActionsView: React.FC = () => {
   return (
     <S.Page>
       <S.Header>
-        <S.Title>Ações</S.Title>
-        <Button onClick={vm.openNewAction} title="Nova Ação">
+        <S.Title>{t('page.actions')}</S.Title>
+        <Button onClick={vm.openNewAction} title={t('actions.new')}>
           <RiAddLine size={16} />
         </Button>
       </S.Header>
@@ -42,7 +44,7 @@ export const ActionsView: React.FC = () => {
           defs={vm.filterDefs}
           tokens={vm.filterTokens}
           onChange={vm.setFilterTokens}
-          placeholder="Filtrar ações..."
+          placeholder={t('actions.filter.placeholder')}
           screenKey={vm.savedFiltersScreenKey}
         />
       </S.Toolbar>
@@ -53,10 +55,10 @@ export const ActionsView: React.FC = () => {
         ) : vm.filteredActions.length === 0 ? (
           <S.EmptyState>
             <S.EmptyIcon><RiCursorLine /></S.EmptyIcon>
-            <S.EmptyTitle>Nenhuma ação encontrada</S.EmptyTitle>
+            <S.EmptyTitle>{t('actions.empty')}</S.EmptyTitle>
             <Button onClick={vm.openNewAction} variant="secondary">
               <RiAddLine size={14} />
-              Criar primeira ação
+              {t('actions.create-first')}
             </Button>
           </S.EmptyState>
         ) : (
@@ -67,12 +69,12 @@ export const ActionsView: React.FC = () => {
                 <S.RowInfo>
                   <S.RowName>
                     {action.title}
-                    {!action.enabled && ' (desativada)'}
+                    {!action.enabled && ` ${t('actions.disabled-suffix')}`}
                   </S.RowName>
                   <S.RowDescription>{action.key}</S.RowDescription>
                 </S.RowInfo>
                 <S.DeleteBtn
-                  title="Excluir ação"
+                  title={t('action.delete')}
                   onClick={(e) => { e.stopPropagation(); vm.handleDelete(action); }}
                 >
                   <RiDeleteBinLine size={14} />
@@ -87,9 +89,9 @@ export const ActionsView: React.FC = () => {
         isOpen={!!vm.actionToDelete}
         onConfirm={() => void vm.confirmDelete()}
         onCancel={vm.cancelDelete}
-        title="Excluir Ação"
-        message={`Tem certeza que deseja excluir a ação "${vm.actionToDelete?.title ?? ''}"? As telas que a exibem deixarão de mostrá-la. Esta ação não pode ser desfeita.`}
-        confirmLabel="Excluir"
+        title={t('actions.delete.title')}
+        message={t('action.delete.message', { title: vm.actionToDelete?.title ?? '' })}
+        confirmLabel={t('core.ui/action.delete')}
         variant="danger"
       />
     </S.Page>

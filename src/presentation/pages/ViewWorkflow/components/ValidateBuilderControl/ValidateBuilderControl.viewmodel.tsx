@@ -58,10 +58,10 @@ export const useValidateBuilderControlViewModel = (
 
   const sourceOptions = useMemo<SearchSelectOption[]>(
     () => [
-      { value: 'input', label: 'Dados dos steps anteriores', meta: 'input' },
-      { value: 'event', label: 'Dados do evento', meta: 'event' },
+      { value: 'input', label: t('upsert.source.output'), meta: 'input' },
+      { value: 'event', label: t('upsert.source.event'), meta: 'event' },
     ],
-    [],
+    [t],
   );
 
   const entityOptions = useMemo<SearchSelectOption[]>(() => {

@@ -178,7 +178,7 @@ describe('validateContribution', () => {
   it('proíbe impl "code" em plugin não confiável', () => {
     const diagnostics = validateContribution(contribution({ impl: { kind: 'code', key: 'PageX' } }), options);
     expect(diagnostics[0]).toMatchObject({ code: 'contribution.impl.forbidden' });
-    expect(diagnostics[0].message).toContain('exclusiva de plugins internos');
+    expect(diagnostics[0].message).toBe('@core.marketplace/diagnostic.contribution.impl.trusted-only');
   });
 
   it('permite impl "code" em plugin confiável', () => {

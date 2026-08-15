@@ -161,7 +161,7 @@ export const WorkspaceSidebar: React.FC = () => {
                         onClick={() => vm.handleSetTheme(option.mode)}
                       >
                         <S.ThemeDot $bg={option.bgColor} $primary={option.primaryColor} />
-                        {option.label}
+                        {t(option.labelKey)}
                         {vm.mode === option.mode && (
                           <S.ThemeCheck>
                             <RiCheckLine size={12} />

@@ -33,7 +33,13 @@ export type DiagnosticCode =
 export interface PluginDiagnostic {
   severity: DiagnosticSeverity;
   code: DiagnosticCode;
+  /**
+   * REFERÊNCIA de mensagem (`@core.marketplace/diagnostic.…`), não o texto. O diagnóstico nasce no
+   * domínio e no backend, onde não existe idioma; quem o exibe resolve a referência com o catálogo
+   * do usuário. Os valores que a frase interpola vão em `messageParams`.
+   */
   message: string;
+  messageParams?: Record<string, string>;
   pluginId?: string;
   contributionId?: string;
   /**
@@ -48,6 +54,7 @@ export interface PluginDiagnostic {
 export interface DiagnosticInput {
   code: DiagnosticCode;
   message: string;
+  messageParams?: Record<string, string>;
   pluginId?: string;
   contributionId?: string;
   contributionIndex?: number;

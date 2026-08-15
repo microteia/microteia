@@ -66,10 +66,10 @@ export const TenantExtensionStoreProvider: React.FC<{ children: React.ReactNode 
     const refErrors = validatePackage(pkg);
     const sizeErrors = packageSizeIssues(pkg);
     if (manifestErrors.length > 0 || refErrors.length > 0 || sizeErrors.length > 0) {
-      return {
-        ok: false,
-        error: manifestErrors[0]?.message ?? refErrors[0]?.message ?? sizeErrors[0],
-      };
+      const diagnostic = manifestErrors[0] ?? refErrors[0];
+      return diagnostic
+        ? { ok: false, error: diagnostic.message, errorParams: diagnostic.messageParams }
+        : { ok: false, error: sizeErrors[0].message, errorParams: sizeErrors[0].messageParams };
     }
     await saveExtension(pkg);
     return { ok: true, name: pkg.manifest.name || pkg.manifest.id };

@@ -14,7 +14,7 @@ import { usePluginDiagnostics } from '../../../stores/useKernel';
 import { MARKETPLACE_CATALOG } from '../../../plugins/marketplace/catalog';
 import type { MarketplacePlugin } from '../../../domain/entities/MarketplacePlugin';
 
-import { useT } from '../../shared/i18n/useT';
+import { useT, useLabel } from '../../shared/i18n/useT';
 
 export interface Author {
   name: string | null;
@@ -126,6 +126,7 @@ const rankOf = (row: ExtensionRow): number => (row.installed ? 0 : row.mine ? 1 
 
 export const useMarketplaceViewModel = (): MarketplaceViewModel => {
   const t = useT('core.marketplace');
+  const label = useLabel();
   const { extensions, importExtension, removeExtension } = useTenantExtensions();
   const { installed, install: installCopy, setActive: setInstalledActive, trustCode, uninstall: uninstallCopy } = useInstalledExtensions();
   const { publicExtensions, publish: publishPublic, approve: approvePublic, deprecate: deprecatePublic, unpublish, publicOf } = usePublicExtensions();
@@ -152,11 +153,11 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
     for (const diagnostic of diagnostics) {
       if (!diagnostic.pluginId) continue;
       const list = byPlugin.get(diagnostic.pluginId) ?? [];
-      list.push({ severity: diagnostic.severity, message: diagnostic.message });
+      list.push({ severity: diagnostic.severity, message: label(diagnostic.message, diagnostic.messageParams) });
       byPlugin.set(diagnostic.pluginId, list);
     }
     return byPlugin;
-  }, [diagnostics]);
+  }, [diagnostics, label]);
 
   /**
    * Cópias instaladas que têm código e ainda não podem executá-lo. Enquanto o hash não termina de ser
@@ -387,7 +388,7 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
     setBusyId(id);
     try {
       const result = await publishPublic(ext.package);
-      if (!result.ok) notify(result.error, 'error');
+      if (!result.ok) notify(label(result.error), 'error');
       else if (result.status === 'pending') {
         notify(t('extension.sent-for-approval'), 'warning');
       } else notify(t('extension.published'), 'success');
@@ -396,7 +397,7 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
     } finally {
       setBusyId(null);
     }
-  }, [extensions, publishPublic, notify, t]);
+  }, [extensions, publishPublic, notify, t, label]);
 
   const install = useCallback((id: string) => {
     const inst = installed.find((e) => e.id === id);
@@ -473,13 +474,13 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
     try {
       const result = await importExtension(await file.text());
       if (result.ok) notify(t('extension.imported', { name: result.name }), 'success');
-      else notify(t('extension.import-failed', { detail: result.error }), 'error');
+      else notify(t('extension.import-failed', { detail: label(result.error, result.errorParams) }), 'error');
     } catch (err) {
       notify(t('extension.import-failed', { detail: err instanceof Error ? err.message : String(err) }), 'error');
     } finally {
       setBusyId(null);
     }
-  }, [importExtension, notify, t]);
+  }, [importExtension, notify, t, label]);
 
   return {
     canManage,

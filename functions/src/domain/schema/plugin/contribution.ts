@@ -92,43 +92,50 @@ export const validateContribution = (
   const diagnostics: PluginDiagnostic[] = [];
   const contributionId = contribution?.id;
   const at = (field: string) => `contributes[${index}].${field}`;
-  const push = (code: PluginDiagnostic['code'], message: string, path: string) =>
-    diagnostics.push(error({ code, message, pluginId, contributionId, contributionIndex: index, path }));
+  const push = (
+    code: PluginDiagnostic['code'],
+    message: string,
+    path: string,
+    messageParams?: Record<string, string>,
+  ) =>
+    diagnostics.push(
+      error({ code, message, messageParams, pluginId, contributionId, contributionIndex: index, path }),
+    );
 
   if (!isValidContributionId(contributionId)) {
-    push('contribution.id.invalid', `Id de contribuição "${contributionId}" é inválido. Use letras minúsculas, números, "-" e ".".`, at('id'));
+    push('contribution.id.invalid', '@core.marketplace/diagnostic.contribution.id.invalid', at('id'), { id: String(contributionId) });
   }
   if (!isValidExtensionPointId(contribution?.point)) {
-    push('contribution.invalid', `Ponto de extensão "${contribution?.point}" é inválido.`, at('point'));
+    push('contribution.invalid', '@core.marketplace/diagnostic.contribution.point.invalid', at('point'), { point: String(contribution?.point) });
   }
   if (!isValidSemVer(contribution?.apiVersion)) {
-    push('contribution.invalid', `A contribuição "${contributionId}" precisa declarar apiVersion em semver.`, at('apiVersion'));
+    push('contribution.invalid', '@core.marketplace/diagnostic.contribution.api-version.missing', at('apiVersion'), { id: String(contributionId) });
   }
   if (!isPlainObject(contribution?.metadata)) {
-    push('contribution.invalid', `A metadata da contribuição "${contributionId}" precisa ser um objeto.`, at('metadata'));
+    push('contribution.invalid', '@core.marketplace/diagnostic.contribution.metadata.invalid', at('metadata'), { id: String(contributionId) });
   }
   if (contribution?.impl !== undefined && !isWellFormedImpl(contribution.impl)) {
-    push('contribution.invalid', `A implementação da contribuição "${contributionId}" está malformada para o tipo "${contribution.impl?.kind}".`, at('impl'));
+    push('contribution.invalid', '@core.marketplace/diagnostic.contribution.impl.malformed', at('impl'), { id: String(contributionId), kind: String(contribution.impl?.kind) });
   }
 
   if (!point) {
-    push('contribution.point.unknown', `O ponto de extensão "${contribution?.point}" não está registrado. A contribuição "${contributionId}" foi ignorada.`, at('point'));
+    push('contribution.point.unknown', '@core.marketplace/diagnostic.contribution.point.unknown', at('point'), { point: String(contribution?.point), id: String(contributionId) });
     return diagnostics;
   }
 
   if (!isApiVersionCompatible(contribution?.apiVersion, point.apiVersion)) {
-    push('contribution.point.incompatible', `A contribuição "${contributionId}" espera o contrato ${contribution?.apiVersion} de "${point.id}", que está na versão ${point.apiVersion}.`, at('apiVersion'));
+    push('contribution.point.incompatible', '@core.marketplace/diagnostic.contribution.point.incompatible', at('apiVersion'), { id: String(contributionId), expected: String(contribution?.apiVersion), point: point.id, actual: point.apiVersion });
   }
 
   const kind = implKindOf(contribution);
   if (point.implRequired && kind === null) {
-    push('contribution.impl.missing', `O ponto "${point.id}" exige uma implementação e a contribuição "${contributionId}" não declarou nenhuma.`, at('impl'));
+    push('contribution.impl.missing', '@core.marketplace/diagnostic.contribution.impl.missing', at('impl'), { point: point.id, id: String(contributionId) });
   }
   if (kind !== null) {
     if (!point.allowedImplKinds.includes(kind)) {
-      push('contribution.impl.forbidden', `O ponto "${point.id}" não aceita implementação do tipo "${kind}". Aceita: ${point.allowedImplKinds.join(', ') || 'nenhuma'}.`, at('impl.kind'));
+      push('contribution.impl.forbidden', '@core.marketplace/diagnostic.contribution.impl.kind-forbidden', at('impl.kind'), { point: point.id, kind, allowed: point.allowedImplKinds.join(', ') });
     } else if (isTrustedOnlyImplKind(kind) && !trusted) {
-      push('contribution.impl.forbidden', `Implementação do tipo "${kind}" é exclusiva de plugins internos. Use "script", "widget" ou "workflow".`, at('impl.kind'));
+      push('contribution.impl.forbidden', '@core.marketplace/diagnostic.contribution.impl.trusted-only', at('impl.kind'), { kind });
     }
   }
 
@@ -146,7 +153,8 @@ export const findDuplicateContributions = (
       return [
         error({
           code: 'contribution.duplicate',
-          message: `A contribuição "${contribution?.id}" já foi declarada para o ponto "${contribution?.point}" neste plugin.`,
+          message: '@core.marketplace/diagnostic.contribution.duplicate',
+          messageParams: { id: String(contribution?.id), point: String(contribution?.point) },
           pluginId,
           contributionId: contribution?.id,
           contributionIndex: index,

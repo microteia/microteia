@@ -44,17 +44,17 @@ export const parsePackage = (text: string): ParsePackageResult => {
   try {
     parsed = JSON.parse(text);
   } catch {
-    return { ok: false, error: 'O arquivo não é um JSON válido.' };
+    return { ok: false, error: '@core.marketplace/issue.package.not-json' };
   }
-  if (!isObject(parsed)) return { ok: false, error: 'O conteúdo não é um objeto de extensão.' };
+  if (!isObject(parsed)) return { ok: false, error: '@core.marketplace/issue.package.not-object' };
   if (!isObject(parsed.manifest) || typeof parsed.manifest.id !== 'string') {
-    return { ok: false, error: 'A extensão não tem um manifest com "id".' };
+    return { ok: false, error: '@core.marketplace/issue.package.no-manifest' };
   }
   if (!Array.isArray(parsed.workflows)) {
-    return { ok: false, error: 'A extensão precisa da lista "workflows" (pode ser vazia).' };
+    return { ok: false, error: '@core.marketplace/issue.package.no-workflows' };
   }
   if (typeof parsed.summary !== 'string') {
-    return { ok: false, error: 'A extensão precisa de um "summary".' };
+    return { ok: false, error: '@core.marketplace/issue.package.no-summary' };
   }
   return { ok: true, package: parsed as unknown as MarketplacePlugin };
 };

@@ -1,7 +1,7 @@
 {
   "name": "microteia",
   "private": true,
-  "version": "7.18.0",
+  "version": "7.19.0",
   "type": "module",
   "scripts": {
     "predev": "npm run sync-schemas",
@@ -13,8 +13,9 @@
     "sync-schemas": "node scripts/sync-schemas.cjs",
     "build:extensions": "node scripts/export-extensions.mjs",
     "verify-extensions": "node scripts/export-extensions.mjs --check",
+    "verify-messages": "node scripts/verify-messages.cjs",
     "verify-schemas": "node scripts/sync-schemas.cjs --check",
-    "verify": "npm run typecheck && npm run lint && npm run verify-schemas && npm run verify-extensions",
+    "verify": "npm run typecheck && npm run lint && npm run verify-schemas && npm run verify-extensions && npm run verify-messages",
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",

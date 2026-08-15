@@ -148,10 +148,10 @@ export const PluginStoreProvider: React.FC<{ children: React.ReactNode }> = ({ c
       const refErrors = validatePackage(pkg);
       const sizeErrors = packageSizeIssues(pkg);
       if (manifestErrors.length > 0 || refErrors.length > 0 || sizeErrors.length > 0) {
-        return {
-          ok: false,
-          error: manifestErrors[0]?.message ?? refErrors[0]?.message ?? sizeErrors[0],
-        };
+        const diagnostic = manifestErrors[0] ?? refErrors[0];
+        return diagnostic
+          ? { ok: false, error: diagnostic.message, errorParams: diagnostic.messageParams }
+          : { ok: false, error: sizeErrors[0].message, errorParams: sizeErrors[0].messageParams };
       }
       const alreadyInstalled = installations.some((i) => i.pluginId === pkg.manifest.id);
       const error = alreadyInstalled ? await upgrade(pkg) : await install(pkg);

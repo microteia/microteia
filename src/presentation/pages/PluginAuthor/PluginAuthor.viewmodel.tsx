@@ -247,7 +247,14 @@ export const usePluginAuthorViewModel = (tabKey?: string): PluginAuthorViewModel
     const uid = crypto.randomUUID();
     setViews((prev) => {
       const n = prev.length + 1;
-      return [...prev, { uid, key: `tela-${n}`, title: `Tela ${n}`, icon: 'layoutGrid', source: viewStarter(t) }];
+      const view = {
+        uid,
+        key: `screen-${n}`,
+        title: t('author.view.default-title', { number: String(n) }),
+        icon: 'layoutGrid',
+        source: viewStarter(t),
+      };
+      return [...prev, view];
     });
     setSelectedViewId(uid);
     setEditorOpen(true);
@@ -460,7 +467,7 @@ export const usePluginAuthorViewModel = (tabKey?: string): PluginAuthorViewModel
 
   const groups = useMemo<ArtifactGroup[]>(() => [
     {
-      kind: 'screens', title: 'Telas',
+      kind: 'screens', title: t('author.group.screens'),
       options: [...carriedOptions.screens, ...ownScreens.map((d) => ({ id: d.id, label: d.titlePlural || d.id, icon: d.icon, selected: effective.screens.has(d.id), locked: required.screens.has(d.id) }))],
     },
     {
@@ -482,7 +489,7 @@ export const usePluginAuthorViewModel = (tabKey?: string): PluginAuthorViewModel
       options: [...carriedOptions.workflows, ...ownWorkflows.map((w) => ({ id: w.id, label: w.name, selected: effective.workflows.has(w.id), locked: required.workflows.has(w.id) }))],
     },
     {
-      kind: 'scripts', title: 'Scripts',
+      kind: 'scripts', title: t('core.automation/page.scripts'),
       options: [...carriedOptions.scripts, ...ownScripts.map((s) => ({ id: s.id, label: s.name, selected: effective.scripts.has(s.id), locked: required.scripts.has(s.id) }))],
     },
   ], [carriedOptions, ownScreens, patchableScreens, ownActionIds, ownActions, ownWorkflows, ownScripts, effective, required, t]);
@@ -567,22 +574,27 @@ export const usePluginAuthorViewModel = (tabKey?: string): PluginAuthorViewModel
   }, [views, viewErrors, t]);
 
   const issues = useMemo<string[]>(() => [
-    ...validatePluginManifest(manifest, { kernelVersion: KERNEL_VERSION, validateContributions: false }).map((d) => d.message),
+    ...validatePluginManifest(manifest, { kernelVersion: KERNEL_VERSION, validateContributions: false })
+      .map((d) => label(d.message, d.messageParams)),
     ...(form.summary.trim() ? [] : [t('author.issue.summary-required')]),
     ...validatePackage(pkg).map((issue) =>
       t('author.issue.external-ref', {
-        from: issue.ref.from,
+        origin: issue.ref.from.origin,
+        source: issue.ref.from.name,
         kind: t(KIND_KEY[issue.ref.kind]),
         name: nameOf(issue.ref.kind, issue.ref.id),
       }),
     ),
-    ...packageSizeIssues(pkg),
+    ...packageSizeIssues(pkg).map((issue) => label(issue.message, issue.messageParams)),
     ...viewIssues,
     ...(startupError ? [t('author.issue.startup-compile', { error: startupError })] : []),
-  ], [manifest, form.summary, pkg, nameOf, viewIssues, startupError, t]);
+  ], [manifest, form.summary, pkg, nameOf, viewIssues, startupError, t, label]);
 
   /** Não bloqueia exportar — só avisa que o pacote está a caminho do limite do documento. */
-  const sizeAdvisory = useMemo(() => packageSizeAdvisory(pkg), [pkg]);
+  const sizeAdvisory = useMemo(() => {
+    const advisory = packageSizeAdvisory(pkg);
+    return advisory ? label(advisory.message, advisory.messageParams) : undefined;
+  }, [pkg, label]);
 
   const canExport = selectedCount > 0 && issues.length === 0;
   // Salvar um rascunho editável exige só um domínio (id) válido — pendências não bloqueiam salvar,

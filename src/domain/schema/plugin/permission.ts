@@ -13,12 +13,12 @@ export const PERMISSION_DOMAINS: readonly PermissionDomain[] = [
 ] as const;
 
 export const PERMISSION_DOMAIN_LABELS: Record<PermissionDomain, string> = {
-  data: 'Dados do escritório',
-  workflow: 'Automações',
-  script: 'Scripts',
-  capability: 'Integrações',
-  ui: 'Interface',
-  net: 'Rede externa',
+  data: '@core.marketplace/permission.domain.data',
+  workflow: '@core.marketplace/permission.domain.workflow',
+  script: '@core.marketplace/permission.domain.script',
+  capability: '@core.marketplace/permission.domain.capability',
+  ui: '@core.marketplace/permission.domain.ui',
+  net: '@core.marketplace/permission.domain.net',
 };
 
 export interface ParsedPermission {
@@ -81,7 +81,8 @@ export const validatePermissions = (
       : [
           error({
             code: 'permission.invalid',
-            message: `Permissão "${permission}" é inválida. Use "dominio:acao" ou "dominio:recurso:acao" com um dos domínios: ${PERMISSION_DOMAINS.join(', ')}.`,
+            message: '@core.marketplace/diagnostic.permission.invalid',
+            messageParams: { permission: String(permission), domains: PERMISSION_DOMAINS.join(', ') },
             pluginId,
             path: `permissions[${index}]`,
           }),

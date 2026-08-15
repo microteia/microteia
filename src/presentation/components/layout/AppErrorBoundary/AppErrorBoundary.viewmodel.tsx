@@ -14,6 +14,7 @@ export const useAppErrorBoundaryViewModel = (): AppErrorBoundaryViewModel => {
   const handleError = useCallback((error: Error) => {
     void auditLogService.logError({
       tenantId: currentTenant?.id ?? 'SYSTEM',
+      // eslint-disable-next-line no-restricted-syntax -- título do registro de AUDITORIA, gravado no banco; ninguém o lê como interface.
       title: 'Unhandled interface error',
       entity: 'FRONTEND',
       error,

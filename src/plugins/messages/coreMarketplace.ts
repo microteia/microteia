@@ -73,7 +73,7 @@ export const CORE_MARKETPLACE_MESSAGES: Record<string, string> = {
   'author.issue.summary-required': 'The extension needs a short description (summary).',
   'author.issue.startup-compile': 'The startup code does not compile: {error}.',
   'author.issue.external-ref':
-    '{from} references {kind} "{name}", which belongs to another extension. It will be required at install time.',
+    '{origin} "{source}" references {kind} "{name}", which belongs to another extension. It will be required at install time.',
 
   'author.field.id': 'Identifier',
   'author.field.id.placeholder': 'com.yourfirm.sales',
@@ -140,4 +140,102 @@ export const CORE_MARKETPLACE_MESSAGES: Record<string, string> = {
   'extension.deprecated': 'Extension marked as deprecated.',
   'extension.rejected': 'Publication rejected and removed from the catalog.',
   'extension.operation-failed': 'Could not complete the operation: {detail}',
+  'author.group.screens': 'Screens',
+  'author.view.default-title': 'Screen {number}',
+  'diagnostic.capability.id.invalid':
+    'Capability "{id}" is invalid. Use the "group.name" format (e.g. "ai.completion").',
+  'diagnostic.capability.range.invalid': 'Range "{range}" of capability "{id}" is invalid.',
+  'diagnostic.capability.unsatisfied':
+    'Plugin "{id}" needs "{capability}" {range}, and no installed plugin provides that capability.',
+  'diagnostic.capability.version.invalid': 'Version "{version}" of capability "{id}" is not a valid semver.',
+  'diagnostic.contribution.api-version.missing': 'Contribution "{id}" must declare apiVersion in semver.',
+  'diagnostic.contribution.conflict':
+    'Point "{point}" accepts a single contribution, but {count} were registered. "{winner}" prevailed.',
+  'diagnostic.contribution.duplicate':
+    'Contribution "{id}" was already declared for point "{point}" in this plugin.',
+  'diagnostic.contribution.id.invalid':
+    'Contribution id "{id}" is invalid. Use lowercase letters, numbers, "-" and ".".',
+  'diagnostic.contribution.impl.kind-forbidden':
+    'Point "{point}" does not accept an implementation of kind "{kind}". It accepts: {allowed}.',
+  'diagnostic.contribution.impl.malformed':
+    'The implementation of contribution "{id}" is malformed for kind "{kind}".',
+  'diagnostic.contribution.impl.missing':
+    'Point "{point}" requires an implementation and contribution "{id}" declared none.',
+  'diagnostic.contribution.impl.trusted-only':
+    'An implementation of kind "{kind}" is exclusive to internal plugins. Use "script", "widget" or "workflow".',
+  'diagnostic.contribution.impl.unresolved':
+    'Contribution "{id}" points to implementation "{key}", which plugin "{plugin}" did not provide.',
+  'diagnostic.contribution.metadata.invalid': 'The metadata of contribution "{id}" must be an object.',
+  'diagnostic.contribution.point.incompatible':
+    'Contribution "{id}" expects contract {expected} of "{point}", which is on version {actual}.',
+  'diagnostic.contribution.point.invalid': 'Extension point "{point}" is invalid.',
+  'diagnostic.contribution.point.unknown':
+    'Extension point "{point}" is not registered. Contribution "{id}" was ignored.',
+  'diagnostic.dependency.cycle': 'Plugin "{id}" is part of a dependency cycle and could not be loaded.',
+  'diagnostic.dependency.disabled': 'Plugin "{id}" depends on "{dependency}", which could not be loaded.',
+  'diagnostic.dependency.missing': 'Plugin "{id}" depends on "{dependency}", which is not installed.',
+  'diagnostic.dependency.unsatisfied':
+    'Plugin "{id}" requires "{dependency}" {range}, but the installed version is {installed}.',
+  'diagnostic.manifest.dependencies.invalid': 'Dependencies must be an object { pluginId: range }.',
+  'diagnostic.manifest.dependency.id.invalid': 'Dependency "{id}" is not a valid plugin id.',
+  'diagnostic.manifest.dependency.range.invalid': 'Range "{range}" of dependency "{id}" is invalid.',
+  'diagnostic.manifest.id.invalid':
+    'Plugin id "{id}" is invalid. Use reverse DNS with at least two segments (e.g. "com.acme.contracts").',
+  'diagnostic.manifest.kernel.invalid': 'Kernel range "{range}" is invalid. Use something like "^1.0.0".',
+  'diagnostic.manifest.kernel.unsatisfied':
+    'Plugin "{name}" requires Microteia {required}, but this installation is on version {installed}.',
+  'diagnostic.manifest.name.missing': 'The plugin needs a readable name.',
+  'diagnostic.manifest.not-object': 'The manifest must be an object.',
+  'diagnostic.manifest.point.duplicated': 'Extension point "{id}" was declared more than once in this plugin.',
+  'diagnostic.manifest.version.invalid': 'Version "{version}" is not a valid semver.',
+  'diagnostic.permission.invalid':
+    'Permission "{permission}" is invalid. Use "domain:action" or "domain:resource:action" with one of the domains: {domains}.',
+  'diagnostic.plugin.code-ignored':
+    'Plugin "{id}" is not internal, so its code implementations were ignored.',
+  'diagnostic.plugin.duplicate':
+    'Plugin "{id}" was declared more than once. The second declaration was ignored.',
+  'diagnostic.point.api-version.invalid': 'Point "{id}" needs an apiVersion in semver.',
+  'diagnostic.point.id.invalid':
+    'Extension point "{id}" is invalid. Use the "group.name" format (e.g. "ui.page").',
+  'diagnostic.point.impl-kind.unknown': 'Implementation kind "{kind}" does not exist. Use one of: {allowed}.',
+  'diagnostic.point.impl-kinds.missing': 'Point "{id}" must declare allowedImplKinds.',
+  'diagnostic.point.impl-required-none-allowed': 'Point "{id}" requires an implementation but allows no kind.',
+  'diagnostic.point.owned':
+    'Extension point "{id}" already belongs to plugin "{owner}" and cannot be redeclared by "{claimant}".',
+  'diagnostic.point.title.missing': 'Point "{id}" needs a title.',
+  'issue.package.near-limit':
+    'The package is {size}. Above {limit} it stops fitting in the installation document — it is worth splitting it before it grows further.',
+  'issue.package.no-manifest': 'The extension has no manifest with an "id".',
+  'issue.package.no-summary': 'The extension needs a "summary".',
+  'issue.package.no-workflows': 'The extension needs the "workflows" list (it may be empty).',
+  'issue.package.not-json': 'The file is not valid JSON.',
+  'issue.package.not-object': 'The content is not an extension object.',
+  'issue.package.too-large':
+    'The package is {size} and would not fit in the installation document (the practical limit is {limit}). Split it — one package per language, or one per set of screens.',
+  'issue.patch.own-screen':
+    'the patch points to "{target}", which is a screen of the package itself — declare the fields on the screen, not on a patch.',
+  'issue.patch.unknown-target':
+    'the patch points to "{target}", which is not a fixed system collection — to extend the screen of another extension, use its `sourceId`.',
+  'issue.screen.duplicate-prefix':
+    'screen "{screen}" would emit "{prefix}.saved", a name that "{taken}" already uses in this package — two collections cannot publish the same event.',
+  'issue.screen.kernel-prefix':
+    'screen "{screen}" declares prefix "{prefix}", which belongs to {entity} — the {entity} automations would start firing with "{collection}".',
+  'issue.screen.reserved-prefix':
+    'screen "{screen}" would emit "{prefix}.saved", a name reserved by the automation engine — declare another `eventPrefix`.',
+  'issue.ref.external':
+    '{origin} "{name}" references {kind} "{id}", which is neither in the package nor covered by a declared dependency.',
+  'permission.domain.capability': 'Integrations',
+  'permission.domain.data': 'Organization data',
+  'permission.domain.net': 'External network',
+  'permission.domain.script': 'Scripts',
+  'permission.domain.ui': 'Interface',
+  'permission.domain.workflow': 'Automations',
+  'ref.kind.action': 'the action',
+  'ref.kind.screen': 'the screen',
+  'ref.kind.script': 'the script',
+  'ref.kind.workflow': 'the automation',
+  'ref.origin.action': 'action',
+  'ref.origin.patch': 'patch of',
+  'ref.origin.screen': 'screen',
+  'ref.origin.workflow': 'automation',
 };

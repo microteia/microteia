@@ -23,6 +23,7 @@ export const coreLicensePlugin: PluginRecord = {
     version: '1.0.0',
     kernel: '^1.0.0',
     name: 'Terms and Privacy',
+    // eslint-disable-next-line no-restricted-syntax -- metadado do plugin do NÚCLEO: não é renderizado.
     description: 'Owns the text of the Terms of Use and the Privacy Policy, in its own namespace.',
     dependencies: { 'core.i18n': '^1.0.0' },
     contributes: [messageBundleContribution(coreMessage('core.license', CORE_LICENSE_MESSAGES))],

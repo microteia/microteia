@@ -38,12 +38,12 @@ export const useWorkflowsViewModel = (): WorkflowsViewModel => {
   }, [workflows]);
 
   const filterDefs = useMemo<FilterDef[]>(() => [
-    { key: 'search', label: 'Busca', type: 'text', placeholder: t('workflow.filter.name') },
-    { key: 'eventName', label: 'Evento', type: 'select', options: eventOptions },
+    { key: 'search', label: t('core.ui/filter.search'), type: 'text', placeholder: t('workflow.filter.name') },
+    { key: 'eventName', label: t('workflow.event.short'), type: 'select', options: eventOptions },
     {
-      key: 'enabled', label: 'Status', type: 'select', options: [
-        { value: 'true', label: 'Habilitado' },
-        { value: 'false', label: 'Desabilitado' },
+      key: 'enabled', label: t('core.ui/filter.status'), type: 'select', options: [
+        { value: 'true', label: t('workflow.active') },
+        { value: 'false', label: t('workflow.inactive') },
       ],
     },
   ], [eventOptions, t]);

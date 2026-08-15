@@ -79,7 +79,7 @@ describe('validatePluginManifest', () => {
   it('reporta incompatibilidade com o kernel em execução', () => {
     const diagnostics = validatePluginManifest(manifest({ kernel: '^2.0.0' }), { kernelVersion: '1.0.0' });
     expect(diagnostics[0]).toMatchObject({ code: 'manifest.kernel.incompatible' });
-    expect(diagnostics[0].message).toContain('1.0.0');
+    expect(diagnostics[0].messageParams).toMatchObject({ required: '^2.0.0', installed: '1.0.0' });
   });
 
   it('não checa compatibilidade quando a faixa já é inválida', () => {

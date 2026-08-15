@@ -20,6 +20,7 @@ import { packageSizeIssues, validatePackage } from '../../../domain/usecases/plu
 import { validatePluginManifest } from '../../../domain/schema/plugin/pluginManifest';
 import { KERNEL_VERSION } from '../../../domain/schema/plugin/kernelVersion';
 
+import { useLabel } from '../../shared/i18n/useT';
 export interface InstalledLanguage {
   id: string;
   name: string;
@@ -46,6 +47,7 @@ export interface TranslationsViewModel {
 }
 
 export const useTranslationsViewModel = (): TranslationsViewModel => {
+  const label = useLabel();
   const contributions = useContributions(I18N_MESSAGES_POINT);
   const { installed, install } = useInstalledExtensions();
   const { locale } = useLocale();
@@ -168,10 +170,9 @@ export const useTranslationsViewModel = (): TranslationsViewModel => {
           kernelVersion: KERNEL_VERSION,
           validateContributions: false,
         });
-        const problem =
-          manifestErrors[0]?.message ?? validatePackage(pkg)[0]?.message ?? packageSizeIssues(pkg)[0];
+        const problem = manifestErrors[0] ?? validatePackage(pkg)[0] ?? packageSizeIssues(pkg)[0];
         if (problem) {
-          notify(problem, 'error');
+          notify(label(problem.message, problem.messageParams), 'error');
           return;
         }
 
@@ -194,7 +195,7 @@ export const useTranslationsViewModel = (): TranslationsViewModel => {
         setBusy(false);
       }
     },
-    [notify, install, user, effectiveName],
+    [notify, install, user, effectiveName, label],
   );
 
   /**

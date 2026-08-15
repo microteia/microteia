@@ -39,8 +39,8 @@ export const CodeViewEditorModal: React.FC<CodeViewEditorModalProps> = ({ isOpen
           <S.Input value={view.key} onChange={(e) => onChange({ key: e.target.value })} placeholder={t('author.view.key.placeholder')} />
         </S.Field>
         <S.Field>
-          {t('screen.icon')}
-          <SearchSelect options={iconOptions} value={view.icon} onChange={(icon) => onChange({ icon })} placeholder={t('screen.icon')} />
+          {t('core.records/screen.icon')}
+          <SearchSelect options={iconOptions} value={view.icon} onChange={(icon) => onChange({ icon })} placeholder={t('core.records/screen.icon')} />
         </S.Field>
       </S.Fields>
 

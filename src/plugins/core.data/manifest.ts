@@ -21,6 +21,7 @@ export const coreDataPlugin: PluginRecord = {
     kernel: '^1.0.0',
     name: 'Entities and Lists',
     description:
+      // eslint-disable-next-line no-restricted-syntax -- metadado do plugin do NÚCLEO: não é renderizado.
       'Declares the data extension points and exposes the native entities, lookups, ready-made masks/formats/validations and external data lookups.',
     extensionPoints: DATA_EXTENSION_POINTS,
     contributes: [

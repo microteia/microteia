@@ -28,7 +28,7 @@ export const surfaceLayoutProperty = (
   }
   return {
     key: `${surface}.widgets`,
-    label: 'Widgets',
+    label: '@core.ui/settings.widgets',
     type: 'widgets',
     default: [],
     scopes: ['tenant', 'user'],

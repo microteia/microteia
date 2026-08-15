@@ -6,6 +6,8 @@ import { resolveWritableTable } from '../../../../../domain/schema/mutationSpec'
 import type { UpsertStepConfig } from '../../../../../domain/schema/mutationSpec';
 import type { SearchSelectOption } from '../../../../components/ui/SearchSelect';
 
+import { useT } from '../../../../shared/i18n/useT';
+
 export interface UpsertBuilderControlProps {
   value: UpsertStepConfig | undefined;
   onChange: (config: UpsertStepConfig) => void;
@@ -26,6 +28,7 @@ export const useUpsertBuilderControlViewModel = (
   value: UpsertBuilderControlProps['value'],
   onChange: UpsertBuilderControlProps['onChange'],
 ): UpsertBuilderControlViewModel => {
+  const t = useT('core.automation');
   const ctx = useSchemaContext();
   const config = useMemo(() => value ?? EMPTY_CONFIG, [value]);
 
@@ -49,10 +52,10 @@ export const useUpsertBuilderControlViewModel = (
 
   const sourceOptions = useMemo<SearchSelectOption[]>(
     () => [
-      { value: 'input', label: 'Dados dos steps anteriores', meta: 'input' },
-      { value: 'event', label: 'Dados do evento', meta: 'event' },
+      { value: 'input', label: t('upsert.source.output'), meta: 'input' },
+      { value: 'event', label: t('upsert.source.event'), meta: 'event' },
     ],
-    [],
+    [t],
   );
 
   const emit = useCallback((next: UpsertStepConfig) => onChange(next), [onChange]);

@@ -27,21 +27,22 @@ export interface NavItem {
 
 export interface ThemeOption {
   mode: ThemeMode;
-  label: string;
+  /** Chave do catálogo — o tema é catálogo de módulo, e quem renderiza traduz. */
+  labelKey: string;
   primaryColor: string;
   bgColor: string;
 }
 
 const THEME_OPTIONS: ThemeOption[] = [
-  { mode: 'microteia', label: 'Microteia',  primaryColor: '#F56B3A', bgColor: '#141414' },
-  { mode: 'dark',     label: 'Escuro',    primaryColor: '#6c63ff', bgColor: '#0f1117' },
-  { mode: 'light',    label: 'Claro',     primaryColor: '#6c63ff', bgColor: '#f1f5f9' },
-  { mode: 'bruma',    label: 'Bruma',     primaryColor: '#5B7ED6', bgColor: '#ECEEF2' },
-  { mode: 'claude',   label: 'Claude',    primaryColor: '#DA7756', bgColor: '#F5F4EE' },
-  { mode: 'teams',    label: 'Teams',     primaryColor: '#6264A7', bgColor: '#1F1F1F' },
-  { mode: 'kindle',   label: 'Kindle',    primaryColor: '#8B6040', bgColor: '#F6EDD9' },
-  { mode: 'themis',     label: 'Themis',         primaryColor: '#6D2233', bgColor: '#F6F3EC' },
-  { mode: 'themisDark', label: 'Themis Noturno', primaryColor: '#B85C6E', bgColor: '#191316' },
+  { mode: 'microteia', labelKey: 'theme.microteia',  primaryColor: '#F56B3A', bgColor: '#141414' },
+  { mode: 'dark',     labelKey: 'theme.dark',    primaryColor: '#6c63ff', bgColor: '#0f1117' },
+  { mode: 'light',    labelKey: 'theme.light',     primaryColor: '#6c63ff', bgColor: '#f1f5f9' },
+  { mode: 'bruma',    labelKey: 'theme.bruma',     primaryColor: '#5B7ED6', bgColor: '#ECEEF2' },
+  { mode: 'claude',   labelKey: 'theme.claude',    primaryColor: '#DA7756', bgColor: '#F5F4EE' },
+  { mode: 'teams',    labelKey: 'theme.teams',     primaryColor: '#6264A7', bgColor: '#1F1F1F' },
+  { mode: 'kindle',   labelKey: 'theme.kindle',    primaryColor: '#8B6040', bgColor: '#F6EDD9' },
+  { mode: 'themis',     labelKey: 'theme.themis',         primaryColor: '#6D2233', bgColor: '#F6F3EC' },
+  { mode: 'themisDark', labelKey: 'theme.themis-dark', primaryColor: '#B85C6E', bgColor: '#191316' },
 ];
 
 export interface WorkspaceSidebarViewModel {

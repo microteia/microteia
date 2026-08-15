@@ -28,7 +28,8 @@ export const createExtensionPointRegistry = (): ExtensionPointRegistry => {
         return [
           error({
             code: 'extensionPoint.duplicate',
-            message: `O ponto de extensão "${point.id}" já pertence ao plugin "${existing.ownerPluginId}" e não pode ser redeclarado por "${point.ownerPluginId}".`,
+            message: '@core.marketplace/diagnostic.point.owned',
+            messageParams: { id: point.id, owner: existing.ownerPluginId, claimant: point.ownerPluginId },
             pluginId: point.ownerPluginId,
             path: 'extensionPoints',
           }),

@@ -22,6 +22,11 @@ const MIGRATED_TO_SOURCE_LANGUAGE = [
   'src/presentation/pages/ViewAction/**/*.{ts,tsx}',
   'src/presentation/pages/Marketplace/**/*.{ts,tsx}',
   'src/presentation/shared/**/*.{ts,tsx}',
+  'src/presentation/pages/Actions/**/*.{ts,tsx}',
+  'src/domain/schema/plugin/**/*.{ts,tsx}',
+  'src/domain/usecases/plugins/pluginReferences.ts',
+  'src/domain/usecases/plugins/packageSerialization.ts',
+  'src/kernel/**/*.{ts,tsx}',
   'src/domain/schema/eventCatalog.ts',
   'src/domain/schema/fieldRulePresets.ts',
 ]
@@ -130,6 +135,13 @@ export default defineConfig([
         {
           selector: "JSXAttribute[name.name=/^(title|label|placeholder|message|subtitle|description|hint|summary|alt|aria-label|confirmLabel|cancelLabel|runLabel|emptyMessage|deleteConfirmTitle|deleteConfirmMessage)$/] > JSXExpressionContainer > ConditionalExpression > ConditionalExpression > Literal[value=/[A-Za-zÀ-ÿ]{2}/]",
           message: 'Texto de usuário dentro de um ternário no atributo. Traduza a CHAVE, não a frase: {t(cond ? \'chave.a\' : \'chave.b\')}.',
+        },
+        // `{ label: 'Executar um fluxo de trabalho' }` escapava de tudo: não é JSX, e a frase não
+        // tem acento. Propriedade que CARREGA texto de usuário é tão lida quanto um atributo JSX —
+        // e um mapa de opções é exatamente onde a frase costuma se esconder.
+        {
+          selector: "Property[key.name=/^(label|title|subtitle|description|message|placeholder|hint|summary)$/] > Literal[value=/[A-Za-zÀ-ÿ]{2}/][value!=/^(@|[a-z][a-z0-9.-]*$)/]",
+          message: 'Texto de usuário como literal numa propriedade. Passe t(\'chave\'): a propriedade é lida por quem usa o sistema, então ela traduz.',
         },
         {
           selector: 'TemplateElement[value.raw=/[áàâãéêíóôõúüçÁÀÂÃÉÊÍÓÔÕÚÜÇ]/]',

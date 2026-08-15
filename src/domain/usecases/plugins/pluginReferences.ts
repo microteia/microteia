@@ -14,13 +14,29 @@ import { screenEventPrefix, templateCollection } from './screenModule';
 
 export type RefKind = 'screen' | 'action' | 'workflow' | 'script';
 
+/**
+ * De onde a referência partiu, em duas partes: `origin` é uma REFERÊNCIA de mensagem — "a ação",
+ * "a automação" —, e `name` é o nome que o escritório deu ao artefato, que nunca traduz.
+ */
+export interface RefOrigin {
+  origin: string;
+  name: string;
+}
+
 export interface PackageRef {
   kind: RefKind;
   /** `key` de template (screen) ou `templateId` (action/workflow/script). */
   id: string;
-  /** De onde a referência partiu, para a mensagem de diagnóstico. */
-  from: string;
+  from: RefOrigin;
 }
+
+/** O nome de cada tipo de artefato, como REFERÊNCIA: quem exibe resolve com o catálogo do usuário. */
+export const REF_KIND_KEYS: Record<RefKind, string> = {
+  screen: '@core.marketplace/ref.kind.screen',
+  action: '@core.marketplace/ref.kind.action',
+  workflow: '@core.marketplace/ref.kind.workflow',
+  script: '@core.marketplace/ref.kind.script',
+};
 
 /** Ids de input de Step que guardam referências a outros artefatos (Literal com o id). */
 export const SCRIPT_ID_INPUT = 'scriptId';
@@ -39,7 +55,7 @@ const stepLiteral = (step: WorkflowStep, inputId: string): string | null =>
 
 export const screenOutRefs = (screen: ScreenModuleTemplate): PackageRef[] => {
   const refs: PackageRef[] = [];
-  const from = `tela "${screen.key}"`;
+  const from: RefOrigin = { origin: '@core.marketplace/ref.origin.screen', name: screen.key };
 
   for (const actionId of [...(screen.viewActionIds ?? []), ...(screen.cardActionIds ?? [])]) {
     refs.push({ kind: 'action', id: actionId, from });
@@ -62,7 +78,7 @@ export const screenOutRefs = (screen: ScreenModuleTemplate): PackageRef[] => {
  * referência a artefato do pacote, e sim o ponto de acoplamento — conferido por `patchTargetIssue`.
  */
 export const screenPatchOutRefs = (patch: ScreenPatchTemplate): PackageRef[] => {
-  const from = `complemento de "${patch.target}"`;
+  const from: RefOrigin = { origin: '@core.marketplace/ref.origin.patch', name: patch.target };
   const refs: PackageRef[] = [];
 
   const targets = [
@@ -80,7 +96,13 @@ export const screenPatchOutRefs = (patch: ScreenPatchTemplate): PackageRef[] => 
 };
 
 export const actionOutRefs = (action: ActionModuleTemplate): PackageRef[] =>
-  action.workflowId ? [{ kind: 'workflow', id: action.workflowId, from: `ação "${action.key}"` }] : [];
+  action.workflowId
+    ? [{
+        kind: 'workflow' as const,
+        id: action.workflowId,
+        from: { origin: '@core.marketplace/ref.origin.action', name: action.key },
+      }]
+    : [];
 
 /**
  * O gatilho de um workflow é uma referência a uma TELA — por isso entra aqui. Mas o nome do evento
@@ -96,7 +118,7 @@ export const workflowOutRefs = (
   screens: ScreenModuleTemplate[] = [],
 ): PackageRef[] => {
   const refs: PackageRef[] = [];
-  const from = `automação "${workflow.name}"`;
+  const from: RefOrigin = { origin: '@core.marketplace/ref.origin.workflow', name: workflow.name };
 
   for (const step of workflow.steps ?? []) {
     const scriptId = stepLiteral(step, SCRIPT_ID_INPUT);
@@ -122,9 +144,17 @@ export const packageOutRefs = (pkg: MarketplacePlugin): PackageRef[] => [
   ...pkg.workflows.flatMap((workflow) => workflowOutRefs(workflow, pkg.screens ?? [])),
 ];
 
-export interface PackageValidationIssue {
-  ref: PackageRef;
+/**
+ * O texto de um problema do pacote como REFERÊNCIA de mensagem (`@core.marketplace/…`), nunca a
+ * frase pronta: a validação nasce no domínio, que não conhece idioma. Quem exibe resolve os dois.
+ */
+export interface LocalizedIssue {
   message: string;
+  messageParams?: Record<string, string>;
+}
+
+export interface PackageValidationIssue extends LocalizedIssue {
+  ref: PackageRef;
 }
 
 const slug = (value: string): string =>
@@ -142,21 +172,27 @@ const patchTargetIssue = (
   screenKeys: ReadonlySet<string>,
   screenSourceIds: ReadonlySet<string>,
 ): PackageValidationIssue | undefined => {
-  const ref: PackageRef = { kind: 'screen', id: patch.target, from: `complemento de "${patch.target}"` };
+  const ref: PackageRef = {
+    kind: 'screen',
+    id: patch.target,
+    from: { origin: '@core.marketplace/ref.origin.patch', name: patch.target },
+  };
   const ownScreen = (patch.targetKind ?? 'collection') === 'sourceId'
     ? screenSourceIds.has(patch.target)
     : screenKeys.has(patch.target);
   if (ownScreen) {
     return {
       ref,
-      message: `o complemento aponta para "${patch.target}", que é uma tela do próprio pacote — declare os campos na tela, não num complemento.`,
+      message: '@core.marketplace/issue.patch.own-screen',
+      messageParams: { target: patch.target },
     };
   }
   if ((patch.targetKind ?? 'collection') === 'sourceId') return undefined;
   if (!isCoreCollection(patch.target)) {
     return {
       ref,
-      message: `o complemento aponta para "${patch.target}", que não é uma coleção fixa do sistema — para estender a tela de outra extensão, use o \`sourceId\` dela.`,
+      message: '@core.marketplace/issue.patch.unknown-target',
+      messageParams: { target: patch.target },
     };
   }
   return undefined;
@@ -181,12 +217,17 @@ const eventPrefixIssues = (screens: ScreenModuleTemplate[]): PackageValidationIs
   for (const screen of screens) {
     const prefix = screenEventPrefix(screen);
     const collection = templateCollection(screen);
-    const ref: PackageRef = { kind: 'screen', id: screen.key, from: `tela "${screen.key}"` };
+    const ref: PackageRef = {
+      kind: 'screen',
+      id: screen.key,
+      from: { origin: '@core.marketplace/ref.origin.screen', name: screen.key },
+    };
 
     if (!splitEntityEventName(`${prefix}.saved`)) {
       issues.push({
         ref,
-        message: `a tela "${screen.key}" emitiria "${prefix}.saved", um nome reservado pelo motor de automações — declare outro \`eventPrefix\`.`,
+        message: '@core.marketplace/issue.screen.reserved-prefix',
+        messageParams: { screen: screen.key, prefix },
       });
     }
 
@@ -194,7 +235,8 @@ const eventPrefixIssues = (screens: ScreenModuleTemplate[]): PackageValidationIs
     if (kernelEntity && kernelEntity.collection !== collection) {
       issues.push({
         ref,
-        message: `a tela "${screen.key}" declara o prefixo "${prefix}", que é de ${kernelEntity.labelPlural} — as automações de ${kernelEntity.labelPlural} passariam a disparar com "${collection}".`,
+        message: '@core.marketplace/issue.screen.kernel-prefix',
+        messageParams: { screen: screen.key, prefix, entity: kernelEntity.labelPlural, collection },
       });
     }
 
@@ -202,7 +244,8 @@ const eventPrefixIssues = (screens: ScreenModuleTemplate[]): PackageValidationIs
     if (taken && taken !== collection) {
       issues.push({
         ref,
-        message: `a tela "${screen.key}" emitiria "${prefix}.saved", nome que "${taken}" já usa neste pacote — duas coleções não podem publicar o mesmo evento.`,
+        message: '@core.marketplace/issue.screen.duplicate-prefix',
+        messageParams: { screen: screen.key, prefix, taken },
       });
     }
     collectionByPrefix.set(prefix, collection);
@@ -233,19 +276,25 @@ const packageBytes = (pkg: MarketplacePlugin): number => {
 const asKb = (bytes: number): string => `${Math.round(bytes / 1024)} KB`;
 
 /** Recusa o pacote grande demais para caber no documento da instalação. Vazio quando cabe. */
-export const packageSizeIssues = (pkg: MarketplacePlugin): string[] => {
+export const packageSizeIssues = (pkg: MarketplacePlugin): LocalizedIssue[] => {
   const bytes = packageBytes(pkg);
   if (bytes <= PACKAGE_MAX_BYTES) return [];
   return [
-    `O pacote tem ${asKb(bytes)} e não caberia no documento da instalação (o limite prático é ${asKb(PACKAGE_MAX_BYTES)}). Divida-o — um pacote por idioma, ou um por conjunto de telas.`,
+    {
+      message: '@core.marketplace/issue.package.too-large',
+      messageParams: { size: asKb(bytes), limit: asKb(PACKAGE_MAX_BYTES) },
+    },
   ];
 };
 
 /** O aviso de que o pacote está grande, mas ainda instala. Para a tela de autoria, não para o import. */
-export const packageSizeAdvisory = (pkg: MarketplacePlugin): string | undefined => {
+export const packageSizeAdvisory = (pkg: MarketplacePlugin): LocalizedIssue | undefined => {
   const bytes = packageBytes(pkg);
   if (bytes <= PACKAGE_ADVISORY_BYTES || bytes > PACKAGE_MAX_BYTES) return undefined;
-  return `O pacote tem ${asKb(bytes)}. Acima de ${asKb(PACKAGE_MAX_BYTES)} ele deixa de caber no documento da instalação — convém dividi-lo antes de crescer mais.`;
+  return {
+    message: '@core.marketplace/issue.package.near-limit',
+    messageParams: { size: asKb(bytes), limit: asKb(PACKAGE_MAX_BYTES) },
+  };
 };
 
 /**
@@ -283,13 +332,6 @@ export const validatePackage = (pkg: MarketplacePlugin): PackageValidationIssue[
     }
   };
 
-  const kindLabel: Record<RefKind, string> = {
-    screen: 'a tela',
-    action: 'a ação',
-    workflow: 'a automação',
-    script: 'o script',
-  };
-
   const screenSourceIds = new Set((pkg.screens ?? []).map((s) => s.sourceId ?? s.key));
   const targetIssues = (pkg.screenPatches ?? [])
     .map((patch) => patchTargetIssue(patch, screenKeys, screenSourceIds))
@@ -302,7 +344,13 @@ export const validatePackage = (pkg: MarketplacePlugin): PackageValidationIssue[
       .filter((ref) => !bundled(ref) && !coveredByDependency(ref))
       .map((ref) => ({
         ref,
-        message: `${ref.from} referencia ${kindLabel[ref.kind]} "${ref.id}", que não está no pacote nem coberta por uma dependência declarada.`,
+        message: '@core.marketplace/issue.ref.external',
+        messageParams: {
+          origin: ref.from.origin,
+          name: ref.from.name,
+          kind: REF_KIND_KEYS[ref.kind],
+          id: ref.id,
+        },
       })),
   ];
 };

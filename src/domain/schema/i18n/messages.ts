@@ -102,16 +102,32 @@ export const buildMessageCatalog = (
 };
 
 /**
+ * Um VALOR de parâmetro pode ser ele próprio uma referência de mensagem. Um diagnóstico que diz
+ * `{kind} "{id}" não existe` precisa que `kind` — "a tela", "a automação" — também traduza, e quem o
+ * produz é o domínio, que não conhece idioma. Resolver o parâmetro aqui evita que cada consumidor
+ * tenha de lembrar quais dos seus parâmetros são referências e quais são dado do escritório.
+ */
+const resolveParam = (catalog: MessageCatalog, value: unknown): string => {
+  if (typeof value !== 'string' || !value.startsWith('@')) return String(value);
+  const match = /^@([a-z0-9][a-z0-9.-]*)\/([a-z0-9][a-z0-9.-]*)$/i.exec(value);
+  return match ? translate(catalog, `${match[1]}/${match[2]}`) : value;
+};
+
+/**
  * Interpola `{nome}` — a MESMA convenção da função `interpolate` do catálogo de expressões
  * (`fieldExpression.ts`), de propósito: quem escreve uma automação e quem escreve uma tradução não
  * deveriam precisar aprender duas sintaxes para a mesma ideia.
  */
-const interpolate = (template: string, params?: MessageParams): string => {
+const interpolate = (
+  catalog: MessageCatalog,
+  template: string,
+  params?: MessageParams,
+): string => {
   if (!params) return template;
   return template.replace(/\{([\w.]+)\}/g, (match, token: string) => {
     const value = params[token];
     if (value === null || value === undefined) return match;
-    return String(value);
+    return resolveParam(catalog, value);
   });
 };
 
@@ -149,7 +165,7 @@ export const translate = (
   const found =
     (plural === null ? undefined : catalog.messages[plural]) ?? catalog.messages[key];
 
-  return interpolate(found ?? key, params);
+  return interpolate(catalog, found ?? key, params);
 };
 
 export const hasMessage = (catalog: MessageCatalog, key: string): boolean =>

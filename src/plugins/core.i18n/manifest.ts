@@ -26,6 +26,7 @@ export const coreI18nPlugin: PluginRecord = {
     kernel: '^1.0.0',
     name: 'Language Core',
     description:
+      // eslint-disable-next-line no-restricted-syntax -- metadado do plugin do NÚCLEO: não é renderizado.
       'Declares the translation extension point and the organization language and time zone preferences.',
     dependencies: { 'core.ui': '^1.0.0' },
     extensionPoints: I18N_EXTENSION_POINTS,

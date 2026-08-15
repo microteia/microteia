@@ -17,7 +17,7 @@ describe('serializePackage/parsePackage', () => {
 
   it('rejeita JSON inválido', () => {
     const result = parsePackage('{ nope');
-    expect(result).toEqual({ ok: false, error: expect.stringContaining('JSON') });
+    expect(result).toEqual({ ok: false, error: '@core.marketplace/issue.package.not-json' });
   });
 
   it('rejeita objeto sem manifest.id', () => {

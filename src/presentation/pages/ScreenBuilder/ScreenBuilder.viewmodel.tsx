@@ -929,12 +929,12 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
    */
   const subtitleFieldOptions = useMemo<SearchSelectOption[]>(
     () => [
-      { value: '', label: 'Nenhum' },
+      { value: '', label: t('screen.subtitle-field.placeholder') },
       ...modalScreenFields
         .filter((f) => f.type !== 'textarea' && f.type !== 'markdown' && f.type !== 'checkbox')
         .map((f) => ({ value: f.key, label: f.label })),
     ],
-    [modalScreenFields],
+    [modalScreenFields, t],
   );
 
   // O rótulo é resolvido AQUI, e não na View: a caixa lista ações nativas (referência) e de
@@ -1092,7 +1092,7 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
         const maxOrder = dynamicDefinitions.reduce((max, def) => Math.max(max, def.sidebarOrder), -1);
         const nameField: FieldDefinition = {
           key: 'nome',
-          label: 'Nome',
+          label: t('field.default-name'),
           type: 'text',
           required: true,
           order: 0,
@@ -1330,10 +1330,10 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
 
   const aggregationFromOptions = useMemo<SearchSelectOption[]>(
     () => [
-      { value: '', label: 'Nenhuma (campo comum)' },
+      { value: '', label: t('field.aggregation.none') },
       ...aggregationChildScreens.map((def) => ({ value: def.id, label: def.titlePlural })),
     ],
-    [aggregationChildScreens],
+    [aggregationChildScreens, t],
   );
 
   const aggregationViaOptions = useMemo<SearchSelectOption[]>(() => {

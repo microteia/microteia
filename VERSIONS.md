@@ -11,6 +11,13 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [7.19.0] — 2026-08-15
+
+- A tela de Ações passou a acompanhar o idioma escolhido: título, filtros, avisos e a confirmação de exclusão.
+- As mensagens que aparecem ao criar, importar ou publicar uma extensão agora são exibidas no idioma do usuário, e não mais sempre em português.
+- Ao adicionar uma tela em uma extensão, o nome sugerido também respeita o idioma escolhido.
+- Correção: alguns rótulos de automações — sentido da ordenação, origem dos dados e o filtro de situação — continuavam em português mesmo com outro idioma ativo.
+
 ## [7.18.0] — 2026-08-14
 
 - A tela de Extensões — filtros, selos de situação, ações de instalar e publicar e a revisão de código — passou a acompanhar o idioma escolhido.

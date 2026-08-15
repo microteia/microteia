@@ -2,7 +2,10 @@ import { createContext, useContext } from 'react';
 import type { TenantExtension } from '../domain/entities/TenantExtension';
 import type { MarketplacePlugin } from '../domain/entities/MarketplacePlugin';
 
-export type ImportExtensionResult = { ok: true; name: string } | { ok: false; error: string };
+export type ImportExtensionResult =
+  | { ok: true; name: string }
+  /** `error` é uma REFERÊNCIA de mensagem; `errorParams` traz os valores que a frase interpola. */
+  | { ok: false; error: string; errorParams?: Record<string, string> };
 
 export interface TenantExtensionStoreValue {
   extensions: TenantExtension[];

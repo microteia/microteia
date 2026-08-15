@@ -93,7 +93,8 @@ const validateShape = (manifest: PluginManifest): PluginDiagnostic[] => {
     diagnostics.push(
       error({
         code: 'manifest.id.invalid',
-        message: `Id de plugin "${pluginId}" é inválido. Use DNS reverso com ao menos dois segmentos (ex.: "com.acme.contratos").`,
+        message: '@core.marketplace/diagnostic.manifest.id.invalid',
+        messageParams: { id: String(pluginId) },
         pluginId,
         path: 'id',
       }),
@@ -103,7 +104,8 @@ const validateShape = (manifest: PluginManifest): PluginDiagnostic[] => {
     diagnostics.push(
       error({
         code: 'manifest.version.invalid',
-        message: `A versão "${manifest?.version}" não é um semver válido.`,
+        message: '@core.marketplace/diagnostic.manifest.version.invalid',
+        messageParams: { version: String(manifest?.version) },
         pluginId,
         path: 'version',
       }),
@@ -113,7 +115,8 @@ const validateShape = (manifest: PluginManifest): PluginDiagnostic[] => {
     diagnostics.push(
       error({
         code: 'manifest.kernel.invalid',
-        message: `A faixa de kernel "${manifest?.kernel}" é inválida. Use algo como "^1.0.0".`,
+        message: '@core.marketplace/diagnostic.manifest.kernel.invalid',
+        messageParams: { range: String(manifest?.kernel) },
         pluginId,
         path: 'kernel',
       }),
@@ -123,7 +126,7 @@ const validateShape = (manifest: PluginManifest): PluginDiagnostic[] => {
     diagnostics.push(
       error({
         code: 'manifest.field.missing',
-        message: 'O plugin precisa de um nome legível.',
+        message: '@core.marketplace/diagnostic.manifest.name.missing',
         pluginId,
         path: 'name',
       }),
@@ -140,7 +143,7 @@ const validateDependencies = (manifest: PluginManifest): PluginDiagnostic[] => {
     return [
       error({
         code: 'manifest.invalid',
-        message: 'As dependências precisam ser um objeto { pluginId: faixa }.',
+        message: '@core.marketplace/diagnostic.manifest.dependencies.invalid',
         pluginId: manifest?.id,
         path: 'dependencies',
       }),
@@ -154,7 +157,8 @@ const validateDependencies = (manifest: PluginManifest): PluginDiagnostic[] => {
       diagnostics.push(
         error({
           code: 'manifest.id.invalid',
-          message: `A dependência "${dependencyId}" não é um id de plugin válido.`,
+          message: '@core.marketplace/diagnostic.manifest.dependency.id.invalid',
+          messageParams: { id: dependencyId },
           pluginId: manifest.id,
           path: `dependencies.${dependencyId}`,
         }),
@@ -164,7 +168,8 @@ const validateDependencies = (manifest: PluginManifest): PluginDiagnostic[] => {
       diagnostics.push(
         error({
           code: 'dependency.range.invalid',
-          message: `A faixa "${range}" da dependência "${dependencyId}" é inválida.`,
+          message: '@core.marketplace/diagnostic.manifest.dependency.range.invalid',
+          messageParams: { range: String(range), id: dependencyId },
           pluginId: manifest.id,
           path: `dependencies.${dependencyId}`,
         }),
@@ -183,7 +188,8 @@ const validateExtensionPoints = (manifest: PluginManifest): PluginDiagnostic[] =
       diagnostics.push(
         error({
           code: 'extensionPoint.duplicate',
-          message: `O ponto de extensão "${point?.id}" foi declarado mais de uma vez neste plugin.`,
+          message: '@core.marketplace/diagnostic.manifest.point.duplicated',
+          messageParams: { id: String(point?.id) },
           pluginId: manifest.id,
           path: `extensionPoints[${index}].id`,
         }),
@@ -204,7 +210,7 @@ export const validatePluginManifest = (
   options: ValidateManifestOptions = {},
 ): PluginDiagnostic[] => {
   if (!isPlainObject(manifest)) {
-    return [error({ code: 'manifest.invalid', message: 'O manifest precisa ser um objeto.' })];
+    return [error({ code: 'manifest.invalid', message: '@core.marketplace/diagnostic.manifest.not-object' })];
   }
 
   const { trusted = false, kernelVersion, points, validateContributions = true } = options;
@@ -221,7 +227,8 @@ export const validatePluginManifest = (
     diagnostics.push(
       error({
         code: 'manifest.kernel.incompatible',
-        message: `O plugin "${manifest.name || manifest.id}" exige o Microteia ${manifest.kernel}, mas esta instalação está na versão ${kernelVersion}.`,
+        message: '@core.marketplace/diagnostic.manifest.kernel.unsatisfied',
+        messageParams: { name: manifest.name || manifest.id, required: manifest.kernel, installed: kernelVersion },
         pluginId: manifest.id,
         path: 'kernel',
       }),

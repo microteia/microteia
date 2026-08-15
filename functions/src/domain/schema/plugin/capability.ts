@@ -77,7 +77,8 @@ export const validateProvisions = (
       diagnostics.push(
         error({
           code: 'capability.id.invalid',
-          message: `Capability "${provision?.capability}" é inválida. Use o formato "grupo.nome" (ex.: "ai.completion").`,
+          message: '@core.marketplace/diagnostic.capability.id.invalid',
+          messageParams: { id: String(provision?.capability) },
           pluginId,
           path: `provides[${index}].capability`,
         }),
@@ -87,7 +88,8 @@ export const validateProvisions = (
       diagnostics.push(
         error({
           code: 'manifest.version.invalid',
-          message: `A versão "${provision?.version}" da capability "${provision?.capability}" não é um semver válido.`,
+          message: '@core.marketplace/diagnostic.capability.version.invalid',
+          messageParams: { version: String(provision?.version), id: String(provision?.capability) },
           pluginId,
           path: `provides[${index}].version`,
         }),
@@ -106,7 +108,8 @@ export const validateRequirements = (
       diagnostics.push(
         error({
           code: 'capability.id.invalid',
-          message: `Capability "${requirement?.capability}" é inválida. Use o formato "grupo.nome" (ex.: "ai.completion").`,
+          message: '@core.marketplace/diagnostic.capability.id.invalid',
+          messageParams: { id: String(requirement?.capability) },
           pluginId,
           path: `consumes[${index}].capability`,
         }),
@@ -116,7 +119,8 @@ export const validateRequirements = (
       diagnostics.push(
         error({
           code: 'capability.range.invalid',
-          message: `A faixa "${requirement?.range}" da capability "${requirement?.capability}" é inválida.`,
+          message: '@core.marketplace/diagnostic.capability.range.invalid',
+          messageParams: { range: String(requirement?.range), id: String(requirement?.capability) },
           pluginId,
           path: `consumes[${index}].range`,
         }),

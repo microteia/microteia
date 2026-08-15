@@ -10,6 +10,7 @@ export const coreUiPlugin: PluginRecord = {
     version: '1.0.0',
     kernel: '^1.0.0',
     name: 'Interface Core',
+    // eslint-disable-next-line no-restricted-syntax -- metadado do plugin do NÚCLEO: não é renderizado.
     description: 'Declares the interface extension points: pages, navigation and Command Palette.',
     extensionPoints: UI_EXTENSION_POINTS,
     contributes: [

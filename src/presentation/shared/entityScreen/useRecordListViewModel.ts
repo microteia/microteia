@@ -194,10 +194,10 @@ export const useRecordListViewModel = (source: RecordListSource): RecordListView
   );
 
   const filterDefs = useMemo<FilterDef[]>(() => [
-    { key: 'search', label: 'Busca', type: 'text', placeholder: 'Buscar...' },
-    ...((tagOptions ?? []).length > 0 ? [{ key: 'tag', label: 'Etiqueta', type: 'select' as const, options: tagOptions }] : []),
+    { key: 'search', label: t('core.ui/filter.search'), type: 'text', placeholder: t('core.ui/action.search') },
+    ...((tagOptions ?? []).length > 0 ? [{ key: 'tag', label: t('core.ui/tags.title'), type: 'select' as const, options: tagOptions }] : []),
     ...listing.filterDefs,
-  ], [tagOptions, listing.filterDefs]);
+  ], [tagOptions, listing.filterDefs, t]);
 
   const tokenMap = useMemo(() => {
     const map: Record<string, string[]> = {};

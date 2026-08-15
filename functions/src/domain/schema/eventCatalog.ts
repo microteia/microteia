@@ -31,7 +31,7 @@ export interface WorkflowEventCatalogEntry {
   root: PathRoot;
 }
 
-const ID_FIELD: WorkflowEventFieldOption = { path: 'id', label: 'Id' };
+const ID_FIELD: WorkflowEventFieldOption = { path: 'id', label: '@core.automation/event-field.id' };
 const CHANGE_TYPE_FIELD: WorkflowEventFieldOption = { path: 'changeType', label: '@core.automation/event-field.change-type' };
 const OLD_FIELD: WorkflowEventFieldOption = { path: 'old', label: '@core.automation/event-field.old' };
 
@@ -145,20 +145,20 @@ const declaredLookupEntry = (
   );
 
 const NOTE_FIELDS: NativeFieldSpec[] = [
-  { key: 'parentId', label: 'Id da entidade pai', type: 'string' },
-  { key: 'parentType', label: 'Tipo da entidade pai', type: 'string' },
+  { key: 'parentId', label: '@core.automation/event-field.parent-id', type: 'string' },
+  { key: 'parentType', label: '@core.automation/event-field.parent-type', type: 'string' },
   { key: 'content', label: '@core.automation/event-field.content', type: 'string' },
-  { key: 'createdBy', label: 'Criado por', type: 'string' },
+  { key: 'createdBy', label: '@core.automation/event-field.created-by', type: 'string' },
   { key: 'createdAt', label: '@core.automation/event-field.created-at', type: 'date' },
 ];
 
 const DOCUMENT_FIELDS: NativeFieldSpec[] = [
-  { key: 'parentId', label: 'Id da entidade pai', type: 'string' },
-  { key: 'parentType', label: 'Tipo da entidade pai', type: 'string' },
-  { key: 'fileName', label: 'Nome do arquivo', type: 'string' },
-  { key: 'fileSize', label: 'Tamanho do arquivo', type: 'number' },
-  { key: 'uploadedBy', label: 'Enviado por', type: 'string' },
-  { key: 'uploadedAt', label: 'Data de envio', type: 'date' },
+  { key: 'parentId', label: '@core.automation/event-field.parent-id', type: 'string' },
+  { key: 'parentType', label: '@core.automation/event-field.parent-type', type: 'string' },
+  { key: 'fileName', label: '@core.automation/event-field.file-name', type: 'string' },
+  { key: 'fileSize', label: '@core.automation/event-field.file-size', type: 'number' },
+  { key: 'uploadedBy', label: '@core.automation/event-field.uploaded-by', type: 'string' },
+  { key: 'uploadedAt', label: '@core.automation/event-field.uploaded-at', type: 'date' },
 ];
 
 const parentObjectField = (entity: EntityMetadata): NativeFieldSpec => ({
@@ -166,7 +166,7 @@ const parentObjectField = (entity: EntityMetadata): NativeFieldSpec => ({
   label: entity.labelSingular,
   type: 'object',
   objectFields: [
-    { key: 'id', label: 'Id', type: 'string' },
+    { key: 'id', label: '@core.automation/event-field.id', type: 'string' },
     ...entity.referenceDenormFields.map(
       (fieldKey) =>
         entity.fields.find((field) => field.key === fieldKey) ?? { key: fieldKey, label: fieldKey, type: 'string' as const },

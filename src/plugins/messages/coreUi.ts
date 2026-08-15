@@ -639,4 +639,5 @@ export const CORE_UI_MESSAGES: Record<string, string> = {
   'note.deleted': 'Note deleted.',
   'note.delete-failed': 'Could not delete the note.',
   'document.deleted': 'Document deleted.',
+  'filter.status': 'Status',
 };

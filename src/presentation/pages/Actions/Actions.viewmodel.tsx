@@ -5,6 +5,7 @@ import { useWorkspace } from '../../../stores/useWorkspace';
 import { useNotification } from '../../../stores/useNotification';
 import type { ActionDefinition } from '../../../domain/entities';
 import type { FilterDef, FilterToken } from '../../components/ui/CompositeFilter';
+import { useT } from '../../shared/i18n/useT';
 
 export interface ActionsViewModel {
   isAdmin: boolean;
@@ -23,6 +24,7 @@ export interface ActionsViewModel {
 }
 
 export const useActionsViewModel = (): ActionsViewModel => {
+  const t = useT('core.automation');
   const { actions, isLoading, deleteAction } = useActions();
   const { tenantRole } = useTenant();
   const { openTab } = useWorkspace();
@@ -32,8 +34,8 @@ export const useActionsViewModel = (): ActionsViewModel => {
   const [actionToDelete, setActionToDelete] = useState<ActionDefinition | null>(null);
 
   const filterDefs = useMemo<FilterDef[]>(() => [
-    { key: 'search', label: 'Busca', type: 'text', placeholder: 'Título ou identificador...' },
-  ], []);
+    { key: 'search', label: t('core.ui/filter.search'), type: 'text', placeholder: t('actions.filter.search.placeholder') },
+  ], [t]);
 
   const tokenMap = useMemo(() => {
     const map: Record<string, string[]> = {};
@@ -60,13 +62,13 @@ export const useActionsViewModel = (): ActionsViewModel => {
     if (!actionToDelete) return;
     try {
       await deleteAction(actionToDelete.id);
-      notify('Ação excluída.', 'success');
+      notify(t('action.deleted'), 'success');
     } catch {
-      notify('Erro ao excluir a ação.', 'error');
+      notify(t('action.delete-failed'), 'error');
     } finally {
       setActionToDelete(null);
     }
-  }, [actionToDelete, deleteAction, notify]);
+  }, [actionToDelete, deleteAction, notify, t]);
 
   return {
     isAdmin: tenantRole === 'admin',

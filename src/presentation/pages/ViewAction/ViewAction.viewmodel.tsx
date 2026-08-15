@@ -181,14 +181,14 @@ export const useViewActionViewModel = (tabKey: string): ViewActionViewModel => {
    */
   const commandOptions = useMemo<SearchSelectOption[]>(
     () => [
-      { value: '', label: 'Executar um fluxo de trabalho' },
+      { value: '', label: t('action.run-workflow') },
       ...recordActions.map((action) => ({
         value: action.metadata.key,
         label: label(action.metadata.title),
         meta: action.metadata.key,
       })),
     ],
-    [recordActions, label],
+    [recordActions, label, t],
   );
 
   const promptableParameters = useMemo<PromptableParameter[]>(() => {

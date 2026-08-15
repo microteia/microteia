@@ -638,4 +638,5 @@ export const CORE_UI: Record<string, string> = {
   'note.deleted': 'Anotação excluída.',
   'note.delete-failed': 'Erro ao excluir anotação.',
   'document.deleted': 'Documento excluído.',
+  'filter.status': 'Situação',
 };

@@ -118,7 +118,8 @@ export const createPluginHost = (options: PluginHostOptions = {}): PluginHost =>
         diagnostics.push(
           error({
             code: 'manifest.duplicate',
-            message: `O plugin "${pluginId}" foi declarado mais de uma vez. A segunda declaração foi ignorada.`,
+            message: '@core.marketplace/diagnostic.plugin.duplicate',
+            messageParams: { id: pluginId },
             pluginId,
           }),
         );
@@ -150,8 +151,9 @@ export const createPluginHost = (options: PluginHostOptions = {}): PluginHost =>
               error({
                 code: declared.has(dependencyId) ? 'dependency.disabled' : 'dependency.missing',
                 message: declared.has(dependencyId)
-                  ? `O plugin "${pluginId}" depende de "${dependencyId}", que não pôde ser carregado.`
-                  : `O plugin "${pluginId}" depende de "${dependencyId}", que não está instalado.`,
+                  ? '@core.marketplace/diagnostic.dependency.disabled'
+                  : '@core.marketplace/diagnostic.dependency.missing',
+                messageParams: { id: pluginId, dependency: dependencyId },
                 pluginId,
                 path: `dependencies.${dependencyId}`,
               }),
@@ -160,7 +162,8 @@ export const createPluginHost = (options: PluginHostOptions = {}): PluginHost =>
             diagnostics.push(
               error({
                 code: 'dependency.unsatisfied',
-                message: `O plugin "${pluginId}" exige "${dependencyId}" ${range}, mas a versão instalada é ${dependency.manifest.version}.`,
+                message: '@core.marketplace/diagnostic.dependency.unsatisfied',
+                messageParams: { id: pluginId, dependency: dependencyId, range, installed: dependency.manifest.version },
                 pluginId,
                 path: `dependencies.${dependencyId}`,
               }),
@@ -181,7 +184,8 @@ export const createPluginHost = (options: PluginHostOptions = {}): PluginHost =>
       diagnostics.push(
         error({
           code: 'dependency.cycle',
-          message: `O plugin "${pluginId}" faz parte de um ciclo de dependências e não pôde ser carregado.`,
+          message: '@core.marketplace/diagnostic.dependency.cycle',
+          messageParams: { id: pluginId },
           pluginId,
         }),
       );
@@ -204,7 +208,8 @@ export const createPluginHost = (options: PluginHostOptions = {}): PluginHost =>
         diagnostics.push(
           warning({
             code: 'contribution.impl.forbidden',
-            message: `O plugin "${pluginId}" não é interno e por isso suas implementações em código foram ignoradas.`,
+            message: '@core.marketplace/diagnostic.plugin.code-ignored',
+            messageParams: { id: pluginId },
             pluginId,
           }),
         );
@@ -273,7 +278,8 @@ export const createPluginHost = (options: PluginHostOptions = {}): PluginHost =>
     return [
       error({
         code: 'contribution.impl.unresolved',
-        message: `A contribuição "${contribution.id}" aponta para a implementação "${contribution.impl.key}", que o plugin "${pluginId}" não forneceu.`,
+        message: '@core.marketplace/diagnostic.contribution.impl.unresolved',
+        messageParams: { id: contribution.id, key: contribution.impl.key, plugin: pluginId },
         pluginId,
         contributionId: contribution.id,
         contributionIndex: index,
@@ -291,7 +297,8 @@ export const createPluginHost = (options: PluginHostOptions = {}): PluginHost =>
         const winner = competing[0];
         return warning({
           code: 'contribution.conflict',
-          message: `O ponto "${pointId}" aceita uma única contribuição, mas ${competing.length} foram registradas. Prevaleceu "${winner.pluginId}:${winner.id}".`,
+          message: '@core.marketplace/diagnostic.contribution.conflict',
+          messageParams: { point: pointId, count: String(competing.length), winner: `${winner.pluginId}:${winner.id}` },
           pluginId: winner.pluginId,
           contributionId: winner.id,
         });
@@ -307,7 +314,8 @@ export const createPluginHost = (options: PluginHostOptions = {}): PluginHost =>
         .map((requirement) =>
           warning({
             code: 'capability.unsatisfied',
-            message: `O plugin "${pluginId}" precisa de "${requirement.capability}" ${requirement.range}, e nenhum plugin instalado fornece essa capacidade.`,
+            message: '@core.marketplace/diagnostic.capability.unsatisfied',
+            messageParams: { id: pluginId, capability: requirement.capability, range: requirement.range },
             pluginId,
           }),
         ),

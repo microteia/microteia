@@ -36,9 +36,9 @@ describe('workflowOutRefs', () => {
       ],
     });
     expect(refs).toEqual([
-      { kind: 'script', id: 'scr-1', from: 'automação "W"' },
-      { kind: 'workflow', id: 'wf-2', from: 'automação "W"' },
-      { kind: 'screen', id: 'venda', from: 'automação "W"' },
+      { kind: 'script', id: 'scr-1', from: { origin: '@core.marketplace/ref.origin.workflow', name: 'W' } },
+      { kind: 'workflow', id: 'wf-2', from: { origin: '@core.marketplace/ref.origin.workflow', name: 'W' } },
+      { kind: 'screen', id: 'venda', from: { origin: '@core.marketplace/ref.origin.workflow', name: 'W' } },
     ]);
   });
 
@@ -58,7 +58,7 @@ describe('workflowOutRefs', () => {
       fields: [{ key: 'title', label: 'Título', type: 'text' as const, required: true, order: 0 }],
     };
     expect(workflowOutRefs(workflow, [processos])).toEqual([
-      { kind: 'screen', id: 'processos', from: 'automação "W"' },
+      { kind: 'screen', id: 'processos', from: { origin: '@core.marketplace/ref.origin.workflow', name: 'W' } },
     ]);
   });
 
@@ -68,7 +68,7 @@ describe('workflowOutRefs', () => {
       condition: { kind: 'AlwaysTrue' }, steps: [],
     });
     expect(refs).toEqual([
-      { kind: 'screen', id: 'com-microteia-vendas__produto', from: 'automação "W"' },
+      { kind: 'screen', id: 'com-microteia-vendas__produto', from: { origin: '@core.marketplace/ref.origin.workflow', name: 'W' } },
     ]);
   });
 });
@@ -226,7 +226,7 @@ describe('validatePackage — complementos de tela', () => {
   it('recusa alvo que não é coleção fixa nem sourceId', () => {
     const issues = validatePackage(base({ screenPatches: [patch({ target: 'minhaTela' })] }));
     expect(issues).toHaveLength(1);
-    expect(issues[0].message).toMatch(/sourceId/);
+    expect(issues[0].message).toBe('@core.marketplace/issue.patch.unknown-target');
   });
 
   it('recusa complemento que aponta para uma tela do próprio pacote', () => {
@@ -238,7 +238,7 @@ describe('validatePackage — complementos de tela', () => {
       screenPatches: [patch({ target: 'produtos' })],
     }));
     expect(issues).toHaveLength(1);
-    expect(issues[0].message).toMatch(/declare os campos na tela/);
+    expect(issues[0].message).toBe('@core.marketplace/issue.patch.own-screen');
   });
 
   it('campo do complemento que referencia tela fora do pacote é apontado', () => {
@@ -265,6 +265,6 @@ describe('validatePackage — complemento sobre a tela do próprio pacote', () =
       }],
     }));
     expect(issues).toHaveLength(1);
-    expect(issues[0].message).toMatch(/declare os campos na tela/);
+    expect(issues[0].message).toBe('@core.marketplace/issue.patch.own-screen');
   });
 });

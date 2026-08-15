@@ -10,11 +10,11 @@ import type { QueryBuilderControlProps } from './QueryBuilderControl.viewmodel';
 import type { InputMapping } from '../../../../../domain/entities/Workflow';
 import type { QueryOperator } from '../../../../../domain/schema/querySpec';
 
-import { useT } from '../../../../shared/i18n/useT';
+import { useT, type TranslateFn } from '../../../../shared/i18n/useT';
 
-const DIRECTION_OPTIONS = [
-  { value: 'asc', label: 'Crescente' },
-  { value: 'desc', label: 'Decrescente' },
+const directionOptions = (t: TranslateFn) => [
+  { value: 'asc', label: t('query.order.asc') },
+  { value: 'desc', label: t('query.order.desc') },
 ];
 
 export const QueryBuilderControl: React.FC<QueryBuilderControlProps> = (props) => {
@@ -128,7 +128,7 @@ export const QueryBuilderControl: React.FC<QueryBuilderControlProps> = (props) =
                   placeholder={t('query.field.placeholder')}
                 />
                 <SearchSelect
-                  options={DIRECTION_OPTIONS}
+                  options={directionOptions(t)}
                   value={order.dir}
                   onChange={(dir) => vm.updateOrderBy(index, { ...order, dir: dir === 'desc' ? 'desc' : 'asc' })}
                 />

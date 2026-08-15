@@ -8,7 +8,11 @@ export type PluginSource = 'published' | 'builtin';
 
 export type ImportPackageResult =
   | { ok: true; name: string; action: 'installed' | 'upgraded'; note?: string }
-  | { ok: false; error: string };
+  /**
+   * O `error` é uma REFERÊNCIA de mensagem quando vem de um diagnóstico do host; `errorParams` traz
+   * os valores que a frase interpola. Quem exibe resolve os dois com o catálogo do usuário.
+   */
+  | { ok: false; error: string; errorParams?: Record<string, string> };
 
 export interface PluginStoreValue {
   catalog: MarketplacePlugin[];
