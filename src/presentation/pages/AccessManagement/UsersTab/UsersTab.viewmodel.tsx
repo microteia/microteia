@@ -6,6 +6,7 @@ import { makeUpdateUserRoleUseCase } from '../../../../domain/usecases/users/Upd
 import type { AppUser, UserRole } from '../../../../domain/entities';
 import type { FilterDef, FilterToken } from '../../../components/ui/CompositeFilter';
 
+import { useT } from '../../../shared/i18n/useT';
 export interface UsersTabViewModel {
   loading: boolean;
   error: string | null;
@@ -22,6 +23,7 @@ export interface UsersTabViewModel {
 }
 
 export const useUsersTabViewModel = (): UsersTabViewModel => {
+  const t = useT('core.admin');
   const { user } = useAuth();
   const { userRepository } = useDI();
 
@@ -37,17 +39,22 @@ export const useUsersTabViewModel = (): UsersTabViewModel => {
   useEffect(() => {
     getUsersUseCase.execute()
       .then(setUsers)
-      .catch(() => setError('Não foi possível carregar os usuários.'))
+      .catch(() => setError(t('access.users.load-failed')))
       .finally(() => setLoading(false));
-  }, [getUsersUseCase]);
+  }, [getUsersUseCase, t]);
 
   const filterDefs = useMemo<FilterDef[]>(() => [
-    { key: 'search', label: 'Busca', type: 'text', placeholder: 'Nome ou e-mail...' },
-  ], []);
+    {
+      key: 'search',
+      label: t('core.ui/filter.search'),
+      type: 'text',
+      placeholder: t('access.users.filter.search.placeholder'),
+    },
+  ], [t]);
 
   const tokenMap = useMemo(() => {
     const map: Record<string, string[]> = {};
-    filterTokens.forEach((t) => { map[t.key] = t.values; });
+    filterTokens.forEach((token) => { map[token.key] = token.values; });
     return map;
   }, [filterTokens]);
 
@@ -70,12 +77,12 @@ export const useUsersTabViewModel = (): UsersTabViewModel => {
           prev.map((u) => (u.id === userId ? { ...u, role } : u)),
         );
       } catch {
-        setError('Erro ao atualizar o perfil do usuário.');
+        setError(t('access.users.role-update-failed'));
       } finally {
         setSavingUserId(null);
       }
     },
-    [updateRoleUseCase],
+    [updateRoleUseCase, t],
   );
 
   const searchTerm = tokenMap['search']?.[0] ?? '';

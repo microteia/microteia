@@ -447,4 +447,17 @@ export const CORE_AUTOMATION_MESSAGES: Record<string, string> = {
   'step.identifier.hint.readable': 'In expressions, the outputs of this step sit under output.{id}.',
   'step.output.dynamic': '{id} (dynamic)',
   'workflow.fallback-name': 'Automation',
+  'functions.example': 'Example',
+  'functions.filter.placeholder': 'Search functions…',
+  'functions.filter.search.placeholder': 'Function name…',
+  'functions.load-failed': 'Could not load the functions: {detail}',
+  'functions.loading': 'Loading functions…',
+  'functions.none-found': 'No function found with the applied filters.',
+  'scripts.create-first': 'Create the first script',
+  'scripts.delete.message':
+    'Are you sure you want to delete the script "{name}"? Steps that use it will stop working. This cannot be undone.',
+  'scripts.empty': 'No script found',
+  'scripts.filter.placeholder': 'Filter scripts…',
+  'scripts.filter.search.placeholder': 'Script name…',
+  'scripts.new': 'New Script',
 };

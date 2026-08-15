@@ -11,6 +11,11 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [7.22.0] — 2026-08-15
+
+- As telas de Gestão de Acessos, Auditoria, Scripts, Referência de Expressões, Telas Personalizadas e Registro passaram a acompanhar o idioma escolhido.
+- Na Auditoria, o nome da entidade, a ação e a severidade de cada registro também são traduzidos — inclusive os nomes das telas criadas pelo escritório, que continuam aparecendo como foram escritos.
+
 #### [7.21.0] — 2026-08-15
 
 - As telas de Configurações, Configurações do Escritório (dados, membros e conexão de IA), Meu Perfil e a edição de Step das automações passaram a acompanhar o idioma escolhido.

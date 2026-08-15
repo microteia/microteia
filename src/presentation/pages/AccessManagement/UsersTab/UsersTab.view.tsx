@@ -9,16 +9,21 @@ import { CompositeFilter } from '../../../components/ui/CompositeFilter';
 import { S } from './UsersTab.styles';
 import type { UserRole } from '../../../../domain/entities';
 
-const ROLE_OPTIONS: SearchSelectOption[] = [
-  { value: 'SYSTEM',  label: 'Sistema' },
-  { value: 'SUPPORT', label: 'Suporte' },
-  { value: 'USER',    label: 'Usuário' },
-];
+import { useT, type TranslateFn } from '../../../shared/i18n/useT';
+const ROLE_KEYS: Record<UserRole, string> = {
+  SYSTEM: 'access.role.system',
+  SUPPORT: 'access.role.support',
+  USER: 'access.role.user',
+};
+
+const roleOptions = (t: TranslateFn): SearchSelectOption[] =>
+  (Object.keys(ROLE_KEYS) as UserRole[]).map((role) => ({ value: role, label: t(ROLE_KEYS[role]) }));
 
 const formatDate = (date: Date) =>
   date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
 
 export const UsersTabView: React.FC = () => {
+  const t = useT('core.admin');
   const vm = useUsersTabViewModel();
 
   return (
@@ -28,11 +33,11 @@ export const UsersTabView: React.FC = () => {
           defs={vm.filterDefs}
           tokens={vm.filterTokens}
           onChange={vm.setFilterTokens}
-          placeholder="Filtrar usuários..."
+          placeholder={t('access.users.filter.placeholder')}
           screenKey={vm.savedFiltersScreenKey}
         />
         <S.Count>
-          {vm.filteredUsers.length} de {vm.totalCount} usuário{vm.totalCount !== 1 ? 's' : ''}
+          {t('access.users.count', { shown: vm.filteredUsers.length, count: vm.totalCount })}
         </S.Count>
       </S.Toolbar>
 
@@ -48,7 +53,7 @@ export const UsersTabView: React.FC = () => {
         <S.EmptyState>
           <S.EmptyIcon><RiShieldUserLine /></S.EmptyIcon>
           <S.EmptyText>
-            {vm.searchTerm ? 'Nenhum usuário encontrado para esta busca.' : 'Nenhum usuário cadastrado.'}
+            {t(vm.searchTerm ? 'access.users.none-found' : 'access.users.empty')}
           </S.EmptyText>
         </S.EmptyState>
       ) : (
@@ -56,10 +61,10 @@ export const UsersTabView: React.FC = () => {
           <S.Table>
             <S.Thead>
               <tr>
-                <S.Th>Usuário</S.Th>
-                <S.Th>E-mail</S.Th>
-                <S.Th>Cadastrado em</S.Th>
-                <S.Th>Perfil Atual</S.Th>
+                <S.Th>{t('access.column.user')}</S.Th>
+                <S.Th>{t('core.ui/field.email')}</S.Th>
+                <S.Th>{t('access.column.registered-at')}</S.Th>
+                <S.Th>{t('access.column.role')}</S.Th>
               </tr>
             </S.Thead>
             <S.Tbody>
@@ -76,7 +81,7 @@ export const UsersTabView: React.FC = () => {
                       </S.Avatar>
                       <S.UserName>{u.displayName}</S.UserName>
                       {vm.savingUserId === u.id && (
-                        <S.SavingIndicator>salvando…</S.SavingIndicator>
+                        <S.SavingIndicator>{t('access.saving')}</S.SavingIndicator>
                       )}
                     </S.UserCell>
                   </S.Td>
@@ -116,10 +121,11 @@ interface RoleCellContentProps {
 const RoleCellContent: React.FC<RoleCellContentProps> = ({
   userId, role, isSelf, onRoleChange,
 }) => {
+  const t = useT('core.admin');
   const theme = useTheme();
 
   if (isSelf) {
-    return <S.RoleBadge $role={role}>{ROLE_LABELS[role]}</S.RoleBadge>;
+    return <S.RoleBadge $role={role}>{t(ROLE_KEYS[role])}</S.RoleBadge>;
   }
 
   const roleColors: Record<string, string> = {
@@ -131,17 +137,13 @@ const RoleCellContent: React.FC<RoleCellContentProps> = ({
   return (
     <S.RoleSelectWrapper>
       <SearchSelect
-        options={ROLE_OPTIONS.map((o) => ({ ...o, color: roleColors[o.value] }))}
+        options={roleOptions(t).map((option) => ({ ...option, color: roleColors[option.value] }))}
         value={role}
         onChange={(v) => { if (v) onRoleChange(userId, v as UserRole); }}
-        placeholder="Selecionar perfil"
+        placeholder={t('access.role.placeholder')}
       />
     </S.RoleSelectWrapper>
   );
 };
 
-const ROLE_LABELS: Record<UserRole, string> = {
-  SYSTEM:  'Sistema',
-  SUPPORT: 'Suporte',
-  USER:    'Usuário',
-};
+

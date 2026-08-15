@@ -5,7 +5,9 @@ import { Spinner } from '../../components/ui/Spinner';
 import { InfoBanner } from '../../components/ui/InfoBanner';
 import { RecordListSurface } from '../../components/layout/RecordListSurface';
 
+import { useT } from '../../shared/i18n/useT';
 export const DynamicRecordListView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
+  const t = useT('core.records');
   const vm = useDynamicRecordListViewModel(tabKey);
   const definition = vm.definition;
 
@@ -13,7 +15,7 @@ export const DynamicRecordListView: React.FC<{ tabKey: string }> = ({ tabKey }) 
     return (
       <S.Page>
         <S.Header>
-          <S.Title>Tela personalizada</S.Title>
+          <S.Title>{t('screen.custom')}</S.Title>
         </S.Header>
         <S.BannerWrapper>
           {vm.isLoading ? (
@@ -21,7 +23,7 @@ export const DynamicRecordListView: React.FC<{ tabKey: string }> = ({ tabKey }) 
           ) : (
             <InfoBanner
               variant="info"
-              message="Esta tela personalizada não está mais disponível. Ela pode ter sido desativada ou excluída pelo administrador."
+              message={t('screen.unavailable')}
             />
           )}
         </S.BannerWrapper>

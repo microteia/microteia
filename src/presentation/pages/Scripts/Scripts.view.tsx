@@ -7,14 +7,16 @@ import { Button } from '../../components/ui/Button';
 import { ConfirmModal } from '../../components/ui/ConfirmModal';
 import { Spinner } from '../../components/ui/Spinner';
 
+import { useT } from '../../shared/i18n/useT';
 export const ScriptsView: React.FC = () => {
+  const t = useT('core.automation');
   const vm = useScriptsViewModel();
 
   return (
     <S.Page>
       <S.Header>
-        <S.Title>Scripts</S.Title>
-        <Button onClick={vm.openNewScript} title="Novo Script">
+        <S.Title>{t('page.scripts')}</S.Title>
+        <Button onClick={vm.openNewScript} title={t('scripts.new')}>
           <RiAddLine size={16} />
         </Button>
       </S.Header>
@@ -24,7 +26,7 @@ export const ScriptsView: React.FC = () => {
           defs={vm.filterDefs}
           tokens={vm.filterTokens}
           onChange={vm.setFilterTokens}
-          placeholder="Filtrar scripts..."
+          placeholder={t('scripts.filter.placeholder')}
           screenKey={vm.savedFiltersScreenKey}
         />
       </S.Toolbar>
@@ -35,10 +37,10 @@ export const ScriptsView: React.FC = () => {
         ) : vm.filteredScripts.length === 0 ? (
           <S.EmptyState>
             <S.EmptyIcon><RiCodeBoxLine /></S.EmptyIcon>
-            <S.EmptyTitle>Nenhum script encontrado</S.EmptyTitle>
+            <S.EmptyTitle>{t('scripts.empty')}</S.EmptyTitle>
             <Button onClick={vm.openNewScript} variant="secondary">
               <RiAddLine size={14} />
-              Criar primeiro script
+              {t('scripts.create-first')}
             </Button>
           </S.EmptyState>
         ) : (
@@ -51,7 +53,7 @@ export const ScriptsView: React.FC = () => {
                   {s.description && <S.RowDescription>{s.description}</S.RowDescription>}
                 </S.RowInfo>
                 <S.DeleteBtn
-                  title="Excluir script"
+                  title={t('script.delete')}
                   onClick={(e) => { e.stopPropagation(); vm.handleDelete(s); }}
                 >
                   <RiDeleteBinLine size={14} />
@@ -66,9 +68,9 @@ export const ScriptsView: React.FC = () => {
         isOpen={!!vm.scriptToDelete}
         onConfirm={() => void vm.confirmDelete()}
         onCancel={vm.cancelDelete}
-        title="Excluir Script"
-        message={`Tem certeza que deseja excluir o script "${vm.scriptToDelete?.name}"? Steps que o utilizam deixarão de funcionar. Esta ação não pode ser desfeita.`}
-        confirmLabel="Excluir"
+        title={t('script.delete.title')}
+        message={t('scripts.delete.message', { name: vm.scriptToDelete?.name ?? '' })}
+        confirmLabel={t('core.ui/action.delete')}
         variant="danger"
       />
     </S.Page>

@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react';
 import { useExpressionFunctions } from '../../../stores/useExpressionFunctions';
 import type { FilterDef, FilterToken } from '../../components/ui/CompositeFilter';
 
+import { useT } from '../../shared/i18n/useT';
 export interface FunctionReferenceViewModel {
   filterDefs: FilterDef[];
   filterTokens: FilterToken[];
@@ -18,6 +19,7 @@ export interface FunctionReferenceViewModel {
 }
 
 export const useFunctionReferenceViewModel = (): FunctionReferenceViewModel => {
+  const t = useT('core.automation');
   const { functions, loading, error } = useExpressionFunctions();
   const [filterTokens, setFilterTokens] = useState<FilterToken[]>([]);
 
@@ -27,13 +29,18 @@ export const useFunctionReferenceViewModel = (): FunctionReferenceViewModel => {
   }, [functions]);
 
   const filterDefs = useMemo<FilterDef[]>(() => [
-    { key: 'search', label: 'Busca', type: 'text', placeholder: 'Nome da função...' },
-    { key: 'category', label: 'Categoria', type: 'select', options: categoryOptions },
-  ], [categoryOptions]);
+    {
+      key: 'search',
+      label: t('core.ui/filter.search'),
+      type: 'text',
+      placeholder: t('functions.filter.search.placeholder'),
+    },
+    { key: 'category', label: t('core.ui/filter.category'), type: 'select', options: categoryOptions },
+  ], [categoryOptions, t]);
 
   const tokenMap = useMemo(() => {
     const map: Record<string, string[]> = {};
-    filterTokens.forEach((t) => { map[t.key] = t.values; });
+    filterTokens.forEach((token) => { map[token.key] = token.values; });
     return map;
   }, [filterTokens]);
 

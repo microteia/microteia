@@ -4,7 +4,10 @@ import { CompositeFilter } from '../../components/ui/CompositeFilter';
 import { S } from './FunctionReference.styles';
 import { useFunctionReferenceViewModel } from './FunctionReference.viewmodel';
 
+import { useT, useLabel } from '../../shared/i18n/useT';
 export const FunctionReferenceView: React.FC = () => {
+  const t = useT('core.automation');
+  const label = useLabel();
   const vm = useFunctionReferenceViewModel();
 
   if (vm.loading) {
@@ -13,11 +16,11 @@ export const FunctionReferenceView: React.FC = () => {
         <S.Header>
           <S.Title>
             <RiBookLine size={22} />
-            Referência de Expressões
+            {t('page.function-reference')}
           </S.Title>
         </S.Header>
         <S.Content>
-          <S.EmptyState>Carregando funções...</S.EmptyState>
+          <S.EmptyState>{t('functions.loading')}</S.EmptyState>
         </S.Content>
       </S.Page>
     );
@@ -29,11 +32,11 @@ export const FunctionReferenceView: React.FC = () => {
         <S.Header>
           <S.Title>
             <RiBookLine size={22} />
-            Referência de Expressões
+            {t('page.function-reference')}
           </S.Title>
         </S.Header>
         <S.Content>
-          <S.EmptyState>Erro ao carregar funções: {vm.error}</S.EmptyState>
+          <S.EmptyState>{t('functions.load-failed', { detail: vm.error })}</S.EmptyState>
         </S.Content>
       </S.Page>
     );
@@ -44,7 +47,7 @@ export const FunctionReferenceView: React.FC = () => {
       <S.Header>
         <S.Title>
           <RiBookLine size={22} />
-          Referência de Expressões
+          {t('page.function-reference')}
         </S.Title>
       </S.Header>
 
@@ -54,7 +57,7 @@ export const FunctionReferenceView: React.FC = () => {
             defs={vm.filterDefs}
             tokens={vm.filterTokens}
             onChange={vm.setFilterTokens}
-            placeholder="Buscar funções..."
+            placeholder={t('functions.filter.placeholder')}
           />
         </S.FilterContainer>
 
@@ -64,19 +67,17 @@ export const FunctionReferenceView: React.FC = () => {
               <S.FunctionCard key={fn.name}>
                 <S.FunctionHeader>
                   <S.FunctionName>{fn.name}</S.FunctionName>
-                  <S.CategoryBadge>{fn.category}</S.CategoryBadge>
+                  <S.CategoryBadge>{label(fn.category)}</S.CategoryBadge>
                 </S.FunctionHeader>
                 <S.Signature>{fn.signature}</S.Signature>
-                <S.Description>{fn.description}</S.Description>
-                <S.ExampleLabel>Exemplo</S.ExampleLabel>
+                <S.Description>{label(fn.description)}</S.Description>
+                <S.ExampleLabel>{t('functions.example')}</S.ExampleLabel>
                 <S.Example>{fn.example}</S.Example>
               </S.FunctionCard>
             ))}
           </S.FunctionGrid>
         ) : (
-          <S.EmptyState>
-            Nenhuma função encontrada com os filtros aplicados.
-          </S.EmptyState>
+          <S.EmptyState>{t('functions.none-found')}</S.EmptyState>
         )}
       </S.Content>
     </S.Page>

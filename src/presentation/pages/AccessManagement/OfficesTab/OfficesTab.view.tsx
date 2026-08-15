@@ -7,10 +7,12 @@ import { SearchSelect } from '../../../components/ui/SearchSelect';
 import type { TenantPlan } from '../../../../domain/entities';
 import { S } from './OfficesTab.styles';
 
+import { useT } from '../../../shared/i18n/useT';
 const formatDate = (date: Date) =>
   date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
 
 export const OfficesTabView: React.FC = () => {
+  const t = useT('core.admin');
   const vm = useOfficesTabViewModel();
 
   return (
@@ -20,11 +22,11 @@ export const OfficesTabView: React.FC = () => {
           defs={vm.filterDefs}
           tokens={vm.filterTokens}
           onChange={vm.setFilterTokens}
-          placeholder="Filtrar escritórios..."
+          placeholder={t('access.offices.filter.placeholder')}
           screenKey={vm.savedFiltersScreenKey}
         />
         <S.Count>
-          {vm.filteredTenants.length} de {vm.totalCount} escritório{vm.totalCount !== 1 ? 's' : ''}
+          {t('access.offices.count', { shown: vm.filteredTenants.length, count: vm.totalCount })}
         </S.Count>
       </S.Toolbar>
 
@@ -40,7 +42,7 @@ export const OfficesTabView: React.FC = () => {
         <S.EmptyState>
           <S.EmptyIcon><RiBuilding2Line /></S.EmptyIcon>
           <S.EmptyText>
-            {vm.searchTerm ? 'Nenhum escritório encontrado para esta busca.' : 'Nenhum escritório cadastrado.'}
+            {t(vm.searchTerm ? 'access.offices.none-found' : 'access.offices.empty')}
           </S.EmptyText>
         </S.EmptyState>
       ) : (
@@ -48,36 +50,36 @@ export const OfficesTabView: React.FC = () => {
           <S.Table>
             <S.Thead>
               <tr>
-                <S.Th>Escritório</S.Th>
-                <S.Th>Criado em</S.Th>
-                <S.Th>Plano</S.Th>
-                <S.Th>Membros atuais</S.Th>
-                <S.Th>Limite de membros</S.Th>
+                <S.Th>{t('access.column.office')}</S.Th>
+                <S.Th>{t('access.column.created-at')}</S.Th>
+                <S.Th>{t('access.column.plan')}</S.Th>
+                <S.Th>{t('access.column.members')}</S.Th>
+                <S.Th>{t('access.column.member-limit')}</S.Th>
               </tr>
             </S.Thead>
             <S.Tbody>
-              {vm.filteredTenants.map((t) => (
-                <S.Tr key={t.id}>
+              {vm.filteredTenants.map((tenant) => (
+                <S.Tr key={tenant.id}>
                   <S.Td>
-                    <S.OfficeName>{t.name}</S.OfficeName>
+                    <S.OfficeName>{tenant.name}</S.OfficeName>
                   </S.Td>
                   <S.Td>
-                    <S.DateText>{formatDate(t.createdAt)}</S.DateText>
+                    <S.DateText>{formatDate(tenant.createdAt)}</S.DateText>
                   </S.Td>
                   <S.Td>
                     <S.PlanCell>
                       <SearchSelect
                         options={vm.planOptions}
-                        value={vm.planDrafts[t.id] ?? t.plan}
+                        value={vm.planDrafts[tenant.id] ?? tenant.plan}
                         onChange={(val) => {
-                          if (val) void vm.handlePlanChange(t.id, val as TenantPlan);
+                          if (val) void vm.handlePlanChange(tenant.id, val as TenantPlan);
                         }}
-                        placeholder="Plano..."
+                        placeholder={t('access.plan.placeholder')}
                       />
                     </S.PlanCell>
                   </S.Td>
                   <S.Td>
-                    <S.MemberCount>{t.memberCount}</S.MemberCount>
+                    <S.MemberCount>{tenant.memberCount}</S.MemberCount>
                   </S.Td>
                   <S.Td>
                     <S.LimitCell>
@@ -85,18 +87,22 @@ export const OfficesTabView: React.FC = () => {
                         type="number"
                         min={0}
                         step={1}
-                        value={vm.memberLimitDrafts[t.id] ?? ''}
-                        placeholder="Sem limite"
-                        onChange={(e) => vm.handleMemberLimitDraftChange(t.id, e.target.value)}
-                        onBlur={() => void vm.handleMemberLimitCommit(t.id)}
+                        value={vm.memberLimitDrafts[tenant.id] ?? ''}
+                        placeholder={t('access.member-limit.placeholder')}
+                        onChange={(e) => vm.handleMemberLimitDraftChange(tenant.id, e.target.value)}
+                        onBlur={() => void vm.handleMemberLimitCommit(tenant.id)}
                         onKeyDown={(e) => {
                           if (e.key === 'Enter') e.currentTarget.blur();
                         }}
                       />
-                      {vm.savingTenantId === t.id ? (
-                        <S.SavingIndicator>salvando…</S.SavingIndicator>
+                      {vm.savingTenantId === tenant.id ? (
+                        <S.SavingIndicator>{t('access.saving')}</S.SavingIndicator>
                       ) : (
-                        <S.LimitHint>{vm.memberLimitDrafts[t.id] ? 'membros' : 'ilimitado'}</S.LimitHint>
+                        <S.LimitHint>
+                          {t(vm.memberLimitDrafts[tenant.id]
+                            ? 'access.member-limit.members'
+                            : 'access.member-limit.unlimited')}
+                        </S.LimitHint>
                       )}
                     </S.LimitCell>
                   </S.Td>

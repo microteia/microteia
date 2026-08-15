@@ -9,7 +9,9 @@ import { TagManager } from '../../components/ui/TagManager';
 import { EntityDetailView } from '../../components/layout/EntityDetailView';
 import { getScreenIcon } from '../../shared/screenIcons';
 
+import { useT } from '../../shared/i18n/useT';
 export const ViewDynamicRecordView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
+  const t = useT('core.records');
   const vm = useViewDynamicRecordViewModel(tabKey);
   const definition = vm.definition;
 
@@ -17,7 +19,7 @@ export const ViewDynamicRecordView: React.FC<{ tabKey: string }> = ({ tabKey }) 
     return (
       <S.Page>
         <S.Header>
-          <S.Title>Registro</S.Title>
+          <S.Title>{t('record.title')}</S.Title>
         </S.Header>
         <S.BannerWrapper>
           {vm.isLoadingDefinition ? (
@@ -25,7 +27,7 @@ export const ViewDynamicRecordView: React.FC<{ tabKey: string }> = ({ tabKey }) 
           ) : (
             <InfoBanner
               variant="info"
-              message="Esta tela personalizada não está mais disponível. Ela pode ter sido desativada ou excluída pelo administrador."
+              message={t('screen.unavailable')}
             />
           )}
         </S.BannerWrapper>
@@ -40,7 +42,7 @@ export const ViewDynamicRecordView: React.FC<{ tabKey: string }> = ({ tabKey }) 
           <S.Title>{definition.titleSingular}</S.Title>
         </S.Header>
         <S.BannerWrapper>
-          <InfoBanner variant="info" message="Registro não encontrado. Ele pode ter sido excluído." />
+          <InfoBanner variant="info" message={t('record.not-found')} />
         </S.BannerWrapper>
       </S.Page>
     );
@@ -67,10 +69,10 @@ export const ViewDynamicRecordView: React.FC<{ tabKey: string }> = ({ tabKey }) 
       )}
       <ConfirmModal
         isOpen={vm.recordToDelete !== null}
-        title="Excluir registro"
-        message={`Tem certeza que deseja excluir "${vm.recordToDelete?.title ?? ''}"? As anotações e documentos vinculados também serão excluídos. Esta ação não pode ser desfeita.`}
+        title={t('record.delete.title')}
+        message={t('record.delete.message', { title: vm.recordToDelete?.title ?? '' })}
         variant="danger"
-        confirmLabel="Excluir"
+        confirmLabel={t('core.ui/action.delete')}
         loading={vm.isDeleting}
         onConfirm={() => void vm.confirmDelete()}
         onCancel={vm.cancelDelete}

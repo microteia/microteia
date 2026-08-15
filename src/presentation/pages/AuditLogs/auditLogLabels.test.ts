@@ -1,6 +1,17 @@
 import { describe, expect, it } from 'vitest';
 import type { ScreenDefinition } from '../../../domain/entities';
 import { entityLabel, entityFilterOptions } from './auditLogLabels';
+import type { TranslateFn } from '../../shared/i18n/useT';
+
+/**
+ * Tradutor de teste: devolve a CHAVE com os parâmetros à mostra. O assert passa a falar de chave, que
+ * é o que a função escolhe; a frase é escolha do catálogo e se testa no catálogo.
+ */
+const t: TranslateFn = (key, params) =>
+  params ? `${key}(${Object.entries(params).map(([name, value]) => `${name}=${String(value)}`).join(',')})` : key;
+
+/** O rótulo do escritório passa intacto, como `resolveLabel` faz com texto que não é referência. */
+const resolve = (value: string) => value;
 
 const screen = (overrides: Partial<ScreenDefinition>): ScreenDefinition => ({
   id: 'contratos',
@@ -32,38 +43,38 @@ const screen = (overrides: Partial<ScreenDefinition>): ScreenDefinition => ({
  */
 describe('entityLabel', () => {
   it('nomeia a coleção pela tela que a descreve', () => {
-    expect(entityLabel('contracts', [screen({})])).toBe('Contrato');
+    expect(entityLabel(t, resolve, 'contracts', [screen({})])).toBe('Contrato');
   });
 
   it('acompanha o título quando a tela é renomeada', () => {
-    expect(entityLabel('contracts', [screen({ titleSingular: 'Acordo' })])).toBe('Acordo');
+    expect(entityLabel(t, resolve, 'contracts', [screen({ titleSingular: 'Acordo' })])).toBe('Acordo');
   });
 
   it('nota e documento herdam a identidade do registro', () => {
-    expect(entityLabel('contracts#notes', [screen({})])).toBe('Nota de Contrato');
-    expect(entityLabel('contracts#documents', [screen({})])).toBe('Documento de Contrato');
+    expect(entityLabel(t, resolve, 'contracts#notes', [screen({})])).toBe('audit.entity.note-of(name=Contrato)');
+    expect(entityLabel(t, resolve, 'contracts#documents', [screen({})])).toBe('audit.entity.document-of(name=Contrato)');
   });
 
   it('log antigo, de quando a entidade era do kernel, continua legível', () => {
-    expect(entityLabel('Contract', [screen({})])).toBe('Contrato');
-    expect(entityLabel('Record', [])).toBe('Registro');
+    expect(entityLabel(t, resolve, 'Contract', [screen({})])).toBe('audit.entity.contract');
+    expect(entityLabel(t, resolve, 'Record', [])).toBe('audit.entity.record');
   });
 
   it('coleção que ninguém descreve aparece como está', () => {
-    expect(entityLabel('produtos', [])).toBe('produtos');
+    expect(entityLabel(t, resolve, 'produtos', [])).toBe('produtos');
   });
 });
 
 describe('entityFilterOptions', () => {
   it('oferece a tela declarada, e suas notas e documentos', () => {
-    const values = entityFilterOptions([screen({})]).map((option) => option.value);
+    const values = entityFilterOptions(t, resolve, [screen({})]).map((option) => option.value);
     expect(values).toContain('contracts');
     expect(values).toContain('contracts#notes');
     expect(values).toContain('contracts#documents');
   });
 
   it('não oferece notas de tela que não tem notas', () => {
-    const values = entityFilterOptions([screen({ hasNotes: false })]).map((option) => option.value);
+    const values = entityFilterOptions(t, resolve, [screen({ hasNotes: false })]).map((option) => option.value);
     expect(values).not.toContain('contracts#notes');
   });
 });

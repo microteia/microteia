@@ -5,6 +5,7 @@ import { useNotification } from '../../../stores/useNotification';
 import type { Script } from '../../../domain/entities/Script';
 import type { FilterDef, FilterToken } from '../../components/ui/CompositeFilter';
 
+import { useT } from '../../shared/i18n/useT';
 export interface ScriptsViewModel {
   filteredScripts: Script[];
   isLoading: boolean;
@@ -21,6 +22,7 @@ export interface ScriptsViewModel {
 }
 
 export const useScriptsViewModel = (): ScriptsViewModel => {
+  const t = useT('core.automation');
   const { scripts, isLoading, deleteScript } = useScriptStore();
   const { openTab } = useWorkspace();
   const { notify } = useNotification();
@@ -29,12 +31,17 @@ export const useScriptsViewModel = (): ScriptsViewModel => {
   const [scriptToDelete, setScriptToDelete] = useState<Script | null>(null);
 
   const filterDefs = useMemo<FilterDef[]>(() => [
-    { key: 'search', label: 'Busca', type: 'text', placeholder: 'Nome do script...' },
-  ], []);
+    {
+      key: 'search',
+      label: t('core.ui/filter.search'),
+      type: 'text',
+      placeholder: t('scripts.filter.search.placeholder'),
+    },
+  ], [t]);
 
   const tokenMap = useMemo(() => {
     const map: Record<string, string[]> = {};
-    filterTokens.forEach((t) => { map[t.key] = t.values; });
+    filterTokens.forEach((token) => { map[token.key] = token.values; });
     return map;
   }, [filterTokens]);
 
@@ -55,13 +62,13 @@ export const useScriptsViewModel = (): ScriptsViewModel => {
     if (!scriptToDelete) return;
     try {
       await deleteScript(scriptToDelete.id);
-      notify('Script excluído.', 'success');
+      notify(t('script.deleted'), 'success');
     } catch {
       notify('Erro ao excluir script.', 'error');
     } finally {
       setScriptToDelete(null);
     }
-  }, [scriptToDelete, deleteScript, notify]);
+  }, [scriptToDelete, deleteScript, notify, t]);
 
   return {
     filteredScripts,

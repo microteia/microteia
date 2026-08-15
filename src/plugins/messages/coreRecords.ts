@@ -201,4 +201,12 @@ export const CORE_RECORDS_MESSAGES: Record<string, string> = {
   'expression.error.unknown-function-name': 'the function "{name}" does not exist in field expressions',
   'expression.error.unknown-field': 'the field "{name}" does not exist on this screen',
   'field.default-name': 'Name',
+  'record.delete.message':
+    'Are you sure you want to delete "{title}"? The linked notes and documents will be deleted as well. This cannot be undone.',
+  'record.delete.title': 'Delete record',
+  'record.not-found': 'Record not found. It may have been deleted.',
+  'record.title': 'Record',
+  'screen.custom': 'Custom screen',
+  'screen.unavailable':
+    'This custom screen is no longer available. It may have been disabled or deleted by the administrator.',
 };

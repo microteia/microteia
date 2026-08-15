@@ -447,4 +447,17 @@ export const CORE_AUTOMATION: Record<string, string> = {
   'step.identifier.hint.readable': 'Nas expressões, as saídas deste step ficam em output.{id}.',
   'step.output.dynamic': '{id} (dinâmico)',
   'workflow.fallback-name': 'Automação',
+  'functions.example': 'Exemplo',
+  'functions.filter.placeholder': 'Buscar funções...',
+  'functions.filter.search.placeholder': 'Nome da função...',
+  'functions.load-failed': 'Erro ao carregar funções: {detail}',
+  'functions.loading': 'Carregando funções...',
+  'functions.none-found': 'Nenhuma função encontrada com os filtros aplicados.',
+  'scripts.create-first': 'Criar primeiro script',
+  'scripts.delete.message':
+    'Tem certeza que deseja excluir o script "{name}"? Steps que o utilizam deixarão de funcionar. Esta ação não pode ser desfeita.',
+  'scripts.empty': 'Nenhum script encontrado',
+  'scripts.filter.placeholder': 'Filtrar scripts...',
+  'scripts.filter.search.placeholder': 'Nome do script...',
+  'scripts.new': 'Novo Script',
 };

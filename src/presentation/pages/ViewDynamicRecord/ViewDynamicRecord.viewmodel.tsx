@@ -36,6 +36,7 @@ import { useTagAdapter } from '../../shared/entityScreen/useTagAdapter';
 import { isBoundScreen, isOwnedByParentScreen, screenDataCollection } from '../../../domain/services/screenDataCollection';
 import { autoValueFields, generateAutoValue } from '../../../domain/services/autoValue';
 import { useEntityFormFields } from '../../shared/useEntityFormFields';
+import { useT } from '../../shared/i18n/useT';
 import type {
   CustomFieldValue,
   EntityRecord,
@@ -90,6 +91,7 @@ export interface ViewDynamicRecordViewModel {
 type Values = Record<string, CustomFieldValue>;
 
 export const useViewDynamicRecordViewModel = (tabKey: string): ViewDynamicRecordViewModel => {
+  const t = useT('core.records');
   const { getDefinition, isLoading: isLoadingDefinition } = useScreenDefinitions();
   const { recordsByCollection, createRecord, updateRecord, deleteRecord } = useRecords();
   const { currentTenant, tenantRole } = useTenant();
@@ -268,7 +270,7 @@ export const useViewDynamicRecordViewModel = (tabKey: string): ViewDynamicRecord
     deepLinkKey,
     cloneKey,
     remove,
-    removedMessage: 'Registro excluído com sucesso.',
+    removedMessage: t('record.deleted'),
     removeErrorMessage: 'Erro ao excluir o registro.',
     notesPort,
     documentsPort,

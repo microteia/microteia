@@ -200,4 +200,12 @@ export const CORE_RECORDS: Record<string, string> = {
   'expression.error.unknown-function-name': 'a função "{name}" não existe nas expressões de campo',
   'expression.error.unknown-field': 'o campo "{name}" não existe nesta tela',
   'field.default-name': 'Nome',
+  'record.delete.message':
+    'Tem certeza que deseja excluir "{title}"? As anotações e documentos vinculados também serão excluídos. Esta ação não pode ser desfeita.',
+  'record.delete.title': 'Excluir registro',
+  'record.not-found': 'Registro não encontrado. Ele pode ter sido excluído.',
+  'record.title': 'Registro',
+  'screen.custom': 'Tela personalizada',
+  'screen.unavailable':
+    'Esta tela personalizada não está mais disponível. Ela pode ter sido desativada ou excluída pelo administrador.',
 };

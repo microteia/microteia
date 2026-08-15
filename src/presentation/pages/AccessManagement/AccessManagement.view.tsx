@@ -5,17 +5,17 @@ import { UsersTab } from './UsersTab';
 import { OfficesTab } from './OfficesTab';
 import { S } from './AccessManagement.styles';
 
+import { useT } from '../../shared/i18n/useT';
 export const AccessManagementView: React.FC = () => {
+  const t = useT('core.admin');
   const vm = useAccessManagementViewModel();
 
   if (vm.isUnauthorized) {
     return (
       <S.DeniedPage>
         <S.DeniedIcon><RiLockLine /></S.DeniedIcon>
-        <S.DeniedTitle>Acesso Negado</S.DeniedTitle>
-        <S.DeniedSubtitle>
-          Apenas administradores podem acessar a Gestão de Acessos.
-        </S.DeniedSubtitle>
+        <S.DeniedTitle>{t('access.denied')}</S.DeniedTitle>
+        <S.DeniedSubtitle>{t('access.denied.subtitle')}</S.DeniedSubtitle>
       </S.DeniedPage>
     );
   }
@@ -23,16 +23,16 @@ export const AccessManagementView: React.FC = () => {
   return (
     <S.Page>
       <S.Header>
-        <S.Title>Gestão de Acessos</S.Title>
-        <S.Subtitle>Gerencie as permissões dos usuários e os limites de cada escritório</S.Subtitle>
+        <S.Title>{t('page.access-management')}</S.Title>
+        <S.Subtitle>{t('access.subtitle')}</S.Subtitle>
       </S.Header>
 
       <S.TabsBar>
         <S.Tab $active={vm.activeTab === 'users'} onClick={() => vm.setActiveTab('users')}>
-          Usuários
+          {t('access.tab.users')}
         </S.Tab>
         <S.Tab $active={vm.activeTab === 'offices'} onClick={() => vm.setActiveTab('offices')}>
-          Escritórios
+          {t('access.tab.offices')}
         </S.Tab>
       </S.TabsBar>
 

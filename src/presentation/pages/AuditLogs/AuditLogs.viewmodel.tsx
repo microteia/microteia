@@ -11,9 +11,10 @@ import { useOpenRecord } from '../../shared/useOpenRecord';
 import { makeGetAllTenantsUseCase } from '../../../domain/usecases/tenants/GetAllTenantsUseCase';
 import type { AuditLog, AuditAction, AuditSeverity, Tenant } from '../../../domain/entities';
 import type { FilterDef, FilterToken } from '../../components/ui/CompositeFilter';
-import { entityLabel, entityFilterOptions, ACTION_LABELS, SEVERITY_LABELS } from './auditLogLabels';
+import { entityLabel, entityFilterOptions, ACTION_KEYS, SEVERITY_KEYS } from './auditLogLabels';
 import { severityColor, actionColor } from './AuditLogCard/AuditLogCard.styles';
 
+import { useT, useLabel } from '../../shared/i18n/useT';
 const MY_OFFICE = 'MY_OFFICE';
 const ALL_OFFICES = 'ALL_OFFICES';
 
@@ -41,6 +42,8 @@ export interface AuditLogsViewModel {
 }
 
 export const useAuditLogsViewModel = (): AuditLogsViewModel => {
+  const t = useT('core.admin');
+  const label = useLabel();
   const { userRole } = useAuth();
   const { currentTenant, tenantRole } = useTenant();
   const { openTab } = useWorkspace();
@@ -72,50 +75,60 @@ export const useAuditLogsViewModel = (): AuditLogsViewModel => {
   }, [allTenants]);
 
   const entityOptions = useMemo<FilterDef['options']>(
-    () => entityFilterOptions(dynamicScreens),
-    [dynamicScreens],
+    () => entityFilterOptions(t, label, dynamicScreens),
+    [dynamicScreens, t, label],
   );
 
   const actionOptions = useMemo<FilterDef['options']>(
-    () => Object.entries(ACTION_LABELS).map(([value, label]) => ({
+    () => Object.entries(ACTION_KEYS).map(([value, key]) => ({
       value,
-      label,
+      label: t(key),
       color: actionColor(theme, value as AuditAction),
     })),
-    [theme],
+    [theme, t],
   );
 
   const severityOptions = useMemo<FilterDef['options']>(
-    () => Object.entries(SEVERITY_LABELS).map(([value, label]) => ({
+    () => Object.entries(SEVERITY_KEYS).map(([value, key]) => ({
       value,
-      label,
+      label: t(key),
       color: severityColor(theme, value as AuditSeverity),
     })),
-    [theme],
+    [theme, t],
   );
 
   const tenantScopeOptions = useMemo<FilterDef['options']>(() => [
-    { value: MY_OFFICE, label: 'Meu Escritório' },
-    { value: ALL_OFFICES, label: 'Todos os Escritórios' },
-    ...allTenants.map((t) => ({ value: t.id, label: t.name })),
-  ], [allTenants]);
+    { value: MY_OFFICE, label: t('audit.scope.mine') },
+    { value: ALL_OFFICES, label: t('audit.scope.all') },
+    ...allTenants.map((tenant) => ({ value: tenant.id, label: tenant.name })),
+  ], [allTenants, t]);
 
   const filterDefs = useMemo<FilterDef[]>(() => {
     const defs: FilterDef[] = [
-      { key: 'search', label: 'Busca', type: 'text', placeholder: 'Título ou conteúdo...' },
-      { key: 'entity', label: 'Entidade', type: 'select', options: entityOptions },
-      { key: 'action', label: 'Ação', type: 'select', options: actionOptions },
-      { key: 'severity', label: 'Severidade', type: 'select', options: severityOptions },
+      {
+        key: 'search',
+        label: t('core.ui/filter.search'),
+        type: 'text',
+        placeholder: t('audit.filter.search.placeholder'),
+      },
+      { key: 'entity', label: t('audit.filter.entity'), type: 'select', options: entityOptions },
+      { key: 'action', label: t('audit.filter.action'), type: 'select', options: actionOptions },
+      { key: 'severity', label: t('audit.filter.severity'), type: 'select', options: severityOptions },
     ];
     if (isSystem) {
-      defs.push({ key: 'tenantScope', label: 'Escritório', type: 'select', options: tenantScopeOptions });
+      defs.push({
+        key: 'tenantScope',
+        label: t('audit.filter.tenant'),
+        type: 'select',
+        options: tenantScopeOptions,
+      });
     }
     return defs;
-  }, [entityOptions, actionOptions, severityOptions, tenantScopeOptions, isSystem]);
+  }, [entityOptions, actionOptions, severityOptions, tenantScopeOptions, isSystem, t]);
 
   const tokenMap = useMemo(() => {
     const map: Record<string, string[]> = {};
-    filterTokens.forEach((t) => { map[t.key] = t.values; });
+    filterTokens.forEach((token) => { map[token.key] = token.values; });
     return map;
   }, [filterTokens]);
 
@@ -160,9 +173,9 @@ export const useAuditLogsViewModel = (): AuditLogsViewModel => {
         log,
         expanded: expandedIds.has(log.id),
         tenantName: isSystem ? (tenantsById.get(log.tenantId)?.name ?? null) : null,
-        entityLabel: entityLabel(log.entity, dynamicScreens),
+        entityLabel: entityLabel(t, label, log.entity, dynamicScreens),
       }));
-  }, [logs, tokenMap, expandedIds, isSystem, tenantsById, dynamicScreens]);
+  }, [logs, tokenMap, expandedIds, isSystem, tenantsById, dynamicScreens, label, t]);
 
   const toggleExpand = useCallback((id: string) => {
     setExpandedIds((prev) => {

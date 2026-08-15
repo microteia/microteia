@@ -9,6 +9,7 @@ import type { Tenant, TenantPlan } from '../../../../domain/entities';
 import type { FilterDef, FilterToken } from '../../../components/ui/CompositeFilter';
 import type { SearchSelectOption } from '../../../components/ui/SearchSelect';
 
+import { useT } from '../../../shared/i18n/useT';
 export interface OfficesTabViewModel {
   loading: boolean;
   error: string | null;
@@ -29,6 +30,7 @@ export interface OfficesTabViewModel {
 }
 
 export const useOfficesTabViewModel = (): OfficesTabViewModel => {
+  const t = useT('core.admin');
   const { tenantRepository } = useDI();
   const { notify } = useNotification();
 
@@ -58,17 +60,22 @@ export const useOfficesTabViewModel = (): OfficesTabViewModel => {
           Object.fromEntries(list.map((t) => [t.id, t.memberLimit === null ? '' : String(t.memberLimit)])),
         );
       })
-      .catch(() => setError('Não foi possível carregar os escritórios.'))
+      .catch(() => setError(t('access.offices.load-failed')))
       .finally(() => setLoading(false));
-  }, [getAllTenantsUseCase]);
+  }, [getAllTenantsUseCase, t]);
 
   const filterDefs = useMemo<FilterDef[]>(() => [
-    { key: 'search', label: 'Busca', type: 'text', placeholder: 'Nome do escritório...' },
-  ], []);
+    {
+      key: 'search',
+      label: t('core.ui/filter.search'),
+      type: 'text',
+      placeholder: t('access.offices.filter.search.placeholder'),
+    },
+  ], [t]);
 
   const tokenMap = useMemo(() => {
     const map: Record<string, string[]> = {};
-    filterTokens.forEach((t) => { map[t.key] = t.values; });
+    filterTokens.forEach((token) => { map[token.key] = token.values; });
     return map;
   }, [filterTokens]);
 
@@ -89,14 +96,14 @@ export const useOfficesTabViewModel = (): OfficesTabViewModel => {
       await updateTenantUseCase.execute(tenantId, { plan, memberLimit });
       setTenants((prev) => prev.map((t) => (t.id === tenantId ? { ...t, plan, memberLimit } : t)));
       setMemberLimitDrafts((prev) => ({ ...prev, [tenantId]: String(memberLimit) }));
-      notify('Plano do escritório atualizado.', 'success');
+      notify(t('access.plan.updated'), 'success');
     } catch {
-      notify('Erro ao atualizar o plano do escritório.', 'error');
+      notify(t('access.plan.update-failed'), 'error');
       setPlanDrafts((prev) => ({ ...prev, [tenantId]: tenant.plan }));
     } finally {
       setSavingTenantId(null);
     }
-  }, [tenants, updateTenantUseCase, notify]);
+  }, [tenants, updateTenantUseCase, notify, t]);
 
   const handleMemberLimitDraftChange = useCallback((tenantId: string, value: string) => {
     setMemberLimitDrafts((prev) => ({ ...prev, [tenantId]: value }));
@@ -113,7 +120,7 @@ export const useOfficesTabViewModel = (): OfficesTabViewModel => {
     } else {
       const n = Number(raw);
       if (!Number.isInteger(n) || n < 0) {
-        notify('Informe um número inteiro maior ou igual a zero, ou deixe em branco para não limitar.', 'error');
+        notify(t('access.member-limit.invalid'), 'error');
         setMemberLimitDrafts((prev) => ({ ...prev, [tenantId]: tenant.memberLimit === null ? '' : String(tenant.memberLimit) }));
         return;
       }
@@ -133,7 +140,7 @@ export const useOfficesTabViewModel = (): OfficesTabViewModel => {
     } finally {
       setSavingTenantId(null);
     }
-  }, [tenants, memberLimitDrafts, updateMemberLimitUseCase, notify]);
+  }, [tenants, memberLimitDrafts, updateMemberLimitUseCase, notify, t]);
 
   const searchTerm = tokenMap['search']?.[0] ?? '';
 

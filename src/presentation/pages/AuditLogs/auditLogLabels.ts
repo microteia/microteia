@@ -1,53 +1,54 @@
 import type { AuditAction, AuditSeverity, ScreenDefinition } from '../../../domain/entities';
+import type { TranslateFn } from '../../shared/i18n/useT';
 
 /**
  * Entidades que o kernel audita por nome próprio, e as que já saíram dele — os logs gravados antes
  * da migração guardam `Person`/`Case`/`Contract` e continuam legíveis. Log novo de tela declarada
  * guarda a COLEÇÃO, resolvida em `entityLabel`.
  */
-export const ENTITY_LABELS: Record<string, string> = {
-  Person: 'Pessoa',
-  Case: 'Processo',
-  Contract: 'Contrato',
-  Deadline: 'Prazo',
-  Financial: 'Financeiro',
-  TenantMember: 'Membro',
-  PersonTag: 'Etiqueta de Pessoa',
-  CaseTag: 'Etiqueta de Processo',
-  ContractTag: 'Etiqueta de Contrato',
-  FinancialTag: 'Etiqueta de Financeiro',
-  PersonNote: 'Nota de Pessoa',
-  CaseNote: 'Nota de Processo',
-  ContractNote: 'Nota de Contrato',
-  PersonDocument: 'Documento de Pessoa',
-  CaseDocument: 'Documento de Processo',
-  ContractDocument: 'Documento de Contrato',
-  FinancialDocument: 'Documento de Financeiro',
-  Record: 'Registro',
-  RecordNote: 'Nota de Registro',
-  CustomRecordDocument: 'Documento de Registro',
-  ScreenDefinition: 'Tela Personalizada',
-  Tenant: 'Escritório',
-  Workflow: 'Automação',
-  SYSTEM: 'Sistema',
+export const ENTITY_KEYS: Record<string, string> = {
+  Person: 'audit.entity.person',
+  Case: 'audit.entity.case',
+  Contract: 'audit.entity.contract',
+  Deadline: 'audit.entity.deadline',
+  Financial: 'audit.entity.financial',
+  TenantMember: 'audit.entity.tenant-member',
+  PersonTag: 'audit.entity.person-tag',
+  CaseTag: 'audit.entity.case-tag',
+  ContractTag: 'audit.entity.contract-tag',
+  FinancialTag: 'audit.entity.financial-tag',
+  PersonNote: 'audit.entity.person-note',
+  CaseNote: 'audit.entity.case-note',
+  ContractNote: 'audit.entity.contract-note',
+  PersonDocument: 'audit.entity.person-document',
+  CaseDocument: 'audit.entity.case-document',
+  ContractDocument: 'audit.entity.contract-document',
+  FinancialDocument: 'audit.entity.financial-document',
+  Record: 'audit.entity.record',
+  RecordNote: 'audit.entity.record-note',
+  CustomRecordDocument: 'audit.entity.custom-record-document',
+  ScreenDefinition: 'audit.entity.screen-definition',
+  Tenant: 'audit.entity.tenant',
+  Workflow: 'audit.entity.workflow',
+  SYSTEM: 'audit.entity.system',
 };
 
-export const ACTION_LABELS: Record<AuditAction, string> = {
-  CREATE: 'Criação',
-  UPDATE: 'Alteração',
-  DELETE: 'Exclusão',
-  SYSTEM: 'Sistema',
+export const ACTION_KEYS: Record<AuditAction, string> = {
+  CREATE: 'audit.action.create',
+  UPDATE: 'audit.action.update',
+  DELETE: 'audit.action.delete',
+  SYSTEM: 'audit.action.system',
 };
 
-export const SEVERITY_LABELS: Record<AuditSeverity, string> = {
-  LOW: 'Baixa',
-  HIGH: 'Alta',
-  CRITICAL: 'Crítica',
+export const SEVERITY_KEYS: Record<AuditSeverity, string> = {
+  LOW: 'audit.severity.low',
+  HIGH: 'audit.severity.high',
+  CRITICAL: 'audit.severity.critical',
 };
 
-const NESTED_PART_LABEL: Record<string, string> = {
-  notes: 'Nota',
-  documents: 'Documento',
+const NESTED_PART_KEYS: Record<string, string> = {
+  notes: 'audit.entity.note-of',
+  documents: 'audit.entity.document-of',
 };
 
 const screenTitle = (screens: ScreenDefinition[], collection: string): ScreenDefinition | undefined =>
@@ -58,12 +59,20 @@ const screenTitle = (screens: ScreenDefinition[], collection: string): ScreenDef
  * (`contracts`, `contracts#notes`) e recebe o nome da tela que a descreve HOJE — assim o log
  * acompanha o título quando a tela é renomeada, em vez de congelar o nome do dia da gravação.
  */
-export const entityLabel = (entity: string, screens: ScreenDefinition[] = []): string => {
+export const entityLabel = (
+  t: TranslateFn,
+  resolve: (value: string) => string,
+  entity: string,
+  screens: ScreenDefinition[] = [],
+): string => {
   const [collection, part] = entity.split('#');
   const screen = screenTitle(screens, collection);
-  if (!screen) return ENTITY_LABELS[entity] ?? entity;
-  const nested = part ? NESTED_PART_LABEL[part] : undefined;
-  return nested ? `${nested} de ${screen.titleSingular}` : screen.titleSingular;
+  if (!screen) {
+    const key = ENTITY_KEYS[entity];
+    return key ? t(key) : entity;
+  }
+  const nestedKey = part ? NESTED_PART_KEYS[part] : undefined;
+  return nestedKey ? t(nestedKey, { name: screen.titleSingular }) : resolve(screen.titleSingular);
 };
 
 export interface EntityFilterOption {
@@ -72,13 +81,27 @@ export interface EntityFilterOption {
 }
 
 /** As opções do filtro por entidade: as fixas do kernel mais o que o escritório declara. */
-export const entityFilterOptions = (screens: ScreenDefinition[] = []): EntityFilterOption[] => {
-  const options = Object.entries(ENTITY_LABELS).map(([value, label]) => ({ value, label }));
+export const entityFilterOptions = (
+  t: TranslateFn,
+  resolve: (value: string) => string,
+  screens: ScreenDefinition[] = [],
+): EntityFilterOption[] => {
+  const options = Object.entries(ENTITY_KEYS).map(([value, key]) => ({ value, label: t(key) }));
   for (const screen of screens) {
     const collection = screen.dataCollection ?? screen.id;
-    options.push({ value: collection, label: screen.titleSingular });
-    if (screen.hasNotes) options.push({ value: `${collection}#notes`, label: `Nota de ${screen.titleSingular}` });
-    if (screen.hasDocuments) options.push({ value: `${collection}#documents`, label: `Documento de ${screen.titleSingular}` });
+    options.push({ value: collection, label: resolve(screen.titleSingular) });
+    if (screen.hasNotes) {
+      options.push({
+        value: `${collection}#notes`,
+        label: t('audit.entity.note-of', { name: screen.titleSingular }),
+      });
+    }
+    if (screen.hasDocuments) {
+      options.push({
+        value: `${collection}#documents`,
+        label: t('audit.entity.document-of', { name: screen.titleSingular }),
+      });
+    }
   }
   return options;
 };
