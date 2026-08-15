@@ -27,21 +27,23 @@ import { useMarketplaceViewModel } from './Marketplace.viewmodel';
 import type { Author, ExtensionRow, MarketplaceFilter, StatusBadge } from './Marketplace.viewmodel';
 import { S } from './Marketplace.styles';
 
+import { useT } from '../../shared/i18n/useT';
+
 type Tone = 'neutral' | 'success' | 'warning' | 'info' | 'danger' | 'primary';
 
-const FILTERS: { key: MarketplaceFilter; label: string }[] = [
-  { key: 'all', label: 'Todas' },
-  { key: 'installed', label: 'Instaladas' },
-  { key: 'mine', label: 'Minhas' },
-  { key: 'catalog', label: 'Catálogo' },
+const FILTERS: { key: MarketplaceFilter; labelKey: string }[] = [
+  { key: 'all', labelKey: 'filter.all' },
+  { key: 'installed', labelKey: 'filter.installed' },
+  { key: 'mine', labelKey: 'filter.mine' },
+  { key: 'catalog', labelKey: 'filter.catalog' },
 ];
 
-const STATUS_LABEL: Record<StatusBadge, { label: string; tone: Tone }> = {
-  published: { label: 'Publicada', tone: 'success' },
-  pending: { label: 'Em análise', tone: 'warning' },
-  deprecated: { label: 'Obsoleta', tone: 'neutral' },
-  private: { label: 'Privada', tone: 'neutral' },
-  builtin: { label: 'Do sistema', tone: 'info' },
+const STATUS_LABEL: Record<StatusBadge, { labelKey: string; tone: Tone }> = {
+  published: { labelKey: 'status.published', tone: 'success' },
+  pending: { labelKey: 'status.pending', tone: 'warning' },
+  deprecated: { labelKey: 'status.deprecated', tone: 'neutral' },
+  private: { labelKey: 'status.private', tone: 'neutral' },
+  builtin: { labelKey: 'status.builtin', tone: 'info' },
 };
 
 const AuthorLine: React.FC<{ author: Author }> = ({ author }) => {
@@ -56,7 +58,10 @@ const AuthorLine: React.FC<{ author: Author }> = ({ author }) => {
   );
 };
 
-const RowView: React.FC<{ row: ExtensionRow; busy: boolean; vm: ReturnType<typeof useMarketplaceViewModel> }> = ({ row, busy, vm }) => (
+const RowView: React.FC<{ row: ExtensionRow; busy: boolean; vm: ReturnType<typeof useMarketplaceViewModel> }> = ({ row, busy, vm }) => {
+  const t = useT('core.marketplace');
+
+  return (
   <S.Row>
     <S.RowIcon $tone={row.installBadge === 'active' ? 'primary' : 'neutral'}>
       <RiPuzzle2Line size={20} />
@@ -64,15 +69,15 @@ const RowView: React.FC<{ row: ExtensionRow; busy: boolean; vm: ReturnType<typeo
 
     <S.RowMain>
       <S.TitleLine>
-        <S.NameButton type="button" title="Ver detalhes" onClick={() => vm.openDetails(row.id)}>{row.name}</S.NameButton>
+        <S.NameButton type="button" title={t('extension.details')} onClick={() => vm.openDetails(row.id)}>{row.name}</S.NameButton>
         <S.Badges>
-          {row.installBadge === 'active' && <S.Badge $tone="success"><S.BadgeDot $tone="success" />Ativa</S.Badge>}
-          {row.installBadge === 'inactive' && <S.Badge $tone="neutral"><S.BadgeDot $tone="neutral" />Inativa</S.Badge>}
-          {row.failed && <S.Badge $tone="danger"><S.BadgeDot $tone="danger" />Não carregou</S.Badge>}
-          {row.updateAvailable && <S.Badge $tone="primary">Atualização</S.Badge>}
-          {row.statusBadge && <S.Badge $tone={STATUS_LABEL[row.statusBadge].tone}>{STATUS_LABEL[row.statusBadge].label}</S.Badge>}
-          {row.hasCode && <S.Badge $tone="info">Com código</S.Badge>}
-          {row.needsCodeReview && <S.Badge $tone="warning">Código não revisado</S.Badge>}
+          {row.installBadge === 'active' && <S.Badge $tone="success"><S.BadgeDot $tone="success" />{t('extension.badge.active')}</S.Badge>}
+          {row.installBadge === 'inactive' && <S.Badge $tone="neutral"><S.BadgeDot $tone="neutral" />{t('extension.badge.inactive')}</S.Badge>}
+          {row.failed && <S.Badge $tone="danger"><S.BadgeDot $tone="danger" />{t('extension.badge.failed')}</S.Badge>}
+          {row.updateAvailable && <S.Badge $tone="primary">{t('extension.badge.update')}</S.Badge>}
+          {row.statusBadge && <S.Badge $tone={STATUS_LABEL[row.statusBadge].tone}>{t(STATUS_LABEL[row.statusBadge].labelKey)}</S.Badge>}
+          {row.hasCode && <S.Badge $tone="info">{t('extension.badge.has-code')}</S.Badge>}
+          {row.needsCodeReview && <S.Badge $tone="warning">{t('extension.badge.unreviewed')}</S.Badge>}
         </S.Badges>
       </S.TitleLine>
 
@@ -101,28 +106,28 @@ const RowView: React.FC<{ row: ExtensionRow; busy: boolean; vm: ReturnType<typeo
     </S.RowMain>
 
     <S.RowActions onClick={(e) => e.stopPropagation()}>
-      <S.ActionButton title="Ver detalhes" onClick={() => vm.openDetails(row.id)}>
+      <S.ActionButton title={t('extension.details')} onClick={() => vm.openDetails(row.id)}>
         <RiInformationLine size={17} />
       </S.ActionButton>
       {row.canEdit && (
-        <S.ActionButton title="Editar" disabled={busy} onClick={() => vm.edit(row.id)}>
+        <S.ActionButton title={t('core.ui/condition.edit')} disabled={busy} onClick={() => vm.edit(row.id)}>
           <RiPencilLine size={17} />
         </S.ActionButton>
       )}
       {row.install === 'install' && (
-        <S.ActionButton $primary title="Instalar no escritório" disabled={busy} onClick={() => void vm.install(row.id)}>
+        <S.ActionButton $primary title={t('extension.install')} disabled={busy} onClick={() => void vm.install(row.id)}>
           <RiInstallLine size={17} />
         </S.ActionButton>
       )}
       {row.install === 'update' && (
-        <S.ActionButton $primary title="Atualizar" disabled={busy} onClick={() => void vm.install(row.id)}>
+        <S.ActionButton $primary title={t('extension.update')} disabled={busy} onClick={() => void vm.install(row.id)}>
           <RiRefreshLine size={17} />
         </S.ActionButton>
       )}
       {row.needsCodeReview && (
         <S.ActionButton
           $primary
-          title="Revisar e confiar no código"
+          title={t('extension.review')}
           disabled={busy}
           onClick={() => vm.openReview(row.id)}
         >
@@ -131,7 +136,7 @@ const RowView: React.FC<{ row: ExtensionRow; busy: boolean; vm: ReturnType<typeo
       )}
       {row.canToggleActive && (
         <S.ActionButton
-          title={row.active ? 'Desativar no escritório' : 'Ativar no escritório'}
+          title={row.active ? t('extension.deactivate') : t('extension.activate')}
           disabled={busy}
           onClick={() => void vm.toggleActive(row.id, !row.active)}
         >
@@ -139,64 +144,63 @@ const RowView: React.FC<{ row: ExtensionRow; busy: boolean; vm: ReturnType<typeo
         </S.ActionButton>
       )}
       {row.canPublish && (
-        <S.ActionButton title={row.published ? 'Republicar no catálogo' : 'Publicar no catálogo'} disabled={busy} onClick={() => void vm.publish(row.id)}>
+        <S.ActionButton title={row.published ? t('extension.republish') : t('extension.publish')} disabled={busy} onClick={() => void vm.publish(row.id)}>
           <RiUploadLine size={17} />
         </S.ActionButton>
       )}
       {row.canDownload && (
-        <S.ActionButton title="Baixar .json" disabled={busy} onClick={() => vm.download(row.id)}>
+        <S.ActionButton title={t('author.download')} disabled={busy} onClick={() => vm.download(row.id)}>
           <RiDownloadLine size={17} />
         </S.ActionButton>
       )}
       {row.canApprove && (
         <>
-          <S.ActionButton $primary title="Aprovar publicação" disabled={busy} onClick={() => void vm.approve(row.id)}>
+          <S.ActionButton $primary title={t('extension.approve')} disabled={busy} onClick={() => void vm.approve(row.id)}>
             <RiCheckLine size={18} />
           </S.ActionButton>
-          <S.ActionButton $danger title="Recusar publicação" disabled={busy} onClick={() => void vm.reject(row.id)}>
+          <S.ActionButton $danger title={t('extension.reject')} disabled={busy} onClick={() => void vm.reject(row.id)}>
             <RiCloseLine size={18} />
           </S.ActionButton>
         </>
       )}
       {row.canDeprecate && (
-        <S.ActionButton title="Marcar como obsoleta" disabled={busy} onClick={() => void vm.deprecate(row.id)}>
+        <S.ActionButton title={t('extension.deprecate')} disabled={busy} onClick={() => void vm.deprecate(row.id)}>
           <RiArchiveLine size={17} />
         </S.ActionButton>
       )}
       {row.canUninstall && (
-        <S.ActionButton title="Desinstalar do escritório" disabled={busy} onClick={() => void vm.uninstall(row.id)}>
+        <S.ActionButton title={t('extension.uninstall')} disabled={busy} onClick={() => void vm.uninstall(row.id)}>
           <RiUninstallLine size={17} />
         </S.ActionButton>
       )}
       {row.canDelete && (
-        <S.ActionButton $danger title="Excluir da área privada" disabled={busy} onClick={() => vm.requestRemove(row.id)}>
+        <S.ActionButton $danger title={t('extension.remove')} disabled={busy} onClick={() => vm.requestRemove(row.id)}>
           <RiDeleteBinLine size={17} />
         </S.ActionButton>
       )}
     </S.RowActions>
   </S.Row>
-);
+  );
+};
 
 export const MarketplaceView: React.FC = () => {
+  const t = useT('core.marketplace');
   const vm = useMarketplaceViewModel();
 
   return (
     <S.Page>
       <S.Header>
         <S.HeaderText>
-          <S.Title>Extensões</S.Title>
-          <S.Subtitle>
-            Crie e edite extensões na sua área privada, instale-as para usar no escritório e publique
-            no catálogo para compartilhar com outros escritórios.
-          </S.Subtitle>
+          <S.Title>{t('page.marketplace')}</S.Title>
+          <S.Subtitle>{t('marketplace.subtitle')}</S.Subtitle>
         </S.HeaderText>
         {vm.canManage && (
           <S.HeaderActions>
             <Button variant="secondary" size="sm" onClick={vm.openAuthor}>
-              <RiMagicLine size={16} /> Criar extensão
+              <RiMagicLine size={16} /> {t('page.plugin-author')}
             </Button>
             <S.ImportLabel $disabled={vm.busyId === '__import__'}>
-              <RiUploadLine size={16} /> Importar .json
+              <RiUploadLine size={16} /> {t('extension.import')}
               <S.HiddenFile
                 type="file"
                 accept="application/json,.json"
@@ -212,7 +216,7 @@ export const MarketplaceView: React.FC = () => {
         <S.Body>
           {!vm.canManage && (
             <InfoBanner
-              message="Somente administradores do escritório podem criar, instalar ou publicar extensões."
+              message={t('marketplace.admin-only')}
               variant="info"
             />
           )}
@@ -220,7 +224,7 @@ export const MarketplaceView: React.FC = () => {
           <S.Filters>
             {FILTERS.map((f) => (
               <S.Filter key={f.key} $active={vm.filter === f.key} onClick={() => vm.setFilter(f.key)}>
-                {f.label}
+                {t(f.labelKey)}
                 <S.FilterCount>{vm.counts[f.key]}</S.FilterCount>
               </S.Filter>
             ))}
@@ -228,9 +232,7 @@ export const MarketplaceView: React.FC = () => {
 
           {vm.rows.length === 0 ? (
             <S.Empty>
-              {vm.filter === 'all'
-                ? 'Nenhuma extensão ainda. Use "Criar extensão", importe um .json ou instale a partir do catálogo público.'
-                : 'Nenhuma extensão nesta visão.'}
+              {t(vm.filter === 'all' ? 'marketplace.empty' : 'marketplace.empty.filtered')}
             </S.Empty>
           ) : (
             <S.List>
@@ -244,9 +246,9 @@ export const MarketplaceView: React.FC = () => {
 
       <ConfirmModal
         isOpen={vm.removeTarget !== null}
-        title="Excluir extensão"
-        message={`Excluir "${vm.removeTarget?.name ?? ''}" da sua área privada? Cópias já instaladas (aqui ou em outros escritórios) e a versão publicada não são afetadas.`}
-        confirmLabel="Excluir"
+        title={t('extension.remove.title')}
+        message={t('extension.remove.message', { name: vm.removeTarget?.name ?? '' })}
+        confirmLabel={t('core.ui/action.delete')}
         variant="danger"
         onConfirm={vm.confirmRemove}
         onCancel={vm.cancelRemove}
@@ -273,16 +275,12 @@ export const MarketplaceView: React.FC = () => {
       )}
 
       {vm.reviewTarget && (
-        <Modal title={`Revisar o código de "${vm.reviewTarget.name}"`} size="large" onClose={vm.cancelReview}>
-          <S.ReviewIntro>
-            Este código roda no navegador de <strong>todos os membros do escritório</strong>, com acesso aos
-            dados que cada um enxerga. Leia antes de liberar. Extensões vindas do catálogo público não
-            passam por aqui — já foram revisadas na publicação.
-          </S.ReviewIntro>
+        <Modal title={t('extension.review.title', { name: vm.reviewTarget.name })} size="large" onClose={vm.cancelReview}>
+          <S.ReviewIntro>{t('extension.review.intro')}</S.ReviewIntro>
           <S.ReviewCode>{vm.reviewTarget.code}</S.ReviewCode>
           <S.ReviewActions>
-            <Button variant="secondary" onClick={vm.cancelReview}>Cancelar</Button>
-            <Button onClick={() => void vm.confirmReview()}>Confiar e executar</Button>
+            <Button variant="secondary" onClick={vm.cancelReview}>{t('core.ui/action.cancel')}</Button>
+            <Button onClick={() => void vm.confirmReview()}>{t('extension.review.confirm')}</Button>
           </S.ReviewActions>
         </Modal>
       )}

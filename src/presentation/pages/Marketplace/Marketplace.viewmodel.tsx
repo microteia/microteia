@@ -14,6 +14,8 @@ import { usePluginDiagnostics } from '../../../stores/useKernel';
 import { MARKETPLACE_CATALOG } from '../../../plugins/marketplace/catalog';
 import type { MarketplacePlugin } from '../../../domain/entities/MarketplacePlugin';
 
+import { useT } from '../../shared/i18n/useT';
+
 export interface Author {
   name: string | null;
   photoURL: string | null;
@@ -123,6 +125,7 @@ const hasCodeOf = (views: unknown[] | undefined): boolean => (views?.length ?? 0
 const rankOf = (row: ExtensionRow): number => (row.installed ? 0 : row.mine ? 1 : 2);
 
 export const useMarketplaceViewModel = (): MarketplaceViewModel => {
+  const t = useT('core.marketplace');
   const { extensions, importExtension, removeExtension } = useTenantExtensions();
   const { installed, install: installCopy, setActive: setInstalledActive, trustCode, uninstall: uninstallCopy } = useInstalledExtensions();
   const { publicExtensions, publish: publishPublic, approve: approvePublic, deprecate: deprecatePublic, unpublish, publicOf } = usePublicExtensions();
@@ -182,13 +185,13 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
         notify(successMessage, 'success');
       } catch (err) {
         const detail = err instanceof Error ? err.message : String(err);
-        console.error('[marketplace] falha na operação de extensão:', err);
-        notify(`Não foi possível concluir a operação: ${detail}`, 'error');
+        console.error('[marketplace] extension operation failed:', err);
+        notify(t('extension.operation-failed', { detail: detail }), 'error');
       } finally {
         setBusyId(null);
       }
     },
-    [notify],
+    [notify, t],
   );
 
   const privateInputOf = useCallback((id: string): InstallExtensionInput | null => {
@@ -386,40 +389,40 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
       const result = await publishPublic(ext.package);
       if (!result.ok) notify(result.error, 'error');
       else if (result.status === 'pending') {
-        notify('Enviada para aprovação: uma extensão com código só fica pública depois de aprovada por um administrador do sistema.', 'warning');
-      } else notify('Publicada no catálogo.', 'success');
+        notify(t('extension.sent-for-approval'), 'warning');
+      } else notify(t('extension.published'), 'success');
     } catch (err) {
-      notify(`Não foi possível publicar: ${err instanceof Error ? err.message : String(err)}`, 'error');
+      notify(t('extension.publish-failed', { detail: err instanceof Error ? err.message : String(err) }), 'error');
     } finally {
       setBusyId(null);
     }
-  }, [extensions, publishPublic, notify]);
+  }, [extensions, publishPublic, notify, t]);
 
   const install = useCallback((id: string) => {
     const inst = installed.find((e) => e.id === id);
     if (inst) {
       const input = updateSourceOf(id, inst.installedVersion) ?? builtinUpdateOf(id, inst);
       if (!input) return Promise.resolve();
-      return run(id, () => installCopy(input), 'Extensão atualizada.');
+      return run(id, () => installCopy(input), t('extension.updated'));
     }
     const input = privateInputOf(id) ?? publicInputOf(id) ?? builtinInputOf(id);
     if (!input) return Promise.resolve();
-    return run(id, () => installCopy(input), 'Instalada no escritório.');
-  }, [installed, updateSourceOf, builtinUpdateOf, privateInputOf, publicInputOf, builtinInputOf, run, installCopy]);
+    return run(id, () => installCopy(input), t('extension.installed'));
+  }, [installed, updateSourceOf, builtinUpdateOf, privateInputOf, publicInputOf, builtinInputOf, run, installCopy, t]);
 
   const toggleActive = useCallback(
-    (id: string, active: boolean) => run(id, () => setInstalledActive(id, active), active ? 'Extensão ativada.' : 'Extensão desativada.'),
-    [run, setInstalledActive],
+    (id: string, active: boolean) => run(id, () => setInstalledActive(id, active), active ? t('extension.activated') : t('extension.deactivated')),
+    [run, setInstalledActive, t],
   );
 
   const uninstall = useCallback(
-    (id: string) => run(id, () => uninstallCopy(id), 'Extensão desinstalada.'),
-    [run, uninstallCopy],
+    (id: string) => run(id, () => uninstallCopy(id), t('extension.uninstalled')),
+    [run, uninstallCopy, t],
   );
 
-  const approve = useCallback((id: string) => run(id, () => approvePublic(id), 'Extensão aprovada.'), [run, approvePublic]);
-  const deprecate = useCallback((id: string) => run(id, () => deprecatePublic(id), 'Extensão marcada como obsoleta.'), [run, deprecatePublic]);
-  const reject = useCallback((id: string) => run(id, () => unpublish(id), 'Publicação recusada e removida do catálogo.'), [run, unpublish]);
+  const approve = useCallback((id: string) => run(id, () => approvePublic(id), t('extension.approved')), [run, approvePublic, t]);
+  const deprecate = useCallback((id: string) => run(id, () => deprecatePublic(id), t('extension.deprecated')), [run, deprecatePublic, t]);
+  const reject = useCallback((id: string) => run(id, () => unpublish(id), t('extension.rejected')), [run, unpublish, t]);
 
   const requestRemove = useCallback((id: string) => {
     const ext = extensions.find((e) => e.id === id);
@@ -452,15 +455,15 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
     if (!reviewTarget) return;
     const { id } = reviewTarget;
     setReviewTarget(null);
-    await run(id, () => trustCode(id), 'Código revisado e liberado para executar neste escritório.');
-  }, [reviewTarget, run, trustCode]);
+    await run(id, () => trustCode(id), t('extension.trusted'));
+  }, [reviewTarget, run, trustCode, t]);
 
   const confirmRemove = useCallback(async () => {
     if (!removeTarget) return;
     const { id } = removeTarget;
     setRemoveTarget(null);
-    await run(id, () => removeExtension(id), 'Extensão excluída da sua área privada.');
-  }, [removeTarget, run, removeExtension]);
+    await run(id, () => removeExtension(id), t('extension.removed'));
+  }, [removeTarget, run, removeExtension, t]);
 
   const onImportFile = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -469,14 +472,14 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
     setBusyId('__import__');
     try {
       const result = await importExtension(await file.text());
-      if (result.ok) notify(`${result.name} importado para Minhas Extensões.`, 'success');
-      else notify(`Não foi possível importar: ${result.error}`, 'error');
+      if (result.ok) notify(t('extension.imported', { name: result.name }), 'success');
+      else notify(t('extension.import-failed', { detail: result.error }), 'error');
     } catch (err) {
-      notify(`Não foi possível importar: ${err instanceof Error ? err.message : String(err)}`, 'error');
+      notify(t('extension.import-failed', { detail: err instanceof Error ? err.message : String(err) }), 'error');
     } finally {
       setBusyId(null);
     }
-  }, [importExtension, notify]);
+  }, [importExtension, notify, t]);
 
   return {
     canManage,

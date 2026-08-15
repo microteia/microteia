@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [7.18.0] — 2026-08-14
+
+- A tela de Extensões — filtros, selos de situação, ações de instalar e publicar e a revisão de código — passou a acompanhar o idioma escolhido.
+
 ## [7.17.0] — 2026-08-14
 
 - A tela de Ações — incluindo as explicações longas sobre fluxos, parâmetros e expressões — passou a acompanhar o idioma escolhido.

@@ -20,6 +20,7 @@ const MIGRATED_TO_SOURCE_LANGUAGE = [
   'src/plugins/messages/**/*.{ts,tsx}',
   'src/presentation/pages/Workflows/**/*.{ts,tsx}',
   'src/presentation/pages/ViewAction/**/*.{ts,tsx}',
+  'src/presentation/pages/Marketplace/**/*.{ts,tsx}',
   'src/presentation/shared/**/*.{ts,tsx}',
   'src/domain/schema/eventCatalog.ts',
   'src/domain/schema/fieldRulePresets.ts',
