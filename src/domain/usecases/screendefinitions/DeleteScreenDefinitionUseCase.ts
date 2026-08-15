@@ -3,6 +3,7 @@ import type { IScreenDefinitionRepository } from '../../repositories/IScreenDefi
 import type { IRecordRepository } from '../../repositories/IRecordRepository';
 import { ownerSet } from '../plugins/screenModule';
 
+import { LocalizedError } from '../../errors/LocalizedError';
 export type DeleteScreenDefinitionUseCase = {
   execute: (tenantId: string, screenKey: string, actor: DeletionActor) => Promise<void>;
 };
@@ -19,14 +20,14 @@ export const makeDeleteScreenDefinitionUseCase = (
     const screens = await repo.getAll(tenantId);
     const screen = screens.find((s) => s.id === screenKey);
     if (screen?.origin === 'builtin') {
-      throw new Error('Esta tela faz parte do sistema e não pode ser excluída.');
+      throw new LocalizedError('@core.records/screen.delete.system');
     }
     if (screen?.origin === 'plugin' || (screen && ownerSet(screen).length > 0)) {
-      throw new Error('Esta tela pertence a uma extensão. Remova a extensão para excluí-la.');
+      throw new LocalizedError('@core.records/screen.delete.from-extension');
     }
     const hasRecords = await recordRepo.hasRecords(tenantId, screenKey);
     if (hasRecords) {
-      throw new Error('Esta tela possui registros e não pode ser excluída. Desative-a ou exclua os registros antes.');
+      throw new LocalizedError('@core.records/screen.delete.has-records');
     }
     await repo.delete(tenantId, screenKey, actor);
   },

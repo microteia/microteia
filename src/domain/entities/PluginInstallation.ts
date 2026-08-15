@@ -29,5 +29,7 @@ export type PluginLifecycleErrorCode =
 
 export interface PluginLifecycleError {
   code: PluginLifecycleErrorCode;
+  /** REFERÊNCIA de mensagem; `messageParams` traz o que a frase interpola. */
   message: string;
+  messageParams?: Record<string, string>;
 }

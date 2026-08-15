@@ -19,6 +19,7 @@ import { pruneUndefined } from '../utils/pruneUndefined';
 import type { IWorkflowDefinitionRepository } from '../../domain/repositories/IWorkflowDefinitionRepository';
 import type { WorkflowDefinition, WorkflowParameter, WorkflowStep } from '../../domain/entities/Workflow';
 
+import { LocalizedError } from '../../domain/errors/LocalizedError';
 const toDate = (v: unknown): Date => (v instanceof Timestamp ? v.toDate() : (v as Date));
 
 const definitionsRef = (tenantId: string) =>
@@ -81,7 +82,7 @@ export class FirebaseWorkflowDefinitionRepository implements IWorkflowDefinition
     if (id) {
       const ref = doc(definitionsRef(tenantId), id);
       if ((await getDoc(ref)).exists()) {
-        throw new Error(`Já existe uma automação com o identificador "${id}".`);
+        throw new LocalizedError('@core.automation/artifact.id-taken.workflow', { id });
       }
       await setDoc(ref, payload);
       const snap = await getDoc(ref);

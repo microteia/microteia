@@ -29,12 +29,17 @@ export const planInstall = (
   actor: LifecycleActor,
 ): LifecycleOutcome<PluginInstallation> => {
   if (!parseSemVer(input.version)) {
-    return fail({ code: 'invalid-version', message: `Versão "${input.version}" não é um semver válido.` });
+    return fail({
+      code: 'invalid-version',
+      message: '@core.marketplace/lifecycle.invalid-version',
+      messageParams: { version: input.version },
+    });
   }
   if (current) {
     return fail({
       code: 'already-installed',
-      message: `O plugin "${input.pluginId}" já está instalado (versão ${current.version}). Use atualizar.`,
+      message: '@core.marketplace/lifecycle.already-installed',
+      messageParams: { id: input.pluginId, version: current.version },
     });
   }
   return ok({
@@ -57,7 +62,7 @@ const planToggle = (
   actor: LifecycleActor,
 ): LifecycleOutcome<PluginInstallation> => {
   if (!current) {
-    return fail({ code: 'not-installed', message: 'O plugin não está instalado neste escritório.' });
+    return fail({ code: 'not-installed', message: '@core.marketplace/lifecycle.not-installed' });
   }
   // Idempotente: ativar o que já está ativo é um no-op válido, não um erro.
   return ok({ ...current, enabled, updatedAt: actor.now, updatedBy: actor.userId });
@@ -75,17 +80,22 @@ export const planUpgrade = (
   actor: LifecycleActor,
 ): LifecycleOutcome<PluginInstallation> => {
   if (!current) {
-    return fail({ code: 'not-installed', message: 'O plugin não está instalado neste escritório.' });
+    return fail({ code: 'not-installed', message: '@core.marketplace/lifecycle.not-installed' });
   }
   const parsedNext = parseSemVer(nextVersion);
   const parsedCurrent = parseSemVer(current.version);
   if (!parsedNext) {
-    return fail({ code: 'invalid-version', message: `Versão "${nextVersion}" não é um semver válido.` });
+    return fail({
+      code: 'invalid-version',
+      message: '@core.marketplace/lifecycle.invalid-version',
+      messageParams: { version: nextVersion },
+    });
   }
   if (parsedCurrent && compareSemVer(parsedNext, parsedCurrent) <= 0) {
     return fail({
       code: 'not-newer-version',
-      message: `A versão ${nextVersion} não é mais recente que a instalada (${current.version}).`,
+      message: '@core.marketplace/lifecycle.not-newer',
+      messageParams: { version: nextVersion, installed: current.version },
     });
   }
   return ok({ ...current, version: nextVersion, updatedAt: actor.now, updatedBy: actor.userId });
@@ -95,7 +105,7 @@ export const planUninstall = (
   current: PluginInstallation | null,
 ): LifecycleOutcome<PluginInstallation> => {
   if (!current) {
-    return fail({ code: 'not-installed', message: 'O plugin não está instalado neste escritório.' });
+    return fail({ code: 'not-installed', message: '@core.marketplace/lifecycle.not-installed' });
   }
   return ok(current);
 };

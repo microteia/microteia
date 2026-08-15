@@ -8,6 +8,7 @@ import { resolveColor, resolveFieldOptionColor } from '../../shared/styles/color
 import type { CustomFieldValue, FieldDefinition } from '../../domain/entities';
 import type { FilterDef, FilterOption } from '../components/ui/CompositeFilter';
 
+import { useT } from '../shared/i18n/useT';
 export const CUSTOM_FIELD_FILTER_PREFIX = 'cf-';
 
 /**
@@ -66,6 +67,7 @@ export const useCustomFieldListing = (
   fields: FieldDefinition[],
   filterKeyPrefix = '',
 ): CustomFieldListing => {
+  const t = useT('core.records');
   const { getOptions } = useLookups();
   const referenceOptionsByEntity = useReferenceOptions();
   const theme = useTheme();
@@ -123,19 +125,30 @@ export const useCustomFieldListing = (
             key,
             label: field.label,
             type: 'select',
-            options: [{ value: 'true', label: 'Sim' }, { value: 'false', label: 'Não' }],
+            options: [
+              { value: 'true', label: t('core.ui/answer.yes') },
+              { value: 'false', label: t('core.ui/answer.no') },
+            ],
           });
           break;
         case 'date':
-          defs.push({ key, label: `${field.label} (de)`, type: 'date' });
-          defs.push({ key: `${key}${FILTER_RANGE_TO_SUFFIX}`, label: `${field.label} (até)`, type: 'date' });
+          defs.push({
+            key,
+            label: t('filter.range-from', { field: field.label }),
+            type: 'date',
+          });
+          defs.push({
+            key: `${key}${FILTER_RANGE_TO_SUFFIX}`,
+            label: t('filter.range-to', { field: field.label }),
+            type: 'date',
+          });
           break;
         default:
           defs.push({ key, label: field.label, type: 'text', placeholder: field.label });
       }
     });
     return defs;
-  }, [filterableFields, filterKeyPrefix, selectOptionLabels, referenceOptionsByEntity]);
+  }, [filterableFields, filterKeyPrefix, selectOptionLabels, referenceOptionsByEntity, t]);
 
   const matchesFilters = useCallback((values: RecordValues | undefined, tokenMap: Record<string, string[]>): boolean => {
     for (const field of filterableFields) {
@@ -187,7 +200,7 @@ export const useCustomFieldListing = (
       case 'currency':
         return typeof value === 'number' ? formatCurrencyBRL(value) : '—';
       case 'checkbox':
-        return value === true ? 'Sim' : 'Não';
+        return t(value === true ? 'core.ui/answer.yes' : 'core.ui/answer.no');
       case 'select': {
         const labels = new Map(selectOptionLabels(field).map((o) => [o.value, o.label]));
         if (Array.isArray(value)) return value.map((v) => labels.get(v) ?? v).join(', ') || '—';
@@ -205,7 +218,7 @@ export const useCustomFieldListing = (
       default:
         return String(value);
     }
-  }, [selectOptionLabels, referenceOptionsByEntity]);
+  }, [selectOptionLabels, referenceOptionsByEntity, t]);
 
   const selectBadges = useCallback((values: RecordValues | undefined, field: FieldDefinition): CustomFieldBadgeItem[] => {
     const value = fieldValue(values, field);

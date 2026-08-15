@@ -10,6 +10,7 @@ import {
 } from '../../../domain/services/customFieldValues';
 import type { CustomFieldValue, FieldDefinition, ScreenDefinition } from '../../../domain/entities';
 
+import { useT } from '../i18n/useT';
 type Values = Record<string, CustomFieldValue>;
 
 export interface EntityForm {
@@ -34,6 +35,7 @@ export interface EntityForm {
  * (Form Design); aqui só mora o estado, a validação de obrigatórios e o upsert na coleção da tela.
  */
 export const useEntityForm = (sourceId: string, recordId?: string | null): EntityForm => {
+  const t = useT('core.records');
   const { dynamicScreens } = useScreenDefinitions();
   const { recordsByCollection, createRecord, updateRecord } = useRecords();
 
@@ -75,13 +77,13 @@ export const useEntityForm = (sourceId: string, recordId?: string | null): Entit
   }, []);
 
   const validate = useCallback(() => {
-    const found = collectRequiredErrors(fields, values);
+    const found = collectRequiredErrors(t, fields, values);
     setErrors(found);
     return Object.keys(found).length === 0;
-  }, [fields, values]);
+  }, [fields, values, t]);
 
   const save = useCallback(async (): Promise<{ id: string } | null> => {
-    const found = collectRequiredErrors(fields, values);
+    const found = collectRequiredErrors(t, fields, values);
     if (Object.keys(found).length > 0) {
       setErrors(found);
       return null;
@@ -105,7 +107,7 @@ export const useEntityForm = (sourceId: string, recordId?: string | null): Entit
     } finally {
       setIsSaving(false);
     }
-  }, [fields, values, screenKey, isNew, record, createRecord, updateRecord]);
+  }, [fields, values, screenKey, isNew, record, createRecord, updateRecord, t]);
 
   return { screen, screenKey, fields, isNew, values, getValue, setValue, errors, validate, save, isSaving };
 };

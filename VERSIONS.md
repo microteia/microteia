@@ -11,6 +11,11 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [7.26.0] — 2026-08-15
+
+- Concluída a tradução do sistema: todo texto que o Microteia mostra passou a vir do idioma escolhido, incluindo as mensagens de erro que aparecem ao instalar uma extensão, excluir uma tela, nomear uma lista ou salvar um registro.
+- Com isso, instalar um pacote de idioma passa a traduzir o sistema inteiro, e não apenas as telas.
+
 #### [7.25.0] — 2026-08-15
 
 - As mensagens de erro ao montar uma consulta, uma gravação ou os parâmetros de uma automação passaram a acompanhar o idioma escolhido, tanto na tela quanto quando vêm do servidor.

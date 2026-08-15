@@ -238,4 +238,13 @@ export const CORE_MARKETPLACE_MESSAGES: Record<string, string> = {
   'ref.origin.patch': 'patch of',
   'ref.origin.screen': 'screen',
   'ref.origin.workflow': 'automation',
+  'extension.code-pending-review':
+    'This extension brings a screen in code, which will only run after a system administrator publishes it in the catalog. The data was installed normally.',
+  'publish.id-taken': 'This identifier was already published by another organization.',
+  'publish.invalid-version': 'Version "{version}" is not valid.',
+  'publish.no-tenant': 'No organization or user.',
+  'lifecycle.already-installed': 'Plugin "{id}" is already installed (version {version}). Use update.',
+  'lifecycle.invalid-version': 'Version "{version}" is not a valid semver.',
+  'lifecycle.not-installed': 'The plugin is not installed in this organization.',
+  'lifecycle.not-newer': 'Version {version} is not newer than the installed one ({installed}).',
 };

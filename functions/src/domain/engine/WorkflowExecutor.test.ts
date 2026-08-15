@@ -383,7 +383,7 @@ describe('runWorkflow — parâmetros obrigatórios', () => {
     });
     expect(result.status).toBe('FAILED');
     expect(order).toEqual([]);
-    expect(result.logs.some((entry) => entry.message.includes('obrigatório'))).toBe(true);
+    expect(result.logs.some((entry) => entry.message.includes('parameter.required'))).toBe(true);
   });
 
   it('falha quando um parâmetro obrigatório está vazio', async () => {

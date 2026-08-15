@@ -160,7 +160,7 @@ export const PluginStoreProvider: React.FC<{ children: React.ReactNode }> = ({ c
       // só código de fonte confiável (publicado por um SYSTEM, ou embutido) roda. Os dados foram
       // instalados; a tela em código fica inerte até a extensão ser publicada no catálogo.
       const note = (pkg.views?.length ?? 0) > 0
-        ? 'Esta extensão traz uma tela em código, que só será executada após ser publicada no catálogo por um administrador do sistema. Os dados foram instalados normalmente.'
+        ? '@core.marketplace/extension.code-pending-review'
         : undefined;
       return { ok: true, name: pkg.manifest.name || pkg.manifest.id, action: alreadyInstalled ? 'upgraded' : 'installed', note };
     },

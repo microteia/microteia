@@ -550,4 +550,8 @@ export const CORE_AUTOMATION: Record<string, string> = {
   'event-field.parent-type': 'Tipo do registro pai',
   'event-field.uploaded-at': 'Enviado em',
   'event-field.uploaded-by': 'Enviado por',
+  'artifact.id-taken.action': 'Já existe uma ação com o identificador "{id}".',
+  'artifact.id-taken.script': 'Já existe um script com o identificador "{id}".',
+  'artifact.id-taken.workflow': 'Já existe uma automação com o identificador "{id}".',
+  'functions.load-error': 'Erro ao carregar funções',
 };

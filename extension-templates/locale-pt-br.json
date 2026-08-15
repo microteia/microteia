@@ -891,7 +891,10 @@
             "processor.text.placeholder": "Cole aqui o texto livre, ou selecione um PDF e escolha a página desejada…",
             "processor.workflow.has-references": "Possui parâmetros de referência (ainda não suportados).",
             "processor.workflows.empty": "Nenhuma automação com gatilho \"Chamado por outro workflow\" cadastrada.",
-            "plan.office": "Escritório"
+            "plan.office": "Escritório",
+            "audit.load-failed": "Não foi possível carregar os registros de auditoria.",
+            "audit.load-more-failed": "Não foi possível carregar mais registros de auditoria.",
+            "member.limit-reached-error": "Limite de membros do escritório atingido."
           }
         }
       },
@@ -1099,7 +1102,15 @@
             "ref.origin.action": "ação",
             "ref.origin.patch": "complemento de",
             "ref.origin.screen": "tela",
-            "ref.origin.workflow": "automação"
+            "ref.origin.workflow": "automação",
+            "extension.code-pending-review": "Esta extensão traz uma tela em código, que só será executada após ser publicada no catálogo por um administrador do sistema. Os dados foram instalados normalmente.",
+            "publish.id-taken": "Este identificador já foi publicado por outro escritório.",
+            "publish.invalid-version": "A versão \"{version}\" não é válida.",
+            "publish.no-tenant": "Sem escritório ou usuário.",
+            "lifecycle.already-installed": "O plugin \"{id}\" já está instalado (versão {version}). Use atualizar.",
+            "lifecycle.invalid-version": "Versão \"{version}\" não é um semver válido.",
+            "lifecycle.not-installed": "O plugin não está instalado neste escritório.",
+            "lifecycle.not-newer": "A versão {version} não é mais recente que a instalada ({installed})."
           }
         }
       },
@@ -1299,7 +1310,28 @@
             "record.not-found": "Registro não encontrado. Ele pode ter sido excluído.",
             "record.title": "Registro",
             "screen.custom": "Tela personalizada",
-            "screen.unavailable": "Esta tela personalizada não está mais disponível. Ela pode ter sido desativada ou excluída pelo administrador."
+            "screen.unavailable": "Esta tela personalizada não está mais disponível. Ela pode ter sido desativada ou excluída pelo administrador.",
+            "aggregation.avg": "Média",
+            "field.invalid-format": "O campo \"{label}\" está em um formato inválido",
+            "field.invalid-value": "Valor inválido",
+            "field.no-lookup": "O campo não tem uma lista de opções configurada.",
+            "record.untitled": "Sem título",
+            "screen.delete.from-extension": "Esta tela pertence a uma extensão. Remova a extensão para excluí-la.",
+            "screen.delete.has-records": "Esta tela possui registros e não pode ser excluída. Desative-a ou exclua os registros antes.",
+            "screen.delete.system": "Esta tela faz parte do sistema e não pode ser excluída.",
+            "screen.no-tags": "A tela não tem um conjunto de etiquetas configurado.",
+            "collection.key.pattern": "A chave deve começar por letra e conter apenas letras, números e \"_\"",
+            "collection.key.required": "Informe a chave {what}",
+            "collection.key.reserved": "\"{name}\" é um nome reservado pelo sistema",
+            "collection.name-taken": "\"{name}\" já é o nome de {taken}",
+            "collection.taken-by.lookups": "uma lista de opções",
+            "collection.taken-by.screens": "uma tela",
+            "collection.taken-by.tag-lists": "um conjunto de etiquetas",
+            "collection.what.lookup": "da lista",
+            "collection.what.screen": "da tela",
+            "collection.what.tags": "das etiquetas",
+            "filter.range-to": "{field} (até)",
+            "filter.range-from": "{field} (de)"
           }
         }
       },
@@ -1392,7 +1424,11 @@
             "profile.nickname.already-set": "Você já possui um apelido e não pode alterá-lo.",
             "profile.nickname.save-failed": "Erro ao definir apelido. Tente novamente.",
             "profile.nickname.saved": "Apelido definido com sucesso!",
-            "profile.nickname.taken-error": "Este apelido já está em uso."
+            "profile.nickname.taken-error": "Este apelido já está em uso.",
+            "account.setup-timeout": "Tempo esgotado ao configurar sua conta. Recarregue a página para tentar novamente.",
+            "user.anonymous": "Usuário",
+            "tenant.load-failed": "Falha ao carregar dados do escritório.",
+            "tenant.none-found": "Nenhum escritório encontrado para este usuário. Recarregue a página; se o problema persistir, contate o suporte."
           }
         }
       },
@@ -1488,7 +1524,9 @@
             "translations.summary.one": "{name} — {count} texto",
             "translations.summary.other": "{name} — {count} textos",
             "point.messages.description": "Declara os textos de um plugin em um idioma. Um pacote só de traduções é uma extensão que contribui apenas aqui — inclusive para textos do núcleo e de outras extensões.",
-            "point.messages.title": "Catálogo de mensagens"
+            "point.messages.title": "Catálogo de mensagens",
+            "package.id-taken-by-extension": "O identificador \"{id}\" já pertence à extensão \"{name}\", que não é um pacote de idioma. Altere o \"id\" do arquivo antes de importar — instalar por cima apagaria as telas e automações dela.",
+            "package.id-taken-by-language": "O identificador \"{id}\" já pertence ao idioma \"{name}\". Uma extensão com telas ou automações não pode tomar o lugar de um pacote de idioma: altere o \"id\" do arquivo."
           }
         }
       },
@@ -1990,7 +2028,11 @@
             "event-field.parent-id": "Id do registro pai",
             "event-field.parent-type": "Tipo do registro pai",
             "event-field.uploaded-at": "Enviado em",
-            "event-field.uploaded-by": "Enviado por"
+            "event-field.uploaded-by": "Enviado por",
+            "artifact.id-taken.action": "Já existe uma ação com o identificador \"{id}\".",
+            "artifact.id-taken.script": "Já existe um script com o identificador \"{id}\".",
+            "artifact.id-taken.workflow": "Já existe uma automação com o identificador \"{id}\".",
+            "functions.load-error": "Erro ao carregar funções"
           }
         }
       },
@@ -2029,7 +2071,8 @@
             "point.lookup.description": "Declara uma coleção de lista simples (tipos, categorias, status).",
             "point.lookup.title": "Lista de valores (lookup)",
             "point.service.description": "Um plugin registra um serviço próprio (ex.: integração externa), resolvível por chave via useDI().resolveService. O container tipado do núcleo permanece intocado.",
-            "point.service.title": "Serviço injetável de plugin"
+            "point.service.title": "Serviço injetável de plugin",
+            "lookup-provider.failed": "Não foi possível consultar os dados"
           }
         }
       }

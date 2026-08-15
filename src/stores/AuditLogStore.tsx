@@ -31,7 +31,7 @@ export const AuditLogStoreProvider: React.FC<{ children: React.ReactNode }> = ({
       cursorRef.current = page.nextCursor;
     } catch (err) {
       console.error('[AuditLogStore] Falha ao buscar registros de auditoria:', err);
-      setError('Não foi possível carregar os registros de auditoria.');
+      setError('@core.admin/audit.load-failed');
     } finally {
       setLoading(false);
     }
@@ -52,7 +52,7 @@ export const AuditLogStoreProvider: React.FC<{ children: React.ReactNode }> = ({
       cursorRef.current = page.nextCursor;
     } catch (err) {
       console.error('[AuditLogStore] Falha ao carregar mais registros de auditoria:', err);
-      setError('Não foi possível carregar mais registros de auditoria.');
+      setError('@core.admin/audit.load-more-failed');
     } finally {
       setLoading(false);
     }

@@ -381,7 +381,7 @@ export const evaluateFieldValidation = (
       return trimmed === '' ? null : trimmed;
     }
     if (result === null || result === undefined || result === false) return null;
-    return 'Valor inválido';
+    return '@core.records/field.invalid-value';
   } catch {
     return null;
   }

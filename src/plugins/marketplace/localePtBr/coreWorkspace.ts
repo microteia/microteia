@@ -88,4 +88,10 @@ export const CORE_WORKSPACE: Record<string, string> = {
   'profile.nickname.save-failed': 'Erro ao definir apelido. Tente novamente.',
   'profile.nickname.saved': 'Apelido definido com sucesso!',
   'profile.nickname.taken-error': 'Este apelido já está em uso.',
+  'account.setup-timeout':
+    'Tempo esgotado ao configurar sua conta. Recarregue a página para tentar novamente.',
+  'user.anonymous': 'Usuário',
+  'tenant.load-failed': 'Falha ao carregar dados do escritório.',
+  'tenant.none-found':
+    'Nenhum escritório encontrado para este usuário. Recarregue a página; se o problema persistir, contate o suporte.',
 };

@@ -107,7 +107,7 @@ export interface FieldAggregation {
 export const AGGREGATION_OP_LABELS: Record<AggregationOp, string> = {
   sum: 'Soma',
   count: 'Contagem',
-  avg: 'Média',
+  avg: '@core.records/aggregation.avg',
   min: 'Menor valor',
   max: 'Maior valor',
 };
@@ -139,7 +139,9 @@ export interface CustomFieldOption {
 export interface RuleIssue {
   path: string;
   label: string;
+  /** REFERÊNCIA de mensagem; `errorParams` traz o que a frase interpola. */
   error: string;
+  errorParams?: Record<string, string>;
 }
 
 export {
@@ -186,36 +188,43 @@ const runPresetCheck = (
   const { expression, pattern, flags, message } = preset.validate;
 
   if (expression && !evaluateFieldBoolean(expression, { value, data: {} }, true)) {
-    return message ?? 'Valor inválido';
+    return message ?? '@core.records/field.invalid-value';
   }
 
   if (pattern) {
     const regex = buildRegExp(pattern, flags);
-    if (regex && !regex.test(value)) return message ?? 'Valor inválido';
+    if (regex && !regex.test(value)) return message ?? '@core.records/field.invalid-value';
   }
 
   return undefined;
 };
+
+export interface ValueIssue {
+  error: string;
+  errorParams?: Record<string, string>;
+}
 
 export const checkValue = (
   value: unknown,
   rule: ValidateRule | undefined,
   label: string,
   catalog: FieldRulePresetCatalog = CORE_FIELD_RULE_PRESET_CATALOG,
-): string | undefined => {
+): ValueIssue | undefined => {
   if (!rule || isEmptyRuleValue(value)) return undefined;
 
   const text = typeof value === 'string' ? value : String(value);
 
   if (rule.check) {
     const presetError = runPresetCheck(catalog.get(rule.check), text);
-    if (presetError) return rule.message ?? presetError;
+    if (presetError) return { error: rule.message ?? presetError };
   }
 
   if (rule.pattern) {
     const regex = buildRegExp(rule.pattern, rule.flags);
     if (regex && !regex.test(text)) {
-      return rule.message ?? `O campo "${label}" está em um formato inválido`;
+      return rule.message
+        ? { error: rule.message }
+        : { error: '@core.records/field.invalid-format', errorParams: { label } };
     }
   }
 
@@ -237,11 +246,12 @@ export const formatAndValidate = (
   if (!rules) return { value };
 
   const formatted = applyFormat(value, rules.format, catalog);
-  const error = checkValue(formatted, rules.validate, label, catalog);
+  const issue = checkValue(formatted, rules.validate, label, catalog);
 
-  return error ? { value: formatted, issue: { path, label, error } } : { value: formatted };
+  return issue ? { value: formatted, issue: { path, label, ...issue } } : { value: formatted };
 };
 
+/** O resumo para LOG: guarda a chave, que identifica a regra que recusou o valor. */
 export const describeRuleIssues = (issues: RuleIssue[]): string =>
   issues.map((issue) => `${issue.label}: ${issue.error}`).join('; ');
 

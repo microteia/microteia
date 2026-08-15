@@ -45,4 +45,8 @@ export const CORE_I18N_MESSAGES: Record<string, string> = {
   'point.messages.description':
     'Declares the texts of a plugin in one language. A translation-only package is an extension that contributes here alone — including for texts of the core and of other extensions.',
   'point.messages.title': 'Message catalog',
+  'package.id-taken-by-extension':
+    'The identifier "{id}" already belongs to the extension "{name}", which is not a language package. Change the "id" of the file before importing — installing over it would erase its screens and automations.',
+  'package.id-taken-by-language':
+    'The identifier "{id}" already belongs to the language "{name}". An extension with screens or automations cannot take the place of a language package: change the "id" of the file.',
 };

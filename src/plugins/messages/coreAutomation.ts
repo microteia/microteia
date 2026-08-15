@@ -547,4 +547,8 @@ export const CORE_AUTOMATION_MESSAGES: Record<string, string> = {
   'event-field.parent-type': 'Parent type',
   'event-field.uploaded-at': 'Uploaded at',
   'event-field.uploaded-by': 'Uploaded by',
+  'artifact.id-taken.action': 'An action with the identifier "{id}" already exists.',
+  'artifact.id-taken.script': 'A script with the identifier "{id}" already exists.',
+  'artifact.id-taken.workflow': 'An automation with the identifier "{id}" already exists.',
+  'functions.load-error': 'Could not load the functions',
 };

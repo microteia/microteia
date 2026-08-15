@@ -44,4 +44,8 @@ export const CORE_I18N: Record<string, string> = {
   'point.messages.description':
     'Declara os textos de um plugin em um idioma. Um pacote só de traduções é uma extensão que contribui apenas aqui — inclusive para textos do núcleo e de outras extensões.',
   'point.messages.title': 'Catálogo de mensagens',
+  'package.id-taken-by-extension':
+    'O identificador "{id}" já pertence à extensão "{name}", que não é um pacote de idioma. Altere o "id" do arquivo antes de importar — instalar por cima apagaria as telas e automações dela.',
+  'package.id-taken-by-language':
+    'O identificador "{id}" já pertence ao idioma "{name}". Uma extensão com telas ou automações não pode tomar o lugar de um pacote de idioma: altere o "id" do arquivo.',
 };

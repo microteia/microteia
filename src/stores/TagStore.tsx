@@ -18,6 +18,7 @@ import { screenTagCollections } from '../domain/services/screenDataCollection';
 import type { SchemaTagList } from '../domain/schema/screenEntity';
 import type { Tag, TagDefinition } from '../domain/entities';
 
+import { LocalizedError } from '../domain/errors/LocalizedError';
 const BUILTIN_TAG_LISTS: SchemaTagList[] = ENTITY_REGISTRY_LIST
   .filter((entity) => !!entity.tagCollection)
   .map((entity) => ({
@@ -128,7 +129,7 @@ export const TagStoreProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     // um caminho inválido no Firestore e o erro genérico que ele produz.
     if (!collection) {
       console.error('[TagStore] createTag sem coleção: a tela não resolveu `tagCollection`.');
-      throw new Error('A tela não tem um conjunto de etiquetas configurado.');
+      throw new LocalizedError('@core.records/screen.no-tags');
     }
     return uc.create.execute(currentTenant.id, collection, {
       name,
@@ -145,13 +146,13 @@ export const TagStoreProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     data: { name: string; color: string },
   ) => {
     if (!currentTenant) throw new Error('No tenant');
-    if (!collection) throw new Error('A tela não tem um conjunto de etiquetas configurado.');
+    if (!collection) throw new LocalizedError('@core.records/screen.no-tags');
     await uc.update.execute(currentTenant.id, collection, tagId, data);
   }, [currentTenant, uc.update]);
 
   const deleteTag = useCallback(async (collection: string, tagId: string) => {
     if (!currentTenant || !user) throw new Error('Not authenticated');
-    if (!collection) throw new Error('A tela não tem um conjunto de etiquetas configurado.');
+    if (!collection) throw new LocalizedError('@core.records/screen.no-tags');
     await uc.remove.execute(currentTenant.id, collection, tagId, {
       uid: user.id,
       name: effectiveName,

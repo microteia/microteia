@@ -4,7 +4,7 @@ import type { MarketplacePlugin } from '../domain/entities/MarketplacePlugin';
 
 export type PublishPublicResult =
   | { ok: true; status: 'pending' | 'approved' }
-  | { ok: false; error: string };
+  | { ok: false; error: string; errorParams?: Record<string, string> };
 
 export interface PublicExtensionStoreValue {
   publicExtensions: PublicExtension[];

@@ -53,10 +53,15 @@ const LOOP_SOURCE_INPUT: InputDefinition = {
   allowedMappingKinds: ['Output', 'Event', 'Expression', 'Variable'],
 };
 
-const literalRuleError = (value: string, input: InputDefinition): string | undefined => {
+const literalRuleError = (
+  value: string,
+  input: InputDefinition,
+  resolve: (message: string, params?: Record<string, string>) => string,
+): string | undefined => {
   const rules = toEffectiveRules(input);
   if (!rules) return undefined;
-  return checkValue(applyFormat(value, rules.format), rules.validate, input.label);
+  const issue = checkValue(applyFormat(value, rules.format), rules.validate, input.label);
+  return issue ? resolve(issue.error, issue.errorParams) : undefined;
 };
 
 export const EditWorkflowStepView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
@@ -110,7 +115,7 @@ export const EditWorkflowStepView: React.FC<{ tabKey: string }> = ({ tabKey }) =
       const newValue = e.target.value;
       vm.setMapping(input.id, { kind: 'Literal', value: newValue });
 
-      const ruleError = newValue ? literalRuleError(newValue, input) : undefined;
+      const ruleError = newValue ? literalRuleError(newValue, input, label) : undefined;
       setValidationErrors(prev => {
         const next = { ...prev };
         if (ruleError) next[input.id] = ruleError;

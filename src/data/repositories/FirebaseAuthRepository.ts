@@ -18,7 +18,7 @@ import type { User } from '../../domain/entities';
 const mapUser = (fbUser: FirebaseUser): User => ({
   id: fbUser.uid,
   email: fbUser.email ?? '',
-  displayName: fbUser.displayName ?? 'Usuário',
+  displayName: fbUser.displayName ?? '@core.workspace/user.anonymous',
   photoURL: fbUser.photoURL,
 });
 

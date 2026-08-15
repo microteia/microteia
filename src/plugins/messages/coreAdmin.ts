@@ -225,4 +225,7 @@ export const CORE_ADMIN_MESSAGES: Record<string, string> = {
   'processor.workflow.has-references': 'It has reference parameters (not supported yet).',
   'processor.workflows.empty': 'No automation registered with the "Called by another workflow" trigger.',
   'plan.office': 'Office',
+  'audit.load-failed': 'Could not load the audit records.',
+  'audit.load-more-failed': 'Could not load more audit records.',
+  'member.limit-reached-error': 'The organization member limit has been reached.',
 };

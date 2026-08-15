@@ -227,4 +227,7 @@ export const CORE_ADMIN: Record<string, string> = {
   'processor.workflow.has-references': 'Possui parâmetros de referência (ainda não suportados).',
   'processor.workflows.empty': 'Nenhuma automação com gatilho "Chamado por outro workflow" cadastrada.',
   'plan.office': 'Escritório',
+  'audit.load-failed': 'Não foi possível carregar os registros de auditoria.',
+  'audit.load-more-failed': 'Não foi possível carregar mais registros de auditoria.',
+  'member.limit-reached-error': 'Limite de membros do escritório atingido.',
 };

@@ -132,7 +132,11 @@ describe('o pacote Português (Brasil)', () => {
           .flatMap((bundle) => Object.keys(bundle.messages).map((key) => `${bundle.namespace}/${key}`)),
       );
 
-    const missing = Array.from(keysOf('en')).filter((key) => !keysOf('pt-BR').has(key));
+    // Os dois conjuntos são montados UMA vez: com `keysOf('pt-BR')` dentro do filtro, o teste
+    // remontava o catálogo inteiro a cada chave e passou a estourar o tempo quando ele cresceu.
+    const source = keysOf('en');
+    const translated = keysOf('pt-BR');
+    const missing = Array.from(source).filter((key) => !translated.has(key));
     expect(missing).toEqual([]);
   });
 });

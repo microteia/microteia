@@ -14,6 +14,7 @@ import { makeRunActionUseCase } from '../domain/usecases/actions/RunActionUseCas
 import type { ActionDefinition, DeletionActor } from '../domain/entities';
 import type { RunActionInput } from '../domain/repositories/IActionRepository';
 
+import { LocalizedError } from '../domain/errors/LocalizedError';
 export const ActionStoreProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { currentTenant } = useTenant();
   const { user, effectiveName } = useAuth();
@@ -111,7 +112,7 @@ export const ActionStoreProvider: React.FC<{ children: React.ReactNode }> = ({ c
   }, [currentTenant, user, effectiveName, uc.delete]);
 
   const runAction = useCallback(async (input: Omit<RunActionInput, 'tenantId'>) => {
-    if (!currentTenant) throw new Error('Nenhum escritório selecionado.');
+    if (!currentTenant) throw new LocalizedError('@core.ui/tenant.none-selected');
     return uc.run.execute({ ...input, tenantId: currentTenant.id });
   }, [currentTenant, uc.run]);
 

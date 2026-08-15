@@ -44,7 +44,10 @@ describe('filtro de data por intervalo', () => {
   it('oferece as duas pontas do intervalo para o campo de data', () => {
     const keys = listing().filterDefs.map((def) => def.key);
     expect(keys).toEqual(['dueDate', `dueDate${FILTER_RANGE_TO_SUFFIX}`]);
-    expect(listing().filterDefs.map((def) => def.label)).toEqual(['Vencimento (de)', 'Vencimento (até)']);
+    expect(listing().filterDefs.map((def) => def.label)).toEqual([
+      'core.records/filter.range-from',
+      'core.records/filter.range-to',
+    ]);
   });
 
   it('as duas pontas são inclusivas', () => {

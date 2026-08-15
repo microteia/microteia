@@ -29,7 +29,7 @@ describe('DeleteScreenDefinitionUseCase', () => {
     const { repo, del } = makeRepo([screen({ id: 'vnd', origin: 'plugin', ownerPluginId: 'com.acme.vendas' })]);
     await expect(
       makeDeleteScreenDefinitionUseCase(repo, noRecords).execute('t1', 'vnd', actor),
-    ).rejects.toThrow(/extensão/);
+    ).rejects.toThrow('@core.records/screen.delete.from-extension');
     expect(del).not.toHaveBeenCalled();
   });
 
@@ -37,14 +37,14 @@ describe('DeleteScreenDefinitionUseCase', () => {
     const { repo } = makeRepo([screen({ id: 'vnd', origin: 'plugin', ownerPluginId: 'com.acme.vendas' })]);
     await expect(
       makeDeleteScreenDefinitionUseCase(repo, withRecords).execute('t1', 'vnd', actor),
-    ).rejects.toThrow(/extensão/);
+    ).rejects.toThrow('@core.records/screen.delete.from-extension');
   });
 
   it('recusa excluir uma tela do tenant ADOTADA por uma extensão instalada', async () => {
     const { repo, del } = makeRepo([screen({ id: 'produtos', origin: 'design', ownerPluginIds: ['com.microteia.produto'] })]);
     await expect(
       makeDeleteScreenDefinitionUseCase(repo, noRecords).execute('t1', 'produtos', actor),
-    ).rejects.toThrow(/extensão/);
+    ).rejects.toThrow('@core.records/screen.delete.from-extension');
     expect(del).not.toHaveBeenCalled();
   });
 
@@ -58,7 +58,7 @@ describe('DeleteScreenDefinitionUseCase', () => {
     const { repo, del } = makeRepo([screen({ id: 'persons', origin: 'builtin' })]);
     await expect(
       makeDeleteScreenDefinitionUseCase(repo, noRecords).execute('t1', 'persons', actor),
-    ).rejects.toThrow(/sistema/);
+    ).rejects.toThrow('@core.records/screen.delete.system');
     expect(del).not.toHaveBeenCalled();
   });
 
@@ -66,7 +66,7 @@ describe('DeleteScreenDefinitionUseCase', () => {
     const { repo, del } = makeRepo([screen({ id: 'minha' })]);
     await expect(
       makeDeleteScreenDefinitionUseCase(repo, withRecords).execute('t1', 'minha', actor),
-    ).rejects.toThrow(/registros/);
+    ).rejects.toThrow('@core.records/screen.delete.has-records');
     expect(del).not.toHaveBeenCalled();
   });
 });

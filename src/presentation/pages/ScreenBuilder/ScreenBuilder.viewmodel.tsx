@@ -1041,7 +1041,7 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
       if (isNewTagList) {
         const issue = tagListIdIssue(tagCollection as string, schemaContext);
         if (issue) {
-          notify(issue, 'error');
+          notify(label(issue.message, issue.messageParams), 'error');
           return;
         }
       }
@@ -1086,7 +1086,7 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
         const screenKey = ensureUniqueKey(slugifyFieldKey(screenForm.titlePlural), existingKeys);
         const keyIssue = screenIdIssue(screenKey, schemaContext);
         if (keyIssue) {
-          notify(keyIssue, 'error');
+          notify(label(keyIssue.message, keyIssue.messageParams), 'error');
           return;
         }
         const maxOrder = dynamicDefinitions.reduce((max, def) => Math.max(max, def.sidebarOrder), -1);
@@ -1129,7 +1129,7 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
     } finally {
       setSavingScreen(false);
     }
-  }, [screenForm, screenModal, getDefinitionByKey, saveDefinition, definitions, dynamicDefinitions, childCandidates, persistChildLinks, notify, schemaContext, declareTagList, t]);
+  }, [screenForm, screenModal, getDefinitionByKey, saveDefinition, definitions, dynamicDefinitions, childCandidates, persistChildLinks, notify, schemaContext, declareTagList, t, label]);
 
   const toggleScreenEnabled = useCallback(async (screenKey: string) => {
     const def = getDefinitionByKey(screenKey);
@@ -1474,7 +1474,7 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
     if (isNewLookup) {
       const issue = lookupIdIssue(lookupCollection as string, schemaContext);
       if (issue) {
-        reject('general', issue);
+        reject('general', label(issue.message, issue.messageParams));
         return;
       }
     }

@@ -24,7 +24,7 @@ export const ExpressionFunctionStoreProvider: React.FC<{ children: React.ReactNo
         setFunctions(result.data.functions);
       } catch (err) {
         console.error('[ExpressionFunctionStore] Erro ao carregar funções:', err);
-        setError(err instanceof Error ? err.message : 'Erro ao carregar funções');
+        setError(err instanceof Error ? err.message : '@core.automation/functions.load-error');
       } finally {
         setLoading(false);
       }

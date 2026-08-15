@@ -30,6 +30,8 @@ const missingKeys = Object.entries(firebaseConfig)
 
 if (missingKeys.length > 0) {
   throw new Error(
+    // Diagnóstico de BOOT, para quem instala o sistema: não há catálogo carregado neste ponto.
+    // eslint-disable-next-line no-restricted-syntax -- ver acima
     `Configuração do Firebase incompleta (${missingKeys.join(', ')}). ` +
     `Verifique o arquivo .env.${import.meta.env.MODE} na raiz do projeto — veja .env.example.`,
   );

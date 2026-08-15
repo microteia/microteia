@@ -1,6 +1,6 @@
 export class TenantMemberLimitReachedError extends Error {
   constructor() {
-    super('Limite de membros do escritório atingido.');
+    super('@core.admin/member.limit-reached-error');
     this.name = 'TenantMemberLimitReachedError';
   }
 }

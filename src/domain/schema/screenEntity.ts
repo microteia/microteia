@@ -10,6 +10,7 @@ import { LOOKUP_REGISTRY_LIST } from './lookupRegistry';
 import type { FieldRulePreset, FieldRulePresetCatalog } from './fieldRulePresets';
 import { buildFieldRulePresetCatalog } from './fieldRulePresets';
 
+import type { LocalizedMessage } from './i18n/localizedMessage';
 /**
  * A tela como o schema a enxerga. O `id` é, por definição, o nome da COLEÇÃO no Firestore — para as
  * fixas ('persons') tanto quanto para as do Form Design ('medico') e as de extensão
@@ -409,13 +410,23 @@ export const RESERVED_COLLECTIONS: ReadonlySet<string> = new Set<string>([
 /** Firestore aceita quase tudo como nome de coleção; aqui o conjunto é estreitado de propósito. */
 const COLLECTION_NAME_PATTERN = /^[a-zA-Z][a-zA-Z0-9_]*$/;
 
-const collectionNameIssue = (name: string, what: string): string | undefined => {
+const collectionNameIssue = (name: string, whatKey: string): LocalizedMessage | undefined => {
   const trimmed = name.trim();
-  if (!trimmed) return `Informe a chave ${what}`;
-  if (!COLLECTION_NAME_PATTERN.test(trimmed)) {
-    return 'A chave deve começar por letra e conter apenas letras, números e "_"';
+  if (!trimmed) {
+    return {
+      message: '@core.records/collection.key.required',
+      messageParams: { what: whatKey },
+    };
   }
-  if (RESERVED_COLLECTIONS.has(trimmed)) return `"${trimmed}" é um nome reservado pelo sistema`;
+  if (!COLLECTION_NAME_PATTERN.test(trimmed)) {
+    return { message: '@core.records/collection.key.pattern' };
+  }
+  if (RESERVED_COLLECTIONS.has(trimmed)) {
+    return {
+      message: '@core.records/collection.key.reserved',
+      messageParams: { name: trimmed },
+    };
+  }
   return undefined;
 };
 
@@ -426,17 +437,22 @@ const takenBy = (
   ignore: 'screens' | 'lookups' | 'tagLists',
 ): string | undefined => {
   if (!ctx) return undefined;
-  if (ignore !== 'screens' && ctx.screens.has(name)) return 'uma tela';
-  if (ignore !== 'lookups' && ctx.lookups.has(name)) return 'uma lista de opções';
-  if (ignore !== 'tagLists' && ctx.tagLists.has(name)) return 'um conjunto de etiquetas';
+  if (ignore !== 'screens' && ctx.screens.has(name)) return '@core.records/collection.taken-by.screens';
+  if (ignore !== 'lookups' && ctx.lookups.has(name)) return '@core.records/collection.taken-by.lookups';
+  if (ignore !== 'tagLists' && ctx.tagLists.has(name)) return '@core.records/collection.taken-by.tag-lists';
   return undefined;
 };
 
-export const screenIdIssue = (id: string, ctx?: SchemaContext): string | undefined => {
-  const issue = collectionNameIssue(id, 'da tela');
+export const screenIdIssue = (id: string, ctx?: SchemaContext): LocalizedMessage | undefined => {
+  const issue = collectionNameIssue(id, '@core.records/collection.what.screen');
   if (issue) return issue;
   const taken = takenBy(id.trim(), ctx, 'screens');
-  return taken ? `"${id.trim()}" já é o nome de ${taken}` : undefined;
+  return taken
+    ? {
+        message: '@core.records/collection.name-taken',
+        messageParams: { name: id.trim(), taken },
+      }
+    : undefined;
 };
 
 /**
@@ -444,18 +460,28 @@ export const screenIdIssue = (id: string, ctx?: SchemaContext): string | undefin
  * duas passam pelo mesmo `match` curinga das rules. Por isso a validação é simétrica — nenhuma das
  * duas pode reivindicar um nome que a outra já usa.
  */
-export const lookupIdIssue = (collection: string, ctx?: SchemaContext): string | undefined => {
-  const issue = collectionNameIssue(collection, 'da lista');
+export const lookupIdIssue = (collection: string, ctx?: SchemaContext): LocalizedMessage | undefined => {
+  const issue = collectionNameIssue(collection, '@core.records/collection.what.lookup');
   if (issue) return issue;
   const taken = takenBy(collection.trim(), ctx, 'lookups');
-  return taken ? `"${collection.trim()}" já é o nome de ${taken}` : undefined;
+  return taken
+    ? {
+        message: '@core.records/collection.name-taken',
+        messageParams: { name: collection.trim(), taken },
+      }
+    : undefined;
 };
 
-export const tagListIdIssue = (collection: string, ctx?: SchemaContext): string | undefined => {
-  const issue = collectionNameIssue(collection, 'das etiquetas');
+export const tagListIdIssue = (collection: string, ctx?: SchemaContext): LocalizedMessage | undefined => {
+  const issue = collectionNameIssue(collection, '@core.records/collection.what.tags');
   if (issue) return issue;
   const taken = takenBy(collection.trim(), ctx, 'tagLists');
-  return taken ? `"${collection.trim()}" já é o nome de ${taken}` : undefined;
+  return taken
+    ? {
+        message: '@core.records/collection.name-taken',
+        messageParams: { name: collection.trim(), taken },
+      }
+    : undefined;
 };
 
 /** Nome sugerido para a lista de um campo: estável, legível e sem colidir com o camelCase do kernel. */

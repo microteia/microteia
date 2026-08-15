@@ -18,6 +18,7 @@ import type { SchemaLookup } from '../domain/schema/screenEntity';
 import type { LookupDefinition, LookupOption } from '../domain/entities';
 
 import { useLabel, useLocaleFormat } from '../presentation/shared/i18n/useT';
+import { LocalizedError } from '../domain/errors/LocalizedError';
 const BUILTIN_LOOKUPS: SchemaLookup[] = LOOKUP_REGISTRY_LIST.map((lookup) => ({
   collection: lookup.collection,
   label: `${lookup.screenLabel}: ${lookup.entityLabel}`,
@@ -132,7 +133,9 @@ export const LookupStoreProvider: React.FC<{ children: React.ReactNode }> = ({ c
     if (!currentTenant || !user) throw new Error('Not authenticated');
     // Idem ao TagStore: sem `lookupCollection` no campo não há onde gravar, e o motivo tem de
     // chegar ao usuário em vez de virar erro de caminho do Firestore.
-    if (!collection) throw new Error('O campo não tem uma lista de opções configurada.');
+    if (!collection) {
+      throw new LocalizedError('@core.records/field.no-lookup');
+    }
     const trimmed = label.trim();
     if (!trimmed) return;
     await uc.addOption.execute(currentTenant.id, collection, { key: trimmed, label: trimmed, color }, user.id);
@@ -140,7 +143,7 @@ export const LookupStoreProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
   const removeOption = useCallback(async (collection: string, key: string) => {
     if (!currentTenant) throw new Error('No tenant');
-    if (!collection) throw new Error('O campo não tem uma lista de opções configurada.');
+    if (!collection) throw new LocalizedError('@core.records/field.no-lookup');
     await uc.removeOption.execute(currentTenant.id, collection, key);
   }, [currentTenant, uc.removeOption]);
 

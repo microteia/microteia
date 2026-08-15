@@ -14,6 +14,7 @@ import { db } from '../../infrastructure/firebase/config';
 import type { AppUser, UserRole } from '../../domain/entities';
 import type { IUserRepository } from '../../domain/repositories/IUserRepository';
 
+import { LocalizedError } from '../../domain/errors/LocalizedError';
 const fromDoc = (id: string, data: Record<string, unknown>): AppUser => ({
   id,
   email: data.email as string,
@@ -37,7 +38,7 @@ export class FirebaseUserRepository implements IUserRepository {
         if (settled) return;
         settled = true;
         unsubscribe();
-        reject(new Error('Tempo esgotado ao configurar sua conta. Recarregue a página para tentar novamente.'));
+        reject(new LocalizedError('@core.workspace/account.setup-timeout'));
       }, timeoutMs);
 
       const unsubscribe = onSnapshot(

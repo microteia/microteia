@@ -1,6 +1,7 @@
 import type { CustomFieldValue, FieldDefinition } from '../entities/entitySchemas';
 
 import type { LocalizedMessage } from '../schema/i18n/localizedMessage';
+import type { TranslateFn } from '../../presentation/shared/i18n/useT';
 // Palavras reservadas do JavaScript que não podem ser usadas como nomes de campos
 const JS_RESERVED_WORDS = new Set([
   'await', 'break', 'case', 'catch', 'class', 'const', 'continue', 'debugger',
@@ -200,27 +201,34 @@ const hasFormValue = (field: FieldDefinition, value: CustomFieldValue | undefine
   }
 };
 
-export const requiredFieldError = (field: FieldDefinition): string =>
-  `O campo "${field.label}" é obrigatório.`;
+/**
+ * O tradutor entra como PRIMEIRO parâmetro — o padrão do projeto para função pura que produz texto.
+ * Aqui ele evita trocar `Record<string, string>` por `Record<string, LocalizedMessage>` em todo o
+ * caminho até o formulário, só para o erro atravessar um nível.
+ */
+export const requiredFieldError = (t: TranslateFn, field: FieldDefinition): string =>
+  t('@core.automation/parameter.required', { label: field.label });
 
 export const validateRequiredFields = (
+  t: TranslateFn,
   fields: FieldDefinition[],
   form: Record<string, CustomFieldValue>,
 ): string | null => {
   const missing = sortFieldsByOrder(fields).find(
     (field) => field.required && !hasFormValue(field, readValueByPath(form, field.key) as CustomFieldValue | undefined),
   );
-  return missing ? requiredFieldError(missing) : null;
+  return missing ? requiredFieldError(t, missing) : null;
 };
 
 export const collectRequiredErrors = (
+  t: TranslateFn,
   fields: FieldDefinition[],
   form: Record<string, CustomFieldValue>,
 ): Record<string, string> => {
   const errors: Record<string, string> = {};
   sortFieldsByOrder(fields).forEach((field) => {
     if (field.required && !hasFormValue(field, readValueByPath(form, field.key) as CustomFieldValue | undefined)) {
-      errors[field.key] = requiredFieldError(field);
+      errors[field.key] = requiredFieldError(t, field);
     }
   });
   return errors;
@@ -260,7 +268,7 @@ export const resolveRecordTitle = (
   titleFieldKey: string,
 ): string => {
   const value = readValueByPath(values, titleFieldKey);
-  return typeof value === 'string' && value.trim() !== '' ? value.trim() : 'Sem título';
+  return typeof value === 'string' && value.trim() !== '' ? value.trim() : '@core.records/record.untitled';
 };
 
 /**

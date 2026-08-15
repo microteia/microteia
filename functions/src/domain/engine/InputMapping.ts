@@ -61,9 +61,10 @@ export const resolveInputsSafe = (
       const rules = toEffectiveRules(input);
       if (rules) {
         value = applyFormat(value, rules.format);
-        const ruleError = checkValue(value, rules.validate, input.label);
-        if (ruleError) {
-          throw new Error(`Entrada "${input.label}" inválida: ${ruleError}`);
+        const ruleIssue = checkValue(value, rules.validate, input.label);
+        if (ruleIssue) {
+          // O log/erro do motor guarda a CHAVE do motivo; a tela resolve quando o exibe.
+          throw new Error(`Entrada "${input.label}" inválida: ${ruleIssue.error}`);
         }
       }
 

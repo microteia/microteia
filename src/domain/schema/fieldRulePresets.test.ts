@@ -201,7 +201,7 @@ describe('catálogo declarado', () => {
     ]);
     expect(applyFormat('123456789', { preset: 'com.acme.docs/rg-sp' }, catalog)).toBe('12.345.678-9');
     expect(checkValue('12.345.678-9', { check: 'com.acme.docs/rg-sp' }, 'RG', catalog)).toBeUndefined();
-    expect(checkValue('12345', { check: 'com.acme.docs/rg-sp' }, 'RG', catalog)).toBe('RG inválido');
+    expect(checkValue('12345', { check: 'com.acme.docs/rg-sp' }, 'RG', catalog)).toEqual({ error: 'RG inválido' });
   });
 
   it('encadeia ops na ordem declarada', () => {

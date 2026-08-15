@@ -49,15 +49,15 @@ describe('checkValue', () => {
 
   it('valida dígito verificador de CPF e CNPJ', () => {
     expect(checkValue('529.982.247-25', { check: 'cpf' }, 'CPF', br)).toBeUndefined();
-    expect(checkValue('111.111.111-11', { check: 'cpf' }, 'CPF', br)).toBe('CPF inválido');
+    expect(checkValue('111.111.111-11', { check: 'cpf' }, 'CPF', br)).toEqual({ error: 'CPF inválido' });
     expect(checkValue('11.222.333/0001-81', { check: 'cnpj' }, 'CNPJ', br)).toBeUndefined();
-    expect(checkValue('11.111.111/1111-11', { check: 'cnpj' }, 'CNPJ', br)).toBe('CNPJ inválido');
+    expect(checkValue('11.111.111/1111-11', { check: 'cnpj' }, 'CNPJ', br)).toEqual({ error: 'CNPJ inválido' });
   });
 
   it('valida por regex com mensagem customizada', () => {
     const rule = { pattern: '^\\d{4}$', message: 'Precisa ter 4 dígitos' };
     expect(checkValue('1234', rule, 'Código')).toBeUndefined();
-    expect(checkValue('12', rule, 'Código')).toBe('Precisa ter 4 dígitos');
+    expect(checkValue('12', rule, 'Código')).toEqual({ error: 'Precisa ter 4 dígitos' });
   });
 
   it('não reprova quando não há regra', () => {

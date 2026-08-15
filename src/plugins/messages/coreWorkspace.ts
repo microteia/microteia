@@ -89,4 +89,9 @@ export const CORE_WORKSPACE_MESSAGES: Record<string, string> = {
   'profile.nickname.save-failed': 'Could not set the nickname. Try again.',
   'profile.nickname.saved': 'Nickname set successfully.',
   'profile.nickname.taken-error': 'This nickname is already in use.',
+  'account.setup-timeout': 'Timed out setting up your account. Reload the page to try again.',
+  'user.anonymous': 'User',
+  'tenant.load-failed': 'Could not load the organization data.',
+  'tenant.none-found':
+    'No organization found for this user. Reload the page; if the problem persists, contact support.',
 };

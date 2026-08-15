@@ -46,8 +46,8 @@ describe('nome de lista', () => {
    * Deixar as duas reivindicarem um nome faria uma herdar a autorização da outra.
    */
   it('lista e tela disputam o mesmo espaço de nomes, nos dois sentidos', () => {
-    expect(lookupIdIssue('medico', ctx)).toBe('"medico" já é o nome de uma tela');
-    expect(screenIdIssue('medico_especialidade', ctx)).toBe('"medico_especialidade" já é o nome de uma lista de opções');
+    expect(lookupIdIssue('medico', ctx)).toEqual({ message: '@core.records/collection.name-taken', messageParams: { name: 'medico', taken: '@core.records/collection.taken-by.screens' } });
+    expect(screenIdIssue('medico_especialidade', ctx)).toEqual({ message: '@core.records/collection.name-taken', messageParams: { name: 'medico_especialidade', taken: '@core.records/collection.taken-by.lookups' } });
   });
 
   it('o nome sugerido junta tela e campo, sem colidir com o camelCase do kernel', () => {
@@ -79,10 +79,10 @@ describe('conjuntos de etiquetas', () => {
 
   /** Tela, lista e etiquetas caem no MESMO curinga das rules: um nome só pode ter um dono. */
   it('o espaço de nomes é único entre tela, lista e etiquetas', () => {
-    expect(tagListIdIssue('medico', ctx)).toBe('"medico" já é o nome de uma tela');
-    expect(tagListIdIssue('medico_especialidade', ctx)).toBe('"medico_especialidade" já é o nome de uma lista de opções');
-    expect(screenIdIssue('medico_tags', ctx)).toBe('"medico_tags" já é o nome de um conjunto de etiquetas');
-    expect(lookupIdIssue('medico_tags', ctx)).toBe('"medico_tags" já é o nome de um conjunto de etiquetas');
+    expect(tagListIdIssue('medico', ctx)).toEqual({ message: '@core.records/collection.name-taken', messageParams: { name: 'medico', taken: '@core.records/collection.taken-by.screens' } });
+    expect(tagListIdIssue('medico_especialidade', ctx)).toEqual({ message: '@core.records/collection.name-taken', messageParams: { name: 'medico_especialidade', taken: '@core.records/collection.taken-by.lookups' } });
+    expect(screenIdIssue('medico_tags', ctx)).toEqual({ message: '@core.records/collection.name-taken', messageParams: { name: 'medico_tags', taken: '@core.records/collection.taken-by.tag-lists' } });
+    expect(lookupIdIssue('medico_tags', ctx)).toEqual({ message: '@core.records/collection.name-taken', messageParams: { name: 'medico_tags', taken: '@core.records/collection.taken-by.tag-lists' } });
     expect(tagListIdIssue('members')).toBeTruthy();
     expect(tagListIdIssue('medico_tags')).toBeUndefined();
   });

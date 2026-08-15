@@ -12,6 +12,7 @@ import {
 } from '../domain/usecases/tenants/ManageTenantMembersUseCase';
 import { makeUpdateTenantUseCase } from '../domain/usecases/tenants/UpdateTenantUseCase';
 import type { Tenant, TenantMember, TenantRole } from '../domain/entities';
+import { LocalizedError } from '../domain/errors/LocalizedError';
 
 const TENANT_STORAGE_KEY = 'microteia:lastTenantId';
 
@@ -128,7 +129,7 @@ export const TenantStoreProvider: React.FC<{ children: React.ReactNode }> = ({ c
         // pela Cloud Function onUserCreated antes do AuthContext liberar o usuário —
         // chegar aqui sem nenhum tenant indica falha no provisionamento server-side.
         if (tenants.length === 0) {
-          throw new Error('Nenhum escritório encontrado para este usuário. Recarregue a página; se o problema persistir, contate o suporte.');
+          throw new LocalizedError('@core.workspace/tenant.none-found');
         }
 
         setAvailableTenants(tenants);
@@ -142,7 +143,7 @@ export const TenantStoreProvider: React.FC<{ children: React.ReactNode }> = ({ c
       } catch (err) {
         console.error('[TenantStore] init error:', err);
         setInitError(
-          err instanceof Error ? err.message : 'Falha ao carregar dados do escritório.',
+          err instanceof Error ? err.message : '@core.workspace/tenant.load-failed',
         );
       } finally {
         setIsLoading(false);

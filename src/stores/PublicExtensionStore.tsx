@@ -32,16 +32,24 @@ export const PublicExtensionStoreProvider: React.FC<{ children: React.ReactNode 
   );
 
   const publish = useCallback(async (pkg: MarketplacePlugin): Promise<PublishPublicResult> => {
-    if (!currentTenant || !user) return { ok: false, error: 'Sem escritório ou usuário.' };
+    if (!currentTenant || !user) {
+      return { ok: false, error: '@core.marketplace/publish.no-tenant' };
+    }
     const domain = pkg.manifest.id;
     const version = pkg.manifest.version;
-    if (!isValidSemVer(version)) return { ok: false, error: `A versão "${version}" não é válida.` };
+    if (!isValidSemVer(version)) {
+      return {
+        ok: false,
+        error: '@core.marketplace/publish.invalid-version',
+        errorParams: { version },
+      };
+    }
 
     // Upsert: um identificador tem UM registro público. Republicar sobrescreve os dados da mesma
     // extensão (não cria um novo registro). Só barra se o domínio pertence a OUTRO escritório.
     const existing = publicExtensions.find((p) => p.domain === domain);
     if (existing && existing.ownerTenantId !== currentTenant.id) {
-      return { ok: false, error: 'Este identificador já foi publicado por outro escritório.' };
+      return { ok: false, error: '@core.marketplace/publish.id-taken' };
     }
 
     const status = initialPublicStatus(pkg);

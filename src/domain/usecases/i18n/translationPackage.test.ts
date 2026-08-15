@@ -136,12 +136,12 @@ describe('translationOverwriteIssue', () => {
 
   it('recusa tradução tomando o lugar de extensão com telas', () => {
     const issue = translationOverwriteIssue(translation(), rich());
-    expect(issue).toContain('não é um pacote de idioma');
+    expect(issue?.message).toBe('@core.i18n/package.id-taken-by-extension');
   });
 
   it('recusa extensão com telas tomando o lugar de um idioma', () => {
     const issue = translationOverwriteIssue(rich(), translation());
-    expect(issue).toContain('não pode tomar o lugar');
+    expect(issue?.message).toBe('@core.i18n/package.id-taken-by-language');
   });
 });
 

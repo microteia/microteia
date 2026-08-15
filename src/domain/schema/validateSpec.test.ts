@@ -106,7 +106,12 @@ describe('validateObject — só parâmetros', () => {
       {},
     );
     expect(outcome.issues).toEqual([
-      { path: 'nome', label: 'Nome', error: 'O campo "Nome" é obrigatório' },
+      {
+        path: 'nome',
+        label: 'Nome',
+        error: '@core.automation/parameter.required',
+        errorParams: { label: 'Nome' },
+      },
     ]);
   });
 });

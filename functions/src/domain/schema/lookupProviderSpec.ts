@@ -62,7 +62,7 @@ export const MAX_LOOKUP_TIMEOUT_MS = 15000;
 /** Teto de corpo lido antes do parse — resposta gigante não pode travar a aba. */
 export const MAX_LOOKUP_RESPONSE_BYTES = 512 * 1024;
 
-export const DEFAULT_LOOKUP_ERROR = 'Não foi possível consultar os dados';
+export const DEFAULT_LOOKUP_ERROR = '@core.data/lookup-provider.failed';
 
 export const lookupTimeoutOf = (request: LookupProviderRequest): number => {
   const declared = request.timeoutMs ?? DEFAULT_LOOKUP_TIMEOUT_MS;

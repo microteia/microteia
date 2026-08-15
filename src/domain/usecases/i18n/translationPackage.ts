@@ -8,6 +8,7 @@ import { DEFAULT_LOCALE, normalizeLocale } from '../../schema/i18n/localeNegotia
 import type { MessageBundle } from '../../schema/i18n/messages';
 import { localeDisplayName } from '../../schema/i18n/localeFormat';
 
+import type { LocalizedMessage } from '../../schema/i18n/localizedMessage';
 /**
  * Traduzir é EMPACOTAR — e o pacote é o que já existe.
  *
@@ -165,7 +166,7 @@ export const isTranslationOnlyPackage = (pkg: MarketplacePlugin): boolean => {
 export const translationOverwriteIssue = (
   incoming: MarketplacePlugin,
   installed: MarketplacePlugin | undefined,
-): string | null => {
+): LocalizedMessage | null => {
   if (!installed) return null;
 
   const incomingIsTranslation = isTranslationOnlyPackage(incoming);
@@ -174,8 +175,14 @@ export const translationOverwriteIssue = (
 
   const name = installed.manifest.name || installed.manifest.id;
   return incomingIsTranslation
-    ? `O identificador "${incoming.manifest.id}" já pertence à extensão "${name}", que não é um pacote de idioma. Altere o "id" do arquivo antes de importar — instalar por cima apagaria as telas e automações dela.`
-    : `O identificador "${incoming.manifest.id}" já pertence ao idioma "${name}". Uma extensão com telas ou automações não pode tomar o lugar de um pacote de idioma: altere o "id" do arquivo.`;
+    ? {
+        message: '@core.i18n/package.id-taken-by-extension',
+        messageParams: { id: incoming.manifest.id, name },
+      }
+    : {
+        message: '@core.i18n/package.id-taken-by-language',
+        messageParams: { id: incoming.manifest.id, name },
+      };
 };
 
 /** Um pacote de idioma instalado, reduzido ao que decide se ele está valendo. */

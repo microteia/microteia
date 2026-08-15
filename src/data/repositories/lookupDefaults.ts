@@ -8,6 +8,11 @@ import type { LookupOption } from '../../domain/entities';
  * São mescladas com as opções do tenant por `mergeLookupDefaults`, que descarta a duplicata: uma
  * opção do tenant com a mesma chave ou o mesmo rótulo de uma fixa não aparece duas vezes.
  */
+/**
+ * A `key` é o VALOR GRAVADO no registro do escritório, não texto de interface: traduzi-la mudaria o
+ * dado de quem já a usa. Só o `label` traduz.
+ */
+/* eslint-disable no-restricted-syntax */
 const DECLARED: Record<string, Omit<LookupOption, 'isStatic'>[]> = {
   documentTypes: [
     { key: 'Contrato', label: '@core.data/document-type.contrato' },
@@ -22,6 +27,7 @@ const DECLARED: Record<string, Omit<LookupOption, 'isStatic'>[]> = {
     { key: 'Outros', label: '@core.data/document-type.outros' },
   ],
 };
+/* eslint-enable no-restricted-syntax */
 
 /**
  * `isStatic` é carimbado aqui, e não na declaração acima: opção que vem em código É fixa, por

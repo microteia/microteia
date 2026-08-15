@@ -180,16 +180,16 @@ export const useViewDynamicRecordViewModel = (tabKey: string): ViewDynamicRecord
 
   const validate = useCallback(
     (values: Values): EntityValidationResult | null => {
-      const fieldErrors = collectRequiredErrors(sortedFields, values);
+      const fieldErrors = collectRequiredErrors(t, sortedFields, values);
       const issues = validateRecordRules(collection, formValuesToStoredValues(sortedFields, values));
       issues.forEach((issue) => {
         if (!fieldErrors[issue.path]) fieldErrors[issue.path] = issue.error;
       });
       if (Object.keys(fieldErrors).length === 0) return null;
-      const message = validateRequiredFields(sortedFields, values) ?? describeRuleIssues(issues);
+      const message = validateRequiredFields(t, sortedFields, values) ?? describeRuleIssues(issues);
       return { message, fieldErrors };
     },
-    [sortedFields, collection],
+    [sortedFields, collection, t],
   );
 
   const create = useCallback(

@@ -12,7 +12,9 @@ const fieldAccessedAfterHop = (pathSegments: PathSegment[], hop: FkHop): string 
 
 export interface HydrationPlanIssue {
   path: string;
+  /** REFERÊNCIA de mensagem; `errorParams` traz o que a frase interpola. */
   error: string;
+  errorParams?: Record<string, string>;
 }
 
 export interface HydrationPlan {
@@ -34,7 +36,11 @@ export const buildHydrationPlan = (
     const pathSegments = parsePath(path);
     const resolution = resolvePath(ctx, root, pathSegments, options);
     if (!resolution.valid) {
-      issues.push({ path, error: resolution.error ?? 'caminho inválido' });
+      issues.push({
+        path,
+        error: resolution.error ?? '@core.automation/mutation.path.invalid',
+        errorParams: resolution.errorParams ?? { path },
+      });
       continue;
     }
     resolution.hops.forEach((hop, index) => {

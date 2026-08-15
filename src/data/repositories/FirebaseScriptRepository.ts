@@ -24,6 +24,7 @@ import type {
 import type { Script, ScriptOutputParam } from '../../domain/entities/Script';
 import type { WorkflowParameter } from '../../domain/entities/Workflow';
 
+import { LocalizedError } from '../../domain/errors/LocalizedError';
 const toDate = (v: unknown): Date => (v instanceof Timestamp ? v.toDate() : (v as Date));
 
 const scriptsRef = (tenantId: string) => collection(db, 'tenants', tenantId, 'scripts');
@@ -87,7 +88,7 @@ export class FirebaseScriptRepository implements IScriptRepository {
     if (id) {
       const ref = doc(scriptsRef(tenantId), id);
       if ((await getDoc(ref)).exists()) {
-        throw new Error(`Já existe um script com o identificador "${id}".`);
+        throw new LocalizedError('@core.automation/artifact.id-taken.script', { id });
       }
       await setDoc(ref, payload);
       const snap = await getDoc(ref);

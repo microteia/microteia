@@ -85,7 +85,12 @@ export const collectRequiredIssues = (
     const value = data[parameter.key];
 
     if (parameter.required && isEmptyRuleValue(value)) {
-      issues.push({ path, label, error: `O campo "${label}" é obrigatório` });
+      issues.push({
+        path,
+        label,
+        error: '@core.automation/parameter.required',
+        errorParams: { label },
+      });
       continue;
     }
     if (parameter.type === 'Object' && isPlainObject(value)) {

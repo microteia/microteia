@@ -9,6 +9,7 @@ import type { InstalledExtension } from '../domain/entities/InstalledExtension';
 import { hashExtensionCode } from '../domain/usecases/plugins/extensionCodeTrust';
 import { translationOverwriteIssue } from '../domain/usecases/i18n/translationPackage';
 
+import { LocalizedError } from '../domain/errors/LocalizedError';
 // Telas usam refresh por evento (não assinam onSnapshot ao vivo como workflows/actions/scripts).
 // Sem estes emits, uma tela materializada na instalação não aparece no Form Design nem no menu.
 const notifyArtifactStores = (): void => {
@@ -76,7 +77,7 @@ export const InstalledExtensionStoreProvider: React.FC<{ children: React.ReactNo
      * à mão. Posta em qualquer tela, bastaria importar pela outra para burlá-la.
      */
     const overwrite = translationOverwriteIssue(input.package, existing?.package);
-    if (overwrite) throw new Error(overwrite);
+    if (overwrite) throw new LocalizedError(overwrite.message, overwrite.messageParams);
     // Cópia independente e fiel: preserva apenas o estado local `active`; todo o resto vem da fonte.
     const extension: InstalledExtension = {
       id,

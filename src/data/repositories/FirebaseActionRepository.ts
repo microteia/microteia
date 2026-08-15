@@ -24,6 +24,7 @@ import type {
 import type { ActionDefinition, DeletionActor } from '../../domain/entities';
 import { stampDeletionActor } from '../utils/stampDeletionActor';
 
+import { LocalizedError } from '../../domain/errors/LocalizedError';
 const toDate = (v: unknown): Date => (v instanceof Timestamp ? v.toDate() : (v as Date));
 
 const actionsRef = (tenantId: string) => collection(db, 'tenants', tenantId, 'actions');
@@ -90,7 +91,7 @@ export class FirebaseActionRepository implements IActionRepository {
     if (id) {
       const ref = doc(actionsRef(tenantId), id);
       if ((await getDoc(ref)).exists()) {
-        throw new Error(`Já existe uma ação com o identificador "${id}".`);
+        throw new LocalizedError('@core.automation/artifact.id-taken.action', { id });
       }
       await setDoc(ref, payload);
       const snap = await getDoc(ref);

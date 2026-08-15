@@ -80,7 +80,7 @@ describe('readRecordText', () => {
     expect(readRecordText(record, '')).toBe('');
     expect(readRecordText(record, 'inexistente')).toBe('');
     expect(readRecordText(record, 'causeValue')).toBe('');
-    expect(resolveRecordTitle(record, 'title')).toBe('Sem título');
+    expect(resolveRecordTitle(record, 'title')).toBe('@core.records/record.untitled');
   });
 });
 
@@ -100,7 +100,7 @@ describe('resolveRecordTabTitle', () => {
   });
 
   it('sem os dois, sobra o rótulo genérico', () => {
-    expect(resolveRecordTabTitle({}, 'title', 'caseNumber')).toBe('Sem título');
+    expect(resolveRecordTabTitle({}, 'title', 'caseNumber')).toBe('@core.records/record.untitled');
   });
 
   it('tela sem subtítulo declarado funciona igual', () => {
