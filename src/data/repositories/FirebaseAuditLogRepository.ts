@@ -22,6 +22,7 @@ const toAuditLog = (id: string, d: Record<string, unknown>): AuditLog => ({
   id,
   tenantId: d.tenantId as string,
   title: d.title as string,
+  titleParams: d.titleParams as Record<string, string> | undefined,
   userId: d.userId as string,
   userName: d.userName as string,
   photoURL: d.photoURL as string,
@@ -34,6 +35,7 @@ const toAuditLog = (id: string, d: Record<string, unknown>): AuditLog => ({
   linkCollection: d.linkCollection as string | undefined,
   linkRecordId: d.linkRecordId as string | undefined,
   text: d.text as string,
+  textParams: d.textParams as Record<string, string> | undefined,
   createdAt: toDate(d.createdAt),
   expiresAt: toDate(d.expiresAt),
 });
