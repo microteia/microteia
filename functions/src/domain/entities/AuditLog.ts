@@ -28,9 +28,8 @@ export interface AuditLog {
   linkCollection?: string;
   linkRecordId?: string;
   /**
-   * REFERÊNCIA de mensagem nos logs novos; `textParams` traz o que a frase interpola. Log ANTIGO
-   * guarda a frase pronta e continua legível — `resolveLabel` devolve intacto o que não é
-   * referência, então o histórico de auditoria não precisou ser reescrito.
+   * REFERÊNCIA de mensagem; `textParams` traz o que a frase interpola. Quem exibe resolve com o
+   * catálogo de quem lê.
    */
   text: string;
   textParams?: Record<string, string>;

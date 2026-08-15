@@ -11,6 +11,11 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [7.34.0] — 2026-08-15
+
+- O filtro por entidade da Auditoria passou a listar apenas o que o sistema audita hoje, com o nome que a extensão instalada dá — sem os nomes internos de entidades que já saíram do sistema.
+- Duas entidades que faltavam no filtro — Push do Tribunal e Etiqueta de Tela Personalizada — passaram a aparecer.
+
 #### [7.33.1] — 2026-08-15
 
 - Corrigido: na Auditoria, o resumo e o título de cada registro apareciam com códigos como `{user}` e `{action}` no lugar dos nomes.

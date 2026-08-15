@@ -345,9 +345,8 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
       currentTenant.id,
       workflowId,
       (newExecutions) => {
-        // A mensagem de cada log vem do motor como REFERÊNCIA. Resolver na chegada — e não em
-        // cada ponto que exibe — vale também para o histórico antigo, que guarda a frase pronta e
-        // atravessa `resolveLabel` intacto.
+        // A mensagem de cada log vem do motor como REFERÊNCIA. Resolver na chegada, e não em cada
+        // ponto que exibe, deixa a aba inteira lendo texto pronto.
         setExecutions(newExecutions.map((execution) => ({
           ...execution,
           logs: execution.logs.map((entry) => ({

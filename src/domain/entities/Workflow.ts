@@ -183,9 +183,7 @@ export interface WorkflowExecutionLogEntry {
   stepDefinitionId?: string;
   level: 'SUCCESS' | 'INFO' | 'WARN' | 'ERROR';
   /**
-   * REFERÊNCIA de mensagem (`@core.automation/…`) nas execuções novas; a tela resolve com o catálogo
-   * de quem lê. Execução ANTIGA guarda a frase pronta e continua legível: `resolveLabel` devolve
-   * intacto o que não é referência, então o histórico não precisou ser reescrito.
+   * REFERÊNCIA de mensagem (`@core.automation/…`); a tela resolve com o catálogo de quem lê.
    */
   message: string;
   messageParams?: Record<string, string>;

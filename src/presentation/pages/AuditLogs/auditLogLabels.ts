@@ -2,59 +2,25 @@ import type { AuditAction, AuditSeverity, ScreenDefinition } from '../../../doma
 import type { TranslateFn } from '../../shared/i18n/useT';
 
 /**
- * Entidades que o kernel audita por nome próprio, e as que já saíram dele — os logs gravados antes
- * da migração guardam `Person`/`Case`/`Contract` e continuam legíveis. Log novo de tela declarada
- * guarda a COLEÇÃO, resolvida em `entityLabel`.
+ * As entidades que o backend audita por nome próprio HOJE — nada além disso.
+ *
+ * Quem tem tela (Pessoa, Processo, Contrato…) não entra aqui: o log guarda a COLEÇÃO, e o nome vem
+ * da tela que a descreve, resolvido em `entityLabel`. Assim o rótulo acompanha o título quando a
+ * tela é renomeada, em vez de congelar o nome do dia da gravação.
  */
 export const ENTITY_KEYS: Record<string, string> = {
-  Person: 'audit.entity.person',
-  Case: 'audit.entity.case',
-  Contract: 'audit.entity.contract',
-  Deadline: 'audit.entity.deadline',
-  Financial: 'audit.entity.financial',
   TenantMember: 'audit.entity.tenant-member',
   PersonTag: 'audit.entity.person-tag',
   CaseTag: 'audit.entity.case-tag',
-  ContractTag: 'audit.entity.contract-tag',
-  FinancialTag: 'audit.entity.financial-tag',
-  PersonNote: 'audit.entity.person-note',
-  CaseNote: 'audit.entity.case-note',
-  ContractNote: 'audit.entity.contract-note',
-  PersonDocument: 'audit.entity.person-document',
-  CaseDocument: 'audit.entity.case-document',
-  ContractDocument: 'audit.entity.contract-document',
-  FinancialDocument: 'audit.entity.financial-document',
-  Record: 'audit.entity.record',
-  RecordNote: 'audit.entity.record-note',
+  CustomRecordTag: 'audit.entity.custom-record-tag',
   CustomRecordDocument: 'audit.entity.custom-record-document',
+  RecordNote: 'audit.entity.record-note',
+  Push: 'audit.entity.push',
   ScreenDefinition: 'audit.entity.screen-definition',
   Tenant: 'audit.entity.tenant',
   Workflow: 'audit.entity.workflow',
+  FRONTEND: 'audit.entity.frontend',
   SYSTEM: 'audit.entity.system',
-};
-
-/**
- * A COLEÇÃO que cada nome ANTIGO do kernel designava.
- *
- * Pessoa, Processo e Contrato saíram do kernel e hoje são telas de extensão. A chave continua no
- * mapa acima para o log gravado naquela época permanecer legível — mas, sem esta tabela, a mesma
- * coisa aparecia DUAS vezes no filtro: uma com o nome que o kernel usava e outra com o nome que a
- * extensão deu. Aqui os dois se encontram: existindo a tela, ela é a dona do nome, e o log antigo
- * passa a ser exibido com o título de hoje em vez de congelado no de ontem.
- */
-const LEGACY_COLLECTION: Record<string, string> = {
-  Person: 'persons',
-  PersonNote: 'persons#notes',
-  PersonDocument: 'persons#documents',
-  Case: 'cases',
-  CaseNote: 'cases#notes',
-  CaseDocument: 'cases#documents',
-  Contract: 'contracts',
-  ContractNote: 'contracts#notes',
-  ContractDocument: 'contracts#documents',
-  Deadline: 'deadlines',
-  Financial: 'financials',
-  FinancialDocument: 'financials#documents',
 };
 
 export const ACTION_KEYS: Record<AuditAction, string> = {
@@ -89,8 +55,7 @@ export const entityLabel = (
   entity: string,
   screens: ScreenDefinition[] = [],
 ): string => {
-  // Nome antigo do kernel: se a tela que herdou a coleção está instalada, ela dá o nome.
-  const [collection, part] = (LEGACY_COLLECTION[entity] ?? entity).split('#');
+  const [collection, part] = entity.split('#');
   const screen = screenTitle(screens, collection);
   if (!screen) {
     const key = ENTITY_KEYS[entity];
@@ -105,27 +70,13 @@ export interface EntityFilterOption {
   label: string;
 }
 
-/**
- * As opções do filtro por entidade: as fixas do kernel mais o que o escritório declara.
- *
- * O nome antigo de uma coleção que HOJE tem tela fica de fora — a tela já a oferece, com o nome
- * que o escritório vê. Oferecer os dois seria pedir para filtrar "Pessoa" ou "Person" e obter
- * resultados diferentes para a mesma coisa.
- */
+/** As opções do filtro por entidade: as fixas do kernel mais o que o escritório declara. */
 export const entityFilterOptions = (
   t: TranslateFn,
   resolve: (value: string) => string,
   screens: ScreenDefinition[] = [],
 ): EntityFilterOption[] => {
-  const described = new Set(screens.map((screen) => screen.dataCollection ?? screen.id));
-  const isSupersededByScreen = (entity: string): boolean => {
-    const legacy = LEGACY_COLLECTION[entity];
-    return legacy !== undefined && described.has(legacy.split('#')[0]);
-  };
-
-  const options = Object.entries(ENTITY_KEYS)
-    .filter(([value]) => !isSupersededByScreen(value))
-    .map(([value, key]) => ({ value, label: t(key) }));
+  const options = Object.entries(ENTITY_KEYS).map(([value, key]) => ({ value, label: t(key) }));
   for (const screen of screens) {
     const collection = screen.dataCollection ?? screen.id;
     options.push({ value: collection, label: resolve(screen.titleSingular) });

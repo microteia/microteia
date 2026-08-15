@@ -55,20 +55,9 @@ describe('entityLabel', () => {
     expect(entityLabel(t, resolve, 'contracts#documents', [screen({})])).toBe('audit.entity.document-of(name=Contrato)');
   });
 
-  /**
-   * O log guarda `Contract`, de quando Contrato era do kernel. Com a tela que herdou a coleção
-   * instalada, ele passa a ser exibido com o nome de HOJE — o mesmo que o log novo mostra, para a
-   * mesma coisa não aparecer com dois nomes na lista.
-   */
-  it('log antigo do kernel usa o nome da tela que herdou a coleção', () => {
-    expect(entityLabel(t, resolve, 'Contract', [screen({})])).toBe('Contrato');
-    expect(entityLabel(t, resolve, 'Contract', [screen({ titleSingular: 'Acordo' })])).toBe('Acordo');
-    expect(entityLabel(t, resolve, 'ContractNote', [screen({})])).toBe('audit.entity.note-of(name=Contrato)');
-  });
-
-  it('sem a tela instalada, o log antigo cai no nome que o kernel usava', () => {
-    expect(entityLabel(t, resolve, 'Contract', [])).toBe('audit.entity.contract');
-    expect(entityLabel(t, resolve, 'Record', [])).toBe('audit.entity.record');
+  it('entidade que o backend audita por nome próprio usa a chave do catálogo', () => {
+    expect(entityLabel(t, resolve, 'TenantMember', [])).toBe('audit.entity.tenant-member');
+    expect(entityLabel(t, resolve, 'Push', [])).toBe('audit.entity.push');
   });
 
   it('coleção que ninguém descreve aparece como está', () => {
@@ -84,17 +73,11 @@ describe('entityFilterOptions', () => {
     expect(values).toContain('contracts#documents');
   });
 
-  /** Oferecer "Contract" e "Contrato" seria pedir para filtrar a mesma coisa por dois nomes. */
-  it('não oferece o nome antigo do kernel quando a tela que o herdou está instalada', () => {
+  /** Quem tem tela é oferecido UMA vez, pela tela — nunca também por um nome fixo no código. */
+  it('a tela é a única dona do nome da coleção que descreve', () => {
     const values = entityFilterOptions(t, resolve, [screen({})]).map((option) => option.value);
+    expect(values.filter((value) => value === 'contracts')).toHaveLength(1);
     expect(values).not.toContain('Contract');
-    expect(values).not.toContain('ContractNote');
-    expect(values).toContain('contracts');
-  });
-
-  it('sem a tela instalada, o nome antigo continua na lista para achar o log de então', () => {
-    const values = entityFilterOptions(t, resolve, []).map((option) => option.value);
-    expect(values).toContain('Contract');
   });
 
   it('não oferece notas de tela que não tem notas', () => {
