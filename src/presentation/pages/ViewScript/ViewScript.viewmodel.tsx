@@ -22,7 +22,7 @@ import type { Script, ScriptOutputParam } from '../../../domain/entities/Script'
 import type { WorkflowParameter } from '../../../domain/entities/Workflow';
 import type { RunModalResult } from '../../components/ui/RunModal';
 
-import { useT, type TranslateFn } from '../../shared/i18n/useT';
+import { useT, useLabel, type TranslateFn } from '../../shared/i18n/useT';
 import { PARAMETER_TYPE_KEYS } from '../../shared/parameterTypeKeys';
 
 /**
@@ -124,6 +124,7 @@ export interface ViewScriptViewModel {
 
 export const useViewScriptViewModel = (tabKey: string): ViewScriptViewModel => {
   const t = useT('core.automation');
+  const label = useLabel();
   const isNew = tabKey === 'new-script';
   const scriptId = isNew ? '' : tabKey.replace('view-script:', '');
 
@@ -195,8 +196,14 @@ export const useViewScriptViewModel = (tabKey: string): ViewScriptViewModel => {
     [formData.inputParams, expressionFunctions, dynamicScreens],
   );
 
-  const inputParamErrors = useMemo(() => siblingParameterErrors(formData.inputParams), [formData.inputParams]);
-  const outputParamErrors = useMemo(() => siblingParameterErrors(formData.outputParams), [formData.outputParams]);
+  const inputParamErrors = useMemo(
+    () => siblingParameterErrors(formData.inputParams).map((issue) => (issue ? label(issue.message, issue.messageParams) : undefined)),
+    [formData.inputParams, label],
+  );
+  const outputParamErrors = useMemo(
+    () => siblingParameterErrors(formData.outputParams).map((issue) => (issue ? label(issue.message, issue.messageParams) : undefined)),
+    [formData.outputParams, label],
+  );
 
   const addInputParam = useCallback(() => {
     setFormDataState((prev) => ({ ...prev, inputParams: [...prev.inputParams, { key: '', label: '', type: 'String' }] }));

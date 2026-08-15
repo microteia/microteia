@@ -11,6 +11,11 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [7.25.0] — 2026-08-15
+
+- As mensagens de erro ao montar uma consulta, uma gravação ou os parâmetros de uma automação passaram a acompanhar o idioma escolhido, tanto na tela quanto quando vêm do servidor.
+- Corrigido: em oito campos de evento e num rótulo de configuração aparecia um código interno no lugar do texto.
+
 #### [7.24.0] — 2026-08-15
 
 - As listas de opções que já vêm com o sistema — como os tipos de documento — passaram a acompanhar o idioma escolhido, e continuam em ordem alfabética correta em cada idioma.

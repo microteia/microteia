@@ -64,7 +64,9 @@ export const resolveQueryTable = (table: string, ctx: SchemaContext): ResolvedQu
 
 export interface QuerySpecIssue {
   field: string;
+  /** REFERÊNCIA de mensagem: a validação roda também no backend, que não conhece idioma. */
   error: string;
+  errorParams?: Record<string, string>;
 }
 
 export const validateQuerySpec = (spec: QuerySpec, ctx: SchemaContext): QuerySpecIssue[] => {
@@ -72,32 +74,43 @@ export const validateQuerySpec = (spec: QuerySpec, ctx: SchemaContext): QuerySpe
 
   const resolved = resolveQueryTable(spec.table, ctx);
   if (!resolved) {
-    issues.push({ field: 'table', error: `Tabela "${spec.table}" não existe` });
+    issues.push({
+      field: 'table',
+      error: '@core.automation/mutation.table.unknown',
+      errorParams: { table: spec.table },
+    });
     return issues;
   }
 
   const checkPath = (path: string, field: string): void => {
     if (!path.trim()) {
-      issues.push({ field, error: 'Caminho não informado' });
+      issues.push({ field, error: '@core.automation/query.path.missing' });
       return;
     }
     const resolution = resolvePath(ctx, resolved.root, parsePath(path));
     if (!resolution.valid) {
-      issues.push({ field, error: resolution.error ?? `Caminho "${path}" inválido` });
+      issues.push(
+        resolution.error
+          ? { field, error: resolution.error, errorParams: resolution.errorParams }
+          : { field, error: '@core.automation/mutation.path.invalid', errorParams: { path } },
+      );
     }
   };
 
   spec.where.forEach((predicate, index) => {
     checkPath(predicate.path, `where[${index}].path`);
     if (!QUERY_OPERATORS_WITHOUT_VALUE.includes(predicate.op) && !predicate.value) {
-      issues.push({ field: `where[${index}].value`, error: 'Valor do filtro não informado' });
+      issues.push({
+        field: `where[${index}].value`,
+        error: '@core.automation/query.filter-value.missing',
+      });
     }
   });
   spec.orderBy?.forEach((order, index) => checkPath(order.path, `orderBy[${index}].path`));
   spec.projections.forEach((path, index) => checkPath(path, `projections[${index}]`));
 
   if (!Number.isFinite(spec.limit) || spec.limit <= 0) {
-    issues.push({ field: 'limit', error: 'Limite deve ser um número positivo' });
+    issues.push({ field: 'limit', error: '@core.automation/query.limit.invalid' });
   }
 
   return issues;

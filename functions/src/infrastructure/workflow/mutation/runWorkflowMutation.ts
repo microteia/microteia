@@ -43,9 +43,10 @@ const keepWritableLeaves = (
   const data: Record<string, unknown> = {};
   const discarded: string[] = [];
   for (const leaf of flattenDataLeaves(spec.data)) {
-    const error = validateWritablePath(ctx, spec.table, leaf.path);
-    if (error) {
-      discarded.push(`${leaf.path} (${error})`);
+    const issue = validateWritablePath(ctx, spec.table, leaf.path);
+    if (issue) {
+      // O log é diagnóstico nosso: guarda a CHAVE do motivo, que é o que identifica a regra.
+      discarded.push(`${leaf.path} (${issue.error})`);
       continue;
     }
     setValueAtPath(data, leaf.path, leaf.value);

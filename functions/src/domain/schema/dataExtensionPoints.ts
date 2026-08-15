@@ -33,8 +33,9 @@ export const DATA_EXTENSION_POINTS: ExtensionPointDefinition[] = [
   {
     id: DATA_ENTITY_POINT,
     apiVersion: DATA_API_VERSION,
-    title: 'Entidade de domínio',
-    description: 'Declara uma entidade nativa (coleção, campos, FKs) para o schema e o motor.',
+    title: '@core.data/point.entity.title',
+    description:
+      '@core.data/point.entity.description',
     ownerPluginId: 'core.data',
     allowedImplKinds: [],
     implRequired: false,
@@ -43,8 +44,9 @@ export const DATA_EXTENSION_POINTS: ExtensionPointDefinition[] = [
   {
     id: DATA_LOOKUP_POINT,
     apiVersion: DATA_API_VERSION,
-    title: 'Lista de valores (lookup)',
-    description: 'Declara uma coleção de lista simples (tipos, categorias, status).',
+    title: '@core.data/point.lookup.title',
+    description:
+      '@core.data/point.lookup.description',
     ownerPluginId: 'core.data',
     allowedImplKinds: [],
     implRequired: false,
@@ -53,9 +55,9 @@ export const DATA_EXTENSION_POINTS: ExtensionPointDefinition[] = [
   {
     id: DATA_SERVICE_POINT,
     apiVersion: DATA_API_VERSION,
-    title: 'Serviço injetável de plugin',
+    title: '@core.data/point.service.title',
     description:
-      'Um plugin registra um serviço próprio (ex.: integração externa), resolvível por chave via useDI().resolveService. O container tipado do núcleo permanece intocado.',
+      '@core.data/point.service.description',
     ownerPluginId: 'core.data',
     allowedImplKinds: ['code'],
     implRequired: true,
@@ -64,9 +66,9 @@ export const DATA_EXTENSION_POINTS: ExtensionPointDefinition[] = [
   {
     id: DATA_FIELD_RULE_PRESET_POINT,
     apiVersion: DATA_API_VERSION,
-    title: 'Máscara, formatação e validação prontas',
+    title: '@core.data/point.field-preset.title',
     description:
-      'Declara um preset de campo (máscara por template, pipeline de formatação, validação por expressão ou regex). Sem código: a mesma declaração vale no formulário e na gravação por automação.',
+      '@core.data/point.field-preset.description',
     ownerPluginId: 'core.data',
     allowedImplKinds: [],
     implRequired: false,
@@ -75,9 +77,9 @@ export const DATA_EXTENSION_POINTS: ExtensionPointDefinition[] = [
   {
     id: DATA_EXTERNAL_LOOKUP_POINT,
     apiVersion: DATA_API_VERSION,
-    title: 'Busca de dados externos',
+    title: '@core.data/point.lookup-provider.title',
     description:
-      'Declara um provedor para "Ao alterar, buscar dados externos": a requisição inteira é dado (URL, quando disparar, mapa da resposta). Sem código — o kernel executa e impõe https, timeout e ausência de credencial.',
+      '@core.data/point.lookup-provider.description',
     ownerPluginId: 'core.data',
     allowedImplKinds: [],
     implRequired: false,

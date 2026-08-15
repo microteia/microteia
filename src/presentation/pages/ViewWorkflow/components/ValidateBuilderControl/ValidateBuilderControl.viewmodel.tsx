@@ -7,7 +7,7 @@ import type { ValidateStepConfig } from '../../../../../domain/schema/validateSp
 import type { WorkflowParameter, WorkflowParameterType } from '../../../../../domain/entities/Workflow';
 import type { SearchSelectOption } from '../../../../components/ui/SearchSelect';
 
-import { useT } from '../../../../shared/i18n/useT';
+import { useT, useLabel } from '../../../../shared/i18n/useT';
 import { PARAMETER_TYPE_KEYS } from '../../../../shared/parameterTypeKeys';
 
 export interface ValidateBuilderControlProps {
@@ -41,10 +41,14 @@ export const useValidateBuilderControlViewModel = (
 ): ValidateBuilderControlViewModel => {
   const ctx = useSchemaContext();
   const t = useT('core.automation');
+  const label = useLabel();
   const config = useMemo(() => value ?? EMPTY_CONFIG, [value]);
   const parameters = useMemo(() => config.parameters ?? [], [config.parameters]);
 
-  const parameterErrors = useMemo(() => siblingParameterErrors(parameters), [parameters]);
+  const parameterErrors = useMemo(
+    () => siblingParameterErrors(parameters).map((issue) => (issue ? label(issue.message, issue.messageParams) : undefined)),
+    [parameters, label],
+  );
 
   const sourceOptions = useMemo<SearchSelectOption[]>(
     () => [

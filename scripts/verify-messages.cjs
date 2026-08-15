@@ -49,6 +49,23 @@ const catalogKeys = (dir, moduleName) => {
 
 const missing = [];
 const orphans = [];
+
+/**
+ * Uma REFERÊNCIA (`@core.ui/action.save`) escrita num catálogo declarativo ou num diagnóstico não
+ * passa por `t()` e escaparia da checagem — e uma referência sem chave aparece na tela como o texto
+ * cru "@core.ui/action.save", que é justamente o que a resolução tolerante deixa passar em silêncio.
+ */
+const checkReferences = (file, source) => {
+  for (const match of source.matchAll(/'@([a-z][\w.-]*)\/([\w.-]+)'/g)) {
+    const moduleName = MODULE_BY_NS[match[1]];
+    if (!moduleName) continue;
+    const keys = catalogKeys(path.join(SRC, 'plugins', 'messages'), moduleName);
+    const key = match[2];
+    if (!keys.has(key) && !(keys.has(`${key}.one`) && keys.has(`${key}.other`))) {
+      missing.push(`${path.relative(ROOT, file)} -> ${match[1]}/${key}`);
+    }
+  }
+};
 const duplicates = [];
 
 // Chave repetida no mesmo catálogo é silenciosa em JS — a última vence — e desfaz uma tradução
@@ -67,6 +84,8 @@ for (const [ns, moduleName] of Object.entries(MODULE_BY_NS)) {
 
 for (const file of walk(SRC)) {
   const source = fs.readFileSync(file, 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+  checkReferences(file, source);
+
   const namespaces = [...source.matchAll(/useT\('([^']+)'\)/g)].map((m) => m[1]);
   if (namespaces.length !== 1) continue;
   const ns = namespaces[0];

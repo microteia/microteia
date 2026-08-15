@@ -14,7 +14,7 @@ import type { FieldRules, FormatPreset, ValidateCheck } from '../../../../../dom
 import type { FieldRulePresetOption } from '../../../../shared/useFieldRulePresets';
 import { parameterToInputDefinition } from '../../../../shared/parameterInputs';
 
-import { useT, type TranslateFn } from '../../../../shared/i18n/useT';
+import { useT, useLabel, type TranslateFn } from '../../../../shared/i18n/useT';
 
 const requiredOptions = (t: TranslateFn) => [
   { value: 'optional', label: t('parameter.optional') },
@@ -102,6 +102,7 @@ const DefaultValueField: React.FC<{
 export const WorkflowParametersEditor: React.FC<WorkflowParametersEditorProps> = (props) => {
   const { parameters, errors, typeOptions, entityOptions, lookupOptions, onUpdate, variant = 'input' } = props;
   const t = useT('core.automation');
+  const label = useLabel();
   const cloneLabel = t(variant === 'output' ? 'parameter.clone.output' : 'parameter.clone');
   const vm = useWorkflowParametersEditorViewModel(props);
 
@@ -160,7 +161,9 @@ export const WorkflowParametersEditor: React.FC<WorkflowParametersEditorProps> =
                     <S.NestedLabel>{t('parameter.object-fields')}</S.NestedLabel>
                     <WorkflowParametersEditor
                       parameters={parameter.fields ?? []}
-                      errors={siblingParameterErrors(parameter.fields ?? [])}
+                      errors={siblingParameterErrors(parameter.fields ?? []).map(
+                        (issue) => (issue ? label(issue.message, issue.messageParams) : undefined),
+                      )}
                       typeOptions={typeOptions}
                       entityOptions={entityOptions}
                       lookupOptions={lookupOptions}

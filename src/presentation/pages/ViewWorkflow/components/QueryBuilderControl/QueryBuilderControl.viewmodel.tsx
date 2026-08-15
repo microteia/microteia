@@ -15,7 +15,7 @@ import type { WorkflowEventFieldOption } from '../../../../../domain/services/wo
 import type { StepOutputField, WorkflowVariable } from '../../../../components/ui/ExpressionEditor/autocompleteHelpers';
 import type { SearchSelectOption } from '../../../../components/ui/SearchSelect';
 
-import { useT } from '../../../../shared/i18n/useT';
+import { useT, useLabel } from '../../../../shared/i18n/useT';
 
 export interface QueryBuilderControlProps {
   value: QuerySpec | undefined;
@@ -114,6 +114,7 @@ export const useQueryBuilderControlViewModel = (
 ): QueryBuilderControlViewModel => {
   const ctx = useSchemaContext();
   const t = useT('core.automation');
+  const label = useLabel();
 
   const operatorOptions = useMemo<OperatorOption[]>(
     () => OPERATOR_KEYS.map((option) => ({ value: option.value, label: t(option.labelKey) })),
@@ -149,9 +150,11 @@ export const useQueryBuilderControlViewModel = (
   const issuesByField = useMemo<Record<string, string>>(() => {
     if (!spec.table) return {};
     const map: Record<string, string> = {};
-    for (const issue of validateQuerySpec(spec, ctx)) map[issue.field] = issue.error;
+    for (const issue of validateQuerySpec(spec, ctx)) {
+      map[issue.field] = label(issue.error, issue.errorParams);
+    }
     return map;
-  }, [ctx, spec]);
+  }, [ctx, spec, label]);
 
   const emit = useCallback((next: QuerySpec) => onChange(next), [onChange]);
 

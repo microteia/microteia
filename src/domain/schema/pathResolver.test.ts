@@ -177,7 +177,7 @@ describe('resolvePath — FKs fixas', () => {
   it('respeita o limite de profundidade configurável', () => {
     const resolution = resolvePath(ctx, casesRoot, parsePath('contract.client.name'), { maxFkDepth: 1 });
     expect(resolution.valid).toBe(false);
-    expect(resolution.error).toContain('Profundidade máxima');
+    expect(resolution.error).toBe('@core.automation/path.max-depth');
   });
 
   it('resolve FK múltipla com índice', () => {
@@ -193,7 +193,7 @@ describe('resolvePath — FKs fixas', () => {
   it('exige índice para navegar em lista', () => {
     const resolution = resolvePath(ctx, casesRoot, parsePath('activePole.name'));
     expect(resolution.valid).toBe(false);
-    expect(resolution.error).toContain('lista');
+    expect(resolution.error).toBe('@core.automation/path.is-list');
   });
 
   it('a relação é navegável pelo nome do registro apontado', () => {
@@ -302,7 +302,7 @@ describe('resolvePath — lookups, old e casos de borda', () => {
   it('escalar não possui propriedades', () => {
     const resolution = resolvePath(ctx, casesRoot, parsePath('caseNumber.x'));
     expect(resolution.valid).toBe(false);
-    expect(resolution.error).toContain('valor simples');
+    expect(resolution.error).toBe('@core.automation/path.scalar-has-no-field');
   });
 
   it('raiz de campos declarados (eventos de sistema)', () => {
@@ -350,7 +350,12 @@ describe('suggestNextSegments', () => {
 
   it('sugere índice para listas', () => {
     expect(suggestNextSegments(ctx, casesRoot, parsePath('activePole'))).toStrictEqual([
-      { insertText: '0', label: 'Primeiro item da lista', kind: 'index', isLeaf: false },
+      {
+        insertText: '0',
+        label: '@core.automation/autocomplete.first-item',
+        kind: 'index',
+        isLeaf: false,
+      },
     ]);
   });
 

@@ -656,4 +656,5 @@ export const CORE_UI: Record<string, string> = {
   'field.phone': 'Telefone',
   'action.edit': 'Editar',
   'field.email': 'E-mail',
+  'settings.widgets': 'Widgets da tela',
 };

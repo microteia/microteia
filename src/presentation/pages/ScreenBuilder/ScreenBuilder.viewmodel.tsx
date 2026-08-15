@@ -1435,8 +1435,8 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
       setFieldModalTab(tab);
       notify(message, 'error');
     };
-    const label = fieldForm.label.trim();
-    if (!label) {
+    const fieldLabel = fieldForm.label.trim();
+    if (!fieldLabel) {
       reject('general', 'Informe o nome do campo.');
       return;
     }
@@ -1444,15 +1444,15 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
 
     // Validação do fieldKey (apenas em criação, não edição)
     if (!fieldModal.fieldKey) {
-      const fieldKeyToValidate = fieldForm.fieldKey.trim() || slugifyFieldKey(label);
+      const fieldKeyToValidate = fieldForm.fieldKey.trim() || slugifyFieldKey(fieldLabel);
       const validationError = validateFieldKey(fieldKeyToValidate);
       if (validationError) {
-        reject('general', validationError);
+        reject('general', label(validationError.message, validationError.messageParams));
         return;
       }
     }
 
-    const fieldKeyForLookup = fieldModal.fieldKey || fieldForm.fieldKey.trim() || slugifyFieldKey(label);
+    const fieldKeyForLookup = fieldModal.fieldKey || fieldForm.fieldKey.trim() || slugifyFieldKey(fieldLabel);
 
     // Uma seleção cujas opções vêm de uma LISTA não precisa de opções declaradas no campo — é o
     // caso de vários campos do kernel. A checagem vale só para quem tira as opções do próprio campo.
@@ -1495,7 +1495,7 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
       return;
     }
     if (fieldForm.logicCompute.trim()) {
-      const computeKey = fieldModal.fieldKey ?? (fieldForm.fieldKey.trim() || slugifyFieldKey(label));
+      const computeKey = fieldModal.fieldKey ?? (fieldForm.fieldKey.trim() || slugifyFieldKey(fieldLabel));
       const screenFields = getDefinitionByKey(fieldModal.screenKey)?.fields ?? [];
       if (findComputeCycle(screenFields, computeKey, fieldForm.logicCompute.trim())) {
         reject('advanced', t('field.error.compute-cycle'));
@@ -1534,7 +1534,7 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
           if (f.key !== editedKey) return f;
           return {
             ...f,
-            label,
+            label: fieldLabel,
             required: fieldModalIsTitleField ? true : fieldForm.required,
             section: fieldForm.section.trim() || null,
             placeholder: fieldForm.placeholder.trim() || null,
@@ -1558,7 +1558,7 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
       } else {
         const existingKeys = new Set(fields.map((f) => f.key));
         // Usa o fieldKey do form (preenchido automaticamente ou editado pelo usuário)
-        const baseKey = fieldForm.fieldKey.trim() || slugifyFieldKey(label);
+        const baseKey = fieldForm.fieldKey.trim() || slugifyFieldKey(fieldLabel);
         const key = ensureUniqueKey(baseKey, existingKeys);
         // A última posição é a da lista RESOLVIDA (fixos do código + adicionais do tenant), não a de
         // `fields[]`: numa tela do kernel o documento começa vazio, e contar só ele punha o campo
@@ -1567,7 +1567,7 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
         const maxOrder = [...fields, ...visible].reduce((max, f) => Math.max(max, f.order), -1);
         nextFields = [...fields, {
           key,
-          label,
+          label: fieldLabel,
           type: fieldForm.type,
           required: fieldForm.required,
           order: maxOrder + 1,
@@ -1594,7 +1594,7 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
       // A declaração vem ANTES do campo: é ela que as Security Rules consultam para autorizar a
       // primeira opção que o usuário cadastrar na coleção.
       if (isNewLookup) {
-        await declareLookup(lookupCollection as string, label);
+        await declareLookup(lookupCollection as string, fieldLabel);
       }
       await saveDefinition(fieldModal.screenKey, { ...baseInput, fields: nextFields });
       notify(fieldModal.fieldKey ? 'Campo atualizado com sucesso!' : 'Campo adicionado com sucesso!', 'success');
@@ -1604,7 +1604,7 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
     } finally {
       setSavingField(false);
     }
-  }, [fieldModal, fieldForm, fieldModalIsTitleField, getDefinitionByKey, saveDefinition, notify, schemaContext, resolvedField, resolvedFieldsByScreen, declareLookup, t]);
+  }, [fieldModal, fieldForm, fieldModalIsTitleField, getDefinitionByKey, saveDefinition, notify, schemaContext, resolvedField, resolvedFieldsByScreen, declareLookup, t, label]);
 
   /**
    * Grava a ordem da lista como posições absolutas em `fields[]`. Um campo já gravado viaja como

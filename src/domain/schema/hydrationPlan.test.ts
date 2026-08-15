@@ -93,6 +93,6 @@ describe('buildHydrationPlan', () => {
   it('respeita maxFkDepth configurável', () => {
     const plan = buildHydrationPlan(ctx, casesRoot, ['contract.client.name'], { maxFkDepth: 1 });
     expect(plan.issues).toHaveLength(1);
-    expect(plan.issues[0].error).toContain('Profundidade máxima');
+    expect(plan.issues[0].error).toBe('@core.automation/path.max-depth');
   });
 });

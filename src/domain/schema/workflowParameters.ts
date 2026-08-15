@@ -4,6 +4,7 @@ import { validateFieldKey } from '../services/customFieldValues';
 import { isScalarParameterType } from './eventCatalog';
 import type { FieldRules, FormatPreset, FormatRule, ValidateCheck, ValidateRule } from './fieldRules';
 
+import type { LocalizedMessage } from './i18n/localizedMessage';
 const isValidRegex = (pattern: string): boolean => {
   try {
     new RegExp(pattern);
@@ -88,16 +89,24 @@ interface ParameterLike {
   fields?: ParameterLike[];
 }
 
-export const siblingParameterErrors = (parameters: ParameterLike[]): (string | undefined)[] => {
+export const siblingParameterErrors = (
+  parameters: ParameterLike[],
+): (LocalizedMessage | undefined)[] => {
   const seen = new Set<string>();
   return parameters.map((parameter) => {
     const keyError = validateFieldKey(parameter.key);
     if (keyError) return keyError;
-    if (seen.has(parameter.key)) return 'Chave duplicada';
+    if (seen.has(parameter.key)) return { message: '@core.automation/parameter.duplicate-key' };
     seen.add(parameter.key);
-    if (parameter.type === 'EntityReference' && !parameter.entityType) return 'Selecione a entidade referenciada';
-    if (parameter.type === 'lookup' && !parameter.lookupCollection) return 'Selecione a lista de opções';
-    if (parameter.type === 'Object' && (parameter.fields ?? []).length === 0) return 'Adicione ao menos um campo ao objeto';
+    if (parameter.type === 'EntityReference' && !parameter.entityType) {
+      return { message: '@core.automation/parameter.entity-required' };
+    }
+    if (parameter.type === 'lookup' && !parameter.lookupCollection) {
+      return { message: '@core.automation/parameter.lookup-required' };
+    }
+    if (parameter.type === 'Object' && (parameter.fields ?? []).length === 0) {
+      return { message: '@core.automation/parameter.object-empty' };
+    }
     return undefined;
   });
 };
@@ -218,35 +227,40 @@ const parametersToDslMap = (parameters: WorkflowParameter[]): Record<string, unk
 export const parametersToDsl = (parameters: WorkflowParameter[]): string =>
   JSON.stringify(parametersToDslMap(parameters), null, 2);
 
-const parseDslNode = (key: string, value: unknown, path: string, errors: string[]): WorkflowParameter | null => {
+const parseDslNode = (
+  key: string,
+  value: unknown,
+  path: string,
+  errors: ParameterDslError[],
+): WorkflowParameter | null => {
   const keyError = validateFieldKey(key);
   if (keyError) {
-    errors.push(`${path}: ${keyError}`);
+    errors.push({ path, ...keyError });
     return null;
   }
 
   if (typeof value === 'string') {
     if (!isValidType(value)) {
-      errors.push(`${path}: tipo inválido "${value}"`);
+      errors.push({ path, message: '@core.automation/parameter.dsl.invalid-type', messageParams: { type: value } });
       return null;
     }
     if (value === 'Object') {
-      errors.push(`${path}: um objeto precisa declarar seus campos ("fields")`);
+      errors.push({ path, message: '@core.automation/parameter.dsl.object-needs-fields' });
       return null;
     }
     if (value === 'EntityReference') {
-      errors.push(`${path}: uma referência precisa da forma completa com "entityType"`);
+      errors.push({ path, message: '@core.automation/parameter.dsl.reference-needs-entity' });
       return null;
     }
     if (value === 'lookup') {
-      errors.push(`${path}: uma lista do escritório precisa da forma completa com "lookupCollection"`);
+      errors.push({ path, message: '@core.automation/parameter.dsl.lookup-needs-collection' });
       return null;
     }
     return { key, label: key, type: value };
   }
 
   if (!isPlainObject(value)) {
-    errors.push(`${path}: valor inválido`);
+    errors.push({ path, message: '@core.automation/parameter.dsl.invalid-value' });
     return null;
   }
 
@@ -254,7 +268,11 @@ const parseDslNode = (key: string, value: unknown, path: string, errors: string[
   const type: WorkflowParameterType = hasExplicitType ? (value.type as WorkflowParameterType) : 'Object';
 
   if (value.type !== undefined && !hasExplicitType) {
-    errors.push(`${path}: tipo inválido "${String(value.type)}"`);
+    errors.push({
+      path,
+      message: '@core.automation/parameter.dsl.invalid-type',
+      messageParams: { type: String(value.type) },
+    });
     return null;
   }
 
@@ -268,19 +286,19 @@ const parseDslNode = (key: string, value: unknown, path: string, errors: string[
 
   if (type === 'EntityReference') {
     if (typeof value.entityType !== 'string' || !value.entityType) {
-      errors.push(`${path}: referência a entidade exige "entityType"`);
+      errors.push({ path, message: '@core.automation/parameter.dsl.entity-type-required' });
       return null;
     }
     parameter.entityType = value.entityType;
   } else if (type === 'lookup') {
     if (typeof value.lookupCollection !== 'string' || !value.lookupCollection) {
-      errors.push(`${path}: lista do escritório exige "lookupCollection"`);
+      errors.push({ path, message: '@core.automation/parameter.dsl.lookup-collection-required' });
       return null;
     }
     parameter.lookupCollection = value.lookupCollection;
   } else if (type === 'select') {
     if (!Array.isArray(value.options)) {
-      errors.push(`${path}: lista de opções exige "options" (array)`);
+      errors.push({ path, message: '@core.automation/parameter.dsl.options-required' });
       return null;
     }
     parameter.options = value.options.map((option) =>
@@ -291,7 +309,7 @@ const parseDslNode = (key: string, value: unknown, path: string, errors: string[
   } else if (type === 'Object') {
     const fieldsSource = hasExplicitType ? value.fields : value;
     if (!isPlainObject(fieldsSource) || Object.keys(fieldsSource).length === 0) {
-      errors.push(`${path}: um objeto precisa de ao menos um campo em "fields"`);
+      errors.push({ path, message: '@core.automation/parameter.dsl.object-needs-one-field' });
       return null;
     }
     parameter.fields = parseDslMap(fieldsSource, path, errors);
@@ -305,13 +323,17 @@ const parseDslNode = (key: string, value: unknown, path: string, errors: string[
   return parameter;
 };
 
-const parseDslMap = (map: Record<string, unknown>, parentPath: string, errors: string[]): WorkflowParameter[] => {
+const parseDslMap = (
+  map: Record<string, unknown>,
+  parentPath: string,
+  errors: ParameterDslError[],
+): WorkflowParameter[] => {
   const params: WorkflowParameter[] = [];
   const seen = new Set<string>();
   for (const [key, value] of Object.entries(map)) {
     const path = parentPath ? `${parentPath}.${key}` : key;
     if (seen.has(key)) {
-      errors.push(`${path}: chave duplicada`);
+      errors.push({ path, message: '@core.automation/parameter.duplicate-key' });
       continue;
     }
     seen.add(key);
@@ -321,7 +343,14 @@ const parseDslMap = (map: Record<string, unknown>, parentPath: string, errors: s
   return params;
 };
 
-export const dslToParameters = (text: string): { params?: WorkflowParameter[]; errors?: string[] } => {
+/** O caminho é o lugar do problema no documento; a mensagem é a referência que a tela resolve. */
+export interface ParameterDslError extends LocalizedMessage {
+  path: string;
+}
+
+export const dslToParameters = (
+  text: string,
+): { params?: WorkflowParameter[]; errors?: ParameterDslError[] } => {
   const trimmed = text.trim();
   if (!trimmed) return { params: [] };
 
@@ -329,14 +358,22 @@ export const dslToParameters = (text: string): { params?: WorkflowParameter[]; e
   try {
     parsed = JSON.parse(trimmed);
   } catch (error) {
-    return { errors: [`JSON inválido: ${error instanceof Error ? error.message : String(error)}`] };
+    return {
+      errors: [{
+        path: '',
+        message: '@core.automation/parameter.dsl.invalid-json',
+        messageParams: { detail: error instanceof Error ? error.message : String(error) },
+      }],
+    };
   }
 
   if (!isPlainObject(parsed)) {
-    return { errors: ['A estrutura raiz deve ser um objeto { "chave": ... }'] };
+    return {
+      errors: [{ path: '', message: '@core.automation/parameter.dsl.root-must-be-object' }],
+    };
   }
 
-  const errors: string[] = [];
+  const errors: ParameterDslError[] = [];
   const params = parseDslMap(parsed, '', errors);
   return errors.length > 0 ? { errors } : { params };
 };

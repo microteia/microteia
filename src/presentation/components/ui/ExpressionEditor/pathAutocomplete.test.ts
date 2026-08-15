@@ -83,6 +83,6 @@ describe('findInvalidEventPath', () => {
   it('aponta navegação inválida em valor simples', () => {
     const issue = findInvalidEventPath(ctx, casesRoot, 'event.caseNumber.x');
     expect(issue?.path).toBe('event.caseNumber.x');
-    expect(issue?.error).toContain('valor simples');
+    expect(issue?.error).toBe('@core.automation/path.scalar-has-no-field');
   });
 });

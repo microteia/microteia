@@ -41,7 +41,9 @@ export type PathNode =
 
 export interface PathResolution {
   valid: boolean;
+  /** REFERÊNCIA de mensagem: o resolvedor roda no backend também, onde não há idioma. */
   error?: string;
+  errorParams?: Record<string, string>;
   node: PathNode;
   hops: FkHop[];
   depth: number;
@@ -130,6 +132,7 @@ interface WalkState {
   depth: number;
   path: PathSegment[];
   error?: string;
+  errorParams?: Record<string, string>;
 }
 
 const rootCursor = (ctx: SchemaContext, root: PathRoot): Cursor => {
@@ -138,7 +141,11 @@ const rootCursor = (ctx: SchemaContext, root: PathRoot): Cursor => {
   return entity ? { kind: 'entity', entity } : { kind: 'unknown' };
 };
 
-const invalid = (state: WalkState, error: string): WalkState => ({ ...state, error });
+const invalid = (
+  state: WalkState,
+  error: string,
+  errorParams?: Record<string, string>,
+): WalkState => ({ ...state, error, errorParams });
 
 /**
  * Toda referência aponta para uma COLEÇÃO — o `refEntity` é o nome dela, seja de entidade fixa ou de
@@ -154,7 +161,7 @@ const buildReferenceHopState = (
 ): WalkState => {
   const depth = state.depth + 1;
   if (depth > maxFkDepth) {
-    return invalid(state, `Profundidade máxima de ${maxFkDepth} referências excedida`);
+    return invalid(state, '@core.automation/path.max-depth', { max: String(maxFkDepth) });
   }
   const path = [...state.path, segment];
   const pathText = joinSegments(path);
@@ -283,7 +290,7 @@ const stepDenormalizedReference = (
 ): WalkState => {
   const depth = state.depth + 1;
   if (depth > maxFkDepth) {
-    return invalid(state, `Profundidade máxima de ${maxFkDepth} referências excedida`);
+    return invalid(state, '@core.automation/path.max-depth', { max: String(maxFkDepth) });
   }
   const parentPath = joinSegments(state.path);
   const prefix = parentPath ? `${parentPath}.` : '';
@@ -320,7 +327,11 @@ const stepCursor = (
 
   if (cursor.kind === 'entityList') {
     if (segment.kind !== 'index') {
-      return invalid(state, `"${joinSegments(state.path)}" é uma lista: informe a posição do item (ex: 0)`);
+      return invalid(
+        state,
+        '@core.automation/path.is-list',
+        { path: joinSegments(state.path) },
+      );
     }
     const nextCursor: Cursor = cursor.entity
       ? { kind: 'entity', entity: cursor.entity }
@@ -332,7 +343,11 @@ const stepCursor = (
     if (cursor.kind === 'scalar' && cursor.type === 'stringArray') {
       return { ...state, cursor: { kind: 'scalar', type: 'string' }, path: [...state.path, segment] };
     }
-    return invalid(state, `"${joinSegments(state.path)}" não é uma lista`);
+    return invalid(
+      state,
+      '@core.automation/path.not-a-list',
+      { path: joinSegments(state.path) },
+    );
   }
 
   switch (cursor.kind) {
@@ -358,7 +373,11 @@ const stepCursor = (
       return stepNativeField(ctx, state, field, segment, maxFkDepth);
     }
     case 'scalar':
-      return invalid(state, `"${joinSegments(state.path)}" é um valor simples e não possui "${segment.name}"`);
+      return invalid(
+        state,
+        '@core.automation/path.scalar-has-no-field',
+        { path: joinSegments(state.path), field: segment.name },
+      );
   }
 };
 
@@ -402,7 +421,14 @@ export const resolvePath = (
 ): PathResolution => {
   const state = walk(ctx, root, segments, options);
   if (state.error) {
-    return { valid: false, error: state.error, node: { kind: 'unknown' }, hops: state.hops, depth: state.depth };
+    return {
+      valid: false,
+      error: state.error,
+      errorParams: state.errorParams,
+      node: { kind: 'unknown' },
+      hops: state.hops,
+      depth: state.depth,
+    };
   }
   return { valid: true, node: cursorToNode(state.cursor), hops: state.hops, depth: state.depth };
 };
@@ -451,10 +477,25 @@ const entitySuggestions = (
   const suggestions: PathSuggestion[] = [];
 
   if (atRoot && hasOld) {
-    suggestions.push({ insertText: 'changeType', label: 'Tipo da mudança', kind: 'field', isLeaf: true });
-    suggestions.push({ insertText: 'old', label: 'Dados anteriores', kind: 'special', isLeaf: false });
+    suggestions.push({
+      insertText: 'changeType',
+      label: '@core.automation/autocomplete.change-type',
+      kind: 'field',
+      isLeaf: true,
+    });
+    suggestions.push({
+      insertText: 'old',
+      label: '@core.automation/autocomplete.old',
+      kind: 'special',
+      isLeaf: false,
+    });
   }
-  suggestions.push({ insertText: 'id', label: 'Id', kind: 'field', isLeaf: true });
+  suggestions.push({
+    insertText: 'id',
+    label: '@core.automation/autocomplete.id',
+    kind: 'field',
+    isLeaf: true,
+  });
 
   for (const field of entity.fields) {
     suggestions.push(nativeFieldSuggestion(ctx, field));
@@ -505,12 +546,27 @@ export const suggestNextSegments = (
     case 'entity':
       return entitySuggestions(ctx, cursor, atRoot, root.hasOld);
     case 'entityList':
-      return [{ insertText: '0', label: 'Primeiro item da lista', kind: 'index', isLeaf: false }];
+      return [{
+        insertText: '0',
+        label: '@core.automation/autocomplete.first-item',
+        kind: 'index',
+        isLeaf: false,
+      }];
     case 'object': {
       if (atRoot && root.hasOld) {
         return [
-          { insertText: 'changeType', label: 'Tipo da mudança', kind: 'field', isLeaf: true },
-          { insertText: 'old', label: 'Dados anteriores', kind: 'special', isLeaf: false },
+          {
+            insertText: 'changeType',
+            label: '@core.automation/autocomplete.change-type',
+            kind: 'field',
+            isLeaf: true,
+          },
+          {
+            insertText: 'old',
+            label: '@core.automation/autocomplete.old',
+            kind: 'special',
+            isLeaf: false,
+          },
           ...cursor.fields.map((field) => nativeFieldSuggestion(ctx, field)),
         ];
       }

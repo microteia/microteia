@@ -42,6 +42,7 @@ const SHARED_FILES = [
   'domain/schema/settings.ts',
   'domain/schema/i18n/localeNegotiation.ts',
   'domain/schema/i18n/messages.ts',
+  'domain/schema/i18n/localizedMessage.ts',
   'domain/schema/i18n/messageRef.ts',
   'domain/schema/i18n/localeFormat.ts',
   'domain/schema/i18n/localeGate.ts',

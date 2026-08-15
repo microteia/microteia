@@ -3,7 +3,7 @@ import type { WorkflowParameter } from '../../../../../domain/entities/Workflow'
 import { parametersToDsl, dslToParameters } from '../../../../../domain/schema/workflowParameters';
 import type { WorkflowParametersEditorVariant } from '../WorkflowParametersEditor/WorkflowParametersEditor.viewmodel';
 
-import { useT, type TranslateFn } from '../../../../shared/i18n/useT';
+import { useT, useLabel, type TranslateFn } from '../../../../shared/i18n/useT';
 
 export type AdvancedParametersMode = 'visual' | 'json';
 
@@ -45,6 +45,7 @@ export const useAdvancedParametersEditorViewModel = (
   props: AdvancedParametersEditorProps,
 ): AdvancedParametersEditorViewModel => {
   const t = useT('core.automation');
+  const label = useLabel();
   const { parameters, onReplace } = props;
   const [mode, setMode] = useState<AdvancedParametersMode>('visual');
   const [jsonText, setJsonText] = useState('');
@@ -65,13 +66,15 @@ export const useAdvancedParametersEditorViewModel = (
   const applyJson = useCallback(() => {
     const result = dslToParameters(jsonText);
     if (result.errors) {
-      setJsonErrors(result.errors);
+      setJsonErrors(result.errors.map(
+        (issue) => `${issue.path}: ${label(issue.message, issue.messageParams)}`,
+      ));
       return;
     }
     onReplace(result.params ?? []);
     setJsonErrors([]);
     setMode('visual');
-  }, [jsonText, onReplace]);
+  }, [jsonText, onReplace, label]);
 
   const toggleReference = useCallback(() => setShowReference((prev) => !prev), []);
 

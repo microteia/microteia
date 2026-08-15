@@ -90,7 +90,7 @@ export const SettingsView: React.FC = () => {
             {vm.jsonIssues.length > 0 && (
               <S.JsonIssues>
                 {vm.jsonIssues.map((issue) => (
-                  <li key={issue.key}>{issue.key}: {issue.message}</li>
+                  <li key={issue.key}>{issue.key}: {t(issue.message, issue.messageParams)}</li>
                 ))}
               </S.JsonIssues>
             )}

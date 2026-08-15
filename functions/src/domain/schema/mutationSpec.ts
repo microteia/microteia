@@ -63,7 +63,8 @@ export interface ResolvedWritableTable {
 
 export type WritableTableOutcome =
   | { ok: true; value: ResolvedWritableTable }
-  | { ok: false; error: string };
+  /** `error` é uma REFERÊNCIA de mensagem; `errorParams` traz o que a frase interpola. */
+  | { ok: false; error: string; errorParams?: Record<string, string> };
 
 /**
  * Entidades legíveis mas NUNCA graváveis por automação: são mantidas por fluxos próprios com
@@ -93,14 +94,20 @@ const SYSTEM_MANAGED_KEYS: ReadonlySet<string> = new Set([
 
 export const resolveWritableTable = (table: string, ctx: SchemaContext): WritableTableOutcome => {
   const resolved = resolveQueryTable(table, ctx);
-  if (!resolved) return { ok: false, error: `Tabela "${table}" não existe` };
+  if (!resolved) {
+    return { ok: false, error: '@core.automation/mutation.table.unknown', errorParams: { table } };
+  }
 
   if (isLookupTable(ctx, table)) {
     return { ok: true, value: { kind: 'lookup', physicalCollection: table, root: resolved.root } };
   }
 
   if (NON_WRITABLE_ENTITY_KEYS.has(table)) {
-    return { ok: false, error: `A tabela "${table}" não pode ser alterada por automações` };
+    return {
+      ok: false,
+      error: '@core.automation/mutation.table.read-only',
+      errorParams: { table },
+    };
   }
 
   return {
@@ -111,7 +118,9 @@ export const resolveWritableTable = (table: string, ctx: SchemaContext): Writabl
 
 export interface MutationSpecIssue {
   field: string;
+  /** REFERÊNCIA de mensagem: a validação roda também no backend, que não conhece idioma. */
   error: string;
+  errorParams?: Record<string, string>;
 }
 
 export interface WriteLeaf {
@@ -128,22 +137,41 @@ export const flattenDataLeaves = (data: unknown, prefix = ''): WriteLeaf[] => {
   return entries.flatMap(([key, value]) => flattenDataLeaves(value, prefix ? `${prefix}.${key}` : key));
 };
 
+type PathIssue = { error: string; errorParams?: Record<string, string> };
+
 const checkWritablePath = (
   ctx: SchemaContext,
   root: PathRoot,
   path: string,
-): string | undefined => {
+): PathIssue | undefined => {
   const segments = parsePath(path);
-  if (segments.length === 0) return 'Caminho do campo não informado';
+  if (segments.length === 0) return { error: '@core.automation/mutation.path.missing' };
 
   const top = segments[0].kind === 'key' ? segments[0].name : String(segments[0].index);
-  if (SYSTEM_MANAGED_KEYS.has(top)) return `O campo "${top}" é gerenciado pelo sistema e não pode ser gravado`;
+  if (SYSTEM_MANAGED_KEYS.has(top)) {
+    return {
+      error: '@core.automation/mutation.path.system-managed',
+      errorParams: { field: top },
+    };
+  }
 
   const resolution = resolvePath(ctx, root, segments);
-  if (!resolution.valid) return resolution.error ?? `Caminho "${path}" inválido`;
-  if (resolution.node.kind === 'unknown') return `O campo "${path}" não existe nessa tabela`;
+  if (!resolution.valid) {
+    return resolution.error
+      ? { error: resolution.error, errorParams: resolution.errorParams }
+      : { error: '@core.automation/mutation.path.invalid', errorParams: { path } };
+  }
+  if (resolution.node.kind === 'unknown') {
+    return {
+      error: '@core.automation/mutation.path.unknown-field',
+      errorParams: { path },
+    };
+  }
   if (resolution.hops.some((hop) => hop.atPath !== path)) {
-    return `Não é possível gravar através de uma referência: "${path}"`;
+    return {
+      error: '@core.automation/mutation.path.through-reference',
+      errorParams: { path },
+    };
   }
   return undefined;
 };
@@ -153,38 +181,42 @@ export const validateUpsertSpec = (spec: UpsertSpec, ctx: SchemaContext): Mutati
 
   const outcome = resolveWritableTable(spec.table, ctx);
   if (!outcome.ok) {
-    issues.push({ field: 'table', error: outcome.error });
+    issues.push({ field: 'table', error: outcome.error, errorParams: outcome.errorParams });
     return issues;
   }
   const resolved = outcome.value;
 
   if (spec.id !== undefined && (typeof spec.id !== 'string' || spec.id.trim() === '')) {
-    issues.push({ field: 'id', error: 'Id do registro inválido' });
+    issues.push({ field: 'id', error: '@core.automation/mutation.id.invalid' });
   }
 
   if (!spec.data || typeof spec.data !== 'object' || Array.isArray(spec.data)) {
-    issues.push({ field: 'data', error: 'Dados para gravação não informados' });
+    issues.push({ field: 'data', error: '@core.automation/mutation.data.missing' });
     return issues;
   }
 
   const leaves = flattenDataLeaves(spec.data);
   if (leaves.length === 0) {
-    issues.push({ field: 'data', error: 'Nenhum campo para gravar' });
+    issues.push({ field: 'data', error: '@core.automation/mutation.data.empty' });
     return issues;
   }
 
   if (resolved.kind === 'lookup') {
     for (const leaf of leaves) {
       if (leaf.path.includes('.') || !LOOKUP_WRITABLE_FIELDS.includes(leaf.path)) {
-        issues.push({ field: `data.${leaf.path}`, error: `Campo "${leaf.path}" não é gravável em uma lista` });
+        issues.push({
+          field: `data.${leaf.path}`,
+          error: '@core.automation/mutation.lookup.field-not-writable',
+          errorParams: { path: leaf.path },
+        });
       }
     }
     return issues;
   }
 
   for (const leaf of leaves) {
-    const error = checkWritablePath(ctx, resolved.root, leaf.path);
-    if (error) issues.push({ field: `data.${leaf.path}`, error });
+    const issue = checkWritablePath(ctx, resolved.root, leaf.path);
+    if (issue) issues.push({ field: `data.${leaf.path}`, ...issue });
   }
 
   return issues;
@@ -194,14 +226,17 @@ export const validateWritablePath = (
   ctx: SchemaContext,
   table: string,
   path: string,
-): string | undefined => {
-  if (!path.trim()) return 'Informe o campo a gravar';
+): PathIssue | undefined => {
+  if (!path.trim()) return { error: '@core.automation/mutation.path.required' };
   const outcome = resolveWritableTable(table, ctx);
-  if (!outcome.ok) return outcome.error;
+  if (!outcome.ok) return { error: outcome.error, errorParams: outcome.errorParams };
   const resolved = outcome.value;
   if (resolved.kind === 'lookup') {
     return path.includes('.') || !LOOKUP_WRITABLE_FIELDS.includes(path)
-      ? `Campo "${path}" não é gravável em uma lista`
+      ? {
+          error: '@core.automation/mutation.lookup.field-not-writable',
+          errorParams: { path },
+        }
       : undefined;
   }
   return checkWritablePath(ctx, resolved.root, path);
@@ -212,10 +247,10 @@ export const validateRemoveSpec = (spec: RemoveSpec, ctx: SchemaContext): Mutati
 
   const outcome = resolveWritableTable(spec.table, ctx);
   if (!outcome.ok) {
-    issues.push({ field: 'table', error: outcome.error });
+    issues.push({ field: 'table', error: outcome.error, errorParams: outcome.errorParams });
   }
   if (typeof spec.id !== 'string' || spec.id.trim() === '') {
-    issues.push({ field: 'id', error: 'Id do registro a excluir não informado' });
+    issues.push({ field: 'id', error: '@core.automation/mutation.remove.id.missing' });
   }
 
   return issues;

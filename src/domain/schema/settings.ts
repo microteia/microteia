@@ -166,45 +166,61 @@ const isContributionLayoutEntry = (item: unknown): boolean => {
  * Devolve a mensagem do problema, ou `null` quando o valor serve. Nunca lança: um valor inválido
  * vindo do banco ou de um JSON editado à mão precisa virar aviso na tela, não tela em branco.
  */
-export const validateSettingValue = (property: SettingsProperty, value: unknown): string | null => {
+/**
+ * O problema de um valor, como CHAVE do namespace `core.settings` mais o que a frase interpola.
+ * A validação é do schema, que roda também no backend e não conhece idioma; quem exibe resolve.
+ */
+export interface SettingsValueIssue {
+  message: string;
+  messageParams?: Record<string, string>;
+}
+
+export const validateSettingValue = (
+  property: SettingsProperty,
+  value: unknown,
+): SettingsValueIssue | null => {
   switch (property.type) {
     case 'boolean':
-      return typeof value === 'boolean' ? null : 'Informe verdadeiro ou falso.';
+      return typeof value === 'boolean' ? null : { message: 'setting.boolean' };
     case 'number': {
-      if (typeof value !== 'number' || !Number.isFinite(value)) return 'Informe um número.';
-      if (property.min !== undefined && value < property.min) return `O mínimo é ${property.min}.`;
-      if (property.max !== undefined && value > property.max) return `O máximo é ${property.max}.`;
+      if (typeof value !== 'number' || !Number.isFinite(value)) return { message: 'setting.number' };
+      if (property.min !== undefined && value < property.min) {
+        return { message: 'setting.number.min', messageParams: { min: String(property.min) } };
+      }
+      if (property.max !== undefined && value > property.max) {
+        return { message: 'setting.number.max', messageParams: { max: String(property.max) } };
+      }
       return null;
     }
     case 'text':
-      return typeof value === 'string' ? null : 'Informe um texto.';
+      return typeof value === 'string' ? null : { message: 'setting.text' };
     case 'select': {
-      if (typeof value !== 'string') return 'Informe uma das opções.';
+      if (typeof value !== 'string') return { message: 'setting.select' };
       const allowed = (property.options ?? []).map((option) => option.value);
-      return allowed.includes(value) ? null : 'Informe uma das opções.';
+      return allowed.includes(value) ? null : { message: 'setting.select' };
     }
     case 'stringList': {
-      if (!Array.isArray(value)) return 'Informe uma lista de textos.';
+      if (!Array.isArray(value)) return { message: 'setting.string-list' };
       if (!value.every((item) => typeof item === 'string' && item.trim() !== '')) {
-        return 'Cada item precisa ser um texto não vazio.';
+        return { message: 'setting.string-list.item' };
       }
       const pattern = stringListPattern(property);
       if (pattern && !value.every((item) => pattern.test(item as string))) {
-        return 'Há item fora do formato esperado.';
+        return { message: 'setting.string-list.pattern' };
       }
       return null;
     }
     case 'widgets': {
-      if (!Array.isArray(value)) return 'Informe uma lista de widgets.';
+      if (!Array.isArray(value)) return { message: 'setting.widgets' };
       return value.every(isWidgetLayoutEntry)
         ? null
-        : 'Cada item precisa ter uma chave e, se informada, largura entre 1 e 3.';
+        : { message: 'setting.widgets.item' };
     }
     case 'contributions': {
-      if (!Array.isArray(value)) return 'Informe uma lista de itens.';
+      if (!Array.isArray(value)) return { message: 'setting.contributions' };
       return value.every(isContributionLayoutEntry)
         ? null
-        : 'Cada item precisa ter uma chave e, se informado, ligado/desligado.';
+        : { message: 'setting.contributions.item' };
     }
     /**
      * Um idioma é aceito pela FORMA, nunca por pertencer a uma lista. Validar contra os pacotes
@@ -215,9 +231,9 @@ export const validateSettingValue = (property: SettingsProperty, value: unknown)
     case 'locale':
       return typeof value === 'string' && /^[a-z]{2,3}(-[A-Za-z0-9]+)*$/.test(value.trim())
         ? null
-        : 'Informe um idioma no formato "en" ou "pt-BR".';
+        : { message: 'setting.locale' };
     case 'json':
-      return value === undefined ? 'Informe um valor.' : null;
+      return value === undefined ? { message: 'setting.json' } : null;
     default:
       return null;
   }
@@ -318,8 +334,8 @@ export const resolveContributionLayout = (
 
 export interface SettingsJsonParse {
   values: SettingsValues;
-  /** Uma mensagem por chave recusada. O restante do documento é aproveitado. */
-  errors: Array<{ key: string; message: string }>;
+  /** Uma mensagem por chave recusada, como REFERÊNCIA. O restante do documento é aproveitado. */
+  errors: Array<{ key: string } & SettingsValueIssue>;
   /** Erro de sintaxe: nada é aproveitado. */
   syntaxError: string | null;
 }
@@ -353,12 +369,12 @@ export const parseSettingsJson = (
       continue;
     }
     if (!propertyAcceptsScope(property, scope)) {
-      errors.push({ key, message: 'Esta configuração não é editável neste escopo.' });
+      errors.push({ key, message: 'setting.scope.read-only' });
       continue;
     }
     const problem = validateSettingValue(property, value);
     if (problem) {
-      errors.push({ key, message: problem });
+      errors.push({ key, ...problem });
       continue;
     }
     values[key] = value;

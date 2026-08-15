@@ -439,8 +439,8 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
   const parameterLookupOptions = useLookupCollectionOptions();
 
   const parameterErrors = useMemo<(string | undefined)[]>(
-    () => (isCalledEvent ? siblingParameterErrors(formData.parameters) : []),
-    [isCalledEvent, formData.parameters],
+    () => (isCalledEvent ? siblingParameterErrors(formData.parameters).map((issue) => (issue ? label(issue.message, issue.messageParams) : undefined)) : []),
+    [isCalledEvent, formData.parameters, label],
   );
 
   const hasParameterErrors = useMemo(

@@ -1,5 +1,6 @@
 import type { CustomFieldValue, FieldDefinition } from '../entities/entitySchemas';
 
+import type { LocalizedMessage } from '../schema/i18n/localizedMessage';
 // Palavras reservadas do JavaScript que não podem ser usadas como nomes de campos
 const JS_RESERVED_WORDS = new Set([
   'await', 'break', 'case', 'catch', 'class', 'const', 'continue', 'debugger',
@@ -15,19 +16,22 @@ const VALID_FIELD_KEY_PATTERN = /^[a-zA-Z_$][a-zA-Z0-9_$]*$/;
  * Valida se um fieldKey é compatível com JavaScript.
  * Retorna mensagem de erro se inválido, undefined se válido.
  */
-export const validateFieldKey = (key: string): string | undefined => {
+export const validateFieldKey = (key: string): LocalizedMessage | undefined => {
   if (!key) {
-    return 'Nome do campo não pode ser vazio';
+    return { message: '@core.automation/field-key.empty' };
   }
-  
+
   if (!VALID_FIELD_KEY_PATTERN.test(key)) {
-    return 'Nome inválido: deve começar com letra, underscore ou $ e conter apenas letras, números, underscore ou $';
+    return { message: '@core.automation/field-key.invalid' };
   }
-  
+
   if (JS_RESERVED_WORDS.has(key)) {
-    return `"${key}" é uma palavra reservada do JavaScript e não pode ser usada como nome de campo`;
+    return {
+      message: '@core.automation/field-key.reserved',
+      messageParams: { key },
+    };
   }
-  
+
   return undefined;
 };
 

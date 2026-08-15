@@ -35,7 +35,7 @@ describe('parâmetro do tipo lookup', () => {
 
   it('sem lista escolhida, o parâmetro acusa o que falta', () => {
     expect(siblingParameterErrors([parametro({ lookupCollection: undefined })])).toEqual([
-      'Selecione a lista de opções',
+      { message: '@core.automation/parameter.lookup-required' },
     ]);
   });
 
@@ -46,7 +46,7 @@ describe('parâmetro do tipo lookup', () => {
 
   it('o atalho de uma linha não serve: sem a lista não há o que escolher', () => {
     expect(dslToParameters('{ "situacao": "lookup" }').errors).toEqual([
-      'situacao: uma lista do escritório precisa da forma completa com "lookupCollection"',
+      { path: 'situacao', message: '@core.automation/parameter.dsl.lookup-needs-collection' },
     ]);
   });
 

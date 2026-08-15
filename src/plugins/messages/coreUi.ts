@@ -657,4 +657,5 @@ export const CORE_UI_MESSAGES: Record<string, string> = {
   'field.phone': 'Phone',
   'action.edit': 'Edit',
   'field.email': 'E-mail',
+  'settings.widgets': 'Widgets on the screen',
 };
