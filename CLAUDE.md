@@ -222,6 +222,16 @@ Toda chave nova em `src/plugins/messages/` exige a entrada correspondente em
 **O que NUNCA entra no catálogo:** o que o escritório digitou (nome de tela do Form Design, rótulo de
 campo, opção de lista). Isso é dado do tenant, não texto do produto, e passa intacto por `useLabel()`.
 
+**O núcleo não responde por tradução fora do escopo dele — NÃO-NEGOCIÁVEL.** Texto que pertence a um
+domínio é traduzido por quem o declara, não pelo kernel. "Tipo de documento" é conceito do kernel;
+*Procuração* e *Petição* são vocabulário de um domínio, e não entram no catálogo do núcleo mesmo
+quando o valor padrão nasce em código dele. Quem declara o vocabulário responde por ele: a extensão
+traduz o que traz, e o que o escritório digitou não se traduz.
+
+A regra vale nos dois sentidos: o núcleo também não deve pedir que o pacote de idioma dele carregue
+chave de plugin. Cada extensão contribui o próprio `i18n.messages` — inclusive um pacote que só
+traduz, que é uma extensão contribuindo apenas nesse ponto.
+
 ---
 
 ## Documentação

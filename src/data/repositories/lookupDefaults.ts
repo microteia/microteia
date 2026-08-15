@@ -9,22 +9,26 @@ import type { LookupOption } from '../../domain/entities';
  * opção do tenant com a mesma chave ou o mesmo rótulo de uma fixa não aparece duas vezes.
  */
 /**
- * A `key` é o VALOR GRAVADO no registro do escritório, não texto de interface: traduzi-la mudaria o
- * dado de quem já a usa. Só o `label` traduz.
+ * Estas opções NÃO passam pelo catálogo do núcleo, e é de propósito.
+ *
+ * "Tipo de documento" é conceito do kernel — qualquer tela pode ter documentos —, mas Procuração,
+ * Petição e Certidão são vocabulário de um domínio, não do produto. Traduzi-las aqui seria o kernel
+ * assumindo a tradução de algo que não é dele: quem declara o vocabulário é que responde por ele.
+ * O escritório renomeia cada opção quando quiser, e uma extensão pode declarar as suas.
  */
-/* eslint-disable no-restricted-syntax */
+/* eslint-disable no-restricted-syntax -- vocabulário de domínio, fora do escopo do núcleo (ver acima) */
 const DECLARED: Record<string, Omit<LookupOption, 'isStatic'>[]> = {
   documentTypes: [
-    { key: 'Contrato', label: '@core.data/document-type.contrato' },
-    { key: 'Procuração', label: '@core.data/document-type.procuracao' },
-    { key: 'Petição', label: '@core.data/document-type.peticao' },
-    { key: 'Sentença', label: '@core.data/document-type.sentenca' },
-    { key: 'Certidão', label: '@core.data/document-type.certidao' },
-    { key: 'RG', label: '@core.data/document-type.rg' },
-    { key: 'CPF', label: '@core.data/document-type.cpf' },
-    { key: 'Comprovante', label: '@core.data/document-type.comprovante' },
-    { key: 'Recibo', label: '@core.data/document-type.recibo' },
-    { key: 'Outros', label: '@core.data/document-type.outros' },
+    { key: 'Contrato', label: 'Contrato' },
+    { key: 'Procuração', label: 'Procuração' },
+    { key: 'Petição', label: 'Petição' },
+    { key: 'Sentença', label: 'Sentença' },
+    { key: 'Certidão', label: 'Certidão' },
+    { key: 'RG', label: 'RG' },
+    { key: 'CPF', label: 'CPF' },
+    { key: 'Comprovante', label: 'Comprovante' },
+    { key: 'Recibo', label: 'Recibo' },
+    { key: 'Outros', label: 'Outros' },
   ],
 };
 /* eslint-enable no-restricted-syntax */

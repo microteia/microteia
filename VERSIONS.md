@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [7.35.0] — 2026-08-15
+
+- As opções que já vêm na lista de tipos de documento voltaram a ser exibidas como estão gravadas. Elas são vocabulário da área, não texto do sistema: o escritório renomeia cada uma quando quiser, e uma extensão pode trazer as suas.
+
 #### [7.34.0] — 2026-08-15
 
 - O filtro por entidade da Auditoria passou a listar apenas o que o sistema audita hoje, com o nome que a extensão instalada dá — sem os nomes internos de entidades que já saíram do sistema.

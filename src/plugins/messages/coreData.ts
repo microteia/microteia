@@ -1,15 +1,5 @@
 /** Os textos dos dados: entidades nativas, listas, máscaras e as buscas externas. */
 export const CORE_DATA_MESSAGES: Record<string, string> = {
-  'document-type.certidao': 'Certificate',
-  'document-type.comprovante': 'Proof',
-  'document-type.contrato': 'Contract',
-  'document-type.cpf': 'Tax ID',
-  'document-type.outros': 'Other',
-  'document-type.peticao': 'Petition',
-  'document-type.procuracao': 'Power of attorney',
-  'document-type.recibo': 'Receipt',
-  'document-type.rg': 'ID card',
-  'document-type.sentenca': 'Ruling',
   'lookup.field.color': 'Color',
   'lookup.field.id': 'Id',
   'lookup.field.key': 'Key',
