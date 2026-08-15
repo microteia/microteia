@@ -640,4 +640,11 @@ export const CORE_UI_MESSAGES: Record<string, string> = {
   'note.delete-failed': 'Could not delete the note.',
   'document.deleted': 'Document deleted.',
   'filter.status': 'Status',
+  'action.saving': 'Saving…',
+  'field.description': 'Description',
+  'field.identifier': 'Identifier',
+  'field.name': 'Name',
+  'field.optional': 'Optional',
+  'field.required': 'Required',
+  'tenant.none-selected': 'No organization selected.',
 };

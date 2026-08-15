@@ -639,4 +639,11 @@ export const CORE_UI: Record<string, string> = {
   'note.delete-failed': 'Erro ao excluir anotação.',
   'document.deleted': 'Documento excluído.',
   'filter.status': 'Situação',
+  'action.saving': 'Salvando...',
+  'field.description': 'Descrição',
+  'field.identifier': 'Identificador',
+  'field.name': 'Nome',
+  'field.optional': 'Opcional',
+  'field.required': 'Obrigatório',
+  'tenant.none-selected': 'Nenhum escritório selecionado.',
 };

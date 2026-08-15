@@ -11,6 +11,11 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [7.20.0] — 2026-08-15
+
+- A tela de Script passou a acompanhar o idioma escolhido, inclusive toda a documentação da função de consulta ao banco e o modelo que aparece num script novo.
+- Os tipos de parâmetro passaram a ter um nome único em todo o sistema: o mesmo tipo já não aparecia escrito de duas formas entre a tela de Script e a de automações.
+
 #### [7.19.0] — 2026-08-15
 
 - A tela de Ações passou a acompanhar o idioma escolhido: título, filtros, avisos e a confirmação de exclusão.

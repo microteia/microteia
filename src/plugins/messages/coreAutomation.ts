@@ -334,4 +334,71 @@ export const CORE_AUTOMATION_MESSAGES: Record<string, string> = {
   'actions.create-first': 'Create the first action',
   'actions.disabled-suffix': '(disabled)',
   'actions.delete.title': 'Delete action',
+  'script.code': 'Code',
+  'script.code.notice':
+    'The code runs in an isolated, safe environment, with no access to the internet or external libraries. Use the input object, the fn.* functions and the data functions query(...), upsert(...) and remove(...) to reach the organization records. Return an object with the output parameters.',
+  'script.data-functions.link': 'See the data functions (query, upsert, remove)',
+  'script.delete': 'Delete script',
+  'script.delete.message':
+    'Are you sure you want to delete the script "{name}"? Steps that use it will stop working.',
+  'script.delete.title': 'Delete Script',
+  'script.description.placeholder': 'What this script does…',
+  'script.fallback-name': 'Script',
+  'script.id.hint':
+    'It is how a Step and a package point to this script. Left blank, we build one from the name. It does not change once created.',
+  'script.id.locked':
+    'The identifier does not change once the script is created — the Steps and packages pointing to it would stop finding it.',
+  'script.id.placeholder': 'e.g. compute-deadline',
+  'script.inputs': 'Input parameters',
+  'script.inputs.hint': 'They are available in the code through the input object (e.g. input.orderId).',
+  'script.name.placeholder': 'e.g. Compute procedural deadline',
+  'script.new': 'New Script',
+  'script.outputs': 'Output parameters',
+  'script.outputs.hint': 'They declare what the script returns, to ease its use in the following Steps.',
+  'script.query-doc': 'How to query the database (query function)',
+  'script.query-doc.example.city': 'People from a city who have an e-mail on file',
+  'script.query-doc.example.count': 'Count cases with a claim value above 10,000',
+  'script.query-doc.example.recent': 'Active cases, newest to oldest',
+  'script.query-doc.examples': 'Examples',
+  'script.query-doc.lead':
+    'The query function fetches records from the organization data. It is asynchronous: always use await. It takes a configuration object and returns { count, results, first }.',
+  'script.query-doc.limit': 'The maximum number of records returned. Default 50, ceiling of 100.',
+  'script.query-doc.limit.await': 'Always use await when calling query.',
+  'script.query-doc.limit.count': 'At most 25 queries per script run.',
+  'script.query-doc.limit.scan': 'Filters and sorting scan up to 300 records per query.',
+  'script.query-doc.limits': 'Limits',
+  'script.query-doc.op.contains': 'contains',
+  'script.query-doc.op.eq': 'equal to',
+  'script.query-doc.op.exists': 'is filled in',
+  'script.query-doc.op.gt': 'greater than',
+  'script.query-doc.op.gte': 'greater than or equal to',
+  'script.query-doc.op.in': 'is in the list',
+  'script.query-doc.op.lt': 'less than',
+  'script.query-doc.op.lte': 'less than or equal to',
+  'script.query-doc.op.neq': 'different from',
+  'script.query-doc.op.note': 'exists does not use value. For in, value is a list.',
+  'script.query-doc.operators': 'Operators (op)',
+  'script.query-doc.order-by':
+    "Sorting, in the { path, dir } shape, with dir equal to 'asc' (ascending) or 'desc' (descending).",
+  'script.query-doc.projections':
+    'A list of fields to load in full, including data from referenced entities using a dot (e.g. client.name). Without projections, each record brings only its direct fields.',
+  'script.query-doc.settings': 'Settings',
+  'script.query-doc.signature':
+    "const result = await query({ table: 'cases', where: [...] });\n// result.count   → how many records came back\n// result.results → the list of records\n// result.first   → the first record (or null)",
+  'script.query-doc.table':
+    'The table to query: one of the organization collections, or the identifier of a custom screen.',
+  'script.query-doc.where':
+    'A list of filters, each in the { path, op, value } shape. All of them are combined with AND (all must be true). path is the field, accepting a dot for nested fields (e.g. address.city).',
+  'script.run': 'Run (Debug)',
+  'script.run.label': 'Run Script',
+  'script.run.title': 'Run: {name}',
+  'script.deleted': 'Script deleted.',
+  'script.error.empty': 'The script code is empty.',
+  'script.error.invalid': 'Invalid code.',
+  'script.error.no-modules':
+    'Scripts cannot use import, export or require. Use only the "input" object and "fn.*".',
+  'script.starter.comments':
+    "  // 'input' holds the input parameters configured in the Step.\n  // 'fn.*' exposes the expression functions (e.g. fn.formatDate, fn.dateDiff).\n  // 'query(...)' reads the organization records (asynchronous):\n  //   const r = await query({ table: 'cases',\n  //     where: [{ path: 'clientId', op: 'eq', value: input.clientId }],\n  //     projections: ['title'], limit: 10 });\n  //   // r = { count, results, first }",
+  'script.starter.return-comment':
+    "    // fill in the declared output parameters here",
 };

@@ -23,6 +23,7 @@ const MIGRATED_TO_SOURCE_LANGUAGE = [
   'src/presentation/pages/Marketplace/**/*.{ts,tsx}',
   'src/presentation/shared/**/*.{ts,tsx}',
   'src/presentation/pages/Actions/**/*.{ts,tsx}',
+  'src/presentation/pages/ViewScript/**/*.{ts,tsx}',
   'src/domain/schema/plugin/**/*.{ts,tsx}',
   'src/domain/usecases/plugins/pluginReferences.ts',
   'src/domain/usecases/plugins/packageSerialization.ts',
@@ -98,6 +99,8 @@ export default defineConfig([
       // têm como ser traduzidas em tempo de execução. Elas devem ir para o inglês — é trabalho
       // pendente, registrado no ARCHITECTURE.md, e não cabia junto da migração de interface.
       'src/presentation/shared/extensions/extensionTypeDefs.ts',
+      // Mesma natureza: as definições de tipo que viram IntelliSense para quem escreve um Script.
+      'src/presentation/pages/ViewScript/scriptTypeDefs.ts',
       // Comentário de CSS vive DENTRO do template literal, e comentário continua em português. Num
       // arquivo de estilo não há texto de usuário para proteger, então ele fica fora da zona.
       '**/*.styles.tsx',
@@ -113,7 +116,7 @@ export default defineConfig([
         // código. Sem essa exceção, a alternativa seria dissolver a marcação dentro da frase
         // traduzida e perder a distinção visual entre prosa e símbolo numa dica técnica.
         {
-          selector: "JSXElement:not([openingElement.name.name='code']) > JSXText[value=/[A-Za-zÀ-ÿ]{2}/]",
+          selector: "JSXElement:not([openingElement.name.name='code']):not([openingElement.name.property.name=/^(Code|Pre|Signature|OpName|ParamName)$/]) > JSXText[value=/[A-Za-zÀ-ÿ]{2}/]",
           message: 'Texto solto no JSX. Todo texto de usuário vem do catálogo: renderize {t(\'chave\')} em vez de escrever a frase. Nome próprio (marca) precisa de eslint-disable-next-line com justificativa.',
         },
         {

@@ -8,6 +8,7 @@ import type { WorkflowParameter, WorkflowParameterType } from '../../../../../do
 import type { SearchSelectOption } from '../../../../components/ui/SearchSelect';
 
 import { useT } from '../../../../shared/i18n/useT';
+import { PARAMETER_TYPE_KEYS } from '../../../../shared/parameterTypeKeys';
 
 export interface ValidateBuilderControlProps {
   value: ValidateStepConfig | undefined;
@@ -15,17 +16,6 @@ export interface ValidateBuilderControlProps {
 }
 
 const EMPTY_CONFIG: ValidateStepConfig = { source: 'input', outputName: '' };
-
-const PARAMETER_TYPE_KEYS: Record<WorkflowParameterType, string> = {
-  String: 'parameter.type.string',
-  Number: 'parameter.type.number',
-  Date: 'parameter.type.date',
-  Boolean: 'parameter.type.boolean-label',
-  select: 'parameter.type.select',
-  lookup: 'parameter.type.lookup',
-  EntityReference: 'parameter.type.entity-record',
-  Object: 'parameter.type.object-short',
-};
 
 export interface ValidateBuilderControlViewModel {
   config: ValidateStepConfig;

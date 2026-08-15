@@ -22,48 +22,44 @@ import type { Script, ScriptOutputParam } from '../../../domain/entities/Script'
 import type { WorkflowParameter } from '../../../domain/entities/Workflow';
 import type { RunModalResult } from '../../components/ui/RunModal';
 
-import { useT } from '../../shared/i18n/useT';
+import { useT, type TranslateFn } from '../../shared/i18n/useT';
+import { PARAMETER_TYPE_KEYS } from '../../shared/parameterTypeKeys';
 
-const DEFAULT_SOURCE = `async function main() {
-  // 'input' contém os parâmetros de entrada configurados no Step.
-  // 'fn.*' expõe as funções de expressão (ex: fn.formatDate, fn.dateDiff).
-  // 'query(...)' consulta os cadastros do escritório (assíncrono):
-  //   const r = await query({ table: 'cases',
-  //     where: [{ path: 'clientId', op: 'eq', value: input.clientId }],
-  //     projections: ['title'], limit: 10 });
-  //   // r = { count, results, first }
+/**
+ * O esqueleto que aparece num script novo. Os COMENTÁRIOS dele são texto de usuário — quem escreve o
+ * script os lê —, então vêm do catálogo como qualquer outra frase, num bloco só.
+ */
+const defaultSource = (t: TranslateFn): string => `async function main() {
+${t('script.starter.comments')}
   return {
-    // preencha aqui os parâmetros de saída declarados
+${t('script.starter.return-comment')}
   };
 }
 
 main();
 `;
 
-export const SCRIPT_PARAMETER_TYPE_OPTIONS: { value: WorkflowParameter['type']; label: string }[] = [
-  { value: 'String', label: 'Texto' },
-  { value: 'Number', label: 'Número' },
-  { value: 'Date', label: 'Data' },
-  { value: 'Boolean', label: 'Booleano' },
-  { value: 'select', label: 'Lista de opções' },
-  { value: 'lookup', label: 'Lista do escritório' },
-  { value: 'EntityReference', label: 'Referência a entidade' },
-  { value: 'Object', label: 'Objeto (aninhado)' },
-];
+export const scriptParameterTypeOptions = (
+  t: TranslateFn,
+): { value: WorkflowParameter['type']; label: string }[] =>
+  (Object.keys(PARAMETER_TYPE_KEYS) as WorkflowParameter['type'][]).map((type) => ({
+    value: type,
+    label: t(PARAMETER_TYPE_KEYS[type]),
+  }));
 
 const sanitizeInputParams = sanitizeWorkflowParameters;
 const sanitizeOutputParams = sanitizeScriptOutputParams;
 
 const transpile = (sourceTs: string): { compiledJs: string } | { error: string } => {
   if (/\b(import|export)\b/.test(sourceTs) || /\brequire\s*\(/.test(sourceTs)) {
-    return { error: 'Scripts não podem usar import, export ou require. Use apenas o objeto "input" e "fn.*".' };
+    return { error: '@core.automation/script.error.no-modules' };
   }
   try {
     const result = transform(sourceTs, { transforms: ['typescript'], disableESTransforms: true });
-    if (!result.code.trim()) return { error: 'O código do script está vazio.' };
+    if (!result.code.trim()) return { error: '@core.automation/script.error.empty' };
     return { compiledJs: result.code };
   } catch (error) {
-    return { error: error instanceof Error ? error.message : 'Código inválido.' };
+    return { error: error instanceof Error ? error.message : '@core.automation/script.error.invalid' };
   }
 };
 
@@ -77,11 +73,11 @@ export interface ScriptFormData {
   outputParams: ScriptOutputParam[];
 }
 
-const buildForm = (script: Script | null): ScriptFormData => ({
+const buildForm = (script: Script | null, t: TranslateFn): ScriptFormData => ({
   scriptId: script?.id ?? '',
   name: script?.name ?? '',
   description: script?.description ?? '',
-  sourceTs: script?.sourceTs ?? DEFAULT_SOURCE,
+  sourceTs: script?.sourceTs ?? defaultSource(t),
   inputParams: script?.inputParams ?? [],
   outputParams: script?.outputParams ?? [],
 });
@@ -145,7 +141,7 @@ export const useViewScriptViewModel = (tabKey: string): ViewScriptViewModel => {
     [isNew, scripts, scriptId],
   );
 
-  const [formData, setFormDataState] = useState<ScriptFormData>(() => buildForm(null));
+  const [formData, setFormDataState] = useState<ScriptFormData>(() => buildForm(null, t));
 
   const suggestedScriptId = useMemo(
     () => (formData.name.trim() ? deriveArtifactId(formData.name, takenScriptIds) : ''),
@@ -179,9 +175,9 @@ export const useViewScriptViewModel = (tabKey: string): ViewScriptViewModel => {
   useEffect(() => {
     if (script) {
       // eslint-disable-next-line react-hooks/set-state-in-effect -- sincroniza formulário com script carregado da store
-      setFormDataState(buildForm(script));
+      setFormDataState(buildForm(script, t));
     }
-  }, [script]);
+  }, [script, t]);
 
   useEffect(() => {
     if (script) setTabTitle(tabKey, script.name || 'Script');
@@ -315,7 +311,7 @@ export const useViewScriptViewModel = (tabKey: string): ViewScriptViewModel => {
   const runScriptForModal = useCallback(
     async (providedParams: Record<string, unknown>): Promise<RunModalResult> => {
       if (!currentTenant) {
-        return { status: 'FAILED', outputs: null, logs: [], error: 'Nenhum escritório selecionado.' };
+        return { status: 'FAILED', outputs: null, logs: [], error: t('core.ui/tenant.none-selected') };
       }
       const compiled = transpile(formData.sourceTs);
       if ('error' in compiled) {
@@ -343,7 +339,7 @@ export const useViewScriptViewModel = (tabKey: string): ViewScriptViewModel => {
         };
       }
     },
-    [currentTenant, formData.sourceTs, formData.inputParams, scriptRepository],
+    [currentTenant, formData.sourceTs, formData.inputParams, scriptRepository, t],
   );
 
   const handleDelete = useCallback(() => {
@@ -356,7 +352,7 @@ export const useViewScriptViewModel = (tabKey: string): ViewScriptViewModel => {
     if (!scriptToDelete) return;
     try {
       await deleteScript(scriptToDelete.id);
-      notify('Script excluído.', 'success');
+      notify(t('script.deleted'), 'success');
       closeTab(tabKey, activePanelId);
     } catch (error) {
       console.error('[ViewScript] confirmDelete:', error);
@@ -364,7 +360,7 @@ export const useViewScriptViewModel = (tabKey: string): ViewScriptViewModel => {
     } finally {
       setScriptToDelete(null);
     }
-  }, [scriptToDelete, deleteScript, notify, closeTab, tabKey, activePanelId]);
+  }, [scriptToDelete, deleteScript, notify, closeTab, tabKey, activePanelId, t]);
 
   return {
     isNew,
@@ -374,7 +370,7 @@ export const useViewScriptViewModel = (tabKey: string): ViewScriptViewModel => {
     formData,
     scriptTypeDefs,
     setFormData,
-    typeOptions: SCRIPT_PARAMETER_TYPE_OPTIONS,
+    typeOptions: scriptParameterTypeOptions(t),
     entityOptions,
     lookupOptions,
     inputParamErrors,

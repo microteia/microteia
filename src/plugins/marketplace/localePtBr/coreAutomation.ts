@@ -333,4 +333,71 @@ export const CORE_AUTOMATION: Record<string, string> = {
   'actions.create-first': 'Criar primeira ação',
   'actions.disabled-suffix': '(desativada)',
   'actions.delete.title': 'Excluir Ação',
+  'script.code': 'Código',
+  'script.code.notice':
+    'O código roda em um ambiente isolado e seguro, sem acesso à internet nem a bibliotecas externas. Use o objeto input, as funções fn.* e as funções de dados query(...), upsert(...) e remove(...) para acessar os cadastros do escritório. Retorne um objeto com os parâmetros de saída.',
+  'script.data-functions.link': 'Ver funções de dados (query, upsert, remove)',
+  'script.delete': 'Excluir script',
+  'script.delete.message':
+    'Tem certeza que deseja excluir o script "{name}"? Steps que o utilizam deixarão de funcionar.',
+  'script.delete.title': 'Excluir Script',
+  'script.description.placeholder': 'O que este script faz...',
+  'script.fallback-name': 'Script',
+  'script.id.hint':
+    'É por ele que um Step e um pacote apontam para este script. Em branco, criamos um a partir do nome. Não muda depois de criado.',
+  'script.id.locked':
+    'O identificador não muda depois que o script é criado — os Steps e os pacotes que apontam para ele deixariam de encontrá-lo.',
+  'script.id.placeholder': 'ex: calcular-prazo',
+  'script.inputs': 'Parâmetros de entrada',
+  'script.inputs.hint': 'Ficam disponíveis no código pelo objeto input (ex: input.orderId).',
+  'script.name.placeholder': 'ex: Calcular prazo processual',
+  'script.new': 'Novo Script',
+  'script.outputs': 'Parâmetros de saída',
+  'script.outputs.hint': 'Declaram o que o script retorna, para facilitar o uso nos Steps seguintes.',
+  'script.query-doc': 'Como consultar o banco (função query)',
+  'script.query-doc.example.city': 'Pessoas de uma cidade que tenham e-mail cadastrado',
+  'script.query-doc.example.count': 'Contar processos com valor de causa acima de R$ 10.000',
+  'script.query-doc.example.recent': 'Processos ativos, do mais recente ao mais antigo',
+  'script.query-doc.examples': 'Exemplos',
+  'script.query-doc.lead':
+    'A função query busca registros dos cadastros do escritório. Ela é assíncrona: use sempre await. Recebe um objeto de configuração e devolve { count, results, first }.',
+  'script.query-doc.limit': 'Quantidade máxima de registros retornados. Padrão 50, teto de 100.',
+  'script.query-doc.limit.await': 'Sempre use await ao chamar query.',
+  'script.query-doc.limit.count': 'No máximo 25 consultas por execução do script.',
+  'script.query-doc.limit.scan': 'Os filtros e a ordenação percorrem até 300 registros por consulta.',
+  'script.query-doc.limits': 'Limites',
+  'script.query-doc.op.contains': 'contém',
+  'script.query-doc.op.eq': 'igual a',
+  'script.query-doc.op.exists': 'está preenchido',
+  'script.query-doc.op.gt': 'maior que',
+  'script.query-doc.op.gte': 'maior ou igual a',
+  'script.query-doc.op.in': 'está na lista',
+  'script.query-doc.op.lt': 'menor que',
+  'script.query-doc.op.lte': 'menor ou igual a',
+  'script.query-doc.op.neq': 'diferente de',
+  'script.query-doc.op.note': 'exists não usa value. Para in, value é uma lista.',
+  'script.query-doc.operators': 'Operadores (op)',
+  'script.query-doc.order-by':
+    "Ordenação, no formato { path, dir }, com dir igual a 'asc' (crescente) ou 'desc' (decrescente).",
+  'script.query-doc.projections':
+    'Lista de campos a carregar por completo, inclusive dados de entidades referenciadas usando ponto (ex: client.name). Sem projeções, cada registro traz apenas seus campos diretos.',
+  'script.query-doc.settings': 'Configurações',
+  'script.query-doc.signature':
+    "const resultado = await query({ table: 'cases', where: [...] });\n// resultado.count   → quantos registros vieram\n// resultado.results → a lista de registros\n// resultado.first   → o primeiro registro (ou null)",
+  'script.query-doc.table':
+    'A tabela a consultar: uma das coleções do escritório, ou o identificador de uma tela personalizada.',
+  'script.query-doc.where':
+    'Lista de filtros, cada um no formato { path, op, value }. Todos são combinados com E (todos precisam ser verdadeiros). path é o campo, aceitando ponto para campos aninhados (ex: address.city).',
+  'script.run': 'Executar (Debug)',
+  'script.run.label': 'Executar Script',
+  'script.run.title': 'Executar: {name}',
+  'script.deleted': 'Script excluído.',
+  'script.error.empty': 'O código do script está vazio.',
+  'script.error.invalid': 'Código inválido.',
+  'script.error.no-modules':
+    'Scripts não podem usar import, export ou require. Use apenas o objeto "input" e "fn.*".',
+  'script.starter.comments':
+    "  // 'input' contém os parâmetros de entrada configurados no Step.\n  // 'fn.*' expõe as funções de expressão (ex: fn.formatDate, fn.dateDiff).\n  // 'query(...)' consulta os cadastros do escritório (assíncrono):\n  //   const r = await query({ table: 'cases',\n  //     where: [{ path: 'clientId', op: 'eq', value: input.clientId }],\n  //     projections: ['title'], limit: 10 });\n  //   // r = { count, results, first }",
+  'script.starter.return-comment':
+    "    // preencha aqui os parâmetros de saída declarados",
 };
