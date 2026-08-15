@@ -11,7 +11,7 @@ const isPlainObject = (value: unknown): value is Record<string, unknown> =>
 export const makeValidateStepDefinition = (screenProvider: IScreenDefinitionProvider): StepDefinition => ({
   id: 'validate-object',
   version: 1,
-  name: 'Validar Objeto',
+  name: '@core.automation/step.validate-object.name',
   description:
     'Valida e formata um objeto vindo do evento ou dos steps anteriores, seja pelo schema de um cadastro conhecido, seja por parâmetros próprios. Falha o workflow quando algum campo não passa nas regras, e devolve o objeto já validado e formatado.',
   icon: 'RiShieldCheckLine',
@@ -21,7 +21,7 @@ export const makeValidateStepDefinition = (screenProvider: IScreenDefinitionProv
   inputs: [
     {
       id: 'validate',
-      label: 'Validação',
+      label: '@core.automation/step.validate-object.label.validacao',
       required: true,
       type: 'Validate',
       allowedMappingKinds: ['Literal'],
@@ -31,7 +31,7 @@ export const makeValidateStepDefinition = (screenProvider: IScreenDefinitionProv
   dynamicOutputs: {
     kind: 'from-validate-config',
     sourceInputId: 'validate',
-    description: 'Objeto validado e formatado por este step',
+    description: '@core.automation/step.validate-object.description',
   },
   createExecutor: (): WorkflowStepExecutor => ({
     execute: async (inputs, context) => {

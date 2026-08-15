@@ -10,7 +10,7 @@ const isPlainObject = (value: unknown): value is Record<string, unknown> =>
 export const makeUpsertStepDefinition = (deps: WorkflowMutationDeps): StepDefinition => ({
   id: 'upsert',
   version: 2,
-  name: 'Gravar Registro',
+  name: '@core.automation/step.upsert.name',
   description:
     'Inclui ou atualiza um registro de qualquer cadastro do escritório (fixo, personalizado ou lista) a partir de um objeto pronto vindo dos steps anteriores ou do evento. Se o objeto tiver um id, atualiza; senão, inclui.',
   icon: 'RiSaveLine',
@@ -20,16 +20,16 @@ export const makeUpsertStepDefinition = (deps: WorkflowMutationDeps): StepDefini
   inputs: [
     {
       id: 'upsert',
-      label: 'Gravação',
+      label: '@core.automation/step.upsert.label.gravacao',
       required: true,
       type: 'Upsert',
       allowedMappingKinds: ['Literal'],
     },
   ],
   outputDefinitions: [
-    { id: 'id', label: 'Id do registro gravado', type: 'String' },
-    { id: 'created', label: 'Foi incluído (novo)', type: 'Boolean' },
-    { id: 'record', label: 'Registro gravado', type: 'String' },
+    { id: 'id', label: '@core.automation/step.upsert.label.id-do-registro-gravado', type: 'String' },
+    { id: 'created', label: '@core.automation/step.upsert.label.foi-incluido-novo', type: 'Boolean' },
+    { id: 'record', label: '@core.automation/step.upsert.label.registro-gravado', type: 'String' },
   ],
   createExecutor: (): WorkflowStepExecutor => ({
     execute: async (inputs, context) => {

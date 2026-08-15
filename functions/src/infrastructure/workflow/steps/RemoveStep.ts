@@ -7,7 +7,7 @@ import type { WorkflowMutationDeps } from '../mutation/runWorkflowMutation';
 export const makeRemoveStepDefinition = (deps: WorkflowMutationDeps): StepDefinition => ({
   id: 'remove',
   version: 1,
-  name: 'Excluir Registro',
+  name: '@core.automation/step.remove.name',
   description:
     'Exclui um registro de qualquer cadastro do escritório (fixo, personalizado ou lista) pelo seu id. Exclui apenas o registro informado, sem cascata.',
   icon: 'RiDeleteBin6Line',
@@ -17,15 +17,15 @@ export const makeRemoveStepDefinition = (deps: WorkflowMutationDeps): StepDefini
   inputs: [
     {
       id: 'remove',
-      label: 'Exclusão',
+      label: '@core.automation/step.remove.label.exclusao',
       required: true,
       type: 'Remove',
       allowedMappingKinds: ['Literal'],
     },
   ],
   outputDefinitions: [
-    { id: 'id', label: 'Id do registro', type: 'String' },
-    { id: 'removed', label: 'Foi excluído', type: 'Boolean' },
+    { id: 'id', label: '@core.automation/step.remove.label.id-do-registro', type: 'String' },
+    { id: 'removed', label: '@core.automation/step.remove.label.foi-excluido', type: 'Boolean' },
   ],
   createExecutor: (): WorkflowStepExecutor => ({
     execute: async (inputs, context) => {

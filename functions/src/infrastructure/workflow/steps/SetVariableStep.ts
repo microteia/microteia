@@ -32,8 +32,8 @@ const validateVariableName = (value: unknown): string | undefined => {
 export const makeSetVariableStepDefinition = (): StepDefinition => ({
   id: 'set-variable',
   version: 2,
-  name: 'Variável',
-  description: 'Grava um valor em uma variável do workflow, para ser lido por steps seguintes.',
+  name: '@core.automation/step.set-variable.name',
+  description: '@core.automation/step.set-variable.description',
   icon: 'RiBracesLine',
   category: 'Data',
   type: 'Action',
@@ -41,7 +41,7 @@ export const makeSetVariableStepDefinition = (): StepDefinition => ({
   inputs: [
     { 
       id: 'name', 
-      label: 'Nome da variável', 
+      label: '@core.automation/step.set-variable.label.nome-da-variavel', 
       required: true, 
       type: 'String',
       allowedMappingKinds: ['Literal'],
@@ -49,13 +49,13 @@ export const makeSetVariableStepDefinition = (): StepDefinition => ({
       patternMessage: 'O nome deve começar com letra, underscore ou $ e conter apenas letras, números, underscore ou $',
       validator: validateVariableName,
     },
-    { id: 'value', label: 'Valor', required: true, type: 'Expression' },
+    { id: 'value', label: '@core.automation/step.set-variable.label.valor', required: true, type: 'Expression' },
   ],
   outputDefinitions: [],
   dynamicOutputs: {
     kind: 'from-input-field',
     sourceInputId: 'name',
-    description: 'Variável definida por este step',
+    description: '@core.automation/step.set-variable.description',
   },
   createExecutor: (): WorkflowStepExecutor => ({
     execute: async (inputs, context) => {

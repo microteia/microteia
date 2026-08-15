@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [7.28.0] — 2026-08-15
+
+- O catálogo de Steps das automações passou a acompanhar o idioma escolhido: o nome e a descrição de cada Step, e os rótulos dos campos que ele pede e das saídas que devolve.
+
 #### [7.27.0] — 2026-08-15
 
 - A Referência de Expressões passou a acompanhar o idioma escolhido: a descrição e a categoria de cada função e operador.

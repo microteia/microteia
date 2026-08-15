@@ -12,8 +12,8 @@ export const makeQueryStepDefinition = (
 ): StepDefinition => ({
   id: 'query',
   version: 1,
-  name: 'Buscar Registros',
-  description: 'Pesquisa registros de qualquer cadastro do escritório (fixo, personalizado ou lista) para usar nos próximos passos.',
+  name: '@core.automation/step.query.name',
+  description: '@core.automation/step.query.description',
   icon: 'RiSearchLine',
   category: 'Data',
   type: 'Action',
@@ -21,21 +21,21 @@ export const makeQueryStepDefinition = (
   inputs: [
     {
       id: 'query',
-      label: 'Consulta',
+      label: '@core.automation/step.query.label.consulta',
       required: true,
       type: 'Query',
       allowedMappingKinds: ['Literal'],
     },
   ],
   outputDefinitions: [
-    { id: 'count', label: 'Quantidade encontrada', type: 'Number' },
-    { id: 'results', label: 'Resultados (lista)', type: 'String' },
-    { id: 'first', label: 'Primeiro resultado', type: 'String' },
+    { id: 'count', label: '@core.automation/step.query.label.quantidade-encontrada', type: 'Number' },
+    { id: 'results', label: '@core.automation/step.query.label.resultados-lista', type: 'String' },
+    { id: 'first', label: '@core.automation/step.query.label.primeiro-resultado', type: 'String' },
   ],
   dynamicOutputs: {
     kind: 'from-query-projections',
     sourceInputId: 'query',
-    description: 'Cada projeção escolhida vira uma saída "first.<projeção>" (ex: first.client.name), além de results/count/first.',
+    description: '@core.automation/step.query.description',
   },
   createExecutor: (): WorkflowStepExecutor => ({
     execute: async (inputs, context) => {

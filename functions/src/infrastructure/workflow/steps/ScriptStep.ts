@@ -18,8 +18,8 @@ export const makeScriptStepDefinition = (
 ): StepDefinition => ({
   id: 'script',
   version: 1,
-  name: 'Script',
-  description: 'Executa um Script (código) reutilizável dentro de um sandbox isolado.',
+  name: '@core.automation/step.script.name',
+  description: '@core.automation/step.script.description',
   icon: 'RiCodeBoxLine',
   category: 'Integration',
   type: 'Script',
@@ -27,7 +27,7 @@ export const makeScriptStepDefinition = (
   inputs: [
     {
       id: 'scriptId',
-      label: 'Script',
+      label: '@core.automation/step.script.label.script',
       required: true,
       type: 'String',
       allowedMappingKinds: ['Literal'],

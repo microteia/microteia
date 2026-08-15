@@ -12,8 +12,8 @@ const PARAM_PREFIX = 'param.';
 export const makeCallWorkflowStepDefinition = (runCalledWorkflow: RunCalledWorkflowUseCase): StepDefinition => ({
   id: 'call-workflow',
   version: 1,
-  name: 'Chamar Workflow',
-  description: 'Dispara outro workflow, passando valores para os parâmetros dele.',
+  name: '@core.automation/step.call-workflow.name',
+  description: '@core.automation/step.call-workflow.description',
   icon: 'RiFlowChart',
   category: 'Action',
   type: 'SubWorkflow',
@@ -21,14 +21,14 @@ export const makeCallWorkflowStepDefinition = (runCalledWorkflow: RunCalledWorkf
   inputs: [
     {
       id: 'targetWorkflowId',
-      label: 'Workflow a chamar',
+      label: '@core.automation/step.call-workflow.label.workflow-a-chamar',
       required: true,
       type: 'String',
       allowedMappingKinds: ['Literal'],
     },
     {
       id: 'waitForResult',
-      label: 'Aguardar retorno',
+      label: '@core.automation/step.call-workflow.label.aguardar-retorno',
       description:
         'Se ativado, executa o workflow-alvo e espera terminar, disponibilizando as saídas dele (as "Saída do Workflow") para os próximos passos. Se desativado, apenas dispara o workflow e segue em frente sem esperar.',
       required: false,
@@ -42,7 +42,7 @@ export const makeCallWorkflowStepDefinition = (runCalledWorkflow: RunCalledWorkf
   dynamicOutputs: {
     kind: 'from-target-workflow-outputs',
     sourceInputId: 'targetWorkflowId',
-    description: 'Cada "Saída do Workflow" do workflow-alvo vira uma saída deste passo (só quando "Aguardar retorno" está ativo).',
+    description: '@core.automation/step.call-workflow.description',
   },
   createExecutor: (): WorkflowStepExecutor => ({
     execute: async (inputs, context) => {

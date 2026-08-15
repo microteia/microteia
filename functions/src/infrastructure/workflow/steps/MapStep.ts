@@ -5,7 +5,7 @@ import type { MapStepConfig } from '../../../domain/schema/mapSpec';
 export const makeMapStepDefinition = (): StepDefinition => ({
   id: 'map',
   version: 1,
-  name: 'Montar Objeto',
+  name: '@core.automation/step.map.name',
   description:
     'Monta campos a partir de mapeamentos (nome e valor). Com um nome informado, agrupa tudo num objeto nomeado (útil para gravar com o step Gravar Registro). Sem nome, cada campo fica disponível diretamente como saída do step.',
   icon: 'RiBracketsLine',
@@ -15,7 +15,7 @@ export const makeMapStepDefinition = (): StepDefinition => ({
   inputs: [
     {
       id: 'map',
-      label: 'Objeto',
+      label: '@core.automation/step.map.label.objeto',
       required: true,
       type: 'Map',
       allowedMappingKinds: ['Literal'],
@@ -25,7 +25,7 @@ export const makeMapStepDefinition = (): StepDefinition => ({
   dynamicOutputs: {
     kind: 'from-map-config',
     sourceInputId: 'map',
-    description: 'Objeto montado por este step',
+    description: '@core.automation/step.map.description',
   },
   createExecutor: (): WorkflowStepExecutor => ({
     execute: async (inputs, context) => {

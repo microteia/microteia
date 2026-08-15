@@ -4,15 +4,15 @@ import type { CreateAuditLogUseCase } from '../../../domain/usecases/CreateAudit
 export const makeNotifyStepDefinition = (createAuditLogUseCase: CreateAuditLogUseCase): StepDefinition => ({
   id: 'notify',
   version: 1,
-  name: 'Notificar',
-  description: 'Gera um alerta de severidade crítica, visível no sino de notificações do escritório.',
+  name: '@core.automation/step.notify.name',
+  description: '@core.automation/step.notify.description',
   icon: 'RiNotification3Line',
   category: 'Notification',
   type: 'Action',
   configurable: true,
   inputs: [
-    { id: 'title', label: 'Título', required: true, type: 'String' },
-    { id: 'message', label: 'Mensagem', required: true, type: 'String' },    
+    { id: 'title', label: '@core.automation/step.notify.label.titulo', required: true, type: 'String' },
+    { id: 'message', label: '@core.automation/step.notify.label.mensagem', required: true, type: 'String' },    
   ],
   outputDefinitions: [],
   createExecutor: (): WorkflowStepExecutor => ({

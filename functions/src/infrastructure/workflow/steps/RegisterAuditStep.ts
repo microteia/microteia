@@ -5,32 +5,32 @@ import type { CreateAuditLogUseCase } from '../../../domain/usecases/CreateAudit
 export const makeRegisterAuditStepDefinition = (createAuditLogUseCase: CreateAuditLogUseCase): StepDefinition => ({
   id: 'register-audit',
   version: 1,
-  name: 'Registrar Auditoria',
-  description: 'Grava uma entrada no histórico de auditoria do escritório, sem gerar alerta.',
+  name: '@core.automation/step.register-audit.name',
+  description: '@core.automation/step.register-audit.description',
   icon: 'RiFileHistoryLine',
   category: 'Action',
   type: 'Action',
   configurable: true,
   inputs: [
-    { id: 'title', label: 'Título', required: true, type: 'String' },
-    { id: 'message', label: 'Mensagem', required: true, type: 'String' },
+    { id: 'title', label: '@core.automation/step.register-audit.label.titulo', required: true, type: 'String' },
+    { id: 'message', label: '@core.automation/step.register-audit.label.mensagem', required: true, type: 'String' },
     { 
       id: 'severity', 
-      label: 'Severidade', 
+      label: '@core.automation/step.register-audit.label.severidade', 
       required: true, 
       type: 'String',
       options: {
         kind: 'Static',
         options: [
-          { value: 'LOW', label: 'Baixa', color: 'info' },
-          { value: 'HIGH', label: 'Alta', color: 'warning' },
-          { value: 'CRITICAL', label: 'Crítica', color: 'danger' },
+          { value: 'LOW', label: '@core.automation/step.register-audit.label.baixa', color: 'info' },
+          { value: 'HIGH', label: '@core.automation/step.register-audit.label.alta', color: 'warning' },
+          { value: 'CRITICAL', label: '@core.automation/step.register-audit.label.critica', color: 'danger' },
         ]
       },
       defaultValue: 'LOW',
     },
-    { id: 'entity', label: 'Entidade relacionada', required: false, type: 'String', defaultValue: 'workflow' },
-    { id: 'entityId', label: 'Id da entidade relacionada', required: false, type: 'String' },
+    { id: 'entity', label: '@core.automation/step.register-audit.label.entidade-relacionada', required: false, type: 'String', defaultValue: 'workflow' },
+    { id: 'entityId', label: '@core.automation/step.register-audit.label.id-da-entidade-relacionada', required: false, type: 'String' },
   ],
   outputDefinitions: [],
   createExecutor: (): WorkflowStepExecutor => ({

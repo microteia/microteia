@@ -3,7 +3,7 @@ import type { StepDefinition, WorkflowStepExecutor } from '../../../domain/engin
 export const makeExitStepDefinition = (): StepDefinition => ({
   id: 'exit',
   version: 1,
-  name: 'Encerrar Workflow',
+  name: '@core.automation/step.exit.name',
   description:
     'Encerra o workflow neste ponto e devolve as saídas do step anterior como resultado. Útil para sair de dentro de um ramo de condição ou de uma repetição sem executar os steps seguintes.',
   icon: 'RiLogoutBoxRLine',
