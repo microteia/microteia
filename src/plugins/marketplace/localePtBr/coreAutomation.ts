@@ -490,4 +490,11 @@ export const CORE_AUTOMATION: Record<string, string> = {
   'data-fn.upsert.returns':
     'id (do registro gravado), created (true se incluído) e record (registro gravado).',
   'data-fn.upsert.table': 'Cadastro a gravar (fixo, personalizado ou lista).',
+  'action.command.clone': 'Abrir uma cópia do registro',
+  'action.command.close': 'Fechar a aba',
+  'action.command.delete': 'Excluir o registro',
+  'action.command.merge': 'Mesclar o resultado nos dados da tela',
+  'action.command.refresh': 'Recarregar o registro do servidor',
+  'action.command.replace': 'Substituir os dados da tela pelo resultado',
+  'action.command.save': 'Gravar o registro',
 };

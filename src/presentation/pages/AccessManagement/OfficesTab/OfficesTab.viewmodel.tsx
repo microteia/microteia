@@ -9,7 +9,7 @@ import type { Tenant, TenantPlan } from '../../../../domain/entities';
 import type { FilterDef, FilterToken } from '../../../components/ui/CompositeFilter';
 import type { SearchSelectOption } from '../../../components/ui/SearchSelect';
 
-import { useT } from '../../../shared/i18n/useT';
+import { useT, useLabel } from '../../../shared/i18n/useT';
 export interface OfficesTabViewModel {
   loading: boolean;
   error: string | null;
@@ -31,6 +31,7 @@ export interface OfficesTabViewModel {
 
 export const useOfficesTabViewModel = (): OfficesTabViewModel => {
   const t = useT('core.admin');
+  const label = useLabel();
   const { tenantRepository } = useDI();
   const { notify } = useNotification();
 
@@ -47,8 +48,8 @@ export const useOfficesTabViewModel = (): OfficesTabViewModel => {
   const updateTenantUseCase = useMemo(() => makeUpdateTenantUseCase(tenantRepository), [tenantRepository]);
 
   const planOptions = useMemo<SearchSelectOption[]>(
-    () => TENANT_PLANS.map((p) => ({ value: p, label: TENANT_PLAN_LABELS[p] })),
-    [],
+    () => TENANT_PLANS.map((plan) => ({ value: plan, label: label(TENANT_PLAN_LABELS[plan]) })),
+    [ label],
   );
 
   useEffect(() => {

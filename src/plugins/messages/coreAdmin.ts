@@ -224,4 +224,5 @@ export const CORE_ADMIN_MESSAGES: Record<string, string> = {
   'processor.text.placeholder': 'Paste the free text here, or select a PDF and choose the page you want…',
   'processor.workflow.has-references': 'It has reference parameters (not supported yet).',
   'processor.workflows.empty': 'No automation registered with the "Called by another workflow" trigger.',
+  'plan.office': 'Office',
 };

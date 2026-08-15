@@ -92,13 +92,13 @@ export const ACTION_COMMAND_ORDER: readonly ActionLocalCommand[] = [
 ] as const;
 
 export const ACTION_COMMAND_LABELS: Record<ActionLocalCommand, string> = {
-  replace: 'Substituir os dados da tela pelo resultado',
-  merge: 'Mesclar o resultado nos dados da tela',
-  save: 'Gravar o registro',
-  refresh: 'Recarregar o registro do servidor',
-  clone: 'Abrir uma cópia do registro',
-  delete: 'Excluir o registro',
-  close: 'Fechar a aba',
+  replace: '@core.automation/action.command.replace',
+  merge: '@core.automation/action.command.merge',
+  save: '@core.automation/action.command.save',
+  refresh: '@core.automation/action.command.refresh',
+  clone: '@core.automation/action.command.clone',
+  delete: '@core.automation/action.command.delete',
+  close: '@core.automation/action.command.close',
 };
 
 export type ActionStatusCode = 'SUCCESS' | 'WARNING' | 'ERROR';

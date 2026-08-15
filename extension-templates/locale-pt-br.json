@@ -889,7 +889,8 @@
             "processor.text.count.other": "{count} caracteres prontos para processamento.",
             "processor.text.placeholder": "Cole aqui o texto livre, ou selecione um PDF e escolha a página desejada…",
             "processor.workflow.has-references": "Possui parâmetros de referência (ainda não suportados).",
-            "processor.workflows.empty": "Nenhuma automação com gatilho \"Chamado por outro workflow\" cadastrada."
+            "processor.workflows.empty": "Nenhuma automação com gatilho \"Chamado por outro workflow\" cadastrada.",
+            "plan.office": "Escritório"
           }
         }
       },
@@ -1468,7 +1469,9 @@
             "translations.step.import": "2. Importar de volta",
             "translations.subtitle": "Um idioma é uma extensão como qualquer outra. Baixe a extensão de idioma com todos os textos do sistema — os do núcleo e os das extensões instaladas —, traduza os textos dentro do arquivo e importe de volta.",
             "translations.summary.one": "{name} — {count} texto",
-            "translations.summary.other": "{name} — {count} textos"
+            "translations.summary.other": "{name} — {count} textos",
+            "point.messages.description": "Declara os textos de um plugin em um idioma. Um pacote só de traduções é uma extensão que contribui apenas aqui — inclusive para textos do núcleo e de outras extensões.",
+            "point.messages.title": "Catálogo de mensagens"
           }
         }
       },
@@ -1913,7 +1916,14 @@
             "data-fn.upsert.description": "Inclui ou atualiza um registro. Sem \"id\" inclui um novo; com \"id\" atualiza o existente. O escritório atual é aplicado automaticamente.",
             "data-fn.upsert.id": "Opcional. Informe para atualizar um registro existente; omita para incluir.",
             "data-fn.upsert.returns": "id (do registro gravado), created (true se incluído) e record (registro gravado).",
-            "data-fn.upsert.table": "Cadastro a gravar (fixo, personalizado ou lista)."
+            "data-fn.upsert.table": "Cadastro a gravar (fixo, personalizado ou lista).",
+            "action.command.clone": "Abrir uma cópia do registro",
+            "action.command.close": "Fechar a aba",
+            "action.command.delete": "Excluir o registro",
+            "action.command.merge": "Mesclar o resultado nos dados da tela",
+            "action.command.refresh": "Recarregar o registro do servidor",
+            "action.command.replace": "Substituir os dados da tela pelo resultado",
+            "action.command.save": "Gravar o registro"
           }
         }
       },
@@ -1924,7 +1934,36 @@
         "metadata": {
           "locale": "pt-BR",
           "namespace": "core.data",
-          "messages": {}
+          "messages": {
+            "document-type.certidao": "Certidão",
+            "document-type.comprovante": "Comprovante",
+            "document-type.contrato": "Contrato",
+            "document-type.cpf": "CPF",
+            "document-type.outros": "Outros",
+            "document-type.peticao": "Petição",
+            "document-type.procuracao": "Procuração",
+            "document-type.recibo": "Recibo",
+            "document-type.rg": "RG",
+            "document-type.sentenca": "Sentença",
+            "lookup.field.color": "Cor",
+            "lookup.field.id": "Id",
+            "lookup.field.key": "Chave",
+            "lookup.field.label": "Rótulo",
+            "member.field.display-name": "Nome de exibição",
+            "member.field.email": "E-mail",
+            "member.field.name": "Nome",
+            "member.field.role": "Papel",
+            "point.entity.description": "Declara uma entidade nativa (coleção, campos, FKs) para o schema e o motor.",
+            "point.entity.title": "Entidade de domínio",
+            "point.field-preset.description": "Declara um preset de campo (máscara por template, pipeline de formatação, validação por expressão ou regex). Sem código: a mesma declaração vale no formulário e na gravação por automação.",
+            "point.field-preset.title": "Máscara, formatação e validação prontas",
+            "point.lookup-provider.description": "Declara um provedor para \"Ao alterar, buscar dados externos\": a requisição inteira é dado (URL, quando disparar, mapa da resposta). Sem código — o kernel executa e impõe https, timeout e ausência de credencial.",
+            "point.lookup-provider.title": "Busca de dados externos",
+            "point.lookup.description": "Declara uma coleção de lista simples (tipos, categorias, status).",
+            "point.lookup.title": "Lista de valores (lookup)",
+            "point.service.description": "Um plugin registra um serviço próprio (ex.: integração externa), resolvível por chave via useDI().resolveService. O container tipado do núcleo permanece intocado.",
+            "point.service.title": "Serviço injetável de plugin"
+          }
         }
       }
     ]

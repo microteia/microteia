@@ -11,6 +11,11 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [7.24.0] — 2026-08-15
+
+- As listas de opções que já vêm com o sistema — como os tipos de documento — passaram a acompanhar o idioma escolhido, e continuam em ordem alfabética correta em cada idioma.
+- O nome do plano do escritório e os nomes dos pontos de extensão também passaram a ser traduzidos.
+
 #### [7.23.0] — 2026-08-15
 
 - O Processador de Dados, a tela de Funções de Dados e a tela de Traduções passaram a acompanhar o idioma escolhido, incluindo as mensagens de andamento e os avisos de erro.

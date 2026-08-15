@@ -24,9 +24,9 @@ export const I18N_EXTENSION_POINTS: ExtensionPointDefinition[] = [
   {
     id: I18N_MESSAGES_POINT,
     apiVersion: I18N_API_VERSION,
-    title: 'Catálogo de mensagens',
+    title: '@core.i18n/point.messages.title',
     description:
-      'Declara os textos de um plugin em um idioma. Um pacote só de traduções é uma extensão que contribui apenas aqui — inclusive para textos do núcleo e de outras extensões.',
+      '@core.i18n/point.messages.description',
     ownerPluginId: 'core.i18n',
     allowedImplKinds: [],
     implRequired: false,

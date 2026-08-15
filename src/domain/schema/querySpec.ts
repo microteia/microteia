@@ -37,10 +37,10 @@ export interface QuerySpec {
 export const QUERY_OPERATORS_WITHOUT_VALUE: QueryOperator[] = ['exists'];
 
 export const LOOKUP_QUERY_FIELDS: NativeFieldSpec[] = [
-  { key: 'id', label: 'Id', type: 'string' },
-  { key: 'key', label: 'Chave', type: 'string' },
-  { key: 'label', label: 'Rótulo', type: 'string' },
-  { key: 'color', label: 'Cor', type: 'string' },
+  { key: 'id', label: '@core.data/lookup.field.id', type: 'string' },
+  { key: 'key', label: '@core.data/lookup.field.key', type: 'string' },
+  { key: 'label', label: '@core.data/lookup.field.label', type: 'string' },
+  { key: 'color', label: '@core.data/lookup.field.color', type: 'string' },
 ];
 
 export interface ResolvedQueryTable {

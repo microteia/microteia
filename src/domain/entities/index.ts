@@ -32,7 +32,11 @@ export interface AppUser {
 
 // ─── UserProfile ──────────────────────────────────────────────────────────────
 
-export type Gender = 'Masculino' | 'Feminino' | 'Não Informado';
+/**
+ * O CÓDIGO gravado, não o rótulo: a tela sempre gravou 'M'/'F'/'N' e o tipo dizia outra coisa. O nome
+ * de cada código vem do catálogo (`profile.gender.*`), como todo texto que o usuário lê.
+ */
+export type Gender = 'M' | 'F' | 'N';
 
 export interface UserProfile {
   id: string;
@@ -80,7 +84,7 @@ export const TENANT_PLANS: TenantPlan[] = ['solo', 'office', 'professional', 'en
 
 export const TENANT_PLAN_LABELS: Record<TenantPlan, string> = {
   solo: 'Solo',
-  office: 'Escritório',
+  office: '@core.admin/plan.office',
   professional: 'Professional',
   enterprise: 'Enterprise',
 };

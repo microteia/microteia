@@ -41,4 +41,7 @@ export const CORE_I18N: Record<string, string> = {
     'Um idioma é uma extensão como qualquer outra. Baixe a extensão de idioma com todos os textos do sistema — os do núcleo e os das extensões instaladas —, traduza os textos dentro do arquivo e importe de volta.',
   'translations.summary.one': '{name} — {count} texto',
   'translations.summary.other': '{name} — {count} textos',
+  'point.messages.description':
+    'Declara os textos de um plugin em um idioma. Um pacote só de traduções é uma extensão que contribui apenas aqui — inclusive para textos do núcleo e de outras extensões.',
+  'point.messages.title': 'Catálogo de mensagens',
 };

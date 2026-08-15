@@ -10,16 +10,16 @@ import type { LookupOption } from '../../domain/entities';
  */
 const DECLARED: Record<string, Omit<LookupOption, 'isStatic'>[]> = {
   documentTypes: [
-    { key: 'Contrato', label: 'Contrato' },
-    { key: 'Procuração', label: 'Procuração' },
-    { key: 'Petição', label: 'Petição' },
-    { key: 'Sentença', label: 'Sentença' },
-    { key: 'Certidão', label: 'Certidão' },
-    { key: 'RG', label: 'RG' },
-    { key: 'CPF', label: 'CPF' },
-    { key: 'Comprovante', label: 'Comprovante' },
-    { key: 'Recibo', label: 'Recibo' },
-    { key: 'Outros', label: 'Outros' },
+    { key: 'Contrato', label: '@core.data/document-type.contrato' },
+    { key: 'Procuração', label: '@core.data/document-type.procuracao' },
+    { key: 'Petição', label: '@core.data/document-type.peticao' },
+    { key: 'Sentença', label: '@core.data/document-type.sentenca' },
+    { key: 'Certidão', label: '@core.data/document-type.certidao' },
+    { key: 'RG', label: '@core.data/document-type.rg' },
+    { key: 'CPF', label: '@core.data/document-type.cpf' },
+    { key: 'Comprovante', label: '@core.data/document-type.comprovante' },
+    { key: 'Recibo', label: '@core.data/document-type.recibo' },
+    { key: 'Outros', label: '@core.data/document-type.outros' },
   ],
 };
 

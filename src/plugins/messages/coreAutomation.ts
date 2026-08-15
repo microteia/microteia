@@ -489,4 +489,11 @@ export const CORE_AUTOMATION_MESSAGES: Record<string, string> = {
   'data-fn.upsert.returns':
     'id (of the written record), created (true when inserted) and record (the written record).',
   'data-fn.upsert.table': 'The collection to write to (fixed, custom or list).',
+  'action.command.clone': 'Open a copy of the record',
+  'action.command.close': 'Close the tab',
+  'action.command.delete': 'Delete the record',
+  'action.command.merge': 'Merge the result into the screen data',
+  'action.command.refresh': 'Reload the record from the server',
+  'action.command.replace': 'Replace the screen data with the result',
+  'action.command.save': 'Save the record',
 };

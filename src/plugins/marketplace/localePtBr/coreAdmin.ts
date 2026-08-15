@@ -226,4 +226,5 @@ export const CORE_ADMIN: Record<string, string> = {
   'processor.text.placeholder': 'Cole aqui o texto livre, ou selecione um PDF e escolha a página desejada…',
   'processor.workflow.has-references': 'Possui parâmetros de referência (ainda não suportados).',
   'processor.workflows.empty': 'Nenhuma automação com gatilho "Chamado por outro workflow" cadastrada.',
+  'plan.office': 'Escritório',
 };

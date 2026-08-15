@@ -120,8 +120,10 @@ export default defineConfig([
     ],
     rules: {
       'no-restricted-syntax': ['error',
+        // `console.*` fica de fora: é diagnóstico para NÓS, não texto de usuário — mesma natureza
+        // do comentário de código, que a regra de idioma mantém em português de propósito.
         {
-          selector: 'Literal[value=/[áàâãéêíóôõúüçÁÀÂÃÉÊÍÓÔÕÚÜÇ]/]',
+          selector: 'Literal[value=/[áàâãéêíóôõúüçÁÀÂÃÉÊÍÓÔÕÚÜÇ]/]:not(CallExpression[callee.object.name=\'console\'] Literal)',
           message: 'Texto em português no código. O idioma-fonte é o inglês: crie a chave em src/plugins/messages/ e chame useT(); a tradução vai para o pacote pt-BR.',
         },
         // `<code>action</code>` fica de fora: o conteúdo de `code` é IDENTIFICADOR, e identificador
@@ -160,7 +162,7 @@ export default defineConfig([
           message: 'Texto de usuário como literal numa propriedade. Passe t(\'chave\'): a propriedade é lida por quem usa o sistema, então ela traduz.',
         },
         {
-          selector: 'TemplateElement[value.raw=/[áàâãéêíóôõúüçÁÀÂÃÉÊÍÓÔÕÚÜÇ]/]',
+          selector: 'TemplateElement[value.raw=/[áàâãéêíóôõúüçÁÀÂÃÉÊÍÓÔÕÚÜÇ]/]:not(CallExpression[callee.object.name=\'console\'] TemplateElement)',
           message: 'Texto em português em template literal. O idioma-fonte é o inglês: use t(\'chave\', { param }) com interpolação {param}.',
         },
       ],

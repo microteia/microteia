@@ -1,2 +1,33 @@
 export const CORE_DATA: Record<string, string> = {
+  'document-type.certidao': 'Certidão',
+  'document-type.comprovante': 'Comprovante',
+  'document-type.contrato': 'Contrato',
+  'document-type.cpf': 'CPF',
+  'document-type.outros': 'Outros',
+  'document-type.peticao': 'Petição',
+  'document-type.procuracao': 'Procuração',
+  'document-type.recibo': 'Recibo',
+  'document-type.rg': 'RG',
+  'document-type.sentenca': 'Sentença',
+  'lookup.field.color': 'Cor',
+  'lookup.field.id': 'Id',
+  'lookup.field.key': 'Chave',
+  'lookup.field.label': 'Rótulo',
+  'member.field.display-name': 'Nome de exibição',
+  'member.field.email': 'E-mail',
+  'member.field.name': 'Nome',
+  'member.field.role': 'Papel',
+  'point.entity.description': 'Declara uma entidade nativa (coleção, campos, FKs) para o schema e o motor.',
+  'point.entity.title': 'Entidade de domínio',
+  'point.field-preset.description':
+    'Declara um preset de campo (máscara por template, pipeline de formatação, validação por expressão ou regex). Sem código: a mesma declaração vale no formulário e na gravação por automação.',
+  'point.field-preset.title': 'Máscara, formatação e validação prontas',
+  'point.lookup-provider.description':
+    'Declara um provedor para "Ao alterar, buscar dados externos": a requisição inteira é dado (URL, quando disparar, mapa da resposta). Sem código — o kernel executa e impõe https, timeout e ausência de credencial.',
+  'point.lookup-provider.title': 'Busca de dados externos',
+  'point.lookup.description': 'Declara uma coleção de lista simples (tipos, categorias, status).',
+  'point.lookup.title': 'Lista de valores (lookup)',
+  'point.service.description':
+    'Um plugin registra um serviço próprio (ex.: integração externa), resolvível por chave via useDI().resolveService. O container tipado do núcleo permanece intocado.',
+  'point.service.title': 'Serviço injetável de plugin',
 };

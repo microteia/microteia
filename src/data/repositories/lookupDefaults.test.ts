@@ -43,8 +43,8 @@ describe('opções que o kernel já traz', () => {
       { key: 'Renegociado', label: 'Renegociado', isStatic: false },
     ]);
 
-    expect(merged.filter((option) => option.label === 'Contrato')).toHaveLength(1);
-    expect(merged.find((option) => option.label === 'Contrato')?.isStatic).toBe(true);
-    expect(merged.find((option) => option.label === 'Renegociado')?.isStatic).toBe(false);
+    expect(merged.filter((option) => option.key === 'Contrato')).toHaveLength(1);
+    expect(merged.find((option) => option.key === 'Contrato')?.isStatic).toBe(true);
+    expect(merged.find((option) => option.key === 'Renegociado')?.isStatic).toBe(false);
   });
 });

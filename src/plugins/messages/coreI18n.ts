@@ -42,4 +42,7 @@ export const CORE_I18N_MESSAGES: Record<string, string> = {
     'A language is an extension like any other. Download the language extension with every text of the system — the ones from the core and the ones from the installed extensions —, translate the texts inside the file and import it back.',
   'translations.summary.one': '{name} — {count} text',
   'translations.summary.other': '{name} — {count} texts',
+  'point.messages.description':
+    'Declares the texts of a plugin in one language. A translation-only package is an extension that contributes here alone — including for texts of the core and of other extensions.',
+  'point.messages.title': 'Message catalog',
 };
