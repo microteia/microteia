@@ -624,7 +624,24 @@
             "sidebar.expand": "Expandir menu",
             "sidebar.collapse": "Recolher menu",
             "modal.maximize": "Maximizar",
-            "modal.restore": "Restaurar"
+            "modal.restore": "Restaurar",
+            "point.page": "Tela do workspace",
+            "point.page.description": "Registra uma aba abrível no workspace, por chave exata ou por prefixo.",
+            "point.nav": "Item da barra lateral",
+            "point.nav.description": "Adiciona um item ao menu principal, apontando para a chave de uma tela.",
+            "point.record-action": "Ação de registro",
+            "point.record-action.description": "Acrescenta uma ação ao cartão da listagem e ao cabeçalho do registro.",
+            "point.command": "Provedor do Command Palette",
+            "point.command.description": "Fornece itens pesquisáveis no ⌘K.",
+            "point.widget": "Widget de superfície",
+            "point.widget.description": "Acrescenta um cartão a uma superfície (o Dashboard, por exemplo), ligado e ordenado pela configuração.",
+            "point.settings": "Seção de configuração",
+            "point.settings.description": "Declara uma seção da tela de Configurações, com as propriedades que o plugin aceita.",
+            "note.added": "Anotação adicionada.",
+            "note.add-failed": "Erro ao adicionar anotação.",
+            "note.deleted": "Anotação excluída.",
+            "note.delete-failed": "Erro ao excluir anotação.",
+            "document.deleted": "Documento excluído."
           }
         }
       },
@@ -724,7 +741,8 @@
             "author.field.id": "Identificador",
             "author.field.id.placeholder": "com.seuescritorio.vendas",
             "author.field.name.placeholder": "Vendas",
-            "author.view.key.placeholder": "minha-tela"
+            "author.view.key.placeholder": "minha-tela",
+            "extension.load-failed": "Não foi possível carregar esta extensão: {message}"
           }
         }
       },
@@ -908,7 +926,16 @@
             "screen.disable": "Desativar tela",
             "field.modal.new": "Novo Campo",
             "field.modal.edit": "Editar Campo",
-            "field.modal.native": "Ajustar Campo do Sistema"
+            "field.modal.native": "Ajustar Campo do Sistema",
+            "record.deleted": "Registro excluído com sucesso.",
+            "record.delete-failed": "Erro ao excluir o registro.",
+            "action.run-failed": "Não foi possível executar a ação.",
+            "action.not-installed": "A ação não está instalada neste escritório.",
+            "action.missing-command": "A ação \"{title}\" aponta para um comando que não existe.",
+            "action.screen-command": "A ação \"{title}\" é um comando de tela e não pode ser executada assim.",
+            "action.prompt.compute-failed": "Não foi possível calcular \"{label}\": {message}.",
+            "expression.error.unknown-function-name": "a função \"{name}\" não existe nas expressões de campo",
+            "expression.error.unknown-field": "o campo \"{name}\" não existe nesta tela"
           }
         }
       },
@@ -1250,7 +1277,10 @@
             "workflow.create-first": "Criar primeira automação",
             "workflow.update-failed": "Erro ao atualizar automação.",
             "workflow.active": "Ativo",
-            "workflow.inactive": "Inativo"
+            "workflow.inactive": "Inativo",
+            "step.id.required": "Informe um identificador.",
+            "step.id.hint": "Use letras, números e _, começando por letra — é assim que ele é escrito numa expressão.",
+            "step.id.duplicated": "Já existe um step com este identificador nesta automação."
           }
         }
       },

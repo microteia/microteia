@@ -2,6 +2,8 @@ import { useCallback, useEffect, useState } from 'react';
 import { useNotification } from '../../../stores/useNotification';
 import type { EntityNote, EntityNotesController, NotesPort } from './types';
 
+import { useT } from '../i18n/useT';
+
 interface UseEntityNotesParams {
   enabled: boolean;
   recordId: string | null;
@@ -10,6 +12,7 @@ interface UseEntityNotesParams {
 
 export const useEntityNotes = ({ enabled, recordId, port }: UseEntityNotesParams): EntityNotesController => {
   const { notify } = useNotification();
+  const t = useT('core.ui');
 
   const [notes, setNotes] = useState<EntityNote[]>([]);
   const [notesLoading, setNotesLoading] = useState(false);
@@ -53,13 +56,13 @@ export const useEntityNotes = ({ enabled, recordId, port }: UseEntityNotesParams
       setNewNoteTitle('');
       setNewNoteText('');
       setIsNoteEditorOpen(false);
-      notify('Anotação adicionada.', 'success');
+      notify(t('note.added'), 'success');
     } catch {
-      notify('Erro ao adicionar anotação.', 'error');
+      notify(t('note.add-failed'), 'error');
     } finally {
       setIsAddingNote(false);
     }
-  }, [newNoteTitle, newNoteText, recordId, port, notify]);
+  }, [newNoteTitle, newNoteText, recordId, port, notify, t]);
 
   const requestDeleteNote = useCallback((note: EntityNote) => setNoteToDelete(note), []);
   const cancelDeleteNote = useCallback(() => setNoteToDelete(null), []);
@@ -68,13 +71,13 @@ export const useEntityNotes = ({ enabled, recordId, port }: UseEntityNotesParams
     try {
       await port.remove(recordId, noteToDelete.id);
       setNotes((prev) => prev.filter((n) => n.id !== noteToDelete.id));
-      notify('Anotação excluída.', 'success');
+      notify(t('note.deleted'), 'success');
     } catch {
-      notify('Erro ao excluir anotação.', 'error');
+      notify(t('note.delete-failed'), 'error');
     } finally {
       setNoteToDelete(null);
     }
-  }, [noteToDelete, recordId, port, notify]);
+  }, [noteToDelete, recordId, port, notify, t]);
 
   return {
     notes,

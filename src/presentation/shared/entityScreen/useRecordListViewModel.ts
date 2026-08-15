@@ -328,7 +328,7 @@ export const useRecordListViewModel = (source: RecordListSource): RecordListView
       if (action.command) {
         const resolved = recordActions.find((candidate) => candidate.metadata.key === action.command);
         if (!resolved) {
-          notify(`A ação "${action.title}" aponta para um comando que não existe.`, 'error');
+          notify(t('action.missing-command', { title: action.title }), 'error');
           return;
         }
         await resolved.run(buildActionHost(record));
@@ -343,7 +343,7 @@ export const useRecordListViewModel = (source: RecordListSource): RecordListView
         params,
       });
       if (response.error || !response.outcome) {
-        notify(response.error ?? 'Não foi possível executar a ação.', 'error');
+        notify(response.error ?? t('action.run-failed'), 'error');
         return;
       }
       const { status } = response.outcome;
@@ -357,11 +357,11 @@ export const useRecordListViewModel = (source: RecordListSource): RecordListView
       });
     } catch (error) {
       console.error('[useRecordListViewModel action]', error);
-      notify('Não foi possível executar a ação.', 'error');
+      notify(t('action.run-failed'), 'error');
     } finally {
       setRunningActionId(null);
     }
-  }, [runAction, collection, notify, updateRecord, onClone, recordActions, buildActionHost]);
+  }, [runAction, collection, notify, updateRecord, onClone, recordActions, buildActionHost, t]);
 
   const getCardActions = useCallback((record: EntityRecord): RecordCardAction[] => {
     const exprContext = {
@@ -434,14 +434,14 @@ export const useRecordListViewModel = (source: RecordListSource): RecordListView
     setIsDeleting(true);
     try {
       await deleteRecord(collection, recordToDelete.id);
-      notify('Registro excluído com sucesso.', 'success');
+      notify(t('record.deleted'), 'success');
       setRecordToDelete(null);
     } catch {
       notify('Erro ao excluir o registro.', 'error');
     } finally {
       setIsDeleting(false);
     }
-  }, [recordToDelete, deleteRecord, collection, notify]);
+  }, [recordToDelete, deleteRecord, collection, notify, t]);
 
   return {
     definition,

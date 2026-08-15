@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+## [7.16.0] — 2026-08-14
+
+- As mensagens compartilhadas por várias telas — anotações, documentos, exclusão de registro e execução de ações — passaram a acompanhar o idioma escolhido.
+
 ## [7.15.0] — 2026-08-14
 
 - Corrigida a lista de tipos de campo no Form Design, que exibia códigos internos em vez dos nomes.

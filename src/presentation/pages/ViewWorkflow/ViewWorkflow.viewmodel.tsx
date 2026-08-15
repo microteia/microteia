@@ -795,7 +795,7 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
     const definition = getStepDefinition(step.stepDefinitionId);
     if (!definition) return step.stepDefinitionId;
     const categoryLabel = t(STEP_CATEGORY_KEYS[definition.category] ?? definition.category);
-    return getStepDisplayName(step, definition) === definition.name
+    return getStepDisplayName(t, step, definition) === definition.name
       ? categoryLabel
       : `${categoryLabel} · ${definition.name}`;
   }, [getStepDefinition, t]);

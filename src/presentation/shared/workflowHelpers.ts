@@ -21,6 +21,7 @@ export const isReferenceableStepId = (stepId: string): boolean => STEP_IDENTIFIE
  * 4. nome do tipo (o nó do grafo mostra o tipo na segunda linha quando o título já diz outra coisa)
  */
 export const getStepDisplayName = (
+  t: TranslateFn,
   step: WorkflowStep,
   definition?: StepDefinitionSummary,
   fallback?: string,
@@ -29,8 +30,8 @@ export const getStepDisplayName = (
   if (step.name) return step.name;
   if (isReferenceableStepId(step.id)) return step.id;
   if (definition?.name) return definition.name;
-  if (step.type === 'Condition') return 'Condição';
-  if (step.type === 'Loop') return 'Repetição';
+  if (step.type === 'Condition') return t('core.automation/step.type.condition');
+  if (step.type === 'Loop') return t('core.automation/step.type.loop');
   return fallback ?? step.stepDefinitionId;
 };
 
@@ -54,14 +55,14 @@ export const suggestStepIdentifier = (steps: WorkflowStep[], base: string): stri
   return `${root}${sequence}`;
 };
 
-export const stepIdentifierIssue = (value: string, steps: WorkflowStep[]): string | undefined => {
+export const stepIdentifierIssue = (t: TranslateFn, value: string, steps: WorkflowStep[]): string | undefined => {
   const trimmed = value.trim();
-  if (!trimmed) return 'Informe um identificador.';
+  if (!trimmed) return t('core.automation/step.id.required');
   if (!isReferenceableStepId(trimmed)) {
-    return 'Use letras, números e _, começando por letra — é assim que ele é escrito numa expressão.';
+    return t('core.automation/step.id.hint');
   }
   if (flattenSteps(steps).some((step) => step.id === trimmed)) {
-    return 'Já existe um step com este identificador nesta automação.';
+    return t('core.automation/step.id.duplicated');
   }
   return undefined;
 };

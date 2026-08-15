@@ -147,7 +147,7 @@ const FlowLevel: React.FC<LevelProps> = ({ vm, steps, parentKey, target }) => {
             <StepIcon size={18} />
           </S.NodeIconBox>
           <S.NodeBody>
-            <S.NodeTitle>{getStepDisplayName(step, definition)}</S.NodeTitle>
+            <S.NodeTitle>{getStepDisplayName(t, step, definition)}</S.NodeTitle>
             <S.NodeType>{isCondition ? vm.getConditionSummary(step) : isLoop ? vm.getLoopSummary(step) : vm.getStepTypeLabel(step)}</S.NodeType>
           </S.NodeBody>
           <S.NodeStatusDot $enabled={step.enabled} title={t(step.enabled ? 'workflow.active' : 'workflow.inactive')} />
@@ -231,7 +231,7 @@ const ListLevel: React.FC<{ vm: ViewWorkflowViewModel; steps: WorkflowStep[] }> 
               <StepIcon size={18} />
             </S.StepIcon>
             <S.StepInfo>
-              <S.StepName>{getStepDisplayName(step, definition)}</S.StepName>
+              <S.StepName>{getStepDisplayName(t, step, definition)}</S.StepName>
               {isCondition
                 ? <S.StepDescription>{vm.getConditionSummary(step)}</S.StepDescription>
                 : isLoop
@@ -614,7 +614,7 @@ export const ViewWorkflowView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
                       {stepLogs.map((log, i) => {
                         const step = log.stepId ? vm.getStepById(log.stepId) : undefined;
                         const definition = log.stepDefinitionId ? vm.getStepDefinition(log.stepDefinitionId) : undefined;
-                        const stepName = step ? getStepDisplayName(step, definition) : (definition?.name || log.stepDefinitionId || 'Step');
+                        const stepName = step ? getStepDisplayName(t, step, definition) : (definition?.name || log.stepDefinitionId || 'Step');
                         const isExpanded = vm.isStepResultExpanded(execution.id, log.stepId || String(i));
                         const StepIcon = step ? vm.getStepIconForStep(step) : (log.stepDefinitionId ? vm.getStepIcon(log.stepDefinitionId) : RiFlowChart);
                         const status = vm.getStepLogStatus(log);

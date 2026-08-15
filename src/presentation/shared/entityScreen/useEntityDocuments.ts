@@ -4,6 +4,8 @@ import { useLookups } from '../../../stores/useLookups';
 import type { DynamicSelectOption } from '../../components/ui/DynamicSelect';
 import type { EntityDocument, EntityDocumentsController, DocumentsPort } from './types';
 
+import { useT } from '../i18n/useT';
+
 interface UseEntityDocumentsParams {
   enabled: boolean;
   recordId: string | null;
@@ -12,6 +14,7 @@ interface UseEntityDocumentsParams {
 
 export const useEntityDocuments = ({ enabled, recordId, port }: UseEntityDocumentsParams): EntityDocumentsController => {
   const { notify } = useNotification();
+  const t = useT('core.ui');
   const { getOptions, addOption, removeOption } = useLookups();
   const typeConfigs = getOptions('documentTypes');
 
@@ -74,13 +77,13 @@ export const useEntityDocuments = ({ enabled, recordId, port }: UseEntityDocumen
     try {
       await port.remove(recordId, docToDelete);
       setDocuments((prev) => prev.filter((d) => d.id !== docToDelete.id));
-      notify('Documento excluído.', 'success');
+      notify(t('document.deleted'), 'success');
     } catch {
       notify('Erro ao excluir documento.', 'error');
     } finally {
       setDocToDelete(null);
     }
-  }, [docToDelete, recordId, port, notify]);
+  }, [docToDelete, recordId, port, notify, t]);
 
   const documentTypeOptions = useMemo<DynamicSelectOption[]>(
     () => typeConfigs.filter((c) => c.isStatic !== false).map((c) => ({ value: c.key, label: c.label })),

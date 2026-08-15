@@ -42,13 +42,13 @@ describe('evaluateExtensionView', () => {
     `;
     const Component = evaluateExtensionView('t::forbidden', source);
     const { getByText } = renderThemed(<Component tabKey="t" />);
-    expect(getByText(/não está disponível para extensões/)).toBeTruthy();
+    expect(getByText(/core\.marketplace\/extension\.load-failed/)).toBeTruthy();
   });
 
   it('fonte que não exporta componente vira fallback', () => {
     const Component = evaluateExtensionView('t::noexport', 'export const x = 1;');
     const { getByText } = renderThemed(<Component tabKey="t" />);
-    expect(getByText(/precisa exportar um componente/)).toBeTruthy();
+    expect(getByText(/core\.marketplace\/extension\.load-failed/)).toBeTruthy();
   });
 
   it('memoiza por cacheKey e reavalia quando a fonte muda', () => {

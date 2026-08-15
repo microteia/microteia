@@ -253,4 +253,7 @@ export const CORE_AUTOMATION_MESSAGES: Record<string, string> = {
   'workflow.update-failed': 'Could not update the automation.',
   'workflow.active': 'Active',
   'workflow.inactive': 'Inactive',
+  'step.id.required': 'Enter an identifier.',
+  'step.id.hint': 'Use letters, numbers and _, starting with a letter — that is how it is written in an expression.',
+  'step.id.duplicated': 'There is already a step with this identifier in this automation.',
 };

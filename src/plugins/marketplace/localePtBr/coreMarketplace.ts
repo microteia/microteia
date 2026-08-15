@@ -78,4 +78,5 @@ export const CORE_MARKETPLACE: Record<string, string> = {
   'author.field.id.placeholder': 'com.seuescritorio.vendas',
   'author.field.name.placeholder': 'Vendas',
   'author.view.key.placeholder': 'minha-tela',
+  'extension.load-failed': 'Não foi possível carregar esta extensão: {message}',
 };

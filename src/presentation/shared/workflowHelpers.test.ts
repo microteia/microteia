@@ -19,6 +19,9 @@ import {
   EXIT_STEP_DEFINITION_ID,
 } from './workflowHelpers';
 
+/** O tradutor de teste devolve a própria chave — aqui o que importa é a decisão, não a frase. */
+const echo = (key: string) => key;
+
 const action = (id: string, order: number): WorkflowStep => ({
   id,
   stepDefinitionId: 'record',
@@ -347,26 +350,26 @@ describe('workflowHelpers — identificador do Step', () => {
 
   it('recusa vazio, formato inválido e duplicata em qualquer nível da árvore', () => {
     const steps = [cond('c', 0, [action('query1', 0)], [])];
-    expect(stepIdentifierIssue('', steps)).toBeDefined();
-    expect(stepIdentifierIssue('buscar processo', steps)).toBeDefined();
-    expect(stepIdentifierIssue('query1', steps)).toBeDefined();
-    expect(stepIdentifierIssue('query2', steps)).toBeUndefined();
+    expect(stepIdentifierIssue(echo, '', steps)).toBeDefined();
+    expect(stepIdentifierIssue(echo, 'buscar processo', steps)).toBeDefined();
+    expect(stepIdentifierIssue(echo, 'query1', steps)).toBeDefined();
+    expect(stepIdentifierIssue(echo, 'query2', steps)).toBeUndefined();
   });
 });
 
 describe('getStepDisplayName — identificador como nome exibido', () => {
-  const definition = { id: 'query', name: 'Buscar Registros' } as Parameters<typeof getStepDisplayName>[1];
+  const definition = { id: 'query', name: 'Buscar Registros' } as Parameters<typeof getStepDisplayName>[2];
 
   it('mostra o identificador quando ele é referenciável', () => {
-    expect(getStepDisplayName(action('buscarProcesso', 0), definition)).toBe('buscarProcesso');
+    expect(getStepDisplayName(echo, action('buscarProcesso', 0), definition)).toBe('buscarProcesso');
   });
 
   it('cai no nome do tipo quando o id é um GUID legado', () => {
-    expect(getStepDisplayName(action('9f1c2b7e-3d4a-4c55-8a11-0e6f2d9b7a10', 0), definition)).toBe('Buscar Registros');
+    expect(getStepDisplayName(echo, action('9f1c2b7e-3d4a-4c55-8a11-0e6f2d9b7a10', 0), definition)).toBe('Buscar Registros');
   });
 
   it('o rótulo livre legado ainda tem precedência sobre o identificador', () => {
     const legado = { ...action('buscarProcesso', 0), signature: 'Verificar valor da causa' };
-    expect(getStepDisplayName(legado, definition)).toBe('Verificar valor da causa');
+    expect(getStepDisplayName(echo, legado, definition)).toBe('Verificar valor da causa');
   });
 });

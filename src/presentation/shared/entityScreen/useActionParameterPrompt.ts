@@ -6,6 +6,8 @@ import type { ActionExprContext } from '../../../domain/schema/actionExpression'
 import type { ActionDefinition } from '../../../domain/entities';
 import type { WorkflowParameter } from '../../../domain/entities/Workflow';
 
+import { useT, type TranslateFn } from '../i18n/useT';
+
 /**
  * Os cinco parâmetros que TODA action entrega ao fluxo. Não entram no formulário: são do sistema, e
  * pedi-los ao usuário seria pedir que ele redigitasse o que a tela já sabe.
@@ -58,13 +60,13 @@ const IDENTIFIER_PATTERN = /^[A-Za-z_$][\w$]*$/;
  * que não existe — e quem escreveu `addDays(...)` não reconhece o próprio erro nessa frase. Olhar a
  * expressão diz de qual dos dois se trata: nome seguido de parêntese é chamada de função.
  */
-const describeExpressionError = (expression: string, error: unknown): string => {
+const describeExpressionError = (t: TranslateFn, expression: string, error: unknown): string => {
   const raw = error instanceof Error ? error.message : String(error);
   const name = /undefined variable:\s*(\S+)/.exec(raw)?.[1];
   if (!name || !IDENTIFIER_PATTERN.test(name)) return raw;
   return new RegExp(`\\b${name}\\s*\\(`).test(expression)
-    ? `a função "${name}" não existe nas expressões de campo`
-    : `o campo "${name}" não existe nesta tela`;
+    ? t('expression.error.unknown-function-name', { name })
+    : t('expression.error.unknown-field', { name });
 };
 
 export interface PromptInitialValues {
@@ -83,6 +85,7 @@ export interface PromptInitialValues {
  * clique — a tela simplesmente não abria, e o motivo só existia no console do navegador.
  */
 export const buildPromptInitialValues = (
+  t: TranslateFn,
   action: ActionDefinition,
   parameters: WorkflowParameter[],
   context: ActionExprContext,
@@ -103,7 +106,7 @@ export const buildPromptInitialValues = (
         failures.push({
           key: param.key,
           label: param.label || param.key,
-          message: describeExpressionError(expression, error),
+          message: describeExpressionError(t, expression, error),
         });
       }
     }
@@ -125,6 +128,7 @@ export const buildPromptInitialValues = (
  * servidor devolve o erro de fluxo inexistente, que é onde esse erro se lê.
  */
 export const useActionParameterPrompt = (): ActionParameterPromptController => {
+  const t = useT('core.records');
   const { workflows } = useWorkflowStore();
   const { notify } = useNotification();
   const [pending, setPending] = useState<ActionParameterPrompt | null>(null);
@@ -142,13 +146,13 @@ export const useActionParameterPrompt = (): ActionParameterPromptController => {
     if (!action.promptParameters || action.command) return false;
     const parameters = parametersOf(action.workflowId);
     if (parameters.length === 0) return false;
-    const { values, failures } = buildPromptInitialValues(action, parameters, context);
+    const { values, failures } = buildPromptInitialValues(t, action, parameters, context);
     for (const failure of failures) {
-      notify(`Não foi possível calcular "${failure.label}": ${failure.message}.`, 'warning');
+      notify(t('action.prompt.compute-failed', { label: failure.label, message: failure.message }), 'warning');
     }
     setPending({ action, parameters, initialValues: values, run });
     return true;
-  }, [parametersOf, notify]);
+  }, [parametersOf, notify, t]);
 
   const cancel = useCallback(() => setPending(null), []);
 

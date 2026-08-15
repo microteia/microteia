@@ -19,7 +19,7 @@ const MIGRATED_TO_SOURCE_LANGUAGE = [
   'src/plugins/core.*/**/*.{ts,tsx}',
   'src/plugins/messages/**/*.{ts,tsx}',
   'src/presentation/pages/Workflows/**/*.{ts,tsx}',
-  'src/presentation/shared/screenIcons.tsx',
+  'src/presentation/shared/**/*.{ts,tsx}',
   'src/domain/schema/eventCatalog.ts',
   'src/domain/schema/fieldRulePresets.ts',
 ]
@@ -86,6 +86,11 @@ export default defineConfig([
     files: MIGRATED_TO_SOURCE_LANGUAGE,
     ignores: [
       '**/*.test.{ts,tsx}',
+      // As definições de tipo entregues ao autor de extensão (`declare module`) são DOCUMENTAÇÃO DE
+      // API, não texto de runtime: viram IntelliSense no editor dele, não passam por catálogo e não
+      // têm como ser traduzidas em tempo de execução. Elas devem ir para o inglês — é trabalho
+      // pendente, registrado no ARCHITECTURE.md, e não cabia junto da migração de interface.
+      'src/presentation/shared/extensions/extensionTypeDefs.ts',
       // Comentário de CSS vive DENTRO do template literal, e comentário continua em português. Num
       // arquivo de estilo não há texto de usuário para proteger, então ele fica fora da zona.
       '**/*.styles.tsx',

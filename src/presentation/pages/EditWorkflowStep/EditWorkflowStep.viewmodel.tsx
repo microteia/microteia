@@ -35,6 +35,8 @@ import type { MapStepConfig } from '../../../domain/schema/mapSpec';
 import type { ValidateStepConfig } from '../../../domain/schema/validateSpec';
 import type { StepOutputField, WorkflowVariable } from '../../components/ui/ExpressionEditor/autocompleteHelpers';
 
+import { useT } from '../../shared/i18n/useT';
+
 const queryProjectionOutputs = (
   step: WorkflowStep,
   definition: StepDefinitionSummary,
@@ -177,6 +179,7 @@ export interface EditWorkflowStepViewModel {
 }
 
 export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepViewModel => {
+  const t = useT('core.automation');
   // Parse tabKey:
   //   "edit-workflow-step:{wfId}"                         → adicionar step na raiz
   //   "edit-workflow-step:{wfId}:{stepId}"                → editar step existente
@@ -421,8 +424,8 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
   // Só faz sentido validar o que ainda pode ser escolhido: depois de criado, o identificador é a
   // identidade do Step — renomeá-lo quebraria os mapeamentos "Saída de outro step" que o apontam.
   const stepIdentifierError = useMemo(
-    () => (editingStep ? undefined : stepIdentifierIssue(stepIdentifier, existingSteps)),
-    [editingStep, stepIdentifier, existingSteps],
+    () => (editingStep ? undefined : stepIdentifierIssue(t, stepIdentifier, existingSteps)),
+    [editingStep, stepIdentifier, existingSteps, t],
   );
 
   // O formulário abre com o campo vazio, porque o identificador sugerido só nasce quando o tipo é
@@ -559,13 +562,13 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
     const fields: StepOutputField[] = [];
     priorSteps.forEach((step) => {
       const definition = stepCatalog.find((d) => d.id === step.stepDefinitionId);
-      const stepName = getStepDisplayName(step, definition);
+      const stepName = getStepDisplayName(t, step, definition);
       resolveStepOutputs(step).forEach((output) => {
         fields.push({ stepId: step.id, stepName, outputId: output.id, outputLabel: output.label });
       });
     });
     return fields;
-  }, [priorSteps, stepCatalog, resolveStepOutputs]);
+  }, [priorSteps, stepCatalog, resolveStepOutputs, t]);
 
   // Descreve a "forma" do `input` (saídas dos steps anteriores) como um PathRoot de schema, para
   // que o autocomplete de `input.<saída>.` navegue nas propriedades de saídas do tipo
@@ -636,9 +639,9 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
         .filter((step) => resolveStepOutputs(step).length > 0)
         .map((step) => ({
           value: step.id,
-          label: getStepDisplayName(step, stepCatalog.find((d) => d.id === step.stepDefinitionId)),
+          label: getStepDisplayName(t, step, stepCatalog.find((d) => d.id === step.stepDefinitionId)),
         })),
-    [priorSteps, stepCatalog, resolveStepOutputs],
+    [priorSteps, stepCatalog, resolveStepOutputs, t],
   );
 
   const workflowVariables = useMemo(() => {
@@ -663,7 +666,7 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
           const mapping = step.configuration[sourceInputId];
           
           if (mapping && mapping.kind === 'Literal' && mapping.value) {
-            const stepName = getStepDisplayName(step, definition);
+            const stepName = getStepDisplayName(t, step, definition);
             const variable = {
               name: String(mapping.value),
               definedBy: stepName,
@@ -675,7 +678,7 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
     });
     
     return variables;
-  }, [priorSteps, stepCatalog]);
+  }, [priorSteps, stepCatalog, t]);
 
   const canSave = useMemo(() => {
     if (isConditionStep) return true;

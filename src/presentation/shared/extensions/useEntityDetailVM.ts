@@ -25,6 +25,8 @@ import { useTagAdapter } from '../entityScreen/useTagAdapter';
 import { isBoundScreen, screenDataCollection } from '../../../domain/services/screenDataCollection';
 import { useEntityFormFields } from '../useEntityFormFields';
 
+import { useT } from '../i18n/useT';
+
 type Values = Record<string, CustomFieldValue>;
 
 export interface EntityDetailVMOptions {
@@ -44,6 +46,7 @@ export const useEntityDetailVM = (
   tabKey: string,
   { editKeyPrefix }: EntityDetailVMOptions,
 ): RecordDetailViewModel => {
+  const t = useT('core.records');
   const { dynamicScreens, isLoading: isLoadingDefinition } = useScreenDefinitions();
   const { recordsByCollection, createRecord, updateRecord, deleteRecord } = useRecords();
   const { currentTenant, tenantRole } = useTenant();
@@ -179,8 +182,8 @@ export const useEntityDetailVM = (
     deepLinkKey,
     cloneKey,
     remove,
-    removedMessage: 'Registro excluído com sucesso.',
-    removeErrorMessage: 'Erro ao excluir o registro.',
+    removedMessage: t('record.deleted'),
+    removeErrorMessage: t('record.delete-failed'),
     notesPort,
     documentsPort,
     hasNotes: !!definition?.hasNotes,

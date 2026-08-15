@@ -79,4 +79,5 @@ export const CORE_MARKETPLACE_MESSAGES: Record<string, string> = {
   'author.field.id.placeholder': 'com.yourfirm.sales',
   'author.field.name.placeholder': 'Sales',
   'author.view.key.placeholder': 'my-screen',
+  'extension.load-failed': 'Could not load this extension: {message}',
 };

@@ -4866,6 +4866,11 @@ notificação, item de `options`, mensagem montada dentro de uma função.
 > `title={t(cond ? 'a' : 'b')}` o ternário é filho da CHAMADA, não do container, e a regra não o
 > vê. É a diferença entre traduzir a chave e escrever a frase.
 
+**Fora da zona, com motivo:** `extensionTypeDefs.ts`. Os blocos `declare module` entregues ao autor
+de extensão são **documentação de API**, não texto de runtime: viram IntelliSense no editor dele,
+não passam por catálogo e não teriam como ser traduzidos em tempo de execução. Eles devem ir para o
+inglês — é trabalho pendente, e não cabia junto da migração de interface.
+
 Nome próprio e legenda de tecla física — "Microteia", "Esc", "Enter" — não traduzem em idioma nenhum
 e saem por `eslint-disable-next-line` com justificativa. São as únicas exceções.
 

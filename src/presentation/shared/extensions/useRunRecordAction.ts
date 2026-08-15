@@ -6,6 +6,8 @@ import { storeEvents, StoreEvents } from '../../../infrastructure/events/StoreEv
 import { dispatchActionOutcome } from '../entityScreen/useScreenActions';
 import type { ActionStatusCode, CustomFieldValue } from '../../../domain/entities';
 
+import { useT } from '../i18n/useT';
+
 const STATUS_TONE: Record<ActionStatusCode, 'success' | 'warning' | 'error'> = {
   SUCCESS: 'success',
   WARNING: 'warning',
@@ -46,6 +48,7 @@ export const useRunRecordAction = (): ((request: RunRecordActionRequest) => Prom
   const { actions, runAction } = useActions();
   const { updateRecord } = useRecords();
   const { notify } = useNotification();
+  const t = useT('core.records');
 
   return useCallback(async (request: RunRecordActionRequest): Promise<RunRecordActionResult> => {
     const { actionSourceId, actionId, collection, recordId, record, params } = request;
@@ -53,9 +56,9 @@ export const useRunRecordAction = (): ((request: RunRecordActionRequest) => Prom
       candidate.enabled && (actionId ? candidate.id === actionId : candidate.sourceId === actionSourceId)
     ));
 
-    if (!action) return { ok: false, message: 'A ação não está instalada neste escritório.' };
+    if (!action) return { ok: false, message: t('action.not-installed') };
     if (action.command) {
-      return { ok: false, message: `A ação "${action.title}" é um comando de tela e não pode ser executada assim.` };
+      return { ok: false, message: t('action.screen-command', { title: action.title }) };
     }
 
     try {
@@ -69,7 +72,7 @@ export const useRunRecordAction = (): ((request: RunRecordActionRequest) => Prom
       });
 
       if (response.error || !response.outcome) {
-        const message = response.error ?? 'Não foi possível executar a ação.';
+        const message = response.error ?? t('action.run-failed');
         notify(message, 'error');
         return { ok: false, message };
       }
@@ -85,8 +88,8 @@ export const useRunRecordAction = (): ((request: RunRecordActionRequest) => Prom
       return { ok: status.code !== 'ERROR', message: status.message || null };
     } catch (error) {
       console.error('[useRunRecordAction]', error);
-      notify('Não foi possível executar a ação.', 'error');
-      return { ok: false, message: 'Não foi possível executar a ação.' };
+      notify(t('action.run-failed'), 'error');
+      return { ok: false, message: t('action.run-failed') };
     }
-  }, [actions, runAction, updateRecord, notify]);
+  }, [actions, runAction, updateRecord, notify, t]);
 };

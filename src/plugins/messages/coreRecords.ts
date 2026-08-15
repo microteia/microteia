@@ -191,4 +191,13 @@ export const CORE_RECORDS_MESSAGES: Record<string, string> = {
   'field.modal.new': 'New field',
   'field.modal.edit': 'Edit field',
   'field.modal.native': 'Adjust system field',
+  'record.deleted': 'Record deleted successfully.',
+  'record.delete-failed': 'Could not delete the record.',
+  'action.run-failed': 'Could not run the action.',
+  'action.not-installed': 'The action is not installed in this organization.',
+  'action.missing-command': 'The action "{title}" points at a command that does not exist.',
+  'action.screen-command': 'The action "{title}" is a screen command and cannot be run this way.',
+  'action.prompt.compute-failed': 'Could not compute "{label}": {message}.',
+  'expression.error.unknown-function-name': 'the function "{name}" does not exist in field expressions',
+  'expression.error.unknown-field': 'the field "{name}" does not exist on this screen',
 };

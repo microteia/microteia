@@ -9,6 +9,8 @@ import type { ActionParameterPromptController } from './useActionParameterPrompt
 import { useExprViewer } from '../useExprViewer';
 import type { ActionDefinition, ActionOutcome, ActionStatusCode, CustomFieldValue } from '../../../domain/entities';
 
+import { useT } from '../i18n/useT';
+
 type Values = Record<string, CustomFieldValue>;
 
 /**
@@ -156,6 +158,7 @@ export const useScreenActions = (target: ScreenActionTarget): ScreenActions => {
 
   const { getActionsByIds, runAction } = useActions();
   const { notify } = useNotification();
+  const t = useT('core.records');
   const { tenantRole } = useTenant();
   const viewer = useExprViewer();
 
@@ -196,7 +199,7 @@ export const useScreenActions = (target: ScreenActionTarget): ScreenActions => {
       });
 
       if (response.error || !response.outcome) {
-        notify(response.error ?? 'Não foi possível executar a ação.', 'error');
+        notify(response.error ?? t('action.run-failed'), 'error');
         return;
       }
 
@@ -208,11 +211,11 @@ export const useScreenActions = (target: ScreenActionTarget): ScreenActions => {
       });
     } catch (error) {
       console.error('[useScreenActions]', error);
-      notify('Não foi possível executar a ação.', 'error');
+      notify(t('action.run-failed'), 'error');
     } finally {
       setRunningActionId(null);
     }
-  }, [runAction, screenKey, values, recordId, isNew, notify, setFieldErrors, applyValues, save, refresh, clone, remove, close, runRecordCommand]);
+  }, [runAction, screenKey, values, recordId, isNew, notify, setFieldErrors, applyValues, save, refresh, clone, remove, close, runRecordCommand, t]);
 
   const parameterPrompt = useActionParameterPrompt();
 

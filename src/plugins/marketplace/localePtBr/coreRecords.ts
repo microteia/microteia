@@ -190,4 +190,13 @@ export const CORE_RECORDS: Record<string, string> = {
   'field.modal.new': 'Novo Campo',
   'field.modal.edit': 'Editar Campo',
   'field.modal.native': 'Ajustar Campo do Sistema',
+  'record.deleted': 'Registro excluído com sucesso.',
+  'record.delete-failed': 'Erro ao excluir o registro.',
+  'action.run-failed': 'Não foi possível executar a ação.',
+  'action.not-installed': 'A ação não está instalada neste escritório.',
+  'action.missing-command': 'A ação "{title}" aponta para um comando que não existe.',
+  'action.screen-command': 'A ação "{title}" é um comando de tela e não pode ser executada assim.',
+  'action.prompt.compute-failed': 'Não foi possível calcular "{label}": {message}.',
+  'expression.error.unknown-function-name': 'a função "{name}" não existe nas expressões de campo',
+  'expression.error.unknown-field': 'o campo "{name}" não existe nesta tela',
 };

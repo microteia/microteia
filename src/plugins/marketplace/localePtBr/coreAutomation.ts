@@ -252,4 +252,7 @@ export const CORE_AUTOMATION: Record<string, string> = {
   'workflow.update-failed': 'Erro ao atualizar automação.',
   'workflow.active': 'Ativo',
   'workflow.inactive': 'Inativo',
+  'step.id.required': 'Informe um identificador.',
+  'step.id.hint': 'Use letras, números e _, começando por letra — é assim que ele é escrito numa expressão.',
+  'step.id.duplicated': 'Já existe um step com este identificador nesta automação.',
 };

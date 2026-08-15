@@ -3,14 +3,19 @@ import { transform } from 'sucrase';
 import { InfoBanner } from '../../components/ui/InfoBanner';
 import { HOST_MODULES } from './hostApi';
 
+import { useT } from '../i18n/useT';
+
 export type ExtensionPageComponent = React.ComponentType<{ tabKey: string }>;
 
 const makeFallback = (message: string): ExtensionPageComponent => {
-  const Fallback: ExtensionPageComponent = () => (
-    <div style={{ padding: 24 }}>
-      <InfoBanner message={`Não foi possível carregar esta extensão: ${message}`} variant="warning" />
-    </div>
-  );
+  const Fallback: ExtensionPageComponent = () => {
+    const t = useT('core.marketplace');
+    return (
+      <div style={{ padding: 24 }}>
+        <InfoBanner message={t('extension.load-failed', { message })} variant="warning" />
+      </div>
+    );
+  };
   Fallback.displayName = 'ExtensionViewFallback';
   return Fallback;
 };
@@ -28,7 +33,7 @@ const compileDefaultExport = (source: string): unknown => {
 
   const requireHost = (name: string): unknown => {
     if (Object.prototype.hasOwnProperty.call(HOST_MODULES, name)) return HOST_MODULES[name];
-    throw new Error(`o módulo "${name}" não está disponível para extensões.`);
+    throw new Error(`module "${name}" is not available to extensions.`);
   };
 
   const moduleObject: { exports: Record<string, unknown> } = { exports: {} };
@@ -65,7 +70,7 @@ export const compileExtensionStartup = (source: string): CompileExtensionStartup
   try {
     const exported = compileDefaultExport(source);
     if (typeof exported !== 'function') {
-      throw new Error('o startup precisa exportar uma função `(host) => cleanup?` como `default`.');
+      throw new Error('the startup must export a `(host) => cleanup?` function as `default`.');
     }
     return { ok: true, startup: exported as ExtensionStartup };
   } catch (err) {
