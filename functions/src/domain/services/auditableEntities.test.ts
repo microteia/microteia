@@ -30,13 +30,13 @@ describe('resolveFlatEntityConfig', () => {
 
   it('sem tela que a descreva, sobra o rótulo genérico', async () => {
     const config = await resolveFlatEntityConfig(provider, 't1', 'produtos');
-    expect(config?.entityLabel).toBe('Registro');
+    expect(config?.entityLabel).toBe('@core.admin/audit.entity.record');
     expect(config?.getDisplayName({ nome: 'Caneta' })).toBe('Caneta');
   });
 
   it('coleção fixa do kernel continua com o nome do código', async () => {
     const config = await resolveFlatEntityConfig(provider, 't1', 'members');
-    expect(config?.entityLabel).toBe('Membro');
+    expect(config?.entityLabel).toBe('@core.admin/audit.entity.tenant-member');
     expect(config?.entityKey).toBe('TenantMember');
   });
 
@@ -48,18 +48,21 @@ describe('resolveFlatEntityConfig', () => {
 describe('resolveNestedEntityConfig', () => {
   it('a nota herda a identidade do registro a que pertence', async () => {
     const config = await resolveNestedEntityConfig(provider, 't1', 'contracts', 'notes');
-    expect(config?.entityLabel).toBe('Nota de Contrato');
-    expect(config?.entityLabelPlural).toBe('Notas de Contratos');
+    // O rótulo é a CHAVE da composição; o nome do registro vai ao lado, para a frase interpolar.
+    expect(config?.entityLabel).toBe('@core.admin/audit.entity.note-of');
+    expect(config?.entityLabelParams).toEqual({ name: 'Contrato' });
+    expect(config?.entityLabelPlural).toBe('@core.admin/audit.entity.note-of.plural');
+    expect(config?.entityLabelPluralParams).toEqual({ name: 'Contratos' });
     expect(config?.entityKey).toBe('contracts#notes');
   });
 
   it('o documento de uma coleção sem tela fica no rótulo genérico', async () => {
     const config = await resolveNestedEntityConfig(provider, 't1', 'produtos', 'documents');
-    expect(config?.entityLabel).toBe('Documento de Registro Personalizado');
+    expect(config?.entityLabel).toBe('@core.admin/audit.entity.custom-record-document');
   });
 
   it('subcoleção fixa continua com o nome do código', async () => {
     const config = await resolveNestedEntityConfig(provider, 't1', 'screenDefinitions', 'tags');
-    expect(config?.entityLabel).toBe('Etiqueta de Tela Personalizada');
+    expect(config?.entityLabel).toBe('@core.admin/audit.entity.custom-record-tag');
   });
 });

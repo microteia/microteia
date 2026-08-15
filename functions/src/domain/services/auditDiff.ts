@@ -1,6 +1,7 @@
 import type { AuditAction, AuditSeverity } from '../entities/AuditLog';
 import { isTimestampLike } from './normalizeFirestoreValue';
 
+import type { LocalizedMessage } from '../schema/i18n/localizedMessage';
 export type EntityData = Record<string, unknown>;
 
 export interface FieldDiff {
@@ -68,26 +69,42 @@ export const normalizeAllFields = (data: EntityData, extraIgnoredKeys: string[] 
   return out;
 };
 
-const ACTION_VERB: Record<AuditAction, string> = {
-  CREATE: 'criou',
-  UPDATE: 'alterou',
-  DELETE: 'excluiu',
-  SYSTEM: 'processou',
+/** A frase de cada ação, como CHAVE: o verbo muda de lugar na frase conforme o idioma. */
+const ACTION_TEXT_KEYS: Record<AuditAction, string> = {
+  CREATE: '@core.admin/audit.text.create',
+  UPDATE: '@core.admin/audit.text.update',
+  DELETE: '@core.admin/audit.text.delete',
+  SYSTEM: '@core.admin/audit.text.system',
 };
 
 export const ACTION_TITLE: Record<AuditAction, string> = {
-  CREATE: 'Criação',
-  UPDATE: 'Alteração',
-  DELETE: 'Exclusão',
-  SYSTEM: 'Sistema',
+  CREATE: '@core.admin/audit.action.create',
+  UPDATE: '@core.admin/audit.action.update',
+  DELETE: '@core.admin/audit.action.delete',
+  SYSTEM: '@core.admin/audit.action.system',
 };
 
 /**
- * Monta o Markdown do log: frase descritiva + (quando houver) blocos json.
+ * O "antes" e o "depois" são marcados por SÍMBOLO, não por rótulo escrito.
+ *
+ * `−` e `+` são a convenção universal de diff, que é exatamente o que um log de auditoria é: quem
+ * lê reconhece sem precisar de palavra, e o bloco atravessa qualquer idioma sem tradução — que era
+ * o que prendia o texto inteiro do log ao português.
+ */
+const BEFORE_MARK = '−';
+const AFTER_MARK = '+';
+
+const jsonBlock = (mark: string, data: EntityData): string =>
+  `\n\n${mark}\n\`\`\`json\n${JSON.stringify(data, null, 2)}\n\`\`\``;
+
+/**
+ * Monta o log: a FRASE vira chave, e os blocos de dado entram como parâmetro já pronto.
  * - CREATE: só a frase, sem bloco (nada "mudou" ainda).
- * - UPDATE: bloco **Antes:** com os valores antigos + bloco **Depois:** com os valores novos
- *   dos campos que mudaram.
- * - DELETE: só bloco **Antes:** com todos os campos do registro excluído (não há "depois").
+ * - UPDATE: bloco `−` com os valores antigos + bloco `+` com os novos, dos campos que mudaram.
+ * - DELETE: só bloco `−` com todos os campos do registro excluído (não há "depois").
+ *
+ * Os blocos podem ser parâmetro porque não têm mais texto dentro: são símbolo e JSON, iguais em
+ * qualquer idioma.
  */
 export const buildAuditText = (
   action: AuditAction,
@@ -95,24 +112,30 @@ export const buildAuditText = (
   displayName: string,
   userName: string,
   diff?: { before?: EntityData; after?: EntityData },
-): string => {
-  let text = `O usuário **${userName}** ${ACTION_VERB[action]} ${entityLabel.toLowerCase()} **${displayName}**.`;
+): LocalizedMessage => {
+  let blocks = '';
+  if (diff?.before && Object.keys(diff.before).length > 0) blocks += jsonBlock(BEFORE_MARK, diff.before);
+  if (diff?.after && Object.keys(diff.after).length > 0) blocks += jsonBlock(AFTER_MARK, diff.after);
 
-  if (diff?.before && Object.keys(diff.before).length > 0) {
-    text += `\n\n**Antes:**\n\`\`\`json\n${JSON.stringify(diff.before, null, 2)}\n\`\`\``;
-  }
-  if (diff?.after && Object.keys(diff.after).length > 0) {
-    text += `\n\n**Depois:**\n\`\`\`json\n${JSON.stringify(diff.after, null, 2)}\n\`\`\``;
-  }
-
-  return text;
+  return {
+    message: ACTION_TEXT_KEYS[action],
+    messageParams: { user: userName, entity: entityLabel, name: displayName, blocks },
+  };
 };
 
-export const buildTenantDeletedText = (userName: string, tenantName: string): string =>
-  `O usuário **${userName}** excluiu o escritório **${tenantName}**, removendo todos os dados vinculados.`;
+export const buildTenantDeletedText = (userName: string, tenantName: string): LocalizedMessage => ({
+  message: '@core.admin/audit.text.tenant-deleted',
+  messageParams: { user: userName, tenant: tenantName },
+});
 
-export const buildErrorText = (collection: string, docId: string, message: string): string =>
-  `Falha ao processar auditoria para \`${collection}/${docId}\`.\n\n\`\`\`\n${message}\n\`\`\``;
+export const buildErrorText = (
+  collection: string,
+  docId: string,
+  message: string,
+): LocalizedMessage => ({
+  message: '@core.admin/audit.text.failed',
+  messageParams: { path: `${collection}/${docId}`, detail: message },
+});
 
 /** DELETE é sempre HIGH; mudança de role de membro é HIGH; demais casos ficam no default LOW. */
 export const resolveSeverity = (action: AuditAction, collection: string, changedFieldKeys: EntityData): AuditSeverity => {

@@ -161,7 +161,14 @@ export const useAuditLogsViewModel = (): AuditLogsViewModel => {
     const actionFilter = tokenMap['action']?.[0] as AuditAction | undefined;
     const severityFilter = tokenMap['severity']?.[0] as AuditSeverity | undefined;
 
+    // Resolve ANTES de filtrar: a busca passa a comparar com o texto que está na tela, e não com a
+    // chave. Log antigo guarda a frase pronta e atravessa `resolveLabel` intacto.
     return logs
+      .map((log) => ({
+        ...log,
+        title: label(log.title, log.titleParams),
+        text: label(log.text, log.textParams),
+      }))
       .filter((log) => {
         if (entityFilter && log.entity !== entityFilter) return false;
         if (actionFilter && log.action !== actionFilter) return false;

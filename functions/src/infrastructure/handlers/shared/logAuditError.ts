@@ -15,6 +15,7 @@ export const logAuditError = async (
   console.error(`[audit] Falha ao processar ${collection}/${docId}:`, error);
 
   try {
+    const auditText = buildErrorText(collection, docId, message);
     await getDI().getCreateAuditLogUseCase().execute({
       tenantId: tenantId || 'SYSTEM',
       title: 'Erro no processamento de auditoria',
@@ -26,7 +27,8 @@ export const logAuditError = async (
       type: 'ERROR',
       entity: 'SYSTEM',
       entityId: docId || collection,
-      text: buildErrorText(collection, docId, message),
+      text: auditText.message,
+      textParams: auditText.messageParams,
     });
   } catch (loggingError) {
     console.error('[audit] Falha ao registrar log de erro de auditoria:', loggingError);

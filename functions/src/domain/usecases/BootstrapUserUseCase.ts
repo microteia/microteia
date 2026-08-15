@@ -27,11 +27,11 @@ export const makeBootstrapUserUseCase = (
     await userRepo.createUserProfileIfMissing(userId);
 
     const tenant = await tenantRepo.createTenant({
-      // O nome do escritório é DADO gravado, não texto de interface: nasce uma vez, o escritório o
-      // renomeia quando quiser, e traduzi-lo depois mudaria o nome que ele escolheu manter. Fica em
-      // português porque é o idioma de quem hoje entra no sistema; um dia virá da preferência do
-      // usuário no momento do cadastro, que o backend ainda não conhece.
-      name: `Escritório de ${displayName}`,
+      // O nome do escritório é DADO gravado, não texto de interface: nasce uma vez e o escritório
+      // o renomeia quando quiser — traduzi-lo depois mudaria o nome que ele escolheu manter. Por
+      // isso é montado só com o que o usuário trouxe: sem palavra nossa, não há idioma para ficar
+      // preso. O e-mail entra porque dois usuários homônimos precisam se distinguir na lista.
+      name: `${displayName}(${email})`,
       ownerId: userId,
       email,
       plan: 'solo',

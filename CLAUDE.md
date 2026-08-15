@@ -235,7 +235,7 @@ campo, opção de lista). Isso é dado do tenant, não texto do produto, e passa
 - **Tenant selecionado vive em `useTenant().currentTenant`** — todos os stores de dados (Pessoas, Processos, Prazos, Financeiro, etc.) só carregam dados quando `currentTenant` não é `null`.
 - **Estrutura Firestore:** `tenants/{tenantId}/persons`, `tenants/{tenantId}/cases`, `tenants/{tenantId}/deadlines`, `tenants/{tenantId}/financials`.
 - **Roles por tenant:** `admin`, `lawyer`, `secretary`, `user`. Role global: `SYSTEM` | `SUPPORT` | `USER`.
-- **Novo usuário:** ao fazer login pela primeira vez, um tenant padrão "Organização de [displayName]" é criado automaticamente com o usuário como `admin`.
+- **Novo usuário:** ao fazer login pela primeira vez, um tenant padrão `[displayName]([email])` é criado automaticamente com o usuário como `admin`. O nome é montado só com o que o usuário trouxe — sem palavra nossa, não há idioma preso num dado que ele pode renomear.
 - **Seleção de tenant:** após login (ou ao criar conta), o usuário vê o `TenantSelector`. O último tenant escolhido é salvo em `localStorage` com chave `'microteia:lastTenantId'`.
 
 ---

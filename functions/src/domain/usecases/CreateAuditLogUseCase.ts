@@ -3,7 +3,9 @@ import type { IAuditLogRepository } from '../repositories/IAuditLogRepository';
 
 export interface CreateAuditLogInput {
   tenantId: string;
+  /** REFERÊNCIA de mensagem; os `*Params` trazem o que a frase interpola. */
   title: string;
+  titleParams?: Record<string, string>;
   userId: string;
   userName: string;
   photoURL: string;
@@ -16,6 +18,7 @@ export interface CreateAuditLogInput {
   linkCollection?: string;
   linkRecordId?: string;
   text: string;
+  textParams?: Record<string, string>;
 }
 
 export type CreateAuditLogUseCase = {

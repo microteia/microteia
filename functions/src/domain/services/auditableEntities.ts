@@ -7,8 +7,11 @@ type EntityData = Record<string, unknown>;
 
 export interface AuditableEntityConfig {
   entityKey: string;
+  /** REFERÊNCIA de mensagem, ou o rótulo que o escritório digitou; os `*Params` interpolam. */
   entityLabel: string;
+  entityLabelParams?: Record<string, string>;
   entityLabelPlural: string;
+  entityLabelPluralParams?: Record<string, string>;
   getDisplayName: (data: EntityData) => string;
   getEntityLink?: (tenantId: string, docId: string, parentId?: string, data?: EntityData) => string;
   /** Restringe quais ações geram log (ex: Pushes só audita UPDATE/DELETE). Sem isso, audita CREATE/UPDATE/DELETE. */
@@ -18,32 +21,32 @@ export interface AuditableEntityConfig {
 export const truncate = (text: string, max: number): string =>
   text.length > max ? `${text.slice(0, max)}…` : text;
 
-export const asString = (v: unknown, fallback = 'sem nome'): string =>
+export const asString = (v: unknown, fallback = '@core.admin/audit.entity.unnamed'): string =>
   typeof v === 'string' && v.trim() ? v.trim() : fallback;
 
 const FLAT_ENTITY_CONFIG: Record<string, AuditableEntityConfig> = {
   members: {
     entityKey: 'TenantMember',
-    entityLabel: 'Membro',
-    entityLabelPlural: 'Membros',
+    entityLabel: '@core.admin/audit.entity.tenant-member',
+    entityLabelPlural: '@core.admin/audit.entity.tenant-member.plural',
     getDisplayName: (d) => asString(d.displayName ?? d.email),
   },
   personTags: {
     entityKey: 'PersonTag',
-    entityLabel: 'Etiqueta de Pessoa',
-    entityLabelPlural: 'Etiquetas de Pessoas',
+    entityLabel: '@core.admin/audit.entity.person-tag',
+    entityLabelPlural: '@core.admin/audit.entity.person-tag.plural',
     getDisplayName: (d) => asString(d.name),
   },
   caseTags: {
     entityKey: 'CaseTag',
-    entityLabel: 'Etiqueta de Processo',
-    entityLabelPlural: 'Etiquetas de Processos',
+    entityLabel: '@core.admin/audit.entity.case-tag',
+    entityLabelPlural: '@core.admin/audit.entity.case-tag.plural',
     getDisplayName: (d) => asString(d.name),
   },
   pushes: {
     entityKey: 'Push',
-    entityLabel: 'Push do Tribunal',
-    entityLabelPlural: 'Pushes do Tribunal',
+    entityLabel: '@core.admin/audit.entity.push',
+    entityLabelPlural: '@core.admin/audit.entity.push.plural',
     getDisplayName: (d) => asString(d.subject ?? d.processNumber, 'Push'),
     // Criação é automática (Cloud Function do webhook do Gmail) — só interessa auditar
     // a triagem manual (mudança de status) e a exclusão.
@@ -51,8 +54,8 @@ const FLAT_ENTITY_CONFIG: Record<string, AuditableEntityConfig> = {
   },
   screenDefinitions: {
     entityKey: 'ScreenDefinition',
-    entityLabel: 'Tela Personalizada',
-    entityLabelPlural: 'Telas Personalizadas',
+    entityLabel: '@core.admin/audit.entity.screen-definition',
+    entityLabelPlural: '@core.admin/audit.entity.screen-definition.plural',
     getDisplayName: (d) => asString(d.titlePlural ?? d.titleSingular),
     getEntityLink: () => 'screen-builder',
   },
@@ -62,16 +65,16 @@ const NESTED_ENTITY_CONFIG: Record<string, Record<string, AuditableEntityConfig>
   __screenRecord__: {
     notes: {
       entityKey: 'RecordNote',
-      entityLabel: 'Nota de Registro',
-      entityLabelPlural: 'Notas de Registro',
+      entityLabel: '@core.admin/audit.entity.record-note',
+      entityLabelPlural: '@core.admin/audit.entity.record-note.plural',
       getDisplayName: (d) => truncate(asString(d.title ?? d.text, 'Nota'), 60),
       getEntityLink: (_tenantId, _docId, parentId, data) =>
         `view-dyn:${asString(data?.collection, '')}:${parentId}`,
     },
     documents: {
       entityKey: 'CustomRecordDocument',
-      entityLabel: 'Documento de Registro Personalizado',
-      entityLabelPlural: 'Documentos de Registros Personalizados',
+      entityLabel: '@core.admin/audit.entity.custom-record-document',
+      entityLabelPlural: '@core.admin/audit.entity.custom-record-document.plural',
       getDisplayName: (d) => asString(d.name),
       getEntityLink: (_tenantId, _docId, parentId, data) =>
         `view-dyn:${asString(data?.screenKey, '')}:${parentId}`,
@@ -80,8 +83,8 @@ const NESTED_ENTITY_CONFIG: Record<string, Record<string, AuditableEntityConfig>
   screenDefinitions: {
     tags: {
       entityKey: 'CustomRecordTag',
-      entityLabel: 'Etiqueta de Tela Personalizada',
-      entityLabelPlural: 'Etiquetas de Telas Personalizadas',
+      entityLabel: '@core.admin/audit.entity.custom-record-tag',
+      entityLabelPlural: '@core.admin/audit.entity.custom-record-tag.plural',
       getDisplayName: (d) => asString(d.name),
       getEntityLink: (_tenantId, _docId, parentId) => `dyn:${parentId}`,
     },
@@ -111,15 +114,22 @@ const declaredName = (d: EntityData, entity: EntityMetadata | undefined): string
  */
 const screenRecordConfig = (collection: string, entity?: EntityMetadata): AuditableEntityConfig => ({
   entityKey: collection,
-  entityLabel: entity?.labelSingular ?? 'Registro',
-  entityLabelPlural: entity?.labelPlural ?? 'Registros',
+  entityLabel: entity?.labelSingular ?? '@core.admin/audit.entity.record',
+  entityLabelPlural: entity?.labelPlural ?? '@core.admin/audit.entity.record.plural',
   getDisplayName: (d) => declaredName(d, entity) ?? heuristicName(d),
   getEntityLink: (_tenantId, docId) => `view-dyn:${collection}:${docId}`,
 });
 
+/** "Nota de Contrato" muda de ordem conforme o idioma, então a composição inteira é a chave. */
 const NESTED_SCREEN_LABELS: Record<string, { singular: string; plural: string }> = {
-  notes: { singular: 'Nota', plural: 'Notas' },
-  documents: { singular: 'Documento', plural: 'Documentos' },
+  notes: {
+    singular: '@core.admin/audit.entity.note-of',
+    plural: '@core.admin/audit.entity.note-of.plural',
+  },
+  documents: {
+    singular: '@core.admin/audit.entity.document-of',
+    plural: '@core.admin/audit.entity.document-of.plural',
+  },
 };
 
 /** A nota e o documento herdam a identidade do registro a que pertencem: "Nota de Contrato". */
@@ -134,8 +144,10 @@ const screenNestedConfig = (
   return {
     ...base,
     entityKey: `${parentCollection}#${subCollection}`,
-    entityLabel: `${labels.singular} de ${entity.labelSingular}`,
-    entityLabelPlural: `${labels.plural} de ${entity.labelPlural}`,
+    entityLabel: labels.singular,
+    entityLabelParams: { name: entity.labelSingular },
+    entityLabelPlural: labels.plural,
+    entityLabelPluralParams: { name: entity.labelPlural },
   };
 };
 

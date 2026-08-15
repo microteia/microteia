@@ -11,6 +11,13 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [7.33.0] — 2026-08-15
+
+- A Auditoria passou a acompanhar o idioma escolhido, inclusive o resumo de cada registro e o nome da entidade alterada.
+- Nos registros de alteração, os blocos de dados passaram a ser marcados por sinal — `−` para o valor anterior e `+` para o novo — no lugar das palavras "Antes" e "Depois".
+- A busca na Auditoria passou a procurar no texto que está na tela.
+- O escritório criado no primeiro acesso passa a se chamar `Nome(e-mail)`, o que também distingue dois usuários de mesmo nome.
+
 #### [7.32.0] — 2026-08-15
 
 - Corrigido: quando um Step falhava ao ler um campo, o motivo aparecia como um código no lugar da frase. Agora a mensagem completa aparece traduzida, com o nome do Step e do campo.

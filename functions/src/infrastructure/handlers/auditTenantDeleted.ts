@@ -18,6 +18,7 @@ export const auditTenantDeleted = onDocumentDeleted(
       const actorUid = (data.ownerId as string | undefined) || '';
       const actor = await getDI().getUserProfileLookupService().resolveActor(actorUid);
 
+      const auditText = buildTenantDeletedText(actor.name, tenantName);
       await getDI().getCreateAuditLogUseCase().execute({
         tenantId,
         title: '@core.admin/audit.tenant-deleted.title',
@@ -28,7 +29,8 @@ export const auditTenantDeleted = onDocumentDeleted(
         severity: 'CRITICAL',
         entity: 'Tenant',
         entityId: tenantId,
-        text: buildTenantDeletedText(actor.name, tenantName),
+        text: auditText.message,
+        textParams: auditText.messageParams,
       });
     } catch (error) {
       await logAuditError(tenantId, 'tenants', tenantId, error);
