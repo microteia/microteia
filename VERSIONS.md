@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [7.28.1] — 2026-08-15
+
+- Os dois pontos de extensão de automação — passo e função de expressão — passaram a ter nome e descrição traduzidos.
+
 #### [7.28.0] — 2026-08-15
 
 - O catálogo de Steps das automações passou a acompanhar o idioma escolhido: o nome e a descrição de cada Step, e os rótulos dos campos que ele pede e das saídas que devolve.

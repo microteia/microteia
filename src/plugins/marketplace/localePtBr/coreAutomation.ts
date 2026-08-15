@@ -729,4 +729,8 @@ export const CORE_AUTOMATION: Record<string, string> = {
   'step.validate-object.description': 'Objeto validado e formatado por este step',
   'step.validate-object.label.validacao': 'Validação',
   'step.validate-object.name': 'Validar Objeto',
+  'point.expression-fn.description': 'Registra uma função disponível nas expressões e dentro do Step Script.',
+  'point.expression-fn.title': 'Função de expressão',
+  'point.step.description': 'Registra um passo configurável no construtor visual de Automações.',
+  'point.step.title': 'Passo de automação',
 };

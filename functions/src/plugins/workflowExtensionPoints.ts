@@ -33,8 +33,8 @@ export const WORKFLOW_EXTENSION_POINTS: ExtensionPointDefinition[] = [
   {
     id: WORKFLOW_STEP_POINT,
     apiVersion: WORKFLOW_API_VERSION,
-    title: 'Passo de automação',
-    description: 'Registra um passo configurável no construtor visual de Automações.',
+    title: '@core.automation/point.step.title',
+    description: '@core.automation/point.step.description',
     ownerPluginId: 'core.workflow',
     allowedImplKinds: ['code'],
     implRequired: true,
@@ -43,8 +43,8 @@ export const WORKFLOW_EXTENSION_POINTS: ExtensionPointDefinition[] = [
   {
     id: EXPRESSION_FUNCTION_POINT,
     apiVersion: WORKFLOW_API_VERSION,
-    title: 'Função de expressão',
-    description: 'Registra uma função disponível nas expressões e dentro do Step Script.',
+    title: '@core.automation/point.expression-fn.title',
+    description: '@core.automation/point.expression-fn.description',
     ownerPluginId: 'core.workflow',
     allowedImplKinds: ['code'],
     implRequired: true,
