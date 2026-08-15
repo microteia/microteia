@@ -14,7 +14,7 @@ export const makeGetDefaultAICredentialsUseCase = (
   execute: async (tenantId: string, userId: string) => {
     const isMember = await tenantMemberRepo.isMember(tenantId, userId);
     if (!isMember) {
-      throw permissionDenied('Você não é membro deste escritório.');
+      throw permissionDenied('@core.automation/handler.not-member');
     }
     return aiConnectionRepo.getDefaultCredentials(tenantId);
   },

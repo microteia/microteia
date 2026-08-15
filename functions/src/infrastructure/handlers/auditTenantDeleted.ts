@@ -20,7 +20,7 @@ export const auditTenantDeleted = onDocumentDeleted(
 
       await getDI().getCreateAuditLogUseCase().execute({
         tenantId,
-        title: 'Exclusão do Escritório',
+        title: '@core.admin/audit.tenant-deleted.title',
         userId: actorUid || 'system',
         userName: actor.name,
         photoURL: actor.photoURL,

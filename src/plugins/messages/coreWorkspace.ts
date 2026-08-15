@@ -97,4 +97,11 @@ export const CORE_WORKSPACE_MESSAGES: Record<string, string> = {
   'user.not-a-member': 'The user does not belong to this organization.',
   'profile.nickname.bad-format': 'Invalid nickname format.',
   'profile.nickname.not-allowed': 'This nickname is not allowed.',
+  'google.exchange-failed': 'Could not exchange the code: {detail}',
+  'google.no-access-token': 'Google did not return an access token.',
+  'google.no-refreshed-token': 'No access token was returned when renewing.',
+  'tenant.not-found': 'Organization not found.',
+  'user.lookup-failed': 'Could not fetch the user information.',
+  'user.not-found': 'User not found.',
+  'user.unknown': 'Unknown user',
 };

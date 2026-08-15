@@ -26,7 +26,7 @@ export class UserProfileLookupService implements IUserProfileLookupService {
     const displayName = userData?.displayName as string | undefined;
     const email = userData?.email as string | undefined;
 
-    const name = nickname || fullName || displayName || email || 'Usuário desconhecido';
+    const name = nickname || fullName || displayName || email || '@core.workspace/user.unknown';
     const photoURL = (profileData?.photoURL as string | undefined)
       || (userData?.photoURL as string | undefined)
       || '';

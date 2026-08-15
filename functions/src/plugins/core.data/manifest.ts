@@ -16,7 +16,8 @@ export const coreDataPlugin: PluginRecord = {
     version: '1.0.0',
     kernel: '^1.0.0',
     name: 'Entidades e Listas',
-    description: 'Declara os pontos de dados e expõe as entidades nativas e os lookups do sistema.',
+    description:
+      '@core.data/plugin.data.description',
     extensionPoints: DATA_EXTENSION_POINTS,
     contributes: [...ENTITY_CONTRIBUTIONS, ...LOOKUP_CONTRIBUTIONS],
   },

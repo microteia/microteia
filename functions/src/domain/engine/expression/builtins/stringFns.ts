@@ -246,10 +246,10 @@ export const interpolateFn: ExpressionFunction = {
     });
   },
   description:
-    'Preenche um template: {0}, {1}… pegam os valores seguintes na ordem; {chave} pega o campo de um objeto passado como único valor',
+    '@core.automation/expr.interpolate.description',
   signature: 'interpolate(template, value0, value1, ...)',
   example:
-    'interpolate("Tarefa {0} criada, ID: {1}", event.values.nome, event.values.id) ou interpolate("Olá {nome}", object("nome", "João"))',
+    'interpolate("Task {0} created, ID: {1}", event.values.name, event.values.id) or interpolate("Hello {name}", object("name", "Ana"))',
   category: '@core.automation/expr.category.text',
   minArgs: 1,
 };

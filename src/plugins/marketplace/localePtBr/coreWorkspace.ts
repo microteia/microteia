@@ -97,4 +97,11 @@ export const CORE_WORKSPACE: Record<string, string> = {
   'user.not-a-member': 'Usuário não pertence a este escritório.',
   'profile.nickname.bad-format': 'Formato de apelido inválido.',
   'profile.nickname.not-allowed': 'Este apelido não é permitido.',
+  'google.exchange-failed': 'Erro ao trocar código: {detail}',
+  'google.no-access-token': 'Token de acesso não retornado pelo Google.',
+  'google.no-refreshed-token': 'Token de acesso não retornado ao renovar.',
+  'tenant.not-found': 'Escritório não encontrado.',
+  'user.lookup-failed': 'Erro ao buscar informações do usuário.',
+  'user.not-found': 'Usuário não encontrado.',
+  'user.unknown': 'Usuário desconhecido',
 };

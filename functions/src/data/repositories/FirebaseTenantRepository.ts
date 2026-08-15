@@ -68,11 +68,11 @@ export class FirebaseTenantRepository implements ITenantRepository {
     await this.db.runTransaction(async (tx) => {
       const tenantSnap = await tx.get(tenantRef);
       if (!tenantSnap.exists) {
-        throw notFound('Escritório não encontrado.');
+        throw notFound('@core.workspace/tenant.not-found');
       }
       const memberSnap = await tx.get(memberRef);
       if (memberSnap.exists) {
-        throw alreadyExists('Este usuário já é membro do escritório.');
+        throw alreadyExists('@core.admin/member.already-member');
       }
 
       const data = tenantSnap.data()!;

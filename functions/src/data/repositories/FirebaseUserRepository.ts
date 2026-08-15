@@ -10,13 +10,13 @@ export class FirebaseUserRepository implements IUserRepository {
     const snap = await this.db.collection('users').doc(userId).get();
 
     if (!snap.exists) {
-      throw new Error('Usuário não encontrado.');
+      throw new Error('@core.workspace/user.not-found');
     }
 
     const data = snap.data() as Record<string, unknown>;
 
     return {
-      displayName: (data.displayName as string) || 'Usuário desconhecido',
+      displayName: (data.displayName as string) || '@core.workspace/user.unknown',
       photoURL: (data.photoURL as string | null) ?? null,
     };
   }

@@ -230,4 +230,7 @@ export const CORE_ADMIN: Record<string, string> = {
   'audit.load-failed': 'Não foi possível carregar os registros de auditoria.',
   'audit.load-more-failed': 'Não foi possível carregar mais registros de auditoria.',
   'member.limit-reached-error': 'Limite de membros do escritório atingido.',
+  'audit.tenant-deleted.title': 'Exclusão do Escritório',
+  'member.add.admin-only': 'Somente administradores do escritório podem adicionar membros.',
+  'member.remove.admin-only': 'Somente administradores do escritório podem remover membros.',
 };

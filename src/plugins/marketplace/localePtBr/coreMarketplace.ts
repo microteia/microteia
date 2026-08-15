@@ -247,4 +247,9 @@ export const CORE_MARKETPLACE: Record<string, string> = {
   'lifecycle.invalid-version': 'Versão "{version}" não é um semver válido.',
   'lifecycle.not-installed': 'O plugin não está instalado neste escritório.',
   'lifecycle.not-newer': 'A versão {version} não é mais recente que a instalada ({installed}).',
+  'capability.ai-completion': 'Geração de texto por IA',
+  'plugin.capabilities.description':
+    'Declara o ponto de extensão onde plugins fornecem implementações de Capabilities.',
+  'point.capability.description':
+    'Fornece a implementação de uma Capability (IA, mensageria, pagamentos). Vários plugins podem fornecer a mesma, e o escritório escolhe qual usar.',
 };

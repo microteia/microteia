@@ -17,7 +17,7 @@ export const makeRemoveTenantMemberUseCase = (
     if (requesterRole !== 'admin') {
       const globalRole = await userRepo.getUserRole(requesterId);
       if (globalRole !== 'SYSTEM' && globalRole !== 'SUPPORT') {
-        throw permissionDenied('Somente administradores do escritório podem remover membros.');
+        throw permissionDenied('@core.admin/member.remove.admin-only');
       }
     }
 

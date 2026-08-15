@@ -15,7 +15,7 @@ export const checkNicknameAvailability = onCall(
     const { nickname } = request.data as CheckNicknameRequest;
 
     if (!nickname || typeof nickname !== 'string') {
-      throw new HttpsError('invalid-argument', 'nickname é obrigatório.');
+      throw new HttpsError('invalid-argument', '@core.automation/handler.params.missing');
     }
 
     try {

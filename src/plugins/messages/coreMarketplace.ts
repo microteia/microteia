@@ -247,4 +247,9 @@ export const CORE_MARKETPLACE_MESSAGES: Record<string, string> = {
   'lifecycle.invalid-version': 'Version "{version}" is not a valid semver.',
   'lifecycle.not-installed': 'The plugin is not installed in this organization.',
   'lifecycle.not-newer': 'Version {version} is not newer than the installed one ({installed}).',
+  'capability.ai-completion': 'AI text generation',
+  'plugin.capabilities.description':
+    'Declares the extension point where plugins provide Capability implementations.',
+  'point.capability.description':
+    'Provides the implementation of a Capability (AI, messaging, payments). Several plugins may provide the same one, and the organization chooses which to use.',
 };

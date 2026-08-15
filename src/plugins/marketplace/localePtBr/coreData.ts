@@ -31,4 +31,6 @@ export const CORE_DATA: Record<string, string> = {
     'Um plugin registra um serviço próprio (ex.: integração externa), resolvível por chave via useDI().resolveService. O container tipado do núcleo permanece intocado.',
   'point.service.title': 'Serviço injetável de plugin',
   'lookup-provider.failed': 'Não foi possível consultar os dados',
+  'plugin.data.description':
+    'Declara os pontos de dados e expõe as entidades nativas e os lookups do sistema.',
 };

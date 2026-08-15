@@ -24,7 +24,7 @@ export const CAPABILITY_EXTENSION_POINTS: ExtensionPointDefinition[] = [
     apiVersion: CAPABILITY_API_VERSION,
     title: 'Provedor de uma capacidade',
     description:
-      'Fornece a implementação de uma Capability (IA, mensageria, pagamentos). Vários plugins podem fornecer a mesma, e o escritório escolhe qual usar.',
+      '@core.marketplace/point.capability.description',
     ownerPluginId: 'core.capabilities',
     allowedImplKinds: ['code'],
     implRequired: true,

@@ -228,4 +228,7 @@ export const CORE_ADMIN_MESSAGES: Record<string, string> = {
   'audit.load-failed': 'Could not load the audit records.',
   'audit.load-more-failed': 'Could not load more audit records.',
   'member.limit-reached-error': 'The organization member limit has been reached.',
+  'audit.tenant-deleted.title': 'Organization deletion',
+  'member.add.admin-only': 'Only organization administrators can add members.',
+  'member.remove.admin-only': 'Only organization administrators can remove members.',
 };

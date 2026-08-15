@@ -15,7 +15,7 @@ export const getUserInfo = onCall(
     const { userId } = request.data as GetUserInfoRequest;
 
     if (!userId) {
-      throw new HttpsError('invalid-argument', 'userId é obrigatório.');
+      throw new HttpsError('invalid-argument', '@core.automation/handler.params.missing');
     }
 
     try {
@@ -29,7 +29,9 @@ export const getUserInfo = onCall(
       };
     } catch (err) {
       if (err instanceof HttpsError) throw err;
-      const message = err instanceof Error ? err.message : 'Erro ao buscar informações do usuário.';
+      const message = err instanceof Error
+        ? err.message
+        : '@core.workspace/user.lookup-failed';
       throw new HttpsError('internal', message);
     }
   },

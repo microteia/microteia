@@ -14,7 +14,7 @@ export const onUserCreated = functionsV1
       await useCase.execute({
         userId: user.uid,
         email: user.email ?? '',
-        displayName: user.displayName ?? user.email ?? 'Usuário',
+        displayName: user.displayName ?? user.email ?? '@core.workspace/user.anonymous',
         photoURL: user.photoURL ?? null,
       });
     } catch (err) {

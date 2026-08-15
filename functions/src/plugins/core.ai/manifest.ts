@@ -24,7 +24,7 @@ export const coreAiPlugin: PluginRecord = {
     kernel: '^1.0.0',
     name: 'Provedores de IA',
     dependencies: { 'core.capabilities': '^1.0.0' },
-    provides: [{ capability: AI_COMPLETION, version: VERSION, label: 'Geração de texto por IA' }],
+    provides: [{ capability: AI_COMPLETION, version: VERSION, label: '@core.marketplace/capability.ai-completion' }],
     contributes: [
       capabilityProvider({ capability: AI_COMPLETION, version: VERSION, providerKey: 'openai', label: 'OpenAI' }, 'OpenAIService'),
       capabilityProvider({ capability: AI_COMPLETION, version: VERSION, providerKey: 'anthropic', label: 'Anthropic' }, 'AnthropicService'),

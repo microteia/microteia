@@ -8,7 +8,8 @@ export const coreCapabilitiesPlugin: PluginRecord = {
     version: '1.0.0',
     kernel: '^1.0.0',
     name: 'Capacidades',
-    description: 'Declara o ponto de extensão onde plugins fornecem implementações de Capabilities.',
+    description:
+      '@core.marketplace/plugin.capabilities.description',
     extensionPoints: CAPABILITY_EXTENSION_POINTS,
   },
 };

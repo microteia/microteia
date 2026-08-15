@@ -862,4 +862,20 @@ export const CORE_AUTOMATION_MESSAGES: Record<string, string> = {
   'script.unsettled': 'The Script did not finish: the main function returned an unresolved promise.',
   'step.script.empty': 'The selected Script is empty',
   'step.script.not-found': 'Script not found',
+  'ai.connection-not-found': 'AI connection not found for this organization.',
+  'ai.default-key-missing': 'The API key of the default AI connection is not on file.',
+  'ai.invalid-response': 'The AI returned a response in an invalid format.',
+  'ai.invalid-response.retry': 'The AI returned a response in an invalid format. Try again.',
+  'ai.key-missing': 'The API key of this AI connection is not on file.',
+  'ai.no-default-connection': 'No default AI connection is configured for this organization.',
+  'ai.provider.unsupported': 'Unsupported AI provider: {provider}.',
+  'ai.provider.unsupported.short': 'Unsupported AI provider.',
+  'expr.interpolate.description':
+    'Fills a template: {0}, {1}… take the following values in order; {key} takes the field of an object passed as the single value',
+  'plugin.expressions.name': 'Expression Functions',
+  'plugin.steps.name': 'Standard Steps',
+  'plugin.workflow.description':
+    'Declares the extension points of the engine: steps and expression functions.',
+  'plugin.workflow.name': 'Automation Engine',
+  'step.set-variable.short-name': 'Set Variable',
 };

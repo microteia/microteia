@@ -1,11 +1,12 @@
 import type { AICredentials } from '../entities/AICredentials';
 import type { AICallOptions, IAIProviderService } from '../repositories/IAIProviderService';
 
+import { LocalizedError } from '../errors/LocalizedError';
 export class AIResponseFormatError extends Error {
   readonly raw: string;
   readonly truncated: boolean;
   constructor(raw: string, truncated: boolean) {
-    super('A IA retornou uma resposta em formato inválido.');
+    super('@core.automation/ai.invalid-response');
     this.name = 'AIResponseFormatError';
     this.raw = raw;
     this.truncated = truncated;
@@ -58,7 +59,10 @@ export const makeCallAIUseCase = (aiProviders: IAIProviderService[]): CallAIUseC
   const call = async ({ credentials, userContent, options }: CallAIInput): Promise<string> => {
     const provider = aiProviders.find((p) => p.canHandle(credentials.provider));
     if (!provider) {
-      throw new Error(`Provedor de IA não suportado: ${credentials.provider}.`);
+      throw new LocalizedError(
+        '@core.automation/ai.provider.unsupported',
+        { provider: String(credentials.provider) },
+      );
     }
     return provider.call(credentials, userContent, options);
   };

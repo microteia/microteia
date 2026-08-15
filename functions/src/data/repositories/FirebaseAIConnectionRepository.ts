@@ -16,13 +16,13 @@ export class FirebaseAIConnectionRepository implements IAIConnectionRepository {
       .get();
 
     if (connectionsSnap.empty) {
-      throw new Error('Nenhuma conexão IA padrão configurada para este escritório.');
+      throw new Error('@core.automation/ai.no-default-connection');
     }
 
     const credentials = await this.toCredentials(tenantId, connectionsSnap.docs[0]);
 
     if (!credentials) {
-      throw new Error('A chave de API da conexão IA padrão não está cadastrada.');
+      throw new Error('@core.automation/ai.default-key-missing');
     }
 
     return credentials;
@@ -37,13 +37,13 @@ export class FirebaseAIConnectionRepository implements IAIConnectionRepository {
       .get();
 
     if (!snap.exists) {
-      throw new Error('Conexão de IA não encontrada para este escritório.');
+      throw new Error('@core.automation/ai.connection-not-found');
     }
 
     const credentials = await this.toCredentials(tenantId, snap);
 
     if (!credentials) {
-      throw new Error('A chave de API desta conexão de IA não está cadastrada.');
+      throw new Error('@core.automation/ai.key-missing');
     }
 
     return credentials;

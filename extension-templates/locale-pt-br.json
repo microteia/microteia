@@ -894,7 +894,10 @@
             "plan.office": "Escritório",
             "audit.load-failed": "Não foi possível carregar os registros de auditoria.",
             "audit.load-more-failed": "Não foi possível carregar mais registros de auditoria.",
-            "member.limit-reached-error": "Limite de membros do escritório atingido."
+            "member.limit-reached-error": "Limite de membros do escritório atingido.",
+            "audit.tenant-deleted.title": "Exclusão do Escritório",
+            "member.add.admin-only": "Somente administradores do escritório podem adicionar membros.",
+            "member.remove.admin-only": "Somente administradores do escritório podem remover membros."
           }
         }
       },
@@ -1110,7 +1113,10 @@
             "lifecycle.already-installed": "O plugin \"{id}\" já está instalado (versão {version}). Use atualizar.",
             "lifecycle.invalid-version": "Versão \"{version}\" não é um semver válido.",
             "lifecycle.not-installed": "O plugin não está instalado neste escritório.",
-            "lifecycle.not-newer": "A versão {version} não é mais recente que a instalada ({installed})."
+            "lifecycle.not-newer": "A versão {version} não é mais recente que a instalada ({installed}).",
+            "capability.ai-completion": "Geração de texto por IA",
+            "plugin.capabilities.description": "Declara o ponto de extensão onde plugins fornecem implementações de Capabilities.",
+            "point.capability.description": "Fornece a implementação de uma Capability (IA, mensageria, pagamentos). Vários plugins podem fornecer a mesma, e o escritório escolhe qual usar."
           }
         }
       },
@@ -1431,7 +1437,14 @@
             "tenant.none-found": "Nenhum escritório encontrado para este usuário. Recarregue a página; se o problema persistir, contate o suporte.",
             "user.not-a-member": "Usuário não pertence a este escritório.",
             "profile.nickname.bad-format": "Formato de apelido inválido.",
-            "profile.nickname.not-allowed": "Este apelido não é permitido."
+            "profile.nickname.not-allowed": "Este apelido não é permitido.",
+            "google.exchange-failed": "Erro ao trocar código: {detail}",
+            "google.no-access-token": "Token de acesso não retornado pelo Google.",
+            "google.no-refreshed-token": "Token de acesso não retornado ao renovar.",
+            "tenant.not-found": "Escritório não encontrado.",
+            "user.lookup-failed": "Erro ao buscar informações do usuário.",
+            "user.not-found": "Usuário não encontrado.",
+            "user.unknown": "Usuário desconhecido"
           }
         }
       },
@@ -2326,7 +2339,21 @@
             "script.timeout": "Tempo de execução do Script excedido.",
             "script.unsettled": "O Script não concluiu: a função principal retornou uma promessa não resolvida.",
             "step.script.empty": "O Script selecionado está vazio",
-            "step.script.not-found": "Script não encontrado"
+            "step.script.not-found": "Script não encontrado",
+            "ai.connection-not-found": "Conexão de IA não encontrada para este escritório.",
+            "ai.default-key-missing": "A chave de API da conexão IA padrão não está cadastrada.",
+            "ai.invalid-response": "A IA retornou uma resposta em formato inválido.",
+            "ai.invalid-response.retry": "A IA retornou uma resposta em formato inválido. Tente novamente.",
+            "ai.key-missing": "A chave de API desta conexão de IA não está cadastrada.",
+            "ai.no-default-connection": "Nenhuma conexão IA padrão configurada para este escritório.",
+            "ai.provider.unsupported": "Provedor de IA não suportado: {provider}.",
+            "ai.provider.unsupported.short": "Provedor de IA não suportado.",
+            "expr.interpolate.description": "Preenche um template: {0}, {1}… pegam os valores seguintes na ordem; {chave} pega o campo de um objeto passado como único valor",
+            "plugin.expressions.name": "Funções de Expressão",
+            "plugin.steps.name": "Passos Padrão",
+            "plugin.workflow.description": "Declara os pontos de extensão do motor: passos e funções de expressão.",
+            "plugin.workflow.name": "Motor de Automações",
+            "step.set-variable.short-name": "Definir Variável"
           }
         }
       },
@@ -2366,7 +2393,8 @@
             "point.lookup.title": "Lista de valores (lookup)",
             "point.service.description": "Um plugin registra um serviço próprio (ex.: integração externa), resolvível por chave via useDI().resolveService. O container tipado do núcleo permanece intocado.",
             "point.service.title": "Serviço injetável de plugin",
-            "lookup-provider.failed": "Não foi possível consultar os dados"
+            "lookup-provider.failed": "Não foi possível consultar os dados",
+            "plugin.data.description": "Declara os pontos de dados e expõe as entidades nativas e os lookups do sistema."
           }
         }
       }

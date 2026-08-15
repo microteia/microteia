@@ -1,6 +1,7 @@
 import type { IGmailAuthService, RefreshedTokens } from '../../domain/repositories/IGmailAuthService';
 import type { GmailTokens, GmailAuthConfig } from '../../domain/entities/GmailTokens';
 
+import { LocalizedError } from '../../domain/errors/LocalizedError';
 export class GoogleAuthService implements IGmailAuthService {
   async exchangeCode(code: string, config: GmailAuthConfig): Promise<GmailTokens> {
     const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
@@ -17,7 +18,10 @@ export class GoogleAuthService implements IGmailAuthService {
 
     if (!tokenResponse.ok) {
       const error = await tokenResponse.json().catch(() => ({})) as Record<string, unknown>;
-      throw new Error(`Erro ao trocar código: ${JSON.stringify(error)}`);
+      throw new LocalizedError(
+        '@core.workspace/google.exchange-failed',
+        { detail: JSON.stringify(error) },
+      );
     }
 
     const tokens = await tokenResponse.json() as {
@@ -28,7 +32,7 @@ export class GoogleAuthService implements IGmailAuthService {
     };
 
     if (!tokens.access_token) {
-      throw new Error('Token de acesso não retornado pelo Google.');
+      throw new Error('@core.workspace/google.no-access-token');
     }
 
     const profileResponse = await fetch('https://www.googleapis.com/gmail/v1/users/me/profile', {
@@ -74,7 +78,7 @@ export class GoogleAuthService implements IGmailAuthService {
     };
 
     if (!tokens.access_token) {
-      throw new Error('Token de acesso não retornado ao renovar.');
+      throw new Error('@core.workspace/google.no-refreshed-token');
     }
 
     const expiresAt = new Date(Date.now() + tokens.expires_in * 1000);

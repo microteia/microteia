@@ -27,7 +27,7 @@ export const makeCallAIAnalysisUseCase = (
 
     const provider = aiProviders.find((p) => p.canHandle(credentials.provider));
     if (!provider) {
-      throw new Error('Provedor de IA não suportado.');
+      throw new Error('@core.automation/ai.provider.unsupported.short');
     }
 
     const rawText = await provider.call(credentials, prompt, { expectJson: true });
@@ -36,7 +36,7 @@ export const makeCallAIAnalysisUseCase = (
     try {
       return JSON.parse(jsonText) as AIAnalysisResult;
     } catch {
-      throw new Error('A IA retornou uma resposta em formato inválido. Tente novamente.');
+      throw new Error('@core.automation/ai.invalid-response.retry');
     }
   },
 });

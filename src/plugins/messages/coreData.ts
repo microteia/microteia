@@ -33,4 +33,5 @@ export const CORE_DATA_MESSAGES: Record<string, string> = {
     'A plugin registers a service of its own (e.g. an external integration), resolvable by key through useDI().resolveService. The typed container of the core stays untouched.',
   'point.service.title': 'Injectable plugin service',
   'lookup-provider.failed': 'Could not fetch the data',
+  'plugin.data.description': 'Declares the data points and exposes the native entities and system lookups.',
 };

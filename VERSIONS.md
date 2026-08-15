@@ -11,6 +11,11 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [7.31.0] — 2026-08-15
+
+- As mensagens de erro da conexão de inteligência artificial, da conexão com o Google, do cadastro de membros e do escritório passaram a acompanhar o idioma escolhido.
+- Os nomes e descrições dos módulos internos do sistema também passaram a ser traduzidos.
+
 #### [7.30.0] — 2026-08-15
 
 - As recusas do Step Script, das gravações e consultas por automação, e do apelido no perfil passaram a acompanhar o idioma escolhido.

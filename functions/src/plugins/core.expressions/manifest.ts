@@ -53,7 +53,7 @@ export const coreExpressionsPlugin: PluginRecord = {
     id: 'core.expressions',
     version: '1.0.0',
     kernel: '^1.0.0',
-    name: 'Funções de Expressão',
+    name: '@core.automation/plugin.expressions.name',
     dependencies: { 'core.workflow': '^1.0.0' },
     contributes: BUILTIN_FUNCTIONS.map(expressionFunction),
   },

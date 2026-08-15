@@ -39,7 +39,7 @@ export const addTenantMember = onCall(
       const message = err instanceof Error ? err.message : 'Erro ao adicionar membro.';
 
       if (message === 'MEMBER_LIMIT_REACHED') {
-        throw new HttpsError('resource-exhausted', 'Limite de membros do escritório atingido.');
+        throw new HttpsError('resource-exhausted', '@core.admin/member.limit-reached-error');
       }
       throw new HttpsError(domainErrorCode(err) ?? 'internal', message);
     }
