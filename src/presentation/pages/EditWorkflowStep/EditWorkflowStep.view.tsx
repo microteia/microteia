@@ -25,27 +25,29 @@ import type { RemoveStepConfig, UpsertStepConfig } from '../../../domain/schema/
 import type { MapStepConfig } from '../../../domain/schema/mapSpec';
 import type { ValidateStepConfig } from '../../../domain/schema/validateSpec';
 import { applyFormat, checkValue, toEffectiveRules } from '../../../domain/schema/fieldRules';
+import { useT, useLabel, type TranslateFn } from '../../shared/i18n/useT';
 
-const MAPPING_KIND_OPTIONS = [
-  { value: 'Literal', label: 'Valor fixo' },
-  { value: 'Event', label: 'Do evento' },
-  { value: 'Expression', label: 'Expressão' },
-  { value: 'Output', label: 'Saída de outro step' },
-  { value: 'Variable', label: 'Variável' },
+const MAPPING_KIND_KEYS = [
+  { value: 'Literal', labelKey: 'mapping.kind.literal' },
+  { value: 'Event', labelKey: 'mapping.kind.event' },
+  { value: 'Expression', labelKey: 'mapping.kind.expression' },
+  { value: 'Output', labelKey: 'mapping.kind.output' },
+  { value: 'Variable', labelKey: 'mapping.kind.variable' },
 ];
 
-const getMappingKindOptions = (input: InputDefinition) => {
-  if (!input.allowedMappingKinds || input.allowedMappingKinds.length === 0) {
-    return MAPPING_KIND_OPTIONS;
-  }
-  return MAPPING_KIND_OPTIONS.filter(opt => input.allowedMappingKinds?.includes(opt.value as InputMapping['kind']));
-};
+const getMappingKindOptions = (input: InputDefinition, t: TranslateFn) =>
+  MAPPING_KIND_KEYS.filter(
+    (option) =>
+      !input.allowedMappingKinds
+      || input.allowedMappingKinds.length === 0
+      || input.allowedMappingKinds.includes(option.value as InputMapping['kind']),
+  ).map((option) => ({ value: option.value, label: t(option.labelKey) }));
 
 // Input sintético para a origem da lista de um nó Loop: reusa os mesmos controles de mapeamento
 // dos demais inputs, gravando/lendo em configuration['source'].
 const LOOP_SOURCE_INPUT: InputDefinition = {
   id: 'source',
-  label: 'Lista de itens',
+  label: '@core.automation/loop.source',
   type: 'String',
   required: true,
   allowedMappingKinds: ['Output', 'Event', 'Expression', 'Variable'],
@@ -58,8 +60,15 @@ const literalRuleError = (value: string, input: InputDefinition): string | undef
 };
 
 export const EditWorkflowStepView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
+  const t = useT('core.automation');
+  const label = useLabel();
   const vm = useEditWorkflowStepViewModel(tabKey);
   const [validationErrors, setValidationErrors] = React.useState<Record<string, string>>({});
+  const deleteTitleKey = vm.isConditionStep
+    ? 'step.delete.condition'
+    : vm.isLoopStep
+      ? 'step.delete.loop'
+      : 'step.delete.step';
 
   const renderLiteralControl = (input: InputDefinition, mapping: Extract<InputMapping, { kind: 'Literal' }>) => {
     if (input.options) {
@@ -86,10 +95,13 @@ export const EditWorkflowStepView: React.FC<{ tabKey: string }> = ({ tabKey }) =
     if (input.type === 'Boolean') {
       return (
         <SearchSelect
-          options={[{ value: 'true', label: 'Sim' }, { value: 'false', label: 'Não' }]}
+          options={[
+            { value: 'true', label: t('core.ui/answer.yes') },
+            { value: 'false', label: t('core.ui/answer.no') },
+          ]}
           value={String(mapping.value ?? '')}
           onChange={(v) => vm.setMapping(input.id, { kind: 'Literal', value: v === 'true' })}
-          placeholder="Selecione..."
+          placeholder={t('core.ui/action.select')}
         />
       );
     }
@@ -224,13 +236,13 @@ export const EditWorkflowStepView: React.FC<{ tabKey: string }> = ({ tabKey }) =
             options={vm.eventFields.map((f) => ({ value: f.path, label: f.label }))}
             value={mapping.path}
             onChange={(path) => vm.setMapping(input.id, { kind: 'Event', path })}
-            placeholder="Campo do evento..."
+            placeholder={t('mapping.event.placeholder')}
           />
         ) : (
           <Input
             value={mapping.path}
             onChange={(e) => vm.setMapping(input.id, { kind: 'Event', path: e.target.value })}
-            placeholder="ex: caseId"
+            placeholder={t('mapping.event.example')}
           />
         );
       case 'Expression':
@@ -238,7 +250,7 @@ export const EditWorkflowStepView: React.FC<{ tabKey: string }> = ({ tabKey }) =
           <ExpressionEditor
             value={mapping.expression}
             onChange={(expression) => vm.setMapping(input.id, { kind: 'Expression', expression })}
-            placeholder="ex: event.campo || input.campo || variavel"
+            placeholder={t('mapping.expression.example')}
             eventFields={vm.eventFields}
             pathRoot={vm.pathRoot}
             inputRoot={vm.inputRoot}
@@ -253,13 +265,13 @@ export const EditWorkflowStepView: React.FC<{ tabKey: string }> = ({ tabKey }) =
               options={vm.priorStepOptions}
               value={mapping.stepId}
               onChange={(stepId) => vm.setMapping(input.id, { kind: 'Output', stepId, outputId: '' })}
-              placeholder="Step anterior..."
+              placeholder={t('mapping.prior-step.placeholder')}
             />
             <SearchSelect
               options={vm.getStepOutputs(mapping.stepId)}
               value={mapping.outputId}
               onChange={(outputId) => vm.setMapping(input.id, { kind: 'Output', stepId: mapping.stepId, outputId })}
-              placeholder="Saída..."
+              placeholder={t('mapping.output.placeholder')}
               disabled={!mapping.stepId}
             />
           </S.OutputPickerRow>
@@ -270,7 +282,7 @@ export const EditWorkflowStepView: React.FC<{ tabKey: string }> = ({ tabKey }) =
           <Input
             value={mapping.name}
             onChange={(e) => vm.setMapping(input.id, { kind: 'Variable', name: e.target.value })}
-            placeholder="Nome da variável"
+            placeholder={t('mapping.variable.placeholder')}
           />
         );
       default:
@@ -283,18 +295,28 @@ export const EditWorkflowStepView: React.FC<{ tabKey: string }> = ({ tabKey }) =
       <S.Header>
         <S.TitleRow>
           {vm.selectedStepIcon && <vm.selectedStepIcon size={22} />}
-          <S.Title>{vm.isConditionStep ? 'Editar Condição' : vm.isLoopStep ? 'Editar Repetição' : (vm.isDefinitionLocked ? 'Editar Step' : 'Adicionar Step')}</S.Title>
+          <S.Title>
+            {t(
+              vm.isConditionStep
+                ? 'step.edit.condition'
+                : vm.isLoopStep
+                  ? 'step.edit.loop'
+                  : vm.isDefinitionLocked
+                    ? 'step.edit'
+                    : 'step.add',
+            )}
+          </S.Title>
         </S.TitleRow>
         <S.HeaderActions>
           <S.SaveBtn
             onClick={() => void vm.handleSave()}
             disabled={!vm.canSave || vm.isSaving}
-            title={vm.isSaving ? 'Salvando...' : 'Salvar'}
+            title={t(vm.isSaving ? 'core.ui/action.saving' : 'core.ui/action.save')}
           >
             <RiSaveLine size={14} />
           </S.SaveBtn>
           {vm.isDefinitionLocked && (
-            <S.DeleteBtn onClick={vm.handleDelete} disabled={vm.isSaving} title={vm.isConditionStep ? 'Excluir Condição' : vm.isLoopStep ? 'Excluir Repetição' : 'Excluir Step'}>
+            <S.DeleteBtn onClick={vm.handleDelete} disabled={vm.isSaving} title={t(deleteTitleKey)}>
               <RiDeleteBinLine size={14} />
             </S.DeleteBtn>
           )}
@@ -305,7 +327,7 @@ export const EditWorkflowStepView: React.FC<{ tabKey: string }> = ({ tabKey }) =
         <S.Content>
           <S.Form>
             <InputGroup>
-              <Label>Identificador</Label>
+              <Label>{t('core.ui/field.identifier')}</Label>
               <Input value={vm.stepIdentifier} readOnly disabled />
               <S.HelpText>{vm.stepIdentifierHint}</S.HelpText>
             </InputGroup>
@@ -315,14 +337,14 @@ export const EditWorkflowStepView: React.FC<{ tabKey: string }> = ({ tabKey }) =
                 <S.ViewToggleBtn
                   $active={vm.conditionViewMode === 'editor'}
                   onClick={() => vm.setConditionViewMode('editor')}
-                  title="Editor de condições"
+                  title={t('condition.view.editor')}
                 >
                   <RiEditLine size={14} />
                 </S.ViewToggleBtn>
                 <S.ViewToggleBtn
                   $active={vm.conditionViewMode === 'diagram'}
                   onClick={() => vm.setConditionViewMode('diagram')}
-                  title="Diagrama lógico"
+                  title={t('condition.view.diagram')}
                 >
                   <RiNodeTree size={14} />
                 </S.ViewToggleBtn>
@@ -356,69 +378,69 @@ export const EditWorkflowStepView: React.FC<{ tabKey: string }> = ({ tabKey }) =
         <S.Content>
           <S.Form>
             <InputGroup>
-              <Label>Identificador</Label>
+              <Label>{t('core.ui/field.identifier')}</Label>
               <Input value={vm.stepIdentifier} readOnly disabled />
               <S.HelpText>{vm.stepIdentifierHint}</S.HelpText>
             </InputGroup>
             <S.StepsDivider />
             <S.Field>
               <S.FieldHeader>
-                <Label>{LOOP_SOURCE_INPUT.label}</Label>
+                <Label>{label(LOOP_SOURCE_INPUT.label)}</Label>
                 <S.Required>*</S.Required>
               </S.FieldHeader>
-              <S.HelpText>A lista (ou item único) sobre a qual repetir. Cada item roda os steps do corpo da repetição.</S.HelpText>
+              <S.HelpText>{t('loop.source.hint')}</S.HelpText>
               <S.MappingRow>
                 <SearchSelect
-                  options={getMappingKindOptions(LOOP_SOURCE_INPUT)}
+                  options={getMappingKindOptions(LOOP_SOURCE_INPUT, t)}
                   value={vm.configuration.source?.kind ?? ''}
                   onChange={(kind) => vm.setMappingKind('source', kind as InputMapping['kind'])}
-                  placeholder="Origem..."
+                  placeholder={t('mapping.source.placeholder')}
                 />
                 {renderMappingControl(LOOP_SOURCE_INPUT)}
               </S.MappingRow>
             </S.Field>
             <InputGroup>
-              <Label>Nome do item</Label>
+              <Label>{t('loop.item-name')}</Label>
               <Input
                 value={vm.loopItemName}
                 onChange={(e) => vm.setLoopItemName(e.target.value)}
-                placeholder="ex: item"
+                placeholder={t('loop.item-name.placeholder')}
               />
-              <S.HelpText>{`Item escalar fica disponível como input.${vm.loopItemName || 'item'}. Se o item for um objeto, seus campos ficam em input.campo.`}</S.HelpText>
+              <S.HelpText>{t('loop.item-name.hint', { name: vm.loopItemName || 'item' })}</S.HelpText>
             </InputGroup>
             <InputGroup>
-              <Label>Nome da saída</Label>
+              <Label>{t('loop.output-name')}</Label>
               <Input
                 value={vm.loopOutputName}
                 onChange={(e) => vm.setLoopOutputName(e.target.value)}
-                placeholder="ex: itens"
+                placeholder={t('loop.output-name.placeholder')}
               />
-              <S.HelpText>O resultado de cada iteração é agrupado num vetor publicado sob este nome para o próximo step.</S.HelpText>
+              <S.HelpText>{t('loop.output-name.hint')}</S.HelpText>
             </InputGroup>
-            <InfoBanner variant="info" message="Adicione os steps que rodam a cada item no corpo da repetição, no fluxo do workflow." />
+            <InfoBanner variant="info" message={t('loop.body.notice')} />
           </S.Form>
         </S.Content>
       ) : (
       <S.Content>
         <S.Form>
           <InputGroup>
-            <Label>Tipo de Step</Label>
+            <Label>{t('step.type')}</Label>
             <SearchSelect
               options={vm.stepCatalogOptions}
               value={vm.selectedDefinitionId}
               onChange={vm.selectDefinition}
               disabled={vm.isDefinitionLocked}
-              placeholder="Selecione um tipo de step..."
+              placeholder={t('step.type.placeholder')}
             />
-            {vm.selectedDefinition && <S.HelpText>{vm.selectedDefinition.description}</S.HelpText>}
+            {vm.selectedDefinition && <S.HelpText>{label(vm.selectedDefinition.description)}</S.HelpText>}
           </InputGroup>
 
           <InputGroup>
-            <Label>Identificador</Label>
+            <Label>{t('core.ui/field.identifier')}</Label>
             <Input
               value={vm.stepIdentifier}
               onChange={(e) => vm.setStepIdentifier(e.target.value)}
-              placeholder="ex: buscarProcesso"
+              placeholder={t('step.identifier.placeholder')}
               disabled={vm.isStepIdentifierLocked}
               readOnly={vm.isStepIdentifierLocked}
             />
@@ -430,7 +452,7 @@ export const EditWorkflowStepView: React.FC<{ tabKey: string }> = ({ tabKey }) =
           {vm.selectedDefinition && vm.effectiveInputs.length > 0 && <S.StepsDivider />}
 
           {vm.effectiveInputs.map((input) => {
-            const mappingKindOptions = getMappingKindOptions(input);
+            const mappingKindOptions = getMappingKindOptions(input, t);
             const isMappingKindLocked = mappingKindOptions.length === 1;
             const isTargetPicker = input.id === vm.dynamicInputsSourceId;
 
@@ -441,11 +463,11 @@ export const EditWorkflowStepView: React.FC<{ tabKey: string }> = ({ tabKey }) =
               return (
                 <S.Field key={input.id}>
                   <Checkbox
-                    label={input.label}
+                    label={label(input.label)}
                     checked={checked}
                     onChange={(next) => vm.setMapping(input.id, { kind: 'Literal', value: next })}
                   />
-                  {input.description && <S.HelpText>{input.description}</S.HelpText>}
+                  {input.description && <S.HelpText>{label(input.description)}</S.HelpText>}
                 </S.Field>
               );
             }
@@ -453,16 +475,18 @@ export const EditWorkflowStepView: React.FC<{ tabKey: string }> = ({ tabKey }) =
             return (
               <S.Field key={input.id}>
                 <S.FieldHeader>
-                  <Label>{input.label}</Label>
+                  <Label>{label(input.label)}</Label>
                   {input.required && <S.Required>*</S.Required>}
                 </S.FieldHeader>
-                {input.description && <S.HelpText>{input.description}</S.HelpText>}
+                {input.description && <S.HelpText>{label(input.description)}</S.HelpText>}
                 {isTargetPicker ? (
                   <SearchSelect
                     options={vm.dynamicTargetKind === 'script' ? vm.callableScriptOptions : vm.callableWorkflowOptions}
                     value={vm.configuration[input.id]?.kind === 'Literal' ? String((vm.configuration[input.id] as Extract<InputMapping, { kind: 'Literal' }>).value ?? '') : ''}
                     onChange={(value) => vm.setTargetWorkflow(input.id, value)}
-                    placeholder={vm.dynamicTargetKind === 'script' ? 'Selecione o script...' : 'Selecione o workflow a chamar...'}
+                    placeholder={t(
+                      vm.dynamicTargetKind === 'script' ? 'step.target.script' : 'step.target.workflow',
+                    )}
                   />
                 ) : input.type === 'Query' ? (
                   renderQueryControl(input)
@@ -480,7 +504,7 @@ export const EditWorkflowStepView: React.FC<{ tabKey: string }> = ({ tabKey }) =
                       options={mappingKindOptions}
                       value={vm.configuration[input.id]?.kind ?? ''}
                       onChange={(kind) => vm.setMappingKind(input.id, kind as InputMapping['kind'])}
-                      placeholder="Origem..."
+                      placeholder={t('mapping.source.placeholder')}
                       disabled={isMappingKindLocked}
                     />
                     {renderMappingControl(input)}
@@ -491,7 +515,7 @@ export const EditWorkflowStepView: React.FC<{ tabKey: string }> = ({ tabKey }) =
           })}
 
           {vm.selectedDefinition && vm.priorSteps.length === 0 && (
-            <InfoBanner variant="info" message="Não há steps anteriores neste workflow para usar como origem de 'Saída de outro step'." />
+            <InfoBanner variant="info" message={t('step.no-prior-steps')} />
           )}
         </S.Form>
       </S.Content>
@@ -501,13 +525,15 @@ export const EditWorkflowStepView: React.FC<{ tabKey: string }> = ({ tabKey }) =
         isOpen={!!vm.stepToDelete}
         onConfirm={() => void vm.confirmDelete()}
         onCancel={vm.cancelDelete}
-        title={vm.isConditionStep ? 'Excluir Condição' : vm.isLoopStep ? 'Excluir Repetição' : 'Excluir Step'}
-        message={vm.isConditionStep
-          ? 'Excluir esta condição também remove todos os steps dos ramos Verdadeiro e Falso. Esta ação não pode ser desfeita.'
-          : vm.isLoopStep
-            ? 'Excluir esta repetição também remove todos os steps do seu corpo. Esta ação não pode ser desfeita.'
-            : 'Tem certeza que deseja excluir este step? Esta ação não pode ser desfeita.'}
-        confirmLabel="Excluir"
+        title={t(deleteTitleKey)}
+        message={t(
+          vm.isConditionStep
+            ? 'step.delete.condition.message'
+            : vm.isLoopStep
+              ? 'step.delete.loop.message'
+              : 'step.delete.message',
+        )}
+        confirmLabel={t('core.ui/action.delete')}
         variant="danger"
       />
     </S.Page>

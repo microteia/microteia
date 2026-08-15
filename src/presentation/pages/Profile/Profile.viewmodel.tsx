@@ -10,6 +10,7 @@ import { makeCheckNicknameAvailabilityUseCase } from '../../../domain/usecases/p
 import { makeClaimNicknameUseCase } from '../../../domain/usecases/profile/ClaimNicknameUseCase';
 import type { Gender, UserProfile } from '../../../domain/entities';
 
+import { useT } from '../../shared/i18n/useT';
 export type NicknameStatus = 'idle' | 'checking' | 'available' | 'taken' | 'invalid' | 'blocked';
 
 export interface ProfileForm {
@@ -62,7 +63,11 @@ const formatPhone = (value: string): string => {
 
 export const PROFILE_PHOTO_INPUT_ID = 'profile-photo-file-input';
 
+/** A referência que o backend devolve quando o apelido foi tomado entre a checagem e a gravação. */
+const NICKNAME_TAKEN_REF = '@core.workspace/profile.nickname.taken-error';
+
 export const useProfileViewModel = (): ProfileViewModel => {
+  const t = useT('core.workspace');
   const { user, reloadUserProfile } = useAuth();
   const { userProfileRepository } = useDI();
   const { notify } = useNotification();
@@ -191,31 +196,31 @@ export const useProfileViewModel = (): ProfileViewModel => {
       setNicknameInput('');
       setNicknameStatus('idle');
       await reloadUserProfile();
-      notify('Apelido definido com sucesso!', 'success');
+      notify(t('profile.nickname.saved'), 'success');
     } catch (err) {
       const message = err instanceof Error ? err.message : '';
-      if (message.includes('já está em uso')) {
+      if (message.includes(NICKNAME_TAKEN_REF)) {
         setNicknameStatus('taken');
-        setNicknameError('Este apelido foi registrado por outro usuário. Escolha outro.');
+        setNicknameError(t('profile.nickname.race'));
       } else {
-        setNicknameError('Erro ao definir apelido. Tente novamente.');
+        setNicknameError(t('profile.nickname.save-failed'));
       }
     } finally {
       setNicknameSaving(false);
     }
-  }, [user, nicknameStatus, nicknameInput, claimNicknameUC, reloadUserProfile, notify]);
+  }, [user, nicknameStatus, nicknameInput, claimNicknameUC, reloadUserProfile, notify, t]);
 
   const handleFileInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     setPhotoError(null);
     if (file.size > 5 * 1024 * 1024) {
-      setPhotoError('A foto deve ter no máximo 5 MB.');
+      setPhotoError(t('profile.photo.too-large'));
       e.target.value = '';
       return;
     }
     if (!file.type.startsWith('image/')) {
-      setPhotoError('Selecione um arquivo de imagem válido.');
+      setPhotoError(t('profile.photo.invalid'));
       e.target.value = '';
       return;
     }
@@ -225,7 +230,7 @@ export const useProfileViewModel = (): ProfileViewModel => {
     };
     reader.readAsDataURL(file);
     e.target.value = '';
-  }, []);
+  }, [t]);
 
   const handleCropConfirm = useCallback(async (blob: Blob) => {
     if (!user) return;

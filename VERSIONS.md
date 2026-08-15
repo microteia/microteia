@@ -11,6 +11,11 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [7.21.0] — 2026-08-15
+
+- As telas de Configurações, Configurações do Escritório (dados, membros e conexão de IA), Meu Perfil e a edição de Step das automações passaram a acompanhar o idioma escolhido.
+- Os nomes dos perfis de acesso — Administrador, Advogado, Secretário(a) e Usuário — passaram a ser traduzidos junto com o resto da tela.
+
 #### [7.20.0] — 2026-08-15
 
 - A tela de Script passou a acompanhar o idioma escolhido, inclusive toda a documentação da função de consulta ao banco e o modelo que aparece num script novo.

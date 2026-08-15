@@ -49,6 +49,21 @@ const catalogKeys = (dir, moduleName) => {
 
 const missing = [];
 const orphans = [];
+const duplicates = [];
+
+// Chave repetida no mesmo catálogo é silenciosa em JS — a última vence — e desfaz uma tradução
+// anterior sem aviso. Aqui ela para o gate.
+for (const [ns, moduleName] of Object.entries(MODULE_BY_NS)) {
+  for (const dir of ['messages', path.join('marketplace', 'localePtBr')]) {
+    const file = path.join(SRC, 'plugins', dir, `${moduleName}.ts`);
+    if (!fs.existsSync(file)) continue;
+    const seen = new Set();
+    for (const match of fs.readFileSync(file, 'utf8').matchAll(/^\s*'([^']+)':/gm)) {
+      if (seen.has(match[1])) duplicates.push(`${path.relative(ROOT, file)} -> ${ns}/${match[1]}`);
+      seen.add(match[1]);
+    }
+  }
+}
 
 for (const file of walk(SRC)) {
   const source = fs.readFileSync(file, 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
@@ -80,7 +95,7 @@ for (const [ns, moduleName] of Object.entries(MODULE_BY_NS)) {
   }
 }
 
-if (missing.length === 0 && orphans.length === 0) {
+if (missing.length === 0 && orphans.length === 0 && duplicates.length === 0) {
   console.log('verify-messages: catálogos íntegros.');
   process.exit(0);
 }
@@ -91,5 +106,9 @@ if (missing.length > 0) {
 if (orphans.length > 0) {
   console.error(`\nChaves traduzidas sem par no catálogo de origem (${orphans.length}):`);
   for (const line of orphans.sort()) console.error(`  ${line}`);
+}
+if (duplicates.length > 0) {
+  console.error(`\nChaves declaradas duas vezes no mesmo catálogo (${duplicates.length}):`);
+  for (const line of duplicates.sort()) console.error(`  ${line}`);
 }
 process.exit(1);

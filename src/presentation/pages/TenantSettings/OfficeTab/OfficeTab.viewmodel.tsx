@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect } from 'react';
 import { useTenant } from '../../../../stores/useTenant';
 import { useNotification } from '../../../../stores/useNotification';
 
+import { useT } from '../../../shared/i18n/useT';
 export interface OfficeFormData {
   name: string;
   cnpj: string;
@@ -19,6 +20,7 @@ export interface OfficeTabViewModel {
 }
 
 export const useOfficeTabViewModel = (): OfficeTabViewModel => {
+  const t = useT('core.admin');
   const { currentTenant, tenantRole, updateTenant } = useTenant();
   const { notify } = useNotification();
   
@@ -51,7 +53,7 @@ export const useOfficeTabViewModel = (): OfficeTabViewModel => {
 
   const handleSave = useCallback(async () => {
     if (!officeForm.name.trim()) {
-      notify('Nome do escritório é obrigatório.', 'error');
+      notify(t('office.name.required'), 'error');
       return;
     }
     setIsSaving(true);
@@ -64,13 +66,13 @@ export const useOfficeTabViewModel = (): OfficeTabViewModel => {
         address: officeForm.address || null,
         updatedAt: new Date(),
       });
-      notify('Escritório atualizado com sucesso!', 'success');
+      notify(t('office.saved'), 'success');
     } catch {
-      notify('Erro ao atualizar escritório.', 'error');
+      notify(t('office.save-failed'), 'error');
     } finally {
       setIsSaving(false);
     }
-  }, [officeForm, updateTenant, notify]);
+  }, [officeForm, updateTenant, notify, t]);
 
   return {
     isAdmin,

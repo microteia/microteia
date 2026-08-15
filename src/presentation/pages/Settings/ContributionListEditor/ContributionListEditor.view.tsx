@@ -3,16 +3,18 @@ import { RiArrowDownLine, RiArrowUpLine } from 'react-icons/ri';
 import { Checkbox } from '../../../components/ui/Checkbox';
 import { getScreenIcon } from '../../../shared/screenIcons';
 import { S } from './ContributionListEditor.styles';
+import { useT } from '../../../shared/i18n/useT';
 import {
   useContributionListEditorViewModel,
   type ContributionListEditorProps,
 } from './ContributionListEditor.viewmodel';
 
 export const ContributionListEditor: React.FC<ContributionListEditorProps> = (props) => {
+  const t = useT('core.settings');
   const vm = useContributionListEditorViewModel(props);
 
   if (vm.items.length === 0) {
-    return <S.Empty>Nenhuma opção disponível. Instale uma extensão que ofereça uma.</S.Empty>;
+    return <S.Empty>{t('settings.contributions.empty')}</S.Empty>;
   }
 
   return (
@@ -34,7 +36,7 @@ export const ContributionListEditor: React.FC<ContributionListEditorProps> = (pr
               type="button"
               disabled={props.disabled || item.isFirst}
               onClick={() => vm.move(item.key, -1)}
-              title="Subir"
+              title={t('core.ui/action.move-up')}
             >
               <RiArrowUpLine size={14} />
             </S.IconButton>
@@ -42,7 +44,7 @@ export const ContributionListEditor: React.FC<ContributionListEditorProps> = (pr
               type="button"
               disabled={props.disabled || item.isLast}
               onClick={() => vm.move(item.key, 1)}
-              title="Descer"
+              title={t('core.ui/action.move-down')}
             >
               <RiArrowDownLine size={14} />
             </S.IconButton>

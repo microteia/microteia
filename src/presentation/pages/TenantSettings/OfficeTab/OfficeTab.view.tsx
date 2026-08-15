@@ -5,29 +5,31 @@ import { Button } from '../../../components/ui/Button';
 import { Input, Label } from '../../../components/ui/Input';
 import { InfoBanner } from '../../../components/ui/InfoBanner';
 
+import { useT } from '../../../shared/i18n/useT';
 export const OfficeTabView: React.FC = () => {
+  const t = useT('core.admin');
   const vm = useOfficeTabViewModel();
 
   return (
     <S.Container>
       {!vm.isAdmin && (
         <InfoBanner
-          message="Somente administradores podem alterar os dados do escritório."
+          message={t('office.admin-only')}
           variant="info"
         />
       )}
       <S.FormGrid>
         <S.FormGroup $fullWidth>
-          <Label>Nome do Escritório *</Label>
+          <Label>{t('office.name')}</Label>
           <Input
             value={vm.officeForm.name}
             onChange={(e) => vm.setOfficeForm({ name: e.target.value })}
-            placeholder="Ex: Escritório de Advocacia Silva & Associados"
+            placeholder={t('office.name.placeholder')}
             disabled={!vm.isAdmin}
           />
         </S.FormGroup>
         <S.FormGroup>
-          <Label>CNPJ</Label>
+          <Label>{t('office.tax-id')}</Label>
           <Input
             value={vm.officeForm.cnpj}
             onChange={(e) => vm.setOfficeForm({ cnpj: e.target.value })}
@@ -36,17 +38,17 @@ export const OfficeTabView: React.FC = () => {
           />
         </S.FormGroup>
         <S.FormGroup>
-          <Label>E-mail do Escritório</Label>
+          <Label>{t('office.email')}</Label>
           <Input
             type="email"
             value={vm.officeForm.email}
             onChange={(e) => vm.setOfficeForm({ email: e.target.value })}
-            placeholder="contato@escritorio.com"
+            placeholder={t('office.email.placeholder')}
             disabled={!vm.isAdmin}
           />
         </S.FormGroup>
         <S.FormGroup>
-          <Label>Telefone</Label>
+          <Label>{t('core.ui/field.phone')}</Label>
           <Input
             value={vm.officeForm.phone}
             onChange={(e) => vm.setOfficeForm({ phone: e.target.value })}
@@ -55,11 +57,11 @@ export const OfficeTabView: React.FC = () => {
           />
         </S.FormGroup>
         <S.FormGroup $fullWidth>
-          <Label>Endereço</Label>
+          <Label>{t('core.ui/field.address')}</Label>
           <Input
             value={vm.officeForm.address}
             onChange={(e) => vm.setOfficeForm({ address: e.target.value })}
-            placeholder="Rua, número, complemento, cidade - Estado"
+            placeholder={t('office.address.placeholder')}
             disabled={!vm.isAdmin}
           />
         </S.FormGroup>

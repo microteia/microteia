@@ -10,12 +10,15 @@ import { SettingsField } from './SettingsField';
 import { useSettingsViewModel } from './Settings.viewmodel';
 import { S } from './Settings.styles';
 
+import { useT, useLabel } from '../../shared/i18n/useT';
 /**
  * A tela única de Configurações — hospedeiro genérico das seções que os plugins declaram. Dois
  * escopos (escritório e usuário) e duas formas de editar (visual e JSON), gravando no mesmo lugar.
  * O kernel não conhece nenhuma configuração em particular: tudo aqui vem de declaração.
  */
 export const SettingsView: React.FC = () => {
+  const t = useT('core.settings');
+  const label = useLabel();
   const vm = useSettingsViewModel();
   const ActiveEditor = vm.activeEditor;
 
@@ -30,24 +33,24 @@ export const SettingsView: React.FC = () => {
     <S.Page>
       <S.Header>
         <S.TitleRow>
-          <S.Title>Configurações</S.Title>
+          <S.Title>{t('page.settings')}</S.Title>
           <Button
             size="sm"
             variant="ghost"
             onClick={() => vm.setMode(vm.mode === 'visual' ? 'json' : 'visual')}
           >
             {vm.mode === 'visual'
-              ? <><RiBracesLine size={14} /> Editar em JSON</>
-              : <><RiLayoutGridLine size={14} /> Edição visual</>}
+              ? <><RiBracesLine size={14} /> {t('settings.mode.json')}</>
+              : <><RiLayoutGridLine size={14} /> {t('settings.mode.visual')}</>}
           </Button>
         </S.TitleRow>
 
         <S.ScopeTabs>
           <S.ScopeTab $active={vm.scope === 'user'} onClick={() => vm.setScope('user')}>
-            Usuário
+            {t('settings.scope.user')}
           </S.ScopeTab>
           <S.ScopeTab $active={vm.scope === 'tenant'} onClick={() => vm.setScope('tenant')}>
-            Escritório
+            {t('settings.scope.tenant')}
           </S.ScopeTab>
         </S.ScopeTabs>
 
@@ -56,7 +59,7 @@ export const SettingsView: React.FC = () => {
             <Input
               value={vm.query}
               onChange={(event) => vm.setQuery(event.target.value)}
-              placeholder="Buscar configuração"
+              placeholder={t('settings.search.placeholder')}
             />
           </S.SearchWrapper>
         )}
@@ -64,7 +67,7 @@ export const SettingsView: React.FC = () => {
 
       {isReadOnlyScope && (
         <InfoBanner
-          message="As configurações do escritório são definidas pelo administrador. Suas preferências pessoais continuam editáveis na aba Usuário."
+          message={t('settings.tenant.read-only')}
           variant="info"
         />
       )}
@@ -73,8 +76,7 @@ export const SettingsView: React.FC = () => {
         <S.Content>
           <S.JsonPane>
             <S.SectionDescription>
-              O documento inteiro de {vm.scope === 'tenant' ? 'configurações do escritório' : 'suas preferências'}.
-              Chave de uma extensão desativada é preservada; valor fora do que a configuração aceita é recusado.
+              {t(vm.scope === 'tenant' ? 'settings.json.lead.tenant' : 'settings.json.lead.user')}
             </S.SectionDescription>
             <CodeEditor
               language="json"
@@ -83,7 +85,7 @@ export const SettingsView: React.FC = () => {
               minHeight="360px"
             />
             {vm.jsonSyntaxError && (
-              <InfoBanner message={`JSON inválido: ${vm.jsonSyntaxError}`} variant="warning" />
+              <InfoBanner message={t('settings.json.invalid', { detail: vm.jsonSyntaxError })} variant="warning" />
             )}
             {vm.jsonIssues.length > 0 && (
               <S.JsonIssues>
@@ -94,10 +96,10 @@ export const SettingsView: React.FC = () => {
             )}
             <S.JsonActions>
               <Button size="sm" onClick={vm.saveJson} disabled={!vm.canSaveJson || isReadOnlyScope}>
-                Gravar
+                {t('core.ui/action.save')}
               </Button>
               <Button size="sm" variant="ghost" onClick={vm.discardJson} disabled={!vm.isJsonDirty}>
-                Descartar
+                {t('settings.json.discard')}
               </Button>
             </S.JsonActions>
           </S.JsonPane>
@@ -112,23 +114,21 @@ export const SettingsView: React.FC = () => {
                 onClick={() => vm.selectSection(section.key)}
               >
                 {section.icon && getScreenIcon(section.icon, 16)}
-                {section.title}
+                {label(section.title)}
               </S.NavItem>
             ))}
           </S.Nav>
 
           <S.Content>
             {vm.sections.length === 0 ? (
-              <S.Empty>
-                Nenhuma configuração registrada. Extensões que aceitam configuração aparecem aqui.
-              </S.Empty>
+              <S.Empty>{t('settings.empty')}</S.Empty>
             ) : (
               <>
                 {vm.query.trim() === '' && activeSection && (
                   <div>
-                    <S.SectionTitle>{activeSection.title}</S.SectionTitle>
+                    <S.SectionTitle>{label(activeSection.title)}</S.SectionTitle>
                     {activeSection.description && (
-                      <S.SectionDescription>{activeSection.description}</S.SectionDescription>
+                      <S.SectionDescription>{label(activeSection.description)}</S.SectionDescription>
                     )}
                   </div>
                 )}
@@ -136,28 +136,28 @@ export const SettingsView: React.FC = () => {
                 {ActiveEditor ? (
                   <ActiveEditor />
                 ) : vm.rows.length === 0 ? (
-                  <S.Empty>Nenhuma configuração encontrada.</S.Empty>
+                  <S.Empty>{t('settings.none-found')}</S.Empty>
                 ) : (
                   vm.rows.map((row) => (
                     <S.Property key={row.property.key}>
                       <S.PropertyHeader>
-                        <S.PropertyLabel>{row.property.label}</S.PropertyLabel>
+                        <S.PropertyLabel>{label(row.property.label)}</S.PropertyLabel>
                         <S.PropertyPath>{row.property.key}</S.PropertyPath>
-                        {vm.query.trim() !== '' && <S.Tag>{row.sectionTitle}</S.Tag>}
-                        {row.isSetHere && <S.Tag $tone="primary">Modificado</S.Tag>}
-                        {row.isOverriddenByUser && <S.Tag>Sobreposto pela sua preferência</S.Tag>}
+                        {vm.query.trim() !== '' && <S.Tag>{label(row.sectionTitle)}</S.Tag>}
+                        {row.isSetHere && <S.Tag $tone="primary">{t('settings.tag.modified')}</S.Tag>}
+                        {row.isOverriddenByUser && <S.Tag>{t('settings.tag.overridden')}</S.Tag>}
                         {!row.isSetHere && row.originScope === 'tenant' && vm.scope === 'user' && (
-                          <S.Tag>Definido pelo escritório</S.Tag>
+                          <S.Tag>{t('settings.tag.from-tenant')}</S.Tag>
                         )}
                         {row.isSetHere && row.isEditable && (
                           <S.ResetButton type="button" onClick={() => vm.resetValue(row.property)}>
-                            Restaurar padrão
+                            {t('settings.reset')}
                           </S.ResetButton>
                         )}
                       </S.PropertyHeader>
 
                       {row.property.description && (
-                        <S.PropertyDescription>{row.property.description}</S.PropertyDescription>
+                        <S.PropertyDescription>{label(row.property.description)}</S.PropertyDescription>
                       )}
 
                       <S.PropertyControl>

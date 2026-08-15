@@ -367,7 +367,7 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
     return existingSteps.length + 1;
   }, [editingStep, existingSteps]);
 
-  const workflowName = workflow?.name ?? 'Automação';
+  const workflowName = workflow?.name ?? t('workflow.fallback-name');
 
   const eventFields = useMemo<WorkflowEventFieldOption[]>(() => {
     if (!workflow) return [];
@@ -433,11 +433,11 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
   const visibleStepIdentifierError = identifierTouched || stepIdentifier ? stepIdentifierError : undefined;
 
   const stepIdentifierHint = useMemo(() => {
-    if (!editingStep) return 'Definido na criação e imutável depois. É por ele que as expressões leem as saídas deste step.';
-    if (isConditionStep) return 'Identifica este nó no fluxo. Uma condição não publica saída para as expressões.';
-    if (isReferenceableStepId(editingStep.id)) return `Nas expressões, as saídas deste step ficam em output.${editingStep.id}.`;
-    return 'Gerado automaticamente antes dos identificadores legíveis, não é escrevível numa expressão. Para ler as saídas deste step use input. ou o mapeamento "Saída de outro step".';
-  }, [editingStep, isConditionStep]);
+    if (!editingStep) return t('step.identifier.hint.new');
+    if (isConditionStep) return t('step.identifier.hint.condition');
+    if (isReferenceableStepId(editingStep.id)) return t('step.identifier.hint.readable', { id: editingStep.id });
+    return t('step.identifier.hint.generated');
+  }, [editingStep, isConditionStep, t]);
 
   const setMapping = useCallback((inputId: string, mapping: InputMapping) => {
     setConfiguration((prev) => ({ ...prev, [inputId]: mapping }));
@@ -492,7 +492,7 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
           const mapping = step.configuration[sourceInputId];
           if (mapping && mapping.kind === 'Literal' && mapping.value) {
             const outputId = String(mapping.value);
-            outputs.push({ id: outputId, label: `${outputId} (dinâmico)` });
+            outputs.push({ id: outputId, label: t('step.output.dynamic', { id: outputId }) });
           }
         });
       }
@@ -514,7 +514,7 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
 
       return outputs;
     },
-    [stepCatalog, scriptOutputsFor],
+    [stepCatalog, scriptOutputsFor, t],
   );
 
   const workflowOutputsFor = useCallback(
@@ -710,10 +710,10 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
           branches: editingStep.branches ?? { whenTrue: [], whenFalse: [] },
         };
         await updateWorkflowSteps(workflow.id, replaceStepInTree(existingSteps, updated));
-        notify('Condição salva com sucesso.', 'success');
+        notify(t('condition.saved'), 'success');
         closeTab(tabKey, activePanelId ?? 'main');
       } catch (error) {
-        notify(`Erro ao salvar condição: ${String(error)}`, 'error');
+        notify(t('condition.save-failed', { detail: String(error) }), 'error');
       } finally {
         setIsSaving(false);
       }
@@ -744,10 +744,10 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
           },
         };
         await updateWorkflowSteps(workflow.id, replaceStepInTree(existingSteps, updated));
-        notify('Repetição salva com sucesso.', 'success');
+        notify(t('loop.saved'), 'success');
         closeTab(tabKey, activePanelId ?? 'main');
       } catch (error) {
-        notify(`Erro ao salvar repetição: ${String(error)}`, 'error');
+        notify(t('loop.save-failed', { detail: String(error) }), 'error');
       } finally {
         setIsSaving(false);
       }
@@ -803,6 +803,7 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
     closeTab,
     tabKey,
     activePanelId,
+    t,
   ]);
 
   const handleDelete = useCallback(() => {
@@ -816,15 +817,15 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
     const nextSteps = removeStepFromTree(existingSteps, stepToDelete.id);
     try {
       await updateWorkflowSteps(workflow.id, nextSteps);
-      notify('Step excluído.', 'success');
+      notify(t('step.deleted'), 'success');
       closeTab(tabKey, activePanelId ?? 'main');
     } catch (error) {
       console.error('[EditWorkflowStep] confirmDelete:', error);
-      notify('Erro ao excluir step.', 'error');
+      notify(t('step.delete-failed'), 'error');
     } finally {
       setStepToDelete(null);
     }
-  }, [workflow, stepToDelete, existingSteps, updateWorkflowSteps, notify, closeTab, tabKey, activePanelId]);
+  }, [workflow, stepToDelete, existingSteps, updateWorkflowSteps, notify, closeTab, tabKey, activePanelId, t]);
 
   return {
     workflowName,

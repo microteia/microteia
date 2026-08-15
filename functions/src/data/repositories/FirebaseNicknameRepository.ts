@@ -47,12 +47,12 @@ export class FirebaseNicknameRepository implements INicknameRepository {
       if (profileSnap.exists) {
         const profileData = profileSnap.data() as Record<string, unknown>;
         if (profileData.nicknameSetAt) {
-          throw alreadyExists('Você já possui um apelido e não pode alterá-lo.');
+          throw alreadyExists('@core.workspace/profile.nickname.already-set');
         }
       }
 
       if (nicknameSnap.exists) {
-        throw alreadyExists('Este apelido já está em uso.');
+        throw alreadyExists('@core.workspace/profile.nickname.taken-error');
       }
 
       const now = new Date();

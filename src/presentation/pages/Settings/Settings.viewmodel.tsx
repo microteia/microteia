@@ -4,6 +4,7 @@ import { useSettings } from '../../../stores/useSettings';
 import { useNotification } from '../../../stores/useNotification';
 import { useSettingsSections } from '../../shared/settings/useSettingsCatalog';
 import type { ExtensionSettingsSection } from '../../shared/extensions/extensionServices';
+import { useT } from '../../shared/i18n/useT';
 import {
   matchesSettingsQuery,
   parseSettingsJson,
@@ -59,6 +60,7 @@ export interface SettingsViewModel {
 }
 
 export const useSettingsViewModel = (): SettingsViewModel => {
+  const t = useT('core.settings');
   const { values, isLoading, canEditTenant, setValue, clearValue, replaceScope } = useSettings();
   const { notify } = useNotification();
   const sections = useSettingsSections();
@@ -109,15 +111,15 @@ export const useSettingsViewModel = (): SettingsViewModel => {
 
   const changeValue = useCallback((property: SettingsProperty, value: unknown) => {
     void setValue(scope, property.key, value).catch(() =>
-      notify('Não foi possível gravar a configuração.', 'error'),
+      notify(t('settings.save-failed'), 'error'),
     );
-  }, [setValue, scope, notify]);
+  }, [setValue, scope, notify, t]);
 
   const resetValue = useCallback((property: SettingsProperty) => {
     void clearValue(scope, property.key).catch(() =>
-      notify('Não foi possível restaurar o padrão.', 'error'),
+      notify(t('settings.reset-failed'), 'error'),
     );
-  }, [clearValue, scope, notify]);
+  }, [clearValue, scope, notify, t]);
 
   const storedJson = useMemo(() => settingsToJson(values[scope]), [values, scope]);
   const jsonText = draft?.scope === scope ? draft.text : storedJson;
@@ -141,10 +143,10 @@ export const useSettingsViewModel = (): SettingsViewModel => {
     void replaceScope(scope, parsed.values)
       .then(() => {
         setDraft(null);
-        notify('Configurações gravadas.', 'success');
+        notify(t('settings.saved'), 'success');
       })
-      .catch(() => notify('Não foi possível gravar as configurações.', 'error'));
-  }, [canSaveJson, replaceScope, scope, parsed.values, notify]);
+      .catch(() => notify('@core.settings/settings.save-all-failed', 'error'));
+  }, [canSaveJson, replaceScope, scope, parsed.values, notify, t]);
 
   const selectSection = useCallback((key: string) => {
     setSelectedKey(key);

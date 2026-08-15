@@ -401,4 +401,50 @@ export const CORE_AUTOMATION_MESSAGES: Record<string, string> = {
     "  // 'input' holds the input parameters configured in the Step.\n  // 'fn.*' exposes the expression functions (e.g. fn.formatDate, fn.dateDiff).\n  // 'query(...)' reads the organization records (asynchronous):\n  //   const r = await query({ table: 'cases',\n  //     where: [{ path: 'clientId', op: 'eq', value: input.clientId }],\n  //     projections: ['title'], limit: 10 });\n  //   // r = { count, results, first }",
   'script.starter.return-comment':
     "    // fill in the declared output parameters here",
+  'condition.view.diagram': 'Logic diagram',
+  'condition.view.editor': 'Condition editor',
+  'loop.body.notice': 'Add the steps that run for each item in the loop body, in the workflow flow.',
+  'loop.item-name': 'Item name',
+  'loop.item-name.hint':
+    'A scalar item is available as input.{name}. If the item is an object, its fields sit under input.field.',
+  'loop.item-name.placeholder': 'e.g. item',
+  'loop.output-name': 'Output name',
+  'loop.output-name.hint':
+    'The result of each iteration is grouped into an array published under this name for the next step.',
+  'loop.output-name.placeholder': 'e.g. items',
+  'loop.source': 'List of items',
+  'loop.source.hint': 'The list (or single item) to repeat over. Each item runs the steps in the loop body.',
+  'mapping.event.example': 'e.g. caseId',
+  'mapping.event.placeholder': 'Field of the event…',
+  'mapping.expression.example': 'e.g. event.field || input.field || variable',
+  'mapping.prior-step.placeholder': 'Previous step…',
+  'step.delete.condition': 'Delete Condition',
+  'step.delete.condition.message':
+    'Deleting this condition also removes every step in the True and False branches. This cannot be undone.',
+  'step.delete.loop': 'Delete Loop',
+  'step.delete.loop.message':
+    'Deleting this loop also removes every step in its body. This cannot be undone.',
+  'step.delete.step': 'Delete Step',
+  'step.edit': 'Edit Step',
+  'step.edit.condition': 'Edit Condition',
+  'step.edit.loop': 'Edit Loop',
+  'step.identifier.placeholder': 'e.g. findCase',
+  'step.no-prior-steps':
+    "There is no previous step in this workflow to use as the source of 'Output of another step'.",
+  'step.target.script': 'Select the script…',
+  'step.target.workflow': 'Select the workflow to call…',
+  'step.type': 'Step type',
+  'step.type.placeholder': 'Select a step type…',
+  'loop.save-failed': 'Could not save the loop: {detail}',
+  'loop.saved': 'Loop saved successfully.',
+  'step.delete-failed': 'Could not delete the step.',
+  'step.identifier.hint.condition':
+    'It identifies this node in the flow. A condition publishes no output to expressions.',
+  'step.identifier.hint.generated':
+    'Generated automatically before readable identifiers, it cannot be written in an expression. To read the outputs of this step use input. or the "Output of another step" mapping.',
+  'step.identifier.hint.new':
+    'Set at creation and immutable afterwards. It is how expressions read the outputs of this step.',
+  'step.identifier.hint.readable': 'In expressions, the outputs of this step sit under output.{id}.',
+  'step.output.dynamic': '{id} (dynamic)',
+  'workflow.fallback-name': 'Automation',
 };

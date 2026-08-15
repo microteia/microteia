@@ -15,6 +15,7 @@ import {
 import { useLocale } from '../../../stores/useLocale';
 import { localeDisplayName } from '../../../domain/schema/i18n/localeFormat';
 
+import { useT } from '../../shared/i18n/useT';
 interface SettingsFieldProps {
   property: SettingsProperty;
   value: unknown;
@@ -27,6 +28,7 @@ interface SettingsFieldProps {
  * plugin declara `boolean` e ganha uma caixa de seleção sem escrever interface nenhuma.
  */
 export const SettingsField: React.FC<SettingsFieldProps> = ({ property, value, disabled, onChange }) => {
+  const t = useT('core.settings');
   const { available, locale, preferred } = useLocale();
 
   switch (property.type) {
@@ -62,7 +64,7 @@ export const SettingsField: React.FC<SettingsFieldProps> = ({ property, value, d
           options={(property.options ?? []).map((option) => ({ value: option.value, label: option.label }))}
           disabled={disabled}
           onChange={(next) => onChange(next)}
-          placeholder="Selecione..."
+          placeholder={t('core.ui/action.select')}
         />
       );
 
@@ -88,7 +90,7 @@ export const SettingsField: React.FC<SettingsFieldProps> = ({ property, value, d
           options={available.map((option) => ({ value: option, label: localeDisplayName(option) }))}
           disabled={disabled}
           onChange={(next) => onChange(next)}
-          placeholder="Selecione..."
+          placeholder={t('core.ui/action.select')}
         />
       );
     }
@@ -100,7 +102,7 @@ export const SettingsField: React.FC<SettingsFieldProps> = ({ property, value, d
           value={Array.isArray(value) ? (value as string[]) : []}
           disabled={disabled}
           placeholder={property.itemPlaceholder ?? 'Digite e pressione Enter'}
-          hint="Pressione Enter para adicionar. Clique no × para remover."
+          hint={t('settings.list.hint')}
           validator={pattern ? (item) => pattern.test(item) : undefined}
           onChange={(items) => onChange(items)}
         />

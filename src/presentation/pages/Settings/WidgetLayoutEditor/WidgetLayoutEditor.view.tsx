@@ -3,6 +3,7 @@ import { RiArrowDownLine, RiArrowUpLine } from 'react-icons/ri';
 import { Checkbox } from '../../../components/ui/Checkbox';
 import { getScreenIcon } from '../../../shared/screenIcons';
 import { S } from './WidgetLayoutEditor.styles';
+import { useT } from '../../../shared/i18n/useT';
 import {
   useWidgetLayoutEditorViewModel,
   type WidgetLayoutEditorProps,
@@ -13,10 +14,11 @@ import {
  * largura. Ele não conhece widget nenhum — lista o que está registrado naquela superfície.
  */
 export const WidgetLayoutEditor: React.FC<WidgetLayoutEditorProps> = (props) => {
+  const t = useT('core.settings');
   const vm = useWidgetLayoutEditorViewModel(props);
 
   if (vm.items.length === 0) {
-    return <S.Empty>Nenhum widget disponível. Instale uma extensão que ofereça widgets.</S.Empty>;
+    return <S.Empty>{t('settings.widgets.empty')}</S.Empty>;
   }
 
   return (
@@ -51,7 +53,7 @@ export const WidgetLayoutEditor: React.FC<WidgetLayoutEditorProps> = (props) => 
               type="button"
               disabled={props.disabled || item.isFirst}
               onClick={() => vm.move(item.key, -1)}
-              title="Subir"
+              title={t('core.ui/action.move-up')}
             >
               <RiArrowUpLine size={14} />
             </S.IconButton>
@@ -59,7 +61,7 @@ export const WidgetLayoutEditor: React.FC<WidgetLayoutEditorProps> = (props) => 
               type="button"
               disabled={props.disabled || item.isLast}
               onClick={() => vm.move(item.key, 1)}
-              title="Descer"
+              title={t('core.ui/action.move-down')}
             >
               <RiArrowDownLine size={14} />
             </S.IconButton>

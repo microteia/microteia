@@ -6,11 +6,13 @@ import { useDI } from '../../../../infrastructure/di/useDI';
 import { TenantMemberLimitReachedError } from '../../../../domain/errors';
 import type { TenantMember, TenantRole } from '../../../../domain/entities';
 
-export const TENANT_ROLE_LABELS: Record<TenantRole, string> = {
-  admin: 'Administrador',
-  lawyer: 'Advogado',
-  secretary: 'Secretário(a)',
-  user: 'Usuário',
+import { useT } from '../../../shared/i18n/useT';
+/** O nome de cada perfil como CHAVE do namespace `core.admin`; quem exibe resolve com `useT`. */
+export const TENANT_ROLE_KEYS: Record<TenantRole, string> = {
+  admin: 'role.admin',
+  lawyer: 'role.lawyer',
+  secretary: 'role.secretary',
+  user: 'role.user',
 };
 
 export interface MembersTabViewModel {
@@ -35,6 +37,7 @@ export interface MembersTabViewModel {
 }
 
 export const useMembersTabViewModel = (): MembersTabViewModel => {
+  const t = useT('core.admin');
   const { currentTenant, members, isLoading, addMember, updateMemberRole, removeMember } = useTenant();
   const { user } = useAuth();
   const { notify } = useNotification();
@@ -51,17 +54,17 @@ export const useMembersTabViewModel = (): MembersTabViewModel => {
 
   const handleAddMember = useCallback(async () => {
     if (!canAddMore) {
-      notify('Limite de membros do escritório atingido.', 'error');
+      notify(t('member.limit-reached'), 'error');
       return;
     }
 
     const email = addEmail.trim().toLowerCase();
     if (!email) {
-      notify('Informe o e-mail do usuário.', 'error');
+      notify(t('member.email-required'), 'error');
       return;
     }
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      notify('E-mail inválido.', 'error');
+      notify(t('member.email-invalid'), 'error');
       return;
     }
 
@@ -69,12 +72,12 @@ export const useMembersTabViewModel = (): MembersTabViewModel => {
     try {
       const found = await userRepository.getUserByEmail(email);
       if (!found) {
-        notify('Nenhum usuário cadastrado com esse e-mail.', 'error');
+        notify(t('member.not-found'), 'error');
         return;
       }
       const alreadyMember = members.some((m) => m.userId === found.id);
       if (alreadyMember) {
-        notify('Este usuário já é membro do escritório.', 'error');
+        notify(t('member.already-member'), 'error');
         return;
       }
       await addMember({
@@ -97,16 +100,16 @@ export const useMembersTabViewModel = (): MembersTabViewModel => {
     } finally {
       setIsAddingMember(false);
     }
-  }, [canAddMore, addEmail, addRole, addMember, currentTenant, user, members, userRepository, notify]);
+  }, [canAddMore, addEmail, addRole, addMember, currentTenant, user, members, userRepository, notify, t]);
 
   const handleRoleChange = useCallback(async (member: TenantMember, role: TenantRole) => {
     try {
       await updateMemberRole(member.userId, role);
-      notify('Permissão atualizada.', 'success');
+      notify(t('member.role-updated'), 'success');
     } catch {
-      notify('Erro ao atualizar permissão.', 'error');
+      notify(t('member.role-update-failed'), 'error');
     }
-  }, [updateMemberRole, notify]);
+  }, [updateMemberRole, notify, t]);
 
   const handleRemoveMember = useCallback((member: TenantMember) => {
     setMemberToRemove(member);
@@ -116,13 +119,13 @@ export const useMembersTabViewModel = (): MembersTabViewModel => {
     if (!memberToRemove) return;
     try {
       await removeMember(memberToRemove.userId);
-      notify('Membro removido do escritório.', 'success');
+      notify(t('member.removed'), 'success');
     } catch {
       notify('Erro ao remover membro.', 'error');
     } finally {
       setMemberToRemove(null);
     }
-  }, [memberToRemove, removeMember, notify]);
+  }, [memberToRemove, removeMember, notify, t]);
 
   const cancelRemoveMember = useCallback(() => setMemberToRemove(null), []);
 

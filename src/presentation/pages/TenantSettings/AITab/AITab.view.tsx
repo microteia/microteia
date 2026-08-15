@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import { useTheme } from 'styled-components';
 import {
   RiDeleteBinLine,
@@ -21,6 +21,10 @@ import type { SearchSelectOption } from '../../../components/ui/SearchSelect';
 import type { AIConnection } from '../../../../domain/entities';
 import type { AIConnectionForm } from './AITab.viewmodel';
 
+import { useT, useLabel } from '../../../shared/i18n/useT';
+// Nome de PRODUTO é marca: "OpenAI" e "Anthropic (Claude)" se escrevem igual em qualquer idioma.
+// Só "Outro" é texto nosso, e por isso é o único que vira referência.
+/* eslint-disable no-restricted-syntax */
 const PROVIDER_OPTIONS: SearchSelectOption[] = [
   { value: 'openai', label: 'OpenAI' },
   { value: 'anthropic', label: 'Anthropic (Claude)' },
@@ -28,8 +32,9 @@ const PROVIDER_OPTIONS: SearchSelectOption[] = [
   { value: 'mistral', label: 'Mistral AI' },
   { value: 'cohere', label: 'Cohere' },
   { value: 'ollama', label: 'Ollama (Local)' },
-  { value: 'other', label: 'Outro' },
+  { value: 'other', label: '@core.admin/ai.provider.other' },
 ];
+/* eslint-enable no-restricted-syntax */
 
 interface AIConnectionCardProps {
   connection: AIConnection;
@@ -50,28 +55,30 @@ const AIConnectionCard: React.FC<AIConnectionCardProps> = ({
   providerLabel,
   providerIcon,
 }) => {
+  const t = useT('core.admin');
   return (
     <S.AICard $isDefault={connection.isDefault}>
       <S.AIProviderIcon $color={providerColor}>{providerIcon}</S.AIProviderIcon>
       <S.AICardBody>
         <S.AICardName>
           {connection.name}
-          {connection.isDefault && <S.DefaultBadge>Padrão</S.DefaultBadge>}
+          {connection.isDefault && <S.DefaultBadge>{t('ai.default')}</S.DefaultBadge>}
         </S.AICardName>
         <S.AICardMeta>
-          {providerLabel} · {connection.model || 'modelo não definido'} · temp {connection.temperature}
+          {providerLabel} · {connection.model || t('ai.model.unset')} · {t('ai.temperature.short')}{' '}
+          {connection.temperature}
         </S.AICardMeta>
       </S.AICardBody>
       <S.AICardActions>
         {!connection.isDefault && (
-          <Button size="sm" variant="ghost" onClick={onSetDefault} title="Definir como padrão">
+          <Button size="sm" variant="ghost" onClick={onSetDefault} title={t('ai.set-default')}>
             <RiStarLine size={16} />
           </Button>
         )}
-        <Button size="sm" variant="ghost" onClick={onEdit} title="Editar">
+        <Button size="sm" variant="ghost" onClick={onEdit} title={t('core.ui/action.edit')}>
           <RiEditLine size={16} />
         </Button>
-        <Button size="sm" variant="ghost" onClick={onDelete} title="Excluir">
+        <Button size="sm" variant="ghost" onClick={onDelete} title={t('core.ui/action.delete')}>
           <RiDeleteBinLine size={16} />
         </Button>
       </S.AICardActions>
@@ -106,6 +113,13 @@ const AIConnectionModal: React.FC<AIModalProps> = ({
   handleSave,
   handleToggleShowApiKey,
 }) => {
+  const t = useT('core.admin');
+  const label = useLabel();
+  const providerOptions = useMemo(
+    () => PROVIDER_OPTIONS.map((option) => ({ ...option, label: label(option.label) })),
+    [label],
+  );
+
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
@@ -121,7 +135,7 @@ const AIConnectionModal: React.FC<AIModalProps> = ({
     <S.ModalOverlay onClick={(e) => e.target === e.currentTarget && handleCloseModal()}>
       <S.ModalContainer>
         <S.ModalHeader>
-          <S.ModalTitle>{modalEditing ? 'Editar Conexão IA' : 'Nova Conexão IA'}</S.ModalTitle>
+          <S.ModalTitle>{t(modalEditing ? 'ai.modal.edit' : 'ai.modal.new')}</S.ModalTitle>
           <Button variant="ghost" size="sm" onClick={handleCloseModal}>
             <RiCloseLine size={20} />
           </Button>
@@ -129,34 +143,36 @@ const AIConnectionModal: React.FC<AIModalProps> = ({
 
         <S.ModalContent>
           <S.AIFormGroup>
-            <S.AILabel htmlFor="ai-name">Nome da Conexão *</S.AILabel>
+            <S.AILabel htmlFor="ai-name">{t('ai.name')}</S.AILabel>
             <S.AIInput
               id="ai-name"
               value={form.name}
               onChange={(e) => handleFormChange('name', e.target.value)}
-              placeholder="Ex: GPT-4o Produção"
+              placeholder={t('ai.name.placeholder')}
             />
           </S.AIFormGroup>
 
           <S.AIFormGroup>
-            <S.AILabel>Provider *</S.AILabel>
+            <S.AILabel>{t('ai.provider')}</S.AILabel>
             <SearchSelect
-              options={PROVIDER_OPTIONS}
+              options={providerOptions}
               value={form.provider}
               onChange={(v) => handleFormChange('provider', v)}
-              placeholder="Selecione o provider..."
+              placeholder={t('ai.provider.placeholder')}
             />
           </S.AIFormGroup>
 
           <S.AIFormGroup>
-            <S.AILabel htmlFor="ai-apikey">{apiKeyRequired ? 'API Key *' : 'API Key'}</S.AILabel>
+            <S.AILabel htmlFor="ai-apikey">
+              {t(apiKeyRequired ? 'ai.api-key.required' : 'ai.api-key')}
+            </S.AILabel>
             <S.PasswordRow>
               <S.PasswordInput
                 id="ai-apikey"
                 type={showApiKey ? 'text' : 'password'}
                 value={form.apiKey}
                 onChange={(e) => handleFormChange('apiKey', e.target.value)}
-                placeholder={apiKeyRequired ? 'sk-...' : 'Chave cadastrada — preencha para substituir'}
+                placeholder={t(apiKeyRequired ? 'ai.api-key.example' : 'ai.api-key.placeholder')}
                 autoComplete="off"
               />
               <S.PasswordToggle type="button" onClick={handleToggleShowApiKey}>
@@ -164,20 +180,18 @@ const AIConnectionModal: React.FC<AIModalProps> = ({
               </S.PasswordToggle>
             </S.PasswordRow>
             <S.AIFieldHint>
-              {apiKeyRequired
-                ? 'A chave fica guardada em área restrita e nunca volta para o navegador.'
-                : 'A chave atual permanece guardada em área restrita. Deixe em branco para mantê-la.'}
+              {t(apiKeyRequired ? 'ai.api-key.hint.new' : 'ai.api-key.hint.existing')}
             </S.AIFieldHint>
           </S.AIFormGroup>
 
           <S.AIFormGroup>
-            <S.AILabel htmlFor="ai-model">Modelo</S.AILabel>
+            <S.AILabel htmlFor="ai-model">{t('ai.model')}</S.AILabel>
             <S.AIInput
               id="ai-model"
               list="model-suggestions"
               value={form.model}
               onChange={(e) => handleFormChange('model', e.target.value)}
-              placeholder="Ex: gpt-4o"
+              placeholder={t('ai.model.placeholder')}
             />
             {modelSuggestions.length > 0 && (
               <datalist id="model-suggestions">
@@ -189,7 +203,9 @@ const AIConnectionModal: React.FC<AIModalProps> = ({
           </S.AIFormGroup>
 
           <S.AIFormGroup>
-            <S.AILabel>Temperatura: {parseFloat(form.temperature).toFixed(2)}</S.AILabel>
+            <S.AILabel>
+              {t('ai.temperature', { value: parseFloat(form.temperature).toFixed(2) })}
+            </S.AILabel>
             <S.SliderRow>
               <S.Slider
                 type="range"
@@ -204,7 +220,7 @@ const AIConnectionModal: React.FC<AIModalProps> = ({
           </S.AIFormGroup>
 
           <S.AIFormGroup>
-            <S.AILabel htmlFor="ai-maxtokens">Max Tokens</S.AILabel>
+            <S.AILabel htmlFor="ai-maxtokens">{t('ai.max-tokens')}</S.AILabel>
             <S.AIInput
               id="ai-maxtokens"
               type="number"
@@ -218,14 +234,14 @@ const AIConnectionModal: React.FC<AIModalProps> = ({
 
         <S.ModalActions>
           <Button variant="secondary" onClick={handleCloseModal} disabled={saving}>
-            Cancelar
+            {t('core.ui/action.cancel')}
           </Button>
           <Button
             onClick={() => void handleSave()}
             $isLoading={saving}
             disabled={saving || !canSave}
           >
-            {saving ? 'Salvando...' : modalEditing ? 'Salvar' : 'Adicionar'}
+            {t(saving ? 'core.ui/action.saving' : modalEditing ? 'core.ui/action.save' : 'core.ui/action.add')}
           </Button>
         </S.ModalActions>
       </S.ModalContainer>
@@ -234,6 +250,7 @@ const AIConnectionModal: React.FC<AIModalProps> = ({
 };
 
 export const AITabView: React.FC = () => {
+  const t = useT('core.admin');
   const vm = useAITabViewModel();
   const theme = useTheme();
 
@@ -241,6 +258,7 @@ export const AITabView: React.FC = () => {
     provider: string,
   ): { label: string; color: string; icon: React.ReactNode } => {
     const providerMap: Record<string, { label: string; color: string; icon: React.ReactNode }> = {
+      /* eslint-disable no-restricted-syntax -- marca de produto: não traduz. */
       openai: { label: 'OpenAI', color: theme.colors.aiOpenai, icon: <SiOpenai size={18} /> },
       anthropic: {
         label: 'Anthropic',
@@ -259,8 +277,9 @@ export const AITabView: React.FC = () => {
       },
       cohere: { label: 'Cohere', color: theme.colors.aiCohere, icon: <RiRobot2Line size={18} /> },
       ollama: { label: 'Ollama', color: theme.colors.aiOllama, icon: <RiRobot2Line size={18} /> },
+      /* eslint-enable no-restricted-syntax */
       other: {
-        label: 'Personalizado',
+        label: t('ai.provider.custom'),
         color: theme.colors.aiOther,
         icon: <RiRobot2Line size={18} />,
       },
@@ -270,7 +289,7 @@ export const AITabView: React.FC = () => {
 
   return (
     <S.Container>
-      <S.SectionTitle>Conexões IA do Escritório</S.SectionTitle>
+      <S.SectionTitle>{t('ai.section.title')}</S.SectionTitle>
 
       {vm.loading ? (
         <Spinner />
@@ -281,7 +300,7 @@ export const AITabView: React.FC = () => {
           {vm.connections.length === 0 ? (
             <S.EmptyState>
               <RiRobot2Line size={32} style={{ marginBottom: 8, opacity: 0.4 }} />
-              <p>Nenhuma conexão IA configurada para este escritório.</p>
+              <p>{t('ai.empty')}</p>
             </S.EmptyState>
           ) : (
             <S.AIList>
@@ -306,7 +325,7 @@ export const AITabView: React.FC = () => {
           <S.AIAddRow>
             <Button onClick={() => vm.handleOpenModal()}>
               <RiAddLine size={16} />
-              Adicionar Conexão
+              {t('ai.add')}
             </Button>
           </S.AIAddRow>
         </>
@@ -314,9 +333,9 @@ export const AITabView: React.FC = () => {
 
       <ConfirmModal
         isOpen={vm.confirmDelete.open}
-        title="Excluir conexão IA"
-        message={`Deseja remover a conexão "${vm.confirmDelete.name}"? Esta ação não pode ser desfeita.`}
-        confirmLabel="Excluir"
+        title={t('ai.delete.title')}
+        message={t('ai.delete.message', { name: vm.confirmDelete.name })}
+        confirmLabel={t('core.ui/action.delete')}
         variant="danger"
         onConfirm={() => void vm.runDelete()}
         onCancel={vm.cancelDelete}

@@ -5,7 +5,9 @@ import { OfficeTab } from './OfficeTab';
 import { MembersTab } from './MembersTab';
 import { AITab } from './AITab';
 
+import { useT } from '../../shared/i18n/useT';
 export const TenantSettingsView: React.FC<{ tabKey?: string }> = ({ tabKey }) => {
+  const t = useT('core.admin');
   const initialTab =
     tabKey === 'tenant-settings:ai'
       ? 'ai'
@@ -18,21 +20,21 @@ export const TenantSettingsView: React.FC<{ tabKey?: string }> = ({ tabKey }) =>
   return (
     <S.Page>
       <S.Header>
-        <S.Title>Configurações do Escritório</S.Title>
+        <S.Title>{t('page.tenant-settings')}</S.Title>
       </S.Header>
 
       <S.TabsBar>
         <S.Tab $active={vm.activeTab === 'office'} onClick={() => vm.setActiveTab('office')}>
-          Dados do Escritório
+          {t('tenant.tab.office')}
         </S.Tab>
         {vm.isAdmin && (
           <S.Tab $active={vm.activeTab === 'members'} onClick={() => vm.setActiveTab('members')}>
-            Membros
+            {t('tenant.tab.members')}
           </S.Tab>
         )}
         {vm.isAdmin && (
           <S.Tab $active={vm.activeTab === 'ai'} onClick={() => vm.setActiveTab('ai')}>
-            Conexão IA
+            {t('tenant.tab.ai')}
           </S.Tab>
         )}
       </S.TabsBar>

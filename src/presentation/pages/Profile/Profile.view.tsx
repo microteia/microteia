@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
   RiUserLine,
   RiCloseLine,
@@ -15,10 +15,11 @@ import { Spinner } from '../../components/ui/Spinner';
 import { useProfileViewModel, PROFILE_PHOTO_INPUT_ID } from './Profile.viewmodel';
 import { S } from './Profile.styles';
 
-const GENDER_OPTIONS = [
-  { value: 'M', label: 'Masculino' },
-  { value: 'F', label: 'Feminino' },
-  { value: 'N', label: 'Não Informado' },
+import { useT } from '../../shared/i18n/useT';
+const GENDER_KEYS = [
+  { value: 'M', labelKey: 'profile.gender.male' },
+  { value: 'F', labelKey: 'profile.gender.female' },
+  { value: 'N', labelKey: 'profile.gender.unspecified' },
 ];
 
 interface NicknameSectionProps {
@@ -26,36 +27,37 @@ interface NicknameSectionProps {
 }
 
 const NicknameSection: React.FC<NicknameSectionProps> = ({ vm }) => {
+  const t = useT('core.workspace');
   if (vm.isNicknameLocked) {
     return (
       <S.Section>
-        <S.SectionTitle>Apelido</S.SectionTitle>
+        <S.SectionTitle>{t('profile.nickname')}</S.SectionTitle>
         <S.NicknameLockedRow>
           <RiLockLine size={14} />
           <S.NicknameLockedValue>{vm.existingNickname}</S.NicknameLockedValue>
         </S.NicknameLockedRow>
-        <S.NicknameHint>O apelido é permanente e não pode ser alterado.</S.NicknameHint>
+        <S.NicknameHint>{t('profile.nickname.locked')}</S.NicknameHint>
       </S.Section>
     );
   }
 
   return (
     <S.Section>
-      <S.SectionTitle>Apelido</S.SectionTitle>
+      <S.SectionTitle>{t('profile.nickname')}</S.SectionTitle>
 
       {vm.existingNickname && (
         <S.NicknameCurrentBadge>
-          Atual: {vm.existingNickname}
+          {t('profile.nickname.current', { nickname: vm.existingNickname })}
         </S.NicknameCurrentBadge>
       )}
 
       <S.FormGroup>
-        <S.Label htmlFor="nickname">Escolha seu apelido permanente</S.Label>
+        <S.Label htmlFor="nickname">{t('profile.nickname.choose')}</S.Label>
         <S.Input
           id="nickname"
           value={vm.nicknameInput}
           onChange={(e) => vm.handleNicknameChange(e.target.value)}
-          placeholder="ex: joao.silva, maria_123"
+          placeholder={t('profile.nickname.placeholder')}
           maxLength={30}
           autoComplete="off"
           spellCheck={false}
@@ -68,7 +70,7 @@ const NicknameSection: React.FC<NicknameSectionProps> = ({ vm }) => {
             <S.NicknameStatusIcon $spin>
               <RiLoader4Line size={13} />
             </S.NicknameStatusIcon>
-            <S.NicknameStatusText $status="checking">Verificando disponibilidade...</S.NicknameStatusText>
+            <S.NicknameStatusText $status="checking">{t('profile.nickname.checking')}</S.NicknameStatusText>
           </>
         )}
         {vm.nicknameStatus === 'available' && (
@@ -76,7 +78,7 @@ const NicknameSection: React.FC<NicknameSectionProps> = ({ vm }) => {
             <S.NicknameStatusIcon>
               <RiCheckLine size={13} />
             </S.NicknameStatusIcon>
-            <S.NicknameStatusText $status="available">Disponível</S.NicknameStatusText>
+            <S.NicknameStatusText $status="available">{t('profile.nickname.available')}</S.NicknameStatusText>
           </>
         )}
         {vm.nicknameStatus === 'taken' && (
@@ -84,7 +86,7 @@ const NicknameSection: React.FC<NicknameSectionProps> = ({ vm }) => {
             <S.NicknameStatusIcon>
               <RiCloseLine size={13} />
             </S.NicknameStatusIcon>
-            <S.NicknameStatusText $status="taken">Já está em uso</S.NicknameStatusText>
+            <S.NicknameStatusText $status="taken">{t('profile.nickname.taken')}</S.NicknameStatusText>
           </>
         )}
         {vm.nicknameStatus === 'blocked' && (
@@ -92,7 +94,7 @@ const NicknameSection: React.FC<NicknameSectionProps> = ({ vm }) => {
             <S.NicknameStatusIcon>
               <RiCloseLine size={13} />
             </S.NicknameStatusIcon>
-            <S.NicknameStatusText $status="blocked">Apelido não permitido</S.NicknameStatusText>
+            <S.NicknameStatusText $status="blocked">{t('profile.nickname.blocked')}</S.NicknameStatusText>
           </>
         )}
         {vm.nicknameStatus === 'invalid' && (
@@ -100,13 +102,13 @@ const NicknameSection: React.FC<NicknameSectionProps> = ({ vm }) => {
             <S.NicknameStatusIcon>
               <RiCloseLine size={13} />
             </S.NicknameStatusIcon>
-            <S.NicknameStatusText $status="invalid">Apenas letras, números, . _ -</S.NicknameStatusText>
+            <S.NicknameStatusText $status="invalid">{t('profile.nickname.invalid')}</S.NicknameStatusText>
           </>
         )}
       </S.NicknameStatusRow>
 
       {vm.nicknameInput.length > 0 && vm.nicknameInput.length < 3 && (
-        <S.NicknameHint>Mínimo 3 caracteres.</S.NicknameHint>
+        <S.NicknameHint>{t('profile.nickname.min-length')}</S.NicknameHint>
       )}
 
       {vm.nicknameError && (
@@ -121,19 +123,22 @@ const NicknameSection: React.FC<NicknameSectionProps> = ({ vm }) => {
             $isLoading={vm.nicknameSaving}
             disabled={vm.nicknameSaving}
           >
-            {vm.nicknameSaving ? 'Salvando...' : 'Definir Apelido'}
+            {t(vm.nicknameSaving ? 'core.ui/action.saving' : 'profile.nickname.set')}
           </Button>
         </S.NicknameActions>
       )}
 
-      <S.NicknameHint>
-        Após definido, o apelido não pode ser alterado. Use apenas letras (a-z), números (0-9), ponto (.), underscore (_) ou hífen (-).
-      </S.NicknameHint>
+      <S.NicknameHint>{t('profile.nickname.rules')}</S.NicknameHint>
     </S.Section>
   );
 };
 
 export const ProfileView: React.FC = () => {
+  const t = useT('core.workspace');
+  const genderOptions = useMemo(
+    () => GENDER_KEYS.map((option) => ({ value: option.value, label: t(option.labelKey) })),
+    [t],
+  );
   const vm = useProfileViewModel();
   const initial = vm.userDisplayName?.charAt(0)?.toUpperCase() ?? 'U';
 
@@ -142,7 +147,7 @@ export const ProfileView: React.FC = () => {
       <S.PageHeader>
         <S.PageTitle>
           <RiUserLine size={22} style={{ marginRight: 8, verticalAlign: 'middle' }} />
-          Meu Perfil
+          {t('page.profile')}
         </S.PageTitle>
       </S.PageHeader>
 
@@ -152,19 +157,19 @@ export const ProfileView: React.FC = () => {
             <S.AvatarWrapper>
               <S.Avatar>
                 {vm.effectivePhotoURL ? (
-                  <S.AvatarImg src={vm.effectivePhotoURL} alt="Foto de perfil" referrerPolicy="no-referrer" />
+                  <S.AvatarImg src={vm.effectivePhotoURL} alt={t('profile.photo.alt')} referrerPolicy="no-referrer" />
                 ) : (
                   <S.AvatarInitial>{initial}</S.AvatarInitial>
                 )}
               </S.Avatar>
               <S.AvatarUploadBadge
                 onClick={vm.triggerFileInput}
-                title="Alterar foto"
+                title={t('profile.photo.change')}
               >
                 {vm.isUploadingPhoto ? <RiLoader4Line size={14} /> : <RiCameraLine size={14} />}
               </S.AvatarUploadBadge>
               {vm.hasCustomPhoto && (
-                <S.AvatarRemoveBadge onClick={vm.handleClearPhoto} title="Remover foto personalizada">
+                <S.AvatarRemoveBadge onClick={vm.handleClearPhoto} title={t('profile.photo.remove')}>
                   <RiCloseLine size={12} />
                 </S.AvatarRemoveBadge>
               )}
@@ -172,11 +177,11 @@ export const ProfileView: React.FC = () => {
 
             <S.AvatarIdentity>
               <S.AvatarIdentityItem>
-                <S.AvatarIdentityLabel>E-mail</S.AvatarIdentityLabel>
+                <S.AvatarIdentityLabel>{t('core.ui/field.email')}</S.AvatarIdentityLabel>
                 <S.AvatarIdentityValue>{vm.userEmail}</S.AvatarIdentityValue>
               </S.AvatarIdentityItem>
               <S.AvatarIdentityItem>
-                <S.AvatarIdentityLabel>Conta</S.AvatarIdentityLabel>
+                <S.AvatarIdentityLabel>{t('profile.account')}</S.AvatarIdentityLabel>
                 <S.AvatarIdentityValue>{vm.userDisplayName || '—'}</S.AvatarIdentityValue>
               </S.AvatarIdentityItem>
               {vm.photoError && <S.PhotoError>{vm.photoError}</S.PhotoError>}
@@ -196,21 +201,21 @@ export const ProfileView: React.FC = () => {
 
         {vm.profileLoading ? <Spinner /> : (
           <S.Section>
-            <S.SectionTitle>Dados Pessoais</S.SectionTitle>
+            <S.SectionTitle>{t('profile.personal-data')}</S.SectionTitle>
 
             <S.FormGrid>
               <S.FormGroup>
-                <S.Label htmlFor="fullName">Nome Completo</S.Label>
+                <S.Label htmlFor="fullName">{t('profile.full-name')}</S.Label>
                 <S.Input
                   id="fullName"
                   value={vm.form.fullName}
                   onChange={(e) => vm.handleFormChange('fullName', e.target.value)}
-                  placeholder={vm.userDisplayName || 'Seu nome completo'}
+                  placeholder={vm.userDisplayName || t('profile.full-name.placeholder')}
                 />
               </S.FormGroup>
 
               <S.FormGroup>
-                <S.Label htmlFor="phone">Telefone</S.Label>
+                <S.Label htmlFor="phone">{t('core.ui/field.phone')}</S.Label>
                 <S.Input
                   id="phone"
                   value={vm.form.phone}
@@ -221,7 +226,7 @@ export const ProfileView: React.FC = () => {
               </S.FormGroup>
 
               <S.FormGroup>
-                <S.Label htmlFor="birthDate">Data de Nascimento</S.Label>
+                <S.Label htmlFor="birthDate">{t('profile.birth-date')}</S.Label>
                 <DateInput
                   id="birthDate"
                   value={vm.form.birthDate}
@@ -230,12 +235,12 @@ export const ProfileView: React.FC = () => {
               </S.FormGroup>
 
               <S.FormGroupFull>
-                <S.Label>Sexo</S.Label>
+                <S.Label>{t('profile.gender')}</S.Label>
                 <SearchSelect
-                  options={GENDER_OPTIONS}
+                  options={genderOptions}
                   value={vm.form.gender}
                   onChange={(v) => vm.handleFormChange('gender', v)}
-                  placeholder="Selecione..."
+                  placeholder={t('core.ui/action.select')}
                 />
               </S.FormGroupFull>
             </S.FormGrid>
@@ -249,7 +254,7 @@ export const ProfileView: React.FC = () => {
                 $isLoading={vm.profileSaving}
                 disabled={vm.profileSaving}
               >
-                {vm.profileSaving ? 'Salvando...' : 'Salvar Perfil'}
+                {t(vm.profileSaving ? 'core.ui/action.saving' : 'profile.save')}
               </Button>
             </S.FormActions>
           </S.Section>

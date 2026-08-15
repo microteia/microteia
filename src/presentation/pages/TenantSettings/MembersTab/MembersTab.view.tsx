@@ -1,7 +1,7 @@
 import React from 'react';
 import { useTheme } from 'styled-components';
 import { RiDeleteBinLine } from 'react-icons/ri';
-import { useMembersTabViewModel, TENANT_ROLE_LABELS } from './MembersTab.viewmodel';
+import { useMembersTabViewModel, TENANT_ROLE_KEYS } from './MembersTab.viewmodel';
 import { S } from './MembersTab.styles.tsx';
 import { Button } from '../../../components/ui/Button';
 import { Input, Label } from '../../../components/ui/Input';
@@ -13,9 +13,11 @@ import type { SearchSelectOption } from '../../../components/ui/SearchSelect';
 import { InfoBanner } from '../../../components/ui/InfoBanner';
 import type { TenantRole } from '../../../../domain/entities';
 
+import { useT } from '../../../shared/i18n/useT';
 const ROLES: TenantRole[] = ['admin', 'lawyer', 'secretary', 'user'];
 
 export const MembersTabView: React.FC = () => {
+  const t = useT('core.admin');
   const vm = useMembersTabViewModel();
   const theme = useTheme();
 
@@ -28,7 +30,7 @@ export const MembersTabView: React.FC = () => {
 
   const roleOptions: SearchSelectOption[] = ROLES.map((r) => ({
     value: r,
-    label: TENANT_ROLE_LABELS[r],
+    label: t(TENANT_ROLE_KEYS[r]),
     color: roleColors[r],
   }));
 
@@ -37,18 +39,18 @@ export const MembersTabView: React.FC = () => {
       {!vm.canAddMore && (
         <InfoBanner
           variant="warning"
-          message={`Limite de membros atingido (${vm.memberLimit}) para este escritório. Remova um membro ou peça ao administrador do sistema para aumentar o limite.`}
+          message={t('member.limit.notice', { limit: String(vm.memberLimit) })}
         />
       )}
 
       <S.AddMemberRow>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-          <Label>E-mail do novo membro</Label>
+          <Label>{t('member.new.email')}</Label>
           <Input
             type="email"
             value={vm.addEmail}
             onChange={(e) => vm.setAddEmail(e.target.value)}
-            placeholder="email@usuario.com"
+            placeholder={t('member.new.email.placeholder')}
             disabled={!vm.canAddMore}
             onKeyDown={(e) => {
               if (e.key === 'Enter') void vm.handleAddMember();
@@ -56,14 +58,14 @@ export const MembersTabView: React.FC = () => {
           />
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-          <Label>Perfil</Label>
+          <Label>{t('member.role')}</Label>
           <SearchSelect
             options={roleOptions}
             value={vm.addRole}
             onChange={(val) => {
               if (val) vm.setAddRole(val as TenantRole);
             }}
-            placeholder="Perfil..."
+            placeholder={t('member.role.placeholder')}
             disabled={!vm.canAddMore}
           />
         </div>
@@ -95,14 +97,14 @@ export const MembersTabView: React.FC = () => {
                 <S.MemberInfo>
                   <S.MemberName>
                     {member.displayName}
-                    {isCurrentUser && ' (você)'}
+                    {isCurrentUser && ` ${t('member.you')}`}
                   </S.MemberName>
                   <S.MemberEmail>{member.email}</S.MemberEmail>
                 </S.MemberInfo>
                 <S.MemberActions>
                   {isOwner || isCurrentUser ? (
                     <Badge color={roleColors[member.role]}>
-                      {TENANT_ROLE_LABELS[member.role]}
+                      {t(TENANT_ROLE_KEYS[member.role])}
                     </Badge>
                   ) : (
                     <>
@@ -112,7 +114,7 @@ export const MembersTabView: React.FC = () => {
                         onChange={(val) => {
                           if (val) void vm.handleRoleChange(member, val as TenantRole);
                         }}
-                        placeholder="Perfil..."
+                        placeholder={t('member.role.placeholder')}
                       />
                       <Button
                         variant="danger"
@@ -134,9 +136,9 @@ export const MembersTabView: React.FC = () => {
         isOpen={!!vm.memberToRemove}
         onConfirm={() => void vm.confirmRemoveMember()}
         onCancel={vm.cancelRemoveMember}
-        title="Remover Membro"
-        message={`Tem certeza que deseja remover "${vm.memberToRemove?.displayName}" do escritório?`}
-        confirmLabel="Remover"
+        title={t('member.remove.title')}
+        message={t('member.remove.message', { name: vm.memberToRemove?.displayName ?? '' })}
+        confirmLabel={t('core.ui/action.remove')}
         variant="danger"
       />
     </S.Container>

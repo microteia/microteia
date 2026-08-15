@@ -400,4 +400,51 @@ export const CORE_AUTOMATION: Record<string, string> = {
     "  // 'input' contém os parâmetros de entrada configurados no Step.\n  // 'fn.*' expõe as funções de expressão (ex: fn.formatDate, fn.dateDiff).\n  // 'query(...)' consulta os cadastros do escritório (assíncrono):\n  //   const r = await query({ table: 'cases',\n  //     where: [{ path: 'clientId', op: 'eq', value: input.clientId }],\n  //     projections: ['title'], limit: 10 });\n  //   // r = { count, results, first }",
   'script.starter.return-comment':
     "    // preencha aqui os parâmetros de saída declarados",
+  'condition.view.diagram': 'Diagrama lógico',
+  'condition.view.editor': 'Editor de condições',
+  'loop.body.notice': 'Adicione os steps que rodam a cada item no corpo da repetição, no fluxo do workflow.',
+  'loop.item-name': 'Nome do item',
+  'loop.item-name.hint':
+    'Item escalar fica disponível como input.{name}. Se o item for um objeto, seus campos ficam em input.campo.',
+  'loop.item-name.placeholder': 'ex: item',
+  'loop.output-name': 'Nome da saída',
+  'loop.output-name.hint':
+    'O resultado de cada iteração é agrupado num vetor publicado sob este nome para o próximo step.',
+  'loop.output-name.placeholder': 'ex: itens',
+  'loop.source': 'Lista de itens',
+  'loop.source.hint':
+    'A lista (ou item único) sobre a qual repetir. Cada item roda os steps do corpo da repetição.',
+  'mapping.event.example': 'ex: caseId',
+  'mapping.event.placeholder': 'Campo do evento...',
+  'mapping.expression.example': 'ex: event.campo || input.campo || variavel',
+  'mapping.prior-step.placeholder': 'Step anterior...',
+  'step.delete.condition': 'Excluir Condição',
+  'step.delete.condition.message':
+    'Excluir esta condição também remove todos os steps dos ramos Verdadeiro e Falso. Esta ação não pode ser desfeita.',
+  'step.delete.loop': 'Excluir Repetição',
+  'step.delete.loop.message':
+    'Excluir esta repetição também remove todos os steps do seu corpo. Esta ação não pode ser desfeita.',
+  'step.delete.step': 'Excluir Step',
+  'step.edit': 'Editar Step',
+  'step.edit.condition': 'Editar Condição',
+  'step.edit.loop': 'Editar Repetição',
+  'step.identifier.placeholder': 'ex: buscarProcesso',
+  'step.no-prior-steps':
+    "Não há steps anteriores neste workflow para usar como origem de 'Saída de outro step'.",
+  'step.target.script': 'Selecione o script...',
+  'step.target.workflow': 'Selecione o workflow a chamar...',
+  'step.type': 'Tipo de Step',
+  'step.type.placeholder': 'Selecione um tipo de step...',
+  'loop.save-failed': 'Erro ao salvar repetição: {detail}',
+  'loop.saved': 'Repetição salva com sucesso.',
+  'step.delete-failed': 'Erro ao excluir step.',
+  'step.identifier.hint.condition':
+    'Identifica este nó no fluxo. Uma condição não publica saída para as expressões.',
+  'step.identifier.hint.generated':
+    'Gerado automaticamente antes dos identificadores legíveis, não é escrevível numa expressão. Para ler as saídas deste step use input. ou o mapeamento "Saída de outro step".',
+  'step.identifier.hint.new':
+    'Definido na criação e imutável depois. É por ele que as expressões leem as saídas deste step.',
+  'step.identifier.hint.readable': 'Nas expressões, as saídas deste step ficam em output.{id}.',
+  'step.output.dynamic': '{id} (dinâmico)',
+  'workflow.fallback-name': 'Automação',
 };

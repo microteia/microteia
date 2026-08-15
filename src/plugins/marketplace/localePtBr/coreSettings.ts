@@ -1,4 +1,30 @@
 export const CORE_SETTINGS: Record<string, string> = {
   'page.settings': 'Configurações',
   'nav.settings': 'Configurações',
+  'settings.contributions.empty': 'Nenhuma opção disponível. Instale uma extensão que ofereça uma.',
+  'settings.empty': 'Nenhuma configuração registrada. Extensões que aceitam configuração aparecem aqui.',
+  'settings.json.discard': 'Descartar',
+  'settings.json.invalid': 'JSON inválido: {detail}',
+  'settings.json.lead.tenant':
+    'O documento inteiro de configurações do escritório. Chave de uma extensão desativada é preservada; valor fora do que a configuração aceita é recusado.',
+  'settings.json.lead.user':
+    'O documento inteiro de suas preferências. Chave de uma extensão desativada é preservada; valor fora do que a configuração aceita é recusado.',
+  'settings.list.hint': 'Pressione Enter para adicionar. Clique no × para remover.',
+  'settings.mode.json': 'Editar em JSON',
+  'settings.mode.visual': 'Edição visual',
+  'settings.none-found': 'Nenhuma configuração encontrada.',
+  'settings.reset': 'Restaurar padrão',
+  'settings.reset-failed': 'Não foi possível restaurar o padrão.',
+  'settings.save-all-failed': 'Não foi possível gravar as configurações.',
+  'settings.save-failed': 'Não foi possível gravar a configuração.',
+  'settings.saved': 'Configurações gravadas.',
+  'settings.scope.tenant': 'Escritório',
+  'settings.scope.user': 'Usuário',
+  'settings.search.placeholder': 'Buscar configuração',
+  'settings.tag.from-tenant': 'Definido pelo escritório',
+  'settings.tag.modified': 'Modificado',
+  'settings.tag.overridden': 'Sobreposto pela sua preferência',
+  'settings.tenant.read-only':
+    'As configurações do escritório são definidas pelo administrador. Suas preferências pessoais continuam editáveis na aba Usuário.',
+  'settings.widgets.empty': 'Nenhum widget disponível. Instale uma extensão que ofereça widgets.',
 };

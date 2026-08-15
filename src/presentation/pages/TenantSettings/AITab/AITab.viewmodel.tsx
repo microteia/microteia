@@ -8,6 +8,7 @@ import { makeDeleteAIConnectionUseCase } from '../../../../domain/usecases/aicon
 import { makeSetDefaultAIConnectionUseCase } from '../../../../domain/usecases/aiconnections/SetDefaultAIConnectionUseCase';
 import type { AIConnection, AIProvider } from '../../../../domain/entities';
 
+import { useT } from '../../../shared/i18n/useT';
 export interface AIConnectionForm {
   name: string;
   provider: string;
@@ -61,6 +62,7 @@ export interface AITabViewModel {
 }
 
 export const useAITabViewModel = (): AITabViewModel => {
+  const t = useT('core.admin');
   const { currentTenant } = useTenant();
   const { aiConnectionRepository } = useDI();
 
@@ -94,13 +96,13 @@ export const useAITabViewModel = (): AITabViewModel => {
           setConnections(result);
         }
       } catch {
-        setError('Erro ao carregar conexões IA.');
+        setError(t('ai.load-failed'));
       } finally {
         setLoading(false);
       }
     };
     void load();
-  }, [currentTenant, getConnectionsUC, setDefaultConnectionUC]);
+  }, [currentTenant, getConnectionsUC, setDefaultConnectionUC, t]);
 
   const modelSuggestions = useMemo(
     () => MODEL_SUGGESTIONS[form.provider] ?? [],
@@ -173,11 +175,11 @@ export const useAITabViewModel = (): AITabViewModel => {
       }
       handleCloseModal();
     } catch {
-      setError('Erro ao salvar conexão IA.');
+      setError(t('ai.save-failed'));
     } finally {
       setSaving(false);
     }
-  }, [currentTenant, canSave, form, modalEditing, connections.length, updateConnectionUC, createConnectionUC, handleCloseModal]);
+  }, [currentTenant, canSave, form, modalEditing, connections.length, updateConnectionUC, createConnectionUC, handleCloseModal, t]);
 
   const handleDelete = useCallback((id: string) => {
     const conn = connections.find((c) => c.id === id);
@@ -197,11 +199,11 @@ export const useAITabViewModel = (): AITabViewModel => {
         setConnections(remaining);
       }
     } catch {
-      setError('Erro ao excluir conexão.');
+      setError(t('ai.delete-failed'));
     } finally {
       setConfirmDelete({ open: false, id: '', name: '' });
     }
-  }, [currentTenant, confirmDelete, deleteConnectionUC, connections, setDefaultConnectionUC]);
+  }, [currentTenant, confirmDelete, deleteConnectionUC, connections, setDefaultConnectionUC, t]);
 
   const cancelDelete = useCallback(() => {
     setConfirmDelete({ open: false, id: '', name: '' });
@@ -213,9 +215,9 @@ export const useAITabViewModel = (): AITabViewModel => {
       await setDefaultConnectionUC.execute(currentTenant.id, id);
       setConnections((prev) => prev.map((c) => ({ ...c, isDefault: c.id === id })));
     } catch {
-      setError('Erro ao definir conexão padrão.');
+      setError(t('ai.set-default-failed'));
     }
-  }, [currentTenant, setDefaultConnectionUC]);
+  }, [currentTenant, setDefaultConnectionUC, t]);
 
   const handleToggleShowApiKey = useCallback(() => setShowApiKey((v) => !v), []);
 
