@@ -113,10 +113,18 @@ export const buildMessageCatalog = (
  * produz é o domínio, que não conhece idioma. Resolver o parâmetro aqui evita que cada consumidor
  * tenha de lembrar quais dos seus parâmetros são referências e quais são dado do escritório.
  */
-const resolveParam = (catalog: MessageCatalog, value: unknown): string => {
+const resolveParam = (
+  catalog: MessageCatalog,
+  value: unknown,
+  siblings?: MessageParams,
+): string => {
   if (typeof value !== 'string' || !value.startsWith('@')) return String(value);
   const match = /^@([a-z0-9][a-z0-9.-]*)\/([a-z0-9][a-z0-9.-]*)$/i.exec(value);
-  return match ? translate(catalog, `${match[1]}/${match[2]}`) : value;
+  if (!match) return value;
+  // Os parâmetros IRMÃOS descem para a mensagem aninhada. Um erro embrulhado por outro
+  // ("[Campo: {field}] {detail}") traz junto o que a frase de dentro precisa interpolar — sem isso,
+  // ela apareceria com o próprio `{label}` cru no meio.
+  return translate(catalog, `${match[1]}/${match[2]}`, siblings);
 };
 
 /**
@@ -133,7 +141,7 @@ const interpolate = (
   return template.replace(/\{([\w.]+)\}/g, (match, token: string) => {
     const value = params[token];
     if (value === null || value === undefined) return match;
-    return resolveParam(catalog, value);
+    return resolveParam(catalog, value, params);
   });
 };
 

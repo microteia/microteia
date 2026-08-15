@@ -28,6 +28,8 @@ export const getWorkflowPluginHost = (): PluginHost => {
       .filter((diagnostic) => diagnostic.severity === 'error')
       .map((diagnostic) => `${diagnostic.pluginId ?? '?'}: ${diagnostic.message}`)
       .join(' | ');
+    // Falha de BOOT do motor, para quem opera o sistema: não há catálogo carregado neste ponto,
+    // e nenhum usuário para ler a mensagem — o processo nem chega a subir.
     throw new Error(`Plugins do backend inválidos — o motor não pode iniciar. ${messages}`);
   }
 

@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [7.32.0] — 2026-08-15
+
+- Corrigido: quando um Step falhava ao ler um campo, o motivo aparecia como um código no lugar da frase. Agora a mensagem completa aparece traduzida, com o nome do Step e do campo.
+
 #### [7.31.0] — 2026-08-15
 
 - As mensagens de erro da conexão de inteligência artificial, da conexão com o Google, do cadastro de membros e do escritório passaram a acompanhar o idioma escolhido.

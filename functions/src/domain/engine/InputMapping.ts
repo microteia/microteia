@@ -6,6 +6,7 @@ import { getValueAtPath, parsePath } from '../schema/pathResolver';
 import { applyFormat, checkValue, toEffectiveRules } from '../schema/fieldRules';
 
 import { LocalizedError } from '../errors/LocalizedError';
+import { errorParamsOf } from '../errors/LocalizedError';
 const resolveEventPath = (payload: Record<string, unknown>, path: string): unknown =>
   getValueAtPath(payload, parsePath(path));
 
@@ -40,7 +41,9 @@ export const resolveMapping = (mapping: InputMapping, context: WorkflowContext):
 export interface ResolveInputsResult {
   success: boolean;
   inputs: Record<string, unknown>;
+  /** REFERÊNCIA de mensagem; `errorParams` traz o que a frase interpola. */
   error?: string;
+  errorParams?: Record<string, string>;
 }
 
 export const resolveInputsSafe = (
@@ -84,19 +87,31 @@ export const resolveInputsSafe = (
       }
       resolved[input.id] = value;
     } catch (error) {
-      // Enriquece a mensagem de erro com contexto do campo e expressão
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      let enrichedMessage = `[Campo: ${input.label}]`;
+      // A mensagem interna já é uma REFERÊNCIA. Ela vai como PARÂMETRO, e não concatenada dentro
+      // de uma frase: uma referência só resolve quando é o valor inteiro — embutida no meio de um
+      // texto ela apareceria crua na tela.
+      const detail = error instanceof Error ? error.message : String(error);
+      const detailParams = errorParamsOf(error);
 
-      if (mapping?.kind === 'Expression') {
-        enrichedMessage += ` [Expressão: ${mapping.expression}]`;
-      } else if (mapping?.kind === 'Event') {
-        enrichedMessage += ` [Caminho do evento: ${mapping.path}]`;
-      }
-
-      enrichedMessage += ` ${errorMessage}`;
-      // Retorna inputs parcialmente resolvidos até o ponto do erro
-      return { success: false, inputs: resolved, error: enrichedMessage };
+      return {
+        success: false,
+        inputs: resolved,
+        error: mapping?.kind === 'Expression'
+          ? '@core.automation/input.failed.expression'
+          : mapping?.kind === 'Event'
+            ? '@core.automation/input.failed.event'
+            : '@core.automation/input.failed',
+        errorParams: {
+          field: input.label,
+          source: mapping?.kind === 'Expression'
+            ? mapping.expression
+            : mapping?.kind === 'Event' ? mapping.path : '',
+          // Os parâmetros da mensagem de DENTRO sobem para o mesmo objeto: `resolveParam` os passa
+          // adiante ao resolver `{detail}`, então a frase aninhada interpola normalmente.
+          ...detailParams,
+          detail,
+        },
+      };
     }
   }
   return { success: true, inputs: resolved };
@@ -109,7 +124,7 @@ export const resolveInputs = (
 ): Record<string, unknown> => {
   const result = resolveInputsSafe(inputs, configuration, context);
   if (!result.success) {
-    throw new Error(result.error);
+    throw new LocalizedError(result.error ?? '', result.errorParams);
   }
   return result.inputs;
 };

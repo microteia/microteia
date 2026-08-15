@@ -310,7 +310,12 @@ export const runWorkflow = async ({ definition, event, registry, services }: Run
 
       if (!resolveResult.success) {
         // Log com inputs parcialmente resolvidos e mensagem de erro enriquecida
-        log('ERROR', `[Step "${stepDefinition.name}"] ${resolveResult.error}`, step.id, step.stepDefinitionId, context.input, resolveResult.inputs, undefined);
+        log(
+          'ERROR',
+          '@core.automation/run.step.input-failed',
+          step.id, step.stepDefinitionId, context.input, resolveResult.inputs, undefined,
+          { ...resolveResult.errorParams, step: stepDefinition.name, detail: resolveResult.error ?? '' },
+        );
         return { ok: false };
       }
 

@@ -878,4 +878,8 @@ export const CORE_AUTOMATION_MESSAGES: Record<string, string> = {
     'Declares the extension points of the engine: steps and expression functions.',
   'plugin.workflow.name': 'Automation Engine',
   'step.set-variable.short-name': 'Set Variable',
+  'input.failed': '[Field: {field}] {detail}',
+  'input.failed.event': '[Field: {field}] [Event path: {source}] {detail}',
+  'input.failed.expression': '[Field: {field}] [Expression: {source}] {detail}',
+  'run.step.input-failed': '[Step "{step}"] {detail}',
 };

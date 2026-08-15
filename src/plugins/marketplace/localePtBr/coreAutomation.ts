@@ -882,4 +882,8 @@ export const CORE_AUTOMATION: Record<string, string> = {
   'plugin.workflow.description': 'Declara os pontos de extensão do motor: passos e funções de expressão.',
   'plugin.workflow.name': 'Motor de Automações',
   'step.set-variable.short-name': 'Definir Variável',
+  'input.failed': '[Campo: {field}] {detail}',
+  'input.failed.event': '[Campo: {field}] [Caminho do evento: {source}] {detail}',
+  'input.failed.expression': '[Campo: {field}] [Expressão: {source}] {detail}',
+  'run.step.input-failed': '[Step "{step}"] {detail}',
 };
