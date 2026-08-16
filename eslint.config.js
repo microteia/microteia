@@ -42,6 +42,16 @@ const MIGRATED_TO_SOURCE_LANGUAGE = [
   'src/stores/**/*.{ts,tsx}',
   'src/infrastructure/**/*.{ts,tsx}',
   'src/presentation/hooks/**/*.{ts,tsx}',
+  // O BACKEND entra pelas mesmas propriedades. Ele não tem JSX, então o que o alcança é o seletor
+  // de propriedade — e é justamente ele que pega o texto SEM acento, que o gatilho por acento não
+  // vê: "Objeto montado" e "Campos montados" atravessaram a migração inteira por causa disso.
+  'functions/src/infrastructure/workflow/**/*.ts',
+  'functions/src/domain/engine/**/*.ts',
+  // As cópias GERADAS a partir de `src/domain/schema` entram junto: a fonte já está na zona, e sem
+  // isto os `eslint-disable` que viajam com o arquivo apareceriam como diretiva sem uso.
+  'functions/src/domain/schema/**/*.ts',
+  'functions/src/domain/services/**/*.ts',
+  'functions/src/plugins/**/*.ts',
   'src/domain/schema/plugin/**/*.{ts,tsx}',
   'src/domain/usecases/plugins/pluginReferences.ts',
   'src/domain/usecases/plugins/packageSerialization.ts',
@@ -119,16 +129,20 @@ export default defineConfig([
       'src/presentation/shared/extensions/extensionTypeDefs.ts',
       // Mesma natureza: as definições de tipo que viram IntelliSense para quem escreve um Script.
       'src/presentation/pages/ViewScript/scriptTypeDefs.ts',
+      // A esteira do Gmail/push pertence ao plugin de push, que não é traduzido nesta rodada —
+      // o texto dela casa com o e-mail de tribunal que ela processa.
+      'functions/src/domain/services/gmailPushAuditText.ts',
       // Comentário de CSS vive DENTRO do template literal, e comentário continua em português. Num
       // arquivo de estilo não há texto de usuário para proteger, então ele fica fora da zona.
       '**/*.styles.tsx',
     ],
     rules: {
       'no-restricted-syntax': ['error',
-        // `console.*` fica de fora: é diagnóstico para NÓS, não texto de usuário — mesma natureza
-        // do comentário de código, que a regra de idioma mantém em português de propósito.
+        // Diagnóstico fica de fora: `console.*` e `logger.*` (incluindo `context.logger.warn`) são
+        // para NÓS, não texto de usuário — mesma natureza do comentário de código, que a regra de
+        // idioma mantém em português de propósito.
         {
-          selector: 'Literal[value=/[áàâãéêíóôõúüçÁÀÂÃÉÊÍÓÔÕÚÜÇ]/]:not(CallExpression[callee.object.name=\'console\'] Literal)',
+          selector: 'Literal[value=/[áàâãéêíóôõúüçÁÀÂÃÉÊÍÓÔÕÚÜÇ]/]:not(CallExpression[callee.object.name=\'console\'] Literal):not(CallExpression[callee.object.property.name=\'logger\'] Literal):not(CallExpression[callee.object.name=\'logger\'] Literal)',
           message: 'Texto em português no código. O idioma-fonte é o inglês: crie a chave em src/plugins/messages/ e chame useT(); a tradução vai para o pacote pt-BR.',
         },
         // `<code>action</code>` fica de fora: o conteúdo de `code` é IDENTIFICADOR, e identificador
@@ -166,8 +180,15 @@ export default defineConfig([
           selector: "Property[key.name=/^(label|title|subtitle|description|message|placeholder|hint|summary)$/] > Literal[value=/[A-Za-zÀ-ÿ]{2}/][value!=/^(@|[a-z][a-z0-9.-]*$)/]",
           message: 'Texto de usuário como literal numa propriedade. Passe t(\'chave\'): a propriedade é lida por quem usa o sistema, então ela traduz.',
         },
+        // A MESMA propriedade, quando o valor é template literal. Sem isto, `message: \`Objeto
+        // "${name}" montado\`` passava: o gatilho por acento não vê "Objeto montado", e o seletor
+        // acima só olha `Literal`. Foi assim que duas mensagens de Step atravessaram a migração.
         {
-          selector: 'TemplateElement[value.raw=/[áàâãéêíóôõúüçÁÀÂÃÉÊÍÓÔÕÚÜÇ]/]:not(CallExpression[callee.object.name=\'console\'] TemplateElement)',
+          selector: "Property[key.name=/^(label|title|subtitle|description|message|placeholder|hint|summary)$/] > TemplateLiteral > TemplateElement[value.raw=/[A-Za-zÀ-ÿ]{2}/]",
+          message: 'Texto de usuário num template literal de propriedade. Passe t(\'chave\', { param }) com interpolação {param}.',
+        },
+        {
+          selector: 'TemplateElement[value.raw=/[áàâãéêíóôõúüçÁÀÂÃÉÊÍÓÔÕÚÜÇ]/]:not(CallExpression[callee.object.name=\'console\'] TemplateElement):not(CallExpression[callee.object.property.name=\'logger\'] TemplateElement):not(CallExpression[callee.object.name=\'logger\'] TemplateElement)',
           message: 'Texto em português em template literal. O idioma-fonte é o inglês: use t(\'chave\', { param }) com interpolação {param}.',
         },
       ],

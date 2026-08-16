@@ -25,7 +25,8 @@ export const DynamicRecordCommandProvider: ICommandPaletteProvider = {
       .filter((def) => contains(def.titlePlural, query) || contains(def.titleSingular, query))
       .map((def) => ({
         id: `dyn-screen:${def.id}`,
-        title: `Abrir ${def.titlePlural}`,
+        title: '@core.records/command.open',
+        titleParams: { name: def.titlePlural },
         group: '@core.records/command.group',
         icon: getScreenIcon(def.icon, 16),
         onSelect: () => {

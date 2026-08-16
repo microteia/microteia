@@ -15,7 +15,7 @@ export const makeExitStepDefinition = (): StepDefinition => ({
   createExecutor: (): WorkflowStepExecutor => ({
     execute: async () => ({
       success: true,
-      message: 'Workflow encerrado',
+      message: '@core.automation/step.exit.done',
       halt: true,
     }),
   }),

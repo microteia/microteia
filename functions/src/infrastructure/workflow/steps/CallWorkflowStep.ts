@@ -6,6 +6,7 @@ import { WORKFLOW_CALLED_EVENT } from '../../../domain/schema/eventCatalog';
 import { getDb } from '../../firebase/initFirebase';
 import { publishEvent } from '../publishEvent';
 
+import type { WorkflowResult } from '../../../domain/entities/WorkflowContext';
 const MAX_CALL_DEPTH = 10;
 const PARAM_PREFIX = 'param.';
 
@@ -45,10 +46,10 @@ export const makeCallWorkflowStepDefinition = (runCalledWorkflow: RunCalledWorkf
     description: '@core.automation/step.call-workflow.description',
   },
   createExecutor: (): WorkflowStepExecutor => ({
-    execute: async (inputs, context) => {
+    execute: async (inputs, context): Promise<WorkflowResult> => {
       const targetWorkflowId = inputs.targetWorkflowId ? String(inputs.targetWorkflowId) : '';
       if (!targetWorkflowId) {
-        return { success: false, message: 'Nenhum workflow-alvo foi selecionado' };
+        return { success: false, message: '@core.automation/step.call-workflow.no-target' };
       }
 
       const depth = Number(context.event.payload.__callDepth ?? 0);
@@ -75,7 +76,7 @@ export const makeCallWorkflowStepDefinition = (runCalledWorkflow: RunCalledWorkf
           __callDepth: depth + 1,
           ...resolvedParams,
         });
-        return { success: true, message: 'Workflow chamado', outputs: {} };
+        return { success: true, message: '@core.automation/step.call-workflow.fired', outputs: {} };
       }
 
       const result = await runCalledWorkflow.execute({
@@ -93,7 +94,11 @@ export const makeCallWorkflowStepDefinition = (runCalledWorkflow: RunCalledWorkf
       }
 
       if (result.status !== 'SUCCESS') {
-        return { success: false, message: `Workflow chamado terminou com status "${result.status}"` };
+        return {
+          success: false,
+          message: '@core.automation/step.call-workflow.bad-status',
+          messageParams: { status: String(result.status) },
+        };
       }
 
       return { success: true, message: '@core.automation/step.call-workflow.done', outputs: result.outputs };

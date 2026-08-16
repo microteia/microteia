@@ -35,9 +35,10 @@ import type { MapStepConfig } from '../../../domain/schema/mapSpec';
 import type { ValidateStepConfig } from '../../../domain/schema/validateSpec';
 import type { StepOutputField, WorkflowVariable } from '../../components/ui/ExpressionEditor/autocompleteHelpers';
 
-import { useT } from '../../shared/i18n/useT';
+import { useT, type TranslateFn } from '../../shared/i18n/useT';
 
 const queryProjectionOutputs = (
+  t: TranslateFn,
   step: WorkflowStep,
   definition: StepDefinitionSummary,
 ): { id: string; label: string }[] => {
@@ -46,7 +47,10 @@ const queryProjectionOutputs = (
   if (!mapping || mapping.kind !== 'Literal' || !mapping.value || typeof mapping.value !== 'object') return [];
   return ((mapping.value as QuerySpec).projections ?? [])
     .filter((path) => path.trim())
-    .map((path) => ({ id: `first.${path}`, label: `${path} (1º resultado)` }));
+    .map((path) => ({
+      id: `first.${path}`,
+      label: t('output.first-result', { path }),
+    }));
 };
 
 const mapConfigOf = (
@@ -472,7 +476,10 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
   const localStepOutputs = useCallback(
     (step: WorkflowStep): { id: string; label: string }[] => {
       if (step.type === 'Loop' && step.loop) {
-        return [{ id: step.loop.outputName, label: `${step.loop.outputName} (lista)` }];
+        return [{
+      id: step.loop.outputName,
+      label: t('output.list', { name: step.loop.outputName }),
+    }];
       }
 
       const definition = stepCatalog.find((d) => d.id === step.stepDefinitionId);
@@ -497,7 +504,7 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
         });
       }
 
-      queryProjectionOutputs(step, definition).forEach((output) => {
+      queryProjectionOutputs(t, step, definition).forEach((output) => {
         outputs.push({ id: output.id, label: output.label });
       });
       scriptOutputsFor(step, definition).forEach((output) => {

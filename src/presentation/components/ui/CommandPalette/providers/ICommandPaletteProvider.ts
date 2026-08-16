@@ -9,7 +9,9 @@ import type { TranslateFn } from '../../../../shared/i18n/useT';
 
 export interface CommandPaletteItem {
   id: string;
+  /** REFERÊNCIA de mensagem, ou o texto do escritório; `titleParams` interpola. */
   title: string;
+  titleParams?: Record<string, string>;
   subtitle?: string;
   group: string;
   icon?: React.ReactNode;

@@ -109,7 +109,9 @@ export const validateExpressionWithParser = (
   if (inString) {
     return {
       isValid: false,
-      message: `Falta fechar aspas (${stringChar === '"' ? 'aspas duplas "' : "aspas simples '"})`,
+      message: stringChar === '"'
+        ? '@core.automation/expr.unclosed-double-quote'
+        : '@core.automation/expr.unclosed-single-quote',
     };
   }
 

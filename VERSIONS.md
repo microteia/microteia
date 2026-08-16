@@ -11,6 +11,12 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [7.37.0] — 2026-08-15
+
+- Corrigido: no histórico de execução das automações, várias mensagens de Step continuavam em português — "Objeto montado", "Campos montados", "Auditoria registrada", entre outras.
+- Corrigido: o nome das listas de etiquetas, os títulos do buscador (⌘K) e os rótulos de saída de Step também passaram a acompanhar o idioma escolhido.
+- A busca do ⌘K passou a procurar no texto que está na tela.
+
 #### [7.36.0] — 2026-08-15
 
 - Corrigido: na Auditoria aparecia o nome interno da coleção ("contracts") no lugar do nome da tela ("Contrato"). O nome passou a vir sempre da tela instalada, então vale para qualquer extensão, traduzida ou não.

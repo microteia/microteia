@@ -4,6 +4,7 @@ import { getValueAtPath, parsePath } from '../../../domain/schema/pathResolver';
 import { runWorkflowUpsert } from '../mutation/runWorkflowMutation';
 import type { WorkflowMutationDeps } from '../mutation/runWorkflowMutation';
 
+import type { WorkflowResult } from '../../../domain/entities/WorkflowContext';
 const isPlainObject = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
 
@@ -32,7 +33,7 @@ export const makeUpsertStepDefinition = (deps: WorkflowMutationDeps): StepDefini
     { id: 'record', label: '@core.automation/step.upsert.label.registro-gravado', type: 'String' },
   ],
   createExecutor: (): WorkflowStepExecutor => ({
-    execute: async (inputs, context) => {
+    execute: async (inputs, context): Promise<WorkflowResult> => {
       const config = inputs.upsert as UpsertStepConfig | undefined;
       if (!config || typeof config !== 'object' || !config.table || !config.source) {
         return { success: false, message: '@core.automation/step.upsert.not-configured' };

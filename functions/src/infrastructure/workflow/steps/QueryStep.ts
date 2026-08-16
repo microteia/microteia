@@ -5,6 +5,7 @@ import type { IScreenDefinitionProvider } from '../../../domain/repositories/ISc
 import type { QuerySpec } from '../../../domain/schema/querySpec';
 import { runWorkflowQuery } from '../query/runWorkflowQuery';
 
+import type { WorkflowResult } from '../../../domain/entities/WorkflowContext';
 export const makeQueryStepDefinition = (
   queryRepository: IWorkflowQueryRepository,
   fetcher: IWorkflowRecordFetcher,
@@ -38,7 +39,7 @@ export const makeQueryStepDefinition = (
     description: '@core.automation/step.query.description',
   },
   createExecutor: (): WorkflowStepExecutor => ({
-    execute: async (inputs, context) => {
+    execute: async (inputs, context): Promise<WorkflowResult> => {
       const spec = inputs.query as QuerySpec | undefined;
       if (!spec || typeof spec !== 'object') {
         return { success: false, message: '@core.automation/step.query.not-configured' };
@@ -51,7 +52,8 @@ export const makeQueryStepDefinition = (
 
       return {
         success: true,
-        message: `${outcome.value.count} registro(s) encontrado(s) em "${spec.table}"`,
+        message: '@core.automation/step.query.found',
+        messageParams: { count: String(outcome.value.count), table: spec.table },
         outputs: {
           results: outcome.value.results,
           count: outcome.value.count,

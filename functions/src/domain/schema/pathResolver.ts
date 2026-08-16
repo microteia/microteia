@@ -515,6 +515,7 @@ const entitySuggestions = (
   for (const fk of entity.fks) {
     suggestions.push({
       insertText: fk.key,
+      // eslint-disable-next-line no-restricted-syntax -- marcador "(Id)", igual em qualquer idioma
       label: `${fk.label} (Id)`,
       kind: 'field',
       isLeaf: true,

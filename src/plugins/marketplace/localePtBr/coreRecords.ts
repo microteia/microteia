@@ -230,4 +230,7 @@ export const CORE_RECORDS: Record<string, string> = {
   'collection.what.tags': 'das etiquetas',
   'filter.range-to': '{field} (até)',
   'filter.range-from': '{field} (de)',
+  'tag-list.of': 'Etiquetas: {name}',
+  'command.open': 'Abrir {name}',
+  'tag-list.option': '{name} ({collection})',
 };

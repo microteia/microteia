@@ -68,8 +68,7 @@ export const mapFn: ExpressionFunction = {
 
     return compact ? result.filter((item) => !isEmptyValue(item)) : result;
   },
-  description:
-    'Extrai uma propriedade de cada item de um array. Com compact = true, descarta os valores vazios',
+  description: '@core.automation/expr.map.description',
   signature: 'map(array, path, compact?)',
   example: 'map(event.parties, "person.name", true)',
   category: '@core.automation/expr.category.operator',

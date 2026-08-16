@@ -87,7 +87,10 @@ export const useCommandPaletteViewModel = (): CommandPaletteViewModel => {
   const groups = useMemo<CommandPaletteGroup[]>(() => {
     const result: CommandPaletteGroup[] = [];
     for (const provider of providers) {
-      const items = provider.getItems(query, appContext);
+      // O título de um item também é referência: resolver aqui deixa a BUSCA comparando com o que
+      // a pessoa lê, e não com a chave — o mesmo que já vale para as páginas navegáveis acima.
+      const items = provider.getItems(query, appContext)
+        .map((item) => ({ ...item, title: label(item.title, item.titleParams) }));
       if (items.length > 0) {
         result.push({ name: label(provider.group), items });
       }

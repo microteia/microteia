@@ -5,6 +5,7 @@ import { getValueAtPath, parsePath } from '../../../domain/schema/pathResolver';
 import type { ValidateStepConfig } from '../../../domain/schema/validateSpec';
 import { validateObject } from '../../../domain/schema/validateSpec';
 
+import type { WorkflowResult } from '../../../domain/entities/WorkflowContext';
 const isPlainObject = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
 
@@ -34,7 +35,7 @@ export const makeValidateStepDefinition = (screenProvider: IScreenDefinitionProv
     description: '@core.automation/step.validate-object.description',
   },
   createExecutor: (): WorkflowStepExecutor => ({
-    execute: async (inputs, context) => {
+    execute: async (inputs, context): Promise<WorkflowResult> => {
       const config = inputs.validate as ValidateStepConfig | undefined;
       if (!config || typeof config !== 'object' || !config.source || !config.outputName?.trim()) {
         return { success: false, message: '@core.automation/step.validate.not-configured' };
@@ -62,7 +63,8 @@ export const makeValidateStepDefinition = (screenProvider: IScreenDefinitionProv
 
       return {
         success: true,
-        message: `Objeto "${config.outputName}" validado`,
+        message: '@core.automation/step.validate.done',
+        messageParams: { name: config.outputName },
         outputs: { [config.outputName]: outcome.value },
       };
     },

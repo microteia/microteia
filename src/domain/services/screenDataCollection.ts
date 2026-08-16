@@ -67,7 +67,8 @@ export const screenTagCollections = (screens: ScreenCollectionDeclaration[]): De
       .filter((screen) => !!screen.tagCollection?.trim())
       .map((screen) => ({
         collection: (screen.tagCollection as string).trim(),
-        label: `Etiquetas: ${screen.titlePlural || screen.titleSingular}`,
+        label: '@core.records/tag-list.of',
+        labelParams: { name: screen.titlePlural || screen.titleSingular },
       })),
   );
 

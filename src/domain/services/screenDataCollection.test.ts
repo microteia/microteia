@@ -54,9 +54,14 @@ describe('isOwnedByParentScreen', () => {
  * sumiram da tela — continuavam gravadas, mas ninguém as lia. A declaração da TELA basta.
  */
 describe('coleções que as telas declaram', () => {
+  /** O rótulo é a CHAVE da composição; o nome da tela vai ao lado, para a frase interpolar. */
   it('a coleção de etiquetas apontada pela tela entra, com rótulo legível', () => {
     expect(screenTagCollections([screen({ tagCollection: 'caseTags' })])).toEqual([
-      { collection: 'caseTags', label: 'Etiquetas: Processos' },
+      {
+        collection: 'caseTags',
+        label: '@core.records/tag-list.of',
+        labelParams: { name: 'Processos' },
+      },
     ]);
   });
 

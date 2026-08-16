@@ -51,7 +51,13 @@ export const flattenParameterInputs = (
   const id = `${idPrefix}.${parameter.key}`;
   const label = labelPrefix ? `${labelPrefix} › ${parameter.label}` : parameter.label;
   if (parameter.list) {
-    return [{ id, label: `${label} (lista)`, required: parameter.required ?? false, type: 'String' }];
+    return [{
+      id,
+      label: '@core.automation/output.list',
+      labelParams: { name: label },
+      required: parameter.required ?? false,
+      type: 'String',
+    }];
   }
   if (parameter.type === 'Object') {
     return (parameter.fields ?? []).flatMap((child) => flattenParameterInputs(child, id, label));

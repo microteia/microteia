@@ -41,7 +41,9 @@ export interface SchemaScreen {
 /** A lista de opções como o schema a enxerga. `collection` é o nome da coleção sob o tenant. */
 export interface SchemaLookup {
   collection: string;
+  /** REFERÊNCIA de mensagem, ou o rótulo que o escritório digitou; `labelParams` interpola. */
   label: string;
+  labelParams?: Record<string, string>;
 }
 
 /** Uma coleção de etiquetas declarada pelo tenant. Mesma forma da lista, papel diferente. */
@@ -81,7 +83,8 @@ const BUILTIN_TAG_LISTS: SchemaTagList[] = Object.values(ENTITY_REGISTRY)
   .filter((entity) => !!entity.tagCollection)
   .map((entity) => ({
     collection: entity.tagCollection as string,
-    label: `Etiquetas: ${entity.labelPlural}`,
+    label: '@core.records/tag-list.of',
+    labelParams: { name: entity.labelPlural },
   }));
 
 const screenCollection = (screen: SchemaScreen): string => screen.collection ?? screen.id;

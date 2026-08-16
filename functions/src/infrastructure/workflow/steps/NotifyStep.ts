@@ -1,6 +1,7 @@
 import type { StepDefinition, WorkflowStepExecutor } from '../../../domain/engine/StepDefinition';
 import type { CreateAuditLogUseCase } from '../../../domain/usecases/CreateAuditLogUseCase';
 
+import type { WorkflowResult } from '../../../domain/entities/WorkflowContext';
 export const makeNotifyStepDefinition = (createAuditLogUseCase: CreateAuditLogUseCase): StepDefinition => ({
   id: 'notify',
   version: 1,
@@ -16,7 +17,7 @@ export const makeNotifyStepDefinition = (createAuditLogUseCase: CreateAuditLogUs
   ],
   outputDefinitions: [],
   createExecutor: (): WorkflowStepExecutor => ({
-    execute: async (inputs, context) => {
+    execute: async (inputs, context): Promise<WorkflowResult> => {
       await createAuditLogUseCase.execute({
         tenantId: context.execution.tenantId,
         title: String(inputs.title),

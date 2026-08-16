@@ -252,4 +252,6 @@ export const CORE_MARKETPLACE_MESSAGES: Record<string, string> = {
     'Declares the extension point where plugins provide Capability implementations.',
   'point.capability.description':
     'Provides the implementation of a Capability (AI, messaging, payments). Several plugins may provide the same one, and the organization chooses which to use.',
+  'point.capability.title': 'Capability provider',
+  'author.patch.field-count': '{name} ({count} field(s))',
 };

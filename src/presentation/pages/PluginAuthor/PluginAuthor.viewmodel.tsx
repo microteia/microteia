@@ -456,14 +456,17 @@ export const usePluginAuthorViewModel = (tabKey?: string): PluginAuthorViewModel
       const target = patchTargetLabel(p);
       return {
         id: p.target,
-        label: `${target.label} (${p.fields.length} campo(s))`,
+        label: t('author.patch.field-count', {
+        name: target.label,
+        count: p.fields.length,
+      }),
         icon: target.icon,
         selected: true,
         locked: false,
         carried: true,
       };
     }),
-  }), [foreignCarried, patchTargetLabel]);
+  }), [foreignCarried, patchTargetLabel, t]);
 
   const groups = useMemo<ArtifactGroup[]>(() => [
     {

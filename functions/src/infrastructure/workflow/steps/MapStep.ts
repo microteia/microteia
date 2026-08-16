@@ -2,6 +2,7 @@ import type { StepDefinition, WorkflowStepExecutor } from '../../../domain/engin
 import { resolveMapping } from '../../../domain/engine/InputMapping';
 import type { MapStepConfig } from '../../../domain/schema/mapSpec';
 
+import type { WorkflowResult } from '../../../domain/entities/WorkflowContext';
 export const makeMapStepDefinition = (): StepDefinition => ({
   id: 'map',
   version: 1,
@@ -28,7 +29,7 @@ export const makeMapStepDefinition = (): StepDefinition => ({
     description: '@core.automation/step.map.description',
   },
   createExecutor: (): WorkflowStepExecutor => ({
-    execute: async (inputs, context) => {
+    execute: async (inputs, context): Promise<WorkflowResult> => {
       const config = inputs.map as MapStepConfig | undefined;
       if (!config || typeof config !== 'object' || !Array.isArray(config.fields)) {
         return { success: false, message: '@core.automation/step.map.not-configured' };
@@ -44,14 +45,15 @@ export const makeMapStepDefinition = (): StepDefinition => ({
       if (name) {
         return {
           success: true,
-          message: `Objeto "${name}" montado`,
+          message: '@core.automation/step.map.built-named',
+          messageParams: { name },
           outputs: { [name]: object },
         };
       }
 
       return {
         success: true,
-        message: 'Campos montados',
+        message: '@core.automation/step.map.built-fields',
         outputs: object,
       };
     },

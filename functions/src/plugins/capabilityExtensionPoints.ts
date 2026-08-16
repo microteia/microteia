@@ -22,7 +22,7 @@ export const CAPABILITY_EXTENSION_POINTS: ExtensionPointDefinition[] = [
   {
     id: CAPABILITY_PROVIDER_POINT,
     apiVersion: CAPABILITY_API_VERSION,
-    title: 'Provedor de uma capacidade',
+    title: '@core.marketplace/point.capability.title',
     description:
       '@core.marketplace/point.capability.description',
     ownerPluginId: 'core.capabilities',

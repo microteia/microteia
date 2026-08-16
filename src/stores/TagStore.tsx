@@ -23,7 +23,8 @@ const BUILTIN_TAG_LISTS: SchemaTagList[] = ENTITY_REGISTRY_LIST
   .filter((entity) => !!entity.tagCollection)
   .map((entity) => ({
     collection: entity.tagCollection as string,
-    label: `Etiquetas: ${entity.labelPlural}`,
+    label: '@core.records/tag-list.of',
+    labelParams: { name: entity.labelPlural },
   }));
 
 const EMPTY_TAGS: Tag[] = [];

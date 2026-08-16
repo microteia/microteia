@@ -1298,8 +1298,17 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
   );
 
   const tagListOptions = useMemo<SearchSelectOption[]>(
-    () => availableTagLists.map((tagList) => ({ value: tagList.collection, label: `${tagList.label} (${tagList.collection})` })),
-    [availableTagLists],
+    () => availableTagLists.map((tagList) => ({
+      value: tagList.collection,
+      // O rótulo da lista é uma REFERÊNCIA; ela vai como parâmetro, não concatenada — dentro de uma
+      // frase ela não resolveria. Os parâmetros dela sobem junto, para a composição interpolar.
+      label: t('tag-list.option', {
+        ...tagList.labelParams,
+        name: tagList.label,
+        collection: tagList.collection,
+      }),
+    })),
+    [availableTagLists, t],
   );
 
   const suggestedTagCollection = useMemo(

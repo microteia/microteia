@@ -30,6 +30,7 @@ export const getWorkflowPluginHost = (): PluginHost => {
       .join(' | ');
     // Falha de BOOT do motor, para quem opera o sistema: não há catálogo carregado neste ponto,
     // e nenhum usuário para ler a mensagem — o processo nem chega a subir.
+    // eslint-disable-next-line no-restricted-syntax -- ver acima
     throw new Error(`Plugins do backend inválidos — o motor não pode iniciar. ${messages}`);
   }
 

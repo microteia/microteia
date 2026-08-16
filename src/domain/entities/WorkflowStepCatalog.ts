@@ -22,7 +22,9 @@ export type InputOptionsSource =
 
 export interface InputDefinition {
   id: string;
+  /** REFERÊNCIA de mensagem, ou o rótulo que a extensão digitou; `labelParams` interpola. */
   label: string;
+  labelParams?: Record<string, string>;
   description?: string;
   required: boolean;
   type: InputType;

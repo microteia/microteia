@@ -1,5 +1,6 @@
 import type { StepDefinition, WorkflowStepExecutor } from '../../../domain/engine/StepDefinition';
 
+import type { WorkflowResult } from '../../../domain/entities/WorkflowContext';
 // Palavras reservadas do JavaScript que não podem ser usadas como nomes de variáveis
 const JS_RESERVED_WORDS = new Set([
   'await', 'break', 'case', 'catch', 'class', 'const', 'continue', 'debugger',
@@ -58,7 +59,7 @@ export const makeSetVariableStepDefinition = (): StepDefinition => ({
     description: '@core.automation/step.set-variable.description',
   },
   createExecutor: (): WorkflowStepExecutor => ({
-    execute: async (inputs, context) => {
+    execute: async (inputs, context): Promise<WorkflowResult> => {
       const name = String(inputs.name);
       const value = inputs.value;
       

@@ -4,6 +4,7 @@ import type { RemoveSpec, RemoveStepConfig } from '../../../domain/schema/mutati
 import { runWorkflowRemove } from '../mutation/runWorkflowMutation';
 import type { WorkflowMutationDeps } from '../mutation/runWorkflowMutation';
 
+import type { WorkflowResult } from '../../../domain/entities/WorkflowContext';
 export const makeRemoveStepDefinition = (deps: WorkflowMutationDeps): StepDefinition => ({
   id: 'remove',
   version: 1,
@@ -28,7 +29,7 @@ export const makeRemoveStepDefinition = (deps: WorkflowMutationDeps): StepDefini
     { id: 'removed', label: '@core.automation/step.remove.label.foi-excluido', type: 'Boolean' },
   ],
   createExecutor: (): WorkflowStepExecutor => ({
-    execute: async (inputs, context) => {
+    execute: async (inputs, context): Promise<WorkflowResult> => {
       const config = inputs.remove as RemoveStepConfig | undefined;
       if (!config || typeof config !== 'object' || !config.table || !config.id) {
         return { success: false, message: '@core.automation/step.remove.not-configured' };

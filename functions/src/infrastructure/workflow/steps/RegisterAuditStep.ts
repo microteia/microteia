@@ -2,6 +2,7 @@ import type { StepDefinition, WorkflowStepExecutor } from '../../../domain/engin
 import { AuditSeverity } from '../../../domain/entities/AuditLog';
 import type { CreateAuditLogUseCase } from '../../../domain/usecases/CreateAuditLogUseCase';
 
+import type { WorkflowResult } from '../../../domain/entities/WorkflowContext';
 export const makeRegisterAuditStepDefinition = (createAuditLogUseCase: CreateAuditLogUseCase): StepDefinition => ({
   id: 'register-audit',
   version: 1,
@@ -34,7 +35,7 @@ export const makeRegisterAuditStepDefinition = (createAuditLogUseCase: CreateAud
   ],
   outputDefinitions: [],
   createExecutor: (): WorkflowStepExecutor => ({
-    execute: async (inputs, context) => {
+    execute: async (inputs, context): Promise<WorkflowResult> => {
       await createAuditLogUseCase.execute({
         tenantId: context.execution.tenantId,
         title: String(inputs.title),
@@ -48,7 +49,7 @@ export const makeRegisterAuditStepDefinition = (createAuditLogUseCase: CreateAud
         entityId: inputs.entityId ? String(inputs.entityId) : context.execution.workflowDefinitionId,
         text: String(inputs.message),
       });
-      return { success: true, message: 'Auditoria registrada' };
+      return { success: true, message: '@core.automation/step.register-audit.done' };
     },
   }),
 });

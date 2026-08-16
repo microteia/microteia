@@ -9,6 +9,7 @@ import { runScriptSandbox } from '../sandbox/runScriptSandbox';
 import type { WorkflowQueryDeps } from '../query/runWorkflowQuery';
 import type { WorkflowMutationDeps } from '../mutation/runWorkflowMutation';
 
+import type { WorkflowResult } from '../../../domain/entities/WorkflowContext';
 const PARAM_PREFIX = 'param.';
 
 export const makeScriptStepDefinition = (
@@ -37,10 +38,10 @@ export const makeScriptStepDefinition = (
   dynamicInputs: { kind: 'from-target-script-parameters', sourceInputId: 'scriptId' },
   dynamicOutputs: { kind: 'from-target-script-outputs', sourceInputId: 'scriptId' },
   createExecutor: (): WorkflowStepExecutor => ({
-    execute: async (inputs, context) => {
+    execute: async (inputs, context): Promise<WorkflowResult> => {
       const scriptId = inputs.scriptId ? String(inputs.scriptId) : '';
       if (!scriptId) {
-        return { success: false, message: 'Nenhum Script foi selecionado' };
+        return { success: false, message: '@core.automation/step.script.none-selected' };
       }
 
       const script = await scriptRepository.findById(context.execution.tenantId, scriptId);
@@ -71,7 +72,12 @@ export const makeScriptStepDefinition = (
 
       try {
         const output = await runScriptSandbox(script.compiledJs, scriptInput, context, queryDeps, mutationDeps);
-        return { success: true, message: `Script "${script.name}" executado`, outputs: output };
+        return {
+          success: true,
+          message: '@core.automation/step.script.done',
+          messageParams: { name: script.name },
+          outputs: output,
+        };
       } catch (error) {
         return { success: false, message: error instanceof Error ? error.message : String(error) };
       }

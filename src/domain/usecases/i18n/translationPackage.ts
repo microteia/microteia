@@ -104,14 +104,17 @@ export const buildTranslationPackage = ({
     );
 
   return {
-    summary: `Deixa a Microteia em ${localeDisplayName(locale)}. Pode ser desinstalado a qualquer momento, devolvendo a interface ao idioma original.`,
+    // Sem parâmetro: o NOME do pacote já diz de que idioma se trata, e `summary`/`description` são
+    // campos do contrato de manifest — carregar parâmetro neles obrigaria todo autor de extensão a
+    // conhecer um formato que só este gerador usa.
+    summary: '@core.i18n/package.summary',
     workflows: [],
     manifest: {
       id: pluginId ?? suggestedPluginId(locale),
       version,
       kernel: '^1.0.0',
       name: title,
-      description: `Textos da Microteia em ${localeDisplayName(locale)}.`,
+      description: '@core.i18n/package.description',
       icon: 'globe',
       contributes,
     },

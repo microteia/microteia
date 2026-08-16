@@ -54,8 +54,13 @@ const targetFieldLabel = (collection: string, fieldKey: string): string => {
 const entityEventFields = (entity: EntityMetadata): WorkflowEventFieldOption[] => {
   const fields = flattenNativeFields(entity.fields);
   for (const fk of entity.fks) {
+    // "(Id)" e "X: Id" são MARCADOR, não prosa: desambiguam qual das duas entradas da mesma
+    // referência é o identificador, e se escrevem igual em qualquer idioma. O que traduz é o
+    // `fk.label`, que já é referência ou rótulo do escritório.
+    // eslint-disable-next-line no-restricted-syntax -- ver acima
     fields.push({ path: fk.key, label: `${fk.label} (Id)` });
     if (!fk.multi) {
+      // eslint-disable-next-line no-restricted-syntax -- marcador, ver acima
       fields.push({ path: `${fk.denormKey}.id`, label: `${fk.label}: Id` });
       for (const denormField of fk.denormalizedFields ?? []) {
         fields.push({
@@ -255,10 +260,12 @@ export const workflowParametersToFieldOptions = (
       return [{ path: parameter.key, label: parameter.label }];
     }
     if (parameter.type === 'EntityReference' && parameter.entityType) {
+      // eslint-disable-next-line no-restricted-syntax -- marcador, ver o comentário em fkFieldOptions
       const options: WorkflowEventFieldOption[] = [{ path: parameter.key, label: `${parameter.label} (Id)` }];
       const target = ctx
         ? resolveEntity(ctx, parameter.entityType)
         : getEntityByCollection(parameter.entityType);
+      // eslint-disable-next-line no-restricted-syntax -- marcador, ver o comentário em fkFieldOptions
       options.push({ path: `${parameter.key}.id`, label: `${parameter.label}: Id` });
       for (const denormField of target?.referenceDenormFields ?? []) {
         options.push({

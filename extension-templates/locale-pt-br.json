@@ -1112,7 +1112,9 @@
             "lifecycle.not-newer": "A versão {version} não é mais recente que a instalada ({installed}).",
             "capability.ai-completion": "Geração de texto por IA",
             "plugin.capabilities.description": "Declara o ponto de extensão onde plugins fornecem implementações de Capabilities.",
-            "point.capability.description": "Fornece a implementação de uma Capability (IA, mensageria, pagamentos). Vários plugins podem fornecer a mesma, e o escritório escolhe qual usar."
+            "point.capability.description": "Fornece a implementação de uma Capability (IA, mensageria, pagamentos). Vários plugins podem fornecer a mesma, e o escritório escolhe qual usar.",
+            "point.capability.title": "Provedor de uma capacidade",
+            "author.patch.field-count": "{name} ({count} campo(s))"
           }
         }
       },
@@ -1333,7 +1335,10 @@
             "collection.what.screen": "da tela",
             "collection.what.tags": "das etiquetas",
             "filter.range-to": "{field} (até)",
-            "filter.range-from": "{field} (de)"
+            "filter.range-from": "{field} (de)",
+            "tag-list.of": "Etiquetas: {name}",
+            "command.open": "Abrir {name}",
+            "tag-list.option": "{name} ({collection})"
           }
         }
       },
@@ -1538,7 +1543,9 @@
             "point.messages.description": "Declara os textos de um plugin em um idioma. Um pacote só de traduções é uma extensão que contribui apenas aqui — inclusive para textos do núcleo e de outras extensões.",
             "point.messages.title": "Catálogo de mensagens",
             "package.id-taken-by-extension": "O identificador \"{id}\" já pertence à extensão \"{name}\", que não é um pacote de idioma. Altere o \"id\" do arquivo antes de importar — instalar por cima apagaria as telas e automações dela.",
-            "package.id-taken-by-language": "O identificador \"{id}\" já pertence ao idioma \"{name}\". Uma extensão com telas ou automações não pode tomar o lugar de um pacote de idioma: altere o \"id\" do arquivo."
+            "package.id-taken-by-language": "O identificador \"{id}\" já pertence ao idioma \"{name}\". Uma extensão com telas ou automações não pode tomar o lugar de um pacote de idioma: altere o \"id\" do arquivo.",
+            "package.summary": "Deixa o sistema no idioma deste pacote. Pode ser desinstalado a qualquer momento, devolvendo a interface ao idioma original.",
+            "package.description": "Textos do sistema no idioma deste pacote."
           }
         }
       },
@@ -2353,7 +2360,23 @@
             "input.failed": "[Campo: {field}] {detail}",
             "input.failed.event": "[Campo: {field}] [Caminho do evento: {source}] {detail}",
             "input.failed.expression": "[Campo: {field}] [Expressão: {source}] {detail}",
-            "run.step.input-failed": "[Step \"{step}\"] {detail}"
+            "run.step.input-failed": "[Step \"{step}\"] {detail}",
+            "expr.map.description": "Extrai uma propriedade de cada item de um array. Com compact = true, descarta os valores vazios",
+            "step.call-workflow.bad-status": "Workflow chamado terminou com status \"{status}\"",
+            "step.call-workflow.fired": "Workflow chamado",
+            "step.call-workflow.no-target": "Nenhum workflow-alvo foi selecionado",
+            "step.exit.done": "Workflow encerrado",
+            "step.map.built-fields": "Campos montados",
+            "step.map.built-named": "Objeto \"{name}\" montado",
+            "step.query.found": "{count} registro(s) encontrado(s) em \"{table}\"",
+            "step.register-audit.done": "Auditoria registrada",
+            "step.script.done": "Script \"{name}\" executado",
+            "step.script.none-selected": "Nenhum Script foi selecionado",
+            "step.validate.done": "Objeto \"{name}\" validado",
+            "expr.unclosed-double-quote": "Falta fechar aspas duplas",
+            "expr.unclosed-single-quote": "Falta fechar aspas simples",
+            "output.first-result": "{path} (1º resultado)",
+            "output.list": "{name} (lista)"
           }
         }
       },

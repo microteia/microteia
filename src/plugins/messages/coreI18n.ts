@@ -49,4 +49,8 @@ export const CORE_I18N_MESSAGES: Record<string, string> = {
     'The identifier "{id}" already belongs to the extension "{name}", which is not a language package. Change the "id" of the file before importing — installing over it would erase its screens and automations.',
   'package.id-taken-by-language':
     'The identifier "{id}" already belongs to the language "{name}". An extension with screens or automations cannot take the place of a language package: change the "id" of the file.',
+  'package.summary':
+    'Puts the system in the language of this package. It can be uninstalled at any time, returning the interface to the original language.',
+  'package.description':
+    'The system texts in the language of this package.',
 };
