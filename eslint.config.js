@@ -161,17 +161,21 @@ export default defineConfig([
           selector: "JSXAttribute[name.name=/^(title|label|placeholder|message|subtitle|description|hint|summary|alt|aria-label|confirmLabel|cancelLabel|runLabel|emptyMessage|deleteConfirmTitle|deleteConfirmMessage)$/] > Literal[value=/[A-Za-zÀ-ÿ]{2}/]",
           message: 'Texto de usuário como literal num atributo. Passe {t(\'chave\')}: o atributo é lido por quem usa o sistema, então ele traduz.',
         },
-        // `title={cond ? 'A' : 'B'}` escapava do seletor acima, que só olha o filho DIRETO do
-        // atributo: ali o filho é o container da expressão, e as frases ficam dentro do ternário.
-        // Foi assim que "Novo Campo" sobreviveu à varredura. Restringir a `ConditionalExpression`
-        // mantém `title={t('chave')}` fora — lá o literal é argumento de chamada.
+        // O filho DIRETO do atributo é o container da expressão, então a frase pode estar em
+        // qualquer forma dentro dele: `cond ? 'A' : 'B'`, `valor || 'padrão'`, `valor ?? 'padrão'`.
+        // Enumerar as formas já falhou duas vezes — o ternário deixou passar "Novo Campo", e o `||`
+        // deixou passar "ex: avisar-cliente". A regra passa a olhar QUALQUER literal descendente.
+        //
+        // O que a mantém fora de `{t('chave')}` é o CONTEXTO, não o formato do valor: literal que
+        // é argumento de CHAMADA está sendo usado como chave, não renderizado. Isso cobre também
+        // `{t(cond ? 'chave.a' : 'chave.b')}`, onde o literal não é filho direto da chamada.
+        //
+        // Filtrar por formato ("parece chave") seria o caminho óbvio e não funciona: a esquery
+        // encerra a regex do seletor na primeira `/`, mesmo dentro de classe de caracteres, e
+        // `core.ui/action.save` deixaria de ser reconhecida como chave.
         {
-          selector: "JSXAttribute[name.name=/^(title|label|placeholder|message|subtitle|description|hint|summary|alt|aria-label|confirmLabel|cancelLabel|runLabel|emptyMessage|deleteConfirmTitle|deleteConfirmMessage)$/] > JSXExpressionContainer > ConditionalExpression > Literal[value=/[A-Za-zÀ-ÿ]{2}/]",
-          message: 'Texto de usuário dentro de um ternário no atributo. Traduza a CHAVE, não a frase: {t(cond ? \'chave.a\' : \'chave.b\')}.',
-        },
-        {
-          selector: "JSXAttribute[name.name=/^(title|label|placeholder|message|subtitle|description|hint|summary|alt|aria-label|confirmLabel|cancelLabel|runLabel|emptyMessage|deleteConfirmTitle|deleteConfirmMessage)$/] > JSXExpressionContainer > ConditionalExpression > ConditionalExpression > Literal[value=/[A-Za-zÀ-ÿ]{2}/]",
-          message: 'Texto de usuário dentro de um ternário no atributo. Traduza a CHAVE, não a frase: {t(cond ? \'chave.a\' : \'chave.b\')}.',
+          selector: "JSXAttribute[name.name=/^(title|label|placeholder|message|subtitle|description|hint|summary|alt|aria-label|confirmLabel|cancelLabel|runLabel|emptyMessage|deleteConfirmTitle|deleteConfirmMessage)$/] > JSXExpressionContainer Literal[value=/[A-Za-zÀ-ÿ]{2}/]:not(CallExpression Literal)",
+          message: 'Texto de usuário dentro de uma expressão no atributo. Traduza a CHAVE, não a frase: {t(cond ? \'chave.a\' : \'chave.b\')} ou {valor || t(\'chave\')}.',
         },
         // `{ label: 'Executar um fluxo de trabalho' }` escapava de tudo: não é JSX, e a frase não
         // tem acento. Propriedade que CARREGA texto de usuário é tão lida quanto um atributo JSX —

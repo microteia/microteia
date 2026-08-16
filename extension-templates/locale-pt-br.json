@@ -1497,7 +1497,8 @@
             "setting.string-list.pattern": "Há item fora do formato esperado.",
             "setting.text": "Informe um texto.",
             "setting.widgets": "Informe uma lista de widgets.",
-            "setting.widgets.item": "Cada item precisa ter uma chave e, se informada, largura entre 1 e 3."
+            "setting.widgets.item": "Cada item precisa ter uma chave e, se informada, largura entre 1 e 3.",
+            "settings.list.item.placeholder": "Digite e pressione Enter"
           }
         }
       },
@@ -2376,7 +2377,8 @@
             "expr.unclosed-double-quote": "Falta fechar aspas duplas",
             "expr.unclosed-single-quote": "Falta fechar aspas simples",
             "output.first-result": "{path} (1º resultado)",
-            "output.list": "{name} (lista)"
+            "output.list": "{name} (lista)",
+            "workflow.id.placeholder": "ex: avisar-cliente"
           }
         }
       },

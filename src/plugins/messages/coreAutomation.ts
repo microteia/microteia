@@ -899,4 +899,5 @@ export const CORE_AUTOMATION_MESSAGES: Record<string, string> = {
   'expr.unclosed-single-quote': 'A single quote is not closed',
   'output.first-result': '{path} (first result)',
   'output.list': '{name} (list)',
+  'workflow.id.placeholder': 'e.g. notify-client',
 };

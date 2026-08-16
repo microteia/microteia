@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [7.38.0] — 2026-08-15
+
+- Corrigido: sete textos de exemplo e de sugestão continuavam em português — o identificador da automação, o botão de executar em depuração, campos de Sim/Não e de seleção nos formulários, e a dica das listas em Configurações.
+
 #### [7.37.0] — 2026-08-15
 
 - Corrigido: no histórico de execução das automações, várias mensagens de Step continuavam em português — "Objeto montado", "Campos montados", "Auditoria registrada", entre outras.

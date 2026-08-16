@@ -903,4 +903,5 @@ export const CORE_AUTOMATION: Record<string, string> = {
   'expr.unclosed-single-quote': 'Falta fechar aspas simples',
   'output.first-result': '{path} (1º resultado)',
   'output.list': '{name} (lista)',
+  'workflow.id.placeholder': 'ex: avisar-cliente',
 };

@@ -44,4 +44,5 @@ export const CORE_SETTINGS_MESSAGES: Record<string, string> = {
   'setting.text': 'Enter a text.',
   'setting.widgets': 'Enter a list of widgets.',
   'setting.widgets.item': 'Each item needs a key and, when given, a width between 1 and 3.',
+  'settings.list.item.placeholder': 'Type and press Enter',
 };

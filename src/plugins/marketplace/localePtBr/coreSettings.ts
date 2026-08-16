@@ -43,4 +43,5 @@ export const CORE_SETTINGS: Record<string, string> = {
   'setting.text': 'Informe um texto.',
   'setting.widgets': 'Informe uma lista de widgets.',
   'setting.widgets.item': 'Cada item precisa ter uma chave e, se informada, largura entre 1 e 3.',
+  'settings.list.item.placeholder': 'Digite e pressione Enter',
 };

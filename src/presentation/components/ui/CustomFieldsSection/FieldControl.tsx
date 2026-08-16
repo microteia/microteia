@@ -70,7 +70,7 @@ export const FieldControl: React.FC<{ field: FieldDefinition; vm: CustomFieldsSe
     case 'checkbox':
       return (
         <Checkbox
-          label={field.placeholder ?? 'Sim'}
+          label={field.placeholder ?? t('answer.yes')}
           checked={vm.getBoolean(field.key)}
           onChange={(next) => vm.setValue(field.key, next)}
           disabled={isDisabled}
@@ -96,7 +96,7 @@ export const FieldControl: React.FC<{ field: FieldDefinition; vm: CustomFieldsSe
           onChange={field.multi ? undefined : (value) => vm.setValue(field.key, value)}
           values={field.multi ? vm.getStringArray(field.key) : undefined}
           onChangeMulti={field.multi ? (values) => vm.setValue(field.key, values) : undefined}
-          placeholder={field.placeholder ?? 'Selecione...'}
+          placeholder={field.placeholder ?? t('action.select')}
           disabled={isDisabled}
           onAdd={field.optionsAllowUserAdd ? (label) => vm.handleAddOption(field, label) : undefined}
           onDelete={field.optionsAllowUserAdd && vm.canDeleteOption
@@ -112,7 +112,7 @@ export const FieldControl: React.FC<{ field: FieldDefinition; vm: CustomFieldsSe
           options={vm.referenceOptions(field)}
           values={vm.getStringArray(field.key)}
           onChange={(values) => vm.setValue(field.key, values)}
-          placeholder={field.placeholder ?? 'Selecione...'}
+          placeholder={field.placeholder ?? t('action.select')}
           disabled={isDisabled}
         />
       ) : (
@@ -120,7 +120,7 @@ export const FieldControl: React.FC<{ field: FieldDefinition; vm: CustomFieldsSe
           options={vm.referenceOptions(field)}
           value={vm.getString(field.key)}
           onChange={(value) => vm.setValue(field.key, value)}
-          placeholder={field.placeholder ?? 'Selecione...'}
+          placeholder={field.placeholder ?? t('action.select')}
           disabled={isDisabled}
         />
       );

@@ -101,7 +101,7 @@ export const SettingsField: React.FC<SettingsFieldProps> = ({ property, value, d
         <TagInput
           value={Array.isArray(value) ? (value as string[]) : []}
           disabled={disabled}
-          placeholder={property.itemPlaceholder ?? 'Digite e pressione Enter'}
+          placeholder={property.itemPlaceholder ?? t('settings.list.item.placeholder')}
           hint={t('settings.list.hint')}
           validator={pattern ? (item) => pattern.test(item) : undefined}
           onChange={(items) => onChange(items)}

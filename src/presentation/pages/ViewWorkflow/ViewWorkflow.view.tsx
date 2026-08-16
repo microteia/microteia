@@ -309,7 +309,7 @@ export const ViewWorkflowView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
                 size="sm"
                 onClick={vm.openRunModal}
                 disabled={!vm.canRunWorkflow}
-                title={vm.runWorkflowDisabledReason ?? 'Executar (Debug)'}
+                title={vm.runWorkflowDisabledReason ?? t('script.run')}
               >
                 <RiPlayLine size={14} />
               </Button>
@@ -386,7 +386,7 @@ export const ViewWorkflowView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
                 <Input
                   value={vm.isNew ? vm.formData.workflowId : vm.workflowIdValue}
                   onChange={(e) => vm.setFormData({ workflowId: e.target.value })}
-                  placeholder={vm.suggestedWorkflowId || 'ex: avisar-cliente'}
+                  placeholder={vm.suggestedWorkflowId || t('workflow.id.placeholder')}
                   disabled={!vm.isNew}
                 />
                 <S.FieldHint>
