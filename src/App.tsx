@@ -6,6 +6,7 @@ import { TenantKernelProvider } from './stores/TenantKernelProvider';
 import { CORE_PLUGINS } from './plugins';
 import { ThemeProvider } from './stores/ThemeContext';
 import { LocaleProvider, TenantLocaleProvider } from './stores/LocaleContext';
+import { TenantThemeBridge } from './stores/TenantThemeBridge';
 import { AuthProvider } from './stores/AuthContext';
 import { TenantStoreProvider } from './stores/TenantStore';
 import { TagStoreProvider } from './stores/TagStore';
@@ -78,6 +79,7 @@ const App: React.FC = () => {
                                                   <AppErrorBoundary>
                                                     <TenantKernelProvider>
                                                       <TenantLocaleProvider>
+                                                        <TenantThemeBridge />
                                                         <FieldRulePresetBridge />
                                                         <ExtensionStartupHost />
                                                         <WorkspaceShell />

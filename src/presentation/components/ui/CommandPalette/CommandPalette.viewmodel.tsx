@@ -39,7 +39,7 @@ export const useCommandPaletteViewModel = (): CommandPaletteViewModel => {
   const { allRecords } = useRecords();
   const { definitions: screenDefinitions } = useScreenDefinitions();
   const { workflows } = useWorkflowStore();
-  const { mode, setTheme } = useTheme();
+  const { themeId, available: installedThemes, setTheme } = useTheme();
   const { signOut, userRole } = useAuth();
   const { tenantRole } = useTenant();
   const providers = useCommandProviders();
@@ -53,6 +53,12 @@ export const useCommandPaletteViewModel = (): CommandPaletteViewModel => {
     () => selectNavigablePages(pageContributions, userRole)
       .map((metadata) => ({ ...metadata, title: label(metadata.title) })),
     [pageContributions, userRole, label],
+  );
+
+  // Mesmo motivo das telas: o ⌘K procura pelo nome que a pessoa lê, não pela referência declarada.
+  const themes = useMemo(
+    () => installedThemes.map((theme) => ({ ...theme, name: label(theme.name) })),
+    [installedThemes, label],
   );
 
   const [query, setQuery] = useState('');
@@ -73,7 +79,8 @@ export const useCommandPaletteViewModel = (): CommandPaletteViewModel => {
       records: allRecords,
       screenDefinitions,
       workflows,
-      mode,
+      themeId,
+      themes,
       setTheme,
       signOut,
       userRole,
@@ -81,7 +88,7 @@ export const useCommandPaletteViewModel = (): CommandPaletteViewModel => {
       navigablePages,
       t,
     }),
-    [openTab, close, persons, cases, contracts, allRecords, screenDefinitions, workflows, mode, setTheme, signOut, userRole, tenantRole, navigablePages, t],
+    [openTab, close, persons, cases, contracts, allRecords, screenDefinitions, workflows, themeId, themes, setTheme, signOut, userRole, tenantRole, navigablePages, t],
   );
 
   const groups = useMemo<CommandPaletteGroup[]>(() => {

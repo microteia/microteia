@@ -10,6 +10,7 @@
     },
     "dependencies": {
       "core.ui": "^1.0.0",
+      "core.theme": "^1.0.0",
       "com.microteia.pessoa": {
         "version": "^1.0.0",
         "collections": [
@@ -18,6 +19,55 @@
       }
     },
     "contributes": [
+      {
+        "point": "theme.tokens",
+        "id": "contract-colors",
+        "apiVersion": "1.0.0",
+        "metadata": {
+          "light": {
+            "contractStatusDraft": "#94a3b8",
+            "contractStatusReview": "#f59e0b",
+            "contractStatusAwaitingSignature": "#38bdf8",
+            "contractStatusActive": "#22c55e",
+            "contractStatusSuspended": "#eab308",
+            "contractStatusClosed": "#6b7280",
+            "contractStatusCancelled": "#ef4444",
+            "contractStatusTerminated": "#dc2626"
+          },
+          "dark": {
+            "contractStatusDraft": "#94a3b8",
+            "contractStatusReview": "#f59e0b",
+            "contractStatusAwaitingSignature": "#38bdf8",
+            "contractStatusActive": "#22c55e",
+            "contractStatusSuspended": "#eab308",
+            "contractStatusClosed": "#6b7280",
+            "contractStatusCancelled": "#ef4444",
+            "contractStatusTerminated": "#dc2626"
+          },
+          "themes": {
+            "themis": {
+              "contractStatusDraft": "#A29383",
+              "contractStatusReview": "#B07D2B",
+              "contractStatusAwaitingSignature": "#3E6B8C",
+              "contractStatusActive": "#2F6B4F",
+              "contractStatusSuspended": "#B08D3E",
+              "contractStatusClosed": "#8C7F6F",
+              "contractStatusCancelled": "#C03B2D",
+              "contractStatusTerminated": "#96382B"
+            },
+            "themis-night": {
+              "contractStatusDraft": "#9A8C7E",
+              "contractStatusReview": "#D2A455",
+              "contractStatusAwaitingSignature": "#7BA7C9",
+              "contractStatusActive": "#5FA37F",
+              "contractStatusSuspended": "#C9A24B",
+              "contractStatusClosed": "#9A8C7E",
+              "contractStatusCancelled": "#D96A5B",
+              "contractStatusTerminated": "#C25445"
+            }
+          }
+        }
+      },
       {
         "point": "ui.nav",
         "id": "contratos",

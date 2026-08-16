@@ -8,6 +8,33 @@ import type {
 } from '../../domain/entities/MarketplacePlugin';
 import type { CustomFieldOption } from '../../domain/entities';
 import { surfaceWidget } from '../contributionBuilders';
+import { themeTokensContribution } from '../../domain/schema/theme';
+
+/** As cores do vocabulário de Pessoa — ver a nota equivalente em `processo.ts`. */
+const PERSON_COLORS: Record<string, string> = {
+  relationshipCliente: '#22c55e',
+  relationshipParte: '#3b82f6',
+  relationshipContato: '#94a3b8',
+  relationshipFornecedor: '#f97316',
+  relationshipSocio: '#6c63ff',
+};
+
+const PERSON_COLORS_BY_THEME: Record<string, Record<string, string>> = {
+  themis: {
+    relationshipCliente: '#2F6B4F',
+    relationshipParte: '#3E6B8C',
+    relationshipContato: '#A29383',
+    relationshipFornecedor: '#B07D2B',
+    relationshipSocio: '#6D2233',
+  },
+  'themis-night': {
+    relationshipCliente: '#5FA37F',
+    relationshipParte: '#7BA7C9',
+    relationshipContato: '#9A8C7E',
+    relationshipFornecedor: '#D2A455',
+    relationshipSocio: '#B85C6E',
+  },
+};
 
 /**
  * **Pessoa** — o cadastro de pessoas do escritório, inteiro, declarado por extensão: os campos e as
@@ -414,8 +441,9 @@ export const pessoaPlugin: MarketplacePlugin = {
     publisher: { name: 'Microteia' },
     // O CPF, o CNPJ, o telefone, o CEP e a busca de endereço são formatos do BRASIL: vêm da extensão
     // do país, não do kernel. Sem ela, os campos existem mas perdem máscara e conferência.
-    dependencies: { 'com.microteia.brasil': '^1.0.0', 'core.ui': '^1.0.0' },
+    dependencies: { 'com.microteia.brasil': '^1.0.0', 'core.ui': '^1.0.0', 'core.theme': '^1.0.0' },
     contributes: [
+      themeTokensContribution('person-colors', { light: PERSON_COLORS, dark: PERSON_COLORS, themes: PERSON_COLORS_BY_THEME }),
       surfaceWidget({ surface: 'dashboard', key: 'pessoa.numeros', title: 'Pessoas em números', description: 'Quantas pessoas estão ativas no cadastro.', icon: 'team', defaultSpan: 1, order: 30 }, 'widget-pessoas-numeros'),
     ],
     // Nenhuma contribuição de UI: a tela instalada já produz o item de menu, a listagem e o

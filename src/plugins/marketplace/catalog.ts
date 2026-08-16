@@ -13,6 +13,7 @@ import { pushPlugin } from './push';
 import { dashboardPlugin } from './dashboard';
 import { calendarPlugin } from './calendar';
 import { localePtBrPlugin } from './localePtBr';
+import { THEME_MARKETPLACE_PLUGINS } from './themes';
 
 /**
  * Extensões de exemplo, mantidas como MOLDE de autoria e como fixtures dos testes da máquina de
@@ -207,4 +208,5 @@ export const MARKETPLACE_CATALOG: MarketplacePlugin[] = [
   financeiroPlugin,
   noticiaPlugin,
   kanbanCasesPlugin,
+  ...THEME_MARKETPLACE_PLUGINS,
 ];

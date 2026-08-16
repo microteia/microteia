@@ -10,9 +10,47 @@
     },
     "dependencies": {
       "com.microteia.brasil": "^1.0.0",
-      "core.ui": "^1.0.0"
+      "core.ui": "^1.0.0",
+      "core.theme": "^1.0.0"
     },
     "contributes": [
+      {
+        "point": "theme.tokens",
+        "id": "person-colors",
+        "apiVersion": "1.0.0",
+        "metadata": {
+          "light": {
+            "relationshipCliente": "#22c55e",
+            "relationshipParte": "#3b82f6",
+            "relationshipContato": "#94a3b8",
+            "relationshipFornecedor": "#f97316",
+            "relationshipSocio": "#6c63ff"
+          },
+          "dark": {
+            "relationshipCliente": "#22c55e",
+            "relationshipParte": "#3b82f6",
+            "relationshipContato": "#94a3b8",
+            "relationshipFornecedor": "#f97316",
+            "relationshipSocio": "#6c63ff"
+          },
+          "themes": {
+            "themis": {
+              "relationshipCliente": "#2F6B4F",
+              "relationshipParte": "#3E6B8C",
+              "relationshipContato": "#A29383",
+              "relationshipFornecedor": "#B07D2B",
+              "relationshipSocio": "#6D2233"
+            },
+            "themis-night": {
+              "relationshipCliente": "#5FA37F",
+              "relationshipParte": "#7BA7C9",
+              "relationshipContato": "#9A8C7E",
+              "relationshipFornecedor": "#D2A455",
+              "relationshipSocio": "#B85C6E"
+            }
+          }
+        }
+      },
       {
         "point": "ui.widget",
         "id": "dashboard-pessoa-numeros",

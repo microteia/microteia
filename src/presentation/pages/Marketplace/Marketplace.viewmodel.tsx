@@ -12,6 +12,7 @@ import { extensionCodeOf, extensionHasCode } from '../../../domain/usecases/plug
 import { useExtensionCodeTrust } from '../../../stores/useExtensionCodeTrust';
 import { usePluginDiagnostics } from '../../../stores/useKernel';
 import { MARKETPLACE_CATALOG } from '../../../plugins/marketplace/catalog';
+import { SYSTEM_THEME_PACKAGES } from '../../../plugins/themes/systemThemes';
 import type { MarketplacePlugin } from '../../../domain/entities/MarketplacePlugin';
 
 import { useT, useLabel } from '../../shared/i18n/useT';
@@ -21,7 +22,7 @@ export interface Author {
   photoURL: string | null;
 }
 
-export type StatusBadge = 'published' | 'pending' | 'deprecated' | 'private' | 'builtin';
+export type StatusBadge = 'published' | 'pending' | 'deprecated' | 'private' | 'builtin' | 'system';
 export type InstallBadge = 'active' | 'inactive';
 export type InstallAction = 'install' | 'update';
 
@@ -67,6 +68,12 @@ export interface ExtensionRow {
   /** Vem do catálogo embutido no bundle — extensão de primeira parte, sempre disponível. */
   isBuiltin: boolean;
   /**
+   * Faz PARTE do sistema: carregada com o Kernel, não instalada no escritório. Aparece aqui para
+   * poder ser BAIXADA — é assim que se começa um tema próprio —, e por isso mesmo não oferece
+   * instalar, desativar nem desinstalar: não há cópia no escritório para desfazer.
+   */
+  isSystem: boolean;
+  /**
    * O que o Kernel recusou nesta extensão ao montar o escritório — dependência que falta, ponto de
    * extensão inexistente, versão incompatível. Instalada e ativa, mas com um erro aqui, ela NÃO
    * está no ar: sem isso o sintoma era a tela sumir do menu, sem nada que explicasse.
@@ -86,6 +93,15 @@ export type MarketplaceFilter = 'all' | 'installed' | 'mine' | 'catalog';
 /** Índice do catálogo embutido — as extensões de primeira parte que viajam no bundle. */
 const BUILTIN_BY_ID = new Map<string, MarketplacePlugin>(
   MARKETPLACE_CATALOG.map((plugin) => [plugin.manifest.id, plugin]),
+);
+
+/**
+ * Os pacotes que viajam DENTRO do Kernel — hoje os dois temas do sistema. Nunca se instalam nem se
+ * desinstalam, e é essa a razão de estarem aqui: quem procura "onde mexo no tema" procura em
+ * Extensões, e uma lista que os escondesse mentiria sobre de onde a aparência vem.
+ */
+const SYSTEM_BY_ID = new Map<string, MarketplacePlugin>(
+  SYSTEM_THEME_PACKAGES.map((plugin) => [plugin.manifest.id, plugin]),
 );
 
 export interface MarketplaceViewModel {
@@ -271,7 +287,46 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
     BUILTIN_BY_ID.forEach((_, id) => ids.add(id));
 
     const list: ExtensionRow[] = [];
+
+    for (const [id, pkg] of SYSTEM_BY_ID) {
+      list.push({
+        id,
+        name: label(pkg.manifest.name),
+        summary: label(pkg.summary),
+        version: pkg.manifest.version,
+        author: { name: pkg.manifest.publisher?.name ?? null, photoURL: null },
+        hasCode: false,
+        overview: pkg.overview ?? null,
+        description: label(pkg.manifest.description ?? ''),
+        installBadge: 'active',
+        statusBadge: 'system',
+        updateAvailable: false,
+        canEdit: false,
+        install: null,
+        active: true,
+        canToggleActive: false,
+        published: false,
+        canPublish: false,
+        canDownload: true,
+        canUninstall: false,
+        canDelete: false,
+        canApprove: false,
+        canDeprecate: false,
+        needsCodeReview: false,
+        codeToReview: null,
+        codeTrustedByName: null,
+        mine: false,
+        installed: true,
+        isPublic: false,
+        isBuiltin: false,
+        isSystem: true,
+        problems: problemsByPlugin.get(id) ?? [],
+        failed: false,
+      });
+    }
+
     for (const id of ids) {
+      if (SYSTEM_BY_ID.has(id)) continue;
       const priv = extensions.find((e) => e.id === id);
       const inst = installed.find((i) => i.id === id);
       const pub = publicOf(id);
@@ -307,13 +362,15 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
 
       list.push({
         id,
-        name: pkg.manifest.name,
-        summary: pkg.summary,
+        // O pacote pode declarar o texto como REFERÊNCIA de mensagem — é como um pacote nosso fica
+        // traduzível sem que o Marketplace precise saber o que ele é. Texto literal passa intacto.
+        name: label(pkg.manifest.name),
+        summary: label(pkg.summary),
         version: inst?.installedVersion ?? priv?.package.manifest.version ?? pub?.version ?? builtin?.manifest.version ?? '',
         author,
         hasCode: hasCodeOf(pkg.views),
         overview: pkg.overview ?? null,
-        description: pkg.manifest.description ?? '',
+        description: label(pkg.manifest.description ?? ''),
         installBadge: inst ? (inst.active ? 'active' : 'inactive') : null,
         statusBadge,
         updateAvailable,
@@ -337,13 +394,14 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
         installed: installed_,
         isPublic: isApproved,
         isBuiltin: !!builtin,
+        isSystem: false,
         problems,
         failed: problems.some((problem) => problem.severity === 'error'),
       });
     }
 
     return list.sort((a, b) => rankOf(a) - rankOf(b) || a.name.localeCompare(b.name));
-  }, [extensions, installed, publicExtensions, publicOf, updateSourceOf, builtinUpdateOf, canModerate, user, installedNeedsReview, problemsByPlugin]);
+  }, [extensions, installed, publicExtensions, publicOf, updateSourceOf, builtinUpdateOf, canModerate, user, installedNeedsReview, problemsByPlugin, label]);
 
   const counts = useMemo<Record<MarketplaceFilter, number>>(() => ({
     all: rows.length,
@@ -374,6 +432,10 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
   }, []);
 
   const download = useCallback((id: string) => {
+    // O do sistema vem primeiro: ele não tem cópia privada nem instalada, e baixá-lo é o primeiro
+    // passo de quem vai fazer um tema próprio a partir do nosso.
+    const system = SYSTEM_BY_ID.get(id);
+    if (system) { downloadPackage(id, serializePackage(system)); return; }
     const priv = extensions.find((e) => e.id === id);
     if (priv) { downloadPackage(id, serializePackage(priv.package)); return; }
     const inst = installed.find((e) => e.id === id);

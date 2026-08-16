@@ -2,7 +2,7 @@ import { useState, useCallback, useMemo } from 'react';
 import { useWorkspace } from '../../../../stores/useWorkspace';
 import { useAuth } from '../../../../stores/useAuth';
 import { useTenant } from '../../../../stores/useTenant';
-import { useTheme } from '../../../../stores/useTheme';
+import { useTheme, AUTOMATIC_THEME } from '../../../../stores/useTheme';
 import { useCommandPalette } from '../../../../stores/useCommandPalette';
 import { useScreenDefinitions } from '../../../../stores/useScreenDefinitions';
 import { buildListTabKey } from '../../../../shared/constants/dynamicScreenKeys';
@@ -13,7 +13,6 @@ import { visibleNavItems } from '../../../shared/resolveUiContributions';
 import { DYNAMIC_SCREEN_NAV_ORDER } from '../../../shared/uiExtensionPoints';
 import { useAuditLogAlert } from '../../../../stores/useAuditLogAlert';
 import type { User } from '../../../../domain/entities';
-import type { ThemeMode } from '../../../../shared/types';
 import { useLabel } from '../../../shared/i18n/useT';
 
 export interface NavItem {
@@ -25,25 +24,18 @@ export interface NavItem {
   requiresTenantAdmin?: boolean;
 }
 
-export interface ThemeOption {
-  mode: ThemeMode;
-  /** Chave do catálogo — o tema é catálogo de módulo, e quem renderiza traduz. */
-  labelKey: string;
+/**
+ * Um tema como o menu o mostra. `labelKey` deixou de existir: o nome vem da própria contribuição,
+ * podendo ser referência de mensagem (nos temas do sistema) ou o texto que o escritório escreveu no
+ * `.json` dele — e a amostra de cor sai do tema já montado, nunca de uma tabela paralela em código
+ * que envelhecia calada a cada mudança de paleta.
+ */
+export interface SidebarThemeOption {
+  id: string;
+  label: string;
   primaryColor: string;
   bgColor: string;
 }
-
-const THEME_OPTIONS: ThemeOption[] = [
-  { mode: 'microteia', labelKey: 'theme.microteia',  primaryColor: '#F56B3A', bgColor: '#141414' },
-  { mode: 'dark',     labelKey: 'theme.dark',    primaryColor: '#6c63ff', bgColor: '#0f1117' },
-  { mode: 'light',    labelKey: 'theme.light',     primaryColor: '#6c63ff', bgColor: '#f1f5f9' },
-  { mode: 'bruma',    labelKey: 'theme.bruma',     primaryColor: '#5B7ED6', bgColor: '#ECEEF2' },
-  { mode: 'claude',   labelKey: 'theme.claude',    primaryColor: '#DA7756', bgColor: '#F5F4EE' },
-  { mode: 'teams',    labelKey: 'theme.teams',     primaryColor: '#6264A7', bgColor: '#1F1F1F' },
-  { mode: 'kindle',   labelKey: 'theme.kindle',    primaryColor: '#8B6040', bgColor: '#F6EDD9' },
-  { mode: 'themis',     labelKey: 'theme.themis',         primaryColor: '#6D2233', bgColor: '#F6F3EC' },
-  { mode: 'themisDark', labelKey: 'theme.themis-dark', primaryColor: '#B85C6E', bgColor: '#191316' },
-];
 
 export interface WorkspaceSidebarViewModel {
   collapsed: boolean;
@@ -57,8 +49,8 @@ export interface WorkspaceSidebarViewModel {
   user: User | null;
   effectivePhotoURL: string | null;
   effectiveName: string;
-  mode: ThemeMode;
-  themeOptions: ThemeOption[];
+  themeId: string;
+  themeOptions: SidebarThemeOption[];
   searchShortcut: string;
   toggleCollapse: () => void;
   handleNavClick: (key: string) => void;
@@ -74,7 +66,7 @@ export interface WorkspaceSidebarViewModel {
   handleActionsClick: () => void;
   handleDataProcessorClick: () => void;
   handleMarketplaceClick: () => void;
-  handleSetTheme: (mode: ThemeMode) => void;
+  handleSetTheme: (id: string) => void;
   handleSignOut: () => void;
 }
 
@@ -86,7 +78,7 @@ export const useWorkspaceSidebarViewModel = (): WorkspaceSidebarViewModel => {
   const { openTab, panels, activePanelId } = useWorkspace();
   const { userRole, user, effectivePhotoURL, effectiveName, signOut } = useAuth();
   const { tenantRole } = useTenant();
-  const { mode, setTheme } = useTheme();
+  const { themeId, preferred: preferredTheme, available: themes, setTheme } = useTheme();
   const { open: openCommandPalette } = useCommandPalette();
   const { unreadCriticalCount: unreadCriticalAuditCount } = useAuditLogAlert();
   const { sidebarScreens } = useScreenDefinitions();
@@ -200,10 +192,33 @@ export const useWorkspaceSidebarViewModel = (): WorkspaceSidebarViewModel => {
     closeMenu();
   }, [openTab, closeMenu]);
 
-  const handleSetTheme = useCallback((newMode: ThemeMode) => {
-    setTheme(newMode);
+  const handleSetTheme = useCallback((id: string) => {
+    setTheme(id);
     closeMenu();
   }, [setTheme, closeMenu]);
+
+  /**
+   * "Automático" encabeça a lista porque é o padrão, e porque é o único caminho de volta depois de
+   * uma escolha fixa. A amostra dele é a do tema EM VIGOR: ele não tem cor própria, tem a de quem o
+   * aparelho está pedindo agora.
+   */
+  const themeOptions = useMemo<SidebarThemeOption[]>(() => {
+    const active = themes.find((theme) => theme.id === themeId);
+    return [
+      {
+        id: AUTOMATIC_THEME,
+        label: label('@core.theme/theme.automatic'),
+        primaryColor: active?.primaryColor ?? '',
+        bgColor: active?.backgroundColor ?? '',
+      },
+      ...themes.map((theme) => ({
+        id: theme.id,
+        label: label(theme.name),
+        primaryColor: theme.primaryColor,
+        bgColor: theme.backgroundColor,
+      })),
+    ];
+  }, [themes, themeId, label]);
 
   const handleSignOut = useCallback(async () => {
     closeMenu();
@@ -222,8 +237,8 @@ export const useWorkspaceSidebarViewModel = (): WorkspaceSidebarViewModel => {
     user,
     effectivePhotoURL,
     effectiveName,
-    mode,
-    themeOptions: THEME_OPTIONS,
+    themeId: preferredTheme ?? AUTOMATIC_THEME,
+    themeOptions,
     searchShortcut,
     toggleCollapse,
     handleNavClick,

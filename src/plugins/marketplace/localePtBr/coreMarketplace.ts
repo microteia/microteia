@@ -95,6 +95,7 @@ export const CORE_MARKETPLACE: Record<string, string> = {
   'status.deprecated': 'Obsoleta',
   'status.private': 'Privada',
   'status.builtin': 'Do sistema',
+  'status.system': 'Faz parte do sistema',
   'extension.details': 'Ver detalhes',
   'extension.badge.active': 'Ativa',
   'extension.badge.inactive': 'Inativa',

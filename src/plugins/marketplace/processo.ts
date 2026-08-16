@@ -6,6 +6,98 @@ import type {
 } from '../../domain/entities/MarketplacePlugin';
 import type { CustomFieldOption } from '../../domain/entities';
 import { nav, page, surfaceWidget } from '../contributionBuilders';
+import { themeTokensContribution } from '../../domain/schema/theme';
+
+/**
+ * As cores do vocabulário de Processo. Elas viviam no tema do núcleo, onde não tinham o que fazer:
+ * "procedente é verde" é decisão DESTE domínio, e enquanto morava lá, remover Processos deixava a
+ * cor órfã e acrescentar um domínio novo exigia um commit no kernel.
+ *
+ * `CASE_COLORS` é o PISO, e vale sob qualquer tema — inclusive um que o escritório escreveu ontem.
+ * Os dois lados trazem o mesmo valor porque estas são cores de SIGNIFICADO, não de superfície; o
+ * par existe para poderem divergir no dia em que um fundo muito claro ou muito escuro exigir.
+ *
+ * `CASE_COLORS_BY_THEME` é o afinamento para os temas que ESTE plugin conhece pelo nome. Declarar
+ * uma entrada aqui não faz de Processos um tema: continua sendo Processos definindo as cores dele,
+ * agora dizendo como elas se leem naquela paleta. É por isso que nenhum pacote de tema precisa
+ * carregar `casePhaseSentence` dentro dele — o token tem um dono, e o dono responde por ele em todo
+ * contexto.
+ */
+const CASE_COLORS: Record<string, string> = {
+  caseStatusInProgress: '#3b82f6',
+  caseStatusWon: '#10b981',
+  caseStatusLost: '#ef4444',
+  caseStatusSettlement: '#f59e0b',
+  caseStatusArchived: '#6b7280',
+  caseStatusSuspended: '#9ca3af',
+  casePhaseInitial: '#38bdf8',
+  casePhaseInstruction: '#3b82f6',
+  casePhaseSentence: '#6c63ff',
+  casePhaseAppeal: '#f97316',
+  casePhaseExecution: '#22c55e',
+  casePhaseArchived: '#6b7280',
+};
+
+const CASE_COLORS_BY_THEME: Record<string, Record<string, string>> = {
+  dark: {
+    casePhaseSentence: '#F56B3A',
+    casePhaseAppeal: '#FF9A6E',
+    casePhaseExecution: '#92C353',
+    casePhaseArchived: '#8A8886',
+  },
+  white: {
+    casePhaseSentence: '#5B7ED6',
+    casePhaseAppeal: '#8896B3',
+    casePhaseExecution: '#3D9970',
+    casePhaseArchived: '#8896B3',
+  },
+  claude: {
+    casePhaseSentence: '#DA7756',
+    casePhaseAppeal: '#B5A48B',
+    casePhaseExecution: '#5A8A6A',
+    casePhaseArchived: '#A89884',
+  },
+  teams: {
+    casePhaseSentence: '#6264A7',
+    casePhaseAppeal: '#5C5C5C',
+    casePhaseExecution: '#92C353',
+    casePhaseArchived: '#8A8886',
+  },
+  kindle: {
+    casePhaseSentence: '#8B6040',
+    casePhaseAppeal: '#A08060',
+    casePhaseExecution: '#4A7C59',
+    casePhaseArchived: '#A08868',
+  },
+  themis: {
+    caseStatusInProgress: '#3E6B8C',
+    caseStatusWon: '#2F6B4F',
+    caseStatusLost: '#C03B2D',
+    caseStatusSettlement: '#B07D2B',
+    caseStatusArchived: '#8C7F6F',
+    caseStatusSuspended: '#A29383',
+    casePhaseInitial: '#3E6B8C',
+    casePhaseInstruction: '#4A5878',
+    casePhaseSentence: '#6D2233',
+    casePhaseAppeal: '#B08D3E',
+    casePhaseExecution: '#2F6B4F',
+    casePhaseArchived: '#A29383',
+  },
+  'themis-night': {
+    caseStatusInProgress: '#7BA7C9',
+    caseStatusWon: '#5FA37F',
+    caseStatusLost: '#D96A5B',
+    caseStatusSettlement: '#D2A455',
+    caseStatusArchived: '#9A8C7E',
+    caseStatusSuspended: '#7A6D62',
+    casePhaseInitial: '#7BA7C9',
+    casePhaseInstruction: '#8898BE',
+    casePhaseSentence: '#B85C6E',
+    casePhaseAppeal: '#C9A24B',
+    casePhaseExecution: '#5FA37F',
+    casePhaseArchived: '#9A8C7E',
+  },
+};
 
 /**
  * **Processo** — a entidade de processo judicial do escritório, inteira, declarada por extensão: os
@@ -601,10 +693,12 @@ export const processoPlugin: MarketplacePlugin = {
     // oferecer. `collections` é o que liga o nome global da coleção a quem a instala.
     dependencies: {
       'core.ui': '^1.0.0',
+      'core.theme': '^1.0.0',
       'com.microteia.pessoa': { version: '^1.0.0', collections: ['persons'] },
       'com.microteia.contrato': { version: '^1.0.0', collections: ['contracts'] },
     },
     contributes: [
+      themeTokensContribution('case-colors', { light: CASE_COLORS, dark: CASE_COLORS, themes: CASE_COLORS_BY_THEME }),
       nav({ key: 'processos', label: 'Processos', icon: 'folder', order: 105 }),
       page({ key: 'processos', title: 'Processos', icon: 'folder' }, 'processos'),
       surfaceWidget({ surface: 'dashboard', key: 'processo.numeros', title: 'Processos em números', description: 'Quantos processos estão em andamento.', icon: 'folder', defaultSpan: 1, order: 10 }, 'widget-processos-numeros'),

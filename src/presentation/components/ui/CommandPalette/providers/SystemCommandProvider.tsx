@@ -9,7 +9,6 @@ import {
 } from 'react-icons/ri';
 import type { ICommandPaletteProvider, CommandPaletteAppContext, CommandPaletteItem } from './ICommandPaletteProvider';
 import type { TranslateFn } from '../../../../shared/i18n/useT';
-import type { ThemeMode } from '../../../../../shared/types';
 
 const GROUP = '@core.workspace/command.group.system';
 
@@ -27,24 +26,11 @@ const keywordsOf = (t: TranslateFn, key: string): string[] =>
 const matchesAny = (t: TranslateFn, key: string, query: string) =>
   keywordsOf(t, key).some((word) => contains(word, query) || contains(query, word));
 
-const THEME_MODES: { mode: ThemeMode; key: string; light: boolean }[] = [
-  { mode: 'microteia', key: 'theme.microteia', light: false },
-  { mode: 'dark', key: 'theme.dark', light: false },
-  { mode: 'light', key: 'theme.light', light: true },
-  { mode: 'claude', key: 'theme.claude', light: true },
-  { mode: 'teams', key: 'theme.teams', light: false },
-  { mode: 'bruma', key: 'theme.bruma', light: true },
-  { mode: 'kindle', key: 'theme.kindle', light: true },
-  { mode: 'themis', key: 'theme.themis', light: true },
-  { mode: 'themisDark', key: 'theme.themis-dark', light: false },
-];
-
 export const SystemCommandProvider: ICommandPaletteProvider = {
   group: GROUP,
 
-  getItems(query: string, { mode, setTheme, signOut, openTab, close, tenantRole, t }: CommandPaletteAppContext): CommandPaletteItem[] {
+  getItems(query: string, { themeId, themes, setTheme, signOut, openTab, close, tenantRole, t }: CommandPaletteAppContext): CommandPaletteItem[] {
     const items: CommandPaletteItem[] = [];
-    const themes = THEME_MODES.map((option) => ({ ...option, label: t(option.key) }));
     const isThemeQuery = (value: string) => matchesAny(t, 'command.system.theme.keywords', value);
 
     if (!query || matchesAny(t, 'command.system.profile.keywords', query)) {
@@ -79,33 +65,24 @@ export const SystemCommandProvider: ICommandPaletteProvider = {
 
     if (!query || isThemeQuery(query)) {
       if (query && isThemeQuery(query)) {
+        /**
+         * A busca casa pelo NOME do tema, e o nome vem da contribuição — a paleta deixou de ter uma
+         * lista de temas em código, então ela funciona igual para um tema que o escritório escreveu
+         * ontem. Sem nenhum nome batendo, oferece todos: quem digitou "tema" quer ver a lista.
+         */
         const bare = query.toLowerCase().replace(t('command.system.theme.prefix').toLowerCase(), '').trim();
-        for (const option of themes) {
-          if (option.mode !== mode && contains(option.label.toLowerCase(), bare)) {
-            items.push({
-              id: `sys:theme:${option.mode}`,
-              title: option.label,
-              subtitle: mode === option.mode ? t('command.system.theme.current') : undefined,
-              group: GROUP,
-              icon: option.light ? <RiSunLine size={16} /> : <RiMoonLine size={16} />,
-              keywords: keywordsOf(t, 'command.system.theme.keywords'),
-              onSelect: () => { setTheme(option.mode); close(); },
-            });
-          }
-        }
-        if (!items.some((item) => item.id.startsWith('sys:theme:'))) {
-          for (const option of themes) {
-            if (option.mode !== mode) {
-              items.push({
-                id: `sys:theme:${option.mode}`,
-                title: option.label,
-                group: GROUP,
-                icon: option.light ? <RiSunLine size={16} /> : <RiMoonLine size={16} />,
-                keywords: keywordsOf(t, 'command.system.theme.keywords'),
-                onSelect: () => { setTheme(option.mode); close(); },
-              });
-            }
-          }
+        const matching = themes.filter((option) => contains(option.name.toLowerCase(), bare));
+        const offered = matching.length > 0 ? matching : themes;
+        for (const option of offered) {
+          if (option.id === themeId) continue;
+          items.push({
+            id: `sys:theme:${option.id}`,
+            title: option.name,
+            group: GROUP,
+            icon: option.base === 'light' ? <RiSunLine size={16} /> : <RiMoonLine size={16} />,
+            keywords: keywordsOf(t, 'command.system.theme.keywords'),
+            onSelect: () => { setTheme(option.id); close(); },
+          });
         }
       } else {
         items.push({

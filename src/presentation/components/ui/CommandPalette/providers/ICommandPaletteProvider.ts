@@ -2,7 +2,7 @@ import type React from 'react';
 import type { EntityRecord, ScreenDefinition, TenantRole, UserRole } from '../../../../../domain/entities';
 import type { PersonRecord } from '../../../../shared/useCollectionRecords';
 import type { WorkflowDefinition } from '../../../../../domain/entities/Workflow';
-import type { ThemeMode } from '../../../../../shared/types';
+import type { ThemeOption } from '../../../../../stores/useTheme';
 import type { UiPageMetadata } from '../../../../shared/uiExtensionPoints';
 import type { CaseRecord, ContractRecord } from '../../../../shared/useCollectionRecords';
 import type { TranslateFn } from '../../../../shared/i18n/useT';
@@ -28,8 +28,10 @@ export interface CommandPaletteAppContext {
   records: EntityRecord[];
   screenDefinitions: ScreenDefinition[];
   workflows: WorkflowDefinition[];
-  mode: ThemeMode;
-  setTheme: (mode: ThemeMode) => void;
+  /** O tema EM VIGOR e a lista de instalados — a paleta não conhece nome de tema nenhum. */
+  themeId: string;
+  themes: ThemeOption[];
+  setTheme: (id: string) => void;
   signOut: () => Promise<void>;
   userRole: UserRole | null;
   tenantRole: TenantRole | null;

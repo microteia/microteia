@@ -170,6 +170,9 @@ declare module 'react/jsx-dev-runtime' {
 
 const STYLED_COMPONENTS_DEFS = `declare module 'styled-components' {
   export interface Theme {
+    /** A identidade do tema em vigor, e de que lado ele nasce — útil para escolher opacidade. */
+    id: string;
+    base: 'dark' | 'light';
     colors: {
       background: string;
       surface: string;
@@ -188,7 +191,6 @@ const STYLED_COMPONENTS_DEFS = `declare module 'styled-components' {
       revenue: string;
       revenueLight: string;
       expense: string;
-      expenseLight: string;
       text: string;
       textSecondary: string;
       textMuted: string;
@@ -198,39 +200,8 @@ const STYLED_COMPONENTS_DEFS = `declare module 'styled-components' {
       shadow: string;
       overlay: string;
       calendarToday: string;
-      calendarEvent: string;
       info: string;
       white: string;
-      caseStatusInProgress: string;
-      caseStatusWon: string;
-      caseStatusLost: string;
-      caseStatusSettlement: string;
-      caseStatusArchived: string;
-      caseStatusSuspended: string;
-      contractStatusDraft: string;
-      contractStatusReview: string;
-      contractStatusAwaitingSignature: string;
-      contractStatusActive: string;
-      contractStatusSuspended: string;
-      contractStatusClosed: string;
-      contractStatusCancelled: string;
-      contractStatusTerminated: string;
-      personStatusActive: string;
-      personStatusInactive: string;
-      relationshipCliente: string;
-      relationshipParte: string;
-      relationshipContato: string;
-      relationshipFornecedor: string;
-      relationshipSocio: string;
-      relationshipDefault: string;
-      kpiCases: string;
-      kpiPersons: string;
-      kpiDeadlinesPending: string;
-      kpiDeadlinesOverdue: string;
-      deadlineStatusPending: string;
-      deadlineStatusCompleted: string;
-      deadlineStatusOverdue: string;
-      deadlineStatusCanceled: string;
       aiOpenai: string;
       aiAnthropic: string;
       aiGoogle: string;
@@ -238,12 +209,12 @@ const STYLED_COMPONENTS_DEFS = `declare module 'styled-components' {
       aiCohere: string;
       aiOllama: string;
       aiOther: string;
-      casePhaseInitial: string;
-      casePhaseInstruction: string;
-      casePhaseSentence: string;
-      casePhaseAppeal: string;
-      casePhaseExecution: string;
-      casePhaseArchived: string;
+      /**
+       * A paleta é ABERTA: além dos tokens acima, que são do núcleo, ela traz os que as extensões
+       * instaladas contribuírem — caseStatusWon vem de Processos, contractStatusActive de
+       * Contratos. Ler um token que ninguém contribuiu devolve undefined, então trate a ausência.
+       */
+      [token: string]: string | undefined;
     };
     fonts: {
       body: string;

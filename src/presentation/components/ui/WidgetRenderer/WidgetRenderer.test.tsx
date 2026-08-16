@@ -2,13 +2,13 @@
 import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { ThemeProvider } from 'styled-components';
-import { darkTheme } from '../../../../shared/styles/theme';
+import { baseDarkTheme } from '../../../../shared/styles/theme';
 import type { WidgetSpec } from '../../../shared/widget/widgetSpec';
 import { WidgetRenderer } from './WidgetRenderer.view';
 
 const renderSpec = (spec: unknown) =>
   render(
-    <ThemeProvider theme={darkTheme}>
+    <ThemeProvider theme={baseDarkTheme}>
       <WidgetRenderer spec={spec} />
     </ThemeProvider>,
   );

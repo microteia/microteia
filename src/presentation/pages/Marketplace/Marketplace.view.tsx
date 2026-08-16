@@ -44,6 +44,7 @@ const STATUS_LABEL: Record<StatusBadge, { labelKey: string; tone: Tone }> = {
   deprecated: { labelKey: 'status.deprecated', tone: 'neutral' },
   private: { labelKey: 'status.private', tone: 'neutral' },
   builtin: { labelKey: 'status.builtin', tone: 'info' },
+  system: { labelKey: 'status.system', tone: 'primary' },
 };
 
 const AuthorLine: React.FC<{ author: Author }> = ({ author }) => {

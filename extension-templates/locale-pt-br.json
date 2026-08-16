@@ -3,7 +3,7 @@
   "workflows": [],
   "manifest": {
     "id": "com.microteia.locale-pt-br",
-    "version": "1.2.0",
+    "version": "1.3.0",
     "kernel": "^1.0.0",
     "name": "Português (Brasil)",
     "description": "Tradução da Microteia para português do Brasil.",
@@ -1001,6 +1001,7 @@
             "status.deprecated": "Obsoleta",
             "status.private": "Privada",
             "status.builtin": "Do sistema",
+            "status.system": "Faz parte do sistema",
             "extension.details": "Ver detalhes",
             "extension.badge.active": "Ativa",
             "extension.badge.inactive": "Inativa",
@@ -1503,6 +1504,7 @@
             "setting.contributions.item": "Cada item precisa ter uma chave e, se informado, ligado/desligado.",
             "setting.json": "Informe um valor.",
             "setting.locale": "Informe um idioma no formato \"en\" ou \"pt-BR\".",
+            "setting.theme": "Informe o identificador de um tema instalado.",
             "setting.number": "Informe um número.",
             "setting.number.max": "O máximo é {max}.",
             "setting.number.min": "O mínimo é {min}.",
@@ -1563,6 +1565,37 @@
             "package.id-taken-by-language": "O identificador \"{id}\" já pertence ao idioma \"{name}\". Uma extensão com telas ou automações não pode tomar o lugar de um pacote de idioma: altere o \"id\" do arquivo.",
             "package.summary": "Deixa o sistema no idioma deste pacote. Pode ser desinstalado a qualquer momento, devolvendo a interface ao idioma original.",
             "package.description": "Textos do sistema no idioma deste pacote."
+          }
+        }
+      },
+      {
+        "point": "i18n.messages",
+        "id": "pt-br.core.theme",
+        "apiVersion": "1.0.0",
+        "metadata": {
+          "locale": "pt-BR",
+          "namespace": "core.theme",
+          "messages": {
+            "section.title": "Aparência",
+            "section.description": "Como este escritório é lido. A preferência pessoal, quando existe, vence a do escritório.",
+            "setting.label": "Tema",
+            "setting.description": "Os temas disponíveis vêm das extensões de tema instaladas. Automático segue a preferência clara ou escura do aparelho.",
+            "theme.automatic": "Automático",
+            "theme.dark": "Escuro",
+            "theme.white": "Claro",
+            "point.definition.title": "Tema",
+            "point.definition.description": "Uma paleta que o escritório pode escolher. Só cores, fontes e espaçamentos — nada de código, e por isso qualquer arquivo de tema se instala como está.",
+            "point.tokens.title": "Cores de tema",
+            "point.tokens.description": "Cores nomeadas que uma extensão traz para o vocabulário dela, numa variante clara e numa escura. Existem sob qualquer tema, e qualquer tema pode sobrepô-las.",
+            "package.dark.summary": "O tema escuro que vem com o sistema. Não pode ser removido — baixe, troque o nome e importe de volta para criar o seu.",
+            "package.white.summary": "O tema claro que vem com o sistema. Não pode ser removido — baixe, troque o nome e importe de volta para criar o seu.",
+            "package.indigo.summary": "Um tema escuro construído sobre um índigo profundo, com a fonte Inter.",
+            "package.indigo-light.summary": "A versão clara do Índigo: superfícies brancas e o mesmo destaque índigo.",
+            "package.claude.summary": "Tons quentes de papel e fonte com serifa, para longas sessões de leitura.",
+            "package.teams.summary": "O tema escuro com o azul-violeta das ferramentas corporativas de mensagem.",
+            "package.kindle.summary": "Papel envelhecido e tinta marrom, com fonte serifada — um leitor digital na tela.",
+            "package.themis.summary": "Um tema claro em bordô e dourado, com a fonte Lora — sóbrio, para escritório de advocacia.",
+            "package.themis-night.summary": "O Themis depois de escurecer: o mesmo bordô e dourado sobre superfícies quentes e profundas."
           }
         }
       },

@@ -65,7 +65,8 @@ export const resolveFieldOptionColor = (
  *
  * A escolha percorre a paleta do tema a partir do azul e para na primeira cor ainda não usada na
  * lista, para que duas opções seguidas não saiam iguais; esgotada a paleta, volta a girar. Cores
- * declaradas como token do tema (`caseStatusWon`) entram na comparação já resolvidas.
+ * declaradas como token do tema (`success`, ou um token que uma extensão contribuiu) entram na
+ * comparação já resolvidas.
  */
 export const nextLookupOptionColor = (
   existingColors: readonly (string | undefined)[],

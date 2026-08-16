@@ -28,10 +28,8 @@ const hexToRgba = (hex: string, alpha: number): string => {
 const variantAccent = (v: NotificationVariant, theme: DefaultTheme): string =>
   ({ success: theme.colors.success, error: theme.colors.danger, warning: theme.colors.warning, info: theme.colors.primary }[v]);
 
-const isDark = (theme: DefaultTheme) => ['dark', 'teams', 'microteia'].includes(theme.mode);
-
 const variantBg = (v: NotificationVariant, theme: DefaultTheme): string =>
-  hexToRgba(variantAccent(v, theme), isDark(theme) ? 0.38 : 0.18);
+  hexToRgba(variantAccent(v, theme), theme.base === 'dark' ? 0.38 : 0.18);
 
 export const S = {
   BannerContainer: styled.div`

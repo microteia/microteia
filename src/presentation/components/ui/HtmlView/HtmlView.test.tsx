@@ -4,7 +4,7 @@ import { render } from '@testing-library/react';
 import { ThemeProvider } from 'styled-components';
 import { HtmlView } from './HtmlView.view';
 import { sanitizeHtml } from './sanitizeHtml';
-import { darkTheme } from '../../../../shared/styles/theme';
+import { baseDarkTheme } from '../../../../shared/styles/theme';
 
 describe('sanitizeHtml', () => {
   it('remove os elementos que executam ou carregam de fora', () => {
@@ -41,7 +41,7 @@ describe('sanitizeHtml', () => {
 describe('HtmlView', () => {
   const renderView = (html: string) =>
     render(
-      <ThemeProvider theme={darkTheme}>
+      <ThemeProvider theme={baseDarkTheme}>
         <HtmlView html={html} />
       </ThemeProvider>,
     );

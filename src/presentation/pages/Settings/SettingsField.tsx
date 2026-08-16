@@ -14,8 +14,9 @@ import {
 } from '../../../domain/schema/settings';
 import { useLocale } from '../../../stores/useLocale';
 import { localeDisplayName } from '../../../domain/schema/i18n/localeFormat';
+import { useTheme, AUTOMATIC_THEME } from '../../../stores/useTheme';
 
-import { useT } from '../../shared/i18n/useT';
+import { useT, useLabel } from '../../shared/i18n/useT';
 interface SettingsFieldProps {
   property: SettingsProperty;
   value: unknown;
@@ -29,7 +30,9 @@ interface SettingsFieldProps {
  */
 export const SettingsField: React.FC<SettingsFieldProps> = ({ property, value, disabled, onChange }) => {
   const t = useT('core.settings');
+  const label = useLabel();
   const { available, locale, preferred } = useLocale();
+  const { available: themes } = useTheme();
 
   switch (property.type) {
     case 'boolean':
@@ -94,6 +97,28 @@ export const SettingsField: React.FC<SettingsFieldProps> = ({ property, value, d
         />
       );
     }
+
+    /**
+     * As opções são os temas INSTALADOS, mais "Automático". Acrescentar um tema é instalar uma
+     * extensão, nunca editar o núcleo — o mesmo contrato do idioma.
+     *
+     * "Automático" é uma opção de verdade, e não a ausência de escolha, porque as duas se comportam
+     * de forma diferente: ela SEGUE o aparelho, e continua seguindo quando o aparelho muda de claro
+     * para escuro no fim da tarde. Sem ela não haveria caminho de volta depois do primeiro clique.
+     */
+    case 'theme':
+      return (
+        <SearchSelect
+          value={typeof value === 'string' && value.trim() !== '' ? value : AUTOMATIC_THEME}
+          options={[
+            { value: AUTOMATIC_THEME, label: t('core.theme/theme.automatic') },
+            ...themes.map((theme) => ({ value: theme.id, label: label(theme.name) })),
+          ]}
+          disabled={disabled}
+          onChange={(next) => onChange(next)}
+          placeholder={t('core.ui/action.select')}
+        />
+      );
 
     case 'stringList': {
       const pattern = stringListPattern(property);

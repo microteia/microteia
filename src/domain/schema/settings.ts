@@ -23,7 +23,8 @@ export const SETTINGS_SCOPES: SettingsScope[] = ['tenant', 'user'];
  *
  * `locale` segue a mesma linha: um `select` cujas opções NÃO são declaráveis, porque dependem de
  * quais pacotes de tradução estão instalados naquele escritório naquele momento. Declarar a lista no
- * manifest congelaria os idiomas existentes no núcleo — exatamente o que este tipo evita.
+ * manifest congelaria os idiomas existentes no núcleo — exatamente o que este tipo evita. `theme` é
+ * o mesmo caso, com os temas instalados no lugar dos idiomas.
  */
 export type SettingsPropertyType =
   | 'boolean'
@@ -34,7 +35,8 @@ export type SettingsPropertyType =
   | 'json'
   | 'widgets'
   | 'contributions'
-  | 'locale';
+  | 'locale'
+  | 'theme';
 
 export interface SettingsPropertyOption {
   value: string;
@@ -232,6 +234,16 @@ export const validateSettingValue = (
       return typeof value === 'string' && /^[a-z]{2,3}(-[A-Za-z0-9]+)*$/.test(value.trim())
         ? null
         : { message: 'setting.locale' };
+    /**
+     * Um tema, como um idioma, é aceito pela FORMA. Validar contra os temas instalados descartaria a
+     * preferência de quem escolheu um tema no dia em que a extensão fosse desativada — e a
+     * aparência voltaria sozinha ao padrão sem ninguém ter pedido. Tema ausente simplesmente cai no
+     * automático na hora de resolver.
+     */
+    case 'theme':
+      return typeof value === 'string' && /^[a-z0-9][a-z0-9.-]*$/i.test(value.trim())
+        ? null
+        : { message: 'setting.theme' };
     case 'json':
       return value === undefined ? { message: 'setting.json' } : null;
     default:

@@ -3,11 +3,11 @@ import React from 'react';
 import { describe, it, expect } from 'vitest';
 import { render } from '@testing-library/react';
 import { ThemeProvider } from 'styled-components';
-import { darkTheme } from '../../../shared/styles/theme';
+import { baseDarkTheme } from '../../../shared/styles/theme';
 import { evaluateExtensionView } from './evaluateExtensionView';
 
 const renderThemed = (ui: React.ReactElement) =>
-  render(<ThemeProvider theme={darkTheme}>{ui}</ThemeProvider>);
+  render(<ThemeProvider theme={baseDarkTheme}>{ui}</ThemeProvider>);
 
 describe('evaluateExtensionView', () => {
   it('compila uma view TSX com JSX e devolve um componente renderizável', () => {

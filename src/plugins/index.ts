@@ -8,8 +8,10 @@ import { coreDataPlugin } from './core.data/manifest';
 import { coreMarketplacePlugin } from './core.marketplace/manifest';
 import { coreSettingsPlugin } from './core.settings/manifest';
 import { coreI18nPlugin } from './core.i18n/manifest';
+import { coreThemePlugin } from './core.theme/manifest';
 import { coreLicensePlugin } from './core.license/manifest';
 import { BUNDLED_LOCALE_PLUGINS } from './bundledLocales';
+import { BUNDLED_THEME_PLUGINS } from './themes/systemThemes';
 
 /**
  * Composition root dos plugins internos — o ÚNICO lugar do app que conhece a lista de plugins.
@@ -26,6 +28,8 @@ export const CORE_PLUGINS: PluginRecord[] = [
   coreMarketplacePlugin,
   coreSettingsPlugin,
   coreI18nPlugin,
+  coreThemePlugin,
   coreLicensePlugin,
   ...BUNDLED_LOCALE_PLUGINS,
+  ...BUNDLED_THEME_PLUGINS,
 ];

@@ -135,9 +135,10 @@ type UserRole = 'SYSTEM' | 'USER';
 // Papel do usuário dentro de um escritório específico
 type TenantRole = 'admin' | 'lawyer' | 'secretary' | 'user';
 
-// Temas visuais disponíveis
-type ThemeMode = 'dark' | 'light' | 'claude' | 'teams' | 'bruma' | 'kindle' | 'microteia' | 'themis' | 'themisDark';
 ```
+
+O tema NÃO tem tipo fechado: ele é uma contribuição, identificada por um `id` de texto. Ver
+"Aparência — tema como contribuição".
 
 ### Entidade AIConnection
 
@@ -477,7 +478,7 @@ interface Contract {
 
 **Valores estáticos por kind:** `types` (13 valores: Prestação de serviços, Compra e venda, Locação, ...), `categories` (15 valores: Cível, Empresarial, ...), `statuses` (8 valores com cor: Em elaboração, Em revisão, Aguardando assinatura, Vigente, Suspenso, Encerrado, Cancelado, Rescindido), `adjustmentIndexes` (INPC, IPCA), `adjustmentPeriodicities` (Anual), `currencies` (Real), `paymentMethods` (À vista, À prazo, Boleto, Cartão de Crédito). `objects`, `banks` e `costCenters` não têm valores estáticos — são só dinâmicos por tenant.
 
-**Cores de status:** tokens `contractStatus*` em `shared/styles/theme.ts` (replicados nos 9 temas, mesmo padrão de `caseStatus*`).
+**Cores de status:** tokens `contractStatus*` contribuídos pela PRÓPRIA extensão de Contratos ao ponto `theme.tokens` (mesmo padrão de `caseStatus*` em Processos). Não vivem no tema do kernel — ver "Aparência — tema como contribuição".
 
 Coleções Firestore: `tenants/{tenantId}/contracts/{id}`, `tenants/{tenantId}/contractTags/{id}`, `tenants/{tenantId}/contractTypes`, `contractCategories`, `contractStatuses`, `contractObjects`, `contractAdjustmentIndexes`, `contractAdjustmentPeriodicities`, `contractCurrencies`, `contractPaymentMethods`, `contractBanks`, `contractCostCenters`.
 
@@ -871,7 +872,7 @@ src/
 ├── shared/
 │   ├── types/index.ts             # Re-exporta aliases de domain/entities
 │   └── styles/
-│       ├── theme.ts               # Tokens dark/light/claude/teams/bruma/kindle/microteia/themis/themisDark
+│       ├── theme.ts               # As DUAS bases (dark/light) — só tokens do kernel
 │       ├── GlobalStyles.ts
 │       └── styled.d.ts
 │
@@ -1339,7 +1340,7 @@ Arquivos `.tsx` exportam **apenas** componentes React. Hooks e tipos ficam em `.
 | `FinancialStore` | Receitas/despesas do tenant atual, CRUD + `markPaid` |
 | `FinancialTagStore` | Etiquetas de lançamentos financeiros do tenant atual, CRUD de tags, aplicação de tags em lançamentos |
 | `WorkspaceStore` | Tabs abertas no shell, tab ativa |
-| `ThemeStore` | Tema visual com persistência em localStorage (`'microteia-theme'`) |
+| `ThemeStore` | Tema em vigor, montado das contribuições `theme.definition` + `theme.tokens`. A escolha mora na configuração `theme.selected`, espelhada em `localStorage` (`'microteia:theme'`) para as telas públicas |
 | `WorkflowStore` | Automações (`WorkflowDefinition`) do tenant atual — CRUD de definição + steps embutidos. Execuções (`WorkflowExecution`) e catálogo de Steps são lidos direto via `useDI()` nas viewmodels de `ViewWorkflow`, sem store próprio (dado local à página, não compartilhado entre telas) |
 
 ### Stores que dependem do tenant
@@ -3329,7 +3330,7 @@ Arquivos **compartilhados**: fonte única em `src/domain/schema/plugin/`, cópia
 | `extensionPoint.ts` | `ExtensionPointDefinition` + compatibilidade de `apiVersion` |
 | `contribution.ts` | `Contribution`, `ImplRef` e a **ordenação determinística** |
 | `pluginManifest.ts` | `PluginManifest` + `validatePluginManifest` |
-| `kernelVersion.ts` | `KERNEL_VERSION` — versão do contrato Kernel↔plugins. Em `1.1.0`: o ponto `i18n.messages` foi **acrescentado**, e adição é minor |
+| `kernelVersion.ts` | `KERNEL_VERSION` — versão do contrato Kernel↔plugins. Em `1.1.0`: o ponto `i18n.messages` foi **acrescentado**, e adição é minor. Em `1.2.0`: idem para `theme.definition` e `theme.tokens` |
 
 ### Versionamento em três eixos — não confundir
 
@@ -3444,9 +3445,13 @@ provedores do ⌘K são **contribuições** de 12 plugins internos.
 | `ui.page` | `key`, `keyPrefix`, `title`, `icon`, `fullBleed`, `requiredRole` | `code` (lazy) ou `widget` |
 | `ui.nav` | `key`, `label`, `icon`, `order`, `requiresTenantAdmin` | nenhuma |
 | `ui.command` | `group` | `code` |
+| `theme.definition` | `id`, `name`, `extends`, seções de paleta | nenhuma |
+| `theme.tokens` | `light`, `dark`, `themes` | nenhuma |
 
 Contratos em `presentation/shared/uiExtensionPoints.ts` — **terreno neutro de propósito**: plugin
-não importa outro plugin, e tanto os plugins quanto o shell dependem só dessa definição.
+não importa outro plugin, e tanto os plugins quanto o shell dependem só dessa definição. Os dois de
+tema vivem em `domain/schema/theme/`, e não aqui, porque são **dado puro serializável** — viajam
+num `.json` até um escritório que não roda este bundle (ver "Aparência — tema como contribuição").
 
 **`icon` é uma chave de `screenIcons`, nunca um componente.** Foi o que manteve a metadata
 serializável (requisito para viajar até o Marketplace) e consolidou os ícones das telas fixas no
@@ -4947,6 +4952,231 @@ volta a ser o que sempre deveria ter sido: texto para uma pessoa ler, livre para
 > **Não confundir com `MEMBER_LIMIT_REACHED`** (`handlers/addTenantMember.ts`), que é comparação
 > EXATA com um sentinela — um código disfarçado de mensagem, não uma frase em português. Não é
 > risco de tradução e foi deixado como está.
+
+---
+
+## Aparência — tema como contribuição
+
+O tema deixou de ser código do núcleo e virou **dado instalável**, pelo mesmo caminho da tradução. O
+kernel guarda **duas bases** e mais nada; tudo o que o escritório escolhe é contribuição.
+
+### A decisão que dispensou um subsistema
+
+Havia nove temas escritos à mão em `shared/styles/theme.ts`, cada um repetindo a paleta inteira, e
+uma união fechada `ThemeMode` que precisava crescer a cada tema novo. Acrescentar uma variação de
+cor era um commit no núcleo, e a lista de opções vivia duplicada em três lugares (o `THEMES` do
+provedor, o `THEME_OPTIONS` da barra lateral, o `THEME_MODES` do ⌘K), com as cores das amostras
+copiadas à mão — que envelheciam caladas a cada mudança de paleta.
+
+Hoje não há tipo de tema, nem lista em código, nem subsistema: há um ponto de extensão e um
+`.json`.
+
+### Os dois pontos — `domain/schema/theme/extensionPoints.ts`
+
+| Ponto | Responde | Quantos valem |
+|---|---|---|
+| `theme.definition` | "com que aparência o sistema é lido" | um, o escolhido |
+| `theme.tokens` | "que cores o meu domínio precisa ter em qualquer aparência" | todos, ao mesmo tempo |
+
+Ambos com `allowedImplKinds: []`, e essa é a decisão central — a mesma que vale para tradução. Uma
+paleta é **metadata pura**: não há código para revisar, então não há gesto de confiança a exigir, e
+um `.json` montado à mão instala como qualquer extensão. Se um tema pudesse rodar código, "trocar as
+cores" passaria a ser risco de segurança e a troca deixaria de ser trivial.
+
+São dois pontos porque são duas perguntas. Um ponto só obrigaria cada domínio a publicar um tema
+inteiro para nomear duas cores suas.
+
+O dono dos dois é **`core.theme`** (`plugins/core.theme/manifest.ts`), que também declara a
+preferência — e nenhuma paleta, pelo mesmo motivo que `core.i18n` não traz idioma: quem tem paleta é
+quem a escreveu.
+
+### O tema é PARCIAL — `extends`
+
+```json
+{
+  "id": "oceano",
+  "name": "Oceano",
+  "extends": "dark",
+  "colors": { "primary": "#2E86AB", "background": "#0B1B24" }
+}
+```
+
+`extends` diz de que lado o tema nasce; o resto vem inteiro da base. Um tema completo pareceria mais
+explícito, mas amarraria todo tema já publicado ao dia em que o núcleo ganhasse um token novo: o
+arquivo de ontem ficaria incompleto sem ninguém ter mexido nele.
+
+`extends` também decide **de que lado** os tokens contribuídos por extensões são lidos, e qual tema
+"Automático" escolhe quando o aparelho pede claro ou escuro.
+
+### O token tem UM dono — `theme.tokens` em dois níveis
+
+Um pacote de tokens tem dois níveis, e a distinção é o que impede uma cor de domínio de acabar
+dentro de um pacote de tema:
+
+```ts
+themeTokensContribution('case-colors', {
+  light: CASE_COLORS,                 // o PISO — vale sob qualquer tema
+  dark: CASE_COLORS,
+  themes: CASE_COLORS_BY_THEME,       // afinamento para os temas que ESTE plugin conhece
+})
+```
+
+- **`light` / `dark`** valem sob qualquer tema, inclusive um que o escritório escreveu ontem. Os dois
+  lados são obrigatórios porque a mesma cor não serve aos dois: um cinza que se lê sobre fundo claro
+  desaparece sobre fundo escuro.
+- **`themes`** é indexado por `id` de tema. Declarar `themes.themis` **não** faz de Processos um
+  tema: continua sendo Processos definindo as cores dele, agora dizendo como elas se leem naquela
+  paleta. Tema que o plugin não conhece cai no piso.
+
+É por aqui que `casePhaseSentence` deixou de aparecer dentro de `themes.ts`. O token tem um dono —
+quem o declara —, e o dono responde por ele em todo contexto. Um pacote de tema que carregasse a
+mesma chave estaria disputando com o dono, e o resultado passaria a depender de quem foi instalado
+antes. `systemThemes.test.ts` afirma que **nenhum pacote de tema de primeira parte** declara token
+fora do kernel.
+
+> A porta continua aberta para quem **quer** sobrepor: a paleta de um tema vence qualquer token
+> contribuído. É o caminho certo para mexer no que não é seu — e é escape, não o caminho normal.
+> Duas extensões disputando o mesmo nome de token é problema de quem escolheu o nome: um token
+> normalmente carrega o vocabulário de quem o declara (`caseStatusWon`), e quem quiser opinar sobre
+> o alheio contribui um tema.
+
+### A ordem da composição — `composeTheme`
+
+```
+base[extends]  →  tokens: piso do lado  →  tokens: afinamento do tema  →  colors do próprio tema
+```
+
+Essa ordem é a regra inteira. Os tokens de extensão entram **depois** da base porque é assim que
+`caseStatusWon` existe sob qualquer tema, inclusive um que o escritório escreveu ontem sem saber que
+Processos existe. E entram **antes** do tema porque um tema tem o direito de dizer que, nele, "ganho
+de causa" é outro verde — sem precisar da permissão de quem declarou o token.
+
+Dentro do bloco de tokens, o afinamento por tema vence o piso **sempre**, qualquer que seja o
+plugin; dentro de cada nível, quem chega primeiro vence, na ordem determinística do
+`ContributionRegistry` (prioridade desc, empate por `pluginId`) — nunca "quem instalou por último".
+Ver `resolveThemeTokens`.
+
+`asThemeSpec` nunca lança: entrada malformada é descartada e o resto da seção sobrevive. Um `.json`
+editado à mão vai ter erro de digitação um dia, e um valor estranho no meio da paleta não pode
+deixar o escritório sem interface.
+
+### O que fica no kernel — `shared/styles/theme.ts`
+
+Só `baseDarkTheme` e `baseLightTheme`, e a regra é literal: **se nenhum arquivo fora de
+`src/plugins/marketplace/` lê o token, ele não pertence a esse arquivo.**
+
+As duas bases não são temas escolhíveis — não aparecem em Configurações. São o valor completo de
+cada token, para que `theme.colors.primary` nunca seja `undefined` num styled-component, o que
+derrubaria a interface por causa de um `.json` mal preenchido.
+
+O tema resolvido carrega `id` e `base`. O `base` existe porque há componente que precisa saber se
+está sobre fundo escuro para escolher a opacidade de um realce (`NotificationBanner`); a alternativa
+anterior era uma lista de nomes de tema em código (`['dark','teams','microteia']`), cega a qualquer
+tema de terceiro.
+
+### O que saiu — e para onde
+
+| Tokens | Foram para |
+|---|---|
+| `caseStatus*`, `casePhase*` | `com.microteia.processo`, via `theme.tokens` — piso **e** afinamento por tema |
+| `contractStatus*` | `com.microteia.contrato`, idem |
+| `relationship*` | `com.microteia.pessoa`, idem |
+| `kpi*`, `deadlineStatus*`, `personStatus*`, `relationshipDefault`, `expenseLight`, `calendarEvent` | removidos — não eram lidos por ninguém |
+
+`calendarToday` **ficou** no kernel: `GlobalStyles.ts` o lê na regra `.rbc-today`. O kernel nunca
+depende de token contribuído por plugin — essa é a direção certa da dependência. Que o bloco `.rbc-*`
+esteja no `GlobalStyles` do kernel é dívida separada, registrada aqui e não resolvida nesta mudança.
+
+A paleta de etiquetas (`tagColors`) e os realces (`highlights`) ficam: etiquetar e anotar texto são
+do kernel.
+
+### Os temas do sistema — `plugins/themes/systemThemes.ts`
+
+**Escuro** e **Claro** (ex-"Microteia" e ex-"Bruma") são extensões de verdade — manifest com
+contribuição de tema, no formato que qualquer escritório baixa, edita e reimporta. O que os torna
+especiais é apenas **onde moram**: viajam no bundle, em `CORE_PLUGINS`, em vez de instalados por
+escritório. Disso decorre tudo:
+
+- estão sempre presentes, inclusive em `/login` e `/license`, que rodam antes de haver escritório;
+- **não há como desinstalá-los**, porque não há instalação a desfazer;
+- **não há como sobrepô-los**, por duas travas que se somam: um pacote instalado com o mesmo
+  `pluginId` é descartado pelo `dedupeById` do `TenantKernelProvider`, que mantém o registro do
+  Kernel; e um pacote de outro id que reivindique `id: 'dark'` na contribuição é recusado por
+  `themeSpecsOf` via `RESERVED_THEME_IDS`. Sem a segunda, bastaria um `pluginId` alfabeticamente
+  anterior para passar na frente na ordem do registro e trocar a aparência de todo mundo por baixo
+  dos panos. `RESERVED_THEME_IDS` é **derivado** dos pacotes, não escrito à mão.
+
+Aparecem em Extensões com o selo **"Faz parte do sistema"**, oferecendo apenas **Baixar**. É o
+caminho inteiro de um tema próprio: baixar, trocar `id` e `name`, mexer nas cores, importar. O
+resultado é um tema **ao lado**, nunca por cima.
+
+Os dois declaram **zero cor**: só `id`, `name` e `extends`. É a prova de que a base do kernel é
+exatamente o tema que o escritório vê, e não uma paleta paralela que pode divergir dela em silêncio.
+
+> As paletas Microteia e Bruma tingiam quatro fases processuais (`casePhaseSentence` e vizinhas) com
+> a própria cor de destaque, e o Themis redefinia trinta e uma cores de processo, contrato e pessoa.
+> Nada disso se perdeu e nada disso ficou nos pacotes de tema: **Processos, Contratos e Pessoas
+> declaram esses tons na entrada `themes` do pacote de tokens de cada um**, indexados pelo `id` do
+> tema. A tela é idêntica à de antes — `systemThemes.test.ts` afirma tom por tom — e a posse do token
+> ficou num lugar só.
+
+Os outros sete (`Indigo`, `Indigo Light`, `Claude`, `Teams`, `Kindle`, `Themis`, `Themis Night`)
+viraram extensões do catálogo embutido: instalam, desinstalam e servem de molde.
+
+### Onde a escolha mora — `theme.selected`
+
+Configuração declarada por `core.theme`, escopos `tenant` e `user`, tipo `theme` (as opções são os
+temas **instalados**, nunca uma lista declarada — mesmo contrato de `i18n.locale`). Padrão:
+`automatic`.
+
+`automatic` é uma **opção visível**, não a ausência de escolha, porque as duas se comportam de forma
+diferente: ela *segue* o aparelho (`prefers-color-scheme`, com `matchMedia` assinado, então troca
+sozinha quando o sistema troca). Sem ela não haveria caminho de volta depois do primeiro clique em
+"Escuro".
+
+Precedência: `theme.selected` do usuário → do escritório → `localStorage` → aparelho. O
+`localStorage` é espelho, nunca fonte de verdade, e é espelho **fiel** — sem configuração gravada, a
+chave é removida.
+
+### Por que um BRIDGE, e não um provedor aninhado
+
+O idioma resolve o problema equivalente com dois provedores: `LocaleProvider` no topo e
+`TenantLocaleProvider` dentro do escritório, sombreando o de cima. **O tema não pode fazer isso.**
+
+`GlobalStyles` pinta o `body`, a barra de rolagem e o calendário, e lê o tema **da posição dele na
+árvore**. Um segundo provedor de estilo lá embaixo deixaria o fundo da página com o tema de cima e o
+conteúdo com o de baixo.
+
+Então o `ThemeProvider` fica sozinho no topo, e `TenantThemeBridge` — montado dentro do
+`TenantKernelProvider` e do `SettingsStoreProvider`, o único ponto que enxerga os temas instalados e
+a configuração — **publica** os dois para cima, pelo `ThemeSourceContext`. É o gesto do
+`FieldRulePresetBridge`, pelo mesmo motivo: quem precisa da resposta está acima de quem a tem.
+
+Ao desmontar, o bridge publica `null` e a aparência volta ao que vale sem escritório — o certo ao
+sair da conta ou trocar de escritório, porque um tema instalado noutro lugar não pode continuar no
+ar.
+
+> **É este o desenho que resolve o problema de ordem de carregamento.** Como o provedor é único e
+> está no topo, publicar de baixo re-tematiza a árvore inteira, e não só o que estiver abaixo do
+> ponto onde a extensão foi lida.
+
+### Um lugar só para a escolha
+
+`setTheme` grava na configuração pessoal quando há escritório, e no `localStorage` quando não há.
+Fora do escritório é o navegador — é o que mantém a escolha viva em `/login` e `/license`.
+
+Escrever no navegador dentro do escritório faria a configuração desfazer o clique no render
+seguinte, na frente de quem clicou. Por isso a barra lateral, o ⌘K e Configurações escrevem todos no
+mesmo lugar.
+
+### A paleta que as extensões enxergam
+
+`extensionTypeDefs.ts` lista os tokens do **kernel** e fecha com uma assinatura de índice
+(`[token: string]: string | undefined`): a paleta é aberta, e uma extensão pode ler
+`theme.colors.caseStatusWon` sabendo que pode não estar lá.
+
+Dentro do kernel a leitura continua **tipada e fechada** — é o que impede `theme.colors.primry` de
+passar batido. Token de extensão é lido pelo nome, como `resolveColor` já fazia.
 
 ---
 

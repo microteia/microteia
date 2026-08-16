@@ -32,6 +32,7 @@ export const CORE_SETTINGS: Record<string, string> = {
   'setting.contributions.item': 'Cada item precisa ter uma chave e, se informado, ligado/desligado.',
   'setting.json': 'Informe um valor.',
   'setting.locale': 'Informe um idioma no formato "en" ou "pt-BR".',
+  'setting.theme': 'Informe o identificador de um tema instalado.',
   'setting.number': 'Informe um número.',
   'setting.number.max': 'O máximo é {max}.',
   'setting.number.min': 'O mínimo é {min}.',

@@ -15,8 +15,6 @@ export interface DeletionActor {
   photoURL: string;
 }
 
-export type ThemeMode = 'dark' | 'light' | 'claude' | 'teams' | 'bruma' | 'kindle' | 'microteia' | 'themis' | 'themisDark';
-
 // ─── RBAC global ─────────────────────────────────────────────────────────────
 
 export type UserRole = 'SYSTEM' | 'USER' | 'SUPPORT';

@@ -33,6 +33,7 @@ export const CORE_SETTINGS_MESSAGES: Record<string, string> = {
   'setting.contributions.item': 'Each item needs a key and, when given, on/off.',
   'setting.json': 'Enter a value.',
   'setting.locale': 'Enter a language in the "en" or "pt-BR" format.',
+  'setting.theme': 'Enter the identifier of an installed theme.',
   'setting.number': 'Enter a number.',
   'setting.number.max': 'The maximum is {max}.',
   'setting.number.min': 'The minimum is {min}.',

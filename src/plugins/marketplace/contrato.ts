@@ -6,6 +6,42 @@ import type {
 } from '../../domain/entities/MarketplacePlugin';
 import type { CustomFieldOption } from '../../domain/entities';
 import { nav, page } from '../contributionBuilders';
+import { themeTokensContribution } from '../../domain/schema/theme';
+
+/** As cores do vocabulário de Contrato — ver a nota equivalente em `processo.ts`. */
+const CONTRACT_COLORS: Record<string, string> = {
+  contractStatusDraft: '#94a3b8',
+  contractStatusReview: '#f59e0b',
+  contractStatusAwaitingSignature: '#38bdf8',
+  contractStatusActive: '#22c55e',
+  contractStatusSuspended: '#eab308',
+  contractStatusClosed: '#6b7280',
+  contractStatusCancelled: '#ef4444',
+  contractStatusTerminated: '#dc2626',
+};
+
+const CONTRACT_COLORS_BY_THEME: Record<string, Record<string, string>> = {
+  themis: {
+    contractStatusDraft: '#A29383',
+    contractStatusReview: '#B07D2B',
+    contractStatusAwaitingSignature: '#3E6B8C',
+    contractStatusActive: '#2F6B4F',
+    contractStatusSuspended: '#B08D3E',
+    contractStatusClosed: '#8C7F6F',
+    contractStatusCancelled: '#C03B2D',
+    contractStatusTerminated: '#96382B',
+  },
+  'themis-night': {
+    contractStatusDraft: '#9A8C7E',
+    contractStatusReview: '#D2A455',
+    contractStatusAwaitingSignature: '#7BA7C9',
+    contractStatusActive: '#5FA37F',
+    contractStatusSuspended: '#C9A24B',
+    contractStatusClosed: '#9A8C7E',
+    contractStatusCancelled: '#D96A5B',
+    contractStatusTerminated: '#C25445',
+  },
+};
 
 /**
  * **Contrato** — a entidade de contrato do escritório, inteira, declarada por extensão: os campos e
@@ -423,9 +459,11 @@ export const contratoPlugin: MarketplacePlugin = {
     // de Pessoas, e `collections` é o que liga o nome global de uma coleção a quem a instala.
     dependencies: {
       'core.ui': '^1.0.0',
+      'core.theme': '^1.0.0',
       'com.microteia.pessoa': { version: '^1.0.0', collections: ['persons'] },
     },
     contributes: [
+      themeTokensContribution('contract-colors', { light: CONTRACT_COLORS, dark: CONTRACT_COLORS, themes: CONTRACT_COLORS_BY_THEME }),
       nav({ key: 'contratos', label: 'Contratos', icon: 'fileText', order: 110 }),
       page({ key: 'contratos', title: 'Contratos', icon: 'fileText' }, 'contratos'),
     ],

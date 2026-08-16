@@ -45,4 +45,3 @@ export interface CalendarEvent {
   };
 }
 
-export type ThemeMode = 'dark' | 'light' | 'claude' | 'teams' | 'bruma' | 'kindle' | 'microteia' | 'themis' | 'themisDark';

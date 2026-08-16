@@ -96,6 +96,7 @@ export const CORE_MARKETPLACE_MESSAGES: Record<string, string> = {
   'status.deprecated': 'Deprecated',
   'status.private': 'Private',
   'status.builtin': 'From the system',
+  'status.system': 'Part of the system',
   'extension.details': 'See details',
   'extension.badge.active': 'Active',
   'extension.badge.inactive': 'Inactive',

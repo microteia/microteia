@@ -156,13 +156,13 @@ export const WorkspaceSidebar: React.FC = () => {
                   <S.ThemeSubMenu>
                     {vm.themeOptions.map((option) => (
                       <S.ThemeSubItem
-                        key={option.mode}
-                        $active={vm.mode === option.mode}
-                        onClick={() => vm.handleSetTheme(option.mode)}
+                        key={option.id}
+                        $active={vm.themeId === option.id}
+                        onClick={() => vm.handleSetTheme(option.id)}
                       >
                         <S.ThemeDot $bg={option.bgColor} $primary={option.primaryColor} />
-                        {t(option.labelKey)}
-                        {vm.mode === option.mode && (
+                        {option.label}
+                        {vm.themeId === option.id && (
                           <S.ThemeCheck>
                             <RiCheckLine size={12} />
                           </S.ThemeCheck>

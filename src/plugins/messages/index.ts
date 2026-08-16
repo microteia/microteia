@@ -28,6 +28,7 @@ export { CORE_RECORDS_MESSAGES } from './coreRecords';
 export { CORE_WORKSPACE_MESSAGES } from './coreWorkspace';
 export { CORE_SETTINGS_MESSAGES } from './coreSettings';
 export { CORE_I18N_MESSAGES } from './coreI18n';
+export { CORE_THEME_MESSAGES } from './coreTheme';
 export { CORE_AUTOMATION_MESSAGES } from './coreAutomation';
 export { CORE_DATA_MESSAGES } from './coreData';
 export { CORE_LICENSE_MESSAGES } from './coreLicense';

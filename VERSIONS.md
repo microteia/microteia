@@ -11,6 +11,15 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [7.42.0] — 2026-08-16
+
+- Os temas passaram a ser extensões. O escritório agora começa com dois — **Escuro** e **Claro** — e escolhe entre eles em Configurações → Aparência, com a opção **Automático**, que segue o modo claro ou escuro do próprio computador e acompanha a troca ao anoitecer.
+- É possível criar um tema próprio sem programar: em Extensões, baixe o arquivo do Escuro ou do Claro, abra num editor de texto, troque o nome e as cores que quiser e importe de volta. Ele passa a aparecer na lista, ao lado dos demais.
+- Os temas Escuro e Claro fazem parte do sistema: aparecem em Extensões, podem ser baixados, e não podem ser removidos nem substituídos — quem quiser variar cria o seu, que fica ao lado.
+- As demais aparências que existiam viraram extensões instaláveis: Indigo, Indigo Claro, Claude, Teams, Kindle, Themis e Themis Noturno. Instale as que quiser, remova as que não usar.
+- A preferência de tema passou a acompanhar a pessoa, e não o computador: escolha uma vez e ela vale em qualquer máquina. O escritório também pode definir a aparência padrão para quem nunca escolheu.
+- As cores de significado de cada área — o verde de processo procedente, o âmbar de contrato aguardando assinatura, as cores de relação com a pessoa — passaram a vir junto com a área que as usa, inclusive os tons especiais que cada tema mostrava. Instalar ou remover uma área leva as cores dela junto, em todas as aparências de uma vez; um tema novo recebe as cores padrão da área.
+
 #### [7.40.1] — 2026-08-16
 
 - Registrada a regra de idioma do produto: todo texto que aparece na tela precisa ser traduzível, nasce em inglês e chega com a tradução para português no mesmo momento.
