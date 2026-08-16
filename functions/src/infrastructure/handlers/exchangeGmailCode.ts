@@ -23,7 +23,7 @@ export const exchangeGmailCode = onCall(
     const { code, tenantId } = request.data as ExchangeGmailCodeRequest;
 
     if (!code || !tenantId) {
-      throw new HttpsError('invalid-argument', 'code e tenantId são obrigatórios.');
+      throw new HttpsError('invalid-argument', '@core.automation/handler.params.missing');
     }
 
     const clientId = googleClientId.value();
@@ -32,11 +32,11 @@ export const exchangeGmailCode = onCall(
     const topicName = googleGmailTopic.value();
 
     if (!clientId || !clientSecret) {
-      throw new HttpsError('failed-precondition', 'Credenciais OAuth não configuradas no backend.');
+      throw new HttpsError('failed-precondition', '@core.workspace/gmail.oauth-missing');
     }
 
     if (!topicName) {
-      throw new HttpsError('failed-precondition', 'Tópico Gmail não configurado no backend.');
+      throw new HttpsError('failed-precondition', '@core.workspace/gmail.topic-missing');
     }
 
     try {
@@ -60,7 +60,9 @@ export const exchangeGmailCode = onCall(
       };
     } catch (err) {
       if (err instanceof HttpsError) throw err;
-      const message = err instanceof Error ? err.message : 'Erro ao trocar código OAuth.';
+      const message = err instanceof Error
+        ? err.message
+        : '@core.workspace/gmail.exchange-error';
       throw new HttpsError(domainErrorCode(err) ?? 'internal', message);
     }
   },

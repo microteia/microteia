@@ -17,6 +17,11 @@ interface RunWorkflowRequest {
   providedParams?: Record<string, unknown>;
 }
 
+/**
+ * PROMPT do modelo, não texto de usuário: ele instrui a IA sobre documentos escritos em português,
+ * e traduzi-lo mudaria a qualidade da extração. Fica fora do catálogo de propósito.
+ */
+/* eslint-disable no-restricted-syntax */
 const FILL_SYSTEM_PROMPT = `Você é um extrator de dados estruturados. A partir de um documento de texto,
 preencha os campos descritos no ESQUEMA.
 
@@ -40,9 +45,10 @@ Regras invioláveis:
   retorne um JSON parcial: responda EXCLUSIVAMENTE com {"error": "descreva por que não foi possível, ex.:
   volume de itens excede o limite de tokens"} — sempre um JSON completo e válido, nunca cortado.
 - Respondendo com sucesso, use EXCLUSIVAMENTE um objeto JSON no formato: {"values": { ...campos... }}.`;
+/* eslint-enable no-restricted-syntax */
 
 const AI_FAILURE_USER_MESSAGE =
-  'Não foi possível processar os dados com a inteligência artificial. Os detalhes completos foram registrados nos Logs de Auditoria.';
+  '@core.admin/processor.ai-failed';
 
 const HEAD_CHARS = 2000;
 const TAIL_CHARS = 2000;
@@ -60,14 +66,16 @@ const logAIFillFailure = async (
   userName: string,
   photoURL: string,
   targetWorkflowId: string,
+  /** REFERÊNCIA da causa; `diagnosisParams` traz o que ela interpola. */
   diagnosis: string,
+  diagnosisParams: Record<string, string>,
   schemaJson: string,
   rawResponse: string,
 ): Promise<void> => {
   try {
     await getDI().getCreateAuditLogUseCase().execute({
       tenantId,
-      title: 'Falha ao interpretar resposta da IA (Processador)',
+      title: '@core.admin/processor.ai-parse-failed.title',
       userId,
       userName,
       photoURL,
@@ -76,11 +84,15 @@ const logAIFillFailure = async (
       type: 'ERROR',
       entity: 'Workflow',
       entityId: targetWorkflowId,
-      text:
-        `**Não foi possível interpretar a resposta da inteligência artificial** ao preencher os parâmetros da automação.\n\n` +
-        `**Possível causa**\n\n${diagnosis}\n\n` +
-        `**Esquema enviado ao workflow**\n\n\`\`\`json\n${schemaJson}\n\`\`\`\n\n` +
-        `**Resposta da IA (início e fim)**\n\n\`\`\`\n${headTail(rawResponse, HEAD_CHARS, TAIL_CHARS)}\n\`\`\``,
+      text: '@core.admin/processor.ai-parse-failed.text',
+      textParams: {
+        // Os parâmetros da CAUSA sobem para o mesmo objeto: `{diagnosis}` é ele próprio uma
+        // referência, e `resolveParam` os passa adiante ao resolvê-la.
+        ...diagnosisParams,
+        diagnosis,
+        schema: schemaJson,
+        response: headTail(rawResponse, HEAD_CHARS, TAIL_CHARS),
+      },
     });
   } catch (loggingError) {
     console.error('[runWorkflow] Falha ao registrar auditoria de erro da IA:', loggingError);
@@ -201,17 +213,20 @@ export const runWorkflow = onCall(
 
       const definition = await di.getWorkflowDefinitionRepository().findById(tenantId, targetWorkflowId);
       if (!definition) {
-        throw new HttpsError('not-found', 'Automação não encontrada.');
+        throw new HttpsError('not-found', '@core.admin/processor.workflow-not-found');
       }
       if (definition.eventName !== WORKFLOW_CALLED_EVENT) {
-        throw new HttpsError('failed-precondition', 'A automação selecionada não pode ser executada pelo Processador.');
+        throw new HttpsError(
+          'failed-precondition',
+          '@core.admin/processor.workflow-not-callable',
+        );
       }
 
       const params = definition.parameters ?? [];
       if (hasEntityReferenceDeep(params)) {
         throw new HttpsError(
           'failed-precondition',
-          'Esta automação possui parâmetros de Referência, ainda não suportados pelo Processador.',
+          '@core.admin/processor.workflow-has-references',
         );
       }
 
@@ -223,16 +238,23 @@ export const runWorkflow = onCall(
         }
         const credentials = await di.getAIConnectionRepository().getCredentialsById(tenantId, connectionId);
         const schemaJson = buildSchemaForPrompt(params);
+        // Conteúdo enviado ao MODELO, casado com o prompt de sistema — ver a nota em FILL_SYSTEM_PROMPT.
+        // eslint-disable-next-line no-restricted-syntax -- prompt de IA, não texto de usuário
         const userContent = `ESQUEMA:\n${schemaJson}\n\n===== INÍCIO DO DOCUMENTO =====\n${text}\n===== FIM DO DOCUMENTO =====`;
         const auth = request.auth;
-        const reportFailure = async (diagnosis: string, rawResponse: string): Promise<never> => {
+        const reportFailure = async (
+          diagnosis: string,
+          diagnosisParams: Record<string, string>,
+          rawResponse: string,
+        ): Promise<never> => {
           await logAIFillFailure(
             tenantId,
             auth.uid,
-            (auth.token.name as string | undefined) ?? 'Usuário',
+            (auth.token.name as string | undefined) ?? '@core.workspace/user.anonymous',
             (auth.token.picture as string | undefined) ?? '',
             targetWorkflowId,
             diagnosis,
+            diagnosisParams,
             schemaJson,
             rawResponse,
           );
@@ -247,7 +269,8 @@ export const runWorkflow = onCall(
           });
           if (typeof filled.error === 'string' && filled.error.trim()) {
             await reportFailure(
-              `A IA informou que não conseguiu concluir a extração: ${filled.error.trim()}`,
+              '@core.admin/processor.ai-said-failed',
+              { detail: filled.error.trim() },
               JSON.stringify(filled, null, 2),
             );
           }
@@ -255,10 +278,12 @@ export const runWorkflow = onCall(
         } catch (aiErr) {
           if (aiErr instanceof AIResponseFormatError) {
             const diagnosis = aiErr.truncated
-              ? `A resposta da IA foi cortada no limite de tokens de saída (atual: ${credentials.maxTokens}). ` +
-                'Aumente o limite de tokens da conexão de IA ou processe menos itens por vez.'
-              : 'A IA retornou uma resposta que não pôde ser interpretada como JSON válido.';
-            await reportFailure(diagnosis, aiErr.raw);
+              ? '@core.admin/processor.ai-truncated'
+              : '@core.admin/processor.ai-not-json';
+            const diagnosisParams: Record<string, string> = aiErr.truncated
+              ? { limit: String(credentials.maxTokens) }
+              : {};
+            await reportFailure(diagnosis, diagnosisParams, aiErr.raw);
           }
           throw aiErr;
         }
@@ -283,7 +308,7 @@ export const runWorkflow = onCall(
       return { eventId };
     } catch (err) {
       if (err instanceof HttpsError) throw err;
-      const message = err instanceof Error ? err.message : 'Erro ao executar a automação.';
+      const message = err instanceof Error ? err.message : '@core.admin/processor.run-failed';
       throw new HttpsError('internal', message);
     }
   },

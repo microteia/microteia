@@ -104,4 +104,10 @@ export const CORE_WORKSPACE: Record<string, string> = {
   'user.lookup-failed': 'Erro ao buscar informações do usuário.',
   'user.not-found': 'Usuário não encontrado.',
   'user.unknown': 'Usuário desconhecido',
+  'gmail.admin-only': 'Apenas administradores podem ver as contas Gmail do escritório.',
+  'gmail.connection-not-found': 'Conexão não encontrada neste escritório.',
+  'gmail.exchange-error': 'Erro ao trocar código OAuth.',
+  'gmail.oauth-missing': 'Credenciais OAuth não configuradas no backend.',
+  'gmail.setup-failed': 'Falha ao configurar integração Gmail completa: {detail}',
+  'gmail.topic-missing': 'Tópico Gmail não configurado no backend.',
 };

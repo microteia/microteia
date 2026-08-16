@@ -230,4 +230,18 @@ export const CORE_ADMIN: Record<string, string> = {
   'audit.entity.push': 'Push do Tribunal',
   'audit.entity.unnamed': 'sem nome',
   'audit.entity.frontend': 'Interface',
+  'audit.error.title': 'Erro no processamento de auditoria',
+  'processor.ai-failed':
+    'Não foi possível processar os dados com a inteligência artificial. Os detalhes completos foram registrados nos Logs de Auditoria.',
+  'processor.ai-not-json': 'A IA retornou uma resposta que não pôde ser interpretada como JSON válido.',
+  'processor.ai-parse-failed.text':
+    '**Não foi possível interpretar a resposta da inteligência artificial** ao preencher os parâmetros da automação.\n\n**Possível causa**\n\n{diagnosis}\n\n**Esquema enviado ao workflow**\n\n```json\n{schema}\n```\n\n**Resposta da IA (início e fim)**\n\n```\n{response}\n```',
+  'processor.ai-parse-failed.title': 'Falha ao interpretar resposta da IA (Processador)',
+  'processor.ai-said-failed': 'A IA informou que não conseguiu concluir a extração: {detail}',
+  'processor.ai-truncated':
+    'A resposta da IA foi cortada no limite de tokens de saída (atual: {limit}). Aumente o limite de tokens da conexão de IA ou processe menos itens por vez.',
+  'processor.workflow-not-found': 'Automação não encontrada.',
+  'processor.workflow-has-references':
+    'Esta automação possui parâmetros de Referência, ainda não suportados pelo Processador.',
+  'processor.workflow-not-callable': 'A automação selecionada não pode ser executada pelo Processador.',
 };

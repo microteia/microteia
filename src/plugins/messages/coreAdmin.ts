@@ -228,4 +228,18 @@ export const CORE_ADMIN_MESSAGES: Record<string, string> = {
   'audit.entity.push': 'Court push',
   'audit.entity.unnamed': 'no name',
   'audit.entity.frontend': 'Interface',
+  'audit.error.title': 'Audit processing error',
+  'processor.ai-failed':
+    'Could not process the data with the artificial intelligence. The full details were recorded in the Audit trail.',
+  'processor.ai-not-json': 'The AI returned a response that could not be read as valid JSON.',
+  'processor.ai-parse-failed.text':
+    '**Could not read the artificial intelligence response** while filling in the automation parameters.\n\n**Likely cause**\n\n{diagnosis}\n\n**Schema sent to the workflow**\n\n```json\n{schema}\n```\n\n**AI response (head and tail)**\n\n```\n{response}\n```',
+  'processor.ai-parse-failed.title': 'Could not read the AI response (Processor)',
+  'processor.ai-said-failed': 'The AI reported that it could not finish the extraction: {detail}',
+  'processor.ai-truncated':
+    'The AI response was cut at the output token limit (currently {limit}). Raise the token limit of the AI connection, or process fewer items at a time.',
+  'processor.workflow-not-found': 'Automation not found.',
+  'processor.workflow-has-references':
+    'This automation has Reference parameters, which the Processor does not support yet.',
+  'processor.workflow-not-callable': 'The selected automation cannot be run by the Processor.',
 };

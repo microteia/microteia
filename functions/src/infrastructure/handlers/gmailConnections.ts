@@ -24,7 +24,7 @@ export const listGmailConnections = onCall(
     const { tenantId } = (request.data ?? {}) as { tenantId?: string };
 
     if (!tenantId) {
-      throw new HttpsError('invalid-argument', 'tenantId é obrigatório.');
+      throw new HttpsError('invalid-argument', '@core.automation/handler.params.missing');
     }
 
     try {
@@ -63,7 +63,7 @@ export const revokeGmailConnection = onCall(
     };
 
     if (!tenantId || !connectionId) {
-      throw new HttpsError('invalid-argument', 'tenantId e connectionId são obrigatórios.');
+      throw new HttpsError('invalid-argument', '@core.automation/handler.params.missing');
     }
 
     try {

@@ -13,6 +13,12 @@ interface DetectWorkflowsRequest {
   workflows: WorkflowDescriptor[];
 }
 
+/**
+ * PROMPT do modelo, não texto de usuário: instrui a IA sobre documentos em português. Traduzi-lo
+ * mudaria a classificação. Fica fora do catálogo de propósito — o mesmo vale para o conteúdo
+ * montado abaixo, que viaja junto no mesmo pedido.
+ */
+/* eslint-disable no-restricted-syntax */
 const DETECTION_SYSTEM_PROMPT = `Você é um classificador. Sua ÚNICA função é decidir quais automações
 (workflows) de uma lista fornecida são compatíveis com um documento de texto.
 
@@ -30,6 +36,7 @@ const buildUserContent = (text: string, workflows: WorkflowDescriptor[]): string
     .map((w) => `- id: ${w.id}\n  descrição: ${w.description}`)
     .join('\n');
   return `AUTOMAÇÕES DISPONÍVEIS (id e descrição):\n${list}\n\n===== INÍCIO DO DOCUMENTO =====\n${text}\n===== FIM DO DOCUMENTO =====`;
+/* eslint-enable no-restricted-syntax */
 };
 
 export const detectWorkflows = onCall(

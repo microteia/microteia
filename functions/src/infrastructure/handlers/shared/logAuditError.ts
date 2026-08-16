@@ -18,7 +18,7 @@ export const logAuditError = async (
     const auditText = buildErrorText(collection, docId, message);
     await getDI().getCreateAuditLogUseCase().execute({
       tenantId: tenantId || 'SYSTEM',
-      title: 'Erro no processamento de auditoria',
+      title: '@core.admin/audit.error.title',
       userId: 'system',
       userName: 'Sistema',
       photoURL: '',

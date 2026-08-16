@@ -104,4 +104,10 @@ export const CORE_WORKSPACE_MESSAGES: Record<string, string> = {
   'user.lookup-failed': 'Could not fetch the user information.',
   'user.not-found': 'User not found.',
   'user.unknown': 'Unknown user',
+  'gmail.admin-only': 'Only administrators can see the organization Gmail accounts.',
+  'gmail.connection-not-found': 'Connection not found in this organization.',
+  'gmail.exchange-error': 'Could not exchange the OAuth code.',
+  'gmail.oauth-missing': 'OAuth credentials are not configured in the backend.',
+  'gmail.setup-failed': 'Could not finish setting up the Gmail integration: {detail}',
+  'gmail.topic-missing': 'The Gmail topic is not configured in the backend.',
 };

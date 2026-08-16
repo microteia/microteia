@@ -5,6 +5,7 @@
  *
  * O namespace de cada arquivo vem do `useT('<ns>')` declarado nele.
  */
+const crypto = require('node:crypto');
 const fs = require('node:fs');
 const path = require('node:path');
 
@@ -114,7 +115,32 @@ for (const [ns, moduleName] of Object.entries(MODULE_BY_NS)) {
   }
 }
 
-if (missing.length === 0 && orphans.length === 0 && duplicates.length === 0) {
+/**
+ * O pacote de idioma instalado num escritório é um retrato: só é atualizado quando a VERSÃO muda.
+ * A impressão digital garante que mudar o catálogo sem mexer na versão pare o gate.
+ */
+const fingerprintIssue = () => {
+  const dir = path.join(SRC, 'plugins', 'marketplace', 'localePtBr');
+  const hash = crypto.createHash('sha256');
+  for (const file of fs.readdirSync(dir).filter((name) => /^core.*\.ts$/.test(name)).sort()) {
+    hash.update(fs.readFileSync(path.join(dir, file)));
+  }
+  const actual = hash.digest('hex').slice(0, 12);
+  const index = fs.readFileSync(path.join(dir, 'index.ts'), 'utf8');
+  const declared = /PT_BR_MESSAGES_FINGERPRINT = '([0-9a-f]+)'/.exec(index)?.[1];
+  if (declared === actual) return null;
+  return (
+    `O catálogo pt-BR mudou (impressão ${actual}, declarada ${declared ?? 'nenhuma'}).\n`
+    + '  Suba o `version` do pacote em src/plugins/marketplace/localePtBr/index.ts e ponha a\n'
+    + `  impressão nova em PT_BR_MESSAGES_FINGERPRINT: '${actual}'.\n`
+    + '  Sem isso, quem já instalou o idioma não recebe as chaves novas — o Marketplace só\n'
+    + '  oferece atualização quando a versão muda.'
+  );
+};
+
+const fingerprint = fingerprintIssue();
+
+if (missing.length === 0 && orphans.length === 0 && duplicates.length === 0 && !fingerprint) {
   console.log('verify-messages: catálogos íntegros.');
   process.exit(0);
 }
@@ -130,4 +156,5 @@ if (duplicates.length > 0) {
   console.error(`\nChaves declaradas duas vezes no mesmo catálogo (${duplicates.length}):`);
   for (const line of duplicates.sort()) console.error(`  ${line}`);
 }
+if (fingerprint) console.error(`\n${fingerprint}`);
 process.exit(1);

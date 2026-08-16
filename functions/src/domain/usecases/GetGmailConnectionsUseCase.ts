@@ -20,7 +20,7 @@ export const makeGetGmailConnectionsUseCase = (
     const role = await tenantMemberRepo.getMemberRole(tenantId, userId);
 
     if (role !== 'admin') {
-      throw permissionDenied('Apenas administradores podem ver as contas Gmail do escritório.');
+      throw permissionDenied('@core.workspace/gmail.admin-only');
     }
 
     return gmailConnectionRepo.getConnectionsByTenant(tenantId);

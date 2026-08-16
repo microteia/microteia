@@ -11,6 +11,11 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [7.39.0] — 2026-08-16
+
+- Corrigido: quem já tinha instalado o Português (Brasil) continuava vendo partes do sistema em inglês — a Referência de Expressões, entre outras. O pacote de idioma ganhou uma versão nova, e o Marketplace passa a oferecer a atualização.
+- As últimas mensagens do Processador de Dados e da conexão com o Gmail passaram a acompanhar o idioma escolhido.
+
 #### [7.38.0] — 2026-08-15
 
 - Corrigido: sete textos de exemplo e de sugestão continuavam em português — o identificador da automação, o botão de executar em depuração, campos de Sim/Não e de seleção nos formulários, e a dica das listas em Configurações.

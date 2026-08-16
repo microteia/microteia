@@ -6,6 +6,7 @@ import type { GmailConnection } from '../entities/GmailConnection';
 import type { GmailAuthConfig } from '../entities/GmailTokens';
 import { permissionDenied } from '../errors/DomainError';
 
+import { LocalizedError } from '../errors/LocalizedError';
 /**
  * A autorização INTEIRA acontece aqui: trocar o código, registrar a escuta da caixa e gravar a
  * conexão com o token. O navegador só entrega o código e recebe a conexão de volta — o
@@ -55,7 +56,11 @@ export const makeExchangeGmailCodeUseCase = (
       expiration = watchResult.expiration;
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Erro desconhecido ao registrar watch.';
-      throw new Error(`Falha ao configurar integração Gmail completa: ${message}`, { cause: error });
+      throw new LocalizedError(
+        '@core.workspace/gmail.setup-failed',
+        { detail: message },
+        { cause: error },
+      );
     }
 
     return gmailConnectionRepo.saveConnection(

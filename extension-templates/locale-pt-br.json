@@ -3,7 +3,7 @@
   "workflows": [],
   "manifest": {
     "id": "com.microteia.locale-pt-br",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "kernel": "^1.0.0",
     "name": "Português (Brasil)",
     "description": "Tradução da Microteia para português do Brasil.",
@@ -893,7 +893,17 @@
             "audit.entity.custom-record-tag": "Etiqueta de Tela Personalizada",
             "audit.entity.push": "Push do Tribunal",
             "audit.entity.unnamed": "sem nome",
-            "audit.entity.frontend": "Interface"
+            "audit.entity.frontend": "Interface",
+            "audit.error.title": "Erro no processamento de auditoria",
+            "processor.ai-failed": "Não foi possível processar os dados com a inteligência artificial. Os detalhes completos foram registrados nos Logs de Auditoria.",
+            "processor.ai-not-json": "A IA retornou uma resposta que não pôde ser interpretada como JSON válido.",
+            "processor.ai-parse-failed.text": "**Não foi possível interpretar a resposta da inteligência artificial** ao preencher os parâmetros da automação.\n\n**Possível causa**\n\n{diagnosis}\n\n**Esquema enviado ao workflow**\n\n```json\n{schema}\n```\n\n**Resposta da IA (início e fim)**\n\n```\n{response}\n```",
+            "processor.ai-parse-failed.title": "Falha ao interpretar resposta da IA (Processador)",
+            "processor.ai-said-failed": "A IA informou que não conseguiu concluir a extração: {detail}",
+            "processor.ai-truncated": "A resposta da IA foi cortada no limite de tokens de saída (atual: {limit}). Aumente o limite de tokens da conexão de IA ou processe menos itens por vez.",
+            "processor.workflow-not-found": "Automação não encontrada.",
+            "processor.workflow-has-references": "Esta automação possui parâmetros de Referência, ainda não suportados pelo Processador.",
+            "processor.workflow-not-callable": "A automação selecionada não pode ser executada pelo Processador."
           }
         }
       },
@@ -1445,7 +1455,13 @@
             "tenant.not-found": "Escritório não encontrado.",
             "user.lookup-failed": "Erro ao buscar informações do usuário.",
             "user.not-found": "Usuário não encontrado.",
-            "user.unknown": "Usuário desconhecido"
+            "user.unknown": "Usuário desconhecido",
+            "gmail.admin-only": "Apenas administradores podem ver as contas Gmail do escritório.",
+            "gmail.connection-not-found": "Conexão não encontrada neste escritório.",
+            "gmail.exchange-error": "Erro ao trocar código OAuth.",
+            "gmail.oauth-missing": "Credenciais OAuth não configuradas no backend.",
+            "gmail.setup-failed": "Falha ao configurar integração Gmail completa: {detail}",
+            "gmail.topic-missing": "Tópico Gmail não configurado no backend."
           }
         }
       },

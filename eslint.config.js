@@ -52,6 +52,11 @@ const MIGRATED_TO_SOURCE_LANGUAGE = [
   'functions/src/domain/schema/**/*.ts',
   'functions/src/domain/services/**/*.ts',
   'functions/src/plugins/**/*.ts',
+  // O backend inteiro entra, menos o que a esteira do push processa: o texto de lá casa com o
+  // e-mail de tribunal que ela lê, e traduzi-lo quebraria o reconhecimento.
+  'functions/src/domain/usecases/**/*.ts',
+  'functions/src/data/repositories/**/*.ts',
+  'functions/src/infrastructure/handlers/**/*.ts',
   'src/domain/schema/plugin/**/*.{ts,tsx}',
   'src/domain/usecases/plugins/pluginReferences.ts',
   'src/domain/usecases/plugins/packageSerialization.ts',
@@ -132,6 +137,9 @@ export default defineConfig([
       // A esteira do Gmail/push pertence ao plugin de push, que não é traduzido nesta rodada —
       // o texto dela casa com o e-mail de tribunal que ela processa.
       'functions/src/domain/services/gmailPushAuditText.ts',
+      'functions/src/data/services/EmailParserService.ts',
+      'functions/src/infrastructure/handlers/gmailPush.ts',
+      'functions/src/infrastructure/handlers/shared/gmailPushRunLogger.ts',
       // Comentário de CSS vive DENTRO do template literal, e comentário continua em português. Num
       // arquivo de estilo não há texto de usuário para proteger, então ele fica fora da zona.
       '**/*.styles.tsx',

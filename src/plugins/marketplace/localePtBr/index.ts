@@ -38,13 +38,25 @@ const bundle = (namespace: string, messages: Record<string, string>): MessageBun
   messages,
 });
 
+/**
+ * A IMPRESSÃO DIGITAL do catálogo, conferida por `npm run verify-messages`.
+ *
+ * Um pacote de idioma instalado é um retrato congelado no tenant: o Marketplace só oferece
+ * atualização quando a VERSÃO muda. Sem esta trava, acrescentar centenas de chaves e esquecer o
+ * `version` deixa todo escritório que já instalou preso na tradução antiga, sem aviso nenhum — e
+ * o que ele vê é o texto em inglês, que é o comportamento correto de quem não tem a chave.
+ *
+ * Mudou o conteúdo, a impressão muda; o gate para e cobra o `version` junto.
+ */
+export const PT_BR_MESSAGES_FINGERPRINT = 'e2196bd349ee';
+
 export const localePtBrPlugin: MarketplacePlugin = {
   summary:
     'Deixa a Microteia em português do Brasil. Traduz os textos do sistema e pode ser desinstalado a qualquer momento, devolvendo a interface ao inglês.',
   workflows: [],
   manifest: {
     id: 'com.microteia.locale-pt-br',
-    version: '1.0.0',
+    version: '1.1.0',
     kernel: '^1.0.0',
     name: 'Português (Brasil)',
     description: 'Tradução da Microteia para português do Brasil.',

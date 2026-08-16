@@ -25,7 +25,7 @@ export const makeRevokeGmailConnectionUseCase = (
     const connections = await gmailConnectionRepo.getConnectionsByTenant(tenantId);
 
     if (!connections.some((connection) => connection.id === connectionId)) {
-      throw notFound('Conexão não encontrada neste escritório.');
+      throw notFound('@core.workspace/gmail.connection-not-found');
     }
 
     await gmailConnectionRepo.deleteConnection(connectionId);
