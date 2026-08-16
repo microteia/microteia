@@ -6,7 +6,18 @@ import type { NativeFieldSpec } from '../../../domain/schema/entityRegistry';
 import { getEntityByCollection } from '../../../domain/schema/entityRegistry';
 import type { SchemaScreen } from '../../../domain/schema/pathResolver';
 
-const STATIC_DEFS = `type QueryOperator = 'eq' | 'neq' | 'lt' | 'lte' | 'gt' | 'gte' | 'in' | 'contains' | 'exists';
+/**
+ * A união de tabelas é montada a partir das telas INSTALADAS, e não de uma lista escrita aqui.
+ *
+ * Antes esta documentação citava `cases`, `contracts`, `deadlines` e `financials` — coleções de
+ * entidades que saíram do kernel e hoje são extensões. O kernel não conhece nenhuma delas: citá-las
+ * o amarrava a um domínio, e a lista envelhecia sozinha (um escritório sem a extensão de Processo
+ * via `cases` sugerido pelo editor, e um com uma tela própria não via a dele).
+ */
+const tableUnion = (collections: string[]): string =>
+  [...collections.map((collection) => `'${collection}'`), '(string & {})'].join(' | ');
+
+const staticDefs = (collections: string[]): string => `type QueryOperator = 'eq' | 'neq' | 'lt' | 'lte' | 'gt' | 'gte' | 'in' | 'contains' | 'exists';
 
 interface QueryPredicate {
   path: string;
@@ -20,7 +31,7 @@ interface QueryOrderBy {
 }
 
 interface QuerySpec {
-  table: 'persons' | 'cases' | 'contracts' | 'deadlines' | 'financials' | (string & {});
+  table: ${tableUnion(collections)};
   where?: QueryPredicate[];
   orderBy?: QueryOrderBy[];
   limit?: number;
@@ -37,7 +48,7 @@ interface QueryResult {
 declare function query(spec: QuerySpec): Promise<QueryResult>;
 
 interface UpsertSpec {
-  table: 'persons' | 'cases' | 'contracts' | 'deadlines' | 'financials' | (string & {});
+  table: ${tableUnion(collections)};
   /** Informe para atualizar um registro existente; omita para incluir um novo. */
   id?: string;
   /** Campos a gravar, sempre na raiz do objeto — igual para cadastros fixos e telas do Form Design. */
@@ -51,7 +62,7 @@ interface UpsertResult {
 }
 
 interface RemoveSpec {
-  table: 'persons' | 'cases' | 'contracts' | 'deadlines' | 'financials' | (string & {});
+  table: ${tableUnion(collections)};
   id: string;
 }
 
@@ -255,4 +266,7 @@ export const buildScriptTypeDefs = (
   inputParams: WorkflowParameter[],
   functions: ExpressionFunctionDef[],
   screens: SchemaScreen[] = [],
-): string => `${STATIC_DEFS}\n\n${buildInputDef(inputParams, screens)}\n\n${buildFnDef(functions)}\n`;
+): string => {
+  const collections = screens.map((screen) => screen.collection ?? screen.id).sort();
+  return `${staticDefs(collections)}\n\n${buildInputDef(inputParams, screens)}\n\n${buildFnDef(functions)}\n`;
+};

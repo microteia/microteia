@@ -11,6 +11,11 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [7.40.0] — 2026-08-16
+
+- Corrigido: a Referência de Expressões, o catálogo de Steps e as listas de opções continuavam em inglês mesmo com o Português (Brasil) instalado.
+- Na documentação do Step Script, os exemplos deixaram de citar cadastros que hoje pertencem a extensões — as tabelas sugeridas passam a ser as telas realmente instaladas no escritório.
+
 #### [7.39.0] — 2026-08-16
 
 - Corrigido: quem já tinha instalado o Português (Brasil) continuava vendo partes do sistema em inglês — a Referência de Expressões, entre outras. O pacote de idioma ganhou uma versão nova, e o Marketplace passa a oferecer a atualização.

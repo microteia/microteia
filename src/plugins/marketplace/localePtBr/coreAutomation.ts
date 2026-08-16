@@ -167,7 +167,8 @@ export const CORE_AUTOMATION: Record<string, string> = {
   'parameter.ref.list': 'true indica que o valor é uma lista (vários itens) do tipo definido.',
   'parameter.ref.default': 'Valor padrão quando nada é informado (String, Number, Date, Boolean, select).',
   'parameter.ref.options': 'Lista de opções, ex.: ["Alta", "Média", "Baixa"].',
-  'parameter.ref.entity-type': 'Coleção referenciada, ex.: "persons", "cases".',
+  'parameter.ref.entity-type':
+    'Coleção referenciada, ex.: "products", "suppliers".',
   'parameter.ref.lookup-collection': 'Lista de opções do escritório, ex.: "caseStatuses", "personTypes".',
   'parameter.ref.fields': 'Objeto com os campos internos, no mesmo formato.',
   'parameter.json-example':
@@ -355,9 +356,12 @@ export const CORE_AUTOMATION: Record<string, string> = {
   'script.outputs': 'Parâmetros de saída',
   'script.outputs.hint': 'Declaram o que o script retorna, para facilitar o uso nos Steps seguintes.',
   'script.query-doc': 'Como consultar o banco (função query)',
-  'script.query-doc.example.city': 'Pessoas de uma cidade que tenham e-mail cadastrado',
-  'script.query-doc.example.count': 'Contar processos com valor de causa acima de R$ 10.000',
-  'script.query-doc.example.recent': 'Processos ativos, do mais recente ao mais antigo',
+  'script.query-doc.example.city':
+    'Registros de uma cidade que tenham e-mail cadastrado',
+  'script.query-doc.example.count':
+    'Contar registros com valor acima de 10.000',
+  'script.query-doc.example.recent':
+    'Registros ativos, do mais recente ao mais antigo',
   'script.query-doc.examples': 'Exemplos',
   'script.query-doc.lead':
     'A função query busca registros dos cadastros do escritório. Ela é assíncrona: use sempre await. Recebe um objeto de configuração e devolve { count, results, first }.',
@@ -383,7 +387,7 @@ export const CORE_AUTOMATION: Record<string, string> = {
     'Lista de campos a carregar por completo, inclusive dados de entidades referenciadas usando ponto (ex: client.name). Sem projeções, cada registro traz apenas seus campos diretos.',
   'script.query-doc.settings': 'Configurações',
   'script.query-doc.signature':
-    "const resultado = await query({ table: 'cases', where: [...] });\n// resultado.count   → quantos registros vieram\n// resultado.results → a lista de registros\n// resultado.first   → o primeiro registro (ou null)",
+    "const resultado = await query({ table: 'products', where: [...] });\n// resultado.count   → quantos registros vieram\n// resultado.results → a lista de registros\n// resultado.first   → o primeiro registro (ou null)",
   'script.query-doc.table':
     'A tabela a consultar: uma das coleções do escritório, ou o identificador de uma tela personalizada.',
   'script.query-doc.where':
@@ -397,7 +401,7 @@ export const CORE_AUTOMATION: Record<string, string> = {
   'script.error.no-modules':
     'Scripts não podem usar import, export ou require. Use apenas o objeto "input" e "fn.*".',
   'script.starter.comments':
-    "  // 'input' contém os parâmetros de entrada configurados no Step.\n  // 'fn.*' expõe as funções de expressão (ex: fn.formatDate, fn.dateDiff).\n  // 'query(...)' consulta os cadastros do escritório (assíncrono):\n  //   const r = await query({ table: 'cases',\n  //     where: [{ path: 'clientId', op: 'eq', value: input.clientId }],\n  //     projections: ['title'], limit: 10 });\n  //   // r = { count, results, first }",
+    "  // 'input' contém os parâmetros de entrada configurados no Step.\n  // 'fn.*' expõe as funções de expressão (ex: fn.formatDate, fn.dateDiff).\n  // 'query(...)' consulta os cadastros do escritório (assíncrono):\n  //   const r = await query({ table: 'products',\n  //     where: [{ path: 'ownerId', op: 'eq', value: input.ownerId }],\n  //     projections: ['name'], limit: 10 });\n  //   // r = { count, results, first }",
   'script.starter.return-comment':
     "    // preencha aqui os parâmetros de saída declarados",
   'condition.view.diagram': 'Diagrama lógico',

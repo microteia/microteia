@@ -1,5 +1,6 @@
-import { createContext, useContext } from 'react';
+import { createContext, useContext, useMemo } from 'react';
 import type { StepDefinitionSummary } from '../domain/entities/WorkflowStepCatalog';
+import { useLabel } from '../presentation/shared/i18n/useT';
 
 export interface StepCatalogContextValue {
   stepCatalog: StepDefinitionSummary[];
@@ -15,11 +16,39 @@ export const StepCatalogContext = createContext<StepCatalogContextValue | null>(
  * Chame `loadCatalog()` quando precisar garantir que o catálogo está carregado
  * (idempotente — não faz nada se já foi carregado).
  */
+/**
+ * A resolução dos rótulos acontece AQUI, no hook, e não no provedor.
+ *
+ * O provedor está montado acima do `TenantLocaleProvider` — que é onde os pacotes de idioma
+ * instalados no escritório entram — porque ele carrega um catálogo global, uma vez só. Resolver lá
+ * dentro pegava o catálogo de fora, só com o núcleo, e o escritório com português instalado via
+ * tudo em inglês. O hook, ao contrário, executa no ponto de CHAMADA, já dentro do idioma do tenant.
+ */
 export const useStepCatalog = (): StepCatalogContextValue => {
   const context = useContext(StepCatalogContext);
+  const label = useLabel();
   if (!context) {
     throw new Error('useStepCatalog deve ser usado dentro de StepCatalogProvider');
   }
-  return context;
+
+  const stepCatalog = useMemo(
+    () => context.stepCatalog.map((step) => ({
+      ...step,
+      name: label(step.name),
+      description: label(step.description),
+      inputs: step.inputs.map((input) => ({
+        ...input,
+        label: label(input.label, input.labelParams),
+        description: input.description === undefined ? undefined : label(input.description),
+      })),
+      outputDefinitions: step.outputDefinitions.map((output) => ({
+        ...output,
+        label: label(output.label),
+      })),
+    })),
+    [context.stepCatalog, label],
+  );
+
+  return { ...context, stepCatalog };
 };
 

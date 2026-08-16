@@ -168,7 +168,8 @@ export const CORE_AUTOMATION_MESSAGES: Record<string, string> = {
   'parameter.ref.list': 'true means the value is a list (several items) of the declared type.',
   'parameter.ref.default': 'Default value when nothing is given (String, Number, Date, Boolean, select).',
   'parameter.ref.options': 'Option list, e.g.: ["High", "Medium", "Low"].',
-  'parameter.ref.entity-type': 'Referenced collection, e.g.: "persons", "cases".',
+  'parameter.ref.entity-type':
+    'Referenced collection, e.g.: "products", "suppliers".',
   'parameter.ref.lookup-collection': 'Organization option list, e.g.: "caseStatuses", "personTypes".',
   'parameter.ref.fields': 'Object with the inner fields, in the same format.',
   'parameter.json-example':
@@ -356,9 +357,12 @@ export const CORE_AUTOMATION_MESSAGES: Record<string, string> = {
   'script.outputs': 'Output parameters',
   'script.outputs.hint': 'They declare what the script returns, to ease its use in the following Steps.',
   'script.query-doc': 'How to query the database (query function)',
-  'script.query-doc.example.city': 'People from a city who have an e-mail on file',
-  'script.query-doc.example.count': 'Count cases with a claim value above 10,000',
-  'script.query-doc.example.recent': 'Active cases, newest to oldest',
+  'script.query-doc.example.city':
+    'Records of a city that have an e-mail on file',
+  'script.query-doc.example.count':
+    'Count records with a value above 10,000',
+  'script.query-doc.example.recent':
+    'Active records, newest to oldest',
   'script.query-doc.examples': 'Examples',
   'script.query-doc.lead':
     'The query function fetches records from the organization data. It is asynchronous: always use await. It takes a configuration object and returns { count, results, first }.',
@@ -384,7 +388,7 @@ export const CORE_AUTOMATION_MESSAGES: Record<string, string> = {
     'A list of fields to load in full, including data from referenced entities using a dot (e.g. client.name). Without projections, each record brings only its direct fields.',
   'script.query-doc.settings': 'Settings',
   'script.query-doc.signature':
-    "const result = await query({ table: 'cases', where: [...] });\n// result.count   → how many records came back\n// result.results → the list of records\n// result.first   → the first record (or null)",
+    "const result = await query({ table: 'products', where: [...] });\n// result.count   → how many records came back\n// result.results → the list of records\n// result.first   → the first record (or null)",
   'script.query-doc.table':
     'The table to query: one of the organization collections, or the identifier of a custom screen.',
   'script.query-doc.where':
@@ -398,7 +402,7 @@ export const CORE_AUTOMATION_MESSAGES: Record<string, string> = {
   'script.error.no-modules':
     'Scripts cannot use import, export or require. Use only the "input" object and "fn.*".',
   'script.starter.comments':
-    "  // 'input' holds the input parameters configured in the Step.\n  // 'fn.*' exposes the expression functions (e.g. fn.formatDate, fn.dateDiff).\n  // 'query(...)' reads the organization records (asynchronous):\n  //   const r = await query({ table: 'cases',\n  //     where: [{ path: 'clientId', op: 'eq', value: input.clientId }],\n  //     projections: ['title'], limit: 10 });\n  //   // r = { count, results, first }",
+    "  // 'input' holds the input parameters configured in the Step.\n  // 'fn.*' exposes the expression functions (e.g. fn.formatDate, fn.dateDiff).\n  // 'query(...)' reads the organization records (asynchronous):\n  //   const r = await query({ table: 'products',\n  //     where: [{ path: 'ownerId', op: 'eq', value: input.ownerId }],\n  //     projections: ['name'], limit: 10 });\n  //   // r = { count, results, first }",
   'script.starter.return-comment':
     "    // fill in the declared output parameters here",
   'condition.view.diagram': 'Logic diagram',

@@ -213,9 +213,9 @@ export const ViewScriptView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
                     <S.Example>
                       <S.ExampleTitle>{t('script.query-doc.example.recent')}</S.ExampleTitle>
                       <S.Pre>{`const r = await query({
-  table: 'cases',
+  table: 'products',
   where: [{ path: 'status', op: 'eq', value: 'active' }],
-  orderBy: [{ path: 'filedAt', dir: 'desc' }],
+  orderBy: [{ path: 'createdAt', dir: 'desc' }],
   limit: 10,
 });
 log(r.count);`}</S.Pre>
@@ -223,22 +223,22 @@ log(r.count);`}</S.Pre>
                     <S.Example>
                       <S.ExampleTitle>{t('script.query-doc.example.count')}</S.ExampleTitle>
                       <S.Pre>{`const r = await query({
-  table: 'cases',
-  where: [{ path: 'causeValue', op: 'gte', value: 10000 }],
+  table: 'products',
+  where: [{ path: 'price', op: 'gte', value: 10000 }],
 });
 return { highValueTotal: r.count };`}</S.Pre>
                     </S.Example>
                     <S.Example>
                       <S.ExampleTitle>{t('script.query-doc.example.city')}</S.ExampleTitle>
                       <S.Pre>{`const r = await query({
-  table: 'persons',
+  table: 'suppliers',
   where: [
     { path: 'address.city', op: 'eq', value: 'Lisbon' },
     { path: 'email', op: 'exists' },
   ],
   projections: ['name', 'email'],
 });
-const names = r.results.map((p) => p.name);`}</S.Pre>
+const names = r.results.map((item) => item.name);`}</S.Pre>
                     </S.Example>
                   </S.Examples>
                 </S.DocGroup>

@@ -17,7 +17,6 @@ import { screenLookupCollections } from '../domain/services/screenDataCollection
 import type { SchemaLookup } from '../domain/schema/screenEntity';
 import type { LookupDefinition, LookupOption } from '../domain/entities';
 
-import { useLabel, useLocaleFormat } from '../presentation/shared/i18n/useT';
 import { LocalizedError } from '../domain/errors/LocalizedError';
 const BUILTIN_LOOKUPS: SchemaLookup[] = LOOKUP_REGISTRY_LIST.map((lookup) => ({
   collection: lookup.collection,
@@ -34,8 +33,6 @@ const EMPTY_OPTIONS: LookupOption[] = [];
  * caminho.
  */
 export const LookupStoreProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const label = useLabel();
-  const { compareText } = useLocaleFormat();
   const { currentTenant } = useTenant();
   const { user } = useAuth();
   const { definitions: screens } = useScreenDefinitions();
@@ -113,20 +110,9 @@ export const LookupStoreProvider: React.FC<{ children: React.ReactNode }> = ({ c
     setRecordRulesLookups(availableLookups);
   }, [availableLookups]);
 
-  /**
-   * O rótulo de uma opção FIXA é uma referência de mensagem; o de uma opção do escritório é o texto
-   * que ele digitou. Resolver aqui — e só aqui — deixa todo consumidor recebendo texto pronto, e é o
-   * único ponto em que a ordem alfabética pode ser a do idioma corrente em vez da do dado gravado.
-   */
   const getOptions = useCallback(
-    (collection: string): LookupOption[] => {
-      const options = optionsByCollection[collection] ?? EMPTY_OPTIONS;
-      if (options.length === 0) return EMPTY_OPTIONS;
-      return options
-        .map((option) => ({ ...option, label: label(option.label) }))
-        .sort((a, b) => compareText(a.label, b.label));
-    },
-    [optionsByCollection, label, compareText],
+    (collection: string): LookupOption[] => optionsByCollection[collection] ?? EMPTY_OPTIONS,
+    [optionsByCollection],
   );
 
   const addOption = useCallback(async (collection: string, label: string, color?: string) => {
