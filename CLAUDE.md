@@ -184,6 +184,40 @@ Arquivos `.tsx` exportam **apenas** componentes React. Hooks e tipos ficam em `.
 
 **O código e todo texto DENTRO do código são em inglês. Sem exceção.**
 
+### A regra que vale para todo texto novo
+
+Três condições, e as três valem juntas. Texto que falhe em qualquer uma **não entra**:
+
+1. **Todo texto que o usuário lê é traduzível.** Nasce como chave no catálogo, nunca como frase
+   solta no código — nem em português, nem em inglês.
+2. **O texto padrão é em inglês.** É ele que fica em `src/plugins/messages/`, e é ele que aparece
+   para quem não tem tradução instalada.
+3. **A tradução para pt-BR é obrigatória, no mesmo commit.** Toda chave nova em
+   `src/plugins/messages/` exige a entrada correspondente em `src/plugins/marketplace/localePtBr/`.
+
+**Texto que não puder ser traduzido não pode ser incluído.** Não existe "depois eu traduzo" nem
+"esse é pequeno demais": um texto sem chave é um texto que nenhum escritório fora do Brasil verá no
+idioma dele, e ele só reaparece quando alguém o encontra na tela — por acaso, meses depois. Se a
+frase não cabe no catálogo, o problema é a frase, não o catálogo: reescreva-a até caber, ou não a
+mostre.
+
+**Acrescentar texto NÃO é motivo para mexer no kernel.** O mecanismo já existe e cobre todos os
+casos — `useT('namespace')` no componente, referência `@namespace/chave` no que é declarativo,
+`{ message, messageParams }` no que nasce no domínio ou no backend. Precisar de um caminho novo é
+sinal de que o texto está no lugar errado, não de que falta capacidade no núcleo.
+
+O que o gate cobra sozinho, e por que confiar nele em vez da leitura atenta:
+
+| Verificação | O que pega |
+|---|---|
+| `eslint --max-warnings 0` | frase literal em JSX, atributo, propriedade ou template — em qualquer idioma |
+| `npm run verify-messages` | chave usada que não existe, chave pt-BR órfã, chave declarada duas vezes |
+| `localePilot.test.ts` | chave publicada em `en` sem par em pt-BR |
+| impressão digital do pacote | catálogo alterado sem subir o `version` do pacote de idioma |
+
+Nenhuma dessas quatro é opcional, e nenhuma existe por precaução: cada uma foi escrita **depois** de
+o defeito correspondente chegar à tela.
+
 O inglês é o idioma-fonte do produto (`DEFAULT_LOCALE = 'en'`). Português é uma **tradução**, e vive
 exclusivamente no pacote `com.microteia.locale-pt-br` — nunca no núcleo.
 
@@ -215,9 +249,6 @@ throw notFound('error.workflow.not-found');   // resolvido no front pelo catálo
 Rótulo **declarativo** (manifest, contribuição, catálogo servido pelo backend) não usa `useT`: usa a
 referência `@namespace/chave`, resolvida por `useLabel()` no ponto de render. Ver "Idioma — tradução
 como contribuição" no `ARCHITECTURE.md`.
-
-Toda chave nova em `src/plugins/messages/` exige a entrada correspondente em
-`src/plugins/marketplace/localePtBr/` — `localePilot.test.ts` falha se faltar.
 
 **O que NUNCA entra no catálogo:** o que o escritório digitou (nome de tela do Form Design, rótulo de
 campo, opção de lista). Isso é dado do tenant, não texto do produto, e passa intacto por `useLabel()`.
@@ -305,7 +336,7 @@ O `ARCHITECTURE.md` **não** guarda cópia das regras; a tabela de índices que 
 - [ ] Styled-components com prefixo `$` nas props customizadas; zero valor hardcoded (tudo via tema)
 - [ ] Nenhum `style={{}}` inline desnecessário; nenhum `className`
 - [ ] Nenhum comentário desnecessário no código
-- [ ] **Zero frase em português destinada ao usuário**: texto novo nasce em inglês no catálogo `en` e ganha a chave correspondente no pacote pt-BR
+- [ ] **Nenhuma frase solta destinada ao usuário, em idioma nenhum**: todo texto novo nasce como chave em inglês no catálogo `en` E ganha a tradução pt-BR no mesmo commit; texto que não puder ser traduzido não entra (ver "Idioma")
 - [ ] `npx tsc -b --force` sem erros (ou `npm run typecheck`)
 - [ ] `npx eslint . --max-warnings 0` sem erros **nem warnings**
 - [ ] **Antes de commitar:** `version` incrementada em `package.json` + entrada nova no topo de `VERSIONS.md` (linguagem de usuário, diferente da mensagem de commit)

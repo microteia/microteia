@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [7.40.1] — 2026-08-16
+
+- Registrada a regra de idioma do produto: todo texto que aparece na tela precisa ser traduzível, nasce em inglês e chega com a tradução para português no mesmo momento.
+
 #### [7.40.0] — 2026-08-16
 
 - Corrigido: a Referência de Expressões, o catálogo de Steps e as listas de opções continuavam em inglês mesmo com o Português (Brasil) instalado.
