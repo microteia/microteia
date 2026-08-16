@@ -11,6 +11,11 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [7.36.0] — 2026-08-15
+
+- Corrigido: na Auditoria aparecia o nome interno da coleção ("contracts") no lugar do nome da tela ("Contrato"). O nome passou a vir sempre da tela instalada, então vale para qualquer extensão, traduzida ou não.
+- Com isso, renomear uma tela passa a valer também para os registros de auditoria já gravados.
+
 #### [7.35.1] — 2026-08-15
 
 - Corrigido: na Auditoria, o resumo e o título continuavam mostrando códigos como `{user}` e `{action}` no lugar dos nomes, mesmo depois da correção anterior.

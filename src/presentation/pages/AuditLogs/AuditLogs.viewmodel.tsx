@@ -163,12 +163,21 @@ export const useAuditLogsViewModel = (): AuditLogsViewModel => {
 
     // Resolve ANTES de filtrar: a busca passa a comparar com o texto que está na tela, e não com
     // a chave.
+    //
+    // O nome da entidade é injetado AQUI, e não lido do que o backend gravou. Quem sabe como a
+    // coleção se chama é a tela instalada hoje — a mesma fonte do crachá ao lado. Vindo do log, o
+    // nome ficaria congelado no dia da gravação e dependeria de o backend ter a tela em cache; foi
+    // assim que "contracts" apareceu no lugar de "Contrato".
     return logs
-      .map((log) => ({
-        ...log,
-        title: label(log.title, log.titleParams),
-        text: label(log.text, log.textParams),
-      }))
+      .map((log) => {
+        const entity = entityLabel(t, label, log.entity, dynamicScreens);
+        return {
+          ...log,
+          entityName: entity,
+          title: label(log.title, { ...log.titleParams, entity }),
+          text: label(log.text, { ...log.textParams, entity }),
+        };
+      })
       .filter((log) => {
         if (entityFilter && log.entity !== entityFilter) return false;
         if (actionFilter && log.action !== actionFilter) return false;
@@ -180,7 +189,7 @@ export const useAuditLogsViewModel = (): AuditLogsViewModel => {
         log,
         expanded: expandedIds.has(log.id),
         tenantName: isSystem ? (tenantsById.get(log.tenantId)?.name ?? null) : null,
-        entityLabel: entityLabel(t, label, log.entity, dynamicScreens),
+        entityLabel: log.entityName,
       }));
   }, [logs, tokenMap, expandedIds, isSystem, tenantsById, dynamicScreens, label, t]);
 

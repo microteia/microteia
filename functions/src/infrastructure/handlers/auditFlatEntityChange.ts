@@ -68,17 +68,14 @@ export const auditFlatEntityChange = onDocumentWritten(
         ? { name: denormalizedName, photoURL: denormalizedPhoto ?? '' }
         : await getDI().getUserProfileLookupService().resolveActor(actorUid);
 
-      const auditText = buildAuditText(action, config.entityLabel, displayName, actor.name, diff);
+      const auditText = buildAuditText(action, displayName, actor.name, diff);
       const entityLink = config.getEntityLink?.(tenantId, docId, undefined, referenceData);
 
       await getDI().getCreateAuditLogUseCase().execute({
         tenantId,
         title: '@core.admin/audit.title',
-        titleParams: {
-          ...config.entityLabelPluralParams,
-          action: ACTION_TITLE[action],
-          entity: config.entityLabelPlural,
-        },
+        // `entity` fica de fora pelo mesmo motivo do texto: quem o preenche é a tela que exibe.
+        titleParams: { action: ACTION_TITLE[action] },
         userId: actorUid || 'system',
         userName: actor.name,
         photoURL: actor.photoURL,
@@ -90,9 +87,7 @@ export const auditFlatEntityChange = onDocumentWritten(
         linkCollection: collection,
         linkRecordId: docId,
         text: auditText.message,
-        // Os parâmetros do RÓTULO da entidade sobem para o mesmo objeto: `{entity}` é ele próprio
-        // uma referência ("Nota de {name}"), e resolvê-la exige o `{name}` ao lado.
-        textParams: { ...config.entityLabelParams, ...auditText.messageParams },
+        textParams: auditText.messageParams,
       });
     } catch (error) {
       await logAuditError(tenantId, collection, docId, error);

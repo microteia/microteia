@@ -106,9 +106,13 @@ const jsonBlock = (mark: string, data: EntityData): string =>
  * Os blocos podem ser parâmetro porque não têm mais texto dentro: são símbolo e JSON, iguais em
  * qualquer idioma.
  */
+/**
+ * O `{entity}` da frase NÃO sai daqui: quem sabe como a coleção se chama é a tela instalada no
+ * momento em que alguém lê o log, e é a tela de Auditoria que o injeta. Gravar o nome aqui o
+ * congelaria no dia da gravação e ainda dependeria de o cache de schema do backend estar quente.
+ */
 export const buildAuditText = (
   action: AuditAction,
-  entityLabel: string,
   displayName: string,
   userName: string,
   diff?: { before?: EntityData; after?: EntityData },
@@ -119,7 +123,7 @@ export const buildAuditText = (
 
   return {
     message: ACTION_TEXT_KEYS[action],
-    messageParams: { user: userName, entity: entityLabel, name: displayName, blocks },
+    messageParams: { user: userName, name: displayName, blocks },
   };
 };
 

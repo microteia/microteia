@@ -5,13 +5,13 @@ import { RESERVED_COLLECTIONS, resolveEntity } from '../schema/screenEntity';
 
 type EntityData = Record<string, unknown>;
 
+/**
+ * Não há rótulo aqui, e é de propósito: quem nomeia a coleção é a tela instalada no momento em que
+ * alguém lê o log, e é a tela de Auditoria que o resolve. O que a auditoria grava é a IDENTIDADE
+ * (`entityKey`), que sobrevive a uma renomeação.
+ */
 export interface AuditableEntityConfig {
   entityKey: string;
-  /** REFERÊNCIA de mensagem, ou o rótulo que o escritório digitou; os `*Params` interpolam. */
-  entityLabel: string;
-  entityLabelParams?: Record<string, string>;
-  entityLabelPlural: string;
-  entityLabelPluralParams?: Record<string, string>;
   getDisplayName: (data: EntityData) => string;
   getEntityLink?: (tenantId: string, docId: string, parentId?: string, data?: EntityData) => string;
   /** Restringe quais ações geram log (ex: Pushes só audita UPDATE/DELETE). Sem isso, audita CREATE/UPDATE/DELETE. */
@@ -27,26 +27,18 @@ export const asString = (v: unknown, fallback = '@core.admin/audit.entity.unname
 const FLAT_ENTITY_CONFIG: Record<string, AuditableEntityConfig> = {
   members: {
     entityKey: 'TenantMember',
-    entityLabel: '@core.admin/audit.entity.tenant-member',
-    entityLabelPlural: '@core.admin/audit.entity.tenant-member.plural',
     getDisplayName: (d) => asString(d.displayName ?? d.email),
   },
   personTags: {
     entityKey: 'PersonTag',
-    entityLabel: '@core.admin/audit.entity.person-tag',
-    entityLabelPlural: '@core.admin/audit.entity.person-tag.plural',
     getDisplayName: (d) => asString(d.name),
   },
   caseTags: {
     entityKey: 'CaseTag',
-    entityLabel: '@core.admin/audit.entity.case-tag',
-    entityLabelPlural: '@core.admin/audit.entity.case-tag.plural',
     getDisplayName: (d) => asString(d.name),
   },
   pushes: {
     entityKey: 'Push',
-    entityLabel: '@core.admin/audit.entity.push',
-    entityLabelPlural: '@core.admin/audit.entity.push.plural',
     getDisplayName: (d) => asString(d.subject ?? d.processNumber, 'Push'),
     // Criação é automática (Cloud Function do webhook do Gmail) — só interessa auditar
     // a triagem manual (mudança de status) e a exclusão.
@@ -54,8 +46,6 @@ const FLAT_ENTITY_CONFIG: Record<string, AuditableEntityConfig> = {
   },
   screenDefinitions: {
     entityKey: 'ScreenDefinition',
-    entityLabel: '@core.admin/audit.entity.screen-definition',
-    entityLabelPlural: '@core.admin/audit.entity.screen-definition.plural',
     getDisplayName: (d) => asString(d.titlePlural ?? d.titleSingular),
     getEntityLink: () => 'screen-builder',
   },
@@ -65,16 +55,12 @@ const NESTED_ENTITY_CONFIG: Record<string, Record<string, AuditableEntityConfig>
   __screenRecord__: {
     notes: {
       entityKey: 'RecordNote',
-      entityLabel: '@core.admin/audit.entity.record-note',
-      entityLabelPlural: '@core.admin/audit.entity.record-note.plural',
       getDisplayName: (d) => truncate(asString(d.title ?? d.text, 'Nota'), 60),
       getEntityLink: (_tenantId, _docId, parentId, data) =>
         `view-dyn:${asString(data?.collection, '')}:${parentId}`,
     },
     documents: {
       entityKey: 'CustomRecordDocument',
-      entityLabel: '@core.admin/audit.entity.custom-record-document',
-      entityLabelPlural: '@core.admin/audit.entity.custom-record-document.plural',
       getDisplayName: (d) => asString(d.name),
       getEntityLink: (_tenantId, _docId, parentId, data) =>
         `view-dyn:${asString(data?.screenKey, '')}:${parentId}`,
@@ -83,8 +69,6 @@ const NESTED_ENTITY_CONFIG: Record<string, Record<string, AuditableEntityConfig>
   screenDefinitions: {
     tags: {
       entityKey: 'CustomRecordTag',
-      entityLabel: '@core.admin/audit.entity.custom-record-tag',
-      entityLabelPlural: '@core.admin/audit.entity.custom-record-tag.plural',
       getDisplayName: (d) => asString(d.name),
       getEntityLink: (_tenantId, _docId, parentId) => `dyn:${parentId}`,
     },
@@ -114,41 +98,25 @@ const declaredName = (d: EntityData, entity: EntityMetadata | undefined): string
  */
 const screenRecordConfig = (collection: string, entity?: EntityMetadata): AuditableEntityConfig => ({
   entityKey: collection,
-  entityLabel: entity?.labelSingular ?? '@core.admin/audit.entity.record',
-  entityLabelPlural: entity?.labelPlural ?? '@core.admin/audit.entity.record.plural',
   getDisplayName: (d) => declaredName(d, entity) ?? heuristicName(d),
   getEntityLink: (_tenantId, docId) => `view-dyn:${collection}:${docId}`,
 });
 
-/** "Nota de Contrato" muda de ordem conforme o idioma, então a composição inteira é a chave. */
-const NESTED_SCREEN_LABELS: Record<string, { singular: string; plural: string }> = {
-  notes: {
-    singular: '@core.admin/audit.entity.note-of',
-    plural: '@core.admin/audit.entity.note-of.plural',
-  },
-  documents: {
-    singular: '@core.admin/audit.entity.document-of',
-    plural: '@core.admin/audit.entity.document-of.plural',
-  },
-};
+/** As subcoleções que ganham identidade própria: `contracts#notes` em vez de só `contracts`. */
+const NESTED_SCREEN_PARTS = new Set(['notes', 'documents']);
 
-/** A nota e o documento herdam a identidade do registro a que pertencem: "Nota de Contrato". */
+/**
+ * A nota e o documento pertencem ao registro, e a chave do log diz isso — `contracts#notes`. O nome
+ * ("Nota de Contrato") é montado na exibição, a partir da tela que descreve o pai hoje.
+ */
 const screenNestedConfig = (
   base: AuditableEntityConfig,
   parentCollection: string,
   subCollection: string,
   entity?: EntityMetadata,
 ): AuditableEntityConfig => {
-  const labels = NESTED_SCREEN_LABELS[subCollection];
-  if (!entity || !labels) return base;
-  return {
-    ...base,
-    entityKey: `${parentCollection}#${subCollection}`,
-    entityLabel: labels.singular,
-    entityLabelParams: { name: entity.labelSingular },
-    entityLabelPlural: labels.plural,
-    entityLabelPluralParams: { name: entity.labelPlural },
-  };
+  if (!entity || !NESTED_SCREEN_PARTS.has(subCollection)) return base;
+  return { ...base, entityKey: `${parentCollection}#${subCollection}` };
 };
 
 const isScreenCollection = (collection: string): boolean =>
