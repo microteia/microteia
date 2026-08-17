@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [7.46.0] — 2026-08-17
+
+- A Microteia passou a poder ser instalada no ambiente do próprio escritório. O sistema agora descobre a que instalação pertence no momento em que abre, em vez de já vir preso a um endereço definido antes da entrega — é o primeiro passo para que cada escritório mantenha a sua própria Microteia, com os seus dados sob o seu controle.
+
 #### [7.45.0] — 2026-08-17
 
 - As abas de trabalho agora têm os cantos de cima arredondados e se ligam à página aberta, como as abas de um navegador. A aba em uso é marcada por um traço da cor do sistema no alto, e as réguas que separavam uma aba da outra saíram.
