@@ -23,7 +23,6 @@ const mapTenant = (id: string, d: Record<string, unknown>): Tenant => ({
   id,
   name: d.name as string,
   ownerId: d.ownerId as string,
-  cnpj: (d.cnpj as string | null) ?? null,
   email: (d.email as string | null) ?? null,
   phone: (d.phone as string | null) ?? null,
   address: (d.address as string | null) ?? null,

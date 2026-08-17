@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [7.44.0] — 2026-08-17
+
+- O campo de CNPJ saiu do cadastro do Escritório. Ele era um documento de um país só, preso num formulário que vale para qualquer lugar — e agora quem precisa dele o acrescenta em Personalizar Telas, no formato do seu país, junto com a inscrição estadual e o que mais o escritório quiser guardar.
+
 #### [7.43.0] — 2026-08-16
 
 - A tela do Escritório virou uma extensão do sistema — sempre presente e impossível de remover, como as aparências Escuro e Claro. Nada muda de lugar: o que muda é o que ela passa a permitir.

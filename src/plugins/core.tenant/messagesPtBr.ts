@@ -51,7 +51,6 @@ const CORE_TENANT_PT_BR: Record<string, string> = {
   'office.required': 'Preencha os campos obrigatórios.',
   'office.save-failed': 'Erro ao atualizar escritório.',
   'office.saved': 'Escritório atualizado com sucesso!',
-  'office.tax-id': 'CNPJ',
   'role.admin': 'Administrador',
   'role.lawyer': 'Advogado',
   'role.secretary': 'Secretário(a)',

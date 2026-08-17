@@ -91,7 +91,7 @@ describe('core.tenant — o formulário do escritório é dado', () => {
    */
   it('deriva os campos do escritório pelo caminho comum a todas as telas', () => {
     const fields = deriveFormFields(createSchemaContext(), 'tenant');
-    expect(fields.map((field) => field.key)).toEqual(['name', 'cnpj', 'email', 'phone', 'address']);
+    expect(fields.map((field) => field.key)).toEqual(['name', 'email', 'phone', 'address']);
     expect(fields.every((field) => field.origin === 'builtin')).toBe(true);
   });
 

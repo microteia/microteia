@@ -266,7 +266,6 @@ interface Tenant {
   id: string;
   name: string;              // "Escritório Silva & Associados"
   ownerId: string;           // userId do criador/dono
-  cnpj?: string | null;
   email?: string | null;
   phone?: string | null;
   address?: string | null;

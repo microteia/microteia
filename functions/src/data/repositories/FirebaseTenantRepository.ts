@@ -12,7 +12,6 @@ export class FirebaseTenantRepository implements ITenantRepository {
     const payload = {
       name: data.name,
       ownerId: data.ownerId,
-      cnpj: null,
       email: data.email,
       phone: null,
       address: null,
@@ -42,7 +41,6 @@ export class FirebaseTenantRepository implements ITenantRepository {
         id: doc.id,
         name: data.name,
         ownerId: data.ownerId,
-        cnpj: data.cnpj ?? null,
         email: data.email ?? null,
         phone: data.phone ?? null,
         address: data.address ?? null,

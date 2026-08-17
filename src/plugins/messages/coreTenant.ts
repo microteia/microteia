@@ -41,7 +41,6 @@ export const CORE_TENANT_MESSAGES: Record<string, string> = {
   'office.required': 'Fill in the required fields.',
   'office.save-failed': 'Could not update the organization.',
   'office.saved': 'Organization updated successfully.',
-  'office.tax-id': 'Tax ID',
   'role.admin': 'Administrator',
   'role.lawyer': 'Lawyer',
   'role.secretary': 'Secretary',
