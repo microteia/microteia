@@ -12,6 +12,14 @@ dist
 dist-ssr
 *.local
 
+# Console da Microteia: o compilado da CLI e os pacotes de distribuição gerados
+cli/lib
+distributions
+
+# Instalação local (Console): descreve um ambiente do cliente, nunca o repositório
+microteia.yaml
+.microteia/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

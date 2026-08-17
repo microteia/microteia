@@ -66,7 +66,7 @@ const MIGRATED_TO_SOURCE_LANGUAGE = [
 ]
 
 export default defineConfig([
-  globalIgnores(['dist', 'functions/lib']),
+  globalIgnores(['dist', 'functions/lib', 'cli/lib', 'distributions']),
   {
     files: ['**/*.{ts,tsx}'],
     extends: [
@@ -77,6 +77,15 @@ export default defineConfig([
     ],
     languageOptions: {
       globals: globals.browser,
+    },
+  },
+  // O Console roda em Node, não no navegador: sem isto `process`, `Buffer` e `NodeJS` viram
+  // no-undef. Ele também não é produto — é ferramenta de instalação —, então fica fora da zona de
+  // idioma-fonte, pelo mesmo motivo que `scripts/` está.
+  {
+    files: ['cli/**/*.ts'],
+    languageOptions: {
+      globals: globals.node,
     },
   },
   // Princípio nº 1: o Kernel nunca conhece plugins. Estas zonas fazem o ESLint reprovar a

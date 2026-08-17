@@ -11,6 +11,11 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [7.47.0] — 2026-08-17
+
+- A Microteia passou a poder ser empacotada para instalação. Uma versão do sistema pode ser preparada como um pacote fechado, que leva tudo o que é preciso para funcionar num ambiente próprio — inclusive um espaço reservado para as automações de servidor que o escritório venha a escrever, que sobrevivem às atualizações do sistema.
+- O pacote é conferido antes de ser fechado: se por engano ele levar consigo o endereço de outro ambiente, a preparação é interrompida em vez de gerar uma instalação que apontaria para o lugar errado.
+
 #### [7.46.0] — 2026-08-17
 
 - A Microteia passou a poder ser instalada no ambiente do próprio escritório. O sistema agora descobre a que instalação pertence no momento em que abre, em vez de já vir preso a um endereço definido antes da entrega — é o primeiro passo para que cada escritório mantenha a sua própria Microteia, com os seus dados sob o seu controle.
