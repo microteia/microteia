@@ -23,6 +23,7 @@ export const coreMessage = (namespace: string, messages: Record<string, string>)
 
 export { CORE_UI_MESSAGES } from './coreUi';
 export { CORE_ADMIN_MESSAGES } from './coreAdmin';
+export { CORE_TENANT_MESSAGES } from './coreTenant';
 export { CORE_MARKETPLACE_MESSAGES } from './coreMarketplace';
 export { CORE_RECORDS_MESSAGES } from './coreRecords';
 export { CORE_WORKSPACE_MESSAGES } from './coreWorkspace';

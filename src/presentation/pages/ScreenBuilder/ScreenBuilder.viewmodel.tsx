@@ -673,13 +673,15 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
     [dynamicDefinitions],
   );
 
+  // O rótulo de uma tela fixa é declarado no registro como REFERÊNCIA (`@core.tenant/entity.plural`),
+  // pelo mesmo motivo que o de uma tela de extensão: quem declara não sabe em que idioma será lido.
   const builtinRows = useMemo<BuiltinScreenRow[]>(
     () => BUILTIN_SCREENS.map((b) => ({
       key: b.key,
-      label: b.label,
+      label: label(b.label),
       fields: resolvedFieldsByScreen[b.key] ?? [],
     })),
-    [resolvedFieldsByScreen],
+    [resolvedFieldsByScreen, label],
   );
 
   const dynamicListEntries = useMemo<ScreenListEntry[]>(
@@ -693,15 +695,25 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
     [dynamicDefinitions, fieldsByScreen, t],
   );
 
+  /**
+   * O painel é "campos adicionais nas telas do sistema", então o número que importa ali é o que o
+   * ESCRITÓRIO acrescentou. Contar a lista inteira diria "5 campos adicionais" numa tela em que
+   * ninguém acrescentou nada — os cinco são do kernel.
+   */
+  const extraFieldCount = useCallback(
+    (fields: FieldDefinition[]) => fields.filter((field) => field.origin !== 'builtin').length,
+    [],
+  );
+
   const builtinListEntries = useMemo<ScreenListEntry[]>(
     () => builtinRows.map((row) => ({
       key: row.key,
       icon: 'apps',
       title: row.label,
-      meta: `${row.fields.length} campo(s) adicional(is)`,
+      meta: t('screen.meta.extra-fields', { count: extraFieldCount(row.fields) }),
       disabled: false,
     })),
-    [builtinRows],
+    [builtinRows, t, extraFieldCount],
   );
 
   const selectedKey = useMemo(() => {
@@ -711,6 +723,20 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
   }, [selectedKeyState, dynamicListEntries, builtinListEntries]);
 
   const selectScreen = useCallback((key: string) => setSelectedKeyState(key), []);
+
+  /**
+   * O rótulo do campo é EXIBIDO resolvido e EDITADO cru.
+   *
+   * Um campo declarado em código traz uma referência (`@core.tenant/office.name`), e mostrá-la como
+   * está seria mostrar o endereço em vez do texto. Mas o modal de edição continua lendo
+   * `resolvedField`, que guarda a referência: preencher o campo "Rótulo" com o texto já traduzido
+   * congelaria a tradução no escritório assim que alguém salvasse a tela sem mexer no rótulo — e o
+   * inglês nunca mais voltaria para essa tela.
+   */
+  const forDisplay = useCallback(
+    (fields: FieldDefinition[]) => fields.map((field) => ({ ...field, label: label(field.label) })),
+    [label],
+  );
 
   const selectedScreen = useMemo<SelectedScreenState | null>(() => {
     if (!selectedKey) return null;
@@ -726,7 +752,7 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
         enabled: def.enabled,
         canMoveUp: dynIndex > 0,
         canMoveDown: dynIndex < dynamicDefinitions.length - 1,
-        fields: fieldsByScreen[def.id] ?? [],
+        fields: forDisplay(fieldsByScreen[def.id] ?? []),
       };
     }
     const row = builtinRows.find((r) => r.key === selectedKey);
@@ -736,15 +762,15 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
         key: row.key,
         icon: 'apps',
         title: row.label,
-        meta: `${row.fields.length} campo(s) adicional(is)`,
+        meta: t('screen.meta.extra-fields', { count: extraFieldCount(row.fields) }),
         enabled: true,
         canMoveUp: false,
         canMoveDown: false,
-        fields: row.fields,
+        fields: forDisplay(row.fields),
       };
     }
     return null;
-  }, [selectedKey, dynamicDefinitions, builtinRows, fieldsByScreen, t]);
+  }, [selectedKey, dynamicDefinitions, builtinRows, fieldsByScreen, t, forDisplay, extraFieldCount]);
 
   const getDefinitionByKey = useCallback(
     (screenKey: string) => definitions.find((def) => def.id === screenKey),
@@ -1287,10 +1313,10 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
     }
 
     return [
-      ...BUILTIN_SCREENS.map((b) => ({ value: b.key, label: b.label })),
+      ...BUILTIN_SCREENS.map((b) => ({ value: b.key, label: label(b.label) })),
       ...byCollection.values(),
     ];
-  }, [dynamicScreens, fieldModal, getDefinitionByKey]);
+  }, [dynamicScreens, fieldModal, getDefinitionByKey, label]);
 
   const lookupOptions = useMemo<SearchSelectOption[]>(
     () => availableLookups.map((lookup) => ({ value: lookup.collection, label: `${lookup.label} (${lookup.collection})` })),
@@ -1771,7 +1797,7 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
     setScreenModalTab,
     screenModalTitle: screenModalIsBuiltin
       ? t('screen.modal.builtin', {
-        name: BUILTIN_SCREENS.find((b) => b.key === screenModal?.screenKey)?.label ?? t('screen.fallback'),
+        name: label(BUILTIN_SCREENS.find((b) => b.key === screenModal?.screenKey)?.label) || t('screen.fallback'),
       })
       : t(screenModal?.screenKey ? 'screen.modal.edit' : 'screen.modal.new'),
     screenForm,

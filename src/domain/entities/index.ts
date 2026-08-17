@@ -110,6 +110,21 @@ export interface Tenant {
   updatedAt: Date;
 }
 
+/**
+ * O que se pode GRAVAR no escritório: os campos que o kernel declara mais os que o escritório
+ * acrescentou pelo Form Design.
+ *
+ * O documento do escritório deixou de ter forma fechada quando a tela dele virou plugin: a entidade
+ * `tenant` do registro é editável no Form Design como qualquer outra, e um campo criado lá grava na
+ * RAIZ do documento — a mesma convenção das telas fixas, sem envelope. O tipo diz isso em vez de
+ * fingir que a forma continua fechada.
+ *
+ * Ler continua tipado: `Tenant` segue fechado, e quem precisa de um campo acrescentado o lê pelo
+ * nome, como se lê qualquer campo customizado.
+ */
+export type TenantUpdate =
+  Partial<Omit<Tenant, 'id' | 'ownerId' | 'createdAt'>> & Record<string, unknown>;
+
 export interface TenantMember {
   userId: string;
   tenantId: string;

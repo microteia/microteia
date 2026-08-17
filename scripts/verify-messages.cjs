@@ -15,6 +15,7 @@ const SRC = path.join(ROOT, 'src');
 const MODULE_BY_NS = {
   'core.ui': 'coreUi',
   'core.admin': 'coreAdmin',
+  'core.tenant': 'coreTenant',
   'core.marketplace': 'coreMarketplace',
   'core.records': 'coreRecords',
   'core.workspace': 'coreWorkspace',
@@ -23,6 +24,28 @@ const MODULE_BY_NS = {
   'core.automation': 'coreAutomation',
   'core.data': 'coreData',
   'core.license': 'coreLicense',
+};
+
+/**
+ * Onde mora a tradução pt-BR de cada namespace.
+ *
+ * O normal é o pacote de idioma: um pacote traduz o núcleo inteiro, instala e desinstala. Mas um
+ * plugin pode chegar com a própria tradução — é a tendência natural de quem escreve uma extensão, e
+ * o mecanismo é o mesmo (uma contribuição `i18n.messages`). O que muda é só o ARQUIVO, e é isto que
+ * o gate precisa saber para continuar cobrando o par de cada chave.
+ */
+const PT_BR_LOCALE_PACKAGE = { dir: path.join('marketplace', 'localePtBr') };
+
+const PT_BR_CATALOG_BY_NS = {
+  'core.tenant': { dir: 'core.tenant', module: 'messagesPtBr' },
+};
+
+const ptBrCatalog = (ns, moduleName) => {
+  const declared = PT_BR_CATALOG_BY_NS[ns];
+  return {
+    dir: path.join(SRC, 'plugins', declared?.dir ?? PT_BR_LOCALE_PACKAGE.dir),
+    module: declared?.module ?? moduleName,
+  };
 };
 
 const walk = (dir, out = []) => {
@@ -72,8 +95,12 @@ const duplicates = [];
 // Chave repetida no mesmo catálogo é silenciosa em JS — a última vence — e desfaz uma tradução
 // anterior sem aviso. Aqui ela para o gate.
 for (const [ns, moduleName] of Object.entries(MODULE_BY_NS)) {
-  for (const dir of ['messages', path.join('marketplace', 'localePtBr')]) {
-    const file = path.join(SRC, 'plugins', dir, `${moduleName}.ts`);
+  const translated = ptBrCatalog(ns, moduleName);
+  const files = [
+    path.join(SRC, 'plugins', 'messages', `${moduleName}.ts`),
+    path.join(translated.dir, `${translated.module}.ts`),
+  ];
+  for (const file of files) {
     if (!fs.existsSync(file)) continue;
     const seen = new Set();
     for (const match of fs.readFileSync(file, 'utf8').matchAll(/^\s*'([^']+)':/gm)) {
@@ -109,8 +136,8 @@ for (const file of walk(SRC)) {
 
 for (const [ns, moduleName] of Object.entries(MODULE_BY_NS)) {
   const source = catalogKeys(path.join(SRC, 'plugins', 'messages'), moduleName);
-  const translated = catalogKeys(path.join(SRC, 'plugins', 'marketplace', 'localePtBr'), moduleName);
-  for (const key of translated) {
+  const ptBr = ptBrCatalog(ns, moduleName);
+  for (const key of catalogKeys(ptBr.dir, ptBr.module)) {
     if (!source.has(key)) orphans.push(`${ns}/${key}`);
   }
 }

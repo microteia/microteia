@@ -18,9 +18,9 @@ export const SCHEMA_VERSION = 1;
 export type EntityKey = string;
 
 /** As entidades nativas do Microteia. Mantida como união só para documentar o conjunto fixo. */
-export type BuiltinEntityKey = 'members';
+export type BuiltinEntityKey = 'members' | 'tenant';
 
-export const BUILTIN_ENTITY_KEYS: readonly BuiltinEntityKey[] = ['members'] as const;
+export const BUILTIN_ENTITY_KEYS: readonly BuiltinEntityKey[] = ['members', 'tenant'] as const;
 
 export type NativeFieldType = 'string' | 'number' | 'boolean' | 'date' | 'stringArray' | 'object';
 
@@ -124,6 +124,60 @@ export const ENTITY_REGISTRY: Record<EntityKey, EntityMetadata> = {
     fks: [],
     supportsCustomFields: false,
     referenceable: true,
+  },
+  /**
+   * O ESCRITÓRIO. Está aqui — e não numa extensão, como Pessoa ou Processo — porque o tenant é a
+   * entidade do próprio kernel: sem ele não há dado, não há regra e não há a quem instalar coisa
+   * alguma. Declará-lo é o que permite ao escritório acrescentar campos ao próprio cadastro pelo
+   * Form Design, como já faz com qualquer outra tela.
+   *
+   * O registro é UM só, e ele não vive numa subcoleção: é o documento `tenants/{tenantId}`. Por isso
+   * a entidade não é `referenceable` (não há lista de onde escolher um) e a tela que a apresenta é a
+   * aba "Dados do Escritório", que lê e grava esse documento — não uma listagem.
+   */
+  tenant: {
+    key: 'tenant',
+    collection: 'tenant',
+    labelSingular: '@core.tenant/entity.singular',
+    labelPlural: '@core.tenant/entity.plural',
+    displayNameFields: ['name'],
+    referenceDenormFields: ['name'],
+    fields: [
+      {
+        key: 'name',
+        label: '@core.tenant/office.name',
+        type: 'string',
+        required: true,
+        ui: { order: 0, placeholder: '@core.tenant/office.name.placeholder' },
+      },
+      {
+        key: 'cnpj',
+        label: '@core.tenant/office.tax-id',
+        type: 'string',
+        ui: { order: 1 },
+      },
+      {
+        key: 'email',
+        label: '@core.tenant/office.email',
+        type: 'string',
+        ui: { order: 2, placeholder: '@core.tenant/office.email.placeholder' },
+      },
+      {
+        key: 'phone',
+        label: '@core.ui/field.phone',
+        type: 'string',
+        ui: { order: 3 },
+      },
+      {
+        key: 'address',
+        label: '@core.ui/field.address',
+        type: 'string',
+        ui: { order: 4, placeholder: '@core.tenant/office.address.placeholder' },
+      },
+    ],
+    fks: [],
+    supportsCustomFields: true,
+    referenceable: false,
   },
 };
 

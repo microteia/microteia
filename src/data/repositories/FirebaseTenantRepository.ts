@@ -13,7 +13,7 @@ import {
 import { httpsCallable, FunctionsError } from 'firebase/functions';
 import { db, functions } from '../../infrastructure/firebase/config';
 import type { ITenantRepository, TenantMemberRoleActor } from '../../domain/repositories/ITenantRepository';
-import type { Tenant, TenantMember, TenantRole } from '../../domain/entities';
+import type { Tenant, TenantMember, TenantRole, TenantUpdate } from '../../domain/entities';
 import { TenantMemberLimitReachedError } from '../../domain/errors';
 
 const toDate = (v: unknown): Date =>
@@ -53,7 +53,7 @@ export class FirebaseTenantRepository implements ITenantRepository {
     return mapTenant(snap.id, snap.data());
   }
 
-  async updateTenant(tenantId: string, data: Partial<Omit<Tenant, 'id' | 'ownerId' | 'createdAt'>>): Promise<void> {
+  async updateTenant(tenantId: string, data: TenantUpdate): Promise<void> {
     await updateDoc(doc(db, 'tenants', tenantId), { ...data, updatedAt: serverTimestamp() });
   }
 

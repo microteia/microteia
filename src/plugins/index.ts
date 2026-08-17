@@ -4,6 +4,7 @@ import { coreWorkspacePlugin } from './core.workspace/manifest';
 import { coreRecordsPlugin } from './core.records/manifest';
 import { coreAutomationPlugin } from './core.automation/manifest';
 import { coreAdminPlugin } from './core.admin/manifest';
+import { coreTenantPlugin } from './core.tenant/manifest';
 import { coreDataPlugin } from './core.data/manifest';
 import { coreMarketplacePlugin } from './core.marketplace/manifest';
 import { coreSettingsPlugin } from './core.settings/manifest';
@@ -24,6 +25,7 @@ export const CORE_PLUGINS: PluginRecord[] = [
   coreRecordsPlugin,
   coreAutomationPlugin,
   coreAdminPlugin,
+  coreTenantPlugin,
   coreDataPlugin,
   coreMarketplacePlugin,
   coreSettingsPlugin,

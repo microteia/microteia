@@ -1,8 +1,8 @@
-import type { Tenant } from '../../entities';
+import type { TenantUpdate } from '../../entities';
 import type { ITenantRepository } from '../../repositories/ITenantRepository';
 
 export type UpdateTenantUseCase = {
-  execute: (tenantId: string, data: Partial<Omit<Tenant, 'id' | 'ownerId' | 'createdAt'>>) => Promise<void>;
+  execute: (tenantId: string, data: TenantUpdate) => Promise<void>;
 };
 
 export const makeUpdateTenantUseCase = (repo: ITenantRepository): UpdateTenantUseCase => ({

@@ -21,7 +21,7 @@ export const makeAddTenantMemberUseCase = (
     if (requesterRole !== 'admin') {
       const globalRole = await userRepo.getUserRole(requesterId);
       if (globalRole !== 'SYSTEM' && globalRole !== 'SUPPORT') {
-        throw permissionDenied('@core.admin/member.add.admin-only');
+        throw permissionDenied('@core.tenant/member.add.admin-only');
       }
     }
 

@@ -11,6 +11,13 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [7.43.0] — 2026-08-16
+
+- A tela do Escritório virou uma extensão do sistema — sempre presente e impossível de remover, como as aparências Escuro e Claro. Nada muda de lugar: o que muda é o que ela passa a permitir.
+- **O cadastro do escritório agora é personalizável.** Em Personalizar Telas, o Escritório aparece na lista como qualquer outro cadastro: dá para acrescentar campos próprios — a inscrição estadual, o número da OAB, o site —, mudar rótulos e reordenar o formulário. Os campos criados aparecem na aba Dados do Escritório e são gravados junto com os demais.
+- **As abas do Escritório deixaram de ser fixas.** Uma extensão pode acrescentar a sua aba à tela, e em Configurações → Tela do Escritório o escritório escolhe quais abas aparecem e em que ordem. Uma aba com problema passa a mostrar um aviso no lugar dela, sem derrubar o resto da tela.
+- Os textos do Escritório passaram a viajar com a própria tela, já com a tradução para português — não dependem mais do pacote de idioma para serem lidos. É o caminho que toda extensão vai seguir: nasce em inglês e chega traduzida.
+
 #### [7.42.0] — 2026-08-16
 
 - Os temas passaram a ser extensões. O escritório agora começa com dois — **Escuro** e **Claro** — e escolhe entre eles em Configurações → Aparência, com a opção **Automático**, que segue o modo claro ou escuro do próprio computador e acompanha a troca ao anoitecer.

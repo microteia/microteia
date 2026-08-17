@@ -50,6 +50,7 @@ export const CORE_RECORDS: Record<string, string> = {
   'screen.card-actions': 'Ações do card na listagem',
   'screen.actions.none': 'Nenhuma ação',
   'screen.meta.fields': '{count} campo(s)',
+  'screen.meta.extra-fields': '{count} campo(s) adicional(is)',
   'screen.tab.general': 'Geral',
   'screen.tab.list': 'Listagem',
   'screen.tab.actions': 'Ações',

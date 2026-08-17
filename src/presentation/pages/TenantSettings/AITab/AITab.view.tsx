@@ -32,7 +32,7 @@ const PROVIDER_OPTIONS: SearchSelectOption[] = [
   { value: 'mistral', label: 'Mistral AI' },
   { value: 'cohere', label: 'Cohere' },
   { value: 'ollama', label: 'Ollama (Local)' },
-  { value: 'other', label: '@core.admin/ai.provider.other' },
+  { value: 'other', label: '@core.tenant/ai.provider.other' },
 ];
 /* eslint-enable no-restricted-syntax */
 
@@ -55,7 +55,7 @@ const AIConnectionCard: React.FC<AIConnectionCardProps> = ({
   providerLabel,
   providerIcon,
 }) => {
-  const t = useT('core.admin');
+  const t = useT('core.tenant');
   return (
     <S.AICard $isDefault={connection.isDefault}>
       <S.AIProviderIcon $color={providerColor}>{providerIcon}</S.AIProviderIcon>
@@ -113,7 +113,7 @@ const AIConnectionModal: React.FC<AIModalProps> = ({
   handleSave,
   handleToggleShowApiKey,
 }) => {
-  const t = useT('core.admin');
+  const t = useT('core.tenant');
   const label = useLabel();
   const providerOptions = useMemo(
     () => PROVIDER_OPTIONS.map((option) => ({ ...option, label: label(option.label) })),
@@ -250,7 +250,7 @@ const AIConnectionModal: React.FC<AIModalProps> = ({
 };
 
 export const AITabView: React.FC = () => {
-  const t = useT('core.admin');
+  const t = useT('core.tenant');
   const vm = useAITabViewModel();
   const theme = useTheme();
 

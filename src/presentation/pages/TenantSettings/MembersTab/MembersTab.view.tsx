@@ -17,7 +17,7 @@ import { useT } from '../../../shared/i18n/useT';
 const ROLES: TenantRole[] = ['admin', 'lawyer', 'secretary', 'user'];
 
 export const MembersTabView: React.FC = () => {
-  const t = useT('core.admin');
+  const t = useT('core.tenant');
   const vm = useMembersTabViewModel();
   const theme = useTheme();
 

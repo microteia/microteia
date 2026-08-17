@@ -79,15 +79,35 @@ describe('o pacote Português (Brasil)', () => {
   });
 
   /**
-   * O teste que define "agnóstico": desinstalar o português não deixa buraco nenhum — a interface
-   * volta ao idioma-fonte. Se alguma chave sumisse aqui, seria sinal de que o português ainda estava
-   * escrito no núcleo em algum lugar.
+   * O teste que define "agnóstico": desinstalar o português não deixa buraco nenhum — o que ele
+   * traduzia volta ao idioma-fonte. Se alguma chave sumisse aqui, seria sinal de que o português
+   * ainda estava escrito no núcleo em algum lugar.
    */
-  it('desinstalado, a interface volta inteira ao inglês', () => {
+  it('desinstalado, o que ELE traduzia volta ao inglês', () => {
     const { host } = hostWith();
     const catalog = catalogFor(host, 'pt-BR');
     expect(resolveLabel(catalog, navLabel(host, 'audit-logs'))).toBe('Audit Log');
-    expect(resolveLabel(catalog, pageTitle(host, 'tenant-settings'))).toBe('Organization');
+    expect(resolveLabel(catalog, pageTitle(host, 'settings'))).toBe('Settings');
+  });
+
+  /**
+   * O que este pacote traduz é o que ele CARREGA — e não tudo que existe. Um plugin pode chegar com
+   * a própria tradução, e aí ela vale sem que nenhum pacote de idioma esteja instalado: é o caso do
+   * `core.tenant`, e é a tendência natural de qualquer extensão, que nasce em inglês e viaja com as
+   * traduções que o autor escreveu.
+   *
+   * O teste existe para que a diferença seja escolhida, e não descoberta: quem desinstalar o
+   * português vai continuar vendo "Escritório" nessa tela, porque a tradução dela nunca foi deste
+   * pacote.
+   */
+  it('não responde pela tradução que viaja dentro de um plugin', () => {
+    const { host } = hostWith();
+    const catalog = catalogFor(host, 'pt-BR');
+    expect(resolveLabel(catalog, pageTitle(host, 'tenant-settings'))).toBe('Escritório');
+
+    const namespaces = (localePtBrPlugin.manifest.contributes ?? [])
+      .map((contribution) => (contribution.metadata as { namespace?: string }).namespace);
+    expect(namespaces).not.toContain('core.tenant');
   });
 
   /**

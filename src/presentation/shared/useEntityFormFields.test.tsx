@@ -62,10 +62,15 @@ beforeEach(() => {
 });
 
 describe('useEntityFormFields', () => {
+  /**
+   * O rótulo sai do hook RESOLVIDO: o campo declarado em código traz uma referência, e é aqui que
+   * ela vira texto. Sem catálogo — como neste teste — a resolução devolve a chave da referência, que
+   * é o comportamento tolerante de `translate`: mostra a chave em vez de deixar a tela em branco.
+   */
   it('sem tela do tenant, devolve os campos declarados em código', () => {
     const { result } = renderHook(() => useEntityFormFields('members'));
     const nome = result.current.fields.find((f) => f.key === 'name');
-    expect(nome?.label).toBe('@core.data/member.field.name');
+    expect(nome?.label).toBe('core.data/member.field.name');
     expect(nome?.origin).toBe('builtin');
     expect(result.current.addedFields).toHaveLength(0);
   });

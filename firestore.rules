@@ -277,7 +277,7 @@ service cloud.firestore {
         'documentTypes', 'documents', 'extensions',
         'installed_extensions', 'lookupDefinitions', 'members', 'notes',
         'tagDefinitions', 'plugin_installations',
-        'screenDefinitions', 'scripts', 'secrets', 'settings', 'tags', 'workflow_definitions',
+        'screenDefinitions', 'scripts', 'secrets', 'settings', 'tags', 'tenant', 'workflow_definitions',
         'workflow_events', 'workflow_executions'
         ];
       }

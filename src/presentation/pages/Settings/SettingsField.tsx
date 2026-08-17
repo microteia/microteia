@@ -148,6 +148,7 @@ export const SettingsField: React.FC<SettingsFieldProps> = ({ property, value, d
       return (
         <ContributionListEditor
           point={property.point ?? property.key}
+          surface={property.surface}
           value={value}
           disabled={disabled}
           onChange={(entries: ContributionLayoutEntry[]) => onChange(entries)}

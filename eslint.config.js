@@ -143,6 +143,12 @@ export default defineConfig([
       // Comentário de CSS vive DENTRO do template literal, e comentário continua em português. Num
       // arquivo de estilo não há texto de usuário para proteger, então ele fica fora da zona.
       '**/*.styles.tsx',
+      // A TRADUÇÃO que viaja dentro do próprio plugin. A regra existe para impedir que o produto
+      // nasça em português; um catálogo `pt-BR` é o oposto disso — é o lugar onde o português deve
+      // estar, como já vale para `marketplace/localePtBr`. O que a regra continua cobrando do
+      // plugin é o que importa: a chave nasce em inglês em `src/plugins/messages/`, e é dela que
+      // este arquivo é o par.
+      'src/plugins/*/messages*.ts',
     ],
     rules: {
       'no-restricted-syntax': ['error',

@@ -3575,6 +3575,7 @@ vazia por definição.
 |---|---|---|
 | `ui.settings` | uma `SettingsSection` inteira (chave, título, ícone, propriedades) | nenhuma |
 | `ui.widget` | `surface`, `key`, `title`, `defaultEnabled`, `defaultSpan`, `order`, `requiredRole` | `code` (interno/extensão confiável) ou `widget` (Widget DSL) |
+| `ui.tab` | `surface`, `key`, `title`, `icon`, `defaultEnabled`, `order`, `requiredRole`, `requiresTenantAdmin` | idem |
 
 **O contrato é dado puro** (`domain/schema/settings.ts`, testado): `SettingsProperty` declara
 `type` (`boolean`, `number`, `text`, `select`, `stringList`, `json`, `widgets`, `contributions`), `default` e os `scopes` que
@@ -5177,6 +5178,111 @@ mesmo lugar.
 
 Dentro do kernel a leitura continua **tipada e fechada** — é o que impede `theme.colors.primry` de
 passar batido. Token de extensão é lido pelo nome, como `resolveColor` já fazia.
+
+---
+
+## O Escritório vira plugin — `core.tenant`
+
+A tela de Configurações do Escritório era do `core.admin`: três abas escritas à mão dentro de um
+`switch`, um formulário com cinco `<Input>` digitados um a um, e o texto misturado ao da auditoria e
+do processador de dados. Ela virou o plugin **`core.tenant`**, e isso é três coisas de uma vez.
+
+### O que ele é, e por que não se desinstala
+
+Ele viaja no bundle, em `CORE_PLUGINS`, como os temas Escuro e Claro. Disso decorre tudo o que o
+torna especial, e nada além: está sempre presente, e **não há como desinstalá-lo porque não há
+instalação a desfazer**. Não é um caso especial no instalador — é a ausência de instalação.
+
+Diferente dos temas, ele entrega **código** (as abas de Membros e de IA são views), então é um
+plugin `core.*` e não um pacote do catálogo: baixar e reimportar não reproduziria as abas de código.
+O que é declarativo nele — o formulário do escritório, as abas, o catálogo de texto — é dado, e é
+por isso que o escritório alcança as três sem tocar no núcleo.
+
+### 1. As abas viraram contribuição — o ponto `ui.tab`
+
+**Uma superfície é um NOME, não uma tela** — o mesmo desenho de `ui.widget`, com a diferença que
+muda o comportamento: numa grade todos aparecem juntos; numa faixa de abas só um aparece por vez.
+
+`<TabSurface surface="tenant-settings" />` (`components/layout/TabSurface/`) renderiza o que estiver
+registrado naquele nome. A tela do escritório passou a ser o **título e a superfície**, e não conhece
+aba nenhuma: as três que existem hoje chegam como contribuição do próprio `core.tenant`, e a quarta
+chega da mesma forma, de qualquer extensão.
+
+| Peça | Onde | O que faz |
+|---|---|---|
+| `UI_TAB_POINT` / `UiTabMetadata` | `presentation/shared/uiExtensionPoints.ts` | o contrato: `surface`, `key`, `title`, `icon`, `order`, `requiredRole`, `requiresTenantAdmin` |
+| `surfaceTab` / `surfaceTabSpec` | `plugins/contributionBuilders.ts` | aba em código (plugin interno) e aba declarativa (Widget DSL) |
+| `useSurfaceTabs` | `shared/settings/useSettingsCatalog.ts` | resolve os componentes e traduz os títulos |
+| `useSurfaceTabLayout` | `shared/settings/useSettingValue.ts` | concilia o registrado com a configuração `<superfície>.tabs` |
+| `TabSurface` | `components/layout/TabSurface/` | a faixa, o painel e o limite de erro por aba |
+
+**A aba ativa é DERIVADA, não guardada.** O estado guarda a aba *escolhida*; a ativa é a primeira
+visível quando a escolhida não está mais lá. Uma aba pode ser desligada nas Configurações, sumir com
+a extensão que a trazia ou ser vetada pelo papel de quem olha — e nos três casos guardar a chave
+deixaria a tela em branco.
+
+**Cada aba renderiza dentro do próprio limite de erro**, como os widgets: uma aba que quebra vira um
+aviso naquele espaço, e a faixa continua navegável.
+
+**Ligar, desligar e reordenar** é a configuração `tenant-settings.tabs`, do tipo `contributions` — o
+mecanismo que já existia, sem uma linha nova. O `ContributionListEditor` ganhou `surface` opcional
+porque um ponto agora tem mais de uma superfície: sem o filtro, a lista mostraria as abas de outra
+tela.
+
+### 2. O formulário do escritório virou dado — a entidade `tenant`
+
+O `ENTITY_REGISTRY` ganhou a entidade **`tenant`**, e ela é a única com
+`supportsCustomFields: true`. A aba "Dados do Escritório" renderiza pelo **mesmo `CustomFieldsSection`
+e o mesmo `deriveFormFields`** das demais telas — então o escritório acrescenta campos próprios a ela
+no Form Design, reordena e renomeia os que existem, sem commit no núcleo.
+
+Duas coisas a distinguem de uma tela comum, e as duas são consequência do mesmo fato:
+
+- **O registro é UM só, e não vive numa subcoleção:** é o documento `tenants/{tenantId}`. Por isso a
+  entidade não é `referenceable` (não há lista de onde escolher um escritório) e a aba não passa pelo
+  runtime de registro — ela lê o escritório em vigor e grava por `updateTenant`.
+- **O nome `tenant` é RESERVADO** (`RESERVED_COLLECTIONS`, espelhado no `firestore.rules`): uma tela
+  do Form Design que o reivindicasse criaria registros em `tenants/{tid}/tenant/` que ninguém lê.
+
+Campo acrescentado grava na **raiz** do documento, sem envelope — a mesma convenção das telas fixas.
+O tipo diz isso: `TenantUpdate` (`domain/entities/index.ts`) é `Partial<Tenant> & Record<string,
+unknown>`, e atravessa store, use case e repositório. **Ler continua fechado**: `Tenant` não ganhou
+índice, e quem precisa de um campo acrescentado o lê pelo nome. A regra do Firestore já permitia:
+`allow update` para admin do tenant, vetando só `memberCount`, `memberLimit`, `ownerId` e `plan` — e
+o payload leva **apenas o que o formulário declara**, justamente para não esbarrar nesses quatro.
+
+> **O rótulo do campo declarado em código é uma REFERÊNCIA** (`@core.tenant/office.name`), como o de
+> uma tela de extensão. `useEntityFormFields` resolve rótulo, placeholder, seção e opções — resolver
+> ali, e não em cada `{field.label}` da View, é o que faz busca e ordenação casarem com o texto que
+> se lê. O que o escritório digitou não começa com `@` e passa intacto; é a regra de `resolveLabel`.
+
+### 3. O texto é dele — e a tradução viaja junto
+
+O namespace `core.tenant` nasce em inglês em `plugins/messages/coreTenant.ts`, e o **pt-BR viaja
+dentro do plugin**, em `plugins/core.tenant/messagesPtBr.ts`. Mesmo mecanismo de sempre — uma
+contribuição `i18n.messages` — e o que muda é o DONO.
+
+É a tendência natural de qualquer extensão: quem declara o texto é quem melhor sabe traduzi-lo, e um
+plugin deve chegar legível sem depender de um pacote de idioma de terceiro. O caminho do pacote
+continua aberto e continua valendo para quem quer traduzir **o que não é seu** — só deixou de ser o
+único.
+
+**A consequência é escolhida, não descoberta:** desinstalar `com.microteia.locale-pt-br` não devolve
+esta tela ao inglês, porque a tradução dela nunca foi de lá. `localePilot.test.ts` afirma as duas
+metades — o que o pacote traduz volta ao inglês; o que o plugin traduz, não.
+
+As guardas seguiram junto:
+
+| Guarda | O que mudou |
+|---|---|
+| `verify-messages.cjs` | `PT_BR_CATALOG_BY_NS` diz onde mora o pt-BR de cada namespace; o padrão continua sendo o pacote de idioma |
+| `eslint.config.js` | `src/plugins/*/messages*.ts` sai da zona do idioma-fonte, como já saía `marketplace/localePtBr` |
+| impressão digital | cobre só os arquivos do PACOTE — a tradução do plugin não é retrato instalado, e versiona com ele |
+
+As chaves antigas foram **movidas, não duplicadas**: saíram de `core.admin` e do `coreAdmin.ts` do
+pacote pt-BR (que subiu para `1.4.0`), e os três erros de membro que o backend lança
+(`member.add.admin-only`, `member.remove.admin-only`, `member.limit-reached-error`) passaram a
+apontar para `@core.tenant/…` nas duas pontas.
 
 ---
 

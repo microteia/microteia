@@ -1,4 +1,4 @@
-import type { Tenant, TenantMember, TenantRole } from '../entities';
+import type { Tenant, TenantMember, TenantRole, TenantUpdate } from '../entities';
 
 export interface TenantMemberRoleActor {
   uid: string;
@@ -8,7 +8,7 @@ export interface TenantMemberRoleActor {
 
 export interface ITenantRepository {
   getTenantById(tenantId: string): Promise<Tenant | null>;
-  updateTenant(tenantId: string, data: Partial<Omit<Tenant, 'id' | 'ownerId' | 'createdAt'>>): Promise<void>;
+  updateTenant(tenantId: string, data: TenantUpdate): Promise<void>;
   updateMemberLimit(tenantId: string, memberLimit: number | null): Promise<void>;
   addMember(tenantId: string, member: Omit<TenantMember, 'addedAt'>): Promise<void>;
   updateMemberRole(tenantId: string, userId: string, role: TenantRole, actor: TenantMemberRoleActor): Promise<void>;

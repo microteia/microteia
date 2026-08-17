@@ -8,7 +8,13 @@ import {
   type ExtensionSettingsSection,
   type ExtensionSurfaceWidget,
 } from '../extensions/extensionServices';
-import { UI_SETTINGS_POINT, UI_WIDGET_POINT, type UiWidgetMetadata } from '../uiExtensionPoints';
+import {
+  UI_SETTINGS_POINT,
+  UI_TAB_POINT,
+  UI_WIDGET_POINT,
+  type UiTabMetadata,
+  type UiWidgetMetadata,
+} from '../uiExtensionPoints';
 import type { SettingsProperty, SettingsSection } from '../../../domain/schema/settings';
 import { isWidgetSpec, type WidgetSpec } from '../widget/widgetSpec';
 import { useLabel, useLocaleFormat } from '../i18n/useT';
@@ -26,6 +32,12 @@ import { useLabel, useLocaleFormat } from '../i18n/useT';
  */
 
 export interface SurfaceWidgetDescriptor extends UiWidgetMetadata {
+  pluginId: string;
+  component?: React.ComponentType;
+  spec?: WidgetSpec;
+}
+
+export interface SurfaceTabDescriptor extends UiTabMetadata {
   pluginId: string;
   component?: React.ComponentType;
   spec?: WidgetSpec;
@@ -61,6 +73,24 @@ const asWidgetMetadata = (metadata: Record<string, unknown>): UiWidgetMetadata |
     defaultEnabled: typeof metadata.defaultEnabled === 'boolean' ? metadata.defaultEnabled : undefined,
     defaultSpan: typeof metadata.defaultSpan === 'number' ? metadata.defaultSpan : undefined,
     order: typeof metadata.order === 'number' ? metadata.order : undefined,
+  };
+};
+
+const asTabMetadata = (metadata: Record<string, unknown>): UiTabMetadata | null => {
+  const { surface, key, title } = metadata;
+  if (typeof surface !== 'string' || typeof key !== 'string' || typeof title !== 'string') return null;
+  return {
+    surface,
+    key,
+    title,
+    description: typeof metadata.description === 'string' ? metadata.description : undefined,
+    icon: typeof metadata.icon === 'string' ? metadata.icon : undefined,
+    defaultEnabled: typeof metadata.defaultEnabled === 'boolean' ? metadata.defaultEnabled : undefined,
+    order: typeof metadata.order === 'number' ? metadata.order : undefined,
+    requiredRole: typeof metadata.requiredRole === 'string'
+      ? (metadata.requiredRole as UiTabMetadata['requiredRole'])
+      : undefined,
+    requiresTenantAdmin: metadata.requiresTenantAdmin === true,
   };
 };
 
@@ -155,4 +185,48 @@ export const useSurfaceWidgets = (surface: string): SurfaceWidgetDescriptor[] =>
       }))
       .sort((a, b) => (a.order ?? 0) - (b.order ?? 0) || compareText(a.title, b.title));
   }, [contributions, registered, surface, host, label, compareText]);
+};
+
+/**
+ * As abas de uma superfície, na ordem declarada — a configuração reordena depois, pelo mesmo
+ * caminho dos widgets. O título já vem resolvido: quem hospeda a faixa de abas não sabe traduzir.
+ */
+export const useSurfaceTabs = (surface: string): SurfaceTabDescriptor[] => {
+  const { host } = useKernel();
+  const contributions = useContributions(UI_TAB_POINT);
+  const label = useLabel();
+  const { compareText } = useLocaleFormat();
+
+  return useMemo(() => {
+    const byKey = new Map<string, SurfaceTabDescriptor>();
+
+    for (const contribution of contributions) {
+      const metadata = asTabMetadata(contribution.metadata);
+      if (!metadata || metadata.surface !== surface) continue;
+
+      if (contribution.impl?.kind === 'widget') {
+        const spec = contribution.impl.spec as unknown;
+        if (!isWidgetSpec(spec)) continue;
+        byKey.set(metadata.key, { ...metadata, pluginId: contribution.pluginId, spec });
+        continue;
+      }
+
+      if (contribution.impl?.kind === 'code') {
+        const impl = host.implementations.resolve<unknown>(contribution.pluginId, contribution.impl.key);
+        const component = (isExtensionViewRef(impl)
+          ? evaluateExtensionView(`${impl.pluginId}::${impl.viewKey}`, impl.source)
+          : impl) as React.ComponentType | undefined;
+        if (!component) continue;
+        byKey.set(metadata.key, { ...metadata, pluginId: contribution.pluginId, component });
+      }
+    }
+
+    return Array.from(byKey.values())
+      .map((tab) => ({
+        ...tab,
+        title: label(tab.title),
+        description: tab.description === undefined ? undefined : label(tab.description),
+      }))
+      .sort((a, b) => (a.order ?? 0) - (b.order ?? 0) || compareText(a.title, b.title));
+  }, [contributions, surface, host, label, compareText]);
 };

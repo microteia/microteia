@@ -7,6 +7,7 @@ import type {
   UiNavMetadata,
   UiPageMetadata,
   UiRecordActionMetadata,
+  UiTabMetadata,
   UiWidgetMetadata,
 } from '../presentation/shared/uiExtensionPoints';
 import {
@@ -16,6 +17,7 @@ import {
   UI_PAGE_POINT,
   UI_RECORD_ACTION_POINT,
   UI_SETTINGS_POINT,
+  UI_TAB_POINT,
   UI_WIDGET_POINT,
 } from '../presentation/shared/uiExtensionPoints';
 
@@ -101,6 +103,27 @@ export const surfaceWidget = (metadata: UiWidgetMetadata, implKey: string): Cont
   apiVersion: UI_API_VERSION,
   metadata: { ...metadata } as unknown as Record<string, unknown>,
   impl: { kind: 'code', key: implKey },
+});
+
+/**
+ * Uma ABA de uma superfície, implementada em CÓDIGO (plugin interno). O `id` sai da superfície mais
+ * a chave, como nos widgets: duas superfícies podem ter uma aba de mesmo nome sem se atropelarem.
+ */
+export const surfaceTab = (metadata: UiTabMetadata, implKey: string): Contribution => ({
+  point: UI_TAB_POINT,
+  id: slug(`${metadata.surface}-${metadata.key}`),
+  apiVersion: UI_API_VERSION,
+  metadata: { ...metadata } as unknown as Record<string, unknown>,
+  impl: { kind: 'code', key: implKey },
+});
+
+/** Uma aba DECLARATIVA (Widget DSL) — o caminho de quem não pode entregar código. */
+export const surfaceTabSpec = (metadata: UiTabMetadata, spec: WidgetSpec): Contribution => ({
+  point: UI_TAB_POINT,
+  id: slug(`${metadata.surface}-${metadata.key}`),
+  apiVersion: UI_API_VERSION,
+  metadata: { ...metadata } as unknown as Record<string, unknown>,
+  impl: { kind: 'widget', spec: spec as unknown as Record<string, unknown> },
 });
 
 /** Um widget DECLARATIVO (Widget DSL) — o caminho de quem não pode entregar código. */

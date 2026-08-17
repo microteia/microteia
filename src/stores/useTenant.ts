@@ -1,5 +1,5 @@
 import { createContext, useContext } from 'react';
-import type { Tenant, TenantMember, TenantRole } from '../domain/entities';
+import type { Tenant, TenantMember, TenantRole, TenantUpdate } from '../domain/entities';
 
 export interface TenantContextValue {
   currentTenant: Tenant | null;
@@ -9,7 +9,7 @@ export interface TenantContextValue {
   isLoading: boolean;
   initError: string | null;
   selectTenant: (tenantId: string) => Promise<void>;
-  updateTenant: (data: Partial<Omit<Tenant, 'id' | 'ownerId' | 'createdAt'>>) => Promise<void>;
+  updateTenant: (data: TenantUpdate) => Promise<void>;
   addMember: (member: Omit<TenantMember, 'addedAt'>) => Promise<void>;
   updateMemberRole: (userId: string, role: TenantRole) => Promise<void>;
   removeMember: (userId: string) => Promise<void>;

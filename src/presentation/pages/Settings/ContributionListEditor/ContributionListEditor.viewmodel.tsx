@@ -10,6 +10,11 @@ import {
 
 export interface ContributionListEditorProps {
   point: string;
+  /**
+   * Restringe a lista às contribuições daquela SUPERFÍCIE, quando o ponto tem mais de uma (as abas
+   * de `tenant-settings` e as de outra tela chegam pelo mesmo ponto). Ausente, o ponto inteiro.
+   */
+  surface?: string;
   value: unknown;
   disabled?: boolean;
   onChange: (entries: ContributionLayoutEntry[]) => void;
@@ -40,8 +45,14 @@ const text = (value: unknown): string | undefined => (typeof value === 'string' 
 export const useContributionListEditorViewModel = (
   props: ContributionListEditorProps,
 ): ContributionListEditorViewModel => {
-  const { point, value, onChange } = props;
-  const contributions = usePointContributions(point);
+  const { point, surface, value, onChange } = props;
+  const registered = usePointContributions(point);
+  const contributions = useMemo(
+    () => (surface === undefined
+      ? registered
+      : registered.filter((contribution) => contribution.metadata.surface === surface)),
+    [registered, surface],
+  );
   // O editor lista contribuições de QUALQUER ponto — nativas, que declaram referência, e de
   // extensão, que trazem o texto do autor. `label` é o caminho único que serve às duas.
   const label = useLabel();

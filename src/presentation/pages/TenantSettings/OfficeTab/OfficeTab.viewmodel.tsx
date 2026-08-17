@@ -1,84 +1,97 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTenant } from '../../../../stores/useTenant';
 import { useNotification } from '../../../../stores/useNotification';
-
+import { useEntityFormFields } from '../../../shared/useEntityFormFields';
+import { collectRequiredErrors, setValueByPath } from '../../../../domain/services/customFieldValues';
 import { useT } from '../../../shared/i18n/useT';
-export interface OfficeFormData {
-  name: string;
-  cnpj: string;
-  email: string;
-  phone: string;
-  address: string;
-}
+import type { CustomFieldValue, FieldDefinition } from '../../../../domain/entities';
+
+export type OfficeValues = Record<string, CustomFieldValue>;
 
 export interface OfficeTabViewModel {
   isAdmin: boolean;
-  officeForm: OfficeFormData;
+  fields: FieldDefinition[];
+  values: OfficeValues;
+  fieldErrors: Record<string, string>;
   isSaving: boolean;
-  setOfficeForm: (data: Partial<OfficeFormData>) => void;
+  setFieldValue: (fieldKey: string, value: CustomFieldValue) => void;
   handleSave: () => Promise<void>;
 }
 
+/**
+ * O escritório NÃO é um registro de subcoleção: ele é o documento `tenants/{tenantId}`. Por isso a
+ * aba não passa pelo runtime de registro — ela lê o escritório em vigor e grava por `updateTenant`.
+ *
+ * O que ela ganhou ao virar plugin é o FORMULÁRIO: os campos vêm da entidade `tenant` do registro,
+ * pelo mesmo `deriveFormFields` das demais telas, então um campo criado no Form Design aparece aqui
+ * e grava na raiz do documento — sem uma linha a mais neste arquivo.
+ */
 export const useOfficeTabViewModel = (): OfficeTabViewModel => {
-  const t = useT('core.admin');
+  const t = useT('core.tenant');
   const { currentTenant, tenantRole, updateTenant } = useTenant();
   const { notify } = useNotification();
-  
+  const { fields } = useEntityFormFields('tenant');
+
   const isAdmin = tenantRole === 'admin';
 
-  const [officeForm, setOfficeFormState] = useState<OfficeFormData>({
-    name: '',
-    cnpj: '',
-    email: '',
-    phone: '',
-    address: '',
-  });
+  const [values, setValues] = useState<OfficeValues>({});
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [isSaving, setIsSaving] = useState(false);
 
+  // O escritório chega assíncrono e troca quando o usuário muda de organização; o formulário é
+  // estado local porque o usuário digita nele antes de gravar.
   useEffect(() => {
     if (!currentTenant) return;
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- syncing local form state when the async-loaded tenant becomes available/changes is architecturally required
-    setOfficeFormState({
-      name: currentTenant.name ?? '',
-      cnpj: currentTenant.cnpj ?? '',
-      email: currentTenant.email ?? '',
-      phone: currentTenant.phone ?? '',
-      address: currentTenant.address ?? '',
-    });
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- sincronizar o formulário com o escritório carregado de forma assíncrona é a razão do efeito
+    setValues({ ...(currentTenant as unknown as OfficeValues) });
   }, [currentTenant]);
 
-  const setOfficeForm = useCallback((data: Partial<OfficeFormData>) => {
-    setOfficeFormState((prev) => ({ ...prev, ...data }));
+  const editableKeys = useMemo(() => new Set(fields.map((field) => field.key)), [fields]);
+
+  const setFieldValue = useCallback((fieldKey: string, value: CustomFieldValue) => {
+    setValues((prev) => setValueByPath(prev, fieldKey, value) as OfficeValues);
+    setFieldErrors((prev) => {
+      if (!(fieldKey in prev)) return prev;
+      const next = { ...prev };
+      delete next[fieldKey];
+      return next;
+    });
   }, []);
 
   const handleSave = useCallback(async () => {
-    if (!officeForm.name.trim()) {
-      notify(t('office.name.required'), 'error');
+    const errors = collectRequiredErrors(t, fields, values);
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors);
+      notify(t('office.required'), 'error');
       return;
     }
+
+    setFieldErrors({});
     setIsSaving(true);
     try {
-      await updateTenant({
-        name: officeForm.name.trim(),
-        cnpj: officeForm.cnpj || null,
-        email: officeForm.email || null,
-        phone: officeForm.phone || null,
-        address: officeForm.address || null,
-        updatedAt: new Date(),
-      });
+      // Só o que o formulário DECLARA vai no payload: `memberCount`, `plan` e companhia estão no
+      // mesmo objeto de leitura e são recusados pelas regras do Firestore se forem junto.
+      const payload: Record<string, unknown> = { updatedAt: new Date() };
+      for (const key of editableKeys) {
+        const value = values[key];
+        payload[key] = value === '' ? null : value;
+      }
+      await updateTenant(payload);
       notify(t('office.saved'), 'success');
     } catch {
       notify(t('office.save-failed'), 'error');
     } finally {
       setIsSaving(false);
     }
-  }, [officeForm, updateTenant, notify, t]);
+  }, [fields, values, editableKeys, updateTenant, notify, t]);
 
   return {
     isAdmin,
-    officeForm,
+    fields,
+    values,
+    fieldErrors,
     isSaving,
-    setOfficeForm,
+    setFieldValue,
     handleSave,
   };
 };

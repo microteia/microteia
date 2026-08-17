@@ -2,14 +2,17 @@ import { useCallback, useMemo } from 'react';
 import { useSettings } from '../../../stores/useSettings';
 import {
   findSettingsProperty,
+  resolveContributionLayout,
   resolveSetting,
   resolveWidgetLayout,
+  type ContributionLayoutEntry,
   type SettingsProperty,
   type SettingsScope,
   type SettingsSection,
   type WidgetLayoutEntry,
 } from '../../../domain/schema/settings';
-import { useSettingsSections, useSurfaceWidgets } from './useSettingsCatalog';
+import { UI_TAB_POINT } from '../uiExtensionPoints';
+import { useSettingsSections, useSurfaceTabs, useSurfaceWidgets } from './useSettingsCatalog';
 
 /**
  * A propriedade que ordena os widgets de uma superfície. Quem hospeda a superfície normalmente a
@@ -32,6 +35,34 @@ export const surfaceLayoutProperty = (
     type: 'widgets',
     default: [],
     scopes: ['tenant', 'user'],
+    surface,
+  };
+};
+
+/**
+ * A propriedade que liga/desliga e ordena as abas de uma superfície. Mesmo desenho da de widgets, e
+ * pelo mesmo motivo: quem hospeda a faixa normalmente a declara, e quando não declara a superfície
+ * continua configurável por esta propriedade implícita.
+ */
+export const surfaceTabsProperty = (
+  sections: SettingsSection[],
+  surface: string,
+): SettingsProperty => {
+  for (const section of sections) {
+    const declared = section.properties.find(
+      (property) => property.type === 'contributions'
+        && property.point === UI_TAB_POINT
+        && property.surface === surface,
+    );
+    if (declared) return declared;
+  }
+  return {
+    key: `${surface}.tabs`,
+    label: '@core.ui/settings.tabs',
+    type: 'contributions',
+    default: [],
+    scopes: ['tenant', 'user'],
+    point: UI_TAB_POINT,
     surface,
   };
 };
@@ -84,4 +115,25 @@ export const useSurfaceLayout = (surface: string): SurfaceLayout => {
   );
 
   return { entries, property, save };
+};
+
+export interface SurfaceTabLayout {
+  entries: ContributionLayoutEntry[];
+  property: SettingsProperty;
+}
+
+/** O mesmo conciliar da superfície de widgets, para a faixa de abas de uma superfície. */
+export const useSurfaceTabLayout = (surface: string): SurfaceTabLayout => {
+  const sections = useSettingsSections();
+  const tabs = useSurfaceTabs(surface);
+  const { values } = useSettings();
+
+  const property = useMemo(() => surfaceTabsProperty(sections, surface), [sections, surface]);
+
+  const entries = useMemo(() => {
+    const stored = resolveSetting(property, values).value;
+    return resolveContributionLayout(stored, tabs);
+  }, [property, values, tabs]);
+
+  return { entries, property };
 };

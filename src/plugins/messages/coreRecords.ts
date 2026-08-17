@@ -51,6 +51,7 @@ export const CORE_RECORDS_MESSAGES: Record<string, string> = {
   'screen.card-actions': 'List card actions',
   'screen.actions.none': 'No action',
   'screen.meta.fields': '{count} field(s)',
+  'screen.meta.extra-fields': '{count} extra field(s)',
   'screen.tab.general': 'General',
   'screen.tab.list': 'Listing',
   'screen.tab.actions': 'Actions',

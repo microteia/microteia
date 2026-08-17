@@ -62,7 +62,7 @@ export interface AITabViewModel {
 }
 
 export const useAITabViewModel = (): AITabViewModel => {
-  const t = useT('core.admin');
+  const t = useT('core.tenant');
   const { currentTenant } = useTenant();
   const { aiConnectionRepository } = useDI();
 

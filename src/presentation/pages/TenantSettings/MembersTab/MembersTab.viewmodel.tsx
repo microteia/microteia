@@ -7,7 +7,7 @@ import { TenantMemberLimitReachedError } from '../../../../domain/errors';
 import type { TenantMember, TenantRole } from '../../../../domain/entities';
 
 import { useT } from '../../../shared/i18n/useT';
-/** O nome de cada perfil como CHAVE do namespace `core.admin`; quem exibe resolve com `useT`. */
+/** O nome de cada perfil como CHAVE do namespace `core.tenant`; quem exibe resolve com `useT`. */
 export const TENANT_ROLE_KEYS: Record<TenantRole, string> = {
   admin: 'role.admin',
   lawyer: 'role.lawyer',
@@ -37,7 +37,7 @@ export interface MembersTabViewModel {
 }
 
 export const useMembersTabViewModel = (): MembersTabViewModel => {
-  const t = useT('core.admin');
+  const t = useT('core.tenant');
   const { currentTenant, members, isLoading, addMember, updateMemberRole, removeMember } = useTenant();
   const { user } = useAuth();
   const { notify } = useNotification();

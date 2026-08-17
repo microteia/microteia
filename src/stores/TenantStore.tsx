@@ -11,7 +11,7 @@ import {
   makeGetTenantMembersUseCase,
 } from '../domain/usecases/tenants/ManageTenantMembersUseCase';
 import { makeUpdateTenantUseCase } from '../domain/usecases/tenants/UpdateTenantUseCase';
-import type { Tenant, TenantMember, TenantRole } from '../domain/entities';
+import type { Tenant, TenantMember, TenantRole, TenantUpdate } from '../domain/entities';
 import { LocalizedError } from '../domain/errors/LocalizedError';
 
 const TENANT_STORAGE_KEY = 'microteia:lastTenantId';
@@ -61,7 +61,7 @@ export const TenantStoreProvider: React.FC<{ children: React.ReactNode }> = ({ c
     if (tenant) await applyTenant(tenant);
   }, [availableTenants, tenantRepository, applyTenant]);
 
-  const updateTenant = useCallback(async (data: Partial<Omit<Tenant, 'id' | 'ownerId' | 'createdAt'>>) => {
+  const updateTenant = useCallback(async (data: TenantUpdate) => {
     if (!currentTenant) return;
     await uc.update.execute(currentTenant.id, data);
     setCurrentTenant((prev) => prev ? { ...prev, ...data } : prev);

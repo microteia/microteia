@@ -35,8 +35,13 @@ describe('entityRegistry — compatibilidade com o schema legado', () => {
     }
   });
 
+  /**
+   * O escritório é a única entidade do registro que aceita campo do tenant: a tela dele virou plugin
+   * justamente para que o Form Design a alcance. Ela não é referenciável porque não há lista de onde
+   * escolher um escritório — o registro é UM só, o documento `tenants/{tenantId}`.
+   */
   it('mantém os conjuntos de entidades com custom fields e referenciáveis', () => {
-    expect([...CUSTOM_FIELD_ENABLED_ENTITIES]).toStrictEqual([]);
+    expect([...CUSTOM_FIELD_ENABLED_ENTITIES]).toStrictEqual(['tenant']);
     expect([...BUILTIN_REF_ENTITIES].sort()).toStrictEqual(['members']);
   });
 

@@ -109,8 +109,34 @@ export interface UiWidgetMetadata {
   requiredRole?: UserRole;
 }
 
+/**
+ * Uma ABA de uma superfície — a faixa de abas de uma tela que quem contribui não escreveu. Mesma
+ * ideia do widget, com uma diferença que muda tudo: numa grade todos aparecem juntos, aqui só um
+ * aparece por vez, e a escolha é do usuário.
+ *
+ * A superfície é um NOME (`tenant-settings`), não uma tela: quem a hospeda declara o nome, e quem
+ * contribui não precisa conhecer nada além dele. É o que permite uma extensão acrescentar a própria
+ * aba às Configurações do Escritório sem que a tela saiba que ela existe.
+ *
+ * `tabKey` é o sufixo pelo qual a aba é endereçável de fora — um deep link, o ⌘K, um botão de outra
+ * tela. Ausente, vale a própria `key`.
+ */
+export interface UiTabMetadata {
+  surface: string;
+  key: string;
+  title: string;
+  description?: string;
+  /** Chave do conjunto curado de `screenIcons` — nunca um componente. */
+  icon?: string;
+  defaultEnabled?: boolean;
+  order?: number;
+  requiredRole?: UserRole;
+  requiresTenantAdmin?: boolean;
+}
+
 export const UI_WIDGET_POINT = 'ui.widget';
 export const UI_SETTINGS_POINT = 'ui.settings';
+export const UI_TAB_POINT = 'ui.tab';
 
 export const UI_EXTENSION_POINTS: ExtensionPointDefinition[] = [
   {
@@ -171,6 +197,16 @@ export const UI_EXTENSION_POINTS: ExtensionPointDefinition[] = [
     ownerPluginId: 'core.ui',
     allowedImplKinds: [],
     implRequired: false,
+    multiple: true,
+  },
+  {
+    id: UI_TAB_POINT,
+    apiVersion: UI_API_VERSION,
+    title: '@core.ui/point.tab',
+    description: '@core.ui/point.tab.description',
+    ownerPluginId: 'core.ui',
+    allowedImplKinds: ['code', 'widget'],
+    implRequired: true,
     multiple: true,
   },
 ];
