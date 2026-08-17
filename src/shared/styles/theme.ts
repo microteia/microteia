@@ -53,7 +53,7 @@ const METRICS = {
     '2xl': '48px',
   },
   borderRadius: {
-    sm: '6px',
+    sm: '8px',
     md: '10px',
     lg: '16px',
     xl: '24px',
@@ -70,15 +70,29 @@ const METRICS = {
   },
 };
 
+/**
+ * Os dois neutros de linha, e a diferença entre eles é a função, não a intensidade:
+ *
+ * - `border` CONTORNA — dá forma ao que é um objeto: campo, card, menu, painel flutuante.
+ * - `borderSubtle` DIVIDE — separa regiões que já diferem no preenchimento: a sidebar do painel,
+ *   a barra de abas da página, uma linha de tabela da seguinte. Quem separa ali é a troca de fundo;
+ *   a linha só insinua.
+ *
+ * Os dois são SOBREPOSIÇÃO (`rgba`), não hex opaco, e isso é o que os faz valer em qualquer tema:
+ * uma sobreposição compõe sobre o fundo que encontrar, então a mesma divisória acerta o `background`
+ * e o `surface` — e acerta também o tema escuro que um escritório escrever amanhã sem redeclará-la.
+ * Um hex opaco só pode acertar um dos dois.
+ */
 export const baseDarkTheme = {
   id: 'dark',
   base: 'dark' as ThemeBase,
   colors: {
-    background: '#141414',
-    surface: '#1F1F1F',
-    surfaceHover: '#2D2D2D',
-    cardHover: '#2D2D2D',
-    border: '#3D3D3D',
+    background: '#0A0A0A',
+    surface: '#131313',
+    surfaceHover: '#1E1E1E',
+    cardHover: '#1E1E1E',
+    border: 'rgba(255, 255, 255, 0.11)',
+    borderSubtle: 'rgba(255, 255, 255, 0.055)',
     primary: '#F56B3A',
     primaryHover: '#D45A2A',
     primaryLight: 'rgba(245, 107, 58, 0.15)',
@@ -92,15 +106,15 @@ export const baseDarkTheme = {
     revenueLight: 'rgba(146, 195, 83, 0.15)',
     expense: '#CC4A31',
     info: '#4FA8C9',
-    text: '#F3F2F1',
-    textSecondary: '#C8C6C4',
-    textMuted: '#8A8886',
-    inputBackground: '#2C2C2C',
-    scrollbar: '#3D3D3D',
-    scrollbarThumb: '#5C5C5C',
-    shadow: 'rgba(0, 0, 0, 0.5)',
-    overlay: 'rgba(0, 0, 0, 0.65)',
-    calendarToday: 'rgba(245, 107, 58, 0.2)',
+    text: '#ECECEC',
+    textSecondary: '#B4B4B4',
+    textMuted: '#858585',
+    inputBackground: '#171717',
+    scrollbar: 'rgba(255, 255, 255, 0.03)',
+    scrollbarThumb: 'rgba(255, 255, 255, 0.16)',
+    shadow: 'rgba(0, 0, 0, 0.6)',
+    overlay: 'rgba(0, 0, 0, 0.72)',
+    calendarToday: 'rgba(245, 107, 58, 0.14)',
     white: '#ffffff',
     aiOpenai: '#10a37f',
     aiAnthropic: '#c97c5d',
@@ -111,8 +125,8 @@ export const baseDarkTheme = {
     aiOther: '#6c63ff',
   },
   fonts: {
-    body: "'Segoe UI', system-ui, -apple-system, sans-serif",
-    mono: "'Cascadia Code', 'JetBrains Mono', 'Fira Code', monospace",
+    body: "'Geist', system-ui, -apple-system, 'Segoe UI', sans-serif",
+    mono: "'Geist Mono', 'JetBrains Mono', 'Fira Code', monospace",
   },
   ...METRICS,
   highlights: {
@@ -135,31 +149,34 @@ export const baseLightTheme: typeof baseDarkTheme = {
     surface: '#F5F6F9',
     surfaceHover: '#E8EBF1',
     cardHover: '#E4E7EF',
-    border: '#D4D9E6',
+    border: 'rgba(26, 32, 53, 0.13)',
+    borderSubtle: 'rgba(26, 32, 53, 0.07)',
     primary: '#5B7ED6',
     primaryHover: '#4A6BC4',
     primaryLight: 'rgba(91, 126, 214, 0.10)',
     secondary: '#8896B3',
     success: '#3D9970',
     warning: '#C99A3A',
+    warningLight: 'rgba(201, 154, 58, 0.12)',
     danger: '#C85A5A',
+    dangerLight: 'rgba(200, 90, 90, 0.12)',
     revenue: '#3D9970',
     revenueLight: 'rgba(61, 153, 112, 0.10)',
     expense: '#C85A5A',
     info: '#4A90C9',
     text: '#1A2035',
     textSecondary: '#4A5770',
-    textMuted: '#8896B3',
+    textMuted: '#5D6880',
     inputBackground: '#F0F2F6',
-    scrollbar: '#D4D9E6',
-    scrollbarThumb: '#B4BDD4',
+    scrollbar: 'rgba(26, 32, 53, 0.04)',
+    scrollbarThumb: 'rgba(26, 32, 53, 0.22)',
     shadow: 'rgba(26, 32, 53, 0.08)',
     overlay: 'rgba(26, 32, 53, 0.35)',
     calendarToday: 'rgba(91, 126, 214, 0.10)',
   },
   fonts: {
-    body: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-    mono: "'JetBrains Mono', 'Fira Code', monospace",
+    body: "'Geist', system-ui, -apple-system, 'Segoe UI', sans-serif",
+    mono: "'Geist Mono', 'JetBrains Mono', 'Fira Code', monospace",
   },
   highlights: {
     yellow: '#fde047',

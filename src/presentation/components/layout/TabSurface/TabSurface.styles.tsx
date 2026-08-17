@@ -9,7 +9,7 @@ const Wrapper = styled.div`
 
 const TabsBar = styled.div`
   display: flex;
-  border-bottom: 1px solid ${({ theme }) => theme.colors.border};
+  border-bottom: 1px solid ${({ theme }) => theme.colors.borderSubtle};
   padding: 0 ${({ theme }) => theme.spacing.xl};
   gap: ${({ theme }) => theme.spacing.xs};
   flex-shrink: 0;

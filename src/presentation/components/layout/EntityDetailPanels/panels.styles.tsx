@@ -42,7 +42,7 @@ export const S = {
 
   NoteEditorTitleRow: styled.div`
     padding: ${({ theme }) => theme.spacing.sm} ${({ theme }) => theme.spacing.md};
-    border-bottom: 1px solid ${({ theme }) => theme.colors.border};
+    border-bottom: 1px solid ${({ theme }) => theme.colors.borderSubtle};
   `,
 
   NoteEditorActions: styled.div`
@@ -51,7 +51,7 @@ export const S = {
     justify-content: flex-end;
     gap: ${({ theme }) => theme.spacing.sm};
     padding: ${({ theme }) => theme.spacing.sm} ${({ theme }) => theme.spacing.md};
-    border-top: 1px solid ${({ theme }) => theme.colors.border};
+    border-top: 1px solid ${({ theme }) => theme.colors.borderSubtle};
     background: ${({ theme }) => theme.colors.surfaceHover};
   `,
 
@@ -145,7 +145,7 @@ export const S = {
 
   NoteDivider: styled.hr`
     border: none;
-    border-top: 1px solid ${({ theme }) => theme.colors.border};
+    border-top: 1px solid ${({ theme }) => theme.colors.borderSubtle};
     margin: 0;
   `,
 

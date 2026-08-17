@@ -11,7 +11,7 @@ export const S = {
       $collapsed ? theme.sidebar.collapsedWidth : theme.sidebar.width};
     flex-shrink: 0;
     background: ${({ theme }) => theme.colors.surface};
-    border-right: 1px solid ${({ theme }) => theme.colors.border};
+    border-right: 1px solid ${({ theme }) => theme.colors.borderSubtle};
     display: flex;
     flex-direction: column;
     transition: width ${({ theme }) => theme.transitions.normal};
@@ -24,7 +24,7 @@ export const S = {
     justify-content: ${({ $collapsed }) => ($collapsed ? 'center' : 'space-between')};
     padding: ${({ $collapsed }) => ($collapsed ? '0 4px' : '0 12px 0 16px')};
     height: 72px;
-    border-bottom: 1px solid ${({ theme }) => theme.colors.border};
+    border-bottom: 1px solid ${({ theme }) => theme.colors.borderSubtle};
     flex-shrink: 0;
     gap: ${({ $collapsed }) => ($collapsed ? '4px' : '0')};
   `,
@@ -132,8 +132,7 @@ export const S = {
   SearchKbd: styled.kbd`
     font-family: ${({ theme }) => theme.fonts.mono};
     font-size: ${({ theme }) => theme.fontSizes.xs};
-    background: ${({ theme }) => theme.colors.surface};
-    border: 1px solid ${({ theme }) => theme.colors.border};
+    background: ${({ theme }) => theme.colors.surfaceHover};
     border-radius: ${({ theme }) => theme.borderRadius.sm};
     padding: 1px 5px;
     color: ${({ theme }) => theme.colors.textMuted};
@@ -170,7 +169,7 @@ export const S = {
     color: ${({ theme, $active }) => ($active ? theme.colors.primary : theme.colors.textSecondary)};
     background: ${({ theme, $active }) => ($active ? theme.colors.primaryLight : 'transparent')};
     font-size: ${({ theme }) => theme.fontSizes.sm};
-    font-weight: ${({ $active }) => ($active ? '600' : '500')};
+    font-weight: ${({ $active }) => ($active ? '600' : '400')};
     white-space: nowrap;
     text-align: left;
     width: 100%;
@@ -193,9 +192,9 @@ export const S = {
     min-width: 18px;
     height: 18px;
     padding: 0 5px;
-    border-radius: 9px;
+    border-radius: ${({ theme }) => theme.borderRadius.full};
     background: ${({ theme }) => theme.colors.primary};
-    color: #fff;
+    color: ${({ theme }) => theme.colors.white};
     font-size: 10px;
     font-weight: 700;
     display: flex;
@@ -210,9 +209,9 @@ export const S = {
     right: 4px;
     width: 8px;
     height: 8px;
-    border-radius: 50%;
+    border-radius: ${({ theme }) => theme.borderRadius.full};
     background: ${({ theme }) => theme.colors.primary};
-    border: 2px solid ${({ theme }) => theme.colors.surface};
+    box-shadow: 0 0 0 2px ${({ theme }) => theme.colors.surface};
     flex-shrink: 0;
   `,
 
@@ -226,7 +225,7 @@ export const S = {
 
   UserSection: styled.div`
     position: relative;
-    border-top: 1px solid ${({ theme }) => theme.colors.border};
+    border-top: 1px solid ${({ theme }) => theme.colors.borderSubtle};
     flex-shrink: 0;
   `,
 
@@ -294,7 +293,7 @@ export const S = {
 
   MenuDivider: styled.div`
     height: 1px;
-    background: ${({ theme }) => theme.colors.border};
+    background: ${({ theme }) => theme.colors.borderSubtle};
     margin: 0;
   `,
 
@@ -320,7 +319,7 @@ export const S = {
 
     &:hover {
       background: ${({ theme, $danger }) =>
-        $danger ? `${theme.colors.danger}15` : theme.colors.surfaceHover};
+        $danger ? theme.colors.dangerLight : theme.colors.surfaceHover};
     }
   `,
 
@@ -389,7 +388,7 @@ export const S = {
   ThemeDot: styled.div<{ $bg: string; $primary: string }>`
     width: 14px;
     height: 14px;
-    border-radius: 50%;
+    border-radius: ${({ theme }) => theme.borderRadius.full};
     background: linear-gradient(
       135deg,
       ${({ $bg }) => $bg} 50%,

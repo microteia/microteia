@@ -16,7 +16,8 @@ export const GlobalStyles = createGlobalStyle`
     font-family: ${({ theme }) => theme.fonts.body};
     background-color: ${({ theme }) => theme.colors.background};
     color: ${({ theme }) => theme.colors.text};
-    line-height: 1.6;
+    line-height: 1.5;
+    letter-spacing: -0.011em;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     transition: background-color ${({ theme }) => theme.transitions.normal},
@@ -75,7 +76,7 @@ export const GlobalStyles = createGlobalStyle`
     color: ${({ theme }) => theme.colors.textSecondary};
     background: ${({ theme }) => theme.colors.surface};
     border: 1px solid ${({ theme }) => theme.colors.border};
-    border-radius: ${({ theme }) => theme.borderRadius.sm};
+    border-radius: ${({ theme }) => theme.borderRadius.md};
     padding: 6px 14px;
     font-size: ${({ theme }) => theme.fontSizes.sm};
     transition: all ${({ theme }) => theme.transitions.fast};
@@ -87,7 +88,7 @@ export const GlobalStyles = createGlobalStyle`
 
     &.rbc-active {
       background: ${({ theme }) => theme.colors.primary};
-      color: #fff;
+      color: ${({ theme }) => theme.colors.white};
       border-color: ${({ theme }) => theme.colors.primary};
       box-shadow: none;
 
@@ -108,7 +109,7 @@ export const GlobalStyles = createGlobalStyle`
     font-size: ${({ theme }) => theme.fontSizes.sm};
     font-weight: 500;
     color: ${({ theme }) => theme.colors.textSecondary};
-    border-bottom: 1px solid ${({ theme }) => theme.colors.border};
+    border-bottom: 1px solid ${({ theme }) => theme.colors.borderSubtle};
   }
 
   .rbc-month-view, .rbc-time-view, .rbc-agenda-view {
@@ -118,11 +119,11 @@ export const GlobalStyles = createGlobalStyle`
   }
 
   .rbc-month-row {
-    border-top: 1px solid ${({ theme }) => theme.colors.border};
+    border-top: 1px solid ${({ theme }) => theme.colors.borderSubtle};
   }
 
   .rbc-day-bg {
-    border-left: 1px solid ${({ theme }) => theme.colors.border};
+    border-left: 1px solid ${({ theme }) => theme.colors.borderSubtle};
     transition: background ${({ theme }) => theme.transitions.fast};
 
     &:hover {
@@ -188,13 +189,13 @@ export const GlobalStyles = createGlobalStyle`
       font-size: ${({ theme }) => theme.fontSizes.sm};
       font-weight: 500;
       color: ${({ theme }) => theme.colors.textSecondary};
-      border-bottom: 1px solid ${({ theme }) => theme.colors.border};
+      border-bottom: 1px solid ${({ theme }) => theme.colors.borderSubtle};
       background: ${({ theme }) => theme.colors.surface};
     }
 
     tbody tr td {
       padding: 10px 16px;
-      border-bottom: 1px solid ${({ theme }) => theme.colors.border};
+      border-bottom: 1px solid ${({ theme }) => theme.colors.borderSubtle};
       font-size: ${({ theme }) => theme.fontSizes.sm};
       color: ${({ theme }) => theme.colors.text};
     }
@@ -206,19 +207,19 @@ export const GlobalStyles = createGlobalStyle`
   }
 
   .rbc-time-header {
-    border-bottom: 1px solid ${({ theme }) => theme.colors.border};
+    border-bottom: 1px solid ${({ theme }) => theme.colors.borderSubtle};
   }
 
   .rbc-time-content {
-    border-top: 1px solid ${({ theme }) => theme.colors.border};
+    border-top: 1px solid ${({ theme }) => theme.colors.borderSubtle};
   }
 
   .rbc-timeslot-group {
-    border-bottom: 1px solid ${({ theme }) => theme.colors.border};
+    border-bottom: 1px solid ${({ theme }) => theme.colors.borderSubtle};
   }
 
   .rbc-time-slot {
-    border-top: 1px solid ${({ theme }) => theme.colors.border};
+    border-top: 1px solid ${({ theme }) => theme.colors.borderSubtle};
   }
 
   .rbc-label {

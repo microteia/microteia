@@ -10,7 +10,7 @@ export const S = {
     min-height: 40px;
     padding: 4px 10px;
     background: ${({ theme }) => theme.colors.inputBackground};
-    border: 1.5px solid ${({ theme, $focused }) =>
+    border: 1px solid ${({ theme, $focused }) =>
       $focused ? theme.colors.primary : theme.colors.border};
     border-radius: ${({ theme }) => theme.borderRadius.md};
     cursor: text;

@@ -19,7 +19,7 @@ export const S = {
     padding: ${({ theme, $embedded }) => ($embedded
     ? `0 0 ${theme.spacing.md} 0`
     : `${theme.spacing.lg} ${theme.spacing.xl}`)};
-    border-bottom: 1px solid ${({ theme }) => theme.colors.border};
+    border-bottom: 1px solid ${({ theme }) => theme.colors.borderSubtle};
     flex-shrink: 0;
   `,
 
@@ -49,7 +49,7 @@ export const S = {
     padding: ${({ theme, $embedded }) => ($embedded
     ? `${theme.spacing.md} 0`
     : `${theme.spacing.md} ${theme.spacing.xl}`)};
-    border-bottom: 1px solid ${({ theme }) => theme.colors.border};
+    border-bottom: 1px solid ${({ theme }) => theme.colors.borderSubtle};
     flex-shrink: 0;
     flex-wrap: wrap;
     align-items: center;

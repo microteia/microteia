@@ -71,18 +71,36 @@ export const S = {
     display: flex;
   `,
 
+  /**
+   * A área de agarre e a linha visível deixam de ser a mesma coisa: o alvo do mouse cresce de 4px
+   * para 7px enquanto o traço cai para 1px. Antes os dois estavam presos no mesmo elemento, então
+   * afinar a linha significava piorar o agarre — e 4px já era estreito para arrastar.
+   */
   Resizer: styled.div<{ $direction: SplitDirection }>`
     flex-shrink: 0;
-    width: ${({ $direction }) => ($direction === 'horizontal' ? '4px' : '100%')};
-    height: ${({ $direction }) => ($direction === 'vertical' ? '4px' : '100%')};
-    background: ${({ theme }) => theme.colors.border};
+    position: relative;
+    background: transparent;
+    width: ${({ $direction }) => ($direction === 'horizontal' ? '7px' : '100%')};
+    height: ${({ $direction }) => ($direction === 'vertical' ? '7px' : '100%')};
     cursor: ${({ $direction }) => ($direction === 'horizontal' ? 'col-resize' : 'row-resize')};
-    transition: background ${({ theme }) => theme.transitions.fast};
     z-index: 1;
 
-    &:hover,
-    &:active {
+    &::after {
+      content: '';
+      position: absolute;
+      background: ${({ theme }) => theme.colors.borderSubtle};
+      transition: background ${({ theme }) => theme.transitions.fast};
+      ${({ $direction }) =>
+        $direction === 'horizontal'
+          ? 'top: 0; bottom: 0; left: 3px; width: 1px;'
+          : 'left: 0; right: 0; top: 3px; height: 1px;'}
+    }
+
+    &:hover::after,
+    &:active::after {
       background: ${({ theme }) => theme.colors.primary};
+      ${({ $direction }) =>
+        $direction === 'horizontal' ? 'left: 2px; width: 3px;' : 'top: 2px; height: 3px;'}
     }
   `,
 };

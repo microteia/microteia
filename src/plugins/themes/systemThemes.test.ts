@@ -47,22 +47,23 @@ describe('temas do sistema', () => {
   });
 
   /**
-   * A prova de que a migração não mudou a tela: estas são as cores que o tema "Microteia" e o tema
-   * "Bruma" mostravam antes de virarem Escuro e Claro.
+   * Os dois pacotes do sistema declaram ZERO cor: são ponteiros para as bases do kernel. Então a
+   * asserção que vale é a identidade com a base, não um hex escrito à mão — que só registraria a
+   * paleta do dia em que o teste foi escrito e passaria a pedir edição a cada afinação de cor.
+   *
+   * O que este teste impede é o Escuro passar a divergir do piso sem ninguém declarar nada: se um dia
+   * `com.microteia.theme-dark` ganhar uma paleta própria, ou se a composição deixar de repassar a
+   * base intacta, é aqui que aparece.
    */
-  it('Escuro continua com a paleta que estava no ar', () => {
+  it('Escuro é a base escura, sem nada por cima', () => {
     const dark = themeById('dark');
-    expect(dark.colors.background).toBe('#141414');
-    expect(dark.colors.primary).toBe('#F56B3A');
-    expect(dark.colors.text).toBe('#F3F2F1');
+    expect(dark.colors).toEqual(baseDarkTheme.colors);
     expect(dark.base).toBe('dark');
   });
 
-  it('Claro continua com a paleta que estava no ar', () => {
+  it('Claro é a base clara, sem nada por cima', () => {
     const white = themeById('white');
-    expect(white.colors.background).toBe('#ECEEF2');
-    expect(white.colors.primary).toBe('#5B7ED6');
-    expect(white.colors.text).toBe('#1A2035');
+    expect(white.colors).toEqual(baseLightTheme.colors);
     expect(white.base).toBe('light');
   });
 

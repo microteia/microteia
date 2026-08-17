@@ -10,7 +10,7 @@ export const S = {
     gap: ${({ theme }) => theme.spacing.md};
     padding: 0 ${({ theme }) => theme.spacing.sm};
     background: ${({ theme }) => theme.colors.surface};
-    border-top: 1px solid ${({ theme }) => theme.colors.border};
+    border-top: 1px solid ${({ theme }) => theme.colors.borderSubtle};
     font-size: ${({ theme }) => theme.fontSizes.xs};
     color: ${({ theme }) => theme.colors.textMuted};
   `,

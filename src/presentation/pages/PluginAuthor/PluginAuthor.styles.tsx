@@ -470,7 +470,7 @@ export const S = {
     justify-content: center;
     width: 20px;
     height: 20px;
-    border: 1.5px solid ${({ $on, theme }) => ($on ? theme.colors.primary : theme.colors.border)};
+    border: 1px solid ${({ $on, theme }) => ($on ? theme.colors.primary : theme.colors.border)};
     border-radius: ${({ theme }) => theme.borderRadius.sm};
     color: ${({ theme }) => theme.colors.primary};
     flex-shrink: 0;

@@ -11,6 +11,16 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [7.45.0] — 2026-08-17
+
+- As abas de trabalho agora têm os cantos de cima arredondados e se ligam à página aberta, como as abas de um navegador. A aba em uso é marcada por um traço da cor do sistema no alto, e as réguas que separavam uma aba da outra saíram.
+- As linhas que dividem as áreas da tela ficaram discretas: continuam organizando a interface, mas deixaram de disputar atenção com o conteúdo. A divisória entre painéis lado a lado virou um fio, e ao mesmo tempo ficou mais fácil de pegar com o mouse para arrastar.
+- O tema Escuro ganhou profundidade: o fundo é mais fundo e as superfícies acima dele são mais bem separadas, o que deixa a cor de destaque mais viva e o texto mais confortável de ler por muito tempo.
+- Os temas do catálogo — Indigo, Claude, Teams, Kindle, Themis e Themis Night — receberam o mesmo tratamento nas divisórias, cada um mantendo as suas cores.
+- Botões, campos e menus estão com os cantos mais suaves, e a barra de rolagem deixou de aparecer como um traço largo ao lado das listas.
+- O sistema passou a usar uma tipografia própria, com melhor legibilidade em telas e um espaçamento entre linhas mais adequado a listas e formulários.
+- Corrigida a legibilidade de textos secundários no tema Claro, que estavam claros demais sobre o fundo.
+
 #### [7.44.0] — 2026-08-17
 
 - O campo de CNPJ saiu do cadastro do Escritório. Ele era um documento de um país só, preso num formulário que vale para qualquer lugar — e agora quem precisa dele o acrescenta em Personalizar Telas, no formato do seu país, junto com a inscrição estadual e o que mais o escritório quiser guardar.

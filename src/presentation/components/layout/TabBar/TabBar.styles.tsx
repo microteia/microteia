@@ -1,27 +1,41 @@
 import styled from 'styled-components';
 
+/**
+ * A aba ativa é pintada com o MESMO fundo do painel de baixo, e só os cantos de cima são
+ * arredondados. É o que a faz deixar de ser uma caixa sobre uma barra e passar a ser um recorte que
+ * se abre na página — o padrão do navegador. A troca de preenchimento (`surface` da barra para
+ * `background` da página) faz sozinha o trabalho que antes pedia três réguas: divisória entre abas,
+ * base da barra e sublinhado da ativa.
+ *
+ * O acento vai no TOPO e como `inset box-shadow`, não como borda: sombra interna acompanha o
+ * `border-radius` de graça, e um acento embaixo cairia exatamente na emenda entre aba e painel,
+ * devolvendo a linha que acabou de sair.
+ */
 const Tab = styled.button<{ $active: boolean }>`
   display: flex;
   align-items: center;
   gap: 7px;
-  padding: 0 8px 0 14px;
-  height: 38px;
+  padding: 0 6px 0 12px;
+  height: 32px;
   font-size: ${({ theme }) => theme.fontSizes.sm};
   font-weight: ${({ $active }) => ($active ? '600' : '400')};
   color: ${({ theme, $active }) => ($active ? theme.colors.text : theme.colors.textMuted)};
   background: ${({ theme, $active }) => ($active ? theme.colors.background : 'transparent')};
-  border-right: 1px solid ${({ theme }) => theme.colors.border};
-  border-bottom: ${({ theme, $active }) =>
-    $active ? `2px solid ${theme.colors.primary}` : '2px solid transparent'};
+  border-radius: ${({ theme }) => theme.borderRadius.sm}
+                 ${({ theme }) => theme.borderRadius.sm} 0 0;
+  box-shadow: ${({ theme, $active }) =>
+    $active ? `inset 0 2px 0 ${theme.colors.primary}` : 'none'};
   white-space: nowrap;
   flex-shrink: 0;
   transition: background ${({ theme }) => theme.transitions.fast},
-              color ${({ theme }) => theme.transitions.fast};
+              color ${({ theme }) => theme.transitions.fast},
+              box-shadow ${({ theme }) => theme.transitions.fast};
   cursor: pointer;
   position: relative;
 
   &:hover {
-    background: ${({ theme }) => theme.colors.surfaceHover};
+    background: ${({ theme, $active }) =>
+      $active ? theme.colors.background : theme.colors.surfaceHover};
     color: ${({ theme }) => theme.colors.text};
   }
 
@@ -35,22 +49,24 @@ const Tab = styled.button<{ $active: boolean }>`
 export const S = {
   Bar: styled.div`
     display: flex;
-    align-items: stretch;
+    align-items: flex-end;
+    gap: 2px;
+    padding: 0 ${({ theme }) => theme.spacing.xs};
     background: ${({ theme }) => theme.colors.surface};
-    border-bottom: 1px solid ${({ theme }) => theme.colors.border};
     flex-shrink: 0;
-    min-height: 38px;
+    min-height: 36px;
   `,
 
   TabList: styled.div`
     display: flex;
-    align-items: stretch;
+    align-items: flex-end;
+    gap: 2px;
     flex: 1;
     min-width: 0;
     overflow-x: auto;
     overflow-y: hidden;
     scrollbar-width: thin;
-    scrollbar-color: ${({ theme }) => theme.colors.border} transparent;
+    scrollbar-color: ${({ theme }) => theme.colors.scrollbarThumb} transparent;
 
     &::-webkit-scrollbar {
       height: 3px;
@@ -59,8 +75,8 @@ export const S = {
       background: transparent;
     }
     &::-webkit-scrollbar-thumb {
-      background: ${({ theme }) => theme.colors.border};
-      border-radius: 2px;
+      background: ${({ theme }) => theme.colors.scrollbarThumb};
+      border-radius: ${({ theme }) => theme.borderRadius.full};
     }
   `,
 
@@ -70,7 +86,8 @@ export const S = {
     justify-content: center;
     width: 26px;
     height: 26px;
-    margin: auto ${({ theme }) => theme.spacing.xs};
+    align-self: center;
+    margin: 0 ${({ theme }) => theme.spacing.xs};
     flex-shrink: 0;
     border-radius: ${({ theme }) => theme.borderRadius.sm};
     background: ${({ theme, $active }) => ($active ? theme.colors.primaryLight : 'transparent')};
@@ -99,7 +116,7 @@ export const S = {
     justify-content: center;
     width: 18px;
     height: 18px;
-    border-radius: 3px;
+    border-radius: ${({ theme }) => theme.borderRadius.full};
     color: ${({ theme }) => theme.colors.textMuted};
     opacity: ${({ $active }) => ($active ? '1' : '0')};
     transition: opacity ${({ theme }) => theme.transitions.fast},
@@ -108,7 +125,7 @@ export const S = {
     flex-shrink: 0;
 
     &:hover {
-      background: ${({ theme }) => theme.colors.border};
+      background: ${({ theme }) => theme.colors.surfaceHover};
       color: ${({ theme }) => theme.colors.text};
     }
   `,
@@ -117,7 +134,7 @@ export const S = {
     position: fixed;
     background: ${({ theme }) => theme.colors.surface};
     border: 1px solid ${({ theme }) => theme.colors.border};
-    border-radius: ${({ theme }) => theme.borderRadius.sm};
+    border-radius: ${({ theme }) => theme.borderRadius.md};
     box-shadow: 0 8px 24px ${({ theme }) => theme.colors.shadow};
     z-index: 9999;
     min-width: 190px;
@@ -146,7 +163,7 @@ export const S = {
 
   ContextSeparator: styled.div`
     height: 1px;
-    background: ${({ theme }) => theme.colors.border};
+    background: ${({ theme }) => theme.colors.borderSubtle};
     margin: 4px 0;
   `,
 };

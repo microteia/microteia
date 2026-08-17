@@ -178,7 +178,10 @@ const STYLED_COMPONENTS_DEFS = `declare module 'styled-components' {
       surface: string;
       surfaceHover: string;
       cardHover: string;
+      /** Contorna um objeto: campo, card, menu, painel flutuante. */
       border: string;
+      /** Divide regiões que já diferem no preenchimento — mais fraco que \`border\`, de propósito. */
+      borderSubtle: string;
       primary: string;
       primaryHover: string;
       primaryLight: string;

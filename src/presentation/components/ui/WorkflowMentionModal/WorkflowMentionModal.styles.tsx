@@ -43,7 +43,7 @@ export const S = {
     display: flex;
     align-items: center;
     gap: ${({ theme }) => theme.spacing.sm};
-    border: 1.5px solid ${({ theme }) => theme.colors.border};
+    border: 1px solid ${({ theme }) => theme.colors.border};
     border-radius: ${({ theme }) => theme.borderRadius.md};
     background: ${({ theme }) => theme.colors.surface};
     padding: 10px 12px;

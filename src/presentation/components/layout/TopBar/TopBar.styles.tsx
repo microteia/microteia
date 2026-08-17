@@ -22,7 +22,7 @@ export const S = {
     height: 48px;
     padding: 0 ${({ theme }) => theme.spacing.lg};
     background: ${({ theme }) => theme.colors.surface};
-    border-bottom: 1px solid ${({ theme }) => theme.colors.border};
+    border-bottom: 1px solid ${({ theme }) => theme.colors.borderSubtle};
     flex-shrink: 0;
     animation: ${fadeIn} 200ms ease;
   `,
@@ -113,7 +113,7 @@ export const S = {
     color: ${({ theme }) => theme.colors.textMuted};
     text-transform: uppercase;
     letter-spacing: 0.06em;
-    border-bottom: 1px solid ${({ theme }) => theme.colors.border};
+    border-bottom: 1px solid ${({ theme }) => theme.colors.borderSubtle};
   `,
 
   SearchInputWrapper: styled.div`
@@ -121,7 +121,7 @@ export const S = {
     align-items: center;
     gap: 8px;
     padding: 8px 12px;
-    border-bottom: 1px solid ${({ theme }) => theme.colors.border};
+    border-bottom: 1px solid ${({ theme }) => theme.colors.borderSubtle};
     color: ${({ theme }) => theme.colors.textMuted};
   `,
 
@@ -205,15 +205,15 @@ export const S = {
     min-width: 16px;
     height: 16px;
     padding: 0 4px;
-    border-radius: 8px;
+    border-radius: ${({ theme }) => theme.borderRadius.full};
     background: ${({ theme }) => theme.colors.primary};
-    color: #fff;
+    color: ${({ theme }) => theme.colors.white};
     font-size: 10px;
     font-weight: 700;
     display: flex;
     align-items: center;
     justify-content: center;
     pointer-events: none;
-    border: 2px solid ${({ theme }) => theme.colors.surface};
+    box-shadow: 0 0 0 2px ${({ theme }) => theme.colors.surface};
   `,
 };

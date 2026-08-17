@@ -13,7 +13,7 @@ export const S = {
     align-items: center;
     justify-content: space-between;
     padding: ${({ theme }) => theme.spacing.lg} ${({ theme }) => theme.spacing.xl};
-    border-bottom: 1px solid ${({ theme }) => theme.colors.border};
+    border-bottom: 1px solid ${({ theme }) => theme.colors.borderSubtle};
     flex-shrink: 0;
     gap: ${({ theme }) => theme.spacing.md};
     flex-wrap: wrap;
@@ -150,14 +150,14 @@ export const S = {
   TagDot: styled.span<{ $color: string }>`
     width: 6px;
     height: 6px;
-    border-radius: 50%;
+    border-radius: ${({ theme }) => theme.borderRadius.full};
     background: ${({ $color }) => $color};
     flex-shrink: 0;
   `,
 
   TabBar: styled.div`
     display: flex;
-    border-bottom: 1px solid ${({ theme }) => theme.colors.border};
+    border-bottom: 1px solid ${({ theme }) => theme.colors.borderSubtle};
     flex-shrink: 0;
     padding: 0 ${({ theme }) => theme.spacing.xl};
   `,
