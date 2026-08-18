@@ -51,6 +51,26 @@ describe('coleções reservadas', () => {
     }
   });
 
+  /**
+   * `.get(campo, padrão)` do Firestore só devolve o padrão quando o campo está AUSENTE. A instalação
+   * de uma extensão grava `writeRoles: null` quando o pacote não restringe papéis — para apagar um
+   * valor que existisse antes —, e `.size()` sobre nulo ESTOURA. Regra que estoura NEGA: era isso que
+   * recusava toda gravação em `persons`, `deadlines` e `news`, enquanto `cases` e `financials`, que
+   * declaram a lista, gravavam normalmente. Confirmado pela API TestRuleset, que aponta
+   * "Null value error" exatamente na linha do `.size()`.
+   */
+  it('as listas da tela são lidas por acessor à prova de nulo', () => {
+    const rules = readFileSync(join(process.cwd(), 'firestore.rules'), 'utf8');
+
+    expect(rules, 'screenList precisa checar o tipo antes de usar a lista')
+      .toMatch(/function screenList\(name, field\)[\s\S]{0,200}?is list/);
+
+    for (const field of ['writeRoles', 'memberWritableFields']) {
+      expect(rules, `${field} lido direto de .get() volta nulo e derruba a regra: use screenList`)
+        .not.toMatch(new RegExp(`\\.get\\('${field}'`));
+    }
+  });
+
   it('o curinga do storage.rules recusa o caminho de logs, que tem regra própria', () => {
     const storage = readFileSync(join(process.cwd(), 'storage.rules'), 'utf8');
     const block = storage.match(/function isReservedStoragePath\(collection\) \{\s*return collection in \[([\s\S]*?)\];/);

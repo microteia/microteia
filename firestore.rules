@@ -38,12 +38,6 @@ service cloud.firestore {
       return isSystemOrSupport() || (isMember(tenantId) && memberData(tenantId).role == 'admin');
     }
 
-    // Verifica se o usuário tem role de advogado ou admin no tenant (ou é SYSTEM/SUPPORT)
-    function isTenantLawyerOrAdmin(tenantId) {
-      return isSystemOrSupport() ||
-        (isMember(tenantId) && memberData(tenantId).role in ['admin', 'lawyer']);
-    }
-
     // Verifica se o usuário pode escrever dados no tenant (admin, lawyer, secretary, ou SYSTEM/SUPPORT)
     function canWriteInTenant(tenantId) {
       return isSystemOrSupport() ||
@@ -301,9 +295,19 @@ service cloud.firestore {
       // para ALARGAR ("no mural todo mundo comenta", incluindo o papel `user`, somente leitura no
       // resto do sistema). Ausente (o normal), vale a permissão padrão do escritório. É o que
       // permite uma entidade sair do kernel sem levar junto a regra nomeada que a protegia.
+      // `.get(campo, padrão)` só devolve o padrão quando o campo está AUSENTE. Um campo gravado como
+      // NULO passa por ele, e aí `.size()` estoura — e regra que estoura NEGA. É o que recusava toda
+      // gravação nas coleções descritas por extensão que NÃO restringe papéis (`persons`, `deadlines`,
+      // `news`: a instalação grava `writeRoles: null` para apagar um valor anterior), enquanto as que
+      // restringem (`cases`, `financials`) gravavam normalmente. Toda lista de tela passa por aqui.
+      function screenData(name) {
+        return get(/databases/$(database)/documents/tenants/$(tenantId)/screenDefinitions/$(name)).data;
+      }
+      function screenList(name, field) {
+        return screenData(name).get(field, []) is list ? screenData(name).get(field, []) : [];
+      }
       function screenWriteRoles(name) {
-        return get(/databases/$(database)/documents/tenants/$(tenantId)/screenDefinitions/$(name))
-          .data.get('writeRoles', []);
+        return screenList(name, 'writeRoles');
       }
       function declaresWriteRoles(name) {
         return isDeclaredScreen(name) && screenWriteRoles(name).size() > 0;
@@ -321,8 +325,7 @@ service cloud.firestore {
       // OUTRA pessoa criou, e por isso o limite é a própria lista: a alteração é recusada se tocar
       // em qualquer campo fora dela. `updatedAt` entra porque o repositório sempre o carimba.
       function screenMemberWritableFields(name) {
-        return get(/databases/$(database)/documents/tenants/$(tenantId)/screenDefinitions/$(name))
-          .data.get('memberWritableFields', []);
+        return screenList(name, 'memberWritableFields');
       }
       function touchesOnlyMemberWritableFields(name) {
         return isDeclaredScreen(name)

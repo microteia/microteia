@@ -19,6 +19,7 @@ import {
 } from '../kernel/manifest.js';
 import type { BackendParameter, KernelManifest } from '../kernel/manifest.js';
 import { environmentSecrets, findBundleLeaks } from './bundleAudit.js';
+import { assertInsideRepository } from './repository.js';
 import {
   packageCustomIndexTs,
   packageCustomTsconfig,
@@ -85,6 +86,7 @@ const scanBackendSources = async (directory: string): Promise<BackendScan> => {
 };
 
 export const pack = async (args: ParsedArgs): Promise<void> => {
+  await assertInsideRepository('pack');
   const root = repoRoot;
   const skipVerify = hasFlag(args, 'skip-verify');
 

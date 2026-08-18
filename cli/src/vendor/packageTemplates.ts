@@ -105,6 +105,68 @@ export const packageCustomIndexTs = (): string => `// Cloud Functions belonging 
 export {};
 `;
 
+/**
+ * O Console empacotado para rodar FORA do repositório. O `type: module` não é detalhe: o compilado é
+ * ESM, e sem esta declaração o Node só o carrega por adivinhação de sintaxe — que existe a partir do
+ * 22.7 e falha em silêncio nas versões anteriores, com "Cannot use import statement outside a module".
+ * O `bin` é o que permite `npm link` e, daí, o comando `microteia` global.
+ */
+export const consolePackageJson = (version: string): string => JSON.stringify({
+  name: 'microteia-console',
+  version,
+  private: true,
+  type: 'module',
+  bin: { microteia: 'lib/index.js' },
+  engines: { node: '>=22' },
+}, null, 2) + '\n';
+
+export const consoleReadme = (version: string): string => `# Microteia Console ${version}
+
+Installs and updates Microteia in a Firebase project you own. This directory is self-contained: it
+needs no Microteia repository and no npm dependencies.
+
+    node lib/index.js --help
+
+## Getting a "microteia" command
+
+Link the entrypoint into any directory already on your PATH. It is executable and carries its own
+shebang, so no npm and **no sudo** are involved:
+
+    mkdir -p ~/.local/bin
+    ln -s "$PWD/lib/index.js" ~/.local/bin/microteia
+    microteia --help
+
+\`npm link\` also works, but only where npm's global prefix belongs to your user. With Node installed
+system-wide (prefix \`/usr/local\`, owned by root) it fails with EACCES, and \`sudo npm link\` — while it
+does work — writes root-owned files into the global prefix, which then need sudo to remove
+(\`sudo npm rm -g microteia-console\`). Pointing npm at a user-owned prefix avoids both:
+
+    npm config set prefix ~/.npm-global
+    export PATH="$HOME/.npm-global/bin:$PATH"   # add to ~/.zshrc
+    npm link
+
+## Using it
+
+    microteia init --name "<office>"
+    microteia connect --project <your-firebase-project-id>
+    microteia deploy --kernel <microteia-kernel-x.y.z>.tgz
+
+\`connect\` prints everything that has to be prepared in the Firebase project first — start with the
+Blaze plan, since nothing else can be created without it.
+
+## What has to exist on this machine
+
+| Tool          | Used for                                                       |
+| ------------- | -------------------------------------------------------------- |
+| Node.js 22    | running this Console, and the runtime the functions are built for |
+| \`firebase\`    | every deploy — authenticate with \`firebase login\` first          |
+| \`npm\`, \`tar\` | installing the functions' dependencies and unpacking the kernel  |
+| \`gcloud\`      | creating the App Engine application (one manual prerequisite)    |
+
+The kernel package itself is built from the Microteia repository (\`npm run pack:kernel\`) and handed
+to you as a \`.tgz\`. The \`pack\` command in here only works inside that repository.
+`;
+
 export const packageReadme = (version: string): string => `# Microteia ${version}
 
 This directory is a Microteia installation package. It is deployed by the Microteia Console:

@@ -1210,6 +1210,25 @@ describe('Tela sobre uma coleção existente', () => {
     expect(target?.writeRoles, 'as rules leem writeRoles no documento da COLEÇÃO').toEqual(['admin', 'lawyer']);
   });
 
+  /**
+   * O pacote que NÃO restringe papéis (Pessoa, Prazo) grava `null`, e não a ausência do campo: é
+   * assim que uma reinstalação apaga uma restrição que existisse antes. As Security Rules precisam,
+   * portanto, tolerar o nulo — `.get(campo, padrão)` não o troca pelo padrão. Ver a guarda em
+   * `scripts/reservedCollections.test.ts`.
+   */
+  it('sem permissão declarada, a coleção alvo recebe writeRoles nulo — e não ausente', async () => {
+    const semPermissao: MarketplacePlugin = {
+      ...boundPlugin,
+      screens: [{ ...boundPlugin.screens![0], writeRoles: undefined }],
+    };
+
+    await makeInstallMarketplacePluginUseCase(deps()).execute(semPermissao, actor);
+
+    const target = screens.store.get('cases');
+    expect(target, 'o documento da coleção alvo continua sendo gravado').toBeTruthy();
+    expect(target?.writeRoles, 'nulo é o que as rules recebem, e o que elas têm de tolerar').toBeNull();
+  });
+
   it('a coleção alvo que já tem documento é preservada — só a permissão é acertada', async () => {
     const d = deps();
     await screens.upsert('t1', 'cases', {

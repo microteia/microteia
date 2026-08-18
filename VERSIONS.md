@@ -11,6 +11,11 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [7.52.0] — 2026-08-18
+
+- Corrigido o erro "sem permissão" ao salvar registros em telas trazidas por extensões que não restringem quem pode gravar — Pessoa, Prazo e Notícias eram as afetadas, e o problema aparecia como falha de permissão mesmo para administradores. As telas que restringem papéis nunca foram afetadas.
+- Quem instala a Microteia num ambiente próprio passou a poder levar a ferramenta de instalação para qualquer pasta ou máquina, pronta para uso, em vez de precisar do projeto inteiro.
+
 #### [7.51.1] — 2026-08-18
 
 - A preparação de um ambiente novo passou a avisar, antes de tudo, que o projeto precisa estar num plano pago no provedor — sem isso nenhum dos passos seguintes funciona, e a instalação parava sem explicar o porquê.

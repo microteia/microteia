@@ -4,6 +4,7 @@ import type { ParsedArgs } from './shared/args.js';
 import { CLI_VERSION } from './shared/paths.js';
 import { blank, failure, heading, info } from './shared/ui.js';
 import { pack } from './vendor/pack.js';
+import { packConsole } from './vendor/packConsole.js';
 import { init } from './console/init.js';
 import { connect } from './console/connect.js';
 import { deploy } from './console/deploy.js';
@@ -44,6 +45,13 @@ const COMMANDS: Command[] = [
     summary: 'Build an installable Microteia package from this repository.',
     audience: 'publisher',
     execute: pack,
+  },
+  {
+    name: 'pack-console',
+    usage: 'microteia pack-console [--output <dir>]',
+    summary: 'Build a standalone copy of this Console, to run outside the repository.',
+    audience: 'publisher',
+    execute: packConsole,
   },
 ];
 

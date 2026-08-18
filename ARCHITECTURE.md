@@ -1296,6 +1296,21 @@ ao final, depois da URL, porque é a última coisa que quem instala precisa ler 
 aplicação. `connect` antecipa o assunto quando a região não é a padrão do Google, e o pré-requisito
 `functions-invoker` do manifesto carrega o comando.
 
+### O Console fora do repositório
+
+`microteia pack-console` monta a pasta que roda em qualquer lugar: `lib/` compilado, `package.json` e
+README, ~200 KB, sem dependência de npm a instalar — o Console usa só módulos nativos. O que ele
+exige são BINÁRIOS da máquina (`firebase`, `npm`, `tar`, `gcloud`), e esses não caberiam num pacote.
+
+O `package.json` gerado é o motivo de o comando existir em vez de um `cp -R`: o compilado é ESM, e sem
+`type: module` o Node o carrega apenas por adivinhação de sintaxe — recurso do 22.7 em diante, ausente
+antes dele, e cuja falha ("Cannot use import statement outside a module") parece defeito da
+ferramenta. `packConsole.test.ts` guarda a forma desse arquivo.
+
+Os comandos de publicação viajam na cópia (o `index.js` importa todos), então `pack` e `pack-console`
+verificam se estão dentro do repositório e recusam com mensagem própria em vez do `ENOENT` cru que
+davam antes — ver `cli/src/vendor/repository.ts`.
+
 ### O que esta etapa NÃO faz
 
 Entrega do pacote é tarball local; não há URL versionada, registry, nem atualização automática.
@@ -2031,6 +2046,16 @@ Detalhes que valem registrar:
   `screenDefinitions/{coleção}` com a permissão (`ensureTargetCollectionScreen`), preservando o que
   já existe no documento. O curinga só aplica a checagem quando o documento de tela existe — uma
   lista de opções ou um conjunto de etiquetas passa pelo mesmo `match` e não tem tela.
+- **Nulo não é ausência — e as rules leem lista por acessor.** O `.get(campo, padrão)` do Firestore
+  devolve o padrão só quando o campo está **AUSENTE**; um campo gravado como nulo passa por ele, e
+  `.size()` sobre nulo estoura — e **regra que estoura NEGA**. A instalação grava `writeRoles: null`
+  quando o pacote não restringe papéis (é assim que uma reinstalação apaga uma restrição anterior),
+  então toda gravação em `persons`, `deadlines` e `news` era recusada, enquanto `cases`, `financials`,
+  `contracts` e `calendar` — que declaram a lista — gravavam. Por isso as rules leem toda lista de
+  tela por `screenList(name, field)`, que checa `is list` antes de usar, e o teste em
+  `scripts/reservedCollections.test.ts` recusa qualquer `.get('writeRoles'…)` direto. O sintoma era
+  o pior possível: "Missing or insufficient permissions" ao salvar, idêntico ao de uma coleção sem
+  tela declarada, e dependente de qual extensão declarava a permissão.
 
 **Leitura tolerante enquanto há dois escritores.** `data/utils/toDateValue.ts` normaliza o que vem
 num campo de data (`Timestamp`, `Date`, texto ISO ou `aaaa-mm-dd`, mapa `{ seconds }`) e devolve

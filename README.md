@@ -130,14 +130,37 @@ npx microteia --help         # ou: node cli/lib/index.js --help
 
 | Comando | Lado | Para quê |
 |---|---|---|
-| `microteia pack [--output <dir>] [--skip-verify]` | Microteia | monta o pacote instalável |
+| `microteia pack [--output <dir>] [--skip-verify]` | Microteia | monta o pacote instalável do kernel |
+| `microteia pack-console [--output <dir>]` | Microteia | monta o próprio Console para rodar fora do repositório |
 | `microteia init [--name <escritório>] [--id <env>] [--force]` | escritório | cria a instalação no diretório atual |
 | `microteia connect --project <projectId> [--no-create-web-app]` | escritório | liga a instalação ao Firebase dele |
 | `microteia deploy --kernel <pacote.tgz> [--only rules,indexes,functions,hosting] [--delay <s>]` | escritório | instala ou atualiza |
 
-> Hoje o Console roda **a partir deste repositório**. Publicá-lo (npm, binário) faz parte da entrega
-> do pacote por URL/registry, que ainda não existe — ver "O que esta etapa NÃO faz" no
-> [ARCHITECTURE.md](./ARCHITECTURE.md).
+Para usá-lo fora daqui — outra pasta, outra máquina — não copie `cli/` à mão:
+
+```bash
+npm run pack:console     # -> distributions/console/<versão do Console>/
+```
+
+A pasta gerada tem `lib/`, um `package.json` e um README, pesa ~200 KB e **não instala nada**: o
+Console usa só módulos nativos do Node. Rode com `node lib/index.js --help`; para ter o comando
+`microteia` no PATH, aponte um link para o entrypoint, que sai do `pack` já executável e com shebang:
+
+```bash
+ln -s "$PWD/lib/index.js" ~/.local/bin/microteia
+```
+
+Sem npm e **sem sudo**. O `npm link` também serve, mas só onde o prefixo global do npm pertence ao
+usuário — com o Node instalado em `/usr/local` (de root) ele exige `sudo`, que funciona e deixa
+arquivos de root no prefixo global. `npm config set prefix ~/.npm-global` resolve pela raiz.
+
+O `package.json` é a razão de existir um comando em vez de um `cp -R`: o compilado é ESM, e sem
+`type: module` o Node só o carrega por adivinhação de sintaxe — que existe a partir do 22.7 e falha
+antes dele. Nessa cópia, `init`, `connect` e `deploy` funcionam; `pack` e `pack-console` recusam com
+mensagem clara, porque construir exige o repositório.
+
+> Publicar o Console (npm, binário) faz parte da entrega por URL/registry, que ainda não existe — ver
+> "O que esta etapa NÃO faz" no [ARCHITECTURE.md](./ARCHITECTURE.md).
 
 ### 1. Gerar uma versão do pacote (lado Microteia)
 
