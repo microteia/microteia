@@ -4,6 +4,8 @@ import type { ParsedArgs } from './shared/args.js';
 import { CLI_VERSION } from './shared/paths.js';
 import { blank, failure, heading, info } from './shared/ui.js';
 import { pack } from './vendor/pack.js';
+import { init } from './console/init.js';
+import { connect } from './console/connect.js';
 
 interface Command {
   name: string;
@@ -14,6 +16,20 @@ interface Command {
 }
 
 const COMMANDS: Command[] = [
+  {
+    name: 'init',
+    usage: 'microteia init [--name <office>] [--id <environment-id>] [--force]',
+    summary: 'Create a Microteia installation in this directory.',
+    audience: 'office',
+    execute: init,
+  },
+  {
+    name: 'connect',
+    usage: 'microteia connect --project <firebase-project-id> [--no-create-web-app]',
+    summary: 'Bind this installation to a Firebase project you own.',
+    audience: 'office',
+    execute: connect,
+  },
   {
     name: 'pack',
     usage: 'microteia pack [--output <dir>] [--skip-verify]',
