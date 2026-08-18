@@ -11,6 +11,11 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [7.51.1] — 2026-08-18
+
+- A preparação de um ambiente novo passou a avisar, antes de tudo, que o projeto precisa estar num plano pago no provedor — sem isso nenhum dos passos seguintes funciona, e a instalação parava sem explicar o porquê.
+- Documentado, para quem mantém o sistema, como gerar uma versão instalável da Microteia e como instalá-la e atualizá-la no ambiente de um escritório.
+
 #### [7.51.0] — 2026-08-18
 
 - A instalação passou a conferir, ao final, se o sistema realmente consegue conversar com o servidor a partir do navegador — e, quando não consegue, diz exatamente qual autorização falta e o que fazer para concedê-la. Antes a instalação terminava dizendo que tudo deu certo e o problema só aparecia depois, ao usar o sistema, na forma de uma falha que não indicava a causa.

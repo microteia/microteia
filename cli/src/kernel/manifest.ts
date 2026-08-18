@@ -62,6 +62,16 @@ export const KERNEL_COMPONENTS: KernelManifestComponent[] = [
  */
 export const MANUAL_PREREQUISITES: KernelPrerequisite[] = [
   {
+    id: 'billing',
+    title: 'Put the Firebase project on the Blaze (pay as you go) plan',
+    detail:
+      'This one comes before everything else: Cloud Functions of the 2nd generation do not exist on the '
+      + 'free plan, and neither the App Engine application nor the default Storage bucket can be created '
+      + 'without billing. Firebase console, project settings, Usage and billing. Every other step here '
+      + 'fails until this is done.',
+    optional: false,
+  },
+  {
     id: 'app-engine',
     title: 'Create the App Engine application before the first deploy',
     detail:

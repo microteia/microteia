@@ -1064,7 +1064,11 @@ npm run deploy:indexes                          # índices compostos
 npm run deploy:functions --force                # todas as functions (rode duas vezes)
 ```
 
-Três armadilhas de projeto novo, todas já enfrentadas em `microteia-dev`:
+> **Antes de qualquer um desses comandos, plano Blaze.** Cloud Functions de 2ª geração não existem no
+> plano gratuito, e nem a aplicação do App Engine nem o bucket padrão do Storage podem ser criados sem
+> billing ativo. Sem isso, tudo abaixo falha.
+
+Quatro armadilhas de projeto novo, todas já enfrentadas em `microteia-dev`:
 
 **1. A aplicação do App Engine precisa existir antes das functions.** Sem ela o deploy falha em
 `generateUploadUrl` com um 404 dizendo que não conseguiu autenticar o service agent
@@ -1215,9 +1219,11 @@ A lista de functions sai da **mesma fonte e do mesmo parse** que `scripts/deploy
 guarda, e `cli/src/kernel/manifest.test.ts` prova que as duas enxergam o mesmo conjunto. Uma terceira
 lista para desatualizar é exatamente o defeito que já deixou `runAction` fora do deploy.
 
-`manualPrerequisites` é a seção "Ao criar um ambiente do zero" desta página virada dado: App Engine
-antes das functions, região do Firestore igual à das functions, provedor de login, TTL da auditoria.
-Elas viajam no manifesto porque **quem instala não tem o `ARCHITECTURE.md`**.
+`manualPrerequisites` é a seção "Ao criar um ambiente do zero" desta página virada dado: plano Blaze
+antes de tudo, App Engine antes das functions, região do Firestore igual à das functions, bucket do
+Storage iniciado pelo console, provedor de login, TTL da auditoria, e os dois condicionais — invocação
+das callables por `allUsers` e as credenciais do Gmail. Elas viajam no manifesto porque **quem instala
+não tem o `ARCHITECTURE.md`**.
 
 ### Os três comandos
 
