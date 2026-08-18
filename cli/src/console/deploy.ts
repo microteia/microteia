@@ -10,6 +10,7 @@ import type { BackendParameter, KernelManifest } from '../kernel/manifest.js';
 import { ENVIRONMENT_FILE, readEnvironment, writeEnvironment } from './environment.js';
 import { FIREBASE_BIN } from './firebaseCli.js';
 import { deployFunctionsOneByOne } from './deployFunctions.js';
+import { checkCallables, invokerGrantCommand } from './callableAccess.js';
 import {
   readResolvedConfig,
   stampedConfigJs,
@@ -168,6 +169,7 @@ export const deploy = async (args: ParsedArgs): Promise<void> => {
   success(`hosting/firebase-config.js → ${projectId}`);
 
   const failures: string[] = [];
+  const unreachableCallables: string[] = [];
 
   for (const component of components) {
     current += 1;
@@ -204,6 +206,38 @@ export const deploy = async (args: ParsedArgs): Promise<void> => {
           info(entry.output.split('\n').slice(-12).map((line) => `      ${line}`).join('\n'));
         }
       }
+      // Deployada não quer dizer alcançável: a concessão de invocação pública pode ter sido
+      // recusada, e o `firebase deploy` termina bem do mesmo jeito. Quem paga a conta é o escritório,
+      // com uma aplicação que abre e não consegue falar com o servidor.
+      const callables = manifest.callables ?? [];
+
+      if (callables.length > 0) {
+        info(`  checking that the browser can reach the ${callables.length} callable(s)…`);
+        const origin = `https://${projectId}.web.app`;
+        const checks = await checkCallables(callables, { projectId, region, origin });
+
+        const blocked = checks.filter((check) => check.access === 'blocked');
+        const unclear = checks.filter((check) => check.access !== 'blocked' && check.access !== 'reachable');
+
+        if (blocked.length > 0) {
+          unreachableCallables.push(...blocked.map((check) => check.name));
+          blank();
+          failure(`${blocked.length} of ${checks.length} callable(s) refuse calls from ${origin}.`);
+          info('  The deploy could not make them public — an organization policy that forbids allUsers');
+          info('  in IAM does exactly this. The application will open and every server call will fail,');
+          info('  in the browser, as what looks like a CORS error. Run once per function:');
+          bullets(blocked.map((check) => invokerGrantCommand(region, projectId, check.name)));
+        } else if (unclear.length > 0) {
+          warn(
+            `could not confirm ${unclear.length} of ${checks.length} callable(s): `
+            + `${unclear.map((check) => check.name).join(', ')}. Re-run the check, or open the`
+            + ' application and watch the browser console.',
+          );
+        } else {
+          success(`all ${checks.length} callables answer calls from ${origin}`);
+        }
+      }
+
       continue;
     }
 
@@ -230,6 +264,14 @@ export const deploy = async (args: ParsedArgs): Promise<void> => {
   info(`Microteia ${manifest.version} is installed in ${projectId}.`);
   bullets([`https://${projectId}.web.app`]);
   blank();
+
+  if (unreachableCallables.length > 0) {
+    warn(`the deploy finished, but ${unreachableCallables.length} function(s) still refuse calls from`);
+    warn('  the browser. Grant the invoker role with the commands printed above before signing in,');
+    warn('  otherwise the application opens and nothing it asks the server for will work.');
+    blank();
+  }
+
   info('Sign in to create the first office. Everything else is configured from inside the application.');
   blank();
 };

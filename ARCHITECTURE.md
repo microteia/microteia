@@ -1257,6 +1257,39 @@ Ao contrário do script de origem, a saída de uma function que falhou é **rean
 descartada no `catch` — lá a falha vira só "❌ Falha no deploy de X", e descobrir o motivo exige rodar
 de novo.
 
+### Alcance das callables — deployada não é o mesmo que alcançável
+
+Um deploy bem-sucedido **não prova** que o navegador consegue chamar as functions. Uma callable de 2ª
+geração é um serviço do Cloud Run, e para o navegador poder invocá-la o deploy concede a `allUsers` o
+papel `roles/run.invoker`. Essa concessão pode ser **recusada** — é o que uma política de Domain
+Restricted Sharing na organização faz — e o `firebase deploy` termina com sucesso do mesmo jeito.
+
+O sintoma é a pior forma de defeito: a aplicação abre, o login funciona, e toda chamada ao servidor
+falha no navegador **como se fosse CORS**, porque o 403 do Cloud Run não carrega cabeçalho de CORS.
+Isso manda procurar no front, que está correto, e é agravado pela região: o host da callable é
+`<region>-<projectId>.cloudfunctions.net`, então a permissão precisa existir *naquela* região — e uma
+instalação fora do `us-central1` do Google é justamente onde ninguém pensa em conferir.
+
+Por isso o `deploy` verifica de fora, pelo mesmo caminho do navegador (`cli/src/console/callableAccess.ts`):
+um preflight `OPTIONS` real contra cada callable do manifesto, com o `Origin` do hosting da instalação.
+
+| Resposta | Veredito | O que significa |
+|---|---|---|
+| 2xx **com** `access-control-allow-origin` | `reachable` | o navegador consegue chamar |
+| 403 | `blocked` | IAM negando; o `deploy` imprime o `gcloud run services add-iam-policy-binding` de cada uma |
+| 404 | `missing` | não existe naquela região |
+| qualquer outra, ou rede indisponível | `unknown` | avisa sem acusar; quem instala pode estar atrás de proxy |
+
+Um 2xx **sem** o cabeçalho de CORS não conta como alcançável: é exatamente o caso em que o navegador
+recusa a resposta que o `curl` aceitaria. A lista de callables é derivada do código pelo `pack` (os
+`export const x = onCall`, filtrados pelo que `functions/src/index.ts` exporta), pela mesma razão que
+os `defineString` são: um template envelhece em silêncio.
+
+A verificação **não** reprova o deploy — o que foi publicado foi publicado —, mas o aviso é repetido
+ao final, depois da URL, porque é a última coisa que quem instala precisa ler antes de entrar na
+aplicação. `connect` antecipa o assunto quando a região não é a padrão do Google, e o pré-requisito
+`functions-invoker` do manifesto carrega o comando.
+
 ### O que esta etapa NÃO faz
 
 Entrega do pacote é tarball local; não há URL versionada, registry, nem atualização automática.

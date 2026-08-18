@@ -12,6 +12,7 @@ import {
   MANUAL_PREREQUISITES,
   MINIMUM_CLI_VERSION,
   REQUIRED_NODE_VERSION,
+  callableFunctionNames,
   declaredParametersIn,
   exportedFunctionNames,
   parseKernelVersion,
@@ -41,13 +42,20 @@ interface RepoFirebaseJson {
 const readJson = async <T>(path: string): Promise<T> =>
   JSON.parse(await readFile(path, 'utf8')) as T;
 
+interface BackendScan {
+  parameters: BackendParameter[];
+  callables: string[];
+}
+
 /**
- * Os `defineString` estão espalhados pelos handlers, não num arquivo só — então a varredura é a
- * árvore inteira de `functions/src`. Derivar daqui é o que faz um parâmetro novo aparecer sozinho no
- * manifesto, em vez de depender de alguém lembrar de atualizar um template.
+ * Os `defineString` e as callables estão espalhados pelos handlers, não num arquivo só — então a
+ * varredura é a árvore inteira de `functions/src`, uma vez, para os dois. Derivar daqui é o que faz
+ * um parâmetro novo (ou uma callable nova) aparecer sozinho no manifesto, em vez de depender de
+ * alguém lembrar de atualizar um template.
  */
-const collectBackendParameters = async (directory: string): Promise<BackendParameter[]> => {
-  const found = new Map<string, BackendParameter>();
+const scanBackendSources = async (directory: string): Promise<BackendScan> => {
+  const parameters = new Map<string, BackendParameter>();
+  const callables = new Set<string>();
 
   const walk = async (current: string): Promise<void> => {
     for (const entry of await readdir(current, { withFileTypes: true })) {
@@ -55,17 +63,25 @@ const collectBackendParameters = async (directory: string): Promise<BackendParam
       if (entry.isDirectory()) {
         await walk(path);
       } else if (entry.name.endsWith('.ts') && !entry.name.endsWith('.test.ts')) {
-        for (const parameter of declaredParametersIn(await readFile(path, 'utf8'))) {
-          const previous = found.get(parameter.name);
+        const source = await readFile(path, 'utf8');
+
+        for (const parameter of declaredParametersIn(source)) {
+          const previous = parameters.get(parameter.name);
           // Declarado em dois lugares com defaults diferentes: vale o mais exigente.
-          if (previous === undefined || parameter.required) found.set(parameter.name, parameter);
+          if (previous === undefined || parameter.required) parameters.set(parameter.name, parameter);
         }
+
+        for (const name of callableFunctionNames(source)) callables.add(name);
       }
     }
   };
 
   await walk(directory);
-  return [...found.values()].sort((left, right) => left.name.localeCompare(right.name));
+
+  return {
+    parameters: [...parameters.values()].sort((left, right) => left.name.localeCompare(right.name)),
+    callables: [...callables].sort((left, right) => left.localeCompare(right)),
+  };
 };
 
 export const pack = async (args: ParsedArgs): Promise<void> => {
@@ -80,7 +96,11 @@ export const pack = async (args: ParsedArgs): Promise<void> => {
   const functionNames = exportedFunctionNames(
     await readFile(join(root, 'functions/src/index.ts'), 'utf8'),
   );
-  const backendParameters = await collectBackendParameters(join(root, 'functions/src'));
+  const scan = await scanBackendSources(join(root, 'functions/src'));
+  const backendParameters = scan.parameters;
+  // Uma callable que não está exportada no `index.ts` não é deployada, e verificá-la acusaria uma
+  // ausência que é só do parser.
+  const callables = scan.callables.filter((name) => functionNames.includes(name));
 
   const outputDir = flagValue(args, 'output') ?? join(root, 'distributions', 'kernel', version);
   const stageDir = join(outputDir, 'package');
@@ -165,6 +185,7 @@ export const pack = async (args: ParsedArgs): Promise<void> => {
       nodeVersion: REQUIRED_NODE_VERSION,
     },
     functions: functionNames,
+    callables,
     backendParameters,
     manualPrerequisites: MANUAL_PREREQUISITES,
   };
@@ -185,6 +206,7 @@ export const pack = async (args: ParsedArgs): Promise<void> => {
     `tarball:  ${tarball}`,
     `manifest: ${join(outputDir, 'manifest.json')}`,
     `functions: ${functionNames.length}`,
+    `callables: ${callables.length}`,
     `backend parameters: ${backendParameters.length}`,
   ]);
   blank();

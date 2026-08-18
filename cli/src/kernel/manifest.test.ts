@@ -3,6 +3,7 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { readdirSync } from 'node:fs';
 import {
+  callableFunctionNames,
   compareVersions,
   declaredParametersIn,
   exportedFunctionNames,
@@ -43,6 +44,53 @@ describe('manifesto do kernel', () => {
 
   it('falha em vez de inventar uma versão quando a constante some', () => {
     expect(() => parseKernelVersion('export const OUTRA_COISA = 1;')).toThrow();
+  });
+});
+
+/**
+ * As callables são as únicas functions que podem ser verificadas de fora, e as únicas em que a
+ * permissão de invocação pública importa. Se a lista do manifesto ficar vazia por um parser que
+ * deixou de casar, a verificação de alcance passa a "aprovar" toda instalação sem olhar nada.
+ */
+describe('callables no manifesto', () => {
+  const sources = (): string[] => {
+    const found: string[] = [];
+    const walk = (dir: string): void => {
+      for (const entry of readdirSync(dir, { withFileTypes: true })) {
+        const path = join(dir, entry.name);
+        if (entry.isDirectory()) walk(path);
+        else if (entry.name.endsWith('.ts') && !entry.name.endsWith('.test.ts')) {
+          found.push(readFileSync(path, 'utf8'));
+        }
+      }
+    };
+    walk(join(repoRoot, 'functions/src'));
+    return found;
+  };
+
+  const callables = (): string[] =>
+    [...new Set(sources().flatMap((source) => callableFunctionNames(source)))];
+
+  it('distingue callable de gatilho', () => {
+    const parsed = callableFunctionNames(
+      "export const chamada = onCall({ region: 'x' }, () => 1);\n"
+      + "export const gatilho = onDocumentWritten('a/{b}', () => 2);\n"
+      + "export const web = onRequest(() => 3);\n",
+    );
+    expect(parsed).toEqual(['chamada']);
+  });
+
+  it('encontra as callables reais do backend', () => {
+    const names = callables();
+    expect(names).toContain('getUserInfo');
+    expect(names).toContain('runWorkflow');
+    expect(names.length).toBeGreaterThan(10);
+  });
+
+  it('toda callable que o pacote vai verificar está entre as functions exportadas', () => {
+    const exported = new Set(exportedFunctionNames(read('functions/src/index.ts')));
+    const verified = callables().filter((name) => exported.has(name));
+    expect(verified.length).toBeGreaterThan(10);
   });
 });
 

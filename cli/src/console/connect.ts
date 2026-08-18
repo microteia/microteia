@@ -3,7 +3,7 @@ import { dirname, join, resolve } from 'node:path';
 import { hasFlag, requiredFlag } from '../shared/args.js';
 import type { ParsedArgs } from '../shared/args.js';
 import { blank, bullets, heading, info, step, success, warn } from '../shared/ui.js';
-import { MANUAL_PREREQUISITES } from '../kernel/manifest.js';
+import { GOOGLE_DEFAULT_REGION, MANUAL_PREREQUISITES } from '../kernel/manifest.js';
 import { ENVIRONMENT_FILE, readEnvironment, writeEnvironment } from './environment.js';
 import {
   assertFirebaseCli,
@@ -73,6 +73,15 @@ export const connect = async (args: ParsedArgs): Promise<void> => {
   for (const prerequisite of MANUAL_PREREQUISITES) {
     info(`  ${prerequisite.optional ? '(optional) ' : ''}${prerequisite.title}`);
     info(`      ${prerequisite.detail.replace(/\n/g, '\n      ')}`);
+    blank();
+  }
+
+  if (environment.firebase.region !== GOOGLE_DEFAULT_REGION) {
+    info(`This installation runs its functions in ${environment.firebase.region}, not in Google's`);
+    info(`  ${GOOGLE_DEFAULT_REGION} default. The browser calls them at that region, so the permission to`);
+    info('  invoke them has to exist there — see "unauthenticated invocation" above. The deploy grants');
+    info('  it, then verifies it from outside, and prints the exact command per function if the grant');
+    info('  was refused.');
     blank();
   }
 

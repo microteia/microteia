@@ -11,6 +11,11 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [7.51.0] — 2026-08-18
+
+- A instalação passou a conferir, ao final, se o sistema realmente consegue conversar com o servidor a partir do navegador — e, quando não consegue, diz exatamente qual autorização falta e o que fazer para concedê-la. Antes a instalação terminava dizendo que tudo deu certo e o problema só aparecia depois, ao usar o sistema, na forma de uma falha que não indicava a causa.
+- A preparação do ambiente passou a avisar, quando a região escolhida não é a padrão do provedor, que as autorizações precisam existir naquela região.
+
 #### [7.50.0] — 2026-08-17
 
 - As configurações do servidor passaram a ser preparadas automaticamente na instalação, a partir do que o próprio sistema declara precisar. Antes bastava uma configuração ausente para impedir a publicação de todas as automações de servidor de uma vez — inclusive as que nada tinham a ver com ela —, com uma mensagem que não indicava a origem do problema. Numa atualização, configurações novas passam a ser acrescentadas sem apagar o que já estava preenchido.

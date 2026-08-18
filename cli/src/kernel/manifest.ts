@@ -29,6 +29,8 @@ export interface KernelManifest {
     nodeVersion: string;
   };
   functions: string[];
+  /** Ausente nos pacotes anteriores a 7.51.0, que não conheciam a verificação de alcance. */
+  callables?: string[];
   backendParameters: BackendParameter[];
   manualPrerequisites: KernelPrerequisite[];
 }
@@ -36,6 +38,12 @@ export interface KernelManifest {
 export const KERNEL_DISTRIBUTION_ID = 'com.microteia.kernel';
 export const MINIMUM_CLI_VERSION = '1.0.0';
 export const DEFAULT_FUNCTIONS_REGION = 'southamerica-east1';
+/**
+ * A região padrão do Google, que NÃO é a nossa. Uma instalação fora dela chama as callables por um
+ * host próprio da região, e é lá que a permissão de invocação tem de existir — daí o aviso no
+ * `connect`.
+ */
+export const GOOGLE_DEFAULT_REGION = 'us-central1';
 export const REQUIRED_NODE_VERSION = '22';
 
 export const KERNEL_COMPONENTS: KernelManifestComponent[] = [
@@ -88,6 +96,19 @@ export const MANUAL_PREREQUISITES: KernelPrerequisite[] = [
     optional: false,
   },
   {
+    id: 'functions-invoker',
+    title: 'Allow unauthenticated invocation of the callable functions, if your organization blocks it',
+    detail:
+      'The deploy grants allUsers the roles/run.invoker role on every callable, and the deploy checks '
+      + 'it afterwards. An organization that enforces Domain Restricted Sharing refuses that grant, and '
+      + 'then the application loads but every server call fails in the browser with what looks like a '
+      + 'CORS error. The fix is one command per function, and the deploy prints the exact list: gcloud '
+      + 'run services add-iam-policy-binding <function-name-in-lowercase> --region=<region> '
+      + '--project=<projectId> --member=allUsers --role=roles/run.invoker. Unauthenticated invocation '
+      + 'is not open access: every callable still rejects callers with no signed-in user.',
+    optional: true,
+  },
+  {
     id: 'audit-ttl',
     title: 'Enable the Firestore TTL policy on auditLogs.expiresAt',
     detail:
@@ -116,6 +137,15 @@ export const exportedFunctionNames = (indexSource: string): string[] =>
     .flatMap((match) => match[1].split(','))
     .map((name) => name.trim())
     .filter((name) => name !== '');
+
+/**
+ * As callables são as functions que o NAVEGADOR chama. Elas se distinguem das de gatilho por uma
+ * razão prática: só elas podem ser verificadas de fora, e só nelas a permissão de invocação pública
+ * importa. Sem ela a aplicação abre e toda chamada ao servidor falha — parecendo erro de CORS, que
+ * manda procurar no lugar errado.
+ */
+export const callableFunctionNames = (source: string): string[] =>
+  [...source.matchAll(/export\s+const\s+([a-zA-Z0-9_]+)\s*=\s*onCall\b/g)].map((match) => match[1]);
 
 /**
  * Os parâmetros que o backend declara com `defineString`. O `firebase-functions` os valida
