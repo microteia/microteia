@@ -1011,6 +1011,10 @@ npm run deploy
 | `dev` (padrão) | `microteia-dev` | Desenvolvimento e testes |
 | `prod` | `microteia` | Produção |
 
+> Estes dois são **nossos**, e o `TARGET` continua sendo o seletor deles. A instalação que roda no
+> projeto Firebase **do escritório** é outra coisa, não passa por `TARGET` e não usa os scripts
+> `deploy:*` — ver "Distribuição — a Microteia instalável no Firebase do cliente", adiante.
+
 ### Um único seletor: `TARGET`
 
 `TARGET` escolhe **ao mesmo tempo** o projeto do Firebase (via alias do `.firebaserc`) e o modo do
@@ -1095,6 +1099,163 @@ de e-mail reais).
 - [ ] **Documentado em `functions/DEPLOY.md`** na seção do grupo correspondente (workflow, audit, auth, tenant, gmail, util)
 - [ ] Se usa triggers Firestore, índices compostos documentados (se necessário)
 - [ ] Se altera Security Rules, atualizar seção "Firestore Security Rules" deste arquivo
+
+---
+
+## Distribuição — a Microteia instalável no Firebase do cliente
+
+Os dois ambientes da seção anterior são **nossos**. Esta seção é sobre um terceiro tipo de ambiente,
+que não é nosso: a instalação que roda no projeto Firebase **do escritório**, mantida por ele.
+
+O desenho tem dois lados, e a fronteira entre eles é a razão de quase toda decisão aqui:
+
+```
+LADO MICROTEIA (este repositório)        LADO CLIENTE (máquina de quem instala)
+  microteia pack                           microteia init
+    -> pacote versionado, COMPILADO        microteia connect --project <id>
+                                           microteia deploy --kernel <pacote>.tgz
+```
+
+Duas restrições fixam tudo o mais:
+
+1. **O source do kernel não é liberado.** O que viaja é compilado.
+2. **Nunca temos o `projectId` do cliente.** O pacote é montado sem saber onde vai rodar. Quem tem o
+   `firebase login` é o escritório, e o projeto é dele — o Console não implementa autenticação
+   própria nem vê credencial nenhuma.
+
+### Por que a configuração do Firebase saiu do build
+
+O Vite inlina `VITE_*` em tempo de build. Um `dist/` pronto ficava, portanto, preso ao projeto de
+quem o compilou — o que torna qualquer distribuição impossível. A configuração passou a ter duas
+origens, resolvidas em `src/infrastructure/firebase/runtimeConfig.ts`:
+
+| Origem | Quando vence | Onde vive |
+|---|---|---|
+| `window.__MICROTEIA_CONFIG__` | sempre que estiver carimbada | `hosting/firebase-config.js`, escrito pelo `deploy` |
+| `import.meta.env.VITE_*` | só quando ninguém carimbou | `.env.<modo>`, como sempre |
+
+O `<script src="/firebase-config.js">` fica no `<head>` do `index.html`, **antes** do bundle. É
+síncrono de propósito: tornar a leitura assíncrona obrigaria a mexer em `main.tsx` e nos 33 arquivos
+que importam `db`/`auth` no topo do módulo, para resolver um problema que um script bloqueante de
+duzentos bytes resolve. Ele está no `<head>` e não no `<body>` porque no build o Vite iça o script do
+bundle para o `<head>`: no corpo, a ordem correta passaria a depender de o módulo ser deferido —
+verdade hoje, mas invisível para quem lê o HTML gerado.
+
+**A ordem é essa, e não a inversa, por causa de um vazamento.** Se o `.env` vencesse, um pacote mal
+carimbado apontaria para o Firebase de quem empacotou em vez do de quem instalou — e faria isso em
+silêncio, escrevendo dados de cliente no nosso banco. Por isso `pack` compila com `TARGET=dist`, modo
+para o qual **não existe `.env.dist`**, e por isso a conferência é do artefato pronto e não do
+procedimento: `cli/src/vendor/bundleAudit.ts` varre o bundle contra os valores de todo `.env.*` da
+máquina e aborta o empacotamento se achar qualquer um.
+
+Dois ajustes vieram junto, ambos exigidos por projeto de cliente: `measurementId` saiu das chaves
+obrigatórias e `analytics` passou a ser `Analytics | null` (derrubar o boot por um produto opcional
+impediria a instalação em quem não usa Analytics); e a região das functions saiu do literal e passou a
+vir da configuração, com `southamerica-east1` de padrão.
+
+### O pacote
+
+`microteia pack` produz `distributions/kernel/<versão>/`, com o tarball e uma cópia do `manifest.json`
+fora dele — para que versão e pré-requisitos possam ser lidos sem desempacotar nada.
+
+```
+firebase.json            GERADO: predeploy compila só custom/, hosting.public = "hosting"
+firestore.rules          \
+storage.rules             > copiados — os três já eram agnósticos de projeto
+firestore.indexes.json   /
+hosting/                 o dist/ compilado, com firebase-config.js a carimbar
+functions/
+  lib/                   kernel COMPILADO — substituído no upgrade, não se edita
+  custom/                DO ESCRITÓRIO — tsconfig próprio, preservado no upgrade
+  index.js               GERADO: espalha lib/ e custom/lib/, mantendo nomes planos
+  package.json           GERADO: deps intactas (o lock continua válido), build = só custom/
+manifest.json
+```
+
+Ficam **de fora**: todo `src/` (do frontend e das functions) e os `.js.map`. Sem os fontes que
+apontam, os maps são inúteis para quem instala, e publicá-los entregaria a árvore interna de módulos
+do kernel — o desenho, ainda que não o código. (`sourcesContent` não é emitido, então o TypeScript em
+si nunca esteve neles.)
+
+### O slot `custom/` — o kernel imutável, do lado do backend
+
+O escritório pode precisar de Cloud Functions próprias. A resposta é a mesma regra que governa o resto
+da plataforma: **ele acrescenta, nunca edita o que veio.** `functions/custom/` tem tsconfig próprio, o
+`predeploy` do pacote compila **só** ele, e o `index.js` soma os dois conjuntos com nomes planos
+(`helloOffice`, e não `custom-helloOffice`), que é o que os deploys por nome esperam.
+
+É isso que torna o upgrade confiável: `deploy` substitui o pacote **inteiro** e copia de volta
+`functions/custom` e `functions/node_modules`, em vez de mesclar por cima e deixar restos da versão
+anterior.
+
+Nesta etapa o escritório escreve contra `firebase-functions` e `firebase-admin`, **não** contra APIs
+internas do kernel. Expor uma superfície estável para functions de cliente é decisão de fase
+posterior; abrir os internos agora amarraria o kernel a ela antes de sabermos qual é a forma certa.
+
+### O manifesto
+
+`cli/src/kernel/manifest.ts`. Mínimo de propósito:
+
+| Campo | Vem de |
+|---|---|
+| `version` | `package.json` |
+| `kernelVersion` | `KERNEL_VERSION` de `domain/schema/plugin/kernelVersion.ts` |
+| `minimumCliVersion` | conferido pelo `deploy` contra o `CLI_VERSION` do Console |
+| `functions` | os exports de `functions/src/index.ts` |
+| `requires` | região das functions e versão do Node |
+| `manualPrerequisites` | o que só existe no painel do Google |
+
+A lista de functions sai da **mesma fonte e do mesmo parse** que `scripts/deployLists.test.ts` já
+guarda, e `cli/src/kernel/manifest.test.ts` prova que as duas enxergam o mesmo conjunto. Uma terceira
+lista para desatualizar é exatamente o defeito que já deixou `runAction` fora do deploy.
+
+`manualPrerequisites` é a seção "Ao criar um ambiente do zero" desta página virada dado: App Engine
+antes das functions, região do Firestore igual à das functions, provedor de login, TTL da auditoria.
+Elas viajam no manifesto porque **quem instala não tem o `ARCHITECTURE.md`**.
+
+### Os três comandos
+
+| Comando | O que faz |
+|---|---|
+| `microteia init` | grava o `microteia.yaml` — UMA instalação ligada a UM projeto Firebase |
+| `microteia connect --project <id>` | acha ou cria o app web, lê o `apps:sdkconfig`, guarda em `.microteia/` |
+| `microteia deploy --kernel <tgz>` | desempacota, carimba e aplica rules → índices → functions → hosting |
+
+O `connect` passa pelo `firebase` oficial em tudo. A busca da configuração no JSON de saída é
+**recursiva**: o formato do `apps:sdkconfig` já mudou entre versões, e casar a forma exata quebraria a
+cada atualização do CLI do cliente — que não é uma versão que possamos fixar.
+
+O `microteia.yaml` é lido por um subconjunto declarado de YAML (mapas de dois níveis, escalares), e
+não por uma dependência nova. O que ele não entende ele **rejeita com o número da linha**, em vez de
+adivinhar.
+
+O Console redeclara a forma da configuração de runtime (`cli/src/console/runtimeConfigShape.ts`)
+porque precisa poder ser publicado sem o `src/` do kernel junto. Para que as duas pontas não se
+separem em silêncio, um teste confere a lista contra `REQUIRED_CONFIG_KEYS` do kernel — separadas, o
+Console carimbaria um arquivo que o kernel rejeita no boot, e isso só apareceria quando alguém
+abrisse a aplicação instalada.
+
+### Deploy das functions — uma a uma, e duas passadas
+
+Não é preferência: `firebase deploy --only functions` em lote estoura a quota de CPU do projeto. É a
+razão pela qual `scripts/deploy-functions-individually.cjs` existe deste lado, e o cliente bate
+exatamente na mesma parede — com a diferença de que ele não tem o script.
+
+A segunda passada endereça a armadilha 2 da seção anterior: numa instalação nova, as identidades de
+serviço do Pub/Sub e do Eventarc são criadas **durante** o primeiro deploy e não propagam a tempo,
+então toda function de gatilho falha enquanto as callables sobem. Sem repetir, a primeira instalação
+*parece* quebrada quando está apenas incompleta. O `--force` da primeira vez é o que faz o Firebase
+configurar sozinho a política de limpeza do Artifact Registry.
+
+Ao contrário do script de origem, a saída de uma function que falhou é **reanexada ao erro** em vez de
+descartada no `catch` — lá a falha vira só "❌ Falha no deploy de X", e descobrir o motivo exige rodar
+de novo.
+
+### O que esta etapa NÃO faz
+
+Entrega do pacote é tarball local; não há URL versionada, registry, nem atualização automática.
+Marketplace, licenciamento, assinatura de plugins, CI/CD e rollback continuam fora — a prioridade era
+uma fatia vertical que instala de verdade, não uma arquitetura que não deploya.
 
 ---
 

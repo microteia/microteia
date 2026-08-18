@@ -295,6 +295,26 @@ TARGET=prod npm run deploy:workflow  # -> microteia
 Não existe `.env` comum na raiz: cada ambiente tem o seu (`.env.dev`, `.env.prod`), justamente para
 que uma variável faltando estoure em vez de cair calada na configuração do outro projeto.
 
+### Instalação no Firebase do cliente — outro caminho, não este
+
+Os dois ambientes acima são **nossos**. A instalação que roda no projeto do escritório é montada por
+`microteia pack` e aplicada por `microteia init` / `connect` / `deploy` (`cli/`). Ela **não** passa
+por `TARGET`, **não** usa os scripts `deploy:*` e **não** leva `src/` nenhum — só compilado.
+
+Três regras que valem para toda alteração:
+
+- **Nada de projeto Firebase pode ser compilado dentro do bundle.** A configuração vem de
+  `window.__MICROTEIA_CONFIG__`, carimbado na instalação; `import.meta.env` é só o fallback de
+  desenvolvimento. `cli/src/vendor/bundleAudit.ts` aborta o empacotamento se achar credencial no
+  artefato — se ele reprovar, o defeito é o que foi inlinado, não a verificação.
+- **Cloud Function nova entra no manifesto sozinha** (ele lê os exports de `functions/src/index.ts`),
+  mas continua obrigada aos grupos `deploy:*` — os dois testes que guardam isso são
+  `scripts/deployLists.test.ts` e `cli/src/kernel/manifest.test.ts`.
+- **`functions/custom/` é do escritório.** Nada do kernel escreve lá, e o upgrade preserva o
+  diretório inteiro.
+
+Detalhes: seção "Distribuição — a Microteia instalável no Firebase do cliente" no `ARCHITECTURE.md`.
+
 ---
 
 ## Firebase — regras e índices ficam em arquivo, nunca no Console

@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [7.49.1] — 2026-08-17
+
+- Documentado, para quem mantém o sistema, como preparar e instalar a Microteia no ambiente de um escritório.
+
 #### [7.49.0] — 2026-08-17
 
 - A instalação da Microteia no ambiente do escritório passou a ser feita por um comando só, que aplica tudo na ordem certa e informa o endereço de acesso ao final.
