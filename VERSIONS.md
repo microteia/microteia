@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [7.50.0] — 2026-08-17
+
+- As configurações do servidor passaram a ser preparadas automaticamente na instalação, a partir do que o próprio sistema declara precisar. Antes bastava uma configuração ausente para impedir a publicação de todas as automações de servidor de uma vez — inclusive as que nada tinham a ver com ela —, com uma mensagem que não indicava a origem do problema. Numa atualização, configurações novas passam a ser acrescentadas sem apagar o que já estava preenchido.
+
 #### [7.49.3] — 2026-08-17
 
 - A preparação de um ambiente novo passou a avisar, antes de começar, que o armazenamento de arquivos precisa ser iniciado no painel do provedor. Sem esse aviso a instalação parava logo no início, com uma mensagem que não deixava claro o que fazer.

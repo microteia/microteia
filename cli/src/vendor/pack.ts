@@ -1,4 +1,4 @@
-import { cp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
+import { cp, mkdir, readdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { basename, join } from 'node:path';
 import { flagValue, hasFlag } from '../shared/args.js';
 import type { ParsedArgs } from '../shared/args.js';
@@ -12,10 +12,11 @@ import {
   MANUAL_PREREQUISITES,
   MINIMUM_CLI_VERSION,
   REQUIRED_NODE_VERSION,
+  declaredParametersIn,
   exportedFunctionNames,
   parseKernelVersion,
 } from '../kernel/manifest.js';
-import type { KernelManifest } from '../kernel/manifest.js';
+import type { BackendParameter, KernelManifest } from '../kernel/manifest.js';
 import { environmentSecrets, findBundleLeaks } from './bundleAudit.js';
 import {
   packageCustomIndexTs,
@@ -40,6 +41,33 @@ interface RepoFirebaseJson {
 const readJson = async <T>(path: string): Promise<T> =>
   JSON.parse(await readFile(path, 'utf8')) as T;
 
+/**
+ * Os `defineString` estão espalhados pelos handlers, não num arquivo só — então a varredura é a
+ * árvore inteira de `functions/src`. Derivar daqui é o que faz um parâmetro novo aparecer sozinho no
+ * manifesto, em vez de depender de alguém lembrar de atualizar um template.
+ */
+const collectBackendParameters = async (directory: string): Promise<BackendParameter[]> => {
+  const found = new Map<string, BackendParameter>();
+
+  const walk = async (current: string): Promise<void> => {
+    for (const entry of await readdir(current, { withFileTypes: true })) {
+      const path = join(current, entry.name);
+      if (entry.isDirectory()) {
+        await walk(path);
+      } else if (entry.name.endsWith('.ts') && !entry.name.endsWith('.test.ts')) {
+        for (const parameter of declaredParametersIn(await readFile(path, 'utf8'))) {
+          const previous = found.get(parameter.name);
+          // Declarado em dois lugares com defaults diferentes: vale o mais exigente.
+          if (previous === undefined || parameter.required) found.set(parameter.name, parameter);
+        }
+      }
+    }
+  };
+
+  await walk(directory);
+  return [...found.values()].sort((left, right) => left.name.localeCompare(right.name));
+};
+
 export const pack = async (args: ParsedArgs): Promise<void> => {
   const root = repoRoot;
   const skipVerify = hasFlag(args, 'skip-verify');
@@ -52,6 +80,7 @@ export const pack = async (args: ParsedArgs): Promise<void> => {
   const functionNames = exportedFunctionNames(
     await readFile(join(root, 'functions/src/index.ts'), 'utf8'),
   );
+  const backendParameters = await collectBackendParameters(join(root, 'functions/src'));
 
   const outputDir = flagValue(args, 'output') ?? join(root, 'distributions', 'kernel', version);
   const stageDir = join(outputDir, 'package');
@@ -136,6 +165,7 @@ export const pack = async (args: ParsedArgs): Promise<void> => {
       nodeVersion: REQUIRED_NODE_VERSION,
     },
     functions: functionNames,
+    backendParameters,
     manualPrerequisites: MANUAL_PREREQUISITES,
   };
 
@@ -155,6 +185,7 @@ export const pack = async (args: ParsedArgs): Promise<void> => {
     `tarball:  ${tarball}`,
     `manifest: ${join(outputDir, 'manifest.json')}`,
     `functions: ${functionNames.length}`,
+    `backend parameters: ${backendParameters.length}`,
   ]);
   blank();
   info('Install it with:');

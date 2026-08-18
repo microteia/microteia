@@ -10,6 +10,12 @@ export interface KernelPrerequisite {
   optional: boolean;
 }
 
+export interface BackendParameter {
+  name: string;
+  /** Sem `default` no `defineString`, o firebase-functions EXIGE valor e recusa o deploy sem ele. */
+  required: boolean;
+}
+
 export interface KernelManifest {
   id: string;
   name: string;
@@ -23,6 +29,7 @@ export interface KernelManifest {
     nodeVersion: string;
   };
   functions: string[];
+  backendParameters: BackendParameter[];
   manualPrerequisites: KernelPrerequisite[];
 }
 
@@ -109,6 +116,21 @@ export const exportedFunctionNames = (indexSource: string): string[] =>
     .flatMap((match) => match[1].split(','))
     .map((name) => name.trim())
     .filter((name) => name !== '');
+
+/**
+ * Os parâmetros que o backend declara com `defineString`. O `firebase-functions` os valida
+ * GLOBALMENTE, e não por function: um parâmetro sem valor e sem default recusa o deploy de TODAS as
+ * functions, inclusive as que não têm relação nenhuma com ele. Foi assim que um `GOOGLE_GMAIL_TOPIC`
+ * ausente derrubou o deploy de `callAIProxy` numa instalação nova.
+ *
+ * Por isso a lista é DERIVADA do código, e não copiada de um `.env.example` — que já estava
+ * desatualizado quando esta função foi escrita.
+ */
+export const declaredParametersIn = (source: string): BackendParameter[] =>
+  [...source.matchAll(/defineString\(\s*'([A-Z0-9_]+)'\s*(,\s*\{[^}]*\})?\s*\)/g)].map((match) => ({
+    name: match[1],
+    required: match[2] === undefined || !match[2].includes('default'),
+  }));
 
 /** Comparação de versão suficiente para `minimumCliVersion`: três números, sem pré-lançamento. */
 export const compareVersions = (left: string, right: string): number => {

@@ -6,7 +6,7 @@ import { CLI_VERSION } from '../shared/paths.js';
 import { run } from '../shared/run.js';
 import { blank, bullets, failure, heading, info, step, success, warn } from '../shared/ui.js';
 import { compareVersions } from '../kernel/manifest.js';
-import type { KernelManifest } from '../kernel/manifest.js';
+import type { BackendParameter, KernelManifest } from '../kernel/manifest.js';
 import { ENVIRONMENT_FILE, readEnvironment, writeEnvironment } from './environment.js';
 import { FIREBASE_BIN } from './firebaseCli.js';
 import { deployFunctionsOneByOne } from './deployFunctions.js';
@@ -30,6 +30,49 @@ const exists = async (path: string): Promise<boolean> => {
   } catch {
     return false;
   }
+};
+
+/**
+ * O `firebase-functions` valida os parâmetros GLOBALMENTE, e não por function: um `defineString` sem
+ * valor e sem default recusa o deploy de TODAS as functions, inclusive as que nada têm a ver com ele.
+ * Um `GOOGLE_GMAIL_TOPIC` ausente derrubou `callAIProxy` numa instalação nova — a mensagem do
+ * Firebase nomeia a variável, mas não a function que ela derrubou, e as duas não se parecem.
+ *
+ * Por isso o arquivo é ESCRITO a partir do manifesto e não copiado de um template, e por isso o que
+ * falta é ACRESCENTADO num arquivo já existente: um parâmetro novo numa versão nova do kernel
+ * quebraria o upgrade exatamente da mesma forma. O que o escritório já preencheu é preservado.
+ */
+const ensureBackendEnv = async (
+  install: string,
+  projectId: string,
+  parameters: BackendParameter[],
+): Promise<void> => {
+  const path = join(install, 'functions', `.env.${projectId}`);
+  const previous = await exists(path) ? await readFile(path, 'utf8') : '';
+
+  const declared = new Set(
+    previous.split('\n')
+      .map((line) => line.trim())
+      .filter((line) => line !== '' && !line.startsWith('#'))
+      .map((line) => line.slice(0, line.indexOf('='))),
+  );
+
+  const missing = parameters.filter((parameter) => !declared.has(parameter.name));
+  if (missing.length === 0) return;
+
+  const header = previous === ''
+    ? `# Backend settings for ${projectId}. Optional features stay empty until configured.\n`
+      + '# Never commit this file to a public repository.\n\n'
+    : '';
+
+  const body = missing.map((parameter) => `${parameter.name}=`).join('\n');
+  await writeFile(path, `${previous}${previous === '' ? '' : '\n'}${header}${body}\n`);
+
+  info(
+    previous === ''
+      ? `  created functions/.env.${projectId} with ${missing.length} setting(s), all empty`
+      : `  added ${missing.length} new setting(s) to functions/.env.${projectId}`,
+  );
 };
 
 const selectedComponents = (args: ParsedArgs): Component[] => {
@@ -121,11 +164,7 @@ export const deploy = async (args: ParsedArgs): Promise<void> => {
   await writeResolvedConfig(root, stamped);
   await writeFile(join(install, 'hosting', 'firebase-config.js'), stampedConfigJs(stamped));
 
-  const backendEnv = join(install, 'functions', `.env.${projectId}`);
-  if (!await exists(backendEnv)) {
-    await cp(join(install, 'functions', '.env.example'), backendEnv);
-    info(`  created functions/.env.${projectId} from the template (Gmail intake is optional)`);
-  }
+  await ensureBackendEnv(install, projectId, manifest.backendParameters);
   success(`hosting/firebase-config.js → ${projectId}`);
 
   const failures: string[] = [];
