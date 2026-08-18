@@ -1081,6 +1081,12 @@ callables sobem normalmente. **Não é erro de configuração: basta repetir o c
 Artifact Registry. Sem ela, as imagens de container de cada build se acumulam e geram cobrança
 mensal crescente. A política aplicada apaga imagens com mais de 24h.
 
+**4. O Cloud Storage precisa ser iniciado pelo Console.** Habilitar a API não basta — o
+`deploy:rules` habilita `firebasestorage.googleapis.com` sozinho e ainda assim para, porque o
+**bucket padrão** não existe. Não há comando de CLI que o crie: é o botão "Vamos começar" em Storage,
+no Console do Firebase. Descoberto instalando num projeto zerado; os dois ambientes antigos já tinham
+o bucket de tanto tempo que ninguém lembrava do passo.
+
 A localização do Firestore precisa bater com a região das functions — gatilhos do Firestore não
 funcionam entre regiões diferentes.
 

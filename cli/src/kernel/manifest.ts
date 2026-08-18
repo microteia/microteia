@@ -65,6 +65,16 @@ export const MANUAL_PREREQUISITES: KernelPrerequisite[] = [
     optional: false,
   },
   {
+    id: 'storage-bucket',
+    title: 'Set up Cloud Storage for Firebase',
+    detail:
+      'Firebase console, Storage, "Get Started". Enabling the API is not enough — the default bucket '
+      + 'has to be created, and no CLI command does it. Without it the very first deploy stops on the '
+      + 'storage rules. Documents attached to records and the cold backup of expired audit logs both '
+      + 'live here.',
+    optional: false,
+  },
+  {
     id: 'auth-provider',
     title: 'Enable the Google sign-in provider in Firebase Authentication',
     detail: 'Firebase console, Authentication, Sign-in method. Without it nobody can log in.',

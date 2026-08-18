@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [7.49.3] — 2026-08-17
+
+- A preparação de um ambiente novo passou a avisar, antes de começar, que o armazenamento de arquivos precisa ser iniciado no painel do provedor. Sem esse aviso a instalação parava logo no início, com uma mensagem que não deixava claro o que fazer.
+
 #### [7.49.2] — 2026-08-17
 
 - Corrigido o endereço do ambiente de produção nos comandos de publicação, que apontava para um projeto que não é o em uso. Um dos comandos publicava direto em produção mesmo quando não era pedido; agora ele respeita o ambiente escolhido, como todos os outros.
