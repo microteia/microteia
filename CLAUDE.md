@@ -283,12 +283,12 @@ traduz, que é uma extensão contribuindo apenas nesse ponto.
 
 ## Ambientes — dev por padrão, produção só explicitamente
 
-Dois projetos Firebase: `microteia-dev` (desenvolvimento) e `microteia` (produção). O seletor é a
+Dois projetos Firebase: `microteia-dev` (desenvolvimento) e `curatino` (produção). O seletor é a
 variável `TARGET`, que escolhe ao mesmo tempo o projeto e o arquivo de ambiente do bundle.
 
 ```bash
 npm run deploy:workflow              # -> microteia-dev (padrão)
-TARGET=prod npm run deploy:workflow  # -> microteia
+TARGET=prod npm run deploy:workflow  # -> curatino
 ```
 
 **Nunca** publique em produção sem que o comando diga `TARGET=prod` (ou use `npm run deploy:prod`).

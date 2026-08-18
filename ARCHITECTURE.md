@@ -979,7 +979,7 @@ export { executeCustomAction } from './infrastructure/handlers/executeCustomActi
 
 **Atualizar `package.json` raiz:**
 ```json
-"deploy:workflow": "npm run build:functions && firebase deploy --only functions:onWorkflowEventCreated,functions:publishWorkflowEventOnEntityChange,functions:onNoteChange,functions:onDocumentChange,functions:getExpressionFunctions,functions:getWorkflowStepCatalog --project microteia"
+"deploy:workflow": "npm run build:functions && firebase deploy --only functions:onWorkflowEventCreated,functions:publishWorkflowEventOnEntityChange,functions:onNoteChange,functions:onDocumentChange,functions:getExpressionFunctions,functions:getWorkflowStepCatalog --project ${TARGET:-dev}"
 ```
 
 ### Deploy
@@ -1004,12 +1004,12 @@ npm run deploy
 
 ---
 
-## Dois ambientes — `microteia-dev` e `microteia`
+## Dois ambientes — `microteia-dev` e `curatino`
 
 | Alvo | Projeto Firebase | Quando |
 |---|---|---|
 | `dev` (padrão) | `microteia-dev` | Desenvolvimento e testes |
-| `prod` | `microteia` | Produção |
+| `prod` | `curatino` | Produção |
 
 > Estes dois são **nossos**, e o `TARGET` continua sendo o seletor deles. A instalação que roda no
 > projeto Firebase **do escritório** é outra coisa, não passa por `TARGET` e não usa os scripts
@@ -1026,9 +1026,9 @@ npm run dev                       # servidor local -> microteia-dev
 npm run deploy:workflow           # -> microteia-dev
 npm run deploy:rules              # -> microteia-dev
 
-TARGET=prod npm run deploy:workflow   # -> microteia
-npm run deploy:prod                   # atalho: deploy completo em microteia
-npm run deploy:hosting:prod           # atalho: hosting + functions em microteia
+TARGET=prod npm run deploy:workflow   # -> curatino
+npm run deploy:prod                   # atalho: deploy completo em curatino
+npm run deploy:hosting:prod           # atalho: hosting + functions em curatino
 ```
 
 **O padrão é `dev`, não `prod`.** Um comando digitado sem pensar publica em desenvolvimento; chegar
@@ -1040,10 +1040,10 @@ todo deploy — é a confirmação visual antes de qualquer escrita.
 | Arquivo | Ambiente | No git |
 |---|---|---|
 | `.env.dev` | microteia-dev | não |
-| `.env.prod` | microteia | não |
+| `.env.prod` | curatino | não |
 | `.env.example` | modelo | sim |
 | `functions/.env.microteia-dev` | microteia-dev | não |
-| `functions/.env.microteia` | microteia | não |
+| `functions/.env.curatino` | curatino | não |
 
 O `.env` da raiz foi **removido de propósito**. O Vite o usaria como fallback de qualquer modo, e
 uma variável esquecida no `.env.dev` cairia calada na configuração de produção — o pior erro

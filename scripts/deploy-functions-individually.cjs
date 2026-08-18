@@ -49,6 +49,11 @@ const ALL_FUNCTIONS = [
   'runAction'
 ];
 
+// Mesmo seletor dos demais scripts de deploy: `dev` por padrão, produção só se pedida. Este script
+// já apontou para produção FIXO, ignorando o TARGET — um comando digitado sem pensar publicava no
+// ambiente real.
+const TARGET = process.env.TARGET || 'dev';
+
 // Parse argumentos
 const args = process.argv.slice(2);
 let delaySeconds = 1; // delay padrão entre deploys
@@ -91,6 +96,7 @@ const functionsToDeplay = targetFunctions.filter(fn => !skipFunctions.includes(f
 console.log('═══════════════════════════════════════════════════════════');
 console.log('  Deploy Individual de Firebase Functions — Microteia');
 console.log('═══════════════════════════════════════════════════════════');
+console.log(`Projeto de destino: ${TARGET}`);
 console.log(`Total de functions: ${functionsToDeplay.length}`);
 console.log(`Delay entre deploys: ${delaySeconds}s`);
 if (skipFunctions.length > 0) {
@@ -125,7 +131,7 @@ const deployFunction = async (functionName, index, total) => {
   console.log(`${prefix} Iniciando deploy...`);
 
   const success = runCommand(
-    `firebase deploy --only functions:${functionName} --project microteia`,
+    `firebase deploy --only functions:${functionName} --project ${TARGET}`,
     { stdio: 'pipe' }
   );
 

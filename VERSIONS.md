@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [7.49.2] — 2026-08-17
+
+- Corrigido o endereço do ambiente de produção nos comandos de publicação, que apontava para um projeto que não é o em uso. Um dos comandos publicava direto em produção mesmo quando não era pedido; agora ele respeita o ambiente escolhido, como todos os outros.
+
 #### [7.49.1] — 2026-08-17
 
 - Documentado, para quem mantém o sistema, como preparar e instalar a Microteia no ambiente de um escritório.
