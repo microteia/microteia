@@ -6,6 +6,7 @@ import { blank, failure, heading, info } from './shared/ui.js';
 import { pack } from './vendor/pack.js';
 import { init } from './console/init.js';
 import { connect } from './console/connect.js';
+import { deploy } from './console/deploy.js';
 
 interface Command {
   name: string;
@@ -29,6 +30,13 @@ const COMMANDS: Command[] = [
     summary: 'Bind this installation to a Firebase project you own.',
     audience: 'office',
     execute: connect,
+  },
+  {
+    name: 'deploy',
+    usage: 'microteia deploy --kernel <package.tgz> [--only rules,indexes,functions,hosting] [--delay <seconds>]',
+    summary: 'Install or update Microteia in the connected Firebase project.',
+    audience: 'office',
+    execute: deploy,
   },
   {
     name: 'pack',

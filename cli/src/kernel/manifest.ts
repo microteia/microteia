@@ -100,6 +100,19 @@ export const exportedFunctionNames = (indexSource: string): string[] =>
     .map((name) => name.trim())
     .filter((name) => name !== '');
 
+/** Comparação de versão suficiente para `minimumCliVersion`: três números, sem pré-lançamento. */
+export const compareVersions = (left: string, right: string): number => {
+  const a = left.split('.').map((part) => Number.parseInt(part, 10));
+  const b = right.split('.').map((part) => Number.parseInt(part, 10));
+
+  for (let index = 0; index < 3; index += 1) {
+    const difference = (a[index] || 0) - (b[index] || 0);
+    if (difference !== 0) return difference;
+  }
+
+  return 0;
+};
+
 export const parseKernelVersion = (source: string): string => {
   const match = source.match(/KERNEL_VERSION\s*=\s*'([^']+)'/);
   if (match === null) throw new Error('KERNEL_VERSION not found in domain/schema/plugin/kernelVersion.ts');

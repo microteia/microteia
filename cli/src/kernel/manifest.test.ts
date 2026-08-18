@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { exportedFunctionNames, parseKernelVersion } from './manifest.js';
+import { compareVersions, exportedFunctionNames, parseKernelVersion } from './manifest.js';
 import { repoRoot } from '../shared/paths.js';
 
 const read = (relative: string): string => readFileSync(join(repoRoot, relative), 'utf8');
@@ -37,5 +37,24 @@ describe('manifesto do kernel', () => {
 
   it('falha em vez de inventar uma versão quando a constante some', () => {
     expect(() => parseKernelVersion('export const OUTRA_COISA = 1;')).toThrow();
+  });
+});
+
+/**
+ * É esta comparação que decide se um pacote pode ser instalado pelo Console que o cliente tem. Errar
+ * o sinal deixaria um Console velho instalar um pacote que ele não sabe montar — e a falha
+ * apareceria como um deploy pela metade, não como uma recusa.
+ */
+describe('comparação de versão do Console', () => {
+  it('ordena por major, minor e patch', () => {
+    expect(compareVersions('1.0.0', '1.0.0')).toBe(0);
+    expect(compareVersions('2.0.0', '1.9.9')).toBeGreaterThan(0);
+    expect(compareVersions('1.2.0', '1.10.0')).toBeLessThan(0);
+    expect(compareVersions('1.0.1', '1.0.0')).toBeGreaterThan(0);
+  });
+
+  it('trata componente ausente como zero', () => {
+    expect(compareVersions('1', '1.0.0')).toBe(0);
+    expect(compareVersions('1.1', '1.0.9')).toBeGreaterThan(0);
   });
 });

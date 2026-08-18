@@ -11,6 +11,12 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [7.49.0] — 2026-08-17
+
+- A instalação da Microteia no ambiente do escritório passou a ser feita por um comando só, que aplica tudo na ordem certa e informa o endereço de acesso ao final.
+- As automações de servidor escritas pelo escritório são preservadas quando o sistema é atualizado: a atualização substitui a Microteia e não encosta no que foi acrescentado.
+- A instalação lida sozinha com as duas dificuldades conhecidas de um ambiente recém-criado — a publicação em lotes pequenos, para não esbarrar no limite do provedor, e a segunda tentativa que os ambientes novos exigem enquanto se acomodam. Antes eram passos manuais que só quem já tinha tropeçado neles conhecia.
+
 #### [7.48.0] — 2026-08-17
 
 - O escritório passou a poder preparar a própria instalação e ligá-la ao seu ambiente na nuvem, informando apenas o nome do projeto que já é dele. O acesso continua sendo do escritório: a Microteia não guarda nem pede senha, chave ou credencial de ninguém.
