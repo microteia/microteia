@@ -1,0 +1,28 @@
+{
+  "compilerOptions": {
+    "target": "es2022",
+    "lib": ["ES2022", "DOM"],
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "jsx": "react-jsx",
+    "types": [],
+    "noEmit": true,
+    "skipLibCheck": true,
+
+    "strict": true,
+    "noFallthroughCasesInSwitch": true,
+
+    "noImplicitAny": false,
+    "strictNullChecks": false,
+
+    "paths": {
+      "@microteia/*": ["./sdk/types/microteia-host.d.ts"],
+      "react": ["./sdk/types/microteia-host.d.ts"],
+      "react/jsx-runtime": ["./sdk/types/microteia-host.d.ts"],
+      "styled-components": ["./sdk/types/microteia-host.d.ts"]
+    }
+  },
+  "include": ["src/plugins/marketplace/views"],
+  // Os testes são do vitest e usam `import.meta.glob` — não são fonte de extensão.
+  "exclude": ["**/*.test.ts", "**/*.test.tsx"]
+}

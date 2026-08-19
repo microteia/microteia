@@ -1,7 +1,7 @@
 import type { CustomFieldValue, FieldDefinition } from '../entities/entitySchemas';
 
 import type { LocalizedMessage } from '../schema/i18n/localizedMessage';
-import type { TranslateFn } from '../../presentation/shared/i18n/useT';
+import type { TranslateFn } from '../schema/i18n/messages';
 // Palavras reservadas do JavaScript que não podem ser usadas como nomes de campos
 const JS_RESERVED_WORDS = new Set([
   'await', 'break', 'case', 'catch', 'class', 'const', 'continue', 'debugger',

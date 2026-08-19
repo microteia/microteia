@@ -10,7 +10,7 @@ import { getScreenIcon } from '../../../shared/screenIcons';
 import { useNavContributions } from '../../../shared/useUiContributions';
 import { useNavBadgeCount } from '../../../shared/useNavBadgeCount';
 import { visibleNavItems } from '../../../shared/resolveUiContributions';
-import { DYNAMIC_SCREEN_NAV_ORDER } from '../../../shared/uiExtensionPoints';
+import { DYNAMIC_SCREEN_NAV_ORDER } from '../../../../domain/schema/ui/uiExtensionPoints';
 import { useAuditLogAlert } from '../../../../stores/useAuditLogAlert';
 import type { User } from '../../../../domain/entities';
 import { useLabel } from '../../../shared/i18n/useT';

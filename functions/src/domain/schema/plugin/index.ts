@@ -68,6 +68,20 @@ export {
 
 export { KERNEL_PLUGIN_ID, KERNEL_VERSION } from './kernelVersion';
 
+export type { MigrationPhase, PluginMigration } from './migration';
+export {
+  DEFAULT_MIGRATION_MAX_ROUNDS,
+  MIGRATION_ID_MAX_LENGTH,
+  MIGRATION_ID_PATTERN,
+  MIGRATION_PHASES,
+  isMigrationRequired,
+  migrationMaxRounds,
+  migrationPhaseOf,
+  migrationRunsOnInstall,
+  sortMigrations,
+  validateMigrations,
+} from './migration';
+
 export type { ParsedPermission, PermissionDomain } from './permission';
 export {
   PERMISSION_DOMAINS,

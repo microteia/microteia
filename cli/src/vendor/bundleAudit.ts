@@ -86,3 +86,28 @@ export const findBundleLeaks = async (bundleDir: string, secrets: string[]): Pro
 
   return leaks;
 };
+
+/**
+ * Os `.d.ts` de um diretório que ainda carregam comentário.
+ *
+ * Existe pelo mesmo motivo do resto deste arquivo: confere o ARTEFATO, não o procedimento. O
+ * `tsconfig.sdk.json` liga `removeComments`, mas uma flag num arquivo de configuração pode ser
+ * desligada sem que ninguém perceba — e o que vazaria é o JSDoc deste repositório, que é em português
+ * e narra decisões internas, para dentro do pacote de todo escritório que instalar o SDK.
+ */
+export const declarationsWithComments = async (directory: string): Promise<string[]> => {
+  const found: string[] = [];
+
+  const walk = async (current: string): Promise<void> => {
+    for (const entry of await readdir(current, { withFileTypes: true })) {
+      const path = join(current, entry.name);
+      if (entry.isDirectory()) await walk(path);
+      else if (entry.name.endsWith('.d.ts') && (await readFile(path, 'utf8')).includes('/*')) {
+        found.push(path);
+      }
+    }
+  };
+
+  await walk(directory);
+  return found.sort();
+};

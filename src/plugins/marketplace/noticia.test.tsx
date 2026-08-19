@@ -6,7 +6,7 @@ import { installedPluginRecords } from '../../domain/usecases/plugins/installedP
 import { materializePluginScreens } from '../../domain/usecases/plugins/screenModule';
 import { evaluateExtensionView } from '../../presentation/shared/extensions/evaluateExtensionView';
 import { navMetadataOf } from '../../presentation/shared/resolveUiContributions';
-import { UI_NAV_POINT, UI_PAGE_POINT } from '../../presentation/shared/uiExtensionPoints';
+import { UI_NAV_POINT, UI_PAGE_POINT } from '../../domain/schema/ui/uiExtensionPoints';
 import { RESERVED_COLLECTIONS } from '../../domain/schema/screenEntity';
 import { countBadgeRecords } from '../../presentation/shared/useNavBadgeCount';
 import type { PluginInstallation } from '../../domain/entities/PluginInstallation';

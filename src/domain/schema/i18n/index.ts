@@ -9,7 +9,7 @@ export {
   resolutionOrder,
 } from './localeNegotiation';
 
-export type { MessageBundle, MessageCatalog, MessageParams } from './messages';
+export type { MessageBundle, MessageCatalog, MessageParams, TranslateFn } from './messages';
 export {
   asMessageBundle,
   buildMessageCatalog,

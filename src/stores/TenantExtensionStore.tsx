@@ -4,9 +4,7 @@ import { useTenant } from './useTenant';
 import { useAuth } from './useAuth';
 import { useDI } from '../infrastructure/di/useDI';
 import { parsePackage } from '../domain/usecases/plugins/packageSerialization';
-import { packageIssues, validatePackage } from '../domain/usecases/plugins/pluginReferences';
-import { validatePluginManifest } from '../domain/schema/plugin/pluginManifest';
-import { KERNEL_VERSION } from '../domain/schema/plugin/kernelVersion';
+import { validatePluginPackage } from '../sdk/validate';
 import type { TenantExtension } from '../domain/entities/TenantExtension';
 import type { MarketplacePlugin } from '../domain/entities/MarketplacePlugin';
 
@@ -62,15 +60,8 @@ export const TenantExtensionStoreProvider: React.FC<{ children: React.ReactNode 
     const parsed = parsePackage(text);
     if (!parsed.ok) return { ok: false, error: parsed.error };
     const pkg = parsed.package;
-    const manifestErrors = validatePluginManifest(pkg.manifest, { kernelVersion: KERNEL_VERSION, validateContributions: false });
-    const refErrors = validatePackage(pkg);
-    const sizeErrors = packageIssues(pkg);
-    if (manifestErrors.length > 0 || refErrors.length > 0 || sizeErrors.length > 0) {
-      const diagnostic = manifestErrors[0] ?? refErrors[0];
-      return diagnostic
-        ? { ok: false, error: diagnostic.message, errorParams: diagnostic.messageParams }
-        : { ok: false, error: sizeErrors[0].message, errorParams: sizeErrors[0].messageParams };
-    }
+    const [issue] = validatePluginPackage(pkg);
+    if (issue) return { ok: false, error: issue.message, errorParams: issue.messageParams };
     await saveExtension(pkg);
     return { ok: true, name: pkg.manifest.name || pkg.manifest.id };
   }, [saveExtension]);

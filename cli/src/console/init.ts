@@ -7,6 +7,7 @@ import { DEFAULT_FUNCTIONS_REGION } from '../kernel/manifest.js';
 import { ENVIRONMENT_FILE, slug, writeEnvironment } from './environment.js';
 import type { Environment } from './environment.js';
 import { WORKSPACE_DIR } from './workspace.js';
+import { ensureRootGitignore } from './backendEnv.js';
 
 const exists = async (path: string): Promise<boolean> => {
   try {
@@ -46,13 +47,22 @@ export const init = async (args: ParsedArgs): Promise<void> => {
   await mkdir(workspace, { recursive: true });
   await writeFile(join(workspace, '.gitignore'), '*\n');
 
+  // Este diretório é o REPOSITÓRIO de quem mantém a instalação: é onde ficam o registro do ambiente,
+  // as extensões que ele escreve e as configurações de backend. O `.gitignore` nasce com ele porque a
+  // configuração de backend é credencial, e uma credencial commitada por omissão nossa é o pior
+  // desfecho possível.
+  const gitignore = await ensureRootGitignore(directory);
+
   heading(`Microteia installation "${name}"`);
   success(`created ${ENVIRONMENT_FILE}`);
+  if (gitignore === 'created') success('created .gitignore');
+  else if (gitignore === 'appended') success('added ".env.*" to .gitignore');
   blank();
   info('Next:');
   bullets([
     'microteia connect --project <your-firebase-project-id>',
-    'microteia deploy --kernel <microteia-kernel-x.y.z.tgz>',
+    'microteia unpack --kernel <microteia-kernel-x.y.z.tgz>',
+    'microteia deploy',
   ]);
   blank();
 };

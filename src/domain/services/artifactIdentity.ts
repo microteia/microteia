@@ -1,4 +1,4 @@
-import type { TranslateFn } from '../../presentation/shared/i18n/useT';
+import type { TranslateFn } from '../schema/i18n/messages';
 /**
  * O IDENTIFICADOR de um artefato de id gerado — automação, ação e script.
  *

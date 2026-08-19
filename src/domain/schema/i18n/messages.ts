@@ -24,6 +24,13 @@ export interface MessageCatalog {
 
 export type MessageParams = Record<string, unknown>;
 
+/**
+ * A função de tradução de um namespace, como o `useT` a devolve. Vive aqui, e não na apresentação,
+ * porque o domínio a RECEBE por parâmetro — quem monta um texto a partir de dado do escritório precisa
+ * do tradutor sem por isso passar a depender do React.
+ */
+export type TranslateFn = (key: string, params?: MessageParams) => string;
+
 const MESSAGE_KEY_PATTERN = /^[a-z0-9][a-z0-9.-]*$/i;
 
 export const isValidMessageKey = (key: unknown): boolean =>

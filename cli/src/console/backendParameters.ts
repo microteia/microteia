@@ -6,9 +6,9 @@ import type { BackendClaim } from '../kernel/backendShape.js';
 /**
  * O valor de um parâmetro de backend é carimbado no deploy de CADA function: o `firebase-functions`
  * resolve os `defineString` e grava o resultado como variável de ambiente da function que está
- * subindo. Quem preenche `functions/.env.<projectId>` DEPOIS da instalação não alcança function
- * nenhuma — ela continua rodando com a string vazia que o `ensureBackendEnv` escreveu, e a falha
- * aparece só no runtime da feature.
+ * subindo. Quem preenche o `.env.<projectId>` DEPOIS da instalação não alcança function nenhuma — ela
+ * continua rodando com a string vazia que o `ensureOfficeEnv` escreveu, e a falha aparece só no runtime
+ * da feature.
  *
  * O provisionamento não notava isso porque o estado que ele guardava era só QUAIS functions subiram,
  * nunca COM QUAIS VALORES. Este módulo é a outra metade: uma impressão digital por parâmetro no
@@ -18,7 +18,7 @@ import type { BackendClaim } from '../kernel/backendShape.js';
 
 /**
  * Os parâmetros PREENCHIDOS do arquivo de ambiente. Linha sem valor é ausência: é assim que o
- * `ensureBackendEnv` grava o que ainda falta, e tratá-la como valor faria toda instalação nova nascer
+ * `ensureOfficeEnv` grava o que ainda falta, e tratá-la como valor faria toda instalação nova nascer
  * com uma mudança pendente.
  */
 export const parseBackendEnv = (content: string): Map<string, string> => {
@@ -40,8 +40,13 @@ export const parseBackendEnv = (content: string): Map<string, string> => {
   return values;
 };
 
-export const readBackendEnv = async (install: string, projectId: string): Promise<Map<string, string>> => {
-  const content = await readFile(join(install, 'functions', `.env.${projectId}`), 'utf8').catch(() => null);
+/**
+ * Lê a FONTE: o `.env.<projectId>` ao lado do `microteia.yaml`. A cópia dentro de
+ * `.microteia/install/functions/` existe só porque é de lá que o `firebase-functions` lê — comparar
+ * contra ela seria comparar contra o que o último deploy carimbou, não contra o que a pessoa digitou.
+ */
+export const readBackendEnv = async (root: string, projectId: string): Promise<Map<string, string>> => {
+  const content = await readFile(join(root, `.env.${projectId}`), 'utf8').catch(() => null);
   return content === null ? new Map() : parseBackendEnv(content);
 };
 

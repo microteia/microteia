@@ -1,0 +1,221 @@
+import type { KernelManifest } from '../kernel/manifest.js';
+
+/**
+ * Os dois documentos que ficam ao lado do `microteia.yaml`.
+ *
+ * Eram um `README.md` DENTRO do pacote, em `.microteia/install/`. Estava no lugar errado por duas razões:
+ * ninguém abre um diretório que se anuncia como descartável para ler documentação, e o que ele explicava
+ * — onde escrever function, onde ficam as configurações — apontava para caminhos de dentro dele mesmo,
+ * que é justamente o que não se deve editar.
+ *
+ * A divisão entre os dois é sobre QUEM ESCREVE:
+ *
+ * - `README.md` é do escritório. Nasce se não existir e nunca é reescrito — ele vai renomear coisas,
+ *   acrescentar o contexto do negócio dele, apagar o que não usa. Por isso só contém o que não muda.
+ * - `MICROTEIA.md` é nosso. É SOBREPOSTO a cada `unpack`, e é onde vai o detalhe que acompanha a versão:
+ *   a lista de comandos, os números do pacote, os caminhos. Um documento que promete estar atualizado
+ *   não pode ser editável, e um documento que a pessoa edita não pode prometer isso.
+ */
+
+export const INSTALLATION_README = 'README.md';
+export const INSTALLATION_GUIDE = 'MICROTEIA.md';
+
+/**
+ * O README do escritório. Escrito UMA vez, e daí em diante é dele.
+ *
+ * Deliberadamente sem número de versão, sem contagem de function e sem nada que envelheça: o que
+ * envelhece vive no `MICROTEIA.md`, que é reescrito. Um README com um dado velho ensina a desconfiar do
+ * arquivo inteiro.
+ */
+export const installationReadme = (officeName: string): string => `# ${officeName}
+
+This directory is a **Microteia** installation: a multi-tenant business platform where the applications
+are built by *declaration* — screens, automations, actions and pages arrive as extensions, and the
+platform itself is never modified.
+
+It is yours. Rename it, describe your business in it, delete what you do not use. Nothing rewrites this
+file. The reference that has to stay current lives in **[MICROTEIA.md](./MICROTEIA.md)**, which is
+replaced on every \`microteia unpack\` — read that one for commands, paths and version detail.
+
+## The shape of this directory
+
+    microteia.yaml         this installation: name, Firebase project, region, kernel version
+    .env.<projectId>       your backend settings. Credentials — gitignored
+    extensions/            the extensions you write
+    functions/             Cloud Functions shared by more than one extension
+    .microteia/            the unpacked platform. DISPOSABLE — nothing of yours lives here
+
+The line that explains the rest: **nothing you write lives in \`.microteia/\`.** That directory is
+replaced whole on every upgrade. Everything of yours sits beside this file.
+
+## Day to day
+
+    microteia unpack --kernel <package>.tgz   # take a new platform version
+    microteia deploy                          # publish it — or --only hosting, --only functions
+    microteia provision                       # apply what installed extensions need
+
+## Building your own extensions
+
+An extension is a declaration the platform installs — a screen with its fields, an automation, a page.
+You write it in TypeScript and a compiler produces the \`.json\` that gets installed:
+
+    cd extensions
+    npx microteia-plugin create        # guided: asks what the extension should carry
+    npx microteia-plugin check <folder>/plugin.ts
+    npx microteia-plugin build <folder>/plugin.ts
+
+\`extensions/examples/\` holds every extension that ships with Microteia, in source form — the best
+reference there is. \`extensions/AUTHORING.md\` is the contract: extension points, the API a page may
+use, translation rules, size limits.
+
+## Working with an AI assistant
+
+\`extensions/\` registers an MCP server (\`.mcp.json\`), so an assistant in your editor can ask **this**
+installation what it offers — the extension points it has, what a page may import, and whether what it
+just wrote would be accepted — instead of guessing from documentation. \`extensions/AGENTS.md\` holds the
+rules it should follow.
+
+The point of that is not novelty: it is that the assistant's answer can be *checked* before anything is
+installed, by the same validation the platform runs.
+`;
+
+const commandRows = (): string => [
+  '| Command | What it does |',
+  '|---|---|',
+  '| `microteia unpack --kernel <pkg>.tgz` | Puts a platform version in place. Touches no Firebase — safe any time |',
+  '| `microteia deploy [--only …]` | Publishes what is in place: `rules`, `indexes`, `functions`, `hosting` |',
+  '| `microteia provision [--prune]` | Gives installed extensions the functions and indexes they ask for |',
+  '| `microteia connect --project <id>` | Binds this installation to a Firebase project you own |',
+  '| `microteia plugin-init` | Prepares `extensions/` for authoring in TypeScript |',
+].join('\n');
+
+/**
+ * O documento técnico. SOBREPOSTO a cada `unpack`, e por isso é onde o detalhe que acompanha a versão
+ * pode viver — carimbado com os números do pacote que está instalado, não com uma cópia deles.
+ */
+export const installationGuide = (
+  officeName: string,
+  manifest: KernelManifest,
+  examples: string[],
+): string => {
+  const baseline = (manifest.baselineFunctions ?? manifest.functions).length;
+  const claimed = manifest.functions.length - baseline;
+
+  return `# Microteia — installation reference
+
+> Generated by \`microteia unpack\`. **Replaced on every unpack** — do not edit it; put your own notes in
+> [README.md](./README.md), which is never rewritten.
+
+| | |
+|---|---|
+| Installation | ${officeName} |
+| Platform version | ${manifest.version} |
+| Extension contract | ${manifest.kernelVersion} |
+| Console required | ${manifest.minimumCliVersion} or newer |
+| Functions region | ${manifest.requires.functionsRegion} |
+| Cloud Functions | ${baseline} baseline, ${claimed} claimed by extensions |
+${manifest.sdk === undefined ? '' : `| Authoring SDK | ${manifest.sdk.version} |\n`}
+## 1. What lives where, and why
+
+    microteia.yaml              the installation record. Written by the commands; readable by you
+    .env.<projectId>            YOUR backend settings — credentials
+    .gitignore                  covers the two above
+    README.md                   yours, never rewritten
+    MICROTEIA.md                this file, replaced on every unpack
+    extensions/                 the extensions you write
+      <plugin>/plugin.ts        the source of one extension
+      <plugin>/views/*.tsx      its pages, as real type-checked files
+      <plugin>/functions/       its own Cloud Functions
+      <plugin>/<id>.json        the built artifact — generated, do not hand-edit
+      examples/                 every first-party extension, in source form
+      AUTHORING.md              the authoring contract
+    functions/                  Cloud Functions shared by more than one extension
+    .microteia/                 DISPOSABLE
+      install/                  the unpacked platform. Replaced whole on every unpack
+      firebase-config.json      resolved from your Firebase project by \`connect\`
+
+**Nothing you write belongs in \`.microteia/\`.** \`unpack\` deletes that directory and replaces it; only
+\`functions/node_modules\` survives, and only because it is a cache. This is not a convention to respect —
+it is what makes an upgrade trustworthy, and the reason your files are elsewhere.
+
+## 2. Commands
+
+${commandRows()}
+
+\`unpack\` and \`deploy\` are separate so that taking a new version does not oblige you to publish
+everything, and so that there is a moment between the two to fill in a setting the new version asks for.
+
+## 3. Backend settings
+
+They live in \`.env.<projectId>\`, next to \`microteia.yaml\`. \`unpack\` creates the file and adds any
+setting a new version introduces, **never overwriting what you filled in**.
+
+After changing a value, run \`microteia provision\`. The value is stamped into each Cloud Function at
+*its* deploy, so a function already running keeps the previous one until it is deployed again; provision
+notices the change (by a salted digest in \`microteia.yaml\`) and requeues exactly the functions that
+carry that setting.
+
+An empty line means "not configured". A feature that needs it stays off rather than failing halfway.
+
+## 4. Your own Cloud Functions
+
+Two places, answering two different questions:
+
+| Where | When |
+|---|---|
+| \`extensions/<plugin>/functions/\` | the function belongs to that extension |
+| \`functions/\` | the function is shared by more than one |
+
+Each directory is read through its \`index.ts\` — export from there what should be deployed.
+\`microteia deploy\` gathers them into the package, generates the entry point, and refuses the deploy if
+two of them export the same name, or if one collides with a platform function. That refusal matters: the
+entry point spreads yours *after* the platform's, so a repeated name would replace a platform trigger
+silently, and a trigger that was replaced does not fail — it simply stops happening.
+
+A function that belongs to an extension should also be declared in its
+\`manifest.backend.functions\`. That is what makes the installation deploy it only where the extension is
+installed, instead of everywhere.
+
+Functions are pinned to **${manifest.requires.functionsRegion}**. One in another region receives no
+Firestore trigger from this project, and the deploy reports nothing.
+
+## 5. Writing extensions
+
+    cd extensions
+    npx microteia-plugin create                 # guided
+    npx microteia-plugin create function        # adds a Cloud Function to an existing extension
+    npx tsc --noEmit                            # types
+    npx microteia-plugin check <folder>/plugin.ts
+    npx microteia-plugin build <folder>/plugin.ts
+
+\`check\` is not an approximation of the platform's validation — it *is* it, the same function and the
+same messages. If \`check\` passes, the package installs.
+
+**A package that carries code installs inert.** An administrator opens the source, reads it, and trusts
+it; the trust is bound to that exact code by hash. Changing one character requires trusting it again.
+
+### Examples included with this version
+
+${examples.length === 0 ? '_None in this package._' : examples.map((id) => `- \`extensions/examples/${id}/\``).join('\n')}
+
+Each is the real source of an extension that ships with Microteia. Build any of them and you get the
+same \`.json\` the platform installs:
+
+    npx microteia-plugin build examples/pessoa/plugin.ts
+
+## 6. An AI assistant in this directory
+
+\`extensions/.mcp.json\` registers an MCP server that answers from **this** installation: the extension
+points it has, what a page may import, the authoring guide, and whether a package would be accepted.
+\`extensions/AGENTS.md\` (and \`CLAUDE.md\`, the same content) holds the rules.
+
+The validation tool is the part that matters — it closes the loop between what an assistant proposes and
+what the platform would do with it, before anything is installed.
+
+## 7. Manual prerequisites
+
+Things no command can do for you, in the Firebase or Google Cloud console:
+
+${manifest.manualPrerequisites.map((prerequisite) => `- **${prerequisite.title}**${prerequisite.optional ? ' _(optional)_' : ''}\n  ${prerequisite.detail}`).join('\n')}
+`;
+};

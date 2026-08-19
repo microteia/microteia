@@ -6,7 +6,7 @@ import { installedPluginRecords } from '../../domain/usecases/plugins/installedP
 import { materializePluginScreens } from '../../domain/usecases/plugins/screenModule';
 import { evaluateExtensionView } from '../../presentation/shared/extensions/evaluateExtensionView';
 import { navMetadataOf } from '../../presentation/shared/resolveUiContributions';
-import { UI_NAV_POINT, UI_PAGE_POINT, UI_SETTINGS_POINT } from '../../presentation/shared/uiExtensionPoints';
+import { UI_NAV_POINT, UI_PAGE_POINT, UI_SETTINGS_POINT } from '../../domain/schema/ui/uiExtensionPoints';
 import type { SettingsSection } from '../../domain/schema/settings';
 import { RESERVED_COLLECTIONS } from '../../domain/schema/screenEntity';
 import { resolveWritableTable } from '../../domain/schema/mutationSpec';

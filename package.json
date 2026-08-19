@@ -1,7 +1,7 @@
 {
   "name": "microteia",
   "private": true,
-  "version": "7.55.0",
+  "version": "7.58.0",
   "type": "module",
   "bin": {
     "microteia": "cli/lib/index.js"
@@ -15,13 +15,17 @@
     "prebuild": "npm run sync-schemas",
     "build": "tsc -b && vite build --mode ${TARGET:-dev}",
     "lint": "eslint .",
-    "typecheck": "tsc -b --force",
+    "typecheck": "tsc -b --force && tsc -p tsconfig.extsrc.json",
     "sync-schemas": "node scripts/sync-schemas.cjs",
     "build:extensions": "node scripts/export-extensions.mjs",
+    "build:sdk": "node scripts/build-sdk.mjs",
+    "build:host-types": "node scripts/export-host-types.mjs",
     "verify-extensions": "node scripts/export-extensions.mjs --check",
+    "verify-sdk": "node scripts/build-sdk.mjs --check",
+    "verify-host-types": "node scripts/export-host-types.mjs --check",
     "verify-messages": "node scripts/verify-messages.cjs",
     "verify-schemas": "node scripts/sync-schemas.cjs --check",
-    "verify": "npm run typecheck && npm run lint && npm run verify-schemas && npm run verify-extensions && npm run verify-messages",
+    "verify": "npm run typecheck && npm run lint && npm run verify-schemas && npm run build:host-types && npm run build:sdk && npm run verify-extensions && npm run verify-messages",
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",

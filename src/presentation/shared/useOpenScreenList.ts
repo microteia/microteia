@@ -5,7 +5,7 @@ import { usePageContributions } from './useUiContributions';
 import { screenDataCollection } from '../../domain/services/screenDataCollection';
 import { buildListTabKey } from '../../shared/constants/dynamicScreenKeys';
 import { setNavigationIntent } from '../../infrastructure/navigation/navigationIntent';
-import type { UiPageMetadata } from './uiExtensionPoints';
+import type { UiPageMetadata } from '../../domain/schema/ui/uiExtensionPoints';
 import type { FilterToken } from '../components/ui/CompositeFilter';
 
 /**

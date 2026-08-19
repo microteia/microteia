@@ -50,10 +50,31 @@ export interface KernelManifest {
   callables?: string[];
   backendParameters: BackendParameter[];
   manualPrerequisites: KernelPrerequisite[];
+  /**
+   * O SDK de autoria que este pacote carrega, quando carrega. Está aqui para que o `plugin-init`
+   * saiba a versão e ache o tarball sem desempacotar nada duas vezes — e para que um pacote
+   * ANTERIOR ao SDK seja reconhecido pela ausência, em vez de gerar um `package.json` apontando
+   * para um arquivo que não existe.
+   */
+  sdk?: KernelSdk;
+}
+
+export interface KernelSdk {
+  version: string;
+  /** O contrato Kernel↔plugins contra o qual o autor escreve. */
+  kernelVersion: string;
+  /** Caminho do tarball dentro do pacote, SEM número de versão — ver `pluginWorkspaceTemplates`. */
+  path: string;
 }
 
 export const KERNEL_DISTRIBUTION_ID = 'com.microteia.kernel';
-export const MINIMUM_CLI_VERSION = '1.0.0';
+/**
+ * O Console mínimo que consegue instalar um pacote montado hoje. Sobe junto com uma mudança que o
+ * pacote PASSA A DEPENDER: em `2.0.0`, o arquivo de configuração de backend na raiz da instalação. Um
+ * Console `1.0.0` desempacotaria este pacote e escreveria a credencial em
+ * `.microteia/install/functions/`, que o upgrade seguinte apaga — recusar é mais barato que isso.
+ */
+export const MINIMUM_CLI_VERSION = '2.0.0';
 export const DEFAULT_FUNCTIONS_REGION = 'southamerica-east1';
 /**
  * A região padrão do Google, que NÃO é a nossa. Uma instalação fora dela chama as callables por um

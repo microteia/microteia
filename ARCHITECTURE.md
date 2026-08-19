@@ -1123,7 +1123,8 @@ O desenho tem dois lados, e a fronteira entre eles é a razão de quase toda dec
 LADO MICROTEIA (este repositório)        LADO CLIENTE (máquina de quem instala)
   microteia pack                           microteia init
     -> pacote versionado, COMPILADO        microteia connect --project <id>
-                                           microteia deploy --kernel <pacote>.tgz
+                                           microteia unpack --kernel <pacote>.tgz
+                                           microteia deploy [--only ...]
 ```
 
 Duas restrições fixam tudo o mais:
@@ -1210,7 +1211,7 @@ posterior; abrir os internos agora amarraria o kernel a ela antes de sabermos qu
 |---|---|
 | `version` | `package.json` |
 | `kernelVersion` | `KERNEL_VERSION` de `domain/schema/plugin/kernelVersion.ts` |
-| `minimumCliVersion` | conferido pelo `deploy` contra o `CLI_VERSION` do Console |
+| `minimumCliVersion` | conferido pelo `unpack` e pelo `deploy` contra o `CLI_VERSION` do Console. Sobe quando o PACOTE passa a depender de algo que o Console faz — em `2.0.0`, gravar a configuração de backend na raiz da instalação; um Console anterior a gravaria onde o upgrade apaga |
 | `functions` | os exports de `functions/src/index.ts` — TUDO o que o pacote contém |
 | `baselineFunctions` | o que o `deploy` sobe sempre: `functions` menos o que as extensões reivindicam |
 | `baselineIndexes` | os índices compostos do kernel, sem os que as extensões reivindicam |
@@ -1357,19 +1358,93 @@ escrita de admin). O efeito é ele carregar no próprio navegador uma extensão 
 existem: prejuízo próprio, nenhum privilégio ganho. Fica registrado em vez de defendido — a alternativa
 seria tornar a coleção somente-servidor e perder instalar/desinstalar pela aplicação.
 
-### Os quatro comandos
+### Os comandos
 
 | Comando | O que faz |
 |---|---|
-| `microteia init` | grava o `microteia.yaml` — UMA instalação ligada a UM projeto Firebase |
+| `microteia init` | grava o `microteia.yaml` e o `.gitignore` — UMA instalação ligada a UM projeto Firebase |
 | `microteia connect --project <id>` | acha ou cria o app web, lê o `apps:sdkconfig`, guarda em `.microteia/` |
-| `microteia deploy --kernel <tgz>` | desempacota, carimba e aplica rules → índices → functions → hosting, e provisiona no fim |
+| `microteia unpack --kernel <tgz>` | põe o pacote em `.microteia/install` e escreve no `.env.<projectId>` o que faltar. Não toca no Firebase |
+| `microteia deploy [--only ...]` | carimba e aplica rules → índices → functions → hosting do que está no lugar, e provisiona no fim |
 | `microteia provision [--prune]` | dá às extensões instaladas as functions e os índices que elas exigem |
+| `microteia plugin-init` | prepara `extensions/`, para escrever extensão em TypeScript |
 
 O `provision` existe separado do `deploy` porque instalar uma extensão é um gesto de dentro da
 aplicação, e não um deploy: depois dele, o que falta é aplicar os artefatos — sem reenviar o kernel nem
 o hosting. É o MESMO motor nos dois casos (`console/provision.ts`), porque duas implementações
 divergiriam justamente no ponto em que ninguém olha.
+
+### Por que `unpack` e `deploy` são dois comandos
+
+Eram um. Juntos custavam duas coisas, e as duas apareceram em uso.
+
+**Trocar de kernel obrigava a publicar tudo.** O `--only` existia, mas vinha depois da troca do pacote
+no mesmo comando: quem quisesse só o hosting — porque naquela versão functions, rules e índices não
+mudaram — não tinha como pedir. Publicar functions que não mudaram não é inócuo: elas sobem uma a uma,
+levam minutos, e cada deploy recarimba nelas os valores de parâmetro.
+
+**Não havia momento para preencher o que o pacote pede.** A lista de parâmetros vem do manifesto, então
+só se sabe que existe um parâmetro NOVO depois de o pacote estar no lugar — e nesse instante o comando
+antigo já estava publicando. Separado, o `unpack` acrescenta a linha que falta no `.env.<projectId>`, e
+quem instala preenche antes de o `deploy` carimbar.
+
+`deploy` e `provision` descobrem o pacote pela mesma porta (`readInstalledManifest`), que recusa com o
+comando que falta em vez de um `ENOENT` cru, e confere a versão mínima do Console.
+
+### As Cloud Functions do escritório também saíram de `.microteia/`
+
+Pelo mesmo motivo, e com a mesma forma. Elas moravam em `install/functions/custom/src/`, sobrevivendo ao
+upgrade por estarem numa lista de exceção (`PRESERVED`) — o que funciona até alguém mexer na lista, e não
+resolve o lugar certo não ser óbvio.
+
+Hoje a fonte fica fora, em dois lugares que respondem a duas perguntas diferentes:
+
+| Onde | Quando |
+|---|---|
+| `extensions/<plugin>/functions/` | a function é DAQUELA extensão — fica junto do plugin que a usa |
+| `functions/` (ao lado do `microteia.yaml`) | a function é COMUM a várias |
+
+Cada diretório é lido pelo `index.ts` dele. O `deploy` monta `install/functions/custom/src/` a partir
+deles (`console/customFunctions.ts`), gera o barril, e **recusa** o deploy se dois exportarem o mesmo nome
+ou se um colidir com function do kernel. A recusa é o ponto: o `index.js` do pacote espalha o customizado
+DEPOIS do kernel, então um nome repetido substitui em silêncio — e um gatilho do kernel substituído não
+falha, simplesmente deixa de acontecer.
+
+Com a fonte fora, `functions/custom` **saiu** do `PRESERVED`: sobrou só `functions/node_modules`, que é
+cache. Uma exceção a menos naquela lista é uma coisa a menos que depende de alguém não mexer nela.
+
+### As configurações de backend são do escritório, e por isso ficam FORA de `.microteia/`
+
+Elas moravam em `.microteia/install/functions/.env.<projectId>`, e isso perdia dado.
+
+O `unpack` substitui o pacote por inteiro (`rm -rf install` e renomeia o staging) preservando
+explicitamente só `functions/custom` e `functions/node_modules` — é essa substituição total que faz o
+upgrade ser confiável. Uma credencial preenchida à mão ali era apagada no upgrade seguinte, e o
+`ensureBackendEnv` a recriava VAZIA.
+
+O agravante é o que vinha depois: sem valor, a impressão digital em `microteia.yaml` deixava de bater, o
+provisionamento marcava as functions daquela extensão como obsoletas e as **redeployava com a string
+vazia**. O mecanismo escrito para detectar valor faltando (ver "Parâmetro preenchido depois do deploy")
+passava a ser a causa dele.
+
+Hoje a fonte é `.env.<projectId>` **ao lado do `microteia.yaml`**, e a divisão segue a mesma regra de
+`functions/custom/`:
+
+| Onde | De quem | Sobrevive ao `unpack`? |
+|---|---|---|
+| `.env.<projectId>`, `extensions/`, `microteia.yaml` | do escritório | sim — estão fora de `.microteia/` |
+| `.microteia/install/functions/custom/` | do escritório | sim — copiado de volta explicitamente |
+| `.microteia/install/**` (o resto) | do kernel | não — substituído por inteiro |
+
+O arquivo que o `firebase-functions` lê continua tendo de estar em `install/functions/`, então ele é uma
+**cópia**, escrita por `stageOfficeEnv` no `deploy` **e** no `provision`. Nos dois, e não só no deploy:
+o `provision` é justamente o comando que aplica um valor preenchido depois da instalação, e subir a
+function contra uma cópia velha carimbaria nela o valor que se acabou de trocar.
+
+Duas decisões menores, pelo mesmo motivo: o `init` cria o `.gitignore` da raiz (o diretório tende a
+virar repositório do escritório, e credencial commitada por omissão nossa é o pior desfecho), e o
+`.env.example` **saiu** do pacote — dentro de `install/functions/` ele era um convite a preencher no
+lugar errado.
 
 O `connect` passa pelo `firebase` oficial em tudo. A busca da configuração no JSON de saída é
 **recursiva**: o formato do `apps:sdkconfig` já mudou entre versões, e casar a forma exata quebraria a
@@ -1485,6 +1560,204 @@ ferramenta. `packConsole.test.ts` guarda a forma desse arquivo.
 Os comandos de publicação viajam na cópia (o `index.js` importa todos), então `pack` e `pack-console`
 verificam se estão dentro do repositório e recusam com mensagem própria em vez do `ENOENT` cru que
 davam antes — ver `cli/src/vendor/repository.ts`.
+
+### Os documentos da instalação — `README.md` e `MICROTEIA.md`
+
+Havia um `README.md` DENTRO do pacote, em `.microteia/install/`. Estava no lugar errado por duas razões:
+ninguém abre um diretório que se anuncia como descartável para ler documentação, e o que ele explicava —
+onde escrever function, onde ficam as configurações — apontava para caminhos de dentro dele mesmo, que é
+exatamente o que não se deve editar.
+
+Ele saiu, e no lugar dele o `unpack` escreve dois arquivos na raiz. A divisão é sobre QUEM ESCREVE:
+
+| Arquivo | De quem | No `unpack` |
+|---|---|---|
+| `README.md` | do escritório | criado se não existir, **nunca** reescrito |
+| `MICROTEIA.md` | nosso | **sobreposto sempre** |
+
+Daí o conteúdo de cada um. O `README.md` só carrega o que não muda — o escritório vai renomear coisas e
+descrever o negócio dele ali, e um dado velho num arquivo que ele edita ensina a desconfiar do arquivo
+inteiro. O `MICROTEIA.md` carrega o que acompanha a versão (comandos, caminhos, contagem de functions,
+pré-requisitos manuais), carimbado do manifesto INSTALADO — um documento que promete estar atualizado não
+pode ser editável, e um que a pessoa edita não pode prometer isso.
+
+### SDK de autoria — escrever extensão em TypeScript, sem o source do kernel
+
+O sistema lê extensão por `.json`, e isso está certo: é o artefato. Mas as extensões de primeira parte
+sempre foram escritas em `.ts` e compiladas por `npm run build:extensions` — é de lá que vêm tipos,
+autocomplete e teste unitário. O SDK leva essa mesma esteira para o escritório, sem liberar `src/`
+nenhum: o que viaja é compilado mais `.d.ts`.
+
+```
+LADO MICROTEIA (repositório)                LADO ESCRITÓRIO
+  src/sdk/index.ts        barril curado       extensions/            <- do escritório
+  tsconfig.sdk.json    -> sdk/lib/**          package.json  @microteia/sdk (file:)
+  export-host-types.mjs-> sdk/types/**        tsconfig.json paths @microteia/* -> types/
+  microteia pack       -> sdk/microteia-sdk.tgz
+                                              npx microteia-plugin new|check|build|mcp
+```
+
+`extensions/` fica ao lado do `microteia.yaml`, **fora** de `.microteia/` — a mesma regra de
+`functions/custom/`: é do escritório, e o upgrade não o toca. O tarball do SDK tem nome FIXO
+(`microteia-sdk.tgz`, sem versão) porque o `package.json` do escritório aponta para ele por caminho:
+com a versão no nome, todo upgrade exigiria editar aquele arquivo à mão, e quem esquecesse continuaria
+compilando contra o SDK antigo em silêncio.
+
+#### O que o SDK é
+
+| Parte | Onde nasce | O que é |
+|---|---|---|
+| Superfície de tipos e validadores | `src/sdk/index.ts` | barril **explícito** — cada linha é a decisão de que aquele símbolo pode ser escrito de fora |
+| Porta única de validação | `src/sdk/validate.ts` | `validatePluginPackage` — o trio manifest + integridade referencial + tamanho/migrações |
+| Construtores de contribuição | `src/sdk/contributions.ts` | `page`, `nav`, `command`… (sem `lazyView`, que precisa de React) |
+| Compilador | `src/sdk/node/compile.ts` | `.ts` → `.json`, com `sucrase` — o MESMO transpilador do runtime do browser |
+| Ferramenta de terminal | `src/sdk/node/cli.ts` | `microteia-plugin new \| check \| build \| mcp` |
+| Servidor MCP | `src/sdk/node/mcp.ts` | JSON-RPC sobre stdio, escrito à mão — sem dependência nova |
+| Tipos da API curada | `scripts/export-host-types.mjs` | emite `sdk/types/microteia-host.d.ts` de `buildExtensionTypeDefs()` |
+
+O diretório `sdk/` é **inteiramente gerado** (`npm run build:sdk`) e está no `.gitignore`. A fonte é
+`src/sdk/` mais o `tsconfig.sdk.json`; o `package.json` do pacote é escrito pelo script, como
+`packageTemplates.ts` faz para o pacote do kernel e pelo mesmo motivo — uma versão duplicada à mão
+divergiria em silêncio.
+
+#### Uma porta de validação, e um só compilador
+
+`validatePluginPackage` substituiu o trio que era montado à mão em QUATRO lugares (a tela de autoria,
+os dois caminhos de importação e a importação de traduções). Uma checagem nova acrescentada num deles
+não chegava aos outros, e o defeito aparecia do lado que ninguém tinha lembrado.
+
+Pelo mesmo princípio, `scripts/export-extensions.mjs` deixou de usar o `ssrLoadModule` do Vite e passa a
+chamar o compilador do SDK. Assim a nossa esteira diária é a prova de que a do autor funciona, e
+`src/sdk/node/compile.test.ts` compara os dois lados **byte a byte** contra os doze
+`extension-templates/*.json` versionados.
+
+#### O que sai daqui, e o que não sai
+
+Duas restrições da distribuição continuam valendo, e o SDK foi desenhado dentro delas:
+
+- **Superfície CURADA.** O barril não é um `export *`: é uma lista, e `sdkSurface.test.ts` a carimba —
+  ampliar é aditivo e pede o minor do `KERNEL_VERSION`; remover é quebra e pede o major.
+- **Sem comentário no `.d.ts` de `lib/`.** O JSDoc deste repositório é em português e narra decisões e
+  incidentes internos. `removeComments` está ligado, e o `pack` **confere o artefato** (mesma postura do
+  `bundleAudit`): acha `/*` num `.d.ts` empacotado, aborta. O que o autor lê é `sdk/types/` e o
+  `AUTHORING.md`, escritos para ele — e por isso esses ficam de fora da conferência.
+- **Só `domain/`.** `sdkPurity.test.ts` percorre o fechamento REAL de imports do barril e falha se ele
+  alcançar React, Firebase, um store ou a apresentação — o pacote roda em Node, e o import indireto três
+  arquivos abaixo é o que passa despercebido numa revisão.
+
+#### Os exemplos viajam como FONTE, uma pasta por extensão
+
+Viajavam como `extension-templates/*.json`. Um `.json` de 90 KB não ensina nada: é o artefato, e quem
+abre não vê como se chega nele.
+
+Agora `microteia pack` monta `sdk/examples/<extensão>/plugin.ts` + `views/*.tsx` a partir dos nossos
+próprios arquivos (`cli/src/vendor/exampleSources.ts`), com uma única transformação: os imports que aqui
+alcançam `../../domain/...` e `../contributionBuilders` passam a vir de `@microteia/sdk`.
+
+Isso não expõe nada novo — o código das views já viajava dentro do `.json`, em string. Expõe de forma
+legível o que já ia.
+
+**A conferência é o que torna a transformação confiável.** `exampleSources.test.ts` compila cada exemplo
+reescrito com o compilador do SDK e exige o `.json` versionado, BYTE A BYTE. Um símbolo que o barril do SDK
+não exportasse reprovaria ali, e não no escritório de quem instalou. De passagem, é a prova de que o SDK é
+suficiente para escrever as NOSSAS extensões — que é a afirmação inteira do dogfooding, e não havia outro
+jeito de verificar.
+
+#### `create` — o molde é guiado, não fixo
+
+`microteia-plugin create` pergunta o que a extensão vai ser (entidade? página em código? Cloud Functions?)
+e gera só isso. Uma extensão que só traz uma automação não deveria nascer com uma tela e uma página para
+apagar.
+
+Toda pergunta aceita ser respondida por FLAG (`--entity yes`), e sem terminal ele não pergunta nada — é o
+que o mantém usável em CI, num script, ou por uma IA. `create function` acrescenta uma function a uma
+extensão que já existe e atualiza o barril dela.
+
+#### A documentação que viaja
+
+`microteia plugin-init` escreve `extensions/` com `AUTHORING.md` (o manual do autor), `AGENTS.md` e
+`CLAUDE.md` (as regras operacionais, para pessoa ou IA), `.mcp.json`, e os doze
+`extension-templates/*.json` como `examples/`. Os dois primeiros são **em inglês**: a regra de idioma
+deste repositório diz que o produto fala inglês porque tem de poder falar qualquer idioma, e o
+português é a nossa comunicação interna — um manual entregue a escritórios em qualquer lugar é produto.
+
+O manual é gerado com a lista de pontos de extensão e de módulos do SDK **instalado** (lidos de
+`sdk/lib` e `sdk/types` na hora), não com uma cópia: um texto que descreve contrato diferente do que
+está na máquina é pior que texto nenhum.
+
+#### O servidor MCP
+
+`microteia-plugin mcp` serve o workspace a uma IA no editor. O que o torna útil é que quase tudo já era
+DADO neste repositório, não prosa: os pontos de extensão são arrays, a API curada é um `.d.ts` gerado, e
+a validação é a mesma função que a instalação chama.
+
+| Tool | Fonte |
+|---|---|
+| `validate_plugin`, `build_plugin` | `src/sdk/validate.ts`, `src/sdk/node/compile.ts` |
+| `list_extension_points` | `UI_/DATA_/I18N_/THEME_EXTENSION_POINTS` |
+| `describe_host_module` | um bloco de `sdk/types/microteia-host.d.ts` |
+| `list_workspace_plugins` | compila cada `plugin.ts` do diretório e devolve as pendências |
+| `read_authoring_guide` | `AUTHORING.md`, por seção |
+| `workspace_info` | contrato, tipos, e se a instalação está conectada |
+
+`validate_plugin` é o laço mais curto que existe aqui: propor → validar → corrigir, sem deploy e sem
+escritório de cliente no meio.
+
+### View de extensão como ARQUIVO — o fim do código em template literal
+
+As views e os `startup` das extensões de primeira parte moravam dentro de template literals nos
+arquivos de plugin. Ali eles não passavam pelo `tsc` nem pelo ESLint, não podiam conter crase, e o autor
+escrevia às cegas justamente o código que mais precisa de ajuda.
+
+Hoje a fonte mora num arquivo `.tsx` de verdade e o plugin a importa com `?raw` — a convenção do Vite,
+que o compilador do SDK também entende:
+
+```ts
+import DASHBOARD_SOURCE from './views/dashboard/Dashboard.view.tsx?raw';
+```
+
+Para um autor de fora existe o caminho declarativo equivalente, que não exige conhecer `?raw`:
+
+```ts
+views: [{ key: 'summary', title: '…', icon: 'chart', sourceFile: './views/Summary.view.tsx' }]
+```
+
+`sourceFile` é campo de AUTORIA: o compilador o troca pelo conteúdo e o remove do pacote. Declarar
+`source` e `sourceFile` para a mesma view é erro, não precedência — um pacote em que os dois divergem
+instala um deles e o autor nunca sabe qual.
+
+**A configuração é o ponto frágil, e são quatro arquivos que precisam concordar:**
+
+| Arquivo | Papel |
+|---|---|
+| `tsconfig.extsrc.json` | INCLUI `src/plugins/marketplace/views`; mapeia `@microteia/*`, `react` e `styled-components` para `sdk/types/microteia-host.d.ts` |
+| `tsconfig.app.json` | EXCLUI o mesmo diretório — senão o build do app tenta resolver `@microteia/ui` de verdade e quebra |
+| `eslint.config.js` | as regras de Hooks e do React Compiler valem; a checagem de literal de i18n não, porque o vocabulário é do domínio da extensão |
+| `viewSources.test.ts` | tranca as três coisas acima, e prova que nenhum plugin voltou ao template literal |
+
+O `noImplicitAny` fica desligado nesse projeto: essas fontes nasceram como JavaScript em string, e
+anotar 26 arquivos não é o que se ganha aqui. O que se ganha é resolução e forma — e foi isso que a
+migração encontrou, em código que rodava em produção:
+
+- **Oito declarações ERRADAS na API curada.** `RecordCardAction` prometia `label` e `icon`, que não
+  existem — o real é `{ key, title, danger?, disabled?, iconKey? }`. `cardActionIcon` era declarada
+  como `(actionKey: string) => ComponentType`, e é `(action, size?) => ReactNode`.
+  `CompositeFilterProps` descrevia props que o componente não tem. `EntityListViewProps` omitia mais da
+  metade dos props e marcava obrigatórios como opcionais. `Spinner.size` era `'sm'|'md'|'lg'` e é
+  número. Faltavam `article`, `a`, `hr` e outras tags no `StyledInterface`, e `setTabTitle` no
+  `useWorkspace`. **Quem seguisse o IntelliSense escrevia código quebrado.**
+- **`StyledComponent` não era chamável em JSX** — uma `interface` estendendo um alias de função não é
+  ela mesma chamável, e o TypeScript recusava todo styled component com "does not have any construct or
+  call signatures".
+- **Interpolação de styled sem tipo:** `...rest: any[]` deixava `({ theme })` implícito. Tipada, o
+  `theme` completa e um token que não existe é acusado.
+- **Um `useLookup('financialTypes')` morto** no Financeiro — assinava uma coleção que ninguém lia.
+
+Três plugins (`prazo`, `processo`, `push`) **continuam** com fonte em template literal, e a lista é
+fechada no teste. Neles a fonte é COMPOSTA: blocos de helpers e de estilo interpolados em vários widgets
+(`${WIDGET_HELPERS}${WIDGET_CARD}`). Como o runtime avalia um módulo por view e não resolve import entre
+fontes de view, extraí-las hoje exigiria duplicar os blocos em cada arquivo. A saída certa é o
+compilador EMPACOTAR a view a partir de vários arquivos — decisão de escopo próprio, ainda não tomada.
 
 ### O que esta etapa NÃO faz
 

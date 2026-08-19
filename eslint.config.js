@@ -66,7 +66,7 @@ const MIGRATED_TO_SOURCE_LANGUAGE = [
 ]
 
 export default defineConfig([
-  globalIgnores(['dist', 'functions/lib', 'cli/lib', 'distributions']),
+  globalIgnores(['dist', 'functions/lib', 'cli/lib', 'distributions', 'sdk']),
   {
     files: ['**/*.{ts,tsx}'],
     extends: [
@@ -136,12 +136,9 @@ export default defineConfig([
     files: MIGRATED_TO_SOURCE_LANGUAGE,
     ignores: [
       '**/*.test.{ts,tsx}',
-      // As definições de tipo entregues ao autor de extensão (`declare module`) são DOCUMENTAÇÃO DE
-      // API, não texto de runtime: viram IntelliSense no editor dele, não passam por catálogo e não
-      // têm como ser traduzidas em tempo de execução. Elas devem ir para o inglês — é trabalho
-      // pendente, registrado no ARCHITECTURE.md, e não cabia junto da migração de interface.
-      'src/presentation/shared/extensions/extensionTypeDefs.ts',
-      // Mesma natureza: as definições de tipo que viram IntelliSense para quem escreve um Script.
+      // As definições de tipo que viram IntelliSense para quem escreve um Script. São DOCUMENTAÇÃO DE
+      // API, não texto de runtime — não passam por catálogo e não têm como ser traduzidas em tempo de
+      // execução —, e devem ir para o inglês como as de extensão já foram.
       'src/presentation/pages/ViewScript/scriptTypeDefs.ts',
       // A esteira do Gmail/push pertence ao plugin de push, que não é traduzido nesta rodada —
       // o texto dela casa com o e-mail de tribunal que ela processa.

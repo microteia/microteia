@@ -11,6 +11,31 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [7.58.0] — 2026-08-19
+
+- A pasta da instalação passa a ser documentada onde faz sentido: um **README** próprio do escritório, criado uma vez e nunca reescrito — para descrever o negócio, renomear o que quiser —, e um **MICROTEIA.md** técnico, refeito a cada atualização, sempre correspondendo à versão instalada. As instruções que antes ficavam escondidas dentro da pasta descartável saíram de lá.
+- As extensões que acompanham o sistema passam a vir como **código-fonte**, uma pasta cada, e não mais como arquivo pronto. É a melhor referência para quem vai escrever a sua: dá para abrir, ler e gerar o arquivo final a partir dela.
+- Criar uma extensão agora é **guiado por perguntas**: o assistente pergunta o que ela vai ter — uma entidade, uma tela em código, funções de servidor — e gera só isso, sem sobras para apagar. Há também um comando para acrescentar uma função de servidor a uma extensão já existente.
+- As funções de servidor escritas pelo escritório ganharam lugar próprio: junto da extensão que as usa, ou numa pasta compartilhada quando servem a várias. Antes ficavam dentro da pasta que é refeita a cada atualização. A publicação agora recusa, com explicação, duas funções de mesmo nome — antes uma substituía a outra em silêncio, e o efeito era uma automação que simplesmente parava de acontecer.
+
+#### [7.57.1] — 2026-08-19
+
+- A instrução de configuração da caixa de intimações apontava para um arquivo que não é mais o certo. Agora o próprio instalador informa o caminho exato do arquivo, resolvido para a sua instalação, em vez de repeti-lo em cada texto — que era o motivo de ele ter ficado desatualizado.
+
+#### [7.57.0] — 2026-08-19
+
+- **Correção importante:** as configurações de servidor que o escritório preenche (como as credenciais do Gmail, usadas pela caixa de intimações) eram apagadas ao instalar uma versão nova do sistema — e, pior, as funcionalidades que dependiam delas voltavam ao ar sem valor nenhum, falhando só na hora do uso. Agora essas configurações ficam guardadas junto do arquivo da instalação, fora da pasta que é refeita a cada atualização, e sobrevivem a qualquer troca de versão.
+- A pasta da instalação passa a nascer com a proteção que evita enviar essas credenciais para um repositório por descuido.
+- Instalar uma versão nova deixou de obrigar a republicar tudo. Agora são dois passos: primeiro trazer a versão nova, depois publicar só o que mudou — o aplicativo, ou o servidor, ou ambos. Além de ser mais rápido, existe agora um momento entre os dois para preencher uma configuração que a versão nova passou a pedir.
+- As mensagens passam a dizer exatamente qual arquivo abrir e onde ele está, em vez de um caminho que podia ser confundido com outro parecido.
+
+#### [7.56.0] — 2026-08-19
+
+- Agora é possível criar extensões próprias escrevendo código no editor, com a mesma comodidade de quem desenvolve o sistema: o pacote de instalação passa a trazer um kit de autoria, e um comando prepara a pasta de trabalho já configurada. Quem preferir continua podendo ajustar o arquivo da extensão à mão — o resultado é o mesmo.
+- A pasta criada vem com o manual de autoria, exemplos prontos de todas as extensões que acompanham o sistema, e uma conferência que aponta qualquer problema **antes** de a extensão ser distribuída — a mesma conferência que a instalação faria.
+- Um assistente de inteligência artificial no editor passa a poder consultar a própria instalação: o que ela oferece, o que uma extensão pode usar e se o que está sendo escrito é válido. Isso torna viável pedir a ele que escreva uma extensão inteira e conferir o resultado sem instalar nada.
+- Correções encontradas ao longo desse trabalho, todas em telas que chegam por extensão: a documentação de várias ferramentas de autoria descrevia campos que não existiam, o que levava a erros silenciosos; e a tela de Financeiro deixou de carregar uma lista que nunca era usada.
+
 #### [7.55.0] — 2026-08-19
 
 - Uma credencial de servidor preenchida depois da instalação passa a valer sozinha: ao rodar o provisionamento, apenas os recursos que dependem dela são atualizados, e nada mais é mexido. Antes, o valor ficava gravado no arquivo de configuração sem chegar a quem precisava dele, e a funcionalidade — o recebimento de intimações por e-mail, por exemplo — falhava só na hora de usar, sem indicar o motivo.

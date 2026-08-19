@@ -11,7 +11,7 @@ import {
   type SettingsSection,
   type WidgetLayoutEntry,
 } from '../../../domain/schema/settings';
-import { UI_TAB_POINT } from '../uiExtensionPoints';
+import { UI_TAB_POINT } from '../../../domain/schema/ui/uiExtensionPoints';
 import { useSettingsSections, useSurfaceTabs, useSurfaceWidgets } from './useSettingsCatalog';
 
 /**

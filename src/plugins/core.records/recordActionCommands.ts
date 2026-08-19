@@ -1,6 +1,6 @@
 import { generateDeepLink } from '../../infrastructure/deeplink/deepLinkUtils';
 import type { RecordActionCommand } from '../../presentation/shared/recordActions/recordActionHost';
-import type { UiRecordActionMetadata } from '../../presentation/shared/uiExtensionPoints';
+import type { UiRecordActionMetadata } from '../../domain/schema/ui/uiExtensionPoints';
 
 /**
  * As ações que TODO registro oferece. Eram as únicas que o kernel sabia desenhar — escritas em

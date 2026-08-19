@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { createPluginHost } from '../../kernel';
 import { hasErrors } from '../../domain/schema/plugin/diagnostics';
 import { CORE_PLUGINS } from '../index';
-import { UI_TAB_POINT, type UiTabMetadata } from '../../presentation/shared/uiExtensionPoints';
+import { UI_TAB_POINT, type UiTabMetadata } from '../../domain/schema/ui/uiExtensionPoints';
 import { I18N_MESSAGES_POINT, messageBundlesOf } from '../../domain/schema/i18n/extensionPoints';
 import { buildMessageCatalog } from '../../domain/schema/i18n/messages';
 import { resolveLabel } from '../../domain/schema/i18n/messageRef';

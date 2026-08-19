@@ -105,7 +105,7 @@
       "key": "dashboard",
       "title": "Dashboard",
       "icon": "dashboard",
-      "source": "\nimport { WidgetSurface } from '@microteia/ui';\nimport { styled } from 'styled-components';\n\nconst Page = styled.div`\n  padding: ${({ theme }) => theme.spacing.xl};\n  height: 100%;\n  overflow-y: auto;\n`;\n\nexport default function DashboardView() {\n  return (\n    <Page>\n      <WidgetSurface\n        surface=\"dashboard\"\n        emptyMessage=\"Nenhum widget disponível. Instale extensões (Processos, Prazos, Financeiro…) para o Dashboard ganhar conteúdo.\"\n      />\n    </Page>\n  );\n}\n"
+      "source": "import { WidgetSurface } from '@microteia/ui';\nimport { styled } from 'styled-components';\n\nconst Page = styled.div`\n  padding: ${({ theme }) => theme.spacing.xl};\n  height: 100%;\n  overflow-y: auto;\n`;\n\nexport default function DashboardView() {\n  return (\n    <Page>\n      <WidgetSurface\n        surface=\"dashboard\"\n        emptyMessage=\"Nenhum widget disponível. Instale extensões (Processos, Prazos, Financeiro…) para o Dashboard ganhar conteúdo.\"\n      />\n    </Page>\n  );\n}\n"
     }
   ]
 }

@@ -1,8 +1,8 @@
 import React from 'react';
 import { InfoBanner } from '../InfoBanner';
 import { MarkdownContent } from '../MarkdownContent';
-import type { WidgetSpec } from '../../../shared/widget/widgetSpec';
-import { isWidgetSpec } from '../../../shared/widget/widgetSpec';
+import type { WidgetSpec } from '../../../../domain/schema/ui/widgetSpec';
+import { isWidgetSpec } from '../../../../domain/schema/ui/widgetSpec';
 import { S } from './WidgetRenderer.styles';
 
 interface WidgetRendererProps {

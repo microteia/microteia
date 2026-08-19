@@ -44,3 +44,7 @@ microteia.yaml
 .map
 scripts/serviceAccount.json
 .deploy-log.json
+
+# O SDK de autoria EMPACOTADO, gerado por "npm run build:sdk". Ancorado na raiz de propósito:
+# sem a barra inicial o padrão casaria `src/sdk/` também, e a FONTE do SDK deixaria de ser versionada.
+/sdk/

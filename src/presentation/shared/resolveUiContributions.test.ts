@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import type { QualifiedContribution } from '../../domain/schema/plugin/contribution';
 import { navigablePages, resolvePageContribution, visibleNavItems } from './resolveUiContributions';
-import type { UiNavMetadata, UiPageMetadata } from './uiExtensionPoints';
+import type { UiNavMetadata, UiPageMetadata } from '../../domain/schema/ui/uiExtensionPoints';
 
 const pageContribution = (id: string, metadata: Partial<UiPageMetadata>): QualifiedContribution => ({
   pluginId: 'com.acme.x',

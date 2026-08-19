@@ -9,7 +9,7 @@ import { KERNEL_VERSION } from '../domain/schema/plugin/kernelVersion';
 import { I18N_MESSAGES_POINT, messageBundlesOf } from '../domain/schema/i18n/extensionPoints';
 import { buildMessageCatalog } from '../domain/schema/i18n/messages';
 import { resolveLabel } from '../domain/schema/i18n/messageRef';
-import { UI_NAV_POINT, UI_PAGE_POINT } from '../presentation/shared/uiExtensionPoints';
+import { UI_NAV_POINT, UI_PAGE_POINT } from '../domain/schema/ui/uiExtensionPoints';
 
 const asRecord = (): PluginRecord => ({ manifest: localePtBrPlugin.manifest });
 

@@ -14,9 +14,9 @@ import {
   UI_WIDGET_POINT,
   type UiTabMetadata,
   type UiWidgetMetadata,
-} from '../uiExtensionPoints';
+} from '../../../domain/schema/ui/uiExtensionPoints';
 import type { SettingsProperty, SettingsSection } from '../../../domain/schema/settings';
-import { isWidgetSpec, type WidgetSpec } from '../widget/widgetSpec';
+import { isWidgetSpec, type WidgetSpec } from '../../../domain/schema/ui/widgetSpec';
 import { useLabel, useLocaleFormat } from '../i18n/useT';
 
 /**

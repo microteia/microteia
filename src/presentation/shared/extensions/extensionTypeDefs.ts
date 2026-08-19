@@ -54,6 +54,17 @@ declare namespace JSX {
     rect: any;
     [elemName: string]: any;
   }
+  /**
+   * 'key' and 'ref' belong to React itself, not to a component's props. Without this, passing 'key'
+   * to any component with a declared props interface is rejected - 'Property key does not exist on
+   * type CardProps' - which is the first thing anyone hits when rendering a list.
+   */
+  interface IntrinsicAttributes {
+    key?: string | number | null;
+  }
+  interface IntrinsicClassAttributes<T> {
+    ref?: any;
+  }
   interface ElementClass {
     render(): any;
   }
@@ -170,7 +181,7 @@ declare module 'react/jsx-dev-runtime' {
 
 const STYLED_COMPONENTS_DEFS = `declare module 'styled-components' {
   export interface Theme {
-    /** A identidade do tema em vigor, e de que lado ele nasce — útil para escolher opacidade. */
+    /** Which theme is in effect, and which side it comes from - useful for choosing opacity. */
     id: string;
     base: 'dark' | 'light';
     colors: {
@@ -178,9 +189,9 @@ const STYLED_COMPONENTS_DEFS = `declare module 'styled-components' {
       surface: string;
       surfaceHover: string;
       cardHover: string;
-      /** Contorna um objeto: campo, card, menu, painel flutuante. */
+      /** Outlines an object: a field, a card, a menu, a floating panel. */
       border: string;
-      /** Divide regiões que já diferem no preenchimento — mais fraco que \`border\`, de propósito. */
+      /** Divides regions that already differ in fill - weaker than \`border\`, on purpose. */
       borderSubtle: string;
       primary: string;
       primaryHover: string;
@@ -213,9 +224,9 @@ const STYLED_COMPONENTS_DEFS = `declare module 'styled-components' {
       aiOllama: string;
       aiOther: string;
       /**
-       * A paleta é ABERTA: além dos tokens acima, que são do núcleo, ela traz os que as extensões
-       * instaladas contribuírem — caseStatusWon vem de Processos, contractStatusActive de
-       * Contratos. Ler um token que ninguém contribuiu devolve undefined, então trate a ausência.
+       * The palette is OPEN: besides the tokens above, which belong to the kernel, it carries the ones
+       * installed extensions contribute - caseStatusWon comes from Cases, contractStatusActive from
+       * Contracts. Reading a token nobody contributed returns undefined, so handle the absence.
        */
       [token: string]: string | undefined;
     };
@@ -266,12 +277,34 @@ const STYLED_COMPONENTS_DEFS = `declare module 'styled-components' {
     tagColors: Array<{ label: string; value: string }>;
   }
 
-  export interface StyledComponent<P = Record<string, unknown>> extends React.ComponentType<P> {}
+  /**
+   * The component that a styled template produces.
+   *
+   * Declared as a callable type, not as an interface extending React.ComponentType: an interface
+   * extending a function TYPE alias is not itself callable, and JSX then rejects every styled
+   * component with "does not have any construct or call signatures".
+   *
+   * The index signature is what lets you pass a '$'-prefixed prop through to the template.
+   */
+  export type StyledComponent<P = Record<string, unknown>> = (
+    props: P & { children?: React.ReactNode; key?: string | number } & Record<string, any>,
+  ) => React.ReactNode;
+
+  /**
+   * A value that may appear in a styled template: a literal, or a function of the props.
+   *
+   * The props include 'theme', so 'theme.colors.primary' completes and a token that does not exist is
+   * caught. They also allow any '$'-prefixed prop of your own without being declared up front - the
+   * escape hatch for a value that comes from data (a tag colour, for instance).
+   */
+  export type Interpolation<P> =
+    | string | number | boolean | null | undefined
+    | ((props: P) => string | number | boolean | null | undefined);
 
   export interface ThemedStyledFunction<T, O = Record<string, unknown>> {
     <U = Record<string, unknown>>(
-      first: TemplateStringsArray | ((props: T & U & { theme: Theme }) => any),
-      ...rest: any[]
+      strings: TemplateStringsArray,
+      ...interpolations: Interpolation<T & U & { theme: Theme } & Record<string, any>>[]
     ): StyledComponent<T & U & O>;
   }
 
@@ -289,6 +322,27 @@ const STYLED_COMPONENTS_DEFS = `declare module 'styled-components' {
     section: ThemedStyledFunction<React.HTMLAttributes<HTMLElement>>;
     header: ThemedStyledFunction<React.HTMLAttributes<HTMLElement>>;
     footer: ThemedStyledFunction<React.HTMLAttributes<HTMLElement>>;
+    article: ThemedStyledFunction<React.HTMLAttributes<HTMLElement>>;
+    aside: ThemedStyledFunction<React.HTMLAttributes<HTMLElement>>;
+    nav: ThemedStyledFunction<React.HTMLAttributes<HTMLElement>>;
+    main: ThemedStyledFunction<React.HTMLAttributes<HTMLElement>>;
+    ul: ThemedStyledFunction<React.HTMLAttributes<HTMLUListElement>>;
+    ol: ThemedStyledFunction<React.HTMLAttributes<HTMLOListElement>>;
+    li: ThemedStyledFunction<React.LiHTMLAttributes<HTMLLIElement>>;
+    a: ThemedStyledFunction<React.AnchorHTMLAttributes<HTMLAnchorElement>>;
+    hr: ThemedStyledFunction<React.HTMLAttributes<HTMLHRElement>>;
+    h4: ThemedStyledFunction<React.HTMLAttributes<HTMLHeadingElement>>;
+    h5: ThemedStyledFunction<React.HTMLAttributes<HTMLHeadingElement>>;
+    h6: ThemedStyledFunction<React.HTMLAttributes<HTMLHeadingElement>>;
+    table: ThemedStyledFunction<React.HTMLAttributes<HTMLTableElement>>;
+    thead: ThemedStyledFunction<React.HTMLAttributes<HTMLTableSectionElement>>;
+    tbody: ThemedStyledFunction<React.HTMLAttributes<HTMLTableSectionElement>>;
+    tr: ThemedStyledFunction<React.HTMLAttributes<HTMLTableRowElement>>;
+    td: ThemedStyledFunction<React.TdHTMLAttributes<HTMLTableCellElement>>;
+    th: ThemedStyledFunction<React.ThHTMLAttributes<HTMLTableCellElement>>;
+    img: ThemedStyledFunction<React.ImgHTMLAttributes<HTMLImageElement>>;
+    select: ThemedStyledFunction<React.SelectHTMLAttributes<HTMLSelectElement>>;
+    form: ThemedStyledFunction<React.FormHTMLAttributes<HTMLFormElement>>;
   }
 
   const styled: StyledInterface;
@@ -300,8 +354,34 @@ const STYLED_COMPONENTS_DEFS = `declare module 'styled-components' {
 const UI_MODULE_DEFS = `declare module '@microteia/ui' {
   import * as React from 'react';
 
-  /** Props do botão padrão do sistema. */
-  export interface ButtonProps {
+  /**
+   * The attributes every STYLED component accepts, because each one wraps a real element: a Card is a
+   * 'div', a Badge is a 'span', a Button is a 'button'. The index signature is deliberate - a DOM
+   * element takes 'data-*' and 'aria-*' too, and pretending otherwise only blocks legitimate code.
+   *
+   * Declared here instead of extending 'React.HTMLAttributes': inside an ambient 'declare module' the
+   * React namespace does not resolve the same way in every project, and 'skipLibCheck' hides the
+   * failure - the props silently lose everything but 'children', and the editor rejects an onClick.
+   */
+  export interface StyledElementProps {
+    children?: any;
+    className?: string;
+    style?: Record<string, string | number>;
+    title?: string;
+    id?: string;
+    role?: string;
+    tabIndex?: number;
+    hidden?: boolean;
+    onClick?: (event: any) => void;
+    onMouseEnter?: (event: any) => void;
+    onMouseLeave?: (event: any) => void;
+    onKeyDown?: (event: any) => void;
+    [attribute: string]: any;
+  }
+
+  /** Props of the standard button. */
+  /** A styled 'button': every button attribute is accepted, besides the ones below. */
+  export interface ButtonProps extends StyledElementProps {
     variant?: 'primary' | 'secondary' | 'ghost' | 'danger';
     size?: 'sm' | 'md' | 'lg';
     $fullWidth?: boolean;
@@ -314,9 +394,9 @@ const UI_MODULE_DEFS = `declare module '@microteia/ui' {
   export function Button(props: ButtonProps): JSX.Element;
 
   /**
-   * A GRADE de widgets de uma superfície. Renderiza o que as extensões instaladas registraram
-   * naquele nome, na ordem e na largura definidas em Configurações. Não recebe os widgets: quem os
-   * conhece é o registro, não quem hospeda.
+   * The widget GRID of a surface. Renders whatever the installed extensions registered under that
+   * name, in the order and width set in Settings. It does not receive the widgets: the registry knows
+   * them, not the host.
    */
   export interface WidgetSurfaceProps {
     surface: string;
@@ -325,8 +405,8 @@ const UI_MODULE_DEFS = `declare module '@microteia/ui' {
   export function WidgetSurface(props: WidgetSurfaceProps): JSX.Element;
 
   /**
-   * Gráfico de série temporal. Cada série é uma linha, com rótulo e cor decididos por quem tem o
-   * dado — o componente não conhece o assunto do gráfico.
+   * Time-series chart. Each series is a line, with the label and colour decided by whoever owns the
+   * data - the component knows nothing about the chart's subject.
    */
   export interface ChartSeries {
     key: string;
@@ -341,7 +421,7 @@ const UI_MODULE_DEFS = `declare module '@microteia/ui' {
   }
   export function TimeSeriesChart(props: TimeSeriesChartProps): JSX.Element;
 
-  /** Gráfico de rosca: uma fatia por item, com a cor que o dado mandar. */
+  /** Donut chart: one slice per item, in whatever colour the data says. */
   export interface DonutSlice {
     name: string;
     value: number;
@@ -353,18 +433,40 @@ const UI_MODULE_DEFS = `declare module '@microteia/ui' {
   }
   export function DonutChart(props: DonutChartProps): JSX.Element;
 
-  /** Props da tarja informativa. */
+  /** Props of the info banner. */
   export interface InfoBannerProps {
     message: string;
     variant?: 'warning' | 'info';
   }
   export function InfoBanner(props: InfoBannerProps): JSX.Element;
 
-  /** Props do filtro composto. */
+  /** Props of the composite filter. */
+  export interface FilterOption {
+    value: string;
+    label: string;
+    color?: string;
+  }
+
+  export interface FilterDef {
+    key: string;
+    label: string;
+    type: 'select' | 'multiselect' | 'text' | 'date' | 'dateRange' | 'number' | 'boolean';
+    options?: FilterOption[];
+    placeholder?: string;
+  }
+
+  export interface FilterToken {
+    key: string;
+    values: string[];
+  }
+
   export interface CompositeFilterProps {
-    screenKey: string;
-    filters: any[];
-    onFiltersChange: (filters: any[]) => void;
+    defs: FilterDef[];
+    tokens: FilterToken[];
+    onChange: (tokens: FilterToken[]) => void;
+    placeholder?: string;
+    /** Where the user's saved filters are stored. Null keeps them out of the saved list. */
+    screenKey?: string | null;
   }
   export function CompositeFilter(props: CompositeFilterProps): JSX.Element;
 
@@ -376,7 +478,7 @@ const UI_MODULE_DEFS = `declare module '@microteia/ui' {
     icon?: React.ComponentType<{ size?: number }>;
   }
 
-  /** Props do SearchSelect. */
+  /** Props of SearchSelect. */
   export interface SearchSelectProps {
     options: SearchSelectOption[];
     value: string;
@@ -387,7 +489,7 @@ const UI_MODULE_DEFS = `declare module '@microteia/ui' {
   }
   export function SearchSelect(props: SearchSelectProps): JSX.Element;
 
-  /** Props do MultiSearchSelect. */
+  /** Props of MultiSearchSelect. */
   export interface MultiSearchSelectProps {
     options: SearchSelectOption[];
     value: string[];
@@ -397,7 +499,7 @@ const UI_MODULE_DEFS = `declare module '@microteia/ui' {
   }
   export function MultiSearchSelect(props: MultiSearchSelectProps): JSX.Element;
 
-  /** Props do DateInput. */
+  /** Props of DateInput. */
   export interface DateInputProps {
     value: string;
     onChange: (value: string) => void;
@@ -405,36 +507,42 @@ const UI_MODULE_DEFS = `declare module '@microteia/ui' {
   }
   export function DateInput(props: DateInputProps): JSX.Element;
 
-  /** Props do Badge. */
-  export interface BadgeProps {
+  /** Props of Badge. */
+  /** A styled 'span': every span attribute is accepted. */
+  export interface BadgeProps extends StyledElementProps {
     children?: React.ReactNode;
     color?: string;
   }
   export function Badge(props: BadgeProps): JSX.Element;
 
-  /** Props do ColorDot. */
-  export interface ColorDotProps {
+  /** Props of ColorDot. */
+  /** A styled 'span': every span attribute is accepted. */
+  export interface ColorDotProps extends StyledElementProps {
     color: string;
   }
   export function ColorDot(props: ColorDotProps): JSX.Element;
 
-  /** Props do Card. */
-  export interface CardProps {
+  /** Props of Card. */
+  /**
+  * A styled 'div', so it takes every div attribute - 'onClick', 'style', 'title', data-*. Declaring
+  * only 'children' was wrong, and the symptom was the editor rejecting a clickable card.
+  */
+  export interface CardProps extends StyledElementProps {
     children?: React.ReactNode;
   }
   export function Card(props: CardProps): JSX.Element;
 
-  /** Props do Input. */
+  /** Props of Input. */
   export interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
     $hasError?: boolean;
   }
   export function Input(props: InputProps): JSX.Element;
 
-  /** Props do Textarea. */
+  /** Props of Textarea. */
   export interface TextareaProps extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {}
   export function Textarea(props: TextareaProps): JSX.Element;
 
-  /** Props do MaskedInput. */
+  /** Props of MaskedInput. */
   export interface MaskedInputProps {
     value: string;
     onChange: (value: string) => void;
@@ -444,7 +552,7 @@ const UI_MODULE_DEFS = `declare module '@microteia/ui' {
   }
   export function MaskedInput(props: MaskedInputProps): JSX.Element;
 
-  /** Props do CurrencyInput. */
+  /** Props of CurrencyInput. */
   export interface CurrencyInputProps {
     value: number;
     onChange: (value: number) => void;
@@ -452,7 +560,7 @@ const UI_MODULE_DEFS = `declare module '@microteia/ui' {
   }
   export function CurrencyInput(props: CurrencyInputProps): JSX.Element;
 
-  /** Props do Modal. */
+  /** Props of Modal. */
   export interface ModalProps {
     title: string;
     onClose: () => void;
@@ -461,7 +569,7 @@ const UI_MODULE_DEFS = `declare module '@microteia/ui' {
   }
   export function Modal(props: ModalProps): JSX.Element;
 
-  /** Props do ConfirmModal. */
+  /** Props of ConfirmModal. */
   export interface ConfirmModalProps {
     isOpen: boolean;
     title: string;
@@ -478,7 +586,7 @@ const UI_MODULE_DEFS = `declare module '@microteia/ui' {
   }
   export function ConfirmModal(props: ConfirmModalProps): JSX.Element;
 
-  /** Um item do menu suspenso. */
+  /** One item of the dropdown menu. */
   export interface DropdownItem {
     id: string;
     label: string;
@@ -486,7 +594,7 @@ const UI_MODULE_DEFS = `declare module '@microteia/ui' {
     onClick: () => void;
     variant?: 'default' | 'danger';
   }
-  /** Props do Dropdown. */
+  /** Props of Dropdown. */
   export interface DropdownProps {
     trigger: React.ReactNode;
     items: DropdownItem[];
@@ -495,8 +603,8 @@ const UI_MODULE_DEFS = `declare module '@microteia/ui' {
   export function Dropdown(props: DropdownProps): JSX.Element;
 
   /**
-   * Props do HtmlView — HTML de TERCEIRO num quadro isolado (sem script, sem acesso à origem da
-   * aplicação). O conteúdo rola dentro da moldura: a altura é fixa por desenho.
+   * Props of HtmlView - THIRD-PARTY HTML in an isolated frame (no script, no access to the
+   * application's origin). The content scrolls inside the frame: the height is fixed by design.
    */
   export interface HtmlViewProps {
     html: string;
@@ -505,13 +613,15 @@ const UI_MODULE_DEFS = `declare module '@microteia/ui' {
   }
   export function HtmlView(props: HtmlViewProps): JSX.Element;
 
-  /** Props do Spinner. */
-  export interface SpinnerProps {
-    size?: 'sm' | 'md' | 'lg';
+  /** Props of Spinner. */
+  /** A styled 'div': every div attribute is accepted. */
+  export interface SpinnerProps extends StyledElementProps {
+    /** Diameter in pixels (24 by default) - not a named step. */
+    size?: number;
   }
   export function Spinner(props: SpinnerProps): JSX.Element;
 
-  /** Props do Checkbox. */
+  /** Props of Checkbox. */
   export interface CheckboxProps {
     checked: boolean;
     onChange: (checked: boolean) => void;
@@ -520,7 +630,7 @@ const UI_MODULE_DEFS = `declare module '@microteia/ui' {
   }
   export function Checkbox(props: CheckboxProps): JSX.Element;
 
-  /** Props do EntityListCard. */
+  /** Props of EntityListCard. */
   export interface EntityListCardProps {
     record: any;
     screenKey: string;
@@ -529,20 +639,20 @@ const UI_MODULE_DEFS = `declare module '@microteia/ui' {
   }
   export function EntityListCard(props: EntityListCardProps): JSX.Element;
 
-  /** Props do CustomFieldMetaRows. */
+  /** Props of CustomFieldMetaRows. */
   export interface CustomFieldMetaRowsProps {
     record: any;
     fields: any[];
   }
   export function CustomFieldMetaRows(props: CustomFieldMetaRowsProps): JSX.Element;
 
-  /** Renderiza Markdown já estilizado — o mesmo do conteúdo de uma anotação. */
+  /** Renders Markdown already styled - the same as an annotation's content. */
   export interface MarkdownContentProps {
     children?: string;
   }
   export function MarkdownContent(props: MarkdownContentProps): JSX.Element;
 
-  /** Editor de Markdown com barra de formatação, menções (@) e pré-visualização. */
+  /** Markdown editor with a formatting bar, mentions (@) and preview. */
   export interface MarkdownEditorProps {
     value: string;
     onChange: (value: string) => void;
@@ -551,7 +661,7 @@ const UI_MODULE_DEFS = `declare module '@microteia/ui' {
   }
   export function MarkdownEditor(props: MarkdownEditorProps): JSX.Element;
 
-  /** Foto do usuário, com as iniciais como recurso quando a imagem falta ou falha. */
+  /** The user's photo, falling back to their initials when the image is missing or fails. */
   export interface UserAvatarProps {
     src: string | null;
     name: string;
@@ -560,14 +670,14 @@ const UI_MODULE_DEFS = `declare module '@microteia/ui' {
   }
   export function UserAvatar(props: UserAvatarProps): JSX.Element;
 
-  /** A aba "Documentos" inteira, alimentada por useRecordDocuments do '@microteia/data'. */
+  /** The whole "Documents" tab, fed by useRecordDocuments from '@microteia/data'. */
   export interface DocumentsPanelProps {
     controller: any;
     isAdmin: boolean;
   }
   export function DocumentsPanel(props: DocumentsPanelProps): JSX.Element;
 
-  /** Props do CustomFieldsSection. */
+  /** Props of CustomFieldsSection. */
   export interface CustomFieldsSectionProps {
     fields: any[];
     values: Record<string, any>;
@@ -577,10 +687,10 @@ const UI_MODULE_DEFS = `declare module '@microteia/ui' {
   }
   export function CustomFieldsSection(props: CustomFieldsSectionProps): JSX.Element;
   
-  /** Alias de CustomFieldsSection. */
+  /** Alias of CustomFieldsSection. */
   export function EntityForm(props: CustomFieldsSectionProps): JSX.Element;
 
-  /** Props do FieldInput. */
+  /** Props of FieldInput. */
   export interface FieldInputProps {
     field: any;
     value: any;
@@ -589,7 +699,7 @@ const UI_MODULE_DEFS = `declare module '@microteia/ui' {
   }
   export function FieldInput(props: FieldInputProps): JSX.Element;
 
-  /** Átomos (componentes base) para construir cards customizados. */
+  /** Atoms (base components) for building custom cards. */
   export const CardAtoms: {
     Title(props: { children?: React.ReactNode }): JSX.Element;
     Subtitle(props: { children?: React.ReactNode }): JSX.Element;
@@ -598,64 +708,85 @@ const UI_MODULE_DEFS = `declare module '@microteia/ui' {
     Actions(props: { children?: React.ReactNode }): JSX.Element;
   };
 
-  /** Props do EntityListView. */
+  /** Props of EntityListView. */
   export interface EntityListViewProps {
-    variant?: 'page' | 'embedded';
-    /** 'grid' (padrão) distribui os cards em colunas; 'list' dá a largura inteira a cada card. */
-    layout?: 'grid' | 'list';
-    title?: string;
+    title: string;
     titleIcon?: React.ReactNode;
-    /** Peça colada ao TÍTULO (um contador, por exemplo), e não ao lado do botão "novo". */
+    /** A piece attached to the TITLE (a counter, say), rather than next to the "new" button. */
     titleExtra?: React.ReactNode;
-    onNew?: () => void;
-    newTitle?: string;
-    filterDefs?: any[];
-    filterTokens?: any[];
-    children?: React.ReactNode;
+    onNew: () => void;
+    newTitle: string;
+    newIcon?: React.ReactNode;
+
+    filterDefs: FilterDef[];
+    filterTokens: FilterToken[];
+    onFilterChange: (tokens: FilterToken[]) => void;
+    filterPlaceholder: string;
+    savedFiltersScreenKey: string;
+
+    isLoading: boolean;
+    isEmpty: boolean;
+    emptyIcon: React.ReactNode;
+    emptyTitle: string;
+    emptyActionLabel: string;
+
+    /** 'page' (the default) fills the window; 'embedded' renders inside a detail tab. */
+    variant?: 'page' | 'embedded';
+    /** The screen creates records. False hides the "new" button - a list only the system feeds. */
+    canCreate?: boolean;
+    /** 'grid' (the default) lays cards out in columns; 'list' gives each card the full width. */
+    layout?: 'grid' | 'list';
+    /** Extra actions in the header, before the "new" button. */
+    headerExtra?: React.ReactNode;
+    /** A band between the header and the filter - where a totals bar goes. */
+    belowHeader?: React.ReactNode;
+
+    children: React.ReactNode;
+    modals?: React.ReactNode;
   }
   export function EntityListView(props: EntityListViewProps): JSX.Element;
 
-  /** Props do RecordListSurface. */
+  /** Props of RecordListSurface. */
   export interface RecordListSurfaceProps {
     vm: any;
     definition: any;
     variant?: 'page' | 'embedded';
     renderSubtitle?: (record: any) => React.ReactNode;
     renderBelowHeader?: (record: any) => React.ReactNode;
-    /** Linhas acrescentadas ao começo do card — para o que a declaração de um campo não alcança. */
+    /** Rows added to the top of the card - for what a field declaration cannot express. */
     renderMetaRows?: (record: any) => { key: string; icon?: React.ReactNode; value: string }[];
-    /** Cor da faixa no alto do card, por registro — o realce que se lê antes de qualquer texto. */
+    /** Colour of the stripe atop the card, per record - the accent read before any text. */
     accentColor?: (record: any) => string | undefined;
     onOpenRecord?: (record: any) => void;
     onNewRecord?: () => void;
-    /** A tela cria registros. Falso some com o botão "novo" — a lista que só o sistema alimenta. */
+    /** The screen creates records. False hides the "new" button - a list only the system feeds. */
     canCreate?: boolean;
-    /** Textos do estado vazio, quando a tela prefere os seus aos genéricos. */
+    /** Empty-state texts, when the screen prefers its own to the generic ones. */
     emptyTitle?: string;
     emptyActionLabel?: string;
-    /** Ações extras no cabeçalho da página, antes do botão "novo". */
+    /** Extra actions in the page header, before the "new" button. */
     headerActions?: React.ReactNode;
-    /** Faixa entre o cabeçalho e o filtro — o lugar de uma barra de totais. */
+    /** A band between the header and the filter - where a totals bar goes. */
     summary?: React.ReactNode;
   }
   export function RecordListSurface(props: RecordListSurfaceProps): JSX.Element;
 
-  /** Props do EntityListModals. */
+  /** Props of EntityListModals. */
   export interface EntityListModalsProps {
     vm: any;
   }
   export function EntityListModals(props: EntityListModalsProps): JSX.Element;
 
-  /** Resolve ícone de ação de card. */
-  export function cardActionIcon(actionKey: string): React.ComponentType<{ size?: number }> | null;
+  /** Resolves a card action's icon. */
+  export function cardActionIcon(action: RecordCardAction, size?: number): React.ReactNode;
 
-  /** Props do RecordDetailSurface. */
+  /** Props of RecordDetailSurface. */
   export interface RecordDetailSurfaceProps {
     vm: any;
   }
   export function RecordDetailSurface(props: RecordDetailSurfaceProps): JSX.Element;
 
-  /** Props do Icon. */
+  /** Props of Icon. */
   export interface IconProps {
     name: string;
     size?: number;
@@ -667,41 +798,42 @@ const UI_MODULE_DEFS = `declare module '@microteia/ui' {
 
 const DATA_MODULE_DEFS = `declare module '@microteia/data' {
 
-  /** Registros de qualquer coleção descrita por uma tela do escritório. */
+  /** Records of any collection described by a screen in the organization. */
   export function useCollection(collection: string): any[];
 
-  /** Grava campos de um registro de qualquer coleção. */
+  /** Writes fields of a record in any collection. */
   export function useUpdateRecord(): (collection: string, recordId: string, data: Record<string, any>) => Promise<void>;
 
-  /** Cria um registro numa coleção. A autoria (quem criou, nome e foto) é carimbada pelo host. */
+  /** Creates a record in a collection. Authorship (who, name, photo) is stamped by the host. */
   export function useCreateRecord(): (collection: string, data: Record<string, any>) => Promise<any>;
 
-  /** Exclui um registro (com as notas e documentos dele, como a exclusão nativa). */
+  /** Deletes a record (along with its notes and documents, like the native delete). */
   export function useDeleteRecord(): (collection: string, recordId: string) => Promise<void>;
 
   /**
-   * QUEM está usando o sistema — o que a tela precisa para saber o que é MEU (o que ainda não li, o
-   * comentário que posso editar, a curtida que já é minha). É identificação, não permissão: quem
-   * barra a gravação é a regra do servidor.
+   * WHO is using the system - what a screen needs in order to know what is MINE (what I have not read
+   * yet, the comment I may edit, the like that is already mine). This is identification, not
+   * permission: what blocks a write is the server rule.
    */
   export interface ExtensionViewer {
     id: string;
     name: string;
     photoURL: string | null;
-    /** Papel GLOBAL: 'SYSTEM', 'SUPPORT' ou 'USER'. */
+    /** GLOBAL role: 'SYSTEM', 'SUPPORT' or 'USER'. */
     role: string;
-    /** Papel no escritório corrente: 'admin', 'lawyer', 'secretary' ou 'user'. */
+    /** Role in the current organization: 'admin', 'lawyer', 'secretary' or 'user'. */
     tenantRole: string;
-    /** O escritório corrente — o que uma função do servidor recebe para saber onde agir. */
+    /** The current organization - what a server function receives to know where to act. */
     tenantId: string;
-    /** O idioma em vigor para esta pessoa (BCP-47: 'en', 'pt-BR'). */
+    /** The locale in effect for this person (BCP-47: 'en', 'pt-BR'). */
     locale: string;
   }
   export function useCurrentUser(): ExtensionViewer;
 
   /**
-   * Os DOCUMENTOS de um registro, com o mesmo controlador da aba "Documentos" nativa. Entregue ao
-   * componente DocumentsPanel do '@microteia/ui', dá a aba inteira — upload, tipo e exclusão.
+   * The DOCUMENTS of a record, driven by the same controller as the native "Documents" tab. Handed to
+   * the DocumentsPanel component from '@microteia/ui', it gives you the whole tab - upload, type and
+   * delete.
    */
   export function useRecordDocuments(collection: string, recordId: string | null, enabled?: boolean): any;
 
@@ -711,8 +843,8 @@ const DATA_MODULE_DEFS = `declare module '@microteia/data' {
     color?: string;
   }
   /**
-   * Opções de QUALQUER lista pelo nome da coleção — do kernel ('caseStatuses', 'casePhases',
-   * 'caseAreas'…) ou criada no escritório. Os atalhos abaixo são apelidos deste.
+   * The options of ANY list by collection name - from the kernel ('caseStatuses', 'casePhases',
+   * 'caseAreas'...) or created in the organization. The shortcuts below are aliases of this one.
    */
   export function useLookup(collection: string): LookupOption[];
 
@@ -727,38 +859,41 @@ const DATA_MODULE_DEFS = `declare module '@microteia/data' {
   export interface ExtensionEntity {
     screen: any | null;
     screenKey: string | null;
-    /** Coleção dos registros — difere de screenKey quando a tela é visão sobre outra entidade. */
+    /** The records' collection - differs from screenKey when the screen is a view over another entity. */
     collection: string | null;
     fields: any[];
     records: any[];
     isLoading: boolean;
-    /** Retorna as opções (dropdown/select) de um campo específico. */
+    /** The options (dropdown/select) of a specific field. */
     optionsFor: (fieldKey: string) => EntityFieldOption[];
-    /** Abre o detalhe de um registro. */
+    /** Opens a record's detail. */
     openRecord: (recordId: string) => void;
-    /** Abre o formulário de criação de novo registro. */
+    /** Opens the form for creating a new record. */
     newRecord: () => void;
-    /** Abre o formulário de clonagem de um registro. */
+    /** Opens the form for cloning a record. */
     cloneRecord: (recordId: string) => void;
-    /** Exclui um registro (sem cascata). */
+    /** Deletes a record (no cascade). */
     deleteRecord: (recordId: string) => Promise<void>;
   }
   /**
-   * Hook para acessar uma entidade dinâmica (tela customizada) pelo sourceId.
-   * Retorna schema, registros e funções de navegação.
+   * Access a dynamic entity (a custom screen) by its sourceId.
+   * Returns the schema, the records and navigation functions.
    */
   export function useEntity(sourceId: string): ExtensionEntity;
 
   export interface RecordCardAction {
     key: string;
-    label: string;
-    icon: string;
+    title: string;
+    danger?: boolean;
+    disabled?: boolean;
+    /** Present on custom actions - the view resolves it against the curated screen icon set. */
+    iconKey?: string;
     onClick: () => void;
   }
 
   export interface RecordListViewModel {
     records: any[];
-    /** Coleção dos registros — a chave da tela, ou a coleção alvo quando ela é uma visão. */
+    /** The records' collection - the screen key, or the target collection when it is a view. */
     collection: string;
     isLoading: boolean;
     filters: any[];
@@ -768,22 +903,22 @@ const DATA_MODULE_DEFS = `declare module '@microteia/data' {
   }
 
   export interface EntityListOptions {
-    /** Prefixo da tela de edição própria da extensão (para abrir/duplicar nela). */
+    /** Tab prefix of the extension's own editor screen (to open/clone into it). */
     editKeyPrefix?: string;
     /**
-     * Filtros com que a listagem ABRE, quando "tudo" não é a visão útil (o Financeiro abre no mês
-     * corrente). O usuário troca à vontade depois — é ponto de partida, não trava.
+     * The filters the list OPENS with, when "everything" is not the useful view (Finance opens on the
+     * current month). The user changes them freely afterwards - a starting point, not a lock.
      */
     defaultFilterTokens?: { key: string; values: string[] }[];
     /**
-     * Ordem em que a listagem apresenta os registros. Sem ela vale a ordem da coleção — o mais
-     * recente primeiro. Declare o comparador FORA do componente.
+     * The order in which the list presents records. Without it, the collection's order applies - most
+     * recent first. Declare the comparator OUTSIDE the component.
      */
     sortRecords?: (a: any, b: any) => number;
   }
   /**
-   * Hook para listagem de entidade dinâmica com filtros e ações de card.
-   * Retorna ViewModel completo para usar com RecordListSurface.
+   * List a dynamic entity, with filters and card actions.
+   * Returns a complete view model to hand to RecordListSurface.
    */
   export function useEntityList(sourceId: string, options?: EntityListOptions): RecordListViewModel;
 
@@ -793,20 +928,20 @@ const DATA_MODULE_DEFS = `declare module '@microteia/data' {
     fields: any[];
     isNew: boolean;
     values: Record<string, any>;
-    /** Retorna o valor de um campo pelo key. */
+    /** The value of a field, by key. */
     getValue: (fieldKey: string) => any;
-    /** Define o valor de um campo. */
+    /** Sets the value of a field. */
     setValue: (fieldKey: string, value: any) => void;
     errors: Record<string, string>;
-    /** Valida o formulário (obrigatórios). Retorna true se válido. */
+    /** Validates the form (required fields). Returns true when valid. */
     validate: () => boolean;
-    /** Salva o registro (cria ou atualiza). Retorna { id } ou null se inválido. */
+    /** Saves the record (creating or updating). Returns { id }, or null when invalid. */
     save: () => Promise<{ id: string } | null>;
     isSaving: boolean;
   }
   /**
-   * Hook para formulário de criar/editar entidade dinâmica.
-   * Gerencia estado, validação e gravação.
+   * A form for creating or editing a dynamic entity.
+   * Manages state, validation and saving.
    */
   export function useEntityForm(sourceId: string, recordId?: string | null): EntityForm;
 
@@ -816,83 +951,85 @@ const DATA_MODULE_DEFS = `declare module '@microteia/data' {
     [key: string]: any;
   }
   /**
-   * Hook para view model de detalhe de entidade dinâmica.
-   * Retorna registro e estado de carregamento.
+   * A view model for the detail of a dynamic entity.
+   * Returns the record and its loading state.
    */
   export function useEntityDetailVM(sourceId: string, recordId: string): EntityDetailVM;
 
   export interface WorkspaceHook {
-    /** Abre uma aba no workspace. */
+    /** Opens a tab in the workspace. */
     openTab: (tabKey: string) => void;
-    /** Fecha uma aba. */
+    /** Closes a tab. */
     closeTab: (tabKey: string) => void;
-    /** Aba ativa atual. */
+    /** The currently active tab. */
     activeTab: string | null;
+    /** Renames an open tab - how a detail view says which record it is showing. */
+    setTabTitle: (key: string, title: string) => void;
   }
-  /** Hook para controlar abas do workspace. */
+  /** Control the workspace tabs. */
   export function useWorkspace(): WorkspaceHook;
 
   /**
-   * Abre o detalhe de um registro pela COLEÇÃO, sem saber que tela o apresenta: quem responde é a
-   * tela instalada hoje (a genérica, ou o editor próprio de quem declara um). É o caminho para
-   * abrir um registro de outra entidade — um processo a partir de um quadro, o contrato de um
-   * lançamento. Coleção sem tela nenhuma não abre nada.
+   * Opens a record's detail by COLLECTION, without knowing which screen presents it: whichever screen
+   * is installed today answers (the generic one, or the custom editor of whoever declares one). This is
+   * how you open a record of another entity - a case from a board, the contract behind an entry. A
+   * collection with no screen at all opens nothing.
    */
   export function useOpenRecord(): (collection: string, recordId: string) => void;
 
   /**
-   * Abre a LISTAGEM de uma coleção pelo nome dela, sem saber que tela a apresenta. Os filtros são o
-   * recado para a tela de destino ("abra mostrando só os vencidos").
+   * Opens the LIST of a collection by name, without knowing which screen presents it. The filters are
+   * the message to the destination screen ("open showing only the overdue ones").
    */
   export function useOpenScreenList(): (collection: string, filterTokens?: Array<{ key: string; values: string[] }>) => void;
 
-  /** Função para notificar o usuário (toast). */
+  /** Notify the user (a toast). */
   export function useNotify(): (message: string, variant?: 'success' | 'error' | 'info') => void;
 
   /**
-   * Hook para persistir estado de uma view entre sessões.
-   * Salva no localStorage com chave prefixada.
+   * Persist a view's state across sessions.
+   * Stored in localStorage under a prefixed key.
    */
   export function useSavedViewState<T>(key: string, initial: T): [T, (value: T) => void];
 
-  /** Gera um deeplink para uma rota do sistema. */
+  /** Builds a deeplink to a route of the system. */
   export function generateDeepLink(path: string): string;
 
   export interface PointContribution {
-    /** Quem declarou a contribuição. */
+    /** Who declared the contribution. */
     pluginId: string;
     id: string;
     metadata: Record<string, any>;
   }
   /**
-   * As contribuições de um PONTO de extensão — a porta entre extensões: uma publica o ponto no
-   * manifest ('extensionPoints'), outra o preenche em 'contributes', e nenhuma conhece a outra.
-   * Devolve só a metadata declarada; implementação não atravessa a ponte.
+   * The contributions to an extension POINT - the door between extensions: one publishes the point in
+   * its manifest ('extensionPoints'), another fills it in 'contributes', and neither knows the other.
+   * Returns only the declared metadata; implementations do not cross the bridge.
    */
   export function useContributions(point: string): PointContribution[];
 
   export interface RunActionRequest {
-    /** A Action pelo 'templateId' do pacote — o endereço estável entre escritórios. */
+    /** The Action by the package's 'templateId' - the address that is stable across organizations. */
     actionSourceId?: string;
-    /** A Action pelo id real, quando quem chama já o tem. */
+    /** The Action by its real id, when the caller already has it. */
     actionId?: string;
     collection: string;
     recordId: string;
     record: Record<string, any>;
-    /** Parâmetros da Action — o que esta porta tem e o botão pronto do card não tem. */
+    /** The Action's parameters - what this door has and the card's ready-made button does not. */
     params?: Record<string, any>;
   }
   /**
-   * Executa uma Action do escritório sobre um registro, COM PARÂMETROS. É o caminho do gesto que
-   * não é botão (arrastar um cartão para outro dia precisa dizer qual é o dia). Vale para Action de
-   * workflow; comando de tela é recusado com mensagem.
+   * Runs one of the organization's Actions on a record, WITH PARAMETERS. This is the path for a gesture
+   * that is not a button (dragging a card to another day has to say which day). Works for workflow
+   * Actions; a screen command is refused with a message.
    */
   export function useRunAction(): (request: RunActionRequest) => Promise<{ ok: boolean; message: string | null }>;
 
   /**
-   * Avalia a expressão 'hiddenWhen' de uma ação contra um registro, com o MESMO escopo do cartão
-   * nativo (os campos na raiz, mais record, role, surface e user). Devolve true quando a ação deve
-   * aparecer. Sem expressão, aparece — ausência não é ocultação.
+   * Evaluates an action's 'hiddenWhen' expression against a record, in the SAME scope as the native
+   * card (the fields at the root, plus record, role, surface and user). Returns true when the action
+   * should appear. With no expression, it appears - absence is not hiding.
    */
   export function useActionVisible(): (
     hiddenWhen: string | null | undefined,
@@ -903,53 +1040,53 @@ const DATA_MODULE_DEFS = `declare module '@microteia/data' {
 
 const FORMAT_MODULE_DEFS = `declare module '@microteia/format' {
   /**
-   * Formata número como moeda no idioma em vigor.
-   * O nome carrega "BRL" por história: prefira 'formatCurrency' em código novo.
+   * Formats a number as currency in the locale in effect.
+   * The name carries "BRL" for historical reasons: prefer 'formatCurrency' in new code.
    */
   export function formatCurrencyBRL(value: number): string;
 
   /**
-   * Formata número como moeda no idioma em vigor. Sem 'currency', usa a moeda padrão do idioma.
+   * Formats a number as currency in the locale in effect. Without 'currency', uses the locale's default.
    */
   export function formatCurrency(value: number, currency?: string): string;
 
-  /** Converte string de moeda para número (centavos). */
+  /** Converts a currency string to a number (cents). */
   export function parseCurrencyDigits(value: string): number;
 
-  /** Converte Date para string no formato ISO de input[type=date] (YYYY-MM-DD). */
+  /** Converts a Date to the ISO string an input[type=date] expects (YYYY-MM-DD). */
   export function toDateInputValue(date: Date): string;
 
-  /** Data no formato do idioma em vigor. Aceita Date ou string; inválida vira ''. */
+  /** A date in the format of the locale in effect. Takes a Date or a string; invalid becomes ''. */
   export function formatDate(value: unknown): string;
 
-  /** Aplica uma máscara por template ('###.###.###-##'). */
+  /** Applies a template mask ('###.###.###-##'). */
   export function applyMask(value: string, templates: string[]): string;
 
-  /** Remove tudo que não é número de uma string. */
+  /** Strips everything that is not a digit from a string. */
   export function onlyNumbers(value: string): string;
 }`;
 
 const I18N_MODULE_DEFS = `declare module '@microteia/i18n' {
   /**
-   * O tradutor do seu namespace — normalmente o id da sua extensão.
+   * The translator for your namespace - normally your extension's id.
    *
-   *   const t = useT('com.acme.contratos');
-   *   t('form.title')                 // com.acme.contratos/form.title
-   *   t('core.ui/action.save')        // chave ABSOLUTA: reaproveita o texto do núcleo
-   *   t('items', { count: 3 })        // usa 'items.one' / 'items.other' pelo plural do idioma
+   *   const t = useT('com.acme.contracts');
+   *   t('form.title')                 // com.acme.contracts/form.title
+   *   t('core.ui/action.save')        // ABSOLUTE key: reuses the kernel's own text
+   *   t('items', { count: 3 })        // uses 'items.one' / 'items.other' per the locale's plural
    *
-   * Os textos vêm de contribuições ao ponto 'i18n.messages'. Chave sem tradução devolve a própria
-   * chave — uma extensão sem catálogo continua funcionando.
+   * The texts come from contributions to the 'i18n.messages' point. A key with no translation returns
+   * the key itself - an extension without a catalog keeps working.
    */
   export function useT(namespace: string): (key: string, params?: Record<string, unknown>) => string;
 
   /**
-   * Resolve um rótulo declarativo: '@ns/chave' vira tradução, texto comum passa intacto.
-   * É o que mantém fora da tradução o que o escritório digitou.
+   * Resolves a declarative label: '@ns/key' becomes a translation, plain text passes through untouched.
+   * This is what keeps whatever the organization typed out of translation.
    */
   export function useLabel(): (value: string | null | undefined) => string;
 
-  /** O idioma em vigor, os disponíveis e como trocá-lo. */
+  /** The locale in effect, the available ones, and how to change it. */
   export function useLocale(): {
     locale: string;
     preferred: string | null;
@@ -957,7 +1094,7 @@ const I18N_MODULE_DEFS = `declare module '@microteia/i18n' {
     setLocale: (locale: string) => void;
   };
 
-  /** Formatações já presas ao idioma em vigor. */
+  /** Formatters already bound to the locale in effect. */
   export function useLocaleFormat(): {
     formatDate: (value: unknown) => string;
     formatDateTime: (value: unknown) => string;
@@ -970,20 +1107,20 @@ const I18N_MODULE_DEFS = `declare module '@microteia/i18n' {
 
 const THEME_MODULE_DEFS = `declare module '@microteia/theme' {
   /**
-   * Resolve uma cor para hex, tratando cores do tema e hex direto.
-   * @param color - Nome da cor do tema (ex: 'primary') ou hex (ex: '#ff0000')
+   * Resolves a colour to hex, accepting both theme colours and plain hex.
+   * @param color - A theme colour name (e.g. 'primary') or a hex value (e.g. '#ff0000')
    */
   export function resolveColor(color: string, theme: any): string;
 
   /**
-   * Retorna a cor de uma configuração (fase, área, status).
-   * @param configs - Array de configurações com key e color
-   * @param key - Chave da configuração
+   * The colour of a configured option (a phase, an area, a status).
+   * @param configs - The options, each with a key and a color
+   * @param key - The option's key
    */
   export function getConfigColor(configs: any[], key: string, theme: any, fallback?: string): string;
 
   /**
-   * Retorna uma cor padrão para uma tag/etiqueta baseada no índice.
+   * A default colour for a tag, derived from its index.
    */
   export function getDefaultTagColor(index: number): string;
 }`;
@@ -991,23 +1128,88 @@ const THEME_MODULE_DEFS = `declare module '@microteia/theme' {
 
 const SETTINGS_MODULE_DEFS = `declare module '@microteia/settings' {
   /**
-   * O valor em vigor de uma configuração, pela chave completa ('painel.widgets'). Já resolvido:
-   * preferência do usuário, senão padrão do escritório, senão o padrão declarado.
+   * The value in effect for a setting, by its full key ('dashboard.widgets'). Already resolved: the
+   * user's preference, else the organization's default, else the declared default.
    */
   export function useSettingValue(key: string): unknown;
 }`;
 
 const FUNCTIONS_MODULE_DEFS = `declare module '@microteia/functions' {
   /**
-   * Uma função do servidor, pelo nome. Devolve a chamada já pronta: 'callable(payload)' resolve
-   * com o que a função retornou, ou rejeita com o erro que ela lançou.
+   * A server function, by name. Returns the call ready to use: 'callable(payload)' resolves with
+   * whatever the function returned, or rejects with the error it threw.
    *
-   * Quem valida autenticação e papel é a própria função, do lado do servidor.
+   * Authentication and role are validated by the function itself, on the server side.
    */
   export function useCallable<Request = any, Response = any>(
     name: string,
   ): (payload?: Request) => Promise<Response>;
 }`;
+
+/**
+ * O `host` que o `startup(host)` recebe. Era o único código de extensão sem IntelliSense nenhum: o
+ * autor descobria a forma do objeto lendo um exemplo. Manter sincronizado com `extensionHost.ts`.
+ *
+ * Não é um módulo do `HOST_MODULES` — o `startup` recebe o host por PARÂMETRO, não por import. Está
+ * aqui como tipo global para que `export default function startup(host: ExtensionHost)` resolva.
+ */
+const HOST_DEFS = `
+interface MicroteiaCommandItem {
+  id: string;
+  title: string;
+  subtitle?: string;
+  icon?: string;
+  run: () => void;
+}
+
+interface MicroteiaCommandProvider {
+  key: string;
+  search: (query: string) => MicroteiaCommandItem[];
+}
+
+interface MicroteiaMentionResult {
+  id: string;
+  title: string;
+  subtitle?: string;
+  tabKey: string;
+}
+
+interface MicroteiaMentionProvider {
+  key: string;
+  label: string;
+  description?: string;
+  icon?: string;
+  search: (query: string, context: { records: any[]; screenDefinitions: any[] }) => MicroteiaMentionResult[];
+}
+
+interface MicroteiaSurfaceWidget {
+  surface: string;
+  key: string;
+  title: string;
+  icon?: string;
+  defaultEnabled?: boolean;
+  defaultSpan?: number;
+  component: any;
+}
+
+interface MicroteiaSettingsSection {
+  key: string;
+  title: string;
+  description?: string;
+  icon?: string;
+  order?: number;
+  properties?: any[];
+  editor?: any;
+}
+
+/** The registration surface handed to 'startup(host)'. Return a function to undo the registration. */
+interface ExtensionHost {
+  commands: { register: (provider: MicroteiaCommandProvider) => void };
+  mentions: { register: (provider: MicroteiaMentionProvider) => void };
+  widgets: { register: (widget: MicroteiaSurfaceWidget) => void };
+  settings: { register: (section: MicroteiaSettingsSection) => void };
+}
+`;
 
 /**
  * Gera a string completa de definições TypeScript para os módulos disponíveis em extensões.
@@ -1025,4 +1227,5 @@ export const buildExtensionTypeDefs = (): string => [
   THEME_MODULE_DEFS,
   SETTINGS_MODULE_DEFS,
   FUNCTIONS_MODULE_DEFS,
+  HOST_DEFS,
 ].join('\n\n');

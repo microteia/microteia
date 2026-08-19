@@ -9,6 +9,8 @@ import type {
 import type { CustomFieldOption } from '../../domain/entities';
 import { surfaceWidget } from '../contributionBuilders';
 import { themeTokensContribution } from '../../domain/schema/theme';
+import STARTUP_SOURCE from './views/pessoa/startup.tsx?raw';
+import PESSOAS_NUMEROS_SOURCE from './views/pessoa/PersonsByNumbers.widget.tsx?raw';
 
 /** As cores do vocabulário de Pessoa — ver a nota equivalente em `processo.ts`. */
 const PERSON_COLORS: Record<string, string> = {
@@ -289,147 +291,11 @@ const PESSOA_SCREEN: ScreenModuleTemplate = {
  * Sem página própria, as abas são as genéricas do escritório: `dyn:` para a listagem, `new-dyn:`
  * para o cadastro e `view-dyn:` para o registro.
  */
-const STARTUP_SOURCE = `
-import { Icon } from '@microteia/ui';
-
-const SOURCE_ID = 'microteia:pessoa';
-const GROUP = 'Pessoas';
-
-const screenOf = (ctx) => ctx.screenDefinitions.find((s) => (s.sourceId || s.id) === SOURCE_ID);
-const textOf = (record, key) => (key && typeof record[key] === 'string' ? record[key] : '');
-
-/**
- * A busca casa só o TÍTULO — o nome. O subtítulo de Pessoa é o TIPO ("Pessoa Física"), uma
- * classificação que todo registro repete: casá-la devolveria o cadastro inteiro para quem digitasse
- * "fis". Quem inclui o subtítulo é Processos, onde ele é o NÚMERO do processo.
- */
-const matches = (record, screen, q) => {
-  if (!q) return true;
-  return textOf(record, screen.titleFieldKey).toLowerCase().indexOf(q) !== -1;
-};
-
-const recordsOf = (ctx, screen) => {
-  const collection = screen.dataCollection || screen.id;
-  return ctx.records.filter((r) => r.collection === collection && textOf(r, screen.titleFieldKey));
-};
-
-export default function startup(host) {
-  host.commands.register({
-    group: GROUP,
-    getItems(query, ctx) {
-      const q = String(query || '').toLowerCase().trim();
-      if (!q) return [];
-      const screen = screenOf(ctx);
-      if (!screen) return [];
-      const icon = <Icon name="team" size={16} />;
-      const items = [];
-      if ('nova pessoa'.indexOf(q) !== -1) {
-        items.push({ id: 'pessoa:new', title: 'Nova pessoa', group: GROUP, icon, onSelect: () => { ctx.openTab('new-dyn:' + screen.id); ctx.close(); } });
-      }
-      if ('abrir pessoas'.indexOf(q) !== -1) {
-        items.push({ id: 'pessoa:list', title: 'Abrir Pessoas', group: GROUP, icon, onSelect: () => { ctx.openTab('dyn:' + screen.id); ctx.close(); } });
-      }
-      for (const r of recordsOf(ctx, screen)) {
-        if (!matches(r, screen, q)) continue;
-        items.push({
-          id: 'pessoa:' + r.id,
-          title: textOf(r, screen.titleFieldKey),
-          subtitle: textOf(r, screen.subtitleFieldKey) || 'Pessoa',
-          group: GROUP,
-          icon,
-          onSelect: () => { ctx.openTab('view-dyn:' + screen.id + ':' + r.id); ctx.close(); },
-        });
-      }
-      return items.slice(0, 9);
-    },
-  });
-
-  host.mentions.register({
-    key: 'pessoa',
-    label: 'Pessoa',
-    description: 'Inserir link para uma pessoa',
-    icon: 'team',
-    search(query, ctx) {
-      const screen = screenOf(ctx);
-      if (!screen) return [];
-      const q = String(query || '').toLowerCase().trim();
-      return recordsOf(ctx, screen)
-        .filter((r) => matches(r, screen, q))
-        .slice(0, 20)
-        .map((record) => ({
-          id: record.id,
-          title: textOf(record, screen.titleFieldKey),
-          subtitle: textOf(record, screen.subtitleFieldKey) || 'Pessoa',
-          tabKey: 'view-dyn:' + screen.id + ':' + record.id,
-        }));
-    },
-  });
-}
-`;
-
 
 /**
  * O WIDGET do Dashboard: quantas pessoas estão ativas. O número era um dos quatro cartões escritos no
  * kernel; quem sabe o que é uma pessoa ativa é esta extensão, que declara o campo `status`.
  */
-const PESSOAS_NUMEROS_SOURCE = `
-import { useMemo } from 'react';
-import { styled } from 'styled-components';
-import { useCollection, useOpenScreenList } from '@microteia/data';
-
-const Card = styled.div\`
-  background: \${({ theme }) => theme.colors.surface};
-  border: 1px solid \${({ theme }) => theme.colors.border};
-  border-radius: \${({ theme }) => theme.borderRadius.lg};
-  padding: \${({ theme }) => theme.spacing.lg};
-  display: flex;
-  flex-direction: column;
-  gap: \${({ theme }) => theme.spacing.md};
-  height: 100%;
-\`;
-
-const Title = styled.h3\`
-  font-size: \${({ theme }) => theme.fontSizes.md};
-  font-weight: 600;
-  color: \${({ theme }) => theme.colors.text};
-\`;
-
-const Stat = styled.button\`
-  background: none;
-  border: none;
-  padding: 0;
-  text-align: left;
-  cursor: pointer;
-\`;
-
-const Value = styled.div\`
-  font-size: \${({ theme }) => theme.fontSizes['2xl']};
-  font-weight: 700;
-  line-height: 1.2;
-  color: \${({ theme }) => theme.colors.text};
-\`;
-
-const Label = styled.div\`
-  font-size: \${({ theme }) => theme.fontSizes.sm};
-  color: \${({ theme }) => theme.colors.textMuted};
-\`;
-
-export default function PessoasNumerosWidget() {
-  const persons = useCollection('persons');
-  const openList = useOpenScreenList();
-  const ativas = useMemo(() => persons.filter((p) => p.status !== 'Inativo').length, [persons]);
-
-  return (
-    <Card>
-      <Title>Pessoas</Title>
-      <Stat onClick={() => openList('persons', [{ key: 'status', values: ['Ativo'] }])}>
-        <Value>{ativas}</Value>
-        <Label>Ativas</Label>
-      </Stat>
-    </Card>
-  );
-}
-`;
 
 export const pessoaPlugin: MarketplacePlugin = {
   manifest: {

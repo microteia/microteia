@@ -69,7 +69,6 @@ export const CORE_MARKETPLACE: Record<string, string> = {
   'author.issue.view-key-duplicated': 'A chave "{key}" está repetida entre as telas de código.',
   'author.issue.view-title-required': 'Uma tela de código precisa de um título.',
   'author.issue.view-compile': 'A tela de código "{label}" não compila: {error}.',
-  'author.issue.summary-required': 'A extensão precisa de uma descrição curta (resumo).',
   'author.issue.startup-compile': 'O código de inicialização não compila: {error}.',
   'author.issue.external-ref':
     '{origin} "{source}" referencia {kind} "{name}", que pertence a outra extensão. Ela será exigida na instalação.',
@@ -237,7 +236,7 @@ export const CORE_MARKETPLACE: Record<string, string> = {
   'issue.package.near-limit':
     'O pacote tem {size}. Acima de {limit} ele deixa de caber no documento da instalação — convém dividi-lo antes de crescer mais.',
   'issue.package.no-manifest': 'A extensão não tem um manifest com "id".',
-  'issue.package.no-summary': 'A extensão precisa de um "summary".',
+  'issue.package.no-summary': 'A extensão precisa de uma descrição curta (summary).',
   'issue.package.no-workflows': 'A extensão precisa da lista "workflows" (pode ser vazia).',
   'issue.package.not-json': 'O arquivo não é um JSON válido.',
   'issue.package.not-object': 'O conteúdo não é um objeto de extensão.',

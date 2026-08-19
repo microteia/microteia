@@ -1,5 +1,5 @@
 import type { QualifiedContribution } from '../../domain/schema/plugin/contribution';
-import type { UiNavMetadata, UiPageMetadata } from './uiExtensionPoints';
+import type { UiNavMetadata, UiPageMetadata } from '../../domain/schema/ui/uiExtensionPoints';
 
 export const pageMetadataOf = (contribution: QualifiedContribution): UiPageMetadata =>
   contribution.metadata as unknown as UiPageMetadata;

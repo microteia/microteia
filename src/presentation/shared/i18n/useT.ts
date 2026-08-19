@@ -1,6 +1,6 @@
 import { useCallback, useMemo } from 'react';
 import { useOptionalLocale } from '../../../stores/useLocale';
-import type { MessageParams } from '../../../domain/schema/i18n/messages';
+import type { MessageParams, TranslateFn } from '../../../domain/schema/i18n/messages';
 import { qualifyKey, translate } from '../../../domain/schema/i18n/messages';
 import { resolveLabel } from '../../../domain/schema/i18n/messageRef';
 import {
@@ -13,7 +13,7 @@ import {
   formatNumberFor,
 } from '../../../domain/schema/i18n/localeFormat';
 
-export type TranslateFn = (key: string, params?: MessageParams) => string;
+export type { TranslateFn };
 
 /**
  * O tradutor de um NAMESPACE. `useT('core.ui')` devolve um `t('nav.settings')` que resolve

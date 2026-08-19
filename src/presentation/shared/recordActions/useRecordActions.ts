@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { useContributions, useKernel } from '../../../stores/useKernel';
-import { UI_RECORD_ACTION_POINT } from '../uiExtensionPoints';
-import type { UiRecordActionMetadata } from '../uiExtensionPoints';
+import { UI_RECORD_ACTION_POINT } from '../../../domain/schema/ui/uiExtensionPoints';
+import type { UiRecordActionMetadata } from '../../../domain/schema/ui/uiExtensionPoints';
 import type { RecordActionCommand } from './recordActionHost';
 
 export interface ResolvedRecordAction {

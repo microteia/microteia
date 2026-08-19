@@ -1,5 +1,6 @@
 import type { MarketplacePlugin } from '../../domain/entities/MarketplacePlugin';
 import { nav, page, settingsSection } from '../contributionBuilders';
+import DASHBOARD_SOURCE from './views/dashboard/Dashboard.view.tsx?raw';
 
 /**
  * **Dashboard** — a tela de abertura do escritório, agora uma extensão que não conhece nenhum dado.
@@ -14,28 +15,6 @@ import { nav, page, settingsSection } from '../contributionBuilders';
  * cada pessoa monta o seu por cima, sem alterar o dos demais.
  */
 export const DASHBOARD_SURFACE = 'dashboard';
-
-const DASHBOARD_SOURCE = `
-import { WidgetSurface } from '@microteia/ui';
-import { styled } from 'styled-components';
-
-const Page = styled.div\`
-  padding: \${({ theme }) => theme.spacing.xl};
-  height: 100%;
-  overflow-y: auto;
-\`;
-
-export default function DashboardView() {
-  return (
-    <Page>
-      <WidgetSurface
-        surface="dashboard"
-        emptyMessage="Nenhum widget disponível. Instale extensões (Processos, Prazos, Financeiro…) para o Dashboard ganhar conteúdo."
-      />
-    </Page>
-  );
-}
-`;
 
 export const dashboardPlugin: MarketplacePlugin = {
   manifest: {

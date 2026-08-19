@@ -14,6 +14,8 @@ import {
   indexKey,
 } from '../kernel/backendShape.js';
 import type { BackendClaim, FirestoreIndexSpec, PluginBackendRequirement } from '../kernel/backendShape.js';
+import { officeEnvPath, stageOfficeEnv } from './backendEnv.js';
+import { installPath, readInstalledManifest } from './unpack.js';
 import {
   changedParameters,
   functionsDeclaringParameters,
@@ -28,7 +30,6 @@ import { FIREBASE_BIN } from './firebaseCli.js';
 import { deployFunctionsOneByOne } from './deployFunctions.js';
 import { checkCallables, invokerGrantCommand } from './callableAccess.js';
 import { decodeFields, documentId, listDocuments, patchStringMapField } from './firestoreRest.js';
-import { workspacePath } from './workspace.js';
 
 /** Uma exigência, o escritório que a instalou e o documento que carrega o estado dela. */
 export interface InstalledClaim extends BackendClaim {
@@ -157,13 +158,15 @@ export const provisionBackend = async (options: ProvisionOptions): Promise<Provi
   await applyIndexes(install, projectId, manifest.baselineIndexes ?? [], wantedIndexes);
 
   const trackedParameters = claimedParameters(valid);
-  const filledParameters = await readBackendEnv(install, projectId);
+  // A raiz, e não o `install/`: a fonte é o arquivo que o escritório edita ao lado do `microteia.yaml`.
+  const filledParameters = await readBackendEnv(dirname(options.environmentFile), projectId);
   const recordedDigests = parseParameterState(options.environment.backend.parameters);
   const currentDigests = parameterDigests(projectId, filledParameters, trackedParameters);
 
   const missingParameters = trackedParameters.filter((name) => !filledParameters.has(name));
   if (missingParameters.length > 0) {
-    warn(`${missingParameters.length} backend setting(s) are still empty in functions/.env.${projectId}:`);
+    warn(`${missingParameters.length} backend setting(s) are still empty in .env.${projectId}`);
+    info(`  (${officeEnvPath(dirname(options.environmentFile), projectId)})`);
     bullets(missingParameters);
     info('  the functions deploy anyway, but the feature that needs them will fail at runtime.');
   }
@@ -193,6 +196,11 @@ export const provisionBackend = async (options: ProvisionOptions): Promise<Provi
     blank();
     info('Manual steps these extensions need, which no command can do for you:');
     bullets(prerequisites);
+    // O caminho sai daqui, resolvido, e não do texto de cada extensão: era assim que ele estava, e foi
+    // assim que ficou errado quando a configuração se mudou para a raiz.
+    info(`  Backend settings go in ${officeEnvPath(dirname(options.environmentFile), projectId)}`);
+    info('  After filling one in, run "microteia provision" again — the value is stamped into each');
+    info('  Cloud Function at ITS deploy, so a function already running keeps the previous one.');
     blank();
   }
 
@@ -202,6 +210,11 @@ export const provisionBackend = async (options: ProvisionOptions): Promise<Provi
   if (toDeploy.length === 0) {
     success(`the ${wantedFunctions.length} function(s) these extensions need are already deployed`);
   } else {
+    // A cópia que o `firebase-functions` lê é atualizada AGORA, e não só no `deploy`: este comando é o
+    // que aplica um parâmetro preenchido depois da instalação, e subir a function contra uma cópia
+    // velha carimbaria nela justamente o valor que se acabou de trocar.
+    await stageOfficeEnv(dirname(options.environmentFile), projectId, install);
+
     info(`  deploying ${toDeploy.length} function(s), one at a time…`);
     const report = await deployFunctionsOneByOne(toDeploy, {
       projectId, cwd: install, delaySeconds, force: false,
@@ -471,11 +484,15 @@ export const provision = async (args: ParsedArgs): Promise<void> => {
     throw new Error('This installation is not connected yet. Run "microteia connect --project <id>".');
   }
   if (environment.kernel.version === null) {
-    throw new Error('No kernel is installed yet. Run "microteia deploy --kernel <package>.tgz" first.');
+    throw new Error(
+      'No kernel is deployed yet. Run "microteia unpack --kernel <package>.tgz" and then "microteia deploy".',
+    );
   }
 
-  const install = join(workspacePath(root), 'install');
-  const manifest = JSON.parse(await readFile(join(install, 'manifest.json'), 'utf8')) as KernelManifest;
+  // Pela mesma porta que o `deploy` usa: ela recusa com o comando que falta, e confere a versão mínima
+  // do Console — montar o caminho à mão aqui devolveria um ENOENT cru.
+  const install = installPath(root);
+  const manifest = await readInstalledManifest(root);
   const region = manifest.requires.functionsRegion;
 
   heading(`Provisioning extension backends in ${projectId}`);

@@ -3,7 +3,7 @@ import { useRecords } from '../../stores/useRecords';
 import { useExprViewer } from './useExprViewer';
 import { evaluateFieldBoolean } from '../../domain/schema/fieldExpression';
 import { EMPTY_VIEWER, type ExprViewer } from '../../domain/schema/actionExpression';
-import type { UiNavBadge } from './uiExtensionPoints';
+import type { UiNavBadge } from '../../domain/schema/ui/uiExtensionPoints';
 import type { EntityRecord } from '../../domain/entities';
 
 export const countBadgeRecords = (

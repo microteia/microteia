@@ -46,7 +46,17 @@ Por que **duas** e não só `tsc`:
 
 O erro frequente **"Cannot access refs during render"** é a regra `react-hooks/refs` (React Compiler). A correção é **arquitetural** (ver "Hooks, refs e pureza" abaixo), nunca `// @ts-ignore` nem desabilitar a regra no arquivo. Detalhes completos: seção **"Conformidade com ESLint e React Compiler"** do `ARCHITECTURE.md`.
 
-Use o atalho do `package.json` quando existir: `npm run verify` (= `typecheck` + `lint` + `verify-schemas`).
+Use o atalho do `package.json` quando existir: `npm run verify` (= `typecheck` + `lint` +
+`verify-schemas` + `build:host-types` + `build:sdk` + `verify-extensions` + `verify-messages`).
+
+> **A ordem do `verify` não é arbitrária.** `build:sdk` vem ANTES de `verify-extensions` porque o
+> compilador de extensão agora É o do SDK (`sdk/lib/sdk/node/compile.js`): sem ele construído, não há
+> como gerar os `extension-templates/*.json`. Numa árvore recém-clonada, `sdk/` não existe — ele é
+> gerado e está no `.gitignore`.
+
+> **`npm run typecheck` são DOIS projetos:** `tsc -b --force` (app, node, cli) e
+> `tsc -p tsconfig.extsrc.json` (as fontes de view das extensões, checadas contra
+> `sdk/types/microteia-host.d.ts`). O segundo depende de `npm run build:host-types` ter rodado.
 
 > **Por que `tsc -b --force` e não `tsc --noEmit`?** O root usa *project references* (`tsconfig.app.json` + `tsconfig.node.json`). O `tsc --noEmit` avalia só o tsconfig raiz e **não entra nos projetos referenciados** — havia erro de tipo real em `src/` passando batido nele e só estourando no `npm run build`. O `-b --force` percorre os projetos e não usa o cache incremental (que mascararia arquivos não alterados). Ele não emite nada: os tsconfigs têm `noEmit`.
 
@@ -98,6 +108,10 @@ Camadas só dependem das que estão à sua esquerda. **Nunca** ao contrário.
 | `infrastructure/` | Config do Firebase, DIContainer, eventos, deeplink |
 | `stores/` | Contextos React globais (Auth, Data, Theme, …) |
 | `presentation/` | Pages, Components, estilos |
+
+`sdk/` fica **abaixo** de tudo: só depende de `domain/`, e é `plugins/` que o importa (nunca o
+contrário). `src/sdk/node/` é a exceção — é ferramenta de terminal, como `scripts/`, e por isso pode ler
+`plugins/messages`. `sdkPurity.test.ts` guarda a distinção.
 
 Antes de criar/editar um arquivo, identifique a camada e confirme que nenhum import viola a hierarquia.
 
@@ -295,11 +309,40 @@ TARGET=prod npm run deploy:workflow  # -> curatino
 Não existe `.env` comum na raiz: cada ambiente tem o seu (`.env.dev`, `.env.prod`), justamente para
 que uma variável faltando estoure em vez de cair calada na configuração do outro projeto.
 
+### SDK de autoria de extensão — o `.json` é o artefato, o `.ts` é a fonte
+
+Extensão é lida por `.json`, mas nunca se escreve `.json`: escreve-se `.ts`, e o compilador gera o
+artefato. Três regras seguem daí:
+
+- **Exemplo de extensão que viaja no pacote é a NOSSA fonte**, com os imports reescritos para
+  `@microteia/sdk` (`cli/src/vendor/exampleSources.ts`). `exampleSources.test.ts` compila cada um e
+  exige o `.json` versionado byte a byte — é o que prova que o barril do SDK basta para escrever as
+  nossas próprias extensões. Símbolo novo usado por um plugin de primeira parte precisa estar no barril.
+- **Fonte de view e de `startup` mora em arquivo `.tsx`**, em `src/plugins/marketplace/views/<plugin>/`,
+  importada com `?raw`. **Nunca** num template literal: ali ela não passa por `tsc` nem por ESLint, e
+  foi assim que oito declarações erradas na API curada ficaram anos sem ninguém ver. O `viewSources.test.ts`
+  reprova um plugin novo que volte ao template literal.
+- **Mexeu na API curada do host (`hostApi.ts`)? Atualize `extensionTypeDefs.ts` na mesma alteração.**
+  `hostApiTypeDefs.test.ts` cobra símbolo por símbolo. E o texto ali é **em inglês**: é documentação de
+  API entregue ao autor, não comentário nosso.
+- **Superfície do SDK é contrato.** Toda alteração em `src/sdk/index.ts` passa por atualizar as duas
+  listas de `sdkSurface.test.ts` (símbolos de runtime e tipos) — é onde a decisão fica registrada.
+  Se a alteração mexe no que o KERNEL entende de um pacote instalado (ponto de extensão, forma do
+  manifest, `impl.kind`), suba também o `KERNEL_VERSION`: minor se aditivo, major se quebra. Símbolo
+  que só serve à AUTORIA — `AuthoredPlugin`, `sourceFile`, um construtor novo — não move o
+  `KERNEL_VERSION`, porque não chega ao pacote instalado.
+
+Validação de pacote tem **uma porta**: `validatePluginPackage` (`src/sdk/validate.ts`). Nunca monte o
+trio `validatePluginManifest` + `validatePackage` + `packageIssues` à mão — era o que havia em quatro
+lugares, e uma checagem nova num deles não chegava aos outros.
+
+Detalhes: seção "SDK de autoria" no `ARCHITECTURE.md`.
+
 ### Instalação no Firebase do cliente — outro caminho, não este
 
 Os dois ambientes acima são **nossos**. A instalação que roda no projeto do escritório é montada por
-`microteia pack` e aplicada por `microteia init` / `connect` / `deploy` (`cli/`). Ela **não** passa
-por `TARGET`, **não** usa os scripts `deploy:*` e **não** leva `src/` nenhum — só compilado.
+`microteia pack` e aplicada por `microteia init` / `connect` / `unpack` / `deploy` (`cli/`). Ela **não**
+passa por `TARGET`, **não** usa os scripts `deploy:*` e **não** leva `src/` nenhum — só compilado.
 
 Três regras que valem para toda alteração:
 
@@ -316,6 +359,15 @@ Três regras que valem para toda alteração:
   contas não fecharem. Ver "Artefatos de backend por extensão" no `ARCHITECTURE.md`.
 - **`functions/custom/` é do escritório.** Nada do kernel escreve lá, e o upgrade preserva o
   diretório inteiro.
+- **NADA que uma pessoa digita mora em `.microteia/`.** O `unpack` apaga aquele diretório por inteiro a
+  cada troca de kernel — é o que faz o upgrade ser confiável. O que é do escritório fica ao lado do
+  `microteia.yaml`: `.env.<projectId>`, `extensions/`, `functions/` e o `README.md` dele. A configuração
+  já morou lá dentro, e o resultado foi credencial apagada no upgrade e function redeployada com string
+  vazia. Se precisar de um arquivo novo que o escritório edita, o lugar é a raiz — e o que precisa estar
+  dentro de `install/` é CÓPIA, montada no deploy.
+- **Documento gerado é sobreposto; documento do escritório nasce e não se toca.** `MICROTEIA.md` é
+  reescrito a cada `unpack` (e por isso pode carregar versão, caminhos e contagens); `README.md` é criado
+  se não existir e nunca mais. Um documento que promete estar atualizado não pode ser editável.
 
 Detalhes: seção "Distribuição — a Microteia instalável no Firebase do cliente" no `ARCHITECTURE.md`.
 
@@ -364,6 +416,9 @@ O `ARCHITECTURE.md` **não** guarda cópia das regras; a tabela de índices que 
 - [ ] `npx tsc -b --force` sem erros (ou `npm run typecheck`)
 - [ ] `npx eslint . --max-warnings 0` sem erros **nem warnings**
 - [ ] **Antes de commitar:** `version` incrementada em `package.json` + entrada nova no topo de `VERSIONS.md` (linguagem de usuário, diferente da mensagem de commit)
+- [ ] **Mexeu em `hostApi.ts`?** `extensionTypeDefs.ts` atualizado na mesma alteração, **em inglês** — é o que o autor de extensão lê como API
+- [ ] **Fonte de view/startup nova?** Arquivo `.tsx` em `src/plugins/marketplace/views/<plugin>/` + import `?raw`. Nunca template literal
+- [ ] **Símbolo novo (ou a menos) em `src/sdk/index.ts`?** As DUAS listas de `sdkSurface.test.ts` atualizadas; `KERNEL_VERSION` só se o pacote INSTALADO muda de forma (ver "SDK de autoria")
 - [ ] **Nova coleção Firestore ou permissão alterada:** editar `firestore.rules` (raiz) e avisar que precisa de `npm run deploy:rules`
 - [ ] **Novo path no Storage:** editar `storage.rules` (raiz) e avisar que precisa de `npm run deploy:rules`
 - [ ] **Nova query Firestore:** `where` máximo + `orderBy` no servidor + `limit()` + índice em `firestore.indexes.json` (raiz) e na tabela do `ARCHITECTURE.md`, com aviso de `npm run deploy:indexes`; coleções de crescimento ilimitado exigem paginação por cursor

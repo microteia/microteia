@@ -70,7 +70,6 @@ export const CORE_MARKETPLACE_MESSAGES: Record<string, string> = {
   'author.issue.view-key-duplicated': 'The key "{key}" is repeated among the code screens.',
   'author.issue.view-title-required': 'A code screen needs a title.',
   'author.issue.view-compile': 'The code screen "{label}" does not compile: {error}.',
-  'author.issue.summary-required': 'The extension needs a short description (summary).',
   'author.issue.startup-compile': 'The startup code does not compile: {error}.',
   'author.issue.external-ref':
     '{origin} "{source}" references {kind} "{name}", which belongs to another extension. It will be required at install time.',
@@ -237,7 +236,7 @@ export const CORE_MARKETPLACE_MESSAGES: Record<string, string> = {
   'issue.package.near-limit':
     'The package is {size}. Above {limit} it stops fitting in the installation document — it is worth splitting it before it grows further.',
   'issue.package.no-manifest': 'The extension has no manifest with an "id".',
-  'issue.package.no-summary': 'The extension needs a "summary".',
+  'issue.package.no-summary': 'The extension needs a short description (summary).',
   'issue.package.no-workflows': 'The extension needs the "workflows" list (it may be empty).',
   'issue.package.not-json': 'The file is not valid JSON.',
   'issue.package.not-object': 'The content is not an extension object.',

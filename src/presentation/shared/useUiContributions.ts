@@ -7,8 +7,8 @@ import { evaluateExtensionView } from './extensions/evaluateExtensionView';
 import { useExtensionCommandProviders } from './extensions/extensionServices';
 import { isExtensionViewRef } from '../../domain/usecases/plugins/extensionViewRef';
 import { resolvePageContribution } from './resolveUiContributions';
-import type { UiPageMetadata } from './uiExtensionPoints';
-import { UI_COMMAND_POINT, UI_NAV_POINT, UI_PAGE_POINT } from './uiExtensionPoints';
+import type { UiPageMetadata } from '../../domain/schema/ui/uiExtensionPoints';
+import { UI_COMMAND_POINT, UI_NAV_POINT, UI_PAGE_POINT } from '../../domain/schema/ui/uiExtensionPoints';
 
 export type PageComponent = React.ComponentType<{ tabKey: string }>;
 

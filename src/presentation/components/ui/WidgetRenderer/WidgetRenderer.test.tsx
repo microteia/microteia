@@ -3,7 +3,7 @@ import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { ThemeProvider } from 'styled-components';
 import { baseDarkTheme } from '../../../../shared/styles/theme';
-import type { WidgetSpec } from '../../../shared/widget/widgetSpec';
+import type { WidgetSpec } from '../../../../domain/schema/ui/widgetSpec';
 import { WidgetRenderer } from './WidgetRenderer.view';
 
 const renderSpec = (spec: unknown) =>

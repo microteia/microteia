@@ -1,0 +1,239 @@
+/**
+ * `AUTHORING.md` — o manual de quem escreve extensão, e o contraponto do `ARCHITECTURE.md`: aquele
+ * explica o kernel a quem o altera, este explica o CONTRATO a quem nunca vai vê-lo.
+ *
+ * Em inglês, e não por preferência: é superfície de produto, entregue a escritórios em qualquer lugar.
+ * A regra de idioma do repositório é exatamente essa — o produto fala inglês porque tem de poder falar
+ * qualquer idioma; o português é a nossa comunicação interna.
+ *
+ * Mora no Console (e não como arquivo `.md` solto) para que a versão do kernel e a lista de pontos de
+ * extensão sejam CARIMBADAS no texto: um manual que fala de um contrato diferente do instalado é pior
+ * que manual nenhum.
+ */
+
+export interface ExtensionPointRow {
+  id: string;
+  apiVersion: string;
+  allowedImplKinds: string[];
+  multiple: boolean;
+}
+
+const pointsTable = (points: ExtensionPointRow[]): string => [
+  '| Point | API | Accepts | Many? |',
+  '|---|---|---|---|',
+  ...points.map((point) => `| \`${point.id}\` | ${point.apiVersion} | ${
+    point.allowedImplKinds.length === 0 ? '_declaration only_' : point.allowedImplKinds.map((kind) => `\`${kind}\``).join(', ')
+  } | ${point.multiple ? 'yes' : 'no'} |`),
+].join('\n');
+
+export const authoringGuide = (
+  kernelVersion: string,
+  points: ExtensionPointRow[],
+  hostModules: string[],
+): string => `# Authoring Microteia extensions
+
+Kernel contract **${kernelVersion}**. Everything here describes the platform installed next to this
+directory, not a general idea of it.
+
+## 1. What an extension is
+
+A declaration. A single JSON document that says *what should exist* — screens, automations, actions,
+scripts, pages, translations, a theme — which the platform reads and installs. The platform has no
+knowledge of your extension: it only knows the points you contribute to.
+
+Two consequences you should take seriously:
+
+- **You never modify the platform.** There is no patch, no hook into internals, no override. If
+  something seems to require changing the kernel, you are looking at the wrong extension point.
+- **Uninstalling has to be clean.** Anything your extension declares can be withdrawn. That is why
+  option lists travel as *declarations* and not as data: the options belong to the organization, and
+  removing your extension must not delete them.
+
+## 2. The loop
+
+    npx microteia-plugin new com.example.hello    # scaffold
+    npx tsc --noEmit                              # types
+    npx microteia-plugin check hello/plugin.ts    # the gate
+    npx microteia-plugin build hello/plugin.ts    # writes the .json
+
+\`check\` is not an approximation of the platform's validation — it *is* the platform's validation, the
+same function, the same messages. If \`check\` passes, the package installs.
+
+Then import the \`.json\` on the **Extensions** screen.
+
+## 3. The package
+
+\`\`\`ts
+import type { AuthoredPlugin } from '@microteia/sdk';
+
+export default {
+  manifest: { id, version, kernel, name, publisher, contributes, /* dependencies, backend, ... */ },
+  summary: 'One line, shown in the Extensions list.',
+  workflows: [],       // required, may be empty
+  screens: [],         // entities, with their fields
+  screenPatches: [],   // fields added to a screen that already exists
+  lookups: [], tagLists: [],
+  actions: [], scripts: [],
+  views: [],           // pages delivered as code
+  startup: '',         // code that runs once when the extension loads
+  migrations: [],      // converting data an earlier version of YOURS wrote
+  overview: {},        // a rich description, in Widget DSL
+} satisfies AuthoredPlugin;
+\`\`\`
+
+Every field except \`manifest\`, \`summary\` and \`workflows\` is optional, and a package may be any
+subset — a single automation is a legitimate extension.
+
+**Two types, one letter apart, and it matters.** \`AuthoredPlugin\` is what you write — it lets a view
+point at a file with \`sourceFile\`. \`MarketplacePlugin\` is what the platform installs, where every
+view carries its \`source\` inline. The compiler turns the first into the second. Write against
+\`AuthoredPlugin\`; reach for \`MarketplacePlugin\` only when you are reading a built \`.json\` back.
+
+### Identity and versions
+
+\`manifest.id\` is reverse-DNS and permanent: it is how an update recognises the thing it updates. Use
+a domain you control. \`manifest.version\` is semver. \`manifest.kernel\` is the range of platform
+contracts you work against — \`^${kernelVersion}\` for what is installed here.
+
+### References between your own artifacts
+
+Inside the package, artifacts point at each other by \`templateId\` (automations, actions, scripts) or
+\`key\` (screens), never by real id — the real ids are generated at install time and differ per
+organization. \`check\` refuses a reference that leads nowhere.
+
+To point at something *another* extension installs, declare it:
+
+\`\`\`ts
+dependencies: { 'com.microteia.processo': { version: '^2.0.0', collections: ['cases'] } }
+\`\`\`
+
+## 4. Extension points
+
+${pointsTable(points)}
+
+The \`Accepts\` column is the important one. Four kinds of implementation exist:
+
+| Kind | What it is | Who may use it |
+|---|---|---|
+| \`widget\` | a declarative tree the platform renders (Widget DSL) | anyone |
+| \`workflow\` | one of the automations in your package | anyone |
+| \`script\` | code in the server-side sandbox | anyone |
+| \`code\` | a React component, delivered as source | anyone — **but see §6** |
+
+Prefer \`widget\` when it is enough. A declarative page needs no review, cannot break, and survives
+platform upgrades without you touching it.
+
+## 5. Text — the rule that has no exception
+
+Every label a person reads is a **reference**, resolved at render:
+
+\`\`\`ts
+const label = (key: string) => \\\`@com.example.hello/\\\${key}\\\`;
+
+fields: [{ key: 'title', label: label('field.title'), type: 'text', order: 0 }]
+\`\`\`
+
+and the words themselves are a contribution:
+
+\`\`\`ts
+import { messageBundleContribution } from '@microteia/sdk';
+
+contributes: [
+  messageBundleContribution({ locale: 'en', namespace: 'com.example.hello', messages: EN }),
+  messageBundleContribution({ locale: 'pt-BR', namespace: 'com.example.hello', messages: PT_BR }),
+]
+\`\`\`
+
+Ship \`en\` always — it is the source language, and what someone sees when no translation for their
+locale is installed. **The platform does not translate your vocabulary.** "Document type" is the
+platform's concept; *Power of attorney* and *Petition* are yours, and only you can answer for them.
+
+A key with no translation renders as the key itself. Ugly, diagnosable, and never a blank screen.
+
+What the organization *typed* — a screen they named, a list option they added — is their data. It
+passes through untranslated, always.
+
+## 6. Code trust - why a human has to say yes
+
+A \`view\` travels as **source**. The browser compiles it and evaluates it against a fixed allowlist of
+modules:
+
+${hostModules.map((name) => `- \`${name}\``).join('\n')}
+
+Any other import throws. This is an import allowlist, not a sandbox: the code runs in the page, so it
+can reach \`fetch\` and the DOM like any script. The real containment is **provenance**.
+
+So: a package carrying \`views\` or \`startup\` installs **inert**. An administrator of the organization
+opens the source, reads it, and trusts it. The trust is bound to that exact code by content hash —
+change one character and it must be trusted again. Nothing you can put in the package changes this,
+and you should not design as though it might.
+
+Author views as real files:
+
+\`\`\`ts
+views: [{ key: 'summary', title: label('page.summary'), icon: 'chart', sourceFile: './views/Summary.view.tsx' }]
+\`\`\`
+
+\`sourceFile\` is an authoring field: the compiler replaces it with the file's contents. Keeping the
+code in a real \`.tsx\` is what lets \`tsc\` and your editor check the part of the extension most likely
+to be wrong.
+
+\`startup\` receives a \`host\` and may return a teardown function:
+
+\`\`\`ts
+export default function startup(host: ExtensionHost) {
+  host.commands.register({ /* ... */ });
+  return () => { /* undone when the extension is disabled */ };
+}
+\`\`\`
+
+## 7. Data your extension owns
+
+A \`screen\` declares an entity: a collection, its fields, its title. The platform draws the list, the
+detail, the form, the filters and the search. You write no UI for any of it.
+
+- **Fields the organization adds** to your screen are theirs. An update of your extension preserves them.
+- **Option lists** (\`lookups\`) travel as a declaration plus optional *seed* options. Seeds are written
+  only when the collection is empty; after that the options are the organization's, and neither an
+  update nor uninstalling touches them.
+- **\`screenPatches\`** add fields to a screen that already exists — someone else's, or the platform's.
+  They are added, never substituted, and uninstalling removes only yours.
+
+### Changing the shape of data you already wrote
+
+That needs a \`migration\`: code that runs once per organization, in the server sandbox, converting
+what an earlier version of *your* extension wrote. Never hard-code a collection name — read it from
+\`input.collections\`, because the name can differ. Write it to be safely re-runnable: it may resume.
+
+## 8. When your extension needs the server
+
+\`manifest.backend\` declares what the organization's Firebase project must provide — Cloud Functions,
+composite indexes, configuration parameters, manual prerequisites. The extension stays **pending**,
+and does not load, until an administrator runs \`microteia provision\`. Failing closed is deliberate: a
+menu whose backend is missing produces the most expensive kind of defect, where the app opens and
+every call fails looking like something else entirely.
+
+## 9. Size
+
+| | |
+|---|---|
+| Warning | 400 KiB |
+| Refused | 800 KiB |
+
+A package is stored as a single document. If you are near the limit, the usual cause is code that
+should be several extensions, or a seed list that should be data.
+
+## 10. Testing
+
+\`validatePluginPackage\` is exported from \`@microteia/sdk\` — the same function \`check\` calls. Keeping
+it in a test means a broken package fails in a second, on your machine:
+
+\`\`\`ts
+import { validatePluginPackage } from '@microteia/sdk';
+import plugin from './plugin';
+
+it('installs cleanly', () => { expect(validatePluginPackage(plugin)).toEqual([]); });
+\`\`\`
+
+Read \`examples/\` for first-party extensions that exercise every mechanism described above.
+`;

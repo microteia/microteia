@@ -1,5 +1,5 @@
-import { cp, mkdir, readdir, readFile, rm, writeFile } from 'node:fs/promises';
-import { basename, join } from 'node:path';
+import { cp, mkdir, readdir, readFile, rename, rm, writeFile } from 'node:fs/promises';
+import { basename, join, relative } from 'node:path';
 import { flagValue, hasFlag } from '../shared/args.js';
 import type { ParsedArgs } from '../shared/args.js';
 import { repoRoot } from '../shared/paths.js';
@@ -17,7 +17,7 @@ import {
   exportedFunctionNames,
   parseKernelVersion,
 } from '../kernel/manifest.js';
-import type { BackendParameter, KernelManifest } from '../kernel/manifest.js';
+import type { BackendParameter, KernelManifest, KernelSdk } from '../kernel/manifest.js';
 import {
   baselineFunctionsOf,
   baselineIndexesOf,
@@ -25,15 +25,16 @@ import {
   claimsFromTemplates,
 } from '../kernel/backendShape.js';
 import type { BackendClaim, FirestoreIndexSpec } from '../kernel/backendShape.js';
-import { environmentSecrets, findBundleLeaks } from './bundleAudit.js';
+import { declarationsWithComments, environmentSecrets, findBundleLeaks } from './bundleAudit.js';
 import { assertInsideRepository } from './repository.js';
+import { SDK_TARBALL } from './pluginWorkspaceTemplates.js';
+import { stageExamples } from './exampleSources.js';
 import {
   packageCustomIndexTs,
   packageCustomTsconfig,
   packageFirebaseJson,
   packageFunctionsIndexJs,
   packageFunctionsPackageJson,
-  packageReadme,
 } from './packageTemplates.js';
 import type { HostingConfig, RepoFunctionsPackage } from './packageTemplates.js';
 
@@ -111,6 +112,64 @@ const scanBackendSources = async (directory: string): Promise<BackendScan> => {
   };
 };
 
+/**
+ * Põe o SDK de autoria no pacote: o compilado, os tipos da API curada, e as extensões de primeira
+ * parte como exemplo.
+ *
+ * O tarball vai com nome FIXO (`microteia-sdk.tgz`, sem versão) porque o `extensions/package.json` do
+ * escritório aponta para ele por caminho: com a versão no nome, todo upgrade exigiria editar aquele
+ * arquivo à mão, e quem esquecesse continuaria compilando contra o SDK antigo em silêncio.
+ *
+ * As três conferências do fim são do ARTEFATO, não do procedimento — mesma postura do `bundleAudit`:
+ * o que sai daqui é `.d.ts` da superfície curada, e um comentário esquecido nele levaria para todo
+ * escritório a narrativa interna de uma decisão nossa.
+ */
+const stageSdk = async (root: string, stageDir: string, version: string): Promise<KernelSdk> => {
+  const sourceDir = join(root, 'sdk');
+  const targetDir = join(stageDir, 'sdk');
+
+  const manifest = await readJson<{ version: string; microteia?: { kernelVersion?: string } }>(
+    join(sourceDir, 'package.json'),
+  );
+  const kernelVersion = manifest.microteia?.kernelVersion;
+  if (manifest.version !== version || kernelVersion === undefined) {
+    throw new Error('sdk/package.json is stale — "npm run verify" should have rebuilt it.');
+  }
+
+  await mkdir(targetDir, { recursive: true });
+  await run('npm', ['pack', '--silent', '--pack-destination', targetDir], { cwd: sourceDir });
+
+  const packed = (await readdir(targetDir)).filter((file) => file.endsWith('.tgz'));
+  if (packed.length !== 1) {
+    throw new Error(`Expected exactly one SDK tarball, found ${packed.length}.`);
+  }
+  await rename(join(targetDir, packed[0]), join(targetDir, SDK_TARBALL));
+
+  await cp(join(sourceDir, 'types'), join(targetDir, 'types'), { recursive: true });
+
+  // O `.d.ts` da superfície curada sai SEM comentário: o JSDoc deste repositório é em português e
+  // narra decisões e incidentes internos. O que o autor lê é `types/` e o `AUTHORING.md`, escritos
+  // para ele — e por isso `types/` fica de fora desta conferência, de propósito.
+  const documented = await declarationsWithComments(join(sourceDir, 'lib'));
+  if (documented.length > 0) {
+    throw new Error(
+      'Declarations in the SDK carry comments, which would ship internal notes to every office:\n'
+      + documented.map((file) => `  ${relative(sourceDir, file)}`).join('\n')
+      + '\n"removeComments" must stay on in tsconfig.sdk.json.',
+    );
+  }
+
+  // As extensões de primeira parte como material de autoria, em FONTE e uma pasta por extensão. O
+  // `.json` é o artefato e não ensina como se chega nele; a fonte ensina, e já viajava de qualquer
+  // forma — o código das views está dentro do `.json`, em string. `exampleSources.test.ts` compila cada
+  // uma e exige o `.json` versionado byte a byte.
+  const examples = await stageExamples(root, join(targetDir, 'examples'));
+
+  info(`  ${examples.length} first-party extension(s) staged as source examples`);
+
+  return { version, kernelVersion, path: `sdk/${SDK_TARBALL}` };
+};
+
 export const pack = async (args: ParsedArgs): Promise<void> => {
   await assertInsideRepository('pack');
   const root = repoRoot;
@@ -148,7 +207,7 @@ export const pack = async (args: ParsedArgs): Promise<void> => {
 
   heading(`Packaging Microteia kernel ${version} (contract ${kernelVersion})`);
 
-  const total = 6;
+  const total = 7;
 
   if (skipVerify) {
     info('Quality gate skipped (--skip-verify).');
@@ -163,7 +222,13 @@ export const pack = async (args: ParsedArgs): Promise<void> => {
   step(3, total, 'Compiling the Cloud Functions');
   await run('npm', ['run', 'build:functions'], { cwd: root });
 
-  step(4, total, 'Checking that the bundle carries no Firebase project');
+  // Depois do `verify`, que já compilou o SDK — mas o `--skip-verify` existe, e um pacote sem SDK
+  // seria descoberto só no `plugin-init` de um escritório.
+  step(4, total, 'Building the authoring SDK');
+  await run('npm', ['run', 'build:host-types'], { cwd: root });
+  await run('npm', ['run', 'build:sdk'], { cwd: root });
+
+  step(5, total, 'Checking that the bundle carries no Firebase project');
   const leaks = await findBundleLeaks(join(root, 'dist'), await environmentSecrets(root));
   if (leaks.length > 0) {
     throw new Error(
@@ -174,7 +239,7 @@ export const pack = async (args: ParsedArgs): Promise<void> => {
   }
   success('no project baked into the bundle');
 
-  step(5, total, 'Assembling the distribution');
+  step(6, total, 'Assembling the distribution');
   await rm(stageDir, { recursive: true, force: true });
   await mkdir(stageDir, { recursive: true });
 
@@ -198,7 +263,10 @@ export const pack = async (args: ParsedArgs): Promise<void> => {
     filter: (source) => !source.endsWith('.map'),
   });
   await cp(join(root, 'functions/package-lock.json'), join(stageDir, 'functions/package-lock.json'));
-  await cp(join(root, 'functions/.env.example'), join(stageDir, 'functions/.env.example'));
+  // O `.env.example` NÃO viaja. Dentro de `install/functions/` ele era uma armadilha: convidava a
+  // preencher a configuração ali, num diretório que o deploy seguinte apaga por inteiro. O que a
+  // instalação recebe é o `.env.<projectId>` na RAIZ, escrito a partir do manifesto e já comentado —
+  // um modelo a menos é um lugar errado a menos.
 
   for (const file of ['firestore.rules', 'storage.rules']) {
     await cp(join(root, file), join(stageDir, file));
@@ -214,11 +282,12 @@ export const pack = async (args: ParsedArgs): Promise<void> => {
 
   await mkdir(join(stageDir, 'functions/custom/src'), { recursive: true });
   await writeFile(join(stageDir, 'firebase.json'), packageFirebaseJson(repoFirebase.hosting));
-  await writeFile(join(stageDir, 'README.md'), packageReadme(version));
   await writeFile(join(stageDir, 'functions/package.json'), packageFunctionsPackageJson(repoFunctions, version));
   await writeFile(join(stageDir, 'functions/index.js'), packageFunctionsIndexJs());
   await writeFile(join(stageDir, 'functions/custom/tsconfig.json'), packageCustomTsconfig());
   await writeFile(join(stageDir, 'functions/custom/src/index.ts'), packageCustomIndexTs());
+
+  const sdk = await stageSdk(root, stageDir, version);
 
   const manifest: KernelManifest = {
     id: KERNEL_DISTRIBUTION_ID,
@@ -238,6 +307,7 @@ export const pack = async (args: ParsedArgs): Promise<void> => {
     callables,
     backendParameters,
     manualPrerequisites: MANUAL_PREREQUISITES,
+    sdk,
   };
 
   const manifestJson = `${JSON.stringify(manifest, null, 2)}\n`;
@@ -246,7 +316,7 @@ export const pack = async (args: ParsedArgs): Promise<void> => {
   // desempacotar nada.
   await writeFile(join(outputDir, 'manifest.json'), manifestJson);
 
-  step(6, total, 'Writing the tarball');
+  step(7, total, 'Writing the tarball');
   await run('tar', ['-czf', tarball, '-C', stageDir, '.'], { cwd: root });
   await rm(stageDir, { recursive: true, force: true });
 
@@ -260,13 +330,16 @@ export const pack = async (args: ParsedArgs): Promise<void> => {
     `claimed by extensions: ${functionNames.length - baselineFunctions.length} function(s), `
       + `${rootIndexes.indexes.length - baselineIndexes.length} index(es), from ${claims.length} extension(s)`,
     `backend parameters: ${backendParameters.length}`,
+    `authoring SDK: ${sdk.version} (kernel contract ${sdk.kernelVersion})`,
   ]);
   blank();
   info('Install it with:');
   bullets([
     'microteia init --name <office>',
     'microteia connect --project <firebase-project-id>',
-    `microteia deploy --kernel ${tarball}`,
+    `microteia unpack --kernel ${tarball}`,
+    'microteia deploy',
+    'microteia plugin-init   (optional: author extensions in TypeScript)',
   ]);
   blank();
 };

@@ -187,37 +187,3 @@ The kernel package itself is built from the Microteia repository (\`npm run pack
 to you as a \`.tgz\`. The \`pack\` command in here only works inside that repository.
 `;
 
-export const packageReadme = (version: string): string => `# Microteia ${version}
-
-This directory is a Microteia installation package. It is deployed by the Microteia Console:
-
-    microteia connect --project <your-firebase-project-id>
-    microteia deploy --kernel <this-package>.tgz
-
-## What is in here
-
-| Path                     | What it is                                            |
-| ------------------------ | ----------------------------------------------------- |
-| \`hosting/\`               | The compiled application                              |
-| \`functions/lib/\`         | The compiled Microteia Cloud Functions                |
-| \`functions/custom/\`      | **Yours.** Cloud Functions this installation adds      |
-| \`firestore.rules\`        | Firestore security rules                              |
-| \`firestore.indexes.json\` | Firestore composite indexes — the baseline; extensions add theirs |
-| \`storage.rules\`          | Cloud Storage security rules                          |
-| \`manifest.json\`          | Version, components and manual prerequisites          |
-
-## Adding your own Cloud Functions
-
-Write them in \`functions/custom/src/\` and export them from \`functions/custom/src/index.ts\`. They are
-compiled and deployed together with the kernel, and are preserved across kernel upgrades.
-
-\`functions/lib/\` is the kernel. It is replaced on every upgrade — do not edit it. It also holds the
-functions that belong to extensions: they ship with every package, but are only deployed to your project
-once the extension that asks for them is installed. That is what \`microteia provision\` does.
-
-## Configuration
-
-\`hosting/firebase-config.js\` is stamped by \`microteia connect\` with your Firebase project. Backend
-settings, when used, go in \`functions/.env.<your-project-id>\`. Neither file should be committed to a
-public repository.
-`;

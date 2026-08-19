@@ -3,7 +3,7 @@ import type { EntityRecord, ScreenDefinition, TenantRole, UserRole } from '../..
 import type { PersonRecord } from '../../../../shared/useCollectionRecords';
 import type { WorkflowDefinition } from '../../../../../domain/entities/Workflow';
 import type { ThemeOption } from '../../../../../stores/useTheme';
-import type { UiPageMetadata } from '../../../../shared/uiExtensionPoints';
+import type { UiPageMetadata } from '../../../../../domain/schema/ui/uiExtensionPoints';
 import type { CaseRecord, ContractRecord } from '../../../../shared/useCollectionRecords';
 import type { TranslateFn } from '../../../../shared/i18n/useT';
 

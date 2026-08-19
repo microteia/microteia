@@ -7,8 +7,10 @@ import { pack } from './vendor/pack.js';
 import { packConsole } from './vendor/packConsole.js';
 import { init } from './console/init.js';
 import { connect } from './console/connect.js';
+import { unpack } from './console/unpack.js';
 import { deploy } from './console/deploy.js';
 import { provision } from './console/provision.js';
+import { pluginInit } from './console/pluginWorkspace.js';
 
 interface Command {
   name: string;
@@ -34,9 +36,16 @@ const COMMANDS: Command[] = [
     execute: connect,
   },
   {
+    name: 'unpack',
+    usage: 'microteia unpack --kernel <package.tgz>',
+    summary: 'Put a Microteia package in place, without publishing anything.',
+    audience: 'office',
+    execute: unpack,
+  },
+  {
     name: 'deploy',
-    usage: 'microteia deploy --kernel <package.tgz> [--only rules,indexes,functions,hosting] [--delay <seconds>] [--prune]',
-    summary: 'Install or update Microteia in the connected Firebase project.',
+    usage: 'microteia deploy [--only rules,indexes,functions,hosting] [--delay <seconds>] [--prune]',
+    summary: 'Publish the package that is in place to the connected Firebase project.',
     audience: 'office',
     execute: deploy,
   },
@@ -46,6 +55,13 @@ const COMMANDS: Command[] = [
     summary: 'Give the installed extensions the Cloud Functions and indexes they ask for.',
     audience: 'office',
     execute: provision,
+  },
+  {
+    name: 'plugin-init',
+    usage: 'microteia plugin-init [--dir <path>] [--force]',
+    summary: 'Prepare "extensions/", to author extensions in TypeScript in your editor.',
+    audience: 'office',
+    execute: pluginInit,
   },
   {
     name: 'pack',
@@ -70,15 +86,19 @@ const printHelp = (): void => {
   const office = COMMANDS.filter((command) => command.audience === 'office');
   const publisher = COMMANDS.filter((command) => command.audience === 'publisher');
 
+  // A largura sai do NOME mais longo, não de um número escrito à mão: `pack-console` e
+  // `plugin-init` já estouravam o 10 fixo, e o help saía com nome e resumo colados.
+  const width = Math.max(...COMMANDS.map((command) => command.name.length)) + 2;
+
   if (office.length > 0) {
     info('Installing:');
-    for (const command of office) info(`  ${command.name.padEnd(10)}${command.summary}`);
+    for (const command of office) info(`  ${command.name.padEnd(width)}${command.summary}`);
     blank();
   }
 
   if (publisher.length > 0) {
     info('Publishing:');
-    for (const command of publisher) info(`  ${command.name.padEnd(10)}${command.summary}`);
+    for (const command of publisher) info(`  ${command.name.padEnd(width)}${command.summary}`);
     blank();
   }
 

@@ -1,5 +1,5 @@
-import type { ExtensionPointDefinition } from '../../domain/schema/plugin/extensionPoint';
-import type { UserRole } from '../../domain/entities';
+import type { ExtensionPointDefinition } from '../plugin/extensionPoint';
+import type { UserRole } from '../../entities';
 
 export const UI_PAGE_POINT = 'ui.page';
 export const UI_NAV_POINT = 'ui.nav';

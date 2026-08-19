@@ -1,8 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
 import { createPluginHost } from '../../kernel';
 import { CORE_PLUGINS } from '..';
-import { UI_RECORD_ACTION_POINT } from '../../presentation/shared/uiExtensionPoints';
-import type { UiRecordActionMetadata } from '../../presentation/shared/uiExtensionPoints';
+import { UI_RECORD_ACTION_POINT } from '../../domain/schema/ui/uiExtensionPoints';
+import type { UiRecordActionMetadata } from '../../domain/schema/ui/uiExtensionPoints';
 import { isActionHidden } from '../../domain/schema/actionExpression';
 import type { ActionExprContext } from '../../domain/schema/actionExpression';
 import { SCREEN_ICON_KEYS } from '../../presentation/shared/screenIcons';

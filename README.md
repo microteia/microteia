@@ -134,8 +134,10 @@ npx microteia --help         # ou: node cli/lib/index.js --help
 | `microteia pack-console [--output <dir>]` | Microteia | monta o próprio Console para rodar fora do repositório |
 | `microteia init [--name <escritório>] [--id <env>] [--force]` | escritório | cria a instalação no diretório atual |
 | `microteia connect --project <projectId> [--no-create-web-app]` | escritório | liga a instalação ao Firebase dele |
-| `microteia deploy --kernel <pacote.tgz> [--only rules,indexes,functions,hosting] [--delay <s>] [--prune]` | escritório | instala ou atualiza |
+| `microteia unpack --kernel <pacote.tgz>` | escritório | põe o pacote no lugar, sem publicar nada |
+| `microteia deploy [--only rules,indexes,functions,hosting] [--delay <s>] [--prune]` | escritório | publica o pacote que está no lugar |
 | `microteia provision [--prune] [--delay <s>]` | escritório | dá às extensões instaladas as functions e os índices que elas exigem |
+| `microteia plugin-init [--dir <path>] [--force]` | escritório | prepara `extensions/`, para escrever extensão em TypeScript |
 
 Para usá-lo fora daqui — outra pasta, outra máquina — não copie `cli/` à mão:
 
@@ -229,21 +231,31 @@ mkdir acme && cd acme
 
 microteia init --name "Escritório Acme"
 microteia connect --project acme-microteia
-microteia deploy --kernel /caminho/microteia-kernel-<versão>.tgz
+microteia unpack --kernel /caminho/microteia-kernel-<versão>.tgz
+microteia deploy
 ```
 
 O que fica no diretório:
 
 ```
 microteia.yaml              # a instalação: nome, ambiente, projectId, região, versão do kernel
-.microteia/
+.env.<projectId>            # SUAS configurações de backend — credenciais, gitignorado
+.gitignore                  # criado junto: este diretório tende a virar um repositório seu
+extensions/                 # opcional: as extensões que você escreve (ver §6)
+.microteia/                 # DESCARTÁVEL: refeito do pacote + `connect`. Nada seu mora aqui
 ├── firebase-config.json    # config web lida do projeto do escritório (por `connect`)
 └── install/                # o pacote desempacotado — é daqui que o deploy roda
 ```
 
-O `deploy` carimba `hosting/firebase-config.js` com o projeto do escritório, escreve
-`functions/.env.<projectId>` a partir do manifesto, e publica na ordem: rules → índices → functions
-→ hosting. As functions sobem **uma a uma** (em lote estouram a quota de CPU do projeto), com uma
+**`unpack` e `deploy` são separados de propósito.** Trocar de kernel não obriga a publicar tudo: se
+naquela versão só o front mudou, `microteia deploy --only hosting` basta. E entre os dois há o momento
+de preencher uma configuração que o pacote novo passou a pedir — que é justamente quando se descobre
+que ela existe.
+
+O `unpack` substitui o pacote e escreve no `.env.<projectId>` da raiz as configurações que faltam,
+**acrescentando** e nunca sobrescrevendo. O `deploy` carimba `hosting/firebase-config.js` com o projeto
+do escritório, copia o `.env.<projectId>` para onde o `firebase-functions` o lê, e publica na ordem:
+rules → índices → functions → hosting. As functions sobem **uma a uma** (em lote estouram a quota de CPU do projeto), com uma
 segunda passada para as de gatilho, que numa instalação nova falham por propagação de identidade de
 serviço. Ao final ele verifica, pelo mesmo caminho do navegador, se as callables respondem — e, se a
 permissão de invocação tiver sido recusada, imprime o comando exato de cada uma.
@@ -284,15 +296,36 @@ listado com o comando (um deploy não remove índice, e apagar o errado custa um
 
 ### 4. Atualizar uma instalação
 
-Mesmo comando, pacote novo:
-
 ```bash
-microteia deploy --kernel /caminho/microteia-kernel-<versão-nova>.tgz
+microteia unpack --kernel /caminho/microteia-kernel-<versão-nova>.tgz
+microteia deploy                 # ou --only hosting, --only functions, ...
 ```
 
-O kernel é substituído por inteiro; o que é do escritório é preservado: `functions/custom/`,
-`functions/node_modules` e o que já estava preenchido no `functions/.env.<projectId>` (parâmetros
-novos são **acrescentados**, não sobrescrevem).
+O kernel é substituído por inteiro, e o que é do escritório é preservado. Dentro de `.microteia/`,
+só `functions/custom/` e `functions/node_modules` atravessam a troca. **Tudo o mais que é seu vive
+FORA de `.microteia/`** — o `.env.<projectId>` e o `extensions/` ficam ao lado do `microteia.yaml`,
+e é isso que os torna imunes ao `unpack`.
+
+### 4.1. Configurações de backend
+
+Algumas extensões pedem uma credencial ou um identificador do lado do servidor (a caixa de
+intimações pede as do Gmail, por exemplo). Elas ficam em **`.env.<projectId>`, ao lado do
+`microteia.yaml`** — nunca dentro de `.microteia/`:
+
+```bash
+# .env.acme-microteia
+GOOGLE_CLIENT_ID=123-abc.apps.googleusercontent.com
+GOOGLE_CLIENT_SECRET=...
+GOOGLE_GMAIL_TOPIC=
+```
+
+O `unpack` cria o arquivo e acrescenta o que um pacote novo passou a pedir, sem tocar no que você já
+preencheu. O `init` cria o `.gitignore` que o cobre — são credenciais.
+
+**Depois de mudar um valor, rode `microteia provision`.** O valor é carimbado em cada Cloud Function
+no deploy DELA, então uma function já no ar continua com o valor anterior até subir de novo; o
+`provision` reconhece a mudança (por uma impressão digital em `microteia.yaml`) e recoloca na fila
+exatamente as functions que carregam aquele parâmetro.
 
 ### 5. Cloud Functions do próprio escritório
 
@@ -306,6 +339,40 @@ O pacote reserva um lugar para elas — o kernel é imutável, estende-se por ac
 
 O `predeploy` compila **só** o `custom/`, e o entrypoint soma os dois com nomes planos. Nesta etapa o
 escritório escreve contra `firebase-functions` e `firebase-admin`, não contra APIs internas do kernel.
+
+### 6. Extensões escritas pelo próprio escritório, em TypeScript
+
+O sistema instala extensão a partir de um `.json`, mas ninguém precisa escrever `.json`: o pacote leva um
+SDK, e com ele o escritório escreve a extensão em TypeScript, no VSCode, com tipos e autocomplete — sem
+que o código-fonte do kernel saia daqui (o que viaja é compilado mais `.d.ts`).
+
+```bash
+microteia plugin-init            # cria "extensions/" ao lado do microteia.yaml
+cd extensions
+npx microteia-plugin new com.example.hello
+npx tsc --noEmit                              # tipos
+npx microteia-plugin check hello/plugin.ts    # o gate
+npx microteia-plugin build hello/plugin.ts    # gera hello/com.example.hello.json
+```
+
+O `.json` gerado é importado na tela **Extensões**. Ajuste fino direto nele continua valendo: ele é o
+resultado final.
+
+Duas coisas valem a pena saber antes de começar:
+
+- **`check` não é uma aproximação da validação da plataforma — é ela.** A mesma função, as mesmas
+  mensagens. Se o `check` passa, o pacote instala.
+- **Extensão que traz código (`views`/`startup`) instala inerte.** Um administrador abre a fonte, lê e
+  confia; a confiança fica presa àquele código exato, por hash. Trocar um caractere pede confiar de novo.
+
+`extensions/` fica **fora** de `.microteia/` — é do escritório, e o upgrade não o toca, como
+`functions/custom/`. Depois de cada `microteia deploy`, rode `npm install` ali para o SDK acompanhar a
+instalação.
+
+O diretório vem com o manual (`AUTHORING.md`), as regras operacionais (`AGENTS.md` / `CLAUDE.md`), as
+doze extensões de primeira parte como exemplo, e um `.mcp.json` que registra um servidor MCP: uma IA no
+editor consulta os pontos de extensão, a API disponível e a validação **desta** instalação, em vez de um
+retrato da documentação.
 
 Motivo de cada decisão acima: seção **"Distribuição — a Microteia instalável no Firebase do cliente"**
 do [ARCHITECTURE.md](./ARCHITECTURE.md).

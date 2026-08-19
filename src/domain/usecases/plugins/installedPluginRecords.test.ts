@@ -4,7 +4,7 @@ import type { PluginInstallation } from '../../entities/PluginInstallation';
 import { createPluginHost } from '../../../kernel';
 import { CORE_PLUGINS } from '../../../plugins';
 import { guiaPlugin } from '../../../plugins/marketplace/catalog';
-import { UI_NAV_POINT, UI_PAGE_POINT } from '../../../presentation/shared/uiExtensionPoints';
+import { UI_NAV_POINT, UI_PAGE_POINT } from '../../schema/ui/uiExtensionPoints';
 import { installedPluginRecords } from './installedPluginRecords';
 
 const plugin = (id: string, contributes: unknown[] = []): MarketplacePlugin => ({

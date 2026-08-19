@@ -16,9 +16,7 @@ import {
   translationKeyCount,
 } from '../../../domain/usecases/i18n/translationPackage';
 import { parsePackage, serializePackage } from '../../../domain/usecases/plugins/packageSerialization';
-import { packageIssues, validatePackage } from '../../../domain/usecases/plugins/pluginReferences';
-import { validatePluginManifest } from '../../../domain/schema/plugin/pluginManifest';
-import { KERNEL_VERSION } from '../../../domain/schema/plugin/kernelVersion';
+import { validatePluginPackage } from '../../../sdk/validate';
 
 import { useT, useLabel } from '../../shared/i18n/useT';
 export interface InstalledLanguage {
@@ -167,11 +165,7 @@ export const useTranslationsViewModel = (): TranslationsViewModel => {
           return;
         }
 
-        const manifestErrors = validatePluginManifest(pkg.manifest, {
-          kernelVersion: KERNEL_VERSION,
-          validateContributions: false,
-        });
-        const problem = manifestErrors[0] ?? validatePackage(pkg)[0] ?? packageIssues(pkg)[0];
+        const [problem] = validatePluginPackage(pkg);
         if (problem) {
           notify(label(problem.message, problem.messageParams), 'error');
           return;

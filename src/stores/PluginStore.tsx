@@ -14,8 +14,7 @@ import { makePublishPluginUseCase } from '../domain/usecases/plugins/PublishPlug
 import { useKernel } from './useKernel';
 import { storeEvents, StoreEvents } from '../infrastructure/events/StoreEventEmitter';
 import { parsePackage } from '../domain/usecases/plugins/packageSerialization';
-import { packageIssues, validatePackage } from '../domain/usecases/plugins/pluginReferences';
-import { validatePluginManifest } from '../domain/schema/plugin/pluginManifest';
+import { validatePluginPackage } from '../sdk/validate';
 import type { ImportPackageResult, PluginSource } from './usePluginStore';
 import type { LifecycleActor } from '../domain/services/pluginLifecycle';
 import {
@@ -141,18 +140,8 @@ export const PluginStoreProvider: React.FC<{ children: React.ReactNode }> = ({ c
       const parsed = parsePackage(text);
       if (!parsed.ok) return { ok: false, error: parsed.error };
       const pkg = parsed.package;
-      const manifestErrors = validatePluginManifest(pkg.manifest, {
-        kernelVersion: KERNEL_VERSION,
-        validateContributions: false,
-      });
-      const refErrors = validatePackage(pkg);
-      const sizeErrors = packageIssues(pkg);
-      if (manifestErrors.length > 0 || refErrors.length > 0 || sizeErrors.length > 0) {
-        const diagnostic = manifestErrors[0] ?? refErrors[0];
-        return diagnostic
-          ? { ok: false, error: diagnostic.message, errorParams: diagnostic.messageParams }
-          : { ok: false, error: sizeErrors[0].message, errorParams: sizeErrors[0].messageParams };
-      }
+      const [issue] = validatePluginPackage(pkg);
+      if (issue) return { ok: false, error: issue.message, errorParams: issue.messageParams };
       const alreadyInstalled = installations.some((i) => i.pluginId === pkg.manifest.id);
       const error = alreadyInstalled ? await upgrade(pkg) : await install(pkg);
       if (error) return { ok: false, error: error.message };

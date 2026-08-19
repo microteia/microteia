@@ -3,7 +3,7 @@ import { useSyncExternalStore } from 'react';
 import type { ICommandPaletteProvider } from '../../components/ui/CommandPalette/providers/ICommandPaletteProvider';
 import type { EntityRecord, ScreenDefinition } from '../../../domain/entities';
 import type { SettingsSection } from '../../../domain/schema/settings';
-import type { UiWidgetMetadata } from '../uiExtensionPoints';
+import type { UiWidgetMetadata } from '../../../domain/schema/ui/uiExtensionPoints';
 
 /** Um resultado de menção `@`: vira o link `[title](/microteia/<tabKey>)` no markdown. */
 export interface MentionResult {

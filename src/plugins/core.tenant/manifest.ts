@@ -1,7 +1,7 @@
 import type { PluginRecord } from '../../kernel';
 import { lazyView, nav, page, settingsSection, surfaceTab } from '../contributionBuilders';
 import { messageBundleContribution } from '../../domain/schema/i18n/extensionPoints';
-import { UI_TAB_POINT } from '../../presentation/shared/uiExtensionPoints';
+import { UI_TAB_POINT } from '../../domain/schema/ui/uiExtensionPoints';
 import { coreMessage, CORE_TENANT_MESSAGES } from '../coreMessages';
 import { coreTenantPtBrContribution } from './messagesPtBr';
 import { TENANT_SETTINGS_SURFACE } from './surface';

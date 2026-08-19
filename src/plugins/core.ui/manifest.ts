@@ -1,5 +1,5 @@
 import type { PluginRecord } from '../../kernel';
-import { UI_EXTENSION_POINTS } from '../../presentation/shared/uiExtensionPoints';
+import { UI_EXTENSION_POINTS } from '../../domain/schema/ui/uiExtensionPoints';
 import { messageBundleContribution } from '../../domain/schema/i18n/extensionPoints';
 import { coreMessage, CORE_UI_MESSAGES } from '../coreMessages';
 

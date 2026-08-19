@@ -1,0 +1,20 @@
+{
+  "compilerOptions": {
+    "target": "es2022",
+    "lib": ["ES2022"],
+    "module": "commonjs",
+    "types": ["node"],
+    "skipLibCheck": true,
+
+    "rootDir": "src",
+    "outDir": "sdk/lib",
+    "declaration": true,
+    "removeComments": true,
+
+    "strict": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+    "erasableSyntaxOnly": true
+  },
+  "files": ["src/sdk/index.ts", "src/sdk/node/cli.ts"]
+}

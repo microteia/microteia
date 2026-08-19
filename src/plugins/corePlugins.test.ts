@@ -7,7 +7,7 @@ import {
   resolvePageContribution,
   visibleNavItems,
 } from '../presentation/shared/resolveUiContributions';
-import { UI_COMMAND_POINT, UI_NAV_POINT, UI_PAGE_POINT } from '../presentation/shared/uiExtensionPoints';
+import { UI_COMMAND_POINT, UI_NAV_POINT, UI_PAGE_POINT } from '../domain/schema/ui/uiExtensionPoints';
 import { CORE_PLUGINS } from './index';
 
 const hostWith = (records: PluginRecord[]) => {

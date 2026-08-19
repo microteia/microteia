@@ -4,7 +4,7 @@ import { createPluginHost } from '../../kernel';
 import { CORE_PLUGINS } from '..';
 import { installedPluginRecords } from '../../domain/usecases/plugins/installedPluginRecords';
 import { evaluateExtensionView } from '../../presentation/shared/extensions/evaluateExtensionView';
-import { UI_SETTINGS_POINT, UI_WIDGET_POINT } from '../../presentation/shared/uiExtensionPoints';
+import { UI_SETTINGS_POINT, UI_WIDGET_POINT } from '../../domain/schema/ui/uiExtensionPoints';
 import type { PluginInstallation } from '../../domain/entities/PluginInstallation';
 import type { SettingsSection } from '../../domain/schema/settings';
 import { MARKETPLACE_CATALOG } from './catalog';

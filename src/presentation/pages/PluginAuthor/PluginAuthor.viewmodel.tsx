@@ -12,12 +12,10 @@ import { buildPackage, type CarriedTemplates } from '../../../domain/usecases/pl
 import {
   packageOutRefs,
   packageSizeAdvisory,
-  packageIssues,
-  validatePackage,
 } from '../../../domain/usecases/plugins/pluginReferences';
 import { serializePackage } from '../../../domain/usecases/plugins/packageSerialization';
-import { isValidPluginId, validatePluginManifest } from '../../../domain/schema/plugin/pluginManifest';
-import { KERNEL_VERSION } from '../../../domain/schema/plugin/kernelVersion';
+import { isValidPluginId } from '../../../domain/schema/plugin/pluginManifest';
+import { validatePluginPackage } from '../../../sdk/validate';
 import { nav, page } from '../../../plugins/contributionBuilders';
 import { compileExtensionView, compileExtensionStartup } from '../../shared/extensions/evaluateExtensionView';
 import { buildExtensionTypeDefs } from '../../shared/extensions/extensionTypeDefs';
@@ -579,22 +577,25 @@ export const usePluginAuthorViewModel = (tabKey?: string): PluginAuthorViewModel
     return out;
   }, [views, viewErrors, t]);
 
+  /**
+   * As pendências do pacote vêm da MESMA porta que a importação usa (`validatePluginPackage`), para
+   * que exportar aqui e instalar do outro lado nunca discordem. Só a referência pendente ganha frase
+   * própria: é a única que sabe apontar o artefato, e o nome dele só existe nesta tela.
+   */
   const issues = useMemo<string[]>(() => [
-    ...validatePluginManifest(manifest, { kernelVersion: KERNEL_VERSION, validateContributions: false })
-      .map((d) => label(d.message, d.messageParams)),
-    ...(form.summary.trim() ? [] : [t('author.issue.summary-required')]),
-    ...validatePackage(pkg).map((issue) =>
-      t('author.issue.external-ref', {
-        origin: issue.ref.from.origin,
-        source: issue.ref.from.name,
-        kind: t(KIND_KEY[issue.ref.kind]),
-        name: nameOf(issue.ref.kind, issue.ref.id),
-      }),
+    ...validatePluginPackage(pkg).map((issue) =>
+      issue.ref
+        ? t('author.issue.external-ref', {
+          origin: issue.ref.from.origin,
+          source: issue.ref.from.name,
+          kind: t(KIND_KEY[issue.ref.kind]),
+          name: nameOf(issue.ref.kind, issue.ref.id),
+        })
+        : label(issue.message, issue.messageParams),
     ),
-    ...packageIssues(pkg).map((issue) => label(issue.message, issue.messageParams)),
     ...viewIssues,
     ...(startupError ? [t('author.issue.startup-compile', { error: startupError })] : []),
-  ], [manifest, form.summary, pkg, nameOf, viewIssues, startupError, t, label]);
+  ], [pkg, nameOf, viewIssues, startupError, t, label]);
 
   /** Não bloqueia exportar — só avisa que o pacote está a caminho do limite do documento. */
   const sizeAdvisory = useMemo(() => {

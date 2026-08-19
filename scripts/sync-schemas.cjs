@@ -58,6 +58,7 @@ const SHARED_FILES = [
   'domain/schema/plugin/backendRequirement.ts',
   'domain/schema/plugin/pluginManifest.ts',
   'domain/schema/plugin/kernelVersion.ts',
+  'domain/schema/plugin/migration.ts',
   'domain/schema/plugin/index.ts',
   'kernel/ExtensionPointRegistry.ts',
   'kernel/ContributionRegistry.ts',

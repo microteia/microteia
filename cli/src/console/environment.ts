@@ -151,7 +151,8 @@ backend:
   # Cloud Functions deployed because an installed extension asked for them. Managed by
   # "microteia provision" — editing it by hand only makes the next run deploy or keep the wrong set.
   functions: ${quote(environment.backend.functions)}
-  # A fingerprint of each backend setting already applied from functions/.env.<projectId>. It is how
+  # A fingerprint of each backend setting already applied from .env.<projectId> (next to this file).
+  # It is how
   # "microteia provision" notices a setting filled in after the deploy and redeploys the functions
   # that carry it. It holds no value, only a salted digest of each one — editing it by hand only makes
   # the next run redeploy, or skip, the wrong set.
