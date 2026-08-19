@@ -1,7 +1,7 @@
 {
   "manifest": {
     "id": "com.microteia.push",
-    "version": "1.1.0",
+    "version": "1.2.0",
     "kernel": "^1.0.0",
     "name": "Pushes do Tribunal",
     "description": "A caixa de intimações do escritório recriada como extensão, sobre os MESMOS pushes — a sexta entidade a sair do kernel.",
@@ -22,6 +22,43 @@
           "deadlines"
         ]
       }
+    },
+    "backend": {
+      "functions": [
+        "exchangeGmailCode",
+        "listGmailConnections",
+        "revokeGmailConnection",
+        "gmailPush",
+        "renewGmailWatches"
+      ],
+      "indexes": [
+        {
+          "collectionGroup": "pushes",
+          "queryScope": "COLLECTION",
+          "fields": [
+            {
+              "fieldPath": "emailId",
+              "order": "ASCENDING"
+            },
+            {
+              "fieldPath": "processNumber",
+              "order": "ASCENDING"
+            }
+          ]
+        }
+      ],
+      "parameters": [
+        "GOOGLE_CLIENT_ID",
+        "GOOGLE_CLIENT_SECRET",
+        "GOOGLE_GMAIL_TOPIC"
+      ],
+      "prerequisites": [
+        {
+          "id": "gmail-integration",
+          "title": "Create the Google OAuth client and the Pub/Sub topics",
+          "detail": "Create an OAuth 2.0 Web client and the Pub/Sub topics \"gmail\" and \"gmail-watch-renewal\", then fill GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET and GOOGLE_GMAIL_TOPIC in functions/.env.<projectId>. Credentials are never shared between installations."
+        }
+      ]
     },
     "contributes": [
       {

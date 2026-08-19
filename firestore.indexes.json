@@ -33,11 +33,11 @@
       ]
     },
     {
-      "collectionGroup": "financials",
+      "collectionGroup": "deadlines",
       "queryScope": "COLLECTION",
       "fields": [
         {
-          "fieldPath": "caseId",
+          "fieldPath": "status",
           "order": "ASCENDING"
         },
         {
@@ -51,26 +51,12 @@
       "queryScope": "COLLECTION",
       "fields": [
         {
-          "fieldPath": "personId",
+          "fieldPath": "status",
           "order": "ASCENDING"
         },
         {
           "fieldPath": "dueDate",
           "order": "DESCENDING"
-        }
-      ]
-    },
-    {
-      "collectionGroup": "financials",
-      "queryScope": "COLLECTION",
-      "fields": [
-        {
-          "fieldPath": "type",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "dueDate",
-          "order": "ASCENDING"
         }
       ]
     },

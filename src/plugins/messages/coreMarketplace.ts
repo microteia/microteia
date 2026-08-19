@@ -104,6 +104,11 @@ export const CORE_MARKETPLACE_MESSAGES: Record<string, string> = {
   'extension.badge.update': 'Update',
   'extension.badge.has-code': 'With code',
   'extension.badge.unreviewed': 'Code not reviewed',
+  'extension.badge.backend-pending': 'Backend pending',
+  'extension.backend-pending.detail':
+    'This extension needs Cloud Functions or database indexes that this Firebase project does not have '
+    + 'yet, so it is installed but not running. Whoever maintains the project applies them with '
+    + '"microteia provision" in the Microteia Console.',
   'extension.install': 'Install in the organization',
   'extension.update': 'Update',
   'extension.uninstall': 'Uninstall from the organization',
@@ -177,6 +182,16 @@ export const CORE_MARKETPLACE_MESSAGES: Record<string, string> = {
   'diagnostic.dependency.missing': 'Plugin "{id}" depends on "{dependency}", which is not installed.',
   'diagnostic.dependency.unsatisfied':
     'Plugin "{id}" requires "{dependency}" {range}, but the installed version is {installed}.',
+  'diagnostic.backend.not-object': 'The backend requirement must be an object.',
+  'diagnostic.backend.functions-invalid': 'backend.functions must be a list of Cloud Function names.',
+  'diagnostic.backend.function-name-invalid': 'A Cloud Function name must start with a letter and hold only letters, digits and underscore.',
+  'diagnostic.backend.parameters-invalid': 'backend.parameters must be a list of setting names.',
+  'diagnostic.backend.parameter-name-invalid': 'A backend setting name must be upper case, with digits and underscore.',
+  'diagnostic.backend.indexes-invalid': 'backend.indexes must be a list of composite index definitions.',
+  'diagnostic.backend.index.collection-missing': 'A composite index must name the collection it indexes.',
+  'diagnostic.backend.index.scope-invalid': 'A composite index scope must be COLLECTION or COLLECTION_GROUP.',
+  'diagnostic.backend.index.fields-missing': 'A composite index needs at least two fields — a single field is indexed automatically.',
+  'diagnostic.backend.index.field-invalid': 'Every field of a composite index needs a field path.',
   'diagnostic.manifest.dependencies.invalid': 'Dependencies must be an object { pluginId: range }.',
   'diagnostic.manifest.dependency.id.invalid': 'Dependency "{id}" is not a valid plugin id.',
   'diagnostic.manifest.dependency.range.invalid': 'Range "{range}" of dependency "{id}" is invalid.',

@@ -1,3 +1,5 @@
+import type { FirestoreIndexSpec } from './backendShape.js';
+
 export interface KernelManifestComponent {
   id: string;
   path: string;
@@ -28,7 +30,22 @@ export interface KernelManifest {
     functionsRegion: string;
     nodeVersion: string;
   };
+  /**
+   * TODAS as functions que existem no pacote. Continua sendo a lista completa porque é a fronteira de
+   * validação: uma extensão só pode reivindicar o que foi empacotado.
+   */
   functions: string[];
+  /**
+   * As que o `deploy` sobe SEMPRE. O que sobra é reivindicado por extensão (`manifest.backend`) e só
+   * sobe quando ela está instalada — empacotar não é deployar.
+   */
+  baselineFunctions: string[];
+  /**
+   * Os índices compostos que o pacote já traz. O que uma extensão reivindica saiu daqui, e é esta
+   * lista que dá ao `provision` a referência exata do que é do kernel — sem ela, distinguir índice do
+   * kernel de índice de extensão desinstalada exigiria adivinhar.
+   */
+  baselineIndexes: FirestoreIndexSpec[];
   /** Ausente nos pacotes anteriores a 7.51.0, que não conheciam a verificação de alcance. */
   callables?: string[];
   backendParameters: BackendParameter[];
@@ -125,15 +142,6 @@ export const MANUAL_PREREQUISITES: KernelPrerequisite[] = [
       'Firestore console, TTL, collection auditLogs, field expiresAt. It cannot be declared in code or '
       + 'rules. Without it audit logs are never expired and grow without bound.',
     optional: false,
-  },
-  {
-    id: 'gmail-integration',
-    title: 'Google OAuth client and Pub/Sub topics, only if the Gmail intake is used',
-    detail:
-      'Create an OAuth 2.0 Web client and the Pub/Sub topics "gmail" and "gmail-watch-renewal", then '
-      + 'fill GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET and GOOGLE_GMAIL_TOPIC in functions/.env.<projectId>. '
-      + 'Credentials are never shared between installations.',
-    optional: true,
   },
 ];
 

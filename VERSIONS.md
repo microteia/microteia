@@ -11,6 +11,25 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [7.53.2] — 2026-08-18
+
+- Corrigido o motivo de a versão exibida no rodapé continuar a antiga depois de uma atualização: a página era guardada pelo navegador por até uma hora e, com ela, o programa antigo. Agora a página é sempre reconferida, e apenas as partes que nunca mudam seguem guardadas.
+- A atualização passou a **conferir**, ao terminar, se o site já está entregando a versão que acabou de ser publicada — e avisa, com o que fazer, quando ainda não está.
+- Quando a publicação de uma função de servidor falha, o motivo aparece na mesma hora, junto do nome dela. Antes a falha era anunciada sem explicação, e o motivo se perdia caso a nova tentativa desse certo.
+
+#### [7.53.1] — 2026-08-18
+
+- Durante a instalação, cada função de servidor passou a ser anunciada **antes** de ser publicada, com o tempo que levou. Antes o nome só aparecia depois de pronta, e como a primeira leva alguns minutos, a tela ficava muda e dava a impressão de ter travado.
+- A instalação agora avisa, de antemão, que dois alertas do gerenciador de pacotes são esperados e não impedem nada — um deles sobre a versão do Node e outro sobre pacotes descontinuados do próprio provedor.
+- Corrigido um alerta da instalação que aparecia como "package: undefined", por falta de um dado de identificação no pacote das funções de servidor.
+
+#### [7.53.0] — 2026-08-18
+
+- Uma extensão que precise de recursos de servidor — como a de Pushes do Tribunal, que recebe intimações por e-mail — passou a declarar isso por conta própria. Quem instala a Microteia num ambiente novo não recebe mais os recursos de extensões que não usa, e nem precisa preparar as credenciais de e-mail de uma caixa de intimações que talvez nunca vá abrir.
+- Na tela de Extensões, uma extensão que ainda depende de um passo no ambiente do escritório passou a exibir o aviso "Backend pendente", explicando o que falta e o comando que resolve. Antes ela simplesmente não aparecia no menu, sem nada que dissesse o motivo.
+- Corrigidas duas automações que falhariam ao consultar registros: as buscas por situação e vencimento em Prazos e em Financeiro dependiam de um recurso de banco de dados que nunca havia sido criado.
+- Removidos três recursos de banco de dados que não eram mais usados por nenhuma consulta desde que o Financeiro passou a ser uma extensão — eles custavam desempenho em cada gravação.
+
 #### [7.52.0] — 2026-08-18
 
 - Corrigido o erro "sem permissão" ao salvar registros em telas trazidas por extensões que não restringem quem pode gravar — Pessoa, Prazo e Notícias eram as afetadas, e o problema aparecia como falha de permissão mesmo para administradores. As telas que restringem papéis nunca foram afetadas.

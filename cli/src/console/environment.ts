@@ -10,6 +10,16 @@ export interface Environment {
   environment: { id: string; name: string };
   firebase: { projectId: string | null; region: string };
   kernel: { version: string | null };
+  /**
+   * Quais Cloud Functions de EXTENSÃO já foram deployadas neste projeto. Fica aqui, e não no banco,
+   * porque é estado da instalação e não do escritório — e é o que permite ao `provision` deployar só o
+   * delta e reconhecer o que ficou órfão depois de uma desinstalação.
+   *
+   * Uma lista num escalar separado por vírgula porque o leitor de YAML daqui entende mapas de dois
+   * níveis e escalares, e trazer sequências para guardar meia dúzia de nomes seria pagar caro pela
+   * generalidade.
+   */
+  backend: { functions: string | null };
 }
 
 export const ENVIRONMENT_FILE = 'microteia.yaml';
@@ -98,6 +108,7 @@ export const parseEnvironment = (source: string): Environment => {
       region: required('firebase', 'region'),
     },
     kernel: { version: optional('kernel', 'version') },
+    backend: { functions: optional('backend', 'functions') },
   };
 };
 
@@ -123,6 +134,11 @@ firebase:
 
 kernel:
   version: ${quote(environment.kernel.version)}
+
+backend:
+  # Cloud Functions deployed because an installed extension asked for them. Managed by
+  # "microteia provision" — editing it by hand only makes the next run deploy or keep the wrong set.
+  functions: ${quote(environment.backend.functions)}
 `;
 
 export const readEnvironment = async (path: string): Promise<Environment> => {

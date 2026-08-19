@@ -1127,7 +1127,7 @@ export default function startup(host) {
 export const pushPlugin: MarketplacePlugin = {
   manifest: {
     id: 'com.microteia.push',
-    version: '1.1.0',
+    version: '1.2.0',
     kernel: '^1.0.0',
     name: 'Pushes do Tribunal',
     description: 'A caixa de intimações do escritório recriada como extensão, sobre os MESMOS pushes — a sexta entidade a sair do kernel.',
@@ -1138,6 +1138,42 @@ export const pushPlugin: MarketplacePlugin = {
       'core.ui': '^1.0.0',
       'com.microteia.processo': { version: '^2.0.0', collections: ['cases'] },
       'com.microteia.prazo': { version: '^1.0.0', collections: ['deadlines'] },
+    },
+    // O que esta extensão exige do projeto Firebase, e que nenhuma declaração de dados alcança. Quem
+    // escreve os pushes é a ingestão do Gmail, no servidor — então as cinco functions, o índice que a
+    // deduplicação usa e as credenciais do Google são DELA, não do kernel. Um escritório que nunca vai
+    // receber intimação por e-mail não recebe nada disso.
+    backend: {
+      functions: [
+        'exchangeGmailCode',
+        'listGmailConnections',
+        'revokeGmailConnection',
+        'gmailPush',
+        'renewGmailWatches',
+      ],
+      // `getByEmailIdAndProcessNumber`, na ingestão: um e-mail traz vários processos, e cada par
+      // (e-mail, processo) é um push só.
+      indexes: [
+        {
+          collectionGroup: 'pushes',
+          queryScope: 'COLLECTION',
+          fields: [
+            { fieldPath: 'emailId', order: 'ASCENDING' },
+            { fieldPath: 'processNumber', order: 'ASCENDING' },
+          ],
+        },
+      ],
+      parameters: ['GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_SECRET', 'GOOGLE_GMAIL_TOPIC'],
+      prerequisites: [
+        {
+          id: 'gmail-integration',
+          title: 'Create the Google OAuth client and the Pub/Sub topics',
+          detail:
+            'Create an OAuth 2.0 Web client and the Pub/Sub topics "gmail" and "gmail-watch-renewal", '
+            + 'then fill GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET and GOOGLE_GMAIL_TOPIC in '
+            + 'functions/.env.<projectId>. Credentials are never shared between installations.',
+        },
+      ],
     },
     contributes: [
       nav({

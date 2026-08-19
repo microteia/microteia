@@ -31,6 +31,19 @@ export type InstalledExtensionSource = 'public' | 'private' | 'builtin';
  * fonte (privada mais recente, senão pública) tiver versão maior que `installedVersion`, a tela
  * oferece "Atualizar", que recopia todos os dados.
  */
+/**
+ * O que o Microteia Console já APLICOU no projeto Firebase para esta extensão. Gravado por
+ * `microteia provision`, nunca pela aplicação.
+ *
+ * O vínculo é pelo `fingerprint` do que a extensão EXIGE, não pela versão dela — mesma razão do
+ * `ExtensionCodeTrust`: uma versão nova que passe a pedir uma Cloud Function nova volta a ficar
+ * pendente sozinha, sem código de migração.
+ */
+export interface ExtensionBackendState {
+  fingerprint: string;
+  appliedAt: Date;
+}
+
 export interface InstalledExtension {
   /** = package.manifest.id (domínio). Imutável. */
   id: string;
@@ -51,6 +64,11 @@ export interface InstalledExtension {
    * catálogo público dispensa o gesto — a aprovação por SYSTEM já é a revisão.
    */
   codeTrust?: ExtensionCodeTrust | null;
+  /**
+   * Ausente quando a extensão não exige nada do backend — o caso da grande maioria. Presente e batendo
+   * com o exigido, a extensão entra no boot; ausente ou divergente, ela fica pendente do Console.
+   */
+  backendState?: ExtensionBackendState | null;
   installedAt: Date;
   updatedAt: Date;
 }

@@ -43,8 +43,22 @@ export const packageFirebaseJson = (hosting: HostingConfig): string => JSON.stri
  * `package-lock.json` que viaja junto continue válido. O que muda é só o entrypoint (passa a ser o
  * `index.js` que soma kernel e custom) e o `build`, que agora compila apenas `custom/`.
  */
-export const packageFunctionsPackageJson = (source: RepoFunctionsPackage): string => JSON.stringify({
+/**
+ * A `version` não é enfeite: sem ela o npm não consegue formar `nome@versão` e todo aviso dele sobre
+ * este pacote sai com `package: undefined`, o que faz parecer que o arquivo está corrompido.
+ *
+ * `engines.node` vem do repositório e descreve o RUNTIME das Cloud Functions — é por ele que o Firebase
+ * escolhe em qual Node a function roda. Ele não descreve a máquina de quem instala, e é por isso que o
+ * npm avisa `EBADENGINE` quando as duas versões diferem: o aviso é esperado e não impede nada. Trocar
+ * o valor por uma faixa (`>=22`) calaria o aviso e passaria a deixar a escolha do runtime ambígua para
+ * o Firebase — o preço errado pela linha de saída.
+ */
+export const packageFunctionsPackageJson = (
+  source: RepoFunctionsPackage,
+  version: string,
+): string => JSON.stringify({
   name: 'microteia-functions',
+  version,
   private: true,
   main: 'index.js',
   engines: source.engines ?? { node: '22' },
@@ -154,14 +168,20 @@ does work — writes root-owned files into the global prefix, which then need su
 \`connect\` prints everything that has to be prepared in the Firebase project first — start with the
 Blaze plan, since nothing else can be created without it.
 
+Later, whenever an office installs an extension that needs server-side resources, run:
+
+    microteia provision
+
+The extension shows "Backend pending" in the application until you do, and stays out of the menu.
+
 ## What has to exist on this machine
 
 | Tool          | Used for                                                       |
 | ------------- | -------------------------------------------------------------- |
-| Node.js 22    | running this Console, and the runtime the functions are built for |
+| Node.js 22+   | running this Console (newer is fine; the functions' own runtime is pinned to 22) |
 | \`firebase\`    | every deploy — authenticate with \`firebase login\` first          |
 | \`npm\`, \`tar\` | installing the functions' dependencies and unpacking the kernel  |
-| \`gcloud\`      | creating the App Engine application (one manual prerequisite)    |
+| \`gcloud\`      | creating the App Engine application, and reading which extensions an office installed (\`gcloud auth login\`) |
 
 The kernel package itself is built from the Microteia repository (\`npm run pack:kernel\`) and handed
 to you as a \`.tgz\`. The \`pack\` command in here only works inside that repository.
@@ -182,7 +202,7 @@ This directory is a Microteia installation package. It is deployed by the Microt
 | \`functions/lib/\`         | The compiled Microteia Cloud Functions                |
 | \`functions/custom/\`      | **Yours.** Cloud Functions this installation adds      |
 | \`firestore.rules\`        | Firestore security rules                              |
-| \`firestore.indexes.json\` | Firestore composite indexes                           |
+| \`firestore.indexes.json\` | Firestore composite indexes — the baseline; extensions add theirs |
 | \`storage.rules\`          | Cloud Storage security rules                          |
 | \`manifest.json\`          | Version, components and manual prerequisites          |
 
@@ -191,7 +211,9 @@ This directory is a Microteia installation package. It is deployed by the Microt
 Write them in \`functions/custom/src/\` and export them from \`functions/custom/src/index.ts\`. They are
 compiled and deployed together with the kernel, and are preserved across kernel upgrades.
 
-\`functions/lib/\` is the kernel. It is replaced on every upgrade — do not edit it.
+\`functions/lib/\` is the kernel. It is replaced on every upgrade — do not edit it. It also holds the
+functions that belong to extensions: they ship with every package, but are only deployed to your project
+once the extension that asks for them is installed. That is what \`microteia provision\` does.
 
 ## Configuration
 

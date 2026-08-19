@@ -18,6 +18,19 @@ export const step = (index: number, total: number, text: string): void => {
   process.stdout.write(`\n[${index}/${total}] ${text}\n`);
 };
 
+/**
+ * Uma linha de "começando", para o passo que demora. Existe porque só imprimir o resultado deixa a
+ * saída MUDA justamente durante a espera: o primeiro deploy de function leva minutos (o Firebase
+ * provisiona build e Artifact Registry na primeira vez), e quem instala não tem como distinguir
+ * "trabalhando" de "travado".
+ *
+ * É uma linha inteira, e não um `\r` reescrito depois: o retorno de carro fica bonito no terminal e
+ * vira lixo no arquivo de log — que é justamente o que se cola num pedido de ajuda.
+ */
+export const pending = (text: string): void => {
+  process.stdout.write(`  ...   ${text}\n`);
+};
+
 export const success = (text: string): void => {
   process.stdout.write(`  ok    ${text}\n`);
 };

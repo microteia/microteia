@@ -1,8 +1,26 @@
 {
   "manifest": {
     "id": "com.microteia.financeiro",
-    "version": "1.1.0",
+    "version": "1.2.0",
     "kernel": "^1.0.0",
+    "backend": {
+      "indexes": [
+        {
+          "collectionGroup": "financials",
+          "queryScope": "COLLECTION",
+          "fields": [
+            {
+              "fieldPath": "status",
+              "order": "ASCENDING"
+            },
+            {
+              "fieldPath": "dueDate",
+              "order": "DESCENDING"
+            }
+          ]
+        }
+      ]
+    },
     "name": "Financeiro",
     "description": "Os lançamentos financeiros do escritório recriados como extensão, sobre os MESMOS lançamentos — a quarta entidade a sair do kernel.",
     "publisher": {

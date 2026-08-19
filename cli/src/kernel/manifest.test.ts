@@ -3,6 +3,7 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { readdirSync } from 'node:fs';
 import {
+  MANUAL_PREREQUISITES,
   callableFunctionNames,
   compareVersions,
   declaredParametersIn,
@@ -52,6 +53,34 @@ describe('manifesto do kernel', () => {
  * permissão de invocação pública importa. Se a lista do manifesto ficar vazia por um parser que
  * deixou de casar, a verificação de alcance passa a "aprovar" toda instalação sem olhar nada.
  */
+describe('pré-requisitos manuais', () => {
+  /**
+   * O passo do Gmail SAIU daqui, e é preciso provar que ele foi MOVIDO e não perdido: quem instala não
+   * tem o ARCHITECTURE.md, então um pré-requisito que desaparece leva com ele a única explicação de por
+   * que a ingestão não funciona.
+   */
+  it('o passo do Gmail não é mais do kernel — ele é da extensão que o exige', () => {
+    expect(MANUAL_PREREQUISITES.map((prerequisite) => prerequisite.id)).not.toContain('gmail-integration');
+
+    const push = JSON.parse(
+      readFileSync(join(repoRoot, 'extension-templates/push.json'), 'utf8'),
+    ) as { manifest: { backend?: { prerequisites?: { id: string; detail: string }[] } } };
+    const moved = push.manifest.backend?.prerequisites ?? [];
+
+    expect(moved.map((prerequisite) => prerequisite.id)).toContain('gmail-integration');
+    // E continua carregando o que fazer, não só o nome do problema.
+    expect(moved.find((prerequisite) => prerequisite.id === 'gmail-integration')?.detail)
+      .toMatch(/GOOGLE_CLIENT_ID/);
+  });
+
+  it('o que sobrou é do kernel de verdade — o que toda instalação precisa', () => {
+    expect(MANUAL_PREREQUISITES.map((prerequisite) => prerequisite.id)).toEqual([
+      'billing', 'app-engine', 'firestore-location', 'storage-bucket', 'auth-provider',
+      'functions-invoker', 'audit-ttl',
+    ]);
+  });
+});
+
 describe('callables no manifesto', () => {
   const sources = (): string[] => {
     const found: string[] = [];

@@ -83,22 +83,10 @@ service cloud.firestore {
         && resource.data.userId == request.auth.uid;
     }
 
-    // ─── Conexões Gmail (Push) — nível raiz, SÓ do servidor ──────────────────
-    // Armazenadas fora de tenants/{tenantId} para permitir query por email
-    // na Cloud Function sem precisar varrer todos os tenants.
-    //
-    // NENHUM acesso pelo cliente: autorizar, listar e revogar são callables
-    // (exchangeGmailCode, listGmailConnections, revokeGmailConnection), que conferem
-    // o papel de admin do tenant DONO e escrevem pelo Admin SDK. O navegador deixou
-    // de gravar o refresh_token — ele nem chega até lá.
-
-    match /gmailConnections/{connectionId} {
-      allow read, write: if false;
-
-      match /tokens/{tokenId} {
-        allow read, write: if false;
-      }
-    }
+    // `gmailConnections` (raiz) NÃO tem bloco aqui, e é de propósito: o Firestore nega o que nenhuma
+    // regra libera, então `allow read, write: if false` não acrescentava nada — só dava a impressão de
+    // que a proteção morava aqui. Quem escreve e lê essas conexões é a extensão de Pushes, pelo Admin
+    // SDK, nas callables que ela declara em `manifest.backend`. Não há acesso pelo cliente.
 
     // ─── Tenants (escritórios) ────────────────────────────────────────────────  
 

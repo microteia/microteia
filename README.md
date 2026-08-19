@@ -134,7 +134,8 @@ npx microteia --help         # ou: node cli/lib/index.js --help
 | `microteia pack-console [--output <dir>]` | Microteia | monta o próprio Console para rodar fora do repositório |
 | `microteia init [--name <escritório>] [--id <env>] [--force]` | escritório | cria a instalação no diretório atual |
 | `microteia connect --project <projectId> [--no-create-web-app]` | escritório | liga a instalação ao Firebase dele |
-| `microteia deploy --kernel <pacote.tgz> [--only rules,indexes,functions,hosting] [--delay <s>]` | escritório | instala ou atualiza |
+| `microteia deploy --kernel <pacote.tgz> [--only rules,indexes,functions,hosting] [--delay <s>] [--prune]` | escritório | instala ou atualiza |
+| `microteia provision [--prune] [--delay <s>]` | escritório | dá às extensões instaladas as functions e os índices que elas exigem |
 
 Para usá-lo fora daqui — outra pasta, outra máquina — não copie `cli/` à mão:
 
@@ -194,8 +195,15 @@ backend (`defineString`), região, versão do contrato do kernel e os pré-requi
 
 ### 2. Preparar o projeto Firebase do escritório
 
-Na máquina de quem instala: Node.js 22, `firebase-tools` autenticado (`firebase login`) e o `gcloud`
-para o passo do App Engine.
+Na máquina de quem instala: Node.js **22 ou mais novo**, `firebase-tools` autenticado
+(`firebase login`) e o `gcloud` autenticado (`gcloud auth login`) — ele é usado no passo do App Engine
+e, depois, para o `provision` ler quais extensões o escritório instalou.
+
+> Numa máquina com Node mais novo que 22, o `npm install` das functions avisa `EBADENGINE`. É
+> **esperado**: o `engines.node` do pacote descreve o runtime das Cloud Functions (fixo em 22, é por ele
+> que o Firebase escolhe onde a function roda), e não a máquina de quem instala. As notas de
+> descontinuação que aparecem junto vêm de dependências do próprio Firebase. Nenhuma das duas impede o
+> deploy, e o `deploy` avisa disso antes de rodar o npm.
 
 No projeto Firebase, os passos abaixo são de console: **nenhum comando os faz**, e o `connect` imprime
 a lista inteira com o motivo de cada um (ela vive no manifesto, em `MANUAL_PREREQUISITES`, e viaja com
@@ -239,6 +247,34 @@ O `deploy` carimba `hosting/firebase-config.js` com o projeto do escritório, es
 segunda passada para as de gatilho, que numa instalação nova falham por propagação de identidade de
 serviço. Ao final ele verifica, pelo mesmo caminho do navegador, se as callables respondem — e, se a
 permissão de invocação tiver sido recusada, imprime o comando exato de cada uma.
+
+O que sobe aqui é a **baseline**: o que toda instalação precisa. Function e índice que pertencem a uma
+extensão ficam de fora até que a extensão seja instalada — ver o passo a seguir.
+
+### 3.1. Extensões que precisam de recursos de servidor
+
+Algumas extensões exigem do projeto Firebase o que nenhuma tela declara: Cloud Function, índice
+composto, credencial. A de **Pushes do Tribunal** é o caso — ela recebe intimações por e-mail, e isso
+mora no servidor.
+
+Instalar uma dessas pela aplicação não basta: ela aparece na tela de Extensões com o aviso
+**"Backend pendente"** e **não** entra no menu. Quem cuida do projeto aplica o que falta:
+
+```bash
+microteia provision
+```
+
+Ele lê o que os escritórios instalaram, cria os índices, deploya as functions que faltam, avisa dos
+parâmetros ainda vazios em `functions/.env.<projectId>` e imprime os passos manuais de cada extensão
+(no caso do Gmail, o cliente OAuth e os tópicos do Pub/Sub). Recarregue a aplicação e a extensão está
+no ar.
+
+Isto exige o `gcloud` autenticado (`gcloud auth login`): é por ele que o Console lê o que está
+instalado. Ele não guarda credencial nenhuma — pede o token a cada execução.
+
+Ao desinstalar uma extensão, `microteia provision` **relata** o que ficou órfão sem apagar nada.
+`microteia provision --prune` apaga as functions órfãs; índice nunca é apagado automaticamente, só
+listado com o comando (um deploy não remove índice, e apagar o errado custa uma consulta em produção).
 
 ### 4. Atualizar uma instalação
 

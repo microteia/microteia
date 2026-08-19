@@ -18,6 +18,13 @@ import {
   parseKernelVersion,
 } from '../kernel/manifest.js';
 import type { BackendParameter, KernelManifest } from '../kernel/manifest.js';
+import {
+  baselineFunctionsOf,
+  baselineIndexesOf,
+  claimProblems,
+  claimsFromTemplates,
+} from '../kernel/backendShape.js';
+import type { BackendClaim, FirestoreIndexSpec } from '../kernel/backendShape.js';
 import { environmentSecrets, findBundleLeaks } from './bundleAudit.js';
 import { assertInsideRepository } from './repository.js';
 import {
@@ -35,6 +42,25 @@ import type { HostingConfig, RepoFunctionsPackage } from './packageTemplates.js'
  * projeto embutido: o repositório não tem `.env` de raiz servindo de fallback, então nada é inlinado.
  */
 const DISTRIBUTION_TARGET = 'dist';
+
+interface RootIndexesFile {
+  indexes: FirestoreIndexSpec[];
+  fieldOverrides?: unknown[];
+}
+
+/**
+ * As exigências de backend das extensões de PRIMEIRA PARTE saem dos `extension-templates/*.json`, que
+ * são gerados dos `.ts` e conferidos pelo `verify-extensions` que o gate de qualidade acima já roda.
+ * Ler o `.json` gerado em vez do `.ts` evita carregar o Vite aqui só para avaliar um módulo.
+ */
+const firstPartyClaims = async (root: string): Promise<BackendClaim[]> => {
+  const dir = join(root, 'extension-templates');
+  const files = (await readdir(dir)).filter((file) => file.endsWith('.json'));
+  const templates = await Promise.all(
+    files.map((file) => readJson<{ manifest?: Record<string, unknown> }>(join(dir, file))),
+  );
+  return claimsFromTemplates(templates);
+};
 
 interface RepoFirebaseJson {
   hosting?: HostingConfig;
@@ -104,6 +130,18 @@ export const pack = async (args: ParsedArgs): Promise<void> => {
   // ausência que é só do parser.
   const callables = scan.callables.filter((name) => functionNames.includes(name));
 
+  const rootIndexes = await readJson<RootIndexesFile>(join(root, 'firestore.indexes.json'));
+  const claims = await firstPartyClaims(root);
+  const problems = claimProblems(claims, functionNames, rootIndexes.indexes);
+  if (problems.length > 0) {
+    throw new Error(
+      'An extension declares backend artifacts that do not add up, so the package would be wrong:\n'
+      + problems.map((problem) => `  ${problem}`).join('\n'),
+    );
+  }
+  const baselineFunctions = baselineFunctionsOf(functionNames, claims);
+  const baselineIndexes = baselineIndexesOf(rootIndexes.indexes, claims);
+
   const outputDir = flagValue(args, 'output') ?? join(root, 'distributions', 'kernel', version);
   const stageDir = join(outputDir, 'package');
   const tarball = join(outputDir, `microteia-kernel-${version}.tgz`);
@@ -162,14 +200,22 @@ export const pack = async (args: ParsedArgs): Promise<void> => {
   await cp(join(root, 'functions/package-lock.json'), join(stageDir, 'functions/package-lock.json'));
   await cp(join(root, 'functions/.env.example'), join(stageDir, 'functions/.env.example'));
 
-  for (const file of ['firestore.rules', 'storage.rules', 'firestore.indexes.json']) {
+  for (const file of ['firestore.rules', 'storage.rules']) {
     await cp(join(root, file), join(stageDir, file));
   }
+
+  // O `firestore.indexes.json` do pacote é ESCRITO, não copiado: a raiz é o conjunto completo (é o que
+  // roda em `microteia-dev` e `curatino`), e o que uma extensão reivindica sai daqui para ser criado
+  // pelo `provision` quando ela for instalada. Os `fieldOverrides` são todos do kernel e vão inteiros.
+  await writeFile(
+    join(stageDir, 'firestore.indexes.json'),
+    `${JSON.stringify({ ...rootIndexes, indexes: baselineIndexes }, null, 2)}\n`,
+  );
 
   await mkdir(join(stageDir, 'functions/custom/src'), { recursive: true });
   await writeFile(join(stageDir, 'firebase.json'), packageFirebaseJson(repoFirebase.hosting));
   await writeFile(join(stageDir, 'README.md'), packageReadme(version));
-  await writeFile(join(stageDir, 'functions/package.json'), packageFunctionsPackageJson(repoFunctions));
+  await writeFile(join(stageDir, 'functions/package.json'), packageFunctionsPackageJson(repoFunctions, version));
   await writeFile(join(stageDir, 'functions/index.js'), packageFunctionsIndexJs());
   await writeFile(join(stageDir, 'functions/custom/tsconfig.json'), packageCustomTsconfig());
   await writeFile(join(stageDir, 'functions/custom/src/index.ts'), packageCustomIndexTs());
@@ -187,6 +233,8 @@ export const pack = async (args: ParsedArgs): Promise<void> => {
       nodeVersion: REQUIRED_NODE_VERSION,
     },
     functions: functionNames,
+    baselineFunctions,
+    baselineIndexes,
     callables,
     backendParameters,
     manualPrerequisites: MANUAL_PREREQUISITES,
@@ -207,8 +255,10 @@ export const pack = async (args: ParsedArgs): Promise<void> => {
   bullets([
     `tarball:  ${tarball}`,
     `manifest: ${join(outputDir, 'manifest.json')}`,
-    `functions: ${functionNames.length}`,
+    `functions: ${functionNames.length} packaged, ${baselineFunctions.length} in the baseline`,
     `callables: ${callables.length}`,
+    `claimed by extensions: ${functionNames.length - baselineFunctions.length} function(s), `
+      + `${rootIndexes.indexes.length - baselineIndexes.length} index(es), from ${claims.length} extension(s)`,
     `backend parameters: ${backendParameters.length}`,
   ]);
   blank();

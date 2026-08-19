@@ -1211,7 +1211,9 @@ posterior; abrir os internos agora amarraria o kernel a ela antes de sabermos qu
 | `version` | `package.json` |
 | `kernelVersion` | `KERNEL_VERSION` de `domain/schema/plugin/kernelVersion.ts` |
 | `minimumCliVersion` | conferido pelo `deploy` contra o `CLI_VERSION` do Console |
-| `functions` | os exports de `functions/src/index.ts` |
+| `functions` | os exports de `functions/src/index.ts` — TUDO o que o pacote contém |
+| `baselineFunctions` | o que o `deploy` sobe sempre: `functions` menos o que as extensões reivindicam |
+| `baselineIndexes` | os índices compostos do kernel, sem os que as extensões reivindicam |
 | `requires` | região das functions e versão do Node |
 | `manualPrerequisites` | o que só existe no painel do Google |
 
@@ -1221,17 +1223,112 @@ lista para desatualizar é exatamente o defeito que já deixou `runAction` fora 
 
 `manualPrerequisites` é a seção "Ao criar um ambiente do zero" desta página virada dado: plano Blaze
 antes de tudo, App Engine antes das functions, região do Firestore igual à das functions, bucket do
-Storage iniciado pelo console, provedor de login, TTL da auditoria, e os dois condicionais — invocação
-das callables por `allUsers` e as credenciais do Gmail. Elas viajam no manifesto porque **quem instala
-não tem o `ARCHITECTURE.md`**.
+Storage iniciado pelo console, provedor de login, TTL da auditoria, e o condicional da invocação das
+callables por `allUsers`. Elas viajam no manifesto porque **quem instala não tem o `ARCHITECTURE.md`**.
 
-### Os três comandos
+As credenciais do Gmail **saíram desta lista**: elas são pré-requisito de `com.microteia.push`, e
+aparecem quando ele é provisionado — ver "Artefatos de backend por extensão" abaixo. Pedir a todo
+escritório que crie um cliente OAuth do Google para uma extensão que ele talvez nunca instale é
+exatamente o que essa separação desfaz.
+
+### Artefatos de backend por extensão — empacotar não é deployar
+
+O pacote leva o código de TODAS as extensões, e isso é de propósito. O que ele não pode fazer é
+**instalar no projeto do escritório o que só uma extensão usa**: as cinco Cloud Functions do Gmail
+(`exchangeGmailCode`, `listGmailConnections`, `revokeGmailConnection`, `gmailPush`,
+`renewGmailWatches`) são de `com.microteia.push`, e um escritório que nunca vai receber intimação por
+e-mail não tem por que tê-las — nem por que criar um cliente OAuth do Google para elas.
+
+**A declaração:** `manifest.backend`, em `domain/schema/plugin/backendRequirement.ts` (sincronizado).
+Quatro campos, todos opcionais: `functions`, `indexes`, `parameters` e `prerequisites`. Adicionar o
+campo é aditivo, então `KERNEL_VERSION` foi a `1.3.0`.
+
+| Comando | O que faz com isso |
+|---|---|
+| `microteia pack` | separa `baselineFunctions`/`baselineIndexes` do que as extensões reivindicam, e **aborta** se as contas não fecharem |
+| `microteia deploy` | sobe a BASELINE e, no fim, chama o provisionamento |
+| `microteia provision` | lê o que os escritórios instalaram e aplica o que falta |
+
+**Por que NÃO há fragmento de rules.** O `firestore.rules` já é data-driven: o curinga
+`match /{screenCollection}/{recordId}` autoriza qualquer coleção de extensão lendo `writeRoles` do
+próprio `screenDefinitions`. O único bloco de extensão que restava — `gmailConnections`, na raiz — era
+`allow read, write: if false`, o que é **idêntico à ausência de regra**: o Firestore nega o que nenhuma
+regra libera, e `allow` só soma. Ele foi removido e trocado por um comentário que diz isso, porque a
+impressão de que a proteção morava ali era pior que a falta dela. Os quatro blocos de `cases`,
+`persons`, `contracts` e `financials` do `storage.rules` saíram pela mesma razão — o curinga cobre, e o
+caminho de um documento sempre carrega o `Date.now()`, então o `create` dele basta.
+
+Um fragmento de texto contribuído por extensão foi recusado como desenho: mais frouxo que um bloco
+nomeado, ele alargaria o acesso **em silêncio**, e obrigaria a sincronizar `RESERVED_COLLECTIONS` a cada
+extensão. Extensão que venha a precisar de regra nomeada é de primeira parte, e a regra fica na baseline
+do kernel até a necessidade ser real. Declarar um campo e não consultá-lo é o caminho de
+`manifest.permissions`, e ele não se repete aqui.
+
+**O que o `pack` recusa, em vez de avisar:** function reivindicada que o `index.ts` não exporta (o
+deploy nomearia algo inexistente); índice reivindicado que não está no `firestore.indexes.json` da raiz
+(deixaria de ser criado em `microteia-dev` e `curatino`, onde a raiz é o que roda); e a mesma function
+reivindicada por duas extensões (o `--prune` decide pela ausência de dono, e um nome com dois donos
+seria removido de uma instalação que ainda o usa). Mesmo espírito do `bundleAudit`: conferir o artefato
+pronto, porque um aviso no meio de um `pack` ninguém lê.
+
+**A raiz continua sendo o conjunto completo.** `firestore.indexes.json` e os grupos `deploy:*` não
+mudaram: é o que rodamos nos nossos dois ambientes. O `pack` SUBTRAI dali o reivindicado, então a lista
+mantida à mão continua sendo uma só e a declaração da extensão não pode inventar nem perder índice.
+
+**Como o `provision` sabe o que aplicar.** Ele lê `tenants/*/installed_extensions` pela REST do
+Firestore, com token do `gcloud` (`console/firestoreRest.ts`) — o Console continua sem autenticação
+própria e sem guardar credencial. A exigência vem do banco, portanto é **dado, não código**, e é por
+isso que `functionClaimProblems` a confere contra `manifest.functions` antes de qualquer deploy: nome
+fora do pacote é recusado com explicação. Não há injeção possível — o código executado é sempre o do
+pacote — e índice não tem efeito de segurança.
+
+O provisionamento converge: reescreve `firestore.indexes.json` como `baseline ∪ exigido` (em vez de
+acrescentar ao que está lá, o que acumularia índice de extensão desinstalada para sempre), deploya as
+functions que faltam uma a uma, confere o alcance das callables novas e imprime os `prerequisites` das
+extensões envolvidas e os `parameters` ainda vazios — o `ensureBackendEnv` grava `NOME=` em silêncio,
+que é o certo para o deploy e insuficiente para quem precisa preencher.
+
+**O estado é uma propriedade da própria extensão instalada**, não um documento novo:
+`installed_extensions/{id}.backendState = { fingerprint, appliedAt }`. Quem grava é o Console; quem lê é
+o boot. Não houve regra nova nem coleção nova.
+
+**O vínculo é por CONTEÚDO, não por versão** — mesma razão do `codeTrust`. O `fingerprint` é o JSON
+canônico de `functions`/`indexes`/`parameters`, e não um hash: precisa ser síncrono (o gate do boot não
+pode esperar `crypto.subtle`) e legível quando não bate. `prerequisites` fica **fora** dele de
+propósito: é prosa para quem instala, não muda artefato nenhum, e incluí-la faria uma correção de texto
+re-pendurar uma instalação que funciona. Uma versão que passe a exigir uma function nova volta a ficar
+pendente sozinha, sem código de migração.
+
+**O gate do boot é falha fechada.** `installedExtensionRecords` exclui a extensão INTEIRA enquanto o
+carimbo não bate. Não é rigor gratuito: deixar o menu e a tela aparecerem sem o servidor por trás
+entrega o defeito mais caro da instalação — a aplicação abre, e cada chamada falha no navegador
+**parecendo erro de CORS**, o que manda procurar no frontend, que está correto. A tela de Extensões
+mostra o selo "Backend pendente" e o comando a rodar, porque quem lê aquela tela não é
+necessariamente quem tem acesso ao projeto.
+
+**Remover é opt-in.** Function que nenhuma extensão instalada reivindica mais é **relatada**; só
+`microteia provision --prune` a apaga. Índice órfão é sempre apenas relatado, com o comando: o
+`firebase deploy` não remove índice, e a API que remove pede o id gerado — apagar o índice errado às
+cegas custa uma consulta em produção, e listá-lo custa três linhas de saída.
+
+**Um admin do escritório pode forjar o `backendState`** (a regra de `installed_extensions` permite
+escrita de admin). O efeito é ele carregar no próprio navegador uma extensão cujas functions não
+existem: prejuízo próprio, nenhum privilégio ganho. Fica registrado em vez de defendido — a alternativa
+seria tornar a coleção somente-servidor e perder instalar/desinstalar pela aplicação.
+
+### Os quatro comandos
 
 | Comando | O que faz |
 |---|---|
 | `microteia init` | grava o `microteia.yaml` — UMA instalação ligada a UM projeto Firebase |
 | `microteia connect --project <id>` | acha ou cria o app web, lê o `apps:sdkconfig`, guarda em `.microteia/` |
-| `microteia deploy --kernel <tgz>` | desempacota, carimba e aplica rules → índices → functions → hosting |
+| `microteia deploy --kernel <tgz>` | desempacota, carimba e aplica rules → índices → functions → hosting, e provisiona no fim |
+| `microteia provision [--prune]` | dá às extensões instaladas as functions e os índices que elas exigem |
+
+O `provision` existe separado do `deploy` porque instalar uma extensão é um gesto de dentro da
+aplicação, e não um deploy: depois dele, o que falta é aplicar os artefatos — sem reenviar o kernel nem
+o hosting. É o MESMO motor nos dois casos (`console/provision.ts`), porque duas implementações
+divergiriam justamente no ponto em que ninguém olha.
 
 O `connect` passa pelo `firebase` oficial em tudo. A busca da configuração no JSON de saída é
 **recursiva**: o formato do `apps:sdkconfig` já mudou entre versões, e casar a forma exata quebraria a
@@ -1259,9 +1356,46 @@ então toda function de gatilho falha enquanto as callables sobem. Sem repetir, 
 *parece* quebrada quando está apenas incompleta. O `--force` da primeira vez é o que faz o Firebase
 configurar sozinho a política de limpeza do Artifact Registry.
 
+**O motivo sai no momento da falha, não só no fim.** `fail [13/23] auditNestedEntityChange` sozinho não
+deixa nada a fazer para quem instala — e, quando a segunda passada resolve, o motivo era descartado e
+nunca chegava a ser visto. `failureReason` extrai da saída do `firebase` a linha que diagnostica (as de
+`Error`, `HTTP Error`, `functions[nome]` e as marcadas com o aviso dele) e a imprime abaixo do nome,
+dizendo que haverá nova tentativa quando ainda for a primeira passada. Cada function também é anunciada
+ANTES de subir, com o tempo que levou ao terminar: a primeira leva minutos, e sem a linha de início a
+saída fica muda justamente durante a espera — indistinguível de travamento.
+
 Ao contrário do script de origem, a saída de uma function que falhou é **reanexada ao erro** em vez de
 descartada no `catch` — lá a falha vira só "❌ Falha no deploy de X", e descobrir o motivo exige rodar
 de novo.
+
+### Alcance do hosting — publicada não é o mesmo que servida
+
+O irmão do problema abaixo, e ele custou uma versão inteira parecendo não ter sido instalada: o rodapé
+da aplicação mostrava `v7.49.3` depois de um deploy bem-sucedido do 7.53.0.
+
+O `index.html` de um SPA aponta para um bundle com **hash no nome**, e os assets são servidos
+`immutable` justamente porque o hash muda quando o conteúdo muda. Só que o `firebase.json` não dizia
+nada sobre o HTML, e o Firebase o serve com `max-age=3600` por padrão — verificado por `curl`, não
+deduzido. Então, por até uma hora depois de cada deploy, um navegador que já esteve no site recebe o
+HTML antigo, que aponta para o bundle antigo, que ele tem cacheado para sempre. A aplicação continua na
+versão anterior, e **nada na saída do deploy explica isso**.
+
+Duas correções, e a segunda é a que importa:
+
+1. O bloco `**` do `firebase.json` passou a declarar `Cache-Control: no-cache, no-store,
+   must-revalidate`, e os blocos específicos (`/assets/**` e as imagens) vêm **depois** dele. Headers de
+   blocos que casam **somam** — um asset recebe `immutable` do bloco dele E `x-frame-options` do curinga
+   (provado por `curl`) —, e para a mesma chave vence o último, que é a ordem em que a documentação do
+   Firebase monta cache busting de SPA. O curinga também cobre `firebase-config.js`, que é carimbado por
+   instalação e nunca deveria ter sido cacheável.
+2. `console/hostingCheck.ts` compara o bundle que o pacote instalou com o que a URL **de verdade**
+   devolve, pelo mesmo caminho do navegador. `current` confirma; `stale` avisa com os dois nomes de
+   arquivo e o que fazer; `unknown` avisa sem acusar. Ela também lê o `Cache-Control` do HTML e, se ele
+   não revalidar, diz que é o valor do deploy ANTERIOR.
+
+Como em `callableAccess`, a verificação **não** reprova o deploy — o que foi publicado foi publicado.
+Ela existe porque o sintoma ("a versão não mudou") não aponta para a causa ("o navegador tem a página
+antiga"), e sem ela a conclusão natural é que o deploy falhou em silêncio.
 
 ### Alcance das callables — deployada não é o mesmo que alcançável
 
@@ -3560,7 +3694,8 @@ Arquivos **compartilhados**: fonte única em `src/domain/schema/plugin/`, cópia
 | `extensionPoint.ts` | `ExtensionPointDefinition` + compatibilidade de `apiVersion` |
 | `contribution.ts` | `Contribution`, `ImplRef` e a **ordenação determinística** |
 | `pluginManifest.ts` | `PluginManifest` + `validatePluginManifest` |
-| `kernelVersion.ts` | `KERNEL_VERSION` — versão do contrato Kernel↔plugins. Em `1.1.0`: o ponto `i18n.messages` foi **acrescentado**, e adição é minor. Em `1.2.0`: idem para `theme.definition` e `theme.tokens` |
+| `backendRequirement.ts` | `PluginBackendRequirement` — o que a extensão exige do projeto Firebase (function, índice, parâmetro, passo manual), o `backendFingerprint` e a validação. Ver "Artefatos de backend por extensão" |
+| `kernelVersion.ts` | `KERNEL_VERSION` — versão do contrato Kernel↔plugins. Em `1.1.0`: o ponto `i18n.messages` foi **acrescentado**, e adição é minor. Em `1.2.0`: idem para `theme.definition` e `theme.tokens`. Em `1.3.0`: o campo `manifest.backend` |
 
 ### Versionamento em três eixos — não confundir
 
@@ -3757,6 +3892,9 @@ Consequências:
 - **Terceiro nunca roda `code`.** `trusted: false` faz o `PluginHost` recusar `impl: code`; só
   `widget`/`workflow`/`nav` passam. Uma página de plugin instalado é sempre Widget DSL.
 - **Instalação órfã** (manifest sumiu do catálogo por despublicação) é ignorada.
+- **Extensão com exigência de backend não aplicada é ignorada**, e é falha fechada: o carimbo
+  `backendState` tem de bater com o `backendFingerprint` do que ela exige. Sem isso, o menu e a tela
+  apareceriam sem o servidor por trás, e cada chamada falharia no navegador parecendo erro de CORS.
 
 O plugin de exemplo `com.microteia.guia` prova o caminho: seu manifest contribui `ui.nav` + uma
 `ui.page` de widget; instalar faz "Guia" aparecer no menu e a página renderizar pelo `WidgetRenderer`
@@ -5769,16 +5907,30 @@ Um índice composto `(campo ASC, ordenação ASC)` também atende à mesma query
 
 A tabela abaixo é **derivada** do `firestore.indexes.json` e existe só para registrar o "porquê" de cada índice. Em caso de divergência, o arquivo é a fonte de verdade.
 
-| Coleção | Campos | Query que o exige |
-|---|---|---|
-| `auditLogs` | `tenantId` ASC, `createdAt` DESC | `getPage` — auditoria por escritório, mais recente primeiro |
-| `auditLogs` | `tenantId` ASC, `severity` ASC, `createdAt` ASC | `countUnreadCritical` — badge de falhas CRITICAL não lidas |
-| `tenants/{id}/financials` | `caseId` ASC, `dueDate` DESC | `getFinancialsByCase` |
-| `tenants/{id}/financials` | `personId` ASC, `dueDate` DESC | `getFinancialsByPerson` (cascata de exclusão de `Person`) |
-| `tenants/{id}/financials` | `type` ASC, `dueDate` ASC | `getFinancialsByType` (serve a ordenação DESC pelo percurso inverso) |
-| `tenants/{id}/pushes` | `emailId` ASC, `processNumber` ASC | `getByEmailIdAndProcessNumber` — deduplicação de intimações |
-| `tenants/{id}/workflow_definitions` | `eventName` ASC, `enabled` ASC | `findEnabledByEvent` — o gatilho do motor localiza workflows por evento |
-| `tenants/{id}/workflow_executions` | `workflowDefinitionId` ASC, `startedAt` DESC | Aba "Execuções" de um workflow, mais recente primeiro |
+A coluna **Dono** diz quem responde pelo índice. Índice de extensão é declarado no `manifest.backend`
+dela e **sai da baseline do pacote**: ele só é criado no projeto do escritório quando a extensão é
+instalada, pelo `microteia provision`. Ver "Artefatos de backend por extensão". A raiz continua listando
+todos, porque a raiz é o que roda em `microteia-dev` e `curatino`.
+
+| Coleção | Campos | Dono | Query que o exige |
+|---|---|---|---|
+| `auditLogs` | `tenantId` ASC, `createdAt` DESC | kernel | `getPage` — auditoria por escritório, mais recente primeiro |
+| `auditLogs` | `tenantId` ASC, `severity` ASC, `createdAt` ASC | kernel | `countUnreadCritical` — badge de falhas CRITICAL não lidas |
+| `tenants/{id}/deadlines` | `status` ASC, `dueDate` DESC | `com.microteia.prazo` | o passo "Buscar Registros" da automação de prazos |
+| `tenants/{id}/financials` | `status` ASC, `dueDate` DESC | `com.microteia.financeiro` | o passo "Buscar Registros" da automação de lançamentos |
+| `tenants/{id}/pushes` | `emailId` ASC, `processNumber` ASC | `com.microteia.push` | `getByEmailIdAndProcessNumber` — deduplicação de intimações |
+| `tenants/{id}/workflow_definitions` | `eventName` ASC, `enabled` ASC | kernel | `findEnabledByEvent` — o gatilho do motor localiza workflows por evento |
+| `tenants/{id}/workflow_executions` | `workflowDefinitionId` ASC, `startedAt` DESC | kernel | Aba "Execuções" de um workflow, mais recente primeiro |
+
+**Três índices de `financials` foram REMOVIDOS** (`caseId+dueDate`, `personId+dueDate`,
+`type+dueDate`): eles serviam aos repositórios do Financeiro de quando ele era do kernel. Hoje a leitura
+é a genérica da coleção (`FirebaseRecordRepository`, `orderBy('createdAt','desc')` e nada mais), e
+nenhuma query os usava — pagávamos escrita por índice morto.
+
+**E dois índices FALTAVAM.** As automações do Prazo e do Financeiro fazem `where status ==` com
+`orderBy dueDate desc`, que no Firestore exige índice composto e nunca teve um. As duas quebrariam em
+runtime na primeira execução. Foi a separação por dono que os encontrou: perguntar "de quem é cada
+índice?" obrigou a olhar cada query.
 
 Além dos compostos, o arquivo declara dois `fieldOverrides`:
 

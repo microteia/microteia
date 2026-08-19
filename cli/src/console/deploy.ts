@@ -11,6 +11,8 @@ import { ENVIRONMENT_FILE, readEnvironment, writeEnvironment } from './environme
 import { FIREBASE_BIN } from './firebaseCli.js';
 import { deployFunctionsOneByOne } from './deployFunctions.js';
 import { checkCallables, invokerGrantCommand } from './callableAccess.js';
+import { checkHostingServed, htmlIsRevalidated } from './hostingCheck.js';
+import { provisionBackend } from './provision.js';
 import {
   readResolvedConfig,
   stampedConfigJs,
@@ -156,7 +158,11 @@ export const deploy = async (args: ParsedArgs): Promise<void> => {
     warn(`this package is compiled for region ${region}; the installation recorded ${environment.firebase.region}.`);
   }
 
-  success(`kernel ${manifest.version} (contract ${manifest.kernelVersion}), ${manifest.functions.length} functions`);
+  const baselineCount = (manifest.baselineFunctions ?? manifest.functions).length;
+  success(
+    `kernel ${manifest.version} (contract ${manifest.kernelVersion}), ${baselineCount} baseline function(s)`
+    + `, ${manifest.functions.length - baselineCount} claimed by extensions`,
+  );
   if (firstInstall) info('  first install: functions are deployed with --force so cleanup policies get configured');
 
   current += 1;
@@ -170,6 +176,7 @@ export const deploy = async (args: ParsedArgs): Promise<void> => {
 
   const failures: string[] = [];
   const unreachableCallables: string[] = [];
+  let staleHosting = false;
 
   for (const component of components) {
     current += 1;
@@ -187,11 +194,20 @@ export const deploy = async (args: ParsedArgs): Promise<void> => {
     }
 
     if (component === 'functions') {
-      step(current, total, `Cloud Functions (${manifest.functions.length} kernel + this installation, one at a time)`);
-      info('  installing function dependencies…');
+      // A BASELINE, e não tudo o que foi empacotado: function de extensão sobe quando a extensão for
+      // instalada, pelo provisionamento no fim deste comando.
+      const baseline = manifest.baselineFunctions ?? manifest.functions;
+      step(current, total, `Cloud Functions (${baseline.length} baseline, one at a time)`);
+      info('  installing function dependencies… (~250 packages, a few seconds)');
+      // Os dois avisos que o npm dá aqui são esperados, e explicá-los antes evita que quem instala pare
+      // para investigar: `EBADENGINE` compara a Node DESTA máquina com a do runtime das functions (que
+      // é fixa em 22 de propósito), e as notas de descontinuação vêm de dependências do próprio
+      // Firebase, não do kernel. Nenhum dos dois impede o deploy.
+      info('  npm may warn about the Node engine and about deprecated packages: both are expected —');
+      info('  "engines" names the Cloud Functions runtime, and the notices come from Firebase\'s deps.');
       await run('npm', ['install', '--no-audit', '--no-fund'], { cwd: join(install, 'functions') });
 
-      const report = await deployFunctionsOneByOne(manifest.functions, {
+      const report = await deployFunctionsOneByOne(baseline, {
         projectId,
         cwd: install,
         delaySeconds,
@@ -209,7 +225,7 @@ export const deploy = async (args: ParsedArgs): Promise<void> => {
       // Deployada não quer dizer alcançável: a concessão de invocação pública pode ter sido
       // recusada, e o `firebase deploy` termina bem do mesmo jeito. Quem paga a conta é o escritório,
       // com uma aplicação que abre e não consegue falar com o servidor.
-      const callables = manifest.callables ?? [];
+      const callables = (manifest.callables ?? []).filter((name) => baseline.includes(name));
 
       if (callables.length > 0) {
         info(`  checking that the browser can reach the ${callables.length} callable(s)…`);
@@ -243,6 +259,27 @@ export const deploy = async (args: ParsedArgs): Promise<void> => {
 
     step(current, total, 'Hosting');
     await run(FIREBASE_BIN, ['deploy', '--only', 'hosting', '--project', projectId], { cwd: install });
+
+    // Publicado não é servido: se o navegador ainda recebe o `index.html` antigo, ele continua
+    // carregando o bundle antigo — e a aplicação segue na versão anterior com o deploy em sucesso.
+    const hosting = await checkHostingServed(install, `https://${projectId}.web.app`);
+    if (hosting.served === 'current') {
+      success(`the site serves this version's bundle (${hosting.servedBundle})`);
+    } else if (hosting.served === 'stale') {
+      warn(`the site is still serving the PREVIOUS bundle (${hosting.servedBundle},`);
+      warn(`  this package ships ${hosting.packagedBundle}). Give the CDN a moment and reload; if the`);
+      warn('  application keeps showing the old version, force a reload to drop the cached page.');
+      staleHosting = true;
+    } else {
+      info('  could not confirm which bundle the site serves — open it and check the version in the footer');
+    }
+
+    if (!htmlIsRevalidated(hosting.htmlCacheControl) && hosting.htmlCacheControl !== null) {
+      warn(`the page is served with "cache-control: ${hosting.htmlCacheControl}", so a browser that`);
+      warn('  already visited it may keep the previous version until that expires. This package sets');
+      warn('  the page to revalidate on every load, so the value above is the one from the deploy');
+      warn('  BEFORE this one — it settles once this deploy propagates.');
+    }
   }
 
   await writeEnvironment(file, {
@@ -250,6 +287,27 @@ export const deploy = async (args: ParsedArgs): Promise<void> => {
     firebase: { ...environment.firebase, region },
     kernel: { version: manifest.version },
   });
+
+  // Um motor só: o que as extensões instaladas exigem é aplicado aqui, no fim do deploy, e pelo
+  // `microteia provision` quando alguém instala uma extensão depois. Numa instalação nova não há nada
+  // instalado e este passo não faz nada — é justamente o que se quer.
+  if (components.includes('functions') || components.includes('indexes')) {
+    blank();
+    info('Extension backends');
+    const provisioned = await provisionBackend({
+      projectId,
+      region,
+      install,
+      manifest,
+      delaySeconds,
+      prune: hasFlag(args, 'prune'),
+      environmentFile: file,
+      environment: { ...environment, firebase: { ...environment.firebase, region }, kernel: { version: manifest.version } },
+    });
+    if (provisioned.failed.length > 0) {
+      failures.push(`${provisioned.failed.length} extension function(s): ${provisioned.failed.join(', ')}`);
+    }
+  }
 
   blank();
 
@@ -264,6 +322,12 @@ export const deploy = async (args: ParsedArgs): Promise<void> => {
   info(`Microteia ${manifest.version} is installed in ${projectId}.`);
   bullets([`https://${projectId}.web.app`]);
   blank();
+
+  if (staleHosting) {
+    warn('the browser may still load the previous version for a few minutes. A forced reload');
+    warn('  (Shift+Reload, or Empty Cache and Hard Reload) settles it immediately.');
+    blank();
+  }
 
   if (unreachableCallables.length > 0) {
     warn(`the deploy finished, but ${unreachableCallables.length} function(s) still refuse calls from`);

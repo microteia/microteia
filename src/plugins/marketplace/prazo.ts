@@ -1659,8 +1659,23 @@ export default function PrazosAnaliseWidget() {
 export const prazoPlugin: MarketplacePlugin = {
   manifest: {
     id: 'com.microteia.prazo',
-    version: '1.1.1',
+    version: '1.2.0',
     kernel: '^1.0.0',
+    // O índice que a automação desta extensão exige: a consulta casa `status` com ordenação por
+    // `dueDate`, e no Firestore igualdade + ordenação por outro campo pede índice composto. Ele é
+    // DESTA extensão — um escritório que não a instala não recebe o índice.
+    backend: {
+      indexes: [
+        {
+          collectionGroup: 'deadlines',
+          queryScope: 'COLLECTION',
+          fields: [
+            { fieldPath: 'status', order: 'ASCENDING' },
+            { fieldPath: 'dueDate', order: 'DESCENDING' },
+          ],
+        },
+      ],
+    },
     name: 'Prazos',
     description: 'O controle de prazos do escritório recriado como extensão, sobre os MESMOS prazos — a quinta entidade a sair do kernel.',
     publisher: { name: 'Microteia' },

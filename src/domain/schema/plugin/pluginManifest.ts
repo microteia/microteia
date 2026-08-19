@@ -1,3 +1,5 @@
+import type { PluginBackendRequirement } from './backendRequirement';
+import { validateBackendRequirement } from './backendRequirement';
 import type { CapabilityProvision, CapabilityRequirement } from './capability';
 import { validateProvisions, validateRequirements } from './capability';
 import type { Contribution } from './contribution';
@@ -60,6 +62,12 @@ export interface PluginManifest {
   extensionPoints?: ExtensionPointDefinition[];
   contributes?: Contribution[];
   lifecycle?: PluginLifecycle;
+  /**
+   * O que a extensão exige do projeto Firebase (Cloud Function, índice, parâmetro, passo manual).
+   * Presente só em quem precisa: instalar uma extensão com exigência de backend fica PENDENTE até que
+   * o Microteia Console a aplique, e só então ela entra no boot do escritório.
+   */
+  backend?: PluginBackendRequirement;
 }
 
 const PLUGIN_ID_PATTERN = /^[a-z][a-z0-9]*(\.[a-z][a-z0-9-]*)+$/;
@@ -221,6 +229,7 @@ export const validatePluginManifest = (
     ...validateProvisions(manifest.provides, manifest.id),
     ...validateRequirements(manifest.consumes, manifest.id),
     ...validateExtensionPoints(manifest),
+    ...validateBackendRequirement(manifest.backend, manifest.id),
   ];
 
   if (kernelVersion && isValidRange(manifest.kernel) && !isKernelCompatible(manifest, kernelVersion)) {

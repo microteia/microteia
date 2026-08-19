@@ -103,6 +103,11 @@ export const CORE_MARKETPLACE: Record<string, string> = {
   'extension.badge.update': 'Atualização',
   'extension.badge.has-code': 'Com código',
   'extension.badge.unreviewed': 'Código não revisado',
+  'extension.badge.backend-pending': 'Backend pendente',
+  'extension.backend-pending.detail':
+    'Esta extensão precisa de funções de servidor ou de índices que este projeto Firebase ainda não '
+    + 'tem, então ela está instalada mas não está no ar. Quem cuida do projeto aplica isso com '
+    + '"microteia provision", no Microteia Console.',
   'extension.install': 'Instalar no escritório',
   'extension.update': 'Atualizar',
   'extension.uninstall': 'Desinstalar do escritório',
@@ -177,6 +182,16 @@ export const CORE_MARKETPLACE: Record<string, string> = {
   'diagnostic.dependency.missing': 'O plugin "{id}" depende de "{dependency}", que não está instalado.',
   'diagnostic.dependency.unsatisfied':
     'O plugin "{id}" exige "{dependency}" {range}, mas a versão instalada é {installed}.',
+  'diagnostic.backend.not-object': 'A exigência de backend precisa ser um objeto.',
+  'diagnostic.backend.functions-invalid': 'backend.functions precisa ser uma lista de nomes de função de servidor.',
+  'diagnostic.backend.function-name-invalid': 'O nome de uma função de servidor começa com letra e aceita só letras, dígitos e sublinhado.',
+  'diagnostic.backend.parameters-invalid': 'backend.parameters precisa ser uma lista de nomes de configuração.',
+  'diagnostic.backend.parameter-name-invalid': 'O nome de uma configuração de backend é em maiúsculas, com dígitos e sublinhado.',
+  'diagnostic.backend.indexes-invalid': 'backend.indexes precisa ser uma lista de definições de índice composto.',
+  'diagnostic.backend.index.collection-missing': 'Um índice composto precisa nomear a coleção que ele indexa.',
+  'diagnostic.backend.index.scope-invalid': 'O escopo de um índice composto é COLLECTION ou COLLECTION_GROUP.',
+  'diagnostic.backend.index.fields-missing': 'Um índice composto precisa de pelo menos dois campos — um campo só é indexado automaticamente.',
+  'diagnostic.backend.index.field-invalid': 'Todo campo de um índice composto precisa de um caminho.',
   'diagnostic.manifest.dependencies.invalid': 'As dependências precisam ser um objeto { pluginId: faixa }.',
   'diagnostic.manifest.dependency.id.invalid': 'A dependência "{id}" não é um id de plugin válido.',
   'diagnostic.manifest.dependency.range.invalid': 'A faixa "{range}" da dependência "{id}" é inválida.',

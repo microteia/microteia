@@ -310,6 +310,10 @@ Três regras que valem para toda alteração:
 - **Cloud Function nova entra no manifesto sozinha** (ele lê os exports de `functions/src/index.ts`),
   mas continua obrigada aos grupos `deploy:*` — os dois testes que guardam isso são
   `scripts/deployLists.test.ts` e `cli/src/kernel/manifest.test.ts`.
+- **Antes disso, pergunte DE QUEM é a function.** Se ela serve uma extensão, ela entra no
+  `manifest.backend` dela e sai da baseline do pacote: só é deployada no projeto do escritório que
+  instalou a extensão. Vale igual para índice composto e parâmetro de backend. O `pack` **aborta** se as
+  contas não fecharem. Ver "Artefatos de backend por extensão" no `ARCHITECTURE.md`.
 - **`functions/custom/` é do escritório.** Nada do kernel escreve lá, e o upgrade preserva o
   diretório inteiro.
 
@@ -363,6 +367,7 @@ O `ARCHITECTURE.md` **não** guarda cópia das regras; a tabela de índices que 
 - [ ] **Nova coleção Firestore ou permissão alterada:** editar `firestore.rules` (raiz) e avisar que precisa de `npm run deploy:rules`
 - [ ] **Novo path no Storage:** editar `storage.rules` (raiz) e avisar que precisa de `npm run deploy:rules`
 - [ ] **Nova query Firestore:** `where` máximo + `orderBy` no servidor + `limit()` + índice em `firestore.indexes.json` (raiz) e na tabela do `ARCHITECTURE.md`, com aviso de `npm run deploy:indexes`; coleções de crescimento ilimitado exigem paginação por cursor
+- [ ] **Índice de coleção de EXTENSÃO:** além da raiz, declarar em `manifest.backend.indexes` da extensão dona — sem isso o índice viaja para quem não instalou a extensão, e o `pack` reprova a divergência
 - [ ] **Novo Store:** tem `visibilitychange`, emite evento em cada mutação e assina eventos dos stores de que depende
 - [ ] **Entidade com relação pai/filho:** `Delete[Entidade]UseCase` cascateia filhos; o método do Store atualiza estado local + emite os eventos corretos
 

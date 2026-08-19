@@ -93,6 +93,10 @@ export const InstalledExtensionStoreProvider: React.FC<{ children: React.ReactNo
       // Preservar é seguro: quem decide é o HASH. Código igual mantém a revisão; código alterado
       // deixa de casar com o hash gravado e volta a exigir o gesto.
       codeTrust: existing?.codeTrust ?? null,
+      // Mesma razão, outro carimbo: quem aplica os artefatos de backend é o Microteia Console, e a
+      // aplicação não pode apagar o que já existe no projeto. Se a versão nova exigir outra coisa, é o
+      // FINGERPRINT que deixa de bater — e a extensão volta a ficar pendente sozinha.
+      backendState: existing?.backendState ?? null,
       installedAt: existing?.installedAt ?? new Date(),
       updatedAt: new Date(),
     };

@@ -29,45 +29,10 @@ service firebase.storage {
         || firestore.get(/databases/(default)/documents/tenants/$(tenantId)/members/$(request.auth.uid)).data.role == 'admin';
     }
 
-    // ─── Documentos de processos ──────────────────────────────────────────────
-    // Path: tenants/{tenantId}/cases/{caseId}/{filename}
-    match /tenants/{tenantId}/cases/{caseId}/{allPaths=**} {
-      allow read: if request.auth != null && isTenantMemberOrElevated(tenantId);
-      allow write: if request.auth != null
-        && isTenantMemberOrElevated(tenantId)
-        && request.resource.size < 20 * 1024 * 1024;    // máximo 20 MB
-      allow delete: if request.auth != null && isTenantAdminOrElevated(tenantId);
-    }
-
-    // ─── Documentos de pessoas ───────────────────────────────────────────────
-    // Path: tenants/{tenantId}/persons/{personId}/{filename}
-    match /tenants/{tenantId}/persons/{personId}/{allPaths=**} {
-      allow read: if request.auth != null && isTenantMemberOrElevated(tenantId);
-      allow create: if request.auth != null
-        && isTenantMemberOrElevated(tenantId)
-        && request.resource.size < 20 * 1024 * 1024;     // máximo 20 MB
-      allow delete: if request.auth != null && isTenantAdminOrElevated(tenantId);
-    }
-
-    // ─── Documentos de contratos ──────────────────────────────────────────────
-    // Path: tenants/{tenantId}/contracts/{contractId}/{filename}
-    match /tenants/{tenantId}/contracts/{contractId}/{allPaths=**} {
-      allow read: if request.auth != null && isTenantMemberOrElevated(tenantId);
-      allow create: if request.auth != null
-        && isTenantMemberOrElevated(tenantId)
-        && request.resource.size < 20 * 1024 * 1024;     // máximo 20 MB
-      allow delete: if request.auth != null && isTenantAdminOrElevated(tenantId);
-    }
-
-    // ─── Documentos de lançamentos financeiros ───────────────────────────────
-    // Path: tenants/{tenantId}/financials/{financialId}/{filename}
-    match /tenants/{tenantId}/financials/{financialId}/{allPaths=**} {
-      allow read: if request.auth != null && isTenantMemberOrElevated(tenantId);
-      allow create: if request.auth != null
-        && isTenantMemberOrElevated(tenantId)
-        && request.resource.size < 20 * 1024 * 1024;     // máximo 20 MB
-      allow delete: if request.auth != null && isTenantAdminOrElevated(tenantId);
-    }
+    // As coleções de entidade que saíram do kernel (`cases`, `persons`, `contracts`, `financials`) NÃO
+    // têm bloco próprio: o modelo de acesso delas é idêntico ao do curinga abaixo, que já as cobre. Um
+    // bloco por coleção obrigaria a editar este arquivo a cada extensão nova — e o caminho de um
+    // documento sempre carrega o `Date.now()`, então `create` basta: nada sobrescreve objeto existente.
 
     // ─── Documentos de registros de qualquer tela ────────────────────────────
     // Path: tenants/{tenantId}/{collection}/{recordId}/{filename} — a coleção é o id da tela e só

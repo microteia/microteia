@@ -12,6 +12,9 @@ import { RESERVED_COLLECTIONS } from '../../domain/schema/screenEntity';
 import { resolveWritableTable } from '../../domain/schema/mutationSpec';
 import { createSchemaContext } from '../../domain/schema/pathResolver';
 import type { PluginInstallation } from '../../domain/entities/PluginInstallation';
+import type { InstalledExtension } from '../../domain/entities/InstalledExtension';
+import { installedExtensionRecords } from '../../domain/usecases/plugins/installedExtensionRecords';
+import { backendFingerprint } from '../../domain/schema/plugin/backendRequirement';
 import { brasilPlugin } from './brasil';
 import { calendarPlugin } from './calendar';
 import { contratoPlugin } from './contrato';
@@ -207,5 +210,95 @@ describe('pushPlugin', () => {
       const Component = evaluateExtensionView(`test::${view.key}`, view.source);
       expect(typeof Component, view.key).toBe('function');
     }
+  });
+});
+
+describe('pushPlugin — o backend que ele exige', () => {
+  const asInstalled = (
+    plugin: typeof pushPlugin,
+    backendState: InstalledExtension['backendState'],
+  ): InstalledExtension => ({
+    id: plugin.manifest.id,
+    tenantId: 't1',
+    active: true,
+    package: plugin,
+    source: 'builtin',
+    installedVersion: plugin.manifest.version,
+    authorId: '',
+    authorName: '',
+    authorPhotoURL: null,
+    installedBy: 'u1',
+    backendState,
+    installedAt: new Date(),
+    updatedAt: new Date(),
+  });
+
+  /** Carimbo que BATE com o que o plugin exige — o estado em que o Console já aplicou tudo. */
+  const applied = (plugin: typeof pushPlugin): InstalledExtension['backendState'] => ({
+    fingerprint: backendFingerprint(plugin.manifest.backend),
+    appliedAt: new Date(),
+  });
+
+  /** A cadeia de dependências do Push, provisionada; só o estado DELE varia em cada caso. */
+  const chain = (pushState: InstalledExtension['backendState']): InstalledExtension[] =>
+    CADEIA.map((plugin) => asInstalled(
+      plugin,
+      plugin === pushPlugin ? pushState : applied(plugin),
+    ));
+
+  const trustAll = new Set(CADEIA.map((plugin) => plugin.manifest.id));
+
+  it('declara as cinco functions do Gmail e o índice da deduplicação como DELE', () => {
+    const backend = pushPlugin.manifest.backend;
+    expect([...(backend?.functions ?? [])].sort()).toEqual([
+      'exchangeGmailCode', 'gmailPush', 'listGmailConnections', 'renewGmailWatches', 'revokeGmailConnection',
+    ]);
+    expect(backend?.indexes).toEqual([{
+      collectionGroup: 'pushes',
+      queryScope: 'COLLECTION',
+      fields: [
+        { fieldPath: 'emailId', order: 'ASCENDING' },
+        { fieldPath: 'processNumber', order: 'ASCENDING' },
+      ],
+    }]);
+    expect(backend?.parameters).toEqual(['GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_SECRET', 'GOOGLE_GMAIL_TOPIC']);
+  });
+
+  /**
+   * O caminho VIVO do boot é `installedExtensionRecords`. Instalada mas sem o Console ter criado as
+   * functions, a extensão não pode contribuir nada: um item de menu que abre uma tela cujo servidor não
+   * existe falha como se fosse CORS, e manda procurar no frontend, que está correto.
+   */
+  it('instalado e não provisionado: nem menu, nem página, nem aba de configuração', () => {
+    const host = createPluginHost();
+    host.load([...CORE_PLUGINS, ...installedExtensionRecords(chain(null), trustAll)]);
+
+    expect(host.isLoaded(pushPlugin.manifest.id)).toBe(false);
+    for (const point of [UI_NAV_POINT, UI_PAGE_POINT, UI_SETTINGS_POINT]) {
+      expect(host.contributions.query(point).map((c) => c.pluginId))
+        .not.toContain(pushPlugin.manifest.id);
+    }
+    // E o resto da cadeia continua no ar: uma extensão pendente não derruba as outras.
+    expect(host.isLoaded(prazoPlugin.manifest.id)).toBe(true);
+  });
+
+  it('depois do carimbo do Console, contribui como qualquer extensão', () => {
+    const host = createPluginHost();
+    const result = host.load([
+      ...CORE_PLUGINS,
+      ...installedExtensionRecords(chain(applied(pushPlugin)), trustAll),
+    ]);
+
+    expect(result.diagnostics.filter((d) => d.severity === 'error')).toEqual([]);
+    expect(host.isLoaded(pushPlugin.manifest.id)).toBe(true);
+    expect(host.contributions.query(UI_NAV_POINT).map((c) => c.pluginId))
+      .toContain(pushPlugin.manifest.id);
+  });
+
+  it('um carimbo de exigência ANTIGA não serve — o vínculo é por conteúdo', () => {
+    const stale = { fingerprint: backendFingerprint({ functions: ['gmailPush'] }), appliedAt: new Date() };
+    const host = createPluginHost();
+    host.load([...CORE_PLUGINS, ...installedExtensionRecords(chain(stale), trustAll)]);
+    expect(host.isLoaded(pushPlugin.manifest.id)).toBe(false);
   });
 });

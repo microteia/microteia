@@ -79,10 +79,22 @@ const RowView: React.FC<{ row: ExtensionRow; busy: boolean; vm: ReturnType<typeo
           {row.statusBadge && <S.Badge $tone={STATUS_LABEL[row.statusBadge].tone}>{t(STATUS_LABEL[row.statusBadge].labelKey)}</S.Badge>}
           {row.hasCode && <S.Badge $tone="info">{t('extension.badge.has-code')}</S.Badge>}
           {row.needsCodeReview && <S.Badge $tone="warning">{t('extension.badge.unreviewed')}</S.Badge>}
+          {row.backendPending && <S.Badge $tone="warning">{t('extension.badge.backend-pending')}</S.Badge>}
         </S.Badges>
       </S.TitleLine>
 
       {row.summary && <S.Summary>{row.summary}</S.Summary>}
+
+      {/* Exige do projeto Firebase o que só o Console cria. Dizer o que falta E o comando que resolve,
+          porque quem lê esta tela não é, necessariamente, quem tem acesso ao projeto. */}
+      {row.backendPending && (
+        <S.Problems>
+          <S.Problem $error={false}>
+            <RiErrorWarningLine size={13} />
+            <span>{t('extension.backend-pending.detail')}</span>
+          </S.Problem>
+        </S.Problems>
+      )}
 
       {/* O que o Kernel recusou nesta extensão. Instalada e ativa, mas com um erro aqui, ela não
           está no ar — e antes o único sintoma era a tela sumir do menu, sem explicação. */}

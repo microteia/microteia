@@ -1214,8 +1214,23 @@ export default function FinanceiroResumoWidget() {
 export const financeiroPlugin: MarketplacePlugin = {
   manifest: {
     id: 'com.microteia.financeiro',
-    version: '1.1.0',
+    version: '1.2.0',
     kernel: '^1.0.0',
+    // O índice que a automação desta extensão exige: a consulta casa `status` com ordenação por
+    // `dueDate`, e no Firestore igualdade + ordenação por outro campo pede índice composto. Ele é
+    // DESTA extensão — um escritório que não a instala não recebe o índice.
+    backend: {
+      indexes: [
+        {
+          collectionGroup: 'financials',
+          queryScope: 'COLLECTION',
+          fields: [
+            { fieldPath: 'status', order: 'ASCENDING' },
+            { fieldPath: 'dueDate', order: 'DESCENDING' },
+          ],
+        },
+      ],
+    },
     name: 'Financeiro',
     description: 'Os lançamentos financeiros do escritório recriados como extensão, sobre os MESMOS lançamentos — a quarta entidade a sair do kernel.',
     publisher: { name: 'Microteia' },

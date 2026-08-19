@@ -11,7 +11,12 @@ import {
 import { db } from '../../infrastructure/firebase/config';
 import { pruneUndefined } from '../utils/pruneUndefined';
 import type { IInstalledExtensionRepository } from '../../domain/repositories/IInstalledExtensionRepository';
-import type { ExtensionCodeTrust, InstalledExtension, InstalledExtensionSource } from '../../domain/entities/InstalledExtension';
+import type {
+  ExtensionBackendState,
+  ExtensionCodeTrust,
+  InstalledExtension,
+  InstalledExtensionSource,
+} from '../../domain/entities/InstalledExtension';
 import type { MarketplacePlugin } from '../../domain/entities/MarketplacePlugin';
 
 const toDate = (v: unknown): Date => (v instanceof Timestamp ? v.toDate() : (v as Date) ?? new Date());
@@ -28,6 +33,18 @@ const mapCodeTrust = (raw: unknown): ExtensionCodeTrust | null => {
   };
 };
 
+/**
+ * O `backendState` é escrito pelo Microteia Console, pela REST do Firestore — então `appliedAt` chega
+ * como string ISO, e não como `Timestamp`. O `toDate` acima trata as duas formas, e é por isso que ele
+ * é usado aqui em vez de um cast.
+ */
+const mapBackendState = (raw: unknown): ExtensionBackendState | null => {
+  if (!raw || typeof raw !== 'object') return null;
+  const d = raw as Record<string, unknown>;
+  if (typeof d.fingerprint !== 'string' || d.fingerprint === '') return null;
+  return { fingerprint: d.fingerprint, appliedAt: toDate(d.appliedAt) };
+};
+
 const installedRef = (tenantId: string) => collection(db, 'tenants', tenantId, 'installed_extensions');
 
 const mapInstalled = (id: string, tenantId: string, d: Record<string, unknown>): InstalledExtension => ({
@@ -42,6 +59,7 @@ const mapInstalled = (id: string, tenantId: string, d: Record<string, unknown>):
   authorPhotoURL: (d.authorPhotoURL as string | null | undefined) ?? null,
   installedBy: (d.installedBy as string | undefined) ?? '',
   codeTrust: mapCodeTrust(d.codeTrust),
+  backendState: mapBackendState(d.backendState),
   installedAt: toDate(d.installedAt),
   updatedAt: toDate(d.updatedAt),
 });
@@ -69,6 +87,15 @@ export class FirebaseInstalledExtensionRepository implements IInstalledExtension
       installedBy: extension.installedBy,
       codeTrust: extension.codeTrust
         ? { ...extension.codeTrust, trustedAt: Timestamp.fromDate(extension.codeTrust.trustedAt) }
+        : null,
+      // Preservado, não recalculado: quem carimba é o Console, e uma reinstalação não pode apagar o
+      // que já foi aplicado no projeto. Quando o exigido muda, é o FINGERPRINT que deixa de bater —
+      // não há nada a zerar aqui.
+      backendState: extension.backendState
+        ? {
+          fingerprint: extension.backendState.fingerprint,
+          appliedAt: Timestamp.fromDate(extension.backendState.appliedAt),
+        }
         : null,
       installedAt: Timestamp.fromDate(extension.installedAt),
       updatedAt: serverTimestamp(),

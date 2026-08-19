@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { consolePackageJson, consoleReadme } from './packageTemplates.js';
+import { consolePackageJson, consoleReadme, packageFunctionsPackageJson } from './packageTemplates.js';
 
 /**
  * O `package.json` é a razão de `pack-console` existir em vez de um `cp -R`: o Console compilado é
@@ -45,5 +45,35 @@ describe('Console empacotado para fora do repositório', () => {
     expect(link, 'o link direto tem de estar documentado').toBeGreaterThan(-1);
     expect(link, 'e vir antes do npm link').toBeLessThan(npmLink);
     expect(readme).toContain('no sudo');
+  });
+});
+
+/**
+ * Estas duas regressões vieram de uma instalação REAL, não de leitura de código: o `npm install` das
+ * functions imprimiu `package: undefined` num aviso de engine, e a única causa possível é o
+ * `package.json` gerado não conseguir formar `nome@versão`.
+ */
+describe('package.json das functions no pacote', () => {
+  const parsed = (): Record<string, unknown> =>
+    JSON.parse(packageFunctionsPackageJson(
+      { engines: { node: '22' }, dependencies: { 'firebase-admin': '^14.0.0' } },
+      '7.53.0',
+    )) as Record<string, unknown>;
+
+  it('tem nome E versão — sem os dois o npm avisa sobre "package: undefined"', () => {
+    expect(parsed().name).toBe('microteia-functions');
+    expect(parsed().version).toBe('7.53.0');
+  });
+
+  it('mantém engines.node EXATO, não uma faixa: é por ele que o Firebase escolhe o runtime', () => {
+    expect(parsed().engines).toEqual({ node: '22' });
+  });
+
+  it('carrega as dependências intactas, para o package-lock que viaja continuar válido', () => {
+    expect(parsed().dependencies).toEqual({ 'firebase-admin': '^14.0.0' });
+  });
+
+  it('o build do pacote compila só custom/ — o kernel já vem compilado', () => {
+    expect(parsed().scripts).toEqual({ build: 'tsc -p custom/tsconfig.json' });
   });
 });

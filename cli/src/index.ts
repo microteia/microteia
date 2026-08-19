@@ -8,6 +8,7 @@ import { packConsole } from './vendor/packConsole.js';
 import { init } from './console/init.js';
 import { connect } from './console/connect.js';
 import { deploy } from './console/deploy.js';
+import { provision } from './console/provision.js';
 
 interface Command {
   name: string;
@@ -34,10 +35,17 @@ const COMMANDS: Command[] = [
   },
   {
     name: 'deploy',
-    usage: 'microteia deploy --kernel <package.tgz> [--only rules,indexes,functions,hosting] [--delay <seconds>]',
+    usage: 'microteia deploy --kernel <package.tgz> [--only rules,indexes,functions,hosting] [--delay <seconds>] [--prune]',
     summary: 'Install or update Microteia in the connected Firebase project.',
     audience: 'office',
     execute: deploy,
+  },
+  {
+    name: 'provision',
+    usage: 'microteia provision [--prune] [--delay <seconds>]',
+    summary: 'Give the installed extensions the Cloud Functions and indexes they ask for.',
+    audience: 'office',
+    execute: provision,
   },
   {
     name: 'pack',

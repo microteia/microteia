@@ -9,6 +9,7 @@ import { useWorkspace } from '../../../stores/useWorkspace';
 import { packageFingerprint, serializePackage } from '../../../domain/usecases/plugins/packageSerialization';
 import { isVersionGreater } from '../../../domain/usecases/plugins/publicExtension';
 import { extensionCodeOf, extensionHasCode } from '../../../domain/usecases/plugins/extensionCodeTrust';
+import { isExtensionBackendPending } from '../../../domain/usecases/plugins/extensionBackendState';
 import { useExtensionCodeTrust } from '../../../stores/useExtensionCodeTrust';
 import { usePluginDiagnostics } from '../../../stores/useKernel';
 import { MARKETPLACE_CATALOG } from '../../../plugins/marketplace/catalog';
@@ -56,6 +57,13 @@ export interface ExtensionRow {
   canApprove: boolean;
   canDeprecate: boolean;
 
+  /**
+   * Instalada, mas exigindo do projeto Firebase o que só o Microteia Console cria — Cloud Function,
+   * índice composto, credencial de backend. Ela NÃO está no ar: entra no boot só depois de
+   * `microteia provision`. Sem este estado o sintoma seria a tela sumir do menu sem explicação, ou
+   * pior, aparecer e falhar toda chamada ao servidor como se fosse CORS.
+   */
+  backendPending: boolean;
   /** Código instalado que ainda não pode executar — falta a revisão de um admin do escritório. */
   needsCodeReview: boolean;
   /** Fonte do código, para o admin ler antes de confiar. */
@@ -314,6 +322,7 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
         canDeprecate: false,
         needsCodeReview: false,
         codeToReview: null,
+        backendPending: false,
         codeTrustedByName: null,
         mine: false,
         installed: true,
@@ -387,6 +396,7 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
         canDelete: mine,
         canApprove: canModerate && publicStatus === 'pending',
         canDeprecate: canModerate && publicStatus === 'approved',
+        backendPending: inst !== undefined && inst !== null && isExtensionBackendPending(inst),
         needsCodeReview: Boolean(inst) && installedNeedsReview.has(id),
         codeToReview: inst ? extensionCodeOf(inst.package) : null,
         codeTrustedByName: inst?.codeTrust?.trustedByName ?? null,

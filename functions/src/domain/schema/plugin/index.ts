@@ -5,6 +5,18 @@
 // ═══════════════════════════════════════════════════════════════════════════
 
 export type {
+  BackendPrerequisite,
+  FirestoreIndexField,
+  FirestoreIndexSpec,
+  PluginBackendRequirement,
+} from './backendRequirement';
+export {
+  backendFingerprint,
+  hasBackendRequirement,
+  validateBackendRequirement,
+} from './backendRequirement';
+
+export type {
   CapabilityProvision,
   CapabilityRequirement,
   ResolvedProvider,

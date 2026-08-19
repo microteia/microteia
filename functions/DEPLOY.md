@@ -1,11 +1,21 @@
 # Guia de Deploy de Cloud Functions
 
-As Cloud Functions estão organizadas em **6 grupos** para facilitar deploys seletivos e rápidos.
+> **Este arquivo é derivado do `package.json`.** Os grupos `deploy:*` são a fonte de verdade, e
+> `scripts/deployLists.test.ts` é o que garante que nenhuma function exportada fique fora deles. Se as
+> duas pontas divergirem, o `package.json` está certo e este arquivo está velho.
+
+As 28 Cloud Functions estão organizadas em **6 grupos**, para deploys seletivos nos
+NOSSOS ambientes (`microteia-dev` e `curatino`), onde todas sobem.
+
+**Grupo não é dono.** 5 destas functions pertencem a uma extensão, declaradas no
+`manifest.backend` dela, e **não** entram na baseline do pacote distribuível: no projeto Firebase de um
+escritório elas só são deployadas se ele tiver instalado a extensão, pelo `microteia provision`. Estão
+marcadas abaixo. Ver "Artefatos de backend por extensão" no `ARCHITECTURE.md`.
 
 ## Grupos de Functions
 
-### 🔐 AUTH - Autenticação e Usuários
-Funções relacionadas a autenticação, criação de usuários e validação de apelidos.
+### 🔐 AUTH — Autenticação e Usuários
+Autenticação, criação de usuário e validação de apelidos.
 
 **Functions:**
 - `getUserInfo`
@@ -20,8 +30,8 @@ npm run deploy:auth
 
 ---
 
-### 👥 TENANT - Gestão de Membros
-Funções para adicionar/remover membros de tenants (escritórios).
+### 👥 TENANT — Gestão de Membros
+Adicionar e remover membros de um escritório, de forma atômica.
 
 **Functions:**
 - `addTenantMember`
@@ -34,17 +44,14 @@ npm run deploy:tenant
 
 ---
 
-### 📋 AUDIT - Sistema de Auditoria
-Funções que registram histórico de alterações em todas as entidades.
+### 📋 AUDIT — Sistema de Auditoria
+Registro do histórico de alterações e o backup frio do que expira.
 
 **Functions:**
 - `auditFlatEntityChange`
-- `autirNestedEntityChange`
+- `auditNestedEntityChange`
 - `auditTenantDeleted`
-- `auditNewsChange`
-- `auditNewsCommentChange`
-- `auditNewsTagChange`
-- `backupDeletedLog`
+- `backupDeletedAuditLog`
 
 **Deploy:**
 ```bash
@@ -53,16 +60,21 @@ npm run deploy:audit
 
 ---
 
-### ⚙️ WORKFLOW - Motor de Automações
-**Grupo que altera com mais frequência!** Funções do sistema de workflows (automações).
+### ⚙️ WORKFLOW — Motor de Automações
+O motor de automações, os catálogos que o cliente lê e as execuções sob demanda.
 
 **Functions:**
-- `onWorkflowEventCreated` - Executa workflows quando eventos são criados
-- `publishWorkflowEventOnEntityChange` - Publica eventos de entidades (cases, contracts, etc)
-- `onNoteChange` - Publica eventos de notas (case_note, person_note, etc)
-- `onDocumentChange` - Publica eventos de documentos
-- `getExpressionFunctions` - Retorna catálogo de funções disponíveis para expressões
-- `getWorkflowStepCatalog` - Retorna catálogo de steps disponíveis para workflows
+- `onWorkflowEventCreated`
+- `publishWorkflowEventOnEntityChange`
+- `recomputeAggregatesOnEntityChange`
+- `onNoteChange`
+- `onDocumentChange`
+- `getExpressionFunctions`
+- `getWorkflowStepCatalog`
+- `detectWorkflows`
+- `runWorkflow`
+- `runScript`
+- `runAction`
 
 **Deploy:**
 ```bash
@@ -71,15 +83,15 @@ npm run deploy:workflow
 
 ---
 
-### 📧 GMAIL - Integração Gmail
-Funções para integração com Gmail (push notifications, renovação de watches).
+### 📧 GMAIL — Integração Gmail
+Ingestão de intimações por e-mail e as contas autorizadas.
 
 **Functions:**
-- `gmailPush`
-- `renewGmailWatches`
-- `exchangeGmailCode`
-- `listGmailConnections`
-- `revokeGmailConnection`
+- `gmailPush` — de `com.microteia.push`
+- `renewGmailWatches` — de `com.microteia.push`
+- `exchangeGmailCode` — de `com.microteia.push`
+- `listGmailConnections` — de `com.microteia.push`
+- `revokeGmailConnection` — de `com.microteia.push`
 
 **Deploy:**
 ```bash
@@ -88,13 +100,12 @@ npm run deploy:gmail
 
 ---
 
-### 🛠️ UTIL - Utilitários Gerais
-Funções auxiliares e de infraestrutura.
+### 🛠️ UTIL — Utilitários Gerais
+Proxy de IA e registro de falhas do frontend.
 
 **Functions:**
-- `callAIProxy` - Proxy para chamadas à API da OpenAI
-- `logClientError` - Log de erros do cliente
-- `cascadeDeletePushInteractions` - Cascata de exclusão de interações de push
+- `callAIProxy`
+- `logClientError`
 
 **Deploy:**
 ```bash

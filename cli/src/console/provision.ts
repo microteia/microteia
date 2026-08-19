@@ -1,0 +1,425 @@
+import { readFile, writeFile } from 'node:fs/promises';
+import { dirname, join, resolve } from 'node:path';
+import { hasFlag, requiredFlag, flagValue } from '../shared/args.js';
+import type { ParsedArgs } from '../shared/args.js';
+import { run } from '../shared/run.js';
+import { blank, bullets, failure, heading, info, step, success, warn } from '../shared/ui.js';
+import type { KernelManifest } from '../kernel/manifest.js';
+import {
+  backendFingerprint,
+  claimedIndexes,
+  claimedParameters,
+  functionClaimProblems,
+  hasBackendRequirement,
+  indexKey,
+} from '../kernel/backendShape.js';
+import type { BackendClaim, FirestoreIndexSpec, PluginBackendRequirement } from '../kernel/backendShape.js';
+import { ENVIRONMENT_FILE, readEnvironment, writeEnvironment } from './environment.js';
+import type { Environment } from './environment.js';
+import { FIREBASE_BIN } from './firebaseCli.js';
+import { deployFunctionsOneByOne } from './deployFunctions.js';
+import { checkCallables, invokerGrantCommand } from './callableAccess.js';
+import { decodeFields, documentId, listDocuments, patchStringMapField } from './firestoreRest.js';
+import { workspacePath } from './workspace.js';
+
+/** Uma exigência, o escritório que a instalou e o documento que carrega o estado dela. */
+export interface InstalledClaim extends BackendClaim {
+  tenantId: string;
+  documentPath: string;
+  applied: boolean;
+}
+
+interface IndexesFile {
+  indexes: FirestoreIndexSpec[];
+  fieldOverrides?: unknown[];
+}
+
+/**
+ * O que cada escritório do projeto instalou e exige do backend.
+ *
+ * A exigência vem do banco, então ela é DADO e não código — é por isso que `claimProblems` a confere
+ * contra `manifest.functions` antes de qualquer deploy. Nome de function fora do pacote é recusado com
+ * explicação; não há injeção possível, porque o código é sempre o do pacote.
+ */
+export const readInstalledClaims = async (projectId: string): Promise<InstalledClaim[]> => {
+  const tenants = await listDocuments(projectId, '/tenants');
+  const claims: InstalledClaim[] = [];
+
+  for (const tenant of tenants) {
+    const tenantId = documentId(tenant);
+    const extensions = await listDocuments(projectId, `/tenants/${tenantId}/installed_extensions`);
+
+    for (const document of extensions) {
+      const data = decodeFields(document.fields);
+      if (data.active === false) continue;
+
+      const pkg = data.package as Record<string, unknown> | undefined;
+      const manifest = pkg?.manifest as Record<string, unknown> | undefined;
+      const backend = manifest?.backend as PluginBackendRequirement | undefined;
+      if (!hasBackendRequirement(backend)) continue;
+
+      const state = data.backendState as { fingerprint?: string } | undefined;
+      claims.push({
+        tenantId,
+        documentPath: `/tenants/${tenantId}/installed_extensions/${documentId(document)}`,
+        pluginId: String(manifest?.id ?? documentId(document)),
+        name: String(manifest?.name ?? manifest?.id ?? documentId(document)),
+        version: String(manifest?.version ?? '0.0.0'),
+        backend: backend as PluginBackendRequirement,
+        applied: state?.fingerprint === backendFingerprint(backend),
+      });
+    }
+  }
+
+  return claims.sort((a, b) => (a.pluginId < b.pluginId ? -1 : a.pluginId > b.pluginId ? 1 : 0));
+};
+
+const uniqueByPlugin = (claims: InstalledClaim[]): InstalledClaim[] => {
+  const seen = new Set<string>();
+  return claims.filter((claim) => {
+    if (seen.has(claim.pluginId)) return false;
+    seen.add(claim.pluginId);
+    return true;
+  });
+};
+
+export const parseAppliedFunctions = (value: string | null): string[] =>
+  (value ?? '').split(',').map((name) => name.trim()).filter((name) => name !== '');
+
+export interface ProvisionOptions {
+  projectId: string;
+  region: string;
+  install: string;
+  manifest: KernelManifest;
+  delaySeconds: number;
+  prune: boolean;
+  environmentFile: string;
+  environment: Environment;
+}
+
+export interface ProvisionOutcome {
+  deployed: string[];
+  failed: string[];
+  orphans: string[];
+  pending: InstalledClaim[];
+}
+
+/**
+ * O motor: alinha o projeto Firebase com o que as extensões instaladas exigem, e carimba nelas o
+ * estado. Um motor só, chamado pelo `deploy` no fim e pelo `provision` sozinho — duas implementações
+ * divergiriam exatamente no ponto em que ninguém olha.
+ */
+export const provisionBackend = async (options: ProvisionOptions): Promise<ProvisionOutcome> => {
+  const { projectId, region, install, manifest, delaySeconds } = options;
+  const outcome: ProvisionOutcome = { deployed: [], failed: [], orphans: [], pending: [] };
+
+  const claims = await readInstalledClaims(projectId);
+  const problems = functionClaimProblems(claims, manifest.functions);
+  const rejected = new Set<string>();
+  if (problems.length > 0) {
+    warn('some extensions ask for backend artifacts this package cannot provide:');
+    bullets(problems);
+    for (const claim of claims) {
+      if (problems.some((problem) => problem.includes(claim.pluginId))) rejected.add(claim.pluginId);
+    }
+  }
+
+  const valid = uniqueByPlugin(claims.filter((claim) => !rejected.has(claim.pluginId)));
+
+  if (valid.length === 0) {
+    info('  no installed extension asks for backend artifacts');
+    await recordAppliedFunctions(options, parseAppliedFunctions(options.environment.backend.functions));
+    return outcome;
+  }
+
+  info(`  ${valid.length} extension(s) ask for backend artifacts:`);
+  bullets(valid.map((claim) => `${claim.name} ${claim.version} (${claim.pluginId})`));
+
+  const wantedFunctions = manifest.functions.filter(
+    (name) => valid.some((claim) => (claim.backend.functions ?? []).includes(name)),
+  );
+  const wantedIndexes = claimedIndexes(valid);
+  const alreadyApplied = parseAppliedFunctions(options.environment.backend.functions);
+
+  const previouslyDeclared = await declaredIndexes(install);
+  await applyIndexes(install, projectId, manifest.baselineIndexes ?? [], wantedIndexes);
+
+  const missingParameters = await unfilledParameters(install, projectId, claimedParameters(valid));
+  if (missingParameters.length > 0) {
+    warn(`${missingParameters.length} backend setting(s) are still empty in functions/.env.${projectId}:`);
+    bullets(missingParameters);
+    info('  the functions deploy anyway, but the feature that needs them will fail at runtime.');
+  }
+
+  const prerequisites = valid.flatMap((claim) => (claim.backend.prerequisites ?? []).map(
+    (prerequisite) => `[${claim.name}] ${prerequisite.title}\n      ${prerequisite.detail}`,
+  ));
+  if (prerequisites.length > 0) {
+    blank();
+    info('Manual steps these extensions need, which no command can do for you:');
+    bullets(prerequisites);
+    blank();
+  }
+
+  const toDeploy = wantedFunctions.filter((name) => !alreadyApplied.includes(name));
+  if (toDeploy.length === 0) {
+    success(`the ${wantedFunctions.length} function(s) these extensions need are already deployed`);
+  } else {
+    info(`  deploying ${toDeploy.length} function(s), one at a time…`);
+    const report = await deployFunctionsOneByOne(toDeploy, {
+      projectId, cwd: install, delaySeconds, force: false,
+    });
+    outcome.deployed = report.deployed;
+    outcome.failed = report.failed.map((entry) => entry.name);
+    for (const entry of report.failed) {
+      failure(entry.name);
+      info(entry.output.split('\n').slice(-12).map((line) => `      ${line}`).join('\n'));
+    }
+    await checkNewCallables(manifest, report.deployed, projectId, region);
+  }
+
+  const deployedNow = new Set([...alreadyApplied, ...outcome.deployed]);
+  for (const claim of valid) {
+    const satisfied = (claim.backend.functions ?? []).every((name) => deployedNow.has(name));
+    if (satisfied) {
+      await stampApplied(projectId, claims, claim);
+    } else {
+      outcome.pending.push(claim);
+    }
+  }
+
+  const orphans = alreadyApplied.filter((name) => !wantedFunctions.includes(name));
+  outcome.orphans = orphans;
+  const remaining = await settleOrphans(options, orphans);
+
+  await recordAppliedFunctions(options, [...new Set([...remaining, ...outcome.deployed])].sort());
+  reportOrphanIndexes(projectId, manifest.baselineIndexes ?? [], previouslyDeclared, wantedIndexes);
+
+  return outcome;
+};
+
+/**
+ * O arquivo do pacote é a BASELINE, e este passo faz o arquivo instalado CONVERGIR para
+ * `baseline ∪ exigido` — reescrever a partir da baseline, em vez de acrescentar ao que está lá, é o que
+ * faz o índice de uma extensão desinstalada desaparecer do arquivo em vez de acumular para sempre.
+ *
+ * `firebase deploy --only firestore:indexes` cria o que falta e nunca apaga o que sobra, então o deploy
+ * é seguro e a remoção de verdade é assunto de `--prune`.
+ */
+const applyIndexes = async (
+  install: string,
+  projectId: string,
+  baseline: FirestoreIndexSpec[],
+  wanted: FirestoreIndexSpec[],
+): Promise<void> => {
+  const path = join(install, 'firestore.indexes.json');
+  const file = JSON.parse(await readFile(path, 'utf8')) as IndexesFile;
+
+  const desired = [...baseline];
+  const present = new Set(desired.map(indexKey));
+  for (const index of wanted) {
+    if (present.has(indexKey(index))) continue;
+    present.add(indexKey(index));
+    desired.push(index);
+  }
+
+  const current = new Set(file.indexes.map(indexKey));
+  const missing = desired.filter((index) => !current.has(indexKey(index)));
+  const changed = missing.length > 0 || file.indexes.length !== desired.length;
+
+  if (!changed) {
+    if (wanted.length > 0) success('the composite indexes these extensions need are already declared');
+    return;
+  }
+
+  await writeFile(path, `${JSON.stringify({ ...file, indexes: desired }, null, 2)}\n`);
+  if (missing.length === 0) return;
+  info(`  creating ${missing.length} composite index(es)…`);
+  await run(FIREBASE_BIN, ['deploy', '--only', 'firestore:indexes', '--project', projectId], { cwd: install });
+};
+
+const unfilledParameters = async (
+  install: string,
+  projectId: string,
+  parameters: string[],
+): Promise<string[]> => {
+  if (parameters.length === 0) return [];
+  const path = join(install, 'functions', `.env.${projectId}`);
+  const content = await readFile(path, 'utf8').catch(() => null);
+  if (content === null) return parameters;
+  const filled = new Set(
+    content.split('\n')
+      .map((line) => line.trim())
+      .filter((line) => line !== '' && !line.startsWith('#') && line.slice(line.indexOf('=') + 1).trim() !== '')
+      .map((line) => line.slice(0, line.indexOf('='))),
+  );
+  return parameters.filter((name) => !filled.has(name));
+};
+
+const checkNewCallables = async (
+  manifest: KernelManifest,
+  deployed: string[],
+  projectId: string,
+  region: string,
+): Promise<void> => {
+  const callables = (manifest.callables ?? []).filter((name) => deployed.includes(name));
+  if (callables.length === 0) return;
+
+  const origin = `https://${projectId}.web.app`;
+  const checks = await checkCallables(callables, { projectId, region, origin });
+  const blocked = checks.filter((check) => check.access === 'blocked');
+
+  if (blocked.length === 0) {
+    success(`all ${checks.length} new callable(s) answer calls from ${origin}`);
+    return;
+  }
+
+  failure(`${blocked.length} of ${checks.length} new callable(s) refuse calls from ${origin}.`);
+  info('  The application will open and these calls will fail in the browser as what looks like a');
+  info('  CORS error. Run once per function:');
+  bullets(blocked.map((check) => invokerGrantCommand(region, projectId, check.name)));
+};
+
+/**
+ * O carimbo é gravado em TODAS as cópias daquela extensão — o artefato é do projeto, então se ele
+ * existe, existe para todo escritório que o instalou, e não só para aquele cuja cópia foi lida por
+ * último.
+ */
+const stampApplied = async (
+  projectId: string,
+  all: InstalledClaim[],
+  claim: InstalledClaim,
+): Promise<void> => {
+  const fingerprint = backendFingerprint(claim.backend);
+  const appliedAt = new Date().toISOString();
+  for (const copy of all.filter((entry) => entry.pluginId === claim.pluginId)) {
+    if (backendFingerprint(copy.backend) !== fingerprint) continue;
+    await patchStringMapField(projectId, copy.documentPath, 'backendState', { fingerprint, appliedAt });
+  }
+  success(`${claim.name} is ready in ${projectId}`);
+};
+
+/**
+ * Function que nenhuma extensão instalada exige mais. Apagar é destrutivo e irreversível, então o
+ * padrão RELATA e só `--prune` remove — e o que foi removido sai da lista de aplicadas.
+ */
+const settleOrphans = async (options: ProvisionOptions, orphans: string[]): Promise<string[]> => {
+  if (orphans.length === 0) return [];
+
+  blank();
+  if (!options.prune) {
+    warn(`${orphans.length} function(s) are deployed but no installed extension needs them:`);
+    bullets(orphans);
+    info('  they keep working and cost nothing while idle. To remove them:');
+    bullets(['microteia provision --prune']);
+    blank();
+    return orphans;
+  }
+
+  info(`  deleting ${orphans.length} orphan function(s)…`);
+  const deleted: string[] = [];
+  for (const name of orphans) {
+    try {
+      await run(
+        FIREBASE_BIN,
+        ['functions:delete', name, '--project', options.projectId, '--region', options.region, '--force'],
+        { cwd: options.install },
+      );
+      deleted.push(name);
+    } catch {
+      warn(`could not delete ${name}; it stays recorded as deployed`);
+    }
+  }
+  success(`${deleted.length} orphan function(s) removed`);
+  return orphans.filter((name) => !deleted.includes(name));
+};
+
+/**
+ * Índice órfão é RELATADO com o comando, nunca apagado: `firebase deploy` não remove índice, e a API
+ * que remove pede o id GERADO do índice — apagar às cegas o índice errado custa uma consulta em
+ * produção, e listá-lo custa três linhas de saída.
+ */
+const declaredIndexes = async (install: string): Promise<FirestoreIndexSpec[]> => {
+  const file = JSON.parse(
+    await readFile(join(install, 'firestore.indexes.json'), 'utf8'),
+  ) as IndexesFile;
+  return file.indexes;
+};
+
+const reportOrphanIndexes = (
+  projectId: string,
+  baseline: FirestoreIndexSpec[],
+  previouslyDeclared: FirestoreIndexSpec[],
+  wanted: FirestoreIndexSpec[],
+): void => {
+  const keep = new Set([...baseline, ...wanted].map(indexKey));
+  const orphans = previouslyDeclared.filter((index) => !keep.has(indexKey(index)));
+  if (orphans.length === 0) return;
+
+  blank();
+  warn(`${orphans.length} composite index(es) belong to extensions that are no longer installed:`);
+  bullets(orphans.map((index) => `${index.collectionGroup} (${index.fields.map((f) => f.fieldPath).join(', ')})`));
+  warn('  a deploy never deletes an index. Remove them in the Firebase console (Firestore, Indexes),');
+  warn('  or list the generated ids with:');
+  bullets([`gcloud firestore indexes composite list --project=${projectId}`]);
+};
+
+const recordAppliedFunctions = async (options: ProvisionOptions, names: string[]): Promise<void> => {
+  await writeEnvironment(options.environmentFile, {
+    ...options.environment,
+    backend: { functions: names.length === 0 ? null : names.join(',') },
+  });
+};
+
+/** O comando: provisiona sem reenviar o kernel. É o que se roda depois de instalar uma extensão. */
+export const provision = async (args: ParsedArgs): Promise<void> => {
+  const file = resolve(hasFlag(args, 'file') ? requiredFlag(args, 'file') : join(process.cwd(), ENVIRONMENT_FILE));
+  const root = dirname(file);
+  const delaySeconds = Number.parseInt(flagValue(args, 'delay') ?? '1', 10);
+
+  const environment = await readEnvironment(file);
+  const projectId = environment.firebase.projectId;
+  if (projectId === null) {
+    throw new Error('This installation is not connected yet. Run "microteia connect --project <id>".');
+  }
+  if (environment.kernel.version === null) {
+    throw new Error('No kernel is installed yet. Run "microteia deploy --kernel <package>.tgz" first.');
+  }
+
+  const install = join(workspacePath(root), 'install');
+  const manifest = JSON.parse(await readFile(join(install, 'manifest.json'), 'utf8')) as KernelManifest;
+  const region = manifest.requires.functionsRegion;
+
+  heading(`Provisioning extension backends in ${projectId}`);
+  step(1, 1, 'Reading what the offices installed');
+
+  const outcome = await provisionBackend({
+    projectId,
+    region,
+    install,
+    manifest,
+    delaySeconds,
+    prune: hasFlag(args, 'prune'),
+    environmentFile: file,
+    environment,
+  });
+
+  blank();
+  if (outcome.failed.length > 0) {
+    failure(`${outcome.failed.length} function(s) did not deploy: ${outcome.failed.join(', ')}`);
+    info('Re-run to retry:');
+    bullets(['microteia provision']);
+    blank();
+    throw new Error('Some extension functions did not deploy.');
+  }
+
+  if (outcome.pending.length > 0) {
+    warn(`${outcome.pending.length} extension(s) are still pending: `
+      + outcome.pending.map((claim) => claim.name).join(', '));
+    blank();
+    return;
+  }
+
+  info('Every installed extension has what it needs. Reload the application to use them.');
+  blank();
+};
