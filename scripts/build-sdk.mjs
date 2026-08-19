@@ -104,9 +104,12 @@ if (ok) {
   const stray = files.filter((file) => !file.startsWith('lib/'));
   if (stray.length > 0) fail(`unexpected files: ${stray.join(', ')}`);
 
-  // 4. Os tipos do host são de outro passo, e faltarem quebraria o IntelliSense sem quebrar o build.
-  if (!existsSync(join(sdkDir, 'types/microteia-host.d.ts'))) {
-    fail('sdk/types/microteia-host.d.ts is missing — run "npm run build:host-types".');
+  // 4. Os tipos são de outro passo, e faltarem quebraria o IntelliSense sem quebrar o build. O do `?raw`
+  //    tem peso próprio: sem ele, o import mais importante de um `plugin.ts` vira erro no editor.
+  for (const declaration of ['types/microteia-host.d.ts', 'types/microteia-raw.d.ts']) {
+    if (!existsSync(join(sdkDir, declaration))) {
+      fail(`sdk/${declaration} is missing — run "npm run build:host-types".`);
+    }
   }
 
   const manifest = JSON.parse(readFileSync(join(sdkDir, 'package.json'), 'utf8'));

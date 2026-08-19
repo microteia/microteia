@@ -44,9 +44,24 @@ export const workspacePackageJson = (
 }, null, 2) + '\n';
 
 /**
- * O `paths` é o que faz uma view `.tsx` ser checada de verdade: os módulos `@microteia/*` não existem
- * em `node_modules` — eles são resolvidos pelo RUNTIME do browser contra a API curada —, então sem
- * este mapeamento o `tsc` diria "cannot find module" no import mais importante do arquivo.
+ * O `paths` é o que faz uma view `.tsx` ser checada de verdade: os módulos `@microteia/*` não existem em
+ * `node_modules` — eles são resolvidos pelo RUNTIME do browser contra a API curada —, então sem este
+ * mapeamento o `tsc` diria "cannot find module" no import mais importante do arquivo.
+ *
+ * Três decisões aqui vêm de defeito observado, não de preferência:
+ *
+ * - **`files` traz a declaração do `?raw`.** Ela é AMBIENTE e mora em `node_modules`, que o `exclude`
+ *   descarta; `files` não passa pelo `exclude`, e é o único jeito de garantir que ela entre no programa.
+ *   Sem ela, `import X from './views/Y.tsx?raw'` — o import mais importante de um `plugin.ts` — é um
+ *   erro.
+ * - **Nada é excluído além de `node_modules`.** `examples/` e os diretórios de function já foram
+ *   excluídos, e o efeito foi pior que o problema: um arquivo fora de todo projeto não tem projeto NENHUM
+ *   no editor, e aí nem `@microteia/data` resolve. Um erro honesto num import é melhor que tudo
+ *   sublinhado.
+ * - **`noImplicitAny` e `strictNullChecks` desligados.** A fonte de uma view nasce como JavaScript — é
+ *   avaliada pelo browser, não compilada — e exigir anotação nela reprovaria os doze exemplos. O que se
+ *   ganha aqui é resolução e forma: módulo que não existe, componente que não aceita aquela prop, hook
+ *   com aridade errada.
  */
 export const workspaceTsconfig = (): string => JSON.stringify({
   compilerOptions: {
@@ -57,6 +72,8 @@ export const workspaceTsconfig = (): string => JSON.stringify({
     jsx: 'react-jsx',
     types: ['node'],
     strict: true,
+    noImplicitAny: false,
+    strictNullChecks: false,
     noUnusedLocals: true,
     noUnusedParameters: true,
     noFallthroughCasesInSwitch: true,
@@ -73,12 +90,10 @@ export const workspaceTsconfig = (): string => JSON.stringify({
       'styled-components': ['./node_modules/@microteia/sdk/types/microteia-host.d.ts'],
     },
   },
+  // Não passa pelo `exclude`: é como a declaração ambiente do `?raw` entra no programa.
+  files: ['node_modules/@microteia/sdk/types/microteia-raw.d.ts'],
   include: ['**/*.ts', '**/*.tsx'],
-  // `*/functions/` é compilado pelo PACOTE no deploy, contra `firebase-functions` — que não é dependência
-  // deste projeto por padrão. Quem escreve function instala os tipos (`npm i -D firebase-functions
-  // firebase-admin`) e tira a linha abaixo; até lá, incluí-los daria "cannot find module" no import mais
-  // óbvio do arquivo.
-  exclude: ['node_modules', '**/functions/**', 'examples/**'],
+  exclude: ['node_modules'],
 }, null, 2) + '\n';
 
 /**

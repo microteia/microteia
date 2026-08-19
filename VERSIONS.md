@@ -11,6 +11,11 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [7.58.1] — 2026-08-19
+
+- Corrigidos avisos falsos do editor na pasta de extensões: os arquivos apareciam com erros sublinhados mesmo estando corretos — o que gerava e ainda gera dúvida sobre o que é problema de verdade. Agora o editor entende tanto os exemplos que acompanham o sistema quanto as extensões novas, e a verificação de tipos passa limpa em todos.
+- Ao criar uma extensão com funções de servidor, as bibliotecas necessárias passam a ser declaradas automaticamente, na versão que a instalação usa.
+
 #### [7.58.0] — 2026-08-19
 
 - A pasta da instalação passa a ser documentada onde faz sentido: um **README** próprio do escritório, criado uma vez e nunca reescrito — para descrever o negócio, renomear o que quiser —, e um **MICROTEIA.md** técnico, refeito a cada atualização, sempre correspondendo à versão instalada. As instruções que antes ficavam escondidas dentro da pasta descartável saíram de lá.

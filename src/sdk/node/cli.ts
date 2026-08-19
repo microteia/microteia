@@ -215,8 +215,16 @@ const createPlugin = async (args: Args): Promise<number> => {
       say();
       warn('this extension declares Cloud Functions.');
       say(`  ${DIM}They are written in ${folder}/functions/ and gathered by "microteia deploy".${RESET}`);
-      say(`  ${DIM}For types while you write them: npm i -D firebase-functions firebase-admin${RESET}`);
       say(`  ${DIM}Add another with: npx microteia-plugin create function --plugin ${folder}${RESET}`);
+
+      // As dependências entram no `package.json` AGORA, e não como instrução para lembrar depois: sem
+      // elas o `import { onCall } from 'firebase-functions/v2/https'` fica sublinhado, e a primeira
+      // impressão de quem acabou de gerar o arquivo é a de que o molde está quebrado.
+      if (ensureFunctionTypes(workspace)) {
+        say();
+        warn('added firebase-functions and firebase-admin to package.json.');
+        say(`  ${DIM}Run "npm install" to get their types — until then the import is underlined.${RESET}`);
+      }
     }
     if (view) {
       say();
@@ -277,6 +285,63 @@ const createFunction = async (args: Args): Promise<number> => {
     return 0;
   } finally {
     await asker.close();
+  }
+};
+
+/**
+ * As versões de `firebase-functions` e `firebase-admin` que a INSTALAÇÃO usa.
+ *
+ * Lidas do `package.json` das functions do pacote, e não escritas aqui: a function do escritório é
+ * compilada junto com as do kernel, contra as dependências dele. Escrever à mão foi o primeiro caminho, e
+ * durou um teste — `firebase-admin@^14` não satisfaz o peer de `firebase-functions@6`, e o `npm install`
+ * parava com ERESOLVE. Derivar do pacote não tem como divergir.
+ */
+const functionDependencies = (workspace: string): Record<string, string> => {
+  const fallback = { 'firebase-admin': '^12.0.0', 'firebase-functions': '^6.0.0' };
+  for (const candidate of [
+    join(workspace, '../.microteia/install/functions/package.json'),
+    join(workspace, '.microteia/install/functions/package.json'),
+  ]) {
+    try {
+      const pkg = JSON.parse(readFileSync(candidate, 'utf8')) as {
+        dependencies?: Record<string, string>;
+      };
+      const admin = pkg.dependencies?.['firebase-admin'];
+      const functions = pkg.dependencies?.['firebase-functions'];
+      if (admin !== undefined && functions !== undefined) {
+        return { 'firebase-admin': admin, 'firebase-functions': functions };
+      }
+    } catch {
+      continue;
+    }
+  }
+  return fallback;
+};
+
+/**
+ * Declara `firebase-functions` e `firebase-admin` no `package.json` do workspace, se ainda não estiverem.
+ * Ficam fora por padrão porque são pesadas e quem só declara telas não precisa delas — mas no instante em
+ * que existe uma function escrita, não declará-las é deixar o molde sublinhado sem motivo aparente.
+ */
+const ensureFunctionTypes = (workspace: string): boolean => {
+  const path = join(workspace, 'package.json');
+  try {
+    const pkg = JSON.parse(readFileSync(path, 'utf8')) as {
+      devDependencies?: Record<string, string>;
+    };
+    const devDependencies = pkg.devDependencies ?? {};
+    const wanted = functionDependencies(workspace);
+    const missing = Object.keys(wanted).filter((name) => devDependencies[name] === undefined);
+    if (missing.length === 0) return false;
+
+    for (const name of missing) devDependencies[name] = wanted[name];
+    pkg.devDependencies = Object.fromEntries(
+      Object.entries(devDependencies).sort(([left], [right]) => left.localeCompare(right)),
+    );
+    writeFileSync(path, `${JSON.stringify(pkg, null, 2)}\n`);
+    return true;
+  } catch {
+    return false;
   }
 };
 

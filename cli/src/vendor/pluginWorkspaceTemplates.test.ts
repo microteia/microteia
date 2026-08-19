@@ -64,6 +64,38 @@ describe('o workspace de autoria de extensões', () => {
       expect(paths['@microteia/sdk/node']?.[0]).toContain('node/compile.d.ts');
     });
 
+    /**
+     * Os três defeitos de lint que apareceram no workspace de verdade, e a causa de cada um.
+     *
+     * O `?raw` é o import mais importante de um `plugin.ts` — é como a fonte de uma view mora num arquivo
+     * checado. A declaração dele é AMBIENTE e vive em `node_modules`, que o `exclude` descarta; só entra
+     * pelo `files`, que não passa pelo `exclude`.
+     */
+    it('traz a declaração do ?raw por `files`, senão o import da view é erro', () => {
+      const config = JSON.parse(workspaceTsconfig()) as { files?: string[] };
+      expect(config.files?.[0]).toContain('microteia-raw.d.ts');
+    });
+
+    /**
+     * Excluir `examples/` e os diretórios de function deixava aqueles arquivos FORA de todo projeto — e um
+     * arquivo sem projeto não resolve nada no editor, nem `@microteia/data`. Tudo sublinhado é pior que um
+     * erro honesto num import.
+     */
+    it('não exclui nada além de node_modules', () => {
+      const config = JSON.parse(workspaceTsconfig()) as { exclude: string[] };
+      expect(config.exclude).toEqual(['node_modules']);
+    });
+
+    /**
+     * A fonte de uma view nasce como JavaScript — é avaliada pelo browser, não compilada. Exigir anotação
+     * nela reprovaria os doze exemplos que viajam no pacote.
+     */
+    it('afrouxa implicit-any e null-checks, que é o que a fonte de view exige', () => {
+      expect(options().noImplicitAny).toBe(false);
+      expect(options().strictNullChecks).toBe(false);
+      expect(options().strict).toBe(true);
+    });
+
     it('compila JSX e não emite nada — a saída é o .json, não JavaScript', () => {
       expect(options().jsx).toBe('react-jsx');
       expect(options().noEmit).toBe(true);
