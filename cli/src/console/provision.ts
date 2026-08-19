@@ -14,6 +14,14 @@ import {
   indexKey,
 } from '../kernel/backendShape.js';
 import type { BackendClaim, FirestoreIndexSpec, PluginBackendRequirement } from '../kernel/backendShape.js';
+import {
+  changedParameters,
+  functionsDeclaringParameters,
+  parameterDigests,
+  parseParameterState,
+  readBackendEnv,
+  serializeParameterState,
+} from './backendParameters.js';
 import { ENVIRONMENT_FILE, readEnvironment, writeEnvironment } from './environment.js';
 import type { Environment } from './environment.js';
 import { FIREBASE_BIN } from './firebaseCli.js';
@@ -128,7 +136,11 @@ export const provisionBackend = async (options: ProvisionOptions): Promise<Provi
 
   if (valid.length === 0) {
     info('  no installed extension asks for backend artifacts');
-    await recordAppliedFunctions(options, parseAppliedFunctions(options.environment.backend.functions));
+    await recordBackendState(
+      options,
+      parseAppliedFunctions(options.environment.backend.functions),
+      parseParameterState(options.environment.backend.parameters),
+    );
     return outcome;
   }
 
@@ -144,11 +156,34 @@ export const provisionBackend = async (options: ProvisionOptions): Promise<Provi
   const previouslyDeclared = await declaredIndexes(install);
   await applyIndexes(install, projectId, manifest.baselineIndexes ?? [], wantedIndexes);
 
-  const missingParameters = await unfilledParameters(install, projectId, claimedParameters(valid));
+  const trackedParameters = claimedParameters(valid);
+  const filledParameters = await readBackendEnv(install, projectId);
+  const recordedDigests = parseParameterState(options.environment.backend.parameters);
+  const currentDigests = parameterDigests(projectId, filledParameters, trackedParameters);
+
+  const missingParameters = trackedParameters.filter((name) => !filledParameters.has(name));
   if (missingParameters.length > 0) {
     warn(`${missingParameters.length} backend setting(s) are still empty in functions/.env.${projectId}:`);
     bullets(missingParameters);
     info('  the functions deploy anyway, but the feature that needs them will fail at runtime.');
+  }
+
+  // Preencher o arquivo não alcança function nenhuma: o valor é carimbado no deploy de cada uma. O que
+  // já está aplicado com o valor anterior volta para a fila — sem isso, o parâmetro preenchido depois da
+  // instalação fica sem nenhum comando que o aplique, e a feature falha no runtime.
+  const changed = changedParameters(recordedDigests, currentDigests, trackedParameters);
+  const staleFunctions = new Set(
+    functionsDeclaringParameters(valid, changed)
+      .filter((name) => wantedFunctions.includes(name) && alreadyApplied.includes(name)),
+  );
+
+  if (changed.length > 0) {
+    blank();
+    info(`  ${changed.length} backend setting(s) changed since the last run: ${changed.join(', ')}`);
+    if (staleFunctions.size > 0) {
+      info(`  ${staleFunctions.size} deployed function(s) still carry the previous value and are`);
+      info('  redeployed now — a Cloud Function only sees a setting from the deploy that stamps it.');
+    }
   }
 
   const prerequisites = valid.flatMap((claim) => (claim.backend.prerequisites ?? []).map(
@@ -161,7 +196,9 @@ export const provisionBackend = async (options: ProvisionOptions): Promise<Provi
     blank();
   }
 
-  const toDeploy = wantedFunctions.filter((name) => !alreadyApplied.includes(name));
+  const toDeploy = wantedFunctions.filter(
+    (name) => !alreadyApplied.includes(name) || staleFunctions.has(name),
+  );
   if (toDeploy.length === 0) {
     success(`the ${wantedFunctions.length} function(s) these extensions need are already deployed`);
   } else {
@@ -192,7 +229,22 @@ export const provisionBackend = async (options: ProvisionOptions): Promise<Provi
   outcome.orphans = orphans;
   const remaining = await settleOrphans(options, orphans);
 
-  await recordAppliedFunctions(options, [...new Set([...remaining, ...outcome.deployed])].sort());
+  await recordBackendState(
+    options,
+    appliedAfterRun({
+      alreadyApplied,
+      wanted: wantedFunctions,
+      deployed: outcome.deployed,
+      keptOrphans: remaining,
+    }),
+    appliedParameterState({
+      recorded: recordedDigests,
+      current: currentDigests,
+      changed,
+      failed: outcome.failed,
+      claims: valid,
+    }),
+  );
   reportOrphanIndexes(projectId, manifest.baselineIndexes ?? [], previouslyDeclared, wantedIndexes);
 
   return outcome;
@@ -236,24 +288,6 @@ const applyIndexes = async (
   if (missing.length === 0) return;
   info(`  creating ${missing.length} composite index(es)…`);
   await run(FIREBASE_BIN, ['deploy', '--only', 'firestore:indexes', '--project', projectId], { cwd: install });
-};
-
-const unfilledParameters = async (
-  install: string,
-  projectId: string,
-  parameters: string[],
-): Promise<string[]> => {
-  if (parameters.length === 0) return [];
-  const path = join(install, 'functions', `.env.${projectId}`);
-  const content = await readFile(path, 'utf8').catch(() => null);
-  if (content === null) return parameters;
-  const filled = new Set(
-    content.split('\n')
-      .map((line) => line.trim())
-      .filter((line) => line !== '' && !line.startsWith('#') && line.slice(line.indexOf('=') + 1).trim() !== '')
-      .map((line) => line.slice(0, line.indexOf('='))),
-  );
-  return parameters.filter((name) => !filled.has(name));
 };
 
 const checkNewCallables = async (
@@ -364,10 +398,64 @@ const reportOrphanIndexes = (
   bullets([`gcloud firestore indexes composite list --project=${projectId}`]);
 };
 
-const recordAppliedFunctions = async (options: ProvisionOptions, names: string[]): Promise<void> => {
+/**
+ * A lista aplicada CONVERGE para o que ainda é exigido: o que já estava e continua sendo pedido, mais
+ * o que subiu agora, mais o órfão que não foi removido. Reescrevê-la só com o que subiu NESTA execução
+ * a esvaziava na segunda passada — e a terceira redeployava tudo, achando que nada havia sido feito.
+ */
+export const appliedAfterRun = (input: {
+  alreadyApplied: string[];
+  wanted: string[];
+  deployed: string[];
+  keptOrphans: string[];
+}): string[] => [...new Set([
+  ...input.alreadyApplied.filter((name) => input.wanted.includes(name)),
+  ...input.deployed,
+  ...input.keptOrphans,
+])].sort();
+
+/**
+ * A impressão digital do parâmetro só avança quando TODAS as functions que o carregam subiram. Gravar
+ * antes disso é o que transformaria uma falha de deploy em silêncio permanente: o valor novo ficaria
+ * registrado como aplicado, e nenhuma execução seguinte tentaria de novo.
+ *
+ * O que não é mais reivindicado por extensão nenhuma fica registrado em vez de ser removido: apagar
+ * faria uma extensão reinstalada redeployar functions que já carregam o valor certo, e uma linha a mais
+ * no arquivo não decide nada.
+ */
+export const appliedParameterState = (input: {
+  recorded: Map<string, string>;
+  current: Map<string, string>;
+  changed: string[];
+  failed: string[];
+  claims: BackendClaim[];
+}): Map<string, string> => {
+  const failed = new Set(input.failed);
+  const next = new Map(input.recorded);
+
+  for (const name of input.changed) {
+    const carriers = functionsDeclaringParameters(input.claims, [name]);
+    if (carriers.some((functionName) => failed.has(functionName))) continue;
+
+    const digest = input.current.get(name);
+    if (digest === undefined) next.delete(name);
+    else next.set(name, digest);
+  }
+
+  return next;
+};
+
+const recordBackendState = async (
+  options: ProvisionOptions,
+  names: string[],
+  parameters: Map<string, string>,
+): Promise<void> => {
   await writeEnvironment(options.environmentFile, {
     ...options.environment,
-    backend: { functions: names.length === 0 ? null : names.join(',') },
+    backend: {
+      functions: names.length === 0 ? null : names.join(','),
+      parameters: serializeParameterState(parameters),
+    },
   });
 };
 

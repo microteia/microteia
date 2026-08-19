@@ -35,7 +35,7 @@ export const init = async (args: ParsedArgs): Promise<void> => {
     environment: { id, name },
     firebase: { projectId: null, region: DEFAULT_FUNCTIONS_REGION },
     kernel: { version: null },
-    backend: { functions: null },
+    backend: { functions: null, parameters: null },
   };
 
   await writeEnvironment(file, environment);

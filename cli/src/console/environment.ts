@@ -19,7 +19,16 @@ export interface Environment {
    * níveis e escalares, e trazer sequências para guardar meia dúzia de nomes seria pagar caro pela
    * generalidade.
    */
-  backend: { functions: string | null };
+  backend: {
+    functions: string | null;
+    /**
+     * Uma impressão digital por parâmetro de backend já aplicado (`NOME:digest`), para o
+     * provisionamento reconhecer o valor que foi preenchido ou trocado DEPOIS do deploy — ver
+     * `backendParameters.ts`. Sem isso, a function deployada continua com o valor anterior e nenhum
+     * comando repara nisso.
+     */
+    parameters: string | null;
+  };
 }
 
 export const ENVIRONMENT_FILE = 'microteia.yaml';
@@ -108,7 +117,10 @@ export const parseEnvironment = (source: string): Environment => {
       region: required('firebase', 'region'),
     },
     kernel: { version: optional('kernel', 'version') },
-    backend: { functions: optional('backend', 'functions') },
+    backend: {
+      functions: optional('backend', 'functions'),
+      parameters: optional('backend', 'parameters'),
+    },
   };
 };
 
@@ -139,6 +151,11 @@ backend:
   # Cloud Functions deployed because an installed extension asked for them. Managed by
   # "microteia provision" — editing it by hand only makes the next run deploy or keep the wrong set.
   functions: ${quote(environment.backend.functions)}
+  # A fingerprint of each backend setting already applied from functions/.env.<projectId>. It is how
+  # "microteia provision" notices a setting filled in after the deploy and redeploys the functions
+  # that carry it. It holds no value, only a salted digest of each one — editing it by hand only makes
+  # the next run redeploy, or skip, the wrong set.
+  parameters: ${quote(environment.backend.parameters)}
 `;
 
 export const readEnvironment = async (path: string): Promise<Environment> => {

@@ -11,6 +11,12 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [7.55.0] — 2026-08-19
+
+- Uma credencial de servidor preenchida depois da instalação passa a valer sozinha: ao rodar o provisionamento, apenas os recursos que dependem dela são atualizados, e nada mais é mexido. Antes, o valor ficava gravado no arquivo de configuração sem chegar a quem precisava dele, e a funcionalidade — o recebimento de intimações por e-mail, por exemplo — falhava só na hora de usar, sem indicar o motivo.
+- O mesmo vale para a troca de uma credencial já em uso: basta atualizar o valor e provisionar de novo.
+- Corrigida a memória do provisionamento, que esquecia o que já havia sido instalado e, de tempo em tempo, refazia trabalho concluído.
+
 #### [7.54.0] — 2026-08-19
 
 - As extensões passam a poder atualizar os dados que já estão no escritório quando ganham uma versão nova. Até aqui uma atualização mudava a estrutura — telas, campos, automações — mas nunca os registros existentes; agora quem escreve a extensão pode incluir uma rotina que preenche, converte ou corrige o que ficou para trás, e ela roda uma única vez, sozinha, na atualização.

@@ -1288,6 +1288,47 @@ functions que faltam uma a uma, confere o alcance das callables novas e imprime 
 extensões envolvidas e os `parameters` ainda vazios — o `ensureBackendEnv` grava `NOME=` em silêncio,
 que é o certo para o deploy e insuficiente para quem precisa preencher.
 
+A lista de functions aplicadas em `microteia.yaml` também converge, e por acréscimo e não por
+substituição: `(aplicado ∩ exigido) ∪ subido agora ∪ órfão que sobrou` (`appliedAfterRun`). Reescrevê-la
+só com o que subiu **nesta** execução a esvaziava na segunda passada — e a terceira redeployava as cinco
+functions do Gmail achando que nenhuma existia.
+
+#### Parâmetro preenchido depois do deploy — a impressão digital em `microteia.yaml`
+
+O valor de um `defineString` é carimbado no deploy de **cada** function: o `firebase-functions` o resolve
+e grava como variável de ambiente da function que está subindo. Disso decorre o defeito que este
+mecanismo fecha: quem preenche `functions/.env.<projectId>` **depois** da instalação — o caso normal,
+porque o cliente OAuth do Google só existe depois que alguém o cria — não alcança function nenhuma. Elas
+seguem rodando com a string vazia, e a falha aparece só no runtime da feature.
+
+Nenhum comando reparava nisso, e nem o caminho longo funcionava: `microteia deploy --only functions`
+redeploya a **baseline**, que não lê parâmetro de extensão nenhum, e o provisionamento no fim dele
+pulava as functions do Gmail por já estarem em `backend.functions`. O estado guardado era só *quais
+functions subiram*, nunca *com quais valores*.
+
+**O que fecha:** `backend.parameters` no `microteia.yaml` — um par `NOME:digest` por parâmetro aplicado
+(`console/backendParameters.ts`). A cada execução, o provisionamento lê o `.env` do projeto, calcula os
+digests dos parâmetros que as extensões instaladas declaram e compara com o registrado. Parâmetro que
+mudou marca como **obsoletas** as functions da extensão que o declara, e elas voltam para a fila mesmo
+já estando aplicadas. Parâmetro que **esvaziou** conta como mudança pelo mesmo motivo: a function
+deployada continua carregando o valor antigo, e convergir é reescrevê-la com o que o arquivo diz.
+
+| Decisão | Por quê |
+|---|---|
+| digest **salgado** com `projectId` e nome do parâmetro, 12 hexadecimais | o `microteia.yaml` fica ao lado das functions do escritório e não guarda credencial; um sha256 puro de um valor curto seria consulta de dicionário, e o salgado não é. Doze hexadecimais detectam mudança e não reconstroem valor |
+| o digest só **avança** quando todas as functions que carregam o parâmetro subiram | gravar antes transformaria uma falha de deploy em silêncio permanente: o valor novo ficaria registrado como aplicado e nenhuma execução seguinte tentaria de novo |
+| parâmetro sem extensão que o declare fica **registrado**, não é removido | apagar faria uma extensão reinstalada redeployar functions que já carregam o valor certo, e uma linha a mais no arquivo não decide nada |
+| linha `NOME=` sem valor é **ausência**, não valor | é assim que o `ensureBackendEnv` grava o que falta; tratá-la como valor faria toda instalação nova nascer com uma mudança pendente |
+
+Na primeira execução depois desta versão não há digest registrado, então uma instalação com parâmetros
+já preenchidos redeploya as functions daquela extensão uma vez — que é exatamente o reparo devido.
+
+**O que fica de fora, e é intencional:** parâmetro da baseline. O manifesto lista os `backendParameters`
+que o `pack` varreu de `functions/src`, mas não sabe qual function lê qual — e inventar esse mapa para um
+caso que hoje não existe (todo `defineString` do kernel é do Gmail, portanto de `com.microteia.push`)
+seria declarar o que ninguém consulta. Se um dia uma function da baseline passar a ler parâmetro, quem
+aplica é `microteia deploy --only functions`, que redeploya a baseline inteira.
+
 **O estado é uma propriedade da própria extensão instalada**, não um documento novo:
 `installed_extensions/{id}.backendState = { fingerprint, appliedAt }`. Quem grava é o Console; quem lê é
 o boot. Não houve regra nova nem coleção nova.

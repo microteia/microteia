@@ -272,6 +272,12 @@ no ar.
 Isto exige o `gcloud` autenticado (`gcloud auth login`): é por ele que o Console lê o que está
 instalado. Ele não guarda credencial nenhuma — pede o token a cada execução.
 
+**Preencheu (ou trocou) um valor em `functions/.env.<projectId>`? Rode `microteia provision` de novo.**
+Uma Cloud Function só vê o valor do deploy que a carimbou: preencher o arquivo depois não alcança
+nenhuma delas, e a feature falha só na hora de usar. O `provision` compara o arquivo com o que já foi
+aplicado e redeploya justamente as functions que carregam o parâmetro que mudou — nem a baseline
+inteira, nem nada além delas. Não é preciso lembrar o que mudou nem passar flag: ele descobre.
+
 Ao desinstalar uma extensão, `microteia provision` **relata** o que ficou órfão sem apagar nada.
 `microteia provision --prune` apaga as functions órfãs; índice nunca é apagado automaticamente, só
 listado com o comando (um deploy não remove índice, e apagar o errado custa uma consulta em produção).

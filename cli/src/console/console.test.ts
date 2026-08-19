@@ -12,7 +12,7 @@ const sample: Environment = {
   environment: { id: 'acao-cia', name: 'Ação & Cia — Produção' },
   firebase: { projectId: 'acme-microteia', region: 'southamerica-east1' },
   kernel: { version: '7.47.0' },
-  backend: { functions: 'gmailPush,renewGmailWatches' },
+  backend: { functions: 'gmailPush,renewGmailWatches', parameters: 'GOOGLE_CLIENT_ID:0011223344aa' },
 };
 
 describe('arquivo de ambiente', () => {
@@ -25,7 +25,7 @@ describe('arquivo de ambiente', () => {
       ...sample,
       firebase: { ...sample.firebase, projectId: null },
       kernel: { version: null },
-      backend: { functions: null },
+      backend: { functions: null, parameters: null },
     };
     expect(parseEnvironment(serializeEnvironment(fresh))).toEqual(fresh);
   });
