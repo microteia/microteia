@@ -47,6 +47,19 @@ const produto: ScreenModuleTemplate = {
         { key: 'cx', label: 'Caixa' },
       ],
     }),
+    // Campo acrescentado na versão 1.1.0 — é ele que a migração de dados preenche nos produtos que
+    // já existiam. Ver `migrations`, ao fim deste arquivo.
+    f({
+      key: 'situacao',
+      label: 'Situação',
+      type: 'select',
+      order: 4,
+      showInList: true,
+      options: [
+        { key: 'ativo', label: 'Ativo' },
+        { key: 'inativo', label: 'Inativo' },
+      ],
+    }),
   ],
 };
 
@@ -111,7 +124,7 @@ const item: ScreenModuleTemplate = {
 export const vendasPlugin: MarketplacePlugin = {
   manifest: {
     id: 'com.microteia.vendas',
-    version: '1.0.0',
+    version: '1.1.0',
     kernel: '^1.0.0',
     name: 'Vendas',
     description: 'Módulo de vendas: produtos, vendas e itens, com totais calculados.',
@@ -198,4 +211,47 @@ export const vendasPlugin: MarketplacePlugin = {
     },
   ],
   screens: [produto, venda, item],
+  /**
+   * A prova do mecanismo de MIGRAÇÃO DE DADOS. A versão 1.1.0 acrescentou o campo "Situação" ao
+   * Produto; num banco sem esquema o campo passa a existir vazio sozinho, e é justamente o que a
+   * declaração não alcança: qual valor ele deveria ter nos produtos que já estavam cadastrados.
+   *
+   * Três coisas para ler no código abaixo, porque valem para toda migração:
+   *
+   * 1. **A coleção vem de `input.collections`, nunca escrita à mão.** A chave `produto` declarada aqui
+   *    é reivindicada na instalação e ganha sufixo se o nome já estiver ocupado no escritório — o
+   *    código de uma migração é texto opaco, e ninguém o reescreveria.
+   * 2. **É idempotente.** Ela procura o que AINDA não tem situação; rodar de novo sobre dado já
+   *    convertido não faz nada. É o que permite retentar depois de uma falha no meio, e não existe
+   *    `down` para desfazer.
+   * 3. **É retomável em lote.** O sandbox concede 25 gravações e 10s por execução, então ela grava um
+   *    pedaço e devolve `remaining`; o runner a chama de novo até zerar.
+   */
+  migrations: [
+    {
+      id: 'produto-situacao-ativo',
+      version: '1.1.0',
+      name: 'Marcar produtos existentes como ativos',
+      sourceTs: [
+        'const BATCH = 20;',
+        '',
+        'async function main() {',
+        '  const collection = input.collections.produto;',
+        '  const found = await query({ table: collection, where: [], limit: 200, projections: [] });',
+        '  const pending = found.results.filter((record) => !record.situacao);',
+        '',
+        '  let changed = 0;',
+        '  for (const record of pending.slice(0, BATCH)) {',
+        "    await upsert({ table: collection, id: record.id, data: { situacao: 'ativo' } });",
+        '    changed = changed + 1;',
+        '  }',
+        '',
+        "  log('Produtos marcados como ativos nesta rodada: ' + changed);",
+        '  return { changed, remaining: pending.length - changed };',
+        '}',
+        '',
+        'main()',
+      ].join('\n'),
+    },
+  ],
 };

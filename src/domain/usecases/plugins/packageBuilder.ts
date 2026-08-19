@@ -8,6 +8,7 @@ import type {
   ViewModuleTemplate,
   WorkflowModuleTemplate,
 } from '../../entities/MarketplacePlugin';
+import type { PluginMigration } from '../../schema/plugin/migration';
 import type { PluginManifest } from '../../schema/plugin/pluginManifest';
 import type { ActionDefinition, ScreenDefinition } from '../../entities';
 import type { Script } from '../../entities/Script';
@@ -41,6 +42,13 @@ export interface BuildPackageInput extends PackageSelection {
   views?: ViewModuleTemplate[];
   /** Código de inicialização (trusted) que registra serviços ao carregar. Vazio → omitido. */
   startup?: string;
+  /**
+   * Migrações de dados a PRESERVAR. Não são artefatos do escritório e por isso não têm de onde ser
+   * derivadas: quem as tem é o pacote em edição. Sem carregá-las aqui, reexportar uma extensão as
+   * perderia em silêncio — e os escritórios que instalassem o pacote reexportado ficariam sem o
+   * conserto de dado que a versão anterior deles exige.
+   */
+  migrations?: PluginMigration[];
   /** Templates embarcados a preservar (extensão importada em edição). Mesclados por chave/templateId. */
   carried?: CarriedTemplates;
   /** Listas do tenant, para dar rótulo às que as telas exportadas referenciam. */
@@ -369,5 +377,6 @@ export const buildPackage = (input: BuildPackageInput): MarketplacePlugin => {
     ...(scripts.length > 0 ? { scripts } : {}),
     ...((input.views?.length ?? 0) > 0 ? { views: input.views } : {}),
     ...(input.startup && input.startup.trim() !== '' ? { startup: input.startup } : {}),
+    ...((input.migrations?.length ?? 0) > 0 ? { migrations: input.migrations } : {}),
   };
 };

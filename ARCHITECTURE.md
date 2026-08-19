@@ -4717,6 +4717,169 @@ com `serializePackage` — o mesmo formato do botão "Baixar .json". `scripts/ex
 segue declarado e não consultado (inclusive o domínio `net`), e `installedPluginRecords` continua sem
 chamador — a decisão de confiança vive agora em `extensionCodeTrust`.
 
+## Migração de dados de extensão
+
+**O que a convergência de artefatos não alcança.** `applyPackageArtifacts` reescreve a DECLARAÇÃO —
+tela, campo, automação, ação, script — e nunca toca em registro. Num banco sem esquema isso cobre
+quase tudo: um campo novo passa a existir vazio sozinho, e desinstalar não precisa remover coluna
+nenhuma. O que não cobre é o que só o autor sabe — **qual valor o campo novo deveria ter no registro
+que já estava lá**, ou que o texto de ontem virou número hoje.
+
+Uma extensão declara isso em `package.migrations`: uma fila de `PluginMigration`
+(`domain/schema/plugin/migration.ts`), cada uma rodando **uma vez por escritório**.
+
+### Onde o código roda — e por que isso decide o resto
+
+No **sandbox QuickJS do servidor**, pela callable que já existe: `runScript` recebe o `compiledJs` no
+payload e não lê Script nenhum do Firestore. Três consequências, e as três são o desenho:
+
+- **Nenhuma Cloud Function nova.** Nada a acrescentar em `deploy:*`, nada no `manifest.backend`, nada
+  a aplicar com `microteia provision` nos escritórios que já instalaram.
+- **Migração não exige revisão de código.** Ela não é código de host: não alcança `fetch`, DOM nem
+  `localStorage`, só `query`/`upsert`/`remove`, escopados no escritório corrente **pelo servidor**
+  (`context.execution.tenantId`, não forjável). Por isso ela fica fora do hash de
+  `extensionCodeTrust` — e é o que permite a uma extensão de TERCEIRO migrar os próprios dados, que é
+  justamente quem mais precisa disso.
+- **A migração não é materializada como Script do escritório.** Ela não é um artefato que o escritório
+  reusa, edita ou vê na lista de Scripts, e refcontá-la entre extensões não teria sentido. O que ela
+  compartilha com o Script é o EXECUTOR — e a regra de transpilação, que é literalmente a mesma
+  função (`domain/services/scriptSource.ts`: sem `import`/`export`/`require`, transpilado no cliente,
+  nunca no servidor).
+
+### O lote, e as duas propriedades que ele obriga
+
+O sandbox concede **25 consultas, 25 gravações e 10s de parede** por execução. Nenhuma migração de
+verdade cabe numa passada — então ela processa um pedaço e devolve `{ changed, remaining }`, e o
+runner a reinvoca até `remaining` zerar. As duas propriedades que isso exige são as mesmas que fazem
+uma migração sobreviver a uma falha no meio:
+
+- **idempotente** — consulta o que AINDA não foi convertido, nunca "todos";
+- **retomável** — cada rodada deixa o dado num estado a partir do qual a próxima continua.
+
+Como **não existe `down`** (e não deve existir: o dado migrado sobrevive à desinstalação, e desfazer
+seria um contrato que este projeto não assumiu), essas duas são **obrigação do autor**, não do
+runtime. O que o runtime garante é que o descumprimento vira erro visível e não laço infinito: uma
+rodada que diz que falta e não avançou encerra em `migration.error.no-progress`, e estourar
+`maxRounds` é ERRO — o dado ficou pela metade, e chamar isso de sucesso seria a mentira mais cara
+possível.
+
+### O que chega ao script, e o que ele devolve
+
+| Entrada (`input`) | O quê |
+|---|---|
+| `round` | a rodada, base 0 |
+| `pluginId`, `migrationId` | quem está rodando |
+| `fromVersion`, `toVersion` | de onde e para onde |
+| `collections` | **`chaveDeTemplate → coleção instalada`** |
+
+`collections` não é conveniência. A chave de tela declarada no pacote é **reivindicada** na
+instalação e ganha sufixo se o nome já estiver ocupado no escritório de destino; telas e automações
+são reescritas na materialização, mas **o código de uma migração é texto opaco e ninguém o
+reescreveria**. Escrever `table: 'produto'` à mão produz uma migração que funciona no escritório de
+teste e falha em silêncio no do cliente — há teste de catálogo (`plugins/marketplace/migrations.test.ts`)
+que reprova exatamente isso.
+
+A saída é `{ changed?, remaining? }`. Sem `remaining`, a migração termina na primeira rodada.
+
+### Identidade, nunca intervalo de versões
+
+O escritório guarda o conjunto de **ids aplicados**, e roda toda migração declarada que não esteja
+nele. Não é "da versão instalada até a nova", e a diferença não é estética — o intervalo perde quatro
+casos que acontecem:
+
+- migração **acrescentada depois** a uma versão antiga (o autor esqueceu) nunca rodaria;
+- migração que **falhou no meio** exigiria inventar um número de versão para ser retentada;
+- `installedVersion` é gravado mesmo quando a fase seguinte falha — a migração ficaria perdida para
+  sempre;
+- no catálogo embutido a **versão fica parada enquanto o código muda** (ver "Catálogo embutido"), o
+  que tornaria a fila invisível justamente no ciclo de desenvolvimento.
+
+Daí também `id ≠ versão`: uma versão pode precisar de duas migrações, e duas migrações precisam de
+ordem determinística. A ordem é por semver, com a **ordem declarada** desempatando — e a validação
+reprova um array fora de ordem, para que o que se lê no pacote seja o que acontece no escritório.
+
+### Instalação nova é baseline
+
+Instalar pela primeira vez **carimba a fila inteira como aplicada e não roda nada**: migração conserta
+dado escrito por uma versão anterior DESTA extensão, e num escritório que instala agora esse dado não
+existe. É aqui que "NoSQL facilita" se paga de verdade — não há esquema a criar.
+
+A exceção é declarada por migração: `runOnInstall: true`. Ela existe para a extensão que acrescenta
+campos a uma coleção que **já existe** no escritório (`persons`, `cases`) e precisa preencher
+registros que sempre estiveram lá — esse escritório precisa do preenchimento mesmo instalando pela
+primeira vez.
+
+### Fase `before` e fase `after`
+
+`after` é o padrão e o caso normal: a migração quer os campos novos já declarados.
+
+`before` existe para o caso que **só funciona antes**: `applyPackageArtifacts` retira da tela o campo
+que sumiu do pacote, e `query`/`upsert` validam caminho contra a tela (`validateUpsertSpec`,
+`resolvePath`). Depois da convergência, ler ou gravar o campo antigo passa a ser **recusado** — então
+uma migração que copia `campo_antigo` para `campo_novo` precisa correr enquanto os dois existem. Sem
+essa fase, essa migração é impossível de escrever e o sintoma é um erro de campo desconhecido que não
+sugere causa nenhuma.
+
+Falha na fase `before` **aborta a atualização inteira** — nada foi tocado ainda. Falha na `after` não
+desfaz nada (não há `down`): a versão nova fica instalada e a extensão fica **pendente**.
+
+### Pendente é fail-closed — o mesmo molde do backend
+
+Migração obrigatória em dívida mantém a extensão **fora do boot do escritório**
+(`installedExtensionRecords`), com selo e o gesto "Atualizar dados" na tela de Extensões, junto do
+erro da última tentativa. É a mesma decisão de `extensionBackendState`, pelo motivo invertido: lá o
+servidor não está lá; aqui ele está, mas o dado ainda não está no formato que as telas da extensão
+esperam. A alternativa seria obrigar cada tela da extensão a tolerar os dois formatos **para sempre**
+— exatamente o custo que a migração existe para evitar. `required: false` está disponível para o
+preenchimento cosmético, que pode esperar sem que nada quebre.
+
+Consequência honesta: a fila só roda quando **um admin abre o app** — `runScript` exige `admin` ou
+`lawyer`, e o histórico só é gravável por admin. Escritório que nunca é aberto nunca migra, e é o
+fail-closed que torna isso seguro em vez de silencioso.
+
+### Onde o histórico mora — e por que sobrevive à desinstalação
+
+`tenants/{tenantId}/extension_migrations/{pluginId}`. Coleção própria, e não um campo da cópia
+instalada, por três razões:
+
+- o documento da instalação é **reescrito inteiro** a cada atualização (`package` incluso);
+- o dado migrado **sobrevive** à desinstalação (a estrutura some, os registros ficam) — se o histórico
+  morresse junto, reinstalar depois reexecutaria tudo sobre dado já convertido;
+- "o que esta extensão fez com os dados do escritório" é uma pergunta cuja resposta vale por si,
+  mesmo quando a extensão já não está lá. Por isso a regra do Firestore **nega `delete`**.
+
+Todo membro LÊ (é essa leitura que mantém a extensão pendente fora do boot em cada navegador); só
+admin grava.
+
+### A trava
+
+Uma execução por vez, por escritório e por extensão, reservada em transação: é aqui que dois admins
+clicando "Atualizar" ao mesmo tempo se encontram. A reserva **expira** (`MIGRATION_LOCK_STALE_MS`,
+5 min) — uma aba fechada no meio não pode travar a extensão para sempre.
+
+### O que NÃO existe, de propósito
+
+- **`down`/rollback.** Ver acima.
+- **Autoria pela tela.** Migração se escreve no pacote (`.ts` do catálogo embutido ou `.json`); a tela
+  "Criar extensão" apenas **preserva** as migrações do pacote em edição, para que reexportar não as
+  perca em silêncio.
+- **Migração do kernel.** O mecanismo é de extensão. O kernel evolui pelos caminhos que já tem.
+- **Execução em segundo plano.** Não há agendador: a fila roda na atualização, ou no gesto do admin.
+
+### Arquivos-chave
+
+| Arquivo | Papel |
+|---|---|
+| `domain/schema/plugin/migration.ts` | o contrato e a validação da fila (pura) |
+| `domain/services/pluginMigrations.ts` | o planejamento: o que rodar, em que ordem, o que carimbar |
+| `domain/usecases/plugins/runPluginMigrations.ts` | o runner: lote, rodadas, reserva, registro |
+| `domain/usecases/plugins/extensionMigrationState.ts` | pendente/erro por cópia instalada |
+| `data/repositories/FirebaseExtensionMigrationRepository.ts` | o histórico, com a reserva transacional |
+| `stores/InstalledExtensionStore.tsx` | a sequência: `before` → artefatos → `after`, sob a trava |
+| `plugins/marketplace/vendas.ts` | a migração de exemplo, com as três propriedades à vista |
+
+---
+
 ## Idioma — tradução como contribuição
 
 **O inglês é o idioma-fonte (`DEFAULT_LOCALE = 'en'`); todo outro idioma é uma tradução dele.** Não há

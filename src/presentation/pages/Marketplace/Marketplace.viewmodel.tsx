@@ -10,11 +10,13 @@ import { packageFingerprint, serializePackage } from '../../../domain/usecases/p
 import { isVersionGreater } from '../../../domain/usecases/plugins/publicExtension';
 import { extensionCodeOf, extensionHasCode } from '../../../domain/usecases/plugins/extensionCodeTrust';
 import { isExtensionBackendPending } from '../../../domain/usecases/plugins/extensionBackendState';
+import { extensionMigrationError, isExtensionMigrationPending } from '../../../domain/usecases/plugins/extensionMigrationState';
 import { useExtensionCodeTrust } from '../../../stores/useExtensionCodeTrust';
 import { usePluginDiagnostics } from '../../../stores/useKernel';
 import { MARKETPLACE_CATALOG } from '../../../plugins/marketplace/catalog';
 import { SYSTEM_THEME_PACKAGES } from '../../../plugins/themes/systemThemes';
 import type { MarketplacePlugin } from '../../../domain/entities/MarketplacePlugin';
+import type { InstalledExtension } from '../../../domain/entities/InstalledExtension';
 
 import { useT, useLabel } from '../../shared/i18n/useT';
 
@@ -64,6 +66,15 @@ export interface ExtensionRow {
    * pior, aparecer e falhar toda chamada ao servidor como se fosse CORS.
    */
   backendPending: boolean;
+  /**
+   * Instalada, com MIGRAÇÃO DE DADOS obrigatória em dívida. Também não está no ar: o servidor está lá,
+   * mas o dado ainda não está no formato que as telas dela esperam. Ver `extensionMigrationState`.
+   */
+  migrationPending: boolean;
+  /** O erro da última tentativa de migração, já resolvido para texto. Nulo quando nunca falhou. */
+  migrationError: string | null;
+  /** Há fila pendente E o usuário pode rodá-la (só admin) — o gesto de "Atualizar dados". */
+  canRunMigrations: boolean;
   /** Código instalado que ainda não pode executar — falta a revisão de um admin do escritório. */
   needsCodeReview: boolean;
   /** Fonte do código, para o admin ler antes de confiar. */
@@ -134,6 +145,8 @@ export interface MarketplaceViewModel {
   download: (id: string) => void;
   publish: (id: string) => Promise<void>;
   install: (id: string) => Promise<void>;
+  /** Roda a fila de migração de dados pendente da cópia instalada. */
+  runMigrations: (id: string) => Promise<void>;
   toggleActive: (id: string, active: boolean) => Promise<void>;
   uninstall: (id: string) => Promise<void>;
   requestRemove: (id: string) => void;
@@ -152,7 +165,16 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
   const t = useT('core.marketplace');
   const label = useLabel();
   const { extensions, importExtension, removeExtension } = useTenantExtensions();
-  const { installed, install: installCopy, setActive: setInstalledActive, trustCode, uninstall: uninstallCopy } = useInstalledExtensions();
+  const {
+    installed,
+    migrationStates,
+    install: installCopy,
+    setActive: setInstalledActive,
+    trustCode,
+    uninstall: uninstallCopy,
+    pendingMigrationsOf,
+    runMigrations: runExtensionMigrations,
+  } = useInstalledExtensions();
   const { publicExtensions, publish: publishPublic, approve: approvePublic, deprecate: deprecatePublic, unpublish, publicOf } = usePublicExtensions();
   const { tenantRole } = useTenant();
   const { user, userRole } = useAuth();
@@ -287,6 +309,18 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
     return packageFingerprint(input.package) === packageFingerprint(inst.package) ? null : input;
   }, [builtinInputOf]);
 
+  /**
+   * O erro da última migração já resolvido para texto — ele nasce no domínio como referência de
+   * mensagem, e é a tela que conhece o idioma de quem lê.
+   */
+  const migrationErrorOf = useCallback(
+    (extension: InstalledExtension | undefined): string | null => {
+      const failure = extension ? extensionMigrationError(extension, migrationStates) : null;
+      return failure ? label(failure.message, failure.messageParams) : null;
+    },
+    [migrationStates, label],
+  );
+
   const rows = useMemo<ExtensionRow[]>(() => {
     const ids = new Set<string>();
     extensions.forEach((e) => ids.add(e.id));
@@ -323,6 +357,9 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
         needsCodeReview: false,
         codeToReview: null,
         backendPending: false,
+        migrationPending: false,
+        migrationError: null,
+        canRunMigrations: false,
         codeTrustedByName: null,
         mine: false,
         installed: true,
@@ -397,6 +434,9 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
         canApprove: canModerate && publicStatus === 'pending',
         canDeprecate: canModerate && publicStatus === 'approved',
         backendPending: inst !== undefined && inst !== null && isExtensionBackendPending(inst),
+        migrationPending: inst ? isExtensionMigrationPending(inst, migrationStates) : false,
+        migrationError: migrationErrorOf(inst),
+        canRunMigrations: canManage && inst !== undefined && pendingMigrationsOf(id).length > 0,
         needsCodeReview: Boolean(inst) && installedNeedsReview.has(id),
         codeToReview: inst ? extensionCodeOf(inst.package) : null,
         codeTrustedByName: inst?.codeTrust?.trustedByName ?? null,
@@ -411,7 +451,7 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
     }
 
     return list.sort((a, b) => rankOf(a) - rankOf(b) || a.name.localeCompare(b.name));
-  }, [extensions, installed, publicExtensions, publicOf, updateSourceOf, builtinUpdateOf, canModerate, user, installedNeedsReview, problemsByPlugin, label]);
+  }, [extensions, installed, publicExtensions, publicOf, updateSourceOf, builtinUpdateOf, canModerate, canManage, user, installedNeedsReview, problemsByPlugin, label, migrationStates, pendingMigrationsOf, migrationErrorOf]);
 
   const counts = useMemo<Record<MarketplaceFilter, number>>(() => ({
     all: rows.length,
@@ -482,6 +522,23 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
     if (!input) return Promise.resolve();
     return run(id, () => installCopy(input), t('extension.installed'));
   }, [installed, updateSourceOf, builtinUpdateOf, privateInputOf, publicInputOf, builtinInputOf, run, installCopy, t]);
+
+  /**
+   * Roda a fila pendente. `run` já cuida do ocupado/erro; a mensagem de sucesso diz o que aconteceu,
+   * porque uma migração bem-sucedida não muda nada visível na tela além de a extensão voltar ao ar.
+   */
+  const runMigrations = useCallback(
+    (id: string) => {
+      const row = installed.find((extension) => extension.id === id);
+      const name = row ? label(row.package.manifest.name) : id;
+      if (pendingMigrationsOf(id).length === 0) {
+        notify(t('migration.up-to-date', { name }), 'info');
+        return Promise.resolve();
+      }
+      return run(id, () => runExtensionMigrations(id), t('migration.ran', { name }));
+    },
+    [installed, pendingMigrationsOf, runExtensionMigrations, run, notify, t, label],
+  );
 
   const toggleActive = useCallback(
     (id: string, active: boolean) => run(id, () => setInstalledActive(id, active), active ? t('extension.activated') : t('extension.deactivated')),
@@ -576,6 +633,7 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
     download,
     publish,
     install,
+    runMigrations,
     toggleActive,
     uninstall,
     requestRemove,

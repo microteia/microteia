@@ -11,6 +11,12 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [7.54.0] — 2026-08-19
+
+- As extensões passam a poder atualizar os dados que já estão no escritório quando ganham uma versão nova. Até aqui uma atualização mudava a estrutura — telas, campos, automações — mas nunca os registros existentes; agora quem escreve a extensão pode incluir uma rotina que preenche, converte ou corrige o que ficou para trás, e ela roda uma única vez, sozinha, na atualização.
+- Enquanto essa atualização de dados não é concluída, a extensão fica visivelmente pendente e sai do ar em vez de funcionar pela metade. Na tela de Extensões, o administrador vê o que falta, o motivo de uma tentativa que não deu certo e o botão "Atualizar dados" para executar de novo.
+- Instalar uma extensão pela primeira vez continua instantâneo: como não há dados antigos dela no escritório, não há nada a converter.
+
 #### [7.53.2] — 2026-08-18
 
 - Corrigido o motivo de a versão exibida no rodapé continuar a antiga depois de uma atualização: a página era guardada pelo navegador por até uma hora e, com ela, o programa antigo. Agora a página é sempre reconferida, e apenas as partes que nunca mudam seguem guardadas.

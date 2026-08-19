@@ -28,6 +28,7 @@ import type { IPluginInstallationRepository } from '../../domain/repositories/IP
 import type { IPluginRegistryRepository } from '../../domain/repositories/IPluginRegistryRepository';
 import type { ITenantExtensionRepository } from '../../domain/repositories/ITenantExtensionRepository';
 import type { IInstalledExtensionRepository } from '../../domain/repositories/IInstalledExtensionRepository';
+import type { IExtensionMigrationRepository } from '../../domain/repositories/IExtensionMigrationRepository';
 import type { IPublicExtensionRepository } from '../../domain/repositories/IPublicExtensionRepository';
 
 export interface DIContainer {
@@ -64,6 +65,7 @@ export interface DIContainer {
   pluginRegistryRepository: IPluginRegistryRepository;
   tenantExtensionRepository: ITenantExtensionRepository;
   installedExtensionRepository: IInstalledExtensionRepository;
+  extensionMigrationRepository: IExtensionMigrationRepository;
   publicExtensionRepository: IPublicExtensionRepository;
 }
 

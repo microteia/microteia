@@ -16,7 +16,7 @@ import {
   translationKeyCount,
 } from '../../../domain/usecases/i18n/translationPackage';
 import { parsePackage, serializePackage } from '../../../domain/usecases/plugins/packageSerialization';
-import { packageSizeIssues, validatePackage } from '../../../domain/usecases/plugins/pluginReferences';
+import { packageIssues, validatePackage } from '../../../domain/usecases/plugins/pluginReferences';
 import { validatePluginManifest } from '../../../domain/schema/plugin/pluginManifest';
 import { KERNEL_VERSION } from '../../../domain/schema/plugin/kernelVersion';
 
@@ -171,7 +171,7 @@ export const useTranslationsViewModel = (): TranslationsViewModel => {
           kernelVersion: KERNEL_VERSION,
           validateContributions: false,
         });
-        const problem = manifestErrors[0] ?? validatePackage(pkg)[0] ?? packageSizeIssues(pkg)[0];
+        const problem = manifestErrors[0] ?? validatePackage(pkg)[0] ?? packageIssues(pkg)[0];
         if (problem) {
           notify(label(problem.message, problem.messageParams), 'error');
           return;

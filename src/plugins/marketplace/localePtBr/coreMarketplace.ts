@@ -108,6 +108,11 @@ export const CORE_MARKETPLACE: Record<string, string> = {
     'Esta extensão precisa de funções de servidor ou de índices que este projeto Firebase ainda não '
     + 'tem, então ela está instalada mas não está no ar. Quem cuida do projeto aplica isso com '
     + '"microteia provision", no Microteia Console.',
+  'extension.badge.migration-pending': 'Atualização de dados pendente',
+  'extension.migration-pending.detail':
+    'Esta extensão precisa atualizar dados gravados por uma versão anterior dela, então está instalada '
+    + 'mas não está no ar. Só um administrador roda isso, em "Atualizar dados" neste cartão.',
+  'extension.run-migrations': 'Atualizar dados',
   'extension.install': 'Instalar no escritório',
   'extension.update': 'Atualizar',
   'extension.uninstall': 'Desinstalar do escritório',
@@ -219,6 +224,16 @@ export const CORE_MARKETPLACE: Record<string, string> = {
   'diagnostic.point.owned':
     'O ponto de extensão "{id}" já pertence ao plugin "{owner}" e não pode ser redeclarado por "{claimant}".',
   'diagnostic.point.title.missing': 'O ponto "{id}" precisa de um título.',
+  'issue.migration.id-duplicated': 'Duas migrações de dados têm o identificador "{id}" — é o identificador que registra que ela já rodou.',
+  'issue.migration.id-invalid': 'O identificador "{id}" da migração de dados é inválido: minúsculas, dígitos e hífen, começando por letra.',
+  'issue.migration.name-missing': 'A migração de dados "{id}" precisa de um nome — é o que o escritório lê antes de rodá-la.',
+  'issue.migration.not-list': 'As migrações de dados precisam ser uma lista.',
+  'issue.migration.out-of-order': 'A migração de dados "{id}" vem depois de "{previous}", de uma versão posterior — a ordem declarada é a ordem de execução.',
+  'issue.migration.phase-invalid': 'A migração de dados "{id}" declara a fase "{phase}": ela roda "before" ou "after" os artefatos do pacote.',
+  'issue.migration.rounds-invalid': 'A migração de dados "{id}" declara {rounds} rodadas — o teto precisa ser um número inteiro de 1 ou mais.',
+  'issue.migration.source-missing': 'A migração de dados "{id}" está sem código.',
+  'issue.migration.source-modules': 'A migração de dados "{id}" usa import/export/require, que o sandbox não resolve.',
+  'issue.migration.version-invalid': 'A migração de dados "{id}" declara a versão "{version}", que não é um semver válido.',
   'issue.package.near-limit':
     'O pacote tem {size}. Acima de {limit} ele deixa de caber no documento da instalação — convém dividi-lo antes de crescer mais.',
   'issue.package.no-manifest': 'A extensão não tem um manifest com "id".',
@@ -263,6 +278,12 @@ export const CORE_MARKETPLACE: Record<string, string> = {
   'lifecycle.invalid-version': 'Versão "{version}" não é um semver válido.',
   'lifecycle.not-installed': 'O plugin não está instalado neste escritório.',
   'lifecycle.not-newer': 'A versão {version} não é mais recente que a instalada ({installed}).',
+  'migration.error.failed': 'A atualização de dados "{name}" falhou: {detail}',
+  'migration.error.locked': 'Outra atualização de dados desta extensão já está em curso neste escritório. Aguarde ela terminar.',
+  'migration.error.max-rounds': 'A atualização de dados "{name}" não terminou em {rounds} rodadas. Rode de novo para continuar de onde parou.',
+  'migration.error.no-progress': 'A atualização de dados "{name}" parou com {remaining} registros faltando e não avançou — precisa de correção de quem a escreveu.',
+  'migration.ran': 'Dados de {name} atualizados.',
+  'migration.up-to-date': 'Os dados de {name} já estão atualizados.',
   'capability.ai-completion': 'Geração de texto por IA',
   'plugin.capabilities.description':
     'Declara o ponto de extensão onde plugins fornecem implementações de Capabilities.',

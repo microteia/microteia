@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import type { MarketplacePlugin, ScreenModuleTemplate } from '../../entities/MarketplacePlugin';
-import { isCoreCollection, validatePackage, workflowOutRefs } from './pluginReferences';
+import { isCoreCollection, packageIssues, validatePackage, workflowOutRefs } from './pluginReferences';
 
 const base = (overrides: Partial<MarketplacePlugin>): MarketplacePlugin => ({
   summary: '',
@@ -266,5 +266,26 @@ describe('validatePackage — complemento sobre a tela do próprio pacote', () =
     }));
     expect(issues).toHaveLength(1);
     expect(issues[0].message).toBe('@core.marketplace/issue.patch.own-screen');
+  });
+});
+
+/**
+ * `packageIssues` é a porta única das validações que não apontam para um artefato. Ela existe para que
+ * uma validação nova (aqui, a fila de migração) valha no export e no import sem ter de ser lembrada em
+ * cada chamador — que é como uma checagem passa a valer só em metade dos caminhos.
+ */
+describe('packageIssues — a porta compartilhada por export e import', () => {
+  it('não reclama de um pacote sem migração', () => {
+    expect(packageIssues(base({}))).toEqual([]);
+  });
+
+  it('reprova a fila de migração malformada', () => {
+    const issues = packageIssues(base({
+      migrations: [
+        { id: 'ok', version: '1.0.0', name: 'Ok', sourceTs: 'main()' },
+        { id: 'Errado', version: '1.1.0', name: 'X', sourceTs: 'main()' },
+      ],
+    }));
+    expect(issues.map((issue) => issue.message)).toEqual(['@core.marketplace/issue.migration.id-invalid']);
   });
 });

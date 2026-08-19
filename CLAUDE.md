@@ -368,6 +368,7 @@ O `ARCHITECTURE.md` **não** guarda cópia das regras; a tabela de índices que 
 - [ ] **Novo path no Storage:** editar `storage.rules` (raiz) e avisar que precisa de `npm run deploy:rules`
 - [ ] **Nova query Firestore:** `where` máximo + `orderBy` no servidor + `limit()` + índice em `firestore.indexes.json` (raiz) e na tabela do `ARCHITECTURE.md`, com aviso de `npm run deploy:indexes`; coleções de crescimento ilimitado exigem paginação por cursor
 - [ ] **Índice de coleção de EXTENSÃO:** além da raiz, declarar em `manifest.backend.indexes` da extensão dona — sem isso o índice viaja para quem não instalou a extensão, e o `pack` reprova a divergência
+- [ ] **Extensão que muda o FORMATO de dado já gravado:** declarar a rotina em `package.migrations` — ela roda uma vez por escritório, no sandbox, e nunca escreve o nome da coleção à mão (use `input.collections`). Ver "Migração de dados de extensão" no `ARCHITECTURE.md`
 - [ ] **Novo Store:** tem `visibilitychange`, emite evento em cada mutação e assina eventos dos stores de que depende
 - [ ] **Entidade com relação pai/filho:** `Delete[Entidade]UseCase` cascateia filhos; o método do Store atualiza estado local + emite os eventos corretos
 

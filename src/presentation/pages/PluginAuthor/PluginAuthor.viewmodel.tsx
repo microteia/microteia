@@ -12,7 +12,7 @@ import { buildPackage, type CarriedTemplates } from '../../../domain/usecases/pl
 import {
   packageOutRefs,
   packageSizeAdvisory,
-  packageSizeIssues,
+  packageIssues,
   validatePackage,
 } from '../../../domain/usecases/plugins/pluginReferences';
 import { serializePackage } from '../../../domain/usecases/plugins/packageSerialization';
@@ -541,13 +541,16 @@ export const usePluginAuthorViewModel = (tabKey?: string): PluginAuthorViewModel
       summary: form.summary.trim(),
       views: viewTemplates,
       startup,
+      // Migração de dados não se autora nesta tela — ela vem do pacote em edição e é preservada.
+      // Sem isto, reexportar uma extensão perderia em silêncio o conserto de dado que ela carrega.
+      migrations: editingPackage?.migrations,
       carried: foreignCarried,
       // Quem edita uma extensão edita a TELA INSTALADA, no Form Design: é dela que o template
       // carregado é reancorado, senão reexportar reemitiria a versão velha.
       installedScreens: definitions,
       installedActions: actions,
     }),
-    [selection, manifest, form.summary, viewTemplates, startup, foreignCarried, definitions, actions],
+    [selection, manifest, form.summary, viewTemplates, startup, foreignCarried, definitions, actions, editingPackage],
   );
 
   const nameOf = useCallback((kind: RefKind, id: string): string => {
@@ -588,7 +591,7 @@ export const usePluginAuthorViewModel = (tabKey?: string): PluginAuthorViewModel
         name: nameOf(issue.ref.kind, issue.ref.id),
       }),
     ),
-    ...packageSizeIssues(pkg).map((issue) => label(issue.message, issue.messageParams)),
+    ...packageIssues(pkg).map((issue) => label(issue.message, issue.messageParams)),
     ...viewIssues,
     ...(startupError ? [t('author.issue.startup-compile', { error: startupError })] : []),
   ], [manifest, form.summary, pkg, nameOf, viewIssues, startupError, t, label]);

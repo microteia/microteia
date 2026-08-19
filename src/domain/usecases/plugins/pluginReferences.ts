@@ -10,6 +10,7 @@ import { getEntityByCollection, getEntityByEventPrefix } from '../../schema/enti
 import { splitEntityEventName } from '../../schema/eventCatalog';
 import { isLookupCollection } from '../../schema/lookupRegistry';
 import { dependencyCollections } from '../../schema/plugin/pluginManifest';
+import { validateMigrations } from '../../schema/plugin/migration';
 import { screenEventPrefix, templateCollection } from './screenModule';
 
 export type RefKind = 'screen' | 'action' | 'workflow' | 'script';
@@ -286,6 +287,25 @@ export const packageSizeIssues = (pkg: MarketplacePlugin): LocalizedIssue[] => {
     },
   ];
 };
+
+/**
+ * Recusa a fila de migração malformada. Não é validação de conteúdo — o que a migração faz com o dado
+ * é do autor —, é validação do que impediria a fila de rodar: identidade repetida, versão que não é
+ * semver, código com `import` (que o sandbox não resolve), ordem declarada diferente da ordem de
+ * execução. Ver `PluginMigration`.
+ */
+export const packageMigrationIssues = (pkg: MarketplacePlugin): LocalizedIssue[] =>
+  validateMigrations(pkg.migrations);
+
+/**
+ * As validações de pacote que não apontam para um artefato — tamanho e fila de migração. É UMA porta,
+ * e é de propósito: export e import compartilham a mesma checagem, e uma validação nova acrescentada
+ * aqui não precisa ser lembrada em cada chamador.
+ */
+export const packageIssues = (pkg: MarketplacePlugin): LocalizedIssue[] => [
+  ...packageSizeIssues(pkg),
+  ...packageMigrationIssues(pkg),
+];
 
 /** O aviso de que o pacote está grande, mas ainda instala. Para a tela de autoria, não para o import. */
 export const packageSizeAdvisory = (pkg: MarketplacePlugin): LocalizedIssue | undefined => {

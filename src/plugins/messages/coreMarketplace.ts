@@ -109,6 +109,11 @@ export const CORE_MARKETPLACE_MESSAGES: Record<string, string> = {
     'This extension needs Cloud Functions or database indexes that this Firebase project does not have '
     + 'yet, so it is installed but not running. Whoever maintains the project applies them with '
     + '"microteia provision" in the Microteia Console.',
+  'extension.badge.migration-pending': 'Data update pending',
+  'extension.migration-pending.detail':
+    'This extension needs to update data written by an earlier version of it, so it is installed but '
+    + 'not running. Only an administrator runs it, from "Update data" on this card.',
+  'extension.run-migrations': 'Update data',
   'extension.install': 'Install in the organization',
   'extension.update': 'Update',
   'extension.uninstall': 'Uninstall from the organization',
@@ -219,6 +224,16 @@ export const CORE_MARKETPLACE_MESSAGES: Record<string, string> = {
   'diagnostic.point.owned':
     'Extension point "{id}" already belongs to plugin "{owner}" and cannot be redeclared by "{claimant}".',
   'diagnostic.point.title.missing': 'Point "{id}" needs a title.',
+  'issue.migration.id-duplicated': 'Two data migrations share the identifier "{id}" — the identifier is what records that it already ran.',
+  'issue.migration.id-invalid': 'Data migration identifier "{id}" is invalid: lower-case letters, digits and hyphen, starting with a letter.',
+  'issue.migration.name-missing': 'Data migration "{id}" needs a name — it is what the organization reads before running it.',
+  'issue.migration.not-list': 'The data migrations must be a list.',
+  'issue.migration.out-of-order': 'Data migration "{id}" comes after "{previous}", of a later version — the declared order is the execution order.',
+  'issue.migration.phase-invalid': 'Data migration "{id}" declares phase "{phase}": it runs "before" or "after" the package artifacts.',
+  'issue.migration.rounds-invalid': 'Data migration "{id}" declares {rounds} rounds — the ceiling must be a whole number of 1 or more.',
+  'issue.migration.source-missing': 'Data migration "{id}" has no code.',
+  'issue.migration.source-modules': 'Data migration "{id}" uses import/export/require, which the sandbox does not resolve.',
+  'issue.migration.version-invalid': 'Data migration "{id}" declares version "{version}", which is not a valid semver.',
   'issue.package.near-limit':
     'The package is {size}. Above {limit} it stops fitting in the installation document — it is worth splitting it before it grows further.',
   'issue.package.no-manifest': 'The extension has no manifest with an "id".',
@@ -263,6 +278,12 @@ export const CORE_MARKETPLACE_MESSAGES: Record<string, string> = {
   'lifecycle.invalid-version': 'Version "{version}" is not a valid semver.',
   'lifecycle.not-installed': 'The plugin is not installed in this organization.',
   'lifecycle.not-newer': 'Version {version} is not newer than the installed one ({installed}).',
+  'migration.error.failed': 'Data update "{name}" failed: {detail}',
+  'migration.error.locked': 'Another data update of this extension is already running in this organization. Wait for it to finish.',
+  'migration.error.max-rounds': 'Data update "{name}" did not finish within {rounds} rounds. Run it again to continue where it stopped.',
+  'migration.error.no-progress': 'Data update "{name}" stopped with {remaining} records left and made no progress — it needs a fix from whoever wrote it.',
+  'migration.ran': 'Data of {name} updated.',
+  'migration.up-to-date': 'The data of {name} is already up to date.',
   'capability.ai-completion': 'AI text generation',
   'plugin.capabilities.description':
     'Declares the extension point where plugins provide Capability implementations.',

@@ -4,7 +4,7 @@ import { useTenant } from './useTenant';
 import { useAuth } from './useAuth';
 import { useDI } from '../infrastructure/di/useDI';
 import { parsePackage } from '../domain/usecases/plugins/packageSerialization';
-import { packageSizeIssues, validatePackage } from '../domain/usecases/plugins/pluginReferences';
+import { packageIssues, validatePackage } from '../domain/usecases/plugins/pluginReferences';
 import { validatePluginManifest } from '../domain/schema/plugin/pluginManifest';
 import { KERNEL_VERSION } from '../domain/schema/plugin/kernelVersion';
 import type { TenantExtension } from '../domain/entities/TenantExtension';
@@ -64,7 +64,7 @@ export const TenantExtensionStoreProvider: React.FC<{ children: React.ReactNode 
     const pkg = parsed.package;
     const manifestErrors = validatePluginManifest(pkg.manifest, { kernelVersion: KERNEL_VERSION, validateContributions: false });
     const refErrors = validatePackage(pkg);
-    const sizeErrors = packageSizeIssues(pkg);
+    const sizeErrors = packageIssues(pkg);
     if (manifestErrors.length > 0 || refErrors.length > 0 || sizeErrors.length > 0) {
       const diagnostic = manifestErrors[0] ?? refErrors[0];
       return diagnostic

@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback, useEffect } from 'react';
-import { transform } from 'sucrase';
+import { transpileScriptSource as transpile } from '../../../domain/services/scriptSource';
 import { useScriptStore } from '../../../stores/useScriptStore';
 import { artifactIdIssue, deriveArtifactId } from '../../../domain/services/artifactIdentity';
 import { useDI } from '../../../infrastructure/di/useDI';
@@ -49,19 +49,6 @@ export const scriptParameterTypeOptions = (
 
 const sanitizeInputParams = sanitizeWorkflowParameters;
 const sanitizeOutputParams = sanitizeScriptOutputParams;
-
-const transpile = (sourceTs: string): { compiledJs: string } | { error: string } => {
-  if (/\b(import|export)\b/.test(sourceTs) || /\brequire\s*\(/.test(sourceTs)) {
-    return { error: '@core.automation/script.error.no-modules' };
-  }
-  try {
-    const result = transform(sourceTs, { transforms: ['typescript'], disableESTransforms: true });
-    if (!result.code.trim()) return { error: '@core.automation/script.error.empty' };
-    return { compiledJs: result.code };
-  } catch (error) {
-    return { error: error instanceof Error ? error.message : '@core.automation/script.error.invalid' };
-  }
-};
 
 export interface ScriptFormData {
   /** Id do documento — o que um Step e um pacote guardam para apontar para este script. */

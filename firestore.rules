@@ -188,6 +188,17 @@ service cloud.firestore {
         allow create, update, delete: if isTenantAdmin(tenantId);
       }
 
+      // Histórico de MIGRAÇÃO DE DADOS das extensões: o que cada uma já converteu neste escritório.
+      // Todo membro lê — é o que mantém fora do boot a extensão com migração obrigatória em dívida, e
+      // sem essa leitura cada navegador a carregaria sobre dado no formato antigo. Só admin grava, o
+      // mesmo papel que instala e que a callable de execução exige. Sobrevive à desinstalação de
+      // propósito: o dado migrado sobrevive, então reinstalar não pode reexecutar tudo de novo.
+      match /extension_migrations/{extensionId} {
+        allow read: if isMember(tenantId);
+        allow create, update: if isTenantAdmin(tenantId);
+        allow delete: if false;
+      }
+
       // Configurações declaradas por plugins. Dois documentos, e o caminho decide quem grava:
       // `tenant` é o padrão do escritório (só admin) e `user_{uid}` é a preferência pessoal, que só
       // o dono escreve. Todo membro LÊ os dois — a resolução (usuário vence escritório) acontece no
@@ -256,7 +267,7 @@ service cloud.firestore {
       function isReservedCollection(name) {
         return name in [
         'actions', 'aiConnections',
-        'documentTypes', 'documents', 'extensions',
+        'documentTypes', 'documents', 'extension_migrations', 'extensions',
         'installed_extensions', 'lookupDefinitions', 'members', 'notes',
         'tagDefinitions', 'plugin_installations',
         'screenDefinitions', 'scripts', 'secrets', 'settings', 'tags', 'tenant', 'workflow_definitions',

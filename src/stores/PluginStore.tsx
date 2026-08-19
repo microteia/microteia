@@ -14,7 +14,7 @@ import { makePublishPluginUseCase } from '../domain/usecases/plugins/PublishPlug
 import { useKernel } from './useKernel';
 import { storeEvents, StoreEvents } from '../infrastructure/events/StoreEventEmitter';
 import { parsePackage } from '../domain/usecases/plugins/packageSerialization';
-import { packageSizeIssues, validatePackage } from '../domain/usecases/plugins/pluginReferences';
+import { packageIssues, validatePackage } from '../domain/usecases/plugins/pluginReferences';
 import { validatePluginManifest } from '../domain/schema/plugin/pluginManifest';
 import type { ImportPackageResult, PluginSource } from './usePluginStore';
 import type { LifecycleActor } from '../domain/services/pluginLifecycle';
@@ -146,7 +146,7 @@ export const PluginStoreProvider: React.FC<{ children: React.ReactNode }> = ({ c
         validateContributions: false,
       });
       const refErrors = validatePackage(pkg);
-      const sizeErrors = packageSizeIssues(pkg);
+      const sizeErrors = packageIssues(pkg);
       if (manifestErrors.length > 0 || refErrors.length > 0 || sizeErrors.length > 0) {
         const diagnostic = manifestErrors[0] ?? refErrors[0];
         return diagnostic

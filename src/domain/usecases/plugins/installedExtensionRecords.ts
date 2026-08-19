@@ -18,12 +18,19 @@ import { isExtensionBackendApplied } from './extensionBackendState';
  * Microteia Console os criou no projeto. Aqui ela é excluída INTEIRA, e não parcialmente — deixar o
  * menu e a tela aparecerem sem o servidor por trás é o defeito que parece CORS e manda procurar no
  * lugar errado. Ver `extensionBackendState`.
+ *
+ * A terceira é o DADO: extensão com migração obrigatória em dívida também fica fora, pela mesma
+ * razão invertida — o servidor está lá, mas o dado ainda não está no formato que as telas dela
+ * esperam. Ver `extensionMigrationState`. `migrationPendingIds` vazio é o caso de quem não declara
+ * migração nenhuma, que é a maioria.
  */
 export const installedExtensionRecords = (
   installed: InstalledExtension[],
   trustedIds: ReadonlySet<string>,
+  migrationPendingIds: ReadonlySet<string> = new Set<string>(),
 ): PluginRecord[] =>
   installed
     .filter((extension) => extension.active)
     .filter(isExtensionBackendApplied)
+    .filter((extension) => !migrationPendingIds.has(extension.id))
     .map((extension) => extensionRecordFrom(extension.package, trustedIds.has(extension.id)));

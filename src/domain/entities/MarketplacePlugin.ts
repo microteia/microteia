@@ -1,4 +1,5 @@
 import type { PluginManifest } from '../schema/plugin/pluginManifest';
+import type { PluginMigration } from '../schema/plugin/migration';
 import type { WorkflowDefinition } from './Workflow';
 import type { Script } from './Script';
 import type { ActionDefinition } from './Action';
@@ -189,6 +190,12 @@ export interface MarketplacePlugin {
    * teardown, chamado ao desativar/desinstalar. Só executa de fonte confiável, como as `views`.
    */
   startup?: string;
+  /**
+   * MIGRAÇÕES DE DADOS: código que roda uma vez por escritório para converter o dado que uma versão
+   * anterior desta mesma extensão escreveu. Viajam no pacote e NÃO são materializadas como Scripts do
+   * escritório — o que elas reusam do Script é o sandbox, não a entidade. Ver `PluginMigration`.
+   */
+  migrations?: PluginMigration[];
   /**
    * Descrição rica da extensão, em Widget DSL — renderizada pelo Kernel na tela de detalhes. É
    * serializável (viaja no manifest até o registro) e não carrega código do plugin. `unknown`

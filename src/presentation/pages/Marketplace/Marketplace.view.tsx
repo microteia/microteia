@@ -17,6 +17,7 @@ import {
   RiShieldCheckLine,
   RiInformationLine,
   RiErrorWarningLine,
+  RiDatabase2Line,
 } from 'react-icons/ri';
 import { Button } from '../../components/ui/Button';
 import { InfoBanner } from '../../components/ui/InfoBanner';
@@ -80,6 +81,7 @@ const RowView: React.FC<{ row: ExtensionRow; busy: boolean; vm: ReturnType<typeo
           {row.hasCode && <S.Badge $tone="info">{t('extension.badge.has-code')}</S.Badge>}
           {row.needsCodeReview && <S.Badge $tone="warning">{t('extension.badge.unreviewed')}</S.Badge>}
           {row.backendPending && <S.Badge $tone="warning">{t('extension.badge.backend-pending')}</S.Badge>}
+          {row.migrationPending && <S.Badge $tone="warning">{t('extension.badge.migration-pending')}</S.Badge>}
         </S.Badges>
       </S.TitleLine>
 
@@ -93,6 +95,24 @@ const RowView: React.FC<{ row: ExtensionRow; busy: boolean; vm: ReturnType<typeo
             <RiErrorWarningLine size={13} />
             <span>{t('extension.backend-pending.detail')}</span>
           </S.Problem>
+        </S.Problems>
+      )}
+
+      {/* Instalada, mas sobre dado que uma versão anterior dela deixou em outro formato. Mesma
+          consequência do backend pendente: não está no ar. O erro da última tentativa vem junto,
+          porque sem ele não há como saber se falta rodar ou se rodar já falhou. */}
+      {row.migrationPending && (
+        <S.Problems>
+          <S.Problem $error={false}>
+            <RiErrorWarningLine size={13} />
+            <span>{t('extension.migration-pending.detail')}</span>
+          </S.Problem>
+          {row.migrationError && (
+            <S.Problem $error>
+              <RiErrorWarningLine size={13} />
+              <span>{row.migrationError}</span>
+            </S.Problem>
+          )}
         </S.Problems>
       )}
 
@@ -135,6 +155,16 @@ const RowView: React.FC<{ row: ExtensionRow; busy: boolean; vm: ReturnType<typeo
       {row.install === 'update' && (
         <S.ActionButton $primary title={t('extension.update')} disabled={busy} onClick={() => void vm.install(row.id)}>
           <RiRefreshLine size={17} />
+        </S.ActionButton>
+      )}
+      {row.canRunMigrations && (
+        <S.ActionButton
+          $primary
+          title={t('extension.run-migrations')}
+          disabled={busy}
+          onClick={() => void vm.runMigrations(row.id)}
+        >
+          <RiDatabase2Line size={17} />
         </S.ActionButton>
       )}
       {row.needsCodeReview && (
