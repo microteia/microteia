@@ -27,7 +27,7 @@ const TEMPLATES: [string, string][] = [
   ['contrato.json', 'contratoPlugin'],
   ['dashboard.json', 'dashboardPlugin'],
   ['financeiro.json', 'financeiroPlugin'],
-  ['noticia.json', 'noticiaPlugin'],
+  ['news.json', 'newsPlugin'],
   ['prazo.json', 'prazoPlugin'],
 ];
 

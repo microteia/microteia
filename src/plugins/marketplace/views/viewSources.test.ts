@@ -84,7 +84,9 @@ describe('as fontes de extensão continuam sendo checadas', () => {
   });
 
   it.each(sourceFiles)('%s só importa a API curada do host', (path) => {
-    const allowed = /^(react(\/.*)?|styled-components|@microteia\/[a-z]+)$/;
+    // `@microteia/i18n` tem DÍGITO no nome, e `[a-z]+` o reprovava — a primeira view a importar o
+    // tradutor descobriu isso. O que a regra guarda é a lista curada de módulos, não o alfabeto.
+    const allowed = /^(react(\/.*)?|styled-components|@microteia\/[a-z][a-z0-9]*)$/;
     const bare = [...SOURCES[path].matchAll(/from\s+'([^'.][^']*)'/g)].map((match) => match[1]);
     for (const specifier of bare) {
       expect(specifier, `${specifier} não está na API curada`).toMatch(allowed);

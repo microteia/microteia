@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
 import { createPluginHost } from '../../kernel';
+import { I18N_MESSAGES_POINT } from '../../domain/schema/i18n/extensionPoints';
 import { CORE_PLUGINS } from '..';
 import { installedPluginRecords } from '../../domain/usecases/plugins/installedPluginRecords';
 import { materializePluginScreens } from '../../domain/usecases/plugins/screenModule';
@@ -55,13 +56,22 @@ describe('calendarPlugin', () => {
    * A agenda não conhece prazo, audiência nem parcela. Este é o teste que a mantém assim: a
    * declaração inteira não pode citar nenhuma coleção de negócio — quem endereça o registro de
    * origem é o par `origem`/`origemId`, preenchido por quem o criou.
+   *
+   * O catálogo de mensagens fica FORA da varredura, e a distinção é a que o caso todo defende: a
+   * declaração é o que a agenda CONHECE, o catálogo é o que ela EXPLICA. A frase "não conhece prazo,
+   * audiência nem parcela" é a afirmação de independência, e passou a reprovar o caso no dia em que a
+   * tradução mudou de lado e foi viajar dentro do manifest.
    */
   it('a declaração não menciona nenhuma entidade de negócio', () => {
     const declaracao = JSON.stringify({
       screens: calendarPlugin.screens,
       lookups: calendarPlugin.lookups,
       workflows: calendarPlugin.workflows,
-      manifest: calendarPlugin.manifest,
+      manifest: {
+        ...calendarPlugin.manifest,
+        contributes: (calendarPlugin.manifest.contributes ?? [])
+          .filter((contribution) => contribution.point !== I18N_MESSAGES_POINT),
+      },
     });
 
     for (const colecao of ['deadlines', 'cases', 'persons', 'financials', 'contracts', 'pushes']) {

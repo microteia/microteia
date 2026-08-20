@@ -12,6 +12,13 @@ const path = require('node:path');
 const ROOT = path.resolve(__dirname, '..');
 const SRC = path.join(ROOT, 'src');
 
+/**
+ * Os namespaces do NÚCLEO, cujo catálogo de origem mora em `src/plugins/messages/`.
+ *
+ * Uma EXTENSÃO não entra aqui: o catálogo dela viaja dentro do pacote, e é `PLUGIN_CATALOG_BY_NS`
+ * que diz onde. A distinção não é burocrática — é a mesma que impede o pacote de idioma do núcleo
+ * de carregar chave de plugin.
+ */
 const MODULE_BY_NS = {
   'core.ui': 'coreUi',
   'core.admin': 'coreAdmin',
@@ -39,6 +46,39 @@ const PT_BR_LOCALE_PACKAGE = { dir: path.join('marketplace', 'localePtBr') };
 const PT_BR_CATALOG_BY_NS = {
   'core.tenant': { dir: 'core.tenant', module: 'messagesPtBr' },
 };
+
+/**
+ * As EXTENSÕES que carregam o próprio par de catálogos — o de origem e o traduzido —, ao lado do
+ * arquivo de plugin. São as agnósticas de negócio: uma agenda, uma tela de abertura e um mural
+ * servem a qualquer escritório, e por isso nascem em inglês em vez de num idioma só.
+ *
+ * Estão aqui pelo mesmo motivo que os namespaces do núcleo estão: sem a entrada, o gate não conhece
+ * o catálogo e para de cobrar o par de cada chave — e deixar de cobrar é indistinguível de estar
+ * tudo certo.
+ */
+const PLUGIN_CATALOG_BY_NS = {
+  'com.microteia.calendar': { dir: 'marketplace', source: 'calendarMessages', ptBr: 'calendarMessagesPtBr' },
+  'com.microteia.dashboard': { dir: 'marketplace', source: 'dashboardMessages', ptBr: 'dashboardMessagesPtBr' },
+  'com.microteia.news': { dir: 'marketplace', source: 'newsMessages', ptBr: 'newsMessagesPtBr' },
+};
+
+/** Onde mora o catálogo de ORIGEM de um namespace, seja ele do núcleo ou de uma extensão. */
+const sourceCatalog = (ns) => {
+  const plugin = PLUGIN_CATALOG_BY_NS[ns];
+  if (plugin) return { dir: path.join(SRC, 'plugins', plugin.dir), module: plugin.source };
+  const moduleName = MODULE_BY_NS[ns];
+  return moduleName ? { dir: path.join(SRC, 'plugins', 'messages'), module: moduleName } : null;
+};
+
+const translatedCatalog = (ns) => {
+  const plugin = PLUGIN_CATALOG_BY_NS[ns];
+  if (plugin) return { dir: path.join(SRC, 'plugins', plugin.dir), module: plugin.ptBr };
+  const moduleName = MODULE_BY_NS[ns];
+  return moduleName ? ptBrCatalog(ns, moduleName) : null;
+};
+
+/** Todo namespace que o gate conhece — do núcleo e das extensões que trazem catálogo próprio. */
+const ALL_NAMESPACES = [...Object.keys(MODULE_BY_NS), ...Object.keys(PLUGIN_CATALOG_BY_NS)];
 
 const ptBrCatalog = (ns, moduleName) => {
   const declared = PT_BR_CATALOG_BY_NS[ns];
@@ -81,9 +121,9 @@ const orphans = [];
  */
 const checkReferences = (file, source) => {
   for (const match of source.matchAll(/'@([a-z][\w.-]*)\/([\w.-]+)'/g)) {
-    const moduleName = MODULE_BY_NS[match[1]];
-    if (!moduleName) continue;
-    const keys = catalogKeys(path.join(SRC, 'plugins', 'messages'), moduleName);
+    const catalog = sourceCatalog(match[1]);
+    if (!catalog) continue;
+    const keys = catalogKeys(catalog.dir, catalog.module);
     const key = match[2];
     if (!keys.has(key) && !(keys.has(`${key}.one`) && keys.has(`${key}.other`))) {
       missing.push(`${path.relative(ROOT, file)} -> ${match[1]}/${key}`);
@@ -94,10 +134,11 @@ const duplicates = [];
 
 // Chave repetida no mesmo catálogo é silenciosa em JS — a última vence — e desfaz uma tradução
 // anterior sem aviso. Aqui ela para o gate.
-for (const [ns, moduleName] of Object.entries(MODULE_BY_NS)) {
-  const translated = ptBrCatalog(ns, moduleName);
+for (const ns of ALL_NAMESPACES) {
+  const origin = sourceCatalog(ns);
+  const translated = translatedCatalog(ns);
   const files = [
-    path.join(SRC, 'plugins', 'messages', `${moduleName}.ts`),
+    path.join(origin.dir, `${origin.module}.ts`),
     path.join(translated.dir, `${translated.module}.ts`),
   ];
   for (const file of files) {
@@ -110,23 +151,51 @@ for (const [ns, moduleName] of Object.entries(MODULE_BY_NS)) {
   }
 }
 
+/**
+ * O arquivo de plugin não escreve a referência inteira em cada rótulo — seriam mais de cem repetições
+ * do namespace. Ele declara um construtor de UMA linha:
+ *
+ *     const message = (key: string): string => `@com.microteia.calendar/${key}`;
+ *
+ * e o gate lê o namespace DALI e confere cada `message('chave')`. É o mesmo desenho do `useT('<ns>')`:
+ * o namespace aparece uma vez, escrito, e todas as chaves do arquivo são cobradas contra ele. Sem esta
+ * leitura, um construtor esconderia as referências do gate — o que é pior do que não ter o gate, porque
+ * ele continuaria dizendo que está tudo certo.
+ */
+const checkMessageBuilder = (file, source) => {
+  const declared = /=> `@([a-z][\w.-]*)\/\$\{key\}`/.exec(source);
+  if (!declared) return;
+  const catalog = sourceCatalog(declared[1]);
+  if (!catalog) {
+    missing.push(`${path.relative(ROOT, file)} -> namespace ${declared[1]} sem catálogo declarado no gate`);
+    return;
+  }
+  const keys = catalogKeys(catalog.dir, catalog.module);
+  for (const match of source.matchAll(/\bmessage\('([^']+)'\)/g)) {
+    const key = match[1];
+    if (!keys.has(key) && !(keys.has(`${key}.one`) && keys.has(`${key}.other`))) {
+      missing.push(`${path.relative(ROOT, file)} -> ${declared[1]}/${key}`);
+    }
+  }
+};
+
 for (const file of walk(SRC)) {
   const source = fs.readFileSync(file, 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
   checkReferences(file, source);
+  checkMessageBuilder(file, source);
 
   const namespaces = [...source.matchAll(/useT\('([^']+)'\)/g)].map((m) => m[1]);
   if (namespaces.length !== 1) continue;
   const ns = namespaces[0];
-  const moduleName = MODULE_BY_NS[ns];
-  if (!moduleName) continue;
+  if (!sourceCatalog(ns)) continue;
   for (const match of source.matchAll(/\bt\('([^']+)'/g)) {
     // Uma chave com `/` é ABSOLUTA: traz o próprio namespace e ignora o do arquivo.
     const slash = match[1].lastIndexOf('/');
     const keyNs = slash === -1 ? ns : match[1].slice(0, slash);
     const key = slash === -1 ? match[1] : match[1].slice(slash + 1);
-    const keyModule = MODULE_BY_NS[keyNs];
-    if (!keyModule) continue;
-    const keys = catalogKeys(path.join(SRC, 'plugins', 'messages'), keyModule);
+    const catalog = sourceCatalog(keyNs);
+    if (!catalog) continue;
+    const keys = catalogKeys(catalog.dir, catalog.module);
     // Chave de PLURAL não existe sozinha: o catálogo guarda `.one`/`.other`.
     if (!keys.has(key) && !(keys.has(`${key}.one`) && keys.has(`${key}.other`))) {
       missing.push(`${path.relative(ROOT, file)} -> ${keyNs}/${key}`);
@@ -134,9 +203,10 @@ for (const file of walk(SRC)) {
   }
 }
 
-for (const [ns, moduleName] of Object.entries(MODULE_BY_NS)) {
-  const source = catalogKeys(path.join(SRC, 'plugins', 'messages'), moduleName);
-  const ptBr = ptBrCatalog(ns, moduleName);
+for (const ns of ALL_NAMESPACES) {
+  const origin = sourceCatalog(ns);
+  const source = catalogKeys(origin.dir, origin.module);
+  const ptBr = translatedCatalog(ns);
   for (const key of catalogKeys(ptBr.dir, ptBr.module)) {
     if (!source.has(key)) orphans.push(`${ns}/${key}`);
   }

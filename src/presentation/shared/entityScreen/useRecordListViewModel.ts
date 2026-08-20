@@ -16,7 +16,7 @@ import type { CustomFieldCardItem } from '../../hooks/useCustomFieldListing';
 import { buildNewTabKey, buildViewTabKey, buildCloneTabKey, buildChildNewTabKey, recordTabKeyOf } from '../../../shared/constants/dynamicScreenKeys';
 import { resolveRecordTitle, sortFieldsByOrder } from '../../../domain/services/customFieldValues';
 import { isBoundScreen, isOwnedByParentScreen, screenDataCollection } from '../../../domain/services/screenDataCollection';
-import { useEntityFormFields } from '../useEntityFormFields';
+import { screenForDisplay, useEntityFormFields, useResolvedFields } from '../useEntityFormFields';
 import { useExprViewer } from '../useExprViewer';
 import { useSchemaContext } from '../useSchemaContext';
 import { useRecordActions } from '../recordActions/useRecordActions';
@@ -148,7 +148,8 @@ export const useRecordListViewModel = (source: RecordListSource): RecordListView
   );
 
   const isAdmin = tenantRole === 'admin';
-  const definition = useMemo(() => getDefinition(screenKey) ?? null, [getDefinition, screenKey]);
+  const stored = useMemo(() => getDefinition(screenKey) ?? null, [getDefinition, screenKey]);
+  const definition = useMemo(() => screenForDisplay(stored, label), [stored, label]);
   const isAvailable = !!definition && definition.origin !== 'builtin' && definition.enabled;
 
   // Onde os registros vivem. Numa tela BOUND é a coleção de outra entidade — daí toda leitura,
@@ -163,11 +164,14 @@ export const useRecordListViewModel = (source: RecordListSource): RecordListView
 
   // Na aba do pai, todos os registros têm o mesmo vínculo: filtrar ou exibir esse campo não
   // informa nada. É o mesmo motivo pelo qual ele não vai ao formulário do filho.
-  const sortedFields = useMemo(() => {
+  const declaredFields = useMemo(() => {
     if (!definition) return [];
     const fields = isBound ? boundFields.fields : sortFieldsByOrder(definition.fields);
     return parent ? fields.filter((field) => field.key !== parent.fieldKey) : fields;
   }, [definition, isBound, boundFields.fields, parent]);
+  // Rótulo declarativo resolve NOS DOIS ramos — é dele que saem os filtros e as linhas do cartão, e
+  // uma referência crua apareceria no filtro salvo do escritório. Ver `useResolvedFields`.
+  const sortedFields = useResolvedFields(declaredFields);
 
   // Campo que já é meta-linha do card (tem ícone de listagem declarado) não se repete no bloco de
   // campos adicionais — seria a mesma informação duas vezes no cartão.

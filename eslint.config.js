@@ -18,6 +18,16 @@ const MIGRATED_TO_SOURCE_LANGUAGE = [
   'src/presentation/pages/PluginAuthor/**/*.{ts,tsx}',
   'src/plugins/core.*/**/*.{ts,tsx}',
   'src/plugins/messages/**/*.{ts,tsx}',
+  // As extensões AGNÓSTICAS de negócio: Calendário, Painel e Notícias. Uma agenda, uma tela de
+  // abertura e um mural servem a qualquer escritório do mundo, então elas nascem no idioma-fonte e
+  // carregam a própria tradução. As de domínio (Processos, Prazos, Contratos) seguem fora da zona:
+  // o vocabulário delas é de um ramo, e migrá-las é outra rodada.
+  'src/plugins/marketplace/calendar*.ts',
+  'src/plugins/marketplace/dashboard*.ts',
+  'src/plugins/marketplace/news*.ts',
+  'src/plugins/marketplace/views/calendar/**/*.{ts,tsx}',
+  'src/plugins/marketplace/views/dashboard/**/*.{ts,tsx}',
+  'src/plugins/marketplace/views/news/**/*.{ts,tsx}',
   'src/presentation/pages/Workflows/**/*.{ts,tsx}',
   'src/presentation/pages/ViewAction/**/*.{ts,tsx}',
   'src/presentation/pages/Marketplace/**/*.{ts,tsx}',
@@ -155,6 +165,8 @@ export default defineConfig([
       // plugin é o que importa: a chave nasce em inglês em `src/plugins/messages/`, e é dela que
       // este arquivo é o par.
       'src/plugins/*/messages*.ts',
+      // O mesmo, para a extensão que carrega o próprio par de catálogos ao lado do arquivo de plugin.
+      'src/plugins/marketplace/*MessagesPtBr.ts',
     ],
     rules: {
       'no-restricted-syntax': ['error',
@@ -178,9 +190,14 @@ export default defineConfig([
           message: 'Texto solto no JSX. Todo texto de usuário vem do catálogo: renderize {t(\'chave\')} em vez de escrever a frase.',
         },
         {
-          selector: "JSXAttribute[name.name=/^(title|label|placeholder|message|subtitle|description|hint|summary|alt|aria-label|confirmLabel|cancelLabel|runLabel|emptyMessage|deleteConfirmTitle|deleteConfirmMessage)$/] > Literal[value=/[A-Za-zÀ-ÿ]{2}/]",
+          selector: "JSXAttribute[name.name=/^(title|label|placeholder|message|subtitle|description|hint|summary|alt|aria-label|confirmLabel|cancelLabel|runLabel|emptyMessage|emptyTitle|emptyActionLabel|newTitle|newLabel|filterPlaceholder|deleteConfirmTitle|deleteConfirmMessage)$/] > Literal[value=/[A-Za-zÀ-ÿ]{2}/]",
           message: 'Texto de usuário como literal num atributo. Passe {t(\'chave\')}: o atributo é lido por quem usa o sistema, então ele traduz.',
         },
+        // `newTitle`, `emptyTitle`, `emptyActionLabel` e `filterPlaceholder` entraram DEPOIS, e o motivo
+        // é o de sempre: a lista era de nomes vistos, não de nomes possíveis. `newTitle={`Novo
+        // ${titleSingular}`}` atravessou a zona inteira porque "Novo" não tem acento e o nome do
+        // atributo não estava aqui — quatro frases em português na tela de todo registro do sistema.
+        //
         // O filho DIRETO do atributo é o container da expressão, então a frase pode estar em
         // qualquer forma dentro dele: `cond ? 'A' : 'B'`, `valor || 'padrão'`, `valor ?? 'padrão'`.
         // Enumerar as formas já falhou duas vezes — o ternário deixou passar "Novo Campo", e o `||`
@@ -194,7 +211,7 @@ export default defineConfig([
         // encerra a regex do seletor na primeira `/`, mesmo dentro de classe de caracteres, e
         // `core.ui/action.save` deixaria de ser reconhecida como chave.
         {
-          selector: "JSXAttribute[name.name=/^(title|label|placeholder|message|subtitle|description|hint|summary|alt|aria-label|confirmLabel|cancelLabel|runLabel|emptyMessage|deleteConfirmTitle|deleteConfirmMessage)$/] > JSXExpressionContainer Literal[value=/[A-Za-zÀ-ÿ]{2}/]:not(CallExpression Literal)",
+          selector: "JSXAttribute[name.name=/^(title|label|placeholder|message|subtitle|description|hint|summary|alt|aria-label|confirmLabel|cancelLabel|runLabel|emptyMessage|emptyTitle|emptyActionLabel|newTitle|newLabel|filterPlaceholder|deleteConfirmTitle|deleteConfirmMessage)$/] > JSXExpressionContainer Literal[value=/[A-Za-zÀ-ÿ]{2}/]:not(CallExpression Literal)",
           message: 'Texto de usuário dentro de uma expressão no atributo. Traduza a CHAVE, não a frase: {t(cond ? \'chave.a\' : \'chave.b\')} ou {valor || t(\'chave\')}.',
         },
         // `{ label: 'Executar um fluxo de trabalho' }` escapava de tudo: não é JSX, e a frase não

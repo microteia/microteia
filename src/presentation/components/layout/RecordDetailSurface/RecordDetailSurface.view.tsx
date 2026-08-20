@@ -12,7 +12,7 @@ import type { EntityDocumentsController, EntityNotesController } from '../../../
 import type { TagStoreAdapter } from '../../ui/TagManager';
 import type { CustomFieldValue, EntityRecord, FieldDefinition, ScreenDefinition } from '../../../../domain/entities';
 
-import { useT } from '../../../shared/i18n/useT';
+import { useLabel, useT } from '../../../shared/i18n/useT';
 /**
  * A superfície do DETALHE (criar/editar) de uma tela de registros — o par do `RecordDetailSurface`
  * para `RecordListSurface`. Renderiza a `EntityDetailView` (cabeçalho com salvar/excluir/clonar/
@@ -71,6 +71,7 @@ interface RecordDetailSurfaceProps {
 export const RecordDetailSurface: React.FC<RecordDetailSurfaceProps> = ({ vm, renderData }) => {
   const { definition } = vm;
   const t = useT('core.ui');
+  const label = useLabel();
 
   if (!vm.isAvailable || !definition) {
     return (
@@ -126,7 +127,9 @@ export const RecordDetailSurface: React.FC<RecordDetailSurfaceProps> = ({ vm, re
       screenActions={vm.screenActions}
       isAdmin={vm.isAdmin}
       avatar={getScreenIcon(definition.icon, 22)}
-      title={vm.isNew ? `Novo ${definition.titleSingular}` : (vm.recordTitle || definition.titleSingular)}
+      title={vm.isNew
+        ? t('core.records/record.new.title', { entity: label(definition.titleSingular) })
+        : (vm.recordTitle || label(definition.titleSingular))}
       subtitle={!vm.isNew && vm.recordSubtitle ? vm.recordSubtitle : undefined}
       tags={appliedTags}
       showTags={!vm.isNew && definition.hasTags}

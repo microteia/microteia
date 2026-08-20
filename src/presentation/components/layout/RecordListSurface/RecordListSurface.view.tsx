@@ -9,6 +9,7 @@ import { getScreenIcon } from '../../../shared/screenIcons';
 import { deriveListRows } from '../../../shared/deriveEntitySchema';
 import { useSchemaContext } from '../../../shared/useSchemaContext';
 import { useListRowResolver } from '../../../shared/listRows';
+import { useLabel, useT } from '../../../shared/i18n/useT';
 import type { RecordListViewModel } from '../../../shared/entityScreen/useRecordListViewModel';
 import type { EntityRecord, ScreenDefinition } from '../../../../domain/entities';
 
@@ -63,6 +64,10 @@ interface RecordListSurfaceProps {
  * e à aba de registros filhos dentro do pai — só muda a variante do `EntityListView`.
  */
 export const RecordListSurface: React.FC<RecordListSurfaceProps> = ({ vm, definition, variant = 'page', renderSubtitle, renderBelowHeader, renderMetaRows, accentColor, onOpenRecord, onNewRecord, canCreate, emptyTitle, emptyActionLabel, headerActions, summary }) => {
+  const t = useT('core.records');
+  // O título da tela é DECLARATIVO: referência numa tela de extensão, texto digitado numa do
+  // escritório. `resolveLabel` atende os dois.
+  const label = useLabel();
   const openRecord = onOpenRecord ?? vm.openRecord;
   const openNewRecord = onNewRecord ?? vm.openNewRecord;
   const modals = <EntityListModals vm={vm} />;
@@ -88,21 +93,21 @@ export const RecordListSurface: React.FC<RecordListSurfaceProps> = ({ vm, defini
   return (
     <EntityListView
       variant={variant}
-      title={definition.titlePlural}
+      title={label(definition.titlePlural)}
       titleIcon={getScreenIcon(definition.icon, 22)}
       onNew={openNewRecord}
       canCreate={canCreate}
-      newTitle={`Novo ${definition.titleSingular}`}
+      newTitle={t('record.new.title', { entity: label(definition.titleSingular) })}
       filterDefs={vm.filterDefs}
       filterTokens={vm.filterTokens}
       onFilterChange={vm.setFilterTokens}
-      filterPlaceholder={`Filtrar ${definition.titlePlural.toLowerCase()}...`}
+      filterPlaceholder={t('record.filter.placeholder', { entity: label(definition.titlePlural) })}
       savedFiltersScreenKey={vm.savedFiltersScreenKey}
       isLoading={vm.isLoading && vm.records.length === 0}
       isEmpty={vm.filteredRecords.length === 0}
       emptyIcon={<RiApps2Line />}
-      emptyTitle={emptyTitle ?? 'Nenhum registro encontrado'}
-      emptyActionLabel={emptyActionLabel ?? `Cadastrar ${definition.titleSingular.toLowerCase()}`}
+      emptyTitle={emptyTitle ?? t('record.list.empty')}
+      emptyActionLabel={emptyActionLabel ?? t('record.create-action', { entity: label(definition.titleSingular) })}
       headerExtra={headerActions}
       belowHeader={summary}
       modals={modals}

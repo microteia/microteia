@@ -11,6 +11,28 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [7.59.2] — 2026-08-20
+
+- Corrigido: no Form Design, as telas trazidas por extensões apareciam com o código interno no lugar do nome, enquanto as telas do sistema apareciam traduzidas — no mesmo painel. O mesmo acontecia na seção do campo, nos seletores de campo título e subtítulo e na escolha de registros filhos.
+- Corrigido: o cabeçalho de uma listagem de extensão mostrava o código interno da tela, mesmo com a aba ao lado exibindo o nome certo.
+- Corrigido: em Traduções, uma extensão que traz os próprios textos aparecia como um único idioma, somando as contagens do inglês e do português na mesma linha. Agora cada idioma aparece na sua linha, com a contagem correta.
+- Corrigido: na tela de Notícias, o Form Design acusava "Registro não encontrado" no campo de subtítulo. O campo existia — apenas não era oferecido na lista — e o aviso sugeria um defeito onde não havia.
+
+#### [7.59.1] — 2026-08-19
+
+- Corrigido: os formulários e as listagens das extensões mostravam códigos internos no lugar dos nomes dos campos — algo como "@com.microteia.news/field.title" onde devia estar "Título". Acontecia em qualquer extensão cujos textos fossem traduzíveis, tanto em português quanto em inglês.
+- Corrigido: o título das telas de registro aparecia em português para quem usa o sistema em inglês ("Novo", "Cadastrar", "Filtrar", "Nenhum registro encontrado"), e o mesmo valia para os avisos de registro salvo. Agora acompanham o idioma escolhido, com o nome da tela no lugar certo da frase.
+- Corrigido: a busca rápida (⌘K) não encontrava as telas das extensões pelo nome que aparece na tela, e a lista de tabelas nos passos de automação mostrava o código interno da tela em vez do nome.
+
+#### [7.59.0] — 2026-08-19
+
+- O Calendário, o Painel e as Notícias passam a falar o idioma de quem usa o sistema. As três não são de um ramo específico — toda organização tem uma agenda, uma tela de abertura e um mural —, então cada uma agora chega com o texto em inglês e a tradução para português junto, e mostra um ou outro conforme o idioma escolhido. Antes o português estava preso no próprio programa.
+- Nomes de mês e de dia da semana no Calendário, e as datas das notícias e dos comentários, passam a seguir o idioma e o formato do país escolhido.
+- A busca do ⌘K encontra "Nova notícia" ou "New item" conforme o idioma em uso, e não só pelo termo em português.
+- A apresentação de qualquer extensão na tela de Extensões — o texto explicativo, os quadros e os avisos — passa a poder ser traduzida. Antes só o nome e o resumo eram.
+- A extensão de Notícias foi renomeada e, por isso, precisa ser instalada de novo: remova a antiga e instale a nova em Extensões. As notícias e os comentários já publicados continuam guardados e voltam a aparecer.
+- Nas listas do Calendário e das Notícias que já existem no seu escritório, os nomes das opções continuam como estão — eles passaram a ser seus no momento em que foram criados, e o sistema não os reescreve. Instalações novas já nascem traduzidas.
+
 #### [7.58.1] — 2026-08-19
 
 - Corrigidos avisos falsos do editor na pasta de extensões: os arquivos apareciam com erros sublinhados mesmo estando corretos — o que gerava e ainda gera dúvida sobre o que é problema de verdade. Agora o editor entende tanto os exemplos que acompanham o sistema quanto as extensões novas, e a verificação de tipos passa limpa em todos.

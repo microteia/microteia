@@ -10,7 +10,8 @@ import {
 } from '../../../domain/services/customFieldValues';
 import type { CustomFieldValue, FieldDefinition, ScreenDefinition } from '../../../domain/entities';
 
-import { useT } from '../i18n/useT';
+import { useLabel, useT } from '../i18n/useT';
+import { screenForDisplay, useResolvedFields } from '../useEntityFormFields';
 type Values = Record<string, CustomFieldValue>;
 
 export interface EntityForm {
@@ -39,12 +40,17 @@ export const useEntityForm = (sourceId: string, recordId?: string | null): Entit
   const { dynamicScreens } = useScreenDefinitions();
   const { recordsByCollection, createRecord, updateRecord } = useRecords();
 
-  const screen = useMemo(
+  const label = useLabel();
+  const stored = useMemo(
     () => dynamicScreens.find((definition) => (definition.sourceId ?? definition.id) === sourceId) ?? null,
     [dynamicScreens, sourceId],
   );
+  const screen = useMemo(() => screenForDisplay(stored, label), [stored, label]);
   const screenKey = screen?.id ?? '';
-  const fields = useMemo(() => (screen ? sortFieldsByOrder(screen.fields) : []), [screen]);
+  // O rótulo declarado pela tela é uma REFERÊNCIA; sem resolver, o formulário de extensão mostra a
+  // chave. Ver `useResolvedFields`.
+  const declared = useMemo(() => (screen ? sortFieldsByOrder(screen.fields) : []), [screen]);
+  const fields = useResolvedFields(declared);
   const isNew = !recordId;
 
   const record = useMemo(

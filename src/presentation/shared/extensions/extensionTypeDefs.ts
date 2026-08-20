@@ -1156,15 +1156,50 @@ const FUNCTIONS_MODULE_DEFS = `declare module '@microteia/functions' {
 const HOST_DEFS = `
 interface MicroteiaCommandItem {
   id: string;
+  /** A message reference ('@ns/key') or the text itself. 'titleParams' interpolates it. */
   title: string;
+  titleParams?: Record<string, string>;
   subtitle?: string;
-  icon?: string;
-  run: () => void;
+  group: string;
+  icon?: any;
+  onSelect: () => void;
+  keywords?: string[];
+}
+
+/**
+ * What 'getItems' receives. It is NOT a component - it is a plain function called on every keystroke -
+ * so translation arrives here instead of through a hook.
+ *
+ *   getItems(query, ctx) {
+ *     const title = ctx.t('com.acme.contracts/command.new');   // ABSOLUTE key: your own catalog
+ *     if (title.toLowerCase().indexOf(query) === -1) return [];
+ *     ...
+ *   }
+ *
+ * Compare the query with the TRANSLATED title, never with a hardcoded phrase: otherwise the command is
+ * unreachable for anyone typing what they read on screen.
+ */
+interface MicroteiaCommandContext {
+  openTab: (key: string) => void;
+  close: () => void;
+  records: any[];
+  screenDefinitions: any[];
+  /** Translator. A key with no '/' resolves in 'core.ui'; 'namespace/key' resolves anywhere. */
+  t: (key: string, params?: Record<string, unknown>) => string;
+  /**
+   * Resolves a declarative label: '@ns/key' becomes a translation, plain text passes through. Use it
+   * before comparing a screen or field label with the query - matching against the raw reference finds
+   * nothing.
+   */
+  label: (value: string | null | undefined, params?: Record<string, unknown>) => string;
+  userRole: string | null;
+  tenantRole: string | null;
 }
 
 interface MicroteiaCommandProvider {
-  key: string;
-  search: (query: string) => MicroteiaCommandItem[];
+  /** The group heading. A message reference is resolved before it is shown. */
+  group: string;
+  getItems: (query: string, context: MicroteiaCommandContext) => MicroteiaCommandItem[];
 }
 
 interface MicroteiaMentionResult {
@@ -1175,7 +1210,9 @@ interface MicroteiaMentionResult {
 }
 
 interface MicroteiaMentionProvider {
+  /** What the person types after '@'. An identifier, not a label: keep it stable across languages. */
   key: string;
+  /** A message reference ('@ns/key') or the text itself. */
   label: string;
   description?: string;
   icon?: string;

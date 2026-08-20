@@ -684,15 +684,18 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
     [resolvedFieldsByScreen, label],
   );
 
+  // O título de uma tela de EXTENSÃO é referência, igual ao de uma tela fixa (ver `builtinRows`). A
+  // lista resolvia um e não o outro, e o resultado era `@com.microteia.news/screen.plural` no painel,
+  // ao lado de "Contratos" e "Prazos".
   const dynamicListEntries = useMemo<ScreenListEntry[]>(
     () => dynamicDefinitions.map((def) => ({
       key: def.id,
       icon: def.icon,
-      title: def.titlePlural,
+      title: label(def.titlePlural),
       meta: buildDynamicMeta(t, def, fieldsByScreen[def.id]?.length ?? 0),
       disabled: !def.enabled,
     })),
-    [dynamicDefinitions, fieldsByScreen, t],
+    [dynamicDefinitions, fieldsByScreen, t, label],
   );
 
   /**
@@ -734,7 +737,14 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
    * inglês nunca mais voltaria para essa tela.
    */
   const forDisplay = useCallback(
-    (fields: FieldDefinition[]) => fields.map((field) => ({ ...field, label: label(field.label) })),
+    (fields: FieldDefinition[]) => fields.map((field) => ({
+      ...field,
+      label: label(field.label),
+      // A SEÇÃO e o PLACEHOLDER seguem a mesma regra do rótulo, e ficaram de fora na primeira vez: a
+      // linha de meta do campo mostrava `@com.microteia.news/section.content` embaixo de "Título".
+      section: field.section ? label(field.section) : field.section,
+      placeholder: field.placeholder ? label(field.placeholder) : field.placeholder,
+    })),
     [label],
   );
 
@@ -747,7 +757,7 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
         kind: 'dynamic',
         key: def.id,
         icon: def.icon,
-        title: def.titlePlural,
+        title: label(def.titlePlural),
         meta: buildDynamicMeta(t, def, fieldsByScreen[def.id]?.length ?? 0),
         enabled: def.enabled,
         canMoveUp: dynIndex > 0,
@@ -896,13 +906,13 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
       .filter((def) => def.id !== current)
       .map((def) => ({
         key: def.id,
-        label: def.titlePlural,
+        label: label(def.titlePlural),
         fieldOptions: def.fields
           .filter((field) => field.type === 'reference' && field.refEntity === currentCollection)
-          .map((field) => ({ value: field.key, label: field.label })),
+          .map((field) => ({ value: field.key, label: label(field.label) })),
       }))
       .filter((candidate) => candidate.fieldOptions.length > 0);
-  }, [dynamicDefinitions, screenModal, getDefinitionByKey]);
+  }, [dynamicDefinitions, screenModal, getDefinitionByKey, label]);
 
   const toggleChildScreen = useCallback((childKey: string) => {
     setScreenForm((prev) => {
@@ -941,27 +951,37 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
     return resolvedFieldsByScreen[key] ?? getDefinitionByKey(key)?.fields ?? [];
   }, [screenModal, resolvedFieldsByScreen, getDefinitionByKey]);
 
+  // O VALOR da opção é a chave do campo; o rótulo é lido por gente, então resolve. Sem isto o seletor
+  // de campo-título listava `@com.microteia.news/field.title` como se fosse o nome do campo.
   const titleFieldOptions = useMemo<SearchSelectOption[]>(
     () => modalScreenFields
       .filter((f) => f.type === 'text' && f.required)
-      .map((f) => ({ value: f.key, label: f.label })),
-    [modalScreenFields],
+      .map((f) => ({ value: f.key, label: label(f.label) })),
+    [modalScreenFields, label],
   );
 
   /**
    * O subtítulo aceita qualquer campo que caiba numa LINHA ao lado do título — inclusive seleção e
    * relação, que o cartão e o cabeçalho resolvem para o rótulo, e não para o id ou a chave. Ficam de
    * fora só o texto longo e o markdown, que não cabem, e o Sim/Não, que nada informa ali.
+   *
+   * O valor JÁ GRAVADO entra na lista mesmo quando não passa por esse filtro. O filtro governa a
+   * escolha NOVA; o que já está declarado existe, e o `SearchSelect` chama de "Registro não
+   * encontrado" todo valor que não acha entre as opções — era o que a tela de Notícias mostrava, com
+   * ícone de alerta, por declarar um `textarea` como subtítulo. Informar que um campo existente não
+   * existe é pior do que oferecê-lo: convida a "consertar" o que não está quebrado.
    */
-  const subtitleFieldOptions = useMemo<SearchSelectOption[]>(
-    () => [
+  const subtitleFieldOptions = useMemo<SearchSelectOption[]>(() => {
+    const fits = (field: FieldDefinition) =>
+      field.type !== 'textarea' && field.type !== 'markdown' && field.type !== 'checkbox';
+    const current = screenForm.subtitleFieldKey;
+    return [
       { value: '', label: t('screen.subtitle-field.placeholder') },
       ...modalScreenFields
-        .filter((f) => f.type !== 'textarea' && f.type !== 'markdown' && f.type !== 'checkbox')
-        .map((f) => ({ value: f.key, label: f.label })),
-    ],
-    [modalScreenFields, t],
-  );
+        .filter((f) => fits(f) || f.key === current)
+        .map((f) => ({ value: f.key, label: label(f.label) })),
+    ];
+  }, [modalScreenFields, screenForm.subtitleFieldKey, t, label]);
 
   // O rótulo é resolvido AQUI, e não na View: a caixa lista ações nativas (referência) e de
   // extensão (texto do autor) lado a lado, e um caminho só de rótulo é o que impede a referência de

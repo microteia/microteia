@@ -1,4 +1,5 @@
 import { useCallback, useMemo } from 'react';
+import { useLabel } from '../../../../shared/i18n/useT';
 import { useSchemaContext } from '../../../../shared/useSchemaContext';
 import { ENTITY_REGISTRY_LIST } from '../../../../../domain/schema/entityRegistry';
 import { LOOKUP_REGISTRY_LIST } from '../../../../../domain/schema/lookupRegistry';
@@ -33,6 +34,7 @@ export const useRemoveBuilderControlViewModel = (
   value: RemoveBuilderControlProps['value'],
   onChange: RemoveBuilderControlProps['onChange'],
 ): RemoveBuilderControlViewModel => {
+  const label = useLabel();
   const ctx = useSchemaContext();
   const config = useMemo(() => value ?? EMPTY_CONFIG, [value]);
 
@@ -43,7 +45,7 @@ export const useRemoveBuilderControlViewModel = (
     // A CHAVE do mapa é a coleção — é ela que o motor resolve. A `id` da tela pode ser outro nome.
     const screens = [...ctx.screens.entries()].map(([collection, screen]) => ({
       value: collection,
-      label: screen.titleSingular,
+      label: label(screen.titleSingular),
       meta: 'Personalizada',
     }));
     const lookups = LOOKUP_REGISTRY_LIST.map((lookup) => ({
@@ -52,7 +54,7 @@ export const useRemoveBuilderControlViewModel = (
       meta: 'Lista',
     }));
     return [...entities, ...screens, ...lookups];
-  }, [ctx]);
+  }, [ctx, label]);
 
   const emit = useCallback((next: RemoveStepConfig) => onChange(next), [onChange]);
 

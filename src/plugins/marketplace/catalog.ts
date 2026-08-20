@@ -8,7 +8,7 @@ import { financeiroPlugin } from './financeiro';
 import { pessoaPlugin } from './pessoa';
 import { prazoPlugin } from './prazo';
 import { processoPlugin } from './processo';
-import { noticiaPlugin } from './noticia';
+import { newsPlugin } from './news';
 import { pushPlugin } from './push';
 import { dashboardPlugin } from './dashboard';
 import { calendarPlugin } from './calendar';
@@ -180,7 +180,7 @@ export const guiaPlugin: MarketplacePlugin =
     workflows: [],
   };
 
-export { vendasPlugin, kanbanCasesPlugin, brasilPlugin, pessoaPlugin, contratoPlugin, processoPlugin, financeiroPlugin, prazoPlugin, pushPlugin, noticiaPlugin, dashboardPlugin, calendarPlugin, localePtBrPlugin };
+export { vendasPlugin, kanbanCasesPlugin, brasilPlugin, pessoaPlugin, contratoPlugin, processoPlugin, financeiroPlugin, prazoPlugin, pushPlugin, newsPlugin, dashboardPlugin, calendarPlugin, localePtBrPlugin };
 
 /**
  * Catálogo do Marketplace EMBUTIDO: extensões de PRIMEIRA PARTE que viajam no bundle da aplicação.
@@ -206,7 +206,7 @@ export const MARKETPLACE_CATALOG: MarketplacePlugin[] = [
   prazoPlugin,
   pushPlugin,
   financeiroPlugin,
-  noticiaPlugin,
+  newsPlugin,
   kanbanCasesPlugin,
   ...THEME_MARKETPLACE_PLUGINS,
 ];

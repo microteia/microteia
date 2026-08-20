@@ -71,11 +71,11 @@ export const useValidateBuilderControlViewModel = (
       .filter(([collection]) => !named.has(collection))
       .map(([collection, screen]) => ({
         value: collection,
-        label: screen.titleSingular,
+        label: label(screen.titleSingular),
         meta: t('source.custom'),
       }));
     return [{ value: '', label: t('validate.source.none') }, ...entities, ...screens];
-  }, [ctx, t]);
+  }, [ctx, t, label]);
 
   const lookupOptions = useLookupCollectionOptions();
 

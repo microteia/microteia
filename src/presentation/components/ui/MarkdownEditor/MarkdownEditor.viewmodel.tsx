@@ -3,7 +3,7 @@ import type { WorkflowDefinition } from '../../../../domain/entities/Workflow';
 import { mentionCommands as nativeMentionCommands, type MentionCommand } from '../MentionMenu/MentionMenu.viewmodel';
 import { useExtensionMentionProviders, type ExtensionMentionProvider, type MentionResult } from '../../../shared/extensions/extensionServices';
 import { getScreenIconType } from '../../../shared/screenIcons';
-import { useT } from '../../../shared/i18n/useT';
+import { useLabel, useT } from '../../../shared/i18n/useT';
 
 const EXT_MENTION_PREFIX = 'ext:';
 
@@ -101,15 +101,24 @@ export const useMarkdownEditorViewModel = (
 
   const extensionMentionProviders = useExtensionMentionProviders();
   const t = useT('core.ui');
-  const mentionCommands = useMemo<MentionCommand[]>(() => [
-    ...nativeMentionCommands(t),
-    ...extensionMentionProviders.map((provider) => ({
-      key: `${EXT_MENTION_PREFIX}${provider.key}`,
-      label: provider.label,
-      description: provider.description ?? t('mention.insert-link', { label: provider.label }),
-      icon: getScreenIconType(provider.icon ?? 'apps'),
-    })),
-  ], [extensionMentionProviders, t]);
+  // O rótulo de uma menção de extensão é DECLARATIVO como qualquer outro: `@ns/chave` traduz, texto
+  // comum passa intacto. Sem resolver aqui, era o único rótulo de extensão que não tinha como ser
+  // traduzido — e o `@` do editor mostrava a chave crua.
+  const label = useLabel();
+  const mentionCommands = useMemo<MentionCommand[]>(() => {
+    const extensions = extensionMentionProviders.map((provider) => {
+      const providerLabel = label(provider.label);
+      return {
+        key: `${EXT_MENTION_PREFIX}${provider.key}`,
+        label: providerLabel,
+        description: provider.description
+          ? label(provider.description)
+          : t('mention.insert-link', { label: providerLabel }),
+        icon: getScreenIconType(provider.icon ?? 'apps'),
+      };
+    });
+    return [...nativeMentionCommands(t), ...extensions];
+  }, [extensionMentionProviders, t, label]);
 
   const mentionRangeRef = useRef<{ start: number; end: number }>({ start: -1, end: -1 });
 

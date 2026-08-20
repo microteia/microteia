@@ -1,4 +1,5 @@
 import { useCallback, useMemo } from 'react';
+import { useLabel } from '../../../../shared/i18n/useT';
 import { useSchemaContext } from '../../../../shared/useSchemaContext';
 import { ENTITY_REGISTRY_LIST } from '../../../../../domain/schema/entityRegistry';
 import { resolveWritableTable } from '../../../../../domain/schema/mutationSpec';
@@ -36,6 +37,7 @@ export const useMapBuilderControlViewModel = (
   value: MapBuilderControlProps['value'],
   onChange: MapBuilderControlProps['onChange'],
 ): MapBuilderControlViewModel => {
+  const label = useLabel();
   const ctx = useSchemaContext();
   const config = useMemo(() => value ?? EMPTY_CONFIG, [value]);
 
@@ -46,11 +48,11 @@ export const useMapBuilderControlViewModel = (
     // A CHAVE do mapa é a coleção — é ela que o motor resolve. A `id` da tela pode ser outro nome.
     const screens = [...ctx.screens.entries()].map(([collection, screen]) => ({
       value: collection,
-      label: screen.titleSingular,
+      label: label(screen.titleSingular),
       meta: 'Personalizada',
     }));
     return [...entities, ...screens];
-  }, [ctx]);
+  }, [ctx, label]);
 
   const emit = useCallback((next: MapStepConfig) => onChange(next), [onChange]);
 

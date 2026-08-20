@@ -1,4 +1,5 @@
 import { WidgetSurface } from '@microteia/ui';
+import { useT } from '@microteia/i18n';
 import { styled } from 'styled-components';
 
 const Page = styled.div`
@@ -8,12 +9,11 @@ const Page = styled.div`
 `;
 
 export default function DashboardView() {
+  const t = useT('com.microteia.dashboard');
+
   return (
     <Page>
-      <WidgetSurface
-        surface="dashboard"
-        emptyMessage="Nenhum widget disponível. Instale extensões (Processos, Prazos, Financeiro…) para o Dashboard ganhar conteúdo."
-      />
+      <WidgetSurface surface="dashboard" emptyMessage={t('view.empty')} />
     </Page>
   );
 }

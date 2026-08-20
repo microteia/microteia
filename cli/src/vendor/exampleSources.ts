@@ -25,7 +25,7 @@ export const EXAMPLE_SOURCES: Record<string, string> = {
   financeiro: 'financeiro.ts',
   'kanban-processos': 'kanbanCases.ts',
   'locale-pt-br': 'localePtBr',
-  noticia: 'noticia.ts',
+  news: 'news.ts',
   pessoa: 'pessoa.ts',
   prazo: 'prazo.ts',
   processo: 'processo.ts',
@@ -62,6 +62,36 @@ const HEADER = (id: string): string => `// Example: a Microteia first-party exte
 
 `;
 
+/**
+ * Os módulos VIZINHOS que o plugin importa — hoje, os catálogos de mensagem (`./newsMessages`,
+ * `./newsMessagesPtBr`). Um exemplo tem de viajar com o que ele importa, ou o `plugin.ts` staged não
+ * compila; enumerar os arquivos à mão numa lista aqui seria a mesma dívida que a lista de views era.
+ *
+ * A busca é transitiva porque um catálogo importa o outro (o de tradução lê o namespace do de origem),
+ * e é limitada ao diretório do marketplace: o que alcança `domain/` já virou `@microteia/sdk`.
+ */
+const siblingModules = async (marketplace: string, entry: string): Promise<Map<string, string>> => {
+  const collected = new Map<string, string>();
+  const pending = [entry];
+
+  while (pending.length > 0) {
+    const name = pending.shift() as string;
+    const source = await readFile(join(marketplace, name), 'utf8');
+    for (const match of source.matchAll(/from '\.\/([A-Za-z][\w.-]*)'/g)) {
+      const file = `${match[1]}.ts`;
+      if (collected.has(file)) continue;
+      try {
+        collected.set(file, rewriteImports(await readFile(join(marketplace, file), 'utf8')));
+      } catch {
+        continue;
+      }
+      pending.push(file);
+    }
+  }
+
+  return collected;
+};
+
 const viewFiles = async (viewsDir: string): Promise<string[]> => {
   try {
     return (await readdir(viewsDir)).filter((name) => name.endsWith('.tsx') || name.endsWith('.ts'));
@@ -85,6 +115,10 @@ export const stageExamples = async (repo: string, target: string): Promise<strin
     if (origin.endsWith('.ts')) {
       const source = await readFile(join(marketplace, origin), 'utf8');
       await writeFile(join(directory, 'plugin.ts'), HEADER(id) + rewriteImports(source));
+
+      for (const [name, content] of await siblingModules(marketplace, origin)) {
+        await writeFile(join(directory, name), content);
+      }
 
       const plugin = origin.replace(/\.ts$/, '');
       const views = join(marketplace, 'views', plugin);

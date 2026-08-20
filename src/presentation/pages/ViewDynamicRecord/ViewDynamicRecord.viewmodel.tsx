@@ -35,8 +35,8 @@ import type { EntityDetailExtraTab, EntityDetailTab } from '../../components/lay
 import { useTagAdapter } from '../../shared/entityScreen/useTagAdapter';
 import { isBoundScreen, isOwnedByParentScreen, screenDataCollection } from '../../../domain/services/screenDataCollection';
 import { autoValueFields, generateAutoValue } from '../../../domain/services/autoValue';
-import { useEntityFormFields } from '../../shared/useEntityFormFields';
-import { useT } from '../../shared/i18n/useT';
+import { screenForDisplay, useEntityFormFields, useResolvedFields } from '../../shared/useEntityFormFields';
+import { useLabel, useT } from '../../shared/i18n/useT';
 import type {
   CustomFieldValue,
   EntityRecord,
@@ -92,6 +92,7 @@ type Values = Record<string, CustomFieldValue>;
 
 export const useViewDynamicRecordViewModel = (tabKey: string): ViewDynamicRecordViewModel => {
   const t = useT('core.records');
+  const label = useLabel();
   const { getDefinition, isLoading: isLoadingDefinition } = useScreenDefinitions();
   const { recordsByCollection, createRecord, updateRecord, deleteRecord } = useRecords();
   const { currentTenant, tenantRole } = useTenant();
@@ -103,7 +104,8 @@ export const useViewDynamicRecordViewModel = (tabKey: string): ViewDynamicRecord
     const t = parseDynamicTabKey(tabKey);
     return t?.kind === 'view' ? (t.recordId ?? null) : null;
   }, [tabKey]);
-  const definition = useMemo(() => getDefinition(screenKey) ?? null, [getDefinition, screenKey]);
+  const stored = useMemo(() => getDefinition(screenKey) ?? null, [getDefinition, screenKey]);
+  const definition = useMemo(() => screenForDisplay(stored, label), [stored, label]);
 
   // Ao criar um filho a partir da aba do pai, a chave carrega quem é o pai.
   const parentContext = useMemo(() => {
@@ -120,10 +122,13 @@ export const useViewDynamicRecordViewModel = (tabKey: string): ViewDynamicRecord
   const isBound = !!definition && isBoundScreen(definition);
   const boundFields = useEntityFormFields(isBound ? collection : '');
 
-  const sortedFields = useMemo(
+  // Os rótulos passam por `useResolvedFields` NOS DOIS ramos. A tela que declara os próprios campos
+  // — toda extensão — chegava aqui crua, e o formulário mostrava a referência em vez do texto.
+  const declaredFields = useMemo(
     () => (isBound ? boundFields.fields : definition ? sortFieldsByOrder(definition.fields) : []),
     [isBound, boundFields.fields, definition],
   );
+  const sortedFields = useResolvedFields(declaredFields);
   const titleFieldKey = definition?.titleFieldKey ?? '';
   const subtitleFieldKey = definition?.subtitleFieldKey ?? '';
 
@@ -166,11 +171,11 @@ export const useViewDynamicRecordViewModel = (tabKey: string): ViewDynamicRecord
   const resolveTabTitle = useCallback(
     (record: EntityRecord | null, isNew: boolean) => {
       if (!definition) return null;
-      if (isNew) return `Novo ${definition.titleSingular}`;
+      if (isNew) return t('record.new.title', { entity: label(definition.titleSingular) });
       if (!record) return null;
       return resolveRecordTabTitle(record, titleFieldKey, subtitleFieldKey);
     },
-    [definition, subtitleFieldKey, titleFieldKey],
+    [definition, subtitleFieldKey, titleFieldKey, t, label],
   );
 
   const resolveTitleFromValues = useCallback(
@@ -247,11 +252,14 @@ export const useViewDynamicRecordViewModel = (tabKey: string): ViewDynamicRecord
   const notesPort = useRecordNotesPort(collection);
   const documentsPort = useRecordDocumentsPort(collection);
 
-  const messages = useMemo(() => ({
-    created: `${definition?.titleSingular ?? 'Registro'} cadastrado com sucesso!`,
-    updated: `${definition?.titleSingular ?? 'Registro'} atualizado com sucesso!`,
-    error: 'Erro ao salvar o registro.',
-  }), [definition]);
+  const messages = useMemo(() => {
+    const entity = definition ? label(definition.titleSingular) : t('record.title');
+    return {
+      created: t('record.created', { entity }),
+      updated: t('record.updated', { entity }),
+      error: t('record.save-failed'),
+    };
+  }, [definition, t, label]);
 
   const detail = useEntityDetail<EntityRecord>({
     tabKey,

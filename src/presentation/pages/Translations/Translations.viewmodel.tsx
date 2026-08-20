@@ -76,25 +76,38 @@ export const useTranslationsViewModel = (): TranslationsViewModel => {
    * Então: um pacote está EM USO se ao menos uma chave dele sobrevive à fusão, e SEM EFEITO se
    * nenhuma sobrevive. A ordem é a mesma de `buildMessageCatalog` — quem chega primeiro vence.
    */
+  /**
+   * Uma linha por (extensão × IDIOMA), e não por extensão.
+   *
+   * Enquanto só existiam pacotes de tradução, extensão e idioma eram a mesma coisa e a simplificação
+   * não custava nada. Deixou de ser verdade quando uma extensão passou a carregar os próprios
+   * catálogos: ela contribui `en` E `pt-BR`, e a linha única dizia "en — 194 textos" somando os dois
+   * — rotulando de inglês metade que era português.
+   *
+   * O erro não era só de rótulo. `resolveLanguageUsage` decide "em uso" e "sem efeito" comparando o
+   * idioma da linha com o corrente e disputando as CHAVES dela; uma linha com as chaves dos dois
+   * idiomas reivindicava, no idioma errado, chaves que nem eram daquele idioma.
+   */
   const languages = useMemo<InstalledLanguage[]>(() => {
     const rows = installed
-      .map((extension) => {
-        const packBundles = messageBundlesOf(extension.package.manifest.contributes ?? []);
-        if (packBundles.length === 0) return null;
-        return {
-          id: extension.id,
-          name: extension.package.manifest.name || extension.id,
-          locale: normalizeLocale(packBundles[0].locale),
-          keyCount: translationKeyCount(extension.package),
+      .flatMap((extension) => {
+        const byLocale = new Map<string, string[]>();
+        for (const packBundle of messageBundlesOf(extension.package.manifest.contributes ?? [])) {
+          const key = normalizeLocale(packBundle.locale);
+          const keys = Object.keys(packBundle.messages).map((entry) => `${packBundle.namespace}/${entry}`);
+          byLocale.set(key, [...(byLocale.get(key) ?? []), ...keys]);
+        }
+        return [...byLocale].map(([localeCode, keys]) => ({
+          id: `${extension.id}::${localeCode}`,
+          name: label(extension.package.manifest.name) || extension.id,
+          locale: localeCode,
+          keyCount: keys.length,
           active: extension.active,
           inUse: false,
           shadowed: false,
-          keys: packBundles.flatMap((packBundle) =>
-            Object.keys(packBundle.messages).map((key) => `${packBundle.namespace}/${key}`),
-          ),
-        };
+          keys,
+        }));
       })
-      .filter((row): row is InstalledLanguage & { keys: string[] } => row !== null)
       .sort((a, b) => (a.id < b.id ? -1 : 1));
 
     const usage = resolveLanguageUsage(rows, locale);
@@ -107,7 +120,7 @@ export const useTranslationsViewModel = (): TranslationsViewModel => {
       inUse: usage[row.id]?.inUse ?? false,
       shadowed: usage[row.id]?.shadowed ?? false,
     }));
-  }, [installed, locale]);
+  }, [installed, locale, label]);
 
   const isTargetValid = isValidLocale(targetLocale) && normalizeLocale(targetLocale) !== DEFAULT_LOCALE;
 

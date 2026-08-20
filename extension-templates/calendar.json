@@ -1,10 +1,10 @@
 {
   "manifest": {
     "id": "com.microteia.calendar",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "kernel": "^1.0.0",
-    "name": "Calendário",
-    "description": "A agenda do escritório, agnóstica: qualquer extensão põe um item nela e continua dona dele.",
+    "name": "@com.microteia.calendar/package.name",
+    "description": "@com.microteia.calendar/package.description",
     "publisher": {
       "name": "Microteia"
     },
@@ -15,8 +15,8 @@
       {
         "id": "calendar.moveaction",
         "apiVersion": "1.0.0",
-        "title": "Ação ao mover um item de dia",
-        "description": "A ação executada quando um item é arrastado para outro dia. Quem decide o que a mudança significa é a origem.",
+        "title": "@com.microteia.calendar/point.move.title",
+        "description": "@com.microteia.calendar/point.move.description",
         "ownerPluginId": "com.microteia.calendar",
         "allowedImplKinds": [],
         "implRequired": false,
@@ -25,12 +25,156 @@
     ],
     "contributes": [
       {
+        "point": "i18n.messages",
+        "id": "en.com.microteia.calendar",
+        "apiVersion": "1.0.0",
+        "metadata": {
+          "locale": "en",
+          "namespace": "com.microteia.calendar",
+          "messages": {
+            "package.name": "Calendar",
+            "package.description": "The office agenda, agnostic: any extension puts an item on it and stays its owner.",
+            "package.summary": "The office agenda in day columns, with the whole month on a single scroll that opens on today. It knows nothing about deadlines, hearings or instalments: any extension registers an item, stays its owner and decides what happens when someone drags it to another day.",
+            "nav.calendar": "Calendar",
+            "page.calendar": "Calendar",
+            "screen.singular": "Calendar item",
+            "screen.plural": "Calendar",
+            "section.item": "Item",
+            "section.dates": "Dates",
+            "section.origin": "Origin",
+            "field.title": "Title",
+            "field.title.placeholder": "What appears on the card",
+            "field.status": "Status",
+            "field.status.placeholder": "Select the status...",
+            "field.priority": "Priority",
+            "field.priority.placeholder": "Select the priority...",
+            "field.description": "Description",
+            "field.description.placeholder": "Detail shown on the card",
+            "field.date": "Date",
+            "field.hour": "Time",
+            "field.finish-date": "Completion date",
+            "field.finish-hour": "Completion time",
+            "field.origin": "Origin collection",
+            "field.origin.placeholder": "The record set the item came from",
+            "field.origin-id": "Origin record",
+            "lookup.statuses": "Calendar: Status",
+            "lookup.priorities": "Calendar: Priority",
+            "status.pending": "Pending",
+            "status.closed": "Done",
+            "priority.low": "Low",
+            "priority.medium": "Medium",
+            "priority.high": "High",
+            "priority.critical": "Critical",
+            "point.move.title": "Action when an item moves to another day",
+            "point.move.description": "The action executed when an item is dragged to another day. What the change means is decided by the origin.",
+            "settings.section.title": "Calendar",
+            "settings.section.description": "How the agenda answers what the user does.",
+            "settings.move-actions": "When an item is dragged to another day",
+            "settings.move-actions.description": "The actions that answer a change of day, in the order they are consulted. The first one that serves the item origin wins — dragging writes nothing on its own.",
+            "overview.body": "The **Calendar** shows the days of the month side by side and what is scheduled on each one. The scroll opens on today, the card is coloured by priority, and the legend below filters by it in one click.\n\nThe agenda owns nothing it shows. Each item belongs to the record that created it — a deadline, a hearing, an instalment — and it is that record that keeps it current: changed there, changed here; deleted there, gone from here. That is why an item is not edited from the agenda, and why clicking the card goes straight to the origin record.\n\nDragging a card to another day **asks** the extension that owns the item what to do. In Settings › Calendar you choose which ones answer, and in what order.",
+            "overview.adds": "Adds",
+            "overview.adds.value": "A \"Calendar\" item in the menu",
+            "overview.shows": "Shows",
+            "overview.shows.value": "The whole month, in day columns",
+            "overview.filter": "Filter",
+            "overview.filter.value": "By status, priority, date — and whatever extensions add",
+            "overview.drag": "Dragging",
+            "overview.drag.value": "Runs the action the origin declared",
+            "overview.banner": "On its own the agenda opens empty: it is filled by the extensions that register items on it, such as Deadlines.",
+            "view.screen-missing": "The \"Calendar\" screen was not found. Install the extension to enable it.",
+            "view.stat.month": "This month",
+            "view.stat.pending": "Pending",
+            "view.stat.closed": "Done",
+            "view.stat.late": "Overdue",
+            "view.previous-month": "Previous month",
+            "view.next-month": "Next month",
+            "view.today": "Today",
+            "view.filter.placeholder": "Filter the agenda...",
+            "view.legend.priority": "Priority:",
+            "view.legend.all": "All",
+            "view.move.no-handler": "No extension answers for this item when the day changes."
+          }
+        }
+      },
+      {
+        "point": "i18n.messages",
+        "id": "pt-br.com.microteia.calendar",
+        "apiVersion": "1.0.0",
+        "metadata": {
+          "locale": "pt-BR",
+          "namespace": "com.microteia.calendar",
+          "messages": {
+            "package.name": "Calendário",
+            "package.description": "A agenda do escritório, agnóstica: qualquer extensão põe um item nela e continua dona dele.",
+            "package.summary": "A agenda do escritório em colunas de dia, com o mês inteiro numa rolagem que abre no dia de hoje. Ela não conhece prazo, audiência nem parcela: qualquer extensão registra um item, continua dona dele e diz o que acontece quando o usuário o arrasta para outro dia.",
+            "nav.calendar": "Calendário",
+            "page.calendar": "Calendário",
+            "screen.singular": "Item do calendário",
+            "screen.plural": "Calendário",
+            "section.item": "Item",
+            "section.dates": "Datas",
+            "section.origin": "Origem",
+            "field.title": "Título",
+            "field.title.placeholder": "O que aparece no cartão",
+            "field.status": "Situação",
+            "field.status.placeholder": "Selecione a situação...",
+            "field.priority": "Prioridade",
+            "field.priority.placeholder": "Selecione a prioridade...",
+            "field.description": "Descrição",
+            "field.description.placeholder": "Detalhe que aparece no cartão",
+            "field.date": "Data",
+            "field.hour": "Hora",
+            "field.finish-date": "Data da conclusão",
+            "field.finish-hour": "Hora da conclusão",
+            "field.origin": "Coleção de origem",
+            "field.origin.placeholder": "O cadastro de onde o item veio",
+            "field.origin-id": "Registro de origem",
+            "lookup.statuses": "Calendário: Situação",
+            "lookup.priorities": "Calendário: Prioridade",
+            "status.pending": "Pendente",
+            "status.closed": "Concluído",
+            "priority.low": "Baixa",
+            "priority.medium": "Média",
+            "priority.high": "Alta",
+            "priority.critical": "Crítica",
+            "point.move.title": "Ação ao mover um item de dia",
+            "point.move.description": "A ação executada quando um item é arrastado para outro dia. Quem decide o que a mudança significa é a origem.",
+            "settings.section.title": "Calendário",
+            "settings.section.description": "Como a agenda responde aos gestos do usuário.",
+            "settings.move-actions": "Ao arrastar um item para outro dia",
+            "settings.move-actions.description": "As ações que respondem à mudança de dia, na ordem em que são consultadas. Vale a primeira que atende a origem do item — arrastar não grava nada por conta própria.",
+            "overview.body": "O **Calendário** mostra, lado a lado, os dias do mês e o que está marcado em cada um. A rolagem abre no dia de hoje, o cartão é colorido pela prioridade e a legenda embaixo filtra por ela num clique.\n\nA agenda não é dona de nada do que mostra. Cada item pertence ao registro que o criou — um prazo, uma audiência, uma parcela — e é esse registro que o mantém em dia: mudou lá, muda aqui; foi excluído lá, some daqui. Por isso o item não se edita pela agenda, e clicar no cartão leva direto ao registro de origem.\n\nArrastar um cartão para outro dia **pergunta** à extensão dona do item o que fazer. Em Configurações › Calendário você escolhe quais respondem e em que ordem.",
+            "overview.adds": "Adiciona",
+            "overview.adds.value": "Item \"Calendário\" no menu",
+            "overview.shows": "Mostra",
+            "overview.shows.value": "O mês inteiro, em colunas de dia",
+            "overview.filter": "Filtro",
+            "overview.filter.value": "Por situação, prioridade, data — e o que as extensões acrescentarem",
+            "overview.drag": "Arrastar",
+            "overview.drag.value": "Executa a ação que a origem declarou",
+            "overview.banner": "Sozinha, a agenda abre vazia: quem a preenche são as extensões que registram itens nela, como a de Prazos.",
+            "view.screen-missing": "Tela \"Calendário\" não encontrada. Instale a extensão para ativá-la.",
+            "view.stat.month": "No mês",
+            "view.stat.pending": "Pendentes",
+            "view.stat.closed": "Concluídos",
+            "view.stat.late": "Atrasados",
+            "view.previous-month": "Mês anterior",
+            "view.next-month": "Próximo mês",
+            "view.today": "Hoje",
+            "view.filter.placeholder": "Filtrar a agenda...",
+            "view.legend.priority": "Prioridade:",
+            "view.legend.all": "Todas",
+            "view.move.no-handler": "Nenhuma extensão responde por este item ao mudar de dia."
+          }
+        }
+      },
+      {
         "point": "ui.nav",
         "id": "calendar",
         "apiVersion": "1.0.0",
         "metadata": {
           "key": "calendar",
-          "label": "Calendário",
+          "label": "@com.microteia.calendar/nav.calendar",
           "icon": "calendar",
           "order": 20
         }
@@ -41,7 +185,7 @@
         "apiVersion": "1.0.0",
         "metadata": {
           "key": "calendar",
-          "title": "Calendário",
+          "title": "@com.microteia.calendar/page.calendar",
           "icon": "calendar"
         },
         "impl": {
@@ -55,15 +199,15 @@
         "apiVersion": "1.0.0",
         "metadata": {
           "key": "calendar",
-          "title": "Calendário",
-          "description": "Como a agenda responde aos gestos do usuário.",
+          "title": "@com.microteia.calendar/settings.section.title",
+          "description": "@com.microteia.calendar/settings.section.description",
           "icon": "calendar",
           "order": 30,
           "properties": [
             {
               "key": "calendar.moveActions",
-              "label": "Ao arrastar um item para outro dia",
-              "description": "As ações que respondem à mudança de dia, na ordem em que são consultadas. Vale a primeira que atende a origem do item — arrastar não grava nada por conta própria.",
+              "label": "@com.microteia.calendar/settings.move-actions",
+              "description": "@com.microteia.calendar/settings.move-actions.description",
               "type": "contributions",
               "point": "calendar.moveaction",
               "default": [],
@@ -76,39 +220,39 @@
       }
     ]
   },
-  "summary": "A agenda do escritório em colunas de dia, com o mês inteiro numa rolagem que abre no dia de hoje. Ela não conhece prazo, audiência nem parcela: qualquer extensão registra um item, continua dona dele e diz o que acontece quando o usuário o arrasta para outro dia.",
+  "summary": "@com.microteia.calendar/package.summary",
   "overview": {
     "type": "stack",
     "gap": "lg",
     "children": [
       {
         "type": "markdown",
-        "content": "O **Calendário** mostra, lado a lado, os dias do mês e o que está marcado em cada um. A rolagem abre no dia de hoje, o cartão é colorido pela prioridade e a legenda embaixo filtra por ela num clique.\n\nA agenda não é dona de nada do que mostra. Cada item pertence ao registro que o criou — um prazo, uma audiência, uma parcela — e é esse registro que o mantém em dia: mudou lá, muda aqui; foi excluído lá, some daqui. Por isso o item não se edita pela agenda, e clicar no cartão leva direto ao registro de origem.\n\nArrastar um cartão para outro dia **pergunta** à extensão dona do item o que fazer. Em Configurações › Calendário você escolhe quais respondem e em que ordem."
+        "content": "@com.microteia.calendar/overview.body"
       },
       {
         "type": "keyValue",
         "items": [
           {
-            "label": "Adiciona",
-            "value": "Item \"Calendário\" no menu"
+            "label": "@com.microteia.calendar/overview.adds",
+            "value": "@com.microteia.calendar/overview.adds.value"
           },
           {
-            "label": "Mostra",
-            "value": "O mês inteiro, em colunas de dia"
+            "label": "@com.microteia.calendar/overview.shows",
+            "value": "@com.microteia.calendar/overview.shows.value"
           },
           {
-            "label": "Filtro",
-            "value": "Por situação, prioridade, data — e o que as extensões acrescentarem"
+            "label": "@com.microteia.calendar/overview.filter",
+            "value": "@com.microteia.calendar/overview.filter.value"
           },
           {
-            "label": "Arrastar",
-            "value": "Executa a ação que a origem declarou"
+            "label": "@com.microteia.calendar/overview.drag",
+            "value": "@com.microteia.calendar/overview.drag.value"
           }
         ]
       },
       {
         "type": "banner",
-        "message": "Sozinha, a agenda abre vazia: quem a preenche são as extensões que registram itens nela, como a de Prazos.",
+        "message": "@com.microteia.calendar/overview.banner",
         "variant": "info"
       }
     ]
@@ -119,103 +263,103 @@
       "key": "calendar",
       "sourceId": "microteia:calendar",
       "sourceRev": 1,
-      "titleSingular": "Item do calendário",
-      "titlePlural": "Calendário",
+      "titleSingular": "@com.microteia.calendar/screen.singular",
+      "titlePlural": "@com.microteia.calendar/screen.plural",
       "icon": "calendar",
       "fields": [
         {
           "key": "title",
-          "label": "Título",
+          "label": "@com.microteia.calendar/field.title",
           "type": "text",
           "required": true,
           "order": 0,
-          "section": "Item",
-          "placeholder": "O que aparece no cartão"
+          "section": "@com.microteia.calendar/section.item",
+          "placeholder": "@com.microteia.calendar/field.title.placeholder"
         },
         {
           "key": "status",
-          "label": "Situação",
+          "label": "@com.microteia.calendar/field.status",
           "type": "select",
           "required": true,
           "order": 1,
-          "section": "Item",
+          "section": "@com.microteia.calendar/section.item",
           "lookupCollection": "calendarStatuses",
           "optionsColored": true,
           "filterable": true,
-          "placeholder": "Selecione a situação..."
+          "placeholder": "@com.microteia.calendar/field.status.placeholder"
         },
         {
           "key": "priority",
-          "label": "Prioridade",
+          "label": "@com.microteia.calendar/field.priority",
           "type": "select",
           "required": true,
           "order": 2,
-          "section": "Item",
+          "section": "@com.microteia.calendar/section.item",
           "lookupCollection": "calendarPriorities",
           "optionsColored": true,
           "filterable": true,
-          "placeholder": "Selecione a prioridade..."
+          "placeholder": "@com.microteia.calendar/field.priority.placeholder"
         },
         {
           "key": "description",
-          "label": "Descrição",
+          "label": "@com.microteia.calendar/field.description",
           "type": "textarea",
           "required": false,
           "order": 3,
-          "section": "Item",
-          "placeholder": "Detalhe que aparece no cartão"
+          "section": "@com.microteia.calendar/section.item",
+          "placeholder": "@com.microteia.calendar/field.description.placeholder"
         },
         {
           "key": "date",
-          "label": "Data",
+          "label": "@com.microteia.calendar/field.date",
           "type": "date",
           "required": true,
           "order": 4,
-          "section": "Datas",
+          "section": "@com.microteia.calendar/section.dates",
           "filterable": true
         },
         {
           "key": "hour",
-          "label": "Hora",
+          "label": "@com.microteia.calendar/field.hour",
           "type": "time",
           "required": false,
           "order": 5,
-          "section": "Datas"
+          "section": "@com.microteia.calendar/section.dates"
         },
         {
           "key": "finishDate",
-          "label": "Data da conclusão",
+          "label": "@com.microteia.calendar/field.finish-date",
           "type": "date",
           "required": false,
           "order": 6,
-          "section": "Datas",
+          "section": "@com.microteia.calendar/section.dates",
           "filterable": true
         },
         {
           "key": "finishHour",
-          "label": "Hora da conclusão",
+          "label": "@com.microteia.calendar/field.finish-hour",
           "type": "time",
           "required": false,
           "order": 7,
-          "section": "Datas"
+          "section": "@com.microteia.calendar/section.dates"
         },
         {
           "key": "origem",
-          "label": "Coleção de origem",
+          "label": "@com.microteia.calendar/field.origin",
           "type": "text",
           "required": true,
           "order": 8,
-          "section": "Origem",
+          "section": "@com.microteia.calendar/section.origin",
           "filterable": true,
-          "placeholder": "O cadastro de onde o item veio"
+          "placeholder": "@com.microteia.calendar/field.origin.placeholder"
         },
         {
           "key": "origemId",
-          "label": "Registro de origem",
+          "label": "@com.microteia.calendar/field.origin-id",
           "type": "text",
           "required": true,
           "order": 9,
-          "section": "Origem"
+          "section": "@com.microteia.calendar/section.origin"
         }
       ],
       "titleFieldKey": "title",
@@ -235,42 +379,42 @@
   "lookups": [
     {
       "collection": "calendarStatuses",
-      "label": "Calendário: Situação",
+      "label": "@com.microteia.calendar/lookup.statuses",
       "options": [
         {
           "key": "pending",
-          "label": "Pendente",
+          "label": "@com.microteia.calendar/status.pending",
           "color": "warning"
         },
         {
           "key": "closed",
-          "label": "Concluído",
+          "label": "@com.microteia.calendar/status.closed",
           "color": "success"
         }
       ]
     },
     {
       "collection": "calendarPriorities",
-      "label": "Calendário: Prioridade",
+      "label": "@com.microteia.calendar/lookup.priorities",
       "options": [
         {
           "key": "low",
-          "label": "Baixa",
+          "label": "@com.microteia.calendar/priority.low",
           "color": "success"
         },
         {
           "key": "medium",
-          "label": "Média",
+          "label": "@com.microteia.calendar/priority.medium",
           "color": "warning"
         },
         {
           "key": "high",
-          "label": "Alta",
+          "label": "@com.microteia.calendar/priority.high",
           "color": "secondary"
         },
         {
           "key": "critical",
-          "label": "Crítica",
+          "label": "@com.microteia.calendar/priority.critical",
           "color": "danger"
         }
       ]
@@ -279,9 +423,9 @@
   "views": [
     {
       "key": "calendar",
-      "title": "Calendário",
+      "title": "@com.microteia.calendar/page.calendar",
       "icon": "calendar",
-      "source": "import { useCallback, useEffect, useMemo, useRef, useState } from 'react';\nimport { styled, useTheme } from 'styled-components';\nimport { CompositeFilter, EntityListModals, Icon, InfoBanner, cardActionIcon } from '@microteia/ui';\nimport {\n  useEntityList, useContributions, useRunAction, useActionVisible, useOpenRecord, useLookup, useNotify,\n} from '@microteia/data';\nimport { getConfigColor } from '@microteia/theme';\nimport { useSettingValue } from '@microteia/settings';\n\nconst SOURCE_ID = 'microteia:calendar';\nconst COLLECTION = 'calendar';\nconst MOVE_POINT = 'calendar.moveaction';\nconst MOVE_SETTING = 'calendar.moveActions';\n\nconst StatsBar = styled.div`\n  display: flex;\n  gap: ${({ theme }) => theme.spacing.md};\n  margin-bottom: ${({ theme }) => theme.spacing.lg};\n  padding: ${({ theme }) => theme.spacing.md};\n  background: ${({ theme }) => theme.colors.surface};\n  border: 1px solid ${({ theme }) => theme.colors.border};\n  border-radius: ${({ theme }) => theme.borderRadius.lg};\n`;\n\nconst StatItem = styled.div`\n  display: flex;\n  flex-direction: column;\n  align-items: center;\n  flex: 1;\n  padding: ${({ theme }) => theme.spacing.sm};\n`;\n\nconst StatValue = styled.div`\n  font-size: ${({ theme }) => theme.fontSizes['2xl']};\n  font-weight: 700;\n  line-height: 1;\n  color: ${({ $color, theme }) => $color || theme.colors.primary};\n`;\n\nconst StatLabel = styled.div`\n  font-size: ${({ theme }) => theme.fontSizes.xs};\n  color: ${({ theme }) => theme.colors.textMuted};\n  margin-top: 4px;\n`;\n\nconst CalendarCard = styled.div`\n  background: ${({ theme }) => theme.colors.surface};\n  border: 1px solid ${({ theme }) => theme.colors.border};\n  border-radius: ${({ theme }) => theme.borderRadius.lg};\n  display: flex;\n  flex-direction: column;\n  overflow: hidden;\n  height: calc(100vh - 260px);\n  min-height: 500px;\n`;\n\nconst MonthNav = styled.div`\n  display: flex;\n  align-items: center;\n  gap: ${({ theme }) => theme.spacing.sm};\n  padding: ${({ theme }) => theme.spacing.md} ${({ theme }) => theme.spacing.lg};\n  border-bottom: 1px solid ${({ theme }) => theme.colors.border};\n  flex-shrink: 0;\n`;\n\nconst NavButton = styled.button`\n  background: none;\n  border: 1px solid ${({ theme }) => theme.colors.border};\n  border-radius: ${({ theme }) => theme.borderRadius.md};\n  color: ${({ theme }) => theme.colors.text};\n  cursor: pointer;\n  display: flex;\n  align-items: center;\n  justify-content: center;\n  width: 32px;\n  height: 32px;\n  flex-shrink: 0;\n  transition: background ${({ theme }) => theme.transitions.fast};\n  &:hover { background: ${({ theme }) => theme.colors.cardHover}; }\n`;\n\nconst MonthLabel = styled.h2`\n  font-size: ${({ theme }) => theme.fontSizes.lg};\n  font-weight: 700;\n  color: ${({ theme }) => theme.colors.text};\n  text-transform: capitalize;\n  flex: 1;\n  text-align: center;\n  margin: 0;\n`;\n\nconst TodayButton = styled.button`\n  background: ${({ theme }) => theme.colors.primary + '18'};\n  border: 1px solid ${({ theme }) => theme.colors.primary + '40'};\n  border-radius: ${({ theme }) => theme.borderRadius.md};\n  color: ${({ theme }) => theme.colors.primary};\n  cursor: pointer;\n  font-size: ${({ theme }) => theme.fontSizes.sm};\n  font-weight: 600;\n  padding: 4px 14px;\n  flex-shrink: 0;\n  transition: background ${({ theme }) => theme.transitions.fast};\n  &:hover { background: ${({ theme }) => theme.colors.primary + '28'}; }\n`;\n\nconst FilterRow = styled.div`\n  padding: ${({ theme }) => theme.spacing.sm} ${({ theme }) => theme.spacing.lg};\n  border-bottom: 1px solid ${({ theme }) => theme.colors.border};\n  flex-shrink: 0;\n`;\n\nconst DayColumnsScroller = styled.div`\n  display: flex;\n  overflow-x: auto;\n  overflow-y: hidden;\n  flex: 1;\n\n  &::-webkit-scrollbar { height: 6px; }\n  &::-webkit-scrollbar-track { background: transparent; }\n  &::-webkit-scrollbar-thumb {\n    background: ${({ theme }) => theme.colors.border};\n    border-radius: 3px;\n  }\n`;\n\nconst DayColumn = styled.div`\n  display: flex;\n  flex-direction: column;\n  min-width: 170px;\n  flex-shrink: 0;\n  border-right: 1px solid ${({ theme }) => theme.colors.border};\n  background: ${({ theme, $isToday, $isDragOver }) =>\n    $isDragOver ? theme.colors.primary + '12' : $isToday ? theme.colors.primary + '06' : 'transparent'};\n  box-shadow: ${({ theme, $isDragOver }) => $isDragOver ? 'inset 0 0 0 2px ' + theme.colors.primary : 'none'};\n  transition: background ${({ theme }) => theme.transitions.fast}, box-shadow ${({ theme }) => theme.transitions.fast};\n\n  &:last-child { border-right: none; }\n`;\n\nconst DayHeader = styled.div`\n  display: flex;\n  flex-direction: column;\n  align-items: center;\n  padding: ${({ theme }) => theme.spacing.sm};\n  border-bottom: 1px solid ${({ theme }) => theme.colors.border};\n  flex-shrink: 0;\n  gap: 4px;\n  background: ${({ theme, $isToday }) => $isToday ? theme.colors.primary + '10' : theme.colors.background};\n`;\n\nconst DayNumber = styled.div`\n  font-size: ${({ theme }) => theme.fontSizes.lg};\n  font-weight: 700;\n  line-height: 1;\n  width: 34px;\n  height: 34px;\n  display: flex;\n  align-items: center;\n  justify-content: center;\n  border-radius: 50%;\n  color: ${({ theme, $isToday }) => $isToday ? theme.colors.primary : theme.colors.text};\n  background: ${({ theme, $isToday }) => $isToday ? theme.colors.primary + '22' : 'transparent'};\n`;\n\nconst DayName = styled.div`\n  font-size: ${({ theme }) => theme.fontSizes.xs};\n  color: ${({ theme }) => theme.colors.textMuted};\n  text-transform: capitalize;\n`;\n\nconst DayEvents = styled.div`\n  padding: ${({ theme }) => theme.spacing.sm};\n  display: flex;\n  flex-direction: column;\n  gap: 6px;\n  overflow-y: auto;\n  flex: 1;\n\n  &::-webkit-scrollbar { width: 4px; }\n  &::-webkit-scrollbar-track { background: transparent; }\n  &::-webkit-scrollbar-thumb {\n    background: ${({ theme }) => theme.colors.border};\n    border-radius: 2px;\n  }\n`;\n\nconst EventCard = styled.div`\n  position: relative;\n  display: flex;\n  flex-direction: column;\n  gap: 4px;\n  padding: 8px 10px;\n  border-radius: ${({ theme }) => theme.borderRadius.md};\n  border-left: 3px solid ${({ $color }) => $color};\n  border-right: 3px solid ${({ $color }) => $color};\n  background: ${({ theme, $done }) => $done ? theme.colors.background : theme.colors.primary + '08'};\n  opacity: ${({ $done, $dragging, $pending }) => $dragging ? 0.35 : $pending ? 0.5 : $done ? 0.72 : 1};\n  cursor: ${({ $dragging }) => $dragging ? 'grabbing' : 'grab'};\n  /* A caminho: o cartão já está no dia novo, mas quem confirma é a origem. */\n  border-top: 1px dashed ${({ $pending, theme }) => $pending ? theme.colors.primary : 'transparent'};\n  transition: opacity ${({ theme }) => theme.transitions.fast}, transform ${({ theme }) => theme.transitions.fast}, box-shadow ${({ theme }) => theme.transitions.fast};\n\n  &:hover {\n    transform: translateY(-1px);\n    box-shadow: 0 2px 8px ${({ theme }) => theme.colors.primary + '10'};\n  }\n\n  &:hover .calendar-card-actions {\n    opacity: 1;\n    pointer-events: auto;\n  }\n`;\n\nconst EventTitle = styled.div`\n  font-size: ${({ theme }) => theme.fontSizes.xs};\n  font-weight: 600;\n  color: ${({ theme }) => theme.colors.text};\n  line-height: 1.35;\n  max-width: 150px;\n  white-space: nowrap;\n  overflow: hidden;\n  text-overflow: ellipsis;\n`;\n\nconst EventMeta = styled.div`\n  font-size: 0.65rem;\n  color: ${({ theme }) => theme.colors.textMuted};\n  display: flex;\n  flex-direction: column;\n  gap: 3px;\n`;\n\nconst MetaRow = styled.div`\n  display: flex;\n  align-items: center;\n  gap: 4px;\n  font-size: 0.65rem;\n  color: ${({ theme }) => theme.colors.textMuted};\n\n  span {\n    white-space: nowrap;\n    overflow: hidden;\n    text-overflow: ellipsis;\n  }\n`;\n\nconst BadgeRow = styled.div`\n  display: flex;\n  align-items: center;\n  gap: 4px;\n  flex-wrap: wrap;\n`;\n\nconst Badge = styled.span`\n  display: inline-flex;\n  align-items: center;\n  padding: 1px 5px;\n  border-radius: ${({ theme }) => theme.borderRadius.full};\n  font-size: 9px;\n  font-weight: 500;\n  background: ${({ $color }) => $color + '20'};\n  color: ${({ $color }) => $color};\n  border: 1px solid ${({ $color }) => $color + '40'};\n  flex-shrink: 0;\n  white-space: nowrap;\n`;\n\nconst EventDescription = styled.div`\n  font-size: 0.65rem;\n  color: ${({ theme }) => theme.colors.textMuted};\n  font-style: italic;\n  max-width: 150px;\n  white-space: nowrap;\n  overflow: hidden;\n  text-overflow: ellipsis;\n`;\n\nconst CardActions = styled.div`\n  position: absolute;\n  top: 6px;\n  right: 6px;\n  display: flex;\n  gap: 4px;\n  opacity: 0;\n  pointer-events: none;\n  transition: ${({ theme }) => theme.transitions.fast};\n  z-index: 1;\n`;\n\nconst CardActionButton = styled.button`\n  width: 20px;\n  height: 20px;\n  border-radius: ${({ theme }) => theme.borderRadius.sm};\n  border: 1px solid ${({ theme }) => theme.colors.border};\n  background: ${({ theme }) => theme.colors.surface};\n  color: ${({ theme }) => theme.colors.textMuted};\n  display: flex;\n  align-items: center;\n  justify-content: center;\n  cursor: pointer;\n  transition: ${({ theme }) => theme.transitions.fast};\n\n  &:disabled { opacity: 0.5; cursor: progress; }\n  &:hover:not(:disabled) {\n    background: ${({ theme }) => theme.colors.primary};\n    color: ${({ theme }) => theme.colors.white};\n    border-color: ${({ theme }) => theme.colors.primary};\n  }\n`;\n\nconst Legend = styled.div`\n  display: flex;\n  align-items: center;\n  gap: ${({ theme }) => theme.spacing.sm};\n  padding: ${({ theme }) => theme.spacing.sm} ${({ theme }) => theme.spacing.lg};\n  flex-wrap: wrap;\n  border-top: 1px solid ${({ theme }) => theme.colors.border};\n  flex-shrink: 0;\n`;\n\nconst LegendLabel = styled.span`\n  font-size: ${({ theme }) => theme.fontSizes.xs};\n  font-weight: 600;\n  opacity: 0.6;\n  margin-right: 4px;\n  color: ${({ theme }) => theme.colors.textMuted};\n`;\n\nconst LegendItem = styled.div`\n  display: flex;\n  align-items: center;\n  gap: 6px;\n  font-size: ${({ theme }) => theme.fontSizes.xs};\n  color: ${({ theme }) => theme.colors.textSecondary};\n  padding: 4px 8px;\n  border-radius: ${({ theme }) => theme.borderRadius.md};\n  cursor: pointer;\n  transition: all ${({ theme }) => theme.transitions.fast};\n  opacity: ${({ $dimmed }) => $dimmed ? 0.4 : 1};\n  &:hover { background: ${({ theme }) => theme.colors.cardHover}; }\n`;\n\nconst LegendDot = styled.span`\n  width: 10px;\n  height: 10px;\n  border-radius: 50%;\n  background: ${({ $color }) => $color};\n  flex-shrink: 0;\n`;\n\nconst WEEKDAYS = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'];\nconst MONTHS = [\n  'janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho',\n  'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro',\n];\n\nconst pad = (value) => String(value).padStart(2, '0');\n\nconst dateOf = (value) => {\n  if (!value) return null;\n  const date = value instanceof Date ? value : new Date(String(value));\n  return isNaN(date.getTime()) ? null : date;\n};\n\nconst dayKey = (date) => date.getFullYear() + '-' + pad(date.getMonth() + 1) + '-' + pad(date.getDate());\n\nconst startOfToday = () => {\n  const now = new Date();\n  return new Date(now.getFullYear(), now.getMonth(), now.getDate());\n};\n\nconst daysOfMonth = (month) => {\n  const days = [];\n  const last = new Date(month.getFullYear(), month.getMonth() + 1, 0).getDate();\n  for (let day = 1; day <= last; day += 1) days.push(new Date(month.getFullYear(), month.getMonth(), day));\n  return days;\n};\n\nconst isClosed = (record) => record.status === 'closed';\n\n/**\n * O item aparece no dia em que ele ACONTECE — e um item concluído aconteceu no dia da conclusão. É\n * a mesma leitura da agenda anterior: o que já passou se lê onde foi resolvido, não onde estava\n * marcado.\n */\nconst displayDate = (record) => {\n  const finish = dateOf(record.finishDate);\n  if (isClosed(record) && finish) return finish;\n  return dateOf(record.date);\n};\n\n/**\n * ONDE o cartão aparece. Normalmente é o dia do dado; enquanto a origem não responde ao arrasto, é\n * o dia para onde ele foi levado — senão o cartão volta ao lugar e o gesto parece ter falhado,\n * embora esteja a caminho.\n *\n * A aposta se desfaz SOZINHA, e é isso que a torna segura: ela só vale enquanto o registro ainda\n * está onde estava ('from'). Assim que a gravação chega, o item deixa de casar com 'from' e quem\n * manda volta a ser o dado — inclusive quando a origem decide um TERCEIRO dia, que é a razão de a\n * agenda não poder simplesmente confiar no dia que o usuário soltou.\n */\nconst positionOf = (record, moves) => {\n  const shown = displayDate(record);\n  const key = shown ? dayKey(shown) : null;\n  const move = moves[record.id];\n  if (move && move.from === key) return { key: move.to, pending: true };\n  return { key, pending: false };\n};\n\nconst PRIORITY_ORDER = { critical: 3, high: 2, medium: 1, low: 0 };\n\nconst byPriority = (a, b) => {\n  const ap = PRIORITY_ORDER[a.priority] != null ? PRIORITY_ORDER[a.priority] : -1;\n  const bp = PRIORITY_ORDER[b.priority] != null ? PRIORITY_ORDER[b.priority] : -1;\n  return bp - ap;\n};\n\nconst text = (value) => (typeof value === 'string' ? value : '');\n\n/** A contribuição atende este item? Origem vazia na declaração significa \"qualquer origem\". */\nconst servesRecord = (contribution, record) => {\n  const origem = text(contribution.metadata.origem);\n  return origem === '' || origem === record.origem;\n};\n\nexport default function CalendarView() {\n  const theme = useTheme();\n  const list = useEntityList(SOURCE_ID);\n  const moveActions = useContributions(MOVE_POINT);\n  const moveLayout = useSettingValue(MOVE_SETTING);\n  const runAction = useRunAction();\n  const isVisible = useActionVisible();\n  const openRecord = useOpenRecord();\n  const notify = useNotify();\n  const statusOptions = useLookup('calendarStatuses');\n  const priorityOptions = useLookup('calendarPriorities');\n\n  const [month, setMonth] = useState(() => {\n    const now = new Date();\n    return new Date(now.getFullYear(), now.getMonth(), 1);\n  });\n  const [draggingId, setDraggingId] = useState(null);\n  const [dragOverKey, setDragOverKey] = useState(null);\n  // O arrasto em trânsito: { [id]: { from, to } }. Ver positionOf.\n  const [moves, setMoves] = useState({});\n  const scrollerRef = useRef(null);\n\n  const records = list.filteredRecords;\n\n  const monthLabel = MONTHS[month.getMonth()] + ' ' + month.getFullYear();\n\n  const days = useMemo(() => {\n    const todayKey = dayKey(new Date());\n    return daysOfMonth(month).map((date) => {\n      const key = dayKey(date);\n      const items = records\n        .map((record) => ({ record, position: positionOf(record, moves) }))\n        .filter((item) => item.position.key === key)\n        .sort((a, b) => byPriority(a.record, b.record));\n      return {\n        date,\n        key,\n        dayNumber: date.getDate(),\n        weekday: WEEKDAYS[date.getDay()],\n        isToday: key === todayKey,\n        items,\n      };\n    });\n  }, [month, records, moves]);\n\n  const stats = useMemo(() => {\n    const prefix = month.getFullYear() + '-' + pad(month.getMonth() + 1);\n    const today = startOfToday().getTime();\n    const inMonth = records.filter((record) => {\n      const shown = displayDate(record);\n      return !!shown && dayKey(shown).indexOf(prefix) === 0;\n    });\n    const late = inMonth.filter((record) => {\n      const due = dateOf(record.date);\n      return !isClosed(record) && !!due && new Date(due.getFullYear(), due.getMonth(), due.getDate()).getTime() < today;\n    });\n    return {\n      total: inMonth.length,\n      pending: inMonth.filter((record) => !isClosed(record)).length - late.length,\n      closed: inMonth.filter(isClosed).length,\n      late: late.length,\n    };\n  }, [records, month]);\n\n  // A agenda abre no dia de hoje, não no dia 1: é o que o mês corrente tem de útil. Ler o nó só\n  // dentro do efeito é a regra — no render, a medida ainda não existe.\n  useEffect(() => {\n    const container = scrollerRef.current;\n    if (!container) return;\n    const todayEl = container.querySelector('[data-today=\"true\"]');\n    if (!todayEl) {\n      container.scrollLeft = 0;\n      return;\n    }\n    container.scrollLeft = Math.max(0, todayEl.offsetLeft - container.clientWidth / 2 + todayEl.offsetWidth / 2);\n  }, [month]);\n\n  const priorityColor = useCallback(\n    (record) => getConfigColor(priorityOptions, record.priority, theme),\n    [priorityOptions, theme],\n  );\n\n  const labelOf = (options, key) => {\n    const found = options.find((option) => option.key === key);\n    return found ? found.label : key;\n  };\n\n  const goToMonth = (offset) => setMonth((current) => new Date(current.getFullYear(), current.getMonth() + offset, 1));\n  const goToToday = () => {\n    const now = new Date();\n    setMonth(new Date(now.getFullYear(), now.getMonth(), 1));\n  };\n\n  const priorityToken = useMemo(() => {\n    const found = list.filterTokens.find((token) => token.key === 'priority');\n    return found && found.values.length === 1 ? found.values[0] : null;\n  }, [list.filterTokens]);\n\n  const filterByPriority = useCallback((key) => {\n    const others = list.filterTokens.filter((token) => token.key !== 'priority');\n    list.setFilterTokens(key === null ? others : others.concat([{ key: 'priority', values: [key] }]));\n  }, [list]);\n\n  const executarMovimento = useCallback(async (contribution, record, params) => {\n    const result = await runAction({\n      actionSourceId: text(contribution.metadata.actionSourceId),\n      collection: COLLECTION,\n      recordId: record.id,\n      record,\n      params,\n    });\n    if (!result.ok && result.message) notify(result.message, 'error');\n    return result.ok;\n  }, [runAction, notify]);\n\n  /**\n   * Arrastar não grava: pergunta. A lista de quem responde ao movimento é a das Configurações — o\n   * escritório liga, desliga e ordena —, e vale a PRIMEIRA que atende aquela origem. Rodar todas\n   * faria a extensão do Financeiro receber o arrasto de um prazo.\n   */\n  const handleDrop = useCallback(async (day, recordId) => {\n    setDraggingId(null);\n    setDragOverKey(null);\n    if (!recordId) return;\n\n    const record = records.find((item) => item.id === recordId);\n    if (!record) return;\n    const shown = displayDate(record);\n    if (shown && dayKey(shown) === day.key) return;\n\n    const enabled = Array.isArray(moveLayout) ? moveLayout : [];\n    const isEnabled = (contribution) => {\n      const key = text(contribution.metadata.key) || contribution.id;\n      const entry = enabled.find((item) => item.key === key);\n      return entry ? entry.enabled !== false : true;\n    };\n    const order = (contribution) => {\n      const key = text(contribution.metadata.key) || contribution.id;\n      const index = enabled.findIndex((item) => item.key === key);\n      return index === -1 ? enabled.length : index;\n    };\n\n    const handler = moveActions\n      .filter((contribution) => (\n        servesRecord(contribution, record)\n          && isEnabled(contribution)\n          && isVisible(contribution.metadata.hiddenWhen, record, 'calendar')\n      ))\n      .sort((a, b) => order(a) - order(b))[0];\n\n    if (!handler) {\n      notify('Nenhuma extensão responde por este item ao mudar de dia.', 'info');\n      return;\n    }\n\n    /**\n     * A aposta é feita ANTES de chamar, e é só visual: o cartão aparece no dia novo enquanto a\n     * origem decide. Recusado, ela é desfeita na hora e o cartão volta; aceito, ela se desfaz\n     * sozinha quando o registro chega gravado (ver positionOf).\n     *\n     * Uma origem que responda \"sucesso\" sem mover nada deixaria o cartão adiantado até a próxima\n     * leitura da coleção. É o preço de não inventar um relógio aqui — e o sinal certo continua\n     * sendo o dado, não um tempo que a agenda arbitrasse.\n     */\n    setMoves((prev) => ({ ...prev, [record.id]: { from: shown ? dayKey(shown) : null, to: day.key } }));\n\n    const ok = await executarMovimento(handler, record, { targetDate: day.key });\n    if (!ok) {\n      setMoves((prev) => {\n        const next = {};\n        for (const id of Object.keys(prev)) if (id !== record.id) next[id] = prev[id];\n        return next;\n      });\n    }\n  }, [records, moveActions, moveLayout, executarMovimento, notify, isVisible]);\n\n  if (!list.definition) {\n    return (\n      <div style={{ padding: '24px' }}>\n        <InfoBanner message='Tela \"Calendário\" não encontrada. Instale a extensão para ativá-la.' variant=\"warning\" />\n      </div>\n    );\n  }\n\n  return (\n    <>\n      <StatsBar>\n        <StatItem>\n          <StatValue>{stats.total}</StatValue>\n          <StatLabel>No mês</StatLabel>\n        </StatItem>\n        <StatItem>\n          <StatValue $color={theme.colors.warning}>{stats.pending}</StatValue>\n          <StatLabel>Pendentes</StatLabel>\n        </StatItem>\n        <StatItem>\n          <StatValue $color={theme.colors.success}>{stats.closed}</StatValue>\n          <StatLabel>Concluídos</StatLabel>\n        </StatItem>\n        <StatItem>\n          <StatValue $color={theme.colors.danger}>{stats.late}</StatValue>\n          <StatLabel>Atrasados</StatLabel>\n        </StatItem>\n      </StatsBar>\n\n      <CalendarCard>\n        <MonthNav>\n          <NavButton onClick={() => goToMonth(-1)} aria-label=\"Mês anterior\">\n            <Icon name=\"arrowLeft\" size={20} />\n          </NavButton>\n          <MonthLabel>{monthLabel}</MonthLabel>\n          <NavButton onClick={() => goToMonth(1)} aria-label=\"Próximo mês\">\n            <Icon name=\"arrowRight\" size={20} />\n          </NavButton>\n          <TodayButton onClick={goToToday}>Hoje</TodayButton>\n        </MonthNav>\n\n        <FilterRow>\n          <CompositeFilter\n            defs={list.filterDefs}\n            tokens={list.filterTokens}\n            onChange={list.setFilterTokens}\n            screenKey={list.savedFiltersScreenKey}\n            placeholder=\"Filtrar a agenda...\"\n          />\n        </FilterRow>\n\n        <DayColumnsScroller ref={scrollerRef}>\n          {days.map((day) => (\n            <DayColumn\n              key={day.key}\n              $isToday={day.isToday}\n              $isDragOver={dragOverKey === day.key}\n              data-today={day.isToday ? 'true' : undefined}\n              onDragOver={(e) => { e.preventDefault(); setDragOverKey(day.key); }}\n              onDragLeave={() => setDragOverKey((prev) => (prev === day.key ? null : prev))}\n              onDrop={(e) => { e.preventDefault(); handleDrop(day, e.dataTransfer.getData('text/plain')); }}\n            >\n              <DayHeader $isToday={day.isToday}>\n                <DayNumber $isToday={day.isToday}>{day.dayNumber}</DayNumber>\n                <DayName>{day.weekday}</DayName>\n              </DayHeader>\n\n              <DayEvents>\n                {day.items.map(({ record, position }) => (\n                  <EventCard\n                    key={record.id}\n                    $color={priorityColor(record)}\n                    $done={isClosed(record)}\n                    $dragging={draggingId === record.id}\n                    $pending={position.pending}\n                    draggable\n                    onDragStart={(e) => {\n                      e.dataTransfer.setData('text/plain', record.id);\n                      e.dataTransfer.effectAllowed = 'move';\n                      setDraggingId(record.id);\n                    }}\n                    onDragEnd={() => { setDraggingId(null); setDragOverKey(null); }}\n                    onClick={() => {\n                      if (record.origem && record.origemId) openRecord(record.origem, record.origemId);\n                    }}\n                    title={text(record.title)}\n                  >\n                    <EventTitle>{list.getCardTitle(record)}</EventTitle>\n\n                    <EventMeta>\n                      {record.hour ? (\n                        <MetaRow><Icon name=\"time\" size={10} /><span>{record.hour}</span></MetaRow>\n                      ) : null}\n\n                      {/*\n                        As linhas do cartão saem da CONFIGURAÇÃO da tela — os campos marcados para\n                        aparecer na listagem. É por aqui que o campo acrescentado por outra extensão\n                        (o processo de um prazo, a pessoa de uma audiência) chega ao cartão sem que\n                        a agenda o conheça pelo nome.\n                      */}\n                      {list.getCardItems(record).map((item) => (\n                        <MetaRow key={item.key}>\n                          <span>{item.value}</span>\n                        </MetaRow>\n                      ))}\n\n                      <BadgeRow>\n                        <Badge $color={getConfigColor(statusOptions, record.status, theme)}>\n                          {labelOf(statusOptions, record.status)}\n                        </Badge>\n                        <Badge $color={priorityColor(record)}>\n                          {labelOf(priorityOptions, record.priority)}\n                        </Badge>\n                      </BadgeRow>\n\n                      {record.description ? (\n                        <EventDescription>{record.description}</EventDescription>\n                      ) : null}\n                    </EventMeta>\n\n                    {/*\n                      Os gestos do cartão vêm da CONFIGURAÇÃO da tela — \"Ações do card na listagem\"\n                      do Form Design —, resolvidos pelo mesmo caminho de qualquer listagem: as ações\n                      nativas que a tela habilitou mais as do escritório, já com a expressão de\n                      visibilidade avaliada registro a registro. A agenda não conhece nenhuma pelo nome, e o\n                      usuário acrescenta ou tira quantas quiser sem tocar neste código.\n                    */}\n                    {list.getCardActions(record).length > 0 ? (\n                      <CardActions className=\"calendar-card-actions\">\n                        {list.getCardActions(record).map((action) => (\n                          <CardActionButton\n                            key={action.key}\n                            type=\"button\"\n                            title={action.title}\n                            disabled={action.disabled}\n                            onClick={(e) => { e.stopPropagation(); action.onClick(); }}\n                          >\n                            {cardActionIcon(action, 11)}\n                          </CardActionButton>\n                        ))}\n                      </CardActions>\n                    ) : null}\n                  </EventCard>\n                ))}\n              </DayEvents>\n            </DayColumn>\n          ))}\n        </DayColumnsScroller>\n\n        <Legend>\n          <LegendLabel>Prioridade:</LegendLabel>\n          <LegendItem onClick={() => filterByPriority(null)}>\n            <span>Todas</span>\n          </LegendItem>\n          {priorityOptions.map((option) => (\n            <LegendItem\n              key={option.key}\n              $dimmed={priorityToken !== null && priorityToken !== option.key}\n              onClick={() => filterByPriority(option.key)}\n            >\n              <LegendDot $color={getConfigColor(priorityOptions, option.key, theme)} />\n              <span>{option.label}</span>\n            </LegendItem>\n          ))}\n        </Legend>\n      </CalendarCard>\n\n      {/* Ação que pergunta parâmetros antes de executar, confirmação de exclusão e etiquetas — os\n          mesmos modais da listagem padrão. Sem eles, uma ação com parâmetros ficaria esperando por\n          uma pergunta que ninguém desenha. */}\n      <EntityListModals vm={list} />\n    </>\n  );\n}\n"
+      "source": "import { useCallback, useEffect, useMemo, useRef, useState } from 'react';\nimport { styled, useTheme } from 'styled-components';\nimport { CompositeFilter, EntityListModals, Icon, InfoBanner, cardActionIcon } from '@microteia/ui';\nimport {\n  useEntityList, useContributions, useRunAction, useActionVisible, useOpenRecord, useLookup, useNotify,\n} from '@microteia/data';\nimport { getConfigColor } from '@microteia/theme';\nimport { useSettingValue } from '@microteia/settings';\nimport { useLocale, useT } from '@microteia/i18n';\n\nconst SOURCE_ID = 'microteia:calendar';\nconst COLLECTION = 'calendar';\nconst MOVE_POINT = 'calendar.moveaction';\nconst MOVE_SETTING = 'calendar.moveActions';\n\nconst StatsBar = styled.div`\n  display: flex;\n  gap: ${({ theme }) => theme.spacing.md};\n  margin-bottom: ${({ theme }) => theme.spacing.lg};\n  padding: ${({ theme }) => theme.spacing.md};\n  background: ${({ theme }) => theme.colors.surface};\n  border: 1px solid ${({ theme }) => theme.colors.border};\n  border-radius: ${({ theme }) => theme.borderRadius.lg};\n`;\n\nconst StatItem = styled.div`\n  display: flex;\n  flex-direction: column;\n  align-items: center;\n  flex: 1;\n  padding: ${({ theme }) => theme.spacing.sm};\n`;\n\nconst StatValue = styled.div`\n  font-size: ${({ theme }) => theme.fontSizes['2xl']};\n  font-weight: 700;\n  line-height: 1;\n  color: ${({ $color, theme }) => $color || theme.colors.primary};\n`;\n\nconst StatLabel = styled.div`\n  font-size: ${({ theme }) => theme.fontSizes.xs};\n  color: ${({ theme }) => theme.colors.textMuted};\n  margin-top: 4px;\n`;\n\nconst CalendarCard = styled.div`\n  background: ${({ theme }) => theme.colors.surface};\n  border: 1px solid ${({ theme }) => theme.colors.border};\n  border-radius: ${({ theme }) => theme.borderRadius.lg};\n  display: flex;\n  flex-direction: column;\n  overflow: hidden;\n  height: calc(100vh - 260px);\n  min-height: 500px;\n`;\n\nconst MonthNav = styled.div`\n  display: flex;\n  align-items: center;\n  gap: ${({ theme }) => theme.spacing.sm};\n  padding: ${({ theme }) => theme.spacing.md} ${({ theme }) => theme.spacing.lg};\n  border-bottom: 1px solid ${({ theme }) => theme.colors.border};\n  flex-shrink: 0;\n`;\n\nconst NavButton = styled.button`\n  background: none;\n  border: 1px solid ${({ theme }) => theme.colors.border};\n  border-radius: ${({ theme }) => theme.borderRadius.md};\n  color: ${({ theme }) => theme.colors.text};\n  cursor: pointer;\n  display: flex;\n  align-items: center;\n  justify-content: center;\n  width: 32px;\n  height: 32px;\n  flex-shrink: 0;\n  transition: background ${({ theme }) => theme.transitions.fast};\n  &:hover { background: ${({ theme }) => theme.colors.cardHover}; }\n`;\n\nconst MonthLabel = styled.h2`\n  font-size: ${({ theme }) => theme.fontSizes.lg};\n  font-weight: 700;\n  color: ${({ theme }) => theme.colors.text};\n  text-transform: capitalize;\n  flex: 1;\n  text-align: center;\n  margin: 0;\n`;\n\nconst TodayButton = styled.button`\n  background: ${({ theme }) => theme.colors.primary + '18'};\n  border: 1px solid ${({ theme }) => theme.colors.primary + '40'};\n  border-radius: ${({ theme }) => theme.borderRadius.md};\n  color: ${({ theme }) => theme.colors.primary};\n  cursor: pointer;\n  font-size: ${({ theme }) => theme.fontSizes.sm};\n  font-weight: 600;\n  padding: 4px 14px;\n  flex-shrink: 0;\n  transition: background ${({ theme }) => theme.transitions.fast};\n  &:hover { background: ${({ theme }) => theme.colors.primary + '28'}; }\n`;\n\nconst FilterRow = styled.div`\n  padding: ${({ theme }) => theme.spacing.sm} ${({ theme }) => theme.spacing.lg};\n  border-bottom: 1px solid ${({ theme }) => theme.colors.border};\n  flex-shrink: 0;\n`;\n\nconst DayColumnsScroller = styled.div`\n  display: flex;\n  overflow-x: auto;\n  overflow-y: hidden;\n  flex: 1;\n\n  &::-webkit-scrollbar { height: 6px; }\n  &::-webkit-scrollbar-track { background: transparent; }\n  &::-webkit-scrollbar-thumb {\n    background: ${({ theme }) => theme.colors.border};\n    border-radius: 3px;\n  }\n`;\n\nconst DayColumn = styled.div`\n  display: flex;\n  flex-direction: column;\n  min-width: 170px;\n  flex-shrink: 0;\n  border-right: 1px solid ${({ theme }) => theme.colors.border};\n  background: ${({ theme, $isToday, $isDragOver }) =>\n    $isDragOver ? theme.colors.primary + '12' : $isToday ? theme.colors.primary + '06' : 'transparent'};\n  box-shadow: ${({ theme, $isDragOver }) => $isDragOver ? 'inset 0 0 0 2px ' + theme.colors.primary : 'none'};\n  transition: background ${({ theme }) => theme.transitions.fast}, box-shadow ${({ theme }) => theme.transitions.fast};\n\n  &:last-child { border-right: none; }\n`;\n\nconst DayHeader = styled.div`\n  display: flex;\n  flex-direction: column;\n  align-items: center;\n  padding: ${({ theme }) => theme.spacing.sm};\n  border-bottom: 1px solid ${({ theme }) => theme.colors.border};\n  flex-shrink: 0;\n  gap: 4px;\n  background: ${({ theme, $isToday }) => $isToday ? theme.colors.primary + '10' : theme.colors.background};\n`;\n\nconst DayNumber = styled.div`\n  font-size: ${({ theme }) => theme.fontSizes.lg};\n  font-weight: 700;\n  line-height: 1;\n  width: 34px;\n  height: 34px;\n  display: flex;\n  align-items: center;\n  justify-content: center;\n  border-radius: 50%;\n  color: ${({ theme, $isToday }) => $isToday ? theme.colors.primary : theme.colors.text};\n  background: ${({ theme, $isToday }) => $isToday ? theme.colors.primary + '22' : 'transparent'};\n`;\n\nconst DayName = styled.div`\n  font-size: ${({ theme }) => theme.fontSizes.xs};\n  color: ${({ theme }) => theme.colors.textMuted};\n  text-transform: capitalize;\n`;\n\nconst DayEvents = styled.div`\n  padding: ${({ theme }) => theme.spacing.sm};\n  display: flex;\n  flex-direction: column;\n  gap: 6px;\n  overflow-y: auto;\n  flex: 1;\n\n  &::-webkit-scrollbar { width: 4px; }\n  &::-webkit-scrollbar-track { background: transparent; }\n  &::-webkit-scrollbar-thumb {\n    background: ${({ theme }) => theme.colors.border};\n    border-radius: 2px;\n  }\n`;\n\nconst EventCard = styled.div`\n  position: relative;\n  display: flex;\n  flex-direction: column;\n  gap: 4px;\n  padding: 8px 10px;\n  border-radius: ${({ theme }) => theme.borderRadius.md};\n  border-left: 3px solid ${({ $color }) => $color};\n  border-right: 3px solid ${({ $color }) => $color};\n  background: ${({ theme, $done }) => $done ? theme.colors.background : theme.colors.primary + '08'};\n  opacity: ${({ $done, $dragging, $pending }) => $dragging ? 0.35 : $pending ? 0.5 : $done ? 0.72 : 1};\n  cursor: ${({ $dragging }) => $dragging ? 'grabbing' : 'grab'};\n  /* In flight: the card already sits on the new day, but the origin is what confirms it. */\n  border-top: 1px dashed ${({ $pending, theme }) => $pending ? theme.colors.primary : 'transparent'};\n  transition: opacity ${({ theme }) => theme.transitions.fast}, transform ${({ theme }) => theme.transitions.fast}, box-shadow ${({ theme }) => theme.transitions.fast};\n\n  &:hover {\n    transform: translateY(-1px);\n    box-shadow: 0 2px 8px ${({ theme }) => theme.colors.primary + '10'};\n  }\n\n  &:hover .calendar-card-actions {\n    opacity: 1;\n    pointer-events: auto;\n  }\n`;\n\nconst EventTitle = styled.div`\n  font-size: ${({ theme }) => theme.fontSizes.xs};\n  font-weight: 600;\n  color: ${({ theme }) => theme.colors.text};\n  line-height: 1.35;\n  max-width: 150px;\n  white-space: nowrap;\n  overflow: hidden;\n  text-overflow: ellipsis;\n`;\n\nconst EventMeta = styled.div`\n  font-size: 0.65rem;\n  color: ${({ theme }) => theme.colors.textMuted};\n  display: flex;\n  flex-direction: column;\n  gap: 3px;\n`;\n\nconst MetaRow = styled.div`\n  display: flex;\n  align-items: center;\n  gap: 4px;\n  font-size: 0.65rem;\n  color: ${({ theme }) => theme.colors.textMuted};\n\n  span {\n    white-space: nowrap;\n    overflow: hidden;\n    text-overflow: ellipsis;\n  }\n`;\n\nconst BadgeRow = styled.div`\n  display: flex;\n  align-items: center;\n  gap: 4px;\n  flex-wrap: wrap;\n`;\n\nconst Badge = styled.span`\n  display: inline-flex;\n  align-items: center;\n  padding: 1px 5px;\n  border-radius: ${({ theme }) => theme.borderRadius.full};\n  font-size: 9px;\n  font-weight: 500;\n  background: ${({ $color }) => $color + '20'};\n  color: ${({ $color }) => $color};\n  border: 1px solid ${({ $color }) => $color + '40'};\n  flex-shrink: 0;\n  white-space: nowrap;\n`;\n\nconst EventDescription = styled.div`\n  font-size: 0.65rem;\n  color: ${({ theme }) => theme.colors.textMuted};\n  font-style: italic;\n  max-width: 150px;\n  white-space: nowrap;\n  overflow: hidden;\n  text-overflow: ellipsis;\n`;\n\nconst CardActions = styled.div`\n  position: absolute;\n  top: 6px;\n  right: 6px;\n  display: flex;\n  gap: 4px;\n  opacity: 0;\n  pointer-events: none;\n  transition: ${({ theme }) => theme.transitions.fast};\n  z-index: 1;\n`;\n\nconst CardActionButton = styled.button`\n  width: 20px;\n  height: 20px;\n  border-radius: ${({ theme }) => theme.borderRadius.sm};\n  border: 1px solid ${({ theme }) => theme.colors.border};\n  background: ${({ theme }) => theme.colors.surface};\n  color: ${({ theme }) => theme.colors.textMuted};\n  display: flex;\n  align-items: center;\n  justify-content: center;\n  cursor: pointer;\n  transition: ${({ theme }) => theme.transitions.fast};\n\n  &:disabled { opacity: 0.5; cursor: progress; }\n  &:hover:not(:disabled) {\n    background: ${({ theme }) => theme.colors.primary};\n    color: ${({ theme }) => theme.colors.white};\n    border-color: ${({ theme }) => theme.colors.primary};\n  }\n`;\n\nconst Legend = styled.div`\n  display: flex;\n  align-items: center;\n  gap: ${({ theme }) => theme.spacing.sm};\n  padding: ${({ theme }) => theme.spacing.sm} ${({ theme }) => theme.spacing.lg};\n  flex-wrap: wrap;\n  border-top: 1px solid ${({ theme }) => theme.colors.border};\n  flex-shrink: 0;\n`;\n\nconst LegendLabel = styled.span`\n  font-size: ${({ theme }) => theme.fontSizes.xs};\n  font-weight: 600;\n  opacity: 0.6;\n  margin-right: 4px;\n  color: ${({ theme }) => theme.colors.textMuted};\n`;\n\nconst LegendItem = styled.div`\n  display: flex;\n  align-items: center;\n  gap: 6px;\n  font-size: ${({ theme }) => theme.fontSizes.xs};\n  color: ${({ theme }) => theme.colors.textSecondary};\n  padding: 4px 8px;\n  border-radius: ${({ theme }) => theme.borderRadius.md};\n  cursor: pointer;\n  transition: all ${({ theme }) => theme.transitions.fast};\n  opacity: ${({ $dimmed }) => $dimmed ? 0.4 : 1};\n  &:hover { background: ${({ theme }) => theme.colors.cardHover}; }\n`;\n\nconst LegendDot = styled.span`\n  width: 10px;\n  height: 10px;\n  border-radius: 50%;\n  background: ${({ $color }) => $color};\n  flex-shrink: 0;\n`;\n\n/**\n * Month and weekday names come from `Intl`, never from an array written by hand. A hardcoded list is\n * a language nailed into the code: it looked harmless while the product spoke one language, and it is\n * exactly what an agenda cannot afford — every office in the world keeps dates.\n */\nconst monthLabelOf = (locale, date) =>\n  new Intl.DateTimeFormat(locale, { month: 'long', year: 'numeric' }).format(date);\n\nconst weekdayOf = (locale, date) =>\n  new Intl.DateTimeFormat(locale, { weekday: 'short' }).format(date);\n\nconst pad = (value) => String(value).padStart(2, '0');\n\nconst dateOf = (value) => {\n  if (!value) return null;\n  const date = value instanceof Date ? value : new Date(String(value));\n  return isNaN(date.getTime()) ? null : date;\n};\n\nconst dayKey = (date) => date.getFullYear() + '-' + pad(date.getMonth() + 1) + '-' + pad(date.getDate());\n\nconst startOfToday = () => {\n  const now = new Date();\n  return new Date(now.getFullYear(), now.getMonth(), now.getDate());\n};\n\nconst daysOfMonth = (month) => {\n  const days = [];\n  const last = new Date(month.getFullYear(), month.getMonth() + 1, 0).getDate();\n  for (let day = 1; day <= last; day += 1) days.push(new Date(month.getFullYear(), month.getMonth(), day));\n  return days;\n};\n\nconst isClosed = (record) => record.status === 'closed';\n\n/**\n * The item shows up on the day it HAPPENS — and a completed item happened on the day it was\n * completed. It is the same reading as the previous agenda: what is past is read where it was\n * resolved, not where it was scheduled.\n */\nconst displayDate = (record) => {\n  const finish = dateOf(record.finishDate);\n  if (isClosed(record) && finish) return finish;\n  return dateOf(record.date);\n};\n\n/**\n * WHERE the card appears. Normally it is the day on the data; while the origin has not answered the\n * drag, it is the day it was dragged to — otherwise the card snaps back and the gesture looks as if\n * it had failed, even though it is on its way.\n *\n * The bet undoes ITSELF, and that is what makes it safe: it only holds while the record is still\n * where it was ('from'). As soon as the write lands, the item stops matching 'from' and the data is\n * in charge again — including when the origin decides on a THIRD day, which is why the agenda cannot\n * simply trust the day the user dropped it on.\n */\nconst positionOf = (record, moves) => {\n  const shown = displayDate(record);\n  const key = shown ? dayKey(shown) : null;\n  const move = moves[record.id];\n  if (move && move.from === key) return { key: move.to, pending: true };\n  return { key, pending: false };\n};\n\nconst PRIORITY_ORDER = { critical: 3, high: 2, medium: 1, low: 0 };\n\nconst byPriority = (a, b) => {\n  const ap = PRIORITY_ORDER[a.priority] != null ? PRIORITY_ORDER[a.priority] : -1;\n  const bp = PRIORITY_ORDER[b.priority] != null ? PRIORITY_ORDER[b.priority] : -1;\n  return bp - ap;\n};\n\nconst text = (value) => (typeof value === 'string' ? value : '');\n\n/** Does the contribution serve this item? An empty origin in the declaration means \"any origin\". */\nconst servesRecord = (contribution, record) => {\n  const origem = text(contribution.metadata.origem);\n  return origem === '' || origem === record.origem;\n};\n\nexport default function CalendarView() {\n  const theme = useTheme();\n  const t = useT('com.microteia.calendar');\n  const { locale } = useLocale();\n  const list = useEntityList(SOURCE_ID);\n  const moveActions = useContributions(MOVE_POINT);\n  const moveLayout = useSettingValue(MOVE_SETTING);\n  const runAction = useRunAction();\n  const isVisible = useActionVisible();\n  const openRecord = useOpenRecord();\n  const notify = useNotify();\n  const statusOptions = useLookup('calendarStatuses');\n  const priorityOptions = useLookup('calendarPriorities');\n\n  const [month, setMonth] = useState(() => {\n    const now = new Date();\n    return new Date(now.getFullYear(), now.getMonth(), 1);\n  });\n  const [draggingId, setDraggingId] = useState(null);\n  const [dragOverKey, setDragOverKey] = useState(null);\n  // The drag in flight: { [id]: { from, to } }. See positionOf.\n  const [moves, setMoves] = useState({});\n  const scrollerRef = useRef(null);\n\n  const records = list.filteredRecords;\n\n  const monthLabel = monthLabelOf(locale, month);\n\n  const days = useMemo(() => {\n    const todayKey = dayKey(new Date());\n    return daysOfMonth(month).map((date) => {\n      const key = dayKey(date);\n      const items = records\n        .map((record) => ({ record, position: positionOf(record, moves) }))\n        .filter((item) => item.position.key === key)\n        .sort((a, b) => byPriority(a.record, b.record));\n      return {\n        date,\n        key,\n        dayNumber: date.getDate(),\n        weekday: weekdayOf(locale, date),\n        isToday: key === todayKey,\n        items,\n      };\n    });\n  }, [month, records, moves, locale]);\n\n  const stats = useMemo(() => {\n    const prefix = month.getFullYear() + '-' + pad(month.getMonth() + 1);\n    const today = startOfToday().getTime();\n    const inMonth = records.filter((record) => {\n      const shown = displayDate(record);\n      return !!shown && dayKey(shown).indexOf(prefix) === 0;\n    });\n    const late = inMonth.filter((record) => {\n      const due = dateOf(record.date);\n      return !isClosed(record) && !!due && new Date(due.getFullYear(), due.getMonth(), due.getDate()).getTime() < today;\n    });\n    return {\n      total: inMonth.length,\n      pending: inMonth.filter((record) => !isClosed(record)).length - late.length,\n      closed: inMonth.filter(isClosed).length,\n      late: late.length,\n    };\n  }, [records, month]);\n\n  // The agenda opens on today, not on the 1st: that is what is useful about the current month.\n  // Reading the node only inside the effect is the rule — during render the measure does not exist yet.\n  useEffect(() => {\n    const container = scrollerRef.current;\n    if (!container) return;\n    const todayEl = container.querySelector('[data-today=\"true\"]');\n    if (!todayEl) {\n      container.scrollLeft = 0;\n      return;\n    }\n    container.scrollLeft = Math.max(0, todayEl.offsetLeft - container.clientWidth / 2 + todayEl.offsetWidth / 2);\n  }, [month]);\n\n  const priorityColor = useCallback(\n    (record) => getConfigColor(priorityOptions, record.priority, theme),\n    [priorityOptions, theme],\n  );\n\n  const labelOf = (options, key) => {\n    const found = options.find((option) => option.key === key);\n    return found ? found.label : key;\n  };\n\n  const goToMonth = (offset) => setMonth((current) => new Date(current.getFullYear(), current.getMonth() + offset, 1));\n  const goToToday = () => {\n    const now = new Date();\n    setMonth(new Date(now.getFullYear(), now.getMonth(), 1));\n  };\n\n  const priorityToken = useMemo(() => {\n    const found = list.filterTokens.find((token) => token.key === 'priority');\n    return found && found.values.length === 1 ? found.values[0] : null;\n  }, [list.filterTokens]);\n\n  const filterByPriority = useCallback((key) => {\n    const others = list.filterTokens.filter((token) => token.key !== 'priority');\n    list.setFilterTokens(key === null ? others : others.concat([{ key: 'priority', values: [key] }]));\n  }, [list]);\n\n  const runMoveAction = useCallback(async (contribution, record, params) => {\n    const result = await runAction({\n      actionSourceId: text(contribution.metadata.actionSourceId),\n      collection: COLLECTION,\n      recordId: record.id,\n      record,\n      params,\n    });\n    if (!result.ok && result.message) notify(result.message, 'error');\n    return result.ok;\n  }, [runAction, notify]);\n\n  /**\n   * Dragging does not write: it asks. The list of who answers a move is the one in Settings — the\n   * office turns entries on and off and orders them — and the FIRST one that serves that origin wins.\n   * Running them all would hand the Finance extension the drag of a deadline.\n   */\n  const handleDrop = useCallback(async (day, recordId) => {\n    setDraggingId(null);\n    setDragOverKey(null);\n    if (!recordId) return;\n\n    const record = records.find((item) => item.id === recordId);\n    if (!record) return;\n    const shown = displayDate(record);\n    if (shown && dayKey(shown) === day.key) return;\n\n    const enabled = Array.isArray(moveLayout) ? moveLayout : [];\n    const isEnabled = (contribution) => {\n      const key = text(contribution.metadata.key) || contribution.id;\n      const entry = enabled.find((item) => item.key === key);\n      return entry ? entry.enabled !== false : true;\n    };\n    const order = (contribution) => {\n      const key = text(contribution.metadata.key) || contribution.id;\n      const index = enabled.findIndex((item) => item.key === key);\n      return index === -1 ? enabled.length : index;\n    };\n\n    const handler = moveActions\n      .filter((contribution) => (\n        servesRecord(contribution, record)\n          && isEnabled(contribution)\n          && isVisible(contribution.metadata.hiddenWhen, record, 'calendar')\n      ))\n      .sort((a, b) => order(a) - order(b))[0];\n\n    if (!handler) {\n      notify(t('view.move.no-handler'), 'info');\n      return;\n    }\n\n    /**\n     * The bet is placed BEFORE the call, and it is purely visual: the card appears on the new day\n     * while the origin decides. Refused, it is undone at once and the card returns; accepted, it\n     * undoes itself when the record arrives written (see positionOf).\n     *\n     * An origin that answers \"success\" without moving anything would leave the card ahead until the\n     * next read of the collection. That is the price of not inventing a clock here — and the right\n     * signal is still the data, not a timeout the agenda would arbitrate.\n     */\n    setMoves((prev) => ({ ...prev, [record.id]: { from: shown ? dayKey(shown) : null, to: day.key } }));\n\n    const ok = await runMoveAction(handler, record, { targetDate: day.key });\n    if (!ok) {\n      setMoves((prev) => {\n        const next = {};\n        for (const id of Object.keys(prev)) if (id !== record.id) next[id] = prev[id];\n        return next;\n      });\n    }\n  }, [records, moveActions, moveLayout, runMoveAction, notify, isVisible, t]);\n\n  if (!list.definition) {\n    return (\n      <div style={{ padding: '24px' }}>\n        <InfoBanner message={t('view.screen-missing')} variant=\"warning\" />\n      </div>\n    );\n  }\n\n  return (\n    <>\n      <StatsBar>\n        <StatItem>\n          <StatValue>{stats.total}</StatValue>\n          <StatLabel>{t('view.stat.month')}</StatLabel>\n        </StatItem>\n        <StatItem>\n          <StatValue $color={theme.colors.warning}>{stats.pending}</StatValue>\n          <StatLabel>{t('view.stat.pending')}</StatLabel>\n        </StatItem>\n        <StatItem>\n          <StatValue $color={theme.colors.success}>{stats.closed}</StatValue>\n          <StatLabel>{t('view.stat.closed')}</StatLabel>\n        </StatItem>\n        <StatItem>\n          <StatValue $color={theme.colors.danger}>{stats.late}</StatValue>\n          <StatLabel>{t('view.stat.late')}</StatLabel>\n        </StatItem>\n      </StatsBar>\n\n      <CalendarCard>\n        <MonthNav>\n          <NavButton onClick={() => goToMonth(-1)} aria-label={t('view.previous-month')}>\n            <Icon name=\"arrowLeft\" size={20} />\n          </NavButton>\n          <MonthLabel>{monthLabel}</MonthLabel>\n          <NavButton onClick={() => goToMonth(1)} aria-label={t('view.next-month')}>\n            <Icon name=\"arrowRight\" size={20} />\n          </NavButton>\n          <TodayButton onClick={goToToday}>{t('view.today')}</TodayButton>\n        </MonthNav>\n\n        <FilterRow>\n          <CompositeFilter\n            defs={list.filterDefs}\n            tokens={list.filterTokens}\n            onChange={list.setFilterTokens}\n            screenKey={list.savedFiltersScreenKey}\n            placeholder={t('view.filter.placeholder')}\n          />\n        </FilterRow>\n\n        <DayColumnsScroller ref={scrollerRef}>\n          {days.map((day) => (\n            <DayColumn\n              key={day.key}\n              $isToday={day.isToday}\n              $isDragOver={dragOverKey === day.key}\n              data-today={day.isToday ? 'true' : undefined}\n              onDragOver={(e) => { e.preventDefault(); setDragOverKey(day.key); }}\n              onDragLeave={() => setDragOverKey((prev) => (prev === day.key ? null : prev))}\n              onDrop={(e) => { e.preventDefault(); handleDrop(day, e.dataTransfer.getData('text/plain')); }}\n            >\n              <DayHeader $isToday={day.isToday}>\n                <DayNumber $isToday={day.isToday}>{day.dayNumber}</DayNumber>\n                <DayName>{day.weekday}</DayName>\n              </DayHeader>\n\n              <DayEvents>\n                {day.items.map(({ record, position }) => (\n                  <EventCard\n                    key={record.id}\n                    $color={priorityColor(record)}\n                    $done={isClosed(record)}\n                    $dragging={draggingId === record.id}\n                    $pending={position.pending}\n                    draggable\n                    onDragStart={(e) => {\n                      e.dataTransfer.setData('text/plain', record.id);\n                      e.dataTransfer.effectAllowed = 'move';\n                      setDraggingId(record.id);\n                    }}\n                    onDragEnd={() => { setDraggingId(null); setDragOverKey(null); }}\n                    onClick={() => {\n                      if (record.origem && record.origemId) openRecord(record.origem, record.origemId);\n                    }}\n                    title={text(record.title)}\n                  >\n                    <EventTitle>{list.getCardTitle(record)}</EventTitle>\n\n                    <EventMeta>\n                      {record.hour ? (\n                        <MetaRow><Icon name=\"time\" size={10} /><span>{record.hour}</span></MetaRow>\n                      ) : null}\n\n                      {/*\n                        The card lines come from the SCREEN configuration — the fields marked to\n                        appear in the list. This is how a field added by another extension (the case\n                        of a deadline, the person of a hearing) reaches the card without the agenda\n                        knowing it by name.\n                      */}\n                      {list.getCardItems(record).map((item) => (\n                        <MetaRow key={item.key}>\n                          <span>{item.value}</span>\n                        </MetaRow>\n                      ))}\n\n                      <BadgeRow>\n                        <Badge $color={getConfigColor(statusOptions, record.status, theme)}>\n                          {labelOf(statusOptions, record.status)}\n                        </Badge>\n                        <Badge $color={priorityColor(record)}>\n                          {labelOf(priorityOptions, record.priority)}\n                        </Badge>\n                      </BadgeRow>\n\n                      {record.description ? (\n                        <EventDescription>{record.description}</EventDescription>\n                      ) : null}\n                    </EventMeta>\n\n                    {/*\n                      The card gestures come from the SCREEN configuration — \"Card actions in the\n                      list\" in the Form Design — resolved through the same path as any list: the\n                      native actions the screen enabled plus the office's own, with the visibility\n                      expression already evaluated record by record. The agenda knows none of them by\n                      name, and the user adds or removes as many as they like without touching this\n                      code.\n                    */}\n                    {list.getCardActions(record).length > 0 ? (\n                      <CardActions className=\"calendar-card-actions\">\n                        {list.getCardActions(record).map((action) => (\n                          <CardActionButton\n                            key={action.key}\n                            type=\"button\"\n                            title={action.title}\n                            disabled={action.disabled}\n                            onClick={(e) => { e.stopPropagation(); action.onClick(); }}\n                          >\n                            {cardActionIcon(action, 11)}\n                          </CardActionButton>\n                        ))}\n                      </CardActions>\n                    ) : null}\n                  </EventCard>\n                ))}\n              </DayEvents>\n            </DayColumn>\n          ))}\n        </DayColumnsScroller>\n\n        <Legend>\n          <LegendLabel>{t('view.legend.priority')}</LegendLabel>\n          <LegendItem onClick={() => filterByPriority(null)}>\n            <span>{t('view.legend.all')}</span>\n          </LegendItem>\n          {priorityOptions.map((option) => (\n            <LegendItem\n              key={option.key}\n              $dimmed={priorityToken !== null && priorityToken !== option.key}\n              onClick={() => filterByPriority(option.key)}\n            >\n              <LegendDot $color={getConfigColor(priorityOptions, option.key, theme)} />\n              <span>{option.label}</span>\n            </LegendItem>\n          ))}\n        </Legend>\n      </CalendarCard>\n\n      {/* An action that asks for parameters before running, the delete confirmation and the tags —\n          the same modals as the default list. Without them, an action with parameters would wait for\n          a question nobody draws. */}\n      <EntityListModals vm={list} />\n    </>\n  );\n}\n"
     }
   ]
 }

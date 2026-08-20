@@ -42,6 +42,12 @@ export interface CommandPaletteAppContext {
    * é função pura, chamada a cada tecla, e não tem como pendurar um hook.
    */
   t: TranslateFn;
+  /**
+   * O resolvedor de rótulo DECLARATIVO, pelo mesmo motivo e pela mesma porta. Um provider precisa dele
+   * para BUSCAR: comparar a query com `@com.acme.docs/screen.plural` nunca casa com o que a pessoa
+   * digita, e era isso que deixava a tela de uma extensão fora do ⌘K.
+   */
+  label: (value: string | null | undefined, params?: Record<string, unknown>) => string;
 }
 
 export interface ICommandPaletteProvider {

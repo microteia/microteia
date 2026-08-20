@@ -131,7 +131,7 @@ export const useQueryBuilderControlViewModel = (
     // A CHAVE do mapa é a coleção — é ela que o motor resolve. A `id` da tela pode ser outro nome.
     const screens = [...ctx.screens.entries()].map(([collection, screen]) => ({
       value: collection,
-      label: screen.titleSingular,
+      label: label(screen.titleSingular),
       meta: 'Personalizada',
     }));
     const lookups = LOOKUP_REGISTRY_LIST.map((lookup) => ({
@@ -140,7 +140,7 @@ export const useQueryBuilderControlViewModel = (
       meta: 'Lista',
     }));
     return [...entities, ...screens, ...lookups];
-  }, [ctx]);
+  }, [ctx, label]);
 
   const pathOptions = useMemo<SearchSelectOption[]>(() => {
     const resolved = spec.table ? resolveQueryTable(spec.table, ctx) : null;

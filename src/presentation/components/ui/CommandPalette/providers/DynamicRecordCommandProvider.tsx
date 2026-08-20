@@ -11,7 +11,7 @@ const contains = (text: string | null | undefined, query: string) =>
 export const DynamicRecordCommandProvider: ICommandPaletteProvider = {
   group: '@core.records/command.group',
 
-  getItems(query: string, { screenDefinitions, records, openTab, close }: CommandPaletteAppContext): CommandPaletteItem[] {
+  getItems(query: string, { screenDefinitions, records, openTab, close, label }: CommandPaletteAppContext): CommandPaletteItem[] {
     if (!query) return [];
 
     // Telas filhas existem só dentro do registro-pai: ficam fora do ⌘K, e como `screenByKey`
@@ -22,7 +22,9 @@ export const DynamicRecordCommandProvider: ICommandPaletteProvider = {
     const screenByKey = new Map(enabledScreens.map((def) => [def.id, def]));
 
     const navigationItems: CommandPaletteItem[] = enabledScreens
-      .filter((def) => contains(def.titlePlural, query) || contains(def.titleSingular, query))
+      // A comparação é com o rótulo RESOLVIDO: a tela de uma extensão declara `@ns/chave`, e casar a
+      // query contra a chave deixava a tela inalcançável para quem digita o nome que lê na tela.
+      .filter((def) => contains(label(def.titlePlural), query) || contains(label(def.titleSingular), query))
       .map((def) => ({
         id: `dyn-screen:${def.id}`,
         title: '@core.records/command.open',
@@ -46,7 +48,7 @@ export const DynamicRecordCommandProvider: ICommandPaletteProvider = {
         return {
           id: `dyn-record:${record.id}`,
           title,
-          subtitle: screen?.titleSingular,
+          subtitle: label(screen?.titleSingular),
           group: '@core.records/command.group',
           icon: screen ? getScreenIcon(screen.icon, 16) : <RiLayoutGridLine size={16} />,
           onSelect: () => {

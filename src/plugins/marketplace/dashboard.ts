@@ -1,45 +1,59 @@
 import type { MarketplacePlugin } from '../../domain/entities/MarketplacePlugin';
 import { nav, page, settingsSection } from '../contributionBuilders';
+import { dashboardMessagesContribution } from './dashboardMessages';
+import { dashboardPtBrContribution } from './dashboardMessagesPtBr';
 import DASHBOARD_SOURCE from './views/dashboard/Dashboard.view.tsx?raw';
 
 /**
- * **Dashboard** — a tela de abertura do escritório, agora uma extensão que não conhece nenhum dado.
+ * **Dashboard** — the opening screen of the office, now an extension that knows no data at all.
  *
- * O que ela entrega é só o LUGAR: uma superfície chamada `dashboard`, onde cada extensão instalada
- * coloca os seus cartões, e a seção de Configurações que decide quais aparecem, em que ordem e com
- * que largura. Os números de processos, os prazos e o resumo financeiro NÃO estão aqui — são
- * widgets das extensões que conhecem cada um desses assuntos. Desinstalar o Financeiro tira o
- * cartão do Dashboard sem tocar em uma linha desta extensão.
+ * What it delivers is only the PLACE: a surface named `dashboard` where every installed extension
+ * drops its cards, plus the Settings section that decides which ones appear, in what order and at
+ * what width. The record counts, the dates coming due and the financial summary are NOT here — they
+ * are widgets of the extensions that know each of those subjects. Uninstalling Finance takes its
+ * card off the Dashboard without touching a line of this extension.
  *
- * A configuração aceita os dois escopos: o administrador define o Dashboard padrão do escritório e
- * cada pessoa monta o seu por cima, sem alterar o dos demais.
+ * The configuration accepts both scopes: the administrator sets the office default and each person
+ * assembles their own on top of it, without changing anyone else's.
+ *
+ * Because it is a PLACE and not a subject, it fits any kind of business — and so it ships in the
+ * source language, with its own Portuguese translation as one more contribution. That is why nothing
+ * below is a phrase: every label is a reference into `dashboardMessages.ts`.
  */
 export const DASHBOARD_SURFACE = 'dashboard';
+
+/**
+ * A reference into this extension's own catalog. The namespace is written out, not composed:
+ * `npm run verify-messages` reads these calls and fails on a key that does not exist, and it can
+ * only do that if the namespace is there to be read.
+ */
+const message = (key: string): string => `@com.microteia.dashboard/${key}`;
 
 export const dashboardPlugin: MarketplacePlugin = {
   manifest: {
     id: 'com.microteia.dashboard',
-    version: '1.0.0',
+    version: '1.1.0',
     kernel: '^1.0.0',
-    name: 'Dashboard',
-    description: 'A tela de abertura do escritório, montada com os widgets que cada extensão oferece.',
+    name: message('package.name'),
+    description: message('package.description'),
     publisher: { name: 'Microteia' },
     dependencies: { 'core.ui': '^1.0.0' },
     contributes: [
-      nav({ key: 'dashboard', label: 'Dashboard', icon: 'dashboard', order: 10 }),
-      page({ key: 'dashboard', title: 'Dashboard', icon: 'dashboard', fullBleed: true }, 'dashboard'),
+      dashboardMessagesContribution(),
+      dashboardPtBrContribution(),
+      nav({ key: 'dashboard', label: message('nav.dashboard'), icon: 'dashboard', order: 10 }),
+      page({ key: 'dashboard', title: message('page.dashboard'), icon: 'dashboard', fullBleed: true }, 'dashboard'),
       settingsSection({
         key: 'dashboard',
-        title: 'Dashboard',
+        title: message('settings.section.title'),
         icon: 'dashboard',
         order: 10,
-        description: 'O que aparece na tela de abertura, em que ordem e com que largura.',
+        description: message('settings.section.description'),
         properties: [
           {
             key: 'dashboard.widgets',
-            label: 'Widgets do Dashboard',
-            description:
-              'Marque os cartões que devem aparecer, escolha a largura de cada um (1 a 3 colunas) e use as setas para ordenar. O que a extensão instalar depois entra no fim da lista.',
+            label: message('settings.widgets'),
+            description: message('settings.widgets.description'),
             type: 'widgets',
             surface: DASHBOARD_SURFACE,
             default: [],
@@ -49,37 +63,28 @@ export const dashboardPlugin: MarketplacePlugin = {
       }),
     ],
   },
-  summary:
-    'A tela de abertura do escritório: uma grade de widgets que cada extensão instalada oferece. Você escolhe quais aparecem, em que ordem e com que largura — e cada pessoa pode montar o seu do jeito que preferir.',
+  summary: message('package.summary'),
   overview: {
     type: 'stack',
     gap: 'lg',
     children: [
-      {
-        type: 'markdown',
-        content:
-          'O **Dashboard** é a tela que abre quando você entra no escritório. Ele não tem conteúdo próprio: mostra os **widgets** que as outras extensões oferecem — os números dos processos, os prazos que vencem, o resumo do financeiro.\n\nEm **Configurações → Dashboard** você liga e desliga cada widget, define a largura (1, 2 ou 3 colunas) e a ordem. O administrador define o Dashboard padrão do escritório em **Escritório**; cada pessoa pode montar o seu em **Usuário**.',
-      },
+      { type: 'markdown', content: message('overview.body') },
       {
         type: 'keyValue',
         items: [
-          { label: 'Adiciona', value: 'Item "Dashboard" no menu' },
-          { label: 'Conteúdo', value: 'Widgets das extensões instaladas' },
-          { label: 'Configuração', value: 'Por escritório e por usuário' },
+          { label: message('overview.adds'), value: message('overview.adds.value') },
+          { label: message('overview.content'), value: message('overview.content.value') },
+          { label: message('overview.configuration'), value: message('overview.configuration.value') },
         ],
       },
-      {
-        type: 'banner',
-        message: 'Instalar uma extensão que ofereça widgets faz os cartões dela aparecerem aqui automaticamente; remover a extensão os retira, sem deixar espaço vazio.',
-        variant: 'info',
-      },
+      { type: 'banner', message: message('overview.banner'), variant: 'info' },
     ],
   },
   workflows: [],
   views: [
     {
       key: 'dashboard',
-      title: 'Dashboard',
+      title: message('page.dashboard'),
       icon: 'dashboard',
       source: DASHBOARD_SOURCE,
     },

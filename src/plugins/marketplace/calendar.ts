@@ -7,78 +7,96 @@ import type {
 import type { CustomFieldOption } from '../../domain/entities';
 import type { ExtensionPointDefinition } from '../../domain/schema/plugin/extensionPoint';
 import { nav, page, settingsSection } from '../contributionBuilders';
+import { calendarMessagesContribution } from './calendarMessages';
+import { calendarPtBrContribution } from './calendarMessagesPtBr';
 import CALENDAR_SOURCE from './views/calendar/Calendar.view.tsx?raw';
 
 /**
- * **Calendário** — a agenda do escritório, agnóstica. Era a última tela de código do kernel a
- * conhecer uma entidade de negócio: lia prazos, escrevia prazos e sabia o que era "vencido",
- * "concluído" e "prioridade crítica". Aqui ela não sabe o que apresenta.
+ * **Calendar** — the office agenda, agnostic. It was the last screen of kernel code that knew a
+ * business entity: it read deadlines, wrote deadlines, and knew what "overdue", "done" and "critical
+ * priority" meant. Here it does not know what it shows.
  *
- * O que ela conhece é UMA entidade própria — `calendar` —, cujo único propósito é aparecer na
- * agenda. Quem tem data a mostrar (um prazo, uma audiência, uma parcela) mantém um item aqui e é
- * responsável por ele: criar, atualizar e excluir quando o registro de origem muda. O calendário
- * nunca escreve no registro de origem, e por isso não precisa saber que ele existe — guarda apenas
- * `origem` (a COLEÇÃO) e `origemId`, e é por esse par que o clique no cartão abre o registro certo.
+ * What it does know is ONE entity of its own — `calendar` — whose only purpose is to appear on the
+ * agenda. Whoever has a date to show (a deadline, a hearing, an instalment) keeps an item here and
+ * answers for it: creating, updating and deleting it as the origin record changes. The calendar never
+ * writes to the origin record, and so it does not need to know it exists — it keeps only `origem`
+ * (the COLLECTION) and `origemId`, and it is that pair that makes clicking a card open the right
+ * record.
  *
- * **Os gestos do cartão são configuração da TELA, não deste código.** Eles saem de "Ações do card na
- * listagem" do Form Design da entidade Calendário — a mesma lista que qualquer listagem do sistema
- * usa, e que o escritório edita à vontade. Uma extensão que queira oferecer um gesto acrescenta a
- * Action dela àquela lista pelo complemento de tela; não há ponto de extensão próprio para isso,
- * porque haveria duas origens para a mesma pergunta ("o que aparece neste cartão?") e o usuário só
- * conseguiria mexer numa delas.
+ * **The card gestures are configuration of the SCREEN, not of this code.** They come from "Card
+ * actions in the list" in the Form Design of the Calendar entity — the same list every list in the
+ * system uses, and the one the office edits freely. An extension that wants to offer a gesture adds
+ * its Action to that list through the screen patch; there is no extension point of its own for it,
+ * because there would then be two sources for the same question ("what appears on this card?") and
+ * the user could only reach one of them.
  *
- * O único ponto próprio é o do ARRASTO — `calendar.moveaction` —, e ele é próprio porque não tem
- * equivalente em lugar nenhum: nenhuma listagem tem o gesto de "mudar de dia", então não há lista do
- * Form Design onde ele caberia. A contribuição aponta para uma Action do escritório pelo `sourceId`
- * (o `templateId` do pacote que a instalou), o endereço estável já que o id real nasce na
- * instalação. Arrastar não grava nada por conta própria: quem decide o que "mudar de dia" significa
- * é a origem, que pode adiar o prazo, remarcar a audiência ou recusar o movimento.
+ * The only point of its own is the DRAG one — `calendar.moveaction` — and it is its own because it
+ * has no equivalent anywhere else: no list has a "change day" gesture, so there is no Form Design
+ * list where it would fit. The contribution points at an office Action through `sourceId` (the
+ * `templateId` of the package that installed it), the stable address given that the real id is born
+ * at install time. Dragging writes nothing on its own: what "change day" means is decided by the
+ * origin, which may postpone the deadline, move the hearing or refuse the move.
+ *
+ * An agenda serves every kind of business, so the extension is written in the source language and
+ * carries its own Portuguese translation. Nothing below is a phrase: every label is a reference into
+ * `calendarMessages.ts`, resolved at render time by whoever reads it.
  */
 const SOURCE_ID = 'microteia:calendar';
 
 const CALENDAR_MOVE_POINT = 'calendar.moveaction';
 
-const IDENTIFICACAO = 'Item';
-const DATAS = 'Datas';
-const ORIGEM = 'Origem';
+/**
+ * A reference into this extension's own catalog. The namespace is written out, not composed:
+ * `npm run verify-messages` reads these calls and fails on a key that does not exist, and it can
+ * only do that if the namespace is there to be read.
+ */
+const message = (key: string): string => `@com.microteia.calendar/${key}`;
+
+const ITEM = message('section.item');
+const DATES = message('section.dates');
+const ORIGIN = message('section.origin');
 
 const FIELDS: TemplateField[] = [
-  { key: 'title', label: 'Título', type: 'text', required: true, order: 0, section: IDENTIFICACAO, placeholder: 'O que aparece no cartão' },
-  { key: 'status', label: 'Situação', type: 'select', required: true, order: 1, section: IDENTIFICACAO, lookupCollection: 'calendarStatuses', optionsColored: true, filterable: true, placeholder: 'Selecione a situação...' },
-  { key: 'priority', label: 'Prioridade', type: 'select', required: true, order: 2, section: IDENTIFICACAO, lookupCollection: 'calendarPriorities', optionsColored: true, filterable: true, placeholder: 'Selecione a prioridade...' },
-  { key: 'description', label: 'Descrição', type: 'textarea', required: false, order: 3, section: IDENTIFICACAO, placeholder: 'Detalhe que aparece no cartão' },
-  { key: 'date', label: 'Data', type: 'date', required: true, order: 4, section: DATAS, filterable: true },
-  { key: 'hour', label: 'Hora', type: 'time', required: false, order: 5, section: DATAS },
-  { key: 'finishDate', label: 'Data da conclusão', type: 'date', required: false, order: 6, section: DATAS, filterable: true },
-  { key: 'finishHour', label: 'Hora da conclusão', type: 'time', required: false, order: 7, section: DATAS },
-  // O par que endereça o registro que mandou o item para cá. `origem` é o nome da COLEÇÃO, não um
-  // rótulo: é o que o clique no cartão usa para abrir o registro na tela que o apresenta hoje.
-  { key: 'origem', label: 'Coleção de origem', type: 'text', required: true, order: 8, section: ORIGEM, filterable: true, placeholder: 'O cadastro de onde o item veio' },
-  { key: 'origemId', label: 'Registro de origem', type: 'text', required: true, order: 9, section: ORIGEM },
+  { key: 'title', label: message('field.title'), type: 'text', required: true, order: 0, section: ITEM, placeholder: message('field.title.placeholder') },
+  { key: 'status', label: message('field.status'), type: 'select', required: true, order: 1, section: ITEM, lookupCollection: 'calendarStatuses', optionsColored: true, filterable: true, placeholder: message('field.status.placeholder') },
+  { key: 'priority', label: message('field.priority'), type: 'select', required: true, order: 2, section: ITEM, lookupCollection: 'calendarPriorities', optionsColored: true, filterable: true, placeholder: message('field.priority.placeholder') },
+  { key: 'description', label: message('field.description'), type: 'textarea', required: false, order: 3, section: ITEM, placeholder: message('field.description.placeholder') },
+  { key: 'date', label: message('field.date'), type: 'date', required: true, order: 4, section: DATES, filterable: true },
+  { key: 'hour', label: message('field.hour'), type: 'time', required: false, order: 5, section: DATES },
+  { key: 'finishDate', label: message('field.finish-date'), type: 'date', required: false, order: 6, section: DATES, filterable: true },
+  { key: 'finishHour', label: message('field.finish-hour'), type: 'time', required: false, order: 7, section: DATES },
+  // The pair that addresses the record which sent the item here. `origem` is the name of the
+  // COLLECTION, not a label: it is what clicking the card uses to open the record on whichever
+  // screen presents it today.
+  { key: 'origem', label: message('field.origin'), type: 'text', required: true, order: 8, section: ORIGIN, filterable: true, placeholder: message('field.origin.placeholder') },
+  { key: 'origemId', label: message('field.origin-id'), type: 'text', required: true, order: 9, section: ORIGIN },
 ];
 
 const colored = (entries: [string, string, string][]): CustomFieldOption[] =>
   entries.map(([key, label, color]) => ({ key, label, color }));
 
 /**
- * As duas listas de partida. As CHAVES são estáveis e em inglês porque quem grava um item é uma
- * automação de outra extensão — ela precisa de um valor que não mude quando o escritório renomeia o
- * rótulo. O que o usuário lê é o `label`, e é dele daqui em diante.
+ * The two starting lists. The KEYS are stable and in English because what writes an item is an
+ * automation from another extension — it needs a value that does not change when the office renames
+ * the label. What the user reads is the `label`, and from install time on it belongs to the office.
  */
 const LOOKUPS: LookupModuleTemplate[] = [
   {
     collection: 'calendarStatuses',
-    label: 'Calendário: Situação',
-    options: colored([['pending', 'Pendente', 'warning'], ['closed', 'Concluído', 'success']]),
+    label: message('lookup.statuses'),
+    options: colored([
+      ['pending', message('status.pending'), 'warning'],
+      ['closed', message('status.closed'), 'success'],
+    ]),
   },
   {
     collection: 'calendarPriorities',
-    label: 'Calendário: Prioridade',
+    label: message('lookup.priorities'),
     options: colored([
-      ['low', 'Baixa', 'success'],
-      ['medium', 'Média', 'warning'],
-      ['high', 'Alta', 'secondary'],
-      ['critical', 'Crítica', 'danger'],
+      ['low', message('priority.low'), 'success'],
+      ['medium', message('priority.medium'), 'warning'],
+      ['high', message('priority.high'), 'secondary'],
+      ['critical', message('priority.critical'), 'danger'],
     ]),
   },
 ];
@@ -87,8 +105,8 @@ const CALENDAR_SCREEN: ScreenModuleTemplate = {
   key: 'calendar',
   sourceId: SOURCE_ID,
   sourceRev: 1,
-  titleSingular: 'Item do calendário',
-  titlePlural: 'Calendário',
+  titleSingular: message('screen.singular'),
+  titlePlural: message('screen.plural'),
   icon: 'calendar',
   fields: FIELDS,
   titleFieldKey: 'title',
@@ -98,13 +116,13 @@ const CALENDAR_SCREEN: ScreenModuleTemplate = {
   hasTags: false,
   eventPrefix: 'calendar',
   /**
-   * O item do calendário é um ESPELHO: quem manda nele é o registro de origem, e editá-lo à mão
-   * criaria uma verdade paralela que a próxima gravação da origem apaga. Por isso o cartão não
-   * oferece gesto de edição e a listagem crua fica fora do menu.
+   * A calendar item is a MIRROR: the origin record is in charge of it, and editing it by hand would
+   * create a parallel truth that the next write from the origin erases. That is why the card offers
+   * no edit gesture and the raw list stays out of the menu.
    *
-   * `writeRoles: ['admin']` é o mais estreito que a regra do curinga sabe expressar — quem grava de
-   * verdade é a automação da origem, pelo servidor, que não passa por esta lista. Deixar o admin de
-   * fora também tiraria a única saída para consertar um item órfão de uma sincronização quebrada.
+   * `writeRoles: ['admin']` is the narrowest thing the wildcard rule can express — the real writer is
+   * the origin automation, on the server, which does not go through this list. Leaving the admin out
+   * would also remove the only way to fix an orphan item left by a broken sync.
    */
   writeRoles: ['admin'],
   listActions: [],
@@ -116,8 +134,8 @@ const EXTENSION_POINTS: ExtensionPointDefinition[] = [
   {
     id: CALENDAR_MOVE_POINT,
     apiVersion: '1.0.0',
-    title: 'Ação ao mover um item de dia',
-    description: 'A ação executada quando um item é arrastado para outro dia. Quem decide o que a mudança significa é a origem.',
+    title: message('point.move.title'),
+    description: message('point.move.description'),
     ownerPluginId: 'com.microteia.calendar',
     allowedImplKinds: [],
     implRequired: false,
@@ -126,38 +144,40 @@ const EXTENSION_POINTS: ExtensionPointDefinition[] = [
 ];
 
 /**
- * A agenda. Fiel à que existia no kernel — a barra de números, a navegação por mês, as colunas de
- * dia com rolagem horizontal que abre no dia de hoje, o cartão colorido pela prioridade, o arrastar
- * entre dias e a legenda que filtra por prioridade —, com três diferenças que a tornam agnóstica:
- * o dado vem da entidade `calendar`, o filtro é o `CompositeFilter` sobre os campos que a tela
- * declara (inclusive os que outra extensão acrescentou), e todo gesto é uma Action de terceiro.
+ * The agenda. Faithful to the one that lived in the kernel — the number bar, month navigation, day
+ * columns with horizontal scrolling that opens on today, the card coloured by priority, dragging
+ * between days and the legend that filters by priority — with three differences that make it
+ * agnostic: the data comes from the `calendar` entity, the filter is the `CompositeFilter` over the
+ * fields the screen declares (including the ones another extension added), and every gesture is a
+ * third-party Action.
  */
 
 export const calendarPlugin: MarketplacePlugin = {
   manifest: {
     id: 'com.microteia.calendar',
-    version: '1.0.0',
+    version: '1.1.0',
     kernel: '^1.0.0',
-    name: 'Calendário',
-    description: 'A agenda do escritório, agnóstica: qualquer extensão põe um item nela e continua dona dele.',
+    name: message('package.name'),
+    description: message('package.description'),
     publisher: { name: 'Microteia' },
     dependencies: { 'core.ui': '^1.0.0' },
     extensionPoints: EXTENSION_POINTS,
     contributes: [
-      nav({ key: 'calendar', label: 'Calendário', icon: 'calendar', order: 20 }),
-      page({ key: 'calendar', title: 'Calendário', icon: 'calendar' }, 'calendar'),
+      calendarMessagesContribution(),
+      calendarPtBrContribution(),
+      nav({ key: 'calendar', label: message('nav.calendar'), icon: 'calendar', order: 20 }),
+      page({ key: 'calendar', title: message('page.calendar'), icon: 'calendar' }, 'calendar'),
       settingsSection({
         key: 'calendar',
-        title: 'Calendário',
-        description: 'Como a agenda responde aos gestos do usuário.',
+        title: message('settings.section.title'),
+        description: message('settings.section.description'),
         icon: 'calendar',
         order: 30,
         properties: [
           {
             key: 'calendar.moveActions',
-            label: 'Ao arrastar um item para outro dia',
-            description:
-              'As ações que respondem à mudança de dia, na ordem em que são consultadas. Vale a primeira que atende a origem do item — arrastar não grava nada por conta própria.',
+            label: message('settings.move-actions'),
+            description: message('settings.move-actions.description'),
             type: 'contributions',
             point: CALENDAR_MOVE_POINT,
             default: [],
@@ -167,37 +187,28 @@ export const calendarPlugin: MarketplacePlugin = {
       }),
     ],
   },
-  summary:
-    'A agenda do escritório em colunas de dia, com o mês inteiro numa rolagem que abre no dia de hoje. Ela não conhece prazo, audiência nem parcela: qualquer extensão registra um item, continua dona dele e diz o que acontece quando o usuário o arrasta para outro dia.',
+  summary: message('package.summary'),
   overview: {
     type: 'stack',
     gap: 'lg',
     children: [
-      {
-        type: 'markdown',
-        content:
-          'O **Calendário** mostra, lado a lado, os dias do mês e o que está marcado em cada um. A rolagem abre no dia de hoje, o cartão é colorido pela prioridade e a legenda embaixo filtra por ela num clique.\n\nA agenda não é dona de nada do que mostra. Cada item pertence ao registro que o criou — um prazo, uma audiência, uma parcela — e é esse registro que o mantém em dia: mudou lá, muda aqui; foi excluído lá, some daqui. Por isso o item não se edita pela agenda, e clicar no cartão leva direto ao registro de origem.\n\nArrastar um cartão para outro dia **pergunta** à extensão dona do item o que fazer. Em Configurações › Calendário você escolhe quais respondem e em que ordem.',
-      },
+      { type: 'markdown', content: message('overview.body') },
       {
         type: 'keyValue',
         items: [
-          { label: 'Adiciona', value: 'Item "Calendário" no menu' },
-          { label: 'Mostra', value: 'O mês inteiro, em colunas de dia' },
-          { label: 'Filtro', value: 'Por situação, prioridade, data — e o que as extensões acrescentarem' },
-          { label: 'Arrastar', value: 'Executa a ação que a origem declarou' },
+          { label: message('overview.adds'), value: message('overview.adds.value') },
+          { label: message('overview.shows'), value: message('overview.shows.value') },
+          { label: message('overview.filter'), value: message('overview.filter.value') },
+          { label: message('overview.drag'), value: message('overview.drag.value') },
         ],
       },
-      {
-        type: 'banner',
-        message: 'Sozinha, a agenda abre vazia: quem a preenche são as extensões que registram itens nela, como a de Prazos.',
-        variant: 'info',
-      },
+      { type: 'banner', message: message('overview.banner'), variant: 'info' },
     ],
   },
   workflows: [],
   screens: [CALENDAR_SCREEN],
   lookups: LOOKUPS,
   views: [
-    { key: 'calendar', title: 'Calendário', icon: 'calendar', source: CALENDAR_SOURCE },
+    { key: 'calendar', title: message('page.calendar'), icon: 'calendar', source: CALENDAR_SOURCE },
   ],
 };

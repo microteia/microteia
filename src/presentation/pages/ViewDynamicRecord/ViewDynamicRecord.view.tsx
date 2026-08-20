@@ -9,9 +9,10 @@ import { TagManager } from '../../components/ui/TagManager';
 import { EntityDetailView } from '../../components/layout/EntityDetailView';
 import { getScreenIcon } from '../../shared/screenIcons';
 
-import { useT } from '../../shared/i18n/useT';
+import { useLabel, useT } from '../../shared/i18n/useT';
 export const ViewDynamicRecordView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
   const t = useT('core.records');
+  const label = useLabel();
   const vm = useViewDynamicRecordViewModel(tabKey);
   const definition = vm.definition;
 
@@ -39,7 +40,7 @@ export const ViewDynamicRecordView: React.FC<{ tabKey: string }> = ({ tabKey }) 
     return (
       <S.Page>
         <S.Header>
-          <S.Title>{definition.titleSingular}</S.Title>
+          <S.Title>{label(definition.titleSingular)}</S.Title>
         </S.Header>
         <S.BannerWrapper>
           <InfoBanner variant="info" message={t('record.not-found')} />
@@ -86,7 +87,9 @@ export const ViewDynamicRecordView: React.FC<{ tabKey: string }> = ({ tabKey }) 
       screenActions={vm.screenActions}
       isAdmin={vm.isAdmin}
       avatar={getScreenIcon(definition.icon, 22)}
-      title={vm.isNew ? `Novo ${definition.titleSingular}` : (vm.recordTitle || definition.titleSingular)}
+      title={vm.isNew
+        ? t('record.new.title', { entity: label(definition.titleSingular) })
+        : (vm.recordTitle || label(definition.titleSingular))}
       subtitle={!vm.isNew && vm.recordSubtitle ? vm.recordSubtitle : undefined}
       tags={appliedTags}
       showTags={!vm.isNew && definition.hasTags}

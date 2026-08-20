@@ -8,6 +8,7 @@ import {
   useCreateRecord, useCurrentUser, useDeleteRecord, useEntity, useEntityList,
   useLookup, useNotify, useRecordDocuments, useUpdateRecord, useWorkspace,
 } from '@microteia/data';
+import { useLocaleFormat, useT } from '@microteia/i18n';
 
 const SOURCE_ID = 'microteia:news';
 const COMMENT_SOURCE_ID = 'microteia:news-comment';
@@ -513,28 +514,11 @@ const asDate = (value) => {
   return isNaN(date.getTime()) ? null : date;
 };
 
-const longStamp = (value) => {
-  const date = asDate(value);
-  if (!date) return '';
-  return date.toLocaleString('pt-BR', {
-    day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit',
-  });
-};
-
-const shortStamp = (value) => {
-  const date = asDate(value);
-  if (!date) return '';
-  return date.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' });
-};
-
-const stamp = (value) => {
-  const date = asDate(value);
-  if (!date) return '';
-  return date.toLocaleString('pt-BR', {
-    day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit',
-  });
-};
-
+/**
+ * Dates are rendered by the LOCALE formatter, never by `toLocaleString('pt-BR', ...)`. Three
+ * hardcoded formats lived here, and each one was a language nailed into a view that any office in the
+ * world can install.
+ */
 const formatLikes = (count) => {
   if (count < 1000) return String(count);
   const k = count / 1000;
@@ -542,6 +526,8 @@ const formatLikes = (count) => {
 };
 
 export default function NewsReadView({ tabKey }) {
+  const t = useT('com.microteia.news');
+  const { formatDate, formatDateTime } = useLocaleFormat();
   const newsId = String(tabKey || '').slice(READ_TAB_PREFIX.length);
   const me = useCurrentUser();
   const list = useEntityList(SOURCE_ID);
@@ -553,7 +539,7 @@ export default function NewsReadView({ tabKey }) {
   const notify = useNotify();
   const { setTabTitle } = useWorkspace();
 
-  // A coleção é a que a TELA resolve, e não um nome fixo — ver a listagem.
+  // The collection is the one the SCREEN resolves, not a fixed name — see the list view.
   const collection = list.collection;
 
   const [activeTab, setActiveTab] = useState('news');
@@ -590,36 +576,37 @@ export default function NewsReadView({ tabKey }) {
     if (record) setTabTitle(tabKey, record.title);
   }, [record, tabKey, setTabTitle]);
 
-  // Abrir É ler: a leitura entra no vetor do próprio documento e o selo do menu desce sozinho, porque
-  // ele conta com uma expressão sobre este mesmo campo.
+  // Opening IS reading: the reading goes into the array on the document itself and the menu badge
+  // goes down on its own, because it counts with an expression over this very field.
   //
-  // A marca é UMA VEZ por abertura, e não "sempre que a notícia não estiver lida": sem a trava,
-  // "marcar como não lida" tirava o id do vetor e este mesmo efeito o repunha no render seguinte —
-  // o botão parecia não fazer nada e o selo não voltava.
+  // The mark happens ONCE per opening, and not "whenever the item is unread": without the latch,
+  // "mark as unread" removed the id from the array and this same effect put it back on the next
+  // render — the button looked as if it did nothing and the badge never came back.
   useEffect(() => {
     if (!record || !me.id || readMarked) return;
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- a trava É o efeito: ver o comentário acima
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- the latch IS the effect: see the comment above
     setReadMarked(true);
     if (has(record.readBy, me.id)) return;
     void updateRecord(collection, record.id, {
       readBy: withValue(record.readBy, me.id),
       viewCount: (record.viewCount || 0) + 1,
     }).catch(() => {
-      // Marcar como lida é gravação no documento de OUTRA pessoa. Se ela for recusada, o selo do
-      // menu não desce — e um selo que não desce sem explicação é pior do que o aviso.
-      notify('Não foi possível registrar a leitura desta notícia.', 'error');
+      // Marking as read is a write on ANOTHER person's document. If it is refused, the menu badge
+      // does not go down — and a badge that does not go down without explanation is worse than the
+      // warning.
+      notify(t('read.mark-failed'), 'error');
     });
-  }, [record, me.id, readMarked, collection, updateRecord, notify]);
+  }, [record, me.id, readMarked, collection, updateRecord, notify, t]);
 
   if (!list.definition) {
     return (
       <div style={{ padding: '24px' }}>
-        <InfoBanner message='Tela "Notícias" não encontrada. Instale a extensão para ativá-la.' variant="warning" />
+        <InfoBanner message={t('view.screen-missing')} variant="warning" />
       </div>
     );
   }
 
-  if (!record) return <NotFound>Notícia não encontrada.</NotFound>;
+  if (!record) return <NotFound>{t('read.not-found')}</NotFound>;
 
   const isSaved = has(record.savedBy, me.id);
   const hasLiked = has(record.likedBy, me.id);
@@ -634,7 +621,7 @@ export default function NewsReadView({ tabKey }) {
   const actions = list.getCardActions(record);
 
   const patch = (data) => updateRecord(collection, record.id, data).catch(() => {
-    notify('Não foi possível gravar. Verifique se você tem permissão neste escritório.', 'error');
+    notify(t('view.write-denied'), 'error');
   });
 
   const toggleLike = () => patch({
@@ -649,9 +636,9 @@ export default function NewsReadView({ tabKey }) {
     readBy: without(record.readBy, me.id),
   });
 
-  // Comentar, editar e excluir um comentário devolvem a notícia à caixa de todos: o vetor de leitura
-  // fica só com quem acabou de mexer. É o que a coleção de interações fazia com uma escrita por
-  // usuário, e aqui é uma só.
+  // Commenting, editing and deleting a comment return the item to everyone's inbox: the reading array
+  // keeps only whoever just touched it. It is what the interactions collection did with one write per
+  // person, and here it is a single one.
   const reopenForEveryone = () => patch({ readBy: [me.id] });
 
   const submitComment = async () => {
@@ -719,10 +706,12 @@ export default function NewsReadView({ tabKey }) {
     if (isConfirming) {
       return (
         <ConfirmBox key={comment.id}>
-          <ConfirmText>Excluir este comentário?</ConfirmText>
+          <ConfirmText>{t('comment.delete.confirm')}</ConfirmText>
           <RowEnd>
-            <Button variant="secondary" size="sm" onClick={() => setConfirmDeleteId(null)}>Cancelar</Button>
-            <Button variant="danger" size="sm" onClick={removeComment}>Excluir</Button>
+            <Button variant="secondary" size="sm" onClick={() => setConfirmDeleteId(null)}>
+              {t('core.ui/action.cancel')}
+            </Button>
+            <Button variant="danger" size="sm" onClick={removeComment}>{t('core.ui/action.delete')}</Button>
           </RowEnd>
         </ConfirmBox>
       );
@@ -730,27 +719,34 @@ export default function NewsReadView({ tabKey }) {
 
     return (
       <CommentRow key={comment.id}>
-        <UserAvatar src={comment.createdByPhotoURL || null} name={comment.createdByName || 'Autor'} />
+        <UserAvatar src={comment.createdByPhotoURL || null} name={comment.createdByName || t('view.author')} />
 
         <CommentBody>
           <CommentHead>
-            <CommentAuthor>{comment.createdByName || 'Autor'}</CommentAuthor>
-            <Timestamp>{shortStamp(comment.createdAt)}</Timestamp>
+            <CommentAuthor>{comment.createdByName || t('view.author')}</CommentAuthor>
+            <Timestamp>{formatDate(asDate(comment.createdAt))}</Timestamp>
             {comment.updatedByName ? (
-              <EditedBadge title={'Editado por ' + comment.updatedByName + ' em ' + stamp(comment.updatedAt)}>
-                (editado)
+              <EditedBadge
+                title={t('comment.edited.title', {
+                  name: comment.updatedByName,
+                  when: formatDateTime(asDate(comment.updatedAt)),
+                })}
+              >
+                {t('comment.edited')}
               </EditedBadge>
             ) : null}
           </CommentHead>
 
           {isEditing ? (
             <EditBlock>
-              <MarkdownEditor value={editContent} onChange={setEditContent} placeholder="Editar comentário..." />
+              <MarkdownEditor value={editContent} onChange={setEditContent} placeholder={t('comment.edit.placeholder')} />
               <RowEnd>
                 <Button variant="secondary" size="sm" onClick={() => { setEditingId(null); setEditContent(''); }}>
-                  Cancelar
+                  {t('core.ui/action.cancel')}
                 </Button>
-                <Button size="sm" onClick={saveEdit} disabled={submitting || !editContent.trim()}>Salvar</Button>
+                <Button size="sm" onClick={saveEdit} disabled={submitting || !editContent.trim()}>
+                  {t('core.ui/action.save')}
+                </Button>
               </RowEnd>
             </EditBlock>
           ) : (
@@ -760,7 +756,7 @@ export default function NewsReadView({ tabKey }) {
               </ContentArea>
               {truncatable ? (
                 <ReadMoreBtn onClick={() => toggleExpanded(comment.id)}>
-                  {expanded ? 'menos ▲' : 'mais... ▼'}
+                  {expanded ? t('comment.read-less') : t('comment.read-more')}
                 </ReadMoreBtn>
               ) : null}
             </>
@@ -772,12 +768,12 @@ export default function NewsReadView({ tabKey }) {
             {canModify ? (
               <>
                 <CommentIconBtn
-                  title="Editar comentário"
+                  title={t('comment.action.edit')}
                   onClick={() => { setEditingId(comment.id); setEditContent(content); }}
                 >
                   <Icon name="edit" size={15} />
                 </CommentIconBtn>
-                <CommentIconBtn $danger title="Excluir comentário" onClick={() => setConfirmDeleteId(comment.id)}>
+                <CommentIconBtn $danger title={t('comment.action.delete')} onClick={() => setConfirmDeleteId(comment.id)}>
                   <Icon name="deleteBin" size={15} />
                 </CommentIconBtn>
               </>
@@ -785,7 +781,7 @@ export default function NewsReadView({ tabKey }) {
             <LikeBtn
               $liked={liked}
               onClick={() => toggleCommentLike(comment)}
-              title={liked ? 'Remover curtida' : 'Curtir'}
+              title={liked ? t('comment.action.unlike') : t('comment.action.like')}
             >
               <Icon name="thumbUp" size={14} />
               {listOf(comment.likedBy).length > 0 ? formatLikes(listOf(comment.likedBy).length) : null}
@@ -800,8 +796,10 @@ export default function NewsReadView({ tabKey }) {
     <>
       <Root>
         <TabBar>
-          <TabBtn $active={activeTab === 'news'} onClick={() => setActiveTab('news')}>Notícia</TabBtn>
-          <TabBtn $active={activeTab === 'documents'} onClick={() => setActiveTab('documents')}>Documentos</TabBtn>
+          <TabBtn $active={activeTab === 'news'} onClick={() => setActiveTab('news')}>{t('read.tab.news')}</TabBtn>
+          <TabBtn $active={activeTab === 'documents'} onClick={() => setActiveTab('documents')}>
+            {t('read.tab.documents')}
+          </TabBtn>
         </TabBar>
 
         {activeTab === 'news' ? (
@@ -809,15 +807,15 @@ export default function NewsReadView({ tabKey }) {
             <Article>
               <CardBody>
                 <AvatarColumn>
-                  <UserAvatar src={record.createdByPhotoURL || null} name={record.createdByName || 'Autor'} size={52} />
-                  <AuthorName title={record.createdByName}>{record.createdByName || 'Autor'}</AuthorName>
+                  <UserAvatar src={record.createdByPhotoURL || null} name={record.createdByName || t('view.author')} size={52} />
+                  <AuthorName title={record.createdByName}>{record.createdByName || t('view.author')}</AuthorName>
                 </AvatarColumn>
 
                 <ContentColumn>
                   <TitleRow>
                     <Title>{record.title}</Title>
                     {canEdit ? (
-                      <ActionBtn onClick={() => list.openRecord(record)} title="Editar notícia">
+                      <ActionBtn onClick={() => list.openRecord(record)} title={t('read.edit')}>
                         <Icon name="edit" size={16} />
                       </ActionBtn>
                     ) : null}
@@ -829,13 +827,20 @@ export default function NewsReadView({ tabKey }) {
                   </TitleRow>
 
                   <MetaChips>
-                    <CategoryBadge>{categoryOption ? categoryOption.label : (record.category || 'Geral')}</CategoryBadge>
-                    <DateText>{longStamp(record.updatedByName ? record.updatedAt : record.createdAt)}</DateText>
+                    <CategoryBadge>
+                      {categoryOption ? categoryOption.label : (record.category || t('category.general'))}
+                    </CategoryBadge>
+                    <DateText>
+                      {formatDateTime(asDate(record.updatedByName ? record.updatedAt : record.createdAt))}
+                    </DateText>
                   </MetaChips>
 
                   {record.updatedByName ? (
                     <EditedMeta>
-                      editado por {record.updatedByName} · publicado em {longStamp(record.createdAt)}
+                      {t('read.edited-meta', {
+                        name: record.updatedByName,
+                        when: formatDateTime(asDate(record.createdAt)),
+                      })}
                     </EditedMeta>
                   ) : null}
 
@@ -859,32 +864,36 @@ export default function NewsReadView({ tabKey }) {
                   {record.sourceURL ? (
                     <SourceLink href={record.sourceURL} target="_blank" rel="noopener noreferrer">
                       <Icon name="fileText" size={14} />
-                      Ver fonte original
+                      {t('read.source')}
                     </SourceLink>
                   ) : null}
 
                   <StatsRow>
-                    <StatItem $active={hasLiked} onClick={toggleLike} title={hasLiked ? 'Descurtir' : 'Curtir'}>
+                    <StatItem
+                      $active={hasLiked}
+                      onClick={toggleLike}
+                      title={hasLiked ? t('read.action.unlike') : t('read.action.like')}
+                    >
                       <Icon name="heart" size={16} />
-                      {likeCount} {likeCount === 1 ? 'curtida' : 'curtidas'}
+                      {t('read.likes', { count: likeCount })}
                     </StatItem>
-                    <StatItem disabled title="Visualizações">
+                    <StatItem disabled title={t('read.action.views')}>
                       <Icon name="eye" size={16} />
-                      {viewCount} {viewCount === 1 ? 'visualização' : 'visualizações'}
+                      {t('read.views', { count: viewCount })}
                     </StatItem>
                     {isRead ? (
-                      <StatItem onClick={markAsUnread} title="Marcar como não lida">
+                      <StatItem onClick={markAsUnread} title={t('read.action.mark-unread')}>
                         <Icon name="mailOpen" size={16} />
-                        Marcar como não lida
+                        {t('read.action.mark-unread')}
                       </StatItem>
                     ) : null}
                     <SaveBtn
                       $active={isSaved}
                       onClick={toggleSaved}
-                      title={isSaved ? 'Remover dos salvos' : 'Salvar para depois'}
+                      title={isSaved ? t('read.action.unsave') : t('read.action.save')}
                     >
                       <Icon name="bookmark" size={16} />
-                      {isSaved ? 'Salvo' : 'Salvar para depois'}
+                      {isSaved ? t('read.action.saved') : t('read.action.save')}
                     </SaveBtn>
                   </StatsRow>
                 </ContentColumn>
@@ -895,12 +904,12 @@ export default function NewsReadView({ tabKey }) {
               <CommentsHeader>
                 <CommentsTitle>
                   <TitleIcon><Icon name="chat3" size={18} /></TitleIcon>
-                  Comentários
+                  {t('comments.title')}
                   {threadComments.length > 0 ? <Count>{threadComments.length}</Count> : null}
                 </CommentsTitle>
                 {threadComments.length > 0 ? (
                   <CollapseBtn onClick={() => setCollapsed(!collapsed)}>
-                    {collapsed ? 'Expandir' : 'Recolher'}
+                    {collapsed ? t('comments.expand') : t('comments.collapse')}
                   </CollapseBtn>
                 ) : null}
               </CommentsHeader>
@@ -911,7 +920,7 @@ export default function NewsReadView({ tabKey }) {
                 <>
                   {collapsed ? null : (
                     threadComments.length === 0 ? (
-                      <Empty>Nenhum comentário ainda. Seja o primeiro a comentar.</Empty>
+                      <Empty>{t('comments.empty')}</Empty>
                     ) : (
                       <CommentList>{threadComments.map(renderComment)}</CommentList>
                     )
@@ -924,14 +933,14 @@ export default function NewsReadView({ tabKey }) {
                         <MarkdownEditor
                           value={newContent}
                           onChange={setNewContent}
-                          placeholder="Escreva um comentário em Markdown..."
+                          placeholder={t('comments.placeholder')}
                         />
                         <RowEnd>
                           <Button variant="secondary" onClick={() => { setEditorOpen(false); setNewContent(''); }}>
-                            Cancelar
+                            {t('core.ui/action.cancel')}
                           </Button>
                           <Button onClick={submitComment} disabled={submitting || !newContent.trim()}>
-                            Comentar
+                            {t('comments.submit')}
                           </Button>
                         </RowEnd>
                       </EditorBody>
@@ -940,7 +949,7 @@ export default function NewsReadView({ tabKey }) {
                     <EditorRow>
                       <EditorAvatar><Icon name="chat3" size={16} /></EditorAvatar>
                       <EditorTrigger onClick={() => setEditorOpen(true)}>
-                        Adicionar um comentário...
+                        {t('comments.trigger')}
                       </EditorTrigger>
                     </EditorRow>
                   )}

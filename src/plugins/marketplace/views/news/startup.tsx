@@ -3,7 +3,10 @@ import { Icon } from '@microteia/ui';
 const SOURCE_ID = 'microteia:news';
 const READ_TAB_PREFIX = 'news-read:';
 const LIST_KEY = 'news';
-const GROUP = 'Notícias';
+const NAMESPACE = 'com.microteia.news';
+
+/** A reference into this extension's own catalog, for whoever renders the label to resolve. */
+const message = (key) => '@' + NAMESPACE + '/' + key;
 
 const screenOf = (ctx) => ctx.screenDefinitions.find((s) => (s.sourceId || s.id) === SOURCE_ID);
 const textOf = (record, key) => (key && typeof record[key] === 'string' ? record[key] : '');
@@ -22,27 +25,39 @@ const matches = (record, q) => {
 
 export default function startup(host) {
   host.commands.register({
-    group: GROUP,
+    group: message('command.group'),
+    /**
+     * `getItems` is not a component, so there is no hook here — the translator arrives in the CONTEXT.
+     * An absolute key (`namespace/key`) makes it resolve this extension's catalog instead of the
+     * kernel's.
+     *
+     * The query is compared against the TRANSLATED title, and that is the whole point: matching a
+     * hardcoded phrase would leave the command unreachable for anyone typing what they actually read
+     * on screen.
+     */
     getItems(query, ctx) {
       const q = String(query || '').toLowerCase().trim();
       if (!q) return [];
       const screen = screenOf(ctx);
       if (!screen) return [];
       const icon = <Icon name="newspaper" size={16} />;
+      const group = message('command.group');
+      const newTitle = ctx.t(NAMESPACE + '/command.new');
+      const openTitle = ctx.t(NAMESPACE + '/command.open');
       const items = [];
-      if ('nova notícia'.indexOf(q) !== -1) {
-        items.push({ id: 'noticia:new', title: 'Nova notícia', group: GROUP, icon, onSelect: () => { ctx.openTab('new-dyn:' + screen.id); ctx.close(); } });
+      if (newTitle.toLowerCase().indexOf(q) !== -1) {
+        items.push({ id: 'news:new', title: newTitle, group, icon, onSelect: () => { ctx.openTab('new-dyn:' + screen.id); ctx.close(); } });
       }
-      if ('abrir notícias'.indexOf(q) !== -1) {
-        items.push({ id: 'noticia:list', title: 'Abrir Notícias', group: GROUP, icon, onSelect: () => { ctx.openTab(LIST_KEY); ctx.close(); } });
+      if (openTitle.toLowerCase().indexOf(q) !== -1) {
+        items.push({ id: 'news:list', title: openTitle, group, icon, onSelect: () => { ctx.openTab(LIST_KEY); ctx.close(); } });
       }
       for (const r of recordsOf(ctx, screen)) {
         if (!matches(r, q)) continue;
         items.push({
-          id: 'noticia:' + r.id,
+          id: 'news:' + r.id,
           title: textOf(r, 'title'),
-          subtitle: textOf(r, 'summary') || 'Notícia',
-          group: GROUP,
+          subtitle: textOf(r, 'summary'),
+          group,
           icon,
           onSelect: () => { ctx.openTab(READ_TAB_PREFIX + r.id); ctx.close(); },
         });
@@ -52,9 +67,11 @@ export default function startup(host) {
   });
 
   host.mentions.register({
-    key: 'noticia',
-    label: 'Notícia',
-    description: 'Inserir link para uma notícia',
+    // The trigger typed after `@`. It is an IDENTIFIER, not a label: it stays stable across languages,
+    // the same way a field key does.
+    key: 'news',
+    label: message('mention.label'),
+    description: message('mention.description'),
     icon: 'newspaper',
     search(query, ctx) {
       const screen = screenOf(ctx);
@@ -66,7 +83,7 @@ export default function startup(host) {
         .map((r) => ({
           id: r.id,
           title: textOf(r, 'title'),
-          subtitle: textOf(r, 'summary') || 'Notícia',
+          subtitle: textOf(r, 'summary'),
           tabKey: READ_TAB_PREFIX + r.id,
         }));
     },

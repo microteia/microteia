@@ -1,10 +1,10 @@
 {
   "manifest": {
     "id": "com.microteia.dashboard",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "kernel": "^1.0.0",
-    "name": "Dashboard",
-    "description": "A tela de abertura do escritório, montada com os widgets que cada extensão oferece.",
+    "name": "@com.microteia.dashboard/package.name",
+    "description": "@com.microteia.dashboard/package.description",
     "publisher": {
       "name": "Microteia"
     },
@@ -13,12 +13,70 @@
     },
     "contributes": [
       {
+        "point": "i18n.messages",
+        "id": "en.com.microteia.dashboard",
+        "apiVersion": "1.0.0",
+        "metadata": {
+          "locale": "en",
+          "namespace": "com.microteia.dashboard",
+          "messages": {
+            "package.name": "Dashboard",
+            "package.description": "The opening screen of the office, assembled from the widgets each extension offers.",
+            "package.summary": "The opening screen of the office: a grid of widgets offered by each installed extension. You choose which ones appear, in what order and at what width — and each person can assemble their own.",
+            "nav.dashboard": "Dashboard",
+            "page.dashboard": "Dashboard",
+            "settings.section.title": "Dashboard",
+            "settings.section.description": "What appears on the opening screen, in what order and at what width.",
+            "settings.widgets": "Dashboard widgets",
+            "settings.widgets.description": "Tick the cards that should appear, choose the width of each one (1 to 3 columns) and use the arrows to order them. Whatever an extension installs later goes to the end of the list.",
+            "overview.body": "The **Dashboard** is the screen that opens when you enter the office. It has no content of its own: it shows the **widgets** that other extensions offer — the numbers, the dates coming due, the summaries.\n\nIn **Settings → Dashboard** you turn each widget on and off and set its width (1, 2 or 3 columns) and its order. The administrator sets the default Dashboard of the office under **Office**; each person can assemble their own under **User**.",
+            "overview.adds": "Adds",
+            "overview.adds.value": "A \"Dashboard\" item in the menu",
+            "overview.content": "Content",
+            "overview.content.value": "Widgets from the installed extensions",
+            "overview.configuration": "Configuration",
+            "overview.configuration.value": "Per office and per user",
+            "overview.banner": "Installing an extension that offers widgets makes its cards appear here automatically; removing the extension takes them away, leaving no empty space.",
+            "view.empty": "No widgets available. Install extensions to give the Dashboard content."
+          }
+        }
+      },
+      {
+        "point": "i18n.messages",
+        "id": "pt-br.com.microteia.dashboard",
+        "apiVersion": "1.0.0",
+        "metadata": {
+          "locale": "pt-BR",
+          "namespace": "com.microteia.dashboard",
+          "messages": {
+            "package.name": "Painel",
+            "package.description": "A tela de abertura do escritório, montada com os widgets que cada extensão oferece.",
+            "package.summary": "A tela de abertura do escritório: uma grade de widgets que cada extensão instalada oferece. Você escolhe quais aparecem, em que ordem e com que largura — e cada pessoa pode montar o seu do jeito que preferir.",
+            "nav.dashboard": "Painel",
+            "page.dashboard": "Painel",
+            "settings.section.title": "Painel",
+            "settings.section.description": "O que aparece na tela de abertura, em que ordem e com que largura.",
+            "settings.widgets": "Widgets do Painel",
+            "settings.widgets.description": "Marque os cartões que devem aparecer, escolha a largura de cada um (1 a 3 colunas) e use as setas para ordenar. O que a extensão instalar depois entra no fim da lista.",
+            "overview.body": "O **Painel** é a tela que abre quando você entra no escritório. Ele não tem conteúdo próprio: mostra os **widgets** que as outras extensões oferecem — os números, as datas que vencem, os resumos.\n\nEm **Configurações → Painel** você liga e desliga cada widget, define a largura (1, 2 ou 3 colunas) e a ordem. O administrador define o Painel padrão do escritório em **Escritório**; cada pessoa pode montar o seu em **Usuário**.",
+            "overview.adds": "Adiciona",
+            "overview.adds.value": "Item \"Painel\" no menu",
+            "overview.content": "Conteúdo",
+            "overview.content.value": "Widgets das extensões instaladas",
+            "overview.configuration": "Configuração",
+            "overview.configuration.value": "Por escritório e por usuário",
+            "overview.banner": "Instalar uma extensão que ofereça widgets faz os cartões dela aparecerem aqui automaticamente; remover a extensão os retira, sem deixar espaço vazio.",
+            "view.empty": "Nenhum widget disponível. Instale extensões para o Painel ganhar conteúdo."
+          }
+        }
+      },
+      {
         "point": "ui.nav",
         "id": "dashboard",
         "apiVersion": "1.0.0",
         "metadata": {
           "key": "dashboard",
-          "label": "Dashboard",
+          "label": "@com.microteia.dashboard/nav.dashboard",
           "icon": "dashboard",
           "order": 10
         }
@@ -29,7 +87,7 @@
         "apiVersion": "1.0.0",
         "metadata": {
           "key": "dashboard",
-          "title": "Dashboard",
+          "title": "@com.microteia.dashboard/page.dashboard",
           "icon": "dashboard",
           "fullBleed": true
         },
@@ -44,15 +102,15 @@
         "apiVersion": "1.0.0",
         "metadata": {
           "key": "dashboard",
-          "title": "Dashboard",
+          "title": "@com.microteia.dashboard/settings.section.title",
           "icon": "dashboard",
           "order": 10,
-          "description": "O que aparece na tela de abertura, em que ordem e com que largura.",
+          "description": "@com.microteia.dashboard/settings.section.description",
           "properties": [
             {
               "key": "dashboard.widgets",
-              "label": "Widgets do Dashboard",
-              "description": "Marque os cartões que devem aparecer, escolha a largura de cada um (1 a 3 colunas) e use as setas para ordenar. O que a extensão instalar depois entra no fim da lista.",
+              "label": "@com.microteia.dashboard/settings.widgets",
+              "description": "@com.microteia.dashboard/settings.widgets.description",
               "type": "widgets",
               "surface": "dashboard",
               "default": [],
@@ -66,35 +124,35 @@
       }
     ]
   },
-  "summary": "A tela de abertura do escritório: uma grade de widgets que cada extensão instalada oferece. Você escolhe quais aparecem, em que ordem e com que largura — e cada pessoa pode montar o seu do jeito que preferir.",
+  "summary": "@com.microteia.dashboard/package.summary",
   "overview": {
     "type": "stack",
     "gap": "lg",
     "children": [
       {
         "type": "markdown",
-        "content": "O **Dashboard** é a tela que abre quando você entra no escritório. Ele não tem conteúdo próprio: mostra os **widgets** que as outras extensões oferecem — os números dos processos, os prazos que vencem, o resumo do financeiro.\n\nEm **Configurações → Dashboard** você liga e desliga cada widget, define a largura (1, 2 ou 3 colunas) e a ordem. O administrador define o Dashboard padrão do escritório em **Escritório**; cada pessoa pode montar o seu em **Usuário**."
+        "content": "@com.microteia.dashboard/overview.body"
       },
       {
         "type": "keyValue",
         "items": [
           {
-            "label": "Adiciona",
-            "value": "Item \"Dashboard\" no menu"
+            "label": "@com.microteia.dashboard/overview.adds",
+            "value": "@com.microteia.dashboard/overview.adds.value"
           },
           {
-            "label": "Conteúdo",
-            "value": "Widgets das extensões instaladas"
+            "label": "@com.microteia.dashboard/overview.content",
+            "value": "@com.microteia.dashboard/overview.content.value"
           },
           {
-            "label": "Configuração",
-            "value": "Por escritório e por usuário"
+            "label": "@com.microteia.dashboard/overview.configuration",
+            "value": "@com.microteia.dashboard/overview.configuration.value"
           }
         ]
       },
       {
         "type": "banner",
-        "message": "Instalar uma extensão que ofereça widgets faz os cartões dela aparecerem aqui automaticamente; remover a extensão os retira, sem deixar espaço vazio.",
+        "message": "@com.microteia.dashboard/overview.banner",
         "variant": "info"
       }
     ]
@@ -103,9 +161,9 @@
   "views": [
     {
       "key": "dashboard",
-      "title": "Dashboard",
+      "title": "@com.microteia.dashboard/page.dashboard",
       "icon": "dashboard",
-      "source": "import { WidgetSurface } from '@microteia/ui';\nimport { styled } from 'styled-components';\n\nconst Page = styled.div`\n  padding: ${({ theme }) => theme.spacing.xl};\n  height: 100%;\n  overflow-y: auto;\n`;\n\nexport default function DashboardView() {\n  return (\n    <Page>\n      <WidgetSurface\n        surface=\"dashboard\"\n        emptyMessage=\"Nenhum widget disponível. Instale extensões (Processos, Prazos, Financeiro…) para o Dashboard ganhar conteúdo.\"\n      />\n    </Page>\n  );\n}\n"
+      "source": "import { WidgetSurface } from '@microteia/ui';\nimport { useT } from '@microteia/i18n';\nimport { styled } from 'styled-components';\n\nconst Page = styled.div`\n  padding: ${({ theme }) => theme.spacing.xl};\n  height: 100%;\n  overflow-y: auto;\n`;\n\nexport default function DashboardView() {\n  const t = useT('com.microteia.dashboard');\n\n  return (\n    <Page>\n      <WidgetSurface surface=\"dashboard\" emptyMessage={t('view.empty')} />\n    </Page>\n  );\n}\n"
     }
   ]
 }

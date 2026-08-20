@@ -241,11 +241,18 @@ exclusivamente no pacote `com.microteia.locale-pt-br` — nunca no núcleo.
 | Texto que o usuário lê (rótulo, botão, mensagem de erro, placeholder, título) | **inglês** | catálogo `en` em `src/plugins/messages/` |
 | Tradução desse texto | português | `src/plugins/marketplace/localePtBr/` |
 | Comentário de código, JSDoc | **português** | código |
+| Comentário das extensões que viajam como exemplo de autoria | **inglês** | `marketplace/{calendar,dashboard,news}*.ts` e as views delas |
 | `ARCHITECTURE.md`, `CLAUDE.md`, `VERSIONS.md`, README | **português** | raiz |
 | Mensagem de commit, nome de teste (`describe`/`it`) | **português** | git / `*.test.ts` |
 
 A regra separa **produto** de **comunicação**. O produto é falado em inglês porque tem de poder ser
 falado em qualquer idioma; a comunicação entre nós continua em português porque é nossa.
+
+**A exceção do comentário tem o mesmo teste:** de quem é o leitor. Calendário, Painel e Notícias são
+agnósticas de negócio e viajam no pacote do SDK como exemplo de autoria — quem lê o comentário delas é
+o autor de extensão do escritório, não nós, e ali o comentário é documentação de API pela mesma razão
+que `extensionTypeDefs.ts` é. As extensões de DOMÍNIO seguem em português. Ver "A extensão AGNÓSTICA de
+negócio nasce no idioma-fonte" no `ARCHITECTURE.md`.
 
 **Nunca escreva uma frase em português destinada ao usuário.** Em vez disso:
 

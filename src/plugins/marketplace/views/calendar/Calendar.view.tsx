@@ -6,6 +6,7 @@ import {
 } from '@microteia/data';
 import { getConfigColor } from '@microteia/theme';
 import { useSettingValue } from '@microteia/settings';
+import { useLocale, useT } from '@microteia/i18n';
 
 const SOURCE_ID = 'microteia:calendar';
 const COLLECTION = 'calendar';
@@ -196,7 +197,7 @@ const EventCard = styled.div`
   background: ${({ theme, $done }) => $done ? theme.colors.background : theme.colors.primary + '08'};
   opacity: ${({ $done, $dragging, $pending }) => $dragging ? 0.35 : $pending ? 0.5 : $done ? 0.72 : 1};
   cursor: ${({ $dragging }) => $dragging ? 'grabbing' : 'grab'};
-  /* A caminho: o cartão já está no dia novo, mas quem confirma é a origem. */
+  /* In flight: the card already sits on the new day, but the origin is what confirms it. */
   border-top: 1px dashed ${({ $pending, theme }) => $pending ? theme.colors.primary : 'transparent'};
   transition: opacity ${({ theme }) => theme.transitions.fast}, transform ${({ theme }) => theme.transitions.fast}, box-shadow ${({ theme }) => theme.transitions.fast};
 
@@ -348,11 +349,16 @@ const LegendDot = styled.span`
   flex-shrink: 0;
 `;
 
-const WEEKDAYS = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'];
-const MONTHS = [
-  'janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho',
-  'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro',
-];
+/**
+ * Month and weekday names come from `Intl`, never from an array written by hand. A hardcoded list is
+ * a language nailed into the code: it looked harmless while the product spoke one language, and it is
+ * exactly what an agenda cannot afford — every office in the world keeps dates.
+ */
+const monthLabelOf = (locale, date) =>
+  new Intl.DateTimeFormat(locale, { month: 'long', year: 'numeric' }).format(date);
+
+const weekdayOf = (locale, date) =>
+  new Intl.DateTimeFormat(locale, { weekday: 'short' }).format(date);
 
 const pad = (value) => String(value).padStart(2, '0');
 
@@ -379,9 +385,9 @@ const daysOfMonth = (month) => {
 const isClosed = (record) => record.status === 'closed';
 
 /**
- * O item aparece no dia em que ele ACONTECE — e um item concluído aconteceu no dia da conclusão. É
- * a mesma leitura da agenda anterior: o que já passou se lê onde foi resolvido, não onde estava
- * marcado.
+ * The item shows up on the day it HAPPENS — and a completed item happened on the day it was
+ * completed. It is the same reading as the previous agenda: what is past is read where it was
+ * resolved, not where it was scheduled.
  */
 const displayDate = (record) => {
   const finish = dateOf(record.finishDate);
@@ -390,14 +396,14 @@ const displayDate = (record) => {
 };
 
 /**
- * ONDE o cartão aparece. Normalmente é o dia do dado; enquanto a origem não responde ao arrasto, é
- * o dia para onde ele foi levado — senão o cartão volta ao lugar e o gesto parece ter falhado,
- * embora esteja a caminho.
+ * WHERE the card appears. Normally it is the day on the data; while the origin has not answered the
+ * drag, it is the day it was dragged to — otherwise the card snaps back and the gesture looks as if
+ * it had failed, even though it is on its way.
  *
- * A aposta se desfaz SOZINHA, e é isso que a torna segura: ela só vale enquanto o registro ainda
- * está onde estava ('from'). Assim que a gravação chega, o item deixa de casar com 'from' e quem
- * manda volta a ser o dado — inclusive quando a origem decide um TERCEIRO dia, que é a razão de a
- * agenda não poder simplesmente confiar no dia que o usuário soltou.
+ * The bet undoes ITSELF, and that is what makes it safe: it only holds while the record is still
+ * where it was ('from'). As soon as the write lands, the item stops matching 'from' and the data is
+ * in charge again — including when the origin decides on a THIRD day, which is why the agenda cannot
+ * simply trust the day the user dropped it on.
  */
 const positionOf = (record, moves) => {
   const shown = displayDate(record);
@@ -417,7 +423,7 @@ const byPriority = (a, b) => {
 
 const text = (value) => (typeof value === 'string' ? value : '');
 
-/** A contribuição atende este item? Origem vazia na declaração significa "qualquer origem". */
+/** Does the contribution serve this item? An empty origin in the declaration means "any origin". */
 const servesRecord = (contribution, record) => {
   const origem = text(contribution.metadata.origem);
   return origem === '' || origem === record.origem;
@@ -425,6 +431,8 @@ const servesRecord = (contribution, record) => {
 
 export default function CalendarView() {
   const theme = useTheme();
+  const t = useT('com.microteia.calendar');
+  const { locale } = useLocale();
   const list = useEntityList(SOURCE_ID);
   const moveActions = useContributions(MOVE_POINT);
   const moveLayout = useSettingValue(MOVE_SETTING);
@@ -441,13 +449,13 @@ export default function CalendarView() {
   });
   const [draggingId, setDraggingId] = useState(null);
   const [dragOverKey, setDragOverKey] = useState(null);
-  // O arrasto em trânsito: { [id]: { from, to } }. Ver positionOf.
+  // The drag in flight: { [id]: { from, to } }. See positionOf.
   const [moves, setMoves] = useState({});
   const scrollerRef = useRef(null);
 
   const records = list.filteredRecords;
 
-  const monthLabel = MONTHS[month.getMonth()] + ' ' + month.getFullYear();
+  const monthLabel = monthLabelOf(locale, month);
 
   const days = useMemo(() => {
     const todayKey = dayKey(new Date());
@@ -461,12 +469,12 @@ export default function CalendarView() {
         date,
         key,
         dayNumber: date.getDate(),
-        weekday: WEEKDAYS[date.getDay()],
+        weekday: weekdayOf(locale, date),
         isToday: key === todayKey,
         items,
       };
     });
-  }, [month, records, moves]);
+  }, [month, records, moves, locale]);
 
   const stats = useMemo(() => {
     const prefix = month.getFullYear() + '-' + pad(month.getMonth() + 1);
@@ -487,8 +495,8 @@ export default function CalendarView() {
     };
   }, [records, month]);
 
-  // A agenda abre no dia de hoje, não no dia 1: é o que o mês corrente tem de útil. Ler o nó só
-  // dentro do efeito é a regra — no render, a medida ainda não existe.
+  // The agenda opens on today, not on the 1st: that is what is useful about the current month.
+  // Reading the node only inside the effect is the rule — during render the measure does not exist yet.
   useEffect(() => {
     const container = scrollerRef.current;
     if (!container) return;
@@ -526,7 +534,7 @@ export default function CalendarView() {
     list.setFilterTokens(key === null ? others : others.concat([{ key: 'priority', values: [key] }]));
   }, [list]);
 
-  const executarMovimento = useCallback(async (contribution, record, params) => {
+  const runMoveAction = useCallback(async (contribution, record, params) => {
     const result = await runAction({
       actionSourceId: text(contribution.metadata.actionSourceId),
       collection: COLLECTION,
@@ -539,9 +547,9 @@ export default function CalendarView() {
   }, [runAction, notify]);
 
   /**
-   * Arrastar não grava: pergunta. A lista de quem responde ao movimento é a das Configurações — o
-   * escritório liga, desliga e ordena —, e vale a PRIMEIRA que atende aquela origem. Rodar todas
-   * faria a extensão do Financeiro receber o arrasto de um prazo.
+   * Dragging does not write: it asks. The list of who answers a move is the one in Settings — the
+   * office turns entries on and off and orders them — and the FIRST one that serves that origin wins.
+   * Running them all would hand the Finance extension the drag of a deadline.
    */
   const handleDrop = useCallback(async (day, recordId) => {
     setDraggingId(null);
@@ -574,22 +582,22 @@ export default function CalendarView() {
       .sort((a, b) => order(a) - order(b))[0];
 
     if (!handler) {
-      notify('Nenhuma extensão responde por este item ao mudar de dia.', 'info');
+      notify(t('view.move.no-handler'), 'info');
       return;
     }
 
     /**
-     * A aposta é feita ANTES de chamar, e é só visual: o cartão aparece no dia novo enquanto a
-     * origem decide. Recusado, ela é desfeita na hora e o cartão volta; aceito, ela se desfaz
-     * sozinha quando o registro chega gravado (ver positionOf).
+     * The bet is placed BEFORE the call, and it is purely visual: the card appears on the new day
+     * while the origin decides. Refused, it is undone at once and the card returns; accepted, it
+     * undoes itself when the record arrives written (see positionOf).
      *
-     * Uma origem que responda "sucesso" sem mover nada deixaria o cartão adiantado até a próxima
-     * leitura da coleção. É o preço de não inventar um relógio aqui — e o sinal certo continua
-     * sendo o dado, não um tempo que a agenda arbitrasse.
+     * An origin that answers "success" without moving anything would leave the card ahead until the
+     * next read of the collection. That is the price of not inventing a clock here — and the right
+     * signal is still the data, not a timeout the agenda would arbitrate.
      */
     setMoves((prev) => ({ ...prev, [record.id]: { from: shown ? dayKey(shown) : null, to: day.key } }));
 
-    const ok = await executarMovimento(handler, record, { targetDate: day.key });
+    const ok = await runMoveAction(handler, record, { targetDate: day.key });
     if (!ok) {
       setMoves((prev) => {
         const next = {};
@@ -597,12 +605,12 @@ export default function CalendarView() {
         return next;
       });
     }
-  }, [records, moveActions, moveLayout, executarMovimento, notify, isVisible]);
+  }, [records, moveActions, moveLayout, runMoveAction, notify, isVisible, t]);
 
   if (!list.definition) {
     return (
       <div style={{ padding: '24px' }}>
-        <InfoBanner message='Tela "Calendário" não encontrada. Instale a extensão para ativá-la.' variant="warning" />
+        <InfoBanner message={t('view.screen-missing')} variant="warning" />
       </div>
     );
   }
@@ -612,32 +620,32 @@ export default function CalendarView() {
       <StatsBar>
         <StatItem>
           <StatValue>{stats.total}</StatValue>
-          <StatLabel>No mês</StatLabel>
+          <StatLabel>{t('view.stat.month')}</StatLabel>
         </StatItem>
         <StatItem>
           <StatValue $color={theme.colors.warning}>{stats.pending}</StatValue>
-          <StatLabel>Pendentes</StatLabel>
+          <StatLabel>{t('view.stat.pending')}</StatLabel>
         </StatItem>
         <StatItem>
           <StatValue $color={theme.colors.success}>{stats.closed}</StatValue>
-          <StatLabel>Concluídos</StatLabel>
+          <StatLabel>{t('view.stat.closed')}</StatLabel>
         </StatItem>
         <StatItem>
           <StatValue $color={theme.colors.danger}>{stats.late}</StatValue>
-          <StatLabel>Atrasados</StatLabel>
+          <StatLabel>{t('view.stat.late')}</StatLabel>
         </StatItem>
       </StatsBar>
 
       <CalendarCard>
         <MonthNav>
-          <NavButton onClick={() => goToMonth(-1)} aria-label="Mês anterior">
+          <NavButton onClick={() => goToMonth(-1)} aria-label={t('view.previous-month')}>
             <Icon name="arrowLeft" size={20} />
           </NavButton>
           <MonthLabel>{monthLabel}</MonthLabel>
-          <NavButton onClick={() => goToMonth(1)} aria-label="Próximo mês">
+          <NavButton onClick={() => goToMonth(1)} aria-label={t('view.next-month')}>
             <Icon name="arrowRight" size={20} />
           </NavButton>
-          <TodayButton onClick={goToToday}>Hoje</TodayButton>
+          <TodayButton onClick={goToToday}>{t('view.today')}</TodayButton>
         </MonthNav>
 
         <FilterRow>
@@ -646,7 +654,7 @@ export default function CalendarView() {
             tokens={list.filterTokens}
             onChange={list.setFilterTokens}
             screenKey={list.savedFiltersScreenKey}
-            placeholder="Filtrar a agenda..."
+            placeholder={t('view.filter.placeholder')}
           />
         </FilterRow>
 
@@ -694,10 +702,10 @@ export default function CalendarView() {
                       ) : null}
 
                       {/*
-                        As linhas do cartão saem da CONFIGURAÇÃO da tela — os campos marcados para
-                        aparecer na listagem. É por aqui que o campo acrescentado por outra extensão
-                        (o processo de um prazo, a pessoa de uma audiência) chega ao cartão sem que
-                        a agenda o conheça pelo nome.
+                        The card lines come from the SCREEN configuration — the fields marked to
+                        appear in the list. This is how a field added by another extension (the case
+                        of a deadline, the person of a hearing) reaches the card without the agenda
+                        knowing it by name.
                       */}
                       {list.getCardItems(record).map((item) => (
                         <MetaRow key={item.key}>
@@ -720,11 +728,12 @@ export default function CalendarView() {
                     </EventMeta>
 
                     {/*
-                      Os gestos do cartão vêm da CONFIGURAÇÃO da tela — "Ações do card na listagem"
-                      do Form Design —, resolvidos pelo mesmo caminho de qualquer listagem: as ações
-                      nativas que a tela habilitou mais as do escritório, já com a expressão de
-                      visibilidade avaliada registro a registro. A agenda não conhece nenhuma pelo nome, e o
-                      usuário acrescenta ou tira quantas quiser sem tocar neste código.
+                      The card gestures come from the SCREEN configuration — "Card actions in the
+                      list" in the Form Design — resolved through the same path as any list: the
+                      native actions the screen enabled plus the office's own, with the visibility
+                      expression already evaluated record by record. The agenda knows none of them by
+                      name, and the user adds or removes as many as they like without touching this
+                      code.
                     */}
                     {list.getCardActions(record).length > 0 ? (
                       <CardActions className="calendar-card-actions">
@@ -749,9 +758,9 @@ export default function CalendarView() {
         </DayColumnsScroller>
 
         <Legend>
-          <LegendLabel>Prioridade:</LegendLabel>
+          <LegendLabel>{t('view.legend.priority')}</LegendLabel>
           <LegendItem onClick={() => filterByPriority(null)}>
-            <span>Todas</span>
+            <span>{t('view.legend.all')}</span>
           </LegendItem>
           {priorityOptions.map((option) => (
             <LegendItem
@@ -766,9 +775,9 @@ export default function CalendarView() {
         </Legend>
       </CalendarCard>
 
-      {/* Ação que pergunta parâmetros antes de executar, confirmação de exclusão e etiquetas — os
-          mesmos modais da listagem padrão. Sem eles, uma ação com parâmetros ficaria esperando por
-          uma pergunta que ninguém desenha. */}
+      {/* An action that asks for parameters before running, the delete confirmation and the tags —
+          the same modals as the default list. Without them, an action with parameters would wait for
+          a question nobody draws. */}
       <EntityListModals vm={list} />
     </>
   );

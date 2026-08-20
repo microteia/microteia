@@ -1,4 +1,5 @@
 import { useCallback, useMemo } from 'react';
+import { useLabel } from '../i18n/useT';
 import { useLookups } from '../../../stores/useLookups';
 import { useScreenDefinitions } from '../../../stores/useScreenDefinitions';
 import { useRecords } from '../../../stores/useRecords';
@@ -9,7 +10,7 @@ import {
   buildViewTabKey,
 } from '../../../shared/constants/dynamicScreenKeys';
 import { isBoundScreen, screenDataCollection } from '../../../domain/services/screenDataCollection';
-import { useEntityFormFields } from '../useEntityFormFields';
+import { screenForDisplay, useEntityFormFields, useResolvedFields } from '../useEntityFormFields';
 import type { EntityRecord, FieldDefinition, ScreenDefinition } from '../../../domain/entities';
 
 /**
@@ -50,10 +51,12 @@ export const useEntity = (sourceId: string): ExtensionEntity => {
   const { recordsByCollection, isLoading, deleteRecord } = useRecords();
   const { openTab } = useWorkspace();
 
-  const screen = useMemo(
+  const label = useLabel();
+  const stored = useMemo(
     () => dynamicScreens.find((definition) => (definition.sourceId ?? definition.id) === sourceId) ?? null,
     [dynamicScreens, sourceId],
   );
+  const screen = useMemo(() => screenForDisplay(stored, label), [stored, label]);
   const screenKey = screen?.id ?? null;
   const collection = screen ? screenDataCollection(screen) : null;
   const isBound = !!screen && isBoundScreen(screen);
@@ -61,10 +64,11 @@ export const useEntity = (sourceId: string): ExtensionEntity => {
   // Tela ligada a outra coleção lê os campos da COLEÇÃO (declaração dela + as demais que a descrevem).
   const boundFields = useEntityFormFields(isBound && collection ? collection : '');
 
-  const fields = useMemo(
+  const declared = useMemo(
     () => (isBound ? boundFields.fields : screen?.fields ?? []),
     [isBound, boundFields.fields, screen],
   );
+  const fields = useResolvedFields(declared);
 
   const records = useMemo(
     () => (collection ? recordsByCollection[collection] ?? [] : []),

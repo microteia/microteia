@@ -207,6 +207,15 @@ export const CORE_RECORDS_MESSAGES: Record<string, string> = {
   'record.delete.title': 'Delete record',
   'record.not-found': 'Record not found. It may have been deleted.',
   'record.title': 'Record',
+  // O nome da entidade entra como PARÂMETRO, e não concatenado. "Novo " + titleSingular parecia
+  // inofensivo e era um idioma preso no código: não é frase, então nenhum seletor de ESLint o via.
+  'record.new.title': 'New {entity}',
+  'record.create-action': 'Add {entity}',
+  'record.filter.placeholder': 'Filter {entity}...',
+  'record.list.empty': 'No records found',
+  'record.created': '{entity} created successfully!',
+  'record.updated': '{entity} updated successfully!',
+  'record.save-failed': 'Could not save the record.',
   'screen.custom': 'Custom screen',
   'screen.unavailable':
     'This custom screen is no longer available. It may have been disabled or deleted by the administrator.',

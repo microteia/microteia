@@ -39,7 +39,7 @@ const TEMPLATES = {
   'prazo.json': 'prazoPlugin',
   'push.json': 'pushPlugin',
   'financeiro.json': 'financeiroPlugin',
-  'noticia.json': 'noticiaPlugin',
+  'news.json': 'newsPlugin',
   'kanban-processos.json': 'kanbanCasesPlugin',
   'dashboard.json': 'dashboardPlugin',
   'calendar.json': 'calendarPlugin',

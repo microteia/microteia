@@ -87,8 +87,9 @@ export const useCommandPaletteViewModel = (): CommandPaletteViewModel => {
       tenantRole,
       navigablePages,
       t,
+      label,
     }),
-    [openTab, close, persons, cases, contracts, allRecords, screenDefinitions, workflows, themeId, themes, setTheme, signOut, userRole, tenantRole, navigablePages, t],
+    [openTab, close, persons, cases, contracts, allRecords, screenDefinitions, workflows, themeId, themes, setTheme, signOut, userRole, tenantRole, navigablePages, t, label],
   );
 
   const groups = useMemo<CommandPaletteGroup[]>(() => {

@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { styled } from 'styled-components';
 import { Dropdown, EntityListModals, EntityListView, Icon, InfoBanner, UserAvatar, cardActionIcon } from '@microteia/ui';
 import { useCurrentUser, useEntity, useEntityList, useLookup, useNotify, useUpdateRecord, useWorkspace } from '@microteia/data';
+import { useLocaleFormat, useT } from '@microteia/i18n';
 
 const SOURCE_ID = 'microteia:news';
 const COMMENT_SOURCE_ID = 'microteia:news-comment';
@@ -217,9 +218,9 @@ const IconBtn = styled.button`
   }
 `;
 
-// Um contador é REDONDO com um dígito e vira pílula com dois. Altura e largura mínima iguais, com o
-// texto centrado pelo próprio flex: num span de texto corrido o espaçamento vertical não empurra a
-// caixa, e a bolinha sai achatada.
+// A counter is ROUND with one digit and becomes a pill with two. Equal height and min-width, with the
+// text centred by flex itself: in a span of running text the vertical spacing does not push the box
+// out, and the dot comes out squashed.
 const HeaderCount = styled.span`
   display: inline-flex;
   align-items: center;
@@ -235,13 +236,14 @@ const HeaderCount = styled.span`
   line-height: 1;
 `;
 
-const stamp = (value) => {
-  if (!value) return '';
+/**
+ * The value as a Date, for the locale formatter to render. Formatting used to happen here, with
+ * `toLocaleString('pt-BR', ...)` written into the view — a whole language nailed into a date.
+ */
+const asDate = (value) => {
+  if (!value) return null;
   const date = value instanceof Date ? value : new Date(String(value));
-  if (isNaN(date.getTime())) return '';
-  return date.toLocaleString('pt-BR', {
-    day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit',
-  });
+  return isNaN(date.getTime()) ? null : date;
 };
 
 const listOf = (value) => (Array.isArray(value) ? value : []);
@@ -249,48 +251,53 @@ const has = (value, id) => !!id && listOf(value).indexOf(id) !== -1;
 const without = (value, id) => listOf(value).filter((item) => item !== id);
 const withValue = (value, id) => (has(value, id) ? listOf(value) : listOf(value).concat([id]));
 
-// A visão útil de quem abre o mural é o que ainda não leu.
-const NAO_LIDAS = [{ key: 'readStatus', values: ['UNREAD'] }];
-
-const READ_FILTER = {
-  key: 'readStatus',
-  label: 'Status de leitura',
-  type: 'select',
-  options: [
-    { value: 'UNREAD', label: 'Não lidas' },
-    { value: 'READ', label: 'Lidas' },
-    { value: 'SAVED', label: 'Salvos para depois' },
-  ],
-};
+// The useful view for whoever opens the noticeboard is what they have not read yet.
+const UNREAD_TOKENS = [{ key: 'readStatus', values: ['UNREAD'] }];
 
 export default function NewsListView() {
+  const t = useT('com.microteia.news');
+  const { formatDateTime } = useLocaleFormat();
   const me = useCurrentUser();
-  const list = useEntityList(SOURCE_ID, { defaultFilterTokens: NAO_LIDAS });
+  const list = useEntityList(SOURCE_ID, { defaultFilterTokens: UNREAD_TOKENS });
   const comments = useEntity(COMMENT_SOURCE_ID);
   const categories = useLookup('newsCategories');
   const updateRecord = useUpdateRecord();
   const notify = useNotify();
   const { openTab } = useWorkspace();
 
-  // A coleção é a que a TELA resolve, e não um nome fixo: a instalação pode desambiguar a chave, e
-  // uma gravação endereçada à coleção errada falha calada.
+  // The collection is the one the SCREEN resolves, not a fixed name: the install may disambiguate the
+  // key, and a write addressed to the wrong collection fails silently.
   const collection = list.collection;
 
   const patch = (record, data) => {
     void updateRecord(collection, record.id, data).catch(() => {
-      notify('Não foi possível gravar. Verifique se você tem permissão neste escritório.', 'error');
+      notify(t('view.write-denied'), 'error');
     });
   };
 
-  const filterDefs = useMemo(() => list.filterDefs.concat([READ_FILTER]), [list.filterDefs]);
+  /**
+   * The reading-status filter is the only one assembled here, and it has to be: it does not look at a
+   * field, it looks at the relation between the item and whoever is reading the screen. Its labels go
+   * through the catalog like any other text.
+   */
+  const filterDefs = useMemo(() => list.filterDefs.concat([{
+    key: 'readStatus',
+    label: t('list.filter.read-status'),
+    type: 'select',
+    options: [
+      { value: 'UNREAD', label: t('list.filter.unread') },
+      { value: 'READ', label: t('list.filter.read') },
+      { value: 'SAVED', label: t('list.filter.saved') },
+    ],
+  }]), [list.filterDefs, t]);
 
   const readStatus = useMemo(() => {
     const token = list.filterTokens.find((item) => item.key === 'readStatus');
     return token ? token.values : [];
   }, [list.filterTokens]);
 
-  // O status de leitura não é campo, é a relação entre a notícia e quem está olhando — por isso ele
-  // se resolve aqui, e não no filtro derivado do schema.
+  // Reading status is not a field, it is the relation between the item and whoever is looking — which
+  // is why it resolves here and not in the filter derived from the schema.
   const records = useMemo(() => {
     if (readStatus.length === 0) return list.filteredRecords;
     return list.filteredRecords.filter((record) => readStatus.some((status) => {
@@ -324,14 +331,14 @@ export default function NewsListView() {
   if (!list.definition) {
     return (
       <div style={{ padding: '24px' }}>
-        <InfoBanner message='Tela "Notícias" não encontrada. Instale a extensão para ativá-la.' variant="warning" />
+        <InfoBanner message={t('view.screen-missing')} variant="warning" />
       </div>
     );
   }
 
   const categoryLabel = (record) => {
     const option = categories.find((item) => item.key === record.category);
-    return option ? option.label : record.category || 'Geral';
+    return option ? option.label : record.category || t('category.general');
   };
 
   const toggleLike = (record) => patch(record, {
@@ -365,24 +372,26 @@ export default function NewsListView() {
       <Card key={record.id} $isRead={isRead} onClick={handleCardClick}>
         <CardBody>
           <AvatarColumn>
-            <UserAvatar src={record.createdByPhotoURL || null} name={record.createdByName || 'Autor'} size={40} />
-            <AuthorName>{record.createdByName || 'Autor'}</AuthorName>
+            <UserAvatar src={record.createdByPhotoURL || null} name={record.createdByName || t('view.author')} size={40} />
+            <AuthorName>{record.createdByName || t('view.author')}</AuthorName>
           </AvatarColumn>
 
           <ContentColumn>
             <TitleLine>
               <Title>{record.title}</Title>
-              <DateText>{stamp(record.updatedByName ? record.updatedAt : record.createdAt)}</DateText>
+              <DateText>{formatDateTime(asDate(record.updatedByName ? record.updatedAt : record.createdAt))}</DateText>
             </TitleLine>
 
             <MetaRow>
               <CategoryBadge>{categoryLabel(record)}</CategoryBadge>
               <MetaSpacer />
-              {isRead ? null : <UnreadBadge>Não lida</UnreadBadge>}
+              {isRead ? null : <UnreadBadge>{t('list.badge.unread')}</UnreadBadge>}
             </MetaRow>
 
             {record.updatedByName ? (
-              <EditedText>editado por {record.updatedByName} · {stamp(record.updatedAt)}</EditedText>
+              <EditedText>
+                {t('list.edited-by', { name: record.updatedByName, when: formatDateTime(asDate(record.updatedAt)) })}
+              </EditedText>
             ) : null}
 
             {tags.length > 0 ? (
@@ -395,15 +404,15 @@ export default function NewsListView() {
 
             <FooterRow>
               <Stats>
-                <StatItem $active={hasLiked} onClick={() => toggleLike(record)} title="Curtir">
+                <StatItem $active={hasLiked} onClick={() => toggleLike(record)} title={t('list.action.like')}>
                   <Icon name="heart" size={14} />
                   {listOf(record.likedBy).length}
                 </StatItem>
-                <StatDisplay title="Visualizações">
+                <StatDisplay title={t('list.action.views')}>
                   <Icon name="eye" size={14} />
                   {record.viewCount || 0}
                 </StatDisplay>
-                <StatItem onClick={() => openRead(record)} title="Comentários">
+                <StatItem onClick={() => openRead(record)} title={t('list.action.comments')}>
                   <Icon name="chat3" size={14} />
                   {commentCounts[record.id] || 0}
                 </StatItem>
@@ -413,24 +422,24 @@ export default function NewsListView() {
                 <IconBtn
                   $active={isSaved}
                   onClick={() => toggleSaved(record)}
-                  title={isSaved ? 'Remover dos salvos' : 'Salvar para depois'}
+                  title={isSaved ? t('list.action.unsave') : t('list.action.save')}
                 >
                   <Icon name="bookmark" size={15} />
                 </IconBtn>
                 {isRead ? (
-                  <IconBtn onClick={() => markAsUnread(record)} title="Marcar como não lida">
+                  <IconBtn onClick={() => markAsUnread(record)} title={t('list.action.mark-unread')}>
                     <Icon name="mailOpen" size={15} />
                   </IconBtn>
                 ) : null}
                 {canEdit ? (
-                  <IconBtn onClick={() => list.openRecord(record)} title="Editar">
+                  <IconBtn onClick={() => list.openRecord(record)} title={t('core.ui/action.edit')}>
                     <Icon name="edit" size={15} />
                   </IconBtn>
                 ) : null}
                 {actions.length > 0 ? (
                   <Dropdown
                     align="right"
-                    trigger={<IconBtn title="Ações"><Icon name="more" size={15} /></IconBtn>}
+                    trigger={<IconBtn title={t('list.action.more')}><Icon name="more" size={15} /></IconBtn>}
                     items={actions.map((action) => ({
                       id: action.key,
                       label: action.title,
@@ -454,18 +463,18 @@ export default function NewsListView() {
       titleIcon={<Icon name="newspaper" size={22} />}
       layout="list"
       onNew={list.openNewRecord}
-      newTitle="Nova Notícia"
+      newTitle={t('list.new')}
       titleExtra={unreadCount > 0 ? <HeaderCount>{unreadCount}</HeaderCount> : null}
       filterDefs={filterDefs}
       filterTokens={list.filterTokens}
       onFilterChange={list.setFilterTokens}
-      filterPlaceholder="Filtrar notícias..."
+      filterPlaceholder={t('list.filter.placeholder')}
       savedFiltersScreenKey={list.savedFiltersScreenKey}
       isLoading={list.isLoading && list.records.length === 0}
       isEmpty={records.length === 0}
       emptyIcon={<Icon name="newspaper" size={32} />}
-      emptyTitle="Nenhuma notícia encontrada."
-      emptyActionLabel="Nova Notícia"
+      emptyTitle={t('list.empty')}
+      emptyActionLabel={t('list.new')}
       modals={<EntityListModals vm={list} />}
     >
       {records.map(renderCard)}

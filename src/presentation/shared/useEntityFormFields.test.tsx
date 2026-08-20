@@ -22,7 +22,7 @@ vi.mock('../../stores/useScreenDefinitions', () => ({
   }),
 }));
 
-const { useEntityFormFields } = await import('./useEntityFormFields');
+const { useEntityFormFields, useResolvedFields } = await import('./useEntityFormFields');
 
 const definition = (overrides: Partial<ScreenDefinition>): ScreenDefinition =>
   ({
@@ -145,5 +145,54 @@ describe('useEntityFormFields', () => {
     // campos — de telas diferentes, inclusive — compartilharem as mesmas opções.
     expect(fields.find((f) => f.key === 'especialidade')?.lookupCollection).toBe('prazos_especialidade');
     expect(fields.find((f) => f.key === 'tipo')?.lookupCollection).toBe('deadlineTypes');
+  });
+});
+
+/**
+ * A resolução de rótulo NÃO pode morar só no caminho de `useEntityFormFields`.
+ *
+ * Ela morava, e o efeito foi ver `@com.microteia.news/field.title` no formulário de uma extensão
+ * recém-instalada: as quatro telas que leem `definition.fields` (formulário nativo, detalhe e
+ * formulário de extensão, listagem) passavam pelo OUTRO ramo, o que não resolvia nada. `useResolvedFields`
+ * é o ponto único, e estes casos são o que impede o ramo cru de voltar.
+ */
+describe('useResolvedFields', () => {
+  it('resolve rótulo, placeholder, seção e opções de uma lista já montada', () => {
+    const fields = [field({
+      key: 'title',
+      label: '@com.acme.docs/field.title',
+      placeholder: '@com.acme.docs/field.title.placeholder',
+      section: '@com.acme.docs/section.content',
+      options: [{ key: 'a', label: '@com.acme.docs/option.a' }],
+    })];
+
+    const { result } = renderHook(() => useResolvedFields(fields));
+    const [resolved] = result.current;
+
+    // Sem catálogo montado, `resolveLabel` devolve a CHAVE da referência — nunca vazio, nunca o `@`.
+    expect(resolved.label).toBe('com.acme.docs/field.title');
+    expect(resolved.placeholder).toBe('com.acme.docs/field.title.placeholder');
+    expect(resolved.section).toBe('com.acme.docs/section.content');
+    expect(resolved.options?.[0].label).toBe('com.acme.docs/option.a');
+  });
+
+  /** O que o escritório digitou não é referência e passa intacto — é a metade que protege o dado dele. */
+  it('não toca no texto que o escritório digitou', () => {
+    const fields = [field({ key: 'apelido', label: 'Apelido do contrato', placeholder: 'Ex: locação' })];
+
+    const { result } = renderHook(() => useResolvedFields(fields));
+
+    expect(result.current[0].label).toBe('Apelido do contrato');
+    expect(result.current[0].placeholder).toBe('Ex: locação');
+  });
+
+  /** Idempotência é o que permite aplicá-la DEPOIS do ramo, sobre uma lista que já veio resolvida. */
+  it('aplicada duas vezes, dá o mesmo resultado', () => {
+    const fields = [field({ key: 'title', label: '@com.acme.docs/field.title' })];
+
+    const once = renderHook(() => useResolvedFields(fields)).result.current;
+    const twice = renderHook(() => useResolvedFields(once)).result.current;
+
+    expect(twice[0].label).toBe(once[0].label);
   });
 });

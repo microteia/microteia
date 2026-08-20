@@ -116,8 +116,8 @@ npm run verify          # typecheck + lint + verify-schemas
 | `FinancialLookupConfig` | `tenants/{tenantId}/financialCategories/{id}`, `financialStatuses` | Sim |
 | `DocumentTypeConfig` (compartilhado) | `tenants/{tenantId}/documentTypes/{id}` | Sim |
 | `Push` (extensão `com.microteia.push`; escrito pela ingestão do Gmail) | `tenants/{tenantId}/pushes/{id}` | Sim |
-| `Notícia` (extensão `com.microteia.noticia`) | `tenants/{tenantId}/news/{id}` | Sim |
-| `Comentário` (extensão `com.microteia.noticia`) | `tenants/{tenantId}/newsComments/{id}` | Sim |
+| `Notícia` (extensão `com.microteia.news`) | `tenants/{tenantId}/news/{id}` | Sim |
+| `Comentário` (extensão `com.microteia.news`) | `tenants/{tenantId}/newsComments/{id}` | Sim |
 | `SavedFilter` | `savedFilters/{uid}_{screenKey}` | Não |
 | `AuditLog` | `auditLogs/{id}` | Sim (campo `tenantId`, coleção flat) |
 | `WorkflowDefinition` | `tenants/{tenantId}/workflow_definitions/{id}` (steps embutidos como array) | Sim |
@@ -3016,7 +3016,7 @@ foi eliminado: o `clientId` (público) volta na resposta de `listGmailConnection
 
 ### Notícias sai do kernel — e o dado deixa de ser só do registro
 
-`com.microteia.noticia` (`src/plugins/marketplace/noticia.ts`) é a sétima entidade a sair, e a
+`com.microteia.news` (`src/plugins/marketplace/news.ts`) é a sétima entidade a sair, e a
 primeira em que o que importa não é o REGISTRO, e sim a relação entre o registro e **quem está
 olhando**: o que eu já li, o que eu guardei para depois, o que eu curti. Era isso que prendia o mural
 ao kernel — três stores, seis repositórios e quatro coleções de raiz só para responder "para mim".
@@ -5543,6 +5543,168 @@ que o `CommandPaletteAppContext` faz ao carregar `t` junto de `openTab` e `close
 chave (`command.system.theme.keywords`, valores separados por vírgula). Sem isso, quem usa o sistema em
 português procuraria por "aparência" e não acharia o item de tema, por mais bem traduzido que o rótulo
 estivesse.
+
+### A extensão AGNÓSTICA de negócio nasce no idioma-fonte
+
+Três das extensões de primeira parte não pertencem a ramo nenhum: **Calendário**, **Painel** e
+**Notícias**. Uma agenda, uma tela de abertura e um mural servem a um escritório de advocacia, a uma
+clínica e a uma transportadora do mesmo jeito. Elas passaram a nascer em inglês, com o português como
+**contribuição delas mesmas** — e o que as separa das de domínio (Processos, Prazos, Contratos) não é
+maturidade, é ESCOPO: quem declara vocabulário de um ramo responde por ele, e traduzi-lo é outra
+decisão.
+
+| O quê | Onde |
+|---|---|
+| Catálogo de origem (`en`) | `marketplace/calendarMessages.ts`, `dashboardMessages.ts`, `newsMessages.ts` |
+| Tradução pt-BR | `marketplace/calendarMessagesPtBr.ts`, `dashboardMessagesPtBr.ts`, `newsMessagesPtBr.ts` |
+| Namespace | o **id do plugin** (`com.microteia.calendar`), como em `core.tenant` |
+
+Os dois catálogos entram como duas contribuições `i18n.messages` do próprio pacote. A consequência é a
+mesma que vale para `core.tenant`: desinstalar `com.microteia.locale-pt-br` **não** devolve estas telas
+ao inglês, porque a tradução delas nunca esteve lá — e instalar uma delas num escritório que nunca viu
+o pacote de idioma já a entrega legível nos dois.
+
+**O rótulo é referência, e o arquivo de plugin não a escreve inteira.** Seriam mais de cem repetições
+do namespace, então cada plugin declara um construtor de uma linha:
+
+```ts
+const message = (key: string): string => `@com.microteia.calendar/${key}`;
+```
+
+O namespace fica **escrito**, não composto a partir de um `import`, e isso é a diferença entre ter e
+não ter gate: `verify-messages` lê essa declaração e confere cada `message('chave')` contra o catálogo,
+do mesmo modo que já conferia `t('chave')` a partir do `useT('<ns>')`. Um construtor que escondesse o
+namespace faria o gate continuar dizendo que está tudo certo.
+
+**O comentário destes três é em INGLÊS** — a única exceção à regra de que comentário é comunicação
+nossa. Eles viajam no pacote do SDK como exemplo de autoria (`cli/src/vendor/exampleSources.ts`): o
+leitor é o autor de extensão do escritório, não nós, e o comentário ali é documentação de API pela
+mesma razão que `extensionTypeDefs.ts` é. As de domínio seguem em português.
+
+#### O que o kernel ganhou — e por que era capacidade que faltava
+
+Duas lacunas apareceram só quando um pacote tentou ser inteiramente traduzível, e as duas eram do
+**mecanismo declarativo**, não destas extensões:
+
+| Lacuna | Correção |
+|---|---|
+| O Widget DSL era o único lugar declarativo onde a frase tinha de nascer num idioma — `WidgetRenderer` mostrava `heading`, `text`, `markdown`, `metric`, `keyValue` e `banner` crus | Todo texto do spec passa por `resolveLabel`. Mesma regra do rótulo de tela e de campo: `@ns/chave` traduz, texto comum passa intacto |
+| O rótulo de uma menção `@` de extensão chegava cru ao editor | `MarkdownEditor.viewmodel` resolve `label` e `description` do provider |
+
+E uma declaração ERRADA na API curada foi corrigida de passagem: `MicroteiaCommandProvider` prometia
+`{ key, search }` com `run`, quando o contrato real é `{ group, getItems }` com `onSelect`. Ninguém
+tropeçou porque `tsconfig.extsrc.json` roda com `noImplicitAny: false` e o `host` chega como `any` —
+o mesmo silêncio que já havia produzido oito declarações erradas antes. O tipo passou a descrever o
+contexto inteiro, inclusive o `t` que ele carrega: `getItems` não é componente, não pode pendurar hook,
+e é por isso que o tradutor entra por parâmetro. **A busca compara a query com o título TRADUZIDO** —
+comparar com uma frase fixa deixaria o comando inalcançável para quem digita o que lê na tela.
+
+**Nome de mês e de dia da semana vêm do `Intl`.** A agenda tinha dois arrays escritos à mão
+(`['dom','seg',…]`) e três `toLocaleString('pt-BR', …)` espalhados pelas views de Notícias. É a forma
+mais fácil de prender um idioma no código, e a mais difícil de encontrar depois: não é frase, então
+nenhum seletor de ESLint a vê. Hoje o mês sai de `Intl.DateTimeFormat(locale, …)` e as datas de
+`useLocaleFormat()`.
+
+#### O rótulo declarativo tinha UM ponto de resolução, e não era o do formulário
+
+O primeiro escritório a instalar a extensão nova viu isto no formulário:
+
+```
+Novo @com.microteia.news/screen.singular
+  @com.microteia.news/section.content
+  @com.microteia.news/field.title *   [@com.microteia.news/field.title.placeholder]
+```
+
+Nenhum rótulo resolvia — em português nem em inglês. A causa não era da extensão: `useEntityFormFields`
+era o único lugar que resolvia, e as quatro telas que leem os campos escolhiam entre dois ramos:
+
+```ts
+const fields = isBound ? boundFields.fields : sortFieldsByOrder(definition.fields);
+//                       ^ resolvido           ^ CRU
+```
+
+O ramo `isBound` existe para a tela que é VISÃO sobre outra coleção — o caso raro. O outro é o de
+**toda extensão que declara os próprios campos**, ou seja o caminho normal, e era o que não resolvia.
+A resolução saiu para `useResolvedFields(fields)` e é aplicada **depois** do ramo, nos quatro pontos
+(`ViewDynamicRecord.viewmodel`, `useEntityDetailVM`, `useEntityForm`, `useRecordListViewModel`). Ela é
+idempotente — `resolveLabel` devolve texto comum intacto —, e é isso que permite um ponto único em vez
+de dois ramos que precisam concordar para sempre.
+
+**O `Novo ` era pior, porque não era frase.** O título saía de
+`` `Novo ${definition.titleSingular}` ``: um idioma preso no código, concatenado a um rótulo que
+ninguém resolvia. Nenhum seletor de ESLint o via — "Novo" não tem acento, e o atributo se chamava
+`newTitle`, que não estava na lista de nomes que carregam texto. O mesmo vale para `emptyTitle`,
+`emptyActionLabel` e `filterPlaceholder`: quatro frases em português na tela de **todo** registro do
+sistema, dentro da zona de idioma-fonte, invisíveis ao gate. Hoje o nome da entidade é PARÂMETRO
+(`record.new.title` = `'New {entity}'`), e os quatro nomes de atributo entraram no seletor.
+
+> Concatenar rótulo é sempre defeito, mesmo quando as duas metades estão traduzidas: a ordem das
+> palavras é do idioma, não nossa. `'New {entity}'` e `'Novo {entity}'` são a mesma chave; `"Novo " +
+> x` não tem como virar japonês.
+>
+> `titleSingular.toLowerCase()` saiu junto, e por motivo parecido: em alemão o substantivo é
+> capitalizado, e minusculizar é transformação de UM idioma. O nome da entidade entra como está.
+
+**A resolução era aplicada CASO A CASO, e o Form Design provou isso no mesmo arquivo.** Ali, lado a
+lado:
+
+```ts
+const builtinRows       = BUILTIN_SCREENS.map((b) => ({ label: label(b.label), ... }));   // resolvido
+const dynamicListEntries = dynamicDefinitions.map((def) => ({ title: def.titlePlural })); // CRU
+```
+
+É por isso que a tela do kernel `Organization` aparecia traduzida e a de uma extensão aparecia como
+`@com.microteia.news/screen.plural` — no mesmo painel, na linha de baixo. O mesmo padrão apareceu no
+`forDisplay` (resolvia `label`, não `section` nem `placeholder`), nos seletores de campo-título e
+subtítulo, e nos candidatos de tela filha.
+
+**O host resolve o título ANTES de entregar a tela à extensão** — `screenForDisplay`, aplicado nos
+quatro pontos que passam uma `ScreenDefinition` para código de extensão (`useEntityList`,
+`useEntityDetailVM`, `useEntityForm`, `useEntity`). O gesto óbvio de quem escreve uma view é
+`list.definition.titlePlural`, e era o errado; exigir que cada autor lembrasse de `useLabel` é
+transferir a ele um cuidado que o host cumpre uma vez — e que nós mesmos esquecemos em duas views de
+primeira parte. Resolver no HOST e não no store é o que mantém o Form Design editando o valor cru.
+
+**"Idiomas instalados" contava errado.** A tela montava uma linha por EXTENSÃO, com
+`locale: packBundles[0].locale` e as chaves de TODOS os bundles: uma extensão que carrega o próprio
+`en` e o próprio `pt-BR` aparecia como "en — 194 textos", rotulando de inglês metade que era
+português. Pior, `resolveLanguageUsage` decide "em uso"/"sem efeito" comparando o idioma da linha e
+disputando as chaves dela — então aquela linha reivindicava, no idioma errado, chaves que não eram
+daquele idioma. Hoje é uma linha por (extensão × idioma). A simplificação valia enquanto extensão e
+idioma eram a mesma coisa; deixou de valer quando uma extensão passou a trazer os próprios catálogos.
+
+**Buscar é parte de resolver.** O ⌘K comparava a query com `def.titlePlural` cru, então a tela de uma
+extensão só era encontrada por quem digitasse `screen.plural` — ninguém. O `CommandPaletteAppContext`
+passou a carregar `label` ao lado de `t`, pelo mesmo motivo que já carregava `t`: um provider não é
+componente e não pendura hook. É o mesmo movimento que as palavras-chave do tema já tinham feito
+("quem usa em português procura por *aparência*"), aplicado ao rótulo em vez do sinônimo. Os
+`getItems` de extensão recebem o mesmo contexto, e `extensionTypeDefs` declara o novo campo.
+
+Os cinco seletores de tela dos Steps de dado (`Query`, `Map`, `Upsert`, `Validate`, `Remove`)
+resolviam igual — mostravam `@ns/screen.singular` na lista de tabelas. Dois deles já tinham `useLabel`
+no arquivo, sem aplicar ali: é o sintoma de que o rótulo declarativo era tratado como caso, não como
+regra.
+
+**Onde o rótulo continua CRU, e é certo:** `ScreenBuilder` e `PluginAuthor`. Ali a referência é o
+VALOR que se está editando, e resolver antes de mostrar faria o próximo "Salvar" gravar `Notícia` por
+cima de `@com.microteia.news/screen.singular` — perdendo a tradução no gesto que parecia não mudar
+nada.
+
+#### O que NÃO foi traduzido, e é decisão
+
+A opção semeada numa lista (`Pendente`, `Concluído`, `Geral`, `Comunicado`) é referência **no pacote**.
+No escritório que **já instalou**, ela é dado dele: a semeadura só acontece em lista vazia e o rótulo da
+lista é preservado na atualização, justamente para não ressuscitar o que alguém removeu nem sobrescrever
+o que renomeou. Instalação nova nasce traduzível; a antiga mantém o texto que tem. Não há migração, e a
+ausência é escolhida — reescrever dado do escritório para "consertar" o idioma seria o oposto da regra.
+
+#### Notícias mudou de id
+
+`com.microteia.noticia` passou a ser `com.microteia.news`, e o arquivo, a pasta de views e o `.json`
+distribuído seguiram o nome. Para o escritório é **outra extensão**: a antiga fica instalada e órfã, e
+as telas e listas que ela materializou apontam para um id que o catálogo não tem mais. Quem já a
+instalou desinstala a antiga e instala a nova — os registros de `news` e `newsComments` continuam onde
+estão, porque desinstalar remove telas, nunca dado.
 
 ### `useT` fora do provedor — tolerância, não exceção
 

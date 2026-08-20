@@ -6,7 +6,7 @@ import { resolveWritableTable } from '../../../../../domain/schema/mutationSpec'
 import type { UpsertStepConfig } from '../../../../../domain/schema/mutationSpec';
 import type { SearchSelectOption } from '../../../../components/ui/SearchSelect';
 
-import { useT } from '../../../../shared/i18n/useT';
+import { useT, useLabel } from '../../../../shared/i18n/useT';
 
 export interface UpsertBuilderControlProps {
   value: UpsertStepConfig | undefined;
@@ -28,6 +28,7 @@ export const useUpsertBuilderControlViewModel = (
   value: UpsertBuilderControlProps['value'],
   onChange: UpsertBuilderControlProps['onChange'],
 ): UpsertBuilderControlViewModel => {
+  const label = useLabel();
   const t = useT('core.automation');
   const ctx = useSchemaContext();
   const config = useMemo(() => value ?? EMPTY_CONFIG, [value]);
@@ -39,7 +40,7 @@ export const useUpsertBuilderControlViewModel = (
     // A CHAVE do mapa é a coleção — é ela que o motor resolve. A `id` da tela pode ser outro nome.
     const screens = [...ctx.screens.entries()].map(([collection, screen]) => ({
       value: collection,
-      label: screen.titleSingular,
+      label: label(screen.titleSingular),
       meta: 'Personalizada',
     }));
     const lookups = LOOKUP_REGISTRY_LIST.map((lookup) => ({
@@ -48,7 +49,7 @@ export const useUpsertBuilderControlViewModel = (
       meta: 'Lista',
     }));
     return [...entities, ...screens, ...lookups];
-  }, [ctx]);
+  }, [ctx, label]);
 
   const sourceOptions = useMemo<SearchSelectOption[]>(
     () => [

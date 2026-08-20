@@ -11,7 +11,7 @@ import { RESERVED_COLLECTIONS } from '../../domain/schema/screenEntity';
 import { countBadgeRecords } from '../../presentation/shared/useNavBadgeCount';
 import type { PluginInstallation } from '../../domain/entities/PluginInstallation';
 import type { EntityRecord } from '../../domain/entities';
-import { noticiaPlugin } from './noticia';
+import { newsPlugin } from './news';
 
 const installation = (pluginId: string): PluginInstallation => ({
   pluginId,
@@ -25,7 +25,7 @@ const installation = (pluginId: string): PluginInstallation => ({
   updatedAt: new Date(),
 });
 
-const screens = () => materializePluginScreens(noticiaPlugin, 'u1');
+const screens = () => materializePluginScreens(newsPlugin, 'u1');
 const newsScreen = () => screens()[0].input;
 const commentScreen = () => screens()[1].input;
 
@@ -40,22 +40,22 @@ const record = (values: Record<string, unknown>): EntityRecord => ({
 } as EntityRecord);
 
 const navBadge = () => {
-  const contribution = (noticiaPlugin.manifest.contributes ?? [])
+  const contribution = (newsPlugin.manifest.contributes ?? [])
     .filter((item) => item.point === UI_NAV_POINT)
-    .map((item) => navMetadataOf({ ...item, pluginId: noticiaPlugin.manifest.id }))[0];
+    .map((item) => navMetadataOf({ ...item, pluginId: newsPlugin.manifest.id }))[0];
   return contribution.badge;
 };
 
-describe('noticiaPlugin', () => {
+describe('newsPlugin', () => {
   it('carrega no host como extensão trusted, com a listagem e a leitura', () => {
     const host = createPluginHost();
     const result = host.load([
       ...CORE_PLUGINS,
-      ...installedPluginRecords([noticiaPlugin], [installation(noticiaPlugin.manifest.id)]),
+      ...installedPluginRecords([newsPlugin], [installation(newsPlugin.manifest.id)]),
     ]);
 
     expect(result.diagnostics.filter((d) => d.severity === 'error')).toEqual([]);
-    expect(host.isLoaded(noticiaPlugin.manifest.id)).toBe(true);
+    expect(host.isLoaded(newsPlugin.manifest.id)).toBe(true);
 
     const pageKeys = host.contributions
       .query(UI_PAGE_POINT)
@@ -140,11 +140,11 @@ describe('noticiaPlugin', () => {
    * deixaria toda notícia existente com uma categoria que opção nenhuma responde.
    */
   it('as categorias descrevem o que está gravado, não um esquema novo', () => {
-    const categorias = noticiaPlugin.lookups?.find((lookup) => lookup.collection === 'newsCategories');
+    const categorias = newsPlugin.lookups?.find((lookup) => lookup.collection === 'newsCategories');
     const opcoes = categorias?.options ?? [];
 
     expect(opcoes.length).toBeGreaterThan(0);
-    expect(opcoes.find((option) => option.key === 'GENERAL')?.label).toBe('Geral');
+    expect(opcoes.find((option) => option.key === 'GENERAL')?.label).toBe('@com.microteia.news/category.general');
     for (const option of opcoes) expect(option.key).toMatch(/^[A-Z_]+$/);
   });
 
@@ -156,7 +156,7 @@ describe('noticiaPlugin', () => {
     const badge = navBadge();
     expect(badge?.collection).toBe('news');
 
-    const noticias = [
+    const newsItems = [
       record({ id: '1', readBy: [], createdBy: 'outro' }),
       record({ id: '2', readBy: ['eu'], createdBy: 'outro' }),
       record({ id: '3', readBy: ['outro'], createdBy: 'outro' }),
@@ -164,8 +164,8 @@ describe('noticiaPlugin', () => {
       record({ id: '4', readBy: [], createdBy: 'eu' }),
     ];
 
-    expect(countBadgeRecords(noticias, badge!, { id: 'eu', name: 'Eu', role: 'user' })).toBe(2);
-    expect(countBadgeRecords(noticias, badge!, { id: 'outro', name: 'Outro', role: 'user' })).toBe(1);
+    expect(countBadgeRecords(newsItems, badge!, { id: 'eu', name: 'Eu', role: 'user' })).toBe(2);
+    expect(countBadgeRecords(newsItems, badge!, { id: 'outro', name: 'Outro', role: 'user' })).toBe(1);
   });
 
   /**
@@ -178,14 +178,14 @@ describe('noticiaPlugin', () => {
   });
 
   it('as fontes reais das views compilam pelo runtime (não caem no fallback)', () => {
-    for (const view of noticiaPlugin.views ?? []) {
+    for (const view of newsPlugin.views ?? []) {
       const Component = evaluateExtensionView(`test::${view.key}`, view.source);
       expect(typeof Component, view.key).toBe('function');
     }
   });
 
   it('o startup compila (⌘K e a menção @notícia)', () => {
-    const startup = evaluateExtensionView('test::noticia-startup', noticiaPlugin.startup ?? '');
+    const startup = evaluateExtensionView('test::news-startup', newsPlugin.startup ?? '');
     expect(typeof startup).toBe('function');
   });
 });

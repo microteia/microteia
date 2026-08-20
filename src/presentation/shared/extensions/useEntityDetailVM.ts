@@ -23,9 +23,9 @@ import type { RecordDetailViewModel } from '../../components/layout/RecordDetail
 import type { CustomFieldValue, EntityRecord } from '../../../domain/entities';
 import { useTagAdapter } from '../entityScreen/useTagAdapter';
 import { isBoundScreen, screenDataCollection } from '../../../domain/services/screenDataCollection';
-import { useEntityFormFields } from '../useEntityFormFields';
+import { screenForDisplay, useEntityFormFields, useResolvedFields } from '../useEntityFormFields';
 
-import { useT } from '../i18n/useT';
+import { useLabel, useT } from '../i18n/useT';
 
 type Values = Record<string, CustomFieldValue>;
 
@@ -47,16 +47,18 @@ export const useEntityDetailVM = (
   { editKeyPrefix }: EntityDetailVMOptions,
 ): RecordDetailViewModel => {
   const t = useT('core.records');
+  const label = useLabel();
   const { dynamicScreens, isLoading: isLoadingDefinition } = useScreenDefinitions();
   const { recordsByCollection, createRecord, updateRecord, deleteRecord } = useRecords();
   const { currentTenant, tenantRole } = useTenant();
   const { user, effectiveName } = useAuth();
   const { recordRepository } = useDI();
 
-  const definition = useMemo(
+  const stored = useMemo(
     () => dynamicScreens.find((d) => (d.sourceId ?? d.id) === sourceId) ?? null,
     [dynamicScreens, sourceId],
   );
+  const definition = useMemo(() => screenForDisplay(stored, label), [stored, label]);
   const screenKey = definition?.id ?? '';
   const isAvailable = !!definition && definition.origin !== 'builtin';
   const isAdmin = tenantRole === 'admin';
@@ -67,10 +69,12 @@ export const useEntityDetailVM = (
   const isBound = !!definition && isBoundScreen(definition);
   const boundFields = useEntityFormFields(isBound ? collection : '');
 
-  const sortedFields = useMemo(
+  // Rótulo declarativo resolve NOS DOIS ramos — ver `useResolvedFields`.
+  const declaredFields = useMemo(
     () => (isBound ? boundFields.fields : definition ? sortFieldsByOrder(definition.fields) : []),
     [isBound, boundFields.fields, definition],
   );
+  const sortedFields = useResolvedFields(declaredFields);
   const titleFieldKey = definition?.titleFieldKey ?? '';
   const subtitleFieldKey = definition?.subtitleFieldKey ?? '';
 
@@ -159,11 +163,14 @@ export const useEntityDetailVM = (
   const notesPort = useRecordNotesPort(collection);
   const documentsPort = useRecordDocumentsPort(collection);
 
-  const messages = useMemo(() => ({
-    created: `${definition?.titleSingular ?? 'Registro'} cadastrado com sucesso!`,
-    updated: `${definition?.titleSingular ?? 'Registro'} atualizado com sucesso!`,
-    error: 'Erro ao salvar o registro.',
-  }), [definition]);
+  const messages = useMemo(() => {
+    const entity = definition ? label(definition.titleSingular) : t('record.title');
+    return {
+      created: t('record.created', { entity }),
+      updated: t('record.updated', { entity }),
+      error: t('record.save-failed'),
+    };
+  }, [definition, t, label]);
 
   const detail = useEntityDetail<EntityRecord>({
     tabKey,

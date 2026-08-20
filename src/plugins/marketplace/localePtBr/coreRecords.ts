@@ -206,6 +206,13 @@ export const CORE_RECORDS: Record<string, string> = {
   'record.delete.title': 'Excluir registro',
   'record.not-found': 'Registro não encontrado. Ele pode ter sido excluído.',
   'record.title': 'Registro',
+  'record.new.title': 'Novo {entity}',
+  'record.create-action': 'Cadastrar {entity}',
+  'record.filter.placeholder': 'Filtrar {entity}...',
+  'record.list.empty': 'Nenhum registro encontrado',
+  'record.created': '{entity} cadastrado com sucesso!',
+  'record.updated': '{entity} atualizado com sucesso!',
+  'record.save-failed': 'Erro ao salvar o registro.',
   'screen.custom': 'Tela personalizada',
   'screen.unavailable':
     'Esta tela personalizada não está mais disponível. Ela pode ter sido desativada ou excluída pelo administrador.',
