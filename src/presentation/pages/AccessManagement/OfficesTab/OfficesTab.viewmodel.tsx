@@ -134,9 +134,9 @@ export const useOfficesTabViewModel = (): OfficesTabViewModel => {
     try {
       await updateMemberLimitUseCase.execute(tenantId, parsed);
       setTenants((prev) => prev.map((t) => (t.id === tenantId ? { ...t, memberLimit: parsed } : t)));
-      notify('Limite de membros atualizado.', 'success');
+      notify(t('access.member-limit.updated'), 'success');
     } catch {
-      notify('Erro ao atualizar o limite de membros.', 'error');
+      notify(t('access.member-limit.update-failed'), 'error');
       setMemberLimitDrafts((prev) => ({ ...prev, [tenantId]: tenant.memberLimit === null ? '' : String(tenant.memberLimit) }));
     } finally {
       setSavingTenantId(null);

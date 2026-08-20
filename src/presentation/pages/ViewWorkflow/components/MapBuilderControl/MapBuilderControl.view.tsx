@@ -25,7 +25,7 @@ export const MapBuilderControl: React.FC<MapBuilderControlProps> = (props) => {
         />
         <S.HelpText>
           {config.name?.trim()
-            ? `Os campos ficam agrupados num objeto: input.${config.name.trim()}.`
+            ? t('map.name.hint', { name: config.name.trim() })
             : t('map.name.hint-empty')}
         </S.HelpText>
       </S.Section>

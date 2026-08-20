@@ -7,12 +7,11 @@ import { SearchSelect } from '../../../components/ui/SearchSelect';
 import type { TenantPlan } from '../../../../domain/entities';
 import { S } from './OfficesTab.styles';
 
-import { useT } from '../../../shared/i18n/useT';
-const formatDate = (date: Date) =>
-  date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+import { useT, useLocaleFormat } from '../../../shared/i18n/useT';
 
 export const OfficesTabView: React.FC = () => {
   const t = useT('core.admin');
+  const { formatDate } = useLocaleFormat();
   const vm = useOfficesTabViewModel();
 
   return (

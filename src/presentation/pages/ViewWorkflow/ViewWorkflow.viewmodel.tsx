@@ -566,7 +566,7 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
       .then(() => notify(t(next ? 'workflow.activated' : 'workflow.deactivated'), 'success'))
       .catch((error) => {
         console.error('[ViewWorkflow] toggleEnabled:', error);
-        notify('Erro ao alterar status.', 'error');
+        notify(t('workflow.status-change-failed'), 'error');
       });
   }, [workflow, updateWorkflow, notify, t]);
 
@@ -761,7 +761,7 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
       notify(t('step.deleted'), 'success');
     } catch (error) {
       console.error('[ViewWorkflow] confirmDeleteStep:', error);
-      notify('Erro ao excluir step.', 'error');
+      notify(t('step.delete-failed'), 'error');
     } finally {
       setStepToDelete(null);
     }
@@ -773,18 +773,18 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
     if (nextSteps === workflow.steps) return;
     await updateWorkflowSteps(workflow.id, nextSteps).catch((error) => {
       console.error('[ViewWorkflow] moveStep:', error);
-      notify('Erro ao reordenar steps.', 'error');
+      notify(t('step.reorder-failed'), 'error');
     });
-  }, [workflow, updateWorkflowSteps, notify]);
+  }, [workflow, updateWorkflowSteps, notify, t]);
 
   const toggleStepEnabled = useCallback(async (step: WorkflowStep) => {
     if (!workflow) return;
     const nextSteps = updateStepInTree(workflow.steps, step.id, (s) => ({ ...s, enabled: !s.enabled }));
     await updateWorkflowSteps(workflow.id, nextSteps).catch((error) => {
       console.error('[ViewWorkflow] toggleStepEnabled:', error);
-      notify('Erro ao atualizar step.', 'error');
+      notify(t('step.update-failed'), 'error');
     });
-  }, [workflow, updateWorkflowSteps, notify]);
+  }, [workflow, updateWorkflowSteps, notify, t]);
 
   const setStepsViewMode = useCallback((mode: StepsViewMode) => {
     setStepsViewModeState(mode);
@@ -822,9 +822,9 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
   const getConditionSummary = useCallback((step: WorkflowStep): string => describeCondition(tUi, step.condition), [tUi]);
 
   const getLoopSummary = useCallback((step: WorkflowStep): string => {
-    if (!step.loop) return 'Para cada item';
-    return `Para cada item → ${step.loop.outputName}`;
-  }, []);
+    if (!step.loop) return t('loop.summary');
+    return t('loop.summary.named', { output: step.loop.outputName });
+  }, [t]);
 
   const handleStepDragStart = useCallback((event: DragEvent<HTMLElement>, stepId: string, parentKey: string) => {
     event.dataTransfer.setData('text/plain', stepId);
@@ -871,9 +871,9 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
     if (nextSteps === workflow.steps) return;
     updateWorkflowSteps(workflow.id, nextSteps).catch((error) => {
       console.error('[ViewWorkflow] handleStepDrop:', error);
-      notify('Erro ao mover step.', 'error');
+      notify(t('step.move-failed'), 'error');
     });
-  }, [dragging, dropTarget, workflow, updateWorkflowSteps, notify]);
+  }, [dragging, dropTarget, workflow, updateWorkflowSteps, notify, t]);
 
   const getStepLogStatus = useCallback((log: { level: string }): 'SUCCESS' | 'ERROR' | 'WARN' | 'INFO' => {
     if (log.level === 'ERROR') return 'ERROR';

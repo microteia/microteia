@@ -36,7 +36,7 @@ import { AdvancedParametersEditor } from './components/AdvancedParametersEditor'
 import { PARAMETER_TYPE_OPTIONS } from './ViewWorkflow.viewmodel';
 import { getStepDisplayName } from '../../shared/workflowHelpers';
 
-import { useT } from '../../shared/i18n/useT';
+import { useT, useLocaleFormat } from '../../shared/i18n/useT';
 
 const branchKeyOf = (conditionId: string, branch: BranchKey): string => `${conditionId}:${branch}`;
 
@@ -164,7 +164,7 @@ const FlowLevel: React.FC<LevelProps> = ({ vm, steps, parentKey, target }) => {
                 onDrop={vm.handleStepDrop}
               >
                 <S.BranchLabel $variant={branch === 'whenTrue' ? 'true' : 'false'}>
-                  {branch === 'whenTrue' ? 'Verdadeiro' : 'Falso'}
+                  {t(branch === 'whenTrue' ? 'condition.branch.true' : 'condition.branch.false')}
                 </S.BranchLabel>
                 <FlowLevel
                   vm={vm}
@@ -261,7 +261,7 @@ const ListLevel: React.FC<{ vm: ViewWorkflowViewModel; steps: WorkflowStep[] }> 
           {isCondition && step.branches && (['whenTrue', 'whenFalse'] as BranchKey[]).map((branch) => (
             <S.BranchListGroup key={branch} $variant={branch === 'whenTrue' ? 'true' : 'false'}>
               <S.BranchLabel $variant={branch === 'whenTrue' ? 'true' : 'false'}>
-                {branch === 'whenTrue' ? 'Verdadeiro' : 'Falso'}
+                {t(branch === 'whenTrue' ? 'condition.branch.true' : 'condition.branch.false')}
               </S.BranchLabel>
               <ListLevel vm={vm} steps={step.branches![branch]} />
               <AddControls vm={vm} target={branchTarget(step.id, branch)} />
@@ -293,6 +293,7 @@ const ListLevel: React.FC<{ vm: ViewWorkflowViewModel; steps: WorkflowStep[] }> 
 export const ViewWorkflowView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
   const vm = useViewWorkflowViewModel(tabKey);
   const t = useT('core.automation');
+  const { formatDateTime } = useLocaleFormat();
 
   return (
     <S.Page>
@@ -596,7 +597,7 @@ export const ViewWorkflowView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
                     <S.ExecutionRow key={execution.id}>
                       <S.ExecutionSummary>
                         <S.StatusBadge $status={execution.status}>{execution.status}</S.StatusBadge>
-                        {execution.startedAt.toLocaleString('pt-BR')}
+                        {formatDateTime(execution.startedAt)}
                       </S.ExecutionSummary>
 
                       {stepLogs.length > 0 && (

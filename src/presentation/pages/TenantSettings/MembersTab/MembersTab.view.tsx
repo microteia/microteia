@@ -71,7 +71,7 @@ export const MembersTabView: React.FC = () => {
         </div>
         <div style={{ display: 'flex', alignItems: 'flex-end' }}>
           <Button onClick={() => void vm.handleAddMember()} disabled={vm.isAddingMember || !vm.canAddMore}>
-            {vm.isAddingMember ? 'Adicionando...' : 'Adicionar'}
+            {t(vm.isAddingMember ? 'core.ui/action.adding' : 'core.ui/action.add')}
           </Button>
         </div>
       </S.AddMemberRow>

@@ -64,7 +64,7 @@ export const useScriptsViewModel = (): ScriptsViewModel => {
       await deleteScript(scriptToDelete.id);
       notify(t('script.deleted'), 'success');
     } catch {
-      notify('Erro ao excluir script.', 'error');
+      notify(t('script.delete-failed'), 'error');
     } finally {
       setScriptToDelete(null);
     }

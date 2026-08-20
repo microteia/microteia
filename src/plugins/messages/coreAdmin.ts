@@ -54,6 +54,8 @@ export const CORE_ADMIN_MESSAGES: Record<string, string> = {
   'access.member-limit.members': 'members',
   'access.member-limit.placeholder': 'No limit',
   'access.member-limit.unlimited': 'unlimited',
+  'access.member-limit.update-failed': 'Could not update the member limit.',
+  'access.member-limit.updated': 'Member limit updated.',
   'access.offices.count.one': '{shown} of {count} organization',
   'access.offices.count.other': '{shown} of {count} organizations',
   'access.offices.empty': 'No organization registered.',

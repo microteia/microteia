@@ -11,6 +11,14 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [7.60.1] — 2026-08-20
+
+- Corrigido: um punhado de avisos e rótulos das telas de Automações, Roteiros, Membros e Escritórios aparecia sempre em português, mesmo com outro idioma escolhido — os avisos de erro ao salvar, mover, reordenar ou excluir um passo, os de criar e excluir um roteiro, os de adicionar e remover um membro e o de atualizar o limite de membros, além dos rótulos "Verdadeiro" e "Falso" das condições, do resumo da repetição e das etiquetas de origem ("Cadastro", "Personalizada", "Lista") nos seletores de registro.
+- Corrigido: no seletor de registro dos passos que gravam, consultam, validam ou excluem dados, a opção do próprio Escritório aparecia por um código interno em vez do nome.
+- Corrigido: a data de uma execução de automação e a data de criação de um escritório apareciam sempre no formato brasileiro, independentemente do idioma escolhido.
+- Corrigido: quando a gravação de todas as configurações de uma vez falhava, o aviso mostrado era um código interno em vez da frase.
+- O pacote **Português (Brasil)** ganhou os textos novos; quem já o tem instalado verá a atualização oferecida na tela de Extensões.
+
 #### [7.60.0] — 2026-08-20
 
 - Novo tipo de campo: **Arquivo**. Ao montar uma tela, agora é possível criar um campo que recebe um anexo — uma foto, um documento digitalizado, um PDF — definindo quais extensões ele aceita e o tamanho máximo. O arquivo pode ser escolhido antes mesmo de o registro ser salvo, e a prévia da imagem aparece na hora.

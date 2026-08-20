@@ -1,5 +1,5 @@
 import { useCallback, useMemo } from 'react';
-import { useLabel } from '../../../../shared/i18n/useT';
+import { useT, useLabel } from '../../../../shared/i18n/useT';
 import { useSchemaContext } from '../../../../shared/useSchemaContext';
 import { ENTITY_REGISTRY_LIST } from '../../../../../domain/schema/entityRegistry';
 import { resolveWritableTable } from '../../../../../domain/schema/mutationSpec';
@@ -38,21 +38,22 @@ export const useMapBuilderControlViewModel = (
   onChange: MapBuilderControlProps['onChange'],
 ): MapBuilderControlViewModel => {
   const label = useLabel();
+  const t = useT('core.automation');
   const ctx = useSchemaContext();
   const config = useMemo(() => value ?? EMPTY_CONFIG, [value]);
 
   const typeOptions = useMemo<SearchSelectOption[]>(() => {
     const entities = ENTITY_REGISTRY_LIST.filter(
       (entity) => entity.key !== 'customRecords' && resolveWritableTable(entity.collection, ctx).ok,
-    ).map((entity) => ({ value: entity.collection, label: entity.labelPlural, meta: 'Cadastro' }));
+    ).map((entity) => ({ value: entity.collection, label: label(entity.labelPlural), meta: t('source.builtin') }));
     // A CHAVE do mapa é a coleção — é ela que o motor resolve. A `id` da tela pode ser outro nome.
     const screens = [...ctx.screens.entries()].map(([collection, screen]) => ({
       value: collection,
       label: label(screen.titleSingular),
-      meta: 'Personalizada',
+      meta: t('source.custom'),
     }));
     return [...entities, ...screens];
-  }, [ctx, label]);
+  }, [ctx, label, t]);
 
   const emit = useCallback((next: MapStepConfig) => onChange(next), [onChange]);
 

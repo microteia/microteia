@@ -1,5 +1,5 @@
 import { useCallback, useMemo } from 'react';
-import { useLabel } from '../../../../shared/i18n/useT';
+import { useT, useLabel } from '../../../../shared/i18n/useT';
 import { useSchemaContext } from '../../../../shared/useSchemaContext';
 import { ENTITY_REGISTRY_LIST } from '../../../../../domain/schema/entityRegistry';
 import { LOOKUP_REGISTRY_LIST } from '../../../../../domain/schema/lookupRegistry';
@@ -35,26 +35,27 @@ export const useRemoveBuilderControlViewModel = (
   onChange: RemoveBuilderControlProps['onChange'],
 ): RemoveBuilderControlViewModel => {
   const label = useLabel();
+  const t = useT('core.automation');
   const ctx = useSchemaContext();
   const config = useMemo(() => value ?? EMPTY_CONFIG, [value]);
 
   const tableOptions = useMemo<SearchSelectOption[]>(() => {
     const entities = ENTITY_REGISTRY_LIST.filter(
       (entity) => entity.key !== 'customRecords' && resolveWritableTable(entity.collection, ctx).ok,
-    ).map((entity) => ({ value: entity.collection, label: entity.labelPlural, meta: 'Cadastro' }));
+    ).map((entity) => ({ value: entity.collection, label: label(entity.labelPlural), meta: t('source.builtin') }));
     // A CHAVE do mapa é a coleção — é ela que o motor resolve. A `id` da tela pode ser outro nome.
     const screens = [...ctx.screens.entries()].map(([collection, screen]) => ({
       value: collection,
       label: label(screen.titleSingular),
-      meta: 'Personalizada',
+      meta: t('source.custom'),
     }));
     const lookups = LOOKUP_REGISTRY_LIST.map((lookup) => ({
       value: lookup.collection,
       label: `${lookup.screenLabel}: ${lookup.entityLabel}`,
-      meta: 'Lista',
+      meta: t('source.list'),
     }));
     return [...entities, ...screens, ...lookups];
-  }, [ctx, label]);
+  }, [ctx, label, t]);
 
   const emit = useCallback((next: RemoveStepConfig) => onChange(next), [onChange]);
 

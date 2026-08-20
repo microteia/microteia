@@ -53,6 +53,8 @@ export const CORE_ADMIN: Record<string, string> = {
   'access.member-limit.members': 'membros',
   'access.member-limit.placeholder': 'Sem limite',
   'access.member-limit.unlimited': 'ilimitado',
+  'access.member-limit.update-failed': 'Erro ao atualizar o limite de membros.',
+  'access.member-limit.updated': 'Limite de membros atualizado.',
   'access.offices.count.one': '{shown} de {count} escritório',
   'access.offices.count.other': '{shown} de {count} escritórios',
   'access.offices.empty': 'Nenhum escritório cadastrado.',

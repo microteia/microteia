@@ -276,20 +276,20 @@ export const useViewScriptViewModel = (tabKey: string): ViewScriptViewModel => {
       if (isNew) {
         const chosenId = formData.scriptId.trim() || deriveArtifactId(formData.name, takenScriptIds);
         const created = await createScript(data, chosenId);
-        notify('Script criado.', 'success');
+        notify(t('script.created'), 'success');
         closeTab(tabKey, activePanelId ?? 'main');
         openTab(`view-script:${created.id}`);
       } else if (script) {
         await updateScript(script.id, data);
-        notify('Script salvo.', 'success');
+        notify(t('script.saved'), 'success');
       }
     } catch (error) {
       console.error('[ViewScript] handleSave:', error);
-      notify('Erro ao salvar script.', 'error');
+      notify(t('script.save-failed'), 'error');
     } finally {
       setIsSaving(false);
     }
-  }, [currentTenant, formData, isNew, script, scriptIdError, takenScriptIds, createScript, updateScript, notify, closeTab, tabKey, activePanelId, openTab]);
+  }, [currentTenant, formData, isNew, script, scriptIdError, takenScriptIds, createScript, updateScript, notify, closeTab, tabKey, activePanelId, openTab, t]);
 
   const openRunModal = useCallback(() => {
     const compiled = transpile(formData.sourceTs);
@@ -350,7 +350,7 @@ export const useViewScriptViewModel = (tabKey: string): ViewScriptViewModel => {
       closeTab(tabKey, activePanelId);
     } catch (error) {
       console.error('[ViewScript] confirmDelete:', error);
-      notify('Erro ao excluir script.', 'error');
+      notify(t('script.delete-failed'), 'error');
     } finally {
       setScriptToDelete(null);
     }

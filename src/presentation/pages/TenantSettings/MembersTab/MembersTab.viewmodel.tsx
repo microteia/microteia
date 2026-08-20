@@ -6,7 +6,7 @@ import { useDI } from '../../../../infrastructure/di/useDI';
 import { TenantMemberLimitReachedError } from '../../../../domain/errors';
 import type { TenantMember, TenantRole } from '../../../../domain/entities';
 
-import { useT } from '../../../shared/i18n/useT';
+import { useT, useLabel } from '../../../shared/i18n/useT';
 /** O nome de cada perfil como CHAVE do namespace `core.tenant`; quem exibe resolve com `useT`. */
 export const TENANT_ROLE_KEYS: Record<TenantRole, string> = {
   admin: 'role.admin',
@@ -38,6 +38,7 @@ export interface MembersTabViewModel {
 
 export const useMembersTabViewModel = (): MembersTabViewModel => {
   const t = useT('core.tenant');
+  const label = useLabel();
   const { currentTenant, members, isLoading, addMember, updateMemberRole, removeMember } = useTenant();
   const { user } = useAuth();
   const { notify } = useNotification();
@@ -89,18 +90,18 @@ export const useMembersTabViewModel = (): MembersTabViewModel => {
         photoURL: found.photoURL ?? null,
         addedBy: user?.id ?? '',
       });
-      notify('Membro adicionado com sucesso!', 'success');
+      notify(t('member.added'), 'success');
       setAddEmail('');
       setAddRole('user');
     } catch (err) {
       notify(
-        err instanceof TenantMemberLimitReachedError ? err.message : 'Erro ao adicionar membro.',
+        err instanceof TenantMemberLimitReachedError ? label(err.message) : t('member.add-failed'),
         'error',
       );
     } finally {
       setIsAddingMember(false);
     }
-  }, [canAddMore, addEmail, addRole, addMember, currentTenant, user, members, userRepository, notify, t]);
+  }, [canAddMore, addEmail, addRole, addMember, currentTenant, user, members, userRepository, notify, t, label]);
 
   const handleRoleChange = useCallback(async (member: TenantMember, role: TenantRole) => {
     try {
@@ -121,7 +122,7 @@ export const useMembersTabViewModel = (): MembersTabViewModel => {
       await removeMember(memberToRemove.userId);
       notify(t('member.removed'), 'success');
     } catch {
-      notify('Erro ao remover membro.', 'error');
+      notify(t('member.remove-failed'), 'error');
     } finally {
       setMemberToRemove(null);
     }

@@ -61,8 +61,8 @@ export const useValidateBuilderControlViewModel = (
   const entityOptions = useMemo<SearchSelectOption[]>(() => {
     const entities = ENTITY_REGISTRY_LIST.filter((entity) => entity.key !== 'customRecords').map((entity) => ({
       value: entity.collection,
-      label: entity.labelPlural,
-      meta: 'Cadastro',
+      label: label(entity.labelPlural),
+      meta: t('source.builtin'),
     }));
     // O mapa de telas já é indexado pela COLEÇÃO — é ela que `resolveEntity` responde, e é ela que
     // o objeto validado guarda. A chave da tela aqui apontaria para uma entidade que ninguém acha.

@@ -146,7 +146,7 @@ export const useSettingsViewModel = (): SettingsViewModel => {
         setDraft(null);
         notify(t('settings.saved'), 'success');
       })
-      .catch(() => notify('@core.settings/settings.save-all-failed', 'error'));
+      .catch(() => notify(t('settings.save-all-failed'), 'error'));
   }, [canSaveJson, replaceScope, scope, parsed.values, notify, t]);
 
   const selectSection = useCallback((key: string) => {

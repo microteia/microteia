@@ -392,10 +392,10 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
   );
 
   useEffect(() => {
-    const stepTypeName = selectedDefinition?.name ?? 'Novo Step';
+    const stepTypeName = selectedDefinition?.name ?? t('step.new');
     const title = `${workflowName} • ${stepOrder} • ${stepTypeName}`;
     setTabTitle(tabKey, title);
-  }, [workflowName, stepOrder, selectedDefinition, tabKey, setTabTitle]);
+  }, [workflowName, stepOrder, selectedDefinition, tabKey, setTabTitle, t]);
 
   const selectDefinition = useCallback((stepDefinitionId: string) => {
     setSelectedDefinitionId(stepDefinitionId);
@@ -513,7 +513,7 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
 
       const mapConfig = objectOutputConfigOf(step, definition);
       if (mapConfig) {
-        const suffix = mapConfig.name?.trim() ? '(objeto)' : '(campo)';
+        const suffix = mapConfig.name?.trim() ? t('map.output.object') : t('map.output.field');
         mapOutputNames(mapConfig).forEach((name) => {
           outputs.push({ id: name, label: `${name} ${suffix}` });
         });
@@ -783,10 +783,10 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
           : insertStepInto(existingSteps, insertTarget, step);
 
       await updateWorkflowSteps(workflow.id, updatedSteps);
-      notify('Step salvo com sucesso.', 'success');
+      notify(t('step.saved'), 'success');
       closeTab(tabKey, activePanelId ?? 'main');
     } catch (error) {
-      notify(`Erro ao salvar step: ${String(error)}`, 'error');
+      notify(t('step.save-failed', { detail: String(error) }), 'error');
     } finally {
       setIsSaving(false);
     }

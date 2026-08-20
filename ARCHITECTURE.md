@@ -6004,6 +6004,19 @@ notificação, item de `options`, mensagem montada dentro de uma função.
 > **não enxergava texto solto de JSX**, e a regra achou 21 casos em `presentation/components`, que
 > estava dado como concluído.
 
+> ⚠️ **A NOTIFICAÇÃO era a porta que sobrava.** `notify('Erro ao mover step.', 'error')` não é JSX,
+> não é atributo e não é propriedade — e nenhuma das dezessete frases que atravessaram por ali tinha
+> acento. Uma em cada gesto que dá errado: salvar, mover, reordenar, excluir um passo; criar e
+> excluir um roteiro; adicionar e remover um membro. A regra passa a olhar o literal que é FILHO
+> DIRETO de `notify(...)`, descontando a variante (`'error' | 'success' | 'warning' | 'info'`), que é
+> enumerável — qualquer outro literal ali é a frase que o usuário lê. `notify(t('chave'), 'error')`
+> não é visto porque o literal ali é filho da CHAMADA, a mesma distinção que já vale no atributo.
+
+> **`meta` entrou na lista de propriedades pelo motivo de sempre:** a lista era de nomes vistos, não
+> de nomes possíveis. `meta: 'Cadastro'` rotulava a ORIGEM de cada opção nos seletores de registro
+> dos Steps que gravam, consultam, validam e excluem — cinco arquivos, onze ocorrências, três
+> palavras em português na autoria de toda automação que toca dados.
+
 > ⚠️ **O ternário no atributo escapava.** `title={cond ? 'Novo Campo' : 'Editar Campo'}` não é
 > pego pelo seletor de atributo, que olha o FILHO DIRETO: ali o filho é o container da expressão, e
 > as frases ficam dentro do ternário. Dois seletores ancorados em

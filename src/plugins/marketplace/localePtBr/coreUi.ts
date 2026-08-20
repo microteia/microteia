@@ -253,6 +253,7 @@ export const CORE_UI: Record<string, string> = {
   'action.run': 'Executar',
   'action.apply': 'Aplicar',
   'action.add': 'Adicionar',
+  'action.adding': 'Adicionando...',
   'action.clear': 'Limpar',
   'action.clear-all': 'Limpar tudo',
   'app.tagline': 'Curador da Advocacia',

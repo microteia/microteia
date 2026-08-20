@@ -218,7 +218,7 @@ export default defineConfig([
         // tem acento. Propriedade que CARREGA texto de usuário é tão lida quanto um atributo JSX —
         // e um mapa de opções é exatamente onde a frase costuma se esconder.
         {
-          selector: "Property[key.name=/^(label|title|subtitle|description|message|placeholder|hint|summary)$/] > Literal[value=/[A-Za-zÀ-ÿ]{2}/][value!=/^(@|[a-z][a-z0-9.-]*$)/]",
+          selector: "Property[key.name=/^(label|title|subtitle|description|message|placeholder|hint|summary|meta)$/] > Literal[value=/[A-Za-zÀ-ÿ]{2}/][value!=/^(@|[a-z][a-z0-9.-]*$)/]",
           message: 'Texto de usuário como literal numa propriedade. Passe t(\'chave\'): a propriedade é lida por quem usa o sistema, então ela traduz.',
         },
         // A MESMA propriedade, quando o valor é template literal. Sem isto, `message: \`Objeto
@@ -227,6 +227,18 @@ export default defineConfig([
         {
           selector: "Property[key.name=/^(label|title|subtitle|description|message|placeholder|hint|summary)$/] > TemplateLiteral > TemplateElement[value.raw=/[A-Za-zÀ-ÿ]{2}/]",
           message: 'Texto de usuário num template literal de propriedade. Passe t(\'chave\', { param }) com interpolação {param}.',
+        },
+        // `notify('Erro ao mover step.')` era a maior porta que sobrava: não é JSX, não é atributo e
+        // não é propriedade — e nenhuma das dezessete frases que passaram por ela tinha acento. O que
+        // um `notify` legítimo carrega como literal é a VARIANTE, e ela é enumerável; qualquer outro
+        // literal ali é a frase que o usuário lê.
+        {
+          selector: "CallExpression[callee.name='notify'] > Literal[value=/[A-Za-zÀ-ÿ]{2}/][value!=/^(error|success|warning|info)$/]",
+          message: 'Texto de usuário como literal num notify(). Passe notify(t(\'chave\'), \'error\'): a notificação é lida por quem usa o sistema, então ela traduz.',
+        },
+        {
+          selector: "CallExpression[callee.name='notify'] > TemplateLiteral > TemplateElement[value.raw=/[A-Za-zÀ-ÿ]{2}/]",
+          message: 'Texto de usuário num template literal de notify(). Passe notify(t(\'chave\', { param }), \'error\') com interpolação {param}.',
         },
         {
           selector: 'TemplateElement[value.raw=/[áàâãéêíóôõúüçÁÀÂÃÉÊÍÓÔÕÚÜÇ]/]:not(CallExpression[callee.object.name=\'console\'] TemplateElement):not(CallExpression[callee.object.property.name=\'logger\'] TemplateElement):not(CallExpression[callee.object.name=\'logger\'] TemplateElement)',

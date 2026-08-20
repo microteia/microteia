@@ -254,6 +254,7 @@ export const CORE_UI_MESSAGES: Record<string, string> = {
   'action.run': 'Run',
   'action.apply': 'Apply',
   'action.add': 'Add',
+  'action.adding': 'Adding…',
   'action.clear': 'Clear',
   'action.clear-all': 'Clear all',
   'app.tagline': 'Curator of Legal Practice',
