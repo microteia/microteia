@@ -189,6 +189,23 @@ export const translate = (
   return interpolate(catalog, found ?? key, params);
 };
 
+/**
+ * Um catálogo com `fallback` DEBAIXO de `base`: toda chave que os dois tiverem fica com o valor de
+ * `base`, e o que só existe no de baixo aparece.
+ *
+ * É o que permite mostrar o texto de um pacote que AINDA NÃO ESTÁ INSTALADO sem que ele passe a
+ * mandar no que já está: quem manda na tela continua sendo o catálogo do escritório — inclusive o
+ * pacote de tradução que sobrepõe os textos de uma extensão —, e o pacote só responde pelo que
+ * ninguém mais tem para dizer. Ver `packageMessageCatalog`.
+ */
+export const catalogWithFallback = (
+  base: MessageCatalog,
+  fallback: MessageCatalog,
+): MessageCatalog => ({
+  locale: base.locale,
+  messages: { ...fallback.messages, ...base.messages },
+});
+
 export const hasMessage = (catalog: MessageCatalog, key: string): boolean =>
   catalog.messages[key] !== undefined;
 

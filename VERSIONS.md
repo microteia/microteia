@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [7.59.4] — 2026-08-20
+
+- Corrigido: na tela de Extensões, as extensões ainda não instaladas apareciam com o código interno no lugar do nome, do resumo e da descrição — os textos delas só passavam a existir depois de instaladas, justamente quando já não era preciso escolher. Agora cada extensão é apresentada nas próprias palavras desde a lista, e um pacote de tradução instalado continua tendo a última palavra sobre elas.
+
 #### [7.59.3] — 2026-08-20
 
 - Corrigido: em Configurações, "Restaurar padrão" no idioma e na aparência devolvia o campo ao padrão sem mudar a tela — os textos continuavam no idioma anterior e as cores no tema anterior, e só um novo clique numa outra opção fazia efeito. Agora restaurar o padrão vale na hora, como qualquer outra troca.

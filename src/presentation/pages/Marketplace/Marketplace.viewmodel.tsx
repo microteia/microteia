@@ -18,7 +18,10 @@ import { SYSTEM_THEME_PACKAGES } from '../../../plugins/themes/systemThemes';
 import type { MarketplacePlugin } from '../../../domain/entities/MarketplacePlugin';
 import type { InstalledExtension } from '../../../domain/entities/InstalledExtension';
 
-import { useT, useLabel } from '../../shared/i18n/useT';
+import { useT } from '../../shared/i18n/useT';
+import { usePackageCatalog } from '../../shared/i18n/usePackageCatalog';
+import { resolveLabel } from '../../../domain/schema/i18n/messageRef';
+import type { MessageCatalog, MessageParams } from '../../../domain/schema/i18n/messages';
 
 export interface Author {
   name: string | null;
@@ -125,6 +128,11 @@ const SYSTEM_BY_ID = new Map<string, MarketplacePlugin>(
 
 export interface MarketplaceViewModel {
   canManage: boolean;
+  /**
+   * O catálogo desta tela: o do escritório com os textos dos pacotes LISTADOS por baixo. Vai para a
+   * subárvore que resolve rótulo por conta própria — a descrição rica do modal de detalhes.
+   */
+  catalog: MessageCatalog;
   canModerate: boolean;
   rows: ExtensionRow[];
   filter: MarketplaceFilter;
@@ -163,7 +171,6 @@ const rankOf = (row: ExtensionRow): number => (row.installed ? 0 : row.mine ? 1 
 
 export const useMarketplaceViewModel = (): MarketplaceViewModel => {
   const t = useT('core.marketplace');
-  const label = useLabel();
   const { extensions, importExtension, removeExtension } = useTenantExtensions();
   const {
     installed,
@@ -188,6 +195,31 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
   const [detailsId, setDetailsId] = useState<string | null>(null);
 
   const trustedIds = useExtensionCodeTrust(installed);
+
+  /**
+   * Todo pacote que esta tela pode mostrar, instalado ou não. É a lista de onde sai o catálogo de
+   * fallback: sem ela, uma extensão do catálogo público — que ninguém instalou ainda — aparecia com
+   * `com.microteia.news/package.name` no lugar do nome, porque o texto dela só entra no catálogo
+   * global depois de instalada e ativa.
+   */
+  const marketplacePackages = useMemo(() => [
+    ...SYSTEM_BY_ID.values(),
+    ...BUILTIN_BY_ID.values(),
+    ...extensions.map((extension) => extension.package),
+    ...installed.map((extension) => extension.package),
+    ...publicExtensions.map((extension) => extension.package),
+  ], [extensions, installed, publicExtensions]);
+
+  const catalog = usePackageCatalog(marketplacePackages);
+
+  /**
+   * O rótulo declarativo desta tela. É o `useLabel` de sempre, só que sobre o catálogo acima — o que
+   * o escritório traduziu continua vencendo, e o pacote responde pelo que ninguém mais tem.
+   */
+  const label = useCallback(
+    (value: string | null | undefined, params?: MessageParams) => resolveLabel(catalog, value, params),
+    [catalog],
+  );
 
   /**
    * Os diagnósticos do host, agrupados por extensão. O Kernel já os produzia a cada carga e ninguém
@@ -556,8 +588,8 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
 
   const requestRemove = useCallback((id: string) => {
     const ext = extensions.find((e) => e.id === id);
-    setRemoveTarget({ id, name: ext?.package.manifest.name ?? id });
-  }, [extensions]);
+    setRemoveTarget({ id, name: ext ? label(ext.package.manifest.name) : id });
+  }, [extensions, label]);
 
   const cancelRemove = useCallback(() => setRemoveTarget(null), []);
 
@@ -566,10 +598,10 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
     if (!extension) return;
     setReviewTarget({
       id,
-      name: extension.package.manifest.name,
+      name: label(extension.package.manifest.name),
       code: extensionCodeOf(extension.package) ?? '',
     });
-  }, [installed]);
+  }, [installed, label]);
 
   const cancelReview = useCallback(() => setReviewTarget(null), []);
 
@@ -614,6 +646,7 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
   return {
     canManage,
     canModerate,
+    catalog,
     rows: visibleRows,
     filter,
     setFilter,

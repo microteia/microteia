@@ -29,6 +29,7 @@ import type { Author, ExtensionRow, MarketplaceFilter, StatusBadge } from './Mar
 import { S } from './Marketplace.styles';
 
 import { useT } from '../../shared/i18n/useT';
+import { PackageLocaleProvider } from '../../shared/i18n/PackageLocaleProvider';
 
 type Tone = 'neutral' | 'success' | 'warning' | 'info' | 'danger' | 'primary';
 
@@ -301,8 +302,12 @@ export const MarketplaceView: React.FC = () => {
         <Modal title={vm.detailsRow.name} size="large" onClose={vm.closeDetails}>
           <S.DetailsIntro>{vm.detailsRow.description || vm.detailsRow.summary}</S.DetailsIntro>
           {/* A descrição rica do pacote (Widget DSL) — dado, renderizado pelos componentes do
-              Microteia. Extensão sem `overview` mostra só o resumo acima. */}
-          <WidgetRenderer spec={vm.detailsRow.overview} />
+              Microteia. Extensão sem `overview` mostra só o resumo acima. O catálogo desta tela desce
+              pelo contexto porque o renderizador resolve os rótulos dele mesmo, e o pacote pode não
+              estar instalado: sem isso a descrição vinha como chave crua. */}
+          <PackageLocaleProvider catalog={vm.catalog}>
+            <WidgetRenderer spec={vm.detailsRow.overview} />
+          </PackageLocaleProvider>
           <S.DetailsMeta>
             <span>v{vm.detailsRow.version}</span>
             <S.MetaSep>·</S.MetaSep>

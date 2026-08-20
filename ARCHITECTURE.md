@@ -5306,6 +5306,39 @@ O de dentro sombreia o de fora pelo mesmo `LocaleContext` — exatamente o que o
 `TenantKernelProvider`. Como o provedor lê `useContributions` do host **mais próximo**, isso funciona
 sem nenhuma plumbing adicional.
 
+### O pacote que AINDA NÃO está instalado — o catálogo do Marketplace
+
+Os dois provedores acima resolvem tudo o que **está** no escritório, e é essa a fronteira que a tela de
+Extensões atravessa: ela lista pacotes **antes** de qualquer contribuição deles chegar ao host — o
+catálogo público, o embutido, o privado de autoria, a cópia desativada. Nada disso contribui
+`i18n.messages`, então nome, resumo, descrição e a `overview` em Widget DSL apareciam ali como a chave
+crua (`com.microteia.news/package.name`), no meio de uma lista em que as instaladas apareciam
+traduzidas.
+
+O texto nunca faltou: ele viaja **dentro do pacote**, no `manifest.contributes`. Faltava quem o lesse.
+
+| Peça | Camada | O que faz |
+|---|---|---|
+| `packageMessageCatalog(contributions, locale)` | `domain/schema/i18n/extensionPoints.ts` (sincronizado) | o catálogo de um pacote lido direto do manifest, filtrando `point === 'i18n.messages'` — sem host, sem registro |
+| `catalogWithFallback(base, fallback)` | `domain/schema/i18n/messages.ts` (sincronizado) | um catálogo com `fallback` **debaixo** de `base` |
+| `usePackageCatalog(packages)` | `presentation/shared/i18n/` | o catálogo em vigor com os pacotes listados por baixo dele |
+| `PackageLocaleProvider` | `presentation/shared/i18n/` | troca o catálogo numa **subárvore**, preservando o resto do contexto |
+
+**A precedência é o ponto da correção, e é o inverso do que parece intuitivo.** Quem vence é o catálogo
+do **escritório**; o pacote só responde pelo que ninguém mais tem a dizer. Se fosse o contrário, um
+pacote de tradução instalado — que existe justamente para sobrepor os textos de uma extensão — perderia
+para o que a extensão embarcou, e a tela de Extensões passaria a ser o único lugar do sistema onde a
+tradução instalada não valeria.
+
+O `Marketplace.viewmodel` monta a lista de pacotes visíveis (sistema, embutidos, privados, instalados,
+públicos), obtém o catálogo e resolve os rótulos com `resolveLabel` sobre ele em vez de `useLabel`. A
+`overview` é o caso que a View precisa resolver: ela é **dado**, renderizado pelo `WidgetRenderer`, que
+chama `useLabel` no próprio ponto de render — daí o `PackageLocaleProvider` em volta dele ser a única
+forma de o catálogo chegar lá.
+
+Nada disso é privilégio do Marketplace: as duas peças de domínio e as duas de apresentação são gerais,
+e valem para qualquer tela que mostre um pacote que o escritório ainda não instalou.
+
 ### O idioma ambiente — `localeGate.ts` (sincronizado)
 
 `src/utils/formatters.ts` é **API pública congelada**: viaja até as extensões como `@microteia/format`.

@@ -5,8 +5,9 @@ import {
   messageBundleContribution,
   messageBundleOf,
   messageBundlesOf,
+  packageMessageCatalog,
 } from './extensionPoints';
-import { buildMessageCatalog, translate } from './messages';
+import { buildMessageCatalog, catalogWithFallback, translate } from './messages';
 import { createPluginHost } from '../../../kernel';
 import type { PluginRecord } from '../../../kernel';
 import { hasErrors } from '../plugin/diagnostics';
@@ -130,5 +131,57 @@ describe('um pacote SÓ de traduções', () => {
       'pt-BR',
     );
     expect(translate(catalog, 'core.ui/nav.settings')).toBe('Preferências');
+  });
+});
+
+/**
+ * O pacote listado ANTES de existir no escritório. É o defeito que se via na tela de Extensões: o
+ * catálogo global só conhece quem está instalado e ativo, então o nome de uma extensão do catálogo
+ * público aparecia como a chave crua.
+ */
+describe('o catálogo que o próprio pacote traz', () => {
+  const packageContributions = [
+    messageBundleContribution({
+      locale: 'en',
+      namespace: 'com.acme.news',
+      messages: { 'package.name': 'News', 'package.summary': 'Internal announcements' },
+    }),
+    messageBundleContribution({
+      locale: 'pt-BR',
+      namespace: 'com.acme.news',
+      messages: { 'package.name': 'Notícias' },
+    }),
+    {
+      point: 'ui.page',
+      id: 'news',
+      apiVersion: '1.0.0',
+      metadata: { title: '@com.acme.news/package.name' },
+    },
+  ];
+
+  it('lê os textos do manifest, sem passar pelo host', () => {
+    const catalog = packageMessageCatalog(packageContributions, 'pt-BR');
+    expect(translate(catalog, 'com.acme.news/package.name')).toBe('Notícias');
+    // O idioma-fonte continua embaixo: o resumo só existe em `en` e é ele que aparece.
+    expect(translate(catalog, 'com.acme.news/package.summary')).toBe('Internal announcements');
+  });
+
+  it('ignora contribuição que não é de mensagem', () => {
+    const catalog = packageMessageCatalog(packageContributions, 'en');
+    expect(Object.keys(catalog.messages)).toEqual([
+      'com.acme.news/package.name',
+      'com.acme.news/package.summary',
+    ]);
+  });
+
+  it('não sobrepõe o catálogo do escritório — é fallback dele', () => {
+    const installed = buildMessageCatalog(
+      [{ locale: 'pt-BR', namespace: 'com.acme.news', messages: { 'package.name': 'Comunicados' } }],
+      'pt-BR',
+    );
+    const merged = catalogWithFallback(installed, packageMessageCatalog(packageContributions, 'pt-BR'));
+
+    expect(translate(merged, 'com.acme.news/package.name')).toBe('Comunicados');
+    expect(translate(merged, 'com.acme.news/package.summary')).toBe('Internal announcements');
   });
 });

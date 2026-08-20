@@ -1,7 +1,8 @@
 import type { Contribution } from '../plugin/contribution';
 import type { ExtensionPointDefinition } from '../plugin/extensionPoint';
-import type { MessageBundle } from './messages';
-import { asMessageBundle } from './messages';
+import type { MessageBundle, MessageCatalog } from './messages';
+import { asMessageBundle, buildMessageCatalog } from './messages';
+import type { LocaleCode } from './localeNegotiation';
 import { normalizeLocale } from './localeNegotiation';
 
 export const I18N_MESSAGES_POINT = 'i18n.messages';
@@ -65,4 +66,23 @@ export const messageBundlesOf = (contributions: Contribution[]): MessageBundle[]
     if (bundle) bundles.push(bundle);
   }
   return bundles;
+};
+
+/**
+ * O catálogo que um PACOTE traz consigo — lido direto das contribuições `i18n.messages` do manifest,
+ * sem passar pelo registro do host.
+ *
+ * Existe por causa do pacote que AINDA NÃO ESTÁ INSTALADO. O Marketplace lista extensões antes de
+ * qualquer contribuição delas chegar ao host, então nome, resumo e descrição apareciam ali como a
+ * chave crua (`com.microteia.news/package.name`): o texto existe, viaja dentro do próprio pacote, e
+ * só ninguém o estava lendo.
+ *
+ * Ele NÃO substitui o catálogo do escritório — é `fallback` dele. Ver `catalogWithFallback`.
+ */
+export const packageMessageCatalog = (
+  contributions: Contribution[] | undefined,
+  locale: LocaleCode,
+): MessageCatalog => {
+  const own = (contributions ?? []).filter((contribution) => contribution?.point === I18N_MESSAGES_POINT);
+  return buildMessageCatalog(messageBundlesOf(own), locale);
 };
